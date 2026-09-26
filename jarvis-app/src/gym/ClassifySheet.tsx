@@ -228,10 +228,15 @@ export default function ClassifySheet({
             </div>
             <div className="row xs-row">
               <div className="row-grow">
-                <div className="facts">
-                  <span className="fact">{c.primary.length ? `Primary ${c.primary.map((m) => MUSCLE_LABEL[m]).join(", ")}` : "No primary yet"}</span>
-                  {c.secondary.length > 0 && <span className="fact cyan">{`Secondary ${c.secondary.map((m) => MUSCLE_LABEL[m]).join(", ")}`}</span>}
-                </div>
+                {/* NOTHING SET SAYS NOTHING (§AK). "No primary yet" was a
+                    placeholder line: the chips above already show that none
+                    is picked, so the line appears once there is a muscle. */}
+                {(c.primary.length > 0 || c.secondary.length > 0) && (
+                  <div className="facts">
+                    {c.primary.length > 0 && <span className="fact">{`Primary ${c.primary.map((m) => MUSCLE_LABEL[m]).join(", ")}`}</span>}
+                    {c.secondary.length > 0 && <span className="fact cyan">{`Secondary ${c.secondary.map((m) => MUSCLE_LABEL[m]).join(", ")}`}</span>}
+                  </div>
+                )}
                 {/* The counting convention is methodology, which rule 3 of the
                   2026-09-16 polish puts behind a labelled disclosure: you need
                   it once, and then it is a grey sentence in the middle of a
@@ -272,12 +277,12 @@ export default function ClassifySheet({
                     <span className="fact">Every session, past and future</span>
                   ) : scope === "future" ? (
                     <>
-                      <span className="fact">{`From ${monthDay(todayIso)} on`}</span>
+                      <span className="fact date">{`From ${monthDay(todayIso)} on`}</span>
                       <span className="fact">Earlier ones keep what they had</span>
                     </>
                   ) : (
                     <>
-                      <span className="fact">{`Up to ${monthDay(todayIso)}`}</span>
+                      <span className="fact date">{`Up to ${monthDay(todayIso)}`}</span>
                       <span className="fact">Later ones will not carry these</span>
                     </>
                   )}
@@ -399,10 +404,13 @@ export default function ClassifySheet({
               no label and no ground, so "Hamstrings · Also Glutes" read as a
               stray sentence somebody forgot to delete rather than as the
               receipt for what Save is about to write. .list-floor is what this
-              app uses for a line that reports rather than asks. */}
-          <div className="list-floor">
-            {valueLine(c, "muscles") ?? "No muscles yet"}
-          </div>
+              app uses for a line that reports rather than asks. With no
+              muscles set there is nothing to report, so there is no line
+              (§AK: a placeholder is not a fact). */}
+          {(() => {
+            const line = valueLine(c, "muscles");
+            return line ? <div className="list-floor">{line}</div> : null;
+          })()}
           <div className="xs-foot" />
         </div>
       </div>

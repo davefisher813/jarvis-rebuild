@@ -33,12 +33,14 @@ export default function AISheet({ action, original, result, error, stale, onAppl
           </div>
           <div className="field">
             <div className="input-label">JARVIS Suggests</div>
-            {result === null && !error && <div className="exp-note" role="status">Working on it</div>}
-            {error && <div className="exp-note" role="alert">{error}</div>}
+            {/* A note under this field is the one field-note primitive (§AM
+                F6); a failed call is the field's error line. */}
+            {result === null && !error && <div className="input-hint" role="status">Working on it</div>}
+            {error && <div className="input-error" role="alert">{error}</div>}
             {result !== null && <pre className="exp-preview ai-result">{result}</pre>}
           </div>
           {stale && result !== null && (
-            <div className="exp-note" role="status">You kept writing while JARVIS worked, so your newer words stay</div>
+            <div className="input-hint" role="status">You kept writing while JARVIS worked, so your newer words stay</div>
           )}
           <div className="exp-acts">
             {result !== null && !stale && <button type="button" className="btn btn-primary" onClick={onApply}>Apply</button>}

@@ -14,7 +14,7 @@ export const MOOD_WORDS: { value: CheckInMood; label: string }[] = [
   { value: "good", label: "Good" },
 ];
 
-/** "Energy High · Mood Good", the note alone when that is all there is, or
+/** "Energy High, Mood Good", the note alone when that is all there is, or
  *  null for an empty check in. */
 export function checkInLine(d: { energy?: CheckInEnergy; mood?: CheckInMood; note?: string }): string | null {
   const parts: string[] = [];
@@ -23,5 +23,5 @@ export function checkInLine(d: { energy?: CheckInEnergy; mood?: CheckInMood; not
   if (e) parts.push(`Energy ${e.label}`);
   if (m) parts.push(`Mood ${m.label}`);
   if (parts.length === 0) return d.note ?? null;
-  return parts.join(" · ");
+  return parts.join(", ");
 }

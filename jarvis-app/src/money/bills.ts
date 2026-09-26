@@ -9,7 +9,8 @@ import { formatMoney } from "./types";
 //   "Set to autopay" ahead of time and "Autopay scheduled <date>" after.
 // - Manual payments get a dated receipt ("Paid Jul 28") derived from the
 //   completion tap, killing the did-I-already-pay loop honestly.
-// - Overdue is words, never red: "Was due 2 days ago" is information.
+// - Overdue is stated flat: "Was due 2 days ago" is information. On the row
+//   the late chip carries the Colour Key's red (§AM); these words never do.
 // - Proximity beats dates: "Due in 3 days" lands where "8/6" does not.
 
 export type PaydayFreq = "weekly" | "biweekly" | "monthly";
@@ -88,8 +89,11 @@ function recentlyHandled(t: TaskItem, today: string): boolean {
   return t.data.done || (!!t.data.due && t.data.due > today);
 }
 
-/** The one sub-line under a bill's name. */
-export function billSubline(t: TaskItem, today: string): { text: string; state: BillState } {
+/** The one sub-line under a bill's name. `when` is the day an autopay bill
+    goes out, kept apart from the words so the row can set it as a date
+    (§AM F3, F5) instead of gluing it on with a dot. Empty text means there
+    is nothing to say, and the row says nothing (§AK). */
+export function billSubline(t: TaskItem, today: string): { text: string; state: BillState; when?: string } {
   const due = t.data.due;
   if (t.data.bill?.autopay) {
     // HMN-F-11: a once bill on autopay is marked handled by rollAutopayBills
@@ -100,12 +104,12 @@ export function billSubline(t: TaskItem, today: string): { text: string; state: 
       return { text: `Autopay scheduled ${monthDay(t.data.lastDone)}`, state: "paid" };
     if (recentlyHandled(t, today) && t.data.lastDone && daysBetween(t.data.lastDone, today) <= 5)
       return { text: `Autopay scheduled ${monthDay(t.data.lastDone)}`, state: "paid" };
-    if (due) return { text: `Set to autopay · ${dayPhrase(due, today)}`, state: "autopay" };
+    if (due) return { text: "Set to autopay", when: dayPhrase(due, today), state: "autopay" };
     return { text: "Set to autopay", state: "autopay" };
   }
   if (recentlyHandled(t, today) && t.data.lastDone)
     return { text: `Paid ${monthDay(t.data.lastDone)}`, state: "paid" };
-  if (!due) return { text: "No due date", state: "due" };
+  if (!due) return { text: "", state: "due" };
   const overdueBy = daysBetween(due, today);
   if (overdueBy > 0)
     return { text: overdueBy === 1 ? "Was due yesterday" : `Was due ${overdueBy} days ago`, state: "overdue" };
@@ -177,6 +181,6 @@ export function paydayLine(
   const when = dayPhrase(payday, today);
   return {
     title: `Between now and ${when === "today" ? "payday (today)" : when}`,
-    sub: `${formatMoney(p.amount)} in · ${formatMoney(out)} of bills out`,
+    sub: `${formatMoney(p.amount)} in, ${formatMoney(out)} of bills out`,
   };
 }

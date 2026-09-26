@@ -4,6 +4,7 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import MailNotices from "./MailNotices";
 import { saveMailSnapshot, type MailSnapshot } from "../messages/home";
+import { countNudge } from "../messages/escalate";
 import { enqueueTodaySend, getTodayOutbox, resetTodayOutboxForTest } from "../messages/todayOutbox";
 import { subscribeToast, hideToast, type ToastState } from "../shared/toast";
 
@@ -186,5 +187,48 @@ describe("MailNotices: a chip holds the send", () => {
     expect(getTodayOutbox()).toHaveLength(0);
     expect(toast!.message).toBe("Couldn't send · Nothing was lost");
     unsub();
+  });
+});
+
+// §AM R6, R8 (2026-09-26): the notices whose line carries a meaning draw it
+// with the key, the way the Today bill card above them draws its bill. A
+// bill due tomorrow reads amber on both cards, never amber on one and grey
+// on the other, and a wait's age wears the ladder rather than Quiet's red.
+describe("MailNotices: the line wears the key", () => {
+  beforeEach(() => localStorage.clear());
+
+  it("draws a bill's amount white and its due day amber, the dot the stylesheet's", () => {
+    saveMailSnapshot(snap({
+      needsYou: 1,
+      threads: [{ ...thread("t1", "Northlake Power", "your bill"), act: { kind: "bill", title: "Power", date: "2026-08-21", amount: 12 } }],
+    }));
+    const { container } = render(<MailNotices today={TODAY} nowHHMM="09:00" onAddTask={async () => true} />);
+    const facts = container.querySelector(".stream-card .facts");
+    expect(facts).not.toBeNull();
+    expect(facts!.querySelector(".fact b")!.textContent).toBe("$12.00");
+    expect(facts!.querySelector(".fact.warn")!.textContent).toBe("Tomorrow");
+    expect(facts!.textContent).not.toContain("·");
+  });
+
+  it("draws a wait's age on the ladder and the subject after it", () => {
+    saveMailSnapshot(snap({ waiting: [{ threadId: "w1", to: "Rob", subject: "The deck", days: 9 }] }));
+    const { container } = render(<MailNotices today={TODAY} nowHHMM="09:00" onAddTask={async () => true} />);
+    const facts = [...container.querySelectorAll(".stream-card .facts > .fact")];
+    expect(facts.map((f) => f.textContent)).toEqual(["9 Days", "The deck"]);
+    expect(facts[0]!.classList.contains("warn")).toBe(true);
+    expect(container.querySelector(".qd-hot")).toBeNull();
+  });
+
+  // The ladder climbs on nudges as well as on the clock, and the rail reads
+  // them, so the card reads the same counts: a three-day wait he has chased
+  // twice is red here as it is red on the rail.
+  it("puts a wait he has already nudged on the rung the rail gives it", () => {
+    countNudge("w1");
+    countNudge("w1");
+    saveMailSnapshot(snap({ waiting: [{ threadId: "w1", to: "Rob", subject: "The deck", days: 3 }] }));
+    const { container } = render(<MailNotices today={TODAY} nowHHMM="09:00" onAddTask={async () => true} />);
+    const age = container.querySelector(".stream-card .facts > .fact")!;
+    expect(age.textContent).toBe("3 Days");
+    expect(age.classList.contains("red")).toBe(true);
   });
 });

@@ -27,7 +27,9 @@ export default function AgeRuleScreen({ facts, onProtectAGap, onBack }: {
               <div className="conn-name">{f.label}</div>
               <div className="bp-sub">Source: {f.source}</div>
             </div>
-            <div className="row-value">{f.value}</div>
+            {/* The athlete's own number has no state, so it is white (§AM):
+                the source under the name is the row's one grey (§AK). */}
+            <div className="row-value"><span className="fact"><b>{f.value}</b></span></div>
           </div>
         ))}
       </div></div>

@@ -226,7 +226,10 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, startId, 
     return () => { on = false; };
   }, [sheet, notesSvc]);
   // Momentum Chain: the suggestion occupying a just-finished task's slot.
-  const [momentum, setMomentum] = useState<{ afterId: string; task: TaskItem } | null>(null);
+  // `afterCategory` is the FINISHED task's area, kept with the pick because
+  // it is what "Same category" is measured against: nextBest falls through
+  // to other areas, and the suggestion's own area proves nothing.
+  const [momentum, setMomentum] = useState<{ afterId: string; afterCategory: string; task: TaskItem } | null>(null);
   const [loading, setLoading] = useState(true);
   // First Step offer state: the AI-drafted step, keyed to the sliding task.
   const [fsStep, setFsStep] = useState<{ taskId: string; step: string } | null>(null);
@@ -361,7 +364,7 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, startId, 
       if (!chainQuietToday(today)) {
         const items = await svc.listTasks();
         const next = nextBest(items, id, before.category ?? "");
-        setMomentum(next ? { afterId: id, task: next } : null);
+        setMomentum(next ? { afterId: id, afterCategory: before.category ?? "", task: next } : null);
       }
     }
     // The progress toast is UNIVERSAL, not a Today-page trick. A tick means
@@ -1105,7 +1108,10 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, startId, 
             // the one pill every other row's trailing slot carries.
             <MomentumRow
               task={momentum.task}
-              reason={chainReason(momentum.task, momentum.task.data.category ?? "", today)}
+              reason={chainReason(momentum.task, momentum.afterCategory)}
+              // The due chip is measured against the same day the rest of
+              // this flow uses, not a second clock read.
+              today={today}
               onOpen={(id) => void openEdit(id)}
               onToggle={(id) => { setMomentum(null); void onToggle(id); }}
               onStart={(id) => { setMomentum(null); void onStartTask(id); }}

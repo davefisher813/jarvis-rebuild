@@ -143,14 +143,42 @@ decision for the lead session, added once in `components.css` with a law.
   joined by a dot.
 - Today's stat tiles follow the key: late red from the first late task, due
   amber, done green (shown to Dave as a heads-up).
+- A facts line never clips a word. In `.facts` only the LAST fact shrinks and
+  ellipsizes, so order it: short toned facts first (a date, an age, a count),
+  the long free-text fact last (a subject, a name, a place). A line whose job
+  is to show every fact (a review or import screen, a capture receipt, a
+  settings row) keeps its `.fact` spans inside a wrapping `.conn-meta`
+  (wraps, unclamped; the CSS still draws the dots), as gym/UploadFlow does.
+  Check at 390px and at type scale 1.4.
+- The key's red on a sheet grey is `--sys-red-on-sheet` (dark #FF6961); the
+  amber twin is `--warn-on-sheet`. A red or amber fact never sits on a grey
+  card nested inside a sheet: put it on the sheet ground under the group.
+- Wait ages follow ONE ladder everywhere (the rail's decide/toneFor, nudges
+  included): firm red, direct amber, gentle small caps.
 
-## Held for Dave: do not change these, report them as needs_dave if you meet them
+## Decided by Dave (2026-09-26): never reopen these
 
-The red Now rule and LIVE word; the Classify sheet's question colours; the
-Health area card's green panel; the Account avatar's red disc; the yellow
-Remember star; Brain's two red heads; the conditioning clock's 15px caps; the
-disclosure `<summary>` colour; the user chat bubble's red; the receipt-line
-("13 More Waiting") quiet grey. Questions are in `dave-queue.json`.
+Named exceptions to the key (keep them exactly as they are):
+- The Now line (Today and Schedule): NOW, LIVE and the hairline stay red.
+- The "More" overflow lines under a list ("1 More in Anytime") stay quiet grey.
+- The Remember star and the Email VIP star stay filled yellow.
+- Your own chat bubble stays brand red.
+- Your avatar keeps its brand-red disc, and it is a tap: it opens a way to
+  change the picture (a photo or an icon).
+- The Classify sheet and the Exercises list keep their question colours
+  (lime muscles, violet equipment, cyan description).
+- The conditioning clock's round line stays 15px caps (read across a room).
+- The amber bold "No undo" warning under a destructive action stays.
+
+Changes he chose:
+- Today's tiles: late red from the first late task, due amber, done green.
+- Brain's "Shaping JARVIS Now" and "Needs You" heads are quiet like the rest.
+- The Health area card is plain like the other area cards.
+- Goal and project cards get a dark fade under the footer text.
+- In light mode an estimate uses a darker sky (#006592), not Apple's cyan.
+- Fold labels ("More Actions", `.exp-more summary`) are tap red.
+- A day count that runs forward ("3 days left") is amber; slipped is red.
+- "25 min last time" on the Event sheet is a one-tap fill for Travel.
 
 ## Hard limits for any agent that edits
 

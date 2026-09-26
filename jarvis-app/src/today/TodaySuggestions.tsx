@@ -136,7 +136,7 @@ export default function TodaySuggestions({ ai, always = false }: { ai: AIService
       } catch { /* silence beats a guess, and definitely beats a crash */ }
       const candidates: (PatternObservation & { routineBlock?: ProtectedBlock; moment?: Derived; sub?: string; stale?: Strand })[] = [
         ...(patternObservation(prof?.checkin, today) ? [patternObservation(prof?.checkin, today)!] : []),
-        ...(routineC ? [{ id: routineC.id, text: routineC.text, routineBlock: routineC.block }] : []),
+        ...(routineC ? [{ id: routineC.id, text: routineC.text, sub: routineC.sub, routineBlock: routineC.block }] : []),
         ...(planningPatternObservation(readDurationCorrections(), Date.now()) ? [planningPatternObservation(readDurationCorrections(), Date.now())!] : []),
         ...moments.map((m) => ({ id: "brain-" + m.derivation, text: m.title, sub: m.sub, moment: m })),
         // Last in the order, behind every proposal: being asked to re-confirm
@@ -424,13 +424,15 @@ export default function TodaySuggestions({ ai, always = false }: { ai: AIService
   // least urgent thing on the page, and as a full card it sat at the bottom
   // of Dave's screenshot dressed in last week's clothes. It is one quiet
   // line now; tapping it opens the full card (Notice law anatomy, dismiss on
-  // the swipe) only when he wants the conversation.
+  // the swipe) only when he wants the conversation. "Noticed:" leads it as a
+  // phrase, never a typed middle dot (§AM F3, 2026-09-26), the way Today's
+  // other receipts dropped theirs.
   let primary: ReactNode = null;
   if (pattern) {
     primary = !open ? (
       <div className="pad-x">
         <button className="receipt-line" onClick={() => setOpen(true)}>
-          <span className="rl-t">Noticed · {pattern.text}</span>
+          <span className="rl-t">Noticed: {pattern.text}</span>
           <span className="chev" />
         </button>
       </div>
@@ -457,7 +459,7 @@ export default function TodaySuggestions({ ai, always = false }: { ai: AIService
     primary = !open ? (
       <div className="pad-x">
         <button className="receipt-line" onClick={() => setOpen(true)}>
-          <span className="rl-t">Noticed · {aiPick.s.text}</span>
+          <span className="rl-t">Noticed: {aiPick.s.text}</span>
           <span className="chev" />
         </button>
       </div>
@@ -481,7 +483,7 @@ export default function TodaySuggestions({ ai, always = false }: { ai: AIService
     primary = !open ? (
       <div className="pad-x">
         <button className="receipt-line" onClick={() => setOpen(true)}>
-          <span className="rl-t">Noticed · Couldn't check today's suggestions</span>
+          <span className="rl-t">Couldn't check today's suggestions</span>
           <span className="chev" />
         </button>
       </div>

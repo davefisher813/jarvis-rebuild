@@ -124,7 +124,9 @@ describe("BookingPage", () => {
   it("lists the days he has marked off, in words rather than digits", async () => {
     render(<BookingPage onBack={() => {}} {...noDays} readDaysOffImpl={async () => ["2026-12-25"]} />);
     expect(await screen.findByText(/December 25/)).toBeInTheDocument();
-    expect(screen.getByText("Off for the whole day")).toBeInTheDocument();
+    // AMENDED 2026-09-26 (§AK): every day off is a whole day, so the grey
+    // line that said so under each row said nothing, and it is gone.
+    expect(screen.queryByText("Off for the whole day")).toBeNull();
   });
 
   it("says so plainly when he has none, rather than showing an empty card", async () => {

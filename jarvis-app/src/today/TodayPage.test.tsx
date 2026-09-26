@@ -142,6 +142,48 @@ describe("TodayPage", () => {
     expect(container.querySelector(".hl .uchip")).toBeNull();
     expect(container.querySelector(".hl .fact.cat .cd.cat-bg-teal")).toBeTruthy();
     expect(container.querySelector(".hl .facts")).toHaveTextContent("20 min");
+    // §AM (2026-09-26): the length is an estimate the app worked out, so it
+    // wears the key's sky (.fact.est), the ink the task rows' estimate wears.
+    expect(container.querySelector(".hl .fact.est")).toHaveTextContent("20 min");
+  });
+
+  // §AM (2026-09-26): a block that is up needs him now, which is the key's
+  // amber, the same fact Focus draws amber. While it runs, the clock is plain.
+  it("the running block's line turns amber once it is up, and only then", () => {
+    const running = { taskId: "due", text: "due", line: "14:32 Left", over: false };
+    const { container, rerender } = render(
+      <TodayPage {...base} upNext={[tk("due", "2026-05-20")]} onUpNext={() => {}} fifteen={running}
+        onFifteenDone={() => {}} onFifteenStop={() => {}} onFifteenAgain={() => {}} />,
+    );
+    expect(container.querySelector(".hl .fact.warn")).toBeNull();
+    rerender(
+      <TodayPage {...base} upNext={[tk("due", "2026-05-20")]} onUpNext={() => {}} fifteen={{ ...running, over: true, line: "15 Minutes up" }}
+        onFifteenDone={() => {}} onFifteenStop={() => {}} onFifteenAgain={() => {}} />,
+    );
+    expect(container.querySelector(".hl .fact.warn")).toHaveTextContent("15 Minutes up");
+  });
+
+  // §AM (2026-09-26): one bill is two facts with the dot drawn by the
+  // stylesheet: the amount white, the day in its window's tone.
+  it("a bill due tomorrow reads as a white amount and an amber day, with no typed dot", () => {
+    render(<TodayPage {...base} billLine={{ title: "Rent", amount: "$1850", due: { text: "Due tomorrow", tone: "warn" } }} />);
+    const card = screen.getByText("Rent").closest(".notice-card")!;
+    expect(card.querySelector(".fact b")).toHaveTextContent("$1850");
+    expect(card.querySelector(".fact.warn")).toHaveTextContent("Due tomorrow");
+    expect(card).not.toHaveTextContent("\u00b7");
+  });
+
+  // §AK and §AM (2026-09-26): the evening line is facts, what got done in
+  // green, and one grey at most.
+  it("the evening line draws its dots and spends one grey", () => {
+    const { container } = render(
+      <TodayPage {...base} evening={{ doneDue: 2, dueTotal: 3, eventsLeft: 2, openCount: 1, thingsDone: 6 }} movedLine="Moved Ship the App" />,
+    );
+    const facts = container.querySelector(".today-summary .facts")!;
+    expect(facts.querySelector(".fact.good")).toHaveTextContent("6 Done today");
+    expect(facts.querySelectorAll(".fact").length).toBe(2);
+    expect(facts).toHaveTextContent("Moved Ship the App");
+    expect(facts).not.toHaveTextContent("\u00b7");
   });
 
   it("shows three, folds the rest behind See All in the head, Less refolds", () => {
@@ -365,12 +407,16 @@ describe("TodayPage", () => {
     expect(screen.getByText("t1").closest(".sched-row")).not.toHaveAttribute("role", "button");
   });
 
-  it("an event with no area says No category instead of leaving a dot hanging (Dave 2026-09-04)", () => {
+  // SPEC MOVED (§AK, 2026-09-22): "No category" was a line announcing an
+  // absence. A row with nothing to say shows nothing: no second line, and
+  // no dot left hanging either (Dave 2026-09-04).
+  it("an event with no area shows no area line at all, neither a placeholder nor a hanging dot", () => {
     // An event added from an email invite lands with category "" (ScheduleService.createEvent's default).
     const orphan: EventItem = { id: "t2", data: { title: "Phone call", date: "2026-05-21", start: "10:00", category: "" } };
     render(<TodayPage {...base} tomorrowEvents={[orphan]} />);
-    const line = screen.getByText("Phone call").closest(".sched-row")!.querySelector(".sched-cat")!;
-    expect(line).toHaveTextContent("No category");
+    const row = screen.getByText("Phone call").closest(".sched-row")!;
+    expect(row.querySelector(".sched-cat")).toBeNull();
+    expect(row).not.toHaveTextContent("No category");
     // and a real area still reads as itself
     render(<TodayPage {...base} tomorrowEvents={[ev("t3", "09:00", "money")]} />);
     expect(screen.getByText("t3").closest(".sched-row")!.querySelector(".sched-cat")).toHaveTextContent("Money");

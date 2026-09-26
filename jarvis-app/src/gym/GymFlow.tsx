@@ -389,8 +389,8 @@ function DayRow({ day, onOpen, onPin, onMenu, doneWord, current = false }: { day
         <div className="conn-name truncate">{workoutTitle(day.name)}</div>
         {/* KILL THE GREY SUBTEXT (Dave 2026-09-10). "6 exercises" under every
             day in the same grey turned the one number that distinguishes them
-            into wallpaper. It is a chip, and an empty day says so in amber
-            rather than reading as a day with work in it. */}
+            into wallpaper. (An empty day's "Empty" went on 2026-09-26: see
+            below.) */}
       {/* ONE ROW ANATOMY (Dave 2026-09-16, on the Exercises page: "This looks
           good. But it's not consistent throughout. Uniform everything so it
           looks like a real app. Everything should follow rules").
@@ -406,11 +406,17 @@ function DayRow({ day, onOpen, onPin, onMenu, doneWord, current = false }: { day
           Capsules are not gone; they keep the job they are actually for, on
           the Exercises page (a classification you can tap) and on a card's
           face. What they stop doing is standing in for a row's values. */}
-      <div className="facts">
-        <span className="fact">{day.exercises.length === 0 ? "Empty" : capAfterNumber(`${day.exercises.length} ${day.exercises.length === 1 ? "lift" : "lifts"}`)}</span>
-        {current && <span className="fact st cyan">Live</span>}
-        {!current && doneWord && <span className="fact lime">{doneWord}</span>}
-      </div>
+      {/* AN EMPTY DAY SAYS NOTHING (§AK, 2026-09-26). It used to say
+          "Empty", a placeholder in the row's one grey; a day with no lifts
+          now shows its name alone, and the line appears with the first
+          lift or a state worth stating. */}
+      {(day.exercises.length > 0 || current || doneWord) && (
+        <div className="facts">
+          {day.exercises.length > 0 && <span className="fact">{capAfterNumber(`${day.exercises.length} ${day.exercises.length === 1 ? "lift" : "lifts"}`)}</span>}
+          {current && <span className="fact st cyan">Live</span>}
+          {!current && doneWord && <span className="fact lime">{doneWord}</span>}
+        </div>
+      )}
       </div>
       {/* PINS, D4: the weekday claim is a FACT on this row, not a verb.
           (2026-09-16, the polish handoff: "Move Pin Days into day options;
@@ -504,7 +510,10 @@ function ExerciseRow({ exercise, pairLabel, onOpen, onMenu }: {
             finds the number second, which is the order they matter in.
 
             Rest rides beside it as its own fact rather than a clause glued on
-            with a middot, and only when there is one. */}
+            with a middot, and only when there is one. It is a length with no
+            state that cannot be tapped, so it is a white <b> (§AM: caps change
+            nothing on digits): the athlete's quoted note below stays the row's
+            one grey, and a plain grey rest beside it would be a second (§AK). */}
         {/* THE COUNT LEADS, AND THE NOUN IS QUIET (2026-09-16, Dave asked for
             the sets to start the line, with a faded bold grey for the word).
             The line used to carry two multiplication signs doing two
@@ -516,7 +525,7 @@ function ExerciseRow({ exercise, pairLabel, onOpen, onMenu }: {
           <span className="fact cyan" aria-label={planChipText(exercise)}>
             {plan.count}<em className="fw">{plan.noun}</em>{plan.target}
           </span>
-          {exercise.restSec ? <span className="fact">{`${mmss(exercise.restSec)} rest`}</span> : null}
+          {exercise.restSec ? <span className="fact"><b>{`${mmss(exercise.restSec)} rest`}</b></span> : null}
         </div>
         {/* The athlete's own note echoes on the row, quoted (preview
             anatomy) -- reference, never coaching. */}
@@ -2112,10 +2121,14 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
         {/* Meta, not a kicker: inside .grp a bare eyebrow inherits the
             accent-chrome kicker red, and this line is information (RED IS A
             VERB). Quiet sentence-case meta like every other date line. */}
+        {/* §AM (2026-09-26): the minutes sit in a .facts line so they take
+            the facts' size and grey rather than the body's 17px white, and
+            "Logged Later" is provenance, not a warning, so it wears the
+            neutral date chip rather than Health's amber. */}
         <div className="pad-x"><div className="se-chips">
           <span className="se-chip se-chip-when">{monthDay(w.data.date)}</span>
-          {minutesFact(w.data)}
-          {w.data.backdated && <span className="se-chip se-chip-skip">Logged Later</span>}
+          <div className="facts">{minutesFact(w.data)}</div>
+          {w.data.backdated && <span className="se-chip se-chip-when">Logged Later</span>}
         </div></div>
         {/* THE DURATION, SHOWN AND CORRECTABLE (2026-09-14, item 9). The
             card says how the minutes were made; a correction is a revision
@@ -2848,7 +2861,7 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
       <PickSheet
         title="Which Day Is This"
         items={days.map((d) => ({ id: d.id, label: d.name, sub: `${d.exercises.length} ${d.exercises.length === 1 ? "exercise" : "exercises"}` }))}
-        emptyText="No days with exercises yet · Build one first"
+        emptyText="No days with exercises yet, build one first"
         onPick={(ids) => {
           const d = days.find((x) => x.id === ids[0]);
           setDoorPick(false);
@@ -3201,14 +3214,15 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
               onEdit={() => setSheet({ kind: "block", weekId: activeWeek.id, dayId: openDay.id, which: "coolDown" })}
             />
             {/* PINS, D4: where this day lives in the week. The row is the
-                editor's door; "None" is a legal, honest state (rotation
-                keeps its job). */}
+                editor's door; no pin is a legal, honest state, and the row
+                says what it means (rotation keeps its job) rather than
+                "None" (§AK, 2026-09-26). */}
             <div className="sh2 sh2-quiet"><span className="t">Schedule</span></div>
             <div className="pad-x"><div className="card list-card-ruled">
               <div className="row" role="button" tabIndex={0} onClick={() => setPicker({ kind: "pinDays", weekId: activeWeek.id, day: openDay })}>
                 <div className="row-grow">
                   <div className="conn-name">Pinned Days</div>
-                  <div className="conn-meta">{openDay.pinDays?.length ? pinLabel(openDay.pinDays) : "None · Rotation decides"}</div>
+                  <div className="conn-meta">{openDay.pinDays?.length ? pinLabel(openDay.pinDays) : "Rotation decides"}</div>
                 </div>
                 {CHEV}
               </div>
@@ -3320,10 +3334,12 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
             <div className="row" role="button" tabIndex={0} onClick={() => enterSession(readLive() ?? parkedLive)}>
               <div className="row-grow">
                 <div className="conn-name truncate">Resume {workoutTitle(parkedLive.dayName)}</div>
-                <div className="conn-meta">{(() => {
+                {/* A count once there is one; before the first set the row
+                    says nothing (§AK: a placeholder is not a fact). */}
+                {(() => {
                   const n = parkedLive.exercises.reduce((c, e) => c + e.sets.filter((x) => !x.skipped).length, 0);
-                  return n > 0 ? `${n} ${n === 1 ? "set" : "sets"} logged` : "Nothing logged yet";
-                })()}</div>
+                  return n > 0 ? <div className="conn-meta">{`${n} ${n === 1 ? "set" : "sets"} logged`}</div> : null;
+                })()}
               </div>
               {CHEV}
             </div>
@@ -3386,8 +3402,13 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
                   <div className="conn-name truncate">All Programs</div>
                   {(programs.length > 1 || program.data.inSeason) && (
                     <div className="facts">
-                      {programs.length > 1 && <span className="fact">{`${programs.length} Active`}</span>}
-                      {program.data.inSeason && <span className="fact">{nextGame ? `Next Game ${monthDay(nextGame.date)}` : "In-Season"}</span>}
+                      {/* §AM (2026-09-26): the count has no state, so it is
+                          a white <b>; the game's date is a neutral date, so
+                          small caps. "In-Season" keeps the one grey. */}
+                      {programs.length > 1 && <span className="fact"><b>{`${programs.length} Active`}</b></span>}
+                      {program.data.inSeason && (nextGame
+                        ? <span className="fact date">{`Next Game ${monthDay(nextGame.date)}`}</span>
+                        : <span className="fact">In-Season</span>)}
                     </div>
                   )}
                 </div>
@@ -3563,14 +3584,16 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
                             minutes, and how much of the plan was actually
                             logged. It was one grey sentence joined by middots
                             and the completeness fact was the last thing on it. */}
+                        {/* §AM (2026-09-26): the date is a neutral past date,
+                            so small caps rather than Health's "now" cyan; a
+                            partial count has no state, so it is a white <b>,
+                            and the minutes keep the row's one grey. */}
                         <div className="facts">
-                          <span className="fact cyan">{monthDay(w.data.date)}</span>
+                          <span className="fact date">{monthDay(w.data.date)}</span>
                           {minutesFact(w.data)}
-                          <span className={"fact" + (logged === total ? " lime" : "")}>
-                            {logged === total
-                              ? capAfterNumber(`${total} ${total === 1 ? "lift" : "lifts"}`)
-                              : `${logged} of ${total}`}
-                          </span>
+                          {logged === total
+                            ? <span className="fact lime">{capAfterNumber(`${total} ${total === 1 ? "lift" : "lifts"}`)}</span>
+                            : <span className="fact"><b>{`${logged} of ${total}`}</b></span>}
                         </div>
                       </div>
                       {CHEV}

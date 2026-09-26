@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
-  windowStart, completionsIn, measureState, paceLine, healthOf, idle, seenRate,
+  windowStart, completionsIn, measureState, paceLine, healthOf, idle, seenRate, goalStatusForAI,
   IDLE_DAYS, type MeasureContext, type Measure,
 } from "./measure";
 import type { GoalReach } from "./reach";
@@ -83,8 +83,12 @@ describe("measureState: projects", () => {
     const c = ctx({ projects: [proj("p1", { status: "done" }), proj("p2")] });
     expect(measureState({ kind: "projects" }, c)).toMatchObject({ done: 1, target: 2, met: false });
   });
-  it("says so rather than dividing by zero", () => {
-    expect(measureState({ kind: "projects" }, ctx())!.line).toBe("No projects under it yet");
+  // §AK (2026-09-26): no division by zero, and no placeholder line either.
+  it("says nothing rather than dividing by zero", () => {
+    expect(measureState({ kind: "projects" }, ctx())).toMatchObject({ done: 0, target: 0, pct: 0, met: false, line: "" });
+  });
+  it("and the Brain is told the status alone, not a status ending in a comma", () => {
+    expect(goalStatusForAI("on_track", measureState({ kind: "projects" }, ctx()))).toBe("on track");
   });
 });
 
@@ -112,20 +116,28 @@ describe("measureState: count", () => {
   });
 });
 
+// §AM (2026-09-26): the pace is the date or the rate alone, with the Colour
+// Key's tone for what it means; the count it led with restated the measure
+// line, and the two were one grey joined by a typed middle dot.
 describe("paceLine (pick 14)", () => {
   const m: Measure = { kind: "count", target: 12 };
   const state = { done: 4, target: 12, pct: 33, met: false, line: "" };
-  it("turns a date into a weekly rate", () => {
-    expect(paceLine(state, m, "2026-09-21", TODAY)).toBe("8 To go · About 2 a week");
-    expect(paceLine(state, m, "2026-09-14", TODAY)).toBe("8 To go · About 2.7 a week");
+  it("turns a date into a weekly rate, which is an estimate", () => {
+    expect(paceLine(state, m, "2026-09-21", TODAY)).toEqual({ when: "About 2 a week", tone: "est" });
+    expect(paceLine(state, m, "2026-09-14", TODAY)).toEqual({ when: "About 2.7 a week", tone: "est" });
   });
   it("counts days when the date is close, without capitalizing the unit", () => {
-    expect(paceLine(state, m, "2026-08-30", TODAY)).toBe("8 To go · Due in 6 days");
-    expect(paceLine(state, m, "2026-08-25", TODAY)).toBe("8 To go · Due tomorrow");
+    expect(paceLine(state, m, "2026-08-30", TODAY)).toEqual({ when: "Due in 6 days", tone: "date" });
+    expect(paceLine(state, m, "2026-08-25", TODAY)).toEqual({ when: "Due tomorrow", tone: "warn" });
   });
-  it("says today, and says past", () => {
-    expect(paceLine(state, m, TODAY, TODAY)).toBe("8 To go · Due today");
-    expect(paceLine(state, m, "2026-08-20", TODAY)).toBe("8 To go · Past its date");
+  it("says today in amber, and says past in red", () => {
+    expect(paceLine(state, m, TODAY, TODAY)).toEqual({ when: "Due today", tone: "warn" });
+    expect(paceLine(state, m, "2026-08-20", TODAY)).toEqual({ when: "Past its date", tone: "red" });
+  });
+  it("never types a separator into the words", () => {
+    for (const by of ["2026-09-21", "2026-08-30", "2026-08-25", TODAY, "2026-08-20"]) {
+      expect(paceLine(state, m, by, TODAY)!.when).not.toContain("\u00b7");
+    }
   });
   it("has nothing to pace when it is met, undated, or a rhythm", () => {
     expect(paceLine({ ...state, met: true }, m, "2026-09-21", TODAY)).toBeNull();

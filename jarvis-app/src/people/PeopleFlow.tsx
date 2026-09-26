@@ -19,7 +19,7 @@ import { useAI } from "../ai/useAI";
 import PersonSheet, { type PersonDraft } from "./screens/PersonSheet";
 import { usePushDepth } from "../shared/pushNav";
 import { parseContactsFile, parseContactsCSV, csvMapping, type CsvMapping } from "./importContacts";
-import { planImport, mergeReview, draftFrom, planLine, summaryLine, describe, type MatchPlan } from "./importMatch";
+import { planImport, mergeReview, draftFrom, planFacts, summaryLine, describe, type MatchPlan } from "./importMatch";
 import { fmtTime } from "../schedule/calendar";
 import { capAfterNumber } from "../shared/casing";
 import HeadMenu from "../shared/HeadMenu";
@@ -269,7 +269,10 @@ export default function PeopleFlow({ onBack, openId: initialOpenId, openNonce, o
   }, [currentEmail, google]);
   const nowMs = Date.now();
   const quiet = lastMs != null && isQuiet(lastMs, nowMs);
-  const lastTalked = lastMs != null ? (quiet ? "Gone quiet · " + agoLabel(lastMs, nowMs) : agoLabel(lastMs, nowMs)) : undefined;
+  // The ago alone. Gone quiet is a state, and the card says it in the
+  // Colour Key's amber on this same value (and in the Check In pill), not as
+  // a second fact joined on with a dot (§AM, R5 and R6).
+  const lastTalked = lastMs != null ? agoLabel(lastMs, nowMs) : undefined;
 
   // The check-in draft (2026-08-10's checkinPrompt, reused verbatim): drafts
   // a short, warm reopening line in the user's own voice and hands it to the
@@ -609,7 +612,10 @@ export default function PeopleFlow({ onBack, openId: initialOpenId, openNonce, o
         <div className="pad-x sheet-form">
           {/* A MISSING FIELD IS NOT A PARSE FAILURE (People handoff). The file
               read fine; its headers just are not ones this parser knows. */}
-          <div className="plan-sub">{capAfterNumber(`${mapping.headers.length} columns read · Name the ones worth keeping`)}</div>
+          {/* The count alone: the head above already asks which column is
+              which, and a second clause joined with a dot was a second fact
+              in the same grey (§AM, R5 and R6). */}
+          <div className="plan-sub">{capAfterNumber(`${mapping.headers.length} columns read`)}</div>
           <div className="card list-card-ruled">
             {mapping.headers.map((h, i) => (
               <div className="row" key={h + i}>
@@ -654,11 +660,18 @@ export default function PeopleFlow({ onBack, openId: initialOpenId, openNonce, o
                   added, updated, skipped, conflicts, and failures"). The old
                   one could only say "found" and "skipping", because skipping
                   was all it did. */}
-              <div className="plan-sub">
-                {planLine(importPlan.plan, Object.keys(resolved).length)}
+              {/* Each pile its own fact, the separator the stylesheet's, and
+                  a count with a meaning in its key colour (§AM). */}
+              <div className="facts plan-sub">
+                {planFacts(importPlan.plan, Object.keys(resolved).length).map((f) => (
+                  <span key={f.text} className={"fact" + (f.tone ? " " + f.tone : "")}>{f.text}</span>
+                ))}
               </div>
+              {/* WHO IS COMING IN is the content, not a note under a field:
+                  primary ink at the fact size, so the counts above stay the
+                  sheet's one grey (§AK V5.2, 2026-09-26). */}
               {importPlan.plan.create.length > 0 && (
-                <div className="input-help">
+                <div className="plan-names">
                   {importPlan.plan.create.slice(0, 5).map((c) => c.name).join(", ")}
                   {importPlan.plan.create.length > 5 ? ` and ${importPlan.plan.create.length - 5} more` : ""}
                 </div>
@@ -672,18 +685,23 @@ export default function PeopleFlow({ onBack, openId: initialOpenId, openNonce, o
                     <div className="conn-name">{review[reviewAt]!.contact.name} is already a name you have</div>
                     <div className="bp-sub">Same name, nothing else in common. Which is this?</div>
                   </div>
-                  {review[reviewAt]!.candidates.map((c) => (
-                    <button className="row" key={c.id} onClick={() => answerReview(reviewAt, c.id)}>
-                      <div className="row-grow">
-                        <div className="conn-name">{c.data.name}</div>
-                        <div className="conn-meta">{describe(c)}</div>
-                      </div>
-                    </button>
-                  ))}
+                  {review[reviewAt]!.candidates.map((c) => {
+                    const known = describe(c);
+                    return (
+                      <button className="row" key={c.id} onClick={() => answerReview(reviewAt, c.id)}>
+                        <div className="row-grow">
+                          <div className="conn-name">{c.data.name}</div>
+                          {known && <div className="conn-meta">{known}</div>}
+                        </div>
+                      </button>
+                    );
+                  })}
                   <button className="row-create" onClick={() => answerReview(reviewAt, "new")}>Someone New</button>
                 </div>
               )}
-              {importError && <div className="input-note">{importError}</div>}
+              {/* A failure is the app's error line, not a field's quiet note:
+                  in the one grey it read as a hint. */}
+              {importError && <div className="conn-error">{importError}</div>}
             </>
           )}
         </div>

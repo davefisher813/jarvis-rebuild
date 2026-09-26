@@ -7,7 +7,7 @@ import { showToast } from "../shared/toast";
 import { haptics } from "../shared/haptics";
 import {
   loadMailSnapshot, mailNotices, residualLine, loadDismissed, dismissNotice, setDismissed,
-  type MailKind, type MailNotice, type DayEvent,
+  type MailKind, type MailNotice, type NoticeFact, type DayEvent,
 } from "../messages/home";
 import type { MailAct } from "../messages/mailAct";
 import EvidenceChip from "../messages/EvidenceChip";
@@ -17,6 +17,7 @@ import { quickAnswers } from "../messages/quickAnswers";
 import { removeTodaySend } from "../messages/todayOutbox";
 import { HOLD_SECONDS } from "../messages/outbox";
 import { dayPhrase } from "../money/bills";
+import { loadNudgeCounts } from "../messages/escalate";
 
 // Email on the home page, rebuilt (Dave 2026-08-20). The count is gone; what
 // is left is the work itself. See messages/home.ts for the reasoning.
@@ -42,6 +43,32 @@ const ICON: Record<MailKind, React.ReactNode> = {
 };
 
 export interface MailDraft { text: string; sending: boolean }
+
+// A NOTICE'S LINE, DRAWN WITH THE KEY (§AM R6, R8, 2026-09-26). A bill's
+// amount, a deadline and a wait's age each mean something, so the notices
+// that carry them hand back facts rather than a sentence, and they are drawn
+// the way the Today bill card draws its bill: separate .fact spans, the dot
+// between them the stylesheet's, the amount a white <b>, the day or the age
+// in the key's colour. One colour per line (K.3), the same rule the shared
+// facts line keeps: the first toned fact keeps its tone, a date rides past.
+function NoticeFacts({ facts }: { facts: NoticeFact[] }) {
+  const list = facts.filter((f) => f.text.trim() || f.num);
+  if (list.length === 0) return null;
+  let toned = false;
+  return (
+    <div className="facts">
+      {list.map((f, i) => {
+        const tone = f.tone === "date" ? "date" : f.tone && !toned ? f.tone : undefined;
+        if (tone && tone !== "date") toned = true;
+        return (
+          <span key={i} className={"fact" + (tone ? " " + tone : "")}>
+            {f.text}{f.text && f.num ? " " : ""}{f.num && <b>{f.num}</b>}
+          </span>
+        );
+      })}
+    </div>
+  );
+}
 
 export default function MailNotices({
   today,
@@ -161,7 +188,9 @@ export default function MailNotices({
 
   const snap = loadMailSnapshot();
   const asleep = sleepingNow(snoozed, nowHHMM);
-  const notices = mailNotices(snap, today, new Date(), max, [...hidden, ...done, ...asleep], dayEvents);
+  // The nudges already sent ride in, so a wait's age wears the rung the
+  // rail gives the same thread (one nudge direct, two firm), not the clock's.
+  const notices = mailNotices(snap, today, new Date(), max, [...hidden, ...done, ...asleep], dayEvents, loadNudgeCounts());
   const residual = residualLine(snap, notices.map((n) => n.threadId));
   // Reported from an EFFECT, never during render: telling a parent to set
   // state while rendering is how a render loop starts.
@@ -366,7 +395,7 @@ export default function MailNotices({
             icon={ICON[n.kind]}
             tone={n.tone}
             title={n.title}
-            sub={draft ? undefined : n.sub}
+            sub={draft ? undefined : n.facts ? <NoticeFacts facts={n.facts} /> : n.sub}
             // ONE-WORD VERBS (ruled 2026-09-01, "the email row": one fixed
             // action column, one-word verbs, so the column aligns with or
             // without a chip). "Draft It" is "Draft"; Reply stays Reply.
@@ -484,10 +513,14 @@ export default function MailNotices({
         </div>
       )}
 
-      {/* The rest of the inbox is a receipt: it reports, it does not ask. */}
+      {/* The rest of the inbox is a receipt: it reports, it does not ask.
+          §AM (2026-09-26): it said "· Nothing urgent" after the count, a dot
+          typed into the line and a claim this component cannot back: the
+          residual is every thread that needs him minus the ones shown, and
+          a card cut by the cap or swiped away for the day is still in it. */}
       {residual && (
         <button data-receipt className="receipt-line" onClick={onOpenEmail}>
-          <span className="rl-t">{residual} · Nothing urgent</span>
+          <span className="rl-t">{residual}</span>
           <span className="chev" />
         </button>
       )}

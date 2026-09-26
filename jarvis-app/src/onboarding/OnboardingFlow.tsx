@@ -434,10 +434,14 @@ export default function OnboardingFlow({ onFinish }: { onFinish: () => void }) {
           <div className="ob-card-title ob-tagline-1">Your personal operating system</div>
           <div className="ob-sub">Build your Brain. Let JARVIS run the rest.</div>
           <div className="grp"><div className="eyebrow">Three Steps</div></div>
+          {/* §AM: the step numbers mean nothing but order, so their tiles are
+              the neutral one (no brand red, category yellow or done green on
+              a step nobody can tap or has finished). Each step's length is
+              the app's own estimate, so it wears the key's sky. */}
           <div className="card">
-            <div className="row"><div className="sec-ico ico-accent ob-num">1</div><div className="row-grow"><div className="conn-name">Tell JARVIS about you</div></div><span className="row-status">2 min</span></div>
-            <div className="row"><div className="sec-ico cat-bg-yellow ob-num">2</div><div className="row-grow"><div className="conn-name">Connect Gmail and Calendar</div></div><span className="row-status">1 min</span></div>
-            <div className="row"><div className="sec-ico ico-good ob-num">3</div><div className="row-grow"><div className="conn-name">Set your daily rhythm</div></div><span className="row-status">1 min</span></div>
+            <div className="row"><div className="sec-ico ico-surface ob-num">1</div><div className="row-grow"><div className="conn-name">Tell JARVIS about you</div></div><span className="row-status fact est">2 min</span></div>
+            <div className="row"><div className="sec-ico ico-surface ob-num">2</div><div className="row-grow"><div className="conn-name">Connect Gmail and Calendar</div></div><span className="row-status fact est">1 min</span></div>
+            <div className="row"><div className="sec-ico ico-surface ob-num">3</div><div className="row-grow"><div className="conn-name">Set your daily rhythm</div></div><span className="row-status fact est">1 min</span></div>
           </div>
           <div className="ob-privacy">
             <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" dangerouslySetInnerHTML={{ __html: LOCK }} />
@@ -563,7 +567,7 @@ export default function OnboardingFlow({ onFinish }: { onFinish: () => void }) {
     control = (
       <div className="convo-foot">
         {people.length > 0 && (
-          <div className="convo-chips">{people.map((p, i) => <div key={p + i} className="chip cat-bg-blue">{p}</div>)}</div>
+          <div className="convo-chips">{people.map((p, i) => <div key={p + i} className="chip">{p}</div>)}</div>
         )}
         <div className="convo-inputbar">
           <input className="input" placeholder={step.placeholder} value={personDraft} onChange={(e) => setPersonDraft(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") addPerson(); }} />
@@ -746,7 +750,7 @@ function PayoffScreen({ name, briefLabel, seeds, taskTitle, slotLine, saving, on
         <div className="grp"><div className="eyebrow">Today</div></div>
         <div className="pad-x"><div className="card">
           {briefLabel && (
-            <div className="row"><div className="row-grow"><div className="conn-name">Morning Brief</div></div><span className="row-status">{briefLabel}</span></div>
+            <div className="row"><div className="row-grow"><div className="conn-name">Morning Brief</div></div><span className="row-status fact date">{briefLabel}</span></div>
           )}
           <div className="row">
             <div className="row-grow"><div className="conn-name">Your areas</div></div>
@@ -759,7 +763,7 @@ function PayoffScreen({ name, briefLabel, seeds, taskTitle, slotLine, saving, on
             </div>
           )}
         </div></div>
-        {slotLine && <div className="ob-privacy"><div className="ob-privacy-txt">{slotLine} Tap it when it\u2019s done. I love that part.</div></div>}
+        {slotLine && <div className="ob-privacy"><div className="ob-privacy-txt">{slotLine} Tap it when it’s done. I love that part.</div></div>}
       </div>
       <div className="ob-foot">
         <button className="btn btn-primary btn-block btn-lg" onClick={onEnter} disabled={saving}>Enter JARVIS</button>

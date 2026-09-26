@@ -26,8 +26,15 @@ const read = (f: string) => readFileSync(join(ROOT, f), "utf8");
 
 const CSS = read("src/styles/components.css");
 const DS = read("src/styles/jarvis-design-system.css");
-const RULED = read("src/styles/ruled.css");
 const CATALOG = read("STYLING_CATALOG_V3.md");
+/** Every stylesheet the app loads. A capsule rule in any of them reaches a
+ *  capsule, so the laws below that judge "every rule" read all six. */
+const SIX = ["components.css", "ruled.css", "jarvis-design-system.css", "uniformity.css", "editor.css", "mail-rows.css"];
+/** A sheet with its comments stripped and its at-rule wrappers opened: a
+ *  rule inside @media or @supports is still a rule, and the wrapper's own
+ *  brace would otherwise swallow the first rule inside it unread. */
+const bareSheet = (f: string) => read("src/styles/" + f).replace(/\/\*[\s\S]*?\*\//g, "")
+  .replace(/@(?:media|supports|container|layer)[^{;]*\{/g, "");
 
 /** The body of the first rule whose selector list contains `sel`. */
 function ruleBody(css: string, sel: string): string {
@@ -129,7 +136,6 @@ describe("LAW §AL: the capsule, settled", () => {
     // whose subject is a small pill (not a primary, danger or secondary) is
     // read for a shadow or a border with a width. Every check above stays.
     expect(base, "the base rule says no ring out loud").toMatch(/(^|[;\s])box-shadow:\s*none\s*(;|$)/);
-    const SIX = ["components.css", "ruled.css", "jarvis-design-system.css", "uniformity.css", "editor.css", "mail-rows.css"];
     const STYLE = /\b(solid|dashed|dotted|double|groove|ridge|inset|outset)\b/;
     const drawsLine = (prop: string, value: string): boolean => {
       const v = value.trim().toLowerCase();
@@ -145,16 +151,23 @@ describe("LAW §AL: the capsule, settled", () => {
       // medium; one whose only width is 0 draws nothing.
       return STYLE.test(v) && !widths.some((n) => n === 0);
     };
+    // AMENDED 2026-09-26 (round-4 review, the lead): the scan read shadows
+    // and borders but never outline, so `.row-acts .btn-sm { outline: 1px
+    // solid var(--tint); }` drew the ring back with every law green. An
+    // outline with a width now counts as a ring too. A keyboard focus ring
+    // is not the retired ring: it shows only while focus is on the pill, so
+    // a selector whose small-pill subject is in :focus-visible may draw one.
+    // Every shadow and border check is unchanged.
     const rings: string[] = [];
     for (const f of SIX) {
-      const bare = read("src/styles/" + f).replace(/\/\*[\s\S]*?\*\//g, "")
-        .replace(/@(?:media|supports|container|layer)[^{;]*\{/g, "");
+      const bare = bareSheet(f);
       for (const m of bare.matchAll(/([^{}]*)\{([^}]*)\}/g)) {
         const subjects = m[1]!.replace(/:has\([^)]*\)/g, "").split(",")
           .map((x) => x.trim().split(/\s+|>/).filter(Boolean).pop() ?? "");
-        const smallPill = subjects.some((x) => /\.btn-sm(?![\w-])/.test(x)
+        const pills = subjects.filter((x) => /\.btn-sm(?![\w-])/.test(x)
           && !/\.btn-(primary|danger|secondary)(?![\w-])/.test(x.replace(/:not\([^)]*\)/g, "")));
-        if (!smallPill) continue;
+        if (!pills.length) continue;
+        const unfocused = pills.some((x) => !/:focus-visible(?![\w-])/.test(x.replace(/:not\([^)]*\)/g, "")));
         const where = `${f}: ${m[1]!.replace(/\s+/g, " ").trim()}`;
         for (const d of m[2]!.split(";")) {
           const i = d.indexOf(":");
@@ -163,6 +176,9 @@ describe("LAW §AL: the capsule, settled", () => {
           const value = d.slice(i + 1).trim();
           if (prop === "box-shadow" && !/^none\b/i.test(value)) rings.push(`${where} -> box-shadow: ${value}`);
           if (/^border(?:-(?:top|right|bottom|left|block|inline)(?:-(?:start|end))?)?(?:-width)?$/.test(prop) && drawsLine(prop, value)) {
+            rings.push(`${where} -> ${prop}: ${value}`);
+          }
+          if (/^outline(?:-width)?$/.test(prop) && unfocused && drawsLine(prop, value)) {
             rings.push(`${where} -> ${prop}: ${value}`);
           }
         }
@@ -198,10 +214,17 @@ describe("LAW §AL: the capsule, settled", () => {
     // on the padding box. That is the "double edge" on Start Now, and the
     // ~50px of red on Health's hero Start.
     const offenders: string[] = [];
-    for (const [file, raw] of [["components.css", CSS], ["ruled.css", RULED]] as const) {
+    // AMENDED 2026-09-26 (round-4 review, the lead): this read two sheets
+    // and did not open at-rules, though .btn-sm has rules in the design
+    // system sheet and .pill-act in the editor's, and the rings check in
+    // this file reads all six with at-rules opened. So a shorthand fill
+    // added in either of those sheets, or inside any @media block (the
+    // wrapper's brace swallowed the first rule inside it), passed. It reads
+    // the same six sheets the same way now; the subject logic is unchanged.
+    for (const file of SIX) {
       // Comments first: this file explains itself at length, and a comment
       // that MENTIONS .pill-act would otherwise read as a selector for it.
-      const css = raw.replace(/\/\*[\s\S]*?\*\//g, "");
+      const css = bareSheet(file);
       for (const m of css.matchAll(/([^{}]*)\{([^}]*)\}/g)) {
         const selector = m[1]!.trim();
         const body = m[2]!;

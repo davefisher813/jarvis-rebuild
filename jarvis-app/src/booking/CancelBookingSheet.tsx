@@ -2,6 +2,11 @@ import { useState } from "react";
 import { FormSheet, Group, TextRow, Note, ErrorLine } from "../shared/FormSheet";
 import { mapBooking, type BookingFace } from "./bookedEvents";
 
+const dayWords = (ms: number): string =>
+  new Date(ms).toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" });
+const timeWords = (ms: number): string =>
+  new Date(ms).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+
 // CALLING A MEETING OFF (Track 3, 2026-09-19).
 //
 // The one screen in booking where the app acts on a stranger's behalf without
@@ -36,7 +41,9 @@ export default function CancelBookingSheet({ booking, busy, error, onCancel, onC
       saveLabel={busy ? "Sending" : "Cancel It"}
       dirty={reason.trim().length > 0}
     >
-      <Note>{m ? `${m.title}, ${m.date} at ${m.start}` : "This booking"}</Note>
+      {/* In words, on this device's clock, the way the guest's own email
+          says it: the store's 2026-09-30 and 14:00 are for the store. */}
+      <Note>{m ? `${m.title}, ${dayWords(booking.startMs)} at ${timeWords(booking.startMs)}` : "This booking"}</Note>
       <Group label="A Line for Them">
         <TextRow
           value={reason}

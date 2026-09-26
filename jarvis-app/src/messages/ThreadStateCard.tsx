@@ -3,10 +3,12 @@ import { THREAD_STATE_LABEL, type Brief, type ConfirmedMeeting } from "./brief";
 import EvidenceChip from "./EvidenceChip";
 import type { Evidence } from "./evidence";
 import type { Bucket } from "./triage";
+import { deadlineTone } from "./home";
 import { haptics } from "../shared/haptics";
 import { rowDoor } from "../shared/rowDoor";
 import { dayPhrase, monthDay } from "../money/bills";
 import { fmtTime, todayISO } from "../schedule/calendar";
+import { Facts } from "./factsLine";
 
 // WHERE THIS STANDS (UP-MIND-19, Email E9, 5.6 and 5.13; Brain build order 5).
 //
@@ -83,6 +85,7 @@ export default function ThreadStateCard({
   const toggleOpen = () => { haptics.selection(); setOpen((v) => !v); };
   const detail = !!brief && (!!brief.agreed?.length || !!brief.unresolved?.length);
   const meeting = brief?.meeting;
+  const when = meeting ? whenParts(meeting) : null;
   const has = !!brief && (!!brief.state || detail || !!brief.deadline || !!brief.next || !!meeting);
   if (!has && !brief?.decision && !onOverride) return null;
   const onCal = calendarState !== "none";
@@ -96,8 +99,17 @@ export default function ThreadStateCard({
       {(brief?.state || brief?.deadline || brief?.next) && (
         <div className="facts msg-stands-facts">
           {brief.state && <span className="fact strong">{THREAD_STATE_LABEL[brief.state]}</span>}
+          {/* A deadline is a date with a meaning (§AM R8), never a second
+              grey beside Next. Its colour is the one deadline rule the
+              Today card reads too (deadlineTone in home.ts): today,
+              tomorrow or a bare clock ("by 3 PM", which is today) is due,
+              amber; later, or a phrase no one can place, is a neutral date
+              in small caps. The mail rail reads the same phrase on a wider
+              window of its own, which is the rail's to keep. A stated
+              deadline is due, never late: the phrase cannot say whether it
+              has passed. */}
           {brief.deadline && (
-            <span className="fact">
+            <span className={"fact " + deadlineTone(brief.deadline)}>
               <EvidenceChip className="msg-stands-by" label={"By " + brief.deadline} evidence={evidence} {...(onOpenSource ? { onOpenSource } : {})} />
             </span>
           )}
@@ -114,7 +126,9 @@ export default function ThreadStateCard({
           : (onAddToCalendar ? rowDoor(() => { haptics.selection(); onAddToCalendar(meeting); }) : {}))}>
           <div className="row-grow">
             <div className="conn-name">{meeting.title}</div>
-            <div className="conn-meta">{whenLine(meeting)}</div>
+            {/* The day and the hours are two facts (§AM R6, R8): the day is
+                a neutral date in small caps, the hours the one grey. */}
+            {when && <Facts facts={[{ text: when.day, tone: "date" }, { text: when.time }]} />}
           </div>
           {onCal ? (
             <span className="fact good msg-stands-done">{calendarState === "added" ? "Added" : "On your calendar"}</span>
@@ -196,12 +210,21 @@ export default function ThreadStateCard({
  *
  *  Today and tomorrow keep their words: they are unambiguous, and a date
  *  beside them is noise. Everything else carries the date it will be filed
- *  under, which is the number that has to be right. */
-export function whenLine(m: ConfirmedMeeting, today = todayISO()): string {
+ *  under, which is the number that has to be right.
+ *
+ *  §AM R6 (2026-09-26): the card draws the day and the hours as two facts,
+ *  with the separator from CSS, so they come apart here. The one-string
+ *  form, for the toast, joins them with a comma rather than a typed dot. */
+export function whenParts(m: ConfirmedMeeting, today = todayISO()): { day: string; time: string } {
   const s = fmtTime(m.start);
   const e = fmtTime(m.end);
   const phrase = dayPhrase(m.date, today);
   const named = phrase === "today" || phrase === "tomorrow" || phrase === "yesterday";
-  const when = named || phrase === monthDay(m.date) ? phrase : phrase + ", " + monthDay(m.date);
-  return when + " · " + s.time + " " + s.ap + " to " + e.time + " " + e.ap;
+  const day = named || phrase === monthDay(m.date) ? phrase : phrase + ", " + monthDay(m.date);
+  return { day, time: s.time + " " + s.ap + " to " + e.time + " " + e.ap };
+}
+
+export function whenLine(m: ConfirmedMeeting, today = todayISO()): string {
+  const w = whenParts(m, today);
+  return w.day + ", " + w.time;
 }

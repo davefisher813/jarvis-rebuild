@@ -94,15 +94,6 @@ export function hhmm(min: number): string {
   return `${h}h ${m}m`;
 }
 
-// The line under the strip. Never says "you have no time" when the day is
-// simply unplanned; an empty pick set gets the open number and nothing else.
-export function loadLine(load: DayLoad, picked: number): string {
-  const open = hhmm(load.openMin) + " open";
-  if (picked === 0) return open;
-  if (load.fits) return `${open} · ${picked} picked, fits`;
-  return `${open} · ${hhmm(load.overMin)} over`;
-}
-
 // Which picks to let go of, when the day says no. The LAST ones picked, never
 // the first: pick order is priority order everywhere else in this sheet, and
 // dropping someone's top choice to make the arithmetic work is the app

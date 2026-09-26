@@ -6,7 +6,7 @@ import { ScheduleService } from "../schedule/ScheduleService";
 import { anytimeTasksForDay } from "../schedule/anytime";
 import { moveEventToAnytime } from "../schedule/eventMoves";
 import { liveBlocks } from "../dayloop/dayLoop";
-import { sourceLine } from "../shared/provenance";
+import { sourceLabel, sourceWhen } from "../shared/provenance";
 import type { AIService } from "../ai/AIService";
 
 // LIFE-F-04 (2026-09-05): Add to Schedule used to take the task's due day
@@ -123,7 +123,8 @@ describe("Add to Schedule links the block back to its task (TRACE-01)", () => {
     const { id, events } = await scheduled();
     expect(events.length).toBe(1);
     expect(events[0]!.data.sourceTaskId).toBe(id);
-    expect(sourceLine(events[0]!.data.source)).toContain("From a task");
+    expect(sourceLabel(events[0]!.data.source)).toBe("From a task");
+    expect(sourceWhen(events[0]!.data.source)).not.toBeNull();
   });
 
   // anytime.ts:6-8 states the invariant: a task has a time once a block

@@ -1,5 +1,3 @@
-import { capAfterNumber } from "../shared/casing";
-
 // SPLIT A LONG ONE (P13, Dave 2026-08-20).
 //
 // A three-hour task is not a three-hour sitting. Scheduling it as one block
@@ -28,11 +26,4 @@ export function splitSittings(minutes: number, max = SITTING_MAX): number[] {
   const drift = minutes - even * parts;
   chunks[0] = (chunks[0] ?? even) + drift;
   return chunks.filter((c) => c > 0);
-}
-
-export function splitLine(chunks: number[]): string {
-  if (chunks.length < 2) return "";
-  const same = chunks.every((c) => c === chunks[0]);
-  const each = same ? `${chunks[0]}m each` : chunks.map((c) => `${c}m`).join(" + ");
-  return capAfterNumber(`${chunks.length} sittings · ${each}`);
 }

@@ -177,7 +177,7 @@ describe("MailSnapshotPump", () => {
         await Promise.resolve();
       });
       const last = digests.calls[digests.calls.length - 1];
-      expect(last?.[0]?.title).toBe("2 People wrote · Sarah and 1 other need you");
+      expect(last?.[0]?.title).toBe("2 People wrote, Sarah and 1 other need you");
     } finally {
       vi.useRealTimers();
     }

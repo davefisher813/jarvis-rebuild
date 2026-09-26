@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { isEvening, eveningStats, eveningSummary, weekRecap, todayPlan, todayPlanLine, EVENING_TASKS_NOTE } from "./evening";
+import { isEvening, eveningStats, eveningFacts, weekRecap, todayPlan, todayPlanLine, EVENING_TASKS_NOTE } from "./evening";
 import { DEFAULT_ROUTINE } from "../routine/types";
 import type { EventItem } from "../schedule/types";
 import type { TaskItem } from "../tasks/TasksService";
@@ -30,7 +30,7 @@ describe("isEvening", () => {
   });
 });
 
-describe("eveningStats + eveningSummary", () => {
+describe("eveningStats + eveningFacts", () => {
   // TODAY-F-09 (2026-09-05): the evening read the same due-date-only count
   // the ring did, so a day that ended with a recurring task closed smaller
   // than it started.
@@ -47,28 +47,30 @@ describe("eveningStats + eveningSummary", () => {
     const s = eveningStats(events, tasks, TODAY, "19:00");
     // 2 done + the 9 AM event attended = 3 things
     expect(s).toEqual({ doneDue: 2, dueTotal: 3, eventsLeft: 1, openCount: 2, thingsDone: 3 });
-    expect(eveningSummary(s)).toBe("3 Done today · 1 Left tonight") // SPEC MOVED (short copy, 2026-08-15);
+    // SPEC MOVED (short copy, 2026-08-15); and again (§AM, 2026-09-26): facts,
+    // the dot drawn by the page, what got done in the key's green.
+    expect(eveningFacts(s)).toEqual([{ text: "3 Done today", tone: "good" }, { text: "1 Left tonight" }]);
   });
 
   it("Time Sense completions win over the due-today count when larger", () => {
     const s = eveningStats([], [task(true, TODAY)], TODAY, "19:00", 5);
     expect(s.thingsDone).toBe(5);
-    expect(eveningSummary(s)).toBe("5 Done today");
+    expect(eveningFacts(s)).toEqual([{ text: "5 Done today", tone: "good" }]);
   });
 
   it("leads with the win when the evening is clear", () => {
     const s = eveningStats([], [task(true, TODAY)], TODAY, "19:00");
-    expect(eveningSummary(s)).toBe("1 Done today");
+    expect(eveningFacts(s)).toEqual([{ text: "1 Done today", tone: "good" }]);
   });
 
   it("a truly clear evening says so, without inventing wins", () => {
     const s = eveningStats([], [], TODAY, "19:00");
-    expect(eveningSummary(s)).toBe("A clear evening");
+    expect(eveningFacts(s)).toEqual([{ text: "A clear evening" }]);
   });
 
   it("never mentions what did not happen, and uses no em dashes", () => {
     const s = eveningStats([], [task(false, TODAY)], TODAY, "19:00");
-    const line = eveningSummary(s);
+    const line = eveningFacts(s).map((f) => f.text).join(" ");
     expect(line).not.toMatch(/overdue|missed|behind|unfinished/i);
     expect(line + EVENING_TASKS_NOTE).not.toContain("\u2014");
   });
@@ -127,18 +129,27 @@ describe("weekRecap", () => {
   });
 });
 
-describe("eveningSummary and what moved (pick 4)", () => {
+describe("eveningFacts and what moved (pick 4)", () => {
   const stats = { doneDue: 2, dueTotal: 3, eventsLeft: 0, openCount: 1, thingsDone: 4 };
-  it("names the goal the day moved, between the count and the night", () => {
-    expect(eveningSummary({ ...stats, eventsLeft: 1 }, "Moved Run a Half"))
-      .toBe("4 Done today · Moved Run a Half · 1 Left tonight");
+  // §AK (2026-09-26): one grey per line. The goal takes it, and tonight's
+  // count yields (Your Day already lists what is left tonight).
+  it("names the goal the day moved after the count, and the goal outranks the night", () => {
+    expect(eveningFacts({ ...stats, eventsLeft: 1 }, "Moved Run a Half"))
+      .toEqual([{ text: "4 Done today", tone: "good" }, { text: "Moved Run a Half" }]);
+  });
+  it("carries the night's count when no goal moved", () => {
+    expect(eveningFacts({ ...stats, eventsLeft: 2 }, null))
+      .toEqual([{ text: "4 Done today", tone: "good" }, { text: "2 Left tonight" }]);
+  });
+  it("never types a separator into a fact", () => {
+    for (const f of eveningFacts({ ...stats, eventsLeft: 2 }, "Moved Run a Half")) expect(f.text).not.toContain("\u00b7");
   });
   it("says nothing extra when Time Sense saw nothing move", () => {
-    expect(eveningSummary(stats, null)).toBe("4 Done today");
-    expect(eveningSummary(stats)).toBe("4 Done today");
+    expect(eveningFacts(stats, null)).toEqual([{ text: "4 Done today", tone: "good" }]);
+    expect(eveningFacts(stats)).toEqual([{ text: "4 Done today", tone: "good" }]);
   });
   it("still leads with the win on a day that only moved a goal", () => {
-    expect(eveningSummary({ ...stats, thingsDone: 0 }, "Moved 2 goals")).toBe("Moved 2 goals");
+    expect(eveningFacts({ ...stats, thingsDone: 0 }, "Moved 2 goals")).toEqual([{ text: "Moved 2 goals" }]);
   });
 });
 

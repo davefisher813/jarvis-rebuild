@@ -17,10 +17,13 @@ describe("savings derivation", () => {
     expect(savingsPct(0, entries)).toBe(0);
   });
 
+  // §AM F3 (2026-09-26): the zero reads in the same shape as any other
+  // amount, with no middle dot typed into the line.
   it("says honestly when nothing is saved yet", () => {
-    expect(savingsLine(2000, [])).toBe("Nothing saved yet · Goal $2,000");
-    expect(savingsLine(2000, undefined)).toBe("Nothing saved yet · Goal $2,000");
+    expect(savingsLine(2000, [])).toBe("$0 of $2,000 Saved");
+    expect(savingsLine(2000, undefined)).toBe("$0 of $2,000 Saved");
     expect(savingsLine(2000, entries)).toBe("$650 of $2,000 Saved");
+    expect(savingsLine(2000, [])).not.toContain("·");
   });
 
   it("lists receipts newest first without mutating the source", () => {

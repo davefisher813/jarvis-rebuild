@@ -194,16 +194,24 @@ function missing(have: ContactMethod[], incoming: ContactMethod[], norm: (v: str
 // so the words are testable without mounting anything.
 
 /** Before applying: what the file would do, and what is still waiting on an
- *  answer. Never says "skipped" for a row that is actually unresolved. */
-export function planLine(plan: MatchPlan, answered: number): string {
+ *  answer. Never says "skipped" for a row that is actually unresolved.
+ *
+ *  FACTS, NOT A SENTENCE WITH DOTS IN IT (§AM, R5 and R6). The sheet draws
+ *  each one as its own .fact, so the separator is the stylesheet's, and each
+ *  count that has a meaning wears it: a row waiting on an answer needs you
+ *  (amber), and one already current is in range (green). What the file will
+ *  add or change is the line's one grey, so those two share a fact. */
+interface PlanFact { text: string; tone?: "good" | "warn" }
+export function planFacts(plan: MatchPlan, answered: number): PlanFact[] {
   const waiting = plan.review.length - answered;
-  const parts: string[] = [];
-  if (plan.create.length) parts.push(`${plan.create.length} new`);
-  if (plan.update.length) parts.push(`${plan.update.length} to update`);
-  if (plan.unchanged) parts.push(`${plan.unchanged} already current`);
-  if (waiting > 0) parts.push(`${waiting} to check`);
-  if (!parts.length) return "Nothing to change";
-  return capAfterNumber(parts.join(" · "));
+  const work: string[] = [];
+  if (plan.create.length) work.push(capAfterNumber(`${plan.create.length} new`));
+  if (plan.update.length) work.push(capAfterNumber(`${plan.update.length} to update`));
+  const out: PlanFact[] = [];
+  if (work.length) out.push({ text: work.join(", ") });
+  if (waiting > 0) out.push({ text: capAfterNumber(`${waiting} to check`), tone: "warn" });
+  if (plan.unchanged) out.push({ text: capAfterNumber(`${plan.unchanged} already current`), tone: "good" });
+  return out.length ? out : [{ text: "Nothing to change" }];
 }
 
 /** After applying. Plain counts of what actually happened, never a claim
@@ -217,13 +225,21 @@ export function summaryLine(added: number, updated: number, unchanged: number): 
 }
 
 /** One line of evidence for telling two same-name people apart: what this
- *  record already knows that the other might not. */
-export function describe(p: Person): string {
-  const bits = [
-    p.data.relationship,
-    p.data.org,
-    phonesOf(p.data)[0]?.value,
-    emailsOf(p.data)[0]?.value,
-  ].filter((b): b is string => !!b);
-  return bits.length ? bits.slice(0, 2).join(" · ") : "Nothing else on file";
+ *  record already knows that the other might not.
+ *
+ *  ONE RUN, OR NONE (§AK, R1 and R6). It joined two with a middot into the
+ *  row's meta line, and said "Nothing else on file" when it had nothing: a
+ *  second grey, a baked separator, and a placeholder that states nothing.
+ *  It then kept only the first thing on file, and that broke the line's one
+ *  job: two "John Smith"s who are both a Client read the same. So it is
+ *  still one grey run, but it carries the first TWO things on file joined
+ *  with a comma, as words in a phrase rather than two facts ("Client,
+ *  555-0100" against "Client, 555-0199"). A record with nothing shows no
+ *  line. An organization stored before the vCard parser joined its units
+ *  with a comma still carries the old dot, so it is read the new way here. */
+export function describe(p: Person): string | null {
+  const org = p.data.org?.replace(/\s*·\s*/g, ", ");
+  const bits = [p.data.relationship, org, phonesOf(p.data)[0]?.value, emailsOf(p.data)[0]?.value]
+    .filter((b): b is string => !!b);
+  return bits.length ? bits.slice(0, 2).join(", ") : null;
 }

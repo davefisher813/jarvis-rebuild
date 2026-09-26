@@ -111,7 +111,7 @@ export default function TaskSheet({
   linkedNotes = [],
   onOpenNote,
   onAddNote,
-  slidingNote,
+  slidingNote: slidingText,
 }: {
   mode: "new" | "edit";
   /** ONE NEGATIVE PER ROW (Dave 2026-09-11: "We also don't need 'pushed 8
@@ -119,7 +119,8 @@ export default function TaskSheet({
    *  the task but not there"). The list row says the verdict once, as the
    *  Keeps Sliding chip; the count that earned the verdict is evidence, and
    *  evidence belongs where a person goes to do something about it. It rides
-   *  under Due, because the pushing IS the due date's history. */
+   *  under the When group, because the pushing IS the due date's history
+   *  (on the sheet ground, not in the grouped card: 2026-09-26). */
   slidingNote?: string | null;
   initial?: Partial<TaskDraft>;
   // The id of the task being edited, so the clash check can skip its own
@@ -321,6 +322,13 @@ export default function TaskSheet({
   const areaWord = cats.length === 0 ? "None" : cats.length === 1 ? primaryName : `${primaryName} +${cats.length - 1}`;
   const projectWord = projects.find((p) => p.id === projectId)?.title ?? "None";
   const eventWord = events.find((e) => e.id === eventId)?.title ?? "None";
+  // The evidence under the When group takes the key's colour for what it
+  // says (§AM, 2026-09-26): days late is late, so red; pushed again and
+  // again is stalled, so amber. It was the plain grey the key keeps for
+  // facts with no meaning.
+  const slidingNote = slidingText
+    ? <span className={"fact " + (/\blate$/i.test(slidingText) ? "red" : "warn")}>{slidingText}</span>
+    : null;
   const personWord = people.find((p) => p.id === personId)?.name ?? "None";
 
   // closeNow: the "Close Task" offer under a fully-checked list calls
@@ -475,9 +483,7 @@ export default function TaskSheet({
           <div className="pad-x"><div className="card xs-group">
             <div className="row xs-row" onClick={tapField}>
               <Tile tone="orange"><Clock className="ic" /></Tile>
-              <div className="conn-name">Due
-                {slidingNote && <div className="conn-meta">{slidingNote}</div>}
-              </div>
+              <div className="conn-name">Due</div>
               <HeadMenu variant="value" ariaLabel="Due" value={dueMode} label={dueWord} off={dueMode === "none"}
                 options={[
                   { value: "none", label: "None" }, { value: "today", label: "Today" }, { value: "tomorrow", label: "Tomorrow" },
@@ -512,13 +518,25 @@ export default function TaskSheet({
               <Tile tone="purple"><Hourglass className="ic" /></Tile>
               <div className="row-grow">
                 <div className="conn-name">Length</div>
-                {estimateMin === null && usualWord && <div className="conn-meta">Usually {usualWord} in this area</div>}
+                {/* The learned median is an estimate the app worked out, so
+                    it wears the key's sky (§AM, 2026-09-26), not the grey
+                    the unset value beside it already wears. */}
+                {estimateMin === null && usualWord && <div className="conn-meta"><span className="fact est">Usually {usualWord} in this area</span></div>}
               </div>
               <HeadMenu variant="value" ariaLabel="Length" value={estimateMin === null ? "" : String(estimateMin)} label={lengthLabel} off={estimateMin === null}
                 options={[{ value: "", label: "None" }, ...DUR_CHOICES.map((m) => ({ value: String(m), label: durLabel(m) }))]}
                 onPick={(v) => setEstimateMin(v === "" ? null : Number(v))} />
             </div>
           </div></div>
+          {/* THE EVIDENCE SITS UNDER THE GROUP, ON THE SHEET (2026-09-26).
+              It rode under Due inside the grouped card, and the card's grey
+              is one step up from the sheet: the key's red read 4.02:1 there
+              even in its sheet twin, under AA at the fact size. A red or
+              amber fact never sits on a grey card nested in a sheet, so it
+              is the When group's footer instead, the group-footer placement
+              the settings pages' notes use, straight under the group it
+              belongs to. */}
+          {slidingNote && <div className="pad-x"><div className="facts">{slidingNote}</div></div>}
 
           <div className="grp xs-grp"><div className="eyebrow">Where</div></div>
           <div className="pad-x"><div className="card xs-group">

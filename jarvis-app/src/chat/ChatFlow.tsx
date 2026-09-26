@@ -811,7 +811,11 @@ export default function ChatFlow({ onOpen, onCompose, askPersonId, askNonce, onA
             {m.data.role === "jarvis" && provLine(m) && (
               <div className="chat-prov">
                 {m.data.provenance?.kind === "ai" && <EntityStar entityType="chat_message" entityId={m.id} title={m.data.text.split("\n")[0] ?? ""} />}
-                {provLine(m)}
+                {/* §AM: an action receipt's "Done" is a done state, so it
+                    takes the key's green; the two source lines stay grey. */}
+                {m.data.provenance?.kind === "action"
+                  ? <span className="fact good">{provLine(m)}</span>
+                  : provLine(m)}
               </div>
             )}
             {onOpen && refsOf(m).length > 0 && (

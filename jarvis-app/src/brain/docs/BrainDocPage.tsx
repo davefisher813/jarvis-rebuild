@@ -206,7 +206,7 @@ export default function BrainDocPage({ topic, onBack }: { topic: string; onBack:
                           <div className="conn-name">{s.data.text}</div>
                           <div className="facts">
                             {st && <span className={"fact st " + toneForStrandState(st)}>{STRAND_STATE_LABEL[st]}</span>}
-                            {s.data.strength === "rule" && <span className="fact st red">Rule</span>}
+                            {s.data.strength === "rule" && <span className="fact st">Rule</span>}
                             {(s.data.evidence?.length ?? 0) > 0 && <span className="fact">{s.data.evidence!.length} edits</span>}
                           </div>
                         </div>
@@ -235,9 +235,6 @@ export default function BrainDocPage({ topic, onBack }: { topic: string; onBack:
         {isValues && loaded && (
           <div className="card list-card-ruled">
             <div className="sh2 sh2-quiet"><span className="t">Hard Lines</span>{lines.length > 0 && <span className="n">{lines.length}</span>}</div>
-            {lines.length === 0 && (
-              <div className="pad-x"><div className="conn-meta">None yet</div></div>
-            )}
             {lines.map((l, i) => (
               // row-tap: hard-line rows are two words shown whole with nothing to open, and the only verb is Remove, which a row tap must never do
               <div className="row" key={l.kind + l.match}>

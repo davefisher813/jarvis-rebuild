@@ -49,6 +49,6 @@ export interface PublishedRange {
 export const HARD_SET_RANGE: PublishedRange = {
   low: 10,
   high: 20,
-  note: "Studied growth range 10–20 · diminishing above ~20",
-  source: "Schoenfeld dose-response meta-analysis · 2025 Sports Medicine meta-regression",
+  note: "Studied growth range 10–20, diminishing above ~20",
+  source: "Schoenfeld dose-response meta-analysis, 2025 Sports Medicine meta-regression",
 };

@@ -25,7 +25,9 @@ export default function DoseTimeline({ doses, now = Date.now(), limit = 14, onUn
               <div className="row-grow">
                 <div className="conn-name">{d.name}</div>
                 <div className="facts">
-                  <span className="fact hblue">{today ? clockOf(d.at) : shortDateFromMs(d.at) + " " + clockOf(d.at)}</span>
+                  {/* When it was taken is a neutral time, small caps (§AM
+                      F5): not the medication area's blue on words. */}
+                  <span className="fact date">{today ? clockOf(d.at) : shortDateFromMs(d.at) + " " + clockOf(d.at)}</span>
                   {d.amount && <span className="fact">{d.amount}</span>}
                 </div>
               </div>

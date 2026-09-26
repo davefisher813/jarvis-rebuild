@@ -72,7 +72,7 @@ export default function AdvancedPage({ onBack, onExport, onLearningLab }: { onBa
         {/* Which commit this build came from. Exists so "is my phone on the
             new build?" is a ten-second look instead of a debugging session:
             that question has now been guessed at twice and guessed wrong. */}
-        <Row label="Build" value={typeof __BUILD_ID__ === "string" ? __BUILD_ID__ + " · " + __BUILD_DATE__ : "dev"} />
+        <Row label="Build" value={typeof __BUILD_ID__ === "string" ? <><span className="fact">{__BUILD_ID__}</span><span className="fact date">{__BUILD_DATE__}</span></> : "dev"} />
       </Card>
       <div className="set-gap"><Card>
         {!chatArmed

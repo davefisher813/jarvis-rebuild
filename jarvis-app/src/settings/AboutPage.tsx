@@ -18,7 +18,7 @@ export default function AboutPage({ onBack, onTerms, onPrivacy, onSupport, onSec
             so it shows what actually identifies a build, the same stamp
             Advanced shows. Still the door to the test bench at five taps. */}
         <div className="account-sub" onClick={bump}>
-          {typeof __BUILD_ID__ === "string" ? `Build ${__BUILD_ID__} · ${__BUILD_DATE__}` : "Build dev"}
+          {typeof __BUILD_ID__ === "string" ? <><span className="fact">Build {__BUILD_ID__}</span><span className="fact date">{__BUILD_DATE__}</span></> : "Build dev"}
         </div>
       </div></div>
       <Head label="Legal" />

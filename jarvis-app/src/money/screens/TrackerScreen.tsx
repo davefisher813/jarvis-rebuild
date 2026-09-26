@@ -38,8 +38,10 @@ import {
 // RED STAYS A VERB (law L1). The handoff painted the month's Spent figure
 // red. Spending money is not a failure and that number is red every day of
 // the month, which is the exact permanent-red-status mechanic the law was
-// written against. Spent reads in the ordinary ink; the only red here is a
-// category actually over its limit, which appears only once it happens.
+// written against. Spent reads in the ordinary ink; the reds here are the
+// Colour Key's "over the limit" (§AM, the system red, never the brand red):
+// a category actually over its limit, and a month that has spent more than
+// came in. Each appears only once it happens.
 
 type Tab = "dashboard" | "transactions" | "budgets" | "subs";
 const TABS: { key: Tab; label: string }[] = [
@@ -206,11 +208,10 @@ function Dashboard({ month, onMonth, txs, data, onSaved }: {
       )}
       <div className="pad-x"><div className="card list-card-ruled">
         <div className="row" {...pressable(() => setAcct("new"))}>
+          {/* No "No accounts yet" under it (§AK): the head's count already
+              says none, and a row with nothing to say shows nothing. */}
           <div className="row-grow">
             <div className="conn-name">Add an Account</div>
-            {data.accounts.length === 0 && (
-              <div className="conn-meta">No accounts yet</div>
-            )}
           </div>
           <button className="pill-act" onClick={(e) => { e.stopPropagation(); setAcct("new"); }}>Add</button>
         </div>
@@ -236,12 +237,16 @@ function Dashboard({ month, onMonth, txs, data, onSaved }: {
         </div>
         <div className="card mt-sum">
           <div className="mt-sum-label">Net</div>
-          <div className={"mt-sum-value" + (net >= 0 ? " good" : " warn")}>{fmtCents(net)}</div>
+          {/* Spent more than came in is over the limit, the key's red
+              (§AM), not amber, which means only near it. */}
+          <div className={"mt-sum-value" + (net >= 0 ? " good" : " fact red")}>{fmtCents(net)}</div>
         </div>
       </div>
+      {/* One statement in the line's one grey, its two amounts stepping up
+          to white (§AM F1), with no dot baked between two facts (F2, F3). */}
       {budget && (
         <div className="pad-x mt-note">
-          {"Target " + fmtCents(budget.data.savingsTargetCents) + " · Expected " + fmtCents(budget.data.expectedIncomeCents)}
+          <span className="fact">Aiming to save <b>{fmtCents(budget.data.savingsTargetCents)}</b> of an expected <b>{fmtCents(budget.data.expectedIncomeCents)}</b></span>
         </div>
       )}
 
@@ -359,7 +364,10 @@ function Transactions({ data, month, onSaved }: {
             <i className="mt-dot" style={{ "--cat": categoryColor(t.data.category) } as React.CSSProperties} />
             <div className="row-grow">
               <div className="conn-name">{t.data.merchant}</div>
-              <div className="conn-meta">{fmtDay(t.data.date) + " · " + t.data.category}</div>
+              {/* The day is a date, small caps (F5); the category keeps the
+                  row's one grey, its mark the dot at the row's head. The dot
+                  between them is drawn by .facts, never baked in (F3). */}
+              <div className="facts"><span className="fact date">{fmtDay(t.data.date)}</span><span className="fact">{t.data.category}</span></div>
             </div>
             <div className={"mt-amt" + (t.data.amountCents < 0 ? " good" : "")}>{fmtCents(t.data.amountCents)}</div>
           </div>
@@ -684,8 +692,11 @@ function Subscriptions({ data, onSaved }: { data: TrackerData; onSaved: () => Pr
           <div className="row" key={s.id} {...pressable(() => setEditing(s))}>
             <div className="row-grow">
               <div className="conn-name">{s.data.merchantName}</div>
-              <div className="conn-meta">
-                {s.data.frequency + (s.data.status === "active" ? "" : " · Cancelled")}
+              {/* A cancelled one says so in the quiet grey chip, a fill and
+                  caps, so the frequency keeps the row's one grey (§AK). */}
+              <div className="r-k">
+                {s.data.status !== "active" && <span className="uchip u-proposed">Cancelled</span>}
+                <span className="r-goal r-cat">{s.data.frequency}</span>
               </div>
             </div>
             <div className="mt-amt">{fmtCents(s.data.amountCents)}</div>

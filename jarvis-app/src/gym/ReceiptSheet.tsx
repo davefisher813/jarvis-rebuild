@@ -146,7 +146,13 @@ export default function ReceiptSheet({ dayName, receipt, workouts, onDone, onKee
                   <div className="row" key={p.name}>
                     <div className="row-grow">
                       <div className="conn-name truncate">{liftTitle(p.name)}</div>
-                      <div className="conn-meta">{p.text}{p.from ? ` · Up from ${p.from}` : " · First time"}</div>
+                      {/* §AM (2026-09-26): two facts, the separator drawn by
+                          CSS. The new best is logged work, so the ramp's
+                          lime; what it beat is the line's one grey. */}
+                      <div className="facts">
+                        <span className="fact lime">{p.text}</span>
+                        <span className="fact">{p.from ? `Up from ${p.from}` : "First time"}</span>
+                      </div>
                     </div>
                     <span className="pill pill-good">PR</span>
                   </div>

@@ -80,7 +80,10 @@ export default function LightsOutScreen({ last, onLog, onEditTime, onLogSleep, r
             <div className="row" {...(canEdit && !editing ? pressable(() => setEditing(true)) : {})}>
               <div className="row-grow">
                 <div className="conn-name">{weekdayShortDateFromMs(last.data.at)}</div>
-                <div className="facts"><span className="fact violet">{clockOf(last.data.at)}</span></div>
+                {/* A bedtime is a neutral time, small caps (§AM F5). Violet
+                    was sleep's area hue on words; in Health it means a
+                    budget or a pairing. */}
+                <div className="facts"><span className="fact date">{clockOf(last.data.at)}</span></div>
               </div>
               {canEdit && !editing && (
                 <button type="button" className="pill-act pill-quiet" onClick={(ev) => { ev.stopPropagation(); setEditing(true); }}>Edit Time</button>
@@ -117,7 +120,8 @@ export default function LightsOutScreen({ last, onLog, onEditTime, onLogSleep, r
               <input className="input" type="date" value={night} onChange={(e) => { setNight(e.target.value); setSleepSaved(false); }} aria-label="Night ending" />
             </div>
             {sleepSaved
-              ? <div className="facts"><span className="fact violet">{`${trimHours(hours + minutes / 60)} hrs`}</span><span className="fact">Saved</span></div>
+              // Entered hours are a length with no state, so they are white (§AM).
+              ? <div className="facts"><span className="fact"><b>{`${trimHours(hours + minutes / 60)} hrs`}</b></span><span className="fact">Saved</span></div>
               : <button className="btn btn-secondary btn-block" disabled={!sleepValid} onClick={() => { onLogSleep(Number((hours + minutes / 60).toFixed(2)), night); setSleepSaved(true); }}>Save Sleep</button>}
           </div></div>
           {recentSleep.length > 0 && (
@@ -128,7 +132,7 @@ export default function LightsOutScreen({ last, onLog, onEditTime, onLogSleep, r
                   <div className="row" key={r.date}>
                     <div className="row-grow">
                       <div className="conn-name">{shortDate(r.date)}</div>
-                      <div className="facts"><span className="fact violet">{`${trimHours(r.hours)} hrs`}</span></div>
+                      <div className="facts"><span className="fact"><b>{`${trimHours(r.hours)} hrs`}</b></span></div>
                     </div>
                   </div>
                 ))}

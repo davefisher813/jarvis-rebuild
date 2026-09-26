@@ -13,7 +13,7 @@ describe("aiFailureLine", () => {
     expect(aiFailureLine(new Error("AI request failed (502). garbage"), "x")).toBe("x · Server said 502");
   });
   it("leaves non-proxy errors to humanError", () => {
-    expect(aiFailureLine(new Error("Failed to fetch"), "x")).toBe("You're offline · Nothing was lost");
-    expect(aiFailureLine(new Error("gmail 500"), "x")).toBe("Google's mail service is having trouble · Try again shortly");
+    expect(aiFailureLine(new Error("Failed to fetch"), "x")).toBe("You're offline; nothing was lost");
+    expect(aiFailureLine(new Error("gmail 500"), "x")).toBe("Google's mail service is having trouble; try again shortly");
   });
 });

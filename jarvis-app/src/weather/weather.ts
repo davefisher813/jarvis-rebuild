@@ -129,14 +129,24 @@ const fmtHour = (iso: string): string => {
 // "Checked 20 min ago" once the snapshot is older than 15 minutes; a fresh
 // read earns no caveat. Hours after that; a snapshot older than a day says
 // nothing at all (a two-day-old forecast is not a fact worth stating).
+//
+// THE AGE IS ITS OWN FACT (Colour Key sweep, R6/R8, 2026-09-26). It used to
+// arrive glued to the sentence with a dot baked into the string, so the dot
+// took the words' grey and the age read as a second run of the same grey.
+// It now carries no separator: the line draws it as a neutral time in small
+// caps, and the stylesheet draws the dot between the two.
 export function staleSuffix(snap: WeatherSnapshot, now: () => number = Date.now): string | null {
   const age = now() - snap.fetchedAt;
   if (age > 24 * 3600e3) return null;
   if (age < 15 * 60_000) return "";
   const mins = Math.round(age / 60_000);
-  if (mins < 90) return ` · Checked ${mins} min ago`;
-  return ` · Checked ${Math.round(mins / 60)} hr ago`;
+  if (mins < 90) return `Checked ${mins} min ago`;
+  return `Checked ${Math.round(mins / 60)} hr ago`;
 }
+
+// The age rides beside the sentence, never inside it; a fresh read has none.
+const withAge = (kind: WeatherKind, text: string, stale: string): WeatherFact =>
+  stale ? { kind, text, stale } : { kind, text };
 
 // WHICH WEATHER IT IS (Dave, 2026-09-15: "add weather emojis when there's a
 // weather notification. Right now it's just grey text that looks terrible").
@@ -166,16 +176,20 @@ export const WEATHER_EMOJI: Record<WeatherKind, string> = {
 
 export interface WeatherFact {
   kind: WeatherKind;
-  /** The sentence, exactly as the line has always read it. */
+  /** The sentence, exactly as the line has always read it, without the age. */
   text: string;
+  /** How old the forecast is ("Checked 40 min ago"), only once it is stale.
+   *  A neutral time: the line draws it as its own `.fact.date` after the
+   *  sentence, so the separator is the stylesheet's, not a baked-in dot. */
+  stale?: string;
 }
 
 // The morning line: today's first rain window, or the day's extreme, or
 // nothing. One sentence, one fact.
 //
 // morningLine/eventLine below are the string forms, kept as one-liners onto
-// these: every existing caller and test reads a string, and the sentence they
-// read has not changed.
+// these: every existing caller and test reads a string. They carry the
+// sentence alone; the forecast's age is the fact's own `stale` field.
 export function morningFact(snap: WeatherSnapshot, todayIso: string, now: () => number = Date.now): WeatherFact | null {
   const stale = staleSuffix(snap, now);
   if (stale === null) return null;
@@ -198,22 +212,22 @@ export function morningFact(snap: WeatherSnapshot, todayIso: string, now: () => 
     const line = until && until.startsWith(todayIso)
       ? `Rain likely ${fmtHour(hourly.time[rainStart]!)}-${fmtHour(until)}`
       : `Rain likely from ${fmtHour(hourly.time[rainStart]!)}`;
-    return { kind: "rain", text: line + stale };
+    return withAge("rain", line, stale);
   }
 
   const temps = idx.map(({ i }) => hourly.tempF[i] ?? 70);
   const hi = Math.max(...temps);
   const lo = Math.min(...temps);
-  if (hi >= HOT_F) return { kind: "hot", text: `${Math.round(hi)} At the peak` + stale };
-  if (lo <= COLD_F) return { kind: "cold", text: `Down to ${Math.round(lo)}` + stale };
+  if (hi >= HOT_F) return withAge("hot", `${Math.round(hi)} At the peak`, stale);
+  if (lo <= COLD_F) return withAge("cold", `Down to ${Math.round(lo)}`, stale);
 
   const wind = Math.max(...idx.map(({ i }) => hourly.windMph[i] ?? 0));
-  if (wind >= WINDY_MPH) return { kind: "wind", text: `Wind to ${Math.round(wind)} mph` + stale };
+  if (wind >= WINDY_MPH) return withAge("wind", `Wind to ${Math.round(wind)} mph`, stale);
 
   return null; // mild: silence
 }
 
-/** The string form, unchanged for every caller that wants a sentence. */
+/** The string form: the sentence alone, without the age. */
 export function morningLine(snap: WeatherSnapshot, todayIso: string, now: () => number = Date.now): string | null {
   return morningFact(snap, todayIso, now)?.text ?? null;
 }
@@ -228,14 +242,14 @@ export function eventFact(snap: WeatherSnapshot, dateIso: string, startHHMM: str
   const p = snap.hourly.precipProb[i] ?? 0;
   const t = snap.hourly.tempF[i];
   const w = snap.hourly.windMph[i] ?? 0;
-  if (p >= RAIN_PROB_MIN) return { kind: "rain", text: `Rain likely at start` + stale };
-  if (t !== undefined && t >= HOT_F) return { kind: "hot", text: `${Math.round(t)} At start` + stale };
-  if (t !== undefined && t <= COLD_F) return { kind: "cold", text: `${Math.round(t)} At start` + stale };
-  if (w >= WINDY_MPH) return { kind: "wind", text: `Wind to ${Math.round(w)} mph at start` + stale };
+  if (p >= RAIN_PROB_MIN) return withAge("rain", "Rain likely at start", stale);
+  if (t !== undefined && t >= HOT_F) return withAge("hot", `${Math.round(t)} At start`, stale);
+  if (t !== undefined && t <= COLD_F) return withAge("cold", `${Math.round(t)} At start`, stale);
+  if (w >= WINDY_MPH) return withAge("wind", `Wind to ${Math.round(w)} mph at start`, stale);
   return null;
 }
 
-/** The string form, unchanged for every caller that wants a sentence. */
+/** The string form: the sentence alone, without the age. */
 export function eventLine(snap: WeatherSnapshot, dateIso: string, startHHMM: string, now: () => number = Date.now): string | null {
   return eventFact(snap, dateIso, startHHMM, now)?.text ?? null;
 }

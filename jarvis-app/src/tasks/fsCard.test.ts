@@ -32,7 +32,10 @@ describe("The Keeps Sliding row", () => {
     expect(flow, "the evidence is handed to the sheet instead").toContain("slidingNote={");
     expect(flow).toContain("slidingLine(t, today)");
     const sheet = readFileSync(join(__dirname, "screens", "TaskSheet.tsx"), "utf8");
-    expect(sheet).toContain("{slidingNote && <div className=\"conn-meta\">{slidingNote}</div>}");
+    // UPDATED 2026-09-26 (sweep round 3): the evidence left the grouped
+    // card for the When group's footer on the sheet ground, as a facts line
+    // (a red or amber fact never sits on a grey card nested in a sheet).
+    expect(sheet).toContain("{slidingNote && <div className=\"pad-x\"><div className=\"facts\">{slidingNote}</div></div>}");
     expect(stalled).toMatch(/label: fsBusy \? "Thinking\.\.\." : "First Step"/);
     expect(stalled, "the offer never renders as a notice row").not.toContain("<NoticeCard");
     expect(src).toContain("stalled={fsStalled}");

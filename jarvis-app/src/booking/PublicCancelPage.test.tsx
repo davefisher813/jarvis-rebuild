@@ -54,7 +54,7 @@ describe("PublicCancelPage", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Cancel It" }));
     expect(await screen.findByText("Cancelled")).toBeInTheDocument();
     expect(screen.getByText(/hour is free again/)).toBeInTheDocument();
-    expect(screen.getByText(/Nothing else is needed/)).toBeInTheDocument();
+    expect(screen.getByText(/nothing else is needed/i)).toBeInTheDocument();
   });
 
   it("sends the booking's own id and nothing else", async () => {

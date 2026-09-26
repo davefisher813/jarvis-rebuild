@@ -3,6 +3,7 @@ import { describe, it, expect } from "vitest";
 import { render, act, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import NoticeCard from "./NoticeCard";
+import { Facts } from "../messages/factsLine";
 
 // THE DELETE SLOT (2026-08-26). Dave, off a real screenshot of a mail
 // notice's swipe reveal: "I should be able to delete from here." Dismiss
@@ -156,5 +157,34 @@ describe("holding an automated card (UP-CORE-14)", () => {
     hold(document.querySelector(".notice-card")!);
     expect(screen.queryByText("Never")).toBeNull();
     vi.useRealTimers();
+  });
+});
+
+// §AM (2026-09-26): a middle dot is drawn by .fact + .fact::before, never
+// typed into a meta line, and each fact wears the key's ink for what it
+// means. A string cannot say which of its parts is a count, a date or a due
+// day, so NoticeCard does not guess by splitting one: a producer with more
+// than one fact passes a <Facts> node with its tones, and a string renders
+// whole as the line's one quiet run.
+describe("the sub: one quiet run, or a facts line the producer tones (§AM)", () => {
+  it("renders a string sub whole, as one run, never split into plain facts", () => {
+    const { container } = render(<NoticeCard icon={<i />} title="A notice" sub="Left 5m ago" />);
+    const meta = container.querySelector(".conn-meta")!;
+    expect(meta.querySelector(".fact")).toBeNull();
+    expect(meta.textContent).toBe("Left 5m ago");
+  });
+
+  it("renders a producer's <Facts> node as given, with the key's tones kept", () => {
+    const { container } = render(
+      <NoticeCard
+        icon={<i />}
+        title="A notice"
+        sub={<Facts facts={[{ text: "Same category" }, { text: "15m", tone: "est" }]} />}
+      />,
+    );
+    const meta = container.querySelector(".conn-meta")!;
+    const facts = [...meta.querySelectorAll(".fact")].map((f) => [f.className, f.textContent]);
+    expect(facts).toEqual([["fact", "Same category"], ["fact est", "15m"]]);
+    expect(meta.textContent).not.toContain("·");
   });
 });

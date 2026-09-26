@@ -81,8 +81,10 @@ describe("the export sheet", () => {
     fireEvent.click(screen.getByRole("button", { name: /Text \.txt/ }));
     fireEvent.click(await screen.findByRole("button", { name: "Export File" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("The disk is full. The note is unchanged: retry, or choose another format");
-    // One sentence in one grey, not three stacked runs of it (§AK).
-    expect(screen.getByRole("alert").querySelectorAll(".exp-note")).toHaveLength(1);
+    // One sentence on the failure line, not three stacked runs (§AK), drawn
+    // as the error line rather than a note class of the sheet's own (§AM F6).
+    expect(screen.getByRole("alert").querySelectorAll(".input-error")).toHaveLength(1);
+    expect(screen.getByRole("alert").querySelector(".exp-note")).toBeNull();
     expect(screen.getAllByRole("button", { pressed: false }).filter((b) => b.classList.contains("exp-format")).length).toBe(3);
     fireEvent.click(screen.getByRole("button", { name: "Retry" }));
     await waitFor(() => expect(onClose).toHaveBeenCalled());

@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { openMinutes, loadOf, loadLine, dropToFit, dropLine, hhmm, autoSelect } from "./planLoad";
+import { openMinutes, loadOf, dropToFit, dropLine, hhmm, autoSelect } from "./planLoad";
 import { capOffer, finishRate } from "./planCap";
-import { splitSittings, splitLine } from "./splitSitting";
+import { splitSittings } from "./splitSitting";
 import { dayClock } from "./planClock";
 import { dayScores, planCount } from "./dayShape";
 import type { EventItem } from "./types";
@@ -44,18 +44,16 @@ describe("the day's load", () => {
   it("reports a fitting day as fitting", () => {
     const l = loadOf([{ taskId: "t", text: "T", category: "", start: "09:00", end: "10:00" }], [], 480);
     expect(l).toMatchObject({ pickedMin: 60, overMin: 0, fits: true });
-    expect(loadLine(l, 1)).toBe("8h open · 1 picked, fits");
   });
 
   it("an unplaced pick IS the over signal, not arithmetic", () => {
     const l = loadOf([], [{ durationMin: 90 }], 60);
     expect(l.overMin).toBe(90);
     expect(l.fits).toBe(false);
-    expect(loadLine(l, 1)).toBe("1h open · 1h 30m over");
   });
 
-  it("says nothing about picks when nothing is picked", () => {
-    expect(loadLine(loadOf([], [], 250), 0)).toBe("4h 10m open");
+  it("an empty pick set is open time and nothing over", () => {
+    expect(loadOf([], [], 250)).toMatchObject({ openMin: 250, pickedMin: 0, overMin: 0, fits: true });
   });
 
   it("drops the LAST picks, never the first: pick order is priority", () => {
@@ -105,7 +103,6 @@ describe("splitting a long sitting", () => {
 
   it("splits three hours into two real sittings", () => {
     expect(splitSittings(180)).toEqual([90, 90]);
-    expect(splitLine([90, 90])).toBe("2 Sittings · 90m each");
   });
 
   it("gives the remainder to the FIRST sitting, where the energy is", () => {
@@ -119,8 +116,8 @@ describe("splitting a long sitting", () => {
     expect(splitSittings(70, 25)).toEqual([70]);
   });
 
-  it("says nothing when there is no split", () => {
-    expect(splitLine([45])).toBe("");
+  it("leaves a single sitting as one chunk", () => {
+    expect(splitSittings(45)).toHaveLength(1);
   });
 });
 
@@ -134,7 +131,6 @@ describe("the clock check", () => {
     const v = dayClock(23 * 60, 23 * 60 + 30);
     expect(v?.title).toBe("Only 30 Minutes Left Today");
     expect(v?.spent).toBe(false);
-    expect(v?.sub).toBe("Plan tomorrow instead?");
   });
 
   it("calls a dead day dead", () => {

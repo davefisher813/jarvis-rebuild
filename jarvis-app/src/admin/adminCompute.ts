@@ -135,9 +135,14 @@ export interface RawFeedback {
 export interface AdminFeedback {
   id: string;
   text: string;
-  /** "build · template · device", with the empty parts left out entirely
-      rather than rendered as blanks. */
-  meta: string;
+  /** The facts line's parts, NAMED (2026-09-26). It was one list read by
+      position -- build first -- and a report with no build (RawFeedback's
+      build is optional) moved the template into the build's slot, so the
+      template drew as the white build number. The panel draws each part as
+      its own fact and the stylesheet draws the separator (Colour Key F3).
+      `build` is absent when the report carried none; `from` is template
+      then device, empty parts left out rather than rendered as blanks. */
+  meta: { build?: string; from: string[] };
   at: string;
   lastError: string | null;
 }
@@ -157,7 +162,10 @@ export function mapFeedback(rows: RawFeedback[]): AdminFeedback[] {
   return rows.map((r) => ({
     id: r.id,
     text: r.text,
-    meta: [r.build, r.template, deviceName(r.device)].filter(Boolean).join(" · "),
+    meta: {
+      build: r.build || undefined,
+      from: [r.template, deviceName(r.device)].filter((s): s is string => !!s),
+    },
     at: r.created_at,
     lastError: r.last_error || null,
   }));

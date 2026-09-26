@@ -71,6 +71,21 @@ describe("LAW: one grey, ever", () => {
     const notes = read("src/notes/NotesService.ts");
     expect(notes).not.toMatch(/`\$\{title\} · \$\{shortDateFromMs/);
   });
+
+  // ADDED 2026-09-26 (Colour Key sweep, lead decision #446): the one line
+  // the lead added a rule for. An import's names list sat under the plan's
+  // counts in the field-note class, a second grey on the sheet. The names
+  // are the content being added, so they take primary ink at the fact size;
+  // the counts above stay the sheet's one grey.
+  it("a plan's names are its content, not a second grey under its counts", () => {
+    const rule = /\.plan-names\s*\{([^}]*)\}/.exec(read("src/styles/components.css"))?.[1] ?? "";
+    expect(rule, "the names line has a rule").toMatch(/font-size:\s*var\(--t-sub\)/);
+    expect(rule, "in primary ink").toMatch(/color:\s*var\(--tx-1\)/);
+    const people = read("src/people/PeopleFlow.tsx");
+    const at = people.indexOf("importPlan.plan.create.slice(0, 5)");
+    expect(at, "the import sheet lists who is coming in").toBeGreaterThan(-1);
+    expect(people.slice(Math.max(0, at - 200), at), "on the names line, not a field note").toMatch(/className="plan-names"/);
+  });
 });
 
 // ---------------------------------------------------------------------------

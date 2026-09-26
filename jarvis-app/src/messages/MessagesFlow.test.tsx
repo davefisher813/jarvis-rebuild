@@ -21,6 +21,7 @@ import MailOutboxPump from "./MailOutboxPump";
 import ToastHost from "../shared/ToastHost";
 import { saveMailSnapshot, loadMailSnapshot } from "./home";
 import { loadOutbox, resetOutboxForTest } from "./outbox";
+import { humanError } from "../connections/google/humanError";
 import { loadLetGo } from "./letGo";
 import { loadVips, toggleVip } from "./vip";
 import { loadMinutes } from "./drain";
@@ -28,6 +29,8 @@ import { clearedToday } from "./cleared";
 import { loadClosedBatch } from "./weeklyClose";
 import { todayISO } from "../schedule/calendar";
 import { recordToss } from "./selfClean";
+import { recordUnsub } from "./unsubRecords";
+import { saveRule } from "./rules";
 
 const noAI = new AIService({ available: false });
 
@@ -454,7 +457,7 @@ describe("MessagesFlow (threads)", () => {
     const { unmount } = render(wrap(<MessagesFlow ai={ai} configured />));
     fireEvent.click(await screen.findByText("Connect Google"));
     // SPEC MOVED (short copy, 2026-08-15)
-    expect(await screen.findByText(/Now tasks/)).toBeInTheDocument();
+    expect(await screen.findByText(/days old (?:is now a task|are now tasks)/)).toBeInTheDocument();
     expect(JSON.parse(localStorage.getItem("jarvis.mail.netted.v1") || "[]")).toContain("t1");
     unmount();
 
@@ -466,7 +469,7 @@ describe("MessagesFlow (threads)", () => {
     // SPEC MOVED (V2 anatomy, 2026-08-15): fold count now rides as a pill.
     expect(await screen.findByText("The Rest")).toBeInTheDocument();
     // SPEC MOVED (short copy, 2026-08-15)
-    expect(screen.queryByText(/Now tasks/)).toBeNull();
+    expect(screen.queryByText(/days old (?:is now a task|are now tasks)/)).toBeNull();
   });
 
   it("deletes a thread to Gmail's trash, never permanently", async () => {
@@ -560,6 +563,45 @@ describe("MessagesFlow (threads)", () => {
     fireEvent.click(await screen.findByText("Unmute"));
     fireEvent.click(screen.getByText("Email"));
     expect(await screen.findByText("Ridgeley")).toBeInTheDocument();
+  });
+
+  // UP-MIND-17: the Asked to Stop receipt says when he asked and whether
+  // it worked, as two facts (§AM R5, R6). "Still sending" is a sender that
+  // stalled after the ask, amber; a sender that went quiet says only when.
+  it("the Asked to Stop row says Still sending, amber, only when mail came since", async () => {
+    const ago = new Date();
+    ago.setDate(ago.getDate() - 21);
+    const askedISO = `${ago.getFullYear()}-${String(ago.getMonth() + 1).padStart(2, "0")}-${String(ago.getDate()).padStart(2, "0")}`;
+    recordUnsub({ sender: "deals@shop.com", askedISO, via: "header" });
+    recordUnsub({ sender: "quiet@shop.com", askedISO, via: "header" });
+    // A filed sender puts the Standing Rules row on the page.
+    saveRule("filed@x.com", "noise");
+    const api = makeApi({ listThreads: async () => [
+      ...THREADS,
+      { id: "t9", messages: [msg("m9", "Deals <deals@shop.com>", "Last chance", "Sale ends", ["INBOX"], Date.now())] },
+    ] });
+    render(wrap(<MessagesFlow ai={noAI} configured />, api));
+    fireEvent.click(await screen.findByText("Connect Google"));
+    await screen.findByText("Ridgeley");
+    fireEvent.click(screen.getByText("Standing Rules"));
+    await screen.findByText("Asked to Stop");
+    const lines = await waitFor(() => {
+      const ls = [...document.querySelectorAll(".facts")].filter((f) => (f.textContent ?? "").startsWith("Asked 3 weeks ago"));
+      expect(ls).toHaveLength(2);
+      return ls;
+    });
+    const still = lines.filter((f) => f.querySelector(".fact.warn"));
+    const calm = lines.filter((f) => !f.querySelector(".fact.warn"));
+    expect(still).toHaveLength(1);
+    expect(calm).toHaveLength(1);
+    // Sent since the ask: when, then whether it worked, in amber.
+    const facts = [...still[0]!.querySelectorAll(".fact")];
+    expect(facts.map((f) => f.textContent)).toEqual(["Asked 3 weeks ago", "Still sending"]);
+    expect(facts[0]!.className).toBe("fact");
+    expect(facts[1]!.className).toBe("fact warn");
+    // Nothing since the ask: only when, and no "Still sending" anywhere on it.
+    expect([...calm[0]!.querySelectorAll(".fact")].map((f) => f.textContent)).toEqual(["Asked 3 weeks ago"]);
+    expect(calm[0]!.textContent).not.toMatch(/still sending/i);
   });
 
   it("composes and sends", async () => {
@@ -882,6 +924,78 @@ describe("MessagesFlow (threads)", () => {
     expect(sheet!.querySelectorAll(".list-flat .row").length).toBeGreaterThan(0);
   });
 
+  // THE OPEN IS ONE-SIDED (tracking.ts). "Opened" is said only on a real
+  // pixel hit; the absence of one is said as nothing, never "not opened",
+  // because image-blocking clients read mail invisibly. waitingLine carried
+  // this and its tests went with it; the card draws it inline now, so the
+  // card is what is pinned: a real open is a neutral date in small caps
+  // (§AM R8), and a wait with no open has no line about opening at all.
+  it("the one-at-a-time card says Opened only on a real open, and never 'not opened'", async () => {
+    const DAY = 86400e3;
+    const sentTo = (id: string, to: string, subject: string, days: number): GmailThreadMeta => ({ id, messages: [{
+      id: id + "m", snippet: subject, labelIds: ["SENT"], internalDate: String(Date.now() - days * DAY),
+      payload: { headers: [
+        { name: "From", value: "Me <me@example.com>" }, { name: "To", value: to },
+        { name: "Subject", value: subject },
+      ] },
+    }] });
+    // Rob's waiver went out tracked and its pixel was hit on Aug 2; Ann's
+    // roster went out untracked, so nothing is known about it either way.
+    localStorage.setItem("jarvis.mail.tracks.v1", JSON.stringify({ "trk-rob": { threadId: "w1", sentAt: Date.now() - 12 * DAY } }));
+    const realFetch = globalThis.fetch;
+    const asked: string[][] = [];
+    globalThis.fetch = (async (_url: string, init?: RequestInit) => {
+      asked.push((JSON.parse(String(init?.body ?? "{}")) as { check?: string[] }).check ?? []);
+      return { ok: true, json: async () => ({ opens: { "trk-rob": "2026-08-02T12:00:00" } }) };
+    }) as unknown as typeof fetch;
+    // Triage settles the list (both inbox threads are noise), which is what
+    // puts the Waiting On section on screen.
+    const ai = aiReturning(JSON.stringify([
+      { id: "t1", bucket: "noise", gist: "g" }, { id: "t2", bucket: "noise", gist: "promo" },
+    ]));
+    try {
+      render(wrap(<MessagesFlow ai={ai} configured token="tok" />, makeApi({
+        searchThreads: async () => [sentTo("w1", "Rob <rob@y.com>", "The waiver", 12), sentTo("w2", "Ann <ann@y.com>", "The roster", 9)],
+      })));
+      fireEvent.click(await screen.findByText("Connect Google"));
+      await waitFor(() => expect(asked).toEqual([["trk-rob"]]));
+      // The deck lives in the Waiting On section, so that is where it opens.
+      const waitingTab = screen.queryByRole("tab", { name: /Waiting On/ });
+      if (waitingTab) fireEvent.click(waitingTab);
+      fireEvent.click(await screen.findByText("One at a Time"));
+
+      // Rob's card, the longer wait: the open is a fact, in small caps.
+      const robCard = await waitFor(() => {
+        const c = document.querySelector(".wait-card");
+        expect(c?.textContent).toContain("The waiver");
+        return c!;
+      });
+      const opened = [...robCard.querySelectorAll(".fact.date")].find((f) => /^Opened /.test(f.textContent ?? ""));
+      expect(opened?.textContent).toBe("Opened Aug 2");
+      // The toned age leads and the name is last, the one fact that may
+      // shrink: a name can be a whole email address, and first it squeezed
+      // the age off the line. Past a week is the direct rung, amber.
+      const head = [...robCard.querySelector(".facts")!.querySelectorAll(".fact")];
+      expect(head[0]!.className).toBe("fact warn");
+      expect(head[0]!.textContent).toMatch(/^1[12] Days$/);
+      expect(head[head.length - 1]!.className).toBe("fact");
+      expect(head[head.length - 1]!.textContent).toMatch(/Rob/);
+      expect(robCard.textContent).not.toMatch(/not opened/i);
+
+      // Ann's card: nothing was tracked, so nothing is said about opening.
+      fireEvent.click(screen.getByText("Skip"));
+      const annCard = await waitFor(() => {
+        const c = document.querySelector(".wait-card");
+        expect(c?.textContent).toContain("The roster");
+        return c!;
+      });
+      expect(annCard.textContent).not.toMatch(/opened/i);
+      expect(annCard.textContent).not.toMatch(/not opened/i);
+    } finally {
+      globalThis.fetch = realFetch;
+    }
+  });
+
   // EMAIL-F-21 (2026-09-05): "A stale Undo button can attach itself to an
   // unrelated toast." Archive a row ("Archived · Undo"), then within six
   // seconds trigger any plain toast and the new toast wore the old Undo,
@@ -987,6 +1101,22 @@ describe("MessagesFlow (threads)", () => {
     await waitFor(() => expect(screen.getByLabelText("Message").textContent).toContain("Half a sentence"));
   });
 
+  // The failure lines are whatever humanError says for that status. Its own
+  // test pins every sentence exactly, both halves (humanError.test.ts); these
+  // cases pin that the screen shows that line, for the right account, and
+  // never a dead inbox.
+  // AMENDED 2026-09-26 (sweep #459): the literals here pinned the old
+  // wording with a typed middot, which R6 retires from a meta line.
+  const EXPIRED = humanError(new Error("threads 401"), "");
+  const REFUSED = humanError(new Error("threads 403"), "");
+  const OFFLINE = humanError(new TypeError("Failed to fetch"), "");
+  it("the failure lines say what a person can do, not the machine's words", () => {
+    // What happened, then the move: each line ends in what to do about it.
+    expect(EXPIRED).toMatch(/^Your Google sign-in expired; reconnect in Settings$/);
+    expect(REFUSED).toMatch(/^Google refused that; reconnect in Settings to update permissions$/);
+    expect(OFFLINE).toMatch(/^You're offline; nothing was lost$/);
+  });
+
   // EMAIL-F-04 (2026-09-05): "An expired token or a dead network reads as
   // Inbox Is Quiet and wipes the Today email band." PROOF A from the audit:
   // listThreads throwing "threads 401" rendered "Inbox Is Quiet", no
@@ -1007,7 +1137,7 @@ describe("MessagesFlow (threads)", () => {
     // re-runs loadThreads, and each run clears the line before re-setting
     // it, so a node found mid-flight can be swapped out a tick later.
     await waitFor(() => {
-      expect(screen.getByText("Your Google sign-in expired · Reconnect in Settings")).toBeInTheDocument();
+      expect(screen.getByText(EXPIRED)).toBeInTheDocument();
       expect(screen.getByText("Couldn’t Reach Your Mail")).toBeInTheDocument();
       expect(screen.getByText("Try Again")).toBeInTheDocument();
     });
@@ -1023,7 +1153,7 @@ describe("MessagesFlow (threads)", () => {
     const api = makeApi({ listThreads: async () => { throw new Error("Failed to fetch"); } });
     render(wrap(<MessagesFlow ai={noAI} configured />, api));
     fireEvent.click(await screen.findByText("Connect Google"));
-    await waitFor(() => expect(screen.getByText("You're offline · Nothing was lost")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(OFFLINE)).toBeInTheDocument());
     expect(screen.queryByText("Inbox Empty")).toBeNull();
   });
 
@@ -1038,8 +1168,6 @@ describe("MessagesFlow (threads)", () => {
   // A failure belongs to the ACCOUNT it happened to, so there is one line per
   // account and each one names its own. The full address, not acctLabel:
   // two gmail accounts both shorten to "gmail".
-  const REFUSED = "Google refused that · Reconnect in Settings to update permissions";
-  const EXPIRED = "Your Google sign-in expired · Reconnect in Settings";
 
   it("one account of two refusing says which one, and does not read as a dead inbox", async () => {
     const apis: Record<string, GoogleApi> = {
@@ -1216,7 +1344,9 @@ describe("MessagesFlow (threads)", () => {
     render(wrap(<MessagesFlow ai={noAI} configured />, api));
     fireEvent.click(await screen.findByText("Connect Google"));
     expect(await screen.findByText("Send Interrupted")).toBeInTheDocument();
-    expect(screen.getByText("Interrupted · Check Sent, then Retry")).toBeInTheDocument();
+    // The title says "Interrupted"; the line under it no longer repeats it
+    // behind a typed dot (outbox.ts INTERRUPTED_LINE, §AM R6).
+    expect(screen.getByText("Check Sent, then Retry")).toBeInTheDocument();
     expect(screen.queryByText("On its way")).toBeNull();
     expect(screen.getByText("Retry")).toBeInTheDocument();
     expect(screen.getByText("Edit")).toBeInTheDocument();

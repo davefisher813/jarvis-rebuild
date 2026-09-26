@@ -94,8 +94,11 @@ export interface Finding {
   kind: "change" | "observation" | "issue";
   hue: "lime" | "amber" | "violet" | "cyan";
   title: string;
-  /** The reading, in the finding's hue. */
+  /** The reading, in the finding's hue -- unless `plainValue`. */
   value: string;
+  /** The reading is a number with no state (§AM, 2026-09-26): it is drawn
+   *  as the Colour Key's white, and `hue` marks the row's glyph only. */
+  plainValue?: true;
   /** Dates, sample size, coverage: the row's own facts, ONE PER ENTRY.
    *
    *  2026-09-16 (Dave's Health screenshot). This was a single string with
@@ -165,9 +168,14 @@ export function findings(inp: FindingsInput): Finding[] {
   //    working sets against the period before.
   if (overview.sleep.nights >= 3 && overview.sleep.avgHours != null) {
     out.push({
-      id: "sleep", kind: "observation", hue: "violet",
+      // Violet means a budget or a pair, and sleep is neither (§AM). The
+      // average itself is a number with no state, so it is white, the ink
+      // the Health tile and the Insights card give the same number; lime,
+      // the Health key's logged, stays on the glyph, for nights he logged.
+      id: "sleep", kind: "observation", hue: "lime",
       title: "Sleep",
       value: hoursLabel(overview.sleep.avgHours),
+      plainValue: true,
       context: [capAfterNumber(`${overview.sleep.nights} of ${overview.period.days} nights logged`)],
       open: { kind: "sleep" },
     });

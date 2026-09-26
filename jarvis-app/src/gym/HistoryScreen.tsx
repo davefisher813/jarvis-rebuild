@@ -106,11 +106,13 @@ export default function HistoryScreen({ workouts, onBack, onOpenLift, onOpenWork
                     onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpenWorkout?.(r.workout); } }}>
                     <div className="row-grow">
                       <div className="conn-name truncate">{workoutTitle(r.workout.data.dayName)}</div>
-                      {/* Three facts: the date, the minutes in the time hue, the
-                          working sets in the logged-work hue. */}
+                      {/* Three facts: the date in small caps, the minutes as
+                          the row's one grey, the working sets in the
+                          logged-work hue. Amber says over or next, and a
+                          session's length is neither (§AM). */}
                       <div className="facts">
-                        <span className="fact">{monthDay(r.date)}</span>
-                        <span className="fact amber">{capAfterNumber(`${r.minutes} min`)}</span>
+                        <span className="fact date">{monthDay(r.date)}</span>
+                        <span className="fact">{capAfterNumber(`${r.minutes} min`)}</span>
                         <span className="fact lime">{r.sets} {r.sets === 1 ? "set" : "sets"}</span>
                       </div>
                     </div>

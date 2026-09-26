@@ -88,7 +88,6 @@ export default function FreshStartFlow({ onClose, onDone }: { onClose: () => voi
               <div className="row">
                 <div className="row-grow">
                   <div className="conn-name fresh-faded">{move.length} moved to tomorrow</div>
-                  <div className="conn-meta">Nothing lost</div>
                 </div>
               </div>
             )}

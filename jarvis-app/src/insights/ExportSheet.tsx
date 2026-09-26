@@ -85,11 +85,11 @@ export default function ExportSheet({ records, workouts, sleepDef, logs, today, 
               <button type="button" className={"seg" + (format === "csv" ? " active" : "")} onClick={() => setFormat("csv")}>CSV</button>
               <button type="button" className={"seg" + (format === "summary" ? " active" : "")} onClick={() => setFormat("summary")}>Summary</button>
             </div>
-            <div className="facts">
-              <span className="fact cyan">{`${count} ${count === 1 ? "record" : "records"}`}</span>
-              <span className="fact">{format === "csv" ? "Every record with its date, value, unit and source" : "The period in plain text, with how each number was made"}</span>
-            </div>
-            <div className="facts"><span className="fact">PDF is not offered: the web app ships no PDF library, and a renamed file is not one</span></div>
+            {/* The notes under a field are .input-hint (§AM F6), and the count
+                is part of the note rather than a cyan fact beside it: a count
+                with no state is not Health's "now". */}
+            <div className="input-hint">{`${count} ${count === 1 ? "record" : "records"}, ${format === "csv" ? "each with its date, value, unit and source" : "as the period in plain text, with how each number was made"}`}</div>
+            <div className="input-hint">PDF is not offered: the web app ships no PDF library, and a renamed file is not one</div>
           </div>
         </div>
         <div className="pad-x sheet-actions">

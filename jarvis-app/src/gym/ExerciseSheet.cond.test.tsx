@@ -24,7 +24,8 @@ describe("ExerciseSheet, the clock", () => {
     pickClock("AMRAP");
     expect(screen.queryByText("Measure")).toBeNull();
     expect(screen.queryAllByText("Sets")).toHaveLength(0);
-    expect(screen.getByText(/AMRAP · 12:00/)).toBeInTheDocument();
+    // The Clock menu names the format; the line under it carries the length.
+    expect(screen.getByText("12:00")).toBeInTheDocument();
     save();
     expect(onSave).toHaveBeenCalledTimes(1);
     const d = onSave.mock.calls[0]![0];
@@ -37,7 +38,7 @@ describe("ExerciseSheet, the clock", () => {
     render(<ExerciseSheet mode="new" library={[]} history={[]} onSave={onSave} onCancel={() => {}} />);
     fireEvent.change(screen.getByPlaceholderText("Exercise Name"), { target: { value: "Bike" } });
     pickClock("Tabata");
-    expect(screen.getByText(/Tabata · 8 × 0:20 \/ 0:10/)).toBeInTheDocument();
+    expect(screen.getByText("8 × 0:20 / 0:10")).toBeInTheDocument();
     save();
     expect(onSave.mock.calls[0]![0].cond).toEqual({ format: "tabata", capSec: 240, intervalSec: 20, restSec: 10, rounds: 8 });
   });

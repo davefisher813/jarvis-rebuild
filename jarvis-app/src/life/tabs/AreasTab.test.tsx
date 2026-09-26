@@ -43,7 +43,15 @@ describe("AreasTab", () => {
     expect(await screen.findByText("Bridge", {}, { timeout: 3000 })).toBeInTheDocument();
     const row = screen.getByText("Bridge").closest(".area-card") as HTMLElement;
     expect(row).toBeTruthy();
-    expect(row.querySelector(".area-sub")?.textContent).toBe("2 tasks · 1 goal · 1 project");
+    // One fact per count, the dot between them drawn by the stylesheet (§AM
+    // F3), so no string carries one. Each count is a white number, whole.
+    // The line shows every count, so it is the wrapping .conn-meta, never
+    // the one-line .facts that cut "2 Projects" to "2 ..." (2026-09-26).
+    const facts = Array.from(row.querySelectorAll(".conn-meta > .fact")).map((f) => f.textContent);
+    expect(facts).toEqual(["2 Tasks", "1 Goal", "1 Project"]);
+    expect(row.querySelectorAll(".conn-meta > .fact > b")).toHaveLength(3);
+    expect(row.querySelector(".facts")).toBeNull();
+    expect(row.querySelector(".conn-meta")?.textContent).not.toContain("·");
     // Money-kind is excluded outright, its task included (BrainPage's rule,
     // now enforced here): no row, no leak of its count into anything else.
     expect(screen.queryByText("Budget")).not.toBeInTheDocument();
@@ -112,6 +120,6 @@ describe("AreasTab", () => {
     }
     render(<NotesProvider userId="areas-4"><Empty /></NotesProvider>);
     const row = (await screen.findByText("Personal", {}, { timeout: 3000 })).closest(".area-card") as HTMLElement;
-    expect(row.querySelector(".lib-sub")).toBeNull();
+    expect(row.querySelector(".conn-meta")).toBeNull();
   });
 });

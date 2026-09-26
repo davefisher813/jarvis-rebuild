@@ -78,9 +78,25 @@ export default function LockedRow({
   // whether it shows as a count (four or more, collapsed) or as the tasks
   // themselves (three or fewer, always open); the kicker says only what
   // kind of time this is.
-  const kicker = holds
-    ? (heldCount ? "Focus time" : "Focus time · Tasks land here")
-    : m === "blends" ? "Can blend · " + freeOf(l).join(" and ") + " free"
+  //
+  // ONE RUN, NO BAKED DOT (§AM F3, 2026-09-26). "Focus time · Tasks land
+  // here" and "Can blend · ears free" carried a middle dot inside the string,
+  // on the meta line where separators are drawn by .sched-sep. The blend
+  // becomes one phrase; "Tasks land here" went, since it described the
+  // mechanism rather than the time (the block's own "+ Put a Task" says it
+  // where it can be acted on).
+  //
+  // THE KICKER STANDS DOWN BESIDE A STATE WORD (2026-09-26). The word says
+  // what kind of time this is, so "PROTECTED Protected" and "FOCUS Focus
+  // time" said it twice, and a soft block's "Protected" beside FLEXIBLE
+  // contradicted it. Beside a word the kicker says only what the word
+  // cannot: which senses a blend leaves free. With no word, it names the
+  // kind itself.
+  const blend = "Can blend, " + freeOf(l).join(" and ") + " free";
+  const kicker = state ? (m === "blends" ? blend : "")
+    : holds ? "Focus time"
+    : m === "blends" ? blend
+    : l.soft ? "Flexible"
     : "Protected";
 
   const swipeable = !past && (!!onShift || !!onDelete);
@@ -145,7 +161,7 @@ export default function LockedRow({
                   bare sibling span does under flex-wrap. One unit, so the
                   line wraps before the dot or not at all. */}
               <span className="sched-fact">
-                <span className="sched-sep">&middot;</span>
+                {(state || kicker) && <span className="sched-sep">&middot;</span>}
                 {onResize ? (
                   <button
                     type="button"

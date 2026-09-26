@@ -107,13 +107,15 @@ export default function LibraryPickSheet({
                   <div className="conn-meta">{MEASURE_LABEL[entry.kind]}</div>
                 )}
               </div>
-              {/* Part 3 wave 1: a starred lift says so, and leads the list. */}
-              {entry.favorite && <span className="pill pill-good">Favorite</span>}
+              {/* Part 3 wave 1: a starred lift says so, and leads the list. A
+                  favourite is not done or on track, so the pill is the neutral
+                  one: its fill and caps set it apart, never the good green. */}
+              {entry.favorite && <span className="pill pill-subdued">Favorite</span>}
               {multi && <div className={"task-check" + (isPicked(entry.key) ? " done" : "")} />}
             </div>
           ))}
           {results.length === 0 && (
-            <div className="pad-x"><div className="bp-sub">Nothing found yet · Keep typing or add it new</div></div>
+            <div className="pad-x"><div className="bp-sub">Nothing found yet: keep typing, or add it new</div></div>
           )}
         </div></div>
         {/* The one action the bar cannot carry: it appears only when what was

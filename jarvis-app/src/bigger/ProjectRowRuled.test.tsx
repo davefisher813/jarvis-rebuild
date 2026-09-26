@@ -30,6 +30,15 @@ describe("ProjectRowRuled", () => {
     expect(row.querySelector(".pp")).toBeNull();
   });
 
+  // A row with nothing to say shows nothing (§AK): an unstarted project with
+  // no status has no meter line at all, not an empty one.
+  it("draws no meter line when there is no count, hold or status", () => {
+    const { container } = render(<ProjectRowRuled {...base} meter="" status={null} bar={null} />);
+    expect(container.querySelector(".goal-meter")).toBeNull();
+    const held = render(<ProjectRowRuled {...base} meter="" status={null} bar={null} hold="On Hold Until Oct 3" />);
+    expect(held.container.querySelector(".goal-meter")?.textContent).toContain("On Hold Until Oct 3");
+  });
+
   it("offers Close only when handed one, on the title's line", () => {
     const onClose = vi.fn();
     const onOpen = vi.fn();

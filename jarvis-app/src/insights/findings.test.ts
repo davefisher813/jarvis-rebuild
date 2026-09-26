@@ -79,7 +79,9 @@ describe("findings", () => {
     const long = w("long", "2026-09-13", [{ w: 135, r: 5 }]);
     long.data.endedAt = long.data.startedAt + 627 * 60000;
     const f = findings({ workouts: [long], sleepDef: def, logs, period, muscleMap: new Map([["k1", ["chest"]]]), now: T("2026-09-14", 12) });
-    expect(f.find((x) => x.kind === "observation")).toMatchObject({ title: "Sleep", value: "7h 30m" });
+    // Violet is a budget or a pair in the Health key (§AM). The average is a
+    // number with no state, so white (plainValue); lime marks the glyph only.
+    expect(f.find((x) => x.kind === "observation")).toMatchObject({ title: "Sleep", value: "7h 30m", hue: "lime", plainValue: true });
     expect(f.find((x) => x.kind === "issue")).toMatchObject({ open: { kind: "duration", workoutId: "long" } });
   });
 });

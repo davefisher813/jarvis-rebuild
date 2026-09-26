@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
-  mailNotices, residualLine, dueFromBy, byLabel,
+  mailNotices, residualLine, dueFromBy, byLabel, deadlineTone,
   saveMailSnapshot, loadMailSnapshot, SNAPSHOT_MAX_AGE_MS, EMPTY,
   type MailSnapshot,
 } from "./home";
@@ -67,7 +67,7 @@ describe("the home email surface", () => {
     const n = mailNotices(snap({ waiting: [{ threadId: "w1", to: "summitgear", subject: "Order #D2565", days: 55 }] }), TODAY, NOW);
     expect(n[0]!.kind).toBe("nudge");
     expect(n[0]!.title).toBe("summitgear Hasn't Replied");
-    expect(n[0]!.sub).toBe("Order #D2565 · 55 Days");
+    expect(n[0]!.sub).toBe("Order #D2565, sent 55 days ago");
   });
 
   it("catches what HE promised and offers it as a task", () => {
@@ -104,6 +104,155 @@ describe("the home email surface", () => {
     expect(byLabel("today", NOW)).toBe("Today");
     expect(byLabel("tomorrow", NOW)).toBe("Tomorrow");
     expect(byLabel("aug 30", NOW)).toBe("Aug 30");
+  });
+});
+
+// THE LINE, DRAWN WITH THE KEY (§AM R6, R8, 2026-09-26). A bill's amount, a
+// deadline and a wait's age each mean something, so these notices hand
+// Today facts rather than one grey sentence: the same bill reads amber on
+// the Today bill card and on the mail card under it. The short, toned fact
+// comes first, and the one that may ellipsize last.
+describe("the line, drawn with the key", () => {
+  it("a bill is its due day in the date window, then its amount in white", () => {
+    const anchored = { sourceMsgId: "m1", span: "Your bill of $12.00 is due tomorrow.", confidence: "high" as const };
+    const bill = (date: string, actEv?: typeof anchored) => mailNotices(snap({ needsYou: 1, threads: [thread("t1", {
+      act: { kind: "bill", title: "Internet", date, amount: 12 }, ...(actEv ? { actEv } : {}),
+    })] }), TODAY, NOW)[0]!;
+    // The toned day leads and the amount is the fact that gives way
+    // (2026-09-26): after the amount, the day was cut to its dot.
+    expect(bill("2026-08-21", anchored).facts).toEqual([
+      { text: "Tomorrow", tone: "warn" },
+      { text: "", num: "$12.00" },
+    ]);
+    expect(bill("2026-08-27", anchored).facts![0]).toEqual({ text: "Aug 27", tone: "date" });
+    // A reading the app cannot back still says so, in front of the amount,
+    // and the amount keeps its shape.
+    expect(bill("2026-08-21").facts![1]).toEqual({ text: "Looks like", num: "$12.00" });
+  });
+
+  // The toned fact is the bare day, so it fits at type scale 1.4; the
+  // hedge rides with the sender in the fact that yields (2026-09-26).
+  it("a deadline is due, amber, and the sender is the fact that yields", () => {
+    const n = mailNotices(snap({ needsYou: 1, threads: [thread("t1", { by: "tomorrow" })] }), TODAY, NOW)[0]!;
+    expect(n.kind).toBe("deadline");
+    expect(n.facts).toEqual([
+      { text: "Tomorrow", tone: "warn" },
+      { text: "Likely, from Nadia Brandt" },
+    ]);
+  });
+
+  // The toned fact never shrinks, so it is the deadline alone. The clash
+  // with the calendar rides with the sender in the last fact, the one that
+  // ellipsizes: glued to the deadline it was cut mid-word and pushed the
+  // sender off a 390px line. The sentence read aloud keeps all of it.
+  it("a deadline's clash rides with the sender, never in the toned fact", () => {
+    const events = [{ title: "Design Review", date: TODAY, start: "14:00", end: "15:00" }];
+    const n = mailNotices(snap({ needsYou: 1, threads: [thread("t1", { by: "3 PM" })] }), TODAY, NOW, 3, [], events)[0]!;
+    expect(n.kind).toBe("deadline");
+    expect(n.facts).toEqual([
+      { text: "3:00 PM", tone: "warn" },
+      { text: "Likely, from Nadia Brandt, while you're in Design Review until 3:00" },
+    ]);
+    expect(n.facts![0]!.text).not.toMatch(/while/);
+    expect(n.sub).toBe("From Nadia Brandt, looks like 3:00 PM while you're in Design Review until 3:00");
+    // No clash, no clause: the sender stands alone.
+    const calm = mailNotices(snap({ needsYou: 1, threads: [thread("t1", { by: "3 PM" })] }), TODAY, NOW)[0]!;
+    expect(calm.facts![1]).toEqual({ text: "Likely, from Nadia Brandt" });
+  });
+
+  // The age is short so it always fits first (the wait card's and the More
+  // Moves sheet's own "55 Days"); "Sent 55 days ago" was wider than the
+  // whole line beside the widest verb at 390px.
+  it("a wait's age wears the one ladder: gentle small caps, direct amber, firm red", () => {
+    const age = (days: number) => mailNotices(snap({ waiting: [{ threadId: "w1", to: "Rob", subject: "The deck", days }] }), TODAY, NOW)[0]!.facts;
+    expect(age(3)).toEqual([{ text: "3 Days", tone: "date" }, { text: "The deck" }]);
+    expect(age(1)![0]).toEqual({ text: "1 Day", tone: "date" });
+    expect(age(9)![0]).toEqual({ text: "9 Days", tone: "warn" });
+    expect(age(55)![0]).toEqual({ text: "55 Days", tone: "red" });
+  });
+
+  // The ladder climbs on nudges as well as on the clock (toneFor), and the
+  // rail reads them, so the card does too: a short wait he has already
+  // chased twice is red here exactly as it is red on the rail.
+  it("a wait he has already nudged climbs the ladder, as it does on the rail", () => {
+    const s = snap({ waiting: [{ threadId: "w1", to: "Rob", subject: "The deck", days: 3 }] });
+    const tone = (nudges: Record<string, number>) => mailNotices(s, TODAY, NOW, 3, [], [], nudges)[0]!.facts![0]!.tone;
+    expect(tone({})).toBe("date");
+    expect(tone({ w1: 1 })).toBe("warn");
+    expect(tone({ w1: 2 })).toBe("red");
+    // Another thread's nudges are not this one's.
+    expect(tone({ w9: 2 })).toBe("date");
+  });
+
+  // A promise's day is a date with a meaning, so it wears the date window
+  // the ledger gives the same promise: late red, due amber, later caps.
+  it("a promise's day is its own fact, in the date window", () => {
+    const line = (due?: string) => mailNotices(snap({ promises: [{ threadId: "p1", text: "send rob the deck", ...(due ? { due } : {}) }] }), TODAY, NOW)[0]!;
+    expect(line("2026-08-21").facts).toEqual([{ text: "Tomorrow", tone: "warn" }, { text: "You said you would" }]);
+    expect(line("2026-08-20").facts![0]).toEqual({ text: "Today", tone: "warn" });
+    expect(line("2026-08-19").facts![0]).toEqual({ text: "Yesterday", tone: "red" });
+    expect(line("2026-08-29").facts![0]).toEqual({ text: "Aug 29", tone: "date" });
+    // No day, nothing to colour: the sentence stands, as one grey.
+    expect(line().facts).toBeUndefined();
+    expect(line().sub).toBe("You said you would");
+  });
+
+  it("a reminder is its day, in the date window, and hedged inside the one fact", () => {
+    const anchored = { sourceMsgId: "m1", span: "Your package arrives tomorrow.", confidence: "high" as const };
+    const remind = (date: string, actEv?: typeof anchored) => mailNotices(snap({ needsYou: 1, threads: [thread("t1", {
+      act: { kind: "delivery", title: "Package", date }, ...(actEv ? { actEv } : {}),
+    })] }), TODAY, NOW)[0]!;
+    expect(remind("2026-08-21", anchored).kind).toBe("act");
+    expect(remind("2026-08-21", anchored).facts).toEqual([{ text: "Tomorrow", tone: "warn" }]);
+    expect(remind("2026-08-19", anchored).facts).toEqual([{ text: "Yesterday", tone: "red" }]);
+    expect(remind("2026-08-27", anchored).facts).toEqual([{ text: "Aug 27", tone: "date" }]);
+    expect(remind("2026-08-21").facts).toEqual([{ text: "Looks like tomorrow", tone: "warn" }]);
+  });
+
+  it("an event is its day and time in small caps, then its length in white", () => {
+    const anchored = { sourceMsgId: "m1", span: "See you Saturday at 2 PM.", confidence: "high" as const };
+    const event = (actEv?: typeof anchored) => mailNotices(snap({ needsYou: 1, threads: [thread("t1", {
+      act: { kind: "appointment", title: "Dental cleaning", date: "2026-08-22", start: "14:00", durationMin: 45 },
+      ...(actEv ? { actEv } : {}),
+    })] }), TODAY, NOW)[0]!;
+    expect(event(anchored).facts).toEqual([
+      { text: "Saturday 2:00 PM", tone: "date" },
+      { text: "", num: "45 min" },
+    ]);
+    // A reading it cannot back keeps the sentence, hedge first: the hedge
+    // has to be read before the tap that writes the event, and the line
+    // cannot hold it, the day, the time and the length.
+    expect(event().facts).toBeUndefined();
+    expect(event().sub).toMatch(/^Looks like saturday 2:00 PM/);
+  });
+
+  it("leaves a line with nothing to colour as the sentence it was", () => {
+    const n = mailNotices(snap({ needsYou: 1, threads: [thread("t1")] }), TODAY, NOW)[0]!;
+    expect(n.kind).toBe("reply");
+    expect(n.facts).toBeUndefined();
+  });
+});
+
+// ONE DEADLINE RULE (§AM R8). The Today card and the thread's Where This
+// Stands card read the same phrase through this, so the same deadline is
+// never amber on one and small caps on the other.
+describe("the colour of a stated deadline", () => {
+  it("today, tomorrow and a bare clock are due; later is a neutral date", () => {
+    expect(deadlineTone("today", NOW)).toBe("warn");
+    expect(deadlineTone("tomorrow", NOW)).toBe("warn");
+    expect(deadlineTone("end of day", NOW)).toBe("warn");
+    // A clock with no day word is today (byRank leaves it at 500).
+    expect(deadlineTone("3 PM", NOW)).toBe("warn");
+    expect(deadlineTone("by 15:00", NOW)).toBe("warn");
+    expect(deadlineTone("next week", NOW)).toBe("date");
+    expect(deadlineTone("aug 30", NOW)).toBe("date");
+    // A phrase no one can place, and no clock in it, says nothing in colour.
+    expect(deadlineTone("sometime soon", NOW)).toBe("date");
+    // A clock inside a phrase no one can place is not a bare clock: it is a
+    // later date the app could not read, so a neutral date (2026-09-26).
+    expect(deadlineTone("by Oct 5 at 3 PM", NOW)).toBe("date");
+    expect(deadlineTone("the 12th by 5pm", NOW)).toBe("date");
+    expect(deadlineTone("before 3 pm at the latest", NOW)).toBe("warn");
   });
 });
 

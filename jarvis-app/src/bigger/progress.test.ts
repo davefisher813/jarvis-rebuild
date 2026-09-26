@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { projectProgress, isStalled, rankProjects, progressLabel, lastActivity, STALE_DAYS,
+import { projectProgress, isStalled, rankProjects, lastActivity, STALE_DAYS,
   bucketOf, closable, rankGoals, projectPaceParts } from "./progress";
 import type { TaskItem } from "../tasks/TasksService";
 import type { Project } from "../projects/types";
@@ -21,7 +21,6 @@ describe("projectProgress", () => {
   });
   it("returns null with no tasks, never a fake zero", () => {
     expect(projectProgress([task("x")], "p1")).toBeNull();
-    expect(progressLabel(null, false)).toBe("No tasks yet");
   });
 });
 
@@ -53,14 +52,6 @@ describe("rankProjects", () => {
     const tasks = [task("t1", "cold"), task("t2", "hot")];
     const samples = [{ id: "t1", t: daysAgo(30) }, { id: "t2", t: daysAgo(1) }];
     expect(rankProjects(projects, tasks, samples, NOW).map((r) => r.project.id)).toEqual(["hot", "cold", "finished"]);
-  });
-});
-
-describe("progressLabel", () => {
-  it("speaks plainly and flags a stall only when told to", () => {
-    expect(progressLabel({ done: 3, total: 7, pct: 43 }, false)).toBe("3 of 7 Done");
-    expect(progressLabel({ done: 3, total: 7, pct: 43 }, true)).toBe("3 of 7 Done · Stalled");
-    expect(progressLabel({ done: 4, total: 4, pct: 100 }, false)).toBe("All 4 done");
   });
 });
 

@@ -167,8 +167,12 @@ export default function PeopleListPage({
               <div className="row-grow">
                 <div className="conn-name truncate">{c.name}</div>
                 {/* The value, then the line it was found on, so the answer to
-                    "is this a phone number?" is on screen rather than assumed. */}
-                <div className="conn-meta truncate">{f.value}</div>
+                    "is this a phone number?" is on screen rather than assumed.
+                    The value steps up to white (.facts b, a number with no
+                    state) so the line under it is the row's one grey (§AK).
+                    Its own line, so it is never the part an ellipsis cuts
+                    beside the row's two buttons. */}
+                <div className="facts"><span className="fact"><b>{f.value}</b></span></div>
                 <div className="bp-sub truncate">{f.context}</div>
               </div>
               <button className="btn-sm" onClick={(ev) => { ev.stopPropagation(); onRepair?.(c.id, f); }}>

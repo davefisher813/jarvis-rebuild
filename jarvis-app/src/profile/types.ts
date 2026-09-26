@@ -109,6 +109,12 @@ export interface ProfileData {
   // deliberately NOT in the Brain: no place is learned, nothing is inferred
   // from location, and the Forget row on the event sheet empties an entry.
   travel?: Record<string, number>;
+  // YOUR PHOTO (Dave's pick, 2026-09-26): a JPEG data URL, centre-cropped
+  // to a 256px square on the phone before it is saved (profile/avatarPhoto).
+  // Drawn inside the red disc on Account and Today. "" means no photo: the
+  // server merges patches field by field, so an absent key could never
+  // clear one another device had set, and Remove Photo writes "".
+  avatar?: string;
 }
 
 export const EMPTY_PROFILE: ProfileData = {

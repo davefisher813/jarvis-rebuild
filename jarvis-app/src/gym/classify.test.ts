@@ -90,7 +90,7 @@ describe("the row's own reading", () => {
   });
 
   it("says the muscles as roles, never as one flat list", () => {
-    expect(valueLine(c({ primary: ["back"], secondary: ["biceps"] }), "muscles")).toBe("Back · Also Biceps");
+    expect(valueLine(c({ primary: ["back"], secondary: ["biceps"] }), "muscles")).toBe("Back, also Biceps");
     expect(valueLine(c({ primary: ["back", "glutes"] }), "muscles")).toBe("Back, Glutes");
     expect(valueLine(c(), "muscles")).toBeNull();
   });
@@ -98,12 +98,12 @@ describe("the row's own reading", () => {
   it("only spells out the reading when the equipment leaves it open", () => {
     expect(valueLine(c({ equipment: "stack" }), "equipment")).toBe("Selectorized Machine");
     expect(valueLine(c({ equipment: "dumbbell", counted: "each_hand" }), "equipment")).toBe("Dumbbells");
-    expect(valueLine(c({ equipment: "dumbbell", counted: "total" }), "equipment")).toBe("Dumbbells · The Whole Load");
+    expect(valueLine(c({ equipment: "dumbbell", counted: "total" }), "equipment")).toBe("Dumbbells, The Whole Load");
   });
 
   it("names the machine when it has been named", () => {
     expect(identityLine(c())).toBeNull();
-    expect(identityLine(c({ gym: "Home", machineId: "3" }))).toBe("Home · 3");
+    expect(identityLine(c({ gym: "Home", machineId: "3" }))).toBe("Home, 3");
   });
 
   it("nags about muscles and nothing else", () => {

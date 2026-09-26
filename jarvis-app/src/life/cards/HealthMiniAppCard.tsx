@@ -6,10 +6,11 @@ import { capAfterNumber } from "../../shared/casing";
 import { ShieldAlert } from "../../shared/icons";
 
 // HEALTH IS NOT AN AREA, IT IS A MINI-APP (LIFE_AREAS_TAB_HANDOFF). Restyled
-// to Dave's reference on 2026-09-16: the same card shape as every area, on
-// the good tint ("we can keep the green background"), its words in white
-// ("keep the font white in the health section"), the count as its second
-// line, and the five sections as icon chips on the tint. The chips are
+// to Dave's reference on 2026-09-16: the same card shape as every area, the
+// count as its second line, and the five sections as icon chips. Since
+// Dave's pick of 2026-09-26 it is PLAIN like the other area cards: no green
+// wash or border, the sub in the area grey, neutral chips; Health's colour
+// lives on its tile only, as every area's does. The chips are
 // labels, not buttons: the whole card is the door, and the chips say what
 // is inside. No shading on any tile: flat colour, white glyph.
 const HEALTH_SECTIONS: { label: string; glyph: ReactNode }[] = [

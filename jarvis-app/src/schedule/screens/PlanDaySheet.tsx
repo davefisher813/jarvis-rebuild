@@ -14,13 +14,12 @@ import { supabase } from "../../auth/supabaseClient";
 import type { WindowClient } from "../../brain/window";
 import PlanStrip from "./PlanStrip";
 import { splitProtectedRanges, type BlockKind } from "../../routine/types";
-import { openMinutes, loadOf, loadLine, dropToFit, dropLine, hhmm, autoSelect } from "../planLoad";
+import { openMinutes, loadOf, dropToFit, dropLine, hhmm, autoSelect } from "../planLoad";
 import { capOffer } from "../planCap";
-import { splitSittings, splitLine, SITTING_MAX } from "../splitSitting";
+import { splitSittings, SITTING_MAX } from "../splitSitting";
 import { dayClock } from "../planClock";
 import { planCount } from "../dayShape";
 import { estimateFor } from "../padding";
-import { capAfterNumber } from "../../shared/casing";
 import { DUR_CHOICES } from "../durations";
 import { tapField } from "../../shared/FormSheet";
 import { onPressKey } from "../../shared/pressable";
@@ -51,6 +50,11 @@ function toMin(hhmmStr: string): number {
   return Number(p[0] ?? 0) * 60 + Number(p[1] ?? 0);
 }
 function label(hhmmStr: string) { const t = fmtTime(hhmmStr); return `${t.time} ${t.ap}`; }
+// A split pick's sittings, as the one number they are: "2 × 90m", or
+// "120m + 105m" when the first carries the remainder. A number with no state
+// steps up to white (§AM F1), so it is drawn in a <b> and needs no words.
+const sittingsOf = (chunks: number[]) =>
+  chunks.every((c) => c === chunks[0]) ? `${chunks.length} × ${chunks[0]}m` : chunks.map((c) => `${c}m`).join(" + ");
 // A pick split into sittings carries a synthetic id, "<taskId>#2". Everything
 // downstream of the planner speaks the real id again.
 const realId = (id: string) => id.split("#")[0] ?? id;
@@ -466,14 +470,6 @@ export default function PlanDaySheet({
   const count = plan.blocks.length;
   const pickCount = picks.length;
 
-  // ONE QUIET LINE where the coach cards used to stack. Everything on it is
-  // true of THIS plan; nothing on it asks a question.
-  const quiet = [
-    loadLine(load, pickCount),
-    usedUsual ? "Your usual" : "",
-    alreadyPlanned.length > 0 ? capAfterNumber(`${alreadyPlanned.length} already planned`) : "",
-  ].filter(Boolean).join(" · ");
-
   // P8: three labeled groups with counts, not one flat list.
   const groups = useMemo(() => {
     const overdue = allTasks.filter((t) => t.overdue);
@@ -599,10 +595,11 @@ export default function PlanDaySheet({
           {clock && onTarget && !dismissed.clock && (
             // THE WHOLE ROW IS THE DOOR (Dave 2026-09-15: "I want all rows
             // clickable"): the notice row does its one verb, as its pill does.
+            // The name says how much day is left and the pill says what to do
+            // about it; the old second line asked the pill's own question.
             <div className="card"><div className="row" {...rowDoor(() => { hide("clock"); onTarget("tomorrow"); })}>
               <div className="row-stack">
                 <div className="conn-name">{clock.title}</div>
-                <div className="conn-meta">{clock.sub}</div>
               </div>
               <button type="button" className="pill-act" onClick={(e) => { e.stopPropagation(); hide("clock"); onTarget("tomorrow"); }}>Plan Tomorrow</button>
             </div></div>
@@ -623,7 +620,31 @@ export default function PlanDaySheet({
               />
             </div>
           )}
-          <div className={"plan-load" + (load.fits ? "" : " over")}>{quiet}</div>
+          {/* ONE QUIET LINE where the coach cards used to stack. Everything
+              on it is true of THIS plan; nothing on it asks a question.
+              TWO FACTS, DRAWN APART (§AK/§AM, 2026-09-22). This was one
+              string with the dots baked in, one grey when the day fit and
+              the whole line in a hex amber when it did not. Now the open time
+              is the line's one grey, with its numbers in white; whether the
+              picks fit is the fact with a meaning, green when it fits and
+              red when it runs over.
+              THE TONED FACT LEADS (2026-09-26). In a one-line .facts only
+              the last fact gives way, and at type scale 1.4 the open time,
+              leading, squeezed "1h 15m over" to a lone ellipsis: the warning
+              vanished for exactly the people with large text. The short
+              fact with a meaning goes first; the grey open time is last, so
+              it is what ellipsizes. */}
+          <div className="facts plan-load">
+            {pickCount > 0 && (
+              <span className={"fact " + (load.fits ? "good" : "red")}>
+                {!load.fits ? `${hhmm(load.overMin)} over` : usedUsual ? `Your usual ${pickCount}, fits` : `${pickCount} picked, fits`}
+              </span>
+            )}
+            <span className="fact">
+              <b>{hhmm(load.openMin)}</b> open
+              {alreadyPlanned.length > 0 && <>, <b>{alreadyPlanned.length}</b> already planned</>}
+            </span>
+          </div>
 
           {/* The day says no where the picking happens, with the fix in the
               same breath. */}
@@ -653,35 +674,46 @@ export default function PlanDaySheet({
                       ? `Picks Land in ${ranges.focus[0].label}, ${label(fromMin(ranges.focus[0].s))}`
                       : "Your Protected Time"}
                   </div>
-                  <div className="conn-meta">
-                    {[
-                      ranges.hard.length > 0 ? "Around " + ranges.hard.map((b) => b.label).join(", ") : "",
-                      ranges.soft.length > 0 ? capAfterNumber(`${ranges.soft.length} flexible`) : "",
-                    ].filter(Boolean).join(" · ")}
-                  </div>
+                  {/* ONE RUN, NOT TWO GREYS (§AK, 2026-09-22): what it
+                      routes around and how many are flexible read as one
+                      line, the count stepped up to white, where they were
+                      two facts in one grey joined by a baked dot. */}
+                  {(ranges.hard.length > 0 || ranges.soft.length > 0) && (
+                    <div className="facts">
+                      <span className="fact">
+                        {ranges.hard.length > 0 && "Around " + ranges.hard.map((b) => b.label).join(", ")}
+                        {ranges.soft.length > 0 && (ranges.hard.length > 0
+                          ? <>, plus <b>{ranges.soft.length}</b> flexible</>
+                          : <><b>{ranges.soft.length}</b> Flexible</>)}
+                      </span>
+                    </div>
+                  )}
                 </div>
                 <span className="see-all">{expandRoutine ? "Hide" : "Show"}</span>
               </div>
+              {/* Each block states its KIND as a state word and nothing more
+                  (§AK/§AM, 2026-09-22). The clause after it ("Picks land
+                  here", "Routed around", "Used when tight") explained the
+                  planner, which is a manual, not a fact; and the blue,
+                  graphite and teal dots coloured a kind, which is not an
+                  area of life, so they went and the word carries it. */}
               {expandRoutine && (
                 <>
                   {ranges.focus.map((b) => (
                     <div className="row" key={"f" + b.s}>
-                      <span className="cat-dot cat-bg-blue" />
-                      <div className="row-stack"><div className="conn-name">{b.label}</div><div className="conn-meta">Focus · Picks land here</div></div>
+                      <div className="row-stack"><div className="conn-name">{b.label}</div><div className="facts"><span className="fact st">Focus</span></div></div>
                       <span className="urgency urgency-muted">{label(fromMin(b.s))}–{label(fromMin(b.e))}</span>
                     </div>
                   ))}
                   {ranges.hard.map((b) => (
                     <div className="row" key={"h" + b.s}>
-                      <span className="cat-dot cat-bg-graphite" />
-                      <div className="row-stack"><div className="conn-name">{b.label}</div><div className="conn-meta">Protected · Routed around</div></div>
+                      <div className="row-stack"><div className="conn-name">{b.label}</div><div className="facts"><span className="fact st">Protected</span></div></div>
                       <span className="urgency urgency-muted">{label(fromMin(b.s))}–{label(fromMin(b.e))}</span>
                     </div>
                   ))}
                   {ranges.soft.map((b) => (
                     <div className="row" key={"s" + b.s}>
-                      <span className="cat-dot cat-bg-teal" />
-                      <div className="row-stack"><div className="conn-name">{b.label}</div><div className="conn-meta">Flexible · Used when tight</div></div>
+                      <div className="row-stack"><div className="conn-name">{b.label}</div><div className="facts"><span className="fact st">Flexible</span></div></div>
                       <span className="urgency urgency-muted">{label(fromMin(b.s))}–{label(fromMin(b.e))}</span>
                     </div>
                   ))}
@@ -708,18 +740,22 @@ export default function PlanDaySheet({
               {(energy || ranges.focus.length > 0) && (
                 <div className="pad-x"><div className="facts plan-facts">
                   {/* A COLOUR, NOT A SECOND GREY (§AM F2, Dave 2026-09-22).
-                      This line carries two facts, and until today both were
-                      plain grey -- the peak asked for .fact.sky, which had
-                      been deleted with the blue subtext and painted nothing.
-                      §AK allows the line ONE regular grey; "Picks land in..."
-                      keeps it, and the peak window wears its intent instead. */}
-                  {energy && <span className="fact warn">Peak {label(fromMin(energy.peakStartMin)).replace(/:00/, "")} to {label(fromMin(energy.peakEndMin)).replace(/:00/, "")}</span>}
+                      This line carries two facts, and §AK allows it ONE
+                      regular grey; "Picks land in..." keeps it. The peak is
+                      worked out from his routine (schedule/energy.ts), so it
+                      wears the key's colour for an estimate, sky. It was
+                      amber for a while, and amber means "needs you soon",
+                      which a peak window never does. */}
+                  {energy && <span className="fact est">Peak {label(fromMin(energy.peakStartMin)).replace(/:00/, "")} to {label(fromMin(energy.peakEndMin)).replace(/:00/, "")}</span>}
                   {ranges.focus[0] && <span className="fact">Picks land in {ranges.focus[0].label}</span>}
                 </div></div>
               )}
               {groups.map((g) => (
                 <div key={g.key}>
-                  <div className="grp"><div className="eyebrow">{g.label} · {g.rows.length}</div></div>
+                  {/* The head grammar's own count slot, at the right of the
+                      leader, where a dot and the count used to be baked
+                      into the label. */}
+                  <div className="sh2 sh2-quiet"><span className="t">{g.label}</span><span className="n">{g.rows.length}</span></div>
                   {g.rows.map((t) => {
                     const i = picks.indexOf(t.id);
                     const on = i >= 0;
@@ -744,19 +780,34 @@ export default function PlanDaySheet({
                                 The goal line above already says what it
                                 moves and the group heading already says
                                 whether it is due or late, so those two
-                                rungs are not said twice on this sheet. */}
-                            {on && sheetWhy(blockFor(t.id)?.why).length > 0 && (
+                                rungs are not said twice on this sheet.
+                                ONE, as C-31 says: the planner can give three
+                                ("Fits before Gym", "Same context as previous
+                                pick", "Your peak window") and all three drew
+                                as a line of greys (§AK, 2026-09-22).
+                                AND ONLY WHEN NO GOAL LINE IS DRAWN (§AK
+                                V5.2, 2026-09-26): the Moves line is itself
+                                a grey run, so the reason beside it would be
+                                the row's second grey. */}
+                            {on && !movesLine(t.goal, t.text) && sheetWhy(blockFor(t.id)?.why).length > 0 && (
                               <div className="facts">
-                                {sheetWhy(blockFor(t.id)?.why).map((w) => <span className="fact" key={w}>{w}</span>)}
+                                {sheetWhy(blockFor(t.id)?.why).slice(0, 1).map((w) => <span className="fact" key={w}>{w}</span>)}
                               </div>
                             )}
+                            {/* The two placement warnings need him, so they
+                                are amber (§AM), each its own fact. This is a
+                                review sheet, whose job is to show every
+                                warning whole, so each is the wrapping,
+                                unclamped meta line (2026-09-26): as a
+                                one-line .facts, "Overlaps your Morning
+                                Routine" lost the name of what it overlaps. */}
                             {on && blockFor(t.id)?.outsideWindow && (
-                              <div className="bp-sub">Outside its work hours</div>
+                              <div className="conn-meta"><span className="fact warn">Outside its work hours</span></div>
                             )}
                             {on && blockFor(t.id)?.overSoft && (
-                              <div className="bp-sub">Overlaps your {blockFor(t.id)!.overSoft}; the day is tight, move it if that doesn&rsquo;t work</div>
+                              <div className="conn-meta"><span className="fact warn">Overlaps your {blockFor(t.id)!.overSoft}</span></div>
                             )}
-                            {chunks && <div className="bp-sub">{splitLine(chunks)}</div>}
+                            {chunks && <div className="conn-meta"><span className="fact"><b>{sittingsOf(chunks)}</b></span></div>}
                           </div>
                           {on ? (
                             <button
@@ -765,6 +816,10 @@ export default function PlanDaySheet({
                               aria-label={`${t.text}: adjust`}
                               onClick={(e) => { e.stopPropagation(); setPlacing(null); setTuning((p) => (p === t.id ? null : t.id)); }}
                             >
+                              {/* "No room" wears the button's own ink, not red:
+                                  sys-red on a picked row's grey read at 2.64:1
+                                  in dark. The load line's red "over" fact and
+                                  the Drop card already say it runs over. */}
                               {at ? label(at) : "No room"}
                             </button>
                           ) : t.overdue ? (

@@ -99,8 +99,8 @@ export function leftSub(l: Left): string {
   return bits.length ? "After " + bits.join(" and ") : "";
 }
 
-// Overspend is stated in words and never dressed up in red, the same way an
-// overdue bill is. It is information, not an alarm.
+// Overspend is stated in words; on the page it wears the Colour Key's red
+// (over the limit), as a late bill's chip does. It is information, not an alarm.
 export function shortLine(l: Left): string {
   if (l.amount >= 0) return "";
   return formatMoney(Math.abs(l.amount)) + " past this paycheck";

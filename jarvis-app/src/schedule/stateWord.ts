@@ -14,14 +14,18 @@ import { modeOf } from "../routine/types";
 export type StateWord = "FIXED" | "FOCUS" | "PROTECTED" | "FLEXIBLE" | "PROPOSED" | "LIVE" | "COMPLETED";
 
 // The tone each word wears, as the .fact.st variant it renders in
-// (styles/components.css). FOCUS and PROTECTED are sky because they are the
-// two that say something about the shape of the day rather than its status;
-// LIVE is the only red, on the Now rule alone; COMPLETED is good; everything
-// else is quiet.
-export type StateTone = "sky" | "red" | "good" | "gray";
+// (styles/components.css). LIVE is the only red, on the Now rule alone;
+// COMPLETED is good; everything else is quiet.
+//
+// FOCUS AND PROTECTED ARE QUIET NOW (§AM Colour Key, 2026-09-26). They were
+// sky, for saying something about the shape of the day rather than its
+// status. The key gives sky one meaning, an estimate the app worked out, and
+// the sky fact variant was retired on 2026-09-21, so "fact st sky" painted
+// nothing and the two words inherited the line's grey by accident. Caps is
+// what sets a state word apart (§AK), so the quiet tone loses nothing.
+export type StateTone = "red" | "good" | "gray";
 
 export function toneFor(word: StateWord): StateTone {
-  if (word === "FOCUS" || word === "PROTECTED") return "sky";
   if (word === "LIVE") return "red";
   if (word === "COMPLETED") return "good";
   return "gray";

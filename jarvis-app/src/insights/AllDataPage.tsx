@@ -57,6 +57,13 @@ export default function AllDataPage({ view, onView, records, filter, onFilter, t
   }, [scrollRef]);
   const setRange = (range: RangeKey | "all") => onFilter({ ...filter, range, period: range === "all" ? null : periodFor(range, today), date: null });
   const clock = (at: number) => { const d = new Date(at); const t = fmtTime(`${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`); return `${t.time} ${t.ap}`; };
+  // The row's one grey: the detail, and "imported" beside it when the record
+  // came from elsewhere. A lift's detail is its set table, drawn below.
+  const quietLine = (r: DataRecord) => {
+    const detail = r.detail && !r.sets ? r.detail : null;
+    if (r.source !== "Imported") return detail;
+    return detail ? `${detail}, imported` : "Imported";
+  };
   const deletable = (r: DataRecord) => r.open.kind !== "workout" && r.open.kind !== "metric" && !("pending" in r.open && r.open.pending);
   // The row whose options are open. One at a time; the sheet is the app's own.
   const [menuFor, setMenuFor] = useState<DataRecord | null>(null);
@@ -130,9 +137,27 @@ export default function AllDataPage({ view, onView, records, filter, onFilter, t
                 <span className="h-log-ico ad-dot" data-hue={r.hue} aria-hidden="true"><i /></span>
                 <div className="row-grow">
                   <div className="conn-name">{r.title}</div>
+                  {/* THE KEY, NOT THE KIND (§AM, 2026-09-26). The time and the
+                      reading both wore the record's kind hue -- violet for
+                      sleep, pink for discomfort, amber for a meal -- which is
+                      a category colour on words, and the dot beside the name
+                      already carries the kind. Now: the time is a neutral
+                      time, so small caps; logged work is lime and a duration
+                      that needs review amber, the gym's own meanings; any
+                      other reading is a number with no state, so white. The
+                      detail is the row's one grey, and a record that is not
+                      synced yet says so in amber (stalled, per the key). An
+                      imported record says so inside the grey rather than as
+                      a second one. The amber sync fact comes right after the
+                      time (2026-09-26): last, it was squeezed to its dot, so
+                      a record that had not synced never said so. The grey
+                      detail is the fact that gives way. */}
                   <div className="facts">
-                    <span className={"fact " + r.hue}>{clock(r.at)}</span>
-                    {r.value && <span className={"fact " + r.hue}>{r.value}</span>}
+                    <span className="fact date">{clock(r.at)}</span>
+                    {r.source === "Waiting to sync" && <span className="fact amber">{r.source}</span>}
+                    {r.value && (r.open.kind === "workout"
+                      ? <span className={"fact " + (r.review ? "amber" : "lime")} aria-label={r.review ? `${r.value}, ${r.review.toLowerCase()}` : undefined}>{r.value}</span>
+                      : <span className="fact"><b>{r.value}</b></span>)}
                     {/* A LIFT'S SETS ARE A TABLE, NOT A SENTENCE (health polish
                         2026-09-16: "All Data: expandable set tables"). Five
                         sets of a pyramid joined by commas wrapped three grey
@@ -142,8 +167,7 @@ export default function AllDataPage({ view, onView, records, filter, onFilter, t
                         named -- the same exp-more this pass put the counting
                         method and the edit-effects note behind.
                         Everything else keeps its one-fact detail. */}
-                    {r.detail && !r.sets && <span className="fact">{r.detail}</span>}
-                    {r.source !== "Logged by hand" && <span className="fact">{r.source}</span>}
+                    {quietLine(r) && <span className="fact">{quietLine(r)}</span>}
                   </div>
                   {r.sets && (
                     // own(): the disclosure is its own control, and opening it

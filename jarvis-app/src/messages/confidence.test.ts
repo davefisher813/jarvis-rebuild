@@ -40,8 +40,8 @@ describe("the card", () => {
 
   it("states a deadline it can show, and hedges one it cannot", () => {
     const now = new Date("2026-08-15T09:00:00");
-    expect(mailNotices(snap(anchored), "2026-08-15", now)[0]!.sub).toBe("From Nadia · Due today");
-    expect(mailNotices(snap(), "2026-08-15", now)[0]!.sub).toBe("From Nadia · Looks like today");
+    expect(mailNotices(snap(anchored), "2026-08-15", now)[0]!.sub).toBe("From Nadia, due today");
+    expect(mailNotices(snap(), "2026-08-15", now)[0]!.sub).toBe("From Nadia, looks like today");
   });
 
   it("hedges a dated commitment it cannot show, because that card writes on one tap", () => {

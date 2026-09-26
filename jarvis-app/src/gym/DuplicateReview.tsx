@@ -25,31 +25,39 @@ import { capAfterNumber, liftTitle } from "../shared/casing";
 // is recorded under each -- before it offers to weld them together. Names are
 // never truncated, because the name is the evidence.
 
-function Side({ row, c, today }: { row: LibraryRow; c: Classification; today: string }) {
-  const equip = valueLine(c, "equipment");
-  const ident = identityLine(c);
+function Side({ row, c }: { row: LibraryRow; c: Classification }) {
+  // ONE GREY ON THE CARD (§AK, 2026-09-26). The record counts are logged
+  // work, so they wear the logged hue; the dates are neutral, so they are
+  // small caps; the equipment and the machine's identity are one plain fact,
+  // the card's one grey. A side with nothing recorded, or no equipment set,
+  // shows nothing there rather than a line saying so. The muscles are not
+  // repeated here: where the two sides differ the Conflicts card names both,
+  // and where they agree they separate nothing.
+  const kit = [valueLine(c, "equipment"), identityLine(c)].filter(Boolean).join(", ");
+  const count = row.sessions > 0
+    ? `${row.sessions} ${row.sessions === 1 ? "session" : "sessions"}` + (row.sets > 0 ? `, ${row.sets} ${row.sets === 1 ? "set" : "sets"}` : "")
+    : null;
+  const one = row.firstDate ?? row.lastDate;
+  const span = row.firstDate && row.lastDate && row.lastDate !== row.firstDate
+    ? `${shortDate(row.firstDate)} to ${shortDate(row.lastDate)}`
+    : one ? shortDate(one) : null;
   return (
     <div className="dup-side">
       {/* The name wraps. It is the one thing on this sheet that must never be
           clipped, since clipping it is how two different exercises look
           identical (acceptance criterion 12). */}
       <div className="dup-name">{liftTitle(row.name)}</div>
-      <div className="facts">
-        <span className="fact">{row.sessions > 0 ? `${row.sessions} ${row.sessions === 1 ? "session" : "sessions"}` : "Never done"}</span>
-        {row.sets > 0 && <span className="fact">{`${row.sets} ${row.sets === 1 ? "set" : "sets"}`}</span>}
-        {row.firstDate && <span className="fact cyan">{`From ${shortDate(row.firstDate)}`}</span>}
-        {row.lastDate && row.lastDate !== row.firstDate && <span className="fact cyan">{`To ${shortDate(row.lastDate)}`}</span>}
-      </div>
-      <div className="facts">
-        {equip ? <span className="fact">{equip}</span> : <span className="fact">No equipment set</span>}
-        {ident && <span className="fact">{ident}</span>}
-      </div>
-      {valueLine(c, "muscles") && <div className="facts"><span className="fact">{valueLine(c, "muscles")}</span></div>}
+      {(count || span) && (
+        <div className="facts">
+          {count && <span className="fact lime">{count}</span>}
+          {span && <span className="fact date">{span}</span>}
+        </div>
+      )}
+      {kit && <div className="facts"><span className="fact">{kit}</span></div>}
       {/* The merged-away names came off every surface on 2026-09-18 (Dave:
           "also (other title) needs to be deleted and never render"). What
           separates two exercises is still all here: the name, the sessions,
           the sets, the dates, the equipment and the machine's identity. */}
-      <div className="conn-meta">{today}</div>
     </div>
   );
 }
@@ -92,29 +100,30 @@ export function MergeReviewSheet({ state, onSwap, onTake, onMerge, onCancel }: {
           {failed && (
             <div className="pad-x"><div className="card pad banner-warn">
               <div className="conn-name">Merge Failed</div>
-              <div className="conn-meta">{left ?? "Nothing was changed"}</div>
               {/* A HALF-WRITTEN MERGE IS NOT AN UNTOUCHED ONE. Saying "both
                   exercises are exactly as they were" after two of four writes
                   landed would be the same lie in a kinder voice, so the card
-                  says which of the two it actually is. */}
-              <div className="conn-meta">
-                {state.applied > 0
-                  ? "Some sessions already read as the kept name · Retry finishes the rest, and nothing was deleted"
-                  : "Both exercises are exactly as they were"}
-              </div>
-              <div className="conn-meta">Retry picks up where it stopped</div>
+                  says which of the two it actually is. One line, not three
+                  (§AK): it said Retry three times, and Retry is the sheet's
+                  own button. */}
+              <div className="conn-meta">{left}</div>
             </div></div>
           )}
 
           <div className="grp xs-grp"><div className="eyebrow">Keeping</div></div>
           <div className="pad-x"><div className="card pad">
-            <Side row={plan.keep.row} c={plan.keep.classification} today="This name survives" />
+            <Side row={plan.keep.row} c={plan.keep.classification} />
           </div></div>
 
           <div className="grp xs-grp"><div className="eyebrow">Folding In</div></div>
           <div className="pad-x"><div className="card pad">
-            <Side row={plan.fold.row} c={plan.fold.classification} today="This name becomes a searchable alias" />
+            <Side row={plan.fold.row} c={plan.fold.classification} />
           </div></div>
+          {/* What happens to the folded name is a sentence, so it sits under
+              the card as its foot (the group-footer pattern) rather than as a
+              second grey inside it. The kept side needs no line: its head
+              already says Keeping. */}
+          <div className="pad-x"><div className="input-hint">This name becomes a searchable alias</div></div>
 
           <div className="pad-x">
             <button type="button" className="btn btn-secondary btn-block" disabled={pending} onClick={onSwap}>
@@ -156,9 +165,12 @@ export function MergeReviewSheet({ state, onSwap, onTake, onMerge, onCancel }: {
           <div className="grp xs-grp"><div className="eyebrow">What Moves</div></div>
           <div className="pad-x"><div className="card pad">
             <div className="conn-name">{movesLine(plan)}</div>
-            <div className="conn-meta">{`Every one of them reads as ${plan.keep.row.name} afterwards`}</div>
-            <div className="conn-meta">Sets, notes, goals and program days come across exactly as they are</div>
-            <div className="conn-meta">Nothing is dropped for looking like anything else</div>
+            {/* One line under the count, not three (§AK). With nothing
+                logged the count already says only the name moves, and a line
+                about how the records come across would describe nothing. */}
+            {(plan.sessions > 0 || plan.sets > 0 || plan.programDays > 0 || plan.goals.length > 0) && (
+              <div className="conn-meta">{`All of it reads as ${plan.keep.row.name} afterwards, exactly as it is`}</div>
+            )}
           </div></div>
 
           <div className="xs-foot" />
@@ -214,9 +226,9 @@ export function DuplicatesSheet({ pairs, sideOf, onReview, onKeepSeparate, onClo
                         {differs && <span className="fact amber">{`${ea} and ${eb}`}</span>}
                       </div>
                       <div className="facts">
-                        <span className="fact">{`${d.fold.sessions} and ${d.keep.sessions} ${d.keep.sessions === 1 && d.fold.sessions === 1 ? "session" : "sessions"}`}</span>
-                        {d.fold.firstDate && <span className="fact cyan">{`${d.fold.name} from ${shortDate(d.fold.firstDate)}`}</span>}
-                        {d.keep.firstDate && <span className="fact cyan">{`${d.keep.name} from ${shortDate(d.keep.firstDate)}`}</span>}
+                        <span className="fact lime">{`${d.fold.sessions} and ${d.keep.sessions} ${d.keep.sessions === 1 && d.fold.sessions === 1 ? "session" : "sessions"}`}</span>
+                        {d.fold.firstDate && <span className="fact date">{`${d.fold.name} from ${shortDate(d.fold.firstDate)}`}</span>}
+                        {d.keep.firstDate && <span className="fact date">{`${d.keep.name} from ${shortDate(d.keep.firstDate)}`}</span>}
                       </div>
                       <div className="btn-row">
                         <button type="button" className="btn btn-secondary" onClick={own(() => onReview(d))}>Review Merge</button>

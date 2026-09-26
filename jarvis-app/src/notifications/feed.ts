@@ -13,6 +13,9 @@ export interface Nudge {
   id: string;
   kind: NudgeKind;
   title: string;
+  // The verdict, when the app reached one (only the sliding nudge does). It
+  // renders as its own chip beside `sub`, never joined into it.
+  tag?: string;
   sub: string;
   when: string;
   // The entity behind the words. `entity` is the navigation kind AppShell
@@ -55,11 +58,14 @@ export function buildFeed(input: FeedInput, today: string, nowHHMM?: string, dis
   // sliding line as the why. Finishing it or waving it off is one tap.
   const sliding = firstStepCandidate(input.tasks, today);
   // slidingLine is the EVIDENCE now, and it can be absent (Dave 2026-09-11:
-  // the verdict became a chip on the row). A notification has one sub line
-  // and no chip slot, so here the two are said as the sentence they were.
+  // the verdict became a chip on the row). The notification row says them
+  // the same way (\u00a7AM R6, 2026-09-26): the verdict is `tag`, drawn as the
+  // Tasks chip, and the evidence is `sub`, the line beside it. They were one
+  // string joined by a baked-in dot, one amber run with the separator in
+  // the words' own ink.
   if (sliding) {
     const why = slidingLine(sliding, today);
-    out.push({ id: "sl-" + sliding.id, kind: "sliding", title: sliding.data.text, sub: why ? `${SLIDING_TAG} \u00b7 ${why}` : SLIDING_TAG, when: "", entity: "task", entityId: sliding.id });
+    out.push({ id: "sl-" + sliding.id, kind: "sliding", title: sliding.data.text, tag: SLIDING_TAG, sub: why ?? "", when: "", entity: "task", entityId: sliding.id });
   }
   for (const t of input.tasks) {
     if (t.data.done || !t.data.due) continue;

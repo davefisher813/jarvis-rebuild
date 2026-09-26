@@ -63,7 +63,6 @@ export default function ShareLineScreen({
           <div className="row" key={c}>
             <div className="row-grow">
               <div className="conn-name">{KID_ROOM_LABEL[c]}</div>
-              <div className="bp-sub">Not a setting. This never crosses to your parent, no matter what.</div>
             </div>
             {/* This control takes no tap, ever, from anyone, including a
                 parent with the app open in front of them. */}
@@ -71,6 +70,10 @@ export default function ShareLineScreen({
           </div>
         ))}
       </div></div>
+      {/* Said once under the card, not three times under the rows (§AK):
+          the same grey line on every row told no row apart. The group-footer
+          note, as settings' Foot draws it. */}
+      <div className="pad-x"><div className="input-hint">Not settings: none of these ever cross to your parent.</div></div>
 
       {/* THE OFFER. Every health screen ends in an action, never a dead
           end: here it is the direct check on the promise above. */}

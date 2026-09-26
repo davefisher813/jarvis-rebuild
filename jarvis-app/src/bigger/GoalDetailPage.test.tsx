@@ -29,9 +29,13 @@ function view(goal: Goal) {
 }
 
 describe("a dropped goal's line (LIFE-F-27)", () => {
+  // §AM (2026-09-26): the date is a small-caps fact of its own and the
+  // pointer is the line under it, never joined by a typed middle dot.
   it("points at the decision when there is one", () => {
     view({ id: "g1", data: { title: "Half marathon", state: "on_track", dropped: { on: "2026-08-14", decisionId: "d1" } } });
-    expect(screen.getByText("Dropped Aug 14 · The reason is in your decisions")).toBeInTheDocument();
+    expect(screen.getByText("Dropped Aug 14")).toHaveClass("fact", "date");
+    expect(screen.getByText("The reason is in your decisions")).toBeInTheDocument();
+    expect(screen.queryByText(/\u00b7/)).toBeNull();
   });
 
   it("says only the date when no decision was written", () => {
@@ -54,7 +58,12 @@ describe("the goal page's milestones and check-in", () => {
       />,
     );
     expect(screen.getByText("How Is This Going?")).toBeInTheDocument();
-    expect(screen.getByText(/Last check-in · On Track/)).toBeInTheDocument();
+    // The answer is the pressed pill; the line under the pills says when,
+    // as a small-caps date (§AM, 2026-09-26).
+    expect(screen.getByText("On Track")).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByText("Checked in Sep 3")).toHaveClass("fact", "date");
+    // Unmeasured is not a status, so the hero draws no "No Measure" (§AK).
+    expect(screen.queryByText("No Measure")).toBeNull();
     fireEvent.click(screen.getByText("Behind"));
     expect(onCheckin).toHaveBeenCalledWith("behind");
   });
@@ -83,7 +92,10 @@ describe("the goal page's milestones and check-in", () => {
       />,
     );
     expect(screen.getByText("Next Milestone")).toBeInTheDocument();
-    expect(screen.getByText("2 Projects")).toBeInTheDocument();
+    // The head says it is next; the row does not say it again (§AK).
+    expect(screen.queryByText("Up Next")).toBeNull();
+    // A count with no state is white: bold inside its fact (§AM).
+    expect(screen.getByText("2 Projects").tagName).toBe("B");
     fireEvent.click(screen.getByText("Done"));
     expect(onDone).toHaveBeenCalledWith("b", true);
     expect(screen.getAllByRole("checkbox").length).toBe(3);
@@ -91,5 +103,45 @@ describe("the goal page's milestones and check-in", () => {
     fireEvent.change(screen.getByPlaceholderText(/The next step/), { target: { value: "Buy lamps" } });
     fireEvent.keyDown(screen.getByPlaceholderText(/The next step/), { key: "Enter" });
     expect(onAdd).toHaveBeenCalledWith("Buy lamps");
+  });
+});
+
+// THE HERO'S ONE GREY (§AK and §AM, 2026-09-26).
+describe("the goal hero", () => {
+  const base = { nextActionTextOf: () => null, onBack: () => {}, onEdit: () => {}, onOpenProject: () => {}, onAddProject: () => {} };
+
+  it("draws the pace as the date alone, in the key's colour, not a second grey", () => {
+    const { container } = render(
+      <GoalDetailPage {...base}
+        goal={{ id: "g", data: { title: "Read 12 books", state: "on_track", measure: { kind: "count", target: 12 }, by: "2026-10-01" } }}
+        reach={EMPTY} projects={[]} health="behind"
+        measure={{ done: 4, target: 12, pct: 33, met: false, line: "4 of 12 Done" }}
+        pace={{ when: "Past its date", tone: "red" }}
+      />,
+    );
+    expect(screen.getByText("Past its date")).toHaveClass("fact", "red");
+    expect(container.querySelectorAll(".proj-detail-hero .bp-sub").length).toBe(1);
+    expect(container.querySelector(".proj-detail-hero")?.textContent).not.toMatch(/\u00b7/);
+  });
+
+  it("a finished goal with no filed record does not say Done under its Done", () => {
+    const { container } = render(
+      <GoalDetailPage {...base}
+        goal={{ id: "g", data: { title: "Get health insurance", state: "achieved" } }}
+        reach={EMPTY} projects={[]} health="done"
+      />,
+    );
+    expect(screen.getAllByText("Done").length).toBe(1);
+    expect(container.querySelector(".proj-detail-hero .bp-sub")).toBeNull();
+  });
+
+  it("a dollar goal with nothing saved says the zero in the amount's own shape", () => {
+    render(
+      <GoalDetailPage {...base}
+        goal={{ id: "g", data: { title: "Emergency fund", state: "on_track", moneyTarget: 2000 } }}
+        reach={EMPTY} projects={[]}
+      />,
+    );
+    expect(screen.getByText("$0 of $2,000 Saved")).toBeInTheDocument();
   });
 });

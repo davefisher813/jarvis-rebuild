@@ -46,3 +46,29 @@ describe("GoalRowRuled check-in", () => {
     expect(container.querySelector(".goal-sub .fact")).toBeNull();
   });
 });
+
+// A FINISHED GOAL'S DATE IS A NEUTRAL DATE (§AM F5, 2026-09-26). The Done
+// capsule carries the meaning, so "Finished September 12" is small caps in
+// the row's grey. It went through the measure line's number bolding, so the
+// day read as a white count inside a grey date.
+describe("GoalRowRuled finish date", () => {
+  it("draws the date as a .fact.date with nothing bolded", () => {
+    const { container } = render(
+      <GoalRowRuled title="Run a Half" tone="cat-fg-green" body="" when="Finished September 12" status={{ text: "Done", tone: "good" }} bar={null} />,
+    );
+    const meter = container.querySelector(".goal-meter") as HTMLElement;
+    const date = meter.querySelector(".fact.date");
+    expect(date?.textContent).toBe("Finished September 12");
+    expect(meter.querySelector("b")).toBeNull();
+    expect(meter.querySelector(".gstat")?.textContent).toBe("Done");
+  });
+
+  it("keeps the measure line's numbers bold when there is no date", () => {
+    const { container } = render(
+      <GoalRowRuled title="Run a Half" tone="cat-fg-green" body="1 of 4 Done" status={null} bar={null} />,
+    );
+    const meter = container.querySelector(".goal-meter") as HTMLElement;
+    expect(meter.querySelector(".fact.date")).toBeNull();
+    expect(meter.querySelector("b")?.textContent).toBe("1");
+  });
+});

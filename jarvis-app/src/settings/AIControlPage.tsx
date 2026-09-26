@@ -16,10 +16,10 @@ const LEVEL_LABEL: Record<AILevel, string> = {
   off: "Off",
 };
 const LEVEL_SUB: Record<AILevel, string> = {
-  everything: "Acts · Receipts + undo · You send",
-  draft: "Drafts ready · Nothing acts",
+  everything: "Acts with receipts and undo, you still send",
+  draft: "Drafts ready, nothing acts",
   request: "Only when you ask",
-  off: "Zero AI calls · Nothing deleted",
+  off: "Zero AI calls, nothing deleted",
 };
 const PIN_LABEL: Record<AIPinKey, string> = {
   emailDrafts: "Email Drafts",
@@ -85,12 +85,14 @@ export default function AIControlPage({ onBack }: { onBack: () => void }) {
     void apply({ ...ctrl, pins: { ...ctrl.pins, [key]: v as AILevel | "match" } });
   };
 
-  // UP-PLAT-04 (2026-09-06): "N calls · ~$0.0X". The tilde is load-bearing:
-  // this is list price times measured tokens, not the invoice.
+  // UP-PLAT-04 (2026-09-06): "N calls, ~$0.0X". The tilde is load-bearing:
+  // this is list price times measured tokens, not the invoice. So the cost
+  // is an estimate and wears the key's sky (§AM, 2026-09-26), and the
+  // separator between the two facts is the stylesheet's.
   const usd = estimateCost(tokens);
   const callsValue = count === null
     ? "Not tracked"
-    : usd === null ? String(count) : `${count} · ~${formatUSD(usd)}`;
+    : usd === null ? String(count) : <><span className="fact">{count}</span><span className="fact est">~{formatUSD(usd)}</span></>;
   const inTok = tokens.reduce((n, t) => n + t.inputTokens + t.cacheReadTokens + t.cacheWriteTokens, 0);
   const outTok = tokens.reduce((n, t) => n + t.outputTokens, 0);
   const tokenRow = inTok + outTok > 0 ? `${formatTokens(inTok)} in, ${formatTokens(outTok)} out` : "";
@@ -125,7 +127,7 @@ export default function AIControlPage({ onBack }: { onBack: () => void }) {
             fact, the cost is an estimate, and neither is invented. */}
         {tokenRow && <Row label="Tokens Today" value={tokenRow} className="set-sub" />}
         {showCalls && calls.map((c, i) => (
-          <Row key={i} label={kindLabel(c.kind)} value={new Date(c.at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })} className="set-sub" />
+          <Row key={i} label={kindLabel(c.kind)} value={<span className="fact date">{new Date(c.at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</span>} className="set-sub" />
         ))}
       </Card>
       <div className="screen-foot" />

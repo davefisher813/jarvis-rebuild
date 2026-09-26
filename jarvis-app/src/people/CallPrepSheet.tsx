@@ -118,9 +118,9 @@ export default function CallPrepSheet({
           {linkedNotes.length > 0 && (
             <div className="row"><div className="row-stack">
               <div className="eyebrow">Linked Notes</div>
-              {linkedNotes.slice(0, 3).map((n) => (
-                <div key={n.id} className="conn-meta">{n.title}</div>
-              ))}
+              {/* One line, the way every section above says its value: three
+                  stacked lines were three greys under one kicker (§AK). */}
+              <div className="conn-meta">{linkedNotes.slice(0, 3).map((n) => n.title).join(", ")}</div>
             </div></div>
           )}
 

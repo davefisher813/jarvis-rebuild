@@ -66,15 +66,19 @@ export default function EventDetailPage({
   const e = event.data;
   const date = occurrence ?? e.date;
   const tone = "cat-fg-" + catColor(e.category ?? "");
+  const area = catName(e.category ?? "");
   const [adding, setAdding] = useState(false);
   const stepTap = (id: string) => (onOpenStep ? onOpenStep(id) : onToggleStep?.(id));
   const open = steps.filter((s) => !s.done).length;
+  // The day and the time as two facts, not one string with a dot baked into
+  // it (§AM F3). Each is a neutral date or time, so each is small caps
+  // (F5), which leaves the place as the card's one grey (§AK).
   const when = (() => {
     const d = new Date(date + "T00:00:00");
     const day = d.toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" });
     const start = fmtTime(e.start);
     const end = e.end ? fmtTime(e.end) : null;
-    return `${day} · ${start.time} ${start.ap}${end ? " to " + end.time + " " + end.ap : ""}`;
+    return { day, range: `${start.time} ${start.ap}${end ? " to " + end.time + " " + end.ap : ""}` };
   })();
   const prov = rowSource(e.source, e.moved);
 
@@ -94,7 +98,12 @@ export default function EventDetailPage({
           <div className={"sec-ico " + tone.replace("cat-fg-", "cat-bg-")}><CalendarDays className="ic" /></div>
           <div className="row-grow">
             <div className="pagehead-title ev-title">{e.title}</div>
-            <div className="conn-meta">{when}</div>
+            {/* A line each, the way a calendar's own event page sets them:
+                side by side on one .facts line, a long weekday and a
+                12:00 PM to 12:30 PM range overrun the column at 390 and the
+                time is the fact that ellipsizes. */}
+            <div className="facts"><span className="fact date">{when.day}</span></div>
+            <div className="facts"><span className="fact date">{when.range}</span></div>
             {e.location && <div className="conn-meta">{e.location}</div>}
           </div>
         </div>
@@ -197,14 +206,19 @@ export default function EventDetailPage({
         </>
       )}
 
-      {/* The area it belongs to, stated rather than implied by a colour. */}
-      <div className="pad-x"><div className="card list-card-ruled">
-        <div className="row">
-          <div className={"row-ico " + tone.replace("cat-fg-", "cat-bg-")}><Tag className="ic" /></div>
-          <div className="row-grow"><div className="conn-name">Area</div></div>
-          <span className="row-status">{catName(e.category ?? "") || "No area"}</span>
-        </div>
-      </div></div>
+      {/* The area it belongs to, stated rather than implied by a colour.
+          Only when there is one (§AK): "No area" was a placeholder stating an
+          absence, on a row that offers nothing to tap. Filing it is the
+          edit sheet's job, one tap away on Edit. */}
+      {area && (
+        <div className="pad-x"><div className="card list-card-ruled">
+          <div className="row">
+            <div className={"row-ico " + tone.replace("cat-fg-", "cat-bg-")}><Tag className="ic" /></div>
+            <div className="row-grow"><div className="conn-name">Area</div></div>
+            <span className="row-status">{area}</span>
+          </div>
+        </div></div>
+      )}
 
       <div className="screen-foot" />
     </div>

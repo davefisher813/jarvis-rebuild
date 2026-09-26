@@ -10,7 +10,7 @@ import { staleDrafts, staleLine, loadOffered, markOffered } from "./staleDrafts"
 import { shouldAutoReply, autoReplyBody, loadAutoState, markAutoReplied } from "./autoReply";
 import { parseSaid, saidQuery, saidPrompt, saidEmpty } from "./saidWhat";
 import { speakable, speak } from "./readAloud";
-import { closeCandidates, closeLine, closeDue, markClosed, lastClose } from "./weeklyClose";
+import { closeCandidates, closeWho, closeDue, markClosed, lastClose } from "./weeklyClose";
 import { sweepCandidates, sweepTitle, sweepSub, sweepReceipt } from "./unsubSweep";
 import { asksIn, promisedAttachment, suggestAttachment, suggestLine } from "./attachSuggest";
 import type { EventItem } from "../schedule/types";
@@ -59,12 +59,12 @@ describe("pick a time from your actual calendar", () => {
     const t = parseMeetingTimes(raw, "2026-08-20");
     const o = optionsAgainst(t, [ev("a", "2026-08-26", "14:00", "15:00"), ev("b", "2026-08-25", "10:00", "11:00")]);
     expect(firstFree(o)).toBeNull();
-    expect(meetingLine(o)).toBe("Offered 2 times · You're busy for all of them");
+    expect(meetingLine(o)).toBe("Offered 2 times, you're busy for all of them");
   });
 
   it("quotes the sender's own phrase back at them", () => {
     const o = optionsAgainst(parseMeetingTimes(raw, "2026-08-20"), []);
-    expect(meetingLine(o)).toBe("Offered 2 times · All open");
+    expect(meetingLine(o)).toBe("Offered 2 times, all open");
     expect(acceptBody(o[0]!)).toBe("Wed 2pm works for me. I've put it in.");
   });
 
@@ -186,7 +186,7 @@ describe("VIPs", () => {
   });
 
   it("says what the list does, even when it is empty", () => {
-    expect(vipLine(0)).toBe("Nobody yet · Their mail always surfaces");
+    expect(vipLine(0)).toBe("Their mail always surfaces");
     expect(vipLine(1)).toBe("1 Person always gets through");
   });
 });
@@ -204,7 +204,7 @@ describe("same-sender collapse", () => {
     expect(groups).toHaveLength(1);
     expect(groups[0]!.rows).toHaveLength(3);
     expect(loose.map((r) => r.id)).toEqual(["4"]);
-    expect(collapseLine(groups[0]!)).toBe("3 Notices · Nothing needs you");
+    expect(collapseLine(groups[0]!)).toBe("3 Notices");
   });
 
   it("two from one sender is not a pile", () => {
@@ -283,8 +283,8 @@ describe("drafts you never sent", () => {
   });
 
   it("says how long it has sat, and to whom", () => {
-    expect(staleLine(draft("d1", 2), NOW)).toBe("2 Days old · Draft to Rob");
-    expect(staleLine({ ...draft("d1", 2), to: "" }, NOW)).toBe("2 Days old · Draft with no recipient");
+    expect(staleLine(draft("d1", 2), NOW)).toBe("To Rob, 2 days old");
+    expect(staleLine({ ...draft("d1", 2), to: "" }, NOW)).toBe("No recipient, 2 days old");
   });
 });
 
@@ -455,7 +455,7 @@ describe("the Sunday close", () => {
       old("3", "noise", "LinkedIn", "c@l.io"), old("4", "noise", "Zoom", "d@z.io"),
     ]);
     const set = closeCandidates(rows, buckets, [], NOW);
-    expect(closeLine(set)).toBe("4 Nobody chased · Supabase, Apple, LinkedIn and 1 other");
+    expect(closeWho(set)).toBe("Supabase, Apple, LinkedIn and 1 other");
   });
 
   it("offers weekly, not daily", () => {

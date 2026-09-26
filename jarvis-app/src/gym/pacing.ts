@@ -9,7 +9,7 @@ import { liftRef, sameLift, type LiftLike } from "./identity";
 // what one set of that lift ACTUALLY costs this athlete -- execution plus
 // the rest they really take, not the rest they wrote down. The median of
 // those gaps is the lift's pace, and the UI must always say which world a
-// number came from: "learned from your last N sessions" or "default pace ·
+// number came from: "learned from your last N sessions" or "default pace,
 // improves as you log". A default never dresses up as a measurement.
 //
 // What is deliberately NOT here: no per-set regression, no fatigue models,
@@ -105,6 +105,6 @@ export function paceFor(history: Workout[], ex: Pick<Exercise, "name" | "kind" |
  *  for a per-lift estimate, and this function is what carries it. It is the
  *  wording any per-lift pace display has to reuse rather than reinvent. */
 export function paceLine(p: LiftPace): string {
-  if (!p.learned) return "default pace · improves as you log";
+  if (!p.learned) return "default pace, improves as you log";
   return p.sessions === 1 ? "learned from your last session" : `learned from your last ${p.sessions} sessions`;
 }

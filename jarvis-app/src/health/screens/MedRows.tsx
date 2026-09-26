@@ -6,7 +6,9 @@ import { useLongPress } from "../../shared/useLongPress";
 import RowActionSheet from "../../shared/RowActionSheet";
 
 // THE MED ROWS (Health Push D, H-38). One row per configured med: the name,
-// the amount in medication blue, when it was last taken, and one red Took It.
+// the amount, when it was last taken, and one red Took It. The amount is the
+// row's one grey and the last time a neutral time in small caps (§AM F5): blue
+// was the medication area's hue on words, and in Health blue means cool-down.
 // The second tap on the same med inside ten minutes asks first (meds.ts's
 // repeatWithin); every log's receipt and Undo ride the caller's toast, so
 // this list never says "Logged" itself. A hold on a row is the caller's door
@@ -57,8 +59,8 @@ function MedRow({ med, last, now, onTook, onHold }: {
       <div className="row-grow">
         <div className="conn-name">{med.data.name}</div>
         <div className="facts">
-          {med.data.amount && <span className="fact hblue">{med.data.amount}</span>}
-          {last !== null && <span className="fact">Last {whenShort(last, now)}</span>}
+          {med.data.amount && <span className="fact">{med.data.amount}</span>}
+          {last !== null && <span className="fact date">Last {whenShort(last, now)}</span>}
         </div>
       </div>
       <button type="button" className="pill-act" onClick={(e) => { e.stopPropagation(); onTook(); }} aria-label={"Took It, " + med.data.name}>Took It</button>

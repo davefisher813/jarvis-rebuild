@@ -145,7 +145,9 @@ describe("All Data's set tables", () => {
 
   it("and the page draws the table instead of that string", () => {
     const page = src("insights", "AllDataPage.tsx");
-    expect(page, "the sentence is suppressed where a table exists").toMatch(/\{r\.detail && !r\.sets &&/);
+    // AMENDED 2026-09-26 (§AM): the row's one grey is built by quietLine,
+    // which folds "imported" into the detail; the suppression is the same.
+    expect(page, "the sentence is suppressed where a table exists").toMatch(/const detail = r\.detail && !r\.sets \? r\.detail : null;/);
     expect(page, "and the table is a disclosure").toMatch(/<details className="exp-more ad-sets"/);
   });
 });

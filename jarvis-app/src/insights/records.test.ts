@@ -33,7 +33,9 @@ describe("allRecords", () => {
     expect(rows.find((r) => r.category === "workouts")).toMatchObject({ title: "Push", value: "60 min", detail: "1 working set", source: "Logged by hand" });
     expect(rows.find((r) => r.category === "sets")).toMatchObject({ title: "Bench, flat", value: "1 set", detail: "135 lb × 5" });
     expect(rows.find((r) => r.category === "medication")).toMatchObject({ title: "Vitamin D", value: "2000 IU" });
-    expect(rows.find((r) => r.title.startsWith("Discomfort"))).toMatchObject({ value: "Stiffness · Mild" });
+    // §AM (2026-09-26): the words are joined by a comma; the middot between
+    // facts is the CSS's to draw, never a string's.
+    expect(rows.find((r) => r.title.startsWith("Discomfort"))).toMatchObject({ value: "Stiffness, Mild" });
     expect(metricCategory(weight)).toBe("body");
   });
   it("filters by category, period, one day and a search, and groups by day", () => {

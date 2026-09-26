@@ -8,21 +8,25 @@ import type { LockedRange } from "./YourDay";
 import { leaveByOf } from "../schedule/leaveBy";
 
 export interface NowContext {
-  // "Free until 6:00 PM" / "In: Elite Squad Practice" / "Clear from here"
-  line: string;
   // THE TWO HALVES, SAID RATHER THAN PARSED (Dave 2026-09-11: "title case
   // isn't being applied in the subtext in the now pill. 'until' should be
   // capitalized").
   //
   // The Now card wanted the name on one line and the end time under it, and
-  // the only thing it had was `line`, so it reverse-engineered the split with
-  // lastIndexOf(" until ") and rendered the tail verbatim -- which is how a
-  // mid-sentence "until" ended up as the first word of its own line. A
-  // renderer should never have to take a sentence apart to find out what it
+  // the only thing it had was a joined sentence, so it reverse-engineered the
+  // split with lastIndexOf(" until ") and rendered the tail verbatim -- which
+  // is how a mid-sentence "until" ended up as the first word of its own line.
+  // A renderer should never have to take a sentence apart to find out what it
   // was made of. `head` is what the person is in, `tail` is the fact under
-  // it, already capitalised because it starts a line. Both null where there
-  // is nothing to split ("Clear from here"), and `line` is untouched for
-  // every caller that wants the sentence.
+  // it, already capitalised because it starts a line.
+  //
+  // THE JOINED SENTENCE IS GONE (§AM F3, 2026-09-26). `line` glued the two
+  // halves back together with a typed middle dot, and the Now card read it
+  // only when there was no head, which was "Clear from here", the one form
+  // with no dot. So the sentence nobody rendered went, and "Clear from here"
+  // is the head, with no tail under it. Every return sets `head` today; its
+  // type keeps the null the Now-card law in laws.test.ts pins beside the
+  // tail's. `tail` is null where there is nothing under the head.
   head: string | null;
   tail: string | null;
   // Open minutes until the next commitment, when free. Null inside an event
@@ -83,7 +87,6 @@ export function nowContext(events: EventItem[], locked: LockedRange[], nowHHMM: 
   const inside = slots.find((s) => s.s <= now && now < s.e);
   if (inside) {
     return {
-      line: `In: ${inside.title} until ${fmt12(inside.e)}`,
       head: `In: ${inside.title}`,
       tail: `Until ${fmt12(inside.e)}`,
       gapMin: null,
@@ -95,7 +98,7 @@ export function nowContext(events: EventItem[], locked: LockedRange[], nowHHMM: 
 
   const next = slots.find((s) => s.s > now);
   if (!next) {
-    return { line: "Clear from here", head: null, tail: null, gapMin: null, nextStart: null, nextTitle: null, nextLeave };
+    return { head: "Clear from here", tail: null, gapMin: null, nextStart: null, nextTitle: null, nextLeave };
   }
   const gap = next.s - now;
   // UP-CORE-07: when the next thing has to be travelled to, the free window
@@ -104,7 +107,6 @@ export function nowContext(events: EventItem[], locked: LockedRange[], nowHHMM: 
   if (nextLeave && toMin(nextLeave.at) < next.s) {
     const leaveMin = toMin(nextLeave.at);
     return {
-      line: `Free until ${fmt12(leaveMin)} · then leave for ${nextLeave.title}`,
       head: `Free until ${fmt12(leaveMin)}`,
       tail: `Then leave for ${nextLeave.title}`,
       gapMin: Math.max(0, leaveMin - now),
@@ -114,7 +116,6 @@ export function nowContext(events: EventItem[], locked: LockedRange[], nowHHMM: 
     };
   }
   return {
-    line: `Free until ${fmt12(next.s)} · ${fmtSpan(gap)} open`,
     head: `Free until ${fmt12(next.s)}`,
     tail: `${fmtSpan(gap)} open`,
     gapMin: gap,

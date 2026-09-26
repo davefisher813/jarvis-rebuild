@@ -11,6 +11,7 @@ import { metricMeasureState } from "../gym/metricGoals";
 import { daysBetween } from "../upnext/upnext";
 import { capAfterNumber } from "../shared/casing";
 import { clearsDoneAutomatically } from "./doneClearing";
+import type { PaceTone } from "./progress";
 
 // ---------------------------------------------------------------------------
 // A GOAL WITH A FINISH LINE (Dave's picks 13, 14, 15, built 2026-08-24).
@@ -156,7 +157,10 @@ export function measureState(m: Measure | undefined, ctx: MeasureContext): Measu
   // a tick on the goal page is the completion.
   if (m.kind === "milestones") {
     const target = m.items.length;
-    if (target === 0) return { done: 0, target: 0, pct: 0, met: false, line: "No milestones yet" };
+    // An empty measure has no line (§AK, 2026-09-26): "No milestones yet"
+    // was a grey placeholder under the goal on its row, its card and its
+    // page, stating nothing. Every reader draws nothing for "".
+    if (target === 0) return { done: 0, target: 0, pct: 0, met: false, line: "" };
     const done = m.items.filter((i) => !!i.done).length;
     return {
       done, target, met: done >= target,
@@ -178,7 +182,8 @@ export function measureState(m: Measure | undefined, ctx: MeasureContext): Measu
 
   if (m.kind === "projects") {
     const target = ctx.projects.length;
-    if (target === 0) return { done: 0, target: 0, pct: 0, met: false, line: "No projects under it yet" };
+    // No line, for the same reason as an empty milestones measure above.
+    if (target === 0) return { done: 0, target: 0, pct: 0, met: false, line: "" };
     const done = ctx.projects.filter((p) => p.data.status === "done").length;
     return {
       done, target, met: done >= target,
@@ -231,15 +236,25 @@ export function measureState(m: Measure | undefined, ctx: MeasureContext): Measu
 // whether December is still real.
 
 /**
- * The pace line, or null when there is nothing to pace: no date, no measure,
+ * The pace, or null when there is nothing to pace: no date, no measure,
  * already met, or a cadence goal (a cadence has no end, it has a rhythm).
+ *
+ * THE DATE ALONE, WEARING ITS MEANING (the Colour Key, §AM, 2026-09-26). This
+ * returned "8 To go · Due in 6 days", one grey with the middle dot typed in,
+ * as a second grey under the measure line. The count went: it only restated
+ * the measure line right above it. What is left says one thing and wears the
+ * key's colour for it, as `tone` (the fact variant, the same four the
+ * project page's pace takes): past its date red, due today or tomorrow amber,
+ * a date with room to spare small caps, a rate the app worked out sky.
  */
+export interface GoalPace { when: string; tone: PaceTone }
+
 export function paceLine(
   state: MeasureState | null,
   m: Measure | undefined,
   by: string | undefined,
   today: string,
-): string | null {
+): GoalPace | null {
   // A rhythm has no end to pace against, whichever goal kind carries one:
   // task cadence, or a "twice a week" training goal (block still counts
   // down like an ordinary count, so it is not excluded here).
@@ -248,18 +263,18 @@ export function paceLine(
   if (state.met) return null;
   const left = state.target - state.done;
   const days = daysBetween(today, by);
-  // Each segment is phrased so the number-lead law reads as English. "2 a
+  // Each one leads with a WORD so the number-lead law reads as English. "2 a
   // week" becomes "2 A week" under the rule, and "6 days left" becomes
   // "6 Days left", which is the capitalized UNIT the rule's own exemption
   // list exists to avoid. Leading with a word instead costs nothing.
-  if (days < 0) return capAfterNumber(`${left} to go · Past its date`);
-  if (days === 0) return capAfterNumber(`${left} to go · Due today`);
-  if (days === 1) return capAfterNumber(`${left} to go · Due tomorrow`);
-  if (days <= 14) return capAfterNumber(`${left} to go · Due in ${days} days`);
+  if (days < 0) return { when: "Past its date", tone: "red" };
+  if (days === 0) return { when: "Due today", tone: "warn" };
+  if (days === 1) return { when: "Due tomorrow", tone: "warn" };
+  if (days <= 14) return { when: `Due in ${days} days`, tone: "date" };
   const weeks = days / 7;
   const per = Math.ceil((left / weeks) * 10) / 10;
   const rate = Number.isInteger(per) ? String(per) : per.toFixed(1);
-  return capAfterNumber(`${left} to go · About ${rate} a week`);
+  return { when: `About ${rate} a week`, tone: "est" };
 }
 
 // --- PICK 15: HEALTH IS DERIVED, NEVER TYPED ------------------------------
@@ -410,5 +425,7 @@ export function idle(ctx: MeasureContext): boolean {
  */
 export function goalStatusForAI(health: Health, state: MeasureState | null): string {
   const label = HEALTH_LABEL[health].toLowerCase();
-  return state ? `${label}, ${state.line.toLowerCase()}` : label;
+  // An empty measure has no line, and the status then stands alone rather
+  // than ending in a comma.
+  return state && state.line ? `${label}, ${state.line.toLowerCase()}` : label;
 }

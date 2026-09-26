@@ -470,7 +470,10 @@ export function whenWords(r: ReminderInfo, date: string | null, time: string | n
     return ct.kind === "onOpenArea" ? (areaName ? "When I Open " + areaName : "When I Open the Area") : "After I Complete the Task";
   }
   if (scheduleKindOf(r) === "unscheduled" || !date || !time) return "Unscheduled";
-  return dateWord(date, today) + " · " + fmtClock(time);
+  // A comma, not a baked middle dot (§AM F3): this phrase renders inside a
+  // meta line, where only CSS draws separators. The same shape the History
+  // rows beside it use ("Today, 9:00 AM").
+  return dateWord(date, today) + ", " + fmtClock(time);
 }
 function fmtClock(hhmm: string): string {
   const [hRaw, mRaw] = hhmm.split(":");

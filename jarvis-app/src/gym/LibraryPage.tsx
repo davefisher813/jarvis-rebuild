@@ -162,7 +162,9 @@ export default function LibraryPage({
   const mergeItems: PickItem[] = merging
     ? rows
       .filter((r) => r.key !== merging.key && r.kind === merging.kind)
-      .map((r) => ({ id: r.key, label: liftTitle(r.name), sub: r.sessions > 0 ? capAfterNumber(`${r.sessions} ${r.sessions === 1 ? "session" : "sessions"}`) : "Never done" }))
+      // A lift never done shows no sub at all: a line that states nothing is
+      // not a fact (§AK).
+      .map((r) => ({ id: r.key, label: liftTitle(r.name), ...(r.sessions > 0 ? { sub: capAfterNumber(`${r.sessions} ${r.sessions === 1 ? "session" : "sessions"}`) } : {}) }))
     : [];
 
   const setF = (patch: Partial<LibraryFilter>) => { setJustSaved([]); setFilter((f) => ({ ...f, ...patch })); };
@@ -320,6 +322,10 @@ export default function LibraryPage({
               const c = classFor(r);
               const chips = rowChips(c);
               const on = picked.includes(r.key);
+              // The row's flags are ONE fact, the line's one grey (§AK): side
+              // by side they were up to four runs of the same grey.
+              const flags = [r.favorite && "Favorite", r.hidden && "Hidden", c.archived && "Archived", justSaved.includes(r.key) && "Saved"]
+                .filter(Boolean).join(", ");
               return (
                 // THE WHOLE ROW IS THE DOOR (Dave 2026-09-15: "I want all rows
                 // clickable"). Only the name used to open the exercise; the
@@ -334,19 +340,24 @@ export default function LibraryPage({
                     <div className="ex-name">{liftTitle(r.name)}</div>
                     {/* §7: "2 sessions · Last yesterday" was one grey line
                         doing two jobs. Two compact fields. */}
-                    <div className="facts">
-                      {/* A count leads this line, so the word behind it takes
-                          the capital (shared/casing.ts). Health polish 2026-09-16:
-                          the mockup printed "1 sessions" on every row of this
-                          list; the app has always had the singular right, and
-                          now it has the capital too. */}
-                      <span className="fact">{r.sessions > 0 ? capAfterNumber(`${r.sessions} ${r.sessions === 1 ? "session" : "sessions"}`) : "Never done"}</span>
-                      {r.lastDate && <span className="fact cyan">{agoPhrase(r.lastDate, todayIso)}</span>}
-                      {r.favorite && <span className="fact">Favorite</span>}
-                      {r.hidden && <span className="fact">Hidden</span>}
-                      {c.archived && <span className="fact">Archived</span>}
-                      {justSaved.includes(r.key) && <span className="fact">Saved</span>}
-                    </div>
+                    {(r.sessions > 0 || r.lastDate || flags) && (
+                      <div className="facts">
+                        {/* A count leads this line, so the word behind it takes
+                            the capital (shared/casing.ts). Health polish 2026-09-16:
+                            the mockup printed "1 sessions" on every row of this
+                            list; the app has always had the singular right, and
+                            now it has the capital too. The count is logged
+                            work, so it wears the logged hue -- the same lime
+                            the Day row's "done" word wears (§AM). When it last
+                            happened is a neutral past date, so it is small
+                            caps, as it is one tap deeper on the lift's own
+                            page and on every other "last trained" in the app
+                            (§AM F5). A lift never done says nothing here. */}
+                        {r.sessions > 0 && <span className="fact lime">{capAfterNumber(`${r.sessions} ${r.sessions === 1 ? "session" : "sessions"}`)}</span>}
+                        {r.lastDate && <span className="fact date">{agoPhrase(r.lastDate, todayIso)}</span>}
+                        {flags && <span className="fact">{flags}</span>}
+                      </div>
+                    )}
                     <div className="ex-chips">
                       {chips.map((ch, i) => (
                         <button
@@ -362,8 +373,9 @@ export default function LibraryPage({
                           // done; equipment takes the violet the session
                           // header's own equipment chip has always worn; the
                           // movement pattern is the least load-bearing axis
-                          // and stays quiet. Cyan goes back to meaning one
-                          // thing on this row: when it last happened.
+                          // and stays quiet. (Whether these axis hues stand
+                          // under the 2026-09-22 Colour Key is Dave's call,
+                          // queue #317; they are left as they are until then.)
                           className={"ex-chip" + chipTone(ch)}
                           aria-label={`${ch.label}, edit`}
                           disabled={selecting}

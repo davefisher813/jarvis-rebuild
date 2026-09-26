@@ -54,18 +54,18 @@ export default function DurationCard({ workout, onCorrect }: {
         </div>
         <div className="row">
           <div className="row-grow"><div className="conn-name">Elapsed</div></div>
-          <div className="facts"><span className="fact">{clock(workout.startedAt)} to {clock(workout.endedAt)}</span><span className="fact amber">{minutes(d.elapsedMin)}</span></div>
+          <div className="facts"><span className="fact date">{clock(workout.startedAt)} to {clock(workout.endedAt)}</span><span className={"fact" + (d.flagged ? " amber" : "")}>{minutes(d.elapsedMin)}</span></div>
         </div>
         {d.pausedMin > 0 && (
           <div className="row">
             <div className="row-grow"><div className="conn-name">Parked</div></div>
-            <div className="facts"><span className="fact amber">{minutes(d.pausedMin)}</span></div>
+            <div className="facts"><span className="fact">{minutes(d.pausedMin)}</span></div>
           </div>
         )}
         {d.firstSetAt != null && d.lastSetAt != null && (
           <div className="row">
             <div className="row-grow"><div className="conn-name">Sets Logged</div></div>
-            <div className="facts"><span className="fact">{clock(d.firstSetAt)} to {clock(d.lastSetAt)}</span><span className="fact lime">{minutes(Math.max(1, d.setSpanMin ?? 0))}</span></div>
+            <div className="facts"><span className="fact date">{clock(d.firstSetAt)} to {clock(d.lastSetAt)}</span><span className="fact lime">{minutes(Math.max(1, d.setSpanMin ?? 0))}</span></div>
           </div>
         )}
         {d.flagged && (
@@ -74,7 +74,7 @@ export default function DurationCard({ workout, onCorrect }: {
         {revisions.map((r, i) => (
           <div className="row" key={i}>
             <div className="row-grow"><div className="conn-name">Corrected</div></div>
-            <div className="facts"><span className="fact">{clock(r.from)} to {clock(r.to)}</span></div>
+            <div className="facts"><span className="fact date">{clock(r.from)} to {clock(r.to)}</span></div>
           </div>
         ))}
         {onCorrect && !editing && (

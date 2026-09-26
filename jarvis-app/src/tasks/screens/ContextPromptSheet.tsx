@@ -6,7 +6,8 @@ import { Note } from "../../shared/FormSheet";
 
 // THE CONTEXT PROMPT (the reminders rebuild push E, Dave's interactive
 // preview): a sheet, never a gate. An eyebrow saying what just happened,
-// the reminder's words, one line on what it is about, the linked verb as
+// the reminder's words, one line on what it links to when it links to
+// something, the linked verb as
 // the one filled action when a door exists, Continue Anyway, then Snooze
 // Prompt and Turn Off as quiet pills, and why it appeared under a
 // disclosure. Closing it is one tap either way.
@@ -30,7 +31,10 @@ export default function ContextPromptSheet({ item, eyebrow, onOpenLinked, onCont
         <div className="sheet-form">
           <div className="eyebrow rem-prompt-eyebrow">{eyebrow}</div>
           <div className="rem-detail-title">{item.data.text}</div>
-          <div className="rem-prompt-line">{link?.label ? `${link.label} is one tap away` : "Still open, whenever you are ready"}</div>
+          {/* The line says what is one tap away, or nothing: with no linked
+              record there is no fact to state, and a line of reassurance
+              under the title is a placeholder (§AK R1). */}
+          {link?.label && <div className="rem-prompt-line">{link.label} is one tap away</div>}
           <div className="rem-detail-acts">
             {link && onOpenLinked && <button type="button" className="btn btn-primary" onClick={() => { onOpenLinked(link); onContinue(item.id); }}>{actionLabelFor(link)}</button>}
             <button type="button" className="btn btn-secondary" onClick={() => onContinue(item.id)}>Continue Anyway</button>

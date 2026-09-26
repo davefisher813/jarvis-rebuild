@@ -149,7 +149,7 @@ export default function ReadinessPanel({ read, today, variant = "words", focusKe
       <>
         <div className="sh2 sh2-quiet"><span className="t">{variant === "lab" ? "The Evidence" : "Readiness"}</span></div>
         <div className="pad-x"><div className="card list-card-ruled">
-          <Row label="Could Not Be Read" why="JARVIS could not read your activity just now · Open this screen again on a connection" />
+          <Row label="Could Not Be Read" why="JARVIS could not read your activity just now, so open this screen again on a connection" />
         </div></div>
       </>
     );
@@ -165,7 +165,7 @@ export default function ReadinessPanel({ read, today, variant = "words", focusKe
           {/* Not a button: the Lab is three taps away under Settings and
               this page has no door into More. The line says where, which
               is the receipt's whole job. */}
-          <div className="receipt-line rdy-receipt"><span className="rl-t">Numbers behind each gate · Settings › Advanced › Learning Lab</span></div>
+          <div className="receipt-line rdy-receipt"><span className="rl-t">Numbers behind each gate are in Settings › Advanced › Learning Lab</span></div>
         </div></div>
       </>
     );
@@ -174,10 +174,10 @@ export default function ReadinessPanel({ read, today, variant = "words", focusKe
   const pass = readConsolidation();
   const passAge = pass ? daysSince(pass.day, today) : 0;
   const passWhy = !pass
-    ? "No day recorded yet · The pass only records a day it had something to propose · A quiet month looks the same"
+    ? "No day recorded yet, but the pass only records a day it had something to propose, so a quiet month looks the same"
     : passAge === 0
       ? "Ran today, and what it chose is offered on What JARVIS Knows"
-      : `Last recorded ${passAge} ${passAge === 1 ? "day" : "days"} ago · It reviews once a local day, whenever the app is open`;
+      : `Last recorded ${passAge} ${passAge === 1 ? "day" : "days"} ago, and it reviews once a local day, whenever the app is open`;
 
   return (
     <>
@@ -186,7 +186,7 @@ export default function ReadinessPanel({ read, today, variant = "words", focusKe
         <Row
           label={`The Last ${READINESS_WINDOW_DAYS} Days`}
           why={read.source === "server"
-            ? "Read from your account · Everything you have done, on every device"
+            ? "Read from your account, everything you have done on every device"
             : "This device only, not everything you have done"}
           slot={String(read.count)}
           tone={read.source === "server" ? "rdy-good" : "rdy-warn"}

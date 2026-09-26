@@ -56,10 +56,16 @@ describe("did it work", () => {
     expect(canBlock({ record: asked, since: BLOCK_AFTER })).toBe(true);
   });
 
-  it("states when, and whether it worked, and nothing else", () => {
-    expect(unsubReceipt(asked, 0, "2026-08-22")).toBe("Asked 3 weeks ago");
-    expect(unsubReceipt(asked, 4, "2026-08-22")).toBe("Asked 3 weeks ago · Still sending");
-    expect(unsubReceipt({ ...asked, askedISO: "2026-08-22" }, 0, "2026-08-22")).toBe("Asked today");
-    expect(unsubReceipt({ ...asked, askedISO: "" }, 0, "2026-08-22")).toBe("Asked");
+  // Whether it worked is the row's own second fact, drawn with the facts
+  // line's separator (§AM R6), so the receipt says when and nothing else,
+  // and never carries a typed dot.
+  it("states when, and nothing else", () => {
+    expect(unsubReceipt(asked, "2026-08-22")).toBe("Asked 3 weeks ago");
+    expect(unsubReceipt({ ...asked, askedISO: "2026-08-21" }, "2026-08-22")).toBe("Asked yesterday");
+    expect(unsubReceipt({ ...asked, askedISO: "2026-08-22" }, "2026-08-22")).toBe("Asked today");
+    expect(unsubReceipt({ ...asked, askedISO: "" }, "2026-08-22")).toBe("Asked");
+    for (const r of [asked, { ...asked, askedISO: "" }]) {
+      expect(unsubReceipt(r, "2026-08-22")).not.toMatch(/\u00b7|still sending/i);
+    }
   });
 });

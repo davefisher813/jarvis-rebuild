@@ -93,19 +93,23 @@ export function rowSource(source: Source | undefined, moved: Source | undefined,
   return source;
 }
 
-// "From Smart Paste · 2:14 PM" today, "From Smart Paste · Aug 12" earlier.
-// Null for a missing or unknown source so callers can render nothing.
-// Auto-Sweep receipts (sweep type) render nothing. That a task moved is kept
-// internal; the row shows where it came from instead.
-export function sourceLine(source: Source | undefined, now: () => number = Date.now): string | null {
-  if (!source || !LABEL[source.type]) return null;
-  if (source.type === "sweep") return null;
+// The WHEN half of the fact: "2:14 PM" today, "Aug 12" earlier. Null exactly
+// where sourceLabel() is null, so the two halves never disagree about whether
+// a line exists. A rendered line puts this in its own `.fact.date` span beside
+// the label; the separator between them is drawn by CSS, not typed (§AM F3).
+export function sourceWhen(source: Source | undefined, now: () => number = Date.now): string | null {
+  if (!sourceLabel(source) || !source) return null;
   const d = new Date(source.ts);
-  const when = sameDay(d, new Date(now()))
+  return sameDay(d, new Date(now()))
     ? d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })
     : shortDateFromMs(source.ts);
-  return `${LABEL[source.type]} · ${when}`;
 }
+
+// There is no joined "label · when" string (2026-09-26). sourceLine() made
+// one, and nothing but two tests called it: a formatter with a middot baked
+// in, kept alive for text that never rendered. A line is sourceLabel() and
+// sourceWhen() as two facts, the separator drawn by CSS (§AM F3), which is
+// what ProvenanceLine does.
 
 /** The same fact with the WHEN left off, for a row that has to share one line
  *  with everything else it carries (2026-09-09, when provenance moved onto the
@@ -117,6 +121,8 @@ export function sourceLine(source: Source | undefined, now: () => number = Date.
  *  fact that fits beside a category and one that does not -- measured at 390,
  *  "From an email · Sep 2" left the line and "From an email" stayed on it. */
 export function sourceLabel(source: Source | undefined): string | null {
+  // Auto-Sweep receipts render nothing. That a task moved is kept internal;
+  // the row shows where it came from instead.
   if (!source || !LABEL[source.type]) return null;
   if (source.type === "sweep") return null;
   return LABEL[source.type];

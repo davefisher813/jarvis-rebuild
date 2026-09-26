@@ -6,6 +6,7 @@ import { fmtTime } from "../schedule/calendar";
 import { readAct, actLabel, type ActProposal, type MailAct } from "./mailAct";
 import type { Evidence } from "./evidence";
 import { hedge, confidenceOf, isHigh } from "./confidence";
+import { dayTone, type FactTone } from "./factsLine";
 
 // THE HOME-PAGE EMAIL SURFACE (Dave 2026-08-20: "give me ideas to make the
 // email homepage feature actually useful or we can scratch it because right
@@ -89,12 +90,25 @@ export interface MailSnapshot {
 
 export type MailKind = "deadline" | "reply" | "promised" | "nudge" | "meeting" | "chase" | "draft" | "act";
 
+/** One fact on a notice's line, for Today to draw with the Colour Key (§AM).
+ *  `tone` is the key's colour for what the fact means; `num` is a number with
+ *  no state (a bill's amount), drawn white after the fact's words. */
+export interface NoticeFact { text: string; tone?: FactTone; num?: string }
+
 export interface MailNotice {
   key: string;
   kind: MailKind;
   threadId: string;
   title: string;
+  /** The line as one sentence: what read-aloud says, and what two notices
+   *  are compared by. Today draws `facts` instead when a notice has them. */
   sub: string;
+  /** The same line as facts (§AM R6, R8), on a notice whose line carries a
+   *  date, a time, an age or an amount: a bill, a deadline, a wait, a
+   *  promise with a day, a reminder, an event. The separator is the
+   *  stylesheet's, and each fact wears the key. Short toned facts first; the
+   *  last is the one that may ellipsize. */
+  facts?: NoticeFact[];
   action: string;
   tone: string;               // a cat-fg-* class
   // When present, the action finishes on Today: it writes this task and the
@@ -202,6 +216,33 @@ export function byTime(by: string | undefined): string | null {
   return String(h).padStart(2, "0") + ":" + String(min).padStart(2, "0");
 }
 
+/** The colour a sender's stated deadline wears (§AM R8). One rule, read by
+ *  every surface that draws the same phrase (this page's deadline notice,
+ *  the thread's Where This Stands card), so one deadline is never amber on
+ *  Today and small caps on the thread. Today or tomorrow is due, amber, and
+ *  so is a clock with no day word, which is today (see deadlineNotice). A
+ *  later day, or a phrase no one can place, is a neutral date in small caps.
+ *  A stated deadline is never late: the phrase cannot say it has passed. */
+export function deadlineTone(by: string | undefined, now = new Date()): "warn" | "date" {
+  return byRank(by, now) <= 1 || isBareClock(by) ? "warn" : "date";
+}
+
+/** A clock and nothing else ("3 PM", "by 15:00"), which is today. Only when
+ *  the clock and its filler words are ALL the phrase holds (2026-09-26):
+ *  byRank gives 500 to every phrase it cannot read, so "by Oct 5 at 3 PM"
+ *  also had a clock and a 500 and came out amber, due, when it is a later
+ *  date the app simply could not parse. One predicate, read by deadlineTone
+ *  and deadlineNotice alike, so the two never disagree. */
+export function isBareClock(by: string | undefined): boolean {
+  if (!byTime(by)) return false;
+  const rest = (by || "").toLowerCase()
+    .replace(/\b\d{1,2}(?::\d{2})?\s*(?:am|pm)\b/g, " ")
+    .replace(/\b\d{1,2}:\d{2}\b/g, " ")
+    .replace(/\b(?:by|before|at|until|around|latest|the)\b/g, " ")
+    .replace(/[\s,.]+/g, "");
+  return rest === "";
+}
+
 /** One calendar event on `day` that is running at `hhmm`. Facts only: this
  *  never suggests moving anything, it says what is already there. */
 export interface DayEvent { title: string; date: string; start: string; end?: string }
@@ -227,8 +268,9 @@ function deadlineNotice(t: MailThread, todayISO: string, now: Date, events: DayE
   // middle for a phrase it cannot read), which is right for SORTING and
   // wrong here: a sender who wrote "by 3 PM" and nothing else meant today,
   // and the card said nothing at all about it. Only ever a phrase with a
-  // real clock in it; an unreadable phrase without one still says nothing.
-  const bareClock = !!at && rank >= 500;
+  // real clock in it, and nothing else (isBareClock); an unreadable phrase
+  // still says nothing.
+  const bareClock = isBareClock(t.by);
   const due = bareClock ? todayISO : dueFromBy(t.by, todayISO, now);
   if (!due || (!bareClock && rank > 1)) return null; // only when the date is NOW
   const clash = at ? spanningEvent(events, due, at) : null;
@@ -241,14 +283,31 @@ function deadlineNotice(t: MailThread, todayISO: string, now: Date, events: DayE
   const dueLabel = isHigh(confidenceOf(t.byEv)) ? "Due " + plain : hedge(plain);
   const endAp = clash?.end ? fmtTime(clash.end) : null;
   const until = clash && endAp
-    ? " · You're in " + clash.title + " until " + endAp.time + (at && endAp.ap === fmtTime(at).ap ? "" : " " + endAp.ap)
+    ? " while you're in " + clash.title + " until " + endAp.time + (at && endAp.ap === fmtTime(at).ap ? "" : " " + endAp.ap)
     : "";
+  // The deadline is a date with a meaning (§AM R8), so it wears the one
+  // deadline rule (deadlineTone): only today, tomorrow or a bare clock
+  // reaches this card (the gate above), and all three are due, amber.
+  const byTone: FactTone = deadlineTone(t.by, now);
   return {
     key: "deadline:" + t.id,
     kind: "deadline",
     threadId: t.id,
     title: titleCase(t.subject),
-    sub: capAfterNumber(`From ${t.from} · ${dueLabel}${until}`),
+    // The sentence: the sender, then the deadline as the rest of it, so
+    // "Due" and "Looks like" drop to lowercase.
+    sub: capAfterNumber(`From ${t.from}, ${dueLabel.charAt(0).toLowerCase() + dueLabel.slice(1)}${until}`),
+    // On screen, two facts. The bare day or clock ALONE is the first,
+    // short and toned: with the clash glued on it ran 400px in a 169px line,
+    // and even "Looks like today" was cut to "Looks like t..." at type
+    // scale 1.4 (2026-09-26). The hedge and the clash ride with the sender
+    // in the last fact, the one that gives way first, so they show when
+    // there is room and yield when there is not. The sentence above still
+    // carries all of it aloud.
+    facts: [
+      { text: capAfterNumber(capFirst(plain)), tone: byTone },
+      { text: (isHigh(confidenceOf(t.byEv)) ? "From " : "Likely, from ") + t.from + (until ? "," + until : "") },
+    ],
     action: "Add Task",
     tone: "cat-fg-red",
     ...(t.byEv ? { evidence: t.byEv } : {}),
@@ -270,6 +329,10 @@ function replyNotice(t: MailThread): MailNotice {
   };
 }
 
+// The first letter up, the rest as written: "tomorrow" leads a fact as
+// "Tomorrow", and "Sep 30" is left alone.
+const capFirst = (s: string): string => s.charAt(0).toUpperCase() + s.slice(1);
+
 function promiseNotice(p: MailPromise, todayISO: string): MailNotice {
   return {
     key: "promised:" + p.threadId,
@@ -277,6 +340,17 @@ function promiseNotice(p: MailPromise, todayISO: string): MailNotice {
     threadId: p.threadId,
     title: titleCase(p.text),
     sub: p.due ? "You said you would, by " + dayPhrase(p.due, todayISO) : "You said you would",
+    // The day he said is a date with a meaning (§AM R8), so on screen it is
+    // its own fact in the date window, the colour the ledger gives the same
+    // promise: past is late, red; today or tomorrow is due, amber; later is
+    // a neutral date in small caps. The day alone, never "By Wednesday":
+    // a first fact never shrinks, and the day by itself is what still fits
+    // the Today card at type scale 1.4. With no day there is nothing to
+    // colour, and the sentence stands.
+    ...(p.due ? { facts: [
+      { text: capFirst(dayPhrase(p.due, todayISO)), tone: dayTone(p.due, todayISO) },
+      { text: "You said you would" },
+    ] } : {}),
     action: "Add Task",
     tone: "cat-fg-yellow",
     task: { text: titleCase(p.text), due: p.due, ...(p.personId ? { personId: p.personId } : {}) },
@@ -315,7 +389,7 @@ function chaseNotice(c: MailChase): MailNotice {
     kind: "chase",
     threadId: c.threadId,
     title: "Chase " + c.to,
-    sub: capAfterNumber(c.subject + " · You asked me to"),
+    sub: capAfterNumber(c.subject + ", as you asked"),
     // A chase starts gentle whatever the clock says (N13), so the wait is 0
     // and only the ask moves the label. Unlike a derived nudge, a chase he
     // set himself never disappears: with nothing draftable to derive the old
@@ -353,21 +427,51 @@ function draftNotice(d: MailDraftRow): MailNotice {
 // that writes an event has to show the event first.
 function actNotice(t: MailThread, a: MailAct, todayISO: string): MailNotice {
   const when = dayPhrase(a.date, todayISO);
+  const at = a.verb === "schedule" ? `${fmtTime(a.start!).time} ${fmtTime(a.start!).ap}` : "";
   const plain = a.verb === "schedule"
-    ? `${when} ${fmtTime(a.start!).time} ${fmtTime(a.start!).ap} · ${a.durationMin} min`
+    ? `${when} ${at} for ${a.durationMin} min`
     : a.verb === "bill"
-      ? `$${a.amount!.toFixed(2)} · Due ${when}`
+      ? `$${a.amount!.toFixed(2)} due ${when}`
       : when;
   // UP-MIND-18: this card writes to the schedule or to Money on one tap, so
   // a reading the app cannot back with the sender's own sentence says so
   // before the tap rather than after.
-  const sub = isHigh(confidenceOf(t.actEv)) ? plain : hedgedActSub(plain);
+  const sure = isHigh(confidenceOf(t.actEv));
+  const sub = sure ? plain : hedgedActSub(plain);
+  // On screen the line is facts, drawn with the key (§AM R6, R8):
+  //   - A bill is two: the day it is due, alone, in the date window's
+  //     tone, then the amount, a number with no state (white). The toned
+  //     day leads because the last fact is the one that gives way: with
+  //     the amount first, "Due tomorrow" was cut to its dot and an
+  //     ellipsis on the Today card at 1.0 (2026-09-26). The hedge rides in
+  //     front of the amount, and the sentence read aloud keeps it whole.
+  //   - A reminder is its day alone, in the date window's tone (the day it
+  //     is for is when it is due), the hedge inside the one fact, as there
+  //     is no other to carry it. One fact is the last fact, so it yields
+  //     with an ellipsis and never clips.
+  //   - An event is its day and time, a neutral time in small caps, then
+  //     its length, a number with no state (white), the fact that yields.
+  //     A reading it cannot back keeps the sentence instead: the hedge has
+  //     to be read BEFORE the tap that writes the event, the line cannot
+  //     hold the hedge, the day, the time and the length at 390px, and a
+  //     hedge put anywhere but first is the part that gets cut.
+  const facts: NoticeFact[] | undefined = a.verb === "bill"
+    ? [
+        { text: capFirst(when), tone: dayTone(a.date, todayISO) },
+        { text: sure ? "" : "Looks like", num: `$${a.amount!.toFixed(2)}` },
+      ]
+    : a.verb === "remind"
+      ? [{ text: sure ? capFirst(when) : hedgedActSub(when), tone: dayTone(a.date, todayISO) }]
+      : sure
+        ? [{ text: capFirst(when) + " " + at, tone: "date" }, { text: "", num: `${a.durationMin} min` }]
+        : undefined;
   return {
     key: "act:" + a.verb + ":" + t.id,
     kind: "act",
     threadId: t.id,
     title: titleCase(a.title),
     sub: capAfterNumber(sub),
+    ...(facts ? { facts } : {}),
     action: actLabel(a),
     tone: a.verb === "bill" ? "cat-fg-green" : "cat-fg-sky",
     act: a,
@@ -392,15 +496,34 @@ function hedgedActSub(sub: string): string {
 //
 // null when nothing here can be said in an email. A receipt owes nothing, so
 // it leaves the home page exactly as it leaves Waiting On.
-function nudgeNotice(w: MailWaiting): MailNotice | null {
-  const act = draftableOf(decide(w.subject ?? "", "", w.days));
+//
+// `nudgesSent` is how many nudges have already gone out on this thread
+// (escalate.ts). The ladder climbs on them as well as on the clock (toneFor:
+// one nudge is direct, two is firm), and the rail, the wait card and the
+// Today draft all read it, so this card does too: a three-day wait nudged
+// twice is red here exactly as it is red on the rail.
+function nudgeNotice(w: MailWaiting, nudgesSent = 0): MailNotice | null {
+  const d = decide(w.subject ?? "", "", w.days, nudgesSent);
+  const act = draftableOf(d);
   if (!act) return null;
+  const ago = `${w.days} ${w.days === 1 ? "day" : "days"} ago`;
   return {
     key: "nudge:" + w.threadId,
     kind: "nudge",
     threadId: w.threadId,
     title: w.to + " Hasn't Replied",
-    sub: capAfterNumber(`${w.subject} · ${w.days} ${w.days === 1 ? "day" : "days"}`),
+    sub: capAfterNumber(`${w.subject}, sent ${ago}`),
+    // On screen the age comes first, on the one ladder every wait age in
+    // mail wears (the rail's, the wait card's, the ledger's): a firm wait
+    // is red, a direct one amber, a gentle one a neutral time in small caps.
+    // The subject is last, the one fact that may ellipsize. The age is the
+    // wait card's and the More Moves sheet's own "55 Days": the title
+    // already says he has not replied, and "Sent 55 days ago" was wider than
+    // the whole line beside "Open a Dispute" at 390px, so it was cut.
+    facts: [
+      { text: capAfterNumber(w.days === 1 ? "1 day" : w.days + " days"), tone: d.tone === "firm" ? "red" : d.tone === "direct" ? "warn" : "date" },
+      { text: w.subject },
+    ],
     action: act.label,
     // mail-glyph opts this one into the light theme's brand-red envelope
     // (components.css). The marker is explicit so the rule cannot catch
@@ -422,6 +545,10 @@ export function mailNotices(
   // collision clause. Empty is the normal case for callers with no schedule
   // in hand, and the deadline reads exactly as it did before.
   events: DayEvent[] = [],
+  // Nudges already sent, per thread (loadNudgeCounts() in escalate.ts), so
+  // a wait's age wears the same rung here as on the rail. Empty for a
+  // caller that draws no wait, and the ladder then reads the clock alone.
+  nudgesSent: Record<string, number> = {},
 ): MailNotice[] {
   const skip = new Set(hidden);
   const threads = [...snap.threads].sort((a, b) => byRank(a.by, now) - byRank(b.by, now));
@@ -445,7 +572,7 @@ export function mailNotices(
     .sort((a, b) => (a.due ?? "9999").localeCompare(b.due ?? "9999"))
     .map((p) => promiseNotice(p, todayISO));
   const nudges = [...snap.waiting].sort((a, b) => b.days - a.days)
-    .map(nudgeNotice).filter((n): n is MailNotice => n !== null);
+    .map((w) => nudgeNotice(w, nudgesSent[w.threadId] ?? 0)).filter((n): n is MailNotice => n !== null);
   const meetings = (snap.meetings ?? []).map(meetingNotice);
   const chases = (snap.chases ?? []).map(chaseNotice);
   const drafts = (snap.drafts ?? []).map(draftNotice);

@@ -38,7 +38,9 @@ export default function ReminderSettingsSheet({ initial, native, permission, tes
   return (
     <FormSheet title="Reminder Settings" onCancel={onCancel} onSave={save} dirty={JSON.stringify(p) !== JSON.stringify(initial) || morning !== morningTime()}>
       <Group label="Quiet Hours">
-        <SwitchRow tone="indigo" glyph={<Clock className="ic" />} label="Quiet Hours" meta={p.quietHours ? `${clock(p.quietFrom)} to ${clock(p.quietTo)}` : "Off"} on={p.quietHours} onToggle={() => patch({ quietHours: !p.quietHours })} ariaLabel="Quiet hours" />
+        {/* Off, the row says nothing under its name: an "Off" line only
+            repeated what the switch beside it already shows (§AK R1). */}
+        <SwitchRow tone="indigo" glyph={<Clock className="ic" />} label="Quiet Hours" meta={p.quietHours ? `${clock(p.quietFrom)} to ${clock(p.quietTo)}` : undefined} on={p.quietHours} onToggle={() => patch({ quietHours: !p.quietHours })} ariaLabel="Quiet hours" />
         {p.quietHours && (
           <>
             <FieldRow tone="indigo" glyph={<Clock className="ic" />} label="From" type="time" value={p.quietFrom} onChange={(v) => { if (/^\d{2}:\d{2}$/.test(v)) patch({ quietFrom: v }); }} ariaLabel="Quiet from" />

@@ -95,7 +95,14 @@ const KEY = "jarvis.mail.outbox.v1";
 // why it comes back as failed with this line (Retry and Discard both on
 // offer) rather than as held (an automatic retry is a possible double send,
 // the one failure worse than a slow one).
-export const INTERRUPTED_LINE = "Interrupted · Check Sent, then Retry";
+//
+// §AM R6 (2026-09-26): the line renders as the failed card's quiet line,
+// under a title that already says Send Interrupted, so it no longer repeats
+// "Interrupted" and carries no typed dot. A send interrupted under the old
+// build was stored with the old words; it is read back as the same
+// interruption, so its card still says Send Interrupted, not Could Not Send.
+export const INTERRUPTED_LINE = "Check Sent, then Retry";
+const OLD_INTERRUPTED_LINE = "Interrupted · Check Sent, then Retry";
 
 export function loadOutbox(storage: Pick<Storage, "getItem"> = localStorage): OutboxItem[] {
   try {
@@ -104,7 +111,9 @@ export function loadOutbox(storage: Pick<Storage, "getItem"> = localStorage): Ou
     return raw
       .filter((x): x is OutboxItem =>
         !!x && typeof x === "object" && typeof (x as OutboxItem).id === "string" && typeof (x as OutboxItem).dueMs === "number")
-      .map((x) => (x.state === "sending" ? { ...x, state: "failed" as const, error: INTERRUPTED_LINE } : x));
+      .map((x) => (x.state === "sending" || (x.state === "failed" && x.error === OLD_INTERRUPTED_LINE)
+        ? { ...x, state: "failed" as const, error: INTERRUPTED_LINE }
+        : x));
   } catch {
     return [];
   }

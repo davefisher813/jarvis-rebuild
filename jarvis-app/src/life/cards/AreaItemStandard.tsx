@@ -1,7 +1,7 @@
 import { catIcon } from "../../categories/icons";
 import type { ColorSlot } from "../../categories/types";
-import { Nums } from "../../bigger/GoalRowRuled";
 import { pressable } from "../../shared/pressable";
+import { capAfterNumber } from "../../shared/casing";
 
 // AREAS TAB (2026-09-16). Restyled to Dave's reference the same day (his
 // screenshot of the ChatGPT mock: "I love the new style for the life areas
@@ -13,9 +13,10 @@ import { pressable } from "../../shared/pressable";
 export interface AreaCounts { taskCount: number; goalCount: number; projectCount: number }
 export interface AreaSummary { id: string; name: string; color: ColorSlot; icon?: string }
 
+// Cased the way the Health card beside it says "5 Sections" (capAfterNumber).
 function statLine(n: number, singular: string, plural: string): string | null {
   if (n <= 0) return null;
-  return `${n} ${n === 1 ? singular : plural}`;
+  return capAfterNumber(`${n} ${n === 1 ? singular : plural}`);
 }
 
 export default function AreaItemStandard({ area, counts, onOpen }: {
@@ -34,7 +35,17 @@ export default function AreaItemStandard({ area, counts, onOpen }: {
       <div className={"area-tile cat-bg-" + area.color}>{catIcon(area.icon)}</div>
       <div className="area-stack">
         <div className="area-name">{area.name}</div>
-        {stats.length > 0 && <div className="area-sub"><Nums text={stats.join(" · ")} /></div>}
+        {/* Each count is its own fact, so the dot between them is drawn by
+            .facts and never sits in the string. A count with no state is a
+            white number (§AM), the whole count, so the line spends no grey.
+            The line's job is to show every count, so it is the wrapping,
+            unclamped meta line, not the one-line .facts (2026-09-26): there,
+            "2 Projects" was cut to "2 ..." at type scale 1.4. */}
+        {stats.length > 0 && (
+          <div className="conn-meta">
+            {stats.map((s) => <span className="fact" key={s}><b>{s}</b></span>)}
+          </div>
+        )}
       </div>
       <div className="area-chev"><div className="chev" /></div>
     </div>

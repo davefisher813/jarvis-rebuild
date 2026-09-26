@@ -37,9 +37,11 @@ describe("the door's facts (D4-C)", () => {
     }];
     const info = doorInfoFor([program([0])], "p1", history, rack, "2026-08-31");
     expect(info?.day.name).toBe("Pull Day 1");
-    expect(info?.meta).toContain("1 exercise");
-    expect(info?.meta).toContain("Est ");
-    expect(info?.meta).toContain("Last trained Aug 24");
+    // Separate facts, so the row can draw each in its own ink (§AM,
+    // 2026-09-26); they used to arrive as one middot-joined string.
+    expect(info?.facts.exercises).toBe(1);
+    expect(info?.facts.estMin).toBeGreaterThan(0);
+    expect(info?.facts.lastTrained).toBe("Aug 24");
   });
 
   it("claims nothing when no day is pinned to that weekday", () => {

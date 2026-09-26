@@ -64,7 +64,7 @@ describe("paceFor", () => {
     const p = paceFor(h, { name: "Bench", kind: "weight_reps" });
     expect(p.learned).toBe(false);
     expect(p.secPerSet).toBe(WORK_SEC + DEFAULT_REST_SEC);
-    expect(paceLine(p)).toBe("default pace · improves as you log");
+    expect(paceLine(p)).toBe("default pace, improves as you log");
   });
 
   it("prices the default from a stated rest target when one exists", () => {

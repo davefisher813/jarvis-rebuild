@@ -83,7 +83,7 @@ export function chartValue(s: LiftSession): number {
  *  is charting a real logged number, so it is named plainly. */
 export function chartLabel(kind: MeasureKind): string {
   // Health Push E (H-31): the estimate says what it is and what it is not.
-  return kind === "weight_reps" ? "Est 1RM · Epley · not a tested max" : "Best";
+  return kind === "weight_reps" ? "Est 1RM (Epley), not a tested max" : "Best";
 }
 
 /**

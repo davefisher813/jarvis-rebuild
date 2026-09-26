@@ -15,11 +15,17 @@ import { stillTrueGoals } from "./stillTrue";
 // change; nothing counted that the app decided not to count; it ends in a
 // setting, not a feeling. Every gate errs toward silence.
 
-export interface ReportWin { name: string; value: string; tone: number }
+// A win is done, achieved or paid, so every win wears the key's green (§AM);
+// it used to carry a slot index that picked green, blue, purple or amber by
+// position alone.
+export interface ReportWin { name: string; value: string }
 export interface ReportTile {
   num: string;
   label: string;
-  tint: "good" | "blue" | "sky" | "warn";
+  // Done is green (done). Every other tile is a count with no state, so its
+  // number is white (§AM): blue meant nothing, sky is kept for an estimate
+  // the app worked out, and amber for what needs him soon.
+  tint: "good" | "plain";
   delta: { text: string; up: boolean } | null;
 }
 export interface ReportSegment { id: string; name: string; color: string; n: number }
@@ -199,13 +205,12 @@ export function buildReport(inp: ReportInputs): MonthReport {
   // HERO. Named crossings lead; a month with none leads with its done count,
   // which is still true and still yours. Anchor is your own last month only.
   const moved = movedIn(month, inp.goals, inp.projects);
-  const wins: ReportWin[] = moved.slice(0, 3).map((m, i) => ({
+  const wins: ReportWin[] = moved.slice(0, 3).map((m) => ({
     name: m.name,
     value: m.kind === "goal" ? "Achieved ✓" : "Closed ✓",
-    tone: i,
   }));
   if (seal.saved > 0 && wins.length < 4) {
-    wins.push({ name: "Put Away", value: `$${seal.saved.toLocaleString()}`, tone: 3 });
+    wins.push({ name: "Put Away", value: `$${seal.saved.toLocaleString()}` });
   }
   const movedCount = moved.length + (seal.saved > 0 ? 1 : 0);
   const prevMoved = prev ? movedIn(prev.month, inp.goals, inp.projects).length + (prev.saved > 0 ? 1 : 0) : null;
@@ -226,9 +231,9 @@ export function buildReport(inp: ReportInputs): MonthReport {
   // TILES. Zeros never render; deltas only against a real predecessor.
   const tiles: ReportTile[] = [];
   if (seal.done > 0) tiles.push({ num: String(seal.done), label: "Done", tint: "good", delta: deltaOf(seal.done, prev?.done ?? null, prevName) });
-  if (seal.sessions > 0) tiles.push({ num: String(seal.sessions), label: seal.sessions === 1 ? "Session" : "Sessions", tint: "blue", delta: deltaOf(seal.sessions, prev?.sessions ?? null, null) });
-  if (seal.daysIn > 0) tiles.push({ num: `${seal.daysIn}/${daysInMonth(month)}`, label: "Days In", tint: "sky", delta: deltaOf(seal.daysIn, prev?.daysIn ?? null, null) });
-  if (seal.deposits > 0) tiles.push({ num: String(seal.deposits), label: seal.deposits === 1 ? "Deposit" : "Deposits", tint: "warn", delta: deltaOf(seal.deposits, prev?.deposits ?? null, null) });
+  if (seal.sessions > 0) tiles.push({ num: String(seal.sessions), label: seal.sessions === 1 ? "Session" : "Sessions", tint: "plain", delta: deltaOf(seal.sessions, prev?.sessions ?? null, null) });
+  if (seal.daysIn > 0) tiles.push({ num: `${seal.daysIn}/${daysInMonth(month)}`, label: "Days In", tint: "plain", delta: deltaOf(seal.daysIn, prev?.daysIn ?? null, null) });
+  if (seal.deposits > 0) tiles.push({ num: String(seal.deposits), label: seal.deposits === 1 ? "Deposit" : "Deposits", tint: "plain", delta: deltaOf(seal.deposits, prev?.deposits ?? null, null) });
 
   const hours = seal.bandStart != null
     ? { label: `${hour12(seal.bandStart)} to ${hour12(seal.bandStart + 3)}`, byHour: seal.byHour, bandStart: seal.bandStart }
@@ -297,7 +302,7 @@ export function buildReport(inp: ReportInputs): MonthReport {
       worth.push({
         id: "quiet",
         title: `${quiet.cat!.name} went quiet`,
-        sub: capAfterNumber(`${quiet.now} this month · ${quiet.was} in ${prevName}`),
+        sub: capAfterNumber(`${quiet.now} this month, ${quiet.was} in ${prevName}`),
         receipts: [capAfterNumber(`${quiet.was} finishes in ${prevName}, ${quiet.now} in ${name}`), "A quiet month can be on purpose", "Leave It means exactly that"],
       });
     }
@@ -339,7 +344,7 @@ export function buildReport(inp: ReportInputs): MonthReport {
     patterns.push({
       id: "picks",
       title: "First picks finish",
-      sub: `Firsts ${Math.round(picks.firstRate * 100)}% · Later picks ${Math.round(picks.lateRate * 100)}%`,
+      sub: `Firsts ${Math.round(picks.firstRate * 100)}%, later picks ${Math.round(picks.lateRate * 100)}%`,
       chip: null,
       receipts: [
         capAfterNumber(`${picks.firstDone} of ${picks.firstPicked} first picks done that day`),
@@ -416,7 +421,7 @@ export function buildReport(inp: ReportInputs): MonthReport {
   const learned = seal.strands.created > 0
     ? {
         title: capAfterNumber(`Learned ${seal.strands.created} ${seal.strands.created === 1 ? "thing" : "things"} about you`),
-        sub: fixes > 0 ? capAfterNumber(`You fixed ${fixes} · ${fixes === 1 ? "It is" : "They are"} gone`) : null,
+        sub: fixes > 0 ? capAfterNumber(`You fixed ${fixes}, ${fixes === 1 ? "it is" : "they are"} gone`) : null,
       }
     : null;
   const didCount = seal.remindersTicked + seal.deck.sent;
@@ -424,7 +429,7 @@ export function buildReport(inp: ReportInputs): MonthReport {
   if (seal.remindersTicked > 0) didParts.push(`${seal.remindersTicked} ${seal.remindersTicked === 1 ? "reminder" : "reminders"}`);
   if (seal.deck.sent > 0) didParts.push(`${seal.deck.asWritten} of ${seal.deck.sent} drafts sent as written`);
   const did = didCount > 0
-    ? { title: capAfterNumber(`Kept ${didCount} ${didCount === 1 ? "thing" : "things"} moving`), sub: didParts.length ? capAfterNumber(didParts.join(" · ")) : null }
+    ? { title: capAfterNumber(`Kept ${didCount} ${didCount === 1 ? "thing" : "things"} moving`), sub: didParts.length ? capAfterNumber(didParts.join(", ")) : null }
     : null;
 
   // THE ONE CHANGE. Exactly one, and only when the evidence carries it.
@@ -432,8 +437,8 @@ export function buildReport(inp: ReportInputs): MonthReport {
     ? {
         n: 3,
         question: "Cap the day at three?",
-        sub: "Your first three get done · The later picks mostly do not",
-        foot: "Starting tomorrow · Change it any time",
+        sub: "Your first three get done, the later picks mostly do not",
+        foot: "Starting tomorrow, change it any time",
       }
     : null;
 

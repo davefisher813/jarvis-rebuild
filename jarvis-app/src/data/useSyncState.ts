@@ -39,14 +39,23 @@ export function syncedAgo(at: number, now = Date.now()): string {
   return new Date(at).toLocaleDateString();
 }
 
-// The one sentence for the card and the eyebrow, so they can never disagree.
-// Every branch is a fact: what is waiting, and when something last left the
-// phone. Nothing here guesses, and nothing says "Synced" on the strength of
-// having been online once.
-export function syncLine(s: SyncState, now = Date.now()): string {
-  const waiting = capAfterNumber(s.queued === 1 ? "1 change waiting" : `${s.queued} changes waiting`);
-  const synced = s.lastSyncedAt === null ? null : `Last synced ${syncedAgo(s.lastSyncedAt, now)}`;
-  if (!s.online) return s.queued > 0 ? `Offline · ${waiting}` : "Offline";
-  if (s.queued > 0) return synced ? `${waiting} · ${synced}` : waiting;
-  return synced ?? "Nothing waiting";
+/** One fact on the sync line, and the Colour Key variant it is drawn in:
+ *  "warn" for what is held and waiting on the person (§AM amber), "date" for
+ *  the neutral time something last left the phone (F5 small caps). A fact
+ *  with neither is the line's one grey. */
+export type SyncFact = { text: string; tone?: "warn" | "date" };
+
+// The facts for the Account Sync row, in order. Every branch is a fact: what
+// is waiting, and when something last left the phone. Nothing here guesses,
+// and nothing says "Synced" on the strength of having been online once.
+//
+// §AM F3 (2026-09-26): this was one string with a middle dot typed into it,
+// so both facts drew in one grey. They are separate facts now; the page
+// renders each as a .fact and the stylesheet draws the separator.
+export function syncFacts(s: SyncState, now = Date.now()): SyncFact[] {
+  const waiting: SyncFact = { text: capAfterNumber(s.queued === 1 ? "1 change waiting" : `${s.queued} changes waiting`), tone: "warn" };
+  const synced: SyncFact | null = s.lastSyncedAt === null ? null : { text: `Last synced ${syncedAgo(s.lastSyncedAt, now)}`, tone: "date" };
+  if (!s.online) return s.queued > 0 ? [{ text: "Offline" }, waiting] : [{ text: "Offline" }];
+  if (s.queued > 0) return synced ? [waiting, synced] : [waiting];
+  return [synced ?? { text: "Nothing waiting" }];
 }

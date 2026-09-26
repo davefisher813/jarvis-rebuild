@@ -181,8 +181,12 @@ export default function PointAtItScreen({ patterns, summaries = [], onLog, onDet
                   <div className="row-grow">
                     <div className="conn-name">{p.region ?? "Same Spot"}, {p.sessions} Sessions</div>
                     <div className="bp-sub">Over {p.days} days</div>
+                    {/* The days are neutral dates, so they take the date
+                        fact's small caps (§AM F5): caps is what sets them
+                        apart from the span above, which spent the row's one
+                        grey (§AK). */}
                     {dates.length > 0 && (
-                      <div className="bp-sub">Tapped {dates.map((d) => shortDate(d.date)).join(", ")}</div>
+                      <div className="facts"><span className="fact date">Tapped {dates.map((d) => shortDate(d.date)).join(", ")}</span></div>
                     )}
                   </div>
                 </div>

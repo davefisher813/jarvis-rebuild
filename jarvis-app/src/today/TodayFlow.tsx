@@ -23,6 +23,7 @@ import NoticeCard from "./NoticeCard";
 import { rowDoor, own } from "../shared/rowDoor";
 import { FAILING, WAITING, NEW, RESUME, LIVE, spotIsDuplicate } from "./stream";
 import { chainQuietToday, dismissChain, nextBest, chainReason } from "../tasks/momentum";
+import { distanceFor, type Distance } from "../tasks/grouping";
 import { AUTOMATION_LABEL, tuningAllows, tuningScope, tuningWeight, tuningsFrom, type TuningChoice } from "../rules/tuning";
 import { leadFor } from "../schedule/leaveBy";
 import { EventWeatherLine } from "../weather/WeatherLine";
@@ -56,7 +57,7 @@ import { inheritFromThread } from "../messages/threadTasks";
 import { endOfAct, type MailAct } from "../messages/mailAct";
 import { dayPhrase } from "../money/bills";
 import { rankProjects, closable, projectPaceParts, projectProgress } from "../bigger/progress";
-import { movesCount, goalsMovedToday, movedLine, untouchedGoal, untouchedLine, openWorkOf, dismissGoalNudge } from "./goalPulse";
+import { movesCount, goalsMovedToday, movedLine, untouchedGoal, openWorkOf, dismissGoalNudge } from "./goalPulse";
 import SkeletonScreen from "../shared/SkeletonScreen";
 import type { Recurrence } from "../notes/types";
 import { useAI } from "../ai/useAI";
@@ -111,7 +112,7 @@ import type { ReminderInfo } from "../notes/types";
 import { runAutoSweep, retrySweep, undoSweep, readReceipt, setAsideCandidate, markOffered, liveMoved, dismissSweepCard, sweepCardDismissed, type SweepReceipt } from "../tasks/autoSweep";
 import { restorableSpot, clearSpot, dismissSpot, spotAgo, type WorkSpot } from "../restore/whereYouWere";
 import { readLive, isStillActive, type LiveSession } from "../gym/liveSession";
-import { liveCard, currentLine } from "../gym/liveCard";
+import { liveCard, type LiveCard } from "../gym/liveCard";
 import { readFifteen, writeFifteen, clearFifteen, isStillLive, fifteenFace, extended, type LiveFifteen } from "./liveFifteen";
 import { sourceOpener } from "../shared/openSource";
 import { isQuiet, goQuiet, localQuietStore } from "../shared/quietFor";
@@ -197,6 +198,12 @@ const FreshStartFlow = lazyWithRecovery(() => import("../upnext/FreshStartFlow")
 export function reflowHold(lines: HardLine[], event: { data: { title: string; category: string } } | undefined): HardLine | null {
   return heldBy(lines, { action: "reflow", blockTitle: event?.data.title, category: catName(event?.data.category) });
 }
+
+// The Momentum Chain's pick (UP-CORE-09): the task offered, and the area of
+// the task just finished. That area is what "Same category" is measured
+// against: nextBest falls through to other areas when the finished one has
+// nothing open, and the suggestion's own area proves nothing.
+type Momentum = { task: TaskItem; afterCategory: string };
 
 // Read-only aggregation over the (already tested) Schedule and Tasks services.
 export default function TodayFlow({
@@ -604,7 +611,7 @@ export default function TodayFlow({
   // UP-CORE-09 (2026-09-05): the Momentum Chain's slot, on the tab where
   // ticks actually happen. Holds the task offered after the last completion;
   // the next tick replaces it and Not Now empties it for the day.
-  const [momentum, setMomentum] = useState<TaskItem | null>(null);
+  const [momentum, setMomentum] = useState<Momentum | null>(null);
   const [categories, setCategories] = useState<SheetCategory[]>([]);
   const [pausedCats, setPausedCats] = useState<ReadonlySet<string>>(new Set());
   const [catsFull, setCatsFull] = useState<Category[]>([]);
@@ -784,7 +791,8 @@ export default function TodayFlow({
       // The season pause candidatesFor applies, at the other door a task
       // becomes work. nextBest already refuses bills and reminders.
       const fresh = (await tasks.listTasks()).filter((t) => !pausedCats.has(t.data.category ?? ""));
-      setMomentum(nextBest(fresh.filter(notMail), id, before.category ?? ""));
+      const next = nextBest(fresh.filter(notMail), id, before.category ?? "");
+      setMomentum(next ? { task: next, afterCategory: before.category ?? "" } : null);
     }
     const advanced = before && !before.done ? movedByTask(before, id) : null;
     if (comeback) {
@@ -1722,10 +1730,92 @@ export default function TodayFlow({
   const untouched = untouchedGoal(goalIdx, goalList, goalReach, todaysTasks(taskItems, today), today);
   // The chain's one meta line: derived facts only, and the task's own length
   // when it has one (UP-CORE-02), because "10m" is what makes it startable.
-  const momentumSub = (t: TaskItem): string => {
-    const why = chainReason(t, t.data.category ?? "", today);
+  // §AK, §AM (2026-09-26): "Same category" is the line's one grey and the
+  // length is an estimate the app worked out, so it is sky (.fact.est, as on
+  // the headliner). "Keep going" came off the card: a second grey that said
+  // nothing the slot, the tick a second ago and Start Now do not already say.
+  // momentumSub keeps it, because that string is the tuning rule's stored
+  // evidence, not the card's line. It does render, as the rule's line on
+  // Settings > What JARVIS Learned, so it is a phrase joined by commas,
+  // never typed dots (2026-09-26).
+  //
+  // DUE AND LATE WEAR THE KEY, THE WAY THE TASKS TAB DRAWS THEM (§AM R3/R8,
+  // 2026-09-26). chainReason used to carry "due today" and "overdue" in the
+  // line's plain grey, a meaning with no colour, while MomentumRow on Tasks
+  // already drew the same task's due half as the distance chip. Both read
+  // distanceFor off the task now. "Same category" is measured against the
+  // FINISHED task's area, stored with the pick, so a suggestion nextBest
+  // took from another area never claims it.
+  const momentumParts = (m: Momentum) => {
+    const t = m.task;
     const mins = t.data.estimateMin ?? estimates[t.data.category ?? ""];
-    return ["Keep going", why?.toLowerCase(), mins ? durLabel(mins) : null].filter(Boolean).join(" \u00b7 ");
+    return {
+      why: chainReason(t, m.afterCategory),
+      due: distanceFor(t.data, today),
+      len: mins ? durLabel(mins) : null,
+    };
+  };
+  const momentumSub = (m: Momentum): string => {
+    const { why, due, len } = momentumParts(m);
+    const reason = [why?.toLowerCase(), due ? (due.kind === "late" ? "overdue" : "due today") : null].filter(Boolean).join(", ");
+    return ["Keep going", reason, len].filter(Boolean).join(", ");
+  };
+  // The due half as a fact's words: the chip's own distance, in a sentence's
+  // case ("Due today", "3 Days late", "Over a month late"), since a fact is
+  // not a chip. Every late distance ends in "late", so the words say it too.
+  const dueWords = (d: Distance): string => {
+    if (d.kind === "today") return "Due today";
+    const words = d.label.toLowerCase();
+    const late = / late$/.test(words) ? words : words + " late";
+    return capAfterNumber(late.charAt(0).toUpperCase() + late.slice(1));
+  };
+  // Null when there is nothing to say, so the card goes solo instead of
+  // carrying an empty sub line.
+  const momentumFacts = (m: Momentum) => {
+    const { why, due, len } = momentumParts(m);
+    if (!why && !due && !len) return null;
+    // With a length on the line, a toned due fact would cost the length its
+    // sky: Facts keeps the first colour on a line and drops the rest (K.3).
+    // So the due half is the distance chip there, which is not a fact and
+    // carries its own tint by rule (the headliner's and MomentumRow's own
+    // .uchip, TODAY amber, N DAYS LATE red). Without a length it is the
+    // line's one coloured fact: amber when due, red when late.
+    //
+    // THE LINE NEVER CLIPS A WORD (the lead, 2026-09-26). In .facts only the
+    // last fact shrinks, so the short facts lead (the chip, the length) and
+    // "Same category", the words, goes last. With the chip on the line there
+    // is no room for the words as well: measured at 390px, TODAY, 15m and
+    // Same category need about 230px, the card's line has 161 at scale 1
+    // and 129 at 1.4, and the stream's one-line row leaves a short title's
+    // sub 83 to 100px, so whichever fact sat before the words was cut
+    // mid-word. So the chip branch says the two facts that make the task
+    // startable, when and how long, the same two slots the dealt row above
+    // it prints (MoveHeadliner: the chip, then the length), and the shared
+    // area stays on the Tasks tab's row. A late chip stands alone
+    // (2026-09-26): "2 DAYS LATE" fills the line at type scale 1.4 and the
+    // length beside it was left its dot and an ellipsis.
+    if (due && len && due.kind === "late") {
+      return (
+        <div className="facts">
+          <span className="fact"><span className="uchip u-late">{due.label}</span></span>
+        </div>
+      );
+    }
+    if (due && len) {
+      return (
+        <div className="facts">
+          <span className="fact"><span className={"uchip " + (due.kind === "late" ? "u-late" : "u-today")}>{due.label}</span></span>
+          <span className="fact est">{len}</span>
+        </div>
+      );
+    }
+    return (
+      <Facts facts={[
+        due ? { text: dueWords(due), tone: due.kind === "late" ? "red" : "warn" } : null,
+        len ? { text: len, tone: "est" } : null,
+        why ? { text: why } : null,
+      ]} />
+    );
   };
   const evening = isEvening(nowMin, routineData) ? eveningStats(todayEvents, taskItems, today, nhm, completionsToday) : undefined;
   // C-24 (Astra, 2026-09-12): the headliner's own two facts. The area is a
@@ -2152,8 +2242,9 @@ export default function TodayFlow({
 
   //
   // The list is derived with the SAME mailNotices() call MailNotices renders
-  // from, so the drafts that get warmed are the cards he can actually see. A
-  // separate ranking here would warm the wrong five.
+  // from, nudge counts included (a nudged wait can drop its card), so the
+  // drafts that get warmed are the cards he can actually see. A separate
+  // ranking here would warm the wrong five.
   // (The Now suggestion's swipe controller stood here. 55d2b15 took the dealt
   // task off the Now card -- "two surfaces on one screen each offering the
   // thing to do next" -- which took the markup that used it, and the hook call
@@ -2170,7 +2261,7 @@ export default function TodayFlow({
     const snap = loadMailSnapshot();
     if (snap.threads.length === 0 && snap.waiting.length === 0) return;
     pregenRan.current = true;
-    const jobs = mailNotices(snap, today, new Date(), PREGEN_CAP)
+    const jobs = mailNotices(snap, today, new Date(), PREGEN_CAP, [], [], loadNudgeCounts())
       .filter((n) => n.kind === "reply" || n.kind === "deadline" || n.kind === "nudge" || n.kind === "chase")
       .map((n) => jobFor(n))
       .filter((j): j is NonNullable<typeof j> => !!j);
@@ -2326,6 +2417,34 @@ export default function TodayFlow({
   // that, before any gap or block: the day, the time left or the time in, what
   // is logged, and Resume as its one door. Same read as the Your Move row.
   const liveNow = liveGym && !gymDismissed && tuned("live-gym") ? liveCard(liveGym) : null;
+  // THE SESSION'S FACTS, ONE GREY (§AK, §AM, 2026-09-26). Both render sites
+  // joined currentLine, the clock and the count into one string, so the dots
+  // were typed and every fact wore the same grey. The lift's name is the
+  // line's one grey; the numbers drawn up for it, the clock and the count are
+  // data with no state, so they step up to white (F1); a budget that has run
+  // out is over its limit, which is the key's red. With no lift to name, the
+  // line says nothing rather than repeat the day the title already says.
+  // `clock` is the time left when a timer was set, else the time in; the
+  // count rides after it on Now, and stands in for it on Your Move.
+  //
+  // THE SHORT FACTS FIRST, THE LONG ONE LAST (2026-09-26). The line's last
+  // fact is the one .facts lets shrink and ellipsize; every fact before it
+  // keeps its width. With the lift's name and its plan leading as two
+  // unshrinking facts, "Romanian Deadlift" plus "3 × 225 lb × 5" beside
+  // the Resume pill already overran the column, so the plan was cut
+  // mid-letter with no ellipsis and the clock and the count never showed.
+  // The clock and the count are a few characters each, so they lead; the
+  // lift, name and plan together, is ONE final fact, the only one on the
+  // line whose length the world decides, and the one allowed to yield.
+  const liveFacts = (card: LiveCard, clock: string | null, count: string | null, cls = "facts") => (
+    <div className={cls}>
+      {clock && (clock === "Time's up"
+        ? <span className="fact red">{clock}</span>
+        : <span className="fact"><b>{clock}</b></span>)}
+      {count && <span className="fact"><b>{count}</b></span>}
+      {card.current && <span className="fact">{card.current.name}{card.current.plan && <> <b>{card.current.plan}</b></>}</span>}
+    </div>
+  );
   const nowSection = !evening && (
     <>
       <div className="pad-x"><div className="card">
@@ -2334,7 +2453,7 @@ export default function TodayFlow({
             <RowIcon kind="gym" />
             <div className="row-stack">
               <div className="conn-name truncate">In: {liveNow.dayName}</div>
-              {/* THE LIFT YOU ARE ON LEADS THE LINE (2026-09-21). liveCard
+              {/* THE LIFT YOU ARE ON IS ON THE LINE (2026-09-21). liveCard
                   has always computed it -- currentLine, "Bench Press · 3 ×
                   225 lb × 5", written, documented as "the one line the card
                   leads with", unit tested -- and NEITHER render site used
@@ -2343,7 +2462,7 @@ export default function TodayFlow({
                   So while a workout was running, Today told you the day, the
                   minutes and the set count, and never the one fact you would
                   pick up the phone for. */}
-              <div className="conn-meta truncate">{[currentLine(liveNow), liveNow.left ?? liveNow.elapsed, liveNow.progress].filter(Boolean).join(" · ")}</div>
+              {liveFacts(liveNow, liveNow.left ?? liveNow.elapsed, liveNow.progress, "conn-meta facts")}
             </div>
             <button className="pill-act pill-go" onClick={own(() => onRestoreSpot?.("gym", gymCatId ?? ""))}>Resume</button>
           </div>
@@ -2405,7 +2524,17 @@ export default function TodayFlow({
               <RowIcon kind="event" />
               <div className="row-stack">
                 <div className="conn-name truncate">{shortSpan(nowCtx.gapMin)} open</div>
-                <div className="conn-meta truncate">Until {nowCtx.nextTitle ?? "your next event"} {fmtTime(nowCtx.nextStart).time} {fmtTime(nowCtx.nextStart).ap}</div>
+                {/* §AM F5 (2026-09-26): when the window ends is a neutral
+                    time, so it is small caps, the same "Until" the in-a-block
+                    row below says; what ends it is the line's one grey.
+                    The pair is the row's point, so it is the wrapping,
+                    unclamped meta line (2026-09-26): on one line at type
+                    scale 1.4 the title was left its dot and an ellipsis,
+                    and the row no longer said what ends the window. */}
+                <div className="conn-meta">
+                  <span className="fact date">Until {fmtTime(nowCtx.nextStart).time} {fmtTime(nowCtx.nextStart).ap}</span>
+                  <span className="fact">{nowCtx.nextTitle ?? "Your next event"}</span>
+                </div>
                 {nextOutdoor && <EventWeatherLine dateIso={today} start={nextOutdoor.data.start} />}
               </div>
               {/* MERGE B: Plan My Day used to sit here as well as in the
@@ -2445,8 +2574,10 @@ export default function TodayFlow({
                 lowercase. nowContext hands over `head` and `tail` now, each
                 already written as the line it is. */}
             <div className="row-stack">
-              <div className="conn-name truncate">{nowCtx.head ?? nowCtx.line}</div>
-              {nowCtx.tail && <div className="conn-meta truncate">{nowCtx.tail}</div>}
+              <div className="conn-name truncate">{nowCtx.head}</div>
+              {/* §AM F5 (2026-09-26): the tail here is "Until 7:00 PM", a
+                  neutral time stated as the row's fact, so it is small caps. */}
+              {nowCtx.tail && <div className="conn-meta facts"><span className="fact date">{nowCtx.tail}</span></div>}
             </div>
             {/* UP-CORE-08 (2026-09-05): INSIDE A MEETING, THE PILL IS ITS
                 PAGE. An exec pays for walking into the 2 PM with a page
@@ -2485,7 +2616,21 @@ export default function TodayFlow({
           <div className="row" {...rowDoor(() => void (onOpenPerson ?? onAskSaid)?.(prep.person.id))}>
             <RowIcon kind="event" />
             <div className="row-stack">
-              <div className="conn-name truncate">{prep.line}</div>
+              {/* THE NAME IS THE TITLE; THE FACTS GO UNDER IT (§AK, §AM,
+                  2026-09-26). meetingPrep used to join the name, the count
+                  and the last mail with typed dots, so the facts truncated
+                  with the title and wore its ink. It hands over the parts
+                  now: the count is white (a count with no state), "with
+                  them" is the line's one grey, and the last mail is a
+                  neutral date, so it is small caps. Its words were read on
+                  meetingPrep's own clock, so nothing here reads a second. */}
+              <div className="conn-name truncate">{prep.person.name}</div>
+              {(prep.open.length > 0 || prep.lastMail) ? (
+                <div className="conn-meta facts">
+                  {prep.open.length > 0 && <span className="fact"><b>{capAfterNumber(`${prep.open.length} open`)}</b> with them</span>}
+                  {prep.lastMail ? <span className="fact date">{prep.lastMail}</span> : null}
+                </div>
+              ) : null}
               {/* row-tap: chip strip inside the prep row, not a row of its own */}
               <div className="row mail-chips">
                 {prep.open.length > 0 && (
@@ -2630,7 +2775,9 @@ export default function TodayFlow({
   // `accepted` has been on the draft since the Day Loop shipped.
   const draftReceipt = !evening && dayDraft?.accepted && !dayDraft.dismissed && planEvs.length > 0 ? (
     <div className="receipt-line" aria-label={`Accepted, ${planEvs.length} ${planEvs.length === 1 ? "block" : "blocks"} planned`}>
-      <span className="rl-t">{capAfterNumber(`Accepted · ${planEvs.length} ${planEvs.length === 1 ? "Block" : "Blocks"}`)}</span>
+      {/* One phrase, no typed dot (§AM F3, 2026-09-26): the count leads,
+          the way every other receipt here reads. */}
+      <span className="rl-t">{capAfterNumber(`${planEvs.length} ${planEvs.length === 1 ? "block" : "blocks"} accepted`)}</span>
     </div>
   ) : null;
 
@@ -2795,7 +2942,7 @@ export default function TodayFlow({
           icon={<BarbellGlyph />}
           tone="cat-fg-orange"
           title={card.fresh ? `${card.dayName} is ready` : `Back to ${card.dayName}`}
-          sub={[currentLine(card), card.left ?? card.elapsed ?? card.progress].filter(Boolean).join(" · ")}
+          sub={liveFacts(card, card.left ?? card.elapsed, (card.left ?? card.elapsed) ? null : card.progress)}
           action={{ label: card.fresh ? "Start" : "Resume", go: true, onClick: () => onRestoreSpot?.("gym", gymCatId ?? "") }}
           // ROW-TAP (Dave 2026-09-15: "I want all rows clickable"): the body
           // opens the session, like the pill.
@@ -2807,9 +2954,13 @@ export default function TodayFlow({
   const alertCards = [
     // The welcome-back recap is a RECEIPT: it reports, it does not ask.
     // One quiet line; tapping it opens the pile it describes.
+    // ONE SENTENCE, NO TYPED DOTS (§AM F3, 2026-09-26). welcomeBack hands
+    // over its parts and this writes them as sentences: the greeting, what
+    // aged out when anything did (agedOut is 0 today, see above, so it is
+    // null and says nothing), and the one thing to start with.
     back ? (
       <button key="back" data-receipt className="receipt-line" onClick={() => setUpNextOpen(true)}>
-        <span className="rl-t">{back.title} · {back.sub}</span>
+        <span className="rl-t">{back.title}. {back.gone ? back.gone + ". " : ""}{back.ask}</span>
         <span className="chev" />
       </button>
     ) : null,
@@ -2841,7 +2992,9 @@ export default function TodayFlow({
         icon={SWEEP_ICO}
         tone="cat-fg-red"
         title="Couldn't Move Yesterday's Tasks"
-        sub="Nothing was lost · Try again"
+        // One grey (§AK, 2026-09-26): "Try again" came off, because the
+        // Retry pill beside it says it and does it.
+        sub="Nothing was lost"
         // ROW-TAP (Dave 2026-09-15): nothing to open, so the body retries,
         // the same safe verb as the pill.
         onOpen={() => void (async () => { setSweepReceipt(await retrySweep(tasks, today)); await reload(); })()}
@@ -3063,17 +3216,17 @@ export default function TodayFlow({
     // for the day.
     momentum && tuned("momentum") ? (
       <NoticeCard
-        key={"momentum-" + momentum.id}
+        key={"momentum-" + momentum.task.id}
         {...tuneProps("momentum", momentumSub(momentum))}
         weight={tuningWeight(tunings, "momentum", NEW)}
         icon={<CheckCircleGlyph />}
         tone="cat-fg-blue"
-        title={momentum.data.text}
-        sub={momentumSub(momentum)}
-        action={{ label: "Start Now", onClick: () => { const t = momentum; setMomentum(null); if (onStartNow) onStartNow(t.id); else void startFifteen(t); } }}
+        title={momentum.task.data.text}
+        sub={momentumFacts(momentum)}
+        action={{ label: "Start Now", onClick: () => { const t = momentum.task; setMomentum(null); if (onStartNow) onStartNow(t.id); else void startFifteen(t); } }}
         // ROW-TAP (Dave 2026-09-15: "I want all rows clickable"): the body
         // opens the task.
-        onOpen={() => void onOpenTask(momentum.id)}
+        onOpen={() => void onOpenTask(momentum.task.id)}
         onDismiss={() => { dismissChain(today); setMomentum(null); }}
       />
     ) : null,
@@ -3086,7 +3239,7 @@ export default function TodayFlow({
     tomorrowBirthday && tuned("birthday") ? (
       <NoticeCard
         key={"birthday-" + tomorrowBirthday.id}
-        {...tuneProps("birthday", tomorrowBirthday.name + " · Birthday tomorrow")}
+        {...tuneProps("birthday", tomorrowBirthday.name + ", birthday tomorrow")}
         weight={tuningWeight(tunings, "birthday", RESUME)}
         icon={<GiftGlyph />}
         tone="cat-fg-pink"
@@ -3124,7 +3277,16 @@ export default function TodayFlow({
            report); this card is about a GOAL, so it wears the goal's color. */
         tone={goalTone(untouched.data.tags)}
         title={untouched.data.title}
-        sub={untouchedLine(openWorkOf(goalReach(untouched.id))) + " · Pick a project to move it"}
+        // §AK, §AM (2026-09-26): two facts, the dot drawn by the
+        // stylesheet. The open count is a count with no state, so it is white;
+        // the reason is the line's one grey. "Pick a project to move it" came
+        // off: an instruction, a third grey, and what Resume already does.
+        sub={(
+          <div className="facts">
+            <span className="fact"><b>{capAfterNumber(`${openWorkOf(goalReach(untouched.id))} open`)}</b></span>
+            <span className="fact">Nothing today moves it</span>
+          </div>
+        )}
         // "Pick One", not "Pick Something" (2026-08-25). Measured on the
         // uniform card: the longer label took 139px of a 358px row and left
         // the goal's own name 133px when it needed 202, so a two-word button
@@ -3247,7 +3409,10 @@ export default function TodayFlow({
       icon={<BellRing className="ic" />}
       tone="cat-fg-slate"
       title={r.text}
-      sub={"Missed at " + fmtTime(r.time).time + " " + fmtTime(r.time).ap}
+      // §AM (2026-09-25/26): missed is one of the key's reds, and a time
+      // with a meaning takes the key colour (F5): the same red the strip
+      // gives a missed reminder's time, on the time's fact alone.
+      sub={<Facts facts={[{ text: "Missed at " + fmtTime(r.time).time + " " + fmtTime(r.time).ap, tone: "red" }]} />}
       action={{ label: "Ask Again in 15m", onClick: () => void onAskAgainReminder(r.id) }}
       alt={{ label: "Done", onClick: () => void onTickReminder(r.id, true) }}
       // The row opens the reminder (Dave 2026-09-15: "I want all rows clickable").

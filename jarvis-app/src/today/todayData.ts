@@ -121,7 +121,26 @@ export function payableBill(tasks: TaskItem[], today: string): TaskItem | null {
 // Every other notice card on that page is one fact in the title and the rest
 // in the sub. This is now shaped the same, so nothing truncates and the day
 // is the thing that survives.
-export function billsLine(tasks: TaskItem[], today: string): { title: string; sub: string } | null {
+//
+// §AM (2026-09-26): ONE BILL IS TWO FACTS, NOT A STRING. "$1850 · Due
+// tomorrow" carried its separator baked in, in the words' own grey, and the
+// due date wore that grey too although a date with a meaning takes the
+// key's colour. So one bill hands back its parts: the amount, a number with
+// no state (white), and when it is due, toned by the same window every other
+// date uses (today or tomorrow is due, amber; later is a neutral date, small
+// caps). Nothing earlier than today reaches this card. Several bills keep
+// their one plain line of names.
+export interface BillLine {
+  title: string;
+  /** Several bills: their names, one plain line. */
+  sub?: string;
+  /** One bill: what it costs, when it has an amount. */
+  amount?: string;
+  /** One bill: when it is due, and the key's tone for that day. */
+  due?: { text: string; tone: "warn" | "date" };
+}
+
+export function billsLine(tasks: TaskItem[], today: string): BillLine | null {
   const due = billsDueSoon(tasks, today);
   if (due.length === 0) return null;
 
@@ -138,9 +157,11 @@ export function billsLine(tasks: TaskItem[], today: string): { title: string; su
   if (due.length === 1) {
     const t = due[0]!;
     const amt = t.data.bill?.amount;
+    const iso = t.data.due as string;
     return {
       title: name(t),
-      sub: `${amt ? `$${amt} · ` : ""}Due ${when(t.data.due as string)}`,
+      ...(amt ? { amount: `$${amt}` } : {}),
+      due: { text: `Due ${when(iso)}`, tone: iso === today || iso === tomorrowISO(today) ? "warn" : "date" },
     };
   }
   return {

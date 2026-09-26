@@ -31,7 +31,8 @@ describe("HealthFlow: the Share Line", () => {
     // permanently off. Clicking it does nothing, because it carries no
     // onClick at all (checked statically too, in healthPrivacy.test.ts).
     expect(screen.getByText("Mood and Mind")).toBeInTheDocument();
-    expect(screen.getAllByText("Not a setting. This never crosses to your parent, no matter what.").length).toBe(3);
+    // Said once under the Kid's Room card, not repeated under every row (§AK).
+    expect(screen.getAllByText("Not settings: none of these ever cross to your parent.").length).toBe(1);
     const kidSwitch = screen.getByRole("switch", { name: /Mood and Mind/ });
     expect(kidSwitch).toHaveAttribute("aria-checked", "false");
     expect(kidSwitch).toHaveAttribute("aria-disabled", "true");
@@ -210,7 +211,7 @@ describe("HealthFlow: Week Shape is flat and honest", () => {
     const weekDates = ["2026-08-24", "2026-08-25", "2026-08-26", "2026-08-27", "2026-08-28", "2026-08-29", "2026-08-30"];
     const sessions = [{ date: "2026-08-25", org: "School Team", durationMin: 90 }];
     render(<HealthFlow store={store} ownerId="u1" initialScreen="weekShape" sportSessions={sessions} weekDates={weekDates} onExit={() => {}} />);
-    await waitFor(() => expect(screen.getByText("1 Sessions, 1.5 Hours")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("1 Session, 1.5 Hours")).toBeInTheDocument());
   });
 });
 

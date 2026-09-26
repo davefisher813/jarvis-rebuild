@@ -26,7 +26,7 @@ describe("ReminderSheet", () => {
     fireEvent.change(screen.getByLabelText("Time"), { target: { value: "21:00" } });
     fireEvent.click(screen.getByLabelText("Repeat"));
     fireEvent.click(screen.getByRole("menuitemradio", { name: "Weekdays" }));
-    expect(screen.getByText("Weekdays · 9:00 PM")).toBeInTheDocument();
+    expect(screen.getByText("Weekdays at 9:00 PM")).toBeInTheDocument();
     fireEvent.click(screen.getByText("Save"));
     const [text, r, extra] = onSave.mock.calls[0]!;
     expect(text).toBe("Meds");
@@ -40,7 +40,7 @@ describe("ReminderSheet", () => {
     render(<ReminderSheet {...base} onSave={onSave} />);
     fireEvent.change(screen.getByLabelText("Reminder"), { target: { value: "Call the pharmacy" } });
     fireEvent.click(screen.getByText("Tomorrow Morning"));
-    expect(screen.getByText("One Time · 8:00 AM")).toBeInTheDocument();
+    expect(screen.getByText("One Time at 8:00 AM")).toBeInTheDocument();
     expect(screen.getByText("Next Tomorrow, 8:00 AM")).toBeInTheDocument();
     fireEvent.click(screen.getByText("Save"));
     const [, r, extra] = onSave.mock.calls[0]!;

@@ -35,6 +35,7 @@ export default function FitSheet({ day, history, rack, defaultBudgetMin, onStart
   const est = estimateDay(day, history, rack, plan);
   const offers = leverOffers(day, history, rack, plan);
   const over = budget > 0 ? est.min - budget : 0;
+  const budgetTone = over > 0 ? "fit-over" : "fit-under";
 
   const chips: number[] = [30, 45, 60];
   if (defaultBudgetMin && !chips.includes(defaultBudgetMin)) {
@@ -149,25 +150,26 @@ export default function FitSheet({ day, history, rack, defaultBudgetMin, onStart
         <div className="pad-x">
           <div className="fit-line">
             <span>Fits: {est.min} min</span>
-            {budget > 0
-              ? <span className={over > 0 ? "fit-over" : "fit-under"}>{over > 0 ? `${over} min over` : over < 0 ? `${-over} min under` : "On budget"}</span>
-              : <span className="conn-meta">No cap</span>}
+            {/* No cap says nothing here: the selected No Cap chip above says it. */}
+            {budget > 0 && <span className={budgetTone}>{over > 0 ? `${over} min over` : over < 0 ? `${-over} min under` : "On budget"}</span>}
           </div>
           {/* The honesty line (D5 "needs D7 for honest numbers"): the sheet
               always says which world its estimate came from. GYM-F-07
               (2026-09-05): a conditioning block is priced from its own stated
               clock, not from any pace, so a day made only of clocks says that
-              instead of blaming a default pace it never used. */}
+              instead of blaming a default pace it never used. A For Time cap
+              is where the clock stops, not how long the work takes -- the only
+              number in this sheet that can only be too high -- so when one is
+              counted it rides the same line rather than stacking a second
+              grey under it (§AK). */}
           <div className="conn-meta">
             {est.liftCount === 0 && est.condCount > 0
               ? "timed from the block's own clock"
               : est.learnedCount > 0
                 ? `${est.learnedCount} of ${est.liftCount} lifts at your logged pace`
-                : "default pace · improves as you log"}
+                : "default pace, improves as you log"}
+            {est.cappedCount > 0 && "; a For Time cap is the ceiling, not a forecast"}
           </div>
-          {/* A For Time cap is where the clock stops, not how long the work
-              takes: the only number in this sheet that can only be too high. */}
-          {est.cappedCount > 0 && <div className="conn-meta">A For Time cap is the ceiling, not a forecast.</div>}
         </div>
         </div>
 

@@ -11,10 +11,13 @@ export const WEEKDAY_ABBR = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as
 /** Sheet labels. Same Mon-first order as everything else in the gym. */
 export const WEEKDAY_FULL = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"] as const;
 
-/** "Tue · Fri", in week order regardless of how the pins were stored. */
+/** "Tue, Fri", in week order regardless of how the pins were stored. A list
+ *  of weekdays is one fact, so a comma joins them: a middle dot is the
+ *  separator the CSS draws BETWEEN facts, and this string renders inside a
+ *  meta line and a chip (R6, 2026-09-26). */
 export function pinLabel(pinDays: number[] | undefined): string {
   if (!pinDays || pinDays.length === 0) return "";
-  return [...pinDays].sort((a, b) => a - b).map((d) => WEEKDAY_ABBR[d] ?? "").filter(Boolean).join(" · ");
+  return [...pinDays].sort((a, b) => a - b).map((d) => WEEKDAY_ABBR[d] ?? "").filter(Boolean).join(", ");
 }
 
 /** Today's weekday in the module's own convention (Mon=0..Sun=6). */

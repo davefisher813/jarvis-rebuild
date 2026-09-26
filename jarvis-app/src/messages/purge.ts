@@ -95,7 +95,7 @@ export function purgeLabel(n: number): string {
  * "permanently": that word would be a lie about what this does.
  */
 export function purgePromise(): string {
-  return "Goes to Gmail's trash · 30 days to change your mind";
+  return "Goes to Gmail's trash, 30 days to change your mind";
 }
 
 /** Which senders the screen pre-selects: the safe machines, nothing else. */

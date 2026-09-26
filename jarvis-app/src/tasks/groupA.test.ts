@@ -83,8 +83,28 @@ describe("Momentum Chain", () => {
   });
 
   it("the reason line is derived facts or nothing", () => {
-    expect(chainReason(item("x", "T", "gym", { due: TODAY }), "gym", TODAY)).toBe("Same category, due today");
-    expect(chainReason(item("x", "T", "", {}), "", TODAY)).toBeNull();
+    expect(chainReason(item("x", "T", "gym", {}), "gym")).toBe("Same category");
+    expect(chainReason(item("x", "T", "", {}), "")).toBeNull();
+  });
+
+  // §AM (2026-09-26): due and late are Colour Key meanings (amber, red), so
+  // they are drawn from the task by each surface in the key's ink and never
+  // ride this grey string.
+  it("carries no due or late words: those wear the key, not the grey", () => {
+    expect(chainReason(item("x", "T", "gym", { due: TODAY }), "gym")).toBe("Same category");
+    expect(chainReason(item("x", "T", "gym", { due: "2026-08-01" }), "gym")).toBe("Same category");
+    expect(chainReason(item("x", "T", "work", { due: TODAY }), "gym")).toBeNull();
+  });
+
+  // The finished task's area, not the suggestion's own. nextBest falls
+  // through to another area when the finished one has nothing open, and
+  // that suggestion is not "Same category".
+  it("says Same category only when the suggestion shares the FINISHED task's area", () => {
+    const items = [item("a", "Other area", "work", { due: TODAY })];
+    const next = nextBest(items, "done1", "gym")!;
+    expect(next.id).toBe("a");
+    expect(chainReason(next, "gym")).toBeNull();
+    expect(chainReason(next, "work")).toBe("Same category");
   });
 });
 

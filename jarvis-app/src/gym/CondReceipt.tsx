@@ -1,7 +1,7 @@
 import { liftTitle } from "../shared/casing";
 import type { Exercise, SetEntry } from "./types";
 import { COND_LABEL } from "./types";
-import { condScore, condScoreLabel, condSummary, elapsedOf, mmss, perRound } from "./conditioning";
+import { condLength, condScore, condScoreLabel, elapsedOf, mmss, perRound } from "./conditioning";
 import Stepper from "../shared/Stepper";
 import { Trash2 } from "../shared/icons";
 
@@ -22,7 +22,7 @@ export default function CondReceipt({ exercise, entries, onChange, lastLine }: {
   exercise: Exercise;
   entries: SetEntry[];
   onChange: (entries: SetEntry[]) => void;
-  /** "Last: 6 + 4 · Aug 21", when there is a last time. */
+  /** "Last: 6 + 4 on Aug 21", when there is a last time. */
   lastLine?: string | null;
 }) {
   const cond = exercise.cond!;
@@ -45,7 +45,7 @@ export default function CondReceipt({ exercise, entries, onChange, lastLine }: {
       <div className="cr-head">
         <span className="cr-fmt">{COND_LABEL[cond.format]}</span>
         <span className="cr-name">{exercise.note ?? liftTitle(exercise.name)}</span>
-        <span className="cr-cap">{condSummary(cond).replace(COND_LABEL[cond.format] + " · ", "")}</span>
+        <span className="cr-cap">{condLength(cond)}</span>
       </div>
       {/* Before the clock runs the receipt shows last time's line, when
           there is one, and nothing otherwise: a placeholder that states
@@ -79,7 +79,7 @@ export default function CondReceipt({ exercise, entries, onChange, lastLine }: {
             )}
             <div className="cr-score">
               <span className="cr-score-l">
-                {condScoreLabel(exercise)}{ran != null && exercise.kind !== "time_faster" && exercise.kind !== "time_longer" ? ` · ${mmss(ran)}` : ""}
+                {condScoreLabel(exercise)}{ran != null && exercise.kind !== "time_faster" && exercise.kind !== "time_longer" ? ` in ${mmss(ran)}` : ""}
               </span>
               {exercise.kind === "rounds" ? (
                 <span className="cr-score-v">

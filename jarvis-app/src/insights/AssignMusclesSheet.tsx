@@ -55,7 +55,7 @@ export default function AssignMusclesSheet({ untagged, current, onSave, onClose 
         <div className="grp"><div className="eyebrow">Assign Muscles</div></div>
         <div className="pad-x sheet-form">
           <div className="facts">
-            <span className="fact cyan">{capAfterNumber(`${assigned} of ${untagged.length} assigned`)}</span>
+            <span className={"fact " + (assigned < untagged.length ? "amber" : "lime")}>{capAfterNumber(`${assigned} of ${untagged.length} assigned`)}</span>
             <span className="fact">The first muscle counts a set whole, the rest half</span>
           </div>
           <div className="field">

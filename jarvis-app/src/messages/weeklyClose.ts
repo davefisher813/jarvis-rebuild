@@ -52,12 +52,14 @@ export function closeCandidates(
   return { ids: picked.map((r) => r.id), senders, count: picked.length };
 }
 
-export function closeLine(set: CloseSet): string {
+// Who the close would archive, by name: the receipt's checkable half. The
+// amnesty row shows this alone under its title (§AK R1, one grey): the title
+// already carries the count, so a second count here only repeated it.
+export function closeWho(set: CloseSet): string {
   if (set.count === 0) return "";
   const shown = set.senders.slice(0, 3).join(", ");
   const more = set.senders.length - 3;
-  const who = more > 0 ? `${shown} and ${more} other${more === 1 ? "" : "s"}` : shown;
-  return capAfterNumber(`${set.count} nobody chased · ${who}`);
+  return more > 0 ? `${shown} and ${more} other${more === 1 ? "" : "s"}` : shown;
 }
 
 // EMAIL-F-29 (2026-09-05): closeReceipt had no caller. MessagesFlow builds

@@ -477,6 +477,10 @@ describe("BROWSER-F-10: red words on a sheet grey are readable", () => {
       ".form-sheet .prov-link", ".sheet-scrim > .card .prov-link",
       ".banner-warn .see-all", ".banner-cool .see-all",
       ".toast .toast-action",
+      // AMENDED 2026-09-26 (Dave's pick): fold labels turned tap red, and
+      // most of them open inside a sheet, where the tap red is 3.76:1 on the
+      // dark sheet grey. Both sheet forms take the sheet twin.
+      ".form-sheet .exp-more summary", ".sheet-scrim > .card .exp-more summary",
     ]) {
       expect(members, `${sel} is a member of the sheet-red list`).toContain(sel);
     }
@@ -532,6 +536,53 @@ describe("BROWSER-F-10: red words on a sheet grey are readable", () => {
     const wash = [...bare.matchAll(/([^{}]+)\{([^}]*)\}/g)]
       .find((m) => m[1]!.includes(".sheet-scrim > .card .btn") && /background:\s*var\(--red-tint\)/.test(m[2]!));
     expect(wash, "otherwise it is indistinguishable from .btn-secondary").toBeTruthy();
+  });
+
+  // THE KEY'S RED HAS A SHEET TWIN TOO (the lead, 2026-09-26, #60/#61). The
+  // Colour Key's late red straight on a sheet read 4.09:1 in dark (#FF453A
+  // on the sheet ground), so the Plan My Day overrun and the More Moves
+  // sheet's firm wait fell under AA when they turned red. It cannot go white
+  // as the tap red did (white is the key's "a number with no state"), so it
+  // takes Apple's increased-contrast systemRed in dark. Pinned: the token,
+  // its measured contrast on the sheet ground, and the rule that wears it.
+  // (Measured the same day and NOT held here: on a sheet's grouped card,
+  // #3A3A3C, the twin reads 4.02:1, up from 3.33; that ground is open.)
+  it("the key's red on a sheet grey takes --sys-red-on-sheet, and it clears AA on the sheet", () => {
+    const bare = tokens().replace(/\/\*[\s\S]*?\*\//g, "");
+    expect(bare, "light (the root default) is the system red unchanged")
+      .toMatch(/:root\s*\{[^}]*--sys-red-on-sheet:\s*var\(--sys-red\)/);
+    const twin = tokenIn("dark", "--sys-red-on-sheet");
+    const sheet = GROUNDS[0]![1];
+    const cr = contrast(twin, sheet);
+    expect(cr, `dark --sys-red-on-sheet on the sheet is ${cr.toFixed(2)}:1`).toBeGreaterThanOrEqual(4.5);
+    expect(contrast(tokenIn("dark", "--sys-red"), sheet), "the plain system red is why the twin exists")
+      .toBeLessThan(4.5);
+    expect(ruleBody(css(), ".sheet-scrim > .card .fact.red, .form-sheet .fact.red"), "the sheet facts wear it")
+      .toMatch(/(^|[;\s])color:\s*var\(--sys-red-on-sheet\)/);
+  });
+
+  // THE KEY'S AMBER HAS A TWIN FOR A SHEET'S RAISED GREY (the lead,
+  // 2026-09-26, sweep r2 #30). Plan My Day's two placement warnings are the
+  // key's amber, and they draw only inside a picked row: 14% white over the
+  // sheet, #4A4A4B in dark, where the system amber reads 4.31:1, under AA at
+  // the fact size. Straight on the sheet (6.78:1) and on its grouped card
+  // (5.52:1) the plain amber clears AA, so the twin is worn where the grey is
+  // raised, not by every sheet fact. Dark takes Apple's increased-contrast
+  // systemOrange; light (the root default) is the system amber unchanged.
+  // Pinned: the token, its contrast on the picked grey composed from the
+  // tokens themselves, and the rule that wears it.
+  it("the key's amber on a sheet's picked grey takes --warn-on-sheet, and it clears AA there", () => {
+    const bare = tokens().replace(/\/\*[\s\S]*?\*\//g, "");
+    expect(bare, "light (the root default) is the system amber unchanged")
+      .toMatch(/:root\s*\{[^}]*--warn-on-sheet:\s*var\(--warn\)/);
+    const picked = "rgb(" + overC(tokenIn("dark", "--press-5"), tokenIn("dark", "--surface-2")).map(Math.round).join(",") + ")";
+    const twin = tokenIn("dark", "--warn-on-sheet");
+    const cr = contrast(twin, picked);
+    expect(cr, `dark --warn-on-sheet on a picked row (${picked}) is ${cr.toFixed(2)}:1`).toBeGreaterThanOrEqual(4.5);
+    expect(contrast(tokenIn("dark", "--warn"), picked), "the plain system amber is why the twin exists")
+      .toBeLessThan(4.5);
+    expect(ruleBody(css(), ".p3-row.on .fact.warn"), "the picked row's amber facts wear it")
+      .toMatch(/(^|[;\s])color:\s*var\(--warn-on-sheet\)/);
   });
 });
 
@@ -1018,6 +1069,23 @@ describe("DYNAMIC-TYPE-1.4: the app's own words survive the largest text size", 
     expect(card, "the card's own exception exists").toBeTruthy();
     expect(card).toMatch(/white-space:\s*normal/);
     expect(ruleBody(css(), ".focus-card .facts")).toMatch(/align-items:\s*flex-start/);
+  });
+
+  it("no fact on a one-line facts line is ever cut without an ellipsis (2026-09-26)", () => {
+    // Every fact may shrink and each says so with "..."; the last yields
+    // far faster, so it still gives way first. A fact that holds its width
+    // is what cut "Over a month late" and "Looks like t" with no mark.
+    const each = ruleBody(css(), ".facts > .fact")!;
+    expect(each).toMatch(/min-width:\s*0/);
+    expect(each).toMatch(/flex-shrink:\s*1\b/);
+    expect(each).toMatch(/text-overflow:\s*ellipsis/);
+    expect(each).toMatch(/white-space:\s*nowrap/);
+    expect(ruleBody(css(), ".facts > .fact:last-child")).toMatch(/flex-shrink:\s*1000/);
+    // No component brings back the width-holding fact.
+    expect(css()).not.toMatch(/\.facts > \.fact \{ flex-shrink: 0; \}/);
+    // Except the verb row, whose card drops a sub that overruns: there a
+    // shrinking fact would hide the overrun from the latch.
+    expect(ruleBody(css(), ".notice-card .vrow-sub > .facts > .fact")).toMatch(/flex-shrink:\s*0/);
   });
 
   it("the capture bar takes a second line rather than losing half a sentence", () => {

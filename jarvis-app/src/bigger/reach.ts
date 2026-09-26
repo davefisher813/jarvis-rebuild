@@ -131,9 +131,12 @@ export function reachLine(r: GoalReach, done = false): string {
   // them about health insurance. On a live goal that count is a useful filter
   // and it says so. On a finished one it is a contradiction in the same
   // three lines, so the honest line is the filed record, or silence.
+  // Silence, not the word: with no filed record this said "Done" under a
+  // hero whose status already says it (§AK, 2026-09-26), which is the "says
+  // done twice" shape Dave objected to on the Goals lens.
   if (done) {
     const p0 = r.progress;
-    return p0 ? capAfterNumber(`${p0.done} of ${p0.total} done`) : "Done";
+    return p0 ? capAfterNumber(`${p0.done} of ${p0.total} done`) : "";
   }
   const p = r.progress;
   // Filed work only (2026-09-13): no "tagged open" tail, no open count borrowed

@@ -83,7 +83,9 @@ function Attachment({ a, store, onRemove }: { a: EditorAttachment; store?: FileS
   }
   return (
     <div className={"row" + (url ? " note-file-open" : "")} role={url ? "button" : undefined} tabIndex={url ? 0 : undefined} onClick={url ? open : undefined}>
-      <span className={a.type === "file" ? "fg-red" : "fg-blue"}>
+      {/* A file's kind is not a meaning the Colour Key has (§AM): the glyph
+          takes the neutral list-glyph ink, not the late red or a blue. */}
+      <span className="lead-ink">
         {a.type === "file" ? <FileText className="ic" /> : <Image className="ic" />}
       </span>
       <div className="conn-name truncate">{a.name}</div>
@@ -104,7 +106,11 @@ function CopyFallback({ text, onClose }: { text: string; onClose: () => void }) 
         <div className="sheet-handle" />
         <div className="grp"><div className="eyebrow">Copy the Words</div></div>
         <div className="pad-x sheet-form">
-          <div className="exp-note">This browser did not let JARVIS copy, so the words are selected: press Copy on your keyboard or in the menu</div>
+          {/* The field's note is the one primitive for it (R9, 2026-09-26):
+              .input-hint, as the export and AI sheets' notes already are.
+              It sits above the field here because the field is 40vh tall,
+              and under it the note would fall below the fold. */}
+          <div className="input-hint">This browser did not let JARVIS copy, so the words are selected: press Copy on your keyboard or in the menu</div>
           <textarea className="copy-fallback" ref={ref} readOnly value={text} aria-label="The note, ready to copy" />
           <div className="exp-acts"><button type="button" className="btn btn-secondary" onClick={onClose}>Done</button></div>
         </div>
@@ -223,8 +229,10 @@ function FindBar({ editor, onClose }: { editor: DocEditorHandle | null; onClose:
       </div>
       <div className="doc-find-row" onClick={focusOn(replRef)}>
         <input ref={replRef} className="input" aria-label="Replace with" placeholder="Replace With" value={repl} onChange={(e) => setRepl(e.target.value)} />
-        <button type="button" className="pill-act pill-quiet" disabled={count === 0} onClick={() => { editor?.replaceCurrent(repl); bump(); }}>Replace</button>
-        <button type="button" className="pill-act pill-quiet" disabled={count === 0} onClick={() => { const n = editor?.replaceAll(repl) ?? 0; bump(); if (n) showToast({ message: capAfterNumber(n === 1 ? "1 replaced" : n + " replaced") }); }}>Replace All</button>
+        {/* Replace and Replace All change the words, so they are the red
+            verb (§AL); moving between matches and closing stay quiet. */}
+        <button type="button" className="pill-act" disabled={count === 0} onClick={() => { editor?.replaceCurrent(repl); bump(); }}>Replace</button>
+        <button type="button" className="pill-act" disabled={count === 0} onClick={() => { const n = editor?.replaceAll(repl) ?? 0; bump(); if (n) showToast({ message: capAfterNumber(n === 1 ? "1 replaced" : n + " replaced") }); }}>Replace All</button>
       </div>
     </div>
   );
@@ -458,7 +466,8 @@ export default function NoteEditor({
         {note.eyebrow && (
           <div className="doc-eyebrow">
             <span className={"cat-dot cat-bg-" + catColor(note.category)} />
-            <span className={"eyebrow cat-fg-" + catColor(note.category)}>{note.eyebrow}</span>
+            {/* The dot carries the area's hue; the words stay grey (§AM). */}
+            <span className="eyebrow">{note.eyebrow}</span>
           </div>
         )}
         <InlineEdit tag="div" className="doc-title" value={note.title} placeholder="Title" onSave={onEditTitle} />
@@ -477,7 +486,9 @@ export default function NoteEditor({
         />
         {saveLine}
         {(tags ?? []).length > 0 && (
-          <div className="facts note-tags">{(tags ?? []).map((t) => <span className="fact" key={t}>#{t}</span>)}</div>
+          // The tags are one run, the line's one grey (§AK), as on the
+          // library row: a fact per tag was two greys told apart by a dot.
+          <div className="facts note-tags"><span className="fact">{(tags ?? []).map((t) => "#" + t).join(" ")}</span></div>
         )}
         <Provenance source={note.source} {...(note.source && openSourceFor ? { onOpen: openSourceFor(note.source) } : {})} />
         <HyperfocusLine guard={guard} />
@@ -494,8 +505,11 @@ export default function NoteEditor({
                     {ic.node}
                   </span>
                   <span className="note-conn-label" role={canOpen ? "button" : undefined} tabIndex={canOpen ? 0 : undefined} onClick={canOpen ? open : undefined}>
-                    {c.label}{c.gone ? " · Gone" : ""}
+                    {c.label}
                   </span>
+                  {/* GONE is a small-caps state beside the name, never typed
+                      onto it after a middle dot (Colour Key F3, 2026-09-26). */}
+                  {c.gone && <span className="urgency urgency-muted">Gone</span>}
                   {onRemoveConnection && (
                     <button className="note-conn-x" aria-label={"Unlink " + c.label} onClick={() => onRemoveConnection(c.id)}>
                       <X className="ic" />

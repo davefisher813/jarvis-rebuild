@@ -4,7 +4,7 @@ import type { Goal } from "../life/types";
 import type { Project } from "../projects/types";
 import type { GoalReach } from "./reach";
 import { reachLine } from "./reach";
-import type { MeasureState, Health } from "./measure";
+import type { MeasureState, Health, GoalPace } from "./measure";
 import { HEALTH_LABEL, HEALTH_CLASS, nextMilestone } from "./measure";
 import { CHECKIN_LABEL, type CheckinWord } from "./checkin";
 import ProjectRowRuled from "./ProjectRowRuled";
@@ -82,7 +82,7 @@ export default function GoalDetailPage({
   // PICKS 13/14/15, all DERIVED by the flow and passed in whole so this page
   // holds no second opinion about any of them.
   measure?: MeasureState | null;
-  pace?: string | null;
+  pace?: GoalPace | null;
   health?: Health;
   // PICK 17: putting a goal down on purpose, with the reason kept.
   onDrop?: (why: string) => void;
@@ -182,6 +182,10 @@ export default function GoalDetailPage({
   const askCheckin = !!onCheckin && health === "unmeasured" && !target && !goal.data.measure && !progress && reach.openTagged === 0
     && goal.data.state !== "achieved" && !goal.data.dropped;
   const ringPct = target ? Math.min(100, Math.round(savingsPct(target, goal.data.saved))) : 0;
+  // The hero's one grey line. Empty when there is nothing to say (no work
+  // filed, an empty measure, a finished goal with no record): the status
+  // already says it, and a row with nothing to say shows nothing (§AK).
+  const heroLine = measure ? measure.line : reachLine(reach, health === "done");
   const savingsValid = Number.isFinite(Number(savingsAmt)) && Number(savingsAmt) > 0;
   return (
     <div className="screen ruled proj-ruled goal-ruled">
@@ -205,15 +209,18 @@ export default function GoalDetailPage({
         {/* PICK 15: HEALTH IS DERIVED, NEVER TYPED. GoalData.state has said
             "on_track" since the day each goal was made and nothing has ever
             updated it. This reads the same evidence the rest of the page
-            reads, at render time, and is never written back. */}
-        {health && <div className={"eyebrow " + HEALTH_CLASS[health]}>{HEALTH_LABEL[health]}</div>}
-        {/* C-35: the projects moving it. Counts only. It asked for a sky
-            fact until 2026-09-22; .fact.sky had been deleted with the blue
-            subtext and the class had been painting nothing since. It is
-            alone on its line, so plain grey is the line's one grey. */}
-        {moving > 0 && goal.data.measure?.kind !== "projects" && <div className="facts"><span className="fact">{capAfterNumber(`${moving} ${moving === 1 ? "project" : "projects"}`)}</span></div>}
+            reads, at render time, and is never written back.
+            Unmeasured says nothing (§AK, 2026-09-26): "No Measure" was a
+            placeholder, and the check-in card below already asks about it. */}
+        {health && health !== "unmeasured" && <div className={"eyebrow " + HEALTH_CLASS[health]}>{HEALTH_LABEL[health]}</div>}
+        {/* C-35: the projects moving it. Counts only. A count with no state,
+            so it is white (§AM, 2026-09-26), as the goal row draws the same
+            count; the grey belongs to the measure line under it, which is
+            the card's one grey (§AK counts per card, not per line). Not
+            green: the count includes projects that are behind. */}
+        {moving > 0 && goal.data.measure?.kind !== "projects" && <div className="facts"><span className="fact"><b>{capAfterNumber(`${moving} ${moving === 1 ? "project" : "projects"}`)}</b></span></div>}
         {/* The ONLY place counts appear on this page. Honest null: a goal
-            with no tasks under it yet says so instead of claiming 0%. A
+            with no tasks under it yet draws no line instead of claiming 0%. A
             dollar target replaces the counts line with the DERIVED savings
             line (Money v1); the bar then tracks dollars, not tasks. */}
         {target ? (
@@ -229,10 +236,13 @@ export default function GoalDetailPage({
                 is what he asked to be measured on, and the task counts are
                 the machinery under it. Without one, reachLine still says the
                 honest thing about what the goal can see. */}
-            <div className="bp-sub">{measure ? measure.line : reachLine(reach, health === "done")}</div>
+            {heroLine && <div className="bp-sub">{heroLine}</div>}
             {/* PICK 14: the arithmetic a date makes possible. Absent when
-                there is nothing to pace. */}
-            {pace && <div className="bp-sub">{pace}</div>}
+                there is nothing to pace. The date or the rate alone, in the
+                Colour Key's tone for what it means (§AM, 2026-09-26): past
+                its date red, due today or tomorrow amber, a date with room
+                small caps, a rate the app worked out sky. */}
+            {pace && <div className="facts"><span className={"fact " + pace.tone}>{pace.when}</span></div>}
             {(measure || progress) && (
               <div className="bp-bar"><div className="bp-bar-fill" style={{ width: Math.max(2, measure ? measure.pct : progress!.pct) + "%" }} /></div>
             )}
@@ -249,13 +259,17 @@ export default function GoalDetailPage({
       {askCheckin && onCheckin && (
         <div className="pad-x"><div className="card pad goal-checkin">
           <div className="conn-name">How Is This Going?</div>
-          <div className="conn-meta">Only asked because nothing here can be measured yet · Never overrides a real measure</div>
+          <div className="conn-meta">Nothing here can be measured yet</div>
           <div className="dec-outcome-acts">
             {(["ahead", "on_track", "behind"] as CheckinWord[]).map((w) => (
               <button type="button" key={w} className={"pill-act" + (checkin?.word === w ? " on" : "")} aria-pressed={checkin?.word === w} onClick={() => onCheckin(w)}>{CHECKIN_LABEL[w]}</button>
             ))}
           </div>
-          {checkin && <div className="receipt-line"><span className="rl-t">Last check-in · {CHECKIN_LABEL[checkin.word]} · {monthDay(checkin.on)}</span></div>}
+          {/* The last answer is the pressed pill above; the line under it
+              says only when, as a neutral date in small caps (§AM F5,
+              2026-09-26). It was a receipt line, the tappable pile control,
+              carrying the word, the date and two typed middle dots. */}
+          {checkin && <div className="facts"><span className="fact date">Checked in {monthDay(checkin.on)}</span></div>}
         </div></div>
       )}
 
@@ -270,8 +284,9 @@ export default function GoalDetailPage({
                 <div className="row" role="button" tabIndex={0} aria-label={"Mark " + next.text + " done"}
                   onClick={() => tick(next.id, true)} onKeyDown={rowKey(() => tick(next.id, true))}>
                   <div className="row-grow">
+                    {/* The head above says it is next; a grey "Up Next"
+                        under the name said it twice (§AK, 2026-09-26). */}
                     <div className="conn-name">{next.text}</div>
-                    <div className="facts"><span className="fact">Up Next</span></div>
                   </div>
                   {onMilestoneDone && <button type="button" className="pill-act" onClick={(e) => { e.stopPropagation(); onMilestoneDone(next.id, true); }}>Done</button>}
                 </div>
@@ -322,7 +337,8 @@ export default function GoalDetailPage({
             {savedNewestFirst(goal.data.saved).slice(0, 5).map((e, i) => (
               <div className="task-row p2" key={e.d + "-" + i}>
                 <div className="task-check-tap gm-slot"><DollarGlyph /></div>
-                <div className="task-title"><span className="task-name">{formatMoney(e.amount)}</span><div className="r-k"><span className="r-goal r-cat">{monthDay(e.d)}</span></div></div>
+                {/* The day it was saved is a neutral date: small caps (§AM F5). */}
+                <div className="task-title"><span className="task-name">{formatMoney(e.amount)}</span><div className="r-k"><span className="fact date">{monthDay(e.d)}</span></div></div>
               </div>
             ))}
             <button className="row row-act" onClick={() => { setSavingsAmt(""); setSavingsOpen(true); }}>Add to Savings</button>
@@ -338,7 +354,13 @@ export default function GoalDetailPage({
               <div className="promo-badge b-purple"><ForkGlyph /></div>
               <div className="promo-body">
                 <div className="promo-title">{decision.data.decision}</div>
-                <div className="promo-sub">{decision.data.why ? <>Because {decision.data.why} · Decided {fmtDay(decision.data.createdAt)}</> : <>No reason recorded · Decided {fmtDay(decision.data.createdAt)}</>}</div>
+                {/* §AK/§AM (2026-09-26), as the project page's banner: the
+                    reason is the card's one grey, and only when there is one
+                    ("No reason recorded" stated nothing). The day it was
+                    decided is a neutral date, small caps on a facts line of
+                    its own, never a middle dot typed into the reason. */}
+                {decision.data.why && <div className="promo-sub">Because {decision.data.why}</div>}
+                <div className="facts"><span className="fact date">Decided {fmtDay(decision.data.createdAt)}</span></div>
               </div>
               {onOpenDecision && <div className="chev promo-chev" />}
             </div>
@@ -355,7 +377,7 @@ export default function GoalDetailPage({
               title={p.data.title}
               glyphTone={"cat-fg-" + (p.data.category ? catColor(p.data.category) : "graphite")}
               next={nextActionTextOf(p.id)}
-              meter={row.progress ? capAfterNumber(`${row.progress.done} of ${row.progress.total} done`) : "No tasks yet"}
+              meter={row.progress ? capAfterNumber(`${row.progress.done} of ${row.progress.total} done`) : ""}
               hold={holdLineOf?.(p.id) ?? null}
               status={projStatus(row)}
               bar={row.progress}
@@ -453,8 +475,12 @@ export default function GoalDetailPage({
               a goal dropped without a decision record (the write can come
               back empty) promised a reason that is not in Decisions. The
               drop's own toast already branches on decisionId; this line
-              says the date it has and nothing it does not. */}
-          <div className="conn-meta">Dropped {monthDay(goal.data.dropped.on)}{goal.data.dropped.decisionId ? " · The reason is in your decisions" : ""}</div>
+              says the date it has and nothing it does not.
+              §AM (2026-09-26): the date is a neutral date, small caps on its
+              own facts line; the pointer is the one grey, on the line under
+              it, never joined to the date by a typed middle dot. */}
+          <div className="facts"><span className="fact date">Dropped {monthDay(goal.data.dropped.on)}</span></div>
+          {goal.data.dropped.decisionId && <div className="conn-meta">The reason is in your decisions</div>}
         </div>
       )}
       {dropOpen && onDrop && (

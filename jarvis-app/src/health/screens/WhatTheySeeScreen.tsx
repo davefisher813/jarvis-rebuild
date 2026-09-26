@@ -64,7 +64,9 @@ export default function WhatTheySeeScreen({
               <div className="pad-x"><div className="card list-card-ruled">
                 {visibleFuel.length === 0 ? <div className="row"><div className="row-grow"><div className="conn-name">Nothing Logged Yet</div></div></div> :
                   visibleFuel.map((m, i) => (
-                    <div className="row" key={i}><div className="row-grow"><div className="conn-name">{m.eventTitle ?? weekdayShortDate(m.date)}</div><div className="bp-sub">{shortDate(m.date)}</div></div>
+                    // The date is said once (§AK): as the title when there is
+                    // no event, else under it, a neutral date in small caps (§AM F5).
+                    <div className="row" key={i}><div className="row-grow"><div className="conn-name">{m.eventTitle ?? weekdayShortDate(m.date)}</div>{m.eventTitle && <div className="facts"><span className="fact date">{shortDate(m.date)}</span></div>}</div>
                       <span className={"pill " + (m.ate ? "pill-good" : "")}>{m.ate ? "Ate" : "Did Not Eat"}</span></div>
                   ))}
               </div></div>

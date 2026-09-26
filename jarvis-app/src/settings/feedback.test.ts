@@ -106,13 +106,14 @@ describe("the admin panel's feedback rows", () => {
       last_error: "TypeError: x", created_at: "2026-09-05T10:00:00.000Z",
     }]);
     expect(rows[0]!.text).toBe("It froze.\nThen it came back.");
-    expect(rows[0]!.meta).toBe("abc1234 · student · iPhone");
+    expect(rows[0]!.meta).toEqual({ build: "abc1234", from: ["student", "iPhone"] });
     expect(rows[0]!.lastError).toBe("TypeError: x");
   });
 
   it("leaves out the parts that are empty rather than rendering blanks", () => {
     const rows = mapFeedback([{ id: "f2", text: "hi", created_at: "2026-09-05T10:00:00.000Z" }]);
-    expect(rows[0]!.meta).toBe("");
+    expect(rows[0]!.meta).toEqual({ from: [] });
+    expect(rows[0]!.meta.build, "no build is absent, not a blank").toBeUndefined();
     expect(rows[0]!.lastError).toBeNull();
   });
 

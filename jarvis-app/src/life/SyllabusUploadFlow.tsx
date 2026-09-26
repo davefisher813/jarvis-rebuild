@@ -13,7 +13,7 @@ import { madeBy } from "../shared/provenance";
 import type { TasksService } from "../tasks/TasksService";
 import type { ScheduleService } from "../schedule/ScheduleService";
 import {
-  SYLLABUS_EXTRACT_PROMPT, parseSyllabusExtract, buildSyllabusRows, rowLine,
+  SYLLABUS_EXTRACT_PROMPT, parseSyllabusExtract, buildSyllabusRows,
   type ExtractedSyllabusItem, type SyllabusRow,
 } from "./syllabusExtract";
 
@@ -169,10 +169,10 @@ export default function SyllabusUploadFlow({
           <div className="sheet-handle" />
           <div className="grp"><div className="eyebrow">What Year Is This?</div></div>
           <div className="pad-x sheet-form">
-            <div className="field"><div className="t-body">Syllabus didn&rsquo;t say · Applies to dated rows</div></div>
             <div className="field">
               <label className="input-label">Year</label>
               <input type="number" className="input" value={year} onChange={(e) => setYear(Number(e.target.value) || year)} />
+              <div className="input-hint">Syllabus didn&rsquo;t say · Applies to dated rows</div>
             </div>
           </div>
           <div className="pad-x sheet-actions">
@@ -211,7 +211,23 @@ export default function SyllabusUploadFlow({
             <div className="row" key={r.key} {...pressable(() => toggleSkip(i))}>
               <div className="row-grow">
                 <div className={"conn-name truncate" + (r.skip ? " upload-row-skipped" : "")}>{r.title}</div>
-                <div className="conn-meta">{rowLine(r, weekdayShortDate)}</div>
+                {/* The read, as facts (§AM): the date in small caps, a missing
+                    one in amber because it needs a look before it lands, the
+                    grade share a white number. Task or Event is the button
+                    beside it, so the line does not say it twice. This
+                    screen exists to check the read, so every fact must
+                    show: they sit in the wrapping, unclamped .conn-meta
+                    (components.css: a meta line built of facts has no
+                    clamp), not the one-line .facts whose last fact gives way
+                    (2026-09-26, as gym/UploadFlow's review row). The
+                    stylesheet still draws the dots between them. */}
+                <div className="conn-meta">
+                  {r.noDate
+                    ? <span className="fact warn">No date found</span>
+                    : <span className="fact date">{weekdayShortDate(r.date)}</span>}
+                  {r.kind === "event" && r.start && <span className="fact date">{r.start}</span>}
+                  {r.weight && <span className="fact"><b>{r.weight}</b></span>}
+                </div>
               </div>
               <button type="button" className="note-fix" onClick={(ev) => { ev.stopPropagation(); toggleKind(i); }}>{r.kind === "event" ? "Event" : "Task"}</button>
               <button type="button" className="note-fix" onClick={(ev) => { ev.stopPropagation(); toggleSkip(i); }}>{r.skip ? "Skipped" : "Skip"}</button>

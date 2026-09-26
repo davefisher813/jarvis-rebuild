@@ -121,8 +121,28 @@ describe("the card is square, and the shelf runs sideways", () => {
   // projects read "Next: Go to Bradfor...". It wraps now.
   it("lets the next action wrap instead of cutting it mid-word", () => {
     expect(CSS).toMatch(/\.ruled \.bp-card-lead \{[^{}]*-webkit-line-clamp: 2;/);
-    const lead = CSS.slice(CSS.indexOf(".ruled .bp-card-lead {"), CSS.indexOf(".ruled .bp-card-n {"));
+    // Every rule that names the lead, the shared one with the count included
+    // (the old slice ran to .bp-card-n, which comes FIRST, so it was empty).
+    const lead = (CSS.match(/[^{}]*\.bp-card-lead\b[^{}]*\{[^}]*\}/g) ?? []).join("\n");
+    expect(lead, "the lead's rules are found").toMatch(/line-clamp/);
     expect(lead, "nothing may pin it back to one line").not.toMatch(/white-space: nowrap/);
+  });
+
+  // THE FOOTER FADE (Dave's pick, 2026-09-26, question "bp-foot"). White
+  // footer text measured 2.75 to 4.5:1 on eleven pale slots (olive, lime,
+  // yellow, mint the worst). The fix he picked is a dark fade under the
+  // footer, not darker pairs, so the top of the card keeps his sampled
+  // colours. At 30% black every slot's footer clears 4.5:1 (olive, the
+  // worst, 5.16:1, rendered through this stylesheet).
+  it("the footer sits on a dark fade, and the top of the card does not", () => {
+    const fade = /\.ruled \.bp-card-foot::before \{[^}]*\}/.exec(CSS)?.[0] ?? "";
+    expect(fade, "the fade exists").not.toBe("");
+    expect(fade, "it paints under the footer's words, over the gradient").toMatch(/z-index: -1;/);
+    expect(fade, "it ramps in, then holds the measured 30%")
+      .toMatch(/linear-gradient\(180deg, rgba\(0, 0, 0, 0\) 0, rgba\(0, 0, 0, 0\.3\) var\(--s-7\), rgba\(0, 0, 0, 0\.3\) 100%\)/);
+    expect(fade, "out to the card's edges and its foot").toMatch(/bottom: calc\(-1 \* var\(--s-3h\)\)/);
+    expect(CSS, "nothing else darkens the card, so its top is his sampled gradient")
+      .not.toMatch(/\.ruled \.bp-card::after/);
   });
 
   // "Black is not an option change it." A slot with no rule of its own left

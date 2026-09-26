@@ -552,3 +552,43 @@ describe("the task's notes", () => {
     expect(screen.getAllByLabelText("Task notes").at(-1)!.querySelectorAll("li").length).toBe(2);
   });
 });
+
+// THE EVIDENCE SITS ON THE SHEET, UNDER THE WHEN GROUP (2026-09-26). Inside
+// the grouped card the key's red read 4.02:1 on the card's grey, under AA at
+// the fact size; a red or amber fact never sits on a grey card nested in a
+// sheet. It is the When group's footer, on the sheet ground, right under it.
+describe("TaskSheet: the sliding evidence is the When group's footer", () => {
+  const whenCard = () => {
+    const head = Array.from(document.querySelectorAll(".grp.xs-grp .eyebrow")).find((e) => e.textContent === "When")!;
+    return head.closest(".grp")!.nextElementSibling as HTMLElement;
+  };
+
+  it("days late is red, and sits on the sheet ground right under the When group", () => {
+    render(<TaskSheet mode="edit" categories={CATS} initial={{ text: "Renew passport", due: today }} slidingNote="3 Days late" onSave={() => {}} onCancel={() => {}} />);
+    const red = screen.getByText("3 Days late");
+    expect(red).toHaveClass("fact", "red");
+    expect(red.closest(".card.xs-group"), "never inside the grouped card").toBeNull();
+    // The footer is the very next thing after the When group's card.
+    const footer = whenCard().nextElementSibling as HTMLElement;
+    expect(footer).toHaveClass("pad-x");
+    expect(footer.firstElementChild).toHaveClass("facts");
+    expect(footer.contains(red)).toBe(true);
+    // And the Due row no longer carries a meta line of its own.
+    expect(whenCard().querySelector(".conn-meta .fact.red")).toBeNull();
+  });
+
+  it("pushed again and again is amber, in the same place", () => {
+    render(<TaskSheet mode="edit" categories={CATS} initial={{ text: "Renew passport" }} slidingNote="Pushed 4 Times" onSave={() => {}} onCancel={() => {}} />);
+    const warn = screen.getByText("Pushed 4 Times");
+    expect(warn).toHaveClass("fact", "warn");
+    expect(warn.closest(".card")?.classList.contains("xs-group") ?? false).toBe(false);
+    expect((whenCard().nextElementSibling as HTMLElement).contains(warn)).toBe(true);
+  });
+
+  it("with no evidence, nothing sits between the When and Where groups", () => {
+    render(<TaskSheet mode="edit" categories={CATS} initial={{ text: "Renew passport" }} onSave={() => {}} onCancel={() => {}} />);
+    const next = whenCard().nextElementSibling as HTMLElement;
+    expect(next).toHaveClass("grp");
+    expect(next.textContent).toBe("Where");
+  });
+});

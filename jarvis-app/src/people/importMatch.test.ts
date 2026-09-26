@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { planImport, mergeReview, draftFrom, planLine, summaryLine, describe as describePerson } from "./importMatch";
+import { planImport, mergeReview, draftFrom, planFacts, summaryLine, describe as describePerson } from "./importMatch";
 import type { ImportedContact } from "./importContacts";
 import type { Person } from "./types";
 
@@ -144,30 +144,36 @@ describe("a contact becoming a person", () => {
 // skipped, conflicts, and failures"). The old preview could only say "found"
 // and "skipping", because skipping was all it did.
 describe("what the preview and the receipt say", () => {
-  const plan = (o: Partial<Parameters<typeof planLine>[0]> = {}) => ({
+  const plan = (o: Partial<Parameters<typeof planFacts>[0]> = {}) => ({
     create: [], update: [], unchanged: 0, review: [], ...o,
-  }) as Parameters<typeof planLine>[0];
+  }) as Parameters<typeof planFacts>[0];
 
+  // Each pile is its own fact, so the separator is the stylesheet's, and a
+  // count with a meaning wears it (§AM): already current is in range, green.
+  // What the file will add or change is the line's one grey, in one fact.
   it("counts each pile separately", () => {
-    const l = planLine(plan({
+    const l = planFacts(plan({
       create: [{ name: "A" }, { name: "B" }],
       update: [{ person: p("x", { name: "X" }), contact: { name: "X" }, patch: {}, changes: ["a phone number"] }],
       unchanged: 5,
     }), 0);
-    expect(l).toBe("2 New · 1 To update · 5 Already current");
+    expect(l).toEqual([
+      { text: "2 New, 1 To update" },
+      { text: "5 Already current", tone: "good" },
+    ]);
   });
 
   // A row waiting on an answer is NOT a skipped row, and saying so would be
-  // the lie the old preview told.
+  // the lie the old preview told. It needs him, so it is amber.
   it("calls an unanswered row something to check, never something skipped", () => {
     const withReview = plan({ review: [{ contact: { name: "John Smith" }, candidates: [], reason: "same-name" as const }] });
-    expect(planLine(withReview, 0)).toBe("1 To check");
+    expect(planFacts(withReview, 0)).toEqual([{ text: "1 To check", tone: "warn" }]);
     // Once answered it stops being counted as waiting.
-    expect(planLine(withReview, 1)).toBe("Nothing to change");
+    expect(planFacts(withReview, 1)).toEqual([{ text: "Nothing to change" }]);
   });
 
   it("says plainly when a file would change nothing", () => {
-    expect(planLine(plan(), 0)).toBe("Nothing to change");
+    expect(planFacts(plan(), 0)).toEqual([{ text: "Nothing to change" }]);
     expect(summaryLine(0, 0, 0)).toBe("Nothing changed");
   });
 
@@ -177,9 +183,23 @@ describe("what the preview and the receipt say", () => {
   });
 
   // One line of evidence for telling two same-name people apart.
+  // One grey run carrying the first two things on file, joined with a comma
+  // (never a middot, §AK R6): two Clients still read apart by their phones.
+  // A record with nothing shows no line rather than a placeholder that
+  // states nothing (§AK).
   it("describes a candidate by what it already knows about them", () => {
     expect(describePerson(p("a", { name: "John Smith", relationship: "Client", phone: "555-0100" })))
-      .toBe("Client · 555-0100");
-    expect(describePerson(p("b", { name: "John Smith" }))).toBe("Nothing else on file");
+      .toBe("Client, 555-0100");
+    expect(describePerson(p("e", { name: "John Smith", relationship: "Client", phone: "555-0199" })))
+      .toBe("Client, 555-0199");
+    expect(describePerson(p("f", { name: "John Smith", relationship: "Client", org: "Acme", phone: "555-0100", email: "js@example.com" })))
+      .toBe("Client, Acme");
+    expect(describePerson(p("c", { name: "John Smith", phone: "555-0100" }))).toBe("555-0100");
+    expect(describePerson(p("b", { name: "John Smith" }))).toBeNull();
+  });
+
+  it("reads an organization stored with the old dot the new way", () => {
+    expect(describePerson(p("d", { name: "John Smith", org: "Cedar Bridge Club \u00b7 Board" })))
+      .toBe("Cedar Bridge Club, Board");
   });
 });

@@ -125,14 +125,16 @@ function daysAgo(iso: string, today: string): number {
   return Math.max(0, Math.round((b - a) / 86400000));
 }
 
-/** The receipt line: when you asked, and whether it worked. A fact, and the
- *  Block offer is a separate control rather than a sentence telling anybody
- *  what to do about it. */
-export function unsubReceipt(r: UnsubRecord, since: number, today: string): string {
-  if (!r.askedISO) return since > 0 ? capAfterNumber(`Asked · ${since} since`) : "Asked";
+/** The receipt: when you asked. One fact. Whether it worked is the row's
+ *  second fact ("Still sending", amber, from stillSending), drawn by the
+ *  caller's facts line with its own separator (§AM R6), and the Block offer
+ *  is a separate control rather than a sentence telling anybody what to do
+ *  about it. */
+export function unsubReceipt(r: UnsubRecord, today: string): string {
+  if (!r.askedISO) return "Asked";
   const d = daysAgo(r.askedISO, today);
   const when = d === 0 ? "today" : d === 1 ? "yesterday" : d < 14 ? `${d} days ago` : `${Math.round(d / 7)} weeks ago`;
-  return capAfterNumber(since > 0 ? `Asked ${when} · Still sending` : `Asked ${when}`);
+  return capAfterNumber(`Asked ${when}`);
 }
 
 export function canBlock(s: StillSending): boolean {

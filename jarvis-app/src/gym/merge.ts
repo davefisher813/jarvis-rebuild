@@ -183,7 +183,9 @@ export function movesLine(plan: MergePlan): string {
   if (plan.programDays) bits.push(`${plan.programDays} program ${plan.programDays === 1 ? "day" : "days"}`);
   if (plan.goals.length) bits.push(`${plan.goals.length} ${plan.goals.length === 1 ? "goal" : "goals"}`);
   if (!bits.length) return "Nothing logged under it yet, so only the name moves";
-  return bits.join(" · ");
+  // Commas, never a middle dot: a separator is the stylesheet's to draw, and
+  // a string that carries its own is a facts line baked into a sentence.
+  return bits.join(", ");
 }
 
 // --- THE STATE MACHINE -----------------------------------------------------
@@ -206,13 +208,15 @@ export function totalWrites(plan: MergePlan): number {
 }
 
 /** What Retry has left to do. A partial write is not a failed one, and saying
- *  "3 of 11 saved" beats a bare "Merge failed" the athlete cannot act on. */
+ *  "3 of 11 saved" beats a bare "Merge failed" the athlete cannot act on.
+ *  The failure card's ONE line (§AK, 2026-09-26): it used to be three, and
+ *  said Retry in all of them. */
 export function remainingLine(state: MergeState): string | null {
   if (state.stage !== "failed") return null;
   const total = totalWrites(state.plan);
-  if (state.applied <= 0) return "Nothing was changed";
+  if (state.applied <= 0) return "Nothing was changed, both exercises are exactly as they were";
   if (state.applied >= total) return "Everything saved, but the last step did not confirm";
-  return `${state.applied} of ${total} saved · Retry finishes the rest`;
+  return `${state.applied} of ${total} saved and nothing was deleted, Retry finishes the rest`;
 }
 
 /** WHAT THE RECORDS SHOULD LOOK LIKE ONCE THE PATCH HAS LANDED.

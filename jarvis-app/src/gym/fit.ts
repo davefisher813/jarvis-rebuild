@@ -236,7 +236,7 @@ export function leverOffers(day: ProgramDay, history: Workout[], rack: RackConfi
         const name = one ? `${one.name} ${one.sets.length} → ${one.sets.length - 1} sets` : "Trim last accessory sets";
         offers.push({
           key: "trim", name,
-          sub: `saves ~${save} min · never your main lift`,
+          sub: `saves ~${save} min, never your main lift`,
           on: Object.keys(plan.trims ?? {}).length > 0, saveMin: save,
         });
       }

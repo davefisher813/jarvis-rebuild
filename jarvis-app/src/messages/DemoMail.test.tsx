@@ -25,11 +25,19 @@ describe("DemoMail fixture", () => {
     expect(screen.getByText(/^Sweep \u00b7 About/)).toBeInTheDocument();
     // Needs You shows first; Waiting On's rows are one tap over.
     expect(screen.getByText("Northwind Cloud")).toBeInTheDocument();
-    expect(screen.queryByText(/Summitgear · Missing Items/)).toBeNull();
+    // A seed's subject travels to Today as the gist, drawn whole, so it
+    // carries no typed dot (§AM R6): a comma joins its two halves.
+    expect(screen.getByText("Invoice attached, Net 15 starts Monday")).toBeInTheDocument();
+    for (const l of document.querySelectorAll(".mline2")) expect(l.textContent).not.toContain("\u00b7");
+    expect(screen.queryByText(/Summitgear: Missing Items/)).toBeNull();
     fireEvent.click(screen.getByRole("tab", { name: /Waiting On/ }));
     // E2 (2026-08-24): THE ASK LEADS. The verb is the headline and the sender
     // is context beneath it, so the name shares a line with the subject now.
-    expect(screen.getByText(/Summitgear · Missing Items/)).toBeInTheDocument();
+    expect(screen.getByText(/Summitgear: Missing Items/)).toBeInTheDocument();
+    // Who, then the subject half: a subject that asks in a clause of its own
+    // ("Harper v Northline: can you call me?") never reads as two colons.
+    expect(screen.getByText("Marcus Delaney: Harper v Northline")).toBeInTheDocument();
+    for (const g of document.querySelectorAll(".msg-gist")) expect(g.textContent!.split(": ").length).toBeLessThanOrEqual(2);
     expect(screen.queryByText(/No reply/)).toBeNull();
     expect(screen.queryByText(/nadia@northlake\.org/)).toBeNull();
     // SPEC MOVED 2026-08-21: the demo runs the real action model, so a

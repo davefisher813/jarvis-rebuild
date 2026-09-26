@@ -1,7 +1,7 @@
 // THE FACTS LINE, IN MAIL (EM5, Email Build Master section 3, Dave's picks
-// 2026-09-12). Non-interactive per-row data on these screens (what a thread
-// is waiting for, the sender's own words behind a claim, a rule's account
-// and whether it is on) renders as Astra's .facts: short fragments, a
+// 2026-09-12). Non-interactive per-row data on these screens (who a thread
+// is waiting on, the sender's own words behind a claim, whether a rule is
+// on) renders as Astra's .facts: short fragments, a
 // middle dot the CSS draws between them, at most one semantic colour per
 // line (K.3). Filled chips and capsules are for things you tap; a fact is
 // read.
@@ -12,7 +12,6 @@
 // and a unit test proves it bites.
 
 import type { ReactNode } from "react";
-import type { AskKind } from "./mailAction";
 import type { Evidence } from "./evidence";
 import { daysBetween } from "../upnext/upnext";
 
@@ -52,18 +51,9 @@ export function dayTone(iso: string, today: string): "red" | "warn" | "date" {
   return gap < 0 ? "red" : gap <= 1 ? "warn" : "date";
 }
 
-/** E-35: what a Waiting On thread is waiting FOR, from askKindOf. Null for
- *  a thread that is owed nothing, which belongs on the Nothing Owed list
- *  and never wears this fact. */
-export function waitingFor(kind: AskKind): Fact | null {
-  const what =
-    kind === "money_in" ? "money"
-    : kind === "goods" ? "the order"
-    : kind === "they_asked" ? "a call"
-    : kind === "answer" ? "an answer"
-    : null;
-  return what ? { text: "Waiting for: " + what } : null;
-}
+// E-35's waitingFor ("Waiting for: an answer") went on 2026-09-26 (§AK R1):
+// it was a second grey on the Waiting On row, restating the verb above it.
+// The row is one grey run now, who then what.
 
 /** UP-MIND-12 carried over: the sender's own words, verbatim, as a quiet
  *  fact. Never toned, because the words are the evidence and a colour would
@@ -73,12 +63,12 @@ export function evidenceFact(ev: Evidence | undefined): Fact | null {
   return span ? { text: "“" + span + "”" } : null;
 }
 
-/** E-24 (ahead of Push E): a standing rule's scope and its switch. The
- *  account is a label and stays quiet; On is the one fact that carries a
- *  tone, because it is the one that changes what the rule does. */
-export function ruleAccountFact(account: string | undefined, on: boolean): Fact[] {
-  return [
-    { text: "Account: " + (account || "All") },
-    on ? { text: "On", tone: "good" } : { text: "Off" },
-  ];
+/** E-24 (ahead of Push E): a standing rule's switch. On is the one fact,
+ *  toned, because it is the one that changes what the rule does. The row
+ *  already spends its one grey on the bucket beside the name (§AM R1), so
+ *  nothing else here is grey: the account is the chip row's to show (it
+ *  appears when there is a choice), and Off is already said by the dimmed
+ *  name and the Turn On capsule, so an off rule has no line at all. */
+export function ruleStateFact(on: boolean): Fact | null {
+  return on ? { text: "On", tone: "good" } : null;
 }

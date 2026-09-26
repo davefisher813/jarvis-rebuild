@@ -35,8 +35,10 @@ export interface GymDoorView {
   trainedMin?: number;
   /** The pinned day's name, when the athlete's pins claim this weekday. */
   dayName?: string;
-  /** Derived facts: "7 exercises · Est 52 min · Last trained Aug 24". */
-  meta?: string;
+  /** Derived facts, kept apart so each wears its own ink (§AM, 2026-09-26):
+   *  the count white, the estimate sky, when it was last trained the neutral
+   *  date's small caps. Same shape as gym/door.ts's DoorFacts. */
+  facts?: { exercises: number; estMin?: number; lastTrained?: string };
   /** Present only when starting makes sense (today). Opens the gym. */
   onStart?: () => void;
   /** A session is running behind this block (2026-09-19). The door reads
@@ -171,6 +173,20 @@ export default function DayRow({
   // older move is history nobody is looking for (rowSource).
   const prov = rowSource(e.data.source, e.data.moved);
   const leaveBy = leaveByOf(e.data);
+  // A ROW WITH NOTHING TO SAY SHOWS NOTHING (§AK, 2026-09-26). An event with
+  // no area used to print "No category" here, a placeholder announcing an
+  // absence. It prints nothing now, so the meta line starts at whatever
+  // really is the first fact, and a fact draws its separator only when
+  // something stands before it: a line never opens on a middot. The area's
+  // dot divides it from a state word by itself, so the area takes none.
+  const area = catName(e.data.category);
+  const sepLen = !!state || !!area;
+  const sepRep = sepLen || mins != null;
+  const sepLoc = sepRep || !!rep;
+  const sepLeave = sepLoc || !!e.data.location;
+  const sepMove = sepLeave || !!leaveBy;
+  const hasMeta = sepMove || !!firstMove;
+  const sep = <span className="sched-sep">&middot;</span>;
 
   return (
     <div className="sched-swipe-wrap">
@@ -292,7 +308,7 @@ export default function DayRow({
               a separate fact and gets the separator the rest of the app uses,
               which also brings it under the dot-break casing law instead of
               slipping past it on a technicality. */}
-          <div className="sched-cat">
+          {hasMeta && <div className="sched-cat">
             {/* C-28: the state word leads the facts line, in the closed
                 vocabulary every day surface now speaks. */}
             {state && <span className={"fact st " + toneFor(state)}>{state}</span>}
@@ -303,12 +319,12 @@ export default function DayRow({
                 alone at the end of a line, pointing at nothing. Each fact
                 carries its own separator now, so a wrap happens BETWEEN
                 facts and a separator can never be the last thing on a row. */}
-            <span className="sched-fact">
-              <span className={"cat-dot cat-bg-" + catColor(e.data.category)} />
-              {/* No area: say so, don't leave a dot hanging before the first
-                  separator (Dave 2026-09-04; same words the task rows use). */}
-              {catName(e.data.category) || "No category"}
-            </span>
+            {area && (
+              <span className="sched-fact">
+                <span className={"cat-dot cat-bg-" + catColor(e.data.category)} />
+                {area}
+              </span>
+            )}
             {/* B3/B5 (2026-08-23): "until 10:00 AM" was the last piece of
                 dead text on this row, and it names the one thing about an
                 event that nothing here could change: its LENGTH. Tap the
@@ -337,7 +353,7 @@ export default function DayRow({
                 AM" made every row do arithmetic to answer "how long". */}
             {mins != null && (
               <span className="sched-fact">
-                <span className="sched-sep">&middot;</span>
+                {sepLen && sep}
                 {onSetEnd && !selecting ? (
                   <button
                     type="button"
@@ -353,12 +369,12 @@ export default function DayRow({
                 )}
               </span>
             )}
-            {rep && <span className="sched-fact"><span className="sched-sep">&middot;</span><span className="sched-rep">{rep.charAt(0).toUpperCase() + rep.slice(1)}</span></span>}
+            {rep && <span className="sched-fact">{sepRep && sep}<span className="sched-rep">{rep.charAt(0).toUpperCase() + rep.slice(1)}</span></span>}
             {/* The place joins the line instead of taking one of its own in
                 accent red. It is still the link it was. */}
             {e.data.location && (
               <span className="sched-fact sched-fact-loc">
-                <span className="sched-sep">&middot;</span>
+                {sepLoc && sep}
                 <a
                   className="sched-loc truncate"
                   href={"https://maps.apple.com/?q=" + encodeURIComponent(e.data.location)}
@@ -374,7 +390,7 @@ export default function DayRow({
                 minutes have been typed once. */}
             {leaveBy && (
               <span className="sched-fact">
-                <span className="sched-sep">&middot;</span>
+                {sepLeave && sep}
                 <span className="sched-until">Leave by {fmtTime(leaveBy).time} {fmtTime(leaveBy).ap}</span>
               </span>
             )}
@@ -385,11 +401,11 @@ export default function DayRow({
                 does: an ellipsis, never a clip. */}
             {firstMove && (
               <span className="sched-fact sched-fact-loc">
-                <span className="sched-sep">&middot;</span>
+                {sepMove && sep}
                 <span className="sched-firstmove truncate">{firstMove}</span>
               </span>
             )}
-          </div>
+          </div>}
           {/* UP-CORE-05 (2026-09-05): where this block came from, or that
               re-flow moved it today. Auto-created events have carried a
               source since item 8 and no row ever showed it, so a block that
@@ -411,12 +427,33 @@ export default function DayRow({
               {gymDoor.trainedMin != null ? (
                 <div className="sched-cat sched-gym-line">
                   <span className="pill pill-good">Trained</span>
-                  <span>{gymDoor.trainedMin} min</span>
+                  {/* Real minutes, a number with no state: white (F1), the
+                      way a length that cannot be tapped already reads on
+                      the meta line above. */}
+                  <b>{gymDoor.trainedMin} min</b>
                 </div>
               ) : (
                 <>
                   {gymDoor.dayName && <div className="sched-gym-name">{gymDoor.dayName}</div>}
-                  {gymDoor.meta && <div className="sched-cat">{gymDoor.meta}</div>}
+                  {/* THREE FACTS, THREE INKS (§AM, 2026-09-26). They were one
+                      string joined with typed middots, so all three sat in
+                      one grey run. The count is a number with no state, so
+                      white; the length is the app's estimate, so sky; when
+                      the day was last trained is a neutral date, so small
+                      caps. The separators are the meta line's own. */}
+                  {gymDoor.facts && (
+                    <div className="sched-cat">
+                      <span className="sched-fact">
+                        <b>{gymDoor.facts.exercises} {gymDoor.facts.exercises === 1 ? "exercise" : "exercises"}</b>
+                      </span>
+                      {gymDoor.facts.estMin != null && (
+                        <span className="sched-fact">{sep}<span className="fact est">Est {gymDoor.facts.estMin} min</span></span>
+                      )}
+                      {gymDoor.facts.lastTrained && (
+                        <span className="sched-fact">{sep}<span className="fact date">Last trained {gymDoor.facts.lastTrained}</span></span>
+                      )}
+                    </div>
+                  )}
                   {gymDoor.onResume ? (
                     <button type="button" className="pill-act sched-gym-start" onClick={gymDoor.onResume}>
                       {gymDoor.dayName ? `Resume ${gymDoor.dayName}` : "Resume"}

@@ -62,6 +62,13 @@ function billChip(t: TaskItem, today: string): { cls: string; text: string } | n
 
 const initialOf = (s: string) => (s.trim()[0] ?? "?").toUpperCase();
 
+// The amounts in a quiet money line step up to white (§AM F1: a number with
+// no state inside a grey line is a white <b>); the words keep the line's one
+// grey. The dollar sign goes with its number, so the split is on the amount.
+function Amounts({ text }: { text: string }) {
+  return <>{text.split(/(\$\d{1,3}(?:,\d{3})*(?:\.\d+)?)/).map((s, i) => (i % 2 === 1 ? <b key={i}>{s}</b> : s))}</>;
+}
+
 function AccountSheet({ mode, initial, onSave, onDelete, onCancel }: {
   mode: "new" | "edit"; initial?: AccountData; onSave: (d: AccountData) => void | Promise<boolean | void>; onDelete?: () => void; onCancel: () => void;
 }) {
@@ -579,7 +586,7 @@ export default function MoneyFlow({ onOpenTask, openAccountId, openNonce, onOpen
         <div className="task-row p2" {...pressable(() => setPaydayOpen(true))}>
           <div className="task-title">
             <span className="task-name">{anchor.title}</span>
-            <div className="r-k"><span className="r-goal r-cat">{anchor.sub}</span></div>
+            <div className="r-k"><span className="r-goal r-cat"><Amounts text={anchor.sub} /></span></div>
           </div>
           {CHEV}
         </div>
@@ -591,7 +598,20 @@ export default function MoneyFlow({ onOpenTask, openAccountId, openNonce, onOpen
         const chip = paid ? null : billChip(b, today);
         // The chip says how close; the words say when. "IN 2 DAYS" over
         // "Due in 2 days" said one thing twice (caught on the port).
-        const subText = chip && b.data.due ? "Due " + monthDay(b.data.due) : sub.text;
+        // THE LINE WEARS THE KEY (§AM, 2026-09-26). Paid is green, the key's
+        // word for it, as the amount beside it already is. An autopay bill's
+        // words stay the row's one grey and its day is a date in small caps,
+        // with no dot baked between them (F3, F5). An unpaid bill's due date
+        // is a date too: the chip ahead of it wears the colour and says how
+        // close, the date says when. A bill with no date has nothing to say
+        // here, so the row says nothing (§AK).
+        const line = paid
+          ? <span className="r-goal fact good">{sub.text}</span>
+          : sub.state === "autopay"
+            ? <><span className="r-goal r-cat">{sub.text}</span>{sub.when && <span className="fact date">{sub.when}</span>}</>
+            : b.data.due
+              ? <span className="fact date">{"Due " + monthDay(b.data.due)}</span>
+              : null;
         return (
           <BillRow key={b.id} paid={paid} autopay={!!info.autopay} label={b.data.text}
             onPay={() => void markPaid(b)} onDelete={() => void deleteBill(b)}>
@@ -605,11 +625,13 @@ export default function MoneyFlow({ onOpenTask, openAccountId, openNonce, onOpen
             )}
             <div className="task-title" {...pressable(() => setBillSheet({ kind: "edit", id: b.id }))}>
               <span className="task-name">{b.data.text}</span>
-              <div className="r-k">
-                {chip && <span className={"uchip " + chip.cls}>{chip.text}</span>}
-                {/* The words are the money laws' own (bills.ts) and stay. */}
-                <span className="r-goal r-cat">{subText}</span>
-              </div>
+              {(chip || line) && (
+                <div className="r-k">
+                  {chip && <span className={"uchip " + chip.cls}>{chip.text}</span>}
+                  {/* The words are the money laws' own (bills.ts) and stay. */}
+                  {line}
+                </div>
+              )}
             </div>
             <span className={"money-amt" + (paid ? " paid" : "")}>{formatMoney(info.amount)}</span>
             {!info.autopay && !paid && info.payUrl && (
@@ -657,7 +679,15 @@ export default function MoneyFlow({ onOpenTask, openAccountId, openNonce, onOpen
   // page keeps every section it already had.
   const [tracker, setTracker] = useState(false);
   const MONEY_TOP = "hero-accts" as "hero-accts" | "bills-lead" | "before";
-  const balanceLine = `As you last entered it${balanceAsOf ? ` \u00b7 ${monthDay(balanceAsOf)}` : ""}`;
+  // Self-reported and it says so, then the day it was entered, as a date
+  // (§AM F5), with the dot between them drawn by .facts rather than baked
+  // into the words (F3).
+  const balanceFacts = (
+    <div className="money-hero-label facts">
+      <span className="fact">As you last entered it</span>
+      {balanceAsOf && <span className="fact date">{monthDay(balanceAsOf)}</span>}
+    </div>
+  );
 
   if (tracker) return <TrackerScreen onBack={() => setTracker(false)} />;
 
@@ -705,9 +735,11 @@ export default function MoneyFlow({ onOpenTask, openAccountId, openNonce, onOpen
                 {/* Under the total: the shortfall, or what the total is
                     after, or (with no bills or set-aside) the per-day line.
                     The per-day amount is worked out, so it wears sky here
-                    exactly as it does inside the math below (§AM). */}
+                    exactly as it does inside the math below (§AM). The
+                    shortfall is over the limit, which the key says in red,
+                    the same red the late chip on a bill already wears. */}
                 {left.amount < 0
-                  ? <div className="money-hero-label">{shortLine(left)}</div>
+                  ? <div className="money-hero-label"><span className="fact red">{shortLine(left)}</span></div>
                   : leftSub(left)
                     ? <div className="money-hero-label">{leftSub(left)}</div>
                     : perDayLine(left, daysLeft) && <div className="money-hero-label"><span className="fact est">{perDayLine(left, daysLeft)}</span></div>}
@@ -786,21 +818,23 @@ export default function MoneyFlow({ onOpenTask, openAccountId, openNonce, onOpen
               <div className="money-hero">
                 <div className="money-hero-label">Total balance</div>
                 <div className="money-hero-total">{formatMoney(totalBalance(accounts))}</div>
-                {/* Self-reported and it says so: the app has no live feed. */}
-                <div className="money-hero-label">{balanceLine} · {accounts.length} {accounts.length === 1 ? "account" : "accounts"}</div>
+                {/* Self-reported and it says so: the app has no live feed.
+                    The accounts are the rows right under it, so it does not
+                    count them as well. */}
+                {balanceFacts}
               </div>
               {accounts.map(accountRow)}
               <button className="row row-act" onClick={() => setSheet({ kind: "new" })}>Add Account</button>
             </div></div>
           )}
           {MONEY_TOP === "bills-lead" && accounts.length > 0 && (
-            <div className="money-line"><b>{formatMoney(totalBalance(accounts))}</b> across {accounts.length} {accounts.length === 1 ? "account" : "accounts"} · {balanceLine.charAt(0).toLowerCase() + balanceLine.slice(1)}</div>
+            <div className="money-line"><b>{formatMoney(totalBalance(accounts))}</b> across {accounts.length} {accounts.length === 1 ? "account" : "accounts"}, as you last entered it{balanceAsOf && <> <span className="fact date">{monthDay(balanceAsOf)}</span></>}</div>
           )}
           {MONEY_TOP === "before" && accounts.length > 0 && (
             <div className="pad-x"><div className="card list-card-ruled money-hero">
               <div className="money-hero-label">Total balance</div>
               <div className="money-hero-total">{formatMoney(totalBalance(accounts))}</div>
-              <div className="money-hero-label">{balanceLine}</div>
+              {balanceFacts}
             </div></div>
           )}
 
@@ -907,7 +941,10 @@ export default function MoneyFlow({ onOpenTask, openAccountId, openNonce, onOpen
                     </span></div>
                     <div className="task-title">
                       <span className="task-name">{r.data.name}</span>
-                      <div className="r-k"><span className="r-goal r-cat">{monthDay(r.data.addedAt)}{r.data.bytes > 0 ? ` \u00b7 ${sizeLabel(r.data.bytes)}` : ""}</span></div>
+                      {/* The day it came in is a date, small caps (§AM F5);
+                          the size keeps the row's one grey, with no dot baked
+                          between them (F3). */}
+                      <div className="r-k"><span className="fact date">{monthDay(r.data.addedAt)}</span>{r.data.bytes > 0 && <span className="r-goal r-cat">{sizeLabel(r.data.bytes)}</span>}</div>
                     </div>
                     {/* UP-CORE-13 (2026-09-05): Read It, on a picture the
                         app can actually read. A PDF or a text file is left

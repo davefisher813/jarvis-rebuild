@@ -103,12 +103,26 @@ describe("E1 · the return", () => {
     const w = welcomeBack("2026-08-01", "2026-08-20", 6)!;
     expect(w.days).toBe(19);
     expect(w.title).toBe("Welcome Back");
-    expect(w.sub).toBe("6 things aged out on their own · Start with one?");
-    expect(w.sub).not.toMatch(/overdue|behind|missed/i);
+    expect(w.gone).toBe("6 things aged out on their own");
+    expect(w.ask).toBe("Start with one?");
+    expect([w.title, w.gone, w.ask].join(" ")).not.toMatch(/overdue|behind|missed/i);
   });
 
-  it("says nothing was lost when nothing aged out", () => {
-    expect(welcomeBack("2026-08-01", "2026-08-20", 0)!.sub).toContain("Nothing was lost");
+  // §AM F3 (2026-09-26): the parts come back as parts. Today writes the one
+  // sentence, so no typed dot is baked in here for it to inherit.
+  it("returns its parts, never a line joined with a typed dot", () => {
+    const w = welcomeBack("2026-08-01", "2026-08-20", 1)!;
+    expect(w.gone).toBe("One thing aged out on their own");
+    expect(Object.values(w).join(" ")).not.toMatch(/\u00b7/);
+    expect(w).not.toHaveProperty("sub");
+  });
+
+  // The empty case of a count says nothing (§AK R1), so it is not said: the
+  // greeting and the one thing to start with stand alone.
+  it("says nothing about what aged out when nothing did", () => {
+    const w = welcomeBack("2026-08-01", "2026-08-20", 0)!;
+    expect(w.gone).toBeNull();
+    expect(w.ask).toBe("Start with one?");
   });
 
   it("triggers only past the away threshold", () => {

@@ -39,7 +39,7 @@
   "fix_file": "src/today/TodayPage.tsx",
   "law_risk": "none in src/laws; TodayPage.test.tsx:360-365 pins \"No category\" and must be inverted",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 2,
   "phase": "2-code",
   "needs_dave": false
@@ -54,7 +54,7 @@
   "fix_file": "src/today/NoticeCard.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 3,
   "phase": "3-middots",
   "needs_dave": false
@@ -69,7 +69,7 @@
   "fix_file": "src/upnext/FocusScreen.tsx",
   "law_risk": "none (astra law 4 holds: at most one coloured fact per line)",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 4,
   "phase": "3-middots",
   "needs_dave": false
@@ -84,7 +84,7 @@
   "fix_file": "src/upnext/UpNextFlow.tsx",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 5,
   "phase": "2-code",
   "needs_dave": false
@@ -99,7 +99,7 @@
   "fix_file": "src/upnext/UpNextFlow.tsx",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 6,
   "phase": "3-middots",
   "needs_dave": false
@@ -114,7 +114,7 @@
   "fix_file": "src/upnext/FocusScreen.tsx",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 7,
   "phase": "3-middots",
   "needs_dave": false
@@ -129,10 +129,11 @@
   "fix_file": "src/upnext/FocusScreen.tsx",
   "law_risk": "none",
   "confidence": "low",
-  "status": "pending",
+  "status": "rejected",
   "id": 8,
   "phase": "2-code",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "Not a violation now. The 'Nothing waiting.' card is the Focus screen's empty state: a title, one quiet line, and the way back (Back to Today). The Known-legitimate item for empty-state subs covers it in spirit, even though it uses .focus-task/.conn-meta instead of .empty-title/.empty-sub. The card has exactly one grey run, no second fact and no middot. R1's placeholder clause is about a line that "
  },
  {
   "file": "src/styles/components.css",
@@ -160,7 +161,7 @@
   "fix_file": "src/upnext/FreshStartFlow.tsx",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 10,
   "phase": "2-code",
   "needs_dave": false
@@ -175,7 +176,7 @@
   "fix_file": "src/today/TodayPage.tsx",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 11,
   "phase": "3-middots",
   "needs_dave": false
@@ -190,7 +191,7 @@
   "fix_file": "src/today/TodayPage.tsx",
   "law_risk": "none (evening.test.ts keeps eveningSummary untouched)",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 12,
   "phase": "3-middots",
   "needs_dave": false
@@ -205,10 +206,11 @@
   "fix_file": "src/today/evening.ts",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "rejected",
   "id": 13,
   "phase": "3-middots",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "EVENING_TASKS_NOTE renders at TodayPage.tsx as <div className=\"pad-x\"><div className=\"input-help\">, the group-footer note under the Still Open card. That is the <Foot> pattern. The lead has settled that field notes keep their middle dots because they are not facts lines (shortCopy.test.ts, Dave 2026-08-15). It is one note, not a row's subtext, so R1 and R6 do not apply."
  },
  {
   "file": "src/today/TodayPage.tsx",
@@ -220,7 +222,7 @@
   "fix_file": "src/today/TodayPage.tsx",
   "law_risk": "none",
   "confidence": "low",
-  "status": "pending",
+  "status": "done",
   "id": 14,
   "phase": "3-middots",
   "needs_dave": false
@@ -281,7 +283,7 @@
   "fix_file": "src/today/MoveHeadliner.tsx",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 18,
   "phase": "2-code",
   "needs_dave": false
@@ -296,7 +298,7 @@
   "fix_file": "src/today/MoveHeadliner.tsx",
   "law_risk": "none",
   "confidence": "low",
-  "status": "pending",
+  "status": "done",
   "id": 19,
   "phase": "2-code",
   "needs_dave": false
@@ -311,7 +313,7 @@
   "fix_file": "src/today/TodayFlow.tsx",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 20,
   "phase": "3-middots",
   "needs_dave": false
@@ -326,7 +328,7 @@
   "fix_file": "src/today/TodayFlow.tsx",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 21,
   "phase": "3-middots",
   "needs_dave": false
@@ -341,7 +343,7 @@
   "fix_file": "src/today/TodayFlow.tsx",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 22,
   "phase": "3-middots",
   "needs_dave": false
@@ -356,7 +358,7 @@
   "fix_file": "src/today/TodayFlow.tsx",
   "law_risk": "none in src/laws; goalPulse.test.ts:155 must be updated",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 23,
   "phase": "3-middots",
   "needs_dave": false
@@ -371,7 +373,7 @@
   "fix_file": "src/today/TodayFlow.tsx",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 24,
   "phase": "2-code",
   "needs_dave": false
@@ -386,7 +388,7 @@
   "fix_file": "src/today/TodayFlow.tsx",
   "law_risk": "none (adhdPack.test.ts keeps welcomeBack.sub unchanged)",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 25,
   "phase": "2-code",
   "needs_dave": false
@@ -401,7 +403,7 @@
   "fix_file": "src/today/TodayFlow.tsx",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 26,
   "phase": "3-middots",
   "needs_dave": false
@@ -416,7 +418,7 @@
   "fix_file": "src/today/TodayFlow.tsx",
   "law_risk": "none (meetingPrep.test.ts:53 keeps `line`)",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 27,
   "phase": "2-code",
   "needs_dave": false
@@ -431,7 +433,7 @@
   "fix_file": "src/today/TodayFlow.tsx",
   "law_risk": "none",
   "confidence": "low",
-  "status": "pending",
+  "status": "done",
   "id": 28,
   "phase": "2-code",
   "needs_dave": false
@@ -446,7 +448,7 @@
   "fix_file": "src/today/TodayFlow.tsx",
   "law_risk": "laws.test.ts L1 'red is a verb, never a status' (by intent; the regex itself does not trip on .fact.red)",
   "confidence": "low",
-  "status": "pending",
+  "status": "done",
   "id": 29,
   "phase": "2-code",
   "needs_dave": false
@@ -461,7 +463,7 @@
   "fix_file": "src/today/todayData.ts",
   "law_risk": "none (today.test.ts:122-124 keeps sub)",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 30,
   "phase": "2-code",
   "needs_dave": false
@@ -476,7 +478,7 @@
   "fix_file": "src/today/MailNotices.tsx",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 31,
   "phase": "2-code",
   "needs_dave": false
@@ -506,10 +508,11 @@
   "fix_file": "src/today/routinePatterns.ts",
   "law_risk": "none in src/laws; TodaySuggestions.test.tsx:107 matches /Gym \u00b7 Around 6 AM/",
   "confidence": "low",
-  "status": "pending",
+  "status": "done",
   "id": 33,
   "phase": "2-code",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "done in the code phase finishing run (2026-09-26)"
  },
  {
   "file": "src/today/patterns.ts",
@@ -521,7 +524,7 @@
   "fix_file": "src/today/patterns.ts",
   "law_risk": "none",
   "confidence": "low",
-  "status": "pending",
+  "status": "done",
   "id": 34,
   "phase": "3-middots",
   "needs_dave": false
@@ -536,7 +539,7 @@
   "fix_file": "src/weather/weather.ts",
   "law_risk": "none in src/laws; weather.test.ts:74-75 pin the old suffix",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 35,
   "phase": "3-middots",
   "needs_dave": false
@@ -628,10 +631,11 @@
   "fix_file": "src/today/quiet.tsx",
   "law_risk": "none",
   "confidence": "low",
-  "status": "pending",
+  "status": "needs_dave",
   "id": 41,
   "phase": "2-code",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "Quiet (today/quiet.tsx) colours every day count red, for example \"3 days left\" and \"Due in 5 days\". You set that on 2026-09-21: \"They should both be red and all instances. We need everything uniform without drifting\". It was about this exact pair: \"Mailchimp trial ends, 3 days left\" next to \"Invoice \u00b7 84 Days\". The Colour Key from 2026-09-22 makes a countdown to a due date amber (needs you soon) and keeps red for late. Should a day count that runs forward (\"N days left\", \"in N days\") now be amber, with red kept for ages like \"Slid 3d\" and \"84 Days\"? Or does your 09-21 ruling stand? If amber, i"
  },
  {
   "file": "src/styles/components.css",
@@ -706,7 +710,7 @@
   "fix_file": "src/schedule/screens/DayRow.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 46,
   "needs_dave": false,
   "phase": "2-code"
@@ -800,7 +804,7 @@
   "fix_file": "src/shared/ProvenanceLine.tsx",
   "law_risk": "none in src/laws; keep sourceLine exported (src/shared/provenance.test.ts and src/tasks/taskMoves.test.ts call it)",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 52,
   "needs_dave": false,
   "phase": "3-middots"
@@ -815,7 +819,7 @@
   "fix_file": "src/schedule/screens/DayRow.tsx",
   "law_risk": "do NOT name the class .fact.sky (astra.test.ts asserts components.css does not contain '.fact.sky'); src/gym/door.test.ts:42 reads info.meta, so keep meta",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 53,
   "needs_dave": false,
   "phase": "3-middots"
@@ -905,7 +909,7 @@
   "fix_file": "src/schedule/screens/LockedRow.tsx",
   "law_risk": "none in src/laws; src/today/YourDay.test.tsx:336 expects 'Protected' on Today with no state word, which this keeps",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 59,
   "needs_dave": false,
   "phase": "3-middots"
@@ -920,10 +924,11 @@
   "fix_file": "src/schedule/screens/LockedRow.tsx",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "rejected",
   "id": 60,
   "needs_dave": false,
-  "phase": "2-code"
+  "phase": "2-code",
+  "status_note": "Already fixed. components.css:166 `.sched-rep, .sched-until:not(.sched-until-btn)` (2026-09-25) draws the untappable Until as 11px small caps (--t-eyebrow, uppercase, --track-caps) in the row's grey. It is not a second regular grey. The tappable form is .sched-until-btn in --tint."
  },
  {
   "file": "src/schedule/stateWord.ts",
@@ -935,7 +940,7 @@
   "fix_file": "src/schedule/stateWord.ts",
   "law_risk": "none (astra.test.ts only asserts .fact.sky stays out of components.css)",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 61,
   "needs_dave": false,
   "phase": "2-code"
@@ -950,7 +955,7 @@
   "fix_file": "src/schedule/screens/SchedulePage.tsx",
   "law_risk": "none (waves.test.ts pins endsLabel, which is unchanged)",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 62,
   "needs_dave": false,
   "phase": "3-middots"
@@ -965,7 +970,7 @@
   "fix_file": "src/schedule/screens/SchedulePage.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 63,
   "needs_dave": false,
   "phase": "2-code"
@@ -980,7 +985,7 @@
   "fix_file": "src/schedule/screens/SchedulePage.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 64,
   "needs_dave": false,
   "phase": "2-code"
@@ -1100,7 +1105,7 @@
   "fix_file": "src/schedule/screens/SchedulePage.tsx",
   "law_risk": "astra.test.ts 'every fact variant the app renders has a rule' needs the .sched-est rule to exist; do not call it .fact.sky",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 72,
   "needs_dave": false,
   "phase": "2-code"
@@ -1146,7 +1151,7 @@
   "fix_file": "src/schedule/screens/SchedulePage.tsx",
   "law_risk": "none",
   "confidence": "low",
-  "status": "pending",
+  "status": "done",
   "id": 75,
   "needs_dave": false,
   "phase": "2-code"
@@ -1161,7 +1166,7 @@
   "fix_file": "src/schedule/screens/EventDetailPage.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 76,
   "needs_dave": false,
   "phase": "3-middots"
@@ -1176,7 +1181,7 @@
   "fix_file": "src/schedule/screens/EventDetailPage.tsx",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 77,
   "needs_dave": false,
   "phase": "2-code"
@@ -1191,7 +1196,7 @@
   "fix_file": "src/schedule/screens/EventDetailPage.tsx",
   "law_risk": "none",
   "confidence": "low",
-  "status": "pending",
+  "status": "done",
   "id": 78,
   "needs_dave": false,
   "phase": "2-code"
@@ -1206,7 +1211,7 @@
   "fix_file": "src/schedule/screens/EventSheet.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 79,
   "needs_dave": false,
   "phase": "3-middots"
@@ -1236,10 +1241,11 @@
   "fix_file": "src/schedule/screens/EventSheet.tsx",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "needs_dave",
   "id": 81,
   "needs_dave": false,
-  "phase": "2-code"
+  "phase": "2-code",
+  "status_note": "Event sheet, Travel row: when a place has a remembered travel time, a grey line under 'Travel' says '25 min last time', beside the grey 'None' value. That is two greys on one row. The only fix that satisfies the key is to make the line a one-tap red link (.note-fix) that sets Travel to 25 min, and that adds new behaviour. Today it only informs, and 25 min is not in the Travel menu, so using it means Custom and typing 25. Should 'Use 25 min last time' become a tap that fills Travel? Recommended: yes."
  },
  {
   "file": "src/schedule/screens/EventSheet.tsx",
@@ -1251,7 +1257,7 @@
   "fix_file": "src/schedule/screens/EventSheet.tsx",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 82,
   "needs_dave": false,
   "phase": "2-code"
@@ -1266,10 +1272,11 @@
   "fix_file": "src/schedule/screens/OverlapSheet.tsx",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "rejected",
   "id": 83,
   "needs_dave": false,
-  "phase": "2-code"
+  "phase": "2-code",
+  "status_note": "Already fixed. .plan-sub (components.css:1764) is now font-size var(--t-sub) (14) and color var(--tx-3), not --t-body/--tx-2, and nothing overrides it in any sheet. The line is the only grey under the sheet's question."
  },
  {
   "file": "src/schedule/screens/PlanDaySheet.tsx",
@@ -1281,7 +1288,7 @@
   "fix_file": "src/schedule/screens/PlanDaySheet.tsx",
   "law_risk": "src/schedule/planning.test.ts (not a law) pins loadLine's string, so keep loadLine exported or update the test",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 84,
   "needs_dave": false,
   "phase": "2-code"
@@ -1296,7 +1303,7 @@
   "fix_file": "src/schedule/screens/PlanDaySheet.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 85,
   "needs_dave": false,
   "phase": "3-middots"
@@ -1311,7 +1318,7 @@
   "fix_file": "src/schedule/screens/PlanDaySheet.tsx",
   "law_risk": "none (all three words are in astra.test.ts STATE_WORDS)",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 86,
   "needs_dave": false,
   "phase": "3-middots"
@@ -1326,7 +1333,7 @@
   "fix_file": "src/schedule/screens/PlanDaySheet.tsx",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 87,
   "needs_dave": false,
   "phase": "2-code"
@@ -1341,7 +1348,7 @@
   "fix_file": "src/schedule/screens/PlanDaySheet.tsx",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 88,
   "needs_dave": false,
   "phase": "2-code"
@@ -1356,7 +1363,7 @@
   "fix_file": "src/schedule/screens/PlanDaySheet.tsx",
   "law_risk": "src/schedule/planning.test.ts:108 (not a law) pins splitLine('2 Sittings \u00b7 90m each'), so keep the helper or update the test",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 89,
   "needs_dave": false,
   "phase": "3-middots"
@@ -1371,7 +1378,7 @@
   "fix_file": "src/schedule/screens/PlanDaySheet.tsx",
   "law_risk": "none",
   "confidence": "low",
-  "status": "pending",
+  "status": "done",
   "id": 90,
   "needs_dave": false,
   "phase": "3-middots"
@@ -1386,7 +1393,7 @@
   "fix_file": "src/schedule/screens/PlanDaySheet.tsx",
   "law_risk": "none",
   "confidence": "low",
-  "status": "pending",
+  "status": "done",
   "id": 91,
   "needs_dave": false,
   "phase": "2-code"
@@ -1401,7 +1408,7 @@
   "fix_file": "src/schedule/screens/PlanDaySheet.tsx",
   "law_risk": "check src/schedule tests for dayClock().sub before removing the field",
   "confidence": "low",
-  "status": "pending",
+  "status": "done",
   "id": 92,
   "needs_dave": false,
   "phase": "2-code"
@@ -1416,7 +1423,7 @@
   "fix_file": "src/schedule/screens/ScheduleUploadFlow.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 93,
   "needs_dave": false,
   "phase": "3-middots"
@@ -1431,7 +1438,7 @@
   "fix_file": "src/schedule/screens/ScheduleUploadFlow.tsx",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 94,
   "needs_dave": false,
   "phase": "2-code"
@@ -1462,7 +1469,7 @@
   "fix_file": "src/schedule/screens/ScheduleUploadFlow.tsx",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 96,
   "needs_dave": false,
   "phase": "2-code"
@@ -1477,7 +1484,7 @@
   "fix_file": "src/routine/RoutineFlow.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 97,
   "phase": "3-middots",
   "needs_dave": false
@@ -1492,7 +1499,7 @@
   "fix_file": "src/routine/RoutineFlow.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 98,
   "phase": "2-code",
   "needs_dave": false
@@ -1522,10 +1529,11 @@
   "fix_file": "src/routine/RoutineFlow.tsx",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "rejected",
   "id": 100,
   "phase": "2-code",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "Already fixed at the root. Foot in src/settings/kit.tsx now renders <div className=\"pad-x\"><div className=\"input-hint\">. There is no working-tree diff to kit.tsx, so this is what HEAD has. .set-foot is gone from every stylesheet, and .input-hint (components.css:4202) is 14px --t-meta, --tx-3 and italic, with no .ruled override. The middots inside the two Foot strings ('Overnight \u00b7 JARVIS plans the"
  },
  {
   "file": "src/tasks/screens/TasksPage.tsx",
@@ -1597,7 +1605,7 @@
   "fix_file": "src/tasks/screens/TasksPage.tsx",
   "confidence": "high",
   "law_risk": "none",
-  "status": "pending",
+  "status": "done",
   "id": 105,
   "phase": "3-middots",
   "needs_dave": false
@@ -1627,7 +1635,7 @@
   "fix_file": "src/review/InsightsFlow.tsx",
   "confidence": "high",
   "law_risk": "none",
-  "status": "pending",
+  "status": "done",
   "id": 107,
   "phase": "3-middots",
   "needs_dave": false
@@ -1642,7 +1650,7 @@
   "fix_file": "src/review/InsightsFlow.tsx",
   "confidence": "high",
   "law_risk": "none",
-  "status": "pending",
+  "status": "done",
   "id": 108,
   "phase": "3-middots",
   "needs_dave": false
@@ -1673,7 +1681,7 @@
   "fix_file": "src/review/week.ts",
   "confidence": "high",
   "law_risk": "src/review/week.test.ts (unit, if present) may pin tones",
-  "status": "pending",
+  "status": "done",
   "id": 110,
   "phase": "2-code",
   "needs_dave": false,
@@ -1705,7 +1713,7 @@
   "fix_file": "src/review/InsightsFlow.tsx",
   "confidence": "medium",
   "law_risk": "none",
-  "status": "pending",
+  "status": "done",
   "id": 112,
   "phase": "2-code",
   "needs_dave": false
@@ -1750,7 +1758,7 @@
   "fix_file": "src/review/ReportPage.tsx",
   "confidence": "high",
   "law_risk": "none",
-  "status": "pending",
+  "status": "done",
   "id": 115,
   "phase": "2-code",
   "needs_dave": false
@@ -1765,7 +1773,7 @@
   "fix_file": "src/review/report.ts",
   "confidence": "high",
   "law_risk": "src/review/report.test.ts (unit, if it pins tints)",
-  "status": "pending",
+  "status": "done",
   "id": 116,
   "phase": "2-code",
   "needs_dave": false
@@ -1795,7 +1803,7 @@
   "fix_file": "src/review/ReportPage.tsx",
   "confidence": "medium",
   "law_risk": "none",
-  "status": "pending",
+  "status": "done",
   "id": 118,
   "phase": "2-code",
   "needs_dave": false
@@ -1810,7 +1818,7 @@
   "fix_file": "src/review/report.ts",
   "confidence": "medium",
   "law_risk": "src/review/report.test.ts (unit) if it pins these strings",
-  "status": "pending",
+  "status": "done",
   "id": 119,
   "phase": "3-middots",
   "needs_dave": false
@@ -1825,7 +1833,7 @@
   "fix_file": "src/tasks/screens/TaskSheet.tsx",
   "confidence": "high",
   "law_risk": "none (typeLaw's roster reads the last class, 'conn-est', which is not a SUBS entry)",
-  "status": "pending",
+  "status": "done",
   "id": 120,
   "phase": "2-code",
   "needs_dave": false
@@ -1840,7 +1848,7 @@
   "fix_file": "src/tasks/ifThen.ts",
   "confidence": "high",
   "law_risk": "none (ifThen.test.ts only checks toContain(\"Shorter\"))",
-  "status": "pending",
+  "status": "done",
   "id": 121,
   "phase": "3-middots",
   "needs_dave": false
@@ -1855,7 +1863,7 @@
   "fix_file": "src/shared/ProvenanceLine.tsx",
   "confidence": "high",
   "law_risk": "shared/provenance.test.ts (unit) pins sourceLine if kept; colourKey FACT regex does not match .prov-link",
-  "status": "pending",
+  "status": "done",
   "id": 122,
   "phase": "3-middots",
   "needs_dave": false
@@ -1870,7 +1878,7 @@
   "fix_file": "src/tasks/screens/TaskSheet.tsx",
   "confidence": "medium",
   "law_risk": "none",
-  "status": "pending",
+  "status": "done",
   "id": 123,
   "phase": "2-code",
   "needs_dave": false
@@ -1885,10 +1893,11 @@
   "fix_file": "src/tasks/screens/StartCard.tsx",
   "confidence": "high",
   "law_risk": "none",
-  "status": "pending",
+  "status": "done",
   "id": 124,
   "phase": "3-middots",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "done in the code phase finishing run (2026-09-26)"
  },
  {
   "file": "src/tasks/screens/StartScreen.tsx",
@@ -1900,7 +1909,7 @@
   "fix_file": "src/tasks/screens/StartScreen.tsx",
   "confidence": "high",
   "law_risk": "none",
-  "status": "pending",
+  "status": "done",
   "id": 125,
   "phase": "3-middots",
   "needs_dave": false
@@ -1915,7 +1924,7 @@
   "fix_file": "src/tasks/screens/StartScreen.tsx",
   "confidence": "medium",
   "law_risk": "none",
-  "status": "pending",
+  "status": "done",
   "id": 126,
   "phase": "2-code",
   "needs_dave": false
@@ -1930,10 +1939,11 @@
   "fix_file": "src/tasks/screens/StartScreen.tsx",
   "confidence": "medium",
   "law_risk": "src/laws/start.test.ts if it pins these strings",
-  "status": "pending",
+  "status": "rejected",
   "id": 127,
   "phase": "3-middots",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "Neither line is a facts or meta line. .start-truth is the note under the Start card's primary button (\"what this button does NOT do\", written as fragments), and .list-floor is the page's floor note. They do the same job as <Note>/<Foot>, and the lead's settled 2026-09-26 ruling keeps middle dots in field notes (they are not facts lines, and shortCopy.test.ts keeps notes as fragments joined by a do"
  },
  {
   "file": "src/tasks/screens/RitualSheet.tsx",
@@ -1991,7 +2001,7 @@
   "fix_file": "src/tasks/screens/ReminderSheet.tsx",
   "confidence": "medium",
   "law_risk": "ReminderSheet tests (unit) if they pin the summary strings",
-  "status": "pending",
+  "status": "done",
   "id": 131,
   "phase": "3-middots",
   "needs_dave": false
@@ -2006,7 +2016,7 @@
   "fix_file": "src/tasks/screens/ReminderSettingsSheet.tsx",
   "confidence": "medium",
   "law_risk": "none",
-  "status": "pending",
+  "status": "done",
   "id": 132,
   "phase": "2-code",
   "needs_dave": false
@@ -2021,7 +2031,7 @@
   "fix_file": "src/tasks/reminders.ts",
   "confidence": "high",
   "law_risk": "unit tests: src/tasks/reminders.page.test.ts:57, src/tasks/screens/ReminderDetailSheet.test.tsx:22 and RemindersPage.test.tsx:107 pin \"Today \u00b7 9:00 AM\" / \"Skipped \u00b7 Today\"",
-  "status": "pending",
+  "status": "done",
   "id": 133,
   "phase": "3-middots",
   "needs_dave": false
@@ -2100,7 +2110,7 @@
   "fix_file": "src/projects/types.ts",
   "confidence": "medium",
   "law_risk": "none",
-  "status": "pending",
+  "status": "done",
   "id": 138,
   "phase": "2-code",
   "needs_dave": false
@@ -2115,7 +2125,7 @@
   "fix_file": "src/projects/ProjectDetailPage.tsx",
   "confidence": "high",
   "law_risk": "none",
-  "status": "pending",
+  "status": "done",
   "id": 139,
   "phase": "3-middots",
   "needs_dave": false
@@ -2130,7 +2140,7 @@
   "fix_file": "src/projects/ProjectDetailPage.tsx",
   "confidence": "high",
   "law_risk": "none",
-  "status": "pending",
+  "status": "done",
   "id": 140,
   "phase": "2-code",
   "needs_dave": false
@@ -2193,7 +2203,7 @@
   "fix_file": "src/decisions/DecisionsFlow.tsx",
   "confidence": "high",
   "law_risk": "none",
-  "status": "pending",
+  "status": "done",
   "id": 144,
   "phase": "3-middots",
   "needs_dave": false
@@ -2208,7 +2218,7 @@
   "fix_file": "src/decisions/DecisionsFlow.tsx",
   "confidence": "high",
   "law_risk": "none (RULE is in astra STATE_WORDS)",
-  "status": "pending",
+  "status": "done",
   "id": 145,
   "phase": "2-code",
   "needs_dave": false
@@ -2223,7 +2233,7 @@
   "fix_file": "src/decisions/DecisionsFlow.tsx",
   "confidence": "medium",
   "law_risk": "none",
-  "status": "pending",
+  "status": "done",
   "id": 146,
   "phase": "3-middots",
   "needs_dave": false
@@ -2238,11 +2248,11 @@
   "fix_file": "src/decisions/DecisionsFlow.tsx",
   "confidence": "medium",
   "law_risk": "none",
-  "status": "pending",
+  "status": "rejected",
   "id": 147,
   "phase": "2-code",
   "needs_dave": false,
-  "status_note": "rewritten 2026-09-26 to the lead ruling; round 4 of the stylesheet phase may already have applied it (check the code)."
+  "status_note": "Already fixed in the current code, as the lead ruled. Lines 263-272 split links into areaHomes (via linkAreaSlot) and plainHomes (non-area labels joined with \", \"). Lines 407-414 draw each area home as `.fact.cat.fact-link` with its own area's `.cd cat-bg-<slot>` dot plus `.cat-t`, and every other home as one plain `.fact`. `.fact.fact-link` is `--tx-3`, not tint. There is no invented mark, and th"
  },
  {
   "file": "src/decisions/DecisionsFlow.tsx",
@@ -2254,7 +2264,7 @@
   "fix_file": "src/decisions/DecisionsFlow.tsx",
   "confidence": "medium",
   "law_risk": "subtextLaw 'no subtext class survives without a call site' -- .dec-meta loses its last users and its rule must be deleted",
-  "status": "pending",
+  "status": "done",
   "id": 148,
   "phase": "2-code",
   "needs_dave": false
@@ -2284,7 +2294,7 @@
   "fix_file": "src/tasks/screens/TasksPage.tsx",
   "confidence": "medium",
   "law_risk": "momentum unit tests if they pin chainReason's string",
-  "status": "pending",
+  "status": "done",
   "id": 150,
   "phase": "2-code",
   "needs_dave": false
@@ -2299,7 +2309,7 @@
   "fix_file": "src/tasks/screens/TasksPage.tsx",
   "confidence": "medium",
   "law_risk": "none",
-  "status": "pending",
+  "status": "done",
   "id": 151,
   "phase": "2-code",
   "needs_dave": false
@@ -2314,10 +2324,11 @@
   "fix_file": "src/tasks/screens/TaskSheet.tsx",
   "confidence": "low",
   "law_risk": "none",
-  "status": "pending",
+  "status": "rejected",
   "id": 152,
   "phase": "3-middots",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "Out of scope for R6/R1. 'Practice \u00b7 Sat, Sep 27' is a HeadMenu option label: <span className=\"hmenu-l\"> inside a role=menuitemradio button. That is a control's own label in a dropdown, not a facts or meta line, and not a row's subtext. The date is there to tell apart two events with the same name."
  },
  {
   "file": "src/tasks/screens/ContextPromptSheet.tsx",
@@ -2329,7 +2340,7 @@
   "fix_file": "src/tasks/screens/ContextPromptSheet.tsx",
   "confidence": "low",
   "law_risk": "none",
-  "status": "pending",
+  "status": "done",
   "id": 153,
   "phase": "2-code",
   "needs_dave": false
@@ -2436,7 +2447,7 @@
   "fix_file": "src/notifications/feed.ts",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 160,
   "phase": "3-middots",
   "needs_dave": false
@@ -2451,7 +2462,7 @@
   "fix_file": "src/notifications/NotificationsFlow.tsx",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 161,
   "phase": "2-code",
   "needs_dave": false
@@ -2466,7 +2477,7 @@
   "fix_file": "src/notifications/NotificationsFlow.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 162,
   "phase": "3-middots",
   "needs_dave": false
@@ -2481,7 +2492,7 @@
   "fix_file": "src/messages/MessagesFlow.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 163,
   "phase": "3-middots",
   "needs_dave": false
@@ -2511,7 +2522,7 @@
   "fix_file": "src/messages/purge.ts",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 165,
   "phase": "3-middots",
   "needs_dave": false
@@ -2556,10 +2567,11 @@
   "fix_file": "src/messages/MessagesFlow.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "rejected",
   "id": 168,
   "phase": "3-middots",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "Not in R6's scope. The string renders in .empty-sub inside the Clean Out empty state, not in a facts or meta line, and the Known legitimate list says .empty-title and .empty-sub on an empty state are not a row's subtext. The lead's Q3 ruling leaves dots in non-facts copy. The suggested fix would also fail src/laws/shortCopy.test.ts: \"What's loaded is cleaned out. There may be more in your inbox.\" "
  },
  {
   "file": "src/messages/MessagesFlow.tsx",
@@ -2571,10 +2583,11 @@
   "fix_file": "src/messages/MessagesFlow.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "rejected",
   "id": 169,
   "phase": "3-middots",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "Not in R6's scope. \"Nothing lost \u00b7 Nothing here was changed\" is the .empty-sub of the \"Couldn't Reach Your Mail\" error state. R6 explicitly excludes an error sentence, and the Known legitimate list says .empty-sub on an empty state is not a row's subtext. Splitting it into two sentences would go against shortCopy.test.ts's rule of fragments joined by a dot (the regex only misses it because it is J"
  },
  {
   "file": "src/messages/MessagesFlow.tsx",
@@ -2586,10 +2599,11 @@
   "fix_file": "src/messages/MessagesFlow.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "rejected",
   "id": 170,
   "phase": "3-middots",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "Not in R6's scope, same as 169. \"Nothing lost \u00b7 All still here\" is the .empty-sub of the \"Couldn't Sort Your Mail\" error state. It is an error sentence in an empty state, not a facts or meta line, and it is covered by the Known legitimate .empty-sub item. The suggested \"Nothing lost. It's all still here.\" is the two-sentence form shortCopy.test.ts exists to forbid."
  },
  {
   "file": "src/messages/MessagesFlow.tsx",
@@ -2601,10 +2615,11 @@
   "fix_file": "src/messages/MessagesFlow.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "rejected",
   "id": 171,
   "phase": "3-middots",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "Not in R6's scope, same as 168. \"Everything loaded is dealt with \u00b7 There may be more in your inbox\" is the .empty-sub of the \"Nothing More Loaded\" empty state, covered by the Known legitimate .empty-sub item. The suggested two-sentence form goes against shortCopy.test.ts's fragments-joined-by-a-dot rule."
  },
  {
   "file": "src/messages/MessagesFlow.tsx",
@@ -2616,7 +2631,7 @@
   "fix_file": "src/messages/factsLine.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 172,
   "phase": "2-code",
   "needs_dave": false
@@ -2631,7 +2646,7 @@
   "fix_file": "src/messages/MessagesFlow.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 173,
   "phase": "3-middots",
   "needs_dave": false
@@ -2646,7 +2661,7 @@
   "fix_file": "src/messages/MessagesFlow.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 174,
   "phase": "3-middots",
   "needs_dave": false
@@ -2661,7 +2676,7 @@
   "fix_file": "src/messages/batching.ts",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 175,
   "phase": "3-middots",
   "needs_dave": false
@@ -2676,7 +2691,7 @@
   "fix_file": "src/messages/MessagesFlow.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 176,
   "phase": "3-middots",
   "needs_dave": false
@@ -2691,7 +2706,7 @@
   "fix_file": "src/messages/MessagesFlow.tsx",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 177,
   "phase": "2-code",
   "needs_dave": false
@@ -2722,7 +2737,7 @@
   "fix_file": "src/messages/vip.ts",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 179,
   "phase": "3-middots",
   "needs_dave": false
@@ -2737,7 +2752,7 @@
   "fix_file": "src/messages/attachmentKind.ts",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 180,
   "phase": "3-middots",
   "needs_dave": false
@@ -2752,7 +2767,7 @@
   "fix_file": "src/messages/MessagesFlow.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 181,
   "phase": "3-middots",
   "needs_dave": false
@@ -2767,7 +2782,7 @@
   "fix_file": "src/messages/MessagesFlow.tsx",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 182,
   "phase": "2-code",
   "needs_dave": false
@@ -2782,7 +2797,7 @@
   "fix_file": "src/messages/MessagesFlow.tsx",
   "law_risk": "none",
   "confidence": "low",
-  "status": "pending",
+  "status": "done",
   "id": 183,
   "phase": "3-middots",
   "needs_dave": false
@@ -2797,7 +2812,7 @@
   "fix_file": "src/messages/weeklyClose.ts",
   "law_risk": "laws.test.ts ESSENTIAL (tx-4 ban on .msg-amnesty-promise) still satisfied",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 184,
   "phase": "2-code",
   "needs_dave": false
@@ -2812,7 +2827,7 @@
   "fix_file": "src/messages/MessagesFlow.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 185,
   "phase": "2-code",
   "needs_dave": false
@@ -2827,7 +2842,7 @@
   "fix_file": "src/messages/MessagesFlow.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 186,
   "phase": "2-code",
   "needs_dave": false
@@ -2872,7 +2887,7 @@
   "fix_file": "src/messages/MessagesFlow.tsx",
   "law_risk": "none (email.test.ts law 1 still holds: Facts, one tone)",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 189,
   "phase": "2-code",
   "needs_dave": false
@@ -2887,7 +2902,7 @@
   "fix_file": "src/messages/MessagesFlow.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 190,
   "phase": "3-middots",
   "needs_dave": false
@@ -2902,7 +2917,7 @@
   "fix_file": "src/messages/MessagesFlow.tsx",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 191,
   "phase": "2-code",
   "needs_dave": false
@@ -2917,7 +2932,7 @@
   "fix_file": "src/messages/MessagesFlow.tsx",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 192,
   "phase": "3-middots",
   "needs_dave": false
@@ -2932,7 +2947,7 @@
   "fix_file": "src/messages/collapse.ts",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 193,
   "phase": "3-middots",
   "needs_dave": false
@@ -2947,7 +2962,7 @@
   "fix_file": "src/messages/safetyNet.ts",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 194,
   "phase": "3-middots",
   "needs_dave": false
@@ -2962,7 +2977,7 @@
   "fix_file": "src/messages/MessagesFlow.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 195,
   "phase": "2-code",
   "needs_dave": false
@@ -2977,7 +2992,7 @@
   "fix_file": "src/messages/MessagesFlow.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 196,
   "phase": "2-code",
   "needs_dave": false
@@ -2992,7 +3007,7 @@
   "fix_file": "src/messages/MessagesFlow.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 197,
   "phase": "2-code",
   "needs_dave": false
@@ -3007,7 +3022,7 @@
   "fix_file": "src/messages/cleared.ts",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 198,
   "phase": "3-middots",
   "needs_dave": false
@@ -3022,10 +3037,11 @@
   "fix_file": "src/messages/MessagesFlow.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 199,
   "phase": "3-middots",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "done in the code phase finishing run (2026-09-26)"
  },
  {
   "file": "src/messages/MessagesFlow.tsx",
@@ -3037,7 +3053,7 @@
   "fix_file": "src/messages/MessagesFlow.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 200,
   "phase": "3-middots",
   "needs_dave": false
@@ -3052,7 +3068,7 @@
   "fix_file": "src/messages/MessagesFlow.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 201,
   "phase": "3-middots",
   "needs_dave": false
@@ -3067,7 +3083,7 @@
   "fix_file": "src/messages/MessagesFlow.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 202,
   "phase": "3-middots",
   "needs_dave": false
@@ -3082,7 +3098,7 @@
   "fix_file": "src/messages/MessagesFlow.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 203,
   "phase": "3-middots",
   "needs_dave": false
@@ -3097,7 +3113,7 @@
   "fix_file": "src/messages/MessagesFlow.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 204,
   "phase": "3-middots",
   "needs_dave": false
@@ -3112,7 +3128,7 @@
   "fix_file": "src/messages/MessagesFlow.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 205,
   "phase": "3-middots",
   "needs_dave": false
@@ -3127,7 +3143,7 @@
   "fix_file": "src/messages/outbox.ts",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 206,
   "phase": "3-middots",
   "needs_dave": false
@@ -3142,7 +3158,7 @@
   "fix_file": "src/messages/MessagesFlow.tsx",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 207,
   "phase": "3-middots",
   "needs_dave": false,
@@ -3173,7 +3189,7 @@
   "fix_file": "src/messages/MessagesFlow.tsx",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 209,
   "phase": "2-code",
   "needs_dave": false
@@ -3233,7 +3249,7 @@
   "fix_file": "src/messages/DeckFlow.tsx",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 213,
   "phase": "3-middots",
   "needs_dave": false
@@ -3263,7 +3279,7 @@
   "fix_file": "src/messages/MailMoreSheet.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 215,
   "phase": "3-middots",
   "needs_dave": false
@@ -3278,7 +3294,7 @@
   "fix_file": "src/messages/ThreadStateCard.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 216,
   "phase": "2-code",
   "needs_dave": false
@@ -3293,7 +3309,7 @@
   "fix_file": "src/messages/ThreadStateCard.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 217,
   "phase": "3-middots",
   "needs_dave": false
@@ -3323,10 +3339,11 @@
   "fix_file": "src/messages/WindowsSheet.tsx",
   "law_risk": "subtextLaw.test.ts (no subtext class without a call site): .win-note must be deleted with its last call site",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 219,
   "phase": "2-code",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "done in the code phase finishing run (2026-09-26)"
  },
  {
   "file": "src/messages/WindowsSheet.tsx",
@@ -3353,7 +3370,7 @@
   "fix_file": "src/messages/home.ts",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 221,
   "phase": "3-middots",
   "needs_dave": false
@@ -3368,7 +3385,7 @@
   "fix_file": "src/messages/home.ts",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 222,
   "phase": "3-middots",
   "needs_dave": false
@@ -3383,7 +3400,7 @@
   "fix_file": "src/messages/home.ts",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 223,
   "phase": "3-middots",
   "needs_dave": false
@@ -3398,7 +3415,7 @@
   "fix_file": "src/messages/home.ts",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 224,
   "phase": "3-middots",
   "needs_dave": false
@@ -3413,7 +3430,7 @@
   "fix_file": "src/messages/meetingTimes.ts",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 225,
   "phase": "3-middots",
   "needs_dave": false
@@ -3428,7 +3445,7 @@
   "fix_file": "src/messages/staleDrafts.ts",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 226,
   "phase": "3-middots",
   "needs_dave": false
@@ -3458,7 +3475,7 @@
   "fix_file": "src/messages/MessagesFlow.tsx",
   "law_risk": "none",
   "confidence": "low",
-  "status": "pending",
+  "status": "done",
   "id": 228,
   "phase": "2-code",
   "needs_dave": false
@@ -3473,7 +3490,7 @@
   "fix_file": "src/messages/MessagesFlow.tsx",
   "law_risk": "none",
   "confidence": "low",
-  "status": "pending",
+  "status": "done",
   "id": 229,
   "phase": "2-code",
   "needs_dave": false
@@ -3488,7 +3505,7 @@
   "fix_file": "src/messages/DemoMail.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 230,
   "phase": "3-middots",
   "needs_dave": false
@@ -3503,7 +3520,7 @@
   "fix_file": "src/messages/DemoMail.tsx",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 231,
   "phase": "2-code",
   "needs_dave": false
@@ -3518,7 +3535,7 @@
   "fix_file": "src/messages/DemoMail.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 232,
   "phase": "3-middots",
   "needs_dave": false
@@ -3533,7 +3550,7 @@
   "fix_file": "src/messages/DemoMail.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 233,
   "phase": "3-middots",
   "needs_dave": false
@@ -3548,7 +3565,7 @@
   "fix_file": "src/messages/DemoMail.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 234,
   "phase": "3-middots",
   "needs_dave": false
@@ -3563,7 +3580,7 @@
   "fix_file": "src/health/screens/ThirdPracticeScreen.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 235,
   "phase": "3-middots",
   "needs_dave": false
@@ -3578,10 +3595,11 @@
   "fix_file": "src/health/screens/WeekShapeScreen.tsx",
   "law_risk": "none (non-law test brain/CategoryDetail.test.tsx:708 must be updated)",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 236,
   "phase": "3-middots",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "done in the code phase finishing run (2026-09-26)"
  },
  {
   "file": "src/health/screens/MedWindowScreen.tsx",
@@ -3593,7 +3611,7 @@
   "fix_file": "src/health/screens/MedWindowScreen.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 237,
   "phase": "3-middots",
   "needs_dave": false
@@ -3608,7 +3626,7 @@
   "fix_file": "src/health/screens/SeasonFeedScreen.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 238,
   "phase": "3-middots",
   "needs_dave": false
@@ -3623,10 +3641,11 @@
   "fix_file": "src/health/checkin.ts",
   "law_risk": "none (non-law tests health/log.test.ts:91 and health/doctorReport.test.ts:118 must be updated)",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 239,
   "phase": "3-middots",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "done in the code phase finishing run (2026-09-26)"
  },
  {
   "file": "src/health/screens/PointAtItScreen.tsx",
@@ -3638,7 +3657,7 @@
   "fix_file": "src/health/screens/PointAtItScreen.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 240,
   "phase": "2-code",
   "needs_dave": false
@@ -3653,7 +3672,7 @@
   "fix_file": "src/health/screens/DoctorReportScreen.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 241,
   "phase": "2-code",
   "needs_dave": false
@@ -3668,7 +3687,7 @@
   "fix_file": "src/health/screens/AgeRuleScreen.tsx",
   "law_risk": "none (typeLaw 'keeps the quiet line at the one legible grey' reads the last class, age-v, which is not on the SUBS roster)",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 242,
   "phase": "2-code",
   "needs_dave": false
@@ -3730,7 +3749,7 @@
   "fix_file": "src/health/screens/RefillRunwayScreen.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 246,
   "phase": "2-code",
   "needs_dave": false
@@ -3745,7 +3764,7 @@
   "fix_file": "src/health/screens/LockerScreen.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 247,
   "phase": "2-code",
   "needs_dave": false
@@ -3760,7 +3779,7 @@
   "fix_file": "src/health/screens/LockerScreen.tsx",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 248,
   "phase": "2-code",
   "needs_dave": false
@@ -3775,7 +3794,7 @@
   "fix_file": "src/health/screens/MedRows.tsx",
   "law_risk": "none (non-law test health/screens/MedRows.test.tsx:21 must be updated)",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 249,
   "phase": "2-code",
   "needs_dave": false
@@ -3790,7 +3809,7 @@
   "fix_file": "src/health/screens/DoseTimeline.tsx",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 250,
   "phase": "2-code",
   "needs_dave": false
@@ -3805,7 +3824,7 @@
   "fix_file": "src/health/screens/LightsOutScreen.tsx",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 251,
   "phase": "2-code",
   "needs_dave": false
@@ -3820,7 +3839,7 @@
   "fix_file": "src/health/screens/LightsOutScreen.tsx",
   "law_risk": "healthSkin law 2: not tripped, because each child is an expression carrying a number",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 252,
   "phase": "2-code",
   "needs_dave": false
@@ -3835,7 +3854,7 @@
   "fix_file": "src/health/screens/CheckInScreen.tsx",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 253,
   "phase": "2-code",
   "needs_dave": false
@@ -3850,7 +3869,7 @@
   "fix_file": "src/health/screens/MealScreen.tsx",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 254,
   "phase": "2-code",
   "needs_dave": false
@@ -3865,7 +3884,7 @@
   "fix_file": "src/health/screens/MedicationScreen.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 255,
   "phase": "2-code",
   "needs_dave": false
@@ -3880,7 +3899,7 @@
   "fix_file": "src/health/screens/WhatTheySeeScreen.tsx",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 256,
   "phase": "2-code",
   "needs_dave": false
@@ -3910,10 +3929,11 @@
   "fix_file": "src/health/screens/ShareLineScreen.tsx",
   "law_risk": "none (healthPrivacy law checks only that Kid's Room rows carry no onClick; non-law test HealthFlow.test.tsx:34 must be updated)",
   "confidence": "low",
-  "status": "pending",
+  "status": "done",
   "id": 258,
   "phase": "2-code",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "done in the code phase finishing run (2026-09-26)"
  },
  {
   "file": "src/health/screens/AteBeforeScreen.tsx",
@@ -3940,7 +3960,7 @@
   "fix_file": "src/health/screens/EatingWindowsScreen.tsx",
   "law_risk": "none",
   "confidence": "low",
-  "status": "pending",
+  "status": "done",
   "id": 260,
   "phase": "2-code",
   "needs_dave": false
@@ -3955,10 +3975,11 @@
   "fix_file": "src/health/screens/LockerScreen.tsx",
   "law_risk": "none",
   "confidence": "low",
-  "status": "pending",
+  "status": "rejected",
   "id": 261,
   "phase": "2-code",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "No longer real. The stylesheet phase made .btn-sm the \u00a7AL capsule, which the lead has settled: \".btn-sm is a capsule (\u00a7AL)\". components.css:3456 now draws .btn-sm:not(.btn-primary):not(.btn-danger):not(.btn-secondary) with the longhand background-color: var(--capsule-fill), box-shadow: none and label --tint. The theme rules at components.css:4373 and 4376, with specificity (0,5,0), give --capsule-"
  },
  {
   "file": "src/gym/GymFlow.tsx",
@@ -3970,7 +3991,7 @@
   "fix_file": "src/gym/GymFlow.tsx",
   "law_risk": "none (dynamic className, healthSkin law 2 only scans literal classNames)",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 262,
   "phase": "2-code",
   "needs_dave": false
@@ -3985,7 +4006,7 @@
   "fix_file": "src/gym/GymFlow.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 263,
   "phase": "2-code",
   "needs_dave": false
@@ -4000,7 +4021,7 @@
   "fix_file": "src/gym/GymFlow.tsx",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 264,
   "phase": "2-code",
   "needs_dave": false
@@ -4015,10 +4036,11 @@
   "fix_file": "src/gym/GymFlow.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 265,
   "phase": "2-code",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "done in the code phase finishing run (2026-09-26)"
  },
  {
   "file": "src/gym/GymFlow.tsx",
@@ -4030,7 +4052,7 @@
   "fix_file": "src/gym/GymFlow.tsx + src/gym/pins.ts",
   "law_risk": "src/gym/pins.test.ts:11 expects \"Tue \u00b7 Fri\"",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 266,
   "phase": "3-middots",
   "needs_dave": false
@@ -4045,7 +4067,7 @@
   "fix_file": "src/gym/GymFlow.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 267,
   "phase": "3-middots",
   "needs_dave": false
@@ -4060,7 +4082,7 @@
   "fix_file": "src/gym/GymFlow.tsx",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 268,
   "phase": "2-code",
   "needs_dave": false
@@ -4075,7 +4097,7 @@
   "fix_file": "src/gym/GymFlow.tsx",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 269,
   "phase": "2-code",
   "needs_dave": false
@@ -4090,7 +4112,7 @@
   "fix_file": "src/gym/GymFlow.tsx",
   "law_risk": "src/gym/flaggedLength.test.ts counts `{minutesFact(w.data)}` twice (still 2 after the wrap)",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 270,
   "phase": "2-code",
   "needs_dave": false
@@ -4136,7 +4158,7 @@
   "fix_file": "src/gym/GymFlow.tsx",
   "law_risk": "none",
   "confidence": "low",
-  "status": "pending",
+  "status": "done",
   "id": 273,
   "phase": "2-code",
   "needs_dave": false
@@ -4167,7 +4189,7 @@
   "fix_file": "src/gym/SessionScreen.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 275,
   "phase": "2-code",
   "needs_dave": false
@@ -4182,7 +4204,7 @@
   "fix_file": "src/gym/SessionScreen.tsx",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 276,
   "phase": "2-code",
   "needs_dave": false
@@ -4227,7 +4249,7 @@
   "fix_file": "src/gym/SessionScreen.tsx + src/gym/CondReceipt.tsx",
   "law_risk": "src/gym/ConditioningFace.test.tsx:121-123 expects \"Not run yet\"",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 279,
   "phase": "3-middots",
   "needs_dave": false,
@@ -4259,10 +4281,11 @@
   "fix_file": "src/gym/SetStrip.tsx",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "rejected",
   "id": 281,
   "phase": "2-code",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "Not a violation under R1 as written. On the ghost row, the grey numbers are the row's TITLE (`.set-chip-ghost .conn-name`), and R1 says the title does not count. Under the title there is one grey run, the 'Last: ...' text in `.set-last-act`. The kicker above it is `.se-kick`, which is uppercase, so it counts as CAPS, and 'Match' is `--tint` on a real button. That is one grey. Turning the tap-to-ma"
  },
  {
   "file": "src/gym/SetStrip.tsx",
@@ -4289,7 +4312,7 @@
   "fix_file": "src/gym/CondReceipt.tsx",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 283,
   "phase": "3-middots",
   "needs_dave": false
@@ -4349,7 +4372,7 @@
   "fix_file": "src/gym/DurationCard.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 287,
   "phase": "2-code",
   "needs_dave": false
@@ -4364,7 +4387,7 @@
   "fix_file": "src/gym/DurationCard.tsx",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 288,
   "phase": "2-code",
   "needs_dave": false
@@ -4379,10 +4402,11 @@
   "fix_file": "src/gym/DurationCard.tsx",
   "law_risk": "astra.test.ts law 5 (a literal .fact.st word must be in STATE_WORDS; \"REVIEW\" is not)",
   "confidence": "low",
-  "status": "pending",
+  "status": "rejected",
   "id": 289,
   "phase": "2-code",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "No longer true. 'Review' sits in `.sh2 .n`, which draws in `--tx-3` grey (components.css:2924). There is no `.ruled.health-ruled .sh2 .n` cyan rule anywhere now, so it is not cyan. Amber has no primitive for a head count, and `.fact.st` would fail astra law 5 because REVIEW is not a state word. The flag already shows in the card itself: Active turns amber and a note row explains it."
  },
  {
   "file": "src/gym/HistoryScreen.tsx",
@@ -4394,7 +4418,7 @@
   "fix_file": "src/gym/HistoryScreen.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 290,
   "phase": "2-code",
   "needs_dave": false
@@ -4409,7 +4433,7 @@
   "fix_file": "src/gym/LiftDetailScreen.tsx + src/gym/chartData.ts",
   "law_risk": "src/gym/chartData.test.ts:67 and src/gym/LiftDetailScreen.test.tsx:122 pin the middot label",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 291,
   "phase": "3-middots",
   "needs_dave": false
@@ -4424,7 +4448,7 @@
   "fix_file": "src/gym/LiftDetailScreen.tsx",
   "law_risk": "src/gym/LiftDetailScreen.test.tsx:122",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 292,
   "phase": "3-middots",
   "needs_dave": false
@@ -4471,7 +4495,7 @@
   "fix_file": "src/gym/LiftDetailScreen.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 295,
   "phase": "2-code",
   "needs_dave": false
@@ -4486,7 +4510,7 @@
   "fix_file": "src/gym/LiftDetailScreen.tsx",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 296,
   "phase": "2-code",
   "needs_dave": false,
@@ -4502,7 +4526,7 @@
   "fix_file": "src/gym/LiftDetailScreen.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 297,
   "phase": "2-code",
   "needs_dave": false
@@ -4517,7 +4541,7 @@
   "fix_file": "src/gym/LiftDetailScreen.tsx",
   "law_risk": "none (laws.test.ts plateau law needs only \"Correlation, not cause\", which is untouched)",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 298,
   "phase": "3-middots",
   "needs_dave": false
@@ -4532,7 +4556,7 @@
   "fix_file": "src/gym/LiftDetailScreen.tsx",
   "law_risk": "healthSkin law 2 flags a LITERAL className=\"fact amber\">Assign muscles, so keep the className an expression",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 299,
   "phase": "2-code",
   "needs_dave": false
@@ -4547,7 +4571,7 @@
   "fix_file": "src/gym/LiftDetailScreen.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 300,
   "phase": "2-code",
   "needs_dave": false
@@ -4562,7 +4586,7 @@
   "fix_file": "src/gym/LiftDetailScreen.tsx + src/gym/muscles.ts",
   "law_risk": "LiftDetailScreen.test.tsx:68-70 (/Schoenfeld/ still matches)",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 301,
   "phase": "2-code",
   "needs_dave": false
@@ -4577,7 +4601,7 @@
   "fix_file": "src/gym/LiftDetailScreen.tsx",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 302,
   "phase": "2-code",
   "needs_dave": false
@@ -4607,7 +4631,7 @@
   "fix_file": "src/gym/LiftDetailScreen.tsx",
   "law_risk": "none",
   "confidence": "low",
-  "status": "pending",
+  "status": "done",
   "id": 304,
   "phase": "2-code",
   "needs_dave": false
@@ -4622,7 +4646,7 @@
   "fix_file": "src/gym/classify.ts",
   "law_risk": "src/gym/classify.test.ts:93 expects \"Back \u00b7 Also Biceps\"",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 305,
   "phase": "3-middots",
   "needs_dave": false
@@ -4637,7 +4661,7 @@
   "fix_file": "src/gym/LoadSheet.tsx + src/gym/equipment.ts",
   "law_risk": "none found (check equipment.test.ts for styleSummary strings)",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 306,
   "phase": "2-code",
   "needs_dave": false
@@ -4668,7 +4692,7 @@
   "fix_file": "src/gym/insights.ts",
   "law_risk": "none",
   "confidence": "low",
-  "status": "pending",
+  "status": "done",
   "id": 308,
   "phase": "3-middots",
   "needs_dave": false
@@ -4683,7 +4707,7 @@
   "fix_file": "src/gym/DuplicateReview.tsx + src/gym/merge.ts",
   "law_risk": "src/gym/merge.test.ts:170 and src/gym/MergeReview.test.tsx:147 pin the middot string",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 309,
   "phase": "2-code",
   "needs_dave": false
@@ -4698,7 +4722,7 @@
   "fix_file": "src/gym/DuplicateReview.tsx + src/gym/merge.ts",
   "law_risk": "check merge.test.ts for movesLine strings",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 310,
   "phase": "2-code",
   "needs_dave": false
@@ -4713,7 +4737,7 @@
   "fix_file": "src/gym/DuplicateReview.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 311,
   "phase": "2-code",
   "needs_dave": false
@@ -4728,7 +4752,7 @@
   "fix_file": "src/gym/DuplicateReview.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 312,
   "phase": "2-code",
   "needs_dave": false
@@ -4743,7 +4767,7 @@
   "fix_file": "src/gym/LibraryPage.tsx",
   "law_risk": "astra.test.ts law 5: add \"FAVORITE\", \"HIDDEN\", \"ARCHIVED\", \"SAVED\" to STATE_WORDS",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 313,
   "phase": "2-code",
   "needs_dave": false
@@ -4758,7 +4782,7 @@
   "fix_file": "src/gym/LibraryPage.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 314,
   "phase": "2-code",
   "needs_dave": false
@@ -4773,7 +4797,7 @@
   "fix_file": "src/gym/libraryView.ts",
   "law_risk": "src/gym/libraryView.test.ts:101 expects \"2 of 4 Shown \u00b7 1 Hidden \u00b7 1 Archived.\"",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 315,
   "phase": "3-middots",
   "needs_dave": false
@@ -4788,10 +4812,11 @@
   "fix_file": "src/gym/LibraryPage.tsx",
   "law_risk": "none (healthSkin law 6 only needs className={\"ex-chip\" \u2026})",
   "confidence": "medium",
-  "status": "pending",
+  "status": "needs_dave",
   "id": 316,
   "phase": "2-code",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "This is dave-queue.json #317, which the rulebook lists as held for Dave ('the Classify sheet's question colours', library row chips included), so nothing was changed. The Exercises page chips are coloured by axis: muscles lime, equipment violet, movement plain. That followed your 2026-09-16 'too much of the same color'. Under the 2026-09-22 Colour Key, Health lime means done and violet means budget/pair. Should the chips go neutral (fill only, with secondary muscles as an outline), or keep the axis hues as a named exemption? If neutral: chipTone in LibraryPage.tsx becomes `ch.tone === \"seconda"
  },
  {
   "file": "src/gym/ClassifySheet.tsx",
@@ -4818,7 +4843,7 @@
   "fix_file": "src/gym/ClassifySheet.tsx",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 318,
   "phase": "2-code",
   "needs_dave": false
@@ -4833,7 +4858,7 @@
   "fix_file": "src/gym/ClassifySheet.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 319,
   "phase": "2-code",
   "needs_dave": false
@@ -4848,7 +4873,7 @@
   "fix_file": "src/gym/ClassifySheet.tsx",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 320,
   "phase": "2-code",
   "needs_dave": false
@@ -4863,7 +4888,7 @@
   "fix_file": "src/gym/ExerciseSheet.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 321,
   "phase": "3-middots",
   "needs_dave": false
@@ -4878,7 +4903,7 @@
   "fix_file": "src/gym/ExerciseSheet.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 322,
   "phase": "3-middots",
   "needs_dave": false
@@ -4893,7 +4918,7 @@
   "fix_file": "src/gym/ExerciseSheet.tsx",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 323,
   "phase": "2-code",
   "needs_dave": false
@@ -4908,7 +4933,7 @@
   "fix_file": "src/gym/ExerciseSheet.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 324,
   "phase": "2-code",
   "needs_dave": false
@@ -4923,7 +4948,7 @@
   "fix_file": "src/gym/FitSheet.tsx",
   "law_risk": "src/laws/laws.test.ts:4115 requires /default pace \u00b7 improves as you log/ in FitSheet.tsx (update to the comma form)",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 325,
   "phase": "3-middots",
   "needs_dave": false
@@ -4938,7 +4963,7 @@
   "fix_file": "src/gym/fit.ts",
   "law_risk": "src/gym/fit.test.ts:132 uses toContain(\"never your main lift\") (still passes)",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 326,
   "phase": "3-middots",
   "needs_dave": false
@@ -4953,7 +4978,7 @@
   "fix_file": "src/gym/LibraryPickSheet.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 327,
   "phase": "3-middots",
   "needs_dave": false
@@ -4968,7 +4993,7 @@
   "fix_file": "src/gym/LibraryPickSheet.tsx",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 328,
   "phase": "2-code",
   "needs_dave": false
@@ -4983,10 +5008,11 @@
   "fix_file": "src/gym/PlateSheet.tsx",
   "law_risk": "none",
   "confidence": "low",
-  "status": "pending",
+  "status": "rejected",
   "id": 329,
   "phase": "2-code",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "This is not a placeholder under a row title. It is the load calculator's answer in the 'On Each Side' field when a no-bar plate machine or Smith is dialled to 0, the zero-weight counterpart of 'Just the bar'. It is the only fact there, so it is not a second grey. The suggested fix (render null) would leave the 'On Each Side' label with no value under it. If the lead wants nothing shown at 0, the r"
  },
  {
   "file": "src/gym/PlateSheet.tsx",
@@ -4998,10 +5024,11 @@
   "fix_file": "src/gym/PlateSheet.tsx",
   "law_risk": "none",
   "confidence": "low",
-  "status": "pending",
+  "status": "rejected",
   "id": 330,
   "phase": "3-middots",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "Covered by the settled ruling that field notes keep their middle dots. The string renders in .input-hint, the field-note primitive (R9) under the sheet's form. It is not a facts or meta line, so R6 does not apply."
  },
  {
   "file": "src/gym/ReceiptSheet.tsx",
@@ -5013,7 +5040,7 @@
   "fix_file": "src/gym/ReceiptSheet.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 331,
   "phase": "3-middots",
   "needs_dave": false
@@ -5028,7 +5055,7 @@
   "fix_file": "src/gym/UploadFlow.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 332,
   "phase": "3-middots",
   "needs_dave": false
@@ -5043,7 +5070,7 @@
   "fix_file": "src/gym/door.ts + src/gym/useGymDoor.ts + src/schedule/screens/DayRow.tsx",
   "law_risk": "check door.test.ts / useGymDoor tests for the meta string",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 333,
   "needs_dave": false,
   "phase": "3-middots"
@@ -5058,10 +5085,11 @@
   "fix_file": "src/gym/liveCard.ts",
   "law_risk": "check liveCard.test.ts for currentLine",
   "confidence": "medium",
-  "status": "pending",
+  "status": "rejected",
   "id": 334,
   "phase": "3-middots",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "Not real now. currentLine() has no render site left. In the current tree, TodayFlow.tsx draws both live-session lines through liveFacts(), which renders the lift name, plan, clock and count as separate .fact spans (plan and numbers in <b>, 'Time's up' in .fact.red). The only remaining caller of currentLine is liveCard.test.ts, so its middot does not render inside any facts or meta line (R6: trace "
  },
  {
   "file": "src/gym/stateWord.ts",
@@ -5073,10 +5101,11 @@
   "fix_file": "src/gym/stateWord.ts",
   "law_risk": "src/gym/stateWord.test.ts:26-30, SetStrip.grid.test.tsx:56, SessionScreen.delete.test.tsx:74",
   "confidence": "low",
-  "status": "pending",
+  "status": "rejected",
   "id": 335,
   "phase": "3-middots",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "Out of R6's scope, and the finding says as much itself ('Kickers are outside R6's listed lines, so this is flagged only for completeness', confidence low). setKicker's strings show up in three places. (1) The .se-kick kicker in SetStrip.tsx:208 and :297. That is an 11px uppercase kicker drawn as one run in one state colour (ruled.css:1928 plus the .se-kick.done/.now/.next/.warm/.skipped/.drop rule"
  },
  {
   "file": "src/brain/BrainTop.tsx",
@@ -5120,7 +5149,7 @@
   "fix_file": "src/brain/BrainTop.tsx",
   "law_risk": "none (astra law 5 checks the word, RULE stays in STATE_WORDS)",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 338,
   "phase": "2-code",
   "needs_dave": false
@@ -5135,7 +5164,7 @@
   "fix_file": "src/brain/strands/StrandsPage.tsx",
   "law_risk": "none in src/laws; StrandsPage.test.tsx:125 still passes (text kept)",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 339,
   "phase": "2-code",
   "needs_dave": false
@@ -5150,7 +5179,7 @@
   "fix_file": "src/brain/strands/StrandsPage.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 340,
   "phase": "2-code",
   "needs_dave": false
@@ -5165,7 +5194,7 @@
   "fix_file": "src/brain/strands/StrandsPage.tsx",
   "law_risk": "none in src/laws; StrandsPage.test.tsx:142 getByText each surface separately and must switch to a regex",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 341,
   "phase": "2-code",
   "needs_dave": false
@@ -5180,7 +5209,7 @@
   "fix_file": "src/brain/strands/StrandsPage.tsx",
   "law_risk": "not a src/laws law; StrandsPage.test.tsx:258 findByText(/Energy \u00b7 Watched \u00b7 Rule/) must be updated",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 342,
   "phase": "3-middots",
   "needs_dave": false
@@ -5195,7 +5224,7 @@
   "fix_file": "src/brain/docs/BrainDocPage.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 343,
   "phase": "2-code",
   "needs_dave": false
@@ -5210,7 +5239,7 @@
   "fix_file": "src/brain/readiness.ts",
   "law_risk": "none (readiness.test.ts:110 toContain(\"spread across the day\") still passes)",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 344,
   "phase": "3-middots",
   "needs_dave": false
@@ -5225,7 +5254,7 @@
   "fix_file": "src/brain/strands/ReadinessPanel.tsx",
   "law_risk": "none (LearningLabPage.test.tsx:74 /No day recorded yet/ still matches)",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 345,
   "phase": "3-middots",
   "needs_dave": false
@@ -5240,7 +5269,7 @@
   "fix_file": "src/brain/strands/ReadinessPanel.tsx",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 346,
   "phase": "3-middots",
   "needs_dave": false
@@ -5270,7 +5299,7 @@
   "fix_file": "src/brain/derive.ts",
   "law_risk": "none (peopleDerive.test.ts:38 covers only the no-area branch)",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 348,
   "phase": "3-middots",
   "needs_dave": false
@@ -5285,7 +5314,7 @@
   "fix_file": "src/brain/InsightEvidence.tsx",
   "law_risk": "not a src/laws law; InsightEvidence.test.tsx:30 /Paired sessions 10 \u00b7 fewer than ten/ must be updated",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 349,
   "phase": "3-middots",
   "needs_dave": false,
@@ -5331,7 +5360,7 @@
   "fix_file": "src/brain/CategoryDetail.tsx",
   "law_risk": "not a src/laws law; CategoryDetail.test.tsx:316 expects /No next action/",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 352,
   "phase": "3-middots",
   "needs_dave": false
@@ -5346,7 +5375,7 @@
   "fix_file": "src/brain/CategoryDetail.tsx",
   "law_risk": "none (CategoryDetail.test.tsx:315 still sees r-stalled)",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 353,
   "phase": "2-code",
   "needs_dave": false
@@ -5361,7 +5390,7 @@
   "fix_file": "src/brain/CategoryDetail.tsx",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 354,
   "phase": "2-code",
   "needs_dave": false
@@ -5376,7 +5405,7 @@
   "fix_file": "src/brain/CategoryDetail.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 355,
   "phase": "2-code",
   "needs_dave": false
@@ -5422,7 +5451,7 @@
   "fix_file": "src/brain/CategoryDetail.tsx",
   "law_risk": "none in src/laws; check CategoryDetail.test.tsx for the old strings",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 358,
   "phase": "3-middots",
   "needs_dave": false
@@ -5437,10 +5466,11 @@
   "fix_file": "src/brain/CategoryDetail.tsx",
   "law_risk": "not a src/laws law; CategoryDetail.test.tsx:161 asserts \"No People Here Yet\"",
   "confidence": "medium",
-  "status": "pending",
+  "status": "rejected",
   "id": 359,
   "phase": "2-code",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "This is not a placeholder on a record row. It is the People section's empty state: a title plus one instruction (\"Open someone in Contacts and tag them {area}\") saying how to get people into this area, which the bare Open Contacts button does not say. It has one grey run, so R1 holds. The co-located test pins it as specified behaviour: \"empty people list explains how to link, and Open Contacts is "
  },
  {
   "file": "src/brain/CategoryDetail.tsx",
@@ -5484,7 +5514,7 @@
   "fix_file": "src/gym/insights.ts",
   "law_risk": "src/laws/laws.test.ts \"every correlation card ends its own line honestly\" (needs \"Correlation, not cause\" inside correlate: kept) and \"a plateau's what-changed receipt\" (needs it in CategoryDetail.tsx: line 1821 keeps it); gym/insights.test.ts:51 still passes",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 362,
   "phase": "3-middots",
   "needs_dave": false,
@@ -5500,7 +5530,7 @@
   "fix_file": "src/brain/CategoryDetail.tsx",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 363,
   "phase": "2-code",
   "needs_dave": false
@@ -5515,7 +5545,7 @@
   "fix_file": "src/brain/CategoryDetail.tsx",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 364,
   "phase": "2-code",
   "needs_dave": false
@@ -5560,7 +5590,7 @@
   "fix_file": "src/brain/HealthBody.tsx",
   "law_risk": "astra.test.ts variant law is satisfied by the new .fact.est rule",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 367,
   "phase": "2-code",
   "needs_dave": false
@@ -5575,7 +5605,7 @@
   "fix_file": "src/brain/HealthBody.tsx",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 368,
   "phase": "2-code",
   "needs_dave": false
@@ -5590,7 +5620,7 @@
   "fix_file": "src/brain/HealthBody.tsx",
   "law_risk": "none in src/laws; check healthSkin law if it pins these tiles",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 369,
   "phase": "2-code",
   "needs_dave": false
@@ -5605,7 +5635,7 @@
   "fix_file": "src/brain/HealthBody.tsx",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 370,
   "phase": "2-code",
   "needs_dave": false
@@ -5620,7 +5650,7 @@
   "fix_file": "src/insights/InsightsPage.tsx",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 371,
   "phase": "2-code",
   "needs_dave": false
@@ -5635,7 +5665,7 @@
   "fix_file": "src/brain/HealthBody.tsx",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 372,
   "phase": "3-middots",
   "needs_dave": false
@@ -5650,10 +5680,11 @@
   "fix_file": "src/brain/HealthBody.tsx",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 373,
   "phase": "2-code",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "done in the code phase finishing run (2026-09-26)"
  },
  {
   "file": "src/brain/HealthBody.tsx",
@@ -5680,7 +5711,7 @@
   "fix_file": "src/insights/AllDataPage.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 375,
   "phase": "2-code",
   "needs_dave": false
@@ -5695,7 +5726,7 @@
   "fix_file": "src/insights/AllDataPage.tsx",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 376,
   "phase": "2-code",
   "needs_dave": false
@@ -5710,7 +5741,7 @@
   "fix_file": "src/insights/records.ts",
   "law_risk": "not a src/laws law; records.test.ts:36 pins \"Stiffness \u00b7 Mild\"",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 377,
   "phase": "3-middots",
   "needs_dave": false
@@ -5740,7 +5771,7 @@
   "fix_file": "src/insights/InsightsPage.tsx",
   "law_risk": "none (pages.test.tsx:84 \"Biggest gain\" and polishFinish.test.ts:180 \"All History\" still hold)",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 379,
   "phase": "2-code",
   "needs_dave": false
@@ -5755,7 +5786,7 @@
   "fix_file": "src/insights/InsightsPage.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 380,
   "phase": "2-code",
   "needs_dave": false
@@ -5770,7 +5801,7 @@
   "fix_file": "src/insights/InsightsPage.tsx",
   "law_risk": "none (pages.test.tsx:33 \"3 comparable sessions\" unchanged)",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 381,
   "phase": "2-code",
   "needs_dave": false
@@ -5785,7 +5816,7 @@
   "fix_file": "src/insights/InsightsPage.tsx",
   "law_risk": "none (pages.test.tsx:69 /2 of 30 days/ still matches)",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 382,
   "phase": "3-middots",
   "needs_dave": false
@@ -5800,7 +5831,7 @@
   "fix_file": "src/insights/InsightsPage.tsx",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 383,
   "phase": "2-code",
   "needs_dave": false
@@ -5815,7 +5846,7 @@
   "fix_file": "src/insights/InsightsPage.tsx",
   "law_risk": "none found",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 384,
   "phase": "2-code",
   "needs_dave": false
@@ -5830,7 +5861,7 @@
   "fix_file": "src/insights/InsightsPage.tsx",
   "law_risk": "none found",
   "confidence": "low",
-  "status": "pending",
+  "status": "done",
   "id": 385,
   "phase": "2-code",
   "needs_dave": false
@@ -5845,7 +5876,7 @@
   "fix_file": "src/insights/ExportSheet.tsx",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 386,
   "phase": "2-code",
   "needs_dave": false
@@ -5860,7 +5891,7 @@
   "fix_file": "src/insights/ExportSheet.tsx",
   "law_risk": "none",
   "confidence": "low",
-  "status": "pending",
+  "status": "done",
   "id": 387,
   "phase": "2-code",
   "needs_dave": false
@@ -5875,7 +5906,7 @@
   "fix_file": "src/brain/BrainTop.tsx",
   "law_risk": "none in src/laws; check BrainTop.test.tsx and StrandsPage.test.tsx for \"Medium\"",
   "confidence": "low",
-  "status": "pending",
+  "status": "done",
   "id": 388,
   "phase": "2-code",
   "needs_dave": false
@@ -5953,7 +5984,7 @@
   "fix_file": "src/notes/screens/NotesList.tsx",
   "law_risk": "laws.test.ts:3603 pins line 259's yellow tone expression (keep it); component test NotesList.test.tsx:61-62 asserts \"Not Filed\" on the unfiled row and must be updated",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 393,
   "phase": "2-code",
   "needs_dave": false
@@ -5968,7 +5999,7 @@
   "fix_file": "src/notes/screens/NoteEditor.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 394,
   "phase": "2-code",
   "needs_dave": false
@@ -6029,7 +6060,7 @@
   "fix_file": "src/notes/screens/NoteEditor.tsx",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 398,
   "phase": "2-code",
   "needs_dave": false
@@ -6044,10 +6075,11 @@
   "fix_file": "src/notes/screens/NoteEditor.tsx",
   "law_risk": "NotesFlow.test.tsx:194 matches /Book the Flights \u00b7 Gone/ and must be updated (not a src/laws law); do NOT use .fact.st (\"GONE\" is not in astra.test.ts STATE_WORDS)",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 399,
   "phase": "3-middots",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "done in the code phase finishing run (2026-09-26)"
  },
  {
   "file": "src/notes/screens/NoteEditor.tsx",
@@ -6089,7 +6121,7 @@
   "fix_file": "src/notes/screens/ExportSheet.tsx + src/notes/screens/AISheet.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 402,
   "phase": "2-code",
   "needs_dave": false,
@@ -6136,7 +6168,7 @@
   "fix_file": "src/notes/screens/Templates.tsx",
   "law_risk": "none (shortCopy: one sentence, no \". \" boundary)",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 405,
   "phase": "3-middots",
   "needs_dave": false
@@ -6151,7 +6183,7 @@
   "fix_file": "src/notes/screens/CreateTasks.tsx",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 406,
   "phase": "3-middots",
   "needs_dave": false
@@ -6166,10 +6198,11 @@
   "fix_file": "src/notes/NotesService.ts",
   "law_risk": "NotesService.connections.test.ts:155 expects label \"Stand-up \u00b7 2026-09-08\" (component test, update it); existing stored labels keep the old string",
   "confidence": "low",
-  "status": "pending",
+  "status": "rejected",
   "id": 407,
   "phase": "3-middots",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "R6 does not cover this string. The connection label renders in two places, and neither is a facts or meta line. In Connections.tsx it is a row title (`.conn-name`), which the rulebook's Known legitimate list says is primary ink. In NoteEditor.tsx:503 it is the text of a link chip (`.note-conn-label`, role=button). R6 only covers a middot baked into a string that renders inside a facts or meta line"
  },
  {
   "file": "src/capture/QuickCapture.tsx",
@@ -6181,7 +6214,7 @@
   "fix_file": "src/capture/QuickCapture.tsx",
   "law_risk": "QuickCapture.test.tsx:136/155/180 assert \"Fact \u00b7 Routine \u00b7 From your paste\" and must be updated (component test, not src/laws)",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 408,
   "phase": "3-middots",
   "needs_dave": false
@@ -6196,7 +6229,7 @@
   "fix_file": "src/capture/QuickCapture.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 409,
   "phase": "3-middots",
   "needs_dave": false
@@ -6241,7 +6274,7 @@
   "fix_file": "src/notes/screens/NoteEditor.tsx",
   "law_risk": "none",
   "confidence": "low",
-  "status": "pending",
+  "status": "done",
   "id": 412,
   "phase": "2-code",
   "needs_dave": false
@@ -6256,7 +6289,7 @@
   "fix_file": "src/notes/screens/NoteEditor.tsx",
   "law_risk": "none",
   "confidence": "low",
-  "status": "pending",
+  "status": "done",
   "id": 413,
   "phase": "2-code",
   "needs_dave": false
@@ -6286,7 +6319,7 @@
   "fix_file": "src/chat/ChatFlow.tsx",
   "law_risk": "astra.test.ts:137 finds rows by 'className=\"chat-prov' literally; a className={...} expression would no longer match that lastIndexOf -- check the row-star law before changing",
   "confidence": "low",
-  "status": "pending",
+  "status": "done",
   "id": 415,
   "phase": "2-code",
   "needs_dave": false
@@ -6301,7 +6334,7 @@
   "fix_file": "src/settings/AIControlPage.tsx",
   "law_risk": "none (AIControlPage.test only reads the \"Everything\" title)",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 416,
   "phase": "3-middots",
   "needs_dave": false
@@ -6316,7 +6349,7 @@
   "fix_file": "src/settings/AIControlPage.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 417,
   "phase": "3-middots",
   "needs_dave": false
@@ -6346,7 +6379,7 @@
   "fix_file": "src/settings/AIControlPage.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 419,
   "phase": "2-code",
   "needs_dave": false
@@ -6361,7 +6394,7 @@
   "fix_file": "src/settings/AdvancedPage.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 420,
   "phase": "3-middots",
   "needs_dave": false
@@ -6376,7 +6409,7 @@
   "fix_file": "src/settings/AboutPage.tsx",
   "law_risk": "AboutPage.test.tsx getByText(/^Build /) still matches: the div's own text nodes start with \"Build \", the spans do not, and the five-tap onClick stays on the div",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 421,
   "phase": "3-middots",
   "needs_dave": false
@@ -6391,7 +6424,7 @@
   "fix_file": "src/settings/AccountPage.tsx",
   "law_risk": "none (AccountPage.test.tsx:55 matches /Your data stays/ and still passes)",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 422,
   "phase": "3-middots",
   "needs_dave": false
@@ -6406,7 +6439,7 @@
   "fix_file": "src/settings/BackupPage.tsx",
   "law_risk": "src/settings/BackupPage.test.tsx:29 findByText(/Last exported \\d{4}-\\d{2}-\\d{2}/) matches own text nodes only and will fail. Change it to findByText(/Last exported/) plus getByText(/^\\d{4}-\\d{2}-\\d{2}$/)",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 423,
   "phase": "3-middots",
   "needs_dave": false
@@ -6421,7 +6454,7 @@
   "fix_file": "src/settings/BackupPage.tsx + src/data/useSyncState.ts",
   "law_risk": "src/data/useSyncState.test.ts:16-37 pins syncLine strings. Keep syncLine as-is, or port the tests to syncFacts if syncLine is deleted",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 424,
   "phase": "2-code",
   "needs_dave": false
@@ -6436,7 +6469,7 @@
   "fix_file": "src/settings/BackupPage.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 425,
   "phase": "3-middots",
   "needs_dave": false
@@ -6451,7 +6484,7 @@
   "fix_file": "src/settings/BackupPage.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 426,
   "phase": "3-middots",
   "needs_dave": false
@@ -6466,7 +6499,7 @@
   "fix_file": "src/settings/BackupPage.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 427,
   "phase": "3-middots",
   "needs_dave": false
@@ -6481,7 +6514,7 @@
   "fix_file": "src/settings/BookingPage.tsx",
   "law_risk": "none (BookingPage.test queries the title only)",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 428,
   "phase": "3-middots",
   "needs_dave": false
@@ -6496,7 +6529,7 @@
   "fix_file": "src/settings/BookingPage.tsx",
   "law_risk": "none (BookingPage.test.tsx:60 matches /wide-harbour/ in the title)",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 429,
   "phase": "3-middots",
   "needs_dave": false
@@ -6511,7 +6544,7 @@
   "fix_file": "src/settings/BookingPage.tsx",
   "law_risk": "src/settings/BookingPage.test.tsx:127 expects getByText(\"Off for the whole day\"). Delete that assertion",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 430,
   "phase": "2-code",
   "needs_dave": false
@@ -6526,7 +6559,7 @@
   "fix_file": "src/settings/BookingPage.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 431,
   "phase": "2-code",
   "needs_dave": false
@@ -6541,7 +6574,7 @@
   "fix_file": "src/settings/LearnedRulesPage.tsx",
   "law_risk": "none (LearnedRulesPage.test.tsx uses one evidence line and asserts on the title)",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 432,
   "phase": "2-code",
   "needs_dave": false
@@ -6617,10 +6650,11 @@
   "fix_file": "src/settings/AdvancedPage.tsx",
   "law_risk": "none",
   "confidence": "low",
-  "status": "pending",
+  "status": "rejected",
   "id": 437,
   "phase": "3-middots",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "Not real under the current rulebook. 'This device only \u00b7 No undo' sits in a <Foot>, which renders .input-hint. It is a field note, not a facts or meta line, and the lead settled that 'Field notes (<Note>, <Foot>) keep their middle dots' (shortCopy.test.ts, Dave 2026-08-15). The suggested fix 'This device only. No undo.' would also fail shortCopy.test.ts, whose sentence-boundary regex matches '. N'"
  },
  {
   "file": "src/settings/AccountPage.tsx",
@@ -6632,10 +6666,11 @@
   "fix_file": "src/settings/AccountPage.tsx",
   "law_risk": "none (AccountPage.test.tsx:105 matches /Permanent/)",
   "confidence": "low",
-  "status": "pending",
+  "status": "rejected",
   "id": 438,
   "phase": "3-middots",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "Same as #437. 'Permanent \u00b7 Every note, task and event is erased' is a <Foot> note, so it keeps its middle dot under the settled field-note rule. The suggested 'Permanent. Every note...' would fail shortCopy.test.ts ('. E' is a sentence boundary in a string literal). The amber question is raised once under #437 in needs_dave."
  },
  {
   "file": "src/settings/AccountPage.tsx",
@@ -6663,7 +6698,7 @@
   "fix_file": "src/people/screens/PeopleListPage.tsx",
   "law_risk": "none (colourKey 'emphasis steps up' passes with --tx-1). Unit test src/people/PeopleFlow.test.tsx:171 getByText(\"Cell 555-010-3311, call after 6\") needs a textContent matcher.",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 440,
   "phase": "2-code",
   "needs_dave": false
@@ -6678,7 +6713,7 @@
   "fix_file": "src/people/importMatch.ts",
   "law_risk": "none. Unit test src/people/importMatch.test.ts:179-183 asserts the old strings.",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 441,
   "phase": "3-middots",
   "needs_dave": false
@@ -6693,7 +6728,7 @@
   "fix_file": "src/people/importContacts.ts",
   "law_risk": "none. Unit test src/people/importContacts.test.ts:172 expects \"Cedar Bridge Club \u00b7 Board\".",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 442,
   "phase": "3-middots",
   "needs_dave": false
@@ -6708,7 +6743,7 @@
   "fix_file": "src/people/importMatch.ts",
   "law_risk": "none. Unit tests src/people/importMatch.test.ts:150-171 need rewriting against planFacts. PeopleFlow.test \"1 To check\" and \"1 Already current\" still match their own spans.",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 443,
   "phase": "3-middots",
   "needs_dave": false
@@ -6739,7 +6774,7 @@
   "fix_file": "src/people/PeopleFlow.tsx",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 445,
   "phase": "3-middots",
   "needs_dave": false
@@ -6754,10 +6789,11 @@
   "fix_file": "src/people/PeopleFlow.tsx",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 446,
   "phase": "2-code",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "done in the code phase finishing run (2026-09-26)"
  },
  {
   "file": "src/people/PeopleFlow.tsx",
@@ -6769,7 +6805,7 @@
   "fix_file": "src/people/PeopleFlow.tsx",
   "law_risk": "none",
   "confidence": "low",
-  "status": "pending",
+  "status": "done",
   "id": 447,
   "phase": "2-code",
   "needs_dave": false
@@ -6784,7 +6820,7 @@
   "fix_file": "src/people/PeopleFlow.tsx",
   "law_risk": "none. Fixture at src/people/PersonDetail.test.tsx:68-75 passes the old string as a prop and should become \"2 Months ago\".",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 448,
   "phase": "3-middots",
   "needs_dave": false
@@ -6814,7 +6850,7 @@
   "fix_file": "src/people/screens/PersonDetail.tsx",
   "law_risk": "none. Unit test src/people/PersonDetail.test.tsx:221-222 getByText(\"Family \u00b7 Mother\") must match the role span instead.",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 450,
   "phase": "3-middots",
   "needs_dave": false
@@ -6829,7 +6865,7 @@
   "fix_file": "src/people/screens/PersonDetail.tsx",
   "law_risk": "none (PersonDetail.test.tsx:90 getByText(\"Trusted adult\") still passes)",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 451,
   "phase": "2-code",
   "needs_dave": false
@@ -6860,7 +6896,7 @@
   "fix_file": "src/people/screens/PersonDetail.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 453,
   "phase": "2-code",
   "needs_dave": false
@@ -6875,7 +6911,7 @@
   "fix_file": "src/people/screens/PersonDetail.tsx",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 454,
   "phase": "2-code",
   "needs_dave": false
@@ -6906,7 +6942,7 @@
   "fix_file": "src/people/CallPrepSheet.tsx",
   "law_risk": "none (callPrep.test.tsx:76 uses a single note and still matches)",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 456,
   "phase": "2-code",
   "needs_dave": false
@@ -6921,7 +6957,7 @@
   "fix_file": "src/connections/ConnectionsPage.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 457,
   "phase": "3-middots",
   "needs_dave": false
@@ -6936,7 +6972,7 @@
   "fix_file": "src/connections/ConnectionsPage.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 458,
   "phase": "3-middots",
   "needs_dave": false
@@ -6951,10 +6987,11 @@
   "fix_file": "src/connections/google/humanError.ts",
   "law_risk": "none. Unit test src/ai/failureLine.test.ts:16 expects \"You're offline \u00b7 Nothing was lost\".",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 459,
   "phase": "3-middots",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "done in the code phase finishing run (2026-09-26)"
  },
  {
   "file": "src/life/syllabusExtract.ts",
@@ -6966,7 +7003,7 @@
   "fix_file": "src/life/SyllabusUploadFlow.tsx",
   "law_risk": "none (noDeadExport only covers gym/). Unit test src/life/syllabusExtract.test.ts:66-73 tests rowLine and goes with it.",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 460,
   "phase": "3-middots",
   "needs_dave": false
@@ -6981,7 +7018,7 @@
   "fix_file": "src/life/SyllabusUploadFlow.tsx",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 461,
   "phase": "2-code",
   "needs_dave": false,
@@ -7029,7 +7066,7 @@
   "fix_file": "src/life/cards/AreaItemStandard.tsx",
   "law_risk": "none (colourKey passes with --tx-1). Unit test src/life/tabs/AreasTab.test.tsx:46 expects textContent \"2 tasks \u00b7 1 goal \u00b7 1 project\".",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 464,
   "phase": "3-middots",
   "needs_dave": false
@@ -7044,10 +7081,11 @@
   "fix_file": "src/life/tabs/AreasTab.tsx",
   "law_risk": "src/laws/emptyState.test.ts: the ACTION_ELSEWHERE key \"life/tabs/AreasTab.tsx \u00b7 #1\" must be renamed to \"life/tabs/AreasTab.tsx \u00b7 No Areas Yet\"",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 465,
   "phase": "3-middots",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "done in the code phase finishing run (2026-09-26)"
  },
  {
   "file": "src/life/cards/HealthMiniAppCard.tsx",
@@ -7075,7 +7113,7 @@
   "fix_file": "src/brain/CategoryDetail.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 467,
   "phase": "3-middots",
   "needs_dave": false
@@ -7136,7 +7174,7 @@
   "fix_file": "src/bigger/ProjectRowRuled.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 471,
   "phase": "2-code",
   "needs_dave": false
@@ -7167,7 +7205,7 @@
   "fix_file": "src/bigger/BiggerPicturePage.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 473,
   "phase": "2-code",
   "needs_dave": false
@@ -7182,7 +7220,7 @@
   "fix_file": "src/bigger/measure.ts",
   "law_risk": "none (unit tests src/bigger/measure.test.ts:87 and src/bigger/milestones.test.ts:28 assert the old strings)",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 474,
   "phase": "2-code",
   "needs_dave": false
@@ -7197,7 +7235,7 @@
   "fix_file": "src/bigger/measure.ts",
   "law_risk": "none (unit tests src/bigger/measure.test.ts:119-128 assert the old strings)",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 475,
   "phase": "3-middots",
   "needs_dave": false
@@ -7228,7 +7266,7 @@
   "fix_file": "src/bigger/savings.ts",
   "law_risk": "none (unit test src/bigger/savings.test.ts:21-22 asserts the old string)",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 477,
   "phase": "3-middots",
   "needs_dave": false
@@ -7243,7 +7281,7 @@
   "fix_file": "src/bigger/GoalDetailPage.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 478,
   "phase": "2-code",
   "needs_dave": false
@@ -7258,7 +7296,7 @@
   "fix_file": "src/bigger/GoalDetailPage.tsx",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 479,
   "phase": "2-code",
   "needs_dave": false
@@ -7273,7 +7311,7 @@
   "fix_file": "src/bigger/reach.ts",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 480,
   "phase": "2-code",
   "needs_dave": false
@@ -7288,7 +7326,7 @@
   "fix_file": "src/bigger/GoalDetailPage.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 481,
   "phase": "3-middots",
   "needs_dave": false
@@ -7303,7 +7341,7 @@
   "fix_file": "src/bigger/GoalDetailPage.tsx",
   "law_risk": "none (unit test src/bigger/GoalDetailPage.test.tsx:57 asserts /Last check-in \u00b7 On Track/)",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 482,
   "phase": "2-code",
   "needs_dave": false
@@ -7318,7 +7356,7 @@
   "fix_file": "src/bigger/GoalDetailPage.tsx",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 483,
   "phase": "2-code",
   "needs_dave": false
@@ -7333,7 +7371,7 @@
   "fix_file": "src/bigger/GoalDetailPage.tsx",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 484,
   "phase": "2-code",
   "needs_dave": false
@@ -7348,7 +7386,7 @@
   "fix_file": "src/bigger/GoalDetailPage.tsx",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 485,
   "phase": "2-code",
   "needs_dave": false
@@ -7363,7 +7401,7 @@
   "fix_file": "src/bigger/GoalDetailPage.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 486,
   "phase": "3-middots",
   "needs_dave": false
@@ -7378,7 +7416,7 @@
   "fix_file": "src/bigger/GoalRowRuled.tsx",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 487,
   "phase": "2-code",
   "needs_dave": false
@@ -7408,7 +7446,7 @@
   "fix_file": "src/bigger/BiggerPicturePage.tsx",
   "law_risk": "src/laws/laws.test.ts LAW 10 'a goal is homed by its first live tag, and empty areas render nothing' matches `if (mine.length === 0 && loose.length === 0) return null;`, which exists only in the dead frame: retarget it to the lensed `if (mine.length === 0) return null;`. Unit test src/bigger/progress.test.ts:24 covers progressLabel.",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 489,
   "phase": "3-middots",
   "needs_dave": false,
@@ -7440,7 +7478,7 @@
   "fix_file": "src/money/MoneyFlow.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 491,
   "phase": "2-code",
   "needs_dave": false
@@ -7455,7 +7493,7 @@
   "fix_file": "src/money/bills.ts",
   "law_risk": "none (unit tests src/money/bills.test.ts:38,57 assert the old strings)",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 492,
   "phase": "3-middots",
   "needs_dave": false
@@ -7470,7 +7508,7 @@
   "fix_file": "src/money/bills.ts",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 493,
   "phase": "2-code",
   "needs_dave": false
@@ -7485,7 +7523,7 @@
   "fix_file": "src/money/MoneyFlow.tsx",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 494,
   "phase": "2-code",
   "needs_dave": false
@@ -7500,7 +7538,7 @@
   "fix_file": "src/money/bills.ts",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 495,
   "phase": "3-middots",
   "needs_dave": false
@@ -7515,7 +7553,7 @@
   "fix_file": "src/money/MoneyFlow.tsx",
   "law_risk": "none (unit test src/money/MoneyFlow.test.tsx:32 asserts /As you last entered it \u00b7/)",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 496,
   "phase": "2-code",
   "needs_dave": false
@@ -7545,7 +7583,7 @@
   "fix_file": "src/money/MoneyFlow.tsx",
   "law_risk": "src/laws/laws.test.ts L1 GUILT regex flags --sys-red on classes named *overdue*/*late*/*unread*/*behind*; 'money-short' does not match",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 498,
   "phase": "2-code",
   "needs_dave": false
@@ -7560,10 +7598,11 @@
   "fix_file": "src/money/MoneyFlow.tsx",
   "law_risk": "none",
   "confidence": "low",
-  "status": "pending",
+  "status": "rejected",
   "id": 499,
   "phase": "3-middots",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "This is a note under the Set Aside card: `<div className=\"pad-x\"><div className=\"input-help\">`. That is the group-footer pattern settings' Foot uses, and R9 says `.input-help` resolves to the same rule as `.input-hint`. The lead settled that field notes (<Note>, <Foot>) keep their middle dots because they are not facts lines, and shortCopy.test.ts keeps notes as fragments joined by a dot. R6 there"
  },
  {
   "file": "src/money/MoneyFlow.tsx",
@@ -7575,7 +7614,7 @@
   "fix_file": "src/money/MoneyFlow.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 500,
   "phase": "3-middots",
   "needs_dave": false
@@ -7590,7 +7629,7 @@
   "fix_file": "src/money/BillSheet.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 501,
   "phase": "2-code",
   "needs_dave": false
@@ -7605,7 +7644,7 @@
   "fix_file": "src/money/screens/TrackerScreen.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 502,
   "phase": "2-code",
   "needs_dave": false
@@ -7620,7 +7659,7 @@
   "fix_file": "src/money/screens/TrackerScreen.tsx",
   "law_risk": "none (colourKey 'emphasis steps up' requires the b rule to use --tx-1, which it does)",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 503,
   "phase": "3-middots",
   "needs_dave": false
@@ -7635,7 +7674,7 @@
   "fix_file": "src/money/screens/TrackerScreen.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 504,
   "phase": "3-middots",
   "needs_dave": false
@@ -7650,7 +7689,7 @@
   "fix_file": "src/money/screens/TrackerScreen.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 505,
   "phase": "3-middots",
   "needs_dave": false
@@ -7665,7 +7704,7 @@
   "fix_file": "src/booking/PublicBookingPage.tsx",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 506,
   "phase": "2-code",
   "needs_dave": false
@@ -7695,10 +7734,11 @@
   "fix_file": "src/booking/PublicBookingPage.tsx",
   "law_risk": "none",
   "confidence": "low",
-  "status": "pending",
+  "status": "rejected",
   "id": 508,
   "phase": "3-middots",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "Out of scope under R6. The string renders inside `.bk-note`, the booking page's own field-note line under the pagehead, not inside a `.facts` or meta line. It is a note fragment of the same kind as <Note>/<Foot>, which the lead's 2026-09-26 settlement says keep their middle dots, and shortCopy.test.ts (Dave, 2026-08-15) prescribes notes as fragments joined by a dot. The finding's rewrite (\"..., an"
  },
  {
   "file": "src/booking/PublicCancelPage.tsx",
@@ -7710,7 +7750,7 @@
   "fix_file": "src/booking/PublicCancelPage.tsx",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 509,
   "phase": "2-code",
   "needs_dave": false
@@ -7725,7 +7765,7 @@
   "fix_file": "src/booking/CancelBookingSheet.tsx",
   "law_risk": "none",
   "confidence": "low",
-  "status": "pending",
+  "status": "done",
   "id": 510,
   "phase": "2-code",
   "needs_dave": false
@@ -7756,7 +7796,7 @@
   "fix_file": "src/money/screens/TrackerScreen.tsx",
   "law_risk": "src/laws/laws.test.ts L1 GUILT regex: 'over' is not in its word list",
   "confidence": "low",
-  "status": "pending",
+  "status": "done",
   "id": 512,
   "phase": "2-code",
   "needs_dave": false
@@ -7802,7 +7842,7 @@
   "fix_file": "src/shared/provenance.ts",
   "law_risk": "none in src/laws (unit tests shared/provenance.test.ts and tasks/taskMoves.test.ts call sourceLine and need updating)",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 515,
   "phase": "3-middots",
   "needs_dave": false
@@ -7817,7 +7857,7 @@
   "fix_file": "src/shared/ProvenanceLine.tsx",
   "law_risk": "laws.test.ts:5613 (\"<Provenance compact\" on TasksPage) is unaffected; TasksPage.test.tsx:580 toHaveTextContent(\"From an email\") still passes",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 516,
   "phase": "2-code",
   "needs_dave": false
@@ -7832,10 +7872,11 @@
   "fix_file": "src/shared/ProvenanceLine.tsx",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "rejected",
   "id": 517,
   "phase": "2-code",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "Already fixed in CSS. Both row sites where provenance shares a row now give it the 11px small-caps letterform: ruled.css '.ruled .sched-body > .prov-line' on DayRow (2026-09-26) and '.ruled .r-k-one > .prov-line' on the task row. Both hosts (TodayPage and SchedulePage) are .screen.ruled, so the provenance words differ from the row's one grey by CAPS, and the extra ring mark is not needed."
  },
  {
   "file": "src/styles/components.css",
@@ -8075,7 +8116,7 @@
   "fix_file": "src/admin/AdminPanel.tsx",
   "law_risk": "none (subtextLaw dead-class check passes because .adm-id is rendered)",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 533,
   "phase": "3-middots",
   "needs_dave": false
@@ -8090,10 +8131,11 @@
   "fix_file": "src/admin/adminCompute.ts",
   "law_risk": "src/settings/feedback.test.ts:109 pins meta === \"abc1234 \u00b7 student \u00b7 iPhone\" and :115 pins meta === \"\"; update them to [\"abc1234\",\"student\",\"iPhone\"] and []. Not a src/laws law.",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 534,
   "phase": "3-middots",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "done in the code phase finishing run (2026-09-26)"
  },
  {
   "file": "src/admin/AdminPanel.tsx",
@@ -8105,7 +8147,7 @@
   "fix_file": "src/admin/AdminPanel.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 535,
   "phase": "2-code",
   "needs_dave": false
@@ -8120,7 +8162,7 @@
   "fix_file": "src/admin/AdminPanel.tsx",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 536,
   "phase": "3-middots",
   "needs_dave": false
@@ -8135,10 +8177,11 @@
   "fix_file": "src/admin/AdminPanel.tsx",
   "law_risk": "none (shortCopy law: no '. X' boundary introduced)",
   "confidence": "high",
-  "status": "pending",
+  "status": "rejected",
   "id": 537,
   "phase": "3-middots",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "This is not a facts or meta line. \"Usage + billing \u00b7 Wired at launch\" is the .empty-sub of an empty state, and the rulebook's Known legitimate list says .empty-title and .empty-sub on an empty state are not a row's subtext. R6 covers facts and meta lines (.facts, .sched-cat, .r-k, .conn-meta). This is two short fragments joined by a dot, the shortCopy convention that the settled Field Notes ruling"
  },
  {
   "file": "src/monitoring/ErrorBoundary.tsx",
@@ -8150,10 +8193,11 @@
   "fix_file": "src/monitoring/ErrorBoundary.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "rejected",
   "id": 538,
   "phase": "3-middots",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "This isn't a real R6 violation. ErrorBoundary.tsx:19 passes \"Unexpected error \u00b7 Reload fixes it\" to FailedCard, which draws it as .empty-sub inside .empty-state. That is the one crash card on the screen, not a row, and it is not a facts or meta line. R6 only covers a middot inside a facts or meta line and says 'an error sentence' is out of scope. The rulebook's Known legitimate list also says '.em"
  },
  {
   "file": "src/data/useSyncState.ts",
@@ -8165,7 +8209,7 @@
   "fix_file": "src/data/useSyncState.ts",
   "law_risk": "src/data/useSyncState.test.ts:16-37 pins the joined strings (\"Offline \u00b7 3 Changes waiting\" etc.) and needs updating to the array shape. Not a src/laws law.",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 539,
   "phase": "3-middots",
   "needs_dave": false
@@ -8180,10 +8224,11 @@
   "fix_file": "src/onboarding/found.ts",
   "law_risk": "none (found.test.ts sentence cases use needs-you threads and are unaffected)",
   "confidence": "high",
-  "status": "pending",
+  "status": "rejected",
   "id": 540,
   "phase": "3-middots",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "Already fixed at the source. The finding's premise is that nudge and chase notice subs carry a baked middot (`${w.subject} \u00b7 ${w.days} days`, `c.subject + \" \u00b7 You asked me to\"`). In today's src/messages/home.ts, nudgeNotice (line 405) builds `${w.subject}, sent N days ago` and chaseNotice (line 320) builds `c.subject + \", as you asked\"`. Neither has a middot, so the found row's .conn-meta (Onboard"
  },
  {
   "file": "src/admin/AdminPanel.tsx",
@@ -8256,7 +8301,7 @@
   "fix_file": "src/onboarding/OnboardingFlow.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 545,
   "phase": "2-code",
   "needs_dave": false
@@ -8271,7 +8316,7 @@
   "fix_file": "src/onboarding/OnboardingFlow.tsx",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 546,
   "phase": "2-code",
   "needs_dave": false
@@ -8301,7 +8346,7 @@
   "fix_file": "src/onboarding/OnboardingFlow.tsx",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 548,
   "phase": "2-code",
   "needs_dave": false
@@ -8361,7 +8406,7 @@
   "fix_file": "src/onboarding/OnboardingFlow.tsx",
   "law_risk": "none (OnboardingFlow.tsx is exempt from shortCopy)",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 552,
   "phase": "2-code",
   "needs_dave": false
@@ -8376,7 +8421,7 @@
   "fix_file": "src/admin/AdminPanel.tsx",
   "law_risk": "none",
   "confidence": "low",
-  "status": "pending",
+  "status": "done",
   "id": 553,
   "phase": "2-code",
   "needs_dave": false
@@ -8391,7 +8436,7 @@
   "fix_file": "src/onboarding/OnboardingFlow.tsx",
   "law_risk": "none",
   "confidence": "low",
-  "status": "pending",
+  "status": "done",
   "id": 554,
   "phase": "2-code",
   "needs_dave": false
@@ -8530,7 +8575,7 @@
   "fix_file": "src/notes/screens/NoteEditor.tsx",
   "law_risk": "none (laws.test palette checks read --cat-tx-* tokens, which are kept)",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 563,
   "phase": "2-code",
   "needs_dave": false
@@ -8657,10 +8702,11 @@
   "fix_file": "src/messages/WindowsSheet.tsx",
   "law_risk": "subtextLaw 'no subtext class survives without a call site' will pass once the .win-note rule is deleted with its only caller",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 571,
   "phase": "2-code",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "done in the code phase finishing run (2026-09-26)"
  },
  {
   "file": "src/styles/components.css",
@@ -8749,7 +8795,7 @@
   "fix_file": "src/schedule/screens/DayRow.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 577,
   "needs_dave": false,
   "phase": "2-code"
@@ -8810,7 +8856,7 @@
   "fix_file": "src/review/report.ts",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 581,
   "phase": "2-code",
   "needs_dave": false,
@@ -8888,7 +8934,7 @@
   "fix_file": "src/tasks/screens/RemindersPage.tsx",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 586,
   "phase": "2-code",
   "needs_dave": false
@@ -8903,7 +8949,7 @@
   "fix_file": "src/notes/screens/NoteEditor.tsx",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 587,
   "phase": "2-code",
   "needs_dave": false
@@ -9154,7 +9200,7 @@
   "fix_file": "src/review/ReportPage.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 603,
   "phase": "2-code",
   "needs_dave": false
@@ -9169,7 +9215,7 @@
   "fix_file": "src/review/report.ts",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 604,
   "phase": "2-code",
   "needs_dave": false
@@ -9230,7 +9276,7 @@
   "fix_file": "src/schedule/screens/PlanDaySheet.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 608,
   "needs_dave": false,
   "phase": "2-code"
@@ -9400,10 +9446,11 @@
   "fix_file": "src/gym/GymFlow.tsx",
   "law_risk": "typeLaw.test.ts 'lets no modifier smuggle a weight back onto a fact' (keep .fact.fact-time at regular weight, as written); astra.test.ts 'every fact variant has a rule' is satisfied by the new rule",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 619,
   "phase": "2-code",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "done in the code phase finishing run (2026-09-26)"
  },
  {
   "file": "src/styles/components.css",
@@ -9537,7 +9584,7 @@
   "fix_file": "src/money/screens/TrackerScreen.tsx",
   "law_risk": "none",
   "confidence": "low",
-  "status": "pending",
+  "status": "done",
   "id": 628,
   "phase": "2-code",
   "needs_dave": false
@@ -9629,7 +9676,7 @@
   "fix_file": "src/notes/screens/NoteEditor.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 634,
   "phase": "2-code",
   "needs_dave": false
@@ -9674,7 +9721,7 @@
   "fix_file": "src/styles/jarvis-design-system.css + src/gym/MetricGoalSheet.tsx + src/gym/LiftGoalSheet.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 637,
   "phase": "2-code",
   "needs_dave": false,
@@ -9826,7 +9873,7 @@
   "fix_file": "src/notes/screens/NoteEditor.tsx",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 647,
   "phase": "2-code",
   "needs_dave": false
@@ -10215,7 +10262,7 @@
   "fix_file": "src/notes/screens/NoteEditor.tsx",
   "confidence": "medium",
   "id": 672,
-  "status": "pending",
+  "status": "done",
   "needs_dave": false,
   "source": "phase-A 2026-09-25",
   "phase": "2-code"

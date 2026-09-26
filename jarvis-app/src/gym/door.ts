@@ -11,7 +11,22 @@ import { agoPhraseLower } from "./summary";
 // invents a lift. No pin for that weekday, no claim (the door still opens
 // the gym; the gym asks once).
 
-export interface DoorInfo { day: ProgramDay; meta: string }
+/** The door's facts, kept apart so the row can draw each in its own ink
+ *  (§AM, 2026-09-26). They used to arrive as one string joined with typed
+ *  middots, "7 exercises · Est 52 min · Last trained Aug 24", which put three
+ *  facts in one grey run and an estimate in the grey the key keeps for
+ *  everything else. */
+export interface DoorFacts {
+  /** How many exercises the day holds. */
+  exercises: number;
+  /** The app's estimate of the session, in minutes. Absent when it has none. */
+  estMin?: number;
+  /** "3 days ago", "today", or a date: when this day was last trained.
+   *  Absent when it never has been. */
+  lastTrained?: string;
+}
+
+export interface DoorInfo { day: ProgramDay; facts: DoorFacts }
 
 /** Weekday of a local ISO date, Mon=0..Sun=6 (the gym's own convention). */
 export function dowOfIso(iso: string): number {
@@ -36,13 +51,13 @@ export function doorInfoFor(
   for (let i = history.length - 1; i >= 0; i--) {
     if (history[i]!.data.dayId === day.id) { last = history[i]!.data.date; break; }
   }
-  const meta = [
-    `${day.exercises.length} ${day.exercises.length === 1 ? "exercise" : "exercises"}`,
-    est > 0 ? `Est ${est} min` : null,
+  const facts: DoorFacts = {
+    exercises: day.exercises.length,
+    ...(est > 0 ? { estMin: est } : {}),
     // Live-render audit 2026-09-01: monthDay said "Last trained Aug 31" ON
     // Aug 31 while the Health page said "Today" for the same session. One
     // clock, one phrase: agoPhrase, lowercased where it is a relative word.
-    last ? `Last trained ${agoPhraseLower(last, dateIso)}` : null,
-  ].filter(Boolean).join(" · ");
-  return { day, meta };
+    ...(last ? { lastTrained: agoPhraseLower(last, dateIso) } : {}),
+  };
+  return { day, facts };
 }

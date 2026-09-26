@@ -103,8 +103,8 @@ export default function RefillRunwayScreen({
             <div className="field">
               <div className="input-label">Doses You Have Now</div>
               <input className="input" type="number" inputMode="numeric" min={0} value={balance} onChange={(e) => setBalance(e.target.value)} aria-label="Doses you have now" placeholder="Count the Bottle" />
+              <div className="input-hint">Starts a new count from today. Nothing logged is changed.</div>
             </div>
-            <div className="bp-sub">Starts a new count from today. Nothing logged is changed.</div>
             <button className="btn btn-secondary btn-block" disabled={!balanceValid} onClick={() => { onLogFill(Number(balance), Date.now()); setBalance(""); }}>Save Correction</button>
           </div></div>
         </>

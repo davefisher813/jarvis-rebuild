@@ -122,7 +122,10 @@ describe("StrandsPage renders the genome", () => {
     await waitFor(() => expect(container.querySelectorAll(".strand-row").length).toBe(2));
     const fading = [...container.querySelectorAll(".strand-row")].find((r) => r.textContent?.includes("Admin happens"));
     expect(fading?.querySelector(".fact.st")?.textContent).toBe("Fading");
-    expect(fading?.textContent).toContain("115 days unconfirmed");
+    // §AK one grey (2026-09-26): the bucket is the row's one plain grey. The
+    // days unconfirmed were a second; Fading already says it, and the sheet
+    // gives the day it was last confirmed.
+    expect([...fading!.querySelectorAll(".fact:not(.st)")].map((e) => e.textContent)).toEqual(["Routine"]);
     expect(fading?.querySelector(".pill-act")?.textContent).toBe("Still True");
     fireEvent.click(screen.getByText("Needs Confirmation"));
     // TodaySuggestions offers the same faded fact as a card above the list,
@@ -139,7 +142,8 @@ describe("StrandsPage renders the genome", () => {
     render(<StrandsPage onBack={() => {}} />);
     fireEvent.click(await screen.findByText("Gets things done mid morning"));
     await screen.findByText("Used By");
-    for (const u of ["Schedule", "Plan My Day", "Your Move"]) expect(screen.getByText(u)).toBeInTheDocument();
+    // One fact with the list in it (§AK), not a plain grey per surface.
+    expect(screen.getByText("Schedule, Plan My Day, Your Move")).toHaveClass("fact");
   });
 
   it("What Kind is a chooser on the sheet, and reaches the service only when chosen (C-42)", async () => {
@@ -255,7 +259,11 @@ describe("Make It a Rule (S4-Q24)", () => {
     // On the row it is the RULE state word (C-40); the sheet keeps its eyebrow.
     await screen.findByText("Rule");
     fireEvent.click(screen.getByText("Gets things done mid morning"));
-    await screen.findByText(/Energy · Watched · Rule/);
+    // The eyebrow's separators are drawn by CSS (§AM F3), so the words are
+    // three facts rather than one string with the dots typed in.
+    await waitFor(() => expect([...document.querySelectorAll(".sheet-scrim .eyebrow .fact")].map((e) => e.textContent))
+      .toEqual(["Energy", "Watched", "Rule"]));
+    expect(document.querySelector(".sheet-scrim .eyebrow")?.textContent).not.toContain("·");
   });
 
   it("turning the toggle on for an existing fact and saving calls setStrength, once, with the strand", async () => {

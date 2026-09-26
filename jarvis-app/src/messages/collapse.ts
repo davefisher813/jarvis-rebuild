@@ -44,5 +44,5 @@ export function collapseNoise(rows: ThreadRow[], min = COLLAPSE_MIN): { groups: 
 }
 
 export function collapseLine(g: Collapsed): string {
-  return capAfterNumber(`${g.rows.length} notices · Nothing needs you`);
+  return capAfterNumber(`${g.rows.length} notices`);
 }

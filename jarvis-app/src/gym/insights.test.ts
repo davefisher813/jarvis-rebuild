@@ -48,7 +48,9 @@ describe("correlate", () => {
     expect(insight!.pairedSessions).toBeGreaterThanOrEqual(INSIGHT_MIN_PAIRED);
     // Sessions logged with more sleep gained more, every time by design.
     expect(insight!.deltaDiff).toBeGreaterThan(0);
-    expect(insight!.line).toMatch(/Correlation, not cause/);
+    // The caveat closes the sentence in sentence case (2026-09-26): a capital
+    // inside a mid-sentence parenthetical broke the line's casing.
+    expect(insight!.line).toMatch(/ \(correlation, not cause\)$/);
   });
 
   it("a metric with no split available (everyone the same) never renders a link", () => {

@@ -236,7 +236,7 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
 .sec-head .sec-left { display: flex; align-items: center; gap: var(--s-2h); }
 .sec-ico { width: 28px; height: 28px; border-radius: var(--r-sm); display: flex; align-items: center; justify-content: center; color: #fff; flex-shrink: 0; }
 .sec-ico .ic { width: 16px; height: 16px; }
-.ico-accent { background: var(--accent); } .ico-blue { background: var(--blue); } .ico-good { background: var(--good-fill); }
+.ico-accent { background: var(--accent); } .ico-blue { background: var(--blue); }
 
 /* Today home hero: slim avatar bar + greeting + day briefing (homepage feel). */
 .today-bar { display: flex; align-items: center; justify-content: flex-end; padding: var(--s-3) var(--s-4) 0; }
@@ -473,33 +473,6 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
 [data-theme="light"] .row-glyph.cat-fg-mint, [data-theme="light"] .lib-ico.cat-fg-mint { color: var(--cat-ic-mint); }
 [data-theme="light"] .row-glyph.cat-fg-olive, [data-theme="light"] .lib-ico.cat-fg-olive { color: var(--cat-ic-olive); }
 [data-theme="light"] .row-glyph.cat-fg-slate, [data-theme="light"] .lib-ico.cat-fg-slate { color: var(--cat-ic-slate); }
-/* KICKER CHIPS carry the slot's own FILL, not its ink: 18% of the vivid
-   Apple colour over the page. currentColor could not do this -- it is the
-   ink, and washing an already-darkened ink is what made MONEY olive. */
-[data-theme="light"] .eyebrow.cat-fg-red { background: color-mix(in srgb, var(--cat-red) 18%, transparent); }
-[data-theme="light"] .eyebrow.cat-fg-orange { background: color-mix(in srgb, var(--cat-orange) 18%, transparent); }
-[data-theme="light"] .eyebrow.cat-fg-sky { background: color-mix(in srgb, var(--cat-sky) 18%, transparent); }
-[data-theme="light"] .eyebrow.cat-fg-pink { background: color-mix(in srgb, var(--cat-pink) 18%, transparent); }
-[data-theme="light"] .eyebrow.cat-fg-yellow { background: color-mix(in srgb, var(--cat-yellow) 18%, transparent); }
-[data-theme="light"] .eyebrow.cat-fg-green { background: color-mix(in srgb, var(--cat-green) 18%, transparent); }
-[data-theme="light"] .eyebrow.cat-fg-blue { background: color-mix(in srgb, var(--cat-blue) 18%, transparent); }
-[data-theme="light"] .eyebrow.cat-fg-teal { background: color-mix(in srgb, var(--cat-teal) 18%, transparent); }
-[data-theme="light"] .eyebrow.cat-fg-graphite { background: color-mix(in srgb, var(--cat-graphite) 18%, transparent); }
-[data-theme="light"] .eyebrow.cat-fg-purple { background: color-mix(in srgb, var(--cat-purple) 18%, transparent); }
-[data-theme="light"] .eyebrow.cat-fg-indigo { background: color-mix(in srgb, var(--cat-indigo) 18%, transparent); }
-[data-theme="light"] .eyebrow.cat-fg-magenta { background: color-mix(in srgb, var(--cat-magenta) 18%, transparent); }
-[data-theme="light"] .eyebrow.cat-fg-lime { background: color-mix(in srgb, var(--cat-lime) 18%, transparent); }
-[data-theme="light"] .eyebrow.cat-fg-sand { background: color-mix(in srgb, var(--cat-sand) 18%, transparent); }
-[data-theme="light"] .eyebrow.cat-fg-coral { background: color-mix(in srgb, var(--cat-coral) 18%, transparent); }
-[data-theme="light"] .eyebrow.cat-fg-amber { background: color-mix(in srgb, var(--cat-amber) 18%, transparent); }
-[data-theme="light"] .eyebrow.cat-fg-rust { background: color-mix(in srgb, var(--cat-rust) 18%, transparent); }
-[data-theme="light"] .eyebrow.cat-fg-rose { background: color-mix(in srgb, var(--cat-rose) 18%, transparent); }
-[data-theme="light"] .eyebrow.cat-fg-plum { background: color-mix(in srgb, var(--cat-plum) 18%, transparent); }
-[data-theme="light"] .eyebrow.cat-fg-violet { background: color-mix(in srgb, var(--cat-violet) 18%, transparent); }
-[data-theme="light"] .eyebrow.cat-fg-cyan { background: color-mix(in srgb, var(--cat-cyan) 18%, transparent); }
-[data-theme="light"] .eyebrow.cat-fg-mint { background: color-mix(in srgb, var(--cat-mint) 18%, transparent); }
-[data-theme="light"] .eyebrow.cat-fg-olive { background: color-mix(in srgb, var(--cat-olive) 18%, transparent); }
-[data-theme="light"] .eyebrow.cat-fg-slate { background: color-mix(in srgb, var(--cat-slate) 18%, transparent); }
 /* CATEGORY COLOURS DRAWN AS TEXT, IN DARK THEME (2026-08-21). New with the
    Apple surfaces: #3A3A3C is lighter than the old #2A2A32, and nine of the
    fifteen dark variants stop clearing 4.5:1 on it (indigo is 2.24:1, blue
@@ -1007,8 +980,8 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 .lm-bar-fill { height: 100%; border-radius: var(--r-pill); }
 /* lm-good / lm-warn / lm-bad were removed 2026-08-02: the status names no
    longer map to them, and lm-bad rendered brand red for a mood, which the
-   one-red-per-screen law forbids. See .lm-ok / .lm-muted / .lm-attention. */
-.lm-mute { color: var(--tx-3); }
+   one-red-per-screen law forbids. See .lm-ok / .lm-muted / .lm-attention.
+   lm-mute went 2026-09-26: a finished project's status is lm-ok now. */
 .msg-seg { padding: var(--s-1) var(--s-4) var(--s-3); }
 .msg-lead { width: 8px; flex-shrink: 0; margin-top: var(--s-1h); display: flex; justify-content: center; }
 .msg-sends { font-size: var(--t-meta); color: var(--tint); font-weight: var(--w-medium); }
@@ -1032,6 +1005,12 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 .sched-loc { display: inline-flex; align-items: center; gap: var(--s-1); margin-top: var(--s-1); font-size: var(--t-meta); color: var(--tint); font-weight: var(--w-medium); text-decoration: none; }
 .sched-loc .ic { width: 16px; height: 16px; }
 .account-hero { display: flex; flex-direction: column; align-items: center; gap: var(--s-1h); padding: var(--s-6) var(--s-4); }
+/* The disc is a tap (Dave's pick, 2026-09-26): it opens the photo sheet.
+   No chrome of its own, the red disc is the control; 72px clears the tap
+   minimum. A chosen photo fills the same circle, cropped to cover it. */
+.account-av { background: none; border: 0; padding: 0; border-radius: var(--r-circle); cursor: pointer; }
+.account-av:active { opacity: 0.7; }
+.av-photo { width: 100%; height: 100%; object-fit: cover; display: block; }
 .account-name { font-size: var(--t-h3); font-weight: var(--w-semi); color: var(--tx-1); }
 .account-sub { font-size: var(--t-meta); color: var(--tx-3); }
 .about-hero { display: flex; flex-direction: column; align-items: center; gap: var(--s-1); padding: var(--s-6) var(--s-4); }
@@ -1192,10 +1171,10 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 /* Tap/press feedback on interactive rows + buttons. Press uses press-5 so the
    highlight actually reads on OLED dark (press-3 was invisible; RDB, Dave
    2026-07-29); pointer hover gets the lighter press-3. */
-.row, .task-row, .proj-row, .sched-row, .conn-row, .msg-row, .lm-row, .lifemap-row, .suggestion-row, .settings-row, .cat-row, .plan-pick { transition: background var(--dur-fast) var(--ease-out); }
-.row:active, .task-row:active, .proj-row:active, .sched-row:active, .conn-row:active, .msg-row:active, .lm-row:active, .lifemap-row:active, .suggestion-row:active, .settings-row:active, .cat-row:active, .plan-pick:active { background: var(--press-5); }
+.row, .task-row, .sched-row, .conn-row, .msg-row, .lm-row, .lifemap-row, .suggestion-row, .settings-row, .cat-row, .plan-pick { transition: background var(--dur-fast) var(--ease-out); }
+.row:active, .task-row:active, .sched-row:active, .conn-row:active, .msg-row:active, .lm-row:active, .lifemap-row:active, .suggestion-row:active, .settings-row:active, .cat-row:active, .plan-pick:active { background: var(--press-5); }
 @media (hover: hover) {
-  .row[role="button"]:hover, .task-row:hover, .proj-row:hover, .sched-row:hover, .conn-row:hover, .msg-row:hover, .lm-row:hover, .lifemap-row:hover, .suggestion-row:hover, .settings-row:hover, .cat-row:hover, .plan-pick:hover { background: var(--press-3); }
+  .row[role="button"]:hover, .task-row:hover, .sched-row:hover, .conn-row:hover, .msg-row:hover, .lm-row:hover, .lifemap-row:hover, .suggestion-row:hover, .settings-row:hover, .cat-row:hover, .plan-pick:hover { background: var(--press-3); }
   /* .chip-on joined this exclusion 2026-09-04. It is the third selected-chip
      class (after .active and .on) and it was never added here, so on any
      pointer device a CHOSEN chip lost its red fill the moment the cursor sat
@@ -1616,7 +1595,10 @@ a.row.person-reach { color: inherit; text-decoration: none; }
    AMENDED 2026-09-26: a head action straight on a tinted banner (the Health
    warm-up and cool-down cards) joined too. In dark the warm wash over black
    put the tap red at about 3.4:1; white clears it by far. Light takes the
-   words red either way, so nothing moves there. */
+   words red either way, so nothing moves there.
+   AMENDED 2026-09-26 (Dave's pick): the fold labels joined too, when fold
+   labels turned tap red. Most of them open inside a sheet, where the tap
+   red on the sheet grey is 3.76:1 in dark. */
 .form-sheet .sheet-bar-save,
 .sheet-scrim > .card .sheet-bar-save,
 .form-sheet .note-fix,
@@ -1627,6 +1609,8 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 .banner-cool .see-all,
 .form-sheet .prov-link,
 .sheet-scrim > .card .prov-link,
+.form-sheet .exp-more summary,
+.sheet-scrim > .card .exp-more summary,
 .sheet-scrim > .card .btn:not(.btn-primary):not(.btn-secondary):not(.btn-danger):not(.btn-disabled),
 .sheet-scrim > .card .btn-tertiary,
 .toast .toast-action { color: var(--tint-on-sheet); }
@@ -1661,7 +1645,6 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 /* THE REMINDERS PAGE (the reminders rebuild push E, 2026-09-15, Dave's
    interactive preview on the app's own chrome). */
 .rem-hero { display: flex; flex-direction: column; gap: var(--s-0h); }
-.rem-hero-dot { color: var(--tint); }
 .rem-toolbar { display: flex; gap: var(--s-2); margin: var(--s-3) 0; }
 .rem-toolbar .btn { display: inline-flex; align-items: center; justify-content: center; gap: var(--s-1h); }
 .rem-toolbar .btn-primary { flex: 1; }
@@ -1698,24 +1681,11 @@ a.row.person-reach { color: inherit; text-decoration: none; }
    the three lenses beside it in Life. Same numbers now, one place to change
    if that row ever moves. */
 .rem-card-title { font-size: var(--t-name); font-weight: var(--w-name); letter-spacing: var(--track-name); line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-/* ONE FACTS LINE, ALWAYS (Dave 2026-09-15, v3). The shared .facts wraps by
-   design; on this row a wrap is what turned a reminder into a three-line
-   card, so here the line stays on one line. The facts are ordered so the
-   ones that earn the space come first, and the LAST one gives way in an
-   ellipsis rather than the line hard-clipping mid-word and leaving its
-   separator dangling over the edge. */
-.rem-card .facts > .fact { flex-shrink: 0; }
-/* THE LAST ONE GIVES WAY, not whichever one happens to carry .cat (Dave
-   2026-09-16: a reminder with a category AND a rhythm -- "Transfer funds for
-   bills," Money, Every Month -- squeezed the category down to a bare dot
-   with no name at all, because .fact.cat was hard-wired shrinkable
-   regardless of where it sat in the line. The rhythm fact sits after it and
-   has nothing else counting on it staying whole, so it is the one that
-   should truncate first; a category that DOES land last still gets the
-   same graceful clip (a dot plus a clipped name still says which area this
-   is), it just is not forced to every time. */
-.rem-card .facts > .fact:last-child { min-width: 0; flex-shrink: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.rem-card .facts > .fact.cat .cat-t { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* ONE FACTS LINE, ALWAYS (Dave 2026-09-15, v3). A wrap here turned a
+   reminder into a three-line card. The shared .facts rule already keeps the
+   line to one and lets the LAST fact give way first (Dave 2026-09-16: the
+   rhythm after a category truncates, not the category), so this row needs
+   nothing of its own (2026-09-26). */
 /* The four views, as chips rather than a second segmented control (Dave
    2026-09-15: "we can't have two tab bars on one page"). Same row Notes'
    filters wear; it only has to close the gap the toolbar above already left. */
@@ -1730,7 +1700,6 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 .rem-detail-acts .btn { width: 100%; }
 .rem-detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-2); }
 .rem-more { padding: 0 var(--s-4); }
-.rem-more > summary { color: var(--tx-2); }
 .rem-prompt-sheet .sheet-form { padding-top: var(--s-3); }
 .rem-prompt-eyebrow { padding: 0 var(--s-4); } /* §AM: not tappable, so .eyebrow's own grey */
 .rem-prompt-sheet .rem-detail-title { padding: var(--s-1) var(--s-4) 0; }
@@ -1762,6 +1731,11 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 /* The quiet line under a sheet's question is a fact line: the fact size and
    the one grey (§AM F4, 2026-09-25), not body type. */
 .plan-sub { font-size: var(--t-sub); color: var(--tx-3); margin-bottom: var(--s-3); line-height: 1.4; }
+/* WHO A PLAN BRINGS IN (2026-09-26). The names an import will add are the
+   content of the sheet, not a note under a field, so they take primary ink
+   at the fact size and the plan's counts above stay its one grey (§AK V5.2).
+   The top margin is the one the field-note class used to give this line. */
+.plan-names { font-size: var(--t-sub); font-weight: var(--w-sub); color: var(--tx-1); margin-top: var(--s-2); }
 .plan-list { display: flex; flex-direction: column; max-height: 40vh; overflow-y: auto; overscroll-behavior: contain; }
 .plan-pick { display: flex; align-items: center; gap: var(--s-2); padding: var(--s-2) 0; }
 .plan-pick .task-title { flex: 1; min-width: 0; }
@@ -1833,7 +1807,21 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 .p3-row.on .p3-num { background: var(--sel-bg); border: 0; color: var(--sel-fg); }
 .p3-name { flex: 1; min-width: 0; font-size: var(--t-body); font-weight: var(--w-semi); }
 .p3-time { font-size: var(--t-meta); font-weight: var(--w-medium); color: var(--tx-3); flex-shrink: 0; }
-.p3-row.on .p3-time { color: var(--tx-2); }
+/* A picked row's time is a button that opens its tuning, so it wears the tap
+   colour for words straight on a sheet (§AM, 2026-09-26). In grey it was a
+   second grey beside the row's reason. */
+.p3-row.on .p3-time-btn:not(.placing) { color: var(--tint-on-sheet); }
+/* Placing, on a picked row, takes the same sheet red: the plain tap red on
+   the picked row's grey read 2.42:1 in dark and 4.03:1 in light. What says
+   "placing" is the underline, not a second red (2026-09-26). */
+.p3-row.on .p3-time-btn.placing { color: var(--tint-on-sheet); text-decoration: underline; text-underline-offset: 3px; }
+/* The key's amber on a picked row takes its sheet twin (2026-09-26, the
+   lead). The picked grey is 14% white over the sheet, #4A4A4B in dark, and
+   the plain amber read 4.31:1 there, under AA at the fact size; the twin
+   reads 4.96:1. The two placement warnings (outside the work hours, over a
+   flexible block) only ever draw on a picked row. Light keeps the system
+   amber, which is what the token resolves to there. */
+.p3-row.on .fact.warn { color: var(--warn-on-sheet); }
 
 /* === Roadmap v2: soft anchor guard === */
 .ag-scrim { position: fixed; inset: 0; z-index: 60; background: rgba(0,0,0,0.55);
@@ -1872,13 +1860,10 @@ body.jarvis-dragging { overflow: hidden; touch-action: none; -webkit-user-select
 
 /* === Roadmap v2 Session 6: Bigger Picture (goals + projects, derived) === */
 .bp-sub { font-size: var(--t-sub); font-weight: var(--w-sub); color: var(--tx-3); margin-top: var(--s-0h); }
-.bp-stalled { color: var(--warn); }
 .bp-bar { height: 4px; background: var(--press-3); border-radius: var(--r-xxs); overflow: hidden; margin-top: var(--s-1h); }
 .bp-bar-fill { height: 100%; border-radius: var(--r-xxs); background: var(--good-fill); }
-.bp-goal { align-items: center; }
-/* THE LIFE MERGE (2026-08-26): a goal's projects ride under it, indented,
-   and an area head wears its life-word chip in the count slot. */
-.proj-row.bp-nest { padding-left: calc(var(--s-4) + 26px); }
+/* THE LIFE MERGE (2026-08-26): an area head wears its life-word chip in the
+   count slot. */
 .sh2 .life-word { order: 2; align-self: center; }
 
 /* Session 6: red is never a mood (locked design law). Status qualifiers move to
@@ -1960,9 +1945,6 @@ body.jarvis-dragging { overflow: hidden; touch-action: none; -webkit-user-select
    logotype is exempt from the text bar outright, which is why it was the
    first thing to get this treatment and why it can now share the token. */
 [data-theme="light"] [data-theme="light"] .av-accent { background: var(--on-light-red); }
-/* uniformity.css status text colours, same light-theme problem (the overdue
-   count in the Today summary, file markers in the note editor). */
-[data-theme="light"] .fg-red { color: var(--on-light-red); }
 /* Found by the 2026-08-21 sweep, the first one that ran a contrast pass in
    light: a green "On track" pill at 2.22:1 and an amber deadline at 1.97:1
    were both technically visible and effectively unreadable. The text half of
@@ -2161,26 +2143,6 @@ button {
   min-width: var(--tap-min); min-height: var(--tap-min); width: 100%; height: 100%;
 }
 
-/* === Session 6.6: connected Bigger Picture === */
-/* The next-action line on a project row. */
-/* The project's next action is the single most useful string on this row and
-   it was clipping a quarter of itself at 320 wide. */
-/* AND IT WAS ALSO THE DIMMEST (Dave 2026-09-09: the Next line "doesn't stand
-   out at all and should"). It wore --tx-4, the token reserved for finished
-   and past states, while carrying the one live instruction on the row. It
-   then took --tx-2, meant as one step brighter than the lines around it --
-   but --tx-2 and --tx-3 are the same hex in both themes, so it was the
-   row's grey again (§AK). Next is amber in the key (§AM, 2026-09-25), and
-   it is drawn the way the ruled project row draws it (2026-09-26): only the
-   NEXT kicker is amber, 11px caps; the action after it is full ink. The
-   whole sentence in amber spent the key's colour on the words instead of
-   the label. The line is a two-line clamp, not a flex row, so the kicker
-   takes no flex-shrink, and the space in the markup is its gap. */
-.bp-next { color: var(--tx-1); }
-.bp-next-k { font-size: var(--t-micro); font-weight: var(--w-bold); letter-spacing: 0.06em;
-  text-transform: uppercase; color: var(--warn); }
-.bp-sub.bp-next.truncate { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-
 /* Person pass: chip rows inside sheets wrap instead of scrolling (a sheet has
    no horizontal-scroll affordance, and label/category picks must all be
    visible at once). The base .chip-row mask/scroll behavior stays for pages. */
@@ -2197,7 +2159,11 @@ button {
 /* UP-MIND-12: a claim that can show the sentence it came from. The chip is
    the claim, not a second control beside it, so the only visible difference
    is the quote mark and the fact that it takes a tap. */
-.ev-chip { background: none; border: 0; padding: 0; font: inherit; color: inherit; cursor: pointer; display: inline-flex; align-items: center; gap: var(--s-0h); }
+/* The chip is a button, and a button does not inherit its case or its
+   tracking, so a claim in small caps drew its chip in sentence case beside
+   it (2026-09-26). It takes both from the claim, as it takes the font. */
+.ev-chip { background: none; border: 0; padding: 0; font: inherit; color: inherit; cursor: pointer; display: inline-flex; align-items: center; gap: var(--s-0h);
+  text-transform: inherit; letter-spacing: inherit; }
 .ev-mark { opacity: 0.55; font-size: 1.05em; line-height: 1; }
 /* The sender's own sentence, unaltered. Quoted so it reads as theirs. */
 .ev-span { font-size: var(--t-body); color: var(--tx-1); line-height: 1.45; padding: var(--s-2) 0; }
@@ -2302,8 +2268,10 @@ button {
 /* E-12 (Push G): the sheet is a list now. Each window is one row, "9 AM ·
    45m", with a chevron into a single-window editor; the days row is seven
    two-letter chips, inverted when on (the same .chip.on the account chips
-   use, never the red fill), with the device-local note under it. */
-.win-note { font-size: var(--t-meta); color: var(--tx-3); padding: 0 0 var(--s-2); }
+   use, never the red fill), with the device-local note under it. The note
+   is the field-note primitive (§AM F6, 2026-09-26); this only keeps the
+   breath it had above the window list. */
+.win-days + .input-hint { margin-bottom: var(--s-2); }
 .win-row { cursor: pointer; }
 .win-editor { display: flex; flex-direction: column; gap: var(--s-2); padding: var(--s-2) 0 var(--s-1); }
 .win-editor .input-compact { width: 140px; flex: 0 0 auto; }
@@ -2445,10 +2413,13 @@ button {
    themselves, which is a change to make deliberately and not as part of a
    CSS sweep. Left alone on purpose; noted so nobody "fixes" it in passing. */
 /* The quiet line: words whisper, data pops. Bright tabular data in the time
-   face; heat only where a producer's own thresholds say so. */
+   face; a count of days takes the key's colour for the way it runs (Dave's
+   pick, 2026-09-26): one that has slipped is red, one still running forward
+   ("3 days left") is amber, needs you soon. */
 .qd { font-variant-numeric: tabular-nums;
   color: var(--tx-1); font-weight: var(--w-medium); }
 .qd-hot { color: var(--sys-red); }
+.qd-soon { color: var(--warn); }
 
 /* Undo lives in the toast, because the moment right after the action is the
    only moment anyone wants it. */
@@ -2508,6 +2479,10 @@ button {
    2026-09-25), the same as it already does on a task row's line. */
 .prov-link { color: var(--tint); text-decoration: none; cursor: pointer; }
 .prov-link:active { opacity: 0.6; }
+/* The date inside a source that opens is part of the tap, so it takes the
+   link's colour in every variant (base, sheet, light) rather than the
+   neutral date's grey; it keeps the date's small caps (2026-09-26). */
+.prov-link .fact.date { color: inherit; }
 /* SHARED-F-17 (2026-09-05): the link half of this line went live, so it owes
    the 44px tap target. Same route .pill-act takes (BROWSER-F-03): a
    transparent border, which lives in the border box and so survives any
@@ -2637,7 +2612,7 @@ button {
 .stat-tile.stat-good { background: var(--good-tint); }
 .stat-tile.stat-good .stat-num { color: var(--good); }
 .stat-tile.stat-sky { background: rgba(90, 200, 250, 0.14); }
-.stat-tile.stat-sky .stat-num { color: var(--cat-sky, #64D2FF); }
+.stat-tile.stat-sky .stat-num { color: var(--est-ink, #64D2FF); }
 .stat-tile.stat-warn { background: var(--warn-tint); }
 .stat-tile.stat-warn .stat-num { color: var(--warn); }
 .stat-tile.stat-plain .stat-num { color: var(--tx-1); }
@@ -2873,10 +2848,10 @@ button {
    the text edge), cards retire from navigation and plain lists. The generic
    adjacent-row divider moves out of cards too: same law everywhere. */
 .row + .row, .task-row + .task-row, .sched-row + .sched-row, .conn-row + .conn-row,
-.msg-row + .msg-row, .proj-row + .proj-row, .suggestion-row + .suggestion-row {
+.msg-row + .msg-row, .suggestion-row + .suggestion-row {
   border-top: 0; position: relative; }
 .row + .row::before, .task-row + .task-row::before, .sched-row + .sched-row::before,
-.conn-row + .conn-row::before, .msg-row + .msg-row::before, .proj-row + .proj-row::before,
+.conn-row + .conn-row::before, .msg-row + .msg-row::before,
 .suggestion-row + .suggestion-row::before {
   content: ""; position: absolute; left: var(--s-4); right: 0; top: 0; height: 0.5px; background: var(--divider); }
 .row:has(.row-ico) + .row::before, .row + .row:has(.row-ico)::before {
@@ -2991,7 +2966,7 @@ button {
    rule is at :2609 and this roster was overriding it from further down the
    file at equal specificity. */
 .conn-name, .sched-title, .task-title, .restore-title, .tip-title,
-.sh2 .t, .empty-title, .msg-name, .proj-title, .pagebar-title {
+.sh2 .t, .empty-title, .msg-name, .pagebar-title {
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* THE THREE STEPS ARE THE APP'S OWN SENTENCE, AND ONE OF THEM DID NOT FIT
    (measured 2026-09-09 at 390x844, the default phone: "Connect Gmail and
@@ -3022,7 +2997,7 @@ button {
    tap to read has stopped being a title. Two lines below 340, the law
    everywhere above it. */
 @media (max-width: 340px) {
-  .lib-name, .proj-title {
+  .lib-name {
     white-space: normal; display: -webkit-box;
     -webkit-line-clamp: 2; -webkit-box-orient: vertical; text-overflow: clip;
   }
@@ -3043,7 +3018,6 @@ button {
 .dec-main { font-size: var(--t-h2); font-weight: var(--w-semi); color: var(--tx-1); line-height: var(--lh-snug); }
 .dec-why { font-size: var(--t-body); color: var(--tx-2); line-height: var(--lh-relaxed); }
 .dec-old { font-size: var(--t-body); color: var(--tx-3); text-decoration: line-through; }
-.dec-meta { font-size: var(--t-meta); color: var(--tx-3); }
 
 /* CATALOG V4 (The Branded Library, Dave 2026-08-18). Flagged block. */
 /* Filled brand glyphs on nav lists: red is the wash, filled is the state. */
@@ -3236,9 +3210,6 @@ button {
    .fact.cat the page row carries, so the two read as one component. One line
    here too: the name gives way in an ellipsis rather than wrapping the row. */
 .rem-row .facts { margin-top: 1px; }
-.rem-row .facts > .fact { flex-shrink: 0; }
-.rem-row .facts > .fact.cat { min-width: 0; flex-shrink: 1; }
-.rem-row .facts > .fact.cat .cat-t { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* A missed reminder still marks its TIME and not the whole row, but the
    time takes the key's red (§AM, 2026-09-25): the key files missed with the
    other lapsed states, which supersedes the August note that kept it white. */
@@ -3972,10 +3943,10 @@ button {
    this app counts it as. Same hue, ring only. */
 .chip.chip-half.chip-lime { background: none; color: var(--hl-lime); box-shadow: inset 0 0 0 1.5px var(--hl-lime-tint); }
 .chip-act { color: var(--accent-tx); }
-/* The load line under the strip. Amber only when the day says no; a neutral
-   day must never look like a warning. */
-.plan-load { font-size: var(--t-meta); color: var(--tx-3); padding: 2px var(--s-1) var(--s-2); font-variant-numeric: tabular-nums; }
-.plan-load.over { color: var(--amber, #FF9F0A); font-weight: var(--w-semi); }
+/* The load line under the strip. It is a facts line, so the facts rule sets
+   its size and ink and whether the picks fit wears the key's colour
+   (2026-09-26); this only places it. */
+.plan-load { padding: 2px var(--s-1) var(--s-2); font-variant-numeric: tabular-nums; }
 /* Length chips wrap; the live number rides in front of them so an AI or
    learned length that no chip can express is still legible. */
 /* Length chips WRAP rather than scroll. A scrolling row hid the live length
@@ -4148,7 +4119,15 @@ button {
 }
 [data-theme="light"] .note-conn-add { color: var(--on-light-red); }
 .note-conn-add .ic { width: 13px; height: 13px; }
-.note-conn-add:active { background-color: var(--press-3); }
+/* Pressed is a step past the resting fill in both themes: in light the
+   capsule fill IS the 8% press, so the 8% press showed no change, and in
+   dark it sank below the opaque rest. The 14% / 13% press lifts it. */
+.note-conn-add:active { background-color: var(--press-5); }
+/* Dark's press is an opaque step instead (2026-09-26): --press-5 is a white
+   alpha, which over the black note page is #242424, and the red label read
+   4.19:1 there, below its own resting 4.82. --surface-1 (#1C1C1E) still
+   lifts off the rest fill and keeps the label at 4.59:1. */
+[data-theme="dark"] .note-conn-add:active { background-color: var(--surface-1); }
 /* With nothing linked yet the same control says what it is (Dave
    2026-09-12: a bare dashed circle under the title read as a stray). Once
    a chip exists the circle is enough, it sits after the chips.
@@ -4277,7 +4256,7 @@ button.check-linked:active { opacity: 1; background: var(--press-3); }
    fact you should be able to find. */
 .strand-row.paused { opacity: 0.45; }
 .strand-head { font-size: var(--t-h2); font-weight: var(--w-bold); letter-spacing: var(--track-h2); margin-bottom: var(--s-1); }
-.strand-receipt { display: flex; gap: var(--s-3); padding: var(--s-2h) 0; border-bottom: 0.5px solid var(--divider); }
+.strand-receipt { display: flex; align-items: baseline; gap: var(--s-3); padding: var(--s-2h) 0; border-bottom: 0.5px solid var(--divider); }
 .strand-receipt:last-child { border-bottom: 0; }
 .strand-receipt .r-what { flex: 1; min-width: 0; }
 /* Destructive verb on a neutral button: the shape says "secondary", the
@@ -4292,6 +4271,19 @@ button.check-linked:active { opacity: 1; background: var(--press-3); }
 .notice-card .vrow-fact, .notice-card .vrow-sub {
   display: block; -webkit-line-clamp: 1; -webkit-box-orient: vertical;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* A verb row's sub is whole or not at all: the card measures it and drops a
+   sub that runs past its box. A facts line inside it clipped its own
+   overrun, so a first fact wider than the line (a late chip, "Over a month
+   late" beside a short title) was cut mid-word with the sub still on
+   screen, and the measurement never saw it (2026-09-26). The facts line
+   lets its overrun reach the sub's own box, where the card can see it, and
+   a leading fact keeps its whole width here rather than stopping at the
+   line's edge, so a sub that cannot fit is dropped instead of cut. No
+   fact here shrinks, the last one included: a shrinking fact absorbs the
+   overrun, the sub never measures wider than its box, and the latch never
+   fires (Rent's "Due Monday" showed as "DUE ...", 2026-09-26). */
+.notice-card .vrow-sub > .facts { overflow: visible; }
+.notice-card .vrow-sub > .facts > .fact { flex-shrink: 0; max-width: none; overflow: visible; }
 /* BROWSER-F-06 (2026-09-05): except when there is no sub. A uniform card is
    72px tall by law, which is TWO lines of title type, and the verb row spent
    one of them on a line that does not exist, so "You train between 9 AM and
@@ -4346,7 +4338,9 @@ button.check-linked:active { opacity: 1; background: var(--press-3); }
    The failed facelift drowned light theme in gray: every action was an 8%
    gray fill with red text, which is also iOS's grammar for DISABLED, and
    dozens of them per screen read as dishwater. Daylight replaces
-   gray-on-gray with tint, two ways.
+   gray-on-gray with tint, two ways. (The second, a category kicker drawn
+   as a tinted chip, retired 2026-09-26 with the last kicker that drew one:
+   a category rides its dot, §AM.)
    ============================================================ */
 /* 1 · ACTIONS WEAR THE BRAND. Every capsule that is not primary, danger or
    deliberately neutral takes the iOS tinted-button form: a soft wash of
@@ -4464,17 +4458,6 @@ button.check-linked:active { opacity: 1; background: var(--press-3); }
 [data-theme="light"] .btn-tertiary { background: transparent; color: var(--tint); }
 [data-theme="light"] .btn-disabled { background: var(--press-1); color: var(--tx-2); }
 [data-theme="light"] .btn-icon { background: var(--press-3); color: var(--tx-1); }
-/* 2 · KICKERS BECOME CHIPS. A category eyebrow carries its hue in a tinted
-   chip of its own colour, so the hue does the identifying and the ink only
-   has to be legible. This is the one cure for the yellow family: mustard
-   text on a wheat chip reads GOLD, which no legal yellow ink can do alone.
-   color-mix keeps every chip on its own text colour with no second token. */
-[data-theme="light"] .eyebrow[class*="cat-fg-"] {
-  display: inline-flex; align-items: center; width: fit-content;
-  padding: var(--s-0h) var(--s-2); border-radius: var(--r-sm); margin-top: var(--s-0h);
-  /* The wash itself is per-slot (it mixes the FILL, not the ink) and lives
-     with the palette above. Geometry only here. */
-}
 /* 4 · LIGHT WEARS THE FILLED GLYPH (Dave 2026-08-22: "on the light version
    filled in icons look MUCH better. Can we fill those in exclusively on the
    light version?"). Every icon ships as a PAIR from shared/icons.tsx -- the
@@ -4722,7 +4705,7 @@ body.selecting .voice-dock { display: none; }
 /* 4A: the verb is the headline. Big on purpose: it is the decision, and the
    email below it is the evidence. A drafted reply reads as a quote. */
 .sweep-kicker-row { display: flex; align-items: center; justify-content: space-between; gap: var(--s-2); }
-.sweep-cost { font-size: var(--t-meta); color: var(--cat-sky); font-variant-numeric: tabular-nums; flex-shrink: 0; } /* §AM: an estimate */
+.sweep-cost { font-size: var(--t-meta); color: var(--est-ink); font-variant-numeric: tabular-nums; flex-shrink: 0; } /* §AM: an estimate */
 .sweep-verb { font-size: var(--t-h2); font-weight: var(--w-bold); line-height: var(--lh-tight);
   letter-spacing: -0.01em; margin: var(--s-2) 0 var(--s-3); overflow-wrap: break-word; }
 .sweep-verb-quote { font-weight: var(--w-semi); font-size: var(--t-h3); }
@@ -4834,10 +4817,6 @@ body.selecting .voice-dock { display: none; }
 .msg-machines-sweep { flex-shrink: 0; }
 .list-card-ruled > .msg-machines:not(:last-child) { border-bottom: 0.5px solid var(--divider); }
 
-/* 9A: the amnesty's promise line. Quieter than the offer above it, because
-   it is the reassurance rather than the ask, but never hidden: every clause
-   in it is the reason a one-tap bulk action is safe to take. */
-.msg-amnesty-promise { color: var(--tx-3); margin-top: var(--s-0h); }
 
 /* ===== 11C: THE CLEAN OUT (Dave 2026-08-25: "cleaning it out and mass
    deletion"). The most dangerous screen in the app, so its styling job is
@@ -4933,13 +4912,8 @@ body.selecting .voice-dock { display: none; }
 .mail-door-who { font-size: var(--t-meta); color: var(--tx-3); margin-top: var(--s-7); }
 
 /* ---- Health page reads the gym (2026-08-25) ------------------------------
-   The Sessions tile and the trained-days strip. Blue is the training world's
-   color everywhere else on the page (ico-blue dumbbell), so the tile and the
-   dots wear it too. Light overrides are BLENDS against the real tint, not
-   flat guesses: #0A5FD0 measures 4.98:1 on the 14% blue wash. */
-.stat-tile.stat-blue { background: rgba(10, 132, 255, 0.14); }
-.stat-tile.stat-blue .stat-num { color: var(--blue); }
-[data-theme="light"] .stat-tile.stat-blue .stat-num { color: #0A5FD0; }
+   The trained-days strip. Blue is the training world's colour everywhere
+   else on the page, so the dots wear it too. */
 .week-dots { display: inline-flex; gap: var(--s-1); margin-right: var(--s-2); flex-shrink: 0; align-self: center; }
 .week-dots i { width: 7px; height: 7px; border-radius: var(--r-circle); background: var(--surface-3); }
 .week-dots i.on { background: var(--blue); }
@@ -4965,11 +4939,6 @@ body.selecting .voice-dock { display: none; }
 .rep-win-name { font-size: var(--t-sub); font-weight: var(--w-medium); color: var(--tx-3); }
 .rep-win-val { font-size: calc(17px * var(--type-scale)); font-weight: var(--w-bold); margin-top: var(--s-0h); }
 .rep-win-good { background: var(--good-tint); } .rep-win-good .rep-win-val { color: var(--good); }
-.rep-win-blue { background: rgba(10, 132, 255, 0.14); } .rep-win-blue .rep-win-val { color: var(--blue); }
-.rep-win-purple { background: rgba(191, 90, 242, 0.14); } .rep-win-purple .rep-win-val { color: var(--cat-purple); }
-.rep-win-warn { background: var(--warn-tint); } .rep-win-warn .rep-win-val { color: var(--warn); }
-[data-theme="light"] .rep-win-blue .rep-win-val { color: #0A5FD0; }
-[data-theme="light"] .rep-win-purple .rep-win-val { color: #7A2F9E; }
 .rep-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-2); }
 .rep-grid .stat-tile { border-radius: var(--r-md); padding: var(--s-3h) var(--s-2) var(--s-3); text-align: center; }
 /* The delta is the tile's one quiet fact (§AM F1/F4, 2026-09-25): the fact
@@ -5474,7 +5443,7 @@ body.selecting .voice-dock { display: none; }
 .list-card .reorder-live .day-pin { display: none; }
 /* The row's own note echo (preview .ghost: a fact, quoted, above meta
    legibility). */
-.row-ghost { font-size: var(--t-meta); color: var(--tx-2); margin-top: var(--s-0h);
+.row-ghost { font-size: var(--t-sub); color: var(--tx-3); margin-top: var(--s-0h);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* A neutral in-row pill (preview's white "Edit All Sets"). */
 .pill-act.pill-neutral { color: var(--tx-1); }
@@ -5825,7 +5794,9 @@ body.selecting .voice-dock { display: none; }
   font: inherit; font-size: calc(15px * var(--type-scale)); font-weight: 600; padding: var(--s-2) var(--s-1h); cursor: pointer; }
 /* The format tag names a format; it means nothing the key colours, so it is
    the neutral tag: its fill and caps set it apart, in the one grey (§AM,
-   2026-09-25). Blue is Health's cool-down, and this is not one. */
+   2026-09-25). Blue is Health's cool-down, and this is not one.
+   Its size, like the round line's and the landscape corners', is held with
+   the clock-caps question for Dave (the receipt's tag is 11); not moved until he rules. */
 .cf-fmt { font-size: var(--t-caption); font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; color: var(--tx-3);
   background: var(--press-3); padding: var(--s-1) var(--s-2h); border-radius: var(--r-sm); }
 .cf-name { font-size: var(--t-sub); color: var(--tx-3); max-width: 70vw; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -5858,7 +5829,8 @@ body.selecting .voice-dock { display: none; }
 .cf-knob.dragging { transition: none; cursor: grabbing; }
 .cf-knob::after { content: ""; width: 12px; height: 12px; background: #fff; border-radius: var(--r-xxs); }
 
-/* The corners exist for landscape only. */
+/* The corners exist for landscape only. Their type size is held with the
+   clock-caps question for Dave, like the format tag's; not moved until he rules. */
 .cf-corner { display: none; }
 
 /* ---------- LANDSCAPE (ruled: the number fills the width, everything
@@ -5983,10 +5955,21 @@ body.selecting .voice-dock { display: none; }
    went ragged -- and three components had already been patched to nowrap
    one at a time, which is the drift this pass exists to end. The facts are
    ordered most-important-first everywhere, so the one that gives way is the
-   one at the end. It ellipses rather than clipping: cut text is a bug. */
-.facts > .fact:last-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.facts > .fact { flex-shrink: 0; }
-.facts > .fact:last-child { flex-shrink: 1; }
+   one at the end. It ellipses rather than clipping: cut text is a bug.
+
+   AMENDED 2026-09-26 (the lead): EVERY FACT CAN SAY IT WAS CUT. The earlier
+   facts held their width, so when they alone were wider than the line (a
+   late chip beside a length, a hedged deadline beside a pill, anything at
+   type scale 1.4) the line clipped them mid-word with no mark, and each fix
+   at one site turned up the next. Now every fact may shrink and each one
+   ellipsizes itself, but the last one yields a thousand times faster, so it
+   still gives way first and the ones before it only shorten once it is
+   gone. The order of the facts still decides what survives; this only makes
+   sure nothing is ever cut without a "...". An area fact is a flex box of
+   its own, so its name carries the ellipsis. */
+.facts > .fact { min-width: 0; flex-shrink: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.facts > .fact:last-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex-shrink: 1000; }
+.facts > .fact.cat .cat-t { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* THE ONE-LINE RULE IS A LIST RULE, AND THIS IS NOT A LIST (2026-09-21).
    "Three facts, one line" exists so a busy ROW does not grow a third line
    and leave the list ragged. The focus card is one card on an otherwise
@@ -5997,6 +5980,18 @@ body.selecting .voice-dock { display: none; }
    wrapped line. At --type-scale 1 it is one line, as before. */
 .focus-card .facts { align-items: flex-start; }
 .focus-card .facts > .fact:last-child { white-space: normal; overflow: visible; text-overflow: clip; }
+/* Plan My Day's load line is the same case (2026-09-26): one line on a
+   sheet, not a row in a list. The verdict leads and keeps its width; the
+   open time after it ellipsized at 1.4 ("3h 30m open, 2 alrea..."), so it
+   wraps inside its own column instead, every word showing. At type scale 1
+   it is one line, as before. */
+.facts.plan-load { align-items: flex-start; }
+.facts.plan-load > .fact:last-child { white-space: normal; overflow: visible; text-overflow: clip; }
+/* A facts line under a sheet's group is the group's footer (2026-09-26): the
+   task sheet's days late or times pushed, under When, on the sheet ground.
+   It stands the footer's distance off the card, as a field note does, not
+   the 2px a facts line keeps under a row's title. */
+.form-sheet .sheet-form > .pad-x > .facts { margin-top: var(--s-2); }
 
 /* THE LEAD CHIP IS REVERTED (2026-09-18, same day, on Dave's screenshots).
    "I would prefer one chip if there's two facts" was implemented as: the
@@ -6012,6 +6007,21 @@ body.selecting .voice-dock { display: none; }
    Exercises page) are capsules because of WHAT THEY ARE, which does not
    change between screens. */
 .fact + .fact::before { content: "\00B7"; color: var(--tx-4); margin: 0 var(--s-1h); }
+/* A LINE WHOSE JOB IS TO SHOW EVERY FACT SHOWS EVERY FACT (2026-09-26, the
+   lead). A review or import screen, a capture receipt and a settings row
+   keep their facts in the wrapping meta line rather than the one-line facts
+   line, so none gives way. The meta line's two-line clamp still hid them:
+   at 1.4 a receipt with a date, a time, a repeat and a name needs three or
+   four lines, and an upload row beside its buttons is 125px wide. So a meta
+   line built of facts has no clamp. Each fact stays whole on its line
+   (never "11:30 / PM"), and the dot rides at the END of a fact, not the
+   start of the next, so no wrapped line opens on a separator. An area fact
+   is already an atomic inline flex and keeps its own display. A meta line
+   that is itself the facts line keeps the flex row above. */
+.conn-meta:not(.facts):has(> .fact) { display: block; -webkit-line-clamp: none; overflow: visible; }
+.conn-meta:not(.facts) > .fact:not(.cat) { display: inline-block; }
+.conn-meta:not(.facts) > .fact + .fact::before { content: none; }
+.conn-meta:not(.facts) > .fact:not(:last-child)::after { content: "\00B7"; color: var(--tx-4); margin: 0 var(--s-1h); }
 /* A fact that carries meaning takes its intent COLOUR, and only its colour.
    At most one of these per .facts line (K.3, extended by the law in
    laws/astra.test.ts); .fact.st and .fact.cat do not count toward it.
@@ -6028,8 +6038,19 @@ body.selecting .voice-dock { display: none; }
    the urgency chip and the ruled state word already take for the same
    meaning. (Worded without naming those two classes right above a --sys-red
    rule: L1's GUILT pattern reads the raw sheet, comments and all, and a
-   nearby class name is enough to trip it.) */
+   nearby class name is enough to trip it.)
+   A timer that has run out wears the meaning of what ran out: a spent gym
+   time budget is over the limit (red); a finished fifteen needs you now
+   (amber). */
 .fact.red { color: var(--sys-red); }
+/* THE KEY'S RED ON A SHEET GREY (2026-09-26, the lead). Straight on a sheet
+   the system red reads 4.09:1 in dark, under AA at the fact size, so a fact
+   there takes the sheet twin of the red, the same way the tap words take
+   --tint-on-sheet (BROWSER-F-10). Dark #FF6961, 4.94:1 on the sheet; light
+   is the system red unchanged. Both selectors outrank the bare two-class
+   fact above, and no sheet draws the ruled line's three-class form. */
+.sheet-scrim > .card .fact.red,
+.form-sheet .fact.red { color: var(--sys-red-on-sheet); }
 /* §AM PRIMITIVES (2026-09-22). One way to draw each meaning inside a quiet
    line. The sweep that applied the Colour Key across every screen found each
    screen reaching for its own answer -- "fact urgency", "fact dec-when",
@@ -6043,8 +6064,16 @@ body.selecting .voice-dock { display: none; }
 .fact.date { font-size: var(--t-eyebrow); font-weight: var(--w-semi);
   letter-spacing: var(--track-caps); text-transform: uppercase; color: var(--tx-3);
   font-variant-numeric: tabular-nums; }
-/* AN ESTIMATE the app worked out is sky, the ink .r-est already wears. */
-.fact.est { color: var(--cat-sky); font-variant-numeric: tabular-nums; }
+/* AN ESTIMATE the app worked out is sky, the ink .r-est already wears.
+   The estimate has its own ink, --est-ink (Dave's pick, 2026-09-26): in dark
+   it IS the sky slot, unchanged; in light it is a darker sky, #006592,
+   because Apple's cyan (#32ADE6) as text read 2.28:1 on the light page and
+   2.54:1 on a white card. #006592 reads 5.74:1 and 6.41:1, and 5.11:1 on
+   the light raised grey. The category slot itself does not move: a sky
+   area's dot and tile stay Apple's cyan. */
+:root { --est-ink: var(--cat-sky); }
+[data-theme="light"] { --est-ink: #006592; }
+.fact.est { color: var(--est-ink); font-variant-numeric: tabular-nums; }
 /* A NUMBER inside a quiet line that means nothing in particular steps up to
    white (F1) -- never the same grey made heavier, which is what --tx-2 is. */
 .facts b, .fact b, .sched-cat b { font-weight: var(--w-semi); color: var(--tx-1); }
@@ -6085,9 +6114,9 @@ body.selecting .voice-dock { display: none; }
 .hl .hl-title { min-width: 0; }
 /* THE SUB LINE IS THE FACTS LINE. .conn-meta gives it the notice sub's size
    and colour; .facts gives it the dot separators and the chip. It cannot wrap
-   (the row is one height for every member of this card), so the facts hold
-   their width and the LAST one -- the placement fragment, which is the only
-   one of variable length -- takes the ellipsis. A fact cut mid-word reads as
+   (the row is one height for every member of this card), so the LAST fact
+   -- the placement fragment, which is the only one of variable length --
+   takes the ellipsis first, by the shared .facts rule. A fact cut mid-word reads as
    a different fact, so nothing here clips without saying so. */
 /* .notice-card-uniform.conn-meta is a BLOCK with its own ellipsis, which beat
    .facts's display:flex on specificity: the facts were laid out as inline
@@ -6096,9 +6125,6 @@ body.selecting .voice-dock { display: none; }
    own. The line is the flex row .facts means it to be, and it clips nothing
    itself -- the LAST fact does, and says so. */
 .hl .conn-meta { display: flex; align-items: center; text-overflow: clip; }
-.hl .facts > .fact { flex-shrink: 0; }
-.hl .facts > .fact:last-child { flex-shrink: 1; min-width: 0;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* RED IS A VERB, and Start is the one verb on this page that spends real
    minutes (Dave 2026-09-16, picking option 3 from the rendered comparison:
    "Option 3"). It keeps the accent fill and changes nothing else -- same
@@ -6165,7 +6191,9 @@ span.row-star { cursor: default; }
    a goal hero, the check-in card, the milestone rows. */
 .goal-ring { margin-bottom: var(--s-2); }
 .goal-checkin .conn-meta { margin: 2px 0 var(--s-2); }
-.goal-checkin .receipt-line { padding-left: 0; padding-top: var(--s-2h); }
+/* The check-in date under the pills keeps the breath the receipt line it
+   replaced had (2026-09-26). */
+.goal-checkin .facts { margin-top: var(--s-2h); }
 .ms-row.completed .task-name { text-decoration: line-through; color: var(--tx-2); }
 
 /* CONTACTS, ROUTINE, WRITING, VALUES, PUSH G (C-59 to C-63, C-57, C-56,
@@ -6524,7 +6552,6 @@ span.row-star { cursor: default; }
 .mt-sum-value { margin-top: var(--s-0h); font-size: calc(18px * var(--type-scale)); font-weight: var(--w-semi);
   color: var(--tx-1); font-variant-numeric: tabular-nums; }
 .mt-sum-value.good { color: var(--good); }
-.mt-sum-value.warn { color: var(--warn); }
 
 .mt-note { font-size: var(--t-meta); color: var(--tx-3); margin-bottom: var(--s-2); }
 

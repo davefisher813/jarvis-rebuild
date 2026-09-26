@@ -19,7 +19,7 @@ describe("ReminderDetailSheet", () => {
     const onOpenLinked = vi.fn(); const onComplete = vi.fn();
     const link = { type: "task" as const, id: "t1", label: "Bridge Priorities" };
     render(<ReminderDetailSheet {...base} item={item({ time: "09:00", days: [1, 2, 3, 4, 5], linkedItem: link })} onOpenLinked={onOpenLinked} onComplete={onComplete} />);
-    expect(screen.getByText("Today · 9:00 AM")).toBeInTheDocument();
+    expect(screen.getByText("Today, 9:00 AM")).toBeInTheDocument();
     expect(screen.getByText("Weekdays")).toBeInTheDocument();
     expect(screen.getByText("Once After 15 Minutes")).toBeInTheDocument();
     expect(screen.getByText("Bridge Priorities")).toBeInTheDocument();

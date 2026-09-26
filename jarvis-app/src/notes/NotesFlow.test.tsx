@@ -191,7 +191,11 @@ describe("NotesFlow: a link to something deleted says so (HMN-F-18)", () => {
     view.rerender(<NotesProvider userId={user}><GrabAll /><NotesFlow openId={id} onNavigate={onNavigate} /></NotesProvider>);
 
     // The chip strip under the title: one link says what happened to it.
-    const dead = await screen.findByText(/Book the Flights · Gone/, {}, { timeout: 4000 });
+    // The label stays the link's own name, and GONE is a small-caps state
+    // beside it, not " · Gone" typed onto the label (§AM F3).
+    const dead = await screen.findByText("Book the Flights", { selector: ".note-conn-label" }, { timeout: 4000 });
+    const gone = dead.closest(".note-conn")?.querySelector(".urgency");
+    expect(gone).toHaveTextContent(/^Gone$/);
     fireEvent.click(dead);
     expect(onNavigate).not.toHaveBeenCalled();
     // The link that still points at something opens the way it always did.

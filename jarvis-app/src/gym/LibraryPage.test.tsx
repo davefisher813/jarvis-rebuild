@@ -44,11 +44,17 @@ describe("LibraryPage: the row's anatomy", () => {
     render(<LibraryPage {...base} rows={[row()]} />);
     // The count leads the line, so the word behind it carries the capital
     // (shared/casing.ts; applied here in the 2026-09-16 health polish pass).
-    expect(screen.getByText("4 Sessions")).toHaveClass("fact");
+    expect(screen.getByText("4 Sessions")).toHaveClass("fact", "lime");
     // "Last yesterday" was half of a run-on; when it happened is its own
     // field now, and it opens with a capital because it is the first word of
     // a line rather than the tail of a sentence.
-    expect(screen.getByText("Tuesday")).toHaveClass("fact", "cyan");
+    // AMENDED 2026-09-26 (sweep #14): the count is logged work and keeps the
+    // lime; when it last happened is a neutral past date, small caps, the
+    // same primitive the lift's own page uses for "Logged ...". One lime per
+    // line, so the two facts no longer read as one colour twice.
+    const when = screen.getByText("Tuesday");
+    expect(when).toHaveClass("fact", "date");
+    expect(when).not.toHaveClass("lime");
   });
 
   it("offers Assign Muscles in amber, and only while there is no primary", () => {

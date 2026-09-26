@@ -52,7 +52,9 @@ export default function MedicationScreen({
             <div {...pressable(onLogDose)} className="task-row p2">
               <div className="task-title">
                 <span className="task-name">Log a Dose</span>
-                <div className="r-k"><span className="r-goal r-cat">{lastWord ? "Last dose " + lastWord.toLowerCase() : "Marks the moment, never a tally"}</span></div>
+                {/* Before the first dose there is nothing to say, so the row
+                    says nothing (§AK): no placeholder line under the name. */}
+                {lastWord && <div className="r-k"><span className="r-goal r-cat">{"Last dose " + lastWord.toLowerCase()}</span></div>}
               </div>
               {chev}
             </div>

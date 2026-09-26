@@ -224,11 +224,9 @@ export default function ScheduleUploadFlow({
           <div className="grp"><div className="eyebrow">What Year Is This?</div></div>
           <div className="pad-x sheet-form">
             <div className="field">
-              <div className="t-body">Schedule didn&rsquo;t say · Applies to undated rows</div>
-            </div>
-            <div className="field">
               <label className="input-label">Year</label>
               <input type="number" className="input" value={year} onChange={(e) => setYear(Number(e.target.value) || year)} />
+              <div className="input-hint">Schedule didn&rsquo;t say · Applies to undated rows</div>
             </div>
           </div>
           <div className="pad-x sheet-actions">
@@ -260,7 +258,6 @@ export default function ScheduleUploadFlow({
               <img className="upload-thumb" src={thumb} alt="Uploaded schedule" />
               <div className="row-grow">
                 <div className="conn-name">{rows.length} {rows.length === 1 ? "event" : "events"} found</div>
-                <div className="conn-meta">Tap a row to fix it</div>
               </div>
             </div></div>
           )}
@@ -274,9 +271,18 @@ export default function ScheduleUploadFlow({
                 onKeyDown={(e) => { if (e.target === e.currentTarget) onPressKey(() => setFixIdx(i))(e); }}>
                 <div className="row-grow">
                   <div className={"conn-name truncate" + (r.skip ? " upload-row-skipped" : "")}>{r.title}</div>
+                  {/* This screen exists to check the times it read, so every
+                      fact must show: they sit in the wrapping, unclamped
+                      .conn-meta (components.css: a meta line built of facts
+                      has no clamp), not the one-line .facts whose last fact
+                      gives way (2026-09-26, as gym/UploadFlow's review row).
+                      The stylesheet still draws the dots between them. */}
                   <div className="conn-meta">
-                    {weekdayShortDate(r.date)} · {r.noTime ? "No time found" : fmtRange(r.start, r.end)}
-                    {r.matchId ? " · Updates existing" : ""}
+                    <span className="fact date">{weekdayShortDate(r.date)}</span>
+                    {r.noTime
+                      ? <span className="fact warn">No time found</span>
+                      : <span className="fact date">{fmtRange(r.start, r.end)}</span>}
+                    {r.matchId ? <span className="fact">Updates existing</span> : null}
                   </div>
                 </div>
                 {/* UP-CORE-11: the repeat, said out loud and flippable here.

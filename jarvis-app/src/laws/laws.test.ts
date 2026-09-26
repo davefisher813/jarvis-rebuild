@@ -2456,6 +2456,60 @@ describe("LAW L1: red is a verb, never a status", () => {
     const bad = [...CSS.matchAll(UNREAD_RED)].map((m) => m[0].split("{")[0]!.trim());
     expect(bad, "unread is a fact about the inbox and behind is amber at most, never a failure").toEqual([]);
   });
+  // THE MAIL RAIL, PINNED (AMENDED 2026-09-26, round-4 review, the lead).
+  // The amendment above cites "the mail rail's white dot", but no pattern
+  // saw the rail: its unread state is its .on class and its lateness is its
+  // .hot class, and neither word is in GUILT or UNREAD_RED. On main the
+  // unread rail wore the brand red and every law passed; putting that back,
+  // or the tap red on a hot rail, passed too. So the settled rail is pinned
+  // here by rule (Colour Key, 2026-09-26): solid white is unread, amber is
+  // due soon or a wait of weeks, the system red is a wait past the point an
+  // email helps. Every rule in every sheet that names the rail is judged,
+  // in either theme and inside an at-rule too: a rail that is not hot takes
+  // no red of any kind, and a hot rail takes the system red, never the tap
+  // red. Nothing above is narrowed by it.
+  it("the mail rail wears the key: white unread, amber due, the system red late, the tap red never", () => {
+    const bare = CSS.replace(/\/\*[\s\S]*?\*\//g, "")
+      .replace(/@(?:media|supports|container|layer)[^{;]*\{/g, "");
+    const bodies = new Map<string, string>();
+    const bad: string[] = [];
+    for (const m of bare.matchAll(/([^{}]*)\{([^}]*)\}/g)) {
+      for (const one of m[1]!.split(",").map((x) => x.replace(/\s+/g, " ").trim())) {
+        // Both mail rails: the Waiting rail (.msg-rail) and the 3px mark on a
+        // machine sender's row (.mrail). AMENDED 2026-09-26: .mrail joined.
+        if (!one || one.startsWith("@") || !/\.m(?:sg-)?rail(?![\w-])/.test(one)) continue;
+        bodies.set(one, (bodies.get(one) ?? "") + m[2]!);
+        const hot = /\.hot(?![\w-])/.test(one);
+        if (hot ? TAP_RED.test(m[2]!) : ANY_RED.test(m[2]!)) bad.push(one + " -> " + m[2]!.trim());
+      }
+    }
+    expect(bad, "the rail's red is the system red, and only a hot rail wears it").toEqual([]);
+    expect(bodies.get(".msg-rail.on"), "unread is solid white, the primary ink")
+      .toMatch(/background(?:-color)?:\s*var\(--tx-1\)/);
+    for (const sel of [".msg-rail.hot", ".msg-rail.on.hot"]) {
+      expect(bodies.get(sel), sel + " is late, the system red").toMatch(/var\(--sys-red\)/);
+    }
+    for (const sel of [".msg-rail.warm", ".msg-rail.on.warm", ".mrail.due"]) {
+      expect(bodies.get(sel), sel + " is due, the key's amber").toMatch(/var\(--warn-fill\)/);
+    }
+    // The pins hold in every theme: any rule whose LAST compound is a rail
+    // state and that paints the rail must paint it that state's colour, so a
+    // [data-theme] twin cannot quietly turn unread grey or late amber.
+    const paint = /(?:background(?:-color)?|box-shadow):\s*([^;]+)/g;
+    const wrong: string[] = [];
+    for (const [sel, body] of bodies) {
+      const last = sel.split(" ").pop()!;
+      const want = /\.hot(?![\w-])/.test(last) ? /var\(--sys-red\)/
+        : /\.warm(?![\w-])|\.due(?![\w-])/.test(last) ? /var\(--warn-fill\)/
+        : /\.msg-rail\.on(?![\w-])/.test(last) ? /var\(--tx-1\)/ : null;
+      if (!want) continue;
+      for (const m of body.matchAll(paint)) {
+        if (/^(?:none|transparent|0)\b/.test(m[1]!.trim())) continue;
+        if (!want.test(m[1]!)) wrong.push(sel + " -> " + m[0]);
+      }
+    }
+    expect(wrong, "a rail state wears its own colour in every theme").toEqual([]);
+  });
   it("the ruled lateness classes render only when something is actually late", () => {
     // The red is earned by the render condition, not by the class name. Both
     // sites must be gated in TodayPage.
@@ -2500,7 +2554,13 @@ describe("LAW L1: red is a verb, never a status", () => {
   // because the class that carried this for months was called `.tab-badge`
   // and looked perfectly innocent in a stylesheet.
   it("no red badge rule survives with nothing to fill it", () => {
-    const reds = [...CSS.matchAll(/\.([a-z][a-z0-9-]*badge[a-z0-9-]*)\s*\{[^}]*(?:--accent-fill|--sys-red|--on-light-red)\b[^}]*\}/gi)]
+    // AMENDED 2026-09-26 (round-4 review, the lead): red here was three
+    // tokens of its own (--accent-fill, --sys-red, --on-light-red), so a
+    // dead badge painted --tint, --accent, --danger-tx, --red, a hand hex or
+    // a reference with a fallback passed, though L1 reads red from the one
+    // shared definition. It is the shared ANY_RED now (laws/reds.ts), which
+    // matches every token the old list did, their fills included.
+    const reds = [...CSS.matchAll(new RegExp(String.raw`\.([a-z][a-z0-9-]*badge[a-z0-9-]*)\s*\{[^}]*(?:${ANY_RED.source})[^}]*\}`, "gi"))]
       .map((m) => m[1]!);
     const src = COMPONENTS.map((f) => read(f)).join("\n");
     const dead = reds.filter((c) => !new RegExp("\\b" + c + "\\b").test(src));
@@ -3178,10 +3238,19 @@ describe("LAW 7: one question gets one row, and a colour never speaks for a cate
     // pick had no reason. startPick makes no such pick now, so the reason is
     // printed on the card. Anchored on the JSX, not the file: the note above
     // this component still uses the old words to say what it replaced.
-    expect(card, "the reason is printed, not hidden behind a link")
-      .toMatch(/<span className="fact">\{line\}<\/span>/);
-    expect(card, "and the reason leads the line")
-      .toMatch(/const line = \[reason, action\.ready\]\.filter\(Boolean\)/);
+    // AMENDED 2026-09-26 (Colour Key sweep, lead decision #124): TWO FACTS,
+    // NOT ONE JOIN. The one span with a typed middle dot held a late reason
+    // in the same grey as what is ready (§AK V5.2, §AM F3). The reason is
+    // now its own fact in its key colour, what is ready the fact after it,
+    // and the stylesheet draws the dot between them. Still printed, still
+    // first, still no sheet.
+    expect(card, "the reason is printed, not hidden behind a link, in its key colour")
+      .toMatch(/\{why && <span className=\{reasonClass\(why\)\}>\{why\}<\/span>\}/);
+    expect(card, "and the reason leads the line, what is ready its own fact after it")
+      .toMatch(/\{why && [^\n]*\n\s*\{action\.ready && <span className="fact">\{action\.ready\}<\/span>\}/);
+    expect(card, "late reads red").toMatch(/\/ late\$\/\.test\(why\)\) return "fact red";/);
+    expect(card, "due soon reads amber").toMatch(/\.test\(why\)\) return "fact warn";/);
+    expect(card, "no typed dot joins them").not.toMatch(/\.join\(" \\u00b7 "\)|\.join\(" · "\)/);
     expect(card, "and no sheet opens off this card at all").not.toMatch(/createPortal|useState/);
   });
 
@@ -3459,10 +3528,22 @@ describe("LAW 9: the ask decides the action, in every branch", () => {
   // what it clipped had to be the inferable half. EM1 / EM8 (2026-09-12):
   // the card is a Tools row now, and the row's job is to be HONEST about
   // its own number: it is unmuted and not account-filtered, unlike the
-  // Sweep's count above it, and EMAIL-F-18's "loaded so far" tail still
-  // holds until the inbox has been read to the bottom. The law is that the
-  // sub leads with the count and names its scope, so a disagreement with
-  // the number above it is legible rather than silent.
+  // Sweep's count above it, and EMAIL-F-18's " so far" tail still holds
+  // until the inbox has been read to the bottom. The law is that the sub
+  // leads with the count and names its scope, so a disagreement with the
+  // number above it is legible rather than silent.
+  // AMENDED 2026-09-26 (Colour Key sweep, lead decision #199): ONE RUN, NO
+  // TYPED DOTS. The line was up to four facts in one grey joined by three
+  // typed middle dots (§AK V5.2, §AM F3) on a meta line. It is one sentence
+  // now: the count, the senders, the account scope in words, and a "so far"
+  // tail while the count is partial. Every protection stays: the count
+  // leads, the senders follow, the scope is named, a partial count says so.
+  // AMENDED 2026-09-26 (lead #70: singular at one): the line read "3 Threads
+  // from 1 senders". Picking sender or senders needs the count in a
+  // variable, and this law pinned the plural-only expression literally. The
+  // sender count is still pinned to the list's own rows, now at the nearest
+  // `const piles` above the row (the one the row reads), and the row must
+  // name it with the singular at one. Every other protection is unchanged.
   it("Clean Out leads its sub with its own count and says what that count is of", () => {
     const src = read(join(SRC, "messages/MessagesFlow.tsx"));
     const at = src.indexOf('<div className="conn-name">Clean Out</div>');
@@ -3470,9 +3551,18 @@ describe("LAW 9: the ask decides the action, in every branch", () => {
     const row = src.slice(at, at + 900);
     // E-29 (2026-09-12): counted over visibleRows, the list's own rows.
     expect(row, "the thread count leads").toMatch(/capAfterNumber\(\s*visibleRows\.length \+/);
-    expect(row, "then the sender count").toMatch(/senderPiles\(visibleRows, effTriage, vips\)\.length \+ " senders"/);
-    expect(row, "and the scope, with both tails leading capitalized")
-      .toMatch(/\(atEnd \? " \\u00b7 In the inbox" : " \\u00b7 Loaded so far"\)/);
+    const decl = src.slice(src.lastIndexOf("const piles =", at), at);
+    expect(decl, "the senders are counted over the list's own rows")
+      .toMatch(/^const piles = senderPiles\(visibleRows, effTriage, vips\)\.length;/);
+    expect(row, "then the sender count, singular at one")
+      .toMatch(/" from " \+ piles \+ \(piles === 1 \? " sender" : " senders"\)/);
+    expect(row, "the account scope, in words")
+      .toMatch(/" in " \+ \(acctFilter \? acctLabel\(acctFilter\) : "all accounts"\)/);
+    expect(row, "and a 'so far' tail until the inbox is read to the bottom")
+      .toMatch(/\(atEnd \? "" : " so far"\)/);
+    const meta = row.slice(row.indexOf('<div className="conn-meta">'), row.indexOf("</div>", row.indexOf('<div className="conn-meta">')));
+    expect(meta, "the sub is the row's meta line").toMatch(/\bpiles\b/);
+    expect(meta, "no typed dot on the meta line").not.toMatch(/\\u00b7|\u00b7/);
   });
 });
 
@@ -3503,12 +3593,24 @@ describe("LAW 10: one taxonomy -- the category is the area", () => {
     expect(flow, "and no longer mounts its admin sheet").not.toMatch(/AreasSheet/);
   });
 
+  // AMENDED 2026-09-26 (Colour Key sweep, lead decision #489): the pinned
+  // line lived only in the unlensed frame, a return no lens reached, and
+  // that frame is deleted. The rule it pinned lives in the lensed sections:
+  // cards and ruled, goals and projects, each skips an empty area. So the
+  // law now holds every sections.map in the page to that skip, and there
+  // must be at least the four lens sites.
   it("a goal is homed by its first live tag, and empty areas render nothing", () => {
     const page = read(join(SRC, "bigger/BiggerPicturePage.tsx"));
     expect(page, "one home per goal: first tag that names a live section")
       .toMatch(/\(g\.data\.tags \?\? \[\]\)\.find\(\(t\) => sectionIds\.has\(t\)\)/);
     expect(page, "PARA: never ship empty containers")
-      .toMatch(/if \(mine\.length === 0 && loose\.length === 0\) return null;/);
+      .toMatch(/if \(mine\.length === 0\) return null;/);
+    const maps = page.split("{sections.map((c) => {").slice(1);
+    expect(maps.length, "each lens draws its areas").toBeGreaterThanOrEqual(4);
+    for (const m of maps) {
+      expect(m.slice(0, m.indexOf("})}")), "every area section skips an empty area")
+        .toMatch(/if \(mine\.length === 0\) return null;/);
+    }
     // The guilt-render this replaces must not come back.
     expect(page).not.toMatch(/Nothing Live Here Yet/);
   });
@@ -3547,8 +3649,11 @@ describe("LAW 10: one taxonomy -- the category is the area", () => {
     const page = read(join(SRC, "bigger/BiggerPicturePage.tsx"));
     // TWO HEAD SHAPES, ONE RULE (2026-09-18). The ruled lenses still count
     // through catHead(c, n) -- items shown, never percent done.
+    // AMENDED 2026-09-26 (#489): the unlensed head that summed two piles is
+    // deleted with its frame, so the alternative that matched it is gone and
+    // the pin is the one head the page still draws.
     const cat = page.slice(page.indexOf("const catHead ="));
-    expect(page, "items shown, not percent done").toMatch(/\{mine\.length \+ loose\.length\}|catHead\(c, (?:mine|loose)\.length\)/);
+    expect(page, "items shown, not percent done").toMatch(/catHead\(c, mine\.length\)/);
     expect(cat.slice(0, cat.indexOf("</div>")), "and the head itself does no arithmetic").not.toMatch(/pct|%/);
     // The card view's shelf head carries NO number, which is Apple Music's
     // own shape (Dave: "Reference the formatting of Apple Music it's
@@ -3596,7 +3701,13 @@ describe("LAW 11: cards show their work, tags earn their shape, and no screen is
       .toMatch(/muteToday=\{filter === "today"\}/);
     expect(CSS, "the chip is a tint of the tag's own colour, not a new colour")
       .toMatch(/\.ruled \.uchip\.u-today \{ color: var\(--warn\); background: var\(--warn-tint\); \}/);
-    expect(CSS).toMatch(/\.ruled \.uchip\.u-late  \{ color: var\(--sys-red\); background: var\(--red-tint\); \}/);
+    // AMENDED 2026-09-26 (round-4 review, the lead): "tinted from its own
+    // colour" was false for the late chip. Its wash was --red-tint, which is
+    // the BRAND red's wash (the tap red at 16% in dark, the words red at 10%
+    // in light), so the late word sat on the tap red. The wash is mixed from
+    // the system red now, the mix the shared red urgency chip uses; the
+    // today chip's pin and every check above are unchanged.
+    expect(CSS).toMatch(/\.ruled \.uchip\.u-late  \{ color: var\(--sys-red\); background: color-mix\(in srgb, var\(--sys-red\) 14%, transparent\); \}/);
   });
 
   // FINDING 3, FOUR CHAPTERS. Read the history before changing this.
@@ -3630,10 +3741,11 @@ describe("LAW 11: cards show their work, tags earn their shape, and no screen is
     const offenders: string[] = [];
     for (const f of COMPONENTS) {
       if (rel(f) === "today/YourDay.tsx") continue;
-      // C-38 (Astra Build Master 4.5, Dave's picks 2026-09-12): Shaping
-      // JARVIS Now and Needs You on the Brain hub are sh2 heads, "not quiet,
-      // they are the page's live top". The one other exception, by ruling.
-      if (rel(f) === "brain/BrainTop.tsx") continue;
+      // AMENDED 2026-09-26 (Dave's pick): the C-38 exemption for the Brain
+      // hub's Shaping JARVIS Now and Needs You ("not quiet, they are the
+      // page's live top", 2026-09-12) is repealed. They are quiet like every
+      // other head, so BrainTop.tsx is scanned like any other file and
+      // Today's Now is the only red head left.
       read(f).split("\n").forEach((line, i) => {
         const m = line.match(/className="([^"]*\bsh2\b[^"]*)"/);
         if (m && !m[1]!.includes("sh2-quiet")) offenders.push(rel(f) + ":" + (i + 1));
@@ -4177,13 +4289,21 @@ describe("LAW 17: the fit is a stance, never an edit", () => {
       .not.toMatch(/updateProgram|saveDays/);
   });
 
+  // AMENDED 2026-09-26 (Colour Key sweep, lead decision #325): the default
+  // wording is one clause joined by a comma, not two joined by a typed
+  // middle dot. The line renders on a meta line, where a separator is drawn
+  // by the stylesheet or not at all (§AM F3). The honesty itself is
+  // unchanged: a default still says it is one, in both places.
   it("every estimate names its evidence: learned, or a default that says so", () => {
     expect(gym("pacing.ts"), "the honesty line lost its default wording")
-      .toMatch(/default pace · improves as you log/);
+      .toMatch(/default pace, improves as you log/);
     expect(gym("pacing.ts"), "the honesty line lost its learned wording")
       .toMatch(/learned from your last/);
     expect(gym("FitSheet.tsx"), "the fit sheet hides where its estimate came from")
-      .toMatch(/default pace · improves as you log/);
+      .toMatch(/default pace, improves as you log/);
+    for (const f of ["pacing.ts", "FitSheet.tsx"]) {
+      expect(gym(f), f + ": a typed dot on the meta line").not.toMatch(/default pace · /);
+    }
   });
 
   it("pacing never learns from a backdated session's stamps", () => {
@@ -4287,11 +4407,18 @@ describe("LAW 18: when is a fact, why is never claimed", () => {
     expect(bad, "call them working sets; the studied range keeps its own wording where it is cited").toEqual([]);
   });
 
+  // AMENDED 2026-09-26 (lead #31: sentence case inside the sentence): the
+  // caveat moved into correlate()'s sentence as a lowercase parenthetical,
+  // "(correlation, not cause)", and the capitalised pattern failed although
+  // the disclaimer was still there. It is matched in the form it now takes,
+  // and at the END of the card's line, closing the template string, which
+  // is what this test's name has always claimed. The plateau check below is
+  // untouched: those screens still carry the capitalised caps-kicker cite.
   it("every correlation card ends its own line honestly", () => {
     const src = gym("insights.ts");
     const fn = src.slice(src.indexOf("export function correlate"));
     expect(fn.slice(0, fn.indexOf("\nfunction round1")), "a correlation card can render without its own disclaimer")
-      .toMatch(/Correlation, not cause/);
+      .toMatch(/\(correlation, not cause\)`/);
   });
 
   it("a plateau's what-changed receipt never grows a field for the reason", () => {
@@ -6765,16 +6892,25 @@ describe("an offer card never clips the claim or its receipt (2026-09-07)", () =
 // rule from painting words in the structure grey, so this holds it: no
 // rule in any stylesheet sets color to --tx-4, apart from the two glyph
 // separators drawn as ::before content, which are structure.
+//
+// AMENDED 2026-09-26 (the lead, sweep round 3: a meta line whose job is to
+// show every fact wraps, and its dot rides at the END of a fact so no
+// wrapped line opens on a separator): that dot is the third glyph
+// separator, drawn as ::after content, and it takes the structure grey like
+// the other two. It is exempt by its exact selector, as they are. What the
+// law guards is unchanged, and it now also holds the exemption to its
+// reason: an exempt selector must itself draw a glyph (a non-empty
+// `content` string), so words cannot hide behind a separator's selector.
 describe("LAW: the structure ink never colours text (2026-09-14)", () => {
-  it("no stylesheet rule sets color to --tx-4, apart from the two glyph separators", () => {
-    const GLYPHS = new Set([".r-cue::before", ".fact + .fact::before"]);
+  it("no stylesheet rule sets color to --tx-4, apart from the glyph separators", () => {
+    const GLYPHS = new Set([".r-cue::before", ".fact + .fact::before", ".conn-meta:not(.facts) > .fact:not(:last-child)::after"]);
     const bad: string[] = [];
     for (const f of ["jarvis-design-system.css", "uniformity.css", "components.css", "ruled.css", "mail-rows.css", "editor.css"]) {
       const css = read(SRC + "/styles/" + f).replace(/\/\*[\s\S]*?\*\//g, "");
       for (const m of css.matchAll(/([^{}]+)\{([^}]*)\}/g)) {
         const sel = m[1]!.replace(/\s+/g, " ").trim();
         if (!/(^|[^-\w])color:\s*var\(--tx-4\)/.test(m[2]!)) continue;
-        if (GLYPHS.has(sel)) continue;
+        if (GLYPHS.has(sel) && /(^|[;\s])content:\s*"[^"]+"/.test(m[2]!)) continue;
         bad.push(f + ": " + sel);
       }
     }

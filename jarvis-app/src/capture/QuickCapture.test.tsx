@@ -8,7 +8,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
 import "@testing-library/jest-dom";
-import { NotesProvider, useOptionalStrands, useTasks, useCategories } from "../data/NotesProvider";
+import { NotesProvider, useOptionalStrands, useTasks, useCategories, usePeople } from "../data/NotesProvider";
 import { AIService } from "../ai/AIService";
 import QuickCapture from "./QuickCapture";
 import { recordCapture } from "../paste/captureLog";
@@ -133,7 +133,11 @@ describe("QuickCapture fact category chips (S4-Q22)", () => {
     fireEvent.click(screen.getByText("Capture"));
     await waitFor(() => expect(screen.getByText("Saved")).toBeInTheDocument());
 
-    expect(screen.getByText("Fact · Routine · From your paste")).toBeInTheDocument();
+    // §AM (2026-09-26): the bucket is the lit chip, and the receipt line no
+    // longer says it again ("Fact · Routine · From your paste" repeated both
+    // chips word for word). A plain self-fact has nothing else to say.
+    expect(document.querySelector(".capture-saved .conn-meta")).toBeNull();
+    expect(document.querySelector(".capture-saved .facts")).toBeNull();
     expect(screen.getByRole("radio", { name: "Routine" })).toHaveAttribute("aria-checked", "true");
     expect(screen.getByRole("radio", { name: "Energy" })).toHaveAttribute("aria-checked", "false");
     for (const label of ["Energy", "Work Style", "Writing", "People", "Values", "Routine"]) {
@@ -152,8 +156,7 @@ describe("QuickCapture fact category chips (S4-Q22)", () => {
     await waitFor(() => expect(screen.getByText("Saved")).toBeInTheDocument());
 
     fireEvent.click(screen.getByRole("radio", { name: "Energy" }));
-    await waitFor(() => expect(screen.getByText("Fact · Energy · From your paste")).toBeInTheDocument());
-    expect(screen.getByRole("radio", { name: "Energy" })).toHaveAttribute("aria-checked", "true");
+    await waitFor(() => expect(screen.getByRole("radio", { name: "Energy" })).toHaveAttribute("aria-checked", "true"));
     expect(screen.getByRole("radio", { name: "Routine" })).toHaveAttribute("aria-checked", "false");
   });
 
@@ -177,7 +180,6 @@ describe("QuickCapture fact category chips (S4-Q22)", () => {
     await waitFor(() => expect(showToast).toHaveBeenCalledWith({ message: "The Brain is full · Prune it in What JARVIS Knows" }));
 
     // The refusal moved nothing: the fact is still under Routine.
-    expect(screen.getByText("Fact · Routine · From your paste")).toBeInTheDocument();
     expect(screen.getByRole("radio", { name: "Routine" })).toHaveAttribute("aria-checked", "true");
     expect(screen.getByRole("radio", { name: "Energy" })).toHaveAttribute("aria-checked", "false");
   });
@@ -213,6 +215,131 @@ describe("QuickCapture fact category chips (S4-Q22)", () => {
     expect(screen.getByRole("radio", { name: "Fact" })).toHaveAttribute("aria-checked", "false");
     expect(await strandsRef!.list()).toHaveLength(12);
     expect(await tasksRef!.listTasks()).toHaveLength(1);
+  });
+});
+
+// §AM (2026-09-26): WHAT IT READ, AS FACTS. The receipt line was one grey
+// string with its dots typed in, and every fact on it the same grey. Each
+// fact now wears what it is: every when in small caps, a bill's amount in
+// white, and the dots drawn by the stylesheet, never carried in the words.
+describe("QuickCapture receipt reads as facts (§AM)", () => {
+  // 2026-09-26: the receipt shows EVERY fact it read, so its facts sit in the
+  // wrapping, unclamped .conn-meta, never the one-line .facts whose last fact
+  // gives way (a reminder's days and its project were being cut off).
+  const receiptFacts = () => Array.from(document.querySelectorAll(".capture-saved .conn-meta > .fact"));
+
+  it("a reminder says so beside its time, and every when is small caps", async () => {
+    render(
+      <NotesProvider userId="u-receipt-remind">
+        <QuickCapture ai={new AIService({ available: false })} onClose={() => {}} />
+      </NotesProvider>,
+    );
+    fireEvent.change(screen.getByPlaceholderText(/Paste or type/), { target: { value: "remind me to water the plants at 9pm" } });
+    fireEvent.click(screen.getByText("Capture"));
+    await waitFor(() => expect(screen.getByText("Saved")).toBeInTheDocument());
+
+    const facts = receiptFacts();
+    expect(facts.map((f) => f.textContent)).toEqual([expect.stringMatching(/^Reminder 9:00\sPM$/), "Daily"]);
+    for (const f of facts) expect(f.className).toBe("fact date");
+    expect(document.querySelector(".capture-saved .facts"), "the receipt is never a one-line facts row").toBeNull();
+    const line = document.querySelector(".capture-saved .conn-meta")!;
+    expect(line.textContent).not.toContain("\u00b7");
+    expect(line.textContent).not.toContain("From your paste");
+  });
+
+  // UP-CORE-01: a paste read as a bill says so. No chip under the receipt
+  // names a bill, so the word is the read; the amount after it is white.
+  it("a bill says Bill before its amount, and the amount is a white number", async () => {
+    render(
+      <NotesProvider userId="u-receipt-bill">
+        <QuickCapture ai={new AIService({ available: false })} onClose={() => {}} />
+      </NotesProvider>,
+    );
+    fireEvent.change(screen.getByPlaceholderText(/Paste or type/), { target: { value: "pay rent $1,200 every month" } });
+    fireEvent.click(screen.getByText("Capture"));
+    await waitFor(() => expect(screen.getByText("Saved")).toBeInTheDocument());
+
+    // 2026-09-26: the short whens lead and the bill, the line's words,
+    // trails, so a narrow line loses the tail of a name, never the repeat.
+    const facts = receiptFacts();
+    expect(facts.map((f) => f.textContent)).toEqual(["Monthly", expect.stringMatching(/^Bill \$1,200/)]);
+    expect(facts[0]!.className).toBe("fact date");
+    const bill = facts[facts.length - 1]!;
+    expect(bill.className).toBe("fact");
+    expect(bill.querySelector("b")?.textContent).toMatch(/1,200/);
+    expect(bill.querySelector("b")?.textContent).not.toContain("Bill");
+  });
+
+  // §AK (2026-09-26): the word Bill is already the line's one grey run, so a
+  // bill for somebody names them inside that fact ("Bill $50 for Marco")
+  // instead of a second grey fact beside it.
+  it("a bill for a person is one fact, and the person is not a second grey", async () => {
+    let peopleRef: ReturnType<typeof usePeople> | null = null;
+    function CapturePeople() { peopleRef = usePeople(); return null; }
+    render(
+      <NotesProvider userId="u-receipt-bill-who">
+        <CapturePeople />
+        <QuickCapture ai={new AIService({ available: false })} onClose={() => {}} />
+      </NotesProvider>,
+    );
+    await waitFor(() => expect(peopleRef).toBeTruthy());
+    await act(async () => { await peopleRef!.create({ name: "Marco", group: "contacts" }); });
+    fireEvent.change(screen.getByPlaceholderText(/Paste or type/), { target: { value: "pay Marco $50 every month" } });
+    fireEvent.click(screen.getByText("Capture"));
+    await waitFor(() => expect(screen.getByText("Saved")).toBeInTheDocument());
+
+    const facts = receiptFacts();
+    expect(facts.map((f) => f.textContent)).toEqual(["Monthly", expect.stringMatching(/^Bill \$50(\.00)? for Marco$/)]);
+    expect(facts[1]!.className).toBe("fact");
+    expect(facts[1]!.querySelector("b")?.textContent).toMatch(/^\$50/);
+    // The only plain grey fact on the line is the bill; Marco is inside it.
+    expect(facts.filter((f) => f.className === "fact")).toHaveLength(1);
+  });
+
+  // §AM R8 (2026-09-26): a task's date is a due date, so it wears the due
+  // window every task row wears: tomorrow is amber, not a neutral date. An
+  // event's date only says when, so it stays small caps.
+  it("a task due tomorrow is amber; an event's date stays small caps", async () => {
+    const { unmount } = render(
+      <NotesProvider userId="u-receipt-task-due">
+        <QuickCapture ai={new AIService({ available: false })} onClose={() => {}} />
+      </NotesProvider>,
+    );
+    fireEvent.change(screen.getByPlaceholderText(/Paste or type/), { target: { value: "Renew the domain tomorrow" } });
+    fireEvent.click(screen.getByText("Capture"));
+    await waitFor(() => expect(screen.getByText("Saved")).toBeInTheDocument());
+    // The resolved date is the task's one fact, and it is amber.
+    expect(receiptFacts().map((f) => f.className)).toEqual(["fact warn"]);
+    unmount();
+
+    render(
+      <NotesProvider userId="u-receipt-event-date">
+        <QuickCapture ai={new AIService({ available: false })} onClose={() => {}} />
+      </NotesProvider>,
+    );
+    fireEvent.change(screen.getByPlaceholderText(/Paste or type/), { target: { value: "Dinner with Sam tomorrow at 7pm" } });
+    fireEvent.click(screen.getByText("Capture"));
+    await waitFor(() => expect(screen.getByText("Saved")).toBeInTheDocument());
+    // The same day on an event, and its clock time: both neutral.
+    expect(receiptFacts().map((f) => f.className)).toEqual(["fact date", "fact date"]);
+  });
+
+  it("a recent capture is its kind in grey and its time in small caps", async () => {
+    recordCapture({ id: "old-note-2", kind: "note", title: "Gate code", ts: Date.now() - 60000 });
+    render(
+      <NotesProvider userId="u-recent-facts">
+        <QuickCapture ai={new AIService({ available: false })} onClose={() => {}} />
+      </NotesProvider>,
+    );
+    fireEvent.change(screen.getByPlaceholderText(/Paste or type/), { target: { value: "Renew the domain" } });
+    fireEvent.click(screen.getByText("Capture"));
+    await waitFor(() => expect(screen.getByText("Saved")).toBeInTheDocument());
+
+    const row = screen.getByText("Gate code").closest(".row")!;
+    const facts = Array.from(row.querySelectorAll(".facts > .fact"));
+    expect(facts.map((f) => f.className)).toEqual(["fact", "fact date"]);
+    expect(facts[0]!.textContent).toBe("Note");
+    expect(row.textContent).not.toContain("\u00b7");
   });
 });
 

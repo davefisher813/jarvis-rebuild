@@ -40,9 +40,8 @@ describe("the review shows both exercises in full", () => {
     expect(screen.getByText("Folding In")).toBeInTheDocument();
     expect(screen.getByText("Bench Press")).toHaveClass("dup-name");
     expect(screen.getByText("Bench")).toHaveClass("dup-name");
-    expect(screen.getByText("9 sessions")).toBeInTheDocument();
-    expect(screen.getByText("1 session")).toBeInTheDocument();
-    expect(screen.getByText("30 sets")).toBeInTheDocument();
+    expect(screen.getByText("9 sessions, 30 sets")).toBeInTheDocument();
+    expect(screen.getByText("1 session, 3 sets")).toBeInTheDocument();
     // Each equipment reads twice: once on its own side, once in the conflict
     // row that asks which of the two the merged exercise keeps.
     expect(screen.getAllByText("Barbell")).toHaveLength(2);
@@ -56,7 +55,7 @@ describe("the review shows both exercises in full", () => {
 
   it("summarises what moves", () => {
     render(<MergeReviewSheet {...noop} state={state()} />);
-    expect(screen.getByText("1 session · 3 sets · 1 program day")).toBeInTheDocument();
+    expect(screen.getByText("1 session, 3 sets, 1 program day")).toBeInTheDocument();
   });
 
   it("offers the other exercise as the survivor instead", () => {
@@ -127,8 +126,7 @@ describe("a failure stays on screen", () => {
   it("says it failed, says what landed, and says both exercises are intact", () => {
     render(<MergeReviewSheet {...noop} state={state({ stage: "failed", applied: 0 })} />);
     expect(screen.getByText("Merge Failed")).toBeInTheDocument();
-    expect(screen.getByText("Nothing was changed")).toBeInTheDocument();
-    expect(screen.getByText(/Both exercises are exactly as they were/)).toBeInTheDocument();
+    expect(screen.getByText("Nothing was changed, both exercises are exactly as they were")).toBeInTheDocument();
   });
 
   it("offers Retry rather than pretending it worked", () => {
@@ -144,7 +142,7 @@ describe("a failure stays on screen", () => {
     render(<MergeReviewSheet {...noop} state={state({ plan: p, stage: "failed", applied: 1 })} />);
     expect(screen.getByText("Bench")).toBeInTheDocument();
     expect(screen.getByText("Bench Press")).toBeInTheDocument();
-    expect(screen.getByText("1 of 3 saved · Retry finishes the rest")).toBeInTheDocument();
+    expect(screen.getByText("1 of 3 saved and nothing was deleted, Retry finishes the rest")).toBeInTheDocument();
   });
 });
 

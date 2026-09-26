@@ -61,7 +61,7 @@ describe("saying why it is weak, in his terms", () => {
   it("names vagueness and length specifically", () => {
     expect(whyWeak(plan({ cue: { kind: "after", what: "later" } }))).toBe("Too vague to notice");
     expect(whyWeak(plan({ cue: { kind: "time", what: "morning" } }))).toBe("Pick a real time");
-    expect(whyWeak(plan({ then: "one two three four five six" }))).toContain("Shorter");
+    expect(whyWeak(plan({ then: "one two three four five six" }))).toBe("Keep it to 5 words or fewer");
   });
 });
 

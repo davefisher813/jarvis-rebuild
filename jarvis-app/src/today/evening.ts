@@ -72,13 +72,23 @@ function addHour(hhmm: string): string {
 // of every count-led line since 2026-08-20. This one predated the rule and
 // slipped its detector, because the detector keys on a property literally
 // named `done` and this one is `thingsDone`.
-export function eveningSummary(s: EveningStats, moved?: string | null): string {
-  const parts: string[] = [];
-  if (s.thingsDone > 0) parts.push(`${s.thingsDone} done today`);
-  if (moved) parts.push(moved);
-  if (s.eventsLeft > 0) parts.push(`${s.eventsLeft} left tonight`);
-  if (parts.length === 0) return "A clear evening";
-  return capAfterNumber(parts.join(" · "));
+//
+// FACTS, NOT A STRING (§AK and §AM, 2026-09-26). It was one run, "6 Done
+// today · Moved Ship the App · 2 Left tonight": the dots typed into it in the
+// words' grey, and up to three plain greys on one line. It hands back facts
+// now and the page draws the dots. What got done is the key's green. The
+// line has ONE grey left after that, and the goal the day moved outranks the
+// count of what is left tonight (pick 4: the goal is the part worth
+// remembering); Your Day already lists tonight's events, so that count yields
+// when a goal moved. A day with nothing to say says "A clear evening".
+export interface EveningFact { text: string; tone?: "good" }
+
+export function eveningFacts(s: EveningStats, moved?: string | null): EveningFact[] {
+  const out: EveningFact[] = [];
+  if (s.thingsDone > 0) out.push({ text: capAfterNumber(`${s.thingsDone} done today`), tone: "good" });
+  if (moved) out.push({ text: moved });
+  else if (s.eventsLeft > 0) out.push({ text: capAfterNumber(`${s.eventsLeft} left tonight`) });
+  return out.length ? out : [{ text: "A clear evening" }];
 }
 
 // --- The weekly close-out card (Sundays only; the Insights page folds into
@@ -187,7 +197,7 @@ export function todayPlan(pickIds: string[], tasks: TaskItem[], today: string = 
 }
 
 // The line over the card. It leads with what got done, which is the standing
-// tone law on this page (see eveningSummary above), and it never names a
+// tone law on this page (see eveningFacts above), and it never names a
 // number of misses: the picks themselves are listed under it, and an unticked
 // one says what it says without being counted at him.
 //

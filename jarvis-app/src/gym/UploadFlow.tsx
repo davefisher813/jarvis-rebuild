@@ -104,7 +104,18 @@ export default function UploadFlow({ ai, initialFile, onSave, onCancel }: {
                   <div className="row" role="button" tabIndex={0} key={e.id} onClick={() => setFix({ dayIdx: di, exIdx: ei })}>
                     <div className="row-grow">
                       <div className="conn-name truncate">{e.name}</div>
-                      <div className="conn-meta">{targetLine(e)} · {MEASURE_LABEL[e.kind]}</div>
+                      {/* Two facts, the separator drawn by CSS (§AM F2/F3,
+                          2026-09-26). The plan is the reading, so it wears
+                          the reading hue the program's own rows give it
+                          (GymFlow's exercise row); how it is measured is the
+                          row's one grey. It stays a .conn-meta, which wraps
+                          to two lines, rather than a one-line .facts: this
+                          screen exists to check every number, and a pyramid's
+                          full reading is longer than a row. */}
+                      <div className="conn-meta">
+                        <span className="fact cyan">{targetLine(e)}</span>
+                        <span className="fact">{MEASURE_LABEL[e.kind]}</span>
+                      </div>
                     </div>
                     {CHEV}
                   </div>

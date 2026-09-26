@@ -60,19 +60,22 @@ describe("PersonDetail: Last Talked and the check-in draft (S6-Q40)", () => {
     render(<PersonDetail person={MOM} onEdit={() => {}} onBack={() => {}} lastTalked="3 Days ago" quiet={false} onCheckIn={() => {}} />);
     expect(screen.getByText("Last Talked")).toBeInTheDocument();
     expect(screen.getByText("3 Days ago")).toBeInTheDocument();
+    expect(screen.getByText("3 Days ago")).not.toHaveClass("warn");
     expect(screen.queryByText("Check In")).not.toBeInTheDocument();
   });
 
   it("offers Check In once gone quiet, and it fires the draft", () => {
     const onCheckIn = vi.fn();
-    render(<PersonDetail person={MOM} onEdit={() => {}} onBack={() => {}} lastTalked="Gone quiet · 2 Months ago" quiet onCheckIn={onCheckIn} />);
-    expect(screen.getByText("Gone quiet · 2 Months ago")).toBeInTheDocument();
+    render(<PersonDetail person={MOM} onEdit={() => {}} onBack={() => {}} lastTalked="2 Months ago" quiet onCheckIn={onCheckIn} />);
+    // Gone quiet is stalled, so the ago wears the key's amber (§AM) rather
+    // than a second fact joined on with a dot.
+    expect(screen.getByText("2 Months ago")).toHaveClass("fact", "warn");
     fireEvent.click(screen.getByText("Check In"));
     expect(onCheckIn).toHaveBeenCalledTimes(1);
   });
 
   it("reads Drafting and stays disabled while a draft is in flight", () => {
-    render(<PersonDetail person={MOM} onEdit={() => {}} onBack={() => {}} lastTalked="Gone quiet · 2 Months ago" quiet onCheckIn={() => {}} checkingIn />);
+    render(<PersonDetail person={MOM} onEdit={() => {}} onBack={() => {}} lastTalked="2 Months ago" quiet onCheckIn={() => {}} checkingIn />);
     expect(screen.getByText("Drafting")).toBeDisabled();
   });
 
@@ -87,6 +90,15 @@ describe("PersonDetail: Last Talked and the check-in draft (S6-Q40)", () => {
   // person, resolved by the caller like everything else on this card.
   it("says Trusted adult on the person Say It to Someone reaches, and on nobody else", () => {
     render(<PersonDetail person={MOM} onEdit={() => {}} onBack={() => {}} trustedAdult />);
+    expect(screen.getByText("Trusted adult")).toBeInTheDocument();
+    // Its own row in About, not a second grey under the name (§AK).
+    expect(screen.getByText("Trusted adult").closest(".row")).toHaveTextContent(/^Say It to SomeoneTrusted adult$/);
+  });
+
+  it("opens About for it even on a person with nothing else to say", () => {
+    const bare: Person = { id: "p5", data: { name: "Coach Dee", group: "contacts" } };
+    render(<PersonDetail person={bare} onEdit={() => {}} onBack={() => {}} trustedAdult />);
+    expect(screen.getByText("About")).toBeInTheDocument();
     expect(screen.getByText("Trusted adult")).toBeInTheDocument();
   });
 
@@ -208,8 +220,10 @@ describe("next time we talk", () => {
   });
 });
 
-// A ROLE PER AREA: "Family · Mother", "Bridge · Board secretary". One label
-// for the whole person could not hold both.
+// A ROLE PER AREA: "Family", then "Mother"; "Bridge", then "Board
+// secretary", under the one dot. One label for the whole person could not
+// hold both. The separator between them is the stylesheet's, so the words
+// are two facts inside the one category fact.
 describe("roles, per area", () => {
   it("says what they are in each area that gave them a role", () => {
     render(<PersonDetail onEdit={() => {}} onBack={() => {}}
@@ -218,8 +232,9 @@ describe("roles, per area", () => {
         { name: "Family", color: "pink", role: "Mother" },
         { name: "Bridge", color: "teal", role: "Board secretary" },
       ]} />);
-    expect(screen.getByText("Family · Mother")).toBeInTheDocument();
-    expect(screen.getByText("Bridge · Board secretary")).toBeInTheDocument();
+    expect(screen.getByText("Mother").closest(".fact.cat")).toHaveTextContent(/^FamilyMother$/);
+    expect(screen.getByText("Board secretary").closest(".fact.cat")).toHaveTextContent(/^BridgeBoard secretary$/);
+    expect(screen.queryByText(/\u00b7/)).not.toBeInTheDocument();
   });
 
   it("leaves an area with no role reading exactly as it did", () => {

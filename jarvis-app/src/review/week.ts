@@ -134,8 +134,14 @@ export function buildWeek(inp: WeekInputs): WeekReport {
 
   const slipTop = Object.entries(seal.pushedByCategory).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0];
   if (slipTop && slipTop[1] > 0) {
-    const name = catById.get(slipTop[0])?.name ?? "Unfiled";
-    lines.push({ key: "Slipped", tone: "warn", facts: [{ text: `${name} · ${capAfterNumber(`${slipTop[1]} ${slipTop[1] === 1 ? "task" : "tasks"} pushed`)}`, tone: "warn" }] });
+    // Two facts, not one string with a dot baked in (§AM F3): the area is a
+    // dot and its name in the line's grey, the count is the amber. An area
+    // that no longer exists has no dot to wear, so only the count shows.
+    const cat = catById.get(slipTop[0]);
+    const slipped: WeekFact[] = [];
+    if (cat) slipped.push({ text: cat.name, tone: "cat", color: cat.color });
+    slipped.push({ text: capAfterNumber(`${slipTop[1]} ${slipTop[1] === 1 ? "task" : "tasks"} pushed`), tone: "warn" });
+    lines.push({ key: "Slipped", tone: "warn", facts: slipped });
   }
 
   const overrides = rows.filter((r) => r.type === "schedule.override").length;

@@ -8,7 +8,7 @@ const day = (id: string, pinDays?: number[]): ProgramDay =>
 // PINS, D4 (approved 2026-08-31). Mon=0..Sun=6, the module's own convention.
 describe("pinLabel", () => {
   it("speaks the days in week order, however they were stored", () => {
-    expect(pinLabel([4, 1])).toBe("Tue · Fri");
+    expect(pinLabel([4, 1])).toBe("Tue, Fri");
     expect(pinLabel([0])).toBe("Mon");
     expect(pinLabel([])).toBe("");
     expect(pinLabel(undefined)).toBe("");

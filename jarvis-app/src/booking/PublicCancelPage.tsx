@@ -114,12 +114,14 @@ export default function PublicCancelPage({ bookingId, fetchImpl = fetch }: { boo
         <div className="pad-x"><div className="card pad">
           <div className="bk-when">{b.name}</div>
           {when && <div className="bk-time">{when}</div>}
+          {/* One quiet line, never two (§AK, 2026-09-26): both outcomes say
+              what happened and that nothing is left for the visitor, in one
+              sentence each. */}
           <div className="bk-note">
             {phase.justNow
-              ? "The hour is free again and it has come off their calendar"
+              ? "The hour is free again and has come off their calendar, so nothing else is needed from you"
               : "This meeting was already off, so there is nothing left to do"}
           </div>
-          {phase.justNow && <div className="bk-note">Nothing else is needed from you</div>}
         </div></div>
       </div>
     );
@@ -132,7 +134,7 @@ export default function PublicCancelPage({ bookingId, fetchImpl = fetch }: { boo
         <div className="card pad">
           <div className="bk-when">{b.name}</div>
           {when && <div className="bk-time">{when}</div>}
-          <div className="facts"><span className="fact">{localZone()}</span></div>
+          <div className="facts"><span className="fact date">{localZone()}</span></div>
         </div>
         <div className="card pad">
           <div className="bk-note">The hour goes back on offer and the meeting comes off their calendar.</div>

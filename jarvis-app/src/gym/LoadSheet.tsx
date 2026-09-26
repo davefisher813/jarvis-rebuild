@@ -114,10 +114,11 @@ export default function LoadSheet({ name, initial, onSave, onCancel }: {
 
           {/* What the three answers add up to, in the words the session's own
               chip will use. One line, and it is a reading, not an
-              instruction. */}
+              instruction. ONE FACT, NOT TWO (§AK): two plain facts side by
+              side are two runs of the same grey, so the per-side answer
+              joins the summary as a clause of it. */}
           <div className="pad-x"><div className="facts">
-            <span className="fact">{styleSummary(style)}</span>
-            {style.sided && <span className="fact">Reps Per Side</span>}
+            <span className="fact">{styleSummary(style) + (style.sided ? ", Reps Per Side" : "")}</span>
           </div></div>
         </div>
       </div>

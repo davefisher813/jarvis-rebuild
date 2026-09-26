@@ -69,7 +69,7 @@ export default function MetricGoalSheet({
         <div className="pad-x sheet-form">
           <div className="field">
             <div className="input-label">Goal</div>
-            <input className={"input" + (touched && !title.trim() ? " input-error" : "")} placeholder={`e.g. ${metricName} Target`} value={title} onChange={(e) => setTitle(e.target.value)} />
+            <input className={"input" + (touched && !title.trim() ? " error" : "")} placeholder={`e.g. ${metricName} Target`} value={title} onChange={(e) => setTitle(e.target.value)} />
             {touched && !title.trim() && <div className="input-error">Add a goal.</div>}
           </div>
           <div className="field">

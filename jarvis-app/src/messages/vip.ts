@@ -90,6 +90,6 @@ export function applyVips<T extends { id: string; fromEmail: string }, E extends
 }
 
 export function vipLine(n: number): string {
-  if (n === 0) return "Nobody yet · Their mail always surfaces";
+  if (n === 0) return "Their mail always surfaces";
   return capAfterNumber(n === 1 ? "1 person always gets through" : `${n} people always get through`);
 }

@@ -37,7 +37,7 @@ export function Bar({ p }: { p: Progress }) {
   return <div className="bp-bar"><div className="bp-bar-fill" style={{ width: Math.max(2, p.pct) + "%" }} /></div>;
 }
 
-export default function GoalRowRuled({ title, tone, body, status, bar, kind, moving = 0, next = null, checkin = null, onOpen }: {
+export default function GoalRowRuled({ title, tone, body, status, bar, kind, moving = 0, next = null, checkin = null, when = null, onOpen }: {
   title: string;
   /** A cat-fg-* class: the goal's home colour. */
   tone: string;
@@ -59,6 +59,11 @@ export default function GoalRowRuled({ title, tone, body, status, bar, kind, mov
   // C-37: the last self-reported check-in, only where there is no status
   // capsule to disagree with it.
   checkin?: string | null;
+  /** A NEUTRAL DATE in the measure line's place: a finished goal's "Finished
+   *  September 12". The Done capsule beside it carries the meaning, so the
+   *  date carries none and is drawn as one (§AM F5, `.fact.date`): small caps
+   *  in the row's grey, the day not bolded as if it were a count. */
+  when?: string | null;
   onOpen?: () => void;
 }) {
   const checkinKey = checkin ? checkinTone(checkin) : null;
@@ -82,9 +87,11 @@ export default function GoalRowRuled({ title, tone, body, status, bar, kind, mov
             {!status && checkin && <span className={"r-goal fact" + (checkinKey ? " " + checkinKey : "")}>Check-in: {checkin}</span>}
           </div>
         )}
-        {(body || status) && (
+        {(when || body || status) && (
           <div className="goal-meter">
-            <span className="r-goal"><Nums text={body} /></span>
+            {when
+              ? <span className="r-goal"><span className="fact date">{when}</span></span>
+              : <span className="r-goal"><Nums text={body} /></span>}
             {status && <span className={"gstat gstat-" + status.tone}>{status.text}</span>}
           </div>
         )}

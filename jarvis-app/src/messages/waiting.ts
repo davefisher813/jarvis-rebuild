@@ -2,8 +2,6 @@ import { AUTOMATED_ADDRESS } from "./noReply";
 import type { GoogleApi } from "../connections/google/api";
 import { mapThread, type ThreadRow } from "../connections/google/map";
 import { JARVIS_VOICE } from "../ai/voice";
-import { capAfterNumber } from "../shared/casing";
-import { shortDate } from "../shared/dateFormat";
 
 // Waiting On (email 3): the loops running the OTHER way, emails the user
 // sent that expect a reply and have not gotten one. Derived, never guessed:
@@ -124,16 +122,6 @@ export async function findWaiting(
     lastMsgId: r.lastMsgId,
   }));
   return out.sort((a, b) => b.waitingDays - a.waitingDays).slice(0, max);
-}
-
-// "4 days, no reply" or with a real open signal: "Opened Aug 2 · no reply".
-// The absence of an open says NOTHING (image blockers read invisibly), so the
-// line never claims "not opened".
-export function waitingLine(row: WaitingRow, openedISO: string | null): string {
-  const wait = row.waitingDays === 1 ? "1 Day · No reply" : capAfterNumber(row.waitingDays + " days · No reply");
-  if (!openedISO) return wait;
-  const when = shortDate(openedISO);
-  return "Opened " + when + " · No reply";
 }
 
 // The nudge goes out over the USER'S name, so it inherits JARVIS_VOICE and,

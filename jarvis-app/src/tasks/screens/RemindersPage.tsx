@@ -274,12 +274,14 @@ export default function RemindersPage({
     </LifeHeader>
   );
   const opts = <OptionsButton onClick={() => setOptsOpen(true)} label="Reminders Options" />;
+  // The title is plain words (§AM, 2026-09-26). Its full stop wore the brand
+  // red, the colour that says "tap me", on punctuation nothing can tap.
   return (
     <div className="screen ruled rem-page">
       {chrome.segments
         ? <PageHeader title="Life" headActions={opts}>{header}</PageHeader>
         : <PageHeader title="Reminders" back={chrome.back} onBack={chrome.onBack} headActions={opts}
-            hero={<div className="rem-hero"><div className="eyebrow">{dateWord}</div><div className="pagehead-title">Reminders<span className="rem-hero-dot">.</span></div></div>}>{header}</PageHeader>}
+            hero={<div className="rem-hero"><div className="eyebrow">{dateWord}</div><div className="pagehead-title">Reminders</div></div>}>{header}</PageHeader>}
 
       {shownSections.length === 0 && (
         <div className="pad-x"><div className="card list-card-ruled"><div className="empty-state">

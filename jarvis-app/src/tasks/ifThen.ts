@@ -69,7 +69,10 @@ export function whyWeak(p: IfThen): string | null {
     return p.cue.kind === "time" ? "Pick a real time" : "Too vague to notice";
   }
   if (!p.then.trim()) return "Name the first move";
-  if (!responseIsUsable(p.then)) return `Shorter · ${RESPONSE_MAX_WORDS} words or fewer`;
+  // One instruction, like the three above it: this renders under the When
+  // and Where row's title as its meta line, where a typed middot is not
+  // allowed (§AM F3, 2026-09-26). It read "Shorter · 5 words or fewer".
+  if (!responseIsUsable(p.then)) return `Keep it to ${RESPONSE_MAX_WORDS} words or fewer`;
   return null;
 }
 

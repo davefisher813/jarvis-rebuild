@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   movesLine, movesCount, goalsMovedToday, movedLine,
-  openWorkOf, untouchedGoal, untouchedLine,
+  openWorkOf, untouchedGoal,
   isGoalNudgeDismissed, dismissGoalNudge, type DismissStore,
 } from "./goalPulse";
 import { buildGoalIndex, type GoalReach } from "../bigger/reach";
@@ -147,11 +147,5 @@ describe("openWorkOf", () => {
   });
   it("is zero for a goal with nothing under it", () => {
     expect(openWorkOf({ filedIds: [], taggedIds: [], openTagged: 0, progress: null })).toBe(0);
-  });
-});
-
-describe("untouchedLine", () => {
-  it("capitalizes behind the number and behind the dot", () => {
-    expect(untouchedLine(4)).toBe("4 Open · Nothing today moves it");
   });
 });

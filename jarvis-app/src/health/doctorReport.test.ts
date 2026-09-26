@@ -115,6 +115,6 @@ describe("buildDoctorReport: check-ins", () => {
       { tookIt: [], ateBefore: [], lightsOut: [], callIt: [], checkins: [{ id: "c1", data: { category: "body", at: now - 3600_000, energy: "high", mood: "good" } }] },
       { from: now - 86400_000, to: now, kinds: ["checkin"] }, now,
     );
-    expect(r.rows.map((x) => [x.kind, x.label])).toEqual([["checkin", "Check In · Energy High · Mood Good"]]);
+    expect(r.rows.map((x) => [x.kind, x.label])).toEqual([["checkin", "Check In · Energy High, Mood Good"]]);
   });
 });

@@ -114,7 +114,7 @@ describe("CondReceipt", () => {
     expect(rows).toHaveLength(3);
     expect(rows[1]).toHaveTextContent("1:44");
     expect(rows[1]!.querySelector(".cr-d.up")).toHaveTextContent("+6");
-    expect(screen.getByText("Rounds + reps · 12:00")).toBeInTheDocument();
+    expect(screen.getByText("Rounds + reps in 12:00")).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText("Reps past the last round"), { target: { value: "12" } });
     expect(onChange).toHaveBeenCalledWith([{ id: "s1", r: 3, elapsed: 720, splits: [98, 202, 313], extra: 12 }]);
   });

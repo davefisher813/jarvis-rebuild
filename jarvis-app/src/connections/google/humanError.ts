@@ -14,16 +14,20 @@
 // One rule: a status a person can do something about gets a sentence saying
 // what. Everything else gets the plain fallback the call site already wrote.
 // Nothing here invents a diagnosis.
+//
+// ONE SENTENCE, NO TYPED DOT (Colour Key F3, 2026-09-26). These land in the
+// failed-send card's meta line, where a separator is the stylesheet's to
+// draw, so the two halves are joined as a sentence with a semicolon.
 
-const SIGNED_OUT = "Your Google sign-in expired · Reconnect in Settings";
+const SIGNED_OUT = "Your Google sign-in expired; reconnect in Settings";
 // 403 usually means the token's scopes cannot do what the button offered
 // (the 2026-08-26 scope bug was exactly this, app-wide). Reconnecting runs
 // consent again and re-grants under the current scope list, so that is the
 // action this sentence sells.
-const NO_ACCESS = "Google refused that · Reconnect in Settings to update permissions";
-const TOO_FAST = "Google is rate-limiting us · Try again in a minute";
-const GOOGLE_DOWN = "Google's mail service is having trouble · Try again shortly";
-const OFFLINE = "You're offline · Nothing was lost";
+const NO_ACCESS = "Google refused that; reconnect in Settings to update permissions";
+const TOO_FAST = "Google is rate-limiting us; try again in a minute";
+const GOOGLE_DOWN = "Google's mail service is having trouble; try again shortly";
+const OFFLINE = "You're offline; nothing was lost";
 
 export function humanError(e: unknown, fallback: string): string {
   const raw = e instanceof Error ? e.message : typeof e === "string" ? e : "";

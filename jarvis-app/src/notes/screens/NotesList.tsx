@@ -285,9 +285,11 @@ export default function NotesList({
         ) : null}
         <div className="task-title">
           <span className="task-name">{n.title}</span>
-          {NOTES_ROW === "line" && (
+          {NOTES_ROW === "line" && (!!area || (n.tags?.length ?? 0) > 0 || (n.found ?? 0) > 0 || !!when) && (
             <div className="r-k">
-              <ParentLineGlyph p={{ kind: "category", name: area || "Not Filed", tone, pct: null }} />
+              {/* An unfiled note has no area to name, and a placeholder that
+                  says so is a line with nothing to say (§AK): it shows none. */}
+              {area && <ParentLineGlyph p={{ kind: "category", name: area, tone, pct: null }} />}
               {/* The line's gap separates its facts, as on a task row: no
                   typed dots. The tags are one run, the row's one grey; what
                   JARVIS found is work waiting for his review, so it is amber
