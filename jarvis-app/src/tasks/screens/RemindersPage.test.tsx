@@ -146,6 +146,15 @@ describe("RemindersPage", () => {
     expect(date).not.toHaveClass("later");
     expect(date).toHaveTextContent(/17/);
     r.unmount();
+    // The date wears the shared reminder window (dayTone, §AM R8): tomorrow
+    // is due, so amber, the same as a mail task or a promise due tomorrow.
+    const wed = item({ time: "08:00", days: [3] }, "Take Out The Bins", "wed1");
+    const w = page("upcoming", {}, [wed]);
+    const tomorrow = screen.getByText("Take Out The Bins").closest(".rem-card")!.querySelector(".facts .fact")!;
+    expect(tomorrow).toHaveTextContent("Tomorrow");
+    expect(tomorrow).toHaveClass("warn");
+    expect(tomorrow).not.toHaveClass("date");
+    w.unmount();
     page("routines");
     const paused = screen.getByText("Stretch").closest(".rem-card")!.querySelector(".facts")!;
     expect([...paused.querySelectorAll(".fact")].map((f) => f.textContent)).toEqual(["Paused"]);

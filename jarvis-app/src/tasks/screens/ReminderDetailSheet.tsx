@@ -58,7 +58,11 @@ export default function ReminderDetailSheet({
             <div className="rem-detail-title">{item.data.text}</div>
             <div className="facts">
               {area && <span className="fact cat"><span className={"cd cat-bg-" + catColor(item.data.category)} />{area}</span>}
-              <span className={"fact " + (r.paused ? "" : done ? "good" : "when")}>{state}</span>
+              {/* Done is the key's green; Open and Paused carry no key
+                  meaning, so they are the line's one plain grey beside the
+                  dotted area (§AM). The reminders-only "when" tone is
+                  retired: it has no rule in any stylesheet. */}
+              <span className={"fact" + (r.paused ? "" : done ? " good" : "")}>{state}</span>
             </div>
           </div>
 
