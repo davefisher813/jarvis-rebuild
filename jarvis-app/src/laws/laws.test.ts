@@ -2383,10 +2383,21 @@ describe("LAW L1: red is a verb, never a status", () => {
   // where it can. Unread was never lateness and never takes any red; that
   // half is its own assertion below, so narrowing this pattern lets nothing
   // through that it used to stop there.
-  const GUILT = /\.(?:[a-z-]*)(overdue|late|unread|behind)(?:[a-z-]*)\b[^{]*\{[^}]*(--accent|--accent-fill|--accent-tx|--tint|--on-light-red)\b/gi;
+  // AMENDED 2026-09-26 (round-2 review, the lead): "missed" joins the words.
+  // The amendment above names missed with late and overdue, but the pattern
+  // never checked it, so a missed reminder's time recoloured to the tap red
+  // passed every law. Every other word and colour stays.
+  const GUILT = /\.(?:[a-z-]*)(overdue|late|missed|unread|behind)(?:[a-z-]*)\b[^{]*\{[^}]*(--accent|--accent-fill|--accent-tx|--tint|--on-light-red)\b/gi;
   // Unread is a state of the inbox, not of the user: no red of any kind,
   // the key's included (Anti-Inbox, 2026-08-25; the mail rail's white dot).
-  const UNREAD_RED = /\.(?:[a-z-]*)unread(?:[a-z-]*)\b[^{]*\{[^}]*(--accent|--accent-fill|--accent-tx|--tint|--on-light-red|--sys-red|--red|--bad)\b/gi;
+  // AMENDED 2026-09-26 (round-2 review, the lead): "behind" joins unread
+  // here. Narrowing GUILT to the tap reds let a behind class take the system
+  // red, and the amendment argued that only for late, overdue, over the
+  // limit and missed. Behind is not late: it is the very "you are behind"
+  // this law was written against, and the key files stalled work under
+  // amber. So a behind class takes neither the brand red nor the system red.
+  // Unread keeps every colour it was already denied.
+  const UNREAD_RED = /\.(?:[a-z-]*)(unread|behind)(?:[a-z-]*)\b[^{]*\{[^}]*(--accent|--accent-fill|--accent-tx|--tint|--on-light-red|--sys-red|--red|--bad)\b/gi;
 
   // WIDENED APP-WIDE 2026-08-25 (Dave). L1 was written for email and scoped
   // to email, which left the same mechanic running one tab over: the Tasks
@@ -2421,9 +2432,9 @@ describe("LAW L1: red is a verb, never a status", () => {
       .filter((sel) => !RULED_LATENESS.has(sel));
     expect(bad, "red means tap me, never you are behind").toEqual([]);
   });
-  it("no unread class takes any red at all, the key's included", () => {
+  it("no unread or behind class takes any red at all, the key's included", () => {
     const bad = [...CSS.matchAll(UNREAD_RED)].map((m) => m[0].split("{")[0]!.trim());
-    expect(bad, "unread is a fact about the inbox, not a failure").toEqual([]);
+    expect(bad, "unread is a fact about the inbox and behind is amber at most, never a failure").toEqual([]);
   });
   it("the ruled lateness classes render only when something is actually late", () => {
     // The red is earned by the render condition, not by the class name. Both

@@ -190,7 +190,8 @@
   "old": "4 Open \u00b7 About 3h",
   "new": "About 3h",
   "group": "bigger-pace",
-  "phase": "css-round2"
+  "phase": "css-round2",
+  "superseded": "2026-09-26 round 3: now \"About 3h left\""
  },
  {
   "issue": "#15",
@@ -198,7 +199,8 @@
   "old": "4 Open \u00b7 About 3h",
   "new": "About 3h",
   "group": "bigger-pace",
-  "phase": "css-round2"
+  "phase": "css-round2",
+  "superseded": "2026-09-26 round 3: now \"About 3h left\""
  },
  {
   "issue": "#0/#13/#63",
@@ -351,5 +353,149 @@
   "new": "Noise, plus its count in the head's .n slot (for example \"Noise \u00b7\u00b7\u00b7 5\"), which the lead asked for so it matches the band heads",
   "group": "mail-options",
   "phase": "css-round2"
+ },
+ {
+  "issue": "#0/#40",
+  "file": "src/decisions/DecisionsFlow.tsx",
+  "old": "Decision row facts line with a person, goal or task home, or a project with no category, e.g. \"Rebuild Bridge App \u00b7 Sam \u00b7 Didn't \u00b7 SEP 26\"",
+  "new": "Only homes in an area stay on the row: \"Rebuild Bridge App \u00b7 Didn't \u00b7 SEP 26\". Sam, and any goal, task or uncategorised project, now appears only on the record page's Attached To card. This drops a fact rather than rewording one; it is listed so Dave sees it.",
+  "group": "decisions",
+  "phase": "css-round3"
+ },
+ {
+  "issue": "#1",
+  "file": "src/projects/ProjectDetailPage.tsx",
+  "old": "4 of 9 Left \u00b7 Due tomorrow (the pace count and the date as two facts, dot drawn by CSS)",
+  "new": "Due tomorrow (the date alone, in its key colour; the count is dropped because it restated \"5 of 9 done\")",
+  "group": "projects-bigger",
+  "phase": "css-round3"
+ },
+ {
+  "issue": "#9",
+  "file": "src/bigger/BiggerPicturePage.tsx",
+  "old": "Next: Call Ridgeline",
+  "new": "NEXT Call Ridgeline (the source text is \"Next\" in a .bp-next-k caps kicker, then the action; the colon is dropped)",
+  "group": "projects-bigger",
+  "phase": "css-round3"
+ },
+ {
+  "issue": "#23",
+  "file": "src/projects/shape.ts",
+  "old": "About 3h (it was \"4 open \u00b7 About 3h\" before this sweep)",
+  "new": "About 3h left",
+  "group": "projects-bigger",
+  "phase": "css-round3"
+ },
+ {
+  "issue": "extra, R6",
+  "file": "src/projects/shape.ts",
+  "old": "On hold \u00b7 No date set",
+  "new": "On hold, no end date",
+  "group": "projects-bigger",
+  "phase": "css-round3"
+ },
+ {
+  "issue": "#2",
+  "file": "jarvis-app/src/notes/screens/ExportSheet.tsx",
+  "old": "PDF keeps accented Latin text and includes photos / Its built-in fonts have no other scripts and no emoji, which Word keeps",
+  "new": "PDF keeps accented Latin text and photos, but not other scripts or emoji; Word keeps those",
+  "group": "notes-export",
+  "phase": "css-round3"
+ },
+ {
+  "issue": "#2",
+  "file": "jarvis-app/src/notes/screens/ExportSheet.tsx",
+  "old": "Markdown and text keep every character / Attachments are listed by name",
+  "new": "Markdown and text keep every character and list attachments by name",
+  "group": "notes-export",
+  "phase": "css-round3"
+ },
+ {
+  "issue": "#3",
+  "file": "jarvis-app/src/notes/screens/ExportSheet.tsx",
+  "old": "{failed} / The note is unchanged / Retry, or choose another format",
+  "new": "{failed}. The note is unchanged: retry, or choose another format",
+  "group": "notes-export",
+  "phase": "css-round3"
+ },
+ {
+  "issue": "#3",
+  "file": "jarvis-app/src/notes/screens/NoteEditor.tsx",
+  "old": "This browser did not let JARVIS copy for you / The words are selected: press Copy on your keyboard or in the menu",
+  "new": "This browser did not let JARVIS copy, so the words are selected: press Copy on your keyboard or in the menu",
+  "group": "notes-export",
+  "phase": "css-round3"
+ },
+ {
+  "issue": "#27",
+  "file": "src/brain/CategoryDetail.tsx",
+  "old": "{n} sets, counted half",
+  "new": "{n} sets, secondary, counted half",
+  "group": "brain-insights",
+  "phase": "css-round3"
+ },
+ {
+  "issue": "#4/#45 volume source line (was an 11px caps line of CSS-separated facts inside the card)",
+  "file": "src/brain/CategoryDetail.tsx",
+  "old": "Last 7 days \u00b7 Working sets only \u00b7 Warm-ups excluded \u00b7 Schoenfeld dose-response meta-analysis \u00b7 2025 Sports Medicine meta-regression",
+  "new": "Last 7 days, working sets only, warm-ups excluded. Schoenfeld dose-response meta-analysis, 2025 Sports Medicine meta-regression.",
+  "group": "brain-insights",
+  "phase": "css-round3"
+ },
+ {
+  "issue": "#4/#45 volume source line, personal band variant",
+  "file": "src/brain/CategoryDetail.tsx",
+  "old": "Last 7 days \u00b7 Working sets only \u00b7 Warm-ups excluded \u00b7 Your band, from Health Settings",
+  "new": "Last 7 days, working sets only, warm-ups excluded. Your band, from Health Settings.",
+  "group": "brain-insights",
+  "phase": "css-round3"
+ },
+ {
+  "issue": "#4/#45 coverage card",
+  "file": "src/brain/CategoryDetail.tsx",
+  "old": "Assign muscles on Exercises and these join the count",
+  "new": "Assign muscles on Exercises and these join the count.",
+  "group": "brain-insights",
+  "phase": "css-round3"
+ },
+ {
+  "issue": "#4/#45/#18 nearest pair",
+  "file": "src/brain/CategoryDetail.tsx",
+  "old": "Not enough days yet \u00b7 {metric} and {lift} \u00b7 {n} of {m} paired sessions",
+  "new": "Not enough days yet for {metric} and {lift}, {n} of {m} paired sessions.",
+  "group": "brain-insights",
+  "phase": "css-round3"
+ },
+ {
+  "issue": "#4/#45 lighter-week card",
+  "file": "src/brain/CategoryDetail.tsx",
+  "old": "Never a prescription, just an offer",
+  "new": "Never a prescription, just an offer.",
+  "group": "brain-insights",
+  "phase": "css-round3"
+ },
+ {
+  "issue": "#4 correlation card (dropped: repeats the card's own last line)",
+  "file": "src/brain/CategoryDetail.tsx",
+  "old": "Correlation, not cause (cite under a line already ending 'Correlation, not cause')",
+  "new": "(removed)",
+  "group": "brain-insights",
+  "phase": "css-round3"
+ },
+ {
+  "issue": "#4/#45/#18 InsightEvidence explain note (subject named now that it sits under the card, away from the words)",
+  "file": "src/brain/InsightEvidence.tsx",
+  "old": "From your records + AI \u00b7 Explains the rows above, adds nothing to them",
+  "new": "Explanation from your records + AI, adding nothing to the rows above.",
+  "group": "brain-insights",
+  "phase": "css-round3"
+ },
+ {
+  "file": "src/messages/MessagesFlow.tsx",
+  "issue": "#43",
+  "old": "Noise head: \"Noise\" + count \"12\"",
+  "new": "\"Noise\" (no count; the line under it still reads \"12 Machines wrote ...\")",
+  "group": "mail-facts-today",
+  "phase": "css-round3"
  }
 ]

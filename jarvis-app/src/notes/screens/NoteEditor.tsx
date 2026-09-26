@@ -104,8 +104,7 @@ function CopyFallback({ text, onClose }: { text: string; onClose: () => void }) 
         <div className="sheet-handle" />
         <div className="grp"><div className="eyebrow">Copy the Words</div></div>
         <div className="pad-x sheet-form">
-          <div className="exp-note">This browser did not let JARVIS copy for you</div>
-          <div className="exp-note">The words are selected: press Copy on your keyboard or in the menu</div>
+          <div className="exp-note">This browser did not let JARVIS copy, so the words are selected: press Copy on your keyboard or in the menu</div>
           <textarea className="copy-fallback" ref={ref} readOnly value={text} aria-label="The note, ready to copy" />
           <div className="exp-acts"><button type="button" className="btn btn-secondary" onClick={onClose}>Done</button></div>
         </div>

@@ -174,12 +174,16 @@
 .ruled .st-goal  { background: var(--good-tint);  color: var(--good); }
 .ruled .st-quiet { background: var(--press-3);    color: var(--tx-2); }
 .ruled .st-quiet .st-n { color: var(--tx-1); }
-/* The quiet tile's word is already the secondary grey, so it takes none of
-   the softening the tinted tiles' words get (§AM, 2026-09-26): dimmed, it
-   measured 4.22:1 on the light page and 4.44:1 on a light card, under AA;
-   undimmed it is 8.74:1 and 9.58:1. The tinted tiles keep theirs, which is
-   only there to soften a hue. */
-.ruled .st-quiet .st-w { opacity: 1; }
+/* Two tiles' words take none of the softening the other tiles' words get
+   (§AM, 2026-09-26). The quiet tile's word is already the secondary grey:
+   dimmed, it measured 4.22:1 on the light page and 4.44:1 on a light card,
+   under AA; undimmed it is 8.74:1 and 9.58:1. The late tile's word is 11px
+   bold caps in the dark system red on its red wash: dimmed, it measured
+   3.13 to 3.41:1 on the dark hero; undimmed it is 5.47:1 on the page and
+   4.74:1 under the morning wash. It shows from the first late task, so it
+   has to read every time. The green and amber tiles keep theirs (4.59 to
+   5.04:1 dimmed), where it only softens a hue. */
+.ruled .st-quiet .st-w, .ruled .st-late .st-w { opacity: 1; }
 .ruled .st-warn  { background: var(--warn-tint);  color: var(--warn); }
 .ruled .st-late  { background: var(--red-tint);   color: var(--sys-red); }
 /* No light text step for these tiles. BROWSER-F-04 (2026-09-05) took the
@@ -311,10 +315,15 @@
 /* An event row's provenance keeps a line of its own, but it takes the same
    letterform (§AK/§AM, 2026-09-26): at 14px regular it was a second grey run
    beside the place, the meta line's one grey. Caps is the distinction. It
-   sets no colour, so a source that opens keeps its tap red, and nothing
-   here touches the 44px reach the tappable form carries. */
+   sets no colour, so a source that opens keeps its tap red.
+   The smaller line shrank the tap reach the openable form carries, which is
+   transparent border above and below the line box (SHARED-F-17): measured
+   42px on the 14px line, 39px on the 11px one. The border grows by the same
+   amount the line lost and the margin pays it back, so the reach is 44px
+   again and nothing on the row moves (2026-09-26). */
 .ruled .sched-body > .prov-line { font-size: var(--t-eyebrow); font-weight: var(--w-semi);
   letter-spacing: var(--track-caps); text-transform: uppercase; }
+.ruled .sched-body > .prov-link { border-top-width: 16px; border-bottom-width: 16px; margin-block: -16px; }
 /* §AM (2026-09-25): a source that opens is a tap, so it wears the colour
    that says so, the same as an openable person on this line. One that
    cannot be opened keeps the line's grey. */
@@ -350,8 +359,6 @@
    Colour only; the size and the truncation stay the line's. */
 .ruled .r-goal.fact.good { color: var(--good); }
 .ruled .r-goal.fact.warn { color: var(--warn); }
-.ruled .r-goal.fact.red { color: var(--sys-red); }
-.ruled .r-goal.fact.est { color: var(--cat-sky); }
 /* THE GOAL LINE (Dave 2026-09-01: "Goals can't render like typical
    subtext"). A goal wears the goal mark in goal green and its name one step
    brighter at medium weight; the category, the reason and everything else
@@ -1008,7 +1015,11 @@
 .ruled .ins-arrow::after { content: ""; position: absolute; right: 0; top: -2.5px; width: 6px; height: 6px;
   border-top: 1.5px solid var(--tx-4); border-right: 1.5px solid var(--tx-4); transform: rotate(45deg); }
 .ruled .ins-line { margin-top: var(--s-2); font-size: var(--t-sub); color: var(--tx-3); }
-/* The source and the caveat: last, present, never loud.
+/* A short caveat LABEL, a few words ("Correlation, not cause"): last,
+   present, never loud. It used to carry the source and whole sentences too;
+   caps is for a label, never a sentence (2026-09-26), so a source line or a
+   sentence now goes under the card as the page's field-note pattern, and
+   only the label stays here.
    AMENDED 2026-09-26 (§AK, the lead): a caps kicker. At the fact size in
    italic it was a second regular grey under the finding's own line, and
    italic is not one of the ways a run is set apart. Caps is, and the 11px
@@ -1310,10 +1321,6 @@
 .ruled .note-row .r-k .r-when { flex-shrink: 0; font-size: var(--t-eyebrow); font-weight: var(--w-semi);
   letter-spacing: var(--track-caps); text-transform: uppercase; color: var(--tx-3);
   font-variant-numeric: tabular-nums; }
-/* What JARVIS found borrows the cue's small caps for its letterform only
-   (§AM, 2026-09-26). The arrow the cue draws before itself belongs to an
-   if-then plan on a task row; a note has no plan, so no arrow. */
-.ruled .note-row .r-k .r-cue::before { content: none; }
 .ruled .note-row .sel-box { margin: 0; }
 /* THE OLD EXCEPTION NEVER FOLLOWED THE ROW IT WAS WRITTEN FOR (2026-09-22).
    "Bridge Invitational Item List" lost a fifth of itself at 320px on the
@@ -2227,16 +2234,23 @@
 /* HEALTH PUSH D (2026-09-12 picks; built 2026-09-13). The effort blocks get
    their two ends named in the quiet text colour; and the Skip under them
    sits at the right, a way out and not the move.
-   THE REFILL RUNWAY'S TWO NUMBERS ARE WHITE (§AM, 2026-09-25). They wore
-   medication blue as the area's colour, and under the Colour Key an area's
-   colour rides a dot, never a reading, while blue in Health means a
-   cool-down. A count of doses and a count of days have no state of their
-   own, so they take white, the key's number that must still stand out.
-   Doses Left turns Health's amber once the pharmacy call is due (2026-09-26):
-   near a limit is a state, and the key gives it amber.
+   THE REFILL RUNWAY'S TWO NUMBERS FOLLOW THE KEY (§AM, 2026-09-25, and
+   2026-09-26). They wore medication blue as the area's colour, and under the
+   Colour Key an area's colour rides a dot, never a reading, while blue in
+   Health means a cool-down. How many doses are left is an exact count with
+   no state of its own, so it is white, the key's number that must still
+   stand out. How many days that lasts is a projection from his pace, an
+   estimate the app worked out, so it is sky; Health has no sky ink of its
+   own, the same reasoning as the estimate chip on a set. Each tile turns
+   Health's amber, its ink on Health's own amber wash, only when its own
+   number is near its own limit: five doses, or five days. Near a limit is
+   a state, and the key gives it amber. The amber comes last so it wins a
+   tie on source order.
    The two ends are scale-end kickers, so 11 caps (§AM F4), not a 13. */
 .ruled.health-ruled .stat-row.stat-hblue .stat-tile .stat-num { color: var(--tx-1); }
+.ruled.health-ruled .stat-row.stat-hblue .stat-tile.stat-sky .stat-num { color: var(--cat-sky); }
 .ruled.health-ruled .stat-row.stat-hblue .stat-tile.stat-warn .stat-num { color: var(--hl-amber-ink); }
+.ruled.health-ruled .stat-row.stat-hblue .stat-tile.stat-warn { background-color: var(--hl-amber-tint); }
 .ruled.health-ruled .rpe-ends { display: flex; justify-content: space-between; margin-top: var(--s-1h);
   font-size: var(--t-eyebrow); font-weight: var(--w-semi); letter-spacing: var(--track-caps);
   text-transform: uppercase; color: var(--tx-3); }

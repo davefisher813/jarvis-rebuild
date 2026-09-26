@@ -80,7 +80,9 @@ describe("the export sheet", () => {
     const { onClose } = mount();
     fireEvent.click(screen.getByRole("button", { name: /Text \.txt/ }));
     fireEvent.click(await screen.findByRole("button", { name: "Export File" }));
-    expect(await screen.findByRole("alert")).toHaveTextContent("The disk is fullThe note is unchangedRetry, or choose another format");
+    expect(await screen.findByRole("alert")).toHaveTextContent("The disk is full. The note is unchanged: retry, or choose another format");
+    // One sentence in one grey, not three stacked runs of it (§AK).
+    expect(screen.getByRole("alert").querySelectorAll(".exp-note")).toHaveLength(1);
     expect(screen.getAllByRole("button", { pressed: false }).filter((b) => b.classList.contains("exp-format")).length).toBe(3);
     fireEvent.click(screen.getByRole("button", { name: "Retry" }));
     await waitFor(() => expect(onClose).toHaveBeenCalled());
@@ -92,9 +94,13 @@ describe("the export sheet", () => {
     const { container } = render(<ExportSheet doc={DOC} title="Convo with Berto" images={[]} attachmentNames={["plan.pdf"]} onClose={() => {}} />);
     const hints = [...container.ownerDocument.querySelectorAll(".sheet-form .input-hint")].map((el) => el.textContent);
     expect(hints).toContain("Convo with Berto.pdf");
-    expect(hints).toContain("PDF keeps accented Latin text and includes photos");
+    expect(hints).toContain("PDF keeps accented Latin text and photos, but not other scripts or emoji; Word keeps those");
     expect(hints).toContain("Not included: plan.pdf.");
     expect(container.ownerDocument.querySelector(".sheet-form .field .exp-note")).toBeNull();
+    // And the Format field carries ONE note: two stacked italics are two
+    // runs of the same grey (§AK).
+    const format = container.ownerDocument.querySelector(".exp-formats")!.closest(".field")!;
+    expect(format.querySelectorAll(".input-hint")).toHaveLength(1);
   });
 
   it("the preview shows the words, and More Options can leave the title out", async () => {

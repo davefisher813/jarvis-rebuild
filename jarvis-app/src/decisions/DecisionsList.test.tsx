@@ -1,6 +1,8 @@
-// The decision list anatomy (Dave 2026-08-18 styling pass): each linked
-// home renders as its own fact in the sub line, the recorded date rides the
-// name line, and long decision sentences wrap instead of truncating.
+// The decision list anatomy (Dave 2026-08-18 styling pass, and the lead's
+// 2026-09-26 ruling): each home that sits in an area renders as its own
+// category fact in the facts line, a person, goal or task home stays on the
+// record page, the date closes the line in small caps, and long decision
+// sentences wrap instead of truncating.
 // @vitest-environment jsdom
 import { describe, it, expect, afterAll } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
@@ -43,7 +45,7 @@ function Seeded({ children }: { children: ReactNode }) {
 }
 
 describe("Decision list anatomy", () => {
-  it("renders each home as its own fact with a date in the name line", async () => {
+  it("renders each home in an area as its own fact, and the date as small caps", async () => {
     const { container } = render(
       <NotesProvider userId="u-dec-list"><Seeded><DecisionsFlow onBack={() => {}} /></Seeded></NotesProvider>,
     );
@@ -56,13 +58,22 @@ describe("Decision list anatomy", () => {
     expect(link.className).toContain("fact cat");
     await waitFor(() => expect(link.querySelector(".cd")!.className).toMatch(/\bcat-bg-orange\b/));
     expect(link.className).not.toMatch(/cat-fg-/);
-    // A person is not an area of life: the name, no dot, not the category
-    // fact, and not the project's colour borrowed from the first link.
-    const person = screen.getByText("Sam").closest(".fact-link")!;
-    expect(person).toBeInTheDocument();
-    expect(person.className).not.toMatch(/\bcat\b/);
-    expect(person.querySelector(".cd")).toBeNull();
-    expect(container.querySelector(".dec-when")).toBeInTheDocument();
+    // A person is not an area of life, so it has no dot to wear and is not
+    // on the row at all (lead, 2026-09-26): a bare name would be a second
+    // plain grey beside the reason (§AK). The record page's Attached To card
+    // names it.
+    const row = link.closest(".dec-row")!;
+    expect(row.textContent).not.toContain("Sam");
+    expect(screen.queryByText("Sam")).toBeNull();
+    // Every home left on the row wears a dot.
+    for (const f of Array.from(row.querySelectorAll(".fact-link"))) {
+      expect(f.className).toContain("fact cat");
+      expect(f.querySelector(".cd")).not.toBeNull();
+    }
+    // The date is the shared small-caps primitive, not a class of its own.
+    const date = row.querySelector(".facts > .fact:last-child")!;
+    expect(date.className).toBe("fact date");
+    expect(container.querySelector(".dec-when")).toBeNull();
     // Long decision sentences wrap (two-line clamp) rather than truncating.
     const name = Array.from(container.querySelectorAll(".dec-name")).find((n) => n.textContent!.includes("Student template ships"));
     expect(name).toBeInTheDocument();

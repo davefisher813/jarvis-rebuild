@@ -200,11 +200,12 @@ describe("MessagesFlow (threads)", () => {
     fireEvent.click(screen.getByText("The Rest"));
     expect(screen.getByText("Noise")).toBeInTheDocument();
     // R10 (§AM F7, 2026-09-26): Noise is a section, so its head sits OUTSIDE
-    // a card with its count, like the Waiting On band heads, and its rows
-    // ride in their own list card under it.
+    // a card, like the Waiting On band heads, and its rows ride in their own
+    // list card under it. The head carries no count: the machines line
+    // under it already states the number, and it said it twice.
     const noiseHead = screen.getByText("Noise").closest(".sh2")!;
     expect(noiseHead.closest(".card")).toBeNull();
-    expect(noiseHead.querySelector(".n")).toHaveTextContent("1");
+    expect(noiseHead.querySelector(".n")).toBeNull();
     expect(noiseHead.nextElementSibling?.querySelector(":scope > .card.list-card-ruled > .msg-machines")).toBeTruthy();
     // SPEC MOVED (8A castes, 2026-08-25): the machines' row used to be a
     // full row reading "1 Automated email", which is the sensory flatness

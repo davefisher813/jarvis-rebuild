@@ -199,8 +199,8 @@ export default function InsightsFlow({ onBack, onOpenTask }: {
             <div className="pad-x"><div className="card pad week-card">
               <div className="tiles">
                 <div className="itile itile-good"><b>{week.tiles.done}</b><span>done</span></div>
-                <div className="itile itile-purp"><b>{week.tiles.moved}</b><span>goals moved</span></div>
-                <div className="itile itile-sky"><b>{week.tiles.flexible}</b><span>flexible</span></div>
+                <div className="itile itile-plain"><b>{week.tiles.moved}</b><span>goals moved</span></div>
+                <div className="itile itile-plain"><b>{week.tiles.flexible}</b><span>flexible</span></div>
               </div>
               {week.stack && (
                 <>

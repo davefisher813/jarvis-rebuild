@@ -542,8 +542,8 @@ function ListScreen({ live, loading, projCat, onBack, onOpen, onAdd }: {
       {live.length > 0 && <div className="sh2 sh2-quiet"><span className="t">All Decisions</span></div>}
       {/* THE DECISION ROW (Astra, 2026-09-12; C-50, C-53). The star leads,
           the glyph wears the first home's colour, the call, the reason when
-          there is one, and one facts line: its homes, its outcome, and the
-          revisit day or the day it was recorded. */}
+          there is one, and one facts line: its homes that sit in an area,
+          its outcome, and the revisit day or the day it was recorded. */}
       {live.length > 0 && (
         <div className="pad-x"><div className="card list-card-ruled">
           {live.map((r) => (
@@ -562,13 +562,18 @@ function ListScreen({ live, loading, projCat, onBack, onOpen, onAdd }: {
                       row already spends its grey on the reason.
                       Each home is its OWN area (§AM): a project's category,
                       or the area itself, on the dot; the name stays the
-                      line's grey. A person, goal or task is not an area of
-                      life, so it gets no dot. */}
+                      line's grey, told apart by the dot.
+                      ONLY A HOME IN AN AREA IS ON THE ROW (lead, 2026-09-26).
+                      A person, goal or task, or a project with no category,
+                      has no dot to wear, so its name was a second bare grey
+                      beside the reason (§AK). The record page's Attached To
+                      card names every home, the same move that took the
+                      source off the row. */}
                   {linksOf(r.data).map((l) => {
                     const slot = linkAreaSlot(l, projCat);
                     return slot
                       ? <span className="fact cat fact-link" key={l.id}><span className={"cd cat-bg-" + slot} /><span className="cat-t">{l.label}</span></span>
-                      : <span className="fact fact-link" key={l.id}><span className="cat-t">{l.label}</span></span>;
+                      : null;
                   })}
                   {/* How it turned out takes the key: worked is done, mixed
                       needs him, didn't is missed. */}
@@ -579,8 +584,9 @@ function ListScreen({ live, loading, projCat, onBack, onOpen, onAdd }: {
                       so the date drew as a second plain grey beside the
                       reason on every decision row. Caps is told apart by its
                       letterforms, so the row keeps its one grey for the
-                      words. The dead .cyan is gone with it. */}
-                  <span className="fact dec-when">{r.data.revisitOn && (r.data.revisitState === "pending" || r.data.revisitState === "shown") ? "Revisit " + fmtShort(r.data.revisitOn) : fmtShort(r.data.createdAt)}</span>
+                      words. The dead .cyan is gone with it, and the date is
+                      the shared .fact.date primitive, not a class of its own. */}
+                  <span className="fact date">{r.data.revisitOn && (r.data.revisitState === "pending" || r.data.revisitState === "shown") ? "Revisit " + fmtShort(r.data.revisitOn) : fmtShort(r.data.createdAt)}</span>
                 </div>
               </div>
               <Chev />

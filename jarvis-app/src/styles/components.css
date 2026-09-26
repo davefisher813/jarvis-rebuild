@@ -282,14 +282,11 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
 .ticker-toggle.paused .icon-play { display: block; }
 .ticker-toggle.paused .icon-pause { display: none; }
 .now-line { display: flex; align-items: center; gap: var(--s-2); padding: var(--s-1) var(--s-4); }
-/* The Now label cannot be tapped, so it is not brand red (§AM, 2026-09-25):
-   the time it states is a number with no state that must stand out, white.
-   The rule beside it and LIVE carry the marker. */
-.now-line .now-label { font-size: var(--t-eyebrow); font-weight: var(--w-semi); text-transform: uppercase; letter-spacing: var(--track-caps); color: var(--tx-1); flex-shrink: 0; }
-/* The rule is a mark nobody taps, so it is not the brand red either: it
-   takes the red of the LIVE word it runs from, so the line carries one red
-   and not two (§AM, 2026-09-25). */
-.now-line .now-rule { height: 2px; background: var(--sys-red); flex: 1; border-radius: 1px; opacity: 0.5; }
+/* HELD FOR DAVE (2026-09-26): Today's Now rule, its label and LIVE stay as
+   they were until he answers whether they go white. Schedule draws its own
+   Now rule, and the two must change together, not one at a time. */
+.now-line .now-label { font-size: var(--t-eyebrow); font-weight: var(--w-semi); text-transform: uppercase; letter-spacing: var(--track-caps); color: var(--accent-chrome); flex-shrink: 0; }
+.now-line .now-rule { height: 2px; background: var(--accent); flex: 1; border-radius: 1px; opacity: 0.5; }
 .sched-row.past { opacity: 0.45; }
 .screen-foot { height: var(--s-8); }
 
@@ -1146,17 +1143,22 @@ a.row.person-reach { color: inherit; text-decoration: none; }
    the one kind of inline style the laws allow, because the arc IS geometry.
    The number still counts what he committed to today (Dave 2026-08-29), and
    the evening line still counts everything he did; the two never matched and
-   never should. */
-.dring { position: relative; width: 64px; height: 64px; border-radius: var(--r-circle); flex: 0 0 64px;
+   never should.
+   THE RING GROWS WITH THE TYPE (2026-09-26). Its word went from 8px to the
+   11px caps every kicker uses (F4), and inside a fixed 50px disc the widest
+   word overran the disc at 1.0 and landed on the arc at 1.4. The ring and
+   its disc now scale with the type the same way the words inside do. */
+.dring { position: relative; width: calc(64px * var(--type-scale)); height: calc(64px * var(--type-scale));
+  border-radius: var(--r-circle); flex: 0 0 calc(64px * var(--type-scale));
   background: conic-gradient(var(--good-fill) 0 var(--pct, 0%), var(--press-3) var(--pct, 0%) 100%);
   display: flex; align-items: center; justify-content: center; box-shadow: 0 0 0 1px var(--divider); }
-.dring > div { width: 50px; height: 50px; border-radius: var(--r-circle); background: var(--bg);
+.dring > div { width: calc(50px * var(--type-scale)); height: calc(50px * var(--type-scale)); border-radius: var(--r-circle); background: var(--bg);
   display: flex; flex-direction: column; align-items: center; justify-content: center; font-variant-numeric: tabular-nums; line-height: 1; }
 /* Inside a card the disc takes the card's own ground, so the ring does not
    punch a page-coloured hole in a white card. */
 .card .dring > div { background: var(--surface-1); }
 .dring b { font-size: calc(17px * var(--type-scale)); font-weight: var(--w-bold); letter-spacing: -0.02em; color: var(--tx-1); }
-.dring span { font-size: var(--t-micro); font-weight: var(--w-bold); letter-spacing: var(--track-eyebrow); text-transform: uppercase; color: var(--tx-3); margin-top: var(--s-0h); }
+.dring span { font-size: var(--t-micro); font-weight: var(--w-bold); letter-spacing: var(--track-caps); text-transform: uppercase; color: var(--tx-3); margin-top: var(--s-0h); }
 .dring.done { animation: ringPop 480ms var(--ease-spring); }
 @keyframes ringPop { 0% { transform: scale(1); } 45% { transform: scale(1.18); } 100% { transform: scale(1); } }
 
@@ -1708,7 +1710,6 @@ a.row.person-reach { color: inherit; text-decoration: none; }
    is), it just is not forced to every time. */
 .rem-card .facts > .fact:last-child { min-width: 0; flex-shrink: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rem-card .facts > .fact.cat .cat-t { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.rem-card .facts .fact.when { color: var(--warn); }
 /* The four views, as chips rather than a second segmented control (Dave
    2026-09-15: "we can't have two tab bars on one page"). Same row Notes'
    filters wear; it only has to close the gap the toolbar above already left. */
@@ -1941,6 +1942,9 @@ body.jarvis-dragging { overflow: hidden; touch-action: none; -webkit-user-select
    2026-09-12 Astra ruling): late is Apple's light system red as shipped,
    including as text, and the words red means "tap this". */
 [data-theme="light"] .sec-head .see-all { color: var(--on-light-red); }
+/* Today's Now label keeps the light twin it had, held for Dave with the
+   Now rule itself (2026-09-26); it is not a tap word. */
+[data-theme="light"] .now-line .now-label { color: var(--on-light-red); }
 /* THE WORDMARK IS A LOGOTYPE. The J in JARVIS carries no information a
    reader must decode, and WCAG exempts brand marks from the text bar for
    exactly that reason, so it wears the real brand red in both themes.
@@ -2160,9 +2164,15 @@ button {
    and past states, while carrying the one live instruction on the row. It
    then took --tx-2, meant as one step brighter than the lines around it --
    but --tx-2 and --tx-3 are the same hex in both themes, so it was the
-   row's grey again (§AK). Next is amber in the key (§AM, 2026-09-25), the
-   colour NEXT already wears on the ruled project row. */
-.bp-next { color: var(--warn); }
+   row's grey again (§AK). Next is amber in the key (§AM, 2026-09-25), and
+   it is drawn the way the ruled project row draws it (2026-09-26): only the
+   NEXT kicker is amber, 11px caps; the action after it is full ink. The
+   whole sentence in amber spent the key's colour on the words instead of
+   the label. The line is a two-line clamp, not a flex row, so the kicker
+   takes no flex-shrink, and the space in the markup is its gap. */
+.bp-next { color: var(--tx-1); }
+.bp-next-k { font-size: var(--t-micro); font-weight: var(--w-bold); letter-spacing: 0.06em;
+  text-transform: uppercase; color: var(--warn); }
 .bp-sub.bp-next.truncate { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 
 /* Person pass: chip rows inside sheets wrap instead of scrolling (a sheet has
@@ -3707,13 +3717,13 @@ button {
 .editor-bar .btn { min-width: 200px; }
 
 /* Decision list styling pass (Dave 2026-08-18): the linked home renders as a
-   colored fact inside the sub; the recorded date is the quiet right column. */
+   fact inside the sub; the date closes the facts line. */
 /* A LINKED NAME IS NOT A BADGE, AND IT WAS EATING THE DATE BESIDE IT
    (2026-09-22 audit). Every other .fact on this row is a short, fixed word
    (a source kind, an outcome); this one is a free-form entity name with no
    bound, and it sits flex-shrink:0 same as the others -- so a decision
    linked to something like "Rebuild Calder App" could claim the row's
-   entire width before .dec-when, the LAST fact and the only one the shrink
+   entire width before the date, the LAST fact and the only one the shrink
    law lets give way, ever got a share to shrink from. Measured "Revisit Sep
    22" losing up to 79%. This fact now gives way on its own instead of
    starving the one after it.
@@ -3724,18 +3734,6 @@ button {
    name, so the name ellipses inside the flex box instead of the box. */
 .fact.fact-link { max-width: 45%; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--tx-3); }
 .fact.fact-link .cat-t { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-/* A DATE IS SMALL CAPS (§AM F5, Dave 2026-09-22, from the Subtext Catalog).
-   The comment beside this row in DecisionsFlow said the date wears cyan.
-   It never did: .fact.cyan exists only under .ruled.health-ruled, and
-   Decisions renders on a plain .ruled screen, so the date fell through to
-   this rule's --tx-2 -- the same colour as --tx-3, beside a reason already
-   spending the row's one grey (§AK).
-   Caps is the way out he picked, and it is one the app already owns: the
-   same 11px uppercase letterform .urgency puts on a time. No new colour,
-   and it survives a row that has spent its grey. */
-.dec-when { font-size: var(--t-eyebrow); font-weight: var(--w-semi); letter-spacing: var(--track-caps);
-  text-transform: uppercase; color: var(--tx-3); flex-shrink: 0; align-self: flex-start;
-  margin-top: var(--s-1); font-variant-numeric: tabular-nums; }
 /* Decisions are sentences; two lines beats an ellipsis (Dave critique fix). */
 .dec-name { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 /* The writing toolbar: chips row pinned to the bottom of the screen. It
@@ -3955,20 +3953,13 @@ button {
    sheet and the list it was opened from agree.
 
    Tinted fill plus a full-strength ring: a selected chip has to beat an
-   unselected one at arm's length in a gym, and a tint alone does not.
-
-   Health's inks stay on the surfaces Health draws (§AM, 2026-09-25): these
-   render only in the classify sheet, so they are scoped to a sheet, and the
-   WORDS wear the -ink twin, which is the vivid value in dark and the one
-   that reads on a light card. The ring keeps the vivid hue: it is a mark.
-   The scope adds no weight (:where), so light's raised selected pill still
-   wins exactly where it did. */
-:where(.sheet-scrim > .card) .chip.active.chip-lime { background: var(--hl-lime-tint); color: var(--hl-lime-ink); box-shadow: inset 0 0 0 1.5px var(--hl-lime); }
-:where(.sheet-scrim > .card) .chip.active.chip-violet { background: var(--hl-violet-tint); color: var(--hl-violet-ink); box-shadow: inset 0 0 0 1.5px var(--hl-violet); }
-:where(.sheet-scrim > .card) .chip.active.chip-cyan { background: var(--hl-cyan-tint); color: var(--hl-cyan-ink); box-shadow: inset 0 0 0 1.5px var(--hl-cyan); }
+   unselected one at arm's length in a gym, and a tint alone does not. */
+.chip.active.chip-lime { background: var(--hl-lime-tint); color: var(--hl-lime); box-shadow: inset 0 0 0 1.5px var(--hl-lime); }
+.chip.active.chip-violet { background: var(--hl-violet-tint); color: var(--hl-violet); box-shadow: inset 0 0 0 1.5px var(--hl-violet); }
+.chip.active.chip-cyan { background: var(--hl-cyan-tint); color: var(--hl-cyan); box-shadow: inset 0 0 0 1.5px var(--hl-cyan); }
 /* A secondary muscle is the same fact at half weight, which is exactly what
    this app counts it as. Same hue, ring only. */
-:where(.sheet-scrim > .card) .chip.chip-half.chip-lime { background: none; color: var(--hl-lime-ink); box-shadow: inset 0 0 0 1.5px var(--hl-lime-tint); }
+.chip.chip-half.chip-lime { background: none; color: var(--hl-lime); box-shadow: inset 0 0 0 1.5px var(--hl-lime-tint); }
 .chip-act { color: var(--accent-tx); }
 /* The load line under the strip. Amber only when the day says no; a neutral
    day must never look like a warning. */
@@ -4195,7 +4186,7 @@ button.check-linked:active { opacity: 1; background: var(--press-3); }
    Italic is not one of §AK's four ways out, and it does not need to be: a
    field note is alone under its field, so there is no second grey to be
    told apart from. */
-.input-hint, .input-help, .input-note, .xs-note { font-size: var(--t-meta); color: var(--tx-3); margin-top: var(--s-2); font-style: italic; }
+.input-hint, .input-help, .input-note { font-size: var(--t-meta); color: var(--tx-3); margin-top: var(--s-2); font-style: italic; }
 
 /* D1 · THE AUTOMATICITY LINE. A progress bar toward the thing being
    automatic, not a streak: it has no cliff, so there is nothing to lose by
@@ -4635,6 +4626,12 @@ body.selecting .voice-dock { display: none; }
 }
 .notice-card-uniform .row { flex-wrap: nowrap; align-items: center; }
 .notice-card-uniform .row-grow { min-width: 0; }
+/* A sub drawn as a facts line takes the sub's own spacing (2026-09-26). The
+   facts line brings a small top margin and a taller line of its own, so the
+   due-project notice stood 3px taller than its neighbours at 1.4 and broke
+   the one height; at 1.0 the card's floor hid it. Inside the sub it is just
+   the sub's line. */
+.notice-card .conn-meta > .facts { margin-top: 0; line-height: inherit; }
 
 /* A uniform card with no sub gives the title both of its lines. Same height,
    more words. See the note in NoticeCard.tsx. */
@@ -5416,8 +5413,8 @@ body.selecting .voice-dock { display: none; }
 .xtag { display: inline-block; font-size: var(--t-micro); font-weight: var(--w-bold);
   letter-spacing: 0.04em; text-transform: uppercase; border-radius: var(--r-pill);
   padding: var(--s-0h) var(--s-2); margin-right: var(--s-1h); vertical-align: 2px; }
-.xtag-blue, .xtag-warn, .xtag-dim { background: var(--press-3); color: var(--tx-3); }
-.ruled.health-ruled .xtag-blue { background: var(--hl-violet-tint); color: var(--hl-violet-ink); }
+.xtag-pair, .xtag-dim { background: var(--press-3); color: var(--tx-3); }
+.ruled.health-ruled .xtag-pair { background: var(--hl-violet-tint); color: var(--hl-violet-ink); }
 .xtag-after { margin-right: 0; margin-left: var(--s-1h); }
 
 /* Wash kickers: the block cards' eyebrows carry their section's color
@@ -5736,13 +5733,12 @@ body.selecting .voice-dock { display: none; }
 .form-sheet .row.xs-strip { display: block; padding: var(--s-2) var(--s-3) var(--s-2h); }
 .form-sheet .row.xs-strip .chip-row { margin: 0; flex-wrap: wrap; overflow: visible; padding: 0; }
 .form-sheet .row.xs-strip .chip { background: var(--press-3); }
-/* A note under a group (an overlap, a hint). Its type is the one field note
-   (§AM F6, 2026-09-25): it joins .input-hint's rule, so this keeps only the
-   layout, and the margin that rule adds is taken back so nothing moves. The
-   fix capsule inside it stays upright. The type is not scoped to the sheet
-   (2026-09-25): the two upload reviews draw the same note on a page, where
-   a sheet-only rule matched nothing and it painted at body size in body
-   ink. There .pad-x gives the inset, so only the layout stays scoped. */
+/* A note under a group (an overlap, a hint). It is the one field note
+   (§AM F6): the markup pairs xs-note with input-hint, which carries the
+   type, so this keeps only the layout, and the margin that rule adds is
+   taken back here (0,2,0 beats 0,1,0) so nothing moves. The fix capsule
+   inside it stays upright. On the two upload reviews the note sits on a
+   page, not a sheet; there pad-x gives the inset and input-hint the type. */
 .form-sheet .xs-note { display: flex; align-items: center; justify-content: space-between; gap: var(--s-2);
   padding: var(--s-1h) var(--s-4) 0; margin-top: 0; }
 .xs-note .note-fix { flex-shrink: 0; font-style: normal; }
@@ -6182,10 +6178,10 @@ span.row-star { cursor: default; }
    are counts with no state, so they are the tile the key gives a number
    like that: a neutral ground, the number in white, and the caps label in
    the one grey, the way every stat tile draws it. Purple is not in the key,
-   and sky means an estimate. (The sky tile's ink was a light-only token,
-   so in dark it had been inheriting all along.) */
-.itile-purp, .itile-sky { background: var(--press-3); color: var(--tx-1); }
-.itile-purp span, .itile-sky span { color: var(--tx-3); }
+   and sky means an estimate, so both are the one plain tile, named for what
+   it is rather than a colour it no longer wears (2026-09-26). */
+.itile-plain { background: var(--press-3); color: var(--tx-1); }
+.itile-plain span { color: var(--tx-3); }
 .stack { display: flex; height: 10px; border-radius: var(--r-xs); overflow: hidden; margin: var(--s-1h) 0 var(--s-2); background: var(--press-3); }
 .stack > i { display: block; height: 100%; }
 .stack > i.stack-open { background: var(--divider); }

@@ -476,13 +476,16 @@ function ExerciseRow({ exercise, pairLabel, onOpen, onMenu }: {
     <div className="row-grow row-press" role="button" tabIndex={0} onClick={onOpen} {...hold}>
       <div className="row-grow">
         {/* THE PREVIEW IS THE SPEC (2026-09-01), RECOLOURED BY THE KEY
-            (§AM, 2026-09-25): a pairing wears Health's violet tag, a ramp
-            and a filler wear the neutral tag, set apart by fill and caps --
-            marked facts, not more prose in the name. */}
+            (§AM, 2026-09-25): the pairing tag wears Health's violet, the ink
+            the key gives a pair; a ramp and a filler share the one neutral
+            tag, set apart by fill and caps -- marked facts, not more prose in
+            the name. The tag classes say what the tag IS (a pair, a quiet
+            tag), never a colour, so the name cannot bring a retired colour
+            back. */}
         <div className="conn-name truncate">
-          {pairLabel && <span className="xtag xtag-blue">{pairLabel}</span>}
+          {pairLabel && <span className="xtag xtag-pair">{pairLabel}</span>}
           {liftTitle(exercise.name)}
-          {exercise.ramp && <span className="xtag xtag-warn xtag-after">Ramp</span>}
+          {exercise.ramp && <span className="xtag xtag-dim xtag-after">Ramp</span>}
           {exercise.filler && <span className="xtag xtag-dim xtag-after">Filler</span>}
         </div>
         {/* THE PLAN IS THE ROW'S VALUE, NOT A SENTENCE UNDER ITS NAME

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import type { Evidence } from "../gym/insights";
 import { shortDate } from "../shared/dateFormat";
 
@@ -16,17 +16,30 @@ import { shortDate } from "../shared/dateFormat";
 // where they came from. The model is given no other number and asked to
 // invent none; the answer explains, it never adds a record, a cause or a
 // confidence.
-export default function InsightEvidence({ evidence, onExplain }: {
+//
+// THE NOTE GOES UNDER THE CARD (§AK, 2026-09-26: "Caps is for a label, never
+// a sentence"). The line saying where the words came from is a sentence, so
+// it is not an 11px caps cite inside the card any more: it is the quiet note
+// under the card, the group-footer pattern settings' Foot draws. A component
+// inside a card cannot draw below it, so the explain seam comes with a
+// second half: onShown tells the card's owner when the explanation is on
+// screen, and InsightCard below draws the note. The two travel as one prop,
+// so the words can never be shown without the note that says what they are.
+export default function InsightEvidence({ evidence, explain }: {
   evidence: Evidence;
-  onExplain?: (evidence: Evidence) => Promise<string>;
+  explain?: { run?: (evidence: Evidence) => Promise<string>; onShown: (shown: boolean) => void };
 }) {
   const [open, setOpen] = useState(false);
   const [explained, setExplained] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const explain = async () => {
-    if (!onExplain || busy) return;
+  const run = explain?.run;
+  const onShown = explain?.onShown;
+  const shown = open && explained != null;
+  useEffect(() => { onShown?.(shown); }, [shown, onShown]);
+  const ask = async () => {
+    if (!run || busy) return;
     setBusy(true);
-    try { setExplained((await onExplain(evidence)).trim() || null); }
+    try { setExplained((await run(evidence)).trim() || null); }
     catch { setExplained(null); }
     finally { setBusy(false); }
   };
@@ -34,8 +47,8 @@ export default function InsightEvidence({ evidence, onExplain }: {
     <>
       <div className="ins-acts">
         <button type="button" className="pill-act pill-quiet" aria-expanded={open} onClick={() => setOpen((o) => !o)}>{open ? "Hide Evidence" : "Evidence"}</button>
-        {open && onExplain && !explained && (
-          <button type="button" className="pill-act pill-quiet" disabled={busy} onClick={() => void explain()}>{busy ? "Explaining" : "Explain"}</button>
+        {open && run && !explained && (
+          <button type="button" className="pill-act pill-quiet" disabled={busy} onClick={() => void ask()}>{busy ? "Explaining" : "Explain"}</button>
         )}
       </div>
       {open && (
@@ -54,13 +67,40 @@ export default function InsightEvidence({ evidence, onExplain }: {
           {evidence.minimum && (
             <div className="ins-row"><span className="ins-k">Minimum</span><span className="ins-sub">{evidence.minimum.name} {evidence.minimum.value} · {evidence.minimum.reason}</span></div>
           )}
-          {explained && (
-            <>
-              <div className="ins-line">{explained}</div>
-              <div className="ins-cite">From your records + AI · Explains the rows above, adds nothing to them</div>
-            </>
-          )}
+          {explained && <div className="ins-line">{explained}</div>}
         </div>
+      )}
+    </>
+  );
+}
+
+/** Where an explanation's words came from, drawn under the card. */
+export const EXPLAIN_NOTE = "Explanation from your records + AI, adding nothing to the rows above.";
+
+/** An insight card, its receipt, and the note it owes the reader.
+ *
+ *  The note is the card's one sentence, drawn UNDER the card as the group
+ *  footer (.pad-x > .input-hint), never inside it: inside, it was a second
+ *  grey under the finding's own line (§AK R1), and in caps it was a sentence
+ *  shouting (§AK, 2026-09-26). When the explanation is open its note joins
+ *  the same footer, so a card never grows two notes under it. */
+export function InsightCard({ evidence, onExplain, note, children }: {
+  evidence?: Evidence | null;
+  onExplain?: (evidence: Evidence) => Promise<string>;
+  note?: ReactNode;
+  children: ReactNode;
+}) {
+  const [explainShown, setExplainShown] = useState(false);
+  return (
+    <>
+      <div className="card ins-card rep-gap">
+        {children}
+        {evidence && <InsightEvidence evidence={evidence} explain={{ run: onExplain, onShown: setExplainShown }} />}
+      </div>
+      {(note || (evidence && explainShown)) && (
+        <div className="pad-x"><div className="input-hint">
+          {note}{note && evidence && explainShown ? " " : null}{evidence && explainShown ? EXPLAIN_NOTE : null}
+        </div></div>
       )}
     </>
   );

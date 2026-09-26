@@ -289,11 +289,12 @@ export default function NotesList({
             <div className="r-k">
               <ParentLineGlyph p={{ kind: "category", name: area || "Not Filed", tone, pct: null }} />
               {/* The line's gap separates its facts, as on a task row: no
-                  typed dots. The tags are one run, the row's one grey; the
-                  finds wear the cue's small caps with the number white, and
-                  the date its own caps, so nothing else here is that grey. */}
+                  typed dots. The tags are one run, the row's one grey; what
+                  JARVIS found is work waiting for his review, so it is amber
+                  (§AM) with the number white, and the date is its own caps,
+                  so nothing else here is that grey. */}
               {n.tags?.length ? <span className="r-goal r-cat">{n.tags.map((t) => "#" + t).join(" ")}</span> : null}
-              {(n.found ?? 0) > 0 && <span className="r-goal r-cue">JARVIS found <b>{n.found}</b></span>}
+              {(n.found ?? 0) > 0 && <span className="r-goal fact warn">JARVIS found <b>{n.found}</b></span>}
               {when && <span className="r-goal r-cat r-when">{when}</span>}
             </div>
           )}

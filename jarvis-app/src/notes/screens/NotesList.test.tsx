@@ -68,8 +68,8 @@ describe("NotesList", () => {
 
   // §AM F3 (R6) and §AK (R1), 2026-09-26: the line's gap separates its facts,
   // so no dot is typed into them, and it carries one grey at most: the tags
-  // are one run, the finds wear the cue's caps with the number white, and
-  // the date is its own caps.
+  // are one run, the finds are amber work waiting for review (§AM) with the
+  // number white, and the date is its own caps.
   it("the second line types no dots, and its tags are one run beside the finds and the date", () => {
     vi.useFakeTimers({ now: NOW, toFake: ["Date"] });
     try {
@@ -82,7 +82,8 @@ describe("NotesList", () => {
       const tags = line.querySelectorAll(".r-cat:not(.r-when)");
       expect(tags).toHaveLength(1);
       expect(tags[0]).toHaveTextContent("#ideas #q3");
-      const found = line.querySelector(".r-cue") as HTMLElement;
+      expect(line.querySelector(".r-cue"), "the finds are not an if-then cue").toBeNull();
+      const found = line.querySelector(".r-goal.fact.warn") as HTMLElement;
       expect(found).toHaveTextContent("JARVIS found 3");
       expect(found.querySelector("b")).toHaveTextContent("3");
       expect(line.querySelector(".r-when")?.textContent).toBe("Edited today");

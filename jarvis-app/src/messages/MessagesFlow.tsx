@@ -3,7 +3,7 @@ import { lazyWithRecovery } from "../shell/chunkRecovery";
 import PageHeader, { BarAction } from "../shared/PageHeader";
 import { Mail, Plus, Archive, Trash2, CornerUpLeft, Forward, Send, Tag, Clock, MessageSquare, Volume2, Hourglass, ListChecks, CalendarClock, FolderKanban } from "../shared/icons";
 import { leadFor, faceSlot } from "./rowAnatomy";
-import { Facts, waitingFor, ruleAccountFact } from "./factsLine";
+import { Facts, waitingFor, ruleAccountFact, dayTone } from "./factsLine";
 import { loadOverrides, saveOverride, clearOverride, applyOverrides, type ThreadOverrides } from "./threadOverride";
 import type { TaskItem } from "../tasks/TasksService";
 import { attemptWrite } from "../shared/guard";
@@ -3718,11 +3718,16 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                       )}
                       <div className="row-grow">
                         <div className="conn-name">{t.data.text}</div>
+                        {/* §AM (R8): the second fact is not a second grey.
+                            Done is green; a due day wears the reminder
+                            window (past red, today or tomorrow amber,
+                            later a small-caps date); a date the sender only
+                            proposed is a neutral date. */}
                         <Facts facts={[
                           { text: "Task" },
-                          t.data.done ? { text: "Done" }
-                            : t.data.due ? { text: capAfterNumber(dayPhrase(t.data.due, todayISO())) }
-                            : t.data.proposedDate ? { text: t.data.proposedDate + " (proposed)" } : null,
+                          t.data.done ? { text: "Done", tone: "good" }
+                            : t.data.due ? { text: capAfterNumber(dayPhrase(t.data.due, todayISO())), tone: dayTone(t.data.due, todayISO()) }
+                            : t.data.proposedDate ? { text: t.data.proposedDate + " (proposed)", tone: "date" } : null,
                         ]} />
                       </div>
                     </div>
@@ -4858,7 +4863,9 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
             )}
             {restOpen && noise.length > 0 && (
               <>
-                <div className="sh2 sh2-quiet"><span className="t">Noise</span><span className="n">{noise.length}</span></div>
+                {/* No count on this head: the machines line under it
+                    already says how many, and one number twice is noise. */}
+                <div className="sh2 sh2-quiet"><span className="t">Noise</span></div>
                 <div className="pad-x">
                   <div className="card list-card-ruled">
                     {/* 8A: ONE GREY LINE FOR ALL OF THEM. This was a

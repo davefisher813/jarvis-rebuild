@@ -172,19 +172,19 @@ export default function ProjectDetailPage({
             a By date has had since PICK 14. A fact about the numbers, never
             a prescription: "2 a day from here" is what is left over what is
             left, not advice about how to spend the week.
-            IN ITS PARTS (§AM, 2026-09-26): the count and the date are two
-            facts with the dot drawn between them, and the date wears its
-            meaning: past its date red, due today or tomorrow amber, a rate
-            sky, a date with room to spare small caps. */}
+            THE DATE ALONE (§AM, 2026-09-26): it wears its meaning, past its
+            date red, due today or tomorrow amber, a rate sky, a date with
+            room to spare small caps. The count ("4 of 9 Left") went: it only
+            restated the progress line above, and it was a second grey. */}
         {pace && (
           <div className="facts">
-            <span className="fact">{pace.count}</span>
             <span className={"fact " + pace.tone}>{pace.when}</span>
           </div>
         )}
-        {/* PICK 20: a hold with an end. Expired, it stops being furniture and
-            becomes the one move worth offering. */}
-        {hold && <div className={"conn-meta" + (expired ? " fact-warn" : "")}>{hold}</div>}
+        {/* PICK 20: a hold with an end. A hold is stalled work, so amber on
+            every render (§AM), the way the Bigger Picture row draws it.
+            Expired, it becomes the one move worth offering, further down. */}
+        {hold && <div className="facts"><span className="fact warn">{hold}</span></div>}
       </div></div>
       {decision && (
         <div className="pad-x">

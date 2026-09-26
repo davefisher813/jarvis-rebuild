@@ -11,6 +11,7 @@ import { rowDoor } from "../../shared/rowDoor";
 import { Burst } from "../../shared/Burst";
 import { Check, Search, Plus, Gauge } from "../../shared/icons";
 import { fmtTime } from "../../schedule/calendar";
+import { dayTone } from "../../messages/factsLine";
 
 // THE REMINDERS PAGE (the reminders rebuild push E, 2026-09-15; row anatomy
 // corrected the same day after Dave's review of the interactive preview;
@@ -144,11 +145,12 @@ export default function RemindersPage({
     const hasGutter = it.state === "open" && timed && !!it.time;
     const dueToday = hasGutter && it.date === today;
     const when = whenWords(r, it.date, it.time, today, area);
-    // Today's open occurrence is due, so amber. Any other open date is a
-    // neutral date, and a neutral date on a row is small caps (§AM F5), never
-    // the row's grey again. A row with no date at all (unscheduled, on an
-    // action) keeps a plain fact: its phrase is not a date.
-    const tone = it.state !== "open" ? "" : it.date === today ? "when" : it.date ? "date" : "";
+    // An open occurrence's date wears the reminder window, the one helper
+    // every screen shares (§AM, R8): a day behind us is late (red), today or
+    // tomorrow is due (amber), and anything later is a neutral date in small
+    // caps (§AM F5), never the row's grey again. A row with no date at all
+    // (unscheduled, on an action) keeps a plain fact: its phrase is not a date.
+    const tone = it.state !== "open" || !it.date ? "" : dayTone(it.date, today);
     // A done or skipped occurrence is a day and a clock that have passed:
     // neutral, so small caps too (§AM F5, 2026-09-26). They were one plain
     // "Today · 7:00 AM" phrase, which on a repeating reminder sat beside the

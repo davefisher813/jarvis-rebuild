@@ -150,7 +150,13 @@ describe("BROWSER-F-04: status colour is readable in daylight, from the token", 
     const bare = ["components.css", "ruled.css", "uniformity.css", "jarvis-design-system.css", "mail-rows.css", "editor.css"]
       .map((f) => read("styles/" + f)).join("\n").replace(/\/\*[\s\S]*?\*\//g, "");
     const LATE = /(?:^|[\s.>+~,-])(?:late|overdue|missed)(?![a-z])|\.fact\.red(?![\w-])|urgency-red(?![\w-])/;
-    const WORDS_RED = /var\(--(?:on-light-red|accent-tx)\)|#(?:BC000E|DA0012|CC051B)\b/i;
+    // AMENDED 2026-09-26 (round-2 review, the lead): the ban named the words
+    // red's hexes but only two of the tokens that resolve to them, so
+    // `var(--tint)` (#DA0012 in light) or `var(--danger-tx)` (#CC051B) on a
+    // light lateness rule passed while the same hex failed. Every --tint*
+    // and --accent* token and --danger-tx count now, beside the hexes and
+    // --on-light-red, which stay.
+    const WORDS_RED = /var\(--(?:on-light-red|accent[\w-]*|tint[\w-]*|danger-tx)\)|#(?:BC000E|DA0012|CC051B)\b/i;
     const offenders: string[] = [];
     for (const m of bare.matchAll(/([^{}]*\[data-theme="light"\][^{}]*)\{([^}]*)\}/g)) {
       for (const one of m[1]!.split(",").map((x) => x.trim())) {
@@ -459,6 +465,16 @@ describe("BROWSER-F-10: red words on a sheet grey are readable", () => {
       const ref = /^var\((--[\w-]+)\)$/.exec(v)?.[1];
       return ref ? resolve(theme, ref) : v;
     };
+    // AMENDED 2026-09-26 (round-2 review, the lead): the measurement below
+    // proves the tokens, so it only holds if the capsule actually wears them.
+    // No law read the rules that paint its label, and deleting the light one
+    // dropped the label to --tint (4.07:1 on the capsule over the page) with
+    // every law green. Both themes' label rules are pinned first; the
+    // measurement is unchanged.
+    expect(ruleBody(css(), ".row-act, .ruled .card .row.row-act"), "dark: the capsule's label is its own --tint")
+      .toMatch(/(^|[;\s])color:\s*var\(--tint\)/);
+    expect(ruleBody(css(), '[data-theme="light"] .row-act, [data-theme="light"] .ruled .card .row.row-act'), "light: the capsule's label is the words red")
+      .toMatch(/(^|[;\s])color:\s*var\(--on-light-red\)/);
     const capDark = contrast(tokenIn("dark", "--tint"), resolve("dark", "--capsule-fill"));
     expect(capDark, `dark capsule label on its fill is ${capDark.toFixed(2)}:1`).toBeGreaterThanOrEqual(4.5);
     const onLightRed = /--on-light-red:\s*(#[0-9A-Fa-f]{6})/.exec(bare)?.[1];
@@ -628,10 +644,17 @@ describe("BROWSER-F-09: quiet is not the same word as finished", () => {
     // measured here, in both themes: dark --tint on --surface-1 is 4.59:1,
     // 0.09 over the floor, so a brighter card fails this. Light steps the
     // words down to the words red, which reads darker still.
-    for (const theme of ["dark", "light"]) {
-      const cr = contrast(tokenIn(theme, "--tint"), tokenIn(theme, "--surface-1"));
-      expect(cr, `${theme} --tint on --surface-1 is ${cr.toFixed(2)}:1`).toBeGreaterThanOrEqual(4.5);
-    }
+    // AMENDED 2026-09-26 (round-2 review, the lead): the light half measured
+    // light --tint, a pair that never reaches the screen, since the rule
+    // pinned just below paints Not This One in the words red there. Light
+    // now measures what it draws: the --on-light-red hex, read from the
+    // sheet the way F-10 reads it, on light --surface-1. Dark is unchanged.
+    const darkSkip = contrast(tokenIn("dark", "--tint"), tokenIn("dark", "--surface-1"));
+    expect(darkSkip, `dark --tint on --surface-1 is ${darkSkip.toFixed(2)}:1`).toBeGreaterThanOrEqual(4.5);
+    const wordsRed = /--on-light-red:\s*(#[0-9A-Fa-f]{6})/.exec(css().replace(/\/\*[\s\S]*?\*\//g, ""))?.[1];
+    expect(wordsRed, "the light words red is declared").toBeTruthy();
+    const lightSkipCr = contrast(wordsRed!, tokenIn("light", "--surface-1"));
+    expect(lightSkipCr, `light --on-light-red on --surface-1 is ${lightSkipCr.toFixed(2)}:1`).toBeGreaterThanOrEqual(4.5);
     const lightSkip = rules.find((m) => m[1]!.split(",").some((x) => x.trim() === '[data-theme="light"] .focus-skip'))?.[2];
     expect(lightSkip, "in light Not This One takes the words red").toMatch(/color:\s*var\(--on-light-red\)/);
     const LIVE = [".prop-tag", ".sched-sep", ".rep-hint", ".doc-count",

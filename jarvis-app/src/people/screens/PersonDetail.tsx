@@ -8,6 +8,7 @@ import { RowGlyph } from "../../shared/anatomy";
 import { pressable } from "../../shared/pressable";
 import { shortDate } from "../../shared/dateFormat";
 import { todayISO } from "../../tasks/grouping";
+import { addDays } from "../../schedule/calendar";
 
 const BACK = (
   <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
@@ -15,6 +16,15 @@ const BACK = (
 const EDIT = (
   <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4Z" /></svg>
 );
+
+// A promise's deadline wears the same window a reminder's day and a
+// project's due date wear (§AM, R8): past is late (red), today or tomorrow
+// is due (amber), and anything later is a neutral date (small caps).
+function promiseTone(due: string, today: string): "red" | "warn" | "date" {
+  if (due < today) return "red";
+  if (due <= addDays(today, 1)) return "warn";
+  return "date";
+}
 
 // TAP A FACT TO CHANGE IT (Dave 2026-09-16: "Why can't I edit anything?").
 //
@@ -340,17 +350,19 @@ export default function PersonDetail({
           <div className="sh2 sh2-quiet"><span className="t">Still Open</span><span className="n">{openWith.length + promises.length}</span></div>
           <div className="pad-x"><div className="card list-card-ruled">
             {/* C-61: what he said he would do, in his own mail to them.
-                "You promised" is the line's one grey; the deadline carries
-                the meaning (§AM, R8): amber while it is ahead, red once it
-                has passed, and a promise with no date has no colour to
-                wear. Add Task writes the task and the row leaves. */}
+                "You promised" is the line's one grey; the deadline follows
+                the reminder and project window (§AM, R8): red once it has
+                passed, amber when it is today or tomorrow, and a later date
+                is a neutral small-caps date. A promise with no date has
+                nothing to show. Add Task writes the task and the row
+                leaves. */}
             {promises.map((p) => (
               // Row tap (Dave 2026-09-15): a promise has no task yet, so the row
               // does its pill's verb, Add Task.
               <div className="row" key={"promise:" + p.threadId} {...(onAddTask ? pressable(() => onAddTask(p)) : {})}>
                 <div className="row-grow">
                   <div className="conn-name">{p.text}</div>
-                  <div className="facts"><span className="fact">You promised</span>{p.due && <span className={"fact " + (p.due < todayISO() ? "red" : "warn")}>{shortDate(p.due)}</span>}</div>
+                  <div className="facts"><span className="fact">You promised</span>{p.due && <span className={"fact " + promiseTone(p.due, todayISO())}>{shortDate(p.due)}</span>}</div>
                 </div>
                 {onAddTask && <button type="button" className="pill-act" onClick={(ev) => { ev.stopPropagation(); onAddTask(p); }}>Add Task</button>}
               </div>
@@ -400,7 +412,7 @@ export default function PersonDetail({
               <div className="row" key={d.id} {...(onOpenDecision ? pressable(() => onOpenDecision(d.id)) : {})}>
                 <div className="row-grow">
                   <div className="conn-name">{d.decision}</div>
-                  <div className="facts"><span className="fact">{shortDate(d.createdAt)}</span></div>
+                  <div className="facts"><span className="fact date">{shortDate(d.createdAt)}</span></div>
                 </div>
                 {onOpenDecision && <div className="chev" />}
               </div>

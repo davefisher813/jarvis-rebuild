@@ -83,6 +83,7 @@ import { enqueueTodaySend } from "../messages/todayOutbox";
 import { planFromBlock } from "../tasks/ifThen";
 import { endOf, FIFTEEN } from "../tasks/rightNow";
 import { acceptBody } from "../messages/meetingTimes";
+import { Facts } from "../messages/factsLine";
 import { welcomeBack, loadLastSeen, markSeen } from "./welcomeBack";
 import { proposeFirstMove, nextStart, endsAt, ritualIsReady, whyNotReady, ritualPlan, LENGTHS, DEFAULT_MINUTES, type Ritual } from "../tasks/startRitual";
 import RitualSheet from "../tasks/screens/RitualSheet";
@@ -3040,13 +3041,10 @@ export default function TodayFlow({
         tone="cat-fg-indigo"
         title={dueProject.project.data.title}
         // §AM (2026-09-26): two facts, the dot drawn by the stylesheet, and
-        // the date in its meaning's colour (past red, due amber, a rate sky).
-        sub={(
-          <div className="facts">
-            <span className="fact">{dueProject.pace.count}</span>
-            <span className={"fact " + dueProject.pace.tone}>{dueProject.pace.when}</span>
-          </div>
-        )}
+        // the date in its meaning's colour (past red, due amber, a rate sky,
+        // a date further off small caps). Built by the one facts helper, so
+        // K.3 is enforced there rather than here.
+        sub={<Facts facts={[{ text: dueProject.pace.count }, { text: dueProject.pace.when, tone: dueProject.pace.tone }]} />}
         action={{ label: "Open", onClick: () => onOpenProject?.(dueProject.project.id) }}
         // ROW-TAP (Dave 2026-09-15: "I want all rows clickable"): the body
         // opens the project too.

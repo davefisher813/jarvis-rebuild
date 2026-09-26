@@ -144,10 +144,11 @@
   "fix_file": "src/styles/components.css",
   "law_risk": "src/laws/browserWalk.test.ts:567-574 pins .focus-skip to --tx-quiet and must be amended",
   "confidence": "low",
-  "status": "pending",
+  "status": "done",
   "id": 9,
   "phase": "1-css",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "resolved in the stylesheet phase (2026-09-26): components.css:793-796 draws `.focus-skip` (\"Not This One\") in `--tint`, and :6372 steps it to `--on-light-red` in light (lead decision: \"Not This One\" is tap red)."
  },
  {
   "file": "src/upnext/FreshStartFlow.tsx",
@@ -234,10 +235,11 @@
   "fix_file": "src/today/TodayPage.tsx",
   "law_risk": "src/laws/laws.test.ts:2398 pins `summary.overdue >= 3 ? \"st-late\" : \"st-warn\"` and must be amended",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 15,
   "phase": "2-code",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "resolved in the stylesheet phase (2026-09-26): TodayPage.tsx draws the late tile as `stat-tile st-late` (red) from the first late task, with no amber step for one or two (lateKind is gone); due is `st-warn` and events `st-quiet` (lead decision: Today's stat tiles follow the key, shown to Dave as a heads-up)."
  },
  {
   "file": "src/styles/ruled.css",
@@ -579,10 +581,11 @@
   "fix_file": "src/styles/components.css",
   "law_risk": "none",
   "confidence": "low",
-  "status": "done",
+  "status": "needs_dave",
   "id": 38,
   "phase": "1-css",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "Held for Dave (RULEBOOK 'the red Now rule and LIVE word'; dave-queue #74). Today's Now rule still paints NOW in brand red (components.css:288 `--accent-chrome`, light :1947 `--on-light-red`), its hairline `--accent`, and LIVE in `--sys-red`; the stylesheet phase restored them with a HELD FOR DAVE comment because Schedule's Now rule must change with it. Question: should the Now rule stay red as a named \u00a7AM exception (C-28, 'LIVE is the only red, on the Now rule alone'), or should NOW and LIVE go white with a neutral hairline, on Today and Schedule together? This finding was marked done, but the code no longer carries its change."
  },
  {
   "file": "src/today/YourDay.tsx",
@@ -594,10 +597,11 @@
   "fix_file": "src/today/YourDay.tsx",
   "law_risk": "none",
   "confidence": "low",
-  "status": "pending",
+  "status": "needs_dave",
   "id": 39,
   "phase": "2-code",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "Held for Dave (RULEBOOK 'the red Now rule and LIVE word'; dave-queue #74). Today's Now rule still paints NOW in brand red (components.css:288 `--accent-chrome`, light :1947 `--on-light-red`), its hairline `--accent`, and LIVE in `--sys-red`; the stylesheet phase restored them with a HELD FOR DAVE comment because Schedule's Now rule must change with it. Question: should the Now rule stay red as a named \u00a7AM exception (C-28, 'LIVE is the only red, on the Now rule alone'), or should NOW and LIVE go white with a neutral hairline, on Today and Schedule together? (YourDay.tsx is outside this phase's diff; held because LIVE is part of the same held rule.)"
  },
  {
   "file": "src/styles/components.css",
@@ -639,10 +643,11 @@
   "fix_file": "src/styles/components.css",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "done",
+  "status": "rejected",
   "id": 42,
   "phase": "1-css",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "superseded 2026-09-26: caps is for a label, never a sentence (RULEBOOK, Settled by the lead). The lead amended `.receipt-line` back to sentence case at 14px (components.css:2376-2384, 'A run that is not caps is 14, never 11'), because several receipt lines carry a whole sentence. This finding's 11px caps change was marked done but is no longer in the code, by that decision."
  },
  {
   "file": "src/styles/components.css",
@@ -654,10 +659,11 @@
   "fix_file": "src/styles/components.css",
   "law_risk": "src/laws/browserWalk.test.ts:567-574 pins .receipt-line to --tx-quiet (the base rule keeps it; the law should be read against the button override)",
   "confidence": "low",
-  "status": "pending",
+  "status": "needs_dave",
   "id": 43,
   "phase": "1-css",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "Held for Dave (RULEBOOK: the receipt-line (\"13 More Waiting\") quiet grey; dave-queue #43). The overflow lines under a list (\"13 More Waiting\", \"4 More in Anytime\", \"Welcome Back\") can be tapped, and the Colour Key gives a tappable word brand red, but on 2026-09-11 Dave moved exactly these from a red link to a quiet grey line and a law keeps them quiet. Question: keep them quiet grey (the chevron marks the tap), or make them tap red like See All? components.css:2384 still draws `.receipt-line` in --tx-quiet, with a comment that its grey is held for Dave."
  },
  {
   "file": "src/styles/ruled.css",
@@ -684,10 +690,11 @@
   "fix_file": "src/styles/ruled.css",
   "law_risk": "none",
   "confidence": "low",
-  "status": "pending",
+  "status": "done",
   "id": 45,
   "phase": "1-css",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "resolved in the stylesheet phase (2026-09-26): the light override `[data-theme=\"light\"] .ruled .uchip.u-late { color: var(--on-light-red, #B8001A); }` is deleted, so LATE is `--sys-red` in both themes (ruled.css:613) with no raw hex. No `--sys-red-tx` token was minted: lateness in light is `--sys-red` (Settled by the lead, Dave's 2026-09-12 Astra ruling)."
  },
  {
   "file": "src/schedule/screens/DayRow.tsx",
@@ -714,10 +721,11 @@
   "fix_file": "src/schedule/screens/DayRow.tsx",
   "law_risk": "none if the place stays grey. The alternative (place to --tint) would break src/laws/laws.test.ts 'the place is a fact on the meta line, not an accent link on its own' (asserts .ruled .sched-cat .sched-loc { color: var(--tx-3)",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 47,
   "needs_dave": false,
-  "phase": "2-code"
+  "phase": "2-code",
+  "status_note": "resolved in the stylesheet phase (2026-09-26): the repeat is no longer a second regular grey: components.css:166-168 draws `.sched-rep` in small caps (--t-eyebrow, uppercase, --track-caps), and ruled.css:792 no longer resizes it to 14px, so \"WEEKLY\" is set apart by caps and the place stays the line's one grey. No repeat glyph is needed."
  },
  {
   "file": "src/schedule/screens/DayRow.tsx",
@@ -729,10 +737,11 @@
   "fix_file": "src/schedule/screens/DayRow.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 48,
   "needs_dave": false,
-  "phase": "2-code"
+  "phase": "2-code",
+  "status_note": "resolved in the stylesheet phase (2026-09-26): \"Leave by 8:40 AM\" (DayRow.tsx:378, `.sched-until`) now renders in small caps: components.css:166-168 gives `.sched-until:not(.sched-until-btn)` --t-eyebrow, uppercase, --track-caps, and ruled.css:792 no longer overrides it to 14px."
  },
  {
   "file": "src/schedule/screens/DayRow.tsx",
@@ -744,10 +753,11 @@
   "fix_file": "src/schedule/screens/DayRow.tsx",
   "law_risk": "none (DayRow.test.tsx only asserts .sched-cat .sched-firstmove text)",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 49,
   "needs_dave": false,
-  "phase": "2-code"
+  "phase": "2-code",
+  "status_note": "resolved in the stylesheet phase (2026-09-26): DayRow.tsx:387-390 wraps the first move in `<span className=\"sched-fact sched-fact-loc\">` with its own separator (it can no longer strand at a wrap) and components.css:169 paints `.sched-firstmove` amber (lead decision, 2026-09-26: the next step is amber), so it is not a second grey. The arrow mark in this fix is not needed."
  },
  {
   "file": "src/schedule/screens/DayRow.tsx",
@@ -759,10 +769,11 @@
   "fix_file": "src/schedule/screens/DayRow.tsx",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 50,
   "needs_dave": false,
-  "phase": "2-code"
+  "phase": "2-code",
+  "status_note": "resolved in the stylesheet phase (2026-09-26): DayRow.tsx:350-352 draws a length that cannot be tapped as `<b>{durLabel(mins)}</b>`, a white number with no state (lead decision, 2026-09-26: not small caps, not a new .sched-len class)."
  },
  {
   "file": "src/schedule/screens/DayRow.tsx",
@@ -1435,10 +1446,11 @@
   "fix_file": "src/schedule/screens/ScheduleUploadFlow.tsx",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 95,
   "needs_dave": false,
-  "phase": "2-code"
+  "phase": "2-code",
+  "status_note": "resolved in the stylesheet phase (2026-09-26): ScheduleUploadFlow.tsx:297 pairs the note with the primitive (`<div className=\"input-hint xs-note\">`), so it draws at 14px --tx-3 italic instead of 17px white. The words keep their middle dot: field notes keep their dots (RULEBOOK, Settled by the lead)."
  },
  {
   "file": "src/schedule/screens/ScheduleUploadFlow.tsx",
@@ -1645,10 +1657,11 @@
   "fix_file": "src/review/InsightsFlow.tsx",
   "confidence": "high",
   "law_risk": "none",
-  "status": "pending",
+  "status": "done",
   "id": 109,
   "phase": "2-code",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "resolved in the stylesheet phase (2026-09-26): InsightsFlow.tsx:277-278 draws `<span className=\"fact\"><b>{moved}</b> Moved</span>` (the one grey, count white) and the done count as `.fact.good`; no purple."
  },
  {
   "file": "src/review/week.ts",
@@ -1656,14 +1669,15 @@
   "rule": "R3",
   "rendered": "Insights > This Week lines: \"NEXT\" key in red, \"CHANGED\" + \"3 blocks moved\" in sky, \"LEARNED\" + \"4 new facts\" in purple, \"SLIPPED  Work \u00b7 5 tasks pushed\" (category name in amber)",
   "why": "Rendered at InsightsFlow.tsx:220-224. Next = amber by the key, not red (red is late). Sky means an estimate; purple means nothing. \"Work \u00b7 5 tasks pushed\" bakes a middot into a .fact (R6) and puts the category name in amber words instead of on a dot.",
-  "fix": "week.ts:163 `tone: \"red\"` -> `tone: \"warn\"`; :130 drop `, tone: \"sky\"`; :131 add `, tone: \"good\"` to the check-ins fact (logged); :132 `tone: \"sky\"` -> `tone: \"quiet\"`; :137 `tone: \"purp\"` -> `tone: \"good\"`; :139 `tone: \"purp\"` -> `tone: \"quiet\"`; :124 `facts: [{ text: `${name} \u00b7 ${capAfterNumber(...)}`, tone: \"warn\" }]` -> `facts: [{ text: name, tone: \"cat\", color: catById.get(slipTop[0])?.color ?? \"graphite\" }, { text: capAfterNumber(`${slipTop[1]} ${slipTop[1] === 1 ? \"task\" : \"tasks\"} pushed`), tone: \"warn\" }]`; WeekLine tone union add \"quiet\"; components.css:5977 add `.eq-quiet { color: var(--tx-3); }`",
+  "fix": "week.ts:138 old `lines.push({ key: \"Slipped\", tone: \"warn\", facts: [{ text: `${name} \u00b7 ${capAfterNumber(`${slipTop[1]} ${slipTop[1] === 1 ? \"task\" : \"tasks\"} pushed`)}`, tone: \"warn\" }] });` -> new `lines.push({ key: \"Slipped\", tone: \"warn\", facts: [{ text: name, tone: \"cat\", color: catById.get(slipTop[0])?.color ?? \"graphite\" }, { text: capAfterNumber(`${slipTop[1]} ${slipTop[1] === 1 ? \"task\" : \"tasks\"} pushed`), tone: \"warn\" }] });` (InsightsFlow.tsx:222-223 already draws a \"cat\" fact as `.fact.cat` with a `.cd` dot, and the separator comes from `.fact + .fact::before`). Update week.test.ts if it pins the joined Slipped string.",
   "fix_file": "src/review/week.ts",
   "confidence": "high",
   "law_risk": "src/review/week.test.ts (unit, if present) may pin tones",
   "status": "pending",
   "id": 110,
   "phase": "2-code",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "narrowed 2026-09-26: the stylesheet phase already made Next amber (week.ts:186), Changed and Learned \"quiet\" (.eq-quiet), blocks moved plain and check-ins green, and Learned one fact with white counts (no purple, no sky). Only the Slipped line is left: it still bakes a middot and puts the area name in amber words."
  },
  {
   "file": "src/review/InsightsFlow.tsx",
@@ -1675,10 +1689,11 @@
   "fix_file": "src/review/InsightsFlow.tsx",
   "confidence": "medium",
   "law_risk": "none",
-  "status": "pending",
+  "status": "done",
   "id": 111,
   "phase": "2-code",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "resolved in the stylesheet phase (2026-09-26): InsightsFlow.tsx:202-203 draws goals moved (and flexible) as `.itile.itile-plain` (white number on --press-3), a count with no state; the purple tile is gone."
  },
  {
   "file": "src/review/InsightsFlow.tsx",
@@ -2021,10 +2036,11 @@
   "fix_file": "src/tasks/screens/RemindersPage.tsx",
   "confidence": "high",
   "law_risk": "RemindersPage.test.tsx:107 expects /^Skipped \u00b7 Today/ (unit test); SKIPPED is already in astra STATE_WORDS",
-  "status": "pending",
+  "status": "done",
   "id": 134,
   "phase": "2-code",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "resolved in the stylesheet phase (2026-09-26): RemindersPage.tsx:190 leads a skipped row with `<span className=\"fact st gray\">Skipped</span>` (a state word, caps), and :194 draws a done or skipped occurrence's date and clock as two `.fact.date` facts (small caps, separator drawn by CSS) instead of the baked \"Skipped \u00b7 Today \u00b7 8:00 AM\" phrase, so the rhythm is the row's one grey."
  },
  {
   "file": "src/tasks/screens/RemindersPage.tsx",
@@ -2036,10 +2052,11 @@
   "fix_file": "src/tasks/screens/RemindersPage.tsx",
   "confidence": "medium",
   "law_risk": "none (.urgency is its own rule, so typeLaw's .fact.* weight check does not fire)",
-  "status": "pending",
+  "status": "done",
   "id": 135,
   "phase": "2-code",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "resolved in the stylesheet phase (2026-09-26): RemindersPage.tsx:152 sets the tone of an open future date to \"date\" (today's is \"warn\"), so :192 draws \"Sep 19\" as `.fact.date` (small caps), the neutral-date primitive."
  },
  {
   "file": "src/projects/ProjectDetailPage.tsx",
@@ -2051,10 +2068,11 @@
   "fix_file": "src/projects/ProjectDetailPage.tsx",
   "confidence": "high",
   "law_risk": "astra.test forbids the string \".fact.sky\" (use .fact.est); src/projects/shape.test.ts pins sizeLine",
-  "status": "pending",
+  "status": "done",
   "id": 136,
   "phase": "2-code",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "resolved in the stylesheet phase (2026-09-26): the hero's size line is one `.fact.est` (\"About 3h left\"), the pace is the date alone in its key tone (`.fact.red/.warn/.est/.date`), the hold is `.fact.warn`, and no string carries a dot; the progress count (\"5 of 9 done\") is the hero's one grey."
  },
  {
   "file": "src/projects/shape.ts",
@@ -2066,10 +2084,11 @@
   "fix_file": "src/projects/shape.ts",
   "confidence": "high",
   "law_risk": "src/projects/shape.test.ts:15 and :60-62 pin the old strings (unit tests)",
-  "status": "pending",
+  "status": "done",
   "id": 137,
   "phase": "3-middots",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "resolved in the stylesheet phase (2026-09-26): shape.ts holdLine returns \"On hold, no end date\" (no dot) and sizeLine returns only the estimate, \"About 3h left\", drawn by both callers as one `.fact.est`."
  },
  {
   "file": "src/projects/types.ts",
@@ -2126,10 +2145,11 @@
   "fix_file": "src/decisions/DecisionsFlow.tsx",
   "confidence": "high",
   "law_risk": "none (NO_REASON stays in use as the InlineEdit placeholder at :267)",
-  "status": "pending",
+  "status": "done",
   "id": 141,
   "phase": "2-code",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "resolved in the stylesheet phase (2026-09-26): DecisionsFlow.tsx:559 renders the Because line only when r.data.why is set (`{r.data.why && <div className=\"conn-meta truncate\">...}`); the \"No reason recorded\" placeholder no longer shows on the row."
  },
  {
   "file": "src/decisions/DecisionsFlow.tsx",
@@ -2141,10 +2161,11 @@
   "fix_file": "src/decisions/DecisionsFlow.tsx",
   "confidence": "high",
   "law_risk": "none",
-  "status": "pending",
+  "status": "done",
   "id": 142,
   "phase": "2-code",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "resolved in the stylesheet phase (2026-09-26): the source fact is gone from the decision row (the record page's Source section keeps it), and the outcome takes OUTCOME_KEY (worked .fact.good, mixed .fact.warn, didn't .fact.red), DecisionsFlow.tsx:92 and :580."
  },
  {
   "file": "src/decisions/DecisionsFlow.tsx",
@@ -2156,10 +2177,11 @@
   "fix_file": "src/decisions/DecisionsFlow.tsx",
   "confidence": "high",
   "law_risk": "colourKey 'a category colours its dot, never the words beside it' is the law this satisfies",
-  "status": "pending",
+  "status": "done",
   "id": 143,
   "phase": "2-code",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "resolved in the stylesheet phase (2026-09-26): only a home that sits in an area is drawn, as `<span className=\"fact cat fact-link\"><span className=\"cd cat-bg-X\" /><span className=\"cat-t\">name</span></span>` via linkAreaSlot(); person, goal and task links and uncategorised projects are left to the record page's Attached To card (lead decision, 2026-09-26)."
  },
  {
   "file": "src/decisions/DecisionsFlow.tsx",
@@ -2212,14 +2234,15 @@
   "rule": "R5",
   "rendered": "Attached To card: \"Q3 launch \u00b7 Get fit \u00b7 Bridge\" all in one grey",
   "why": "Each link is a plain .fact, so two or more homes are two or more grey runs on one line.",
-  "fix": "`<div className=\"facts\">{links.map((l) => <span className=\"fact\" key={l.id}>{l.label}</span>)}</div>` -> `<div className=\"facts\">{links.map((l) => <span className=\"fact cat\" key={l.id}><span className={\"cd \" + (l.type === \"project\" && projCats[l.id] ? \"cat-bg-\" + catColor(projCats[l.id]!) : l.type === \"org\" ? \"cat-bg-\" + catColor(l.id) : \"cat-bg-graphite\")} />{l.label}</span>)}</div>`",
+  "fix": "Lead ruling 2026-09-26: the decision record's Attached To card draws area homes as the row does (`.fact.cat` + `.cd` of that home's own area + `.cat-t`), and every non-area home (person, goal, task, category-less project) as ONE plain fact joined with \", \" so the line keeps one grey. No graphite dot (never invent a mark).",
   "fix_file": "src/decisions/DecisionsFlow.tsx",
   "confidence": "medium",
   "law_risk": "none",
   "status": "pending",
   "id": 147,
   "phase": "2-code",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "rewritten 2026-09-26 to the lead ruling; round 4 of the stylesheet phase may already have applied it (check the code)."
  },
  {
   "file": "src/decisions/DecisionsFlow.tsx",
@@ -2321,10 +2344,11 @@
   "fix_file": "src/styles/ruled.css",
   "confidence": "low",
   "law_risk": "browserWalk contrast law must re-measure the new token",
-  "status": "pending",
+  "status": "done",
   "id": 154,
   "phase": "1-css",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "resolved in the stylesheet phase (2026-09-26): the light `.ruled .uchip.u-late` override to `--on-light-red, #B8001A` is gone and ruled.css:613 paints LATE `--sys-red` in both themes; `.urgency-red` is `--sys-red` (jarvis-design-system.css:952). No `--sys-red-tx` token: lateness in light is `--sys-red` (Settled by the lead)."
  },
  {
   "file": "src/tasks/screens/RemindersPage.tsx",
@@ -2381,10 +2405,11 @@
   "fix_file": "src/messages/MessagesFlow.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 158,
   "phase": "3-middots",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "resolved in the stylesheet phase (2026-09-26): MessagesFlow.tsx:4116 draws the thread count as `<span className=\"sched-sep\">\u00b7</span><b>{r.count}</b>`: the separator is a drawn span and the count is a white number with no state; no \" \u00b7 \" is typed into the string."
  },
  {
   "file": "src/messages/MessagesFlow.tsx",
@@ -2681,10 +2706,11 @@
   "fix_file": "src/messages/MessagesFlow.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 178,
   "phase": "2-code",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "resolved in the stylesheet phase (2026-09-26): MessagesFlow.tsx:3726-3730 keys the linked task's second fact: Done is `tone: \"good\"`, a due day takes `dayTone()` (past red, today or tomorrow amber, later a small-caps `.fact.date`), and a proposed date is `tone: \"date\"`. \"Task\" stays as the line's one grey."
  },
  {
   "file": "src/messages/vip.ts",
@@ -3112,14 +3138,15 @@
   "rule": "R6",
   "rendered": "Finish screen \"4 handled \u00b7 2m 13s\" in grey at the inherited 17px",
   "why": "Middot baked into the finish line; .sweep-finish-sub (components.css:4613) sets no size so it inherits --t-h3 17px (F4). A measured duration is white under \u00a7AM.",
-  "fix": "`? deadStats.n + \" handled \u00b7 \" + fmtDuration(deadStats.ms)` -> `? <>{deadStats.n} handled in <span className=\"qd\">{fmtDuration(deadStats.ms)}</span></>` and components.css:4613 `.sweep-finish-sub { color: var(--tx-3); margin-top: var(--s-1h); }` -> `.sweep-finish-sub { font-size: var(--t-sub); color: var(--tx-3); margin-top: var(--s-1h); }`",
+  "fix": "MessagesFlow.tsx:2879 old `? deadStats.n + \" handled \u00b7 \" + fmtDuration(deadStats.ms)` -> new `? <>{deadStats.n} handled in <span className=\"qd\">{fmtDuration(deadStats.ms)}</span></>`. No CSS change.",
   "fix_file": "src/messages/MessagesFlow.tsx",
   "law_risk": "none",
   "confidence": "medium",
   "status": "pending",
   "id": 207,
   "phase": "3-middots",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "narrowed 2026-09-26: the stylesheet half is done: components.css:4762 `.sweep-finish-sub { font-size: var(--t-sub); ... }` (14px, not the inherited 17px). The baked middot in the finish line is left."
  },
  {
   "file": "src/messages/MessagesFlow.tsx",
@@ -3656,10 +3683,11 @@
   "fix_file": "src/health/screens/RefillRunwayScreen.tsx",
   "law_risk": "healthSkin law 2 (literal ramp fact must carry data): not tripped, because the lime fact's child starts with an expression and holds a number",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 243,
   "phase": "2-code",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "resolved in the stylesheet phase (2026-09-26): RefillRunwayScreen.tsx:45-46 draws `<span className=\"fact date\">Filled {date}</span>` (small caps, no blue) and one fact `<b>{taken}</b> of <b>{dosesInFill}</b> taken` (the line's one grey, counts white); the two plain facts are merged."
  },
  {
   "file": "src/health/screens/RefillRunwayScreen.tsx",
@@ -3671,10 +3699,11 @@
   "fix_file": "src/health/screens/RefillRunwayScreen.tsx",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 244,
   "phase": "2-code",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "resolved in the stylesheet phase (2026-09-26): the method line is no longer inside the card: RefillRunwayScreen.tsx:70 draws it under the card as the group-footer note (`.pad-x > .input-hint`), the lead's pattern for a sentence-length note, so the card keeps one grey."
  },
  {
   "file": "src/health/screens/RefillRunwayScreen.tsx",
@@ -4076,10 +4105,11 @@
   "fix_file": "src/gym/GymFlow.tsx + src/styles/ruled.css",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 271,
   "phase": "1-css",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "resolved in the stylesheet phase (2026-09-26): GymFlow.tsx:3432 draws the Up Next estimate as `se-chip se-chip-est` and ruled.css:1830 paints `.ruled.health-ruled .se-chip-est` sky (--cat-sky); the violet budget chip is no longer used for it."
  },
  {
   "file": "src/gym/GymFlow.tsx",
@@ -4121,10 +4151,11 @@
   "fix_file": "src/gym/GymFlow.tsx",
   "law_risk": "none",
   "confidence": "low",
-  "status": "pending",
+  "status": "rejected",
   "id": 274,
   "phase": "3-middots",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "superseded 2026-09-26: field notes keep their middle dots (RULEBOOK, Settled by the lead: notes are not facts lines, and shortCopy.test.ts, Dave 2026-08-15, keeps notes as fragments joined by a dot). GymFlow.tsx:3189 is an .input-hint note inside the About Changes disclosure, not a facts line, and the proposed \". Logged\" would fail shortCopy's sentence-boundary check."
  },
  {
   "file": "src/gym/SessionScreen.tsx",
@@ -4192,14 +4223,15 @@
   "rule": "R6",
   "rendered": "Conditioning receipt .cr-empty \"Last: 6 + 4 \u00b7 Aug 21\", else \"Not run yet\"",
   "why": "A middot baked into the last-time line, and the fallback \"Not run yet\" (CondReceipt.tsx:51) is a placeholder (R1).",
-  "fix": "SessionScreen.tsx:798 old: lastLine={header ? `Last: ${header.last} \u00b7 ${monthDay(header.date)}` : null}\nnew: lastLine={header ? `Last: ${header.last}, ${monthDay(header.date)}` : null}\nCondReceipt.tsx:50-52 old: {entries.length === 0 && (<div className=\"cr-empty\">{lastLine ?? \"Not run yet\"}</div>)}\nnew: {entries.length === 0 && lastLine && (<div className=\"cr-empty\">{lastLine}</div>)}",
+  "fix": "SessionScreen.tsx:798 old `lastLine={header ? `Last: ${header.last} \u00b7 ${monthDay(header.date)}` : null}` -> new `lastLine={header ? `Last: ${header.last}, ${monthDay(header.date)}` : null}`. CondReceipt.tsx needs no change.",
   "fix_file": "src/gym/SessionScreen.tsx + src/gym/CondReceipt.tsx",
   "law_risk": "src/gym/ConditioningFace.test.tsx:121-123 expects \"Not run yet\"",
   "confidence": "medium",
   "status": "pending",
   "id": 279,
   "phase": "3-middots",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "narrowed 2026-09-26: the CondReceipt half is done: CondReceipt.tsx:53 renders `.cr-empty` only when lastLine is set, so \"Not run yet\" is gone. The baked middot in the last-time line is left."
  },
  {
   "file": "src/gym/SessionScreen.tsx",
@@ -4211,10 +4243,11 @@
   "fix_file": "src/gym/SessionScreen.tsx + src/styles/components.css",
   "law_risk": "none",
   "confidence": "low",
-  "status": "pending",
+  "status": "done",
   "id": 280,
   "phase": "1-css",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "resolved in the stylesheet phase (2026-09-26): SessionScreen.tsx:659 draws `<span className=\"fact est\">{`Saves ${leverSave} min`}</span>` (sky, an estimate) instead of `fact cyan`."
  },
  {
   "file": "src/gym/SetStrip.tsx",
@@ -4406,10 +4439,11 @@
   "fix_file": "src/gym/LiftDetailScreen.tsx + src/styles/components.css",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 293,
   "phase": "1-css",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "resolved in the stylesheet phase (2026-09-26): LiftDetailScreen.tsx:313-317 draws the headline as a plain white `.p3-q`, and for weight_reps wraps the Epley number in `<span className=\"fact est\">` (sky); the `.p3-q.blue` class is no longer used."
  },
  {
   "file": "src/gym/LiftDetailScreen.tsx",
@@ -4421,10 +4455,11 @@
   "fix_file": "src/gym/LiftDetailScreen.tsx + src/styles/components.css",
   "law_risk": "none (note: a .fact sky variant was retired earlier; \u00a7AM re-establishes sky as the estimate colour)",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 294,
   "phase": "1-css",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "resolved in the stylesheet phase (2026-09-26): LiftDetailScreen.tsx:284 draws the estimated one-rep max as `<span className=\"fact est\">` (sky) instead of `fact amber`."
  },
  {
   "file": "src/gym/LiftDetailScreen.tsx",
@@ -4447,14 +4482,15 @@
   "rule": "R8",
   "rendered": "Best card facts \"Best on Sep 12\" (cyan) \u00b7 \"Aug 1 to Sep 20\" (grey)",
   "why": "A neutral date range is small caps (F5), and a best is logged work (lime, as .se-pr and .se-chip-best already are), not 'now'.",
-  "fix": "old (271): <span className=\"fact cyan\">\nnew: <span className=\"fact lime\">\nold (272): <span className=\"fact\">{`${shortDate(sessions[0]!.date)} to \u2026`}</span>\nnew: <span className=\"fact urgency\">{`${shortDate(sessions[0]!.date)} to \u2026`}</span>",
+  "fix": "LiftDetailScreen.tsx:271 old `<span className=\"fact cyan\">{`Best on ${shortDate(best.date)}`}</span>` -> new `<span className=\"fact lime\">{`Best on ${shortDate(best.date)}`}</span>` (Health's done ink; cyan means now). Leave :272's `.fact.date` as it is.",
   "fix_file": "src/gym/LiftDetailScreen.tsx",
   "law_risk": "none",
   "confidence": "medium",
   "status": "pending",
   "id": 296,
   "phase": "2-code",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "narrowed 2026-09-26: the range half is done: LiftDetailScreen.tsx:272 draws \"Aug 1 to Sep 20\" as `.fact.date` (small caps). \"Best on Sep 12\" at :271 is still `fact cyan`."
  },
  {
   "file": "src/gym/LiftDetailScreen.tsx",
@@ -4616,10 +4652,11 @@
   "fix_file": "src/gym/insights.ts",
   "law_risk": "laws.test.ts:4223 and insights.test.ts:51 require \"Correlation, not cause\" in correlate() (kept)",
   "confidence": "medium",
-  "status": "pending",
+  "status": "rejected",
   "id": 307,
   "phase": "3-middots",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "duplicate of #362 (2026-09-26): the remaining middot half is carried by #362 (semicolon wording, since shortCopy.test.ts fails \". C\"); the duplicate ins-cite half was done in the stylesheet phase."
  },
  {
   "file": "src/gym/insights.ts",
@@ -5051,10 +5088,11 @@
   "fix_file": "src/brain/BrainTop.tsx",
   "law_risk": "none (BrainTop.test.tsx:57 only asserts no .sh2 when empty)",
   "confidence": "high",
-  "status": "pending",
+  "status": "needs_dave",
   "id": 336,
   "phase": "2-code",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "Held for Dave (RULEBOOK: Brain's two red heads; dave-queue #599). BrainTop.tsx:172 \"Shaping JARVIS Now\" and :204 \"Needs You\" were kept loud by Dave's C-38 pick (2026-09-12), and LAW 11 records that pick as an exemption. Question: should those two Brain heads go quiet like every other head (sh2-quiet), leaving Today's Now as the only red head? If yes, BrainTop.tsx adds sh2-quiet to both and the BrainTop line in LAW 11 (laws.test.ts ~3565) is removed. (BrainTop.tsx is outside this phase's diff; held because it is the same question as #599.)"
  },
  {
   "file": "src/brain/strands/state.ts",
@@ -5066,10 +5104,11 @@
   "fix_file": "src/brain/strands/state.ts",
   "law_risk": "not a src/laws law; src/brain/strands/state.test.ts:50-53 pins sky/purp and must be updated",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 337,
   "phase": "2-code",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "resolved in the stylesheet phase (2026-09-26): state.ts toneForStrandState now returns `\"\" | \"warn\"`: KNOWN and LEARNED are a plain `.fact.st` (caps sets them apart, no sky or purple), FADING is `.fact.st.warn`; the call sites in BrainTop, StrandsPage and BrainDocPage pick it up unchanged."
  },
  {
   "file": "src/brain/BrainTop.tsx",
@@ -5242,14 +5281,15 @@
   "rule": "R6",
   "rendered": "Evidence rows: MINIMUM \"Paired sessions 10 \u00b7 fewer than ten...\"; OUR CONVENTION \"First muscle a whole set, the others half \u00b7 This app's counting rule, not the cited work's\"; cite \"From your records + AI \u00b7 Explains the rows above, adds nothing to them\" (line 60)",
   "why": "Baked middots inside .ins-sub (line 55, and line 52 via gym/insights.ts:304's convention string) and .ins-cite (line 60) meta lines.",
-  "fix": "InsightEvidence.tsx:55 `<span className=\"ins-sub\">{evidence.minimum.name} {evidence.minimum.value} \u00b7 {evidence.minimum.reason}</span>` -> `<span className=\"ins-sub\"><span className=\"fact\">{evidence.minimum.name} {evidence.minimum.value}</span><span className=\"fact\">{evidence.minimum.reason}</span></span>`; line 60 `From your records + AI \u00b7 Explains the rows above, adds nothing to them` -> `From your records + AI`; gym/insights.ts:304 `\"First muscle a whole set, the others half \u00b7 This app's counting rule, not the cited work's\"` -> `\"First muscle a whole set, the others half. This app's counting rule, not the cited work's\"`",
+  "fix": "InsightEvidence.tsx:68 old `<span className=\"ins-sub\">{evidence.minimum.name} {evidence.minimum.value} \u00b7 {evidence.minimum.reason}</span>` -> new `<span className=\"ins-sub\">{evidence.minimum.name} {evidence.minimum.value}, {evidence.minimum.reason}</span>` (one run with a comma: two plain .fact spans would be two greys on the row); gym/insights.ts:304 old `\"First muscle a whole set, the others half \u00b7 This app's counting rule, not the cited work's\"` -> new `\"First muscle a whole set, the others half; this app's counting rule, not the cited work's\"` (a semicolon, not \". T\": shortCopy.test.ts fails a string literal with a sentence boundary, and gym/insights.ts is not exempt).",
   "fix_file": "src/brain/InsightEvidence.tsx",
   "law_risk": "not a src/laws law; InsightEvidence.test.tsx:30 /Paired sessions 10 \u00b7 fewer than ten/ must be updated",
   "confidence": "high",
   "status": "pending",
   "id": 349,
   "phase": "3-middots",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "narrowed 2026-09-26: the explanation's cite (\"From your records + AI \u00b7 Explains the rows above...\") is gone from the card: InsightCard draws EXPLAIN_NOTE (\"Explanation from your records + AI, adding nothing to the rows above.\") under the card as .input-hint. The Minimum row and the convention string still bake a middot into .ins-sub."
  },
  {
   "file": "src/brain/InsightEvidence.tsx",
@@ -5366,10 +5406,11 @@
   "fix_file": "src/brain/CategoryDetail.tsx",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 357,
   "phase": "2-code",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "resolved in the stylesheet phase (2026-09-26): CategoryDetail.tsx draws the events tile as `stat-tile st-quiet` (the done tile is now `st-goal`, green); no blue st-time tile remains on the area page."
  },
  {
   "file": "src/brain/CategoryDetail.tsx",
@@ -5411,10 +5452,11 @@
   "fix_file": "src/brain/CategoryDetail.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 360,
   "phase": "3-middots",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "resolved in the stylesheet phase (2026-09-26): the Weekly Volume breakdown row draws `<span className=\"fact date\">{shortDate(lift.date)}</span><span className=\"fact\"><b>{lift.sets}</b> sets{lift.primary ? \"\" : \", secondary, counted half\"}</span>` inside .ins-sub: no typed dots, the date in small caps, \"primary\" dropped."
  },
  {
   "file": "src/brain/CategoryDetail.tsx",
@@ -5426,10 +5468,11 @@
   "fix_file": "src/brain/CategoryDetail.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 361,
   "phase": "3-middots",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "resolved in the stylesheet phase (2026-09-26): the Weekly Volume cite is now the InsightCard note under the card (`Last 7 days, working sets only, warm-ups excluded. {source}.`, CategoryDetail.tsx:1724), and the nearest-pair line is `<div className=\"input-hint\">Not enough days yet for {def} and {ex}, {paired} of {needed} paired sessions.</div>` (:1852). Neither carries a middot."
  },
  {
   "file": "src/brain/CategoryDetail.tsx",
@@ -5437,14 +5480,15 @@
   "rule": "R6",
   "rendered": "Correlation card line \"+2.5 per session on higher Sleep days vs lower Sleep days \u00b7 8 paired \u00b7 Correlation, not cause\", then \"Correlation, not cause\" again on line 1833",
   "why": "c.line is built with baked middots in gym/insights.ts:149 and renders inside .ins-line; the caveat is also printed twice on the same card.",
-  "fix": "gym/insights.ts:149 `` `${sign}${round1(deltaDiff)} per session on ${higherLabel} days vs ${lowerLabel} \u00b7 ${pairs.length} paired \u00b7 Correlation, not cause` `` -> `` `${sign}${round1(deltaDiff)} per session on ${higherLabel} days vs ${lowerLabel}, over ${pairs.length} paired sessions. Correlation, not cause` ``; and delete CategoryDetail.tsx:1833 `<div className=\"ins-cite\">Correlation, not cause</div>`",
+  "fix": "gym/insights.ts:149 old `` `${sign}${round1(deltaDiff)} per session on ${higherLabel} days vs ${lowerLabel} \u00b7 ${pairs.length} paired \u00b7 Correlation, not cause` `` -> new `` `${sign}${round1(deltaDiff)} per session on ${higherLabel} days vs ${lowerLabel}, over ${pairs.length} paired sessions; correlation, not cause` `` (keep the caveat in the line, do not re-add an .ins-cite for it; a semicolon, not \". C\", because shortCopy.test.ts fails any string literal with a sentence boundary and gym/insights.ts is not exempt). Update any unit test that pins the old string.",
   "fix_file": "src/gym/insights.ts",
   "law_risk": "src/laws/laws.test.ts \"every correlation card ends its own line honestly\" (needs \"Correlation, not cause\" inside correlate: kept) and \"a plateau's what-changed receipt\" (needs it in CategoryDetail.tsx: line 1821 keeps it); gym/insights.test.ts:51 still passes",
   "confidence": "medium",
   "status": "pending",
   "id": 362,
   "phase": "3-middots",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "narrowed 2026-09-26: the stylesheet phase removed the second \"Correlation, not cause\" cite from the correlation card (CategoryDetail.tsx:1846 now says the line carries the caveat itself). The caveat stays in the line by that decision; only the baked middots in gym/insights.ts are left."
  },
  {
   "file": "src/brain/CategoryDetail.tsx",
@@ -5846,10 +5890,11 @@
   "fix_file": "src/notes/screens/NotesList.tsx + src/styles/ruled.css",
   "law_risk": "none (colourKey FACT regex matches .r-goal but --warn is allowed; no .fact. modifier rule added)",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 389,
   "phase": "1-css",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "resolved in the stylesheet phase (2026-09-26): NotesList.tsx:297 draws the count as `<span className=\"r-goal fact warn\">JARVIS found <b>{n.found}</b></span>`: amber, number white, no purple and no baked dot."
  },
  {
   "file": "src/notes/screens/NotesList.tsx",
@@ -5876,10 +5921,11 @@
   "fix_file": "src/notes/screens/NotesList.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 391,
   "phase": "3-middots",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "resolved in the stylesheet phase (2026-09-26): NotesList.tsx:296-298 dropped every typed \"\u00b7 \": tags render as \"#a #b\", the found count and the date as their own spans separated by the .r-k gap."
  },
  {
   "file": "src/notes/screens/NotesList.tsx",
@@ -5891,10 +5937,11 @@
   "fix_file": "src/notes/screens/NotesList.tsx",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 392,
   "phase": "2-code",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "resolved in the stylesheet phase (2026-09-26): NotesList.tsx:296 draws all tags as one `.r-goal.r-cat` run joined by spaces (`n.tags.map((t) => \"#\" + t).join(\" \")`)."
  },
  {
   "file": "src/notes/screens/NotesList.tsx",
@@ -5966,10 +6013,11 @@
   "fix_file": "src/notes/screens/NoteEditor.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 397,
   "phase": "2-code",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "resolved in the stylesheet phase (2026-09-26): NoteEditor.tsx:537 draws the kind as a plain `.fact` (the line's one grey, no purple or dead sky) and :538 the due as `.fact.date` (small caps). The due is free text (\"by Friday\"), so it cannot be windowed into red/amber; the neutral date primitive is what the phase chose."
  },
  {
   "file": "src/notes/screens/NoteEditor.tsx",
@@ -6037,14 +6085,15 @@
   "rule": "R9",
   "rendered": "Under the Filename field: \"Meeting Notes.md\"; under Format: \"PDF keeps accented Latin text and includes photos\"; under Include the Title: \"2 photos embedded in PDF and Word.\"",
   "why": "Notes under form fields are drawn with .exp-note (13px, --tx-2, upright) instead of .input-hint (14px, --tx-3, italic), the one F6 class. Same for AISheet.tsx:41 (the stale note under the JARVIS Suggests field). The failure line at 127 is an error and belongs on .input-error.",
-  "fix": "ExportSheet.tsx:96 `<div className=\"exp-note\">{filename}</div>` -> `<div className=\"input-hint\">{filename}</div>`; :109 `<div className=\"exp-note\" key={c}>` -> `<div className=\"input-hint\" key={c}>`; :119 `<div className=\"exp-note\">` -> `<div className=\"input-hint\">`; :127 `<div className=\"exp-note\">{failed}</div>` -> `<div className=\"input-error\">{failed}</div>`; AISheet.tsx:41 `<div className=\"exp-note\" role=\"status\">` -> `<div className=\"input-hint\" role=\"status\">`",
+  "fix": "ExportSheet.tsx:133 old `<div className=\"exp-note\">{failed.replace(/[.\\s]+$/, \"\")}. The note is unchanged: retry, or choose another format</div>` -> new `<div className=\"input-error\">{failed.replace(/[.\\s]+$/, \"\")}. The note is unchanged: retry, or choose another format</div>` (keep the words; .input-error:not(input) is 14px --sys-red); AISheet.tsx:41 old `<div className=\"exp-note\" role=\"status\">` -> new `<div className=\"input-hint\" role=\"status\">`.",
   "fix_file": "src/notes/screens/ExportSheet.tsx + src/notes/screens/AISheet.tsx",
   "law_risk": "none",
   "confidence": "high",
   "status": "pending",
   "id": 402,
   "phase": "2-code",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "narrowed 2026-09-26: the three notes under the Export fields are already `.input-hint` (ExportSheet.tsx:99, :112, :122). Left: the failure line, now one merged sentence still drawn as `.exp-note`, and AISheet's stale note."
  },
  {
   "file": "src/notes/screens/ExportSheet.tsx",
@@ -6795,10 +6844,11 @@
   "fix_file": "src/people/screens/PersonDetail.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 452,
   "phase": "2-code",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "resolved in the stylesheet phase (2026-09-26): PersonDetail.tsx:365 draws `<span className=\"fact\">You promised</span>` (the line's one grey, no purple) and the deadline as `.fact.` + promiseTone(): past `.fact.red`, today or tomorrow `.fact.warn`, later `.fact.date` (lead decision: a date's colour follows the reminder/project window)."
  },
  {
   "file": "src/people/screens/PersonDetail.tsx",
@@ -6840,10 +6890,11 @@
   "fix_file": "src/people/screens/PersonDetail.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 455,
   "phase": "2-code",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "resolved in the stylesheet phase (2026-09-26): PersonDetail.tsx:415 draws the Decided with Them date as `<span className=\"fact date\">` (small caps)."
  },
  {
   "file": "src/people/CallPrepSheet.tsx",
@@ -6926,14 +6977,15 @@
   "rule": "R9",
   "rendered": "WHAT YEAR IS THIS? / \"Syllabus didn\u2019t say \u00b7 Applies to dated rows\" (.t-body, 15px, --tx-1) above the Year field",
   "why": "The note about the Year field is drawn by .t-body in its own .field above the input, not by .input-hint under it. That gives it a third size and puts a primary-ink sentence where the field note belongs.",
-  "fix": "Delete line 172 and make the Year field `<div className=\"field\"><label className=\"input-label\">Year</label><input type=\"number\" className=\"input\" value={year} onChange={(e) => setYear(Number(e.target.value) || year)} /><div className=\"input-hint\">Syllabus didn&rsquo;t say. Applies to dated rows</div></div>`",
+  "fix": "Delete SyllabusUploadFlow.tsx:172 `<div className=\"field\"><div className=\"t-body\">Syllabus didn&rsquo;t say \u00b7 Applies to dated rows</div></div>` and make the Year field `<div className=\"field\"><label className=\"input-label\">Year</label><input type=\"number\" className=\"input\" value={year} onChange={(e) => setYear(Number(e.target.value) || year)} /><div className=\"input-hint\">Syllabus didn&rsquo;t say \u00b7 Applies to dated rows</div></div>` (same words, dot kept).",
   "fix_file": "src/life/SyllabusUploadFlow.tsx",
   "law_risk": "none",
   "confidence": "medium",
   "status": "pending",
   "id": 461,
   "phase": "2-code",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "narrowed 2026-09-26: keep the note's middle dot: field notes keep their dots (RULEBOOK, Settled by the lead; shortCopy.test.ts keeps notes as fragments joined by a dot), so the proposed \". Applies\" is dropped from the fix. The move to .input-hint under the Year field still stands."
  },
  {
   "file": "src/life/SyllabusUploadFlow.tsx",
@@ -6945,10 +6997,11 @@
   "fix_file": "src/life/SyllabusUploadFlow.tsx",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 462,
   "phase": "2-code",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "resolved in the stylesheet phase (2026-09-26): SyllabusUploadFlow.tsx:222 pairs the note with the primitive (`<div className=\"input-hint xs-note\">`), so it draws at 14px --tx-3 italic instead of falling through to body size in white."
  },
  {
   "file": "src/life/GoalSheet.tsx",
@@ -6960,10 +7013,11 @@
   "fix_file": "src/shared/FormSheet.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 463,
   "phase": "2-code",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "resolved in the stylesheet phase (2026-09-26): the GoalSheet notes are `<Note>`s, and FormSheet.tsx:209 now renders Note as `<div className=\"input-hint xs-note\">` with `.form-sheet .xs-note` reduced to layout (components.css:5742-5743), so they draw at 14px --tx-3 italic. Their middle dots stay (field notes keep their dots, Settled by the lead)."
  },
  {
   "file": "src/life/cards/AreaItemStandard.tsx",
@@ -7036,10 +7090,11 @@
   "fix_file": "src/bigger/GoalRowRuled.tsx",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 468,
   "phase": "2-code",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "resolved in the stylesheet phase (2026-09-26): GoalRowRuled.tsx keys the check-in by its word (CHECKIN_TONE: ahead/on track .fact.good, behind .fact.warn), ruled.css:360-361 `.ruled .r-goal.fact.good/.warn` lets the colour paint over the .r-goal grey, and the `.goal-row-ruled .r-k .fact { font-size: inherit }` override is gone, so it sits at --t-sub. GoalRowRuled.test.tsx pins it."
  },
  {
   "file": "src/bigger/GoalRowRuled.tsx",
@@ -7096,10 +7151,11 @@
   "fix_file": "src/projects/shape.ts",
   "law_risk": "none (unit test src/projects/shape.test.ts:15 asserts the old string)",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 472,
   "phase": "3-middots",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "resolved in the stylesheet phase (2026-09-26): shape.ts:39 now returns \"On hold, no end date\": no baked dot, and both callers draw it as one amber fact. The phase kept the words deliberately (a hold with no date says so), so it is not dropped to bare \"On hold\"."
  },
  {
   "file": "src/bigger/BiggerPicturePage.tsx",
@@ -7156,10 +7212,11 @@
   "fix_file": "src/bigger/progress.ts",
   "law_risk": "none (check any projectPace unit assertions)",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 476,
   "phase": "3-middots",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "resolved in the stylesheet phase (2026-09-26): progress.ts projectPace became projectPaceParts ({count, when, tone}); ProjectDetailPage.tsx:179-183 draws the date alone as `.fact.<tone>`, TodayFlow.tsx:3047 builds the notice sub with <Facts> (count + toned date, CSS dot), and the unlensed Bigger Picture row draws the parts as facts. No baked dot remains."
  },
  {
   "file": "src/bigger/savings.ts",
@@ -7347,14 +7404,15 @@
   "rule": "R6",
   "rendered": "\"Back after 12 days \u00b7 3 of 5 done\" (.bp-sub); project rows with up to five grey .bp-sub lines: \"Next: ...\", \"3 of 8 done \u00b7 Stalled\", \"4 open \u00b7 About 2h\", \"3 of 8 left \u00b7 Due today\"",
   "why": "The unlensed frame (projRow :205-245, goalRow :247-276, ranked :433-435, return :727-799) bakes middots into .bp-sub (here; progress.ts:141; projects/shape.ts:91; progress.ts:58-65) and stacks up to five greys under one title. It is unreachable: LifeFlow.tsx:72 always passes `segments`, so `lensed` is always true, but it still ships and the next person to reuse it inherits the violations.",
-  "fix": "Delete projRow (BiggerPicturePage.tsx:205-245), goalRow (:247-276), ranked (:433-435) and the unlensed return (:727-799); drop the now-unused progressLabel import and the sizeLineOf/paceLineOf props (BiggerPictureFlow.tsx:1069,1072); delete progress.ts:138-142 progressLabel",
+  "fix": "Delete the unlensed frame: projRow (BiggerPicturePage.tsx:206-262), goalRow (:264-293), ranked (:450-452) and the unlensed return (:744 to the end of the component); drop the progressLabel import (:8) and the sizeLineOf / paceLineOf props (BiggerPicturePage.tsx:97 and :98-101, the destructure at :55, and BiggerPictureFlow.tsx:1069-1074; drop `sizeLine`/`sizeOf` from BiggerPictureFlow's shape import only if nothing else there uses them). Keep projectPaceParts (ProjectDetailPage and TodayFlow use it) and sizeLine (ProjectDetailPage uses it). Delete progress.ts:157-162 progressLabel and its unit test in progress.test.ts. Delete src/bigger/BiggerPicturePage.test.tsx, which renders only the unlensed projRow. LAW 10 in laws.test.ts (~3486, 'a goal is homed by its first live tag, and empty areas render nothing') matches `if (mine.length === 0 && loose.length === 0) return null;`, which exists only in the dead frame (:761): retarget it to the lensed `if (mine.length === 0) return null;` (report it as blocked_by_law; agents never edit src/laws).",
   "fix_file": "src/bigger/BiggerPicturePage.tsx",
   "law_risk": "src/laws/laws.test.ts LAW 10 'a goal is homed by its first live tag, and empty areas render nothing' matches `if (mine.length === 0 && loose.length === 0) return null;`, which exists only in the dead frame: retarget it to the lensed `if (mine.length === 0) return null;`. Unit test src/bigger/progress.test.ts:24 covers progressLabel.",
   "confidence": "medium",
   "status": "pending",
   "id": 489,
   "phase": "3-middots",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "narrowed 2026-09-26: the stylesheet phase rewrote the dead frame's project row instead of deleting it: sizeLineOf now returns only the estimate (\"About 3h left\", drawn as `.fact.est`), paceLineOf returns projectPaceParts drawn as separate facts, and Next is an amber kicker; a new BiggerPicturePage.test.tsx renders that unlensed row. The frame is still unreachable (BiggerPictureFlow always passes `segments`, so `lensed` is always true), and it still ships goalRow's baked `extra.text + \" \u00b7 \" + body` (:282) and progressLabel's `\" \u00b7 Stalled\"` (progress.ts:161) in .bp-sub. | 2026-09-26 round 3: the amber Next kicker (.bp-next-k) also lives only in this dead frame. Deleting the frame is still right; delete .bp-next/.bp-next-k CSS with it if nothing else renders them, and BiggerPicturePage.test.tsx."
  },
  {
   "file": "src/money/MoneyFlow.tsx",
@@ -7682,10 +7740,11 @@
   "fix_file": "src/bigger/progress.ts",
   "law_risk": "none",
   "confidence": "low",
-  "status": "pending",
+  "status": "rejected",
   "id": 511,
   "phase": "2-code",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "superseded 2026-09-26: the stylesheet phase ruled that a hold is stalled work, which the key makes amber (\u00a7AM 'stalled'): shape.ts holdLine is drawn as one amber fact by both callers and ProjectDetailPage.tsx:187 draws it `.fact.warn`. A quiet grey PAUSED capsule would contradict that decision on the same row."
  },
  {
   "file": "src/money/screens/TrackerScreen.tsx",
@@ -7879,10 +7938,11 @@
   "fix_file": "src/shared/FormSheet.tsx",
   "law_risk": "none (subtextLaw dead-class scan: xs-note stays rendered)",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 524,
   "phase": "2-code",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "resolved in the stylesheet phase (2026-09-26): FormSheet.tsx:209 Note renders `<div className=\"input-hint xs-note\">`, and components.css:5742-5743 `.form-sheet .xs-note` keeps only the layout (no font-size or colour, margin-top 0), so every Note is the one field-note primitive: 14px, --tx-3, italic."
  },
  {
   "file": "src/shared/HeadMenu.tsx",
@@ -8346,10 +8406,11 @@
   "fix_file": "src/styles/components.css",
   "law_risk": "src/laws/browserWalk.test.ts 'the sheet and toast verbs take it' pins .row-act on the --tint-on-sheet list; it must drop .row-act",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 555,
   "phase": "1-css",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "resolved in the stylesheet phase (2026-09-26): `.form-sheet .row-act` and `.sheet-scrim > .card .row-act` are no longer in the --tint-on-sheet list (components.css:1614-1626): the capsule keeps its own --tint label on its opaque --capsule-fill on sheets too (lead decision, 2026-09-26)."
  },
  {
   "file": "src/styles/ruled.css",
@@ -8407,10 +8468,11 @@
   "fix_file": "src/styles/components.css",
   "law_risk": "none",
   "confidence": "high",
-  "status": "done",
+  "status": "needs_dave",
   "id": 559,
   "phase": "1-css",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "Held for Dave (RULEBOOK 'the red Now rule and LIVE word'; dave-queue #74). Today's Now rule still paints NOW in brand red (components.css:288 `--accent-chrome`, light :1947 `--on-light-red`), its hairline `--accent`, and LIVE in `--sys-red`; the stylesheet phase restored them with a HELD FOR DAVE comment because Schedule's Now rule must change with it. Question: should the Now rule stay red as a named \u00a7AM exception (C-28, 'LIVE is the only red, on the Now rule alone'), or should NOW and LIVE go white with a neutral hairline, on Today and Schedule together? This finding was marked done, but the code no longer carries its change."
  },
  {
   "file": "src/styles/components.css",
@@ -8732,10 +8794,11 @@
   "fix_file": "src/styles/ruled.css",
   "law_risk": "src/laws/browserWalk.test.ts 'the deliberately dimmed states recede to secondary, never to --tx-4' pins `.ruled .task-row .money-amt.paid` to --tx-2; it must drop that selector",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 580,
   "phase": "1-css",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "resolved in the stylesheet phase (2026-09-26): components.css:1030 `.money-amt.paid { color: var(--good); }`, ruled.css:1287 draws a ruled bill amount in --tx-1, and ruled.css:1299 `.ruled .task-row .money-amt.paid { color: var(--good); }` (lead decision: a paid amount is green)."
  },
  {
   "file": "src/styles/components.css",
@@ -8743,14 +8806,15 @@
   "rule": "R3",
   "rendered": "\"12/30 Days In\" tile on the monthly report (review/report.ts:230 tint \"sky\" -> ReportPage.tsx:121 `stat-tile stat-sky`), number in sky",
   "why": "`.stat-tile.stat-sky .stat-num { color: var(--cat-sky, #64D2FF) }` paints a plain count in sky, which the key reserves for an estimate the app worked out. It also carries a raw hex fallback and a raw rgba ground (line 2537). The sibling tiles have the same problem: \"Sessions\" is tint blue (components.css:4768, --blue, not in the key), \"Deposits\" is tint warn (a deposit is not due), and the default .stat-num is --tint (uniformity.css:52, brand red on a number).",
-  "fix": "report.ts:229-231 set `tint: \"plain\"` for Sessions, Days In and Deposits (add \"plain\" to the tint union at report.ts:22) so `.stat-tile.stat-plain .stat-num { color: var(--tx-1) }` (line 2541) applies; then delete components.css:2537-2538 `.stat-tile.stat-sky {...}` and `.stat-tile.stat-sky .stat-num {...}`",
+  "fix": "report.ts:229-231 set `tint: \"plain\"` for Sessions, Days In and Deposits (add \"plain\" to the tint union at report.ts:22) so `.stat-tile.stat-plain .stat-num { color: var(--tx-1) }` applies. Do NOT delete the `.stat-tile.stat-sky` rules: RefillRunwayScreen's Days of Runway tile (an estimate) uses them since 2026-09-26.",
   "fix_file": "src/review/report.ts",
   "law_risk": "none",
   "confidence": "medium",
   "status": "pending",
   "id": 581,
   "phase": "2-code",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "narrowed 2026-09-26: the stat-sky rules stay (RefillRunway runway tile uses them)."
  },
  {
   "file": "src/styles/components.css",
@@ -9074,10 +9138,11 @@
   "fix_file": "src/review/week.ts",
   "law_risk": "none",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 602,
   "phase": "2-code",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "resolved in the stylesheet phase (2026-09-26): week.ts:186 pushes Next with tone \"warn\", the WeekLine tone union is \"good\" | \"warn\" | \"quiet\", and components.css:6200 defines only .eq-good / .eq-warn / .eq-quiet (.eq-red is gone)."
  },
  {
   "file": "src/styles/components.css",
@@ -9134,10 +9199,11 @@
   "fix_file": "src/styles/components.css",
   "law_risk": "src/laws/astra.test.ts:62 pins \".fact.purp\" in the required-selector list; remove it there and add it to the `not.toContain` retired-variant check beside \".fact.sky\"",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 606,
   "phase": "1-css",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "resolved in the stylesheet phase (2026-09-26): `.fact.purp` and its theme variants are deleted from components.css and every call site moved: InsightsFlow month row `<b>{moved}</b> Moved` + `.fact.good` done; week.ts Learned is one fact with white counts; NoteEditor.tsx:537 kind is a plain `.fact` and the due `.fact.date`; PersonDetail.tsx:365 \"You promised\" plain with a windowed date tone; state.ts toneForStrandState gives LEARNED no colour (plain .fact.st); NotesList found count is `.fact.warn`."
  },
  {
   "file": "src/styles/components.css",
@@ -9409,10 +9475,11 @@
   "fix_file": "src/decisions/DecisionsFlow.tsx",
   "law_risk": "none",
   "confidence": "medium",
-  "status": "pending",
+  "status": "done",
   "id": 624,
   "phase": "2-code",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "resolved in the stylesheet phase (2026-09-26): the source fact was deleted from the row and the outcome takes the key (OUTCOME_KEY: good/warn/red); the date is `.fact.date`. The row keeps the Because line as its one grey."
  },
  {
   "file": "src/styles/components.css",
@@ -9603,14 +9670,15 @@
   "rule": "R9, R7",
   "rendered": "New Goal sheet (gym/MetricGoalSheet.tsx:72, gym/LiftGoalSheet.tsx:97) after Save with an empty name: the field's placeholder \"e.g. Weight Target\" shrinks from 17px to 13px and drops 4px. Under it, \"Add a goal.\" renders at 13px while \"Optional.\" (.input-hint) under the next field renders at 14px",
   "why": ".input-error is a note-under-field class, but five call sites also put it ON the field itself: className=\"input input-error\" (MetricGoalSheet:72, LiftGoalSheet:97) and xs-input + input-error (FormSheet:176, TaskSheet:400, CategorySheet:90). On .input it wins the cascade over .input (same specificity, later rule), so the field's own text goes to 13px red with a 4px top margin. On .xs-input only the margin leaks. The note itself sits at --t-caption (13), so one slot changes size with its state: TaskSheet.tsx:641-644 swaps .input-error for .input-hint (14) in place.",
-  "fix": ".input-error { font-size: var(--t-caption); color: var(--sys-red); margin-top: var(--s-1); }  ->  .input-error:not(input) { font-size: var(--t-sub); color: var(--sys-red); margin-top: var(--s-1); }   and in MetricGoalSheet.tsx:72 and LiftGoalSheet.tsx:97: className={\"input\" + (touched && !title.trim() ? \" input-error\" : \"\")}  ->  className={\"input\" + (touched && !title.trim() ? \" error\" : \"\")}  (the existing .input.error rule, DS:712, draws the red 2px border)",
+  "fix": "MetricGoalSheet.tsx:72 and LiftGoalSheet.tsx:97 old `className={\"input\" + (touched && !title.trim() ? \" input-error\" : \"\")}` -> new `className={\"input\" + (touched && !title.trim() ? \" error\" : \"\")}` (the existing `.input.error` rule, jarvis-design-system.css:712, draws the red 2px border). No CSS change.",
   "fix_file": "src/styles/jarvis-design-system.css + src/gym/MetricGoalSheet.tsx + src/gym/LiftGoalSheet.tsx",
   "law_risk": "none",
   "confidence": "high",
   "status": "pending",
   "id": 637,
   "phase": "2-code",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "narrowed 2026-09-26: the stylesheet half is done: jarvis-design-system.css:720 is `.input-error:not(input) { font-size: var(--t-sub); ... }`, so the goal sheets' typed text no longer shrinks and the error line is 14px. But the inputs still carry `input-error`, which now styles nothing on an input, so an empty required name shows no red border."
  },
  {
   "file": "src/styles/editor.css",
@@ -9622,10 +9690,11 @@
   "fix_file": "src/styles/editor.css + src/notes/screens/ExportSheet.tsx",
   "law_risk": "none (subtextLaw dead-class check still passes: .exp-note keeps call sites in NoteEditor/AISheet/ExportSheet failure block)",
   "confidence": "high",
-  "status": "pending",
+  "status": "done",
   "id": 638,
   "phase": "2-code",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "resolved in the stylesheet phase (2026-09-26): editor.css:180 `.exp-note { font-size: var(--t-sub); color: var(--tx-3); ... }`, and ExportSheet.tsx:99, :112 and :122 draw the Filename, Format and More Options notes as `.input-hint`."
  },
  {
   "file": "src/styles/editor.css",
@@ -9833,10 +9902,11 @@
   "fix_file": "src/styles/mail-rows.css",
   "law_risk": "none",
   "confidence": "low",
-  "status": "done",
+  "status": "needs_dave",
   "id": 652,
   "phase": "1-css",
-  "needs_dave": false
+  "needs_dave": false,
+  "status_note": "Held for Dave (RULEBOOK: the yellow Remember star; dave-queue #530). mail-rows.css:45 `.mstar` is back to `--yellow` with an AMENDED 2026-09-26 HELD FOR DAVE note: a remembered VIP thread shows both stars on one row, so the VIP star moves with the Remember star on his answer. Question: keep the yellow stars, or make the on-star white (the fill already shows on vs off)? This finding was marked done, but the code no longer carries its change."
  },
  {
   "file": "src/messages/MessagesFlow.tsx",
@@ -9942,10 +10012,11 @@
   "fix_file": "src/notes/screens/ExportSheet.tsx",
   "confidence": "high",
   "id": 659,
-  "status": "pending",
+  "status": "done",
   "needs_dave": false,
   "source": "phase-A 2026-09-25",
-  "phase": "2-code"
+  "phase": "2-code",
+  "status_note": "resolved in the stylesheet phase (2026-09-26): ExportSheet.tsx:99 draws the filename note as `<div className=\"input-hint\">{filename}</div>` and :112 draws the Format note as one `<div className=\"input-hint\">{carries}</div>` (the carries list became one sentence per format)."
  },
  {
   "file": "src/notes/screens/NoteEditor.tsx",
@@ -10128,10 +10199,11 @@
   "fix_file": "src/notes/screens/NoteEditor.tsx",
   "confidence": "medium",
   "id": 671,
-  "status": "pending",
+  "status": "done",
   "needs_dave": false,
   "source": "phase-A 2026-09-25",
-  "phase": "2-code"
+  "phase": "2-code",
+  "status_note": "resolved in the stylesheet phase (2026-09-26): NoteEditor.tsx:392 renders Retry as `className=\"pill-act\"` (the capsule) and editor.css `.doc-save .pill-act { margin-left: var(--s-1); }` replaces the `.pill-action` rule; the save line itself is now 14px --tx-3."
  },
  {
   "file": "src/notes/screens/NoteEditor.tsx",
@@ -10174,10 +10246,11 @@
   "fix_file": "src/styles/mail-rows.css",
   "confidence": "low",
   "id": 674,
-  "status": "done",
+  "status": "needs_dave",
   "needs_dave": false,
   "source": "phase-A 2026-09-25",
-  "phase": "1-css"
+  "phase": "1-css",
+  "status_note": "Held for Dave (RULEBOOK: the yellow Remember star; dave-queue #530). mail-rows.css:45 `.mstar` is back to `--yellow` with an AMENDED 2026-09-26 HELD FOR DAVE note: a remembered VIP thread shows both stars on one row, so the VIP star moves with the Remember star on his answer. Question: keep the yellow stars, or make the on-star white (the fill already shows on vs off)? This finding was marked done, but the code no longer carries its change."
  },
  {
   "file": "src/shared/DocEditor.tsx",

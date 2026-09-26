@@ -4,8 +4,9 @@ import { render } from "@testing-library/react";
 import GoalRowRuled from "./GoalRowRuled";
 
 // THE CHECK-IN WEARS WHAT IT SAYS (§AM, 2026-09-26). It was green whatever
-// it said, so "Behind" read as good news. On track is green, behind is
-// amber, off track red; a word outside the key stays a plain fact.
+// it said, so "Behind" read as good news. A check-in is one of three words
+// (checkin.ts): ahead and on track are green, behind is amber. Anything
+// else stays a plain fact.
 const checkinOn = (checkin: string) => {
   const { container } = render(
     <GoalRowRuled title="Run a Half" tone="cat-fg-green" body="" status={null} bar={null} checkin={checkin} />,
@@ -24,24 +25,18 @@ describe("GoalRowRuled check-in", () => {
     }
   });
 
-  it("is amber when behind or at risk", () => {
-    for (const w of ["Behind", "At Risk"]) {
+  it("is amber when behind", () => {
+    const el = checkinOn("Behind");
+    expect(el.classList.contains("warn")).toBe(true);
+    expect(el.classList.contains("good")).toBe(false);
+  });
+
+  it("stays a plain fact for a word that is not a check-in", () => {
+    for (const w of ["Unsure", "Off Track"]) {
       const el = checkinOn(w);
-      expect(el.classList.contains("warn")).toBe(true);
-      expect(el.classList.contains("good")).toBe(false);
+      for (const t of ["good", "warn", "red"]) expect(el.classList.contains(t)).toBe(false);
+      expect(el.className).toBe("r-goal fact");
     }
-  });
-
-  it("is red when off track or missed", () => {
-    for (const w of ["Off Track", "Missed"]) {
-      expect(checkinOn(w).classList.contains("red")).toBe(true);
-    }
-  });
-
-  it("stays a plain fact for a word with no meaning in the key", () => {
-    const el = checkinOn("Unsure");
-    for (const t of ["good", "warn", "red", "est"]) expect(el.classList.contains(t)).toBe(false);
-    expect(el.className).toBe("r-goal fact");
   });
 
   it("is absent while a status capsule speaks for the goal", () => {

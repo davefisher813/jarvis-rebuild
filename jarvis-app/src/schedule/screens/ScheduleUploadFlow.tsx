@@ -294,7 +294,7 @@ export default function ScheduleUploadFlow({
             ))}
           </div></div>
           {needTime > 0 && (
-            <div className="pad-x"><div className="xs-note">
+            <div className="pad-x"><div className="input-hint xs-note">
               <span>{capAfterNumber(`${needTime} ${needTime === 1 ? "row has" : "rows have"} no time yet · Tap one to set it, or skip it`)}</span>
             </div></div>
           )}

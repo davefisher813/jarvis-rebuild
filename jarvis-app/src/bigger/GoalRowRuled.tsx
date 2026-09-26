@@ -1,6 +1,7 @@
 import type { Progress } from "./progress";
 import { TargetGlyph } from "../shared/glyphs";
 import { capAfterNumber } from "../shared/casing";
+import { CHECKIN_LABEL, type CheckinWord } from "./checkin";
 
 // THE GOAL ROW (Goals and Projects, Dave 2026-09-02: "One card, status
 // capsule on the right"). One anatomy wherever a goal is listed, on the
@@ -19,15 +20,17 @@ export function Nums({ text }: { text: string }) {
 }
 
 /** A check-in says how the goal is going, so it wears the key colour of what
- *  it says (§AM): ahead or on track is green, behind or at risk amber, off
- *  track or missed red. A word outside those stays a plain fact. It was
- *  green whatever it said, so "Behind" read as good news. */
-function checkinTone(checkin: string): "good" | "warn" | "red" | null {
-  const w = checkin.trim().toLowerCase();
-  if (w === "ahead" || w === "on track") return "good";
-  if (w === "behind" || w === "at risk") return "warn";
-  if (w === "off track" || w === "missed") return "red";
-  return null;
+ *  it says (§AM): ahead or on track is green, behind amber. It was green
+ *  whatever it said, so "Behind" read as good news. The tones are keyed by
+ *  the check-in's own words (checkin.ts), so a word added there has to be
+ *  given its colour here before it compiles; a string that is none of them
+ *  stays a plain fact. */
+const CHECKIN_TONE: Record<CheckinWord, "good" | "warn"> = { ahead: "good", on_track: "good", behind: "warn" };
+
+function checkinTone(checkin: string): "good" | "warn" | null {
+  const said = checkin.trim().toLowerCase();
+  const word = (Object.keys(CHECKIN_LABEL) as CheckinWord[]).find((w) => CHECKIN_LABEL[w].toLowerCase() === said);
+  return word ? CHECKIN_TONE[word] : null;
 }
 
 export function Bar({ p }: { p: Progress }) {

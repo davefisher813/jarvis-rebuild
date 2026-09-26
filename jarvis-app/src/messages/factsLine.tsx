@@ -14,10 +14,14 @@
 import type { ReactNode } from "react";
 import type { AskKind } from "./mailAction";
 import type { Evidence } from "./evidence";
+import { daysBetween } from "../upnext/upnext";
 
-// The Colour Key's own variants (§AM): due, done, late. Sky and purple are
-// retired; neither has a rule, so asking for one would paint a second grey.
-export type FactTone = "warn" | "good" | "red";
+// The Colour Key's own variants (§AM): due, done, late, an estimate the app
+// worked out (.fact.est, sky), and a neutral date (.fact.date, small caps).
+// The retired .fact.sky and .fact.purp have no rule and are not here.
+// `date` is CAPS, not a colour, so it never counts toward K.3's one colour:
+// a line may carry a red and a date together.
+export type FactTone = "warn" | "good" | "red" | "est" | "date";
 export interface Fact { text: string; tone?: FactTone }
 
 /** One .facts line. Nullish or false entries are skipped so a caller can
@@ -29,6 +33,8 @@ export function Facts({ facts, className = "" }: { facts: (Fact | null | undefin
   return (
     <div className={"facts" + (className ? " " + className : "")}>
       {list.map((f, i) => {
+        // A neutral date is caps, not a colour: it rides past the counter.
+        if (f.tone === "date") return <span key={i} className="fact date">{f.text}</span>;
         // K.3: one coloured fact per line. The first keeps its colour.
         const tone = f.tone && !toned ? f.tone : undefined;
         if (tone) toned = true;
@@ -36,6 +42,14 @@ export function Facts({ facts, className = "" }: { facts: (Fact | null | undefin
       })}
     </div>
   );
+}
+
+/** A date's tone follows the reminder and project window (§AM, R8): a day
+ *  behind us is late (red), today or tomorrow is due (amber), and anything
+ *  later is a neutral date (small caps). Both are YYYY-MM-DD. */
+export function dayTone(iso: string, today: string): "red" | "warn" | "date" {
+  const gap = daysBetween(today, iso);
+  return gap < 0 ? "red" : gap <= 1 ? "warn" : "date";
 }
 
 /** E-35: what a Waiting On thread is waiting FOR, from askKindOf. Null for

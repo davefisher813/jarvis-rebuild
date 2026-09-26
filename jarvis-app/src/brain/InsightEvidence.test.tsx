@@ -2,7 +2,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom";
-import InsightEvidence from "./InsightEvidence";
+import InsightEvidence, { InsightCard, EXPLAIN_NOTE } from "./InsightEvidence";
 import { evidenceText, explainEvidence, EXPLAIN_SYSTEM } from "./explainInsight";
 import type { Evidence } from "../gym/insights";
 import type { AIService } from "../ai/AIService";
@@ -33,15 +33,38 @@ describe("InsightEvidence", () => {
     expect(screen.queryByText("Exploratory Pattern")).toBeNull();
   });
 
-  it("Explain hands the evidence to the seam and shows the words under their own cite", async () => {
+  // §AK (2026-09-26): "Caps is for a label, never a sentence". The line that
+  // says where the words came from is a sentence, so it is the note UNDER
+  // the card (.pad-x > .input-hint), never a caps cite inside it.
+  it("Explain hands the evidence to the seam and shows the words, with their note under the card", async () => {
     const onExplain = vi.fn(async (e: Evidence) => "On the days you slept more, the number moved more. It says nothing about why.");
-    render(<InsightEvidence evidence={ev} onExplain={onExplain} />);
+    const { container } = render(<InsightCard evidence={ev} onExplain={onExplain}><div className="ins-line">A finding</div></InsightCard>);
+    expect(screen.queryByText(EXPLAIN_NOTE)).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Evidence" }));
     fireEvent.click(screen.getByRole("button", { name: "Explain" }));
     expect(onExplain).toHaveBeenCalledWith(ev);
     await waitFor(() => expect(screen.getByText(/On the days you slept more/)).toBeInTheDocument());
-    expect(screen.getByText(/From your records \+ AI/)).toBeInTheDocument();
+    const note = screen.getByText(EXPLAIN_NOTE);
+    expect(note).toHaveClass("input-hint");
+    expect(note.closest(".card")).toBeNull();
+    expect(container.querySelector(".ins-cite")).toBeNull();
     expect(screen.queryByRole("button", { name: "Explain" })).toBeNull();
+    // Hiding the evidence hides the words, and the note that goes with them.
+    fireEvent.click(screen.getByRole("button", { name: "Hide Evidence" }));
+    await waitFor(() => expect(screen.queryByText(EXPLAIN_NOTE)).toBeNull());
+  });
+
+  it("a card's own note sits under the card, and an open explanation joins it rather than adding a second", async () => {
+    const onExplain = vi.fn(async () => "It moved more on better nights.");
+    render(<InsightCard evidence={ev} onExplain={onExplain} note="Never a prescription, just an offer."><div className="ins-line">A finding</div></InsightCard>);
+    const foot = screen.getByText(/Never a prescription, just an offer\./);
+    expect(foot).toHaveClass("input-hint");
+    expect(foot.closest(".card")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Evidence" }));
+    fireEvent.click(screen.getByRole("button", { name: "Explain" }));
+    await waitFor(() => expect(screen.getByText(/It moved more on better nights/)).toBeInTheDocument());
+    expect(document.querySelectorAll(".input-hint")).toHaveLength(1);
+    expect(document.querySelector(".input-hint")!.textContent).toBe("Never a prescription, just an offer. " + EXPLAIN_NOTE);
   });
 });
 

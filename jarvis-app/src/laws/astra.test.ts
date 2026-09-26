@@ -108,7 +108,7 @@ describe("ASTRA: the primitives exist under the harness's own names", () => {
         for (const v of vs) {
           if (STRUCTURAL.has(v)) continue;
           // Either a colour variant (.fact.<v>) or a class that styles it on
-          // its own (.<v> as a rule of its own, like .dec-when).
+          // its own (.<v> as a rule of its own).
           if (sheets.includes(".fact." + v) || new RegExp("(^|[\\s,])\\." + v + "(?![\\w-])", "m").test(sheets)) continue;
           missing.push(`${rel(f)}: "fact ${v}" has no rule`);
         }

@@ -88,10 +88,18 @@ describe("LAW §AM: the colour key", () => {
     // comma-separated selector is judged on its own, and a class named only
     // inside :not() says what the thing is NOT, so it exempts nothing.
     const OPERABLE = /(button|:active|:hover|:focus|-btn(?![\w-])|\ba\b|\[role="button"\]|\.see-all|\.pill-act|\.row-act|\.quiet-action|\.sched-until-btn(?![\w-])|\.sched-open|\.sched-loc|\.link|\.tap)/;
+    // AMENDED 2026-09-26 (round-2 review, the lead): the brand red is every
+    // token that resolves to it, not five of them. The list left out
+    // --on-light-red (the brand's words red in light, R3) and --tint-on-sheet,
+    // and the phase moved many tap words onto those two, so a fact painted
+    // either passed. Every --tint* and --accent* token counts now, plus
+    // --on-light-red. Measured on the sheets that day: it matches only the
+    // two operable rules already exempt above, so nothing new fails.
+    const BRAND_RED = /var\(--(tint[\w-]*|on-light-red|accent[\w-]*)\)/;
     const bad: string[] = [];
     for (const { sel, body, file } of RULES) {
       const c = textColour(body);
-      if (!c || !/var\(--(tint|accent|accent-tx|accent-chrome|accent-glyph)\)/.test(c)) continue;
+      if (!c || !BRAND_RED.test(c)) continue;
       for (const one of sel.split(",").map((x) => x.trim())) {
         const positive = one.replace(/:not\([^)]*\)/g, "");
         if (!FACT.test(positive) || OPERABLE.test(positive)) continue;

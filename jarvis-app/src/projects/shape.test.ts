@@ -12,7 +12,8 @@ describe("holdLine (pick 20)", () => {
     expect(holdLine(p({ status: "done", holdUntil: "2026-09-01" }), TODAY)).toBeNull();
   });
   it("names a hold with no date as exactly that", () => {
-    expect(holdLine(p({ status: "on_hold" }), TODAY)).toBe("On hold · No date set");
+    expect(holdLine(p({ status: "on_hold" }), TODAY)).toBe("On hold, no end date");
+    expect(holdLine(p({ status: "on_hold" }), TODAY)).not.toMatch(/·/);
   });
   it("counts down inside two weeks, and dates beyond", () => {
     expect(holdLine(p({ status: "on_hold", holdUntil: "2026-08-25" }), TODAY)).toBe("On hold until tomorrow");
@@ -57,9 +58,14 @@ describe("sizeOf and sizeLine (pick 22)", () => {
     expect(sizeLine(null)).toBeNull();
   });
   it("fuses its units and never promises the estimate is a commitment", () => {
-    expect(sizeLine({ open: 4, minutes: 200 })).toBe("About 3h 20m");
-    expect(sizeLine({ open: 1, minutes: 45 })).toBe("About 45m");
-    expect(sizeLine({ open: 2, minutes: 120 })).toBe("About 2h");
+    expect(sizeLine({ open: 4, minutes: 200 })).toBe("About 3h 20m left");
+    expect(sizeLine({ open: 1, minutes: 45 })).toBe("About 45m left");
+    expect(sizeLine({ open: 2, minutes: 120 })).toBe("About 2h left");
+  });
+  // The minutes are summed over the OPEN tasks only, so the line says so:
+  // "About 3h" under "5 of 9 done" reads as the whole project's size.
+  it("says the time is for the work that is left", () => {
+    expect(sizeLine({ open: 4, minutes: 180 })).toBe("About 3h left");
   });
   // §AM (2026-09-26): the line is drawn as an estimate (sky), and only the
   // time is one. The open count restated the progress line above it, and its

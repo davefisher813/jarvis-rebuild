@@ -96,6 +96,25 @@ describe("LAW §AL: the capsule, settled", () => {
     expect(light, "light has its own twin").toBeTruthy();
     expect(light, "the same capsule fill in light").toMatch(/background-color:\s*var\(--capsule-fill\)/);
     expect(light, "and the light words red").toMatch(/(^|[;\s])color:\s*var\(--on-light-red\)/);
+    // AMENDED 2026-09-26 (round-2 review, the lead): the dark twin is pinned
+    // too. It exists so the dark settings-card rule, which re-letters a
+    // button in the sheet red at the same specificity and loads later, cannot
+    // reach a small pill; deleting it left this law green while the pill's
+    // label went white in dark. The base and light pins above are unchanged.
+    const dark = exactRule(CSS, '[data-theme="dark"] ' + CHAIN);
+    expect(dark, "dark has its own twin").toBeTruthy();
+    expect(dark, "the same capsule fill in dark").toMatch(/background-color:\s*var\(--capsule-fill\)/);
+    expect(dark, "and the capsule's own red").toMatch(/(^|[;\s])color:\s*var\(--tint\)/);
+    // AMENDED 2026-09-26 (round-2 review, the lead): a capsule is a fill and
+    // no ring (§AL). The comment above says a pass could hand the small pill
+    // a ring and pass, and it still could: nothing read box-shadow or border.
+    // No rule for it may draw a shadow other than none, and the base rule
+    // keeps border 0 with no border longhand to draw one back.
+    for (const [theme, body] of [["base", base], ["light", light], ["dark", dark]] as const) {
+      expect(body, `${theme}: no ring`).not.toMatch(/box-shadow:\s*(?!none\b)/);
+    }
+    expect(base, "no border").toMatch(/(^|[;\s])border:\s*0\s*(;|$)/);
+    expect(base, "and no border longhand to draw one").not.toMatch(/(^|[;\s])border-(?:width|style|color|top|right|bottom|left|block|inline)[\w-]*\s*:/);
   });
 
   it("the capsule fill is opaque in dark, so contrast cannot depend on the ground", () => {

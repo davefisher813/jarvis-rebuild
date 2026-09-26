@@ -206,7 +206,7 @@ export function Strip({ children, className = "", plain = false }: { children: R
 
 /** The quiet line under a group. */
 export function Note({ children }: { children: ReactNode }) {
-  return <div className="xs-note">{children}</div>;
+  return <div className="input-hint xs-note">{children}</div>;
 }
 
 /** A row whose value opens the dropdown. */

@@ -22,7 +22,7 @@ const row = (over: Partial<ProjectRow["project"]["data"]> = {}): ProjectRow => (
 
 const reach = (): GoalReach => ({ progress: null } as unknown as GoalReach);
 
-function page(r: ProjectRow, pace: PaceParts | null, hold: string | null = null) {
+function page(r: ProjectRow, pace: PaceParts | null, hold: string | null = null, next: string | null = null) {
   return render(
     <BiggerPicturePage
       goals={[]}
@@ -33,9 +33,10 @@ function page(r: ProjectRow, pace: PaceParts | null, hold: string | null = null)
       onOpenGoal={() => {}}
       onAddProject={() => {}}
       onOpenProject={() => {}}
-      sizeLineOf={() => "About 3h"}
+      sizeLineOf={() => "About 3h left"}
       holdLineOf={() => hold}
       paceLineOf={() => pace}
+      nextActionTextOf={() => next}
     />,
   );
 }
@@ -44,9 +45,21 @@ describe("BiggerPicturePage project row", () => {
   it("draws the size as an estimate fact", () => {
     const { container } = page(row(), null);
     const est = container.querySelector(".proj-row .bp-sub .fact.est");
-    expect(est?.textContent).toBe("About 3h");
+    expect(est?.textContent).toBe("About 3h left");
     // Only the estimate is sky: the line carries no count beside it.
-    expect(est!.parentElement!.textContent).toBe("About 3h");
+    expect(est!.parentElement!.textContent).toBe("About 3h left");
+  });
+
+  // The Next line is drawn as the ruled project row draws it (§AM): an amber
+  // NEXT kicker, then the action in full ink, no typed colon.
+  it("draws Next as a kicker ahead of the action", () => {
+    const { container } = page(row(), null, null, "Call Ridgeline");
+    const line = container.querySelector(".proj-row .bp-sub.bp-next") as HTMLElement;
+    expect(line).toBeTruthy();
+    const k = line.querySelector(".bp-next-k");
+    expect(k?.textContent).toBe("Next");
+    expect(line.textContent).toBe("Next Call Ridgeline");
+    expect(line.textContent).not.toMatch(/:/);
   });
 
   it("draws the pace's date as its own fact in the key's colour, no baked dot", () => {

@@ -223,15 +223,17 @@ export default function BiggerPicturePage({
             <div className="bp-sub r-k"><span className={"r-goal r-is-goal " + goalTone(filed.data.tags)}><GoalMark /><span className="r-goal-t">{filed.data.title}</span></span></div>
           )}
           {/* THE NEXT MOVE LEADS (pick 19): "Call Ridgeline" tells you more
-              than a status word or a fraction ever will. */}
-          {next && <div className="bp-sub bp-next truncate">Next: {next}</div>}
+              than a status word or a fraction ever will. Drawn as the ruled
+              project row draws it (§AM): an amber NEXT kicker, the action in
+              full ink. */}
+          {next && <div className="bp-sub bp-next truncate"><span className="bp-next-k">Next</span> {next}</div>}
           {/* PICK 20: the date is the whole content of a hold. */}
           {hold
             ? <div className="bp-sub bp-stalled">{hold}</div>
             : <div className={"bp-sub" + (stalled ? " bp-stalled" : "")}>{progressLabel(progress, stalled)}</div>}
           {/* PICK 22: size from the planner's own learned durations, which
               makes it an estimate the app worked out: sky (§AM). It is the
-              time alone ("About 3h"); the open count it used to lead with
+              time alone ("About 3h left"); the open count it used to lead with
               restated the progress line above. */}
           {sized && <div className="bp-sub"><span className="fact est">{sized}</span></div>}
           {/* UP-CORE-18 (2026-09-05): the pace, when the project has a date.

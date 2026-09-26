@@ -102,7 +102,7 @@ import { newMetricDefData, activeMetrics, pulsePlan, logOn } from "../gym/metric
 import { readLive, isStillActive, readPending as readGymPending } from "../gym/liveSession";
 import { readPending as readHealthPending } from "../health/offlineQueue";
 import { chronologicalLog, type LogOpen } from "../health/log";
-import InsightEvidence from "./InsightEvidence";
+import { InsightCard } from "./InsightEvidence";
 import { explainEvidence } from "./explainInsight";
 import { readHealthSettings } from "../health/settings";
 import HealthSettingsPage from "../settings/HealthSettingsPage";
@@ -1713,8 +1713,15 @@ export default function CategoryDetail({
                   cause" -- read in a glance instead of a paragraph. */}
               <div className="sh2 sh2-quiet"><span className="t">Insights</span><span className="n">{insightCount}</span></div>
               <div className="pad-x">
+                {/* H-33 (Health Push C): what the count is made of, and whose
+                    band it is. CAPS IS FOR A LABEL, NEVER A SENTENCE (§AK,
+                    2026-09-26): this was an 11px caps cite of four facts and
+                    a citation inside the card. It is a sentence, so it is
+                    the note under the card now, the group footer settings'
+                    Foot draws, with commas where the middots were. */}
                 {rangeRows.length > 0 && (
-                  <div className="card ins-card rep-gap">
+                  <InsightCard evidence={hardSetEvidence(rangeRows, nowMs, hsBand ? rangeRows[0]!.range : undefined)} onExplain={explain}
+                    note={<>Last 7 days, working sets only, warm-ups excluded. {rangeRows[0]!.range.source.split(" · ").join(", ")}.</>}>
                     <div className="ins-head">
                       <span className="ins-dot hue-hl-lime" />
                       <span className="ins-t">Weekly Volume</span>
@@ -1757,10 +1764,11 @@ export default function CategoryDetail({
                                       ONE GREY FACT, NOT TWO (R5): the count and
                                       how it counts are one fact. A primary lift
                                       is the default and says nothing; only a
-                                      secondary one owes the reader its half. */}
+                                      secondary one owes the reader its half,
+                                      and the reason for it. */}
                                   <span className="ins-sub">
                                     <span className="fact date">{shortDate(lift.date)}</span>
-                                    <span className="fact"><b>{lift.sets}</b> {lift.sets === 1 ? "set" : "sets"}{lift.primary ? "" : ", counted half"}</span>
+                                    <span className="fact"><b>{lift.sets}</b> {lift.sets === 1 ? "set" : "sets"}{lift.primary ? "" : ", secondary, counted half"}</span>
                                   </span>
                                 </div>
                               ))}
@@ -1769,28 +1777,14 @@ export default function CategoryDetail({
                         </div>
                       );
                     })}
-                    {/* H-33 (Health Push C): what the count is made of.
-                        ONE CAVEAT LINE (§AK, 2026-09-26): the window and the
-                        band's source were two stacked cite lines, the same
-                        quiet ink twice. They are one line now, each part its
-                        own .fact so the separators are drawn by the sheet;
-                        the source is split on its own middots for the same
-                        reason. */}
-                    <div className="ins-cite">
-                      <span className="fact">Last 7 days</span>
-                      <span className="fact">Working sets only</span>
-                      <span className="fact">Warm-ups excluded</span>
-                      {rangeRows[0]!.range.source.split(" · ").map((part) => <span className="fact" key={part}>{part}</span>)}
-                    </div>
-                    <InsightEvidence evidence={hardSetEvidence(rangeRows, nowMs, hsBand ? rangeRows[0]!.range : undefined)} onExplain={explain} />
-                  </div>
+                  </InsightCard>
                 )}
                 {/* WHY THE REST IS QUIET. Not a finding about training -- a
                     finding about the app's own blind spot, and the only card
                     here that is useful on day one and gone by design once the
                     work behind it is done. */}
                 {coverage && (
-                  <div className="card ins-card rep-gap" key="coverage">
+                  <InsightCard key="coverage" note="Assign muscles on Exercises and these join the count.">
                     <div className="ins-head">
                       <span className="ins-dot hue-hl-amber" />
                       <span className="ins-t">Sets Weekly Volume Can't See</span>
@@ -1809,14 +1803,13 @@ export default function CategoryDetail({
                         </div>
                       ))}
                     </div>
-                    <div className="ins-cite">Assign muscles on Exercises and these join the count</div>
                     <div className="ins-acts">
                       <button type="button" className="pill-act pill-quiet" onClick={() => { setGymLibrary(true); setGymOpen(true); }}>Open Exercises</button>
                     </div>
-                  </div>
+                  </InsightCard>
                 )}
                 {plateaus.map((p) => (
-                  <div className="card ins-card rep-gap" key={"plateau-" + p.name}>
+                  <InsightCard key={"plateau-" + p.name} evidence={p.evidence} onExplain={explain}>
                     <div className="ins-head">
                       <span className="ins-dot hue-hl-amber" />
                       <span className="ins-t">{p.name}</span>
@@ -1838,36 +1831,35 @@ export default function CategoryDetail({
                         ))}
                       </div>
                     )}
+                    {/* A caveat LABEL, three words: the one cite that stays an
+                        11px caps kicker (§AK, 2026-09-26). */}
                     <div className="ins-cite">Correlation, not cause</div>
-                    <InsightEvidence evidence={p.evidence} onExplain={explain} />
-                  </div>
+                  </InsightCard>
                 ))}
                 {correlations.map((c) => (
-                  <div className="card ins-card rep-gap" key={c.exerciseName + "-" + c.metricName}>
+                  <InsightCard key={c.exerciseName + "-" + c.metricName} evidence={c.evidence} onExplain={explain}>
                     <div className="ins-head">
                       <span className="ins-dot hue-hl-cyan" />
                       <span className="ins-t">{c.exerciseName}</span>
                       <span className="ins-chip hue-hl-cyan">{c.metricName}</span>
                     </div>
+                    {/* The line ends "Correlation, not cause" itself (correlate()
+                        writes it in), so no cite repeats it under the line. */}
                     <div className="ins-line">{c.line}</div>
-                    <div className="ins-cite">Correlation, not cause</div>
-                    <InsightEvidence evidence={c.evidence} onExplain={explain} />
-                  </div>
+                  </InsightCard>
                 ))}
                 {nearest && (
-                  <div className="pad-x"><div className="ins-cite">Not enough days yet · {nearest.def} and {nearest.ex} · {nearest.p.paired} of {nearest.p.needed} paired sessions</div></div>
+                  <div className="pad-x"><div className="input-hint">Not enough days yet for {nearest.def} and {nearest.ex}, {nearest.p.paired} of {nearest.p.needed} paired sessions.</div></div>
                 )}
                 {offerLighter && (
-                  <div className="card ins-card rep-gap" key="lighter">
+                  <InsightCard key="lighter" evidence={backOff?.evidence} onExplain={explain} note="Never a prescription, just an offer.">
                     <div className="ins-head">
                       <span className="ins-dot hue-hl-pink" />
                       <span className="ins-t">A Lighter Week, If You Want It</span>
                       <span className="ins-chip hue-hl-pink">Offer</span>
                     </div>
                     <div className="ins-line">Several grinds and misses lately.</div>
-                    <div className="ins-cite">Never a prescription, just an offer</div>
-                    {backOff && <InsightEvidence evidence={backOff.evidence} onExplain={explain} />}
-                  </div>
+                  </InsightCard>
                 )}
               </div>
             </>

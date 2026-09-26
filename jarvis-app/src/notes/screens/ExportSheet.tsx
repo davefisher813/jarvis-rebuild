@@ -78,10 +78,13 @@ export default function ExportSheet({ doc, title, selection = false, images, att
   };
 
   const preview = format === "md" ? docToMarkdown(doc, { title, includeTitle }) : format === "txt" ? docToPlainText(doc, { title, includeTitle }) : docToPlainText(doc, { title, includeTitle });
-  const carries: string[] = format === "pdf"
-    ? ["PDF keeps accented Latin text and includes photos", "Its built-in fonts have no other scripts and no emoji, which Word keeps"]
-    : format === "docx" ? ["Word keeps every character and includes photos"]
-    : ["Markdown and text keep every character", "Attachments are listed by name"];
+  // One note under the Format field, one sentence per format: two stacked
+  // notes are two runs of the same grey (§AK), and italic does not tell
+  // them apart.
+  const carries = format === "pdf"
+    ? "PDF keeps accented Latin text and photos, but not other scripts or emoji; Word keeps those"
+    : format === "docx" ? "Word keeps every character and includes photos"
+    : "Markdown and text keep every character and list attachments by name";
   const shareWord = canShareFiles() ? "Export File" : "Download File";
 
   return createPortal(
@@ -106,7 +109,7 @@ export default function ExportSheet({ doc, title, selection = false, images, att
                 </button>
               ))}
             </div>
-            {carries.map((c) => <div className="input-hint" key={c}>{c}</div>)}
+            <div className="input-hint">{carries}</div>
           </div>
           <details className="exp-more" open={previewOpen} onToggle={(e) => setPreviewOpen((e.target as HTMLDetailsElement).open)}>
             <summary>Preview</summary>
@@ -124,9 +127,10 @@ export default function ExportSheet({ doc, title, selection = false, images, att
           </details>
           {failed && (
             <div role="alert">
-              <div className="exp-note">{failed}</div>
-              <div className="exp-note">The note is unchanged</div>
-              <div className="exp-note">Retry, or choose another format</div>
+              {/* One sentence, one grey (§AK): the reason, then what is safe
+                  and what to do. A reason that brings its own full stop
+                  does not get a second one. */}
+              <div className="exp-note">{failed.replace(/[.\s]+$/, "")}. The note is unchanged: retry, or choose another format</div>
             </div>
           )}
           <div className="exp-acts">
