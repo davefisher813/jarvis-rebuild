@@ -1067,6 +1067,23 @@ describe("DYNAMIC-TYPE-1.4: the app's own words survive the largest text size", 
     expect(ruleBody(css(), ".focus-card .facts")).toMatch(/align-items:\s*flex-start/);
   });
 
+  it("no fact on a one-line facts line is ever cut without an ellipsis (2026-09-26)", () => {
+    // Every fact may shrink and each says so with "..."; the last yields
+    // far faster, so it still gives way first. A fact that holds its width
+    // is what cut "Over a month late" and "Looks like t" with no mark.
+    const each = ruleBody(css(), ".facts > .fact")!;
+    expect(each).toMatch(/min-width:\s*0/);
+    expect(each).toMatch(/flex-shrink:\s*1\b/);
+    expect(each).toMatch(/text-overflow:\s*ellipsis/);
+    expect(each).toMatch(/white-space:\s*nowrap/);
+    expect(ruleBody(css(), ".facts > .fact:last-child")).toMatch(/flex-shrink:\s*1000/);
+    // No component brings back the width-holding fact.
+    expect(css()).not.toMatch(/\.facts > \.fact \{ flex-shrink: 0; \}/);
+    // Except the verb row, whose card drops a sub that overruns: there a
+    // shrinking fact would hide the overrun from the latch.
+    expect(ruleBody(css(), ".notice-card .vrow-sub > .facts > .fact")).toMatch(/flex-shrink:\s*0/);
+  });
+
   it("the capture bar takes a second line rather than losing half a sentence", () => {
     // The ninth finding, and the auditor could not see it: the hint did not
     // CLIP, it wrapped to two lines and painted past the pill's right edge

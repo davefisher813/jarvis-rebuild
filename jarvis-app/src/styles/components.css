@@ -1670,24 +1670,11 @@ a.row.person-reach { color: inherit; text-decoration: none; }
    the three lenses beside it in Life. Same numbers now, one place to change
    if that row ever moves. */
 .rem-card-title { font-size: var(--t-name); font-weight: var(--w-name); letter-spacing: var(--track-name); line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-/* ONE FACTS LINE, ALWAYS (Dave 2026-09-15, v3). The shared .facts wraps by
-   design; on this row a wrap is what turned a reminder into a three-line
-   card, so here the line stays on one line. The facts are ordered so the
-   ones that earn the space come first, and the LAST one gives way in an
-   ellipsis rather than the line hard-clipping mid-word and leaving its
-   separator dangling over the edge. */
-.rem-card .facts > .fact { flex-shrink: 0; }
-/* THE LAST ONE GIVES WAY, not whichever one happens to carry .cat (Dave
-   2026-09-16: a reminder with a category AND a rhythm -- "Transfer funds for
-   bills," Money, Every Month -- squeezed the category down to a bare dot
-   with no name at all, because .fact.cat was hard-wired shrinkable
-   regardless of where it sat in the line. The rhythm fact sits after it and
-   has nothing else counting on it staying whole, so it is the one that
-   should truncate first; a category that DOES land last still gets the
-   same graceful clip (a dot plus a clipped name still says which area this
-   is), it just is not forced to every time. */
-.rem-card .facts > .fact:last-child { min-width: 0; flex-shrink: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.rem-card .facts > .fact.cat .cat-t { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* ONE FACTS LINE, ALWAYS (Dave 2026-09-15, v3). A wrap here turned a
+   reminder into a three-line card. The shared .facts rule already keeps the
+   line to one and lets the LAST fact give way first (Dave 2026-09-16: the
+   rhythm after a category truncates, not the category), so this row needs
+   nothing of its own (2026-09-26). */
 /* The four views, as chips rather than a second segmented control (Dave
    2026-09-15: "we can't have two tab bars on one page"). Same row Notes'
    filters wear; it only has to close the gap the toolbar above already left. */
@@ -1824,6 +1811,7 @@ a.row.person-reach { color: inherit; text-decoration: none; }
    reads 4.96:1. The two placement warnings (outside the work hours, over a
    flexible block) only ever draw on a picked row. Light keeps the system
    amber, which is what the token resolves to there. */
+.p3-row.on .fact.warn { color: var(--warn-on-sheet); }
 
 /* === Roadmap v2: soft anchor guard === */
 .ag-scrim { position: fixed; inset: 0; z-index: 60; background: rgba(0,0,0,0.55);
@@ -3209,9 +3197,6 @@ button {
    .fact.cat the page row carries, so the two read as one component. One line
    here too: the name gives way in an ellipsis rather than wrapping the row. */
 .rem-row .facts { margin-top: 1px; }
-.rem-row .facts > .fact { flex-shrink: 0; }
-.rem-row .facts > .fact.cat { min-width: 0; flex-shrink: 1; }
-.rem-row .facts > .fact.cat .cat-t { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* A missed reminder still marks its TIME and not the whole row, but the
    time takes the key's red (§AM, 2026-09-25): the key files missed with the
    other lapsed states, which supersedes the August note that kept it white. */
@@ -3509,11 +3494,6 @@ button {
    of its own. */
 .start-top { display: flex; align-items: center; gap: var(--s-3); padding: var(--s-2h) var(--s-3h); }
 .start-top .row-grow { flex: 1 1 auto; min-width: 0; }
-/* The line under the name is two facts, the reason and what is ready, with
-   the dot drawn between them. The last one ellipsizes, and a floor keeps it
-   from shrinking to nothing and leaving the drawn dot hanging at the end of
-   a narrow row (2026-09-26). */
-.start-top .facts > .fact:last-child { min-width: 4em; }
 .start-top-name {
   font-size: var(--t-name); font-weight: var(--w-name); letter-spacing: var(--track-name);
   color: var(--tx-1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
@@ -4285,10 +4265,12 @@ button.check-linked:active { opacity: 1; background: var(--press-3); }
    screen, and the measurement never saw it (2026-09-26). The facts line
    lets its overrun reach the sub's own box, where the card can see it, and
    a leading fact keeps its whole width here rather than stopping at the
-   line's edge, so a sub that cannot fit is dropped instead of cut. Only
-   the last fact still ellipsizes, as on every facts line. */
+   line's edge, so a sub that cannot fit is dropped instead of cut. No
+   fact here shrinks, the last one included: a shrinking fact absorbs the
+   overrun, the sub never measures wider than its box, and the latch never
+   fires (Rent's "Due Monday" showed as "DUE ...", 2026-09-26). */
 .notice-card .vrow-sub > .facts { overflow: visible; }
-.notice-card .vrow-sub > .facts > .fact:first-child:not(:last-child) { max-width: none; overflow: visible; }
+.notice-card .vrow-sub > .facts > .fact { flex-shrink: 0; max-width: none; overflow: visible; }
 /* BROWSER-F-06 (2026-09-05): except when there is no sub. A uniform card is
    72px tall by law, which is TWO lines of title type, and the verb row spent
    one of them on a line that does not exist, so "You train between 9 AM and
@@ -5960,18 +5942,21 @@ body.selecting .voice-dock { display: none; }
    went ragged -- and three components had already been patched to nowrap
    one at a time, which is the drift this pass exists to end. The facts are
    ordered most-important-first everywhere, so the one that gives way is the
-   one at the end. It ellipses rather than clipping: cut text is a bug. */
-.facts > .fact:last-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.facts > .fact { flex-shrink: 0; }
-.facts > .fact:last-child { flex-shrink: 1; }
-/* THE FIRST FACT NEVER RUNS PAST THE LINE (2026-09-26, the lead). It holds
-   its width, so when it alone is wider than the line (a hedged deadline
-   with a day and a clock beside a mail card's pill, or anything at type
-   scale 1.4) it was cut mid-word with no mark, which the facts line never
-   does. It stops at the line's edge and says so with an ellipsis; a first
-   fact that fits is untouched. Zero specificity, so a fact that states its
-   own width cap (a decision's area link) keeps it. */
-:where(.facts > .fact:first-child) { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+   one at the end. It ellipses rather than clipping: cut text is a bug.
+
+   AMENDED 2026-09-26 (the lead): EVERY FACT CAN SAY IT WAS CUT. The earlier
+   facts held their width, so when they alone were wider than the line (a
+   late chip beside a length, a hedged deadline beside a pill, anything at
+   type scale 1.4) the line clipped them mid-word with no mark, and each fix
+   at one site turned up the next. Now every fact may shrink and each one
+   ellipsizes itself, but the last one yields a thousand times faster, so it
+   still gives way first and the ones before it only shorten once it is
+   gone. The order of the facts still decides what survives; this only makes
+   sure nothing is ever cut without a "...". An area fact is a flex box of
+   its own, so its name carries the ellipsis. */
+.facts > .fact { min-width: 0; flex-shrink: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.facts > .fact:last-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex-shrink: 1000; }
+.facts > .fact.cat .cat-t { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* THE ONE-LINE RULE IS A LIST RULE, AND THIS IS NOT A LIST (2026-09-21).
    "Three facts, one line" exists so a busy ROW does not grow a third line
    and leave the list ragged. The focus card is one card on an otherwise
@@ -6108,9 +6093,9 @@ body.selecting .voice-dock { display: none; }
 .hl .hl-title { min-width: 0; }
 /* THE SUB LINE IS THE FACTS LINE. .conn-meta gives it the notice sub's size
    and colour; .facts gives it the dot separators and the chip. It cannot wrap
-   (the row is one height for every member of this card), so the facts hold
-   their width and the LAST one -- the placement fragment, which is the only
-   one of variable length -- takes the ellipsis. A fact cut mid-word reads as
+   (the row is one height for every member of this card), so the LAST fact
+   -- the placement fragment, which is the only one of variable length --
+   takes the ellipsis first, by the shared .facts rule. A fact cut mid-word reads as
    a different fact, so nothing here clips without saying so. */
 /* .notice-card-uniform.conn-meta is a BLOCK with its own ellipsis, which beat
    .facts's display:flex on specificity: the facts were laid out as inline
@@ -6119,9 +6104,6 @@ body.selecting .voice-dock { display: none; }
    own. The line is the flex row .facts means it to be, and it clips nothing
    itself -- the LAST fact does, and says so. */
 .hl .conn-meta { display: flex; align-items: center; text-overflow: clip; }
-.hl .facts > .fact { flex-shrink: 0; }
-.hl .facts > .fact:last-child { flex-shrink: 1; min-width: 0;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* RED IS A VERB, and Start is the one verb on this page that spends real
    minutes (Dave 2026-09-16, picking option 3 from the rendered comparison:
    "Option 3"). It keeps the accent fill and changes nothing else -- same

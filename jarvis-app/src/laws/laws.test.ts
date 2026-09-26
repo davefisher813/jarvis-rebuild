@@ -6891,16 +6891,25 @@ describe("an offer card never clips the claim or its receipt (2026-09-07)", () =
 // rule from painting words in the structure grey, so this holds it: no
 // rule in any stylesheet sets color to --tx-4, apart from the two glyph
 // separators drawn as ::before content, which are structure.
+//
+// AMENDED 2026-09-26 (the lead, sweep round 3: a meta line whose job is to
+// show every fact wraps, and its dot rides at the END of a fact so no
+// wrapped line opens on a separator): that dot is the third glyph
+// separator, drawn as ::after content, and it takes the structure grey like
+// the other two. It is exempt by its exact selector, as they are. What the
+// law guards is unchanged, and it now also holds the exemption to its
+// reason: an exempt selector must itself draw a glyph (a non-empty
+// `content` string), so words cannot hide behind a separator's selector.
 describe("LAW: the structure ink never colours text (2026-09-14)", () => {
-  it("no stylesheet rule sets color to --tx-4, apart from the two glyph separators", () => {
-    const GLYPHS = new Set([".r-cue::before", ".fact + .fact::before"]);
+  it("no stylesheet rule sets color to --tx-4, apart from the glyph separators", () => {
+    const GLYPHS = new Set([".r-cue::before", ".fact + .fact::before", ".conn-meta:not(.facts) > .fact:not(:last-child)::after"]);
     const bad: string[] = [];
     for (const f of ["jarvis-design-system.css", "uniformity.css", "components.css", "ruled.css", "mail-rows.css", "editor.css"]) {
       const css = read(SRC + "/styles/" + f).replace(/\/\*[\s\S]*?\*\//g, "");
       for (const m of css.matchAll(/([^{}]+)\{([^}]*)\}/g)) {
         const sel = m[1]!.replace(/\s+/g, " ").trim();
         if (!/(^|[^-\w])color:\s*var\(--tx-4\)/.test(m[2]!)) continue;
-        if (GLYPHS.has(sel)) continue;
+        if (GLYPHS.has(sel) && /(^|[;\s])content:\s*"[^"]+"/.test(m[2]!)) continue;
         bad.push(f + ": " + sel);
       }
     }
