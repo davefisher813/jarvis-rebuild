@@ -57,6 +57,8 @@ import { setCategoryRegistry } from "../shared/categories";
 import ToastHost from "../shared/ToastHost";
 import { bus } from "../events";
 import { sealPreviousMonthIfDue } from "../review/seal";
+import { oldestWaitDays } from "../review/ReportPage";
+import { peopleForDerivation } from "../brain/peopleFacts";
 import { supabase } from "../auth/supabaseClient";
 import type { WindowClient } from "../brain/window";
 import { ENTITY_CATEGORY } from "../categories/types";
@@ -578,9 +580,18 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
   // "vs last month" honestly.
   useEffect(() => {
     if (!ready || !sealSvc) return;
-    void sealPreviousMonthIfDue(sealSvc, supabase as unknown as WindowClient | null, gym, goals, undefined, undefined, schedule)
+    // v4 (2026-09-26, the pass-off): the bills, decisions, people and the
+    // mail wait ride along, best-effort, so the sealed month can say what
+    // Money, Mail, People and Decisions did. A failed read costs the seal
+    // those cards, never the seal.
+    const more = () => Promise.all([
+      tasks.listTasks().catch(() => []),
+      decisions.listAll().catch(() => []),
+      categories.list().catch(() => []).then((cats) => peopleForDerivation(people, cats.map((c) => ({ id: c.id, name: c.data.name })))),
+    ]).then(([t, d, p]) => ({ tasks: t, decisions: d.map((x) => x.data), people: p, waitDays: oldestWaitDays(Date.now()) }));
+    void sealPreviousMonthIfDue(sealSvc, supabase as unknown as WindowClient | null, gym, goals, undefined, undefined, schedule, more)
       .catch(() => { /* a missed boundary retries on the next open */ });
-  }, [ready, sealSvc, gym, goals]);
+  }, [ready, sealSvc, gym, goals, tasks, decisions, people, categories, schedule]);
 
   if (!ready) return <div className="app-shell"><div className="app-scroll" /></div>;
 

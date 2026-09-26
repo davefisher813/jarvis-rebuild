@@ -2216,8 +2216,11 @@ export default function CategoryDetail({
             // The capsule names the count and the day ("Line Up 3 for
             // Wednesday", Dave's words), which is too long to sit beside a
             // title on a 390 screen without crushing it to "Wedne..."; the
-            // stacked form puts it full-width under the words.
+            // stacked form puts it full-width under the words, and the card
+            // is not the uniform one-line row (that form caps the capsule at
+            // 9.5rem beside a nowrap title, which is the crush this avoids).
             stack
+            uniform={false}
             onOpen={() => upNextRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}
             automation="learned-day"
             onTune={(choice) => void tune("learned-day", choice, `${DOW_PLURAL[learnedDay.dow]} Get the Most Done`)}

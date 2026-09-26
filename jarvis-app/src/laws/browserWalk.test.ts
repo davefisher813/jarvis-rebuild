@@ -1104,7 +1104,11 @@ describe("DYNAMIC-TYPE-1.4: the app's own words survive the largest text size", 
     // is what cut "Over a month late" and "Looks like t" with no mark.
     const each = ruleBody(css(), ".facts > .fact")!;
     expect(each).toMatch(/min-width:\s*0/);
-    expect(each).toMatch(/flex-shrink:\s*1\b/);
+    // AMENDED 2026-09-26 (later the same day): 0.001, not 1, so a line that
+    // overflows by a fraction never puts an ellipsis on a first fact that
+    // lost nothing; the fact before the last yields at 1, the last at 1000.
+    expect(each).toMatch(/flex-shrink:\s*0\.001\b/);
+    expect(ruleBody(css(), ".facts > .fact:nth-last-child(2)")).toMatch(/flex-shrink:\s*1\b/);
     expect(each).toMatch(/text-overflow:\s*ellipsis/);
     expect(each).toMatch(/white-space:\s*nowrap/);
     expect(ruleBody(css(), ".facts > .fact:last-child")).toMatch(/flex-shrink:\s*1000/);

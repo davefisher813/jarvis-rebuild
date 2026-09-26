@@ -4583,7 +4583,11 @@ body.selecting .voice-dock { display: none; }
 .notice-card-stack .conn-name,
 .notice-card-stack .conn-meta { white-space: normal; display: block; -webkit-line-clamp: none; overflow: visible; text-overflow: clip; }
 .notice-stack { display: flex; padding: 0 var(--s-3) var(--s-2h); }
-.notice-stack .pill-act { width: 100%; justify-content: center; min-height: var(--tap-min); }
+.notice-stack .pill-act { width: 100%; justify-content: center; min-height: var(--tap-min);
+  /* The row cap above (11rem) guards a pill BESIDE a title; a stacked pill
+     is under the words with the whole card to itself, and the cap only
+     clipped its label ("Line Up 1 for ...", 2026-09-26). */
+  max-width: none; }
 
 .notice-clear-row { display: flex; justify-content: flex-end; padding: var(--s-1) var(--s-4) 0; }
 
@@ -6012,8 +6016,17 @@ body.selecting .voice-dock { display: none; }
    gone. The order of the facts still decides what survives; this only makes
    sure nothing is ever cut without a "...". An area fact is a flex box of
    its own, so its name carries the ellipsis. */
-.facts > .fact { min-width: 0; flex-shrink: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.facts > .fact { min-width: 0; flex-shrink: 0.001; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.facts > .fact:nth-last-child(2) { flex-shrink: 1; }
 .facts > .fact:last-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex-shrink: 1000; }
+/* AMENDED 2026-09-26 (later the same day, the Money page): a shrink of 1 on
+   the earlier facts let flexbox take a fraction of a pixel from the FIRST
+   fact on any line that overflowed at all (221.48px of 222), which is enough
+   to put an ellipsis on a fact that had lost nothing ("$1,145.68 More Out
+   This Mon…", "SEP …"). The ladder is now 1000 : 1 : 0.001, last to first:
+   the last fact gives way, then the one before it, and the rest hold to the
+   pixel until those two are gone; flexbox still shrinks them when it must,
+   because the ratio only orders who yields first. */
 .facts > .fact.cat .cat-t { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* THE ONE-LINE RULE IS A LIST RULE, AND THIS IS NOT A LIST (2026-09-21).
    "Three facts, one line" exists so a busy ROW does not grow a third line
@@ -6605,7 +6618,9 @@ span.row-star { cursor: default; }
    keep their min-content, so a sum that cannot fit three across takes the
    next line whole rather than losing a digit; the value is a step tighter. */
 .mt-sums { display: flex; flex-wrap: wrap; gap: var(--s-2h); }
-.mt-sum { flex: 1 1 28%; padding: var(--s-3) var(--s-2h); }
+/* The card's overflow:hidden zeroes a flex item's automatic minimum, which
+   is how a sum could be squeezed under its own digits; the floor is stated. */
+.mt-sum { flex: 1 1 0; min-width: max-content; padding: var(--s-3) var(--s-2h); }
 .mt-sum-label { font-size: var(--t-meta); color: var(--tx-3); }
 .mt-sum-value { margin-top: var(--s-0h); font-size: calc(17px * var(--type-scale)); font-weight: var(--w-semi); letter-spacing: -0.02em;
   color: var(--tx-1); font-variant-numeric: tabular-nums; white-space: nowrap; }
