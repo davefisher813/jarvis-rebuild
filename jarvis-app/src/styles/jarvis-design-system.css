@@ -391,6 +391,7 @@
      secondary-button surface: 5.63:1, and distinct from --tint (5.17:1) so a
      destructive verb does not look like every other tappable pill. */
   --danger-tx: #FF453A;
+  --danger-tx-raised: #FF8A80; /* --danger-tx lifted to clear the sheet's grouped card, 4.97:1 on #3A3A3C (2026-09-26) */
   --accent-chrome: #FF2B3C;
   /* ROW PILL, option B (Dave's pick 2026-08-21, catalog O.5 revised).
      The tinted wash it replaces was mixed from SYSTEM red (255,69,58) while
@@ -592,6 +593,7 @@
      In light the destructive verb reads by being red AT ALL, since Cancel
      beside it is near-black at 15.49:1. */
   --danger-tx: #CC051B;
+  --danger-tx-raised: var(--danger-tx);
   /* ROW PILL, light theme (option B, catalog O.5 revised 2026-08-21).
      Outlined, no fill, so the same form reads in both themes. The border
      and the text are the light-theme red the page already trusts:

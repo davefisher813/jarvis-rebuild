@@ -1,3 +1,4 @@
+import { useLayoutEffect } from "react";
 import { ChevronLeft } from "../shared/icons";
 import { useNavOrigin } from "./navOrigin";
 
@@ -23,8 +24,34 @@ import { useNavOrigin } from "./navOrigin";
 //
 // It sits above the tab bar rather than in a nav bar, because there is no nav
 // bar it could sit in that every one of these surfaces has.
+// ABOVE THE CAPTURE BAR, MEASURED (2026-09-26, the post-code audit). A fixed
+// 132px sat the pill 3px into the capture bar at 390x844 and deeper at type
+// scale 1.4, so "< Life" covered the bar's left end on any screen with
+// nothing to scroll. The dock is static chrome, so the shell reads its top
+// and publishes --return-clear (the dock's height from the bottom plus a
+// gap); the stylesheet keeps 132px as the fallback for a screen without one.
+function useDockClear(on: boolean) {
+  useLayoutEffect(() => {
+    if (!on) return;
+    const root = document.documentElement;
+    const measure = () => {
+      const dock = document.querySelector<HTMLElement>(".voice-dock");
+      if (!dock) { root.style.removeProperty("--return-clear"); return; }
+      const top = dock.getBoundingClientRect().top;
+      root.style.setProperty("--return-clear", `${Math.max(0, Math.round(window.innerHeight - top) + 8)}px`);
+    };
+    measure();
+    const dock = document.querySelector<HTMLElement>(".voice-dock");
+    const ro = typeof ResizeObserver !== "undefined" && dock ? new ResizeObserver(measure) : null;
+    ro?.observe(dock!);
+    window.addEventListener("resize", measure);
+    return () => { ro?.disconnect(); window.removeEventListener("resize", measure); root.style.removeProperty("--return-clear"); };
+  }, [on]);
+}
+
 export default function ReturnPill() {
   const nav = useNavOrigin();
+  useDockClear(!!nav.origin && !nav.claimed);
   if (!nav.origin || nav.claimed) return null;
   return (
     <button type="button" className="return-pill" onClick={() => nav.back()}>

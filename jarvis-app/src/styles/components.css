@@ -1611,9 +1611,18 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 .sheet-scrim > .card .prov-link,
 .form-sheet .exp-more summary,
 .sheet-scrim > .card .exp-more summary,
+.sheet-scrim > .card .action-sheet button,
 .sheet-scrim > .card .btn:not(.btn-primary):not(.btn-secondary):not(.btn-danger):not(.btn-disabled),
 .sheet-scrim > .card .btn-tertiary,
 .toast .toast-action { color: var(--tint-on-sheet); }
+/* AMENDED 2026-09-26 (the post-code audit): the action sheet's verbs joined
+   too. The design system paints them --tint, which is 3.76:1 on the sheet
+   grey in dark (Choose Photo, Cancel on the Profile Photo sheet). The
+   destructive verb keeps its red, in the sheet twin that clears the grey. */
+.sheet-scrim > .card .action-sheet button.destructive { color: var(--sys-red-on-sheet); }
+/* Two cards on one scrim (an action sheet and its Cancel) are two objects,
+   not one card cut by a hairline: the same gap the grouped card keeps. */
+.sheet-scrim > .card + .card { margin-top: var(--s-2); }
 /* The mid-tier .btn is the one place where taking the red out of the letters
    would also take it out of the button: red-on-press-3 is the only thing that
    separated "Something Else" from the .btn-secondary above it, and white on
@@ -5702,7 +5711,13 @@ body.selecting .voice-dock { display: none; }
    value in dark, the darker measured red in light. It is still the tightest
    number in this finding: 4.09:1 on the sheet bar's ground. */
 .form-sheet .xs-del { width: 100%; justify-content: center; border: 0; background: transparent; font-family: var(--f);
-  font-size: calc(16px * var(--type-scale)); font-weight: var(--w-medium); color: var(--danger-tx); cursor: pointer; }
+  font-size: calc(16px * var(--type-scale)); font-weight: var(--w-medium); color: var(--danger-tx-raised); cursor: pointer; }
+/* AMENDED 2026-09-26 (the post-code audit): the verb sits on the sheet's
+   grouped card, a grey raised above the sheet ground (#3A3A3C), where
+   --danger-tx measures 3.33:1 (Delete Bill, Delete Task). --danger-tx-raised
+   is the same red lifted to clear it (4.97:1 in dark) and --danger-tx itself
+   in light, where the words red already clears white. Still red: red is the
+   whole message here. */
 .form-sheet .xs-del:active { background: var(--press-1); }
 .form-sheet .xs-group .proj-icon { width: 28px; height: 28px; border-radius: var(--r-sm); flex-shrink: 0; display: flex; align-items: center; justify-content: center; color: #fff; }
 .form-sheet .xs-group .proj-icon .ic { width: 16px; height: 16px; }
@@ -6620,15 +6635,27 @@ span.row-star { cursor: default; }
    is an alpha and this floats over whatever scrolls under it. */
 .return-pill {
   position: fixed; left: var(--s-4); z-index: 40;
-  bottom: calc(env(safe-area-inset-bottom, 0px) + 132px);
+  /* Clear of the capture bar, which the shell measures (ReturnPill.tsx sets
+     --return-clear to the dock's height from the screen's bottom edge, safe
+     area included, plus a gap); 132px above the safe area is the fallback
+     for a screen with no dock. AMENDED 2026-09-26 (the post-code audit): the
+     fixed 132px sat 3px into the capture bar at 390x844 and further at type
+     scale 1.4, so the pill covered the bar's left end on every screen with
+     nothing to scroll ("< Life" over the exercise list). */
+  bottom: var(--return-clear, calc(env(safe-area-inset-bottom, 0px) + 132px));
   display: inline-flex; align-items: center; gap: var(--s-0h);
-  min-height: 34px; padding: 0 var(--s-3) 0 var(--s-2);
+  /* 44px to the finger, 34px to the eye: the box is the HIG minimum and the
+     capsule is painted on ::before, 5px in from the top and bottom. */
+  min-height: 44px; padding: 5px var(--s-3) 5px var(--s-2);
   border: 0; border-radius: var(--r-pill);
-  background-color: var(--capsule-fill); color: var(--tint);
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.45);
+  background: none; color: var(--tint);
   font-family: var(--f); font-size: calc(14px * var(--type-scale));
   font-weight: var(--w-semi); letter-spacing: -0.01em; cursor: pointer;
 }
-[data-theme="light"] .return-pill { background-color: var(--surface-2); color: var(--on-light-red); }
+.return-pill::before { content: ""; position: absolute; inset: 5px 0; z-index: -1; border-radius: var(--r-pill);
+  background-color: var(--capsule-fill); box-shadow: 0 2px 10px rgba(0, 0, 0, 0.45); }
+.return-pill { isolation: isolate; }
+[data-theme="light"] .return-pill { color: var(--on-light-red); }
+[data-theme="light"] .return-pill::before { background-color: var(--surface-2); }
 .return-pill .ic { width: 17px; height: 17px; }
 .return-pill:active { opacity: 0.85; }

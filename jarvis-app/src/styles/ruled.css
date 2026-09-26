@@ -226,6 +226,10 @@
 .fit-off { color: var(--tx-3); text-decoration: line-through; text-decoration-color: var(--tx-4); }
 .ruled .task-row .task-title { font-size: var(--t-name); font-weight: var(--w-name); letter-spacing: var(--track-name);
   min-width: 0; }
+/* A title that is itself the row's door (a bill opens its sheet from its
+   name) reaches the 44px minimum even when its lines add up to less
+   ("Car Insurance / Due Oct 8" measured 39, 2026-09-26). */
+.ruled .task-row .task-title[role="button"] { min-height: 44px; display: flex; flex-direction: column; justify-content: center; }
 .ruled .task-row .task-title > .task-name { display: block; white-space: nowrap; overflow: hidden;
   text-overflow: ellipsis; }
 /* BROWSER-F-06 (2026-09-05) gave this line flex-wrap so a long goal name got a

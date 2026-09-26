@@ -454,6 +454,30 @@ describe("BROWSER-F-10: red words on a sheet grey are readable", () => {
     expect(contrast("#FF6B6B", "rgb(70,70,72)")).toBeLessThan(4.5);
   });
 
+  it("the action sheet's destructive verb keeps a red that clears the sheet", () => {
+    expect(ruleBody(css(), ".sheet-scrim > .card .action-sheet button.destructive")).toMatch(/color:\s*var\(--sys-red-on-sheet\)/);
+    // And the two cards of an action sheet are two objects, with a gap.
+    expect(ruleBody(css(), ".sheet-scrim > .card + .card")).toMatch(/margin-top:\s*var\(--s-2\)/);
+  });
+
+  it("the delete verb on a sheet's grouped card wears the lifted red (2026-09-26)", () => {
+    // --danger-tx is 3.33:1 on the raised card grey (#3A3A3C); the lifted
+    // twin clears 4.5 there and is --danger-tx itself in light.
+    expect(ruleBody(css(), ".form-sheet .xs-del")).toMatch(/color:\s*var\(--danger-tx-raised\)/);
+    const ds = read("styles/jarvis-design-system.css");
+    expect(ds).toMatch(/--danger-tx-raised:\s*#FF8A80/);
+    expect(ds).toMatch(/--danger-tx-raised:\s*var\(--danger-tx\)/);
+  });
+
+  it("the return pill is 44 to the finger and clears the capture bar (2026-09-26)", () => {
+    const pill = ruleBody(css(), ".return-pill")!;
+    expect(pill).toMatch(/min-height:\s*44px/);
+    expect(pill, "the capsule is painted on ::before, not the box").toMatch(/background:\s*none/);
+    expect(ruleBody(css(), ".return-pill::before")).toMatch(/inset:\s*5px 0/);
+    expect(pill, "its bottom is the measured dock, with the old 132 as the fallback").toMatch(/var\(--return-clear,\s*calc\(env\(safe-area-inset-bottom, 0px\) \+ 132px\)\)/);
+    expect(read("shell/ReturnPill.tsx")).toMatch(/setProperty\("--return-clear"/);
+  });
+
   it("the sheet and toast verbs take it", () => {
     const bare = css().replace(/\/\*[\s\S]*?\*\//g, "");
     const rule = [...bare.matchAll(/([^{}]+)\{([^}]*)\}/g)]
@@ -481,6 +505,9 @@ describe("BROWSER-F-10: red words on a sheet grey are readable", () => {
       // most of them open inside a sheet, where the tap red is 3.76:1 on the
       // dark sheet grey. Both sheet forms take the sheet twin.
       ".form-sheet .exp-more summary", ".sheet-scrim > .card .exp-more summary",
+      // AMENDED 2026-09-26 (the post-code audit): the action sheet's verbs
+      // (Choose Photo, Cancel) drew --tint at 3.76:1 on the sheet grey.
+      ".sheet-scrim > .card .action-sheet button",
     ]) {
       expect(members, `${sel} is a member of the sheet-red list`).toContain(sel);
     }
