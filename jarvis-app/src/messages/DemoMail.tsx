@@ -30,7 +30,7 @@ const NEEDS: DemoRow[] = [
 // real inbox.
 const WAITING: DemoWait[] = [
   { to: "summitgear", sub: "Missing Items From Order #D2565", days: 55 },
-  { to: "Marcus Delaney", sub: "Harper v Northline · can you call me", days: 55 },
+  { to: "Marcus Delaney", sub: "Harper v Northline: can you call me?", days: 55 },
   { to: "nadia@northlake.org", sub: "Invoice", days: 50 },
   { to: "Elieserhenry0", sub: "Reservation Receipt", days: 46 },
 ];
@@ -61,7 +61,7 @@ export default function DemoMail({ onConnect }: { onConnect?: () => void }) {
       waiting: WAITING.slice(0, 3).map((w, i) => ({
         threadId: "demo-w" + i,
         to: w.to,
-        subject: w.sub.split(" · ")[0] ?? w.sub,
+        subject: w.sub.split(": ")[0] ?? w.sub,
         days: [55, 55, 50][i] ?? 30,
       })),
       promises: [{ threadId: "demo-p0", text: "send rob the deck", due: "2026-08-21" }],

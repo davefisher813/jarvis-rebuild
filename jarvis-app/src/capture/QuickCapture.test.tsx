@@ -242,7 +242,9 @@ describe("QuickCapture receipt reads as facts (§AM)", () => {
     expect(line.textContent).not.toContain("From your paste");
   });
 
-  it("a bill's amount is a white number, not a grey word", async () => {
+  // UP-CORE-01: a paste read as a bill says so. No chip under the receipt
+  // names a bill, so the word is the read; the amount after it is white.
+  it("a bill says Bill before its amount, and the amount is a white number", async () => {
     render(
       <NotesProvider userId="u-receipt-bill">
         <QuickCapture ai={new AIService({ available: false })} onClose={() => {}} />
@@ -253,9 +255,40 @@ describe("QuickCapture receipt reads as facts (§AM)", () => {
     await waitFor(() => expect(screen.getByText("Saved")).toBeInTheDocument());
 
     const facts = receiptFacts();
+    expect(facts[0]!.textContent).toMatch(/^Bill \$1,200/);
+    expect(facts[0]!.className).toBe("fact");
     expect(facts[0]!.querySelector("b")?.textContent).toMatch(/1,200/);
+    expect(facts[0]!.querySelector("b")?.textContent).not.toContain("Bill");
     expect(facts[facts.length - 1]!.textContent).toBe("Monthly");
     expect(facts[facts.length - 1]!.className).toBe("fact date");
+  });
+
+  // §AM R8 (2026-09-26): a task's date is a due date, so it wears the due
+  // window every task row wears: tomorrow is amber, not a neutral date. An
+  // event's date only says when, so it stays small caps.
+  it("a task due tomorrow is amber; an event's date stays small caps", async () => {
+    const { unmount } = render(
+      <NotesProvider userId="u-receipt-task-due">
+        <QuickCapture ai={new AIService({ available: false })} onClose={() => {}} />
+      </NotesProvider>,
+    );
+    fireEvent.change(screen.getByPlaceholderText(/Paste or type/), { target: { value: "Renew the domain tomorrow" } });
+    fireEvent.click(screen.getByText("Capture"));
+    await waitFor(() => expect(screen.getByText("Saved")).toBeInTheDocument());
+    // The resolved date is the task's one fact, and it is amber.
+    expect(receiptFacts().map((f) => f.className)).toEqual(["fact warn"]);
+    unmount();
+
+    render(
+      <NotesProvider userId="u-receipt-event-date">
+        <QuickCapture ai={new AIService({ available: false })} onClose={() => {}} />
+      </NotesProvider>,
+    );
+    fireEvent.change(screen.getByPlaceholderText(/Paste or type/), { target: { value: "Dinner with Sam tomorrow at 7pm" } });
+    fireEvent.click(screen.getByText("Capture"));
+    await waitFor(() => expect(screen.getByText("Saved")).toBeInTheDocument());
+    // The same day on an event, and its clock time: both neutral.
+    expect(receiptFacts().map((f) => f.className)).toEqual(["fact date", "fact date"]);
   });
 
   it("a recent capture is its kind in grey and its time in small caps", async () => {

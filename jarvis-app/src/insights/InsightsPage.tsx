@@ -248,17 +248,23 @@ export default function InsightsPage({
   // the only card whose scope is DIFFERENT -- the headline lift, which spans
   // every session and says so -- was the one with no label at all. The chips
   // are the heading; a card labels its scope only when it is not the page's.
+  //
+  // THE AVERAGE IS WHITE (§AM, 2026-09-26). It wore violet, which is a
+  // budget or a pair in the Health key, and sleep is neither: an average of
+  // logged nights is a number with no state, the key's white, the same ink
+  // the Health tile and the Health finding give it. The card's dot is the
+  // logged mark every other card here wears.
   const sleepCard = (
     <div className="pad-x"><div className="card ins-card">
       <div className="ins-head">
-        <span className="ins-dot hue-hl-violet" />
+        <span className="ins-dot hue-hl-lime" />
         <span className="ins-t">Sleep</span>
       </div>
       {/* A card with no night to report says nothing under its name (§AK:
           a placeholder is not a fact); its door to the sleep logs stays. */}
       {overview.sleep.nights === 0 ? null : (
         <>
-          <div className="ins-big violet">{hoursLabel(overview.sleep.avgHours!)}</div>
+          <div className="ins-big">{hoursLabel(overview.sleep.avgHours!)}</div>
           <div className="facts"><span className="fact">{`Average across ${overview.sleep.nights} logged ${overview.sleep.nights === 1 ? "night" : "nights"} of ${period.days}`}</span></div>
           {period.days <= 31 && (
             <div className="ins-nights" role="img" aria-label={`${overview.sleep.nights} of ${period.days} nights logged`}>
@@ -378,7 +384,9 @@ const musclesCard = breakdown.total === 0 ? null : (
       <div className="ins-big lime">{`${headline.to.w} ${headline.lift.unit ?? "lb"} × ${headline.reps}`}</div>
       <div className="facts">
         <span className="fact lime">{`${sign(headline.delta)} ${headline.lift.unit ?? "lb"} since ${monthDay(headline.from.date)}`}</span>
-        <span className="fact">{`${headline.sessions} comparable sessions`}</span>
+        {/* A count with no state is white (§AM, 2026-09-26), so "Biggest
+            gain" above stays the card's one grey. */}
+        <span className="fact"><b>{`${headline.sessions} comparable sessions`}</b></span>
       </div>
       {chart(series, headline.lift.unit ?? "lb")}
       <details className="ins-table">
@@ -482,7 +490,9 @@ const musclesCard = breakdown.total === 0 ? null : (
                       <div className="facts">
                         <span className="fact lime">{`${sign(g.delta)} ${lift.unit ?? "lb"} at ${g.reps} reps`}</span>
                         <span className="fact date">{`${monthDay(g.from.date)} to ${monthDay(g.to.date)}`}</span>
-                        <span className="fact">{`${g.sessions} comparable sessions`}</span>
+                        {/* A count with no state is white (§AM, 2026-09-26):
+                            "recorded in all" above is the card's one grey. */}
+                        <span className="fact"><b>{`${g.sessions} comparable sessions`}</b></span>
                       </div>
                       {chart(pts, lift.unit ?? "lb")}
                     </>

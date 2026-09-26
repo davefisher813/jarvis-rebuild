@@ -76,14 +76,41 @@ describe("NotificationsFlow: Done and Undo on a task", () => {
   // §AM (2026-09-26): the why takes the Colour Key. The sliding verdict is the
   // Tasks chip with its evidence beside it (no dot baked between them), and
   // the overdue twin says so in the late chip, not the line's plain grey.
-  it("the sliding verdict is its own chip, and overdue wears the late chip", async () => {
+  // The evidence takes its own tone too: days late is late, so red.
+  it("the sliding verdict is its own chip, its lateness is red, and overdue wears the late chip", async () => {
     render(<NotesProvider userId="u-notif-key"><Seeded /></NotesProvider>);
     await screen.findAllByText("Water plants");
     const tag = document.querySelector(".notif-row .slide-tag");
     expect(tag).toHaveTextContent("Keeps Sliding");
-    expect(tag!.nextElementSibling).toHaveClass("r-goal");
-    expect(tag!.nextElementSibling!.textContent).not.toMatch(/·/);
+    const evidence = tag!.nextElementSibling!;
+    expect(evidence.textContent).toMatch(/Days late$/);
+    expect(evidence).toHaveClass("r-goal", "fact", "red");
+    expect(evidence).not.toHaveClass("r-stalled");
+    expect(evidence.textContent).not.toMatch(/·/);
     expect(screen.getByText("Overdue")).toHaveClass("uchip", "u-late");
+  });
+
+  // A task pushed again and again is stalled, not late: the amber the Tasks
+  // row's own stalled line wears.
+  it("a sliding task's pushes are the stalled amber, not red", async () => {
+    function Pushed() {
+      const tasks = useTasks();
+      const [ready, setReady] = useState(false);
+      useEffect(() => {
+        void (async () => {
+          const id = (await tasks.createTask("Book the dentist", { due: "2099-01-01" }))!;
+          for (const due of ["2099-01-02", "2099-01-03", "2099-01-04"]) await tasks.setDue(id, due);
+          setReady(true);
+        })();
+      }, [tasks]);
+      return ready ? <NotificationsFlow /> : null;
+    }
+    render(<NotesProvider userId="u-notif-pushed"><Pushed /></NotesProvider>);
+    await screen.findByText("Book the dentist");
+    const evidence = document.querySelector(".notif-row .slide-tag")!.nextElementSibling!;
+    expect(evidence).toHaveTextContent("Pushed 3 times");
+    expect(evidence).toHaveClass("r-goal", "r-stalled");
+    expect(evidence).not.toHaveClass("red");
   });
 
   it("Done clears every row for the task, so the twin cannot un-complete it", async () => {

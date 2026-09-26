@@ -177,7 +177,6 @@ body.writing .screen-editor { padding-bottom: max(140px, var(--doc-kbar-clear, 0
 .exp-format .exp-ring { width: 20px; height: 20px; border-radius: var(--r-circle); border: 1.5px solid var(--tx-4); flex-shrink: 0; display: grid; place-items: center; }
 .exp-format.on .exp-ring { border-color: var(--sel-bg); background: var(--sel-bg); }
 .exp-format.on .exp-ring::after { content: ""; width: 6px; height: 10px; border: solid var(--sel-fg); border-width: 0 2px 2px 0; transform: rotate(45deg) translateY(-1px); }
-.exp-note { font-size: var(--t-sub); color: var(--tx-3); line-height: 1.4; margin-top: var(--s-2); }
 .exp-more { margin-top: var(--s-2); }
 .exp-more summary { font-size: var(--t-sub); font-weight: var(--w-semi); color: var(--tx-2); cursor: pointer; padding: var(--s-2) 0; list-style: none; min-height: 44px; display: flex; align-items: center; }
 .exp-more summary::-webkit-details-marker { display: none; }

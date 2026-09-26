@@ -883,6 +883,70 @@ describe("MessagesFlow (threads)", () => {
     expect(sheet!.querySelectorAll(".list-flat .row").length).toBeGreaterThan(0);
   });
 
+  // THE OPEN IS ONE-SIDED (tracking.ts). "Opened" is said only on a real
+  // pixel hit; the absence of one is said as nothing, never "not opened",
+  // because image-blocking clients read mail invisibly. waitingLine carried
+  // this and its tests went with it; the card draws it inline now, so the
+  // card is what is pinned: a real open is a neutral date in small caps
+  // (§AM R8), and a wait with no open has no line about opening at all.
+  it("the one-at-a-time card says Opened only on a real open, and never 'not opened'", async () => {
+    const DAY = 86400e3;
+    const sentTo = (id: string, to: string, subject: string, days: number): GmailThreadMeta => ({ id, messages: [{
+      id: id + "m", snippet: subject, labelIds: ["SENT"], internalDate: String(Date.now() - days * DAY),
+      payload: { headers: [
+        { name: "From", value: "Me <me@example.com>" }, { name: "To", value: to },
+        { name: "Subject", value: subject },
+      ] },
+    }] });
+    // Rob's waiver went out tracked and its pixel was hit on Aug 2; Ann's
+    // roster went out untracked, so nothing is known about it either way.
+    localStorage.setItem("jarvis.mail.tracks.v1", JSON.stringify({ "trk-rob": { threadId: "w1", sentAt: Date.now() - 12 * DAY } }));
+    const realFetch = globalThis.fetch;
+    const asked: string[][] = [];
+    globalThis.fetch = (async (_url: string, init?: RequestInit) => {
+      asked.push((JSON.parse(String(init?.body ?? "{}")) as { check?: string[] }).check ?? []);
+      return { ok: true, json: async () => ({ opens: { "trk-rob": "2026-08-02T12:00:00" } }) };
+    }) as unknown as typeof fetch;
+    // Triage settles the list (both inbox threads are noise), which is what
+    // puts the Waiting On section on screen.
+    const ai = aiReturning(JSON.stringify([
+      { id: "t1", bucket: "noise", gist: "g" }, { id: "t2", bucket: "noise", gist: "promo" },
+    ]));
+    try {
+      render(wrap(<MessagesFlow ai={ai} configured token="tok" />, makeApi({
+        searchThreads: async () => [sentTo("w1", "Rob <rob@y.com>", "The waiver", 12), sentTo("w2", "Ann <ann@y.com>", "The roster", 9)],
+      })));
+      fireEvent.click(await screen.findByText("Connect Google"));
+      await waitFor(() => expect(asked).toEqual([["trk-rob"]]));
+      // The deck lives in the Waiting On section, so that is where it opens.
+      const waitingTab = screen.queryByRole("tab", { name: /Waiting On/ });
+      if (waitingTab) fireEvent.click(waitingTab);
+      fireEvent.click(await screen.findByText("One at a Time"));
+
+      // Rob's card, the longer wait: the open is a fact, in small caps.
+      const robCard = await waitFor(() => {
+        const c = document.querySelector(".wait-card");
+        expect(c?.textContent).toContain("The waiver");
+        return c!;
+      });
+      const opened = [...robCard.querySelectorAll(".fact.date")].find((f) => /^Opened /.test(f.textContent ?? ""));
+      expect(opened?.textContent).toBe("Opened Aug 2");
+      expect(robCard.textContent).not.toMatch(/not opened/i);
+
+      // Ann's card: nothing was tracked, so nothing is said about opening.
+      fireEvent.click(screen.getByText("Skip"));
+      const annCard = await waitFor(() => {
+        const c = document.querySelector(".wait-card");
+        expect(c?.textContent).toContain("The roster");
+        return c!;
+      });
+      expect(annCard.textContent).not.toMatch(/opened/i);
+      expect(annCard.textContent).not.toMatch(/not opened/i);
+    } finally {
+      globalThis.fetch = realFetch;
+    }
+  });
+
   // EMAIL-F-21 (2026-09-05): "A stale Undo button can attach itself to an
   // unrelated toast." Archive a row ("Archived · Undo"), then within six
   // seconds trigger any plain toast and the new toast wore the old Undo,
@@ -989,17 +1053,19 @@ describe("MessagesFlow (threads)", () => {
   });
 
   // The failure lines are whatever humanError says for that status. Its own
-  // test pins the wording (humanError.test.ts); these cases pin that the
-  // screen shows that line, for the right account, and never a dead inbox.
+  // test pins every sentence exactly, both halves (humanError.test.ts); these
+  // cases pin that the screen shows that line, for the right account, and
+  // never a dead inbox.
   // AMENDED 2026-09-26 (sweep #459): the literals here pinned the old
   // wording with a typed middot, which R6 retires from a meta line.
   const EXPIRED = humanError(new Error("threads 401"), "");
   const REFUSED = humanError(new Error("threads 403"), "");
   const OFFLINE = humanError(new TypeError("Failed to fetch"), "");
   it("the failure lines say what a person can do, not the machine's words", () => {
-    expect(EXPIRED).toMatch(/sign-in expired/i);
-    expect(REFUSED).toMatch(/permissions/i);
-    expect(OFFLINE).toMatch(/offline/i);
+    // What happened, then the move: each line ends in what to do about it.
+    expect(EXPIRED).toMatch(/^Your Google sign-in expired; reconnect in Settings$/);
+    expect(REFUSED).toMatch(/^Google refused that; reconnect in Settings to update permissions$/);
+    expect(OFFLINE).toMatch(/^You're offline; nothing was lost$/);
   });
 
   // EMAIL-F-04 (2026-09-05): "An expired token or a dead network reads as

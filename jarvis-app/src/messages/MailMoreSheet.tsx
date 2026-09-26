@@ -34,8 +34,6 @@ export default function MailMoreSheet({
   onClose,
 }: {
   who: string;
-  /** Not drawn (see above). Kept so callers need not change. */
-  subject?: string;
   days: number;
   decision: Decision;
   onPick: (a: MailAction) => void;

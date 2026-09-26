@@ -18,6 +18,7 @@ import { showToast } from "../shared/toast";
 import { haptics } from "../shared/haptics";
 import { weekdayLongDate, shortDateFromMs } from "../shared/dateFormat";
 import { formatMoney } from "../money/types";
+import { dayTone } from "../messages/factsLine";
 import { DAY_PRESETS } from "../tasks/reminders";
 import { daysSummary } from "../routine/types";
 import Dictate from "../shared/Dictate";
@@ -53,10 +54,16 @@ function fmtClock(hhmm: string): string {
 // moment it happens (Smart Paste law: resolved dates on receipt). Two facts,
 // not one string with a dot typed into it, so the stylesheet draws the
 // separator (§AM F3).
-function whenParts(s: SavedEntity): string[] {
-  const parts: string[] = [];
-  if (s.date) parts.push(weekdayLongDate(s.date));
-  if (s.start) parts.push(fmtClock(s.start));
+//
+// A TASK'S DATE IS A DUE DATE (§AM R8, 2026-09-26). It takes the window
+// every task row wears -- behind us red, today or tomorrow amber, later a
+// neutral small-caps date -- so the receipt reads the capture the way its
+// row will. An event's or a note's date, and any clock time, say when and
+// nothing more, so they stay neutral.
+function whenParts(s: SavedEntity): { text: string; tone: ReturnType<typeof dayTone> }[] {
+  const parts: { text: string; tone: ReturnType<typeof dayTone> }[] = [];
+  if (s.date) parts.push({ text: weekdayLongDate(s.date), tone: s.kind === "task" ? dayTone(s.date, todayISO()) : "date" });
+  if (s.start) parts.push({ text: fmtClock(s.start), tone: "date" });
   return parts;
 }
 
@@ -75,8 +82,11 @@ function reminderDays(days?: number[]): string {
 // what it is, and the line keeps one grey run (§AK):
 //   - every WHEN is small caps (F5): the resolved date, the clock time, the
 //     repeat, and a reminder's time with the word Reminder in front of it;
-//   - a bill's amount is a number with no state, so it steps up to white
-//     (F1). A bill is a task wearing money, and the amount is that read;
+//     a task's date is the exception, as it is a due date and takes the
+//     due window's tone (see whenParts);
+//   - a bill says Bill, then its amount: the word is the read UP-CORE-01
+//     asks the receipt to show (no chip under it says "bill"), and the
+//     amount is a number with no state, so it steps up to white (F1);
 //   - a Never/Always line is the state word Rule;
 //   - the one grey run is the words: who and which project in one run, a
 //     Remember line's kind when it is not plain Fact, or the kind of a
@@ -89,13 +99,13 @@ function receiptFacts(s: SavedEntity, names: { person?: string; project?: string
   const out: ReactNode[] = [];
   if (!KINDS.includes(s.kind)) out.push(<span className="fact" key="kind">{KIND_LABEL[s.kind]}</span>);
   if (s.reminder) out.push(<span className="fact date" key="remind">Reminder {fmtClock(s.reminder.time)}</span>);
-  if (s.bill) out.push(<span className="fact" key="bill"><b>{formatMoney(s.bill.amount)}</b></span>);
+  if (s.bill) out.push(<span className="fact" key="bill">Bill <b>{formatMoney(s.bill.amount)}</b></span>);
   if (s.kind === "fact") {
     // C-49: the kind the prefix chose, and Rule when Never/Always made one.
     if (s.factType && s.factType !== "fact") out.push(<span className="fact" key="type">{STRAND_TYPE_LABEL[s.factType]}</span>);
     if (s.rule) out.push(<span className="fact st" key="rule">Rule</span>);
   } else {
-    whenParts(s).forEach((w, i) => out.push(<span className="fact date" key={"when" + i}>{w}</span>));
+    whenParts(s).forEach((w, i) => out.push(<span className={"fact " + w.tone} key={"when" + i}>{w.text}</span>));
   }
   // A reminder with no repeat runs every day: that is what an absent `days`
   // MEANS in ReminderInfo, so the receipt says it rather than leaving the

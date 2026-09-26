@@ -23,6 +23,7 @@ import NoticeCard from "./NoticeCard";
 import { rowDoor, own } from "../shared/rowDoor";
 import { FAILING, WAITING, NEW, RESUME, LIVE, spotIsDuplicate } from "./stream";
 import { chainQuietToday, dismissChain, nextBest, chainReason } from "../tasks/momentum";
+import { distanceFor, type Distance } from "../tasks/grouping";
 import { AUTOMATION_LABEL, tuningAllows, tuningScope, tuningWeight, tuningsFrom, type TuningChoice } from "../rules/tuning";
 import { leadFor } from "../schedule/leaveBy";
 import { EventWeatherLine } from "../weather/WeatherLine";
@@ -141,7 +142,7 @@ import { nowContext, gapFill, fmtSpan } from "./nowContext";
 import { scheduleTask, breakDownTask as splitIntoSteps, undoBreakdown, splitLine, type BreakdownResult } from "../tasks/taskMoves";
 import { identityToText, voiceToText, contextToText } from "../ai/context";
 import { meetingPrep, type PrepPerson } from "./meetingPrep";
-import { loadLastContact, agoLabel } from "../people/lastContact";
+import { loadLastContact } from "../people/lastContact";
 import { useAIContext } from "../ai/useAIContext";
 import { learnedDurations, readCommittedDurationsWindowed } from "../schedule/learnedDurations";
 import { supabase } from "../auth/supabaseClient";
@@ -197,6 +198,12 @@ const FreshStartFlow = lazyWithRecovery(() => import("../upnext/FreshStartFlow")
 export function reflowHold(lines: HardLine[], event: { data: { title: string; category: string } } | undefined): HardLine | null {
   return heldBy(lines, { action: "reflow", blockTitle: event?.data.title, category: catName(event?.data.category) });
 }
+
+// The Momentum Chain's pick (UP-CORE-09): the task offered, and the area of
+// the task just finished. That area is what "Same category" is measured
+// against: nextBest falls through to other areas when the finished one has
+// nothing open, and the suggestion's own area proves nothing.
+type Momentum = { task: TaskItem; afterCategory: string };
 
 // Read-only aggregation over the (already tested) Schedule and Tasks services.
 export default function TodayFlow({
@@ -604,7 +611,7 @@ export default function TodayFlow({
   // UP-CORE-09 (2026-09-05): the Momentum Chain's slot, on the tab where
   // ticks actually happen. Holds the task offered after the last completion;
   // the next tick replaces it and Not Now empties it for the day.
-  const [momentum, setMomentum] = useState<TaskItem | null>(null);
+  const [momentum, setMomentum] = useState<Momentum | null>(null);
   const [categories, setCategories] = useState<SheetCategory[]>([]);
   const [pausedCats, setPausedCats] = useState<ReadonlySet<string>>(new Set());
   const [catsFull, setCatsFull] = useState<Category[]>([]);
@@ -784,7 +791,8 @@ export default function TodayFlow({
       // The season pause candidatesFor applies, at the other door a task
       // becomes work. nextBest already refuses bills and reminders.
       const fresh = (await tasks.listTasks()).filter((t) => !pausedCats.has(t.data.category ?? ""));
-      setMomentum(nextBest(fresh.filter(notMail), id, before.category ?? ""));
+      const next = nextBest(fresh.filter(notMail), id, before.category ?? "");
+      setMomentum(next ? { task: next, afterCategory: before.category ?? "" } : null);
     }
     const advanced = before && !before.done ? movedByTask(before, id) : null;
     if (comeback) {
@@ -1722,26 +1730,70 @@ export default function TodayFlow({
   const untouched = untouchedGoal(goalIdx, goalList, goalReach, todaysTasks(taskItems, today), today);
   // The chain's one meta line: derived facts only, and the task's own length
   // when it has one (UP-CORE-02), because "10m" is what makes it startable.
-  // §AK, §AM (2026-09-26): the reason is the line's one grey and the
+  // §AK, §AM (2026-09-26): "Same category" is the line's one grey and the
   // length is an estimate the app worked out, so it is sky (.fact.est, as on
   // the headliner). "Keep going" came off the card: a second grey that said
   // nothing the slot, the tick a second ago and Start Now do not already say.
   // momentumSub keeps it, because that string is only the tuning rule's
   // stored evidence and never renders as the card's line.
-  const momentumParts = (t: TaskItem) => {
+  //
+  // DUE AND LATE WEAR THE KEY, THE WAY THE TASKS TAB DRAWS THEM (§AM R3/R8,
+  // 2026-09-26). chainReason used to carry "due today" and "overdue" in the
+  // line's plain grey, a meaning with no colour, while MomentumRow on Tasks
+  // already drew the same task's due half as the distance chip. Both read
+  // distanceFor off the task now. "Same category" is measured against the
+  // FINISHED task's area, stored with the pick, so a suggestion nextBest
+  // took from another area never claims it.
+  const momentumParts = (m: Momentum) => {
+    const t = m.task;
     const mins = t.data.estimateMin ?? estimates[t.data.category ?? ""];
-    return { why: chainReason(t, t.data.category ?? "", today), len: mins ? durLabel(mins) : null };
+    return {
+      why: chainReason(t, m.afterCategory),
+      due: distanceFor(t.data, today),
+      len: mins ? durLabel(mins) : null,
+    };
   };
-  const momentumSub = (t: TaskItem): string => {
-    const { why, len } = momentumParts(t);
-    return ["Keep going", why?.toLowerCase(), len].filter(Boolean).join(" \u00b7 ");
+  const momentumSub = (m: Momentum): string => {
+    const { why, due, len } = momentumParts(m);
+    const reason = [why?.toLowerCase(), due ? (due.kind === "late" ? "overdue" : "due today") : null].filter(Boolean).join(", ");
+    return ["Keep going", reason, len].filter(Boolean).join(" \u00b7 ");
+  };
+  // The due half as a fact's words: the chip's own distance, in a sentence's
+  // case ("Due today", "3 Days late", "Over a month late"), since a fact is
+  // not a chip. Every late distance ends in "late", so the words say it too.
+  const dueWords = (d: Distance): string => {
+    if (d.kind === "today") return "Due today";
+    const words = d.label.toLowerCase();
+    const late = / late$/.test(words) ? words : words + " late";
+    return capAfterNumber(late.charAt(0).toUpperCase() + late.slice(1));
   };
   // Null when there is nothing to say, so the card goes solo instead of
   // carrying an empty sub line.
-  const momentumFacts = (t: TaskItem) => {
-    const { why, len } = momentumParts(t);
-    if (!why && !len) return null;
-    return <Facts facts={[why ? { text: why } : null, len ? { text: len, tone: "est" } : null]} />;
+  const momentumFacts = (m: Momentum) => {
+    const { why, due, len } = momentumParts(m);
+    if (!why && !due && !len) return null;
+    // With a length on the line, a toned due fact would cost the length its
+    // sky: Facts keeps the first colour on a line and drops the rest (K.3).
+    // So the due half is the distance chip there, which is not a fact and
+    // carries its own tint by rule (the headliner's and MomentumRow's own
+    // .uchip, TODAY amber, N DAYS LATE red). Without a length it is the
+    // line's one coloured fact: amber when due, red when late.
+    if (due && len) {
+      return (
+        <div className="facts">
+          <span className="fact"><span className={"uchip " + (due.kind === "late" ? "u-late" : "u-today")}>{due.label}</span></span>
+          {why && <span className="fact">{why}</span>}
+          <span className="fact est">{len}</span>
+        </div>
+      );
+    }
+    return (
+      <Facts facts={[
+        due ? { text: dueWords(due), tone: due.kind === "late" ? "red" : "warn" } : null,
+        why ? { text: why } : null,
+        len ? { text: len, tone: "est" } : null,
+      ]} />
+    );
   };
   const evening = isEvening(nowMin, routineData) ? eveningStats(todayEvents, taskItems, today, nhm, completionsToday) : undefined;
   // C-24 (Astra, 2026-09-12): the headliner's own two facts. The area is a
@@ -2297,8 +2349,6 @@ export default function TodayFlow({
     nowMin,
     (personId) => prepLast[personId] ?? null,
   );
-  // The same last-mail time meetingPrep read, for the row's own facts line.
-  const prepLastMs = prep ? prepLast[prep.person.id] ?? null : null;
   const gapKey = today + ":" + (nowCtx.nextStart ?? "end");
   // Pick 1 + pick 31: the goal this gap task moves, when naming it says
   // something the task title did not already say.
@@ -2353,14 +2403,23 @@ export default function TodayFlow({
   // line says nothing rather than repeat the day the title already says.
   // `clock` is the time left when a timer was set, else the time in; the
   // count rides after it on Now, and stands in for it on Your Move.
+  //
+  // THE SHORT FACTS FIRST, THE LONG ONE LAST (2026-09-26). The line's last
+  // fact is the one .facts lets shrink and ellipsize; every fact before it
+  // keeps its width. With the lift's name and its plan leading as two
+  // unshrinking facts, "Romanian Deadlift" plus "3 × 225 lb × 5" beside
+  // the Resume pill already overran the column, so the plan was cut
+  // mid-letter with no ellipsis and the clock and the count never showed.
+  // The clock and the count are a few characters each, so they lead; the
+  // lift, name and plan together, is ONE final fact, the only one on the
+  // line whose length the world decides, and the one allowed to yield.
   const liveFacts = (card: LiveCard, clock: string | null, count: string | null, cls = "facts") => (
     <div className={cls}>
-      {card.current && <span className="fact">{card.current.name}</span>}
-      {card.current?.plan && <span className="fact"><b>{card.current.plan}</b></span>}
       {clock && (clock === "Time's up"
         ? <span className="fact red">{clock}</span>
         : <span className="fact"><b>{clock}</b></span>)}
       {count && <span className="fact"><b>{count}</b></span>}
+      {card.current && <span className="fact">{card.current.name}{card.current.plan && <> <b>{card.current.plan}</b></>}</span>}
     </div>
   );
   const nowSection = !evening && (
@@ -2371,7 +2430,7 @@ export default function TodayFlow({
             <RowIcon kind="gym" />
             <div className="row-stack">
               <div className="conn-name truncate">In: {liveNow.dayName}</div>
-              {/* THE LIFT YOU ARE ON LEADS THE LINE (2026-09-21). liveCard
+              {/* THE LIFT YOU ARE ON IS ON THE LINE (2026-09-21). liveCard
                   has always computed it -- currentLine, "Bench Press · 3 ×
                   225 lb × 5", written, documented as "the one line the card
                   leads with", unit tested -- and NEITHER render site used
@@ -2532,16 +2591,18 @@ export default function TodayFlow({
             <RowIcon kind="event" />
             <div className="row-stack">
               {/* THE NAME IS THE TITLE; THE FACTS GO UNDER IT (§AK, §AM,
-                  2026-09-26). prep.line put the name, the count and the last
-                  mail in the title with typed dots, so the facts truncated
-                  with it and wore its ink. The count is white (a count with
-                  no state), "with them" is the line's one grey, and the last
-                  mail is a neutral date, so it is small caps. */}
+                  2026-09-26). meetingPrep used to join the name, the count
+                  and the last mail with typed dots, so the facts truncated
+                  with the title and wore its ink. It hands over the parts
+                  now: the count is white (a count with no state), "with
+                  them" is the line's one grey, and the last mail is a
+                  neutral date, so it is small caps. Its words were read on
+                  meetingPrep's own clock, so nothing here reads a second. */}
               <div className="conn-name truncate">{prep.person.name}</div>
-              {(prep.open.length > 0 || prepLastMs) ? (
+              {(prep.open.length > 0 || prep.lastMail) ? (
                 <div className="conn-meta facts">
                   {prep.open.length > 0 && <span className="fact"><b>{capAfterNumber(`${prep.open.length} open`)}</b> with them</span>}
-                  {prepLastMs ? <span className="fact date">Last mail {agoLabel(prepLastMs, Date.now()).toLowerCase()}</span> : null}
+                  {prep.lastMail ? <span className="fact date">{prep.lastMail}</span> : null}
                 </div>
               ) : null}
               {/* row-tap: chip strip inside the prep row, not a row of its own */}
@@ -2867,13 +2928,13 @@ export default function TodayFlow({
   const alertCards = [
     // The welcome-back recap is a RECEIPT: it reports, it does not ask.
     // One quiet line; tapping it opens the pile it describes.
-    // ONE SENTENCE, NO TYPED DOTS (§AM F3, 2026-09-26). back.sub's first
-    // half is "Nothing was lost" on every render (agedOut is 0, see above):
-    // the empty case of a count, which says nothing, so it came off. The
-    // greeting and the one thing to start with stay.
+    // ONE SENTENCE, NO TYPED DOTS (§AM F3, 2026-09-26). welcomeBack hands
+    // over its parts and this writes them as sentences: the greeting, what
+    // aged out when anything did (agedOut is 0 today, see above, so it is
+    // null and says nothing), and the one thing to start with.
     back ? (
       <button key="back" data-receipt className="receipt-line" onClick={() => setUpNextOpen(true)}>
-        <span className="rl-t">{back.title}. Start with one?</span>
+        <span className="rl-t">{back.title}. {back.gone ? back.gone + ". " : ""}{back.ask}</span>
         <span className="chev" />
       </button>
     ) : null,
@@ -3129,17 +3190,17 @@ export default function TodayFlow({
     // for the day.
     momentum && tuned("momentum") ? (
       <NoticeCard
-        key={"momentum-" + momentum.id}
+        key={"momentum-" + momentum.task.id}
         {...tuneProps("momentum", momentumSub(momentum))}
         weight={tuningWeight(tunings, "momentum", NEW)}
         icon={<CheckCircleGlyph />}
         tone="cat-fg-blue"
-        title={momentum.data.text}
+        title={momentum.task.data.text}
         sub={momentumFacts(momentum)}
-        action={{ label: "Start Now", onClick: () => { const t = momentum; setMomentum(null); if (onStartNow) onStartNow(t.id); else void startFifteen(t); } }}
+        action={{ label: "Start Now", onClick: () => { const t = momentum.task; setMomentum(null); if (onStartNow) onStartNow(t.id); else void startFifteen(t); } }}
         // ROW-TAP (Dave 2026-09-15: "I want all rows clickable"): the body
         // opens the task.
-        onOpen={() => void onOpenTask(momentum.id)}
+        onOpen={() => void onOpenTask(momentum.task.id)}
         onDismiss={() => { dismissChain(today); setMomentum(null); }}
       />
     ) : null,

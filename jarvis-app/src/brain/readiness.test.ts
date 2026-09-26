@@ -245,7 +245,9 @@ describe("the two detectors that read something other than task rows", () => {
     const r = pick(readiness(rows, [], [], NOW), "task_timing");
     expect(r.have).toBe(4);
     expect(r.state).not.toBe("ready");
-    expect(r.detail).toContain("same way");
+    // The two reasons stay apart (2026-09-26): "not" must not read as
+    // covering the minutes too, which would flip that half's meaning.
+    expect(r.detail).toContain("but either not all the same way or under");
   });
 
   it("task timing whose area no longer exists says the area cannot be named", () => {

@@ -370,9 +370,13 @@
    the line's own class, and the grey above is the same two-class weight as
    the key's tones and loads later, so the tone never painted: a goal's
    check-in read grey whatever it said. Three classes let the meaning win.
-   Colour only; the size and the truncation stay the line's. */
+   Colour only; the size and the truncation stay the line's.
+   AMENDED 2026-09-26: the key's red joins the pair. A firm wait on a
+   person's row and a sliding task's days gone by are drawn on this line in
+   red, and without a three-class rule they painted the line's grey. */
 .ruled .r-goal.fact.good { color: var(--good); }
 .ruled .r-goal.fact.warn { color: var(--warn); }
+.ruled .r-goal.fact.red { color: var(--sys-red); }
 /* THE GOAL LINE (Dave 2026-09-01: "Goals can't render like typical
    subtext"). A goal wears the goal mark in goal green and its name one step
    brighter at medium weight; the category, the reason and everything else
@@ -965,7 +969,7 @@
   color: var(--tx-1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ruled .ins-chip { flex-shrink: 0; font-size: var(--t-micro); font-weight: var(--w-bold);
   letter-spacing: 0.06em; text-transform: uppercase; padding: var(--s-1) var(--s-2); border-radius: var(--r-pill);
-  color: var(--h-hue); background: var(--h-tint); white-space: nowrap; }
+  color: var(--h-ink, var(--h-hue)); background: var(--h-tint); white-space: nowrap; }
 /* Two numbers, side by side, so the comparison is the layout. */
 .ruled .ins-pair { display: flex; gap: var(--s-2h); margin-top: var(--s-3); }
 .ruled .ins-cell { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--s-0h);
@@ -1107,11 +1111,13 @@
 /* An empty tile does not shout: Log it stays on the grey ramp, so a lit tile
    means something was actually logged. */
 /* The class form stays for the insight dot and chip, which take the same pair
-   and are not tiles. */
-.ruled .hue-hl-lime   { --h-hue: var(--hl-lime);   --h-tint: var(--hl-lime-tint); }
-.ruled .hue-hl-violet { --h-hue: var(--hl-violet); --h-tint: var(--hl-violet-tint); }
-.ruled .hue-hl-amber  { --h-hue: var(--hl-amber);  --h-tint: var(--hl-amber-tint); }
-.ruled .hue-hl-blue   { --h-hue: var(--hl-blue);   --h-tint: var(--hl-blue-tint); }
+   and are not tiles. AMENDED 2026-09-26: each also carries its ink twin, for
+   the chip's WORDS (the 2026-09-22 ink-twin ruling: words read the ink, never
+   the vivid hue). The dot keeps the vivid hue. */
+.ruled .hue-hl-lime   { --h-hue: var(--hl-lime);   --h-tint: var(--hl-lime-tint);   --h-ink: var(--hl-lime-ink); }
+.ruled .hue-hl-violet { --h-hue: var(--hl-violet); --h-tint: var(--hl-violet-tint); --h-ink: var(--hl-violet-ink); }
+.ruled .hue-hl-amber  { --h-hue: var(--hl-amber);  --h-tint: var(--hl-amber-tint);  --h-ink: var(--hl-amber-ink); }
+.ruled .hue-hl-blue   { --h-hue: var(--hl-blue);   --h-tint: var(--hl-blue-tint);   --h-ink: var(--hl-blue-ink); }
 /* The add-a-metric tile is a door, not a reading, so it wears the dashed
    outline every empty create surface in the app wears and no hue at all. */
 .ruled .h-tile-add { box-shadow: inset 0 0 0 1px var(--rim-card); }

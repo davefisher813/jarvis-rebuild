@@ -143,6 +143,18 @@ decision for the lead session, added once in `components.css` with a law.
   joined by a dot.
 - Today's stat tiles follow the key: late red from the first late task, due
   amber, done green (shown to Dave as a heads-up).
+- A facts line never clips a word. In `.facts` only the LAST fact shrinks and
+  ellipsizes, so order it: short toned facts first (a date, an age, a count),
+  the long free-text fact last (a subject, a name, a place). A line whose job
+  is to show every fact (a review or import screen, a capture receipt, a
+  settings row) keeps its `.fact` spans inside a wrapping `.conn-meta`
+  (two-line clamp; the CSS still draws the dots), as gym/UploadFlow does.
+  Check at 390px and at type scale 1.4.
+- The key's red on a sheet grey is `--sys-red-on-sheet` (dark #FF6961); the
+  amber twin is `--warn-on-sheet`. A red or amber fact never sits on a grey
+  card nested inside a sheet: put it on the sheet ground under the group.
+- Wait ages follow ONE ladder everywhere (the rail's decide/toneFor, nudges
+  included): firm red, direct amber, gentle small caps.
 
 ## Held for Dave: do not change these, report them as needs_dave if you meet them
 

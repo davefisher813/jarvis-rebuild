@@ -198,6 +198,63 @@ describe("the AI refine runs in the background", () => {
   });
 });
 
+// THE LOAD LINE, TWO FACTS DRAWN APART (§AK/§AM, 2026-09-22). loadLine's own
+// unit tests went with loadLine when its logic moved into this sheet's JSX,
+// so the three cases they held are pinned here, at the markup: the open time
+// is the line's one grey, and whether the picks fit is the fact with a
+// meaning, green when it fits and red when it runs over.
+describe("the load line", () => {
+  it("fits: the picks fact is green and says so", () => {
+    render(sheet());
+    const fits = document.querySelector(".plan-load .fact.good");
+    expect(fits, "a day that fits says it in green").not.toBeNull();
+    expect(fits!.textContent).toMatch(/fits/);
+    expect(document.querySelector(".plan-load .fact.red")).toBeNull();
+  });
+
+  it("over: the picks fact is red, says how far over, and nothing says it fits", () => {
+    // Three two-hour picks in a two-hour window: one places, two do not.
+    render(sheet({ startMin: 9 * 60, endMin: 11 * 60, seed: { ids: ["t1", "t2", "t3"], minutes: { t1: 120, t2: 120, t3: 120 } } }));
+    const over = document.querySelector(".plan-load .fact.red");
+    expect(over, "a day that runs over says it in red").not.toBeNull();
+    expect(over!.textContent).toMatch(/over/);
+    expect(document.querySelector(".plan-load .fact.good")).toBeNull();
+    // A pick with nowhere to go says "No room" in its time button's own
+    // ink, never a red span inside it: the load line above carries the red.
+    const noRoom = screen.getAllByText("No room");
+    expect(noRoom.length).toBe(2);
+    noRoom.forEach((el) => expect(el).toHaveClass("p3-time-btn"));
+    expect(document.querySelector(".p3-row .fact.red")).toBeNull();
+  });
+
+  it("nothing picked: only the open time, never a picked or over fact", () => {
+    render(sheet({ tasks: TASKS.slice(0, 1) }));
+    fireEvent.click(screen.getByText("Email vendor"));
+    const line = document.querySelector(".plan-load")!;
+    expect(line.querySelectorAll(".fact").length).toBe(1);
+    expect(line.textContent).not.toMatch(/picked|over/);
+    expect(line.textContent).toMatch(/open/);
+  });
+});
+
+// ONE GREY UNDER A PICK (§AK V5.2, 2026-09-26). The goal line ("Moves ...")
+// and the planner's reason are both plain grey runs, so a picked row draws
+// the reason only when it draws no goal line.
+describe("a picked row says one grey thing under its name", () => {
+  it("the reason shows on a pick with no goal line", () => {
+    render(sheet());
+    // Book flights follows Email vendor, both work: the planner's reason.
+    expect(screen.getByText("Same context as previous pick")).toHaveClass("fact");
+  });
+
+  it("the reason stands down when the goal line is drawn", () => {
+    const withGoal = TASKS.map((t) => (t.id === "t2" ? { ...t, goal: "Get Fit" } : t));
+    render(sheet({ tasks: withGoal }));
+    expect(screen.getByText("Moves Get Fit")).toBeInTheDocument();
+    expect(screen.queryByText("Same context as previous pick")).toBeNull();
+  });
+});
+
 // ONE PROPOSED DAY (planning merge, phase 1, 2026-08-22). The sheet used to
 // run its own autoSelect on mount, which meant Edit on the drafted card
 // opened a SECOND planner and silently discarded the card's plan.

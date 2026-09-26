@@ -34,8 +34,7 @@ const KIND: Record<NudgeKind, RowKind> = {
 // same plain grey, so "Overdue" and "Due today" read as neutral as "Today"
 // under an event. Late and due are the task row's own urgency chips (Tasks,
 // Today and Projects draw the same facts that way); an at-risk goal needs
-// him soon, so it is amber; the sliding task's evidence stays the one grey,
-// because the chip beside it already carries the verdict.
+// him soon, so it is amber.
 const SUB: Record<NudgeKind, string> = {
   sliding: "r-goal r-cat",
   overdue: "uchip u-late",
@@ -43,6 +42,18 @@ const SUB: Record<NudgeKind, string> = {
   event: "r-goal r-cat",
   goal_risk: "r-goal fact warn",
 };
+
+// The sliding task's evidence says what it says, in the key (2026-09-26). It
+// was left the one grey because the chip beside it carries the verdict, but
+// the chip is the verdict and not the evidence: "23 Days late" is a lateness
+// and "Pushed 3 times" is a stall, and grey said neither. Late is red and a
+// stall is the amber the Tasks row's own stalled line wears, which is how the
+// task sheet tones the same words. The line keeps .r-goal for its size and
+// truncation; the tone rides on it.
+function subClass(n: Nudge): string {
+  if (n.kind !== "sliding") return SUB[n.kind];
+  return /\blate$/i.test(n.sub) ? "r-goal fact red" : "r-goal r-cat r-stalled";
+}
 
 // A1 (audit 2026-08-21). Every row here was a static div: ten sentences
 // telling him things with nothing to do about any of them, which is how a
@@ -149,7 +160,7 @@ export default function NotificationsFlow({ onOpen }: { onOpen?: (kind: string, 
                     <div className="r-k">
                       {n.when && <span className="uchip u-today">{whenWord(n.when)}</span>}
                       {n.tag && <span className="slide-tag">{n.tag}</span>}
-                      {n.sub && <span className={SUB[n.kind]}>{n.sub}</span>}
+                      {n.sub && <span className={subClass(n)}>{n.sub}</span>}
                     </div>
                   </div>
                   {/* One pill, and only where finishing IS the answer. An

@@ -29,10 +29,20 @@ function daysBetween(a: string, b: string): number {
   return Math.round((t(b) - t(a)) / 86400000);
 }
 
+// THE PARTS, NOT A JOINED LINE (§AM F3, 2026-09-26). This used to hand back
+// `sub`, the two halves glued with a typed middle dot, and Today had stopped
+// reading it: the receipt wrote its own sentence, so the words lived in two
+// places and a non-zero agedOut would have been dropped without a sound.
+// Today builds its one sentence from these, in its own punctuation.
 export interface WelcomeBack {
   days: number;
   title: string;
-  sub: string;
+  /** What he no longer has to carry: "3 things aged out on their own".
+   *  Null when nothing did. "Nothing was lost" was the empty case of a
+   *  count, a line that says nothing (§AK R1), so it is not said. */
+  gone: string | null;
+  /** The one thing to start with, as a question. */
+  ask: string;
 }
 
 // Null unless he has genuinely been away. A first run is not a return, and
@@ -45,13 +55,13 @@ export function welcomeBack(
   if (!lastSeen) return null;
   const days = daysBetween(lastSeen, todayISO);
   if (days < AWAY_DAYS) return null;
-  const gone = agedOut > 0
-    ? `${agedOut === 1 ? "One thing" : agedOut + " things"} aged out on their own`
-    : "Nothing was lost";
   return {
     days,
     title: "Welcome Back",
     // Never the pile. What is true, and what he no longer has to carry.
-    sub: `${gone} · Start with one?`,
+    gone: agedOut > 0
+      ? `${agedOut === 1 ? "One thing" : agedOut + " things"} aged out on their own`
+      : null,
+    ask: "Start with one?",
   };
 }

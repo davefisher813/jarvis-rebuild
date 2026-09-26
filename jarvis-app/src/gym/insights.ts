@@ -146,7 +146,7 @@ export function correlate(sessions: LiftSession[], kind: MeasureKind, exerciseNa
   const lowerLabel = isYesNo ? `no ${def.data.name}` : `lower ${def.data.name}`;
   const sign = deltaDiff >= 0 ? "+" : "";
   const line = capAfterNumber(
-    `${sign}${round1(deltaDiff)} per session on ${higherLabel} days vs ${lowerLabel}, over ${pairs.length} paired sessions (Correlation, not cause)`,
+    `${sign}${round1(deltaDiff)} per session on ${higherLabel} days vs ${lowerLabel}, over ${pairs.length} paired sessions (correlation, not cause)`,
   );
   const evidence: Evidence = {
     label: "Exploratory Pattern",

@@ -61,9 +61,11 @@ describe("YourDay", () => {
     );
     expect(screen.getByText("Push Day")).toBeInTheDocument();
     // The facts, not a joined string (§AM F3, 2026-09-26): the count and the
-    // estimate are separate runs, so each can wear its own ink.
-    expect(screen.getByText("6 exercises")).toBeInTheDocument();
-    expect(screen.getByText("Est 42 min")).toBeInTheDocument();
+    // estimate are separate runs, so each can wear its own ink. The count is
+    // a number with no state, a white <b>; the estimate is the app's own
+    // arithmetic, sky.
+    expect(screen.getByText("6 exercises").tagName).toBe("B");
+    expect(screen.getByText("Est 42 min")).toHaveClass("fact", "est");
     fireEvent.click(screen.getByRole("button", { name: "Start Push Day" }));
     expect(started).toBe(1);
   });
@@ -344,13 +346,15 @@ describe("the nesting bug", () => {
     // schedule items THE FUCKING SAME"): Today now renders the identical
     // row Schedule always has, not a stripped-down copy. What kind of time
     // it is reads from the state word (PROTECTED), not the kicker, which
-    // may stand down beside the word that already says it. The row still
-    // says when the block ends either way.
+    // stands down beside the word that already says it (2026-09-26): the
+    // row reads "PROTECTED · Until 1:00 PM", never "PROTECTED Protected".
+    // The row still says when the block ends either way.
     render(
       <YourDay events={[ev("x", "18:00")]} locked={[{ s: 12 * 60, e: 13 * 60, label: "Lunch", kind: "meal" }]}
         now="09:00" nowLabel="9:00" onSeeAll={() => {}} />,
     );
     expect(screen.getByText("PROTECTED")).toBeInTheDocument();
+    expect(screen.queryByText("Protected")).toBeNull();
     expect(screen.getByText(/Until 1:00/)).toBeInTheDocument();
   });
 });

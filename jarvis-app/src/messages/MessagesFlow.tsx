@@ -61,7 +61,7 @@ import { makePersonIdFor, noPersonId, type PersonIdFor } from "./personFor";
 import { labelFor, autoArchivable } from "./confidence";
 import { expandQuery, groupByPerson, loadRecents, rememberSearch, MIN_CHARS, DEBOUNCE_MS, type SearchPerson } from "./mailSearch";
 import { takeComposeDraft } from "../chat/composeDraft";
-import { buildLedger, ledgerFloor, type Ledger, type LedgerRow } from "./ledger";
+import { buildLedger, ledgerFloor, ledgerTone, type Ledger, type LedgerRow } from "./ledger";
 import { settleAll, settleLine, type SettleWords } from "./settle";
 import { recordSweepDay, loadSweepDays, sweepWeek, receiptLines, sweepEstimate, type SweepReceipts } from "./sweep";
 import ListFloor from "../shared/ListFloor";
@@ -2956,18 +2956,6 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
       if (w && r.decision) { void runAction(w, r.decision.primary); return; }
       openRow(r);
     };
-    // The age says what it means (§AM R8), so it is never a second grey
-    // beside the subject. Past its date is red, either side. A due day
-    // wears the reminder window: a you-owe row sorts by its due day
-    // (ledger.ts), so its sort key is that date when it has one, and the
-    // sentinel when it has none. A chase he set has come due, so it is
-    // amber. A wait still inside a week is a neutral time: small caps,
-    // the letterform the mail row's own time wears.
-    const ledgerTone = (r: LedgerRow): FactTone | undefined =>
-      r.late ? "red"
-      : r.side === "you_owe" ? (r.sortKey < "9999-12-31" ? dayTone(r.sortKey, todayISO()) : undefined)
-      : r.key.startsWith("chase:") ? "warn"
-      : "date";
     const section = (title: string, rows2: LedgerRow[]) => rows2.length === 0 ? null : (
       <div key={title}>
         <div className="sh2 sh2-quiet"><span className="t">{title}</span><span className="n">{rows2.length}</span></div>
@@ -2976,13 +2964,16 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
             <div className="row" key={title + ":" + r.key} {...rowDoor(() => openRow(r))}>
               <div className="row-grow">
                 <div className="conn-name truncate">{r.who || r.what}</div>
-                {/* The subject and the row's age are two facts, and .facts
-                    draws the dot between them (§AM R6). An empty one is
-                    skipped, so an undated row with no `who` has no line at
-                    all -- never a stranded dot. */}
+                {/* The row's age and the subject are two facts, and .facts
+                    draws the dot between them (§AM R6). The short, toned age
+                    goes first and the subject last, because only the last
+                    fact may shrink: a long subject ellipsizes rather than
+                    pushing the age off the line. An empty one is skipped, so
+                    an undated row with no `who` has no line at all -- never
+                    a stranded dot. */}
                 <Facts facts={[
+                  { text: r.since, tone: ledgerTone(r, todayISO()) },
                   r.who ? { text: r.what } : null,
-                  { text: r.since, tone: ledgerTone(r) },
                 ]} />
               </div>
               <button className="btn-sm" onClick={(e) => { e.stopPropagation(); act(r); }}>{r.action}</button>
@@ -3194,12 +3185,11 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                     <div className="row-grow">
                       <div className="conn-name truncate">{nameFor(names, r.sender, prettyHandle(r.sender.split("@")[0] ?? "") ?? r.sender)}</div>
                       {/* When he asked, then whether it worked, as two facts
-                          (§AM R5, R6). The receipt is asked for WITHOUT the
-                          count, so it carries no dot of its own; a sender
-                          still sending after the ask has stalled, which is
-                          amber. */}
+                          (§AM R5, R6). The receipt says only when, so it
+                          carries no dot of its own; a sender still sending
+                          after the ask has stalled, which is amber. */}
                       <Facts facts={[
-                        { text: unsubReceipt(r, 0, todayISO()) },
+                        { text: unsubReceipt(r, todayISO()) },
                         s2 ? { text: "Still sending", tone: "warn" } : null,
                       ]} />
                     </div>
@@ -4792,11 +4782,13 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                             leads so the who-and-what is the fact that gives
                             way on a narrow screen. The open date stays on
                             the one-at-a-time card; "Waiting for:" restated
-                            the verb above it, and the account had no grey
-                            left to wear. */}
+                            the verb above it. With more than one inbox
+                            connected, which one the thread is in is said at
+                            the end of the same run, not as a second grey. */}
                         <Facts facts={[
                           also ? { text: "Also needs you", tone: "warn" } : null,
-                          { text: nameFor(names, w.toEmail, w.to) + ": " + w.subject },
+                          { text: nameFor(names, w.toEmail, w.to) + ": " + w.subject
+                            + (g.accounts.length > 1 && w.account ? " in " + acctLabel(w.account) : "") },
                         ]} />
                       </div>
                       {/* EMAIL-F-22 (2026-09-05): "Waiting On alternates are
@@ -5132,6 +5124,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
         const oldest = owed.length ? Math.max(...owed.map((w) => w.waitingDays)) : 0;
         const oldestRung = toneFor(oldest);
         const oldestTone: FactTone = oldestRung === "firm" ? "red" : oldestRung === "direct" ? "warn" : "date";
+        const piles = senderPiles(visibleRows, effTriage, vips).length;
         return (
           <>
             <div className="sh2 sh2-quiet"><span className="t">Tools</span></div>
@@ -5151,7 +5144,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                         legible. R6: one sentence, no typed dots. */}
                     <div className="conn-meta">{capAfterNumber(
                       visibleRows.length + (visibleRows.length === 1 ? " thread" : " threads")
-                      + " from " + senderPiles(visibleRows, effTriage, vips).length + " senders"
+                      + " from " + piles + (piles === 1 ? " sender" : " senders")
                       + (g.accounts.length > 1 ? " in " + (acctFilter ? acctLabel(acctFilter) : "all accounts") : "")
                       + (atEnd ? "" : " so far"),
                     )}</div>

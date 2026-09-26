@@ -105,15 +105,11 @@ export function sourceWhen(source: Source | undefined, now: () => number = Date.
     : shortDateFromMs(source.ts);
 }
 
-// Label and time joined into one plain string, "From Smart Paste · 2:14 PM",
-// for text that is not a facts line (a test, an export). Never render it
-// inside a meta line: ProvenanceLine renders sourceLabel() and sourceWhen() as
-// two facts instead. Null for a missing, unknown or Auto-Sweep source.
-export function sourceLine(source: Source | undefined, now: () => number = Date.now): string | null {
-  const label = sourceLabel(source);
-  const when = sourceWhen(source, now);
-  return label && when ? `${label} · ${when}` : null;
-}
+// There is no joined "label · when" string (2026-09-26). sourceLine() made
+// one, and nothing but two tests called it: a formatter with a middot baked
+// in, kept alive for text that never rendered. A line is sourceLabel() and
+// sourceWhen() as two facts, the separator drawn by CSS (§AM F3), which is
+// what ProvenanceLine does.
 
 /** The same fact with the WHEN left off, for a row that has to share one line
  *  with everything else it carries (2026-09-09, when provenance moved onto the

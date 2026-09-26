@@ -533,6 +533,29 @@ describe("BROWSER-F-10: red words on a sheet grey are readable", () => {
       .find((m) => m[1]!.includes(".sheet-scrim > .card .btn") && /background:\s*var\(--red-tint\)/.test(m[2]!));
     expect(wash, "otherwise it is indistinguishable from .btn-secondary").toBeTruthy();
   });
+
+  // THE KEY'S RED HAS A SHEET TWIN TOO (the lead, 2026-09-26, #60/#61). The
+  // Colour Key's late red straight on a sheet read 4.09:1 in dark (#FF453A
+  // on the sheet ground), so the Plan My Day overrun and the More Moves
+  // sheet's firm wait fell under AA when they turned red. It cannot go white
+  // as the tap red did (white is the key's "a number with no state"), so it
+  // takes Apple's increased-contrast systemRed in dark. Pinned: the token,
+  // its measured contrast on the sheet ground, and the rule that wears it.
+  // (Measured the same day and NOT held here: on a sheet's grouped card,
+  // #3A3A3C, the twin reads 4.02:1, up from 3.33; that ground is open.)
+  it("the key's red on a sheet grey takes --sys-red-on-sheet, and it clears AA on the sheet", () => {
+    const bare = tokens().replace(/\/\*[\s\S]*?\*\//g, "");
+    expect(bare, "light (the root default) is the system red unchanged")
+      .toMatch(/:root\s*\{[^}]*--sys-red-on-sheet:\s*var\(--sys-red\)/);
+    const twin = tokenIn("dark", "--sys-red-on-sheet");
+    const sheet = GROUNDS[0]![1];
+    const cr = contrast(twin, sheet);
+    expect(cr, `dark --sys-red-on-sheet on the sheet is ${cr.toFixed(2)}:1`).toBeGreaterThanOrEqual(4.5);
+    expect(contrast(tokenIn("dark", "--sys-red"), sheet), "the plain system red is why the twin exists")
+      .toBeLessThan(4.5);
+    expect(ruleBody(css(), ".sheet-scrim > .card .fact.red, .form-sheet .fact.red"), "the sheet facts wear it")
+      .toMatch(/(^|[;\s])color:\s*var\(--sys-red-on-sheet\)/);
+  });
 });
 
 describe("BROWSER-F-17: the inline time editor never covers the row it edits", () => {

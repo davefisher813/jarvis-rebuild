@@ -17,7 +17,7 @@ export default function WeekShapeScreen({ shape, onOpenTwoDaysOff, onBack }: {
       </div>
 
       <div className="pad-x"><div className="card pad">
-        <div className="p3-q">{shape.totalSessions} Sessions, {shape.totalHours} Hours</div>
+        <div className="p3-q">{shape.totalSessions} {shape.totalSessions === 1 ? "Session" : "Sessions"}, {shape.totalHours} {shape.totalHours === 1 ? "Hour" : "Hours"}</div>
         <div className="bp-sub">The week as it actually ran, day by day.</div>
       </div></div>
 

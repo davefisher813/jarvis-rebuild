@@ -310,10 +310,12 @@ describe("CategoryDetail org health (2026-08-10)", () => {
 
   it("a project with no open task says Stalled out loud", async () => {
     render(<NotesProvider userId="org2"><SeededOrg /></NotesProvider>);
-    // SPEC MOVED (V2): "Stalled" is a red state span, the reason follows.
+    // SPEC MOVED (V2): "Stalled" is a state span in the warning ink.
+    // SPEC MOVED (2026-09-26): stalled means no next action, so the grey
+    // "No next action" that followed only restated it; the row says it once.
     await waitFor(() => expect(screen.getByText(/Stalled/)).toBeInTheDocument());
     expect(screen.getByText(/Stalled/)).toHaveClass("r-stalled");
-    expect(screen.getByText(/No next action/)).toBeInTheDocument();
+    expect(screen.queryByText(/No next action/)).toBeNull();
   });
 
   it("an org with tagged people gets the People section, tap-through included", async () => {

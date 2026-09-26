@@ -215,7 +215,7 @@ export default function ConnectionsPage({
         <div className="pad-x"><div className="card list-card-ruled conn-mail-card"><div className="row" {...pressable(() => { if (!busy) void toggleTrackOpens(); })}>
           <div className="row-grow">
             <div className="conn-name">Know When Your Email Is Opened</div>
-            <div className="conn-meta">Read receipts on sent mail</div>
+            <div className="conn-meta">Read receipts on sent mail, which power Opened</div>
           </div>
           <button
             className={"switch" + (trackOpens ? "" : " off")}

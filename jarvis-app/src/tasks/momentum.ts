@@ -62,13 +62,19 @@ export function nextBest(items: TaskItem[], completedId: string, completedCatego
   })[0]!;
 }
 
-// The one meta line under the suggestion: derived facts only.
-export function chainReason(t: TaskItem, completedCategory: string, today: string): string | null {
-  const parts: string[] = [];
-  if (t.data.category && t.data.category === completedCategory) parts.push("Same category");
-  if (t.data.due === today) parts.push("due today");
-  else if (t.data.due && t.data.due < today) parts.push("overdue");
-  if (parts.length === 0) return null;
-  const line = parts.join(", ");
-  return line.charAt(0).toUpperCase() + line.slice(1);
+// Why this task and not another: it shares the area of the one just
+// finished. Derived, never a guess, and null when it is not true.
+//
+// `completedCategory` is the FINISHED task's area, never the suggestion's
+// own. nextBest falls through to other areas when the finished one has
+// nothing open, so reading the suggestion against itself claimed "Same
+// category" for every suggestion that had one.
+//
+// The due half ("due today", "overdue") left this string on 2026-09-26
+// (§AM): due and late are Colour Key meanings, amber and red, and a string
+// cannot carry a colour. Each surface now reads the distance off the task
+// itself (grouping.ts distanceFor) and draws it in the key's ink, so this
+// keeps only the fact with no meaning of its own, the line's one grey.
+export function chainReason(t: TaskItem, completedCategory: string): string | null {
+  return t.data.category && t.data.category === completedCategory ? "Same category" : null;
 }

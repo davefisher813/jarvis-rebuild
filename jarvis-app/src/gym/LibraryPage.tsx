@@ -346,13 +346,15 @@ export default function LibraryPage({
                             the capital (shared/casing.ts). Health polish 2026-09-16:
                             the mockup printed "1 sessions" on every row of this
                             list; the app has always had the singular right, and
-                            now it has the capital too. The count and when it
-                            last happened are logged work, so both wear the
-                            logged hue -- the same lime the Day row's "done"
-                            word and the Up Next card's Last chip wear (§AM).
-                            A lift never done says nothing here. */}
+                            now it has the capital too. The count is logged
+                            work, so it wears the logged hue -- the same lime
+                            the Day row's "done" word wears (§AM). When it last
+                            happened is a neutral past date, so it is small
+                            caps, as it is one tap deeper on the lift's own
+                            page and on every other "last trained" in the app
+                            (§AM F5). A lift never done says nothing here. */}
                         {r.sessions > 0 && <span className="fact lime">{capAfterNumber(`${r.sessions} ${r.sessions === 1 ? "session" : "sessions"}`)}</span>}
-                        {r.lastDate && <span className="fact lime">{agoPhrase(r.lastDate, todayIso)}</span>}
+                        {r.lastDate && <span className="fact date">{agoPhrase(r.lastDate, todayIso)}</span>}
                         {flags && <span className="fact">{flags}</span>}
                       </div>
                     )}

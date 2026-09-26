@@ -62,11 +62,6 @@ export function closeWho(set: CloseSet): string {
   return more > 0 ? `${shown} and ${more} other${more === 1 ? "" : "s"}` : shown;
 }
 
-export function closeLine(set: CloseSet): string {
-  if (set.count === 0) return "";
-  return capAfterNumber(`${set.count} nobody chased · ${closeWho(set)}`);
-}
-
 // EMAIL-F-29 (2026-09-05): closeReceipt had no caller. MessagesFlow builds
 // the archived-batch receipt from the ClosedBatch it just wrote, which is the
 // only place that knows the write resolved.

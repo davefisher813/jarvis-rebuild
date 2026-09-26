@@ -5,7 +5,7 @@ import { Fragment, useRef, useState, type ReactNode } from "react";
 import { own } from "../shared/rowDoor";
 import { MEASURE_KINDS, MEASURE_LABEL, unitsFor, defaultUnit, TIME_UNITS, COND_FORMATS, COND_LABEL, type CondBlock, type CondFormat, type Exercise, type MeasureKind, type SetEntry, type Workout } from "./types";
 import { EQUIPMENT_KINDS, EQUIPMENT_LABEL, EQUIPMENT_NOTE, COUNTED_LABEL, asksCount, countsFor, defaultCount, loadStyleOf, weightless, type Counted, type Equipment, type LoadStyle } from "./equipment";
-import { condCap, condSummary, mmss } from "./conditioning";
+import { condCap, condLength, mmss } from "./conditioning";
 import { fieldsFor, formatSet, isUniformStrip } from "./measures";
 import { uniformStrip, resizeStrip, applyToAll } from "./strip";
 import { rampFor } from "./ramp";
@@ -482,8 +482,8 @@ export default function ExerciseSheet({ mode, initial, library, history, onSave,
               <div className="row-grow">
                 <div className="conn-name">Clock</div>
                 {/* The menu beside it already names the format, so the line
-                    carries only the length, the receipt's own trim. */}
-                {condBlock && <div className="conn-meta">{condSummary(condBlock).replace(COND_LABEL[condBlock.format] + " · ", "")}</div>}
+                    carries only the length (condLength, the receipt's own). */}
+                {condBlock && <div className="conn-meta">{condLength(condBlock)}</div>}
               </div>
               <HeadMenu variant="value" ariaLabel="Clock" value={condFormat ?? "off"} off={!condFormat}
                 options={[{ value: "off", label: "Off" }, ...COND_FORMATS.map((f) => ({ value: f, label: COND_LABEL[f] }))]}

@@ -35,6 +35,7 @@ import { timeLabelFor, isDone } from "../tasks/reminders";
 import { nextActionOf } from "../bigger/related";
 import { dayPhrase } from "../money/bills";
 import { dayTone } from "../messages/factsLine";
+import { toneFor as waitRung } from "../messages/mailAction";
 import { fmtTime, addMinutes, addDays, eventsForDate } from "../schedule/calendar";
 import { comingUpFor, gymDoorOn, type UpcomingRow } from "./comingUp";
 import { FIFTEEN } from "../tasks/rightNow";
@@ -1453,15 +1454,19 @@ export default function CategoryDetail({
               // next action"), so the day and the reason sat inside the one
               // grey. Each is its own span now: Stalled in the warning ink
               // (never also .r-cat, whose Health rule outranks it and turned
-              // it grey), the reason as the one grey; the next move as the
+              // it grey) and nothing after it; the next move as the
               // one grey and its day by the window -- today or tomorrow is an
               // amber chip with the other chips ahead of the line (a chip
               // keeps its width where the line's facts ellipse), later a
               // small-caps date after it. A late one says nothing more:
               // nextActionOf takes the earliest due task, so a late next
               // move is the task the red "late" chip already counts.
+              //
+              // STALLED SAYS IT ONCE (2026-09-26). Stalled means no next
+              // action, so a grey "No next action" after the amber word only
+              // restated it: a stalled row draws the amber word and no grey.
               const stalled = !next && p.data.status !== "on_hold";
-              const line = next ? `Next: ${next.data.text}` : p.data.status === "on_hold" ? "Paused" : "No next action";
+              const line = next ? `Next: ${next.data.text}` : p.data.status === "on_hold" ? "Paused" : null;
               const nextDue = next?.data.due ?? null;
               const nextTone = nextDue ? dayTone(nextDue, today) : null;
               return (
@@ -1474,7 +1479,7 @@ export default function CategoryDetail({
                       {overdue > 0 && <span className="uchip u-late">{overdue} late</span>}
                       {nextDue && nextTone === "warn" && <span className="uchip u-today">{nextDue === today ? "Today" : "Tomorrow"}</span>}
                       {stalled && <span className="r-goal r-stalled">Stalled</span>}
-                      <span className="r-goal r-cat">{line}</span>
+                      {line && <span className="r-goal r-cat">{line}</span>}
                       {nextDue && nextTone === "date" && <span className="fact date">{dayPhrase(nextDue, today).replace(/ /g, "\u00a0")}</span>}
                     </div>
                   </div>
@@ -1873,7 +1878,7 @@ export default function CategoryDetail({
                       <span className="ins-t">{c.exerciseName}</span>
                       <span className="ins-chip hue-hl-violet">{c.metricName}</span>
                     </div>
-                    {/* The line ends "Correlation, not cause" itself (correlate()
+                    {/* The line ends "(correlation, not cause)" itself (correlate()
                         writes it in), so no cite repeats it under the line. */}
                     <div className="ins-line">{c.line}</div>
                   </InsightCard>
@@ -1925,7 +1930,7 @@ export default function CategoryDetail({
                       sessions up there, finished tasks down here. The heading
                       now says which one it is. */}
                   <div className="sh2 sh2-quiet"><span className="t">Done This Week</span><span className="n">{rec.recent.length}</span>
-                    {!weekOpen && dayGroups.length > 2 && <button className="see-all" onClick={() => setWeekOpen(true)}>See All</button>}</div>
+                    {!weekOpen && dayGroups.length > 2 && <button className="see-all pill-action" onClick={() => setWeekOpen(true)}>See All</button>}</div>
                   {/* One card, the day at the right edge (2026-09-13): a
                       card per day made two ticks cost half a screen. */}
                   <div className="pad-x"><div className="card list-card-ruled">
@@ -2108,7 +2113,7 @@ export default function CategoryDetail({
       {rec.recent.length > 0 && (
         <>
           <div className="sh2 sh2-quiet"><span className="t">This Week</span><span className="n">{rec.recent.length}</span>
-            {!weekOpen && dayGroups.length > 2 && <button className="see-all" onClick={() => setWeekOpen(true)}>See All</button>}</div>
+            {!weekOpen && dayGroups.length > 2 && <button className="see-all pill-action" onClick={() => setWeekOpen(true)}>See All</button>}</div>
           <div className="pad-x">
             {shownGroups.map((g) => (
               <div key={g.day}>
@@ -2174,15 +2179,23 @@ export default function CategoryDetail({
               // state were one grey run joined by baked middots ("Client ·
               // Waiting on their reply · 3 days"). The relationship is the
               // row's one grey now, and the state wears its meaning: a
-              // birthday today or tomorrow, a reply owed and a line gone
-              // quiet all need him soon, so amber (the last two are what the
-              // Nudge pill is for); a later birthday and a plain last-talked
-              // are neutral times, so small caps.
-              const state: { text: string; tone: "warn" | "date" } | null =
+              // birthday today or tomorrow and a line gone quiet need him
+              // soon, so amber; a later birthday and a plain last-talked are
+              // neutral times, so small caps.
+              //
+              // A REPLY OWED WEARS THE MAIL LADDER (2026-09-26). The wait age
+              // is the same fact the rail, the wait card and the ledger show,
+              // so it takes their one ladder (toneFor): a firm wait red, a
+              // direct one amber, a gentle one a neutral time in small caps.
+              // It was amber at any age, so "8 days" read amber here and red
+              // nowhere, or the reverse, depending on the screen.
+              const waitTone = wrow ? waitRung(wrow.waitingDays) : null;
+              const state: { text: string; tone: "red" | "warn" | "date" } | null =
                 bday ? (bday.inDays <= 1
                   ? { text: bday.inDays === 0 ? "Birthday today" : "Birthday tomorrow", tone: "warn" }
                   : { text: `Birthday ${bday.label}`, tone: "date" })
-                : wrow ? { text: `Waiting ${wrow.waitingDays} ${wrow.waitingDays === 1 ? "day" : "days"} on their reply`, tone: "warn" }
+                : wrow ? { text: `Waiting ${wrow.waitingDays} ${wrow.waitingDays === 1 ? "day" : "days"} on their reply`,
+                    tone: waitTone === "firm" ? "red" : waitTone === "direct" ? "warn" : "date" }
                 : quiet ? { text: `Gone quiet: last talked ${agoLabel(last, nowMs)}`, tone: "warn" }
                 : last != null ? { text: `Last talked ${agoLabel(last, nowMs)}`, tone: "date" }
                 : null;
@@ -2195,9 +2208,9 @@ export default function CategoryDetail({
                     {(p.data.relationship || state) && (
                       <div className="r-k">
                         {p.data.relationship && <span className="r-goal r-cat">{p.data.relationship}</span>}
-                        {state && (state.tone === "warn"
-                          ? <span className="r-goal fact warn">{state.text}</span>
-                          : <span className="fact date">{state.text}</span>)}
+                        {state && (state.tone === "date"
+                          ? <span className="fact date">{state.text}</span>
+                          : <span className={"r-goal fact " + state.tone}>{state.text}</span>)}
                       </div>
                     )}
                   </div>

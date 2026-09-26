@@ -107,6 +107,51 @@ describe("the home email surface", () => {
   });
 });
 
+// THE LINE, DRAWN WITH THE KEY (§AM R6, R8, 2026-09-26). A bill's amount, a
+// deadline and a wait's age each mean something, so these notices hand
+// Today facts rather than one grey sentence: the same bill reads amber on
+// the Today bill card and on the mail card under it. The short, toned fact
+// comes first, and the one that may ellipsize last.
+describe("the line, drawn with the key", () => {
+  it("a bill is its amount in white and its due day in the date window", () => {
+    const anchored = { sourceMsgId: "m1", span: "Your bill of $12.00 is due tomorrow.", confidence: "high" as const };
+    const bill = (date: string, actEv?: typeof anchored) => mailNotices(snap({ needsYou: 1, threads: [thread("t1", {
+      act: { kind: "bill", title: "Internet", date, amount: 12 }, ...(actEv ? { actEv } : {}),
+    })] }), TODAY, NOW)[0]!;
+    expect(bill("2026-08-21", anchored).facts).toEqual([
+      { text: "", num: "$12.00" },
+      { text: "Due tomorrow", tone: "warn" },
+    ]);
+    expect(bill("2026-08-27", anchored).facts![1]).toEqual({ text: "Due Aug 27", tone: "date" });
+    // A reading the app cannot back still says so first, in front of the
+    // amount, and the amount keeps its shape.
+    expect(bill("2026-08-21").facts![0]).toEqual({ text: "Looks like", num: "$12.00" });
+  });
+
+  it("a deadline is due, amber, and the sender is the fact that yields", () => {
+    const n = mailNotices(snap({ needsYou: 1, threads: [thread("t1", { by: "tomorrow" })] }), TODAY, NOW)[0]!;
+    expect(n.kind).toBe("deadline");
+    expect(n.facts).toEqual([
+      { text: "Looks like tomorrow", tone: "warn" },
+      { text: "From Nadia Brandt" },
+    ]);
+  });
+
+  it("a wait's age wears the one ladder: gentle small caps, direct amber, firm red", () => {
+    const age = (days: number) => mailNotices(snap({ waiting: [{ threadId: "w1", to: "Rob", subject: "The deck", days }] }), TODAY, NOW)[0]!.facts;
+    expect(age(3)).toEqual([{ text: "Sent 3 days ago", tone: "date" }, { text: "The deck" }]);
+    expect(age(1)![0]).toEqual({ text: "Sent 1 day ago", tone: "date" });
+    expect(age(9)![0]).toEqual({ text: "Sent 9 days ago", tone: "warn" });
+    expect(age(55)![0]).toEqual({ text: "Sent 55 days ago", tone: "red" });
+  });
+
+  it("leaves a line with nothing to colour as the sentence it was", () => {
+    const n = mailNotices(snap({ needsYou: 1, threads: [thread("t1")] }), TODAY, NOW)[0]!;
+    expect(n.kind).toBe("reply");
+    expect(n.facts).toBeUndefined();
+  });
+});
+
 describe("the snapshot", () => {
   const mem = () => {
     let v: string | null = null;

@@ -313,7 +313,11 @@ export default function HealthBody({
                   leading the new line. components.css draws the separator
                   between facts; the finding hands over facts now. */}
               <div className="facts">
-                <span className={"fact " + f.hue}>{f.value}</span>
+                {/* A reading with no state (the sleep average) is the key's
+                    white, never a hue; the hue stays on the glyph. */}
+                {f.plainValue
+                  ? <span className="fact"><b>{f.value}</b></span>
+                  : <span className={"fact " + f.hue}>{f.value}</span>}
                 {f.context.map((c) => <span className="fact" key={c}>{c}</span>)}
               </div>
             </div>

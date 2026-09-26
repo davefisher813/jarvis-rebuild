@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildLedger, ledgerFloor, sinceLabel, type LedgerInput } from "./ledger";
+import { buildLedger, ledgerFloor, ledgerTone, sinceLabel, type LedgerInput } from "./ledger";
 
 // UP-MIND-11. The ledger is a VIEW: no store, no rows of its own, and no
 // second action-decider. These tests are about what reaches it, what does
@@ -83,6 +83,55 @@ describe("each row says what it is", () => {
     expect(byKey.get("waiting:w1")).toMatchObject({ kind: "waiting" });
     expect(byKey.get("waiting:w1")).not.toHaveProperty("due");
     expect(byKey.get("chase:c1")).toMatchObject({ kind: "chase" });
+  });
+});
+
+// The age on a row says what it means (§AM R8), read from the row's own
+// fields. What he owes wears the date window; a wait on someone else wears
+// the one ladder every wait age in mail wears (firm red, direct amber,
+// gentle small caps), so a row here never disagrees with the same wait on
+// the rail, the wait card or the More Moves sheet.
+describe("the colour of a row's age", () => {
+  const TODAY = "2026-08-15";
+  const tone = (over: Partial<LedgerInput>) => {
+    const l = buildLedger(input(over));
+    return new Map([...l.youOwe, ...l.theyOweYou].map((r) => [r.key, ledgerTone(r, TODAY)] as const));
+  };
+
+  it("colours what he owes by its due day, and leaves an undated one grey", () => {
+    const t = tone({
+      tasks: [
+        { id: "late", text: "A", fromThread: "a", due: "2026-08-14" },
+        { id: "today", text: "B", fromThread: "b", due: "2026-08-15" },
+        { id: "tmrw", text: "C", fromThread: "c", due: "2026-08-16" },
+        { id: "later", text: "D", fromThread: "d", due: "2026-08-20" },
+      ],
+      promises: [{ threadId: "p", text: "send the quote" }],
+    });
+    expect(t.get("task:late")).toBe("red");
+    expect(t.get("task:today")).toBe("warn");
+    expect(t.get("task:tmrw")).toBe("warn");
+    expect(t.get("task:later")).toBe("date");
+    expect(t.get("promise:p")).toBeUndefined();
+  });
+
+  it("puts a wait on the ladder, not on a week", () => {
+    const t = tone({
+      waiting: [
+        { threadId: "w3", to: "Rob", subject: "Field booking", days: 3 },
+        { threadId: "w8", to: "Ann", subject: "The roster", days: 8 },
+        { threadId: "w21", to: "Sam", subject: "The deposit", days: 21 },
+      ],
+    });
+    expect(t.get("waiting:w3")).toBe("date");
+    // Eight days is a wait of weeks coming, amber: the rail and the More
+    // Moves sheet both say so, and the ledger used to say red.
+    expect(t.get("waiting:w8")).toBe("warn");
+    expect(t.get("waiting:w21")).toBe("red");
+  });
+
+  it("makes a chase he set amber, because it has come due", () => {
+    expect(tone({ chases: [{ threadId: "c1", to: "Rob", subject: "Quote" }] }).get("chase:c1")).toBe("warn");
   });
 });
 

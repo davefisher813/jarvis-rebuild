@@ -39,11 +39,6 @@ export interface GymDoorView {
    *  the count white, the estimate sky, when it was last trained the neutral
    *  date's small caps. Same shape as gym/door.ts's DoorFacts. */
   facts?: { exercises: number; estMin?: number; lastTrained?: string };
-  /** @deprecated The old joined string ("6 exercises · Est 42 min"), drawn
-   *  only when no `facts` came with it. useGymDoor passes `facts`; this stays
-   *  until the last caller that builds a door by hand (YourDay.test.tsx)
-   *  moves over. */
-  meta?: string;
   /** Present only when starting makes sense (today). Opens the gym. */
   onStart?: () => void;
   /** A session is running behind this block (2026-09-19). The door reads
@@ -446,7 +441,7 @@ export default function DayRow({
                       white; the length is the app's estimate, so sky; when
                       the day was last trained is a neutral date, so small
                       caps. The separators are the meta line's own. */}
-                  {gymDoor.facts ? (
+                  {gymDoor.facts && (
                     <div className="sched-cat">
                       <span className="sched-fact">
                         <b>{gymDoor.facts.exercises} {gymDoor.facts.exercises === 1 ? "exercise" : "exercises"}</b>
@@ -458,7 +453,7 @@ export default function DayRow({
                         <span className="sched-fact">{sep}<span className="fact date">Last trained {gymDoor.facts.lastTrained}</span></span>
                       )}
                     </div>
-                  ) : gymDoor.meta && <div className="sched-cat">{gymDoor.meta}</div>}
+                  )}
                   {gymDoor.onResume ? (
                     <button type="button" className="pill-act sched-gym-start" onClick={gymDoor.onResume}>
                       {gymDoor.dayName ? `Resume ${gymDoor.dayName}` : "Resume"}

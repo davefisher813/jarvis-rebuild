@@ -38,8 +38,14 @@ const TAP_HEXES = String.raw`BC000E|DA0012|CC051B|B8001A|FF2B3C|FA233B|E2051E|FB
  *  the one --red* that is not here (see TAP_TOKENS). */
 const OTHER_TOKENS = String.raw`sys-red[\w-]*|red(?!-tint)[\w-]*|cat-(?:[a-z]+-)?red`;
 
-/** Apple's system red in dark and in light. */
-const OTHER_HEXES = String.raw`FF453A|FF3B30`;
+/** Apple's system red in dark and in light.
+ *  AMENDED 2026-09-26 (the lead, #60/#61: the key's red on a sheet grey):
+ *  #FF6961 joins them, Apple's increased-contrast systemRed, which dark's
+ *  --sys-red-on-sheet resolves to. The token itself was already a red here
+ *  through sys-red[\w-]* above; its hex was not, so a rule hand-painting
+ *  the sheet red would have read as no red at all. It is not a tap red, so
+ *  TAP_RED is unchanged; ANY_RED gains it. */
+const OTHER_HEXES = String.raw`FF453A|FF3B30|FF6961`;
 
 /** A token reference ends at its closing paren OR at the comma before a
  *  fallback: `var(--tint, #FF2B3C)` is the brand red as surely as

@@ -1,6 +1,5 @@
 import { namePatterns, openWith, type MentionItem } from "../people/mentions";
 import { agoLabel } from "../people/lastContact";
-import { capAfterNumber } from "../shared/casing";
 
 // BEFORE THE MEETING: WHO IT IS, WHAT IS OPEN, WHAT YOU SAID
 // (UP-MIND-24, 2026-09-05).
@@ -38,13 +37,22 @@ export interface PrepEvent {
   attendees?: { email: string; name?: string }[];
 }
 
+// THE PARTS, NOT A JOINED LINE (§AK, §AM, 2026-09-26). This used to hand
+// back `line`, the name, the count and the last mail glued with typed middle
+// dots. Today draws the row itself now (the name as the title, the count
+// white, the last mail a neutral date), so it takes the facts as facts and
+// the dots are the stylesheet's. The last-mail words are read HERE, on this
+// function's own clock, so the row never re-reads the time with a second one.
 export interface MeetingPrep {
   eventId: string;
   person: PrepPerson;
   /** What is still open with them: tasks and upcoming time. */
   open: MentionItem[];
-  /** The line under the event. Facts, joined with the middle dot. */
-  line: string;
+  /** When you last wrote to them (epoch ms), or null when it is not known. */
+  lastMs: number | null;
+  /** That time in words, "Last mail 3 weeks ago", or null when not known.
+   *  Never "no mail": what is not known is left out, not announced. */
+  lastMail: string | null;
 }
 
 const toMin = (hhmm: string) => Number(hhmm.split(":")[0] ?? 0) * 60 + Number(hhmm.split(":")[1] ?? 0);
@@ -90,11 +98,14 @@ export function meetingPrep(
       today,
       4,
     );
-    const parts: string[] = [person.name];
-    if (open.length > 0) parts.push(capAfterNumber(`${open.length} open with them`));
-    const ms = lastMs ? lastMs(person.id) : null;
-    if (ms) parts.push("Last mail " + agoLabel(ms, nowMsecs).toLowerCase());
-    return { eventId: e.id, person, open, line: parts.join(" · ") };
+    const ms = (lastMs ? lastMs(person.id) : null) || null;
+    return {
+      eventId: e.id,
+      person,
+      open,
+      lastMs: ms,
+      lastMail: ms ? "Last mail " + agoLabel(ms, nowMsecs).toLowerCase() : null,
+    };
   }
   return null;
 }

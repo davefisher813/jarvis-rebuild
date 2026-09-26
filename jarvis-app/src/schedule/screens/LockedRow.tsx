@@ -84,11 +84,19 @@ export default function LockedRow({
   // on the meta line where separators are drawn by .sched-sep. The blend
   // becomes one phrase; "Tasks land here" went, since it described the
   // mechanism rather than the time (the block's own "+ Put a Task" says it
-  // where it can be acted on). A soft block's state word is FLEXIBLE, so
-  // "Protected" beside it contradicted the word: it says nothing further.
-  const kicker = holds ? "Focus time"
-    : m === "blends" ? "Can blend, " + freeOf(l).join(" and ") + " free"
-    : l.soft ? (state ? "" : "Flexible")
+  // where it can be acted on).
+  //
+  // THE KICKER STANDS DOWN BESIDE A STATE WORD (2026-09-26). The word says
+  // what kind of time this is, so "PROTECTED Protected" and "FOCUS Focus
+  // time" said it twice, and a soft block's "Protected" beside FLEXIBLE
+  // contradicted it. Beside a word the kicker says only what the word
+  // cannot: which senses a blend leaves free. With no word, it names the
+  // kind itself.
+  const blend = "Can blend, " + freeOf(l).join(" and ") + " free";
+  const kicker = state ? (m === "blends" ? blend : "")
+    : holds ? "Focus time"
+    : m === "blends" ? blend
+    : l.soft ? "Flexible"
     : "Protected";
 
   const swipeable = !past && (!!onShift || !!onDelete);

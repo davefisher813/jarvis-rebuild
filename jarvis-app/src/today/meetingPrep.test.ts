@@ -50,8 +50,31 @@ describe("the line", () => {
       [ev({ attendees: guests("marco@example.com") })], people, tasks, "2026-08-15", 9 * 60,
       () => now - 21 * 86400000, now,
     )!;
-    expect(p.line).toBe("Marco Silva · 1 Open with them · Last mail 3 weeks ago");
+    expect(p.person.name).toBe("Marco Silva");
     expect(p.open.map((o) => o.id)).toEqual(["t1"]);
+    expect(p.lastMs).toBe(now - 21 * 86400000);
+    expect(p.lastMail).toBe("Last mail 3 weeks ago");
+  });
+
+  // §AM F3 (2026-09-26): the facts come back as facts. The row draws them
+  // with the stylesheet's dot, so nothing here joins them with a typed one.
+  it("hands back parts, never a line joined with a typed dot", () => {
+    const p = meetingPrep(
+      [ev({ attendees: guests("marco@example.com") })], people, tasks, "2026-08-15", 9 * 60,
+      () => now - 21 * 86400000, now,
+    )!;
+    expect(p).not.toHaveProperty("line");
+    expect(JSON.stringify(p)).not.toMatch(/\u00b7/);
+  });
+
+  // The words are read on meetingPrep's own clock, the one it was given, so
+  // the row never re-reads the time with a second one.
+  it("says the last mail against the clock it was handed", () => {
+    const p = meetingPrep(
+      [ev({ attendees: guests("marco@example.com") })], people, tasks, "2026-08-15", 9 * 60,
+      () => now - 86400000, now,
+    )!;
+    expect(p.lastMail).toBe("Last mail yesterday");
   });
 
   it("leaves out what it does not know rather than saying it does not know", () => {
@@ -59,7 +82,10 @@ describe("the line", () => {
       [ev({ attendees: guests("nadia@example.com") })], people, tasks, "2026-08-15", 9 * 60,
       () => null, now,
     )!;
-    expect(p.line).toBe("Nadia Brandt");
+    expect(p.person.name).toBe("Nadia Brandt");
+    expect(p.open).toEqual([]);
+    expect(p.lastMs).toBeNull();
+    expect(p.lastMail).toBeNull();
   });
 
   it("says nothing about a meeting past the window, or one already started", () => {

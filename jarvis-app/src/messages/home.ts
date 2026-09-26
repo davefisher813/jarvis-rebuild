@@ -6,6 +6,7 @@ import { fmtTime } from "../schedule/calendar";
 import { readAct, actLabel, type ActProposal, type MailAct } from "./mailAct";
 import type { Evidence } from "./evidence";
 import { hedge, confidenceOf, isHigh } from "./confidence";
+import { dayTone, type FactTone } from "./factsLine";
 
 // THE HOME-PAGE EMAIL SURFACE (Dave 2026-08-20: "give me ideas to make the
 // email homepage feature actually useful or we can scratch it because right
@@ -89,12 +90,23 @@ export interface MailSnapshot {
 
 export type MailKind = "deadline" | "reply" | "promised" | "nudge" | "meeting" | "chase" | "draft" | "act";
 
+/** One fact on a notice's line, for Today to draw with the Colour Key (§AM).
+ *  `tone` is the key's colour for what the fact means; `num` is a number with
+ *  no state (a bill's amount), drawn white after the fact's words. */
+export interface NoticeFact { text: string; tone?: FactTone; num?: string }
+
 export interface MailNotice {
   key: string;
   kind: MailKind;
   threadId: string;
   title: string;
+  /** The line as one sentence: what read-aloud says, and what two notices
+   *  are compared by. Today draws `facts` instead when a notice has them. */
   sub: string;
+  /** The same line as facts (§AM R6, R8), on a notice whose line carries a
+   *  date, an age or an amount with a meaning: a bill, a deadline, a wait.
+   *  The separator is the stylesheet's, and each fact wears the key. */
+  facts?: NoticeFact[];
   action: string;
   tone: string;               // a cat-fg-* class
   // When present, the action finishes on Today: it writes this task and the
@@ -243,14 +255,25 @@ function deadlineNotice(t: MailThread, todayISO: string, now: Date, events: DayE
   const until = clash && endAp
     ? " while you're in " + clash.title + " until " + endAp.time + (at && endAp.ap === fmtTime(at).ap ? "" : " " + endAp.ap)
     : "";
+  // The deadline is a date with a meaning (§AM R8), so it wears the date
+  // window every date in the app wears: today or tomorrow is due, amber.
+  // Only those two reach this card (the gate above), and a stated deadline
+  // is due, never late: the phrase cannot say whether it has passed.
+  const byTone: FactTone = bareClock || rank <= 1 ? "warn" : "date";
   return {
     key: "deadline:" + t.id,
     kind: "deadline",
     threadId: t.id,
     title: titleCase(t.subject),
-    // One run, no typed dot (§AM F3): the sender, then the deadline as the
-    // rest of the same sentence, so "Due" and "Looks like" drop to lowercase.
+    // The sentence: the sender, then the deadline as the rest of it, so
+    // "Due" and "Looks like" drop to lowercase.
     sub: capAfterNumber(`From ${t.from}, ${dueLabel.charAt(0).toLowerCase() + dueLabel.slice(1)}${until}`),
+    // On screen, two facts: the deadline first, short and toned, and the
+    // sender last, the one fact that may ellipsize (only the last shrinks).
+    facts: [
+      { text: capAfterNumber(dueLabel + until), tone: byTone },
+      { text: "From " + t.from },
+    ],
     action: "Add Task",
     tone: "cat-fg-red",
     ...(t.byEv ? { evidence: t.byEv } : {}),
@@ -363,13 +386,25 @@ function actNotice(t: MailThread, a: MailAct, todayISO: string): MailNotice {
   // UP-MIND-18: this card writes to the schedule or to Money on one tap, so
   // a reading the app cannot back with the sender's own sentence says so
   // before the tap rather than after.
-  const sub = isHigh(confidenceOf(t.actEv)) ? plain : hedgedActSub(plain);
+  const sure = isHigh(confidenceOf(t.actEv));
+  const sub = sure ? plain : hedgedActSub(plain);
+  // A bill is two facts on screen, as the Today bill card draws one (§AM):
+  // the amount, a number with no state (white), then the day it is due in
+  // the date window's tone. The hedge rides in front of the amount, so the
+  // qualifier still comes first and the numbers keep their shape.
+  const facts: NoticeFact[] | undefined = a.verb === "bill"
+    ? [
+        { text: sure ? "" : "Looks like", num: `$${a.amount!.toFixed(2)}` },
+        { text: "Due " + when, tone: dayTone(a.date, todayISO) },
+      ]
+    : undefined;
   return {
     key: "act:" + a.verb + ":" + t.id,
     kind: "act",
     threadId: t.id,
     title: titleCase(a.title),
     sub: capAfterNumber(sub),
+    ...(facts ? { facts } : {}),
     action: actLabel(a),
     tone: a.verb === "bill" ? "cat-fg-green" : "cat-fg-sky",
     act: a,
@@ -395,14 +430,24 @@ function hedgedActSub(sub: string): string {
 // null when nothing here can be said in an email. A receipt owes nothing, so
 // it leaves the home page exactly as it leaves Waiting On.
 function nudgeNotice(w: MailWaiting): MailNotice | null {
-  const act = draftableOf(decide(w.subject ?? "", "", w.days));
+  const d = decide(w.subject ?? "", "", w.days);
+  const act = draftableOf(d);
   if (!act) return null;
+  const ago = `${w.days} ${w.days === 1 ? "day" : "days"} ago`;
   return {
     key: "nudge:" + w.threadId,
     kind: "nudge",
     threadId: w.threadId,
     title: w.to + " Hasn't Replied",
-    sub: capAfterNumber(`${w.subject}, sent ${w.days} ${w.days === 1 ? "day" : "days"} ago`),
+    sub: capAfterNumber(`${w.subject}, sent ${ago}`),
+    // On screen the age comes first, on the one ladder every wait age in
+    // mail wears (the rail's, the wait card's, the ledger's): a firm wait
+    // is red, a direct one amber, a gentle one a neutral time in small caps.
+    // The subject is last, the one fact that may ellipsize.
+    facts: [
+      { text: "Sent " + ago, tone: d.tone === "firm" ? "red" : d.tone === "direct" ? "warn" : "date" },
+      { text: w.subject },
+    ],
     action: act.label,
     // mail-glyph opts this one into the light theme's brand-red envelope
     // (components.css). The marker is explicit so the rule cannot catch

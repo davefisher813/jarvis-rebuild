@@ -7,7 +7,7 @@ import { showToast } from "../shared/toast";
 import { haptics } from "../shared/haptics";
 import {
   loadMailSnapshot, mailNotices, residualLine, loadDismissed, dismissNotice, setDismissed,
-  type MailKind, type MailNotice, type DayEvent,
+  type MailKind, type MailNotice, type NoticeFact, type DayEvent,
 } from "../messages/home";
 import type { MailAct } from "../messages/mailAct";
 import EvidenceChip from "../messages/EvidenceChip";
@@ -42,6 +42,32 @@ const ICON: Record<MailKind, React.ReactNode> = {
 };
 
 export interface MailDraft { text: string; sending: boolean }
+
+// A NOTICE'S LINE, DRAWN WITH THE KEY (§AM R6, R8, 2026-09-26). A bill's
+// amount, a deadline and a wait's age each mean something, so the notices
+// that carry them hand back facts rather than a sentence, and they are drawn
+// the way the Today bill card draws its bill: separate .fact spans, the dot
+// between them the stylesheet's, the amount a white <b>, the day or the age
+// in the key's colour. One colour per line (K.3), the same rule the shared
+// facts line keeps: the first toned fact keeps its tone, a date rides past.
+function NoticeFacts({ facts }: { facts: NoticeFact[] }) {
+  const list = facts.filter((f) => f.text.trim() || f.num);
+  if (list.length === 0) return null;
+  let toned = false;
+  return (
+    <div className="facts">
+      {list.map((f, i) => {
+        const tone = f.tone === "date" ? "date" : f.tone && !toned ? f.tone : undefined;
+        if (tone && tone !== "date") toned = true;
+        return (
+          <span key={i} className={"fact" + (tone ? " " + tone : "")}>
+            {f.text}{f.text && f.num ? " " : ""}{f.num && <b>{f.num}</b>}
+          </span>
+        );
+      })}
+    </div>
+  );
+}
 
 export default function MailNotices({
   today,
@@ -366,7 +392,7 @@ export default function MailNotices({
             icon={ICON[n.kind]}
             tone={n.tone}
             title={n.title}
-            sub={draft ? undefined : n.sub}
+            sub={draft ? undefined : n.facts ? <NoticeFacts facts={n.facts} /> : n.sub}
             // ONE-WORD VERBS (ruled 2026-09-01, "the email row": one fixed
             // action column, one-word verbs, so the column aligns with or
             // without a chip). "Draft It" is "Draft"; Reply stays Reply.

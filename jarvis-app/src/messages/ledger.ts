@@ -1,6 +1,7 @@
 import { decide, draftableOf, type Decision } from "./mailAction";
 import { titleCase, capAfterNumber } from "../shared/casing";
 import { dayPhrase } from "../money/bills";
+import { dayTone, type FactTone } from "./factsLine";
 
 // THE LEDGER (UP-MIND-11, Email E5 and 5.2).
 //
@@ -204,6 +205,20 @@ export function buildLedger(input: LedgerInput): Ledger {
     late: deduped.filter((r) => r.late).sort((a, b) => (a.side === b.side ? bySort(a, b) : a.side === "you_owe" ? -1 : 1)),
     total: deduped.length,
   };
+}
+
+// The age says what it means (§AM R8), so it is never a second grey beside
+// the subject. It reads the row's own fields, never the key's prefix or the
+// sort key: what he owes wears the reminder window on its due day (past is
+// red, today or tomorrow amber, later a neutral date) and says nothing in
+// colour when it has no date. A chase he set has come due, so it is amber.
+// A wait on someone else wears the one ladder every wait age in mail wears,
+// the rail's and the wait card's (toneFor, through decide()): a firm wait is
+// red, a direct one amber, a gentle one a neutral time in small caps.
+export function ledgerTone(r: LedgerRow, today: string): FactTone | undefined {
+  if (r.side === "you_owe") return r.due ? dayTone(r.due, today) : undefined;
+  if (r.kind === "chase") return "warn";
+  return r.decision?.tone === "firm" ? "red" : r.decision?.tone === "direct" ? "warn" : "date";
 }
 
 // The floor line, per the law that every list says when it is showing

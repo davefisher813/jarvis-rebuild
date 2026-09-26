@@ -980,8 +980,8 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 .lm-bar-fill { height: 100%; border-radius: var(--r-pill); }
 /* lm-good / lm-warn / lm-bad were removed 2026-08-02: the status names no
    longer map to them, and lm-bad rendered brand red for a mood, which the
-   one-red-per-screen law forbids. See .lm-ok / .lm-muted / .lm-attention. */
-.lm-mute { color: var(--tx-3); }
+   one-red-per-screen law forbids. See .lm-ok / .lm-muted / .lm-attention.
+   lm-mute went 2026-09-26: a finished project's status is lm-ok now. */
 .msg-seg { padding: var(--s-1) var(--s-4) var(--s-3); }
 .msg-lead { width: 8px; flex-shrink: 0; margin-top: var(--s-1h); display: flex; justify-content: center; }
 .msg-sends { font-size: var(--t-meta); color: var(--tint); font-weight: var(--w-medium); }
@@ -1812,8 +1812,12 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 .p3-time { font-size: var(--t-meta); font-weight: var(--w-medium); color: var(--tx-3); flex-shrink: 0; }
 /* A picked row's time is a button that opens its tuning, so it wears the tap
    colour for words straight on a sheet (§AM, 2026-09-26). In grey it was a
-   second grey beside the row's reason. The placing state keeps its own red. */
+   second grey beside the row's reason. */
 .p3-row.on .p3-time-btn:not(.placing) { color: var(--tint-on-sheet); }
+/* Placing, on a picked row, takes the same sheet red: the plain tap red on
+   the picked row's grey read 2.42:1 in dark and 4.03:1 in light. What says
+   "placing" is the underline, not a second red (2026-09-26). */
+.p3-row.on .p3-time-btn.placing { color: var(--tint-on-sheet); text-decoration: underline; text-underline-offset: 3px; }
 
 /* === Roadmap v2: soft anchor guard === */
 .ag-scrim { position: fixed; inset: 0; z-index: 60; background: rgba(0,0,0,0.55);
@@ -2151,7 +2155,11 @@ button {
 /* UP-MIND-12: a claim that can show the sentence it came from. The chip is
    the claim, not a second control beside it, so the only visible difference
    is the quote mark and the fact that it takes a tap. */
-.ev-chip { background: none; border: 0; padding: 0; font: inherit; color: inherit; cursor: pointer; display: inline-flex; align-items: center; gap: var(--s-0h); }
+/* The chip is a button, and a button does not inherit its case or its
+   tracking, so a claim in small caps drew its chip in sentence case beside
+   it (2026-09-26). It takes both from the claim, as it takes the font. */
+.ev-chip { background: none; border: 0; padding: 0; font: inherit; color: inherit; cursor: pointer; display: inline-flex; align-items: center; gap: var(--s-0h);
+  text-transform: inherit; letter-spacing: inherit; }
 .ev-mark { opacity: 0.55; font-size: 1.05em; line-height: 1; }
 /* The sender's own sentence, unaltered. Quoted so it reads as theirs. */
 .ev-span { font-size: var(--t-body); color: var(--tx-1); line-height: 1.45; padding: var(--s-2) 0; }
@@ -2464,6 +2472,10 @@ button {
    2026-09-25), the same as it already does on a task row's line. */
 .prov-link { color: var(--tint); text-decoration: none; cursor: pointer; }
 .prov-link:active { opacity: 0.6; }
+/* The date inside a source that opens is part of the tap, so it takes the
+   link's colour in every variant (base, sheet, light) rather than the
+   neutral date's grey; it keeps the date's small caps (2026-09-26). */
+.prov-link .fact.date { color: inherit; }
 /* SHARED-F-17 (2026-09-05): the link half of this line went live, so it owes
    the 44px tap target. Same route .pill-act takes (BROWSER-F-03): a
    transparent border, which lives in the border box and so survives any
@@ -4112,6 +4124,11 @@ button {
    capsule fill IS the 8% press, so the 8% press showed no change, and in
    dark it sank below the opaque rest. The 14% / 13% press lifts it. */
 .note-conn-add:active { background-color: var(--press-5); }
+/* Dark's press is an opaque step instead (2026-09-26): --press-5 is a white
+   alpha, which over the black note page is #242424, and the red label read
+   4.19:1 there, below its own resting 4.82. --surface-1 (#1C1C1E) still
+   lifts off the rest fill and keeps the label at 4.59:1. */
+[data-theme="dark"] .note-conn-add:active { background-color: var(--surface-1); }
 /* With nothing linked yet the same control says what it is (Dave
    2026-09-12: a bare dashed circle under the title read as a stray). Once
    a chip exists the circle is enough, it sits after the chips.
@@ -4309,7 +4326,9 @@ button.check-linked:active { opacity: 1; background: var(--press-3); }
    The failed facelift drowned light theme in gray: every action was an 8%
    gray fill with red text, which is also iOS's grammar for DISABLED, and
    dozens of them per screen read as dishwater. Daylight replaces
-   gray-on-gray with tint, two ways.
+   gray-on-gray with tint, two ways. (The second, a category kicker drawn
+   as a tinted chip, retired 2026-09-26 with the last kicker that drew one:
+   a category rides its dot, §AM.)
    ============================================================ */
 /* 1 · ACTIONS WEAR THE BRAND. Every capsule that is not primary, danger or
    deliberately neutral takes the iOS tinted-button form: a soft wash of
@@ -4427,17 +4446,6 @@ button.check-linked:active { opacity: 1; background: var(--press-3); }
 [data-theme="light"] .btn-tertiary { background: transparent; color: var(--tint); }
 [data-theme="light"] .btn-disabled { background: var(--press-1); color: var(--tx-2); }
 [data-theme="light"] .btn-icon { background: var(--press-3); color: var(--tx-1); }
-/* 2 · KICKERS BECOME CHIPS. A category eyebrow carries its hue in a tinted
-   chip of its own colour, so the hue does the identifying and the ink only
-   has to be legible. This is the one cure for the yellow family: mustard
-   text on a wheat chip reads GOLD, which no legal yellow ink can do alone.
-   color-mix keeps every chip on its own text colour with no second token. */
-[data-theme="light"] .eyebrow[class*="cat-fg-"] {
-  display: inline-flex; align-items: center; width: fit-content;
-  padding: var(--s-0h) var(--s-2); border-radius: var(--r-sm); margin-top: var(--s-0h);
-  /* The wash itself is per-slot (it mixes the FILL, not the ink) and lives
-     with the palette above. Geometry only here. */
-}
 /* 4 · LIGHT WEARS THE FILLED GLYPH (Dave 2026-08-22: "on the light version
    filled in icons look MUCH better. Can we fill those in exclusively on the
    light version?"). Every icon ships as a PAIR from shared/icons.tsx -- the
@@ -5980,8 +5988,19 @@ body.selecting .voice-dock { display: none; }
    the urgency chip and the ruled state word already take for the same
    meaning. (Worded without naming those two classes right above a --sys-red
    rule: L1's GUILT pattern reads the raw sheet, comments and all, and a
-   nearby class name is enough to trip it.) */
+   nearby class name is enough to trip it.)
+   A timer that has run out wears the meaning of what ran out: a spent gym
+   time budget is over the limit (red); a finished fifteen needs you now
+   (amber). */
 .fact.red { color: var(--sys-red); }
+/* THE KEY'S RED ON A SHEET GREY (2026-09-26, the lead). Straight on a sheet
+   the system red reads 4.09:1 in dark, under AA at the fact size, so a fact
+   there takes the sheet twin of the red, the same way the tap words take
+   --tint-on-sheet (BROWSER-F-10). Dark #FF6961, 4.94:1 on the sheet; light
+   is the system red unchanged. Both selectors outrank the bare two-class
+   fact above, and no sheet draws the ruled line's three-class form. */
+.sheet-scrim > .card .fact.red,
+.form-sheet .fact.red { color: var(--sys-red-on-sheet); }
 /* §AM PRIMITIVES (2026-09-22). One way to draw each meaning inside a quiet
    line. The sweep that applied the Colour Key across every screen found each
    screen reaching for its own answer -- "fact urgency", "fact dec-when",

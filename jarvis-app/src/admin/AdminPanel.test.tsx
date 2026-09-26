@@ -101,7 +101,8 @@ describe("AdminPanel", () => {
   // §AK/§AM F3 (2026-09-26): the feedback row's second line was one string
   // of four greys with the middots baked in. Each part is its own fact now:
   // the build white, an attached crash red, who sent it from where the one
-  // grey, and the separators are the stylesheet's.
+  // grey, and the separators are the stylesheet's. The parts arrive NAMED:
+  // read by position, a report with no build drew its template as the build.
   it("draws a feedback row's parts as separate facts with no baked separator", async () => {
     const src: AdminService = {
       available: true,
@@ -110,8 +111,9 @@ describe("AdminPanel", () => {
       async billing() { return { mrr: 0, activeSubs: 0, trialing: 0, currency: "USD" }; },
       async feedback() {
         return [
-          { id: "f1", text: "It froze.", meta: ["abc1234", "student", "iPhone"], at: "2026-09-05T10:00:00.000Z", lastError: "TypeError: x" },
-          { id: "f2", text: "Nothing else.", meta: [], at: "2026-09-05T10:00:00.000Z", lastError: null },
+          { id: "f1", text: "It froze.", meta: { build: "abc1234", from: ["student", "iPhone"] }, at: "2026-09-05T10:00:00.000Z", lastError: "TypeError: x" },
+          { id: "f2", text: "Nothing else.", meta: { from: [] }, at: "2026-09-05T10:00:00.000Z", lastError: null },
+          { id: "f3", text: "No build on this one.", meta: { from: ["parent", "iPad"] }, at: "2026-09-05T10:00:00.000Z", lastError: null },
         ];
       },
       async metrics() { throw new Error("no metrics endpoint"); },
@@ -126,6 +128,34 @@ describe("AdminPanel", () => {
     // A row with nothing to say shows no line at all.
     const bare = screen.getByText("Nothing else.").closest(".row") as HTMLElement;
     expect(bare.querySelector(".facts")).toBeNull();
+    // No build: the template stays in who-sent-it-from-where, and nothing
+    // on the line is drawn as the white build number.
+    const noBuild = screen.getByText("No build on this one.").closest(".row") as HTMLElement;
+    expect(noBuild.querySelector(".facts b")).toBeNull();
+    expect(screen.getByText("parent on iPad")).toHaveClass("fact");
+  });
+
+  // 2026-09-26: the open user row keeps the account id, the one place the
+  // panel shows what an admin looks a user up by. The plan is the row's one
+  // grey, so the id is a white value in a fact of its own.
+  it("shows the account id as its own fact on the open user row", async () => {
+    const src: AdminService = {
+      available: true,
+      async listUsers() { return [{ id: "u1", email: "a@b.com", createdAt: "2026-01-01", plan: "Pro", status: "active", role: "user" }]; },
+      async setUserStatus() {},
+      async usage() { return { totalUsers: 1, activeUsers: 1, signups7d: 0, aiCalls30d: 0 }; },
+      async billing() { return { mrr: 0, activeSubs: 0, trialing: 0, currency: "USD" }; },
+      async feedback() { return []; },
+      async metrics() { throw new Error("no metrics endpoint"); },
+    };
+    render(<AdminPanel isAdmin source={src} />);
+    const row = (await screen.findByText("a@b.com")).closest(".row") as HTMLElement;
+    expect(screen.queryByText("u1")).toBeNull();
+    fireEvent.click(row);
+    const id = screen.getByText("u1");
+    expect(id.tagName).toBe("B");
+    expect(id.parentElement).toHaveClass("fact");
+    expect(screen.getByText("Joined 2026-01-01")).toHaveClass("fact", "date");
   });
 
   it("is honest when there is no admin server", () => {

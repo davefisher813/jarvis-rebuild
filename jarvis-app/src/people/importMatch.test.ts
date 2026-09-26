@@ -183,11 +183,17 @@ describe("what the preview and the receipt say", () => {
   });
 
   // One line of evidence for telling two same-name people apart.
-  // One fact, the first thing on file; a record with nothing shows no line
-  // rather than a placeholder that states nothing (§AK).
+  // One grey run carrying the first two things on file, joined with a comma
+  // (never a middot, §AK R6): two Clients still read apart by their phones.
+  // A record with nothing shows no line rather than a placeholder that
+  // states nothing (§AK).
   it("describes a candidate by what it already knows about them", () => {
     expect(describePerson(p("a", { name: "John Smith", relationship: "Client", phone: "555-0100" })))
-      .toBe("Client");
+      .toBe("Client, 555-0100");
+    expect(describePerson(p("e", { name: "John Smith", relationship: "Client", phone: "555-0199" })))
+      .toBe("Client, 555-0199");
+    expect(describePerson(p("f", { name: "John Smith", relationship: "Client", org: "Acme", phone: "555-0100", email: "js@example.com" })))
+      .toBe("Client, Acme");
     expect(describePerson(p("c", { name: "John Smith", phone: "555-0100" }))).toBe("555-0100");
     expect(describePerson(p("b", { name: "John Smith" }))).toBeNull();
   });

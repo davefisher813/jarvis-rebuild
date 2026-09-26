@@ -188,7 +188,7 @@ function peopleRow(rows: WindowRow[], people: DerivePerson[]): Built {
     // The log carries person ids and nothing else, on purpose: no names ever
     // leave the device through it. With no Contacts there is nobody to put a
     // name to, whatever the rows say.
-    detail = "Nobody in Contacts to put a name to, since the log carries only ids";
+    detail = "Nobody in Contacts to put a name to; the log carries only ids, so a name comes from a person card";
   } else if (labelled >= MIN_PERSON_HANDLED) {
     detail = "The person you handle most already has a label, which is what this one proposes";
   } else {
@@ -244,7 +244,7 @@ function timingRow(rows: WindowRow[], nowMs: number): Built {
       // the one thing an instrument may never do.
       ? "The area in front is one JARVIS can no longer name"
       : have >= MIN_TIMING_SAMPLES
-        ? `${have} corrections in one area, not all the same way or under ${MIN_AVG_ABS_MIN} minutes on average, from this device's log`
+        ? `${have} corrections in one area, but either not all the same way or under ${MIN_AVG_ABS_MIN} minutes on average, from this device's log`
         : `Needs ${MIN_TIMING_SAMPLES} corrections in one area, same way, ${MIN_AVG_ABS_MIN} minutes or more, from this device's log`;
   return {
     key: "task_timing", label: "How Long Tasks Take",

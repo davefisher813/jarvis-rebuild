@@ -189,10 +189,10 @@ export default function AdminPanel({ isAdmin, source, onBack }: {
       ) : (
         <div className="pad-x"><div className="card">
           {feedback.map((f) => {
-            // meta is build, template, device, in that order, empty parts
-            // left out. The sheet always sends a build ("dev" at worst), so
-            // the first part is the build.
-            const [build, ...from] = f.meta;
+            // The parts come NAMED (2026-09-26). They were one list read by
+            // position, build first, and a report with no build drew its
+            // template as the white build number.
+            const { build, from } = f.meta;
             return (
               <div className="row" key={f.id}>
                 <div className="row-grow">
@@ -205,7 +205,7 @@ export default function AdminPanel({ isAdmin, source, onBack }: {
                       who sent it from where, and that is the row's one grey.
                       The stylesheet draws the separators; no string carries
                       one (F3). A row with none of these shows no line. */}
-                  {(build || f.lastError) && (
+                  {(build || f.lastError || from.length > 0) && (
                     <div className="facts">
                       {build && <span className="fact"><b>{build}</b></span>}
                       {f.lastError && <span className="fact red">Last error</span>}
@@ -235,10 +235,16 @@ export default function AdminPanel({ isAdmin, source, onBack }: {
                     is a neutral date, so small caps. The status is not
                     repeated here: the capsule's verb already says it
                     (Disable on an active account, Enable on a disabled one).
-                    Nor is the account id: the email already names it. */}
+                    The account id stays, as its own fact on the open row
+                    (2026-09-26): it is what an admin looks a user up by, and
+                    this was the one place the panel showed it. The plan has
+                    spent the row's grey, so the id is a white value, the way
+                    the feedback row's build is; last, so it is what gives
+                    way when the line runs out. */}
                 <div className="facts">
                   <span className="fact">{u.plan}</span>
                   {openUser === u.id && <span className="fact date">Joined {u.createdAt.slice(0, 10)}</span>}
+                  {openUser === u.id && <span className="fact"><b>{u.id}</b></span>}
                 </div>
               </div>
               <button className="pill-act" onClick={(ev) => { ev.stopPropagation(); void toggle(u); }}>{u.status === "active" ? "Disable" : "Enable"}</button>

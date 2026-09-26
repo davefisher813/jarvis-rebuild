@@ -161,18 +161,98 @@ describe("TodayFlow: the Momentum Chain (UP-CORE-09)", () => {
     // reason, then the length (2026-09-26: "Keep going" came off the card as
     // a second grey that said nothing the slot does not).
     fireEvent.click(screen.getAllByLabelText("Mark done")[0]!);
-    await waitFor(() => expect(screen.getByText("Same category, due today")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("Same category")).toBeInTheDocument());
     expect(screen.queryByText(/Keep going/)).toBeNull();
+    const chain = screen.getByText("Same category").closest(".notice-swipe")!;
+    // "Same category" is the line's one grey, a plain fact with no tone.
+    expect(screen.getByText("Same category").className).toBe("fact");
     // The task's own length is what makes it startable (UP-CORE-02), drawn
     // as an estimate the app worked out (sky, .fact.est).
-    expect(screen.getAllByText(/15m/).length).toBeGreaterThan(0);
-    const chain = screen.getByText("Same category, due today").closest(".notice-swipe")!;
     expect(chain.querySelector(".fact.est")?.textContent).toBe("15m");
+    // §AM (2026-09-26): due wears the key, never the grey. With a length on
+    // the line a toned fact would cost the length its sky (K.3), so due is
+    // the distance chip, amber, as the Tasks tab's MomentumRow draws it.
+    expect(chain.querySelector(".uchip.u-today")?.textContent).toBe("TODAY");
+    expect(chain.textContent).not.toMatch(/due today/i);
 
     // Waving it off empties the slot. Two of those quiet the chain for the
     // day, which is momentum.ts's own rule, unchanged.
     fireEvent.click(chain.querySelector(".notice-dismiss")!);
-    await waitFor(() => expect(screen.queryByText("Same category, due today")).toBeNull());
+    await waitFor(() => expect(screen.queryByText("Same category")).toBeNull());
+  });
+
+  // §AM R3/R8 and the finished task's area (2026-09-26). nextBest falls
+  // through to another area when the finished one has nothing open, and that
+  // suggestion is not "Same category". With no length on the line, due is
+  // the line's one coloured fact, amber.
+  it("says Same category only for the finished task's area, and due is amber", async () => {
+    const { notifyFreshLists } = await import("../data/store");
+    const { ENTITY_TASK } = await import("../notes/types");
+    let svc: import("../tasks/TasksService").TasksService | null = null;
+    function Grab() { svc = useTasks(); return null; }
+    render(
+      <NotesProvider userId="today-momentum-other-area">
+        <GoogleSessionProvider requestToken={async () => "tok"} makeApi={() => makeFakeGoogleApi()}>
+          <Grab />
+          <TodayFlow onGoSchedule={() => {}} onGoTasks={() => {}} />
+        </GoogleSessionProvider>
+      </NotesProvider>,
+    );
+    const today = todayISO();
+    const titles = ["Email the coach", "Book the field"];
+    await svc!.createTask(titles[0]!, { category: "c1", due: today });
+    await svc!.createTask(titles[1]!, { category: "c2", due: today });
+    notifyFreshLists(ENTITY_TASK);
+    await waitFor(() => expect(screen.getAllByText("Book the field").length).toBeGreaterThan(0));
+
+    fireEvent.click(screen.getAllByLabelText("Mark done")[0]!);
+    const due = await waitFor(() => {
+      const hit = [...document.querySelectorAll(".notice-swipe .fact.warn")].find((f) => f.textContent === "Due today");
+      expect(hit).toBeTruthy();
+      return hit!;
+    });
+    const chain = due.closest(".notice-swipe")!;
+    expect(titles).toContain(chain.querySelector(".conn-name")?.textContent);
+    expect(chain.textContent).not.toMatch(/Same category/);
+    expect(chain.querySelector(".uchip")).toBeNull();
+  });
+
+  // Late is the key's red, and it says the distance the way the chip does
+  // ("1 DAY LATE"), in a fact's own case, never the grey "Overdue".
+  it("a late suggestion is red and says how late", async () => {
+    const { notifyFreshLists } = await import("../data/store");
+    const { ENTITY_TASK } = await import("../notes/types");
+    const { addDays } = await import("../schedule/calendar");
+    let svc: import("../tasks/TasksService").TasksService | null = null;
+    function Grab() { svc = useTasks(); return null; }
+    // The morning sweep moves yesterday's tasks onto today, which would make
+    // this suggestion due rather than late. Mark today's sweep as already
+    // run (autoSweep.ts's own ran-marker) so the tasks keep their date.
+    localStorage.setItem("jarvis.sweep.last.v1", todayISO());
+    render(
+      <NotesProvider userId="today-momentum-late">
+        <GoogleSessionProvider requestToken={async () => "tok"} makeApi={() => makeFakeGoogleApi()}>
+          <Grab />
+          <TodayFlow onGoSchedule={() => {}} onGoTasks={() => {}} />
+        </GoogleSessionProvider>
+      </NotesProvider>,
+    );
+    const yesterday = addDays(todayISO(), -1);
+    const titles = ["Email the coach", "Book the field"];
+    await svc!.createTask(titles[0]!, { category: "c1", due: yesterday });
+    await svc!.createTask(titles[1]!, { category: "c2", due: yesterday });
+    notifyFreshLists(ENTITY_TASK);
+    await waitFor(() => expect(screen.getAllByText("Book the field").length).toBeGreaterThan(0));
+
+    fireEvent.click(screen.getAllByLabelText("Mark done")[0]!);
+    const late = await waitFor(() => {
+      const hit = [...document.querySelectorAll(".notice-swipe .fact.red")].find((f) => f.textContent === "1 Day late");
+      expect(hit).toBeTruthy();
+      return hit!;
+    });
+    const chain = late.closest(".notice-swipe")!;
+    expect(titles).toContain(chain.querySelector(".conn-name")?.textContent);
+    expect(chain.textContent).not.toMatch(/overdue/i);
   });
 });
 

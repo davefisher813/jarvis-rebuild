@@ -227,6 +227,15 @@
      card with more greys under it. 13.94:1 on the sheet bar, 11.35 on the
      toast, 9.42 in the grouped card. */
   --tint-on-sheet: var(--accent-tx);
+  /* THE KEY'S RED ON A SHEET GREY (2026-09-26, the lead). The same problem
+     for the Colour Key's late red that the note above solved for the tap
+     red: the system red on the sheet ground (#2C2C2E) reads 4.09:1 in dark,
+     under AA at the 14px fact size. It cannot go white, because white is the
+     key's "a number with no state", so it takes Apple's own increased-
+     contrast systemRed for dark, #FF6961, 4.94:1 there. Light is the system
+     red unchanged (settled: light's key colours are Apple's as text). The
+     dark value is set in the dark block below. */
+  --sys-red-on-sheet: var(--sys-red);
   --sel-bg: var(--tx-1);
   --sel-fg: var(--bg);
   --scrim: rgba(0,0,0,0.40); /* modal/sheet backdrop, theme-invariant (resolves uniformity G4) */
@@ -298,6 +307,9 @@
      it IS systemGray, which measures fine on the nav ground. */
   --tab-idle: var(--sys-gray);
   --red: #FF453A; --sys-red: #FF453A; --warn: #FF9F0A; --good: #30D158; --blue: #0A84FF;
+  /* The key's red straight on a sheet grey: Apple's increased-contrast
+     systemRed (see --sys-red-on-sheet at the top of this file). */
+  --sys-red-on-sheet: #FF6961;
   /* BROWSER-F-04 (2026-09-05). --good and --warn now mean "this colour is
      going to be READ": the light block below takes them down to the values
      that clear AA on the tinted chips they sit on. Anything with no words in

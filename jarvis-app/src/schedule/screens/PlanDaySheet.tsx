@@ -695,19 +695,19 @@ export default function PlanDaySheet({
                 <>
                   {ranges.focus.map((b) => (
                     <div className="row" key={"f" + b.s}>
-                      <div className="row-stack"><div className="conn-name">{b.label}</div><div className="facts"><span className="fact st gray">Focus</span></div></div>
+                      <div className="row-stack"><div className="conn-name">{b.label}</div><div className="facts"><span className="fact st">Focus</span></div></div>
                       <span className="urgency urgency-muted">{label(fromMin(b.s))}–{label(fromMin(b.e))}</span>
                     </div>
                   ))}
                   {ranges.hard.map((b) => (
                     <div className="row" key={"h" + b.s}>
-                      <div className="row-stack"><div className="conn-name">{b.label}</div><div className="facts"><span className="fact st gray">Protected</span></div></div>
+                      <div className="row-stack"><div className="conn-name">{b.label}</div><div className="facts"><span className="fact st">Protected</span></div></div>
                       <span className="urgency urgency-muted">{label(fromMin(b.s))}–{label(fromMin(b.e))}</span>
                     </div>
                   ))}
                   {ranges.soft.map((b) => (
                     <div className="row" key={"s" + b.s}>
-                      <div className="row-stack"><div className="conn-name">{b.label}</div><div className="facts"><span className="fact st gray">Flexible</span></div></div>
+                      <div className="row-stack"><div className="conn-name">{b.label}</div><div className="facts"><span className="fact st">Flexible</span></div></div>
                       <span className="urgency urgency-muted">{label(fromMin(b.s))}–{label(fromMin(b.e))}</span>
                     </div>
                   ))}
@@ -778,8 +778,12 @@ export default function PlanDaySheet({
                                 ONE, as C-31 says: the planner can give three
                                 ("Fits before Gym", "Same context as previous
                                 pick", "Your peak window") and all three drew
-                                as a line of greys (§AK, 2026-09-22). */}
-                            {on && sheetWhy(blockFor(t.id)?.why).length > 0 && (
+                                as a line of greys (§AK, 2026-09-22).
+                                AND ONLY WHEN NO GOAL LINE IS DRAWN (§AK
+                                V5.2, 2026-09-26): the Moves line is itself
+                                a grey run, so the reason beside it would be
+                                the row's second grey. */}
+                            {on && !movesLine(t.goal, t.text) && sheetWhy(blockFor(t.id)?.why).length > 0 && (
                               <div className="facts">
                                 {sheetWhy(blockFor(t.id)?.why).slice(0, 1).map((w) => <span className="fact" key={w}>{w}</span>)}
                               </div>
@@ -801,8 +805,11 @@ export default function PlanDaySheet({
                               aria-label={`${t.text}: adjust`}
                               onClick={(e) => { e.stopPropagation(); setPlacing(null); setTuning((p) => (p === t.id ? null : t.id)); }}
                             >
-                              {/* Nowhere to put it is over the limit: red (§AM). */}
-                              {at ? label(at) : <span className="fact red">No room</span>}
+                              {/* "No room" wears the button's own ink, not red:
+                                  sys-red on a picked row's grey read at 2.64:1
+                                  in dark. The load line's red "over" fact and
+                                  the Drop card already say it runs over. */}
+                              {at ? label(at) : "No room"}
                             </button>
                           ) : t.overdue ? (
                             <span className="plan-overdue">Overdue</span>

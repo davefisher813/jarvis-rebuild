@@ -211,7 +211,7 @@ describe("HealthFlow: Week Shape is flat and honest", () => {
     const weekDates = ["2026-08-24", "2026-08-25", "2026-08-26", "2026-08-27", "2026-08-28", "2026-08-29", "2026-08-30"];
     const sessions = [{ date: "2026-08-25", org: "School Team", durationMin: 90 }];
     render(<HealthFlow store={store} ownerId="u1" initialScreen="weekShape" sportSessions={sessions} weekDates={weekDates} onExit={() => {}} />);
-    await waitFor(() => expect(screen.getByText("1 Sessions, 1.5 Hours")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("1 Session, 1.5 Hours")).toBeInTheDocument());
   });
 });
 

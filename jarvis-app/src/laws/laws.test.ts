@@ -3538,6 +3538,12 @@ describe("LAW 9: the ask decides the action, in every branch", () => {
   // now: the count, the senders, the account scope in words, and a "so far"
   // tail while the count is partial. Every protection stays: the count
   // leads, the senders follow, the scope is named, a partial count says so.
+  // AMENDED 2026-09-26 (lead #70: singular at one): the line read "3 Threads
+  // from 1 senders". Picking sender or senders needs the count in a
+  // variable, and this law pinned the plural-only expression literally. The
+  // sender count is still pinned to the list's own rows, now at the nearest
+  // `const piles` above the row (the one the row reads), and the row must
+  // name it with the singular at one. Every other protection is unchanged.
   it("Clean Out leads its sub with its own count and says what that count is of", () => {
     const src = read(join(SRC, "messages/MessagesFlow.tsx"));
     const at = src.indexOf('<div className="conn-name">Clean Out</div>');
@@ -3545,13 +3551,17 @@ describe("LAW 9: the ask decides the action, in every branch", () => {
     const row = src.slice(at, at + 900);
     // E-29 (2026-09-12): counted over visibleRows, the list's own rows.
     expect(row, "the thread count leads").toMatch(/capAfterNumber\(\s*visibleRows\.length \+/);
-    expect(row, "then the sender count").toMatch(/senderPiles\(visibleRows, effTriage, vips\)\.length \+ " senders"/);
+    const decl = src.slice(src.lastIndexOf("const piles =", at), at);
+    expect(decl, "the senders are counted over the list's own rows")
+      .toMatch(/^const piles = senderPiles\(visibleRows, effTriage, vips\)\.length;/);
+    expect(row, "then the sender count, singular at one")
+      .toMatch(/" from " \+ piles \+ \(piles === 1 \? " sender" : " senders"\)/);
     expect(row, "the account scope, in words")
       .toMatch(/" in " \+ \(acctFilter \? acctLabel\(acctFilter\) : "all accounts"\)/);
     expect(row, "and a 'so far' tail until the inbox is read to the bottom")
       .toMatch(/\(atEnd \? "" : " so far"\)/);
     const meta = row.slice(row.indexOf('<div className="conn-meta">'), row.indexOf("</div>", row.indexOf('<div className="conn-meta">')));
-    expect(meta, "the sub is the row's meta line").toMatch(/senderPiles/);
+    expect(meta, "the sub is the row's meta line").toMatch(/\bpiles\b/);
     expect(meta, "no typed dot on the meta line").not.toMatch(/\\u00b7|\u00b7/);
   });
 });
@@ -4396,11 +4406,18 @@ describe("LAW 18: when is a fact, why is never claimed", () => {
     expect(bad, "call them working sets; the studied range keeps its own wording where it is cited").toEqual([]);
   });
 
+  // AMENDED 2026-09-26 (lead #31: sentence case inside the sentence): the
+  // caveat moved into correlate()'s sentence as a lowercase parenthetical,
+  // "(correlation, not cause)", and the capitalised pattern failed although
+  // the disclaimer was still there. It is matched in the form it now takes,
+  // and at the END of the card's line, closing the template string, which
+  // is what this test's name has always claimed. The plateau check below is
+  // untouched: those screens still carry the capitalised caps-kicker cite.
   it("every correlation card ends its own line honestly", () => {
     const src = gym("insights.ts");
     const fn = src.slice(src.indexOf("export function correlate"));
     expect(fn.slice(0, fn.indexOf("\nfunction round1")), "a correlation card can render without its own disclaimer")
-      .toMatch(/Correlation, not cause/);
+      .toMatch(/\(correlation, not cause\)`/);
   });
 
   it("a plateau's what-changed receipt never grows a field for the reason", () => {

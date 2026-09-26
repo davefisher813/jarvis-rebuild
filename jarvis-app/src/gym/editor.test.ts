@@ -319,12 +319,14 @@ describe("GYM-F-26: every row menu has a visible door", () => {
     // string survives as the label a screen reader speaks.
     expect(rendered).toMatch(/<span className="fact cyan" aria-label=\{planChipText\(exercise\)\}>/);
     expect(rendered).toMatch(/\{plan\.count\}<em className="fw">\{plan\.noun\}<\/em>\{plan\.target\}/);
-    // AMENDED 2026-09-26 (§AK, sweep #265/#619): the athlete's quoted note is
-    // the row's one grey, so the rest cannot be a second plain grey run. It
-    // wears a primitive: small caps as a neutral time (.fact.date), or white
-    // as a length with no state (<b>). Either is right; plain grey is not.
-    expect(rendered, "rest is its own fact, only when there is one, and never a second grey")
-      .toMatch(/exercise\.restSec \? <span className="fact(?: date">\{`\$\{mmss\(exercise\.restSec\)\} rest`\}|"><b>\{`\$\{mmss\(exercise\.restSec\)\} rest`\}<\/b>)<\/span> : null/);
+    // AMENDED 2026-09-26 (§AK, sweep #265/#619, settled by the lead): the
+    // athlete's quoted note is the row's one grey, so the rest cannot be a
+    // second plain grey run. "1:30 rest" is a length with no state that
+    // cannot be tapped, so it is a white <b> inside its fact -- not small
+    // caps (.fact.date is for a neutral date or time of day), and not grey.
+    expect(rendered, "rest is its own fact, only when there is one, and a white length")
+      .toMatch(/exercise\.restSec \? <span className="fact"><b>\{`\$\{mmss\(exercise\.restSec\)\} rest`\}<\/b><\/span> : null/);
+    expect(rendered, "and never the small-caps date primitive").not.toMatch(/className="fact date">\{`\$\{mmss/);
     expect(rendered, "and no capsule stands in for a value here")
       .not.toMatch(/se-chip/);
     // The Settings toggle keeps every home that is about last time.
