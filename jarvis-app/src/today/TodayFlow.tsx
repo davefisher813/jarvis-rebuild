@@ -107,7 +107,7 @@ import { promptsDue, shownNow, snoozedForADay } from "../tasks/contextPrompts";
 import ContextPromptSheet from "../tasks/screens/ContextPromptSheet";
 import { SHORTCUTS } from "../health/settings";
 import ReminderSheet from "../tasks/screens/ReminderSheet";
-import { stripPick, missedReminders, snoozeTime, snoozeFrom } from "../tasks/reminders";
+import { stripPick, snoozeTime, snoozeFrom } from "../tasks/reminders";
 import { remindersToIcs, saveIcsFile } from "../tasks/ics";
 import type { ReminderInfo } from "../notes/types";
 import { runAutoSweep, retrySweep, undoSweep, readReceipt, setAsideCandidate, markOffered, liveMoved, dismissSweepCard, sweepCardDismissed, type SweepReceipt } from "../tasks/autoSweep";
@@ -159,7 +159,7 @@ import { isOffTrack, rankOpen, reasonFor } from "../upnext/upnext";
 import { backOnTrackMessage } from "../tasks/lifecycle";
 import { moveEventToAnytime, undoMoveToAnytime, duplicateEvent } from "../schedule/eventMoves";
 import { ClockGlyph, DocGlyph, ForkGlyph, SweepGlyph, TargetGlyph, CheckCircleGlyph, BarbellGlyph, GiftGlyph, FolderOpenGlyph } from "../shared/glyphs";
-import { Clock, CircleSlash, BellRing } from "../shared/icons";
+import { Clock, CircleSlash } from "../shared/icons";
 import { isFromEmail } from "../tasks/origin";
 
 // Up Next and Fresh Start (ADHD strategy Phase 1) load on demand: they are
@@ -3307,17 +3307,16 @@ export default function TodayFlow({
   // --- Reminders (2026-08-19). Everything here writes a date, never a
   // boolean, so a reminder resets itself at midnight with nothing scheduled.
   //
-  // TODAY-F-17 (2026-09-05): the missed ones are in Your Move, so they are
-  // not also in the strip (see stripReminders in tasks/reminders.ts). B4
-  // added the notice cards and left the strip's missed rows standing, so 8 AM
-  // meds appeared twice on one screen wearing two different sets of buttons,
-  // which is exactly the "ton of notifications floating around" the one
-  // stream rule exists to stop.
-  const missedCards = missedReminders(taskItems, today, nhm);
+  // TODAY-F-17 (2026-09-05): a missed reminder is on Today ONCE (§Q.4). B4
+  // put the missed ones in Heads Up as notice cards and left the strip's
+  // rows standing, so 8 AM meds appeared twice on one screen wearing two
+  // different sets of buttons, which is exactly the "ton of notifications
+  // floating around" the one stream rule exists to stop.
   // THE STRIP'S PICK (Dave's pass-off, 2026-09-26): the next three still
-  // ahead of the clock, and the missed ones as one red count row. The Heads
-  // Up cards above keep chasing the first two missed; the count row is the
-  // door to all of them.
+  // ahead of the clock, and the missed ones as one red count row. That row
+  // is the one place a missed reminder appears on Today (the lead,
+  // 2026-09-26: the Heads Up missed cards go); the Missed sheet behind it
+  // carries the tick and the Ask Again the cards used to.
   const remPick = stripPick(taskItems, today, nhm);
   const reminders = remPick.next;
 
@@ -3420,25 +3419,10 @@ export default function TodayFlow({
     const to = snoozeTime(nhm, 15);
     await attemptWrite(() => tasks.snoozeReminder(id, to, today));
     await reload();
-    showToast({ message: "Asking again at " + fmtTime(to).time + " " + fmtTime(to).ap });
+    showToast({ message: "Asking Again at " + fmtTime(to).time + " " + fmtTime(to).ap });
   };
-  const missedReminderCards = missedCards.map((r) => (
-    <NoticeCard
-      key={"remind-" + r.id}
-      weight={WAITING}
-      icon={<BellRing className="ic" />}
-      tone="cat-fg-slate"
-      title={r.text}
-      // §AM (2026-09-25/26): missed is one of the key's reds, and a time
-      // with a meaning takes the key colour (F5): the same red the strip
-      // gives a missed reminder's time, on the time's fact alone.
-      sub={<Facts facts={[{ text: "Missed at " + fmtTime(r.time).time + " " + fmtTime(r.time).ap, tone: "red" }]} />}
-      action={{ label: "Ask Again in 15m", onClick: () => void onAskAgainReminder(r.id) }}
-      alt={{ label: "Done", onClick: () => void onTickReminder(r.id, true) }}
-      // The row opens the reminder (Dave 2026-09-15: "I want all rows clickable").
-      onOpen={() => openReminder(r.id)}
-    />
-  ));
+  // The Ask Again verb the missed cards carried ("If You Miss It" promises
+  // it, §Q.8) lives on the Missed sheet's rows now (RemindersStrip).
   // B10 (2026-08-23): guarded already, but silent and final. A reminder is one
   // row with everything about it on the client, so it takes the same Undo the
   // event delete four hundred lines up already offers.
@@ -3909,7 +3893,7 @@ export default function TodayFlow({
       onDismiss={() => { markReportSeen(reportMonth); setReportMonth(null); }}
     />
   ) : null;
-  const notices = [reportNotice, ...alertCards, ...missedReminderCards, reflowSection, overflowSection].filter(Boolean);
+  const notices = [reportNotice, ...alertCards, reflowSection, overflowSection].filter(Boolean);
 
   const daypart = evening ? "evening" as const : now.getHours() < 12 ? "morning" as const : null;
   const initials = name.trim().split(/\s+/).map((w) => w[0]).slice(0, 2).join("").toUpperCase() || "JV";
@@ -4057,6 +4041,7 @@ export default function TodayFlow({
           missed={remPick.missed}
           onTick={(id, done) => void onTickReminder(id, done)}
           onTickMissed={(id) => void onTickReminder(id, true)}
+          onAskAgainMissed={(id) => void onAskAgainReminder(id)}
           onSnooze={(id) => void onSnoozeReminder(id)}
           onAdd={() => setRemSheet({ mode: "new" })}
           onOpen={openReminder}

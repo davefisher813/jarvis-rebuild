@@ -78,9 +78,15 @@ function ReminderRow({ r, bursting, onTickRow, onDeleteRow, children }: {
 // caller's tick offers Undo in its toast, so a wrong tap is one tap back.
 // The times are not red here: the sheet's own title says missed, once, and
 // the key's red on a sheet's grouped grey does not clear AA (§AM, 2026-09-26).
-function MissedSheet({ missed, onTick, onClose }: {
+// ASK AGAIN rides each row as its one capsule (the lead, 2026-09-26: the
+// Heads Up missed cards go, and this sheet is the one place a missed
+// reminder appears on Today). "If You Miss It" promises the verb (§Q.8), so
+// it has to survive the cards: a tap pushes the reminder 15 real minutes out,
+// and it leaves the missed list because it is no longer missed.
+function MissedSheet({ missed, onTick, onAskAgain, onClose }: {
   missed: ReminderView[];
   onTick: (id: string) => void;
+  onAskAgain?: (id: string) => void;
   onClose: () => void;
 }) {
   // The last one ticked closes the sheet: an empty list under "Missed" is a
@@ -114,6 +120,9 @@ function MissedSheet({ missed, onTick, onClose }: {
                     </div>
                   )}
                 </div>
+                {onAskAgain && (
+                  <button type="button" className="pill-act" onClick={(e) => { e.stopPropagation(); onAskAgain(r.id); }}>Ask Again</button>
+                )}
               </div>
             ))}
           </div></div>
@@ -130,6 +139,7 @@ export default function RemindersStrip({
   missed = [],
   onTick,
   onTickMissed,
+  onAskAgainMissed,
   onSnooze,
   onAdd,
   onOpen,
@@ -148,6 +158,8 @@ export default function RemindersStrip({
   /** One tap on a row of the missed list: mark it done (the caller's toast
    *  offers Undo). */
   onTickMissed?: (id: string) => void;
+  /** The Missed sheet's Ask Again: push it 15 minutes out and ask then. */
+  onAskAgainMissed?: (id: string) => void;
   onSnooze?: (id: string) => void;
   onAdd?: () => void;
   onOpen?: (id: string) => void;
@@ -256,8 +268,9 @@ export default function RemindersStrip({
             count wears the key's red (§AM: missed) and the row is the door
             to their list, where each is ticked off in one tap. Never a row
             per missed reminder on Today: a list of things you did not do is
-            the opposite of help, and the Heads Up cards already chase the
-            first two. */}
+            the opposite of help. This row is the ONE place a missed reminder
+            appears on Today (the lead, 2026-09-26; §Q.4): the Heads Up cards
+            that chased the first two are gone. */}
         {missed.length > 0 && (
           <div className="rem-row rem-missed-row" role="button" tabIndex={0}
             aria-label={missed.length + (missed.length === 1 ? " Missed Reminder" : " Missed Reminders")}
@@ -289,7 +302,7 @@ export default function RemindersStrip({
         </div>
       )}
       {missedOpen && (
-        <MissedSheet missed={missed} onTick={(id) => onTickMissed?.(id)} onClose={() => setMissedOpen(false)} />
+        <MissedSheet missed={missed} onTick={(id) => onTickMissed?.(id)} onAskAgain={onAskAgainMissed} onClose={() => setMissedOpen(false)} />
       )}
     </>
   );
