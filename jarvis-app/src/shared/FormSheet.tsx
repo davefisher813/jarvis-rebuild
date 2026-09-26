@@ -50,6 +50,8 @@ export function FormSheet({ title, onCancel, onSave, saveDisabled = false, saveL
       colour. Adds to the field check, never replaces it. */
   dirty?: boolean;
 }) {
+  // The band under this sheet is re-read on open (viewport.ts, 2026-09-26).
+  useEffect(() => { nudgeViewport(); }, []);
   const card = useRef<HTMLDivElement>(null);
   const opened = useRef<string | null>(null);
   useLayoutEffect(() => { opened.current = fieldsOf(card.current); }, []);
@@ -243,5 +245,3 @@ export function DeleteRow({ label, onClick }: { label: string; onClick: () => vo
 export function ErrorLine({ text }: { text: string | null | undefined }) {
   return text ? <div className="input-error xs-error">{text}</div> : null;
 }
-  // The band under this sheet is re-read on open (viewport.ts, 2026-09-26).
-  useEffect(() => { nudgeViewport(); }, []);
