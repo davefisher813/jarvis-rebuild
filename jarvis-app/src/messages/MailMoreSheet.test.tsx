@@ -35,6 +35,41 @@ describe("More Moves sheet", () => {
     expect(onPick).toHaveBeenCalledWith(d.alternates[0]);
   });
 
+  // THE HEAD IS TWO FACTS (§AM R1, R6, R8). The age wears the one wait
+  // ladder the rail wears, the reason is the one grey, and the subject is
+  // not repeated: the row the sheet opens from still names it. The dot is
+  // the stylesheet's, never typed.
+  const head = () => document.querySelector(".more-head")!;
+  it("a firm wait's age is red, and the head carries no subject and no typed dot", () => {
+    render(<MailMoreSheet who="Wei Chen" days={53} decision={d} onPick={() => {}} onClose={() => {}} />);
+    expect(d.tone).toBe("firm");
+    const age = head().querySelector(".facts .fact.red");
+    expect(age?.textContent).toBe("53 Days");
+    // The age leads, the reason follows as the one grey.
+    const facts = [...head().querySelectorAll(".facts .fact")];
+    expect(facts[0]).toBe(age);
+    expect(facts[1]!.className).toBe("fact");
+    expect(facts[1]!.textContent).toBe(d.note);
+    expect(screen.queryByText("Invoice")).toBeNull();
+    expect(head().textContent).not.toContain("\u00b7");
+  });
+
+  it("a direct wait's age is amber, and a gentle one is a neutral time in small caps", () => {
+    const direct = decide("Invoice", "", 9);
+    expect(direct.tone).toBe("direct");
+    const { unmount } = render(<MailMoreSheet who="Wei Chen" days={9} decision={direct} onPick={() => {}} onClose={() => {}} />);
+    expect(head().querySelector(".facts .fact.warn")?.textContent).toBe("9 Days");
+    expect(head().querySelector(".facts .fact.red")).toBeNull();
+    unmount();
+
+    const gentle = decide("Invoice", "", 1);
+    expect(gentle.tone).toBe("gentle");
+    render(<MailMoreSheet who="Wei Chen" days={1} decision={gentle} onPick={() => {}} onClose={() => {}} />);
+    expect(head().querySelector(".facts .fact.date")?.textContent).toBe("1 Day");
+    expect(head().querySelector(".facts .fact.warn, .facts .fact.red")).toBeNull();
+    expect(head().textContent).not.toContain("\u00b7");
+  });
+
   it("[edge] tapping the scrim closes without acting", () => {
     const onPick = vi.fn(), onClose = vi.fn();
     const { container } = render(

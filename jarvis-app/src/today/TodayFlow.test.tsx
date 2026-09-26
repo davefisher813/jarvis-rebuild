@@ -136,6 +136,10 @@ describe("TodayFlow: Undo after deleting an event (TODAY-F-11)", () => {
 // momentum.ts shipped with item 7 and was wired to the Tasks tab alone, so a
 // tick on Today bought a toast and the next small thing stayed four taps away.
 describe("TodayFlow: the Momentum Chain (UP-CORE-09)", () => {
+  // The chain is the notice on Today that carries a Dismiss rail and a
+  // length; the dealt row (MoveHeadliner) carries a Done rail instead.
+  const findChain = () => [...document.querySelectorAll(".notice-swipe")]
+    .find((s) => s.querySelector(".notice-dismiss") && s.querySelector(".fact.est"));
   it("offers the next best thing after a tick, and Not Now takes it back", async () => {
     const { useTasks } = await import("../data/NotesProvider");
     const { notifyFreshLists } = await import("../data/store");
@@ -157,28 +161,73 @@ describe("TodayFlow: the Momentum Chain (UP-CORE-09)", () => {
     notifyFreshLists(ENTITY_TASK);
     await waitFor(() => expect(screen.getByText("Book the field")).toBeInTheDocument());
 
-    // Tick the dealt task; the chain fills the slot it left. Its line is the
-    // reason, then the length (2026-09-26: "Keep going" came off the card as
-    // a second grey that said nothing the slot does not).
+    // Tick the dealt task; the chain fills the slot it left. The chain is the
+    // notice with a Dismiss rail; the dealt row above it has none.
     fireEvent.click(screen.getAllByLabelText("Mark done")[0]!);
-    await waitFor(() => expect(screen.getByText("Same category")).toBeInTheDocument());
+    const chain = await waitFor(() => {
+      const hit = findChain();
+      expect(hit).toBeTruthy();
+      return hit!;
+    });
+    expect(["Email the coach", "Book the field"]).toContain(chain.querySelector(".conn-name")?.textContent);
+    // "Keep going" came off the card (2026-09-26) as a second grey that said
+    // nothing the slot does not.
     expect(screen.queryByText(/Keep going/)).toBeNull();
-    const chain = screen.getByText("Same category").closest(".notice-swipe")!;
-    // "Same category" is the line's one grey, a plain fact with no tone.
-    expect(screen.getByText("Same category").className).toBe("fact");
-    // The task's own length is what makes it startable (UP-CORE-02), drawn
-    // as an estimate the app worked out (sky, .fact.est).
-    expect(chain.querySelector(".fact.est")?.textContent).toBe("15m");
     // §AM (2026-09-26): due wears the key, never the grey. With a length on
     // the line a toned fact would cost the length its sky (K.3), so due is
     // the distance chip, amber, as the Tasks tab's MomentumRow draws it.
-    expect(chain.querySelector(".uchip.u-today")?.textContent).toBe("TODAY");
+    // THE LINE NEVER CLIPS A WORD (the lead, 2026-09-26): the chip leads, the
+    // task's own length (UP-CORE-02, sky .fact.est) follows, and that is the
+    // whole line. "Same category" does not fit beside the chip at 390px, so
+    // this branch leaves it off rather than cutting it or the length.
+    const line = chain.querySelector(".facts")!;
+    expect([...line.children].map((f) => f.className)).toEqual(["fact", "fact est"]);
+    expect(line.querySelector(".uchip.u-today")?.textContent).toBe("TODAY");
+    expect(line.lastElementChild?.textContent).toBe("15m");
+    expect(chain.textContent).not.toMatch(/Same category/);
     expect(chain.textContent).not.toMatch(/due today/i);
 
     // Waving it off empties the slot. Two of those quiet the chain for the
     // day, which is momentum.ts's own rule, unchanged.
     fireEvent.click(chain.querySelector(".notice-dismiss")!);
-    await waitFor(() => expect(screen.queryByText("Same category")).toBeNull());
+    await waitFor(() => expect(findChain()).toBeUndefined());
+  });
+
+  // With no due day there is no chip, so the line is a plain facts line, and
+  // the facts that can ellipsize go last: the length, then the shared area
+  // in grey, the words, which is the one fact the line may shorten.
+  it("with no due day, the length leads and Same category is last", async () => {
+    const { notifyFreshLists } = await import("../data/store");
+    const { ENTITY_TASK } = await import("../notes/types");
+    let svc: import("../tasks/TasksService").TasksService | null = null;
+    function Grab() { svc = useTasks(); return null; }
+    render(
+      <NotesProvider userId="today-momentum-undated">
+        <GoogleSessionProvider requestToken={async () => "tok"} makeApi={() => makeFakeGoogleApi()}>
+          <Grab />
+          <TodayFlow onGoSchedule={() => {}} onGoTasks={() => {}} />
+        </GoogleSessionProvider>
+      </NotesProvider>,
+    );
+    const titles = ["Email the coach", "Book the field"];
+    await svc!.createTask(titles[0]!, { category: "c1", estimateMin: 15 });
+    await svc!.createTask(titles[1]!, { category: "c1", estimateMin: 15 });
+    notifyFreshLists(ENTITY_TASK);
+    await waitFor(() => expect(screen.getAllByLabelText("Mark done").length).toBeGreaterThan(0));
+
+    fireEvent.click(screen.getAllByLabelText("Mark done")[0]!);
+    const chain = await waitFor(() => {
+      const hit = findChain();
+      expect(hit).toBeTruthy();
+      return hit!;
+    });
+    expect(titles).toContain(chain.querySelector(".conn-name")?.textContent);
+    const line = chain.querySelector(".facts")!;
+    expect([...line.children].map((f) => [f.className, f.textContent])).toEqual([
+      ["fact est", "15m"],
+      ["fact", "Same category"],
+    ]);
+    expect(chain.querySelector(".uchip")).toBeNull();
   });
 
   // §AM R3/R8 and the finished task's area (2026-09-26). nextBest falls

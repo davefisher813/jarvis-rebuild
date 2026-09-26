@@ -1422,8 +1422,11 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
         ...(t.data.personId ? { personId: t.data.personId } : {}),
         ...(t.data.source?.type ? { sourceKind: t.data.source.type } : {}),
       })),
+      // The nudges already sent ride with each wait, so a ledger row's age
+      // and its Late lens climb the same ladder the rail does.
       waiting: waiting.map((w) => ({
         threadId: w.threadId, to: displayName(w.to), subject: w.subject, days: w.waitingDays,
+        nudges: nudgeCounts[w.threadId] ?? 0,
         ...(personIdFor(w.toEmail) ? { personId: personIdFor(w.toEmail)! } : {}),
       })),
       chases: dueChases(loadChases(), todayIso, answered).map((c) => ({ threadId: c.threadId, to: c.to, subject: c.subject })),
@@ -1431,7 +1434,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     }));
     setView("ledger");
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rows, waiting, tasks, personIdFor]);
+  }, [rows, waiting, tasks, personIdFor, nudgeCounts]);
 
   // THE HOME SNAPSHOT (Dave 2026-08-20). Today must render instantly, so it
   // never touches Gmail: the Email tab leaves behind everything the home page
@@ -4721,15 +4724,18 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                 // §AM R3/R8: the wait takes the rail's heat. Past the point
                 // an email helps is red, weeks is amber, and a calm wait is a
                 // neutral time in small caps. The dot between the facts is
-                // drawn by .facts, never typed (R6).
+                // drawn by .facts, never typed (R6). The toned age goes
+                // FIRST and the name last: only the last fact shrinks, and a
+                // name can be a whole email address, which used to squeeze
+                // the age to "5..." and, at type scale 1.4, off the line.
                 const waitTone: FactTone = d.tone === "firm" ? "red" : d.tone === "direct" ? "warn" : "date";
                 const opened = opens[w.threadId];
                 return (
                   <div className="pad-x">
                     <div className="card pad wait-card">
                       <Facts facts={[
-                        { text: nameFor(names, w.toEmail, w.to) },
                         { text: w.waitingDays === 1 ? "1 Day" : capAfterNumber(w.waitingDays + " days"), tone: waitTone },
+                        { text: nameFor(names, w.toEmail, w.to) },
                       ]} />
                       <div className="wait-card-subj">{w.subject}</div>
                       {/* A neutral date is small caps (R8). "No reply" went:
@@ -5213,7 +5219,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                 // a chevron: this row performs, it never navigates.
                 const play = () => {
                   if (speaking === "paused") { setSpeaking(resumeSpeaking() ? "playing" : "idle"); return; }
-                  const notices = mailNotices(loadMailSnapshot(), todayISO());
+                  const notices = mailNotices(loadMailSnapshot(), todayISO(), new Date(), 3, [], [], nudgeCounts);
                   const ok = speak(speakable(notices, inboxSentence(notices, loadMailSnapshot())), () => setSpeaking("idle"));
                   setSpeaking(ok ? "playing" : "idle");
                 };

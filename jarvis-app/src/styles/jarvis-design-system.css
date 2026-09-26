@@ -236,6 +236,16 @@
      red unchanged (settled: light's key colours are Apple's as text). The
      dark value is set in the dark block below. */
   --sys-red-on-sheet: var(--sys-red);
+  /* THE KEY'S AMBER ON A SHEET'S RAISED GREY (2026-09-26, the lead). The
+     amber twin of the token above. Plain --warn clears AA on the sheet
+     itself (6.78:1 on #2C2C2E) and on its grouped card (5.52:1 on #3A3A3C),
+     but not on a grey raised a step above the sheet: a picked row lays 14%
+     white over the sheet, which composites to #4A4A4B, and #FF9F0A reads
+     4.31:1 there. Dark takes Apple's increased-contrast systemOrange,
+     #FFB340, 4.96:1 on that grey (7.81:1 on the bare sheet). Light is the
+     system amber unchanged (settled: light's key colours are Apple's own as
+     text). The dark value is set in the dark block below. */
+  --warn-on-sheet: var(--warn);
   --sel-bg: var(--tx-1);
   --sel-fg: var(--bg);
   --scrim: rgba(0,0,0,0.40); /* modal/sheet backdrop, theme-invariant (resolves uniformity G4) */
@@ -310,6 +320,9 @@
   /* The key's red straight on a sheet grey: Apple's increased-contrast
      systemRed (see --sys-red-on-sheet at the top of this file). */
   --sys-red-on-sheet: #FF6961;
+  /* The key's amber on a sheet's raised grey: Apple's increased-contrast
+     systemOrange (see --warn-on-sheet at the top of this file). */
+  --warn-on-sheet: #FFB340;
   /* BROWSER-F-04 (2026-09-05). --good and --warn now mean "this colour is
      going to be READ": the light block below takes them down to the values
      that clear AA on the tinted chips they sit on. Anything with no words in

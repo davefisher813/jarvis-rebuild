@@ -271,7 +271,12 @@ export default function ScheduleUploadFlow({
                 onKeyDown={(e) => { if (e.target === e.currentTarget) onPressKey(() => setFixIdx(i))(e); }}>
                 <div className="row-grow">
                   <div className={"conn-name truncate" + (r.skip ? " upload-row-skipped" : "")}>{r.title}</div>
-                  <div className="facts">
+                  {/* This screen exists to check the times it read, so every
+                      fact must show: they sit in the wrapping two-line
+                      .conn-meta, not the one-line .facts whose last fact
+                      gives way (2026-09-26, as gym/UploadFlow's review row).
+                      The stylesheet still draws the dots between them. */}
+                  <div className="conn-meta">
                     <span className="fact date">{weekdayShortDate(r.date)}</span>
                     {r.noTime
                       ? <span className="fact warn">No time found</span>

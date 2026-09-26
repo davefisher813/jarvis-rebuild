@@ -21,7 +21,7 @@ interface DemoWait { to: string; sub: string; days: number }
 
 const NEEDS: DemoRow[] = [
   { from: "Northwind Cloud", sub: "Security advisories flagged in two projects", when: "2:55 PM", unread: true, due: "Today" },
-  { from: "Nadia Brandt", sub: "Invoice attached · Net 15 starts Monday", when: "11:20 AM", unread: true },
+  { from: "Nadia Brandt", sub: "Invoice attached, Net 15 starts Monday", when: "11:20 AM", unread: true },
   { from: "App Store Team", sub: "Action needed: complete your enrollment", when: "9:04 AM" },
 ];
 // The demo runs the SAME action model as the live page (2026-08-21), so what
@@ -163,8 +163,12 @@ export default function DemoMail({ onConnect }: { onConnect?: () => void }) {
               </div>
               {/* E2: the ask leads; the sender is context under it. One
                   grey run (§AM R1, R6): who, then what, the way the live
-                  page's rows read. */}
-              <div className="conn-meta msg-gist">{nameFor({ byEmail: {} }, undefined, w.to) + ": " + w.sub}</div>
+                  page's rows read. The what is the subject half only, the
+                  same half the snapshot above keeps: a subject that asks
+                  in a clause of its own ("Harper v Northline: can you call
+                  me?") read as two colons after the name. The whole line
+                  still decides the ask. */}
+              <div className="conn-meta msg-gist">{nameFor({ byEmail: {} }, undefined, w.to) + ": " + (w.sub.split(": ")[0] ?? w.sub)}</div>
             </div>
           </div>
           );

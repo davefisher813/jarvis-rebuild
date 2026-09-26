@@ -17,6 +17,7 @@ import { quickAnswers } from "../messages/quickAnswers";
 import { removeTodaySend } from "../messages/todayOutbox";
 import { HOLD_SECONDS } from "../messages/outbox";
 import { dayPhrase } from "../money/bills";
+import { loadNudgeCounts } from "../messages/escalate";
 
 // Email on the home page, rebuilt (Dave 2026-08-20). The count is gone; what
 // is left is the work itself. See messages/home.ts for the reasoning.
@@ -187,7 +188,9 @@ export default function MailNotices({
 
   const snap = loadMailSnapshot();
   const asleep = sleepingNow(snoozed, nowHHMM);
-  const notices = mailNotices(snap, today, new Date(), max, [...hidden, ...done, ...asleep], dayEvents);
+  // The nudges already sent ride in, so a wait's age wears the rung the
+  // rail gives the same thread (one nudge direct, two firm), not the clock's.
+  const notices = mailNotices(snap, today, new Date(), max, [...hidden, ...done, ...asleep], dayEvents, loadNudgeCounts());
   const residual = residualLine(snap, notices.map((n) => n.threadId));
   // Reported from an EFFECT, never during render: telling a parent to set
   // state while rendering is how a render loop starts.

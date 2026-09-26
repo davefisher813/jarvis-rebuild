@@ -627,17 +627,23 @@ export default function PlanDaySheet({
               the whole line in a hex amber when it did not. Now the open time
               is the line's one grey, with its numbers in white; whether the
               picks fit is the fact with a meaning, green when it fits and
-              red when it runs over. */}
+              red when it runs over.
+              THE TONED FACT LEADS (2026-09-26). In a one-line .facts only
+              the last fact gives way, and at type scale 1.4 the open time,
+              leading, squeezed "1h 15m over" to a lone ellipsis: the warning
+              vanished for exactly the people with large text. The short
+              fact with a meaning goes first; the grey open time is last, so
+              it is what ellipsizes. */}
           <div className="facts plan-load">
-            <span className="fact">
-              <b>{hhmm(load.openMin)}</b> open
-              {alreadyPlanned.length > 0 && <>, <b>{alreadyPlanned.length}</b> already planned</>}
-            </span>
             {pickCount > 0 && (
               <span className={"fact " + (load.fits ? "good" : "red")}>
                 {!load.fits ? `${hhmm(load.overMin)} over` : usedUsual ? `Your usual ${pickCount}, fits` : `${pickCount} picked, fits`}
               </span>
             )}
+            <span className="fact">
+              <b>{hhmm(load.openMin)}</b> open
+              {alreadyPlanned.length > 0 && <>, <b>{alreadyPlanned.length}</b> already planned</>}
+            </span>
           </div>
 
           {/* The day says no where the picking happens, with the fix in the

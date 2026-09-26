@@ -39,21 +39,32 @@ describe("SyllabusUploadFlow: the review row reads as facts (§AM)", () => {
 
   it("a row with no date says so in amber, and shows no date fact", async () => {
     const { undated } = await review();
-    const warn = undated.querySelector(".facts > .fact.warn");
+    const warn = undated.querySelector(".conn-meta > .fact.warn");
     expect(warn).toHaveTextContent("No date found");
     expect(undated.querySelector(".fact.date")).toBeNull();
-    expect(undated.querySelector(".facts")!.textContent).not.toMatch(/·|Task/);
+    expect(undated.querySelector(".conn-meta")!.textContent).not.toMatch(/·|Task/);
   });
 
   it("a dated row wears its date in small caps and its weight as a white number", async () => {
     const { dated } = await review();
-    const date = dated.querySelector(".facts > .fact.date");
+    const date = dated.querySelector(".conn-meta > .fact.date");
     expect(date).toHaveTextContent(weekdayShortDate("2026-09-15"));
     expect(dated.querySelector(".fact.warn")).toBeNull();
-    const weight = dated.querySelector(".facts > .fact > b");
+    const weight = dated.querySelector(".conn-meta > .fact > b");
     expect(weight).toHaveTextContent("20%");
     // The number carries the emphasis; the fact around it wears no tone.
     expect(weight!.parentElement!.className).toBe("fact");
-    expect(dated.querySelector(".facts")!.textContent).not.toMatch(/·/);
+    expect(dated.querySelector(".conn-meta")!.textContent).not.toMatch(/·/);
+  });
+
+  // 2026-09-26: this screen exists to check the read, so the date, the start
+  // and the grade share must all show. They sit in the wrapping two-line
+  // .conn-meta, never the one-line .facts whose last fact gives way.
+  it("keeps every fact in a wrapping meta line, never a one-line facts row", async () => {
+    const { dated, undated } = await review();
+    for (const row of [dated, undated]) {
+      expect(row.querySelector(".facts")).toBeNull();
+      expect(row.querySelector(".conn-meta > .fact")).not.toBeNull();
+    }
   });
 });

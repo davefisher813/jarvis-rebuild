@@ -97,3 +97,21 @@ describe("Schedule upload: an import that fails partway says so and offers the w
     }
   });
 });
+
+// 2026-09-26: this screen exists to check the times it read, so a review
+// row's facts sit in the wrapping two-line .conn-meta, never the one-line
+// .facts whose last fact gives way (the end time and "Updates existing" were
+// being cut off at 390px).
+describe("Schedule upload: the review row shows every fact it read", () => {
+  it("keeps the date and the time range in a wrapping meta line", async () => {
+    const svc = new ScheduleService(new Store(new InMemoryAdapter()), "u-upload-4");
+    await review(fakeAI(reply([
+      { title: "Practice", month: 9, day: 13, year: 2026, start: "17:00", end: "18:30", location: "" },
+    ])), svc);
+    const row = screen.getByText("Practice").closest(".row") as HTMLElement;
+    expect(row.querySelector(".facts"), "never the one-line facts row").toBeNull();
+    const facts = Array.from(row.querySelectorAll(".conn-meta > .fact"));
+    expect(facts.map((f) => f.className)).toEqual(["fact date", "fact date"]);
+    expect(facts[1]!.textContent).toMatch(/5:00.*6:30/);
+  });
+});

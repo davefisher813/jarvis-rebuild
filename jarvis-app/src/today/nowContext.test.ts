@@ -15,27 +15,48 @@ const TODAY = "2026-08-15";
 describe("Now Context (item 10)", () => {
   it("free time states the next commitment and the open span", () => {
     const ctx = nowContext([ev("Practice", "18:00", "19:30")], [], "15:20");
-    expect(ctx.line).toBe("Free until 6 PM · 2 hr 40 min open");
+    expect(ctx.head).toBe("Free until 6 PM");
+    expect(ctx.tail).toBe("2 hr 40 min open");
     expect(ctx.gapMin).toBe(160);
     expect(ctx.nextStart).toBe("18:00");
   });
 
   it("inside an event says so, with its end", () => {
     const ctx = nowContext([ev("Practice", "18:00", "19:30")], [], "18:30");
-    expect(ctx.line).toBe("In: Practice until 7:30 PM");
+    expect(ctx.head).toBe("In: Practice");
+    expect(ctx.tail).toBe("Until 7:30 PM");
     expect(ctx.gapMin).toBeNull();
   });
 
   it("protected routine blocks count as commitments", () => {
     const ctx = nowContext([], [{ s: 17 * 60, e: 18 * 60, label: "Dinner" }], "16:00");
-    expect(ctx.line).toBe("Free until 5 PM · 1 hr open");
+    expect(ctx.head).toBe("Free until 5 PM");
+    expect(ctx.tail).toBe("1 hr open");
     expect(ctx.nextTitle).toBe("Dinner");
   });
 
   it("an empty rest-of-day is a clear fact, not a guess", () => {
     const ctx = nowContext([ev("Morning", "08:00", "09:00")], [], "20:00");
-    expect(ctx.line).toBe("Clear from here");
+    expect(ctx.head).toBe("Clear from here");
+    expect(ctx.tail).toBeNull();
     expect(ctx.gapMin).toBeNull();
+  });
+
+  // §AM F3 (2026-09-26): the halves come as parts. The joined `line` glued
+  // them with a typed middle dot, and nothing rendered it, so it is gone and
+  // no string this hands over carries a dot.
+  it("hands over parts, never a dotted sentence", () => {
+    const travel = { id: "p", data: { title: "Practice", date: TODAY, start: "18:00", category: "", location: "Rink 2", travelMin: 20 } } as EventItem;
+    for (const ctx of [
+      nowContext([ev("Practice", "18:00", "19:30")], [], "15:20"),
+      nowContext([ev("Practice", "18:00", "19:30")], [], "18:30"),
+      nowContext([travel], [], "15:20"),
+      nowContext([], [], "20:00"),
+    ]) {
+      expect(ctx).not.toHaveProperty("line");
+      const words = Object.values(ctx).filter((v): v is string => typeof v === "string");
+      expect(words.join(" ")).not.toMatch(/·/);
+    }
   });
 
   it("spans format tight", () => {
@@ -53,7 +74,8 @@ describe("Leave By in the Now line and the guard", () => {
 
   it("free time ends at the leave time, and says what the leaving is for", () => {
     const ctx = nowContext([withTravel("Practice", "18:00", 20)], [], "15:20");
-    expect(ctx.line).toBe("Free until 5:40 PM · then leave for Practice");
+    expect(ctx.head).toBe("Free until 5:40 PM");
+    expect(ctx.tail).toBe("Then leave for Practice");
     expect(ctx.nextLeave).toEqual({ at: "17:40", title: "Practice" });
     // The gap on offer is the time actually free, not the time until it starts.
     expect(ctx.gapMin).toBe(140);
@@ -61,7 +83,8 @@ describe("Leave By in the Now line and the guard", () => {
 
   it("an event with no travel time reads exactly as it always has", () => {
     const ctx = nowContext([ev("Practice", "18:00", "19:30")], [], "15:20");
-    expect(ctx.line).toBe("Free until 6 PM · 2 hr 40 min open");
+    expect(ctx.head).toBe("Free until 6 PM");
+    expect(ctx.tail).toBe("2 hr 40 min open");
     expect(ctx.nextLeave).toBeNull();
   });
 

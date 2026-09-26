@@ -2,7 +2,8 @@ import { useState } from "react";
 import { THREAD_STATE_LABEL, type Brief, type ConfirmedMeeting } from "./brief";
 import EvidenceChip from "./EvidenceChip";
 import type { Evidence } from "./evidence";
-import { byRank, type Bucket } from "./triage";
+import type { Bucket } from "./triage";
+import { deadlineTone } from "./home";
 import { haptics } from "../shared/haptics";
 import { rowDoor } from "../shared/rowDoor";
 import { dayPhrase, monthDay } from "../money/bills";
@@ -99,15 +100,16 @@ export default function ThreadStateCard({
         <div className="facts msg-stands-facts">
           {brief.state && <span className="fact strong">{THREAD_STATE_LABEL[brief.state]}</span>}
           {/* A deadline is a date with a meaning (§AM R8), never a second
-              grey beside Next. Its colour follows the date window every
-              other date in the app follows: today or tomorrow is due,
+              grey beside Next. Its colour is the one deadline rule the
+              Today card reads too (deadlineTone in home.ts): today,
+              tomorrow or a bare clock ("by 3 PM", which is today) is due,
               amber; later, or a phrase no one can place, is a neutral date
               in small caps. The mail rail reads the same phrase on a wider
               window of its own, which is the rail's to keep. A stated
               deadline is due, never late: the phrase cannot say whether it
               has passed. */}
           {brief.deadline && (
-            <span className={"fact " + (byRank(brief.deadline) <= 1 ? "warn" : "date")}>
+            <span className={"fact " + deadlineTone(brief.deadline)}>
               <EvidenceChip className="msg-stands-by" label={"By " + brief.deadline} evidence={evidence} {...(onOpenSource ? { onOpenSource } : {})} />
             </span>
           )}

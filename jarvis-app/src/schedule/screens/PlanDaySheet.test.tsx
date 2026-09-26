@@ -210,6 +210,12 @@ describe("the load line", () => {
     expect(fits, "a day that fits says it in green").not.toBeNull();
     expect(fits!.textContent).toMatch(/fits/);
     expect(document.querySelector(".plan-load .fact.red")).toBeNull();
+    // 2026-09-26: the toned fact leads and the grey open time is last, so the
+    // grey is what gives way on a narrow line, never the verdict.
+    const line = document.querySelector(".plan-load")!;
+    expect(line.firstElementChild).toBe(fits);
+    expect(line.lastElementChild!.className).toBe("fact");
+    expect(line.lastElementChild!.textContent).toMatch(/open/);
   });
 
   it("over: the picks fact is red, says how far over, and nothing says it fits", () => {
@@ -219,6 +225,10 @@ describe("the load line", () => {
     expect(over, "a day that runs over says it in red").not.toBeNull();
     expect(over!.textContent).toMatch(/over/);
     expect(document.querySelector(".plan-load .fact.good")).toBeNull();
+    // The red leads: at type scale 1.4 it was last and ellipsized to nothing.
+    const line = document.querySelector(".plan-load")!;
+    expect(line.firstElementChild).toBe(over);
+    expect(line.lastElementChild!.textContent).toMatch(/open/);
     // A pick with nowhere to go says "No room" in its time button's own
     // ink, never a red span inside it: the load line above carries the red.
     const noRoom = screen.getAllByText("No room");

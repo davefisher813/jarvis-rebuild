@@ -864,3 +864,169 @@ describe("CategoryDetail health page: Push C", () => {
     expect(screen.queryByText("Nothing Recorded Yet")).toBeNull();
   });
 });
+
+// ONE HEAD ACTION FORM PER SCREEN (sweep r2 #15/#34, 2026-09-26). The Health
+// page's heads are red words on the head's own baseline: its Your Progress
+// head says so in HealthBody ("the capsule made a section link look like a
+// control"), and Done This Week sits on that same page, so its See All is the
+// bare word too. The capsule stays on the plain area page's This Week head,
+// where every home-page head action is one.
+import { recordCompletion } from "../shared/timeSense";
+
+function SeededThreeDays({ name }: { name: string }) {
+  const tasks = useTasks();
+  const cats = useCategories();
+  const [cid, setCid] = useState("");
+  useEffect(() => {
+    (async () => {
+      const id = await cats.create(name, "green");
+      // Three finished tasks on three different days, so the list has more
+      // day groups than it shows and the head offers See All.
+      for (const back of [1, 2, 3]) {
+        const tid = await tasks.createTask(`Chore ${back}`, { category: id! });
+        const when = new Date(); when.setDate(when.getDate() - back); when.setHours(12, 0, 0, 0);
+        recordCompletion(id!, when, tid!);
+      }
+      setCid(id!);
+    })();
+  }, [tasks, cats, name]);
+  return cid ? <CategoryDetail categoryId={cid} onBack={() => {}} /> : null;
+}
+
+function headAction(title: string): HTMLElement {
+  const t = [...document.querySelectorAll(".sh2 .t")].find((el) => el.textContent === title);
+  const btn = t?.closest(".sh2")?.querySelector("button");
+  if (!btn) throw new Error(`no head action on ${title}`);
+  return btn as HTMLElement;
+}
+
+describe("CategoryDetail See All: one head action form per screen", () => {
+  afterEach(() => { localStorage.clear(); });
+
+  it("Health's Done This Week See All is the bare red word, like Your Progress beside it", async () => {
+    render(<NotesProvider userId="sa1"><SeededThreeDays name="Health" /></NotesProvider>);
+    await waitFor(() => expect(screen.getByText("Done This Week")).toBeInTheDocument());
+    const seeAll = headAction("Done This Week");
+    expect(seeAll).toHaveTextContent("See All");
+    expect(seeAll).toHaveClass("see-all");
+    expect(seeAll).not.toHaveClass("pill-action");
+    expect(headAction("Your Progress")).not.toHaveClass("pill-action");
+  });
+
+  it("a plain area page's This Week See All keeps the capsule", async () => {
+    render(<NotesProvider userId="sa2"><SeededThreeDays name="Chores" /></NotesProvider>);
+    await waitFor(() => expect(screen.getByText("This Week")).toBeInTheDocument());
+    const seeAll = headAction("This Week");
+    expect(seeAll).toHaveTextContent("See All");
+    expect(seeAll).toHaveClass("see-all", "pill-action");
+  });
+});
+
+// A REPLY OWED WEARS THE WHOLE MAIL LADDER (sweep r2 #11, 2026-09-26). The
+// ladder climbs on nudges as well as days (toneFor: one nudge sent is direct,
+// two is firm), and the rail passes the count. The person row dropped it, so
+// a 3-day wait chased twice was red on the rail and a grey small-caps time
+// here. The Google session, the waiting derivation and the last-contact
+// lookup are faked only for this block: every other test here renders with
+// no session, which is what the real hook returns without a provider.
+import { countNudge } from "../messages/escalate";
+import type { WaitingRow } from "../messages/waiting";
+
+const mailFake = vi.hoisted(() => ({
+  google: null as null | { api: () => object },
+  waiting: [] as WaitingRow[],
+  lastMs: null as number | null,
+}));
+vi.mock("../connections/google/GoogleSession", async (orig) => ({
+  ...(await orig<typeof import("../connections/google/GoogleSession")>()),
+  useOptionalGoogle: () => mailFake.google,
+}));
+vi.mock("../messages/waiting", async (orig) => ({
+  ...(await orig<typeof import("../messages/waiting")>()),
+  findWaiting: async () => mailFake.waiting,
+}));
+vi.mock("../people/lastContact", async (orig) => ({
+  ...(await orig<typeof import("../people/lastContact")>()),
+  lastContactFor: async () => mailFake.lastMs,
+}));
+
+function SeededWaiting() {
+  const cats = useCategories();
+  const people = usePeople();
+  const [cid, setCid] = useState("");
+  useEffect(() => {
+    (async () => {
+      const id = await cats.create("Family", "pink");
+      await people.create({ name: "Sam", group: "contacts", relationship: "Client", email: "sam@example.com", categoryIds: [id!] });
+      setCid(id!);
+    })();
+  }, [cats, people]);
+  return cid ? <CategoryDetail categoryId={cid} onBack={() => {}} /> : null;
+}
+
+describe("CategoryDetail person row: the wait age takes the nudge count", () => {
+  // One stable session object: the page's effect depends on it, so a fresh
+  // object per render would refetch forever.
+  const session = { api: () => ({}) };
+  beforeEach(() => {
+    mailFake.google = session;
+    mailFake.waiting = [{ threadId: "t-sam", to: "Sam", toEmail: "sam@example.com", subject: "Quote", waitingDays: 3, lastMsgId: "m1" }];
+  });
+  afterEach(() => { mailFake.google = null; mailFake.waiting = []; mailFake.lastMs = null; localStorage.clear(); });
+
+  // SPEC MOVED (sweep r2 #5, 2026-09-26): "Waiting 3 days on their reply"
+  // wrapped beside the Nudge pill at 390px; the pill says who owes the move.
+  const waitLine = () => screen.findByText("Waiting 3 days");
+
+  it("a 3-day wait never chased is a neutral time in small caps", async () => {
+    render(<NotesProvider userId="wn0"><SeededWaiting /></NotesProvider>);
+    const line = await waitLine();
+    expect(line).toHaveClass("fact", "date");
+    expect(line).not.toHaveClass("warn");
+    expect(line).not.toHaveClass("red");
+  });
+
+  it("chased once, the same wait is direct: amber", async () => {
+    countNudge("t-sam");
+    render(<NotesProvider userId="wn1"><SeededWaiting /></NotesProvider>);
+    const line = await waitLine();
+    expect(line).toHaveClass("fact", "warn");
+    expect(line).not.toHaveClass("date");
+  });
+
+  it("chased twice, the same wait is firm: red, as the rail draws it", async () => {
+    countNudge("t-sam");
+    countNudge("t-sam");
+    render(<NotesProvider userId="wn2"><SeededWaiting /></NotesProvider>);
+    const line = await waitLine();
+    expect(line).toHaveClass("fact", "red");
+    expect(line).not.toHaveClass("date");
+  });
+
+  // A FACTS LINE NEVER CLIPS A WORD (sweep r2 #5): the short toned fact
+  // leads and the free-text relationship comes last, the one that gives way.
+  it("the state leads the line and the relationship follows it", async () => {
+    render(<NotesProvider userId="wn3"><SeededWaiting /></NotesProvider>);
+    const line = await waitLine();
+    const facts = [...line.closest(".r-k")!.children].map((c) => c.textContent);
+    expect(facts).toEqual(["Waiting 3 days", "Client"]);
+  });
+
+  // Gone quiet is the key's amber on the last-talked words, the way the
+  // person page says it, never a "Gone quiet:" prefix that pushes the line
+  // past the pill.
+  it("a line gone quiet is the last-talked age in amber, and a recent one is small caps", async () => {
+    mailFake.waiting = [];
+    mailFake.lastMs = Date.now() - 40 * 86400000;
+    const { unmount } = render(<NotesProvider userId="wn4"><SeededWaiting /></NotesProvider>);
+    const quiet = await screen.findByText("Last talked 5 Weeks ago");
+    expect(quiet).toHaveClass("fact", "warn");
+    expect(screen.queryByText(/Gone quiet/)).toBeNull();
+    unmount();
+    mailFake.lastMs = Date.now() - 3 * 86400000;
+    render(<NotesProvider userId="wn5"><SeededWaiting /></NotesProvider>);
+    const recent = await screen.findByText("Last talked 3 Days ago");
+    expect(recent).toHaveClass("fact", "date");
+    expect(recent).not.toHaveClass("warn");
+  });
+});

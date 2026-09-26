@@ -42,7 +42,9 @@ export interface LedgerRow {
   sortKey: string;
   /** The day it is due (ISO), on a task or promise that has one. */
   due?: string;
-  /** Past its date, either side. */
+  /** Late, either side: what he owes is past its due day, and a wait on
+   *  someone else is on the ladder's red rung (firm), the same rung that
+   *  draws its age red. */
   late: boolean;
   /** The thread it came from, when there is one. */
   threadId?: string;
@@ -62,8 +64,11 @@ export interface LedgerInput {
    *  the ledger: a to-do the user typed themselves is not a promise to
    *  anyone, and filing it here would turn the ledger into the task list. */
   tasks: { id: string; text: string; done?: boolean; due?: string | null; fromThread?: string; personId?: string; sourceKind?: string }[];
-  /** Threads where the last word was the user's and nobody has answered. */
-  waiting: { threadId: string; to: string; subject: string; days: number; personId?: string }[];
+  /** Threads where the last word was the user's and nobody has answered.
+   *  `nudges` is how many nudges have already gone out on the thread
+   *  (loadNudgeCounts in escalate.ts): the ladder climbs on them as well as
+   *  on the clock, and the rail reads them, so the ledger does too. */
+  waiting: { threadId: string; to: string; subject: string; days: number; personId?: string; nudges?: number }[];
   /** Chases the user set themselves, already filtered to the ones due. */
   chases: { threadId: string; to: string; subject: string; personId?: string }[];
   /** Promises swept out of sent mail that have not become tasks yet. */
@@ -137,7 +142,7 @@ export function buildLedger(input: LedgerInput): Ledger {
   // THEY OWE YOU. A thread whose last word was the user's, and a chase they
   // set. The verb on each row comes from decide(), never from here.
   for (const w of input.waiting) {
-    const d = decide(w.subject ?? "", "", w.days);
+    const d = decide(w.subject ?? "", "", w.days, w.nudges ?? 0);
     // A receipt owes nothing, and decide() is what knows that. A row with no
     // draftable move is not a debt; it drops out here exactly as it drops out
     // of Waiting On and off the home page.
@@ -151,7 +156,10 @@ export function buildLedger(input: LedgerInput): Ledger {
       what: w.subject,
       since: sinceLabel(w.days),
       sortKey: String(10000 - Math.min(w.days, 9999)).padStart(5, "0"),
-      late: w.days >= 7,
+      // Late is the ladder's red rung, never a week of its own: a row in
+      // the Late section wears a red age, and an amber one (needs you
+      // soon) stays in They Owe You. Nudges count, as on the rail.
+      late: d.tone === "firm",
       threadId: w.threadId,
       ...(w.personId ? { personId: w.personId } : {}),
       decision: d,
@@ -213,8 +221,9 @@ export function buildLedger(input: LedgerInput): Ledger {
 // red, today or tomorrow amber, later a neutral date) and says nothing in
 // colour when it has no date. A chase he set has come due, so it is amber.
 // A wait on someone else wears the one ladder every wait age in mail wears,
-// the rail's and the wait card's (toneFor, through decide()): a firm wait is
-// red, a direct one amber, a gentle one a neutral time in small caps.
+// the rail's and the wait card's (toneFor, through decide(), nudges and
+// all): a firm wait is red, a direct one amber, a gentle one a neutral time
+// in small caps.
 export function ledgerTone(r: LedgerRow, today: string): FactTone | undefined {
   if (r.side === "you_owe") return r.due ? dayTone(r.due, today) : undefined;
   if (r.kind === "chase") return "warn";

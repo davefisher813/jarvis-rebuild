@@ -29,6 +29,8 @@ import { clearedToday } from "./cleared";
 import { loadClosedBatch } from "./weeklyClose";
 import { todayISO } from "../schedule/calendar";
 import { recordToss } from "./selfClean";
+import { recordUnsub } from "./unsubRecords";
+import { saveRule } from "./rules";
 
 const noAI = new AIService({ available: false });
 
@@ -563,6 +565,45 @@ describe("MessagesFlow (threads)", () => {
     expect(await screen.findByText("Ridgeley")).toBeInTheDocument();
   });
 
+  // UP-MIND-17: the Asked to Stop receipt says when he asked and whether
+  // it worked, as two facts (§AM R5, R6). "Still sending" is a sender that
+  // stalled after the ask, amber; a sender that went quiet says only when.
+  it("the Asked to Stop row says Still sending, amber, only when mail came since", async () => {
+    const ago = new Date();
+    ago.setDate(ago.getDate() - 21);
+    const askedISO = `${ago.getFullYear()}-${String(ago.getMonth() + 1).padStart(2, "0")}-${String(ago.getDate()).padStart(2, "0")}`;
+    recordUnsub({ sender: "deals@shop.com", askedISO, via: "header" });
+    recordUnsub({ sender: "quiet@shop.com", askedISO, via: "header" });
+    // A filed sender puts the Standing Rules row on the page.
+    saveRule("filed@x.com", "noise");
+    const api = makeApi({ listThreads: async () => [
+      ...THREADS,
+      { id: "t9", messages: [msg("m9", "Deals <deals@shop.com>", "Last chance", "Sale ends", ["INBOX"], Date.now())] },
+    ] });
+    render(wrap(<MessagesFlow ai={noAI} configured />, api));
+    fireEvent.click(await screen.findByText("Connect Google"));
+    await screen.findByText("Ridgeley");
+    fireEvent.click(screen.getByText("Standing Rules"));
+    await screen.findByText("Asked to Stop");
+    const lines = await waitFor(() => {
+      const ls = [...document.querySelectorAll(".facts")].filter((f) => (f.textContent ?? "").startsWith("Asked 3 weeks ago"));
+      expect(ls).toHaveLength(2);
+      return ls;
+    });
+    const still = lines.filter((f) => f.querySelector(".fact.warn"));
+    const calm = lines.filter((f) => !f.querySelector(".fact.warn"));
+    expect(still).toHaveLength(1);
+    expect(calm).toHaveLength(1);
+    // Sent since the ask: when, then whether it worked, in amber.
+    const facts = [...still[0]!.querySelectorAll(".fact")];
+    expect(facts.map((f) => f.textContent)).toEqual(["Asked 3 weeks ago", "Still sending"]);
+    expect(facts[0]!.className).toBe("fact");
+    expect(facts[1]!.className).toBe("fact warn");
+    // Nothing since the ask: only when, and no "Still sending" anywhere on it.
+    expect([...calm[0]!.querySelectorAll(".fact")].map((f) => f.textContent)).toEqual(["Asked 3 weeks ago"]);
+    expect(calm[0]!.textContent).not.toMatch(/still sending/i);
+  });
+
   it("composes and sends", async () => {
     render(wrap(<MessagesFlow ai={noAI} configured />));
     fireEvent.click(await screen.findByText("Connect Google"));
@@ -931,6 +972,14 @@ describe("MessagesFlow (threads)", () => {
       });
       const opened = [...robCard.querySelectorAll(".fact.date")].find((f) => /^Opened /.test(f.textContent ?? ""));
       expect(opened?.textContent).toBe("Opened Aug 2");
+      // The toned age leads and the name is last, the one fact that may
+      // shrink: a name can be a whole email address, and first it squeezed
+      // the age off the line. Past a week is the direct rung, amber.
+      const head = [...robCard.querySelector(".facts")!.querySelectorAll(".fact")];
+      expect(head[0]!.className).toBe("fact warn");
+      expect(head[0]!.textContent).toMatch(/^1[12] Days$/);
+      expect(head[head.length - 1]!.className).toBe("fact");
+      expect(head[head.length - 1]!.textContent).toMatch(/Rob/);
       expect(robCard.textContent).not.toMatch(/not opened/i);
 
       // Ann's card: nothing was tracked, so nothing is said about opening.

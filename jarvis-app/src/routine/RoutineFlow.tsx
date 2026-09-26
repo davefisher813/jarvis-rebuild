@@ -306,18 +306,21 @@ export default function RoutineFlow({ onBack, focusId, onFocusConsumed }: { onBa
         {/* §AM (2026-09-26): the meta line is a facts line, so its separators
             are drawn by the stylesheet, not baked into a string. Flexible is
             the block's state word, not part of its name; the hours and the
-            days are neutral times in small caps; the place is the one grey. */}
+            days are neutral times in small caps; the place is the one grey.
+            The facts go straight into the Row's own .conn-meta, which wraps
+            to two lines: a settings row shows every fact, and a one-line
+            .facts cut the day list mid-word and dropped the place. */}
         {sortedBlocks.map((b) => (
           <Row
             key={b.id}
             label={b.label}
             meta={
-              <div className="facts">
+              <>
                 {b.soft && <span className="fact st gray">Flexible</span>}
                 <span className="fact date">{label12(b.startMin)} to {label12(b.endMin)}</span>
                 <span className="fact date">{daysSummary(b.days)}</span>
                 {b.location && <span className="fact">{b.location}</span>}
-              </div>
+              </>
             }
             onClick={() => openEdit(b)}
             chev

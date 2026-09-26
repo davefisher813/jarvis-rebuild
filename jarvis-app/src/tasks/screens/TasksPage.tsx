@@ -601,8 +601,9 @@ export function MomentumRow({
   task, reason, today = todayISO(), onOpen, onToggle, onStart, onNotNow,
 }: {
   task: TaskItem;
-  /** momentum.ts's own derived line ("Same category, due today"), or null
-   *  when neither fact applied. */
+  /** chainReason's line ("Same category"), or null when the suggestion is
+   *  not from the finished task's area. The due half is not in it: the row
+   *  reads that off the task as the distance chip. */
   reason: string | null;
   /** The day the due chip is measured against; the flow's own today when
    *  it passes one. */

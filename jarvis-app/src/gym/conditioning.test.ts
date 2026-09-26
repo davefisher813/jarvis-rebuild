@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { condCap, condLength, condResultEntry, condScore, condScoreLabel, condSummary, intervalAt, intervalsDone, marksOwnRounds, mmss, perRound } from "./conditioning";
+import { condCap, condLength, condResultEntry, condScore, condScoreLabel, intervalAt, intervalsDone, marksOwnRounds, mmss, perRound } from "./conditioning";
 import { formatSet } from "./measures";
-import { COND_LABEL, type CondBlock } from "./types";
+import type { CondBlock } from "./types";
 
 // THE CONDITIONING BLOCK (ruled 2026-09-01, built 2026-09-02). Two states
 // share one set of derivations; these pin them.
@@ -17,17 +17,12 @@ describe("the clock's words", () => {
     expect(mmss(720)).toBe("12:00");
     expect(mmss(-3)).toBe("0:00");
   });
-  it("summaries", () => {
-    expect(condSummary(amrap)).toBe("AMRAP · 12:00");
-    expect(condSummary(emom)).toBe("EMOM · 10 × 1:00");
-    expect(condSummary(tabata)).toBe("Tabata · 8 × 0:20 / 0:10");
-    expect(condSummary(forTime)).toBe("For Time · Cap 20:00");
-  });
   // Sweep #28 (2026-09-26): the receipt's head and the exercise sheet's Clock
   // row already name the format, so they show only the length. They used to
-  // cut the label and its middot off condSummary's string, which would
-  // silently bring both back the day the summary's wording moved. The length
-  // is its own derivation now, and the summary is built from it.
+  // cut the label and its middot off a joined "label · length" summary,
+  // which would silently bring both back the day its wording moved. The
+  // length is its own derivation now, and the joined summary is gone (R6:
+  // a separator is drawn by CSS, never baked into a string).
   it("the length, without the format label", () => {
     expect(condLength(amrap)).toBe("12:00");
     expect(condLength(emom)).toBe("10 × 1:00");
@@ -35,7 +30,6 @@ describe("the clock's words", () => {
     expect(condLength(forTime)).toBe("Cap 20:00");
     for (const c of [amrap, emom, tabata, forTime]) {
       expect(condLength(c), "no label or separator rides in the length").not.toMatch(/·|AMRAP|EMOM|Tabata|For Time/);
-      expect(condSummary(c), "and the summary is the label plus the same length").toBe(`${COND_LABEL[c.format]} · ${condLength(c)}`);
     }
   });
   it("the cap is built from the parts, so it can never disagree with them", () => {

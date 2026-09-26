@@ -91,15 +91,21 @@ function reminderDays(days?: number[]): string {
 //   - the one grey run is the words: who and which project in one run, a
 //     Remember line's kind when it is not plain Fact, or the kind of a
 //     record that has no chip (a decision, a person's card).
+//   - a bill for a person or a project is ONE fact, "Bill $50 for Marco"
+//     (2026-09-26): the word Bill is already a grey run, so a separate who
+//     beside it was a second grey on the line (§AK). Who joins the bill as
+//     a clause of it and does not stand on its own. The words go LAST, the
+//     bill with them: the short whens lead and the long free text trails,
+//     so a narrow line loses the tail of a name before it loses a due date.
 // Nothing here repeats the chips under the receipt, which already name the
 // kind and the area (or the Brain bucket) with the right one lit; that is
 // the same word-twice rule the person card follows. "From your paste" went
 // too: everything on this sheet came from the paste.
 function receiptFacts(s: SavedEntity, names: { person?: string; project?: string }): ReactNode[] {
   const out: ReactNode[] = [];
+  const who = [names.person, names.project].filter(Boolean).join(", ");
   if (!KINDS.includes(s.kind)) out.push(<span className="fact" key="kind">{KIND_LABEL[s.kind]}</span>);
   if (s.reminder) out.push(<span className="fact date" key="remind">Reminder {fmtClock(s.reminder.time)}</span>);
-  if (s.bill) out.push(<span className="fact" key="bill">Bill <b>{formatMoney(s.bill.amount)}</b></span>);
   if (s.kind === "fact") {
     // C-49: the kind the prefix chose, and Rule when Never/Always made one.
     if (s.factType && s.factType !== "fact") out.push(<span className="fact" key="type">{STRAND_TYPE_LABEL[s.factType]}</span>);
@@ -112,8 +118,8 @@ function receiptFacts(s: SavedEntity, names: { person?: string; project?: string
   // person to find out tomorrow morning.
   const repeat = s.recurrence ? (REPEAT_WORD[s.recurrence] ?? s.recurrence) : s.reminder ? reminderDays(s.reminder.days) : "";
   if (repeat) out.push(<span className="fact date" key="repeat">{repeat}</span>);
-  const who = [names.person, names.project].filter(Boolean).join(", ");
-  if (who) out.push(<span className="fact" key="who">{who}</span>);
+  if (s.bill) out.push(<span className="fact" key="bill">Bill <b>{formatMoney(s.bill.amount)}</b>{who ? " for " + who : ""}</span>);
+  else if (who) out.push(<span className="fact" key="who">{who}</span>);
   return out;
 }
 
@@ -435,8 +441,14 @@ export default function QuickCapture({ ai, onClose, onOpen }: { ai: AIService; o
                       <div className="row-stack">
                         <div className="conn-name">{s.title}</div>
                         {/* A read with nothing past what the chips below say
-                            shows no line at all. */}
-                        {facts.length > 0 && <div className="facts">{facts}</div>}
+                            shows no line at all. The receipt's job is to
+                            show EVERY fact it read (the resolved date and
+                            time above all), so its facts sit in the
+                            wrapping two-line .conn-meta, not the one-line
+                            .facts whose last fact gives way (2026-09-26, as
+                            gym/UploadFlow's review row). The stylesheet
+                            still draws the dots between them. */}
+                        {facts.length > 0 && <div className="conn-meta">{facts}</div>}
                       </div>
                       <button className="btn-sm" onClick={() => void onUndo(s)}>Undo</button>
                     </div>

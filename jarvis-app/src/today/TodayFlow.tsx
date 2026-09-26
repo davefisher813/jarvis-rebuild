@@ -1778,11 +1778,22 @@ export default function TodayFlow({
     // carries its own tint by rule (the headliner's and MomentumRow's own
     // .uchip, TODAY amber, N DAYS LATE red). Without a length it is the
     // line's one coloured fact: amber when due, red when late.
+    //
+    // THE LINE NEVER CLIPS A WORD (the lead, 2026-09-26). In .facts only the
+    // last fact shrinks, so the short facts lead (the chip, the length) and
+    // "Same category", the words, goes last. With the chip on the line there
+    // is no room for the words as well: measured at 390px, TODAY, 15m and
+    // Same category need about 230px, the card's line has 161 at scale 1
+    // and 129 at 1.4, and the stream's one-line row leaves a short title's
+    // sub 83 to 100px, so whichever fact sat before the words was cut
+    // mid-word. So the chip branch says the two facts that make the task
+    // startable, when and how long, the same two slots the dealt row above
+    // it prints (MoveHeadliner: the chip, then the length), and the shared
+    // area stays on the Tasks tab's row.
     if (due && len) {
       return (
         <div className="facts">
           <span className="fact"><span className={"uchip " + (due.kind === "late" ? "u-late" : "u-today")}>{due.label}</span></span>
-          {why && <span className="fact">{why}</span>}
           <span className="fact est">{len}</span>
         </div>
       );
@@ -1790,8 +1801,8 @@ export default function TodayFlow({
     return (
       <Facts facts={[
         due ? { text: dueWords(due), tone: due.kind === "late" ? "red" : "warn" } : null,
-        why ? { text: why } : null,
         len ? { text: len, tone: "est" } : null,
+        why ? { text: why } : null,
       ]} />
     );
   };
@@ -2548,7 +2559,7 @@ export default function TodayFlow({
                 lowercase. nowContext hands over `head` and `tail` now, each
                 already written as the line it is. */}
             <div className="row-stack">
-              <div className="conn-name truncate">{nowCtx.head ?? nowCtx.line}</div>
+              <div className="conn-name truncate">{nowCtx.head}</div>
               {/* §AM F5 (2026-09-26): the tail here is "Until 7:00 PM", a
                   neutral time stated as the row's fact, so it is small caps. */}
               {nowCtx.tail && <div className="conn-meta facts"><span className="fact date">{nowCtx.tail}</span></div>}

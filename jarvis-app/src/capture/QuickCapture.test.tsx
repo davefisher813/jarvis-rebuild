@@ -8,7 +8,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
 import "@testing-library/jest-dom";
-import { NotesProvider, useOptionalStrands, useTasks, useCategories } from "../data/NotesProvider";
+import { NotesProvider, useOptionalStrands, useTasks, useCategories, usePeople } from "../data/NotesProvider";
 import { AIService } from "../ai/AIService";
 import QuickCapture from "./QuickCapture";
 import { recordCapture } from "../paste/captureLog";
@@ -136,6 +136,7 @@ describe("QuickCapture fact category chips (S4-Q22)", () => {
     // §AM (2026-09-26): the bucket is the lit chip, and the receipt line no
     // longer says it again ("Fact · Routine · From your paste" repeated both
     // chips word for word). A plain self-fact has nothing else to say.
+    expect(document.querySelector(".capture-saved .conn-meta")).toBeNull();
     expect(document.querySelector(".capture-saved .facts")).toBeNull();
     expect(screen.getByRole("radio", { name: "Routine" })).toHaveAttribute("aria-checked", "true");
     expect(screen.getByRole("radio", { name: "Energy" })).toHaveAttribute("aria-checked", "false");
@@ -222,7 +223,10 @@ describe("QuickCapture fact category chips (S4-Q22)", () => {
 // fact now wears what it is: every when in small caps, a bill's amount in
 // white, and the dots drawn by the stylesheet, never carried in the words.
 describe("QuickCapture receipt reads as facts (§AM)", () => {
-  const receiptFacts = () => Array.from(document.querySelectorAll(".capture-saved .facts > .fact"));
+  // 2026-09-26: the receipt shows EVERY fact it read, so its facts sit in the
+  // wrapping two-line .conn-meta, never the one-line .facts whose last fact
+  // gives way (a reminder's days and its project were being cut off).
+  const receiptFacts = () => Array.from(document.querySelectorAll(".capture-saved .conn-meta > .fact"));
 
   it("a reminder says so beside its time, and every when is small caps", async () => {
     render(
@@ -237,7 +241,8 @@ describe("QuickCapture receipt reads as facts (§AM)", () => {
     const facts = receiptFacts();
     expect(facts.map((f) => f.textContent)).toEqual([expect.stringMatching(/^Reminder 9:00\sPM$/), "Daily"]);
     for (const f of facts) expect(f.className).toBe("fact date");
-    const line = document.querySelector(".capture-saved .facts")!;
+    expect(document.querySelector(".capture-saved .facts"), "the receipt is never a one-line facts row").toBeNull();
+    const line = document.querySelector(".capture-saved .conn-meta")!;
     expect(line.textContent).not.toContain("\u00b7");
     expect(line.textContent).not.toContain("From your paste");
   });
@@ -254,13 +259,41 @@ describe("QuickCapture receipt reads as facts (§AM)", () => {
     fireEvent.click(screen.getByText("Capture"));
     await waitFor(() => expect(screen.getByText("Saved")).toBeInTheDocument());
 
+    // 2026-09-26: the short whens lead and the bill, the line's words,
+    // trails, so a narrow line loses the tail of a name, never the repeat.
     const facts = receiptFacts();
-    expect(facts[0]!.textContent).toMatch(/^Bill \$1,200/);
-    expect(facts[0]!.className).toBe("fact");
-    expect(facts[0]!.querySelector("b")?.textContent).toMatch(/1,200/);
-    expect(facts[0]!.querySelector("b")?.textContent).not.toContain("Bill");
-    expect(facts[facts.length - 1]!.textContent).toBe("Monthly");
-    expect(facts[facts.length - 1]!.className).toBe("fact date");
+    expect(facts.map((f) => f.textContent)).toEqual(["Monthly", expect.stringMatching(/^Bill \$1,200/)]);
+    expect(facts[0]!.className).toBe("fact date");
+    const bill = facts[facts.length - 1]!;
+    expect(bill.className).toBe("fact");
+    expect(bill.querySelector("b")?.textContent).toMatch(/1,200/);
+    expect(bill.querySelector("b")?.textContent).not.toContain("Bill");
+  });
+
+  // §AK (2026-09-26): the word Bill is already the line's one grey run, so a
+  // bill for somebody names them inside that fact ("Bill $50 for Marco")
+  // instead of a second grey fact beside it.
+  it("a bill for a person is one fact, and the person is not a second grey", async () => {
+    let peopleRef: ReturnType<typeof usePeople> | null = null;
+    function CapturePeople() { peopleRef = usePeople(); return null; }
+    render(
+      <NotesProvider userId="u-receipt-bill-who">
+        <CapturePeople />
+        <QuickCapture ai={new AIService({ available: false })} onClose={() => {}} />
+      </NotesProvider>,
+    );
+    await waitFor(() => expect(peopleRef).toBeTruthy());
+    await act(async () => { await peopleRef!.create({ name: "Marco", group: "contacts" }); });
+    fireEvent.change(screen.getByPlaceholderText(/Paste or type/), { target: { value: "pay Marco $50 every month" } });
+    fireEvent.click(screen.getByText("Capture"));
+    await waitFor(() => expect(screen.getByText("Saved")).toBeInTheDocument());
+
+    const facts = receiptFacts();
+    expect(facts.map((f) => f.textContent)).toEqual(["Monthly", expect.stringMatching(/^Bill \$50(\.00)? for Marco$/)]);
+    expect(facts[1]!.className).toBe("fact");
+    expect(facts[1]!.querySelector("b")?.textContent).toMatch(/^\$50/);
+    // The only plain grey fact on the line is the bill; Marco is inside it.
+    expect(facts.filter((f) => f.className === "fact")).toHaveLength(1);
   });
 
   // §AM R8 (2026-09-26): a task's date is a due date, so it wears the due

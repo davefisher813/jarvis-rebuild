@@ -128,3 +128,32 @@ describe("RoutineFlow blocks save on the tap (BRAIN-F-06)", () => {
     }
   });
 });
+
+// 2026-09-26: a protected-time row states its hours and its days, and both
+// must show. The facts go straight into the settings Row's own .conn-meta,
+// which wraps to two lines, never a one-line .facts whose day list was cut
+// mid-word with the place dropped behind it.
+describe("RoutineFlow protected time: the row shows every fact", () => {
+  it("puts the facts straight in the wrapping meta line", async () => {
+    render(
+      <NotesProvider userId="u-routine-meta">
+        <CaptureRoutine />
+        <RoutineFlow onBack={() => {}} />
+      </NotesProvider>,
+    );
+    fireEvent.click(await screen.findByText("Add Protected Time"));
+    fireEvent.change(await screen.findByLabelText("Name"), { target: { value: "Gym" } });
+    fireEvent.click(screen.getByText("Add Block"));
+    await waitFor(async () => expect((await routineRef!.get()).protectedBlocks ?? []).toHaveLength(1));
+
+    const row = (await screen.findByText(/^Gym/)).closest(".set-row") as HTMLElement;
+    expect(row.querySelector(".facts"), "never the one-line facts row").toBeNull();
+    const meta = row.querySelector(".conn-meta")!;
+    const facts = Array.from(meta.children);
+    expect(facts.length).toBeGreaterThanOrEqual(2);
+    for (const f of facts) expect(f.classList.contains("fact")).toBe(true);
+    // The hours and the days are neutral small caps.
+    expect(facts.filter((f) => f.classList.contains("date"))).toHaveLength(2);
+    expect(meta.textContent).not.toContain("·");
+  });
+});

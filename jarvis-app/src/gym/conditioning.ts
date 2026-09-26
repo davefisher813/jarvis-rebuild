@@ -13,7 +13,6 @@
 // AMRAP and For Time need the athlete to say when a round ended.
 
 import type { CondBlock, CondFormat, Exercise, SetEntry, SetLog } from "./types";
-import { COND_LABEL } from "./types";
 import { newSetId } from "./strip";
 
 /** "7:42", "0:07", "12:00". */
@@ -34,18 +33,14 @@ export function condCap(format: CondFormat, parts: { minutes?: number; intervalS
 
 /** The block's length without its format label: "12:00", "10 × 1:00",
  *  "Cap 20:00", "8 × 0:20 / 0:10". A screen that already shows the format
- *  on its own (the receipt's head, the sheet's format picker) asks for this,
- *  rather than cutting the label off condSummary's string. */
+ *  on its own (the receipt's head, the sheet's format picker) shows only
+ *  this. There is no joined "label · length" string: a screen that wants
+ *  both draws them as two facts, and the CSS draws the dot between them. */
 export function condLength(c: CondBlock): string {
   if (c.format === "emom") return `${c.rounds ?? 0} × ${mmss(c.intervalSec ?? 60)}`;
   if (c.format === "tabata") return `${c.rounds ?? 0} × ${mmss(c.intervalSec ?? 20)} / ${mmss(c.restSec ?? 10)}`;
   if (c.format === "for_time") return `Cap ${mmss(c.capSec)}`;
   return mmss(c.capSec);
-}
-
-/** The head line: "AMRAP · 12:00", "EMOM · 10 × 1:00", "For Time · Cap 20:00", "Tabata · 8 × 0:20 / 0:10". */
-export function condSummary(c: CondBlock): string {
-  return `${COND_LABEL[c.format]} · ${condLength(c)}`;
 }
 
 /** Interval formats mark their own rounds; the other two wait for a tap. */

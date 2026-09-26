@@ -556,6 +556,30 @@ describe("BROWSER-F-10: red words on a sheet grey are readable", () => {
     expect(ruleBody(css(), ".sheet-scrim > .card .fact.red, .form-sheet .fact.red"), "the sheet facts wear it")
       .toMatch(/(^|[;\s])color:\s*var\(--sys-red-on-sheet\)/);
   });
+
+  // THE KEY'S AMBER HAS A TWIN FOR A SHEET'S RAISED GREY (the lead,
+  // 2026-09-26, sweep r2 #30). Plan My Day's two placement warnings are the
+  // key's amber, and they draw only inside a picked row: 14% white over the
+  // sheet, #4A4A4B in dark, where the system amber reads 4.31:1, under AA at
+  // the fact size. Straight on the sheet (6.78:1) and on its grouped card
+  // (5.52:1) the plain amber clears AA, so the twin is worn where the grey is
+  // raised, not by every sheet fact. Dark takes Apple's increased-contrast
+  // systemOrange; light (the root default) is the system amber unchanged.
+  // Pinned: the token, its contrast on the picked grey composed from the
+  // tokens themselves, and the rule that wears it.
+  it("the key's amber on a sheet's picked grey takes --warn-on-sheet, and it clears AA there", () => {
+    const bare = tokens().replace(/\/\*[\s\S]*?\*\//g, "");
+    expect(bare, "light (the root default) is the system amber unchanged")
+      .toMatch(/:root\s*\{[^}]*--warn-on-sheet:\s*var\(--warn\)/);
+    const picked = "rgb(" + overC(tokenIn("dark", "--press-5"), tokenIn("dark", "--surface-2")).map(Math.round).join(",") + ")";
+    const twin = tokenIn("dark", "--warn-on-sheet");
+    const cr = contrast(twin, picked);
+    expect(cr, `dark --warn-on-sheet on a picked row (${picked}) is ${cr.toFixed(2)}:1`).toBeGreaterThanOrEqual(4.5);
+    expect(contrast(tokenIn("dark", "--warn"), picked), "the plain system amber is why the twin exists")
+      .toBeLessThan(4.5);
+    expect(ruleBody(css(), ".p3-row.on .fact.warn"), "the picked row's amber facts wear it")
+      .toMatch(/(^|[;\s])color:\s*var\(--warn-on-sheet\)/);
+  });
 });
 
 describe("BROWSER-F-17: the inline time editor never covers the row it edits", () => {

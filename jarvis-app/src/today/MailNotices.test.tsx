@@ -4,6 +4,7 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import MailNotices from "./MailNotices";
 import { saveMailSnapshot, type MailSnapshot } from "../messages/home";
+import { countNudge } from "../messages/escalate";
 import { enqueueTodaySend, getTodayOutbox, resetTodayOutboxForTest } from "../messages/todayOutbox";
 import { subscribeToast, hideToast, type ToastState } from "../shared/toast";
 
@@ -213,8 +214,21 @@ describe("MailNotices: the line wears the key", () => {
     saveMailSnapshot(snap({ waiting: [{ threadId: "w1", to: "Rob", subject: "The deck", days: 9 }] }));
     const { container } = render(<MailNotices today={TODAY} nowHHMM="09:00" onAddTask={async () => true} />);
     const facts = [...container.querySelectorAll(".stream-card .facts > .fact")];
-    expect(facts.map((f) => f.textContent)).toEqual(["Sent 9 days ago", "The deck"]);
+    expect(facts.map((f) => f.textContent)).toEqual(["9 Days", "The deck"]);
     expect(facts[0]!.classList.contains("warn")).toBe(true);
     expect(container.querySelector(".qd-hot")).toBeNull();
+  });
+
+  // The ladder climbs on nudges as well as on the clock, and the rail reads
+  // them, so the card reads the same counts: a three-day wait he has chased
+  // twice is red here as it is red on the rail.
+  it("puts a wait he has already nudged on the rung the rail gives it", () => {
+    countNudge("w1");
+    countNudge("w1");
+    saveMailSnapshot(snap({ waiting: [{ threadId: "w1", to: "Rob", subject: "The deck", days: 3 }] }));
+    const { container } = render(<MailNotices today={TODAY} nowHHMM="09:00" onAddTask={async () => true} />);
+    const age = container.querySelector(".stream-card .facts > .fact")!;
+    expect(age.textContent).toBe("3 Days");
+    expect(age.classList.contains("red")).toBe(true);
   });
 });

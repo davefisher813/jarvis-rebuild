@@ -130,6 +130,22 @@ describe("the colour of a row's age", () => {
     expect(t.get("waiting:w21")).toBe("red");
   });
 
+  // The ladder climbs on nudges as well as on the clock, and the rail reads
+  // them. Without them a three-day wait he had chased twice was red on the
+  // rail and small caps here.
+  it("climbs the ladder on the nudges already sent, as the rail does", () => {
+    const t = tone({
+      waiting: [
+        { threadId: "n0", to: "Rob", subject: "Field booking", days: 3 },
+        { threadId: "n1", to: "Ann", subject: "The roster", days: 3, nudges: 1 },
+        { threadId: "n2", to: "Sam", subject: "The deposit", days: 3, nudges: 2 },
+      ],
+    });
+    expect(t.get("waiting:n0")).toBe("date");
+    expect(t.get("waiting:n1")).toBe("warn");
+    expect(t.get("waiting:n2")).toBe("red");
+  });
+
   it("makes a chase he set amber, because it has come due", () => {
     expect(tone({ chases: [{ threadId: "c1", to: "Rob", subject: "Quote" }] }).get("chase:c1")).toBe("warn");
   });
@@ -157,6 +173,22 @@ describe("late", () => {
     expect(l.youOwe).toHaveLength(1);
     expect(l.theyOweYou).toHaveLength(1);
     expect(l.total).toBe(2);
+  });
+
+  // Late is the ladder's red rung, the rung that draws the age red. A week
+  // used to be the line, so an eight-day wait sat in Late wearing an amber
+  // age that says "needs you soon", not "late".
+  it("holds a wait only once it is on the red rung, nudges included", () => {
+    const l = buildLedger(input({
+      waiting: [
+        { threadId: "w8", to: "Ann", subject: "The roster", days: 8 },
+        { threadId: "w21", to: "Sam", subject: "The deposit", days: 21 },
+        { threadId: "w3", to: "Rob", subject: "Field booking", days: 3, nudges: 2 },
+      ],
+    }));
+    expect(l.late.map((r) => r.key).sort()).toEqual(["waiting:w21", "waiting:w3"]);
+    for (const r of l.late) expect(ledgerTone(r, "2026-08-15")).toBe("red");
+    expect(l.theyOweYou.find((r) => r.key === "waiting:w8")!.late).toBe(false);
   });
 
   it("counts every row once, whichever sections show it", () => {

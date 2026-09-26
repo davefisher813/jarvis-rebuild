@@ -1390,6 +1390,16 @@
 .ruled .uchip.u-done { color: var(--good); background: var(--good-tint); }
 /* A person's row: the avatar takes the check column at the row's size. */
 .ruled .person-row-ruled .task-check-tap .av { width: 30px; height: 30px; font-size: var(--t-caption); }
+/* A PERSON'S SECOND LINE IS ONE LINE (2026-09-26, the lead). It carries two
+   items, the state and the relationship, and the wrapping second line put
+   the state on a line of its own beside the Nudge pill, so a two-line row
+   became three. The state leads and keeps its width (capped at the line,
+   where it ellipsizes); the relationship, free text, is the one that gives
+   way, as on every facts line. A neutral date state carries the ellipsis
+   the quiet line's own class already gives a toned one. */
+.ruled .person-row-ruled .r-k { flex-wrap: nowrap; }
+.ruled .person-row-ruled .r-k > :first-child:not(:last-child) { flex-shrink: 0; max-width: 100%; }
+.ruled .person-row-ruled .r-k > .fact.date { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* A nudge on Notifications (2026-09-02): the type glyph in the check column. */
 .ruled .notif-row .task-check-tap .row-glyph { width: auto; height: auto; }
 .ruled .notif-row .task-check-tap .row-glyph .ic { width: 22px; height: 22px; }
@@ -2421,7 +2431,6 @@
 .ruled.health-ruled .ins-big { font-size: calc(34px * var(--type-scale)); font-weight: var(--w-bold); letter-spacing: -0.03em; line-height: 1.05;
   margin: var(--s-1h) 0 var(--s-1); font-variant-numeric: tabular-nums; }
 .ruled.health-ruled .ins-big.lime { color: var(--hl-lime); }
-.ruled.health-ruled .ins-big.violet { color: var(--hl-violet); }
 .ruled.health-ruled .ins-chart { display: block; width: 100%; height: auto; margin: var(--s-2h) 0 var(--s-0h); color: var(--tx-1); }
 .ruled.health-ruled .ins-axis { font-size: var(--t-micro); fill: var(--tx-2); font-family: var(--f); }
 .ruled.health-ruled .ins-table summary { font-size: var(--t-caption); font-weight: var(--w-semi); color: var(--tx-2); cursor: pointer; padding: var(--s-1h) 0; }

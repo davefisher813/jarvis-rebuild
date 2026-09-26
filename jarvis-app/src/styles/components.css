@@ -1818,6 +1818,12 @@ a.row.person-reach { color: inherit; text-decoration: none; }
    the picked row's grey read 2.42:1 in dark and 4.03:1 in light. What says
    "placing" is the underline, not a second red (2026-09-26). */
 .p3-row.on .p3-time-btn.placing { color: var(--tint-on-sheet); text-decoration: underline; text-underline-offset: 3px; }
+/* The key's amber on a picked row takes its sheet twin (2026-09-26, the
+   lead). The picked grey is 14% white over the sheet, #4A4A4B in dark, and
+   the plain amber read 4.31:1 there, under AA at the fact size; the twin
+   reads 4.96:1. The two placement warnings (outside the work hours, over a
+   flexible block) only ever draw on a picked row. Light keeps the system
+   amber, which is what the token resolves to there. */
 
 /* === Roadmap v2: soft anchor guard === */
 .ag-scrim { position: fixed; inset: 0; z-index: 60; background: rgba(0,0,0,0.55);
@@ -4272,6 +4278,17 @@ button.check-linked:active { opacity: 1; background: var(--press-3); }
 .notice-card .vrow-fact, .notice-card .vrow-sub {
   display: block; -webkit-line-clamp: 1; -webkit-box-orient: vertical;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* A verb row's sub is whole or not at all: the card measures it and drops a
+   sub that runs past its box. A facts line inside it clipped its own
+   overrun, so a first fact wider than the line (a late chip, "Over a month
+   late" beside a short title) was cut mid-word with the sub still on
+   screen, and the measurement never saw it (2026-09-26). The facts line
+   lets its overrun reach the sub's own box, where the card can see it, and
+   a leading fact keeps its whole width here rather than stopping at the
+   line's edge, so a sub that cannot fit is dropped instead of cut. Only
+   the last fact still ellipsizes, as on every facts line. */
+.notice-card .vrow-sub > .facts { overflow: visible; }
+.notice-card .vrow-sub > .facts > .fact:first-child:not(:last-child) { max-width: none; overflow: visible; }
 /* BROWSER-F-06 (2026-09-05): except when there is no sub. A uniform card is
    72px tall by law, which is TWO lines of title type, and the verb row spent
    one of them on a line that does not exist, so "You train between 9 AM and
@@ -5947,6 +5964,14 @@ body.selecting .voice-dock { display: none; }
 .facts > .fact:last-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .facts > .fact { flex-shrink: 0; }
 .facts > .fact:last-child { flex-shrink: 1; }
+/* THE FIRST FACT NEVER RUNS PAST THE LINE (2026-09-26, the lead). It holds
+   its width, so when it alone is wider than the line (a hedged deadline
+   with a day and a clock beside a mail card's pill, or anything at type
+   scale 1.4) it was cut mid-word with no mark, which the facts line never
+   does. It stops at the line's edge and says so with an ellipsis; a first
+   fact that fits is untouched. Zero specificity, so a fact that states its
+   own width cap (a decision's area link) keeps it. */
+:where(.facts > .fact:first-child) { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* THE ONE-LINE RULE IS A LIST RULE, AND THIS IS NOT A LIST (2026-09-21).
    "Three facts, one line" exists so a busy ROW does not grow a third line
    and leave the list ragged. The focus card is one card on an otherwise
@@ -5957,6 +5982,18 @@ body.selecting .voice-dock { display: none; }
    wrapped line. At --type-scale 1 it is one line, as before. */
 .focus-card .facts { align-items: flex-start; }
 .focus-card .facts > .fact:last-child { white-space: normal; overflow: visible; text-overflow: clip; }
+/* Plan My Day's load line is the same case (2026-09-26): one line on a
+   sheet, not a row in a list. The verdict leads and keeps its width; the
+   open time after it ellipsized at 1.4 ("3h 30m open, 2 alrea..."), so it
+   wraps inside its own column instead, every word showing. At type scale 1
+   it is one line, as before. */
+.facts.plan-load { align-items: flex-start; }
+.facts.plan-load > .fact:last-child { white-space: normal; overflow: visible; text-overflow: clip; }
+/* A facts line under a sheet's group is the group's footer (2026-09-26): the
+   task sheet's days late or times pushed, under When, on the sheet ground.
+   It stands the footer's distance off the card, as a field note does, not
+   the 2px a facts line keeps under a row's title. */
+.form-sheet .sheet-form > .pad-x > .facts { margin-top: var(--s-2); }
 
 /* THE LEAD CHIP IS REVERTED (2026-09-18, same day, on Dave's screenshots).
    "I would prefer one chip if there's two facts" was implemented as: the
@@ -5972,6 +6009,21 @@ body.selecting .voice-dock { display: none; }
    Exercises page) are capsules because of WHAT THEY ARE, which does not
    change between screens. */
 .fact + .fact::before { content: "\00B7"; color: var(--tx-4); margin: 0 var(--s-1h); }
+/* A LINE WHOSE JOB IS TO SHOW EVERY FACT SHOWS EVERY FACT (2026-09-26, the
+   lead). A review or import screen, a capture receipt and a settings row
+   keep their facts in the wrapping meta line rather than the one-line facts
+   line, so none gives way. The meta line's two-line clamp still hid them:
+   at 1.4 a receipt with a date, a time, a repeat and a name needs three or
+   four lines, and an upload row beside its buttons is 125px wide. So a meta
+   line built of facts has no clamp. Each fact stays whole on its line
+   (never "11:30 / PM"), and the dot rides at the END of a fact, not the
+   start of the next, so no wrapped line opens on a separator. An area fact
+   is already an atomic inline flex and keeps its own display. A meta line
+   that is itself the facts line keeps the flex row above. */
+.conn-meta:not(.facts):has(> .fact) { display: block; -webkit-line-clamp: none; overflow: visible; }
+.conn-meta:not(.facts) > .fact:not(.cat) { display: inline-block; }
+.conn-meta:not(.facts) > .fact + .fact::before { content: none; }
+.conn-meta:not(.facts) > .fact:not(:last-child)::after { content: "\00B7"; color: var(--tx-4); margin: 0 var(--s-1h); }
 /* A fact that carries meaning takes its intent COLOUR, and only its colour.
    At most one of these per .facts line (K.3, extended by the law in
    laws/astra.test.ts); .fact.st and .fact.cat do not count toward it.

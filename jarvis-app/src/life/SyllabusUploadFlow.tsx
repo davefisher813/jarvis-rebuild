@@ -214,8 +214,13 @@ export default function SyllabusUploadFlow({
                 {/* The read, as facts (§AM): the date in small caps, a missing
                     one in amber because it needs a look before it lands, the
                     grade share a white number. Task or Event is the button
-                    beside it, so the line does not say it twice. */}
-                <div className="facts">
+                    beside it, so the line does not say it twice. This
+                    screen exists to check the read, so every fact must
+                    show: they sit in the wrapping two-line .conn-meta, not
+                    the one-line .facts whose last fact gives way
+                    (2026-09-26, as gym/UploadFlow's review row). The
+                    stylesheet still draws the dots between them. */}
+                <div className="conn-meta">
                   {r.noDate
                     ? <span className="fact warn">No date found</span>
                     : <span className="fact date">{weekdayShortDate(r.date)}</span>}

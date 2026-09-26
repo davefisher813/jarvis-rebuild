@@ -36,6 +36,7 @@ import { nextActionOf } from "../bigger/related";
 import { dayPhrase } from "../money/bills";
 import { dayTone } from "../messages/factsLine";
 import { toneFor as waitRung } from "../messages/mailAction";
+import { loadNudgeCounts } from "../messages/escalate";
 import { fmtTime, addMinutes, addDays, eventsForDate } from "../schedule/calendar";
 import { comingUpFor, gymDoorOn, type UpcomingRow } from "./comingUp";
 import { FIFTEEN } from "../tasks/rightNow";
@@ -1930,7 +1931,7 @@ export default function CategoryDetail({
                       sessions up there, finished tasks down here. The heading
                       now says which one it is. */}
                   <div className="sh2 sh2-quiet"><span className="t">Done This Week</span><span className="n">{rec.recent.length}</span>
-                    {!weekOpen && dayGroups.length > 2 && <button className="see-all pill-action" onClick={() => setWeekOpen(true)}>See All</button>}</div>
+                    {!weekOpen && dayGroups.length > 2 && <button className="see-all" onClick={() => setWeekOpen(true)}>See All</button>}</div>
                   {/* One card, the day at the right edge (2026-09-13): a
                       card per day made two ticks cost half a screen. */}
                   <div className="pad-x"><div className="card list-card-ruled">
@@ -2188,16 +2189,29 @@ export default function CategoryDetail({
               // so it takes their one ladder (toneFor): a firm wait red, a
               // direct one amber, a gentle one a neutral time in small caps.
               // It was amber at any age, so "8 days" read amber here and red
-              // nowhere, or the reverse, depending on the screen.
-              const waitTone = wrow ? waitRung(wrow.waitingDays) : null;
+              // nowhere, or the reverse, depending on the screen. The ladder
+              // climbs on nudges as well as days (one sent is direct, two is
+              // firm), so the count goes in too, exactly as the rail passes
+              // it: a 3-day wait chased twice is red there and red here.
+              //
+              // THE STATE LEADS AND STAYS SHORT (sweep r2 #5, 2026-09-26). A
+              // facts line never clips a word: the short toned fact goes
+              // first and the free-text relationship last, where it is the
+              // one that gives way. Beside the Nudge pill the line is 179px
+              // at 390, so "Waiting 12 days on their reply" wrapped onto a
+              // line of its own and ellipsized there. The pill already says
+              // who owes the next move, so the wait is "Waiting 12 days".
+              // Gone quiet is said the way the person page says it: the same
+              // last-talked words, in the key's amber (stalled needs him),
+              // not a "Gone quiet:" prefix in front of them.
+              const waitTone = wrow ? waitRung(wrow.waitingDays, loadNudgeCounts()[wrow.threadId] ?? 0) : null;
               const state: { text: string; tone: "red" | "warn" | "date" } | null =
                 bday ? (bday.inDays <= 1
                   ? { text: bday.inDays === 0 ? "Birthday today" : "Birthday tomorrow", tone: "warn" }
                   : { text: `Birthday ${bday.label}`, tone: "date" })
-                : wrow ? { text: `Waiting ${wrow.waitingDays} ${wrow.waitingDays === 1 ? "day" : "days"} on their reply`,
+                : wrow ? { text: `Waiting ${wrow.waitingDays} ${wrow.waitingDays === 1 ? "day" : "days"}`,
                     tone: waitTone === "firm" ? "red" : waitTone === "direct" ? "warn" : "date" }
-                : quiet ? { text: `Gone quiet: last talked ${agoLabel(last, nowMs)}`, tone: "warn" }
-                : last != null ? { text: `Last talked ${agoLabel(last, nowMs)}`, tone: "date" }
+                : last != null ? { text: `Last talked ${agoLabel(last, nowMs)}`, tone: quiet ? "warn" : "date" }
                 : null;
               const nudgeable = !!p.data.email && (quiet || !!wrow);
               return (
@@ -2207,10 +2221,10 @@ export default function CategoryDetail({
                     <span className="task-name">{p.data.name}</span>
                     {(p.data.relationship || state) && (
                       <div className="r-k">
-                        {p.data.relationship && <span className="r-goal r-cat">{p.data.relationship}</span>}
                         {state && (state.tone === "date"
                           ? <span className="fact date">{state.text}</span>
                           : <span className={"r-goal fact " + state.tone}>{state.text}</span>)}
+                        {p.data.relationship && <span className="r-goal r-cat">{p.data.relationship}</span>}
                       </div>
                     )}
                   </div>
