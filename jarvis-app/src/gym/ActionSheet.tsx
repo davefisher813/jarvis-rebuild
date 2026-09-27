@@ -4,6 +4,9 @@ import { createPortal } from "react-dom";
 export interface SheetAction {
   label: string;
   onClick: () => void;
+  /** The one verb on the sheet that throws something away (Cancel Workout,
+   *  2026-09-27). It wears the sheet's destructive red; nothing else does. */
+  destructive?: boolean;
 }
 
 /**
@@ -13,10 +16,14 @@ export interface SheetAction {
  * the app's existing long-press-to-rename pattern in Tasks
  * (shared/useLongPress.ts), just opening a menu instead of an inline editor.
  */
-export default function ActionSheet({ title, actions, onClose }: {
+export default function ActionSheet({ title, actions, onClose, dismissLabel }: {
   title: string;
   actions: SheetAction[];
   onClose: () => void;
+  /** The way out's words. "Cancel" by default; a sheet whose action IS a
+   *  cancel ("Cancel Workout") says "Keep Going" instead, so the two buttons
+   *  never read as the same thing (2026-09-27). */
+  dismissLabel?: string;
 }) {
   return createPortal(
     <div className="sheet-scrim" onClick={onClose}>
@@ -30,13 +37,13 @@ export default function ActionSheet({ title, actions, onClose }: {
               // GYM-F-28 (2026-09-05): the `danger` flag went. No caller ever
               // set it, so every row here has always drawn the same, and a
               // half-built styling seam is worse than none.
-              className="btn btn-block btn-secondary"
+              className={"btn btn-block btn-secondary" + (a.destructive ? " destructive" : "")}
               onClick={() => { onClose(); a.onClick(); }}
             >
               {a.label}
             </button>
           ))}
-          <button className="btn btn-tertiary btn-block" onClick={onClose}>Cancel</button>
+          <button className="btn btn-tertiary btn-block" onClick={onClose}>{dismissLabel ?? "Cancel"}</button>
         </div>
       </div>
     </div>,
@@ -51,7 +58,7 @@ export interface PickItem { id: string; label: string; sub?: string }
  * Move to Program, Switch Program, Pair With. One primitive, configured, per
  * the app's own rule against a second implementation of a shared shape.
  */
-export function PickSheet({ title, items, multi, initial, allowEmpty, confirmLabel, onPick, onCancel, emptyText, searchLabel }: {
+export function PickSheet({ title, items, multi, initial, allowEmpty, minPick, confirmLabel, onPick, onCancel, emptyText, searchLabel, extraAction }: {
   title: string;
   items: PickItem[];
   multi?: boolean;
@@ -59,6 +66,12 @@ export function PickSheet({ title, items, multi, initial, allowEmpty, confirmLab
   initial?: string[];
   /** Confirming with nothing picked is a legal answer (unpin everything). */
   allowEmpty?: boolean;
+  /** The fewest picks the confirm accepts (a superset is two or more). The
+   *  button stays disabled below it and its label says what is missing. */
+  minPick?: number;
+  /** One more way out beside Cancel, for an editor whose "undo it all" is a
+   *  verb of its own (Break Up the Superset). */
+  extraAction?: { label: string; onClick: () => void };
   /** The confirm button's words, by count. Default keeps the copy-to-days
    *  label this sheet grew up with. */
   confirmLabel?: (count: number) => string;
@@ -143,12 +156,13 @@ export function PickSheet({ title, items, multi, initial, allowEmpty, confirmLab
         )}
         <div className="pad-x sheet-actions">
           {multi && (
-            <button className="btn btn-primary btn-launch btn-block" disabled={!allowEmpty && chosen.length === 0} onClick={() => onPick(chosen)}>
+            <button className="btn btn-primary btn-launch btn-block" disabled={(!allowEmpty && chosen.length === 0) || chosen.length < (minPick ?? 0)} onClick={() => onPick(chosen)}>
               {confirmLabel
                 ? confirmLabel(chosen.length)
                 : chosen.length > 0 ? `Copy to ${chosen.length} ${chosen.length === 1 ? "Day" : "Days"}` : "Pick at Least One"}
             </button>
           )}
+          {extraAction && <button className="btn btn-secondary btn-block" onClick={extraAction.onClick}>{extraAction.label}</button>}
           <button className="btn btn-secondary btn-block" onClick={onCancel}>Cancel</button>
         </div>
       </div>

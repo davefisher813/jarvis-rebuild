@@ -89,10 +89,12 @@ describe("the superset chip's two writes", () => {
     expect(sess, "the other one says WHICH day it will change").toContain("label: `Every ${dayWord}`");
   });
 
+  // AMENDED 2026-09-27 (Dave: "merge 2-3 exercises together seamlessly"):
+  // the picker names the whole group, so the write sets exactly that group.
   it("just-today writes the session and never the program", () => {
     const flow = read("gym/GymFlow.tsx");
-    const today = flow.slice(flow.indexOf("onGroupToday: (ids: string[], partnerName: string) => {"), flow.indexOf("onUngroup: (scope"));
-    expect(today, "the live session is the only thing it touches").toContain("patchLive((l) => ({ ...l, groups: groupForToday(");
+    const today = flow.slice(flow.indexOf("onGroupToday: (ids: string[]) => {"), flow.indexOf("onUngroup: (scope"));
+    expect(today, "the live session is the only thing it touches").toContain("patchLive((l) => ({ ...l, groups: setGroupToday(");
     expect(today, "and it does not call the program writer").not.toContain("groupAction(");
     expect(today, "with an Undo that restores the exact map it replaced").toContain("actionLabel: \"Undo\"");
   });
@@ -100,7 +102,9 @@ describe("the superset chip's two writes", () => {
   it("every-session is the program writer that already existed", () => {
     const flow = read("gym/GymFlow.tsx");
     const every = flow.slice(flow.indexOf("onGroupProgram: (ids: string[]) => {"));
-    expect(every.slice(0, 400)).toContain("void groupAction(w.id, day.id, exercise.id, onDay)");
+    // AMENDED 2026-09-27: anchored on the first lift picked, since the
+    // picker may not include the lift on screen.
+    expect(every.slice(0, 600)).toContain("void groupAction(w.id, day.id, onDay[0]!, onDay.slice(1))");
   });
 
   it("the session asks every group question of its own list, with today's pairs laid over it", () => {

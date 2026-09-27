@@ -1634,6 +1634,9 @@ a.row.person-reach { color: inherit; text-decoration: none; }
    grey in dark (Choose Photo, Cancel on the Profile Photo sheet). The
    destructive verb keeps its red, in the sheet twin that clears the grey. */
 .sheet-scrim > .card .action-sheet button.destructive { color: var(--sys-red-on-sheet); }
+/* The gym's ActionSheet draws its rows in .sheet-actions; its destructive
+   verb (Cancel Workout, 2026-09-27) takes the same red. */
+.sheet-scrim > .card .sheet-actions .btn.destructive { color: var(--sys-red-on-sheet); }
 /* Two cards on one scrim (an action sheet and its Cancel) are two objects,
    not one card cut by a hairline: the same gap the grouped card keeps. */
 .sheet-scrim > .card + .card { margin-top: var(--s-2); }
@@ -6783,6 +6786,21 @@ span.row-star { cursor: default; }
    trailing at 2; the capsule's own -5px block margin keeps the head's
    height, and centring beats the head's baseline for a filled pill. */
 .ruled.health-ruled .sh2 .pill-act.se-more { order: 2; align-self: center; margin-left: var(--s-2); }
+/* THE SUPERSET CAPSULE on This Session's head (Dave 2026-09-27: "It needs to
+   be easy and obvious"): the same trailing capsule as More, on the list of
+   lifts it groups. */
+.ruled.health-ruled .sh2 .pill-act.se-sup { order: 2; align-self: center; margin-left: auto; }
+/* THE SUPERSET SWITCHER under the lift's name: one door per member, the one
+   on screen filled with the selected ink (the app's own "this one" fill,
+   as on the decision outcome chips) and without the door's chevron, since
+   tapping it goes nowhere. The chips wrap rather than cut a name. */
+.ruled.health-ruled .se-turns { flex-wrap: wrap; row-gap: var(--s-2); }
+.ruled.health-ruled .se-turns .se-chip-door.on { background-color: var(--sel-bg); color: var(--sel-fg); cursor: default; }
+.ruled.health-ruled .se-turns .se-chip-door.on::before { display: none; }
+.ruled.health-ruled .se-turns .se-chip-door.on em { color: var(--sel-fg); }
+/* CANCEL WORKOUT at the foot of This Session: the create row's shape in the
+   destructive ink, since it throws the session away. */
+.ruled.health-ruled .row-create.row-create-danger { color: var(--danger-tx); }
 /* THE SUGGESTION LINE inside the Now row: the estimate's ink for the
    number (§AM: an estimate the app worked out is sky), the two verbs as the
    same inline action the Match line is, and the evidence rows under it. */

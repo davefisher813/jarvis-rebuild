@@ -6,7 +6,7 @@ import { todayISO } from "../tasks/grouping";
 import { monthDay, dayPhrase } from "../money/bills";
 import { agoPhrase, agoPhraseLower, workoutMinutes } from "./summary";
 import { durationOf } from "../insights/analytics";
-import { groupForToday, ungroupToday, isLiveGroup } from "./liveGroups";
+import { setGroupToday, sessionExercises, ungroupToday } from "./liveGroups";
 import { setSessionOpen } from "./sessionChrome";
 import { readHealthSettings } from "../health/settings";
 import { ENTITY_PROGRAM, ENTITY_WORKOUT, type DayBlock, type Exercise, type Program, type ProgramDay, type ProgramWeek, type Workout, type SetEntry, type WorkoutExercise, type WorkoutData, type MeasureKind } from "./types";
@@ -2458,11 +2458,17 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
           // editing a program from a workout screen is never a surprise.
           const w = day ? program?.data.weeks.find((x) => x.days.some((d) => d.id === day.id)) : undefined;
           return {
-            onGroupToday: (ids: string[], partnerName: string) => {
+            // EXACTLY THE LIFTS PICKED (2026-09-27, Dave: "merge 2-3
+            // exercises together seamlessly"). The picker names the whole
+            // group, so today's overlay becomes exactly that group
+            // (liveGroups.setGroupToday): a tri-set is one tap, and a lift
+            // taken out of the pick is released rather than left behind.
+            onGroupToday: (ids: string[]) => {
               const before = liveRef.current?.groups;
-              patchLive((l) => ({ ...l, groups: groupForToday(l.groups, ids, () => nid("g")) }));
+              const names = ids.map((id) => liftTitle(liveRef.current?.exercises.find((e) => e.exerciseId === id)?.name ?? ""));
+              patchLive((l) => ({ ...l, groups: setGroupToday(l.groups, ids, sessionExercises(l.exercises, day?.exercises ?? [], l.groups), () => nid("g")) }));
               showToast({
-                message: lineCase(`Superset with ${liftTitle(partnerName)} for today`),
+                message: lineCase(`Superset ${names.join(" + ")} for today`),
                 actionLabel: "Undo",
                 onAction: () => patchLive((l) => ({ ...l, groups: before })),
               });
@@ -2498,10 +2504,14 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
             // rack, through the day's own groupAction (its toast carries the
             // Undo). Offered by the session only when both lifts are on the day.
             ...(w && day ? {
+              // The session shows the group at once (the overlay), and the
+              // program day takes the same group through its own groupAction,
+              // anchored on the first lift picked.
               onGroupProgram: (ids: string[]) => {
-                const onDay = ids.filter((id) => id !== exercise.id && day.exercises.some((e) => e.id === id));
-                if (onDay.length === 0) return;
-                void groupAction(w.id, day.id, exercise.id, onDay);
+                const onDay = ids.filter((id) => day.exercises.some((e) => e.id === id));
+                if (onDay.length < 2) return;
+                patchLive((l) => ({ ...l, groups: setGroupToday(l.groups, onDay, sessionExercises(l.exercises, day.exercises, l.groups), () => nid("g")) }));
+                void groupAction(w.id, day.id, onDay[0]!, onDay.slice(1));
               },
             } : {}),
           };
@@ -2540,6 +2550,22 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
         onFit={(patch) => patchLive((l) => ({ ...l, ...patch }))}
         onAdjustTime={() => setAdjustOpen(true)}
         onFinish={() => void finish()}
+        // CANCEL THE WORKOUT (2026-09-27, Dave: "I need to be able to cancel
+        // a workout. There's no way to do that once you hit start"). Nothing
+        // is saved and nothing is queued: the session is taken off storage
+        // and the program page comes back. The toast's Undo puts the whole
+        // session back exactly as it was, sets and clock included.
+        onCancel={() => {
+          const snap = readLive() ?? liveRef.current;
+          clearLive();
+          enterSession(null);
+          setOpenDayId(null);
+          showToast({
+            message: "Workout Canceled \u00b7 Nothing Saved",
+            actionLabel: "Undo",
+            onAction: () => { if (snap) { writeLive(snap); enterSession(snap); if (snap.dayId) setOpenDayId(snap.dayId); } },
+          });
+        }}
         onBack={parkSession}
         onPause={parkSession}
         restNotify={restNotify}

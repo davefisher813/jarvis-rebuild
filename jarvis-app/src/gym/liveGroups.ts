@@ -1,4 +1,5 @@
 import type { Exercise, WorkoutExercise } from "./types";
+import { groupOf } from "./groups";
 
 /** THE DAY, WITH TODAY'S OWN PAIRS LAID OVER IT.
  *
@@ -38,6 +39,52 @@ export function groupForToday(
   // into an existing pair grows it rather than splitting it in two.
   const existing = ids.map((id) => next[id]).find(Boolean);
   const gid = existing ?? newId();
+  for (const id of ids) next[id] = gid;
+  return next;
+}
+
+/** SUPERSET EXACTLY THESE (2026-09-27, Dave: "I need to be able to merge 2-3
+ *  exercises together seamlessly for supersets while logging my workouts.
+ *  There is no way to do that. It needs to be easy and obvious").
+ *
+ *  The old door paired the lift on screen with whatever came next in the
+ *  list, and a lift already in a pair could only be broken up, so a tri-set
+ *  could not be made at the rack at all. The picker names the whole group at
+ *  once, so today's overlay is set to exactly `ids`: every picked lift joins
+ *  one fresh group. Anyone who WAS grouped with a picked lift and is no longer
+ *  picked is released for today ("", see withLiveGroups), unless two or more
+ *  of an old group are left over, in which case they stay together as they
+ *  were. `list` is the session's list with today's overlay already on it
+ *  (sessionExercises), so program groups and today's groups read the same. */
+export function setGroupToday(
+  current: Record<string, string> | undefined,
+  ids: string[],
+  list: Exercise[],
+  newId: () => string,
+): Record<string, string> {
+  const next = { ...(current ?? {}) };
+  if (ids.length < 2) return next;
+  const picked = new Set(ids);
+  // The leftovers of every group a picked lift is leaving, by that group.
+  const leftovers = new Map<string, Exercise[]>();
+  for (const id of ids) {
+    const ex = list.find((e) => e.id === id);
+    if (!ex) continue;
+    const members = groupOf(ex, list);
+    if (members.length < 2) continue;
+    const key = members.map((m) => m.id).sort().join("|");
+    if (!leftovers.has(key)) leftovers.set(key, members.filter((m) => !picked.has(m.id)));
+  }
+  for (const rest of leftovers.values()) {
+    if (rest.length >= 2) {
+      // Still a group: pin it under its own id so the new group cannot take it.
+      const keep = rest[0]!.groupId ?? newId();
+      for (const m of rest) next[m.id] = keep;
+    } else {
+      for (const m of rest) next[m.id] = "";
+    }
+  }
+  const gid = newId();
   for (const id of ids) next[id] = gid;
   return next;
 }

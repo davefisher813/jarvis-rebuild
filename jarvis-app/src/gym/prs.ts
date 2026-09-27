@@ -209,7 +209,19 @@ export interface LastSessionHit {
   sets: SetEntry[];
 }
 
-export function lastSessionFor(history: Workout[], lift: LiftLike, kind: MeasureKind): LastSessionHit | null {
+/** THE WEEK PRIOR FIRST (2026-09-27, Dave: "autofill while logging during
+ *  workouts should default to the week prior when there's nothing there and
+ *  then to the prior set once you are working out"). Given `preferDayId`,
+ *  the last time THIS workout day trained the lift wins over a more recent
+ *  session of some other day: a light bench on Thursday is not what Push
+ *  Day's first set should open at. With no such session, the most recent one
+ *  of any day answers, exactly as before. */
+export function lastSessionFor(history: Workout[], lift: LiftLike, kind: MeasureKind, opts: { preferDayId?: string } = {}): LastSessionHit | null {
+  if (opts.preferDayId) {
+    const sameDay = history.filter((w) => w.data.dayId === opts.preferDayId);
+    const hit = sameDay.length ? lastSessionFor(sameDay, lift, kind) : null;
+    if (hit) return hit;
+  }
   const ref = liftRef(lift, kind);
   for (let i = history.length - 1; i >= 0; i--) {
     const w = history[i]!;
@@ -241,8 +253,8 @@ export function lastSessionFor(history: Workout[], lift: LiftLike, kind: Measure
  */
 export interface LastHeader { last: string; date: string; best: string | null }
 
-export function lastHeader(history: Workout[], lift: LiftLike, kind: MeasureKind): LastHeader | null {
-  const hit = lastSessionFor(history, lift, kind);
+export function lastHeader(history: Workout[], lift: LiftLike, kind: MeasureKind, opts: { preferDayId?: string } = {}): LastHeader | null {
+  const hit = lastSessionFor(history, lift, kind, opts);
   if (!hit) return null;
   const { fx, sets } = hit;
   let last: string;

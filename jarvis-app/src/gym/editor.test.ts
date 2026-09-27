@@ -41,8 +41,14 @@ describe("D2: last time is wired everywhere sets render", () => {
     const s = src("SessionScreen.tsx");
     // GYM-F-04 (2026-09-05): the EXERCISE, not its current name, so a
     // rename keeps the whole D2 surface pointed at the same history.
-    expect(s).toContain("lastHeader(history, exercise, exercise.kind)");
-    expect(s).toContain("lastSessionFor(history, exercise, exercise.kind)");
+    // AMENDED 2026-09-27 (Dave: "default to the week prior"): the same
+    // calls, preferring the last session of THIS workout day (lastOpts).
+    expect(s).toContain("lastHeader(history, exercise, exercise.kind, lastOpts)");
+    expect(s).toContain("lastSessionFor(history, exercise, exercise.kind, lastOpts)");
+    expect(s).toContain("const lastOpts = { preferDayId: live.dayId };");
+    // And the prefill reads the hit whatever Show Last says; only the chips
+    // and Match ask the setting.
+    expect(s).toContain("lastSession: seedHit?.sets ?? null");
     // KILL THE GREY SUBTEXT (Dave 2026-09-10): the header was one grey
     // run-on -- every set from last time, the date, then the best -- so the
     // number that matters mid-lift was the last thing on a wrapped line. Same

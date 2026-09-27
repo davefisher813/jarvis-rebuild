@@ -29,7 +29,7 @@ import LibraryPickSheet from "./LibraryPickSheet";
 import PlateSheet from "./PlateSheet";
 import LoadSheet from "./LoadSheet";
 import ExerciseSheet from "./ExerciseSheet";
-import ActionSheet, { type SheetAction } from "./ActionSheet";
+import ActionSheet, { PickSheet, type SheetAction, type PickItem } from "./ActionSheet";
 import SetSheet from "./SetSheet";
 import { fmtTime } from "../schedule/calendar";
 import MusicChip from "../music/MusicChip";
@@ -98,6 +98,7 @@ export default function SessionScreen({
   onFit,
   onAdjustTime,
   onFinish,
+  onCancel,
   onBack,
   onPause,
   // UP-ATH-03 (2026-09-06): the Notifications page's rest switch, read once
@@ -140,7 +141,7 @@ export default function SessionScreen({
    *  Keeping it in the program is the separate, explicit line below, the way
    *  Also Update the Program is for a swap. Absent while no session write is
    *  possible. */
-  onGroupToday?: (ids: string[], partnerName: string) => void;
+  onGroupToday?: (ids: string[]) => void;
   /** The same pair written to the program day ("Every Push Day"), offered
    *  only when both lifts are on the day. Dave's 2026-09-21 pick, "ask me
    *  each time", is the two-line sheet the Superset chip opens. */
@@ -177,6 +178,11 @@ export default function SessionScreen({
    *  Absent, the row is absent. */
   onAdjustTime?: () => void;
   onFinish: () => void;
+  /** CANCEL THE WORKOUT (2026-09-27, Dave: "I need to be able to cancel a
+   *  workout. There's no way to do that once you hit start"). Throws the
+   *  session away without saving anything; GymFlow's toast carries the
+   *  Undo. Absent, the row is absent. */
+  onCancel?: () => void;
   onBack: () => void;
   /** H-27 (Health Push B, 2026-09-12): Pause parks the session. Defaults to
    *  Back, which has parked since GYM-F-14. */
@@ -226,8 +232,17 @@ export default function SessionScreen({
   const showLast = readGymSettings().showLast;
   // GYM-F-04 (2026-09-05): the EXERCISE, not its current name, so a rename
   // keeps its Last line, its ghosts' "Last:" and its PR history.
-  const header = showLast ? lastHeader(history, exercise, exercise.kind) : null;
-  const lastHit = showLast ? lastSessionFor(history, exercise, exercise.kind) : null;
+  // THE WEEK PRIOR, FOR THIS DAY (2026-09-27): the last time this workout day
+  // trained the lift, before any other day's session (prs.ts).
+  const lastOpts = { preferDayId: live.dayId };
+  const header = showLast ? lastHeader(history, exercise, exercise.kind, lastOpts) : null;
+  // THE PREFILL DOES NOT ASK THE SETTING (2026-09-27, Dave: "autofill ...
+  // should default to the week prior"). Show Last is a switch for what the
+  // screen SAYS -- the Last chips and Match. It was also silently deciding
+  // what the fields opened at, so with it off the first set fell back to the
+  // plan's template and never to what he actually lifted.
+  const seedHit = lastSessionFor(history, exercise, exercise.kind, lastOpts);
+  const lastHit = showLast ? seedHit : null;
   // THE TRIM (D5-C). A trimmed lift plans fewer sets for THIS session only:
   // the ghosts shrink from the end, the program keeps every set it had
   // (LAW 17), and the big button can still log past the trim -- the lever
@@ -255,7 +270,7 @@ export default function SessionScreen({
   // guess with the fields' typing laid over it. The fields SHOW pending, the
   // button NAMES pending, and log() WRITES pending. There is no plan merged
   // underneath any of them, and no copy the fields keep for themselves.
-  const seed = nextSetEntry({ plan: planEx, logged, lastSession: lastHit?.sets ?? null });
+  const seed = nextSetEntry({ plan: planEx, logged, lastSession: seedHit?.sets ?? null });
   const pending = withDraft(seed, draft);
   const fields: SetDraft = draft ?? fieldsOf(seed);
   const planGhosts = planEx.sets.slice(workLogged);
@@ -276,8 +291,13 @@ export default function SessionScreen({
   const [openSetId, setOpenSetId] = useState<string | null>(null);
   /** The Superset chip's two questions (2026-09-26): which lift to pair
    *  with, and whether a program pair breaks for today or for good. */
-  const [linkAsk, setLinkAsk] = useState(false);
+  /** THE SUPERSET PICKER (2026-09-27): every lift in the session with a Pick
+   *  chip, this one already picked; two or three picks and one button. */
+  const [pickOpen, setPickOpen] = useState(false);
+  /** The picked ids, while the "just today or every day" question is up. */
+  const [scopeAsk, setScopeAsk] = useState<string[] | null>(null);
   const [breakAsk, setBreakAsk] = useState(false);
+  const [cancelAsk, setCancelAsk] = useState(false);
   const [swapOpen, setSwapOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
   // Default yes: a lift you bothered to name mid-workout is usually one
@@ -458,15 +478,9 @@ export default function SessionScreen({
   const members = groupOf(me, dayEx).filter((e) => !e.filler);
   const filler = fillerFor(me, dayEx);
   const fillerLiveIdx = filler ? live.exercises.findIndex((e) => e.exerciseId === filler.id) : -1;
-  // The lift "Superset With" would pair this one with: the next in the
-  // session that is not skipped and not already in this group, wrapping to
-  // the top when nothing is left below.
-  const linkable = (e: LiveSession["exercises"][number]) => !e.skipped && !members.some((m) => m.id === e.exerciseId);
-  const linkNextIdx = (() => {
-    const below = live.exercises.findIndex((e, i) => i > idx && linkable(e));
-    return below >= 0 ? below : live.exercises.findIndex((e, i) => i < idx && linkable(e));
-  })();
-  const linkNext = linkNextIdx >= 0 ? live.exercises[linkNextIdx] : undefined;
+  // The lifts the picker offers: every one in the session that is not
+  // skipped, once each, in the session's own order.
+  const pickable = live.exercises.filter((e, i, all) => !e.skipped && all.findIndex((x) => x.exerciseId === e.exerciseId) === i);
 
   // D5-C: the rest-cut lever shortens every stated rest toward the floor,
   // live, without touching the program's own number.
@@ -556,12 +570,16 @@ export default function SessionScreen({
   // snapshot rule, SHARED-F-03), against the exercise it belongs to, so
   // tapping it twice, or late, or after moving to the pair partner lands on
   // the same answer.
-  const receiptForLog = (entry: SetEntry) => {
+  const receiptForLog = (entry: SetEntry, movedTo?: string) => {
     const before = logged;
+    const at = idx;
+    const said = exercise.kind === "done" ? `${liftTitle(exercise.name)} Logged` : `Logged ${lineCase(formatSet(exercise, entry))}`;
     showToast({
-      message: exercise.kind === "done" ? `${liftTitle(exercise.name)} Logged` : `Logged ${lineCase(formatSet(exercise, entry))}`,
+      // In a superset the receipt says where the session just went, so the
+      // screen changing under his thumb is never a surprise.
+      message: movedTo ? `${said} \u00b7 Now ${movedTo}` : said,
       actionLabel: "Undo",
-      onAction: () => onSetLogged(before, idx),
+      onAction: () => { onSetLogged(before, at); if (movedTo) onMove(at); },
     });
   };
   // WHAT THE FIELDS SAY, RIGHT NOW (2026-09-16, Dave, mid-session: "when you
@@ -594,7 +612,18 @@ export default function SessionScreen({
     onLog(e);
     setDraft(null);
     startRest();
-    receiptForLog(e);
+    // BACK AND FORTH, ON ITS OWN (2026-09-27, Dave: "it does not
+    // automatically go back and forth from exercises during supersets"). In a
+    // group the next member's turn is taken for him the moment a set lands:
+    // A1, then A2, then A3, then back to A1 for the next round. The rest runs
+    // as it did (after the round), and a member with nothing left is passed
+    // over. The Undo on the receipt puts him back on this lift.
+    const after = { ...loggedByExerciseId, [exercise.id]: (loggedByExerciseId[exercise.id] ?? 0) + 1 };
+    const turnId = members.length > 1 ? nextTurnInGroup(me, dayEx, after) : null;
+    const turnIdx = turnId ? live.exercises.findIndex((x) => x.exerciseId === turnId && !x.skipped) : -1;
+    const moved = turnIdx >= 0 && turnIdx !== idx;
+    if (moved) onMove(turnIdx);
+    receiptForLog(e, moved ? liftTitle(live.exercises[turnIdx]!.name) : undefined);
   };
   // LOG A DROP (Part 3 wave 2). A segment right after the last working set,
   // opened at that set's own numbers so the only thing to change is the
@@ -627,11 +656,22 @@ export default function SessionScreen({
   /** The Superset chip's two doors. Making a pair asks where it lives; a
    *  program pair asks the same on the way out; a pair made today is
    *  released on the spot, because there is nothing else it could mean. */
-  const canLinkProgram = !!onGroupProgram && !!linkNext && dayExercises.some((e) => e.id === exercise.id) && dayExercises.some((e) => e.id === linkNext.exerciseId);
+  /** "Every Push Day" is offered only when every picked lift is on the day. */
+  const canLinkProgram = (ids: string[]) => !!onGroupProgram && ids.every((id) => dayExercises.some((e) => e.id === id));
   const dayWord = workoutTitle(programDay?.name ?? live.dayName);
-  const supersetChip = pairLabel
-    ? (onUngroup ? () => (isLiveGroup(live.groups, exercise.id) ? onUngroup("today") : setBreakAsk(true)) : null)
-    : (onGroupToday && linkNext ? () => setLinkAsk(true) : null);
+  /** Breaking this lift's group: today's own is released on the spot, a
+   *  program group asks today or every day. */
+  const breakUp = onUngroup && pairLabel ? () => (isLiveGroup(live.groups, exercise.id) ? onUngroup("today") : setBreakAsk(true)) : null;
+  const canSuperset = !!onGroupToday && pickable.length >= 2;
+  const supersetChip = canSuperset ? () => setPickOpen(true) : null;
+  const pickItems: PickItem[] = pickable.map((e) => ({ id: e.exerciseId, label: liftTitle(e.name), ...(labels.get(e.exerciseId) ? { sub: `Superset ${labels.get(e.exerciseId)}` } : {}) }));
+  const nameOf = (id: string) => liftTitle(live.exercises.find((e) => e.exerciseId === id)?.name ?? "");
+  const pickDone = (ids: string[]) => {
+    setPickOpen(false);
+    if (ids.length < 2) return;
+    if (canLinkProgram(ids)) setScopeAsk(ids);
+    else onGroupToday?.(ids);
+  };
   /** The Set sheet's target and its writes, all through changeSets so a
    *  delete gets the app's standard receipt and Undo. */
   const openSet = openSetId ? logged.find((e) => e.id === openSetId) ?? null : null;
@@ -733,6 +773,25 @@ export default function SessionScreen({
           </div>
         )}
         <div className="p3-q">{liftTitle(exercise.name)}</div>
+        {/* THE SUPERSET, ONE TAP BETWEEN ITS LIFTS (2026-09-27, Dave: "or at
+            least have a button to easily swap"). Every member of this lift's
+            group, labelled and named, the one on screen filled; tap another
+            and the session goes there. The rotation does this on its own
+            after each set; this is for when he wants to go out of turn. */}
+        {members.length > 1 && (
+          <div className="se-chips se-turns" role="group" aria-label="Superset">
+            {members.map((m) => {
+              const li = live.exercises.findIndex((x) => x.exerciseId === m.id);
+              const on = m.id === exercise.id;
+              return (
+                <button type="button" key={m.id} className={"se-chip se-chip-pair se-chip-door" + (on ? " on" : "")} aria-pressed={on}
+                  onClick={() => { if (!on && li >= 0) onMove(li); }}>
+                  <em>{labels.get(m.id) ?? ""}</em>{liftTitle(m.name)}
+                </button>
+              );
+            })}
+          </div>
+        )}
         {/* Part 3 wave 5: the equipment convention, on the session too. */}
         {/* 2026-09-14: the chip names the reading, not just the hardware, so
             mid-set there is no doubt whether the number on the button is one
@@ -762,7 +821,7 @@ export default function SessionScreen({
                 repeat it. */}
             {supersetChip && (
               <button type="button" className="se-chip se-chip-pair se-chip-door" onClick={supersetChip}>
-                <em>Superset</em>{pairLabel ? "Break Up" : "Add"}
+                <em>Superset</em>{pairLabel ? "Edit" : "Add"}
               </button>
             )}
           </div>
@@ -939,7 +998,12 @@ export default function SessionScreen({
         </div></div>
       )}
 
-      <div className="sh2 sh2-quiet"><span className="t">This Session</span></div>
+      {/* SUPERSET, WHERE THE LIFTS ARE (2026-09-27, Dave: "It needs to be easy
+          and obvious"). The list of every lift in the session carries the
+          door on its own head, the capsule rung every gym page uses. */}
+      <div className="sh2 sh2-quiet"><span className="t">This Session</span>
+        {canSuperset && <button type="button" className="pill-act se-sup" aria-haspopup="dialog" onClick={() => setPickOpen(true)}>Superset</button>}
+      </div>
       <div className="pad-x"><div className="card list-card-ruled">
         {live.exercises.map((e, i) => (
           // RED IS A VERB: "you are here" is a fact, not an action, so the
@@ -983,6 +1047,7 @@ export default function SessionScreen({
         {/* ADD MID-SESSION (catalog §3.10): an exercise that was never in
             the plan, without editing the program. */}
         <button className="row-create" onClick={() => setAddOpen(true)}>Add Exercise</button>
+        {onCancel && <button className="row-create row-create-danger" onClick={() => setCancelAsk(true)}>Cancel Workout</button>}
       </div></div>
       {/* THE FOOT IS THE LOG BAR'S OWN HEIGHT (2026-09-21, the first audit
           ever run inside a session). .screen-foot is 32px and the log bar is
@@ -1059,14 +1124,35 @@ export default function SessionScreen({
       {moreOpen && (
         <ActionSheet title={liftTitle(exercise.name)} actions={moreActions} onClose={() => setMoreOpen(false)} />
       )}
-      {linkAsk && linkNext && onGroupToday && (
+      {pickOpen && onGroupToday && (
+        <PickSheet
+          title="Superset"
+          items={pickItems}
+          multi
+          minPick={2}
+          initial={pairLabel ? members.map((m) => m.id) : [exercise.id]}
+          confirmLabel={(n) => (n < 2 ? "Pick at Least Two" : n === 2 ? "Superset These Two" : lineCase(`Superset these ${n}`))}
+          onPick={pickDone}
+          onCancel={() => setPickOpen(false)}
+          {...(breakUp ? { extraAction: { label: "Break Up the Superset", onClick: () => { setPickOpen(false); breakUp(); } } } : {})}
+        />
+      )}
+      {scopeAsk && onGroupToday && (
         <ActionSheet
-          title={`Superset With ${liftTitle(linkNext.name)}`}
+          title={lineCase(`Superset ${scopeAsk.map(nameOf).join(" + ")}`)}
           actions={[
-            { label: "Just This Workout", onClick: () => onGroupToday([exercise.id, linkNext.exerciseId], linkNext.name) },
-            ...(canLinkProgram ? [{ label: `Every ${dayWord}`, onClick: () => onGroupProgram!([exercise.id, linkNext.exerciseId]) }] : []),
+            { label: "Just This Workout", onClick: () => onGroupToday(scopeAsk) },
+            { label: `Every ${dayWord}`, onClick: () => onGroupProgram!(scopeAsk) },
           ]}
-          onClose={() => setLinkAsk(false)}
+          onClose={() => setScopeAsk(null)}
+        />
+      )}
+      {cancelAsk && onCancel && (
+        <ActionSheet
+          title={loggedTotal > 0 ? lineCase(`Cancel ${workoutTitle(live.dayName)}? ${loggedTotal} ${loggedTotal === 1 ? "set" : "sets"} will not be saved`) : lineCase(`Cancel ${workoutTitle(live.dayName)}?`)}
+          actions={[{ label: "Cancel Workout", onClick: onCancel, destructive: true }]}
+          dismissLabel="Keep Going"
+          onClose={() => setCancelAsk(false)}
         />
       )}
       {breakAsk && onUngroup && (

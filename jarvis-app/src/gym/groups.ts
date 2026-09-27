@@ -94,6 +94,19 @@ export function fillerFor(exercise: Exercise, exercises: Exercise[]): Exercise |
  * session, so this stays a pure function of the plan plus a count. A filler
  * never takes a turn; a member with nothing left to do is skipped.
  */
+/** HOW MANY WORKING SETS A MEMBER HAS IN IT (2026-09-27, Dave: "it does not
+ *  automatically go back and forth from exercises during supersets"). A lift
+ *  added at the rack has no plan, so `sets.length` is 0 and it could never
+ *  take a turn: a superset made mid-workout with it simply did not rotate.
+ *  A planless member is read as doing what the group's longest plan does,
+ *  and a group with no plan anywhere keeps rotating for as long as it is
+ *  logged. */
+function workIn(e: Exercise, members: Exercise[]): number {
+  if (e.sets.length > 0) return e.sets.length;
+  const longest = members.reduce((m, x) => Math.max(m, x.sets.length), 0);
+  return longest > 0 ? longest : Number.POSITIVE_INFINITY;
+}
+
 export function nextInGroup(
   exercise: Exercise,
   exercises: Exercise[],
@@ -107,7 +120,7 @@ export function nextInGroup(
   const i = members.findIndex((e) => e.id === exercise.id);
   if (i < 0) return null;
   const order = [...members.slice(i + 1), ...members.slice(0, i)];
-  const behind = order.filter((e) => (logged[e.id] ?? 0) < mine && (logged[e.id] ?? 0) < e.sets.length);
+  const behind = order.filter((e) => (logged[e.id] ?? 0) < mine && (logged[e.id] ?? 0) < workIn(e, members));
   if (behind.length === 0) return null;
   let best = behind[0]!;
   for (const e of behind) if ((logged[e.id] ?? 0) < (logged[best.id] ?? 0)) best = e;
@@ -134,7 +147,7 @@ export function nextTurnInGroup(
   const i = members.findIndex((e) => e.id === exercise.id);
   if (i < 0) return null;
   const order = [...members.slice(i + 1), ...members.slice(0, i)];
-  return order.find((e) => (logged[e.id] ?? 0) < e.sets.length)?.id ?? null;
+  return order.find((e) => (logged[e.id] ?? 0) < workIn(e, members))?.id ?? null;
 }
 
 /** Put `ids` (plus `anchorId`) into one group, dropping whatever grouping any

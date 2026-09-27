@@ -298,6 +298,15 @@ colour). The proposed row's line leads with PROPOSED, then the category.
 This replaces his 2026-09-21 pick D (time alone above the title).
 `browserWalk.test.ts` "the time and the title share the first line" pins it.
 
+Dave, 2026-09-27, workout logging (catalog §AN, amended): supersets are
+PICKED (two or three lifts from a multi-pick sheet, from the This Session
+head capsule or the header chip) and the session DRIVES them (after each set
+it moves to the next member's turn, with a switcher chip per member to go
+out of turn). The prefill opens the first set at the week prior (this
+workout day's last session first) whatever Show Last says, then the set
+before. A started workout can be cancelled from the foot of This Session,
+after a confirm, with Undo. `laws/oneFlow.test.ts` pins all four.
+
 ## Hard limits for any agent that edits
 
 - Edit ONLY the files you were assigned. If a fix needs another file, report
