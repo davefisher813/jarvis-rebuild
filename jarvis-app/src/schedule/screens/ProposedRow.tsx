@@ -73,10 +73,6 @@ export default function ProposedRow({
       >
         <span className={"sched-bar sched-bar-proposed cat-bd-" + slot} />
         <div className="sched-time">{t.time}<span className="ampm">{t.ap}</span></div>
-        {/* THE CHECKBOX SITS NEXT TO THE TIME, NOT UNDER IT (Dave, 2026-09-26).
-            Line one is time, checkbox, title, in that order -- the checkbox
-            is part of the row's lead, not part of "everything else". Line
-            two (.sched-body) is category and the Proposed tag only. */}
         {onComplete && (
           <div className="task-check-tap sched-check" role="checkbox" aria-checked={false}
             aria-label={`Mark ${block.text} done`}
@@ -84,8 +80,8 @@ export default function ProposedRow({
             <div className="task-check" />
           </div>
         )}
-        <div className="sched-title">{block.text}</div>
         <div className="sched-body">
+          <div className="sched-title">{block.text}</div>
           <div className="sched-cat">
             <span className={"cat-dot cat-bg-" + slot} />
             {catName(block.category)}
