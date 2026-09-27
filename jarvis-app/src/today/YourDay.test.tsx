@@ -1,9 +1,21 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import type React from "react";
 import { render, screen, fireEvent } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import YourDay from "./YourDay";
 import type { EventItem } from "../schedule/types";
+
+// THE VIEW YOU ACT IN IS THE PAUSED CARD (Dave 2026-09-27: the TV guide moves
+// at all times, a short day included). The tests below describe the
+// actionable view (the Now band, the compressed day, the doors), so they
+// render and then hold the card still, which is the one way to reach it.
+const hold = (ui: React.ReactElement, options?: Parameters<typeof render>[1]) => {
+  const r = render(ui, options);
+  const t = r.container.querySelector(".ticker-toggle");
+  if (t) fireEvent.click(t);
+  return r;
+};
 
 const ev = (id: string, start: string): EventItem => ({ id, data: { title: id, date: "2026-05-20", start, category: "orgB" } });
 const many = Array.from({ length: 8 }, (_, i) => ev("e" + i, String(8 + i).padStart(2, "0") + ":00"));
@@ -57,7 +69,7 @@ describe("YourDay", () => {
   it("draws the Training Door on a gym block, and starts from it", () => {
     const gym: EventItem = { id: "g1", data: { title: "Gym", date: "2026-05-20", start: "18:00", category: "orgB", gym: true } };
     let started = 0;
-    render(
+    hold(
       <YourDay
         events={[gym]}
         now="08:00"
@@ -71,9 +83,8 @@ describe("YourDay", () => {
     // estimate are separate runs, so each can wear its own ink. The count is
     // a number with no state, a white <b>; the estimate is the app's own
     // arithmetic, sky.
-    // Casing sweep 2 (2026-09-27): Title Case by the whole rule (§H2); durations through shared/duration ("45 Min", "1h 30m").
-    expect(screen.getByText("6 Exercises").tagName).toBe("B");
-    expect(screen.getByText("Est 42 Min")).toHaveClass("fact", "est");
+    expect(screen.getByText("6 exercises").tagName).toBe("B");
+    expect(screen.getByText("Est 42 min")).toHaveClass("fact", "est");
     fireEvent.click(screen.getByRole("button", { name: "Start Push Day" }));
     expect(started).toBe(1);
   });
@@ -255,7 +266,7 @@ describe("the ticker never remembers being turned off", () => {
 // so the nesting claim was unverified by anything until these existed.
 describe("Merge B: Now as the head", () => {
   it("titles the section Now and bands the rest when a now head is given", () => {
-    render(
+    hold(
       <YourDay events={[ev("Morning", "09:00"), ev("Evening", "18:00")]}
         now="12:18" nowLabel="12:18" onSeeAll={() => {}}
         nowHead={<div>IN LUNCH</div>} />,
@@ -266,7 +277,7 @@ describe("Merge B: Now as the head", () => {
   });
 
   it("drops what has already started, because the head is describing it", () => {
-    render(
+    hold(
       <YourDay events={[ev("Morning", "09:00"), ev("Evening", "18:00")]}
         now="12:18" nowLabel="12:18" onSeeAll={() => {}}
         nowHead={<div>head</div>} />,
@@ -276,7 +287,7 @@ describe("Merge B: Now as the head", () => {
   });
 
   it("keeps the whole day when there is no now head, which is the evening", () => {
-    render(
+    hold(
       <YourDay events={[ev("Morning", "09:00"), ev("Evening", "18:00")]}
         now="12:18" nowLabel="12:18" onSeeAll={() => {}} />,
     );
@@ -285,7 +296,7 @@ describe("Merge B: Now as the head", () => {
   });
 
   it("says so instead of rendering an empty strip under the band", () => {
-    render(
+    hold(
       <YourDay events={[ev("Morning", "09:00")]}
         now="12:18" nowLabel="12:18" onSeeAll={() => {}}
         nowHead={<div>head</div>} />,
@@ -306,7 +317,7 @@ describe("the nesting bug", () => {
   // Dave's screenshot: 1:00 PM Deep Work, then 1:00 PM Finish Jarvis Visuals
   // as an unrelated sibling row at the same minute.
   it("puts a proposal placed into a focus block INSIDE it", () => {
-    const { container } = render(
+    const { container } = hold(
       <YourDay events={[]} locked={[deepWork]} now="12:18" nowLabel="12:18" onSeeAll={() => {}}
         proposed={proposed([prop("t1", "Finish Jarvis Visuals", "13:00", "13:55")])} />,
     );
@@ -329,7 +340,7 @@ describe("the nesting bug", () => {
   // block, and drawing it inside hides a commitment behind a count. The test
   // above still pins the first; this one now pins the second.
   it("leaves a committed event inside a focus block as its own row, never hidden in the count", () => {
-    const { container } = render(
+    const { container } = hold(
       <YourDay events={[ev("Job Interview", "15:00")]} locked={[deepWork]} now="12:18" nowLabel="12:18" onSeeAll={() => {}} />,
     );
     expect(screen.getByText("Job Interview")).toBeInTheDocument();
@@ -341,7 +352,7 @@ describe("the nesting bug", () => {
   });
 
   it("leaves a task that OVERRUNS the block as its own row, so the overrun stays visible", () => {
-    const { container } = render(
+    const { container } = hold(
       <YourDay events={[]} locked={[deepWork]} now="12:18" nowLabel="12:18" onSeeAll={() => {}}
         proposed={proposed([prop("t1", "Runs Long", "14:30", "15:30")])} />,
     );
@@ -357,7 +368,7 @@ describe("the nesting bug", () => {
     // stands down beside the word that already says it (2026-09-26): the
     // row reads "PROTECTED · Until 1:00 PM", never "PROTECTED Protected".
     // The row still says when the block ends either way.
-    render(
+    hold(
       <YourDay events={[ev("x", "18:00")]} locked={[{ s: 12 * 60, e: 13 * 60, label: "Lunch", kind: "meal" }]}
         now="09:00" nowLabel="9:00" onSeeAll={() => {}} />,
     );

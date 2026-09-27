@@ -159,7 +159,9 @@ describe("TodayFlow: the Momentum Chain (UP-CORE-09)", () => {
     await svc!.createTask("Email the coach", { category: "c1", due: today, estimateMin: 15 });
     await svc!.createTask("Book the field", { category: "c1", due: today, estimateMin: 15 });
     notifyFreshLists(ENTITY_TASK);
-    await waitFor(() => expect(screen.getByText("Book the field")).toBeInTheDocument());
+    // The TV guide loops the day in copies (Dave 2026-09-27), so a title can
+    // be on screen more than once; one is enough.
+    await waitFor(() => expect(screen.getAllByText("Book the field").length).toBeGreaterThan(0));
 
     // Tick the dealt task; the chain fills the slot it left. The chain is the
     // notice with a Dismiss rail; the dealt row above it has none.
@@ -494,6 +496,9 @@ describe("TodayFlow: the meeting link and notes survive an edit", () => {
     // name to skip is the one inside a .fact, whatever line holds it.
     const dayRow = () => screen.getAllByText("Bridge Foundation Zoom").find((el) => !el.closest(".fact"))!;
     await waitFor(() => expect(dayRow()).toBeInTheDocument());
+    // The TV guide moves at all times (Dave 2026-09-27), and a moving card
+    // swallows the tap that would open a row: hold it first, then tap.
+    fireEvent.click(document.querySelector(".ticker-toggle") as HTMLElement);
     fireEvent.click(dayRow());
     fireEvent.click(await screen.findByRole("button", { name: "Edit" }));
     await screen.findByText("Edit Event");
