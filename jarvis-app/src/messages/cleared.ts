@@ -15,7 +15,7 @@
 // A zero is never dressed up. If nothing was cleared, the close-out says
 // what is in the inbox and stops talking.
 
-import { capAfterNumber } from "../shared/casing";
+import { lineCase } from "../shared/casing";
 
 const KEY = "jarvis.mail.cleared.v1";
 
@@ -77,6 +77,6 @@ export function closeOut(cleared: number, left: number, pressing: number): { tit
   // count as the rest of the sentence. When nothing does, the line stops at
   // the inbox: an empty Needs You section above already says so, and
   // "Nothing urgent" under it was a placeholder (§AK).
-  const sub = capAfterNumber(pressing > 0 ? inbox + ", " + owed : inbox);
+  const sub = lineCase(pressing > 0 ? inbox + ", " + owed : inbox);
   return { title, sub };
 }

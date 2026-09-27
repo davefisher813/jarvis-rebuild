@@ -625,7 +625,7 @@ export default function MoneyFlow({ onOpenTask, openAccountId, openNonce, onOpen
         const line = paid
           ? <span className="r-goal fact good">{lineCase(sub.text)}</span>
           : sub.state === "autopay"
-            ? <><span className="r-goal r-cat">{lineCase(sub.text)}</span>{sub.when && <span className="fact date">{lineCase(sub.when)}</span>}</>
+            ? <><span className="r-goal r-cat">{lineCase(sub.text)}</span>{sub.when && <span className="fact date">{sub.when}</span>}</>
             : b.data.due
               ? <span className="fact date">{"Due " + monthDay(b.data.due)}</span>
               : null;

@@ -1,5 +1,5 @@
 import { decide, draftableOf, type Decision } from "./mailAction";
-import { titleCase, capAfterNumber } from "../shared/casing";
+import { titleCase, lineCase } from "../shared/casing";
 import { dayPhrase } from "../money/bills";
 import { dayTone, type FactTone } from "./factsLine";
 
@@ -112,7 +112,7 @@ export function buildLedger(input: LedgerInput): Ledger {
       what: t.text,
       // §AK: a line that says nothing is not written. "No date" was grey text
       // with no information in it, under every undated row you owe.
-      since: due ? capAfterNumber(titleCase("Due " + dayPhrase(due, today))) : "",
+      since: due ? lineCase("Due " + dayPhrase(due, today)) : "",
       sortKey: due || "9999-12-31",
       ...(due ? { due } : {}),
       late: !!due && due < today,
@@ -129,7 +129,7 @@ export function buildLedger(input: LedgerInput): Ledger {
       kind: "promise",
       who: "",
       what: titleCase(p.text),
-      since: p.due ? capAfterNumber(titleCase("Due " + dayPhrase(p.due, today))) : "You said you would",
+      since: p.due ? lineCase("Due " + dayPhrase(p.due, today)) : "You Said You Would",
       sortKey: p.due || "9999-12-31",
       ...(p.due ? { due: p.due } : {}),
       late: !!p.due && p.due < today,
@@ -235,5 +235,5 @@ export function ledgerTone(r: LedgerRow, today: string): FactTone | undefined {
 // an empty ledger is the good outcome, not an empty state to apologise for.
 export function ledgerFloor(l: Ledger): string {
   if (l.total === 0) return "Nothing is open";
-  return capAfterNumber(l.total === 1 ? "That's the one that's open" : "That's every one that's open");
+  return lineCase(l.total === 1 ? "That's the one that's open" : "That's every one that's open");
 }

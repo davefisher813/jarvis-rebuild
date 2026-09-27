@@ -512,7 +512,7 @@ export default function DeckFlow({ ai, apiFor, threads, queueSend, limitMs, onDo
           : plan.kind === "event" && plan.event
             ? "Schedule " + plan.event.title + " · " + dayPhrase(plan.event.date, todayISO()) + " " + fmtTime(plan.event.start).time + " " + fmtTime(plan.event.start).ap
             : plan.kind === "task" && plan.task
-              ? "Add task: " + plan.task.title + (plan.task.due ? " · Due " + dayPhrase(plan.task.due, todayISO()) : "")
+              ? "Add Task: " + plan.task.title + (plan.task.due ? " · Due " + dayPhrase(plan.task.due, todayISO()) : "")
               : "Let it go";
   const kicker = preparing ? "" :
     plan?.kind === "reply" ? "Reply ready · Your voice" :

@@ -1,7 +1,7 @@
 import { createPortal } from "react-dom";
 import { promises, type Decision, type MailAction } from "./mailAction";
 import { Facts, type FactTone } from "./factsLine";
-import { capAfterNumber } from "../shared/casing";
+import { lineCase } from "../shared/casing";
 
 // THE REST OF THE MOVES (Dave's pick, 2026-08-21: "one button, rest on
 // swipe").
@@ -49,7 +49,7 @@ export default function MailMoreSheet({
           <div className="conn-name truncate">{who}</div>
           {/* The age first: it is short and never the one that gives way. */}
           <Facts facts={[
-            { text: capAfterNumber(days + (days === 1 ? " day" : " days")), tone: heat },
+            { text: lineCase(days + (days === 1 ? " day" : " days")), tone: heat },
             { text: decision.note },
           ]} />
         </div>

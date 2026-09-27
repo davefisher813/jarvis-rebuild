@@ -169,7 +169,8 @@ import { useOptionalAIContext } from "../ai/useAIContext";
 import { voiceToText } from "../ai/context";
 import { useOptionalTasks, useOptionalSchedule, useOptionalPeople, useOptionalProfile, useOptionalNotes, useOptionalProjects, useOptionalRoutine, useOptionalBrainDocs, useOptionalDecisions } from "../data/NotesProvider";
 import { b64urlDecodeBytes } from "../connections/google/map";
-import { capAfterNumber } from "../shared/casing";
+import { lineCase } from "../shared/casing";
+import { clockLabel, minutesLabel, secondsLabel } from "../shared/duration";
 
 type Draft = { to: string; cc?: string; subject: string; body: string; html?: string; inReplyTo?: string; threadId?: string; fromDeck?: boolean; account?: string; handoffTo?: string; attachment?: EmailAttachment; modelBody?: string };
 // EMAIL-F-13 (2026-09-05): a draft belongs to the account that listed it.
@@ -228,9 +229,12 @@ function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
 
 const BUCKET_LABEL: Record<Bucket, string> = { needs_you: "Needs You", worth_knowing: "Worth Knowing", noise: "Noise" };
 
+// How long the deck took, in the rule's own shapes (casing sweep 3,
+// 2026-09-27): a count of seconds under a minute ("45 Sec"), and from a
+// minute up the same m:ss clock he just watched count down ("2:30").
 function fmtDuration(ms: number): string {
   const s = Math.max(1, Math.round(ms / 1000));
-  return s < 60 ? s + "s" : Math.floor(s / 60) + "m " + (s % 60) + "s";
+  return s < 60 ? secondsLabel(s) : clockLabel(s);
 }
 
 // "northlake.org" for work-style domains, "gmail" for the big ones: the shortest
@@ -1053,7 +1057,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     for (const w of ok) letGo(w.threadId);
     if (ok.length) mirrorMail();
     countCleared(ok.length);
-    say(capAfterNumber(settleLine(ok.length, failed.length, ARCHIVE_WORDS)), {
+    say(lineCase(settleLine(ok.length, failed.length, ARCHIVE_WORDS)), {
       label: "Undo",
       run: () => void (async () => {
         setWaiting((ws) => [...rows, ...ws]);
@@ -1563,7 +1567,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
         emit({ type: "action", props: { name: "email.net.caught", n: made } });
       }
       const lost = due.length - made;
-      if (lost > 0) say(capAfterNumber(lost + (lost === 1 ? " email couldn't become a task" : " emails couldn't become tasks") + " · Still in your inbox"));
+      if (lost > 0) say(lineCase(lost + (lost === 1 ? " email couldn't become a task" : " emails couldn't become tasks") + " · Still in your inbox"));
     })();
   }, [tasks, triaged, rows, triage, rules]);
 
@@ -2451,7 +2455,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     if (failed.length) setRows((rs) => [...failed, ...rs.filter((x) => !failed.some((f) => f.id === x.id))].sort((a, b) => b.dateMs - a.dateMs));
     // EMAIL-F-18: a purge that emptied the page pulls the next one in.
     refillIfEmptied(rows.filter((r) => !ids.has(r.id)).length + failed.length);
-    say(capAfterNumber(settleLine(ok.length, failed.length, DELETE_WORDS)), ok.length ? {
+    say(lineCase(settleLine(ok.length, failed.length, DELETE_WORDS)), ok.length ? {
       label: "Undo",
       run: () => void (async () => {
         setRows((rs) => [...ok, ...rs.filter((x) => !ids.has(x.id))].sort((a, b) => b.dateMs - a.dateMs));
@@ -2483,7 +2487,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     // EMAIL-F-18: a batch archive that emptied the page pulls the next one in.
     refillIfEmptied(rows.filter((r) => !ids.has(r.id)).length + failed.length);
     countCleared(chosen.length - failed.length);
-    say(capAfterNumber(settleLine(chosen.length - failed.length, failed.length, ARCHIVE_WORDS)), {
+    say(lineCase(settleLine(chosen.length - failed.length, failed.length, ARCHIVE_WORDS)), {
       label: "Undo",
       // AN UNDO THAT DOES NOT UNDO IS THE WORST ONE (2026-08-25): the rows
       // come back in the list, the mail stays archived in Gmail, and the next
@@ -2570,7 +2574,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     // E12: an auto-clear the user did not ask for is not something the user
     // cleared, so only the manual sweep counts toward today's number.
     if (manual && ok.length) countCleared(ok.length);
-    const what = capAfterNumber(settleLine(ok.length, failed.length, ARCHIVE_WORDS));
+    const what = lineCase(settleLine(ok.length, failed.length, ARCHIVE_WORDS));
     // Undo (2026-08-09): this was the one archive without it, and it is the
     // one that takes the most at once, including when the opt-in auto-clear
     // runs it unattended.
@@ -2879,12 +2883,12 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
           <div className="sweep-finish-done">{deadStats.n > 0 ? "Done." : "Nothing needed you."}</div>
           <div className="sweep-finish-sub">
             {deadStats.n > 0
-              ? capAfterNumber(deadStats.n + " handled in " + fmtDuration(deadStats.ms))
+              ? lineCase(deadStats.n + " handled in " + fmtDuration(deadStats.ms))
               : "The deck is holding the rest for next time"}
           </div>
           {lines.length > 0 && (
             <div className="sweep-receipts">
-              {lines.map((l) => <div className="sweep-receipt" key={l}>→ {capAfterNumber(l)}</div>)}
+              {lines.map((l) => <div className="sweep-receipt" key={l}>→ {lineCase(l)}</div>)}
             </div>
           )}
           {(stillNeed > 0 || deadStats.n > 0) && (
@@ -2892,7 +2896,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
             // "Nothing else needs you" is green.
             <Facts className="sweep-finish-facts" facts={[
               stillNeed > 0
-                ? { text: capAfterNumber(stillNeed === 1 ? "1 still needs you" : stillNeed + " still need you"), tone: "warn" }
+                ? { text: lineCase(stillNeed === 1 ? "1 still needs you" : stillNeed + " still need you"), tone: "warn" }
                 : { text: "Nothing else needs you", tone: "good" },
             ]} />
           )}
@@ -2901,7 +2905,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
               {sv.last7.map((hit, i) => <span className={"sweep-sq" + (hit ? " on" : "")} key={i} />)}
             </div>
             <div className="sweep-streak-line">
-              {capAfterNumber("Cleared " + sv.cleared + " of the last 7")}
+              {lineCase("Cleared " + sv.cleared + " of the last 7")}
             </div>
           </div>
         </div>
@@ -3756,7 +3760,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                         <Facts facts={[
                           { text: "Task" },
                           t.data.done ? { text: "Done", tone: "good" }
-                            : t.data.due ? { text: capAfterNumber(dayPhrase(t.data.due, todayISO())), tone: dayTone(t.data.due, todayISO()) }
+                            : t.data.due ? { text: dayPhrase(t.data.due, todayISO()), tone: dayTone(t.data.due, todayISO()) }
                             : t.data.proposedDate ? { text: t.data.proposedDate + " (proposed)", tone: "date" } : null,
                         ]} />
                       </div>
@@ -4286,7 +4290,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
           moment the count catches up. */}
       {sortProg && sortProg.done < sortProg.total && triageState === "ready" && (
         <div className="pad-x sort-strip">
-          <div className="conn-meta">{capAfterNumber(sortProg.done + " of " + sortProg.total + " sorted")}</div>
+          <div className="conn-meta">{lineCase(sortProg.done + " of " + sortProg.total + " sorted")}</div>
           <div className="sort-bar" role="presentation">
             <span className="sort-bar-fill" style={{ width: (sortProg.done / sortProg.total) * 100 + "%" }} />
           </div>
@@ -4396,7 +4400,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                 feel long. The number is real: `total` is how many threads
                 actually need sorting and `done` counts batches attempted. */}
             <div className="empty-sub">
-              {sortProg ? capAfterNumber(sortProg.done + " of " + sortProg.total + " sorted") : "Sorting your mail"}
+              {sortProg ? lineCase(sortProg.done + " of " + sortProg.total + " sorted") : "Sorting your mail"}
             </div>
             {sortProg && sortProg.total > 0 && (
               <div className="sort-bar" role="presentation">
@@ -4734,7 +4738,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                   <div className="pad-x">
                     <div className="card pad wait-card">
                       <Facts facts={[
-                        { text: w.waitingDays === 1 ? "1 Day" : capAfterNumber(w.waitingDays + " days"), tone: waitTone },
+                        { text: w.waitingDays === 1 ? "1 Day" : lineCase(w.waitingDays + " days"), tone: waitTone },
                         { text: nameFor(names, w.toEmail, w.to) },
                       ]} />
                       <div className="wait-card-subj">{w.subject}</div>
@@ -4748,7 +4752,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                         <button className="btn-sm" onClick={advance}>Skip</button>
                       </div>
                       <div className="wait-card-count">
-                        {capAfterNumber((i + 1) + " of " + owed.length)}
+                        {lineCase((i + 1) + " of " + owed.length)}
                         <button className="quiet-action" onClick={() => setWaitDeck(null)}>Show the List</button>
                       </div>
                     </div>
@@ -4898,14 +4902,14 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                 ) : (
                   <div className="fold-tools">
                     <button className="btn-sm" onClick={() => void archivePicked([...worthKnowing, ...noise])} disabled={picked.size === 0}>
-                      {picked.size === 0 ? "Archive Selected" : capAfterNumber("Archive " + picked.size)}
+                      {picked.size === 0 ? "Archive Selected" : lineCase("Archive " + picked.size)}
                     </button>
                     {/* 11B: the other half of the job. Archive keeps it
                         in the account; delete is for the mail that should
                         not be in the account at all. Both count what
                         landed, both undo. */}
                     <button className="btn-sm btn-danger" onClick={() => void deletePicked([...worthKnowing, ...noise])} disabled={picked.size === 0}>
-                      {picked.size === 0 ? "Delete Selected" : capAfterNumber("Delete " + picked.size)}
+                      {picked.size === 0 ? "Delete Selected" : lineCase("Delete " + picked.size)}
                     </button>
                     <button className="quiet-action" onClick={() => setPicked(null)}>Done</button>
                   </div>
@@ -4941,7 +4945,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                     <div className="msg-machines" {...pressable(() => setNoiseOpen(!noiseOpen))} aria-expanded={noiseOpen}>
                       <span className="msg-machines-icon" aria-hidden="true"><Tag className="ic" /></span>
                       <span className="msg-machines-text">
-                        {capAfterNumber(noise.length === 1 ? "1 machine wrote" : noise.length + " machines wrote")}
+                        {lineCase(noise.length === 1 ? "1 machine wrote" : noise.length + " machines wrote")}
                       </span>
                       <button className="pill-act msg-machines-sweep" onClick={(e) => { e.stopPropagation(); void archiveAllNoise(noise); }}>
                         Sweep
@@ -5054,7 +5058,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
               uniform={false}
               title={"File " + tossName(toss.sender) + " as Noise?"}
               // §AM R5: "Never opened" only restated "unread".
-              sub={<Facts facts={[{ text: capAfterNumber(toss.n + " archived unread") }]} />}
+              sub={<Facts facts={[{ text: lineCase(toss.n + " archived unread") }]} />}
               action={{
                 label: "Yes, file them",
                 onClick: () => {
@@ -5153,7 +5157,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                     {/* E-29: counted over visibleRows and names its
                         accounts, so a disagreement with the Sweep is
                         legible. R6: one sentence, no typed dots. */}
-                    <div className="conn-meta">{capAfterNumber(
+                    <div className="conn-meta">{lineCase(
                       visibleRows.length + (visibleRows.length === 1 ? " thread" : " threads")
                       + " from " + piles + (piles === 1 ? " sender" : " senders")
                       + (g.accounts.length > 1 ? " in " + (acctFilter ? acctLabel(acctFilter) : "all accounts") : "")
@@ -5188,8 +5192,8 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                         needs him, so it is amber; what he is owed is the
                         line's one grey. */}
                     <Facts facts={[
-                      mine > 0 ? { text: capAfterNumber(mine + " you owe"), tone: "warn" } : null,
-                      owed.length > 0 ? { text: capAfterNumber(owed.length + " owed to you") } : null,
+                      mine > 0 ? { text: lineCase(mine + " you owe"), tone: "warn" } : null,
+                      owed.length > 0 ? { text: lineCase(owed.length + " owed to you") } : null,
                     ]} />
                   </div>
                   <div className="chev" />
@@ -5208,7 +5212,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                         (2026-09-26). */}
                     <Facts facts={[
                       { text: "Oldest " + oldest + (oldest === 1 ? " day" : " days"), tone: oldestTone },
-                      { text: capAfterNumber(owed.length + " waiting on answers") },
+                      { text: lineCase(owed.length + " waiting on answers") },
                     ]} />
                   </div>
                   <div className="chev" />
@@ -5260,7 +5264,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                     {/* One count, one grey (§AM R1, R6): the filed senders
                         lead, and the muted count shows here only when
                         nothing is filed. The screen lists both. */}
-                    <div className="conn-meta">{capAfterNumber(ruleCount > 0
+                    <div className="conn-meta">{lineCase(ruleCount > 0
                       ? ruleCount + (ruleCount === 1 ? " sender filed" : " senders filed")
                       : muted.length + (muted.length === 1 ? " thread muted" : " threads muted"))}</div>
                   </div>
@@ -5290,7 +5294,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
           <div className="msg-chips">
             {PRESETS.map((m) => (
               <button key={m} className={"chip" + (minutes === m ? " on" : "")}
-                onClick={() => { setMinutes(saveMinutes(m)); setMinutesText(String(m)); }}>{m} min</button>
+                onClick={() => { setMinutes(saveMinutes(m)); setMinutesText(String(m)); }}>{minutesLabel(m)}</button>
             ))}
             {/* EMAIL-F-26 (2026-09-05): "Drain minutes field snaps to 5
                 the moment it is cleared." Every keystroke used to be

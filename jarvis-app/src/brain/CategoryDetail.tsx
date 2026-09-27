@@ -1446,7 +1446,7 @@ export default function CategoryDetail({
     if (!due) return null;
     if (due < today) return "Overdue";
     const p = dayPhrase(due, today);
-    return lineCase("Due " + p);
+    return "Due " + p;
   };
 
   const sheetCats: SheetCategory[] = allCats.map((c) => ({ id: c.id, name: c.data.name, color: c.data.color }));
@@ -1658,8 +1658,7 @@ export default function CategoryDetail({
       <div className="sh2 sh2-quiet"><span className="t">Coming Up</span>{upcoming.length > 0 && <span className="n">{upcoming.length}</span>}</div>
       <div className="pad-x"><div className={"card list-card-ruled" + (upcoming.length > 0 ? " sched-card" : "")}>{upcoming.length > 0 && <div className="sched-list">
         {upcoming.map((e) => {
-          const p = dayPhrase(e.date, today);
-          const when = lineCase(p);
+          const when = dayPhrase(e.date, today);
           const t = e.start ? fmtTime(e.start) : null;
           return (
             // Row tap (Dave 2026-09-15, "I want all rows clickable"): the gym

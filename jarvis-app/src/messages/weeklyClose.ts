@@ -1,5 +1,5 @@
 import type { ThreadRow } from "../connections/google/map";
-import { capAfterNumber } from "../shared/casing";
+import { lineCase } from "../shared/casing";
 
 // THE SUNDAY CLOSE (N14, Dave 2026-08-20).
 //
@@ -138,7 +138,7 @@ export function closedBatchLive(batch: ClosedBatch | null, todayISO: string, day
 // deciding about, and it never says "last week" when the close was today.
 export function putBackLine(batch: ClosedBatch): string {
   const n = batch.threads.length;
-  return capAfterNumber(n === 1 ? "1 conversation archived in the close" : n + " conversations archived in the close");
+  return lineCase(n === 1 ? "1 conversation archived in the close" : n + " conversations archived in the close");
 }
 
 // 9A: THE AMNESTY (Dave 2026-08-25, the Anti-Inbox catalog).
@@ -169,7 +169,7 @@ export function amnestyPromise(): string {
 // permission to stop carrying something, and the sentence says why it is safe
 // to take it.
 export function amnestyLine(set: CloseSet): string {
-  return capAfterNumber(
+  return lineCase(
     set.count === 1
       ? "1 thread older than two weeks"
       : set.count + " threads older than two weeks",

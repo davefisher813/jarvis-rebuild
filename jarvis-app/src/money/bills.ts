@@ -63,16 +63,17 @@ export function monthDay(iso: string): string {
   return `${MONTHS[(m ?? 1) - 1]} ${d}`;
 }
 
-/** "Today" / "tomorrow" / "Friday" (within 6 days) / "Aug 30", and behind us
-    "yesterday" or the date itself. */
+/** "Today" / "Tomorrow" / "Friday" (within 6 days) / "Aug 30", and behind us
+    "Yesterday" or the date itself. Cased at the source (casing sweep 3,
+    2026-09-27): every consumer draws it, and a day word is a word. */
 export function dayPhrase(iso: string, today: string): string {
   const gap = daysBetween(today, iso);
   // HMN-F-11 (2026-09-05): every date already behind us read "today", so a
   // once bill set to autopay went on saying "Set to autopay · today" every
   // day after its date had passed. A day behind us is said as the day it was.
-  if (gap < 0) return gap === -1 ? "yesterday" : monthDay(iso);
-  if (gap === 0) return "today";
-  if (gap === 1) return "tomorrow";
+  if (gap < 0) return gap === -1 ? "Yesterday" : monthDay(iso);
+  if (gap === 0) return "Today";
+  if (gap === 1) return "Tomorrow";
   if (gap <= 6) {
     const dt = new Date(iso + "T12:00:00");
     return WEEKDAYS[dt.getDay()] ?? monthDay(iso);
@@ -181,7 +182,7 @@ export function paydayLine(
   if (out === 0) return null;
   const when = dayPhrase(payday, today);
   return {
-    title: lineCase(`Between now and ${when === "today" ? "payday (today)" : when}`),
+    title: lineCase(`Between now and ${when === "Today" ? "payday (today)" : when}`),
     sub: lineCase(`${formatMoney(p.amount)} in, ${formatMoney(out)} of bills out`),
   };
 }

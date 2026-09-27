@@ -1,5 +1,5 @@
 import type { Bucket } from "./triage";
-import { capAfterNumber } from "../shared/casing";
+import { lineCase } from "../shared/casing";
 
 // YOUR THREE PEOPLE ALWAYS GET THROUGH (N4, Dave 2026-08-20).
 //
@@ -91,5 +91,5 @@ export function applyVips<T extends { id: string; fromEmail: string }, E extends
 
 export function vipLine(n: number): string {
   if (n === 0) return "Their mail always surfaces";
-  return capAfterNumber(n === 1 ? "1 person always gets through" : `${n} people always get through`);
+  return lineCase(n === 1 ? "1 person always gets through" : `${n} people always get through`);
 }

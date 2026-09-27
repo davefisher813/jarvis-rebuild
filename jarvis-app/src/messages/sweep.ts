@@ -11,6 +11,8 @@
 // This module is the pure logic. The presentation lives in DeckFlow; keeping
 // the arithmetic here means every promise the screen makes is held by a test.
 
+import { aboutLabel, secondsLabel } from "../shared/duration";
+
 export const HAND_MAX = 9;
 export const SESSION_MS = 5 * 60_000;
 
@@ -27,17 +29,19 @@ export function dealHand<T>(rows: readonly T[]): T[] {
 // card says what it costs. These are honest ballparks, not measurements: a
 // prepared one-tap action is seconds, approving a drafted reply is the time
 // it takes to read it, and a card with no plan means opening the thread.
+// Spelled "About", never "~" (§H2, casing sweep 3, 2026-09-27): the estimate
+// is a word and the unit is a word, so both take the line's casing.
 export function estimateOf(kind: string | null | undefined): string {
   switch (kind) {
     case "bill":
     case "event":
     case "task":
     case "archive":
-      return "~5 sec";
+      return "About " + secondsLabel(5);
     case "reply":
-      return "~30 sec";
+      return "About " + secondsLabel(30);
     default:
-      return "~1 min";
+      return aboutLabel(1);
   }
 }
 
@@ -146,6 +150,7 @@ export function sweepEstimate(n: number): string {
   const mins = Math.max(1, Math.ceil((n * 40) / 60));
   // Leads with a capital because it renders as its own dot-segment on the
   // Sweep scorecard, and segments lead capitalized everywhere else in the
-  // app (casing law, extended to scorecards 2026-08-29).
-  return "About " + mins + " min";
+  // app (casing law, extended to scorecards 2026-08-29). The unit is a
+  // word too ("About 4 Min", §H2), and shared/duration owns its shape.
+  return aboutLabel(mins);
 }

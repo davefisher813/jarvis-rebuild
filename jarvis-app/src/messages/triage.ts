@@ -1,6 +1,6 @@
 import type { ThreadRow } from "../connections/google/map";
 import { noDashes } from "../ai/suggestions";
-import { capAfterNumber } from "../shared/casing";
+import { lineCase } from "../shared/casing";
 import type { ActProposal } from "./mailAct";
 import { HOSTILE_CLAUSE, untrustedBlock } from "./untrusted";
 import { evidenceIn, type Evidence } from "./evidence";
@@ -334,7 +334,7 @@ export function splitByBucket(rows: ThreadRow[], map: TriageMap): {
 export function headline(needsYou: number, total: number): string {
   if (total === 0) return "Inbox is quiet";
   if (needsYou === 0) return "Nothing needs you";
-  return capAfterNumber(needsYou === 1 ? "1 needs you · Rest handled" : needsYou + " need you · Rest handled");
+  return lineCase(needsYou === 1 ? "1 needs you · Rest handled" : needsYou + " need you · Rest handled");
 }
 
 // "DoorDash, LinkedIn +3 more", enough to trust Archive All without opening.

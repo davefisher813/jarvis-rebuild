@@ -34,13 +34,16 @@ export function isHigh(c: Confidence): boolean {
 
 // The hedge. A claim without a sentence behind it is still worth showing:
 // what changes is that it stops speaking with certainty. "Friday" becomes
-// "Looks like Friday", which is the honest version of the same fact.
+// "Looks Like Friday", which is the honest version of the same fact. It is
+// a chip, a fact or a sub line wherever it lands, so it reads Title Case
+// like every other line (§H2, casing sweep 3, 2026-09-27): the day keeps
+// its capital, and the hedge takes one.
 export function hedge(label: string): string {
   const t = (label || "").trim();
   if (!t) return t;
   // Already hedged (the app said it, or the sender's own phrase is a hedge).
-  if (/^(looks like|maybe|probably)\b/i.test(t)) return t;
-  return "Looks like " + t.charAt(0).toLowerCase() + t.slice(1);
+  if (/^(looks like|maybe|probably)\b/i.test(t)) return lineCase(t);
+  return lineCase("Looks like " + t);
 }
 
 /** The label as it should read: plain when the claim can show its sentence,
