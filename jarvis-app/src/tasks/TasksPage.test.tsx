@@ -476,7 +476,8 @@ describe("MomentumRow (Dave 2026-09-16)", () => {
     // AMENDED 2026-09-26 (§AM): the due half wears the key as the task row's
     // own distance chip, and the reason keeps only the shared area in grey.
     expect(container.querySelector(".uchip.u-today")).toHaveTextContent("TODAY");
-    expect(screen.getByText("Same category")).toHaveClass("r-goal", "r-cat");
+    // AMENDED 2026-09-26 (pass-off): Title Case on every line the app writes.
+    expect(screen.getByText("Same Area")).toHaveClass("r-goal", "r-cat");
     expect(screen.queryByText(/due today/)).toBeNull();
     // Not Now is not a second visible button on the row; it lives behind
     // the swipe reveal instead (asserted by class, below).
@@ -485,7 +486,10 @@ describe("MomentumRow (Dave 2026-09-16)", () => {
     expect(container.querySelector(".momentum-slot")).toBeNull();
   });
 
-  it("opens the task on a tap, and the check and the pill stop that tap", () => {
+  // AMENDED 2026-09-26 (Dave's pass-off, "make it real"): the whole row
+  // STARTS the task, the same door as its pill; the check still stops the
+  // tap. The title is shown in Title Case (his typed "m1" reads "M1").
+  it("starts the task on a tap, and the check stops that tap", () => {
     const onOpen = vi.fn();
     const onToggle = vi.fn();
     const onStart = vi.fn();
@@ -499,8 +503,9 @@ describe("MomentumRow (Dave 2026-09-16)", () => {
     fireEvent.click(document.querySelector(".task-check-tap")!);
     expect(onToggle).toHaveBeenCalledWith("m1");
     expect(onOpen).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByText(task.data.text));
-    expect(onOpen).toHaveBeenCalledWith("m1");
+    fireEvent.click(screen.getByText("M1"));
+    expect(onStart).toHaveBeenCalledTimes(2);
+    expect(onOpen).not.toHaveBeenCalled();
   });
 
   it("Not Now sits behind the swipe reveal, on the row's own touch-action: pan-y surface", () => {
@@ -624,5 +629,35 @@ describe("a task's provenance line opens what it came from", () => {
     );
     expect(container.querySelector(".r-parent-plain")).toHaveTextContent("Email");
     expect(container.querySelector(".prov-line")).toHaveTextContent("From Smart Paste");
+  });
+});
+
+// DAVE'S PASS-OFF (2026-09-26): "make it real". The Keep Going row is the
+// suggested task's only row while it shows, and the whole row starts it.
+describe("the Keep Going row shows its task once and starts it (pass-off 2026-09-26)", () => {
+  it("leaves the suggested task out of the list below", () => {
+    const el = <div data-testid="keep-going">Keep Going</div>;
+    const { container } = render(
+      <TasksPage filter="all" counts={counts} items={[tk("a", "2026-05-20"), tk("b", "2026-05-21")]} today="2026-05-20"
+        momentum={{ afterId: "just-completed", taskId: "b", el }} />,
+    );
+    expect(screen.getByTestId("keep-going")).toBeInTheDocument();
+    const names = [...container.querySelectorAll(".task-name")].map((n) => n.textContent);
+    expect(names.filter((n) => n === "b")).toHaveLength(0);
+    expect(names.filter((n) => n === "a")).toHaveLength(1);
+  });
+
+  it("the whole row starts the task, the same door as its pill", () => {
+    const task = tk("b", "2026-05-20");
+    const onStart = vi.fn();
+    const onOpen = vi.fn();
+    const { container } = render(
+      <MomentumRow task={task} reason="Same category" today="2026-05-20"
+        onOpen={onOpen} onToggle={() => {}} onStart={onStart} onNotNow={() => {}} />,
+    );
+    fireEvent.click(container.querySelector(".momentum-row")!);
+    expect(onStart).toHaveBeenCalledWith("b");
+    expect(onOpen).not.toHaveBeenCalled();
+    expect(container.querySelectorAll(".task-name")).toHaveLength(1);
   });
 });

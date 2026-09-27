@@ -43,12 +43,12 @@ export default function UploadFlow({ ai, initialFile, onSave, onCancel }: {
       const out = await ai.complete([message], JARVIS_VOICE);
       const parsed = parseProgramExtract(out);
       if (!parsed) {
-        showToast({ message: "Couldn't read that · Try a clearer photo" });
+        showToast({ message: "Couldn't Read That · Try a Clearer Photo" });
         return;
       }
       setDraft(parsed);
     } catch {
-      showToast({ message: "Couldn't reach JARVIS · Try again" });
+      showToast({ message: "Couldn't Reach JARVIS · Try Again" });
     } finally {
       setBusy(false);
     }
@@ -59,7 +59,7 @@ export default function UploadFlow({ ai, initialFile, onSave, onCancel }: {
       const img = await encodeImageForVision(file);
       await extract(buildVisionMessage(EXTRACT_PROMPT, img.data, img.mediaType));
     } catch {
-      showToast({ message: "Couldn't open that image \u00b7 Try another file" });
+      showToast({ message: "Couldn't Open That Image \u00b7 Try Another File" });
     }
   };
 

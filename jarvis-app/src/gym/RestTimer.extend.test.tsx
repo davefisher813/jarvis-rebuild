@@ -5,19 +5,21 @@ import "@testing-library/jest-dom";
 import RestTimer from "./RestTimer";
 
 // H-18 (Health Push B, 2026-09-12): +30s, offered only while the rest runs.
+// AMENDED 2026-09-26 (workout logging): a duration on a button spells its
+// unit, "+30 Sec" (Dave: "45 Min" never "45 min").
 afterEach(() => cleanup());
 
 describe("RestTimer +30s", () => {
   it("offers +30s while resting and hands the extension to the caller", () => {
     const onExtend = vi.fn();
     render(<RestTimer endsAt={Date.now() + 90_000} onDismiss={() => {}} onExtend={onExtend} />);
-    fireEvent.click(screen.getByRole("button", { name: "+30s" }));
+    fireEvent.click(screen.getByRole("button", { name: "+30 Sec" }));
     expect(onExtend).toHaveBeenCalledTimes(1);
     expect(screen.getByRole("button", { name: "Skip Rest" })).toBeInTheDocument();
   });
   it("offers nothing to extend once the rest is over", () => {
     render(<RestTimer endsAt={Date.now() - 1_000} onDismiss={() => {}} onExtend={() => {}} />);
-    expect(screen.queryByRole("button", { name: "+30s" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "+30 Sec" })).toBeNull();
     expect(screen.getByRole("button", { name: "Continue" })).toBeInTheDocument();
   });
 });

@@ -13,6 +13,7 @@ import { todayISO } from "../../tasks/grouping";
 import { monthDay } from "../../money/bills";
 import { pressable } from "../../shared/pressable";
 import EntityStar from "../../shared/EntityStar";
+import { titleCase } from "../../shared/casing";
 
 // NOTES, PORTED (Notes and Money catalog, 2026-09-02). The library rows of
 // locked frame #46 (2026-08-18) are gone from this page; the note is a row
@@ -130,13 +131,14 @@ function dayDiff(edited: number, now: Date): number {
   return Math.round((a - b) / DAY);
 }
 
-// "Edited today" / "Yesterday" / "Aug 30" / "Aug 30, 2025". The one word
+// "Edited Today" / "Yesterday" / "Aug 30" / "Aug 30, 2025". The one word
 // "Edited" rides only the freshest case: on a dated row the date is the
 // edit, and saying so on every line was the noise the catalog removed.
+// Title Case, like every line the app writes (Dave 2026-09-26, the pass-off).
 export function editedLabel(edited: number, now: Date = new Date()): string {
   if (!edited) return "";
   const d = dayDiff(edited, now);
-  if (d <= 0) return "Edited today";
+  if (d <= 0) return "Edited Today";
   if (d === 1) return "Yesterday";
   const then = new Date(edited);
   const md = monthDay(todayISO(then));
@@ -250,7 +252,9 @@ export default function NotesList({
     for (const n of shown) put("all", "All Notes", null, n);
   }
 
-  const row = (n: NoteListItem) => {
+  // `group` is the head the row sits under, so the row can tell when the
+  // head already said its day.
+  const row = (n: NoteListItem, group: string) => {
     const picked = sel.isSelected(n.id);
     // An unfiled note wears yellow (Dave 2026-08-29: "default should be
     // yellow"), a legal-pad colour that says "a note", deliberately not any
@@ -258,7 +262,14 @@ export default function NotesList({
     // is what makes the yellow readable as "not filed yet".
     const tone = "cat-fg-" + (n.category ? catColor(n.category) : "yellow");
     const area = n.category ? catName(n.category) : "";
-    const when = editedLabel(n.edited, now);
+    // THE DAY IS SAID ONCE, ABOVE THE GROUP (catalog §B: "the day said once
+    // above a group, never repeated per row"; the pass-off, 2026-09-26).
+    // Under the Today and Yesterday heads every row used to repeat the head
+    // as EDITED TODAY / YESTERDAY. Under those two heads the row says no
+    // date; under Earlier, Pinned, Archived and Recently Deleted the head
+    // is not a day, so the date stays.
+    const dayHead = NOTES_GROUP === "when" && (group === "today" || group === "yesterday");
+    const when = dayHead ? "" : editedLabel(n.edited, now);
     const body = (drag: RowDrag) => (
       <div
         className={"task-row p2 note-row" + (drag.dragging ? " swiping" : "")}
@@ -284,7 +295,11 @@ export default function NotesList({
           <div className="task-check-tap"><span className={"gm-slot " + tone}><FileText className="ic" /></span></div>
         ) : null}
         <div className="task-title">
-          <span className="task-name">{n.title}</span>
+          {/* HIS TITLE, SHOWN IN TITLE CASE (Dave 2026-09-26, the pass-off:
+              typed titles are shown in Title Case everywhere and stored
+              unchanged). Only the drawn text is cased: n.title stays raw for
+              search, selection and the aria labels. */}
+          <span className="task-name">{titleCase(n.title)}</span>
           {NOTES_ROW === "line" && (!!area || (n.tags?.length ?? 0) > 0 || (n.found ?? 0) > 0 || !!when) && (
             <div className="r-k">
               {/* An unfiled note has no area to name, and a placeholder that
@@ -296,7 +311,7 @@ export default function NotesList({
                   (§AM) with the number white, and the date is its own caps,
                   so nothing else here is that grey. */}
               {n.tags?.length ? <span className="r-goal r-cat">{n.tags.map((t) => "#" + t).join(" ")}</span> : null}
-              {(n.found ?? 0) > 0 && <span className="r-goal fact warn">JARVIS found <b>{n.found}</b></span>}
+              {(n.found ?? 0) > 0 && <span className="r-goal fact warn">JARVIS Found <b>{n.found}</b></span>}
               {when && <span className="r-goal r-cat r-when">{when}</span>}
             </div>
           )}
@@ -414,7 +429,7 @@ export default function NotesList({
           ) : (
             <div className="sh2 sh2-quiet"><span className="t">{g.head}</span><span className="n">{g.items.length}</span></div>
           )}
-          <div className="pad-x"><div className="card list-card-ruled">{g.items.map(row)}</div></div>
+          <div className="pad-x"><div className="card list-card-ruled">{g.items.map((n) => row(n, g.key))}</div></div>
         </Fragment>
       ))}
       {query && shown.length === 0 && (

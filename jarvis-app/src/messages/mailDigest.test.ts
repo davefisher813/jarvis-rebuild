@@ -24,9 +24,10 @@ describe("the digest", () => {
 
   // Silence is not calm. A quiet inbox still gets its line.
   it("still fires when nothing needs you", () => {
-    const specs = buildMailDigests(DEFAULT_WINDOWS.windows, "Nothing from a person", Date.now());
+    // Casing sweep 3 (2026-09-27): Title Case by the whole rule (§H2); durations through shared/duration ("45 Min", "About 1 Min").
+    const specs = buildMailDigests(DEFAULT_WINDOWS.windows, "Nothing from a Person", Date.now());
     expect(specs).toHaveLength(3);
-    expect(specs[0]!.title).toBe("Nothing from a person");
+    expect(specs[0]!.title).toBe("Nothing from a Person");
   });
 
   it("never fires in the night", () => {

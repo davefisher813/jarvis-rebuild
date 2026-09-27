@@ -5,7 +5,7 @@
 import type { EventItem } from "../schedule/types";
 import type { TaskItem } from "../tasks/TasksService";
 import type { RoutineData } from "../routine/types";
-import { capAfterNumber } from "../shared/casing";
+import { lineCase } from "../shared/casing";
 import { todayISO as isoOf } from "../schedule/calendar";
 import { dayRing, countsDoneToday } from "./todayData";
 
@@ -68,10 +68,12 @@ function addHour(hhmm: string): string {
 // because device-local evidence can be absent without being negative: this
 // line never claims a goal did not move.
 //
-// Casing: routed through capAfterNumber, which the number-lead law has asked
-// of every count-led line since 2026-08-20. This one predated the rule and
-// slipped its detector, because the detector keys on a property literally
-// named `done` and this one is `thingsDone`.
+// Casing: routed through lineCase, the whole rule's formatter (Dave
+// 2026-09-26: every word of a facts line is Title Case, "6 Done Today"). The
+// number-lead rule it replaces had asked this of every count-led line since
+// 2026-08-20; this one predated it and slipped its detector, because the
+// detector keyed on a property literally named `done` and this one is
+// `thingsDone`.
 //
 // FACTS, NOT A STRING (§AK and §AM, 2026-09-26). It was one run, "6 Done
 // today · Moved Ship the App · 2 Left tonight": the dots typed into it in the
@@ -80,15 +82,15 @@ function addHour(hhmm: string): string {
 // line has ONE grey left after that, and the goal the day moved outranks the
 // count of what is left tonight (pick 4: the goal is the part worth
 // remembering); Your Day already lists tonight's events, so that count yields
-// when a goal moved. A day with nothing to say says "A clear evening".
+// when a goal moved. A day with nothing to say says "A Clear Evening".
 export interface EveningFact { text: string; tone?: "good" }
 
 export function eveningFacts(s: EveningStats, moved?: string | null): EveningFact[] {
   const out: EveningFact[] = [];
-  if (s.thingsDone > 0) out.push({ text: capAfterNumber(`${s.thingsDone} done today`), tone: "good" });
+  if (s.thingsDone > 0) out.push({ text: lineCase(`${s.thingsDone} done today`), tone: "good" });
   if (moved) out.push({ text: moved });
-  else if (s.eventsLeft > 0) out.push({ text: capAfterNumber(`${s.eventsLeft} left tonight`) });
-  return out.length ? out : [{ text: "A clear evening" }];
+  else if (s.eventsLeft > 0) out.push({ text: lineCase(`${s.eventsLeft} left tonight`) });
+  return out.length ? out : [{ text: "A Clear Evening" }];
 }
 
 // --- The weekly close-out card (Sundays only; the Insights page folds into
@@ -136,7 +138,7 @@ export function weekRecap(
 }
 
 // Shown under the Still Open card. Tone: permission, not pressure.
-export const EVENING_TASKS_NOTE = "Waits for tomorrow · Tonight is yours";
+export const EVENING_TASKS_NOTE = "Waits for Tomorrow · Tonight Is Yours";
 
 // --- HOW TODAY WENT (Dave, on the list since 2026-09-07: "'How did I do
 // today' never re-evaluated"; unblocked 2026-09-09) ---
@@ -204,9 +206,9 @@ export function todayPlan(pickIds: string[], tasks: TaskItem[], today: string = 
 // The all-done case gets its own sentence rather than "5 of 5", because a
 // finished plan is not a fraction, it is a finished plan.
 export function todayPlanLine(p: TodayPlan): string {
-  if (p.done === p.total) return p.total === 1 ? "The one you picked, done" : "Everything you picked, done";
-  if (p.done === 0) return capAfterNumber(`${p.total} picked this morning`);
+  if (p.done === p.total) return p.total === 1 ? "The One You Picked, Done" : "Everything You Picked, Done";
+  if (p.done === 0) return lineCase(`${p.total} picked this morning`);
   // "2 of 5 Done" is the house form for a measurement (shared/casing.ts uses
   // this exact example), so the line is written to land on it.
-  return capAfterNumber(`${p.done} of ${p.total} done`);
+  return lineCase(`${p.done} of ${p.total} done`);
 }

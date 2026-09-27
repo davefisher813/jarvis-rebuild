@@ -206,7 +206,9 @@ describe("a swiped row is the width of the list it is in", () => {
 describe("the shelf's count is a chip on the row", () => {
   it("puts the exercise count in the trailing slot, not on a second line", () => {
     const lifts = GYM_FLOW.slice(GYM_FLOW.indexOf("function LiftsRow"), GYM_FLOW.indexOf("function DayRow"));
-    expect(lifts, "the count is a capsule").toMatch(/<span className="ex-chip">\{capAfterNumber\(count/);
+    // AMENDED 2026-09-26 (Batch 1 casing): the count is cased by lineCase,
+    // the whole rule's formatter, not the old number-lead helper.
+    expect(lifts, "the count is a capsule").toMatch(/<span className="ex-chip">\{lineCase\(count/);
     expect(lifts, "and there is no facts line left under the name").not.toMatch(/className="facts"/);
   });
 });

@@ -7,7 +7,8 @@ describe("the one duration list", () => {
   });
 
   it("labels the way a person says it, not the way a clock stores it", () => {
-    expect(DUR_CHOICES.map(durLabel)).toEqual(["15m", "30m", "45m", "1h", "1h 30m", "2h"]);
+    // Casing sweep 2 (2026-09-27): Title Case by the whole rule (§H2); durations through shared/duration ("45 Min", "1h 30m").
+    expect(DUR_CHOICES.map(durLabel)).toEqual(["15 Min", "30 Min", "45 Min", "1h", "1h 30m", "2h"]);
   });
 });
 

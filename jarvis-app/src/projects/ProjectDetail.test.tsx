@@ -23,7 +23,9 @@ async function openRow(title: string) {
 describe("Project detail", () => {
   it("tapping a project opens its detail with an Edit action", async () => {
     render(<NotesProvider userId="u1"><Seed /><BiggerPictureFlow lens="projects" segments={<div />} /></NotesProvider>);
-    await openRow("Kitchen remodel");
+    // AMENDED 2026-09-26 (pass-off): the row SHOWS his typed title in Title
+    // Case (the record keeps "Kitchen remodel").
+    await openRow("Kitchen Remodel");
     await waitFor(() => expect(screen.getByText("Details")).toBeInTheDocument());
     expect(screen.getByText("Edit")).toBeInTheDocument();
   });
@@ -49,7 +51,7 @@ describe("Project detail", () => {
         <BiggerPictureFlow lens="projects" segments={<div />} onGoEmail={(threadId) => { opened = threadId; }} />
       </NotesProvider>,
     );
-    await openRow("Ridgeley waiver");
+    await openRow("Ridgeley Waiver"); // AMENDED 2026-09-26 (pass-off): Title Case display
     await waitFor(() => expect(screen.getByText("Linked Conversations")).toBeInTheDocument());
     fireEvent.click(screen.getByText("The waiver"));
     expect(opened).toBe("t9");

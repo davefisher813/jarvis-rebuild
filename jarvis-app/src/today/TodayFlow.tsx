@@ -27,7 +27,7 @@ import { distanceFor, type Distance } from "../tasks/grouping";
 import { AUTOMATION_LABEL, tuningAllows, tuningScope, tuningWeight, tuningsFrom, type TuningChoice } from "../rules/tuning";
 import { leadFor } from "../schedule/leaveBy";
 import { EventWeatherLine } from "../weather/WeatherLine";
-import { capAfterNumber } from "../shared/casing";
+import { lineCase } from "../shared/casing";
 import { movedBy, burstSize, celebrationLine, type Moved } from "../shared/completion";
 import { birthdaysOn, upcomingBirthdays, type BirthdayHit } from "../people/birthdays";
 import type { Person } from "../people/types";
@@ -50,7 +50,8 @@ import { pendingPicks } from "../events/planOutcome";
 import { rememberLeanedOn } from "./leanedOn";
 import { readSamples } from "../shared/timeSense";
 import { settleDuePlans } from "../events/pipeline";
-import { buildGoalIndex, liveGoals, reachOf, goalTitleForTask } from "../bigger/reach";
+import { buildGoalIndex, liveGoals, reachOf, goalTitleForTask, sheetGoals } from "../bigger/reach";
+import { sheetProjects, sheetPeople } from "../tasks/screens/sheetLinks";
 import { buildParentIndex, parentForTask } from "../life/parent";
 import { sheetEvents } from "../schedule/sheetEvents";
 import { inheritFromThread } from "../messages/threadTasks";
@@ -106,7 +107,7 @@ import { promptsDue, shownNow, snoozedForADay } from "../tasks/contextPrompts";
 import ContextPromptSheet from "../tasks/screens/ContextPromptSheet";
 import { SHORTCUTS } from "../health/settings";
 import ReminderSheet from "../tasks/screens/ReminderSheet";
-import { stripReminders, missedReminders, snoozeTime, snoozeFrom } from "../tasks/reminders";
+import { stripPick, snoozeTime, snoozeFrom } from "../tasks/reminders";
 import { remindersToIcs, saveIcsFile } from "../tasks/ics";
 import type { ReminderInfo } from "../notes/types";
 import { runAutoSweep, retrySweep, undoSweep, readReceipt, setAsideCandidate, markOffered, liveMoved, dismissSweepCard, sweepCardDismissed, type SweepReceipt } from "../tasks/autoSweep";
@@ -158,8 +159,9 @@ import { isOffTrack, rankOpen, reasonFor } from "../upnext/upnext";
 import { backOnTrackMessage } from "../tasks/lifecycle";
 import { moveEventToAnytime, undoMoveToAnytime, duplicateEvent } from "../schedule/eventMoves";
 import { ClockGlyph, DocGlyph, ForkGlyph, SweepGlyph, TargetGlyph, CheckCircleGlyph, BarbellGlyph, GiftGlyph, FolderOpenGlyph } from "../shared/glyphs";
-import { Clock, CircleSlash, BellRing } from "../shared/icons";
+import { Clock, CircleSlash } from "../shared/icons";
 import { isFromEmail } from "../tasks/origin";
+import { minutesLabel, spanLabel } from "../shared/duration";
 
 // Up Next and Fresh Start (ADHD strategy Phase 1) load on demand: they are
 // overlays, not tabs, and stay out of the boot bundle.
@@ -592,9 +594,9 @@ export default function TodayFlow({
     setTuneTick((n) => n + 1);
     const label = AUTOMATION_LABEL[name] ?? name;
     showToast({
-      message: choice === "never" ? `${label} · Off · Change it in Settings`
-        : choice === "less" ? `${label} · Less often · Change it in Settings`
-        : `${label} · More often · Change it in Settings`,
+      message: choice === "never" ? `${label} · Off · Change It in Settings`
+        : choice === "less" ? `${label} · Less Often · Change It in Settings`
+        : `${label} · More Often · Change It in Settings`,
     });
   };
   // Two questions every producer asks: may I speak today, and how loud.
@@ -737,7 +739,7 @@ export default function TodayFlow({
       y.setDate(y.getDate() - 1);
       setPrevMood(prof?.checkin?.[todayISO(y)]?.mood);
     } catch {
-      showToast({ message: "Couldn't load today · Check your connection", actionLabel: "Retry", onAction: () => { void reload(); } });
+      showToast({ message: "Couldn't Load Today · Check Your Connection", actionLabel: "Retry", onAction: () => { void reload(); } });
     } finally {
       setLoading(false);
     }
@@ -836,7 +838,7 @@ export default function TodayFlow({
     // the same TaskSheet the Tasks tab opens, so a project, an extra area or
     // an if-then plan set from Tasks would silently vanish the moment the
     // task was edited from home instead. Same sheet, same fields, both ends.
-    if (t) setSheet({ mode: "edit", id, initial: { text: t.text, category: t.category ?? "", extraCategories: t.extraCategories, due: t.due ?? "", repeat: t.recurrence ?? "", projectId: t.projectId ?? "", eventId: t.eventId ?? "", plan: t.plan, steps: t.steps, notes: t.notes, estimateMin: t.estimateMin, personId: t.personId } });
+    if (t) setSheet({ mode: "edit", id, initial: { text: t.text, category: t.category ?? "", extraCategories: t.extraCategories, due: t.due ?? "", repeat: t.recurrence ?? "", projectId: t.projectId ?? "", goalId: t.goalId ?? "", eventId: t.eventId ?? "", plan: t.plan, steps: t.steps, notes: t.notes, estimateMin: t.estimateMin, personId: t.personId } });
   };
 
   // Tappable schedule rows (roadmap v2): an event on Today opens the same
@@ -862,7 +864,7 @@ export default function TodayFlow({
     // section of the sheet was unusable from the tab today's events live on.
     // Travel, the weekday set and the guest list were missing for the same
     // reason and told the same lie. One literal now, matching openEdit's.
-    setEventSheet({ id, occurrence, initial: { title: e.title, date: occurrence, start: e.start, end: e.end ?? "", category: e.category ?? "", location: e.location ?? "", recurrence: e.recurrence ?? "none", until: e.until ?? "", taskIds: e.taskIds ?? [], gym: !!e.gym, travelMin: e.travelMin ?? null, bufferMin: e.bufferMin ?? null, url: e.url ?? "", notes: e.notes ?? "", attendees: e.attendees ?? [], days: e.days ?? [], interval: e.interval ?? 1 } });
+    setEventSheet({ id, occurrence, initial: { title: e.title, date: occurrence, start: e.start, end: e.end ?? "", category: e.category ?? "", location: e.location ?? "", recurrence: e.recurrence ?? "none", until: e.until ?? "", taskIds: e.taskIds ?? [], gym: !!e.gym, travelMin: e.travelMin ?? null, bufferMin: e.bufferMin ?? null, url: e.url ?? "", notes: e.notes ?? "", attendees: e.attendees ?? [], days: e.days ?? [], interval: e.interval ?? 1, projectId: e.projectId ?? "" } });
   };
   // EVENTS ARE FIRST-CLASS (Dave, on the list since 2026-09-07; built
   // 2026-09-09). Tapping an event opens its PAGE, here as well as on Schedule.
@@ -904,7 +906,7 @@ export default function TodayFlow({
   const addEventStep = async (eventId: string, ev: EventItem, text: string) => {
     const ok = await attemptWrite(() => tasks.createTask(text, { eventId, category: ev.data.category, due: ev.data.date }));
     await reload();
-    if (ok) showToast({ message: "Added to " + ev.data.title });
+    if (ok) showToast({ message: lineCase("Added to " + ev.data.title) });
   };
 
   // THE SAME ROW, THE SAME MOVES (2026-08-28). Schedule's day list could
@@ -922,17 +924,17 @@ export default function TodayFlow({
     // SCHED-F-18 (2026-09-05): refuse rather than clamp, the same answer the
     // event sheet's move chips give. addMinutes stops at 23:59, so +1 hr on a
     // 23:15-23:45 event collapsed it to a zero-length row.
-    if (!shiftFitsDay(e.start, e.end, mins)) { showToast({ message: "That would run past midnight" }); return; }
+    if (!shiftFitsDay(e.start, e.end, mins)) { showToast({ message: "That Would Run Past Midnight" }); return; }
     const word = mins < 0
-      ? `Back ${Math.abs(mins) === 60 ? "1 hr" : Math.abs(mins) + " min"}`
-      : `Forward ${mins === 60 ? "1 hr" : mins + " min"}`;
+      ? `Back ${spanLabel(Math.abs(mins))}`
+      : `Forward ${spanLabel(mins)}`;
     let outcome: MoveOutcome | null = null;
     const ok = await attemptWrite(async () => { outcome = await moveEventAdjust(id, addMinutes(e.start, mins), today, schedule); });
     await reload();
     const o = outcome as MoveOutcome | null;
     if (!ok || !o?.ok) return;
     showToast({
-      message: o.repeating ? word + " · Just today" : word,
+      message: o.repeating ? word + " · Just Today" : word,
       actionLabel: "Undo",
       onAction: async () => { await attemptWrite(() => undoMoveEventAdjust(id, today, o, schedule)); await reload(); },
     });
@@ -947,7 +949,7 @@ export default function TodayFlow({
     const o = outcome as MoveOutcome | null;
     if (!ok || !o?.ok) return;
     showToast({
-      message: o.repeating ? label + " · Just today" : label,
+      message: o.repeating ? label + " · Just Today" : label,
       actionLabel: "Undo",
       onAction: async () => { await attemptWrite(() => undoMoveEventAdjust(id, today, o, schedule)); await reload(); },
     });
@@ -972,7 +974,7 @@ export default function TodayFlow({
     await reload();
     if (!ok) return;
     showToast({
-      message: "Skipped today",
+      message: "Skipped Today",
       actionLabel: "Undo",
       onAction: async () => { await attemptWrite(() => undoSkipEventTodayAdjust(id, today, schedule)); await reload(); },
     });
@@ -989,7 +991,7 @@ export default function TodayFlow({
     const o = outcome as PushOutcome | null;
     if (!ok || !o?.ok) return;
     showToast({
-      message: o.repeating ? "Moved to tomorrow · Just today" : "Moved to tomorrow",
+      message: o.repeating ? "Moved to Tomorrow · Just Today" : "Moved to Tomorrow",
       actionLabel: "Undo",
       onAction: async () => { await attemptWrite(() => undoPushEventTomorrowAdjust(id, o, schedule)); await reload(); },
     });
@@ -1004,15 +1006,15 @@ export default function TodayFlow({
     const before = routineData;
     // SCHED-F-18: the same refusal a late event gets, for a protected block.
     const cur = (before.protectedBlocks ?? []).find((b) => b.id === id);
-    if (cur && !blockShiftFits(cur.startMin, cur.endMin, mins)) { showToast({ message: "That would run past midnight" }); return; }
+    if (cur && !blockShiftFits(cur.startMin, cur.endMin, mins)) { showToast({ message: "That Would Run Past Midnight" }); return; }
     const after = shiftBlockAdjust(before, id, mins);
     if (!after) return;
     const ok = await attemptWrite(() => routine.save(after));
     if (!ok) return;
     setRoutineData(after);
     const word = mins < 0
-      ? `Back ${Math.abs(mins) === 60 ? "1 hr" : Math.abs(mins) + " min"}`
-      : `Forward ${mins === 60 ? "1 hr" : mins + " min"}`;
+      ? `Back ${spanLabel(Math.abs(mins))}`
+      : `Forward ${spanLabel(mins)}`;
     showToast({
       message: word,
       actionLabel: "Undo",
@@ -1104,7 +1106,7 @@ export default function TodayFlow({
         // The split copy carries the meeting and the travel too: "This
         // Event" on a recurring Zoom used to stand the occurrence up without
         // its link, which is the same disappearance by another route.
-        const splitId = await schedule.createEvent(draft.title, { date: draft.date, start: draft.start, end: draft.end || undefined, category: draft.category || undefined, location: draft.location || undefined, travelMin: draft.travelMin ?? undefined, bufferMin: draft.bufferMin ?? undefined, url: draft.url, notes: draft.notes });
+        const splitId = await schedule.createEvent(draft.title, { date: draft.date, start: draft.start, end: draft.end || undefined, category: draft.category || undefined, location: draft.location || undefined, travelMin: draft.travelMin ?? undefined, bufferMin: draft.bufferMin ?? undefined, url: draft.url, notes: draft.notes, projectId: draft.projectId || undefined });
         if (splitId && draft.gym) await schedule.editGymDoor(splitId, true);
       });
     } else {
@@ -1131,6 +1133,7 @@ export default function TodayFlow({
         await schedule.editMeeting(id, { url: draft.url ?? "", notes: draft.notes ?? "" });
         await schedule.editTaskIds(id, draft.taskIds ?? []);
         await schedule.editGymDoor(id, !!draft.gym);
+        await schedule.editProject(id, draft.projectId || null);
       });
     }
     setEventSheet(null);
@@ -1164,7 +1167,7 @@ export default function TodayFlow({
     await reload();
     if (ok && e) {
       showToast({
-        message: "Event deleted",
+        message: "Event Deleted",
         actionLabel: "Undo",
         onAction: async () => {
           await attemptWrite(() => schedule.recreateFrom(e, id));
@@ -1193,7 +1196,7 @@ export default function TodayFlow({
       // mis-swipe was opening the series and editing it by hand.
       // removeExdate is the exact inverse and was already on the service.
       if (ok) showToast({
-        message: "Skipped today · The series stays",
+        message: "Skipped Today · The Series Stays",
         actionLabel: "Undo",
         onAction: async () => { await attemptWrite(() => schedule.removeExdate(id, today)); await reload(); },
       });
@@ -1203,7 +1206,7 @@ export default function TodayFlow({
     await reload();
     if (!ok) return;
     showToast({
-      message: "Event deleted",
+      message: "Event Deleted",
       actionLabel: "Undo",
       onAction: async () => { await attemptWrite(() => schedule.recreateFrom(e, id)); await reload(); },
     });
@@ -1301,6 +1304,7 @@ export default function TodayFlow({
         await tasks.setCategories(sheet.id, [draft.category, ...(draft.extraCategories ?? [])].filter(Boolean));
         await tasks.setDue(sheet.id, draft.due || null);
         await tasks.setProject(sheet.id, draft.projectId ?? null);
+        await tasks.setGoal(sheet.id, draft.goalId ?? null);
         await tasks.setEvent(sheet.id, draft.eventId ?? null);
         await tasks.setRecurrence(sheet.id, rec || null);
         await tasks.setPlan(sheet.id, draft.plan ?? null);
@@ -1321,7 +1325,7 @@ export default function TodayFlow({
       const t = await tasks.task(id);
       const ok = await attemptWrite(() => tasks.deleteTask(id));
       // 2026-09-11: back under its own id (LIFE-F-15), so note links hold.
-      if (ok && t) showToast({ message: "Task deleted", actionLabel: "Undo", onAction: async () => { await attemptWrite(() => tasks.recreateFrom(t, id)); await reload(); } });
+      if (ok && t) showToast({ message: "Task Deleted", actionLabel: "Undo", onAction: async () => { await attemptWrite(() => tasks.recreateFrom(t, id)); await reload(); } });
     }
     setSheet(null);
     await reload();
@@ -1462,7 +1466,7 @@ export default function TodayFlow({
   const breakDownTask = async (taskId: string) => {
     const original = taskItems.find((t) => t.id === taskId);
     if (!original || !ai.available) return;
-    showToast({ message: "Breaking it down…" });
+    showToast({ message: "Breaking It Down…" });
     const identity = await gatherContext().then(identityToText).catch(() => "");
     let res: BreakdownResult | null = null;
     const ok = await attemptWrite(async () => {
@@ -1471,7 +1475,7 @@ export default function TodayFlow({
     await reload();
     if (!ok || !res) return;
     const r = res as BreakdownResult;
-    if (r.reason === "no-ai") { showToast({ message: "Couldn't reach JARVIS · Try again" }); return; }
+    if (r.reason === "no-ai") { showToast({ message: "Couldn't Reach JARVIS · Try Again" }); return; }
     showToast({
       message: splitLine(r.made.length),
       actionLabel: "Undo",
@@ -1520,7 +1524,7 @@ export default function TodayFlow({
     await reload();
     if (!ok) return;
     showToast({
-      message: `Planned ${blocks.length} ${blocks.length === 1 ? "block" : "blocks"}${planningTomorrow ? " for tomorrow" : ""}`,
+      message: lineCase(`Planned ${blocks.length} ${blocks.length === 1 ? "block" : "blocks"}${planningTomorrow ? " for tomorrow" : ""}`),
       actionLabel: "Undo",
       onAction: async () => { await attemptWrite(async () => { for (const id of ids) await schedule.deleteEvent(id); }); await reload(); },
     });
@@ -1588,7 +1592,7 @@ export default function TodayFlow({
     // events it would carry past midnight are out of the restore list too.
     const { prior, skipped, crossed } = shiftPlan(todayEvents, nhm, mins);
     if (prior.length === 0) {
-      if (crossed) showToast({ message: "Nothing moved · The rest would run past midnight" });
+      if (crossed) showToast({ message: "Nothing Moved · The Rest Would Run Past Midnight" });
       return;
     }
     const undoShift = async () => { await attemptWrite(() => restoreShift(schedule, prior)); await reload(); };
@@ -1597,13 +1601,13 @@ export default function TodayFlow({
       moved = (await shiftFutureEvents(schedule, todayEvents, nhm, mins)).moved;
     } catch {
       await reload();
-      showToast({ message: "Couldn't move the whole day · Some events moved", actionLabel: "Undo", onAction: undoShift });
+      showToast({ message: "Couldn't Move the Whole Day · Some Events Moved", actionLabel: "Undo", onAction: undoShift });
       return;
     }
     if (moved === 0) return;
     await reload();
     showToast({
-      message: `${moved} ${moved === 1 ? "event" : "events"} +${mins === 60 ? "1 hr" : mins + " min"}${skipped ? ` · ${skipped} repeating stayed` : ""}${crossed ? ` · ${crossed} would pass midnight` : ""}`,
+      message: lineCase(`${moved} ${moved === 1 ? "event" : "events"} +${spanLabel(mins)}${skipped ? ` · ${skipped} repeating stayed` : ""}${crossed ? ` · ${crossed} would pass midnight` : ""}`),
       actionLabel: "Undo",
       onAction: undoShift,
     });
@@ -1663,7 +1667,7 @@ export default function TodayFlow({
           recordBlend(blockKind(e.data), fit.task.category);
           await reload();
           showToast({
-            message: "Added to " + e.data.title,
+            message: lineCase("Added to " + e.data.title),
             actionLabel: "Undo",
             onAction: async () => { await attemptWrite(() => schedule.editTaskIds(e.id, prior)); await reload(); },
           });
@@ -1758,16 +1762,16 @@ export default function TodayFlow({
   const momentumSub = (m: Momentum): string => {
     const { why, due, len } = momentumParts(m);
     const reason = [why?.toLowerCase(), due ? (due.kind === "late" ? "overdue" : "due today") : null].filter(Boolean).join(", ");
-    return ["Keep going", reason, len].filter(Boolean).join(", ");
+    return ["Keep Going", reason, len].filter(Boolean).join(", ");
   };
-  // The due half as a fact's words: the chip's own distance, in a sentence's
-  // case ("Due today", "3 Days late", "Over a month late"), since a fact is
-  // not a chip. Every late distance ends in "late", so the words say it too.
+  // The due half as a fact's words: the chip's own distance, in the line's
+  // case ("Due Today", "3 Days Late", "Over a Month Late"; the whole rule,
+  // Dave 2026-09-26), since a fact is not a chip. Every late distance ends
+  // in "late", so the words say it too.
   const dueWords = (d: Distance): string => {
-    if (d.kind === "today") return "Due today";
+    if (d.kind === "today") return "Due Today";
     const words = d.label.toLowerCase();
-    const late = / late$/.test(words) ? words : words + " late";
-    return capAfterNumber(late.charAt(0).toUpperCase() + late.slice(1));
+    return lineCase(/ late$/.test(words) ? words : words + " late");
   };
   // Null when there is nothing to say, so the card goes solo instead of
   // carrying an empty sub line.
@@ -1834,7 +1838,7 @@ export default function TodayFlow({
     ? { name: catName(moveTask.data.category), slot: catColorOf(moveTask.data.category) }
     : null;
   const moveEstimate = moveTask
-    ? `${moveTask.data.estimateMin ?? estimates[moveTask.data.category ?? ""] ?? 45} min`
+    ? minutesLabel(moveTask.data.estimateMin ?? estimates[moveTask.data.category ?? ""] ?? 45)
     : null;
   // UP-CORE-03: tomorrow's birthday, in the evening only, one at a time,
   // and silent once waved off. upcomingBirthdays already knows how to say
@@ -1973,12 +1977,12 @@ export default function TodayFlow({
         const done = { ...dayDraft, dismissed: true };
         writeDraft(done);
         setDayDraft(done);
-        showToast({ message: "Those times had passed and nothing fits now" });
+        showToast({ message: "Those Times Had Passed and Nothing Fits Now" });
         return;
       }
       writeDraft(fresh);
       setDayDraft(fresh);
-      showToast({ message: "Those times had passed · Day re-planned from now" });
+      showToast({ message: "Those Times Had Passed · Day Re-Planned from Now" });
       return;
     }
     // Replace, never add (hotfix 2026-08-21): commitPlan sweeps each task's
@@ -2014,7 +2018,7 @@ export default function TodayFlow({
     setDayDraft(next);
     await reload();
     showToast({
-      message: `Day planned · ${ids.length} ${ids.length === 1 ? "block" : "blocks"}`,
+      message: lineCase(`Day planned · ${ids.length} ${ids.length === 1 ? "block" : "blocks"}`),
       actionLabel: "Undo",
       onAction: async () => {
         await attemptWrite(async () => { for (const id of ids) await schedule.deleteEvent(id); });
@@ -2074,7 +2078,7 @@ export default function TodayFlow({
     if (res.overflow[0]) setOverflowOffer(res.overflow[0]);
     if (res.moves.length > 0) {
       showToast({
-        message: `Re-flowed ${res.moves.length} ${res.moves.length === 1 ? "block" : "blocks"}`,
+        message: lineCase(`Re-flowed ${res.moves.length} ${res.moves.length === 1 ? "block" : "blocks"}`),
         actionLabel: "Undo",
         onAction: async () => {
           await attemptWrite(async () => {
@@ -2394,7 +2398,7 @@ export default function TodayFlow({
   // says so in its own facts line ("Fits before Deep Work"); when it is not,
   // nothing anywhere claims it does. Nothing else reads gapPick.
   const movePlacement = moveTask && gapPick?.id === moveTask.id && nowCtx.nextTitle
-    ? `Fits before ${nowCtx.nextTitle}`
+    ? lineCase(`Fits before ${nowCtx.nextTitle}`)
     : null;
   // WHAT IT MOVES CAME OFF THE CARD (Dave 2026-09-21: "get rid of the blue
   // subtext in pic 1 idk what that is or why it's there"). It was "Moves
@@ -2406,12 +2410,8 @@ export default function TodayFlow({
   // Approved V2 anatomy (preview 2026-08-15): the free window reads as two
   // stat tiles (sky until, green open); inside an event the event tile leads;
   // the gap task carries its blue type tile and an accent Start.
-  const shortSpan = (min: number): string => {
-    const h = Math.floor(min / 60);
-    const m = min % 60;
-    if (h === 0) return `${m}m`;
-    return m === 0 ? `${h}h` : `${h}h ${m}m`;
-  };
+  // The one duration shape (shared/duration.ts; Dave 2026-09-26).
+  const shortSpan = (min: number): string => spanLabel(min);
   // NOW, WHILE A SESSION RUNS (Dave 2026-09-19: "It should go in the now
   // section"). Now says what he is inside of, and a workout in progress is
   // that, before any gap or block: the day, the time left or the time in, what
@@ -2523,7 +2523,7 @@ export default function TodayFlow({
             <div className="row" {...rowDoor(() => setUpNextOpen(true))}>
               <RowIcon kind="event" />
               <div className="row-stack">
-                <div className="conn-name truncate">{shortSpan(nowCtx.gapMin)} open</div>
+                <div className="conn-name truncate">{shortSpan(nowCtx.gapMin)} Open</div>
                 {/* §AM F5 (2026-09-26): when the window ends is a neutral
                     time, so it is small caps, the same "Until" the in-a-block
                     row below says; what ends it is the line's one grey.
@@ -2533,7 +2533,7 @@ export default function TodayFlow({
                     and the row no longer said what ends the window. */}
                 <div className="conn-meta">
                   <span className="fact date">Until {fmtTime(nowCtx.nextStart).time} {fmtTime(nowCtx.nextStart).ap}</span>
-                  <span className="fact">{nowCtx.nextTitle ?? "Your next event"}</span>
+                  <span className="fact">{nowCtx.nextTitle ?? "Your Next Event"}</span>
                 </div>
                 {nextOutdoor && <EventWeatherLine dateIso={today} start={nextOutdoor.data.start} />}
               </div>
@@ -2627,7 +2627,7 @@ export default function TodayFlow({
               <div className="conn-name truncate">{prep.person.name}</div>
               {(prep.open.length > 0 || prep.lastMail) ? (
                 <div className="conn-meta facts">
-                  {prep.open.length > 0 && <span className="fact"><b>{capAfterNumber(`${prep.open.length} open`)}</b> with them</span>}
+                  {prep.open.length > 0 && <span className="fact"><b>{lineCase(`${prep.open.length} open`)}</b> with them</span>}
                   {prep.lastMail ? <span className="fact date">{prep.lastMail}</span> : null}
                 </div>
               ) : null}
@@ -2726,7 +2726,7 @@ export default function TodayFlow({
               the right, and it sits at the foot of the thing it folds. Same
               control, same behaviour, the house shape. */}
           <button className="receipt-line" aria-expanded={draftMoreOpen} onClick={() => setDraftMoreOpen((o) => !o)}>
-            <span className="rl-t">{capAfterNumber(`${dayDraft.anytime.length} More in Anytime`)}</span>
+            <span className="rl-t">{lineCase(`${dayDraft.anytime.length} More in Anytime`)}</span>
             <div className={"chev chev-down" + (draftMoreOpen ? " chev-open" : "")} />
           </button>
           {draftMoreOpen && dayDraft.anytime.map((a) => (
@@ -2777,7 +2777,7 @@ export default function TodayFlow({
     <div className="receipt-line" aria-label={`Accepted, ${planEvs.length} ${planEvs.length === 1 ? "block" : "blocks"} planned`}>
       {/* One phrase, no typed dot (§AM F3, 2026-09-26): the count leads,
           the way every other receipt here reads. */}
-      <span className="rl-t">{capAfterNumber(`${planEvs.length} ${planEvs.length === 1 ? "block" : "blocks"} accepted`)}</span>
+      <span className="rl-t">{lineCase(`${planEvs.length} ${planEvs.length === 1 ? "block" : "blocks"} accepted`)}</span>
     </div>
   ) : null;
 
@@ -2794,7 +2794,7 @@ export default function TodayFlow({
       icon={SWEEP_ICO}
       tone="cat-fg-orange"
       title={slippedCount === 1 ? "1 Block Slipped" : `${slippedCount} Blocks Slipped`}
-      sub="The plan is behind the clock"
+      sub="The Plan Is Behind the Clock"
       action={{ label: "Re-Flow", onClick: () => void runReflow() }}
       // ROW-TAP (Dave 2026-09-15: "I want all rows clickable"): the card is
       // about the day's plan, so its body opens the Schedule that holds it.
@@ -2815,7 +2815,7 @@ export default function TodayFlow({
       icon={SWEEP_ICO}
       tone="cat-fg-orange"
       title={overflowOffer.title}
-      sub="No room left today"
+      sub="No Room Left Today"
       // ROW-TAP (Dave 2026-09-15): the body opens the event that has no room.
       onOpen={() => onOpenEvent(overflowOffer.eventId)}
       // Leaving it where it is IS the dismissal, so it rides the swipe under
@@ -2834,7 +2834,7 @@ export default function TodayFlow({
           });
           setOverflowOffer(null);
           await reload();
-          if (ok) showToast({ message: "Set aside · Keeps its place" });
+          if (ok) showToast({ message: "Set Aside · Keeps Its Place" });
         })(),
       }}
     />
@@ -2858,7 +2858,7 @@ export default function TodayFlow({
   const stillGood = async (rec: DecisionRecord) => {
     const ok = await attemptWrite(() => decisionsSvc.confirmRevisit(rec.id));
     setRevisit(null);
-    if (ok) showToast({ message: "Kept, revisit cleared", actionLabel: "Undo", onAction: () => void (async () => {
+    if (ok) showToast({ message: "Kept, Revisit Cleared", actionLabel: "Undo", onAction: () => void (async () => {
       await attemptWrite(() => decisionsSvc.unconfirmRevisit(rec.id));
       await loadRevisit();
     })() });
@@ -2971,7 +2971,7 @@ export default function TodayFlow({
         icon={FORK_ICO}
         tone="cat-fg-purple"
         title={revisit.data.decision}
-        sub="You wanted to revisit this today"
+        sub="You Wanted to Revisit This Today"
         action={{ label: "Keep", onClick: () => void stillGood(revisit) }}
         alt={{ label: "Change It", onClick: () => setRevisitSheet(true) }}
         // ROW-TAP (Dave 2026-09-15): the body opens the decision's sheet.
@@ -2994,7 +2994,7 @@ export default function TodayFlow({
         title="Couldn't Move Yesterday's Tasks"
         // One grey (§AK, 2026-09-26): "Try again" came off, because the
         // Retry pill beside it says it and does it.
-        sub="Nothing was lost"
+        sub="Nothing Was Lost"
         // ROW-TAP (Dave 2026-09-15): nothing to open, so the body retries,
         // the same safe verb as the pill.
         onOpen={() => void (async () => { setSweepReceipt(await retrySweep(tasks, today)); await reload(); })()}
@@ -3007,7 +3007,7 @@ export default function TodayFlow({
     sweepReceipt && !sweepReceipt.failed && unplannedMoved.length > 0 && !sweepCardDismissed(today) && tuned("sweep-receipt") ? (
       <NoticeCard
         key="sweep"
-        {...tuneProps("sweep-receipt", capAfterNumber(`${unplannedMoved.length} moved to today`))}
+        {...tuneProps("sweep-receipt", lineCase(`${unplannedMoved.length} moved to today`))}
         weight={tuningWeight(tunings, "sweep-receipt", NEW)}
         icon={SWEEP_ICO}
         tone="cat-fg-orange"
@@ -3034,7 +3034,7 @@ export default function TodayFlow({
             const ok = await attemptWrite(() => tasks.setAside([sweepCand.id]));
             setSweepReceipt(readReceipt(today));
             await reload();
-            if (ok) showToast({ message: "Set aside · Keeps its place", actionLabel: "Undo", onAction: async () => { await attemptWrite(() => tasks.restoreAside([sweepCand.id])); await reload(); } });
+            if (ok) showToast({ message: "Set Aside · Keeps Its Place", actionLabel: "Undo", onAction: async () => { await attemptWrite(() => tasks.restoreAside([sweepCand.id])); await reload(); } });
           })(),
         } : undefined}
         // LAW 2: DISMISS MEANS ONLY DISMISS (Dave 2026-08-29). This used to
@@ -3048,7 +3048,7 @@ export default function TodayFlow({
           dismissSweepCard(today);
           setSweepDismissTick((n) => n + 1);
           showToast({
-            message: "Hidden for today",
+            message: "Hidden for Today",
             actionLabel: "Undo the Move",
             onAction: async () => {
               if (!sweepReceipt) return;
@@ -3166,7 +3166,7 @@ export default function TodayFlow({
         icon={WIN_ICO}
         tone="cat-fg-green"
         title={finishedProject.project.data.title}
-        sub={capAfterNumber(`All ${finishedProject.progress?.total ?? 0} done`)}
+        sub={lineCase(`All ${finishedProject.progress?.total ?? 0} done`)}
         // 2026-09-17 (Dave): every task done is a question, not a verdict.
         // Wrap Up asks: add more tasks, or finish the project.
         action={{ label: "Wrap Up", onClick: () => setWrapUp(finishedProject.project.id) }}
@@ -3244,7 +3244,7 @@ export default function TodayFlow({
         icon={<GiftGlyph />}
         tone="cat-fg-pink"
         title={tomorrowBirthday.name}
-        sub="Birthday tomorrow"
+        sub="Birthday Tomorrow"
         action={tomorrowBirthday.phone
           ? { label: "Text", onClick: () => setMsgPerson({ id: tomorrowBirthday.id, about: BIRTHDAY_ABOUT }) }
           : undefined}
@@ -3283,8 +3283,8 @@ export default function TodayFlow({
         // off: an instruction, a third grey, and what Resume already does.
         sub={(
           <div className="facts">
-            <span className="fact"><b>{capAfterNumber(`${openWorkOf(goalReach(untouched.id))} open`)}</b></span>
-            <span className="fact">Nothing today moves it</span>
+            <span className="fact"><b>{lineCase(`${openWorkOf(goalReach(untouched.id))} open`)}</b></span>
+            <span className="fact">Nothing Today Moves It</span>
           </div>
         )}
         // "Pick One", not "Pick Something" (2026-08-25). Measured on the
@@ -3304,18 +3304,34 @@ export default function TodayFlow({
   // --- Reminders (2026-08-19). Everything here writes a date, never a
   // boolean, so a reminder resets itself at midnight with nothing scheduled.
   //
-  // TODAY-F-17 (2026-09-05): the missed ones are in Your Move, so they are
-  // not also in the strip (see stripReminders in tasks/reminders.ts). B4
-  // added the notice cards and left the strip's missed rows standing, so 8 AM
-  // meds appeared twice on one screen wearing two different sets of buttons,
-  // which is exactly the "ton of notifications floating around" the one
-  // stream rule exists to stop.
-  const missedCards = missedReminders(taskItems, today, nhm);
-  const reminders = stripReminders(taskItems, today, nhm);
+  // TODAY-F-17 (2026-09-05): a missed reminder is on Today ONCE (§Q.4). B4
+  // put the missed ones in Heads Up as notice cards and left the strip's
+  // rows standing, so 8 AM meds appeared twice on one screen wearing two
+  // different sets of buttons, which is exactly the "ton of notifications
+  // floating around" the one stream rule exists to stop.
+  // THE STRIP'S PICK (Dave's pass-off, 2026-09-26): the next three still
+  // ahead of the clock, and the missed ones as one red count row. That row
+  // is the one place a missed reminder appears on Today (the lead,
+  // 2026-09-26: the Heads Up missed cards go); the Missed sheet behind it
+  // carries the tick and the Ask Again the cards used to.
+  const remPick = stripPick(taskItems, today, nhm);
+  const reminders = remPick.next;
 
+  // A ticked reminder leaves the strip (the next one slides in), so the
+  // toast says so and offers the way back, the same as every other row that
+  // leaves a screen on a tap (undoLaw).
   const onTickReminder = async (id: string, done: boolean) => {
-    await attemptWrite(() => (done ? tasks.tickReminder(id, today) : tasks.untickReminder(id)));
+    const ok = await attemptWrite(() => (done ? tasks.tickReminder(id, today) : tasks.untickReminder(id)));
     await reload();
+    if (!ok || !done) return;
+    showToast({
+      message: "Marked Done",
+      actionLabel: "Undo",
+      onAction: async () => {
+        await attemptWrite(() => tasks.untickReminder(id));
+        await reload();
+      },
+    });
   };
   // ADJUST, NOT A FIXED TEN MINUTES (Dave 2026-09-17): the strip's pill
   // opens Choose a Better Time, and the move is the same one occurrence
@@ -3400,25 +3416,10 @@ export default function TodayFlow({
     const to = snoozeTime(nhm, 15);
     await attemptWrite(() => tasks.snoozeReminder(id, to, today));
     await reload();
-    showToast({ message: "Asking again at " + fmtTime(to).time + " " + fmtTime(to).ap });
+    showToast({ message: "Asking Again at " + fmtTime(to).time + " " + fmtTime(to).ap });
   };
-  const missedReminderCards = missedCards.map((r) => (
-    <NoticeCard
-      key={"remind-" + r.id}
-      weight={WAITING}
-      icon={<BellRing className="ic" />}
-      tone="cat-fg-slate"
-      title={r.text}
-      // §AM (2026-09-25/26): missed is one of the key's reds, and a time
-      // with a meaning takes the key colour (F5): the same red the strip
-      // gives a missed reminder's time, on the time's fact alone.
-      sub={<Facts facts={[{ text: "Missed at " + fmtTime(r.time).time + " " + fmtTime(r.time).ap, tone: "red" }]} />}
-      action={{ label: "Ask Again in 15m", onClick: () => void onAskAgainReminder(r.id) }}
-      alt={{ label: "Done", onClick: () => void onTickReminder(r.id, true) }}
-      // The row opens the reminder (Dave 2026-09-15: "I want all rows clickable").
-      onOpen={() => openReminder(r.id)}
-    />
-  ));
+  // The Ask Again verb the missed cards carried ("If You Miss It" promises
+  // it, §Q.8) lives on the Missed sheet's rows now (RemindersStrip).
   // B10 (2026-08-23): guarded already, but silent and final. A reminder is one
   // row with everything about it on the client, so it takes the same Undo the
   // event delete four hundred lines up already offers.
@@ -3440,16 +3441,16 @@ export default function TodayFlow({
     // Nothing else on the page treats a ticked reminder as live; neither
     // does this now.
     const picked = taskItems.filter((t) => t.data.reminder && !t.data.done && (!ids || ids.includes(t.id)));
-    if (picked.length === 0) { showToast({ message: "Nothing left to add · These are all done" }); return; }
+    if (picked.length === 0) { showToast({ message: "Nothing Left to Add · These Are All Done" }); return; }
     const ics = remindersToIcs(
       picked.map((t) => ({ id: t.id, text: t.data.text, reminder: t.data.reminder! })),
       today,
     );
     try {
       await saveIcsFile(ics, picked.length === 1 ? "jarvis-reminder.ics" : "jarvis-reminders.ics");
-      showToast({ message: "Opening Calendar · Tap Add to confirm" });
+      showToast({ message: "Opening Calendar · Tap Add to Confirm" });
     } catch {
-      showToast({ message: "Couldn't hand it to your calendar · Try again" });
+      showToast({ message: "Couldn't Hand It to Your Calendar · Try Again" });
     }
   };
 
@@ -3582,7 +3583,7 @@ export default function TodayFlow({
       ok: true,
       undo: async () => {
         const { failed } = await settleAll([n.threadId], () => api.untrashThread(n.threadId));
-        if (failed.length) showToast({ message: "Couldn't put it back · Still in trash" });
+        if (failed.length) showToast({ message: "Couldn't Put It Back · Still in Trash" });
       },
     };
   };
@@ -3644,7 +3645,7 @@ export default function TodayFlow({
       if (!ok || !id) return null;
       await reload();
       return {
-        receipt: `On your schedule · ${when} ${fmtTime(a.start!).time} ${fmtTime(a.start!).ap}`,
+        receipt: lineCase(`On your schedule · ${when} ${fmtTime(a.start!).time} ${fmtTime(a.start!).ap}`),
         undo: async () => { await attemptWrite(() => schedule.deleteEvent(id)); await reload(); },
       };
     }
@@ -3667,7 +3668,7 @@ export default function TodayFlow({
     if (!ok || !id) return null;
     await reload();
     return {
-      receipt: a.verb === "bill" ? `In Money · $${a.amount!.toFixed(2)} due ${when}` : `Added to your tasks · ${when}`,
+      receipt: lineCase(a.verb === "bill" ? `In Money · $${a.amount!.toFixed(2)} due ${when}` : `Added to your tasks · ${when}`),
       undo: async () => { await attemptWrite(() => tasks.deleteTask(id)); await reload(); },
     };
   };
@@ -3698,7 +3699,7 @@ export default function TodayFlow({
     await reload();
     if (!ok) return;
     showToast({
-      message: `${durLabel(minutes)} on ${t.data.text}`,
+      message: lineCase(`${durLabel(minutes)} on ${t.data.text}`),
       actionLabel: "Undo",
       onAction: async () => {
         await attemptWrite(async () => { for (const id of ids) await schedule.deleteEvent(id); });
@@ -3729,7 +3730,7 @@ export default function TodayFlow({
     // THE ONE TAP WHERE A BLOCK TRULY BEGINS NOW (moved here 2026-09-18 with
     // the What Now sheet's deletion, which used to be the only emitter).
     focusStarted(t.id, FIFTEEN, "fifteen");
-    showToast({ message: `Fifteen minutes on ${t.data.text}` });
+    showToast({ message: lineCase(`Fifteen minutes on ${t.data.text}`) });
   };
 
   // THE END OF THE BLOCK ASKS ONE QUESTION, AND BOTH ANSWERS ARE REAL
@@ -3763,7 +3764,7 @@ export default function TodayFlow({
     writeFifteen(next);
     setFifteen(next);
     await reload();
-    showToast({ message: "Fifteen more minutes" });
+    showToast({ message: "Fifteen More Minutes" });
   };
 
   /** What the headliner shows while a block is live. Recomputed on every
@@ -3780,7 +3781,7 @@ export default function TodayFlow({
       start: f.startHHMM, end: endOf(f.startHHMM, sat),
     }]));
     await reload();
-    if (ok) showToast({ message: capAfterNumber(`${sat} ${sat === 1 ? "minute" : "minutes"} on it`) });
+    if (ok) showToast({ message: lineCase(`${minutesLabel(sat)} on it`) });
   };
 
   // NOT TONIGHT, AND HERE IS WHEN INSTEAD (Dave 2026-09-16: every button on
@@ -3877,7 +3878,7 @@ export default function TodayFlow({
       // reflective object.
       tone="cat-fg-purple"
       title={`Your ${monthTitle(reportMonth)} is ready`}
-      sub="Two minutes"
+      sub="Two Minutes"
       action={{ label: "Read", onClick: () => setReportOpen(true) }}
       // ROW-TAP (Dave 2026-09-15): the body opens the report.
       onOpen={() => setReportOpen(true)}
@@ -3889,7 +3890,7 @@ export default function TodayFlow({
       onDismiss={() => { markReportSeen(reportMonth); setReportMonth(null); }}
     />
   ) : null;
-  const notices = [reportNotice, ...alertCards, ...missedReminderCards, reflowSection, overflowSection].filter(Boolean);
+  const notices = [reportNotice, ...alertCards, reflowSection, overflowSection].filter(Boolean);
 
   const daypart = evening ? "evening" as const : now.getHours() < 12 ? "morning" as const : null;
   const initials = name.trim().split(/\s+/).map((w) => w[0]).slice(0, 2).join("").toUpperCase() || "JV";
@@ -4034,7 +4035,10 @@ export default function TodayFlow({
       reminders={<>
         <RemindersStrip
           items={reminders}
+          missed={remPick.missed}
           onTick={(id, done) => void onTickReminder(id, done)}
+          onTickMissed={(id) => void onTickReminder(id, true)}
+          onAskAgainMissed={(id) => void onAskAgainReminder(id)}
           onSnooze={(id) => void onSnoozeReminder(id)}
           onAdd={() => setRemSheet({ mode: "new" })}
           onOpen={openReminder}
@@ -4107,7 +4111,7 @@ export default function TodayFlow({
           setRevisit(null);
           if (ok && newId) {
             const created = newId;
-            showToast({ message: "Decision replaced", actionLabel: "Undo", onAction: () => void (async () => {
+            showToast({ message: "Decision Replaced", actionLabel: "Undo", onAction: () => void (async () => {
               await attemptWrite(() => decisionsSvc.undoSupersede(created));
               await loadRevisit();
             })() });
@@ -4165,6 +4169,12 @@ export default function TodayFlow({
     {sheet && (
       <TaskSheet
         events={sheetEvents(allEvents, today)}
+        // THE SAME SHEET EVERYWHERE (2026-09-26): Today's copy handed over
+        // no projects and no goals, so its Where group had no Project row
+        // and a Goal row that could not be picked.
+        projects={sheetProjects(projList, goalList)}
+        people={sheetPeople(peopleList)}
+        goals={sheetGoals(goalList, sheet.initial.goalId)}
         mode="edit"
         initial={sheet.initial}
         categories={categories}
@@ -4181,6 +4191,7 @@ export default function TodayFlow({
         mode="edit"
         initial={eventSheet.initial}
         categories={categories}
+        projects={sheetProjects(projList, goalList)}
         onSave={onSaveEvent}
         onDelete={onDeleteEvent}
         onMoveToAnytime={onEventToAnytime}
@@ -4258,7 +4269,7 @@ export default function TodayFlow({
               if (plan) await attemptWrite(() => tasks.setPlan(r.taskId, plan));
             }
             await reload();
-            if (ok) showToast({ message: `Starts ${r.startHHMM} · ${r.firstMove}` });
+            if (ok) showToast({ message: lineCase(`Starts ${fmtTime(r.startHHMM).time} ${fmtTime(r.startHHMM).ap} · ${r.firstMove}`) });
           })();
         }}
       />
@@ -4268,7 +4279,7 @@ export default function TodayFlow({
       <SnoozeSheet title={remAdjust.text} fromDate={today} today={today} onPick={(d, t) => void moveReminder(remAdjust.id, d, t)} onCancel={() => setRemAdjust(null)} />
     )}
     {wrapUp && (
-      <RowActionSheet title="Every task in it is done" onCancel={() => setWrapUp(null)} actions={[
+      <RowActionSheet title="Every Task in It Is Done" onCancel={() => setWrapUp(null)} actions={[
         { label: "Add More Tasks", onPick: () => { const id = wrapUp; setWrapUp(null); onOpenProject?.(id); } },
         { label: "Finish Project", onPick: () => { const id = wrapUp; setWrapUp(null); void closeProject(id); } },
       ]} />

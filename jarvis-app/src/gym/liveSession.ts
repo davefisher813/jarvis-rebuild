@@ -388,7 +388,10 @@ export function sessionExercisesSameAsLastTime(day: ProgramDay, last: WorkoutDat
   return day.exercises.map((e): WorkoutExercise => {
     const base = { exerciseId: e.id, name: e.name, kind: e.kind, ...(e.unit ? { unit: e.unit } : {}), ...(e.timeUnit ? { timeUnit: e.timeUnit } : {}), ...(e.exerciseKey ? { exerciseKey: e.exerciseKey } : {}) };
     const prior = priorById.get(e.id);
-    const loggedPrior = prior?.sets.filter((s) => !s.skipped) ?? [];
+    // Working sets only (2026-09-26): last session's warm-ups and drop
+    // segments were being carried forward as WORKING sets of the plan, so a
+    // ramp of three became three extra sets to log.
+    const loggedPrior = prior?.sets.filter((s) => !s.skipped && !s.warmup && !s.drop) ?? [];
     if (!prior || loggedPrior.length === 0) return { ...base, sets: [] };
     // entryFrom picks ONLY the numbers: last session's moved marks and D7
     // stamps belong to the sets that already happened, never to plan chips.

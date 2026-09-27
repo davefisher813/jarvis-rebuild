@@ -184,7 +184,8 @@ describe("the day head counts open time the way the planner does", () => {
   it("a soft block is open time, so the head and the plan sheet say the same hours", async () => {
     const { openMinutes } = await import("./planLoad");
     const { container } = render(<SchedulePage {...day} />);
-    expect(container.querySelector(".sc-dayhead .sc-fact")!.textContent).toContain("13h open");
+    // Casing sweep 2 (2026-09-27): Title Case by the whole rule (§H2); durations through shared/duration ("45 Min", "1h 30m").
+    expect(container.querySelector(".sc-dayhead .sc-fact")!.textContent).toContain("13h Open");
     // The same number the plan sheet builds from, field for field.
     expect(openMinutes(day.dayEvents, day.locked, 7 * 60, 21 * 60)).toBe(13 * 60);
   });
@@ -193,7 +194,7 @@ describe("the day head counts open time the way the planner does", () => {
     const { openMinutes } = await import("./planLoad");
     const hard = { ...day, locked: [{ s: 12 * 60, e: 13 * 60, label: "School Run" }] };
     const { container } = render(<SchedulePage {...hard} />);
-    expect(container.querySelector(".sc-dayhead .sc-fact")!.textContent).toContain("12h open");
+    expect(container.querySelector(".sc-dayhead .sc-fact")!.textContent).toContain("12h Open");
     expect(openMinutes(hard.dayEvents, hard.locked, 7 * 60, 21 * 60)).toBe(12 * 60);
   });
 });

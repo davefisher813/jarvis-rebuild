@@ -1,5 +1,5 @@
 import type { MailNotice, MailSnapshot } from "./home";
-import { capAfterNumber } from "../shared/casing";
+import { lineCase } from "../shared/casing";
 
 // THE MORNING SENTENCE (U5, Dave 2026-08-20).
 //
@@ -56,5 +56,5 @@ export function inboxSentence(notices: MailNotice[], snap: MailSnapshot): string
   const mid = bits.slice(1, -1);
   const last = bits.length > 1 ? bits[bits.length - 1]! : "";
   const body = bits.length === 1 ? head : [head, ...mid].join(", ") + " and " + last;
-  return capAfterNumber(body + tail);
+  return lineCase(body + tail);
 }

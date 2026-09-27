@@ -126,11 +126,17 @@ describe("leverOffers", () => {
     ], { coolDown: [{ id: "c1", name: "Stretch" }], coolDownMin: 5 });
     const offers = leverOffers(d, [], rack, {});
     expect(offers.map((o) => o.key)).toEqual(["restCut", "superset", "trim", "skipCool"]);
-    expect(offers[0]!.name).toBe("Rests 90 → 60s");
+    expect(offers[0]!.name).toBe("Rests 90 → 60 Sec");
     expect(offers[1]!.name).toBe("Superset Rows + Curls");
-    expect(offers[2]!.name).toBe("Lat Raise 3 → 2 sets");
-    expect(offers[2]!.sub).toContain("never your main lift");
-    expect(offers[3]!.sub).toBe("saves 5 min");
+    // Pass-off item 9 (2026-09-26): Title Case at the source, "About" for
+    // an estimate, the guarantee as its own fact beside the saving.
+    expect(offers[2]!.name).toBe("Lat Raise 3 → 2 Sets");
+    expect(offers[2]!.sub).toBe(`Saves About ${offers[2]!.saveMin} Min`);
+    expect(offers[2]!.note).toBe("Never Your Main Lift");
+    expect(offers[2]!.est).toBe(true);
+    expect(offers[3]!.sub).toBe("Saves 5 Min");
+    expect(offers[3]!.est).toBe(false);
+    expect(offers.every((o) => !o.sub.includes("~"))).toBe(true);
     // restCut: 12 sets x 30s = 6 min.
     expect(offers[0]!.saveMin).toBe(6);
   });

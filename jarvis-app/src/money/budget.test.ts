@@ -63,19 +63,20 @@ describe("what is actually yours", () => {
 
   it("states the arithmetic without claiming anything was spent", () => {
     const sub = leftSub(leftToSpend(2102, 1240, 450));
-    expect(sub).toBe("After $1,240 of bills and $450 set aside");
+    // Casing sweep 2 (2026-09-27): Title Case by the whole rule (§H2); durations through shared/duration ("45 Min", "1h 30m").
+    expect(sub).toBe("After $1,240 of Bills and $450 Set Aside");
     expect(sub.toLowerCase()).not.toContain("spent");
     expect(sub.toLowerCase()).not.toContain("left of");
   });
 
   it("says only what is true when there is nothing set aside", () => {
-    expect(leftSub(leftToSpend(2102, 1240, 0))).toBe("After $1,240 of bills");
+    expect(leftSub(leftToSpend(2102, 1240, 0))).toBe("After $1,240 of Bills");
     expect(leftSub(leftToSpend(2102, 0, 0))).toBe("");
   });
 
   it("names a shortfall in words, and never when there is none", () => {
     // SPEC MOVED (short copy, 2026-08-15)
-    expect(shortLine(leftToSpend(1000, 1200, 0))).toBe("$200 past this paycheck");
+    expect(shortLine(leftToSpend(1000, 1200, 0))).toBe("$200 Past This Paycheck");
     expect(shortLine(leftToSpend(2102, 1240, 450))).toBe("");
   });
 
@@ -83,7 +84,7 @@ describe("what is actually yours", () => {
   it("keeps the cents the bills carry, without float dust", () => {
     expect(leftToSpend(1000, 49.99, 0).amount).toBe(950.01);
     expect(leftToSpend(100.1, 50.05, 0).amount).toBe(50.05);
-    expect(shortLine(leftToSpend(1000, 1012.5, 0))).toBe("$12.50 past this paycheck");
+    expect(shortLine(leftToSpend(1000, 1012.5, 0))).toBe("$12.50 Past This Paycheck");
   });
 
   it("knows when the bills alone are the problem", () => {
@@ -100,7 +101,7 @@ describe("per day", () => {
   });
 
   it("offers a daily number only when it is real", () => {
-    expect(perDayLine(leftToSpend(2102, 1240, 450), 14)).toBe("14 Days, about $29 a day");
+    expect(perDayLine(leftToSpend(2102, 1240, 450), 14)).toBe("14 Days, About $29 a Day");
     expect(perDayLine(leftToSpend(2102, 1240, 450), 1)).toBe("");
     expect(perDayLine(leftToSpend(1000, 1200, 0), 14)).toBe("");   // never divide a shortfall
     expect(perDayLine(leftToSpend(1005, 1000, 0), 30)).toBe("");   // under a dollar a day says nothing

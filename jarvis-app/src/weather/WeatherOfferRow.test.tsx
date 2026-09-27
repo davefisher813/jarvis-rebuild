@@ -33,7 +33,8 @@ describe("WeatherOfferRow", () => {
     try {
       render(<WeatherOfferRow />);
       fireEvent.click(screen.getByText("Allow"));
-      await waitFor(() => expect(seen).toContain("Couldn't get your location · The offer stays"));
+      // Casing sweep 3 (2026-09-27): Title Case by the whole rule (§H2); durations through shared/duration ("45 Min", "About 1 Min").
+      await waitFor(() => expect(seen).toContain("Couldn't Get Your Location · The Offer Stays"));
       expect(screen.getByText("Add Daily Weather")).toBeInTheDocument();
       expect(localStorage.getItem(OFFER_KEY)).toBeNull();
     } finally {

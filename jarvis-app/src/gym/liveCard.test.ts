@@ -88,7 +88,8 @@ describe("it counts what happened, never what is owed", () => {
 
 describe("elapsed time is a fact or it is absent", () => {
   it("says the minutes once there is a minute to say", () => {
-    expect(liveCard(session(), NOW).elapsed).toBe("12 Min in");
+    // Casing sweep 1 (2026-09-26): Title Case by the whole rule (§H2), units spelled "Min".
+    expect(liveCard(session(), NOW).elapsed).toBe("12 Min In");
   });
 
   it("says nothing at all in the first minute, rather than zero", () => {
@@ -98,7 +99,7 @@ describe("elapsed time is a fact or it is absent", () => {
 
   it("does not count paused time", () => {
     const s = session({ startedAt: NOW - 20 * 60_000, pausedMs: 15 * 60_000 });
-    expect(liveCard(s, NOW).elapsed).toBe("5 Min in");
+    expect(liveCard(s, NOW).elapsed).toBe("5 Min In");
   });
 });
 
@@ -106,16 +107,16 @@ describe("time left, when a timer was set", () => {
   // Dave 2026-09-19: "a resume button up top with the time left in the
   // workout if there's a timer set". The fit's budget is the timer.
   it("counts down the budget on the session's own clock", () => {
-    expect(liveCard(session({ budgetMin: 45 }), NOW).left).toBe("33 Min left");
+    expect(liveCard(session({ budgetMin: 45 }), NOW).left).toBe("33 Min Left");
   });
   it("says nothing about time left when no budget was set", () => {
     expect(liveCard(session(), NOW).left).toBeNull();
   });
   it("says so once the budget is gone, rather than counting into the negative", () => {
-    expect(liveCard(session({ budgetMin: 10 }), NOW).left).toBe("Time's up");
+    expect(liveCard(session({ budgetMin: 10 }), NOW).left).toBe("Time's Up");
   });
   it("holds its number while the session is parked", () => {
     const parked = session({ budgetMin: 45, pausedAt: NOW });
-    expect(liveCard(parked, NOW + 20 * 60_000).left).toBe("33 Min left");
+    expect(liveCard(parked, NOW + 20 * 60_000).left).toBe("33 Min Left");
   });
 });

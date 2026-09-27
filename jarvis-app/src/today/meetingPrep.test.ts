@@ -53,7 +53,8 @@ describe("the line", () => {
     expect(p.person.name).toBe("Marco Silva");
     expect(p.open.map((o) => o.id)).toEqual(["t1"]);
     expect(p.lastMs).toBe(now - 21 * 86400000);
-    expect(p.lastMail).toBe("Last mail 3 weeks ago");
+    // Casing sweep 2 (2026-09-27): Title Case by the whole rule (§H2); durations through shared/duration ("45 Min", "1h 30m").
+    expect(p.lastMail).toBe("Last Mail 3 Weeks Ago");
   });
 
   // §AM F3 (2026-09-26): the facts come back as facts. The row draws them
@@ -74,7 +75,7 @@ describe("the line", () => {
       [ev({ attendees: guests("marco@example.com") })], people, tasks, "2026-08-15", 9 * 60,
       () => now - 86400000, now,
     )!;
-    expect(p.lastMail).toBe("Last mail yesterday");
+    expect(p.lastMail).toBe("Last Mail Yesterday");
   });
 
   it("leaves out what it does not know rather than saying it does not know", () => {

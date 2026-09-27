@@ -783,8 +783,11 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
 .fresh-faded { color: var(--tx-3); }
 /* Focus + Plan My Day as a pair: Focus keeps the accent (one red action per
    screen), Plan My Day drops to the quiet fill. */
-.plan-cta-pair { display: flex; gap: var(--s-2h); }
-.plan-cta-pair .plan-cta { width: auto; flex: 1; }
+/* The pair wraps to two rows when its two labels do not fit one (type scale
+   1.4 at 390px: "Plan Tomorrow" beside "Running Late?" ran 51px past the
+   edge and scrolled the whole screen sideways, 2026-09-26). */
+.plan-cta-pair { display: flex; flex-wrap: wrap; gap: var(--s-2h); }
+.plan-cta-pair .plan-cta { width: auto; flex: 1 1 auto; }
 .plan-cta.plan-cta-ghost { background: var(--press-3); color: var(--tx-1); box-shadow: none; }
 /* Quiet right-slot actions in section headers (Not Now, dismiss): same seat as
    See All, calmer color. The question line sits under the header, outside the
@@ -1119,6 +1122,11 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 /* Day progress ring in the Today hero (RDB, Dave 2026-07-29): fills as
    due-today tasks complete; pops once full. Hidden when nothing is due. */
 .today-hero-row { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); }
+/* The text column shrinks beside the ring: without min-width: 0 a long
+   evening facts line ("13 Done Today · Moved Ship the App Store Launch") held
+   its full width and pushed the whole hero 120px past the edge at type scale
+   1.4, and the facts line's own ellipsis never got the chance (2026-09-26). */
+.today-hero-row > :first-child { min-width: 0; flex: 1 1 auto; }
 /* THE HERO RING, .dring (Astra pass, Dave's picks 2026-09-12). The 44px SVG
    arc with its "Due" caption becomes the 64px conic ring the approved
    harness draws: completion green over the press ground, done/total inside
@@ -1617,9 +1625,18 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 .sheet-scrim > .card .prov-link,
 .form-sheet .exp-more summary,
 .sheet-scrim > .card .exp-more summary,
+.sheet-scrim > .card .action-sheet button,
 .sheet-scrim > .card .btn:not(.btn-primary):not(.btn-secondary):not(.btn-danger):not(.btn-disabled),
 .sheet-scrim > .card .btn-tertiary,
 .toast .toast-action { color: var(--tint-on-sheet); }
+/* AMENDED 2026-09-26 (the post-code audit): the action sheet's verbs joined
+   too. The design system paints them --tint, which is 3.76:1 on the sheet
+   grey in dark (Choose Photo, Cancel on the Profile Photo sheet). The
+   destructive verb keeps its red, in the sheet twin that clears the grey. */
+.sheet-scrim > .card .action-sheet button.destructive { color: var(--sys-red-on-sheet); }
+/* Two cards on one scrim (an action sheet and its Cancel) are two objects,
+   not one card cut by a hairline: the same gap the grouped card keeps. */
+.sheet-scrim > .card + .card { margin-top: var(--s-2); }
 /* The mid-tier .btn is the one place where taking the red out of the letters
    would also take it out of the button: red-on-press-3 is the only thing that
    separated "Something Else" from the .btn-secondary above it, and white on
@@ -2799,7 +2816,11 @@ button {
 .pagebar-row { height: 44px; display: flex; align-items: center; justify-content: space-between;
   padding: 0 var(--s-3); position: relative; }
 .pagebar-row > * { pointer-events: auto; }
-.pagebar-title { position: absolute; left: 60px; right: 60px; text-align: center; font-size: var(--t-h3);
+/* The middle column of the bar's grid (the AUDIT LEFTOVERS block at the
+   foot of this file, 2026-09-27): it was absolute, left 60px right 60px,
+   centred on the bar and blind to the back label, and at --type-scale 1.4
+   "Brain" painted through "What JARVIS Knows". */
+.pagebar-title { grid-column: 2; min-width: 0; text-align: center; font-size: var(--t-h3);
   font-weight: var(--w-bold); color: var(--tx-1); opacity: 0; transition: opacity var(--dur-fast) var(--ease-out);
   pointer-events: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pagebar-acts { display: flex; gap: var(--s-2); }
@@ -3474,8 +3495,15 @@ button {
   -webkit-backdrop-filter: blur(22px) saturate(160%); backdrop-filter: blur(22px) saturate(160%);
   border-bottom: 0.5px solid var(--divider); padding-top: calc(var(--s-1) + var(--safe-top, env(safe-area-inset-top, 0px))); }
 [data-theme="light"] .nav-bar { background: rgba(249,249,251,0.86); }
-/* The condensed title is the condensed title, whichever bar is drawing it. */
-.nav-bar .nav-title { position: absolute; left: 0; right: 0; text-align: center; pointer-events: none;
+/* The condensed title is the condensed title, whichever bar is drawing it.
+   AMENDED 2026-09-26 (audit leftovers): it was position: absolute, left 0,
+   right 0, centred on the whole bar, so at --type-scale 1.4 "Pull Day" ran
+   under Pause on the live workout. It is the middle column of the bar's
+   grid now (the AUDIT LEFTOVERS block at the foot of this file): centred on
+   the bar when it fits between the wider side mirrored, shifted into the
+   free middle when it does not, and ellipsized there before it touches an
+   action. */
+.nav-bar .nav-title { grid-column: 2; min-width: 0; text-align: center; pointer-events: none;
   font-size: var(--t-h3); font-weight: var(--w-bold); color: var(--tx-1);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
@@ -3639,7 +3667,13 @@ button {
    label started 67px left of the pill's own edge. A pill with nothing but
    words in it drops to inline-block, where the ellipsis is real, and keeps
    its exact height by the line box; a pill carrying a glyph keeps flex. */
-.pill-act:not(:has(*)) { display: inline-block; line-height: 16px; text-align: center; }
+.pill-act:not(:has(*)) { display: inline-block; line-height: 34px; text-align: center; }
+/* THE LABEL SITS IN THE MIDDLE OF THE PAINT (Dave's pass-off, 2026-09-26: the
+   Event sheet's "Add" was stuck to the top of its capsule). A <button> centres
+   its one line natively; a <span> pill drops to inline-block above, where the
+   16px line box sat at the top of the 34px painted box (the 5px transparent
+   borders make the 44). The line box is the painted height now, so the word
+   is centred in it at every type scale; the min-height still governs. */
 /* MAIL CAN GROW PAST TWO LINES, SO ITS PILL CANNOT STAY CENTERED (2026-08-26,
    Dave off a real screenshot: "nikestrength Hasn't Replied" wrapping beside
    "Open a Dispute"). align-self: center on .pill-act, just above, was tuned
@@ -4558,8 +4592,14 @@ body.selecting .voice-dock { display: none; }
    Reached only through NoticeCard's `stack`, so no other notice moves. */
 .notice-card-stack .conn-name,
 .notice-card-stack .conn-meta { white-space: normal; display: block; -webkit-line-clamp: none; overflow: visible; text-overflow: clip; }
-.notice-stack { display: flex; padding: 0 var(--s-3) var(--s-2h); }
-.notice-stack .pill-act { width: 100%; justify-content: center; min-height: var(--tap-min); }
+.notice-stack { display: flex; padding: 0 var(--s-2) var(--s-2h); }
+.notice-stack .pill-act { width: 100%; justify-content: center; min-height: var(--tap-min);
+  /* The row cap above (11rem) guards a pill BESIDE a title; a stacked pill
+     is under the words with the whole card to itself, and the cap only
+     clipped its label ("Line Up 1 for ...", 2026-09-26). The stack's side
+     padding is one step tighter than the row's (8, was 12) for the same
+     reason: at type scale 1.4 "Line Up 1 for Wednesday" needed the 8px. */
+  max-width: none; }
 
 .notice-clear-row { display: flex; justify-content: flex-end; padding: var(--s-1) var(--s-4) 0; }
 
@@ -4631,6 +4671,18 @@ body.selecting .voice-dock { display: none; }
    the one height; at 1.0 the card's floor hid it. Inside the sub it is just
    the sub's line. */
 .notice-card .conn-meta > .facts { margin-top: 0; line-height: inherit; }
+
+/* A FACTS LINE WHOSE JOB IS TO SHOW EVERY FACT WRAPS (2026-09-27, the audit
+   leftover on Today: the mail deadline card's line is 181px beside its glyph
+   and its Add Task capsule at 390, so "From App Store Team" could never show
+   whole beside a day fact). The sub is the wrapping form, the card's own
+   .conn-meta holding .fact spans with the dot at the end of each, unclamped:
+   "Likely Today" on one line, the sender on the next, at 1.0 and at 1.4. A
+   wrap card is never uniform (NoticeCard.tsx), so the one-line clamp above
+   and the latch that serves it never reach it. */
+.notice-card.notice-card-wrap .conn-meta {
+  white-space: normal; display: block; -webkit-line-clamp: none; overflow: visible; text-overflow: clip;
+}
 
 /* A uniform card with no sub gives the title both of its lines. Same height,
    more words. See the note in NoticeCard.tsx. */
@@ -4927,10 +4979,13 @@ body.selecting .voice-dock { display: none; }
 [data-theme="light"] .week-dots i.on { background: #0A5FD0; }
 
 /* ---- The monthly report (2026-08-25, from the approved v3 preview) ------
-   Spoken sentences wear .rep-title (sentence case is their register; the
-   Title Case law scans conn-name, and these are not labels). Numbers and
-   color carry the page; bars grow once on open and reduced motion gets the
-   finished frame. Down-deltas are muted facts, never red ones. */
+   AMENDED 2026-09-26 (pass-off): .rep-title is Title Case like every other
+   title the app writes (the whole casing rule, Dave 2026-09-26: "After dots
+   and numbers is always title casing"); the 2026-08-25 note that called
+   these spoken sentences in sentence case is superseded. The line under a
+   title is a .facts line, never a caps sentence. Numbers and color carry
+   the page; bars grow once on open and reduced motion gets the finished
+   frame. Down-deltas are muted facts, never red ones. */
 .rep-hero { padding: var(--s-3) var(--s-4) 0; }
 .rep-eyebrow { font-size: var(--t-eyebrow); font-weight: var(--w-semi); letter-spacing: 2px; text-transform: uppercase; color: var(--tx-3); }
 .rep-quiet { color: var(--tx-3); }
@@ -4938,7 +4993,11 @@ body.selecting .voice-dock { display: none; }
 .rep-big { font-size: calc(64px * var(--type-scale)); font-weight: var(--w-bold); line-height: 1; letter-spacing: -2px; color: var(--tx-1); margin-top: var(--s-1h); }
 .rep-big-label { font-size: var(--t-h2); font-weight: var(--w-semi); color: var(--tx-2); margin-top: var(--s-0h); }
 .rep-anchor { display: inline-block; font-size: var(--t-caption); font-weight: var(--w-bold); color: var(--good); background: var(--good-tint); border-radius: var(--r-pill); padding: var(--s-1) var(--s-2h); margin-left: var(--s-2h); vertical-align: middle; }
-.rep-hint { font-size: var(--t-eyebrow); font-weight: var(--w-semi); letter-spacing: 1px; text-transform: uppercase; color: var(--tx-quiet); margin-top: var(--s-3); }
+/* AMENDED 2026-09-26 (pass-off): a sentence, so it wears the field note's 14
+   italic (.input-hint) in the live-metadata ink BROWSER-F-09 pins, and sets
+   only its own distance from the hero; it was an 11px caps sentence, which
+   "caps is for a label, never a sentence" forbids. */
+.rep-hint { margin-top: var(--s-3); color: var(--tx-quiet); }
 .rep-title { font-size: var(--t-h3); font-weight: var(--w-semi); color: var(--tx-1); line-height: var(--lh-default); }
 .rep-wins { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-2); margin-top: var(--s-3h); }
 .rep-win { border-radius: var(--r-md); padding: var(--s-3) var(--s-3h); }
@@ -5008,8 +5067,24 @@ body.selecting .voice-dock { display: none; }
 .rep-good-glyph { color: var(--good); }
 .rep-one { border: 1px solid var(--accent); }
 .rep-question { font-size: calc(20px * var(--type-scale)); font-weight: var(--w-semi); color: var(--tx-1); margin-top: var(--s-1h); }
-.rep-one-acts { display: flex; gap: var(--s-2h); margin-top: var(--s-3h); }
-.rep-one-acts .btn { flex: 1; }
+/* AMENDED 2026-09-26 (pass-off item 14): the pair wraps, so at type scale
+   1.4 two 50px labels stack rather than overflow the card (the same wrap
+   .plan-cta-pair took on Today); the This Week card's offer wears this same
+   pair now, so the two surfaces of the One Change agree. */
+.rep-one-acts { display: flex; flex-wrap: wrap; gap: var(--s-2h); margin-top: var(--s-3h); }
+/* Each starts at its label's width and both grow to fill the row, so a long
+   primary label stays on one line beside its dismiss at 390; at type scale
+   1.4 the two no longer fit and the pair stacks, each the full width. */
+.rep-one-acts .btn { flex: 1 1 auto; width: auto; padding-left: var(--s-2h); padding-right: var(--s-2h); }
+/* THE PAIR'S QUIET HALF IN DARK (2026-09-27, the audit leftover on More >
+   Brain > Insights at 390 dark: No Thanks read low on the This Week card).
+   The base .btn is --tint on --press-3, and --press-3 is an alpha: 5.16 on
+   the page, 4.50 on a card, and both of this pair's homes (the month report
+   and the This Week card) are cards. The opaque capsule fill takes the
+   ground out of the question: --tint on #17171A is 4.82 wherever it sits
+   (jarvis-design-system.css, the token's own measurement). Light keeps its
+   tinted wash, which already clears (5.67 on a card). */
+[data-theme="dark"] .rep-one-acts .btn:not(.btn-primary) { background: var(--capsule-fill); }
 .rep-one-foot { margin-top: var(--s-2h); }
 @media (prefers-reduced-motion: reduce) {
   .rep-hours i, .rep-stack i { transition: none; }
@@ -5493,14 +5568,9 @@ body.selecting .voice-dock { display: none; }
 .dd.dd-value .dd-cv { color: var(--tx-2); opacity: 1; width: 7px; height: 7px; margin-left: var(--s-1); }
 .dd.dd-value .dd-w { max-width: 52vw; }
 .dd.dd-value.dd-open { background: transparent; opacity: 0.6; }
-/* A ROW'S VALUE WITH NO MENU BEHIND IT (2026-09-09): the Goal row on the task
-   sheet, which is DERIVED from the project the task is filed to rather than
-   picked. It takes .dd-value's type so it sits on the same optical line as
-   every picker beside it, and --tx-3 so it reads as an answer the sheet is
-   giving rather than a control that would do nothing if tapped. */
-.xs-group .row-val { margin-left: auto; max-width: 52vw; color: var(--tx-3);
-  font-size: var(--t-body); text-align: right;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* The derived Goal value of 2026-09-09 (a --tx-3 answer with no menu behind
+   it) is gone since 2026-09-26: the Goal row is a picker on every screen
+   (Dave's pass-off), so the rule that drew it was retired with it. */
 
 /* ==========================================================================
    THE DROPDOWN MENU (shared/HeadMenu, Fewer Buttons 2026-09-02). Portaled
@@ -5708,7 +5778,13 @@ body.selecting .voice-dock { display: none; }
    value in dark, the darker measured red in light. It is still the tightest
    number in this finding: 4.09:1 on the sheet bar's ground. */
 .form-sheet .xs-del { width: 100%; justify-content: center; border: 0; background: transparent; font-family: var(--f);
-  font-size: calc(16px * var(--type-scale)); font-weight: var(--w-medium); color: var(--danger-tx); cursor: pointer; }
+  font-size: calc(16px * var(--type-scale)); font-weight: var(--w-medium); color: var(--danger-tx-raised); cursor: pointer; }
+/* AMENDED 2026-09-26 (the post-code audit): the verb sits on the sheet's
+   grouped card, a grey raised above the sheet ground (#3A3A3C), where
+   --danger-tx measures 3.33:1 (Delete Bill, Delete Task). --danger-tx-raised
+   is the same red lifted to clear it (4.97:1 in dark) and --danger-tx itself
+   in light, where the words red already clears white. Still red: red is the
+   whole message here. */
 .form-sheet .xs-del:active { background: var(--press-1); }
 .form-sheet .xs-group .proj-icon { width: 28px; height: 28px; border-radius: var(--r-sm); flex-shrink: 0; display: flex; align-items: center; justify-content: center; color: #fff; }
 .form-sheet .xs-group .proj-icon .ic { width: 16px; height: 16px; }
@@ -5973,8 +6049,17 @@ body.selecting .voice-dock { display: none; }
    gone. The order of the facts still decides what survives; this only makes
    sure nothing is ever cut without a "...". An area fact is a flex box of
    its own, so its name carries the ellipsis. */
-.facts > .fact { min-width: 0; flex-shrink: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.facts > .fact { min-width: 0; flex-shrink: 0.001; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.facts > .fact:nth-last-child(2) { flex-shrink: 1; }
 .facts > .fact:last-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex-shrink: 1000; }
+/* AMENDED 2026-09-26 (later the same day, the Money page): a shrink of 1 on
+   the earlier facts let flexbox take a fraction of a pixel from the FIRST
+   fact on any line that overflowed at all (221.48px of 222), which is enough
+   to put an ellipsis on a fact that had lost nothing ("$1,145.68 More Out
+   This Mon…", "SEP …"). The ladder is now 1000 : 1 : 0.001, last to first:
+   the last fact gives way, then the one before it, and the rest hold to the
+   pixel until those two are gone; flexbox still shrinks them when it must,
+   because the ratio only orders who yields first. */
 .facts > .fact.cat .cat-t { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* THE ONE-LINE RULE IS A LIST RULE, AND THIS IS NOT A LIST (2026-09-21).
    "Three facts, one line" exists so a busy ROW does not grow a third line
@@ -6115,9 +6200,15 @@ body.selecting .voice-dock { display: none; }
    and below it, its surface and its inset are the .pad-x rules the notice
    rows already answer to. */
 .hl { position: relative; }
-/* The title is .conn-name, with nothing added: it inherits the stream's type,
-   its one-line clamp and its ellipsis from the rows it sits with. */
-.hl .hl-title { min-width: 0; }
+/* The title is .conn-name and inherits the stream's type. AMENDED 2026-09-26
+   (Dave's pick, the audit leftover): it takes TWO lines before its ellipsis,
+   the one named exception to the uniform row's one-line clamp, because the
+   checkbox and the Start Now pill left "Create Calder Invoice" cut at normal
+   text size. The row grows by one line of name (min-height, not height); the
+   rows under it keep their one line. Same specificity as the uniform clamp,
+   so this sits after it in the file on purpose. */
+.hl .hl-title { min-width: 0; white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  overflow: hidden; text-overflow: ellipsis; overflow-wrap: anywhere; }
 /* THE SUB LINE IS THE FACTS LINE. .conn-meta gives it the notice sub's size
    and colour; .facts gives it the dot separators and the chip. It cannot wrap
    (the row is one height for every member of this card), so the LAST fact
@@ -6552,7 +6643,10 @@ span.row-star { cursor: default; }
 .mt-monthnav { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); margin-bottom: var(--s-2); }
 .mt-monthname { font-size: var(--t-h3); font-weight: var(--w-semi); color: var(--tx-1); }
 
-.mt-accts { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-2h); }
+/* AMENDED 2026-09-26 (pass-off item 16): two across at 390, one across once
+   the type scale makes a balance wider than half the row ("$26,512.41" ran
+   out of its tile at 1.4). */
+.mt-accts { display: grid; grid-template-columns: repeat(auto-fit, minmax(calc(140px * var(--type-scale)), 1fr)); gap: var(--s-2h); }
 .mt-acct { padding: var(--s-3); }
 .mt-acct-name { font-size: var(--t-eyebrow); font-weight: var(--w-semi); letter-spacing: var(--track-caps);
   text-transform: uppercase; color: var(--tx-3); margin-bottom: var(--s-1); }
@@ -6560,11 +6654,17 @@ span.row-star { cursor: default; }
   font-variant-numeric: tabular-nums; }
 .mt-acct-sub { font-size: var(--t-meta); color: var(--tx-3); margin-top: var(--s-0h); }
 
-.mt-sums { display: flex; gap: var(--s-2h); }
-.mt-sum { flex: 1; padding: var(--s-3); min-width: 0; }
+/* AMENDED 2026-09-26 (pass-off item 16): "-$1,145.68" clipped its last digit
+   in the Net tile at 390 (in Dave's own screenshot too). The tiles wrap and
+   keep their min-content, so a sum that cannot fit three across takes the
+   next line whole rather than losing a digit; the value is a step tighter. */
+.mt-sums { display: flex; flex-wrap: wrap; gap: var(--s-2h); }
+/* The card's overflow:hidden zeroes a flex item's automatic minimum, which
+   is how a sum could be squeezed under its own digits; the floor is stated. */
+.mt-sum { flex: 1 1 0; min-width: max-content; padding: var(--s-3) var(--s-2h); }
 .mt-sum-label { font-size: var(--t-meta); color: var(--tx-3); }
-.mt-sum-value { margin-top: var(--s-0h); font-size: calc(18px * var(--type-scale)); font-weight: var(--w-semi);
-  color: var(--tx-1); font-variant-numeric: tabular-nums; }
+.mt-sum-value { margin-top: var(--s-0h); font-size: calc(17px * var(--type-scale)); font-weight: var(--w-semi); letter-spacing: -0.02em;
+  color: var(--tx-1); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .mt-sum-value.good { color: var(--good); }
 
 .mt-note { font-size: var(--t-meta); color: var(--tx-3); margin-bottom: var(--s-2); }
@@ -6634,15 +6734,177 @@ span.row-star { cursor: default; }
    is an alpha and this floats over whatever scrolls under it. */
 .return-pill {
   position: fixed; left: var(--s-4); z-index: 40;
-  bottom: calc(env(safe-area-inset-bottom, 0px) + 132px);
+  /* Clear of the capture bar, which the shell measures (ReturnPill.tsx sets
+     --return-clear to the dock's height from the screen's bottom edge, safe
+     area included, plus a gap); 132px above the safe area is the fallback
+     for a screen with no dock. AMENDED 2026-09-26 (the post-code audit): the
+     fixed 132px sat 3px into the capture bar at 390x844 and further at type
+     scale 1.4, so the pill covered the bar's left end on every screen with
+     nothing to scroll ("< Life" over the exercise list). */
+  bottom: var(--return-clear, calc(env(safe-area-inset-bottom, 0px) + 132px));
   display: inline-flex; align-items: center; gap: var(--s-0h);
-  min-height: 34px; padding: 0 var(--s-3) 0 var(--s-2);
+  /* 44px to the finger, 34px to the eye: the box is the HIG minimum and the
+     capsule is painted on ::before, 5px in from the top and bottom. */
+  min-height: 44px; padding: 5px var(--s-3) 5px var(--s-2);
   border: 0; border-radius: var(--r-pill);
-  background-color: var(--capsule-fill); color: var(--tint);
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.45);
+  background: none; color: var(--tint);
   font-family: var(--f); font-size: calc(14px * var(--type-scale));
   font-weight: var(--w-semi); letter-spacing: -0.01em; cursor: pointer;
 }
-[data-theme="light"] .return-pill { background-color: var(--surface-2); color: var(--on-light-red); }
+.return-pill::before { content: ""; position: absolute; inset: 5px 0; z-index: -1; border-radius: var(--r-pill);
+  background-color: var(--capsule-fill); box-shadow: 0 2px 10px rgba(0, 0, 0, 0.45); }
+.return-pill { isolation: isolate; }
+[data-theme="light"] .return-pill { color: var(--on-light-red); }
+[data-theme="light"] .return-pill::before { background-color: var(--surface-2); }
 .return-pill .ic { width: 17px; height: 17px; }
 .return-pill:active { opacity: 0.85; }
+
+/* ===== WORKOUT LOGGING, one flow (2026-09-26) ===== */
+/* Dave's pass-off, top item: "Logging renders inconsistently... Needs one
+   single clean logging flow, no fluctuation." Every rule here is scoped to
+   the health root, as R3 of the Colour Key asks of the health inks, or to
+   the portal sheet the Set sheet renders in (§AD: the sheet is a portal). */
+/* A SUPERSET READS AS ONE in the This Session list: the A1/A2 mark rides
+   the facts line as the pair capsule (violet, its own fill, so it is never
+   a second grey), and the member row wears the same hue as a rule down its
+   edge. An inset shadow rather than a border, so the text edge does not
+   move on a grouped row (one text edge per card). */
+.ruled.health-ruled .row.se-grp { box-shadow: inset 3px 0 0 var(--hl-violet); }
+.ruled.health-ruled .facts > .se-chip { align-self: center; margin-right: var(--s-2); }
+/* The Up Next rows after the Now row are the plan, read and not tapped:
+   no pointer, the dashed edge alone says "not yet". */
+.ruled.health-ruled .set-chip-ghost.se-next { cursor: default; }
+/* The set editor's two moves (planning and history strips) are one capsule
+   row; the row-pair's tall row-gap stays for the 44px hit boxes. */
+.ruled.health-ruled .set-chip-editor .set-chip-acts, .sheet-scrim > .card .set-chip-editor .set-chip-acts { margin: var(--s-2) 0 var(--s-2); }
+/* THE MORE CAPSULE on the strip's head (Dave: "Three dots isn't obvious
+   enough but that's the right idea"): a labelled §AL capsule, tap red, in
+   the head's trailing slot. .sh2 orders its dotted rule at 1 and everything
+   trailing at 2; the capsule's own -5px block margin keeps the head's
+   height, and centring beats the head's baseline for a filled pill. */
+.ruled.health-ruled .sh2 .pill-act.se-more { order: 2; align-self: center; margin-left: var(--s-2); }
+/* THE SUGGESTION LINE inside the Now row: the estimate's ink for the
+   number (§AM: an estimate the app worked out is sky), the two verbs as the
+   same inline action the Match line is, and the evidence rows under it. */
+.ruled.health-ruled .se-sugg { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: var(--s-2); margin-top: var(--s-1); }
+.ruled.health-ruled .se-sugg > .fact { flex-shrink: 1; min-width: 0; }
+.ruled.health-ruled .se-sugg .se-sugg-act { display: inline; margin-top: 0; }
+.ruled.health-ruled .se-sugg .se-sugg-act .act { margin-left: 0; }
+.ruled.health-ruled .se-sugg .ins-rows { flex-basis: 100%; margin-top: var(--s-1h); }
+/* THE SET SHEET IS A PORTAL (§AD), so the How Did It Move chips need their
+   hues named for the sheet's card as well as the health root. Same three
+   meanings the strip's editor draws: clean lime, grind amber, miss pink. */
+.sheet-scrim > .card .chip.mv { position: relative; padding-left: var(--s-7); }
+.sheet-scrim > .card .chip.mv::before { content: ""; position: absolute; left: 11px; top: 50%; margin-top: -3.5px;
+  width: 7px; height: 7px; border-radius: var(--r-circle); background: var(--mv-hue); }
+.sheet-scrim > .card .chip.mv.mv-clean { --mv-hue: var(--hl-lime); }
+.sheet-scrim > .card .chip.mv.mv-grind { --mv-hue: var(--hl-amber); }
+.sheet-scrim > .card .chip.mv.mv-missed { --mv-hue: var(--hl-pink); }
+.sheet-scrim > .card .chip.mv.active { color: var(--mv-hue); background: var(--mv-tint); box-shadow: inset 0 0 0 1px var(--mv-hue); }
+.sheet-scrim > .card .chip.mv.mv-clean.active { --mv-tint: var(--hl-lime-tint); }
+.sheet-scrim > .card .chip.mv.mv-grind.active { --mv-tint: var(--hl-amber-tint); }
+.sheet-scrim > .card .chip.mv.mv-missed.active { --mv-tint: var(--hl-pink-tint); }
+
+/* ===== PASS-OFF BATCH 1, Notes / Brain hub / Knows (2026-09-26) ===== */
+/* A STATE WORD IS NEVER CLIPPED. On a strand row (the Brain hub and What
+   JARVIS Knows) the caps word says who said the fact or what it needs
+   (KNOWN, LEARNED, FADING, WATCHING); beside a Still True capsule the line
+   used to shrink it to "FADI…" at 390px. The state word keeps its width,
+   as the Now line's does, and the row's one grey (the category, last on
+   the line) is the fact that ellipsizes when the room runs out. */
+.strand-row .facts > .fact.st { flex-shrink: 0; }
+
+/* ===== PASS-OFF BATCH 1, gym pages (2026-09-26) ===== */
+/* TWO HEAD ACTIONS ON ONE HEAD WEAR ONE FORM (the Program page's Days head:
+   Reorder and Manage are both the 34px head capsule). The cluster's -13px
+   payback exists for a BARE text link's 44px box; a cluster of capsules
+   already paints 34 and has nothing to pay back, and with the payback it
+   sat 1px into the card below and 4px into the card above. The head
+   measures 58 with the capsules inside it, the same as every Today head
+   that carries a capsule. */
+.sh2 .sec-left:has(.pill-action) { margin: 0; }
+
+/* A SWIPE ROW WITHOUT A CHECK STARTS ITS HAIRLINE AT THE TEXT EDGE (§H.2).
+   The ruled list insets a swipe row's divider past a task's check box; the
+   Program page's Recent rows swipe to delete but have no check, so their
+   dividers began 72px in while their names began at 16. Scoped to a list
+   whose rows carry no check, so the Tasks list keeps its inset. */
+.ruled .list-card-ruled > .task-swipe:not(:has(.task-check-tap)) + .task-swipe::before { left: var(--s-4); }
+
+/* THE FIT SHEET'S ESTIMATE, IN THE ESTIMATE INK. "Fits: 34 Min" names the
+   app's own estimate, so the number wears the key's sky; the span takes the
+   line's own size and weight, since it is part of the sentence. */
+.fit-line .fact.est { font-size: inherit; font-weight: inherit; }
+/* A budget chip strip lines up with the label over it: a chip row pays one
+   inset inside a field that is already inset by its .pad-x, the same fix a
+   form row's chip strip took on 2026-09-16. */
+.sheet-scrim > .card .pad-x > .field > .chip-wrap-row { padding-left: 0; padding-right: 0; }
+
+/* THE CLASSIFY SHEET'S CARDS OPEN WITH A TILE (pass-off item 1). Once a card
+   leads with the 28px glyph tile, every line under it indents to the 56px
+   text edge (§H.1: a tiled card indents every text to 56, and a card never
+   mixes), chips included, so the card has one edge; and the dividers inset
+   to that edge too (§H.2), including the one under a row that has no tile
+   of its own. A card with no tile keeps its 16 edge. */
+.sheet-scrim > .card .xs-group:has(> .row > .row-ico) > .row:not(:has(> .row-ico)) { padding-left: calc(var(--s-4) + 28px + var(--s-3)); }
+.sheet-scrim > .card .xs-group:has(> .row > .row-ico) > .row + .row::before { left: calc(var(--s-4) + 28px + var(--s-3)); }
+/* The typed row's label is a row name (16, semibold, primary ink), the way
+   every other sheet writes a row's label; it had no rule outside a ruled
+   screen and drew at the body's 17 regular. It keeps its width so the value
+   beside it is the thing that yields. */
+.sheet-form .xs-label { font-size: var(--t-name); font-weight: var(--w-name); letter-spacing: var(--track-name); color: var(--tx-1); flex-shrink: 0; }
+/* A PICKED CHIP KEEPS ITS QUESTION'S COLOUR IN LIGHT (Dave 2026-09-26: the
+   Classify sheet keeps its question colours). Light's white-pill selection
+   rule outranked the three hue rules by order, so every picked chip turned
+   back into the plain pill and the secondary muscle drew the dark lime on
+   the grouped card at 1.1:1. The Health light inks on the tint: lime
+   5.12:1, violet 6.26:1, cyan 5.22:1 on the sheet's card. */
+[data-theme="light"] .sheet-scrim > .card .chip.active.chip-lime { background: var(--hl-lime-tint); color: var(--hl-lime-ink); box-shadow: inset 0 0 0 1.5px var(--hl-lime-ink); }
+[data-theme="light"] .sheet-scrim > .card .chip.active.chip-violet { background: var(--hl-violet-tint); color: var(--hl-violet-ink); box-shadow: inset 0 0 0 1.5px var(--hl-violet-ink); }
+[data-theme="light"] .sheet-scrim > .card .chip.active.chip-cyan { background: var(--hl-cyan-tint); color: var(--hl-cyan-ink); box-shadow: inset 0 0 0 1.5px var(--hl-cyan-ink); }
+[data-theme="light"] .sheet-scrim > .card .chip.chip-half.chip-lime { background: none; color: var(--hl-lime-ink); box-shadow: inset 0 0 0 1px var(--hl-lime-ink); }
+
+/* ===== AUDIT LEFTOVERS (2026-09-26) ===== */
+/* THE CONDENSED TITLE NEVER RUNS UNDER THE BAR'S ACTIONS. .nav-title was
+   absolute, left 0 right 0, centred on the whole bar and blind to what sat
+   at its ends: at --type-scale 1.4 "Pull Day" painted through Pause on the
+   live workout (the title's ink 140..250, Pause from 216). A bar that holds
+   a condensed title is a three-column grid instead: the leading control,
+   the title, the trailing control(s). Both side columns are 1fr with their
+   content as a floor, so while the title fits between the WIDER side
+   mirrored, the sides are equal and the title is centred on the bar, as it
+   always was; when it does not, the wider side keeps its width, the title
+   takes the free middle (shifted, whole) and ellipsizes inside it before it
+   can touch an action. justify-self keeps each control its own size at its
+   own edge, so no back button or action grows a hit area it did not have.
+   The 8px column gap is the breath between the title and an action when
+   the title is pushed against one. Scoped with :has so a bar with no
+   condensed title (a large title beside a back button, an action beside a
+   large title) keeps its flex layout.
+   The floor is max-content, stated: a bare 1fr floors at the item's
+   MINIMUM CONTRIBUTION, which for .nav-back is its declared min-width of
+   44px and not its words, so "Cancel" (97px at type 1.4) was given an 83px
+   column and ran under "New Message" on the compose bar. */
+.nav-bar:has(> .nav-title) { display: grid; grid-template-columns: minmax(max-content, 1fr) auto minmax(max-content, 1fr); column-gap: var(--s-2); }
+.nav-bar:has(> .nav-title) > :not(.nav-title) { grid-column: 1; justify-self: start; }
+.nav-bar:has(> .nav-title) > .nav-title ~ * { grid-column: 3; justify-self: end; }
+/* THE LIBRARY CHASSIS BAR HAD THE SAME BUG (2026-09-27, casing sweep 3's
+   leftover). .pagebar-title was absolute, left 60px right 60px: a 60px
+   allowance for a back label that is 44px at type 1.0 and 83px at 1.4, so
+   "Brain" (the back label above What JARVIS Knows) and "Settings" (above
+   Account) painted through the condensed title once the page scrolled.
+   The same grid, the same floors, the same result: centred on the bar
+   while the title fits between the wider side mirrored, shifted into the
+   free middle when it does not, and ellipsized there before it can touch
+   the back label or an action. The empty <span /> that stands in for a
+   missing back button floors at 0 and costs the title nothing. */
+.pagebar-row:has(> .pagebar-title) { display: grid; grid-template-columns: minmax(max-content, 1fr) auto minmax(max-content, 1fr); column-gap: var(--s-2); }
+.pagebar-row:has(> .pagebar-title) > :not(.pagebar-title) { grid-column: 1; justify-self: start; }
+.pagebar-row:has(> .pagebar-title) > .pagebar-title ~ * { grid-column: 3; justify-self: end; }
+/* A DECISION'S REASON READS WHOLE. The row's reason wore .truncate: one
+   line, and on every seeded row at 390 it lost a third to a half of itself
+   ("Because Ridgeline fields are locke…"), when the reason is the row's
+   point. It wraps, unclamped, and stays the row's one grey (§AK): the
+   facts line under it is the category dot, the key's outcome and the
+   small-caps date. */
+.dec-row .conn-meta { display: block; -webkit-line-clamp: none; overflow: visible; white-space: normal; text-overflow: clip; }

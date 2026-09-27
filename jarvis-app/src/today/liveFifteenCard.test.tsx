@@ -69,10 +69,11 @@ describe("the running fifteen", () => {
     const again = vi.fn();
     render(
       <TodayPage {...base} upNext={[tk("Call the bank", "2026-05-20")]} onUpNext={() => {}}
-        fifteen={{ ...running, over: true, line: "15 Minutes up" }}
+        // Casing sweep 2 (2026-09-27): Title Case by the whole rule (§H2); durations through shared/duration ("45 Min", "1h 30m").
+        fifteen={{ ...running, over: true, line: "15 Min Up" }}
         onFifteenDone={() => {}} onFifteenStop={() => {}} onFifteenAgain={again} />,
     );
-    expect(screen.getByText("15 Minutes up")).toBeInTheDocument();
+    expect(screen.getByText("15 Min Up")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Stop" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Done" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Another 15" }));

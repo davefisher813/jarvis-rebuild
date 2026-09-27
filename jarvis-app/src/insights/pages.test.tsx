@@ -37,7 +37,8 @@ describe("InsightsPage", () => {
     expect(screen.getByText("As a List")).toBeInTheDocument();
     // Unassigned sets are shown, not dropped, with the coverage stated.
     expect(screen.getByText("Unassigned")).toBeInTheDocument();
-    expect(screen.getByText("0 of 1 Working sets mapped")).toBeInTheDocument();
+    // Casing sweep 1 (2026-09-26): Title Case by the whole rule (§H2), units spelled "Min".
+    expect(screen.getByText("0 of 1 Working Sets Mapped")).toBeInTheDocument();
     fireEvent.click(screen.getByText("Assign Muscles"));
     expect(onAssign).toHaveBeenCalledWith([{ name: "Incline Bench", exerciseKey: "k1", sets: 1 }]);
     // Sleep over the nights logged, never a zero for a night not logged.
@@ -49,9 +50,9 @@ describe("InsightsPage", () => {
   it("changes every card with the period, and labels a chart that spans more than it", () => {
     render(<InsightsPage view="insights" onView={() => {}} today={today} workouts={workouts} metricDefs={[sleep]} metricLogs={logs} logs={none} muscleMap={new Map([["k1", ["chest"]]])} cards={null}
       onOpenLift={() => {}} onOpenWorkout={() => {}} onOpenAllData={() => {}} onAssignMuscles={() => {}} onExport={() => {}} />);
-    expect(screen.getByText("1 of 1 Working sets mapped")).toBeInTheDocument();
+    expect(screen.getByText("1 of 1 Working Sets Mapped")).toBeInTheDocument();
     fireEvent.click(screen.getByText("30 Days"));
-    expect(screen.getByText("3 of 3 Working sets mapped")).toBeInTheDocument();
+    expect(screen.getByText("3 of 3 Working Sets Mapped")).toBeInTheDocument();
     // AMENDED 2026-09-16: the basis is kept, not printed on the card's face
     // (Dave: "this is not a manual"). <details> renders its content whether or
     // not it is open, so the law still reads the words; what changed is that
@@ -117,7 +118,7 @@ describe("InsightsPage", () => {
     expect(screen.queryByText(/are what it takes/), "nor the other wording of it").toBeNull();
     // The counts it has, instead of a paragraph about the one it has not.
     expect(screen.getByText("1 session in the period")).toBeInTheDocument();
-    expect(screen.getByText("1 Recorded in all")).toBeInTheDocument();
+    expect(screen.getByText("1 Recorded in All")).toBeInTheDocument();
     expect(screen.getAllByLabelText("Choose exercise").length, "still changeable").toBeGreaterThan(0);
   });
 

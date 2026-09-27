@@ -28,8 +28,9 @@ describe("exerciseHistory", () => {
 
   it("trendLine tells the honest story in the exercise's own units", () => {
     const rows = exerciseHistory(workouts);
-    expect(trendLine(rows[0]!)).toBe("115 lb × 8 → 135 lb × 8 over 8 weeks");
-    expect(trendLine(rows[1]!)).toBe("4.71 sec"); // one session: just the fact
+    // Casing sweep 1 (2026-09-26): Title Case by the whole rule (§H2), units spelled "Min".
+    expect(trendLine(rows[0]!)).toBe("115 Lb × 8 → 135 Lb × 8 Over 8 Weeks");
+    expect(trendLine(rows[1]!)).toBe("4.71 Sec"); // one session: just the fact
   });
 
   it("a slide is stated as numbers, never as decline language", () => {
@@ -38,7 +39,7 @@ describe("exerciseHistory", () => {
       wk("2026-07-20", [wex("Squat", "weight_reps", [{ w: 155, r: 5 }], "lb")]),
     ]);
     const line = trendLine(slid[0]!);
-    expect(line).toBe("185 lb × 5 → 155 lb × 5 over 3 weeks");
+    expect(line).toBe("185 Lb × 5 → 155 Lb × 5 Over 3 Weeks");
     expect(line.toLowerCase()).not.toMatch(/lost|down|decline|worse/);
     expect(slid[0]!.best.set).toMatchObject({ w: 185, r: 5 }); // the best is still the best
   });

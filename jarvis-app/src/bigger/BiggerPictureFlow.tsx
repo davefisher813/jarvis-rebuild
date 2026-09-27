@@ -1,6 +1,10 @@
 import type { ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useProjects, useCategories, useGoals, useTasks, useNotes, useDecisions, useOptionalGym, useOptionalMetrics, useOptionalStrands } from "../data/NotesProvider";
+import { useProjects, useCategories, useGoals, useTasks, useNotes, useDecisions, useOptionalGym, useOptionalMetrics, useOptionalStrands, useOptionalPeople, useOptionalSchedule } from "../data/NotesProvider";
+import type { Person } from "../people/types";
+import type { EventItem } from "../schedule/types";
+import { sheetEvents } from "../schedule/sheetEvents";
+import { sheetProjects, sheetPeople } from "../tasks/screens/sheetLinks";
 import { checkinText, readCheckin, CHECKIN_LABEL, type CheckinWord } from "./checkin";
 import { ENTITY_GOAL } from "../life/types";
 import { bucketOf, type ProjectRow } from "./progress";
@@ -21,7 +25,7 @@ import { unfileProject, refileProject, type UnfiledFromProject } from "../projec
 import { unfileGoal, refileGoal, type UnfiledFromGoal } from "../life/unfileGoal";
 import GoalSheet from "../life/GoalSheet";
 import { rankProjects } from "./progress";
-import { reachOf, type GoalReach, fileableGoals } from "./reach";
+import { reachOf, type GoalReach, fileableGoals, sheetGoals } from "./reach";
 import { measureState, paceLine, healthOf, HEALTH_LABEL, type MeasureContext } from "./measure";
 import { learnedDurations, readCommittedDurationsWindowed } from "../schedule/learnedDurations";
 import { supabase } from "../auth/supabaseClient";
@@ -44,6 +48,7 @@ import { showToast } from "../shared/toast";
 import { todayISO } from "../tasks/grouping";
 import { TargetGlyph, FolderOpenGlyph } from "../shared/glyphs";
 import NoticeCard from "../today/NoticeCard";
+import { lineCase } from "../shared/casing";
 
 // Hoisted: a fresh object per render would make every consumer's memo stale.
 const EMPTY_REACH: GoalReach = { filedIds: [], taggedIds: [], openTagged: 0, progress: null };
@@ -167,15 +172,27 @@ export default function BiggerPictureFlow({ openId, openNonce, onOpenConsumed, o
   const [dismissTick, setDismissTick] = useState(0);
   const [linkedNotes, setLinkedNotes] = useState<{ id: string; title: string; category: string }[]>([]);
   const [loading, setLoading] = useState(true);
+  // THE SAME FIVE ROWS HERE TOO (Dave 2026-09-16 "same 5 options"; pass-off
+  // 2026-09-26). This flow handed the task sheet no people and no events,
+  // so a step opened from a project had a shorter Where group than the same
+  // task opened from Life. The lists come from the same services every
+  // other flow reads; optional, because a bench renders this flow without
+  // them.
+  const peopleSvc = useOptionalPeople();
+  const schedSvc = useOptionalSchedule();
+  const [people, setPeople] = useState<Person[]>([]);
+  const [allEvents, setAllEvents] = useState<EventItem[]>([]);
 
   const reload = useCallback(async () => {
-    const [p, g, c, t, w, ml] = await Promise.all([
+    const [p, g, c, t, w, ml, ppl, ev] = await Promise.all([
       projectsSvc.list(), goalsSvc.list(), catsSvc.list(), tasksSvc.listTasks(),
       gymSvc ? gymSvc.listWorkouts() : Promise.resolve([] as Workout[]),
       metricsSvc ? metricsSvc.listLogs() : Promise.resolve([] as MetricLog[]),
+      peopleSvc ? peopleSvc.list() : Promise.resolve([] as Person[]),
+      schedSvc ? schedSvc.listEvents() : Promise.resolve([] as EventItem[]),
     ]);
-    setProjects(p); setGoals(g); setCategories(c); setTasks(t); setWorkouts(w); setMetricLogs(ml); setLoading(false);
-  }, [projectsSvc, goalsSvc, catsSvc, tasksSvc, gymSvc, metricsSvc]);
+    setProjects(p); setGoals(g); setCategories(c); setTasks(t); setWorkouts(w); setMetricLogs(ml); setPeople(ppl); setAllEvents(ev); setLoading(false);
+  }, [projectsSvc, goalsSvc, catsSvc, tasksSvc, gymSvc, metricsSvc, peopleSvc, schedSvc]);
   useEffect(() => { void reload(); }, [reload]);
 
   useEffect(() => {
@@ -253,7 +270,7 @@ export default function BiggerPictureFlow({ openId, openNonce, onOpenConsumed, o
       if (!step) throw new Error("empty");
       setProjStep({ projectId: stalled.id, step });
     } catch {
-      showToast({ message: "Couldn't reach JARVIS \u00b7 Try again" });
+      showToast({ message: "Couldn't Reach JARVIS \u00b7 Try Again" });
     } finally {
       setProjStepBusy(false);
     }
@@ -277,7 +294,7 @@ export default function BiggerPictureFlow({ openId, openNonce, onOpenConsumed, o
       setDismissTick((n) => n + 1);
       emit({ type: "suggestion.accepted", props: { kind: "proj_step" } });
       await reload();
-      showToast({ message: "First step on Today" });
+      showToast({ message: "First Step on Today" });
     } finally {
       setProjStepBusy(false);
     }
@@ -297,7 +314,7 @@ export default function BiggerPictureFlow({ openId, openNonce, onOpenConsumed, o
       if (!step) throw new Error("empty");
       setOpenStep({ projectId: proj.id, step });
     } catch {
-      showToast({ message: "Couldn't reach JARVIS \u00b7 Try again" });
+      showToast({ message: "Couldn't Reach JARVIS \u00b7 Try Again" });
     } finally {
       setOpenStepBusy(false);
     }
@@ -314,7 +331,7 @@ export default function BiggerPictureFlow({ openId, openNonce, onOpenConsumed, o
       setOpenStep(null);
       emit({ type: "suggestion.accepted", props: { kind: "proj_step" } });
       await reload();
-      showToast({ message: "First step on Today" });
+      showToast({ message: "First Step on Today" });
     } finally {
       setOpenStepBusy(false);
     }
@@ -384,7 +401,7 @@ export default function BiggerPictureFlow({ openId, openNonce, onOpenConsumed, o
           icon={<FolderOpenGlyph />}
           tone="cat-fg-orange"
           title={stalled.data.title}
-          sub={projStep && projStep.projectId === stalled.id ? "Start with: " + projStep.step : "Nothing is moving here"}
+          sub={projStep && projStep.projectId === stalled.id ? "Start With: " + projStep.step : "Nothing Is Moving Here"}
           action={projStep && projStep.projectId === stalled.id
             ? { label: projStepBusy ? "Adding..." : "Add", onClick: () => void projStepAccept() }
             : { label: projStepBusy ? "Thinking..." : "First Step", onClick: () => void projStepAsk() }}
@@ -439,7 +456,7 @@ export default function BiggerPictureFlow({ openId, openNonce, onOpenConsumed, o
     await reload();
     if (!kept) return;
     showToast({
-      message: kind === "project" ? "Project deleted" : "Goal deleted",
+      message: kind === "project" ? "Project Deleted" : "Goal Deleted",
       actionLabel: "Undo",
       onAction: () => void (async () => {
         await attemptWrite(() => svc.create(kept as never, id));
@@ -577,7 +594,7 @@ export default function BiggerPictureFlow({ openId, openNonce, onOpenConsumed, o
     if (!ok) return;
     setGoalDetailId(null);
     await reload();
-    showToast({ message: decisionId ? "Dropped · The reason is in your decisions" : "Dropped" });
+    showToast({ message: decisionId ? "Dropped · The Reason Is in Your Decisions" : "Dropped" });
   };
   const goalProjects = goalDetail ? projects.filter((p) => p.data.goalId === goalDetail.id) : [];
 
@@ -589,10 +606,10 @@ export default function BiggerPictureFlow({ openId, openNonce, onOpenConsumed, o
     let id: string | null = null;
     const ok = await attemptWrite(async () => { id = await strandsSvc.seed(checkinText(g.data.title, word, today), "values", today, { entityType: ENTITY_GOAL, entityId: g.id }); });
     if (!ok) return;
-    if (!id) { showToast({ message: "The Brain is full · Prune it in What JARVIS Knows" }); return; }
+    if (!id) { showToast({ message: "The Brain Is Full · Prune It in What JARVIS Knows" }); return; }
     emit({ type: "goal.checkin", entityType: ENTITY_GOAL, entityId: g.id, props: { kind: word } });
     await loadCheckins();
-    showToast({ message: "Check-in saved · " + CHECKIN_LABEL[word] });
+    showToast({ message: "Check-In Saved · " + CHECKIN_LABEL[word] });
   };
 
   // C-36: the milestone writes. The measure is replaced whole; a tick stamps
@@ -685,7 +702,7 @@ export default function BiggerPictureFlow({ openId, openNonce, onOpenConsumed, o
                   <div className="promo-badge b-amber"><TargetGlyph /></div>
                   <div className="promo-body">
                     <div className="promo-title">Nothing in It Yet</div>
-                    <div className="promo-sub">{openStep && openStep.projectId === detail.id ? <>Start with: {openStep.step}</> : "One small opening move is enough."}</div>
+                    <div className="promo-sub">{openStep && openStep.projectId === detail.id ? <>Start With: {openStep.step}</> : "One Small Opening Move Is Enough"}</div>
                   </div>
                 </div>
                 <div className="promo-acts">
@@ -758,11 +775,17 @@ export default function BiggerPictureFlow({ openId, openNonce, onOpenConsumed, o
             <TaskSheet
               mode="new"
               categories={categories.map((c) => ({ id: c.id, name: c.data.name, color: c.data.color }))}
-              projects={projects.map((p) => ({ id: p.id, title: p.data.title, category: p.data.category || undefined, goalTitle: goalTitleOf(p.data.goalId) }))}
-              initial={{ category: proj?.data.category ?? "", projectId: sheet.projectId }}
+              projects={sheetProjects(projects, goals)}
+              people={sheetPeople(people)}
+              events={sheetEvents(allEvents, today)}
+              goals={sheetGoals(goals)}
+              initial={{ category: proj?.data.category ?? "", projectId: sheet.projectId, goalId: proj?.data.goalId ?? "" }}
               onSave={async (d: TaskDraft) => {
                 await attemptWrite(() => tasksSvc.createTask(d.text, {
                   projectId: d.projectId || sheet.projectId,
+                  goalId: d.goalId || undefined,
+                  personId: d.personId,
+                  eventId: d.eventId,
                   category: d.category || undefined,
                   extraCategories: d.extraCategories,
                   due: d.due || null,
@@ -795,7 +818,10 @@ export default function BiggerPictureFlow({ openId, openNonce, onOpenConsumed, o
               // whose due date was the only thing that changed. It is the
               // same sheet the Tasks tab opens, so it now reads and writes
               // exactly what TasksFlow.openEdit and TasksFlow.onSave do.
-              projects={projects.map((p) => ({ id: p.id, title: p.data.title, category: p.data.category || undefined, goalTitle: goalTitleOf(p.data.goalId) }))}
+              projects={sheetProjects(projects, goals)}
+              people={sheetPeople(people)}
+              events={sheetEvents(allEvents, today)}
+              goals={sheetGoals(goals, t.data.goalId)}
               otherPlans={tasks.map((x) => ({ id: x.id, text: x.data.text, plan: x.data.plan }))}
               selfId={sheet.id}
               source={t.data.source}
@@ -806,6 +832,9 @@ export default function BiggerPictureFlow({ openId, openNonce, onOpenConsumed, o
                 due: t.data.due ?? "",
                 repeat: t.data.recurrence ?? "",
                 projectId: t.data.projectId ?? "",
+                goalId: t.data.goalId ?? "",
+                personId: t.data.personId,
+                eventId: t.data.eventId ?? "",
                 plan: t.data.plan,
                 steps: t.data.steps,
                 // 2026-09-11: Length read None here and an edit to it was dropped.
@@ -825,6 +854,9 @@ export default function BiggerPictureFlow({ openId, openNonce, onOpenConsumed, o
                   await tasksSvc.setCategories(id, [d.category, ...(d.extraCategories ?? [])].filter(Boolean));
                   await tasksSvc.setDue(id, d.due || null);
                   await tasksSvc.setProject(id, d.projectId ?? null);
+                  await tasksSvc.setGoal(id, d.goalId ?? null);
+                  await tasksSvc.setPerson(id, d.personId ?? null);
+                  await tasksSvc.setEvent(id, d.eventId ?? null);
                   await tasksSvc.setRecurrence(id, rec || null);
                   await tasksSvc.setPlan(id, d.plan ?? null);
                   await tasksSvc.setSteps(id, d.steps ?? []);
@@ -843,7 +875,7 @@ export default function BiggerPictureFlow({ openId, openNonce, onOpenConsumed, o
                 await reload();
                 if (!ok) return;
                 showToast({
-                  message: "Step deleted",
+                  message: "Step Deleted",
                   actionLabel: "Undo",
                   onAction: () => void (async () => {
                     // LIFE-F-15 (2026-09-05): this rebuilt the step from three
@@ -878,7 +910,7 @@ export default function BiggerPictureFlow({ openId, openNonce, onOpenConsumed, o
     if (!ok) return;
     const name = goalId ? goals.find((g) => g.id === goalId)?.data.title ?? null : null;
     showToast({
-      message: name ? "Moved to " + name : "Taken off its goal",
+      message: name ? lineCase("Moved to " + name) : "Taken Off Its Goal",
       actionLabel: "Undo",
       onAction: () => void (async () => {
         await attemptWrite(() => mustUpdate(projectsSvc.update(id, { goalId: before })));
@@ -964,7 +996,7 @@ export default function BiggerPictureFlow({ openId, openNonce, onOpenConsumed, o
             // irreversible tap in this app gets, restoring the state it had
             // and clearing the achieved date GoalService stamps on the way in.
             showToast({
-              message: "Goal achieved",
+              message: "Goal Achieved",
               actionLabel: "Undo",
               onAction: () => void (async () => {
                 // g.data is the snapshot read before the achieve, so this
@@ -1041,6 +1073,7 @@ export default function BiggerPictureFlow({ openId, openNonce, onOpenConsumed, o
         // linked to it, visibly, one tap to undo in the sheet. A default, not
         // a hidden action.
         onAddProject={() => setSheet({ kind: "newProject", goalId: goals.length === 1 ? goals[0]!.id : undefined })}
+        onAddProjectFor={(goalId) => setSheet({ kind: "newProject", goalId })}
         onOpenProject={(id) => setDetailId(id)}
         onCloseProject={(id) => void closeProject(id)}
         onMoveProject={(id, goalId) => void moveProject(id, goalId)}

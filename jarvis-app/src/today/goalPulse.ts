@@ -4,7 +4,7 @@ import type { GoalIndex, GoalReach } from "../bigger/reach";
 import { goalIdsForTask } from "../bigger/reach";
 import { distinctiveTokens } from "../bigger/related";
 import { daysBetween } from "../upnext/upnext";
-import { capAfterNumber } from "../shared/casing";
+import { lineCase } from "../shared/casing";
 
 // ---------------------------------------------------------------------------
 // THE HOME PAGE LOOKS UP (Dave 2026-08-22, picks 1, 2, 3, 4, 5, 31).
@@ -89,7 +89,7 @@ export function goalsMovedToday(
 export function movedLine(titles: string[]): string | null {
   if (titles.length === 0) return null;
   if (titles.length === 1) return "Moved " + titles[0];
-  return capAfterNumber(`Moved ${titles.length} goals`);
+  return lineCase(`Moved ${titles.length} goals`);
 }
 
 // --- PICK 3: A GOAL NOTHING TODAY TOUCHES -----------------------------------

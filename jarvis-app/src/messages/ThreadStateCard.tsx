@@ -219,7 +219,7 @@ export function whenParts(m: ConfirmedMeeting, today = todayISO()): { day: strin
   const s = fmtTime(m.start);
   const e = fmtTime(m.end);
   const phrase = dayPhrase(m.date, today);
-  const named = phrase === "today" || phrase === "tomorrow" || phrase === "yesterday";
+  const named = phrase === "Today" || phrase === "Tomorrow" || phrase === "Yesterday";
   const day = named || phrase === monthDay(m.date) ? phrase : phrase + ", " + monthDay(m.date);
   return { day, time: s.time + " " + s.ap + " to " + e.time + " " + e.ap };
 }

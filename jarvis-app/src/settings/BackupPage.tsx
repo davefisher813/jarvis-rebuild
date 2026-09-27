@@ -25,7 +25,7 @@ export default function BackupPage({ onBack }: { onBack: () => void }) {
     try {
       const bundle = await backup.exportBundle();
       // SHELL-F-23 (2026-09-05): dismissing the iOS share sheet used to read
-      // "Export failed · Try again". Nothing failed: the person closed the
+      // "Export Failed · Try Again". Nothing failed: the person closed the
       // sheet. Nothing left the app either, so nothing is claimed and the
       // Last exported stamp is left where it was.
       const sent = await saveBackupFile(bundle);
@@ -35,7 +35,7 @@ export default function BackupPage({ onBack }: { onBack: () => void }) {
       setLastExport(stamp);
       try { localStorage.setItem("jarvis.backup.lastExport", stamp); } catch { /* cosmetic */ }
     } catch {
-      setStatus("Export failed · Try again");
+      setStatus("Export Failed · Try Again");
     } finally {
       setBusy(false);
     }
@@ -65,7 +65,7 @@ export default function BackupPage({ onBack }: { onBack: () => void }) {
       setPending({ bundle, label: `Backup from ${when}, ${count} ${count === 1 ? "item" : "items"}.` });
       setStatus("");
     } catch {
-      setStatus("Could not read that file.");
+      setStatus("Could Not Read That File.");
     }
   };
 
@@ -76,7 +76,7 @@ export default function BackupPage({ onBack }: { onBack: () => void }) {
       const { imported, unsupportedTypes } = await backup.importBundle(
         pending.bundle as Parameters<typeof backup.importBundle>[0],
       );
-      let msg = imported === 0 ? "Nothing new · All already here" : `Imported ${imported} ${imported === 1 ? "item" : "items"} · Duplicates skipped`;
+      let msg = imported === 0 ? "Nothing New · All Already Here" : `Imported ${imported} ${imported === 1 ? "Item" : "Items"} · Duplicates Skipped`;
       if (unsupportedTypes.length > 0) {
         const shown = unsupportedTypes.slice(0, 3).join(", ");
         const rest = unsupportedTypes.length > 3 ? ` +${unsupportedTypes.length - 3} more` : "";
@@ -84,7 +84,7 @@ export default function BackupPage({ onBack }: { onBack: () => void }) {
       }
       setStatus(msg);
     } catch (err) {
-      setStatus(err instanceof Error ? err.message : "Import failed.");
+      setStatus(err instanceof Error ? err.message : "Import Failed.");
     } finally {
       setPending(null);
       setBusy(false);

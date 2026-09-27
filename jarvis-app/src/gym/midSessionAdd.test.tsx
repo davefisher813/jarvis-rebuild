@@ -37,7 +37,7 @@ function strip(g: SetEntry) {
   return render(
     <SetStrip
       kind="weight_reps" unit="lb" entries={[]} ghost={[g]}
-      editableGhosts onLogGhost={() => {}} onLogGhostAs={() => {}}
+      editableGhosts onLogGhost={() => {}}
       onChange={() => {}}
     />,
   );
@@ -87,22 +87,24 @@ describe("the live log box does not print a zero nobody typed", () => {
     expect(w, "no ghost copy of the word inside the box").not.toHaveAttribute("placeholder");
     expect(screen.getByLabelText("Set 1 reps")).not.toHaveAttribute("placeholder");
     // The unit is still stated, in the span the row is built around.
-    expect(screen.getByText("lb")).toBeInTheDocument();
-    expect(screen.getByText("reps")).toBeInTheDocument();
+    // Cased by the whole rule (Dave 2026-09-26): "Lb", "Reps".
+    expect(screen.getByText("Lb")).toBeInTheDocument();
+    expect(screen.getByText("Reps")).toBeInTheDocument();
     // And a screen reader still gets a name for each box.
     expect(w).toHaveAttribute("aria-label", "Set 1 weight");
     cleanup();
   });
 
+  // AMENDED 2026-09-26 (workout logging): the row reports its strings up to
+  // the session, which owns the one write; there is no tick on the row.
   it("reports what is typed into an empty field, not the zero it replaced", () => {
-    const onLogGhostAs = vi.fn();
+    const onNowDraft = vi.fn();
     render(
       <SetStrip kind="weight_reps" unit="lb" entries={[]} ghost={[ghost({ r: 8 })]}
-        editableGhosts onLogGhost={() => {}} onLogGhostAs={onLogGhostAs} onChange={() => {}} />,
+        editableGhosts onLogGhost={() => {}} onNowDraft={onNowDraft} onChange={() => {}} />,
     );
     fireEvent.change(screen.getByLabelText("Set 1 weight"), { target: { value: "135" } });
-    fireEvent.click(screen.getByLabelText("Log set 1"));
-    expect(onLogGhostAs.mock.calls[0]![1]).toMatchObject({ w: 135, r: 8 });
+    expect(onNowDraft).toHaveBeenLastCalledWith({ w: "135", r: "8" });
     cleanup();
   });
 

@@ -83,8 +83,9 @@ describe("the amnesty", () => {
   });
 
   it("names the age, not a verdict on the person", () => {
-    expect(amnestyLine(set(17))).toBe("17 Threads older than two weeks");
-    expect(amnestyLine(set(1))).toBe("1 Thread older than two weeks");
+    // Casing sweep 3 (2026-09-27): Title Case by the whole rule (§H2); durations through shared/duration ("45 Min", "About 1 Min").
+    expect(amnestyLine(set(17))).toBe("17 Threads Older Than Two Weeks");
+    expect(amnestyLine(set(1))).toBe("1 Thread Older Than Two Weeks");
     // Never "ignored", "neglected", "you failed to".
     expect(amnestyLine(set(17)).toLowerCase()).not.toMatch(/ignor|neglect|fail|behind/);
   });
@@ -133,8 +134,8 @@ describe("the week-long way back", () => {
 
   it("says how many, counting rather than claiming", () => {
     expect(putBackLine({ dateISO: "2026-08-25", threads: [{ id: "t1" }] }))
-      .toBe("1 Conversation archived in the close");
+      .toBe("1 Conversation Archived in the Close");
     expect(putBackLine({ dateISO: "2026-08-25", threads: [{ id: "t1" }, { id: "t2" }] }))
-      .toBe("2 Conversations archived in the close");
+      .toBe("2 Conversations Archived in the Close");
   });
 });

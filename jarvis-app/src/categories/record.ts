@@ -19,11 +19,28 @@ export interface CategoryRecord {
   recent: RecordEntry[]; // newest first, only completions we can still name
   thisWeek: number;
   lastWeek: number;
-  insight: string | null; // "Most gets done on Tuesdays", or null
+  insight: string | null; // "Most Gets Done on Tuesdays", or null
+  // THE NUMBERS BEHIND IT (Dave's pass-off, 2026-09-26: the line "reads
+  // flat"). The count on the winning weekday and the sample it won in, so
+  // the card can say in one sentence what the pattern rests on, and the
+  // weekday itself so a screen can act on it. Null exactly when insight is.
+  insightDetail: { dow: number; count: number; total: number } | null;
 }
 
-const DOW_FULL = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-const DOW_PLURAL = ["Sundays", "Mondays", "Tuesdays", "Wednesdays", "Thursdays", "Fridays", "Saturdays"];
+export const DOW_FULL = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+export const DOW_PLURAL = ["Sundays", "Mondays", "Tuesdays", "Wednesdays", "Thursdays", "Fridays", "Saturdays"];
+
+// THE NEXT SUCH DAY (Dave's pass-off, 2026-09-26: "Line Up 3 for
+// Wednesday"). Today when today is that weekday, else the next one, as a
+// local calendar date: the pattern is a day of the week, and the nearest
+// one is the one to line work up for.
+export function nextDow(todayIso: string, dow: number): string {
+  const d = new Date(todayIso + "T12:00:00");
+  const ahead = (dow - d.getDay() + 7) % 7;
+  d.setDate(d.getDate() + ahead);
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
 
 // Local calendar date of an epoch-ms instant, matching how samples were
 // stamped (local getHours/getDay at completion time).
@@ -74,15 +91,20 @@ export function categoryRecord(
   }
 
   let insight: string | null = null;
+  let insightDetail: CategoryRecord["insightDetail"] = null;
   if (mine.length >= INSIGHT_MIN_SAMPLES) {
     const byDow = [0, 0, 0, 0, 0, 0, 0];
     for (const s of mine) byDow[s.dow] = (byDow[s.dow] ?? 0) + 1;
     const max = Math.max(...byDow);
     const winners = byDow.filter((n) => n === max).length;
     if (winners === 1 && max >= INSIGHT_MIN_PEAK) {
-      insight = `Most gets done on ${DOW_PLURAL[byDow.indexOf(max)]}`;
+      const dow = byDow.indexOf(max);
+      // Title Case, like every line the app writes (Dave's pass-off,
+      // 2026-09-26): it is a card's title now, not a grey fact.
+      insight = `Most Gets Done on ${DOW_PLURAL[dow]}`;
+      insightDetail = { dow, count: max, total: mine.length };
     }
   }
 
-  return { recent, thisWeek, lastWeek, insight };
+  return { recent, thisWeek, lastWeek, insight, insightDetail };
 }

@@ -76,5 +76,7 @@ export function nextBest(items: TaskItem[], completedId: string, completedCatego
 // itself (grouping.ts distanceFor) and draws it in the key's ink, so this
 // keeps only the fact with no meaning of its own, the line's one grey.
 export function chainReason(t: TaskItem, completedCategory: string): string | null {
-  return t.data.category && t.data.category === completedCategory ? "Same category" : null;
+  // "Same Area" (Dave's pass-off, 2026-09-26): the app says area, and every
+  // line it writes is Title Case.
+  return t.data.category && t.data.category === completedCategory ? "Same Area" : null;
 }

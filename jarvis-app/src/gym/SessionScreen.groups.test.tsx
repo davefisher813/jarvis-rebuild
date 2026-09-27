@@ -53,32 +53,46 @@ describe("rest after the round", () => {
     const onFit = vi.fn();
     // Bench has logged nothing, Row nothing: Bench set 1 leaves Row behind.
     const { unmount } = renderScreen({ onFit });
-    fireEvent.click(screen.getByRole("button", { name: /^Log 225 lb × 5/ }));
+    fireEvent.click(screen.getByRole("button", { name: /^Log 225 Lb × 5/ }));
     expect(onFit).not.toHaveBeenCalled();
     unmount();
     // Bench 1 and Row 1 logged; Bench set 2 still leaves Row (1) behind.
     const onFit2 = vi.fn();
     const { unmount: u2 } = renderScreen({ onFit: onFit2, live: live([{ id: "x1", w: 225, r: 5 }], [{ id: "y1", w: 135, r: 8 }]) });
-    fireEvent.click(screen.getByRole("button", { name: /^Log 225 lb × 5/ }));
+    fireEvent.click(screen.getByRole("button", { name: /^Log 225 Lb × 5/ }));
     expect(onFit2).not.toHaveBeenCalled();
     u2();
     // Row has both its sets; Bench's third completes the last round: rest.
     const onFit3 = vi.fn();
     const now = Date.now();
     renderScreen({ onFit: onFit3, live: live([{ id: "x1", w: 225, r: 5 }, { id: "x2", w: 225, r: 5 }], [{ id: "y1", w: 135, r: 8 }, { id: "y2", w: 135, r: 8 }]) });
-    fireEvent.click(screen.getByRole("button", { name: /^Log 225 lb × 5/ }));
+    fireEvent.click(screen.getByRole("button", { name: /^Log 225 Lb × 5/ }));
     expect(onFit3).toHaveBeenCalledTimes(1);
     const ends = (onFit3.mock.calls[0]![0] as { restEndsAt: number }).restEndsAt;
     expect(ends - now).toBeGreaterThanOrEqual(119_000);
     expect(ends - now).toBeLessThanOrEqual(121_000);
   });
 
-  it("with no round rest on the group, the session rests after every set as before", () => {
+  // AMENDED 2026-09-26 (workout logging, Dave: every superset rests after
+  // the round, at the shortest rest among its lifts unless the program set
+  // one). It used to rest after every set when no round rest was stated.
+  it("with no round rest on the group, the round still rests, at the shortest rest among the members", () => {
     const onFit = vi.fn();
-    const plainA = { ...a, roundRestSec: undefined };
-    renderScreen({ onFit, exercise: plainA, dayExercises: [plainA, b], programDay: { ...day, exercises: [plainA, b] } });
-    fireEvent.click(screen.getByRole("button", { name: /^Log 225 lb × 5/ }));
-    expect(onFit).toHaveBeenCalledTimes(1);
+    const plainA = { ...a, roundRestSec: undefined, restSec: 120 };
+    // Bench leaves Row behind: no rest.
+    const { unmount } = renderScreen({ onFit, exercise: plainA, dayExercises: [plainA, b], programDay: { ...day, exercises: [plainA, b] } });
+    fireEvent.click(screen.getByRole("button", { name: /^Log 225 Lb × 5/ }));
+    expect(onFit).not.toHaveBeenCalled();
+    unmount();
+    // Row's set closes the round: rest at the shortest stated rest, Row's 90.
+    const onFit2 = vi.fn();
+    const now = Date.now();
+    renderScreen({ onFit: onFit2, exercise: b, dayExercises: [plainA, b], programDay: { ...day, exercises: [plainA, b] }, live: live([{ id: "x1", w: 225, r: 5 }], [], 1) });
+    fireEvent.click(screen.getByRole("button", { name: /^Log 135 Lb × 8/ }));
+    expect(onFit2).toHaveBeenCalledTimes(1);
+    const ends = (onFit2.mock.calls[0]![0] as { restEndsAt: number }).restEndsAt;
+    expect(ends - now).toBeGreaterThanOrEqual(89_000);
+    expect(ends - now).toBeLessThanOrEqual(91_000);
   });
 });
 
@@ -89,17 +103,20 @@ describe("Log a Drop", () => {
     const onLog = vi.fn();
     const onFit = vi.fn();
     renderScreen({ onLog, onFit, live: live([{ id: "x1", w: 225, r: 5 }], []) });
+    // AMENDED 2026-09-26 (workout logging): it is a line in the More sheet.
+    fireEvent.click(screen.getByRole("button", { name: "More" }));
     fireEvent.click(screen.getByRole("button", { name: "Log a Drop" }));
     expect(onLog).toHaveBeenCalledTimes(1);
     const e = onLog.mock.calls[0]![0] as SetEntry;
     expect(e).toMatchObject({ w: 225, r: 5, drop: true });
     expect(e.id).not.toBe("x1");
     expect(onFit).not.toHaveBeenCalled();
-    expect(vi.mocked(showToast).mock.calls[0]![0]).toMatchObject({ message: "Logged a drop · Tap it to set the weight", actionLabel: "Undo" });
+    expect(vi.mocked(showToast).mock.calls[0]![0]).toMatchObject({ message: "Logged a Drop · Tap It to Set the Weight", actionLabel: "Undo" });
   });
 
   it("is not offered before any working set", () => {
     renderScreen({ live: live([], []) });
+    fireEvent.click(screen.getByRole("button", { name: "More" }));
     expect(screen.queryByRole("button", { name: "Log a Drop" })).toBeNull();
   });
 

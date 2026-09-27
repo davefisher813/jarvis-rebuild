@@ -11,7 +11,7 @@ import ClassifySheet from "./ClassifySheet";
 import ExerciseSheet from "./ExerciseSheet";
 import BatchSheet from "./BatchSheet";
 import { DuplicateBar, DuplicatesSheet } from "./DuplicateReview";
-import { capAfterNumber, liftTitle } from "../shared/casing";
+import { liftTitle, lineCase } from "../shared/casing";
 import { findDuplicates, pairId, type DuplicatePair } from "./duplicates";
 import { MUSCLE_GROUPS, MUSCLE_LABEL, type MuscleGroup } from "./muscles";
 import type { Exercise } from "./types";
@@ -164,7 +164,7 @@ export default function LibraryPage({
       .filter((r) => r.key !== merging.key && r.kind === merging.kind)
       // A lift never done shows no sub at all: a line that states nothing is
       // not a fact (§AK).
-      .map((r) => ({ id: r.key, label: liftTitle(r.name), ...(r.sessions > 0 ? { sub: capAfterNumber(`${r.sessions} ${r.sessions === 1 ? "session" : "sessions"}`) } : {}) }))
+      .map((r) => ({ id: r.key, label: liftTitle(r.name), ...(r.sessions > 0 ? { sub: lineCase(`${r.sessions} ${r.sessions === 1 ? "session" : "sessions"}`) } : {}) }))
     : [];
 
   const setF = (patch: Partial<LibraryFilter>) => { setJustSaved([]); setFilter((f) => ({ ...f, ...patch })); };
@@ -353,7 +353,7 @@ export default function LibraryPage({
                             caps, as it is one tap deeper on the lift's own
                             page and on every other "last trained" in the app
                             (§AM F5). A lift never done says nothing here. */}
-                        {r.sessions > 0 && <span className="fact lime">{capAfterNumber(`${r.sessions} ${r.sessions === 1 ? "session" : "sessions"}`)}</span>}
+                        {r.sessions > 0 && <span className="fact lime">{lineCase(`${r.sessions} ${r.sessions === 1 ? "session" : "sessions"}`)}</span>}
                         {r.lastDate && <span className="fact date">{agoPhrase(r.lastDate, todayIso)}</span>}
                         {flags && <span className="fact">{flags}</span>}
                       </div>
@@ -496,7 +496,7 @@ export default function LibraryPage({
       )}
 
       {menu && (
-        <ActionSheet title={menu.name} actions={menuActions(menu)} onClose={() => setMenu(null)} />
+        <ActionSheet title={liftTitle(menu.name)} actions={menuActions(menu)} onClose={() => setMenu(null)} />
       )}
 
       {merging && (

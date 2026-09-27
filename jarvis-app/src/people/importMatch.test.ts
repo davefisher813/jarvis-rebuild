@@ -158,8 +158,9 @@ describe("what the preview and the receipt say", () => {
       unchanged: 5,
     }), 0);
     expect(l).toEqual([
-      { text: "2 New, 1 To update" },
-      { text: "5 Already current", tone: "good" },
+      // Casing sweep 1 (2026-09-26): Title Case by the whole rule (§H2), units spelled "Min".
+      { text: "2 New, 1 to Update" },
+      { text: "5 Already Current", tone: "good" },
     ]);
   });
 
@@ -167,7 +168,7 @@ describe("what the preview and the receipt say", () => {
   // the lie the old preview told. It needs him, so it is amber.
   it("calls an unanswered row something to check, never something skipped", () => {
     const withReview = plan({ review: [{ contact: { name: "John Smith" }, candidates: [], reason: "same-name" as const }] });
-    expect(planFacts(withReview, 0)).toEqual([{ text: "1 To check", tone: "warn" }]);
+    expect(planFacts(withReview, 0)).toEqual([{ text: "1 to Check", tone: "warn" }]);
     // Once answered it stops being counted as waiting.
     expect(planFacts(withReview, 1)).toEqual([{ text: "Nothing to change" }]);
   });
@@ -178,7 +179,7 @@ describe("what the preview and the receipt say", () => {
   });
 
   it("reports only what actually happened", () => {
-    expect(summaryLine(3, 2, 10)).toBe("3 Added · 2 Updated · 10 Already current");
+    expect(summaryLine(3, 2, 10)).toBe("3 Added · 2 Updated · 10 Already Current");
     expect(summaryLine(1, 0, 0)).toBe("1 Added");
   });
 

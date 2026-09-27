@@ -4,23 +4,49 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import SetStrip from "./SetStrip";
 
-// 2026-09-14 (the reference's set grid): a ghost's two fields and a tick log
-// what the fields say; the row body still logs the plan.
-describe("SetStrip: editable ghosts", () => {
-  it("ticks the edited numbers, and the row body logs the plan as it stands", () => {
-    const onLogGhostAs = vi.fn();
+// 2026-09-14 (the reference's set grid): the Now row's two fields.
+// AMENDED 2026-09-26 (workout logging, Dave: "one single clean logging flow";
+// "only the red button logs"): the fields report every keystroke up as the
+// strings they hold, nothing on the row logs -- not a tick, not the row's
+// body -- and only the Now row has fields at all.
+describe("SetStrip: the Now row's fields", () => {
+  it("reports what is typed, as typed, and nothing on the row logs", () => {
+    const onNowDraft = vi.fn();
     const onLogGhost = vi.fn();
-    render(<SetStrip kind="weight_reps" unit="lb" entries={[]} onChange={() => {}} ghost={[{ id: "g1", w: 120, r: 10 }]} editableGhosts onLogGhost={onLogGhost} onLogGhostAs={onLogGhostAs} />);
+    render(<SetStrip kind="weight_reps" unit="lb" entries={[]} onChange={() => {}} ghost={[{ id: "g1", w: 120, r: 10 }, { id: "g2", w: 120, r: 10 }]} editableGhosts onLogGhost={onLogGhost} onNowDraft={onNowDraft} />);
     fireEvent.change(screen.getByLabelText("Set 1 weight"), { target: { value: "125" } });
     fireEvent.change(screen.getByLabelText("Set 1 reps"), { target: { value: "8" } });
-    fireEvent.click(screen.getByLabelText("Log set 1"));
-    expect(onLogGhostAs).toHaveBeenCalledWith(0, { w: 125, r: 8 });
-    expect(onLogGhost).not.toHaveBeenCalled();
+    expect(onNowDraft).toHaveBeenLastCalledWith({ w: "125", r: "8" });
+    expect(screen.queryByLabelText("Log set 1"), "no tick on the row").toBeNull();
+    fireEvent.click(screen.getByText("Now · Set 1"));
+    expect(onLogGhost, "the row's body never logs").not.toHaveBeenCalled();
+    // The row after it is the plan, read and not typed into.
+    expect(screen.queryByLabelText("Set 2 weight")).toBeNull();
+    expect(screen.getByText("120 Lb × 10")).toBeInTheDocument();
+  });
+  it("shows the session's own strings when it owns them, and follows them", () => {
+    const { rerender } = render(<SetStrip kind="weight_reps" unit="lb" entries={[]} onChange={() => {}} ghost={[{ id: "g1", w: 120, r: 10 }]} editableGhosts nowDraft={{ w: "130", r: "9" }} />);
+    expect(screen.getByLabelText("Set 1 weight")).toHaveValue(130);
+    rerender(<SetStrip kind="weight_reps" unit="lb" entries={[]} onChange={() => {}} ghost={[{ id: "g1", w: 120, r: 10 }]} editableGhosts nowDraft={{ w: "135", r: "9" }} />);
+    expect(screen.getByLabelText("Set 1 weight"), "a corrected earlier set moves these too").toHaveValue(135);
   });
   it("is the plain ghost without the flag, and never on a kind with no weight", () => {
-    render(<SetStrip kind="reps" entries={[]} onChange={() => {}} ghost={[{ id: "g1", r: 10 }]} editableGhosts onLogGhostAs={() => {}} />);
+    render(<SetStrip kind="reps" entries={[]} onChange={() => {}} ghost={[{ id: "g1", r: 10 }]} editableGhosts />);
     expect(screen.queryByLabelText("Set 1 reps")).toBeNull();
-    expect(screen.getByText("10 reps")).toBeInTheDocument();
+    expect(screen.getByText("10 Reps")).toBeInTheDocument();
+  });
+  it("a warm-up row still logs its own ramp number on tap, since it has nothing to type", () => {
+    const onLogGhost = vi.fn();
+    render(<SetStrip kind="weight_reps" unit="lb" entries={[]} onChange={() => {}} ghost={[{ id: "w1", w: 95, r: 5, warmup: true }, { id: "g1", w: 120, r: 10 }]} editableGhosts onLogGhost={onLogGhost} />);
+    fireEvent.click(screen.getByText("Warm-Up"));
+    expect(onLogGhost).toHaveBeenCalledWith(0);
+  });
+  it("a Done row opens the session's sheet instead of the inline panel when asked to", () => {
+    const onOpenSet = vi.fn();
+    render(<SetStrip kind="weight_reps" unit="lb" entries={[{ id: "s1", w: 185, r: 5 }]} ghost={[]} onChange={() => {}} onOpenSet={onOpenSet} />);
+    fireEvent.click(screen.getByLabelText("Set 1 · Done, 185 lb × 5, tap to edit"));
+    expect(onOpenSet).toHaveBeenCalledWith("s1");
+    expect(screen.queryByText("Editing Set 1")).toBeNull();
   });
 });
 

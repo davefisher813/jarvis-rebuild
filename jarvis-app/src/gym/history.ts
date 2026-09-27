@@ -2,6 +2,7 @@ import type { Workout, SetLog, MeasureKind } from "./types";
 import { beats, formatSet, scoreOf, inUnit } from "./measures";
 import { sameLift, sameLiftAnyKind, type LiftLike } from "./identity";
 import { daysBetween } from "../upnext/upnext";
+import { lineCase } from "../shared/casing";
 
 // The history page (gym session 2): per-exercise numbers over time, derived
 // and dated. "Bench: 115 lb × 8 -> 135 lb × 8 over 8 weeks" lands harder than
@@ -95,11 +96,13 @@ export function trendLine(row: HistoryRow): string {
   const ex = { kind: row.kind, unit: row.unit, timeUnit: row.timeUnit };
   // GYM-F-06: both ends of the arrow in the row's current unit.
   const shown = (e: { set: SetLog; unit?: string }) => inUnit(row.kind, e.set, e.unit, row.unit);
-  if (row.sessions === 1) return formatSet(ex, shown(row.last));
+  // A fact on the History row, so the whole rule's casing ("115 Lb × 8 →
+  // 135 Lb × 8 Over 8 Weeks"; Dave 2026-09-26, the pass-off).
+  if (row.sessions === 1) return lineCase(formatSet(ex, shown(row.last)));
   const span = daysBetween(row.first.date, row.last.date);
   const weeks = Math.round(span / 7);
   const arrow = `${formatSet(ex, shown(row.first))} → ${formatSet(ex, shown(row.last))}`;
-  return weeks >= 2 ? `${arrow} over ${weeks} weeks` : arrow;
+  return lineCase(weeks >= 2 ? `${arrow} over ${weeks} weeks` : arrow);
 }
 
 /**

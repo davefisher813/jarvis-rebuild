@@ -38,9 +38,9 @@ export default function AdvancedPage({ onBack, onExport, onLearningLab }: { onBa
     setChatArmed(false);
     const ok = await attemptWrite(async () => {
       const n = await chat.clearAll();
-      showToast({ message: n === 0 ? "No chat history" : `Deleted ${n} ${n === 1 ? "message" : "messages"}` });
+      showToast({ message: n === 0 ? "No Chat History" : `Deleted ${n} ${n === 1 ? "message" : "messages"}` });
     });
-    if (!ok) showToast({ message: "Couldn't delete · Try again" });
+    if (!ok) showToast({ message: "Couldn't Delete · Try Again" });
     setChatBusy(false);
   };
   return (

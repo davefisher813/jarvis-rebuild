@@ -1,4 +1,4 @@
-import type { KeyboardEvent, MouseEvent, ReactNode } from "react";
+import { useRef, type KeyboardEvent, type MouseEvent, type ReactNode } from "react";
 import HeadMenu, { type MenuOption } from "../shared/HeadMenu";
 import { haptics } from "../shared/haptics";
 
@@ -20,10 +20,33 @@ export function Card({ children, className = "" }: { children: ReactNode; classN
 }
 
 /** A row: the words at the left, whatever sits at the right. */
-export function Row({ label, meta, value, onClick, chev = false, children, className = "", disabled = false }: {
-  label: ReactNode; meta?: ReactNode; value?: ReactNode; onClick?: () => void; chev?: boolean; children?: ReactNode; className?: string; disabled?: boolean;
+export function Row({ label, meta, value, onClick, forwardTo, chev = false, children, className = "", disabled = false }: {
+  label: ReactNode; meta?: ReactNode; value?: ReactNode; onClick?: () => void;
+  /** THE ROW IS THE CONTROL'S HIT AREA (audit 2026-09-26). A CSS selector
+      for the control this row holds; the row then passes its own taps to
+      it, as FormSheet's Row has since SHARED-F-11, so the label and the
+      empty space between it and the value all open the menu. The 24px
+      dropdown value bought its 44 with a ::after, and at 430 and 834 wide
+      with type at 1.4 the rows at the foot of AI Control sat under the
+      capture bar, which took the hit for the value's expanded edge: a row
+      forwarding to it is 48px of target the bar cannot argue with. The
+      selector goes into the DOM (data-forwards) so tools/visual-audit.mjs
+      measures the row, exactly as the pointer handler resolves it. No role
+      and no tabIndex when it forwards: the control has both already. */
+  forwardTo?: string;
+  chev?: boolean; children?: ReactNode; className?: string; disabled?: boolean;
 }) {
+  const box = useRef<HTMLDivElement>(null);
   const tap = onClick && !disabled ? () => { haptics.selection(); onClick(); } : undefined;
+  // A tap that started INSIDE the control is the control's own; forwarding
+  // it would fire the handler twice and a menu would open and shut in one
+  // tap. A click that reached the row through a portal (the open menu's
+  // scrim) is not a tap on the row either.
+  const forward = forwardTo && !tap ? (e: MouseEvent<HTMLElement>) => {
+    const ctl = box.current?.querySelector<HTMLElement>(forwardTo);
+    if (!ctl || ctl.contains(e.target as Node) || !box.current?.contains(e.target as Node)) return;
+    ctl.click();
+  } : undefined;
   // Enter and Space on the row itself only: a key pressed in a control the
   // row holds belongs to that control.
   const key = tap ? (e: KeyboardEvent) => {
@@ -32,7 +55,8 @@ export function Row({ label, meta, value, onClick, chev = false, children, class
     tap();
   } : undefined;
   return (
-    <div className={"row set-row " + className} role={onClick ? "button" : undefined} tabIndex={onClick ? 0 : undefined} aria-disabled={disabled || undefined} onClick={tap} onKeyDown={key}>
+    <div ref={box} className={"row set-row " + className} role={onClick ? "button" : undefined} tabIndex={onClick ? 0 : undefined} aria-disabled={disabled || undefined}
+      data-forwards={forward ? forwardTo : undefined} onClick={tap ?? forward} onKeyDown={key}>
       <div className="row-grow"><div className="conn-name">{label}</div>{meta && <div className="conn-meta">{meta}</div>}</div>
       {value !== undefined && <span className="row-value">{value}</span>}
       {children}
@@ -64,12 +88,14 @@ export function focusField(e: MouseEvent<HTMLElement>) {
   e.currentTarget.querySelector<HTMLElement>("input, select, textarea")?.focus();
 }
 
-/** A row whose value opens the dropdown. */
+/** A row whose value opens the dropdown. The whole row is the door to it
+ *  (Dave 2026-09-15, "I want all rows clickable"; the catalog's "a control
+ *  a row forwards to is as big as the row"). */
 export function Menu({ label, meta, value, options, onPick, ariaLabel, word, off = false }: {
   label: string; meta?: ReactNode; value: string; options: MenuOption[]; onPick: (v: string) => void; ariaLabel?: string; word?: string; off?: boolean;
 }) {
   return (
-    <Row label={label} meta={meta}>
+    <Row label={label} meta={meta} forwardTo=".dd">
       <HeadMenu variant="value" ariaLabel={ariaLabel ?? label} value={value} label={word} off={off} options={options} onPick={onPick} />
     </Row>
   );

@@ -58,7 +58,7 @@ describe("deleting a logged set in the live session", () => {
     expect(onSetLogged).toHaveBeenCalledWith([logged[0]]);
 
     const toast = vi.mocked(showToast).mock.calls[0]![0];
-    expect(toast.message).toBe("Set deleted");
+    expect(toast.message).toBe("Set Deleted");
     expect(toast.actionLabel).toBe("Undo");
     toast.onAction!();
     // UP-ATH-04 (2026-09-06): the restore names its exercise now, so an Undo
@@ -66,14 +66,26 @@ describe("deleting a logged set in the live session", () => {
     expect(onSetLogged).toHaveBeenLastCalledWith(logged, 0);
   });
 
-  it("an edit is not a delete: correcting a chip offers no undo toast", () => {
+  // AMENDED 2026-09-26 (workout logging): a Done row opens the Set sheet,
+  // the same two fields the Now row has; Save writes the edit.
+  it("an edit is not a delete: correcting a set offers no undo toast", () => {
     const onSetLogged = vi.fn();
     renderScreen(onSetLogged);
-    // Open the chip's editor, then nudge the reps: same count, same ids.
     // H-17 / R9 (2026-09-12): a logged chip's kicker says its state.
     fireEvent.click(screen.getByRole("button", { name: /^Set 1 · Done, / }));
-    fireEvent.click(screen.getByRole("button", { name: "More Reps" }));
-    expect(onSetLogged).toHaveBeenCalled();
+    fireEvent.change(screen.getByLabelText("Set 1 reps"), { target: { value: "6" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    expect(onSetLogged).toHaveBeenCalledTimes(1);
+    expect(onSetLogged.mock.calls[0]![0]).toMatchObject([{ id: "s1", w: 275, r: 6 }, { id: "s2" }]);
     expect(showToast).not.toHaveBeenCalled();
+  });
+
+  it("the Set sheet's own Delete takes the standard receipt with Undo", () => {
+    const onSetLogged = vi.fn();
+    renderScreen(onSetLogged);
+    fireEvent.click(screen.getByRole("button", { name: /^Set 2 · Done, / }));
+    fireEvent.click(screen.getByRole("button", { name: "Delete This Set" }));
+    expect(onSetLogged).toHaveBeenCalledWith([logged[0]]);
+    expect(vi.mocked(showToast).mock.calls[0]![0]).toMatchObject({ message: "Set Deleted", actionLabel: "Undo" });
   });
 });

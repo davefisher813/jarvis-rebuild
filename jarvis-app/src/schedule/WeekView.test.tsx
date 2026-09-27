@@ -149,7 +149,8 @@ describe("Schedule: Undo after a delete puts the whole event back", () => {
     fireEvent.click(screen.getByLabelText("Next"));
     await waitFor(() => expect(screen.getByText("Lift")).toBeInTheDocument());
     let undo: (() => void) | undefined;
-    const stop = subscribeToast((t) => { if (t?.message === "Event deleted") undo = t.onAction; });
+    // Casing sweep 2 (2026-09-27): Title Case by the whole rule (§H2); durations through shared/duration ("45 Min", "1h 30m").
+    const stop = subscribeToast((t) => { if (t?.message === "Event Deleted") undo = t.onAction; });
     try {
       fireEvent.click(screen.getByText("Lift"));
       // EVENTS ARE FIRST-CLASS (2026-09-09): tapping an event opens its PAGE

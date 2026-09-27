@@ -30,7 +30,8 @@ describe("What Now / Just Fifteen", () => {
 
   it("promises a start, never a finish", () => {
     const line = rightNowLine(rightNow([task("a")], est)!);
-    expect(line).toBe("15 Minutes on it, starting now");
+    // Casing sweep 2 (2026-09-27): Title Case by the whole rule (§H2); durations through shared/duration ("45 Min", "1h 30m").
+    expect(line).toBe("15 Min on It, Starting Now");
     expect(line).not.toMatch(/finish|complete|done/i);
   });
 

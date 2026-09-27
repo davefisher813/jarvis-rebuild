@@ -1,5 +1,6 @@
 import { byRank } from "./triage";
-import { capAfterNumber, titleCase } from "../shared/casing";
+import { lineCase, titleCase } from "../shared/casing";
+import { minutesLabel } from "../shared/duration";
 import { decide, draftableOf } from "./mailAction";
 import { dayPhrase } from "../money/bills";
 import { fmtTime } from "../schedule/calendar";
@@ -274,13 +275,14 @@ function deadlineNotice(t: MailThread, todayISO: string, now: Date, events: DayE
   const due = bareClock ? todayISO : dueFromBy(t.by, todayISO, now);
   if (!due || (!bareClock && rank > 1)) return null; // only when the date is NOW
   const clash = at ? spanningEvent(events, due, at) : null;
-  const day = due === todayISO ? "" : byLabel(t.by, now).toLowerCase() + " ";
+  const day = due === todayISO ? "" : byLabel(t.by, now) + " ";
   // UP-MIND-18 (2026-09-05): "Due 3:00 PM" when the deadline can show the
   // sentence it came from, "Looks like 3:00 PM" when it cannot. The whole
   // segment changes rather than gaining a prefix, because "Due looks like
   // 3 PM" is not a sentence anybody wrote.
-  const plain = at ? day + fmtTime(at).time + " " + fmtTime(at).ap : byLabel(t.by, now).toLowerCase();
-  const dueLabel = isHigh(confidenceOf(t.byEv)) ? "Due " + plain : hedge(plain);
+  const plain = at ? day + fmtTime(at).time + " " + fmtTime(at).ap : byLabel(t.by, now);
+  const sure = isHigh(confidenceOf(t.byEv));
+  const dueLabel = sure ? "Due " + plain : hedge(plain);
   const endAp = clash?.end ? fmtTime(clash.end) : null;
   const until = clash && endAp
     ? " while you're in " + clash.title + " until " + endAp.time + (at && endAp.ap === fmtTime(at).ap ? "" : " " + endAp.ap)
@@ -294,19 +296,21 @@ function deadlineNotice(t: MailThread, todayISO: string, now: Date, events: DayE
     kind: "deadline",
     threadId: t.id,
     title: titleCase(t.subject),
-    // The sentence: the sender, then the deadline as the rest of it, so
-    // "Due" and "Looks like" drop to lowercase.
-    sub: capAfterNumber(`From ${t.from}, ${dueLabel.charAt(0).toLowerCase() + dueLabel.slice(1)}${until}`),
-    // On screen, two facts. The bare day or clock ALONE is the first,
-    // short and toned: with the clash glued on it ran 400px in a 169px line,
-    // and even "Looks like today" was cut to "Looks like t..." at type
-    // scale 1.4 (2026-09-26). The hedge and the clash ride with the sender
-    // in the last fact, the one that gives way first, so they show when
-    // there is room and yield when there is not. The sentence above still
-    // carries all of it aloud.
+    // The sentence: the sender, then the deadline as the rest of it. Every
+    // word of it Title Case (§H2, casing sweep 3, 2026-09-27): "Due" and
+    // "Looks Like" keep their capitals mid-line, as any word would.
+    sub: lineCase(`From ${t.from}, ${dueLabel}${until}`),
+    // On screen, two facts. The day or clock is the first, short and toned:
+    // with the clash glued on it ran 400px in a 169px line, and even "Looks
+    // like today" was cut to "Looks like t..." at type scale 1.4
+    // (2026-09-26). The hedge is ONE WORD on that toned fact ("Likely
+    // Tomorrow"): riding with the sender it cost the sender 39% of itself
+    // at 390 ("Likely, from App Sto…", the audit leftovers, 2026-09-26),
+    // and the sender is the fact that gives way first. The clash still
+    // rides with the sender. The sentence above carries all of it aloud.
     facts: [
-      { text: capAfterNumber(capFirst(plain)), tone: byTone },
-      { text: (isHigh(confidenceOf(t.byEv)) ? "From " : "Likely, from ") + t.from + (until ? "," + until : "") },
+      { text: lineCase((sure ? "" : "Likely ") + plain), tone: byTone },
+      { text: "From " + t.from + (until ? "," + until : "") },
     ],
     action: "Add Task",
     tone: "cat-fg-red",
@@ -331,15 +335,13 @@ function replyNotice(t: MailThread): MailNotice {
 
 // The first letter up, the rest as written: "tomorrow" leads a fact as
 // "Tomorrow", and "Sep 30" is left alone.
-const capFirst = (s: string): string => s.charAt(0).toUpperCase() + s.slice(1);
-
 function promiseNotice(p: MailPromise, todayISO: string): MailNotice {
   return {
     key: "promised:" + p.threadId,
     kind: "promised",
     threadId: p.threadId,
     title: titleCase(p.text),
-    sub: p.due ? "You said you would, by " + dayPhrase(p.due, todayISO) : "You said you would",
+    sub: p.due ? lineCase("You said you would, by " + dayPhrase(p.due, todayISO)) : "You Said You Would",
     // The day he said is a date with a meaning (§AM R8), so on screen it is
     // its own fact in the date window, the colour the ledger gives the same
     // promise: past is late, red; today or tomorrow is due, amber; later is
@@ -348,8 +350,8 @@ function promiseNotice(p: MailPromise, todayISO: string): MailNotice {
     // the Today card at type scale 1.4. With no day there is nothing to
     // colour, and the sentence stands.
     ...(p.due ? { facts: [
-      { text: capFirst(dayPhrase(p.due, todayISO)), tone: dayTone(p.due, todayISO) },
-      { text: "You said you would" },
+      { text: dayPhrase(p.due, todayISO), tone: dayTone(p.due, todayISO) },
+      { text: "You Said You Would" },
     ] } : {}),
     action: "Add Task",
     tone: "cat-fg-yellow",
@@ -389,7 +391,7 @@ function chaseNotice(c: MailChase): MailNotice {
     kind: "chase",
     threadId: c.threadId,
     title: "Chase " + c.to,
-    sub: capAfterNumber(c.subject + ", as you asked"),
+    sub: lineCase(c.subject + ", as you asked"),
     // A chase starts gentle whatever the clock says (N13), so the wait is 0
     // and only the ask moves the label. Unlike a derived nudge, a chase he
     // set himself never disappears: with nothing draftable to derive the old
@@ -429,7 +431,7 @@ function actNotice(t: MailThread, a: MailAct, todayISO: string): MailNotice {
   const when = dayPhrase(a.date, todayISO);
   const at = a.verb === "schedule" ? `${fmtTime(a.start!).time} ${fmtTime(a.start!).ap}` : "";
   const plain = a.verb === "schedule"
-    ? `${when} ${at} for ${a.durationMin} min`
+    ? `${when} ${at} for ${minutesLabel(a.durationMin!)}`
     : a.verb === "bill"
       ? `$${a.amount!.toFixed(2)} due ${when}`
       : when;
@@ -457,20 +459,20 @@ function actNotice(t: MailThread, a: MailAct, todayISO: string): MailNotice {
   //     hedge put anywhere but first is the part that gets cut.
   const facts: NoticeFact[] | undefined = a.verb === "bill"
     ? [
-        { text: capFirst(when), tone: dayTone(a.date, todayISO) },
-        { text: sure ? "" : "Looks like", num: `$${a.amount!.toFixed(2)}` },
+        { text: when, tone: dayTone(a.date, todayISO) },
+        { text: sure ? "" : "Looks Like", num: `$${a.amount!.toFixed(2)}` },
       ]
     : a.verb === "remind"
-      ? [{ text: sure ? capFirst(when) : hedgedActSub(when), tone: dayTone(a.date, todayISO) }]
+      ? [{ text: sure ? when : hedgedActSub(when), tone: dayTone(a.date, todayISO) }]
       : sure
-        ? [{ text: capFirst(when) + " " + at, tone: "date" }, { text: "", num: `${a.durationMin} min` }]
+        ? [{ text: when + " " + at, tone: "date" }, { text: "", num: minutesLabel(a.durationMin!) }]
         : undefined;
   return {
     key: "act:" + a.verb + ":" + t.id,
     kind: "act",
     threadId: t.id,
     title: titleCase(a.title),
-    sub: capAfterNumber(sub),
+    sub: lineCase(sub),
     ...(facts ? { facts } : {}),
     action: actLabel(a),
     tone: a.verb === "bill" ? "cat-fg-green" : "cat-fg-sky",
@@ -484,7 +486,7 @@ function actNotice(t: MailThread, a: MailAct, todayISO: string): MailNotice {
 // what the card is FOR and burying them would make the hedge cost more than
 // it buys.
 function hedgedActSub(sub: string): string {
-  return "Looks like " + sub.charAt(0).toLowerCase() + sub.slice(1);
+  return lineCase("Looks like " + sub);
 }
 
 // THE ASK DECIDES THE ACTION, ON THIS PAGE TOO (2026-08-21).
@@ -512,7 +514,7 @@ function nudgeNotice(w: MailWaiting, nudgesSent = 0): MailNotice | null {
     kind: "nudge",
     threadId: w.threadId,
     title: w.to + " Hasn't Replied",
-    sub: capAfterNumber(`${w.subject}, sent ${ago}`),
+    sub: lineCase(`${w.subject}, sent ${ago}`),
     // On screen the age comes first, on the one ladder every wait age in
     // mail wears (the rail's, the wait card's, the ledger's): a firm wait
     // is red, a direct one amber, a gentle one a neutral time in small caps.
@@ -521,7 +523,7 @@ function nudgeNotice(w: MailWaiting, nudgesSent = 0): MailNotice | null {
     // already says he has not replied, and "Sent 55 days ago" was wider than
     // the whole line beside "Open a Dispute" at 390px, so it was cut.
     facts: [
-      { text: capAfterNumber(w.days === 1 ? "1 day" : w.days + " days"), tone: d.tone === "firm" ? "red" : d.tone === "direct" ? "warn" : "date" },
+      { text: lineCase(w.days === 1 ? "1 day" : w.days + " days"), tone: d.tone === "firm" ? "red" : d.tone === "direct" ? "warn" : "date" },
       { text: w.subject },
     ],
     action: act.label,

@@ -1,4 +1,4 @@
-import { capAfterNumber } from "../shared/casing";
+import { lineCase } from "../shared/casing";
 
 // THE UNSUBSCRIBE SWEEP (N9, Dave 2026-08-20).
 //
@@ -49,7 +49,7 @@ export function sweepCandidates(
 
 export function sweepTitle(list: SweepCandidate[]): string {
   const total = list.reduce((n, c) => n + c.tossed, 0);
-  return capAfterNumber(`${total} thrown away without opening`);
+  return lineCase(`${total} thrown away without opening`);
 }
 
 export function sweepSub(list: SweepCandidate[]): string {

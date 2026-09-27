@@ -14,7 +14,7 @@ import {
   durationLeader, planningPatternObservation, type DurationCorrection,
 } from "../today/planningPatterns";
 import { NO_PATTERN_TWIN, type Strand, type DerivationKey } from "./strands/types";
-import { capAfterNumber } from "../shared/casing";
+import { capAfterNumber, lineCase } from "../shared/casing";
 
 // WHY IS NOTHING LEARNING (Dave, 2026-09-06: "i dont see any trace of jarvis
 // learning anything. theres 1 fact in what jarvis knows about me").
@@ -289,6 +289,11 @@ export function readiness(rows: WindowRow[], strands: Strand[], people: DerivePe
   return built.map(({ speaks, ...r }) => {
     // Every line here leads with a count, so every line goes through the
     // leading-number casing rule, the same way derive.ts's own subs do.
+    // The detail is the panel explaining itself in a sentence ("a rate in
+    // the middle, which is a normal life, not a pattern"), so it keeps the
+    // number-lead rule rather than the whole rule; the count line beside it
+    // (watchingCount) is a facts line and takes lineCase. Casing sweep 1,
+    // 2026-09-26: left for the lead to rule on.
     const detail = capAfterNumber(r.detail ?? "");
     // NO PATTERN (2026-09-07): a row is one QUESTION, and a question is
     // answered once he has accepted either answer to it. Without the twin
@@ -312,10 +317,11 @@ export function readiness(rows: WindowRow[], strands: Strand[], people: DerivePe
 }
 
 /** The count a WATCHING row says (C-38, C-40): short of the gate it is
- *  "4 of 5 pushes in one area"; at or past it, the gate has been met and
- *  "28 of 10" would read as a mistake, so it is the count alone. */
+ *  "4 of 5 Pushes in One Area"; at or past it, the gate has been met and
+ *  "28 of 10" would read as a mistake, so it is the count alone. A facts
+ *  line, so Title Case through the one formatter (Dave 2026-09-26). */
 export function watchingCount(r: Pick<Readiness, "have" | "need" | "unit">): string {
-  return r.have >= r.need ? `${r.have} ${r.unit}` : `${r.have} of ${r.need} ${r.unit}`;
+  return lineCase(r.have >= r.need ? `${r.have} ${r.unit}` : `${r.have} of ${r.need} ${r.unit}`);
 }
 
 /** The window's own facts, for the line above the rows. Kept here so the

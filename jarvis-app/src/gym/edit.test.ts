@@ -299,4 +299,15 @@ describe("dayWithSessionEntry", () => {
     expect(out.exercises[2]!.sets[0]).toMatchObject({ w: 30, r: 12 });
     expect(out.exercises[2]!.sets[0]!.id).not.toBe("x");
   });
+  // 2026-09-26 (the workout logging pass-off): a second tap used to add a copy.
+  it("an added entry the day already holds is not added twice", () => {
+    const once = dayWithSessionEntry(day, { exerciseId: "mid1", name: "Curl", kind: "weight_reps", unit: "lb", exerciseKey: "kCurl", plan: [{ id: "x", w: 30, r: 12 }] }, nid);
+    expect(once.exercises).toHaveLength(3);
+    const twice = dayWithSessionEntry(once, { exerciseId: "mid1", name: "Curl", kind: "weight_reps", unit: "lb", exerciseKey: "kCurl", plan: [{ id: "x", w: 30, r: 12 }] }, nid);
+    expect(twice.exercises).toHaveLength(3);
+    // By name and kind too, for a lift with no key.
+    const named = dayWithSessionEntry(once, { exerciseId: "mid2", name: "curl", kind: "weight_reps", unit: "lb" }, nid);
+    expect(named.exercises).toHaveLength(3);
+  });
+
 });

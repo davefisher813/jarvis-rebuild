@@ -3,10 +3,15 @@ import type { EventItem } from "../schedule/types";
 import type { Workout } from "../gym/types";
 import type { Goal } from "../life/types";
 import type { Project } from "../projects/types";
+import type { TaskItem } from "../tasks/TasksService";
+import type { DecisionRecordData } from "../decisions/types";
+import type { DerivePerson } from "../brain/derive";
 import { computeSeal, type MonthSealData } from "./seal";
 import { hoursRows, hoursLabel } from "./hours";
+import { boldCounts, waitFact, type FactPart } from "./report";
 import { goalTags, liveGoals } from "../bigger/reach";
-import { capAfterNumber } from "../shared/casing";
+import { lineCase } from "../shared/casing";
+import { formatMoney } from "../money/types";
 
 // THIS WEEK (C-64, Astra, 2026-09-12). The first card on Insights: three
 // tiles (done, goals moved, flexible hours), where the hours went as a
@@ -18,17 +23,22 @@ import { capAfterNumber } from "../shared/casing";
 // (Move Two Blocks primary, No Thanks quiet); accepting writes a plan.cap
 // style learned rule, the way the month report's cap does.
 //
+// AMENDED 2026-09-26 (pass-off): the month report carries Money, Mail,
+// People, Health and Decisions now, so this card carries the same lines at
+// week scale (Money, Mail, People, Health, Decided), each silent at zero,
+// between Learned and Next. Every fact is Title Case through lineCase().
+//
 // Percent is allowed inside this card only where C-65 allows it in a
-// report: an area line may say "26% vs usual 35%" beside its hours. Every
+// report: an area line may say "26% vs Usual 35%" beside its hours. Every
 // other number here is a count.
 
-export type LineKey = "Worked" | "Slipped" | "Changed" | "Learned" | "Next";
-export type FactTone = "good" | "warn" | "cat" | undefined;
+export type LineKey = "Worked" | "Slipped" | "Changed" | "Learned" | "Money" | "Mail" | "People" | "Health" | "Decided" | "Next";
+export type FactTone = "good" | "warn" | "red" | "cat" | undefined;
 // A count with no state is white (§AM's "a number with no state that must
 // stand out"): `parts` carries the fact with its counts split out, and the
 // page draws each count as a <b> inside the line's one grey. `text` is the
 // same words joined, for the key and the tests.
-export type FactPart = string | { b: string };
+export type { FactPart };
 export interface WeekFact { text: string; parts?: FactPart[]; tone?: FactTone; color?: string }
 // A line's key word takes a colour only when the word is a meaning (§AM):
 // Worked is done (green), Slipped and Next ask something of him soon
@@ -50,6 +60,12 @@ export interface WeekInputs {
   prevRows?: WindowRow[];
   /** True when the Move Two Blocks rule is already set; the offer stays quiet. */
   alreadyOffered?: boolean;
+  /** The life lines' sources (2026-09-26), all optional: a harness without
+   *  them gets the five lines it always had. */
+  tasks?: TaskItem[];
+  decisions?: DecisionRecordData[];
+  people?: DerivePerson[];
+  waitDays?: number;
 }
 
 export interface WeekReport {
@@ -80,23 +96,27 @@ const isWeekday = (iso: string): boolean => {
   return dow >= 1 && dow <= 5;
 };
 
-/** A fact's words with every count split out as a part of its own, so the
- *  page can draw the counts white and leave the words grey. */
-export function boldCounts(text: string): FactPart[] {
-  return text.split(/(\d+)/).filter((s) => s.length > 0).map((s) => (/^\d+$/.test(s) ? { b: s } : s));
-}
+/** A grey fact whose counts are white. */
+const plain = (text: string): WeekFact => ({ text, parts: boldCounts(text) });
+const plural = (n: number, one: string, many: string) => (n === 1 ? one : many);
 
 /** C-65: the warn fact for an area whose share moved against its usual. */
 export function vsUsual(pct: number, prevPct: number | null, minDelta = 5): string | null {
   if (prevPct === null) return null;
   if (Math.abs(pct - prevPct) < minDelta) return null;
-  return `${pct}% vs usual ${prevPct}%`;
+  return lineCase(`${pct}% vs usual ${prevPct}%`);
 }
 
 export function buildWeek(inp: WeekInputs): WeekReport {
   const days = weekDays(inp.today);
   const month = inp.today.slice(0, 7);
-  const seal = computeSeal(month, { rows: inp.rows, workouts: inp.workouts, goals: inp.goals, sealedAt: Date.now(), events: inp.events, days });
+  const seal = computeSeal(month, {
+    rows: inp.rows, workouts: inp.workouts, goals: inp.goals, sealedAt: Date.now(), events: inp.events, days,
+    ...(inp.tasks ? { tasks: inp.tasks } : {}),
+    ...(inp.decisions ? { decisions: inp.decisions } : {}),
+    ...(inp.people ? { people: inp.people } : {}),
+    ...(inp.waitDays != null ? { waitDays: inp.waitDays } : {}),
+  });
   const catById = new Map(inp.categories.map((c) => [c.id, c] as const));
   const inWeek = new Set(days);
   const rows = inp.rows.filter((r) => inWeek.has(r.day));
@@ -115,21 +135,21 @@ export function buildWeek(inp: WeekInputs): WeekReport {
   const total = scheduled + flexibleMin;
   const stack: WeekSegment[] | null = hr.length === 0 ? null : [
     ...hr.slice(0, 3).map((r) => ({
-      id: r.category, name: catById.get(r.category)?.name ?? "Everything else", color: catById.get(r.category)?.color ?? "graphite",
+      id: r.category, name: catById.get(r.category)?.name ?? "Everything Else", color: catById.get(r.category)?.color ?? "graphite",
       minutes: r.minutes, pct: total > 0 ? Math.round((r.minutes / total) * 100) : 0,
     })),
     { id: "open", name: "Open", color: "graphite", minutes: flexibleMin, pct: total > 0 ? Math.round((flexibleMin / total) * 100) : 0 },
   ];
 
-  // The five lines. At most one coloured fact per line (K.3); a category
+  // The lines. At most one coloured fact per line (K.3); a category
   // fact carries its own colour by rule and does not count.
   const lines: WeekLine[] = [];
   const picked = seal.byPick.reduce((a, p) => a + p.picked, 0);
   const landed = seal.byPick.reduce((a, p) => a + p.done, 0);
   const focusDays = new Set(rows.filter((r) => r.type === "focus.completed").map((r) => r.day)).size;
   const worked: WeekFact[] = [];
-  if (picked > 0) worked.push({ text: capAfterNumber(`${landed} of ${picked} plans landed`), tone: "good" });
-  if (focusDays > 0) worked.push({ text: capAfterNumber(`Focus held ${focusDays} ${focusDays === 1 ? "day" : "days"}`), tone: worked.length ? undefined : "good" });
+  if (picked > 0) worked.push({ text: lineCase(`${landed} of ${picked} plans landed`), tone: "good" });
+  if (focusDays > 0) worked.push({ text: lineCase(`Focus held ${focusDays} ${plural(focusDays, "day", "days")}`), tone: worked.length ? undefined : "good" });
   if (worked.length) lines.push({ key: "Worked", tone: "good", facts: worked });
 
   const slipTop = Object.entries(seal.pushedByCategory).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0];
@@ -140,7 +160,7 @@ export function buildWeek(inp: WeekInputs): WeekReport {
     const cat = catById.get(slipTop[0]);
     const slipped: WeekFact[] = [];
     if (cat) slipped.push({ text: cat.name, tone: "cat", color: cat.color });
-    slipped.push({ text: capAfterNumber(`${slipTop[1]} ${slipTop[1] === 1 ? "task" : "tasks"} pushed`), tone: "warn" });
+    slipped.push({ text: lineCase(`${slipTop[1]} ${plural(slipTop[1], "task", "tasks")} pushed`), tone: "warn" });
     lines.push({ key: "Slipped", tone: "warn", facts: slipped });
   }
 
@@ -148,8 +168,8 @@ export function buildWeek(inp: WeekInputs): WeekReport {
   const checkins = rows.filter((r) => r.type === "goal.checkin").length;
   const changed: WeekFact[] = [];
   // Blocks moved is the line's one grey; a check-in is logged, so green.
-  if (overrides > 0) changed.push({ text: capAfterNumber(`${overrides} ${overrides === 1 ? "block" : "blocks"} moved`) });
-  if (checkins > 0) changed.push({ text: capAfterNumber(`${checkins} ${checkins === 1 ? "check-in" : "check-ins"}`), tone: "good" });
+  if (overrides > 0) changed.push(plain(lineCase(`${overrides} ${plural(overrides, "block", "blocks")} moved`)));
+  if (checkins > 0) changed.push({ text: lineCase(`${checkins} ${plural(checkins, "check-in", "check-ins")}`), tone: "good" });
   if (changed.length) lines.push({ key: "Changed", tone: "quiet", facts: changed });
 
   const learnedN = seal.strands.created;
@@ -158,12 +178,52 @@ export function buildWeek(inp: WeekInputs): WeekReport {
   // neither takes a colour. The words are the line's one grey and the two
   // counts are white.
   const learnedWords = [
-    learnedN > 0 ? `${learnedN} new ${learnedN === 1 ? "fact" : "facts"}` : "",
-    starred > 0 ? `${starred} remembered` : "",
+    learnedN > 0 ? lineCase(`${learnedN} new ${plural(learnedN, "fact", "facts")}`) : "",
+    starred > 0 ? lineCase(`${starred} remembered`) : "",
   ].filter(Boolean).join(", ");
-  if (learnedWords) {
-    const text = capAfterNumber(learnedWords);
-    lines.push({ key: "Learned", tone: "quiet", facts: [{ text, parts: boldCounts(text) }] });
+  if (learnedWords) lines.push({ key: "Learned", tone: "quiet", facts: [plain(lineCase(learnedWords))] });
+
+  // THE LIFE LINES (2026-09-26), the report's cards at week scale. Each
+  // line is silent at zero; the coloured fact is the one with a meaning.
+  const b = seal.bills;
+  if (b && b.paid > 0) {
+    lines.push({ key: "Money", tone: "quiet", facts: [
+      { text: lineCase(`${b.paid} ${plural(b.paid, "bill", "bills")} paid`), tone: "good" },
+      { text: formatMoney(b.total), parts: [{ b: formatMoney(b.total) }] },
+    ] });
+  }
+  const m = seal.mail;
+  const wait = m ? waitFact(m.waitDays) : null;
+  if (m && (m.handled > 0 || wait)) {
+    const facts: WeekFact[] = [];
+    if (wait) facts.push(wait);
+    if (m.handled > 0) facts.push(plain(lineCase(`${m.handled} handled`)));
+    lines.push({ key: "Mail", tone: "quiet", facts });
+  }
+  const p = seal.people;
+  if (p) {
+    const quiet = p.quiet.map((id) => inp.people?.find((x) => x.id === id)?.name).filter((n): n is string => !!n);
+    if (p.reached > 0 || quiet.length > 0) {
+      const facts: WeekFact[] = [];
+      if (quiet.length > 0) facts.push({ text: `Gone Quiet: ${quiet.join(", ")}`, tone: "warn" });
+      if (p.reached > 0) facts.push(plain(lineCase(`${p.reached} reached`)));
+      lines.push({ key: "People", tone: "quiet", facts });
+    }
+  }
+  const t = seal.training;
+  if (t && seal.sessions > 0) {
+    const facts: WeekFact[] = [];
+    if (t.prs > 0) facts.push({ text: `${t.prs} ${plural(t.prs, "PR", "PRs")}`, tone: "good" });
+    facts.push(plain(lineCase(`${seal.sessions} ${plural(seal.sessions, "session", "sessions")}`)));
+    lines.push({ key: "Health", tone: "quiet", facts });
+  }
+  const d = seal.decisions;
+  if (d && (d.made > 0 || d.revisited > 0)) {
+    const facts: WeekFact[] = [];
+    if (d.worked > 0) facts.push({ text: lineCase(`${d.worked} worked`), tone: "good" });
+    if (d.made > 0) facts.push(plain(lineCase(`${d.made} made`)));
+    if (d.revisited > 0 && d.made === 0) facts.push(plain(lineCase(`${d.revisited} revisited`)));
+    lines.push({ key: "Decided", tone: "quiet", facts });
   }
 
   // Next: the live-goal area with the least of the week's hours, said as a
@@ -177,12 +237,17 @@ export function buildWeek(inp: WeekInputs): WeekReport {
     const least = [...goalAreas].sort((a, b) => minutesOf(a) - minutesOf(b) || a.localeCompare(b))[0]!;
     const cat = catById.get(least)!;
     next = { id: least, name: cat.name, color: cat.color };
-    nextFacts.push({ text: `${cat.name} ${hoursLabel(minutesOf(least))} of ${hoursLabel(scheduled)}`, tone: "cat", color: cat.color });
+    // The area is a dot and its name (a mark, §AK); the amount is its own
+    // fact, so the dot between them is drawn by CSS (F3). A zero reads
+    // "None of 3h 30m" (the lead, 2026-09-26), never "0 Min of".
+    const had = minutesOf(least);
+    nextFacts.push({ text: cat.name, tone: "cat", color: cat.color });
+    nextFacts.push({ text: `${had === 0 ? "None" : hoursLabel(had)} of ${hoursLabel(scheduled)}` });
     if (inp.prevRows) {
       const prevDays = weekDays(days[0]!, 8).slice(0, 7);
       const prevSeal = computeSeal(month, { rows: inp.prevRows, workouts: [], goals: inp.goals, sealedAt: Date.now(), events: inp.events, days: prevDays });
       const prevScheduled = Object.values(prevSeal.hours ?? {}).reduce((a, b) => a + b, 0);
-      const pct = Math.round((minutesOf(least) / scheduled) * 100);
+      const pct = Math.round((had / scheduled) * 100);
       const prevPct = prevScheduled > 0 ? Math.round(((prevSeal.hours?.[least] ?? 0) / prevScheduled) * 100) : null;
       const vs = vsUsual(pct, prevPct);
       if (vs) nextFacts.push({ text: vs, tone: "warn" });

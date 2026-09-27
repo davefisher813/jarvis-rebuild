@@ -4,6 +4,8 @@ import type { LightsOutEntry, TookItEntry, CallItEntry, PointAtItEntry, MealEntr
 import { formatSet } from "../gym/measures";
 import { checkInLine } from "../health/checkin";
 import { durationOf, workingSetsIn, inPeriod, type Period } from "./analytics";
+import { lineCase } from "../shared/casing";
+import { spanLabel } from "../shared/duration";
 
 // ALL DATA (the approved Health design, 2026-09-14, item 8): one list of
 // every record the app keeps about the person, in categories, with its
@@ -105,7 +107,7 @@ export function allRecords(inp: RecordInputs): DataRecord[] {
     const sets = w.data.exercises.reduce((n, ex) => n + workingSetsIn(ex), 0);
     out.push({
       id: "w-" + w.id, category: "workouts", date: w.data.date, at: w.data.endedAt,
-      title: w.data.dayName, value: `${d.activeMin} min`, detail: `${sets} ${sets === 1 ? "working set" : "working sets"}`,
+      title: w.data.dayName, value: spanLabel(d.activeMin), detail: lineCase(`${sets} ${sets === 1 ? "working set" : "working sets"}`),
       ...(d.flagged ? { review: "Duration needs review" } : {}),
       source: w.data.source ? "Imported" : "Logged by hand", hue: d.flagged ? "amber" : "lime", open: { kind: "workout", id: w.id },
     });
@@ -126,15 +128,15 @@ export function allRecords(inp: RecordInputs): DataRecord[] {
       const drops = ex.sets.filter((s) => !s.skipped && s.drop && !s.warmup);
       out.push({
         id: "s-" + w.id + "-" + ex.exerciseId, category: "sets", date: w.data.date, at: w.data.endedAt,
-        title: ex.name, value: `${working.length} ${working.length === 1 ? "set" : "sets"}`,
+        title: ex.name, value: lineCase(`${working.length} ${working.length === 1 ? "set" : "sets"}`),
         // `detail` stays the full listing: it is what the search reads, and a
         // lift found by typing "205" has to be findable whether or not its
         // table is open. The PAGE draws the table instead of this string.
         detail: working.map((s) => formatSet(ex, s)).join(", "),
         sets: [
-          ...working.map((s, i) => ({ label: `Set ${i + 1}`, text: formatSet(ex, s) })),
-          ...drops.map((s) => ({ label: "Drop", text: formatSet(ex, s), warm: true as const })),
-          ...ramp.map((s) => ({ label: "Warm-Up", text: formatSet(ex, s), warm: true as const })),
+          ...working.map((s, i) => ({ label: `Set ${i + 1}`, text: lineCase(formatSet(ex, s)) })),
+          ...drops.map((s) => ({ label: "Drop", text: lineCase(formatSet(ex, s)), warm: true as const })),
+          ...ramp.map((s) => ({ label: "Warm-Up", text: lineCase(formatSet(ex, s)), warm: true as const })),
         ],
         source: w.data.source ? "Imported" : "Logged by hand", hue: "lime", open: { kind: "workout", id: w.id },
       });
@@ -148,8 +150,8 @@ export function allRecords(inp: RecordInputs): DataRecord[] {
     const value = def.data.type === "yesno" ? (l.data.yes == null ? null : l.data.yes ? "Yes" : "No")
       : l.data.value == null ? null
       : def.data.type === "scale5" ? `${trim(l.data.value)}/5`
-      : def.data.type === "minutes" ? `${trim(l.data.value)} min`
-      : `${trim(l.data.value)}${def.data.unit ? " " + def.data.unit : ""}`;
+      : def.data.type === "minutes" ? (Number.isInteger(l.data.value) ? spanLabel(l.data.value) : `${trim(l.data.value)} Min`)
+      : lineCase(`${trim(l.data.value)}${def.data.unit ? " " + def.data.unit : ""}`);
     out.push({
       id: "m-" + l.id, category: cat, date: l.data.date, at: l.data.at,
       title: def.data.name, value, detail: null, source: "Logged by hand",
@@ -162,7 +164,7 @@ export function allRecords(inp: RecordInputs): DataRecord[] {
     const def = e.data.medId ? medById.get(e.data.medId) : undefined;
     out.push({ id: "ti-" + e.id, category: "medication", date: localDay(e.data.at), at: e.data.at, title: def?.data.name ?? "Dose", value: e.data.amount ?? def?.data.amount ?? null, detail: null, source: e.pending ? "Waiting to sync" : "Logged by hand", hue: "hblue", open: { kind: "tookIt", at: e.data.at, pending: e.pending } });
   }
-  for (const e of inp.callIt) out.push({ id: "ci-" + e.id, category: "effort", date: localDay(e.data.at), at: e.data.at, title: "Session Effort", value: `${e.data.rpe}/10`, detail: e.data.durationMin ? `${e.data.durationMin} min` : null, source: "Logged by hand", hue: "cyan", open: { kind: "callIt", at: e.data.at } });
+  for (const e of inp.callIt) out.push({ id: "ci-" + e.id, category: "effort", date: localDay(e.data.at), at: e.data.at, title: "Session Effort", value: `${e.data.rpe}/10`, detail: e.data.durationMin ? spanLabel(e.data.durationMin) : null, source: "Logged by hand", hue: "cyan", open: { kind: "callIt", at: e.data.at } });
   for (const e of inp.pointAtIt) {
     const words = [e.data.feel === "soreness" ? "Soreness" : e.data.feel === "pain" ? "Pain" : e.data.feel === "stiffness" ? "Stiffness" : null, e.data.level === "mild" ? "Mild" : e.data.level === "moderate" ? "Moderate" : e.data.level === "severe" ? "Severe" : null].filter(Boolean);
     out.push({ id: "pa-" + e.id, category: "effort", date: localDay(e.data.at), at: e.data.at, title: e.data.region ? `Discomfort · ${e.data.region}` : "Discomfort", value: words.length ? words.join(", ") : null, detail: e.data.note ?? null, source: "Logged by hand", hue: "pink", open: { kind: "pointAtIt", at: e.data.at } });

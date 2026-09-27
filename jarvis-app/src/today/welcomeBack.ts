@@ -1,3 +1,5 @@
+import { lineCase } from "../shared/casing";
+
 // DESIGNING FOR THE RETURN (E1, approved 2026-08-20).
 //
 // The abandonment research is consistent: people stop using apps like this
@@ -62,8 +64,8 @@ export function welcomeBack(
     title: "Welcome Back",
     // Never the pile. What is true, and what he no longer has to carry.
     gone: agedOut > 0
-      ? `${agedOut === 1 ? "One thing" : agedOut + " things"} aged out on their own`
+      ? lineCase(`${agedOut === 1 ? "One thing" : agedOut + " things"} aged out on their own`)
       : null,
-    ask: "Start with one?",
+    ask: "Start With One?",
   };
 }

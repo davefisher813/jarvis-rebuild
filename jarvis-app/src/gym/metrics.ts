@@ -23,6 +23,8 @@
 //     barcode scanner is built around it.
 
 import type { HueName } from "../health/hue";
+import { lineCase } from "../shared/casing";
+import { spanLabel } from "../shared/duration";
 
 export const ENTITY_METRIC_DEF = "metric_def";
 export const ENTITY_METRIC_LOG = "metric_log";
@@ -198,15 +200,17 @@ export function numericValue(def: Pick<MetricDefData, "type">, log: MetricLog | 
   return log.data.value;
 }
 
-/** The daily-strip line: "7.5 hrs", "3/5", "Yes", "Not logged yet". Never a
+/** The daily-strip line: "7.5 Hrs", "3/5", "Yes", "Not Logged Yet". Never a
  *  fabricated zero -- EMPTY IS LEGAL holds here exactly as it does for a set
- *  chip (Dave, 2026-08-31: "Wasn't all this supposed to be changed?"). */
+ *  chip (Dave, 2026-08-31: "Wasn't all this supposed to be changed?"). A
+ *  minutes metric takes the one duration shape ("20 Min", "1h 30m"), and the
+ *  line is Title Case by the whole rule (Dave 2026-09-26, the pass-off). */
 export function formatMetric(def: Pick<MetricDefData, "type" | "unit">, log: MetricLog | undefined): string {
-  if (def.type === "yesno") return log?.data.yes == null ? "Not logged yet" : (log.data.yes ? "Yes" : "No");
-  if (log?.data.value == null) return "Not logged yet";
+  if (def.type === "yesno") return log?.data.yes == null ? "Not Logged Yet" : (log.data.yes ? "Yes" : "No");
+  if (log?.data.value == null) return "Not Logged Yet";
   if (def.type === "scale5") return `${trim(log.data.value)}/5`;
-  if (def.type === "minutes") return `${trim(log.data.value)} min`;
-  return def.unit ? `${trim(log.data.value)} ${def.unit}` : trim(log.data.value);
+  if (def.type === "minutes") return Number.isInteger(log.data.value) ? spanLabel(log.data.value) : `${trim(log.data.value)} Min`;
+  return lineCase(def.unit ? `${trim(log.data.value)} ${def.unit}` : trim(log.data.value));
 }
 
 function trim(n: number): string {

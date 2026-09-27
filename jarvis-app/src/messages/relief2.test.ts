@@ -114,13 +114,14 @@ describe("commitment catcher", () => {
   it("states the promise without a word of judgement", () => {
     // The date reads the way every other date in the app reads (2026-08-25).
     // It used to print the ISO string at him.
+    // Casing sweep 3 (2026-09-27): Title Case by the whole rule (§H2); durations through shared/duration ("45 Min", "About 1 Min").
     const line = commitmentLine({ text: "Send the roster", due: "2026-08-14" }, "2026-08-12");
     // SPEC MOVED (short copy, 2026-08-15)
-    expect(line).toBe("Caught: Send the roster · By Friday");
+    expect(line).toBe("Caught: Send the Roster · By Friday");
     expect(commitmentLine({ text: "Send the roster", due: "2026-08-13" }, "2026-08-12"))
-      .toBe("Caught: Send the roster · By tomorrow");
+      .toBe("Caught: Send the Roster · By Tomorrow");
     expect(commitmentLine({ text: "Send the roster", due: "2026-09-30" }, "2026-08-12"))
-      .toBe("Caught: Send the roster · By Sep 30");
+      .toBe("Caught: Send the Roster · By Sep 30");
     for (const w of ["forgot", "remember", "don't", "again", "promised you"]) {
       expect(line.toLowerCase()).not.toContain(w);
     }
@@ -134,7 +135,7 @@ describe("parseCommitment: a proposed day (E-31)", () => {
     const c = parseCommitment('{"text":"Send the roster","due":"next week"}', "2026-08-05")!;
     expect(c.due).toBeUndefined();
     expect(c.proposedDate).toBe("next week");
-    expect(commitmentLine(c, "2026-08-05")).toBe("Caught: Send the roster · next week (proposed)");
+    expect(commitmentLine(c, "2026-08-05")).toBe("Caught: Send the Roster · Next Week (Proposed)");
   });
   it("a real date is still a due date, and never both", () => {
     const c = parseCommitment('{"text":"Send the roster","due":"2026-08-14"}', "2026-08-05")!;

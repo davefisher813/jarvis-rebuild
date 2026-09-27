@@ -50,7 +50,8 @@ describe("correlate", () => {
     expect(insight!.deltaDiff).toBeGreaterThan(0);
     // The caveat closes the sentence in sentence case (2026-09-26): a capital
     // inside a mid-sentence parenthetical broke the line's casing.
-    expect(insight!.line).toMatch(/ \(correlation, not cause\)$/);
+    // Casing sweep 1 (2026-09-26): Title Case by the whole rule (§H2), units spelled "Min".
+    expect(insight!.line).toMatch(/ \(Correlation, Not Cause\)$/);
   });
 
   it("a metric with no split available (everyone the same) never renders a link", () => {

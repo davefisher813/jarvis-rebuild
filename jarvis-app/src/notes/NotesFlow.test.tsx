@@ -90,7 +90,9 @@ describe("NotesFlow: the document saves as it changes (the writing system)", () 
     await act(async () => { typeInto(pm, "Groceries for the week"); });
     await waitFor(async () => expect((await svc.note(id))!.doc).toBeTruthy(), { timeout: 4000 });
     fireEvent.click(screen.getByText("Notes", { selector: "button" }));
-    expect(await screen.findByText("Groceries for the week", {}, { timeout: 4000 })).toBeInTheDocument();
+    // AMENDED 2026-09-26 (pass-off): a row name is shown in Title Case, the
+    // first-line fallback included; the stored line is untouched.
+    expect(await screen.findByText("Groceries for the Week", {}, { timeout: 4000 })).toBeInTheDocument();
   });
 });
 
@@ -223,7 +225,8 @@ describe("NotesFlow: Add Link on a bad connection (HMN-F-20)", () => {
       await openNoteWith([{ type: "text", text: "" }]);
       fireEvent.click(screen.getByLabelText("Link Something"));
       expect(await screen.findByText("Add Link", {}, { timeout: 4000 })).toBeInTheDocument();
-      await waitFor(() => expect(seen.some((m) => m.startsWith("Couldn't load"))).toBe(true));
+      // Casing sweep 3 (2026-09-27): Title Case by the whole rule (§H2); durations through shared/duration ("45 Min", "About 1 Min").
+      await waitFor(() => expect(seen.some((m) => m.startsWith("Couldn't Load"))).toBe(true));
     } finally {
       stop();
       vi.restoreAllMocks();

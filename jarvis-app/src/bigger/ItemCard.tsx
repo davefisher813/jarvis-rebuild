@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 import { ChevronLeft, ChevronRight, Target } from "../shared/icons";
 import { FolderOpenGlyph } from "../shared/glyphs";
 import { catColor } from "../shared/categories";
+import { titleCase } from "../shared/casing";
 
 // ---------------------------------------------------------------------------
 // THE CARD (Dave 2026-09-18, with an approved mockup: "Follow Apple Music's
@@ -100,7 +101,9 @@ export default function ItemCard({
           the square at every text size, so a long name ellipses cleanly and
           the count and bar sit at the same height on every card in the row.
           The type does not shrink. */}
-      <div className="bp-card-title">{title}</div>
+      {/* His typed title, SHOWN in Title Case (Dave's pass-off, 2026-09-26),
+          as the ruled row draws it; the record keeps his typing. */}
+      <div className="bp-card-title">{titleCase(title)}</div>
 
       <div className="bp-card-foot">
         {lead && <div className="bp-card-lead">{lead}</div>}

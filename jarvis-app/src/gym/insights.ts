@@ -6,7 +6,7 @@ import { numericValue, type MetricDef, type MetricLog } from "./metrics";
 import { MUSCLE_GROUPS, HARD_SET_RANGE, type MuscleGroup, type PublishedRange } from "./muscles";
 import { readClass } from "./classify";
 import { daysBetween } from "../upnext/upnext";
-import { capAfterNumber } from "../shared/casing";
+import { lineCase } from "../shared/casing";
 
 // THE HONEST VERSION, D11-C + D13-C (Training Catalog V2, approved
 // 2026-08-31). The realism line given to Dave and kept literally: WHEN is
@@ -145,7 +145,7 @@ export function correlate(sessions: LiftSession[], kind: MeasureKind, exerciseNa
   const higherLabel = isYesNo ? def.data.name : `higher ${def.data.name}`;
   const lowerLabel = isYesNo ? `no ${def.data.name}` : `lower ${def.data.name}`;
   const sign = deltaDiff >= 0 ? "+" : "";
-  const line = capAfterNumber(
+  const line = lineCase(
     `${sign}${round1(deltaDiff)} per session on ${higherLabel} days vs ${lowerLabel}, over ${pairs.length} paired sessions (correlation, not cause)`,
   );
   const evidence: Evidence = {
@@ -200,6 +200,27 @@ function setsOn(workouts: Workout[], lift: LiftLike, date: string): number | nul
     total = (total ?? 0) + ex.sets.filter((s) => !s.skipped && !s.warmup && !s.drop && scoreOf(ex.kind, s)).length;
   }
   return total;
+}
+
+/**
+ * THE ESTIMATE'S RECEIPT (pass-off item 7, 2026-09-26; Dave: "rendered nice
+ * and clean and simple"). The lift page's Trend card states the Epley
+ * estimate and what it did over the chart's window, and nothing else; the
+ * method and the caveat that used to ride the caption and a second capsule
+ * sit here, one tap away behind the card's Evidence, the same rows every
+ * other finding opens. The no-predicted-max rule stands: this names what the
+ * number is NOT, and no screen reads it as a weight to attempt.
+ */
+export function estimateEvidence(sessions: LiftSession[]): Evidence {
+  return {
+    label: "Observation",
+    from: sessions[0]?.date ?? "",
+    to: sessions[sessions.length - 1]?.date ?? "",
+    records: sessions.length,
+    method: "Epley, from each session's best set: weight × (1 + reps ÷ 30)",
+    supports: "How strength is moving across rep ranges",
+    doesNot: "A tested max, or a weight to attempt",
+  };
 }
 
 /**

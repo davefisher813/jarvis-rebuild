@@ -142,13 +142,14 @@ describe("projectPaceParts", () => {
   const p = (done: number, total: number) => ({ done, total, pct: Math.round((done / total) * 100) });
 
   it("splits the count from the date, each with the key's meaning", () => {
-    expect(projectPaceParts(p(7, 8), "2026-09-01", "2026-09-05")).toEqual({ count: "1 of 8 Left", when: "Past its date", tone: "red" });
-    expect(projectPaceParts(p(7, 8), "2026-09-05", "2026-09-05")).toEqual({ count: "1 of 8 Left", when: "Due today", tone: "warn" });
-    expect(projectPaceParts(p(7, 8), "2026-09-06", "2026-09-05")).toEqual({ count: "1 of 8 Left", when: "Due tomorrow", tone: "warn" });
+    // Casing sweep 2 (2026-09-27): Title Case by the whole rule (§H2); durations through shared/duration ("45 Min", "1h 30m").
+    expect(projectPaceParts(p(7, 8), "2026-09-01", "2026-09-05")).toEqual({ count: "1 of 8 Left", when: "Past Its Date", tone: "red" });
+    expect(projectPaceParts(p(7, 8), "2026-09-05", "2026-09-05")).toEqual({ count: "1 of 8 Left", when: "Due Today", tone: "warn" });
+    expect(projectPaceParts(p(7, 8), "2026-09-06", "2026-09-05")).toEqual({ count: "1 of 8 Left", when: "Due Tomorrow", tone: "warn" });
     // The rate is arithmetic the app did: an estimate, sky.
-    expect(projectPaceParts(p(2, 8), "2026-09-08", "2026-09-05")).toEqual({ count: "6 of 8 Left", when: "About 2 a day from here", tone: "est" });
+    expect(projectPaceParts(p(2, 8), "2026-09-08", "2026-09-05")).toEqual({ count: "6 of 8 Left", when: "About 2 a Day from Here", tone: "est" });
     // A date further off than the work needs means nothing yet: a neutral date.
-    expect(projectPaceParts(p(5, 8), "2026-09-15", "2026-09-05")).toEqual({ count: "3 of 8 Left", when: "Due in 10 days", tone: "date" });
+    expect(projectPaceParts(p(5, 8), "2026-09-15", "2026-09-05")).toEqual({ count: "3 of 8 Left", when: "Due in 10 Days", tone: "date" });
   });
 
   it("bakes no separator into either part", () => {

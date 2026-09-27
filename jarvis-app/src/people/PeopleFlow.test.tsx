@@ -236,7 +236,8 @@ describe("importing a file with a same-name stranger in it", () => {
     await drop(VCF);
     // Not "skipping 1 already here": a row waiting on an answer is something
     // to check, and saying otherwise was the lie the old preview told.
-    expect(screen.getByText("1 To check")).toBeInTheDocument();
+    // Casing sweep 1 (2026-09-26): Title Case by the whole rule (§H2), units spelled "Min".
+    expect(screen.getByText("1 to Check")).toBeInTheDocument();
     expect(screen.getByText("John Smith is already a name you have")).toBeInTheDocument();
     // Both answers are on offer, and neither has happened yet.
     expect(screen.getByText("Someone New")).toBeInTheDocument();
@@ -276,7 +277,7 @@ describe("importing a file with a same-name stranger in it", () => {
 
     // Same person, same number, written differently: recognized, nothing new.
     await drop(["BEGIN:VCARD", "FN:Linda Fisher", "TEL:+1 (555) 010-3311", "END:VCARD"].join("\r\n"));
-    expect(screen.getByText("1 Already current")).toBeInTheDocument();
+    expect(screen.getByText("1 Already Current")).toBeInTheDocument();
   });
 });
 
@@ -300,7 +301,7 @@ describe("a CSV whose headers mean nothing to the parser", () => {
     await drop("Handle,Digits\nLinda Fisher,555-010-3311");
     await waitFor(() => expect(screen.getByText("Which Column Is Which")).toBeInTheDocument());
     // A missing field is not a parse failure: the file read fine.
-    expect(screen.queryByText(/Couldn't read that file/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Couldn't Read That File/)).not.toBeInTheDocument();
     expect(screen.getByText("Handle")).toBeInTheDocument();
     expect(screen.getByText("Digits")).toBeInTheDocument();
   });
@@ -330,7 +331,7 @@ describe("a CSV whose headers mean nothing to the parser", () => {
   it("still calls a file with nothing in it unreadable", async () => {
     mount("m4");
     await drop("", "empty.csv");
-    await waitFor(() => expect(screen.getByText(/Couldn't read that file/)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/Couldn't Read That File/)).toBeInTheDocument());
   });
 });
 
@@ -355,7 +356,8 @@ describe("clearing a number that is in the notes and the field both", () => {
 
   it("offers to clear it, says where it came from, and clears in one tap", async () => {
     await withBoth("d1", "Mom", "2035361094", "2035361094");
-    expect(await screen.findByText("One contact has their own number in their notes as well")).toBeInTheDocument();
+    // Casing sweep 3 (2026-09-27): Title Case by the whole rule (§H2); durations through shared/duration ("45 Min", "About 1 Min").
+    expect(await screen.findByText("One Contact Has Their Own Number in Their Notes as Well")).toBeInTheDocument();
     expect(screen.getByText("Left there by an old import")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Clear Them" }));
     await waitFor(() => {
@@ -364,7 +366,7 @@ describe("clearing a number that is in the notes and the field both", () => {
     // It says what it did and hands back the way out: a bulk edit to
     // someone's own writing is not something to do without a way back.
     const last = toasts[toasts.length - 1]!;
-    expect(last.message).toBe("1 Note tidied");
+    expect(last.message).toBe("1 Note Tidied");
     expect(last.actionLabel).toBe("Undo");
   });
 

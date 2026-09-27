@@ -42,6 +42,7 @@ describe("LightsOutScreen: sleep from last night", () => {
     fireEvent.change(screen.getByLabelText("Night ending"), { target: { value: "2026-09-13" } });
     fireEvent.click(screen.getByText("Save Sleep"));
     expect(onLogSleep).toHaveBeenCalledWith(7.75, "2026-09-13");
-    expect(screen.getByText("8 hrs")).toBeInTheDocument();
+    // Casing sweep 1 (2026-09-26): Title Case by the whole rule (§H2), units spelled "Min".
+    expect(screen.getByText("8h")).toBeInTheDocument();
   });
 });

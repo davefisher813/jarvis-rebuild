@@ -162,7 +162,8 @@ function SeedLinked() {
 describe("BiggerPictureFlow delete Undo (LIFE-F-25)", () => {
   it("puts the project back with its work still filed under it", async () => {
     let undo: (() => void) | undefined;
-    const stop = subscribeToast((t) => { if (t?.message === "Project deleted") undo = t.onAction; });
+    // Casing sweep 2 (2026-09-27): Title Case by the whole rule (§H2); durations through shared/duration ("45 Min", "1h 30m").
+    const stop = subscribeToast((t) => { if (t?.message === "Project Deleted") undo = t.onAction; });
     try {
       render(<NotesProvider userId="u-undo-f25"><SeedLinked /></NotesProvider>);
       fireEvent.click(await screen.findByText("Edit"));
@@ -209,7 +210,7 @@ function SeedAchieve() {
 describe("BiggerPictureFlow Mark Achieved (LIFE-F-16)", () => {
   it("offers an Undo that puts the goal back and clears the achieved date", async () => {
     let undo: (() => void) | undefined;
-    const stop = subscribeToast((t) => { if (t?.message === "Goal achieved") undo = t.onAction; });
+    const stop = subscribeToast((t) => { if (t?.message === "Goal Achieved") undo = t.onAction; });
     try {
       render(<NotesProvider userId="u-achieve-f16"><SeedAchieve /></NotesProvider>);
       fireEvent.click(await screen.findByText("Mark Achieved"));
@@ -225,7 +226,7 @@ describe("BiggerPictureFlow Mark Achieved (LIFE-F-16)", () => {
         expect(g?.data.achievedOn ?? null).toBeNull();
       });
       // and the celebration is gone with it
-      await waitFor(() => expect(screen.queryByText("Goal achieved")).not.toBeInTheDocument());
+      await waitFor(() => expect(screen.queryByText("Goal Achieved")).not.toBeInTheDocument());
     } finally {
       stop();
     }
@@ -292,7 +293,7 @@ describe("BiggerPictureFlow step length (2026-09-11)", () => {
     fireEvent.click(await screen.findByText("Sort the shelves"));
     await screen.findByText("Edit Task");
     const length = screen.getByLabelText("Length");
-    expect(length.textContent).toContain("30m");
+    expect(length.textContent).toContain("30 Min");
     fireEvent.click(length);
     fireEvent.click(screen.getByRole("menuitemradio", { name: /^1h 30m$/ }));
     fireEvent.click(screen.getByText("Save"));

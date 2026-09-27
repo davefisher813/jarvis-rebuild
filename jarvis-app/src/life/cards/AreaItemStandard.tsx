@@ -1,7 +1,7 @@
 import { catIcon } from "../../categories/icons";
 import type { ColorSlot } from "../../categories/types";
 import { pressable } from "../../shared/pressable";
-import { capAfterNumber } from "../../shared/casing";
+import { lineCase } from "../../shared/casing";
 
 // AREAS TAB (2026-09-16). Restyled to Dave's reference the same day (his
 // screenshot of the ChatGPT mock: "I love the new style for the life areas
@@ -13,10 +13,10 @@ import { capAfterNumber } from "../../shared/casing";
 export interface AreaCounts { taskCount: number; goalCount: number; projectCount: number }
 export interface AreaSummary { id: string; name: string; color: ColorSlot; icon?: string }
 
-// Cased the way the Health card beside it says "5 Sections" (capAfterNumber).
+// Cased the way the Health card beside it says "5 Sections" (lineCase).
 function statLine(n: number, singular: string, plural: string): string | null {
   if (n <= 0) return null;
-  return capAfterNumber(`${n} ${n === 1 ? singular : plural}`);
+  return lineCase(`${n} ${n === 1 ? singular : plural}`);
 }
 
 export default function AreaItemStandard({ area, counts, onOpen }: {

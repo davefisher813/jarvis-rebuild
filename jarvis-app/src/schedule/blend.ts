@@ -162,17 +162,17 @@ export function fitScore(
   // spent otherwise.
   if ((kind === "moving" || kind === "waiting") && d === "voice") {
     score += 6;
-    why = kind === "moving" ? "You can do this while you move" : "Fits the wait";
+    why = kind === "moving" ? "You Can Do This While You Move" : "Fits the Wait";
   } else if (kind === "physical" && d === "voice") {
     score += 3;
-    why = "Hands free";
+    why = "Hands Free";
   }
 
   // Learned: this category has landed in this kind of block before.
   const seen = mem[memKey(kind, task.category)] ?? 0;
   if (seen >= LEARNED_AT) {
     score += 4;
-    if (!why) why = "This usually goes here";
+    if (!why) why = "This Usually Goes Here";
   } else if (seen === 1) {
     score += 1;
   }
@@ -182,18 +182,18 @@ export function fitScore(
   // to be worth a point.
   if (task.category && e.category && task.category === e.category) {
     score += 3;
-    if (!why) why = "Same as this block";
+    if (!why) why = "Same as This Block";
   }
 
   // A deep block is for things that take a head, which is exactly the set
   // that is NOT a two-minute phone call.
   if (kind === "deep" && d === "hands") {
     score += 3;
-    if (!why) why = "Real work, real block";
+    if (!why) why = "Real Work, Real Block";
   }
 
   if (score <= 0) return null;
-  return { task, score, why: why || "Fits here" };
+  return { task, score, why: why || "Fits Here" };
 }
 
 // The ranked offer. Excluded tasks never appear; done tasks and tasks already

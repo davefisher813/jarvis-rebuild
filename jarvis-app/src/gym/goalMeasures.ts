@@ -1,7 +1,7 @@
 import type { Workout, WorkoutExercise, MeasureKind, SetLog } from "./types";
 import { scoreOf, has, fieldsFor, toLb, LB_PER_KG } from "./measures";
 import { liftRef, sameLift, sameLiftAnyKind, type LiftLike } from "./identity";
-import { capAfterNumber } from "../shared/casing";
+import { lineCase } from "../shared/casing";
 
 // GOALS ON THE BAR, D12-A/C (Training Catalog V2, approved 2026-08-31).
 //
@@ -166,14 +166,16 @@ function bestToward(kind: MeasureKind, target: Pick<SetLog, "w" | "r" | "v" | "t
  *  because the number alone ("205 of 225") would silently drop the rep
  *  floor the goal actually asked for. */
 function liftLine(m: LiftMeasure, done: number, target: number, met: boolean): string {
+  // Cased by the whole rule (2026-09-26, pass-off item 8): "310 of 325 Lb
+  // at 1+ Reps", "325 Lb at 1+ Reps -- Hit It".
   const u = m.unit ? ` ${m.unit}` : "";
   if (m.measureKind === "weight_reps") {
     const reps = m.target.r != null ? ` at ${m.target.r}+ reps` : "";
     return met
-      ? capAfterNumber(`${target}${u}${reps} -- hit it`)
-      : capAfterNumber(`${done} of ${target}${u}${reps}`);
+      ? lineCase(`${target}${u}${reps} -- hit it`)
+      : lineCase(`${done} of ${target}${u}${reps}`);
   }
-  return met ? capAfterNumber(`${target}${u} -- hit it`) : capAfterNumber(`${done} of ${target}${u}`);
+  return met ? lineCase(`${target}${u} -- hit it`) : lineCase(`${done} of ${target}${u}`);
 }
 
 /**
@@ -256,6 +258,6 @@ export function trainingMeasureState(m: TrainingMeasure, workouts: Workout[], no
   return {
     done, target, met,
     pct: Math.min(100, Math.round((done / target) * 100)),
-    line: capAfterNumber(`${done} of ${target} ${per}`),
+    line: lineCase(`${done} of ${target} ${per}`),
   };
 }

@@ -83,8 +83,9 @@ describe("YourDay", () => {
     // estimate are separate runs, so each can wear its own ink. The count is
     // a number with no state, a white <b>; the estimate is the app's own
     // arithmetic, sky.
-    expect(screen.getByText("6 exercises").tagName).toBe("B");
-    expect(screen.getByText("Est 42 min")).toHaveClass("fact", "est");
+    // Casing sweep 2 (2026-09-27): Title Case by the whole rule (§H2); durations through shared/duration ("45 Min", "1h 30m").
+    expect(screen.getByText("6 Exercises").tagName).toBe("B");
+    expect(screen.getByText("Est 42 Min")).toHaveClass("fact", "est");
     fireEvent.click(screen.getByRole("button", { name: "Start Push Day" }));
     expect(started).toBe(1);
   });

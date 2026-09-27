@@ -73,11 +73,11 @@ export default function NotificationsPage({ onBack }: { onBack: () => void }) {
     const p: Promise<string> = web === "on" ? disableWebPush(deps).then((ok) => (ok ? "off" : "failed")) : enableWebPush(deps);
     void p.then((r) => {
       setWebBusy(false);
-      if (r === "denied") showToast({ message: "Notifications are off for JARVIS in iOS Settings" });
-      else if (r === "dismissed") showToast({ message: "Not allowed yet · Turn it on whenever you are ready" });
-      else if (r === "no-key") showToast({ message: "The server has no push key yet" });
-      else if (r === "failed") showToast({ message: "Could not change alerts on this phone · Try again" });
-      else if (r === "unauthenticated") showToast({ message: "Sign in again to set up alerts" });
+      if (r === "denied") showToast({ message: "Notifications Are Off for JARVIS in iOS Settings" });
+      else if (r === "dismissed") showToast({ message: "Not Allowed Yet · Turn It on Whenever You Are Ready" });
+      else if (r === "no-key") showToast({ message: "The Server Has No Push Key Yet" });
+      else if (r === "failed") showToast({ message: "Could Not Change Alerts on This Phone · Try Again" });
+      else if (r === "unauthenticated") showToast({ message: "Sign in Again to Set Up Alerts" });
       readWeb();
     });
   };
@@ -87,7 +87,7 @@ export default function NotificationsPage({ onBack }: { onBack: () => void }) {
     setWebTesting(true);
     const r = await sendTestAlert(deps);
     setWebTesting(false);
-    showToast({ message: r === "sent" ? "Test alert sent · Lock the phone to see it" : r === "unauthenticated" ? "Sign in again to send a test" : "The server could not send a test alert" });
+    showToast({ message: r === "sent" ? "Test Alert Sent · Lock the Phone to See It" : r === "unauthenticated" ? "Sign in Again to Send a Test" : "The Server Could Not Send a Test Alert" });
   };
   // THE REMINDERS REBUILD (push D): "morning" is one setting for the whole
   // app (every Tomorrow Morning shortcut means it), and a test send shows
@@ -100,7 +100,7 @@ export default function NotificationsPage({ onBack }: { onBack: () => void }) {
     setTesting(true);
     const r = await sendTestReminder();
     setTesting(false);
-    showToast({ message: r === "sent" ? `Test reminder in ${TEST_REMINDER_DELAY_S} seconds · Lock the phone to see it` : r === "denied" ? "Notifications are off for JARVIS in iOS Settings" : "Test reminders need the phone app" });
+    showToast({ message: r === "sent" ? `Test Reminder in ${TEST_REMINDER_DELAY_S} Seconds · Lock the Phone to See It` : r === "denied" ? "Notifications Are Off for JARVIS in iOS Settings" : "Test Reminders Need the Phone App" });
   };
   return (
     <div className="screen ruled">

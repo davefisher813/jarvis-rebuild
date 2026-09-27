@@ -2,6 +2,8 @@ import type { Workout, WorkoutData, WorkoutExercise } from "../gym/types";
 import type { MetricDef, MetricLog } from "../gym/metrics";
 import { scoreOf, loadStyleOf } from "../gym/measures";
 import { daysBetween } from "../upnext/upnext";
+import { hoursLabel as sharedHours } from "../shared/duration";
+import { lineCase } from "../shared/casing";
 
 // THE ONE SET OF DEFINITIONS (the approved Health design, 2026-09-14, item
 // 10: "Use shared calculation logic across the landing page, Insights,
@@ -156,12 +158,11 @@ export function periodOverview(workouts: Workout[], sleepDef: MetricDef | null, 
   return { period: p, workouts: count, workingSets: sets, trainingMin: min, days, sleep: sleepNights(sleepDef, logs, p), flagged };
 }
 
-/** "7h 24m" from hours; "45m" under an hour. */
+/** "7h 24m" from hours; "30 Min" under an hour: the one duration shape
+ *  (shared/duration.ts, Dave 2026-09-26), kept under this name for its
+ *  callers. */
 export function hoursLabel(hours: number): string {
-  const h = Math.floor(hours);
-  const m = Math.round((hours - h) * 60);
-  if (h === 0) return `${m}m`;
-  return m ? `${h}h ${m}m` : `${h}h`;
+  return sharedHours(hours);
 }
 
 /** Mon, Tue, ... for a local ISO day. */
@@ -236,7 +237,7 @@ export function liftTable(workouts: Workout[], lift: { name: string; exerciseKey
     if (!ex || ex.skipped) continue;
     const logged = ex.sets.filter((s) => !s.skipped);
     if (logged.length === 0) continue;
-    out.push({ workoutId: w.id, date: w.data.date, working: workingSetsIn(ex), sets: logged.map((s) => formatSet(ex, s) + (s.warmup ? " (warm-up)" : s.drop ? " (drop)" : "")) });
+    out.push({ workoutId: w.id, date: w.data.date, working: workingSetsIn(ex), sets: logged.map((s) => lineCase(formatSet(ex, s) + (s.warmup ? " (warm-up)" : s.drop ? " (drop)" : ""))) });
   }
   return out.sort((a, b) => b.date.localeCompare(a.date));
 }

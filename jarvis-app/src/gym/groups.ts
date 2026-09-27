@@ -114,6 +114,29 @@ export function nextInGroup(
   return best.id;
 }
 
+/** WHOSE TURN IT IS, ROUND COMPLETE OR NOT (2026-09-26, the workout logging
+ *  pass-off). nextInGroup answers only while a member is BEHIND, which is
+ *  right for the rest (a complete round rests) and wrong for the bar's Next:
+ *  after A2's first set the counts are level, and "stay put" sent Next down
+ *  the day's list instead of back to A1 for set 2. This is the same
+ *  rotation with the level case answered: the next member after this one,
+ *  in day order and wrapping, that still has work in it. Null when nobody
+ *  has, or outside a group. */
+export function nextTurnInGroup(
+  exercise: Exercise,
+  exercises: Exercise[],
+  logged: Record<string, number>,
+): string | null {
+  const behind = nextInGroup(exercise, exercises, logged);
+  if (behind) return behind;
+  const members = groupOf(exercise, exercises).filter((e) => !e.filler);
+  if (members.length < 2) return null;
+  const i = members.findIndex((e) => e.id === exercise.id);
+  if (i < 0) return null;
+  const order = [...members.slice(i + 1), ...members.slice(0, i)];
+  return order.find((e) => (logged[e.id] ?? 0) < e.sets.length)?.id ?? null;
+}
+
 /** Put `ids` (plus `anchorId`) into one group, dropping whatever grouping any
  *  of them had. Two ids is a pair, three is a tri-set, and the code path is
  *  the same one. A legacy `pairWith` on anyone joining is cleared on both

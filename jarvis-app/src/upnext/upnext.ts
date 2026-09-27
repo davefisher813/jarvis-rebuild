@@ -1,4 +1,5 @@
 import type { TaskItem } from "../tasks/TasksService";
+import { lineCase } from "../shared/casing";
 
 // Up Next: the one-card engine (ADHD strategy Phase 1). Pure and deterministic:
 // given the task list and "today", produce the single best next task, the
@@ -45,6 +46,8 @@ export function pickNext(tasks: TaskItem[], today: string, skipped: string[] = [
 
 // The one-line "why this card" (design law: every automatic pick is explained).
 // No shame vocabulary: an overdue task has been "waiting", it is never "OVERDUE".
+// Facts on the card, so Title Case by the whole rule ("Due in 3 Days";
+// Dave 2026-09-26).
 export function reasonFor(t: TaskItem, today: string, inPeak: boolean): string {
   const parts: string[] = [];
   const due = t.data.due;
@@ -58,7 +61,7 @@ export function reasonFor(t: TaskItem, today: string, inPeak: boolean): string {
     parts.push("No deadline");
   }
   if (inPeak) parts.push("your focus peak");
-  return parts.join(" · ");
+  return lineCase(parts.join(" · "));
 }
 
 // Quick Wins: a short run off the top of the deck. Same honest ranking, capped;

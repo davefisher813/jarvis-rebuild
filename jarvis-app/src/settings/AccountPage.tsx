@@ -79,7 +79,7 @@ export default function AccountPage({ onBack, onEditProfile, onSignOut }: { onBa
     if (!file) return;
     let next: string;
     try { next = await avatarFromFile(file); } catch {
-      showToast({ message: "Couldn't read that photo · Try another" });
+      showToast({ message: "Couldn't Read That Photo · Try Another" });
       return;
     }
     await savePhoto(next);
@@ -87,7 +87,7 @@ export default function AccountPage({ onBack, onEditProfile, onSignOut }: { onBa
   const removePhoto = async () => {
     const was = photo;
     if (!(await savePhoto(""))) return;
-    showToast({ message: "Photo removed", actionLabel: "Undo", onAction: () => { void savePhoto(was); } });
+    showToast({ message: "Photo Removed", actionLabel: "Undo", onAction: () => { void savePhoto(was); } });
   };
   const initial = (p?.name?.trim()?.[0] ?? "?").toUpperCase();
   const tmpl = p?.template ? p.template[0]!.toUpperCase() + p.template.slice(1) : "Personal";

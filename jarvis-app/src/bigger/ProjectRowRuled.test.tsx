@@ -23,7 +23,8 @@ describe("ProjectRowRuled", () => {
     expect(row.classList.contains("goal-row-ruled")).toBe(true);
     expect(row.querySelector(".gm-slot")).toBeTruthy();
     expect(row.querySelector(".r-next-k")?.textContent).toBe("Next");
-    expect(row.querySelector(".r-next-v")?.textContent).toBe("Finalize details");
+    // AMENDED 2026-09-26 (pass-off): his typed step is SHOWN in Title Case.
+    expect(row.querySelector(".r-next-v")?.textContent).toBe("Finalize Details");
     expect(row.querySelector(".goal-meter")?.textContent).toContain("3 of 4 Done");
     expect(row.querySelector(".gstat")?.textContent).toBe("On Track");
     expect(row.querySelector(".bp-bar")).toBeTruthy();

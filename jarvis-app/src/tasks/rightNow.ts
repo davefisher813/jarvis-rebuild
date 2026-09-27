@@ -1,6 +1,7 @@
 import type { TaskItem } from "./TasksService";
 import { theOneThing } from "./overwhelmed";
-import { capAfterNumber } from "../shared/casing";
+import { lineCase } from "../shared/casing";
+import { minutesLabel } from "../shared/duration";
 
 // RIGHT NOW (the button round, filtered through the research 2026-08-21).
 //
@@ -63,5 +64,5 @@ export function rightNow(
 // about finishing it: fifteen minutes is a start, and promising completion is
 // how a small ask becomes a big one.
 export function rightNowLine(r: RightNow): string {
-  return capAfterNumber(`${r.minutes} minutes on it, starting now`);
+  return lineCase(`${minutesLabel(r.minutes)} on it, starting now`);
 }

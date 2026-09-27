@@ -247,7 +247,8 @@ describe("DeckFlow progress bar", () => {
     expect(await screen.findByText("Alpha")).toBeInTheDocument();
     await waitFor(() => expect(screen.queryByText("Reading it...")).not.toBeInTheDocument());
     // ai unavailable = no plan = open and reply, honestly the slowest.
-    expect(container.querySelector(".sweep-cost")!.textContent).toBe("~1 min");
+    // Casing sweep 3 (2026-09-27): Title Case by the whole rule (§H2); durations through shared/duration ("45 Min", "About 1 Min").
+    expect(container.querySelector(".sweep-cost")!.textContent).toBe("About 1 Min");
   });
 
   it("deals a hand of at most nine, whatever the pile holds (3A)", async () => {

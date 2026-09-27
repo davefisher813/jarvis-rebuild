@@ -2,7 +2,7 @@ import type { TaskItem } from "./TasksService";
 import { rankOpen, daysBetween } from "../upnext/upnext";
 import { blockerOf } from "./startAction";
 import { sessionHasWork, type Sessions } from "./startStore";
-import { capAfterNumber } from "../shared/casing";
+import { lineCase } from "../shared/casing";
 
 // WHICH ONE, AND WHY (Start Now, 2026-09-16, Dave: "No unexplained huge Pick
 // One button").
@@ -96,11 +96,11 @@ export function topPick(
  * Every word of it can be pointed at: work he saved, or a date he set.
  */
 export function startReason(pick: TopPick, today: string): string {
-  if (pick.resuming) return "You were already working on it";
+  if (pick.resuming) return "You Were Already Working on It";
   const due = pick.task.data.due;
   if (!due) return "";
   const d = daysBetween(today, due);
-  if (d < 0) return capAfterNumber(`${-d} ${-d === 1 ? "day" : "days"} late`);
-  if (d === 0) return "Due today";
-  return capAfterNumber(`Due in ${d} ${d === 1 ? "day" : "days"}`);
+  if (d < 0) return lineCase(`${-d} ${-d === 1 ? "day" : "days"} late`);
+  if (d === 0) return "Due Today";
+  return lineCase(`Due in ${d} ${d === 1 ? "day" : "days"}`);
 }

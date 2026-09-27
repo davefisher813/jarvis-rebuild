@@ -57,6 +57,8 @@ import { setCategoryRegistry } from "../shared/categories";
 import ToastHost from "../shared/ToastHost";
 import { bus } from "../events";
 import { sealPreviousMonthIfDue } from "../review/seal";
+import { oldestWaitDays } from "../review/ReportPage";
+import { peopleForDerivation } from "../brain/peopleFacts";
 import { supabase } from "../auth/supabaseClient";
 import type { WindowClient } from "../brain/window";
 import { ENTITY_CATEGORY } from "../categories/types";
@@ -68,6 +70,7 @@ import { useSessionOpen } from "../gym/sessionChrome";
 import { attemptWrite } from "../shared/guard";
 import { useAppearance, type Appearance } from "../appearance/AppearanceProvider";
 import { SETTING_APPEARANCE, SETTING_DONE_CLEARING, SETTING_EMAIL_TASKS } from "../data/SettingsService";
+import { minutesLabel } from "../shared/duration";
 
 // Hosts the app. The bottom tab bar is user-editable: tabKeys (from the profile)
 // decides which pages are tabs; everything else lives in More. Any page can be
@@ -349,7 +352,7 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
       } catch (e) {
         if (!on) return;
         console.error("boot", e);
-        showToast({ message: "Couldn't load everything · Try again in a moment" });
+        showToast({ message: "Couldn't Load Everything · Try Again in a Moment" });
       }
       if (!on) return;
       const keys = migrateTabs(prof?.tabs?.length ? prof.tabs : DEFAULT_TABS);
@@ -413,7 +416,7 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
     if (isReminderDone(t.reminder, today)) return;
     const to = snoozeTime(nowHHMM(), BANNER_SNOOZE_MIN);
     const ok = await attemptWrite(() => tasks.snoozeReminder(taskId, to, today));
-    if (ok) showToast({ message: `Snoozed ${t.text} · ${BANNER_SNOOZE_MIN} minutes` });
+    if (ok) showToast({ message: `Snoozed ${t.text} · ${minutesLabel(BANNER_SNOOZE_MIN)}` });
   };
   // OPEN FROM THE BANNER: the linked item when there is one (opening never
   // completes the reminder), otherwise the reminder on Today. Either way
@@ -438,7 +441,7 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
     const to = addDays(todayISO(), 1);
     if (t.due === to) return; // already there: pressing again is not a second slip
     const ok = await attemptWrite(() => tasks.setDue(taskId, to));
-    if (ok) showToast({ message: `Moved ${t.text} to tomorrow` });
+    if (ok) showToast({ message: `Moved ${t.text} to Tomorrow` });
   };
 
   // S1-04 (2026-09-04): "A notification tap lands nowhere." AppShell is the
@@ -578,9 +581,18 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
   // "vs last month" honestly.
   useEffect(() => {
     if (!ready || !sealSvc) return;
-    void sealPreviousMonthIfDue(sealSvc, supabase as unknown as WindowClient | null, gym, goals, undefined, undefined, schedule)
+    // v4 (2026-09-26, the pass-off): the bills, decisions, people and the
+    // mail wait ride along, best-effort, so the sealed month can say what
+    // Money, Mail, People and Decisions did. A failed read costs the seal
+    // those cards, never the seal.
+    const more = () => Promise.all([
+      tasks.listTasks().catch(() => []),
+      decisions.listAll().catch(() => []),
+      categories.list().catch(() => []).then((cats) => peopleForDerivation(people, cats.map((c) => ({ id: c.id, name: c.data.name })))),
+    ]).then(([t, d, p]) => ({ tasks: t, decisions: d.map((x) => x.data), people: p, waitDays: oldestWaitDays(Date.now()) }));
+    void sealPreviousMonthIfDue(sealSvc, supabase as unknown as WindowClient | null, gym, goals, undefined, undefined, schedule, more)
       .catch(() => { /* a missed boundary retries on the next open */ });
-  }, [ready, sealSvc, gym, goals]);
+  }, [ready, sealSvc, gym, goals, tasks, decisions, people, categories, schedule]);
 
   if (!ready) return <div className="app-shell"><div className="app-scroll" /></div>;
 
@@ -680,8 +692,10 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
           it is content plus the safe-area inset, so any number here would be
           wrong on some device. */}
       <div id="select-bar-host" />
-      {/* The way home from anything a jump opened: see ReturnPill. */}
-      <ReturnPill />
+      {/* The way home from anything a jump opened: see ReturnPill. It stands
+          down while a workout session is open (Dave 2026-09-26): the session
+          owns the bottom edge (§AB R8), and the pill floated over its set list. */}
+      {!sessionOpen && <ReturnPill />}
       {showCapture && (
         <VoiceBar onTap={() => setCaptureOpen(true)} onSearch={() => setSearchOpen(true)} onWhatNow={openFocus} />
       )}

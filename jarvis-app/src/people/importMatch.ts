@@ -1,7 +1,7 @@
 import type { ImportedContact } from "./importContacts";
 import type { ContactMethod, Person, PersonData } from "./types";
 import { phonesOf, emailsOf, normPhone, normEmail, withPhones, withEmails, matchKeys } from "./contactMethods";
-import { capAfterNumber } from "../shared/casing";
+import { lineCase } from "../shared/casing";
 
 // WHO IS THIS, AND HAVE I GOT THEM ALREADY (People handoff, 2026-09-16).
 //
@@ -149,12 +149,12 @@ function mergeInto(d: PersonData, c: ImportedContact): { patch: Partial<PersonDa
   const newPhones = missing(phonesOf(d), c.phones ?? (c.phone ? [{ value: c.phone }] : []), normPhone);
   if (newPhones.length) {
     Object.assign(patch, withPhones([...phonesOf(d), ...newPhones]));
-    changes.push(newPhones.length === 1 ? "a phone number" : capAfterNumber(`${newPhones.length} phone numbers`));
+    changes.push(newPhones.length === 1 ? "a phone number" : lineCase(`${newPhones.length} phone numbers`));
   }
   const newEmails = missing(emailsOf(d), c.emails ?? (c.email ? [{ value: c.email }] : []), normEmail);
   if (newEmails.length) {
     Object.assign(patch, withEmails([...emailsOf(d), ...newEmails]));
-    changes.push(newEmails.length === 1 ? "an email address" : capAfterNumber(`${newEmails.length} email addresses`));
+    changes.push(newEmails.length === 1 ? "an email address" : lineCase(`${newEmails.length} email addresses`));
   }
 
   const fill = (key: "birthday" | "org" | "title" | "notes", value: string | undefined, word: string) => {
@@ -205,12 +205,12 @@ interface PlanFact { text: string; tone?: "good" | "warn" }
 export function planFacts(plan: MatchPlan, answered: number): PlanFact[] {
   const waiting = plan.review.length - answered;
   const work: string[] = [];
-  if (plan.create.length) work.push(capAfterNumber(`${plan.create.length} new`));
-  if (plan.update.length) work.push(capAfterNumber(`${plan.update.length} to update`));
+  if (plan.create.length) work.push(lineCase(`${plan.create.length} new`));
+  if (plan.update.length) work.push(lineCase(`${plan.update.length} to update`));
   const out: PlanFact[] = [];
   if (work.length) out.push({ text: work.join(", ") });
-  if (waiting > 0) out.push({ text: capAfterNumber(`${waiting} to check`), tone: "warn" });
-  if (plan.unchanged) out.push({ text: capAfterNumber(`${plan.unchanged} already current`), tone: "good" });
+  if (waiting > 0) out.push({ text: lineCase(`${waiting} to check`), tone: "warn" });
+  if (plan.unchanged) out.push({ text: lineCase(`${plan.unchanged} already current`), tone: "good" });
   return out.length ? out : [{ text: "Nothing to change" }];
 }
 
@@ -221,7 +221,7 @@ export function summaryLine(added: number, updated: number, unchanged: number): 
   if (added) parts.push(`${added} added`);
   if (updated) parts.push(`${updated} updated`);
   if (unchanged) parts.push(`${unchanged} already current`);
-  return parts.length ? capAfterNumber(parts.join(" · ")) : "Nothing changed";
+  return parts.length ? lineCase(parts.join(" · ")) : "Nothing changed";
 }
 
 /** One line of evidence for telling two same-name people apart: what this

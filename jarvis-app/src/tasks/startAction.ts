@@ -229,7 +229,7 @@ export function startAction(target: StartTarget, ctx: StartContext = {}): StartA
   if (blocked) {
     return {
       kind: "resolve_blocker",
-      headline: "What is in the way",
+      headline: "What Is in the Way",
       verb: "Save Draft",
       launchLabel: "Unblock",
       ready: blocked.what,
@@ -248,13 +248,13 @@ export function startAction(target: StartTarget, ctx: StartContext = {}): StartA
   if (saved && (saved.draft?.trim() || saved.stopPoint?.trim())) {
     return {
       kind: "resume",
-      headline: "Where you left off",
+      headline: "Where You Left Off",
       verb: verbForSaved(saved.kind),
       launchLabel: "Resume",
-      ready: saved.stopPoint?.trim() || "Your draft is waiting",
+      ready: saved.stopPoint?.trim() || "Your Draft Is Waiting",
       ...(saved.draft ? { seed: saved.draft } : {}),
       prompt: promptFor(shapeOf(title), target.kind),
-      sources: [{ kind: "saved", label: "Saved on this device" }],
+      sources: [{ kind: "saved", label: "Saved on This Device" }],
       missing: [],
       completion: { saves: savesForSaved(saved.kind), completesTask: false },
     };
@@ -269,7 +269,7 @@ export function startAction(target: StartTarget, ctx: StartContext = {}): StartA
       // It is HIS step: either he wrote it on the task, or he answered the
       // question below and this is the answer coming back. The app never
       // authors one, which is what makes offering to tick it honest.
-      headline: "Your next step",
+      headline: "Your Next Step",
       verb: "Mark It Done",
       launchLabel: "Start",
       ready: step.text,
@@ -285,7 +285,7 @@ export function startAction(target: StartTarget, ctx: StartContext = {}): StartA
   if (child) {
     return {
       kind: "open_child_task",
-      headline: target.kind === "goal" ? "The next thing under it" : "Your next task",
+      headline: target.kind === "goal" ? "The Next Thing Under It" : "Your Next Task",
       verb: "Open This Task",
       launchLabel: "Start",
       ready: child.title,
@@ -301,7 +301,7 @@ export function startAction(target: StartTarget, ctx: StartContext = {}): StartA
   if (res) {
     return {
       kind: "open_resource",
-      headline: "What this is linked to",
+      headline: "What This Is Linked To",
       verb: verbForResource(res.kind),
       launchLabel: "Start",
       ready: res.label,
@@ -325,10 +325,10 @@ export function startAction(target: StartTarget, ctx: StartContext = {}): StartA
     const lines = g?.lines.filter((l) => l.trim()) ?? [];
     return {
       kind: "prepare_draft",
-      headline: "Review a prepared message",
+      headline: "Review a Prepared Message",
       verb: "Save Draft",
       launchLabel: "Start",
-      ready: lines.length > 0 ? "Editable message ready" : "Start the message",
+      ready: lines.length > 0 ? "Editable Message Ready" : "Start the Message",
       seed: lines.join("\n\n"),
       prompt: promptFor("comms", target.kind),
       sources: g?.sources ?? [],
@@ -348,10 +348,10 @@ export function startAction(target: StartTarget, ctx: StartContext = {}): StartA
   // and ask to be believed.
   return {
     kind: "capture_next_action",
-    headline: "Name the first step",
+    headline: "Name the First Step",
     verb: "Save First Step",
     launchLabel: "Start",
-    ready: machine ? "Capture the error to look at" : "Start by naming the first step",
+    ready: machine ? "Capture the Error to Look At" : "Start by Naming the First Step",
     prompt: machine ? "Which error do you need to look at?" : promptFor(shape, target.kind),
     sources: [],
     missing: [],
@@ -433,7 +433,7 @@ export function smallerAction(a: StartAction, target: StartTarget): StartAction 
       if (hole) {
         return shrunk({
           kind: "capture_next_action",
-          headline: "One detail first",
+          headline: "One Detail First",
           prompt: hole,
           verb: "Save Draft",
           seed: "",
@@ -442,8 +442,8 @@ export function smallerAction(a: StartAction, target: StartTarget): StartAction 
       }
       return shrunk({
         kind: "capture_next_action",
-        headline: "One line first",
-        prompt: "Write the first line only",
+        headline: "One Line First",
+        prompt: "Write the First Line Only",
         verb: "Save Draft",
         completion: { saves: "draft", completesTask: false },
       });
@@ -451,8 +451,8 @@ export function smallerAction(a: StartAction, target: StartTarget): StartAction 
     case "open_resource":
       return shrunk({
         kind: "capture_next_action",
-        headline: "Name what you are looking for",
-        prompt: "Name one thing to look at first",
+        headline: "Name What You Are Looking For",
+        prompt: "Name One Thing to Look at First",
         verb: "Save First Step",
         seed: "",
         destination: undefined,
@@ -461,7 +461,7 @@ export function smallerAction(a: StartAction, target: StartTarget): StartAction 
     case "resolve_blocker":
       return shrunk({
         kind: "capture_next_action",
-        headline: "Name who can move it",
+        headline: "Name Who Can Move It",
         prompt: "Who can move this?",
         verb: "Save First Step",
         seed: "",

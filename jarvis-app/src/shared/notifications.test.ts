@@ -87,8 +87,9 @@ describe("buildEventReminders", () => {
       new Date("2026-08-09T09:15:00"),
     ]);
     expect(rs[0]!.title).toBe("ES Game");
-    expect(rs[0]!.body).toBe("In an hour · 188 Clinton Ave");
-    expect(rs[3]!.body).toBe("Leave what you're doing · 188 Clinton Ave");
+    // Casing sweep 2 (2026-09-27): Title Case by the whole rule (§H2); durations through shared/duration ("45 Min", "1h 30m").
+    expect(rs[0]!.body).toBe("In an Hour · 188 Clinton Ave");
+    expect(rs[3]!.body).toBe("Leave What You're Doing · 188 Clinton Ave");
   });
 
   // UP-CORE-07 (2026-09-05): the one rung that says stand up now.
@@ -200,7 +201,7 @@ describe("buildEventReminders", () => {
     }));
     const out = buildEventReminders(many, NOW);
     expect(out.length).toBeLessThanOrEqual(EVENT_REMINDER_CAP);
-    expect(out.some((r) => r.body.includes("In an hour"))).toBe(false);
+    expect(out.some((r) => r.body.includes("In an Hour"))).toBe(false);
     // Every event still keeps its closing rung.
     for (let i = 0; i < 14; i++) expect(out.some((r) => r.title === "e" + i)).toBe(true);
   });
@@ -217,13 +218,13 @@ describe("buildEventReminders", () => {
   // rung uses it -- the earlier rungs stay informational, unchanged.
   it("names the first move on the closing rung when the event has one", () => {
     const rs = buildEventReminders([{ date: "2026-08-09", start: "09:20", title: "ES Game", location: "188 Clinton Ave", firstMove: "Load the gear bag" }], NOW);
-    expect(rs[0]!.body).toBe("In an hour · 188 Clinton Ave"); // unchanged
+    expect(rs[0]!.body).toBe("In an Hour · 188 Clinton Ave"); // unchanged
     expect(rs[3]!.body).toBe("Load the gear bag · 188 Clinton Ave");
   });
 
   it("keeps the generic closing instruction when the event has no first move", () => {
     const rs = buildEventReminders([{ date: "2026-08-09", start: "09:20", title: "ES Game" }], NOW);
-    expect(rs[3]!.body).toBe("Leave what you're doing");
+    expect(rs[3]!.body).toBe("Leave What You're Doing");
   });
 });
 

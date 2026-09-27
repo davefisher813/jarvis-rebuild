@@ -33,10 +33,11 @@ describe("ConditioningFace", () => {
     tick(98_000);
     fireEvent.click(screen.getByRole("button", { name: "Round" }));
     expect(round()).toBe("Round 2");
-    expect(document.querySelector(".cf-last")).toHaveTextContent("last 1:38");
+    // Casing sweep 1 (2026-09-26): Title Case by the whole rule (§H2), units spelled "Min".
+    expect(document.querySelector(".cf-last")).toHaveTextContent("Last 1:38");
     tick(104_000);
     fireEvent.click(screen.getByRole("button", { name: "Round" }));
-    expect(document.querySelector(".cf-last")).toHaveTextContent("last 1:44");
+    expect(document.querySelector(".cf-last")).toHaveTextContent("Last 1:44");
     // Enter on the knob is the keyboard's slide.
     fireEvent.keyDown(screen.getByRole("button", { name: "Slide to finish" }), { key: "Enter" });
     expect(onFinish).toHaveBeenCalledTimes(1);

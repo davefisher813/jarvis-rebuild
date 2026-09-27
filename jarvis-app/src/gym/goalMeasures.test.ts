@@ -63,7 +63,7 @@ describe("liftMeasureState", () => {
     expect(st.met).toBe(false);
     expect(st.done).toBe(205);
     expect(st.target).toBe(225);
-    expect(st.line).toBe("205 of 225 Lb at 5+ reps");
+    expect(st.line).toBe("205 of 225 Lb at 5+ Reps");
   });
 
   it("met the instant one set clears it, anywhere in history", () => {
@@ -71,7 +71,7 @@ describe("liftMeasureState", () => {
     const st = liftMeasureState(target, h);
     expect(st.met).toBe(true);
     expect(st.pct).toBe(100);
-    expect(st.line).toBe("225 Lb at 5+ reps -- hit it");
+    expect(st.line).toBe("225 Lb at 5+ Reps -- Hit It");
   });
 
   it("a faster-time goal fills toward 100 as the best time drops", () => {
@@ -107,7 +107,8 @@ describe("trainingMeasureState", () => {
     const st = trainingMeasureState(m, h, new Date("2026-08-20").getTime());
     expect(st.done).toBe(2); // the pre-stamp session doesn't count
     expect(st.met).toBe(false);
-    expect(st.line).toBe("2 of 3 This block");
+    // Casing sweep 1 (2026-09-26): Title Case by the whole rule (§H2), units spelled "Min".
+    expect(st.line).toBe("2 of 3 This Block");
   });
 
   it("week: only sessions inside the rolling Monday-first window", () => {
@@ -145,7 +146,7 @@ describe("trainingMeasureState", () => {
     ])];
     const st = trainingMeasureState(m, h, new Date("2026-08-20").getTime());
     expect(st.done).toBe(1);
-    expect(st.line).toBe("1 of 3 This block");
+    expect(st.line).toBe("1 of 3 This Block");
   });
 
   it("a done-only session where every chip was skipped still counts for nothing", () => {

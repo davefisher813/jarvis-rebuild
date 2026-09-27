@@ -9,6 +9,11 @@ import { liveGoals, goalTags } from "../bigger/reach";
 import { catName } from "../shared/categories";
 import type { Goal } from "../life/types";
 import type { Workout } from "../gym/types";
+import type { TaskItem } from "../tasks/TasksService";
+import type { DecisionRecordData } from "../decisions/types";
+import type { DerivePerson } from "../brain/derive";
+import { QUIET_MS } from "../brain/derive";
+import { isPR } from "../gym/prs";
 import type { GymService } from "../gym/GymService";
 import type { GoalService } from "../life/GoalService";
 import { todayISO } from "../tasks/grouping";
@@ -73,6 +78,29 @@ export interface MonthSealData {
   // The areas the month's live goals reach into that got no scheduled time at
   // all. An absence, stated as one; the report never calls it a failing.
   goalAreasUnscheduled?: string[];
+  // v4 (2026-09-26, the pass-off: "the month report's content is rebuilt
+  // from data the app already keeps"). Money, Mail, People, Health and
+  // Decisions, as counts and one dollar total, the way `saved` already is.
+  // Every one is optional, so a seal written before this reads exactly as it
+  // did and the report shows nothing for it rather than a row of zeros.
+  // Bills: paid inside the month (a lastDone in it, the Paid This Month
+  // rule), their sum, and how many dated inside the month were still open
+  // when this was written.
+  bills?: { paid: number; total: number; open: number };
+  // email.handled rows, and the longest reply still waited on at the seal,
+  // in days (0 when nothing was waiting). The wait is a number the caller
+  // reads off the Waiting On cache; a seal computed without it says 0.
+  mail?: { handled: number; waitDays: number };
+  // person.reached rows, and the people who had gone quiet at the seal: ids
+  // only, resolved against the live store at render and dropped silently
+  // when gone, like `carried`.
+  people?: { reached: number; quiet: string[] };
+  // Working sets logged (never a warm-up, a drop or a skip) and how many
+  // lifts set a personal best, by the gym's own isPR.
+  training?: { sets: number; prs: number };
+  // decision.recorded rows by kind (new = made, confirmed = revisited) and
+  // the outcomes marked Worked inside the month.
+  decisions?: { made: number; revisited: number; worked: number };
 }
 
 export interface MonthSeal { id: string; data: MonthSealData }
@@ -97,6 +125,61 @@ export interface SealInputs {
   // month. The This Week card runs this same fold over seven days; the
   // seal's month key is still whatever the caller names.
   days?: string[];
+  // v4 (2026-09-26). All optional, so a harness without them seals as it
+  // always did: the bills live as tasks, the decisions list carries the
+  // outcomes, the people list carries who has gone quiet (the same rows the
+  // Brain's derivations read), and the wait is read off the mail cache.
+  tasks?: TaskItem[];
+  decisions?: DecisionRecordData[];
+  people?: DerivePerson[];
+  waitDays?: number;
+}
+
+/** Bills paid inside the range and what was still open in it. The paid rule
+ *  is Paid This Month's (money/bills.ts): a lastDone inside the range. */
+function billFacts(tasks: TaskItem[], inRange: (d: string) => boolean): NonNullable<MonthSealData["bills"]> {
+  let paid = 0, total = 0, open = 0;
+  for (const t of tasks) {
+    const amount = t.data.bill?.amount;
+    if (typeof amount !== "number" || !Number.isFinite(amount)) continue;
+    if (t.data.lastDone && inRange(t.data.lastDone)) { paid++; total += amount; }
+    if (!t.data.done && t.data.due && inRange(t.data.due)) open++;
+  }
+  return { paid, total, open };
+}
+
+/** Working sets and personal bests inside the range. A best is judged
+ *  against every workout before that one, by the gym's own rule, and a lift
+ *  counts once per session however many of its sets beat the old best. */
+function trainingFacts(workouts: Workout[], inRange: (d: string) => boolean): NonNullable<MonthSealData["training"]> {
+  const sorted = [...workouts].sort((a, b) => a.data.date.localeCompare(b.data.date) || a.data.startedAt - b.data.startedAt);
+  let sets = 0, prs = 0;
+  sorted.forEach((w, i) => {
+    if (!inRange(w.data.date)) return;
+    const history = sorted.slice(0, i);
+    for (const ex of w.data.exercises) {
+      if (ex.skipped) continue;
+      let pr = false;
+      for (const s of ex.sets) {
+        if (s.skipped || s.warmup || s.drop) continue;
+        sets++;
+        if (!pr && isPR(history, ex, ex.kind, s)) pr = true;
+      }
+      if (pr) prs++;
+    }
+  });
+  return { sets, prs };
+}
+
+/** The people who had gone quiet by `nowMs`: the gone-quiet derivation's own
+ *  gate (a label, a known last contact, thirty days), longest gap first, at
+ *  most three. Ids only. */
+function quietPeople(people: DerivePerson[], nowMs: number): string[] {
+  return people
+    .filter((p) => !!p.label?.trim() && typeof p.lastMs === "number" && p.lastMs > 0 && nowMs - p.lastMs >= QUIET_MS)
+    .sort((a, b) => (a.lastMs! - b.lastMs!) || a.id.localeCompare(b.id))
+    .slice(0, 3)
+    .map((p) => p.id);
 }
 
 /** Pure: fold one month's evidence into its seal record. */
@@ -200,6 +283,20 @@ export function computeSeal(month: string, inp: SealInputs): MonthSealData {
     remindersTicked: inMonth.filter((r) => r.type === "reminder.ticked").length,
     deck: { sent: deckRows.length, asWritten: deckRows.filter((r) => r.flag === false).length },
     carried,
+    // v4 (2026-09-26). Counts from the rows every seal already reads, plus
+    // the optional lists; each is a number or an id and nothing else.
+    ...(inp.tasks ? { bills: billFacts(inp.tasks, inRange) } : {}),
+    mail: { handled: inMonth.filter((r) => r.type === "email.handled").length, waitDays: Math.max(0, Math.floor(inp.waitDays ?? 0)) },
+    people: {
+      reached: inMonth.filter((r) => r.type === "person.reached").length,
+      quiet: inp.people ? quietPeople(inp.people, inp.sealedAt) : [],
+    },
+    training: trainingFacts(inp.workouts, inRange),
+    decisions: {
+      made: inMonth.filter((r) => r.type === "decision.recorded" && (r.kind === "new" || r.kind == null)).length,
+      revisited: inMonth.filter((r) => r.type === "decision.recorded" && r.kind === "confirmed").length,
+      worked: (inp.decisions ?? []).filter((d) => d.outcome?.word === "worked" && inRange(d.outcome.at.slice(0, 10))).length,
+    },
     // WHERE THE HOURS WENT (item 13). Only written when events were handed
     // in; an older seal and a seal computed without them both simply have no
     // hours section, and every reader defaults the field.
@@ -294,6 +391,11 @@ export async function sealPreviousMonthIfDue(
   // WHERE THE HOURS WENT (item 13). Optional and last, so every existing
   // caller keeps working and a seal without it is exactly the seal it was.
   scheduleSvc?: { listEvents: () => Promise<EventItem[]> } | null,
+  // v4 (2026-09-26): the bills, decisions, people and the mail wait, read
+  // by the caller (the shell holds those services) and handed in the same
+  // best-effort way the calendar is. A read that fails costs the seal those
+  // cards, never the seal.
+  more?: (() => Promise<Pick<SealInputs, "tasks" | "decisions" | "people" | "waitDays">>) | null,
 ): Promise<string | null> {
   const prev = prevMonthKey(today);
   const key = markKeyFor(svc.owner);
@@ -321,7 +423,9 @@ export async function sealPreviousMonthIfDue(
   // written without hours for as long as it has existed.
   let events: EventItem[] | undefined;
   try { events = scheduleSvc ? await scheduleSvc.listEvents() : undefined; } catch { events = undefined; }
-  const data = computeSeal(prev, { rows, workouts, goals, sealedAt: now, ...(events ? { events } : {}) });
+  let extra: Pick<SealInputs, "tasks" | "decisions" | "people" | "waitDays"> = {};
+  try { extra = more ? await more() : {}; } catch { extra = {}; }
+  const data = computeSeal(prev, { rows, workouts, goals, sealedAt: now, ...(events ? { events } : {}), ...extra });
   if (!worthSealing(data)) { mark(); return null; }
   const id = await svc.create(data);
   if (id) mark();

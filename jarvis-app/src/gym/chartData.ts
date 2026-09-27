@@ -82,8 +82,12 @@ export function chartValue(s: LiftSession): number {
 /** "Est 1RM" only where an estimate is actually being made; every other kind
  *  is charting a real logged number, so it is named plainly. */
 export function chartLabel(kind: MeasureKind): string {
-  // Health Push E (H-31): the estimate says what it is and what it is not.
-  return kind === "weight_reps" ? "Est 1RM (Epley), not a tested max" : "Best";
+  // Health Push E (H-31) said what the estimate is and is not in the label
+  // itself. Pass-off item 7 (2026-09-26, Dave: "rendered nice and clean and
+  // simple"): the label is the label, an 11px caps kicker over the number;
+  // Epley and "not a tested max, not a weight to attempt" live one tap away
+  // behind the Trend card's Evidence (insights.estimateEvidence).
+  return kind === "weight_reps" ? "Estimated Max" : "Best";
 }
 
 /**

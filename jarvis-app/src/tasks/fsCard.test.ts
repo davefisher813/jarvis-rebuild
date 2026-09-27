@@ -47,7 +47,8 @@ describe("The Keeps Sliding row", () => {
     expect(notice).toContain('tone="cat-fg-orange"');
     expect(notice).toContain("onDismiss={fsDismiss}");
     expect(notice).toContain("title={fsStep.step}");
-    expect(notice).toContain('sub={"First step for: " + fsCandidate.data.text}');
+    // Casing sweep 2 (2026-09-27): Title Case by the whole rule (§H2); durations through shared/duration ("45 Min", "1h 30m").
+    expect(notice).toContain('sub={lineCase("First step for: " + fsCandidate.data.text)}');
     expect(notice, "the offer state is gone from the notice").not.toContain("title={fsCandidate.data.text}");
   });
 
@@ -85,8 +86,8 @@ describe("The Keeps Sliding row", () => {
   // function returns the evidence alone and nothing when there is none.
   it("the why line states the fact that qualified the task, without the label", () => {
     expect(SLIDING_TAG).toBe("Keeps Sliding");
-    expect(slidingLine({ id: "a", data: { text: "x", category: "", done: false, due: "2026-08-25" } }, "2026-09-02")).toBe("8 Days late");
-    expect(slidingLine({ id: "a", data: { text: "x", category: "", done: false, due: "2026-09-01", slips: 3 } }, "2026-09-02")).toBe("Pushed 3 times");
+    expect(slidingLine({ id: "a", data: { text: "x", category: "", done: false, due: "2026-08-25" } }, "2026-09-02")).toBe("8 Days Late");
+    expect(slidingLine({ id: "a", data: { text: "x", category: "", done: false, due: "2026-09-01", slips: 3 } }, "2026-09-02")).toBe("Pushed 3 Times");
     expect(slidingLine({ id: "a", data: { text: "x", category: "", done: false, due: null } }, "2026-09-02")).toBe(null);
   });
 });

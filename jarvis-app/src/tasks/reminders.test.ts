@@ -3,7 +3,7 @@ import type { TaskItem } from "./TasksService";
 import type { ReminderInfo } from "../notes/types";
 import {
   runsOn, effectiveTime, isDone, viewOf, todaysReminders, missedReminders,
-  snoozeTime, snoozeFrom, stripReminders,
+  snoozeTime, snoozeFrom, stripReminders, stripPick,
 } from "./reminders";
 
 // The reminder model (Dave 2026-08-19: "taking meds should just be a set
@@ -155,5 +155,39 @@ describe("onMiss", () => {
     const v = viewOf(mk("let_go"), "2026-08-21", "07:00")!;
     expect(v.missed).toBe(false);
     expect(v.letGo).toBe(false);
+  });
+});
+
+// THE STRIP'S PICK (Dave's pass-off, 2026-09-26). Today shows the next three
+// still ahead of the clock and one count of the missed; the rest is the
+// Reminders page's job.
+describe("the strip's pick: next three by time, then the missed as one count", () => {
+  const at = (id: string, time: string, extra: Partial<ReminderInfo> = {}) => rem({ time, ...extra }, "R " + id, id);
+  it("takes the three soonest that are still ahead, in time order", () => {
+    const items = [at("e", "18:00"), at("b", "14:30"), at("c", "15:00"), at("d", "16:00"), at("a", "14:00")];
+    const pick = stripPick(items, WED, "13:00");
+    expect(pick.next.map((v) => v.id)).toEqual(["a", "b", "c"]);
+    expect(pick.missed).toEqual([]);
+  });
+  it("a missed one is never in the next three; it is in the missed set", () => {
+    const items = [at("m1", "08:00"), at("m2", "09:00"), at("n", "15:00")];
+    const pick = stripPick(items, WED, "12:00");
+    expect(pick.next.map((v) => v.id)).toEqual(["n"]);
+    expect(pick.missed.map((v) => v.id)).toEqual(["m1", "m2"]);
+  });
+  it("a done one leaves the strip and a let-go one stops asking", () => {
+    const items = [at("done", "08:00", { lastDone: WED }), at("lg", "09:00", { onMiss: "let_go" }), at("n", "15:00")];
+    const pick = stripPick(items, WED, "12:00");
+    expect(pick.next.map((v) => v.id)).toEqual(["n"]);
+    expect(pick.missed).toEqual([]);
+  });
+  it("the missed count is not capped the way Heads Up is", () => {
+    const items = ["a", "b", "c", "d"].map((id, i) => at(id, `0${i + 6}:00`));
+    expect(stripPick(items, WED, "12:00").missed).toHaveLength(4);
+    expect(missedReminders(items, WED, "12:00")).toHaveLength(2);
+  });
+  it("an unscheduled one is upcoming after the timed ones", () => {
+    const items = [at("u", "", { scheduleKind: "unscheduled" }), at("t", "15:00")];
+    expect(stripPick(items, WED, "12:00").next.map((v) => v.id)).toEqual(["t", "u"]);
   });
 });

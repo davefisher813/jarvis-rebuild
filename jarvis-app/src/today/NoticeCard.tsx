@@ -67,6 +67,7 @@ export default function NoticeCard({
   form = "card",
   uniform = true,
   stack = false,
+  wrap = false,
   // Read by the stream's ranker, not by this component; declared so the
   // props are typed at every call site.
   weight,
@@ -120,6 +121,14 @@ export default function NoticeCard({
   // shape"): mail is uniform now too, and a sender longer than the line
   // ellipses on purpose, the same as everything else here.
   uniform?: boolean;
+  /** THE SUB WRAPS, UNCLAMPED (2026-09-27, the audit leftover on Today's
+   *  mail deadline card: its facts line was 181px beside the glyph and the
+   *  Add Task capsule, so "From App Store Team" could never show whole
+   *  beside a day fact). A facts line whose job is to show every fact is
+   *  the wrapping form, a .conn-meta of .fact spans with the dot at the
+   *  end of each. Pass it with `uniform={false}`: the latch measures a sub
+   *  that has to fit one line, and this one has as many as it needs. */
+  wrap?: boolean;
   /* THE VERB MOVES UNDER THE WORDS WHEN THE WORDS ARE THE POINT (2026-09-07).
      Measured at 390x844: the right slot's capsule takes 139px of a 326px row,
      which leaves the text 133px. That is fine for a card whose words are a
@@ -424,6 +433,7 @@ export default function NoticeCard({
                quarter of the sentence is the wrong uniform height. */
             + (uniform && (effForm === "card" || effForm === "row") ? " notice-card-uniform" : "")
             + (stack ? " notice-card-stack" : "")
+            + (wrap ? " notice-card-wrap" : "")
             /* A UNIFORM CARD IS TWO LINES TALL, and how it spends them is
                its own business. With a sub, that is one line each. WITHOUT
                one, the title takes both, which costs nothing: the card is

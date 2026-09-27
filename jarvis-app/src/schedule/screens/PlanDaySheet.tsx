@@ -20,9 +20,11 @@ import { splitSittings, SITTING_MAX } from "../splitSitting";
 import { dayClock } from "../planClock";
 import { planCount } from "../dayShape";
 import { estimateFor } from "../padding";
-import { DUR_CHOICES } from "../durations";
+import { DUR_CHOICES, durLabel } from "../durations";
 import { tapField } from "../../shared/FormSheet";
 import { onPressKey } from "../../shared/pressable";
+import { spanLabel } from "../../shared/duration";
+import { lineCase } from "../../shared/casing";
 
 const BUFFER = 10;
 const DEFAULT_DUR = 45;
@@ -50,11 +52,12 @@ function toMin(hhmmStr: string): number {
   return Number(p[0] ?? 0) * 60 + Number(p[1] ?? 0);
 }
 function label(hhmmStr: string) { const t = fmtTime(hhmmStr); return `${t.time} ${t.ap}`; }
-// A split pick's sittings, as the one number they are: "2 × 90m", or
-// "120m + 105m" when the first carries the remainder. A number with no state
+// A split pick's sittings, as the one number they are: "2 × 1h 30m", or
+// "2h + 1h 45m" when the first carries the remainder. A number with no state
 // steps up to white (§AM F1), so it is drawn in a <b> and needs no words.
+// Each sitting is the one duration shape (shared/duration.ts, 2026-09-26).
 const sittingsOf = (chunks: number[]) =>
-  chunks.every((c) => c === chunks[0]) ? `${chunks.length} × ${chunks[0]}m` : chunks.map((c) => `${c}m`).join(" + ");
+  chunks.every((c) => c === chunks[0]) ? `${chunks.length} × ${spanLabel(chunks[0]!)}` : chunks.map((c) => spanLabel(c)).join(" + ");
 // A pick split into sittings carries a synthetic id, "<taskId>#2". Everything
 // downstream of the planner speaks the real id again.
 const realId = (id: string) => id.split("#")[0] ?? id;
@@ -536,7 +539,7 @@ export default function PlanDaySheet({
         const mins = durFor(id);
         void rules.recordCorrection(
           "tuning", "plan.duration", category, String(mins),
-          `${catName(category)} estimated at ${est}m, committed at ${mins}m`,
+          lineCase(`${catName(category)} estimated at ${spanLabel(est)}, committed at ${spanLabel(mins)}`),
         ).catch(() => { /* the next identical override re-observes it */ });
       }
     }
@@ -637,7 +640,7 @@ export default function PlanDaySheet({
           <div className="facts plan-load">
             {pickCount > 0 && (
               <span className={"fact " + (load.fits ? "good" : "red")}>
-                {!load.fits ? `${hhmm(load.overMin)} over` : usedUsual ? `Your usual ${pickCount}, fits` : `${pickCount} picked, fits`}
+                {!load.fits ? `${hhmm(load.overMin)} Over` : usedUsual ? `Your Usual ${pickCount}, Fits` : `${pickCount} Picked, Fits`}
               </span>
             )}
             <span className="fact">
@@ -654,7 +657,7 @@ export default function PlanDaySheet({
             <div className="card"><div className="row" {...rowDoor(dropOverflow)}>
               <div className="row-stack">
                 <div className="conn-name">{dropLine(overflow.length)}</div>
-                <div className="conn-meta">You&rsquo;re {hhmm(load.overMin)} over what&rsquo;s open</div>
+                <div className="conn-meta">You&rsquo;re {hhmm(load.overMin)} Over What&rsquo;s Open</div>
               </div>
               <button type="button" className="pill-act" onClick={(e) => { e.stopPropagation(); dropOverflow(); }}>
                 {overflow.length === 1 ? "Drop It" : `Drop ${overflow.length}`}
@@ -729,7 +732,7 @@ export default function PlanDaySheet({
             // B14: the sheet already owns an add-task row at the bottom; an
             // empty plan pointed at nothing while the fix sat off screen.
             <div className="empty-state"><div className="t-body">Nothing to Plan Yet</div>
-              {onAddTask && <div className="empty-sub">Add something below and it lands here picked</div>}</div>
+              {onAddTask && <div className="empty-sub">Add Something Below and It Lands Here Picked</div>}</div>
           ) : (
             <div className="p3-list">
               {/* C-31 (Astra, 2026-09-12): the peak-window line the catalog
@@ -747,7 +750,7 @@ export default function PlanDaySheet({
                       amber for a while, and amber means "needs you soon",
                       which a peak window never does. */}
                   {energy && <span className="fact est">Peak {label(fromMin(energy.peakStartMin)).replace(/:00/, "")} to {label(fromMin(energy.peakEndMin)).replace(/:00/, "")}</span>}
-                  {ranges.focus[0] && <span className="fact">Picks land in {ranges.focus[0].label}</span>}
+                  {ranges.focus[0] && <span className="fact">Picks Land in {ranges.focus[0].label}</span>}
                 </div></div>
               )}
               {groups.map((g) => (
@@ -802,10 +805,10 @@ export default function PlanDaySheet({
                                 one-line .facts, "Overlaps your Morning
                                 Routine" lost the name of what it overlaps. */}
                             {on && blockFor(t.id)?.outsideWindow && (
-                              <div className="conn-meta"><span className="fact warn">Outside its work hours</span></div>
+                              <div className="conn-meta"><span className="fact warn">Outside Its Work Hours</span></div>
                             )}
                             {on && blockFor(t.id)?.overSoft && (
-                              <div className="conn-meta"><span className="fact warn">Overlaps your {blockFor(t.id)!.overSoft}</span></div>
+                              <div className="conn-meta"><span className="fact warn">Overlaps Your {blockFor(t.id)!.overSoft}</span></div>
                             )}
                             {chunks && <div className="conn-meta"><span className="fact"><b>{sittingsOf(chunks)}</b></span></div>}
                           </div>
@@ -820,7 +823,7 @@ export default function PlanDaySheet({
                                   sys-red on a picked row's grey read at 2.64:1
                                   in dark. The load line's red "over" fact and
                                   the Drop card already say it runs over. */}
-                              {at ? label(at) : "No room"}
+                              {at ? label(at) : "No Room"}
                             </button>
                           ) : t.overdue ? (
                             <span className="plan-overdue">Overdue</span>
@@ -840,7 +843,7 @@ export default function PlanDaySheet({
                                   aria-label={`${t.text}: ${d} minutes`}
                                   onClick={() => setDur(t.id, d)}
                                 >
-                                  {d < 60 ? `${d}m` : d % 60 === 0 ? `${d / 60}h` : `${Math.floor(d / 60)}h ${d % 60}m`}
+                                  {durLabel(d)}
                                 </button>
                               ))}
                             </div>

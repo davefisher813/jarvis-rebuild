@@ -190,7 +190,7 @@ export default function DecisionsFlow({ onBack, openId, openNonce, onOpenConsume
       goRecord(newId);
       await reload();
       const created = newId;
-      showToast({ message: "Decision replaced", actionLabel: "Undo", onAction: () => void (async () => {
+      showToast({ message: "Decision Replaced", actionLabel: "Undo", onAction: () => void (async () => {
         await attemptWrite(() => svc.undoSupersede(created));
         goRecord(oldId);
         await reload();
@@ -224,9 +224,9 @@ export default function DecisionsFlow({ onBack, openId, openNonce, onOpenConsume
       id = await strands.add(rec.data.decision, "values", todayISO(), "rule", "principle", { entityType: ENTITY_DECISION, entityId: rec.id });
     });
     if (!ok) return;
-    if (!id) { showToast({ message: "The Brain is full · Prune it in What JARVIS Knows" }); return; }
+    if (!id) { showToast({ message: "The Brain Is Full · Prune It in What JARVIS Knows" }); return; }
     await patch(rec.id, { ruleStrandId: id });
-    showToast({ message: "Rule saved to Values · Linked to this decision" });
+    showToast({ message: "Rule Saved to Values · Linked to This Decision" });
   };
 
   const deleteRecord = async (rec: DecisionRecord) => {
@@ -238,7 +238,7 @@ export default function DecisionsFlow({ onBack, openId, openNonce, onOpenConsume
       await reload();
       // BRAIN-F-14 (2026-09-05): restore, not create. create() re-dates the
       // record to now and re-arms a revisit that was already answered.
-      showToast({ message: "Decision deleted", actionLabel: "Undo", onAction: () => void (async () => {
+      showToast({ message: "Decision Deleted", actionLabel: "Undo", onAction: () => void (async () => {
         await attemptWrite(() => svc.restore(rec.id, kept));
         await reload();
       })() });
@@ -604,8 +604,15 @@ function ListScreen({ live, loading, projCat, onBack, onOpen, onAdd }: {
                 {/* A row with no reason says nothing about it (§AK): the
                     "No reason recorded" line stated nothing, and it spent the
                     row's one grey doing it. The record page still offers the
-                    empty field. */}
-                {r.data.why && <div className="conn-meta truncate">{"Because " + r.data.why}</div>}
+                    empty field.
+                    THE REASON READS WHOLE (audit leftovers, 2026-09-26). It
+                    wore .truncate, one line and an ellipsis, and lost a third
+                    to a half of itself on every seeded row at 390 ("Because
+                    Ridgeline fields are locke…"), when the reason is the
+                    row's point. It wraps now (.dec-row .conn-meta in
+                    components.css), still the row's one grey: the facts line
+                    under it is dots, the key and small caps. */}
+                {r.data.why && <div className="conn-meta">{"Because " + r.data.why}</div>}
                 <div className="facts">
                   {/* Where it came from is on the record page, not here: the
                       row already spends its grey on the reason.

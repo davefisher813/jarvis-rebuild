@@ -3,7 +3,7 @@
 import type { EventItem } from "../schedule/types";
 import type { TaskItem } from "../tasks/TasksService";
 import { partition } from "../tasks/filters";
-import { capAfterNumber } from "../shared/casing";
+import { lineCase } from "../shared/casing";
 
 function isoOf(d: Date): string {
   const y = d.getFullYear();
@@ -161,11 +161,11 @@ export function billsLine(tasks: TaskItem[], today: string): BillLine | null {
     return {
       title: name(t),
       ...(amt ? { amount: `$${amt}` } : {}),
-      due: { text: `Due ${when(iso)}`, tone: iso === today || iso === tomorrowISO(today) ? "warn" : "date" },
+      due: { text: lineCase(`Due ${when(iso)}`), tone: iso === today || iso === tomorrowISO(today) ? "warn" : "date" },
     };
   }
   return {
-    title: capAfterNumber(`${due.length} bills due soon`),
+    title: lineCase(`${due.length} bills due soon`),
     sub: due.map(name).join(", "),
   };
 }

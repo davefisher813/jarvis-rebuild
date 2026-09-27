@@ -2,7 +2,7 @@ import type { Goal } from "../life/types";
 import type { GoalReach } from "../bigger/reach";
 import { reachedIds } from "../bigger/measure";
 import { daysBetween } from "../upnext/upnext";
-import { capAfterNumber } from "../shared/casing";
+import { lineCase } from "../shared/casing";
 
 // THE LIFE LAYER'S MODEL (Life View picks 12, 14, 15, 17; 2026-08-25).
 // Pure functions, every gate erring toward silence, and the balance stance
@@ -60,12 +60,12 @@ export function comebackLine(evidenceDays: string[], today: string): string | nu
     }
   }
   if (gap === 0 || runBefore < COMEBACK_RUN) return null;
-  return capAfterNumber(`Back at it after ${gap - 1} quiet ${gap - 1 === 1 ? "day" : "days"}`);
+  return lineCase(`Back at it after ${gap - 1} quiet ${gap - 1 === 1 ? "day" : "days"}`);
 }
 
 /** Pick 18's fork, said out loud: effort without movement reads as weight,
  *  never as failure. Shown in the Life view in place of a bare Behind. */
 export function heavyWord(health: "done" | "on_track" | "behind" | "idle" | "unmeasured", hasOpenWork: boolean): string | null {
-  if ((health === "behind" || health === "idle") && hasOpenWork) return "Heavy right now";
+  if ((health === "behind" || health === "idle") && hasOpenWork) return "Heavy Right Now";
   return null;
 }

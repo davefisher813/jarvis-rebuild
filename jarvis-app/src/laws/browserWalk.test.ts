@@ -454,6 +454,30 @@ describe("BROWSER-F-10: red words on a sheet grey are readable", () => {
     expect(contrast("#FF6B6B", "rgb(70,70,72)")).toBeLessThan(4.5);
   });
 
+  it("the action sheet's destructive verb keeps a red that clears the sheet", () => {
+    expect(ruleBody(css(), ".sheet-scrim > .card .action-sheet button.destructive")).toMatch(/color:\s*var\(--sys-red-on-sheet\)/);
+    // And the two cards of an action sheet are two objects, with a gap.
+    expect(ruleBody(css(), ".sheet-scrim > .card + .card")).toMatch(/margin-top:\s*var\(--s-2\)/);
+  });
+
+  it("the delete verb on a sheet's grouped card wears the lifted red (2026-09-26)", () => {
+    // --danger-tx is 3.33:1 on the raised card grey (#3A3A3C); the lifted
+    // twin clears 4.5 there and is --danger-tx itself in light.
+    expect(ruleBody(css(), ".form-sheet .xs-del")).toMatch(/color:\s*var\(--danger-tx-raised\)/);
+    const ds = read("styles/jarvis-design-system.css");
+    expect(ds).toMatch(/--danger-tx-raised:\s*#FF8A80/);
+    expect(ds).toMatch(/--danger-tx-raised:\s*var\(--danger-tx\)/);
+  });
+
+  it("the return pill is 44 to the finger and clears the capture bar (2026-09-26)", () => {
+    const pill = ruleBody(css(), ".return-pill")!;
+    expect(pill).toMatch(/min-height:\s*44px/);
+    expect(pill, "the capsule is painted on ::before, not the box").toMatch(/background:\s*none/);
+    expect(ruleBody(css(), ".return-pill::before")).toMatch(/inset:\s*5px 0/);
+    expect(pill, "its bottom is the measured dock, with the old 132 as the fallback").toMatch(/var\(--return-clear,\s*calc\(env\(safe-area-inset-bottom, 0px\) \+ 132px\)\)/);
+    expect(read("shell/ReturnPill.tsx")).toMatch(/setProperty\("--return-clear"/);
+  });
+
   it("the sheet and toast verbs take it", () => {
     const bare = css().replace(/\/\*[\s\S]*?\*\//g, "");
     const rule = [...bare.matchAll(/([^{}]+)\{([^}]*)\}/g)]
@@ -481,6 +505,9 @@ describe("BROWSER-F-10: red words on a sheet grey are readable", () => {
       // most of them open inside a sheet, where the tap red is 3.76:1 on the
       // dark sheet grey. Both sheet forms take the sheet twin.
       ".form-sheet .exp-more summary", ".sheet-scrim > .card .exp-more summary",
+      // AMENDED 2026-09-26 (the post-code audit): the action sheet's verbs
+      // (Choose Photo, Cancel) drew --tint at 3.76:1 on the sheet grey.
+      ".sheet-scrim > .card .action-sheet button",
     ]) {
       expect(members, `${sel} is a member of the sheet-red list`).toContain(sel);
     }
@@ -935,7 +962,9 @@ describe("LAW: the schedule rail leads the row, so nothing can get in front of i
     expect(bare, "the row does not wrap").toMatch(/\.ruled \.sched-row \{[^}]*flex-wrap: nowrap/);
     expect(bare, "and the body is the column beside the time")
       .toMatch(/\.ruled \.sched-row > \.sched-body \{[^}]*flex: 1 1 0/);
-    expect(bare, "the title ellipsizes on its line").toMatch(/\.ruled \.sched-title > \.sched-t \{[^}]*text-overflow: ellipsis/);
+    // AMENDED 2026-09-27 (Dave, "if we NEED 3 cuz of wrapping whatever"): the
+    // title wraps to a second line when it must and is clamped there.
+    expect(bare, "the title wraps to two lines, never an ellipsis").toMatch(/\.ruled \.sched-title > \.sched-t \{[^}]*-webkit-line-clamp: 2/);
     expect(bare, "and the facts line is one line of whole facts")
       .toMatch(/\.ruled \.sched-body > \.sched-cat \{[^}]*max-height: calc\(var\(--t-sub\) \* 1\.4\)/);
     // NO THIRD LINE (Dave 2026-09-27, "I don't want 3 fucking rows"): the
@@ -1097,7 +1126,11 @@ describe("DYNAMIC-TYPE-1.4: the app's own words survive the largest text size", 
     // is what cut "Over a month late" and "Looks like t" with no mark.
     const each = ruleBody(css(), ".facts > .fact")!;
     expect(each).toMatch(/min-width:\s*0/);
-    expect(each).toMatch(/flex-shrink:\s*1\b/);
+    // AMENDED 2026-09-26 (later the same day): 0.001, not 1, so a line that
+    // overflows by a fraction never puts an ellipsis on a first fact that
+    // lost nothing; the fact before the last yields at 1, the last at 1000.
+    expect(each).toMatch(/flex-shrink:\s*0\.001\b/);
+    expect(ruleBody(css(), ".facts > .fact:nth-last-child(2)")).toMatch(/flex-shrink:\s*1\b/);
     expect(each).toMatch(/text-overflow:\s*ellipsis/);
     expect(each).toMatch(/white-space:\s*nowrap/);
     expect(ruleBody(css(), ".facts > .fact:last-child")).toMatch(/flex-shrink:\s*1000/);
@@ -1260,6 +1293,17 @@ describe("OUTSIDE-BOX: text that escapes its box is a finding, not a blind spot"
     const t = tool();
     expect(t).toMatch(/const forwarder = \(e\) =>/);
     expect(t, "resolved the way the row resolves it").toMatch(/n\.querySelector\(sel\) === e/);
+    // AMENDED 2026-09-26 (audit): the settings kit's Menu row forwards too.
+    // "Match Master" measured 159x24 on AI Control at 430 and 834 wide with
+    // type at 1.4: the value's own ::after reached 44, but the rows at the
+    // foot of the page sat under the capture bar, which took the hit for
+    // the expanded edge, and the kit's Row carried no data-forwards, so the
+    // auditor had only the 24px value to measure. The row is the door now
+    // (Dave 2026-09-15, "I want all rows clickable"), and it says so in the
+    // DOM with the same selector its pointer handler uses.
+    const kit = read("settings/kit.tsx");
+    expect(kit, "the kit's Row writes its forwarding into the DOM").toMatch(/data-forwards=\{forward \? forwardTo : undefined\}/);
+    expect(kit, "and the Menu row forwards to its dropdown").toMatch(/<Row label=\{label\} meta=\{meta\} forwardTo="\.dd">/);
   });
 
   it("a form row's value can shrink, and the row wraps before it loses a word", () => {
@@ -1403,5 +1447,73 @@ describe("SCROLL RESET: a screen does not inherit the last one's position", () =
 
   it("does not animate a move the person did not make", () => {
     expect(read("shell/AppShell.tsx")).toMatch(/behavior: "instant"/);
+  });
+});
+
+// THE CONDENSED TITLE NEVER RUNS UNDER THE BAR'S ACTIONS (audit leftovers,
+// 2026-09-26). .nav-bar .nav-title was position: absolute, left 0, right 0:
+// centred on the whole bar and blind to what sat at its ends, so at
+// --type-scale 1.4 "Pull Day" painted through Pause on the live workout
+// (title ink 140..250, Pause from 216). A bar holding a condensed title is a
+// three-column grid now, both sides floored at their content, so the title
+// is centred while it fits between the wider side mirrored, shifted into
+// the free middle when it does not, and ellipsized there before it can touch
+// an action. Measured, not argued: "Pull Day" at 99..208 beside Pause at 216
+// after, whole; "Cancel" on the compose bar kept its 97px once the floor was
+// stated as max-content (a bare 1fr floors at .nav-back's declared 44px
+// min-width, not its words, and gave Cancel an 83px column).
+//
+// AMENDED 2026-09-27 (casing sweep 3's leftover): the library chassis bar
+// (.pagebar-row, PageHeader's condensed title) had the same bug in a
+// different coat. .pagebar-title was absolute, left 60px right 60px: a
+// fixed allowance for a back label that is 83px wide at type 1.4, so
+// "Brain" painted through "What JARVIS Knows" and "Settings" through
+// "Account" once the page scrolled. Same grid, same floors, both bars
+// held to it here; each pair below runs over the two bars.
+const CONDENSED_BARS = [
+  { bar: ".nav-bar", title: ".nav-title", titleRule: ".nav-bar .nav-title" },
+  { bar: ".pagebar-row", title: ".pagebar-title", titleRule: ".pagebar-title" },
+] as const;
+describe("NAV TITLE: centred while it fits, never under an action", () => {
+  it("a bar with a condensed title is a three-column grid floored at its content", () => {
+    for (const { bar: b, title: t } of CONDENSED_BARS) {
+      const bar = ruleBody(css(), `${b}:has(> ${t})`);
+      expect(bar, `the grid rule exists for ${b}`).not.toBeNull();
+      expect(bar, b).toMatch(/display:\s*grid/);
+      expect(bar, `${b}: both sides floor at their content, the title takes the rest`)
+        .toMatch(/grid-template-columns:\s*minmax\(max-content,\s*1fr\)\s+auto\s+minmax\(max-content,\s*1fr\)/);
+      expect(ruleBody(css(), `${b}:has(> ${t}) > :not(${t})`), `${b}: what leads the title sits in the first column`)
+        .toMatch(/grid-column:\s*1/);
+      expect(ruleBody(css(), `${b}:has(> ${t}) > ${t} ~ *`), `${b}: what follows the title sits in the third column`)
+        .toMatch(/grid-column:\s*3/);
+    }
+  });
+
+  it("the title is the middle column, never absolute over the whole bar", () => {
+    for (const { bar: b, titleRule } of CONDENSED_BARS) {
+      const title = ruleBody(css(), titleRule);
+      expect(title, `${titleRule} exists`).not.toBeNull();
+      expect(title, `${b}: absolute over the bar is how it ran under Pause and under Brain`).not.toMatch(/position:\s*absolute/);
+      expect(title, `${b}: a fixed side allowance is blind to the back label's width`).not.toMatch(/\b(left|right):\s*\d/);
+      expect(title, b).toMatch(/grid-column:\s*2/);
+      expect(title, `${b}: it may shrink to the free middle`).toMatch(/min-width:\s*0/);
+      expect(title, `${b}: and ellipsize there`).toMatch(/text-overflow:\s*ellipsis/);
+    }
+  });
+});
+
+// A DECISION'S REASON READS WHOLE (audit leftovers, 2026-09-26). The row's
+// reason wore .truncate and lost a third to a half of itself on every seeded
+// row at 390 ("Because Ridgeline fields are locke…"), when the reason is the
+// row's point. It wraps, unclamped, still the row's one grey.
+describe("DECISION ROW: the reason wraps", () => {
+  it("the reason line is unclamped and never one-line", () => {
+    const why = ruleBody(css(), ".dec-row .conn-meta");
+    expect(why, "the wrapping rule exists").not.toBeNull();
+    expect(why).toMatch(/white-space:\s*normal/);
+    expect(why).toMatch(/-webkit-line-clamp:\s*none/);
+    expect(why).toMatch(/overflow:\s*visible/);
+    expect(read("decisions/DecisionsFlow.tsx"), "the row's reason no longer wears .truncate")
+      .not.toMatch(/className="conn-meta truncate">\{"Because "/);
   });
 });

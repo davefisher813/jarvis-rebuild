@@ -180,6 +180,106 @@ Changes he chose:
 - A day count that runs forward ("3 days left") is amber; slipped is red.
 - "25 min last time" on the Event sheet is a one-tap fill for Travel.
 
+## Decided by Dave (2026-09-26, pass-off Batch 1): never reopen these
+
+Casing, the whole rule (Dave: "After dots and numbers is always title
+casing"; "Make sure all cases are addressed (ex: 45 min v 45 Min)"):
+- Every word the app writes is Title Case: titles, row names, buttons,
+  heads, chips, AND every grey sub line and facts line. The start of a line,
+  the part after every middle dot, and the word after every number all
+  follow it. Small words (a, an, and, at, by, for, from, in, of, on, or, the,
+  to, with) stay lowercase mid-phrase; the first and last word are always
+  capitalized.
+  - "Saves About 8 Min · Never Your Main Lift"
+  - "Sep 14 · Food and Beverage Store"
+  - "2 of 5 Lifts", "45 Min" (never "45 min"), "310 of 325 Lb"
+- Sentence case stays only where the app is talking in sentences:
+  chat, notes' bodies, onboarding and check-in prompts, and a field note
+  that is a full sentence.
+- His own typed titles (tasks, notes, projects, goals, events) are SHOWN in
+  Title Case everywhere. What he typed is stored unchanged; only the display
+  is re-cased.
+- One shared formatter owns this; a law scans every sub-line builder and
+  literal so "45 min" cannot come back.
+
+Colour (Dave: "Keep the key but add stuff that requires colors or add to
+color logic"): the Colour Key stands. A plain page gets colour by showing
+something that carries meaning (a status, a trend, an amount in or out, an
+area's own colour on its tile), or by a new meaning added to the key and
+written into §AM. Never decorative colour with no meaning.
+
+Life's "Keep Going" row: make it real. The whole row opens and starts that
+task, and the same task is hidden from the list below while the suggestion
+shows, so nothing appears twice.
+
+Reminders on Today: the next 3 upcoming by time, then one red "N Missed"
+row that opens a list where each missed reminder is ticked off in one tap.
+See All handles the rest.
+
+Goals with nothing under them: the empty line is one short tap-red action,
+"Add a Project", that opens the add sheet already linked to that goal.
+
+Pass-off item 15: the numbered-bullet casing note does not match its
+screenshot (the Money page); skip it. The Money colour pass still happens.
+
+Second round of pass-off decisions (Dave, 2026-09-26, later the same day):
+- Workout secondary moves: one labelled tap-red capsule ("More") on the
+  lift's heading opens one sheet with every move. Not a bare ··· ("Three
+  dots isn't obvious enough but that's the right idea"). Equipment and
+  Superset stay visible chips.
+- Match and the suggested set FILL the fields; only the red button logs,
+  with a receipt and Undo. One Log control, always showing what it writes.
+- Task sheet Goal row: a real picker. With no project it lists live goals
+  and saves the pick on the task (goalId); with a project it shows the
+  project's goal and opens the Project menu. All five WHERE rows on every
+  screen that opens the sheet.
+- Estimated one-rep max: an insight on the lift page only, "rendered nice
+  and clean and simple". The no-predicted-max rule stands.
+- Durations: "45 Min" spelled and capitalized for minutes-only, "+30 Sec";
+  hours use the compact clock "1h 30m"; running clocks m:ss, h:mm:ss past
+  an hour; clock times 12-hour with AM/PM.
+- Bridge "Most gets done on Wednesdays": a notice card with one action,
+  "Line Up N for Wednesday", dating the area's undated open tasks to that
+  day, with Undo. Shown only when there is something to line up.
+- Brain hub rows: the grey is the fact's category ("KNOWN · Work Style"),
+  one short grey; the sheet keeps the Used By list.
+
+Settled by the lead from the plan's checker (2026-09-26, pass-off), no
+question for Dave:
+- Superset: offer, don't drive; rest after the round at the program's round
+  rest or the shortest member rest (the catalog's §AB Part 3 rule, now §AN).
+- Numbers are typed in one shape: the Now row; a Done row opens the Set
+  sheet with the same fields; Up Next rows are read-only.
+- Brain's facts about him ("Brainstorms best at night") stay as written; they
+  are sentences, not titles. The grey under them follows the casing rule.
+- His typed titles: "w/", "vs", "via" are small words; a word with its own
+  capital inside (iPhone, eBay, RDLs) is never re-cased.
+- Area project rows take two lines so the whole next step reads (NEXT +
+  the step, then the toned chips and date).
+- Insights: the month report's content is rebuilt from data the app already
+  keeps (Money, Mail, People, Health, Decisions), each card with an exit
+  action only; One Change stays the only proposed change; the hub's four
+  sections stay.
+- Money page: colour through the key only: a kind dot per account, paid in
+  green, the Tracker row's net green (more in) or red (more out); a credit
+  balance stays white. Tracker's In tile is green only above zero.
+- Duration chips follow the rule literally ("45 Min" beside "1h 30m"); the
+  Now card's distance reads "In 25 Min"; a zero reads "None of 3h 30m".
+- Casing boundary is narrow: only chat, note bodies, onboarding and
+  check-in prompts and .input-hint field notes keep sentence case. Estimates
+  say "About", never "~".
+- Program page: Reorder and Manage are both 34px head capsules on one line.
+- Event sheet: Project only (no Goal row); the Projects menu shows each
+  project's area dot and keeps area-then-name order with search.
+- Today's reminders: the red "N Missed" row is the one place a missed
+  reminder appears; the Heads Up missed cards go.
+
+Dave, 2026-09-26, the audit leftover: task names that do not fit beside the
+star, the checkbox and Start (Life rows, Today's top card) WRAP TO TWO
+LINES; the row grows as needed. Star, checkbox and Start stay as they are.
+This supersedes the one-line task name (DEFECT 1, 2026-09-06, which was
+about the second line's pills, not the name).
+
 Dave, 2026-09-27, the Today TV guide: FROZEN. It moves at all times (a
 short day is repeated until the loop has two windows); Pause is for the
 visit. Never touched again unless he says so: `src/laws/tvGuide.test.ts`

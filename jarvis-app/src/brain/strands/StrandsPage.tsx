@@ -18,6 +18,8 @@ import { stateForStrand, toneForStrandState, STRAND_STATE_LABEL, bucketFor, conf
 import { usedBy } from "./usedBy";
 import { watchingCount } from "../readiness";
 import RowStar from "../../shared/RowStar";
+import { lineCase } from "../../shared/casing";
+import { spanLabel } from "../../shared/duration";
 
 // C-40: the filter chips. Choosers, so filled chips. Watching is not a
 // strand bucket: it lists the readiness rows past CLOSE_SHARE of their gate.
@@ -54,7 +56,14 @@ function monthDay(iso: string): string {
 
 // Receipts render from numbers at display time; the meaning of a/b belongs
 // to the derivation (same law as the event log: no free text stored).
+// A receipt is a grey sub line, so it is Title Case through the one
+// formatter ("Ran 30 Min Past the Estimate", never "30 min"; Dave 2026-09-26,
+// the pass-off).
 export function receiptLine(derivation: DerivationKey | undefined, e: StrandEvidence): string {
+  return lineCase(receiptWords(derivation, e));
+}
+
+function receiptWords(derivation: DerivationKey | undefined, e: StrandEvidence): string {
   if (derivation === "completion_window" && typeof e.a === "number") {
     return `Finished in the ${hour12(e.a)} window`;
   }
@@ -63,7 +72,7 @@ export function receiptLine(derivation: DerivationKey | undefined, e: StrandEvid
     return `${e.a} of ${e.b} picks done`;
   }
   if (derivation === "task_timing" && typeof e.a === "number") {
-    return e.a > 0 ? `Ran ${e.a} min past the estimate` : `Wrapped ${-e.a} min early`;
+    return e.a > 0 ? `Ran ${spanLabel(e.a)} past the estimate` : `Wrapped ${spanLabel(-e.a)} early`;
   }
   // B5 (2026-09-04): derive.ts's two newest detectors (training_window,
   // email_window) have written the band hour as evidence.a since they
@@ -177,7 +186,7 @@ export default function StrandsPage({ onBack, openId: initialOpenId, openNonce, 
         const made = (await svc.list()).find((s) => s.id === id);
         if (made) await svc.setChannel(made, channel);
       }
-      showToast({ message: id ? "JARVIS will remember that" : "The Brain is full · Delete one first" });
+      showToast({ message: id ? "JARVIS Will Remember That" : "The Brain Is Full · Delete One First" });
     });
     setSaving(false);
     if (!ok) return;
@@ -200,7 +209,7 @@ export default function StrandsPage({ onBack, openId: initialOpenId, openNonce, 
       await svc.edit(open, text, today);
       if (cat !== open.data.category) {
         const moved = await svc.recategorize(open, cat);
-        if (!moved) showToast({ message: "The Brain is full · Prune it in What JARVIS Knows" });
+        if (!moved) showToast({ message: "The Brain Is Full · Prune It in What JARVIS Knows" });
       }
       // S4-Q24: the only writer of strength, and only when it actually
       // changed -- re-saving an unchanged edit is not a rule declaration.
@@ -406,7 +415,8 @@ export default function StrandsPage({ onBack, openId: initialOpenId, openNonce, 
           word like Known, so it wears none of the key's colours, and Medium
           is not said at all: a fact at its gate is what Learned already
           says, and amber would claim it needs him. Same row as the Brain
-          hub's (BrainTop). */}
+          hub's (BrainTop), which dropped its Used By list for the category
+          on 2026-09-26 (Dave, the pass-off) so the two read as one. */}
       {visible.length > 0 && (
         <div className="pad-x"><div className="card list-card-ruled">
           {visible.map((s) => {
@@ -495,7 +505,7 @@ export default function StrandsPage({ onBack, openId: initialOpenId, openNonce, 
             <div className="grp"><div className="eyebrow">{adding ? "One True Thing" : "Say It Right"}</div></div>
             <div className="pad-x sheet-form">
               <div className="field">
-                <label className="input-label">{adding ? "Something JARVIS should know about you" : "The fact, in your words"}</label>
+                <label className="input-label">{adding ? "Something JARVIS Should Know About You" : "The Fact, in Your Words"}</label>
                 <input className="input" value={text} onChange={(e) => setText(e.target.value)} placeholder="e.g. Brainstorms best at night" />
               </div>
               {/* S4-Q22: the edit sheet is the only exit for a fact already

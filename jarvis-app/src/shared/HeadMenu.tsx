@@ -1,7 +1,8 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { haptics } from "./haptics";
-import { Check } from "./icons";
+import { Check, Search } from "./icons";
+import { matchesPick } from "./pickerSort";
 
 // THE DROPDOWN (Fewer Buttons, Dave 2026-09-02: "I don't like all those
 // floating buttons. There's way too many. Think of a completely different
@@ -39,6 +40,7 @@ export default function HeadMenu({
   off = false,
   multi = false,
   picked,
+  search,
 }: {
   value: string;
   options: MenuOption[];
@@ -60,22 +62,29 @@ export default function HeadMenu({
       the list and says what the closed value reads (`label`). */
   multi?: boolean;
   picked?: string[];
+  /** A SEARCH FIELD AT THE TOP OF A LONG MENU (Dave's pass-off, 2026-09-26,
+      on the Projects picker: "dumps everything unsorted with no search").
+      The placeholder ("Search Projects"); the options are filtered on their
+      label as he types, and the clearing option (value "") always stays. The
+      caller orders the options (shared/pickerSort). */
+  search?: string;
 }) {
   const [open, setOpen] = useState(false);
+  const [q, setQ] = useState("");
   const [box, setBox] = useState<{ top: number; bottom: number; left: number; right: number; fromRight: boolean; up: boolean; maxH: number } | null>(null);
   const btn = useRef<HTMLButtonElement>(null);
   const current = options.find((o) => o.value === value);
   const word = label ?? current?.label ?? "";
 
   useLayoutEffect(() => {
-    if (!open) { setBox(null); return; }
+    if (!open) { setBox(null); setQ(""); return; }
     const r = btn.current?.getBoundingClientRect();
     if (!r) return;
     const vw = window.innerWidth, vh = window.innerHeight;
     const fromRight = r.left + r.width / 2 > vw / 2;
     // Drops down by default; opens upward when the room is below the fold
     // and there is more of it above (a menu at the foot of a tall sheet).
-    const want = options.length * 44 + 12;
+    const want = options.length * 44 + 12 + (search ? 52 : 0);
     const below = vh - r.bottom - 12, above = r.top - 12;
     const up = want > below && above > below;
     setBox({ top: r.bottom + 6, bottom: vh - r.top + 6, left: r.left, right: vw - r.right, fromRight, up, maxH: Math.max(132, Math.min(want, up ? above : below)) });
@@ -89,6 +98,7 @@ export default function HeadMenu({
   }, [open]);
 
   const isOn = (v: string) => (multi ? (v === "" ? (picked?.length ?? 0) === 0 : (picked ?? []).includes(v)) : v === value);
+  const shown = search ? options.filter((o) => o.value === "" || matchesPick(o.label, q)) : options;
   const pick = (v: string) => {
     haptics.selection();
     if (!multi || v === "") setOpen(false);
@@ -120,7 +130,17 @@ export default function HeadMenu({
             style={{ ...(box.up ? { bottom: box.bottom } : { top: box.top }), ...(box.fromRight ? { right: box.right } : { left: box.left }), maxHeight: box.maxH }}
             onClick={(e) => e.stopPropagation()}
           >
-            {options.map((o) => (
+            {search && (
+              <div className="hmenu-search">
+                <div className="search-bar">
+                  <Search className="search-ic" />
+                  <input type="search" value={q} placeholder={search} aria-label={search}
+                    autoCorrect="off" autoCapitalize="none" spellCheck={false}
+                    onChange={(e) => setQ(e.target.value)} />
+                </div>
+              </div>
+            )}
+            {shown.map((o) => (
               <button
                 key={o.value}
                 type="button"

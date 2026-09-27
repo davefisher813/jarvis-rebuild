@@ -17,10 +17,15 @@ import HeadMenu from "../../shared/HeadMenu";
 import { tapField } from "../../shared/FormSheet";
 import { onPressKey } from "../../shared/pressable";
 import { addDays } from "../../schedule/calendar";
+import { sortPicks } from "../../shared/pickerSort";
+import { titleCase } from "../../shared/casing";
 
 export interface SheetCategory { id: string; name: string; color: ColorSlot }
 export interface TaskDraft {
   text: string; category: string; extraCategories?: string[]; due: string; repeat: string; projectId?: string;
+  // THE GOAL IS A PICK (Dave's pass-off, 2026-09-26). The goal this task is
+  // for, by id; a project pick fills it, and the row is a real picker.
+  goalId?: string;
   // EVENTS ARE FIRST-CLASS (Dave 2026-09-09: "events are also not tied to task
   // modals"). The event this task belongs to, by id, exactly as projectId
   // above names its project. The event page could file a task to itself from
@@ -50,7 +55,10 @@ export interface TaskDraft {
  *  project already knows its area and the goal it climbs to, so a task filed
  *  to it should not make him say either one again. Both optional, so a caller
  *  with only ids and titles keeps working exactly as before. */
-export interface SheetProject { id: string; title: string; category?: string; goalTitle?: string }
+export interface SheetProject { id: string; title: string; category?: string; goalTitle?: string; goalId?: string }
+/** A goal this sheet can file a task to (2026-09-26): the fileable ones,
+ *  plus whichever it is already under (bigger/reach.ts sheetGoals). */
+export interface SheetGoal { id: string; title: string }
 /** An event this sheet can file a task to. `when` is a rendered day, not a
  *  date: the menu has to disambiguate two events with the same name, and a
  *  raw ISO string in a picker is a machine talking. */
@@ -97,6 +105,7 @@ export default function TaskSheet({
   categoryMinutes = {},
   people = [],
   projects = [],
+  goals = [],
   events = [],
   source,
   openSourceFor,
@@ -132,6 +141,9 @@ export default function TaskSheet({
   // plans on one trigger cancel each other out.
   otherPlans?: { id: string; text: string; plan?: IfThen }[];
   projects?: SheetProject[];
+  /** THE GOAL PICKER'S OPTIONS (Dave's pass-off, 2026-09-26). With none
+   *  handed over the Goal row stays the derived read-only line it was. */
+  goals?: SheetGoal[];
   /** Events a task can be filed to. Empty for a caller with none to hand, and
       the row then does not render, the same way Project's does not. */
   events?: SheetEvent[];
@@ -203,6 +215,7 @@ export default function TaskSheet({
   const [due, setDue] = useState(initial?.due ?? "");
   const [repeat, setRepeat] = useState(initial?.repeat ?? "");
   const [projectId, setProjectId] = useState(initial?.projectId ?? "");
+  const [goalId, setGoalId] = useState(initial?.goalId ?? "");
   const [eventId, setEventId] = useState(initial?.eventId ?? "");
   const [personId, setPersonId] = useState(initial?.personId ?? "");
 
@@ -222,7 +235,12 @@ export default function TaskSheet({
   };
   const pickProject = (id: string) => {
     setProjectId(id);
-    fillAreaFrom(projects.find((p) => p.id === id)?.category);
+    const p = projects.find((x) => x.id === id);
+    fillAreaFrom(p?.category);
+    // WITH A PROJECT, THE GOAL IS THE PROJECT'S (Dave's pass-off,
+    // 2026-09-26: "with a project, Goal shows the project's goal"). The
+    // project decides, so the row follows it, to its goal or to None.
+    setGoalId(p?.goalId ?? "");
   };
   const pickEvent = (id: string) => {
     setEventId(id);
@@ -234,7 +252,30 @@ export default function TaskSheet({
   // to answer "what is this for" without a trip to the goal page. It shows
   // only when the picked project actually climbs to one -- an empty Goal row
   // on every task would be a question with no answer.
-  const goalTitle = projects.find((p) => p.id === projectId)?.goalTitle ?? "";
+  // ...AND SINCE 2026-09-26 IT IS ALSO A PICK (Dave's pass-off: the row "has
+  // no chevron and does nothing"). Where the caller hands over goals the row
+  // is a menu like Project's; a project pick still fills it. Where it does
+  // not, the derived line stays. What is shown is the pick, or the project's
+  // goal when nothing was picked.
+  // ...AND SINCE 2026-09-26 IT IS ALSO A PICK (Dave's pass-off: "Pick any
+  // goal"). With no project the row lists the live goals, None first, and
+  // saves the pick. With a project the goal IS the project's: the row shows
+  // it and tapping the row opens the Project menu, since changing the goal
+  // means changing the project. The derived line stays only for a caller
+  // that hands over no goals.
+  const project = projects.find((p) => p.id === projectId);
+  const goalTitle = titleCase(project ? project.goalTitle ?? "" : (goalId ? goals.find((g) => g.id === goalId)?.title ?? "" : ""));
+  // THE PROJECT MENU IN ORDER (Dave's pass-off, 2026-09-26): the current
+  // pick first, then by area, then by name (shared/pickerSort), with a
+  // search field at the top of the menu.
+  const areaNameOf = (id: string | undefined) => (id ? categories.find((c) => c.id === id)?.name ?? "" : "");
+  const areaDotOf = (id: string | undefined) => (id ? categories.find((c) => c.id === id)?.color : undefined);
+  // His titles are SHOWN in Title Case, in the menu and on the row alike
+  // (Dave's pass-off, 2026-09-26); the value stays the id. Each option wears
+  // its area's dot (the lead, 2026-09-26), so the area-then-name order reads
+  // as grouping rather than as no order at all.
+  const projectOptions = sortPicks(projects.map((p) => ({ id: p.id, title: p.title, area: areaNameOf(p.category), dot: areaDotOf(p.category) })), projectId)
+    .map((p) => ({ value: p.id, label: titleCase(p.title), ...(p.dot ? { dot: p.dot as string } : {}) }));
   // UP-CORE-02: null means he has not said how long, which is different from
   // zero and is what lets the learned median keep answering.
   const [estimateMin, setEstimateMin] = useState<number | null>(initial?.estimateMin ?? null);
@@ -320,8 +361,8 @@ export default function TaskSheet({
 
   const primaryName = categories.find((c) => c.id === category)?.name ?? "";
   const areaWord = cats.length === 0 ? "None" : cats.length === 1 ? primaryName : `${primaryName} +${cats.length - 1}`;
-  const projectWord = projects.find((p) => p.id === projectId)?.title ?? "None";
-  const eventWord = events.find((e) => e.id === eventId)?.title ?? "None";
+  const projectWord = titleCase(projects.find((p) => p.id === projectId)?.title ?? "None");
+  const eventWord = titleCase(events.find((e) => e.id === eventId)?.title ?? "None");
   // The evidence under the When group takes the key's colour for what it
   // says (§AM, 2026-09-26): days late is late, so red; pushed again and
   // again is stalled, so amber. It was the plain grey the key keeps for
@@ -344,7 +385,10 @@ export default function TaskSheet({
     // BRAIN-F-09 (2026-09-05): a failed write used to hold this latch on
     // "Saving" forever, and Cancel (the only way out) took the draft with it.
     const r = onSave({
-      text: text.trim(), ...setCategories(cats), due, repeat, projectId: projectId || undefined, eventId: eventId || undefined,
+      text: text.trim(), ...setCategories(cats), due, repeat, projectId: projectId || undefined,
+      // With a project the goal is the project's (or none); without one it
+      // is the pick.
+      goalId: (project ? project.goalId : goalId) || undefined, eventId: eventId || undefined,
       // Only a plan that will actually work is saved. A weak one is worse
       // than none: it feels like a plan and carries no effect.
       plan: planTouched && isUsable(draftPlan) ? draftPlan : undefined,
@@ -359,7 +403,9 @@ export default function TaskSheet({
 
   const showNotes = mode === "edit" && (linkedNotes.length > 0 || !!onAddNote);
   const showActions = mode === "edit" && (!!onSchedule || (!!onBreakDown && !!text.trim()) || !!onTextPerson || !!onDelete);
-  const planLine = planOpen ? null : planTouched ? (planWeak ?? sentence(draftPlan)) : "Not set";
+  // "Not Set" (Dave's pass-off, 2026-09-26: every line the app writes is
+  // Title Case, the sheet's sub lines included).
+  const planLine = planOpen ? null : planTouched ? (planWeak ?? sentence(draftPlan)) : "Not Set";
 
   return createPortal(
     <div className="sheet-scrim" onClick={onCancel}>
@@ -521,7 +567,7 @@ export default function TaskSheet({
                 {/* The learned median is an estimate the app worked out, so
                     it wears the key's sky (§AM, 2026-09-26), not the grey
                     the unset value beside it already wears. */}
-                {estimateMin === null && usualWord && <div className="conn-meta"><span className="fact est">Usually {usualWord} in this area</span></div>}
+                {estimateMin === null && usualWord && <div className="conn-meta"><span className="fact est">Usually {usualWord} in This Area</span></div>}
               </div>
               <HeadMenu variant="value" ariaLabel="Length" value={estimateMin === null ? "" : String(estimateMin)} label={lengthLabel} off={estimateMin === null}
                 options={[{ value: "", label: "None" }, ...DUR_CHOICES.map((m) => ({ value: String(m), label: durLabel(m) }))]}
@@ -544,7 +590,8 @@ export default function TaskSheet({
               <Tile tone="blue"><Tag className="ic" /></Tile>
               <div className="row-grow">
                 <div className="conn-name">Area</div>
-                {cats.length > 1 && <div className="conn-meta">{primaryName} is the main one</div>}
+                {/* Title Case on the sub line too (Dave's pass-off, 2026-09-26). */}
+                {cats.length > 1 && <div className="conn-meta">{primaryName} Is the Main One</div>}
               </div>
               <HeadMenu variant="value" ariaLabel="Area" value={category} label={areaWord} off={cats.length === 0} multi picked={cats}
                 options={[{ value: "", label: "None" }, ...categories.map((c) => ({ value: c.id, label: c.name, dot: c.color as string }))]}
@@ -556,21 +603,25 @@ export default function TaskSheet({
                 guessing from spelling, and the task could not open his Call
                 Prep card at all. The chooser hands back a real contact's
                 id, so neither end has to guess. */}
-            {people.length > 0 && (
-              <div className="row xs-row" onClick={tapField}>
-                <Tile tone="teal"><User className="ic" /></Tile>
-                <div className="conn-name">Person</div>
-                <HeadMenu variant="value" ariaLabel="Person" value={personId} label={personWord} off={personId === ""}
-                  options={[{ value: "", label: "None" }, ...people.map((p) => ({ value: p.id, label: p.name }))]}
-                  onPick={setPersonId} />
-              </div>
-            )}
-            {projects.length > 0 && (
+            {/* ALL FIVE ROWS, ON EVERY SCREEN (Dave 2026-09-16: "They should
+                all have the same 5 options"; pass-off 2026-09-26). These
+                rows were gated on the caller handing over a list, so Where
+                read as four fields on one screen and three on another. A
+                menu with nothing to pick says None and offers None. */}
+            <div className="row xs-row" onClick={tapField}>
+              <Tile tone="teal"><User className="ic" /></Tile>
+              <div className="conn-name">Person</div>
+              <HeadMenu variant="value" ariaLabel="Person" value={personId} label={personWord} off={personId === ""}
+                options={[{ value: "", label: "None" }, ...people.map((p) => ({ value: p.id, label: p.name }))]}
+                onPick={setPersonId} />
+            </div>
+            {(
               <div className="row xs-row" onClick={tapField}>
                 <Tile tone="indigo"><FolderKanban className="ic" /></Tile>
                 <div className="conn-name">Project</div>
                 <HeadMenu variant="value" ariaLabel="Project" value={projectId} label={projectWord} off={projectId === ""}
-                  options={[{ value: "", label: "None" }, ...projects.map((p) => ({ value: p.id, label: p.title }))]}
+                  options={[{ value: "", label: "None" }, ...projectOptions]}
+                  search="Search Projects"
                   onPick={pickProject} />
               </div>
             )}
@@ -591,10 +642,27 @@ export default function TaskSheet({
                 filing the project has already answered this), and now says
                 None like every other field here does when it has nothing to
                 report, rather than disappearing. */}
-            <div className="row xs-row">
+            {/* A REAL PICKER (Dave's pass-off, 2026-09-26). The row above
+                stayed derived for a week and read as a control that did
+                nothing; it is the same menu Project's is now, and a project
+                pick still fills it. The derived line survives only for a
+                caller that hands over no goals. */}
+            {/* Always the menu, like its four neighbours: with no goals to
+                offer it says None and offers None, the same as Person and
+                Event do with nothing to pick, never a value that looks like
+                a control and is not (O.9). */}
+            <div className="row xs-row" onClick={tapField}>
               <Tile tone="red"><TargetGlyph /></Tile>
               <div className="conn-name">Goal</div>
-              <div className="row-val">{goalTitle || "None"}</div>
+              {project
+                ? <HeadMenu variant="value" ariaLabel="Goal" value={projectId} label={goalTitle || "None"} off={goalTitle === ""}
+                    options={[{ value: "", label: "None" }, ...projectOptions]}
+                    search="Search Projects"
+                    onPick={pickProject} />
+                : <HeadMenu variant="value" ariaLabel="Goal" value={goalId} label={goalTitle || "None"} off={goalTitle === ""}
+                    options={[{ value: "", label: "None" }, ...sortPicks(goals, goalId).map((g) => ({ value: g.id, label: titleCase(g.title) }))]}
+                    search="Search Goals"
+                    onPick={setGoalId} />}
             </div>
             {/* EVENTS ARE FIRST-CLASS (Dave 2026-09-09: "events are also not
                 tied to task modals"). The event page could file a task to
@@ -603,15 +671,13 @@ export default function TaskSheet({
                 and belongs to Saturday. The menu names the day beside the
                 title, because two practices called "Practice" are not the
                 same practice. */}
-            {events.length > 0 && (
-              <div className="row xs-row" onClick={tapField}>
-                <Tile tone="sky"><CalendarDays className="ic" /></Tile>
-                <div className="conn-name">Event</div>
-                <HeadMenu variant="value" ariaLabel="Event" value={eventId} label={eventWord} off={eventId === ""}
-                  options={[{ value: "", label: "None" }, ...events.map((e) => ({ value: e.id, label: e.title + " \u00b7 " + e.when }))]}
-                  onPick={pickEvent} />
-              </div>
-            )}
+            <div className="row xs-row" onClick={tapField}>
+              <Tile tone="sky"><CalendarDays className="ic" /></Tile>
+              <div className="conn-name">Event</div>
+              <HeadMenu variant="value" ariaLabel="Event" value={eventId} label={eventWord} off={eventId === ""}
+                options={[{ value: "", label: "None" }, ...events.map((e) => ({ value: e.id, label: e.title + " \u00b7 " + e.when }))]}
+                onPick={pickEvent} />
+            </div>
           </div></div>
 
           <div className="grp xs-grp"><div className="eyebrow">More</div></div>
@@ -623,9 +689,9 @@ export default function TaskSheet({
               <Tile tone="sky"><PinGlyph /></Tile>
               <div className="row-grow">
                 <div className="conn-name">When and Where</div>
-                {planLine && planLine !== "Not set" && <div className="conn-meta">{planLine}</div>}
+                {planLine && planLine !== "Not Set" && <div className="conn-meta">{planLine}</div>}
               </div>
-              {planLine === "Not set" && <span className="conn-meta">Not set</span>}
+              {planLine === "Not Set" && <span className="conn-meta">Not Set</span>}
               <div className={"chev chev-down" + (planOpen ? " chev-open" : "")} />
             </div>
             {planOpen && (

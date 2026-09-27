@@ -8,15 +8,16 @@ import { LADDER, ladderBody } from "./countdown";
 
 describe("ladderBody", () => {
   it("shifts from information to instruction as the event closes", () => {
-    expect(ladderBody(60)).toBe("In an hour");
-    expect(ladderBody(30)).toBe("In half an hour");
-    expect(ladderBody(15)).toBe("Fifteen minutes");
-    expect(ladderBody(5)).toBe("Leave what you're doing");
+    // Casing sweep 2 (2026-09-27): Title Case by the whole rule (§H2); durations through shared/duration ("45 Min", "1h 30m").
+    expect(ladderBody(60)).toBe("In an Hour");
+    expect(ladderBody(30)).toBe("In Half an Hour");
+    expect(ladderBody(15)).toBe("Fifteen Minutes");
+    expect(ladderBody(5)).toBe("Leave What You're Doing");
   });
 
   it("appends the place when there is one, at every rung", () => {
-    expect(ladderBody(60, "Ridgeline Fields")).toBe("In an hour · Ridgeline Fields");
-    expect(ladderBody(5, "Ridgeline Fields")).toBe("Leave what you're doing · Ridgeline Fields");
+    expect(ladderBody(60, "Ridgeline Fields")).toBe("In an Hour · Ridgeline Fields");
+    expect(ladderBody(5, "Ridgeline Fields")).toBe("Leave What You're Doing · Ridgeline Fields");
   });
 
   // S6-Q36 (2026-09-04): "the first move is thrown away, never stored."
@@ -26,12 +27,12 @@ describe("ladderBody", () => {
   });
 
   it("never lets a first move leak onto the earlier, informational rungs", () => {
-    expect(ladderBody(60, undefined, "Open the invoice template")).toBe("In an hour");
-    expect(ladderBody(15, undefined, "Open the invoice template")).toBe("Fifteen minutes");
+    expect(ladderBody(60, undefined, "Open the invoice template")).toBe("In an Hour");
+    expect(ladderBody(15, undefined, "Open the invoice template")).toBe("Fifteen Minutes");
   });
 
   it("falls back to the generic instruction when the first move is blank", () => {
-    expect(ladderBody(5, undefined, "   ")).toBe("Leave what you're doing");
+    expect(ladderBody(5, undefined, "   ")).toBe("Leave What You're Doing");
   });
 });
 

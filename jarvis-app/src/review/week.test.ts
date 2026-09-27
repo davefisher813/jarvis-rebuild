@@ -38,27 +38,28 @@ describe("buildWeek", () => {
     expect(w.tiles.flexible).toBe("23h");
     expect(w.stack!.map((s) => s.name)).toEqual(["Tucci", "Bridge", "Open"]);
     const byKey = Object.fromEntries(w.lines.map((l) => [l.key, l.facts.map((f) => f.text)]));
-    expect(byKey.Worked).toEqual(["1 of 1 Plans landed", "Focus held 2 days"]);
+    expect(byKey.Worked).toEqual(["1 of 1 Plans Landed", "Focus Held 2 Days"]);
     // The area is a category fact (dot + name) and the count its own amber
     // fact; the separator is drawn by CSS, never baked in (§AM F3).
-    expect(byKey.Slipped).toEqual(["Tucci", "2 Tasks pushed"]);
+    expect(byKey.Slipped).toEqual(["Tucci", "2 Tasks Pushed"]);
     const slipped = w.lines.find((l) => l.key === "Slipped")!;
     expect(slipped.facts.map((f) => [f.tone, f.color])).toEqual([["cat", "teal"], ["warn", undefined]]);
-    expect(byKey.Changed).toEqual(["1 Block moved"]);
-    expect(byKey.Learned).toEqual(["1 New fact"]);
+    expect(byKey.Changed).toEqual(["1 Block Moved"]);
+    expect(byKey.Learned).toEqual(["1 New Fact"]);
     // Purple is not in the Colour Key (§AM): Learned is the caps grey, and
     // what JARVIS learned is the line's one grey fact.
     const learnedLine = w.lines.find((l) => l.key === "Learned")!;
     expect(learnedLine.tone).toBe("quiet");
     expect(learnedLine.facts[0]?.tone).toBeUndefined();
     // The count is a number with no state, so it is white (a <b> part).
-    expect(learnedLine.facts[0]?.parts).toEqual([{ b: "1" }, " New fact"]);
+    expect(learnedLine.facts[0]?.parts).toEqual([{ b: "1" }, " New Fact"]);
     // Changed is the caps grey and blocks moved its one grey fact; sky is
     // retired (§AM).
     const changedLine = w.lines.find((l) => l.key === "Changed")!;
     expect(changedLine.tone).toBe("quiet");
     expect(changedLine.facts[0]?.tone).toBeUndefined();
-    expect(byKey.Next).toEqual(["Bridge 3h of 17h"]);
+    // The area is a dot and its name, the amount its own fact (§AM F3).
+    expect(byKey.Next).toEqual(["Bridge", "3h of 17h"]);
     // Next is amber: "needs you soon" in the key, never the red of late.
     expect(w.lines.find((l) => l.key === "Next")!.tone).toBe("warn");
     for (const l of w.lines) expect(["good", "warn", "quiet"]).toContain(l.tone);
@@ -73,7 +74,7 @@ describe("buildWeek", () => {
     const rows: WindowRow[] = [row("schedule.override", "2026-09-10"), row("schedule.override", "2026-09-11"), row("goal.checkin", "2026-09-10")];
     const w = buildWeek({ today: TODAY, rows, events: [], workouts: [], goals: [], projects: [], categories: CATS });
     const changed = w.lines.find((l) => l.key === "Changed")!;
-    expect(changed.facts.map((f) => [f.text, f.tone])).toEqual([["2 Blocks moved", undefined], ["1 Check-in", "good"]]);
+    expect(changed.facts.map((f) => [f.text, f.tone])).toEqual([["2 Blocks Moved", undefined], ["1 Check-In", "good"]]);
   });
 
   it("Learned is one fact: new facts and remembered together, counts white, no colour", () => {
@@ -81,21 +82,22 @@ describe("buildWeek", () => {
     const w = buildWeek({ today: TODAY, rows, events: [], workouts: [], goals: [], projects: [], categories: CATS });
     const learned = w.lines.find((l) => l.key === "Learned")!;
     expect(learned.facts).toHaveLength(1);
-    expect(learned.facts[0]).toEqual({ text: "2 New facts, 1 remembered", parts: [{ b: "2" }, " New facts, ", { b: "1" }, " remembered"] });
+    expect(learned.facts[0]).toEqual({ text: "2 New Facts, 1 Remembered", parts: [{ b: "2" }, " New Facts, ", { b: "1" }, " Remembered"] });
     const onlyStarred = buildWeek({ today: TODAY, rows: [row("strand.starred", "2026-09-11")], events: [], workouts: [], goals: [], projects: [], categories: CATS });
     expect(onlyStarred.lines.find((l) => l.key === "Learned")!.facts[0]?.text).toBe("1 Remembered");
   });
 
   it("C-65: the vs-usual fact appears only in a report line, only when the share moved", () => {
-    expect(vsUsual(26, 35)).toBe("26% vs usual 35%");
+    // "vs" is a small word (the lead, 2026-09-26); the rest is Title Case.
+    expect(vsUsual(26, 35)).toBe("26% vs Usual 35%");
     expect(vsUsual(33, 35)).toBeNull();
     expect(vsUsual(26, null)).toBeNull();
     const prevRows: WindowRow[] = [];
     const events = [ev("e1", "2026-09-08", "09:00", "12:00", "bridge"), ev("e2", "2026-09-09", "09:00", "17:00", "tucci"), ev("p1", "2026-09-02", "09:00", "17:00", "bridge"), ev("p2", "2026-09-03", "09:00", "11:00", "tucci")];
     const w = buildWeek({ today: TODAY, rows: [], prevRows, events, workouts: [], goals: [goal({ tags: ["bridge"] })], projects: [], categories: CATS });
     const next = w.lines.find((l) => l.key === "Next")!;
-    expect(next.facts[1]?.text).toBe("27% vs usual 80%");
-    expect(next.facts[1]?.tone).toBe("warn");
+    expect(next.facts[2]?.text).toBe("27% vs Usual 80%");
+    expect(next.facts[2]?.tone).toBe("warn");
   });
 
   it("a quiet week is quiet: no lines, no stack, no offer", () => {
@@ -104,5 +106,34 @@ describe("buildWeek", () => {
     expect(w.stack).toBeNull();
     expect(w.offer).toBe(false);
     expect(w.tiles).toEqual({ done: 0, moved: 0, flexible: "40h" });
+  });
+});
+
+describe("the life lines (2026-09-26)", () => {
+  it("a zero week reads None of, never 0 Min of", () => {
+    const events = [ev("e2", "2026-09-09", "09:00", "17:00", "tucci"), ev("e3", "2026-09-10", "09:00", "15:00", "tucci")];
+    const w = buildWeek({ today: TODAY, rows: [], events, workouts: [], goals: [goal({ tags: ["bridge"] })], projects: [], categories: CATS });
+    expect(w.lines.find((l) => l.key === "Next")!.facts.map((f) => f.text)).toEqual(["Bridge", "None of 14h"]);
+  });
+
+  it("carries the report's cards at week scale, each silent at zero, between Learned and Next", () => {
+    const rows: WindowRow[] = [
+      row("strand.created", "2026-09-11"),
+      row("email.handled", "2026-09-10"), row("email.handled", "2026-09-11"),
+      row("person.reached", "2026-09-10"),
+      row("decision.recorded", "2026-09-10", { kind: "new" }),
+    ];
+    const tasks = [{ id: "b1", data: { text: "Rent", done: true, lastDone: "2026-09-08", bill: { amount: 2200 } } }] as unknown as import("../tasks/TasksService").TaskItem[];
+    const w = buildWeek({ today: TODAY, rows, events: [], workouts: [], goals: [], projects: [], categories: CATS, tasks, waitDays: 9 });
+    expect(w.lines.map((l) => l.key)).toEqual(["Learned", "Money", "Mail", "People", "Decided"]);
+    const byKey = Object.fromEntries(w.lines.map((l) => [l.key, l.facts]));
+    expect(byKey.Money).toEqual([{ text: "1 Bill Paid", tone: "good" }, { text: "$2,200", parts: [{ b: "$2,200" }] }]);
+    expect(byKey.Mail![0]).toEqual({ text: "Waiting 9 Days on a Reply", tone: "warn" });
+    expect(byKey.Mail![1]!.text).toBe("2 Handled");
+    expect(byKey.People).toEqual([{ text: "1 Reached", parts: [{ b: "1" }, " Reached"] }]);
+    expect(byKey.Decided).toEqual([{ text: "1 Made", parts: [{ b: "1" }, " Made"] }]);
+    // Without the sources the card has the lines it always had.
+    const bare = buildWeek({ today: TODAY, rows: [row("strand.created", "2026-09-11")], events: [], workouts: [], goals: [], projects: [], categories: CATS });
+    expect(bare.lines.map((l) => l.key)).toEqual(["Learned"]);
   });
 });

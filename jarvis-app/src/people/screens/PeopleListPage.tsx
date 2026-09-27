@@ -5,7 +5,7 @@ import { personInitials, avatarClass } from "../types";
 import { searchPeople } from "../views";
 import { PeopleGlyph } from "../../shared/glyphs";
 import { pressable } from "../../shared/pressable";
-import { capAfterNumber } from "../../shared/casing";
+import { lineCase } from "../../shared/casing";
 
 const CHEV = (
   <div className="chev" />
@@ -114,7 +114,7 @@ export default function PeopleListPage({
           person, so legacy Adversarial members are confirmed, never converted. */}
       {pendingReview.length > 0 && (
         <div className="pad-x"><div className="card list-card-ruled pad">
-          <div className="conn-name">From your old list · Still handle with care?</div>
+          <div className="conn-name">From Your Old List · Still Handle with Care?</div>
           {pendingReview.map((p) => (
             // Row tap (Dave 2026-09-15, "I want all rows clickable"): the row
             // opens the person; Yes and No keep their own taps.
@@ -139,7 +139,7 @@ export default function PeopleListPage({
           <div className="row">
             <div className="row-grow">
               <div className="conn-name">
-                {capAfterNumber(duplicateNotes === 1
+                {lineCase(duplicateNotes === 1
                   ? "One contact has their own number in their notes as well"
                   : `${duplicateNotes} contacts have their own number in their notes as well`)}
               </div>
@@ -154,7 +154,7 @@ export default function PeopleListPage({
         <div className="pad-x"><div className="card list-card-ruled pad">
           {/* Says the count as a fact, not as a chore with a badge on it. */}
           <div className="conn-name">
-            {capAfterNumber(repairs.length === 1
+            {lineCase(repairs.length === 1
               ? "One contact has contact details sitting in their notes"
               : `${repairs.length} contacts have contact details sitting in their notes`)}
           </div>

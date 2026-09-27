@@ -90,7 +90,8 @@ describe("goalsMovedToday (pick 4)", () => {
   });
   it("names one, counts many", () => {
     expect(movedLine(["Run a Half"])).toBe("Moved Run a Half");
-    expect(movedLine(["Run a Half", "Get Fit"])).toBe("Moved 2 goals");
+    // Casing sweep 2 (2026-09-27): Title Case by the whole rule (§H2); durations through shared/duration ("45 Min", "1h 30m").
+    expect(movedLine(["Run a Half", "Get Fit"])).toBe("Moved 2 Goals");
   });
 });
 

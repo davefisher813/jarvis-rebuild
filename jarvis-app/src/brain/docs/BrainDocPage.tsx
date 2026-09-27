@@ -71,7 +71,7 @@ export default function BrainDocPage({ topic, onBack }: { topic: string; onBack:
       await rulesSvc.markAnnounced(p.rule as LearnedRule);
     });
     if (!ok) return;
-    if (!id) { showToast({ message: "The Brain is full · Prune it in What JARVIS Knows" }); return; }
+    if (!id) { showToast({ message: "The Brain Is Full · Prune It in What JARVIS Knows" }); return; }
     showToast({ message: "Saved to Writing" });
     await loadWriting();
   };
@@ -98,7 +98,7 @@ export default function BrainDocPage({ topic, onBack }: { topic: string; onBack:
         const hl = isValues ? await docs.hardLines(topic).catch(() => []) : [];
         if (on) { setText(t); setLines(hl); setLoaded(true); setDocKey((k) => k + 1); }
       })
-      .catch(() => { if (!on) return; setLoadFailed(true); showToast({ message: "Couldn't load · Check your connection" }); });
+      .catch(() => { if (!on) return; setLoadFailed(true); showToast({ message: "Couldn't Load · Check Your Connection" }); });
     return () => { on = false; };
   }, [docs, topic, attempt]);
 
@@ -117,7 +117,7 @@ export default function BrainDocPage({ topic, onBack }: { topic: string; onBack:
         await docs.save(topic, cur.text.trim(), isValues ? cur.lines : undefined);
         setDirty(false);
       } catch {
-        showToast({ message: "Couldn't save · Check your connection" });
+        showToast({ message: "Couldn't Save · Check Your Connection" });
       }
     };
     const prev = queueRef.current ?? new Promise<void>((done) => done());
@@ -153,7 +153,7 @@ export default function BrainDocPage({ topic, onBack }: { topic: string; onBack:
       setDocKey((k) => k + 1);
       setDirty(true);
     } catch {
-      showToast({ message: "Couldn't read that · Try a clearer photo" });
+      showToast({ message: "Couldn't Read That · Try a Clearer Photo" });
     } finally {
       setReading(false);
     }

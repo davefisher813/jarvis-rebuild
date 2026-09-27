@@ -30,15 +30,16 @@ describe("findings", () => {
     const ws = [w("a", "2026-08-31", [{ w: 125, r: 5 }]), w("b", "2026-09-07", [{ w: 130, r: 5 }]), w("c", "2026-09-12", [{ w: 135, r: 5 }, { w: 135, r: 5 }])];
     const f = findings({ workouts: ws, sleepDef: null, logs: [], period, muscleMap: new Map(), now: T("2026-09-14", 12) });
     expect(f.map((x) => x.kind)).toEqual(["change", "observation", "issue"]);
-    expect(f[0]).toMatchObject({ title: "Incline Bench", value: "135 lb × 5", open: { kind: "lift" } });
+    // Casing sweep 1 (2026-09-26): Title Case by the whole rule (§H2), units spelled "Min".
+    expect(f[0]).toMatchObject({ title: "Incline Bench", value: "135 Lb × 5", open: { kind: "lift" } });
     // AMENDED 2026-09-16 (Dave's Health screenshot). This pinned the bug: a
     // RAW ISO STAMP on a row a person reads, inside a single string that
     // carried its own middots. The context is a list of facts now, the CSS
     // draws the separators, and a date is a date.
-    expect(f[0]!.context).toEqual(["+10 lb since Aug 31"]);
+    expect(f[0]!.context).toEqual(["+10 Lb Since Aug 31"]);
     expect(f[1]).toMatchObject({ title: "Working Sets", value: "2" });
     expect(f[2]).toMatchObject({ kind: "issue", open: { kind: "assign" } });
-    expect(f[2]!.value).toBe("2 Sets need a muscle assigned");
+    expect(f[2]!.value).toBe("2 Sets Need a Muscle Assigned");
   });
   // THE TWO THINGS THAT PUT "· +140 lb at 2 reps since 2026-08-24 · 6 compa…"
   // ON HIS PHONE. A string carrying its own middot cannot wrap the way a row

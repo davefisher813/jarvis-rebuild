@@ -1,4 +1,4 @@
-import { capAfterNumber } from "../shared/casing";
+import { lineCase } from "../shared/casing";
 
 // THE PURGE, COMPLETED (UP-MIND-17, Email E3 and 5.9).
 //
@@ -134,7 +134,7 @@ export function unsubReceipt(r: UnsubRecord, today: string): string {
   if (!r.askedISO) return "Asked";
   const d = daysAgo(r.askedISO, today);
   const when = d === 0 ? "today" : d === 1 ? "yesterday" : d < 14 ? `${d} days ago` : `${Math.round(d / 7)} weeks ago`;
-  return capAfterNumber(`Asked ${when}`);
+  return lineCase(`Asked ${when}`);
 }
 
 export function canBlock(s: StillSending): boolean {

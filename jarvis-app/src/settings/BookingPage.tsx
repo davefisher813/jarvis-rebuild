@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import LargeTitleNav from "../shared/LargeTitleNav";
 import { Head, Card, Switch, Menu, Foot, DangerRow } from "./kit";
 import { pressable } from "../shared/pressable";
-import { capAfterNumber } from "../shared/casing";
+import { lineCase } from "../shared/casing";
 import {
   readBookingSettings, updateBookingSettings, DURATIONS, WHO_LABEL, VISIBILITY_LABEL,
   type BookingSettings, type BookingWho, type BookingVisibility, type BookingDuration,
@@ -141,7 +141,7 @@ export default function BookingPage({
       setDirty(false);
       showToast({ message: made ? "Your Link Is Live" : "Saved on This Device" });
     } catch {
-      showToast({ message: "Couldn't reach the booking server \u00b7 Try again" });
+      showToast({ message: "Couldn't Reach the Booking Server \u00b7 Try Again" });
     } finally { setBusy(false); }
   };
   const takeDown = async () => {
@@ -155,7 +155,7 @@ export default function BookingPage({
       // taking the link down cancelled meetings they already have.
       showToast({ message: "Link Taken Down \u00b7 Bookings You Have Are Kept" });
     } catch {
-      showToast({ message: "Couldn't reach the booking server \u00b7 Try again" });
+      showToast({ message: "Couldn't Reach the Booking Server \u00b7 Try Again" });
     } finally { setBusy(false); }
   };
   const toggleDay = (d: number) => set({ days: s.days.includes(d) ? s.days.filter((x) => x !== d) : [...s.days, d].sort((a, b) => a - b) });
@@ -164,7 +164,7 @@ export default function BookingPage({
       <LargeTitleNav title="Booking" back="Settings" onBack={onBack} />
       <Head label="Your Times" />
       <Card>
-        <Switch label="Available for Booking" meta={s.available ? capAfterNumber(`${s.days.length} ${s.days.length === 1 ? "day" : "days"} a week`) : "Nobody can book you"} on={s.available} onToggle={() => set({ available: !s.available })} />
+        <Switch label="Available for Booking" meta={s.available ? lineCase(`${s.days.length} ${s.days.length === 1 ? "day" : "days"} a week`) : "Nobody can book you"} on={s.available} onToggle={() => set({ available: !s.available })} />
         <div className="row set-row">
           <div className="chip-row" role="group" aria-label="Days you take bookings">
             {DAYS.map((d, i) => (
@@ -178,7 +178,7 @@ export default function BookingPage({
         <div className="row set-row">
           <div className="chip-row" role="group" aria-label="Slot length">
             {DURATIONS.map((m) => (
-              <div key={m} {...pressable(() => set({ durationMin: m as BookingDuration }))} className={"chip" + (s.durationMin === m ? " active" : "")} aria-pressed={s.durationMin === m}>{capAfterNumber(`${m} min`)}</div>
+              <div key={m} {...pressable(() => set({ durationMin: m as BookingDuration }))} className={"chip" + (s.durationMin === m ? " active" : "")} aria-pressed={s.durationMin === m}>{lineCase(`${m} min`)}</div>
             ))}
           </div>
         </div>
@@ -204,7 +204,7 @@ export default function BookingPage({
           })}>
             <div className="row-grow">
               <div className="conn-name">{linkUrl(link.slug)}</div>
-              <div className="conn-meta">{link.days > 0 ? capAfterNumber(`Open ${link.days} ${link.days === 1 ? "day" : "days"} a week, tap to copy`) : "No hours set, nobody can book"}</div>
+              <div className="conn-meta">{link.days > 0 ? lineCase(`Open ${link.days} ${link.days === 1 ? "day" : "days"} a week, tap to copy`) : "No hours set, nobody can book"}</div>
             </div>
           </div>
         ) : (

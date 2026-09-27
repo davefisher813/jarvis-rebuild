@@ -41,6 +41,8 @@ export const AUTOMATION_LABEL: Record<string, string> = {
   "live-gym": "Back to Training",
   "mail-notice": "Mail Notices",
   "project-due": "Project Deadlines",
+  // The area page's learned weekday (Dave's pass-off, 2026-09-26).
+  "learned-day": "Learned Day",
 };
 
 export function tuningScope(name: string): string {
@@ -90,8 +92,8 @@ export function tuningLine(r: LearnedRule): string | null {
   if (r.data.kind !== "tuning" || !r.data.scope.startsWith(TUNING_SCOPE_PREFIX)) return null;
   const name = r.data.scope.slice(TUNING_SCOPE_PREFIX.length);
   const label = AUTOMATION_LABEL[name] ?? name;
-  if (r.data.to === "never") return `${label} · Never show`;
-  if (r.data.to === "less") return `${label} · Show less often`;
-  if (r.data.to === "more") return `${label} · Show more often`;
+  if (r.data.to === "never") return `${label} · Never Show`;
+  if (r.data.to === "less") return `${label} · Show Less Often`;
+  if (r.data.to === "more") return `${label} · Show More Often`;
   return null;
 }

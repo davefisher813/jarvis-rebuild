@@ -9,6 +9,9 @@ const CATS: SheetCategory[] = [
   { id: "c2", name: "Friends", color: "teal" },
 ];
 
+// AMENDED 2026-09-26 (pass-off): durations read "45 Min", spelled and
+// capitalized for minutes-only (Dave, the durations ruling), so the Travel and
+// Buffer labels are "20 Min", "25 Min", "40 Min" here.
 describe("EventSheet", () => {
   it("new mode: header, no delete", () => {
     render(<EventSheet mode="new" initial={{ date: "2026-05-24" }} categories={CATS} onSave={() => {}} onCancel={() => {}} />);
@@ -187,10 +190,10 @@ describe("EventSheet: Leave By", () => {
     expect(screen.queryByLabelText("Travel")).toBeNull();
     fireEvent.change(screen.getByLabelText("Location"), { target: { value: "Rink 2" } });
     fireEvent.click(screen.getByLabelText("Travel"));
-    fireEvent.click(screen.getByRole("menuitemradio", { name: "20 min" }));
+    fireEvent.click(screen.getByRole("menuitemradio", { name: "20 Min" }));
     expect((screen.getByLabelText("Leave by") as HTMLInputElement).value).toBe("15:20");
     fireEvent.click(screen.getByLabelText("Buffer"));
-    fireEvent.click(screen.getByRole("menuitemradio", { name: "10 min" }));
+    fireEvent.click(screen.getByRole("menuitemradio", { name: "10 Min" }));
     expect((screen.getByLabelText("Leave by") as HTMLInputElement).value).toBe("15:10");
     fireEvent.change(screen.getByPlaceholderText(/happening/), { target: { value: "Practice" } });
     fireEvent.click(screen.getByText("Save"));
@@ -205,7 +208,7 @@ describe("EventSheet: Leave By", () => {
       <EventSheet mode="new" initial={{ date: "2026-05-24", start: "15:40", location: "Rink 2", travelMin: 20 }} categories={CATS} onSave={() => {}} onCancel={() => {}} />,
     );
     fireEvent.change(screen.getByLabelText("Leave by"), { target: { value: "15:00" } });
-    expect(screen.getByLabelText("Travel").textContent).toContain("40 min");
+    expect(screen.getByLabelText("Travel").textContent).toContain("40 Min");
   });
 
   it("offers what was typed for this place last time, and a way to forget it", () => {
@@ -233,7 +236,7 @@ describe("EventSheet: last time's travel is one tap", () => {
         travelMemory={{ "rink 2": 25 }} onSave={onSave} onCancel={() => {}} />,
     );
     fireEvent.click(screen.getByRole("button", { name: "Use Last Time's 25 Min" }));
-    expect(screen.getByLabelText("Travel").textContent).toContain("25 min");
+    expect(screen.getByLabelText("Travel").textContent).toContain("25 Min");
     // Filled, so the offer has done its job and goes.
     expect(screen.queryByRole("button", { name: "Use Last Time's 25 Min" })).toBeNull();
     fireEvent.change(screen.getByPlaceholderText(/happening/), { target: { value: "Practice" } });

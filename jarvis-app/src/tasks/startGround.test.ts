@@ -29,7 +29,8 @@ describe("startGround: only what the records really say", () => {
 
   it("a bill falls back to the pay page it already stored", () => {
     const data = { text: "", category: "", done: false, bill: { amount: 40, payUrl: "https://pay.example" } } as TaskData;
-    expect(resourceFor(data, {}, false)).toEqual({ kind: "url", id: "https://pay.example", label: "The pay page" });
+    // Casing sweep 2 (2026-09-27): Title Case by the whole rule (§H2); durations through shared/duration ("45 Min", "1h 30m").
+    expect(resourceFor(data, {}, false)).toEqual({ kind: "url", id: "https://pay.example", label: "The Pay Page" });
     // No pay link stored means no link invented.
     expect(resourceFor({ text: "", category: "", done: false, bill: { amount: 40 } } as TaskData, {}, false)).toBeNull();
   });
@@ -45,7 +46,7 @@ describe("startGround: only what the records really say", () => {
     expect(g.lines[1]).toContain("2:00 PM");
     // The record carries no location, so the screen gets a named hole and
     // the message never invents "the usual place".
-    expect(g.missing).toContain("Location still needed");
+    expect(g.missing).toContain("Location Still Needed");
     expect(g.lines.join(" ")).not.toMatch(/usual|somewhere|TBD/i);
     expect(g.sources[0]!.label).toBe("Source: Practice");
   });
@@ -57,17 +58,17 @@ describe("startGround: only what the records really say", () => {
       TODAY,
     );
     expect(g.lines).toContain("Where: North field");
-    expect(g.missing).not.toContain("Location still needed");
+    expect(g.missing).not.toContain("Location Still Needed");
   });
 
   it("a send to a group names the missing recipients instead of guessing a roster", () => {
     expect(isGroupSend("Send team practice details")).toBe(true);
     expect(isGroupSend("Email Nadia the invoice")).toBe(false);
     const group = groundingFor(task("Send team practice details"), {}, TODAY);
-    expect(group.missing).toContain("Recipients still needed");
+    expect(group.missing).toContain("Recipients Still Needed");
     // A real contact on the task is a real recipient, so nothing is missing.
     const one = groundingFor(task("Send team practice details"), { person: { id: "p1", name: "Nadia" } }, TODAY);
-    expect(one.missing).not.toContain("Recipients still needed");
+    expect(one.missing).not.toContain("Recipients Still Needed");
     expect(one.sources.some((s) => s.label === "To Nadia")).toBe(true);
   });
 
@@ -80,9 +81,9 @@ describe("startGround: only what the records really say", () => {
     });
     const a = startAction(t, ctx);
     expect(a.kind).toBe("prepare_draft");
-    expect(a.ready).toBe("Editable message ready");
+    expect(a.ready).toBe("Editable Message Ready");
     expect(a.seed).toContain("2:00 PM");
-    expect(a.missing).toContain("Location still needed");
+    expect(a.missing).toContain("Location Still Needed");
     expect(a.completion.completesTask).toBe(false);
   });
 

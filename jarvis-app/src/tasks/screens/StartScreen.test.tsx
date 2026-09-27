@@ -15,7 +15,8 @@ const grounded = startAction(target, {
   grounding: {
     lines: ["Hi everyone,", "Practice is Saturday at 2:00 PM."],
     sources: [{ kind: "event", id: "e1", label: "Source: Saturday practice" }],
-    missing: ["Location still needed"],
+    // Casing sweep 2 (2026-09-27): Title Case by the whole rule (§H2); durations through shared/duration ("45 Min", "1h 30m").
+    missing: ["Location Still Needed"],
   },
 });
 
@@ -28,14 +29,14 @@ describe("StartScreen: one tap lands on something workable", () => {
     render(<StartScreen target={target} action={grounded} onDraftChange={() => {}} onPrimary={noop}
       onBack={() => {}} onInTheWay={() => {}} />);
     expect(screen.getByText("Send team practice details")).toBeInTheDocument();
-    expect(screen.getByText("Review a prepared message")).toBeInTheDocument();
+    expect(screen.getByText("Review a Prepared Message")).toBeInTheDocument();
     expect(screen.getByRole("textbox")).toHaveValue("Hi everyone,\n\nPractice is Saturday at 2:00 PM.");
     // The hole is named, not filled.
-    expect(screen.getByText("Location still needed")).toBeInTheDocument();
+    expect(screen.getByText("Location Still Needed")).toBeInTheDocument();
     // The one primary says exactly what it does, and the line under it says
     // what it does not.
     expect(screen.getByText("Save Draft")).toBeInTheDocument();
-    expect(screen.getByText(/Nothing is sent here/)).toBeInTheDocument();
+    expect(screen.getByText(/Nothing Is Sent Here/)).toBeInTheDocument();
   });
 
   it("never starts a clock: the timer is a row you have to press", () => {
@@ -104,7 +105,7 @@ describe("StartScreen: the ways out are subordinate", () => {
       onBack={() => {}} onInTheWay={() => {}} />);
     fireEvent.click(screen.getByText("Make this smaller"));
     // The named hole becomes the whole ask, and the task is untouched.
-    expect(screen.getByText("One detail first")).toBeInTheDocument();
+    expect(screen.getByText("One Detail First")).toBeInTheDocument();
     expect(screen.getByText("Send team practice details")).toBeInTheDocument();
     // It does not loop forever into ever tinier instructions.
     let guard = 0;
@@ -138,10 +139,10 @@ describe("StartScreen: the ways out are subordinate", () => {
       data: { text: "Set up wallet card", category: "life", done: false } };
     render(<StartScreen target={bare} action={startAction(bare)} onDraftChange={() => {}}
       onPrimary={noop} onBack={() => {}} onInTheWay={() => {}} />);
-    expect(screen.getByText("Name the first step")).toBeInTheDocument();
+    expect(screen.getByText("Name the First Step")).toBeInTheDocument();
     expect(screen.getByRole("textbox")).toBeInTheDocument();
     expect(screen.getByText("Save First Step")).toBeInTheDocument();
-    expect(screen.getByText(/Becomes the first step/)).toBeInTheDocument();
+    expect(screen.getByText(/Becomes the First Step/)).toBeInTheDocument();
     // Nothing on screen tells him to do a thing the app made up.
     expect(screen.queryByText("Mark It Done")).toBeNull();
     expect(document.body.textContent).not.toMatch(/within reach/i);
@@ -157,7 +158,7 @@ describe("StartScreen: the ways out are subordinate", () => {
     expect(screen.getByText("Put the bag by the door")).toBeInTheDocument();
     expect(screen.queryByRole("textbox")).toBeNull();
     expect(screen.getByText("Mark It Done")).toBeInTheDocument();
-    expect(screen.getByText(/Ticks this step/)).toBeInTheDocument();
+    expect(screen.getByText(/Ticks This Step/)).toBeInTheDocument();
   });
 
   it("a resource opens the real record instead of describing it", () => {

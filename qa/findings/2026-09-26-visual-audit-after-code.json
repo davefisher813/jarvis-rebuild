@@ -1,0 +1,7396 @@
+[
+ {
+  "label": "390x844 dark",
+  "w": 390,
+  "h": 844,
+  "theme": "dark",
+  "results": [
+   {
+    "name": "Tab: Today",
+    "findings": [
+     {
+      "kind": "truncated",
+      "detail": "\"Create Calder Invoice\" loses 23%",
+      "cls": "conn-name hl-title"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Complete Your Enrollment\" loses 27%",
+      "cls": "conn-name"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Likely, from App Store Team\" loses 39%",
+      "cls": "fact"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today » Search [Search Everything]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today » Create Calder Invoice TODAY 45 min Start [What needs doing?]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today » JARVIS Add anything [Smart PasteSpeakCaptureCancel]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life",
+    "findings": [
+     {
+      "kind": "truncated",
+      "detail": "\"Create Calder Invoice\" loses 16%",
+      "cls": "task-name"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Reply to Nadia re: Invoice\" loses 30%",
+      "cls": "task-name"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Call Ridgeline About the Field\" loses 39%",
+      "cls": "task-name"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Draft the Coach Onboarding Email\" loses 47%",
+      "cls": "task-name"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life » Tasks Options [Tasks OptionsDoneJust This OneSele]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life » Add [e.g. Run a half marathon]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life » Area [All AreasWorkFamilyHealthMoneyFrie]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life » What should I do now [FocusCloseNextQuick WinsMusicMoney]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Schedule",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Schedule » 12:15PM 45m open UNTIL 1:00 PM [What's happening?]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: More",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > ?When Tasks Get DoneWatching7 of 1",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > ?When Tasks Get DoneWatching7 of 1 » When Tasks Get Done CLOSE Tell JARVIS [e.g. Brainstorms best at night]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > ?When You TrainWatching14 sessions",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > What JARVIS Knows",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > Insights",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > Contacts",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > Contacts",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > Contacts",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > Contacts » Add Person [Full Name]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > Decisions",
+    "findings": [
+     {
+      "kind": "truncated",
+      "detail": "\"Because Ridgeline fields are locke\" loses 46%",
+      "cls": "conn-meta truncate"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Because AI cost per user is unboun\" loses 36%",
+      "cls": "conn-meta truncate"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Because Northlake gives 60 warm le\" loses 33%",
+      "cls": "conn-meta truncate"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Rebuild Calder App\" loses 28%",
+      "cls": "cat-t"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > Decisions » Add [e.g. Fall clinics run Saturdays on]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > Life Philosophy",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > How You Write",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Notes",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Notes » Notes Options [Notes OptionsDoneSelect NotesImpor]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Notes » All [AllPinnedUnfiled]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Notes » Area [All AreasWorkHealthFamily]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Email",
+    "findings": [
+     {
+      "kind": "truncated",
+      "detail": "\"Security advisories flagged in two\" loses 17%",
+      "cls": "mline2 strong"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "More > Email > NNorthwind CloudTodaySecurity advi",
+    "findings": [
+     {
+      "kind": "truncated",
+      "detail": "\"Security advisories flagged in two\" loses 17%",
+      "cls": "mline2 strong"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "More > Notifications",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Money",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Money » Add Account [e.g. Checking]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Money » Rent IN 2 DAYS DUE SEP 28 [e.g. Rent]",
+    "findings": [
+     {
+      "kind": "low-contrast",
+      "detail": "\"Delete Bill\" 3.33:1 needs 4.5 · rgb(255, 69, 58) on rgb(58, 58, 60)",
+      "cls": "row xs-row xs-del"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "More > Money > TrackerSpending, Budgets and Subsc",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Chat",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Account",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Account » ? [Profile PhotoChoose PhotoCancel]",
+    "findings": [
+     {
+      "kind": "low-contrast",
+      "detail": "\"Choose Photo\" 3.76:1 needs 4.5 · rgb(255, 43, 60) on rgb(44, 44, 46)",
+      "cls": ""
+     },
+     {
+      "kind": "low-contrast",
+      "detail": "\"Cancel\" 3.76:1 needs 4.5 · rgb(255, 43, 60) on rgb(44, 44, 46)",
+      "cls": "cancel"
+     },
+     {
+      "kind": "flush-stack",
+      "detail": "gap=0px between two cards",
+      "cls": "card"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Notifications",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Notifications » 8:00 AM [6:00 AM6:30 AM7:00 AM7:30 AM8:00 A]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Appearance",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Appearance » Dark [DarkLight]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Appearance » Default [DefaultLargerLargest]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Areas",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Areas » Work [Area Name]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Training",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Booking",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Booking » Anyone With the Link [Anyone With the LinkApproved Conta]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Booking » Link Only [Public LinkLink OnlyNamed Contacts]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Edit Tabs",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Connections",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > AI Control",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > AI Control » Match Master [Match MasterEverythingDraft OnlyOn]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > What JARVIS Learned",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Backup",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Advanced",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > About",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today > Your August is readyRead",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today > Your August is readyRead » YOUR HOURS 9 AM to 12 PM [ReceiptsYour hours: 9 AM to 12 PM8]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today > RentPaid",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today > Dental CleaningLooks like monday 2",
+    "findings": [
+     {
+      "kind": "truncated",
+      "detail": "\"Security advisories flagged in two\" loses 17%",
+      "cls": "mline2 strong"
+     },
+     {
+      "kind": "small-44",
+      "detail": "\"Today\" hit 84x34, needs 44 (no rung assigned)",
+      "cls": "return-pill"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today > Nadia BrandtInvoice attached, Net ",
+    "findings": [
+     {
+      "kind": "truncated",
+      "detail": "\"Security advisories flagged in two\" loses 17%",
+      "cls": "mline2 strong"
+     },
+     {
+      "kind": "small-44",
+      "detail": "\"Today\" hit 84x34, needs 44 (no rung assigned)",
+      "cls": "return-pill"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today > Send Rob the DeckAug 21You said yo",
+    "findings": [
+     {
+      "kind": "truncated",
+      "detail": "\"Security advisories flagged in two\" loses 17%",
+      "cls": "mline2 strong"
+     },
+     {
+      "kind": "small-44",
+      "detail": "\"Today\" hit 84x34, needs 44 (no rung assigned)",
+      "cls": "return-pill"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today > 1h 29m openUntil 1:00 PMDeep WorkF",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life > Health5 SectionsTrackTrainReportsM",
+    "findings": [
+     {
+      "kind": "small-44",
+      "detail": "\"Life\" hit 68x34, needs 44 (no rung assigned)",
+      "cls": "return-pill"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life > Work5 Tasks1 Goal2 Projects",
+    "findings": [
+     {
+      "kind": "truncated",
+      "detail": "\"Next: Draft the Coach Onboarding E\" loses 61%",
+      "cls": "r-goal r-cat"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Next: Swap Testimonial Quotes\" loses 61%",
+      "cls": "r-goal r-cat"
+     },
+     {
+      "kind": "small-44",
+      "detail": "\"Life\" hit 68x34, needs 44 (no rung assigned)",
+      "cls": "return-pill"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life · Tasks",
+    "findings": [
+     {
+      "kind": "truncated",
+      "detail": "\"Create Calder Invoice\" loses 16%",
+      "cls": "task-name"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Reply to Nadia re: Invoice\" loses 30%",
+      "cls": "task-name"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Call Ridgeline About the Field\" loses 39%",
+      "cls": "task-name"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Draft the Coach Onboarding Email\" loses 47%",
+      "cls": "task-name"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life · Reminders",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life · Projects",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life · Goals",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Schedule · Week",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Schedule · Month",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Live: Health",
+    "findings": [
+     {
+      "kind": "small-44",
+      "detail": "\"Life\" hit 68x34, needs 44 (no rung assigned)",
+      "cls": "return-pill"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Live: Program",
+    "findings": [
+     {
+      "kind": "small-44",
+      "detail": "\"Life\" hit 68x34, needs 44 (no rung assigned)",
+      "cls": "return-pill"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Live: Time Check",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Live: Workout",
+    "findings": [
+     {
+      "kind": "small-44",
+      "detail": "\"Life\" hit 68x34, needs 44 (no rung assigned)",
+      "cls": "return-pill"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Live: Workout, One Set In",
+    "findings": [
+     {
+      "kind": "small-44",
+      "detail": "\"Life\" hit 68x34, needs 44 (no rung assigned)",
+      "cls": "return-pill"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Live: Finish",
+    "findings": [],
+    "errs": []
+   }
+  ],
+  "consoleErrs": [],
+  "sheetSkips": []
+ },
+ {
+  "label": "430x932 dark",
+  "w": 430,
+  "h": 932,
+  "theme": "dark",
+  "results": [
+   {
+    "name": "Tab: Today",
+    "findings": [
+     {
+      "kind": "truncated",
+      "detail": "\"Likely, from App Store Team\" loses 21%",
+      "cls": "fact"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today » Search [Search Everything]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today » Create Calder Invoice TODAY 45 min Start [What needs doing?]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today » JARVIS Add anything [Smart PasteSpeakCaptureCancel]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life",
+    "findings": [
+     {
+      "kind": "truncated",
+      "detail": "\"Call Ridgeline About the Field\" loses 24%",
+      "cls": "task-name"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Draft the Coach Onboarding Email\" loses 34%",
+      "cls": "task-name"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life » Tasks Options [Tasks OptionsDoneJust This OneSele]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life » Add [e.g. Run a half marathon]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life » Area [All AreasWorkFamilyHealthMoneyFrie]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life » What should I do now [FocusCloseNextQuick WinsMusicMoney]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Schedule",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Schedule » Plan My Day [Add Something to This Day]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Schedule » 12:15PM 45m open UNTIL 1:00 PM [What's happening?]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: More",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > ?When Tasks Get DoneWatching7 of 1",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > ?When Tasks Get DoneWatching7 of 1 » When Tasks Get Done CLOSE Tell JARVIS [e.g. Brainstorms best at night]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > ?When You TrainWatching14 sessions",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > What JARVIS Knows",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > Insights",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > Contacts",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > Contacts",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > Contacts",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > Contacts » Add Person [Full Name]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > Decisions",
+    "findings": [
+     {
+      "kind": "truncated",
+      "detail": "\"Because Ridgeline fields are locke\" loses 37%",
+      "cls": "conn-meta truncate"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Because AI cost per user is unboun\" loses 25%",
+      "cls": "conn-meta truncate"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Because Northlake gives 60 warm le\" loses 22%",
+      "cls": "conn-meta truncate"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > Decisions » Add [e.g. Fall clinics run Saturdays on]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > Life Philosophy",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > How You Write",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Notes",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Notes » Notes Options [Notes OptionsDoneSelect NotesImpor]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Notes » All [AllPinnedUnfiled]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Notes » Area [All AreasWorkHealthFamily]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Email",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Email > NNorthwind CloudTodaySecurity advi",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Notifications",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Money",
+    "findings": [
+     {
+      "kind": "small-44",
+      "detail": "\"Car InsuranceDue Oct 8\" hit 260x39, needs 44 (no rung assigned)",
+      "cls": "task-title"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "More > Money » Add Account [e.g. Checking]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Money » Rent IN 2 DAYS DUE SEP 28 [e.g. Rent]",
+    "findings": [
+     {
+      "kind": "low-contrast",
+      "detail": "\"Delete Bill\" 3.33:1 needs 4.5 · rgb(255, 69, 58) on rgb(58, 58, 60)",
+      "cls": "row xs-row xs-del"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "More > Money » Set Up Payday [0]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Money > TrackerSpending, Budgets and Subsc",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Chat",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Account",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Account » ? [Profile PhotoChoose PhotoCancel]",
+    "findings": [
+     {
+      "kind": "low-contrast",
+      "detail": "\"Choose Photo\" 3.76:1 needs 4.5 · rgb(255, 43, 60) on rgb(44, 44, 46)",
+      "cls": ""
+     },
+     {
+      "kind": "low-contrast",
+      "detail": "\"Cancel\" 3.76:1 needs 4.5 · rgb(255, 43, 60) on rgb(44, 44, 46)",
+      "cls": "cancel"
+     },
+     {
+      "kind": "flush-stack",
+      "detail": "gap=0px between two cards",
+      "cls": "card"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Notifications",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Notifications » 8:00 AM [6:00 AM6:30 AM7:00 AM7:30 AM8:00 A]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Appearance",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Appearance » Dark [DarkLight]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Appearance » Default [DefaultLargerLargest]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Areas",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Areas » Work [Area Name]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Training",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Booking",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Booking » Anyone With the Link [Anyone With the LinkApproved Conta]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Booking » Link Only [Public LinkLink OnlyNamed Contacts]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Edit Tabs",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Connections",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > AI Control",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > AI Control » Match Master [Match MasterEverythingDraft OnlyOn]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > What JARVIS Learned",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Backup",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Advanced",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > About",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today > Your August is readyRead",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today > Your August is readyRead » YOUR HOURS 9 AM to 12 PM [ReceiptsYour hours: 9 AM to 12 PM8]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today > RentPaid",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today > Dental CleaningLooks like monday 2",
+    "findings": [
+     {
+      "kind": "small-44",
+      "detail": "\"Today\" hit 84x34, needs 44 (no rung assigned)",
+      "cls": "return-pill"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today > Nadia BrandtInvoice attached, Net ",
+    "findings": [
+     {
+      "kind": "small-44",
+      "detail": "\"Today\" hit 84x34, needs 44 (no rung assigned)",
+      "cls": "return-pill"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today > Send Rob the DeckAug 21You said yo",
+    "findings": [
+     {
+      "kind": "small-44",
+      "detail": "\"Today\" hit 84x34, needs 44 (no rung assigned)",
+      "cls": "return-pill"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today > 1h 29m openUntil 1:00 PMDeep WorkF",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life > Health5 SectionsTrackTrainReportsM",
+    "findings": [
+     {
+      "kind": "small-44",
+      "detail": "\"Life\" hit 68x34, needs 44 (no rung assigned)",
+      "cls": "return-pill"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life > Work5 Tasks1 Goal2 Projects",
+    "findings": [
+     {
+      "kind": "truncated",
+      "detail": "\"Next: Draft the Coach Onboarding E\" loses 47%",
+      "cls": "r-goal r-cat"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Next: Swap Testimonial Quotes\" loses 42%",
+      "cls": "r-goal r-cat"
+     },
+     {
+      "kind": "small-44",
+      "detail": "\"Life\" hit 68x34, needs 44 (no rung assigned)",
+      "cls": "return-pill"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life > Work5 Tasks1 Goal2 Projects » Add Project [e.g. Q3 launch plan]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life · Tasks",
+    "findings": [
+     {
+      "kind": "truncated",
+      "detail": "\"Call Ridgeline About the Field\" loses 24%",
+      "cls": "task-name"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Draft the Coach Onboarding Email\" loses 34%",
+      "cls": "task-name"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life · Reminders",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life · Projects",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life · Goals",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Schedule · Week",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Schedule · Month",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Live: Health",
+    "findings": [
+     {
+      "kind": "small-44",
+      "detail": "\"Life\" hit 68x34, needs 44 (no rung assigned)",
+      "cls": "return-pill"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Live: Program",
+    "findings": [
+     {
+      "kind": "small-44",
+      "detail": "\"Life\" hit 68x34, needs 44 (no rung assigned)",
+      "cls": "return-pill"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Live: Time Check",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Live: Workout",
+    "findings": [
+     {
+      "kind": "small-44",
+      "detail": "\"Life\" hit 68x34, needs 44 (no rung assigned)",
+      "cls": "return-pill"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Live: Workout, One Set In",
+    "findings": [
+     {
+      "kind": "small-44",
+      "detail": "\"Life\" hit 68x34, needs 44 (no rung assigned)",
+      "cls": "return-pill"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Live: Finish",
+    "findings": [],
+    "errs": []
+   }
+  ],
+  "consoleErrs": [],
+  "sheetSkips": []
+ },
+ {
+  "label": "834x1112 dark",
+  "w": 834,
+  "h": 1112,
+  "theme": "dark",
+  "results": [
+   {
+    "name": "Tab: Today",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today » Search [Search Everything]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today » Create Calder Invoice TODAY 45 min Start [What needs doing?]",
+    "findings": [
+     {
+      "kind": "low-contrast",
+      "detail": "\"Delete Task\" 3.33:1 needs 4.5 · rgb(255, 69, 58) on rgb(58, 58, 60)",
+      "cls": "row xs-row xs-del"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today » JARVIS Add anything [Smart PasteSpeakCaptureCancel]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life » Tasks Options [Tasks OptionsDoneJust This OneSele]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life » Add [e.g. Run a half marathon]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life » Area [All AreasWorkFamilyHealthMoneyFrie]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life » What should I do now [FocusCloseNextQuick WinsMusicMoney]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Schedule",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Schedule » Plan My Day [Add Something to This Day]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: More",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > ?When Tasks Get DoneWatching7 of 1",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > ?When Tasks Get DoneWatching7 of 1 » When Tasks Get Done CLOSE Tell JARVIS [e.g. Brainstorms best at night]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > ?When You TrainWatching14 sessions",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > What JARVIS Knows",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > Insights",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > Contacts",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > Contacts",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > Contacts",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > Contacts » Add Person [Full Name]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > Decisions",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > Decisions » Add [e.g. Fall clinics run Saturdays on]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > Life Philosophy",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > How You Write",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Notes",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Notes » Notes Options [Notes OptionsDoneSelect NotesImpor]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Notes » All [AllPinnedUnfiled]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Notes » Area [All AreasWorkHealthFamily]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Email",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Email > NNorthwind CloudTodaySecurity advi",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Notifications",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Notifications » Deep Work 1:00 PM Today [What's happening?]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Money",
+    "findings": [
+     {
+      "kind": "small-44",
+      "detail": "\"Car InsuranceDue Oct 8\" hit 664x39, needs 44 (no rung assigned)",
+      "cls": "task-title"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "More > Money » Add Account [e.g. Checking]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Money » Rent IN 2 DAYS DUE SEP 28 [e.g. Rent]",
+    "findings": [
+     {
+      "kind": "low-contrast",
+      "detail": "\"Delete Bill\" 3.33:1 needs 4.5 · rgb(255, 69, 58) on rgb(58, 58, 60)",
+      "cls": "row xs-row xs-del"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "More > Money » Set Up Payday [0]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Money > TrackerSpending, Budgets and Subsc",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Chat",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Account",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Account » ? [Profile PhotoChoose PhotoCancel]",
+    "findings": [
+     {
+      "kind": "low-contrast",
+      "detail": "\"Choose Photo\" 3.76:1 needs 4.5 · rgb(255, 43, 60) on rgb(44, 44, 46)",
+      "cls": ""
+     },
+     {
+      "kind": "low-contrast",
+      "detail": "\"Cancel\" 3.76:1 needs 4.5 · rgb(255, 43, 60) on rgb(44, 44, 46)",
+      "cls": "cancel"
+     },
+     {
+      "kind": "flush-stack",
+      "detail": "gap=0px between two cards",
+      "cls": "card"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Notifications",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Notifications » 8:00 AM [6:00 AM6:30 AM7:00 AM7:30 AM8:00 A]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Appearance",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Appearance » Dark [DarkLight]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Appearance » Default [DefaultLargerLargest]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Areas",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Areas » Work [Area Name]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Training",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Booking",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Booking » Anyone With the Link [Anyone With the LinkApproved Conta]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Booking » Link Only [Public LinkLink OnlyNamed Contacts]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Booking » Add a Day Off [YYYY-MM-DD]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Edit Tabs",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Connections",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > AI Control",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > AI Control » Match Master [Match MasterEverythingDraft OnlyOn]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > What JARVIS Learned",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Backup",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Advanced",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > About",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today > Your August is readyTwo minutesRea",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today > Your August is readyTwo minutesRea » YOUR HOURS 9 AM to 12 PM [ReceiptsYour hours: 9 AM to 12 PM8]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today > Your August is readyTwo minutesRea » 1 Followed you all month [Receipts1 Followed you all monthUp]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today > Your August is readyTwo minutesRea » Family went quiet 2 THIS MONTH, 11 IN JU [ReceiptsFamily went quiet11 Finish]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today > Your August is readyTwo minutesRea » 1 Goal cut CUTTING IS A DECISION, AND IT [Receipts1 Goal cutRead every eveni]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today > Your August is readyTwo minutesRea » First picks finish FIRSTS 78%, LATER PIC [ReceiptsFirst picks finish14 of 18]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today > Your August is readyTwo minutesRea » Work runs 20m over ACROSS 12 CORRECTIONS [ReceiptsWork runs 20m overPlan len]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today > Student template ships firstYou wa",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today > Student template ships firstYou wa » Adjust [CancelChoose a Better TimeUse This]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today > Nadia BrandtInvoice attached, Net ",
+    "findings": [
+     {
+      "kind": "small-44",
+      "detail": "\"Today\" hit 84x34, needs 44 (no rung assigned)",
+      "cls": "return-pill"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today > Send Rob the DeckAug 21You said yo",
+    "findings": [
+     {
+      "kind": "small-44",
+      "detail": "\"Today\" hit 84x34, needs 44 (no rung assigned)",
+      "cls": "return-pill"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today > summitgear Hasn't Replied55 DaysMi",
+    "findings": [
+     {
+      "kind": "small-44",
+      "detail": "\"Today\" hit 84x34, needs 44 (no rung assigned)",
+      "cls": "return-pill"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today > 1h 29m openUntil 1:00 PMDeep WorkF",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life > Health5 SectionsTrackTrainReportsM",
+    "findings": [
+     {
+      "kind": "small-44",
+      "detail": "\"Life\" hit 68x34, needs 44 (no rung assigned)",
+      "cls": "return-pill"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life > Work5 Tasks1 Goal2 Projects",
+    "findings": [
+     {
+      "kind": "small-44",
+      "detail": "\"Life\" hit 68x34, needs 44 (no rung assigned)",
+      "cls": "return-pill"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life > Work5 Tasks1 Goal2 Projects » Add Project [e.g. Q3 launch plan]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life · Tasks",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life · Reminders",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life · Projects",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life · Goals",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Schedule · Week",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Schedule · Month",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Live: Health",
+    "findings": [
+     {
+      "kind": "small-44",
+      "detail": "\"Life\" hit 68x34, needs 44 (no rung assigned)",
+      "cls": "return-pill"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Live: Program",
+    "findings": [
+     {
+      "kind": "small-44",
+      "detail": "\"Life\" hit 68x34, needs 44 (no rung assigned)",
+      "cls": "return-pill"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Live: Time Check",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Live: Workout",
+    "findings": [
+     {
+      "kind": "small-44",
+      "detail": "\"Life\" hit 68x34, needs 44 (no rung assigned)",
+      "cls": "return-pill"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Live: Workout, One Set In",
+    "findings": [
+     {
+      "kind": "small-44",
+      "detail": "\"Life\" hit 68x34, needs 44 (no rung assigned)",
+      "cls": "return-pill"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Live: Finish",
+    "findings": [],
+    "errs": []
+   }
+  ],
+  "consoleErrs": [],
+  "sheetSkips": [
+   "Tab: Today > Your August is readyTwo minutesRea: stopped at SHEET_CAP 6, 12 candidates"
+  ]
+ },
+ {
+  "label": "390x844 light",
+  "w": 390,
+  "h": 844,
+  "theme": "light",
+  "results": [
+   {
+    "name": "Tab: Today",
+    "findings": [
+     {
+      "kind": "truncated",
+      "detail": "\"Create Calder Invoice\" loses 23%",
+      "cls": "conn-name hl-title"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Complete Your Enrollment\" loses 27%",
+      "cls": "conn-name"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Likely, from App Store Team\" loses 39%",
+      "cls": "fact"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today » Search [Search Everything]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today » Create Calder Invoice TODAY 45 min Start [What needs doing?]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today » JARVIS Add anything [Smart PasteSpeakCaptureCancel]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life",
+    "findings": [
+     {
+      "kind": "truncated",
+      "detail": "\"Create Calder Invoice\" loses 16%",
+      "cls": "task-name"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Reply to Nadia re: Invoice\" loses 30%",
+      "cls": "task-name"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Call Ridgeline About the Field\" loses 39%",
+      "cls": "task-name"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Draft the Coach Onboarding Email\" loses 47%",
+      "cls": "task-name"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life » Tasks Options [Tasks OptionsDoneJust This OneSele]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life » Add [e.g. Run a half marathon]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life » Area [All AreasWorkFamilyHealthMoneyFrie]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life » What should I do now [FocusCloseNextQuick WinsMusicMoney]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Schedule",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Schedule » 12:15PM 45m open UNTIL 1:00 PM [What's happening?]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: More",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > ?When Tasks Get DoneWatching7 of 1",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > ?When Tasks Get DoneWatching7 of 1 » When Tasks Get Done CLOSE Tell JARVIS [e.g. Brainstorms best at night]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > ?When You TrainWatching14 sessions",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > What JARVIS Knows",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > Insights",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > Contacts",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > Contacts",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > Contacts",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > Contacts » Add Person [Full Name]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > Decisions",
+    "findings": [
+     {
+      "kind": "truncated",
+      "detail": "\"Because AI cost per user is unboun\" loses 36%",
+      "cls": "conn-meta truncate"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Because Ridgeline fields are locke\" loses 46%",
+      "cls": "conn-meta truncate"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Because Northlake gives 60 warm le\" loses 33%",
+      "cls": "conn-meta truncate"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Rebuild Calder App\" loses 28%",
+      "cls": "cat-t"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > Decisions » Add [e.g. Fall clinics run Saturdays on]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > Life Philosophy",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > How You Write",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Notes",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Notes » Notes Options [Notes OptionsDoneSelect NotesImpor]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Notes » All [AllPinnedUnfiled]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Notes » Area [All AreasWorkHealthFamily]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Email",
+    "findings": [
+     {
+      "kind": "truncated",
+      "detail": "\"Security advisories flagged in two\" loses 17%",
+      "cls": "mline2 strong"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "More > Email > NNorthwind CloudTodaySecurity advi",
+    "findings": [
+     {
+      "kind": "truncated",
+      "detail": "\"Security advisories flagged in two\" loses 17%",
+      "cls": "mline2 strong"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "More > Notifications",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Money",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Money » Add Account [e.g. Checking]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Money » Rent IN 2 DAYS DUE SEP 28 [e.g. Rent]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Money > TrackerSpending, Budgets and Subsc",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Chat",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Account",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Account » ? [Profile PhotoChoose PhotoCancel]",
+    "findings": [
+     {
+      "kind": "flush-stack",
+      "detail": "gap=0px between two cards",
+      "cls": "card"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Notifications",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Notifications » 8:00 AM [6:00 AM6:30 AM7:00 AM7:30 AM8:00 A]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Appearance",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Appearance » Dark [DarkLight]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Appearance » Default [DefaultLargerLargest]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Areas",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Areas » Work [Area Name]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Training",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Booking",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Booking » Anyone With the Link [Anyone With the LinkApproved Conta]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Booking » Link Only [Public LinkLink OnlyNamed Contacts]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Edit Tabs",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Connections",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > AI Control",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > AI Control » Match Master [Match MasterEverythingDraft OnlyOn]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > What JARVIS Learned",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Backup",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Advanced",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > About",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today > Your August is readyRead",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today > Your August is readyRead » YOUR HOURS 9 AM to 12 PM [ReceiptsYour hours: 9 AM to 12 PM8]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today > RentPaid",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today > Dental CleaningLooks like monday 2",
+    "findings": [
+     {
+      "kind": "truncated",
+      "detail": "\"Security advisories flagged in two\" loses 17%",
+      "cls": "mline2 strong"
+     },
+     {
+      "kind": "small-44",
+      "detail": "\"Today\" hit 84x34, needs 44 (no rung assigned)",
+      "cls": "return-pill"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today > Nadia BrandtInvoice attached, Net ",
+    "findings": [
+     {
+      "kind": "truncated",
+      "detail": "\"Security advisories flagged in two\" loses 17%",
+      "cls": "mline2 strong"
+     },
+     {
+      "kind": "small-44",
+      "detail": "\"Today\" hit 84x34, needs 44 (no rung assigned)",
+      "cls": "return-pill"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today > Send Rob the DeckAug 21You said yo",
+    "findings": [
+     {
+      "kind": "truncated",
+      "detail": "\"Security advisories flagged in two\" loses 17%",
+      "cls": "mline2 strong"
+     },
+     {
+      "kind": "small-44",
+      "detail": "\"Today\" hit 84x34, needs 44 (no rung assigned)",
+      "cls": "return-pill"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today > 1h 29m openUntil 1:00 PMDeep WorkF",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life > Health5 SectionsTrackTrainReportsM",
+    "findings": [
+     {
+      "kind": "small-44",
+      "detail": "\"Life\" hit 68x34, needs 44 (no rung assigned)",
+      "cls": "return-pill"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life > Work5 Tasks1 Goal2 Projects",
+    "findings": [
+     {
+      "kind": "truncated",
+      "detail": "\"Next: Draft the Coach Onboarding E\" loses 61%",
+      "cls": "r-goal r-cat"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Next: Swap Testimonial Quotes\" loses 61%",
+      "cls": "r-goal r-cat"
+     },
+     {
+      "kind": "small-44",
+      "detail": "\"Life\" hit 68x34, needs 44 (no rung assigned)",
+      "cls": "return-pill"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life · Tasks",
+    "findings": [
+     {
+      "kind": "truncated",
+      "detail": "\"Create Calder Invoice\" loses 16%",
+      "cls": "task-name"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Reply to Nadia re: Invoice\" loses 30%",
+      "cls": "task-name"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Call Ridgeline About the Field\" loses 39%",
+      "cls": "task-name"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Draft the Coach Onboarding Email\" loses 47%",
+      "cls": "task-name"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life · Reminders",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life · Projects",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life · Goals",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Schedule · Week",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Schedule · Month",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Live: Health",
+    "findings": [
+     {
+      "kind": "small-44",
+      "detail": "\"Life\" hit 68x34, needs 44 (no rung assigned)",
+      "cls": "return-pill"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Live: Program",
+    "findings": [
+     {
+      "kind": "small-44",
+      "detail": "\"Life\" hit 68x34, needs 44 (no rung assigned)",
+      "cls": "return-pill"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Live: Time Check",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Live: Workout",
+    "findings": [
+     {
+      "kind": "small-44",
+      "detail": "\"Life\" hit 68x34, needs 44 (no rung assigned)",
+      "cls": "return-pill"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Live: Workout, One Set In",
+    "findings": [
+     {
+      "kind": "small-44",
+      "detail": "\"Life\" hit 68x34, needs 44 (no rung assigned)",
+      "cls": "return-pill"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Live: Finish",
+    "findings": [],
+    "errs": []
+   }
+  ],
+  "consoleErrs": [],
+  "sheetSkips": []
+ },
+ {
+  "label": "430x932 light",
+  "w": 430,
+  "h": 932,
+  "theme": "light",
+  "results": [
+   {
+    "name": "Tab: Today",
+    "findings": [
+     {
+      "kind": "truncated",
+      "detail": "\"Likely, from App Store Team\" loses 21%",
+      "cls": "fact"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today » Search [Search Everything]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today » Create Calder Invoice TODAY 45 min Start [What needs doing?]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today » JARVIS Add anything [Smart PasteSpeakCaptureCancel]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life",
+    "findings": [
+     {
+      "kind": "truncated",
+      "detail": "\"Call Ridgeline About the Field\" loses 24%",
+      "cls": "task-name"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Draft the Coach Onboarding Email\" loses 34%",
+      "cls": "task-name"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life » Tasks Options [Tasks OptionsDoneJust This OneSele]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life » Add [e.g. Run a half marathon]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life » Area [All AreasWorkFamilyHealthMoneyFrie]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life » What should I do now [FocusCloseNextQuick WinsMusicMoney]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Schedule",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Schedule » Plan My Day [Add Something to This Day]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Schedule » 12:15PM 45m open UNTIL 1:00 PM [What's happening?]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: More",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > ?When Tasks Get DoneWatching7 of 1",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > ?When Tasks Get DoneWatching7 of 1 » When Tasks Get Done CLOSE Tell JARVIS [e.g. Brainstorms best at night]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > ?When You TrainWatching14 sessions",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > What JARVIS Knows",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > Insights",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > Contacts",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > Contacts",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > Contacts",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > Contacts » Add Person [Full Name]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > Decisions",
+    "findings": [
+     {
+      "kind": "truncated",
+      "detail": "\"Because Ridgeline fields are locke\" loses 37%",
+      "cls": "conn-meta truncate"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Because Northlake gives 60 warm le\" loses 22%",
+      "cls": "conn-meta truncate"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Because AI cost per user is unboun\" loses 25%",
+      "cls": "conn-meta truncate"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > Decisions » Add [e.g. Fall clinics run Saturdays on]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > Life Philosophy",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > How You Write",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Notes",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Notes » Notes Options [Notes OptionsDoneSelect NotesImpor]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Notes » All [AllPinnedUnfiled]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Notes » Area [All AreasWorkHealthFamily]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Email",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Email > NNorthwind CloudTodaySecurity advi",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Notifications",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Money",
+    "findings": [
+     {
+      "kind": "small-44",
+      "detail": "\"Car InsuranceDue Oct 8\" hit 260x39, needs 44 (no rung assigned)",
+      "cls": "task-title"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "More > Money » Add Account [e.g. Checking]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Money » Rent IN 2 DAYS DUE SEP 28 [e.g. Rent]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Money » Set Up Payday [0]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Money > TrackerSpending, Budgets and Subsc",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Chat",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Account",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Account » ? [Profile PhotoChoose PhotoCancel]",
+    "findings": [
+     {
+      "kind": "flush-stack",
+      "detail": "gap=0px between two cards",
+      "cls": "card"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Notifications",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Notifications » 8:00 AM [6:00 AM6:30 AM7:00 AM7:30 AM8:00 A]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Appearance",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Appearance » Dark [DarkLight]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Appearance » Default [DefaultLargerLargest]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Areas",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Areas » Work [Area Name]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Training",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Booking",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Booking » Anyone With the Link [Anyone With the LinkApproved Conta]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Booking » Link Only [Public LinkLink OnlyNamed Contacts]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Edit Tabs",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Connections",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > AI Control",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > AI Control » Match Master [Match MasterEverythingDraft OnlyOn]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > What JARVIS Learned",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Backup",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Advanced",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > About",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today > Your August is readyRead",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today > Your August is readyRead » YOUR HOURS 9 AM to 12 PM [ReceiptsYour hours: 9 AM to 12 PM8]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today > RentPaid",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today > Dental CleaningLooks like monday 2",
+    "findings": [
+     {
+      "kind": "small-44",
+      "detail": "\"Today\" hit 84x34, needs 44 (no rung assigned)",
+      "cls": "return-pill"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today > Nadia BrandtInvoice attached, Net ",
+    "findings": [
+     {
+      "kind": "small-44",
+      "detail": "\"Today\" hit 84x34, needs 44 (no rung assigned)",
+      "cls": "return-pill"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today > Send Rob the DeckAug 21You said yo",
+    "findings": [
+     {
+      "kind": "small-44",
+      "detail": "\"Today\" hit 84x34, needs 44 (no rung assigned)",
+      "cls": "return-pill"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today > 1h 29m openUntil 1:00 PMDeep WorkF",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life > Health5 SectionsTrackTrainReportsM",
+    "findings": [
+     {
+      "kind": "small-44",
+      "detail": "\"Life\" hit 68x34, needs 44 (no rung assigned)",
+      "cls": "return-pill"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life > Work5 Tasks1 Goal2 Projects",
+    "findings": [
+     {
+      "kind": "truncated",
+      "detail": "\"Next: Draft the Coach Onboarding E\" loses 47%",
+      "cls": "r-goal r-cat"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Next: Swap Testimonial Quotes\" loses 42%",
+      "cls": "r-goal r-cat"
+     },
+     {
+      "kind": "small-44",
+      "detail": "\"Life\" hit 68x34, needs 44 (no rung assigned)",
+      "cls": "return-pill"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life > Work5 Tasks1 Goal2 Projects » Add Project [e.g. Q3 launch plan]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life · Tasks",
+    "findings": [
+     {
+      "kind": "truncated",
+      "detail": "\"Call Ridgeline About the Field\" loses 24%",
+      "cls": "task-name"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Draft the Coach Onboarding Email\" loses 34%",
+      "cls": "task-name"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life · Reminders",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life · Projects",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life · Goals",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Schedule · Week",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Schedule · Month",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Live: Health",
+    "findings": [
+     {
+      "kind": "small-44",
+      "detail": "\"Life\" hit 68x34, needs 44 (no rung assigned)",
+      "cls": "return-pill"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Live: Program",
+    "findings": [
+     {
+      "kind": "small-44",
+      "detail": "\"Life\" hit 68x34, needs 44 (no rung assigned)",
+      "cls": "return-pill"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Live: Time Check",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Live: Workout",
+    "findings": [
+     {
+      "kind": "small-44",
+      "detail": "\"Life\" hit 68x34, needs 44 (no rung assigned)",
+      "cls": "return-pill"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Live: Workout, One Set In",
+    "findings": [
+     {
+      "kind": "small-44",
+      "detail": "\"Life\" hit 68x34, needs 44 (no rung assigned)",
+      "cls": "return-pill"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Live: Finish",
+    "findings": [],
+    "errs": []
+   }
+  ],
+  "consoleErrs": [],
+  "sheetSkips": []
+ },
+ {
+  "label": "834x1112 light",
+  "w": 834,
+  "h": 1112,
+  "theme": "light",
+  "results": [
+   {
+    "name": "Tab: Today",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today » Search [Search Everything]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today » Create Calder Invoice TODAY 45 min Start [What needs doing?]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today » JARVIS Add anything [Smart PasteSpeakCaptureCancel]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life » Tasks Options [Tasks OptionsDoneJust This OneSele]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life » Add [e.g. Run a half marathon]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life » Area [All AreasWorkFamilyHealthMoneyFrie]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life » What should I do now [FocusCloseNextQuick WinsMusicMoney]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Schedule",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Schedule » Plan My Day [Add Something to This Day]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: More",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > ?When Tasks Get DoneWatching7 of 1",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > ?When Tasks Get DoneWatching7 of 1 » When Tasks Get Done CLOSE Tell JARVIS [e.g. Brainstorms best at night]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > ?When You TrainWatching14 sessions",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > What JARVIS Knows",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > Insights",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > Contacts",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > Contacts",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > Contacts",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > Contacts » Add Person [Full Name]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > Decisions",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > Decisions » Add [e.g. Fall clinics run Saturdays on]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > Life Philosophy",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > How You Write",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Notes",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Notes » Notes Options [Notes OptionsDoneSelect NotesImpor]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Notes » All [AllPinnedUnfiled]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Notes » Area [All AreasWorkHealthFamily]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Email",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Email > NNorthwind CloudTodaySecurity advi",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Notifications",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Notifications » Deep Work 1:00 PM Today [What's happening?]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Money",
+    "findings": [
+     {
+      "kind": "small-44",
+      "detail": "\"Car InsuranceDue Oct 8\" hit 664x39, needs 44 (no rung assigned)",
+      "cls": "task-title"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "More > Money » Add Account [e.g. Checking]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Money » Rent IN 2 DAYS DUE SEP 28 [e.g. Rent]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Money » Set Up Payday [0]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Money > TrackerSpending, Budgets and Subsc",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Chat",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Account",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Account » ? [Profile PhotoChoose PhotoCancel]",
+    "findings": [
+     {
+      "kind": "flush-stack",
+      "detail": "gap=0px between two cards",
+      "cls": "card"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Notifications",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Notifications » 8:00 AM [6:00 AM6:30 AM7:00 AM7:30 AM8:00 A]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Appearance",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Appearance » Dark [DarkLight]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Appearance » Default [DefaultLargerLargest]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Areas",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Areas » Work [Area Name]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Training",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Booking",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Booking » Anyone With the Link [Anyone With the LinkApproved Conta]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Booking » Link Only [Public LinkLink OnlyNamed Contacts]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Booking » Add a Day Off [YYYY-MM-DD]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Edit Tabs",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Connections",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > AI Control",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > AI Control » Match Master [Match MasterEverythingDraft OnlyOn]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > What JARVIS Learned",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Backup",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Advanced",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > About",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today > Your August is readyTwo minutesRea",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today > Your August is readyTwo minutesRea » YOUR HOURS 9 AM to 12 PM [ReceiptsYour hours: 9 AM to 12 PM8]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today > Your August is readyTwo minutesRea » 1 Followed you all month [Receipts1 Followed you all monthUp]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today > Your August is readyTwo minutesRea » Family went quiet 2 THIS MONTH, 11 IN JU [ReceiptsFamily went quiet11 Finish]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today > Your August is readyTwo minutesRea » 1 Goal cut CUTTING IS A DECISION, AND IT [Receipts1 Goal cutRead every eveni]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today > Your August is readyTwo minutesRea » First picks finish FIRSTS 78%, LATER PIC [ReceiptsFirst picks finish14 of 18]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today > Your August is readyTwo minutesRea » Work runs 20m over ACROSS 12 CORRECTIONS [ReceiptsWork runs 20m overPlan len]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today > Student template ships firstYou wa",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today > Student template ships firstYou wa » Adjust [CancelChoose a Better TimeUse This]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today > Nadia BrandtInvoice attached, Net ",
+    "findings": [
+     {
+      "kind": "small-44",
+      "detail": "\"Today\" hit 84x34, needs 44 (no rung assigned)",
+      "cls": "return-pill"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today > Send Rob the DeckAug 21You said yo",
+    "findings": [
+     {
+      "kind": "small-44",
+      "detail": "\"Today\" hit 84x34, needs 44 (no rung assigned)",
+      "cls": "return-pill"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today > summitgear Hasn't Replied55 DaysMi",
+    "findings": [
+     {
+      "kind": "small-44",
+      "detail": "\"Today\" hit 84x34, needs 44 (no rung assigned)",
+      "cls": "return-pill"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today > 1h 29m openUntil 1:00 PMDeep WorkF",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life > Health5 SectionsTrackTrainReportsM",
+    "findings": [
+     {
+      "kind": "small-44",
+      "detail": "\"Life\" hit 68x34, needs 44 (no rung assigned)",
+      "cls": "return-pill"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life > Work5 Tasks1 Goal2 Projects",
+    "findings": [
+     {
+      "kind": "small-44",
+      "detail": "\"Life\" hit 68x34, needs 44 (no rung assigned)",
+      "cls": "return-pill"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life > Work5 Tasks1 Goal2 Projects » Add Project [e.g. Q3 launch plan]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life · Tasks",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life · Reminders",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life · Projects",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life · Goals",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Schedule · Week",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Schedule · Month",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Live: Health",
+    "findings": [
+     {
+      "kind": "small-44",
+      "detail": "\"Life\" hit 68x34, needs 44 (no rung assigned)",
+      "cls": "return-pill"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Live: Program",
+    "findings": [
+     {
+      "kind": "small-44",
+      "detail": "\"Life\" hit 68x34, needs 44 (no rung assigned)",
+      "cls": "return-pill"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Live: Time Check",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Live: Workout",
+    "findings": [
+     {
+      "kind": "small-44",
+      "detail": "\"Life\" hit 68x34, needs 44 (no rung assigned)",
+      "cls": "return-pill"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Live: Workout, One Set In",
+    "findings": [
+     {
+      "kind": "small-44",
+      "detail": "\"Life\" hit 68x34, needs 44 (no rung assigned)",
+      "cls": "return-pill"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Live: Finish",
+    "findings": [],
+    "errs": []
+   }
+  ],
+  "consoleErrs": [],
+  "sheetSkips": [
+   "Tab: Today > Your August is readyTwo minutesRea: stopped at SHEET_CAP 6, 12 candidates"
+  ]
+ },
+ {
+  "label": "390x844 dark @1.4x type",
+  "w": 390,
+  "h": 844,
+  "theme": "dark",
+  "results": [
+   {
+    "name": "Tab: Today",
+    "findings": [
+     {
+      "kind": "truncated",
+      "detail": "\"Create Calder Invoice\" loses 57%",
+      "cls": "conn-name hl-title"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"45 min\" loses 55%",
+      "cls": "fact est"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today » Search [Search Everything]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today » Create Calder Invoice TODAY 45 min Start [What needs doing?]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today » JARVIS Add anything [Smart PasteSpeakCaptureCancel]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life",
+    "findings": [
+     {
+      "kind": "truncated",
+      "detail": "\"Create Calder Invoice\" loses 46%",
+      "cls": "task-name"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Reply to Nadia re: Invoice\" loses 55%",
+      "cls": "task-name"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Call Ridgeline About the Field\" loses 61%",
+      "cls": "task-name"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Draft the Coach Onboarding Email\" loses 66%",
+      "cls": "task-name"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Rebuild Calder App\" loses 40%",
+      "cls": "r-goal-t"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life » Tasks Options [Tasks OptionsDoneJust This OneSele]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life » Add [e.g. Run a half marathon]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life » Area [All AreasWorkFamilyHealthMoneyFrie]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life » What should I do now [FocusCloseNextQuick WinsMusicMoney]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Schedule",
+    "findings": [
+     {
+      "kind": "truncated",
+      "detail": "\"Draft the Coach Onboarding Email\" loses 26%",
+      "cls": "sched-title"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Call Ridgeline About the Field\" loses 17%",
+      "cls": "blend-text truncate"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Tab: Schedule » 12:15PM 45m open UNTIL 1:00 PM [What's happening?]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: More",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain",
+    "findings": [
+     {
+      "kind": "truncated",
+      "detail": "\"7 of 10 completions\" loses 23%",
+      "cls": "fact"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > ?When Tasks Get DoneWatching7 of 1",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > ?When Tasks Get DoneWatching7 of 1 » When Tasks Get Done CLOSE Tell JARVIS [e.g. Brainstorms best at night]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > ?When You TrainWatching14 sessions",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > What JARVIS Knows",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > Insights",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > Contacts",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > Contacts",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > Contacts",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > Contacts » Add Person [Full Name]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > Decisions",
+    "findings": [
+     {
+      "kind": "truncated",
+      "detail": "\"Because Ridgeline fields are locke\" loses 61%",
+      "cls": "conn-meta truncate"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Because Northlake gives 60 warm le\" loses 52%",
+      "cls": "conn-meta truncate"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Rebuild Calder App\" loses 49%",
+      "cls": "cat-t"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Revisit Sep 26\" loses 15%",
+      "cls": "fact warn"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Because AI cost per user is unboun\" loses 54%",
+      "cls": "conn-meta truncate"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > Decisions » Add [e.g. Fall clinics run Saturdays on]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > Life Philosophy",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > How You Write",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Notes",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Notes » Notes Options [Notes OptionsDoneSelect NotesImpor]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Notes » All [AllPinnedUnfiled]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Notes » Area [All AreasWorkHealthFamily]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Email",
+    "findings": [
+     {
+      "kind": "truncated",
+      "detail": "\"Needs You\" loses 36%",
+      "cls": "t"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Security advisories flagged in two\" loses 40%",
+      "cls": "mline2 strong"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Invoice attached, Net 15 starts Mo\" loses 35%",
+      "cls": "mline2 strong"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Action needed: complete your enrol\" loses 39%",
+      "cls": "mline2 strong"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "More > Email > NNorthwind CloudTodaySecurity advi",
+    "findings": [
+     {
+      "kind": "truncated",
+      "detail": "\"Needs You\" loses 36%",
+      "cls": "t"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Security advisories flagged in two\" loses 40%",
+      "cls": "mline2 strong"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Invoice attached, Net 15 starts Mo\" loses 35%",
+      "cls": "mline2 strong"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Action needed: complete your enrol\" loses 39%",
+      "cls": "mline2 strong"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "More > Notifications",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Money",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Money » Add Account [e.g. Checking]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Money > TrackerSpending, Budgets and Subsc",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Chat",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Account",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Account » ? [Profile PhotoChoose PhotoCancel]",
+    "findings": [
+     {
+      "kind": "low-contrast",
+      "detail": "\"Choose Photo\" 3.76:1 needs 4.5 · rgb(255, 43, 60) on rgb(44, 44, 46)",
+      "cls": ""
+     },
+     {
+      "kind": "flush-stack",
+      "detail": "gap=0px between two cards",
+      "cls": "card"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Notifications",
+    "findings": [
+     {
+      "kind": "truncated",
+      "detail": "\"Goal and life-area nudges\" loses 18%",
+      "cls": "conn-name"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Appearance",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Appearance » Dark [DarkLight]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Appearance » Default [DefaultLargerLargest]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Areas",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Areas » Work [Area Name]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Training",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Booking",
+    "findings": [
+     {
+      "kind": "truncated",
+      "detail": "\"Anyone With the Link\" loses 47%",
+      "cls": "dd-w"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Booking » Anyone With the Link [Anyone With the LinkApproved Conta]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Booking » Link Only [Public LinkLink OnlyNamed Contacts]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Edit Tabs",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Connections",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > AI Control",
+    "findings": [
+     {
+      "kind": "truncated",
+      "detail": "\"Match Master\" loses 17%",
+      "cls": "dd-w"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > AI Control » Match Master [Match MasterEverythingDraft OnlyOn]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > What JARVIS Learned",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Backup",
+    "findings": [
+     {
+      "kind": "truncated",
+      "detail": "\"Links Come Back with the Records\" loses 24%",
+      "cls": "conn-name"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Advanced",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > About",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today > Student template ships firstKeep",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today > Dental CleaningLooks like monday 2",
+    "findings": [
+     {
+      "kind": "truncated",
+      "detail": "\"Needs You\" loses 36%",
+      "cls": "t"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Security advisories flagged in two\" loses 40%",
+      "cls": "mline2 strong"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Invoice attached, Net 15 starts Mo\" loses 35%",
+      "cls": "mline2 strong"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Action needed: complete your enrol\" loses 39%",
+      "cls": "mline2 strong"
+     },
+     {
+      "kind": "small-44",
+      "detail": "\"Today\" hit 102x34, needs 44 (no rung assigned)",
+      "cls": "return-pill"
+     },
+     {
+      "kind": "under-bar",
+      "detail": "\"JARVISAdd anything\" behind fixed bar, page already at the bottom",
+      "cls": "voice-bar"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today > Send Rob the DeckAug 21You said yo",
+    "findings": [
+     {
+      "kind": "truncated",
+      "detail": "\"Needs You\" loses 36%",
+      "cls": "t"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Security advisories flagged in two\" loses 40%",
+      "cls": "mline2 strong"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Invoice attached, Net 15 starts Mo\" loses 35%",
+      "cls": "mline2 strong"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Action needed: complete your enrol\" loses 39%",
+      "cls": "mline2 strong"
+     },
+     {
+      "kind": "small-44",
+      "detail": "\"Today\" hit 102x34, needs 44 (no rung assigned)",
+      "cls": "return-pill"
+     },
+     {
+      "kind": "under-bar",
+      "detail": "\"JARVISAdd anything\" behind fixed bar, page already at the bottom",
+      "cls": "voice-bar"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today > 1h 29m openUntil 1:00 PMDeep WorkF",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life · Tasks",
+    "findings": [
+     {
+      "kind": "truncated",
+      "detail": "\"Create Calder Invoice\" loses 46%",
+      "cls": "task-name"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Reply to Nadia re: Invoice\" loses 55%",
+      "cls": "task-name"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Call Ridgeline About the Field\" loses 61%",
+      "cls": "task-name"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Draft the Coach Onboarding Email\" loses 66%",
+      "cls": "task-name"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Rebuild Calder App\" loses 40%",
+      "cls": "r-goal-t"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life · Reminders",
+    "findings": [
+     {
+      "kind": "truncated",
+      "detail": "\"Vitamin D\" loses 37%",
+      "cls": "rem-card-title"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Night Meds\" loses 45%",
+      "cls": "rem-card-title"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life · Projects",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life · Goals",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Schedule · Week",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Schedule · Month",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Live: Health",
+    "findings": [
+     {
+      "kind": "small-44",
+      "detail": "\"Life\" hit 79x34, needs 44 (no rung assigned)",
+      "cls": "return-pill"
+     },
+     {
+      "kind": "under-bar",
+      "detail": "\"JARVISAdd anything\" behind fixed bar, page already at the bottom",
+      "cls": "voice-bar"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Live: Program",
+    "findings": [
+     {
+      "kind": "small-44",
+      "detail": "\"Life\" hit 79x34, needs 44 (no rung assigned)",
+      "cls": "return-pill"
+     },
+     {
+      "kind": "under-bar",
+      "detail": "\"JARVISAdd anything\" behind fixed bar, page already at the bottom",
+      "cls": "voice-bar"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Live: Time Check",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Live: Workout",
+    "findings": [
+     {
+      "kind": "small-44",
+      "detail": "\"Life\" hit 79x34, needs 44 (no rung assigned)",
+      "cls": "return-pill"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Live: Workout, One Set In",
+    "findings": [
+     {
+      "kind": "small-44",
+      "detail": "\"Life\" hit 79x34, needs 44 (no rung assigned)",
+      "cls": "return-pill"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Live: Finish",
+    "findings": [],
+    "errs": []
+   }
+  ],
+  "consoleErrs": [],
+  "sheetSkips": []
+ },
+ {
+  "label": "430x932 dark @1.4x type",
+  "w": 430,
+  "h": 932,
+  "theme": "dark",
+  "results": [
+   {
+    "name": "Tab: Today",
+    "findings": [
+     {
+      "kind": "truncated",
+      "detail": "\"Create Calder Invoice\" loses 42%",
+      "cls": "conn-name hl-title"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today » Search [Search Everything]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today » Create Calder Invoice TODAY 45 min Start [What needs doing?]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today » JARVIS Add anything [Smart PasteSpeakCaptureCancel]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life",
+    "findings": [
+     {
+      "kind": "truncated",
+      "detail": "\"Create Calder Invoice\" loses 31%",
+      "cls": "task-name"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Reply to Nadia re: Invoice\" loses 43%",
+      "cls": "task-name"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Call Ridgeline About the Field\" loses 50%",
+      "cls": "task-name"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Draft the Coach Onboarding Email\" loses 57%",
+      "cls": "task-name"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Rebuild Calder App\" loses 21%",
+      "cls": "r-goal-t"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life » Tasks Options [Tasks OptionsDoneJust This OneSele]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life » Add [e.g. Run a half marathon]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life » Area [All AreasWorkFamilyHealthMoneyFrie]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life » What should I do now [FocusCloseNextQuick WinsMusicMoney]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Schedule",
+    "findings": [
+     {
+      "kind": "truncated",
+      "detail": "\"Draft the Coach Onboarding Email\" loses 17%",
+      "cls": "sched-title"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Tab: Schedule » 12:15PM 45m open UNTIL 1:00 PM [What's happening?]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: More",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > ?When Tasks Get DoneWatching7 of 1",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > ?When Tasks Get DoneWatching7 of 1 » When Tasks Get Done CLOSE Tell JARVIS [e.g. Brainstorms best at night]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > ?When You TrainWatching14 sessions",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > What JARVIS Knows",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > Insights",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > Contacts",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > Contacts",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > Contacts",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > Contacts » Add Person [Full Name]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > Decisions",
+    "findings": [
+     {
+      "kind": "truncated",
+      "detail": "\"Because AI cost per user is unboun\" loses 47%",
+      "cls": "conn-meta truncate"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Because Ridgeline fields are locke\" loses 55%",
+      "cls": "conn-meta truncate"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Because Northlake gives 60 warm le\" loses 44%",
+      "cls": "conn-meta truncate"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Rebuild Calder App\" loses 39%",
+      "cls": "cat-t"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > Decisions » Add [e.g. Fall clinics run Saturdays on]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > Life Philosophy",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > How You Write",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Notes",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Notes » Notes Options [Notes OptionsDoneSelect NotesImpor]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Notes » All [AllPinnedUnfiled]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Notes » Area [All AreasWorkHealthFamily]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Email",
+    "findings": [
+     {
+      "kind": "truncated",
+      "detail": "\"Security advisories flagged in two\" loses 32%",
+      "cls": "mline2 strong"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Invoice attached, Net 15 starts Mo\" loses 26%",
+      "cls": "mline2 strong"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Action needed: complete your enrol\" loses 30%",
+      "cls": "mline2 strong"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "More > Email > NNorthwind CloudTodaySecurity advi",
+    "findings": [
+     {
+      "kind": "truncated",
+      "detail": "\"Security advisories flagged in two\" loses 32%",
+      "cls": "mline2 strong"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Invoice attached, Net 15 starts Mo\" loses 26%",
+      "cls": "mline2 strong"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Action needed: complete your enrol\" loses 30%",
+      "cls": "mline2 strong"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "More > Notifications",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Money",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Money » Add Account [e.g. Checking]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Money » Rent IN 2 DAYS DUE SEP 28 [e.g. Rent]",
+    "findings": [
+     {
+      "kind": "low-contrast",
+      "detail": "\"Delete Bill\" 3.33:1 needs 4.5 · rgb(255, 69, 58) on rgb(58, 58, 60)",
+      "cls": "row xs-row xs-del"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "More > Money > TrackerSpending, Budgets and Subsc",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Chat",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Account",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Account » ? [Profile PhotoChoose PhotoCancel]",
+    "findings": [
+     {
+      "kind": "low-contrast",
+      "detail": "\"Choose Photo\" 3.76:1 needs 4.5 · rgb(255, 43, 60) on rgb(44, 44, 46)",
+      "cls": ""
+     },
+     {
+      "kind": "flush-stack",
+      "detail": "gap=0px between two cards",
+      "cls": "card"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Notifications",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Notifications » 8:00 AM [6:00 AM6:30 AM7:00 AM7:30 AM8:00 A]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Appearance",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Appearance » Dark [DarkLight]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Appearance » Default [DefaultLargerLargest]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Areas",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Areas » Work [Area Name]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Training",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Booking",
+    "findings": [
+     {
+      "kind": "truncated",
+      "detail": "\"Anyone With the Link\" loses 29%",
+      "cls": "dd-w"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Booking » Anyone With the Link [Anyone With the LinkApproved Conta]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Booking » Link Only [Public LinkLink OnlyNamed Contacts]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Edit Tabs",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Connections",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > AI Control",
+    "findings": [
+     {
+      "kind": "small-44",
+      "detail": "\"Match Master\" hit 159x24, needs 44 (no rung assigned)",
+      "cls": "dd dd-value"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > AI Control » Match Master [Match MasterEverythingDraft OnlyOn]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > What JARVIS Learned",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Backup",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Advanced",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > About",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today > Your August is readyRead",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today > Your August is readyRead » YOUR HOURS 9 AM to 12 PM [ReceiptsYour hours: 9 AM to 12 PM8]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today > Your August is readyRead » 1 Followed you all month [Receipts1 Followed you all monthUp]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today > Your August is readyRead » Family went quiet 2 THIS MONTH, 11 IN JU [ReceiptsFamily went quiet11 Finish]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today > RentPaid",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today > Dental CleaningLooks like monday 2",
+    "findings": [
+     {
+      "kind": "truncated",
+      "detail": "\"Security advisories flagged in two\" loses 32%",
+      "cls": "mline2 strong"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Invoice attached, Net 15 starts Mo\" loses 26%",
+      "cls": "mline2 strong"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Action needed: complete your enrol\" loses 30%",
+      "cls": "mline2 strong"
+     },
+     {
+      "kind": "small-44",
+      "detail": "\"Today\" hit 102x34, needs 44 (no rung assigned)",
+      "cls": "return-pill"
+     },
+     {
+      "kind": "under-bar",
+      "detail": "\"JARVISAdd anything\" behind fixed bar, page already at the bottom",
+      "cls": "voice-bar"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today > Nadia BrandtInvoice attached, Net ",
+    "findings": [
+     {
+      "kind": "truncated",
+      "detail": "\"Security advisories flagged in two\" loses 32%",
+      "cls": "mline2 strong"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Invoice attached, Net 15 starts Mo\" loses 26%",
+      "cls": "mline2 strong"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Action needed: complete your enrol\" loses 30%",
+      "cls": "mline2 strong"
+     },
+     {
+      "kind": "small-44",
+      "detail": "\"Today\" hit 102x34, needs 44 (no rung assigned)",
+      "cls": "return-pill"
+     },
+     {
+      "kind": "under-bar",
+      "detail": "\"JARVISAdd anything\" behind fixed bar, page already at the bottom",
+      "cls": "voice-bar"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today > Send Rob the DeckAug 21You said yo",
+    "findings": [
+     {
+      "kind": "truncated",
+      "detail": "\"Security advisories flagged in two\" loses 32%",
+      "cls": "mline2 strong"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Invoice attached, Net 15 starts Mo\" loses 26%",
+      "cls": "mline2 strong"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Action needed: complete your enrol\" loses 30%",
+      "cls": "mline2 strong"
+     },
+     {
+      "kind": "small-44",
+      "detail": "\"Today\" hit 102x34, needs 44 (no rung assigned)",
+      "cls": "return-pill"
+     },
+     {
+      "kind": "under-bar",
+      "detail": "\"JARVISAdd anything\" behind fixed bar, page already at the bottom",
+      "cls": "voice-bar"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today > 1h 29m openUntil 1:00 PMDeep WorkF",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life > Health5 SectionsTrackTrainReportsM",
+    "findings": [
+     {
+      "kind": "small-44",
+      "detail": "\"Life\" hit 79x34, needs 44 (no rung assigned)",
+      "cls": "return-pill"
+     },
+     {
+      "kind": "under-bar",
+      "detail": "\"JARVISAdd anything\" behind fixed bar, page already at the bottom",
+      "cls": "voice-bar"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life > Work5 Tasks1 Goal2 Projects",
+    "findings": [
+     {
+      "kind": "truncated",
+      "detail": "\"Next: Draft the Coach Onboarding E\" loses 73%",
+      "cls": "r-goal r-cat"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Next: Swap Testimonial Quotes\" loses 77%",
+      "cls": "r-goal r-cat"
+     },
+     {
+      "kind": "small-44",
+      "detail": "\"Life\" hit 79x34, needs 44 (no rung assigned)",
+      "cls": "return-pill"
+     },
+     {
+      "kind": "under-bar",
+      "detail": "\"JARVISAdd anything\" behind fixed bar, page already at the bottom",
+      "cls": "voice-bar"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life · Tasks",
+    "findings": [
+     {
+      "kind": "truncated",
+      "detail": "\"Create Calder Invoice\" loses 31%",
+      "cls": "task-name"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Reply to Nadia re: Invoice\" loses 43%",
+      "cls": "task-name"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Call Ridgeline About the Field\" loses 50%",
+      "cls": "task-name"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Draft the Coach Onboarding Email\" loses 57%",
+      "cls": "task-name"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Rebuild Calder App\" loses 21%",
+      "cls": "r-goal-t"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life · Reminders",
+    "findings": [
+     {
+      "kind": "truncated",
+      "detail": "\"Night Meds\" loses 17%",
+      "cls": "rem-card-title"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life · Projects",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life · Goals",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Schedule · Week",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Schedule · Month",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Live: Health",
+    "findings": [
+     {
+      "kind": "small-44",
+      "detail": "\"Life\" hit 79x34, needs 44 (no rung assigned)",
+      "cls": "return-pill"
+     },
+     {
+      "kind": "under-bar",
+      "detail": "\"JARVISAdd anything\" behind fixed bar, page already at the bottom",
+      "cls": "voice-bar"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Live: Program",
+    "findings": [
+     {
+      "kind": "small-44",
+      "detail": "\"Life\" hit 79x34, needs 44 (no rung assigned)",
+      "cls": "return-pill"
+     },
+     {
+      "kind": "under-bar",
+      "detail": "\"JARVISAdd anything\" behind fixed bar, page already at the bottom",
+      "cls": "voice-bar"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Live: Time Check",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Live: Workout",
+    "findings": [
+     {
+      "kind": "small-44",
+      "detail": "\"Life\" hit 79x34, needs 44 (no rung assigned)",
+      "cls": "return-pill"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Live: Workout, One Set In",
+    "findings": [
+     {
+      "kind": "small-44",
+      "detail": "\"Life\" hit 79x34, needs 44 (no rung assigned)",
+      "cls": "return-pill"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Live: Finish",
+    "findings": [],
+    "errs": []
+   }
+  ],
+  "consoleErrs": [],
+  "sheetSkips": []
+ },
+ {
+  "label": "834x1112 dark @1.4x type",
+  "w": 834,
+  "h": 1112,
+  "theme": "dark",
+  "results": [
+   {
+    "name": "Tab: Today",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today » Search [Search Everything]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today » Create Calder Invoice TODAY 45 min Start [What needs doing?]",
+    "findings": [
+     {
+      "kind": "low-contrast",
+      "detail": "\"Delete Task\" 3.33:1 needs 4.5 · rgb(255, 69, 58) on rgb(58, 58, 60)",
+      "cls": "row xs-row xs-del"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today » JARVIS Add anything [Smart PasteSpeakCaptureCancel]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life » Tasks Options [Tasks OptionsDoneJust This OneSele]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life » Add [e.g. Run a half marathon]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life » Area [All AreasWorkFamilyHealthMoneyFrie]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life » What should I do now [FocusCloseNextQuick WinsMusicMoney]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Schedule",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Schedule » Plan My Day [Add Something to This Day]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Schedule » 12:15PM 45m open UNTIL 1:00 PM [What's happening?]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: More",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > ?When Tasks Get DoneWatching7 of 1",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > ?When Tasks Get DoneWatching7 of 1 » When Tasks Get Done CLOSE Tell JARVIS [e.g. Brainstorms best at night]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > ?When You TrainWatching14 sessions",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > What JARVIS Knows",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > Insights",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > Contacts",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > Contacts",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > Contacts",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > Contacts » Add Person [Full Name]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > Decisions",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > Decisions » Add [e.g. Fall clinics run Saturdays on]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > Life Philosophy",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > How You Write",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Notes",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Notes » Notes Options [Notes OptionsDoneSelect NotesImpor]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Notes » All [AllPinnedUnfiled]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Notes » Area [All AreasWorkHealthFamily]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Email",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Email > NNorthwind CloudTodaySecurity advi",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Notifications",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Money",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Money » Add Account [e.g. Checking]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Money » Rent IN 2 DAYS DUE SEP 28 [e.g. Rent]",
+    "findings": [
+     {
+      "kind": "low-contrast",
+      "detail": "\"Delete Bill\" 3.33:1 needs 4.5 · rgb(255, 69, 58) on rgb(58, 58, 60)",
+      "cls": "row xs-row xs-del"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "More > Money » Set Up Payday [0]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Money > TrackerSpending, Budgets and Subsc",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Chat",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Account",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Account » ? [Profile PhotoChoose PhotoCancel]",
+    "findings": [
+     {
+      "kind": "low-contrast",
+      "detail": "\"Choose Photo\" 3.76:1 needs 4.5 · rgb(255, 43, 60) on rgb(44, 44, 46)",
+      "cls": ""
+     },
+     {
+      "kind": "flush-stack",
+      "detail": "gap=0px between two cards",
+      "cls": "card"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Notifications",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Notifications » 8:00 AM [6:00 AM6:30 AM7:00 AM7:30 AM8:00 A]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Appearance",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Appearance » Dark [DarkLight]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Appearance » Default [DefaultLargerLargest]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Areas",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Areas » Work [Area Name]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Training",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Booking",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Booking » Anyone With the Link [Anyone With the LinkApproved Conta]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Booking » Link Only [Public LinkLink OnlyNamed Contacts]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Booking » Add a Day Off [YYYY-MM-DD]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Edit Tabs",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Connections",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > AI Control",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > AI Control » Match Master [Match MasterEverythingDraft OnlyOn]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > What JARVIS Learned",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Backup",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Advanced",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > About",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today > Your August is readyTwo minutesRea",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today > Your August is readyTwo minutesRea » YOUR HOURS 9 AM to 12 PM [ReceiptsYour hours: 9 AM to 12 PM8]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today > Your August is readyTwo minutesRea » 1 Followed you all month [Receipts1 Followed you all monthUp]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today > Your August is readyTwo minutesRea » Family went quiet 2 THIS MONTH, 11 IN JU [ReceiptsFamily went quiet11 Finish]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today > Your August is readyTwo minutesRea » 1 Goal cut CUTTING IS A DECISION, AND IT [Receipts1 Goal cutRead every eveni]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today > Rent$2200Due MondayPaid",
+    "findings": [
+     {
+      "kind": "low-contrast",
+      "detail": "\"Delete Task\" 3.33:1 needs 4.5 · rgb(255, 69, 58) on rgb(58, 58, 60)",
+      "cls": "row xs-row xs-del"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today > Dental CleaningLooks like monday 2",
+    "findings": [
+     {
+      "kind": "small-44",
+      "detail": "\"Today\" hit 102x34, needs 44 (no rung assigned)",
+      "cls": "return-pill"
+     },
+     {
+      "kind": "under-bar",
+      "detail": "\"JARVISAdd anything\" behind fixed bar, page already at the bottom",
+      "cls": "voice-bar"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today > Nadia BrandtInvoice attached, Net ",
+    "findings": [
+     {
+      "kind": "small-44",
+      "detail": "\"Today\" hit 102x34, needs 44 (no rung assigned)",
+      "cls": "return-pill"
+     },
+     {
+      "kind": "under-bar",
+      "detail": "\"JARVISAdd anything\" behind fixed bar, page already at the bottom",
+      "cls": "voice-bar"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today > Send Rob the DeckAug 21You said yo",
+    "findings": [
+     {
+      "kind": "small-44",
+      "detail": "\"Today\" hit 102x34, needs 44 (no rung assigned)",
+      "cls": "return-pill"
+     },
+     {
+      "kind": "under-bar",
+      "detail": "\"JARVISAdd anything\" behind fixed bar, page already at the bottom",
+      "cls": "voice-bar"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today > 1h 29m openUntil 1:00 PMDeep WorkF",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life > Health5 SectionsTrackTrainReportsM",
+    "findings": [
+     {
+      "kind": "small-44",
+      "detail": "\"Life\" hit 79x34, needs 44 (no rung assigned)",
+      "cls": "return-pill"
+     },
+     {
+      "kind": "under-bar",
+      "detail": "\"JARVISAdd anything\" behind fixed bar, page already at the bottom",
+      "cls": "voice-bar"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life > Work5 Tasks1 Goal2 Projects",
+    "findings": [
+     {
+      "kind": "small-44",
+      "detail": "\"Life\" hit 79x34, needs 44 (no rung assigned)",
+      "cls": "return-pill"
+     },
+     {
+      "kind": "under-bar",
+      "detail": "\"JARVISAdd anything\" behind fixed bar, page already at the bottom",
+      "cls": "voice-bar"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life > Work5 Tasks1 Goal2 Projects » Add Project [e.g. Q3 launch plan]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life · Tasks",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life · Reminders",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life · Projects",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life · Goals",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Schedule · Week",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Schedule · Month",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Live: Health",
+    "findings": [
+     {
+      "kind": "small-44",
+      "detail": "\"Life\" hit 79x34, needs 44 (no rung assigned)",
+      "cls": "return-pill"
+     },
+     {
+      "kind": "under-bar",
+      "detail": "\"JARVISAdd anything\" behind fixed bar, page already at the bottom",
+      "cls": "voice-bar"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Live: Program",
+    "findings": [
+     {
+      "kind": "small-44",
+      "detail": "\"Life\" hit 79x34, needs 44 (no rung assigned)",
+      "cls": "return-pill"
+     },
+     {
+      "kind": "under-bar",
+      "detail": "\"JARVISAdd anything\" behind fixed bar, page already at the bottom",
+      "cls": "voice-bar"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Live: Time Check",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Live: Workout",
+    "findings": [
+     {
+      "kind": "small-44",
+      "detail": "\"Life\" hit 79x34, needs 44 (no rung assigned)",
+      "cls": "return-pill"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Live: Workout, One Set In",
+    "findings": [
+     {
+      "kind": "small-44",
+      "detail": "\"Life\" hit 79x34, needs 44 (no rung assigned)",
+      "cls": "return-pill"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Live: Finish",
+    "findings": [],
+    "errs": []
+   }
+  ],
+  "consoleErrs": [],
+  "sheetSkips": []
+ },
+ {
+  "label": "390x844 light @1.4x type",
+  "w": 390,
+  "h": 844,
+  "theme": "light",
+  "results": [
+   {
+    "name": "Tab: Today",
+    "findings": [
+     {
+      "kind": "truncated",
+      "detail": "\"Create Calder Invoice\" loses 57%",
+      "cls": "conn-name hl-title"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"45 min\" loses 55%",
+      "cls": "fact est"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today » Search [Search Everything]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today » Create Calder Invoice TODAY 45 min Start [What needs doing?]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today » JARVIS Add anything [Smart PasteSpeakCaptureCancel]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life",
+    "findings": [
+     {
+      "kind": "truncated",
+      "detail": "\"Create Calder Invoice\" loses 46%",
+      "cls": "task-name"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Reply to Nadia re: Invoice\" loses 55%",
+      "cls": "task-name"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Call Ridgeline About the Field\" loses 61%",
+      "cls": "task-name"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Draft the Coach Onboarding Email\" loses 66%",
+      "cls": "task-name"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Rebuild Calder App\" loses 40%",
+      "cls": "r-goal-t"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life » Tasks Options [Tasks OptionsDoneJust This OneSele]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life » Add [e.g. Run a half marathon]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life » Area [All AreasWorkFamilyHealthMoneyFrie]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life » What should I do now [FocusCloseNextQuick WinsMusicMoney]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Schedule",
+    "findings": [
+     {
+      "kind": "truncated",
+      "detail": "\"Draft the Coach Onboarding Email\" loses 26%",
+      "cls": "sched-title"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Call Ridgeline About the Field\" loses 17%",
+      "cls": "blend-text truncate"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Tab: Schedule » 12:15PM 45m open UNTIL 1:00 PM [What's happening?]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: More",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain",
+    "findings": [
+     {
+      "kind": "truncated",
+      "detail": "\"7 of 10 completions\" loses 23%",
+      "cls": "fact"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > ?When Tasks Get DoneWatching7 of 1",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > ?When Tasks Get DoneWatching7 of 1 » When Tasks Get Done CLOSE Tell JARVIS [e.g. Brainstorms best at night]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > ?When You TrainWatching14 sessions",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > What JARVIS Knows",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > Insights",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > Contacts",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > Contacts",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > Contacts",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > Contacts » Add Person [Full Name]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > Decisions",
+    "findings": [
+     {
+      "kind": "truncated",
+      "detail": "\"Because AI cost per user is unboun\" loses 54%",
+      "cls": "conn-meta truncate"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Because Ridgeline fields are locke\" loses 61%",
+      "cls": "conn-meta truncate"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Because Northlake gives 60 warm le\" loses 52%",
+      "cls": "conn-meta truncate"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Rebuild Calder App\" loses 49%",
+      "cls": "cat-t"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Revisit Sep 26\" loses 15%",
+      "cls": "fact warn"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > Decisions » Add [e.g. Fall clinics run Saturdays on]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > Life Philosophy",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > How You Write",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Notes",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Notes » Notes Options [Notes OptionsDoneSelect NotesImpor]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Notes » All [AllPinnedUnfiled]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Notes » Area [All AreasWorkHealthFamily]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Email",
+    "findings": [
+     {
+      "kind": "truncated",
+      "detail": "\"Needs You\" loses 36%",
+      "cls": "t"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Security advisories flagged in two\" loses 40%",
+      "cls": "mline2 strong"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Invoice attached, Net 15 starts Mo\" loses 35%",
+      "cls": "mline2 strong"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Action needed: complete your enrol\" loses 39%",
+      "cls": "mline2 strong"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "More > Email > NNorthwind CloudTodaySecurity advi",
+    "findings": [
+     {
+      "kind": "truncated",
+      "detail": "\"Needs You\" loses 36%",
+      "cls": "t"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Security advisories flagged in two\" loses 40%",
+      "cls": "mline2 strong"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Invoice attached, Net 15 starts Mo\" loses 35%",
+      "cls": "mline2 strong"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Action needed: complete your enrol\" loses 39%",
+      "cls": "mline2 strong"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "More > Notifications",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Money",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Money » Add Account [e.g. Checking]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Money > TrackerSpending, Budgets and Subsc",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Chat",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Account",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Account » ? [Profile PhotoChoose PhotoCancel]",
+    "findings": [
+     {
+      "kind": "flush-stack",
+      "detail": "gap=0px between two cards",
+      "cls": "card"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Notifications",
+    "findings": [
+     {
+      "kind": "truncated",
+      "detail": "\"Goal and life-area nudges\" loses 18%",
+      "cls": "conn-name"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Appearance",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Appearance » Dark [DarkLight]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Appearance » Default [DefaultLargerLargest]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Areas",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Areas » Work [Area Name]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Training",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Booking",
+    "findings": [
+     {
+      "kind": "truncated",
+      "detail": "\"Anyone With the Link\" loses 47%",
+      "cls": "dd-w"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Booking » Anyone With the Link [Anyone With the LinkApproved Conta]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Booking » Link Only [Public LinkLink OnlyNamed Contacts]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Edit Tabs",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Connections",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > AI Control",
+    "findings": [
+     {
+      "kind": "truncated",
+      "detail": "\"Match Master\" loses 17%",
+      "cls": "dd-w"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > AI Control » Match Master [Match MasterEverythingDraft OnlyOn]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > What JARVIS Learned",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Backup",
+    "findings": [
+     {
+      "kind": "truncated",
+      "detail": "\"Links Come Back with the Records\" loses 24%",
+      "cls": "conn-name"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Advanced",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > About",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today > Student template ships firstKeep",
+    "findings": [
+     {
+      "kind": "overflow-x",
+      "detail": "div. right=374 vw=390",
+      "cls": ""
+     },
+     {
+      "kind": "overflow-x",
+      "detail": "div.screen right=374 vw=390",
+      "cls": "screen ruled"
+     },
+     {
+      "kind": "overflow-x",
+      "detail": "div.pagebar right=374 vw=390",
+      "cls": "pagebar today-pagebar on solid"
+     },
+     {
+      "kind": "overflow-x",
+      "detail": "div.today-bar right=374 vw=390",
+      "cls": "today-bar pagebar-row"
+     },
+     {
+      "kind": "overflow-x",
+      "detail": "button.today-av right=32 vw=390",
+      "cls": "today-av"
+     },
+     {
+      "kind": "overflow-x",
+      "detail": "div.av right=30 vw=390",
+      "cls": "av av-32 av-accent"
+     },
+     {
+      "kind": "overflow-x",
+      "detail": "div.heads-up-stream right=374 vw=390",
+      "cls": "heads-up-stream stream-grouped"
+     },
+     {
+      "kind": "overflow-x",
+      "detail": "div.notice-clear-row right=374 vw=390",
+      "cls": "notice-clear-row focus-row"
+     },
+     {
+      "kind": "overflow-x",
+      "detail": "div.sh2 right=374 vw=390",
+      "cls": "sh2 sh2-quiet"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Dental Cleaning\" loses 30%",
+      "cls": "conn-name"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Complete Your Enrollment\" loses 57%",
+      "cls": "conn-name"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Likely, from App Store Team\" loses 71%",
+      "cls": "fact"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today > Send Rob the DeckAug 21You said yo",
+    "findings": [
+     {
+      "kind": "truncated",
+      "detail": "\"Needs You\" loses 36%",
+      "cls": "t"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Security advisories flagged in two\" loses 40%",
+      "cls": "mline2 strong"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Invoice attached, Net 15 starts Mo\" loses 35%",
+      "cls": "mline2 strong"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Action needed: complete your enrol\" loses 39%",
+      "cls": "mline2 strong"
+     },
+     {
+      "kind": "small-44",
+      "detail": "\"Today\" hit 102x34, needs 44 (no rung assigned)",
+      "cls": "return-pill"
+     },
+     {
+      "kind": "under-bar",
+      "detail": "\"JARVISAdd anything\" behind fixed bar, page already at the bottom",
+      "cls": "voice-bar"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today > summitgear Hasn't Replied55 DaysMi",
+    "findings": [
+     {
+      "kind": "truncated",
+      "detail": "\"Needs You\" loses 36%",
+      "cls": "t"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Security advisories flagged in two\" loses 40%",
+      "cls": "mline2 strong"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Invoice attached, Net 15 starts Mo\" loses 35%",
+      "cls": "mline2 strong"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Action needed: complete your enrol\" loses 39%",
+      "cls": "mline2 strong"
+     },
+     {
+      "kind": "small-44",
+      "detail": "\"Today\" hit 102x34, needs 44 (no rung assigned)",
+      "cls": "return-pill"
+     },
+     {
+      "kind": "under-bar",
+      "detail": "\"JARVISAdd anything\" behind fixed bar, page already at the bottom",
+      "cls": "voice-bar"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today > 1h 29m openUntil 1:00 PMDeep WorkF",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life > Health5 SectionsTrackTrainReportsM",
+    "findings": [
+     {
+      "kind": "small-44",
+      "detail": "\"Life\" hit 79x34, needs 44 (no rung assigned)",
+      "cls": "return-pill"
+     },
+     {
+      "kind": "under-bar",
+      "detail": "\"JARVISAdd anything\" behind fixed bar, page already at the bottom",
+      "cls": "voice-bar"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life > Work5 Tasks1 Goal2 Projects",
+    "findings": [
+     {
+      "kind": "truncated",
+      "detail": "\"Ship the New Landing Hero\" loses 20%",
+      "cls": "task-name"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Reserve the App Store Name\" loses 24%",
+      "cls": "task-name"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Next: Draft the Coach Onboarding E\" loses 83%",
+      "cls": "r-goal r-cat"
+     },
+     {
+      "kind": "small-44",
+      "detail": "\"Life\" hit 79x34, needs 44 (no rung assigned)",
+      "cls": "return-pill"
+     },
+     {
+      "kind": "under-bar",
+      "detail": "\"JARVISAdd anything\" behind fixed bar, page already at the bottom",
+      "cls": "voice-bar"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life · Tasks",
+    "findings": [
+     {
+      "kind": "truncated",
+      "detail": "\"Create Calder Invoice\" loses 46%",
+      "cls": "task-name"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Reply to Nadia re: Invoice\" loses 55%",
+      "cls": "task-name"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Call Ridgeline About the Field\" loses 61%",
+      "cls": "task-name"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Draft the Coach Onboarding Email\" loses 66%",
+      "cls": "task-name"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Rebuild Calder App\" loses 40%",
+      "cls": "r-goal-t"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Security Advisories Flagged in Two\" loses 73%",
+      "cls": "task-name"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life · Reminders",
+    "findings": [
+     {
+      "kind": "truncated",
+      "detail": "\"Vitamin D\" loses 37%",
+      "cls": "rem-card-title"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Night Meds\" loses 45%",
+      "cls": "rem-card-title"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life · Projects",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life · Goals",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Schedule · Week",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Schedule · Month",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Live: Health",
+    "findings": [
+     {
+      "kind": "small-44",
+      "detail": "\"Life\" hit 79x34, needs 44 (no rung assigned)",
+      "cls": "return-pill"
+     },
+     {
+      "kind": "under-bar",
+      "detail": "\"JARVISAdd anything\" behind fixed bar, page already at the bottom",
+      "cls": "voice-bar"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Live: Program",
+    "findings": [
+     {
+      "kind": "small-44",
+      "detail": "\"Life\" hit 79x34, needs 44 (no rung assigned)",
+      "cls": "return-pill"
+     },
+     {
+      "kind": "under-bar",
+      "detail": "\"JARVISAdd anything\" behind fixed bar, page already at the bottom",
+      "cls": "voice-bar"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Live: Time Check",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Live: Workout",
+    "findings": [
+     {
+      "kind": "small-44",
+      "detail": "\"Life\" hit 79x34, needs 44 (no rung assigned)",
+      "cls": "return-pill"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Live: Workout, One Set In",
+    "findings": [
+     {
+      "kind": "small-44",
+      "detail": "\"Life\" hit 79x34, needs 44 (no rung assigned)",
+      "cls": "return-pill"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Live: Finish",
+    "findings": [],
+    "errs": []
+   }
+  ],
+  "consoleErrs": [],
+  "sheetSkips": []
+ },
+ {
+  "label": "430x932 light @1.4x type",
+  "w": 430,
+  "h": 932,
+  "theme": "light",
+  "results": [
+   {
+    "name": "Tab: Today",
+    "findings": [
+     {
+      "kind": "truncated",
+      "detail": "\"Create Calder Invoice\" loses 42%",
+      "cls": "conn-name hl-title"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today » Search [Search Everything]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today » Create Calder Invoice TODAY 45 min Start [What needs doing?]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today » JARVIS Add anything [Smart PasteSpeakCaptureCancel]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life",
+    "findings": [
+     {
+      "kind": "truncated",
+      "detail": "\"Create Calder Invoice\" loses 31%",
+      "cls": "task-name"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Reply to Nadia re: Invoice\" loses 43%",
+      "cls": "task-name"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Call Ridgeline About the Field\" loses 50%",
+      "cls": "task-name"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Draft the Coach Onboarding Email\" loses 57%",
+      "cls": "task-name"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Rebuild Calder App\" loses 21%",
+      "cls": "r-goal-t"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life » Tasks Options [Tasks OptionsDoneJust This OneSele]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life » Add [e.g. Run a half marathon]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life » Area [All AreasWorkFamilyHealthMoneyFrie]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life » What should I do now [FocusCloseNextQuick WinsMusicMoney]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Schedule",
+    "findings": [
+     {
+      "kind": "truncated",
+      "detail": "\"Draft the Coach Onboarding Email\" loses 17%",
+      "cls": "sched-title"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Tab: Schedule » 12:15PM 45m open UNTIL 1:00 PM [What's happening?]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: More",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > ?When Tasks Get DoneWatching7 of 1",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > ?When Tasks Get DoneWatching7 of 1 » When Tasks Get Done CLOSE Tell JARVIS [e.g. Brainstorms best at night]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > ?When You TrainWatching14 sessions",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > What JARVIS Knows",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > Insights",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > Contacts",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > Contacts",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > Contacts",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > Contacts » Add Person [Full Name]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > Decisions",
+    "findings": [
+     {
+      "kind": "truncated",
+      "detail": "\"Because Ridgeline fields are locke\" loses 55%",
+      "cls": "conn-meta truncate"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Because Northlake gives 60 warm le\" loses 44%",
+      "cls": "conn-meta truncate"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Rebuild Calder App\" loses 39%",
+      "cls": "cat-t"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Because AI cost per user is unboun\" loses 47%",
+      "cls": "conn-meta truncate"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > Decisions » Add [e.g. Fall clinics run Saturdays on]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > Life Philosophy",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > How You Write",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Notes",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Notes » Notes Options [Notes OptionsDoneSelect NotesImpor]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Notes » All [AllPinnedUnfiled]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Notes » Area [All AreasWorkHealthFamily]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Email",
+    "findings": [
+     {
+      "kind": "truncated",
+      "detail": "\"Security advisories flagged in two\" loses 32%",
+      "cls": "mline2 strong"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Invoice attached, Net 15 starts Mo\" loses 26%",
+      "cls": "mline2 strong"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Action needed: complete your enrol\" loses 30%",
+      "cls": "mline2 strong"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "More > Email > NNorthwind CloudTodaySecurity advi",
+    "findings": [
+     {
+      "kind": "truncated",
+      "detail": "\"Security advisories flagged in two\" loses 32%",
+      "cls": "mline2 strong"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Invoice attached, Net 15 starts Mo\" loses 26%",
+      "cls": "mline2 strong"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Action needed: complete your enrol\" loses 30%",
+      "cls": "mline2 strong"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "More > Notifications",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Money",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Money » Add Account [e.g. Checking]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Money » Rent IN 2 DAYS DUE SEP 28 [e.g. Rent]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Money > TrackerSpending, Budgets and Subsc",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Chat",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Account",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Account » ? [Profile PhotoChoose PhotoCancel]",
+    "findings": [
+     {
+      "kind": "flush-stack",
+      "detail": "gap=0px between two cards",
+      "cls": "card"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Notifications",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Notifications » 8:00 AM [6:00 AM6:30 AM7:00 AM7:30 AM8:00 A]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Appearance",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Appearance » Dark [DarkLight]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Appearance » Default [DefaultLargerLargest]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Areas",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Areas » Work [Area Name]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Training",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Booking",
+    "findings": [
+     {
+      "kind": "truncated",
+      "detail": "\"Anyone With the Link\" loses 29%",
+      "cls": "dd-w"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Booking » Anyone With the Link [Anyone With the LinkApproved Conta]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Booking » Link Only [Public LinkLink OnlyNamed Contacts]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Edit Tabs",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Connections",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > AI Control",
+    "findings": [
+     {
+      "kind": "small-44",
+      "detail": "\"Match Master\" hit 159x24, needs 44 (no rung assigned)",
+      "cls": "dd dd-value"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > AI Control » Match Master [Match MasterEverythingDraft OnlyOn]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > What JARVIS Learned",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Backup",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Advanced",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > About",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today > Your August is readyRead",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today > Your August is readyRead » YOUR HOURS 9 AM to 12 PM [ReceiptsYour hours: 9 AM to 12 PM8]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today > Your August is readyRead » 1 Followed you all month [Receipts1 Followed you all monthUp]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today > Your August is readyRead » Family went quiet 2 THIS MONTH, 11 IN JU [ReceiptsFamily went quiet11 Finish]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today > RentPaid",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today > Dental CleaningLooks like monday 2",
+    "findings": [
+     {
+      "kind": "truncated",
+      "detail": "\"Security advisories flagged in two\" loses 32%",
+      "cls": "mline2 strong"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Invoice attached, Net 15 starts Mo\" loses 26%",
+      "cls": "mline2 strong"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Action needed: complete your enrol\" loses 30%",
+      "cls": "mline2 strong"
+     },
+     {
+      "kind": "small-44",
+      "detail": "\"Today\" hit 102x34, needs 44 (no rung assigned)",
+      "cls": "return-pill"
+     },
+     {
+      "kind": "under-bar",
+      "detail": "\"JARVISAdd anything\" behind fixed bar, page already at the bottom",
+      "cls": "voice-bar"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today > Nadia BrandtInvoice attached, Net ",
+    "findings": [
+     {
+      "kind": "truncated",
+      "detail": "\"Security advisories flagged in two\" loses 32%",
+      "cls": "mline2 strong"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Invoice attached, Net 15 starts Mo\" loses 26%",
+      "cls": "mline2 strong"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Action needed: complete your enrol\" loses 30%",
+      "cls": "mline2 strong"
+     },
+     {
+      "kind": "small-44",
+      "detail": "\"Today\" hit 102x34, needs 44 (no rung assigned)",
+      "cls": "return-pill"
+     },
+     {
+      "kind": "under-bar",
+      "detail": "\"JARVISAdd anything\" behind fixed bar, page already at the bottom",
+      "cls": "voice-bar"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today > Send Rob the DeckAug 21You said yo",
+    "findings": [
+     {
+      "kind": "truncated",
+      "detail": "\"Security advisories flagged in two\" loses 32%",
+      "cls": "mline2 strong"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Invoice attached, Net 15 starts Mo\" loses 26%",
+      "cls": "mline2 strong"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Action needed: complete your enrol\" loses 30%",
+      "cls": "mline2 strong"
+     },
+     {
+      "kind": "small-44",
+      "detail": "\"Today\" hit 102x34, needs 44 (no rung assigned)",
+      "cls": "return-pill"
+     },
+     {
+      "kind": "under-bar",
+      "detail": "\"JARVISAdd anything\" behind fixed bar, page already at the bottom",
+      "cls": "voice-bar"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today > 1h 29m openUntil 1:00 PMDeep WorkF",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life > Health5 SectionsTrackTrainReportsM",
+    "findings": [
+     {
+      "kind": "small-44",
+      "detail": "\"Life\" hit 79x34, needs 44 (no rung assigned)",
+      "cls": "return-pill"
+     },
+     {
+      "kind": "under-bar",
+      "detail": "\"JARVISAdd anything\" behind fixed bar, page already at the bottom",
+      "cls": "voice-bar"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life > Work5 Tasks1 Goal2 Projects",
+    "findings": [
+     {
+      "kind": "truncated",
+      "detail": "\"Next: Draft the Coach Onboarding E\" loses 73%",
+      "cls": "r-goal r-cat"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Next: Swap Testimonial Quotes\" loses 77%",
+      "cls": "r-goal r-cat"
+     },
+     {
+      "kind": "small-44",
+      "detail": "\"Life\" hit 79x34, needs 44 (no rung assigned)",
+      "cls": "return-pill"
+     },
+     {
+      "kind": "under-bar",
+      "detail": "\"JARVISAdd anything\" behind fixed bar, page already at the bottom",
+      "cls": "voice-bar"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life · Tasks",
+    "findings": [
+     {
+      "kind": "truncated",
+      "detail": "\"Create Calder Invoice\" loses 31%",
+      "cls": "task-name"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Reply to Nadia re: Invoice\" loses 43%",
+      "cls": "task-name"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Call Ridgeline About the Field\" loses 50%",
+      "cls": "task-name"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Draft the Coach Onboarding Email\" loses 57%",
+      "cls": "task-name"
+     },
+     {
+      "kind": "truncated",
+      "detail": "\"Rebuild Calder App\" loses 21%",
+      "cls": "r-goal-t"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life · Reminders",
+    "findings": [
+     {
+      "kind": "truncated",
+      "detail": "\"Night Meds\" loses 17%",
+      "cls": "rem-card-title"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life · Projects",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life · Goals",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Schedule · Week",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Schedule · Month",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Live: Health",
+    "findings": [
+     {
+      "kind": "small-44",
+      "detail": "\"Life\" hit 79x34, needs 44 (no rung assigned)",
+      "cls": "return-pill"
+     },
+     {
+      "kind": "under-bar",
+      "detail": "\"JARVISAdd anything\" behind fixed bar, page already at the bottom",
+      "cls": "voice-bar"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Live: Program",
+    "findings": [
+     {
+      "kind": "small-44",
+      "detail": "\"Life\" hit 79x34, needs 44 (no rung assigned)",
+      "cls": "return-pill"
+     },
+     {
+      "kind": "under-bar",
+      "detail": "\"JARVISAdd anything\" behind fixed bar, page already at the bottom",
+      "cls": "voice-bar"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Live: Time Check",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Live: Workout",
+    "findings": [
+     {
+      "kind": "small-44",
+      "detail": "\"Life\" hit 79x34, needs 44 (no rung assigned)",
+      "cls": "return-pill"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Live: Workout, One Set In",
+    "findings": [
+     {
+      "kind": "small-44",
+      "detail": "\"Life\" hit 79x34, needs 44 (no rung assigned)",
+      "cls": "return-pill"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Live: Finish",
+    "findings": [],
+    "errs": []
+   }
+  ],
+  "consoleErrs": [],
+  "sheetSkips": []
+ },
+ {
+  "label": "834x1112 light @1.4x type",
+  "w": 834,
+  "h": 1112,
+  "theme": "light",
+  "results": [
+   {
+    "name": "Tab: Today",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today » Search [Search Everything]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today » Create Calder Invoice TODAY 45 min Start [What needs doing?]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today » JARVIS Add anything [Smart PasteSpeakCaptureCancel]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life » Tasks Options [Tasks OptionsDoneJust This OneSele]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life » Add [e.g. Run a half marathon]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life » Area [All AreasWorkFamilyHealthMoneyFrie]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life » What should I do now [FocusCloseNextQuick WinsMusicMoney]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Schedule",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Schedule » Plan My Day [Add Something to This Day]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Schedule » 12:15PM 45m open UNTIL 1:00 PM [What's happening?]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: More",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > ?When Tasks Get DoneWatching7 of 1",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > ?When Tasks Get DoneWatching7 of 1 » When Tasks Get Done CLOSE Tell JARVIS [e.g. Brainstorms best at night]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > ?When You TrainWatching14 sessions",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > What JARVIS Knows",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > Insights",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > Contacts",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > Contacts",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > Contacts",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > Contacts » Add Person [Full Name]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > Decisions",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > Decisions » Add [e.g. Fall clinics run Saturdays on]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > Life Philosophy",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Brain > How You Write",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Notes",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Notes » Notes Options [Notes OptionsDoneSelect NotesImpor]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Notes » All [AllPinnedUnfiled]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Notes » Area [All AreasWorkHealthFamily]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Email",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Email > NNorthwind CloudTodaySecurity advi",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Notifications",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Money",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Money » Add Account [e.g. Checking]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Money » Rent IN 2 DAYS DUE SEP 28 [e.g. Rent]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Money » Set Up Payday [0]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Money > TrackerSpending, Budgets and Subsc",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Chat",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Account",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Account » ? [Profile PhotoChoose PhotoCancel]",
+    "findings": [
+     {
+      "kind": "flush-stack",
+      "detail": "gap=0px between two cards",
+      "cls": "card"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Notifications",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Notifications » 8:00 AM [6:00 AM6:30 AM7:00 AM7:30 AM8:00 A]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Appearance",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Appearance » Dark [DarkLight]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Appearance » Default [DefaultLargerLargest]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Areas",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Areas » Work [Area Name]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Training",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Booking",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Booking » Anyone With the Link [Anyone With the LinkApproved Conta]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Booking » Link Only [Public LinkLink OnlyNamed Contacts]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Booking » Add a Day Off [YYYY-MM-DD]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Edit Tabs",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Connections",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > AI Control",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > AI Control » Match Master [Match MasterEverythingDraft OnlyOn]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > What JARVIS Learned",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Backup",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > Advanced",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "More > Settings > About",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today > Your August is readyTwo minutesRea",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today > Your August is readyTwo minutesRea » YOUR HOURS 9 AM to 12 PM [ReceiptsYour hours: 9 AM to 12 PM8]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today > Your August is readyTwo minutesRea » 1 Followed you all month [Receipts1 Followed you all monthUp]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today > Your August is readyTwo minutesRea » Family went quiet 2 THIS MONTH, 11 IN JU [ReceiptsFamily went quiet11 Finish]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today > Your August is readyTwo minutesRea » 1 Goal cut CUTTING IS A DECISION, AND IT [Receipts1 Goal cutRead every eveni]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today > Rent$2200Due MondayPaid",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today > Dental CleaningLooks like monday 2",
+    "findings": [
+     {
+      "kind": "small-44",
+      "detail": "\"Today\" hit 102x34, needs 44 (no rung assigned)",
+      "cls": "return-pill"
+     },
+     {
+      "kind": "under-bar",
+      "detail": "\"JARVISAdd anything\" behind fixed bar, page already at the bottom",
+      "cls": "voice-bar"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today > Nadia BrandtInvoice attached, Net ",
+    "findings": [
+     {
+      "kind": "small-44",
+      "detail": "\"Today\" hit 102x34, needs 44 (no rung assigned)",
+      "cls": "return-pill"
+     },
+     {
+      "kind": "under-bar",
+      "detail": "\"JARVISAdd anything\" behind fixed bar, page already at the bottom",
+      "cls": "voice-bar"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today > Send Rob the DeckAug 21You said yo",
+    "findings": [
+     {
+      "kind": "small-44",
+      "detail": "\"Today\" hit 102x34, needs 44 (no rung assigned)",
+      "cls": "return-pill"
+     },
+     {
+      "kind": "under-bar",
+      "detail": "\"JARVISAdd anything\" behind fixed bar, page already at the bottom",
+      "cls": "voice-bar"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Tab: Today > 1h 29m openUntil 1:00 PMDeep WorkF",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life > Health5 SectionsTrackTrainReportsM",
+    "findings": [
+     {
+      "kind": "small-44",
+      "detail": "\"Life\" hit 79x34, needs 44 (no rung assigned)",
+      "cls": "return-pill"
+     },
+     {
+      "kind": "under-bar",
+      "detail": "\"JARVISAdd anything\" behind fixed bar, page already at the bottom",
+      "cls": "voice-bar"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life > Work5 Tasks1 Goal2 Projects",
+    "findings": [
+     {
+      "kind": "small-44",
+      "detail": "\"Life\" hit 79x34, needs 44 (no rung assigned)",
+      "cls": "return-pill"
+     },
+     {
+      "kind": "under-bar",
+      "detail": "\"JARVISAdd anything\" behind fixed bar, page already at the bottom",
+      "cls": "voice-bar"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life > Work5 Tasks1 Goal2 Projects » Add Project [e.g. Q3 launch plan]",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life · Tasks",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life · Reminders",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life · Projects",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Life · Goals",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Schedule · Week",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Tab: Schedule · Month",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Live: Health",
+    "findings": [
+     {
+      "kind": "small-44",
+      "detail": "\"Life\" hit 79x34, needs 44 (no rung assigned)",
+      "cls": "return-pill"
+     },
+     {
+      "kind": "under-bar",
+      "detail": "\"JARVISAdd anything\" behind fixed bar, page already at the bottom",
+      "cls": "voice-bar"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Live: Program",
+    "findings": [
+     {
+      "kind": "small-44",
+      "detail": "\"Life\" hit 79x34, needs 44 (no rung assigned)",
+      "cls": "return-pill"
+     },
+     {
+      "kind": "under-bar",
+      "detail": "\"JARVISAdd anything\" behind fixed bar, page already at the bottom",
+      "cls": "voice-bar"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Live: Time Check",
+    "findings": [],
+    "errs": []
+   },
+   {
+    "name": "Live: Workout",
+    "findings": [
+     {
+      "kind": "small-44",
+      "detail": "\"Life\" hit 79x34, needs 44 (no rung assigned)",
+      "cls": "return-pill"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Live: Workout, One Set In",
+    "findings": [
+     {
+      "kind": "small-44",
+      "detail": "\"Life\" hit 79x34, needs 44 (no rung assigned)",
+      "cls": "return-pill"
+     }
+    ],
+    "errs": []
+   },
+   {
+    "name": "Live: Finish",
+    "findings": [],
+    "errs": []
+   }
+  ],
+  "consoleErrs": [],
+  "sheetSkips": []
+ }
+]

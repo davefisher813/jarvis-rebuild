@@ -123,7 +123,7 @@ export default function RemindersFlow({ chrome, onOpenEntity, openId, onOpened, 
     const ok = await attemptWrite(() => (done ? tasks.tickReminder(id, today) : tasks.untickReminder(id)));
     await reload();
     if (!ok) return;
-    if (done) showToast({ message: "Done · In Done for today", actionLabel: "Undo", onAction: async () => { await attemptWrite(() => tasks.untickReminder(id)); await reload(); } });
+    if (done) showToast({ message: "Done · In Done for Today", actionLabel: "Undo", onAction: async () => { await attemptWrite(() => tasks.untickReminder(id)); await reload(); } });
     else showToast({ message: "Occurrence Reopened" });
   };
   const move = async (id: string, fromDate: string, toDate: string, time: string) => {
@@ -136,7 +136,7 @@ export default function RemindersFlow({ chrome, onOpenEntity, openId, onOpened, 
     const ok = await attemptWrite(() => tasks.skipReminderOccurrence(id, date));
     await reload();
     setDetailId(null);
-    if (ok) showToast({ message: "Occurrence Skipped · The series continues", actionLabel: "Undo", onAction: async () => { await attemptWrite(() => tasks.restoreOccurrence(id, date)); await reload(); } });
+    if (ok) showToast({ message: "Occurrence Skipped · The Series Continues", actionLabel: "Undo", onAction: async () => { await attemptWrite(() => tasks.restoreOccurrence(id, date)); await reload(); } });
   };
   const restore = async (id: string, date: string) => {
     const ok = await attemptWrite(() => tasks.restoreOccurrence(id, date));
@@ -147,7 +147,7 @@ export default function RemindersFlow({ chrome, onOpenEntity, openId, onOpened, 
     const ok = await attemptWrite(() => tasks.pauseReminder(id, paused));
     await reload();
     setDetailId(null);
-    if (ok) showToast({ message: paused ? "Reminder Paused · No alerts until you resume" : "Reminder Resumed", actionLabel: "Undo", onAction: async () => { await attemptWrite(() => tasks.pauseReminder(id, !paused)); await reload(); } });
+    if (ok) showToast({ message: paused ? "Reminder Paused · No Alerts Until You Resume" : "Reminder Resumed", actionLabel: "Undo", onAction: async () => { await attemptWrite(() => tasks.pauseReminder(id, !paused)); await reload(); } });
   };
   const keepSchedule = async (id: string) => {
     const ok = await attemptWrite(() => tasks.logReminderEvent(id, "keptSchedule"));
@@ -169,9 +169,9 @@ export default function RemindersFlow({ chrome, onOpenEntity, openId, onOpened, 
     if (!t?.data.reminder) return;
     try {
       await saveIcsFile(remindersToIcs([{ id: t.id, text: t.data.text, reminder: t.data.reminder }], today), "jarvis-reminder.ics");
-      showToast({ message: "Opening Calendar · Tap Add to confirm" });
+      showToast({ message: "Opening Calendar · Tap Add to Confirm" });
     } catch {
-      showToast({ message: "Couldn't hand it to your calendar · Try again" });
+      showToast({ message: "Couldn't Hand It to Your Calendar · Try Again" });
     }
   };
   const openLinked = (link: LinkedItem) => { onOpenEntity?.(link.type === "contact" ? "person" : link.type, link.id); };
@@ -208,7 +208,7 @@ export default function RemindersFlow({ chrome, onOpenEntity, openId, onOpened, 
     setTesting(true);
     const r = await sendTestReminder();
     setTesting(false);
-    showToast({ message: r === "sent" ? `Test reminder in ${TEST_REMINDER_DELAY_S} seconds · Lock the phone to see it` : r === "denied" ? "Notifications are off for JARVIS in iOS Settings" : "Test reminders need the phone app" });
+    showToast({ message: r === "sent" ? `Test Reminder in ${TEST_REMINDER_DELAY_S} Seconds · Lock the Phone to See It` : r === "denied" ? "Notifications Are Off for JARVIS in iOS Settings" : "Test Reminders Need the Phone App" });
   };
 
   const detail = itemOf(detailId);

@@ -17,6 +17,11 @@ export interface EventData {
   // deliberately is not. Only meaningful alongside a location.
   travelMin?: number;
   bufferMin?: number;
+  // WHAT THIS EVENT IS FOR (Dave's pass-off, 2026-09-26: on the New Event
+  // sheet, "no way to attach a project"). The project an event belongs to,
+  // picked on its sheet the way a task's is. Optional and additive, on the
+  // event itself, like every field here: no migration.
+  projectId?: string;
   // UP-CORE-10 (2026-09-05): the video link, the description and the guest
   // list an imported Google event carries. url and notes are editable here
   // (and settable on a hand-made event); attendees are Google's own list and

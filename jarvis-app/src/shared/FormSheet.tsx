@@ -1,5 +1,6 @@
 import { createPortal } from "react-dom";
-import { useLayoutEffect, useRef, type MouseEvent, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, type MouseEvent, type ReactNode } from "react";
+import { nudgeViewport } from "./viewport";
 import SheetBar from "./SheetBar";
 import HeadMenu, { type MenuOption } from "./HeadMenu";
 import { pressable } from "./pressable";
@@ -49,6 +50,8 @@ export function FormSheet({ title, onCancel, onSave, saveDisabled = false, saveL
       colour. Adds to the field check, never replaces it. */
   dirty?: boolean;
 }) {
+  // The band under this sheet is re-read on open (viewport.ts, 2026-09-26).
+  useEffect(() => { nudgeViewport(); }, []);
   const card = useRef<HTMLDivElement>(null);
   const opened = useRef<string | null>(null);
   useLayoutEffect(() => { opened.current = fieldsOf(card.current); }, []);

@@ -1,5 +1,5 @@
 import type { MailAttachment } from "../connections/google/map";
-import { capAfterNumber } from "../shared/casing";
+import { lineCase } from "../shared/casing";
 
 // ATTACHMENTS BECOME THINGS (N2, plus N6 receipts, Dave 2026-08-20).
 //
@@ -99,7 +99,7 @@ export function attachOffer(input: AttachOfferInput): AttachOffer | null {
         title: input.subject.trim().slice(0, 60) || "New Bill",
         // toFixed, not toLocaleString: the latter drops the trailing
         // cent, so $1,234.50 read "$1,234.5" (2026-08-25).
-        sub: capAfterNumber(`$${amount.toFixed(2)} from ${input.from}`),
+        sub: lineCase(`$${amount.toFixed(2)} from ${input.from}`),
         action: "Add Bill",
         amount,
         filename: bill?.a.filename,

@@ -439,9 +439,9 @@ export default function OnboardingFlow({ onFinish }: { onFinish: () => void }) {
               a step nobody can tap or has finished). Each step's length is
               the app's own estimate, so it wears the key's sky. */}
           <div className="card">
-            <div className="row"><div className="sec-ico ico-surface ob-num">1</div><div className="row-grow"><div className="conn-name">Tell JARVIS about you</div></div><span className="row-status fact est">2 min</span></div>
-            <div className="row"><div className="sec-ico ico-surface ob-num">2</div><div className="row-grow"><div className="conn-name">Connect Gmail and Calendar</div></div><span className="row-status fact est">1 min</span></div>
-            <div className="row"><div className="sec-ico ico-surface ob-num">3</div><div className="row-grow"><div className="conn-name">Set your daily rhythm</div></div><span className="row-status fact est">1 min</span></div>
+            <div className="row"><div className="sec-ico ico-surface ob-num">1</div><div className="row-grow"><div className="conn-name">Tell JARVIS about you</div></div><span className="row-status fact est">2 Min</span></div>
+            <div className="row"><div className="sec-ico ico-surface ob-num">2</div><div className="row-grow"><div className="conn-name">Connect Gmail and Calendar</div></div><span className="row-status fact est">1 Min</span></div>
+            <div className="row"><div className="sec-ico ico-surface ob-num">3</div><div className="row-grow"><div className="conn-name">Set your daily rhythm</div></div><span className="row-status fact est">1 Min</span></div>
           </div>
           <div className="ob-privacy">
             <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" dangerouslySetInnerHTML={{ __html: LOCK }} />

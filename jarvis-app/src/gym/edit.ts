@@ -269,6 +269,11 @@ export function dayWithSessionEntry(
   if (idx >= 0) {
     return { ...day, exercises: day.exercises.map((e, i) => (i === idx ? { ...e, ...identity } : e)) };
   }
+  // ONCE (2026-09-26): an added lift the day already holds, by key or by
+  // name and kind, is not added again. A second tap used to append a copy.
+  const same = (e: Exercise) => (entry.exerciseKey && e.exerciseKey === entry.exerciseKey)
+    || (e.name.trim().toLowerCase() === entry.name.trim().toLowerCase() && e.kind === entry.kind);
+  if (day.exercises.some(same)) return day;
   const added: Exercise = { id: newId(), ...identity, sets: (entry.plan ?? []).map((s) => ({ ...s, id: newSetId() })), ...(entry.program ?? {}) };
   return { ...day, exercises: [...day.exercises, added] };
 }

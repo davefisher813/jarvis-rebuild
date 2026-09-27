@@ -407,7 +407,7 @@ export default function DeckFlow({ ai, apiFor, threads, queueSend, limitMs, onDo
         // mail is still handled (archived), the task is simply not doubled.
         const dup = await findTaskForThread(tasks, row.id);
         if (dup) {
-          showToast({ message: "Already a task \u00b7 " + taskTitleOf(dup) });
+          showToast({ message: "Already a Task \u00b7 " + taskTitleOf(dup) });
           cleared = await archiveRemote(row.id, row.account);
           receipts.current.archived += 1;
         } else {
@@ -422,7 +422,7 @@ export default function DeckFlow({ ai, apiFor, threads, queueSend, limitMs, onDo
       emit({ type: "action", props: { name: "email.deck.handled", kind: plan.kind } });
       advance(cleared);
     } catch (e) {
-      showToast({ message: humanError(e, "Didn't send · Nothing lost") });
+      showToast({ message: humanError(e, "Didn't Send · Nothing Lost") });
     } finally {
       setBusy(false);
     }
@@ -437,7 +437,7 @@ export default function DeckFlow({ ai, apiFor, threads, queueSend, limitMs, onDo
       // E-30: one task per thread. Later on a thread that already has an
       // open task keeps that task and still defers the card.
       const dup = await findTaskForThread(tasks, row.id);
-      if (dup) showToast({ message: "Already a task \u00b7 " + taskTitleOf(dup) });
+      if (dup) showToast({ message: "Already a Task \u00b7 " + taskTitleOf(dup) });
       else await tasks.createTask(laterTaskTitle(displayName(row.from), row.subject), { due: todayISO(), fromThread: row.id, source: madeBy("email", row.id), ...(personIdFor(row.fromEmail) ? { personId: personIdFor(row.fromEmail)! } : {}) });
       emit({ type: "action", props: { name: "email.deck.later" } });
       receipts.current.later += 1;
@@ -445,7 +445,7 @@ export default function DeckFlow({ ai, apiFor, threads, queueSend, limitMs, onDo
     } catch (e) {
       // Do NOT advance: Later without its task is a silent loss, and the whole
       // point of Later is that deferring never means losing.
-      showToast({ message: humanError(e, "Couldn't save · Nothing lost") });
+      showToast({ message: humanError(e, "Couldn't Save · Nothing Lost") });
     } finally {
       setBusy(false);
     }
@@ -459,7 +459,7 @@ export default function DeckFlow({ ai, apiFor, threads, queueSend, limitMs, onDo
     setBusy(true);
     try {
       const cleared = await archiveRemote(row.id, row.account);
-      if (!cleared) showToast({ message: "Couldn't archive it · Still in your inbox" });
+      if (!cleared) showToast({ message: "Couldn't Archive It · Still in Your Inbox" });
       else receipts.current.archived += 1;
       emit({ type: "action", props: { name: "email.deck.handled", kind: "archive" } });
       advance(cleared);
@@ -512,14 +512,14 @@ export default function DeckFlow({ ai, apiFor, threads, queueSend, limitMs, onDo
           : plan.kind === "event" && plan.event
             ? "Schedule " + plan.event.title + " · " + dayPhrase(plan.event.date, todayISO()) + " " + fmtTime(plan.event.start).time + " " + fmtTime(plan.event.start).ap
             : plan.kind === "task" && plan.task
-              ? "Add task: " + plan.task.title + (plan.task.due ? " · Due " + dayPhrase(plan.task.due, todayISO()) : "")
+              ? "Add Task: " + plan.task.title + (plan.task.due ? " · Due " + dayPhrase(plan.task.due, todayISO()) : "")
               : "Let it go";
   const kicker = preparing ? "" :
-    plan?.kind === "reply" ? "Reply ready · Your voice" :
+    plan?.kind === "reply" ? "Reply Ready · Your Voice" :
     plan?.kind === "bill" ? "Bill prepped for Money" :
     plan?.kind === "event" ? "Ready for the Schedule" :
     plan?.kind === "task" ? "Task prepped" :
-    plan ? "Nothing needed" : "No plan · You drive";
+    plan ? "Nothing Needed" : "No Plan · You Drive";
   // E-19: the store remembers the headline once it is known, so the resume
   // card can say where he was in his own prepared words.
   planTextRef.current = preparing ? undefined : headline;

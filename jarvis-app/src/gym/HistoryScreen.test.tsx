@@ -33,10 +33,15 @@ describe("HistoryScreen: Lifts / Sessions", () => {
     expect(screen.getByText("This Week")).toBeInTheDocument();
     expect(screen.getByText("Last Week")).toBeInTheDocument();
     expect(screen.getByText("August")).toBeInTheDocument();
-    expect(screen.getByText("47 Min")).toHaveClass("fact");
-    expect(screen.getByText("47 Min")).not.toHaveClass("amber");
-    expect(screen.getByText("12 sets")).toHaveClass("fact", "lime");
-    expect(screen.getByText("1 set")).toBeInTheDocument();
+    // AMENDED 2026-09-26 (pass-off item 11): the length is the row's
+    // right-hand column, a white <b> in a .row-value (a measured number
+    // with no state), and the sets read "12 Sets" by the whole casing rule.
+    const len = screen.getByText("47 Min");
+    expect(len.tagName).toBe("B");
+    expect(len.closest(".row-value")).not.toBeNull();
+    expect(len.closest(".fact")).not.toHaveClass("amber");
+    expect(screen.getByText("12 Sets")).toHaveClass("fact", "lime");
+    expect(screen.getByText("1 Set")).toBeInTheDocument();
   });
 
   it("a session row opens that workout", () => {

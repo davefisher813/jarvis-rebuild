@@ -76,7 +76,7 @@ export function resourceFor(
     return { kind: "thread", id: records.thread.id, label: records.thread.subject };
   }
   const payUrl = data?.bill?.payUrl;
-  if (payUrl) return { kind: "url", id: payUrl, label: "The pay page" };
+  if (payUrl) return { kind: "url", id: payUrl, label: "The Pay Page" };
   return null;
 }
 
@@ -106,7 +106,7 @@ export function groundingFor(
     lines.push("Hi everyone,");
     lines.push(capitalize(ev.title) + " is " + lowerFirst(when) + ".");
     if (ev.location) lines.push("Where: " + ev.location);
-    else missing.push("Location still needed");
+    else missing.push("Location Still Needed");
   } else if (records.note) {
     sources.push({ kind: "note", id: records.note.id, label: "Source: " + records.note.title });
   }
@@ -116,7 +116,7 @@ export function groundingFor(
   } else if (isGroupSend(target.title)) {
     // A task that says "team" names no one person, and guessing a roster is
     // exactly the fabrication this file exists to refuse.
-    missing.push("Recipients still needed");
+    missing.push("Recipients Still Needed");
   }
 
   return { lines, sources, missing };

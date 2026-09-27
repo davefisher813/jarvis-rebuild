@@ -22,6 +22,7 @@ import { dayTone } from "../messages/factsLine";
 import { DAY_PRESETS } from "../tasks/reminders";
 import { daysSummary } from "../routine/types";
 import Dictate from "../shared/Dictate";
+import { lineCase } from "../shared/casing";
 
 // "Fact" is Quick Add's lane (Brain handoff 5.0): a standing truth about the
 // user, filed into the Brain rather than onto a list. It is a chip like the
@@ -237,7 +238,7 @@ export default function QuickCapture({ ai, onClose, onOpen }: { ai: AIService; o
     }
     writeLive(logSet(live, live.idx, set));
     showToast({
-      message: `Logged ${formatSet(entry, set)}`,
+      message: lineCase(`Logged ${formatSet(entry, set)}`),
       actionLabel: "Undo",
       onAction: () => { const cur = readLive(); if (cur) writeLive(setLoggedSets(cur, live.idx, before)); },
     });
@@ -278,7 +279,7 @@ export default function QuickCapture({ ai, onClose, onOpen }: { ai: AIService; o
       // The middle dot, not a full stop: the short-copy law forbids a
       // sentence boundary in rendered copy, and this is the exact string
       // TodaySuggestions already says for the identical refusal.
-      if (ok) setError(refused ? "The Brain is full · Prune it in What JARVIS Knows" : "Nothing to save in that.");
+      if (ok) setError(refused ? "The Brain Is Full · Prune It in What JARVIS Knows" : "Nothing to save in that.");
       setPhase("input");
       return;
     }
@@ -308,7 +309,7 @@ export default function QuickCapture({ ai, onClose, onOpen }: { ai: AIService; o
     const ok = await attemptWrite(async () => { next = await refileSaved(s, kind, deps(cats)); });
     if (!ok) return;
     if (!next) {
-      showToast({ message: kind === "fact" ? "The Brain is full · Prune it in What JARVIS Knows" : WRITE_FAILED_MESSAGE });
+      showToast({ message: kind === "fact" ? "The Brain Is Full · Prune It in What JARVIS Knows" : WRITE_FAILED_MESSAGE });
       return;
     }
     dropCapture(s.id);
@@ -382,7 +383,7 @@ export default function QuickCapture({ ai, onClose, onOpen }: { ai: AIService; o
     let moved = false;
     const ok = await attemptWrite(async () => { moved = await recategorizeFact(s, category, deps(cats)); });
     if (!ok) return;
-    if (!moved) { showToast({ message: "The Brain is full · Prune it in What JARVIS Knows" }); return; }
+    if (!moved) { showToast({ message: "The Brain Is Full · Prune It in What JARVIS Knows" }); return; }
     setSaved(saved.map((x) => (x.id === s.id ? { ...x, factCategory: category } : x)));
   };
 

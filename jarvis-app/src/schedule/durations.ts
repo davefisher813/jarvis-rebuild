@@ -16,11 +16,14 @@
 // stays where the clock lives.
 
 import { addMinutes } from "./calendar";
+import { spanLabel } from "../shared/duration";
 
 export const DUR_CHOICES = [15, 30, 45, 60, 90, 120];
 
-export const durLabel = (d: number): string =>
-  d < 60 ? `${d}m` : d % 60 === 0 ? `${d / 60}h` : `${Math.floor(d / 60)}h ${d % 60}m`;
+// The chip's label is the one duration shape (shared/duration.ts; Dave
+// 2026-09-26, the durations ruling): "45 Min" beside "1h 30m", literally.
+// The name stays because the laws pin it at every chip that draws it.
+export const durLabel = (d: number): string => spanLabel(d);
 
 // Start plus a duration. calendar's addMinutes already clamps inside
 // 00:00..23:59, so a block stretched past midnight stops at the end of the

@@ -1,5 +1,6 @@
 import { namePatterns, openWith, type MentionItem } from "../people/mentions";
 import { agoLabel } from "../people/lastContact";
+import { lineCase } from "../shared/casing";
 
 // BEFORE THE MEETING: WHO IT IS, WHAT IS OPEN, WHAT YOU SAID
 // (UP-MIND-24, 2026-09-05).
@@ -104,7 +105,7 @@ export function meetingPrep(
       person,
       open,
       lastMs: ms,
-      lastMail: ms ? "Last mail " + agoLabel(ms, nowMsecs).toLowerCase() : null,
+      lastMail: ms ? lineCase("Last mail " + agoLabel(ms, nowMsecs)) : null,
     };
   }
   return null;

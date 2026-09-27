@@ -5,6 +5,7 @@ import { FormSheet, Group, FieldRow, MenuRow, SwitchRow, DeleteRow, ErrorLine, t
 import { Calendar, FolderKanban, Tag } from "../../shared/icons";
 import { DollarGlyph, WalletGlyph, RepeatGlyph } from "../../shared/glyphs";
 import { pressable } from "../../shared/pressable";
+import { lineCase, titleCase } from "../../shared/casing";
 import { showToast } from "../../shared/toast";
 import { attemptWrite } from "../../shared/guard";
 import {
@@ -78,7 +79,7 @@ export default function TrackerScreen({ onBack }: { onBack: () => void }) {
     setSeeding(false);
     if (!wrote) return;
     await reload();
-    showToast({ message: "September imported" });
+    showToast({ message: "September Imported" });
   };
 
   return (
@@ -93,7 +94,7 @@ export default function TrackerScreen({ onBack }: { onBack: () => void }) {
                   title lost "Data" to the Import pill beside it; it is copy
                   this app wrote, so it takes the second line. */}
               <div className="conn-name truncate">Import September Data</div>
-              <div className="conn-meta">Your accounts, subscriptions and 31 transactions</div>
+              <div className="conn-meta">Your Accounts, Subscriptions and 31 Transactions</div>
             </div>
             <button className="pill-act" disabled={seeding}
               onClick={(e) => { e.stopPropagation(); void runSeed(); }}>
@@ -174,7 +175,7 @@ function Dashboard({ month, onMonth, txs, data, onSaved }: {
     setAcct(null);
     await onSaved();
     showToast({
-      message: "Account deleted",
+      message: "Account Deleted",
       actionLabel: "Undo",
       onAction: async () => { await attemptWrite(() => svc.saveAccount(null, a.data)); await onSaved(); },
     });
@@ -199,8 +200,10 @@ function Dashboard({ month, onMonth, txs, data, onSaved }: {
             <div className="card mt-acct" key={a.id} {...pressable(() => setAcct(a))}>
               <div className="mt-acct-name">{a.data.name}</div>
               <div className="mt-acct-bal">{fmtCents(a.data.currentBalanceCents)}</div>
+              {/* The amount inside the tile's one grey line steps up to
+                  white (§AM F1), the words stay the grey. */}
               {a.data.type === "credit card" && (
-                <div className="mt-acct-sub">Available credit {fmtCents(a.data.availableBalanceCents)}</div>
+                <div className="mt-acct-sub"><span className="fact">Available Credit <b>{fmtCents(a.data.availableBalanceCents)}</b></span></div>
               )}
             </div>
           ))}
@@ -229,7 +232,10 @@ function Dashboard({ month, onMonth, txs, data, onSaved }: {
       <div className="pad-x mt-sums">
         <div className="card mt-sum">
           <div className="mt-sum-label">In</div>
-          <div className="mt-sum-value good">{fmtCents(income)}</div>
+          {/* Green only once something came in (the lead, 2026-09-26): at
+              $0.00 nothing is paid or in, so it is a number with no state,
+              white (§AM). */}
+          <div className={"mt-sum-value" + (income > 0 ? " good" : "")}>{fmtCents(income)}</div>
         </div>
         <div className="card mt-sum">
           <div className="mt-sum-label">Out</div>
@@ -246,13 +252,13 @@ function Dashboard({ month, onMonth, txs, data, onSaved }: {
           to white (§AM F1), with no dot baked between two facts (F2, F3). */}
       {budget && (
         <div className="pad-x mt-note">
-          <span className="fact">Aiming to save <b>{fmtCents(budget.data.savingsTargetCents)}</b> of an expected <b>{fmtCents(budget.data.expectedIncomeCents)}</b></span>
+          <span className="fact">Aiming to Save <b>{fmtCents(budget.data.savingsTargetCents)}</b> of an Expected <b>{fmtCents(budget.data.expectedIncomeCents)}</b></span>
         </div>
       )}
 
       <SectionHead label="Spending by Category" count={cats.length} />
       {cats.length === 0 ? (
-        <div className="pad-x mt-note">Nothing spent this month</div>
+        <div className="pad-x mt-note">Nothing Spent This Month</div>
       ) : (
         <div className="pad-x">
           {cats.map(([name, cents], i) => (
@@ -260,7 +266,7 @@ function Dashboard({ month, onMonth, txs, data, onSaved }: {
               <div className="mt-cat-head">
                 <span className="mt-cat-name">
                   <i className="mt-dot" style={{ "--cat": categoryColor(name, i) } as React.CSSProperties} />
-                  {name}
+                  {lineCase(name)}
                 </span>
                 <span className="mt-cat-amt">{fmtCents(cents)}</span>
               </div>
@@ -279,7 +285,7 @@ function Dashboard({ month, onMonth, txs, data, onSaved }: {
           <div className="pad-x"><div className="card list-card-ruled">
             {merchants.map(([name, cents]) => (
               <div className="row" key={name}>
-                <div className="row-grow"><div className="conn-name">{name}</div></div>
+                <div className="row-grow"><div className="conn-name">{titleCase(name)}</div></div>
                 <div className="mt-amt">{fmtCents(cents)}</div>
               </div>
             ))}
@@ -334,7 +340,7 @@ function Transactions({ data, month, onSaved }: {
     setEditing(null);
     await onSaved();
     showToast({
-      message: "Transaction deleted",
+      message: "Transaction Deleted",
       actionLabel: "Undo",
       onAction: async () => { await attemptWrite(() => svc.saveTx(null, tx.data)); await onSaved(); },
     });
@@ -363,17 +369,19 @@ function Transactions({ data, month, onSaved }: {
           <div className="row" key={t.id} {...pressable(() => setEditing({ kind: "edit", tx: t }))}>
             <i className="mt-dot" style={{ "--cat": categoryColor(t.data.category) } as React.CSSProperties} />
             <div className="row-grow">
-              <div className="conn-name">{t.data.merchant}</div>
+              {/* His own typed words are SHOWN in Title Case and stored as
+                  typed (the whole casing rule, 2026-09-26). */}
+              <div className="conn-name">{titleCase(t.data.merchant)}</div>
               {/* The day is a date, small caps (F5); the category keeps the
                   row's one grey, its mark the dot at the row's head. The dot
                   between them is drawn by .facts, never baked in (F3). */}
-              <div className="facts"><span className="fact date">{fmtDay(t.data.date)}</span><span className="fact">{t.data.category}</span></div>
+              <div className="facts"><span className="fact date">{fmtDay(t.data.date)}</span><span className="fact">{lineCase(t.data.category)}</span></div>
             </div>
             <div className={"mt-amt" + (t.data.amountCents < 0 ? " good" : "")}>{fmtCents(t.data.amountCents)}</div>
           </div>
         ))}
         {shown.length === 0 && (
-          <div className="row"><div className="row-grow"><div className="conn-meta">Nothing matches</div></div></div>
+          <div className="row"><div className="row-grow"><div className="conn-meta">Nothing Matches</div></div></div>
         )}
         <button className="row row-act" onClick={() => setEditing({ kind: "new" })}>Add a Transaction</button>
       </div></div>
@@ -511,7 +519,7 @@ function Budgets({ month, onMonth, txs, data, onSaved }: {
     };
     if (!(await attemptWrite(() => svc.saveBudget(d)))) return;
     await onSaved();
-    showToast({ message: "Budget saved" });
+    showToast({ message: "Budget Saved" });
   };
 
   const rows = Object.entries(limits);
@@ -535,7 +543,7 @@ function Budgets({ month, onMonth, txs, data, onSaved }: {
       </div></div>
 
       <SectionHead label="Category Limits" count={rows.length} />
-      {rows.length === 0 && <div className="pad-x mt-note">No limits set for this month</div>}
+      {rows.length === 0 && <div className="pad-x mt-note">No Limits Set for This Month</div>}
       <div className="pad-x">
         {rows.map(([name, value]) => {
           const limit = dollarsToCents(value);
@@ -547,7 +555,7 @@ function Budgets({ month, onMonth, txs, data, onSaved }: {
               <div className="mt-cat-head">
                 <span className="mt-cat-name">
                   <i className="mt-dot" style={{ "--cat": categoryColor(name) } as React.CSSProperties} />
-                  {name}
+                  {lineCase(name)}
                 </span>
                 <span className={"mt-cat-amt" + (over ? " mt-over" : "")}>
                   {fmtCents(spent) + " of " + fmtCents(limit)}
@@ -663,7 +671,7 @@ function Subscriptions({ data, onSaved }: { data: TrackerData; onSaved: () => Pr
     await onSaved();
     // The way back, the same shape every other delete in the app offers.
     showToast({
-      message: "Subscription deleted",
+      message: "Subscription Deleted",
       actionLabel: "Undo",
       onAction: async () => { await attemptWrite(() => svc.saveSub(null, sub.data)); await onSaved(); },
     });
@@ -691,7 +699,7 @@ function Subscriptions({ data, onSaved }: { data: TrackerData; onSaved: () => Pr
           // a trip through a sheet.
           <div className="row" key={s.id} {...pressable(() => setEditing(s))}>
             <div className="row-grow">
-              <div className="conn-name">{s.data.merchantName}</div>
+              <div className="conn-name">{titleCase(s.data.merchantName)}</div>
               {/* A cancelled one says so in the quiet grey chip, a fill and
                   caps, so the frequency keeps the row's one grey (§AK). */}
               <div className="r-k">
@@ -708,7 +716,7 @@ function Subscriptions({ data, onSaved }: { data: TrackerData; onSaved: () => Pr
           </div>
         ))}
         {data.subs.length === 0 && (
-          <div className="row"><div className="row-grow"><div className="conn-meta">Nothing tracked yet</div></div></div>
+          <div className="row"><div className="row-grow"><div className="conn-meta">Nothing Tracked Yet</div></div></div>
         )}
       </div></div>
 
@@ -839,7 +847,7 @@ function SubEditor({ initial, onSave, onDelete, onCancel }: {
         {/* Cancelled keeps the row and its history; it just stops counting
             toward the monthly total. Deleting is the other thing, below. */}
         <SwitchRow tone="blue" glyph={<WalletGlyph />} label="Still Paying" ariaLabel="Still paying"
-          meta={active ? "Counts toward the monthly total" : "Kept, but not counted"}
+          meta={active ? "Counts Toward the Monthly Total" : "Kept, Not Counted"}
           on={active} onToggle={() => setActive((v) => !v)} />
       </Group>
       <DeleteRow label="Delete Subscription" onClick={onDelete} />

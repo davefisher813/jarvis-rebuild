@@ -17,13 +17,14 @@ describe("holdLine (pick 20)", () => {
   });
   it("counts down inside two weeks, and dates beyond", () => {
     expect(holdLine(p({ status: "on_hold", holdUntil: "2026-08-25" }), TODAY)).toBe("On hold until tomorrow");
-    expect(holdLine(p({ status: "on_hold", holdUntil: "2026-08-30" }), TODAY)).toBe("On hold 6 more days");
+    // Casing sweep 1 (2026-09-26): Title Case by the whole rule (§H2), units spelled "Min".
+    expect(holdLine(p({ status: "on_hold", holdUntil: "2026-08-30" }), TODAY)).toBe("On Hold 6 More Days");
     expect(holdLine(p({ status: "on_hold", holdUntil: "2026-10-01" }), TODAY)).toBe("On hold until Oct 1");
   });
   it("says the hold is over, and how long it has been over", () => {
     expect(holdLine(p({ status: "on_hold", holdUntil: TODAY }), TODAY)).toBe("The hold ends today");
-    expect(holdLine(p({ status: "on_hold", holdUntil: "2026-08-23" }), TODAY)).toBe("Hold ended 1 day ago");
-    expect(holdLine(p({ status: "on_hold", holdUntil: "2026-08-17" }), TODAY)).toBe("Hold ended 7 days ago");
+    expect(holdLine(p({ status: "on_hold", holdUntil: "2026-08-23" }), TODAY)).toBe("Hold Ended 1 Day Ago");
+    expect(holdLine(p({ status: "on_hold", holdUntil: "2026-08-17" }), TODAY)).toBe("Hold Ended 7 Days Ago");
   });
 });
 
@@ -57,15 +58,15 @@ describe("sizeOf and sizeLine (pick 22)", () => {
     expect(sizeOf([], est({}))).toBeNull();
     expect(sizeLine(null)).toBeNull();
   });
-  it("fuses its units and never promises the estimate is a commitment", () => {
-    expect(sizeLine({ open: 4, minutes: 200 })).toBe("About 3h 20m left");
-    expect(sizeLine({ open: 1, minutes: 45 })).toBe("About 45m left");
-    expect(sizeLine({ open: 2, minutes: 120 })).toBe("About 2h left");
+  it("spells minutes, compacts hours, and never promises the estimate is a commitment", () => {
+    expect(sizeLine({ open: 4, minutes: 200 })).toBe("About 3h 20m Left");
+    expect(sizeLine({ open: 1, minutes: 45 })).toBe("About 45 Min Left");
+    expect(sizeLine({ open: 2, minutes: 120 })).toBe("About 2h Left");
   });
   // The minutes are summed over the OPEN tasks only, so the line says so:
   // "About 3h" under "5 of 9 done" reads as the whole project's size.
   it("says the time is for the work that is left", () => {
-    expect(sizeLine({ open: 4, minutes: 180 })).toBe("About 3h left");
+    expect(sizeLine({ open: 4, minutes: 180 })).toBe("About 3h Left");
   });
   // §AM (2026-09-26): the line is drawn as an estimate (sky), and only the
   // time is one. The open count restated the progress line above it, and its
@@ -78,10 +79,10 @@ describe("sizeOf and sizeLine (pick 22)", () => {
 });
 
 describe("spanLabel", () => {
-  it("fuses the unit and never renders a negative", () => {
-    expect(spanLabel(0)).toBe("0m");
-    expect(spanLabel(-10)).toBe("0m");
-    expect(spanLabel(59)).toBe("59m");
+  it("spells minutes, compacts hours, and never renders a negative", () => {
+    expect(spanLabel(0)).toBe("0 Min");
+    expect(spanLabel(-10)).toBe("0 Min");
+    expect(spanLabel(59)).toBe("59 Min");
     expect(spanLabel(60)).toBe("1h");
     expect(spanLabel(90)).toBe("1h 30m");
   });

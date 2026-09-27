@@ -1,5 +1,7 @@
 import type { EventItem, EventData } from "./types";
 import { occursOn } from "./calendar";
+import { lineCase } from "../shared/casing";
+import { spanLabel } from "../shared/duration";
 
 // WAVE 3/4 EDITING: drop into a gap, duplicate, copy a day, fix an overlap.
 //
@@ -81,8 +83,8 @@ export function overlapsOn(items: EventItem[], date: string): Overlap[] {
 // person sees and confirms where the later event lands instead of having it
 // silently pushed by exactly the collision.
 
+// A notice line, so Title Case by the whole rule, with the collision as the
+// one duration shape ("by 30 Min", "by 1h 30m"; Dave 2026-09-26).
 export function overlapLine(o: Overlap): string {
-  const m = o.byMin;
-  const by = m >= 60 ? `${Math.round(m / 60)}h` : `${m}m`;
-  return `${o.a.data.title} runs into ${o.b.data.title} by ${by}`;
+  return lineCase(`${o.a.data.title} runs into ${o.b.data.title} by ${spanLabel(o.byMin)}`);
 }

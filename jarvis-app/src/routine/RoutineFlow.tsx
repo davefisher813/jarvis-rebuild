@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRoutine, useOptionalStrands } from "../data/NotesProvider";
 import type { Strand } from "../brain/strands/types";
-import { capAfterNumber } from "../shared/casing";
+import { lineCase } from "../shared/casing";
 import { DEFAULT_ROUTINE, isOvernight, isWorkOutsideActive, defaultModeFor, freeOf, MODE_LABEL, MODE_HELP, FREE_CHANNELS, type RoutineData, type ProtectedBlock, type BlockKind, type BlockMode, type FreeChannel } from "./types";
 import { fmtTime } from "../schedule/calendar";
 import { showToast } from "../shared/toast";
@@ -101,7 +101,7 @@ export default function RoutineFlow({ onBack, focusId, onFocusConsumed }: { onBa
     setLoadFailed(false);
     routine.get()
       .then((r) => { if (on) { setData(r); savedRef.current = r; setLoaded(true); } })
-      .catch(() => { if (!on) return; setLoadFailed(true); showToast({ message: "Couldn't load · Check your connection" }); });
+      .catch(() => { if (!on) return; setLoadFailed(true); showToast({ message: "Couldn't Load · Check Your Connection" }); });
     return () => { on = false; };
   }, [routine, attempt]);
 
@@ -191,7 +191,7 @@ export default function RoutineFlow({ onBack, focusId, onFocusConsumed }: { onBa
     const n = s.data.evidence?.length ?? 0;
     const one = n === 1;
     const unit = s.data.derivation === "training_window" ? (one ? "session" : "sessions") : s.data.derivation === "email_window" ? (one ? "email day" : "email days") : (one ? "day" : "days");
-    return capAfterNumber(`${n} ${unit}`);
+    return lineCase(`${n} ${unit}`);
   };
   const updateRoutine = async (s: Strand) => {
     const kind = rhythmKind(s);
@@ -263,7 +263,7 @@ export default function RoutineFlow({ onBack, focusId, onFocusConsumed }: { onBa
       savedRef.current = data;
       setDirty(false);
     } catch {
-      showToast({ message: "Couldn't save · Check your connection" });
+      showToast({ message: "Couldn't Save · Check Your Connection" });
     }
   };
 

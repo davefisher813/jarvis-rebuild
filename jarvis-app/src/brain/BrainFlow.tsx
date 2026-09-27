@@ -150,7 +150,11 @@ export default function BrainFlow({ openKey, openNonce, onKeyConsumed, routineBl
       );
     }
     if (open.key === "month") {
-      return <InsightsFlow onBack={() => setOpen(null)} onOpenTask={onOpenEntity ? (id) => onOpenEntity("task", id) : undefined} />;
+      // The report's cards exit to the places they count (2026-09-26, the
+      // pass-off): a person, a category, Money, Email. Same doors the rest
+      // of Brain already hands its pages.
+      return <InsightsFlow onBack={() => setOpen(null)} onOpenTask={onOpenEntity ? (id) => onOpenEntity("task", id) : undefined}
+        onOpenEntity={onOpenEntity} onOpenMoney={onOpenMoney} onOpenEmail={onOpenEntity ? () => onOpenEntity("email", "") : undefined} />;
     }
     if (open.key === "routine") {
       return <RoutineFlow onBack={() => setOpen(null)} focusId={routineBlockId} onFocusConsumed={onRoutineBlockConsumed} />;

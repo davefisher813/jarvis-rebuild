@@ -10,6 +10,7 @@ import { attemptWrite } from "../shared/guard";
 import { chronotypeFor, peakWindowFor } from "../schedule/energy";
 import { DEFAULT_ROUTINE } from "../routine/types";
 import { daysBetween, pickNext, quickWins, rankOpen, reasonFor, QUICK_WINS_COUNT } from "./upnext";
+import { clockLabel } from "../shared/duration";
 import MusicChip from "../music/MusicChip";
 import FocusScreen, { type FocusReason } from "./FocusScreen";
 
@@ -24,9 +25,8 @@ import FocusScreen, { type FocusReason } from "./FocusScreen";
 
 const WINS_SECONDS = 10 * 60;
 
-function fmtClock(s: number): string {
-  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
-}
+// The app's one running clock (shared/duration.ts): m:ss, h:mm:ss past an hour.
+const fmtClock = clockLabel;
 
 // THE REASON AS FACTS (§AM, 2026-09-26). reasonFor's line was one string with
 // a typed dot, drawn as ONE grey fact, so a late task and a calm one looked
@@ -41,7 +41,7 @@ function reasonFacts(t: TaskItem, today: string, inPeak: boolean): FocusReason[]
     const d = daysBetween(today, due);
     out.push({ text: reasonFor(t, today, false), tone: d < 0 ? "red" : d <= 1 ? "warn" : "date" });
   }
-  if (inPeak) out.push({ text: "Your focus peak" });
+  if (inPeak) out.push({ text: "Your Focus Peak" });
   return out;
 }
 

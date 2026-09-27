@@ -36,7 +36,8 @@ describe("AppGate when the profile read fails (SHELL-F-13)", () => {
       </NotesProvider>,
     );
     await waitFor(() => expect(screen.getByText("Something Went Wrong")).toBeInTheDocument());
-    expect(screen.getByText("Couldn't reach your profile · Check your connection")).toBeInTheDocument();
+    // Casing sweep 3 (2026-09-27): Title Case by the whole rule (§H2).
+    expect(screen.getByText("Couldn't Reach Your Profile · Check Your Connection")).toBeInTheDocument();
     expect(captureError).toHaveBeenCalledTimes(1);
     expect(document.getElementById("splash")!.style.opacity).toBe("0");
 

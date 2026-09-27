@@ -151,7 +151,55 @@ describe("the sheet says things once", () => {
 
   it("explains only the tap that is not obvious", () => {
     open();
-    expect(screen.getByText("Tap twice for secondary")).toBeInTheDocument();
+    // Title Case by the whole rule (2026-09-26), the head row's one grey.
+    expect(screen.getByText("Tap Twice for Secondary")).toBeInTheDocument();
+    expect(screen.getByText("Tap Twice for Secondary")).toHaveClass("conn-meta");
+  });
+
+  // Pass-off item 1 (2026-09-26): each single-question card opens with a
+  // glyph tile and a white name in place of the grey eyebrow; the eyebrow
+  // stays only on Equipment Identity, which groups three fields.
+  it("heads each question with a tile in its colour family, and keeps the eyebrow only on Equipment Identity", () => {
+    open();
+    const head = screen.getByText("Muscles").closest(".row")!;
+    expect(head.querySelector(".row-ico")).toHaveClass("nav-tile-green");
+    expect(screen.getByText("Equipment").closest(".row")!.querySelector(".row-ico")).toHaveClass("nav-tile-purple");
+    expect(screen.getByText("Measurement").closest(".row")!.querySelector(".row-ico")).toHaveClass("nav-tile-sky");
+    fireEvent.click(screen.getByRole("button", { name: "More Details" }));
+    expect(screen.getByLabelText("Tags").closest(".row")!.querySelector(".row-ico")).toHaveClass("nav-tile-graphite");
+    expect(screen.getByLabelText("Gym").closest(".row")!.querySelector(".row-ico")).toHaveClass("nav-tile-purple");
+    const eyebrows = [...document.querySelectorAll(".sheet-form .eyebrow")].map((e) => e.textContent);
+    expect(eyebrows).toEqual(["Equipment Identity"]);
+    // The sub-question labels are white row names, not grey boxed lines.
+    for (const label of ["Grip", "Stance", "Angle", "Variation"]) {
+      expect(screen.getByText(label)).toHaveClass("conn-name");
+    }
+  });
+});
+
+describe("the sheet shows the name cased and hands it on unchanged", () => {
+  it("title-cases a name typed in a hurry, for display only", () => {
+    const onSave = vi.fn();
+    render(<ClassifySheet name="bulgarian split squats" initial={EMPTY_CLASS} todayIso={TODAY} onSave={onSave} onCancel={() => {}} />);
+    expect(screen.getByText("Bulgarian Split Squats")).toBeInTheDocument();
+    expect(screen.queryByText("bulgarian split squats")).toBeNull();
+  });
+});
+
+describe("a stray tap on the scrim never throws away edits", () => {
+  it("cancels from the scrim only while nothing has changed", () => {
+    const onCancel = vi.fn();
+    const { container } = render(<ClassifySheet name="Barbell Row" initial={EMPTY_CLASS} todayIso={TODAY} onSave={() => {}} onCancel={onCancel} />);
+    void container;
+    const scrim = document.querySelector(".sheet-scrim")!;
+    fireEvent.click(scrim);
+    expect(onCancel).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByRole("button", { name: "Chest" }));
+    fireEvent.click(scrim);
+    expect(onCancel, "a picked chip holds the sheet").toHaveBeenCalledTimes(1);
+    // Cancel in the bar is untouched.
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(onCancel).toHaveBeenCalledTimes(2);
   });
 });
 
@@ -171,7 +219,7 @@ describe("the scope receipt is facts, not a sentence carrying a date it stores",
     );
     void container;
     fireEvent.click(screen.getByRole("button", { name: "Existing Records" }));
-    const facts = Array.from(document.querySelectorAll(".facts"))
+    const facts = Array.from(document.querySelectorAll(".conn-meta"))
       .find((f) => f.textContent?.includes("Up to Sep 17"));
     expect(facts).toBeTruthy();
     expect(facts!.querySelectorAll(".fact")).toHaveLength(2);

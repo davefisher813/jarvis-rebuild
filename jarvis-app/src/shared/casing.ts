@@ -12,7 +12,10 @@
 // renders the same string somewhere else. The string builders own their own
 // casing, and the law test scans for literals that break the rule.
 
-const SMALL = new Set(["a", "an", "and", "at", "by", "for", "from", "in", "of", "on", "or", "the", "to", "with"]);
+// "as" joined the list in the second sweep (2026-09-27): the HIG casing law
+// already counted it small, and the rulebook's own example reads "Same as
+// This Block".
+const SMALL = new Set(["a", "an", "and", "as", "at", "by", "for", "from", "in", "of", "on", "or", "per", "the", "to", "with"]);
 
 // A "number word": 14, 1st, $500, 3x, 55. Leading punctuation counts as part
 // of it so "$500 of $2,000 saved" is treated as number-led too.
@@ -67,8 +70,15 @@ export function titleCase(text: string): string {
     .map((w, i) => {
       const isEdge = i === firstWord || i === 0 || i === words.length - 1;
       const lower = w.toLowerCase();
-      if (!isEdge && SMALL.has(lower)) return lower;
-      return capFirst(w);
+      if (!isEdge && (SMALL.has(lower) || SMALL_FORMS.has(lower))) return lower;
+      if (ownSpelling(w)) return w;
+      // A compact clock or count keeps its shape in a title too ("Sleep 8h",
+      // "10x"), as lineCase keeps it on a line (H2, 2026-09-26): the letters
+      // ride on the digits and are not a word.
+      if (COMPACT.test(w)) return w;
+      // A hyphenated pair takes a capital on both halves ("Six-Month"), as
+      // lineCase gives it (H2, 2026-09-26).
+      return capWord(w);
     })
     .join(" ");
 }
@@ -119,4 +129,64 @@ export function workoutTitle(name: string): string {
 // Capitals already inside a word survive, so RDLs stays RDLs.
 export function liftTitle(name: string): string {
   return titleCase(name);
+}
+
+// THE WHOLE RULE (Dave 2026-09-26, the pass-off: "After dots and numbers is
+// always title casing", "Make sure all cases are addressed (ex: 45 min v
+// 45 Min)").
+//
+// Every word the app writes is Title Case: the start of a line, the part
+// after every middle dot, and the word after every number. This is the
+// formatter for a grey sub line or a facts line, where capAfterNumber only
+// ever capitalized the one word after a leading number and left "saves ~8
+// min" and "not a tested max" as they were. Small connecting words stay
+// lowercase mid-phrase ("Sep 14 · Food and Beverage Store", "2 of 5 Lifts");
+// the first and last word of every dot segment are always capitalized
+// ("45 Min", "Due in 12 Days"). A compact clock or count keeps its own shape
+// ("3h 30m", "10x", "1:32:05"): the letters ride on the digits and are not a
+// word. Capitals already inside a word survive (RDLs, AMRAP, JARVIS), so an
+// acronym is never flattened on the way past, and a hyphenated pair takes a
+// capital on both halves ("One-Rep").
+//
+// Like titleCase, it never lowercases a capital the caller wrote, so a proper
+// noun typed correctly is never wrong. Conversation (chat, notes' bodies,
+// onboarding, a field note that is a whole sentence) does not go through it.
+const COMPACT = /^[^A-Za-z]*\d[\d.,:/$%x-]*[a-z]{0,2}$/;
+
+// A word that already carries a capital past its first letter (iPhone, eBay,
+// RDLs, JARVIS) is spelled the way its owner spells it; Title Case never
+// touches it (Dave 2026-09-26, on his typed titles: "iPhone" must not become
+// "IPhone").
+function ownSpelling(w: string): boolean {
+  return /[A-Z]/.test(w.slice(1).replace(/[^A-Za-z]/g, ""));
+}
+
+function capWord(w: string): string {
+  if (ownSpelling(w)) return w;
+  return w.split("-").map(capFirst).join("-");
+}
+
+// Short forms that read as small words in a typed title: "w/" (with), "vs",
+// "via" (2026-09-26, the pass-off).
+const SMALL_FORMS = new Set(["w/", "vs", "vs.", "via"]);
+
+export function lineCase(text: string): string {
+  return text
+    .split("\u00b7")
+    .map((seg) => {
+      const m = seg.match(/^(\s*)([\s\S]*?)(\s*)$/);
+      if (!m) return seg;
+      const [, pre, body, post] = m;
+      if (!body) return seg;
+      const words = body.split(/\s+/);
+      const last = words.length - 1;
+      const out = words.map((w, i) => {
+        if (COMPACT.test(w)) return w;
+        const bare = w.replace(/[^A-Za-z]/g, "").toLowerCase();
+        if (i > 0 && i < last && ((bare && SMALL.has(bare)) || SMALL_FORMS.has(w.toLowerCase()))) return w;
+        return capWord(w);
+      });
+      return (pre ?? "") + out.join(" ") + (post ?? "");
+    })
+    .join("\u00b7");
 }

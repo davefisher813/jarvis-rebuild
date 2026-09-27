@@ -4,6 +4,7 @@ import { clockOf } from "../meds";
 import { weekdayShortDateFromMs, shortDate } from "../../shared/dateFormat";
 import Stepper from "../../shared/Stepper";
 import { pressable } from "../../shared/pressable";
+import { hoursLabel } from "../../shared/duration";
 
 // LIGHTS OUT (Part 1; Health Push D, H-41). One tap, one timestamp, marks
 // the night's end. Nothing is scored: no duration shown, no streak, no ring.
@@ -121,7 +122,7 @@ export default function LightsOutScreen({ last, onLog, onEditTime, onLogSleep, r
             </div>
             {sleepSaved
               // Entered hours are a length with no state, so they are white (§AM).
-              ? <div className="facts"><span className="fact"><b>{`${trimHours(hours + minutes / 60)} hrs`}</b></span><span className="fact">Saved</span></div>
+              ? <div className="facts"><span className="fact"><b>{hoursLabel(hours + minutes / 60)}</b></span><span className="fact">Saved</span></div>
               : <button className="btn btn-secondary btn-block" disabled={!sleepValid} onClick={() => { onLogSleep(Number((hours + minutes / 60).toFixed(2)), night); setSleepSaved(true); }}>Save Sleep</button>}
           </div></div>
           {recentSleep.length > 0 && (
@@ -132,7 +133,7 @@ export default function LightsOutScreen({ last, onLog, onEditTime, onLogSleep, r
                   <div className="row" key={r.date}>
                     <div className="row-grow">
                       <div className="conn-name">{shortDate(r.date)}</div>
-                      <div className="facts"><span className="fact"><b>{`${trimHours(r.hours)} hrs`}</b></span></div>
+                      <div className="facts"><span className="fact"><b>{hoursLabel(r.hours)}</b></span></div>
                     </div>
                   </div>
                 ))}
@@ -144,10 +145,6 @@ export default function LightsOutScreen({ last, onLog, onEditTime, onLogSleep, r
       <div className="screen-foot" />
     </div>
   );
-}
-
-function trimHours(n: number): string {
-  return Number.isInteger(n) ? String(n) : String(Number(n.toFixed(2)));
 }
 
 function localDay(atMs: number = Date.now()): string {

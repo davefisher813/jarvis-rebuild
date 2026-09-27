@@ -200,11 +200,12 @@ describe("late", () => {
 describe("the floor line", () => {
   it("says it is showing everything", () => {
     const l = buildLedger(input({ tasks: [{ id: "t1", text: "A", fromThread: "th1" }, { id: "t2", text: "B", fromThread: "th2" }] }));
-    expect(ledgerFloor(l)).toBe("That's every one that's open");
+    // Casing sweep 3 (2026-09-27): Title Case by the whole rule (§H2); durations through shared/duration ("45 Min", "About 1 Min").
+    expect(ledgerFloor(l)).toBe("That's Every One That's Open");
   });
 
   it("is calm when there is nothing, never an apology", () => {
-    expect(ledgerFloor(buildLedger(input()))).toBe("Nothing is open");
+    expect(ledgerFloor(buildLedger(input()))).toBe("Nothing Is Open");
   });
 });
 

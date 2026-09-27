@@ -83,7 +83,8 @@ describe("NotificationsFlow: Done and Undo on a task", () => {
     const tag = document.querySelector(".notif-row .slide-tag");
     expect(tag).toHaveTextContent("Keeps Sliding");
     const evidence = tag!.nextElementSibling!;
-    expect(evidence.textContent).toMatch(/Days late$/);
+    // Casing sweep 3 (2026-09-27): Title Case by the whole rule (§H2); durations through shared/duration ("45 Min", "About 1 Min").
+    expect(evidence.textContent).toMatch(/Days Late$/);
     expect(evidence).toHaveClass("r-goal", "fact", "red");
     expect(evidence).not.toHaveClass("r-stalled");
     expect(evidence.textContent).not.toMatch(/·/);
@@ -108,7 +109,7 @@ describe("NotificationsFlow: Done and Undo on a task", () => {
     render(<NotesProvider userId="u-notif-pushed"><Pushed /></NotesProvider>);
     await screen.findByText("Book the dentist");
     const evidence = document.querySelector(".notif-row .slide-tag")!.nextElementSibling!;
-    expect(evidence).toHaveTextContent("Pushed 3 times");
+    expect(evidence).toHaveTextContent("Pushed 3 Times");
     expect(evidence).toHaveClass("r-goal", "r-stalled");
     expect(evidence).not.toHaveClass("red");
   });

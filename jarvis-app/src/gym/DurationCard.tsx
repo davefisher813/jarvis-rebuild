@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import { own } from "../shared/rowDoor";
 import type { WorkoutData, WorkoutRevision } from "./types";
 import { durationOf } from "../insights/analytics";
-import { capAfterNumber } from "../shared/casing";
+import { spanLabel } from "../shared/duration";
 import { fmtTime } from "../schedule/calendar";
 
 // THE DURATION, SHOWN AND CORRECTABLE (the approved Health design,
@@ -18,7 +18,7 @@ import { fmtTime } from "../schedule/calendar";
 
 const clock = (ms: number) => { const d = new Date(ms); const t = fmtTime(`${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`); return `${t.time} ${t.ap}`; };
 const hhmm = (ms: number) => { const d = new Date(ms); return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`; };
-const minutes = (n: number) => capAfterNumber(`${n} min`);
+const minutes = (n: number) => spanLabel(n);
 
 export default function DurationCard({ workout, onCorrect }: {
   workout: WorkoutData;

@@ -98,9 +98,9 @@ export default function CategorySheet({
         <Group label="Season">
           {/* Paused = suggestions leave it alone until you wake it.
               Bills never pause; a low month cannot silence rent. */}
-          <SwitchRow tone="sand" glyph={<ClockGlyph />} label="Paused" meta={season === "paused" ? "Suggestions leave it alone until you wake it" : "In season"}
+          <SwitchRow tone="sand" glyph={<ClockGlyph />} label="Paused" meta={season === "paused" ? "Suggestions Leave It Alone Until You Wake It" : "In Season"}
             on={season === "paused"} onToggle={() => setSeason(season === "paused" ? undefined : "paused")} ariaLabel="Paused" />
-          <SwitchRow tone="blue" glyph={<ClockGlyph />} label="Work Hours" meta={workHours ? "Follows my work hours" : "Any hour"}
+          <SwitchRow tone="blue" glyph={<ClockGlyph />} label="Work Hours" meta={workHours ? "Follows My Work Hours" : "Any Hour"}
             on={workHours} onToggle={() => setWorkHours((w) => !w)} ariaLabel="Work hours" />
         </Group>
       )}

@@ -367,7 +367,7 @@ export function valueLine(c: Classification, field: Chip["field"]): string | nul
       const s = c.secondary.map((m) => MUSCLE_LABEL[m]).join(", ");
       if (!s) return p;
       if (!p) return `Also ${s}`;
-      return `${p}, also ${s}`;
+      return `${p}, Also ${s}`; // Title Case by the whole rule (2026-09-26)
     }
     case "equipment": {
       if (!c.equipment) return null;

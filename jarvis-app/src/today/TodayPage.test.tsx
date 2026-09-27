@@ -118,7 +118,8 @@ describe("TodayPage", () => {
   it("the dealt row says when and why, and only those two", () => {
     const { container, rerender } = render(
       <TodayPage {...base} upNext={[tk("due", "2026-05-20")]}
-        moveCategory={{ name: "Personal", slot: "teal" }} moveEstimate="20 min"
+        // Casing sweep 2 (2026-09-27): Title Case by the whole rule (§H2); durations through shared/duration ("45 Min", "1h 30m").
+        moveCategory={{ name: "Personal", slot: "teal" }} moveEstimate="20 Min"
         moveReason="Fits before Deep Work" onUpNext={() => {}} />,
     );
     const facts = container.querySelector(".hl .facts")!;
@@ -126,7 +127,7 @@ describe("TodayPage", () => {
     expect(facts).toHaveTextContent("Fits before Deep Work");
     // The two it yields to them, rather than printing all four unreadably.
     expect(facts).not.toHaveTextContent("Personal");
-    expect(facts).not.toHaveTextContent("20 min");
+    expect(facts).not.toHaveTextContent("20 Min");
     expect(facts.querySelectorAll(".fact").length).toBe(2);
     // NOTHING ON THIS LINE IS COLOURED (Dave 2026-09-21: "get rid of the blue
     // subtext"). The placement used to wear .fact.sky, the last sky fact in
@@ -138,13 +139,13 @@ describe("TodayPage", () => {
     // area takes the first slot; with no placement the length takes the
     // second, which is the "TODAY / 45 min" pair Dave photographed.
     rerender(<TodayPage {...base} upNext={[tk("nodate", null)]}
-      moveCategory={{ name: "Personal", slot: "teal" }} moveEstimate="20 min" onUpNext={() => {}} />);
+      moveCategory={{ name: "Personal", slot: "teal" }} moveEstimate="20 Min" onUpNext={() => {}} />);
     expect(container.querySelector(".hl .uchip")).toBeNull();
     expect(container.querySelector(".hl .fact.cat .cd.cat-bg-teal")).toBeTruthy();
-    expect(container.querySelector(".hl .facts")).toHaveTextContent("20 min");
+    expect(container.querySelector(".hl .facts")).toHaveTextContent("20 Min");
     // §AM (2026-09-26): the length is an estimate the app worked out, so it
     // wears the key's sky (.fact.est), the ink the task rows' estimate wears.
-    expect(container.querySelector(".hl .fact.est")).toHaveTextContent("20 min");
+    expect(container.querySelector(".hl .fact.est")).toHaveTextContent("20 Min");
   });
 
   // §AM (2026-09-26): a block that is up needs him now, which is the key's
@@ -157,10 +158,10 @@ describe("TodayPage", () => {
     );
     expect(container.querySelector(".hl .fact.warn")).toBeNull();
     rerender(
-      <TodayPage {...base} upNext={[tk("due", "2026-05-20")]} onUpNext={() => {}} fifteen={{ ...running, over: true, line: "15 Minutes up" }}
+      <TodayPage {...base} upNext={[tk("due", "2026-05-20")]} onUpNext={() => {}} fifteen={{ ...running, over: true, line: "15 Min Up" }}
         onFifteenDone={() => {}} onFifteenStop={() => {}} onFifteenAgain={() => {}} />,
     );
-    expect(container.querySelector(".hl .fact.warn")).toHaveTextContent("15 Minutes up");
+    expect(container.querySelector(".hl .fact.warn")).toHaveTextContent("15 Min Up");
   });
 
   // §AM (2026-09-26): one bill is two facts with the dot drawn by the
@@ -180,7 +181,7 @@ describe("TodayPage", () => {
       <TodayPage {...base} evening={{ doneDue: 2, dueTotal: 3, eventsLeft: 2, openCount: 1, thingsDone: 6 }} movedLine="Moved Ship the App" />,
     );
     const facts = container.querySelector(".today-summary .facts")!;
-    expect(facts.querySelector(".fact.good")).toHaveTextContent("6 Done today");
+    expect(facts.querySelector(".fact.good")).toHaveTextContent("6 Done Today");
     expect(facts.querySelectorAll(".fact").length).toBe(2);
     expect(facts).toHaveTextContent("Moved Ship the App");
     expect(facts).not.toHaveTextContent("\u00b7");
@@ -282,7 +283,7 @@ describe("TodayPage", () => {
     );
     expect(screen.getByText("Birthday")).toBeInTheDocument();
     expect(screen.getByText("Mike Torres")).toBeInTheDocument();
-    expect(screen.getByText("Turns a year older today")).toBeInTheDocument();
+    expect(screen.getByText("Turns a Year Older Today")).toBeInTheDocument();
     // SPEC MOVED (Library phase 2, 2026-08-18): section heads are the bold
     // sh2 form; the birthday avatar keeps people-pink (never red).
     expect(container.querySelector(".av.cat-bg-pink")).toBeTruthy();
@@ -351,7 +352,7 @@ describe("TodayPage", () => {
         tasks={many} onUpNext={() => {}} />,
     );
     expect(container.querySelectorAll(".task-row").length).toBe(5);
-    expect(screen.getByText("3 More still open")).toBeInTheDocument();
+    expect(screen.getByText("3 More Still Open")).toBeInTheDocument();
   });
 
   // TODAY-F-16 (2026-09-05): the receipt counts overdue rows, so it cannot
@@ -366,7 +367,7 @@ describe("TodayPage", () => {
         onSeeAllTasks={() => doors.push("due-only")}
         onSeeAllOpen={() => doors.push("open")} />,
     );
-    fireEvent.click(screen.getByText("3 More still open"));
+    fireEvent.click(screen.getByText("3 More Still Open"));
     expect(doors).toEqual(["open"]);
   });
 

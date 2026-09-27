@@ -1,8 +1,11 @@
 import { createPortal } from "react-dom";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { nudgeViewport } from "../../shared/viewport";
 import type { ColorSlot } from "../../categories/types";
 import { suggestFor, loadBlendMemory, blockKind, type Fit } from "../blend";
-import type { SheetCategory } from "../../tasks/screens/TaskSheet";
+import type { SheetCategory, SheetProject } from "../../tasks/screens/TaskSheet";
+import { sortPicks } from "../../shared/pickerSort";
+import { titleCase } from "../../shared/casing";
 import type { EventRecurrence } from "../types";
 import { addMinutes, fmtTime, minToHHMM, addDays, minutesBetween } from "../calendar";
 import type { TitleSuggestion } from "../memory";
@@ -16,8 +19,9 @@ import type { Source } from "../../shared/provenance";
 import HeadMenu from "../../shared/HeadMenu";
 import { onPressKey } from "../../shared/pressable";
 import { Tile, tapField } from "../../shared/FormSheet";
-import { Calendar, Tag, Hourglass, Shuffle, Timer, Link2, FileText, User, Plus } from "../../shared/icons";
+import { Calendar, Tag, Hourglass, Shuffle, Timer, Link2, FileText, User, Plus, FolderKanban } from "../../shared/icons";
 import { CalendarGlyph, ClockGlyph, RepeatGlyph, PinGlyph, BarbellGlyph, SunGlyph } from "../../shared/glyphs";
+import { spanLabel } from "../../shared/duration";
 
 export type { SheetCategory };
 
@@ -68,6 +72,11 @@ export interface EventDraft {
   // The Forget row: stop remembering this place's travel time. Set only by
   // that row, so an ordinary save never erases the memory.
   forgetTravel?: boolean;
+  // WHAT THIS EVENT IS FOR (Dave's pass-off, 2026-09-26: "no way to attach
+  // a project"). The project, by id, as a task's sheet files it. "" clears,
+  // like every other id on this draft. No goal row here: a project carries
+  // its own goal, and the event sheet had no goal row to fix.
+  projectId?: string;
   // THE TRAINING DOOR (D4-C): this block opens the gym. By the athlete's own
   // hand only -- the sheet never guesses from the title.
   gym?: boolean;
@@ -106,6 +115,7 @@ export default function EventSheet({
   knownPeople = [],
   onOpenPerson,
   onAddPerson,
+  projects = [],
 }: {
   mode: "new" | "edit";
   initial?: Partial<EventDraft>;
@@ -144,7 +154,13 @@ export default function EventSheet({
   knownPeople?: { id: string; name: string; email?: string }[];
   onOpenPerson?: (personId: string) => void;
   onAddPerson?: (a: { email: string; name?: string }) => void;
+  // THE PROJECT PICKER (Dave's pass-off, 2026-09-26). The same shape the
+  // task sheet takes; without it the row does not render, so a caller that
+  // cannot save it never shows a control that would lie.
+  projects?: SheetProject[];
 }) {
+  // The band under this sheet is re-read on open (viewport.ts, 2026-09-26).
+  useEffect(() => { nudgeViewport(); }, []);
   const [taskIds, setTaskIds] = useState<string[]>(initial?.taskIds ?? []);
   const [title, setTitle] = useState(initial?.title ?? "");
   const [date, setDate] = useState(initial?.date ?? "");
@@ -152,6 +168,26 @@ export default function EventSheet({
   const [end, setEnd] = useState(initial?.end ?? addMinutes(initial?.start ?? "09:00", 60));
   const [category, setCategory] = useState(initial?.category ?? categories[0]?.id ?? "");
   const [location, setLocation] = useState(initial?.location ?? "");
+  const [projectId, setProjectId] = useState(initial?.projectId ?? "");
+  // A project already knows its area, so picking one answers the Area row
+  // (the task sheet's rule: only a blank is filled). The area on an event is
+  // never blank (it defaults to the first), so it follows the project only
+  // while it is still that default on a new event.
+  const pickProject = (id: string) => {
+    setProjectId(id);
+    const p = projects.find((x) => x.id === id);
+    if (!p) return;
+    if (p.category && mode === "new" && category === (initial?.category ?? categories[0]?.id ?? "")) setCategory(p.category);
+  };
+  const areaNameOf = (id: string | undefined) => (id ? categories.find((c) => c.id === id)?.name ?? "" : "");
+  const areaDotOf = (id: string | undefined) => (id ? categories.find((c) => c.id === id)?.color : undefined);
+  // His titles are SHOWN in Title Case (Dave's pass-off, 2026-09-26). Each
+  // option wears its area's dot (the lead, 2026-09-26: the Projects menu
+  // shows each project's area dot and keeps area-then-name order with
+  // search), so the order reads as grouping.
+  const projectOptions = sortPicks(projects.map((p) => ({ id: p.id, title: p.title, area: areaNameOf(p.category), dot: areaDotOf(p.category) })), projectId)
+    .map((p) => ({ value: p.id, label: titleCase(p.title), ...(p.dot ? { dot: p.dot as string } : {}) }));
+  const projectWord = titleCase(projects.find((p) => p.id === projectId)?.title ?? "None");
   const [recurrence, setRecurrence] = useState<EventRecurrence>(initial?.recurrence ?? "none");
   const [gym, setGym] = useState(!!initial?.gym);
   // UP-CORE-07 (2026-09-05): how long it takes to get there. Typed once per
@@ -220,6 +256,9 @@ export default function EventSheet({
       ...(place && travelMin !== null ? { travelMin } : {}),
       ...(place && travelMin !== null && bufferMin !== null ? { bufferMin } : {}),
       ...(forgetTravel ? { forgetTravel: true } : {}),
+      // The link rides only where its row rendered (sheetFields law: a
+      // hidden row must not write its empty default over a real value).
+      ...(projects.length > 0 ? { projectId } : {}),
     };
     recurringEdit ? onSave(draft, scope) : onSave(draft);
   };
@@ -288,7 +327,7 @@ export default function EventSheet({
   // A suggestion's two facts, drawn apart (§AM F2/F3): the start is a
   // neutral time, so small caps; the length is a number, so it steps up to
   // white. The dot between them is the stylesheet's, never the string's.
-  const sugLen = (min: number) => (min % 60 === 0 ? `${min / 60}h` : `${min}m`);
+  const sugLen = (min: number) => spanLabel(min);
 
   const durNow = end && toMin(end) > toMin(start) ? toMin(end) - toMin(start) : 0;
   const durOptions = DUR_CHOICES.map((m) => ({ value: String(m), label: durLabel(m) }));
@@ -410,7 +449,7 @@ export default function EventSheet({
           {err && !endInvalid && <div className="input-error xs-error">Needs title · Date · Start</div>}
           {conflict && !endInvalid && (
             <div className="input-hint xs-note">
-              <span className="fact warn">Overlaps another event</span>
+              <span className="fact warn">Overlaps Another Event</span>
               {suggestSlot && (
                 <button type="button" className="note-fix" onClick={() => {
                   const dur = durNow || 60;
@@ -503,6 +542,20 @@ export default function EventSheet({
               <HeadMenu variant="value" ariaLabel="Area" value={category}
                 options={categories.map((c) => ({ value: c.id, label: c.name, dot: slot(c) as string }))} onPick={setCategory} />
             </div>
+            {/* WHAT IT IS FOR (Dave's pass-off, 2026-09-26: "no way to attach
+                a project"). The task sheet's Project row, on the event: a
+                pick fills a new event's area, the menu is in order with a
+                search at its top. */}
+            {projects.length > 0 && (
+              <div onClick={tapField} className="row xs-row">
+                <Tile tone="indigo"><FolderKanban className="ic" /></Tile>
+                <div className="conn-name">Project</div>
+                <HeadMenu variant="value" ariaLabel="Project" value={projectId} label={projectWord} off={projectId === ""}
+                  options={[{ value: "", label: "None" }, ...projectOptions]}
+                  search="Search Projects"
+                  onPick={pickProject} />
+              </div>
+            )}
             <div onClick={tapField} className="row xs-row">
               <Tile tone="pink"><PinGlyph /></Tile>
               <div className="conn-name">Place</div>
@@ -534,10 +587,12 @@ export default function EventSheet({
                     </div>
                   )}
                 </div>
-                <HeadMenu variant="value" ariaLabel="Travel" value={travelMin === null ? "" : String(travelMin)} label={travelMin === null ? "None" : `${travelMin} min`} off={travelMin === null}
+                <HeadMenu variant="value" ariaLabel="Travel" value={travelMin === null ? "" : String(travelMin)} label={travelMin === null ? "None" : `${travelMin} Min`} off={travelMin === null}
                   options={[
                     { value: "", label: "None" },
-                    ...TRAVEL_CHOICES.map((m) => ({ value: String(m), label: `${m} min` })),
+                    // "45 Min" (Dave's pass-off, 2026-09-26: durations spelled and
+                    // capitalized for minutes-only).
+                    ...TRAVEL_CHOICES.map((m) => ({ value: String(m), label: `${m} Min` })),
                     { value: "custom", label: "Custom" },
                     // Only offered when there is something to forget, so the
                     // row never advertises a memory that does not exist.
@@ -566,8 +621,8 @@ export default function EventSheet({
               <div onClick={tapField} className="row xs-row">
                 <Tile tone="sky"><ClockGlyph /></Tile>
                 <div className="conn-name">Buffer</div>
-                <HeadMenu variant="value" ariaLabel="Buffer" value={bufferMin === null ? "" : String(bufferMin)} label={bufferMin === null ? "None" : `${bufferMin} min`} off={bufferMin === null}
-                  options={[{ value: "", label: "None" }, ...BUFFER_CHOICES.map((m) => ({ value: String(m), label: `${m} min` }))]}
+                <HeadMenu variant="value" ariaLabel="Buffer" value={bufferMin === null ? "" : String(bufferMin)} label={bufferMin === null ? "None" : `${bufferMin} Min`} off={bufferMin === null}
+                  options={[{ value: "", label: "None" }, ...BUFFER_CHOICES.map((m) => ({ value: String(m), label: `${m} Min` }))]}
                   onPick={(v) => setBufferMin(v === "" ? null : Number(v))} />
               </div>
             )}

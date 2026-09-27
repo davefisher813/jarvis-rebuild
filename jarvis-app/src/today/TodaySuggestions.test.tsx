@@ -57,7 +57,8 @@ describe("TodaySuggestions planning pattern (Brain Personalization Phase 2, 2026
     await waitFor(() => expect(screen.getByText(/^Noticed:/)).toBeInTheDocument());
     fireEvent.click(screen.getByText(/^Noticed:/));
     await waitFor(() => expect(screen.getByText("Dismiss")).toBeInTheDocument());
-    expect(screen.getByText(/Work tasks run 20 min long/)).toBeInTheDocument();
+    // Casing sweep 2 (2026-09-27): Title Case by the whole rule (§H2); durations through shared/duration ("45 Min", "1h 30m").
+    expect(screen.getByText(/Work Tasks Run 20 Min Long/)).toBeInTheDocument();
     expect(screen.queryByText(new RegExp(WORK))).not.toBeInTheDocument();
     fireEvent.click(screen.getByText("Remember This"));
     await waitFor(() => expect(screen.queryByText(/Your work tasks/)).not.toBeInTheDocument());
@@ -108,7 +109,7 @@ describe("TodaySuggestions routine candidate", () => {
     // third run glued onto the title with a middot (§AM F2/F3).
     await waitFor(() => expect(screen.getByText(/^Gym around 6 AM/)).toBeInTheDocument());
     // Quiet lifts the figure into its own span, so read the whole sub line.
-    expect(screen.getByText(/Times this month/).parentElement?.textContent).toBe("3 Times this month");
+    expect(screen.getByText(/Times This Month/).parentElement?.textContent).toBe("3 Times This Month");
     fireEvent.click(screen.getByText("Add to Routine"));
     await waitFor(() => expect(screen.queryByText(/Gym has landed/)).not.toBeInTheDocument());
     await waitFor(async () => {
@@ -167,7 +168,7 @@ describe("TodaySuggestions being-known moments", () => {
     // before the user ever taps.
     // The quiet line wraps the figure in its own bright span (Law 3E), so the
     // match reads the composed line rather than one text node.
-    expect(screen.getByText((_, el) => el?.className === "conn-meta" && /14 Finishes there/.test(el.textContent ?? ""))).toBeInTheDocument();
+    expect(screen.getByText((_, el) => el?.className === "conn-meta" && /14 Finishes There/.test(el.textContent ?? ""))).toBeInTheDocument();
     expect(screen.getByText("Remember This")).toBeInTheDocument();
   });
 
@@ -287,8 +288,8 @@ describe("TodaySuggestions AI failure is honest, not silent (S4-Q27)", () => {
 
   it("a failed call surfaces the real reason, not silence", async () => {
     render(<NotesProvider userId="u-err1"><TodaySuggestions ai={failingAI(500, "upstream blew up")} /></NotesProvider>);
-    await waitFor(() => expect(screen.getByText(/^Couldn't check today's suggestions/)).toBeInTheDocument());
-    fireEvent.click(screen.getByText(/^Couldn't check today's suggestions/));
+    await waitFor(() => expect(screen.getByText(/^Couldn't Check Today's Suggestions/)).toBeInTheDocument());
+    fireEvent.click(screen.getByText(/^Couldn't Check Today's Suggestions/));
     await waitFor(() => expect(reasonSays(/Server said 500/)).toBeInTheDocument());
     // And nowhere near the slot that would cut it off.
     expect(document.querySelector(".notice-card .conn-meta")).toBeNull();
@@ -296,8 +297,8 @@ describe("TodaySuggestions AI failure is honest, not silent (S4-Q27)", () => {
 
   it("a sign-in failure names itself, not a generic server error", async () => {
     render(<NotesProvider userId="u-err2"><TodaySuggestions ai={failingAI(401, "")} /></NotesProvider>);
-    await waitFor(() => expect(screen.getByText(/^Couldn't check today's suggestions/)).toBeInTheDocument());
-    fireEvent.click(screen.getByText(/^Couldn't check today's suggestions/));
+    await waitFor(() => expect(screen.getByText(/^Couldn't Check Today's Suggestions/)).toBeInTheDocument());
+    fireEvent.click(screen.getByText(/^Couldn't Check Today's Suggestions/));
     await waitFor(() => expect(reasonSays(/Sign in again/)).toBeInTheDocument());
   });
 
@@ -308,24 +309,24 @@ describe("TodaySuggestions AI failure is honest, not silent (S4-Q27)", () => {
     const upstream = "model: claude-sonnet-4-5-20250929 is not available on this key";
     const body = JSON.stringify({ error: "Upstream error", detail: JSON.stringify({ type: "error", error: { message: upstream } }) });
     render(<NotesProvider userId="u-err4"><TodaySuggestions ai={failingAI(502, body)} /></NotesProvider>);
-    await waitFor(() => expect(screen.getByText(/^Couldn't check today's suggestions/)).toBeInTheDocument());
-    fireEvent.click(screen.getByText(/^Couldn't check today's suggestions/));
+    await waitFor(() => expect(screen.getByText(/^Couldn't Check Today's Suggestions/)).toBeInTheDocument());
+    fireEvent.click(screen.getByText(/^Couldn't Check Today's Suggestions/));
     await waitFor(() => expect(reasonSays(/./)).toBeInTheDocument());
     expect(reasonSays(/./).textContent).toBe("Server said 502 · " + upstream);
   });
 
   it("dismissing the failure notice clears it", async () => {
     render(<NotesProvider userId="u-err3"><TodaySuggestions ai={failingAI(500, "upstream blew up")} /></NotesProvider>);
-    await waitFor(() => expect(screen.getByText(/^Couldn't check today's suggestions/)).toBeInTheDocument());
-    fireEvent.click(screen.getByText(/^Couldn't check today's suggestions/));
+    await waitFor(() => expect(screen.getByText(/^Couldn't Check Today's Suggestions/)).toBeInTheDocument());
+    fireEvent.click(screen.getByText(/^Couldn't Check Today's Suggestions/));
     await waitFor(() => expect(screen.getByText("Dismiss")).toBeInTheDocument());
     fireEvent.click(screen.getByText("Dismiss"));
-    await waitFor(() => expect(screen.queryByText(/Couldn't check today's suggestions/)).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByText(/Couldn't Check Today's Suggestions/)).not.toBeInTheDocument());
   });
 
   it("never writes the failure to the day's cache, so the next open retries", async () => {
     render(<NotesProvider userId="u-err4"><TodaySuggestions ai={failingAI(500, "upstream blew up")} /></NotesProvider>);
-    await waitFor(() => expect(screen.getByText(/^Couldn't check today's suggestions/)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/^Couldn't Check Today's Suggestions/)).toBeInTheDocument());
     expect(localStorage.getItem("jarvis.suggestions." + todayISO())).toBeNull();
   });
 });
@@ -359,7 +360,7 @@ describe("TodaySuggestions Add always leaves a task behind", () => {
       await waitFor(() => expect(screen.getByText(/^Noticed:/)).toBeInTheDocument());
       fireEvent.click(screen.getByText(/^Noticed:/));
       fireEvent.click(await screen.findByText("Add"));
-      await waitFor(() => expect(seen).toContain("Added to your tasks"));
+      await waitFor(() => expect(seen).toContain("Added to Your Tasks"));
       await waitFor(() => {
         expect(probedTasks.some((t) => t.data.text === "Call the Vet Back" && t.data.due === todayISO())).toBe(true);
       });

@@ -18,6 +18,7 @@ import { removeTodaySend } from "../messages/todayOutbox";
 import { HOLD_SECONDS } from "../messages/outbox";
 import { dayPhrase } from "../money/bills";
 import { loadNudgeCounts } from "../messages/escalate";
+import { lineCase } from "../shared/casing";
 
 // Email on the home page, rebuilt (Dave 2026-08-20). The count is gone; what
 // is left is the work itself. See messages/home.ts for the reasoning.
@@ -51,21 +52,32 @@ export interface MailDraft { text: string; sending: boolean }
 // between them the stylesheet's, the amount a white <b>, the day or the age
 // in the key's colour. One colour per line (K.3), the same rule the shared
 // facts line keeps: the first toned fact keeps its tone, a date rides past.
-function NoticeFacts({ facts }: { facts: NoticeFact[] }) {
+//
+// THE WRAPPING FORM (2026-09-27, the audit leftover: the deadline card's
+// line is 181px beside its glyph and its Add Task capsule at 390, so "From
+// App Store Team" could never show whole next to a day fact, and this
+// line's job is to show every fact). With `wrap`, the spans go straight
+// into the card's own .conn-meta, which is the settled wrapping pattern: it
+// wraps, unclamped (.notice-card-wrap), with the stylesheet's dot at the end
+// of each fact, so "Likely Today" sits on one line and the sender on the
+// next. The tones are the same either way.
+function NoticeFacts({ facts, wrap = false }: { facts: NoticeFact[]; wrap?: boolean }) {
   const list = facts.filter((f) => f.text.trim() || f.num);
   if (list.length === 0) return null;
   let toned = false;
+  const spans = list.map((f, i) => {
+    const tone = f.tone === "date" ? "date" : f.tone && !toned ? f.tone : undefined;
+    if (tone && tone !== "date") toned = true;
+    return (
+      <span key={i} className={"fact" + (tone ? " " + tone : "")}>
+        {f.text}{f.text && f.num ? " " : ""}{f.num && <b>{f.num}</b>}
+      </span>
+    );
+  });
+  if (wrap) return <>{spans}</>;
   return (
     <div className="facts">
-      {list.map((f, i) => {
-        const tone = f.tone === "date" ? "date" : f.tone && !toned ? f.tone : undefined;
-        if (tone && tone !== "date") toned = true;
-        return (
-          <span key={i} className={"fact" + (tone ? " " + tone : "")}>
-            {f.text}{f.text && f.num ? " " : ""}{f.num && <b>{f.num}</b>}
-          </span>
-        );
-      })}
+      {spans}
     </div>
   );
 }
@@ -219,7 +231,7 @@ export default function MailNotices({
         const done = await onTakeAct(n.act!, n.threadId);
         setBusy(null);
         if (!done) {
-          showToast({ message: "Couldn't add it · Opening the thread" });
+          showToast({ message: "Couldn't Add It · Opening the Thread" });
           onOpenThread?.(n.threadId);
           return;
         }
@@ -242,11 +254,11 @@ export default function MailNotices({
         // A tap that produced nothing used to say nothing (2026-08-25). The
         // act path beside this one already tells you and offers the thread.
         if (!ok) {
-          showToast({ message: "Couldn't add it · Opening the thread" });
+          showToast({ message: "Couldn't Add It · Opening the Thread" });
           onOpenThread?.(n.threadId);
           return;
         }
-        finish(n, "Added to your tasks" + (n.task?.due ? " · Due " + dayPhrase(n.task.due, today) : ""));
+        finish(n, lineCase("Added to your tasks" + (n.task?.due ? " · Due " + dayPhrase(n.task.due, today) : "")));
       })();
       return;
     }
@@ -262,7 +274,7 @@ export default function MailNotices({
         setBusy(null);
         if (receipt) finish(n, receipt);
         else {
-          showToast({ message: "Couldn't book it · Opening the thread" });
+          showToast({ message: "Couldn't Book It · Opening the Thread" });
           onOpenThread?.(n.threadId);
         }
       })();
@@ -284,7 +296,7 @@ export default function MailNotices({
     try {
       const text = (await onDraft!(n)).trim();
       if (!text) {
-        showToast({ message: "Couldn't draft that one · Opening it instead" });
+        showToast({ message: "Couldn't Draft That One · Opening It Instead" });
         onOpenThread?.(n.threadId);
         return;
       }
@@ -306,13 +318,13 @@ export default function MailNotices({
       const done = await onDelete(n);
       setBusy(null);
       if (!done || !done.ok) {
-        showToast({ message: "Couldn't delete it · Still in your inbox" });
+        showToast({ message: "Couldn't Delete It · Still in Your Inbox" });
         return;
       }
       markDone(n.key);
       setDrafts((d) => { const x = { ...d }; delete x[n.key]; return x; });
       showToast({
-        message: "Deleted · In trash 30 days",
+        message: "Deleted · In Trash 30 Days",
         ...(done.undo ? { actionLabel: "Undo", onAction: () => { void done.undo!(); unmarkDone(n.key); } } : {}),
       });
     })();
@@ -334,7 +346,7 @@ export default function MailNotices({
     const id = await onSend!(n, body.trim());
     if (!id) {
       setDrafts((d) => ({ ...d, [n.key]: { text: body, sending: false } }));
-      showToast({ message: "Couldn't send · Nothing was lost" });
+      showToast({ message: "Couldn't Send · Nothing Was Lost" });
       return;
     }
     markDone(n.key);
@@ -391,11 +403,15 @@ export default function MailNotices({
             // onto one line. Uniform (Dave 2026-09-01): one line each, so
             // every row in the card is the same shape. A sender longer
             // than the line ellipses and the tap opens the thread.
-            uniform
+            // ...except the card that carries FACTS (2026-09-27): a deadline
+            // card's line has to show every fact, so it wraps instead of
+            // ellipsing, and it is not uniform so the latch never drops it.
+            uniform={!n.facts}
+            wrap={!!n.facts}
             icon={ICON[n.kind]}
             tone={n.tone}
             title={n.title}
-            sub={draft ? undefined : n.facts ? <NoticeFacts facts={n.facts} /> : n.sub}
+            sub={draft ? undefined : n.facts ? <NoticeFacts facts={n.facts} wrap /> : n.sub}
             // ONE-WORD VERBS (ruled 2026-09-01, "the email row": one fixed
             // action column, one-word verbs, so the column aligns with or
             // without a chip). "Draft It" is "Draft"; Reply stays Reply.

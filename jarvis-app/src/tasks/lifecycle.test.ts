@@ -88,7 +88,8 @@ describe("backOnTrackMessage", () => {
   it("fires only after a real gap ends a run worth naming", () => {
     // SPEC MOVED (short copy, 2026-08-15)
     expect(backOnTrackMessage({ ...base, lastDone: "2026-07-17", runLen: 12 }, T)).toBe(
-      "Back on track · 12-day run still counts",
+      // Casing sweep 2 (2026-09-27): Title Case by the whole rule (§H2); durations through shared/duration ("45 Min", "1h 30m").
+      "Back on Track · 12-Day Run Still Counts",
     );
     expect(backOnTrackMessage({ ...base, lastDone: "2026-07-29", runLen: 12 }, T)).toBeNull(); // no gap
     expect(backOnTrackMessage({ ...base, lastDone: "2026-07-17", runLen: 2 }, T)).toBeNull(); // short run

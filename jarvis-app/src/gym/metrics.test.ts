@@ -35,13 +35,14 @@ describe("numericValue", () => {
 
 describe("formatMetric", () => {
   it("never fabricates a zero for an empty log -- EMPTY IS LEGAL", () => {
-    expect(formatMetric({ type: "number", unit: "hrs" }, undefined)).toBe("Not logged yet");
-    expect(formatMetric({ type: "yesno" }, undefined)).toBe("Not logged yet");
+    // Casing sweep 1 (2026-09-26): Title Case by the whole rule (§H2), units spelled "Min".
+    expect(formatMetric({ type: "number", unit: "hrs" }, undefined)).toBe("Not Logged Yet");
+    expect(formatMetric({ type: "yesno" }, undefined)).toBe("Not Logged Yet");
   });
   it("formats each type in its own words", () => {
-    expect(formatMetric({ type: "number", unit: "hrs" }, log({ value: 7.5 }))).toBe("7.5 hrs");
+    expect(formatMetric({ type: "number", unit: "hrs" }, log({ value: 7.5 }))).toBe("7.5 Hrs");
     expect(formatMetric({ type: "scale5" }, log({ value: 3 }))).toBe("3/5");
-    expect(formatMetric({ type: "minutes" }, log({ value: 20 }))).toBe("20 min");
+    expect(formatMetric({ type: "minutes" }, log({ value: 20 }))).toBe("20 Min");
     expect(formatMetric({ type: "yesno" }, log({ yes: true }))).toBe("Yes");
     expect(formatMetric({ type: "yesno" }, log({ yes: false }))).toBe("No");
   });

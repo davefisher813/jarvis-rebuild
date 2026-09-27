@@ -45,17 +45,20 @@ interface Extras {
 // The prior sessions carry real sets for the same reason: "prefill defaults
 // to the prior session, then to the set before" cannot be looked at when
 // there is no prior session to default to.
-const PUSH_LIFTS: { id: string; name: string; sets: [number, number][] }[] = [
+// A SUPERSET IN EACH DAY (2026-09-26, the workout logging pass-off): the
+// A1/A2 marks, the bar's "Next · A2" and Break Up the Superset cannot be
+// looked at on a program with no pair in it.
+const PUSH_LIFTS: { id: string; name: string; sets: [number, number][]; groupId?: string }[] = [
   { id: "dx-bench", name: "Bench Press", sets: [[185, 5], [185, 5], [185, 5]] },
   { id: "dx-incline", name: "Incline Dumbbell Press", sets: [[60, 10], [60, 9], [60, 8]] },
-  { id: "dx-ohp", name: "Overhead Press", sets: [[95, 8], [95, 8], [95, 7]] },
-  { id: "dx-pushdown", name: "Triceps Pushdown", sets: [[50, 12], [50, 12], [50, 10]] },
+  { id: "dx-ohp", name: "Overhead Press", sets: [[95, 8], [95, 8], [95, 7]], groupId: "dg-push" },
+  { id: "dx-pushdown", name: "Triceps Pushdown", sets: [[50, 12], [50, 12], [50, 10]], groupId: "dg-push" },
 ];
-const PULL_LIFTS: { id: string; name: string; sets: [number, number][] }[] = [
+const PULL_LIFTS: { id: string; name: string; sets: [number, number][]; groupId?: string }[] = [
   { id: "dx-dead", name: "Deadlift", sets: [[275, 5], [275, 5], [275, 3]] },
   { id: "dx-row", name: "Barbell Row", sets: [[135, 8], [135, 8], [135, 8]] },
-  { id: "dx-curl", name: "Dumbbell Curl", sets: [[35, 10], [35, 10], [35, 9]] },
-  { id: "dx-face", name: "Face Pull", sets: [[40, 15], [40, 15], [40, 12]] },
+  { id: "dx-curl", name: "Dumbbell Curl", sets: [[35, 10], [35, 10], [35, 9]], groupId: "dg-pull" },
+  { id: "dx-face", name: "Face Pull", sets: [[40, 15], [40, 15], [40, 12]], groupId: "dg-pull" },
 ];
 
 /** Plan chips: the target strip, no numbers logged. */
@@ -64,6 +67,7 @@ function planStrip(lifts: typeof PUSH_LIFTS) {
     id: l.id, name: l.name, kind: "weight_reps" as const, unit: "lb",
     sets: l.sets.map(([w, r], i) => ({ id: `${l.id}-p${i}`, w, r })),
     restSec: 120,
+    ...(l.groupId ? { groupId: l.groupId } : {}),
   }));
 }
 

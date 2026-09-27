@@ -52,7 +52,7 @@ export function patternObservation(checkin: CheckinMap | undefined, _todayIso: s
   const streak = endingStreak(entries);
 
   if (streak && streak.mood === "under" && streak.len >= 3) {
-    return { id: "under-streak", text: "Heavy stretch, keeping plans light" };
+    return { id: "under-streak", text: "Heavy Stretch, Keeping Plans Light" };
   }
 
   // Weekday heaviness needs real evidence: at least 6 answered evenings, and a

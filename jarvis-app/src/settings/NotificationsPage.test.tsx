@@ -117,7 +117,8 @@ describe("NotificationsPage, reminders", () => {
     render(<NotesProvider userId="u1"><NotificationsPage onBack={() => {}} /></NotesProvider>);
     fireEvent.click(await screen.findByText("Send a Test Reminder"));
     await waitFor(() => expect(send).toHaveBeenCalledTimes(1));
-    await waitFor(() => expect(seen.some((m) => m.startsWith("Test reminder in"))).toBe(true));
+    // Casing sweep 3 (2026-09-27): Title Case by the whole rule (§H2); durations through shared/duration ("45 Min", "About 1 Min").
+    await waitFor(() => expect(seen.some((m) => m.startsWith("Test Reminder in"))).toBe(true));
     stop();
   });
 });

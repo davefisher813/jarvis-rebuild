@@ -90,7 +90,7 @@ describe("the row's own reading", () => {
   });
 
   it("says the muscles as roles, never as one flat list", () => {
-    expect(valueLine(c({ primary: ["back"], secondary: ["biceps"] }), "muscles")).toBe("Back, also Biceps");
+    expect(valueLine(c({ primary: ["back"], secondary: ["biceps"] }), "muscles")).toBe("Back, Also Biceps");
     expect(valueLine(c({ primary: ["back", "glutes"] }), "muscles")).toBe("Back, Glutes");
     expect(valueLine(c(), "muscles")).toBeNull();
   });

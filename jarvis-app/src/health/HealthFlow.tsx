@@ -26,7 +26,7 @@ import type { SportSession } from "./loadCandidates";
 import type { SeasonFeedDraft } from "./seasonFeed";
 import { showToast } from "../shared/toast";
 import { WRITE_FAILED_MESSAGE } from "../shared/guard";
-import { capAfterNumber } from "../shared/casing";
+import { lineCase } from "../shared/casing";
 import { saveTextFile } from "../shared/saveTextFile";
 import { shareText, copyText } from "../shared/shareText";
 import ShareLineScreen from "./screens/ShareLineScreen";
@@ -462,7 +462,7 @@ export default function HealthFlow({
               );
               if (sent) showToast({ message: "Log exported" });
             } catch {
-              showToast({ message: "Couldn't export · Try again" });
+              showToast({ message: "Couldn't Export · Try Again" });
             }
           }}
           // UP-ATH-11 (2026-09-06): the web half. saveTextFile's browser path
@@ -474,7 +474,7 @@ export default function HealthFlow({
               await copyText(doctorReportText(report));
               showToast({ message: "Copied to your clipboard" });
             } catch {
-              showToast({ message: "Couldn't copy · Try again" });
+              showToast({ message: "Couldn't Copy · Try Again" });
             }
           }}
           onBack={onExit}
@@ -589,7 +589,7 @@ export default function HealthFlow({
           onShare={(text) => {
             void shareText(text, "Still There?")
               .then((r) => { if (r === "copied") showToast({ message: "Copied to your clipboard" }); })
-              .catch(() => showToast({ message: "Couldn't hand that over · Try again" }));
+              .catch(() => showToast({ message: "Couldn't Hand That Over · Try Again" }));
           }}
           onBack={onExit}
         />
@@ -610,7 +610,7 @@ export default function HealthFlow({
           onCommit={(draft) => take(
             onCommitSeasonFeed,
             draft,
-            capAfterNumber(draft.events.length + (draft.events.length === 1 ? " event added" : " events added")),
+            lineCase(draft.events.length + (draft.events.length === 1 ? " event added" : " events added")),
             onExit,
           )}
           onBack={onExit}

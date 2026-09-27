@@ -1,6 +1,6 @@
 import type { SavedEntry } from "../life/types";
 import { formatMoney } from "../money/types";
-import { capAfterNumber } from "../shared/casing";
+import { lineCase } from "../shared/casing";
 
 // Money v1 savings derivation (2026-08-03). Progress is the sum of dated
 // entries the user actually logged. Nothing else may feed it: not skipped
@@ -21,7 +21,7 @@ export function savingsPct(target: number, entries: SavedEntry[] | undefined): n
  *  amount says the nothing and the target at once. */
 export function savingsLine(target: number, entries: SavedEntry[] | undefined): string {
   const total = Math.max(0, savedTotal(entries));
-  return capAfterNumber(`${formatMoney(total)} of ${formatMoney(target)} saved`);
+  return lineCase(`${formatMoney(total)} of ${formatMoney(target)} saved`);
 }
 
 /** Entries newest-first for the receipts list. */

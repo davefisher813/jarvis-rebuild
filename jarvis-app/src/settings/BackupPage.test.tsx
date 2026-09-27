@@ -34,7 +34,7 @@ describe("BackupPage export", () => {
   // how the iOS web view swallowed it silently. Now a real failure from
   // saveBackupFile must surface, not be papered over.
   // SHELL-F-23 (2026-09-05): tapping outside the iOS share sheet read
-  // "Export failed · Try again". Nothing failed and nothing was exported, so
+  // "Export Failed · Try Again". Nothing failed and nothing was exported, so
   // the page says nothing and leaves the Last exported stamp alone.
   it("dismissing the share sheet says nothing and stamps nothing", async () => {
     let dismiss: (sent: boolean) => void = () => {};
@@ -45,7 +45,8 @@ describe("BackupPage export", () => {
     // Settle the share sheet inside act, so the receipt (or its absence) is
     // what the page decided, not what it had not got to yet.
     await act(async () => { dismiss(false); });
-    expect(screen.queryByText("Export failed · Try again")).not.toBeInTheDocument();
+    // Casing sweep 3 (2026-09-27): Title Case by the whole rule (§H2); durations through shared/duration ("45 Min", "About 1 Min").
+    expect(screen.queryByText("Export Failed · Try Again")).not.toBeInTheDocument();
     expect(screen.queryByText(/^Exported /)).not.toBeInTheDocument();
     expect(screen.queryByText(/Last exported/)).not.toBeInTheDocument();
   });
@@ -54,7 +55,7 @@ describe("BackupPage export", () => {
     saveBackupFile.mockRejectedValue(new Error("disk full"));
     render(<NotesProvider userId="u1"><BackupPage onBack={() => {}} /></NotesProvider>);
     fireEvent.click(screen.getByText("Export All Data"));
-    await screen.findByText("Export failed · Try again");
+    await screen.findByText("Export Failed · Try Again");
     expect(screen.queryByText(/Last exported/)).not.toBeInTheDocument();
   });
 });
@@ -82,7 +83,7 @@ describe("BackupPage import receipt", () => {
     fireEvent.change(input, { target: { files: [jsonFile(bundle)] } });
     await screen.findByText(/Backup from 2026-09-01/);
     fireEvent.click(screen.getByText("Import"));
-    await screen.findByText(/^Imported 1 item · Duplicates skipped/);
+    await screen.findByText(/^Imported 1 Item · Duplicates Skipped/);
     await screen.findByText(/This build can't restore: a_future_type/);
   });
 
@@ -96,6 +97,6 @@ describe("BackupPage import receipt", () => {
     fireEvent.change(input, { target: { files: [jsonFile(bundle)] } });
     await screen.findByText(/Backup from 2026-09-01/);
     fireEvent.click(screen.getByText("Import"));
-    await screen.findByText(/^Imported 1 item · Duplicates skipped$/);
+    await screen.findByText(/^Imported 1 Item · Duplicates Skipped$/);
   });
 });

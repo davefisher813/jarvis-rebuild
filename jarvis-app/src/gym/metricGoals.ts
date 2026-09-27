@@ -1,5 +1,5 @@
 import type { MetricLog } from "./metrics";
-import { capAfterNumber } from "../shared/casing";
+import { lineCase } from "../shared/casing";
 
 // A GOAL ON A READING (Dave 2026-09-12, from the Health category page: "I
 // had said I wanted actual health goals elsewhere... wherever you can enter
@@ -66,12 +66,12 @@ export function metricMeasureState(m: MetricMeasure, logs: MetricLog[]): MetricM
   if (current == null) {
     return {
       done: 0, target: m.target, met: false, pct: 0,
-      line: capAfterNumber(`Log ${m.metricName.toLowerCase()} to track it toward ${fmtNum(m.target)}${unitTxt}`),
+      line: lineCase(`Log ${m.metricName.toLowerCase()} to track it toward ${fmtNum(m.target)}${unitTxt}`),
     };
   }
 
   const met = m.direction === "up" ? current >= m.target : current <= m.target;
-  const line = capAfterNumber(`${fmtNum(current)} of ${fmtNum(m.target)}${unitTxt}`);
+  const line = lineCase(`${fmtNum(current)} of ${fmtNum(m.target)}${unitTxt}`);
 
   // No baseline, or a baseline that already sat past the target (the
   // direction changed, or the goal was set after the fact against a number

@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import type { SyncState } from "@core";
 import { useStore } from "./NotesProvider";
-import { capAfterNumber } from "../shared/casing";
+import { lineCase } from "../shared/casing";
+import { spanLabel } from "../shared/duration";
 
 // UP-PLAT-05 (2026-09-06): "A sync line that tells the truth."
 //
@@ -27,15 +28,16 @@ export function useSyncState(): SyncState | null {
   return state;
 }
 
-// "2 min ago". Minutes, then hours, then the date: a stamp older than a day
-// is not a duration anybody reads in minutes. Under a minute is "just now"
-// rather than "0 min ago", which reads as broken.
+// "2 Min Ago". Minutes, then hours, then the date: a stamp older than a day
+// is not a duration anybody reads in minutes. Under a minute is "Just Now"
+// rather than "0 Min Ago", which reads as broken. The span is the one
+// duration shape ("2 Min", "3h"; Dave 2026-09-26), cased as a facts line.
 export function syncedAgo(at: number, now = Date.now()): string {
   const mins = Math.floor((now - at) / 60000);
-  if (mins < 1) return "just now";
-  if (mins < 60) return `${mins} min ago`;
+  if (mins < 1) return "Just Now";
+  if (mins < 60) return `${spanLabel(mins)} Ago`;
   const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours} ${hours === 1 ? "hour" : "hours"} ago`;
+  if (hours < 24) return `${spanLabel(hours * 60)} Ago`;
   return new Date(at).toLocaleDateString();
 }
 
@@ -53,8 +55,8 @@ export type SyncFact = { text: string; tone?: "warn" | "date" };
 // so both facts drew in one grey. They are separate facts now; the page
 // renders each as a .fact and the stylesheet draws the separator.
 export function syncFacts(s: SyncState, now = Date.now()): SyncFact[] {
-  const waiting: SyncFact = { text: capAfterNumber(s.queued === 1 ? "1 change waiting" : `${s.queued} changes waiting`), tone: "warn" };
-  const synced: SyncFact | null = s.lastSyncedAt === null ? null : { text: `Last synced ${syncedAgo(s.lastSyncedAt, now)}`, tone: "date" };
+  const waiting: SyncFact = { text: lineCase(s.queued === 1 ? "1 change waiting" : `${s.queued} changes waiting`), tone: "warn" };
+  const synced: SyncFact | null = s.lastSyncedAt === null ? null : { text: lineCase(`Last synced ${syncedAgo(s.lastSyncedAt, now)}`), tone: "date" };
   if (!s.online) return s.queued > 0 ? [{ text: "Offline" }, waiting] : [{ text: "Offline" }];
   if (s.queued > 0) return synced ? [waiting, synced] : [waiting];
   return [synced ?? { text: "Nothing waiting" }];

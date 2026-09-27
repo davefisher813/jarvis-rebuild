@@ -122,7 +122,7 @@ export async function processOutboxSend(item: OutboxItem, deps: SendDeps): Promi
       const id = item.editingDraftId;
       void (async () => {
         const { failed } = await settleAll([id], () => api.deleteDraft(id));
-        if (failed.length) showToast({ message: "Sent · The old draft is still in your drafts" });
+        if (failed.length) showToast({ message: "Sent · The Old Draft Is Still in Your Drafts" });
       })();
     }
     // EMAIL-F-02 (2026-09-05): "Chase If No Reply is set and cleared in the
@@ -157,7 +157,7 @@ export async function processOutboxSend(item: OutboxItem, deps: SendDeps): Promi
       if (tid) {
         void (async () => {
           const { failed } = await settleAll([tid], () => deps.apiFor(item.account)?.modifyThread(tid, [], ["INBOX"]));
-          if (failed.length) showToast({ message: "Handed off · Still in your inbox" });
+          if (failed.length) showToast({ message: "Handed Off · Still in Your Inbox" });
         })();
       }
       emit({ type: "action", props: { name: "email.handoff" } });
@@ -172,7 +172,7 @@ export async function processOutboxSend(item: OutboxItem, deps: SendDeps): Promi
     // tab renders it with Retry and Edit. The toast is for when that tab is
     // not the one on screen.
     patchOutbox(item.id, { state: "failed", error: humanError(e, "Could not send") });
-    showToast({ message: "Couldn't send · In your email outbox to retry" });
+    showToast({ message: "Couldn't Send · In Your Email Outbox to Retry" });
   } finally {
     inFlight.delete(item.id);
   }

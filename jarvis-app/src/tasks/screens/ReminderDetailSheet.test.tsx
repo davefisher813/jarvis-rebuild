@@ -67,7 +67,8 @@ describe("ReminderDetailSheet", () => {
     const onKeep = vi.fn();
     const history = ["a", "b", "c"].map((at) => ({ at, kind: "snoozed" as const }));
     render(<ReminderDetailSheet {...base} item={item({ time: "21:00", history })} onKeepSchedule={onKeep} />);
-    expect(screen.getByText("Snoozed the last 3 times · Choose a better time?")).toBeInTheDocument();
+    // Casing sweep 2 (2026-09-27): Title Case by the whole rule (§H2); durations through shared/duration ("45 Min", "1h 30m").
+    expect(screen.getByText("Snoozed the Last 3 Times · Choose a Better Time?")).toBeInTheDocument();
     fireEvent.click(screen.getByText("Keep Schedule"));
     expect(onKeep).toHaveBeenCalledWith("r1");
     expect(screen.getByText("History")).toBeInTheDocument();

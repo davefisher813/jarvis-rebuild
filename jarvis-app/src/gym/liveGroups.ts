@@ -1,4 +1,4 @@
-import type { Exercise } from "./types";
+import type { Exercise, WorkoutExercise } from "./types";
 
 /** THE DAY, WITH TODAY'S OWN PAIRS LAID OVER IT.
  *
@@ -73,4 +73,34 @@ export function ungroupToday(
  *  the screen has to say out loud. */
 export function isLiveGroup(groups: Record<string, string> | undefined, id: string): boolean {
   return !!groups?.[id];
+}
+
+/** THE SESSION'S OWN EXERCISE LIST, FOR EVERY GROUP QUESTION (2026-09-26,
+ *  the workout logging pass-off: "Superset linking between exercises is
+ *  broken and hard to use").
+ *
+ *  Every group reader (the A1/A2 labels, whose turn it is, the filler, the
+ *  round rest) was asked of the PROGRAM day's list, so a lift the day did not
+ *  have -- swapped in, added at the rack -- could never be in a superset, and
+ *  the session screen passed an empty day for it, hiding every pair on the
+ *  screen at once. This is the list the session actually runs, in the order
+ *  it runs it: the day's exercise where the entry has one (its rest, its
+ *  ramp, its program pairing), and the entry's own shape where it does not,
+ *  with today's pairs laid over the lot. The ids are the live entries' own
+ *  exerciseIds, which for a planned lift are the day's, so `groups` needs no
+ *  second key. */
+export function sessionExercises(
+  live: Pick<WorkoutExercise, "exerciseId" | "name" | "kind" | "unit" | "timeUnit" | "plan" | "program" | "custom">[],
+  day: Exercise[],
+  groups?: Record<string, string>,
+): Exercise[] {
+  const list = live.map((w): Exercise => {
+    const onDay = day.find((e) => e.id === w.exerciseId);
+    if (!onDay) return { id: w.exerciseId, name: w.name, kind: w.kind, unit: w.unit, timeUnit: w.timeUnit, sets: w.plan ?? [], ...(w.program ?? {}) } as Exercise;
+    // A swapped lift keeps its slot's id (GYM-F-16), so it takes the slot's
+    // place in the pair for this session, under its own name and plan.
+    if (!w.custom) return onDay;
+    return { ...onDay, name: w.name, kind: w.kind, unit: w.unit, timeUnit: w.timeUnit, ...(w.plan ? { sets: w.plan } : {}) };
+  });
+  return withLiveGroups(list, groups);
 }

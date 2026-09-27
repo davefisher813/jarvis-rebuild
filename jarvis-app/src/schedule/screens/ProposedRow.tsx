@@ -104,8 +104,9 @@ export default function ProposedRow({
             <span className="sched-fact">
               <span className="prop-tag fact st gray">Proposed</span>
             </span>
+            {/* No separator between the state word and the category: the dot
+                divides them, the same as an event row's "FIXED • Family". */}
             <span className="sched-fact">
-              <span className="sched-sep">&middot;</span>
               <span className={"cat-dot cat-bg-" + slot} />
               {catName(block.category)}
             </span>

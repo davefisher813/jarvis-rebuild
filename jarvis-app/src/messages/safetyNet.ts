@@ -1,5 +1,5 @@
 import type { ThreadRow } from "../connections/google/map";
-import { capAfterNumber } from "../shared/casing";
+import { lineCase } from "../shared/casing";
 
 // Nothing-slips safety net (relief track #1).
 //
@@ -74,6 +74,6 @@ export function seedFirstRun(needsYou: ThreadRow[]): boolean {
 // derived or it does not render.
 export function guardLine(n: number, days: number = NET_DAYS): string {
   if (n <= 0) return "";
-  const what = capAfterNumber(n === 1 ? "1 email" : n + " emails");
+  const what = lineCase(n === 1 ? "1 email" : n + " emails");
   return what + " over " + days + " days old " + (n === 1 ? "is now a task" : "are now tasks");
 }

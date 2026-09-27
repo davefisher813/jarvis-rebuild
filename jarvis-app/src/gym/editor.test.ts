@@ -48,10 +48,14 @@ describe("D2: last time is wired everywhere sets render", () => {
     // number that matters mid-lift was the last thing on a wrapped line. Same
     // three facts, three chips, best leading in the ramp's ink.
     expect(s).toContain("se-chip-best");
-    expect(s).toMatch(/\{header\.best\}/);
-    expect(s).toMatch(/\{header\.last\}/);
+    // AMENDED 2026-09-26 (workout logging): cased by the whole rule.
+    expect(s).toMatch(/\{lineCase\(header\.best\)\}/);
+    expect(s).toMatch(/\{lineCase\(header\.last\)\}/);
     expect(s).toContain("onMatchLast={lastHit");
-    expect(s).toContain("onLog(entryFrom(src))");
+    // AMENDED 2026-09-26 (workout logging, Dave: only the red button logs):
+    // Match puts last time's numbers IN THE FIELDS, and the bar writes them.
+    expect(s).toContain("setDraft(fieldsOf(entryFrom(src)))");
+    expect(s, "Match no longer writes a set on its own").not.toContain("onLog(entryFrom(src))");
   });
 
   it("the exercise sheet shows the same per-position reference while planning", () => {
@@ -236,7 +240,9 @@ describe("GYM-F-17: an uploaded program is a program", () => {
   // -- so it reads the head action both layouts render and the sheet behind
   // it, rather than counting rows in a card.
   it("the upload door is reachable from both layouts", () => {
-    const heads = flow.match(/<button className="see-all" onClick=\{\(\) => setManageOpen\(true\)\}>Manage<\/button>/g) ?? [];
+    // AMENDED 2026-09-26 (pass-off item 10): Manage is the 34px head
+    // capsule ("see-all pill-action"), the same form Reorder wears beside it.
+    const heads = flow.match(/<button className="see-all pill-action" onClick=\{\(\) => setManageOpen\(true\)\}>Manage<\/button>/g) ?? [];
     expect(heads.length, "one in the Days head, one in the Weeks head").toBe(2);
     expect(flow).toMatch(/label: "Upload a Program", onClick: \(\) => setUploadOpen\(true\)/);
   });
@@ -325,7 +331,8 @@ describe("GYM-F-26: every row menu has a visible door", () => {
     // cannot be tapped, so it is a white <b> inside its fact -- not small
     // caps (.fact.date is for a neutral date or time of day), and not grey.
     expect(rendered, "rest is its own fact, only when there is one, and a white length")
-      .toMatch(/exercise\.restSec \? <span className="fact"><b>\{`\$\{mmss\(exercise\.restSec\)\} rest`\}<\/b><\/span> : null/);
+      // Casing sweep 1 (2026-09-26): Title Case by the whole rule (§H2), units spelled "Min".
+      .toMatch(/exercise\.restSec \? <span className="fact"><b>\{`\$\{mmss\(exercise\.restSec\)\} Rest`\}<\/b><\/span> : null/);
     expect(rendered, "and never the small-caps date primitive").not.toMatch(/className="fact date">\{`\$\{mmss/);
     expect(rendered, "and no capsule stands in for a value here")
       .not.toMatch(/se-chip/);

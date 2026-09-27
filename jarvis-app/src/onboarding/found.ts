@@ -36,6 +36,7 @@ export function openCount(snap: MailSnapshot): number {
 }
 
 export function foundLine(n: number): string {
+  // Onboarding talks in sentences (§H2), so the number-lead rule, not the whole rule.
   return capAfterNumber(
     n === 1
       ? "I found 1 thing still open from the last 30 days"

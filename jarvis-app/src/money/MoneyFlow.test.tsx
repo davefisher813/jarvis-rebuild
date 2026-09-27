@@ -27,12 +27,12 @@ describe("MoneyFlow", () => {
     fireEvent.change(screen.getByPlaceholderText("e.g. Checking"), { target: { value: "Savings" } });
     fireEvent.change(screen.getByPlaceholderText("0"), { target: { value: "5000" } });
     fireEvent.click(screen.getByText("Save"));
-    await waitFor(() => expect(screen.getByText("Total balance")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("Total Balance")).toBeInTheDocument());
     expect(screen.getAllByText("$5,000").length).toBeGreaterThanOrEqual(2);
     // The balance is self-reported and the page says so, with a date. The
     // date is its own fact (§AM F3, F5): the dot between them is drawn by
     // CSS, never baked into the words.
-    expect(screen.getByText("As you last entered it")).toBeInTheDocument();
+    expect(screen.getByText("As You Last Entered It")).toBeInTheDocument();
     expect(screen.getByText(monthDay(todayISO()))).toHaveClass("fact", "date");
   });
 
@@ -60,7 +60,7 @@ describe("MoneyFlow", () => {
     fireEvent.click(screen.getByLabelText("Autopay"));
     fireEvent.click(screen.getByText("Save"));
     await waitFor(() => expect(screen.getByText("Rent")).toBeInTheDocument());
-    expect(screen.getByText(/Set to autopay/)).toBeInTheDocument();
+    expect(screen.getByText(/Set to Autopay/)).toBeInTheDocument();
     expect(screen.queryByText(/Rent.*paid/i)).not.toBeInTheDocument();
   });
 });
@@ -342,7 +342,8 @@ describe("Set Aside envelopes live on the profile (HMN-F-12)", () => {
     await waitFor(() => expect(screen.getByText("Gas")).toBeInTheDocument());
 
     fireEvent.click(screen.getByLabelText("Remove Gas"));
-    await waitFor(() => expect(seen).toContain("Set aside removed"));
+    // Casing sweep 2 (2026-09-27): Title Case by the whole rule (§H2); durations through shared/duration ("45 Min", "1h 30m").
+    await waitFor(() => expect(seen).toContain("Set Aside Removed"));
     await waitFor(async () => expect((await profRef!.get())!.envelopes).toEqual([]));
 
     undo?.();
@@ -371,7 +372,7 @@ describe("a Credit account is a debt, typed as a plain number (HMN-F-13)", () =>
     fireEvent.change(owed, { target: { value: "2000" } });
     fireEvent.click(screen.getByText("Save"));
 
-    await waitFor(() => expect(screen.getByText("Total balance")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("Total Balance")).toBeInTheDocument());
     // No minus was typed anywhere, and the total went down by the debt.
     expect(screen.getAllByText("-$2,000").length).toBeGreaterThanOrEqual(2);
     expect(screen.queryByText("$2,000")).not.toBeInTheDocument();

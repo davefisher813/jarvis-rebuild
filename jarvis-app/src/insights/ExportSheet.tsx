@@ -44,7 +44,7 @@ export default function ExportSheet({ records, workouts, sleepDef, logs, today, 
       const sent = await saveTextFile(text, name, { title: "JARVIS health data", mime: format === "csv" ? "text/csv;charset=utf-8" : "text/plain;charset=utf-8" });
       if (sent) { showToast({ message: `${name} exported` }); onClose(); }
     } catch {
-      showToast({ message: "The export did not leave the app · Try the other format" });
+      showToast({ message: "The Export Did Not Leave the App · Try the Other Format" });
     } finally {
       setBusy(false);
     }

@@ -88,7 +88,8 @@ describe("START law 2: opening is never finishing", () => {
     expect(body).toMatch(/svc\.setNotes|svc\.setSteps/);
     // Finishing exists, separately, and says what it is.
     expect(SCREEN).toMatch(/Finish This Task/);
-    expect(SCREEN).toMatch(/Ticks the task itself/);
+    // Casing sweep 2 (2026-09-27): the sub line is Title Case by the whole rule.
+    expect(SCREEN).toMatch(/Ticks the Task Itself/);
   });
 });
 
@@ -122,8 +123,9 @@ describe("START law 3: a blocked thing stays blocked", () => {
 
 describe("START law 4: nothing is invented", () => {
   it("a missing fact is named, never filled in", () => {
-    expect(GROUND).toMatch(/missing\.push\("Location still needed"\)/);
-    expect(GROUND).toMatch(/missing\.push\("Recipients still needed"\)/);
+    // Casing sweep 2 (2026-09-27): a missing fact is a warn fact, Title Case.
+    expect(GROUND).toMatch(/missing\.push\("Location Still Needed"\)/);
+    expect(GROUND).toMatch(/missing\.push\("Recipients Still Needed"\)/);
     // No placeholder prose stands in for a fact the records do not carry.
     expect(code(GROUND)).not.toMatch(/the usual|as always|TBD|somewhere/i);
   });

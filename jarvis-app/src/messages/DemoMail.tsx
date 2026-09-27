@@ -39,7 +39,7 @@ const MAIL_ICO = (
   <EnvelopeGlyph />
 );
 
-const demoTap = () => showToast({ message: "Demo mail · Connect Google for the real thing" });
+const demoTap = () => showToast({ message: "Demo Mail · Connect Google for the Real Thing" });
 
 export default function DemoMail({ onConnect }: { onConnect?: () => void }) {
   // The home page reads a snapshot the Email tab leaves behind. In the demo
@@ -64,7 +64,7 @@ export default function DemoMail({ onConnect }: { onConnect?: () => void }) {
         subject: w.sub.split(": ")[0] ?? w.sub,
         days: [55, 55, 50][i] ?? 30,
       })),
-      promises: [{ threadId: "demo-p0", text: "send rob the deck", due: "2026-08-21" }],
+      promises: [{ threadId: "demo-p0", text: "Send Rob the deck", due: "2026-08-21" }],
     });
   }, []);
 

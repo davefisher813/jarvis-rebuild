@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { categoryRecord, whenLabel } from "./record";
+import { categoryRecord, whenLabel, nextDow } from "./record";
 import type { CompletionSample } from "../shared/timeSense";
 
 // The Record (2026-08-10): named history plus insight, derived from the
@@ -66,10 +66,13 @@ describe("categoryRecord", () => {
     const tuesdays = ["2026-07-07", "2026-07-14", "2026-07-21", "2026-07-28", "2026-08-04"];
     const spread = ["2026-07-08", "2026-07-16", "2026-07-24"];
     const r = categoryRecord("c1", [...tuesdays, ...spread].map((d) => at(d, 9, "c1", "t1")), TASKS, TODAY);
-    expect(r.insight).toBe("Most gets done on Tuesdays");
+    // AMENDED 2026-09-26 (pass-off): Title Case, and the numbers behind it.
+    expect(r.insight).toBe("Most Gets Done on Tuesdays");
+    expect(r.insightDetail).toEqual({ dow: 2, count: 5, total: 8 });
     // Too little history: silent.
     const few = categoryRecord("c1", tuesdays.map((d) => at(d, 9, "c1", "t1")), TASKS, TODAY);
     expect(few.insight).toBeNull();
+    expect(few.insightDetail).toBeNull();
   });
 
   it("no clear winner means no forced insight", () => {
@@ -78,5 +81,15 @@ describe("categoryRecord", () => {
     const wednesdays = ["2026-07-01", "2026-07-08", "2026-07-15", "2026-07-22"];
     const r = categoryRecord("c1", [...tuesdays, ...wednesdays].map((d) => at(d, 9, "c1", "t1")), TASKS, TODAY);
     expect(r.insight).toBeNull();
+  });
+});
+
+// THE NEXT SUCH DAY (Dave's pass-off, 2026-09-26).
+describe("nextDow", () => {
+  it("is today when today is that weekday, else the next one", () => {
+    expect(nextDow("2026-09-23", 3)).toBe("2026-09-23"); // a Wednesday
+    expect(nextDow("2026-09-24", 3)).toBe("2026-09-30"); // Thursday -> next Wednesday
+    expect(nextDow("2026-09-22", 3)).toBe("2026-09-23"); // Tuesday -> tomorrow
+    expect(nextDow("2026-09-30", 0)).toBe("2026-10-04"); // crosses the month
   });
 });

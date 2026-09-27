@@ -53,7 +53,7 @@ export async function processTodaySend(item: TodaySend, api: GoogleApi | null): 
       state: "failed", error: humanError(e, "Could not send"),
     };
     enqueueOutbox(failed);
-    showToast({ message: "Couldn't send · In your email outbox to retry" });
+    showToast({ message: "Couldn't Send · In Your Email Outbox to Retry" });
     removeTodaySend(item.id);
   }
 }

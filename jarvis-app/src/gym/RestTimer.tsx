@@ -3,12 +3,7 @@ import { beepDone, openAudio } from "./beep";
 import { readHealthSettings } from "../health/settings";
 import { haptics } from "../shared/haptics";
 import { scheduleRestOver, cancelRestOver } from "../shared/notifications";
-
-function mmss(total: number): string {
-  const m = Math.floor(total / 60);
-  const s = total % 60;
-  return `${m}:${String(s).padStart(2, "0")}`;
-}
+import { clockLabel as mmss } from "../shared/duration";
 
 /** Whole seconds left before `endsAt`, never negative. Ceil, so a fresh
  *  2:00 rest reads 2:00 for its first second and 0:00 only once the
@@ -110,7 +105,7 @@ export default function RestTimer({ endsAt, fillerName, onLogFiller, onDismiss, 
       {/* H-18: capsules, as the harness draws them: +30s, Skip Rest and the
           filler while the rest runs; Continue once it is over. */}
       <div className="rest-acts">
-        {!over && onExtend && <button className="pill-act" onClick={onExtend}>+30s</button>}
+        {!over && onExtend && <button className="pill-act" onClick={onExtend}>+30 Sec</button>}
         <button className={"pill-act" + (over ? "" : " pill-quiet")} onClick={onDismiss}>{over ? "Continue" : "Skip Rest"}</button>
         {fillerName && !over && (
           <button className="pill-act pill-quiet rest-filler-btn" onClick={onLogFiller}>Or Do {fillerName}</button>

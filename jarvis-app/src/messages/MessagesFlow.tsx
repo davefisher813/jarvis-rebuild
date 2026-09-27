@@ -169,7 +169,8 @@ import { useOptionalAIContext } from "../ai/useAIContext";
 import { voiceToText } from "../ai/context";
 import { useOptionalTasks, useOptionalSchedule, useOptionalPeople, useOptionalProfile, useOptionalNotes, useOptionalProjects, useOptionalRoutine, useOptionalBrainDocs, useOptionalDecisions } from "../data/NotesProvider";
 import { b64urlDecodeBytes } from "../connections/google/map";
-import { capAfterNumber } from "../shared/casing";
+import { lineCase } from "../shared/casing";
+import { clockLabel, minutesLabel, secondsLabel } from "../shared/duration";
 
 type Draft = { to: string; cc?: string; subject: string; body: string; html?: string; inReplyTo?: string; threadId?: string; fromDeck?: boolean; account?: string; handoffTo?: string; attachment?: EmailAttachment; modelBody?: string };
 // EMAIL-F-13 (2026-09-05): a draft belongs to the account that listed it.
@@ -228,9 +229,12 @@ function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
 
 const BUCKET_LABEL: Record<Bucket, string> = { needs_you: "Needs You", worth_knowing: "Worth Knowing", noise: "Noise" };
 
+// How long the deck took, in the rule's own shapes (casing sweep 3,
+// 2026-09-27): a count of seconds under a minute ("45 Sec"), and from a
+// minute up the same m:ss clock he just watched count down ("2:30").
 function fmtDuration(ms: number): string {
   const s = Math.max(1, Math.round(ms / 1000));
-  return s < 60 ? s + "s" : Math.floor(s / 60) + "m " + (s % 60) + "s";
+  return s < 60 ? secondsLabel(s) : clockLabel(s);
 }
 
 // "northlake.org" for work-style domains, "gmail" for the big ones: the shortest
@@ -1053,7 +1057,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     for (const w of ok) letGo(w.threadId);
     if (ok.length) mirrorMail();
     countCleared(ok.length);
-    say(capAfterNumber(settleLine(ok.length, failed.length, ARCHIVE_WORDS)), {
+    say(lineCase(settleLine(ok.length, failed.length, ARCHIVE_WORDS)), {
       label: "Undo",
       run: () => void (async () => {
         setWaiting((ws) => [...rows, ...ws]);
@@ -1187,7 +1191,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
         setDesk(setAtDesk(row.threadId));
         mirrorMail();
         setWaiting((ws) => ws.filter((x) => x.threadId !== row.threadId));
-        say("Waiting for a desk", { label: "Undo", run: () => {
+        say("Waiting for a Desk", { label: "Undo", run: () => {
           setDesk(clearAtDesk(row.threadId));
           mirrorMail();
           void loadWaiting();
@@ -1228,8 +1232,8 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
         const amount = amountIn(row.subject ?? "");
         // Silent returns, both of them (2026-08-25). A label that promises
         // "Files it under Money" may not answer a tap with nothing.
-        if (!tasks) { say("Tasks aren't available right now"); return; }
-        if (amount == null) { say("No amount in that one · Nothing to file"); return; }
+        if (!tasks) { say("Tasks Aren't Available Right Now"); return; }
+        if (amount == null) { say("No Amount in That One · Nothing to File"); return; }
         const id = await tasks.createTask(laterTaskTitle(displayName(row.to), row.subject ?? ""), {
           bill: { amount },
           source: madeBy("email", row.threadId),
@@ -1238,11 +1242,11 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
         });
         // toFixed, not toLocaleString: the latter drops the trailing cent, so
         // $1,234.50 was printing as $1,234.5 on every money receipt.
-        say(id ? "Added to Money · $" + amount.toFixed(2) : "Couldn't file it · Nothing was saved");
+        say(id ? "Added to Money · $" + amount.toFixed(2) : "Couldn't File It · Nothing Was Saved");
         return;
       }
       case "add_task": {
-        if (!tasks) { say("Tasks aren't available right now"); return; }
+        if (!tasks) { say("Tasks Aren't Available Right Now"); return; }
         // E-30: one task per thread. An open one is offered, not doubled.
         const dup = await findTaskForThread(tasks, row.threadId);
         if (dup) { sayAlreadyTask(dup); return; }
@@ -1252,7 +1256,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
           source: madeBy("email", row.threadId),
           ...(personIdFor(row.toEmail) ? { personId: personIdFor(row.toEmail)! } : {}),
         });
-        say(id ? "Added to your tasks" : "Couldn't add it · Nothing was saved");
+        say(id ? "Added to your tasks" : "Couldn't Add It · Nothing Was Saved");
         return;
       }
       case "block_time": {
@@ -1275,7 +1279,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
           { date: tmr, events: eventsForDate(all, tmr), busy: await busyFor(tmr) },
           now.getHours() * 60 + now.getMinutes(),
         );
-        if (!slot) { say("No open slot in the next two days"); return; }
+        if (!slot) { say("No Open Slot in the Next Two Days"); return; }
         const id = await scheduleSvc.createEvent(laterTaskTitle(displayName(row.to), row.subject ?? ""), {
           date: slot.date,
           start: slot.start,
@@ -1296,7 +1300,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
         await startNudge(row, a);
     }
     } catch {
-      say("Couldn't save · Nothing was lost");
+      say("Couldn't Save · Nothing Was Lost");
     }
   };
 
@@ -1563,7 +1567,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
         emit({ type: "action", props: { name: "email.net.caught", n: made } });
       }
       const lost = due.length - made;
-      if (lost > 0) say(capAfterNumber(lost + (lost === 1 ? " email couldn't become a task" : " emails couldn't become tasks") + " · Still in your inbox"));
+      if (lost > 0) say(lineCase(lost + (lost === 1 ? " email couldn't become a task" : " emails couldn't become tasks") + " · Still in your inbox"));
     })();
   }, [tasks, triaged, rows, triage, rules]);
 
@@ -2040,7 +2044,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   // it is not a licence to write to his calendar, and the whole point he
   // made is that the app should take action when he wants it to.
   const addMeetingToCalendar = async (threadId: string, m: ConfirmedMeeting) => {
-    if (!scheduleSvc) { say("A calendar isn't connected"); return; }
+    if (!scheduleSvc) { say("A Calendar Isn't Connected"); return; }
     // The id has to come back for the Undo, and attemptWrite answers with a
     // boolean, so the id rides out through the closure the way TodayFlow's
     // own creates already do.
@@ -2051,10 +2055,10 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
         source: madeBy("email", threadId),
       });
     });
-    if (!ok || !id) { say("Couldn't add it \u00b7 Nothing was saved"); return; }
+    if (!ok || !id) { say("Couldn't Add It \u00b7 Nothing Was Saved"); return; }
     const eventId: string = id;
     setCalState("added");
-    say("On your calendar \u00b7 " + whenLine(m, todayISO()), {
+    say("On Your Calendar \u00b7 " + whenLine(m, todayISO()), {
       label: "Undo",
       run: () => void (async () => {
         await scheduleSvc.deleteEvent(eventId).catch(() => {});
@@ -2274,7 +2278,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
       sent = !!window.open(u.target, "_blank", "noopener,noreferrer");
     }
     if (!sent) {
-      say(u.kind === "mailto" ? "Couldn't send it · Nothing was asked" : "Your browser blocked that tab · Nothing was asked");
+      say(u.kind === "mailto" ? "Couldn't Send It · Nothing Was Asked" : "Your Browser Blocked That Tab · Nothing Was Asked");
       return;
     }
     emit({ type: "action", props: { name: "email.unsubscribe", kind: u.kind } });
@@ -2403,7 +2407,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   // E-30: the one receipt every guarded path prints. Open Task rides the
   // toast's action slot when the shell gave us somewhere to go.
   const sayAlreadyTask = (dup: TaskItem) => {
-    say("Already a task \u00b7 " + taskTitleOf(dup), onOpenTask ? { label: "Open Task", run: () => onOpenTask(dup.id) } : undefined);
+    say("Already a Task \u00b7 " + taskTitleOf(dup), onOpenTask ? { label: "Open Task", run: () => onOpenTask(dup.id) } : undefined);
   };
 
   // E-28: Later from a Needs You row. The sheet asks when; the task is made
@@ -2413,7 +2417,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   const [laterFor, setLaterFor] = useState<ThreadRow | null>(null);
   const laterRow = async (r: ThreadRow, pick: LaterPick) => {
     setLaterFor(null);
-    if (!tasks) { say("Tasks aren't available right now"); return; }
+    if (!tasks) { say("Tasks Aren't Available Right Now"); return; }
     try {
       const dup = await findTaskForThread(tasks, r.id);
       if (dup) { sayAlreadyTask(dup); return; }
@@ -2423,19 +2427,19 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
         source: madeBy("email", r.id),
         ...(personIdFor(r.fromEmail) ? { personId: personIdFor(r.fromEmail)! } : {}),
       });
-      if (!id) { say("Couldn't save it \u00b7 Nothing lost"); return; }
+      if (!id) { say("Couldn't Save It \u00b7 Nothing Lost"); return; }
       if (pick.when === "tonight") {
         const today = todayISO();
         snoozeNotice("reply:" + r.id, TONIGHT_HHMM, today);
         snoozeNotice("deadline:" + r.id, TONIGHT_HHMM, today);
-        say("Saved for tonight \u00b7 Back on Today at 6 PM");
+        say("Saved for Tonight \u00b7 Back on Today at 6 PM");
       } else if (pick.when === "tomorrow") {
-        say("Saved for tomorrow");
+        say("Saved for Tomorrow");
       } else {
         say("Saved for " + dayPhrase(pick.due, todayISO()));
       }
     } catch (e) {
-      say(humanError(e, "Couldn't save it \u00b7 Nothing lost"));
+      say(humanError(e, "Couldn't Save It \u00b7 Nothing Lost"));
     }
   };
 
@@ -2451,7 +2455,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     if (failed.length) setRows((rs) => [...failed, ...rs.filter((x) => !failed.some((f) => f.id === x.id))].sort((a, b) => b.dateMs - a.dateMs));
     // EMAIL-F-18: a purge that emptied the page pulls the next one in.
     refillIfEmptied(rows.filter((r) => !ids.has(r.id)).length + failed.length);
-    say(capAfterNumber(settleLine(ok.length, failed.length, DELETE_WORDS)), ok.length ? {
+    say(lineCase(settleLine(ok.length, failed.length, DELETE_WORDS)), ok.length ? {
       label: "Undo",
       run: () => void (async () => {
         setRows((rs) => [...ok, ...rs.filter((x) => !ids.has(x.id))].sort((a, b) => b.dateMs - a.dateMs));
@@ -2483,7 +2487,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     // EMAIL-F-18: a batch archive that emptied the page pulls the next one in.
     refillIfEmptied(rows.filter((r) => !ids.has(r.id)).length + failed.length);
     countCleared(chosen.length - failed.length);
-    say(capAfterNumber(settleLine(chosen.length - failed.length, failed.length, ARCHIVE_WORDS)), {
+    say(lineCase(settleLine(chosen.length - failed.length, failed.length, ARCHIVE_WORDS)), {
       label: "Undo",
       // AN UNDO THAT DOES NOT UNDO IS THE WORST ONE (2026-08-25): the rows
       // come back in the list, the mail stays archived in Gmail, and the next
@@ -2512,13 +2516,13 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     apiFor(r.account)?.modifyThread(r.id, [], ["INBOX"]).catch(() => {
       setRows((rs) => [r, ...rs.filter((x) => x.id !== r.id)].sort((a, b) => b.dateMs - a.dateMs));
       if (wasWaiting) undoLetGoFor(r.id);
-      say("Couldn't archive · Still in inbox");
+      say("Couldn't Archive · Still in Inbox");
     });
     say("Archived", { label: "Undo", run: () => void (async () => {
       setRows((rs) => [r, ...rs.filter((x) => x.id !== r.id)].sort((a, b) => b.dateMs - a.dateMs));
       if (wasWaiting) undoLetGoFor(r.id);
       const { failed } = await settleAll([r], (x) => apiFor(x.account)?.modifyThread(x.id, ["INBOX"], []));
-      if (failed.length) say("Couldn't put it back · Still archived in Gmail");
+      if (failed.length) say("Couldn't Put It Back · Still Archived in Gmail");
     })() });
   };
 
@@ -2539,17 +2543,17 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     const { ok } = await settleAll([id], () => api.trashThread(id));
     if (!ok.length) {
       if (gone) setRows((rs) => [gone, ...rs.filter((x) => x.id !== id)].sort((a, b) => b.dateMs - a.dateMs));
-      say("Couldn't delete it · Still in your inbox");
+      say("Couldn't Delete It · Still in Your Inbox");
       return;
     }
     // EMAIL-F-07: a trashed thread is dealt with, so Waiting On stops
     // counting it. Only after the write landed, since trash is awaited.
     const wasWaiting = letGoIfWaiting(id);
-    say("Deleted · In trash 30 days", { label: "Undo", run: () => void (async () => {
+    say("Deleted · In Trash 30 Days", { label: "Undo", run: () => void (async () => {
       if (gone) setRows((rs) => [gone, ...rs.filter((x) => x.id !== id)].sort((a, b) => b.dateMs - a.dateMs));
       if (wasWaiting) undoLetGoFor(id);
       const { failed } = await settleAll([id], () => api.untrashThread(id));
-      if (failed.length) say("Couldn't put it back · Still in trash");
+      if (failed.length) say("Couldn't Put It Back · Still in Trash");
     })() });
   };
 
@@ -2570,7 +2574,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     // E12: an auto-clear the user did not ask for is not something the user
     // cleared, so only the manual sweep counts toward today's number.
     if (manual && ok.length) countCleared(ok.length);
-    const what = capAfterNumber(settleLine(ok.length, failed.length, ARCHIVE_WORDS));
+    const what = lineCase(settleLine(ok.length, failed.length, ARCHIVE_WORDS));
     // Undo (2026-08-09): this was the one archive without it, and it is the
     // one that takes the most at once, including when the opt-in auto-clear
     // runs it unattended.
@@ -2879,12 +2883,12 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
           <div className="sweep-finish-done">{deadStats.n > 0 ? "Done." : "Nothing needed you."}</div>
           <div className="sweep-finish-sub">
             {deadStats.n > 0
-              ? capAfterNumber(deadStats.n + " handled in " + fmtDuration(deadStats.ms))
+              ? lineCase(deadStats.n + " handled in " + fmtDuration(deadStats.ms))
               : "The deck is holding the rest for next time"}
           </div>
           {lines.length > 0 && (
             <div className="sweep-receipts">
-              {lines.map((l) => <div className="sweep-receipt" key={l}>→ {capAfterNumber(l)}</div>)}
+              {lines.map((l) => <div className="sweep-receipt" key={l}>→ {lineCase(l)}</div>)}
             </div>
           )}
           {(stillNeed > 0 || deadStats.n > 0) && (
@@ -2892,7 +2896,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
             // "Nothing else needs you" is green.
             <Facts className="sweep-finish-facts" facts={[
               stillNeed > 0
-                ? { text: capAfterNumber(stillNeed === 1 ? "1 still needs you" : stillNeed + " still need you"), tone: "warn" }
+                ? { text: lineCase(stillNeed === 1 ? "1 still needs you" : stillNeed + " still need you"), tone: "warn" }
                 : { text: "Nothing else needs you", tone: "good" },
             ]} />
           )}
@@ -2901,7 +2905,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
               {sv.last7.map((hit, i) => <span className={"sweep-sq" + (hit ? " on" : "")} key={i} />)}
             </div>
             <div className="sweep-streak-line">
-              {capAfterNumber("Cleared " + sv.cleared + " of the last 7")}
+              {lineCase("Cleared " + sv.cleared + " of the last 7")}
             </div>
           </div>
         </div>
@@ -2933,14 +2937,14 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     const openRow = (r: LedgerRow) => {
       // UP-MIND-19: from the ledger, the state card IS the landing view.
       if (r.threadId) { void openThread(r.threadId, undefined, { fromLedger: true }); return; }
-      if (r.taskId) say("That one lives in your tasks");
+      if (r.taskId) say("That One Lives in Your Tasks");
     };
     const act = (r: LedgerRow) => {
       // A promise becomes a task here, the same write the home page's
       // promise card performs, with the same receipt and the same failure
       // path: a toast that only claims a save once the write resolved.
       if (r.action === "Add Task") {
-        if (!tasks) { say("Tasks aren't available right now"); return; }
+        if (!tasks) { say("Tasks Aren't Available Right Now"); return; }
         void (async () => {
           // E-30: one task per thread.
           const dup = r.threadId ? await findTaskForThread(tasks, r.threadId) : null;
@@ -2950,7 +2954,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
             ...(r.personId ? { personId: r.personId } : {}),
             source: madeBy("email", r.threadId ?? ""),
           }).catch(() => null);
-          say(id ? "Added to your tasks" : "Couldn't add it · Nothing was saved");
+          say(id ? "Added to your tasks" : "Couldn't Add It · Nothing Was Saved");
           if (id) void openLedger();
         })();
         return;
@@ -3040,7 +3044,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                 the inbox once an account has actually answered short. */}
             <div className="empty-title">{atEnd ? "Nothing to Clean Out" : "Nothing More Loaded"}</div>
             <div className="empty-sub">
-              {atEnd ? "Your inbox is already down to what matters." : "What's loaded is cleaned out \u00b7 There may be more in your inbox"}
+              {atEnd ? "Your Inbox Is Already Down to What Matters." : "What's Loaded Is Cleaned Out \u00b7 There May Be More in Your Inbox"}
             </div>
             {!atEnd && <button className="quiet-action" disabled={loading} onClick={loadMore}>{loading ? "Loading..." : "Load More"}</button>}
           </div></div></div>
@@ -3193,7 +3197,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                           after the ask has stalled, which is amber. */}
                       <Facts facts={[
                         { text: unsubReceipt(r, todayISO()) },
-                        s2 ? { text: "Still sending", tone: "warn" } : null,
+                        s2 ? { text: "Still Sending", tone: "warn" } : null,
                       ]} />
                     </div>
                     {s2 && canBlock(s2) && (
@@ -3279,7 +3283,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
             <button className="btn btn-secondary btn-block" onClick={() => {
               try { localStorage.removeItem(AUTONOISE_KEY); } catch { /* ignore */ }
               setAutoNoise(false);
-              say("Auto-clear off · Noise stays");
+              say("Auto-Clear Off · Noise Stays");
             }}>Stop Clearing Noise Automatically</button>
           </div>
         )}
@@ -3420,14 +3424,14 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
       try {
         const note = await notesSvc.note(attachHint.candidate.id);
         if (!note) {
-          say("Couldn't find that note anymore", undefined, 4000);
+          say("Couldn't Find That Note Anymore", undefined, 4000);
         } else {
           const filename = attachmentFilename(note.title);
           setDraft((d) => ({ ...d, attachment: { filename, mimeType: "text/plain", content: noteAsText(note) } }));
           say("Attached · " + filename, undefined, 4000);
         }
       } catch {
-        say("Couldn't attach that file", undefined, 4000);
+        say("Couldn't Attach That File", undefined, 4000);
       } finally {
         setAttachingHint(false);
       }
@@ -3644,7 +3648,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                   // the chips under the messages are the only way to set one.
                   onOverride: (b) => {
                     setOverrides(b ? saveOverride(thread.id, b) : clearOverride(thread.id));
-                    say(b === "needs_you" ? "Needs you \u00b7 This thread only" : b === "worth_knowing" ? "Not for you \u00b7 This thread only" : "Back to what the sort said", undefined, 2500);
+                    say(b === "needs_you" ? "Needs You \u00b7 This Thread Only" : b === "worth_knowing" ? "Not for You \u00b7 This Thread Only" : "Back to what the sort said", undefined, 2500);
                   },
                 } : {})}
               />
@@ -3756,7 +3760,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                         <Facts facts={[
                           { text: "Task" },
                           t.data.done ? { text: "Done", tone: "good" }
-                            : t.data.due ? { text: capAfterNumber(dayPhrase(t.data.due, todayISO())), tone: dayTone(t.data.due, todayISO()) }
+                            : t.data.due ? { text: dayPhrase(t.data.due, todayISO()), tone: dayTone(t.data.due, todayISO()) }
                             : t.data.proposedDate ? { text: t.data.proposedDate + " (proposed)", tone: "date" } : null,
                         ]} />
                       </div>
@@ -3805,7 +3809,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
               setMuted(mute(thread.id));
               mirrorMail();
               setView("list");
-              say("Muted · Won't come back", { label: "Undo", run: () => { setMuted(unmute(thread.id)); mirrorMail(); } });
+              say("Muted · Won't Come Back", { label: "Undo", run: () => { setMuted(unmute(thread.id)); mirrorMail(); } });
             }}>Mute This Thread</button>
             {sweepCount(lastMsg(thread).fromEmail) > 1 && (
               <button className="quiet-action" onClick={() => void sweepSender(lastMsg(thread).fromEmail)}>
@@ -3924,7 +3928,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                   // normal" about someone who was never a VIP.
                   const { list, capped } = toggleVip(lastMsg(thread).fromEmail);
                   if (capped) {
-                    say(`VIP is full at ${VIP_MAX} · Remove one first`, undefined, 2500);
+                    say(`VIP Is Full at ${VIP_MAX} · Remove One First`, undefined, 2500);
                   } else {
                     setVips(list);
                     mirrorMail();
@@ -3961,7 +3965,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                     // Law 1: unreadable means unreadable. It opens the
                     // file rather than inventing an appointment, and the
                     // card STAYS so the offer is not silently spent.
-                    say("Couldn't read that invite · Opening the file", undefined, 3500);
+                    say("Couldn't Read That Invite · Opening the File", undefined, 3500);
                     if (offer.attachmentId) void openAttachment(m.id, offer.attachmentId, offer.filename ?? "invite.ics", "text/calendar");
                     return;
                   }
@@ -3973,8 +3977,8 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                       end: endOfAct(ev.start, ev.durationMin ?? 60),
                       source: madeBy("email", thread.id),
                     });
-                    if (!id) { say("Couldn't add it · Nothing was saved", undefined, 3000); return; }
-                    say("On your schedule · " + dayPhrase(ev.date, todayISO()) + " " + fmtTime(ev.start).time + " " + fmtTime(ev.start).ap + extra, undefined, 3500);
+                    if (!id) { say("Couldn't Add It · Nothing Was Saved", undefined, 3000); return; }
+                    say("On Your Schedule · " + dayPhrase(ev.date, todayISO()) + " " + fmtTime(ev.start).time + " " + fmtTime(ev.start).ap + extra, undefined, 3500);
                   } else if (tasks) {
                     // Law 2: an all-day invite has a date and no time.
                     // It stays a date rather than becoming a 9am nobody
@@ -3982,8 +3986,8 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                     const dup = await findTaskForThread(tasks, thread.id);
                     if (dup) { sayAlreadyTask(dup); return; }
                     const id = await tasks.createTask(ev.title, { due: ev.date, fromThread: thread.id, source: madeBy("email", thread.id) });
-                    if (!id) { say("Couldn't add it · Nothing was saved", undefined, 3000); return; }
-                    say("Added to your tasks · " + dayPhrase(ev.date, todayISO()) + extra, undefined, 3500);
+                    if (!id) { say("Couldn't Add It · Nothing Was Saved", undefined, 3000); return; }
+                    say("Added to Your Tasks · " + dayPhrase(ev.date, todayISO()) + extra, undefined, 3500);
                   } else {
                     return;
                   }
@@ -3993,7 +3997,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                 // A card offering a write with no service behind it is a
                 // button that does nothing, silently. The sheet's own file
                 // legislated against this shape; this card never got it.
-                if (!tasks) { say("Tasks aren't available right now", undefined, 3000); return; }
+                if (!tasks) { say("Tasks Aren't Available Right Now", undefined, 3000); return; }
                 // E-30: one task per thread.
                 const dup = await findTaskForThread(tasks, thread.id);
                 if (dup) { sayAlreadyTask(dup); return; }
@@ -4001,7 +4005,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                   ? await tasks.createTask(offer.title, { bill: { amount: offer.amount }, fromThread: thread.id, source: madeBy("email", thread.id) })
                   : await tasks.createTask(offer.title, { fromThread: thread.id, source: madeBy("email", thread.id) });
                 // createTask returns null for blank text without throwing.
-                if (!id) { say("Couldn't add it · Nothing was saved", undefined, 3000); return; }
+                if (!id) { say("Couldn't Add It · Nothing Was Saved", undefined, 3000); return; }
                 say(offer.kind === "bill" && offer.amount != null
                   ? "Added to Money · $" + offer.amount.toFixed(2)
                   : "Added to your tasks", undefined, 3000);
@@ -4010,7 +4014,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                 // Unwrapped before (2026-08-25): a throwing write produced
                 // an unhandled rejection, no toast, and a card that stayed
                 // put with no explanation.
-                say("Couldn't add it · Nothing was saved", undefined, 3000);
+                say("Couldn't Add It · Nothing Was Saved", undefined, 3000);
               } finally {
                 setAttachBusy(false);
               }
@@ -4286,7 +4290,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
           moment the count catches up. */}
       {sortProg && sortProg.done < sortProg.total && triageState === "ready" && (
         <div className="pad-x sort-strip">
-          <div className="conn-meta">{capAfterNumber(sortProg.done + " of " + sortProg.total + " sorted")}</div>
+          <div className="conn-meta">{lineCase(sortProg.done + " of " + sortProg.total + " sorted")}</div>
           <div className="sort-bar" role="presentation">
             <span className="sort-bar-fill" style={{ width: (sortProg.done / sortProg.total) * 100 + "%" }} />
           </div>
@@ -4366,7 +4370,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
         <div className="pad-x"><div className="card"><div className="empty-state">
           <div className="empty-icon"><Mail className="ic" /></div>
           <div className="empty-title">Couldn’t Reach Your Mail</div>
-          <div className="empty-sub">Nothing lost · Nothing here was changed</div>
+          <div className="empty-sub">Nothing Lost · Nothing Here Was Changed</div>
           <div className="conn-action">
             <button className="btn btn-secondary btn-block" onClick={() => void loadThreads(undefined, true)}>Try Again</button>
             {onOpenConnections && <button className="quiet-action" onClick={onOpenConnections}>Open Connections</button>}
@@ -4378,7 +4382,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
           <div className="pad-x"><div className="card"><div className="empty-state">
             <div className="empty-icon"><Mail className="ic" /></div>
             <div className="empty-title">Couldn’t Sort Your Mail</div>
-            <div className="empty-sub">Nothing lost · All still here</div>
+            <div className="empty-sub">Nothing Lost · All Still Here</div>
             {triageWhy && <div className="msg-guard">{triageWhy}</div>}
             <div className="conn-action">
               {/* 2026-09-02: a failed sort had no way to run again short of
@@ -4396,7 +4400,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                 feel long. The number is real: `total` is how many threads
                 actually need sorting and `done` counts batches attempted. */}
             <div className="empty-sub">
-              {sortProg ? capAfterNumber(sortProg.done + " of " + sortProg.total + " sorted") : "Sorting your mail"}
+              {sortProg ? lineCase(sortProg.done + " of " + sortProg.total + " sorted") : "Sorting your mail"}
             </div>
             {sortProg && sortProg.total > 0 && (
               <div className="sort-bar" role="presentation">
@@ -4734,7 +4738,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                   <div className="pad-x">
                     <div className="card pad wait-card">
                       <Facts facts={[
-                        { text: w.waitingDays === 1 ? "1 Day" : capAfterNumber(w.waitingDays + " days"), tone: waitTone },
+                        { text: w.waitingDays === 1 ? "1 Day" : lineCase(w.waitingDays + " days"), tone: waitTone },
                         { text: nameFor(names, w.toEmail, w.to) },
                       ]} />
                       <div className="wait-card-subj">{w.subject}</div>
@@ -4748,7 +4752,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                         <button className="btn-sm" onClick={advance}>Skip</button>
                       </div>
                       <div className="wait-card-count">
-                        {capAfterNumber((i + 1) + " of " + owed.length)}
+                        {lineCase((i + 1) + " of " + owed.length)}
                         <button className="quiet-action" onClick={() => setWaitDeck(null)}>Show the List</button>
                       </div>
                     </div>
@@ -4898,14 +4902,14 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                 ) : (
                   <div className="fold-tools">
                     <button className="btn-sm" onClick={() => void archivePicked([...worthKnowing, ...noise])} disabled={picked.size === 0}>
-                      {picked.size === 0 ? "Archive Selected" : capAfterNumber("Archive " + picked.size)}
+                      {picked.size === 0 ? "Archive Selected" : lineCase("Archive " + picked.size)}
                     </button>
                     {/* 11B: the other half of the job. Archive keeps it
                         in the account; delete is for the mail that should
                         not be in the account at all. Both count what
                         landed, both undo. */}
                     <button className="btn-sm btn-danger" onClick={() => void deletePicked([...worthKnowing, ...noise])} disabled={picked.size === 0}>
-                      {picked.size === 0 ? "Delete Selected" : capAfterNumber("Delete " + picked.size)}
+                      {picked.size === 0 ? "Delete Selected" : lineCase("Delete " + picked.size)}
                     </button>
                     <button className="quiet-action" onClick={() => setPicked(null)}>Done</button>
                   </div>
@@ -4941,7 +4945,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                     <div className="msg-machines" {...pressable(() => setNoiseOpen(!noiseOpen))} aria-expanded={noiseOpen}>
                       <span className="msg-machines-icon" aria-hidden="true"><Tag className="ic" /></span>
                       <span className="msg-machines-text">
-                        {capAfterNumber(noise.length === 1 ? "1 machine wrote" : noise.length + " machines wrote")}
+                        {lineCase(noise.length === 1 ? "1 machine wrote" : noise.length + " machines wrote")}
                       </span>
                       <button className="pill-act msg-machines-sweep" onClick={(e) => { e.stopPropagation(); void archiveAllNoise(noise); }}>
                         Sweep
@@ -5054,7 +5058,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
               uniform={false}
               title={"File " + tossName(toss.sender) + " as Noise?"}
               // §AM R5: "Never opened" only restated "unread".
-              sub={<Facts facts={[{ text: capAfterNumber(toss.n + " archived unread") }]} />}
+              sub={<Facts facts={[{ text: lineCase(toss.n + " archived unread") }]} />}
               action={{
                 label: "Yes, file them",
                 onClick: () => {
@@ -5062,7 +5066,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                   mirrorMail();
                   markAsked(toss.sender);
                   setToss(null);
-                  say("Straight to Noise from now on", undefined, 2500);
+                  say("Straight to Noise from Now On", undefined, 2500);
                 },
               }}
               alt={{ label: "No thanks", onClick: () => { markAsked(toss.sender); setToss(null); } }}
@@ -5153,7 +5157,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                     {/* E-29: counted over visibleRows and names its
                         accounts, so a disagreement with the Sweep is
                         legible. R6: one sentence, no typed dots. */}
-                    <div className="conn-meta">{capAfterNumber(
+                    <div className="conn-meta">{lineCase(
                       visibleRows.length + (visibleRows.length === 1 ? " thread" : " threads")
                       + " from " + piles + (piles === 1 ? " sender" : " senders")
                       + (g.accounts.length > 1 ? " in " + (acctFilter ? acctLabel(acctFilter) : "all accounts") : "")
@@ -5188,8 +5192,8 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                         needs him, so it is amber; what he is owed is the
                         line's one grey. */}
                     <Facts facts={[
-                      mine > 0 ? { text: capAfterNumber(mine + " you owe"), tone: "warn" } : null,
-                      owed.length > 0 ? { text: capAfterNumber(owed.length + " owed to you") } : null,
+                      mine > 0 ? { text: lineCase(mine + " you owe"), tone: "warn" } : null,
+                      owed.length > 0 ? { text: lineCase(owed.length + " owed to you") } : null,
                     ]} />
                   </div>
                   <div className="chev" />
@@ -5208,7 +5212,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                         (2026-09-26). */}
                     <Facts facts={[
                       { text: "Oldest " + oldest + (oldest === 1 ? " day" : " days"), tone: oldestTone },
-                      { text: capAfterNumber(owed.length + " waiting on answers") },
+                      { text: lineCase(owed.length + " waiting on answers") },
                     ]} />
                   </div>
                   <div className="chev" />
@@ -5260,7 +5264,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                     {/* One count, one grey (§AM R1, R6): the filed senders
                         lead, and the muted count shows here only when
                         nothing is filed. The screen lists both. */}
-                    <div className="conn-meta">{capAfterNumber(ruleCount > 0
+                    <div className="conn-meta">{lineCase(ruleCount > 0
                       ? ruleCount + (ruleCount === 1 ? " sender filed" : " senders filed")
                       : muted.length + (muted.length === 1 ? " thread muted" : " threads muted"))}</div>
                   </div>
@@ -5290,7 +5294,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
           <div className="msg-chips">
             {PRESETS.map((m) => (
               <button key={m} className={"chip" + (minutes === m ? " on" : "")}
-                onClick={() => { setMinutes(saveMinutes(m)); setMinutesText(String(m)); }}>{m} min</button>
+                onClick={() => { setMinutes(saveMinutes(m)); setMinutesText(String(m)); }}>{minutesLabel(m)}</button>
             ))}
             {/* EMAIL-F-26 (2026-09-05): "Drain minutes field snaps to 5
                 the moment it is cleared." Every keystroke used to be
@@ -5352,11 +5356,11 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
             setKeepDecision(null);
             void (async () => {
               const id = await decisionsSvc.create(draft).catch(() => null);
-              if (!id) { say("Couldn't save · Check your connection and try again"); return; }
+              if (!id) { say("Couldn't Save · Check Your Connection and Try Again"); return; }
               // UP-MIND-05's intake: a decision act, with where it came from
               // in the kind and nothing else. No free text on this path.
               emit({ type: "decision.recorded", entityType: "decision", entityId: id, props: { kind: "email" } });
-              say("Kept in your decisions");
+              say("Kept in Your Decisions");
               void k;
             })();
           }}

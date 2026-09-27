@@ -6,6 +6,7 @@ import { catColor } from "../shared/categories";
 import { showToast } from "../shared/toast";
 import { attemptWrite } from "../shared/guard";
 import { freshStartPlan, tomorrowOf } from "./upnext";
+import { lineCase } from "../shared/casing";
 
 // Fresh Start (ADHD strategy Phase 1): the 2pm recovery moment. Keeps the top
 // of the deck, moves the rest of today's open load to tomorrow, and never uses
@@ -79,15 +80,15 @@ export default function FreshStartFlow({ onClose, onDone }: { onClose: () => voi
         <div className="nav-large">Fresh Start</div>
         <button className="nav-action-text" data-layer-close onClick={onClose}>Cancel</button>
       </div>
-      <div className="sub-bar"><div className="eyebrow">A day you can still win</div></div>
+      <div className="sub-bar"><div className="eyebrow">A Day You Can Still Win</div></div>
       {loaded && (
         <>
           <div className="pad-x"><div className="card list-card-ruled">
-            {keep.map((t, i) => row(t, i === 0 ? "First, when you're ready" : "Still today"))}
+            {keep.map((t, i) => row(t, i === 0 ? "First, When You're Ready" : "Still Today"))}
             {move.length > 0 && (
               <div className="row">
                 <div className="row-grow">
-                  <div className="conn-name fresh-faded">{move.length} moved to tomorrow</div>
+                  <div className="conn-name fresh-faded">{lineCase(`${move.length} moved to tomorrow`)}</div>
                 </div>
               </div>
             )}

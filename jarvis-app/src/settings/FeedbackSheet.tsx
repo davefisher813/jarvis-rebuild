@@ -45,7 +45,7 @@ export default function FeedbackSheet({ token, build, template, onClose }: {
     );
     if (r === "sent") {
       // The toast fires after the write resolved, never before.
-      showToast({ message: "Feedback sent · Thank you" });
+      showToast({ message: "Feedback Sent · Thank You" });
       onClose();
       return;
     }

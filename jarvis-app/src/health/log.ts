@@ -5,7 +5,8 @@ import type { MetricDef, MetricLog } from "../gym/metrics";
 import { hueForMetric, type HueKind } from "./hue";
 import { workoutMinutes } from "../gym/summary";
 import { durationOf } from "../insights/analytics";
-import { capAfterNumber } from "../shared/casing";
+import { lineCase } from "../shared/casing";
+import { spanLabel } from "../shared/duration";
 
 // TODAY'S LOG, IN ORDER (Health Push C, H-48, Dave's picks 2026-09-12). One
 // list of what he actually wrote down today, across the loggers, the gym and
@@ -78,7 +79,7 @@ export function chronologicalLog(inp: LogInputs): LogRow[] {
     // the threshold; a session left open records the whole wall clock, and
     // this row is the one place in Health the number appears at all.
     const d = durationOf(w.data);
-    rows.push({ id: "w-" + w.id, kind: "sets", title: w.data.dayName, at: w.data.endedAt, detail: capAfterNumber(`${workoutMinutes(w.data)} min`) + (d.flagged ? " · Worth Reviewing" : ""), open: { kind: "workout", id: w.id } });
+    rows.push({ id: "w-" + w.id, kind: "sets", title: w.data.dayName, at: w.data.endedAt, detail: spanLabel(workoutMinutes(w.data)) + (d.flagged ? " · Worth Reviewing" : ""), open: { kind: "workout", id: w.id } });
   }
   const defById = new Map(inp.metricDefs.map((d) => [d.id, d] as const));
   for (const l of inp.metricLogs) {
@@ -90,7 +91,7 @@ export function chronologicalLog(inp: LogInputs): LogRow[] {
       ? (l.data.yes == null ? null : l.data.yes ? "Yes" : "No")
       : l.data.value == null ? null
       : d.type === "scale5" ? `${trim(l.data.value)}/5`
-      : d.type === "minutes" ? capAfterNumber(`${trim(l.data.value)} min`)
+      : d.type === "minutes" ? (Number.isInteger(l.data.value) ? spanLabel(l.data.value) : `${trim(l.data.value)} Min`)
       : `${trim(l.data.value)}${d.unit ? " " + d.unit : ""}`;
     rows.push({ id: "m-" + l.id, kind: "reading", hue: hueForMetric(def), title: d.name, at: l.data.at, detail, open: { kind: "metric", defId: def.id } });
   }

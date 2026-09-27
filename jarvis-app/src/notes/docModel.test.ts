@@ -3,7 +3,7 @@
 // every save, so nothing that reads blocks (search, the checklist-to-task
 // flows, older builds) notices the editor changed underneath it.
 import { describe, it, expect } from "vitest";
-import { blocksToDoc, docToBlocks, displayTitle, firstLineOf, docWordCount, setTaskDone, linkedTasksIn, isDocEmpty, emptyDoc, applyChecklistLinks } from "./docModel";
+import { blocksToDoc, docToBlocks, displayTitle, listTitle, firstLineOf, docWordCount, setTaskDone, linkedTasksIn, isDocEmpty, emptyDoc, applyChecklistLinks } from "./docModel";
 import type { Block } from "./types";
 
 const BLOCKS: Block[] = [
@@ -112,5 +112,26 @@ describe("the app's own edits to the document", () => {
     const linked = applyChecklistLinks(doc, blocks);
     expect(linkedTasksIn(linked).map((l) => l.taskId)).toEqual(["t-milk", "t-eggs"]);
     expect(applyChecklistLinks(linked, blocks)).toBe(linked);
+  });
+});
+
+// THE TITLE THE LIST SHOWS (§AK "a date on the title"; the pass-off,
+// 2026-09-26). A note the calendar made before 2026-09-21 carries " · Sep 17"
+// in its stored title; the list drops it, the store keeps it, and a date he
+// typed on a hand-made note is his.
+describe("listTitle", () => {
+  const evented = { title: "Set up everything on jarvis · Sep 17", blocks: [] as Block[] };
+  it("drops a trailing date from a note born from an event, by source or by connection", () => {
+    expect(listTitle({ ...evented, source: { type: "event" } })).toBe("Set up everything on jarvis");
+    expect(listTitle({ ...evented, connections: [{ kind: "event" }] })).toBe("Set up everything on jarvis");
+    expect(displayTitle(evented), "the stored title is untouched").toBe("Set up everything on jarvis · Sep 17");
+  });
+  it("leaves a hand-made note's own date alone, and a date that is not at the end", () => {
+    expect(listTitle(evented)).toBe("Set up everything on jarvis · Sep 17");
+    expect(listTitle({ title: "Sep 17 · Standup", blocks: [], source: { type: "event" } })).toBe("Sep 17 · Standup");
+    expect(listTitle({ title: "Standup · Sep 17 notes", blocks: [], source: { type: "event" } })).toBe("Standup · Sep 17 notes");
+  });
+  it("names an untitled event note by its first line, like displayTitle", () => {
+    expect(listTitle({ title: "", blocks: [{ id: "t", type: "text", text: "Agenda" }], source: { type: "event" } })).toBe("Agenda");
   });
 });

@@ -2,7 +2,7 @@ import type { TaskItem } from "../tasks/TasksService";
 import type { Project } from "../projects/types";
 import type { Goal } from "../life/types";
 import type { Progress } from "./progress";
-import { capAfterNumber } from "../shared/casing";
+import { lineCase } from "../shared/casing";
 
 // ---------------------------------------------------------------------------
 // ARCHITECTURE C (Dave's pick, 2026-08-22): a goal reaches its work TWO ways.
@@ -61,6 +61,12 @@ export function liveGoals(goals: Goal[]): Goal[] {
  */
 export function fileableGoals(goals: Goal[], currentId?: string): Goal[] {
   return goals.filter((g) => (g.data.state !== "achieved" && !g.data.dropped) || g.id === currentId);
+}
+
+/** The goal picker's options for a task or event sheet (2026-09-26): the
+ *  fileable goals, as the id-and-title pair the sheets take. */
+export function sheetGoals(goals: Goal[], currentId?: string): { id: string; title: string }[] {
+  return fileableGoals(goals, currentId).map((g) => ({ id: g.id, title: g.data.title }));
 }
 
 export interface GoalReach {
@@ -134,14 +140,16 @@ export function reachLine(r: GoalReach, done = false): string {
   // Silence, not the word: with no filed record this said "Done" under a
   // hero whose status already says it (§AK, 2026-09-26), which is the "says
   // done twice" shape Dave objected to on the Goals lens.
+  // Title Case on the line, "0 of 1 Projects Done" (Dave's pass-off,
+  // 2026-09-26: every word the app writes, the last one included).
   if (done) {
     const p0 = r.progress;
-    return p0 ? capAfterNumber(`${p0.done} of ${p0.total} done`) : "";
+    return p0 ? lineCase(`${p0.done} of ${p0.total} done`) : "";
   }
   const p = r.progress;
   // Filed work only (2026-09-13): no "tagged open" tail, no open count borrowed
   // from an area.
-  if (p) return capAfterNumber(`${p.done} of ${p.total} done`);
+  if (p) return lineCase(`${p.done} of ${p.total} done`);
   // PLAIN WORDS (Dave 2026-09-03, pic 4: "'open in your tags' maybe just
   // open or something"). "In your tags" is this file's own vocabulary
   // leaking onto a goal row: the reader does not think in tags, and the
@@ -208,6 +216,15 @@ export function goalIdsForTask(idx: GoalIndex, task: TaskItem): string[] {
   const out: string[] = [];
   const pid = task.data.projectId;
   if (pid) for (const g of idx.byProject.get(pid) ?? []) if (!out.includes(g)) out.push(g);
+  // THE PICKED GOAL (Dave's pass-off, 2026-09-26: "with no project it lists
+  // live goals and saves the pick; with a project it shows the project's
+  // goal"). A task never claims two goals: with a project filed to a goal,
+  // the project decides and the pick is not read; a task with no project
+  // (or a project climbing to nothing) moves the goal it was filed to on
+  // its sheet. A pick on a goal that is no longer live (not in the index)
+  // moves nothing, like a stale project.
+  const gid = task.data.goalId;
+  if (out.length === 0 && gid && idx.titleOf.has(gid)) out.push(gid);
   return out;
 }
 

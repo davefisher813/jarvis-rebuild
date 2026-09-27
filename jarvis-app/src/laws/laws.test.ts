@@ -17,6 +17,7 @@ import { stepsOf, hasUnfinishedSteps } from "../shared/StepCount";
 import type { TaskData } from "../notes/types";
 import type { WindowRow } from "../brain/window";
 import { TAP_RED, ANY_RED } from "./reds";
+import { isSentenceSurface } from "./sentenceCase";
 
 // THE LAWS, AS TESTS.
 //
@@ -53,6 +54,18 @@ const CSS = ALL.filter((f) => f.endsWith(".css")).map((f) => readFileSync(f, "ut
 
 const read = (f: string) => readFileSync(f, "utf8");
 const rel = (f: string) => f.slice(SRC.length + 1);
+
+// THE CASING SWEEP'S REACH (AMENDED 2026-09-26, Batch 1 casing). The whole
+// rule (§H2: every line the app writes is Title Case, units spelled "Min",
+// estimates "About") was swept across the app in three passes, because
+// other builders were still in some paths when each pass ran. The clauses
+// that enforce it were scoped to what the passes so far had swept; the
+// last pass emptied SECOND_PASS and the clauses reach everything. Do not
+// add to this list: a path here is a path the rule does not hold on.
+// EMPTIED 2026-09-27 (casing sweep 3, the last pass): the clauses reach
+// every path now, and nothing may be added back.
+const SECOND_PASS: string[] = [];
+const swept = (r: string) => !SECOND_PASS.some((p) => r.startsWith(p)) && !isSentenceSurface(r);
 // ruled.css alone: the skin every card wears, and the only place a row is
 // made transparent, so it is the only place a swipe reveal has to be hidden.
 const RULED = readFileSync(join(SRC, "styles/ruled.css"), "utf8");
@@ -274,7 +287,11 @@ describe("LAW: Apple HIG casing", () => {
       // confession.
       "Make this smaller", "Something\u2019s in the way",
     ]);
-    const BRAND = /^(iCloud|iPhone|iPad|iOS|iMessage|macOS|kg|lb|min|hr)$/;
+    const BRAND = /^(iCloud|iPhone|iPad|iOS|iMessage|macOS)$/;
+    // AMENDED 2026-09-26 (Batch 1 casing): a unit is a word, and takes the
+    // capital every other word takes ("45 Min", "20 Lb"; §T.3 superseded).
+    // Its lowercase allowance on the unswept paths went with the last pass
+    // (casing sweep 3, 2026-09-27): nowhere is "45 min" a title now.
     // THE LAW ONLY EVER LOOKED ONE WAY (Dave 2026-09-03, pics 2 and 4:
     // "more title case issues"). Every check above asks whether a word is
     // capitalised ENOUGH, so a small word capitalised mid-title -- "Point
@@ -1307,7 +1324,11 @@ describe("LAW: one filled red per screen", () => {
       const src = strip(read(f)).replace(/aria-label=\{?`[^`]*`\}?/g, " ");
       // A file that routes its lines through the rule is trusted: its
       // literals are inputs to capAfterNumber, not final copy.
-      if (src.includes("capAfterNumber")) continue;
+      // AMENDED 2026-09-26 (pass-off): lineCase is the whole rule now (H2,
+      // Dave: "After dots and numbers is always title casing"), and a file
+      // that routes its lines through it is trusted the same way; the
+      // catalog names it the one formatter beside capAfterNumber.
+      if (src.includes("capAfterNumber") || src.includes("lineCase")) continue;
       for (const m of src.matchAll(/"(\d[\d.,]*\s+[a-z][A-Za-z]*(?:\s|·|"))/g)) {
         bad.push(r + " [literal]: " + m[1]!.trim());
       }
@@ -1316,6 +1337,105 @@ describe("LAW: one filled red per screen", () => {
       }
     }
     expect(bad).toEqual([]);
+  });
+
+  // AMENDED 2026-09-26 (Batch 1 casing): THE WHOLE RULE (§H2; Dave, the
+  // pass-off: "After dots and numbers is always title casing", "Make sure
+  // all cases are addressed (ex: 45 min v 45 Min)"). Every line the app
+  // writes is Title Case: a grey sub line, a facts line, a receipt, a toast,
+  // an eyebrow, a kicker; a unit is a word and takes a capital ("45 Min",
+  // "20 Lb", §T.3 superseded); an estimate is spelled "About", never "~".
+  // capAfterNumber only ever capitalized the one word behind a leading
+  // number, which is how "saves ~8 min · never your main lift" reached the
+  // Fit sheet. Three clauses, each scoped by `swept` (SECOND_PASS above,
+  // empty since the last pass, casing sweep 3, 2026-09-27: every path is
+  // swept) and skipping the sentence-case surfaces named in
+  // laws/sentenceCase.ts. Comments and aria-labels are stripped before
+  // every scan: casing is inaudible, and a comment is not copy.
+  const stripForCasing = (src: string) =>
+    src.replace(/\/\*[\s\S]*?\*\//g, " ").split("\n").filter((l) => !/^\s*(\/\/|\*)/.test(l)).join("\n")
+      .replace(/aria-(?:label|describedby)=\{?[`"'][^`"']*[`"']\}?/g, " ");
+  // The string and template literals of a file: the rule is about what the
+  // app WRITES, and a regex or an identifier is not that.
+  // A literal handed straight to the casing formatter is its input, not the
+  // copy, so `routed` is true for it and a scan may pass it.
+  const literalsOf = (src: string): { lit: string; routed: boolean }[] =>
+    Array.from(src.matchAll(/"((?:[^"\\\n]|\\.)*)"|'((?:[^'\\\n]|\\.)*)'|`((?:[^`\\]|\\.)*)`/g), (m) => ({
+      lit: m[1] ?? m[2] ?? m[3] ?? "",
+      routed: /(lineCase|titleCase|capAfterNumber)\(\s*$/.test(src.slice(0, m.index)),
+    }));
+  // A word with its own capital past its first letter (iPhone, eBay) is
+  // spelled the way its owner spells it, and is never a casing error.
+  const ownSpelling = (w: string) => /^[a-z][a-z]*[A-Z]/.test(w);
+
+  // (a) A sub line, a fact, a receipt or a toast opens with a capital. A
+  // literal drawn straight into one of these classes, or assigned to one
+  // of these keys, is final copy; one handed to lineCase is an input and
+  // passes, since the formatter cases it.
+  it("a sub line, a fact, a receipt or a toast never opens lowercase, anywhere (AMENDED 2026-09-27, casing sweep 3)", () => {
+    const SUB_CLASSES = "fact|facts|conn-meta|r-goal|eyebrow|kicker|receipt|catchup-t|empty-sub|notice-sub|bp-sub|plan-sub|doc-count|h-door-n|h-sync|sched-fact|rem-card-sub|cf-last|cf-corner|cf-slide-t|se-chip|ins-sub|payoff-line|row-status|row-value";
+    const SUB_KEYS = "sub|detail|message|tail|stale|line|context|receipt|text|label|note|eyebrow|kicker|why";
+    // Plain text after the tag, or a quoted literal inside braces; a bare
+    // expression in braces ({when && ...}) is not copy and is not read.
+    const jsx = new RegExp('className=\\{?["\'`](?:[a-z0-9-]+ )*(?:' + SUB_CLASSES + ')(?:[ -][a-z0-9-]+)*["\'`]\\}?[^>]*?>\\s*(?:\\{\\s*[`"\']|(?!\\{))([a-z][a-z\'\\u2019]*(?: [^<>{}()=;`"\'\\n]{2,}))', "g");
+    const key = new RegExp('\\b(?:' + SUB_KEYS + ')\\s*:\\s*[`"\']([a-z][a-z\'\\u2019]*(?: [^`"\'\\n]{2,}))', "g");
+    const bad: string[] = [];
+    for (const f of SOURCES) {
+      const r = rel(f);
+      if (!swept(r)) continue;
+      const src = stripForCasing(read(f));
+      for (const m of src.matchAll(jsx)) {
+        const t = m[1]!.trim();
+        if (!ownSpelling(t.split(/\s+/)[0]!)) bad.push(r + " [drawn]: " + t.slice(0, 60));
+      }
+      for (const m of src.matchAll(key)) {
+        const t = m[1]!.trim();
+        if (!ownSpelling(t.split(/\s+/)[0]!)) bad.push(r + " [key]: " + t.slice(0, 60));
+      }
+    }
+    expect(bad, "route the line through lineCase, or write it Title Case").toEqual([]);
+  });
+
+  // (b) A unit after a number is a word: "45 Min", "+30 Sec", "20 Lb",
+  // "8 Reps", "3 Sets", never "45 min" or "45m". Anything with hours is the
+  // compact clock ("1h 30m", never "1 hr 30 min"). shared/duration.ts owns
+  // every shape, so a builder that glues a unit onto a number by hand is
+  // the drift this law exists to stop.
+  it("a unit after a number is spelled and capitalized, anywhere (AMENDED 2026-09-27, casing sweep 3)", () => {
+    const UNIT = /(\d|\})\s?(min|mins|sec|secs|lb|lbs|kg|kgs|reps|sets|hr|hrs|hour|hours)\b/;
+    const FUSED = /\$\{[^}]*\}(?:m|min|sec)\b/;
+    // A builder whose reading is a measurement every drawn site cases at
+    // the edge (lineCase(formatSet(...)) on the chip, the receipt, the
+    // table and the toast), named with its reason like every roster here.
+    const CASED_AT_THE_EDGE: Record<string, string> = {
+      "gym/measures.ts": "formatSet's reading is also the search index and the identity comparison's input; every drawn site wraps it in lineCase",
+    };
+    const bad: string[] = [];
+    for (const f of SOURCES) {
+      const r = rel(f);
+      if (!swept(r) || r in CASED_AT_THE_EDGE) continue;
+      for (const { lit, routed } of literalsOf(stripForCasing(read(f)))) {
+        if (routed) continue;
+        const hit = lit.match(UNIT) ?? lit.match(FUSED);
+        if (hit) bad.push(r + ": " + lit.slice(0, 70));
+      }
+    }
+    expect(bad, "use minutesLabel/spanLabel/secondsLabel from shared/duration, or spell the unit with its capital").toEqual([]);
+  });
+
+  // (c) An estimate says "About" ("Saves About 8 Min", §H2's own example);
+  // the tilde is not a word and never reaches the screen.
+  it("no tilde before a number in rendered copy, anywhere (AMENDED 2026-09-27, casing sweep 3)", () => {
+    const TILDE = /~\s?\$?\{?\d|~\$\{/;
+    const bad: string[] = [];
+    for (const f of SOURCES) {
+      const r = rel(f);
+      if (!swept(r)) continue;
+      for (const { lit } of literalsOf(stripForCasing(read(f)))) {
+        if (TILDE.test(lit)) bad.push(r + ": " + lit.slice(0, 70));
+      }
+    }
+    expect(bad, "spell the estimate About (aboutLabel in shared/duration)").toEqual([]);
   });
 
   // Sectioning law, V4 revision (Dave 2026-08-18): CONTENT lists label every
@@ -1918,6 +2038,7 @@ describe("LAW: every module is reachable, or is listed as not", () => {
     // AMENDED 2026-09-26 (round 3): the one definition of red that the
     // Colour Key, F-04 and L1 read. Laws only; the app never imports it.
     "reds.ts",                             // the laws' shared reds, read by colourKey, browserWalk and laws tests
+    "sentenceCase.ts",                     // the casing law's sentence-case roster (Batch 1 casing, 2026-09-26), read by laws.test.ts
     // A serverless route is an entry point: Vercel reaches api/book.ts by
     // URL, exactly the way the browser reaches main.tsx, and nothing imports
     // either. The other api routes pass this law only because a comment
@@ -3550,7 +3671,8 @@ describe("LAW 9: the ask decides the action, in every branch", () => {
     expect(at, "Clean Out is a Tools row").toBeGreaterThan(-1);
     const row = src.slice(at, at + 900);
     // E-29 (2026-09-12): counted over visibleRows, the list's own rows.
-    expect(row, "the thread count leads").toMatch(/capAfterNumber\(\s*visibleRows\.length \+/);
+    // Casing sweep 3 (2026-09-27): the line runs through lineCase now.
+    expect(row, "the thread count leads").toMatch(/lineCase\(\s*visibleRows\.length \+/);
     const decl = src.slice(src.lastIndexOf("const piles =", at), at);
     expect(decl, "the senders are counted over the list's own rows")
       .toMatch(/^const piles = senderPiles\(visibleRows, effTriage, vips\)\.length;/);
@@ -3841,7 +3963,8 @@ describe("LAW 11: cards show their work, tags earn their shape, and no screen is
 
   it("the sweep estimate itself leads with a capital", async () => {
     const { sweepEstimate } = await import("../messages/sweep");
-    expect(sweepEstimate(6)).toBe("About 4 min");
+    // Casing sweep 3 (2026-09-27): the unit is a word, "About 4 Min".
+    expect(sweepEstimate(6)).toBe("About 4 Min");
     expect(sweepEstimate(0)).toBe("");
   });
 });
@@ -4162,7 +4285,15 @@ describe("LAW 15: the gym speaks one grammar", () => {
     for (const label of ["Upload a Program", "Add a Week"]) {
       expect(src, `${label} is back in a list`).not.toMatch(new RegExp('className="row-create"[^\\n]*>' + label.replace(/ /g, "\\s+"))); // eslint-disable-line
     }
-    expect(src, "both layouts' heads offer it").toMatch(/<button className="see-all" onClick=\{\(\) => setManageOpen\(true\)\}>Manage<\/button>[\s\S]*<button className="see-all" onClick=\{\(\) => setManageOpen\(true\)\}>Manage<\/button>/);
+    // AMENDED 2026-09-26 (pass-off): Manage is the head CAPSULE now
+    // (className="see-all pill-action"), the same 34px form Reorder wears
+    // beside it, because two head actions on one head wear one form (the
+    // lead's settlement: "Reorder and Manage are both 34px head capsules on
+    // one line"). The law still requires Manage on BOTH layouts' heads; it
+    // no longer pins the bare-text class, which was the defect.
+    const manage = '<button className="see-all pill-action" onClick=\\{\\(\\) => setManageOpen\\(true\\)\\}>Manage<\\/button>';
+    expect(src, "both layouts' heads offer it").toMatch(new RegExp(manage + "[\\s\\S]*" + manage));
+    expect(src, "Manage is never the bare-text head link beside a capsule").not.toMatch(/<button className="see-all" onClick=\{\(\) => setManageOpen\(true\)\}>Manage<\/button>/);
     expect(src, "and the sheet carries both actions").toMatch(/title="Manage Program"/);
   });
 
@@ -4294,15 +4425,21 @@ describe("LAW 17: the fit is a stance, never an edit", () => {
   // middle dot. The line renders on a meta line, where a separator is drawn
   // by the stylesheet or not at all (§AM F3). The honesty itself is
   // unchanged: a default still says it is one, in both places.
+  // AMENDED 2026-09-26 (pass-off): the line is Title Case by the whole
+  // casing rule ("Default Pace, Improves as You Log", "Learned from Your
+  // Last 3 Sessions"), so the pins match the words in either case. What
+  // they hold is unchanged: both files carry the default wording, and it
+  // is one comma-joined clause, never a typed dot.
+  const DEFAULT_PACE = /[Dd]efault [Pp]ace, [Ii]mproves as [Yy]ou [Ll]og/;
   it("every estimate names its evidence: learned, or a default that says so", () => {
     expect(gym("pacing.ts"), "the honesty line lost its default wording")
-      .toMatch(/default pace, improves as you log/);
+      .toMatch(DEFAULT_PACE);
     expect(gym("pacing.ts"), "the honesty line lost its learned wording")
-      .toMatch(/learned from your last/);
+      .toMatch(/[Ll]earned from [Yy]our [Ll]ast/);
     expect(gym("FitSheet.tsx"), "the fit sheet hides where its estimate came from")
-      .toMatch(/default pace, improves as you log/);
+      .toMatch(DEFAULT_PACE);
     for (const f of ["pacing.ts", "FitSheet.tsx"]) {
-      expect(gym(f), f + ": a typed dot on the meta line").not.toMatch(/default pace · /);
+      expect(gym(f), f + ": a typed dot on the meta line").not.toMatch(/[Dd]efault [Pp]ace · /);
     }
   });
 
@@ -4493,8 +4630,9 @@ describe("LAW 17: the Schedule head is two rows, the day starts at Now, and the 
     const src = page();
     expect(src, "the caps count eyebrow is gone").not.toMatch(/eyebrow count-line/);
     expect(src, "the head is the date and the arrows").toMatch(/<div className="sc-head">/);
+    // Casing sweep 2 (2026-09-27): the word after the span is Title Case.
     expect(src, "open time leads the fact line")
-      .toMatch(/if \(openMin > 0\) countLine\.push\(<span key="o"><b>\{gapLabel\(openMin\)\}<\/b> open<\/span>\);/);
+      .toMatch(/if \(openMin > 0\) countLine\.push\(<span key="o"><b>\{gapLabel\(openMin\)\}<\/b> Open<\/span>\);/);
     const facts = src.slice(src.indexOf("const countLine"), src.indexOf("return ("));
     expect(facts, "a block count is never pushed onto the line").not.toMatch(/blockCount\}<\/b>/);
     // On today the number counts FORWARD: an hour that has gone is not open.
@@ -5338,7 +5476,8 @@ describe("LAW: a count, never a run", () => {
     expect(page).toContain("doneCount");
     expect(repetitionsLine(0)).toBeNull();
     expect(repetitionsLine(MIN_TO_SHOW - 1)).toBeNull();
-    expect(repetitionsLine(14)).toBe("Done 14 times");
+    // Casing sweep 2 (2026-09-27): Title Case by the whole rule (§H2).
+    expect(repetitionsLine(14)).toBe("Done 14 Times");
   });
 
   it("a tick counts once a day however many times it is tapped, and Undo takes it back", () => {

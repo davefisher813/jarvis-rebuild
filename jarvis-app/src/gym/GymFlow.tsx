@@ -68,7 +68,8 @@ import { useLongPress } from "../shared/useLongPress";
 import { showToast } from "../shared/toast";
 import { attemptWrite, WRITE_FAILED_MESSAGE } from "../shared/guard";
 import { useAI } from "../ai/useAI";
-import { capAfterNumber, liftTitle, workoutTitle } from "../shared/casing";
+import { liftTitle, lineCase, workoutTitle } from "../shared/casing";
+import { minutesLabel, spanLabel } from "../shared/duration";
 import { BarbellGlyph } from "../shared/glyphs";
 import { Ellipsis } from "../shared/icons";
 import Stepper from "../shared/Stepper";
@@ -326,7 +327,8 @@ function WorkoutMetaSheet({ initialName, initialDate, onSave, onCancel }: {
 // ReorderList's own render) would attach a variable number of hooks to
 // ReorderList itself, which is exactly the bug rules-of-hooks exists to
 // catch. Same shape as SetStrip's SetChipRow.
-// ROW META IS QUIET SENTENCE CASE (the 2026-08-31 gym reformat; Dave, from
+// ROW META IS A QUIET .conn-meta LINE, TITLE CASE SINCE 2026-09-26 (the
+// 2026-08-31 gym reformat; Dave, from
 // the 5 Day Program screenshot: "Styling is random and doesn't align").
 // Every gym row wrote its second line as an .eyebrow -- 11px SHOUTING CAPS
 // -- while the app's primary lists (Tasks rows, Today's rows, the category
@@ -369,7 +371,7 @@ function LiftsRow({ count, onOpen }: { count: number; onOpen: () => void }) {
           beside it was one. The count is the only thing it ever said, so it
           says it in the trailing slot, in the capsule the ruled skin already
           draws for a small fact on a row. */}
-      <span className="ex-chip">{capAfterNumber(count + (count === 1 ? " exercise" : " exercises"))}</span>
+      <span className="ex-chip">{lineCase(count + (count === 1 ? " exercise" : " exercises"))}</span>
       {CHEV}
     </div>
   );
@@ -412,7 +414,7 @@ function DayRow({ day, onOpen, onPin, onMenu, doneWord, current = false }: { day
           lift or a state worth stating. */}
       {(day.exercises.length > 0 || current || doneWord) && (
         <div className="facts">
-          {day.exercises.length > 0 && <span className="fact">{capAfterNumber(`${day.exercises.length} ${day.exercises.length === 1 ? "lift" : "lifts"}`)}</span>}
+          {day.exercises.length > 0 && <span className="fact">{lineCase(`${day.exercises.length} ${day.exercises.length === 1 ? "lift" : "lifts"}`)}</span>}
           {current && <span className="fact st cyan">Live</span>}
           {!current && doneWord && <span className="fact lime">{doneWord}</span>}
         </div>
@@ -466,8 +468,25 @@ function minutesFact(w: WorkoutData) {
   // facts are separated by a middle dot the CSS draws, so no string ever
   // carries one." A fact that punctuates itself is a sentence again.
   return d.flagged
-    ? <><span className="fact amber" aria-label={`${d.activeMin} minutes recorded, worth reviewing`}>{capAfterNumber(`${d.activeMin} min`)}</span><span className="fact">Worth Reviewing</span></>
-    : <span className="fact">{capAfterNumber(`${workoutMinutes(w)} min`)}</span>;
+    ? <><span className="fact amber" aria-label={`${d.activeMin} minutes recorded, worth reviewing`}>{spanLabel(d.activeMin)}</span><span className="fact">Worth Reviewing</span></>
+    : <span className="fact">{spanLabel(workoutMinutes(w))}</span>;
+}
+
+/** THE SAME LENGTH AS A LIST ROW'S TRAILING VALUE (pass-off item 11,
+ *  2026-09-26: "find a better way to display this section"). On a browsing
+ *  row the minutes were the middle fact of three, so nothing lined up down
+ *  the list and the number you scan for sat mid-line. It is the row's
+ *  right-hand column now, so every length shares one right edge (§H.3): a
+ *  measured length is white (§AM, a number with no state), and a length
+ *  worth a look keeps the amber the head's fact wears, with the word for it
+ *  on the row's sub line (the caller says "Worth Reviewing" there, so the
+ *  colour never travels without its reason). Same threshold, same
+ *  durationOf, so the row and the head can never disagree. */
+function minutesValue(w: WorkoutData) {
+  const d = durationOf(w);
+  return d.flagged
+    ? <div className="row-value"><span className="fact amber" aria-label={`${d.activeMin} minutes recorded, worth reviewing`}>{spanLabel(d.activeMin)}</span></div>
+    : <div className="row-value"><span className="fact"><b>{spanLabel(workoutMinutes(w))}</b></span></div>;
 }
 
 function ExerciseRow({ exercise, pairLabel, onOpen, onMenu }: {
@@ -525,7 +544,7 @@ function ExerciseRow({ exercise, pairLabel, onOpen, onMenu }: {
           <span className="fact cyan" aria-label={planChipText(exercise)}>
             {plan.count}<em className="fw">{plan.noun}</em>{plan.target}
           </span>
-          {exercise.restSec ? <span className="fact"><b>{`${mmss(exercise.restSec)} rest`}</b></span> : null}
+          {exercise.restSec ? <span className="fact"><b>{`${mmss(exercise.restSec)} Rest`}</b></span> : null}
         </div>
         {/* The athlete's own note echoes on the row, quoted (preview
             anatomy) -- reference, never coaching. */}
@@ -575,7 +594,6 @@ type Picker =
   /** SUPERSET WITH..., from inside a live session (Dave, 2026-09-21, picking
    *  "ask me each time"). The same picker as Group With, and then a choice
    *  the program editor never has to make: this workout only, or every one. */
-  | { kind: "supersetWith"; weekId: string; dayId: string; exId: string }
   /** SUPERSET, FROM THE DAY ITSELF (Dave, 2026-09-21: "There's also no
    *  superset buttons anywhere in the workout pages"). He was right, and the
    *  reason is that the only way in was a LONG-PRESS menu item called "Group
@@ -622,7 +640,7 @@ function BlockList({ title, blocks, minutes, onEdit, tone = "warm" }: {
           2026-09-15: "I want all rows clickable"). */}
       <div className="row" {...rowDoor(onEdit)}>
         <div className="row-grow">
-          <div className={"eyebrow" + (has ? (tone === "cool" ? " eyebrow-cool" : " eyebrow-warn") : "")}>{title}{(minutes ?? 0) > 0 ? ` · ${minutes} Min` : ""}</div>
+          <div className={"eyebrow" + (has ? (tone === "cool" ? " eyebrow-cool" : " eyebrow-warn") : "")}>{title}{(minutes ?? 0) > 0 ? ` · ${spanLabel(minutes ?? 0)}` : ""}</div>
         </div>
         {/* A text action, not a capsule: it opens an editor, it does not act
             on the row (polish rule 2). */}
@@ -663,7 +681,7 @@ function BlockSheet({ title, blocks, minutes, onSave, onCancel }: {
               <div className="input-label">{`Item ${i + 1}`}</div>
               <input className="input" placeholder="e.g. Bike, easy" value={b.name}
                 onChange={(e) => patch(b.id, { name: e.target.value })} />
-              <input className="input" placeholder="e.g. 5 min, 2 x 15" value={b.amount ?? ""}
+              <input className="input" placeholder="e.g. 5 Min, 2 x 15" value={b.amount ?? ""}
                 onChange={(e) => patch(b.id, { amount: e.target.value })} />
             </div>
           ))}
@@ -672,7 +690,7 @@ function BlockSheet({ title, blocks, minutes, onSave, onCancel }: {
             <div className="input-label">Minutes</div>
             <div className="row">
               <div className="row-grow">
-                <div className="conn-name">{mins > 0 ? `${mins} min` : "Not counted"}</div>
+                <div className="conn-name">{mins > 0 ? spanLabel(mins) : "Not Counted"}</div>
                 <div className="conn-meta">Counted toward the session estimate</div>
               </div>
               <Stepper value={mins} step={1} min={0} label="Minutes" onChange={setMins} />
@@ -942,9 +960,9 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
   const [switcherOpen, setSwitcherOpen] = useState(false);
   const [rowMenu, setRowMenu] = useState<RowMenu | null>(null);
   const [picker, setPicker] = useState<Picker | null>(null);
-  /** Partners chosen for a superset, waiting on the one question the program
-   *  editor never has to answer: this workout, or every one. */
-  const [supersetPick, setSupersetPick] = useState<{ weekId: string; dayId: string; exId: string; ids: string[] } | null>(null);
+  // THE "JUST THIS WORKOUT / EVERY PUSH DAY" CHOICE SHEET WENT (2026-09-26):
+  // a superset made in a session is for the session, and the program write is
+  // its own explicit line in the session's More sheet.
   const [backdateDay, setBackdateDay] = useState<ProgramDay | null>(null);
   // UP-ATH-02 (2026-09-06): the start time rides along now, so the fact can
   // be stated the way an athlete says it ("Game Saturday 6 PM") instead of as
@@ -1218,7 +1236,7 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
     // than left to be discovered.
     const pinned = !!week.days.find((d) => d.id === dayId)?.pinDays?.length;
     if (await saveDays(weekId, duplicateDay(week, dayId).days)) {
-      showToast({ message: pinned ? "Day duplicated · The copy is unpinned" : "Day duplicated" });
+      showToast({ message: pinned ? "Day Duplicated · The Copy Is Unpinned" : "Day Duplicated" });
     }
   };
   const duplicateExerciseAction = async (weekId: string, dayId: string, exId: string) => {
@@ -1258,7 +1276,7 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
       // "Paired" would leave you to discover that next week. ungroupExercise
       // is the exact inverse and already existed for the program editor.
       showToast({
-        message: n === 2 ? `Paired in ${workoutTitle(day.name)}` : capAfterNumber(`${n} grouped in ${workoutTitle(day.name)}`),
+        message: n === 2 ? `Paired in ${workoutTitle(day.name)}` : lineCase(`${n} grouped in ${workoutTitle(day.name)}`),
         actionLabel: "Undo",
         onAction: () => { void ungroupAction(weekId, dayId, aId); },
       });
@@ -1291,7 +1309,7 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
     if (outcome === "moved" && openDayId === day.id) setOpenDayId(null);
     await reload();
     if (outcome === "moved") showToast({ message: `Moved to ${target.data.name}` });
-    else if (outcome === "landed") showToast({ message: `Copied to ${target.data.name} · Couldn't remove it here` });
+    else if (outcome === "landed") showToast({ message: `Copied to ${target.data.name} · Couldn't Remove It Here` });
     else showToast({ message: WRITE_FAILED_MESSAGE });
   };
   const duplicateProgramAction = async (p: Program) => {
@@ -1383,7 +1401,7 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
     // a bookmark back to the gym.
     if (areaId) recordSpot({ kind: "gym", id: areaId, label: day.name });
     enterSession(s);
-    if (opts.sameAsLastTime && !last) showToast({ message: "No prior session for this day yet · Starting fresh" });
+    if (opts.sameAsLastTime && !last) showToast({ message: "No Prior Session for This Day Yet · Starting Fresh" });
   };
   // D5: every live start passes through the fit sheet -- except the paths
   // whose whole point is speed or the past: a resume (the sheet was already
@@ -1489,7 +1507,7 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
       ...d, exercises: d.exercises.map((e) => (e.id === ex.id ? applySuggestion(e, sug) : e)),
     }));
     if (await saveDays(week.id, days)) {
-      showToast({ message: `${ex.name} plan moved to ${formatSet(ex, sug.next)}` });
+      showToast({ message: lineCase(`${ex.name} plan moved to ${formatSet(ex, sug.next)}`) });
     }
   };
 
@@ -1551,7 +1569,7 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
       enterSession(null);
       setOpenDayId(null);
       await reload();
-      showToast({ message: "Nothing logged · Nothing saved" });
+      showToast({ message: "Nothing Logged · Nothing Saved" });
       return;
     }
     const endedAt = Date.now();
@@ -1626,7 +1644,7 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
         title={`${live.dayName} Was Already Saved Today`}
         actions={[
           { label: "Save This One Too", onClick: () => { setDupFinish(null); void finish({ force: true }); } },
-          { label: "Discard This One", onClick: () => { setDupFinish(null); clearLive(); enterSession(null); setOpenDayId(null); showToast({ message: "Discarded · The saved session stays" }); } },
+          { label: "Discard This One", onClick: () => { setDupFinish(null); clearLive(); enterSession(null); setOpenDayId(null); showToast({ message: "Discarded · The Saved Session Stays" }); } },
         ]}
         onClose={() => setDupFinish(null)}
       />
@@ -2411,7 +2429,10 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
       <SessionScreen
         live={live}
         exercise={exercise}
-        dayExercises={liveEx?.custom && !behind ? [] : (day?.exercises ?? [])}
+        // The session builds its own list from these (liveGroups.sessionExercises,
+        // 2026-09-26), so a swapped or added lift no longer hides every pair
+        // on the day by being handed an empty one.
+        dayExercises={day?.exercises ?? []}
         programDay={day ?? null}
         history={workouts}
         library={library}
@@ -2423,45 +2444,66 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
         onMove={(i) => patchLive((l) => ({ ...l, idx: i }))}
         // A free-text swap mints a lift the library has never seen, same as
         // an add does, so it is seeded the same way.
-        onSwap={(sub) => { patchLive((l) => swapExercise(l, l.idx, sub)); seedLibrary(sub); showToast({ message: `Swapped in ${sub.name}` }); }}
+        onSwap={(sub) => { patchLive((l) => swapExercise(l, l.idx, sub)); seedLibrary(sub); showToast({ message: lineCase(`Swapped in ${liftTitle(sub.name)}`) }); }}
         onSetLoad={(next) => { void setLoadStyle(exercise, next); }}
         {...(() => {
           // SUPERSET WHILE LOGGING (Dave, 2026-09-21: "I can't easily create
-          // a superset as I'm logging"). It opens the day's OWN Group With
-          // picker -- the same sheet, the same groupAction, the same write --
-          // because a pair is a program construct the live screen reads off
-          // the day, and the note on onAddMidSession below says why: a lift
-          // that is not on the day can never be paired with anything. So the
-          // pair lands in the program and holds for every session after this
-          // one, which is what a superset is. The toast says so plainly and
-          // carries the Undo, because editing a program from a workout screen
-          // should never be a thing you discover later.
+          // a superset as I'm logging"; 2026-09-26: "Superset linking between
+          // exercises is broken and hard to use"). ONE LINE, ONE WRITE: the
+          // session's More sheet offers "Superset With <the next lift>", and
+          // it pairs the two for THIS session (live.groups, keyed by the
+          // session's own exerciseIds). The program is touched only by the
+          // separate "Keep the Superset in the Program" line, the way a swap
+          // reaches the program only through Also Update the Program, so
+          // editing a program from a workout screen is never a surprise.
           const w = day ? program?.data.weeks.find((x) => x.days.some((d) => d.id === day.id)) : undefined;
-          if (!w || !day) return {};
           return {
-            onSuperset: () => setPicker({ kind: "supersetWith", weekId: w.id, dayId: day.id, exId: exercise.id }),
-            // AND THE WAY BACK OUT (2026-09-21). ungroupToday had been
-            // written and tested and was wired to nothing: a superset made
-            // from this screen could only be taken back inside the five
-            // seconds its toast was up. Today's own pair is simply released;
-            // a pair that came from the PROGRAM is broken for today only and
-            // the toast says which of the two happened, because one of them
-            // is still there next week and the other never was.
-            onUngroup: () => {
+            onGroupToday: (ids: string[], partnerName: string) => {
               const before = liveRef.current?.groups;
-              const wasTodays = isLiveGroup(before, exercise.id);
-              patchLive((l) => ({ ...l, groups: ungroupToday(l.groups, exercise.id, day.exercises) }));
+              patchLive((l) => ({ ...l, groups: groupForToday(l.groups, ids, () => nid("g")) }));
               showToast({
-                // A pair made today and a pair the program owns are two
-                // different facts after this tap, and the difference is what
-                // you will find next week, so the receipt says which one.
-                message: wasTodays
-                  ? "Broken up for today"
-                  : capAfterNumber(`Broken up for today \u00b7 ${workoutTitle(day.name)} keeps the pair`),
+                message: lineCase(`Superset with ${liftTitle(partnerName)} for today`),
                 actionLabel: "Undo",
                 onAction: () => patchLive((l) => ({ ...l, groups: before })),
               });
             },
+            // AND THE WAY BACK OUT (2026-09-21; scoped 2026-09-26). Today's
+            // own pair is simply released. A pair the PROGRAM owns is asked
+            // the same two questions as making one: for today, which marks
+            // it "" in the session's overlay and leaves next week alone, or
+            // for every one of this day, which is the program editor's own
+            // Ungroup. Both carry Undo, and the toast says which happened.
+            onUngroup: (scope: "today" | "program") => {
+              const before = liveRef.current?.groups;
+              if (scope === "today" || !w || !day) {
+                patchLive((l) => ({ ...l, groups: ungroupToday(l.groups, exercise.id, day?.exercises ?? []) }));
+                showToast({
+                  message: "Broken Up for Today",
+                  actionLabel: "Undo",
+                  onAction: () => patchLive((l) => ({ ...l, groups: before })),
+                });
+                return;
+              }
+              const others = groupOf(exercise, day.exercises).filter((e) => e.id !== exercise.id).map((e) => e.id);
+              void ungroupAction(w.id, day.id, exercise.id).then(() => {
+                patchLive((l) => ({ ...l, groups: ungroupToday(l.groups, exercise.id) }));
+                showToast({
+                  message: lineCase(`Broken up in every ${workoutTitle(day.name)}`),
+                  actionLabel: "Undo",
+                  onAction: () => { if (others.length) void groupAction(w.id, day.id, exercise.id, others); },
+                });
+              });
+            },
+            // "EVERY PUSH DAY": the one program write for a pair made at the
+            // rack, through the day's own groupAction (its toast carries the
+            // Undo). Offered by the session only when both lifts are on the day.
+            ...(w && day ? {
+              onGroupProgram: (ids: string[]) => {
+                const onDay = ids.filter((id) => id !== exercise.id && day.exercises.some((e) => e.id === id));
+                if (onDay.length === 0) return;
+                void groupAction(w.id, day.id, exercise.id, onDay);
+              },
+            } : {}),
           };
         })()}
         // THREE PLACES, NOT ONE (Dave 2026-09-17: "it doesn't save... doesn't
@@ -2486,7 +2528,10 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
         }}
         onAcceptSuggestion={(sug) => { void acceptSuggestion(exercise, sug); }}
         // Part 3 wave 5 (Dave's 10a): only a swapped or added entry offers it.
-        onUpdateProgram={liveEx?.custom && !live.sameAsLastTime && day ? () => {
+        // AND ONLY UNTIL IT IS THERE (2026-09-26): an added lift the day now
+        // holds (by key, or by name and kind) is not offered again, since a
+        // second tap used to add a second copy.
+        onUpdateProgram={liveEx?.custom && !live.sameAsLastTime && day && (behind || !day.exercises.some((e) => (liveEx.exerciseKey && e.exerciseKey === liveEx.exerciseKey) || (e.name.trim().toLowerCase() === liveEx.name.trim().toLowerCase() && e.kind === liveEx.kind))) ? () => {
           const week = program?.data.weeks.find((w) => w.days.some((d) => d.id === day.id));
           if (!week) return;
           const next = dayWithSessionEntry(day, liveEx, () => nid("e"));
@@ -2510,7 +2555,7 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
         <ActionSheet
           title="How Much Time Is Left"
           actions={[
-            ...[10, 20, 30].map((n) => ({ label: capAfterNumber(`${n} min`), onClick: () => patchLive((l) => ({ ...l, budgetMin: Math.max(1, Math.round(elapsedMs(l) / 60_000) + n) })) })),
+            ...[10, 20, 30].map((n) => ({ label: minutesLabel(n), onClick: () => patchLive((l) => ({ ...l, budgetMin: Math.max(1, Math.round(elapsedMs(l) / 60_000) + n) })) })),
             { label: "No Cap", onClick: () => patchLive((l) => { const { budgetMin: _gone, ...rest } = l; return rest as LiveSession; }) },
           ]}
           onClose={() => setAdjustOpen(false)}
@@ -2522,7 +2567,6 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
           drawn -- the button worked, the state was set, and nothing appeared.
           Caught by driving it, not by a type or a test. */}
       {pickerEl()}
-      {supersetChoiceEl()}
       </>
     );
   }
@@ -2872,45 +2916,6 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
     );
   }
 
-  /** THE ONE QUESTION THE PROGRAM EDITOR NEVER HAS TO ANSWER (Dave,
-   *  2026-09-21, picking "ask me each time"): a superset made at the rack is
-   *  sometimes the way you train this lift and sometimes the way you got
-   *  round a busy machine. Both answers are real now -- the program keeps
-   *  pairs for every session, live.groups keeps one for this one -- so the
-   *  choice is asked rather than assumed, which is what the Add Exercise
-   *  sheet's "also on the day" switch has always done for the same reason. */
-  function supersetChoiceEl() {
-    if (!supersetPick) return null;
-    const pick = supersetPick;
-    const day = program?.data.weeks.find((w) => w.id === pick.weekId)?.days.find((d) => d.id === pick.dayId);
-    const names = (day?.exercises ?? []).filter((e) => pick.ids.includes(e.id) || e.id === pick.exId).map((e) => e.name);
-    return (
-      <ActionSheet
-        title={names.join(" + ")}
-        onClose={() => setSupersetPick(null)}
-        actions={[
-          {
-            label: "Just This Workout",
-            onClick: () => {
-              setSupersetPick(null);
-              const before = readLive()?.groups;
-              patchLive((l) => ({ ...l, groups: groupForToday(l.groups, [pick.exId, ...pick.ids], () => nid("g")) }));
-              showToast({
-                message: "Supersetted for today",
-                actionLabel: "Undo",
-                onAction: () => patchLive((l) => ({ ...l, groups: before })),
-              });
-            },
-          },
-          {
-            label: "Every " + workoutTitle(day?.name ?? "Session"),
-            onClick: () => { setSupersetPick(null); void groupAction(pick.weekId, pick.dayId, pick.exId, pick.ids); },
-          },
-        ]}
-      />
-    );
-  }
-
   function pickerEl() {
     if (!picker) return null;
     if (picker.kind === "moveExerciseToDay" || picker.kind === "copyExerciseToDays") {
@@ -2941,7 +2946,7 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
           title="Superset With"
           items={items}
           multi
-          confirmLabel={(n) => (n === 0 ? "Pick at Least One" : n === 1 ? "Make a Pair" : capAfterNumber("Group These " + (n + 1)))}
+          confirmLabel={(n) => (n === 0 ? "Pick at Least One" : n === 1 ? "Make a Pair" : lineCase("Group These " + (n + 1)))}
           onPick={(ids) => { setPicker(null); void groupAction(picker.weekId, picker.dayId, picker.exId, ids); }}
           onCancel={() => setPicker(null)}
         />
@@ -2958,28 +2963,12 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
           multi
           // Two is the smallest superset there is, so one pick is not an
           // answer and the button says which half is missing.
-          confirmLabel={(n) => (n < 2 ? "Pick Two" : n === 2 ? "Superset These Two" : capAfterNumber("Superset These " + n))}
+          confirmLabel={(n) => (n < 2 ? "Pick Two" : n === 2 ? "Superset These Two" : lineCase("Superset These " + n))}
           onPick={(ids) => {
             if (ids.length < 2) return;
             setPicker(null);
             void groupAction(picker.weekId, picker.dayId, ids[0]!, ids.slice(1));
           }}
-          onCancel={() => setPicker(null)}
-        />
-      );
-    }
-    if (picker.kind === "supersetWith") {
-      // The same list the program editor offers, off the same day.
-      const week = program?.data.weeks.find((w) => w.id === picker.weekId);
-      const day = week?.days.find((d) => d.id === picker.dayId);
-      const items: PickItem[] = (day?.exercises ?? []).filter((e) => e.id !== picker.exId).map((e) => ({ id: e.id, label: e.name }));
-      return (
-        <PickSheet
-          title="Superset With"
-          items={items}
-          multi
-          confirmLabel={(n) => (n === 0 ? "Pick at Least One" : n === 1 ? "Superset These Two" : capAfterNumber("Superset These " + (n + 1)))}
-          onPick={(ids) => { setPicker(null); if (ids.length) setSupersetPick({ ...picker, ids }); }}
           onCancel={() => setPicker(null)}
         />
       );
@@ -3244,8 +3233,7 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
           {sheetEl()}
           {rowMenuEl()}
           {pickerEl()}
-          {supersetChoiceEl()}
-          {fitEl()}
+              {fitEl()}
           {backdateEl}
           {receiptEl}
         </>
@@ -3310,8 +3298,7 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
         {sheetEl()}
         {rowMenuEl()}
         {pickerEl()}
-        {supersetChoiceEl()}
-        {fitEl()}
+          {fitEl()}
         {receiptEl}
       </>
     );
@@ -3450,7 +3437,7 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
                     glance where a sentence has to be parsed. */}
                 <div className="se-chips">
                   <span className="se-chip se-chip-last">{nextDay.exercises.length}<em>{nextDay.exercises.length === 1 ? "Lift" : "Lifts"}</em></span>
-                  {nextEst > 0 && <span className="se-chip se-chip-est"><em>Est</em>{nextEst} Min</span>}
+                  {nextEst > 0 && <span className="se-chip se-chip-est"><em>Est</em>{spanLabel(nextEst)}</span>}
                   {(pinnedToday === nextDay || upcomingPin?.day === nextDay) && (
                     <span className="se-chip se-chip-pin"><em>Pinned</em>{pinnedToday === nextDay
                       ? "Today"
@@ -3470,7 +3457,7 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
             {multiWeek ? (
               <>
                 <div className="sh2 sh2-quiet"><span className="t">Weeks</span>
-                  <button className="see-all" onClick={() => setManageOpen(true)}>Manage</button>
+                  <button className="see-all pill-action" onClick={() => setManageOpen(true)}>Manage</button>
                 </div>
                 <div className="pad-x"><div className="card list-card-ruled">
                   {weeks.map((w) => (
@@ -3497,7 +3484,7 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
                         {reorderTarget === "days" ? "Done" : "Reorder"}
                       </button>
                     )}
-                    <button className="see-all" onClick={() => setManageOpen(true)}>Manage</button>
+                    <button className="see-all pill-action" onClick={() => setManageOpen(true)}>Manage</button>
                   </span>
                 </div>
                 <div className="pad-x list-card"><div className="card list-card-ruled">
@@ -3586,16 +3573,21 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
                             and the completeness fact was the last thing on it. */}
                         {/* §AM (2026-09-26): the date is a neutral past date,
                             so small caps rather than Health's "now" cyan; a
-                            partial count has no state, so it is a white <b>,
-                            and the minutes keep the row's one grey. */}
+                            partial count has no state, so it is a white <b>.
+                            Pass-off item 11 (2026-09-26): the length left the
+                            sub line for the row's right column (minutesValue),
+                            so the line holds the date and the completion, and
+                            the row's one grey is "Worth Reviewing" when the
+                            length earned it, or nothing. */}
                         <div className="facts">
                           <span className="fact date">{monthDay(w.data.date)}</span>
-                          {minutesFact(w.data)}
                           {logged === total
-                            ? <span className="fact lime">{capAfterNumber(`${total} ${total === 1 ? "lift" : "lifts"}`)}</span>
-                            : <span className="fact"><b>{`${logged} of ${total}`}</b></span>}
+                            ? <span className="fact lime">{lineCase(`${total} ${total === 1 ? "lift" : "lifts"}`)}</span>
+                            : <span className="fact"><b>{lineCase(`${logged} of ${total} lifts`)}</b></span>}
+                          {durationOf(w.data).flagged && <span className="fact">Worth Reviewing</span>}
                         </div>
                       </div>
+                      {minutesValue(w.data)}
                       {CHEV}
                     </div>
                   </SwipeDelete>
@@ -3624,7 +3616,6 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
       {sheetEl()}
       {rowMenuEl()}
       {pickerEl()}
-      {supersetChoiceEl()}
       {fitEl()}
       {doorPickEl()}
       {switcherEl}

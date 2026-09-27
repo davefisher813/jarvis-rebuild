@@ -30,7 +30,8 @@ describe("completion window", () => {
     // the 8 to 11 window. The band contains the hour; it does not start on it.
     expect(d.title).toBe("Your tasks get done between 8 AM and 11 AM");
     // The casing law owns the word behind a leading count.
-    expect(d.sub).toBe("12 Finishes there, out of your last 16");
+    // Casing sweep 1 (2026-09-26): Title Case by the whole rule (§H2), units spelled "Min".
+    expect(d.sub).toBe("12 Finishes There, Out of Your Last 16");
     expect(d.evidence.length).toBeGreaterThan(0);
     expect(d.evidence.length).toBeLessThanOrEqual(6);
   });
@@ -59,7 +60,7 @@ describe("completion window", () => {
     const gym = Array.from({ length: 30 }, (_, i) => row({ h: 18, kind: "workout", day: `2026-08-${String((i % 20) + 1).padStart(2, "0")}` }));
     const d = deriveCompletionWindow([...done(12, 10), ...gym])!;
     expect(d.title).toBe("Your tasks get done between 8 AM and 11 AM");
-    expect(d.sub).toBe("12 Finishes there, out of your last 12");
+    expect(d.sub).toBe("12 Finishes There, Out of Your Last 12");
     // And sessions alone never produce the derivation at all.
     expect(deriveCompletionWindow(gym)).toBeNull();
   });
@@ -93,7 +94,7 @@ describe("slip by category", () => {
     const d = deriveSlipCategory([...push(MONEY, 8), ...push(HOME, 2, 12)])!;
     expect(d.title).toBe("Money tasks are the ones that slip");
     expect(d.strandText).toBe("Money tasks tend to slip and need extra room");
-    expect(d.sub).toContain("8 times");
+    expect(d.sub).toContain("8 Times");
     expect(d.category).toBe("work_style");
     // And never the id, in any of the three lines.
     expect(`${d.title} ${d.sub} ${d.strandText}`).not.toContain(MONEY);
@@ -202,7 +203,7 @@ describe("training window: the rows that were captured and read by nobody", () =
     // documented behaviour a launch test already pins: a 6 PM mass reads
     // as "between 4 PM and 7 PM".
     expect(d.title).toBe("You train between 4 PM and 7 PM");
-    expect(d.sub).toContain("12 Sessions there");
+    expect(d.sub).toContain("12 Sessions There");
     expect(d.evidence.length).toBeGreaterThan(0);
   });
 
@@ -275,7 +276,7 @@ describe("no pattern: completions with no band", () => {
     expect(d.category).toBe("energy");
     expect(d.title).toBe("Your tasks get done across the whole day");
     // 24 completions, one per hour: the fullest 3-hour stretch holds 3.
-    expect(d.sub).toBe("3 Finishes in the fullest 3-hour stretch, out of your last 24");
+    expect(d.sub).toBe("3 Finishes in the Fullest 3-Hour Stretch, Out of Your Last 24");
     expect(d.strandText).toBe("Finishes things across the whole day rather than in one stretch");
   });
 
@@ -356,7 +357,7 @@ describe("no pattern: pushes with no area in front", () => {
     expect(d.derivation).toBe("slip_no_leader");
     expect(d.category).toBe("work_style");
     expect(d.title).toBe("Tasks slip across every area, not one");
-    expect(d.sub).toBe("Pushed 15 times in the busiest area, 14 in the next");
+    expect(d.sub).toBe("Pushed 15 Times in the Busiest Area, 14 in the Next");
     expect(d.strandText).toBe("Tasks slip across every area, none more than the rest");
     expect(d.evidence).toEqual([]);
   });

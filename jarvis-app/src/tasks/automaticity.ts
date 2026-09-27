@@ -1,3 +1,5 @@
+import { lineCase } from "../shared/casing";
+
 // REPETITIONS, NOT STREAKS (D1, approved 2026-08-20).
 //
 // Keller et al. 2021, a randomized controlled trial: routine-based and
@@ -43,9 +45,9 @@ export function automaticityOf(doneCount: number): Automaticity {
 // and a miss count is a streak in disguise.
 export function automaticityLine(a: Automaticity): string | null {
   if (a.done < MIN_TO_SHOW) return null;
-  const times = `Done ${a.done} times`;
-  if (a.automatic) return `${times} · This one's automatic`;
-  return `${times} · Most people are automatic around ${AUTOMATIC_MEDIAN}`;
+  const times = lineCase(`Done ${a.done} times`);
+  if (a.automatic) return `${times} · This One's Automatic`;
+  return `${times} · Most People Are Automatic Around ${AUTOMATIC_MEDIAN}`;
 }
 
 // BAN-1 (2026-09-05): the bare count, for surfaces that show the fact
@@ -56,7 +58,7 @@ export function automaticityLine(a: Automaticity): string | null {
 export function repetitionsLine(doneCount: number | undefined): string | null {
   const done = Math.max(0, Math.floor(doneCount ?? 0));
   if (done < MIN_TO_SHOW) return null;
-  return `Done ${done} times`;
+  return lineCase(`Done ${done} times`);
 }
 
 // Counting a repetition. Idempotent per day, because a reminder ticked,

@@ -6,7 +6,7 @@ import { monthDay } from "../money/bills";
 import { weekdayShortDate } from "../shared/dateFormat";
 import { fmtTime } from "../schedule/calendar";
 import { pressable } from "../shared/pressable";
-import { capAfterNumber } from "../shared/casing";
+import { lineCase } from "../shared/casing";
 import RowMenuButton from "../shared/RowMenuButton";
 import ActionSheet, { PickSheet } from "../gym/ActionSheet";
 
@@ -104,7 +104,7 @@ export default function AllDataPage({ view, onView, records, filter, onFilter, t
       <div className="pad-x"><div className="card list-card-ruled">
         <div {...pressable(() => setPickKind(true))} className="row" aria-label="Filter by kind of record">
           <div className="row-grow"><div className="conn-name">{filter.category === "all" ? "All Entries" : CATEGORY_LABEL[filter.category]}</div></div>
-          <span className="row-value">{capAfterNumber(`${rows.length} ${rows.length === 1 ? "entry" : "entries"}`)}</span>
+          <span className="row-value">{lineCase(`${rows.length} ${rows.length === 1 ? "entry" : "entries"}`)}</span>
           {CHEV}
         </div>
       </div></div>
@@ -112,15 +112,15 @@ export default function AllDataPage({ view, onView, records, filter, onFilter, t
         <PickSheet
           title="Kind of Record"
           items={[
-            { id: "all", label: "All Entries", sub: capAfterNumber(`${records.length} in all`) },
+            { id: "all", label: "All Entries", sub: lineCase(`${records.length} in all`) },
             ...CATEGORIES.filter((c) => (counts.get(c) ?? 0) > 0 || filter.category === c)
-              .map((c) => ({ id: c, label: CATEGORY_LABEL[c], sub: capAfterNumber(`${counts.get(c) ?? 0} recorded`) })),
+              .map((c) => ({ id: c, label: CATEGORY_LABEL[c], sub: lineCase(`${counts.get(c) ?? 0} recorded`) })),
           ]}
           onPick={(ids) => { const id = ids[0]; if (id) onFilter({ ...filter, category: id as DataCategory | "all" }); setPickKind(false); }}
           onCancel={() => setPickKind(false)}
         />
       )}
-      {pendingCount > 0 && <div className="pad-x h-sync">{capAfterNumber(`${pendingCount} waiting to sync`)}</div>}
+      {pendingCount > 0 && <div className="pad-x h-sync">{lineCase(`${pendingCount} waiting to sync`)}</div>}
       {groups.length === 0 ? (
         <div className="empty-state">
           <div className="empty-title">{records.length === 0 ? "Nothing Recorded Yet" : "Nothing Matches"}</div>

@@ -15,7 +15,7 @@ export interface RepeatRow {
   start: string;
   recurrence: EventRecurrence;
   cadence: string;   // "Every Tuesday"
-  ends: string;      // "Through Nov 8" or "No end date"
+  ends: string;      // "Through Nov 8" or "No End Date"
   endless: boolean;  // the ones worth reviewing
   skipped: number;   // occurrences removed one at a time
 }
@@ -32,7 +32,7 @@ export function monthDay(iso: string): string {
 export function cadenceOf(e: EventData): string {
   const rec = e.recurrence;
   if (!rec || rec === "none") return "";
-  if (rec === "daily") return "Every day";
+  if (rec === "daily") return "Every Day";
   const d = new Date(e.date + "T12:00:00");
   if (rec === "weekly") {
     // UP-CORE-11 (2026-09-05): a weekly series can name several weekdays and
@@ -45,8 +45,8 @@ export function cadenceOf(e: EventData): string {
     const list = names.length === 1 ? names[0]!
       : names.length === 2 ? names.join(" and ")
       : names.slice(0, -1).join(", ") + " and " + names[names.length - 1];
-    if (every2) return "Every 2 weeks on " + list;
-    return names.length === 1 ? "Every " + list : list + " every week";
+    if (every2) return "Every 2 Weeks on " + list;
+    return names.length === 1 ? "Every " + list : list + " Every Week";
   }
   return "Monthly on the " + ordinal(d.getDate());
 }
@@ -57,11 +57,11 @@ export function ordinal(n: number): string {
   return n + (s[(v - 20) % 10] ?? s[v] ?? s[0]!);
 }
 
-// The honest end. "No end date" is stated plainly rather than left blank,
+// The honest end. "No End Date" is stated plainly rather than left blank,
 // because a blank reads as "I checked and there is nothing", and the whole
 // point of this view is noticing the things that never stop.
 export function endsLabel(e: EventData): string {
-  return e.until ? "Through " + monthDay(e.until) : "No end date";
+  return e.until ? "Through " + monthDay(e.until) : "No End Date";
 }
 
 export function repeatRows(items: EventItem[]): RepeatRow[] {

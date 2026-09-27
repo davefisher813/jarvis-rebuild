@@ -185,7 +185,8 @@ describe("MailNotices: a chip holds the send", () => {
     fireEvent.click(screen.getByText("Thanks"));
     await new Promise((r) => setTimeout(r, 0));
     expect(getTodayOutbox()).toHaveLength(0);
-    expect(toast!.message).toBe("Couldn't send · Nothing was lost");
+    // Casing sweep 2 (2026-09-27): Title Case by the whole rule (§H2); durations through shared/duration ("45 Min", "1h 30m").
+    expect(toast!.message).toBe("Couldn't Send · Nothing Was Lost");
     unsub();
   });
 });
@@ -203,7 +204,10 @@ describe("MailNotices: the line wears the key", () => {
       threads: [{ ...thread("t1", "Northlake Power", "your bill"), act: { kind: "bill", title: "Power", date: "2026-08-21", amount: 12 } }],
     }));
     const { container } = render(<MailNotices today={TODAY} nowHHMM="09:00" onAddTask={async () => true} />);
-    const facts = container.querySelector(".stream-card .facts");
+    // 2026-09-27 (the audit leftover): a card that carries facts draws them
+    // as the wrapping form, .fact spans straight in the card's .conn-meta,
+    // so every fact shows whole beside the capsule.
+    const facts = container.querySelector(".stream-card .conn-meta");
     expect(facts).not.toBeNull();
     expect(facts!.querySelector(".fact b")!.textContent).toBe("$12.00");
     expect(facts!.querySelector(".fact.warn")!.textContent).toBe("Tomorrow");
@@ -213,7 +217,7 @@ describe("MailNotices: the line wears the key", () => {
   it("draws a wait's age on the ladder and the subject after it", () => {
     saveMailSnapshot(snap({ waiting: [{ threadId: "w1", to: "Rob", subject: "The deck", days: 9 }] }));
     const { container } = render(<MailNotices today={TODAY} nowHHMM="09:00" onAddTask={async () => true} />);
-    const facts = [...container.querySelectorAll(".stream-card .facts > .fact")];
+    const facts = [...container.querySelectorAll(".stream-card .conn-meta > .fact")];
     expect(facts.map((f) => f.textContent)).toEqual(["9 Days", "The deck"]);
     expect(facts[0]!.classList.contains("warn")).toBe(true);
     expect(container.querySelector(".qd-hot")).toBeNull();
@@ -227,7 +231,7 @@ describe("MailNotices: the line wears the key", () => {
     countNudge("w1");
     saveMailSnapshot(snap({ waiting: [{ threadId: "w1", to: "Rob", subject: "The deck", days: 3 }] }));
     const { container } = render(<MailNotices today={TODAY} nowHHMM="09:00" onAddTask={async () => true} />);
-    const age = container.querySelector(".stream-card .facts > .fact")!;
+    const age = container.querySelector(".stream-card .conn-meta > .fact")!;
     expect(age.textContent).toBe("3 Days");
     expect(age.classList.contains("red")).toBe(true);
   });

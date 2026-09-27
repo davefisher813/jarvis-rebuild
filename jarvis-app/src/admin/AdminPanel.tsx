@@ -85,7 +85,7 @@ export default function AdminPanel({ isAdmin, source, onBack }: {
   const serverNote = (
     <div className="pad-x"><div className="card"><div className="empty-state">
       <div className="empty-title">Live Data Needs the Admin Server</div>
-      <div className="empty-sub">Usage + billing · Wired at launch</div>
+      <div className="empty-sub">Usage + Billing · Wired at Launch</div>
     </div></div></div>
   );
 

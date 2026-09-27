@@ -8,7 +8,7 @@ import type { MuscleMap } from "../gym/insights";
 import type { CallItEntry, PointAtItEntry, MealEntry, TookItEntry, CheckInEntry } from "../health/types";
 import { monthDay } from "../money/bills";
 import { pressable } from "../shared/pressable";
-import { capAfterNumber } from "../shared/casing";
+import { lineCase } from "../shared/casing";
 import { PickSheet } from "../gym/ActionSheet";
 import { FileText } from "../shared/icons";
 import HealthNav, { type HealthView } from "./HealthNav";
@@ -332,7 +332,7 @@ const musclesCard = breakdown.total === 0 ? null : (
           need once and then never again, so it is behind a summary that
           names it. Nothing is removed. */}
       <div className="facts">
-        <span className="fact">{capAfterNumber(`${breakdown.assigned} of ${breakdown.total} working sets mapped`)}</span>
+        <span className="fact">{lineCase(`${breakdown.assigned} of ${breakdown.total} working sets mapped`)}</span>
       </div>
       <details className="ins-table">
         <summary>How Sets Are Counted</summary>
@@ -392,7 +392,7 @@ const musclesCard = breakdown.total === 0 ? null : (
       <details className="ins-table">
         <summary>As a List</summary>
         <table>
-          <thead><tr><th>Date</th><th>{`Best at ${headline.reps} reps`}</th></tr></thead>
+          <thead><tr><th>Date</th><th>{lineCase(`Best at ${headline.reps} reps`)}</th></tr></thead>
           <tbody>{series.map((p) => <tr key={p.workoutId}><td>{monthDay(p.date)}</td><td>{`${p.w} ${headline.lift.unit ?? "lb"}`}</td></tr>)}</tbody>
         </table>
       </details>
@@ -428,7 +428,7 @@ const musclesCard = breakdown.total === 0 ? null : (
         return (
           <div className="facts">
             <span className="fact lime">{`${n} ${n === 1 ? "session" : "sessions"} in the period`}</span>
-            <span className="fact">{capAfterNumber(`${t.length} recorded in all`)}</span>
+            <span className="fact">{lineCase(`${t.length} recorded in all`)}</span>
           </div>
         );
       })()}
@@ -459,7 +459,7 @@ const musclesCard = breakdown.total === 0 ? null : (
           <div className="pad-x"><div className="card list-card-ruled">
             <div {...pressable(() => setPicking("strength"))} className="row" aria-label="Choose exercise">
               <div className="row-grow"><div className="conn-name">{lift ? lift.name : "Choose an Exercise"}</div></div>
-              {lifts.length > 1 && <span className="row-value">{capAfterNumber(`${lifts.length} logged`)}</span>}
+              {lifts.length > 1 && <span className="row-value">{lineCase(`${lifts.length} logged`)}</span>}
               {CHEV}
             </div>
           </div></div>
@@ -483,12 +483,12 @@ const musclesCard = breakdown.total === 0 ? null : (
                   <div className="ins-head"><span className="ins-dot hue-hl-lime" /><span className="ins-t">{lift.name}</span></div>
                   <div className="facts">
                     <span className="fact lime">{`${inRange.length} ${inRange.length === 1 ? "session" : "sessions"} in the period`}</span>
-                    <span className="fact">{capAfterNumber(`${table.length} recorded in all`)}</span>
+                    <span className="fact">{lineCase(`${table.length} recorded in all`)}</span>
                   </div>
                   {g ? (
                     <>
                       <div className="facts">
-                        <span className="fact lime">{`${sign(g.delta)} ${lift.unit ?? "lb"} at ${g.reps} reps`}</span>
+                        <span className="fact lime">{lineCase(`${sign(g.delta)} ${lift.unit ?? "lb"} at ${g.reps} reps`)}</span>
                         <span className="fact date">{`${monthDay(g.from.date)} to ${monthDay(g.to.date)}`}</span>
                         {/* A count with no state is white (§AM, 2026-09-26):
                             "recorded in all" above is the card's one grey. */}
@@ -511,7 +511,7 @@ const musclesCard = breakdown.total === 0 ? null : (
                             it, the same answer All Data took (2026-09-16).
                             "120 lb × 6, 130 lb × 8, 140 lb × 6, 150 lb × 6"
                             wrapped two grey lines on every row of this list. */}
-                        <div className="facts"><span className="fact lime">{capAfterNumber(`${r.working} working`)}</span></div>
+                        <div className="facts"><span className="fact lime">{lineCase(`${r.working} working`)}</span></div>
                         <details className="exp-more ad-sets" onClick={(e) => e.stopPropagation()}>
                           <summary>{`The ${r.sets.length === 1 ? "Set" : "Sets"}`}</summary>
                           <div className="ins-rows">
@@ -562,15 +562,15 @@ const musclesCard = breakdown.total === 0 ? null : (
       rows.push({ key: def.id, title: def.data.name, logged: false, value, when: latest ? `Latest ${monthDay(latest.data.date)}` : "", context: latest ? `${days} of ${period.days} days` : "", category: isSleep ? "sleep" : def.data.presetKey === "bodyweight" ? "body" : "other" });
     }
     const effort = logs.callIt.filter((e) => inPeriod(localDay(e.data.at), period));
-    if (effort.length) rows.push({ key: "effort", title: "Session Effort", logged: false, value: `${effort[effort.length - 1]!.data.rpe}/10 latest`, when: "", context: capAfterNumber(`${effort.length} rated ${effort.length === 1 ? "session" : "sessions"} over ${daysIn(effort.map((e) => localDay(e.data.at)))} days`), category: "effort" });
+    if (effort.length) rows.push({ key: "effort", title: "Session Effort", logged: false, value: `${effort[effort.length - 1]!.data.rpe}/10 Latest`, when: "", context: lineCase(`${effort.length} rated ${effort.length === 1 ? "session" : "sessions"} over ${daysIn(effort.map((e) => localDay(e.data.at)))} days`), category: "effort" });
     const sore = logs.pointAtIt.filter((e) => inPeriod(localDay(e.data.at), period));
     if (sore.length) rows.push({ key: "discomfort", title: "Discomfort", logged: true, when: "", value: `${sore.length} ${sore.length === 1 ? "entry" : "entries"}`, context: [...new Set(sore.map((e) => e.data.region).filter(Boolean))].join(", ") || "Spots on the map", category: "effort" });
     const meals = logs.meals.filter((e) => inPeriod(localDay(e.data.at), period));
-    if (meals.length) rows.push({ key: "meals", title: "Meals", logged: true, when: "", value: capAfterNumber(`${meals.length} logged`), context: `${daysIn(meals.map((e) => localDay(e.data.at)))} of ${period.days} days`, category: "nutrition" });
+    if (meals.length) rows.push({ key: "meals", title: "Meals", logged: true, when: "", value: lineCase(`${meals.length} logged`), context: lineCase(`${daysIn(meals.map((e) => localDay(e.data.at)))} of ${period.days} days`), category: "nutrition" });
     const doses = logs.tookIt.filter((e) => inPeriod(localDay(e.data.at), period));
     if (doses.length) rows.push({ key: "doses", title: "Medication", logged: true, when: "", value: `${doses.length} ${doses.length === 1 ? "dose" : "doses"} logged`, context: `${daysIn(doses.map((e) => localDay(e.data.at)))} of ${period.days} days`, category: "medication" });
     const checks = logs.checkins.filter((e) => inPeriod(localDay(e.data.at), period));
-    if (checks.length) rows.push({ key: "checkins", title: "Check Ins", logged: true, when: "", value: capAfterNumber(`${checks.length} logged`), context: `${daysIn(checks.map((e) => localDay(e.data.at)))} of ${period.days} days`, category: "checkins" });
+    if (checks.length) rows.push({ key: "checkins", title: "Check Ins", logged: true, when: "", value: lineCase(`${checks.length} logged`), context: lineCase(`${daysIn(checks.map((e) => localDay(e.data.at)))} of ${period.days} days`), category: "checkins" });
     return rows;
   })();
   const rest = (

@@ -54,8 +54,11 @@
 /* byRank >= 900 ("no rush"): a deadline that is not pressing is quiet. */
 .mdue.soft { background: var(--press-3); color: var(--tx-3); }
 /* EM2: the subject or the gist. Quiet when read, the page's ink when not. */
+/* EM4 says the subject MAY WRAP TO TWO; this line ellipsized at one (the
+   audit read "Security advisories flagged in two" as a 17% cut on every
+   mail row at 390). Two lines, clamped, like the headline (2026-09-27). */
 .mline2 { font-size: var(--t-sub); color: var(--tx-3); margin-top: 1px;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; white-space: normal; }
 .mline2.strong { color: var(--tx-1); font-weight: var(--w-semi); }
 /* The thread's message count after the subject: a number with no state, so
    white (§AM F1), behind a separator its own span draws (F3). */

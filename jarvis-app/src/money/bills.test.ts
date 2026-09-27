@@ -13,9 +13,10 @@ const bill = (over: Partial<TaskData> = {}): TaskItem =>
 
 describe("billSubline", () => {
   it("speaks proximity, not dates, on the near horizon", () => {
-    expect(billSubline(bill({ due: "2026-08-03" }), TODAY).text).toBe("Due today");
-    expect(billSubline(bill({ due: "2026-08-04" }), TODAY).text).toBe("Due tomorrow");
-    expect(billSubline(bill({ due: "2026-08-06" }), TODAY).text).toBe("Due in 3 days");
+    // Casing sweep 2 (2026-09-27): Title Case by the whole rule (§H2); durations through shared/duration ("45 Min", "1h 30m").
+    expect(billSubline(bill({ due: "2026-08-03" }), TODAY).text).toBe("Due Today");
+    expect(billSubline(bill({ due: "2026-08-04" }), TODAY).text).toBe("Due Tomorrow");
+    expect(billSubline(bill({ due: "2026-08-06" }), TODAY).text).toBe("Due in 3 Days");
     expect(billSubline(bill({ due: "2026-08-30" }), TODAY).text).toBe("Due Aug 30");
   });
 
@@ -26,8 +27,8 @@ describe("billSubline", () => {
   });
 
   it("overdue is words, stated flat", () => {
-    expect(billSubline(bill({ due: "2026-08-02" }), TODAY)).toEqual({ text: "Was due yesterday", state: "overdue" });
-    expect(billSubline(bill({ due: "2026-08-01" }), TODAY).text).toBe("Was due 2 days ago");
+    expect(billSubline(bill({ due: "2026-08-02" }), TODAY)).toEqual({ text: "Was Due Yesterday", state: "overdue" });
+    expect(billSubline(bill({ due: "2026-08-01" }), TODAY).text).toBe("Was Due 2 Days Ago");
   });
 
   it("manual payments get a dated receipt", () => {
@@ -43,9 +44,9 @@ describe("billSubline", () => {
     const upcoming = bill({ bill: { amount: 1850, autopay: true }, recurrence: "monthly", due: "2026-08-07" });
     // The day is its own field, so the row sets it as a date rather than
     // gluing it to the words with a baked dot (§AM F3, F5).
-    expect(billSubline(upcoming, TODAY)).toEqual({ text: "Set to autopay", when: "Friday", state: "autopay" });
+    expect(billSubline(upcoming, TODAY)).toEqual({ text: "Set to Autopay", when: "Friday", state: "autopay" });
     const rolled = bill({ bill: { amount: 1850, autopay: true }, recurrence: "monthly", due: "2026-09-01", lastDone: "2026-08-01" });
-    expect(billSubline(rolled, TODAY).text).toBe("Autopay scheduled Aug 1");
+    expect(billSubline(rolled, TODAY).text).toBe("Autopay Scheduled Aug 1");
     for (const b of [upcoming, rolled]) {
       expect(billSubline(b, TODAY).text.toLowerCase()).not.toContain("paid");
       expect(billSubline(b, TODAY).text.toLowerCase()).not.toContain("handled");
@@ -58,11 +59,11 @@ describe("billSubline", () => {
   // handled its receipt is the last word, and it still never says "paid".
   it("a once autopay bill keeps its scheduled receipt after its date has gone", () => {
     const handled = bill({ bill: { amount: 85, autopay: true }, done: true, due: "2026-07-20", lastDone: "2026-07-20" });
-    expect(billSubline(handled, TODAY)).toEqual({ text: "Autopay scheduled Jul 20", state: "paid" });
+    expect(billSubline(handled, TODAY)).toEqual({ text: "Autopay Scheduled Jul 20", state: "paid" });
     expect(billSubline(handled, TODAY).text.toLowerCase()).not.toContain("paid");
     // Before the roll runs, the line at least says the day it was, not "today".
     const lapsed = bill({ bill: { amount: 85, autopay: true }, due: "2026-07-20" });
-    expect(billSubline(lapsed, TODAY)).toEqual({ text: "Set to autopay", when: "Jul 20", state: "autopay" });
+    expect(billSubline(lapsed, TODAY)).toEqual({ text: "Set to Autopay", when: "Jul 20", state: "autopay" });
   });
 });
 
@@ -110,8 +111,8 @@ describe("payday anchoring", () => {
       bill({ text: "water", bill: { amount: 45 }, due: "2026-08-01" }), // overdue, still owed: 45
       bill({ text: "rent", bill: { amount: 1850 }, due: "2026-08-20" }), // after payday: out of window
     ], TODAY);
-    expect(line!.title).toBe("Between now and Friday");
-    expect(line!.sub).toBe("$1,200 in, $165 of bills out");
+    expect(line!.title).toBe("Between Now and Friday");
+    expect(line!.sub).toBe("$1,200 in, $165 of Bills Out");
   });
 
   // HMN-F-10 (2026-09-05), option A. The line carried a fourth filter that
@@ -131,13 +132,13 @@ describe("payday anchoring", () => {
     });
     const line = paydayLine(p, [weekly], TODAY);
     expect(line).not.toBeNull();
-    expect(line!.sub).toBe("$1,200 in, $500 of bills out");
+    expect(line!.sub).toBe("$1,200 in, $500 of Bills Out");
     // And it agrees with the hero, which counts by the same one rule
     // (MoneyFlow.tsx: unpaid, dated, due on or before payday).
     const heroOut = [weekly]
       .filter((t) => !t.data.done && !!t.data.due && t.data.due <= paydayNext(p, TODAY))
       .reduce((sum, t) => sum + (t.data.bill?.amount ?? 0), 0);
-    expect(line!.sub).toContain("$" + heroOut.toLocaleString() + " of bills out");
+    expect(line!.sub).toContain("$" + heroOut.toLocaleString() + " of Bills Out");
   });
 
   it("says nothing when there is nothing honest to say", () => {
@@ -149,8 +150,9 @@ describe("payday anchoring", () => {
 
 describe("date words", () => {
   it("phrases days like a person", () => {
-    expect(dayPhrase("2026-08-03", TODAY)).toBe("today");
-    expect(dayPhrase("2026-08-04", TODAY)).toBe("tomorrow");
+    // Casing sweep 3 (2026-09-27): Title Case by the whole rule (§H2); durations through shared/duration ("45 Min", "About 1 Min").
+    expect(dayPhrase("2026-08-03", TODAY)).toBe("Today");
+    expect(dayPhrase("2026-08-04", TODAY)).toBe("Tomorrow");
     expect(dayPhrase("2026-08-07", TODAY)).toBe("Friday");
     expect(dayPhrase("2026-08-30", TODAY)).toBe("Aug 30");
     expect(monthDay("2026-12-05")).toBe("Dec 5");
@@ -158,7 +160,7 @@ describe("date words", () => {
 
   // HMN-F-11: a date already behind us used to come back as "today".
   it("says a day behind us in the past tense", () => {
-    expect(dayPhrase("2026-08-02", TODAY)).toBe("yesterday");
+    expect(dayPhrase("2026-08-02", TODAY)).toBe("Yesterday");
     expect(dayPhrase("2026-07-20", TODAY)).toBe("Jul 20");
   });
 });

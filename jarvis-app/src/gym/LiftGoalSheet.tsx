@@ -5,6 +5,7 @@ import type { MeasureKind } from "./types";
 import type { LiftMeasure, TrainingMeasure, TrainingCadence } from "./goalMeasures";
 import { fieldsFor, has } from "./measures";
 import Stepper from "../shared/Stepper";
+import { lineCase } from "../shared/casing";
 
 // A GOAL ON THE BAR, D12-A/C (Training Catalog V2, approved 2026-08-31). Set
 // from the gym, because this is the one sheet that knows how to pick an
@@ -108,28 +109,28 @@ export default function LiftGoalSheet({
           {mode === "lift" && kind === "weight_reps" && (
             <div className="field">
               <div className="input-label">Target</div>
-              <div className="row"><div className="row-grow"><div className="conn-name">{w} {unit ?? "lb"}</div></div><Stepper value={w} step={5} min={0} label="Weight" onChange={setW} /></div>
-              <div className="row"><div className="row-grow"><div className="conn-name">{r} reps</div></div><Stepper value={r} step={1} min={1} label="Reps" onChange={setR} /></div>
+              <div className="row"><div className="row-grow"><div className="conn-name">{lineCase(`${w} ${unit ?? "lb"}`)}</div></div><Stepper value={w} step={5} min={0} label="Weight" onChange={setW} /></div>
+              <div className="row"><div className="row-grow"><div className="conn-name">{lineCase(`${r} reps`)}</div></div><Stepper value={r} step={1} min={1} label="Reps" onChange={setR} /></div>
               <div className="input-hint">Hitting it once, at that weight and rep floor, is the celebration.</div>
             </div>
           )}
           {mode === "lift" && (kind === "reps" || kind === "rounds") && (
             <div className="field">
               <div className="input-label">Target</div>
-              <div className="row"><div className="row-grow"><div className="conn-name">{r} {kind === "rounds" ? "rounds" : "reps"}</div></div><Stepper value={r} step={1} min={1} label="Target" onChange={setR} /></div>
+              <div className="row"><div className="row-grow"><div className="conn-name">{lineCase(`${r} ${kind === "rounds" ? "rounds" : "reps"}`)}</div></div><Stepper value={r} step={1} min={1} label="Target" onChange={setR} /></div>
             </div>
           )}
           {mode === "lift" && (kind === "time_faster" || kind === "time_longer" || kind === "distance" || kind === "height") && (
             <div className="field">
               <div className="input-label">Target</div>
-              <div className="row"><div className="row-grow"><div className="conn-name">{v} {unit ?? timeUnit ?? ""}</div></div><Stepper value={v} step={kind === "time_faster" || kind === "time_longer" ? 0.5 : 1} min={0} label="Target" onChange={setV} /></div>
+              <div className="row"><div className="row-grow"><div className="conn-name">{lineCase(`${v} ${unit ?? timeUnit ?? ""}`.trim())}</div></div><Stepper value={v} step={kind === "time_faster" || kind === "time_longer" ? 0.5 : 1} min={0} label="Target" onChange={setV} /></div>
             </div>
           )}
           {mode === "lift" && kind === "distance_time" && (
             <div className="field">
               <div className="input-label">Target</div>
-              <div className="row"><div className="row-grow"><div className="conn-name">{v} {unit ?? ""}</div></div><Stepper value={v} step={1} min={0} label="Distance" onChange={setV} /></div>
-              <div className="row"><div className="row-grow"><div className="conn-name">{t} {timeUnit ?? "min"}</div></div><Stepper value={t} step={0.5} min={0} label="Time" onChange={setT} /></div>
+              <div className="row"><div className="row-grow"><div className="conn-name">{lineCase(`${v} ${unit ?? ""}`.trim())}</div></div><Stepper value={v} step={1} min={0} label="Distance" onChange={setV} /></div>
+              <div className="row"><div className="row-grow"><div className="conn-name">{lineCase(`${t} ${timeUnit ?? "min"}`)}</div></div><Stepper value={t} step={0.5} min={0} label="Time" onChange={setT} /></div>
             </div>
           )}
 
@@ -147,7 +148,7 @@ export default function LiftGoalSheet({
                 <button className={"seg" + (per === "week" ? " active" : "")} onClick={() => setPer("week")}>A Week</button>
                 <button className={"seg" + (per === "month" ? " active" : "")} onClick={() => setPer("month")}>A Month</button>
               </div>
-              <div className="row field-gap"><div className="row-grow"><div className="conn-name">{times} sessions</div></div><Stepper value={times} step={1} min={1} label="Sessions" onChange={setTimes} /></div>
+              <div className="row field-gap"><div className="row-grow"><div className="conn-name">{lineCase(`${times} sessions`)}</div></div><Stepper value={times} step={1} min={1} label="Sessions" onChange={setTimes} /></div>
               <div className="field-gap">
                 <div className={"chip" + (scoped ? " active" : "")} role="button" tabIndex={0} onClick={() => setScoped((s) => !s)}>
                   {scoped ? `Only ${exercise}` : "Any Session Counts"}

@@ -303,8 +303,12 @@ describe("CategoryDetail org health (2026-08-10)", () => {
     // ONE GREY LINE (Dave 2026-09-02): the next move as the line, the
     // overdue count as a chip ahead of it; the goal it moves is the Goals
     // Here card, not a third line.
-    expect(screen.getByText(/Next: Email sponsors/)).toBeInTheDocument();
-    expect(screen.getByText("1 late")).toHaveClass("u-late");
+    // AMENDED 2026-09-26 (pass-off): the next move is the lens's NEXT form
+    // on its own line, the step in Title Case; the chips sit on the line
+    // under it, cased.
+    expect(screen.getByText("Email Sponsors")).toHaveClass("r-next-v");
+    expect(screen.getByText("1 Late")).toHaveClass("u-late");
+    expect(screen.queryByText(/Next: /)).toBeNull();
     expect(screen.queryByText(/Moves Grow the league/)).toBeNull();
   });
 
@@ -563,13 +567,14 @@ describe("CategoryDetail metric log delete (BRAIN-F-15)", () => {
       const real = metricsRef!.removeLog.bind(metricsRef);
       metricsRef!.removeLog = () => Promise.reject(new Error("offline"));
       fireEvent.click(del);
-      await waitFor(() => expect(seen.some((m) => m.startsWith("Couldn't save that metric"))).toBe(true));
-      expect(seen).not.toContain("Log deleted");
+      await waitFor(() => expect(seen.some((m) => m.startsWith("Couldn't Save That Metric"))).toBe(true));
+      // Casing sweep 2 (2026-09-27): Title Case by the whole rule (§H2); durations through shared/duration ("45 Min", "1h 30m").
+      expect(seen).not.toContain("Log Deleted");
 
       // With the connection back, the same tap says it, once it is true.
       metricsRef!.removeLog = real;
       fireEvent.click(screen.getByText("Delete"));
-      await waitFor(() => expect(seen).toContain("Log deleted"));
+      await waitFor(() => expect(seen).toContain("Log Deleted"));
     } finally {
       stop();
     }
@@ -612,12 +617,12 @@ describe("CategoryDetail area delete (BRAIN-F-10)", () => {
       fireEvent.click(screen.getByText("Edit"));
       fireEvent.click(await screen.findByText("Delete Category"));
       // The armed step names the cost, in real numbers, before the second tap.
-      expect(await screen.findByText("Untags 1 task")).toBeInTheDocument();
+      expect(await screen.findByText("Untags 1 Task")).toBeInTheDocument();
       fireEvent.click(screen.getByText("Tap Again to Delete"));
       await waitFor(async () => expect(await catsRef!.list()).toHaveLength(0));
 
       const toast = seen[seen.length - 1]!;
-      expect(toast.message).toBe("Area deleted");
+      expect(toast.message).toBe("Area Deleted");
       toast.onAction!();
       await waitFor(async () => expect(await catsRef!.list()).toHaveLength(1));
 
@@ -976,7 +981,7 @@ describe("CategoryDetail person row: the wait age takes the nudge count", () => 
 
   // SPEC MOVED (sweep r2 #5, 2026-09-26): "Waiting 3 days on their reply"
   // wrapped beside the Nudge pill at 390px; the pill says who owes the move.
-  const waitLine = () => screen.findByText("Waiting 3 days");
+  const waitLine = () => screen.findByText("Waiting 3 Days");
 
   it("a 3-day wait never chased is a neutral time in small caps", async () => {
     render(<NotesProvider userId="wn0"><SeededWaiting /></NotesProvider>);
@@ -1009,7 +1014,7 @@ describe("CategoryDetail person row: the wait age takes the nudge count", () => 
     render(<NotesProvider userId="wn3"><SeededWaiting /></NotesProvider>);
     const line = await waitLine();
     const facts = [...line.closest(".r-k")!.children].map((c) => c.textContent);
-    expect(facts).toEqual(["Waiting 3 days", "Client"]);
+    expect(facts).toEqual(["Waiting 3 Days", "Client"]);
   });
 
   // Gone quiet is the key's amber on the last-talked words, the way the
@@ -1019,13 +1024,13 @@ describe("CategoryDetail person row: the wait age takes the nudge count", () => 
     mailFake.waiting = [];
     mailFake.lastMs = Date.now() - 40 * 86400000;
     const { unmount } = render(<NotesProvider userId="wn4"><SeededWaiting /></NotesProvider>);
-    const quiet = await screen.findByText("Last talked 5 Weeks ago");
+    const quiet = await screen.findByText("Last Talked 5 Weeks Ago");
     expect(quiet).toHaveClass("fact", "warn");
     expect(screen.queryByText(/Gone quiet/)).toBeNull();
     unmount();
     mailFake.lastMs = Date.now() - 3 * 86400000;
     render(<NotesProvider userId="wn5"><SeededWaiting /></NotesProvider>);
-    const recent = await screen.findByText("Last talked 3 Days ago");
+    const recent = await screen.findByText("Last Talked 3 Days Ago");
     expect(recent).toHaveClass("fact", "date");
     expect(recent).not.toHaveClass("warn");
   });

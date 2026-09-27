@@ -1,26 +1,35 @@
 import { useCallback, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { useCategories, useGoals, useProjects, useGym, useTasks, useRules, useOptionalSeal, useSchedule } from "../data/NotesProvider";
+import { useCategories, useGoals, useProjects, useGym, useTasks, useRules, useOptionalSeal, useSchedule, useOptionalPeople, useOptionalDecisions } from "../data/NotesProvider";
 import type { MonthSeal, MonthSealData } from "./seal";
 import { prevMonthKey, computeSeal } from "./seal";
 import { readWindow, type WindowClient } from "../brain/window";
 import { supabase } from "../auth/supabaseClient";
 import { todayISO } from "../tasks/grouping";
-import { buildReport, type MonthReport, type CarriedTask } from "./report";
+import { buildReport, type MonthReport, type CarriedTask, type ReportFact, type LifeCard } from "./report";
 import RollingNumber from "../shared/RollingNumber";
 import { showToast } from "../shared/toast";
 import { attemptWrite } from "../shared/guard";
-import { capAfterNumber } from "../shared/casing";
+import { lineCase } from "../shared/casing";
+import { effectiveKind } from "../categories/kinds";
+import { peopleForDerivation } from "../brain/peopleFacts";
+import { loadWaitingCache, waitingDaysOf } from "../messages/waiting";
 import type { TaskData } from "../notes/types";
 import type { EventItem } from "../schedule/types";
-import { TargetGlyph, CheckCircleGlyph, WarningGlyph, LockGlyph } from "../shared/glyphs";
-import { filledIcon } from "../shared/filledIcons";
+import { TargetGlyph, CheckCircleGlyph, LockGlyph } from "../shared/glyphs";
 import { pressable } from "../shared/pressable";
 
 // THE MONTHLY REPORT (2026-08-25, built from the approved v3 preview).
 // Reassurance leads, numbers and color carry it, sentences live behind the
 // taps. Exactly one proposed change, and it ends in a setting, not a
 // feeling. Every section renders only what its month can prove.
+//
+// AMENDED 2026-09-26 (pass-off): a line under a title is a .facts line
+// (one grey, one key colour, the dot drawn by CSS), never a caps sentence
+// (§AK, §AM F2-F5; "caps is for a label, never a sentence"); a sentence
+// goes under its card as a field note. The report carries Money, Mail,
+// People, Health and Decisions from the seal, each with an exit and never
+// a rule: One Change stays the only proposed change.
 
 const SEEN_KEY = "jarvis.report.seen.v1";
 
@@ -32,6 +41,29 @@ export function reportSeen(): string | null {
 }
 
 const TARGET = <TargetGlyph />;
+
+/** The longest reply still waited on, in days, off the Waiting On cache the
+ *  mail tab already keeps. Read only; nothing is fetched. */
+export function oldestWaitDays(now: number): number {
+  let worst = 0;
+  try {
+    for (const r of Object.values(loadWaitingCache())) worst = Math.max(worst, waitingDaysOf(r.dateMs, now));
+  } catch { /* no storage: nothing is waiting that this can see */ }
+  return worst;
+}
+
+/** One facts line: the words grey, a count white, at most one key colour. */
+function Facts({ facts }: { facts: ReportFact[] }) {
+  return (
+    <div className="facts">
+      {facts.map((f, i) => (
+        <span className={"fact" + (f.tone ? " " + f.tone : "")} key={i}>
+          {f.parts ? f.parts.map((p, j) => (typeof p === "string" ? p : <b key={j}>{p.b}</b>)) : f.text}
+        </span>
+      ))}
+    </div>
+  );
+}
 
 function ReceiptsSheet({ title, lines, onDone }: { title: string; lines: string[]; onDone: () => void }) {
   return createPortal(
@@ -56,7 +88,7 @@ function ReceiptsSheet({ title, lines, onDone }: { title: string; lines: string[
   );
 }
 
-export function ReportScreen({ report, capped, onCap, onOpenTask, onDropTask, onBack, stillOpen }: {
+export function ReportScreen({ report, capped, onCap, onOpenTask, onDropTask, onBack, stillOpen, canExit, onExit }: {
   report: MonthReport;
   capped: boolean;
   onCap: () => void;
@@ -65,6 +97,10 @@ export function ReportScreen({ report, capped, onCap, onOpenTask, onDropTask, on
   onBack: () => void;
   /** The live current month: labeled, and never marked as a seen arrival. */
   stillOpen?: boolean;
+  /** A life card's exit: whether its door is wired (a card whose door is
+   *  not shows no button rather than one that does nothing), and the tap. */
+  canExit?: (exit: LifeCard["exit"]) => boolean;
+  onExit?: (exit: LifeCard["exit"]) => void;
 }) {
   const [receipts, setReceipts] = useState<{ title: string; lines: string[] } | null>(null);
   // The open animation: bars grow into place once, numbers roll via the
@@ -78,6 +114,8 @@ export function ReportScreen({ report, capped, onCap, onOpenTask, onDropTask, on
   useEffect(() => { if (!stillOpen) markReportSeen(report.month); }, [report.month, stillOpen]);
 
   const maxHour = Math.max(1, ...report.hours?.byHour ?? [1]);
+  const exitable = (exit: LifeCard["exit"]) => !!onExit && (!canExit || canExit(exit));
+  const worthFeet = report.worth.map((w) => w.foot).filter((f): f is string => !!f);
 
   return (
     <div className="screen ruled">
@@ -107,7 +145,8 @@ export function ReportScreen({ report, capped, onCap, onOpenTask, onDropTask, on
             ))}
           </div>
         )}
-        <div className="rep-hint">Tap anything for its receipts</div>
+        {/* A sentence, so a field note at 14 and never a caps line. */}
+        <div className="input-hint rep-hint">Tap anything for its receipts</div>
       </div>
 
       {/* THE MONTH: tiles with deltas, the hours strip, where it went. */}
@@ -128,7 +167,7 @@ export function ReportScreen({ report, capped, onCap, onOpenTask, onDropTask, on
         )}
 
         {report.hours && (
-          <div {...pressable(() => setReceipts({ title: `Your hours: ${report.hours!.label}`, lines: [capAfterNumber(`${report.tiles.find((t) => t.label === "Done")?.num ?? 0} finishes this month; the tallest bars are your band`)] }))} className="card pad rep-gap"
+          <div {...pressable(() => setReceipts({ title: `Your Hours: ${report.hours!.label}`, lines: [lineCase(`${report.tiles.find((t) => t.label === "Done")?.num ?? 0} finishes this month; the tallest bars are your band`)] }))} className="card pad rep-gap"
 >
             <div className="rep-split"><span className="rep-eyebrow rep-quiet">Your Hours</span><b>{report.hours.label}</b></div>
             <div className="rep-hours">
@@ -149,27 +188,31 @@ export function ReportScreen({ report, capped, onCap, onOpenTask, onDropTask, on
             finished, this one counts time scheduled. No target line and no
             ideal split is drawn, so there is nothing here to fall short of.
             The quiet line names live-goal areas with nothing on the calendar
-            and stops there; whether that is a problem is the reader's call. */}
+            and stops there; whether that is a problem is the reader's call.
+            The total is a length that cannot be tapped, so a white <b> on
+            its own split line; the quiet line is the card's field note. */}
         {report.time && (
-          <div className="card pad rep-gap">
-            <div className="rep-eyebrow rep-quiet">Where the Hours Went</div>
-            <div className="rep-stack">
-              {report.time.rows.map((r) => (
-                <i key={r.id || "rest"} className={"cat-bg-" + r.color} style={{ width: grown ? `${Math.max(4, r.pct)}%` : "25%" }} />
-              ))}
+          <>
+            <div className="card pad rep-gap">
+              <div className="rep-eyebrow rep-quiet">Where the Hours Went</div>
+              <div className="rep-stack">
+                {report.time.rows.map((r) => (
+                  <i key={r.id || "rest"} className={"cat-bg-" + r.color} style={{ width: grown ? `${Math.max(4, r.pct)}%` : "25%" }} />
+                ))}
+              </div>
+              <div className="rep-leg">
+                {report.time.rows.map((r) => (
+                  <span key={r.id || "rest"}><i className={"cat-bg-" + r.color} />{r.name} {r.label}{r.vs && <span className="fact warn rep-vs">{r.vs}</span>}</span>
+                ))}
+              </div>
+              <div className="rep-split rep-gap"><span className="rep-eyebrow rep-quiet">On the Calendar</span><b>{report.time.total}</b></div>
             </div>
-            <div className="rep-leg">
-              {report.time.rows.map((r) => (
-                <span key={r.id || "rest"}><i className={"cat-bg-" + r.color} />{r.name} {r.label}{r.vs && <span className="fact warn rep-vs">{r.vs}</span>}</span>
-              ))}
-            </div>
-            <div className="eyebrow rep-gap">{report.time.total} on the calendar</div>
             {report.time.quiet.length > 0 && (
-              <div className="eyebrow">
-                Nothing scheduled for {report.time.quiet.map((q) => q.name).join(", ")}
+              <div className="input-hint">
+                {lineCase(`Nothing scheduled for ${report.time.quiet.map((q) => q.name).join(", ")}`)}
               </div>
             )}
-          </div>
+          </>
         )}
 
         {report.went && (
@@ -196,26 +239,30 @@ export function ReportScreen({ report, capped, onCap, onOpenTask, onDropTask, on
       {report.worth.length > 0 && (
         <>
           <div className="sh2 sh2-quiet"><span className="t">Worth a Look</span></div>
-          <div className="pad-x"><div className="card list-card-ruled">
-            {report.worth.map((w) => (
-              <div key={w.id}>
-                <div {...pressable(() => setReceipts({ title: w.title, lines: w.receipts }))} className="row">
-                  {w.id === "cut" && <div className="row-glyph rep-good-glyph"><CheckCircleGlyph /></div>}
-                  <div className="row-grow">
-                    <div className="rep-title">{w.title}</div>
-                    {w.sub && <div className="eyebrow">{w.sub}</div>}
+          <div className="pad-x">
+            <div className="card list-card-ruled">
+              {report.worth.map((w) => (
+                <div key={w.id}>
+                  <div {...pressable(() => setReceipts({ title: w.title, lines: w.receipts }))} className="row">
+                    {w.id === "cut" && <div className="row-glyph rep-good-glyph"><CheckCircleGlyph /></div>}
+                    <div className="row-grow">
+                      <div className="rep-title">{w.title}</div>
+                      {w.sub && <Facts facts={w.sub} />}
+                    </div>
+                    <div className="chev" />
                   </div>
-                  <div className="chev" />
+                  {w.id === "carried" && w.carried && w.carried.length > 0 && (onOpenTask || onDropTask) && (
+                    <div className="rep-btnrow">
+                      {onOpenTask && <button className="pill-act" onClick={() => onOpenTask(w.carried![0]!.id)}>Do One</button>}
+                      {onDropTask && <button className="pill-act" onClick={() => onDropTask(w.carried![0]!)}>Drop One</button>}
+                    </div>
+                  )}
                 </div>
-                {w.id === "carried" && w.carried && w.carried.length > 0 && (onOpenTask || onDropTask) && (
-                  <div className="rep-btnrow">
-                    {onOpenTask && <button className="pill-act" onClick={() => onOpenTask(w.carried![0]!.id)}>Do One</button>}
-                    {onDropTask && <button className="pill-act" onClick={() => onDropTask(w.carried![0]!)}>Drop One</button>}
-                  </div>
-                )}
-              </div>
-            ))}
-          </div></div>
+              ))}
+            </div>
+            {/* A sentence under a card is its field note, never a caps line. */}
+            {worthFeet.map((f) => <div className="input-hint" key={f}>{f}</div>)}
+          </div>
         </>
       )}
 
@@ -228,10 +275,39 @@ export function ReportScreen({ report, capped, onCap, onOpenTask, onDropTask, on
               <div {...pressable(() => setReceipts({ title: p.title, lines: p.receipts }))} className="row" key={p.id}>
                 <div className="row-grow">
                   <div className="rep-title">{p.title}</div>
-                  {p.sub && <div className="eyebrow">{p.sub}</div>}
+                  {p.sub && <Facts facts={p.sub} />}
                 </div>
                 {p.chip && <span className={"rep-chip rep-chip-" + p.chip.tone}>{p.chip.text}</span>}
                 <div className="chev" />
+              </div>
+            ))}
+          </div></div>
+        </>
+      )}
+
+      {/* ALSO IN THE MONTH (2026-09-26): Money, Mail, People, Health and
+          Decisions from what the app already keeps. Each card is a fact
+          with receipts and a door out (Open Money, Check In, Open Email,
+          Open Health Insights, Open Decisions). Nothing here proposes a
+          rule; One Change below is the report's one proposal. */}
+      {report.life.length > 0 && (
+        <>
+          <div className="sh2 sh2-quiet"><span className="t">Also in {report.monthName}</span></div>
+          <div className="pad-x"><div className="card list-card-ruled">
+            {report.life.map((c) => (
+              <div key={c.id}>
+                <div {...pressable(() => setReceipts({ title: c.title, lines: c.receipts }))} className="row">
+                  <div className="row-grow">
+                    <div className="rep-title">{c.title}</div>
+                    {c.facts.length > 0 && <Facts facts={c.facts} />}
+                  </div>
+                  <div className="chev" />
+                </div>
+                {exitable(c.exit) && (
+                  <div className="rep-btnrow">
+                    <button className="pill-act" onClick={() => onExit!(c.exit)}>{c.exit.label}</button>
+                  </div>
+                )}
               </div>
             ))}
           </div></div>
@@ -249,7 +325,7 @@ export function ReportScreen({ report, capped, onCap, onOpenTask, onDropTask, on
               <div className="row">
                 <div className="row-grow">
                   <div className="rep-title">{report.learned.title}</div>
-                  {report.learned.sub && <div className="eyebrow">{report.learned.sub}</div>}
+                  {report.learned.sub && <Facts facts={report.learned.sub} />}
                 </div>
               </div>
             )}
@@ -257,7 +333,7 @@ export function ReportScreen({ report, capped, onCap, onOpenTask, onDropTask, on
               <div className="row">
                 <div className="row-grow">
                   <div className="rep-title">{report.did.title}</div>
-                  {report.did.sub && <div className="eyebrow">{report.did.sub}</div>}
+                  {report.did.sub && <Facts facts={report.did.sub} />}
                 </div>
               </div>
             )}
@@ -281,7 +357,8 @@ export function ReportScreen({ report, capped, onCap, onOpenTask, onDropTask, on
                   </>
                 )}
             </div>
-            <div className="eyebrow rep-one-foot">{report.closer.foot}</div>
+            {/* A sentence under the pair: the card's field note, not caps. */}
+            <div className="input-hint rep-one-foot">{report.closer.foot}</div>
           </div>
         )}
 
@@ -293,7 +370,7 @@ export function ReportScreen({ report, capped, onCap, onOpenTask, onDropTask, on
               <div className="row-glyph lib-ico-neutral"><LockGlyph /></div>
               <div className="row-grow">
                 <div className="rep-title">{report.sealed.title}</div>
-                <div className="eyebrow">{report.sealed.sub}</div>
+                <div className="facts"><span className="fact">{report.sealed.sub}</span></div>
               </div>
             </div>
           </div>
@@ -311,11 +388,19 @@ export function ReportScreen({ report, capped, onCap, onOpenTask, onDropTask, on
  *  path). `month` opens that sealed month from the shelf. `live` builds the
  *  CURRENT month from the live window through the same computeSeal, so the
  *  page is one engine wearing one honest extra label: So Far. */
-export default function ReportFlow({ onBack, onOpenTask, month, live }: {
+export default function ReportFlow({ onBack, onOpenTask, month, live, onOpenEntity, onOpenMoney, onOpenEmail }: {
   onBack: () => void;
   onOpenTask?: (id: string) => void;
   month?: string;
   live?: boolean;
+  /** The life cards' exits (2026-09-26): the shell's own entity door for a
+   *  person ("person", id), the health area ("category", id), Contacts and
+   *  Decisions ("category", "contacts" | "decisions"); the Money tab; the
+   *  Email tab. Each optional: a card whose door is not wired shows no
+   *  button. */
+  onOpenEntity?: (kind: string, id: string) => void;
+  onOpenMoney?: () => void;
+  onOpenEmail?: () => void;
 }) {
   const sealSvc = useOptionalSeal();
   const cats = useCategories();
@@ -325,6 +410,8 @@ export default function ReportFlow({ onBack, onOpenTask, month, live }: {
   const tasksSvc = useTasks();
   const rules = useRules();
   const schedule = useSchedule();
+  const peopleSvc = useOptionalPeople();
+  const decisionsSvc = useOptionalDecisions();
   const [report, setReport] = useState<MonthReport | null>(null);
   const [none, setNone] = useState(false);
   const [capped, setCapped] = useState(false);
@@ -332,7 +419,7 @@ export default function ReportFlow({ onBack, onOpenTask, month, live }: {
 
   const load = useCallback(async () => {
     if (!sealSvc) { setNone(true); return; }
-    const [seals, cs, gl, pj, ws, tk, capRule] = await Promise.all([
+    const [seals, cs, gl, pj, ws, tk, capRule, dec, ppl] = await Promise.all([
       sealSvc.list(),
       cats.list(),
       goalsSvc.list(),
@@ -344,6 +431,10 @@ export default function ReportFlow({ onBack, onOpenTask, month, live }: {
       // lives (types.ts's own doctrine), so a deleted row here genuinely
       // un-caps the day and this closer can offer it again next month.
       rules.resolve("plan.cap", "day"),
+      // The life cards' sources (2026-09-26), best effort: a read that
+      // fails costs the report a card, never the report.
+      decisionsSvc ? decisionsSvc.listAll().catch(() => []) : Promise.resolve([]),
+      peopleSvc ? peopleSvc.list().catch(() => []) : Promise.resolve([]),
     ]);
     // create() pre-announces (its own toast at creation says more than the
     // generic one would), so this is a no-op in the normal case; it stays
@@ -363,7 +454,11 @@ export default function ReportFlow({ onBack, onOpenTask, month, live }: {
       // failed calendar read costs the section, never the report.
       let events: EventItem[] | undefined;
       try { events = await schedule.listEvents(); } catch { events = undefined; }
-      sealData = computeSeal(todayISO().slice(0, 7), { rows, workouts: ws, goals: gl, sealedAt: now, ...(events ? { events } : {}) });
+      const people = await peopleForDerivation(peopleSvc, cs.map((c) => ({ id: c.id, name: c.data.name }))).catch(() => []);
+      sealData = computeSeal(todayISO().slice(0, 7), {
+        rows, workouts: ws, goals: gl, sealedAt: now, ...(events ? { events } : {}),
+        tasks: tk, decisions: dec.map((d) => d.data), people, waitDays: oldestWaitDays(now),
+      });
     } else {
       const wanted: MonthSeal | undefined = month
         ? seals.find((x) => x.data.month === month)
@@ -384,8 +479,10 @@ export default function ReportFlow({ onBack, onOpenTask, month, live }: {
       workouts: ws,
       openTaskText: (id) => open.get(id)?.text ?? null,
       alreadyCapped: !!capRule,
+      people: ppl.map((p) => ({ id: p.id, name: p.data.name })),
+      healthCategoryId: cs.find((c) => effectiveKind(c.data) === "health")?.id ?? null,
     }));
-  }, [sealSvc, cats, goalsSvc, projectsSvc, gym, tasksSvc, rules, schedule, month, live]);
+  }, [sealSvc, cats, goalsSvc, projectsSvc, gym, tasksSvc, rules, schedule, peopleSvc, decisionsSvc, month, live]);
   useEffect(() => { void load(); }, [load]);
 
   // S4-Q26 (2026-09-04): one tap, one step. create() is idempotent and
@@ -399,7 +496,7 @@ export default function ReportFlow({ onBack, onOpenTask, month, live }: {
     const ok = await attemptWrite(() => rules.create("tuning", "plan.cap", "day", "3", "Chosen from the monthly report: first picks finish, later picks mostly do not"));
     if (!ok) return;
     setCapped(true);
-    showToast({ message: "Capped at 3 · Starting tomorrow" });
+    showToast({ message: "Capped at 3 · Starting Tomorrow" });
   };
 
   const onDropTask = async (c: CarriedTask) => {
@@ -408,13 +505,31 @@ export default function ReportFlow({ onBack, onOpenTask, month, live }: {
     if (!ok) return;
     await load();
     showToast({
-      message: "Task dropped",
+      message: "Task Dropped",
       actionLabel: "Undo",
       onAction: async () => {
         if (data) await attemptWrite(() => tasksSvc.recreateFrom(data));
         await load();
       },
     });
+  };
+
+  // THE EXITS (2026-09-26). Each life card opens the place its numbers came
+  // from, through the shell's existing doors; a door that is not wired
+  // shows no button.
+  const canExit = (exit: LifeCard["exit"]): boolean => {
+    if (exit.kind === "money") return !!onOpenMoney;
+    if (exit.kind === "email") return !!onOpenEmail;
+    if (exit.kind === "health") return !!onOpenEntity && !!exit.id;
+    return !!onOpenEntity;
+  };
+  const onExit = (exit: LifeCard["exit"]): void => {
+    if (!canExit(exit)) return;
+    if (exit.kind === "money") onOpenMoney!();
+    else if (exit.kind === "email") onOpenEmail!();
+    else if (exit.kind === "person") onOpenEntity!(exit.id ? "person" : "category", exit.id ?? "contacts");
+    else if (exit.kind === "health") onOpenEntity!("category", exit.id!);
+    else onOpenEntity!("category", "decisions");
   };
 
   if (none) {
@@ -428,7 +543,7 @@ export default function ReportFlow({ onBack, onOpenTask, month, live }: {
         <div className="empty-state">
           <div className="empty-icon">{TARGET}</div>
           <div className="empty-title">No Month Sealed Yet</div>
-          <div className="empty-sub">Your first report arrives on the 1st, unannounced</div>
+          <div className="empty-sub">Your First Report Arrives on the 1st, Unannounced</div>
         </div>
       </div>
     );
@@ -443,6 +558,8 @@ export default function ReportFlow({ onBack, onOpenTask, month, live }: {
       onDropTask={(c) => void onDropTask(c)}
       onBack={onBack}
       stillOpen={live}
+      canExit={canExit}
+      onExit={onExit}
     />
   );
 }

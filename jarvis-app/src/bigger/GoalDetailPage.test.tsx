@@ -34,7 +34,8 @@ describe("a dropped goal's line (LIFE-F-27)", () => {
   it("points at the decision when there is one", () => {
     view({ id: "g1", data: { title: "Half marathon", state: "on_track", dropped: { on: "2026-08-14", decisionId: "d1" } } });
     expect(screen.getByText("Dropped Aug 14")).toHaveClass("fact", "date");
-    expect(screen.getByText("The reason is in your decisions")).toBeInTheDocument();
+    // Casing sweep 2 (2026-09-27): Title Case by the whole rule (§H2); durations through shared/duration ("45 Min", "1h 30m").
+    expect(screen.getByText("The Reason Is in Your Decisions")).toBeInTheDocument();
     expect(screen.queryByText(/\u00b7/)).toBeNull();
   });
 
@@ -61,7 +62,7 @@ describe("the goal page's milestones and check-in", () => {
     // The answer is the pressed pill; the line under the pills says when,
     // as a small-caps date (§AM, 2026-09-26).
     expect(screen.getByText("On Track")).toHaveAttribute("aria-pressed", "true");
-    expect(screen.getByText("Checked in Sep 3")).toHaveClass("fact", "date");
+    expect(screen.getByText("Checked In Sep 3")).toHaveClass("fact", "date");
     // Unmeasured is not a status, so the hero draws no "No Measure" (§AK).
     expect(screen.queryByText("No Measure")).toBeNull();
     fireEvent.click(screen.getByText("Behind"));
@@ -100,8 +101,8 @@ describe("the goal page's milestones and check-in", () => {
     expect(onDone).toHaveBeenCalledWith("b", true);
     expect(screen.getAllByRole("checkbox").length).toBe(3);
     fireEvent.click(screen.getByText("Add Milestone"));
-    fireEvent.change(screen.getByPlaceholderText(/The next step/), { target: { value: "Buy lamps" } });
-    fireEvent.keyDown(screen.getByPlaceholderText(/The next step/), { key: "Enter" });
+    fireEvent.change(screen.getByPlaceholderText(/The Next Milestone/), { target: { value: "Buy lamps" } });
+    fireEvent.keyDown(screen.getByPlaceholderText(/The Next Milestone/), { key: "Enter" });
     expect(onAdd).toHaveBeenCalledWith("Buy lamps");
   });
 });
@@ -116,10 +117,10 @@ describe("the goal hero", () => {
         goal={{ id: "g", data: { title: "Read 12 books", state: "on_track", measure: { kind: "count", target: 12 }, by: "2026-10-01" } }}
         reach={EMPTY} projects={[]} health="behind"
         measure={{ done: 4, target: 12, pct: 33, met: false, line: "4 of 12 Done" }}
-        pace={{ when: "Past its date", tone: "red" }}
+        pace={{ when: "Past Its Date", tone: "red" }}
       />,
     );
-    expect(screen.getByText("Past its date")).toHaveClass("fact", "red");
+    expect(screen.getByText("Past Its Date")).toHaveClass("fact", "red");
     expect(container.querySelectorAll(".proj-detail-hero .bp-sub").length).toBe(1);
     expect(container.querySelector(".proj-detail-hero")?.textContent).not.toMatch(/\u00b7/);
   });

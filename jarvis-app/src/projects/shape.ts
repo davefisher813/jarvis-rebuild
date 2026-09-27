@@ -1,6 +1,7 @@
 import type { ProjectData } from "./types";
 import { daysBetween } from "../upnext/upnext";
-import { capAfterNumber } from "../shared/casing";
+import { lineCase } from "../shared/casing";
+import { aboutLabel, spanLabel as sharedSpan } from "../shared/duration";
 
 // ---------------------------------------------------------------------------
 // THE SHAPE OF A PROJECT (Dave's picks 20 and 22, built 2026-08-24).
@@ -38,10 +39,10 @@ export function holdLine(d: ProjectData, today: string): string | null {
   if (d.status !== "on_hold") return null;
   if (!d.holdUntil) return "On hold, no end date";
   const days = daysBetween(today, d.holdUntil);
-  if (days < 0) return capAfterNumber(`Hold ended ${-days} ${days === -1 ? "day" : "days"} ago`);
+  if (days < 0) return lineCase(`Hold ended ${-days} ${days === -1 ? "day" : "days"} ago`);
   if (days === 0) return "The hold ends today";
   if (days === 1) return "On hold until tomorrow";
-  if (days <= 14) return capAfterNumber(`On hold ${days} more days`);
+  if (days <= 14) return lineCase(`On hold ${days} more days`);
   return "On hold until " + monthDay(d.holdUntil);
 }
 
@@ -74,17 +75,14 @@ export function sizeOf(tasks: SizedTask[], estimateFor: (category: string) => nu
   return { open: open.length, minutes };
 }
 
-/** "45m" / "3h" / "3h 20m". Fused units, per the quiet-line law. */
+/** "45 Min" / "3h" / "3h 20m": the one duration shape (shared/duration.ts,
+ *  Dave 2026-09-26), kept under this name for its callers. */
 export function spanLabel(min: number): string {
-  const m = Math.max(0, Math.round(min));
-  const h = Math.floor(m / 60);
-  const r = m % 60;
-  if (h === 0) return `${m}m`;
-  return r === 0 ? `${h}h` : `${h}h ${r}m`;
+  return sharedSpan(min);
 }
 
 /**
- * "About 3h left". The word About is doing real work: these are learned
+ * "About 3h Left". The word About is doing real work: these are learned
  * averages, not commitments, and a bare "3h" would read as a promise the app
  * has no business making.
  *
@@ -100,5 +98,5 @@ export function spanLabel(min: number): string {
  */
 export function sizeLine(s: Size | null): string | null {
   if (!s) return null;
-  return `About ${spanLabel(s.minutes)} left`;
+  return `${aboutLabel(s.minutes)} Left`;
 }

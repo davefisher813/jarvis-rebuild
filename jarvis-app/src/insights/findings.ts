@@ -4,7 +4,7 @@ import { chartableExercises } from "../gym/chartData";
 import { liftRef, sameLift } from "../gym/identity";
 import { loadStyleOf, comparable, type LoadStyle } from "../gym/equipment";
 import { coverageGap, type MuscleMap } from "../gym/insights";
-import { capAfterNumber } from "../shared/casing";
+import { lineCase } from "../shared/casing";
 import { isWorkingSet, periodOverview, previousPeriod, hoursLabel, type Period } from "./analytics";
 import { monthDay } from "../money/bills";
 
@@ -158,8 +158,8 @@ export function findings(inp: FindingsInput): Finding[] {
       id: "gain-" + (bestGain.lift.exerciseKey ?? bestGain.lift.name),
       kind: "change", hue: "lime",
       title: bestGain.lift.name,
-      value: `${bestGain.to.w} ${u} × ${bestGain.reps}`,
-      context: [`${sign(bestGain.delta)} ${u} since ${monthDay(bestGain.from.date)}`],
+      value: lineCase(`${bestGain.to.w} ${u} × ${bestGain.reps}`),
+      context: [lineCase(`${sign(bestGain.delta)} ${u} since ${monthDay(bestGain.from.date)}`)],
       open: { kind: "lift", lift: bestGain.lift },
     });
   }
@@ -176,7 +176,7 @@ export function findings(inp: FindingsInput): Finding[] {
       title: "Sleep",
       value: hoursLabel(overview.sleep.avgHours),
       plainValue: true,
-      context: [capAfterNumber(`${overview.sleep.nights} of ${overview.period.days} nights logged`)],
+      context: [lineCase(`${overview.sleep.nights} of ${overview.period.days} nights logged`)],
       open: { kind: "sleep" },
     });
   } else if (overview.workingSets > 0) {
@@ -188,7 +188,7 @@ export function findings(inp: FindingsInput): Finding[] {
       value: String(overview.workingSets),
       context: prev.workouts > 0
         ? [`${sign(diff)} on the ${overview.period.days} before`]
-        : [capAfterNumber(`${overview.workouts} ${overview.workouts === 1 ? "workout" : "workouts"}`)],
+        : [lineCase(`${overview.workouts} ${overview.workouts === 1 ? "workout" : "workouts"}`)],
       open: { kind: "sets" },
     });
   }
@@ -199,8 +199,8 @@ export function findings(inp: FindingsInput): Finding[] {
     out.push({
       id: "coverage", kind: "issue", hue: "amber",
       title: "Complete Your Muscle Breakdown",
-      value: capAfterNumber(`${gap.hiddenSets} ${gap.hiddenSets === 1 ? "set needs" : "sets need"} a muscle assigned`),
-      context: [capAfterNumber(`${gap.untagged.length} ${gap.untagged.length === 1 ? "exercise" : "exercises"}`)],
+      value: lineCase(`${gap.hiddenSets} ${gap.hiddenSets === 1 ? "set needs" : "sets need"} a muscle assigned`),
+      context: [lineCase(`${gap.untagged.length} ${gap.untagged.length === 1 ? "exercise" : "exercises"}`)],
       open: { kind: "assign" },
     });
   } else if (overview.flagged.length > 0) {
@@ -211,7 +211,7 @@ export function findings(inp: FindingsInput): Finding[] {
       value: w.data.dayName,
       context: overview.flagged.length === 1
         ? [monthDay(w.data.date)]
-        : [capAfterNumber(`${overview.flagged.length} sessions`)],
+        : [lineCase(`${overview.flagged.length} sessions`)],
       open: { kind: "duration", workoutId: w.id },
     });
   }

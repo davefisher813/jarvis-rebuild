@@ -65,9 +65,9 @@ function destructiveToasts(): { at: string; msg: string; hasUndo: boolean }[] {
 const NO_UNDO: Record<string, string> = {
   "chat/ChatFlow.tsx · Receipt removed": "this IS the Undo's own confirmation; undoing an undo is not a thing",
   "chat/ChatFlow.tsx · Note removed": "same, for the note",
-  "gym/GymFlow.tsx · Discarded · The saved session stays": "the message says in its own words that nothing was lost",
+  "gym/GymFlow.tsx · Discarded · The Saved Session Stays": "the message says in its own words that nothing was lost",
   "notes/NotesFlow.tsx · Deleted for good": "Delete Forever, behind its own confirm; permanence is the feature",
-  "settings/AdvancedPage.tsx · message: n === 0 ? \"No chat history\" : `Dele": "a two-tap armed delete of all chat history; permanence is the point",
+  "settings/AdvancedPage.tsx · message: n === 0 ? \"No Chat History\" : `Dele": "a two-tap armed delete of all chat history; permanence is the point",
 };
 
 describe("LAW: a toast that says something is gone offers Undo", () => {

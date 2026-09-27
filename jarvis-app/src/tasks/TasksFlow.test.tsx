@@ -188,8 +188,9 @@ describe("TasksFlow set aside receipt (LIFE-F-13)", () => {
     const stop = subscribeToast((t) => { if (t) toasts.push(t.message); });
     try {
       render(<NotesProvider userId="aside-life-13"><SeededAncient /></NotesProvider>);
-      await waitFor(() => expect(toasts.some((m) => m.startsWith("Set aside"))).toBe(true));
-      expect(toasts.find((m) => m.startsWith("Set aside"))).toBe("Set aside 1 quiet task · 1 still overdue");
+      // Casing sweep 2 (2026-09-27): Title Case by the whole rule (§H2); durations through shared/duration ("45 Min", "1h 30m").
+      await waitFor(() => expect(toasts.some((m) => m.startsWith("Set Aside"))).toBe(true));
+      expect(toasts.find((m) => m.startsWith("Set Aside"))).toBe("Set Aside 1 Quiet Task · 1 Still Overdue");
     } finally {
       stop();
     }

@@ -414,7 +414,9 @@ describe("HEALTH law 5: the shell hides its chrome while a session is live", () 
     const screen = read(join(SRC, "gym/SessionScreen.tsx"));
     expect(screen, "the set strip's head takes the exercise's name")
       .toMatch(/<div className="sh2 sh2-quiet"><span className="t">\{exercise\.name\}<\/span>/);
+    // AMENDED 2026-09-26 (Batch 1 casing): the noun is no longer lowercased
+    // on its way in; the line is Title Case through lineCase ("2 of 5 Sets").
     expect(screen, "and the noun rides the count, so neither fact is lost")
-      .toMatch(/\$\{workLogged\} of \$\{planEx\.sets\.length\} \$\{noun\.toLowerCase\(\)\}/);
+      .toMatch(/lineCase\(`\$\{workLogged\} of \$\{planEx\.sets\.length\} \$\{noun\}`\)/);
   });
 });

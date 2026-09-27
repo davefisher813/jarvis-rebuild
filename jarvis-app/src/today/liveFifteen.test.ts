@@ -59,7 +59,8 @@ describe("the live fifteen", () => {
     expect(fifteenFace(live(), T0 + 32_000).over).toBe(false);
     const done = fifteenFace(live(), T0 + 15 * 60_000);
     expect(done.over).toBe(true);
-    expect(done.line).toBe("15 Minutes up");
+    // Casing sweep 2 (2026-09-27): Title Case by the whole rule (§H2); durations through shared/duration ("45 Min", "1h 30m").
+    expect(done.line).toBe("15 Min Up");
     expect(done.text).toBe("Call the bank");
   });
 

@@ -1,6 +1,7 @@
 import type { Exercise, SetLog, Workout } from "./types";
 import { fieldsFor } from "./measures";
 import { liftRef, sameLift } from "./identity";
+import { lineCase } from "../shared/casing";
 
 // THE PROGRESSION ENGINE (D6-A, Training Catalog V2, approved 2026-08-31).
 //
@@ -119,7 +120,7 @@ export function suggestFor(history: Workout[], ex: Exercise, opts: SuggestOption
     if (reps.every((r) => r >= high)) kind = "bump";
     else if (reps.every((r) => r >= low)) kind = "hold";
     else kind = "back";
-    basisWhy = kind === "bump" ? `every set cleared ${high}` : kind === "hold" ? `inside ${low} to ${high} reps` : `under ${low} reps`;
+    basisWhy = kind === "bump" ? `every set cleared ${high}` : kind === "hold" ? `inside ${low} to ${high} Reps` : `under ${low} Reps`;
   } else {
     return null; // rule 1: no marks and no range, no opinion
   }
@@ -147,13 +148,15 @@ export function suggestFor(history: Workout[], ex: Exercise, opts: SuggestOption
   }
 
   const when = dayPhrase(last.date);
-  const why = marked.length
+  // Every line of the basis is a fact row on the session screen, so each
+  // takes the whole rule's casing at the builder (Dave 2026-09-26).
+  const why = lineCase(marked.length
     ? (kind === "bump"
       ? `Was ${describe(from, ex)}, all clean ${when}`
       : kind === "hold"
         ? `Was ${describe(from, ex)}, a grind ${when}`
         : `Was ${describe(from, ex)}, missed one ${when}`)
-    : `Was ${describe(from, ex)}, ${basisWhy} ${when}`;
+    : `Was ${describe(from, ex)}, ${basisWhy} ${when}`);
 
   const unit = last.unit ?? ex.unit ?? "";
   const clean = marked.filter((s) => s.moved === "clean").length;
@@ -162,19 +165,19 @@ export function suggestFor(history: Workout[], ex: Exercise, opts: SuggestOption
   const basis: SuggestionBasis = {
     variant: ex.name + (opts.equipmentLabel ? ", " + opts.equipmentLabel : ""),
     // The count leads: "Aug 12, 2 working sets" read as a date with a year.
-    source: completed.length + (completed.length === 1 ? " working set" : " working sets") + " on " + when,
-    role: "Completed working sets only, warm-ups and drops left out",
-    range: high != null && low != null ? (low === high ? `${high} reps` : `${low} to ${high} reps`) : "No rep range on the plan",
-    increment: jumpUsed > 0 ? `${jumpUsed} ${unit}`.trim() : "One rep",
-    marks: marked.length ? [clean ? `${clean} clean` : "", grind ? `${grind} grind` : "", miss ? `${miss} missed` : ""].filter(Boolean).join(", ") : "None marked",
+    source: lineCase(completed.length + (completed.length === 1 ? " working set" : " working sets") + " on " + when),
+    role: "Completed Working Sets Only, Warm-Ups and Drops Left Out",
+    range: high != null && low != null ? (low === high ? `${high} Reps` : `${low} to ${high} Reps`) : "No Rep Range on the Plan",
+    increment: jumpUsed > 0 ? lineCase(`${jumpUsed} ${unit}`.trim()) : "One Rep",
+    marks: marked.length ? lineCase([clean ? `${clean} clean` : "", grind ? `${grind} grind` : "", miss ? `${miss} missed` : ""].filter(Boolean).join(", ")) : "None Marked",
   };
 
   return { kind, next, from, why, basis };
 }
 
 function describe(s: SetLog, ex: Pick<Exercise, "unit">): string {
-  if (s.w !== undefined) return `${s.w}${ex.unit ? " " + ex.unit : ""}`;
-  return `${s.r} reps`;
+  if (s.w !== undefined) return lineCase(`${s.w}${ex.unit ? " " + ex.unit : ""}`);
+  return lineCase(`${s.r} reps`);
 }
 
 /**

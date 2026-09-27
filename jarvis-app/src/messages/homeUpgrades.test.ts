@@ -19,13 +19,14 @@ describe("the morning sentence", () => {
 
   it("names one thing plainly", () => {
     expect(inboxSentence([notice("reply", "t1")], snap({ needsYou: 1, threads: [{ id: "t1" } as never] })))
-      .toBe("One needs an answer");
+      // Casing sweep 3 (2026-09-27): Title Case by the whole rule (§H2); durations through shared/duration ("45 Min", "About 1 Min").
+      .toBe("One Needs an Answer");
   });
 
   it("joins several with an and, not a comma soup", () => {
     const n = [notice("deadline", "t1"), notice("reply", "t2"), notice("promised", "p1")];
     expect(inboxSentence(n, snap({ needsYou: 2, threads: [{ id: "t1" }, { id: "t2" }] as never })))
-      .toBe("One has a deadline today, one needs an answer and one is something you promised");
+      .toBe("One Has a Deadline Today, One Needs an Answer and One Is Something You Promised");
   });
 
   // EMAIL-F-24 (2026-09-05): this asserted the sentence backwards. Rob has
@@ -33,14 +34,14 @@ describe("the morning sentence", () => {
   // waiting on Dave, which is the opposite fact and the opposite feeling.
   it("says how long someone has actually owed him a reply", () => {
     const s = snap({ waiting: [{ threadId: "w1", to: "Rob", subject: "Deck", days: 55 }] });
-    expect(inboxSentence([notice("nudge", "w1")], s)).toBe("Someone has owed you a reply for 55 days");
+    expect(inboxSentence([notice("nudge", "w1")], s)).toBe("Someone Has Owed You a Reply for 55 Days");
   });
 
   it("mentions the rest only when there IS a rest", () => {
     const shown = snap({ needsYou: 4, threads: [{ id: "t1" }] as never });
-    expect(inboxSentence([notice("reply", "t1")], shown)).toBe("One needs an answer, and three more that can wait");
+    expect(inboxSentence([notice("reply", "t1")], shown)).toBe("One Needs an Answer, and Three More That Can Wait");
     const covered = snap({ needsYou: 1, threads: [{ id: "t1" }] as never });
-    expect(inboxSentence([notice("reply", "t1")], covered)).toBe("One needs an answer");
+    expect(inboxSentence([notice("reply", "t1")], covered)).toBe("One Needs an Answer");
   });
 });
 
@@ -194,32 +195,32 @@ describe("UP-MIND-07: a deadline that lands during a meeting", () => {
     const n = mailNotices(snapWith("3 PM"), today, at2pm, 3, [], [
       { title: "Board Prep", date: today, start: "13:00", end: "15:00" },
     ])[0]!;
-    expect(n.sub).toBe("From Nadia, due 3:00 PM while you're in Board Prep until 3:00");
+    expect(n.sub).toBe("From Nadia, Due 3:00 PM While You're in Board Prep Until 3:00");
   });
 
   it("says nothing when the day is clear at that hour", () => {
     const n = mailNotices(snapWith("3 PM"), today, at2pm, 3, [], [
       { title: "Standup", date: today, start: "09:00", end: "09:15" },
     ])[0]!;
-    expect(n.sub).toBe("From Nadia, due 3:00 PM");
+    expect(n.sub).toBe("From Nadia, Due 3:00 PM");
   });
 
   it("never invents a clock from a day word", () => {
     const n = mailNotices(snapWith("today"), today, at2pm, 3, [], [
       { title: "Board Prep", date: today, start: "00:00", end: "23:59" },
     ])[0]!;
-    expect(n.sub).toBe("From Nadia, due today");
+    expect(n.sub).toBe("From Nadia, Due Today");
   });
 
   it("reads tomorrow's calendar for tomorrow's deadline", () => {
     const n = mailNotices(snapWith("tomorrow 3 PM"), today, at2pm, 3, [], [
       { title: "Board Prep", date: "2026-08-16", start: "13:00", end: "16:00" },
     ])[0]!;
-    expect(n.sub).toBe("From Nadia, due tomorrow 3:00 PM while you're in Board Prep until 4:00");
+    expect(n.sub).toBe("From Nadia, Due Tomorrow 3:00 PM While You're in Board Prep Until 4:00");
   });
 
   it("keeps working for a caller with no calendar at all", () => {
     const n = mailNotices(snapWith("3 PM"), today, at2pm)[0]!;
-    expect(n.sub).toBe("From Nadia, due 3:00 PM");
+    expect(n.sub).toBe("From Nadia, Due 3:00 PM");
   });
 });

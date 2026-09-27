@@ -67,7 +67,8 @@ describe("the day's load", () => {
   });
 
   it("reads durations like a person", () => {
-    expect(hhmm(45)).toBe("45m");
+    // Casing sweep 2 (2026-09-27): Title Case by the whole rule (§H2); durations through shared/duration ("45 Min", "1h 30m").
+    expect(hhmm(45)).toBe("45 Min");
     expect(hhmm(120)).toBe("2h");
     expect(hhmm(250)).toBe("4h 10m");
   });

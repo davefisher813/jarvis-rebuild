@@ -186,8 +186,9 @@ describe("VIPs", () => {
   });
 
   it("says what the list does, even when it is empty", () => {
-    expect(vipLine(0)).toBe("Their mail always surfaces");
-    expect(vipLine(1)).toBe("1 Person always gets through");
+    // Casing sweep 3 (2026-09-27): Title Case by the whole rule (§H2); durations through shared/duration ("45 Min", "About 1 Min").
+    expect(vipLine(0)).toBe("Their Mail Always Surfaces");
+    expect(vipLine(1)).toBe("1 Person Always Gets Through");
   });
 });
 
@@ -283,8 +284,8 @@ describe("drafts you never sent", () => {
   });
 
   it("says how long it has sat, and to whom", () => {
-    expect(staleLine(draft("d1", 2), NOW)).toBe("To Rob, 2 days old");
-    expect(staleLine({ ...draft("d1", 2), to: "" }, NOW)).toBe("No recipient, 2 days old");
+    expect(staleLine(draft("d1", 2), NOW)).toBe("To Rob, 2 Days Old");
+    expect(staleLine({ ...draft("d1", 2), to: "" }, NOW)).toBe("No Recipient, 2 Days Old");
   });
 });
 
@@ -490,7 +491,7 @@ describe("the unsubscribe sweep", () => {
   });
 
   it("counts what actually went in the bin", () => {
-    expect(sweepTitle(sweepCandidates(tossed, [], {}, []))).toBe("10 Thrown away without opening");
+    expect(sweepTitle(sweepCandidates(tossed, [], {}, []))).toBe("10 Thrown Away Without Opening");
   });
 
   it("NEVER claims it worked: 'asked them to stop' is the truth", () => {

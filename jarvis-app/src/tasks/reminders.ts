@@ -185,6 +185,24 @@ export function stripReminders(items: TaskItem[], today: string, now: string): R
   return todaysReminders(items, today, now).filter((v) => !inHeadsUp.has(v.id));
 }
 
+// THE STRIP'S PICK (Dave's pass-off, 2026-09-26: "the next 3 upcoming by
+// time, then one red 'N Missed' row that opens a list where each missed
+// reminder is ticked off in one tap. See All handles the rest"). Seven rows
+// of reminders on Today, every one wearing Adjust, was a list, and Today is
+// not a list. The strip shows the next three still ahead of the clock; the
+// missed ones are one count, in the key's red (§AM: missed), and their rows
+// live behind it. A done one leaves the strip (its tick offers Undo) and a
+// let-go one stops asking anywhere; both are on the Reminders page.
+export const STRIP_NEXT = 3;
+export interface StripPick { next: ReminderView[]; missed: ReminderView[] }
+export function stripPick(items: TaskItem[], today: string, now: string): StripPick {
+  const views = todaysReminders(items, today, now);
+  return {
+    next: views.filter((v) => !v.done && !v.missed).slice(0, STRIP_NEXT),
+    missed: views.filter((v) => v.missed && !v.letGo),
+  };
+}
+
 // Snooze target, clamped inside the day so a late-night snooze cannot silently
 // land on tomorrow (where it would be wrong twice: wrong day, wrong state).
 export function snoozeTime(from: string, mins: number): string {

@@ -1,5 +1,5 @@
 import type { ThreadRow } from "../connections/google/map";
-import { capAfterNumber } from "../shared/casing";
+import { lineCase } from "../shared/casing";
 
 // SIX FROM SUPABASE BECOME ONE ROW (N5, Dave 2026-08-20).
 //
@@ -44,5 +44,5 @@ export function collapseNoise(rows: ThreadRow[], min = COLLAPSE_MIN): { groups: 
 }
 
 export function collapseLine(g: Collapsed): string {
-  return capAfterNumber(`${g.rows.length} notices`);
+  return lineCase(`${g.rows.length} notices`);
 }

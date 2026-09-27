@@ -37,7 +37,8 @@ describe("scheduleAdvice", () => {
     const three: ReminderInfo = { time: "09:00", history: [ev("snoozed", "a"), ev("snoozed", "b"), ev("snoozed", "c")] };
     expect(snoozeRun(three)).toBe(3);
     expect(scheduleAdvice(three)).toEqual({ kind: "snoozes", count: 3 });
-    expect(adviceLine(scheduleAdvice(three))).toBe("Snoozed the last 3 times · Choose a better time?");
+    // Casing sweep 2 (2026-09-27): Title Case by the whole rule (§H2); durations through shared/duration ("45 Min", "1h 30m").
+    expect(adviceLine(scheduleAdvice(three))).toBe("Snoozed the Last 3 Times · Choose a Better Time?");
     expect(scheduleAdvice({ ...three, history: [...three.history!, ev("keptSchedule", "d")] })).toBeNull();
     expect(scheduleAdvice({ ...three, history: [...three.history!, ev("completed", "d")] })).toBeNull();
     expect(scheduleAdvice({ time: "09:00", history: [ev("snoozed", "a"), ev("snoozed", "b")] })).toBeNull();
@@ -46,7 +47,7 @@ describe("scheduleAdvice", () => {
     const hist = Array.from({ length: COMPLETIONS_FOR_ADVICE }, (_, i) => ev("completed", `2026-09-0${(i % 9) + 1}T09:4${i % 3}:00`));
     const r: ReminderInfo = { time: "09:00", history: hist };
     expect(scheduleAdvice(r)).toEqual({ kind: "later", time: "09:40" });
-    expect(adviceLine(scheduleAdvice(r))).toBe("Usually done around 9:40 AM · Move it there?");
+    expect(adviceLine(scheduleAdvice(r))).toBe("Usually Done Around 9:40 AM · Move It There?");
   });
   it("seven completions, or completions on time, say nothing", () => {
     const seven = Array.from({ length: COMPLETIONS_FOR_ADVICE - 1 }, (_, i) => ev("completed", `2026-09-0${i + 1}T09:45:00`));

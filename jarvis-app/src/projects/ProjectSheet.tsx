@@ -6,6 +6,7 @@ import { FormSheet, Group, FieldRow, MenuRow, DeleteRow, ErrorLine } from "../sh
 import { FolderKanban, Tag, Calendar } from "../shared/icons";
 import { TargetGlyph, PulseGlyph } from "../shared/glyphs";
 import { fileableGoals } from "../bigger/reach";
+import { titleCase } from "../shared/casing";
 
 // THE PROJECT SHEET ON THE SHEET BAR (2026-09-02, the form sheets after the
 // task sheet): the name as the row, Status, Back On when it is on hold, Area
@@ -74,7 +75,7 @@ export default function ProjectSheet({ mode, categories, goals = [], initial, on
           )}
           {goalOptions.length > 0 && (
             <MenuRow tone="red" glyph={<TargetGlyph />} label="Goal" value={goalId} ariaLabel="Goal" off={goalId === ""}
-              options={[{ value: "", label: "None" }, ...goalOptions.map((g) => ({ value: g.id, label: g.data.title }))]}
+              options={[{ value: "", label: "None" }, ...goalOptions.map((g) => ({ value: g.id, label: titleCase(g.data.title) }))]}
               onPick={setGoalId} />
           )}
         </Group>

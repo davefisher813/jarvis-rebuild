@@ -13,7 +13,7 @@ import { noteBlockText } from "../search/search";
 import NoteEditor, { type EditorNote, type SaveState } from "./screens/NoteEditor";
 import QuickAppendSheet from "./screens/QuickAppendSheet";
 import { taskFromPassage } from "./aiActions";
-import { blocksToDoc, displayTitle, firstLineOf, type Doc } from "./docModel";
+import { blocksToDoc, displayTitle, firstLineOf, listTitle, type Doc } from "./docModel";
 import Templates from "./screens/Templates";
 import { usePushDepth } from "../shared/pushNav";
 import Connections from "./screens/Connections";
@@ -274,7 +274,9 @@ export default function NotesFlow({
         // is "unknown" and the row shows no date rather than a wrong one.
         const edited = it.serverTime > 1e12 ? it.serverTime : 0;
         return {
-          id: it.id, title: displayTitle(d), edited, category: d.category || "", first: d.title.trim() ? firstLine(d) : "", body: noteBlockText(d),
+          // listTitle, not displayTitle: the list is the one place an old
+          // event note's " · Sep 17" is dropped (§AK; the meta line has it).
+          id: it.id, title: listTitle(d), edited, category: d.category || "", first: d.title.trim() ? firstLine(d) : "", body: noteBlockText(d),
           // C-18 / C-20
           ...(d.pinned ? { pinned: true } : {}), ...(d.archived ? { archived: true } : {}), ...(d.tags?.length ? { tags: d.tags } : {}), ...(d.deletedAt ? { deleted: true } : {}),
           ...((d.found ?? []).some((c) => !c.added) ? { found: (d.found ?? []).filter((c) => !c.added).length } : {}),
@@ -443,7 +445,7 @@ export default function NotesFlow({
         .filter((t) => !(t.data as { done?: boolean }).done)
         .map((t) => ({ id: t.id, text: (t.data as { text?: string }).text || "Untitled" })),
     );
-    if (failed) showToast({ message: "Couldn't load · Check your connection" });
+    if (failed) showToast({ message: "Couldn't Load · Check Your Connection" });
   }, [schedSvc, tasksSvc, projSvc, goalSvc, peopleSvc]);
 
   const openNote = async (id: string) => {

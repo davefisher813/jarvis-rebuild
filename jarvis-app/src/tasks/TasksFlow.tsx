@@ -16,7 +16,8 @@ import StartCard from "./screens/StartCard";
 import TaskSheet, { type SheetCategory, type TaskDraft } from "./screens/TaskSheet";
 import { useProjects, useGoals } from "../data/NotesProvider";
 import type { Goal } from "../life/types";
-import { buildGoalIndex, liveGoals, goalTitleForTask } from "../bigger/reach";
+import { buildGoalIndex, liveGoals, goalTitleForTask, sheetGoals } from "../bigger/reach";
+import { sheetProjects, sheetPeople } from "../tasks/screens/sheetLinks";
 import { buildParentIndex, parentForTask } from "../life/parent";
 import { sheetEvents, type SheetEvent as SheetEventRow } from "../schedule/sheetEvents";
 import { rowSource, type Source } from "../shared/provenance";
@@ -41,7 +42,7 @@ import { scheduleTask, breakDownTask, undoBreakdown, splitLine, type BreakdownRe
 import { emit } from "../events";
 import { chainQuietToday, dismissChain, nextBest, chainReason } from "./momentum";
 import { touchActivity, recordSpot } from "../restore/whereYouWere";
-import { capAfterNumber } from "../shared/casing";
+import { lineCase } from "../shared/casing";
 import { loadOverwhelmed, setOverwhelmed as setOverwhelmedFlag, subscribeOverwhelmed, theOneThing } from "./overwhelmed";
 import NoticeCard from "../today/NoticeCard";
 import { TargetGlyph } from "../shared/glyphs";
@@ -275,7 +276,7 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, startId, 
         try {
           await svc.setAside(ids);
         } catch {
-          showToast({ message: "Couldn't set aside quiet tasks", actionLabel: "Retry", onAction: () => { void runSweep(); } });
+          showToast({ message: "Couldn't Set Aside Quiet Tasks", actionLabel: "Retry", onAction: () => { void runSweep(); } });
           return;
         }
         try { localStorage.setItem("jarvis.setaside.last", today); } catch { /* ok */ }
@@ -287,7 +288,7 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, startId, 
         // is left.
         const left = partition(await reload(), today).overdue.length;
         showToast({
-          message: `Set aside ${ids.length} quiet ${ids.length === 1 ? "task" : "tasks"}` + (left > 0 ? ` · ${left} still overdue` : ""),
+          message: lineCase(`Set aside ${ids.length} quiet ${ids.length === 1 ? "task" : "tasks"}` + (left > 0 ? ` · ${left} still overdue` : "")),
           actionLabel: "Undo",
           onAction: async () => { await attemptWrite(() => svc.restoreAside(ids)); await reload(); },
         });
@@ -385,20 +386,20 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, startId, 
       // Delayed rewards are the ones ADHD discounts hardest, so finishing the
       // project is one tap from HERE rather than four taps through a form.
       showToast({
-        message: advanced.moved.projectTitle + " · " + advanced.moved.line,
+        message: lineCase(advanced.moved.projectTitle + " · " + advanced.moved.line),
         actionLabel: "Finish It",
         onAction: async () => {
           const proj = projects.find((x) => x.id === advanced.projectId);
           if (!proj) return;
           await attemptWrite(() => projectsSvc.update(proj.id, { ...proj.data, status: "done" }));
           await reload();
-          showToast({ message: celebrationLine("project", proj.id) + " · " + proj.data.title });
+          showToast({ message: lineCase(celebrationLine("project", proj.id) + " · " + proj.data.title) });
         },
       });
     } else if (advanced) {
-      showToast({ message: advanced.moved.projectTitle + " · " + advanced.moved.line, actionLabel: "Undo", onAction: undoTick });
+      showToast({ message: lineCase(advanced.moved.projectTitle + " · " + advanced.moved.line), actionLabel: "Undo", onAction: undoTick });
     } else if (before && !before.done) {
-      showToast({ message: "Task completed", actionLabel: "Undo", onAction: undoTick });
+      showToast({ message: "Task Completed", actionLabel: "Undo", onAction: undoTick });
     }
   };
 
@@ -424,7 +425,7 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, startId, 
       if (!step) throw new Error("empty");
       setFsStep({ taskId: fsCandidate.id, step });
     } catch {
-      showToast({ message: "Couldn't reach JARVIS \u00b7 Try again" });
+      showToast({ message: "Couldn't Reach JARVIS \u00b7 Try Again" });
     } finally {
       setFsBusy(false);
     }
@@ -446,7 +447,7 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, startId, 
     setFsHidden(true);
     emit({ type: "suggestion.accepted", props: { kind: "first_step" } });
     await reload();
-    showToast({ message: "First step on Today · Big one waits" });
+    showToast({ message: "First Step on Today · Big One Waits" });
   };
 
   const fsDismiss = () => {
@@ -474,7 +475,7 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, startId, 
     await reload();
     if (!ok) return;
     showToast({
-      message: `Cleared ${snapshot.length} completed`,
+      message: lineCase(`Cleared ${snapshot.length} completed`),
       actionLabel: "Undo",
       onAction: async () => {
         // 2026-09-11: recreateFrom restores the whole record, done and
@@ -495,7 +496,7 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, startId, 
     // plan rides into the sheet (2026-08-25): without it the sheet's fields
     // start empty, save() sees an untouched plan, and setPlan(id, null) below
     // silently erased the task's if-then on EVERY edit.
-    setSheet({ mode: "edit", id, initial: { text: t.text, category: t.category ?? "", extraCategories: t.extraCategories, due: t.due ?? "", repeat: t.recurrence ?? "", projectId: t.projectId ?? "", eventId: t.eventId ?? "", plan: t.plan, steps: t.steps, notes: t.notes, estimateMin: t.estimateMin, personId: t.personId }, source: rowSource(t.source, t.moved) });
+    setSheet({ mode: "edit", id, initial: { text: t.text, category: t.category ?? "", extraCategories: t.extraCategories, due: t.due ?? "", repeat: t.recurrence ?? "", projectId: t.projectId ?? "", goalId: t.goalId ?? "", eventId: t.eventId ?? "", plan: t.plan, steps: t.steps, notes: t.notes, estimateMin: t.estimateMin, personId: t.personId }, source: rowSource(t.source, t.moved) });
   };
 
   // When arriving via a note connection, open that task. SHELL-F-12: on the
@@ -526,13 +527,14 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, startId, 
     const rec = (draft.repeat || "") as "" | Recurrence;
     let saved = true;
     if (sheet?.mode === "new") {
-      saved = await attemptWrite(() => svc.createTask(draft.text, { category: draft.category || undefined, extraCategories: draft.extraCategories, due: draft.due || null, recurrence: rec || undefined, projectId: draft.projectId, eventId: draft.eventId, plan: draft.plan, steps: draft.steps, notes: draft.notes, estimateMin: draft.estimateMin, personId: draft.personId }));
+      saved = await attemptWrite(() => svc.createTask(draft.text, { category: draft.category || undefined, extraCategories: draft.extraCategories, due: draft.due || null, recurrence: rec || undefined, projectId: draft.projectId, goalId: draft.goalId, eventId: draft.eventId, plan: draft.plan, steps: draft.steps, notes: draft.notes, estimateMin: draft.estimateMin, personId: draft.personId }));
     } else if (sheet?.mode === "edit") {
       saved = await attemptWrite(async () => {
         await svc.editText(sheet.id, draft.text);
         await svc.setCategories(sheet.id, [draft.category, ...(draft.extraCategories ?? [])].filter(Boolean));
         await svc.setDue(sheet.id, draft.due || null);
         await svc.setProject(sheet.id, draft.projectId ?? null);
+        await svc.setGoal(sheet.id, draft.goalId ?? null);
         await svc.setEvent(sheet.id, draft.eventId ?? null);
         await svc.setRecurrence(sheet.id, rec || null);
         await svc.setPlan(sheet.id, draft.plan ?? null);
@@ -604,7 +606,7 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, startId, 
     if (gone === 0) return;
     const n = gone;
     showToast({
-      message: n === 1 ? "Task deleted" : n + " tasks deleted",
+      message: n === 1 ? "Task Deleted" : lineCase(n + " tasks deleted"),
       actionLabel: "Undo",
       onAction: async () => {
         // All of them, in one go, so one tap puts the list back exactly as
@@ -634,10 +636,10 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, startId, 
       const t = await svc.task(id);
       if (t && !t.done) targets.push(id);
     }
-    if (targets.length === 0) { showToast({ message: "Already done" }); return; }
+    if (targets.length === 0) { showToast({ message: "Already Done" }); return; }
     const ok = await attemptWrite(async () => { for (const id of targets) await svc.toggleDone(id); });
     await reload();
-    if (ok) showToast({ message: targets.length === 1 ? "Done" : targets.length + " marked done" });
+    if (ok) showToast({ message: targets.length === 1 ? "Done" : lineCase(targets.length + " marked done") });
   };
 
   // S6-Q39 (2026-09-05): "a project cannot adopt a task you already have."
@@ -651,14 +653,14 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, startId, 
     await reload();
     if (!ok) return;
     const name = projects.find((p) => p.id === projectId)?.data.title ?? "the project";
-    showToast({ message: (ids.length === 1 ? "Task moved to " : ids.length + " tasks moved to ") + name });
+    showToast({ message: lineCase((ids.length === 1 ? "Task moved to " : ids.length + " tasks moved to ") + name) });
   };
 
   // Recreate a just-deleted task if the user taps Undo, under its old id
   // (LIFE-F-15) so a note linked to it still opens it.
   const offerUndoTask = (id: string, t: TaskData) => {
     showToast({
-      message: "Task deleted",
+      message: "Task Deleted",
       actionLabel: "Undo",
       onAction: async () => {
         await attemptWrite(() => svc.recreateFrom(t, id));
@@ -671,7 +673,7 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, startId, 
   const onSnooze = async (id: string) => {
     const ok = await attemptWrite(() => svc.setDue(id, tomorrow));
     await reload();
-    if (ok) showToast({ message: "Moved to tomorrow" });
+    if (ok) showToast({ message: "Moved to Tomorrow" });
   };
 
   // Drop the task into the next free slot on its due day (or today) as a 1h event.
@@ -683,7 +685,7 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, startId, 
     let landed = false;
     const ok = await attemptWrite(async () => { landed = (await scheduleTask(id, today, svc, schedule)).ok; });
     setSheet(null);
-    if (ok) showToast({ message: landed ? "Added to schedule" : "Couldn't find that task" });
+    if (ok) showToast({ message: landed ? "Added to Schedule" : "Couldn't Find That Task" });
   };
 
   // A2 (audit 2026-08-21): the Tasks tab could not start anything. Same move
@@ -768,7 +770,7 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, startId, 
       date: today, start, end: addMinutes(start, FIFTEEN),
       category: category || undefined, sourceTaskId: id,
     }));
-    if (ok) { haptics.selection(); showToast({ message: `Fifteen minutes on ${text}` }); }
+    if (ok) { haptics.selection(); showToast({ message: lineCase(`Fifteen minutes on ${text}`) }); }
   };
 
   /** The one primary on the working surface. Each branch writes exactly the
@@ -793,7 +795,7 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, startId, 
         if (!ok) return null;
         clearSession(id);
         await reload();
-        return action.completion.saves === "draft" ? "Saved to this task \u00b7 Not sent" : "Saved to this task";
+        return action.completion.saves === "draft" ? "Saved to This Task \u00b7 Not Sent" : "Saved to This Task";
       }
       case "step_new": {
         // HIS words become step one, undone, because naming a step is not
@@ -807,7 +809,7 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, startId, 
         if (!ok) return null;
         clearSession(id);
         await reload();
-        return "Saved as the first step \u00b7 The task stays open";
+        return "Saved as the First Step \u00b7 The Task Stays Open";
       }
       case "step_tick": {
         // Ticks the step that is already there. Nothing is ever invented to
@@ -822,7 +824,7 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, startId, 
         if (!ok) return null;
         clearSession(id);
         await reload();
-        return "Step ticked \u00b7 The task stays open";
+        return "Step Ticked \u00b7 The Task Stays Open";
       }
       default:
         return null;
@@ -841,14 +843,14 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, startId, 
     // he already typed in. An empty box asks for the words rather than
     // inventing a blocker nobody named.
     const what = text.trim();
-    if (!what) { showToast({ message: "Name what is missing first" }); return; }
+    if (!what) { showToast({ message: "Name What Is Missing First" }); return; }
     void (async () => {
       const ok = await attemptWrite(() => svc.setBlocked(id, { what, since: today }));
       if (!ok) return;
       clearSession(id);
       setStarting(null);
       await reload();
-      showToast({ message: "Marked blocked \u00b7 " + what });
+      showToast({ message: "Marked Blocked \u00b7 " + what });
     })();
   };
 
@@ -945,7 +947,7 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, startId, 
       icon={<TargetGlyph />}
       tone="cat-fg-orange"
       title={fsStep.step}
-      sub={"First step for: " + fsCandidate.data.text}
+      sub={lineCase("First step for: " + fsCandidate.data.text)}
       action={{ label: "Add", onClick: () => void fsAccept() }}
       // THE WHOLE ROW IS THE DOOR (Dave 2026-09-15: "I want all rows
       // clickable"): the drafted step is for this task, so the row opens it.
@@ -967,7 +969,7 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, startId, 
   const pickOne = () => {
     if (onWhatNow) { onWhatNow(); return; }
     const best = rankOpen(parts.all, today)[0];
-    if (!best) { showToast({ message: "Nothing open · Enjoy it" }); return; }
+    if (!best) { showToast({ message: "Nothing Open · Enjoy It" }); return; }
     openEdit(best.id);
   };
 
@@ -985,7 +987,7 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, startId, 
     await reload();
     if (!ok) return;
     showToast({
-      message: capAfterNumber(`${stuck.length} ${stuck.length === 1 ? "task" : "tasks"} moved to today`),
+      message: lineCase(`${stuck.length} ${stuck.length === 1 ? "task" : "tasks"} moved to today`),
       actionLabel: "Undo",
       onAction: async () => {
         await attemptWrite(async () => {
@@ -1004,16 +1006,16 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, startId, 
   const breakDown = async (text: string) => {
     const editingId = sheet?.mode === "edit" ? sheet.id : null;
     setSheet(null);
-    showToast({ message: "Breaking it down\u2026" });
+    showToast({ message: "Breaking It Down\u2026" });
     const original = editingId ? parts.all.find((t) => t.id === editingId) ?? null : null;
-    if (!original && editingId) { showToast({ message: "Couldn't find that task \u00b7 Nothing was changed" }); return; }
+    if (!original && editingId) { showToast({ message: "Couldn't Find That Task \u00b7 Nothing Was Changed" }); return; }
     const identity = await gatherContext().then(identityToText).catch(() => "");
     let res: Awaited<ReturnType<typeof breakDownTask>> | null = null;
     const ok = await attemptWrite(async () => { res = await breakDownTask(text, original, today, ai, svc, identity); });
     await reload();
     if (!ok || !res) return;
     const r = res as BreakdownResult;
-    if (r.reason === "no-ai") { showToast({ message: "Couldn't reach JARVIS \u00b7 Try again" }); return; }
+    if (r.reason === "no-ai") { showToast({ message: "Couldn't Reach JARVIS \u00b7 Try Again" }); return; }
     showToast({
       message: splitLine(r.made.length),
       actionLabel: "Undo",
@@ -1039,7 +1041,7 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, startId, 
         onInTheWay={answerInTheWay}
         onFinish={() => { const id = starting.target.id; setStarting(null); void onToggle(id); }}
         onStartTimer={() => void bookBlock(starting.target.id, starting.target.title, starting.target.data?.category)}
-        timerLabel="Fifteen minutes, as a real block"
+        timerLabel="Fifteen Minutes, as a Real Block"
       />
     );
   }
@@ -1102,6 +1104,7 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, startId, 
         onUpload={ai.available ? () => setUploadOpen(true) : undefined}
         momentum={momentum && {
           afterId: momentum.afterId,
+          taskId: momentum.task.id,
           el: (
             // MomentumRow IS the suggested task's own row (2026-09-16): the
             // check, the swipe and the open it always had elsewhere, plus
@@ -1136,7 +1139,8 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, startId, 
       />
       {sheet && (
         <TaskSheet
-          projects={projects.map((p) => ({ id: p.id, title: p.data.title, category: p.data.category || undefined, goalTitle: goalTitleOf(p.data.goalId) }))}
+          projects={sheetProjects(projects, goals)}
+          goals={sheetGoals(goals, sheet.mode === "edit" ? sheet.initial?.goalId : undefined)}
           events={sheetEventList}
           mode={sheet.mode}
           initial={sheet.initial}
@@ -1144,7 +1148,7 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, startId, 
           openSourceFor={openSourceFor}
           categories={categories}
           categoryMinutes={categoryMinutes}
-          people={people.map((p) => ({ id: p.id, name: p.data.name }))}
+          people={sheetPeople(people)}
           onSave={onSave}
           otherPlans={allItems.map((t) => ({ id: t.id, text: t.data.text, plan: t.data.plan }))}
           selfId={sheet.mode === "edit" ? sheet.id : undefined}
@@ -1205,7 +1209,7 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, startId, 
             if (taskCount) parts.push(`${taskCount} ${taskCount === 1 ? "task" : "tasks"}`);
             if (eventCount) parts.push(`${eventCount} ${eventCount === 1 ? "event" : "events"}`);
             showToast({
-              message: capAfterNumber(parts.join(" and ") + " added"),
+              message: lineCase(parts.join(" and ") + " added"),
               actionLabel: "Undo",
               onAction: async () => { await undo(); await reload(); },
             });

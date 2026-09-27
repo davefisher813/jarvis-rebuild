@@ -1,4 +1,4 @@
-import { capAfterNumber } from "../shared/casing";
+import { lineCase } from "../shared/casing";
 
 // DRAFTS YOU NEVER SENT (N10, Dave 2026-08-20).
 //
@@ -59,10 +59,10 @@ export function staleDrafts(
 
 // §AM R6 (2026-09-26): one sentence, no typed dot; it renders as the Today
 // card's quiet line. "Draft" went with the dot: the card's title already
-// says Unsent. Still routed through capAfterNumber, so a line that one day
+// says Unsent. Still routed through lineCase, so a line that one day
 // leads with the count gets its capital.
 export function staleLine(d: DraftRow, nowMs: number): string {
   const days = Math.floor((nowMs - d.dateMs) / 86400e3);
   const who = d.to.trim() ? "To " + d.to.trim() : "No recipient";
-  return capAfterNumber(`${who}, ${days} days old`);
+  return lineCase(`${who}, ${days} days old`);
 }

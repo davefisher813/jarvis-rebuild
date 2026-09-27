@@ -98,7 +98,7 @@ export default function AreasTab({ segments, onOpenCategory }: {
       {loaded && total === 0 && (
         <div className="pad-x"><div className="empty-state">
           <div className="empty-title">No Areas Yet</div>
-          <div className="empty-sub">Add one in Settings &gt; Categories</div>
+          <div className="empty-sub">Add One in Settings &gt; Categories</div>
         </div></div>
       )}
       <div className="screen-foot" />

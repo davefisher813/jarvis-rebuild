@@ -31,7 +31,7 @@
 // is bigger than its upside is a bad trade for someone who already has hard
 // days. If Dave wants them anyway, that is his call to make knowingly.
 
-import { capAfterNumber } from "./casing";
+import { lineCase } from "./casing";
 
 export type WinKind = "task" | "project" | "goal";
 
@@ -42,13 +42,13 @@ export type WinKind = "task" | "project" | "goal";
 export function gradientLine(done: number, total: number): string {
   if (total <= 0) return "";
   const left = total - done;
-  if (left <= 0) return "That was the last one";
+  if (left <= 0) return "That Was the Last One";
   // Words up to four, a ratio past that. Words keep the countdown reading as
   // a sentence rather than a dashboard, and the number-lead capital only has
   // to apply in the one place a digit actually starts the line.
   const WORDS = ["", "One", "Two", "Three", "Four"];
-  if (left <= 4) return `${WORDS[left]} left`;
-  return capAfterNumber(`${done} of ${total} done`);
+  if (left <= 4) return `${WORDS[left]} Left`;
+  return lineCase(`${done} of ${total} done`);
 }
 
 // True when finishing this task finished the work behind a project, which is
@@ -82,19 +82,20 @@ export function movedBy(
 // Deliberately plain. No exclamation marks, no "you crushed it", nothing that
 // reads as a slot machine congratulating a gambler. Variety is what stops the
 // response habituating; volume is not.
+// Title Case, like every receipt the app writes (Dave 2026-09-26).
 const TASK_LINES = [
   "Done",
-  "That's one",
-  "Off the list",
+  "That's One",
+  "Off the List",
   "Handled",
   "Gone",
   "Cleared",
 ];
 
 const CLEARED_LINES = [
-  "That's the lot",
-  "All of it, done",
-  "Nothing left on it",
+  "That's the Lot",
+  "All of It, Done",
+  "Nothing Left on It",
 ];
 
 // The variation is a FUNCTION of the completion, not of chance: the same tick
@@ -108,8 +109,8 @@ function pick(list: string[], seed: string): string {
 }
 
 export function celebrationLine(kind: WinKind, seed: string, cleared = false): string {
-  if (kind === "goal") return "Goal achieved";
-  if (kind === "project") return "Project done";
+  if (kind === "goal") return "Goal Achieved";
+  if (kind === "project") return "Project Done";
   return cleared ? pick(CLEARED_LINES, seed) : pick(TASK_LINES, seed);
 }
 
