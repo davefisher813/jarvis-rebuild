@@ -72,14 +72,21 @@ export default function ProposedRow({
         onClick={onToggle}
       >
         <span className={"sched-bar sched-bar-proposed cat-bd-" + slot} />
-        <div className="sched-time">{t.time}<span className="ampm">{t.ap}</span></div>
+        {/* THE CHECK SITS WHERE THE STAR SITS (Dave 2026-09-27, on his phone:
+            a 44px check box parked beside the time pushed the title a whole
+            line down and left a hole under it). An event row leads with its
+            16px star, then the time, then the title on its own line; a
+            proposed row leads with its check the same size in the same
+            slot, so every row in the card reads the same. The 44px hit is
+            the ::after expander, not the box. */}
         {onComplete && (
-          <div className="task-check-tap sched-check" role="checkbox" aria-checked={false}
+          <div className="sched-check" role="checkbox" aria-checked={false}
             aria-label={`Mark ${block.text} done`}
             onClick={(e) => { e.stopPropagation(); onComplete(); }}>
             <div className="task-check" />
           </div>
         )}
+        <div className="sched-time">{t.time}<span className="ampm">{t.ap}</span></div>
         <div className="sched-body">
           <div className="sched-title">{block.text}</div>
           <div className="sched-cat">
