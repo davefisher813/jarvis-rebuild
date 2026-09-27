@@ -17,7 +17,8 @@ describe("DurationCard", () => {
   it("says how the minutes were made, flags the left-open session, and ends it at the last set with a revision", () => {
     const onCorrect = vi.fn();
     render(<DurationCard workout={base} onCorrect={onCorrect} />);
-    expect(screen.getAllByText("627 Min").length).toBe(2);
+    // Casing sweep 1 (2026-09-26): Title Case by the whole rule (§H2), units spelled "Min".
+    expect(screen.getAllByText("10h 27m").length).toBe(2);
     expect(screen.getByText("Review")).toBeInTheDocument();
     expect(screen.getByText("37 Min")).toBeInTheDocument();
     fireEvent.click(screen.getByText("End at the Last Set"));

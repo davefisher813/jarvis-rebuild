@@ -3,9 +3,10 @@ import { gradientLine, clearsProject, movedBy, celebrationLine, burstSize } from
 
 describe("the goal gradient", () => {
   it("counts down rather than reporting a percentage", () => {
-    expect(gradientLine(1, 4)).toBe("Three left");
-    expect(gradientLine(2, 4)).toBe("Two left");
-    expect(gradientLine(3, 4)).toBe("One left");
+    // Casing sweep 1 (2026-09-26): Title Case by the whole rule (§H2), units spelled "Min".
+    expect(gradientLine(1, 4)).toBe("Three Left");
+    expect(gradientLine(2, 4)).toBe("Two Left");
+    expect(gradientLine(3, 4)).toBe("One Left");
   });
 
   it("goes back to a ratio when the finish line is still far off", () => {
@@ -13,7 +14,7 @@ describe("the goal gradient", () => {
   });
 
   it("names the last one as the last one", () => {
-    expect(gradientLine(4, 4)).toBe("That was the last one");
+    expect(gradientLine(4, 4)).toBe("That Was the Last One");
   });
 
   it("says nothing about work that does not exist", () => {
@@ -24,7 +25,7 @@ describe("the goal gradient", () => {
 describe("what the tap moved", () => {
   it("reports the project the tick advanced", () => {
     expect(movedBy("Bridge Golf Event", 1, 4)).toEqual({
-      projectTitle: "Bridge Golf Event", line: "Three left", cleared: false,
+      projectTitle: "Bridge Golf Event", line: "Three Left", cleared: false,
     });
   });
 
@@ -64,8 +65,8 @@ describe("certain reward, varying form", () => {
   });
 
   it("keeps the big two fixed: those moments do not need variety", () => {
-    expect(celebrationLine("project", "x")).toBe("Project done");
-    expect(celebrationLine("goal", "y")).toBe("Goal achieved");
+    expect(celebrationLine("project", "x")).toBe("Project Done");
+    expect(celebrationLine("goal", "y")).toBe("Goal Achieved");
   });
 });
 

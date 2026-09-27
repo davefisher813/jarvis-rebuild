@@ -4792,5 +4792,493 @@
   "new": "1 Set",
   "phase": "passoff-gym-pages",
   "group": "passoff-gym-pages"
+ },
+ {
+  "item": "APP-time",
+  "file": "src/shared/duration.ts",
+  "old": "fourteen hand-rolled shapes (45 min / 45m / 2 hr 40 min / 1 hour / 2m 30s)",
+  "new": "one formatter: minutesLabel '45 Min', spanLabel '45 Min' under an hour and '1h 30m' from an hour up, secondsLabel '+30 Sec', clockLabel m:ss and h:mm:ss past an hour, hoursLabel, aboutLabel 'About 45 Min'",
+  "phase": "casing-sweep-1",
+  "group": "casing-sweep-1"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/shared/completion.ts",
+  "old": "Three left / Two left / One left / That was the last one",
+  "new": "Three Left / Two Left / One Left / That Was the Last One",
+  "phase": "casing-sweep-1",
+  "group": "casing-sweep-1"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/shared/completion.ts",
+  "old": "That's one / Off the list / That's the lot / All of it, done / Nothing left on it (celebration receipts)",
+  "new": "That's One / Off the List / That's the Lot / All of It, Done / Nothing Left on It",
+  "phase": "casing-sweep-1",
+  "group": "casing-sweep-1"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/shared/completion.ts + src/shared/Payoff.tsx",
+  "old": "Goal achieved / Project done (celebration line and the payoff eyebrow)",
+  "new": "Goal Achieved / Project Done",
+  "phase": "casing-sweep-1",
+  "group": "casing-sweep-1"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/shared/Payoff.tsx",
+  "old": "3 projects and 22 tasks over 12 days. (payoff line, with a full stop)",
+  "new": "3 Projects and 22 Tasks Over 12 Days (no full stop)",
+  "phase": "casing-sweep-1",
+  "group": "casing-sweep-1"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/projects/shape.ts",
+  "old": "On hold 6 more days / Hold ended 1 day ago",
+  "new": "On Hold 6 More Days / Hold Ended 1 Day Ago",
+  "phase": "casing-sweep-1",
+  "group": "casing-sweep-1"
+ },
+ {
+  "item": "APP-time",
+  "file": "src/projects/shape.ts",
+  "old": "About 45m left / About 3h left (spanLabel fused minutes)",
+  "new": "About 45 Min Left / About 3h Left (shared spanLabel; hours stay compact)",
+  "phase": "casing-sweep-1",
+  "group": "casing-sweep-1"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/projects/ProjectDetailPage.tsx",
+  "old": "N tasks are still open",
+  "new": "N Tasks Are Still Open",
+  "phase": "casing-sweep-1",
+  "group": "casing-sweep-1"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/gym/liveCard.ts",
+  "old": "12 Min in / 33 Min left / Time's up / 2 of 6 logged",
+  "new": "12 Min In / 33 Min Left / Time's Up / 2 of 6 Logged (spanLabel past an hour: 1h 5m In)",
+  "phase": "casing-sweep-1",
+  "group": "casing-sweep-1"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/gym/goalMeasures.ts",
+  "old": "2 of 3 This block",
+  "new": "2 of 3 This Block",
+  "phase": "casing-sweep-1",
+  "group": "casing-sweep-1"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/gym/BatchSheet.tsx",
+  "old": "3 of the 5 selected already say this and stays as it is. / All 5 selected change. (preview sub line, sentences)",
+  "new": "3 of 5 Already Say This / All 5 Change",
+  "phase": "casing-sweep-1",
+  "group": "casing-sweep-1"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/gym/BatchSheet.tsx",
+  "old": "3 of the 5 selected would change",
+  "new": "3 of the 5 Selected Would Change",
+  "phase": "casing-sweep-1",
+  "group": "casing-sweep-1"
+ },
+ {
+  "item": "APP-time",
+  "file": "src/gym/HistoryScreen.tsx + src/gym/GymFlow.tsx + src/gym/DurationCard.tsx + src/gym/SessionScreen.tsx",
+  "old": "N Min for every session length, even past an hour (627 Min)",
+  "new": "spanLabel: 47 Min under an hour, 10h 27m past it (Recent rows, History rows, the Duration card, the Warm-Up/Cool-Down eyebrows, Saves N)",
+  "phase": "casing-sweep-1",
+  "group": "casing-sweep-1"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/gym/SessionScreen.tsx",
+  "old": "12 Min over (catch-up banner) / 2 of 5 sets (strip head, noun lowercased)",
+  "new": "12 Min Over / 2 of 5 Sets",
+  "phase": "casing-sweep-1",
+  "group": "casing-sweep-1"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/gym/SessionScreen.tsx",
+  "old": "225 lb × 5 (the strip's Last ghost)",
+  "new": "225 Lb × 5",
+  "phase": "casing-sweep-1",
+  "group": "casing-sweep-1"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/gym/GymFlow.tsx",
+  "old": "1:30 rest (exercise row fact)",
+  "new": "1:30 Rest",
+  "phase": "casing-sweep-1",
+  "group": "casing-sweep-1"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/gym/GymFlow.tsx",
+  "old": "e.g. 5 min, 2 x 15 (warm-up item placeholder)",
+  "new": "e.g. 5 Min, 2 x 15",
+  "phase": "casing-sweep-1",
+  "group": "casing-sweep-1"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/gym/GymFlow.tsx",
+  "old": "5 min / Not counted (warm-up minutes row)",
+  "new": "5 Min / Not Counted",
+  "phase": "casing-sweep-1",
+  "group": "casing-sweep-1"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/gym/GymFlow.tsx",
+  "old": "10 min / 20 min / 30 min (How Much Time Is Left sheet)",
+  "new": "10 Min / 20 Min / 30 Min",
+  "phase": "casing-sweep-1",
+  "group": "casing-sweep-1"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/gym/GymFlow.tsx",
+  "old": "Bench plan moved to 135 lb × 8 (toast)",
+  "new": "Bench Plan Moved to 135 Lb × 8",
+  "phase": "casing-sweep-1",
+  "group": "casing-sweep-1"
+ },
+ {
+  "item": "APP-time",
+  "file": "src/gym/GymFlow.tsx",
+  "old": "Est N Min (set-strip estimate chip) / · N Min (warm-up and cool-down eyebrows)",
+  "new": "spanLabel: compact past an hour",
+  "phase": "casing-sweep-1",
+  "group": "casing-sweep-1"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/gym/ConditioningFace.tsx",
+  "old": "last 1:38 / cap 12:00 / 3 done / slide to finish",
+  "new": "Last 1:38 / Cap 12:00 / 3 Done / Slide to Finish",
+  "phase": "casing-sweep-1",
+  "group": "casing-sweep-1"
+ },
+ {
+  "item": "APP-time",
+  "file": "src/gym/conditioning.ts + src/gym/RestTimer.tsx + src/upnext/UpNextFlow.tsx",
+  "old": "m:ss always (62:05 past an hour)",
+  "new": "clockLabel: m:ss, h:mm:ss past an hour (1:02:05)",
+  "phase": "casing-sweep-1",
+  "group": "casing-sweep-1"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/gym/history.ts",
+  "old": "115 lb × 8 → 135 lb × 8 over 8 weeks / 4.71 sec (History trend line)",
+  "new": "115 Lb × 8 → 135 Lb × 8 Over 8 Weeks / 4.71 Sec",
+  "phase": "casing-sweep-1",
+  "group": "casing-sweep-1"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/gym/progression.ts",
+  "old": "Was 225 lb, all clean Aug 24 / Was 225 lb, every set cleared 8 Sep 10 (the suggestion's Why)",
+  "new": "Was 225 Lb, All Clean Aug 24 / Was 225 Lb, Every Set Cleared 8 Sep 10",
+  "phase": "casing-sweep-1",
+  "group": "casing-sweep-1"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/gym/progression.ts",
+  "old": "2 working sets on Sep 10 / Completed working sets only, warm-ups and drops left out / 6 to 8 reps / No rep range on the plan / 2.5 lb / One rep / 1 grind / None marked (basis rows)",
+  "new": "2 Working Sets on Sep 10 / Completed Working Sets Only, Warm-Ups and Drops Left Out / 6 to 8 Reps / No Rep Range on the Plan / 2.5 Lb / One Rep / 1 Grind / None Marked",
+  "phase": "casing-sweep-1",
+  "group": "casing-sweep-1"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/gym/metrics.ts",
+  "old": "Not logged yet / 7.5 hrs / 20 min (metric strip)",
+  "new": "Not Logged Yet / 7.5 Hrs / 20 Min (1h 30m from an hour up)",
+  "phase": "casing-sweep-1",
+  "group": "casing-sweep-1"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/gym/duplicates.ts",
+  "old": "The same name, written two ways / A letter or two apart / One is the other plus “x” (duplicate review facts)",
+  "new": "The Same Name, Written Two Ways / A Letter or Two Apart / One Is the Other Plus “x”",
+  "phase": "casing-sweep-1",
+  "group": "casing-sweep-1"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/gym/muscles.ts",
+  "old": "Studied growth range 10–20, diminishing above ~20",
+  "new": "Studied Growth Range 10–20, Diminishing Above 20",
+  "phase": "casing-sweep-1",
+  "group": "casing-sweep-1"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/gym/LiftGoalSheet.tsx",
+  "old": "225 lb / 8 reps / 12 rounds / 5 min / 3 sessions (goal target value rows, 7 sites)",
+  "new": "225 Lb / 8 Reps / 12 Rounds / 5 Min / 3 Sessions",
+  "phase": "casing-sweep-1",
+  "group": "casing-sweep-1"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/gym/MetricGoalSheet.tsx",
+  "old": "180 lb (target row)",
+  "new": "180 Lb",
+  "phase": "casing-sweep-1",
+  "group": "casing-sweep-1"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/gym/ExerciseSheet.tsx",
+  "old": "12 min (Window / Time Cap row)",
+  "new": "12 Min",
+  "phase": "casing-sweep-1",
+  "group": "casing-sweep-1"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/gym/ExerciseSheet.tsx",
+  "old": "Last: 135 lb × 8 / 95 lb × 5, 115 lb × 3 / Nothing to ramp at this weight",
+  "new": "Last: 135 Lb × 8 / 95 Lb × 5, 115 Lb × 3 / Nothing to Ramp at This Weight",
+  "phase": "casing-sweep-1",
+  "group": "casing-sweep-1"
+ },
+ {
+  "item": "APP-time",
+  "file": "src/gym/FitSheet.tsx + src/gym/fit.ts",
+  "old": "30 Min / 45 Min / 60 Min / 90 Min chips; Plan N Min, Fits: N Min, Start · N Min, N Min Over",
+  "new": "spanLabel: 30 Min / 45 Min / 1h / 1h 30m on one chip row; every length compact from an hour up (the rule applied literally to chips, per the brief)",
+  "phase": "casing-sweep-1",
+  "group": "casing-sweep-1"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/gym/ReceiptSheet.tsx",
+  "old": "135 lb × 8 / Up from 125 lb × 8 / First time (PR facts)",
+  "new": "135 Lb × 8 / Up from 125 Lb × 8 / First Time",
+  "phase": "casing-sweep-1",
+  "group": "casing-sweep-1"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/gym/insights.ts",
+  "old": "+6.7 per session on higher sleep days vs lower sleep, over 12 paired sessions (correlation, not cause)",
+  "new": "+6.7 per Session on Higher Sleep Days vs Lower Sleep, Over 12 Paired Sessions (Correlation, Not Cause)",
+  "phase": "casing-sweep-1",
+  "group": "casing-sweep-1"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/gym/metricGoals.ts",
+  "old": "Log sleep to track it toward 8 hrs (metric name lowercased)",
+  "new": "Log Sleep to Track It Toward 8 Hrs",
+  "phase": "casing-sweep-1",
+  "group": "casing-sweep-1"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/brain/derive.ts",
+  "old": "12 Finishes there, out of your last 16 / 3 Finishes in the fullest 3-hour stretch, out of your last 24 / Pushed 15 times in the busiest area, 14 in the next / 6 Weeks since either of you wrote (10 strand subs, number-lead capital only)",
+  "new": "12 Finishes There, Out of Your Last 16 / 3 Finishes in the Fullest 3-Hour Stretch, Out of Your Last 24 / Pushed 15 Times in the Busiest Area, 14 in the Next / 6 Weeks Since Either of You Wrote (whole rule, 10 sites)",
+  "phase": "casing-sweep-1",
+  "group": "casing-sweep-1"
+ },
+ {
+  "item": "APP-time",
+  "file": "src/brain/HealthBody.tsx",
+  "old": "45 min (next workout estimate) / 61 min (Training Time tile)",
+  "new": "45 Min / 61 Min, and 1h 30m from an hour up",
+  "phase": "casing-sweep-1",
+  "group": "casing-sweep-1"
+ },
+ {
+  "item": "APP-time",
+  "file": "src/brain/strands/StrandsPage.tsx",
+  "old": "Ran 30 Min Past the Estimate (hand-built Min)",
+  "new": "same words through spanLabel; Ran 1h 5m Past the Estimate past an hour",
+  "phase": "casing-sweep-1",
+  "group": "casing-sweep-1"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/insights/InsightsPage.tsx",
+  "old": "0 of 1 Working sets mapped / 1 Recorded in all / N rated sessions over M days / 7/10 latest / 5 of 7 days / Best at 5 reps / +10 lb at 5 reps",
+  "new": "0 of 1 Working Sets Mapped / 1 Recorded in All / N Rated Sessions Over M Days / 7/10 Latest / 5 of 7 Days / Best at 5 Reps / +10 Lb at 5 Reps",
+  "phase": "casing-sweep-1",
+  "group": "casing-sweep-1"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/insights/findings.ts",
+  "old": "2 Sets need a muscle assigned / N of M nights logged / 135 lb × 5 / +10 lb since Aug 31",
+  "new": "2 Sets Need a Muscle Assigned / N of M Nights Logged / 135 Lb × 5 / +10 Lb Since Aug 31",
+  "phase": "casing-sweep-1",
+  "group": "casing-sweep-1"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/insights/records.ts",
+  "old": "60 min / 45 min / 1 working set / 2 sets / 185 lb × 5 / 20 min / 7.5 hrs (All Data rows and set tables)",
+  "new": "1h / 45 Min / 1 Working Set / 2 Sets / 185 Lb × 5 / 20 Min / 7.5 Hrs",
+  "phase": "casing-sweep-1",
+  "group": "casing-sweep-1"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/insights/AllDataPage.tsx",
+  "old": "N in all / N waiting to sync",
+  "new": "N in All / N Waiting to Sync",
+  "phase": "casing-sweep-1",
+  "group": "casing-sweep-1"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/insights/AssignMusclesSheet.tsx",
+  "old": "3 of 5 assigned",
+  "new": "3 of 5 Assigned",
+  "phase": "casing-sweep-1",
+  "group": "casing-sweep-1"
+ },
+ {
+  "item": "APP-time",
+  "file": "src/insights/analytics.ts",
+  "old": "30m (sleep average under an hour, hoursLabel)",
+  "new": "30 Min (shared hoursLabel; 7h 24m unchanged)",
+  "phase": "casing-sweep-1",
+  "group": "casing-sweep-1"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/people/importMatch.ts",
+  "old": "2 New, 1 To update / 1 To check / 5 Already current / 10 Already current",
+  "new": "2 New, 1 to Update / 1 to Check / 5 Already Current / 10 Already Current",
+  "phase": "casing-sweep-1",
+  "group": "casing-sweep-1"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/people/PeopleFlow.tsx",
+  "old": "1 Note tidied (toast) / N columns read",
+  "new": "1 Note Tidied / N Columns Read",
+  "phase": "casing-sweep-1",
+  "group": "casing-sweep-1"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/people/screens/PeopleListPage.tsx",
+  "old": "One contact has their own number in their notes as well / N contacts have contact details sitting in their notes",
+  "new": "One Contact Has Their Own Number in Their Notes As Well / N Contacts Have Contact Details Sitting in Their Notes",
+  "phase": "casing-sweep-1",
+  "group": "casing-sweep-1"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/data/useSyncState.ts",
+  "old": "just now / 2 min ago / 1 hour ago / 5 hours ago / 3 Changes waiting / Last synced 2 min ago",
+  "new": "Just Now / 2 Min Ago / 1h Ago / 5h Ago / 3 Changes Waiting / Last Synced 2 Min Ago",
+  "phase": "casing-sweep-1",
+  "group": "casing-sweep-1"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/health/HealthFlow.tsx",
+  "old": "N events added (toast)",
+  "new": "N Events Added",
+  "phase": "casing-sweep-1",
+  "group": "casing-sweep-1"
+ },
+ {
+  "item": "APP-time",
+  "file": "src/health/log.ts",
+  "old": "47 min / 20 min (health log rows)",
+  "new": "47 Min / 20 Min, compact from an hour up",
+  "phase": "casing-sweep-1",
+  "group": "casing-sweep-1"
+ },
+ {
+  "item": "APP-time",
+  "file": "src/health/screens/LightsOutScreen.tsx",
+  "old": "8 hrs / 7.5 hrs (sleep saved, recent sleep)",
+  "new": "8h / 7h 30m",
+  "phase": "casing-sweep-1",
+  "group": "casing-sweep-1"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/health/screens/MedicationScreen.tsx",
+  "old": "Last dose today",
+  "new": "Last Dose Today",
+  "phase": "casing-sweep-1",
+  "group": "casing-sweep-1"
+ },
+ {
+  "item": "APP-time",
+  "file": "src/health/screens/EatingWindowsScreen.tsx",
+  "old": "45 Minutes / 840 Minutes (eating window gap)",
+  "new": "45 Min / 14h",
+  "phase": "casing-sweep-1",
+  "group": "casing-sweep-1"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/weather/weather.ts",
+  "old": "Checked 40 min ago / Checked 3 hr ago",
+  "new": "Checked 40 Min Ago / Checked 3h Ago",
+  "phase": "casing-sweep-1",
+  "group": "casing-sweep-1"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/restore/whereYouWere.ts",
+  "old": "Left 12m ago / Left 9h ago",
+  "new": "Left 12 Min Ago / Left 9h Ago",
+  "phase": "casing-sweep-1",
+  "group": "casing-sweep-1"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/upnext/upnext.ts + src/upnext/UpNextFlow.tsx",
+  "old": "Waiting since yesterday / Waiting 5 days / Due today / Due tomorrow / Due in 3 days / No deadline / your focus peak",
+  "new": "Waiting Since Yesterday / Waiting 5 Days / Due Today / Due Tomorrow / Due in 3 Days / No Deadline / Your Focus Peak",
+  "phase": "casing-sweep-1",
+  "group": "casing-sweep-1"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/upnext/FreshStartFlow.tsx",
+  "old": "A day you can still win / First, when you're ready / Still today / 3 moved to tomorrow",
+  "new": "A Day You Can Still Win / First, When You're Ready / Still Today / 3 Moved to Tomorrow",
+  "phase": "casing-sweep-1",
+  "group": "casing-sweep-1"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/capture/QuickCapture.tsx",
+  "old": "Logged 225 lb × 5 (toast)",
+  "new": "Logged 225 Lb × 5",
+  "phase": "casing-sweep-1",
+  "group": "casing-sweep-1"
+ },
+ {
+  "item": "APP-time",
+  "file": "src/onboarding/OnboardingFlow.tsx",
+  "old": "2 min / 1 min / 1 min (step lengths)",
+  "new": "2 Min / 1 Min / 1 Min (the step names stay sentence case: onboarding)",
+  "phase": "casing-sweep-1",
+  "group": "casing-sweep-1"
  }
 ]

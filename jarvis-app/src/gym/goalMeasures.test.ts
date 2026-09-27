@@ -107,7 +107,8 @@ describe("trainingMeasureState", () => {
     const st = trainingMeasureState(m, h, new Date("2026-08-20").getTime());
     expect(st.done).toBe(2); // the pre-stamp session doesn't count
     expect(st.met).toBe(false);
-    expect(st.line).toBe("2 of 3 This block");
+    // Casing sweep 1 (2026-09-26): Title Case by the whole rule (§H2), units spelled "Min".
+    expect(st.line).toBe("2 of 3 This Block");
   });
 
   it("week: only sessions inside the rolling Monday-first window", () => {
@@ -145,7 +146,7 @@ describe("trainingMeasureState", () => {
     ])];
     const st = trainingMeasureState(m, h, new Date("2026-08-20").getTime());
     expect(st.done).toBe(1);
-    expect(st.line).toBe("1 of 3 This block");
+    expect(st.line).toBe("1 of 3 This Block");
   });
 
   it("a done-only session where every chip was skipped still counts for nothing", () => {

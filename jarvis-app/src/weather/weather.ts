@@ -6,6 +6,8 @@
 // from the spec: weather NEVER adjusts Leave By math or any other number in
 // the app; it only ever adds a line a human reads.
 
+import { spanLabel } from "../shared/duration";
+
 export interface HourlyWeather {
   // ISO hour strings aligned with the arrays below, e.g. "2026-08-15T14:00".
   time: string[];
@@ -140,8 +142,8 @@ export function staleSuffix(snap: WeatherSnapshot, now: () => number = Date.now)
   if (age > 24 * 3600e3) return null;
   if (age < 15 * 60_000) return "";
   const mins = Math.round(age / 60_000);
-  if (mins < 90) return `Checked ${mins} min ago`;
-  return `Checked ${Math.round(mins / 60)} hr ago`;
+  if (mins < 90) return `Checked ${spanLabel(mins)} Ago`;
+  return `Checked ${spanLabel(Math.round(mins / 60) * 60)} Ago`;
 }
 
 // The age rides beside the sentence, never inside it; a fresh read has none.
@@ -178,7 +180,7 @@ export interface WeatherFact {
   kind: WeatherKind;
   /** The sentence, exactly as the line has always read it, without the age. */
   text: string;
-  /** How old the forecast is ("Checked 40 min ago"), only once it is stale.
+  /** How old the forecast is ("Checked 40 Min Ago"), only once it is stale.
    *  A neutral time: the line draws it as its own `.fact.date` after the
    *  sentence, so the separator is the stylesheet's, not a baked-in dot. */
   stale?: string;

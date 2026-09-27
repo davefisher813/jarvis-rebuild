@@ -19,6 +19,7 @@ import { usedBy } from "./usedBy";
 import { watchingCount } from "../readiness";
 import RowStar from "../../shared/RowStar";
 import { lineCase } from "../../shared/casing";
+import { spanLabel } from "../../shared/duration";
 
 // C-40: the filter chips. Choosers, so filled chips. Watching is not a
 // strand bucket: it lists the readiness rows past CLOSE_SHARE of their gate.
@@ -71,7 +72,7 @@ function receiptWords(derivation: DerivationKey | undefined, e: StrandEvidence):
     return `${e.a} of ${e.b} picks done`;
   }
   if (derivation === "task_timing" && typeof e.a === "number") {
-    return e.a > 0 ? `Ran ${e.a} min past the estimate` : `Wrapped ${-e.a} min early`;
+    return e.a > 0 ? `Ran ${spanLabel(e.a)} past the estimate` : `Wrapped ${spanLabel(-e.a)} early`;
   }
   // B5 (2026-09-04): derive.ts's two newest detectors (training_window,
   // email_window) have written the band hour as evidence.a since they

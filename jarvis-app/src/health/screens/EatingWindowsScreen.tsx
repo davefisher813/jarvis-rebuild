@@ -1,5 +1,6 @@
 import type { EatingWindowOffer } from "../eatingWindows";
 import { pressable } from "../../shared/pressable";
+import { spanLabel } from "../../shared/duration";
 
 // EATING WINDOWS (Part 3). Scans tomorrow for gaps too tight for a meal and
 // offers a schedule action. No nutrition content anywhere on this screen.
@@ -32,7 +33,7 @@ export default function EatingWindowsScreen({ offers, onTakeOffer, onBack }: {
             <div className="row" key={i} {...pressable(() => onTakeOffer(o))}>
               <div className="row-grow">
                 <div className="conn-name">{o.line}</div>
-                <div className="bp-sub">{o.gap.minutes} Minutes</div>
+                <div className="bp-sub">{spanLabel(o.gap.minutes)}</div>
               </div>
               {/* The row's verb is the capsule (§AL), as Took It is on the
                   med rows: a fill and the action red, not a grey button. */}

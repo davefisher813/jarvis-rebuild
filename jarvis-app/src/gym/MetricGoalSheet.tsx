@@ -3,6 +3,7 @@ import { useState } from "react";
 import type { GoalData } from "../life/types";
 import type { MetricMeasure, MetricDirection } from "./metricGoals";
 import Stepper from "../shared/Stepper";
+import { lineCase } from "../shared/casing";
 
 // A GOAL ON A READING (Dave's ask 2026-09-12): set from the metric's own log
 // sheet, the same way LiftGoalSheet is set from the lift's own screen and
@@ -81,7 +82,7 @@ export default function MetricGoalSheet({
           </div>
           <div className="field">
             <div className="input-label">Target</div>
-            <div className="row"><div className="row-grow"><div className="conn-name">{target}{unit ? ` ${unit}` : ""}</div></div><Stepper value={target} step={step} min={0} label="Target" onChange={setTarget} /></div>
+            <div className="row"><div className="row-grow"><div className="conn-name">{lineCase(`${target}${unit ? ` ${unit}` : ""}`)}</div></div><Stepper value={target} step={step} min={0} label="Target" onChange={setTarget} /></div>
             {touched && !(target > 0) && <div className="input-error">Set a target above zero.</div>}
           </div>
           <div className="field">

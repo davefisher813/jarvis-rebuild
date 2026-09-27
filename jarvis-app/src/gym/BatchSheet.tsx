@@ -117,8 +117,8 @@ export default function BatchSheet({ rows, store, onSave, onCancel }: {
               </div></div>
               <div className="pad-x"><div className="bp-sub">
                 {plan.unchanged > 0
-                  ? lineCase(`${plan.unchanged} of the ${rows.length} selected already ${plan.unchanged === 1 ? "says" : "say"} this and stays as it is.`)
-                  : lineCase(`All ${rows.length} selected change.`)}
+                  ? lineCase(`${plan.unchanged} of ${rows.length} already ${plan.unchanged === 1 ? "says" : "say"} this`)
+                  : lineCase(`All ${rows.length} change`)}
               </div></div>
               <div className="pad-x">
                 <button type="button" className="btn btn-secondary btn-block" onClick={() => setPreview(false)}>Back to the Picker</button>

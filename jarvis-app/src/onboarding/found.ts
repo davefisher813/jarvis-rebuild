@@ -1,5 +1,5 @@
 import { mailNotices, taskTitleFrom, type MailSnapshot, type MailNotice } from "../messages/home";
-import { lineCase, titleCase } from "../shared/casing";
+import { capAfterNumber, titleCase } from "../shared/casing";
 
 // THE FIRST THIRTY SECONDS (UP-MIND-13, Email 5.10, build order 11).
 //
@@ -36,7 +36,8 @@ export function openCount(snap: MailSnapshot): number {
 }
 
 export function foundLine(n: number): string {
-  return lineCase(
+  // Onboarding talks in sentences (§H2), so the number-lead rule, not the whole rule.
+  return capAfterNumber(
     n === 1
       ? "I found 1 thing still open from the last 30 days"
       : `I found ${n} things still open from the last 30 days`,

@@ -5,6 +5,8 @@
 // the user does anything new the record refreshes and the offer vanishes,
 // because a fresh record is by definition this sitting, not a restore.
 
+import { spanLabel } from "../shared/duration";
+
 export interface WorkSpot {
   kind: "note" | "task" | "event" | "gym";
   id: string;
@@ -117,11 +119,12 @@ export function clearSpot(): void {
 // carried by the type and routed by AppShell.onRestoreSpot, so a recorder for
 // them can be added without touching either end.
 
-// The quiet-line form of the age (Law 3E, 2026-08-22): fused units, no noun.
-// "Left 9h ago" -- the row's title already names the thing, so repeating its
-// kind here was the old sub's padding.
+// The quiet-line form of the age (Law 3E, 2026-08-22): no noun. "Left 9h
+// Ago", "Left 12 Min Ago" -- the row's title already names the thing, so
+// repeating its kind here was the old sub's padding. The span is the one
+// duration shape and the line is Title Case (Dave 2026-09-26).
 export function spotAgo(spot: WorkSpot, now: () => number = Date.now): string {
   const mins = Math.max(1, Math.round((now() - spot.ts) / 60_000));
-  const span = mins < 60 ? `${mins}m` : `${Math.round(mins / 60)}h`;
-  return `Left ${span} ago`;
+  const span = mins < 60 ? spanLabel(mins) : spanLabel(Math.round(mins / 60) * 60);
+  return `Left ${span} Ago`;
 }

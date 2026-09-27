@@ -96,7 +96,8 @@ describe("History", () => {
     const row = exerciseHistory(h)[0]!;
     expect(row.unit).toBe("kg");
     // It used to print "225 lb × 5 → 100 lb × 5".
-    expect(trendLine(row)).toBe("102.1 kg × 5 → 100 kg × 5 over 2 weeks");
+    // Casing sweep 1 (2026-09-26): Title Case by the whole rule (§H2), units spelled "Min".
+    expect(trendLine(row)).toBe("102.1 Kg × 5 → 100 Kg × 5 Over 2 Weeks");
     // and the best is still the heavier one, whichever unit it was logged in
     expect(row.best.set.w).toBe(225);
     expect(row.best.unit).toBe("lb");

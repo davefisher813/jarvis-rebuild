@@ -158,8 +158,8 @@ export function findings(inp: FindingsInput): Finding[] {
       id: "gain-" + (bestGain.lift.exerciseKey ?? bestGain.lift.name),
       kind: "change", hue: "lime",
       title: bestGain.lift.name,
-      value: `${bestGain.to.w} ${u} × ${bestGain.reps}`,
-      context: [`${sign(bestGain.delta)} ${u} since ${monthDay(bestGain.from.date)}`],
+      value: lineCase(`${bestGain.to.w} ${u} × ${bestGain.reps}`),
+      context: [lineCase(`${sign(bestGain.delta)} ${u} since ${monthDay(bestGain.from.date)}`)],
       open: { kind: "lift", lift: bestGain.lift },
     });
   }

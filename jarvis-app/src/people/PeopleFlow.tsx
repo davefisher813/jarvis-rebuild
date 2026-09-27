@@ -21,7 +21,7 @@ import { usePushDepth } from "../shared/pushNav";
 import { parseContactsFile, parseContactsCSV, csvMapping, type CsvMapping } from "./importContacts";
 import { planImport, mergeReview, draftFrom, planFacts, summaryLine, describe, type MatchPlan } from "./importMatch";
 import { fmtTime } from "../schedule/calendar";
-import { capAfterNumber } from "../shared/casing";
+import { lineCase } from "../shared/casing";
 import HeadMenu from "../shared/HeadMenu";
 
 // "Reminds at 2:00PM". The words, not just the clock, so the row says why
@@ -535,7 +535,7 @@ export default function PeopleFlow({ onBack, openId: initialOpenId, openNonce, o
     if (!ok) return;
     const n = dupes.length;
     showToast({
-      message: capAfterNumber(`${n} ${n === 1 ? "note" : "notes"} tidied`),
+      message: lineCase(`${n} ${n === 1 ? "note" : "notes"} tidied`),
       actionLabel: "Undo",
       onAction: async () => {
         await attemptWrite(async () => {
@@ -615,7 +615,7 @@ export default function PeopleFlow({ onBack, openId: initialOpenId, openNonce, o
           {/* The count alone: the head above already asks which column is
               which, and a second clause joined with a dot was a second fact
               in the same grey (§AM, R5 and R6). */}
-          <div className="plan-sub">{capAfterNumber(`${mapping.headers.length} columns read`)}</div>
+          <div className="plan-sub">{lineCase(`${mapping.headers.length} columns read`)}</div>
           <div className="card list-card-ruled">
             {mapping.headers.map((h, i) => (
               <div className="row" key={h + i}>

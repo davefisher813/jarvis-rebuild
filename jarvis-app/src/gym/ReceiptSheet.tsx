@@ -1,4 +1,4 @@
-import { liftTitle, workoutTitle } from "../shared/casing";
+import { lineCase, liftTitle, workoutTitle } from "../shared/casing";
 import { useState } from "react";
 import MarkdownField from "../shared/MarkdownField";
 import { createPortal } from "react-dom";
@@ -150,8 +150,8 @@ export default function ReceiptSheet({ dayName, receipt, workouts, onDone, onKee
                           CSS. The new best is logged work, so the ramp's
                           lime; what it beat is the line's one grey. */}
                       <div className="facts">
-                        <span className="fact lime">{p.text}</span>
-                        <span className="fact">{p.from ? `Up from ${p.from}` : "First time"}</span>
+                        <span className="fact lime">{lineCase(p.text)}</span>
+                        <span className="fact">{p.from ? `Up from ${lineCase(p.from)}` : "First Time"}</span>
                       </div>
                     </div>
                     <span className="pill pill-good">PR</span>

@@ -331,7 +331,8 @@ describe("GYM-F-26: every row menu has a visible door", () => {
     // cannot be tapped, so it is a white <b> inside its fact -- not small
     // caps (.fact.date is for a neutral date or time of day), and not grey.
     expect(rendered, "rest is its own fact, only when there is one, and a white length")
-      .toMatch(/exercise\.restSec \? <span className="fact"><b>\{`\$\{mmss\(exercise\.restSec\)\} rest`\}<\/b><\/span> : null/);
+      // Casing sweep 1 (2026-09-26): Title Case by the whole rule (§H2), units spelled "Min".
+      .toMatch(/exercise\.restSec \? <span className="fact"><b>\{`\$\{mmss\(exercise\.restSec\)\} Rest`\}<\/b><\/span> : null/);
     expect(rendered, "and never the small-caps date primitive").not.toMatch(/className="fact date">\{`\$\{mmss/);
     expect(rendered, "and no capsule stands in for a value here")
       .not.toMatch(/se-chip/);

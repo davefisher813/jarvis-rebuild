@@ -3,6 +3,7 @@ import type { RackConfig } from "./ramp";
 import { rampFor } from "./ramp";
 import { paceFor, WORK_SEC, REST_FLOOR_SEC, DEFAULT_REST_SEC, RAMP_SEC_PER_SET } from "./pacing";
 import { groupOf } from "./groups";
+import { aboutLabel, secondsLabel, spanLabel } from "../shared/duration";
 
 /** UP-ATH-17 (2026-09-06): in a group of two or more, so trimming it would
  *  break the alternation. Reads a legacy pairWith as a group of two. */

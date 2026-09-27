@@ -9,6 +9,7 @@ import ActionSheet from "../gym/ActionSheet";
 import { BarbellGlyph, MoonGlyph, ClockGlyph, PulseGlyph } from "../shared/glyphs";
 import { Plus, Timer, FileText } from "../shared/icons";
 import { lineCase } from "../shared/casing";
+import { spanLabel } from "../shared/duration";
 import { fmtTime } from "../schedule/calendar";
 import { monthDay } from "../money/bills";
 import { pressable } from "../shared/pressable";
@@ -149,7 +150,7 @@ export default function HealthBody({
             <b>{overview.workingSets}</b><span>Working Sets</span>
           </button>
           <button type="button" className="h-stat" onClick={() => onOpenRecords({ kind: "workouts" })}>
-            <b>{overview.trainingMin}<small> min</small></b><span>Training Time</span>
+            <b>{overview.trainingMin < 60 ? <>{overview.trainingMin}<small> Min</small></> : spanLabel(overview.trainingMin)}</b><span>Training Time</span>
           </button>
           {/* NOTHING LOGGED IS NOT A READING (polish pass 2026-09-16; the
               handoff names this one: "show a dash with Sleep not logged; never
@@ -266,7 +267,7 @@ export default function HealthBody({
                   {/* The sky ink already says estimate, so no "About"
                       (2026-09-26): with it, the line cut the number away
                       at type scale 1.4 ("Abo..."). */}
-                  {est > 0 && <span className="fact est">{lineCase(`${est} min`)}</span>}
+                  {est > 0 && <span className="fact est">{spanLabel(est)}</span>}
                 </div>
               </div>
               {CHEV}

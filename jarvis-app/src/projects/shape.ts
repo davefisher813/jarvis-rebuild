@@ -1,6 +1,7 @@
 import type { ProjectData } from "./types";
 import { daysBetween } from "../upnext/upnext";
 import { lineCase } from "../shared/casing";
+import { aboutLabel, spanLabel as sharedSpan } from "../shared/duration";
 
 // ---------------------------------------------------------------------------
 // THE SHAPE OF A PROJECT (Dave's picks 20 and 22, built 2026-08-24).
@@ -74,17 +75,14 @@ export function sizeOf(tasks: SizedTask[], estimateFor: (category: string) => nu
   return { open: open.length, minutes };
 }
 
-/** "45m" / "3h" / "3h 20m". Fused units, per the quiet-line law. */
+/** "45 Min" / "3h" / "3h 20m": the one duration shape (shared/duration.ts,
+ *  Dave 2026-09-26), kept under this name for its callers. */
 export function spanLabel(min: number): string {
-  const m = Math.max(0, Math.round(min));
-  const h = Math.floor(m / 60);
-  const r = m % 60;
-  if (h === 0) return `${m}m`;
-  return r === 0 ? `${h}h` : `${h}h ${r}m`;
+  return sharedSpan(min);
 }
 
 /**
- * "About 3h left". The word About is doing real work: these are learned
+ * "About 3h Left". The word About is doing real work: these are learned
  * averages, not commitments, and a bare "3h" would read as a promise the app
  * has no business making.
  *
@@ -100,5 +98,5 @@ export function spanLabel(min: number): string {
  */
 export function sizeLine(s: Size | null): string | null {
   if (!s) return null;
-  return `About ${spanLabel(s.minutes)} left`;
+  return `${aboutLabel(s.minutes)} Left`;
 }

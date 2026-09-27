@@ -170,7 +170,7 @@ export default function ConditioningFace({ name, cond, onFinish, onCancel }: {
             {phase === "lead" ? "Ready" : iv ? `${iv.phase === "rest" ? "Rest · " : ""}Round ${roundNo}${cond.rounds ? ` of ${cond.rounds}` : ""}` : `Round ${roundNo}`}
           </div>
           <div className="cf-last">
-            {phase === "lead" ? " " : iv ? `${mmss(elapsed)} of ${mmss(cond.capSec)}` : lastSplit != null ? `last ${mmss(lastSplit)}` : cond.format === "for_time" ? `cap ${mmss(cond.capSec)}` : " "}
+            {phase === "lead" ? " " : iv ? `${mmss(elapsed)} of ${mmss(cond.capSec)}` : lastSplit != null ? `Last ${mmss(lastSplit)}` : cond.format === "for_time" ? `Cap ${mmss(cond.capSec)}` : " "}
           </div>
         </div>
       </div>
@@ -178,13 +178,13 @@ export default function ConditioningFace({ name, cond, onFinish, onCancel }: {
       {/* Landscape: the corners carry what the ring carried. */}
       <span className="cf-corner cf-tl">{COND_LABEL[cond.format]} · {mmss(cond.capSec)}</span>
       <span className="cf-corner cf-tr">{iv ? `Round ${roundNo}${cond.rounds ? ` of ${cond.rounds}` : ""}` : `Round ${roundNo}`}</span>
-      <span className="cf-corner cf-bl">{lastSplit != null ? `last ${mmss(lastSplit)}` : `${roundsDone} done`}</span>
+      <span className="cf-corner cf-bl">{lastSplit != null ? `Last ${mmss(lastSplit)}` : `${roundsDone} Done`}</span>
 
       {!own && phase === "run" && (
         <button className="cf-roundbtn" onClick={round}>Round</button>
       )}
       <div className="cf-slide" ref={trackRef}>
-        <span className="cf-slide-t">slide to finish</span>
+        <span className="cf-slide-t">Slide to Finish</span>
         <div
           className={"cf-knob" + (drag ? " dragging" : "")}
           style={{ transform: `translateX(${drag?.dx ?? 0}px)` }}

@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { Burst } from "./Burst";
 import { haptics } from "./haptics";
+import { lineCase } from "./casing";
 
 // The moment you finish something big.
 //
@@ -30,7 +31,7 @@ export default function Payoff({
     <div className="screen payoff">
       <div className="payoff-body">
         <div className="payoff-burst"><Burst show /></div>
-        <div className="eyebrow">{kind === "goal" ? "Goal achieved" : "Project done"}</div>
+        <div className="eyebrow">{kind === "goal" ? "Goal Achieved" : "Project Done"}</div>
         <div className="payoff-title">{title}</div>
         {line && <div className="payoff-line">{line}</div>}
       </div>
@@ -42,7 +43,9 @@ export default function Payoff({
 }
 
 // What it took, counted from real records only. Returns "" when there is
-// nothing true to say, and then the line does not render at all.
+// nothing true to say, and then the line does not render at all. A line the
+// app writes, so Title Case with no full stop ("3 Projects and 22 Tasks
+// Over 12 Days"; Dave 2026-09-26).
 export function payoffLine(opts: { tasksDone?: number; days?: number; projectsDone?: number }): string {
   const bits: string[] = [];
   if (opts.projectsDone && opts.projectsDone > 0) {
@@ -55,7 +58,7 @@ export function payoffLine(opts: { tasksDone?: number; days?: number; projectsDo
   const what = bits.join(" and ");
   if (opts.days && opts.days >= 1) {
     const when = opts.days === 1 ? "1 day" : opts.days + " days";
-    return what + " over " + when + ".";
+    return lineCase(what + " over " + when);
   }
-  return what + ".";
+  return lineCase(what);
 }

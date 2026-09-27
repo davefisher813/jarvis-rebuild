@@ -52,13 +52,14 @@ describe("rankOpen / pickNext", () => {
 
 describe("reasonFor", () => {
   it("explains without shame vocabulary", () => {
-    expect(reasonFor(task("2026-07-29"), T, false)).toBe("Waiting since yesterday");
-    expect(reasonFor(task("2026-07-25"), T, false)).toBe("Waiting 5 days");
-    expect(reasonFor(task(T), T, false)).toBe("Due today");
-    expect(reasonFor(task("2026-07-31"), T, false)).toBe("Due tomorrow");
-    expect(reasonFor(task("2026-08-02"), T, false)).toBe("Due in 3 days");
-    expect(reasonFor(task(null), T, false)).toBe("No deadline");
-    expect(reasonFor(task(T), T, true)).toBe("Due today · your focus peak");
+    // Casing sweep 1 (2026-09-26): Title Case by the whole rule (§H2), units spelled "Min".
+    expect(reasonFor(task("2026-07-29"), T, false)).toBe("Waiting Since Yesterday");
+    expect(reasonFor(task("2026-07-25"), T, false)).toBe("Waiting 5 Days");
+    expect(reasonFor(task(T), T, false)).toBe("Due Today");
+    expect(reasonFor(task("2026-07-31"), T, false)).toBe("Due Tomorrow");
+    expect(reasonFor(task("2026-08-02"), T, false)).toBe("Due in 3 Days");
+    expect(reasonFor(task(null), T, false)).toBe("No Deadline");
+    expect(reasonFor(task(T), T, true)).toBe("Due Today · Your Focus Peak");
     expect(reasonFor(task("2026-07-25"), T, false)).not.toMatch(/overdue/i);
   });
 });

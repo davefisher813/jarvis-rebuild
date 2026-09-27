@@ -475,7 +475,8 @@ describe("QuickCapture: a set goes to the live session", () => {
     await waitFor(() => expect(onClose).toHaveBeenCalled());
     expect(readLive()!.exercises[0]!.sets).toHaveLength(1);
     expect(readLive()!.exercises[0]!.sets[0]).toMatchObject({ w: 225, r: 5 });
-    expect(showToast.mock.calls[0]![0].message).toBe("Logged 225 lb × 5");
+    // Casing sweep 1 (2026-09-26): Title Case by the whole rule (§H2), units spelled "Min".
+    expect(showToast.mock.calls[0]![0].message).toBe("Logged 225 Lb × 5");
     expect(showToast.mock.calls[0]![0].actionLabel).toBe("Undo");
   });
 

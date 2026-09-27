@@ -22,6 +22,7 @@ import { dayTone } from "../messages/factsLine";
 import { DAY_PRESETS } from "../tasks/reminders";
 import { daysSummary } from "../routine/types";
 import Dictate from "../shared/Dictate";
+import { lineCase } from "../shared/casing";
 
 // "Fact" is Quick Add's lane (Brain handoff 5.0): a standing truth about the
 // user, filed into the Brain rather than onto a list. It is a chip like the
@@ -237,7 +238,7 @@ export default function QuickCapture({ ai, onClose, onOpen }: { ai: AIService; o
     }
     writeLive(logSet(live, live.idx, set));
     showToast({
-      message: `Logged ${formatSet(entry, set)}`,
+      message: lineCase(`Logged ${formatSet(entry, set)}`),
       actionLabel: "Undo",
       onAction: () => { const cur = readLive(); if (cur) writeLive(setLoggedSets(cur, live.idx, before)); },
     });

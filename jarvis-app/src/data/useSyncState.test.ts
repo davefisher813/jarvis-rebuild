@@ -25,13 +25,14 @@ describe("the line only ever states facts", () => {
   // capAfterNumber, and the law test that enforces it): "14 Emails need you".
   // What is held is waiting on the person, so it is amber (§AM).
   it("offline with writes held names the count, in amber", () => {
-    expect(facts(state({ online: false, queued: 3 }))).toEqual([{ text: "Offline" }, { text: "3 Changes waiting", tone: "warn" }]);
-    expect(facts(state({ online: false, queued: 1 }))).toEqual([{ text: "Offline" }, { text: "1 Change waiting", tone: "warn" }]);
+    // Casing sweep 1 (2026-09-26): Title Case by the whole rule (§H2), units spelled "Min".
+    expect(facts(state({ online: false, queued: 3 }))).toEqual([{ text: "Offline" }, { text: "3 Changes Waiting", tone: "warn" }]);
+    expect(facts(state({ online: false, queued: 1 }))).toEqual([{ text: "Offline" }, { text: "1 Change Waiting", tone: "warn" }]);
   });
 
   // A neutral time on a row is small caps (§AM F5).
   it("online and caught up, having synced, says when", () => {
-    expect(facts(state({ lastSyncedAt: NOW - 2 * 60000 }))).toEqual([{ text: "Last synced 2 min ago", tone: "date" }]);
+    expect(facts(state({ lastSyncedAt: NOW - 2 * 60000 }))).toEqual([{ text: "Last Synced 2 Min Ago", tone: "date" }]);
   });
 
   it("online with nothing sent yet says so, rather than inventing a time", () => {
@@ -42,7 +43,7 @@ describe("the line only ever states facts", () => {
 
   it("waiting and synced is both facts, in that order", () => {
     expect(facts(state({ queued: 3, lastSyncedAt: NOW - 120000 })))
-      .toEqual([{ text: "3 Changes waiting", tone: "warn" }, { text: "Last synced 2 min ago", tone: "date" }]);
+      .toEqual([{ text: "3 Changes Waiting", tone: "warn" }, { text: "Last Synced 2 Min Ago", tone: "date" }]);
   });
 
   it("no fact carries a typed separator, and at most one is coloured", () => {
@@ -58,9 +59,9 @@ describe("the line only ever states facts", () => {
   });
 
   it("under a minute is just now, never zero minutes", () => {
-    expect(syncedAgo(NOW - 5000, NOW)).toBe("just now");
-    expect(syncedAgo(NOW - 90 * 60000, NOW)).toBe("1 hour ago");
-    expect(syncedAgo(NOW - 5 * 3600000, NOW)).toBe("5 hours ago");
+    expect(syncedAgo(NOW - 5000, NOW)).toBe("Just Now");
+    expect(syncedAgo(NOW - 90 * 60000, NOW)).toBe("1h Ago");
+    expect(syncedAgo(NOW - 5 * 3600000, NOW)).toBe("5h Ago");
   });
 });
 

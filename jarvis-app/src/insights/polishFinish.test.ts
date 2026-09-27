@@ -123,14 +123,15 @@ describe("All Data's set tables", () => {
   // happened.
   it("numbers the working sets, then names the ramp after them", () => {
     expect(sets.sets).toEqual([
-      { label: "Set 1", text: "185 lb × 5" },
-      { label: "Set 2", text: "205 lb × 3" },
-      { label: "Warm-Up", text: "135 lb × 10", warm: true },
+      // Casing sweep 1 (2026-09-26): Title Case by the whole rule (§H2), units spelled "Min".
+      { label: "Set 1", text: "185 Lb × 5" },
+      { label: "Set 2", text: "205 Lb × 3" },
+      { label: "Warm-Up", text: "135 Lb × 10", warm: true },
     ]);
   });
 
   it("and the count above the table is still the work alone", () => {
-    expect(sets.value).toBe("2 sets");
+    expect(sets.value).toBe("2 Sets");
   });
 
   it("a ramp never takes a set number, which would make Set 1 a warm-up", () => {

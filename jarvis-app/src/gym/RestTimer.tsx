@@ -3,12 +3,7 @@ import { beepDone, openAudio } from "./beep";
 import { readHealthSettings } from "../health/settings";
 import { haptics } from "../shared/haptics";
 import { scheduleRestOver, cancelRestOver } from "../shared/notifications";
-
-function mmss(total: number): string {
-  const m = Math.floor(total / 60);
-  const s = total % 60;
-  return `${m}:${String(s).padStart(2, "0")}`;
-}
+import { clockLabel as mmss } from "../shared/duration";
 
 /** Whole seconds left before `endsAt`, never negative. Ceil, so a fresh
  *  2:00 rest reads 2:00 for its first second and 0:00 only once the

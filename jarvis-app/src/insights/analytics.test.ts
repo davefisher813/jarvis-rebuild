@@ -81,6 +81,7 @@ describe("periodOverview and sleep", () => {
   it("labels hours", () => {
     expect(hoursLabel(7.4)).toBe("7h 24m");
     expect(hoursLabel(8)).toBe("8h");
-    expect(hoursLabel(0.5)).toBe("30m");
+    // Casing sweep 1 (2026-09-26): Title Case by the whole rule (§H2), units spelled "Min".
+    expect(hoursLabel(0.5)).toBe("30 Min");
   });
 });

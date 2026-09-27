@@ -77,7 +77,8 @@ describe("gone quiet", () => {
   it("states the gap without reproaching anyone, and proposes no label", () => {
     const d = deriveGoneQuiet([labelled()], now)!;
     expect(d.title).toBe("Marco Silva has gone quiet");
-    expect(d.sub).toBe("6 Weeks since either of you wrote");
+    // Casing sweep 1 (2026-09-26): Title Case by the whole rule (§H2), units spelled "Min".
+    expect(d.sub).toBe("6 Weeks Since Either of You Wrote");
     expect(d.apply).toBeUndefined();
   });
 });

@@ -6,6 +6,7 @@ import RowActionSheet from "../../shared/RowActionSheet";
 import MedRows from "./MedRows";
 import DoseTimeline from "./DoseTimeline";
 import MedSheet from "./MedSheet";
+import { lineCase } from "../../shared/casing";
 
 // THE MEDICATION PAGE (Health Push D, H-38; Dave 2026-09-10: "medication
 // related stuff should all be its own page"; Dave 2026-09-13: log and track,
@@ -54,7 +55,7 @@ export default function MedicationScreen({
                 <span className="task-name">Log a Dose</span>
                 {/* Before the first dose there is nothing to say, so the row
                     says nothing (§AK): no placeholder line under the name. */}
-                {lastWord && <div className="r-k"><span className="r-goal r-cat">{"Last dose " + lastWord.toLowerCase()}</span></div>}
+                {lastWord && <div className="r-k"><span className="r-goal r-cat">{lineCase(`Last dose ${lastWord}`)}</span></div>}
               </div>
               {chev}
             </div>

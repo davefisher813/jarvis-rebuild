@@ -93,8 +93,9 @@ describe("trainingSummary", () => {
     const s = trainingSummary(rows, T);
     expect(s.pr?.name).toBe("Bench Press");
     expect(s.trending?.name).toBe("Squat");
-    expect(s.trending?.line).toContain("225 lb × 5");
-    expect(s.trending?.line).toContain("255 lb × 5");
+    // Casing sweep 1 (2026-09-26): Title Case by the whole rule (§H2), units spelled "Min".
+    expect(s.trending?.line).toContain("225 Lb × 5");
+    expect(s.trending?.line).toContain("255 Lb × 5");
   });
 
   it("FRESH_DAYS is a fortnight", () => {

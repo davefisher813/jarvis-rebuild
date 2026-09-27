@@ -14,13 +14,13 @@
 
 import type { CondBlock, CondFormat, Exercise, SetEntry, SetLog } from "./types";
 import { newSetId } from "./strip";
+import { clockLabel } from "../shared/duration";
 
-/** "7:42", "0:07", "12:00". */
+/** "7:42", "0:07", "12:00", and "1:00:05" past an hour: the app's one
+ *  running clock (shared/duration.ts, Dave 2026-09-26), kept under its gym
+ *  name because every conditioning screen reads it by this name. */
 export function mmss(totalSec: number): string {
-  const t = Math.max(0, Math.round(totalSec));
-  const m = Math.floor(t / 60);
-  const s = t % 60;
-  return `${m}:${String(s).padStart(2, "0")}`;
+  return clockLabel(totalSec);
 }
 
 /** A whole block from its parts, so the sheet never stores a cap that

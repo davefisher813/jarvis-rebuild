@@ -140,7 +140,7 @@ function verdict(a: string[], b: string[]): { reason: DuplicateReason; why: stri
 
   // Identical once normalized: "DB Press" and "Dumbbell press".
   if (onlyA.length === 0 && onlyB.length === 0) {
-    return { reason: "same", why: "The same name, written two ways" };
+    return { reason: "same", why: "The Same Name, Written Two Ways" };
   }
 
   // ONE QUALIFYING WORD AND WE STOP. Incline bench is not bench.
@@ -153,7 +153,7 @@ function verdict(a: string[], b: string[]): { reason: DuplicateReason; why: stri
   const shared = a.filter((w) => B.has(w));
   if (shared.length > 0 && (onlyA.length === 0 || onlyB.length === 0)) {
     const extra = diff.join(" ");
-    return { reason: "contained", why: `One is the other plus “${extra}”` };
+    return { reason: "contained", why: `One Is the Other Plus “${extra}”` };
   }
 
   // A typo, and only in a name long enough for two characters to be a slip
@@ -161,7 +161,7 @@ function verdict(a: string[], b: string[]): { reason: DuplicateReason; why: stri
   const ja = a.join(" ");
   const jb = b.join(" ");
   if (ja.length >= 6 && jb.length >= 6 && editDistance(ja, jb, 2) <= 2) {
-    return { reason: "typo", why: "A letter or two apart" };
+    return { reason: "typo", why: "A Letter or Two Apart" };
   }
   return null;
 }

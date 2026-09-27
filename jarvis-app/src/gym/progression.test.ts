@@ -19,7 +19,8 @@ describe("suggestFor", () => {
     const s = suggestFor(h, plan())!;
     expect(s.next.w).toBe(230);
     expect(s.next.r).toBe(5);
-    expect(s.why).toContain("all clean");
+    // Casing sweep 1 (2026-09-26): Title Case by the whole rule (§H2), units spelled "Min".
+    expect(s.why).toContain("All Clean");
   });
 
   it("holds after a grind: the same weight, and it says why", () => {
@@ -43,7 +44,7 @@ describe("suggestFor", () => {
     const h = [wk("2026-08-24", [wex("Bench", [{ w: 225, r: 5 }, { w: 225, r: 5 }])])];
     const s = suggestFor(h, plan())!;
     expect(s.kind).toBe("bump");
-    expect(s.basis!.marks).toBe("None marked");
+    expect(s.basis!.marks).toBe("None Marked");
     expect(suggestFor(h, plan({ sets: [{ id: "p1", w: 225 }] }))).toBeNull();
   });
 
@@ -70,8 +71,8 @@ describe("suggestFor", () => {
       { w: 225, r: 5 },
     ])])];
     const s = suggestFor(h, plan())!;
-    expect(s.basis!.marks).toBe("None marked");
-    expect(s.basis!.source).toBe("1 working set on Aug 24");
+    expect(s.basis!.marks).toBe("None Marked");
+    expect(s.basis!.source).toBe("1 Working Set on Aug 24");
     expect(suggestFor(h, plan({ sets: [{ id: "p1", w: 225 }] }))).toBeNull();
   });
 
@@ -125,10 +126,10 @@ describe("the Assisted engine", () => {
     const s = suggestFor(h, range, { smallestJump: 2.5, equipmentLabel: "Barbell" })!;
     expect(s.kind).toBe("bump");
     expect(s.next.w).toBe(227.5);
-    expect(s.why).toMatch(/every set cleared 8/);
-    expect(s.basis).toMatchObject({ variant: "Bench, Barbell", range: "6 to 8 reps", increment: "2.5 lb", marks: "None marked" });
-    expect(s.basis!.source).toBe("2 working sets on Sep 10");
-    expect(s.basis!.role).toMatch(/warm-ups and drops left out/);
+    expect(s.why).toMatch(/Every Set Cleared 8/);
+    expect(s.basis).toMatchObject({ variant: "Bench, Barbell", range: "6 to 8 Reps", increment: "2.5 Lb", marks: "None Marked" });
+    expect(s.basis!.source).toBe("2 Working Sets on Sep 10");
+    expect(s.basis!.role).toMatch(/Warm-Ups and Drops Left Out/);
   });
 
   it("inside the range, the weight holds and the target is the top of the range; under it, a step back", () => {
@@ -144,7 +145,7 @@ describe("the Assisted engine", () => {
     const h = [wk("2026-09-10", [wex("Bench", [{ w: 225, r: 8, moved: "grind" }, { w: 225, r: 8 }])])];
     const s = suggestFor(h, range)!;
     expect(s.kind).toBe("hold");
-    expect(s.basis!.marks).toBe("1 grind");
+    expect(s.basis!.marks).toBe("1 Grind");
   });
 
   it("a plan with no rep range and no marks says nothing, and warm-ups and drops never count", () => {
@@ -152,6 +153,6 @@ describe("the Assisted engine", () => {
     const h = [wk("2026-09-10", [wex("Bench", [{ w: 135, r: 10, warmup: true }, { w: 225, r: 8 }, { w: 185, r: 12, drop: true }])])];
     expect(suggestFor(h, noRange)).toBeNull();
     const s = suggestFor(h, range)!;
-    expect(s.basis!.source).toBe("1 working set on Sep 10");
+    expect(s.basis!.source).toBe("1 Working Set on Sep 10");
   });
 });

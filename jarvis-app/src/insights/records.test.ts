@@ -30,8 +30,9 @@ describe("allRecords", () => {
   it("lists every kind with its category, value and source, newest day first", () => {
     const rows = allRecords(inputs);
     expect(rows.map((r) => r.category)).toEqual(["checkins", "nutrition", "medication", "sleep", "sleep", "effort", "workouts", "sets", "effort", "body"]);
-    expect(rows.find((r) => r.category === "workouts")).toMatchObject({ title: "Push", value: "60 min", detail: "1 working set", source: "Logged by hand" });
-    expect(rows.find((r) => r.category === "sets")).toMatchObject({ title: "Bench, flat", value: "1 set", detail: "135 lb × 5" });
+    // Casing sweep 1 (2026-09-26): Title Case by the whole rule (§H2), units spelled "Min".
+    expect(rows.find((r) => r.category === "workouts")).toMatchObject({ title: "Push", value: "1h", detail: "1 Working Set", source: "Logged by hand" });
+    expect(rows.find((r) => r.category === "sets")).toMatchObject({ title: "Bench, flat", value: "1 Set", detail: "135 lb × 5" });
     expect(rows.find((r) => r.category === "medication")).toMatchObject({ title: "Vitamin D", value: "2000 IU" });
     // §AM (2026-09-26): the words are joined by a comma; the middot between
     // facts is the CSS's to draw, never a string's.

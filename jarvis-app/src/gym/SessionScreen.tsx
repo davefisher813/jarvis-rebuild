@@ -909,7 +909,7 @@ export default function SessionScreen({
             onChange={changeSets}
             prAt={celebrations ? (i) => isSessionPR(history, exercise, exercise.kind, logged, i) : undefined}
             moveTracking
-            lastFor={lastHit ? (i) => { const s = lastAt(i); return s ? formatSet(lastHit.fx, s) : null; } : undefined}
+            lastFor={lastHit ? (i) => { const s = lastAt(i); return s ? lineCase(formatSet(lastHit.fx, s)) : null; } : undefined}
             // Match puts last time's numbers IN THE FIELDS (2026-09-26); the
             // tick or the bar then logs them like any other set, so there is
             // one door that writes and it always shows its number first.
