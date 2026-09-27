@@ -843,16 +843,17 @@
    now drops off the end with everything after it (state, category, length,
    repeat, countdown, then the place), never as a stub: the line wraps
    inside a box one line tall, the dropped facts land two lines below it,
-   and the clip hides them while its one-line margin keeps the length's and the
-   place's 44 hits unclipped. The place is the one fact that shows part of
-   itself: it takes what is left of the line when at least 56px are left.
+   and the clip hides them. It is a clip-path, not overflow, because the
+   length's ::after and the place's transparent borders reach past the
+   line for their hits and a hit test does not honour overflow-clip-margin
+   (measured 2026-09-27: the length read 16px tall under overflow: clip).
    THE DOT STAYS: it is what sets the category apart from the line's one
    grey (§AK, "the category is dotted"); without it the audit read
    "Family · Ridgeline Fields" as two greys.
    Only the body's own facts lines take this (the meta line and the
    attachments line); the gym door's lines inside .sched-gym still wrap. */
 .ruled .sched-body > .sched-cat { display: flex; flex-wrap: wrap; align-items: center; align-content: flex-start; column-gap: var(--s-1h); row-gap: calc(var(--t-sub) * 2);
-  min-width: 0; max-height: calc(var(--t-sub) * 1.4); overflow: clip; overflow-clip-margin: var(--t-sub); }
+  min-width: 0; max-height: calc(var(--t-sub) * 1.4); clip-path: inset(calc(var(--t-sub) * -1) 0); }
 .ruled .sched-body > .sched-cat > .sched-fact { display: block; flex: 0 0 auto; white-space: nowrap; }
 .ruled .sched-body > .sched-cat > .fact.st { flex: 0 0 auto; }
 .ruled .sched-body > .sched-cat .sched-fact > * { display: inline; }
