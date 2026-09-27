@@ -2,6 +2,7 @@ import type { EventItem } from "./types";
 import type { PlanBlock } from "./planDay";
 import type { PlanBlocked } from "./screens/PlanDaySheet";
 import { isFocusRange } from "../routine/types";
+import { spanLabel } from "../shared/duration";
 
 // THE LOAD (P2/P3, Dave 2026-08-20: "look at how limited this still is").
 //
@@ -86,12 +87,10 @@ export function loadOf(
   return { openMin, pickedMin, unplaced: unplaced.length, overMin, fits: overMin === 0 };
 }
 
+// The load's length is the one duration shape ("45 Min", "4h 10m";
+// shared/duration.ts, Dave 2026-09-26). The name stays for its callers.
 export function hhmm(min: number): string {
-  const h = Math.floor(min / 60);
-  const m = min % 60;
-  if (h === 0) return `${m}m`;
-  if (m === 0) return `${h}h`;
-  return `${h}h ${m}m`;
+  return spanLabel(min);
 }
 
 // Which picks to let go of, when the day says no. The LAST ones picked, never

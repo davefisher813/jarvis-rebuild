@@ -50,10 +50,10 @@ export default function ReminderSettingsSheet({ initial, native, permission, tes
         <Note>Follow-ups and in-app prompts wait until quiet hours end · A reminder's own alert still rings</Note>
       </Group>
       <Group label="Follow-up">
-        <SwitchRow tone="sand" glyph={<WarningGlyph />} label="Default Follow-up" meta="Once After 1 Hour for new reminders" on={p.defaultFollowUp} onToggle={() => patch({ defaultFollowUp: !p.defaultFollowUp })} ariaLabel="Default follow-up" />
+        <SwitchRow tone="sand" glyph={<WarningGlyph />} label="Default Follow-up" meta="Once After 1 Hour for New Reminders" on={p.defaultFollowUp} onToggle={() => patch({ defaultFollowUp: !p.defaultFollowUp })} ariaLabel="Default follow-up" />
       </Group>
       <Group label="Privacy">
-        <SwitchRow tone="green" glyph={<ShieldAlert className="ic" />} label="Hide Sensitive Details" meta="Health reminders say only that there is one" on={p.privateAlerts} onToggle={() => patch({ privateAlerts: !p.privateAlerts })} ariaLabel="Hide sensitive details" />
+        <SwitchRow tone="green" glyph={<ShieldAlert className="ic" />} label="Hide Sensitive Details" meta="Health Reminders Say Only That There Is One" on={p.privateAlerts} onToggle={() => patch({ privateAlerts: !p.privateAlerts })} ariaLabel="Hide sensitive details" />
       </Group>
       <Group label="Morning">
         <MenuRow tone="orange" glyph={<Bell className="ic" />} label="Tomorrow Morning Means" value={morning} word={clock(morning)} ariaLabel="Morning time"
@@ -61,15 +61,15 @@ export default function ReminderSettingsSheet({ initial, native, permission, tes
           onPick={setMorning} />
       </Group>
       <Group label="Alerts on This Phone">
-        {native && onTest && !denied && <Row tone="red" glyph={<Bell className="ic" />} label={testing ? "Sending" : "Send a Test Reminder"} meta="Arrives in 10 seconds" onClick={testing ? undefined : onTest} chev />}
+        {native && onTest && !denied && <Row tone="red" glyph={<Bell className="ic" />} label={testing ? "Sending" : "Send a Test Reminder"} meta="Arrives in 10 Seconds" onClick={testing ? undefined : onTest} chev />}
         <Note>
           {!native
-            ? "Alerts need the phone app · On the web reminders show inside JARVIS only"
+            ? "Alerts Need the Phone App · On the Web Reminders Show Inside JARVIS Only"
             : denied
-              ? "Notifications are off for JARVIS in iOS Settings · Turn them on there and nothing here has to change"
+              ? "Notifications Are Off for JARVIS in iOS Settings · Turn Them on There and Nothing Here Has to Change"
               : permission === "prompt"
-                ? "iOS will ask to allow notifications the first time a reminder is set"
-                : "Reminders arrive on this phone"}
+                ? "iOS Will Ask to Allow Notifications the First Time a Reminder Is Set"
+                : "Reminders Arrive on This Phone"}
         </Note>
       </Group>
     </FormSheet>

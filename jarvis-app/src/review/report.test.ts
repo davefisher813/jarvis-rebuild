@@ -138,7 +138,8 @@ describe("worth a look", () => {
     expect(cut.title).toBe("1 Goal Cut");
     // The sentence is the card's field note, never a caps sub.
     expect(cut.sub).toBeNull();
-    expect(cut.foot).toBe("Cutting is a decision, and it counts");
+    // Casing sweep 2 (2026-09-27): Title Case by the whole rule (§H2); durations through shared/duration ("45 Min", "1h 30m").
+    expect(cut.foot).toBe("Cutting Is a Decision, and It Counts");
     expect(cut.receipts).toEqual(["Old Goal"]);
   });
 });
@@ -198,7 +199,7 @@ describe("the close", () => {
       n: 3,
       question: "Cap the Day at Three?",
       sub: "Your First Three Get Done, the Later Picks Mostly Do Not",
-      foot: "Starting tomorrow, change it any time",
+      foot: "Starting Tomorrow, Change It Any Time",
     });
     expect(buildReport(inputs({ seal, alreadyCapped: true })).closer).toBeNull();
     expect(buildReport(inputs({ seal: emptySeal("2026-08") })).closer).toBeNull();

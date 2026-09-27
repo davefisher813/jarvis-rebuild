@@ -68,10 +68,11 @@ describe("weekReceipt", () => {
 
 describe("lines", () => {
   it("omits zero parts and handles singulars", () => {
-    expect(receiptLine({ done: 5, events: 3, afterHours: 0 })).toBe("5 Things done · 3 Events");
-    expect(receiptLine({ done: 1, events: 0, afterHours: 0 })).toBe("1 Thing done");
+    // Casing sweep 2 (2026-09-27): Title Case by the whole rule (§H2); durations through shared/duration ("45 Min", "1h 30m").
+    expect(receiptLine({ done: 5, events: 3, afterHours: 0 })).toBe("5 Things Done · 3 Events");
+    expect(receiptLine({ done: 1, events: 0, afterHours: 0 })).toBe("1 Thing Done");
     expect(receiptLine({ done: 0, events: 1, afterHours: 0 })).toBe("1 Event");
-    expect(afterHoursLine({ done: 0, events: 2, afterHours: 1 })).toBe("1 Event after work hours");
+    expect(afterHoursLine({ done: 0, events: 2, afterHours: 1 })).toBe("1 Event After Work Hours");
     expect(afterHoursLine({ done: 0, events: 2, afterHours: 0 })).toBeNull();
   });
 });

@@ -275,7 +275,7 @@ export function lifeCards(seal: MonthSealData, name: string, people: { id: strin
       receipts: [
         ...(b.paid > 0 ? [lineCase(`${b.paid} ${plural(b.paid, "bill", "bills")} paid in ${name}, ${formatMoney(b.total)} in all`)] : []),
         b.open > 0 ? lineCase(`${b.open} dated in ${name} and not yet paid`) : lineCase(`Nothing dated in ${name} left to pay`),
-        "Only the bills the app holds; never a claim about the account",
+        "Only the Bills the App Holds; Never a Claim About the Account",
       ],
     });
   }
@@ -317,8 +317,8 @@ export function lifeCards(seal: MonthSealData, name: string, people: { id: strin
         exit: quiet.length > 0 ? { label: "Check In", kind: "person", id: quiet[0]!.id } : { label: "Open People", kind: "person" },
         receipts: [
           lineCase(`${p.reached} ${plural(p.reached, "call, message or check-in", "calls, messages and check-ins")} in ${name}`),
-          ...quiet.map((q) => `No word either way with ${q.name} in 30 days`),
-          "A quiet month can be on purpose",
+          ...quiet.map((q) => `No Word Either Way with ${q.name} in 30 Days`),
+          "A Quiet Month Can Be on Purpose",
         ],
       });
     }
@@ -354,7 +354,7 @@ export function lifeCards(seal: MonthSealData, name: string, people: { id: strin
         lineCase(`${d.made} recorded in ${name}`),
         ...(d.revisited > 0 ? [lineCase(`${d.revisited} revisited and still good`)] : []),
         ...(d.worked > 0 ? [lineCase(`${d.worked} marked worked`)] : []),
-        "A decision is kept, not judged",
+        "A Decision Is Kept, Not Judged",
       ],
     });
   }
@@ -473,7 +473,7 @@ export function buildReport(inp: ReportInputs): MonthReport {
         // Stalled is amber (§AM): the count first, then last month's in the
         // line's one grey with its count white.
         sub: [{ text: lineCase(`${quiet.now} this month`), tone: "warn" }, plain(lineCase(`${quiet.was} in ${prevName}`))],
-        receipts: [lineCase(`${quiet.was} finishes in ${prevName}, ${quiet.now} in ${name}`), "A quiet month can be on purpose", "Leave It means exactly that"],
+        receipts: [lineCase(`${quiet.was} finishes in ${prevName}, ${quiet.now} in ${name}`), "A Quiet Month Can Be on Purpose", "Leave It Means Exactly That"],
       });
     }
   }
@@ -489,11 +489,11 @@ export function buildReport(inp: ReportInputs): MonthReport {
       id: "stillTrue",
       title: still.length === 1 ? lineCase(`${still[0]!.title}: still true?`) : lineCase(`${still.length} Goals Went Still`),
       sub: null,
-      foot: "Nothing finished and nothing scheduled this month",
+      foot: "Nothing Finished and Nothing Scheduled This Month",
       receipts: [
         ...still.map((g) => lineCase(`${g.title}: ${g.wasDone} finished in ${prevName}, none in ${name}`)),
-        "A month off a goal is not the same as dropping it",
-        "Yes is a complete answer",
+        "A Month Off a Goal Is Not the Same as Dropping It",
+        "Yes Is a Complete Answer",
       ],
     });
   }
@@ -504,7 +504,7 @@ export function buildReport(inp: ReportInputs): MonthReport {
       id: "cut",
       title: lineCase(`${cut.length} ${plural(cut.length, "goal", "goals")} cut`),
       sub: null,
-      foot: "Cutting is a decision, and it counts",
+      foot: "Cutting Is a Decision, and It Counts",
       receipts: cut.map((g) => lineCase(g.data.title)),
     });
   }
@@ -535,7 +535,7 @@ export function buildReport(inp: ReportInputs): MonthReport {
       title: lineCase(`${overrun.cat!.name} runs ${hoursLabel(mins)} ${overrun.avg > 0 ? "over" : "under"}`),
       sub: [plain(lineCase(`Across ${overrun.n} Corrections`))],
       chip: null,
-      receipts: ["Plan lengths already learn from this; new blocks pre-fill from your history"],
+      receipts: ["Plan Lengths Already Learn from This; New Blocks Pre-Fill from Your History"],
     });
   }
   const join = trainJoin(seal.doneByDay, inp.workouts, month);
@@ -546,7 +546,7 @@ export function buildReport(inp: ReportInputs): MonthReport {
       title: "Train Days Win",
       sub: [plain(lineCase(`${join.on.toFixed(1)} done vs ${join.off.toFixed(1)}`))],
       chip: { text: `+${pct}%`, tone: "good" },
-      receipts: ["A pattern in your data, not a cause"],
+      receipts: ["A Pattern in Your Data, Not a Cause"],
     });
   }
   const mirror = Object.entries(seal.suggestions)
@@ -582,7 +582,7 @@ export function buildReport(inp: ReportInputs): MonthReport {
         title: lineCase(`${cat.name} slips most`),
         sub: null,
         chip: { text: lineCase(`${seal.slip.n} Pushes`), tone: "warn" },
-        receipts: [lineCase(`${seal.slip.n} Pushes in ${name}, the most of any category`), "A fact about tasks, never a verdict"],
+        receipts: [lineCase(`${seal.slip.n} Pushes in ${name}, the most of any category`), "A Fact About Tasks, Never a Verdict"],
       });
     }
   }
@@ -616,7 +616,7 @@ export function buildReport(inp: ReportInputs): MonthReport {
         n: 3,
         question: "Cap the Day at Three?",
         sub: "Your First Three Get Done, the Later Picks Mostly Do Not",
-        foot: "Starting tomorrow, change it any time",
+        foot: "Starting Tomorrow, Change It Any Time",
       }
     : null;
 

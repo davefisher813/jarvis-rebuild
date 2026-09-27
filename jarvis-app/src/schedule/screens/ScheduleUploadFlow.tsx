@@ -9,7 +9,7 @@ import { SCHEDULE_EXTRACT_PROMPT, parseScheduleExtract, buildScheduleRows, type 
 import { fmtRange } from "../calendar";
 import { showToast } from "../../shared/toast";
 import { WRITE_FAILED_MESSAGE, attemptWrite } from "../../shared/guard";
-import { capAfterNumber } from "../../shared/casing";
+import { lineCase } from "../../shared/casing";
 import EventSheet, { type SheetCategory, type EventDraft } from "./EventSheet";
 import type { EventItem, EventData, EventRecurrence } from "../types";
 import type { ScheduleService } from "../ScheduleService";
@@ -86,12 +86,12 @@ export default function ScheduleUploadFlow({
       const out = await ai.complete([message], JARVIS_VOICE);
       const found = parseScheduleExtract(out);
       if (!found) {
-        showToast({ message: "Couldn't read that · Try a clearer photo" });
+        showToast({ message: "Couldn't Read That · Try a Clearer Photo" });
         return;
       }
       afterExtract(found, year);
     } catch {
-      showToast({ message: "Couldn't reach JARVIS · Try again" });
+      showToast({ message: "Couldn't Reach JARVIS · Try Again" });
     } finally {
       setBusy(false);
     }
@@ -103,7 +103,7 @@ export default function ScheduleUploadFlow({
       setThumb(`data:${img.mediaType};base64,${img.data}`);
       await runExtract(buildVisionMessage(SCHEDULE_EXTRACT_PROMPT, img.data, img.mediaType));
     } catch {
-      showToast({ message: "Couldn't open that image \u00b7 Try another file" });
+      showToast({ message: "Couldn't Open That Image \u00b7 Try Another File" });
     }
   };
 
@@ -208,7 +208,7 @@ export default function ScheduleUploadFlow({
       // on exactly what is left and Add cannot double-write them.
       if (done > 0) setRows((cur) => cur && cur.map((r) => (landed.has(r.key) ? { ...r, skip: true } : r)));
       showToast(done > 0
-        ? { message: capAfterNumber(`Couldn't add them all · ${done} added before it stopped`), actionLabel: "Undo", onAction: () => { void undo(); } }
+        ? { message: lineCase(`Couldn't add them all · ${done} added before it stopped`), actionLabel: "Undo", onAction: () => { void undo(); } }
         : { message: WRITE_FAILED_MESSAGE });
       return;
     }
@@ -280,9 +280,9 @@ export default function ScheduleUploadFlow({
                   <div className="conn-meta">
                     <span className="fact date">{weekdayShortDate(r.date)}</span>
                     {r.noTime
-                      ? <span className="fact warn">No time found</span>
+                      ? <span className="fact warn">No Time Found</span>
                       : <span className="fact date">{fmtRange(r.start, r.end)}</span>}
-                    {r.matchId ? <span className="fact">Updates existing</span> : null}
+                    {r.matchId ? <span className="fact">Updates Existing</span> : null}
                   </div>
                 </div>
                 {/* UP-CORE-11: the repeat, said out loud and flippable here.
@@ -301,7 +301,7 @@ export default function ScheduleUploadFlow({
           </div></div>
           {needTime > 0 && (
             <div className="pad-x"><div className="input-hint xs-note">
-              <span>{capAfterNumber(`${needTime} ${needTime === 1 ? "row has" : "rows have"} no time yet · Tap one to set it, or skip it`)}</span>
+              <span>{lineCase(`${needTime} ${needTime === 1 ? "row has" : "rows have"} no time yet · Tap one to set it, or skip it`)}</span>
             </div></div>
           )}
           <div className="pad-x sheet-actions">
@@ -343,7 +343,7 @@ export default function ScheduleUploadFlow({
           </button>
           <div className="field">
             <div className="input-label">Or Paste It</div>
-            <textarea className="input input-multiline" rows={5} placeholder="Paste the Schedule · a message or email works" value={text} onChange={(e) => setText(e.target.value)} />
+            <textarea className="input input-multiline" rows={5} placeholder="Paste the Schedule · A Message or Email Works" value={text} onChange={(e) => setText(e.target.value)} />
           </div>
           <button className="btn btn-secondary btn-block" disabled={busy || !text.trim()}
             onClick={() => void runExtract({ role: "user", content: SCHEDULE_EXTRACT_PROMPT + "\n\nCONTENT:\n" + text.trim().slice(0, 12000) })}>

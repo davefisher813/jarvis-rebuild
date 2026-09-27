@@ -57,7 +57,7 @@ import { contextToText } from "../ai/context";
 import type { TaskItem } from "../tasks/TasksService";
 import { repeatRows } from "./repeats";
 import { overlapsOn, overlapLine, copyDay, durationOf, type Overlap } from "./dayEdit";
-import { capAfterNumber } from "../shared/casing";
+import { lineCase } from "../shared/casing";
 import { useFreshLists } from "../data/useFreshLists";
 import { recordSpot } from "../restore/whereYouWere";
 import { ENTITY_EVENT } from "./types";
@@ -66,6 +66,7 @@ import { moveEventToAnytime, undoMoveToAnytime, duplicateEvent as duplicateEvent
 import TaskSheet, { type TaskDraft } from "../tasks/screens/TaskSheet";
 import { sheetEvents } from "./sheetEvents";
 import type { Recurrence } from "../notes/types";
+import { spanLabel } from "../shared/duration";
 
 // SCHED-F-03 (2026-09-05): an edit is of ONE OCCURRENCE, so the sheet state
 // carries which day was tapped. Without it "This Event" split the day that
@@ -446,7 +447,7 @@ export default function ScheduleFlow({ onEditRoutine, openId, onNavigate }: { on
     setTuning(null);
     await reload();
     showToast({
-      message: `Planned ${liveDraftBlocks.length} ${liveDraftBlocks.length === 1 ? "block" : "blocks"}`,
+      message: lineCase(`Planned ${liveDraftBlocks.length} ${liveDraftBlocks.length === 1 ? "block" : "blocks"}`),
       actionLabel: "Undo",
       onAction: async () => { await attemptWrite(async () => { for (const id of ids) await svc.deleteEvent(id); }); await reload(); },
     });
@@ -496,7 +497,7 @@ export default function ScheduleFlow({ onEditRoutine, openId, onNavigate }: { on
       setTuning(null);
       await reload();
       showToast({
-        message: "Planned 1 block",
+        message: "Planned 1 Block",
         actionLabel: "Undo",
         onAction: async () => { await attemptWrite(async () => { for (const id of ids) await svc.deleteEvent(id); }); await reload(); },
       });
@@ -553,7 +554,7 @@ export default function ScheduleFlow({ onEditRoutine, openId, onNavigate }: { on
     await reload();
     if (!ok) return;
     showToast({
-      message: `Planned ${blocks.length} ${blocks.length === 1 ? "block" : "blocks"}`,
+      message: lineCase(`Planned ${blocks.length} ${blocks.length === 1 ? "block" : "blocks"}`),
       actionLabel: "Undo",
       onAction: async () => { await attemptWrite(async () => { for (const id of ids) await svc.deleteEvent(id); }); await reload(); },
     });
@@ -628,7 +629,7 @@ export default function ScheduleFlow({ onEditRoutine, openId, onNavigate }: { on
   // forever.
   const offerUndoEvent = (e: EventData, id: string) => {
     showToast({
-      message: "Event deleted",
+      message: "Event Deleted",
       actionLabel: "Undo",
       onAction: async () => {
         await attemptWrite(() => svc.recreateFrom(e, id));
@@ -713,7 +714,7 @@ export default function ScheduleFlow({ onEditRoutine, openId, onNavigate }: { on
           const WD = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
           const evId = newEventId;
           showToast({
-            message: `Third ${WD[cand.weekday]} running · Repeat weekly?`,
+            message: lineCase(`Third ${WD[cand.weekday]} running · Repeat weekly?`),
             actionLabel: "Make It Repeat",
             onAction: async () => { await attemptWrite(() => svc.editRecurrence(evId, "weekly")); await reload(); },
           });
@@ -747,8 +748,8 @@ export default function ScheduleFlow({ onEditRoutine, openId, onNavigate }: { on
     const n = gone;
     const repeats = kept.slice(0, n).filter((e) => (e.data.recurrence ?? "none") !== "none").length;
     showToast({
-      message: (n === 1 ? "Event deleted" : n + " events deleted")
-        + (repeats > 0 ? " \u00b7 " + (repeats === 1 ? "1 was a repeat" : repeats + " were repeats") : ""),
+      message: lineCase((n === 1 ? "Event deleted" : n + " events deleted")
+        + (repeats > 0 ? " \u00b7 " + (repeats === 1 ? "1 was a repeat" : repeats + " were repeats") : "")),
       actionLabel: "Undo",
       onAction: async () => {
         await attemptWrite(async () => {
@@ -796,7 +797,7 @@ export default function ScheduleFlow({ onEditRoutine, openId, onNavigate }: { on
       // mis-swipe was opening the series and editing it by hand.
       // removeExdate is the exact inverse and was already on the service.
       if (ok) showToast({
-        message: "Skipped that day · The series stays",
+        message: "Skipped That Day · The Series Stays",
         actionLabel: "Undo",
         onAction: async () => { await attemptWrite(() => svc.removeExdate(id, day)); await reload(); },
       });
@@ -849,7 +850,7 @@ export default function ScheduleFlow({ onEditRoutine, openId, onNavigate }: { on
     recordBlend(blockKind(e.data), categoryId);
     await reload();
     showToast({
-      message: "Added to " + e.data.title,
+      message: lineCase("Added to " + e.data.title),
       actionLabel: "Undo",
       onAction: async () => {
         await attemptWrite(() => svc.editTaskIds(e.id, prior));
@@ -890,7 +891,7 @@ export default function ScheduleFlow({ onEditRoutine, openId, onNavigate }: { on
     followUpBusy.current = true;
     try { localStorage.setItem(ASKED_KEY, JSON.stringify([...asked, cand.eventId].slice(-200))); } catch { /* private mode */ }
     showToast({
-      message: `${cand.title} · ${cand.openCount} attached ${cand.openCount === 1 ? "task" : "tasks"} · Any done?`,
+      message: lineCase(`${cand.title} · ${cand.openCount} attached ${cand.openCount === 1 ? "task" : "tasks"} · Any done?`),
       actionLabel: "Review",
       onAction: () => { followUpBusy.current = false; openEdit(cand.eventId); },
     });
@@ -966,7 +967,7 @@ export default function ScheduleFlow({ onEditRoutine, openId, onNavigate }: { on
     const ok = await attemptWrite(() => tasksSvc.deleteTask(id));
     await reloadTasks();
     // Back under its own id (LIFE-F-15), so note links hold.
-    if (ok && t) showToast({ message: "Task deleted", actionLabel: "Undo", onAction: async () => { await attemptWrite(() => tasksSvc.recreateFrom(t, id)); await reloadTasks(); } });
+    if (ok && t) showToast({ message: "Task Deleted", actionLabel: "Undo", onAction: async () => { await attemptWrite(() => tasksSvc.recreateFrom(t, id)); await reloadTasks(); } });
   };
   // EVENTS ARE FIRST-CLASS (2026-09-09): a task added from an event's own page
   // is FILED to it (eventId), born in the event's area, and due on the day it
@@ -976,7 +977,7 @@ export default function ScheduleFlow({ onEditRoutine, openId, onNavigate }: { on
     const ok = await attemptWrite(() => tasksSvc.createTask(text, { eventId, category: ev.data.category, due: ev.data.date }));
     await reloadTasks();
     if (!ok) return;
-    showToast({ message: "Added to " + ev.data.title });
+    showToast({ message: lineCase("Added to " + ev.data.title) });
   };
 
   // Give-back: move a timed block back to Anytime. If it came from a task the
@@ -1080,13 +1081,13 @@ export default function ScheduleFlow({ onEditRoutine, openId, onNavigate }: { on
       eventsForDate(allEvents, selected), from, win.e, 10, [], [], [{ s: win.s, e: win.e }],
     );
     const block = drop.blocks[0];
-    if (!block) { showToast({ message: "That block is full" }); return; }
+    if (!block) { showToast({ message: "That Block Is Full" }); return; }
     const ok = await attemptWrite(() => svc.commitPlan(selected, [{
       taskId, text: t.text, category: t.category ?? "", start: block.start, end: block.end,
     }]));
     await reload();
     await reloadTasks();
-    if (ok) showToast({ message: `${t.text} at ${fmtRange(block.start, block.end)}` });
+    if (ok) showToast({ message: lineCase(`${t.text} at ${fmtRange(block.start, block.end)}`) });
   };
 
   // --- Roadmap v2 schedule basics ---
@@ -1119,7 +1120,7 @@ export default function ScheduleFlow({ onEditRoutine, openId, onNavigate }: { on
     const o = outcome as MoveOutcome | null;
     if (!ok || !o?.ok) return;
     showToast({
-      message: o.repeating ? label + " · Just today" : label,
+      message: o.repeating ? label + " · Just Today" : label,
       actionLabel: "Undo",
       onAction: async () => { await attemptWrite(() => undoMoveEventAdjust(id, selected, o, svc)); await reload(); },
     });
@@ -1136,8 +1137,8 @@ export default function ScheduleFlow({ onEditRoutine, openId, onNavigate }: { on
     // now says the same thing out loud.
     if (!shiftFitsDay(e.start, e.end, mins)) { showToast({ message: "That would run past midnight" }); return; }
     const word = mins < 0
-      ? `Back ${Math.abs(mins) === 60 ? "1 hr" : Math.abs(mins) + " min"}`
-      : `Forward ${mins === 60 ? "1 hr" : mins + " min"}`;
+      ? `Back ${spanLabel(Math.abs(mins))}`
+      : `Forward ${spanLabel(mins)}`;
     await moveEvent(id, addMinutes(e.start, mins), word);
   };
 
@@ -1177,7 +1178,7 @@ export default function ScheduleFlow({ onEditRoutine, openId, onNavigate }: { on
     await reload();
     if (!ok) return;
     showToast({
-      message: "Skipped today",
+      message: "Skipped Today",
       actionLabel: "Undo",
       onAction: async () => { await attemptWrite(() => undoSkipEventTodayAdjust(id, selected, svc)); await reload(); },
     });
@@ -1196,7 +1197,7 @@ export default function ScheduleFlow({ onEditRoutine, openId, onNavigate }: { on
     const o = outcome as PushOutcome | null;
     if (!ok || !o?.ok) return;
     showToast({
-      message: o.repeating ? "Moved to tomorrow · Just today" : "Moved to tomorrow",
+      message: o.repeating ? "Moved to Tomorrow · Just Today" : "Moved to Tomorrow",
       actionLabel: "Undo",
       onAction: async () => { await attemptWrite(() => undoPushEventTomorrowAdjust(id, o, svc)); await reload(); },
     });
@@ -1220,8 +1221,8 @@ export default function ScheduleFlow({ onEditRoutine, openId, onNavigate }: { on
     if (!ok) return;
     setRoutineData(after);
     const word = mins < 0
-      ? `Back ${Math.abs(mins) === 60 ? "1 hr" : Math.abs(mins) + " min"}`
-      : `Forward ${mins === 60 ? "1 hr" : mins + " min"}`;
+      ? `Back ${spanLabel(Math.abs(mins))}`
+      : `Forward ${spanLabel(mins)}`;
     showToast({
       message: word,
       actionLabel: "Undo",
@@ -1320,7 +1321,7 @@ export default function ScheduleFlow({ onEditRoutine, openId, onNavigate }: { on
     // it was, and the receipt says so rather than leaving a silent hole.
     if (moved === 0) { if (crossed) showToast({ message: "Nothing moved · The rest would run past midnight" }); return; }
     showToast({
-      message: `${moved} ${moved === 1 ? "event" : "events"} +${mins === 60 ? "1 hr" : mins + " min"}${skipped ? ` · ${skipped} repeating stayed` : ""}${crossed ? ` · ${crossed} would pass midnight` : ""}`,
+      message: lineCase(`${moved} ${moved === 1 ? "event" : "events"} +${spanLabel(mins)}${skipped ? ` · ${skipped} repeating stayed` : ""}${crossed ? ` · ${crossed} would pass midnight` : ""}`),
       actionLabel: "Undo",
       onAction: async () => { await attemptWrite(() => restoreShift(svc, prior)); await reload(); },
     });
@@ -1365,7 +1366,7 @@ export default function ScheduleFlow({ onEditRoutine, openId, onNavigate }: { on
     });
     await reload();
     if (ok) showToast({
-      message: `${o.b.data.title} moved to ${fmtRange(slot, before.end ? addMinutes(slot, dur) : undefined)}`,
+      message: lineCase(`${o.b.data.title} moved to ${fmtRange(slot, before.end ? addMinutes(slot, dur) : undefined)}`),
       actionLabel: "Undo",
       onAction: async () => {
         await attemptWrite(async () => {
@@ -1402,7 +1403,7 @@ export default function ScheduleFlow({ onEditRoutine, openId, onNavigate }: { on
   const copyYesterday = async () => {
     const prev = addDays(selected, -1);
     const copies = copyDay(allEvents, prev, selected);
-    if (copies.length === 0) { showToast({ message: "Nothing to copy from yesterday" }); return; }
+    if (copies.length === 0) { showToast({ message: "Nothing to Copy from Yesterday" }); return; }
     const made: string[] = [];
     const ok = await attemptWrite(async () => {
       for (const c of copies) {
@@ -1412,7 +1413,7 @@ export default function ScheduleFlow({ onEditRoutine, openId, onNavigate }: { on
     });
     await reload();
     if (ok) showToast({
-      message: capAfterNumber(`${made.length} ${made.length === 1 ? "event" : "events"} copied`),
+      message: lineCase(`${made.length} ${made.length === 1 ? "event" : "events"} copied`),
       actionLabel: "Undo",
       onAction: async () => {
         await attemptWrite(async () => { for (const id of made) await svc.deleteEvent(id); });
@@ -1620,7 +1621,7 @@ export default function ScheduleFlow({ onEditRoutine, openId, onNavigate }: { on
             if (createdCount) parts.push(`${createdCount} added`);
             if (updatedCount) parts.push(`${updatedCount} updated`);
             showToast({
-              message: parts.join(", "),
+              message: lineCase(parts.join(", ")),
               actionLabel: "Undo",
               onAction: async () => { await undo(); await reload(); },
             });

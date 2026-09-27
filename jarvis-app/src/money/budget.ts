@@ -1,5 +1,5 @@
 import { formatMoney } from "./types";
-import { capAfterNumber } from "../shared/casing";
+import { lineCase } from "../shared/casing";
 
 // BUDGETING, the honest kind.
 //
@@ -96,14 +96,14 @@ export function leftSub(l: Left): string {
   const bits: string[] = [];
   if (l.billsOut > 0) bits.push(formatMoney(l.billsOut) + " of bills");
   if (l.setAside > 0) bits.push(formatMoney(l.setAside) + " set aside");
-  return bits.length ? "After " + bits.join(" and ") : "";
+  return bits.length ? lineCase("After " + bits.join(" and ")) : "";
 }
 
 // Overspend is stated in words; on the page it wears the Colour Key's red
 // (over the limit), as a late bill's chip does. It is information, not an alarm.
 export function shortLine(l: Left): string {
   if (l.amount >= 0) return "";
-  return formatMoney(Math.abs(l.amount)) + " past this paycheck";
+  return lineCase(formatMoney(Math.abs(l.amount)) + " past this paycheck");
 }
 
 // Days remaining is inclusive of today: with payday tomorrow you still have to
@@ -122,5 +122,5 @@ export function perDayLine(l: Left, days: number): string {
   if (l.amount <= 0 || days <= 1) return "";
   const per = Math.floor(l.amount / days);
   if (per <= 0) return "";
-  return capAfterNumber(days + " days, about " + formatMoney(per) + " a day");
+  return lineCase(days + " days, about " + formatMoney(per) + " a day");
 }

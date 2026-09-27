@@ -5280,5 +5280,691 @@
   "new": "2 Min / 1 Min / 1 Min (the step names stay sentence case: onboarding)",
   "phase": "casing-sweep-1",
   "group": "casing-sweep-1"
+ },
+ {
+  "item": "APP-time",
+  "file": "src/schedule/durations.ts",
+  "count": 1,
+  "old": "durLabel: 15m / 30m / 45m / 1h / 1h 30m / 2h (duration chips on the task sheet, the event sheet, the day row, the plan sheet and the task row)",
+  "new": "15 Min / 30 Min / 45 Min / 1h / 1h 30m / 2h",
+  "phase": "casing-sweep-2",
+  "group": "casing-sweep-2",
+  "notes": "APP-time"
+ },
+ {
+  "item": "APP-time",
+  "file": "src/schedule/calendar.ts",
+  "count": 1,
+  "old": "in 40m / in 2h 10m / in 2h (the next row's distance)",
+  "new": "In 40 Min / In 2h 10m / In 2h",
+  "phase": "casing-sweep-2",
+  "group": "casing-sweep-2",
+  "notes": "APP-time"
+ },
+ {
+  "item": "APP-time",
+  "file": "src/schedule/planLoad.ts",
+  "count": 1,
+  "old": "45m / 2h / 4h 10m (the plan sheet's load: \"45m over\")",
+  "new": "45 Min / 2h / 4h 10m",
+  "phase": "casing-sweep-2",
+  "group": "casing-sweep-2",
+  "notes": "APP-time"
+ },
+ {
+  "item": "APP-time",
+  "file": "src/schedule/weekRows.ts",
+  "count": 1,
+  "old": "45m (the week's open time under an hour)",
+  "new": "45 Min",
+  "phase": "casing-sweep-2",
+  "group": "casing-sweep-2",
+  "notes": "APP-time"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/schedule/dayEdit.ts",
+  "count": 1,
+  "old": "Call runs into Clinic by 30m",
+  "new": "Call Runs Into Clinic by 30 Min",
+  "phase": "casing-sweep-2",
+  "group": "casing-sweep-2",
+  "notes": "APP-casing"
+ },
+ {
+  "item": "APP-casing+time",
+  "file": "src/schedule/screens/SchedulePage.tsx",
+  "count": 7,
+  "old": "45m open (a gap row and the day's count line) / No open time / 5 proposed / until 5:30 PM (the gap row's window) / 15 min / 30 min / 1 hour (Running Late chips) / capAfterNumber / Set one once and it handles itself</div>",
+  "new": "45 Min Open / No Open Time / 5 Proposed / Until 5:30 PM / 15 Min / 30 Min / 1h / lineCase / Set One Once and It Handles Itself</div>",
+  "phase": "casing-sweep-2",
+  "group": "casing-sweep-2",
+  "notes": "APP-time"
+ },
+ {
+  "item": "APP-casing+time",
+  "file": "src/schedule/screens/EventSheet.tsx",
+  "count": 2,
+  "old": "45m (a suggested length on the event sheet) / Overlaps another event</span>",
+  "new": "45 Min / Overlaps Another Event</span>",
+  "phase": "casing-sweep-2",
+  "group": "casing-sweep-2",
+  "notes": "APP-time"
+ },
+ {
+  "item": "APP-casing+time",
+  "file": "src/schedule/screens/PlanDaySheet.tsx",
+  "count": 9,
+  "old": "2 × 90m / 120m + 105m (a split pick's sittings) / Work estimated at 45m, committed at 60m (a learned rule's evidence line) / 45m over / Your usual 4, fits / 4 picked, fits (the plan sheet's load fact) / You're 45m over what's open / No room / Add something below and it lands here picked</div> / Picks land in {ranges.focus[0].label}</span> / Outside its work hours</span> / Overlaps your {blockFor(t.id)!.overSoft}</span>",
+  "new": "2 × 1h 30m / 2h + 1h 45m / Work Estimated at 45 Min, Committed at 1h / 45 Min Over / Your Usual 4, Fits / 4 Picked, Fits / You're 45 Min Over What's Open / No Room / Add Something Below and It Lands Here Picked</div> / Picks Land in {ranges.focus[0].label}</span> / Outside Its Work Hours</span> / Overlaps Your {blockFor(t.id)!.overSoft}</span>",
+  "phase": "casing-sweep-2",
+  "group": "casing-sweep-2",
+  "notes": "APP-time"
+ },
+ {
+  "item": "APP-casing+time",
+  "file": "src/schedule/ScheduleFlow.tsx",
+  "count": 22,
+  "old": "Back 15 min / Forward 1 hr (the shift receipt, twice) / 3 events +15 min · 1 repeating stayed · 1 would pass midnight (Running Late receipt) / capAfterNumber / 3 added, 2 updated / Planned 3 blocks / \"Planned 1 block\", / Planned 3 blocks / \"Event deleted\", / Third Tuesday running · Repeat weekly? / Skipped that day · The series stays / \"Added to \" + e.data.title, / \"Added to \" + ev.data.title }); / Standup · 2 attached tasks · Any done? / \"Task deleted\" / \"That block is full\" / if (ok) showToast({ message: `${t.text} at ${fmtRange(block.start, block.end)}` }); / \"Skipped today\", / o.repeating ? label + \" · Just today\" : label, / Moved to tomorrow · Just today / Clinic moved to 3:00 to 3:30 PM / Nothing to copy from yesterday / 3 events deleted · 1 was a repeat",
+  "new": "Back 15 Min / Forward 1h / 3 Events +15 Min · 1 Repeating Stayed · 1 Would Pass Midnight / lineCase / 3 Added, 2 Updated / Planned 3 Blocks / \"Planned 1 Block\", / Planned 3 Blocks / \"Event Deleted\", / Third Tuesday Running · Repeat Weekly? / Skipped That Day · The Series Stays / lineCase(\"Added to \" + e.data.title), / lineCase(\"Added to \" + ev.data.title) }); / Standup · 2 Attached Tasks · Any Done? / \"Task Deleted\" / \"That Block Is Full\" / if (ok) showToast({ message: lineCase(`${t.text} at ${fmtRange(block.start, block.end)}`) }); / \"Skipped Today\", / o.repeating ? label + \" · Just Today\" : label, / Moved to Tomorrow · Just Today / Clinic Moved to 3:00 to 3:30 PM / Nothing to Copy from Yesterday / 3 Events Deleted · 1 Was a Repeat",
+  "phase": "casing-sweep-2",
+  "group": "casing-sweep-2",
+  "notes": "APP-time ; typed task text cased at display ; typed title cased at display"
+ },
+ {
+  "item": "APP-casing+time",
+  "file": "src/today/TodayFlow.tsx",
+  "count": 57,
+  "old": "Back 15 min / Forward 1 hr (the shift receipt, twice) / 3 events +15 min · 1 repeating stayed · 1 would pass midnight (Running Late receipt) / 45 min (the first card's estimate) / 45m open (the Now card's open window) / 15 minutes on it (the Fifteen receipt) / capAfterNumber / capAfterNumber / capAfterNumber / capAfterNumber / capAfterNumber / Couldn't load today · Check your connection / \"Added to \" + ev.data.title }); / \"Added to \" + e.data.title, / That would run past midnight / \"Skipped today\", / \"Event deleted\", / Skipped today · The series stays / \"Task deleted\" / Breaking it down… / Couldn't reach JARVIS · Try again / Planned 3 blocks for tomorrow / Nothing moved · The rest would run past midnight / Couldn't move the whole day · Some events moved / Those times had passed and nothing fits now / Those times had passed · Day re-planned from now / Day planned · 3 blocks / Re-flowed 3 blocks / \"The plan is behind the clock\" / \"No room left today\" / Set aside · Keeps its place / Kept, revisit cleared / \"You wanted to revisit this today\" / \"Nothing was lost\" / \"Hidden for today\", / \"Birthday tomorrow\" / Nothing left to add · These are all done / Opening Calendar · Tap Add to confirm / Couldn't hand it to your calendar · Try again / Couldn't put it back · Still in trash / 45 Min on call mom / Fifteen minutes on X / \"Fifteen more minutes\" / \"Two minutes\" / \"Decision replaced\" / Starts 09:15 · open the template / \"Every task in it is done\" / · Off · Change it in Settings / · Less often · Change it in Settings / · More often · Change it in Settings / Keep going, ... / if (d.kind === \"today\") return \"Due today\"; / Fits before Deep Work / nowCtx.nextTitle ?? \"Your next event\"} / Nothing today moves it</span> / Back 15 Min · Just today / Moved to tomorrow · Just today / On your schedule · tomorrow 3:00 PM",
+  "new": "Back 15 Min / Forward 1h / 3 Events +15 Min · 1 Repeating Stayed · 1 Would Pass Midnight / 45 Min / 45 Min Open / 15 Min on It / lineCase / lineCase / lineCase / lineCase / lineCase / Couldn't Load Today · Check Your Connection / lineCase(\"Added to \" + ev.data.title) }); / lineCase(\"Added to \" + e.data.title), / That Would Run Past Midnight / \"Skipped Today\", / \"Event Deleted\", / Skipped Today · The Series Stays / \"Task Deleted\" / Breaking It Down… / Couldn't Reach JARVIS · Try Again / Planned 3 Blocks for Tomorrow / Nothing Moved · The Rest Would Run Past Midnight / Couldn't Move the Whole Day · Some Events Moved / Those Times Had Passed and Nothing Fits Now / Those Times Had Passed · Day Re-Planned from Now / Day Planned · 3 Blocks / Re-Flowed 3 Blocks / \"The Plan Is Behind the Clock\" / \"No Room Left Today\" / Set Aside · Keeps Its Place / Kept, Revisit Cleared / \"You Wanted to Revisit This Today\" / \"Nothing Was Lost\" / \"Hidden for Today\", / \"Birthday Tomorrow\" / Nothing Left to Add · These Are All Done / Opening Calendar · Tap Add to Confirm / Couldn't Hand It to Your Calendar · Try Again / Couldn't Put It Back · Still in Trash / 45 Min on Call Mom / Fifteen Minutes on X / \"Fifteen More Minutes\" / \"Two Minutes\" / \"Decision Replaced\" / Starts 9:15 AM · Open the Template (12-hour clock) / \"Every Task in It Is Done\" / · Off · Change It in Settings / · Less Often · Change It in Settings / · More Often · Change It in Settings / Keep Going, ... / if (d.kind === \"today\") return \"Due Today\"; / Fits Before Deep Work / nowCtx.nextTitle ?? \"Your Next Event\"} / Nothing Today Moves It</span> / Back 15 Min · Just Today / Moved to Tomorrow · Just Today / On Your Schedule · Tomorrow 3:00 PM",
+  "phase": "casing-sweep-2",
+  "group": "casing-sweep-2",
+  "notes": "APP-time ; typed title cased at display"
+ },
+ {
+  "item": "APP-casing+time",
+  "file": "src/today/nowContext.ts",
+  "count": 4,
+  "old": "2 hr 40 min open / 45 min open / 1 hr open (the Now card's tail) / Clear from here / Then leave for Practice / Practice in 8 min (the hyperfocus guard)",
+  "new": "2h 40m Open / 45 Min Open / 1h Open / Clear From Here / Then Leave for Practice / Practice in 8 Min",
+  "phase": "casing-sweep-2",
+  "group": "casing-sweep-2",
+  "notes": "APP-time"
+ },
+ {
+  "item": "APP-time",
+  "file": "src/today/planningPatterns.ts",
+  "count": 1,
+  "old": "Work tasks run 20 min long / Errands tasks finish 15 min early",
+  "new": "Work Tasks Run 20 Min Long / Errands Tasks Finish 15 Min Early",
+  "phase": "casing-sweep-2",
+  "group": "casing-sweep-2",
+  "notes": "APP-time"
+ },
+ {
+  "item": "APP-casing+time",
+  "file": "src/schedule/screens/DayRow.tsx",
+  "count": 4,
+  "old": "Trained 42 min / 6 exercises (the training door) / Est 42 min / Last trained Sep 12",
+  "new": "Trained 42 Min / 6 Exercises / Est 42 Min / Last Trained Sep 12",
+  "phase": "casing-sweep-2",
+  "group": "casing-sweep-2",
+  "notes": "APP-time"
+ },
+ {
+  "item": "APP-casing+time",
+  "file": "src/brain/CategoryDetail.tsx",
+  "count": 47,
+  "old": "7.5 hrs logged (the sleep receipt) / 3 glasses today / capAfterNumber / capAfterNumber / capAfterNumber / capAfterNumber / capAfterNumber / capAfterNumber / Couldn't save that metric · Check your connection / healthReceipt(cheer, \"Bedtime logged\", / \"Meal logged\", / \"Check in saved\", / \"What crosses to a parent, one switch at a time\" / \"The same list, from their side\" / \"The adult Point at It hands to\" / \"Doses left in this fill\" / \"Dose, food, session start, lights out, by day\" / \"The last few weeks on one page\" / \"A wind-down before tomorrow's first fixed thing\" / \"Where tomorrow leaves no room\" / \"Days that carry two teams\" / \"Sessions and hours, day by day\" / \"Where a rest day fits\" / \"Forms and the dates they run out\" / \"What the next adult needs to know\" / \"When the night ended\" / \"What you ate\" / \"Energy and mood\" / \"How hard it was, 0 to 10\" / \"Where it hurts\" / Your band 12-18 · Set in Health Settings / Your band, from Health Settings / \"Task deleted\", / if (ok) showToast({ message: \"Moved to tomorrow\" }); / Fifteen minutes on X / Insurance Card deleted / 3 sets, secondary, counted half / note=\"Assign muscles on Exercises and these join the count.\" / Bench has no muscle set, so its sets are left out of the band above. / 3 lifts you trained this week have no muscle set, so their sets are left out of the band above. / note=\"Never a prescription, just an offer.\" / Birthday today / Waiting 3 days / Last talked 5 Weeks ago / \"Area deleted\", / \"Log deleted\", / \"Goal deleted\", / Due today / Due tomorrow / Due Friday",
+  "new": "7h 30m Logged / 3 Glasses Today / lineCase / lineCase / lineCase / lineCase / lineCase / lineCase / Couldn't Save That Metric · Check Your Connection / healthReceipt(cheer, \"Bedtime Logged\", / \"Meal Logged\", / \"Check In Saved\", / \"What Crosses to a Parent, One Switch at a Time\" / \"The Same List, from Their Side\" / \"The Adult Point at It Hands To\" / \"Doses Left in This Fill\" / \"Dose, Food, Session Start, Lights Out, by Day\" / \"The Last Few Weeks on One Page\" / \"A Wind-Down Before Tomorrow's First Fixed Thing\" / \"Where Tomorrow Leaves No Room\" / \"Days That Carry Two Teams\" / \"Sessions and Hours, Day by Day\" / \"Where a Rest Day Fits\" / \"Forms and the Dates They Run Out\" / \"What the Next Adult Needs to Know\" / \"When the Night Ended\" / \"What You Ate\" / \"Energy and Mood\" / \"How Hard It Was, 0 to 10\" / \"Where It Hurts\" / Your Band 12-18 · Set in Health Settings / Your Band, from Health Settings / \"Task Deleted\", / if (ok) showToast({ message: \"Moved to Tomorrow\" }); / Fifteen Minutes on X / Insurance Card Deleted / 3 Sets, Secondary, Counted Half / note=\"Assign Muscles on Exercises and These Join the Count\" / Bench Has No Muscle Set, So Its Sets Are Left Out of the Band Above / 3 Lifts You Trained This Week Have No Muscle Set, So Their Sets Are Left Out of the Band Above / note=\"Never a Prescription, Just an Offer\" / Birthday Today / Waiting 3 Days / Last Talked 5 Weeks Ago / \"Area Deleted\", / \"Log Deleted\", / \"Goal Deleted\", / Due Today / Due Tomorrow / Due Friday",
+  "phase": "casing-sweep-2",
+  "group": "casing-sweep-2",
+  "notes": "APP-time ; drops the full stop"
+ },
+ {
+  "item": "APP-time",
+  "file": "src/today/liveFifteen.ts",
+  "count": 1,
+  "old": "15 Minutes up (the Fifteen card once it runs out)",
+  "new": "15 Min Up",
+  "phase": "casing-sweep-2",
+  "group": "casing-sweep-2",
+  "notes": "APP-time"
+ },
+ {
+  "item": "APP-time",
+  "file": "src/tasks/rightNow.ts",
+  "count": 1,
+  "old": "15 minutes on it, starting now (the Right Now offer)",
+  "new": "15 Min on It, Starting Now",
+  "phase": "casing-sweep-2",
+  "group": "casing-sweep-2",
+  "notes": "APP-time"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/bigger/BiggerPicturePage.tsx",
+  "count": 7,
+  "old": "capAfterNumber / capAfterNumber / capAfterNumber / capAfterNumber / capAfterNumber / A project is a few tasks with a finish / A goal is what the work is for / Search all projects / Search all goals",
+  "new": "lineCase / lineCase / lineCase / lineCase / lineCase / A Project Is a Few Tasks with a Finish / A Goal Is What the Work Is For / Search All Projects / Search All Goals",
+  "phase": "casing-sweep-2",
+  "group": "casing-sweep-2"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/bigger/GoalDetailPage.tsx",
+  "count": 8,
+  "old": "capAfterNumber / capAfterNumber / Nothing here can be measured yet</div> / Checked in Sep 3 / No milestones yet</div> / \"The next step · Enter adds\" / The reason is in your decisions</div> / \"The Next Step · Enter Adds\"",
+  "new": "lineCase / lineCase / Nothing Here Can Be Measured Yet</div> / Checked In Sep 3 / No Milestones Yet</div> / \"The Next Step · Enter Adds\" / The Reason Is in Your Decisions</div> / \"The Next Milestone · Enter Adds\"",
+  "phase": "casing-sweep-2",
+  "group": "casing-sweep-2",
+  "notes": "reworded: the no-step law reads a capitalized Step as a task called a step; a milestone is what the row adds"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/bigger/GoalRowRuled.tsx",
+  "count": 1,
+  "old": "capAfterNumber",
+  "new": "lineCase",
+  "phase": "casing-sweep-2",
+  "group": "casing-sweep-2"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/bigger/measure.ts",
+  "count": 9,
+  "old": "capAfterNumber / capAfterNumber / capAfterNumber / capAfterNumber / \"Past its date\" / \"Due today\" / \"Due tomorrow\" / Due in 6 days / About 2 a week",
+  "new": "lineCase / lineCase / lineCase / lineCase / \"Past Its Date\" / \"Due Today\" / \"Due Tomorrow\" / Due in 6 Days / About 2 a Week",
+  "phase": "casing-sweep-2",
+  "group": "casing-sweep-2"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/bigger/progress.ts",
+  "count": 6,
+  "old": "capAfterNumber / \"Past its date\" / \"Due today\" / Due in 6 days / About 2 a day from here / \"Due tomorrow\"",
+  "new": "lineCase / \"Past Its Date\" / \"Due Today\" / Due in 6 Days / About 2 a Day from Here / \"Due Tomorrow\"",
+  "phase": "casing-sweep-2",
+  "group": "casing-sweep-2"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/bigger/savings.ts",
+  "count": 1,
+  "old": "capAfterNumber",
+  "new": "lineCase",
+  "phase": "casing-sweep-2",
+  "group": "casing-sweep-2"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/categories/receipts.ts",
+  "count": 2,
+  "old": "capAfterNumber / capAfterNumber",
+  "new": "lineCase / lineCase",
+  "phase": "casing-sweep-2",
+  "group": "casing-sweep-2"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/life/SyllabusUploadFlow.tsx",
+  "count": 8,
+  "old": "capAfterNumber / capAfterNumber / Couldn't read that · Try a clearer photo / Couldn't reach JARVIS · Try again / Couldn't open that image \\u00b7 Try another file / Tap Task or Event to change one</div> / No date found</span> / \"Paste the Syllabus · a page or an email works\"",
+  "new": "lineCase / lineCase / Couldn't Read That · Try a Clearer Photo / Couldn't Reach JARVIS · Try Again / Couldn't Open That Image \\u00b7 Try Another File / Tap Task or Event to Change One</div> / No Date Found</span> / \"Paste the Syllabus · A Page or an Email Works\"",
+  "phase": "casing-sweep-2",
+  "group": "casing-sweep-2"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/life/cards/AreaItemStandard.tsx",
+  "count": 1,
+  "old": "capAfterNumber",
+  "new": "lineCase",
+  "phase": "casing-sweep-2",
+  "group": "casing-sweep-2"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/life/cards/HealthMiniAppCard.tsx",
+  "count": 1,
+  "old": "capAfterNumber",
+  "new": "lineCase",
+  "phase": "casing-sweep-2",
+  "group": "casing-sweep-2"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/money/MoneyFlow.tsx",
+  "count": 17,
+  "old": "capAfterNumber / capAfterNumber / In 3 days / \"Needs an amount over zero\" }); return; } / \"Set aside removed\", / \"Receipt added\" }); / Couldn't open that file \\u00b7 Try again in a moment / \"Receipt removed\", actionLabel: \"Undo\", / Couldn't read that \\u00b7 Try a clearer photo / Couldn't read that receipt \\u00b7 Try again / Already paid · Next rolls in / \"Bill deleted\", / \"Task deleted\", / \"Account deleted\", / \"Payday removed\", / Set to Autopay · today (the date fact) / Needs a name / Needs an amount over zero",
+  "new": "lineCase / lineCase / In 3 Days / \"Needs an Amount Over Zero\" }); return; } / \"Set Aside Removed\", / \"Receipt Added\" }); / Couldn't Open That File \\u00b7 Try Again in a Moment / \"Receipt Removed\", actionLabel: \"Undo\", / Couldn't Read That \\u00b7 Try a Clearer Photo / Couldn't Read That Receipt \\u00b7 Try Again / Already Paid · Next Rolls In / \"Bill Deleted\", / \"Task Deleted\", / \"Account Deleted\", / \"Payday Removed\", / Set to Autopay · Today / Needs a Name / Needs an Amount Over Zero",
+  "phase": "casing-sweep-2",
+  "group": "casing-sweep-2"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/money/budget.ts",
+  "count": 3,
+  "old": "capAfterNumber / After ,240 of bills and 50 set aside / 00 past this paycheck",
+  "new": "lineCase / After ,240 of Bills and 50 Set Aside / 00 Past This Paycheck",
+  "phase": "casing-sweep-2",
+  "group": "casing-sweep-2"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/review/life.ts",
+  "count": 2,
+  "old": "capAfterNumber / \"Heavy right now\"",
+  "new": "lineCase / \"Heavy Right Now\"",
+  "phase": "casing-sweep-2",
+  "group": "casing-sweep-2"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/schedule/attachments.ts",
+  "count": 2,
+  "old": "capAfterNumber / capAfterNumber",
+  "new": "lineCase / lineCase",
+  "phase": "casing-sweep-2",
+  "group": "casing-sweep-2"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/schedule/screens/ScheduleUploadFlow.tsx",
+  "count": 8,
+  "old": "capAfterNumber / capAfterNumber / Couldn't read that · Try a clearer photo / Couldn't reach JARVIS · Try again / Couldn't open that image \\u00b7 Try another file / No time found</span> / Updates existing</span> / \"Paste the Schedule · a message or email works\"",
+  "new": "lineCase / lineCase / Couldn't Read That · Try a Clearer Photo / Couldn't Reach JARVIS · Try Again / Couldn't Open That Image \\u00b7 Try Another File / No Time Found</span> / Updates Existing</span> / \"Paste the Schedule · A Message or Email Works\"",
+  "phase": "casing-sweep-2",
+  "group": "casing-sweep-2"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/tasks/TasksFlow.tsx",
+  "count": 29,
+  "old": "capAfterNumber / capAfterNumber / Couldn't set aside quiet tasks / Set aside 1 quiet task · 1 still overdue / advanced.moved.projectTitle + \" · \" + advanced.moved.line, / celebrationLine(\"project\", proj.id) + \" · \" + proj.data.title }); / \"Task completed\" / Couldn't reach JARVIS \\u00b7 Try again / First step on Today · Big one waits / Cleared 4 completed / Task deleted / 3 tasks deleted / \"Already done\" / 3 marked done / Task moved to Work / 3 tasks moved to Work / \"Task deleted\", / \"Moved to tomorrow\" / Added to schedule / Couldn't find that task / Fifteen minutes on X / \"Saved to this task\" / \"Name what is missing first\" / First step for: call mom / Nothing open · Enjoy it / Couldn't find that task \\u00b7 Nothing was changed / timerLabel=\"Fifteen minutes, as a real block\" / Saved to this task · Not sent / Saved as the first step · The task stays open / Step ticked · The task stays open / Marked blocked · (his words) / Breaking it down…",
+  "new": "lineCase / lineCase / Couldn't Set Aside Quiet Tasks / Set Aside 1 Quiet Task · 1 Still Overdue / lineCase(advanced.moved.projectTitle + \" · \" + advanced.moved.line), / lineCase(celebrationLine(\"project\", proj.id) + \" · \" + proj.data.title) }); / \"Task Completed\" / Couldn't Reach JARVIS \\u00b7 Try Again / First Step on Today · Big One Waits / Cleared 4 Completed / Task Deleted / 3 Tasks Deleted / \"Already Done\" / 3 Marked Done / Task Moved to Work / 3 Tasks Moved to Work / \"Task Deleted\", / \"Moved to Tomorrow\" / Added to Schedule / Couldn't Find That Task / Fifteen Minutes on X / \"Saved to This Task\" / \"Name What Is Missing First\" / First Step For: Call Mom / Nothing Open · Enjoy It / Couldn't Find That Task \\u00b7 Nothing Was Changed / timerLabel=\"Fifteen Minutes, as a Real Block\" / Saved to This Task · Not Sent / Saved as the First Step · The Task Stays Open / Step Ticked · The Task Stays Open / Marked Blocked · (his words, as typed) / Breaking It Down…",
+  "phase": "casing-sweep-2",
+  "group": "casing-sweep-2",
+  "notes": "typed project title cased at display"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/tasks/lifecycle.ts",
+  "count": 3,
+  "old": "capAfterNumber / capAfterNumber / Back on track · 12-day run still counts",
+  "new": "lineCase / lineCase / Back on Track · 12-Day Run Still Counts",
+  "phase": "casing-sweep-2",
+  "group": "casing-sweep-2"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/tasks/screens/TasksPage.tsx",
+  "count": 3,
+  "old": "capAfterNumber / Today tasks (search scope) / allLabel: \"Search all tasks\"",
+  "new": "lineCase / Today Tasks / allLabel: \"Search All Tasks\"",
+  "phase": "casing-sweep-2",
+  "group": "casing-sweep-2"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/tasks/startPick.ts",
+  "count": 4,
+  "old": "capAfterNumber / capAfterNumber / You were already working on it / if (d === 0) return \"Due today\";",
+  "new": "lineCase / lineCase / You Were Already Working on It / if (d === 0) return \"Due Today\";",
+  "phase": "casing-sweep-2",
+  "group": "casing-sweep-2"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/today/TodayPage.tsx",
+  "count": 7,
+  "old": "capAfterNumber / Turns a year older today / \"Nothing lost\" / \"Re-plan\" / Nothing else tonight / Nothing scheduled today / 12 things done / A quiet week / across 4 events this week.",
+  "new": "lineCase / Turns a Year Older Today / \"Nothing Lost\" / \"Re-Plan\" / Nothing Else Tonight / Nothing Scheduled Today / 12 Things Done / A Quiet Week / Across 4 Events This Week (no full stop)",
+  "phase": "casing-sweep-2",
+  "group": "casing-sweep-2"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/today/evening.ts",
+  "count": 8,
+  "old": "capAfterNumber / capAfterNumber / capAfterNumber / capAfterNumber / A clear evening / Waits for tomorrow · Tonight is yours / The one you picked, done / Everything you picked, done",
+  "new": "lineCase / lineCase / lineCase / lineCase / A Clear Evening / Waits for Tomorrow · Tonight Is Yours / The One You Picked, Done / Everything You Picked, Done",
+  "phase": "casing-sweep-2",
+  "group": "casing-sweep-2"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/today/goalPulse.ts",
+  "count": 1,
+  "old": "capAfterNumber",
+  "new": "lineCase",
+  "phase": "casing-sweep-2",
+  "group": "casing-sweep-2"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/today/routinePatterns.ts",
+  "count": 1,
+  "old": "capAfterNumber",
+  "new": "lineCase",
+  "phase": "casing-sweep-2",
+  "group": "casing-sweep-2"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/today/todayData.ts",
+  "count": 2,
+  "old": "capAfterNumber / Due today / Due tomorrow / Due Monday",
+  "new": "lineCase / Due Today / Due Tomorrow / Due Monday",
+  "phase": "casing-sweep-2",
+  "group": "casing-sweep-2"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/today/TodaySuggestions.tsx",
+  "count": 13,
+  "old": "Still true? Nothing has confirmed this in 12 days / Couldn't add that \\u00b7 Try again / \"Added to your tasks\" / JARVIS will remember that · It replaced what it thought before / \"JARVIS will remember that\" / JARVIS already knew · Receipts updated / The Brain is full · Prune it in What JARVIS Knows / Still true · JARVIS will keep leaning on it / Added to your routine / Saved to your Brain / Couldn't check today's suggestions / Today's suggestions didn't come back / \"Still True · JARVIS Will Keep Leaning on It\" });",
+  "new": "Still True? Nothing Has Confirmed This in 12 Days / Couldn't Add That \\u00b7 Try Again / \"Added to Your Tasks\" / JARVIS Will Remember That · It Replaced What It Thought Before / \"JARVIS Will Remember That\" / JARVIS Already Knew · Receipts Updated / The Brain Is Full · Prune It in What JARVIS Knows / Still True · JARVIS Will Keep Leaning on It / Added to Your Routine / Saved to Your Brain / Couldn't Check Today's Suggestions / Today's Suggestions Didn't Come Back / \"Confirmed · JARVIS Will Keep Leaning on It\" });",
+  "phase": "casing-sweep-2",
+  "group": "casing-sweep-2",
+  "notes": "reworded: the offer-card law keys its two accept mounts on the phrase Still True, and the receipt echoing it now matched as a third"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/today/MailNotices.tsx",
+  "count": 7,
+  "old": "Couldn't add it · Opening the thread / Couldn't book it · Opening the thread / Couldn't draft that one · Opening it instead / Couldn't delete it · Still in your inbox / Deleted · In trash 30 days / Couldn't send · Nothing was lost / Added to your tasks · Due today",
+  "new": "Couldn't Add It · Opening the Thread / Couldn't Book It · Opening the Thread / Couldn't Draft That One · Opening It Instead / Couldn't Delete It · Still in Your Inbox / Deleted · In Trash 30 Days / Couldn't Send · Nothing Was Lost / Added to Your Tasks · Due Today",
+  "phase": "casing-sweep-2",
+  "group": "casing-sweep-2"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/today/patterns.ts",
+  "count": 1,
+  "old": "Heavy stretch, keeping plans light",
+  "new": "Heavy Stretch, Keeping Plans Light",
+  "phase": "casing-sweep-2",
+  "group": "casing-sweep-2"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/today/welcomeBack.ts",
+  "count": 2,
+  "old": "3 things aged out on their own / ask: \"Start with one?\",",
+  "new": "3 Things Aged Out on Their Own / ask: \"Start With One?\",",
+  "phase": "casing-sweep-2",
+  "group": "casing-sweep-2"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/today/meetingPrep.ts",
+  "count": 1,
+  "old": "Last mail 3 weeks ago",
+  "new": "Last Mail 3 Weeks Ago",
+  "phase": "casing-sweep-2",
+  "group": "casing-sweep-2"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/tasks/screens/ReminderSettingsSheet.tsx",
+  "count": 7,
+  "old": "Once After 1 Hour for new reminders / Health reminders say only that there is one / meta=\"Arrives in 10 seconds\" / Alerts need the phone app · On the web reminders show inside JARVIS only / Notifications are off for JARVIS in iOS Settings · Turn them on there and nothing here has to change / iOS will ask to allow notifications the first time a reminder is set / Reminders arrive on this phone",
+  "new": "Once After 1 Hour for New Reminders / Health Reminders Say Only That There Is One / meta=\"Arrives in 10 Seconds\" / Alerts Need the Phone App · On the Web Reminders Show Inside JARVIS Only / Notifications Are Off for JARVIS in iOS Settings · Turn Them on There and Nothing Here Has to Change / iOS Will Ask to Allow Notifications the First Time a Reminder Is Set / Reminders Arrive on This Phone",
+  "phase": "casing-sweep-2",
+  "group": "casing-sweep-2"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/tasks/screens/ReminderSheet.tsx",
+  "count": 3,
+  "old": "\"Reminder Set · When you open \" + areaName / Sits in Upcoming with no timed alert / An in-app prompt that never blocks you",
+  "new": "\"Reminder Set · When You Open \" + areaName / Sits in Upcoming with No Timed Alert / An In-App Prompt That Never Blocks You",
+  "phase": "casing-sweep-2",
+  "group": "casing-sweep-2"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/tasks/screens/RemindersFlow.tsx",
+  "count": 8,
+  "old": "Done · In Done for today / Occurrence Skipped · The series continues / Reminder Paused · No alerts until you resume / Opening Calendar · Tap Add to confirm / Couldn't hand it to your calendar · Try again / Test reminder in ${TEST_REMINDER_DELAY_S} seconds · Lock the phone to see it / \"Notifications are off for JARVIS in iOS Settings\" / Test reminders need the phone app",
+  "new": "Done · In Done for Today / Occurrence Skipped · The Series Continues / Reminder Paused · No Alerts Until You Resume / Opening Calendar · Tap Add to Confirm / Couldn't Hand It to Your Calendar · Try Again / Test Reminder in ${TEST_REMINDER_DELAY_S} Seconds · Lock the Phone to See It / \"Notifications Are Off for JARVIS in iOS Settings\" / Test Reminders Need the Phone App",
+  "phase": "casing-sweep-2",
+  "group": "casing-sweep-2"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/tasks/screens/RemindersPage.tsx",
+  "count": 3,
+  "old": "Upcoming reminders (search scope) / allLabel: \"Search Done too\" / Nothing matches that.",
+  "new": "Upcoming Reminders / allLabel: \"Search Done Too\" / Nothing Matches That (no full stop)",
+  "phase": "casing-sweep-2",
+  "group": "casing-sweep-2"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/tasks/screens/TaskSheet.tsx",
+  "count": 1,
+  "old": "Usually 45m in this area",
+  "new": "Usually 45 Min in This Area",
+  "phase": "casing-sweep-2",
+  "group": "casing-sweep-2"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/tasks/screens/StartScreen.tsx",
+  "count": 8,
+  "old": "timerLabel ?? \"Books a block you can stop\"} / Ticks the task itself, separate from saving / Choosing who it goes to stays with you · Nothing is sent here / Becomes the first step · The task stays open / Ticks this step · The task stays open / Saves onto this task · The task stays open / Opens the real record · Nothing is changed / Saved on this device, step 2 of 3",
+  "new": "timerLabel ?? \"Books a Block You Can Stop\"} / Ticks the Task Itself, Separate from Saving / Choosing Who It Goes to Stays with You · Nothing Is Sent Here / Becomes the First Step · The Task Stays Open / Ticks This Step · The Task Stays Open / Saves Onto This Task · The Task Stays Open / Opens the Real Record · Nothing Is Changed / Saved on This Device, Step 2 of 3",
+  "phase": "casing-sweep-2",
+  "group": "casing-sweep-2"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/tasks/startAction.ts",
+  "count": 20,
+  "old": "\"What is in the way\" / \"Where you left off\" / \"Your next step\" / \"What this is linked to\" / \"Review a prepared message\" / \"Name the first step\" / \"One detail first\" / \"One line first\" / \"Name what you are looking for\" / \"Name who can move it\" / \"Editable message ready\" / \"Start the message\" / \"Saved on this device\" / \"Your draft is waiting\" / \"The next thing under it\" / \"Your next task\" / \"Capture the error to look at\" / \"Start by naming the first step\" / \"Write the first line only\" / \"Name one thing to look at first\"",
+  "new": "\"What Is in the Way\" / \"Where You Left Off\" / \"Your Next Step\" / \"What This Is Linked To\" / \"Review a Prepared Message\" / \"Name the First Step\" / \"One Detail First\" / \"One Line First\" / \"Name What You Are Looking For\" / \"Name Who Can Move It\" / \"Editable Message Ready\" / \"Start the Message\" / \"Saved on This Device\" / \"Your Draft Is Waiting\" / \"The Next Thing Under It\" / \"Your Next Task\" / \"Capture the Error to Look At\" / \"Start by Naming the First Step\" / \"Write the First Line Only\" / \"Name One Thing to Look at First\"",
+  "phase": "casing-sweep-2",
+  "group": "casing-sweep-2"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/tasks/startGround.ts",
+  "count": 3,
+  "old": "\"The pay page\" / \"Location still needed\" / \"Recipients still needed\"",
+  "new": "\"The Pay Page\" / \"Location Still Needed\" / \"Recipients Still Needed\"",
+  "phase": "casing-sweep-2",
+  "group": "casing-sweep-2"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/tasks/automaticity.ts",
+  "count": 4,
+  "old": "Done 41 times / if (a.automatic) return `${times} · This one's automatic`; / `${times} · Most people are automatic around ${AUTOMATIC_MEDIAN}`; / `Done ${done} times`;",
+  "new": "Done 41 Times / if (a.automatic) return `${times} · This One's Automatic`; / `${times} · Most People Are Automatic Around ${AUTOMATIC_MEDIAN}`; / lineCase(`Done ${done} times`);",
+  "phase": "casing-sweep-2",
+  "group": "casing-sweep-2"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/tasks/reminderHistory.ts",
+  "count": 2,
+  "old": "Snoozed the last ${a.count} times · Choose a better time? / `Usually done around ${clockOf(a.time)} · Move it there?`;",
+  "new": "Snoozed the Last ${a.count} Times · Choose a Better Time? / `Usually Done Around ${clockOf(a.time)} · Move It There?`;",
+  "phase": "casing-sweep-2",
+  "group": "casing-sweep-2"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/tasks/taskMoves.ts",
+  "count": 1,
+  "old": "Split into 3 steps",
+  "new": "Split Into 3 Steps",
+  "phase": "casing-sweep-2",
+  "group": "casing-sweep-2"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/schedule/blend.ts",
+  "count": 7,
+  "old": "\"You can do this while you move\" / \"Fits the wait\" / \"Hands free\" / \"This usually goes here\" / \"Same as this block\" / \"Real work, real block\" / \"Fits here\"",
+  "new": "\"You Can Do This While You Move\" / \"Fits the Wait\" / \"Hands Free\" / \"This Usually Goes Here\" / \"Same As This Block\" / \"Real Work, Real Block\" / \"Fits Here\"",
+  "phase": "casing-sweep-2",
+  "group": "casing-sweep-2"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/schedule/countdown.ts",
+  "count": 4,
+  "old": "if (lead === 60) return \"In an hour\" + place; / if (lead === 30) return \"In half an hour\" + place; / if (lead === 15) return \"Fifteen minutes\" + place; / (firstMove?.trim() || \"Leave what you're doing\") + place;",
+  "new": "if (lead === 60) return \"In an Hour\" + place; / if (lead === 30) return \"In Half an Hour\" + place; / if (lead === 15) return \"Fifteen Minutes\" + place; / (firstMove?.trim() || \"Leave What You're Doing\") + place;",
+  "phase": "casing-sweep-2",
+  "group": "casing-sweep-2"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/schedule/daySizing.ts",
+  "count": 1,
+  "old": "\"Yesterday ran heavy, so today is a lighter one on purpose: fewer blocks, more room to breathe.\",",
+  "new": "\"Yesterday Ran Heavy, So Today Is a Lighter One on Purpose: Fewer Blocks, More Room to Breathe\",",
+  "phase": "casing-sweep-2",
+  "group": "casing-sweep-2",
+  "notes": "drops the full stop too"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/schedule/repeats.ts",
+  "count": 4,
+  "old": "if (rec === \"daily\") return \"Every day\"; / if (every2) return \"Every 2 weeks on \" + list; / Tuesday and Thursday every week / \"No end date\"",
+  "new": "if (rec === \"daily\") return \"Every Day\"; / if (every2) return \"Every 2 Weeks on \" + list; / Tuesday and Thursday Every Week / \"No End Date\"",
+  "phase": "casing-sweep-2",
+  "group": "casing-sweep-2"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/schedule/padding.ts",
+  "count": 2,
+  "old": "Padded · No history yet / \"Your usual\"",
+  "new": "Padded · No History Yet / \"Your Usual\"",
+  "phase": "casing-sweep-2",
+  "group": "casing-sweep-2"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/schedule/planDay.ts",
+  "count": 4,
+  "old": "Fits before Standup / \"Same context as previous pick\" / \"Due today\" / \"Your peak window\"",
+  "new": "Fits Before Standup / \"Same Context as Previous Pick\" / \"Due Today\" / \"Your Peak Window\"",
+  "phase": "casing-sweep-2",
+  "group": "casing-sweep-2"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/schedule/screens/LockedRow.tsx",
+  "count": 2,
+  "old": "Can blend, ears free / : holds ? \"Focus time\"",
+  "new": "Can Blend, Ears Free / : holds ? \"Focus Time\"",
+  "phase": "casing-sweep-2",
+  "group": "casing-sweep-2"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/life/tabs/AreasTab.tsx",
+  "count": 1,
+  "old": "Add one in Settings &gt; Categories</div>",
+  "new": "Add One in Settings &gt; Categories</div>",
+  "phase": "casing-sweep-2",
+  "group": "casing-sweep-2"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/bigger/BiggerPictureFlow.tsx",
+  "count": 11,
+  "old": "Couldn't reach JARVIS \\u00b7 Try again / \"First step on Today\" / Start with: (his step) / Nothing is moving here / Project deleted / Goal deleted / Dropped · The reason is in your decisions / The Brain is full · Prune it in What JARVIS Knows / Check-in saved · Ahead / Start with: (his step) / One small opening move is enough. / \"Step deleted\", / Moved to (goal) / Taken off its goal / \"Goal achieved\",",
+  "new": "Couldn't Reach JARVIS \\u00b7 Try Again / \"First Step on Today\" / Start With: (his step) / Nothing Is Moving Here / Project Deleted / Goal Deleted / Dropped · The Reason Is in Your Decisions / The Brain Is Full · Prune It in What JARVIS Knows / Check-In Saved · Ahead / Start With: (his step) / One Small Opening Move Is Enough (no full stop) / \"Step Deleted\", / Moved to (Goal) / Taken Off Its Goal / \"Goal Achieved\",",
+  "phase": "casing-sweep-2",
+  "group": "casing-sweep-2"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/categories/CategoriesFlow.tsx",
+  "count": 1,
+  "old": "\"Area deleted\"",
+  "new": "\"Area Deleted\"",
+  "phase": "casing-sweep-2",
+  "group": "casing-sweep-2"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/categories/screens/CategorySheet.tsx",
+  "count": 2,
+  "old": "Suggestions leave it alone until you wake it / In season / Follows my work hours / Any hour",
+  "new": "Suggestions Leave It Alone Until You Wake It / In Season / Follows My Work Hours / Any Hour",
+  "phase": "casing-sweep-2",
+  "group": "casing-sweep-2"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/review/report.ts",
+  "count": 13,
+  "old": "\"Only the bills the app holds; never a claim about the account\" / No word either way with Sam in 30 days / \"A quiet month can be on purpose\" / \"A decision is kept, not judged\" / \"Leave It means exactly that\" / foot: \"Nothing finished and nothing scheduled this month\" / \"A month off a goal is not the same as dropping it\" / \"Yes is a complete answer\" / foot: \"Cutting is a decision, and it counts\" / \"Plan lengths already learn from this; new blocks pre-fill from your history\" / \"A pattern in your data, not a cause\" / \"A fact about tasks, never a verdict\" / foot: \"Starting tomorrow, change it any time\"",
+  "new": "\"Only the Bills the App Holds; Never a Claim About the Account\" / No Word Either Way with Sam in 30 Days / \"A Quiet Month Can Be on Purpose\" / \"A Decision Is Kept, Not Judged\" / \"Leave It Means Exactly That\" / foot: \"Nothing Finished and Nothing Scheduled This Month\" / \"A Month Off a Goal Is Not the Same as Dropping It\" / \"Yes Is a Complete Answer\" / foot: \"Cutting Is a Decision, and It Counts\" / \"Plan Lengths Already Learn from This; New Blocks Pre-Fill from Your History\" / \"A Pattern in Your Data, Not a Cause\" / \"A Fact About Tasks, Never a Verdict\" / foot: \"Starting Tomorrow, Change It Any Time\"",
+  "phase": "casing-sweep-2",
+  "group": "casing-sweep-2"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/review/week.ts",
+  "count": 2,
+  "old": "4 new facts / 2 remembered",
+  "new": "4 New Facts / 2 Remembered",
+  "phase": "casing-sweep-2",
+  "group": "casing-sweep-2"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/review/InsightsFlow.tsx",
+  "count": 2,
+  "old": "Two blocks aimed at Work next week / Everything you achieve lands here, dated, forever</div>",
+  "new": "Two Blocks Aimed at Work Next Week / Everything You Achieve Lands Here, Dated, Forever</div>",
+  "phase": "casing-sweep-2",
+  "group": "casing-sweep-2"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/review/ReportPage.tsx",
+  "count": 3,
+  "old": "Capped at 3 · Starting tomorrow / \"Task dropped\", / Your first report arrives on the 1st, unannounced</div>",
+  "new": "Capped at 3 · Starting Tomorrow / \"Task Dropped\", / Your First Report Arrives on the 1st, Unannounced</div>",
+  "phase": "casing-sweep-2",
+  "group": "casing-sweep-2"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/money/bills.ts",
+  "count": 8,
+  "old": "Autopay scheduled Aug 1 / \"Set to autopay\" / Was due yesterday / Was due 2 days ago / if (gap === 0) return { text: \"Due today\", state: \"due\" }; / if (gap === 1) return { text: \"Due tomorrow\", state: \"due\" }; / Due in 3 days / Between now and payday (today) / Between now and Friday / ,100 in, 00 of bills out",
+  "new": "Autopay Scheduled Aug 1 / \"Set to Autopay\" / Was Due Yesterday / Was Due 2 Days Ago / if (gap === 0) return { text: \"Due Today\", state: \"due\" }; / if (gap === 1) return { text: \"Due Tomorrow\", state: \"due\" }; / Due in 3 Days / Between Now and Payday (Today) / Between Now and Friday / ,100 In, 00 of Bills Out",
+  "phase": "casing-sweep-2",
+  "group": "casing-sweep-2"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/money/screens/TrackerScreen.tsx",
+  "count": 5,
+  "old": "\"September imported\" }); / \"Account deleted\", / \"Transaction deleted\", / \"Budget saved\" }); / \"Subscription deleted\",",
+  "new": "\"September Imported\" }); / \"Account Deleted\", / \"Transaction Deleted\", / \"Budget Saved\" }); / \"Subscription Deleted\",",
+  "phase": "casing-sweep-2",
+  "group": "casing-sweep-2"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/today/TodayFlow.tsx",
+  "count": 1,
+  "old": "In Money · $12.00 due tomorrow / Added to your tasks · tomorrow (the mail act receipt)",
+  "new": "In Money · $12.00 Due Tomorrow / Added to Your Tasks · Tomorrow",
+  "phase": "casing-sweep-2",
+  "group": "casing-sweep-2"
  }
 ]

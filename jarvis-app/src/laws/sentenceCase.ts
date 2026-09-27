@@ -29,6 +29,18 @@ export const SENTENCE_CASE_SURFACES: ReadonlyArray<readonly [path: string, reaso
   ["data/seedNotes.ts", "seeded note bodies in the user's own words"],
   ["insights/exportData.ts", "a text file the app exports, not a screen"],
   ["shared/duration.ts", "the one duration formatter: it owns the compact clock's shape"],
+  // Casing sweep 2 (2026-09-27): the second pass's paths, each a prompt, a
+  // spec or the user's own words, never a drawn line.
+  ["schedule/planDayAI.ts", "the plan-day prompt handed to the model, never drawn"],
+  ["schedule/scheduleExtract.ts", "the schedule-extraction prompt handed to the model"],
+  ["life/syllabusExtract.ts", "the syllabus-extraction prompt handed to the model"],
+  ["money/receiptExtract.ts", "the receipt-reading prompt handed to the model"],
+  ["tasks/breakdown.ts", "the breakdown prompt handed to the model"],
+  ["tasks/firstStep.ts", "the first-step prompt handed to the model"],
+  ["tasks/ifThen.ts", "the if-then plan in the user's own words, and its field notes"],
+  ["tasks/tasksSpec.ts", "a written spec, read by people, never drawn"],
+  ["review/seal.ts", "the month seal's fact line handed to the model, label-first by design"],
+  ["money/trackerSeed.ts", "seeded transactions in the user's own words"],
 ];
 
 /** True when the file at `rel` (relative to src/) is a sentence-case surface. */

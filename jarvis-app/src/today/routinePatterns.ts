@@ -2,7 +2,7 @@ import type { EventItem } from "../schedule/types";
 import type { RoutineData, ProtectedBlock } from "../routine/types";
 import { daysSummary } from "../routine/types";
 import { todayISO as isoOf } from "../schedule/calendar";
-import { capAfterNumber } from "../shared/casing";
+import { lineCase } from "../shared/casing";
 
 // The routine that builds itself (2026-08-09). Dave: "it should know your
 // routine life." The honest version of that is not a longer intake form, it
@@ -98,7 +98,7 @@ export function routineBlockCandidate(
       // 2026-09-26). Three facts were packed into the title with typed dots;
       // the count is evidence, and the card already has a sub to carry it.
       text: `${title} around ${min12h(startMin)} ${daysSummary(days)}`,
-      sub: capAfterNumber(`${evs.length} times this month`),
+      sub: lineCase(`${evs.length} times this month`),
       block: {
         id: "pb_learned_" + Math.abs(startMin * 7 + days.length) + "_" + title.toLowerCase().replace(/[^a-z0-9]+/g, "").slice(0, 20),
         label: title, startMin, endMin, days,

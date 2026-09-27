@@ -48,6 +48,7 @@ import { showToast } from "../shared/toast";
 import { todayISO } from "../tasks/grouping";
 import { TargetGlyph, FolderOpenGlyph } from "../shared/glyphs";
 import NoticeCard from "../today/NoticeCard";
+import { lineCase } from "../shared/casing";
 
 // Hoisted: a fresh object per render would make every consumer's memo stale.
 const EMPTY_REACH: GoalReach = { filedIds: [], taggedIds: [], openTagged: 0, progress: null };
@@ -269,7 +270,7 @@ export default function BiggerPictureFlow({ openId, openNonce, onOpenConsumed, o
       if (!step) throw new Error("empty");
       setProjStep({ projectId: stalled.id, step });
     } catch {
-      showToast({ message: "Couldn't reach JARVIS \u00b7 Try again" });
+      showToast({ message: "Couldn't Reach JARVIS \u00b7 Try Again" });
     } finally {
       setProjStepBusy(false);
     }
@@ -293,7 +294,7 @@ export default function BiggerPictureFlow({ openId, openNonce, onOpenConsumed, o
       setDismissTick((n) => n + 1);
       emit({ type: "suggestion.accepted", props: { kind: "proj_step" } });
       await reload();
-      showToast({ message: "First step on Today" });
+      showToast({ message: "First Step on Today" });
     } finally {
       setProjStepBusy(false);
     }
@@ -313,7 +314,7 @@ export default function BiggerPictureFlow({ openId, openNonce, onOpenConsumed, o
       if (!step) throw new Error("empty");
       setOpenStep({ projectId: proj.id, step });
     } catch {
-      showToast({ message: "Couldn't reach JARVIS \u00b7 Try again" });
+      showToast({ message: "Couldn't Reach JARVIS \u00b7 Try Again" });
     } finally {
       setOpenStepBusy(false);
     }
@@ -330,7 +331,7 @@ export default function BiggerPictureFlow({ openId, openNonce, onOpenConsumed, o
       setOpenStep(null);
       emit({ type: "suggestion.accepted", props: { kind: "proj_step" } });
       await reload();
-      showToast({ message: "First step on Today" });
+      showToast({ message: "First Step on Today" });
     } finally {
       setOpenStepBusy(false);
     }
@@ -400,7 +401,7 @@ export default function BiggerPictureFlow({ openId, openNonce, onOpenConsumed, o
           icon={<FolderOpenGlyph />}
           tone="cat-fg-orange"
           title={stalled.data.title}
-          sub={projStep && projStep.projectId === stalled.id ? "Start with: " + projStep.step : "Nothing is moving here"}
+          sub={projStep && projStep.projectId === stalled.id ? "Start With: " + projStep.step : "Nothing Is Moving Here"}
           action={projStep && projStep.projectId === stalled.id
             ? { label: projStepBusy ? "Adding..." : "Add", onClick: () => void projStepAccept() }
             : { label: projStepBusy ? "Thinking..." : "First Step", onClick: () => void projStepAsk() }}
@@ -455,7 +456,7 @@ export default function BiggerPictureFlow({ openId, openNonce, onOpenConsumed, o
     await reload();
     if (!kept) return;
     showToast({
-      message: kind === "project" ? "Project deleted" : "Goal deleted",
+      message: kind === "project" ? "Project Deleted" : "Goal Deleted",
       actionLabel: "Undo",
       onAction: () => void (async () => {
         await attemptWrite(() => svc.create(kept as never, id));
@@ -593,7 +594,7 @@ export default function BiggerPictureFlow({ openId, openNonce, onOpenConsumed, o
     if (!ok) return;
     setGoalDetailId(null);
     await reload();
-    showToast({ message: decisionId ? "Dropped · The reason is in your decisions" : "Dropped" });
+    showToast({ message: decisionId ? "Dropped · The Reason Is in Your Decisions" : "Dropped" });
   };
   const goalProjects = goalDetail ? projects.filter((p) => p.data.goalId === goalDetail.id) : [];
 
@@ -605,10 +606,10 @@ export default function BiggerPictureFlow({ openId, openNonce, onOpenConsumed, o
     let id: string | null = null;
     const ok = await attemptWrite(async () => { id = await strandsSvc.seed(checkinText(g.data.title, word, today), "values", today, { entityType: ENTITY_GOAL, entityId: g.id }); });
     if (!ok) return;
-    if (!id) { showToast({ message: "The Brain is full · Prune it in What JARVIS Knows" }); return; }
+    if (!id) { showToast({ message: "The Brain Is Full · Prune It in What JARVIS Knows" }); return; }
     emit({ type: "goal.checkin", entityType: ENTITY_GOAL, entityId: g.id, props: { kind: word } });
     await loadCheckins();
-    showToast({ message: "Check-in saved · " + CHECKIN_LABEL[word] });
+    showToast({ message: "Check-In Saved · " + CHECKIN_LABEL[word] });
   };
 
   // C-36: the milestone writes. The measure is replaced whole; a tick stamps
@@ -701,7 +702,7 @@ export default function BiggerPictureFlow({ openId, openNonce, onOpenConsumed, o
                   <div className="promo-badge b-amber"><TargetGlyph /></div>
                   <div className="promo-body">
                     <div className="promo-title">Nothing in It Yet</div>
-                    <div className="promo-sub">{openStep && openStep.projectId === detail.id ? <>Start with: {openStep.step}</> : "One small opening move is enough."}</div>
+                    <div className="promo-sub">{openStep && openStep.projectId === detail.id ? <>Start With: {openStep.step}</> : "One Small Opening Move Is Enough"}</div>
                   </div>
                 </div>
                 <div className="promo-acts">
@@ -874,7 +875,7 @@ export default function BiggerPictureFlow({ openId, openNonce, onOpenConsumed, o
                 await reload();
                 if (!ok) return;
                 showToast({
-                  message: "Step deleted",
+                  message: "Step Deleted",
                   actionLabel: "Undo",
                   onAction: () => void (async () => {
                     // LIFE-F-15 (2026-09-05): this rebuilt the step from three
@@ -909,7 +910,7 @@ export default function BiggerPictureFlow({ openId, openNonce, onOpenConsumed, o
     if (!ok) return;
     const name = goalId ? goals.find((g) => g.id === goalId)?.data.title ?? null : null;
     showToast({
-      message: name ? "Moved to " + name : "Taken off its goal",
+      message: name ? lineCase("Moved to " + name) : "Taken Off Its Goal",
       actionLabel: "Undo",
       onAction: () => void (async () => {
         await attemptWrite(() => mustUpdate(projectsSvc.update(id, { goalId: before })));
@@ -995,7 +996,7 @@ export default function BiggerPictureFlow({ openId, openNonce, onOpenConsumed, o
             // irreversible tap in this app gets, restoring the state it had
             // and clearing the achieved date GoalService stamps on the way in.
             showToast({
-              message: "Goal achieved",
+              message: "Goal Achieved",
               actionLabel: "Undo",
               onAction: () => void (async () => {
                 // g.data is the snapshot read before the achieve, so this

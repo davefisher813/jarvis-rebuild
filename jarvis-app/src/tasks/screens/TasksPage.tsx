@@ -18,7 +18,7 @@ import type { SheetCategory, SheetProject } from "./TaskSheet";
 import { useSwipe } from "../../shared/useSwipe";
 import Provenance from "../../shared/ProvenanceLine";
 import { rowSource, type Source, type SourceType } from "../../shared/provenance";
-import { capAfterNumber, titleCase } from "../../shared/casing";
+import { lineCase, titleCase } from "../../shared/casing";
 import { cueLine } from "../ifThen";
 import { durLabel } from "../../schedule/durations";
 import { OVERWHELM_ENTER, OVERWHELM_EXIT } from "../overwhelmed";
@@ -112,7 +112,7 @@ const EMPTY_TITLE: Record<TaskFilter, string> = {
 // otherwise reads as "you are done" when the opposite is true.
 function emptySub(filter: TaskFilter, counts: Record<TaskFilter, number>): string | null {
   if (filter === "today" && counts.overdue > 0) {
-    return capAfterNumber(`${counts.overdue} overdue waiting`);
+    return lineCase(`${counts.overdue} overdue waiting`);
   }
   return null;
 }
@@ -901,8 +901,8 @@ export default function TasksPage({
           onView={(k) => onFilter?.(k as TaskFilter)}
           scope={q ? {
             count: shown.length,
-            where: `${FILTER_LABEL[filter]} tasks`,
-            ...(filter !== "all" ? { onAll: () => onFilter?.("all"), allLabel: "Search all tasks" } : {}),
+            where: `${FILTER_LABEL[filter]} Tasks`,
+            ...(filter !== "all" ? { onAll: () => onFilter?.("all"), allLabel: "Search All Tasks" } : {}),
           } : undefined}
           // WHY THE ROWS YOU EXPECTED ARE NOT THERE (handoff rule 7). With no
           // control on the chip line, this line is what keeps an Area cut and

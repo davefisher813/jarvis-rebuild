@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { catIcon } from "../../categories/icons";
 import type { ColorSlot } from "../../categories/types";
 import { pressable } from "../../shared/pressable";
-import { capAfterNumber } from "../../shared/casing";
+import { lineCase } from "../../shared/casing";
 import { ShieldAlert } from "../../shared/icons";
 
 // HEALTH IS NOT AN AREA, IT IS A MINI-APP (LIFE_AREAS_TAB_HANDOFF). Restyled
@@ -34,7 +34,7 @@ export default function HealthMiniAppCard({ category, onOpen }: {
         <div className={"area-tile cat-bg-" + category.color}>{catIcon(category.icon)}</div>
         <div className="area-stack">
           <div className="area-name">{category.name}</div>
-          <div className="area-sub">{capAfterNumber(`${HEALTH_SECTIONS.length} sections`)}</div>
+          <div className="area-sub">{lineCase(`${HEALTH_SECTIONS.length} sections`)}</div>
         </div>
         <div className="area-chev"><div className="chev" /></div>
       </div>

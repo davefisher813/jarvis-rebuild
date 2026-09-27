@@ -23,7 +23,7 @@ import { eveningFacts, todayPlanLine, EVENING_TASKS_NOTE, type EveningStats, typ
 import { Facts } from "../messages/factsLine";
 import MoveHeadliner from "./MoveHeadliner";
 
-import { capAfterNumber } from "../shared/casing";
+import { lineCase } from "../shared/casing";
 import { MorningWeatherLine, WeatherOfferRow } from "../weather/WeatherLine";
 import { CheckCircleGlyph, GiftGlyph, SunriseGlyph, SweepGlyph, ParentLineGlyph, BullseyeGlyph } from "../shared/glyphs";
 import StepCount, { stepsOf } from "../shared/StepCount";
@@ -536,7 +536,7 @@ export default function TodayPage({
               <div className="row-grow">
                 <div className="conn-name truncate">{b.name}</div>
                 {/* A sub under a title is never caps (see InsightsFlow). */}
-                <div className="conn-meta">Turns a year older today</div>
+                <div className="conn-meta">Turns a Year Older Today</div>
               </div>
               {/* UP-CORE-03 (2026-09-05): the row said the fact and offered
                   nothing, so remembering was still entirely on him. Text
@@ -699,7 +699,7 @@ export default function TodayPage({
           ))}
           {foldedTasks > 0 && (
             <button className="receipt-line" onClick={openDoor}>
-              <span className="rl-t">{capAfterNumber(`${foldedTasks} More still open`)}</span>
+              <span className="rl-t">{lineCase(`${foldedTasks} More still open`)}</span>
               <div className="chev" />
             </button>
           )}
@@ -797,8 +797,8 @@ export default function TodayPage({
         // only repeated the Re-plan pill beside it. The promise is the half
         // worth keeping: re-planning moves work to tomorrow, it deletes
         // nothing.
-        sub="Nothing lost"
-        action={{ label: "Re-plan", onClick: freshStart }}
+        sub="Nothing Lost"
+        action={{ label: "Re-Plan", onClick: freshStart }}
         // ROW-TAP (Dave 2026-09-15): the body opens the same re-plan sheet.
         onOpen={freshStart}
       />
@@ -1026,7 +1026,7 @@ export default function TodayPage({
         onOpenBlock={onOpenBlock}
         blendMap={blendMap}
         title={evening ? "Tonight" : "Your Day"}
-        emptyText={evening ? "Nothing else tonight" : "Nothing scheduled today"}
+        emptyText={evening ? "Nothing Else Tonight" : "Nothing Scheduled Today"}
         conflicts={conflicts}
         attachMap={attachMap}
         firstMoveMap={firstMoveMap}
@@ -1051,8 +1051,8 @@ export default function TodayPage({
           <div className="pad-x"><div className="card">
             <div className="week-recap">
               <div className="t-body">
-                <b>{weekly.things > 0 ? `${weekly.things} ${weekly.things === 1 ? "thing" : "things"} done` : "A quiet week"}</b>
-                {weekly.events > 0 ? ` across ${weekly.events} ${weekly.events === 1 ? "event" : "events"} this week.` : " this week."}
+                <b>{weekly.things > 0 ? lineCase(`${weekly.things} ${weekly.things === 1 ? "thing" : "things"} done`) : "A Quiet Week"}</b>
+                {weekly.events > 0 ? lineCase(` across ${weekly.events} ${weekly.events === 1 ? "event" : "events"} this week`) : " This Week"}
               </div>
               {weekly.bestDay && <div className="t-meta">{weekly.bestDay} was your biggest day.</div>}
             </div>

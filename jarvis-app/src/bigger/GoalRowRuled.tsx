@@ -1,6 +1,6 @@
 import type { Progress } from "./progress";
 import { TargetGlyph } from "../shared/glyphs";
-import { capAfterNumber, titleCase } from "../shared/casing";
+import { lineCase, titleCase } from "../shared/casing";
 import { CHECKIN_LABEL, type CheckinWord } from "./checkin";
 
 // THE GOAL ROW (Goals and Projects, Dave 2026-09-02: "One card, status
@@ -92,7 +92,7 @@ export default function GoalRowRuled({ title, tone, body, status, bar, kind, mov
         {(kind || moving > 0 || next || (!status && checkin)) && (
           <div className="r-k goal-sub">
             {kind && <span className={"gkind " + kind.hue}>{kind.text}</span>}
-            {moving > 0 && <span className="r-goal goal-proj">{capAfterNumber(`${moving} ${moving === 1 ? "project" : "projects"}`)}</span>}
+            {moving > 0 && <span className="r-goal goal-proj">{lineCase(`${moving} ${moving === 1 ? "project" : "projects"}`)}</span>}
             {next && <span className="r-next-in"><span className="r-next-k">Next</span><span className="r-next-v">{next}</span></span>}
             {!status && checkin && <span className={"r-goal fact" + (checkinKey ? " " + checkinKey : "")}>Check-in: {checkin}</span>}
           </div>

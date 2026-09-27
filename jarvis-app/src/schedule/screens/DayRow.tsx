@@ -14,6 +14,8 @@ import Provenance from "../../shared/ProvenanceLine";
 import { leaveByOf } from "../leaveBy";
 import { rowSource, type Source } from "../../shared/provenance";
 import { toneFor, type StateWord } from "../stateWord";
+import { lineCase } from "../../shared/casing";
+import { minutesLabel } from "../../shared/duration";
 
 // One event row on the Schedule day list. Same anatomy as before, plus the
 // roadmap-v2 basics: swipe left reveals Push 15 / Tomorrow (recurring events
@@ -430,7 +432,7 @@ export default function DayRow({
                   {/* Real minutes, a number with no state: white (F1), the
                       way a length that cannot be tapped already reads on
                       the meta line above. */}
-                  <b>{gymDoor.trainedMin} min</b>
+                  <b>{minutesLabel(gymDoor.trainedMin)}</b>
                 </div>
               ) : (
                 <>
@@ -444,13 +446,13 @@ export default function DayRow({
                   {gymDoor.facts && (
                     <div className="sched-cat">
                       <span className="sched-fact">
-                        <b>{gymDoor.facts.exercises} {gymDoor.facts.exercises === 1 ? "exercise" : "exercises"}</b>
+                        <b>{lineCase(`${gymDoor.facts.exercises} ${gymDoor.facts.exercises === 1 ? "exercise" : "exercises"}`)}</b>
                       </span>
                       {gymDoor.facts.estMin != null && (
-                        <span className="sched-fact">{sep}<span className="fact est">Est {gymDoor.facts.estMin} min</span></span>
+                        <span className="sched-fact">{sep}<span className="fact est">Est {minutesLabel(gymDoor.facts.estMin)}</span></span>
                       )}
                       {gymDoor.facts.lastTrained && (
-                        <span className="sched-fact">{sep}<span className="fact date">Last trained {gymDoor.facts.lastTrained}</span></span>
+                        <span className="sched-fact">{sep}<span className="fact date">Last Trained {gymDoor.facts.lastTrained}</span></span>
                       )}
                     </div>
                   )}

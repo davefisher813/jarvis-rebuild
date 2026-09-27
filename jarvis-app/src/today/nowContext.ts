@@ -6,6 +6,8 @@
 import type { EventItem } from "../schedule/types";
 import type { LockedRange } from "./YourDay";
 import { leaveByOf } from "../schedule/leaveBy";
+import { lineCase } from "../shared/casing";
+import { minutesLabel, spanLabel } from "../shared/duration";
 
 export interface NowContext {
   // THE TWO HALVES, SAID RATHER THAN PARSED (Dave 2026-09-11: "title case
@@ -54,13 +56,10 @@ const fmt12 = (min: number): string => {
   return m === 0 ? `${h12} ${ap}` : `${h12}:${String(m).padStart(2, "0")} ${ap}`;
 };
 
-// "2 hr 40 min" / "45 min" / "6 hr"
+// "2h 40m" / "45 Min" / "6h": the one duration shape (shared/duration.ts;
+// Dave 2026-09-26). The name stays for its callers.
 export function fmtSpan(min: number): string {
-  const h = Math.floor(min / 60);
-  const m = min % 60;
-  if (h === 0) return `${m} min`;
-  if (m === 0) return `${h} hr`;
-  return `${h} hr ${m} min`;
+  return spanLabel(min);
 }
 
 // The one self-updating line atop Today (item 10). Derived from the day's
@@ -98,7 +97,7 @@ export function nowContext(events: EventItem[], locked: LockedRange[], nowHHMM: 
 
   const next = slots.find((s) => s.s > now);
   if (!next) {
-    return { head: "Clear from here", tail: null, gapMin: null, nextStart: null, nextTitle: null, nextLeave };
+    return { head: "Clear From Here", tail: null, gapMin: null, nextStart: null, nextTitle: null, nextLeave };
   }
   const gap = next.s - now;
   // UP-CORE-07: when the next thing has to be travelled to, the free window
@@ -108,7 +107,7 @@ export function nowContext(events: EventItem[], locked: LockedRange[], nowHHMM: 
     const leaveMin = toMin(nextLeave.at);
     return {
       head: `Free until ${fmt12(leaveMin)}`,
-      tail: `Then leave for ${nextLeave.title}`,
+      tail: lineCase(`Then leave for ${nextLeave.title}`),
       gapMin: Math.max(0, leaveMin - now),
       nextStart: nextLeave.at,
       nextTitle: nextLeave.title,
@@ -117,7 +116,7 @@ export function nowContext(events: EventItem[], locked: LockedRange[], nowHHMM: 
   }
   return {
     head: `Free until ${fmt12(next.s)}`,
-    tail: `${fmtSpan(gap)} open`,
+    tail: `${fmtSpan(gap)} Open`,
     gapMin: gap,
     nextStart: `${String(Math.floor(next.s / 60)).padStart(2, "0")}:${String(next.s % 60).padStart(2, "0")}`,
     nextTitle: next.title,
@@ -225,7 +224,7 @@ export function hyperfocusGuard(events: EventItem[], nowHHMM: string): GuardLine
   const mins = next.s - now;
   const title = next.leaving ? `Leave for ${next.title}` : next.title;
   if (mins <= GUARD_WARN_MIN) {
-    return { text: `${title} in ${mins} min`, warn: true, title, when: `In ${mins} Min` };
+    return { text: `${title} in ${minutesLabel(mins)}`, warn: true, title, when: `In ${minutesLabel(mins)}` };
   }
   return { text: `${title} at ${fmt12(next.s)}`, warn: false, title, when: fmt12(next.s) };
 }

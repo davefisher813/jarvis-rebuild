@@ -4629,8 +4629,9 @@ describe("LAW 17: the Schedule head is two rows, the day starts at Now, and the 
     const src = page();
     expect(src, "the caps count eyebrow is gone").not.toMatch(/eyebrow count-line/);
     expect(src, "the head is the date and the arrows").toMatch(/<div className="sc-head">/);
+    // Casing sweep 2 (2026-09-27): the word after the span is Title Case.
     expect(src, "open time leads the fact line")
-      .toMatch(/if \(openMin > 0\) countLine\.push\(<span key="o"><b>\{gapLabel\(openMin\)\}<\/b> open<\/span>\);/);
+      .toMatch(/if \(openMin > 0\) countLine\.push\(<span key="o"><b>\{gapLabel\(openMin\)\}<\/b> Open<\/span>\);/);
     const facts = src.slice(src.indexOf("const countLine"), src.indexOf("return ("));
     expect(facts, "a block count is never pushed onto the line").not.toMatch(/blockCount\}<\/b>/);
     // On today the number counts FORWARD: an hour that has gone is not open.
@@ -5470,7 +5471,8 @@ describe("LAW: a count, never a run", () => {
     expect(page).toContain("doneCount");
     expect(repetitionsLine(0)).toBeNull();
     expect(repetitionsLine(MIN_TO_SHOW - 1)).toBeNull();
-    expect(repetitionsLine(14)).toBe("Done 14 times");
+    // Casing sweep 2 (2026-09-27): Title Case by the whole rule (§H2).
+    expect(repetitionsLine(14)).toBe("Done 14 Times");
   });
 
   it("a tick counts once a day however many times it is tapped, and Undo takes it back", () => {

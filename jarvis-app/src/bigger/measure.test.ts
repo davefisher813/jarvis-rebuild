@@ -65,7 +65,8 @@ describe("measureState: cadence", () => {
       reach: { filedIds: ["a"], taggedIds: [], openTagged: 0, progress: null },
       samples: [{ id: "a", t: NOW - 60000 }, { id: "a", t: NOW - 120000 }],
     });
-    expect(measureState(m, c)).toMatchObject({ done: 2, target: 3, met: false, line: "2 of 3 This week" });
+    // Casing sweep 2 (2026-09-27): Title Case by the whole rule (§H2); durations through shared/duration ("45 Min", "1h 30m").
+    expect(measureState(m, c)).toMatchObject({ done: 2, target: 3, met: false, line: "2 of 3 This Week" });
   });
   it("is met, not overflowed, past the target", () => {
     const c = ctx({
@@ -123,16 +124,16 @@ describe("paceLine (pick 14)", () => {
   const m: Measure = { kind: "count", target: 12 };
   const state = { done: 4, target: 12, pct: 33, met: false, line: "" };
   it("turns a date into a weekly rate, which is an estimate", () => {
-    expect(paceLine(state, m, "2026-09-21", TODAY)).toEqual({ when: "About 2 a week", tone: "est" });
-    expect(paceLine(state, m, "2026-09-14", TODAY)).toEqual({ when: "About 2.7 a week", tone: "est" });
+    expect(paceLine(state, m, "2026-09-21", TODAY)).toEqual({ when: "About 2 a Week", tone: "est" });
+    expect(paceLine(state, m, "2026-09-14", TODAY)).toEqual({ when: "About 2.7 a Week", tone: "est" });
   });
-  it("counts days when the date is close, without capitalizing the unit", () => {
-    expect(paceLine(state, m, "2026-08-30", TODAY)).toEqual({ when: "Due in 6 days", tone: "date" });
-    expect(paceLine(state, m, "2026-08-25", TODAY)).toEqual({ when: "Due tomorrow", tone: "warn" });
+  it("counts days when the date is close, with the unit cased like the line", () => {
+    expect(paceLine(state, m, "2026-08-30", TODAY)).toEqual({ when: "Due in 6 Days", tone: "date" });
+    expect(paceLine(state, m, "2026-08-25", TODAY)).toEqual({ when: "Due Tomorrow", tone: "warn" });
   });
   it("says today in amber, and says past in red", () => {
-    expect(paceLine(state, m, TODAY, TODAY)).toEqual({ when: "Due today", tone: "warn" });
-    expect(paceLine(state, m, "2026-08-20", TODAY)).toEqual({ when: "Past its date", tone: "red" });
+    expect(paceLine(state, m, TODAY, TODAY)).toEqual({ when: "Due Today", tone: "warn" });
+    expect(paceLine(state, m, "2026-08-20", TODAY)).toEqual({ when: "Past Its Date", tone: "red" });
   });
   it("never types a separator into the words", () => {
     for (const by of ["2026-09-21", "2026-08-30", "2026-08-25", TODAY, "2026-08-20"]) {
@@ -232,12 +233,12 @@ describe("to-date for new goals, to-go for committed ones (Life View pick 8)", (
   it("a young measure banks what is done already", () => {
     const since = new Date(NOW - 5 * DAY).toISOString().slice(0, 10);
     const c = ctx({ reach, samples: [{ id: "x", t: NOW - DAY }] });
-    expect(measureState({ kind: "count", target: 12, since }, c)!.line).toBe("1 Done already");
+    expect(measureState({ kind: "count", target: 12, since }, c)!.line).toBe("1 Done Already");
   });
   it("an established measure pulls with what is left", () => {
     const since = new Date(NOW - 40 * DAY).toISOString().slice(0, 10);
     const c = ctx({ reach, samples: [{ id: "x", t: NOW - DAY }] });
-    expect(measureState({ kind: "count", target: 12, since }, c)!.line).toBe("11 To go");
+    expect(measureState({ kind: "count", target: 12, since }, c)!.line).toBe("11 to Go");
   });
   it("a young measure with nothing banked stays neutral, never a zero brag", () => {
     const since = new Date(NOW - 5 * DAY).toISOString().slice(0, 10);

@@ -567,7 +567,7 @@ export default function TaskSheet({
                 {/* The learned median is an estimate the app worked out, so
                     it wears the key's sky (§AM, 2026-09-26), not the grey
                     the unset value beside it already wears. */}
-                {estimateMin === null && usualWord && <div className="conn-meta"><span className="fact est">Usually {usualWord} in this area</span></div>}
+                {estimateMin === null && usualWord && <div className="conn-meta"><span className="fact est">Usually {usualWord} in This Area</span></div>}
               </div>
               <HeadMenu variant="value" ariaLabel="Length" value={estimateMin === null ? "" : String(estimateMin)} label={lengthLabel} off={estimateMin === null}
                 options={[{ value: "", label: "None" }, ...DUR_CHOICES.map((m) => ({ value: String(m), label: durLabel(m) }))]}

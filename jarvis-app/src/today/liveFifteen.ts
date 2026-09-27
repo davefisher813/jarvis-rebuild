@@ -1,3 +1,5 @@
+import { minutesLabel } from "../shared/duration";
+
 // THE FIFTEEN, WHILE IT RUNS (Dave 2026-09-16: "All buttons need to do
 // something THAT ACTUALLY helps... I still haven't clicked a button and it
 // helped me in any single way on this home page").
@@ -128,7 +130,7 @@ export function fifteenFace(s: LiveFifteen, now: number = Date.now()): FifteenFa
     taskId: s.taskId,
     text: s.text,
     over: left === 0,
-    line: left === 0 ? `${s.minutes} Minutes up` : `${countdown(left)} Left`,
+    line: left === 0 ? `${minutesLabel(s.minutes)} Up` : `${countdown(left)} Left`,
   };
 }
 

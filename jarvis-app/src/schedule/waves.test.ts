@@ -52,14 +52,15 @@ describe("W1 · the repeats view", () => {
   });
 
   it("says the cadence the way a person would", () => {
-    expect(cadenceOf(ev("x", { recurrence: "daily" }).data)).toBe("Every day");
+    // Casing sweep 2 (2026-09-27): Title Case by the whole rule (§H2); durations through shared/duration ("45 Min", "1h 30m").
+    expect(cadenceOf(ev("x", { recurrence: "daily" }).data)).toBe("Every Day");
     expect(cadenceOf(ev("x", { recurrence: "weekly" }).data)).toBe("Every Thursday");
     expect(cadenceOf(ev("x", { recurrence: "monthly" }).data)).toBe("Monthly on the 20th");
     expect(cadenceOf(ev("x").data)).toBe("");
   });
 
   it("states 'no end date' out loud rather than leaving a blank", () => {
-    expect(endsLabel(ev("x", { recurrence: "daily" }).data)).toBe("No end date");
+    expect(endsLabel(ev("x", { recurrence: "daily" }).data)).toBe("No End Date");
     expect(endsLabel(ev("x", { recurrence: "daily", until: "2026-11-07" }).data)).toBe("Through Nov 7");
   });
 
@@ -163,7 +164,7 @@ describe("N5 · fix the overlap", () => {
   });
 
   it("says it in plain words", () => {
-    expect(overlapLine(overlapsOn(items, "2026-08-20")[0]!)).toBe("Call runs into Clinic by 30m");
+    expect(overlapLine(overlapsOn(items, "2026-08-20")[0]!)).toBe("Call Runs Into Clinic by 30 Min");
   });
 
   it("finds nothing when the day is clean", () => {

@@ -28,7 +28,8 @@ describe("routineBlockCandidate", () => {
     // the count moved to the sub.
     expect(c!.text).toMatch(/^Gym around 6 AM /);
     expect(c!.text).not.toMatch(/\u00b7/);
-    expect(c!.sub).toBe("3 Times this month");
+    // Casing sweep 2 (2026-09-27): Title Case by the whole rule (§H2); durations through shared/duration ("45 Min", "1h 30m").
+    expect(c!.sub).toBe("3 Times This Month");
     expect(c!.block).toMatchObject({ label: "Gym", startMin: 360, endMin: 420 });
     expect(c!.block.days.length).toBeGreaterThan(0);
   });

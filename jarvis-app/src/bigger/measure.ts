@@ -9,7 +9,7 @@ import type { MetricLog } from "../gym/metrics";
 import type { MetricMeasure } from "../gym/metricGoals";
 import { metricMeasureState } from "../gym/metricGoals";
 import { daysBetween } from "../upnext/upnext";
-import { capAfterNumber, lineCase } from "../shared/casing";
+import { lineCase } from "../shared/casing";
 import { clearsDoneAutomatically } from "./doneClearing";
 import type { PaceTone } from "./progress";
 
@@ -165,7 +165,7 @@ export function measureState(m: Measure | undefined, ctx: MeasureContext): Measu
     return {
       done, target, met: done >= target,
       pct: Math.round((done / target) * 100),
-      line: capAfterNumber(`${done} of ${target} milestones`),
+      line: lineCase(`${done} of ${target} milestones`),
     };
   }
 
@@ -176,7 +176,7 @@ export function measureState(m: Measure | undefined, ctx: MeasureContext): Measu
     return {
       done, target, met,
       pct: Math.min(100, Math.round((done / target) * 100)),
-      line: capAfterNumber(`${done} of ${target} this ${m.per}`),
+      line: lineCase(`${done} of ${target} this ${m.per}`),
     };
   }
 
@@ -217,9 +217,9 @@ export function measureState(m: Measure | undefined, ctx: MeasureContext): Measu
     if (m.since) {
       const age = (ctx.now - new Date(m.since + "T00:00:00").getTime()) / 86400000;
       if (age < COMMIT_DAYS) {
-        if (done > 0) return capAfterNumber(`${done} done already`);
+        if (done > 0) return lineCase(`${done} done already`);
       } else {
-        return capAfterNumber(`${target - done} to go`);
+        return lineCase(`${target - done} to go`);
       }
     }
     return lineCase(`${done} of ${target} done`);
@@ -269,14 +269,14 @@ export function paceLine(
   // week" becomes "2 A week" under the rule, and "6 days left" becomes
   // "6 Days left", which is the capitalized UNIT the rule's own exemption
   // list exists to avoid. Leading with a word instead costs nothing.
-  if (days < 0) return { when: "Past its date", tone: "red" };
-  if (days === 0) return { when: "Due today", tone: "warn" };
-  if (days === 1) return { when: "Due tomorrow", tone: "warn" };
-  if (days <= 14) return { when: `Due in ${days} days`, tone: "date" };
+  if (days < 0) return { when: "Past Its Date", tone: "red" };
+  if (days === 0) return { when: "Due Today", tone: "warn" };
+  if (days === 1) return { when: "Due Tomorrow", tone: "warn" };
+  if (days <= 14) return { when: `Due in ${days} Days`, tone: "date" };
   const weeks = days / 7;
   const per = Math.ceil((left / weeks) * 10) / 10;
   const rate = Number.isInteger(per) ? String(per) : per.toFixed(1);
-  return { when: `About ${rate} a week`, tone: "est" };
+  return { when: `About ${rate} a Week`, tone: "est" };
 }
 
 // --- PICK 15: HEALTH IS DERIVED, NEVER TYPED ------------------------------

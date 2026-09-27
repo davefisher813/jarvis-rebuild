@@ -18,11 +18,12 @@ describe("attachInfo + attachLabel", () => {
     const e = evt({ taskIds: ["a", "b", "gone"] });
     const info = attachInfo(e, [task("a", true), task("b")]);
     expect(info).toEqual({ total: 2, done: 1 });
-    expect(attachLabel(info!)).toBe("1 of 2 Tasks done");
+    // Casing sweep 2 (2026-09-27): Title Case by the whole rule (§H2); durations through shared/duration ("45 Min", "1h 30m").
+    expect(attachLabel(info!)).toBe("1 of 2 Tasks Done");
   });
   it("labels the none-done case without shame math", () => {
-    expect(attachLabel({ total: 2, done: 0 })).toBe("2 Tasks attached");
-    expect(attachLabel({ total: 1, done: 0 })).toBe("1 Task attached");
+    expect(attachLabel({ total: 2, done: 0 })).toBe("2 Tasks Attached");
+    expect(attachLabel({ total: 1, done: 0 })).toBe("1 Task Attached");
   });
   it("returns null with no surviving attachments", () => {
     expect(attachInfo(evt(), [])).toBeNull();

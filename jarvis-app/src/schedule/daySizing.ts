@@ -21,7 +21,7 @@ export function daySizing(prevMood?: string): DaySizing {
       light: true,
       maxBlocks: 4,
       extraSlackMin: 10,
-      note: "Yesterday ran heavy, so today is a lighter one on purpose: fewer blocks, more room to breathe.",
+      note: "Yesterday Ran Heavy, So Today Is a Lighter One on Purpose: Fewer Blocks, More Room to Breathe",
     };
   }
   return FULL_DAY;

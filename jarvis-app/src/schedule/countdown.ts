@@ -39,9 +39,9 @@ export type Rung = (typeof LADDER)[number];
 // the exact moment this whole ladder is building toward.
 export function ladderBody(lead: Rung, where?: string, firstMove?: string): string {
   const place = where?.trim() ? " · " + where.trim() : "";
-  if (lead === 60) return "In an hour" + place;
-  if (lead === 30) return "In half an hour" + place;
-  if (lead === 15) return "Fifteen minutes" + place;
-  return (firstMove?.trim() || "Leave what you're doing") + place;
+  if (lead === 60) return "In an Hour" + place;
+  if (lead === 30) return "In Half an Hour" + place;
+  if (lead === 15) return "Fifteen Minutes" + place;
+  return (firstMove?.trim() || "Leave What You're Doing") + place;
 }
 

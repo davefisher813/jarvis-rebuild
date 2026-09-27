@@ -1,7 +1,7 @@
 import type { TaskItem } from "./TasksService";
 import type { TaskData, Recurrence } from "../notes/types";
 import { daysBetween } from "../upnext/upnext";
-import { capAfterNumber } from "../shared/casing";
+import { lineCase } from "../shared/casing";
 
 // Lifecycle policy (ADHD strategy Phase 1): tasks age with dignity. Set Aside
 // clears the ancient-overdue graveyard, First Step targets the task that keeps
@@ -71,9 +71,9 @@ export const SLIDING_TAG = "Keeps Sliding";
  *  the chip then stands alone. */
 export function slidingLine(t: TaskItem, today: string): string | null {
   const slips = t.data.slips ?? 0;
-  if (slips >= FIRST_STEP_SLIPS) return capAfterNumber(`Pushed ${slips} times`);
+  if (slips >= FIRST_STEP_SLIPS) return lineCase(`Pushed ${slips} times`);
   const days = t.data.due ? daysBetween(t.data.due, today) : 0;
-  return days > 0 ? capAfterNumber(`${days} days late`) : null;
+  return days > 0 ? lineCase(`${days} days late`) : null;
 }
 
 // Dismissal memory (same shape as pattern dismissals): a dismissed First Step
@@ -149,5 +149,5 @@ export function backOnTrackMessage(data: TaskData, today: string): string | null
   const gap = daysBetween(last, today);
   if (gap <= intervalDays(rec) + 1) return null; // no gap, no ceremony
   if (prevLen < 3) return null; // a short run does not need a comeback story
-  return `Back on track · ${prevLen}-day run still counts`;
+  return `Back on Track · ${prevLen}-Day Run Still Counts`;
 }

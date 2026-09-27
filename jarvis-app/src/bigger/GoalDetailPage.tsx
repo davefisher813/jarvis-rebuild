@@ -16,7 +16,7 @@ import { haptics } from "../shared/haptics";
 import { fmtDay } from "../decisions/DecisionsFlow";
 import { formatMoney } from "../money/types";
 import { monthDay } from "../money/bills";
-import { capAfterNumber } from "../shared/casing";
+import { lineCase } from "../shared/casing";
 import { TargetGlyph, ForkGlyph, FolderGlyph, DollarGlyph } from "../shared/glyphs";
 import { FormSheet, Group, FieldRow, Note } from "../shared/FormSheet";
 import { distanceFor, todayISO } from "../tasks/grouping";
@@ -218,7 +218,7 @@ export default function GoalDetailPage({
             count; the grey belongs to the measure line under it, which is
             the card's one grey (§AK counts per card, not per line). Not
             green: the count includes projects that are behind. */}
-        {moving > 0 && goal.data.measure?.kind !== "projects" && <div className="facts"><span className="fact"><b>{capAfterNumber(`${moving} ${moving === 1 ? "project" : "projects"}`)}</b></span></div>}
+        {moving > 0 && goal.data.measure?.kind !== "projects" && <div className="facts"><span className="fact"><b>{lineCase(`${moving} ${moving === 1 ? "project" : "projects"}`)}</b></span></div>}
         {/* The ONLY place counts appear on this page. Honest null: a goal
             with no tasks under it yet draws no line instead of claiming 0%. A
             dollar target replaces the counts line with the DERIVED savings
@@ -259,7 +259,7 @@ export default function GoalDetailPage({
       {askCheckin && onCheckin && (
         <div className="pad-x"><div className="card pad goal-checkin">
           <div className="conn-name">How Is This Going?</div>
-          <div className="conn-meta">Nothing here can be measured yet</div>
+          <div className="conn-meta">Nothing Here Can Be Measured Yet</div>
           <div className="dec-outcome-acts">
             {(["ahead", "on_track", "behind"] as CheckinWord[]).map((w) => (
               <button type="button" key={w} className={"pill-act" + (checkin?.word === w ? " on" : "")} aria-pressed={checkin?.word === w} onClick={() => onCheckin(w)}>{CHECKIN_LABEL[w]}</button>
@@ -269,7 +269,7 @@ export default function GoalDetailPage({
               says only when, as a neutral date in small caps (§AM F5,
               2026-09-26). It was a receipt line, the tappable pile control,
               carrying the word, the date and two typed middle dots. */}
-          {checkin && <div className="facts"><span className="fact date">Checked in {monthDay(checkin.on)}</span></div>}
+          {checkin && <div className="facts"><span className="fact date">Checked In {monthDay(checkin.on)}</span></div>}
         </div></div>
       )}
 
@@ -315,11 +315,11 @@ export default function GoalDetailPage({
               </div>
             ))}
             {milestones.length === 0 && !addingMs && (
-              <div className="row"><div className="row-grow"><div className="conn-meta">No milestones yet</div></div></div>
+              <div className="row"><div className="row-grow"><div className="conn-meta">No Milestones Yet</div></div></div>
             )}
             {addingMs && onAddMilestone && (
               <div className="row" onClick={() => msInput.current?.focus()}>
-                <input ref={msInput} className="input" placeholder="The next step · Enter adds" value={msDraft} autoFocus
+                <input ref={msInput} className="input" placeholder="The Next Milestone · Enter Adds" value={msDraft} autoFocus
                   onChange={(e) => setMsDraft(e.target.value)}
                   onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); commitMs(); } if (e.key === "Escape") { setAddingMs(false); setMsDraft(""); } }}
                   onBlur={commitMs} />
@@ -377,7 +377,7 @@ export default function GoalDetailPage({
               title={p.data.title}
               glyphTone={"cat-fg-" + (p.data.category ? catColor(p.data.category) : "graphite")}
               next={nextActionTextOf(p.id)}
-              meter={row.progress ? capAfterNumber(`${row.progress.done} of ${row.progress.total} done`) : ""}
+              meter={row.progress ? lineCase(`${row.progress.done} of ${row.progress.total} done`) : ""}
               hold={holdLineOf?.(p.id) ?? null}
               status={projStatus(row)}
               bar={row.progress}
@@ -480,7 +480,7 @@ export default function GoalDetailPage({
               own facts line; the pointer is the one grey, on the line under
               it, never joined to the date by a typed middle dot. */}
           <div className="facts"><span className="fact date">Dropped {monthDay(goal.data.dropped.on)}</span></div>
-          {goal.data.dropped.decisionId && <div className="conn-meta">The reason is in your decisions</div>}
+          {goal.data.dropped.decisionId && <div className="conn-meta">The Reason Is in Your Decisions</div>}
         </div>
       )}
       {dropOpen && onDrop && (

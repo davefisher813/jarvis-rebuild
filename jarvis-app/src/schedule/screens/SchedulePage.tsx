@@ -27,8 +27,9 @@ const DROP_MINUTES = 60;
 
 // A protected block from Your Routine, rendered on the day it applies.
 import type { WeekRow } from "../weekRows";
-import { capAfterNumber } from "../../shared/casing";
+import { lineCase } from "../../shared/casing";
 import { spanShort, longestStretch, stretchLabel } from "../weekRows";
+import { spanLabel } from "../../shared/duration";
 
 export interface LockedRange { s: number; e: number; label: string; soft?: boolean; kind?: string; id?: string }
 
@@ -187,12 +188,10 @@ export default function SchedulePage({
   // real day instead of a hardcoded 8 AM to 9 PM (2026-08-10).
   windowStartMin?: number; windowEndMin?: number;
 }) {
-  // "1h 48m" / "45m": a gap states its size, because the size is what
-  // decides whether it is worth anything.
-  const gapLabel = (mins: number) => {
-    const h = Math.floor(mins / 60), m = mins % 60;
-    return h > 0 ? (m > 0 ? `${h}h ${m}m` : `${h}h`) : `${m}m`;
-  };
+  // "1h 48m" / "45 Min": a gap states its size, because the size is what
+  // decides whether it is worth anything. The one duration shape
+  // (shared/duration.ts; Dave 2026-09-26).
+  const gapLabel = (mins: number) => spanLabel(mins);
 
   const cells = monthMatrix(year, month);
   const n = dayEvents.length;
@@ -435,9 +434,9 @@ export default function SchedulePage({
   );
   const blockCount = entries.filter((en) => en.kind === "event" || en.kind === "locked").length;
   const countLine: React.ReactNode[] = [];
-  if (openMin > 0) countLine.push(<span key="o"><b>{gapLabel(openMin)}</b> open</span>);
-  else if (blockCount > 0) countLine.push(<span key="f">No open time</span>);
-  if (proposedBusy.length > 0) countLine.push(<span key="p"><b>{proposedBusy.length}</b> proposed</span>);
+  if (openMin > 0) countLine.push(<span key="o"><b>{gapLabel(openMin)}</b> Open</span>);
+  else if (blockCount > 0) countLine.push(<span key="f">No Open Time</span>);
+  if (proposedBusy.length > 0) countLine.push(<span key="p"><b>{proposedBusy.length}</b> Proposed</span>);
   if (countLine.length === 0) countLine.push(<span key="n">Nothing scheduled</span>);
   // The list as it renders: the fold, what it holds when it is open, the
   // rule, then the day ahead. Off today (a past or future date) nothing is
@@ -521,7 +520,7 @@ export default function SchedulePage({
           // B14: the sub described a future in which someone else had already
           // pressed a button elsewhere. The button is here now.
           <div className="empty-state"><div className="empty-title">Nothing Repeats Yet</div>
-            <div className="empty-sub">Set one once and it handles itself</div>
+            <div className="empty-sub">Set One Once and It Handles Itself</div>
             {/* WAVE 4, DUPLICATE DOORS (2026-08-29). This called the same
                 onNew as the bar's "New Event" three rows up, and its label
                 promised a repeating event that onNew does not create. A
@@ -751,7 +750,7 @@ export default function SchedulePage({
                     <div className="segmented">
                       {LATE_CHOICES.map((m) => (
                         <button className="seg" key={m} onClick={() => { setLateOpen(false); onRunningLate(m); }}>
-                          {m === 60 ? "1 hour" : `${m} min`}
+                          {spanLabel(m)}
                         </button>
                       ))}
                     </div>
@@ -792,8 +791,8 @@ export default function SchedulePage({
                         aria-hidden since an empty span has nothing to read
                         and the slot's own words already say what it is. */}
                     <span className="sched-open-plus" aria-hidden="true" />
-                    {gapLabel(toMin(en.end) - toMin(en.start))} open
-                    <span className="sched-gap-win">until {fmtTime(en.end).time} {fmtTime(en.end).ap}</span>
+                    {gapLabel(toMin(en.end) - toMin(en.start))} Open
+                    <span className="sched-gap-win">Until {fmtTime(en.end).time} {fmtTime(en.end).ap}</span>
                   </div>
                 </div>
               </button>
@@ -950,7 +949,7 @@ export default function SchedulePage({
               {/* No placeholder line (§AK): with nothing standing the row
                   says nothing under its name, and the view it opens says the
                   rest. */}
-              {repeats.length > 0 && <div className="r-k"><span className="r-goal r-cat">{capAfterNumber(`${repeats.length} standing`)}</span></div>}</div>
+              {repeats.length > 0 && <div className="r-k"><span className="r-goal r-cat">{lineCase(`${repeats.length} standing`)}</span></div>}</div>
             <div className="chev" />
           </div>
         </div></div>

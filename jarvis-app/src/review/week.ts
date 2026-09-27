@@ -178,8 +178,8 @@ export function buildWeek(inp: WeekInputs): WeekReport {
   // neither takes a colour. The words are the line's one grey and the two
   // counts are white.
   const learnedWords = [
-    learnedN > 0 ? `${learnedN} new ${plural(learnedN, "fact", "facts")}` : "",
-    starred > 0 ? `${starred} remembered` : "",
+    learnedN > 0 ? lineCase(`${learnedN} new ${plural(learnedN, "fact", "facts")}`) : "",
+    starred > 0 ? lineCase(`${starred} remembered`) : "",
   ].filter(Boolean).join(", ");
   if (learnedWords) lines.push({ key: "Learned", tone: "quiet", facts: [plain(lineCase(learnedWords))] });
 

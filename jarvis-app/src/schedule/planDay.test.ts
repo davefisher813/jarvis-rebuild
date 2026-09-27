@@ -266,10 +266,11 @@ describe("the placement ladder, said back (C-31)", () => {
     const why = (id: string) => plan.blocks.find((b) => b.taskId === id)!.why;
     // a: 9:00 to 9:30, in the peak, in front of Standup by more than a
     // quarter hour, so no "fits before".
-    expect(why("a")).toEqual(["Due today", "Moves Ship v2", "Your peak window"]);
+    // Casing sweep 2 (2026-09-27): Title Case by the whole rule (§H2); durations through shared/duration ("45 Min", "1h 30m").
+    expect(why("a")).toEqual(["Due Today", "Moves Ship v2", "Your Peak Window"]);
     // b: 9:40 to 10:10, past the peak, the same category as the pick before
     // it, and Standup starts the minute it ends.
-    expect(why("b")).toEqual(["Overdue", "Fits before Standup", "Same context as previous pick"]);
+    expect(why("b")).toEqual(["Overdue", "Fits Before Standup", "Same Context as Previous Pick"]);
     // c: after Standup, a different context, nothing to say.
     expect(why("c")).toEqual([]);
   });

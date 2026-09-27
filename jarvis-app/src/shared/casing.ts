@@ -12,7 +12,10 @@
 // renders the same string somewhere else. The string builders own their own
 // casing, and the law test scans for literals that break the rule.
 
-const SMALL = new Set(["a", "an", "and", "at", "by", "for", "from", "in", "of", "on", "or", "per", "the", "to", "with"]);
+// "as" joined the list in the second sweep (2026-09-27): the HIG casing law
+// already counted it small, and the rulebook's own example reads "Same as
+// This Block".
+const SMALL = new Set(["a", "an", "and", "as", "at", "by", "for", "from", "in", "of", "on", "or", "per", "the", "to", "with"]);
 
 // A "number word": 14, 1st, $500, 3x, 55. Leading punctuation counts as part
 // of it so "$500 of $2,000 saved" is treated as number-led too.

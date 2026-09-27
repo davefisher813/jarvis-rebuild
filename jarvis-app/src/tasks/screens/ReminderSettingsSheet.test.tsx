@@ -25,7 +25,8 @@ describe("ReminderSettingsSheet", () => {
     const onTest = vi.fn();
     const r = render(<ReminderSettingsSheet initial={DEFAULT_REMINDER_PREFS} native={false} permission="unsupported" onSave={() => {}} onTest={onTest} onCancel={() => {}} />);
     expect(screen.queryByText("Send a Test Reminder")).toBeNull();
-    expect(screen.getByText(/Alerts need the phone app/)).toBeInTheDocument();
+    // Casing sweep 2 (2026-09-27): Title Case by the whole rule (§H2); durations through shared/duration ("45 Min", "1h 30m").
+    expect(screen.getByText(/Alerts Need the Phone App/)).toBeInTheDocument();
     r.unmount();
     render(<ReminderSettingsSheet initial={DEFAULT_REMINDER_PREFS} native={true} permission="granted" onSave={() => {}} onTest={onTest} onCancel={() => {}} />);
     fireEvent.click(screen.getByText("Send a Test Reminder"));

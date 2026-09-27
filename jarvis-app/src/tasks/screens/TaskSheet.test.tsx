@@ -68,12 +68,13 @@ describe("TaskSheet", () => {
     render(<TaskSheet mode="new" categories={CATS} categoryMinutes={{ c1: 45 }} initial={{ category: "c1" }} onSave={onSave} onCancel={() => {}} />);
     const length = screen.getByLabelText("Length");
     expect(length.textContent).toContain("None");
-    expect(screen.getByText("Usually 45m in this area")).toBeInTheDocument();
+    // Casing sweep 2 (2026-09-27): Title Case by the whole rule (§H2); durations through shared/duration ("45 Min", "1h 30m").
+    expect(screen.getByText("Usually 45 Min in This Area")).toBeInTheDocument();
     fireEvent.click(length);
     fireEvent.click(screen.getByRole("menuitemradio", { name: /^1h 30m$/ }));
     expect(screen.getByLabelText("Length").textContent).toContain("1h 30m");
     // Once he has said, the area's usual is no longer the answer on offer.
-    expect(screen.queryByText("Usually 45m in this area")).not.toBeInTheDocument();
+    expect(screen.queryByText("Usually 45 Min in This Area")).not.toBeInTheDocument();
     fireEvent.change(screen.getByPlaceholderText("What needs doing?"), { target: { value: "Write the report" } });
     fireEvent.click(screen.getByText("Save"));
     expect(onSave.mock.calls[0]![0].estimateMin).toBe(90);

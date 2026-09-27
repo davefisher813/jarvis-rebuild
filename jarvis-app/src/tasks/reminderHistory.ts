@@ -125,6 +125,6 @@ export function scheduleAdvice(r: ReminderInfo): ScheduleAdvice {
 
 export function adviceLine(a: ScheduleAdvice): string | null {
   if (!a) return null;
-  if (a.kind === "snoozes") return `Snoozed the last ${a.count} times · Choose a better time?`;
-  return `Usually done around ${clockOf(a.time)} · Move it there?`;
+  if (a.kind === "snoozes") return `Snoozed the Last ${a.count} Times · Choose a Better Time?`;
+  return `Usually Done Around ${clockOf(a.time)} · Move It There?`;
 }

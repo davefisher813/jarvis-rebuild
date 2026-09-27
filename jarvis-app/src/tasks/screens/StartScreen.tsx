@@ -5,6 +5,7 @@ import { suggestStopPoint } from "../startStore";
 import { createPortal } from "react-dom";
 import { pressable } from "../../shared/pressable";
 import { useLeaveVia } from "../../shell/navOrigin";
+import { lineCase } from "../../shared/casing";
 
 // THE WORKING SURFACE (Start Now, 2026-09-16).
 //
@@ -201,7 +202,7 @@ export default function StartScreen({
           <div className="row" {...pressable(onStartTimer)}>
             <div className="row-grow">
               <div className="conn-name">Put It on the Day</div>
-              <div className="conn-meta">{timerLabel ?? "Books a block you can stop"}</div>
+              <div className="conn-meta">{timerLabel ?? "Books a Block You Can Stop"}</div>
             </div>
             <span className="pill-act">Start It</span>
           </div>
@@ -210,7 +211,7 @@ export default function StartScreen({
           <div className="row" {...pressable(onFinish)}>
             <div className="row-grow">
               <div className="conn-name">Finish This Task</div>
-              <div className="conn-meta">Ticks the task itself, separate from saving</div>
+              <div className="conn-meta">Ticks the Task Itself, Separate from Saving</div>
             </div>
             <span className="pill-act">Finish</span>
           </div>
@@ -230,27 +231,27 @@ export default function StartScreen({
   );
 }
 
-/** What was read, as one phrase: the first source as written, each later
- *  one after a comma with its first letter lowered. Only the grounding path
- *  returns two (the event or note it read, then "To" whoever it goes to), so
- *  a later source always opens on that small word: "to Marco". */
+/** What was read, as one phrase: the sources after a comma, cased as one
+ *  facts line (the whole rule, Dave 2026-09-26). Only the grounding path
+ *  returns two (the event or note it read, then "To" whoever it goes to):
+ *  "Source: Practice, To Marco". */
 function sourcePhrase(sources: StartSource[]): string {
-  return sources.map((s, i) => (i === 0 ? s.label : s.label.charAt(0).toLowerCase() + s.label.slice(1))).join(", ");
+  return lineCase(sources.map((s) => s.label).join(", "));
 }
 
 /** What the primary button will not do, said before it is pressed. */
 function truthOf(a: StartAction): string {
   switch (a.completion.saves) {
     case "draft":
-      return "Choosing who it goes to stays with you · Nothing is sent here";
+      return "Choosing Who It Goes to Stays with You · Nothing Is Sent Here";
     case "step_new":
-      return "Becomes the first step · The task stays open";
+      return "Becomes the First Step · The Task Stays Open";
     case "step_tick":
-      return "Ticks this step · The task stays open";
+      return "Ticks This Step · The Task Stays Open";
     case "note":
-      return "Saves onto this task · The task stays open";
+      return "Saves Onto This Task · The Task Stays Open";
     default:
-      return "Opens the real record · Nothing is changed";
+      return "Opens the Real Record · Nothing Is Changed";
   }
 }
 

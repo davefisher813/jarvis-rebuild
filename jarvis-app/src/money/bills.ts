@@ -2,11 +2,12 @@ import type { TaskItem } from "../tasks/TasksService";
 import { daysBetween } from "../upnext/upnext";
 import { addDays } from "../schedule/calendar";
 import { formatMoney } from "./types";
+import { lineCase } from "../shared/casing";
 
 // Money v1 bill language (2026-08-03). Pure functions; MoneyFlow renders them.
 // The laws these encode:
 // - Autopay NEVER says "paid": the app cannot know a payment cleared. It says
-//   "Set to autopay" ahead of time and "Autopay scheduled <date>" after.
+//   "Set to Autopay" ahead of time and "Autopay scheduled <date>" after.
 // - Manual payments get a dated receipt ("Paid Jul 28") derived from the
 //   completion tap, killing the did-I-already-pay loop honestly.
 // - Overdue is stated flat: "Was due 2 days ago" is information. On the row
@@ -101,22 +102,22 @@ export function billSubline(t: TaskItem, today: string): { text: string; state: 
     // long as activeBills keeps it. Without this it fell back to "Set to
     // autopay" on a date already gone.
     if (t.data.done && t.data.lastDone)
-      return { text: `Autopay scheduled ${monthDay(t.data.lastDone)}`, state: "paid" };
+      return { text: `Autopay Scheduled ${monthDay(t.data.lastDone)}`, state: "paid" };
     if (recentlyHandled(t, today) && t.data.lastDone && daysBetween(t.data.lastDone, today) <= 5)
-      return { text: `Autopay scheduled ${monthDay(t.data.lastDone)}`, state: "paid" };
-    if (due) return { text: "Set to autopay", when: dayPhrase(due, today), state: "autopay" };
-    return { text: "Set to autopay", state: "autopay" };
+      return { text: `Autopay Scheduled ${monthDay(t.data.lastDone)}`, state: "paid" };
+    if (due) return { text: "Set to Autopay", when: dayPhrase(due, today), state: "autopay" };
+    return { text: "Set to Autopay", state: "autopay" };
   }
   if (recentlyHandled(t, today) && t.data.lastDone)
     return { text: `Paid ${monthDay(t.data.lastDone)}`, state: "paid" };
   if (!due) return { text: "", state: "due" };
   const overdueBy = daysBetween(due, today);
   if (overdueBy > 0)
-    return { text: overdueBy === 1 ? "Was due yesterday" : `Was due ${overdueBy} days ago`, state: "overdue" };
+    return { text: overdueBy === 1 ? "Was Due Yesterday" : `Was Due ${overdueBy} Days Ago`, state: "overdue" };
   const gap = daysBetween(today, due);
-  if (gap === 0) return { text: "Due today", state: "due" };
-  if (gap === 1) return { text: "Due tomorrow", state: "due" };
-  if (gap <= 6) return { text: `Due in ${gap} days`, state: "due" };
+  if (gap === 0) return { text: "Due Today", state: "due" };
+  if (gap === 1) return { text: "Due Tomorrow", state: "due" };
+  if (gap <= 6) return { text: `Due in ${gap} Days`, state: "due" };
   return { text: `Due ${monthDay(due)}`, state: "due" };
 }
 
@@ -180,7 +181,7 @@ export function paydayLine(
   if (out === 0) return null;
   const when = dayPhrase(payday, today);
   return {
-    title: `Between now and ${when === "today" ? "payday (today)" : when}`,
-    sub: `${formatMoney(p.amount)} in, ${formatMoney(out)} of bills out`,
+    title: lineCase(`Between now and ${when === "today" ? "payday (today)" : when}`),
+    sub: lineCase(`${formatMoney(p.amount)} in, ${formatMoney(out)} of bills out`),
   };
 }

@@ -1,6 +1,8 @@
 import { eventLog } from "../events";
 import { catName } from "../shared/categories";
 import type { PatternObservation } from "./patterns";
+import { lineCase } from "../shared/casing";
+import { minutesLabel } from "../shared/duration";
 
 // Brain Personalization Phase 2 (2026-08-06). A sibling to patternObservation
 // (mood check-ins), not a replacement: same discipline, real repeated
@@ -104,8 +106,10 @@ export function planningPatternObservation(corrections: DurationCorrection[], no
   // renaming an area must not make the same observation look new and re-offer
   // a fact Dave has already answered.
   const id = `plan-dur-${longer ? "long" : "short"}-${best.category}`;
-  const text = longer
-    ? `${name} tasks run ${avg} min long`
-    : `${name} tasks finish ${avg} min early`;
+  // A suggestion card's line: Title Case by the whole rule, the length as
+  // the one duration shape (Dave 2026-09-26).
+  const text = lineCase(longer
+    ? `${name} tasks run ${minutesLabel(avg)} long`
+    : `${name} tasks finish ${minutesLabel(avg)} early`);
   return { id, text };
 }

@@ -79,7 +79,7 @@ export default function TrackerScreen({ onBack }: { onBack: () => void }) {
     setSeeding(false);
     if (!wrote) return;
     await reload();
-    showToast({ message: "September imported" });
+    showToast({ message: "September Imported" });
   };
 
   return (
@@ -175,7 +175,7 @@ function Dashboard({ month, onMonth, txs, data, onSaved }: {
     setAcct(null);
     await onSaved();
     showToast({
-      message: "Account deleted",
+      message: "Account Deleted",
       actionLabel: "Undo",
       onAction: async () => { await attemptWrite(() => svc.saveAccount(null, a.data)); await onSaved(); },
     });
@@ -340,7 +340,7 @@ function Transactions({ data, month, onSaved }: {
     setEditing(null);
     await onSaved();
     showToast({
-      message: "Transaction deleted",
+      message: "Transaction Deleted",
       actionLabel: "Undo",
       onAction: async () => { await attemptWrite(() => svc.saveTx(null, tx.data)); await onSaved(); },
     });
@@ -519,7 +519,7 @@ function Budgets({ month, onMonth, txs, data, onSaved }: {
     };
     if (!(await attemptWrite(() => svc.saveBudget(d)))) return;
     await onSaved();
-    showToast({ message: "Budget saved" });
+    showToast({ message: "Budget Saved" });
   };
 
   const rows = Object.entries(limits);
@@ -671,7 +671,7 @@ function Subscriptions({ data, onSaved }: { data: TrackerData; onSaved: () => Pr
     await onSaved();
     // The way back, the same shape every other delete in the app offers.
     showToast({
-      message: "Subscription deleted",
+      message: "Subscription Deleted",
       actionLabel: "Undo",
       onAction: async () => { await attemptWrite(() => svc.saveSub(null, sub.data)); await onSaved(); },
     });

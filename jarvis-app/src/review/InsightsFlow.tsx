@@ -132,7 +132,7 @@ export default function InsightsFlow({ onBack, onOpenTask, onOpenEntity, onOpenM
     if (!ok) return;
     setOffered(true);
     const ruleId = id;
-    showToast({ message: `Two blocks aimed at ${area} next week`, actionLabel: "Undo", onAction: () => void (async () => {
+    showToast({ message: lineCase(`Two blocks aimed at ${area} next week`), actionLabel: "Undo", onAction: () => void (async () => {
       if (ruleId) await attemptWrite(() => rulesSvc.delete(ruleId));
       setOffered(false);
     })() });
@@ -173,7 +173,7 @@ export default function InsightsFlow({ onBack, onOpenTask, onOpenEntity, onOpenM
           <div className="empty-state">
             <div className="empty-icon"><SunriseGlyph /></div>
             <div className="empty-title">The First Crossing Starts It</div>
-            <div className="empty-sub">Everything you achieve lands here, dated, forever</div>
+            <div className="empty-sub">Everything You Achieve Lands Here, Dated, Forever</div>
           </div>
         ) : (
           storyGroups.map((g) => (

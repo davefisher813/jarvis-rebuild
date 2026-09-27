@@ -39,10 +39,11 @@ describe("Schedule upload: a row with no time cannot be imported unreviewed", ()
       { title: "vs Eagles", month: 9, day: 12, year: 2026, start: null, end: null, location: "" },
       { title: "Practice", month: 9, day: 13, year: 2026, start: "17:00", end: "18:30", location: "" },
     ])), svc);
-    expect(screen.getByText(/No time found/)).toBeInTheDocument();
+    // Casing sweep 2 (2026-09-27): Title Case by the whole rule (§H2); durations through shared/duration ("45 Min", "1h 30m").
+    expect(screen.getByText(/No Time Found/)).toBeInTheDocument();
     const add = screen.getByText("Add 2 to Calendar");
     expect(add).toBeDisabled();
-    expect(screen.getByText(/1 Row has no time yet/)).toBeInTheDocument();
+    expect(screen.getByText(/1 Row Has No Time Yet/)).toBeInTheDocument();
     // Skipping the flagged row is the other way out, and it releases Add.
     fireEvent.click(screen.getAllByText("Skip")[0]!);
     await waitFor(() => expect(screen.getByText("Add 1 to Calendar")).toBeEnabled());
@@ -85,7 +86,7 @@ describe("Schedule upload: an import that fails partway says so and offers the w
       expect(screen.queryByText("Adding...")).not.toBeInTheDocument();
       expect(onDone).not.toHaveBeenCalled();
       const seen = toast as ToastState | null;
-      expect(seen?.message).toBe("Couldn't add them all · 1 Added before it stopped");
+      expect(seen?.message).toBe("Couldn't Add Them All · 1 Added Before It Stopped");
       expect(seen?.actionLabel).toBe("Undo");
       // The one that landed is really there, and Undo takes it back.
       expect(await svc.listEvents()).toHaveLength(1);

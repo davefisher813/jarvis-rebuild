@@ -73,7 +73,7 @@ export default function CategoriesFlow({ onBack }: { onBack: () => void }) {
     setSheet({ kind: "closed" });
     await reload();
     showToast({
-      message: name ? name + " deleted" : "Area deleted",
+      message: name ? name + " deleted" : "Area Deleted",
       actionLabel: "Undo",
       onAction: async () => {
         if (gone) await attemptWrite(() => categories.restore(id, gone));

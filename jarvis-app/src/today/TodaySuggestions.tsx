@@ -24,6 +24,7 @@ import { aiFailure, type AIFailure } from "../ai/failureLine";
 import { rankOpen } from "../upnext/upnext";
 import { Lightbulb } from "../shared/icons";
 import NoticeCard from "./NoticeCard";
+import { lineCase } from "../shared/casing";
 
 // Proactive nudges on Today, made actionable and polite:
 // - one AI call per day (cached on device), so no burn on every open
@@ -145,7 +146,7 @@ export default function TodaySuggestions({ ai, always = false }: { ai: AIService
         ...faded.slice(0, 1).map((s) => ({
           id: "stale-" + s.id,
           text: s.data.text,
-          sub: `Still true? Nothing has confirmed this in ${daysSince(s.data.lastConfirmed, today)} days`,
+          sub: lineCase(`Still true? Nothing has confirmed this in ${daysSince(s.data.lastConfirmed, today)} days`),
           stale: s,
         })),
       ];
@@ -200,7 +201,7 @@ export default function TodaySuggestions({ ai, always = false }: { ai: AIService
         // day getting remembered forever. aiFailureLine reads the proxy's
         // own upstream error, same message a real "Sign in again" or "Rate
         // limited" deserves rather than silence.
-        if (on) { setCache(null); setAiError(aiFailure(e, "Today's suggestions didn't come back")); }
+        if (on) { setCache(null); setAiError(aiFailure(e, "Today's Suggestions Didn't Come Back")); }
       }
     })();
     return () => { on = false; };
@@ -266,9 +267,9 @@ export default function TodaySuggestions({ ai, always = false }: { ai: AIService
     if (!ok) return;
     // createTask answers null on empty text without throwing, so the id, not
     // the absence of a throw, is what says a task exists.
-    if (!added) { showToast({ message: "Couldn't add that \u00b7 Try again" }); return; }
+    if (!added) { showToast({ message: "Couldn't Add That \u00b7 Try Again" }); return; }
     haptics.success();
-    if (added === "created") showToast({ message: "Added to your tasks" });
+    if (added === "created") showToast({ message: "Added to Your Tasks" });
     // Accepted vs dismissed is how the Brain learns what a "proper
     // suggestion" means for this user (durable log, Session 6.5).
     emit({ type: "suggestion.accepted", props: { kind: "ai" } });
@@ -321,9 +322,9 @@ export default function TodaySuggestions({ ai, always = false }: { ai: AIService
     haptics.success();
     showToast({
       message: landed === "created"
-        ? (replaced ? "JARVIS will remember that · It replaced what it thought before" : "JARVIS will remember that")
-        : landed === "refreshed" ? "JARVIS already knew · Receipts updated"
-          : "The Brain is full · Prune it in What JARVIS Knows",
+        ? (replaced ? "JARVIS Will Remember That · It Replaced What It Thought Before" : "JARVIS Will Remember That")
+        : landed === "refreshed" ? "JARVIS Already Knew · Receipts Updated"
+          : "The Brain Is Full · Prune It in What JARVIS Knows",
     });
     dismissPattern("brain-" + m.derivation, today);
     setMoments((cur) => cur.filter((x) => x.derivation !== m.derivation));
@@ -359,7 +360,7 @@ export default function TodaySuggestions({ ai, always = false }: { ai: AIService
       const stale = pattern.stale;
       if (!(await attemptWrite(async () => { await strandsSvc?.confirm(stale, today); }))) return;
       haptics.success();
-      showToast({ message: "Still true · JARVIS will keep leaning on it" });
+      showToast({ message: "Confirmed · JARVIS Will Keep Leaning on It" });
     } else if (pattern.routineBlock) {
       const block = pattern.routineBlock;
       const ok = await attemptWrite(async () => {
@@ -368,7 +369,7 @@ export default function TodaySuggestions({ ai, always = false }: { ai: AIService
       });
       if (!ok) return;
       emit({ type: "suggestion.accepted", props: { kind: "routine" } });
-      showToast({ message: "Added to your routine" });
+      showToast({ message: "Added to Your Routine" });
     } else if (pattern.moment && strandsSvc) {
       // The commit lands with weight: this is the hit the Brain exists for.
       if (!(await acceptMoment(pattern.moment))) return;
@@ -403,7 +404,7 @@ export default function TodaySuggestions({ ai, always = false }: { ai: AIService
         if (r && r !== "full") {
           landed = true;
           haptics.success();
-          showToast({ message: r === "created" ? "JARVIS will remember that" : "JARVIS already knew · Receipts updated" });
+          showToast({ message: r === "created" ? "JARVIS Will Remember That" : "JARVIS Already Knew · Receipts Updated" });
         }
       }
       if (!landed) {
@@ -413,7 +414,7 @@ export default function TodaySuggestions({ ai, always = false }: { ai: AIService
         });
         if (!ok) return;
         emit({ type: "suggestion.accepted", props: { kind: "pattern" } });
-        showToast({ message: "Saved to your Brain" });
+        showToast({ message: "Saved to Your Brain" });
       }
     }
     dismissPattern(pattern.id, today);
@@ -483,7 +484,7 @@ export default function TodaySuggestions({ ai, always = false }: { ai: AIService
     primary = !open ? (
       <div className="pad-x">
         <button className="receipt-line" onClick={() => setOpen(true)}>
-          <span className="rl-t">Couldn't check today's suggestions</span>
+          <span className="rl-t">Couldn't Check Today's Suggestions</span>
           <span className="chev" />
         </button>
       </div>
@@ -493,7 +494,7 @@ export default function TodaySuggestions({ ai, always = false }: { ai: AIService
          two weeks to a wrong error in 2026-09-02), and this card then handed
          it to the one slot that cannot hold it. A uniform card's sub is a
          single clamped nowrap line (.notice-card-uniform .conn-meta), so on
-         his phone it read "Today's suggestions didn't come back · Serv...",
+         his phone it read "Today's Suggestions Didn't Come Back · Serv...",
          and measured in the built app at 390x844 the shredded-sub latch
          dropped it outright: the reason was not on screen at all. Both are
          the same defect, and both throw away the half he can act on.
@@ -505,7 +506,7 @@ export default function TodaySuggestions({ ai, always = false }: { ai: AIService
       <NoticeCard
         icon={<Lightbulb className="ic" />}
         tone="cat-fg-slate"
-        title="Couldn't check today's suggestions"
+        title="Couldn't Check Today's Suggestions"
         foot={aiError.reason ? <div className="pad-x"><div className="notice-why">{aiError.reason}</div></div> : undefined}
         onDismiss={() => setAiError(null)}
       />

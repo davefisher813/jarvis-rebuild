@@ -1,4 +1,5 @@
 import type { EventItem, EventData } from "./types";
+import { spanLabel } from "../shared/duration";
 
 // Pure calendar logic shared by the service and the UI. No engine, no state.
 
@@ -270,15 +271,14 @@ export function daysBetween(from: string, to: string): number {
   return Math.round((b.getTime() - a.getTime()) / 86400000);
 }
 
-// Time as distance (roadmap v2): "in 40m", "in 2h 10m". Time blindness reads
-// distances, not clocks. Returns null when the moment has passed.
+// Time as distance (roadmap v2): "In 40 Min", "In 2h 10m". Time blindness
+// reads distances, not clocks. Returns null when the moment has passed. The
+// span is the one duration shape and the line is Title Case (Dave
+// 2026-09-26: the Now card's distance reads "In 25 Min").
 export function fmtDistance(startHHMM: string, nowHHMM: string): string | null {
   const diff = toMin(startHHMM) - toMin(nowHHMM);
   if (diff <= 0) return null;
-  if (diff < 60) return `in ${diff}m`;
-  const h = Math.floor(diff / 60);
-  const m = diff % 60;
-  return m === 0 ? `in ${h}h` : `in ${h}h ${m}m`;
+  return `In ${spanLabel(diff)}`;
 }
 
 // Minutes-from-midnight <-> "HH:MM", shared by the locked-block rows.

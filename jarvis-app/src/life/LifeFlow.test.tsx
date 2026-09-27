@@ -41,7 +41,8 @@ describe("LifeFlow", () => {
     // The empty state is a title and a sub now, not one string glued by a
     // typed dot (Colour Key, 2026-09-26).
     expect(await screen.findByText("No Areas Yet", {}, { timeout: 3000 })).toBeInTheDocument();
-    expect(screen.getByText("Add one in Settings > Categories")).toBeInTheDocument();
+    // Casing sweep 2 (2026-09-27): Title Case by the whole rule (§H2); durations through shared/duration ("45 Min", "1h 30m").
+    expect(screen.getByText("Add One in Settings > Categories")).toBeInTheDocument();
     expect(screen.queryByText("Money")).not.toBeInTheDocument();
     expect(document.querySelector(".pagehead-title")).toHaveTextContent("Life");
     const tabs = screen.getAllByRole("tab").map((t) => t.textContent);
@@ -118,7 +119,7 @@ describe("LifeFlow", () => {
     await screen.findByText("Build a Six-Month Runway", {}, { timeout: 3000 });
     // Folded: the finished goal is not on screen, only its count.
     expect(screen.queryByText("Get Health Insurance")).toBeNull();
-    const receipt = screen.getByText("1 Done goal");
+    const receipt = screen.getByText("1 Done Goal");
     fireEvent.click(receipt);
     const row = (await screen.findByText("Get Health Insurance")).closest(".goal-row-ruled") as HTMLElement;
     expect(row.querySelector(".gstat")).toHaveTextContent("Done");
@@ -144,7 +145,7 @@ describe("LifeFlow, the one ask", () => {
     const pill = await screen.findByRole("button", { name: "First Step" });
     expect(pill.closest(".one-ask-row .stream-card .notice-card")).toBeTruthy();
     expect(document.querySelector(".promo-card")).toBeNull();
-    expect(screen.getByText("Nothing is moving here")).toBeInTheDocument();
+    expect(screen.getByText("Nothing Is Moving Here")).toBeInTheDocument();
   });
 });
 

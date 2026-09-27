@@ -40,7 +40,8 @@ describe("SyllabusUploadFlow: the review row reads as facts (§AM)", () => {
   it("a row with no date says so in amber, and shows no date fact", async () => {
     const { undated } = await review();
     const warn = undated.querySelector(".conn-meta > .fact.warn");
-    expect(warn).toHaveTextContent("No date found");
+    // Casing sweep 2 (2026-09-27): Title Case by the whole rule (§H2); durations through shared/duration ("45 Min", "1h 30m").
+    expect(warn).toHaveTextContent("No Date Found");
     expect(undated.querySelector(".fact.date")).toBeNull();
     expect(undated.querySelector(".conn-meta")!.textContent).not.toMatch(/·|Task/);
   });

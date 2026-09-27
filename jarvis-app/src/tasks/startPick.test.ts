@@ -9,7 +9,8 @@ const T = (id: string, text: string, data: Partial<TaskData> = {}): TaskItem =>
 
 describe("topPick: which one, and never a made-up reason", () => {
   it("follows the app's own ranking, not a second opinion", () => {
-    const tasks = [T("a", "No date"), T("b", "Due today", { due: TODAY }), T("c", "Late", { due: "2026-09-10" })];
+    // Casing sweep 2 (2026-09-27): Title Case by the whole rule (§H2); durations through shared/duration ("45 Min", "1h 30m").
+    const tasks = [T("a", "No date"), T("b", "Due Today", { due: TODAY }), T("c", "Late", { due: "2026-09-10" })];
     expect(topPick(tasks, TODAY)?.task.id).toBe("c");
   });
 
@@ -105,11 +106,11 @@ describe("startReason: one line, and you can go and check it", () => {
   it("states the real date distance", () => {
     // capAfterNumber is the app's own convention for a line that opens on a
     // number, the same one the distance chips already wear.
-    expect(startReason({ task: T("a", "Send practice details", { due: "2026-09-14" }), resuming: false }, TODAY)).toBe("2 Days late");
+    expect(startReason({ task: T("a", "Send practice details", { due: "2026-09-14" }), resuming: false }, TODAY)).toBe("2 Days Late");
   });
 
   it("says he was already working on it when that is why", () => {
-    expect(startReason({ task: T("a", "x", { due: "2026-09-14" }), resuming: true }, TODAY)).toBe("You were already working on it");
+    expect(startReason({ task: T("a", "x", { due: "2026-09-14" }), resuming: true }, TODAY)).toBe("You Were Already Working on It");
   });
 
   // The line it used to give here was "Nothing else is closer to due", which
@@ -120,9 +121,9 @@ describe("startReason: one line, and you can go and check it", () => {
   });
 
   it("due today and due soon read as themselves", () => {
-    expect(startReason({ task: T("a", "x", { due: TODAY }), resuming: false }, TODAY)).toBe("Due today");
-    expect(startReason({ task: T("b", "x", { due: "2026-09-17" }), resuming: false }, TODAY)).toBe("Due in 1 day");
-    expect(startReason({ task: T("c", "x", { due: "2026-09-23" }), resuming: false }, TODAY)).toBe("Due in 7 days");
+    expect(startReason({ task: T("a", "x", { due: TODAY }), resuming: false }, TODAY)).toBe("Due Today");
+    expect(startReason({ task: T("b", "x", { due: "2026-09-17" }), resuming: false }, TODAY)).toBe("Due in 1 Day");
+    expect(startReason({ task: T("c", "x", { due: "2026-09-23" }), resuming: false }, TODAY)).toBe("Due in 7 Days");
   });
 
   it("no urgency, mood or energy anywhere in it", () => {

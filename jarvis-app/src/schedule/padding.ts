@@ -62,9 +62,9 @@ export function estimateFor(
 
 // Shown next to a padded number so it is never mistaken for a measurement.
 export function padNote(e: Estimate): string | null {
-  return e.learned ? null : "Padded · No history yet";
+  return e.learned ? null : "Padded · No History Yet";
 }
 
 export function learnedNote(e: Estimate): string | null {
-  return e.learned ? "Your usual" : null;
+  return e.learned ? "Your Usual" : null;
 }

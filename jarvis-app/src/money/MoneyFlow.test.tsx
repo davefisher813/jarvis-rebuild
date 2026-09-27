@@ -342,7 +342,8 @@ describe("Set Aside envelopes live on the profile (HMN-F-12)", () => {
     await waitFor(() => expect(screen.getByText("Gas")).toBeInTheDocument());
 
     fireEvent.click(screen.getByLabelText("Remove Gas"));
-    await waitFor(() => expect(seen).toContain("Set aside removed"));
+    // Casing sweep 2 (2026-09-27): Title Case by the whole rule (§H2); durations through shared/duration ("45 Min", "1h 30m").
+    await waitFor(() => expect(seen).toContain("Set Aside Removed"));
     await waitFor(async () => expect((await profRef!.get())!.envelopes).toEqual([]));
 
     undo?.();

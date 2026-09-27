@@ -1,7 +1,7 @@
 import type { TaskItem } from "../tasks/TasksService";
 import type { Project } from "../projects/types";
 import type { Goal } from "../life/types";
-import { capAfterNumber } from "../shared/casing";
+import { lineCase } from "../shared/casing";
 import { daysBetween } from "../upnext/upnext";
 import { clearsDoneAutomatically } from "./doneClearing";
 
@@ -57,7 +57,7 @@ export function projectProgress(tasks: TaskItem[], projectId: string): Progress 
 export type PaceTone = "red" | "warn" | "est" | "date";
 export interface PaceParts {
   count: string; // "3 of 8 Left"
-  when: string;  // "Due tomorrow", "About 2 a day from here"
+  when: string;  // "Due Tomorrow", "About 2 a Day from Here"
   tone: PaceTone;
 }
 
@@ -69,15 +69,15 @@ export function projectPaceParts(progress: Progress | null, due: string | undefi
   // The count reads "3 of 8 left" so the fraction is visible, and the rate
   // part leads with a WORD ("About 2 a day"), which is the same trick
   // paceLine uses to keep the number-lead casing law reading as English.
-  const count = capAfterNumber(`${left} of ${progress.total} left`);
-  if (days < 0) return { count, when: "Past its date", tone: "red" };
-  if (days === 0) return { count, when: "Due today", tone: "warn" };
-  if (days === 1) return { count, when: "Due tomorrow", tone: "warn" };
+  const count = lineCase(`${left} of ${progress.total} left`);
+  if (days < 0) return { count, when: "Past Its Date", tone: "red" };
+  if (days === 0) return { count, when: "Due Today", tone: "warn" };
+  if (days === 1) return { count, when: "Due Tomorrow", tone: "warn" };
   // Fewer things left than days: one a day is more than enough, and a rate
   // under one ("0.4 a day") is arithmetic nobody can act on.
   const perDay = left / days;
-  if (perDay <= 1) return { count, when: `Due in ${days} days`, tone: "date" };
-  return { count, when: `About ${Math.ceil(perDay)} a day from here`, tone: "est" };
+  if (perDay <= 1) return { count, when: `Due in ${days} Days`, tone: "date" };
+  return { count, when: `About ${Math.ceil(perDay)} a Day from Here`, tone: "est" };
 }
 
 // There is no joined form any more. projectPace returned "3 of 8 Left ·

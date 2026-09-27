@@ -100,7 +100,8 @@ describe("ReminderSheet", () => {
     expect(r.scheduleKind).toBe("unscheduled");
     expect(r.contextTrigger).toEqual({ kind: "onOpenArea", targetId: "c-bridge", cooldownMinutes: 1440, lastShownAt: null });
     expect(extra.category).toBe("c-bridge");
-    expect(extra.receipt).toBe("Reminder Set · When you open Bridge");
+    // Casing sweep 2 (2026-09-27): Title Case by the whole rule (§H2); durations through shared/duration ("45 Min", "1h 30m").
+    expect(extra.receipt).toBe("Reminder Set · When You Open Bridge");
   });
 
   it("After I Complete the Task needs a linked task, picked in the sheet", () => {

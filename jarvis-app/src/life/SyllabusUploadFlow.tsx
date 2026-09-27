@@ -7,7 +7,7 @@ import { JARVIS_VOICE } from "../ai/voice";
 import { encodeImageForVision } from "../shared/imageEncode";
 import { showToast } from "../shared/toast";
 import { WRITE_FAILED_MESSAGE, attemptWrite } from "../shared/guard";
-import { capAfterNumber } from "../shared/casing";
+import { lineCase } from "../shared/casing";
 import { weekdayShortDate } from "../shared/dateFormat";
 import { madeBy } from "../shared/provenance";
 import type { TasksService } from "../tasks/TasksService";
@@ -66,10 +66,10 @@ export default function SyllabusUploadFlow({
       // governed like everywhere else.
       const out = await ai.complete([message], JARVIS_VOICE);
       const found = parseSyllabusExtract(out);
-      if (!found) { showToast({ message: "Couldn't read that · Try a clearer photo" }); return; }
+      if (!found) { showToast({ message: "Couldn't Read That · Try a Clearer Photo" }); return; }
       afterExtract(found, year);
     } catch {
-      showToast({ message: "Couldn't reach JARVIS · Try again" });
+      showToast({ message: "Couldn't Reach JARVIS · Try Again" });
     } finally {
       setBusy(false);
     }
@@ -81,7 +81,7 @@ export default function SyllabusUploadFlow({
       setThumb(`data:${img.mediaType};base64,${img.data}`);
       await runExtract(buildVisionMessage(SYLLABUS_EXTRACT_PROMPT, img.data, img.mediaType));
     } catch {
-      showToast({ message: "Couldn't open that image \u00b7 Try another file" });
+      showToast({ message: "Couldn't Open That Image \u00b7 Try Another File" });
     }
   };
 
@@ -154,7 +154,7 @@ export default function SyllabusUploadFlow({
       // and a retry cannot write any row twice.
       if (done > 0) setRows((cur) => cur && cur.map((r) => (landed.has(r.key) ? { ...r, skip: true } : r)));
       showToast(done > 0
-        ? { message: capAfterNumber(`Couldn't add them all · ${done} added before it stopped`), actionLabel: "Undo", onAction: () => { void undo(); } }
+        ? { message: lineCase(`Couldn't add them all · ${done} added before it stopped`), actionLabel: "Undo", onAction: () => { void undo(); } }
         : { message: WRITE_FAILED_MESSAGE });
       return;
     }
@@ -200,7 +200,7 @@ export default function SyllabusUploadFlow({
             <img className="upload-thumb" src={thumb} alt="Uploaded syllabus" />
             <div className="row-grow">
               <div className="conn-name">{rows.length} {rows.length === 1 ? "item" : "items"} found</div>
-              <div className="conn-meta">Tap Task or Event to change one</div>
+              <div className="conn-meta">Tap Task or Event to Change One</div>
             </div>
           </div></div>
         )}
@@ -223,7 +223,7 @@ export default function SyllabusUploadFlow({
                     stylesheet still draws the dots between them. */}
                 <div className="conn-meta">
                   {r.noDate
-                    ? <span className="fact warn">No date found</span>
+                    ? <span className="fact warn">No Date Found</span>
                     : <span className="fact date">{weekdayShortDate(r.date)}</span>}
                   {r.kind === "event" && r.start && <span className="fact date">{r.start}</span>}
                   {r.weight && <span className="fact"><b>{r.weight}</b></span>}
@@ -239,7 +239,7 @@ export default function SyllabusUploadFlow({
             {/* A fact, not a blocker: an undated assignment is a real thing on
                 a syllabus, and it comes in with no date rather than a made-up
                 one. Saying so here is what keeps it from being a surprise. */}
-            <span>{capAfterNumber(`${undated} ${undated === 1 ? "item has" : "items have"} no date · They come in undated`)}</span>
+            <span>{lineCase(`${undated} ${undated === 1 ? "item has" : "items have"} no date · They come in undated`)}</span>
           </div></div>
         )}
         <div className="pad-x sheet-actions">
@@ -267,7 +267,7 @@ export default function SyllabusUploadFlow({
           </button>
           <div className="field">
             <div className="input-label">Or Paste It</div>
-            <textarea className="input input-multiline" rows={5} placeholder="Paste the Syllabus · a page or an email works" value={text} onChange={(e) => setText(e.target.value)} />
+            <textarea className="input input-multiline" rows={5} placeholder="Paste the Syllabus · A Page or an Email Works" value={text} onChange={(e) => setText(e.target.value)} />
           </div>
           <button className="btn btn-secondary btn-block" disabled={busy || !text.trim()}
             onClick={() => void runExtract({ role: "user", content: SYLLABUS_EXTRACT_PROMPT + "\n\nCONTENT:\n" + text.trim().slice(0, 12000) })}>

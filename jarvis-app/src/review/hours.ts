@@ -1,5 +1,6 @@
 import type { EventItem } from "../schedule/types";
 import { occursOn, minutesBetween } from "../schedule/calendar";
+import { spanLabel } from "../shared/duration";
 
 // WHERE THE HOURS WENT (Brain build handoff item 13; Dave took option A on
 // 2026-09-04: "in the monthly report you already get, as one more section").
@@ -156,10 +157,7 @@ export function hoursRows(byCategory: Record<string, number>): HoursRow[] {
  *  once there is an hour in it; "45m" and "0m" were the two shapes this
  *  label still printed against it. */
 export function hoursLabel(minutes: number): string {
-  const h = Math.floor(minutes / 60);
-  const m = minutes % 60;
-  if (h === 0) return `${m} Min`;
-  return m === 0 ? `${h}h` : `${h}h ${m}m`;
+  return spanLabel(minutes);
 }
 
 /**

@@ -496,7 +496,7 @@ export default function ReportFlow({ onBack, onOpenTask, month, live, onOpenEnti
     const ok = await attemptWrite(() => rules.create("tuning", "plan.cap", "day", "3", "Chosen from the monthly report: first picks finish, later picks mostly do not"));
     if (!ok) return;
     setCapped(true);
-    showToast({ message: "Capped at 3 · Starting tomorrow" });
+    showToast({ message: "Capped at 3 · Starting Tomorrow" });
   };
 
   const onDropTask = async (c: CarriedTask) => {
@@ -505,7 +505,7 @@ export default function ReportFlow({ onBack, onOpenTask, month, live, onOpenEnti
     if (!ok) return;
     await load();
     showToast({
-      message: "Task dropped",
+      message: "Task Dropped",
       actionLabel: "Undo",
       onAction: async () => {
         if (data) await attemptWrite(() => tasksSvc.recreateFrom(data));
@@ -543,7 +543,7 @@ export default function ReportFlow({ onBack, onOpenTask, month, live, onOpenEnti
         <div className="empty-state">
           <div className="empty-icon">{TARGET}</div>
           <div className="empty-title">No Month Sealed Yet</div>
-          <div className="empty-sub">Your first report arrives on the 1st, unannounced</div>
+          <div className="empty-sub">Your First Report Arrives on the 1st, Unannounced</div>
         </div>
       </div>
     );

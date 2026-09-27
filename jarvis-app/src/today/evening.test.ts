@@ -49,23 +49,24 @@ describe("eveningStats + eveningFacts", () => {
     expect(s).toEqual({ doneDue: 2, dueTotal: 3, eventsLeft: 1, openCount: 2, thingsDone: 3 });
     // SPEC MOVED (short copy, 2026-08-15); and again (§AM, 2026-09-26): facts,
     // the dot drawn by the page, what got done in the key's green.
-    expect(eveningFacts(s)).toEqual([{ text: "3 Done today", tone: "good" }, { text: "1 Left tonight" }]);
+    // Casing sweep 2 (2026-09-27): Title Case by the whole rule (§H2); durations through shared/duration ("45 Min", "1h 30m").
+    expect(eveningFacts(s)).toEqual([{ text: "3 Done Today", tone: "good" }, { text: "1 Left Tonight" }]);
   });
 
   it("Time Sense completions win over the due-today count when larger", () => {
     const s = eveningStats([], [task(true, TODAY)], TODAY, "19:00", 5);
     expect(s.thingsDone).toBe(5);
-    expect(eveningFacts(s)).toEqual([{ text: "5 Done today", tone: "good" }]);
+    expect(eveningFacts(s)).toEqual([{ text: "5 Done Today", tone: "good" }]);
   });
 
   it("leads with the win when the evening is clear", () => {
     const s = eveningStats([], [task(true, TODAY)], TODAY, "19:00");
-    expect(eveningFacts(s)).toEqual([{ text: "1 Done today", tone: "good" }]);
+    expect(eveningFacts(s)).toEqual([{ text: "1 Done Today", tone: "good" }]);
   });
 
   it("a truly clear evening says so, without inventing wins", () => {
     const s = eveningStats([], [], TODAY, "19:00");
-    expect(eveningFacts(s)).toEqual([{ text: "A clear evening" }]);
+    expect(eveningFacts(s)).toEqual([{ text: "A Clear Evening" }]);
   });
 
   it("never mentions what did not happen, and uses no em dashes", () => {
@@ -135,21 +136,21 @@ describe("eveningFacts and what moved (pick 4)", () => {
   // count yields (Your Day already lists what is left tonight).
   it("names the goal the day moved after the count, and the goal outranks the night", () => {
     expect(eveningFacts({ ...stats, eventsLeft: 1 }, "Moved Run a Half"))
-      .toEqual([{ text: "4 Done today", tone: "good" }, { text: "Moved Run a Half" }]);
+      .toEqual([{ text: "4 Done Today", tone: "good" }, { text: "Moved Run a Half" }]);
   });
   it("carries the night's count when no goal moved", () => {
     expect(eveningFacts({ ...stats, eventsLeft: 2 }, null))
-      .toEqual([{ text: "4 Done today", tone: "good" }, { text: "2 Left tonight" }]);
+      .toEqual([{ text: "4 Done Today", tone: "good" }, { text: "2 Left Tonight" }]);
   });
   it("never types a separator into a fact", () => {
     for (const f of eveningFacts({ ...stats, eventsLeft: 2 }, "Moved Run a Half")) expect(f.text).not.toContain("\u00b7");
   });
   it("says nothing extra when Time Sense saw nothing move", () => {
-    expect(eveningFacts(stats, null)).toEqual([{ text: "4 Done today", tone: "good" }]);
-    expect(eveningFacts(stats)).toEqual([{ text: "4 Done today", tone: "good" }]);
+    expect(eveningFacts(stats, null)).toEqual([{ text: "4 Done Today", tone: "good" }]);
+    expect(eveningFacts(stats)).toEqual([{ text: "4 Done Today", tone: "good" }]);
   });
   it("still leads with the win on a day that only moved a goal", () => {
-    expect(eveningFacts({ ...stats, thingsDone: 0 }, "Moved 2 goals")).toEqual([{ text: "Moved 2 goals" }]);
+    expect(eveningFacts({ ...stats, thingsDone: 0 }, "Moved 2 Goals")).toEqual([{ text: "Moved 2 Goals" }]);
   });
 });
 
@@ -205,14 +206,14 @@ describe("todayPlan: the day is scored against the plan, every time it is asked"
 
   it("leads with the win, and a finished plan is a sentence rather than a fraction", () => {
     const done = todayPlan(["a"], [pick("a", "One", true)])!;
-    expect(todayPlanLine(done)).toBe("The one you picked, done");
+    expect(todayPlanLine(done)).toBe("The One You Picked, Done");
     const all = todayPlan(["a", "b"], [pick("a", "One", true), pick("b", "Two", true)])!;
-    expect(todayPlanLine(all)).toBe("Everything you picked, done");
+    expect(todayPlanLine(all)).toBe("Everything You Picked, Done");
     const some = todayPlan(["a", "b"], [pick("a", "One", true), pick("b", "Two", false)])!;
     expect(todayPlanLine(some)).toBe("1 of 2 Done");
     const none = todayPlan(["a", "b"], [pick("a", "One", false), pick("b", "Two", false)])!;
     // Nothing done yet says what was picked, and never counts the misses.
-    expect(todayPlanLine(none)).toBe("2 Picked this morning");
+    expect(todayPlanLine(none)).toBe("2 Picked This Morning");
     expect(todayPlanLine(none)).not.toMatch(/left|missed|behind|failed/i);
   });
 

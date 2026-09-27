@@ -16,7 +16,8 @@ describe("Now Context (item 10)", () => {
   it("free time states the next commitment and the open span", () => {
     const ctx = nowContext([ev("Practice", "18:00", "19:30")], [], "15:20");
     expect(ctx.head).toBe("Free until 6 PM");
-    expect(ctx.tail).toBe("2 hr 40 min open");
+    // Casing sweep 2 (2026-09-27): Title Case by the whole rule (§H2); durations through shared/duration ("45 Min", "1h 30m").
+    expect(ctx.tail).toBe("2h 40m Open");
     expect(ctx.gapMin).toBe(160);
     expect(ctx.nextStart).toBe("18:00");
   });
@@ -31,13 +32,13 @@ describe("Now Context (item 10)", () => {
   it("protected routine blocks count as commitments", () => {
     const ctx = nowContext([], [{ s: 17 * 60, e: 18 * 60, label: "Dinner" }], "16:00");
     expect(ctx.head).toBe("Free until 5 PM");
-    expect(ctx.tail).toBe("1 hr open");
+    expect(ctx.tail).toBe("1h Open");
     expect(ctx.nextTitle).toBe("Dinner");
   });
 
   it("an empty rest-of-day is a clear fact, not a guess", () => {
     const ctx = nowContext([ev("Morning", "08:00", "09:00")], [], "20:00");
-    expect(ctx.head).toBe("Clear from here");
+    expect(ctx.head).toBe("Clear From Here");
     expect(ctx.tail).toBeNull();
     expect(ctx.gapMin).toBeNull();
   });
@@ -60,9 +61,9 @@ describe("Now Context (item 10)", () => {
   });
 
   it("spans format tight", () => {
-    expect(fmtSpan(45)).toBe("45 min");
-    expect(fmtSpan(120)).toBe("2 hr");
-    expect(fmtSpan(160)).toBe("2 hr 40 min");
+    expect(fmtSpan(45)).toBe("45 Min");
+    expect(fmtSpan(120)).toBe("2h");
+    expect(fmtSpan(160)).toBe("2h 40m");
   });
 });
 
@@ -75,7 +76,7 @@ describe("Leave By in the Now line and the guard", () => {
   it("free time ends at the leave time, and says what the leaving is for", () => {
     const ctx = nowContext([withTravel("Practice", "18:00", 20)], [], "15:20");
     expect(ctx.head).toBe("Free until 5:40 PM");
-    expect(ctx.tail).toBe("Then leave for Practice");
+    expect(ctx.tail).toBe("Then Leave for Practice");
     expect(ctx.nextLeave).toEqual({ at: "17:40", title: "Practice" });
     // The gap on offer is the time actually free, not the time until it starts.
     expect(ctx.gapMin).toBe(140);
@@ -84,7 +85,7 @@ describe("Leave By in the Now line and the guard", () => {
   it("an event with no travel time reads exactly as it always has", () => {
     const ctx = nowContext([ev("Practice", "18:00", "19:30")], [], "15:20");
     expect(ctx.head).toBe("Free until 6 PM");
-    expect(ctx.tail).toBe("2 hr 40 min open");
+    expect(ctx.tail).toBe("2h 40m Open");
     expect(ctx.nextLeave).toBeNull();
   });
 
@@ -92,7 +93,7 @@ describe("Leave By in the Now line and the guard", () => {
     expect(hyperfocusGuard([withTravel("Practice", "18:00", 20)], "15:00"))
       .toEqual({ text: "Leave for Practice at 5:40 PM", warn: false, title: "Leave for Practice", when: "5:40 PM" });
     expect(hyperfocusGuard([withTravel("Practice", "18:00", 20)], "17:32"))
-      .toEqual({ text: "Leave for Practice in 8 min", warn: true, title: "Leave for Practice", when: "In 8 Min" });
+      .toEqual({ text: "Leave for Practice in 8 Min", warn: true, title: "Leave for Practice", when: "In 8 Min" });
   });
 });
 
@@ -164,7 +165,7 @@ describe("Hyperfocus Guard (item 12)", () => {
 
   it("warns inside ten minutes, in minutes", () => {
     const g = hyperfocusGuard([ev("Practice", "18:00")], "17:52")!;
-    expect(g).toEqual({ text: "Practice in 8 min", warn: true, title: "Practice", when: "In 8 Min" });
+    expect(g).toEqual({ text: "Practice in 8 Min", warn: true, title: "Practice", when: "In 8 Min" });
   });
 
   it("nothing coming renders nothing", () => {

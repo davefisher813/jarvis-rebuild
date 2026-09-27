@@ -1,4 +1,5 @@
 import type { EventItem } from "./types";
+import { lineCase } from "../shared/casing";
 
 // A task the user wants to fit into today, with an estimated length.
 // windowS/windowE (6.7, softened 2026-08-09): an optional PREFERRED window
@@ -25,8 +26,8 @@ export interface PlanTask { id: string; text: string; category: string; duration
 // commit so the calendar can say which sitting a block is.
 // C-31: `why` is the placement ladder, said back. One fragment per rung the
 // block actually climbed, deterministic, in the order the ladder is written:
-// "Due today" / "Overdue", "Fits before {holder}", "Same context as previous
-// pick", "Moves {goal}", "Your peak window". Never a sentence, never a guess;
+// "Due Today" / "Overdue", "Fits before {holder}", "Same context as previous
+// pick", "Moves {goal}", "Your Peak Window". Never a sentence, never a guess;
 // a block with nothing to say carries an empty list.
 export interface PlanBlock { taskId: string; text: string; category: string; start: string; end: string; sitting?: number; outsideWindow?: boolean; overSoft?: string; why?: string[] }
 export interface DayPlan { blocks: PlanBlock[]; unplaced: PlanTask[] }
@@ -170,13 +171,13 @@ export function planDay(
     // C-31: the ladder, said back. Each fragment is a fact about THIS
     // placement the planner can stand behind.
     const why: string[] = [];
-    if (t.due === "today") why.push("Due today");
+    if (t.due === "today") why.push("Due Today");
     else if (t.due === "overdue") why.push("Overdue");
     const before = holderAfter(placedS + dur);
-    if (before) why.push(`Fits before ${before}`);
-    if (prevCategory !== null && prevCategory === t.category) why.push("Same context as previous pick");
+    if (before) why.push(lineCase(`Fits before ${before}`));
+    if (prevCategory !== null && prevCategory === t.category) why.push("Same Context as Previous Pick");
     if (t.goal && t.goal.trim()) why.push(`Moves ${t.goal.trim()}`);
-    if (opts.peak && placedS >= opts.peak.s && placedS < opts.peak.e) why.push("Your peak window");
+    if (opts.peak && placedS >= opts.peak.s && placedS < opts.peak.e) why.push("Your Peak Window");
     blocks.push({
       taskId: t.id, text: t.text, category: t.category,
       start: fromMin(s), end: fromMin(s + dur),

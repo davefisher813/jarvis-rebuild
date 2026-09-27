@@ -33,6 +33,7 @@ import type { ReactNode } from "react";
 // second one having to be built and, eventually, drift.
 
 import { toneFor, type StateWord } from "../stateWord";
+import { lineCase } from "../../shared/casing";
 
 export interface LockedRowRange {
   s: number;
@@ -92,9 +93,9 @@ export default function LockedRow({
   // contradicted it. Beside a word the kicker says only what the word
   // cannot: which senses a blend leaves free. With no word, it names the
   // kind itself.
-  const blend = "Can blend, " + freeOf(l).join(" and ") + " free";
+  const blend = lineCase("Can blend, " + freeOf(l).join(" and ") + " free");
   const kicker = state ? (m === "blends" ? blend : "")
-    : holds ? "Focus time"
+    : holds ? "Focus Time"
     : m === "blends" ? blend
     : l.soft ? "Flexible"
     : "Protected";

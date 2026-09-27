@@ -20,7 +20,7 @@ import { RepeatGlyph, WalletGlyph, TargetGlyph, DollarGlyph } from "../shared/gl
 import { TaskRow } from "../tasks/screens/TasksPage";
 import { daysBetween } from "../upnext/upnext";
 import { attemptWrite } from "../shared/guard";
-import { capAfterNumber, lineCase, titleCase } from "../shared/casing";
+import { lineCase, titleCase } from "../shared/casing";
 import { inMonth, thisMonth, incomeCents, spentCents, fmtCents, ENTITY_MONEY_TX } from "./tracker";
 import type { Goal } from "../life/types";
 import { savingsLine, savingsPct, savedTotal } from "../bigger/savings";
@@ -53,11 +53,11 @@ function billChip(t: TaskItem, today: string): { cls: string; text: string } | n
   const due = t.data.due;
   if (!b || b.autopay || !due) return null;
   const over = daysBetween(due, today);
-  if (over > 0) return { cls: "u-late", text: capAfterNumber(over === 1 ? "1 day late" : `${over} days late`) };
+  if (over > 0) return { cls: "u-late", text: lineCase(over === 1 ? "1 day late" : `${over} days late`) };
   const gap = daysBetween(today, due);
   if (gap === 0) return { cls: "u-today", text: "Today" };
   if (gap === 1) return { cls: "u-today", text: "Tomorrow" };
-  if (gap <= 6) return { cls: "u-today", text: `In ${gap} days` };
+  if (gap <= 6) return { cls: "u-today", text: `In ${gap} Days` };
   return null;
 }
 
@@ -276,7 +276,7 @@ export default function MoneyFlow({ onOpenTask, openAccountId, openNonce, onOpen
   const addSavings = async (g: Goal) => {
     const amt = Number(saveAmt);
     // Say WHY nothing happened, the same rule the envelope adder follows.
-    if (!isFinite(amt) || amt <= 0) { showToast({ message: "Needs an amount over zero" }); return; }
+    if (!isFinite(amt) || amt <= 0) { showToast({ message: "Needs an Amount Over Zero" }); return; }
     if (!goalsSvc) return;
     const d = todayISO();
     // HMN-F-09: the receipt below is a claim that the money landed, so it
@@ -309,7 +309,7 @@ export default function MoneyFlow({ onOpenTask, openAccountId, openNonce, onOpen
   const removeEnvelope = async (e: Envelope) => {
     const before = envelopes;
     if (!(await writeEnvelopes(envelopes.filter((x) => x.id !== e.id)))) return;
-    showToast({ message: "Set aside removed", actionLabel: "Undo", onAction: () => void writeEnvelopes(before) });
+    showToast({ message: "Set Aside Removed", actionLabel: "Undo", onAction: () => void writeEnvelopes(before) });
   };
   const today = todayISO();
 
@@ -339,7 +339,7 @@ export default function MoneyFlow({ onOpenTask, openAccountId, openNonce, onOpen
       const stored = await fileStore.upload(id, f);
       await filesSvc.update(id, { path: stored.path, name: stored.name, mime: stored.mime, bytes: stored.bytes });
       await loadReceipts();
-      showToast({ message: "Receipt added" });
+      showToast({ message: "Receipt Added" });
     } catch (e) {
       if (id) await filesSvc.remove(id).catch(() => undefined);
       showToast({ message: e instanceof Error && e.message ? e.message : "Couldn't upload that file." });
@@ -366,7 +366,7 @@ export default function MoneyFlow({ onOpenTask, openAccountId, openNonce, onOpen
   }, [fileStore, receipts]);
   const openReceipt = (r: UserFile) => {
     const url = receiptUrls[r.id];
-    if (!url) { showToast({ message: "Couldn't open that file \u00b7 Try again in a moment" }); return; }
+    if (!url) { showToast({ message: "Couldn't Open That File \u00b7 Try Again in a Moment" }); return; }
     window.open(url, "_blank", "noopener");
   };
   const removeReceipt = async (r: UserFile) => {
@@ -379,7 +379,7 @@ export default function MoneyFlow({ onOpenTask, openAccountId, openNonce, onOpen
     let undone = false;
     const sweep = setTimeout(() => { if (!undone) void fileStore?.remove([r.data.path]); }, 6000);
     showToast({
-      message: "Receipt removed", actionLabel: "Undo",
+      message: "Receipt Removed", actionLabel: "Undo",
       onAction: async () => { undone = true; clearTimeout(sweep); await attemptWrite(() => filesSvc.create(r.data)); await loadReceipts(); },
     });
   };
@@ -474,7 +474,7 @@ export default function MoneyFlow({ onOpenTask, openAccountId, openNonce, onOpen
         { kind: "receipt", pin: "pasteFallback" },
       );
       const read = parseReceiptExtract(out);
-      if (!read) { showToast({ message: "Couldn't read that \u00b7 Try a clearer photo" }); return; }
+      if (!read) { showToast({ message: "Couldn't Read That \u00b7 Try a Clearer Photo" }); return; }
       setBillSheet({
         kind: "paid",
         // The date it was paid: the receipt's own, or the day the file was
@@ -490,7 +490,7 @@ export default function MoneyFlow({ onOpenTask, openAccountId, openNonce, onOpen
         },
       });
     } catch {
-      showToast({ message: "Couldn't read that receipt \u00b7 Try again" });
+      showToast({ message: "Couldn't Read That Receipt \u00b7 Try Again" });
     } finally {
       setReading(null);
     }
@@ -528,7 +528,7 @@ export default function MoneyFlow({ onOpenTask, openAccountId, openNonce, onOpen
     // The refusal now SAYS so (2026-08-09): a control that eats taps in
     // silence reads as broken, not protective.
     if (state === "paid" && b.data.recurrence) {
-      showToast({ message: "Already paid · Next rolls in" });
+      showToast({ message: "Already Paid · Next Rolls In" });
       return;
     }
     if (!(await attemptWrite(() => tasksSvc.toggleDone(b.id)))) return;
@@ -547,7 +547,7 @@ export default function MoneyFlow({ onOpenTask, openAccountId, openNonce, onOpen
     if (!(await attemptWrite(() => tasksSvc.deleteTask(b.id)))) return;
     await reload();
     showToast({
-      message: "Bill deleted",
+      message: "Bill Deleted",
       actionLabel: "Undo",
       onAction: async () => {
         await attemptWrite(() => tasksSvc.createTask(gone.text, { due: gone.due ?? null, recurrence: gone.recurrence ?? undefined, bill: gone.bill }));
@@ -581,7 +581,7 @@ export default function MoneyFlow({ onOpenTask, openAccountId, openNonce, onOpen
     await reload();
     if (ok && t) {
       showToast({
-        message: "Task deleted",
+        message: "Task Deleted",
         actionLabel: "Undo",
         onAction: async () => {
           await attemptWrite(() => tasksSvc.recreateFrom(t));
@@ -625,7 +625,7 @@ export default function MoneyFlow({ onOpenTask, openAccountId, openNonce, onOpen
         const line = paid
           ? <span className="r-goal fact good">{lineCase(sub.text)}</span>
           : sub.state === "autopay"
-            ? <><span className="r-goal r-cat">{lineCase(sub.text)}</span>{sub.when && <span className="fact date">{sub.when}</span>}</>
+            ? <><span className="r-goal r-cat">{lineCase(sub.text)}</span>{sub.when && <span className="fact date">{lineCase(sub.when)}</span>}</>
             : b.data.due
               ? <span className="fact date">{"Due " + monthDay(b.data.due)}</span>
               : null;
@@ -831,7 +831,7 @@ export default function MoneyFlow({ onOpenTask, openAccountId, openNonce, onOpen
                         // used to eat the tap in silence on a blank name or
                         // zero amount, unlike every sheet in this module.
                         if (!envName.trim() || !isFinite(amt) || amt <= 0) {
-                          showToast({ message: !envName.trim() ? "Needs a name" : "Needs an amount over zero" });
+                          showToast({ message: !envName.trim() ? "Needs a Name" : "Needs an Amount Over Zero" });
                           return;
                         }
                         void (async () => {
@@ -903,7 +903,7 @@ export default function MoneyFlow({ onOpenTask, openAccountId, openNonce, onOpen
                     above it already wears. The count stays the one grey. */}
                 <div className="row">
                   <div className="row-grow"><span className="money-amt paid">{formatMoney(paidMonth.total)}</span></div>
-                  <span className="conn-meta">{lineCase(capAfterNumber(`${paidMonth.count} ${paidMonth.count === 1 ? "bill" : "bills"} in the app`))}</span>
+                  <span className="conn-meta">{lineCase(`${paidMonth.count} ${paidMonth.count === 1 ? "bill" : "bills"} in the app`)}</span>
                 </div>
               </div></div>
             </>
@@ -1036,7 +1036,7 @@ export default function MoneyFlow({ onOpenTask, openAccountId, openNonce, onOpen
             setSheet({ kind: "closed" });
             await reload();
             showToast({
-              message: "Account deleted",
+              message: "Account Deleted",
               actionLabel: "Undo",
               onAction: async () => { if (gone) await attemptWrite(() => svc.create(gone)); await reload(); },
             });
@@ -1061,7 +1061,7 @@ export default function MoneyFlow({ onOpenTask, openAccountId, openNonce, onOpen
             setBillSheet({ kind: "closed" });
             await reload();
             showToast({
-              message: "Bill deleted",
+              message: "Bill Deleted",
               actionLabel: "Undo",
               onAction: async () => {
                 if (gone) await attemptWrite(() => tasksSvc.createTask(gone.text, { due: gone.due ?? null, recurrence: gone.recurrence ?? undefined, bill: gone.bill }));
@@ -1085,7 +1085,7 @@ export default function MoneyFlow({ onOpenTask, openAccountId, openNonce, onOpen
             if (!(await attemptWrite(() => profileSvc.save({ payday: undefined })))) return;
             setPaydayOpen(false);
             await reload();
-            showToast({ message: "Payday removed", actionLabel: "Undo", onAction: () => void (async () => {
+            showToast({ message: "Payday Removed", actionLabel: "Undo", onAction: () => void (async () => {
               await attemptWrite(() => profileSvc.save({ payday: kept }));
               await reload();
             })() });

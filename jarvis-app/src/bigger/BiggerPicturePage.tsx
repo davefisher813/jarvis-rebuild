@@ -18,7 +18,7 @@ import GoalRowRuled from "./GoalRowRuled";
 import ProjectRowRuled from "./ProjectRowRuled";
 import RowActionSheet from "../shared/RowActionSheet";
 import { nextMilestone } from "./measure";
-import { capAfterNumber, titleCase } from "../shared/casing";
+import { lineCase, titleCase } from "../shared/casing";
 import { fmtDay } from "../decisions/DecisionsFlow";
 
 // YOUR LIFE (the Life Merge, Dave 2026-08-26: "it's stupid having them
@@ -175,7 +175,7 @@ export default function BiggerPicturePage({
         <div className="empty-state">
           <div className="empty-icon">{projectsLens ? FOLDER : TARGET}</div>
           <div className="empty-title">{projectsLens ? "No Projects Yet" : "No Goals Yet"}</div>
-          <div className="empty-sub">{projectsLens ? "A project is a few tasks with a finish" : "A goal is what the work is for"}</div>
+          <div className="empty-sub">{projectsLens ? "A Project Is a Few Tasks with a Finish" : "A Goal Is What the Work Is For"}</div>
           <button className="btn btn-primary" onClick={projectsLens ? onAddProject : onAddGoal}>{projectsLens ? "Add a Project" : "Add a Goal"}</button>
         </div>
       </div>
@@ -231,7 +231,7 @@ export default function BiggerPicturePage({
         glyphTone={"cat-fg-" + catColor(project.data.category ?? "")}
         next={next}
         goal={filed && !filed.data.dropped ? { title: filed.data.title, hue: goalHue } : null}
-        meter={progress ? capAfterNumber(`${progress.done} of ${progress.total} done`) : ""}
+        meter={progress ? lineCase(`${progress.done} of ${progress.total} done`) : ""}
         hold={hold}
         status={projStatus(row)}
         bar={progress}
@@ -253,7 +253,7 @@ export default function BiggerPicturePage({
         title={project.data.title}
         areaRef={ref}
         lead={nextActionTextOf?.(project.id) ? "Next: " + titleCase(nextActionTextOf(project.id)!) : holdLineOf?.(project.id) ?? null}
-        foot={progress ? capAfterNumber(`${progress.done} of ${progress.total} tasks`) : null}
+        foot={progress ? lineCase(`${progress.done} of ${progress.total} tasks`) : null}
         progress={progress}
         onOpen={() => onOpenProject(project.id)}
         menuLabel={"More for " + project.data.title}
@@ -285,7 +285,7 @@ export default function BiggerPicturePage({
         title={g.data.title}
         areaRef={ref}
         lead={lead}
-        foot={linked > 0 ? capAfterNumber(`${linked} linked ${linked === 1 ? "project" : "projects"}`) : null}
+        foot={linked > 0 ? lineCase(`${linked} linked ${linked === 1 ? "project" : "projects"}`) : null}
         progress={ms ? { done: ms.done, total: ms.target, pct: ms.pct } : null}
         onOpen={() => onOpenGoal(g.id)}
       />
@@ -413,7 +413,7 @@ export default function BiggerPicturePage({
   const projectTail = doneRows.length > 0 && view === "active" ? (
     <div className="pad-x"><div className="card list-card-ruled list-tail">
       <button className="receipt-line" onClick={() => setDoneOpen((v) => !v)}>
-        <span className="rl-t">{capAfterNumber(`${doneRows.length} Done ${doneRows.length === 1 ? "project" : "projects"}`)}</span>
+        <span className="rl-t">{lineCase(`${doneRows.length} Done ${doneRows.length === 1 ? "project" : "projects"}`)}</span>
         <div className="chev" />
       </button>
       {doneOpen && doneRows.map(pieRow)}
@@ -424,7 +424,7 @@ export default function BiggerPicturePage({
   const goalTail = doneGoals.length > 0 && view === "active" ? (
     <div className="pad-x"><div className="card list-card-ruled list-tail">
       <button className="receipt-line" onClick={() => setDoneGoalsOpen((v) => !v)}>
-        <span className="rl-t">{capAfterNumber(`${doneGoals.length} Done ${doneGoals.length === 1 ? "goal" : "goals"}`)}</span>
+        <span className="rl-t">{lineCase(`${doneGoals.length} Done ${doneGoals.length === 1 ? "goal" : "goals"}`)}</span>
         <div className="chev" />
       </button>
       {doneGoalsOpen && doneGoals.map(goalRowRuled)}
@@ -457,7 +457,7 @@ export default function BiggerPicturePage({
           scope={qq ? {
             count: projectsLens ? lensRows.length : viewGoals.length,
             where: `${(projectsLens ? PROJECT_VIEWS : GOAL_VIEWS).find((v) => v.key === view)?.label ?? "Active"} ${projectsLens ? "projects" : "goals"}`,
-            ...(view !== "all" ? { onAll: () => setView("all"), allLabel: projectsLens ? "Search all projects" : "Search all goals" } : {}),
+            ...(view !== "all" ? { onAll: () => setView("all"), allLabel: projectsLens ? "Search All Projects" : "Search All Goals" } : {}),
           } : undefined}
           // THE AREA, ON ITS OWN LINE (Dave 2026-09-17: "Make multiple
           // dropdown chips like areas... Stack dropdowns next to each

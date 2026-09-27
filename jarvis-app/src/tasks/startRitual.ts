@@ -1,5 +1,4 @@
 import { shortenToResponse, responseIsUsable, type IfThen } from "./ifThen";
-import { capAfterNumber } from "../shared/casing";
 
 // THE START RITUAL (C1, approved 2026-08-20).
 //

@@ -257,8 +257,8 @@ export default function RemindersPage({
       onView={(k) => onTab(k as PageTab)}
       scope={query.trim() ? {
         count: shownSections.reduce((n, sec) => n + sec.rows.length, 0),
-        where: `${PAGE_TABS.find((t) => t.key === tab)?.label ?? tab} reminders`,
-        ...(tab !== "done" ? { onAll: () => onTab("done"), allLabel: "Search Done too" } : {}),
+        where: `${PAGE_TABS.find((t) => t.key === tab)?.label ?? tab} Reminders`,
+        ...(tab !== "done" ? { onAll: () => onTab("done"), allLabel: "Search Done Too" } : {}),
       } : undefined}
       drops={areaIds.length > 0 ? (
         <HeadMenu
@@ -286,7 +286,7 @@ export default function RemindersPage({
       {shownSections.length === 0 && (
         <div className="pad-x"><div className="card list-card-ruled"><div className="empty-state">
           <div className="empty-title">{query ? "No Matches" : EMPTY_TITLE[tab]}</div>
-          {query && <div className="empty-sub">Nothing matches that.</div>}
+          {query && <div className="empty-sub">Nothing Matches That</div>}
           <button className="row row-act" onClick={onNew}><Plus className="ic" />Add a Reminder</button>
         </div></div></div>
       )}

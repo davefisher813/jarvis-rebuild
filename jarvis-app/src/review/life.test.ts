@@ -25,7 +25,8 @@ describe("goalEvidenceDays", () => {
 describe("comebackLine (the return is a win)", () => {
   it("names a return after a real gap with a real run behind it", () => {
     const days = ["2026-08-10", "2026-08-11", "2026-08-12", "2026-08-25"];
-    expect(comebackLine(days, T)).toBe("Back at it after 12 quiet days");
+    // Casing sweep 2 (2026-09-27): Title Case by the whole rule (§H2); durations through shared/duration ("45 Min", "1h 30m").
+    expect(comebackLine(days, T)).toBe("Back at It After 12 Quiet Days");
   });
   it("stays silent with no gap, no run, or a stale return", () => {
     expect(comebackLine(["2026-08-22", "2026-08-25"], T)).toBeNull(); // run of 1 before gap
@@ -37,8 +38,8 @@ describe("comebackLine (the return is a win)", () => {
 
 describe("heavyWord (difficulty reads as weight, never failure)", () => {
   it("speaks only for behind or idle with open work", () => {
-    expect(heavyWord("behind", true)).toBe("Heavy right now");
-    expect(heavyWord("idle", true)).toBe("Heavy right now");
+    expect(heavyWord("behind", true)).toBe("Heavy Right Now");
+    expect(heavyWord("idle", true)).toBe("Heavy Right Now");
     expect(heavyWord("behind", false)).toBeNull();
     expect(heavyWord("on_track", true)).toBeNull();
   });

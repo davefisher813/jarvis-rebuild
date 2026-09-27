@@ -134,7 +134,8 @@ describe("startAction: linked resources open the real thing", () => {
 
   it("a bill's own pay page is the opening move", () => {
     const a = startAction(task("Pay the water bill", { bill: { amount: 40 } }), {
-      resource: { kind: "url", id: "https://pay.example", label: "The pay page" },
+      // Casing sweep 2 (2026-09-27): Title Case by the whole rule (§H2); durations through shared/duration ("45 Min", "1h 30m").
+      resource: { kind: "url", id: "https://pay.example", label: "The Pay Page" },
     });
     expect(a.destination).toEqual({ kind: "url", id: "https://pay.example" });
     expect(a.verb).toBe("Open the Page");
@@ -147,13 +148,13 @@ describe("startAction: drafts are grounded or honest", () => {
       grounding: {
         lines: ["Hi everyone,", "Practice is Saturday at 2 PM."],
         sources: [{ kind: "event", id: "e1", label: "Source: Saturday practice" }],
-        missing: ["Location still needed"],
+        missing: ["Location Still Needed"],
       },
     });
     expect(a.kind).toBe("prepare_draft");
-    expect(a.ready).toBe("Editable message ready");
+    expect(a.ready).toBe("Editable Message Ready");
     expect(a.seed).toBe("Hi everyone,\n\nPractice is Saturday at 2 PM.");
-    expect(a.missing).toEqual(["Location still needed"]);
+    expect(a.missing).toEqual(["Location Still Needed"]);
     expect(a.completion.saves).toBe("draft");
     expect(a.completion.completesTask).toBe(false);
   });
@@ -162,7 +163,7 @@ describe("startAction: drafts are grounded or honest", () => {
     const a = startAction(task("Email Nadia about the invoice"));
     expect(a.kind).toBe("prepare_draft");
     expect(a.seed).toBe("");
-    expect(a.ready).toBe("Start the message");
+    expect(a.ready).toBe("Start the Message");
     expect(a.missing).toEqual([]);
   });
 
@@ -174,7 +175,7 @@ describe("startAction: drafts are grounded or honest", () => {
       const a = startAction(task("Reply to the failed build notice"), { fromEmailAddress: addr });
       expect(a.kind, addr).toBe("capture_next_action");
       expect(a.prompt, addr).toBe("Which error do you need to look at?");
-      expect(a.ready, addr).toBe("Capture the error to look at");
+      expect(a.ready, addr).toBe("Capture the Error to Look At");
     }
     // A real person on the same shaped task still gets the draft.
     const human = startAction(task("Reply to Nadia"), { fromEmailAddress: "nadia@school.org" });
@@ -195,7 +196,7 @@ describe("startAction: physical work and vague work", () => {
       // The answer is a QUESTION, and the title is never pasted into it.
       expect(a.prompt, title).toMatch(/\?$/);
       expect(a.prompt!.toLowerCase(), title).not.toContain(title.toLowerCase());
-      expect(a.ready, title).toBe("Start by naming the first step");
+      expect(a.ready, title).toBe("Start by Naming the First Step");
       expect(a.completion.saves, title).toBe("step_new");
       expect(a.completion.completesTask, title).toBe(false);
     }
@@ -238,7 +239,7 @@ describe("startAction: physical work and vague work", () => {
     const a = startAction(task("Clean up backend storage"));
     expect(a.kind).toBe("capture_next_action");
     expect(a.prompt).toBe("What is the first thing to look at?");
-    expect(a.ready).toBe("Start by naming the first step");
+    expect(a.ready).toBe("Start by Naming the First Step");
   });
 });
 

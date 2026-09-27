@@ -37,13 +37,14 @@ describe("planningPatternObservation", () => {
   it("reports a category that consistently runs longer than estimated", () => {
     const cs = [corr("work", 20), corr("work", 15), corr("work", 25)];
     const r = planningPatternObservation(cs, NOW);
-    expect(r).toEqual({ id: "plan-dur-long-work", text: "Work tasks run 20 min long" }); // SPEC MOVED (short copy, 2026-08-15)
+    // Casing sweep 2 (2026-09-27): Title Case by the whole rule (§H2); durations through shared/duration ("45 Min", "1h 30m").
+    expect(r).toEqual({ id: "plan-dur-long-work", text: "Work Tasks Run 20 Min Long" }); // SPEC MOVED (short copy, 2026-08-15)
   });
 
   it("reports a category that consistently wraps up faster than estimated", () => {
     const cs = [corr("errands", -10), corr("errands", -15), corr("errands", -20)];
     const r = planningPatternObservation(cs, NOW);
-    expect(r).toEqual({ id: "plan-dur-short-errands", text: "Errands tasks finish 15 min early" }); // SPEC MOVED
+    expect(r).toEqual({ id: "plan-dur-short-errands", text: "Errands Tasks Finish 15 Min Early" }); // SPEC MOVED
   });
 
   it("says nothing when the direction is not consistent (mixed signal, not a pattern)", () => {
@@ -96,7 +97,7 @@ describe("a duration observation never speaks a category id", () => {
   it("a live area is named the way the user named it", () => {
     setCategoryRegistry([{ id: MONEY, name: "Money", color: "green" }]);
     const r = planningPatternObservation(three(MONEY), NOW);
-    expect(r?.text).toBe("Money tasks run 25 min long");
+    expect(r?.text).toBe("Money Tasks Run 25 Min Long");
     expect(r?.text).not.toContain(MONEY);
   });
 
@@ -116,7 +117,7 @@ describe("a duration observation never speaks a category id", () => {
     const before = planningPatternObservation(three(MONEY), NOW);
     setCategoryRegistry([{ id: MONEY, name: "Finances", color: "green" }]);
     const after = planningPatternObservation(three(MONEY), NOW);
-    expect(after?.text).toBe("Finances tasks run 25 min long");
+    expect(after?.text).toBe("Finances Tasks Run 25 Min Long");
     expect(after?.id).toBe(before?.id);
     expect(after?.id).toBe("plan-dur-long-" + MONEY);
   });

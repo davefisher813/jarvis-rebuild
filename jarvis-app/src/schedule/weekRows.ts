@@ -3,6 +3,7 @@ import { eventsForDate, openSlots, minToHHMM } from "./calendar";
 import { durationOf } from "./dayEdit";
 import type { RoutineData } from "../routine/types";
 import { planWindowFor, protectedRangesFor, isFocusRange } from "../routine/types";
+import { spanLabel } from "../shared/duration";
 
 // THE WEEK (D2, approved 2026-09-01: "Week becomes seven day-rows with
 // capacity bars, not a seven-column grid and not a day picker"; the bar,
@@ -64,12 +65,10 @@ export function weekRowsFor(dates: string[], events: EventItem[], routine: Routi
   });
 }
 
-/** "11h 15m", "45m", "12h". */
+/** "11h 15m", "45 Min", "12h": the one duration shape (shared/duration.ts,
+ *  Dave 2026-09-26). The name stays for its callers. */
 export function spanShort(min: number): string {
-  const m = Math.max(0, Math.round(min));
-  const h = Math.floor(m / 60), r = m % 60;
-  if (h === 0) return `${m}m`;
-  return r ? `${h}h ${r}m` : `${h}h`;
+  return spanLabel(min);
 }
 
 /** The week's biggest open stretch among days not yet over: where a long

@@ -33,7 +33,8 @@ describe("it opens already planned", () => {
     expect(screen.getByText("Add These 3")).toBeInTheDocument();
     expect(document.querySelectorAll(".p3-time").length).toBe(3);
     // The quiet line replaces the coach cards.
-    expect(document.querySelector(".plan-load")!.textContent).toMatch(/3 picked/);
+    // Casing sweep 2 (2026-09-27): Title Case by the whole rule (§H2); durations through shared/duration ("45 Min", "1h 30m").
+    expect(document.querySelector(".plan-load")!.textContent).toMatch(/3 Picked/);
   });
 
   it("a single candidate seeds a plan of one, and the primary says so", () => {
@@ -63,7 +64,7 @@ describe("no silent caps, no dead chips", () => {
     fireEvent.click(screen.getByText("Call dentist"));
     fireEvent.click(screen.getByText("File taxes"));
     expect(document.querySelectorAll(".p3-row.on").length).toBe(5);
-    expect(document.querySelector(".plan-load")!.textContent).toMatch(/5 picked/);
+    expect(document.querySelector(".plan-load")!.textContent).toMatch(/5 Picked/);
   });
 
   it("every chip in the header row is a real control", () => {
@@ -140,9 +141,9 @@ describe("the engine's rules still hold at the sheet level", () => {
       { id: "w1", text: "Send sponsor recap", category: "work", suggested: false, overdue: false, windowS: 540, windowE: 1020 },
     ];
     render(sheet({ tasks: work, startMin: 1140, endMin: 1380 }));
-    expect(screen.queryByText("No room")).not.toBeInTheDocument();
+    expect(screen.queryByText("No Room")).not.toBeInTheDocument();
     expect(document.querySelector(".p3-time")!.textContent).toBe("7:00 PM");
-    expect(screen.getByText(/Outside its work hours/)).toBeInTheDocument();
+    expect(screen.getByText(/Outside Its Work Hours/)).toBeInTheDocument();
   });
 
   it("commits the planned blocks, including hand-set times, on Add", () => {
@@ -208,7 +209,7 @@ describe("the load line", () => {
     render(sheet());
     const fits = document.querySelector(".plan-load .fact.good");
     expect(fits, "a day that fits says it in green").not.toBeNull();
-    expect(fits!.textContent).toMatch(/fits/);
+    expect(fits!.textContent).toMatch(/Fits/);
     expect(document.querySelector(".plan-load .fact.red")).toBeNull();
     // 2026-09-26: the toned fact leads and the grey open time is last, so the
     // grey is what gives way on a narrow line, never the verdict.
@@ -223,15 +224,15 @@ describe("the load line", () => {
     render(sheet({ startMin: 9 * 60, endMin: 11 * 60, seed: { ids: ["t1", "t2", "t3"], minutes: { t1: 120, t2: 120, t3: 120 } } }));
     const over = document.querySelector(".plan-load .fact.red");
     expect(over, "a day that runs over says it in red").not.toBeNull();
-    expect(over!.textContent).toMatch(/over/);
+    expect(over!.textContent).toMatch(/Over/);
     expect(document.querySelector(".plan-load .fact.good")).toBeNull();
     // The red leads: at type scale 1.4 it was last and ellipsized to nothing.
     const line = document.querySelector(".plan-load")!;
     expect(line.firstElementChild).toBe(over);
     expect(line.lastElementChild!.textContent).toMatch(/open/);
-    // A pick with nowhere to go says "No room" in its time button's own
+    // A pick with nowhere to go says "No Room" in its time button's own
     // ink, never a red span inside it: the load line above carries the red.
-    const noRoom = screen.getAllByText("No room");
+    const noRoom = screen.getAllByText("No Room");
     expect(noRoom.length).toBe(2);
     noRoom.forEach((el) => expect(el).toHaveClass("p3-time-btn"));
     expect(document.querySelector(".p3-row .fact.red")).toBeNull();
@@ -254,14 +255,14 @@ describe("a picked row says one grey thing under its name", () => {
   it("the reason shows on a pick with no goal line", () => {
     render(sheet());
     // Book flights follows Email vendor, both work: the planner's reason.
-    expect(screen.getByText("Same context as previous pick")).toHaveClass("fact");
+    expect(screen.getByText("Same Context as Previous Pick")).toHaveClass("fact");
   });
 
   it("the reason stands down when the goal line is drawn", () => {
     const withGoal = TASKS.map((t) => (t.id === "t2" ? { ...t, goal: "Get Fit" } : t));
     render(sheet({ tasks: withGoal }));
     expect(screen.getByText("Moves Get Fit")).toBeInTheDocument();
-    expect(screen.queryByText("Same context as previous pick")).toBeNull();
+    expect(screen.queryByText("Same Context as Previous Pick")).toBeNull();
   });
 });
 
@@ -406,7 +407,7 @@ describe("Split It reaches the calendar as two sittings", () => {
     await waitFor(() => expect(screen.getByText("Split It")).toBeInTheDocument());
     fireEvent.click(screen.getByText("Split It"));
     // The sittings are one white number now (§AM F1), not "2 Sittings · 90m each".
-    expect(screen.getByText("2 × 90m")).toBeInTheDocument();
+    expect(screen.getByText("2 × 1h 30m")).toBeInTheDocument();
     // Two blocks now, and the button counts blocks.
     fireEvent.click(screen.getByText("Add These 2"));
     expect(got.length).toBe(1);

@@ -175,7 +175,7 @@ export default function ReminderSheet({
     const r = draft();
     const receipt = when === "time"
       ? (next ? "Reminder Set · " + whenLabel(next.date, next.time, today) : "Reminder Set")
-      : when === "area" ? "Reminder Set · When you open " + areaName
+      : when === "area" ? "Reminder Set · When You Open " + areaName
         : when === "task" ? "Reminder Set · After " + (link?.label ?? "the task")
           : "Reminder Saved · Unscheduled";
     onSave(name, r, { due: when === "time" && effRepeat.kind === "once" ? (effDay || today) : null, category, receipt });
@@ -196,9 +196,9 @@ export default function ReminderSheet({
     ? (effTime
       ? { head: `${effRepeat.kind === "once" ? "One Time" : describeRepeat(effRepeat)} at ${clock(effTime)}`, line: next ? "Next " + whenLabel(next.date, next.time, today) : `Starts ${effDay === today || !effDay ? "Today" : effDay === addDays(today, 1) ? "Tomorrow" : effDay}` }
       : null)
-    : when === "none" ? { head: "Unscheduled", line: "Sits in Upcoming with no timed alert" }
-      : when === "area" ? { head: areaName ? `When You Open ${areaName}` : "When You Open the Area", line: "An in-app prompt that never blocks you" }
-        : { head: link?.type === "task" ? `After ${link.label ?? "the Task"}` : "After You Complete the Task", line: "An in-app prompt that never blocks you" };
+    : when === "none" ? { head: "Unscheduled", line: "Sits in Upcoming with No Timed Alert" }
+      : when === "area" ? { head: areaName ? `When You Open ${areaName}` : "When You Open the Area", line: "An In-App Prompt That Never Blocks You" }
+        : { head: link?.type === "task" ? `After ${link.label ?? "the Task"}` : "After You Complete the Task", line: "An In-App Prompt That Never Blocks You" };
 
   return (
     <FormSheet title={mode === "edit" ? "Edit Reminder" : "New Reminder"} onCancel={onCancel} onSave={save} saveLabel={saving ? "Saving" : "Save"}>

@@ -22,6 +22,7 @@ import type { TaskData } from "../notes/types";
 import { breakdownPrompt, parseBreakdown } from "./breakdown";
 import { nextFreeSlot, addMinutes } from "../schedule/calendar";
 import { madeBy } from "../shared/provenance";
+import { lineCase } from "../shared/casing";
 
 // LIFE-F-15 (2026-09-05): this said five fields, though both callers hand it
 // a whole TaskItem. Undo of a Break It Down rebuilt the original from those
@@ -148,4 +149,4 @@ export async function undoBreakdown(
   if (original) await tasks.recreateFrom(original.data, original.id);
 }
 
-export const splitLine = (n: number): string => `Split into ${n} ${n === 1 ? "step" : "steps"}`;
+export const splitLine = (n: number): string => lineCase(`Split into ${n} ${n === 1 ? "step" : "steps"}`);

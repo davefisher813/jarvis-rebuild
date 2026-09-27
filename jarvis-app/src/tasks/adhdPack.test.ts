@@ -14,15 +14,16 @@ describe("B1 · the countdown ladder", () => {
   });
 
   it("changes tone as it closes: information, then instruction", () => {
-    expect(ladderBody(60)).toBe("In an hour");
-    expect(ladderBody(30)).toBe("In half an hour");
-    expect(ladderBody(5)).toBe("Leave what you're doing");
+    // Casing sweep 2 (2026-09-27): Title Case by the whole rule (§H2); durations through shared/duration ("45 Min", "1h 30m").
+    expect(ladderBody(60)).toBe("In an Hour");
+    expect(ladderBody(30)).toBe("In Half an Hour");
+    expect(ladderBody(5)).toBe("Leave What You're Doing");
     expect(ladderBody(15)).not.toBe(ladderBody(5)); // identical copy trains you to ignore it
   });
 
   it("carries the place when there is one", () => {
-    expect(ladderBody(30, "Zoom")).toBe("In half an hour · Zoom");
-    expect(ladderBody(30, "   ")).toBe("In half an hour");
+    expect(ladderBody(30, "Zoom")).toBe("In Half an Hour · Zoom");
+    expect(ladderBody(30, "   ")).toBe("In Half an Hour");
   });
 
 });
@@ -47,9 +48,9 @@ describe("B3 · padding an unlearned guess", () => {
   });
 
   it("never presents a pad as a measurement", () => {
-    expect(padNote({ minutes: 45, learned: false })).toBe("Padded · No history yet");
+    expect(padNote({ minutes: 45, learned: false })).toBe("Padded · No History Yet");
     expect(padNote({ minutes: 40, learned: true })).toBeNull();
-    expect(learnedNote({ minutes: 40, learned: true })).toBe("Your usual");
+    expect(learnedNote({ minutes: 40, learned: true })).toBe("Your Usual");
   });
 
   it("never pads to zero", () => {
@@ -66,11 +67,11 @@ describe("D1 · repetitions, not streaks", () => {
 
   it("is silent while the count is still noise", () => {
     expect(automaticityLine(automaticityOf(MIN_TO_SHOW - 1))).toBeNull();
-    expect(automaticityLine(automaticityOf(41))).toBe("Done 41 times · Most people are automatic around 59");
+    expect(automaticityLine(automaticityOf(41))).toBe("Done 41 Times · Most People Are Automatic Around 59");
   });
 
   it("says it is automatic once it is", () => {
-    expect(automaticityLine(automaticityOf(70))).toContain("automatic");
+    expect(automaticityLine(automaticityOf(70))).toContain("Automatic");
   });
 
   it("never mentions misses: a miss count is a streak in disguise", () => {
@@ -103,8 +104,8 @@ describe("E1 · the return", () => {
     const w = welcomeBack("2026-08-01", "2026-08-20", 6)!;
     expect(w.days).toBe(19);
     expect(w.title).toBe("Welcome Back");
-    expect(w.gone).toBe("6 things aged out on their own");
-    expect(w.ask).toBe("Start with one?");
+    expect(w.gone).toBe("6 Things Aged Out on Their Own");
+    expect(w.ask).toBe("Start With One?");
     expect([w.title, w.gone, w.ask].join(" ")).not.toMatch(/overdue|behind|missed/i);
   });
 
@@ -112,7 +113,7 @@ describe("E1 · the return", () => {
   // sentence, so no typed dot is baked in here for it to inherit.
   it("returns its parts, never a line joined with a typed dot", () => {
     const w = welcomeBack("2026-08-01", "2026-08-20", 1)!;
-    expect(w.gone).toBe("One thing aged out on their own");
+    expect(w.gone).toBe("One Thing Aged Out on Their Own");
     expect(Object.values(w).join(" ")).not.toMatch(/\u00b7/);
     expect(w).not.toHaveProperty("sub");
   });
@@ -122,7 +123,7 @@ describe("E1 · the return", () => {
   it("says nothing about what aged out when nothing did", () => {
     const w = welcomeBack("2026-08-01", "2026-08-20", 0)!;
     expect(w.gone).toBeNull();
-    expect(w.ask).toBe("Start with one?");
+    expect(w.ask).toBe("Start With One?");
   });
 
   it("triggers only past the away threshold", () => {

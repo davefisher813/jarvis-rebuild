@@ -21,6 +21,7 @@ import { onPressKey } from "../../shared/pressable";
 import { Tile, tapField } from "../../shared/FormSheet";
 import { Calendar, Tag, Hourglass, Shuffle, Timer, Link2, FileText, User, Plus, FolderKanban } from "../../shared/icons";
 import { CalendarGlyph, ClockGlyph, RepeatGlyph, PinGlyph, BarbellGlyph, SunGlyph } from "../../shared/glyphs";
+import { spanLabel } from "../../shared/duration";
 
 export type { SheetCategory };
 
@@ -326,7 +327,7 @@ export default function EventSheet({
   // A suggestion's two facts, drawn apart (§AM F2/F3): the start is a
   // neutral time, so small caps; the length is a number, so it steps up to
   // white. The dot between them is the stylesheet's, never the string's.
-  const sugLen = (min: number) => (min % 60 === 0 ? `${min / 60}h` : `${min}m`);
+  const sugLen = (min: number) => spanLabel(min);
 
   const durNow = end && toMin(end) > toMin(start) ? toMin(end) - toMin(start) : 0;
   const durOptions = DUR_CHOICES.map((m) => ({ value: String(m), label: durLabel(m) }));
@@ -448,7 +449,7 @@ export default function EventSheet({
           {err && !endInvalid && <div className="input-error xs-error">Needs title · Date · Start</div>}
           {conflict && !endInvalid && (
             <div className="input-hint xs-note">
-              <span className="fact warn">Overlaps another event</span>
+              <span className="fact warn">Overlaps Another Event</span>
               {suggestSlot && (
                 <button type="button" className="note-fix" onClick={() => {
                   const dur = durNow || 60;
