@@ -27,15 +27,22 @@ describe("YourDay", () => {
   // busy the day was. Dave: "I want the tv guide schedule to render at all
   // times on the home page. It looks awful the other way." The card is
   // always the card; only the MOTION is conditional.
-  it("keeps the card when the day fits, still and without the pause control", () => {
+  // AMENDED 2026-09-27 (Dave, on his phone at 8:51 PM with three rows left
+  // and the card standing still: "the tv guide scroller is gone again ...
+  // It should never be touched"). "Render at all times" means MOVE at all
+  // times: a short day is repeated until the loop has two windows to loop,
+  // and the pause control and the hint are there because it is moving.
+  it("moves even when the day fits, with the pause control and the hint", () => {
     const { container } = render(<YourDay events={[ev("a", "09:00")]} now="08:00" nowLabel="8:00" onSeeAll={() => {}} />);
     expect(screen.getByText("Your Day")).toBeInTheDocument();
     const card = container.querySelector(".sched-ticker");
     expect(card, "the card renders at all times").not.toBeNull();
-    expect(card!.className).toContain("ticker-still");
-    // Nothing is moving, so there is nothing to pause and nothing to explain.
-    expect(container.querySelector(".ticker-toggle")).toBeNull();
-    expect(container.querySelector(".ticker-hint")).toBeNull();
+    expect(card!.className, "and it moves").not.toContain("ticker-still");
+    const copies = container.querySelectorAll(".ticker-track:not(.day-measure) > *").length;
+    expect(copies, "an even number of copies, at least two").toBeGreaterThanOrEqual(2);
+    expect(copies % 2).toBe(0);
+    expect(container.querySelector(".ticker-toggle")).not.toBeNull();
+    expect(container.querySelector(".ticker-hint")).not.toBeNull();
   });
 
   it("shows an empty state when nothing is scheduled", () => {
@@ -64,8 +71,9 @@ describe("YourDay", () => {
     // estimate are separate runs, so each can wear its own ink. The count is
     // a number with no state, a white <b>; the estimate is the app's own
     // arithmetic, sky.
-    expect(screen.getByText("6 exercises").tagName).toBe("B");
-    expect(screen.getByText("Est 42 min")).toHaveClass("fact", "est");
+    // Casing sweep 2 (2026-09-27): Title Case by the whole rule (§H2); durations through shared/duration ("45 Min", "1h 30m").
+    expect(screen.getByText("6 Exercises").tagName).toBe("B");
+    expect(screen.getByText("Est 42 Min")).toHaveClass("fact", "est");
     fireEvent.click(screen.getByRole("button", { name: "Start Push Day" }));
     expect(started).toBe(1);
   });

@@ -180,6 +180,11 @@ Changes he chose:
 - A day count that runs forward ("3 days left") is amber; slipped is red.
 - "25 min last time" on the Event sheet is a one-tap fill for Travel.
 
+Dave, 2026-09-27, the Today TV guide: FROZEN. It moves at all times (a
+short day is repeated until the loop has two windows); Pause is for the
+visit. Never touched again unless he says so: `src/laws/tvGuide.test.ts`
+hashes `src/today/YourDay.tsx`'s marked region and the `.sched-ticker` CSS.
+
 ## Hard limits for any agent that edits
 
 - Edit ONLY the files you were assigned. If a fix needs another file, report

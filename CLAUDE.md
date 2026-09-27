@@ -12,7 +12,20 @@ to resume when his usage resets. **If he says "resume", start at
 questions to ask him first, the 581 pending findings, the ready-to-run
 workflow, and the pitfalls already hit. Do not re-audit from scratch.
 
-## The writing bar and iOS's accessory pill (Dave, 2026-09-15)
+## The Today TV guide is frozen (Dave, 2026-09-27)
+
+"For no reason are we ever getting rid of that. It should never be edited.
+It should never be touched. It was the one thing I was happy with the whole
+time." The scrolling day card on Today (`.sched-ticker` in
+`src/today/YourDay.tsx`, between the `TV GUIDE, FROZEN` and `END TV GUIDE`
+markers, and the matching block in `src/styles/components.css`) MOVES AT
+ALL TIMES: a day shorter than the window is repeated until the loop has two
+windows to loop; Pause holds it for the visit only. `src/laws/tvGuide.test.ts`
+hashes both regions and fails the build on any edit. Do not touch it, do
+not "improve" it, do not restyle the rows it contains through it, unless
+Dave says so in his own words, and then update the hash with his quote.
+
+
 
 When the keyboard is up in a document, two bars sit above the keys:
 

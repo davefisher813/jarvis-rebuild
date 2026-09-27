@@ -244,7 +244,12 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
 .today-summary { font-size: var(--t-meta); color: var(--tx-3); margin-top: var(--s-1); }
 
 /* Your Day auto-scroll ticker (catalog 19). CSS-driven loop + pause toggle. */
+/* === TV GUIDE, FROZEN (Dave 2026-09-27): nothing from here to END TV GUIDE
+   changes without his say-so; src/laws/tvGuide.test.ts hashes it. === */
 .sched-ticker { position: relative; height: 252px; overflow: hidden; }
+/* The one-frame twin the loop measures the day with: in the card, out of
+   sight, out of the flow. */
+.sched-ticker .day-measure { position: absolute; left: 0; right: 0; top: 0; visibility: hidden; pointer-events: none; animation: none; }
 .sched-ticker::before, .sched-ticker::after { content: ''; position: absolute; left: 0; right: 0; height: 32px; pointer-events: none; z-index: 2; }
 .sched-ticker::before { top: 0; background: linear-gradient(180deg, var(--surface-1) 0%, transparent 100%); }
 .sched-ticker::after { bottom: 0; background: linear-gradient(0deg, var(--surface-1) 0%, transparent 100%); }
@@ -275,6 +280,7 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
    mouse, where it is exactly right. */
 .sched-ticker.holding .ticker-track, .sched-ticker:active .ticker-track, .sched-ticker:hover .ticker-track { animation-play-state: paused; }
 @keyframes tickerScroll { from { transform: translateY(0); } to { transform: translateY(-50%); } }
+/* === END TV GUIDE === */
 @media (prefers-reduced-motion: reduce) { .ticker-track { animation: none; } }
 .ticker-toggle { width: 26px; height: 26px; border-radius: var(--r-circle); background: var(--press-3); border: 0; color: var(--tx-2); display: inline-flex; align-items: center; justify-content: center; padding: 0; flex-shrink: 0; cursor: pointer; }
 .ticker-toggle svg { width: 12px; height: 12px; fill: currentColor; }
