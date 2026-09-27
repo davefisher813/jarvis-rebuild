@@ -182,10 +182,11 @@ export default function DayRow({
   const area = catName(e.data.category);
   const sepLen = !!state || !!area;
   const sepRep = sepLen || mins != null;
-  const sepLoc = sepRep || !!rep;
+  const sepDist = sepRep || !!rep;
+  const sepLoc = sepDist || !!dist;
   const sepLeave = sepLoc || !!e.data.location;
   const sepMove = sepLeave || !!leaveBy;
-  const hasMeta = sepMove || !!firstMove;
+  const hasMeta = sepMove || !!firstMove || !!dist;
   const sep = <span className="sched-sep">&middot;</span>;
 
   return (
@@ -263,7 +264,7 @@ export default function DayRow({
         )}
         <div className="sched-body">
           <div className="sched-title">
-            {e.data.title}
+            <span className="sched-t">{e.data.title}</span>
             {conflict && (onFixOverlap && !selecting ? (
               <button
                 type="button"
@@ -274,7 +275,6 @@ export default function DayRow({
             ) : (
               <span className="sched-badge">Overlaps</span>
             ))}
-            {dist && <span className="sched-dist">{dist}</span>}
             {/* UP-CORE-08 (2026-09-05): the meeting's own page, one tap from
                 the row. The glyph says whether one already exists: filled
                 opens it, hollow makes it, titled and linked, with the
@@ -372,6 +372,17 @@ export default function DayRow({
             {rep && <span className="sched-fact">{sepRep && sep}<span className="sched-rep">{rep.charAt(0).toUpperCase() + rep.slice(1)}</span></span>}
             {/* The place joins the line instead of taking one of its own in
                 accent red. It is still the link it was. */}
+            {/* THE COUNTDOWN IS A FACT (Dave 2026-09-27, one row): "in 1h 19m"
+                sat inside the title, so on one line it was the title's own
+                width and cost the facts beside it their room. It is a fact
+                here, after the length and before the place, and gives way
+                like one. */}
+            {dist && (
+              <span className="sched-fact sched-fact-dist">
+                {sepDist && sep}
+                <span className="sched-dist">{dist}</span>
+              </span>
+            )}
             {e.data.location && (
               <span className="sched-fact sched-fact-loc">
                 {sepLoc && sep}

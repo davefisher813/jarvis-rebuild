@@ -761,39 +761,34 @@
    and a proposed row have none, and each rail belongs beside its own time.
    A leading control nobody adds here degrades to no lead, which is exactly
    where the rail sits today, so a miss is the old look and never a scramble. */
-/* D · THE TIME SITS ABOVE THE TITLE (Dave's pick 2026-09-21, from four
-   layouts rendered in the real app on his own day at both text sizes).
-
-   The row was five columns -- rail, star, a 62px time gutter, the body, a
-   44px chevron -- and the body got 152px of a 358px row. Two of four titles
-   on his day cut at the default size ("Drive to Ridgel...", "Fall Clinic
-   Walk..."), and at --type-scale 1.4 the meta line took three lines under a
-   title cut to "Drive to...". Reclaiming the chevron and the gaps bought 24
-   pixels and did not fix it, which is why the row stopped being five
-   columns.
-
-   The time, the star and the chevron take one line; the title and its facts
-   take the next, at the row's full width. Every title on his day is whole at
-   both sizes and the meta is one line at both. It costs about 30% of the
-   row's height: three rows where four used to show.
-
-   THE RAIL LEADS THE ROW NOW. It used to sit just past the time gutter,
-   which is why it needed to know what led the row (--sched-lead, and the
-   law that pinned that shape after a Remember star pushed the gutter right
-   and left the rail inside the digits). There is no gutter to sit past any
-   more: it is the row's left edge, ahead of everything, so nothing can get
-   in front of it and the lead machinery goes with the bug it existed for. */
-.ruled .sched-row { flex-wrap: wrap; row-gap: var(--s-0h); padding-left: calc(var(--s-4) + var(--s-3)); }
+/* C · TWO LINES: THE TIME AND THE TITLE ON THE FIRST, THE FACTS UNDER THE
+   TITLE (Dave's pick 2026-09-27, "We have allllll of this room laterally and
+   decided to stack everything on top of each other?", chosen from a rendered
+   comparison of four: the stacked row he photographed, two one-row layouts
+   and this).
+   The 2026-09-21 pick (D, the time on its own line above the title) put the
+   time alone on a line with the chevron and left the rest of that line
+   empty on every row. The time and the title share the first line now; the
+   title takes the room left after the time and ellipsizes, and the facts
+   line sits under the title, indented to it.
+   THE RAIL STILL LEADS THE ROW: it is the row's left edge, ahead of
+   everything, and nothing can get in front of it. */
+.ruled .sched-row { flex-wrap: nowrap; align-items: flex-start; row-gap: 0; padding-left: calc(var(--s-4) + var(--s-3)); }
 .ruled .sched-bar { width: 3px; border-radius: var(--r-xxs); left: var(--s-4); top: 7px; bottom: 7px; }
-.ruled .sched-row > .sched-time { width: auto; }
+.ruled .sched-row > .sched-time { width: auto; flex: 0 0 auto; }
 /* The chevron rides the end of the first line. Its paint is the line's
    height; its touch stays 44 the way every other small control in this app
    keeps one, with an expander that costs no layout. */
-.ruled .sched-row > .sched-grip { margin-left: auto; order: 0; min-height: 0; position: relative; }
+.ruled .sched-row > .sched-grip { margin-left: auto; order: 0; min-height: 0; min-width: 0; padding: 0; position: relative; align-self: flex-start; margin-top: 1px; }
 .ruled .sched-row > .sched-grip::after { content: ""; position: absolute; inset: -12px -8px; }
-.ruled .sched-row > .sched-body { order: 1; flex: 1 0 100%; }
+.ruled .sched-row > .sched-body { order: 0; flex: 1 1 0; min-width: 0; }
 .ruled .sched-body { padding-left: 0; }
-.ruled .sched-title { font-size: var(--t-name); font-weight: var(--w-name); letter-spacing: var(--track-name); margin-bottom: var(--s-1); }
+.ruled .sched-title { font-size: var(--t-name); font-weight: var(--w-name); letter-spacing: var(--track-name); margin-bottom: var(--s-0h);
+  display: flex; align-items: center; gap: var(--s-1h); min-width: 0; }
+/* The title's text is its own span so the controls beside it (Overlaps,
+   Join, the notes glyph) keep their place when a long title ellipsizes. */
+.ruled .sched-title > .sched-t { flex: 0 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ruled .sched-title > .sched-badge, .ruled .sched-title > .sched-join, .ruled .sched-title > .sched-notes { flex: 0 0 auto; margin-left: 0; }
 /* §AM F4: TWO SIZES CARRY SUBTEXT, 14 and 11 caps. This dropped the whole
    schedule meta line to 13, which made a third rung out of the one line in
    the app that most needed to be ordinary. It was kept on the theory that 14
@@ -828,23 +823,38 @@
    The length is a quiet fact on the meta line now, the place is a quiet
    link on the same line, and a block with no length says nothing at all
    (the time popover sets it). The capsule rule is retired with it. */
-/* THE PLACE GIVES, BUT NOT ALL OF ITSELF (2026-09-21). "everything else keeps
-   its width and the address ellipsizes into whatever is left" is the right
-   rule right up to the moment nothing is left: at --type-scale 1.4 the meta
-   line read "FIXED · Family ·" with a separator, a space and no address at
-   all -- 99% of "Ridgeline Fields" gone, and a dangling middot pointing at
-   nothing. 68% was gone at the default size too.
-   The line wraps now. A place that does not fit beside the facts takes the
-   line under them and ellipsizes into THAT, which is a whole line rather
-   than a remainder, and a separator can never be the last thing on a row. */
-.ruled .sched-cat { flex-wrap: wrap; min-width: 0; row-gap: 0; }
-/* margin-top -12px, not 0: BROWSER-F-03 (2026-09-05) gave .sched-loc a 12px
-   transparent border top and bottom so its hit area clears 44 without the
-   ellipsis clipping the expander, and the negative margin is what keeps that
-   border out of the layout. Zeroing it here put the 12px back into the meta
-   line and grew the row. Visually still "no top margin". */
+/* THE FACTS LINE IS ONE LINE, WHOLE FACTS ONLY (Dave's pick 2026-09-27, with
+   the two-line row). It used to wrap, which at 1.4x and on a long title
+   spent a third line on a stranded place name. A fact that does not fit
+   now drops off the end with everything after it (state, category, length,
+   repeat, countdown, then the place), never as a stub: the line wraps
+   inside a box one line tall, the dropped facts land two lines below it,
+   and the clip hides them while its one-line margin keeps the length's and the
+   place's 44 hits unclipped. The place is the one fact that shows part of
+   itself: it takes what is left of the line when at least 56px are left.
+   THE DOT GOES. The rail carries the category colour on every row; a
+   second swatch beside the name was 13px the line needed.
+   Only the body's own facts lines take this (the meta line and the
+   attachments line); the gym door's lines inside .sched-gym still wrap. */
+.ruled .sched-body > .sched-cat { display: flex; flex-wrap: wrap; align-items: center; align-content: flex-start; column-gap: var(--s-1h); row-gap: calc(var(--t-sub) * 2);
+  min-width: 0; max-height: calc(var(--t-sub) * 1.4); overflow: clip; overflow-clip-margin: var(--t-sub); }
+.ruled .sched-body > .sched-cat > .sched-fact { display: block; flex: 0 0 auto; white-space: nowrap; }
+.ruled .sched-body > .sched-cat > .fact.st { flex: 0 0 auto; }
+.ruled .sched-body > .sched-cat .sched-fact > * { display: inline; }
+.ruled .sched-body > .sched-cat .sched-fact > .sched-sep { margin-right: var(--s-1h); }
+.ruled .sched-body > .sched-cat .cat-dot { display: none; }
+.ruled .sched-body > .sched-cat > .sched-fact-dist { flex: 0 0 auto; }
+.ruled .sched-body > .sched-cat .sched-dist { margin-left: 0; }
+.ruled .sched-body > .sched-cat > .sched-fact-loc { display: flex; align-items: center; gap: var(--s-1h); flex: 1 1 56px; max-width: max-content; min-width: 0; }
+.ruled .sched-body > .sched-cat > .sched-fact-loc > .sched-sep { margin-right: 0; flex: 0 0 auto; }
+.ruled .sched-body > .sched-cat > .sched-fact-loc > .sched-firstmove { display: block; flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* margin -12px top AND bottom, not 0: BROWSER-F-03 (2026-09-05) gave .sched-loc
+   a 12px transparent border top and bottom so its hit area clears 44 without
+   the ellipsis clipping the expander, and the negative margins are what keep
+   that border out of the layout. On a one-line facts line both sides have
+   to be paid back, or the line is 31px tall. Visually still "no margin". */
 .ruled .sched-cat .sched-loc { color: var(--tx-3); font-weight: var(--w-regular); text-decoration: none;
-  margin-top: -12px; min-width: 0; flex: 0 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; }
+  margin-top: -12px; margin-bottom: -12px; min-width: 0; flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; }
 /* The gap: dashed --tx-4, no fill, the plus is the row's one verb mark. */
 .ruled .sched-gap { background: transparent; margin: 6px var(--s-4); padding: 8px var(--s-3); gap: var(--s-3); }
 .ruled .sched-gap .sched-time { width: calc(62px * var(--type-scale)); }

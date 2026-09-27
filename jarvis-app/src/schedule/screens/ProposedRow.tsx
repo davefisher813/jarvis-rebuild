@@ -88,18 +88,27 @@ export default function ProposedRow({
         )}
         <div className="sched-time">{t.time}<span className="ampm">{t.ap}</span></div>
         <div className="sched-body">
-          <div className="sched-title">{block.text}</div>
+          <div className="sched-title"><span className="sched-t">{block.text}</span></div>
           <div className="sched-cat">
-            <span className={"cat-dot cat-bg-" + slot} />
-            {catName(block.category)}
+            {/* Each fact its own unit, separator and all, like DayRow's
+                line (2026-09-27): the one-row layout drops facts from the
+                end one at a time, so a loose dot and a loose word cannot
+                be, and the state word leads the line the way it leads an
+                event row's (C-28). */}
             {/* The word does the work the dashes started. Its own segment, so
                 the dot-break casing law applies and it reads as a state, not
                 as part of the category name.
                 C-28 (Astra, 2026-09-12): and the word is the state word now,
                 in the closed vocabulary's own small caps. .prop-tag stays on
                 it for the rule that keeps live information off --tx-4. */}
-            <span className="sched-sep">&middot;</span>
-            <span className="prop-tag fact st gray">Proposed</span>
+            <span className="sched-fact">
+              <span className="prop-tag fact st gray">Proposed</span>
+            </span>
+            <span className="sched-fact">
+              <span className="sched-sep">&middot;</span>
+              <span className={"cat-dot cat-bg-" + slot} />
+              {catName(block.category)}
+            </span>
           </div>
         </div>
       </div>
