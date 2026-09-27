@@ -962,7 +962,9 @@ describe("LAW: the schedule rail leads the row, so nothing can get in front of i
     expect(bare, "the row does not wrap").toMatch(/\.ruled \.sched-row \{[^}]*flex-wrap: nowrap/);
     expect(bare, "and the body is the column beside the time")
       .toMatch(/\.ruled \.sched-row > \.sched-body \{[^}]*flex: 1 1 0/);
-    expect(bare, "the title ellipsizes on its line").toMatch(/\.ruled \.sched-title > \.sched-t \{[^}]*text-overflow: ellipsis/);
+    // AMENDED 2026-09-27 (Dave, "if we NEED 3 cuz of wrapping whatever"): the
+    // title wraps to a second line when it must and is clamped there.
+    expect(bare, "the title wraps to two lines, never an ellipsis").toMatch(/\.ruled \.sched-title > \.sched-t \{[^}]*-webkit-line-clamp: 2/);
     expect(bare, "and the facts line is one line of whole facts")
       .toMatch(/\.ruled \.sched-body > \.sched-cat \{[^}]*max-height: calc\(var\(--t-sub\) \* 1\.4\)/);
     // NO THIRD LINE (Dave 2026-09-27, "I don't want 3 fucking rows"): the

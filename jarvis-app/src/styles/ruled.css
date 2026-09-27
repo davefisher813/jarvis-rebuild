@@ -797,7 +797,11 @@
   display: flex; align-items: center; gap: var(--s-1h); min-width: 0; }
 /* The title's text is its own span so the controls beside it (Overlaps,
    Join, the notes glyph) keep their place when a long title ellipsizes. */
-.ruled .sched-title > .sched-t { flex: 0 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* The title WRAPS to a second line when it must (Dave 2026-09-27, "if we
+   NEED 3 cuz of wrapping whatever"), and is clamped there; it does not
+   ellipsize, the same two-line rule the task name wears (K.5). */
+.ruled .sched-title > .sched-t { flex: 0 1 auto; min-width: 0; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  overflow: hidden; white-space: normal; overflow-wrap: anywhere; }
 .ruled .sched-title > .sched-badge, .ruled .sched-title > .sched-join, .ruled .sched-title > .sched-notes { flex: 0 0 auto; margin-left: 0; }
 /* §AM F4: TWO SIZES CARRY SUBTEXT, 14 and 11 caps. This dropped the whole
    schedule meta line to 13, which made a third rung out of the one line in
@@ -842,8 +846,9 @@
    and the clip hides them while its one-line margin keeps the length's and the
    place's 44 hits unclipped. The place is the one fact that shows part of
    itself: it takes what is left of the line when at least 56px are left.
-   THE DOT GOES. The rail carries the category colour on every row; a
-   second swatch beside the name was 13px the line needed.
+   THE DOT STAYS: it is what sets the category apart from the line's one
+   grey (§AK, "the category is dotted"); without it the audit read
+   "Family · Ridgeline Fields" as two greys.
    Only the body's own facts lines take this (the meta line and the
    attachments line); the gym door's lines inside .sched-gym still wrap. */
 .ruled .sched-body > .sched-cat { display: flex; flex-wrap: wrap; align-items: center; align-content: flex-start; column-gap: var(--s-1h); row-gap: calc(var(--t-sub) * 2);
@@ -852,23 +857,25 @@
 .ruled .sched-body > .sched-cat > .fact.st { flex: 0 0 auto; }
 .ruled .sched-body > .sched-cat .sched-fact > * { display: inline; }
 .ruled .sched-body > .sched-cat .sched-fact > .sched-sep { margin-right: var(--s-1h); }
-.ruled .sched-body > .sched-cat .cat-dot { display: none; }
+.ruled .sched-body > .sched-cat .cat-dot { display: inline-block; vertical-align: middle; position: relative; top: -1px; margin-right: var(--s-1h); }
+/* inline-block, not inline: the length's ::after tap expander needs the button's own box (the 24 hit inside a row). */
+.ruled .sched-body > .sched-cat .sched-fact > .sched-until-btn { display: inline-block; }
 .ruled .sched-body > .sched-cat > .sched-fact-dist { flex: 0 0 auto; }
 /* The attachment count and the provenance ride the end of the line (Dave 2026-09-27, no third line). */
 .ruled .sched-body > .sched-cat > .sched-fact-attach, .ruled .sched-body > .sched-cat > .sched-fact-prov { flex: 0 0 auto; }
 .ruled .sched-body > .sched-cat > .sched-fact-attach > .clip-ic { width: 12px; height: 12px; vertical-align: -1px; margin-right: var(--s-1); }
 .ruled .sched-body > .sched-cat > .sched-fact-prov > .prov-line { display: inline; font-size: inherit; }
 .ruled .sched-body > .sched-cat .sched-dist { margin-left: 0; }
-.ruled .sched-body > .sched-cat > .sched-fact-loc { display: flex; align-items: center; gap: var(--s-1h); flex: 1 1 56px; max-width: max-content; min-width: 0; }
-.ruled .sched-body > .sched-cat > .sched-fact-loc > .sched-sep { margin-right: 0; flex: 0 0 auto; }
-.ruled .sched-body > .sched-cat > .sched-fact-loc > .sched-firstmove { display: block; flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* The place and the first move are whole or gone like every other fact
+   (2026-09-27, the audit counted a shortened place as a cut). */
+.ruled .sched-body > .sched-cat > .sched-fact-loc { display: block; flex: 0 0 auto; white-space: nowrap; }
 /* margin -12px top AND bottom, not 0: BROWSER-F-03 (2026-09-05) gave .sched-loc
-   a 12px transparent border top and bottom so its hit area clears 44 without
-   the ellipsis clipping the expander, and the negative margins are what keep
-   that border out of the layout. On a one-line facts line both sides have
-   to be paid back, or the line is 31px tall. Visually still "no margin". */
+   a 12px transparent border top and bottom so its hit area clears 44, and
+   the negative margins are what keep that border out of the layout. On a
+   one-line facts line both sides have to be paid back, or the line is 31px
+   tall. Visually still "no margin". */
 .ruled .sched-cat .sched-loc { color: var(--tx-3); font-weight: var(--w-regular); text-decoration: none;
-  margin-top: -12px; margin-bottom: -12px; min-width: 0; flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; }
+  margin-top: -12px; margin-bottom: -12px; white-space: nowrap; display: inline-block; }
 /* The gap: dashed --tx-4, no fill, the plus is the row's one verb mark. */
 .ruled .sched-gap { background: transparent; margin: 6px var(--s-4); padding: 8px var(--s-3); gap: var(--s-3); }
 .ruled .sched-gap .sched-time { width: calc(62px * var(--type-scale)); }
