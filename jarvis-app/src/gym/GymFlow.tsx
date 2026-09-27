@@ -1032,11 +1032,8 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
     ? "Game " + dayPhrase(nextGame.date, todayISO()) + (nextGame.start ? " " + gameClock(nextGame.start) : "")
     : undefined;
 
-  const reload = useCallback(async () => {
-    // Anything logged offline lands as soon as a write succeeds. A flush that
-    // cannot reach the server leaves the queue where it was; it must never
-    // stop the lists below from loading.
-    try { await flushPending((w) => svc.saveWorkout(w)); } catch { /* the queue keeps them */ }
+  /** The two reads every gym screen is drawn from. */
+  const readLists = useCallback(async () => {
     // NOTHING LOADED IS NOT NOTHING SAVED (Dave 2026-09-27, on an empty
     // History: "My history is all gone too"). A failed read used to reject
     // silently here, so every screen below drew its "nothing yet" state from
@@ -1055,6 +1052,21 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
       setLoadFailed(true);
     }
   }, [svc]);
+  const reload = useCallback(async () => {
+    // THE READ NEVER WAITS ON THE UPLOAD (Dave 2026-09-27: "Every g is gone",
+    // over a Health card that counted 17 sessions and 38 exercises while the
+    // gym's own History said No Numbers Yet and Exercises said 5). The gym
+    // used to send any workout still waiting on this phone FIRST and read
+    // only after: one upload that never answered held every read behind it,
+    // so the program, the history and every lift built from them stayed
+    // empty for as long as the app was open, while the Health card, which
+    // never waits on the queue, read all of it. The lists are read first
+    // now; the queue drains behind them, and anything it lands is read in.
+    await readLists();
+    void flushPending((w) => svc.saveWorkout(w))
+      .then((saved) => { if (saved > 0) void readLists(); })
+      .catch(() => { /* the queue keeps them for the next try */ });
+  }, [svc, readLists]);
   useEffect(() => { void reload(); }, [reload]);
   // UP-PLAT-06 (2026-09-06): a workout logged on another device repaints here.
   useFreshLists([ENTITY_PROGRAM, ENTITY_WORKOUT], reload);
@@ -1634,7 +1646,8 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
     setOpenDayId(null);
     // Queue first, then try: a failed write must never lose the session.
     queueFinished(data);
-    await flushPending((w) => svc.saveWorkout(w));
+    // The upload runs inside reload() below, behind the read, so a send that
+    // never answers cannot hold the program page or the stamp (2026-09-27).
     // D4-C: "when you finish, the block stamps itself done with the real
     // minutes." Only a session that walked in through the door stamps it,
     // and a failed stamp never blocks anything.
