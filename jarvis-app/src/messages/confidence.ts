@@ -1,5 +1,6 @@
 import type { Evidence } from "./evidence";
 import { isMachineAddress } from "./noReply";
+import { lineCase } from "../shared/casing";
 
 // CONFIDENCE DECIDES WHAT HAPPENS ON ITS OWN (UP-MIND-18, Email T1 and 5.7).
 //

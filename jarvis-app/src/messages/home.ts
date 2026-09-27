@@ -275,12 +275,12 @@ function deadlineNotice(t: MailThread, todayISO: string, now: Date, events: DayE
   const due = bareClock ? todayISO : dueFromBy(t.by, todayISO, now);
   if (!due || (!bareClock && rank > 1)) return null; // only when the date is NOW
   const clash = at ? spanningEvent(events, due, at) : null;
-  const day = due === todayISO ? "" : byLabel(t.by, now).toLowerCase() + " ";
+  const day = due === todayISO ? "" : byLabel(t.by, now) + " ";
   // UP-MIND-18 (2026-09-05): "Due 3:00 PM" when the deadline can show the
   // sentence it came from, "Looks like 3:00 PM" when it cannot. The whole
   // segment changes rather than gaining a prefix, because "Due looks like
   // 3 PM" is not a sentence anybody wrote.
-  const plain = at ? day + fmtTime(at).time + " " + fmtTime(at).ap : byLabel(t.by, now).toLowerCase();
+  const plain = at ? day + fmtTime(at).time + " " + fmtTime(at).ap : byLabel(t.by, now);
   const sure = isHigh(confidenceOf(t.byEv));
   const dueLabel = sure ? "Due " + plain : hedge(plain);
   const endAp = clash?.end ? fmtTime(clash.end) : null;
@@ -431,7 +431,7 @@ function actNotice(t: MailThread, a: MailAct, todayISO: string): MailNotice {
   const when = dayPhrase(a.date, todayISO);
   const at = a.verb === "schedule" ? `${fmtTime(a.start!).time} ${fmtTime(a.start!).ap}` : "";
   const plain = a.verb === "schedule"
-    ? `${when} ${at} for ${minutesLabel(a.durationMin)}`
+    ? `${when} ${at} for ${minutesLabel(a.durationMin!)}`
     : a.verb === "bill"
       ? `$${a.amount!.toFixed(2)} due ${when}`
       : when;
@@ -465,7 +465,7 @@ function actNotice(t: MailThread, a: MailAct, todayISO: string): MailNotice {
     : a.verb === "remind"
       ? [{ text: sure ? when : hedgedActSub(when), tone: dayTone(a.date, todayISO) }]
       : sure
-        ? [{ text: when + " " + at, tone: "date" }, { text: "", num: minutesLabel(a.durationMin) }]
+        ? [{ text: when + " " + at, tone: "date" }, { text: "", num: minutesLabel(a.durationMin!) }]
         : undefined;
   return {
     key: "act:" + a.verb + ":" + t.id,

@@ -64,7 +64,7 @@ export default function DemoMail({ onConnect }: { onConnect?: () => void }) {
         subject: w.sub.split(": ")[0] ?? w.sub,
         days: [55, 55, 50][i] ?? 30,
       })),
-      promises: [{ threadId: "demo-p0", text: "send rob the deck", due: "2026-08-21" }],
+      promises: [{ threadId: "demo-p0", text: "Send Rob the deck", due: "2026-08-21" }],
     });
   }, []);
 

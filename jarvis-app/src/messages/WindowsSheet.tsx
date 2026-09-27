@@ -6,6 +6,7 @@ import {
   type WindowSettings,
 } from "./batching";
 import { rowDoor } from "../shared/rowDoor";
+import { spanLabel } from "../shared/duration";
 
 // THE WINDOWS EDITOR (2026-08-22). Turning the curtain on is a decision made
 // here, with every window visible and editable, never a stray tap on a row.
@@ -28,7 +29,9 @@ const toMin = (v: string) => {
   const p = v.split(":");
   return Number(p[0] ?? 0) * 60 + Number(p[1] ?? 0);
 };
-export const lenLabel = (m: number) => (m < 60 ? `${m}m` : m % 60 === 0 ? `${m / 60}h` : `${Math.floor(m / 60)}h ${m % 60}m`);
+// A window's length in the rule's shapes ("45 Min", "1h", "1h 30m"; casing
+// sweep 3, 2026-09-27): shared/duration owns them.
+export const lenLabel = (m: number) => spanLabel(m);
 export const MIDNIGHT_LINE = "That runs past midnight · Pick an earlier start or a shorter length";
 
 export default function WindowsSheet({

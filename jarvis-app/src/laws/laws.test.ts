@@ -57,14 +57,14 @@ const rel = (f: string) => f.slice(SRC.length + 1);
 
 // THE CASING SWEEP'S REACH (AMENDED 2026-09-26, Batch 1 casing). The whole
 // rule (§H2: every line the app writes is Title Case, units spelled "Min",
-// estimates "About") was swept across the app in two passes, because other
-// builders were still in the paths below when the first pass ran. The
-// clauses that enforce it are scoped to what the first pass swept; the
-// second pass empties SECOND_PASS and the clauses reach everything. Do not
-// add to this list: a path here is a path the rule does not yet hold on.
-const SECOND_PASS = [
-  "messages/", "settings/", "decisions/", "shell/",
-];
+// estimates "About") was swept across the app in three passes, because
+// other builders were still in some paths when each pass ran. The clauses
+// that enforce it were scoped to what the passes so far had swept; the
+// last pass emptied SECOND_PASS and the clauses reach everything. Do not
+// add to this list: a path here is a path the rule does not hold on.
+// EMPTIED 2026-09-27 (casing sweep 3, the last pass): the clauses reach
+// every path now, and nothing may be added back.
+const SECOND_PASS: string[] = [];
 const swept = (r: string) => !SECOND_PASS.some((p) => r.startsWith(p)) && !isSentenceSurface(r);
 // ruled.css alone: the skin every card wears, and the only place a row is
 // made transparent, so it is the only place a swipe reveal has to be hidden.
@@ -290,9 +290,8 @@ describe("LAW: Apple HIG casing", () => {
     const BRAND = /^(iCloud|iPhone|iPad|iOS|iMessage|macOS)$/;
     // AMENDED 2026-09-26 (Batch 1 casing): a unit is a word, and takes the
     // capital every other word takes ("45 Min", "20 Lb"; §T.3 superseded).
-    // It is still allowed lowercase on the paths the second pass has not
-    // reached, and nowhere else.
-    const UNIT_WORD = /^(kg|lb|min|hr)$/;
+    // Its lowercase allowance on the unswept paths went with the last pass
+    // (casing sweep 3, 2026-09-27): nowhere is "45 min" a title now.
     // THE LAW ONLY EVER LOOKED ONE WAY (Dave 2026-09-03, pics 2 and 4:
     // "more title case issues"). Every check above asks whether a word is
     // capitalised ENOUGH, so a small word capitalised mid-title -- "Point
@@ -316,12 +315,12 @@ describe("LAW: Apple HIG casing", () => {
       return words.filter((w, i) => i > 0 && i < words.length - 1
         && SMALL.has(w.toLowerCase()) && /^[A-Z]/.test(w));
     };
-    const passes = (t: string, r: string) => {
+    const passes = (t: string) => {
       if (t.includes("?")) return true; // interrogative talk
       const words = t.split(/\s+/).filter(Boolean);
       if (overCapped(t).length > 0) return false;
       return words.every((w, i) =>
-        BRAND.test(w.replace(/[^A-Za-z]/g, "")) || (!swept(r) && UNIT_WORD.test(w.replace(/[^A-Za-z]/g, ""))) || !/^[a-z]/.test(w) ||
+        BRAND.test(w.replace(/[^A-Za-z]/g, "")) || !/^[a-z]/.test(w) ||
         (i > 0 && i < words.length - 1 && SMALL.has(w.toLowerCase())));
     };
     const bad: string[] = [];
@@ -338,7 +337,7 @@ describe("LAW: Apple HIG casing", () => {
       for (const cls of ["conn-name", "lib-name", "empty-title", "input-label", "tip-title", "restore-title", "promo-title", "t", "sec-title", "day-divide", "chip"]) {
         for (const m of src.matchAll(new RegExp('className="' + cls + '(?: [a-z-]+)*"[^>]*>\\s*([^<>{}\\n]{3,60}?)\\s*<', "g"))) {
           const t = m[1]!.trim();
-          if (t.split(/\s+/).length > 1 && !passes(t, rel(f))) bad.push(rel(f) + " [" + cls + "]: " + t);
+          if (t.split(/\s+/).length > 1 && !passes(t)) bad.push(rel(f) + " [" + cls + "]: " + t);
         }
       }
       // `[^>]*` used to close the opening tag here, which meant any button
@@ -354,7 +353,7 @@ describe("LAW: Apple HIG casing", () => {
         // A segmented option is always an answer to the field label above
         // it, so its voice is the user's by construction.
         if (/className=\{?"[^"]*\bseg\b/.test(m[0]!)) continue;
-        if (t.split(/\s+/).length > 1 && !passes(t, rel(f))) bad.push(rel(f) + " [button]: " + t);
+        if (t.split(/\s+/).length > 1 && !passes(t)) bad.push(rel(f) + " [button]: " + t);
       }
       // Placeholders carry the same casing when they are labels. Example-
       // carrying placeholders (a middle dot or "e.g.") are content, not
@@ -362,7 +361,7 @@ describe("LAW: Apple HIG casing", () => {
       for (const m of src.matchAll(/placeholder="([^"{}]{3,60}?)"/g)) {
         const t = m[1]!.trim();
         if (t.includes("·") || /e\.g\./.test(t)) continue;
-        if (t.split(/\s+/).length > 1 && !passes(t, rel(f))) bad.push(rel(f) + " [placeholder]: " + t);
+        if (t.split(/\s+/).length > 1 && !passes(t)) bad.push(rel(f) + " [placeholder]: " + t);
       }
     }
     expect(bad).toEqual([]);
@@ -1348,11 +1347,11 @@ describe("LAW: one filled red per screen", () => {
   // "20 Lb", §T.3 superseded); an estimate is spelled "About", never "~".
   // capAfterNumber only ever capitalized the one word behind a leading
   // number, which is how "saves ~8 min · never your main lift" reached the
-  // Fit sheet. Three clauses, each scoped by `swept` (SECOND_PASS above:
-  // the paths the first pass reached) and skipping the sentence-case
-  // surfaces named in laws/sentenceCase.ts. Comments and aria-labels are
-  // stripped before every scan: casing is inaudible, and a comment is not
-  // copy.
+  // Fit sheet. Three clauses, each scoped by `swept` (SECOND_PASS above,
+  // empty since the last pass, casing sweep 3, 2026-09-27: every path is
+  // swept) and skipping the sentence-case surfaces named in
+  // laws/sentenceCase.ts. Comments and aria-labels are stripped before
+  // every scan: casing is inaudible, and a comment is not copy.
   const stripForCasing = (src: string) =>
     src.replace(/\/\*[\s\S]*?\*\//g, " ").split("\n").filter((l) => !/^\s*(\/\/|\*)/.test(l)).join("\n")
       .replace(/aria-(?:label|describedby)=\{?[`"'][^`"']*[`"']\}?/g, " ");
@@ -1373,7 +1372,7 @@ describe("LAW: one filled red per screen", () => {
   // literal drawn straight into one of these classes, or assigned to one
   // of these keys, is final copy; one handed to lineCase is an input and
   // passes, since the formatter cases it.
-  it("a sub line, a fact, a receipt or a toast never opens lowercase on a swept path (AMENDED 2026-09-26, Batch 1 casing)", () => {
+  it("a sub line, a fact, a receipt or a toast never opens lowercase, anywhere (AMENDED 2026-09-27, casing sweep 3)", () => {
     const SUB_CLASSES = "fact|facts|conn-meta|r-goal|eyebrow|kicker|receipt|catchup-t|empty-sub|notice-sub|bp-sub|plan-sub|doc-count|h-door-n|h-sync|sched-fact|rem-card-sub|cf-last|cf-corner|cf-slide-t|se-chip|ins-sub|payoff-line|row-status|row-value";
     const SUB_KEYS = "sub|detail|message|tail|stale|line|context|receipt|text|label|note|eyebrow|kicker|why";
     // Plain text after the tag, or a quoted literal inside braces; a bare
@@ -1402,7 +1401,7 @@ describe("LAW: one filled red per screen", () => {
   // compact clock ("1h 30m", never "1 hr 30 min"). shared/duration.ts owns
   // every shape, so a builder that glues a unit onto a number by hand is
   // the drift this law exists to stop.
-  it("a unit after a number is spelled and capitalized on a swept path (AMENDED 2026-09-26, Batch 1 casing)", () => {
+  it("a unit after a number is spelled and capitalized, anywhere (AMENDED 2026-09-27, casing sweep 3)", () => {
     const UNIT = /(\d|\})\s?(min|mins|sec|secs|lb|lbs|kg|kgs|reps|sets|hr|hrs|hour|hours)\b/;
     const FUSED = /\$\{[^}]*\}(?:m|min|sec)\b/;
     // A builder whose reading is a measurement every drawn site cases at
@@ -1426,7 +1425,7 @@ describe("LAW: one filled red per screen", () => {
 
   // (c) An estimate says "About" ("Saves About 8 Min", §H2's own example);
   // the tilde is not a word and never reaches the screen.
-  it("no tilde before a number in rendered copy on a swept path (AMENDED 2026-09-26, Batch 1 casing)", () => {
+  it("no tilde before a number in rendered copy, anywhere (AMENDED 2026-09-27, casing sweep 3)", () => {
     const TILDE = /~\s?\$?\{?\d|~\$\{/;
     const bad: string[] = [];
     for (const f of SOURCES) {
@@ -3963,7 +3962,8 @@ describe("LAW 11: cards show their work, tags earn their shape, and no screen is
 
   it("the sweep estimate itself leads with a capital", async () => {
     const { sweepEstimate } = await import("../messages/sweep");
-    expect(sweepEstimate(6)).toBe("About 4 min");
+    // Casing sweep 3 (2026-09-27): the unit is a word, "About 4 Min".
+    expect(sweepEstimate(6)).toBe("About 4 Min");
     expect(sweepEstimate(0)).toBe("");
   });
 });
