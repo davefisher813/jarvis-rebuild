@@ -63,8 +63,6 @@ const rel = (f: string) => f.slice(SRC.length + 1);
 // second pass empties SECOND_PASS and the clauses reach everything. Do not
 // add to this list: a path here is a path the rule does not yet hold on.
 const SECOND_PASS = [
-  "today/", "tasks/", "schedule/", "life/", "bigger/", "brain/CategoryDetail.tsx",
-  "categories/", "shared/FormSheet.tsx", "shared/glyphs.tsx", "review/", "money/",
   "messages/", "settings/", "decisions/", "shell/",
 ];
 const swept = (r: string) => !SECOND_PASS.some((p) => r.startsWith(p)) && !isSentenceSurface(r);
