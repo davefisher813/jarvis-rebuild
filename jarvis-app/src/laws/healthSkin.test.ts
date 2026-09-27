@@ -408,6 +408,11 @@ describe("HEALTH law 5: the shell hides its chrome while a session is live", () 
     // blue that fades out rather than a flat fill.
     expect(RULED).toMatch(/\.banner-warn \{[^{}]*--hl-amber-tint/);
     expect(RULED).toMatch(/\.banner-cool \{[^{}]*linear-gradient\(180deg, var\(--hl-blue-tint\), transparent/);
+    // AMENDED 2026-09-27 (Dave: "The warm up background color effect should
+    // look exactly like cool down"): the warm-up card is the same fading
+    // wash in amber, and its eyebrow keeps its ink like the cool-down's.
+    expect(RULED).toMatch(/\.card\.banner-warn:has\(\.eyebrow-warn\) \{[^{}]*linear-gradient\(180deg, var\(--hl-amber-tint\), transparent 90%\)/);
+    expect(RULED).toMatch(/\.ruled\.health-ruled \.eyebrow\.eyebrow-warn \{ color: var\(--hl-amber-ink\); \}/);
   });
 
   it("and the strip's own head names the lift being logged", () => {

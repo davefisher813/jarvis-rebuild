@@ -1811,6 +1811,18 @@
    of the card to nothing at its foot (Dave 2026-09-13). */
 .ruled.health-ruled .banner-cool { box-shadow: inset 0 0 0 1px var(--hl-blue-tint); background-image: linear-gradient(180deg, var(--hl-blue-tint), transparent 90%); }
 .ruled.health-ruled .eyebrow.eyebrow-cool { color: var(--hl-blue-ink); }
+/* THE WARM-UP CARD IS THE COOL-DOWN CARD IN AMBER (Dave 2026-09-27: "The
+   warm up background color effect should look exactly like cool down"). The
+   warm-up wore .banner-warn's flat fill with the amber tint laid over it
+   and ringed in it again, which read as a solid brown block with a hard
+   edge beside the cool-down's wash; and its eyebrow fell to the health
+   page's grey while the cool-down's kept its hue. Same wash, same fade,
+   same quiet edge, same inked eyebrow, in the warm-up's amber. Only a card
+   that carries the Warm-Up eyebrow takes it, so the module's other amber
+   notices keep theirs. */
+.ruled.health-ruled .card.banner-warn:has(.eyebrow-warn) { box-shadow: inset 0 0 0 1px var(--hl-amber-tint);
+  background: linear-gradient(180deg, var(--hl-amber-tint), transparent 90%); }
+.ruled.health-ruled .eyebrow.eyebrow-warn { color: var(--hl-amber-ink); }
 
 /* The big one-tap loggers inside the health module (Lights Out, Took It)
    are the same "commit it" move as Start, so they read the same way. */
