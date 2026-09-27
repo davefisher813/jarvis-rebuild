@@ -148,7 +148,7 @@ export default function LockedRow({
           <div className="sched-body">
             <div className="sched-title sched-lock-title">
               {!holds && <LockGlyph className="ic lock-ic" />}
-              {l.label}
+              <span className="sched-t">{l.label}</span>
             </div>
             <div className="sched-cat">
               {/* C-28 (Astra, 2026-09-12): the state word, ahead of the

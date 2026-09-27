@@ -952,11 +952,19 @@ describe("LAW: the schedule rail leads the row, so nothing can get in front of i
     }
   });
 
-  it("the body takes the row's full width under the time", () => {
+  // AMENDED 2026-09-27 (Dave's pick C from a rendered comparison: "We have
+  // allllll of this room laterally and decided to stack everything on top of
+  // each other?"). The time and the title share the first line, the facts
+  // sit under the title. The row no longer wraps and the body is the
+  // flexible column beside the time, not a second line.
+  it("the time and the title share the first line, the facts sit under the title", () => {
     const bare = ruled().replace(/\/\*[\s\S]*?\*\//g, "");
-    expect(bare, "the row wraps").toMatch(/\.ruled \.sched-row \{[^}]*flex-wrap: wrap/);
-    expect(bare, "and the body is the thing that takes the second line")
-      .toMatch(/\.ruled \.sched-row > \.sched-body \{[^}]*flex: 1 0 100%/);
+    expect(bare, "the row does not wrap").toMatch(/\.ruled \.sched-row \{[^}]*flex-wrap: nowrap/);
+    expect(bare, "and the body is the column beside the time")
+      .toMatch(/\.ruled \.sched-row > \.sched-body \{[^}]*flex: 1 1 0/);
+    expect(bare, "the title ellipsizes on its line").toMatch(/\.ruled \.sched-title > \.sched-t \{[^}]*text-overflow: ellipsis/);
+    expect(bare, "and the facts line is one line of whole facts")
+      .toMatch(/\.ruled \.sched-body > \.sched-cat \{[^}]*max-height: calc\(var\(--t-sub\) \* 1\.4\)/);
   });
 });
 

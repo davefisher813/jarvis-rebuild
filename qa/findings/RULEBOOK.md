@@ -285,6 +285,19 @@ short day is repeated until the loop has two windows); Pause is for the
 visit. Never touched again unless he says so: `src/laws/tvGuide.test.ts`
 hashes `src/today/YourDay.tsx`'s marked region and the `.sched-ticker` CSS.
 
+Dave, 2026-09-27, the schedule row (Schedule day view, Today's list and
+the rows inside the TV guide): TWO LINES, his pick C from a rendered
+comparison of four ("We have allllll of this room laterally and decided to
+stack everything on top of each other?"). The time and the title share the
+first line (title ellipsizes, its controls stay), the facts sit under the
+title on ONE line of whole facts: a fact that does not fit drops off the
+end with everything after it, never a stub; only the place shows part of
+itself. The countdown ("in 1h 19m") is a fact on that line, after the
+length. The category dot is gone from the line (the rail carries the
+colour). The proposed row's line leads with PROPOSED, then the category.
+This replaces his 2026-09-21 pick D (time alone above the title).
+`browserWalk.test.ts` "the time and the title share the first line" pins it.
+
 ## Hard limits for any agent that edits
 
 - Edit ONLY the files you were assigned. If a fix needs another file, report
