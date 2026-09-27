@@ -979,7 +979,7 @@ Laws: `SessionScreen.cta.test.tsx` (field, label and write agree; Match fills th
 
 | Colour | Type glyph | Fill (exact pick) | Text ink | Glyph ink | On the fill |
 | --- | --- | --- | --- | --- | --- |
-| Red | Chat / JARVIS-made | `#FF3B30` | `#C0000D` | `#FF3B30` | black |
+| Red | Chat / JARVIS-made | `#FF3B30` | `#FF3B30` | `#FF3B30` | black |
 | Coral |  | `#D92C12` | `#B71B02` | `#D92C12` | white |
 | Orange | Gym / Time | `#FF8D0A` | `#9A5305` | `#D37307` | black |
 | Sand |  | `#C4994F` | `#865E02` | `#AF8439` | black |
@@ -995,9 +995,9 @@ Laws: `SessionScreen.cta.test.tsx` (field, label and write agree; Match fills th
 | Pink |  | `#FF6682` | `#BC244D` | `#EE5674` | black |
 | Graphite | Grey: secondary text and dividers only, never a category | `#707070` | `#606060` | `#707070` | white |
 
-**THE KEY'S WORDS IN LIGHT.** Done `--good` `#037134` (fill `#26A153`), soon `--warn` `#9A5305` (fill `#FF8D0A`), late `--sys-red` `#C0000D`, estimate `--est-ink` `#036F96`.
+**THE KEY'S WORDS IN LIGHT.** Done `--good` `#037134` (fill `#26A153`), soon `--warn` `#9A5305` (fill `#FF8D0A`), late `--sys-red` `#FF3B30`, estimate `--est-ink` `#036F96`.
 
-**JARVIS RED IN LIGHT FOLLOWS DARK'S RULES (amended same day).** Dave: "it should follow the same exact Jarvis Red rules as the dark version… On dark mode, we don't have a bunch of different reds being used." Light had eight reds; it now has one words red and the fills. Every red word in light (`--tint`, `--accent-tx`, `--danger-tx`, `--on-light-red`, `--accent-chip-*`, `--sys-red`, `--cat-tx-red`) is `#C0000D`: the closest red to Jarvis Red that still clears 4.5:1 on every ground a red word lands on (6.47 white, 5.89 page, 5.00 and 4.92 on grey capsules, 4.59 on the red chip). Asked "as close to what I want while being readable". Glyphs, dots and brand fills wear the same root values dark wears (`--accent-glyph` `#FF2B3C`, `--accent-fill` `#E2051E`); the key's red fill is `#FF3B30`. Washes are Jarvis Red: `--red-tint` `rgba(255,59,48,0.12)`, capsule wash `rgba(255,59,48,0.10)`. Jarvis Red itself as small text is 3.23:1 on the page, which is why words take the twin.
+**ALL RED IN LIGHT IS JARVIS RED (amended same day, twice).** Dave first asked for light to follow dark's one-red rule; a single readable words red (`#C0000D`) shipped, and he answered: "I hate it. Make all red Jarvis red." Every red in light is now `#FF3B30`: words, fills, glyphs, chips, lateness, destructive verbs, the category red and the brand tokens (`--tint`, `--accent*`, `--danger-tx`, `--on-light-red`, `--sys-red`, `--cat-*-red`). Washes are Jarvis Red too. Known and accepted by Dave: as small text it reads 3.23:1 on the page and 3.55:1 on a white card, under the 4.5:1 bar. The laws exempt exactly this hex (`JARVIS_RED_LIGHT` in `laws/reds.ts`); never step light red down again without Dave saying so.
 
 **THE NINE OUTSIDE THE FIFTEEN** (amber, rust, rose, plum, violet, cyan, mint, olive, slate) keep their existing vibrant, already-readable light values.
 

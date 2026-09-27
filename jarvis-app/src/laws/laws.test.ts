@@ -16,7 +16,7 @@ import { setCategoryRegistry } from "../shared/categories";
 import { stepsOf, hasUnfinishedSteps } from "../shared/StepCount";
 import type { TaskData } from "../notes/types";
 import type { WindowRow } from "../brain/window";
-import { TAP_RED, ANY_RED } from "./reds";
+import { TAP_RED, ANY_RED, isJarvisRedLight } from "./reds";
 import { isSentenceSurface } from "./sentenceCase";
 
 // THE LAWS, AS TESTS.
@@ -1241,14 +1241,17 @@ describe("LAW: one filled red per screen", () => {
         continue;
       }
       const rl = ratio(l, "#F2F2F7");
-      if (rl < 4.5) bad.push(`${slot} (light text): ${l} on #F2F2F7 is ${rl.toFixed(2)}:1`);
+      // AMENDED 2026-09-27 (§AQ): light red text is Jarvis Red by Dave's ruling,
+      // exempt from both text bars. Its glyph is still measured below.
+      const jr = slot === "red" && isJarvisRedLight(l);
+      if (rl < 4.5 && !jr) bad.push(`${slot} (light text): ${l} on #F2F2F7 is ${rl.toFixed(2)}:1`);
       const ch = (i: number) => Math.round(
         parseInt(fill.slice(1 + 2 * i, 3 + 2 * i), 16) * 0.18 +
         parseInt("F2F2F7".slice(2 * i, 2 * i + 2), 16) * 0.82,
       );
       const chip = "#" + [ch(0), ch(1), ch(2)].map((v) => v.toString(16).padStart(2, "0")).join("");
       const rc = ratio(l, chip);
-      if (rc < 4.5) bad.push(`${slot} (light text on own chip): ${l} on ${chip} is ${rc.toFixed(2)}:1`);
+      if (rc < 4.5 && !jr) bad.push(`${slot} (light text on own chip): ${l} on ${chip} is ${rc.toFixed(2)}:1`);
       // GLYPHS ARE CHROME, NOT TEXT. An icon carries no words, so it is held
       // to the 3:1 non-text bar -- but it must actually HAVE its own value,
       // or it inherits the text ink and arrives as mud (Dave, 2026-08-22:
@@ -1759,7 +1762,11 @@ describe("LAW: stored shapes are versioned", () => {
     }
     // No theme may redefine it. The whole point is that one value clears the
     // 3:1 glyph bar on black AND on paper, so there is nothing to override.
-    expect(CSS).not.toMatch(/\[data-theme=[^\]]*\][^{]*\{[^}]*--accent-glyph\s*:/);
+    // AMENDED 2026-09-27 (§AQ, Dave: "Make all red Jarvis red."): light may
+    // set it to Jarvis Red #FF3B30 and to nothing else, which is not darker.
+    for (const m of CSS.matchAll(/\[data-theme=[^\]]*\][^{]*\{[^}]*--accent-glyph\s*:\s*([^;}]+)/g)) {
+      expect(m[1]!.trim().toUpperCase(), "a theme's --accent-glyph can only be Jarvis Red").toBe("#FF3B30");
+    }
   });
 
   // ...and it is legal on the worst light ground it can land on. A glyph

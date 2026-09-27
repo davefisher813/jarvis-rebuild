@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
-import { TAP_RED } from "./reds";
+import { TAP_RED, isJarvisRedLight } from "./reds";
 
 // THE BROWSER WALK, AS LAWS (2026-09-05).
 //
@@ -149,8 +149,8 @@ describe("BROWSER-F-04: status colour is readable in daylight, from the token", 
   // end; so the token is pinned, and no light rule on a lateness selector
   // may hand-paint the words red (or its old hexes) back.
   it("light --sys-red is the locked red's word twin, and no rule in either theme paints lateness in the brand red", () => {
-    // AMENDED 2026-09-27 (§AQ, Dave: "the same exact Jarvis Red rules as the dark version"): light has one words red, #C0000D, readable on every light ground.
-    expect(tokenIn("light", "--sys-red").toUpperCase()).toBe("#C0000D");
+    // AMENDED 2026-09-27 (§AQ, Dave: "I hate it. Make all red Jarvis red."): light --sys-red is Jarvis Red itself.
+    expect(tokenIn("light", "--sys-red").toUpperCase()).toBe("#FF3B30");
     const bare = ["components.css", "ruled.css", "uniformity.css", "jarvis-design-system.css", "mail-rows.css", "editor.css"]
       .map((f) => read("styles/" + f)).join("\n").replace(/\/\*[\s\S]*?\*\//g, "")
       // A rule inside an at-rule block is still a rule: the wrapper's own
@@ -548,6 +548,8 @@ describe("BROWSER-F-10: red words on a sheet grey are readable", () => {
     for (const [where, base] of [["a white card", tokenIn("light", "--surface-1")], ["the page", tokenIn("light", "--bg")]] as const) {
       const ground = "rgb(" + overC(resolve("light", "--capsule-fill"), base).join(",") + ")";
       const cr = contrast(onLightRed!, ground);
+      // AMENDED 2026-09-27 (§AQ): Jarvis Red is Dave's ruling, exempt from the 4.5 bar.
+      if (isJarvisRedLight(onLightRed)) continue;
       expect(cr, `light capsule label on its fill over ${where} is ${cr.toFixed(2)}:1`).toBeGreaterThanOrEqual(4.5);
     }
     // The .btn variants declare their own ink against their own fill; taking
@@ -767,7 +769,8 @@ describe("BROWSER-F-09: quiet is not the same word as finished", () => {
     const wordsRed = /--on-light-red:\s*(#[0-9A-Fa-f]{6})/.exec(css().replace(/\/\*[\s\S]*?\*\//g, ""))?.[1];
     expect(wordsRed, "the light words red is declared").toBeTruthy();
     const lightSkipCr = contrast(wordsRed!, tokenIn("light", "--surface-1"));
-    expect(lightSkipCr, `light --on-light-red on --surface-1 is ${lightSkipCr.toFixed(2)}:1`).toBeGreaterThanOrEqual(4.5);
+    // AMENDED 2026-09-27 (§AQ): Jarvis Red is Dave's ruling, exempt from the 4.5 bar.
+    if (!isJarvisRedLight(wordsRed)) expect(lightSkipCr, `light --on-light-red on --surface-1 is ${lightSkipCr.toFixed(2)}:1`).toBeGreaterThanOrEqual(4.5);
     const lightSkip = rules.find((m) => m[1]!.split(",").some((x) => x.trim() === '[data-theme="light"] .focus-skip'))?.[2];
     expect(lightSkip, "in light Not This One takes the words red").toMatch(/color:\s*var\(--on-light-red\)/);
     const LIVE = [".prop-tag", ".sched-sep", ".rep-hint", ".doc-count",

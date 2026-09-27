@@ -75,3 +75,12 @@ export const TAP_RED = new RegExp(
  *  state may never wear. */
 export const ANY_RED = new RegExp(
   String.raw`${ref(`${TAP_TOKENS}|${OTHER_TOKENS}`)}|${hex(`${TAP_HEXES}|${OTHER_HEXES}`)}|${rgb(`${TAP_HEXES}|${OTHER_HEXES}`)}`, "i");
+
+/** Jarvis Red in light (Dave, 2026-09-27, catalog §AQ): "I hate it. Make all
+ *  red Jarvis red." Every red in light is #FF3B30, words included, chosen
+ *  over readable twins knowing it reads 3.23:1 on the page. The contrast
+ *  laws that measure a light red word exempt this one hex and nothing else;
+ *  any other red still has to clear its bar. */
+export const JARVIS_RED_LIGHT = "#FF3B30";
+export const isJarvisRedLight = (hex: string | undefined) =>
+  (hex ?? "").toUpperCase() === JARVIS_RED_LIGHT;
