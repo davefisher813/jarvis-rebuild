@@ -6299,7 +6299,15 @@ span.row-star { cursor: default; }
 
    The ring is never category-coloured here either (the ruled-row rule): it is
    the completion control only, and the category keeps the dot or the bar. */
-.sched-row .sched-check { flex-shrink: 0; margin: 0 var(--s-2) 0 0; }
+/* The proposed row's check, in the star's slot (Dave 2026-09-27): the star's
+   16px box, first on the line, the time beside it, the title on its own
+   line under them like every event row. It was a 44px .task-check-tap
+   parked after the time, which made the first line tall and pushed the
+   title a whole line down. The hit is 44 through the expander. */
+.sched-row .sched-check { flex: 0 0 16px; width: 16px; height: 16px; margin: 0; padding: 0; position: relative;
+  display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
+.sched-row .sched-check::after { content: ""; position: absolute; inset: -14px; }
+.sched-row .sched-check .task-check { width: 16px; height: 16px; border-radius: var(--r-xs); }
 .block-held .bh-check { flex-shrink: 0; margin: 0; }
 /* The nested row's title stops being a plain span the moment it is a door,
    so it gets the door's affordance without growing a second one. */

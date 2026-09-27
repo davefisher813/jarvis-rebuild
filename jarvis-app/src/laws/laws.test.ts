@@ -4917,7 +4917,11 @@ describe("LAW: a planned task can be finished from where it is shown", () => {
   it("the proposed row carries a completion ring, not only a duration picker", () => {
     const src = read(join(SRC, "schedule/screens/ProposedRow.tsx"));
     expect(src, "ProposedRow must accept a completion seam").toMatch(/onComplete\?:/);
-    expect(src, "and draw the app's own ring for it").toMatch(/task-check-tap/);
+    // AMENDED 2026-09-27 (Dave, on his phone: the 44px tap box parked beside
+    // the time pushed the title a line down). The ring is still the app's
+    // own .task-check; it now sits in the star's slot as .sched-check, first
+    // on the line, with its 44px hit on the expander rather than the box.
+    expect(src, "and draw the app's own ring for it").toMatch(/className="sched-check"[\s\S]{0,400}?<div className="task-check" \/>/);
   });
 
   it("a task nested inside a holding block carries the same ring", () => {
