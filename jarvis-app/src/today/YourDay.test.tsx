@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import type React from "react";
 import { render, screen, fireEvent } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import YourDay from "./YourDay";
@@ -9,7 +10,7 @@ import type { EventItem } from "../schedule/types";
 // at all times, a short day included). The tests below describe the
 // actionable view (the Now band, the compressed day, the doors), so they
 // render and then hold the card still, which is the one way to reach it.
-const hold: typeof render = (ui, options) => {
+const hold = (ui: React.ReactElement, options?: Parameters<typeof render>[1]) => {
   const r = render(ui, options);
   const t = r.container.querySelector(".ticker-toggle");
   if (t) fireEvent.click(t);
