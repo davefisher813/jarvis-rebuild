@@ -280,6 +280,11 @@ LINES; the row grows as needed. Star, checkbox and Start stay as they are.
 This supersedes the one-line task name (DEFECT 1, 2026-09-06, which was
 about the second line's pills, not the name).
 
+Dave, 2026-09-27, the Today TV guide: FROZEN. It moves at all times (a
+short day is repeated until the loop has two windows); Pause is for the
+visit. Never touched again unless he says so: `src/laws/tvGuide.test.ts`
+hashes `src/today/YourDay.tsx`'s marked region and the `.sched-ticker` CSS.
+
 ## Hard limits for any agent that edits
 
 - Edit ONLY the files you were assigned. If a fix needs another file, report

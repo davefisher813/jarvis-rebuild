@@ -78,7 +78,7 @@ describe("the day that only fits because it is compressed", () => {
     expect(container.querySelectorAll(".day-measure").length).toBe(0);
   });
 
-  it("a genuinely short day keeps the card and drops the motion", () => {
+  it("a genuinely short day keeps the card and keeps it moving", () => {
     const { container } = render(
       <YourDay events={[ev("a", "13:05"), ev("b", "18:00")]} now="12:18" nowLabel="12:18" onSeeAll={() => {}} />,
     );
@@ -89,10 +89,17 @@ describe("the day that only fits because it is compressed", () => {
     // is present and still. Two rows, 120px, under the window: nothing to
     // loop, and a -50% translate across a day shorter than the viewport
     // would slide a gap through the card, which is the "awful".
+    // AMENDED 2026-09-27 (Dave: "the tv guide scroller is gone again ... It
+    // should never be touched"): a short day MOVES too. The gap the note
+    // above feared is closed by repeating the day until the track is two
+    // windows tall, an even number of copies, so the loop's seam is between
+    // two whole days.
     const card = container.querySelector(".sched-ticker");
     expect(card, "the card renders at all times").not.toBeNull();
-    expect(card!.className, "two rows do not need a loop").toContain("ticker-still");
-    expect(container.querySelectorAll(".ticker-track"), "one copy, not two").toHaveLength(1);
+    expect(card!.className, "two rows still loop").not.toContain("ticker-still");
+    const copies = container.querySelectorAll(".ticker-track:not(.day-measure) > *").length;
+    expect(copies, "repeated until the loop has room").toBeGreaterThanOrEqual(2);
+    expect(copies % 2, "an even number, so the seam is between whole days").toBe(0);
   });
 
   it("the day you can touch is still collapsed", () => {

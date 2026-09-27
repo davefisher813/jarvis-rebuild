@@ -244,7 +244,12 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
 .today-summary { font-size: var(--t-meta); color: var(--tx-3); margin-top: var(--s-1); }
 
 /* Your Day auto-scroll ticker (catalog 19). CSS-driven loop + pause toggle. */
+/* === TV GUIDE, FROZEN (Dave 2026-09-27): nothing from here to END TV GUIDE
+   changes without his say-so; src/laws/tvGuide.test.ts hashes it. === */
 .sched-ticker { position: relative; height: 252px; overflow: hidden; }
+/* The one-frame twin the loop measures the day with: in the card, out of
+   sight, out of the flow. */
+.sched-ticker .day-measure { position: absolute; left: 0; right: 0; top: 0; visibility: hidden; pointer-events: none; animation: none; }
 .sched-ticker::before, .sched-ticker::after { content: ''; position: absolute; left: 0; right: 0; height: 32px; pointer-events: none; z-index: 2; }
 .sched-ticker::before { top: 0; background: linear-gradient(180deg, var(--surface-1) 0%, transparent 100%); }
 .sched-ticker::after { bottom: 0; background: linear-gradient(0deg, var(--surface-1) 0%, transparent 100%); }
@@ -275,6 +280,7 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
    mouse, where it is exactly right. */
 .sched-ticker.holding .ticker-track, .sched-ticker:active .ticker-track, .sched-ticker:hover .ticker-track { animation-play-state: paused; }
 @keyframes tickerScroll { from { transform: translateY(0); } to { transform: translateY(-50%); } }
+/* === END TV GUIDE === */
 @media (prefers-reduced-motion: reduce) { .ticker-track { animation: none; } }
 .ticker-toggle { width: 26px; height: 26px; border-radius: var(--r-circle); background: var(--press-3); border: 0; color: var(--tx-2); display: inline-flex; align-items: center; justify-content: center; padding: 0; flex-shrink: 0; cursor: pointer; }
 .ticker-toggle svg { width: 12px; height: 12px; fill: currentColor; }
@@ -4662,6 +4668,18 @@ body.selecting .voice-dock { display: none; }
    the sub's line. */
 .notice-card .conn-meta > .facts { margin-top: 0; line-height: inherit; }
 
+/* A FACTS LINE WHOSE JOB IS TO SHOW EVERY FACT WRAPS (2026-09-27, the audit
+   leftover on Today: the mail deadline card's line is 181px beside its glyph
+   and its Add Task capsule at 390, so "From App Store Team" could never show
+   whole beside a day fact). The sub is the wrapping form, the card's own
+   .conn-meta holding .fact spans with the dot at the end of each, unclamped:
+   "Likely Today" on one line, the sender on the next, at 1.0 and at 1.4. A
+   wrap card is never uniform (NoticeCard.tsx), so the one-line clamp above
+   and the latch that serves it never reach it. */
+.notice-card.notice-card-wrap .conn-meta {
+  white-space: normal; display: block; -webkit-line-clamp: none; overflow: visible; text-overflow: clip;
+}
+
 /* A uniform card with no sub gives the title both of its lines. Same height,
    more words. See the note in NoticeCard.tsx. */
 .notice-card-solo .conn-name {
@@ -5054,6 +5072,15 @@ body.selecting .voice-dock { display: none; }
    primary label stays on one line beside its dismiss at 390; at type scale
    1.4 the two no longer fit and the pair stacks, each the full width. */
 .rep-one-acts .btn { flex: 1 1 auto; width: auto; padding-left: var(--s-2h); padding-right: var(--s-2h); }
+/* THE PAIR'S QUIET HALF IN DARK (2026-09-27, the audit leftover on More >
+   Brain > Insights at 390 dark: No Thanks read low on the This Week card).
+   The base .btn is --tint on --press-3, and --press-3 is an alpha: 5.16 on
+   the page, 4.50 on a card, and both of this pair's homes (the month report
+   and the This Week card) are cards. The opaque capsule fill takes the
+   ground out of the question: --tint on #17171A is 4.82 wherever it sits
+   (jarvis-design-system.css, the token's own measurement). Light keeps its
+   tinted wash, which already clears (5.67 on a card). */
+[data-theme="dark"] .rep-one-acts .btn:not(.btn-primary) { background: var(--capsule-fill); }
 .rep-one-foot { margin-top: var(--s-2h); }
 @media (prefers-reduced-motion: reduce) {
   .rep-hours i, .rep-stack i { transition: none; }

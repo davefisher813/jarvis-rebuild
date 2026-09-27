@@ -426,7 +426,9 @@ export default function YourDay({
 }) {
   const measureRef = useRef<HTMLDivElement>(null);
   const firstPass = useRef(true);
-  const [overflow, setOverflow] = useState(false);
+  // The expanded day's own height, so a day shorter than the window can be
+  // repeated until the loop has something to loop (see `copies` below).
+  const [dayH, setDayH] = useState(0);
   // PAUSING IS A PREFERENCE, NOT A CHORE (Dave, 2026-08-21: "make the
   // scrolling schedule still an option. If you want to make pausing it
   // easier or something that's fine").
@@ -501,7 +503,7 @@ export default function YourDay({
     const el = measureRef.current;
     // Null while the ticker is running, which renders no twin because the
     // ticker's own content IS the expanded day.
-    if (el) setOverflow(el.scrollHeight > WINDOW);
+    if (el) setDayH(el.scrollHeight);
     setMeasuring(false);
   }, [measuring]);
 
@@ -574,7 +576,7 @@ export default function YourDay({
     <div className="sh2">
       <span className="t">{nowHead ? "Now" : title}</span>
       <span className="sec-left">
-        {overflow && (
+        {(events.length > 0 || (proposed?.blocks.length ?? 0) > 0) && (
           <button
             className={"ticker-toggle" + (paused ? " paused" : "")}
             aria-label={paused ? "Resume auto-scroll" : "Pause auto-scroll"}
@@ -642,23 +644,25 @@ export default function YourDay({
   // that stopped it must not also activate whatever it landed on.
   const nowMinutes = (() => { const p = now.split(":"); return Number(p[0] ?? 0) * 60 + Number(p[1] ?? 0); })();
 
-  // THE TV GUIDE RENDERS AT ALL TIMES (Dave 2026-09-22: "I want the tv guide
-  // schedule to render at all times on the home page. It looks awful the
-  // other way.")
+  // === TV GUIDE, FROZEN (Dave 2026-09-27) ===
+  // "For no reason are we ever getting rid of that. It should never be
+  // edited. It should never be touched. It was the one thing I was happy
+  // with the whole time." Nothing between this marker and END TV GUIDE
+  // changes without his say-so; src/laws/tvGuide.test.ts holds a hash of
+  // it and fails the build on any edit.
   //
-  // It used to appear only on a day long enough to overflow 252px, so the
-  // home page had two completely different shapes depending on how busy the
-  // day was, and the quiet day got the plain stacked list. Now the card is
-  // always the card. What `overflow` decides is only whether it MOVES:
-  //
-  //   overflowing -> two copies and the loop, as before
-  //   fits        -> one copy, no animation, every control live
-  //
-  // It cannot simply always run: the loop is a -50% translate across two
-  // copies, so a day shorter than the viewport would slide a gap through the
-  // card, which is the "awful" it is meant to stop. Pause is untouched and
-  // still renders the plain list, because that is the explicit off switch.
-  const moving = overflow && !paused;
+  // THE TV GUIDE MOVES AT ALL TIMES (Dave 2026-09-27, on his phone at 8:51
+  // PM with three rows left and the card standing still: "the tv guide
+  // scroller is gone again"). The 2026-09-22 ruling ("render at all times")
+  // was read as "the card always renders, and moves only when the day is
+  // longer than the window", so a short remaining day stood still, which is
+  // exactly the version he photographed. The loop is a -50% translate
+  // across the track, so a day shorter than the window is REPEATED until
+  // the track is at least two windows tall (an even number of copies, so
+  // the half-way point is a seam between two whole days); then it loops
+  // like any long day. Pause is the one way to hold it, for the visit only.
+  const moving = !paused;
+  const copies = Math.max(2, 2 * Math.ceil(WINDOW / Math.max(1, dayH || WINDOW)));
 
   // Overflowing: duplicate the day and let the CSS loop scroll it.
   //
@@ -686,27 +690,28 @@ export default function YourDay({
           } : {})}
         >
           {moving ? (
-            <div className="ticker-track">
-              <DaySet events={events} locked={locked} now={now} nowLabel={nowLabel} blendMap={blendMap} proposed={proposed} expandHeld stateWords />
-              <DaySet events={events} locked={locked} now={now} nowLabel={nowLabel} blendMap={blendMap} proposed={proposed} expandHeld stateWords />
-            </div>
-          ) : paused ? (
+            <>
+              {/* THE TWIN IS A MEASUREMENT, NOT A SECOND DAY (see above): it
+                  mounts for one frame, hidden, so the expanded day's height
+                  is known and the loop can be given enough copies. */}
+              {measuring && (
+                <div className="ticker-track day-measure" ref={measureRef} aria-hidden="true">
+                  <DaySet events={events} locked={locked} now={now} nowLabel={nowLabel} blendMap={blendMap} proposed={proposed} expandHeld stateWords />
+                </div>
+              )}
+              <div className="ticker-track">
+                {Array.from({ length: copies }, (_, i) => (
+                  <DaySet key={i} events={events} locked={locked} now={now} nowLabel={nowLabel} blendMap={blendMap} proposed={proposed} expandHeld stateWords />
+                ))}
+              </div>
+            </>
+          ) : (
             /* PAUSED IS STILL THE CARD. It used to drop to the plain stacked
                list, which is the version he photographed and hated. Held here
                instead, compressed (the view you act in keeps its "N tasks"
                fold), every control live, the same card it was a second ago. */
             <div className="ticker-track">
               <DaySet events={events} locked={locked} now={now} nowLabel={nowLabel} onOpenEvent={onOpenEvent} onEditRoutine={onEditRoutine} onOpenBlock={onOpenBlock} blendMap={blendMap} proposed={proposed} fromMin={nowHead ? nowMinutes : undefined} conflicts={conflicts} attachMap={attachMap} firstMoveMap={firstMoveMap} onShift={onShift} onMoveTo={onMoveTo} onSetEnd={onSetEnd} onSkipToday={onSkipToday} onPushTomorrow={onPushTomorrow} onShiftBlock={onShiftBlock} onRetimeBlock={onRetimeBlock} onResizeBlock={onResizeBlock} onDeleteEvent={onDeleteEvent} onDeleteBlock={onDeleteBlock} gymDoorFor={gymDoorFor} stateWords />
-            </div>
-          ) : (
-            /* THE STILL CARD MEASURES ITSELF. The twin the paused branch
-               mounts exists because the compressed day on screen is not the
-               day the ticker would show. Here it IS: one copy, expanded,
-               exactly the content the loop would carry, so the track is the
-               measurement and no hidden second copy is needed. A day that
-               grows past the viewport flips this to the loop above. */
-            <div className="ticker-track" ref={measureRef}>
-              <DaySet events={events} locked={locked} now={now} nowLabel={nowLabel} onOpenEvent={onOpenEvent} onEditRoutine={onEditRoutine} onOpenBlock={onOpenBlock} blendMap={blendMap} proposed={proposed} fromMin={nowHead ? nowMinutes : undefined} conflicts={conflicts} attachMap={attachMap} firstMoveMap={firstMoveMap} onShift={onShift} onMoveTo={onMoveTo} onSetEnd={onSetEnd} onSkipToday={onSkipToday} onPushTomorrow={onPushTomorrow} onShiftBlock={onShiftBlock} onRetimeBlock={onRetimeBlock} onResizeBlock={onResizeBlock} onDeleteEvent={onDeleteEvent} onDeleteBlock={onDeleteBlock} gymDoorFor={gymDoorFor} expandHeld stateWords />
             </div>
           )}
         </div>
@@ -727,4 +732,5 @@ export default function YourDay({
       {footer}
     </div>
   );
+  // === END TV GUIDE ===
 }
