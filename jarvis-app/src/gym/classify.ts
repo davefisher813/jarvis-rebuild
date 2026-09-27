@@ -49,14 +49,21 @@ export const MOVEMENTS = [
 ] as const;
 export type MovementPattern = (typeof MOVEMENTS)[number];
 
+// PLAIN DIRECTIONS, NOT PLANES (Dave 2026-09-27: "think of better verbiage
+// instead [of] horizontal and vertical press/push ... the vertical and
+// horizontal thing will be confusing for people"). The coach's terms named
+// the plane of the movement; these name where the weight goes, which is what
+// anyone can see: a bench or a push-up pushes forward, a shoulder press
+// pushes overhead, a row pulls in, a pull-up or a pulldown pulls down. The
+// stored keys are unchanged, so nothing already classified moves.
 export const MOVEMENT_LABEL: Record<MovementPattern, string> = {
   squat: "Squat",
   hinge: "Hinge",
   lunge: "Lunge",
-  push_h: "Horizontal Push",
-  pull_h: "Horizontal Pull",
-  push_v: "Vertical Push",
-  pull_v: "Vertical Pull",
+  push_h: "Push Forward",
+  pull_h: "Pull In",
+  push_v: "Push Overhead",
+  pull_v: "Pull Down",
   carry: "Carry",
   rotation: "Rotation",
   other: "Other",

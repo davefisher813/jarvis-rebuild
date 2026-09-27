@@ -20,14 +20,19 @@
 // right. Added at the end of the arm run, where a reader looking for it will
 // look. Additive: nothing already assigned changes, and a store written
 // before today reads exactly as it did.
+// TRAPS (Dave 2026-09-27: "We also need traps added to the muscle list").
+// Shrugs, carries and upright rows train them on purpose, and without a
+// group of their own they were filed under Back or Shoulders. Next to Back,
+// where a reader looks for them. Additive, same as Forearms: nothing already
+// assigned changes.
 export const MUSCLE_GROUPS = [
-  "chest", "back", "shoulders", "biceps", "triceps", "forearms",
+  "chest", "back", "traps", "shoulders", "biceps", "triceps", "forearms",
   "quads", "hamstrings", "glutes", "calves", "core",
 ] as const;
 export type MuscleGroup = (typeof MUSCLE_GROUPS)[number];
 
 export const MUSCLE_LABEL: Record<MuscleGroup, string> = {
-  chest: "Chest", back: "Back", shoulders: "Shoulders", biceps: "Biceps", triceps: "Triceps",
+  chest: "Chest", back: "Back", traps: "Traps", shoulders: "Shoulders", biceps: "Biceps", triceps: "Triceps",
   forearms: "Forearms",
   quads: "Quads", hamstrings: "Hamstrings", glutes: "Glutes", calves: "Calves", core: "Core",
 };

@@ -146,7 +146,7 @@ describe("LibraryPage: the classification editor", () => {
     fireEvent.click(screen.getByRole("button", { name: "Assign Muscles" }));
     fireEvent.click(screen.getByRole("button", { name: "Equipment Smith Machine" }));
     fireEvent.click(screen.getByRole("button", { name: "More Details" }));
-    fireEvent.click(screen.getByRole("button", { name: "Movement Horizontal Push" }));
+    fireEvent.click(screen.getByRole("button", { name: "Movement Push Forward" }));
     fireEvent.click(screen.getByRole("button", { name: "Type Strength" }));
     fireEvent.change(screen.getByLabelText("Machine"), { target: { value: "Rack 3" } });
     fireEvent.click(screen.getByRole("button", { name: "Save" }));

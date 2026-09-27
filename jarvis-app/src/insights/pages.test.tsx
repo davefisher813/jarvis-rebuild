@@ -172,7 +172,8 @@ describe("AssignMusclesSheet", () => {
     fireEvent.click(batch.querySelector('[aria-pressed]')!);
     fireEvent.click(screen.getByText("Apply to All Listed"));
     const curl = screen.getByRole("group", { name: "Muscles for Curl" });
-    fireEvent.click([...curl.querySelectorAll("[aria-pressed]")][3]!);
+    // Biceps, fifth since Traps joined the list after Back (2026-09-27).
+    fireEvent.click([...curl.querySelectorAll("[aria-pressed]")][4]!);
     fireEvent.click(screen.getByText("Save Muscles"));
     expect(onSave).toHaveBeenCalledWith({ x: ["quads"], r: ["chest"], c: ["chest", "biceps"] });
   });

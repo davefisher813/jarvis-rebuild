@@ -83,7 +83,7 @@ describe("LibraryPage: the row's anatomy", () => {
     render(<LibraryPage {...base} store={{ bench: { ...EMPTY_CLASS, primary: ["chest"], equipment: "barbell", movement: "push_h" } }} rows={[row()]} />);
     expect(screen.getByRole("button", { name: "Chest, edit" })).toHaveClass("lime");
     expect(screen.getByRole("button", { name: "Barbell, edit" })).toHaveClass("violet");
-    const move = screen.getByRole("button", { name: "Horizontal Push, edit" });
+    const move = screen.getByRole("button", { name: "Push Forward, edit" });
     expect(move.className.trim(), "the least load-bearing axis stays quiet").toBe("ex-chip");
   });
 
