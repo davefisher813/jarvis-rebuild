@@ -29,14 +29,15 @@ describe("3A: the hand, never the pile", () => {
 
 describe("5A: every card wears its cost", () => {
   it("prepared one-tap actions are seconds", () => {
-    for (const k of ["bill", "event", "task", "archive"]) expect(estimateOf(k)).toBe("~5 sec");
+    // Casing sweep 3 (2026-09-27): Title Case by the whole rule (§H2); durations through shared/duration ("45 Min", "About 1 Min").
+    for (const k of ["bill", "event", "task", "archive"]) expect(estimateOf(k)).toBe("About 5 Sec");
   });
   it("a drafted reply costs the reading of it", () => {
-    expect(estimateOf("reply")).toBe("~30 sec");
+    expect(estimateOf("reply")).toBe("About 30 Sec");
   });
   it("no plan means opening the thread, honestly the slowest", () => {
-    expect(estimateOf(null)).toBe("~1 min");
-    expect(estimateOf(undefined)).toBe("~1 min");
+    expect(estimateOf(null)).toBe("About 1 Min");
+    expect(estimateOf(undefined)).toBe("About 1 Min");
   });
 });
 
@@ -106,9 +107,9 @@ describe("10A: the honest record", () => {
 
 describe("the deck card's estimate", () => {
   it("rounds UP, because an estimate that runs over breaks the promise", () => {
-    expect(sweepEstimate(1)).toBe("About 1 min");
-    expect(sweepEstimate(3)).toBe("About 2 min");
-    expect(sweepEstimate(9)).toBe("About 6 min");
+    expect(sweepEstimate(1)).toBe("About 1 Min");
+    expect(sweepEstimate(3)).toBe("About 2 Min");
+    expect(sweepEstimate(9)).toBe("About 6 Min");
   });
   it("says nothing about an empty hand", () => {
     expect(sweepEstimate(0)).toBe("");

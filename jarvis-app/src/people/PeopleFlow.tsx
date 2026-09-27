@@ -653,7 +653,7 @@ export default function PeopleFlow({ onBack, openId: initialOpenId, openNonce, o
         <div className="grp"><div className="eyebrow">Import Contacts</div></div>
         <div className="pad-x sheet-form">
           {importPlan.bad ? (
-            <div className="plan-sub">Couldn't read that file · Use .vcf or .csv with names</div>
+            <div className="plan-sub">Couldn't Read That File · Use .vcf or .csv with Names</div>
           ) : (
             <>
               {/* THE SUMMARY SAYS ALL FOUR THINGS (People handoff: "Show

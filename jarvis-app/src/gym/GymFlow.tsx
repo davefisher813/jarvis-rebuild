@@ -1236,7 +1236,7 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
     // than left to be discovered.
     const pinned = !!week.days.find((d) => d.id === dayId)?.pinDays?.length;
     if (await saveDays(weekId, duplicateDay(week, dayId).days)) {
-      showToast({ message: pinned ? "Day duplicated · The copy is unpinned" : "Day duplicated" });
+      showToast({ message: pinned ? "Day Duplicated · The Copy Is Unpinned" : "Day Duplicated" });
     }
   };
   const duplicateExerciseAction = async (weekId: string, dayId: string, exId: string) => {
@@ -1309,7 +1309,7 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
     if (outcome === "moved" && openDayId === day.id) setOpenDayId(null);
     await reload();
     if (outcome === "moved") showToast({ message: `Moved to ${target.data.name}` });
-    else if (outcome === "landed") showToast({ message: `Copied to ${target.data.name} · Couldn't remove it here` });
+    else if (outcome === "landed") showToast({ message: `Copied to ${target.data.name} · Couldn't Remove It Here` });
     else showToast({ message: WRITE_FAILED_MESSAGE });
   };
   const duplicateProgramAction = async (p: Program) => {
@@ -1401,7 +1401,7 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
     // a bookmark back to the gym.
     if (areaId) recordSpot({ kind: "gym", id: areaId, label: day.name });
     enterSession(s);
-    if (opts.sameAsLastTime && !last) showToast({ message: "No prior session for this day yet · Starting fresh" });
+    if (opts.sameAsLastTime && !last) showToast({ message: "No Prior Session for This Day Yet · Starting Fresh" });
   };
   // D5: every live start passes through the fit sheet -- except the paths
   // whose whole point is speed or the past: a resume (the sheet was already
@@ -1569,7 +1569,7 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
       enterSession(null);
       setOpenDayId(null);
       await reload();
-      showToast({ message: "Nothing logged · Nothing saved" });
+      showToast({ message: "Nothing Logged · Nothing Saved" });
       return;
     }
     const endedAt = Date.now();
@@ -1644,7 +1644,7 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
         title={`${live.dayName} Was Already Saved Today`}
         actions={[
           { label: "Save This One Too", onClick: () => { setDupFinish(null); void finish({ force: true }); } },
-          { label: "Discard This One", onClick: () => { setDupFinish(null); clearLive(); enterSession(null); setOpenDayId(null); showToast({ message: "Discarded · The saved session stays" }); } },
+          { label: "Discard This One", onClick: () => { setDupFinish(null); clearLive(); enterSession(null); setOpenDayId(null); showToast({ message: "Discarded · The Saved Session Stays" }); } },
         ]}
         onClose={() => setDupFinish(null)}
       />

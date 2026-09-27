@@ -43,7 +43,7 @@ export default function LearnedRulesPage({ onBack }: { onBack: () => void }) {
     setRemoving(null);
     await reload();
     if (ok) showToast({
-      message: "Rule deleted · JARVIS asks again",
+      message: "Rule Deleted · JARVIS Asks Again",
       actionLabel: "Undo",
       onAction: () => void (async () => {
         await attemptWrite(() => svc.restore(kept));

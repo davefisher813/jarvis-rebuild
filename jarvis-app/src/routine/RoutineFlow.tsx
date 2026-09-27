@@ -101,7 +101,7 @@ export default function RoutineFlow({ onBack, focusId, onFocusConsumed }: { onBa
     setLoadFailed(false);
     routine.get()
       .then((r) => { if (on) { setData(r); savedRef.current = r; setLoaded(true); } })
-      .catch(() => { if (!on) return; setLoadFailed(true); showToast({ message: "Couldn't load · Check your connection" }); });
+      .catch(() => { if (!on) return; setLoadFailed(true); showToast({ message: "Couldn't Load · Check Your Connection" }); });
     return () => { on = false; };
   }, [routine, attempt]);
 
@@ -263,7 +263,7 @@ export default function RoutineFlow({ onBack, focusId, onFocusConsumed }: { onBa
       savedRef.current = data;
       setDirty(false);
     } catch {
-      showToast({ message: "Couldn't save · Check your connection" });
+      showToast({ message: "Couldn't Save · Check Your Connection" });
     }
   };
 

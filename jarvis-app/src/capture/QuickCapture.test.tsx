@@ -177,7 +177,8 @@ describe("QuickCapture fact category chips (S4-Q22)", () => {
     await waitFor(() => expect(screen.getByText("Saved")).toBeInTheDocument());
 
     fireEvent.click(screen.getByRole("radio", { name: "Energy" }));
-    await waitFor(() => expect(showToast).toHaveBeenCalledWith({ message: "The Brain is full · Prune it in What JARVIS Knows" }));
+    // Casing sweep 3 (2026-09-27): Title Case by the whole rule (§H2); durations through shared/duration ("45 Min", "About 1 Min").
+    await waitFor(() => expect(showToast).toHaveBeenCalledWith({ message: "The Brain Is Full · Prune It in What JARVIS Knows" }));
 
     // The refusal moved nothing: the fact is still under Routine.
     expect(screen.getByRole("radio", { name: "Routine" })).toHaveAttribute("aria-checked", "true");
@@ -209,7 +210,7 @@ describe("QuickCapture fact category chips (S4-Q22)", () => {
     expect(screen.getByRole("radio", { name: "Task" })).toHaveAttribute("aria-checked", "true");
 
     fireEvent.click(screen.getByRole("radio", { name: "Fact" }));
-    await waitFor(() => expect(showToast).toHaveBeenCalledWith({ message: "The Brain is full · Prune it in What JARVIS Knows" }));
+    await waitFor(() => expect(showToast).toHaveBeenCalledWith({ message: "The Brain Is Full · Prune It in What JARVIS Knows" }));
 
     expect(screen.getByRole("radio", { name: "Task" })).toHaveAttribute("aria-checked", "true");
     expect(screen.getByRole("radio", { name: "Fact" })).toHaveAttribute("aria-checked", "false");

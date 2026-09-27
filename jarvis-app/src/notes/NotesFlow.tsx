@@ -445,7 +445,7 @@ export default function NotesFlow({
         .filter((t) => !(t.data as { done?: boolean }).done)
         .map((t) => ({ id: t.id, text: (t.data as { text?: string }).text || "Untitled" })),
     );
-    if (failed) showToast({ message: "Couldn't load · Check your connection" });
+    if (failed) showToast({ message: "Couldn't Load · Check Your Connection" });
   }, [schedSvc, tasksSvc, projSvc, goalSvc, peopleSvc]);
 
   const openNote = async (id: string) => {

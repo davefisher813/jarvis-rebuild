@@ -133,7 +133,7 @@ export function buildCheckinNotifications(routine: RoutineData, briefTime?: stri
     out.push({
       id: EVENING_ID,
       title: "How did today feel?",
-      body: "One tap · Better plans",
+      body: "One Tap · Better Plans",
       hour: Math.floor(eveningMin / 60),
       minute: eveningMin % 60,
     });

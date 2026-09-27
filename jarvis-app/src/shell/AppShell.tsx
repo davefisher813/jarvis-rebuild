@@ -70,6 +70,7 @@ import { useSessionOpen } from "../gym/sessionChrome";
 import { attemptWrite } from "../shared/guard";
 import { useAppearance, type Appearance } from "../appearance/AppearanceProvider";
 import { SETTING_APPEARANCE, SETTING_DONE_CLEARING, SETTING_EMAIL_TASKS } from "../data/SettingsService";
+import { minutesLabel } from "../shared/duration";
 
 // Hosts the app. The bottom tab bar is user-editable: tabKeys (from the profile)
 // decides which pages are tabs; everything else lives in More. Any page can be
@@ -351,7 +352,7 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
       } catch (e) {
         if (!on) return;
         console.error("boot", e);
-        showToast({ message: "Couldn't load everything · Try again in a moment" });
+        showToast({ message: "Couldn't Load Everything · Try Again in a Moment" });
       }
       if (!on) return;
       const keys = migrateTabs(prof?.tabs?.length ? prof.tabs : DEFAULT_TABS);
@@ -415,7 +416,7 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
     if (isReminderDone(t.reminder, today)) return;
     const to = snoozeTime(nowHHMM(), BANNER_SNOOZE_MIN);
     const ok = await attemptWrite(() => tasks.snoozeReminder(taskId, to, today));
-    if (ok) showToast({ message: `Snoozed ${t.text} · ${BANNER_SNOOZE_MIN} minutes` });
+    if (ok) showToast({ message: `Snoozed ${t.text} · ${minutesLabel(BANNER_SNOOZE_MIN)}` });
   };
   // OPEN FROM THE BANNER: the linked item when there is one (opening never
   // completes the reminder), otherwise the reminder on Today. Either way
@@ -440,7 +441,7 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
     const to = addDays(todayISO(), 1);
     if (t.due === to) return; // already there: pressing again is not a second slip
     const ok = await attemptWrite(() => tasks.setDue(taskId, to));
-    if (ok) showToast({ message: `Moved ${t.text} to tomorrow` });
+    if (ok) showToast({ message: `Moved ${t.text} to Tomorrow` });
   };
 
   // S1-04 (2026-09-04): "A notification tap lands nowhere." AppShell is the

@@ -462,7 +462,7 @@ export default function HealthFlow({
               );
               if (sent) showToast({ message: "Log exported" });
             } catch {
-              showToast({ message: "Couldn't export · Try again" });
+              showToast({ message: "Couldn't Export · Try Again" });
             }
           }}
           // UP-ATH-11 (2026-09-06): the web half. saveTextFile's browser path
@@ -474,7 +474,7 @@ export default function HealthFlow({
               await copyText(doctorReportText(report));
               showToast({ message: "Copied to your clipboard" });
             } catch {
-              showToast({ message: "Couldn't copy · Try again" });
+              showToast({ message: "Couldn't Copy · Try Again" });
             }
           }}
           onBack={onExit}
@@ -589,7 +589,7 @@ export default function HealthFlow({
           onShare={(text) => {
             void shareText(text, "Still There?")
               .then((r) => { if (r === "copied") showToast({ message: "Copied to your clipboard" }); })
-              .catch(() => showToast({ message: "Couldn't hand that over · Try again" }));
+              .catch(() => showToast({ message: "Couldn't Hand That Over · Try Again" }));
           }}
           onBack={onExit}
         />

@@ -278,7 +278,8 @@ describe("HealthFlow: The Locker tracks expiry with zero medical judgment", () =
     const stop = subscribeToast((t) => { if (t) seen.push(t.message); });
     render(<HealthFlow service={svc} initialScreen="locker" onExit={() => {}} />);
     fireEvent.click(await screen.findByRole("button", { name: "Remove" }));
-    await waitFor(() => expect(seen).toContain("Couldn't save · Check your connection"));
+    // Casing sweep 3 (2026-09-27): Title Case by the whole rule (§H2); durations through shared/duration ("45 Min", "About 1 Min").
+    await waitFor(() => expect(seen).toContain("Couldn't Save · Check Your Connection"));
     stop();
   });
 });

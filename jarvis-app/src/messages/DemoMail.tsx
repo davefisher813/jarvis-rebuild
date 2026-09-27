@@ -39,7 +39,7 @@ const MAIL_ICO = (
   <EnvelopeGlyph />
 );
 
-const demoTap = () => showToast({ message: "Demo mail · Connect Google for the real thing" });
+const demoTap = () => showToast({ message: "Demo Mail · Connect Google for the Real Thing" });
 
 export default function DemoMail({ onConnect }: { onConnect?: () => void }) {
   // The home page reads a snapshot the Email tab leaves behind. In the demo

@@ -3671,7 +3671,8 @@ describe("LAW 9: the ask decides the action, in every branch", () => {
     expect(at, "Clean Out is a Tools row").toBeGreaterThan(-1);
     const row = src.slice(at, at + 900);
     // E-29 (2026-09-12): counted over visibleRows, the list's own rows.
-    expect(row, "the thread count leads").toMatch(/capAfterNumber\(\s*visibleRows\.length \+/);
+    // Casing sweep 3 (2026-09-27): the line runs through lineCase now.
+    expect(row, "the thread count leads").toMatch(/lineCase\(\s*visibleRows\.length \+/);
     const decl = src.slice(src.lastIndexOf("const piles =", at), at);
     expect(decl, "the senders are counted over the list's own rows")
       .toMatch(/^const piles = senderPiles\(visibleRows, effTriage, vips\)\.length;/);

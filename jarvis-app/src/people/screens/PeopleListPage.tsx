@@ -114,7 +114,7 @@ export default function PeopleListPage({
           person, so legacy Adversarial members are confirmed, never converted. */}
       {pendingReview.length > 0 && (
         <div className="pad-x"><div className="card list-card-ruled pad">
-          <div className="conn-name">From your old list · Still handle with care?</div>
+          <div className="conn-name">From Your Old List · Still Handle with Care?</div>
           {pendingReview.map((p) => (
             // Row tap (Dave 2026-09-15, "I want all rows clickable"): the row
             // opens the person; Yes and No keep their own taps.

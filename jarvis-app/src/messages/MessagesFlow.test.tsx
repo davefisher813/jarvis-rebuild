@@ -215,7 +215,7 @@ describe("MessagesFlow (threads)", () => {
     // the Anti-Inbox catalog is against: a promo wearing a person's weight.
     // It is now one grey line that counts SENDERS as machines and carries
     // the single action that ends the lot.
-    expect(screen.getByText(/1 Machine wrote/)).toBeInTheDocument();
+    expect(screen.getByText(/1 Machine Wrote/)).toBeInTheDocument();
     expect(screen.getByText("Sweep")).toBeInTheDocument();
     expect(screen.queryByText(/DoorDash promo/)).toBeNull();
   });
@@ -288,7 +288,7 @@ describe("MessagesFlow (threads)", () => {
     // only on a collapsed single-sender group inside the unfolded noise.
     fireEvent.click(await screen.findByText("Sweep"));
     await waitFor(() => expect(archived).toEqual(["t2"]));
-    expect(screen.getByText("1 Conversation archived")).toBeInTheDocument();
+    expect(screen.getByText("1 Conversation Archived")).toBeInTheDocument();
     expect(screen.queryByText("Noise")).toBeNull();
     expect(screen.getByText(/Ridgeley/)).toBeInTheDocument(); // needs_you untouched
   });
@@ -487,7 +487,7 @@ describe("MessagesFlow (threads)", () => {
     await waitFor(() => expect(trashed).toEqual(["t1"]));
     expect(permanentDeleteCalled).toBe(false);
     // SPEC MOVED (short copy, 2026-08-15)
-    expect(await screen.findByText(/In trash 30 days/)).toBeInTheDocument();
+    expect(await screen.findByText(/In Trash 30 Days/)).toBeInTheDocument();
     expect(screen.queryByText("Ridgeley")).toBeNull(); // gone from the list too
   });
 
@@ -531,7 +531,7 @@ describe("MessagesFlow (threads)", () => {
     // SPEC MOVED (short copy, 2026-08-15). E-09 (2026-09-12): the offer is a
     // NoticeCard, the question is its title and the count is a fact.
     expect(await screen.findByText("File No as Noise?")).toBeInTheDocument();
-    expect(screen.getByText(/4 Archived unread/)).toBeInTheDocument();
+    expect(screen.getByText(/4 Archived Unread/)).toBeInTheDocument();
     expect(screen.queryByText("Clear Noise Automatically?")).toBeNull();
   });
 
@@ -586,7 +586,8 @@ describe("MessagesFlow (threads)", () => {
     fireEvent.click(screen.getByText("Standing Rules"));
     await screen.findByText("Asked to Stop");
     const lines = await waitFor(() => {
-      const ls = [...document.querySelectorAll(".facts")].filter((f) => (f.textContent ?? "").startsWith("Asked 3 weeks ago"));
+      // Casing sweep 3 (2026-09-27): Title Case by the whole rule (§H2); durations through shared/duration ("45 Min", "About 1 Min").
+      const ls = [...document.querySelectorAll(".facts")].filter((f) => (f.textContent ?? "").startsWith("Asked 3 Weeks Ago"));
       expect(ls).toHaveLength(2);
       return ls;
     });
@@ -596,11 +597,11 @@ describe("MessagesFlow (threads)", () => {
     expect(calm).toHaveLength(1);
     // Sent since the ask: when, then whether it worked, in amber.
     const facts = [...still[0]!.querySelectorAll(".fact")];
-    expect(facts.map((f) => f.textContent)).toEqual(["Asked 3 weeks ago", "Still sending"]);
+    expect(facts.map((f) => f.textContent)).toEqual(["Asked 3 Weeks Ago", "Still Sending"]);
     expect(facts[0]!.className).toBe("fact");
     expect(facts[1]!.className).toBe("fact warn");
     // Nothing since the ask: only when, and no "Still sending" anywhere on it.
-    expect([...calm[0]!.querySelectorAll(".fact")].map((f) => f.textContent)).toEqual(["Asked 3 weeks ago"]);
+    expect([...calm[0]!.querySelectorAll(".fact")].map((f) => f.textContent)).toEqual(["Asked 3 Weeks Ago"]);
     expect(calm[0]!.textContent).not.toMatch(/still sending/i);
   });
 
@@ -1029,7 +1030,7 @@ describe("MessagesFlow (threads)", () => {
     expect(screen.getByText("Undo")).toBeInTheDocument();
     // A different, unrelated toast, well inside the six seconds.
     fireEvent.click(await screen.findByText("Yes, file them"));
-    expect(await screen.findByText("Straight to Noise from now on")).toBeInTheDocument();
+    expect(await screen.findByText("Straight to Noise from Now On")).toBeInTheDocument();
     expect(screen.queryByText("Undo")).toBeNull();
   });
 

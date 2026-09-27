@@ -631,7 +631,7 @@ export default function NoteEditor({
           result={aiRun.result}
           error={aiRun.error}
           stale={aiStale}
-          onApply={() => { if (aiRun.result !== null) editorRef.current?.replaceRange(aiRun.from, aiRun.to, parseMarkdown(aiRun.result)); setAiRun(null); showToast({ message: "Applied · Undo is on the bar" }); }}
+          onApply={() => { if (aiRun.result !== null) editorRef.current?.replaceRange(aiRun.from, aiRun.to, parseMarkdown(aiRun.result)); setAiRun(null); showToast({ message: "Applied · Undo Is on the Bar" }); }}
           onInsert={() => { if (aiRun.result !== null) editorRef.current?.insertAtCaret(parseMarkdown(aiRun.result)); setAiRun(null); }}
           onCopy={() => { if (aiRun.result !== null) void copyText(aiRun.result).then(() => showToast({ message: "Result copied" })).catch(() => setFallback(aiRun.result)); }}
           onRetry={() => void runAI(aiRun.action, { from: aiRun.from, to: aiRun.to, text: aiRun.text })}

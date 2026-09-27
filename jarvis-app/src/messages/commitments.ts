@@ -1,4 +1,5 @@
 import { dayPhrase } from "../money/bills";
+import { lineCase } from "../shared/casing";
 // Commitment catcher.
 //
 // The thing that actually gets dropped is not the email someone sent you. It
@@ -101,7 +102,7 @@ export function parseCommitment(raw: string, todayISO: string): Commitment | nul
 // is the bug this signature exists to prevent, and a default would let a
 // caller keep the old behaviour by forgetting (2026-08-25).
 export function commitmentLine(c: Commitment, today: string): string {
-  if (c.due) return "Caught: " + c.text + " · By " + dayPhrase(c.due, today);
-  if (c.proposedDate) return "Caught: " + c.text + " · " + c.proposedDate + " (proposed)";
-  return "Caught: " + c.text;
+  if (c.due) return lineCase("Caught: " + c.text + " · By " + dayPhrase(c.due, today));
+  if (c.proposedDate) return lineCase("Caught: " + c.text + " · " + c.proposedDate + " (proposed)");
+  return lineCase("Caught: " + c.text);
 }

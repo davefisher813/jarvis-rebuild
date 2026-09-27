@@ -157,6 +157,8 @@ describe("the drain", () => {
     expect(fmtClock(125000)).toBe("2:05");
     expect(fmtClock(0)).toBe("0:00");
     expect(fmtClock(-5000)).toBe("0:00");
+    // Casing sweep 3 (2026-09-27): the one running clock rolls past an hour (h:mm:ss).
+    expect(fmtClock(3661000)).toBe("1:01:01");
   });
 
 });

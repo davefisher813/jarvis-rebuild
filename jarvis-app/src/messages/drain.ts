@@ -1,4 +1,3 @@
-import { clockLabel } from "../shared/duration";
 // The drain: "give me N minutes", and N is the USER'S number, always.
 //
 // Dave's explicit requirement: he sets the timer. Presets exist because
@@ -7,6 +6,8 @@ import { clockLabel } from "../shared/duration";
 //
 // It stops dead at zero and reports what got done. It never mentions what is
 // left. That silence is the feature.
+
+import { clockLabel } from "../shared/duration";
 
 const KEY = "jarvis.mail.drain.v1";
 export const PRESETS = [2, 5, 10];

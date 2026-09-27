@@ -186,7 +186,7 @@ export default function StrandsPage({ onBack, openId: initialOpenId, openNonce, 
         const made = (await svc.list()).find((s) => s.id === id);
         if (made) await svc.setChannel(made, channel);
       }
-      showToast({ message: id ? "JARVIS will remember that" : "The Brain is full · Delete one first" });
+      showToast({ message: id ? "JARVIS Will Remember That" : "The Brain Is Full · Delete One First" });
     });
     setSaving(false);
     if (!ok) return;
@@ -209,7 +209,7 @@ export default function StrandsPage({ onBack, openId: initialOpenId, openNonce, 
       await svc.edit(open, text, today);
       if (cat !== open.data.category) {
         const moved = await svc.recategorize(open, cat);
-        if (!moved) showToast({ message: "The Brain is full · Prune it in What JARVIS Knows" });
+        if (!moved) showToast({ message: "The Brain Is Full · Prune It in What JARVIS Knows" });
       }
       // S4-Q24: the only writer of strength, and only when it actually
       // changed -- re-saving an unchanged edit is not a rule declaration.

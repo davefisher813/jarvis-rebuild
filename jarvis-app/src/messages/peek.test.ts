@@ -20,12 +20,13 @@ describe("the peek counts people, not mail", () => {
   it("counts SENDERS, so four emails from one person is one person", () => {
     const rows = [row("1", "a@x.com", "Alpha"), row("2", "a@x.com", "Alpha"),
       row("3", "a@x.com", "Alpha"), row("4", "a@x.com", "Alpha")];
-    expect(peekLine(rows, {}, [])).toBe("1 Person wrote, nothing urgent");
+    // Casing sweep 3 (2026-09-27): Title Case by the whole rule (§H2); durations through shared/duration ("45 Min", "About 1 Min").
+    expect(peekLine(rows, {}, [])).toBe("1 Person Wrote, Nothing Urgent");
   });
 
   it("pluralises like a human", () => {
     const rows = [row("1", "a@x.com", "Alpha"), row("2", "b@x.com", "Bravo")];
-    expect(peekLine(rows, {}, [])).toBe("2 People wrote, nothing urgent");
+    expect(peekLine(rows, {}, [])).toBe("2 People Wrote, Nothing Urgent");
   });
 
   it("machines do not exist behind the door", () => {
@@ -36,35 +37,35 @@ describe("the peek counts people, not mail", () => {
       row("2", "no-reply@shop.com", "Shop"),
       row("3", "c@promo.com", "Promo"),
     ];
-    expect(peekLine(rows, { "3": { bucket: "noise" } }, [])).toBe("1 Person wrote, nothing urgent");
+    expect(peekLine(rows, { "3": { bucket: "noise" } }, [])).toBe("1 Person Wrote, Nothing Urgent");
   });
 
   it("says something true when no person has written", () => {
-    expect(peekLine([], {}, [])).toBe("Nothing from a person");
-    expect(peekLine([row("1", "no-reply@shop.com", "Shop")], {}, [])).toBe("Nothing from a person");
+    expect(peekLine([], {}, [])).toBe("Nothing from a Person");
+    expect(peekLine([row("1", "no-reply@shop.com", "Shop")], {}, [])).toBe("Nothing from a Person");
   });
 
   it("ignores what is not in the inbox", () => {
     const rows = [{ ...row("1", "a@x.com", "Alpha"), inInbox: false }];
-    expect(peekLine(rows, {}, [])).toBe("Nothing from a person");
+    expect(peekLine(rows, {}, [])).toBe("Nothing from a Person");
   });
 });
 
 describe("urgency wears a name, never a number", () => {
   it("names the one person who is waiting", () => {
     const rows = [row("1", "a@x.com", "Sarah Kane"), row("2", "b@x.com", "Bravo")];
-    expect(peekLine(rows, { "1": { bucket: "needs_you" } }, [])).toBe("2 People wrote, Sarah needs you");
+    expect(peekLine(rows, { "1": { bucket: "needs_you" } }, [])).toBe("2 People Wrote, Sarah Needs You");
   });
 
   it("names one and counts the rest, so the line stays one line", () => {
     const rows = [row("1", "a@x.com", "Sarah Kane"), row("2", "b@x.com", "Bravo Smith"), row("3", "c@x.com", "Cara")];
     const line = peekLine(rows, { "1": { bucket: "needs_you" }, "2": { bucket: "needs_you" } }, []);
-    expect(line).toBe("3 People wrote, Sarah and 1 other need you");
+    expect(line).toBe("3 People Wrote, Sarah and 1 Other Need You");
   });
 
   it("a VIP is urgent whatever the classifier thought", () => {
     const rows = [row("1", "boss@x.com", "Dana Reed")];
-    expect(peekLine(rows, {}, ["BOSS@x.com"])).toBe("1 Person wrote, Dana needs you");
+    expect(peekLine(rows, {}, ["BOSS@x.com"])).toBe("1 Person Wrote, Dana Needs You");
   });
 
   it("never prints a bare unread count anywhere in the line", () => {
@@ -73,7 +74,7 @@ describe("urgency wears a name, never a number", () => {
     expect(line).not.toMatch(/unread|new messages|waiting for you/i);
     // 40 people is 40 people. That is a fact about the world, and the
     // second clause is what makes it survivable.
-    expect(line).toBe("40 People wrote, nothing urgent");
+    expect(line).toBe("40 People Wrote, Nothing Urgent");
   });
 
   it("never blames, never scolds, whatever the numbers are", () => {

@@ -1319,7 +1319,7 @@ export default function ScheduleFlow({ onEditRoutine, openId, onNavigate }: { on
     const { moved, skipped, crossed, prior } = shift;
     // SCHED-F-18: an event the shift would carry past midnight stayed where
     // it was, and the receipt says so rather than leaving a silent hole.
-    if (moved === 0) { if (crossed) showToast({ message: "Nothing moved · The rest would run past midnight" }); return; }
+    if (moved === 0) { if (crossed) showToast({ message: "Nothing Moved · The Rest Would Run Past Midnight" }); return; }
     showToast({
       message: lineCase(`${moved} ${moved === 1 ? "event" : "events"} +${spanLabel(mins)}${skipped ? ` · ${skipped} repeating stayed` : ""}${crossed ? ` · ${crossed} would pass midnight` : ""}`),
       actionLabel: "Undo",

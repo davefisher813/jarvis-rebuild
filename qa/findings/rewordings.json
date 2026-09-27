@@ -5966,5 +5966,545 @@
   "new": "In Money · $12.00 Due Tomorrow / Added to Your Tasks · Tomorrow",
   "phase": "casing-sweep-2",
   "group": "casing-sweep-2"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/App.tsx",
+  "count": 1,
+  "old": "Couldn't reach your profile · Check your connection",
+  "new": "Couldn't Reach Your Profile · Check Your Connection",
+  "phase": "casing-sweep-3",
+  "group": "casing-sweep-3"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/admin/AdminPanel.tsx",
+  "count": 1,
+  "old": "Usage + billing · Wired at launch",
+  "new": "Usage + Billing · Wired at Launch",
+  "phase": "casing-sweep-3",
+  "group": "casing-sweep-3"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/backup/BackupService.ts",
+  "count": 1,
+  "old": "Import failed · Rolled back · Nothing changed",
+  "new": "Import Failed · Rolled Back · Nothing Changed",
+  "phase": "casing-sweep-3",
+  "group": "casing-sweep-3"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/brain/BrainTop.tsx",
+  "count": 1,
+  "old": "The Brain is full · Prune it in What JARVIS Knows",
+  "new": "The Brain Is Full · Prune It in What JARVIS Knows",
+  "phase": "casing-sweep-3",
+  "group": "casing-sweep-3"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/brain/docs/BrainDocPage.tsx",
+  "count": 4,
+  "old": "The Brain is full · Prune it in What JARVIS Knows / Couldn't load · Check your connection / Couldn't save · Check your connection / Couldn't read that · Try a clearer photo",
+  "new": "The Brain Is Full · Prune It in What JARVIS Knows / Couldn't Load · Check Your Connection / Couldn't Save · Check Your Connection / Couldn't Read That · Try a Clearer Photo",
+  "phase": "casing-sweep-3",
+  "group": "casing-sweep-3"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/brain/strands/StrandsPage.tsx",
+  "count": 3,
+  "old": "JARVIS will remember that / The Brain is full · Delete one first / The Brain is full · Prune it in What JARVIS Knows",
+  "new": "JARVIS Will Remember That / The Brain Is Full · Delete One First / The Brain Is Full · Prune It in What JARVIS Knows",
+  "phase": "casing-sweep-3",
+  "group": "casing-sweep-3"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/capture/QuickCapture.tsx",
+  "count": 1,
+  "old": "The Brain is full · Prune it in What JARVIS Knows",
+  "new": "The Brain Is Full · Prune It in What JARVIS Knows",
+  "phase": "casing-sweep-3",
+  "group": "casing-sweep-3"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/decisions/DecisionsFlow.tsx",
+  "count": 4,
+  "old": "The Brain is full · Prune it in What JARVIS Knows / Rule saved to Values · Linked to this decision / Decision replaced / Decision deleted",
+  "new": "The Brain Is Full · Prune It in What JARVIS Knows / Rule Saved to Values · Linked to This Decision / Decision Replaced / Decision Deleted",
+  "phase": "casing-sweep-3",
+  "group": "casing-sweep-3"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/gym/GymFlow.tsx",
+  "count": 6,
+  "old": "Day duplicated · The copy is unpinned / Day duplicated / Copied to ${target.data.name} · Couldn't remove it here / No prior session for this day yet · Starting fresh / Nothing logged · Nothing saved / Discarded · The saved session stays",
+  "new": "Day Duplicated · The Copy Is Unpinned / Day Duplicated / Copied to ${target.data.name} · Couldn't Remove It Here / No Prior Session for This Day Yet · Starting Fresh / Nothing Logged · Nothing Saved / Discarded · The Saved Session Stays",
+  "phase": "casing-sweep-3",
+  "group": "casing-sweep-3"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/gym/UploadFlow.tsx",
+  "count": 3,
+  "old": "Couldn't read that · Try a clearer photo / Couldn't reach JARVIS · Try again / Couldn't open that image · Try another file",
+  "new": "Couldn't Read That · Try a Clearer Photo / Couldn't Reach JARVIS · Try Again / Couldn't Open That Image · Try Another File",
+  "phase": "casing-sweep-3",
+  "group": "casing-sweep-3"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/health/HealthFlow.tsx",
+  "count": 3,
+  "old": "Couldn't export · Try again / Couldn't copy · Try again / Couldn't hand that over · Try again",
+  "new": "Couldn't Export · Try Again / Couldn't Copy · Try Again / Couldn't Hand That Over · Try Again",
+  "phase": "casing-sweep-3",
+  "group": "casing-sweep-3"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/health/screens/SeasonFeedScreen.tsx",
+  "count": 3,
+  "old": "Couldn't read that · Try a clearer photo / Couldn't reach JARVIS · Try again / Couldn't open that image · Try another file",
+  "new": "Couldn't Read That · Try a Clearer Photo / Couldn't Reach JARVIS · Try Again / Couldn't Open That Image · Try Another File",
+  "phase": "casing-sweep-3",
+  "group": "casing-sweep-3"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/insights/ExportSheet.tsx",
+  "count": 1,
+  "old": "The export did not leave the app · Try the other format",
+  "new": "The Export Did Not Leave the App · Try the Other Format",
+  "phase": "casing-sweep-3",
+  "group": "casing-sweep-3"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/messages/DeckFlow.tsx",
+  "count": 8,
+  "old": "Add task: Send the deck / Didn't send · Nothing lost / Couldn't save · Nothing lost / Couldn't archive it · Still in your inbox / Reply ready · Your voice / Nothing needed / No plan · You drive / Already a task · ",
+  "new": "Add Task: Send the deck / Didn't Send · Nothing Lost / Couldn't Save · Nothing Lost / Couldn't Archive It · Still in Your Inbox / Reply Ready · Your Voice / Nothing Needed / No Plan · You Drive / Already a Task · ",
+  "phase": "casing-sweep-3",
+  "group": "casing-sweep-3"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/messages/DemoMail.tsx",
+  "count": 2,
+  "old": "send rob the deck (the demo promise) / Demo mail · Connect Google for the real thing",
+  "new": "Send Rob the deck / Demo Mail · Connect Google for the Real Thing",
+  "phase": "casing-sweep-3",
+  "group": "casing-sweep-3"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/messages/MailMoreSheet.tsx",
+  "count": 1,
+  "old": "55 days",
+  "new": "55 Days",
+  "phase": "casing-sweep-3",
+  "group": "casing-sweep-3"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/messages/MessagesFlow.tsx",
+  "count": 54,
+  "old": "6 handled in 2m 30s / 3 handled in 45s / 5 min / 10 min / 15 min (the drain presets) / 1 email couldn't become a task · Still in your inbox / 4 conversations archived · 2 still in your inbox / 1 still needs you / Cleared 3 of the last 7 / 3 of 12 sorted / 55 days / 1 of 4 / 1 machine wrote / 4 archived unread / 3 threads from 2 senders in gmail so far / 2 you owe / 3 owed to you / 3 waiting on answers / 2 senders filed / 1 thread muted / Still sending / Your inbox is already down to what matters. / What's loaded is cleaned out · There may be more in your inbox / Nothing lost · Nothing here was changed / Nothing lost · All still here / Deleted · In trash 30 days / No amount in that one · Nothing to file / Couldn't file it · Nothing was saved / Couldn't add it · Nothing was saved / Couldn't save · Nothing was lost / On your calendar ·  / Couldn't send it · Nothing was asked / Your browser blocked that tab · Nothing was asked / Already a task ·  / Couldn't save it · Nothing lost / Saved for tonight · Back on Today at 6 PM / Couldn't archive · Still in inbox / Couldn't put it back · Still archived in Gmail / Couldn't delete it · Still in your inbox / Couldn't put it back · Still in trash / Auto-clear off · Noise stays / Needs you · This thread only / Not for you · This thread only / Muted · Won't come back / VIP is full at ${VIP_MAX} · Remove one first / Couldn't read that invite · Opening the file / On your schedule ·  / Added to your tasks ·  / Couldn't save · Check your connection and try again / Waiting for a desk / Tasks aren't available right now / No open slot in the next two days / A calendar isn't connected / Saved for tomorrow / That one lives in your tasks / Couldn't find that note anymore / Couldn't attach that file / Straight to Noise from now on / Kept in your decisions",
+  "new": "6 Handled in 2:30 / 3 Handled in 45 Sec / 5 Min / 10 Min / 15 Min / 1 Email Couldn't Become a Task · Still in Your Inbox / 4 Conversations Archived · 2 Still in Your Inbox / 1 Still Needs You / Cleared 3 of the Last 7 / 3 of 12 Sorted / 55 Days / 1 of 4 / 1 Machine Wrote / 4 Archived Unread / 3 Threads From 2 Senders in Gmail So Far / 2 You Owe / 3 Owed to You / 3 Waiting on Answers / 2 Senders Filed / 1 Thread Muted / Still Sending / Your Inbox Is Already Down to What Matters. / What's Loaded Is Cleaned Out · There May Be More in Your Inbox / Nothing Lost · Nothing Here Was Changed / Nothing Lost · All Still Here / Deleted · In Trash 30 Days / No Amount in That One · Nothing to File / Couldn't File It · Nothing Was Saved / Couldn't Add It · Nothing Was Saved / Couldn't Save · Nothing Was Lost / On Your Calendar ·  / Couldn't Send It · Nothing Was Asked / Your Browser Blocked That Tab · Nothing Was Asked / Already a Task ·  / Couldn't Save It · Nothing Lost / Saved for Tonight · Back on Today at 6 PM / Couldn't Archive · Still in Inbox / Couldn't Put It Back · Still Archived in Gmail / Couldn't Delete It · Still in Your Inbox / Couldn't Put It Back · Still in Trash / Auto-Clear Off · Noise Stays / Needs You · This Thread Only / Not for You · This Thread Only / Muted · Won't Come Back / VIP Is Full at ${VIP_MAX} · Remove One First / Couldn't Read That Invite · Opening the File / On Your Schedule ·  / Added to Your Tasks ·  / Couldn't Save · Check Your Connection and Try Again / Waiting for a Desk / Tasks Aren't Available Right Now / No Open Slot in the Next Two Days / A Calendar Isn't Connected / Saved for Tomorrow / That One Lives in Your Tasks / Couldn't Find That Note Anymore / Couldn't Attach That File / Straight to Noise from Now On / Kept in Your Decisions",
+  "phase": "casing-sweep-3",
+  "group": "casing-sweep-3"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/messages/TodayOutboxPump.tsx",
+  "count": 1,
+  "old": "Couldn't send · In your email outbox to retry",
+  "new": "Couldn't Send · In Your Email Outbox to Retry",
+  "phase": "casing-sweep-3",
+  "group": "casing-sweep-3"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/messages/WindowsSheet.tsx",
+  "count": 1,
+  "old": "45m / 1h 30m (a window's length)",
+  "new": "45 Min / 1h 30m",
+  "phase": "casing-sweep-3",
+  "group": "casing-sweep-3"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/messages/attachmentKind.ts",
+  "count": 1,
+  "old": "$1,234.50 from Nadia",
+  "new": "$1,234.50 From Nadia",
+  "phase": "casing-sweep-3",
+  "group": "casing-sweep-3"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/messages/batching.ts",
+  "count": 3,
+  "old": "Nothing from a person / 2 People wrote, Sarah and 1 other need you / 1 Person wrote, nothing urgent",
+  "new": "Nothing from a Person / 2 People Wrote, Sarah and 1 Other Need You / 1 Person Wrote, Nothing Urgent",
+  "phase": "casing-sweep-3",
+  "group": "casing-sweep-3"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/messages/cleared.ts",
+  "count": 1,
+  "old": "14 In the inbox, 2 still need you",
+  "new": "14 in the Inbox, 2 Still Need You",
+  "phase": "casing-sweep-3",
+  "group": "casing-sweep-3"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/messages/collapse.ts",
+  "count": 1,
+  "old": "3 Notices (unchanged reading, now via lineCase)",
+  "new": "3 Notices",
+  "phase": "casing-sweep-3",
+  "group": "casing-sweep-3"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/messages/commitments.ts",
+  "count": 2,
+  "old": "Caught: Send the roster · By tomorrow / Caught: Send the roster · next week (proposed)",
+  "new": "Caught: Send the Roster · By Tomorrow / Caught: Send the Roster · Next Week (Proposed)",
+  "phase": "casing-sweep-3",
+  "group": "casing-sweep-3"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/messages/confidence.ts",
+  "count": 1,
+  "old": "Looks like friday",
+  "new": "Looks Like Friday",
+  "phase": "casing-sweep-3",
+  "group": "casing-sweep-3"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/messages/drain.ts",
+  "count": 1,
+  "old": "m:ss only (\"61:05\" past an hour)",
+  "new": "h:mm:ss past an hour (\"1:01:05\")",
+  "phase": "casing-sweep-3",
+  "group": "casing-sweep-3"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/messages/home.ts",
+  "count": 13,
+  "old": "From Nadia, due today / From Nadia Brandt, looks like 3:00 PM while you're in Design Review until 3:00 / Likely tomorrow / You said you would, by tomorrow / You said you would / Looks like / Looks like tomorrow / Saturday 2:00 PM for 45 min / 45 min / Order #D2565, sent 55 days ago / 55 days / Order #D2565, as you asked / One needs an answer, and three more that can wait",
+  "new": "From Nadia, Due Today / From Nadia Brandt, Looks Like 3:00 PM While You're in Design Review Until 3:00 / Likely Tomorrow / You Said You Would, by Tomorrow / You Said You Would / Looks Like / Looks Like Tomorrow / Saturday 2:00 PM for 45 Min / 45 Min / Order #D2565, Sent 55 Days Ago / 55 Days / Order #D2565, As You Asked / One Needs an Answer, and Three More That Can Wait",
+  "phase": "casing-sweep-3",
+  "group": "casing-sweep-3"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/messages/inboxBrief.ts",
+  "count": 2,
+  "old": "One has a deadline today, one needs an answer and one is something you promised / Someone has owed you a reply for 55 days",
+  "new": "One Has a Deadline Today, One Needs an Answer and One Is Something You Promised / Someone Has Owed You a Reply for 55 Days",
+  "phase": "casing-sweep-3",
+  "group": "casing-sweep-3"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/messages/ledger.ts",
+  "count": 3,
+  "old": "You said you would / That's every one that's open / Nothing is open",
+  "new": "You Said You Would / That's Every One That's Open / Nothing Is Open",
+  "phase": "casing-sweep-3",
+  "group": "casing-sweep-3"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/messages/safetyNet.ts",
+  "count": 1,
+  "old": "4 Emails over 3 days old are now tasks",
+  "new": "4 Emails Over 3 Days Old Are Now Tasks",
+  "phase": "casing-sweep-3",
+  "group": "casing-sweep-3"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/messages/sendPump.ts",
+  "count": 3,
+  "old": "Sent · The old draft is still in your drafts / Handed off · Still in your inbox / Couldn't send · In your email outbox to retry",
+  "new": "Sent · The Old Draft Is Still in Your Drafts / Handed Off · Still in Your Inbox / Couldn't Send · In Your Email Outbox to Retry",
+  "phase": "casing-sweep-3",
+  "group": "casing-sweep-3"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/messages/staleDrafts.ts",
+  "count": 2,
+  "old": "To Rob, 2 days old / No recipient, 2 days old",
+  "new": "To Rob, 2 Days Old / No Recipient, 2 Days Old",
+  "phase": "casing-sweep-3",
+  "group": "casing-sweep-3"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/messages/sweep.ts",
+  "count": 4,
+  "old": "~5 sec / ~30 sec / ~1 min / About 4 min",
+  "new": "About 5 Sec / About 30 Sec / About 1 Min / About 4 Min",
+  "phase": "casing-sweep-3",
+  "group": "casing-sweep-3"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/messages/triage.ts",
+  "count": 3,
+  "old": "Inbox is quiet / Nothing needs you / 1 Needs you · Rest handled",
+  "new": "Inbox Is Quiet / Nothing Needs You / 1 Needs You · Rest Handled",
+  "phase": "casing-sweep-3",
+  "group": "casing-sweep-3"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/messages/unsubRecords.ts",
+  "count": 1,
+  "old": "Asked 3 weeks ago / Asked yesterday / Asked today",
+  "new": "Asked 3 Weeks Ago / Asked Yesterday / Asked Today",
+  "phase": "casing-sweep-3",
+  "group": "casing-sweep-3"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/messages/unsubSweep.ts",
+  "count": 1,
+  "old": "10 Thrown away without opening",
+  "new": "10 Thrown Away Without Opening",
+  "phase": "casing-sweep-3",
+  "group": "casing-sweep-3"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/messages/vip.ts",
+  "count": 2,
+  "old": "Their mail always surfaces / 1 Person always gets through",
+  "new": "Their Mail Always Surfaces / 1 Person Always Gets Through",
+  "phase": "casing-sweep-3",
+  "group": "casing-sweep-3"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/messages/weeklyClose.ts",
+  "count": 3,
+  "old": "17 Threads older than two weeks / 1 Conversation archived in the close / Archived, never deleted · Searchable in Gmail forever · Undo for a week",
+  "new": "17 Threads Older Than Two Weeks / 1 Conversation Archived in the Close / Archived, Never Deleted · Searchable in Gmail Forever · Undo for a Week",
+  "phase": "casing-sweep-3",
+  "group": "casing-sweep-3"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/money/bills.ts",
+  "count": 1,
+  "old": "today / tomorrow / yesterday (dayPhrase, every consumer)",
+  "new": "Today / Tomorrow / Yesterday",
+  "phase": "casing-sweep-3",
+  "group": "casing-sweep-3"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/monitoring/ErrorBoundary.tsx",
+  "count": 1,
+  "old": "Unexpected error · Reload fixes it",
+  "new": "Unexpected Error · Reload Fixes It",
+  "phase": "casing-sweep-3",
+  "group": "casing-sweep-3"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/notes/NotesFlow.tsx",
+  "count": 1,
+  "old": "Couldn't load · Check your connection",
+  "new": "Couldn't Load · Check Your Connection",
+  "phase": "casing-sweep-3",
+  "group": "casing-sweep-3"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/notes/screens/NoteEditor.tsx",
+  "count": 1,
+  "old": "Applied · Undo is on the bar",
+  "new": "Applied · Undo Is on the Bar",
+  "phase": "casing-sweep-3",
+  "group": "casing-sweep-3"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/people/PeopleFlow.tsx",
+  "count": 1,
+  "old": "Couldn't read that file · Use .vcf or .csv with names",
+  "new": "Couldn't Read That File · Use .vcf or .csv with Names",
+  "phase": "casing-sweep-3",
+  "group": "casing-sweep-3"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/people/screens/PeopleListPage.tsx",
+  "count": 1,
+  "old": "From your old list · Still handle with care?",
+  "new": "From Your Old List · Still Handle with Care?",
+  "phase": "casing-sweep-3",
+  "group": "casing-sweep-3"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/routine/RoutineFlow.tsx",
+  "count": 2,
+  "old": "Couldn't load · Check your connection / Couldn't save · Check your connection",
+  "new": "Couldn't Load · Check Your Connection / Couldn't Save · Check Your Connection",
+  "phase": "casing-sweep-3",
+  "group": "casing-sweep-3"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/rules/tuning.ts",
+  "count": 3,
+  "old": "${label} · Never show / ${label} · Show less often / ${label} · Show more often",
+  "new": "${label} · Never Show / ${label} · Show Less Often / ${label} · Show More Often",
+  "phase": "casing-sweep-3",
+  "group": "casing-sweep-3"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/schedule/ScheduleFlow.tsx",
+  "count": 1,
+  "old": "Nothing moved · The rest would run past midnight",
+  "new": "Nothing Moved · The Rest Would Run Past Midnight",
+  "phase": "casing-sweep-3",
+  "group": "casing-sweep-3"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/settings/AccountPage.tsx",
+  "count": 2,
+  "old": "Couldn't read that photo · Try another / Photo removed",
+  "new": "Couldn't Read That Photo · Try Another / Photo Removed",
+  "phase": "casing-sweep-3",
+  "group": "casing-sweep-3"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/settings/AdvancedPage.tsx",
+  "count": 2,
+  "old": "Couldn't delete · Try again / No chat history",
+  "new": "Couldn't Delete · Try Again / No Chat History",
+  "phase": "casing-sweep-3",
+  "group": "casing-sweep-3"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/settings/BackupPage.tsx",
+  "count": 6,
+  "old": "Imported 3 items · Duplicates skipped / Export failed · Try again / Nothing new · All already here / Imported ${imported} ${imported === 1 ? \"item\" : \"items\"} · Duplicates skipped / Could not read that file. / Import failed.",
+  "new": "Imported 3 Items · Duplicates Skipped / Export Failed · Try Again / Nothing New · All Already Here / Imported ${imported} ${imported === 1 ? \"item\" : \"items\"} · Duplicates Skipped / Could Not Read That File. / Import Failed.",
+  "phase": "casing-sweep-3",
+  "group": "casing-sweep-3"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/settings/BookingPage.tsx",
+  "count": 4,
+  "old": "3 days a week / 30 min (the slot chips) / Open 3 days a week, tap to copy / Couldn't reach the booking server · Try again",
+  "new": "3 Days a Week / 30 Min / Open 3 Days a Week, Tap to Copy / Couldn't Reach the Booking Server · Try Again",
+  "phase": "casing-sweep-3",
+  "group": "casing-sweep-3"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/settings/FeedbackSheet.tsx",
+  "count": 1,
+  "old": "Feedback sent · Thank you",
+  "new": "Feedback Sent · Thank You",
+  "phase": "casing-sweep-3",
+  "group": "casing-sweep-3"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/settings/LearnedRulesPage.tsx",
+  "count": 1,
+  "old": "Rule deleted · JARVIS asks again",
+  "new": "Rule Deleted · JARVIS Asks Again",
+  "phase": "casing-sweep-3",
+  "group": "casing-sweep-3"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/settings/NotificationsPage.tsx",
+  "count": 10,
+  "old": "Not allowed yet · Turn it on whenever you are ready / Could not change alerts on this phone · Try again / Test alert sent · Lock the phone to see it / Sign in again to send a test / The server could not send a test alert / Test reminder in ${TEST_REMINDER_DELAY_S} seconds · Lock the phone to see it / Notifications are off for JARVIS in iOS Settings / Test reminders need the phone app / The server has no push key yet / Sign in again to set up alerts",
+  "new": "Not Allowed Yet · Turn It on Whenever You Are Ready / Could Not Change Alerts on This Phone · Try Again / Test Alert Sent · Lock the Phone to See It / Sign in Again to Send a Test / The Server Could Not Send a Test Alert / Test Reminder in ${TEST_REMINDER_DELAY_S} Seconds · Lock the Phone to See It / Notifications Are Off for JARVIS in iOS Settings / Test Reminders Need the Phone App / The Server Has No Push Key Yet / Sign in Again to Set Up Alerts",
+  "phase": "casing-sweep-3",
+  "group": "casing-sweep-3"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/shared/EntityStar.tsx",
+  "count": 2,
+  "old": "The Brain is full · Prune it in What JARVIS Knows / Couldn't save · Try again",
+  "new": "The Brain Is Full · Prune It in What JARVIS Knows / Couldn't Save · Try Again",
+  "phase": "casing-sweep-3",
+  "group": "casing-sweep-3"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/shared/fileStorage.ts",
+  "count": 1,
+  "old": "Over 10MB · Pick a smaller file",
+  "new": "Over 10MB · Pick a Smaller File",
+  "phase": "casing-sweep-3",
+  "group": "casing-sweep-3"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/shared/guard.ts",
+  "count": 1,
+  "old": "Couldn't save · Check your connection",
+  "new": "Couldn't Save · Check Your Connection",
+  "phase": "casing-sweep-3",
+  "group": "casing-sweep-3"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/shared/notifications.ts",
+  "count": 1,
+  "old": "One tap · Better plans",
+  "new": "One Tap · Better Plans",
+  "phase": "casing-sweep-3",
+  "group": "casing-sweep-3"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/shell/AppShell.tsx",
+  "count": 3,
+  "old": "Snoozed Call the bank · 30 minutes / Couldn't load everything · Try again in a moment / Moved ${t.text} to tomorrow",
+  "new": "Snoozed Call the bank · 30 Min / Couldn't Load Everything · Try Again in a Moment / Moved ${t.text} to Tomorrow",
+  "phase": "casing-sweep-3",
+  "group": "casing-sweep-3"
+ },
+ {
+  "item": "APP-casing",
+  "file": "src/weather/WeatherLine.tsx",
+  "count": 1,
+  "old": "Couldn't get your location · The offer stays",
+  "new": "Couldn't Get Your Location · The Offer Stays",
+  "phase": "casing-sweep-3",
+  "group": "casing-sweep-3"
  }
 ]

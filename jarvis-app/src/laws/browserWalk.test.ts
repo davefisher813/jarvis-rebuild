@@ -1440,24 +1440,43 @@ describe("SCROLL RESET: a screen does not inherit the last one's position", () =
 // after, whole; "Cancel" on the compose bar kept its 97px once the floor was
 // stated as max-content (a bare 1fr floors at .nav-back's declared 44px
 // min-width, not its words, and gave Cancel an 83px column).
+//
+// AMENDED 2026-09-27 (casing sweep 3's leftover): the library chassis bar
+// (.pagebar-row, PageHeader's condensed title) had the same bug in a
+// different coat. .pagebar-title was absolute, left 60px right 60px: a
+// fixed allowance for a back label that is 83px wide at type 1.4, so
+// "Brain" painted through "What JARVIS Knows" and "Settings" through
+// "Account" once the page scrolled. Same grid, same floors, both bars
+// held to it here; each pair below runs over the two bars.
+const CONDENSED_BARS = [
+  { bar: ".nav-bar", title: ".nav-title", titleRule: ".nav-bar .nav-title" },
+  { bar: ".pagebar-row", title: ".pagebar-title", titleRule: ".pagebar-title" },
+] as const;
 describe("NAV TITLE: centred while it fits, never under an action", () => {
   it("a bar with a condensed title is a three-column grid floored at its content", () => {
-    const bar = ruleBody(css(), ".nav-bar:has(> .nav-title)");
-    expect(bar, "the grid rule exists").not.toBeNull();
-    expect(bar).toMatch(/display:\s*grid/);
-    expect(bar, "both sides floor at their content, the title takes the rest")
-      .toMatch(/grid-template-columns:\s*minmax\(max-content,\s*1fr\)\s+auto\s+minmax\(max-content,\s*1fr\)/);
-    expect(ruleBody(css(), ".nav-bar:has(> .nav-title) > .nav-title ~ *"), "what follows the title sits in the third column")
-      .toMatch(/grid-column:\s*3/);
+    for (const { bar: b, title: t } of CONDENSED_BARS) {
+      const bar = ruleBody(css(), `${b}:has(> ${t})`);
+      expect(bar, `the grid rule exists for ${b}`).not.toBeNull();
+      expect(bar, b).toMatch(/display:\s*grid/);
+      expect(bar, `${b}: both sides floor at their content, the title takes the rest`)
+        .toMatch(/grid-template-columns:\s*minmax\(max-content,\s*1fr\)\s+auto\s+minmax\(max-content,\s*1fr\)/);
+      expect(ruleBody(css(), `${b}:has(> ${t}) > :not(${t})`), `${b}: what leads the title sits in the first column`)
+        .toMatch(/grid-column:\s*1/);
+      expect(ruleBody(css(), `${b}:has(> ${t}) > ${t} ~ *`), `${b}: what follows the title sits in the third column`)
+        .toMatch(/grid-column:\s*3/);
+    }
   });
 
   it("the title is the middle column, never absolute over the whole bar", () => {
-    const title = ruleBody(css(), ".nav-bar .nav-title");
-    expect(title).not.toBeNull();
-    expect(title, "absolute over the bar is how it ran under Pause").not.toMatch(/position:\s*absolute/);
-    expect(title).toMatch(/grid-column:\s*2/);
-    expect(title, "it may shrink to the free middle").toMatch(/min-width:\s*0/);
-    expect(title, "and ellipsize there").toMatch(/text-overflow:\s*ellipsis/);
+    for (const { bar: b, titleRule } of CONDENSED_BARS) {
+      const title = ruleBody(css(), titleRule);
+      expect(title, `${titleRule} exists`).not.toBeNull();
+      expect(title, `${b}: absolute over the bar is how it ran under Pause and under Brain`).not.toMatch(/position:\s*absolute/);
+      expect(title, `${b}: a fixed side allowance is blind to the back label's width`).not.toMatch(/\b(left|right):\s*\d/);
+      expect(title, b).toMatch(/grid-column:\s*2/);
+      expect(title, `${b}: it may shrink to the free middle`).toMatch(/min-width:\s*0/);
+      expect(title, `${b}: and ellipsize there`).toMatch(/text-overflow:\s*ellipsis/);
+    }
   });
 });
 

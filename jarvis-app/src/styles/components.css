@@ -2816,7 +2816,11 @@ button {
 .pagebar-row { height: 44px; display: flex; align-items: center; justify-content: space-between;
   padding: 0 var(--s-3); position: relative; }
 .pagebar-row > * { pointer-events: auto; }
-.pagebar-title { position: absolute; left: 60px; right: 60px; text-align: center; font-size: var(--t-h3);
+/* The middle column of the bar's grid (the AUDIT LEFTOVERS block at the
+   foot of this file, 2026-09-27): it was absolute, left 60px right 60px,
+   centred on the bar and blind to the back label, and at --type-scale 1.4
+   "Brain" painted through "What JARVIS Knows". */
+.pagebar-title { grid-column: 2; min-width: 0; text-align: center; font-size: var(--t-h3);
   font-weight: var(--w-bold); color: var(--tx-1); opacity: 0; transition: opacity var(--dur-fast) var(--ease-out);
   pointer-events: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pagebar-acts { display: flex; gap: var(--s-2); }
@@ -6876,6 +6880,19 @@ span.row-star { cursor: default; }
 .nav-bar:has(> .nav-title) { display: grid; grid-template-columns: minmax(max-content, 1fr) auto minmax(max-content, 1fr); column-gap: var(--s-2); }
 .nav-bar:has(> .nav-title) > :not(.nav-title) { grid-column: 1; justify-self: start; }
 .nav-bar:has(> .nav-title) > .nav-title ~ * { grid-column: 3; justify-self: end; }
+/* THE LIBRARY CHASSIS BAR HAD THE SAME BUG (2026-09-27, casing sweep 3's
+   leftover). .pagebar-title was absolute, left 60px right 60px: a 60px
+   allowance for a back label that is 44px at type 1.0 and 83px at 1.4, so
+   "Brain" (the back label above What JARVIS Knows) and "Settings" (above
+   Account) painted through the condensed title once the page scrolled.
+   The same grid, the same floors, the same result: centred on the bar
+   while the title fits between the wider side mirrored, shifted into the
+   free middle when it does not, and ellipsized there before it can touch
+   the back label or an action. The empty <span /> that stands in for a
+   missing back button floors at 0 and costs the title nothing. */
+.pagebar-row:has(> .pagebar-title) { display: grid; grid-template-columns: minmax(max-content, 1fr) auto minmax(max-content, 1fr); column-gap: var(--s-2); }
+.pagebar-row:has(> .pagebar-title) > :not(.pagebar-title) { grid-column: 1; justify-self: start; }
+.pagebar-row:has(> .pagebar-title) > .pagebar-title ~ * { grid-column: 3; justify-self: end; }
 /* A DECISION'S REASON READS WHOLE. The row's reason wore .truncate: one
    line, and on every seeded row at 390 it lost a third to a half of itself
    ("Because Ridgeline fields are locke…"), when the reason is the row's

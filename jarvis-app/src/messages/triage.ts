@@ -332,8 +332,8 @@ export function splitByBucket(rows: ThreadRow[], map: TriageMap): {
 
 // The headline the tab lives by: the count that matters, never unread totals.
 export function headline(needsYou: number, total: number): string {
-  if (total === 0) return "Inbox is quiet";
-  if (needsYou === 0) return "Nothing needs you";
+  if (total === 0) return "Inbox Is Quiet";
+  if (needsYou === 0) return "Nothing Needs You";
   return lineCase(needsYou === 1 ? "1 needs you · Rest handled" : needsYou + " need you · Rest handled");
 }
 

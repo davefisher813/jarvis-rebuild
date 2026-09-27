@@ -234,6 +234,6 @@ export function ledgerTone(r: LedgerRow, today: string): FactTone | undefined {
 // everything. Never a score, never a streak, and calm when there is nothing:
 // an empty ledger is the good outcome, not an empty state to apologise for.
 export function ledgerFloor(l: Ledger): string {
-  if (l.total === 0) return "Nothing is open";
+  if (l.total === 0) return "Nothing Is Open";
   return lineCase(l.total === 1 ? "That's the one that's open" : "That's every one that's open");
 }

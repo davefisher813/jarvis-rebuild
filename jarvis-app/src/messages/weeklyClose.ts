@@ -162,7 +162,7 @@ export function amnestyDue(set: CloseSet, todayISO: string, last: string): boole
 // The honest sub-line. Every clause is a fact the user can check, because a
 // one-tap bulk action lives or dies on whether the promise under it is true.
 export function amnestyPromise(): string {
-  return "Archived, never deleted · Searchable in Gmail forever · Undo for a week";
+  return "Archived, Never Deleted · Searchable in Gmail Forever · Undo for a Week";
 }
 
 // The offer's own words. Never "clean up" or "tidy": what is on offer is

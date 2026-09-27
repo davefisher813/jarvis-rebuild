@@ -126,7 +126,7 @@ export function WeatherOfferRow({ form = "card", weight }: { form?: "card" | "ro
         // 3 (timeout) are the phone failing to answer, not the user refusing,
         // and conflating them is what buried this feature.
         if (err.code === 1) { dismiss(); return; }
-        showToast({ message: "Couldn't get your location · The offer stays" });
+        showToast({ message: "Couldn't Get Your Location · The Offer Stays" });
       },
       // A coarse fix is all this stores (two decimals), and an ask with no
       // timeout can hang forever with no callback at all, which is a third

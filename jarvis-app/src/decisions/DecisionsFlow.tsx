@@ -190,7 +190,7 @@ export default function DecisionsFlow({ onBack, openId, openNonce, onOpenConsume
       goRecord(newId);
       await reload();
       const created = newId;
-      showToast({ message: "Decision replaced", actionLabel: "Undo", onAction: () => void (async () => {
+      showToast({ message: "Decision Replaced", actionLabel: "Undo", onAction: () => void (async () => {
         await attemptWrite(() => svc.undoSupersede(created));
         goRecord(oldId);
         await reload();
@@ -224,9 +224,9 @@ export default function DecisionsFlow({ onBack, openId, openNonce, onOpenConsume
       id = await strands.add(rec.data.decision, "values", todayISO(), "rule", "principle", { entityType: ENTITY_DECISION, entityId: rec.id });
     });
     if (!ok) return;
-    if (!id) { showToast({ message: "The Brain is full · Prune it in What JARVIS Knows" }); return; }
+    if (!id) { showToast({ message: "The Brain Is Full · Prune It in What JARVIS Knows" }); return; }
     await patch(rec.id, { ruleStrandId: id });
-    showToast({ message: "Rule saved to Values · Linked to this decision" });
+    showToast({ message: "Rule Saved to Values · Linked to This Decision" });
   };
 
   const deleteRecord = async (rec: DecisionRecord) => {
@@ -238,7 +238,7 @@ export default function DecisionsFlow({ onBack, openId, openNonce, onOpenConsume
       await reload();
       // BRAIN-F-14 (2026-09-05): restore, not create. create() re-dates the
       // record to now and re-arms a revisit that was already answered.
-      showToast({ message: "Decision deleted", actionLabel: "Undo", onAction: () => void (async () => {
+      showToast({ message: "Decision Deleted", actionLabel: "Undo", onAction: () => void (async () => {
         await attemptWrite(() => svc.restore(rec.id, kept));
         await reload();
       })() });

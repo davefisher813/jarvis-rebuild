@@ -301,7 +301,7 @@ describe("a CSV whose headers mean nothing to the parser", () => {
     await drop("Handle,Digits\nLinda Fisher,555-010-3311");
     await waitFor(() => expect(screen.getByText("Which Column Is Which")).toBeInTheDocument());
     // A missing field is not a parse failure: the file read fine.
-    expect(screen.queryByText(/Couldn't read that file/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Couldn't Read That File/)).not.toBeInTheDocument();
     expect(screen.getByText("Handle")).toBeInTheDocument();
     expect(screen.getByText("Digits")).toBeInTheDocument();
   });
@@ -331,7 +331,7 @@ describe("a CSV whose headers mean nothing to the parser", () => {
   it("still calls a file with nothing in it unreadable", async () => {
     mount("m4");
     await drop("", "empty.csv");
-    await waitFor(() => expect(screen.getByText(/Couldn't read that file/)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/Couldn't Read That File/)).toBeInTheDocument());
   });
 });
 
@@ -356,7 +356,8 @@ describe("clearing a number that is in the notes and the field both", () => {
 
   it("offers to clear it, says where it came from, and clears in one tap", async () => {
     await withBoth("d1", "Mom", "2035361094", "2035361094");
-    expect(await screen.findByText("One Contact Has Their Own Number in Their Notes As Well")).toBeInTheDocument();
+    // Casing sweep 3 (2026-09-27): Title Case by the whole rule (§H2); durations through shared/duration ("45 Min", "About 1 Min").
+    expect(await screen.findByText("One Contact Has Their Own Number in Their Notes as Well")).toBeInTheDocument();
     expect(screen.getByText("Left there by an old import")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Clear Them" }));
     await waitFor(() => {

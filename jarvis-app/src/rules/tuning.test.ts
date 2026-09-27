@@ -49,9 +49,10 @@ describe("automation tunings", () => {
   });
 
   it("says itself in words on What JARVIS Learned", () => {
-    expect(tuningLine(rule("goal-nudge", "never"))).toBe("Goal Nudges · Never show");
-    expect(tuningLine(rule("gap-fill", "less"))).toBe("Gap Fill · Show less often");
-    expect(tuningLine(rule("momentum", "more"))).toBe("Keep Going · Show more often");
+    // Casing sweep 3 (2026-09-27): Title Case by the whole rule (§H2); durations through shared/duration ("45 Min", "About 1 Min").
+    expect(tuningLine(rule("goal-nudge", "never"))).toBe("Goal Nudges · Never Show");
+    expect(tuningLine(rule("gap-fill", "less"))).toBe("Gap Fill · Show Less Often");
+    expect(tuningLine(rule("momentum", "more"))).toBe("Keep Going · Show More Often");
     // Not a tuning: the page keeps the sentence it already had.
     expect(tuningLine({ id: "a", data: { kind: "alias", scope: "capture.category", from: "x", to: "y", evidence: [], createdAt: "" } })).toBeNull();
   });

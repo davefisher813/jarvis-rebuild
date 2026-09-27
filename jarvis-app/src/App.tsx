@@ -71,7 +71,7 @@ export function AppGate({ seedDemo = false }: { seedDemo?: boolean }) {
 
   if (state === "loading") return null;
   if (state === "failed") {
-    return <FailedCard sub="Couldn't reach your profile · Check your connection" actionLabel="Try Again" onAction={() => setAttempt((n) => n + 1)} />;
+    return <FailedCard sub="Couldn't Reach Your Profile · Check Your Connection" actionLabel="Try Again" onAction={() => setAttempt((n) => n + 1)} />;
   }
   if (state === "onboarding") {
     return (

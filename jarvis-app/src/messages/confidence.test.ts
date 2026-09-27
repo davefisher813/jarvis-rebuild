@@ -22,9 +22,10 @@ describe("where confidence comes from", () => {
 
   it("hedges a label it cannot back, and leaves one it can alone", () => {
     expect(labelFor("Friday", anchored)).toBe("Friday");
-    expect(labelFor("Friday", null)).toBe("Looks like friday");
+    // Casing sweep 3 (2026-09-27): Title Case by the whole rule (§H2); durations through shared/duration ("45 Min", "About 1 Min").
+    expect(labelFor("Friday", null)).toBe("Looks Like Friday");
     expect(hedge("")).toBe("");
-    expect(hedge("Looks like Friday")).toBe("Looks like Friday");
+    expect(hedge("Looks like Friday")).toBe("Looks Like Friday");
     expect(isHigh("high")).toBe(true);
   });
 });
@@ -40,8 +41,8 @@ describe("the card", () => {
 
   it("states a deadline it can show, and hedges one it cannot", () => {
     const now = new Date("2026-08-15T09:00:00");
-    expect(mailNotices(snap(anchored), "2026-08-15", now)[0]!.sub).toBe("From Nadia, due today");
-    expect(mailNotices(snap(), "2026-08-15", now)[0]!.sub).toBe("From Nadia, looks like today");
+    expect(mailNotices(snap(anchored), "2026-08-15", now)[0]!.sub).toBe("From Nadia, Due Today");
+    expect(mailNotices(snap(), "2026-08-15", now)[0]!.sub).toBe("From Nadia, Looks Like Today");
   });
 
   it("hedges a dated commitment it cannot show, because that card writes on one tap", () => {
@@ -55,7 +56,7 @@ describe("the card", () => {
       }],
     });
     expect(mailNotices(withAct(anchored), "2026-08-15", now)[0]!.sub).toBe("Tuesday");
-    expect(mailNotices(withAct(), "2026-08-15", now)[0]!.sub).toBe("Looks like tuesday");
+    expect(mailNotices(withAct(), "2026-08-15", now)[0]!.sub).toBe("Looks Like Tuesday");
   });
 });
 

@@ -136,7 +136,7 @@ export default function BrainTop({ onOpenFact, onOpenWatching, onBands, areas = 
       await rulesSvc.markAnnounced(p.rule as LearnedRule);
     });
     if (!ok) return;
-    if (!id) { showToast({ message: "The Brain is full · Prune it in What JARVIS Knows" }); return; }
+    if (!id) { showToast({ message: "The Brain Is Full · Prune It in What JARVIS Knows" }); return; }
     showToast({ message: "Saved to Writing" });
     setTick((t) => t + 1);
   };
@@ -154,7 +154,7 @@ export default function BrainTop({ onOpenFact, onOpenWatching, onBands, areas = 
         if (r.outcome === "created") { const made = (await svc.list()).find((s) => s.id === r.id); if (made) await svc.setType(made, "principle"); }
       });
       if (!ok) return;
-      showToast({ message: outcome === "full" ? "The Brain is full · Prune it in What JARVIS Knows" : "Saved to Values" });
+      showToast({ message: outcome === "full" ? "The Brain Is Full · Prune It in What JARVIS Knows" : "Saved to Values" });
     } else {
       answerPrinciple(d.strandText, answer, today);
       showToast({ message: answer === "sometimes" ? "Asked again in a month" : "Closed" });

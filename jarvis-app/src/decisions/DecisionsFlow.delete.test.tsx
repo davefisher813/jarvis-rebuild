@@ -78,7 +78,8 @@ describe("DecisionsFlow: Delete Decision", () => {
     // the reasoning intact.
     const call = showToast.mock.calls
       .map((c) => c[0] as { message: string; actionLabel?: string; onAction?: () => void })
-      .find((c) => c.message === "Decision deleted");
+      // Casing sweep 3 (2026-09-27): Title Case by the whole rule (§H2); durations through shared/duration ("45 Min", "About 1 Min").
+      .find((c) => c.message === "Decision Deleted");
     expect(call).toBeTruthy();
     expect(call!.actionLabel).toBe("Undo");
     await act(async () => { call!.onAction!(); });

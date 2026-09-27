@@ -11,9 +11,10 @@ describe("the windows editor", () => {
   it("lists each window as time · length and nothing is live until Start", () => {
     const onSave = vi.fn();
     render(<WindowsSheet initial={DEFAULT_WINDOWS} onSave={onSave} onClose={() => {}} />);
-    expect(screen.getByText("9 AM · 45m")).toBeInTheDocument();
-    expect(screen.getByText("1 PM · 45m")).toBeInTheDocument();
-    expect(screen.getByText("5 PM · 45m")).toBeInTheDocument();
+    // Casing sweep 3 (2026-09-27): Title Case by the whole rule (§H2); durations through shared/duration ("45 Min", "About 1 Min").
+    expect(screen.getByText("9 AM · 45 Min")).toBeInTheDocument();
+    expect(screen.getByText("1 PM · 45 Min")).toBeInTheDocument();
+    expect(screen.getByText("5 PM · 45 Min")).toBeInTheDocument();
     // The length chips live in the editor, one window at a time.
     expect(screen.queryByLabelText("Window 1: 90 minutes")).not.toBeInTheDocument();
     fireEvent.click(screen.getByLabelText("Edit window 1"));
@@ -35,7 +36,7 @@ describe("the windows editor", () => {
     expect(screen.getByText("Start Windows")).toBeDisabled();
     fireEvent.click(screen.getByLabelText("Window 2: 30 minutes"));
     fireEvent.click(screen.getByText("Cancel", { selector: ".quiet-action" }));
-    expect(screen.getByText("1 PM · 45m")).toBeInTheDocument();
+    expect(screen.getByText("1 PM · 45 Min")).toBeInTheDocument();
     expect(screen.getByText("Start Windows")).not.toBeDisabled();
   });
 
@@ -53,7 +54,7 @@ describe("the windows editor", () => {
     fireEvent.click(screen.getByLabelText("Window 3: 30 minutes"));
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     fireEvent.click(screen.getByText("Done"));
-    expect(screen.getByText("11:30 PM · 30m")).toBeInTheDocument();
+    expect(screen.getByText("11:30 PM · 30 Min")).toBeInTheDocument();
   });
 
   it("shows Save, not Start, when the curtain is already on, and offers Turn Off", () => {

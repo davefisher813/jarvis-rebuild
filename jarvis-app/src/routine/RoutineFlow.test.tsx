@@ -23,7 +23,8 @@ describe("RoutineFlow load failure (BRAIN-F-12)", () => {
         </NotesProvider>,
       );
       await waitFor(() => expect(screen.getByText("Try Again")).toBeInTheDocument());
-      expect(seen).toContain("Couldn't load · Check your connection");
+      // Casing sweep 3 (2026-09-27): Title Case by the whole rule (§H2); durations through shared/duration ("45 Min", "About 1 Min").
+      expect(seen).toContain("Couldn't Load · Check Your Connection");
       expect(screen.getByLabelText("Wake up")).toBeDisabled();
 
       fireEvent.click(screen.getByText("Try Again"));

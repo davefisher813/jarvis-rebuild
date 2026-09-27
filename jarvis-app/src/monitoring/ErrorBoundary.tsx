@@ -16,7 +16,7 @@ export default class ErrorBoundary extends Component<{ children: ReactNode }, { 
 
   render(): ReactNode {
     if (this.state.failed) {
-      return <FailedCard sub="Unexpected error · Reload fixes it" actionLabel="Reload" onAction={() => location.reload()} />;
+      return <FailedCard sub="Unexpected Error · Reload Fixes It" actionLabel="Reload" onAction={() => location.reload()} />;
     }
     return this.props.children;
   }

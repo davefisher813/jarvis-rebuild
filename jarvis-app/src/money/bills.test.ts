@@ -150,8 +150,9 @@ describe("payday anchoring", () => {
 
 describe("date words", () => {
   it("phrases days like a person", () => {
-    expect(dayPhrase("2026-08-03", TODAY)).toBe("today");
-    expect(dayPhrase("2026-08-04", TODAY)).toBe("tomorrow");
+    // Casing sweep 3 (2026-09-27): Title Case by the whole rule (§H2); durations through shared/duration ("45 Min", "About 1 Min").
+    expect(dayPhrase("2026-08-03", TODAY)).toBe("Today");
+    expect(dayPhrase("2026-08-04", TODAY)).toBe("Tomorrow");
     expect(dayPhrase("2026-08-07", TODAY)).toBe("Friday");
     expect(dayPhrase("2026-08-30", TODAY)).toBe("Aug 30");
     expect(monthDay("2026-12-05")).toBe("Dec 5");
@@ -159,7 +160,7 @@ describe("date words", () => {
 
   // HMN-F-11: a date already behind us used to come back as "today".
   it("says a day behind us in the past tense", () => {
-    expect(dayPhrase("2026-08-02", TODAY)).toBe("yesterday");
+    expect(dayPhrase("2026-08-02", TODAY)).toBe("Yesterday");
     expect(dayPhrase("2026-07-20", TODAY)).toBe("Jul 20");
   });
 });

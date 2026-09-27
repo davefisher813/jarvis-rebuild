@@ -141,7 +141,7 @@ export default function BookingPage({
       setDirty(false);
       showToast({ message: made ? "Your Link Is Live" : "Saved on This Device" });
     } catch {
-      showToast({ message: "Couldn't reach the booking server \u00b7 Try again" });
+      showToast({ message: "Couldn't Reach the Booking Server \u00b7 Try Again" });
     } finally { setBusy(false); }
   };
   const takeDown = async () => {
@@ -155,7 +155,7 @@ export default function BookingPage({
       // taking the link down cancelled meetings they already have.
       showToast({ message: "Link Taken Down \u00b7 Bookings You Have Are Kept" });
     } catch {
-      showToast({ message: "Couldn't reach the booking server \u00b7 Try again" });
+      showToast({ message: "Couldn't Reach the Booking Server \u00b7 Try Again" });
     } finally { setBusy(false); }
   };
   const toggleDay = (d: number) => set({ days: s.days.includes(d) ? s.days.filter((x) => x !== d) : [...s.days, d].sort((a, b) => a - b) });

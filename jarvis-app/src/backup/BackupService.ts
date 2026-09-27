@@ -199,7 +199,7 @@ export class BackupService {
       for (const id of created.reverse()) {
         try { await this.store.delete(this.ownerId, id); } catch { /* keep rolling back */ }
       }
-      throw new Error("Import failed · Rolled back · Nothing changed");
+      throw new Error("Import Failed · Rolled Back · Nothing Changed");
     }
     return { imported: n, unsupportedTypes };
   }

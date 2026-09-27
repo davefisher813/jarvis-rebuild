@@ -311,7 +311,7 @@ export function peekLine(
     people.set(email, { name: firstName(r.from) || email, urgent });
   }
   const n = people.size;
-  if (n === 0) return "Nothing from a person";
+  if (n === 0) return "Nothing from a Person";
   const waiting = [...people.values()].filter((p) => p.urgent);
   const who = n === 1 ? "1 person wrote" : n + " people wrote";
   if (waiting.length === 0) return lineCase(who + ", nothing urgent");

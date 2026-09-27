@@ -81,7 +81,8 @@ describe("import hardening", () => {
         { entityType: "task", data: { text: "b" } },
         { entityType: "task", data: { text: "c" } },
       ],
-    } as never)).rejects.toThrow(/Rolled back/);
+    // Casing sweep 3 (2026-09-27): Title Case by the whole rule (§H2); durations through shared/duration ("45 Min", "About 1 Min").
+    } as never)).rejects.toThrow(/Rolled Back/);
     expect((await store.listForUser("u")).length).toBe(0);
   });
 });

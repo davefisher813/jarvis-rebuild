@@ -19,7 +19,8 @@ describe("buildFeed", () => {
     // chip and the evidence into a line. The notification row does the same
     // (\u00a7AM R6, 2026-09-26): no dot baked in between them.
     expect(feed[0]!.tag).toBe("Keeps Sliding");
-    expect(feed[0]!.sub).toBe("23 Days late");
+    // Casing sweep 3 (2026-09-27): Title Case by the whole rule (§H2); durations through shared/duration ("45 Min", "About 1 Min").
+    expect(feed[0]!.sub).toBe("23 Days Late");
     expect(feed[1]!.tag).toBeUndefined();
     expect(feed[3]!.when).toBe("09:00");
     expect(feed.find((n) => n.title === "Done thing")).toBeUndefined();

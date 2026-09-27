@@ -67,14 +67,15 @@ describe("the home email surface", () => {
     const n = mailNotices(snap({ waiting: [{ threadId: "w1", to: "summitgear", subject: "Order #D2565", days: 55 }] }), TODAY, NOW);
     expect(n[0]!.kind).toBe("nudge");
     expect(n[0]!.title).toBe("summitgear Hasn't Replied");
-    expect(n[0]!.sub).toBe("Order #D2565, sent 55 days ago");
+    // Casing sweep 3 (2026-09-27): Title Case by the whole rule (§H2); durations through shared/duration ("45 Min", "About 1 Min").
+    expect(n[0]!.sub).toBe("Order #D2565, Sent 55 Days Ago");
   });
 
   it("catches what HE promised and offers it as a task", () => {
     const n = mailNotices(snap({ promises: [{ threadId: "p1", text: "send rob the deck", due: "2026-08-21" }] }), TODAY, NOW);
     expect(n[0]!.kind).toBe("promised");
     expect(n[0]!.task).toEqual({ text: "Send Rob the Deck", due: "2026-08-21" });
-    expect(n[0]!.sub).toBe("You said you would, by tomorrow");
+    expect(n[0]!.sub).toBe("You Said You Would, by Tomorrow");
   });
 
   it("shows one of each job before a second of any: not the same job three times", () => {
@@ -127,7 +128,7 @@ describe("the line, drawn with the key", () => {
     expect(bill("2026-08-27", anchored).facts![0]).toEqual({ text: "Aug 27", tone: "date" });
     // A reading the app cannot back still says so, in front of the amount,
     // and the amount keeps its shape.
-    expect(bill("2026-08-21").facts![1]).toEqual({ text: "Looks like", num: "$12.00" });
+    expect(bill("2026-08-21").facts![1]).toEqual({ text: "Looks Like", num: "$12.00" });
   });
 
   // The toned fact is the day, so it fits at type scale 1.4, and the sender
@@ -171,7 +172,7 @@ describe("the line, drawn with the key", () => {
       { text: "From Nadia Brandt, while you're in Design Review until 3:00" },
     ]);
     expect(n.facts![0]!.text).not.toMatch(/while/);
-    expect(n.sub).toBe("From Nadia Brandt, looks like 3:00 PM while you're in Design Review until 3:00");
+    expect(n.sub).toBe("From Nadia Brandt, Looks Like 3:00 PM While You're in Design Review Until 3:00");
     // No clash, no clause: the sender stands alone.
     const calm = mailNotices(snap({ needsYou: 1, threads: [thread("t1", { by: "3 PM" })] }), TODAY, NOW)[0]!;
     expect(calm.facts![1]).toEqual({ text: "From Nadia Brandt" });
@@ -205,13 +206,13 @@ describe("the line, drawn with the key", () => {
   // the ledger gives the same promise: late red, due amber, later caps.
   it("a promise's day is its own fact, in the date window", () => {
     const line = (due?: string) => mailNotices(snap({ promises: [{ threadId: "p1", text: "send rob the deck", ...(due ? { due } : {}) }] }), TODAY, NOW)[0]!;
-    expect(line("2026-08-21").facts).toEqual([{ text: "Tomorrow", tone: "warn" }, { text: "You said you would" }]);
+    expect(line("2026-08-21").facts).toEqual([{ text: "Tomorrow", tone: "warn" }, { text: "You Said You Would" }]);
     expect(line("2026-08-20").facts![0]).toEqual({ text: "Today", tone: "warn" });
     expect(line("2026-08-19").facts![0]).toEqual({ text: "Yesterday", tone: "red" });
     expect(line("2026-08-29").facts![0]).toEqual({ text: "Aug 29", tone: "date" });
     // No day, nothing to colour: the sentence stands, as one grey.
     expect(line().facts).toBeUndefined();
-    expect(line().sub).toBe("You said you would");
+    expect(line().sub).toBe("You Said You Would");
   });
 
   it("a reminder is its day, in the date window, and hedged inside the one fact", () => {
@@ -223,7 +224,7 @@ describe("the line, drawn with the key", () => {
     expect(remind("2026-08-21", anchored).facts).toEqual([{ text: "Tomorrow", tone: "warn" }]);
     expect(remind("2026-08-19", anchored).facts).toEqual([{ text: "Yesterday", tone: "red" }]);
     expect(remind("2026-08-27", anchored).facts).toEqual([{ text: "Aug 27", tone: "date" }]);
-    expect(remind("2026-08-21").facts).toEqual([{ text: "Looks like tomorrow", tone: "warn" }]);
+    expect(remind("2026-08-21").facts).toEqual([{ text: "Looks Like Tomorrow", tone: "warn" }]);
   });
 
   it("an event is its day and time in small caps, then its length in white", () => {
@@ -234,13 +235,13 @@ describe("the line, drawn with the key", () => {
     })] }), TODAY, NOW)[0]!;
     expect(event(anchored).facts).toEqual([
       { text: "Saturday 2:00 PM", tone: "date" },
-      { text: "", num: "45 min" },
+      { text: "", num: "45 Min" },
     ]);
     // A reading it cannot back keeps the sentence, hedge first: the hedge
     // has to be read before the tap that writes the event, and the line
     // cannot hold it, the day, the time and the length.
     expect(event().facts).toBeUndefined();
-    expect(event().sub).toMatch(/^Looks like saturday 2:00 PM/);
+    expect(event().sub).toMatch(/^Looks Like Saturday 2:00 PM/);
   });
 
   it("leaves a line with nothing to colour as the sentence it was", () => {

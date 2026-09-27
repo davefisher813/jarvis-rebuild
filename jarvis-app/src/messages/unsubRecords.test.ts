@@ -60,9 +60,10 @@ describe("did it work", () => {
   // line's separator (§AM R6), so the receipt says when and nothing else,
   // and never carries a typed dot.
   it("states when, and nothing else", () => {
-    expect(unsubReceipt(asked, "2026-08-22")).toBe("Asked 3 weeks ago");
-    expect(unsubReceipt({ ...asked, askedISO: "2026-08-21" }, "2026-08-22")).toBe("Asked yesterday");
-    expect(unsubReceipt({ ...asked, askedISO: "2026-08-22" }, "2026-08-22")).toBe("Asked today");
+    // Casing sweep 3 (2026-09-27): Title Case by the whole rule (§H2); durations through shared/duration ("45 Min", "About 1 Min").
+    expect(unsubReceipt(asked, "2026-08-22")).toBe("Asked 3 Weeks Ago");
+    expect(unsubReceipt({ ...asked, askedISO: "2026-08-21" }, "2026-08-22")).toBe("Asked Yesterday");
+    expect(unsubReceipt({ ...asked, askedISO: "2026-08-22" }, "2026-08-22")).toBe("Asked Today");
     expect(unsubReceipt({ ...asked, askedISO: "" }, "2026-08-22")).toBe("Asked");
     for (const r of [asked, { ...asked, askedISO: "" }]) {
       expect(unsubReceipt(r, "2026-08-22")).not.toMatch(/\u00b7|still sending/i);
