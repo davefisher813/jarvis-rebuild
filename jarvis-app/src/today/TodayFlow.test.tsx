@@ -64,7 +64,8 @@ describe("TodayFlow first load failure (TODAY-F-14)", () => {
     const { container } = mount();
     await waitFor(() => expect(showToast).toHaveBeenCalledTimes(1));
     const call = showToast.mock.calls[0]![0] as { message: string; actionLabel?: string; onAction?: () => void };
-    expect(call.message).toBe("Couldn't load today · Check your connection");
+    // Casing sweep 2 (2026-09-27): Title Case by the whole rule (§H2); durations through shared/duration ("45 Min", "1h 30m").
+    expect(call.message).toBe("Couldn't Load Today · Check Your Connection");
     expect(call.actionLabel).toBe("Retry");
     await waitFor(() => expect(container.querySelector(".skel-screen")).toBeNull());
     expect(container.querySelector(".screen")).not.toBeNull();
@@ -120,9 +121,9 @@ describe("TodayFlow: Undo after deleting an event (TODAY-F-11)", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Edit" }));
     await screen.findByText("Edit Event");
     fireEvent.click(screen.getByText("Delete Event"));
-    await waitFor(() => expect(showToast.mock.calls.some((c) => (c[0] as { message: string }).message === "Event deleted")).toBe(true));
+    await waitFor(() => expect(showToast.mock.calls.some((c) => (c[0] as { message: string }).message === "Event Deleted")).toBe(true));
     expect(await sched!.event(id)).toBeNull();
-    const call = showToast.mock.calls.find((c) => (c[0] as { message: string }).message === "Event deleted")![0] as { onAction: () => Promise<void> };
+    const call = showToast.mock.calls.find((c) => (c[0] as { message: string }).message === "Event Deleted")![0] as { onAction: () => Promise<void> };
     await act(async () => { await call.onAction(); });
     const back = (await sched!.event(id))!;
     expect(back.gym).toBe(true);
@@ -159,7 +160,9 @@ describe("TodayFlow: the Momentum Chain (UP-CORE-09)", () => {
     await svc!.createTask("Email the coach", { category: "c1", due: today, estimateMin: 15 });
     await svc!.createTask("Book the field", { category: "c1", due: today, estimateMin: 15 });
     notifyFreshLists(ENTITY_TASK);
-    await waitFor(() => expect(screen.getByText("Book the field")).toBeInTheDocument());
+    // The TV guide loops the day in copies (Dave 2026-09-27), so a title can
+    // be on screen more than once; one is enough.
+    await waitFor(() => expect(screen.getAllByText("Book the field").length).toBeGreaterThan(0));
 
     // Tick the dealt task; the chain fills the slot it left. The chain is the
     // notice with a Dismiss rail; the dealt row above it has none.
@@ -183,7 +186,7 @@ describe("TodayFlow: the Momentum Chain (UP-CORE-09)", () => {
     const line = chain.querySelector(".facts")!;
     expect([...line.children].map((f) => f.className)).toEqual(["fact", "fact est"]);
     expect(line.querySelector(".uchip.u-today")?.textContent).toBe("TODAY");
-    expect(line.lastElementChild?.textContent).toBe("15m");
+    expect(line.lastElementChild?.textContent).toBe("15 Min");
     expect(chain.textContent).not.toMatch(/Same (category|Area)/);
     expect(chain.textContent).not.toMatch(/due today/i);
 
@@ -231,7 +234,7 @@ describe("TodayFlow: the Momentum Chain (UP-CORE-09)", () => {
     expect(titles).toContain(chain.querySelector(".conn-name")?.textContent);
     const line = chain.querySelector(".facts")!;
     expect([...line.children].map((f) => [f.className, f.textContent])).toEqual([
-      ["fact est", "15m"],
+      ["fact est", "15 Min"],
       ["fact", "Same Area"], // AMENDED 2026-09-26 (pass-off)
     ]);
     expect(chain.querySelector(".uchip")).toBeNull();
@@ -264,7 +267,7 @@ describe("TodayFlow: the Momentum Chain (UP-CORE-09)", () => {
 
     fireEvent.click(screen.getAllByLabelText("Mark done")[0]!);
     const due = await waitFor(() => {
-      const hit = [...document.querySelectorAll(".notice-swipe .fact.warn")].find((f) => f.textContent === "Due today");
+      const hit = [...document.querySelectorAll(".notice-swipe .fact.warn")].find((f) => f.textContent === "Due Today");
       expect(hit).toBeTruthy();
       return hit!;
     });
@@ -303,7 +306,7 @@ describe("TodayFlow: the Momentum Chain (UP-CORE-09)", () => {
 
     fireEvent.click(screen.getAllByLabelText("Mark done")[0]!);
     const late = await waitFor(() => {
-      const hit = [...document.querySelectorAll(".notice-swipe .fact.red")].find((f) => f.textContent === "1 Day late");
+      const hit = [...document.querySelectorAll(".notice-swipe .fact.red")].find((f) => f.textContent === "1 Day Late");
       expect(hit).toBeTruthy();
       return hit!;
     });
