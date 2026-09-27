@@ -209,7 +209,8 @@ describe("LAW §AM: the colour key", () => {
       .toMatch(/\.ruled \.r-goal\.r-est \{[^}]*color: var\(--est-ink\)/);
     const COMP = read("src/styles/components.css");
     expect(COMP, "in dark the estimate ink is the sky slot").toMatch(/:root \{ --est-ink: var\(--cat-sky\); \}/);
-    expect(COMP, "in light it is the darker sky Dave picked").toMatch(/\[data-theme="light"\] \{ --est-ink: #006592; \}/);
+    // AMENDED 2026-09-27 (§AQ): the word twin of the locked sky #5CC4F5.
+    expect(COMP, "in light it is the locked sky's word twin").toMatch(/\[data-theme="light"\] \{ --est-ink: #036F96; \}/);
     expect(COMP, "and the shared estimate fact wears it").toMatch(/\.fact\.est \{ color: var\(--est-ink\);/);
   });
 

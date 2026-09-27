@@ -966,3 +966,41 @@ Laws: `SessionScreen.cta.test.tsx` (field, label and write agree; Match fills th
 **MONEY, THROUGH THE KEY ONLY.** Each account row's kind rides a dot (green cash, sky savings, blue investment, red credit, graphite other; the words stay the one grey). Paid This Month's total is green (a paid amount). The Tracker row carries this month's net from the tracker's own transactions as its one key colour: "$500 More In" green, "$1,145.68 More Out" red, "Even This Month" white, nothing before a transaction exists; the door's words stay the grey and give way. A credit balance stays white. The balance line is "As You Last Entered It · Sep 18 · 4 Accounts" (the count white) and wraps on the hero card rather than cutting. On the Tracker, In is green only above $0.00; "Available Credit" is the tile's grey with the amount white; the sum tiles wrap rather than lose a digit. Every grey line on these screens is Title Case through `lineCase()`, and a typed merchant, category or goal title is shown Title Case and stored as typed.
 
 **§AP · THE SCHEDULE ROW IS TWO LINES (Dave, 2026-09-27).** His pick C from a rendered comparison of four (the stacked row he photographed, two one-row layouts, and this), after "We have allllll of this room laterally and decided to stack everything on top of each other?" The time and the title share the first line: the title's text (`.sched-t`) ellipsizes and the controls beside it (Overlaps, Join, the notes glyph) keep their place. The facts sit under the title, indented to it, on ONE line of whole facts: state word, category, length, repeat, countdown, then the place; a fact that does not fit drops off the end with everything after it, never as a stub, and only the place shows part of itself (from 56px). The category dot is gone from the line, the rail carries the colour. A proposed row's line leads with PROPOSED, then the category, the way an event row leads with its state word (C-28). Applies wherever `.ruled .sched-row` draws: Schedule's day view, Today's list, Tomorrow, and the rows inside the frozen TV guide (the ticker itself is untouched). Supersedes the 2026-09-21 pick D (the time alone above the title) and the 2026-09-21 "the place wraps" rule. Pinned by `browserWalk.test.ts` "the time and the title share the first line".
+
+## §AQ. Light mode, locked (V5.5, Dave 2026-09-27, colours picked by Dave; the light-mode colour pass-off, final)
+
+**LOCKED REVISION.** Light mode gets its own fixed values; dark mode is unchanged. Supersedes the light values in L2 to L6 and the Astra pass's "Apple light system colours as text" ruling wherever they disagree. Dave's rulings on the values, verbatim: "Readable matters more"; "I want this to look clean. I want everything as close to what I selected and matching while being readable"; "Maintain the vibrant but readable theme"; canvas picked from a live side-by-side of pure white and the Daylight page ("B, pale page #F3F4F9").
+
+**CANVAS.** The page stays `#F3F4F9`; cards are white (`#FFFFFF`) and lift off it by shadow.
+
+**LABEL RAMP (black-based, not dark mode's inverted).** Title `#000000`. Secondary `rgba(0,0,0,0.60)`, exactly as picked: 5.5 to 5.7:1 on every light ground. Tertiary `#8C8C8C`, solid: the nearest to the picked 30% that clears the 3:1 structure bar on every light ground (30% measured about 2:1); words never use it. Quaternary `rgba(0,0,0,0.18)`: dividers only.
+
+**THE FIFTEEN.** Each slot's FILL (dots, fills, badges, tiles) is Dave's hex exactly. Its TEXT ink is the same hue taken down in OKLCH only until it clears 4.5:1 on white, the page, the raised greys and its own 18% chip; a hue that already clears keeps the hex. Its GLYPH ink is taken down only to the 3:1 non-text bar. Coral, purple and grey fills carry white text (black misses 4.5:1 on them); indigo already did.
+
+| Colour | Type glyph | Fill (exact pick) | Text ink | Glyph ink | On the fill |
+| --- | --- | --- | --- | --- | --- |
+| Red | Chat / JARVIS-made | `#FF3B30` | `#C10307` | `#FF3B30` | black |
+| Coral |  | `#D92C12` | `#B71B02` | `#D92C12` | white |
+| Orange | Gym / Time | `#FF8D0A` | `#9A5305` | `#D37307` | black |
+| Sand |  | `#C4994F` | `#865E02` | `#AF8439` | black |
+| Yellow | Note | `#FAC800` | `#816602` | `#AA8702` | black |
+| Lime |  | `#9EDB43` | `#4E7402` | `#699A06` | black |
+| Green | Money | `#26A153` | `#037134` | `#25A052` | black |
+| Teal | Person / Mail | `#27CEC8` | `#097370` | `#099C98` | black |
+| Sky | Event | `#5CC4F5` | `#036F96` | `#2396C4` | black |
+| Blue | Task | `#0A74FF` | `#0259CA` | `#0A74FF` | black |
+| Indigo | Project | `#3830CF` | `#3830CF` | `#3830CF` | white |
+| Purple | Goal / Insight / Decision | `#9A30CF` | `#8F21C3` | `#9A30CF` | white |
+| Magenta |  | `#E03EAA` | `#B50485` | `#E03EAA` | black |
+| Pink |  | `#FF6682` | `#BC244D` | `#EE5674` | black |
+| Graphite | Grey: secondary text and dividers only, never a category | `#707070` | `#606060` | `#707070` | white |
+
+**THE KEY'S WORDS IN LIGHT.** Done `--good` `#037134` (fill `#26A153`), soon `--warn` `#9A5305` (fill `#FF8D0A`), late `--sys-red` `#C10307`, estimate `--est-ink` `#036F96`. Brand red for "tap this" (`--tint`) is unchanged: `#FF3B30` is Chat / JARVIS-made, not the tap colour.
+
+**THE NINE OUTSIDE THE FIFTEEN** (amber, rust, rose, plum, violet, cyan, mint, olive, slate) keep their existing vibrant, already-readable light values.
+
+**HEALTH** keeps its own ramp (§AM), unchanged.
+
+**PDF.** The catalog's PDF visual record predates this revision and needs regenerating from this section.
+
+Pinned by `laws.test.ts` (every fill's on-colour, every ink on every ground and chip), `browserWalk.test.ts` (the key's words, the two-tier ramp) and `colourKey.test.ts` (the estimate ink).

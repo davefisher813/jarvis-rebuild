@@ -427,6 +427,16 @@
    selection steel softened off pure black. The measured text ramp from the
    contrast audit is untouched. */
 [data-theme="light"] {
+  /* LIGHT MODE, LOCKED (Dave 2026-09-27, catalog §AQ). Canvas stays the
+     Daylight page (his pick from a side-by-side with pure white). The label
+     ramp is black-based, as picked: title 100%, secondary 60% (5.5-5.7:1 on
+     every light ground, so it reads as picked), tertiary #8C8C8C (solid, the
+     nearest to his 30% that clears the 3:1 structure bar on every light
+     ground; words never use it), and 18%
+     for dividers only. Semantic words take the readable twin of his hues
+     (good #037134, warn #9A5305, late #C10307, each clearing 4.5:1 on its
+     own tinted wash too); fills keep the exact hex.
+     The notes below are the history these values replace. */
   /* DAYLIGHT (Dave's pick, 2026-08-22, from the four-option round). The
      gray-blue #EEEEF3 read "overcast" on his phone; one step brighter and
      one step cooler-clean, so white cards lift instead of blending. */
@@ -434,7 +444,7 @@
   --surface-1: #FFFFFF; --surface-2: #FFFFFF; --surface-3: #F1F2F7;
   /* The hairline serves INPUTS; cards drop their border entirely (border
      plus shadow was the mud) and let elevation do the separating. */
-  --card-bd: rgba(20,20,30,0.07); --divider: rgba(60,60,67,0.14);
+  --card-bd: rgba(20,20,30,0.07); --divider: rgba(0,0,0,0.18);
   /* 6% dark-on-white was an anemic capsule. 8% is the lowest fill where a
      button unmistakably has a body on both the page and a card, and the
      red label still clears 4.5:1 on it (CC051B on #EBEBEE: 4.9:1). */
@@ -459,7 +469,7 @@
      grey clears the 3:1 non-text bar on all three (3.07:1 on surface-3),
      which is why it is #8A8A90 and not the harness's HIG twin #8E8E93,
      which measured 2.92:1 there. */
-  --tx-1: #000000; --tx-2: #3A3A40; --tx-3: #3A3A40; --tx-4: #8A8A90;
+  --tx-1: #000000; --tx-2: rgba(0,0,0,0.60); --tx-3: rgba(0,0,0,0.60); --tx-4: #8C8C8C;
   /* BROWSER-F-09 (2026-09-05). Light's 30 percent is 30 percent of a mid-grey,
      not of black, so quiet metadata measured 1.7:1 and read as blank space:
      611 hits on white and 381 on the page. 0.72 is the alpha the --tx-3 note
@@ -470,9 +480,9 @@
   /* 0.72 measured 4.17:1 on a raised grey row (2026-09-22) -- under the bar
      the ink ruling holds the secondary to. 0.80 reads 5.07 there and 5.97 on
      a white card. */
-  --tx-quiet: rgba(60,60,67,0.80);
+  --tx-quiet: rgba(0,0,0,0.60);
   /* iOS system colors, LIGHT variants, exactly as the HIG defines them. */
-  --sys-gray: #8E8E93;
+  --sys-gray: #707070;
   /* AND THE ONE PLACE systemGray IS NOT READABLE (visual audit 2026-09-20:
      99 findings, every one of them a tab label). #8E8E93 on the light nav
      ground measures 3.1:1 against a 4.5 bar, on the one control that is on
@@ -485,7 +495,7 @@
      hex nobody has checked. The active tab is untouched: it wears the
      accent, and contrast was never its problem. */
   --tab-idle: var(--tx-quiet);
-  --red: #FF3B30; --sys-red: #FF3B30; --blue: #007AFF;
+  --red: #FF3B30; --sys-red: #C10307; --blue: #0A74FF;
   /* BROWSER-F-04 (2026-09-05). These two were the iOS system green and orange,
      which are tuned to be read on BLACK. In light they sat on a pastel of
      their own hue and measured 2.0:1: "On Track", "Heavy right now", the
@@ -514,7 +524,7 @@
      as they always did in dark, and the BROWSER-F-04 law now pins these two
      values instead of measuring them. The contrast numbers above stay as
      the record of what was traded for it. */
-  --warn: #FF9500; --good: #34C759;
+  --warn: #9A5305; --good: #037134;
   /* THE ACTIVITY RAMP, LIGHT, IS THE DARK RAMP (Health R3 / H-03, Dave's
      picks 2026-09-12). The six values below used to be the neon taken down
      until it cleared AA as text on a white card, because on a white card
@@ -555,8 +565,8 @@
      that before a screenshot did. */
   --hl-lime-ink: #397400; --hl-cyan-ink: #006F84; --hl-pink-ink: #B8003C;
   --hl-amber-ink: #995300; --hl-violet-ink: #7E22CE; --hl-blue-ink: #0A5DC2;
-  --good-fill: #34C759; --warn-fill: #FF9500;
-  --yellow: #FFCC00; --teal: #30B0C7; --mint: #00C7BE; --pink: #FF2D55;
+  --good-fill: #26A153; --warn-fill: #FF8D0A;
+  --yellow: #FAC800; --teal: #27CEC8; --mint: #00C7BE; --pink: #FF6682;
   /* ONE LIGHT RED (Dave, 2026-08-22: "the red still isn't Jarvis red").
      Light was carrying THREE unrelated reds -- #E2051E fills, #CC051B tint,
      #B80417 capsule labels -- and #CC051B/#B80417 were Music-hue, not brand
@@ -604,8 +614,8 @@
   /* Astra pass (2026-09-12): the washes step up to the strengths the approved
      harness draws them at, 18/18/16/18, so a tinted tile in daylight has a
      visible body under the lighter ink above. The red wash is untouched. */
-  --red-tint: rgba(204,5,27,0.10); --warn-tint: rgba(255,149,0,0.18); --good-tint: rgba(52,199,89,0.18);
-  --blue-tint: rgba(0,122,255,0.16); --yellow-tint: rgba(255,204,0,0.18);
+  --red-tint: rgba(204,5,27,0.10); --warn-tint: rgba(255,141,10,0.18); --good-tint: rgba(38,161,83,0.18);
+  --blue-tint: rgba(10,116,255,0.16); --yellow-tint: rgba(250,200,0,0.18);
   --glass-bg: rgba(255,255,255,0.78);
   --rim-card: rgba(255,255,255,0.9); --rim-bottom: rgba(0,0,0,0.04);
   --nav-bg: rgba(250,250,252,0.86);

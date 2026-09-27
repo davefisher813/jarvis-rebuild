@@ -330,11 +330,21 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
      theme, so the three colour laws pass without a hand-kept exception. */
   --cat-amber: #CC8800; --cat-rust: #D14B1A; --cat-rose: #EF064C; --cat-plum: #CF30C1; --cat-violet: #9157F4; --cat-cyan: #0CA5C0; --cat-mint: #16B67B; --cat-olive: #7EA329; --cat-slate: #5C7CA3;
 }
+/* LIGHT MODE, LOCKED (Dave 2026-09-27, the light-mode colour pass-off; values
+   picked by Dave). The fifteen slots take his hex EXACTLY on every fill, dot
+   and badge. His ruling on readability ("Readable matters more"; "as close
+   to what I selected and matching while being readable") sets the two
+   twins: a slot's TEXT ink (--cat-tx-*) is the same hue, taken down in
+   OKLCH only until it clears 4.5:1 on white, the page, surface-3 and a
+   raised capsule grey; its GLYPH ink (--cat-ic-*) only until 3:1. Hues that
+   already clear keep the exact hex. The nine slots outside the fifteen keep
+   their vibrant, already-readable values ("Maintain the vibrant but
+   readable theme"). See catalog §AQ. */
 [data-theme="light"] {
-  --cat-red: #FF3B30; --cat-orange: #FF9500; --cat-sky: #32ADE6; --cat-pink: #FF2D55; --cat-yellow: #FFCC00;
-  --cat-green: #34C759; --cat-blue: #007AFF; --cat-teal: #30B0C7; --cat-graphite: #8E8E93;
-  --cat-purple: #AF52DE; --cat-indigo: #5856D6; --cat-magenta: #C838AB;
-  --cat-lime: #00C7BE; --cat-sand: #A2845E; --cat-coral: #FF6952;
+  --cat-red: #FF3B30; --cat-orange: #FF8D0A; --cat-sky: #5CC4F5; --cat-pink: #FF6682; --cat-yellow: #FAC800;
+  --cat-green: #26A153; --cat-blue: #0A74FF; --cat-teal: #27CEC8; --cat-graphite: #707070;
+  --cat-purple: #9A30CF; --cat-indigo: #3830CF; --cat-magenta: #E03EAA;
+  --cat-lime: #9EDB43; --cat-sand: #C4994F; --cat-coral: #D92C12;
   --cat-amber: #B87A00; --cat-rust: #D54815; --cat-rose: #EF0148; --cat-plum: #CF2AC2; --cat-violet: #9054F8; --cat-cyan: #0797B0; --cat-mint: #11A770; --cat-olive: #739721; --cat-slate: #577BA8;
 }
 /* Every category fill declares an on-colour, and the LAW verifies the
@@ -373,7 +383,12 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
    (Dave 2026-08-31, "default to Jarvis red"). --accent-glyph is #FF2B3C in
    BOTH themes, so no light/dark tx overrides exist or are needed; black
    clears it at 5.7:1 for the fill. */
-.cat-bg-brand { background: var(--accent-glyph); color: var(--on-fill-dark); } .cat-fg-brand { color: var(--accent-glyph); }
+.cat-bg-brand { background: var(--accent-glyph); color: var(--on-fill-dark); }
+/* THE LOCKED LIGHT FILLS THAT CARRY WHITE (§AQ, 2026-09-27). Coral #D92C12,
+   purple #9A30CF and grey #707070 are dark enough that black on them misses
+   4.5:1 (4.32, 3.70, 4.24); white clears it (4.86, 5.68, 4.95). Indigo
+   already carries white in both themes. The palette law reads these. */
+[data-theme="light"] .cat-bg-coral, [data-theme="light"] .cat-bg-purple, [data-theme="light"] .cat-bg-graphite { color: #FFFFFF; } .cat-fg-brand { color: var(--accent-glyph); }
 
 /* CATEGORY COLOURS DRAWN AS TEXT, IN LIGHT THEME (chip-derived, parity
    pass 2026-08-22). The chip behind a kicker is now mixed from the slot's
@@ -395,21 +410,21 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
    The other twelve slots are derived, have no Apple twin, and keep the
    chroma-first values below. */
 [data-theme="light"] {
-  --cat-tx-red: #FF9500;
-  --cat-tx-orange: #FF9500;
-  --cat-tx-sky: #32ADE6;
-  --cat-tx-pink: #FF2D55;
-  --cat-tx-yellow: #FFCC00;
-  --cat-tx-green: #34C759;
-  --cat-tx-blue: #007AFF;
-  --cat-tx-teal: #30B0C7;
-  --cat-tx-graphite: #636366;
-  --cat-tx-purple: #AF52DE;
-  --cat-tx-indigo: #5856D6;
-  --cat-tx-magenta: #A12D89;
-  --cat-tx-lime: #00C7BE;
-  --cat-tx-sand: #A2845E;
-  --cat-tx-coral: #A54435;
+  --cat-tx-red: #C10307;
+  --cat-tx-orange: #9A5305;
+  --cat-tx-sky: #036F96;
+  --cat-tx-pink: #BC244D;
+  --cat-tx-yellow: #816602;
+  --cat-tx-green: #037134;
+  --cat-tx-blue: #0259CA;
+  --cat-tx-teal: #097370;
+  --cat-tx-graphite: #606060;
+  --cat-tx-purple: #8F21C3;
+  --cat-tx-indigo: #3830CF;
+  --cat-tx-magenta: #B50485;
+  --cat-tx-lime: #4E7402;
+  --cat-tx-sand: #865E02;
+  --cat-tx-coral: #B71B02;
   --cat-tx-amber: #855800;
   --cat-tx-rust: #A83911;
   --cat-tx-rose: #B60137;
@@ -430,21 +445,21 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
 /* Astra pass (2026-09-12): the same twelve take the fill as their glyph too;
    the rest keep the 3:1 values. */
 [data-theme="light"] {
-  --cat-ic-red: #FF9500;
-  --cat-ic-orange: #FF9500;
-  --cat-ic-sky: #32ADE6;
-  --cat-ic-pink: #FF2D55;
-  --cat-ic-yellow: #FFCC00;
-  --cat-ic-green: #34C759;
-  --cat-ic-blue: #007AFF;
-  --cat-ic-teal: #30B0C7;
-  --cat-ic-graphite: #89898E;
-  --cat-ic-purple: #AF52DE;
-  --cat-ic-indigo: #5856D6;
-  --cat-ic-magenta: #C838AB;
-  --cat-ic-lime: #00C7BE;
-  --cat-ic-sand: #A2845E;
-  --cat-ic-coral: #E55E4A;
+  --cat-ic-red: #FF3B30;
+  --cat-ic-orange: #D37307;
+  --cat-ic-sky: #2396C4;
+  --cat-ic-pink: #EE5674;
+  --cat-ic-yellow: #AA8702;
+  --cat-ic-green: #25A052;
+  --cat-ic-blue: #0A74FF;
+  --cat-ic-teal: #099C98;
+  --cat-ic-graphite: #707070;
+  --cat-ic-purple: #9A30CF;
+  --cat-ic-indigo: #3830CF;
+  --cat-ic-magenta: #E03EAA;
+  --cat-ic-lime: #699A06;
+  --cat-ic-sand: #AF8439;
+  --cat-ic-coral: #D92C12;
   --cat-ic-amber: #B87A00;
   --cat-ic-rust: #D54815;
   --cat-ic-rose: #EF0148;
@@ -6166,7 +6181,7 @@ body.selecting .voice-dock { display: none; }
    the light raised grey. The category slot itself does not move: a sky
    area's dot and tile stay Apple's cyan. */
 :root { --est-ink: var(--cat-sky); }
-[data-theme="light"] { --est-ink: #006592; }
+[data-theme="light"] { --est-ink: #036F96; } /* sky #5CC4F5's text twin (§AQ, 2026-09-27) */
 .fact.est { color: var(--est-ink); font-variant-numeric: tabular-nums; }
 /* A NUMBER inside a quiet line that means nothing in particular steps up to
    white (F1) -- never the same grey made heavier, which is what --tx-2 is. */

@@ -307,6 +307,11 @@ workout day's last session first) whatever Show Last says, then the set
 before. A started workout can be cancelled from the foot of This Session,
 after a confirm, with Undo. `laws/oneFlow.test.ts` pins all four.
 
+Dave, 2026-09-27, light mode (catalog §AQ, locked): the fifteen fills are
+his exact hex; words take the same hue's readable twin; page #F3F4F9 with
+white cards; black-based ramp 100 / 60 / #8C8C8C / 18. Dark is unchanged.
+Readable over exact wherever the two disagree, in his words.
+
 ## Hard limits for any agent that edits
 
 - Edit ONLY the files you were assigned. If a fix needs another file, report

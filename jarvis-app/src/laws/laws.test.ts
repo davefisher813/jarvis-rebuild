@@ -1186,8 +1186,10 @@ describe("LAW: one filled red per screen", () => {
       const m = rule[0].match(/color:\s*(var\(--on-fill-dark\)|#[0-9A-Fa-f]{3,6})/);
       if (!m) { bad.push(slot + ": fill declares no on-colour"); continue; }
       const on = m[1] === "var(--on-fill-dark)" ? "#000000" : m[1]!.length === 4 ? "#" + [...m[1]!.slice(1)].map((c) => c + c).join("") : m[1]!;
+      // A light-only on-colour (§AQ, 2026-09-27) is read for the light fill.
+      const lightOn = new RegExp('\\[data-theme="light"\\] [^{]*\\.cat-bg-' + slot + '\\b[^{]*\\{[^}]*color:\\s*(#[0-9A-Fa-f]{6})').exec(css)?.[1];
       for (const [theme, v] of [["dark", dark[slot]!], ["light", light[slot]!]] as const) {
-        const r = ratio(on, v);
+        const r = ratio(theme === "light" && lightOn ? lightOn : on, v);
         if (r < 4.5) bad.push(`${slot} (${theme}): ${on} on ${v} is ${r.toFixed(2)}:1`);
       }
     }
@@ -1226,7 +1228,10 @@ describe("LAW: one filled red per screen", () => {
       // and its glyph, no ratio asked; the red slot alone takes orange, since a
       // category never wears the tappable red. The derived slots, which have
       // no Apple twin, keep the chroma-first checks below.
-      const APPLE_LIGHT = new Set(["#FF3B30", "#FF9500", "#FFCC00", "#34C759", "#00C7BE", "#30B0C7", "#32ADE6", "#007AFF", "#5856D6", "#AF52DE", "#FF2D55", "#A2845E"]);
+      // AMENDED 2026-09-27 (§AQ): the locked light palette replaces the Apple
+      // set, and Dave's ruling on it is "readable matters more", so no slot
+      // is exempt any more: every ink is measured below.
+      const APPLE_LIGHT = new Set<string>();
       if (APPLE_LIGHT.has(fill.toUpperCase())) {
         const want = slot === "red" ? "#FF9500" : fill.toUpperCase();
         if (l.toUpperCase() !== want) bad.push(`${slot} (light text): ${l}, Apple light is ${want}`);

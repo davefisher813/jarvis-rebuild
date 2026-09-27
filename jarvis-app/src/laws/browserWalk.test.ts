@@ -130,13 +130,15 @@ describe("BROWSER-F-04: status colour is readable in daylight, from the token", 
   // two tokens against their grounds; it pins them to the exact iOS values,
   // which is the ruling made checkable. The old numbers stay in the token
   // comment as the record of what was traded.
-  it("light --good and --warn are Apple's light system green and orange, exactly", () => {
-    expect(tokenIn("light", "--good").toUpperCase()).toBe("#34C759");
-    expect(tokenIn("light", "--warn").toUpperCase()).toBe("#FF9500");
-    // And the fills they used to differ from are the same values now, in
-    // light as in dark: one green, one orange, whatever the job.
-    expect(tokenIn("light", "--good-fill").toUpperCase()).toBe(tokenIn("light", "--good").toUpperCase());
-    expect(tokenIn("light", "--warn-fill").toUpperCase()).toBe(tokenIn("light", "--warn").toUpperCase());
+  // AMENDED 2026-09-27 (§AQ, the locked light palette, Dave: "Readable
+  // matters more"; "as close to what I selected ... while being readable").
+  // The fills are his exact hex; the words are the same hue taken down only
+  // until they clear 4.5:1 on every light ground and their own tint.
+  it("light --good and --warn are the locked palette: exact fills, readable word twins", () => {
+    expect(tokenIn("light", "--good-fill").toUpperCase()).toBe("#26A153");
+    expect(tokenIn("light", "--warn-fill").toUpperCase()).toBe("#FF8D0A");
+    expect(tokenIn("light", "--good").toUpperCase()).toBe("#037134");
+    expect(tokenIn("light", "--warn").toUpperCase()).toBe("#9A5305");
   });
 
   // AMENDED 2026-09-26 (§AM, settled by the lead on the same 2026-09-12
@@ -146,8 +148,9 @@ describe("BROWSER-F-04: status colour is readable in daylight, from the token", 
   // classes, one at a time, which is the pattern this describe exists to
   // end; so the token is pinned, and no light rule on a lateness selector
   // may hand-paint the words red (or its old hexes) back.
-  it("light --sys-red is Apple's light system red, and no rule in either theme paints lateness in the brand red", () => {
-    expect(tokenIn("light", "--sys-red").toUpperCase()).toBe("#FF3B30");
+  it("light --sys-red is the locked red's word twin, and no rule in either theme paints lateness in the brand red", () => {
+    // AMENDED 2026-09-27 (§AQ): #FF3B30's word twin, readable on every light ground.
+    expect(tokenIn("light", "--sys-red").toUpperCase()).toBe("#C10307");
     const bare = ["components.css", "ruled.css", "uniformity.css", "jarvis-design-system.css", "mail-rows.css", "editor.css"]
       .map((f) => read("styles/" + f)).join("\n").replace(/\/\*[\s\S]*?\*\//g, "")
       // A rule inside an at-rule block is still a rule: the wrapper's own
