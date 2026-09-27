@@ -965,6 +965,18 @@ describe("LAW: the schedule rail leads the row, so nothing can get in front of i
     expect(bare, "the title ellipsizes on its line").toMatch(/\.ruled \.sched-title > \.sched-t \{[^}]*text-overflow: ellipsis/);
     expect(bare, "and the facts line is one line of whole facts")
       .toMatch(/\.ruled \.sched-body > \.sched-cat \{[^}]*max-height: calc\(var\(--t-sub\) \* 1\.4\)/);
+    // NO THIRD LINE (Dave 2026-09-27, "I don't want 3 fucking rows"): the
+    // attachment count and the provenance are facts on the line, not block
+    // lines of their own under it. Structural: one .sched-cat per event row,
+    // and Provenance is rendered inside it, compact.
+    const day = readFileSync(join(SRC, "schedule/screens/DayRow.tsx"), "utf8");
+    // (The training door under the row keeps its own facts line: it is a
+    // control block the athlete tapped for, not subtext.)
+    const body = day.slice(0, day.indexOf("{/* THE TRAINING DOOR (D4-C): \"it names"));
+    expect(body.match(/className="sched-cat"/g)?.length, "one facts line on the event row").toBe(1);
+    const cat = body.slice(body.indexOf('<div className="sched-cat">'));
+    expect(cat, "provenance rides the facts line, compact").toMatch(/className="sched-fact sched-fact-prov">[\s\S]*?<Provenance compact/);
+    expect(cat, "so does the attachment count").toMatch(/className="sched-fact sched-fact-attach"/);
   });
 });
 

@@ -854,6 +854,10 @@
 .ruled .sched-body > .sched-cat .sched-fact > .sched-sep { margin-right: var(--s-1h); }
 .ruled .sched-body > .sched-cat .cat-dot { display: none; }
 .ruled .sched-body > .sched-cat > .sched-fact-dist { flex: 0 0 auto; }
+/* The attachment count and the provenance ride the end of the line (Dave 2026-09-27, no third line). */
+.ruled .sched-body > .sched-cat > .sched-fact-attach, .ruled .sched-body > .sched-cat > .sched-fact-prov { flex: 0 0 auto; }
+.ruled .sched-body > .sched-cat > .sched-fact-attach > .clip-ic { width: 12px; height: 12px; vertical-align: -1px; margin-right: var(--s-1); }
+.ruled .sched-body > .sched-cat > .sched-fact-prov > .prov-line { display: inline; font-size: inherit; }
 .ruled .sched-body > .sched-cat .sched-dist { margin-left: 0; }
 .ruled .sched-body > .sched-cat > .sched-fact-loc { display: flex; align-items: center; gap: var(--s-1h); flex: 1 1 56px; max-width: max-content; min-width: 0; }
 .ruled .sched-body > .sched-cat > .sched-fact-loc > .sched-sep { margin-right: 0; flex: 0 0 auto; }

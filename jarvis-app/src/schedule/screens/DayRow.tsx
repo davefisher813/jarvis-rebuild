@@ -188,7 +188,9 @@ export default function DayRow({
   const sepLoc = sepDist || !!dist;
   const sepLeave = sepLoc || !!e.data.location;
   const sepMove = sepLeave || !!leaveBy;
-  const hasMeta = sepMove || !!firstMove || !!dist;
+  const sepAttach = sepMove || !!firstMove;
+  const sepProv = sepAttach || !!attach;
+  const hasMeta = sepProv || !!prov;
   const sep = <span className="sched-sep">&middot;</span>;
 
   return (
@@ -418,18 +420,31 @@ export default function DayRow({
                 <span className="sched-firstmove truncate">{firstMove}</span>
               </span>
             )}
+            {/* NO THIRD LINE (Dave 2026-09-27: "I don't want 3 fucking rows...
+                if we have to just trim down some of the subtext noise"). The
+                attachment count and the provenance used to be block lines of
+                their own under the facts, a third and a fourth line on a row
+                whose ruling is two. They are the last two facts on the line
+                now, in the compact form the task row already uses (contract
+                4.1), so they are the first to drop when the line is full. */}
+            {attach && (
+              <span className="sched-fact sched-fact-attach">
+                {sepAttach && sep}
+                <svg className="ic clip-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" /></svg>
+                {attachLabel(attach)}
+              </span>
+            )}
+            {/* UP-CORE-05 (2026-09-05): where this block came from, or that
+                re-flow moved it today. Auto-created events have carried a
+                source since item 8 and no row ever showed it, so a block that
+                appeared from a paste or jumped an hour explained nothing. */}
+            {prov && (
+              <span className="sched-fact sched-fact-prov">
+                {sepProv && sep}
+                <Provenance compact source={prov} {...(openSourceFor ? { onOpen: openSourceFor(prov) } : {})} />
+              </span>
+            )}
           </div>}
-          {/* UP-CORE-05 (2026-09-05): where this block came from, or that
-              re-flow moved it today. Auto-created events have carried a
-              source since item 8 and no row ever showed it, so a block that
-              appeared from a paste or jumped an hour explained nothing. */}
-          <Provenance source={prov} {...(prov && openSourceFor ? { onOpen: openSourceFor(prov) } : {})} />
-          {attach && (
-            <div className="sched-cat">
-              <svg className="ic clip-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" /></svg>
-              {attachLabel(attach)}
-            </div>
-          )}
           {/* THE TRAINING DOOR (D4-C): "it names the day's lift, taps
               straight into the session, and when you finish, the block
               stamps itself done with the real minutes." Start is a capsule,
