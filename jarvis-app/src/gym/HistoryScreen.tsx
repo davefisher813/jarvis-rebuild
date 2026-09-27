@@ -8,6 +8,7 @@ import { liftTitle, lineCase, workoutTitle } from "../shared/casing";
 import { spanLabel } from "../shared/duration";
 import { durationOf } from "../insights/analytics";
 import { todayISO } from "../tasks/grouping";
+import SkeletonRows from "../shared/SkeletonRows";
 
 const CHEV = <div className="chev" />;
 
@@ -38,8 +39,34 @@ function Sparkline({ workouts, name, exerciseKey, kind }: { workouts: Workout[];
 // at the top. Lifts is this screen as it was; Sessions is every workout,
 // newest first, grouped by the week it fell in, each row a door to that
 // workout's own editor.
-export default function HistoryScreen({ workouts, onBack, onOpenLift, onOpenWorkout, mode: modeProp, onMode }: {
+/** LOADING IS NOT EMPTY, AND A FAILED LOAD IS NOT EMPTY EITHER (Dave
+ *  2026-09-27, on this screen reading "No Numbers Yet" over a full history:
+ *  "My history is all gone too"). The gym's lists start empty and fill when
+ *  the read lands, so an empty list means nothing until the read has
+ *  answered. While it has not, this says it is loading; if it failed, it
+ *  says the history did not load, that nothing was changed, and offers the
+ *  retry. Shared with the program page, which had the same false empty. */
+export function GymLoadState({ status, what, onRetry }: { status: "loading" | "failed"; what: "Your History" | "Your Training"; onRetry: () => void }) {
+  // A load is the shimmer every other list uses (law L7), never an empty
+  // state that says there is nothing here on a screen that does not know yet.
+  if (status === "loading") {
+    return <div className="pad-x" role="status" aria-label={`Loading ${what}`}><SkeletonRows /></div>;
+  }
+  return (
+    <div className="empty-state" role="alert">
+      <div className="empty-title">{what === "Your History" ? "Your History Didn't Load" : "Your Training Didn't Load"}</div>
+      <div className="empty-sub">Nothing Was Changed · Check Your Connection</div>
+      <button className="btn btn-primary" onClick={onRetry}>Try Again</button>
+    </div>
+  );
+}
+
+export default function HistoryScreen({ workouts, status = "ready", onRetry, onBack, onOpenLift, onOpenWorkout, mode: modeProp, onMode }: {
   workouts: Workout[]; onBack: () => void;
+  /** Whether `workouts` is the answer yet (see GymLoadState). Defaults to
+   *  ready for callers that hand in a list they already hold. */
+  status?: "loading" | "failed" | "ready";
+  onRetry?: () => void;
   // GYM-F-04 (2026-09-05): the key rides along so the lift detail derives the
   // lift's WHOLE history, across a rename, not just what its current name
   // happens to match.
@@ -93,7 +120,9 @@ export default function HistoryScreen({ workouts, onBack, onOpenLift, onOpenWork
         </div>
       </div>
 
-      {mode === "sessions" ? (
+      {status !== "ready" && workouts.length === 0 ? (
+        <GymLoadState status={status} what="Your History" onRetry={onRetry ?? (() => {})} />
+      ) : mode === "sessions" ? (
         groups.length === 0 ? (
           <div className="empty-state"><div className="empty-title">No Sessions Yet</div>
             <div className="empty-sub">Finish a session and it shows up here</div></div>

@@ -46,7 +46,7 @@ import ExerciseSheet from "./ExerciseSheet";
 import SessionScreen from "./SessionScreen";
 import ReceiptSheet from "./ReceiptSheet";
 import UploadFlow from "./UploadFlow";
-import HistoryScreen from "./HistoryScreen";
+import HistoryScreen, { GymLoadState } from "./HistoryScreen";
 import LibraryPage from "./LibraryPage";
 import { libraryRows, renameLift, mergeLifts, isEmptyPatch, aliasesAfterRename, aliasesAfterMerge, invertPatch, type LibraryRow, type AliasMap } from "./libraryEdit";
 import { classOf, EMPTY_CLASS, isBlank, mergeClass, muscleListOf, needsMuscles, readClassStore, type Chip, type ClassConflict, type ClassStore } from "./classify";
@@ -836,6 +836,11 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
     if (parked) showToast({ message: "Paused · Resume from Health" });
   };
   const [loaded, setLoaded] = useState(false);
+  /** The first load failed (network, sign-in). Until a load succeeds the
+   *  gym's lists are UNKNOWN, not empty, and say so with a way to retry. */
+  const [loadFailed, setLoadFailed] = useState(false);
+  /** What a list screen should draw before it trusts an empty list. */
+  const loadStatus: "loading" | "failed" | "ready" = loaded ? "ready" : loadFailed ? "failed" : "loading";
   // H-11 / R8 (Health Push B, 2026-09-12): while a session is on screen the
   // shell hides its tab bar and dock and the Log bar owns the bottom edge.
   useEffect(() => { setSessionOpen(!!live); }, [live]);
@@ -1028,15 +1033,27 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
     : undefined;
 
   const reload = useCallback(async () => {
-    // Anything logged offline lands as soon as a write succeeds.
-    await flushPending((w) => svc.saveWorkout(w));
-    const [all, ws] = await Promise.all([svc.listPrograms(true), svc.listWorkouts()]);
-    setAllPrograms(all);
-    setPrograms(all.filter((p) => !p.data.archived));
-    setWorkouts(ws);
-    // GYM-F-14: a parked session is not resumed by a refresh.
-    if (!parkedRef.current) setLive(readLive());
-    setLoaded(true);
+    // Anything logged offline lands as soon as a write succeeds. A flush that
+    // cannot reach the server leaves the queue where it was; it must never
+    // stop the lists below from loading.
+    try { await flushPending((w) => svc.saveWorkout(w)); } catch { /* the queue keeps them */ }
+    // NOTHING LOADED IS NOT NOTHING SAVED (Dave 2026-09-27, on an empty
+    // History: "My history is all gone too"). A failed read used to reject
+    // silently here, so every screen below drew its "nothing yet" state from
+    // an empty list it had never actually received. A failure is its own
+    // state now, and the screens say so instead of saying there is nothing.
+    try {
+      const [all, ws] = await Promise.all([svc.listPrograms(true), svc.listWorkouts()]);
+      setAllPrograms(all);
+      setPrograms(all.filter((p) => !p.data.archived));
+      setWorkouts(ws);
+      // GYM-F-14: a parked session is not resumed by a refresh.
+      if (!parkedRef.current) setLive(readLive());
+      setLoadFailed(false);
+      setLoaded(true);
+    } catch {
+      setLoadFailed(true);
+    }
   }, [svc]);
   useEffect(() => { void reload(); }, [reload]);
   // UP-PLAT-06 (2026-09-06): a workout logged on another device repaints here.
@@ -1808,7 +1825,8 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
   // this one), and closing it lands back on History.
   if (historyOpen && !viewWorkout) {
     return (
-      <HistoryScreen workouts={workouts} onBack={() => setHistoryOpen(false)} onOpenLift={(row) => setLiftDetailFor(row)}
+      <HistoryScreen workouts={workouts} status={loadStatus} onRetry={() => { setLoadFailed(false); void reload(); }}
+        onBack={() => setHistoryOpen(false)} onOpenLift={(row) => setLiftDetailFor(row)}
         onOpenWorkout={(w) => { setViewWorkout(w); setWorkoutDraft(w.data.exercises); }}
         mode={historyMode} onMode={setHistoryMode} />
     );
@@ -3359,7 +3377,10 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
           </div></div>
         )}
 
-        {!program ? (
+        {loadStatus !== "ready" && !program ? (
+          // No Program Yet is only true once the programs have loaded.
+          <GymLoadState status={loadStatus} what="Your Training" onRetry={() => { setLoadFailed(false); void reload(); }} />
+        ) : !program ? (
           // BROWSER-F-11: with history below it, the empty state is a card at
           // the top of a real page rather than the whole screen.
           <div className={"empty-state" + (recent.length > 0 ? " empty-compact" : "")}>

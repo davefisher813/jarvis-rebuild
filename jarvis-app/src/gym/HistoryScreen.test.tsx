@@ -58,3 +58,34 @@ describe("HistoryScreen: Lifts / Sessions", () => {
     expect(screen.getByText("No Sessions Yet")).toBeInTheDocument();
   });
 });
+
+// DAVE, 2026-09-27, on this screen reading "No Numbers Yet" over a full
+// history: "My history is all gone too". An empty list is only "nothing yet"
+// once the read has answered.
+describe("History before the workouts have loaded", () => {
+  it("shows the loading shimmer, never No Numbers Yet", () => {
+    render(<HistoryScreen workouts={[]} status="loading" onBack={() => {}} onOpenLift={() => {}} />);
+    expect(screen.getByRole("status", { name: "Loading Your History" })).toBeInTheDocument();
+    expect(screen.queryByText("No Numbers Yet")).toBeNull();
+  });
+
+  it("a failed load says so, says nothing was changed, and retries", () => {
+    const onRetry = vi.fn();
+    render(<HistoryScreen workouts={[]} status="failed" onRetry={onRetry} onBack={() => {}} onOpenLift={() => {}} />);
+    expect(screen.getByText("Your History Didn't Load")).toBeInTheDocument();
+    expect(screen.getByText("Nothing Was Changed · Check Your Connection")).toBeInTheDocument();
+    expect(screen.queryByText("No Numbers Yet")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Try Again" }));
+    expect(onRetry).toHaveBeenCalled();
+  });
+
+  it("the Sessions segment waits the same way", () => {
+    render(<HistoryScreen workouts={[]} status="loading" mode="sessions" onBack={() => {}} onOpenLift={() => {}} />);
+    expect(screen.queryByText("No Sessions Yet")).toBeNull();
+  });
+
+  it("once loaded, an empty history is the honest empty state", () => {
+    render(<HistoryScreen workouts={[]} status="ready" onBack={() => {}} onOpenLift={() => {}} />);
+    expect(screen.getByText("No Numbers Yet")).toBeInTheDocument();
+  });
+});
