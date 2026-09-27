@@ -495,7 +495,7 @@
      hex nobody has checked. The active tab is untouched: it wears the
      accent, and contrast was never its problem. */
   --tab-idle: var(--tx-quiet);
-  --red: #FF3B30; --sys-red: #C10307; --blue: #0A74FF;
+  --red: #FF3B30; --sys-red: #C0000D; --blue: #0A74FF;
   /* BROWSER-F-04 (2026-09-05). These two were the iOS system green and orange,
      which are tuned to be read on BLACK. In light they sat on a pastel of
      their own hue and measured 2.0:1: "On Track", "Heavy right now", the
@@ -567,54 +567,33 @@
   --hl-amber-ink: #995300; --hl-violet-ink: #7E22CE; --hl-blue-ink: #0A5DC2;
   --good-fill: #26A153; --warn-fill: #FF8D0A;
   --yellow: #FAC800; --teal: #27CEC8; --mint: #00C7BE; --pink: #FF6682;
-  /* ONE LIGHT RED (Dave, 2026-08-22: "the red still isn't Jarvis red").
-     Light was carrying THREE unrelated reds -- #E2051E fills, #CC051B tint,
-     #B80417 capsule labels -- and #CC051B/#B80417 were Music-hue, not brand
-     hue, which is the exact muddying the one-red law was written to stop.
-     Now one: #DA0012, the BRAND hue taken down only as far as the worst
-     surface red text actually meets (the tinted capsule, 4.52:1), which
-     leaves 4.79:1 on the page and 5.26:1 on a white card, and carries white
-     at 5.26:1 where a fill needs it.
-     Red cannot go brighter than this AS TEXT on a light ground: the red
-     channel alone puts #FF2B3C at 3.38:1 on this page. So the brand red is
-     not abandoned in light, it is routed by job -- anything with no words
-     in it (glyphs, the wordmark J, rules, dots) wears the real #FF2B3C
-     under the 3:1 non-text bar, and only lettering steps down to #DA0012. */
-  --tint: #DA0012;
-  /* Same reason as --tint, same value. */
-  /* The same words-red as --on-light-red, and for the same measurement:
-     #DA0012 misses on every raised grey a red word lands on (2026-09-22). */
-  --accent-tx: #BC000E;
-  /* Destructive text, light, and it is deliberately NOT --accent-tx
-     (merge, 2026-08-24). Two sessions landed here at once: one made the
-     light accent #DA0012, the other added a separate destructive red.
-     Both survive, and the reason is measured, not aesthetic.
-
-     This value cannot be shared with dark either way: the dark red
-     (#FF453A) is 2.74:1 against a light card, which is why --danger-tx
-     exists at all.
-
-     Against the light .btn-secondary it sits on (#ECECED, which is
-     --press-3 over a white card): #DA0012 is 4.46:1 and #CC051B is 4.93:1.
-     A destructive verb is the one label that has to clear 4.5:1 outright
-     rather than lean on the large-text allowance, so it takes the darker
-     red by a hair. Everything else in light wears --accent-tx.
-
-     In light the destructive verb reads by being red AT ALL, since Cancel
-     beside it is near-black at 15.49:1. */
-  --danger-tx: #CC051B;
+  /* JARVIS RED, LIGHT (Dave 2026-09-27, catalog §AQ): "it should follow the
+     same exact Jarvis Red rules as the dark version." Dark wears one red;
+     light was wearing eight (#DA0012, #BC000E, #CC051B, #C10307 for words,
+     #FF2B3C, #FA233B, #FF3B30 for fills). Now two, by job, and nothing else:
+       fills    Jarvis Red, exactly as dark draws it: --accent, --accent-glyph
+                and --accent-fill are the root values both themes share, and
+                the key's red (--red, --cat-red) is #FF3B30.
+       #C0000D  the one words red. The closest red to Jarvis Red that still
+                reads on every ground a red word lands on: 6.47 on white,
+                5.89 on the page, 5.00 on a grey capsule over the page, 4.92
+                on one over a sheet, 4.59 on the red chip. Dave: "as close to what I want while
+                being readable." Jarvis Red itself is 3.23 on the page. */
+  --tint: #C0000D;
+  --accent-tx: #C0000D;
+  --danger-tx: #C0000D;
   --danger-tx-raised: var(--danger-tx);
   /* ROW PILL, light theme (option B, catalog O.5 revised 2026-08-21).
      Outlined, no fill, so the same form reads in both themes. The border
      and the text are the light-theme red the page already trusts:
-     it now rides the one light red (#DA0012): 5.26:1 on the white card. */
+     it rides the one light words red (#C0000D): 6.47:1 on the white card. */
   --accent-chip: transparent;
-  --accent-chip-bd: #DA0012;
-  --accent-chip-tx: #DA0012;
+  --accent-chip-bd: #C0000D;
+  --accent-chip-tx: #C0000D;
   /* Astra pass (2026-09-12): the washes step up to the strengths the approved
      harness draws them at, 18/18/16/18, so a tinted tile in daylight has a
      visible body under the lighter ink above. The red wash is untouched. */
-  --red-tint: rgba(204,5,27,0.10); --warn-tint: rgba(255,141,10,0.18); --good-tint: rgba(38,161,83,0.18);
+  --red-tint: rgba(255,59,48,0.12); --warn-tint: rgba(255,141,10,0.18); --good-tint: rgba(38,161,83,0.18);
   --blue-tint: rgba(10,116,255,0.16); --yellow-tint: rgba(250,200,0,0.18);
   --glass-bg: rgba(255,255,255,0.78);
   --rim-card: rgba(255,255,255,0.9); --rim-bottom: rgba(0,0,0,0.04);

@@ -410,7 +410,7 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
    The other twelve slots are derived, have no Apple twin, and keep the
    chroma-first values below. */
 [data-theme="light"] {
-  --cat-tx-red: #C10307;
+  --cat-tx-red: #C0000D;
   --cat-tx-orange: #9A5305;
   --cat-tx-sky: #036F96;
   --cat-tx-pink: #BC244D;
@@ -1954,7 +1954,7 @@ body.jarvis-dragging { overflow: hidden; touch-action: none; -webkit-user-select
      grey it actually lands on: 4.14 on a row, 4.07 on the page's press, 3.91
      on a sheet's (2026-09-22, measured across 43 screens). #BC000E reads
      6.68 / 5.26 / 4.97 and is the same hue. */
-  --on-light-red: #BC000E;
+  --on-light-red: #C0000D; /* the one light words red, §AQ 2026-09-27 */
   /* --on-light-good and --on-light-warn are gone with the allow-list
      (BROWSER-F-04, 2026-09-05): their values are what the light --good and
      --warn tokens are now, so the two fills that still want the darker green
@@ -4418,7 +4418,7 @@ button.check-linked:active { opacity: 1; background: var(--press-3); }
    re-letters a 50px button in the sheet red cannot reach a small pill that
    also carries the base class. The 50px base button is not a capsule and
    keeps its own fill in both themes. */
-[data-theme="light"] .btn { background: rgba(204,5,27,0.085); color: var(--on-light-red); }
+[data-theme="light"] .btn { background: rgba(255,59,48,0.10); color: var(--on-light-red); }
 [data-theme="light"] .btn-sm:not(.btn-primary):not(.btn-danger):not(.btn-secondary) {
   background-color: var(--capsule-fill); color: var(--on-light-red);
 }
@@ -4432,7 +4432,7 @@ button.check-linked:active { opacity: 1; background: var(--press-3); }
    The fill said "red action" and the ink said "not an action", in one
    theme only. The capsule rule below now paints both themes from one
    token, and the quiet variants keep their own fill in both. */
-[data-theme="light"] .note-fix { background: rgba(204,5,27,0.085); color: var(--on-light-red); }
+[data-theme="light"] .note-fix { background: rgba(255,59,48,0.10); color: var(--on-light-red); }
 /* THE ROW ACTION TAKES THE CAPSULE TOO (Dave 2026-09-22, Control Catalog:
    the in-list create rung, capsule).
 
@@ -4539,7 +4539,7 @@ button.check-linked:active { opacity: 1; background: var(--press-3); }
    the icon law means "JARVIS's own feature" and a goal is the user's
    content. Mail opts in by name now; everything else purple keeps
    --cat-ic-purple (3.76:1 on the light page). */
-[data-theme="light"] .row-glyph.mail-glyph { color: #FF2B3C; }
+[data-theme="light"] .row-glyph.mail-glyph { color: var(--accent-glyph); }
 
 /* RENAME IS A MODE THE ROW ENTERS (Dave 2026-08-24). The row lifts while its
    title is being edited, because a long press that changed nothing visible
@@ -5158,7 +5158,7 @@ body.selecting .voice-dock { display: none; }
      #DA0012 is --on-light-red's exact value, the brand hue held to 5.26:1
      on white, correct here in BOTH themes because the pill is white in
      both. */
-  background: #fff; color: #DA0012; }
+  background: #fff; color: #C0000D; }
 /* The hero's button is the screen's one fill now that its panel is not. */
 .mode-hero .mode-go { background: var(--accent-fill); color: #fff; }
 .mode-go.mode-go-quiet { background: var(--press-5); color: var(--tx-1); }

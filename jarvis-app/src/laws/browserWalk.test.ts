@@ -149,8 +149,8 @@ describe("BROWSER-F-04: status colour is readable in daylight, from the token", 
   // end; so the token is pinned, and no light rule on a lateness selector
   // may hand-paint the words red (or its old hexes) back.
   it("light --sys-red is the locked red's word twin, and no rule in either theme paints lateness in the brand red", () => {
-    // AMENDED 2026-09-27 (§AQ): #FF3B30's word twin, readable on every light ground.
-    expect(tokenIn("light", "--sys-red").toUpperCase()).toBe("#C10307");
+    // AMENDED 2026-09-27 (§AQ, Dave: "the same exact Jarvis Red rules as the dark version"): light has one words red, #C0000D, readable on every light ground.
+    expect(tokenIn("light", "--sys-red").toUpperCase()).toBe("#C0000D");
     const bare = ["components.css", "ruled.css", "uniformity.css", "jarvis-design-system.css", "mail-rows.css", "editor.css"]
       .map((f) => read("styles/" + f)).join("\n").replace(/\/\*[\s\S]*?\*\//g, "")
       // A rule inside an at-rule block is still a rule: the wrapper's own

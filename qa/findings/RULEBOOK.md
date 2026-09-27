@@ -311,6 +311,9 @@ Dave, 2026-09-27, light mode (catalog §AQ, locked): the fifteen fills are
 his exact hex; words take the same hue's readable twin; page #F3F4F9 with
 white cards; black-based ramp 100 / 60 / #8C8C8C / 18. Dark is unchanged.
 Readable over exact wherever the two disagree, in his words.
+Same day: Jarvis Red in light follows dark's rules. One words red, #C0000D,
+for every red word; glyphs and brand fills share dark's root values. Never
+add a second light words red.
 
 ## Hard limits for any agent that edits
 

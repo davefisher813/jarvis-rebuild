@@ -28,10 +28,10 @@ const TAP_TOKENS = String.raw`tint[\w-]*|red-tint|on-light-red|accent[\w-]*|dang
 /** The brand red's hexes, as a hand-painted rule would write them: light's
  *  words reds past and present (#BC000E, #DA0012, #CC051B, #B8001A) and the
  *  dark brand red with its fill and gradient stops (#FF2B3C, #FA233B,
- *  #E2051E, #FB5C74).
+ *  #E2051E, #FB5C74). AMENDED 2026-09-27 (§AQ): #C0000D, light's one words red.
  *  AMENDED 2026-09-26 (round-4 review, the lead): #FF2D3E joins them, the
  *  brand red raised two points that a sheet paints by hand. */
-const TAP_HEXES = String.raw`BC000E|DA0012|CC051B|B8001A|FF2B3C|FA233B|E2051E|FB5C74|FF2D3E`;
+const TAP_HEXES = String.raw`C0000D|BC000E|DA0012|CC051B|B8001A|FF2B3C|FA233B|E2051E|FB5C74|FF2D3E`;
 
 /** Every red token that is not the brand's: the system red and the old
  *  --red alias with their fills, and the red category's inks. --red-tint is
