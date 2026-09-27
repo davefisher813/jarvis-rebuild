@@ -1,5 +1,5 @@
 import type { Derived } from "./derive";
-import { capAfterNumber } from "../shared/casing";
+import { lineCase } from "../shared/casing";
 
 // THE VALUES DETECTOR (C-63, Astra, 2026-09-12). A principle is a call he
 // keeps making. Three or more decisions that rule out the same live area,
@@ -51,7 +51,7 @@ export function derivePrinciple(decisions: DeriveDecision[], areas: string[]): D
     derivation: "principle",
     category: "values",
     title: `"${over ? `${over} before ${area}` : `Not ${area}`}" looks like a standing rule`,
-    sub: capAfterNumber(`${hits.length} decisions`),
+    sub: lineCase(`${hits.length} decisions`),
     strandText: line,
     evidence: days.slice(-6).map((day) => ({ day, a: hits.length })),
   };

@@ -1,6 +1,6 @@
 import type { WindowRow } from "./window";
 import type { StrandCategory, StrandEvidence, DerivationKey } from "./strands/types";
-import { capAfterNumber } from "../shared/casing";
+import { lineCase } from "../shared/casing";
 import { catName } from "../shared/categories";
 
 // The launch derivations (Brain Layer 2). Pure functions over the windowed
@@ -17,7 +17,7 @@ export interface Derived {
   category: StrandCategory;
   // The being-known moment (Notice law: title + sub) and the strand line the
   // accept writes. Both plain sentences, no dashes, no guilt. Every sub is
-  // built through capAfterNumber, because these lines lead with counts and
+  // built through lineCase, because these lines lead with counts and
   // the leading-number casing law applies to them like any other copy.
   title: string;
   sub: string;
@@ -126,7 +126,7 @@ export function deriveCompletionWindow(rows: WindowRow[]): Derived | null {
     // Worded so the leading count is followed by a noun, not a joining word:
     // "12 Finishes there" is the casing law's intended shape, where
     // "12 Of your last 16" is what it does to a sentence built the other way.
-    sub: capAfterNumber(`${bestCount} finishes there, out of your last ${done.length}`),
+    sub: lineCase(`${bestCount} finishes there, out of your last ${done.length}`),
     strandText: `Gets things done between ${from} and ${to} ${partOfDay(best)}`,
     evidence: days.slice(0, 6).map((day) => ({ day, a: best })),
   };
@@ -170,7 +170,7 @@ export function deriveCompletionNoBand(rows: WindowRow[]): Derived | null {
     // fullest stretch of his day still holds well under half of it, which is
     // the whole finding, and it is the same sentence shape the positive twin
     // uses ("12 Finishes there, out of your last 16").
-    sub: capAfterNumber(`${band.count} finishes in the fullest 3-hour stretch, out of your last ${done.length}`),
+    sub: lineCase(`${band.count} finishes in the fullest 3-hour stretch, out of your last ${done.length}`),
     strandText: "Finishes things across the whole day rather than in one stretch",
     evidence: [],
   };
@@ -225,7 +225,7 @@ export function deriveSlipCategory(rows: WindowRow[]): Derived | null {
     derivation: "slip_category",
     category: "work_style",
     title: `${name} tasks are the ones that slip`,
-    sub: capAfterNumber(`Pushed ${n} times in 30 days, the most of any category`),
+    sub: lineCase(`Pushed ${n} times in 30 days, the most of any category`),
     strandText: `${name} tasks tend to slip and need extra room`,
     evidence: days.slice(0, 6).map((day) => ({ day, a: 1 })),
   };
@@ -264,7 +264,7 @@ export function deriveSlipNoLeader(rows: WindowRow[]): Derived | null {
     derivation: "slip_no_leader",
     category: "work_style",
     title: "Tasks slip across every area, not one",
-    sub: capAfterNumber(`Pushed ${top.n} times in the busiest area, ${next} in the next`),
+    sub: lineCase(`Pushed ${top.n} times in the busiest area, ${next} in the next`),
     strandText: "Tasks slip across every area, none more than the rest",
     evidence: [],
   };
@@ -298,7 +298,7 @@ export function derivePlanRate(rows: WindowRow[]): Derived | null {
       derivation: "plan_rate",
       category: "work_style",
       title: "What you plan, you finish",
-      sub: capAfterNumber(`${done} of ${outcomes.length} picks done by that night`),
+      sub: lineCase(`${done} of ${outcomes.length} picks done by that night`),
       strandText: "Finishes what lands on the plan; a planned task is a done task",
       evidence,
     };
@@ -308,7 +308,7 @@ export function derivePlanRate(rows: WindowRow[]): Derived | null {
       derivation: "plan_rate",
       category: "work_style",
       title: "Shorter plans fit your real days better",
-      sub: capAfterNumber(`${done} of ${outcomes.length} picks got done by that night`),
+      sub: lineCase(`${done} of ${outcomes.length} picks got done by that night`),
       strandText: "Does best with short plans; three picks beat six",
       evidence,
     };
@@ -343,7 +343,7 @@ export function deriveTrainingWindow(rows: WindowRow[]): Derived | null {
     derivation: "training_window",
     category: "routine",
     title: `You train between ${from} and ${to}`,
-    sub: capAfterNumber(`${bestCount} sessions there, out of your last ${done.length}`),
+    sub: lineCase(`${bestCount} sessions there, out of your last ${done.length}`),
     strandText: `Trains between ${from} and ${to} ${partOfDay(best)}`,
     evidence: days.slice(0, 6).map((day) => ({ day, a: best })),
   };
@@ -372,7 +372,7 @@ export function deriveEmailWindow(rows: WindowRow[]): Derived | null {
     derivation: "email_window",
     category: "work_style",
     title: `Email gets dealt with between ${from} and ${to}`,
-    sub: capAfterNumber(`${bestCount} of your last ${done.length} were handled in that stretch`),
+    sub: lineCase(`${bestCount} of your last ${done.length} were handled in that stretch`),
     strandText: `Deals with email between ${from} and ${to} ${partOfDay(best)}`,
     evidence: days.slice(0, 6).map((day) => ({ day, a: best })),
   };
@@ -429,7 +429,7 @@ export function derivePeopleRhythm(rows: WindowRow[], people: DerivePerson[]): D
     derivation: "people_rhythm",
     category: "people",
     title: `${p.name} is someone you deal with constantly`,
-    sub: capAfterNumber(`${hits.length} emails handled with them, across ${days.length} ${days.length === 1 ? "day" : "days"}`),
+    sub: lineCase(`${hits.length} emails handled with them, across ${days.length} ${days.length === 1 ? "day" : "days"}`),
     strandText: `Deals with ${p.name} regularly`,
     evidence: days.slice(-6).map((day) => ({ day, a: weeks })),
     apply: { kind: "person_label", personId: p.id, label },
@@ -467,7 +467,7 @@ export function deriveGoneQuiet(people: DerivePerson[], nowMs: number): Derived 
     derivation: "gone_quiet",
     category: "people",
     title: `${p.name} has gone quiet`,
-    sub: capAfterNumber(`${weeks} ${weeks === 1 ? "week" : "weeks"} since either of you wrote`),
+    sub: lineCase(`${weeks} ${weeks === 1 ? "week" : "weeks"} since either of you wrote`),
     strandText: `Checks in with ${p.name} when it has been a while`,
     evidence: [],
   };

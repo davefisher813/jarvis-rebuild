@@ -31,7 +31,7 @@
 // is bigger than its upside is a bad trade for someone who already has hard
 // days. If Dave wants them anyway, that is his call to make knowingly.
 
-import { capAfterNumber } from "./casing";
+import { lineCase } from "./casing";
 
 export type WinKind = "task" | "project" | "goal";
 
@@ -48,7 +48,7 @@ export function gradientLine(done: number, total: number): string {
   // to apply in the one place a digit actually starts the line.
   const WORDS = ["", "One", "Two", "Three", "Four"];
   if (left <= 4) return `${WORDS[left]} left`;
-  return capAfterNumber(`${done} of ${total} done`);
+  return lineCase(`${done} of ${total} done`);
 }
 
 // True when finishing this task finished the work behind a project, which is

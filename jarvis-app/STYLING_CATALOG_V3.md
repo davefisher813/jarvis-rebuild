@@ -427,6 +427,8 @@ Wave one of the Bigger Picture rebuild. Every rule here is the same doctrine the
 
 ## BP2. Architecture C, the goal that can see (V4.17, Dave's pick C, built 2026-08-24)
 
+**AMENDED 2026-09-26 (Dave's pick, the pass-off: "Pick any goal").** A task reaches a goal by a THIRD route: its own pick. The task sheet's Goal row is a real menu: with no project it lists the live goals and saves `TaskData.goalId`; with a project it shows the project's goal and opens the Project menu, and the project's goal wins (a task never claims two goals; `bigger/reach.ts goalIdsForTask`). All five WHERE rows (Area, Person, Project, Goal, Event) render on every screen that opens the sheet, through one shared links builder (`shared/sheetLinks.ts`); the `sheetFields` law no longer exempts personId or eventId.
+
 **A GOAL REACHES ITS WORK TWO WAYS.** FILED, through a project pointing at it. TAGGED, through the categories the goal watches, with no filing at all. Dave picked "both: tags by default, attach projects when big enough." Before this, everything pointed DOWN and nothing pointed up, so a task could not say what it was for and a goal whose work was never filed looked idle while he was doing it.
 
 **A TAG NEVER FEEDS `done/total`.** A tag is a saved filter, not a scoreboard. An ordinary task carries no completion date (only bills and recurring tasks stamp `lastDone`), so a goal tagged Health on Tuesday would inherit every Health task ever closed and open at "312 of 400 done, 78%" the day it was born: true about the tag, a lie about the goal. Filed work speaks in **fractions** because it has a real denominator; tagged work speaks in **open counts** because it does not. Law-tested by running the function, not by grepping it.

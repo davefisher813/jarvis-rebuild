@@ -4582,11 +4582,13 @@ body.selecting .voice-dock { display: none; }
    Reached only through NoticeCard's `stack`, so no other notice moves. */
 .notice-card-stack .conn-name,
 .notice-card-stack .conn-meta { white-space: normal; display: block; -webkit-line-clamp: none; overflow: visible; text-overflow: clip; }
-.notice-stack { display: flex; padding: 0 var(--s-3) var(--s-2h); }
+.notice-stack { display: flex; padding: 0 var(--s-2) var(--s-2h); }
 .notice-stack .pill-act { width: 100%; justify-content: center; min-height: var(--tap-min);
   /* The row cap above (11rem) guards a pill BESIDE a title; a stacked pill
      is under the words with the whole card to itself, and the cap only
-     clipped its label ("Line Up 1 for ...", 2026-09-26). */
+     clipped its label ("Line Up 1 for ...", 2026-09-26). The stack's side
+     padding is one step tighter than the row's (8, was 12) for the same
+     reason: at type scale 1.4 "Line Up 1 for Wednesday" needed the 8px. */
   max-width: none; }
 
 .notice-clear-row { display: flex; justify-content: flex-end; padding: var(--s-1) var(--s-4) 0; }

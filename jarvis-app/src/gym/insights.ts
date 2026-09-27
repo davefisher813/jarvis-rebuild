@@ -6,7 +6,7 @@ import { numericValue, type MetricDef, type MetricLog } from "./metrics";
 import { MUSCLE_GROUPS, HARD_SET_RANGE, type MuscleGroup, type PublishedRange } from "./muscles";
 import { readClass } from "./classify";
 import { daysBetween } from "../upnext/upnext";
-import { capAfterNumber } from "../shared/casing";
+import { lineCase } from "../shared/casing";
 
 // THE HONEST VERSION, D11-C + D13-C (Training Catalog V2, approved
 // 2026-08-31). The realism line given to Dave and kept literally: WHEN is
@@ -145,7 +145,7 @@ export function correlate(sessions: LiftSession[], kind: MeasureKind, exerciseNa
   const higherLabel = isYesNo ? def.data.name : `higher ${def.data.name}`;
   const lowerLabel = isYesNo ? `no ${def.data.name}` : `lower ${def.data.name}`;
   const sign = deltaDiff >= 0 ? "+" : "";
-  const line = capAfterNumber(
+  const line = lineCase(
     `${sign}${round1(deltaDiff)} per session on ${higherLabel} days vs ${lowerLabel}, over ${pairs.length} paired sessions (correlation, not cause)`,
   );
   const evidence: Evidence = {

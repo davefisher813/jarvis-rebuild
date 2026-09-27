@@ -3,7 +3,8 @@ import { loadCalcFor, loadStyleOf, plateMath, styleSummary, weightLabel, type Lo
 import type { Exercise, MeasureKind, ProgramDay, SetEntry, Workout  } from "./types";
 import { elapsedMs, type LiveSession } from "./liveSession";
 import { overBudgetMin, nextLever, projectFinishMs, estimateDaySec, type FitPlan } from "./fit";
-import { capAfterNumber, lineCase, liftTitle, workoutTitle } from "../shared/casing";
+import { liftTitle, lineCase, workoutTitle } from "../shared/casing";
+import { spanLabel } from "../shared/duration";
 import { REST_FLOOR_SEC } from "./pacing";
 import { logButtonLabel, entryNoun, formatSet, fieldsFor } from "./measures";
 import { fieldsOf, withDraft, type SetDraft } from "./nextSet";
@@ -713,8 +714,8 @@ export default function SessionScreen({
             goes last, after the lime sets, as the one that gives way. */}
         <div className="facts se-elapsed">
           <ElapsedClock live={live} />
-          {plannedTotal > 0 && <span className="fact lime">{capAfterNumber(`${loggedTotal} of ${plannedTotal} sets`)}</span>}
-          <span className="fact">{capAfterNumber(`${liftsDone} of ${live.exercises.length} lifts`)}{(live.pausedMs ?? 0) > 0 ? ", Paused Time Excluded" : ""}</span>
+          {plannedTotal > 0 && <span className="fact lime">{lineCase(`${loggedTotal} of ${plannedTotal} sets`)}</span>}
+          <span className="fact">{lineCase(`${liftsDone} of ${live.exercises.length} lifts`)}{(live.pausedMs ?? 0) > 0 ? ", Paused Time Excluded" : ""}</span>
         </div>
         {plannedTotal > 0 && (
           <div className="se-meter" role="img" aria-label={`${loggedTotal} of ${plannedTotal} planned working sets logged`}><span style={{ width: meterPct + "%" }} /></div>
@@ -794,11 +795,11 @@ export default function SessionScreen({
       {over != null && over >= 3 && (
         <div className="pad-x"><div className="catchup banner-warn">
           <div className="grow">
-            <div className="catchup-t">{capAfterNumber(`${over} min over`)}</div>
+            <div className="catchup-t">{lineCase(`${spanLabel(over)} over`)}</div>
             {lever && (
               <div className="facts">
                 <span className="fact">{leverName}</span>
-                {leverSave > 0 && <span className="fact est">{`Saves ${leverSave} Min`}</span>}
+                {leverSave > 0 && <span className="fact est">{`Saves ${spanLabel(leverSave)}`}</span>}
               </div>
             )}
           </div>
@@ -820,7 +821,7 @@ export default function SessionScreen({
           two classes, same tones, same eyebrow. */}
       {showWarm && (
         <div className="pad-x"><div className="card list-card-ruled banner-warn">
-          <div className="grp"><div className="eyebrow eyebrow-warn">Warm-Up{programDay?.warmUpMin ? ` · ${programDay.warmUpMin} Min` : ""}</div></div>
+          <div className="grp"><div className="eyebrow eyebrow-warn">Warm-Up{programDay?.warmUpMin ? ` · ${spanLabel(programDay.warmUpMin)}` : ""}</div></div>
           {warmBlocks.map((b) => {
             const done = !!live.warmDone?.includes(b.id);
             return (
@@ -869,7 +870,7 @@ export default function SessionScreen({
           named the lift. The name takes the head and the noun rides the count,
           which is where the noun was doing its work anyway. */}
       <div className="sh2 sh2-quiet"><span className="t">{exercise.name}</span>
-        {!cond && !current.skipped && planEx.sets.length > 0 && <span className="n">{capAfterNumber(`${workLogged} of ${planEx.sets.length} ${noun.toLowerCase()}`)}</span>}
+        {!cond && !current.skipped && planEx.sets.length > 0 && <span className="n">{lineCase(`${workLogged} of ${planEx.sets.length} ${noun}`)}</span>}
         {/* ONE OVERFLOW FOR THE LIFT'S OTHER MOVES (2026-09-26). The head
             action slot every gym page already uses (Manage on the program
             page), the capsule rung, and the app's own row-action sheet. */}
@@ -921,7 +922,7 @@ export default function SessionScreen({
           a unit. Skipping here is the same lever the fit sheet offers. */}
       {showCool && (
         <div className="pad-x"><div className="card list-card-ruled banner-cool">
-          <div className="grp"><div className="eyebrow eyebrow-cool">Cool-Down{programDay?.coolDownMin ? ` · ${programDay.coolDownMin} Min` : ""}</div></div>
+          <div className="grp"><div className="eyebrow eyebrow-cool">Cool-Down{programDay?.coolDownMin ? ` · ${spanLabel(programDay.coolDownMin)}` : ""}</div></div>
           {coolBlocks.map((b) => {
             const done = !!live.coolDone?.includes(b.id);
             return (
@@ -969,7 +970,7 @@ export default function SessionScreen({
                 {e.skipped
                   ? <span className="fact st amber">Skipped</span>
                   : e.sets.length > 0
-                    ? <span className="fact lime">{capAfterNumber(`${e.sets.length} ${e.sets.length === 1 ? "set" : "sets"}`)}</span>
+                    ? <span className="fact lime">{lineCase(`${e.sets.length} ${e.sets.length === 1 ? "set" : "sets"}`)}</span>
                     : <span className="fact st gray">To Do</span>}
               </div>
             </div>

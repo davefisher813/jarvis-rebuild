@@ -12,7 +12,7 @@ import { distanceFor } from "../tasks/grouping";
 import { dayPhrase } from "../money/bills";
 import { dayTone } from "../messages/factsLine";
 import { attemptWrite } from "../shared/guard";
-import { capAfterNumber } from "../shared/casing";
+import { lineCase } from "../shared/casing";
 import { areaFromTasks } from "./backfill";
 import { fileableGoals } from "../bigger/reach";
 import { holdLine, holdExpired, sizeOf, sizeLine } from "./shape";
@@ -305,7 +305,7 @@ export default function ProjectDetailPage({
           {doneSteps.length > 0 && (
             <div className="pad-x proj-done-fold">
               <button className="quiet-action" onClick={() => setDoneOpen(!doneOpen)}>
-                {doneOpen ? "Hide Finished" : capAfterNumber(`${doneSteps.length} finished`)}
+                {doneOpen ? "Hide Finished" : lineCase(`${doneSteps.length} finished`)}
               </button>
               {doneOpen && (
                 <div className="card list-card-ruled">
@@ -397,7 +397,7 @@ export default function ProjectDetailPage({
               nobody marks anything done. */}
           {openSteps.length > 0 && (
             <div className="conn-meta proj-finish-note">
-              {capAfterNumber(openSteps.length === 1 ? "1 task is still open" : `${openSteps.length} tasks are still open`)}
+              {lineCase(openSteps.length === 1 ? "1 task is still open" : `${openSteps.length} tasks are still open`)}
             </div>
           )}
         </div>

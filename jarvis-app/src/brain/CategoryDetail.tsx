@@ -2211,7 +2211,11 @@ export default function CategoryDetail({
             icon={<CalendarGlyph />}
             tone={"cat-fg-" + cat.data.color}
             title={`${DOW_PLURAL[learnedDay.dow]} Get the Most Done`}
-            sub={<div className="facts"><span className="fact"><Nums text={lineCase(`${learnedDay.count} of ${learnedDay.total} done on ${DOW_PLURAL[learnedDay.dow]}`)} /></span></div>}
+            // One fact, so a plain run (the numbers white, the rest the
+            // line's grey), not a .facts line: the stacked card lets a plain
+            // run wrap at large type where a facts line would clip its last
+            // word ("Done on Wed...").
+            sub={<span><Nums text={lineCase(`${learnedDay.count} of ${learnedDay.total} done on ${DOW_PLURAL[learnedDay.dow]}`)} /></span>}
             action={{ label: `Line Up ${learnedDay.lineUp.length} for ${DOW_FULL[learnedDay.dow]}`, onClick: () => void lineUpForDay() }}
             // The capsule names the count and the day ("Line Up 3 for
             // Wednesday", Dave's words), which is too long to sit beside a

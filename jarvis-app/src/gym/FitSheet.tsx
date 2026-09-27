@@ -1,4 +1,5 @@
 import { lineCase, liftTitle } from "../shared/casing";
+import { spanLabel } from "../shared/duration";
 import { useState } from "react";
 import { createPortal } from "react-dom";
 import type { ProgramDay, Workout } from "./types";
@@ -77,7 +78,7 @@ export default function FitSheet({ day, history, rack, defaultBudgetMin, onStart
     <div className="sheet-scrim" onClick={onCancel}>
       <div className="card" onClick={(e) => e.stopPropagation()}>
         <div className="sheet-handle" />
-        <div className="grp"><div className="eyebrow">{day.name} · Plan {planMin} Min{gameLine ? " · " + gameLine : ""}</div></div>
+        <div className="grp"><div className="eyebrow">{day.name} · Plan {spanLabel(planMin)}{gameLine ? " · " + gameLine : ""}</div></div>
 
         <div className="sheet-form">
         {/* WHAT, BEFORE HOW LONG (2026-09-21). The sheet asked how long you
@@ -120,7 +121,7 @@ export default function FitSheet({ day, history, rack, defaultBudgetMin, onStart
             <div className="chip-row chip-wrap-row">
               {chips.map((b) => (
                 <div key={b} className={"chip" + (budget === b ? " active" : "")} role="button" tabIndex={0}
-                  aria-pressed={budget === b} onClick={() => setBudget(b)}>{b} Min</div>
+                  aria-pressed={budget === b} onClick={() => setBudget(b)}>{spanLabel(b)}</div>
               ))}
               <div className={"chip" + (budget === 0 ? " active" : "")} role="button" tabIndex={0}
                 aria-pressed={budget === 0} onClick={() => setBudget(0)}>No Cap</div>
@@ -166,9 +167,9 @@ export default function FitSheet({ day, history, rack, defaultBudgetMin, onStart
           <div className="fit-line">
             {/* The total is the app's estimate, so it wears the estimate ink
                 (§AM); the span has no size of its own and takes the line's. */}
-            <span>Fits: <span className="fact est">{est.min} Min</span></span>
+            <span>Fits: <span className="fact est">{spanLabel(est.min)}</span></span>
             {/* No cap says nothing here: the selected No Cap chip above says it. */}
-            {budget > 0 && <span className={budgetTone}>{over > 0 ? `${over} Min Over` : over < 0 ? `${-over} Min Under` : "On Budget"}</span>}
+            {budget > 0 && <span className={budgetTone}>{over > 0 ? `${spanLabel(over)} Over` : over < 0 ? `${spanLabel(-over)} Under` : "On Budget"}</span>}
           </div>
           {/* The honesty line (D5 "needs D7 for honest numbers"): the sheet
               always says which world its estimate came from. GYM-F-07
@@ -195,7 +196,7 @@ export default function FitSheet({ day, history, rack, defaultBudgetMin, onStart
         </div>
 
         <div className="pad-x sheet-actions">
-          <button className="btn btn-primary btn-launch btn-block" onClick={start}>Start · {est.min} Min</button>
+          <button className="btn btn-primary btn-launch btn-block" onClick={start}>Start · {spanLabel(est.min)}</button>
           <button className="btn btn-secondary btn-block" onClick={onCancel}>Cancel</button>
         </div>
       </div>

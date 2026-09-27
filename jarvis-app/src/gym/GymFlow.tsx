@@ -68,7 +68,8 @@ import { useLongPress } from "../shared/useLongPress";
 import { showToast } from "../shared/toast";
 import { attemptWrite, WRITE_FAILED_MESSAGE } from "../shared/guard";
 import { useAI } from "../ai/useAI";
-import { capAfterNumber, lineCase, liftTitle, workoutTitle } from "../shared/casing";
+import { liftTitle, lineCase, workoutTitle } from "../shared/casing";
+import { minutesLabel, spanLabel } from "../shared/duration";
 import { BarbellGlyph } from "../shared/glyphs";
 import { Ellipsis } from "../shared/icons";
 import Stepper from "../shared/Stepper";
@@ -326,7 +327,8 @@ function WorkoutMetaSheet({ initialName, initialDate, onSave, onCancel }: {
 // ReorderList's own render) would attach a variable number of hooks to
 // ReorderList itself, which is exactly the bug rules-of-hooks exists to
 // catch. Same shape as SetStrip's SetChipRow.
-// ROW META IS QUIET SENTENCE CASE (the 2026-08-31 gym reformat; Dave, from
+// ROW META IS A QUIET .conn-meta LINE, TITLE CASE SINCE 2026-09-26 (the
+// 2026-08-31 gym reformat; Dave, from
 // the 5 Day Program screenshot: "Styling is random and doesn't align").
 // Every gym row wrote its second line as an .eyebrow -- 11px SHOUTING CAPS
 // -- while the app's primary lists (Tasks rows, Today's rows, the category
@@ -369,7 +371,7 @@ function LiftsRow({ count, onOpen }: { count: number; onOpen: () => void }) {
           beside it was one. The count is the only thing it ever said, so it
           says it in the trailing slot, in the capsule the ruled skin already
           draws for a small fact on a row. */}
-      <span className="ex-chip">{capAfterNumber(count + (count === 1 ? " exercise" : " exercises"))}</span>
+      <span className="ex-chip">{lineCase(count + (count === 1 ? " exercise" : " exercises"))}</span>
       {CHEV}
     </div>
   );
@@ -412,7 +414,7 @@ function DayRow({ day, onOpen, onPin, onMenu, doneWord, current = false }: { day
           lift or a state worth stating. */}
       {(day.exercises.length > 0 || current || doneWord) && (
         <div className="facts">
-          {day.exercises.length > 0 && <span className="fact">{capAfterNumber(`${day.exercises.length} ${day.exercises.length === 1 ? "lift" : "lifts"}`)}</span>}
+          {day.exercises.length > 0 && <span className="fact">{lineCase(`${day.exercises.length} ${day.exercises.length === 1 ? "lift" : "lifts"}`)}</span>}
           {current && <span className="fact st cyan">Live</span>}
           {!current && doneWord && <span className="fact lime">{doneWord}</span>}
         </div>
@@ -466,8 +468,8 @@ function minutesFact(w: WorkoutData) {
   // facts are separated by a middle dot the CSS draws, so no string ever
   // carries one." A fact that punctuates itself is a sentence again.
   return d.flagged
-    ? <><span className="fact amber" aria-label={`${d.activeMin} minutes recorded, worth reviewing`}>{capAfterNumber(`${d.activeMin} min`)}</span><span className="fact">Worth Reviewing</span></>
-    : <span className="fact">{capAfterNumber(`${workoutMinutes(w)} min`)}</span>;
+    ? <><span className="fact amber" aria-label={`${d.activeMin} minutes recorded, worth reviewing`}>{spanLabel(d.activeMin)}</span><span className="fact">Worth Reviewing</span></>
+    : <span className="fact">{spanLabel(workoutMinutes(w))}</span>;
 }
 
 /** THE SAME LENGTH AS A LIST ROW'S TRAILING VALUE (pass-off item 11,
@@ -483,8 +485,8 @@ function minutesFact(w: WorkoutData) {
 function minutesValue(w: WorkoutData) {
   const d = durationOf(w);
   return d.flagged
-    ? <div className="row-value"><span className="fact amber" aria-label={`${d.activeMin} minutes recorded, worth reviewing`}>{lineCase(`${d.activeMin} min`)}</span></div>
-    : <div className="row-value"><span className="fact"><b>{lineCase(`${workoutMinutes(w)} min`)}</b></span></div>;
+    ? <div className="row-value"><span className="fact amber" aria-label={`${d.activeMin} minutes recorded, worth reviewing`}>{spanLabel(d.activeMin)}</span></div>
+    : <div className="row-value"><span className="fact"><b>{spanLabel(workoutMinutes(w))}</b></span></div>;
 }
 
 function ExerciseRow({ exercise, pairLabel, onOpen, onMenu }: {
@@ -542,7 +544,7 @@ function ExerciseRow({ exercise, pairLabel, onOpen, onMenu }: {
           <span className="fact cyan" aria-label={planChipText(exercise)}>
             {plan.count}<em className="fw">{plan.noun}</em>{plan.target}
           </span>
-          {exercise.restSec ? <span className="fact"><b>{`${mmss(exercise.restSec)} rest`}</b></span> : null}
+          {exercise.restSec ? <span className="fact"><b>{`${mmss(exercise.restSec)} Rest`}</b></span> : null}
         </div>
         {/* The athlete's own note echoes on the row, quoted (preview
             anatomy) -- reference, never coaching. */}
@@ -638,7 +640,7 @@ function BlockList({ title, blocks, minutes, onEdit, tone = "warm" }: {
           2026-09-15: "I want all rows clickable"). */}
       <div className="row" {...rowDoor(onEdit)}>
         <div className="row-grow">
-          <div className={"eyebrow" + (has ? (tone === "cool" ? " eyebrow-cool" : " eyebrow-warn") : "")}>{title}{(minutes ?? 0) > 0 ? ` · ${minutes} Min` : ""}</div>
+          <div className={"eyebrow" + (has ? (tone === "cool" ? " eyebrow-cool" : " eyebrow-warn") : "")}>{title}{(minutes ?? 0) > 0 ? ` · ${spanLabel(minutes ?? 0)}` : ""}</div>
         </div>
         {/* A text action, not a capsule: it opens an editor, it does not act
             on the row (polish rule 2). */}
@@ -679,7 +681,7 @@ function BlockSheet({ title, blocks, minutes, onSave, onCancel }: {
               <div className="input-label">{`Item ${i + 1}`}</div>
               <input className="input" placeholder="e.g. Bike, easy" value={b.name}
                 onChange={(e) => patch(b.id, { name: e.target.value })} />
-              <input className="input" placeholder="e.g. 5 min, 2 x 15" value={b.amount ?? ""}
+              <input className="input" placeholder="e.g. 5 Min, 2 x 15" value={b.amount ?? ""}
                 onChange={(e) => patch(b.id, { amount: e.target.value })} />
             </div>
           ))}
@@ -688,7 +690,7 @@ function BlockSheet({ title, blocks, minutes, onSave, onCancel }: {
             <div className="input-label">Minutes</div>
             <div className="row">
               <div className="row-grow">
-                <div className="conn-name">{mins > 0 ? `${mins} min` : "Not counted"}</div>
+                <div className="conn-name">{mins > 0 ? spanLabel(mins) : "Not Counted"}</div>
                 <div className="conn-meta">Counted toward the session estimate</div>
               </div>
               <Stepper value={mins} step={1} min={0} label="Minutes" onChange={setMins} />
@@ -1274,7 +1276,7 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
       // "Paired" would leave you to discover that next week. ungroupExercise
       // is the exact inverse and already existed for the program editor.
       showToast({
-        message: n === 2 ? `Paired in ${workoutTitle(day.name)}` : capAfterNumber(`${n} grouped in ${workoutTitle(day.name)}`),
+        message: n === 2 ? `Paired in ${workoutTitle(day.name)}` : lineCase(`${n} grouped in ${workoutTitle(day.name)}`),
         actionLabel: "Undo",
         onAction: () => { void ungroupAction(weekId, dayId, aId); },
       });
@@ -1505,7 +1507,7 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
       ...d, exercises: d.exercises.map((e) => (e.id === ex.id ? applySuggestion(e, sug) : e)),
     }));
     if (await saveDays(week.id, days)) {
-      showToast({ message: `${ex.name} plan moved to ${formatSet(ex, sug.next)}` });
+      showToast({ message: lineCase(`${ex.name} plan moved to ${formatSet(ex, sug.next)}`) });
     }
   };
 
@@ -2553,7 +2555,7 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
         <ActionSheet
           title="How Much Time Is Left"
           actions={[
-            ...[10, 20, 30].map((n) => ({ label: capAfterNumber(`${n} min`), onClick: () => patchLive((l) => ({ ...l, budgetMin: Math.max(1, Math.round(elapsedMs(l) / 60_000) + n) })) })),
+            ...[10, 20, 30].map((n) => ({ label: minutesLabel(n), onClick: () => patchLive((l) => ({ ...l, budgetMin: Math.max(1, Math.round(elapsedMs(l) / 60_000) + n) })) })),
             { label: "No Cap", onClick: () => patchLive((l) => { const { budgetMin: _gone, ...rest } = l; return rest as LiveSession; }) },
           ]}
           onClose={() => setAdjustOpen(false)}
@@ -2944,7 +2946,7 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
           title="Superset With"
           items={items}
           multi
-          confirmLabel={(n) => (n === 0 ? "Pick at Least One" : n === 1 ? "Make a Pair" : capAfterNumber("Group These " + (n + 1)))}
+          confirmLabel={(n) => (n === 0 ? "Pick at Least One" : n === 1 ? "Make a Pair" : lineCase("Group These " + (n + 1)))}
           onPick={(ids) => { setPicker(null); void groupAction(picker.weekId, picker.dayId, picker.exId, ids); }}
           onCancel={() => setPicker(null)}
         />
@@ -2961,7 +2963,7 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
           multi
           // Two is the smallest superset there is, so one pick is not an
           // answer and the button says which half is missing.
-          confirmLabel={(n) => (n < 2 ? "Pick Two" : n === 2 ? "Superset These Two" : capAfterNumber("Superset These " + n))}
+          confirmLabel={(n) => (n < 2 ? "Pick Two" : n === 2 ? "Superset These Two" : lineCase("Superset These " + n))}
           onPick={(ids) => {
             if (ids.length < 2) return;
             setPicker(null);
@@ -3435,7 +3437,7 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
                     glance where a sentence has to be parsed. */}
                 <div className="se-chips">
                   <span className="se-chip se-chip-last">{nextDay.exercises.length}<em>{nextDay.exercises.length === 1 ? "Lift" : "Lifts"}</em></span>
-                  {nextEst > 0 && <span className="se-chip se-chip-est"><em>Est</em>{nextEst} Min</span>}
+                  {nextEst > 0 && <span className="se-chip se-chip-est"><em>Est</em>{spanLabel(nextEst)}</span>}
                   {(pinnedToday === nextDay || upcomingPin?.day === nextDay) && (
                     <span className="se-chip se-chip-pin"><em>Pinned</em>{pinnedToday === nextDay
                       ? "Today"

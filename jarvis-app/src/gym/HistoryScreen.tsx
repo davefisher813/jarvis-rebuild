@@ -4,7 +4,8 @@ import { exerciseHistory, trendLine, doneCount, sessionGroups } from "./history"
 import { liftSessions, chartValue } from "./chartData";
 import { sameLiftAnyKind } from "./identity";
 import { monthDay } from "../money/bills";
-import { capAfterNumber, lineCase, liftTitle, workoutTitle } from "../shared/casing";
+import { liftTitle, lineCase, workoutTitle } from "../shared/casing";
+import { spanLabel } from "../shared/duration";
 import { durationOf } from "../insights/analytics";
 import { todayISO } from "../tasks/grouping";
 
@@ -121,8 +122,8 @@ export default function HistoryScreen({ workouts, onBack, onOpenLift, onOpenWork
                       </div>
                     </div>
                     {durationOf(r.workout.data).flagged
-                      ? <div className="row-value"><span className="fact amber">{lineCase(`${durationOf(r.workout.data).activeMin} min`)}</span></div>
-                      : <div className="row-value"><span className="fact"><b>{lineCase(`${r.minutes} min`)}</b></span></div>}
+                      ? <div className="row-value"><span className="fact amber">{spanLabel(durationOf(r.workout.data).activeMin)}</span></div>
+                      : <div className="row-value"><span className="fact"><b>{spanLabel(r.minutes)}</b></span></div>}
                     {onOpenWorkout && CHEV}
                   </div>
                 ))}
@@ -174,7 +175,7 @@ export default function HistoryScreen({ workouts, onBack, onOpenLift, onOpenWork
               <div className="row" key={d.key}>
                 <div className="row-grow">
                   <div className="conn-name truncate">{liftTitle(d.name)}</div>
-                  <div className="facts"><span className="fact lime">{d.n > 1 ? capAfterNumber(`${d.n} times`) : "Done"}</span></div>
+                  <div className="facts"><span className="fact lime">{d.n > 1 ? lineCase(`${d.n} times`) : "Done"}</span></div>
                 </div>
               </div>
             ))}

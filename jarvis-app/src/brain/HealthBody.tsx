@@ -8,7 +8,7 @@ import { readGymSettings, rackFrom } from "../gym/settings";
 import ActionSheet from "../gym/ActionSheet";
 import { BarbellGlyph, MoonGlyph, ClockGlyph, PulseGlyph } from "../shared/glyphs";
 import { Plus, Timer, FileText } from "../shared/icons";
-import { capAfterNumber } from "../shared/casing";
+import { lineCase } from "../shared/casing";
 import { fmtTime } from "../schedule/calendar";
 import { monthDay } from "../money/bills";
 import { pressable } from "../shared/pressable";
@@ -190,7 +190,7 @@ export default function HealthBody({
           buttons is not a shape this app uses anywhere else. They are the
           app's own rows now -- name, value, chevron -- so they read like every
           other navigation row on a ruled page, and the count carries its noun
-          through capAfterNumber like every other counted line in the app.
+          through lineCase like every other counted line in the app.
 
           The polish mockup moved this block BELOW the next workout, under a
           "Your Health" head. That was declined: on a phone it lands about
@@ -201,19 +201,19 @@ export default function HealthBody({
           {onOpenExercises && (
             <button type="button" className="h-door" onClick={onOpenExercises}>
               <span className="h-door-k">Exercises</span>
-              <span className="h-door-n">{capAfterNumber(`${exerciseCount} ${exerciseCount === 1 ? "exercise" : "exercises"}`)}</span>
+              <span className="h-door-n">{lineCase(`${exerciseCount} ${exerciseCount === 1 ? "exercise" : "exercises"}`)}</span>
               {CHEV}
             </button>
           )}
           <button type="button" className="h-door" onClick={onOpenGym}>
             <span className="h-door-k">Program</span>
-            <span className="h-door-n">{capAfterNumber(`${days.length} ${days.length === 1 ? "day" : "days"}`)}</span>
+            <span className="h-door-n">{lineCase(`${days.length} ${days.length === 1 ? "day" : "days"}`)}</span>
             {CHEV}
           </button>
           {onOpenHistory && (
             <button type="button" className="h-door" onClick={onOpenHistory}>
               <span className="h-door-k">History</span>
-              <span className="h-door-n">{capAfterNumber(`${workouts.length} ${workouts.length === 1 ? "session" : "sessions"}`)}</span>
+              <span className="h-door-n">{lineCase(`${workouts.length} ${workouts.length === 1 ? "session" : "sessions"}`)}</span>
               {CHEV}
             </button>
           )}
@@ -245,7 +245,7 @@ export default function HealthBody({
                 <div className="h-hero-t">{live.dayName}</div>
                 <div className="facts h-hero-facts">
                   {live.nextExercise && <span className="fact cyan">{`Next: ${live.nextExercise}`}</span>}
-                  <span className="fact lime">{capAfterNumber(`${live.logged} logged`)}</span>
+                  <span className="fact lime">{lineCase(`${live.logged} logged`)}</span>
                 </div>
               </div>
               {CHEV}
@@ -262,11 +262,11 @@ export default function HealthBody({
                 <div className="h-hero-t">{next.day.name}</div>
                 <div className="facts h-hero-facts">
                   {when && <span className="fact date">{when}</span>}
-                  <span className="fact lime">{capAfterNumber(`${next.day.exercises.length} ${next.day.exercises.length === 1 ? "exercise" : "exercises"}`)}</span>
+                  <span className="fact lime">{lineCase(`${next.day.exercises.length} ${next.day.exercises.length === 1 ? "exercise" : "exercises"}`)}</span>
                   {/* The sky ink already says estimate, so no "About"
                       (2026-09-26): with it, the line cut the number away
                       at type scale 1.4 ("Abo..."). */}
-                  {est > 0 && <span className="fact est">{capAfterNumber(`${est} min`)}</span>}
+                  {est > 0 && <span className="fact est">{lineCase(`${est} min`)}</span>}
                 </div>
               </div>
               {CHEV}

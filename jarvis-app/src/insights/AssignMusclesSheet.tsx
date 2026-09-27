@@ -2,7 +2,7 @@ import { useState } from "react";
 import { createPortal } from "react-dom";
 import { MUSCLE_GROUPS, MUSCLE_LABEL, type MuscleGroup } from "../gym/muscles";
 import { pressable } from "../shared/pressable";
-import { capAfterNumber } from "../shared/casing";
+import { lineCase } from "../shared/casing";
 
 // ASSIGN MUSCLES (2026-09-14, item 6). The exercises whose sets the muscle
 // breakdown cannot place, each with its set count and a row of muscle
@@ -55,7 +55,7 @@ export default function AssignMusclesSheet({ untagged, current, onSave, onClose 
         <div className="grp"><div className="eyebrow">Assign Muscles</div></div>
         <div className="pad-x sheet-form">
           <div className="facts">
-            <span className={"fact " + (assigned < untagged.length ? "amber" : "lime")}>{capAfterNumber(`${assigned} of ${untagged.length} assigned`)}</span>
+            <span className={"fact " + (assigned < untagged.length ? "amber" : "lime")}>{lineCase(`${assigned} of ${untagged.length} assigned`)}</span>
             <span className="fact">The first muscle counts a set whole, the rest half</span>
           </div>
           <div className="field">

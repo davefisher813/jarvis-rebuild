@@ -21,7 +21,7 @@ import Provenance from "../../shared/ProvenanceLine";
 import { HyperfocusLine, useHyperfocusGuard } from "../../today/useHyperfocusGuard";
 import type { Source } from "../../shared/provenance";
 import { connIcon, type Conn } from "./Connections";
-import { capAfterNumber } from "../../shared/casing";
+import { lineCase } from "../../shared/casing";
 import { useFileUrl } from "../../files/useFileUrl";
 import type { FileStore } from "../../files/FileStore";
 import { pressable } from "../../shared/pressable";
@@ -158,7 +158,7 @@ function VersionsSheet({ versions, onRestore, onClose }: { versions: NoteVersion
                 <div className="row" key={v.at} role="button" tabIndex={0} onClick={() => setOpen(v)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setOpen(v); } }}>
                   <div className="row-grow">
                     <div className="conn-name">{versionWhen(v.at)}</div>
-                    <div className="facts"><span className="fact">{capAfterNumber(`${docWordCount(v.doc)} ${docWordCount(v.doc) === 1 ? "word" : "words"}`)}</span></div>
+                    <div className="facts"><span className="fact">{lineCase(`${docWordCount(v.doc)} ${docWordCount(v.doc) === 1 ? "word" : "words"}`)}</span></div>
                   </div>
                   <div className="chev" />
                 </div>
@@ -232,7 +232,7 @@ function FindBar({ editor, onClose }: { editor: DocEditorHandle | null; onClose:
         {/* Replace and Replace All change the words, so they are the red
             verb (§AL); moving between matches and closing stay quiet. */}
         <button type="button" className="pill-act" disabled={count === 0} onClick={() => { editor?.replaceCurrent(repl); bump(); }}>Replace</button>
-        <button type="button" className="pill-act" disabled={count === 0} onClick={() => { const n = editor?.replaceAll(repl) ?? 0; bump(); if (n) showToast({ message: capAfterNumber(n === 1 ? "1 replaced" : n + " replaced") }); }}>Replace All</button>
+        <button type="button" className="pill-act" disabled={count === 0} onClick={() => { const n = editor?.replaceAll(repl) ?? 0; bump(); if (n) showToast({ message: lineCase(n === 1 ? "1 replaced" : n + " replaced") }); }}>Replace All</button>
       </div>
     </div>
   );
@@ -579,7 +579,7 @@ export default function NoteEditor({
         <>
           <div className="sh2 sh2-quiet">
             <span className="t">Related</span>
-            <button type="button" className="see-all pill-action" aria-expanded={relatedOpen} onClick={() => setRelatedOpen((o) => !o)}>{relatedOpen ? "Hide" : capAfterNumber(`${related!.length} ${related!.length === 1 ? "note" : "notes"}`)}</button>
+            <button type="button" className="see-all pill-action" aria-expanded={relatedOpen} onClick={() => setRelatedOpen((o) => !o)}>{relatedOpen ? "Hide" : lineCase(`${related!.length} ${related!.length === 1 ? "note" : "notes"}`)}</button>
           </div>
           {relatedOpen && (
             <div className="pad-x"><div className="card list-card-ruled">
@@ -588,7 +588,7 @@ export default function NoteEditor({
                   <div className="proj-icon cat-bg-yellow"><FileText className="ic" /></div>
                   <div className="row-grow">
                     <div className="conn-name">{n.title}</div>
-                    <div className="facts"><span className="fact">{capAfterNumber(`${n.shared} shared`)}</span></div>
+                    <div className="facts"><span className="fact">{lineCase(`${n.shared} shared`)}</span></div>
                   </div>
                   {onOpenNote && <div className="chev" />}
                 </div>
@@ -598,7 +598,7 @@ export default function NoteEditor({
         </>
       )}
 
-      {words > 0 && <div className="doc-count">{capAfterNumber(words === 1 ? "1 word" : words + " words")}</div>}
+      {words > 0 && <div className="doc-count">{lineCase(words === 1 ? "1 word" : words + " words")}</div>}
 
       {copyAsOpen && (
         <RowActionSheet

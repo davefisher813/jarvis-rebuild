@@ -14,7 +14,7 @@ import {
   durationLeader, planningPatternObservation, type DurationCorrection,
 } from "../today/planningPatterns";
 import { NO_PATTERN_TWIN, type Strand, type DerivationKey } from "./strands/types";
-import { capAfterNumber, lineCase } from "../shared/casing";
+import { lineCase } from "../shared/casing";
 
 // WHY IS NOTHING LEARNING (Dave, 2026-09-06: "i dont see any trace of jarvis
 // learning anything. theres 1 fact in what jarvis knows about me").
@@ -289,7 +289,7 @@ export function readiness(rows: WindowRow[], strands: Strand[], people: DerivePe
   return built.map(({ speaks, ...r }) => {
     // Every line here leads with a count, so every line goes through the
     // leading-number casing rule, the same way derive.ts's own subs do.
-    const detail = capAfterNumber(r.detail ?? "");
+    const detail = lineCase(r.detail ?? "");
     // NO PATTERN (2026-09-07): a row is one QUESTION, and a question is
     // answered once he has accepted either answer to it. Without the twin
     // here, accepting "finishes across the whole day" would leave this row

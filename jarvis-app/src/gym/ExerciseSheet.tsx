@@ -1,5 +1,6 @@
 import { NAME_FIELD } from "../shared/nameField";
-import { liftTitle } from "../shared/casing";
+import { lineCase, liftTitle } from "../shared/casing";
+import { minutesLabel } from "../shared/duration";
 import { createPortal } from "react-dom";
 import { Fragment, useRef, useState, type ReactNode } from "react";
 import { own } from "../shared/rowDoor";
@@ -454,7 +455,7 @@ export default function ExerciseSheet({ mode, initial, library, history, onSave,
                 {stripOpen && (
                   <div className="row xs-strip">
                     <SetStrip kind={kind} unit={unit} timeUnit={timeUnit} style={loadStyle} entries={sets} onChange={setSets} handles={reorderSets}
-                      lastFor={lastHit ? (i) => (lastHit.sets[i] ? `Last: ${formatSet(lastHit.fx, lastHit.sets[i]!)}` : null) : undefined} />
+                      lastFor={lastHit ? (i) => (lastHit.sets[i] ? lineCase(`Last: ${formatSet(lastHit.fx, lastHit.sets[i]!)}`) : null) : undefined} />
                   </div>
                 )}
               </div></div>
@@ -491,7 +492,7 @@ export default function ExerciseSheet({ mode, initial, library, history, onSave,
             </div>
             {(condFormat === "amrap" || condFormat === "for_time") && (
               <div className="row xs-row">
-                <div className="row-grow"><div className="conn-name">{condFormat === "amrap" ? "Window" : "Time Cap"}</div><div className="conn-meta">{condMin} min</div></div>
+                <div className="row-grow"><div className="conn-name">{condFormat === "amrap" ? "Window" : "Time Cap"}</div><div className="conn-meta">{minutesLabel(condMin)}</div></div>
                 <Stepper value={condMin} step={1} min={1} label="Minutes" onChange={setCondMin} />
               </div>
             )}
@@ -559,7 +560,7 @@ export default function ExerciseSheet({ mode, initial, library, history, onSave,
                   {/* The preview is data, so it shows; Off needs no sentence. */}
                   {ramp && (
                     <div className="conn-meta">
-                      {rampPreview.length ? rampPreview.map((r) => formatSet(draft, r)).join(", ") : "Nothing to ramp at this weight"}
+                      {rampPreview.length ? lineCase(rampPreview.map((r) => formatSet(draft, r)).join(", ")) : "Nothing to Ramp at This Weight"}
                     </div>
                   )}
                 </div>

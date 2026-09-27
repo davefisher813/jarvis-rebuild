@@ -1,6 +1,6 @@
 import type { ProjectData } from "./types";
 import { daysBetween } from "../upnext/upnext";
-import { capAfterNumber } from "../shared/casing";
+import { lineCase } from "../shared/casing";
 
 // ---------------------------------------------------------------------------
 // THE SHAPE OF A PROJECT (Dave's picks 20 and 22, built 2026-08-24).
@@ -38,10 +38,10 @@ export function holdLine(d: ProjectData, today: string): string | null {
   if (d.status !== "on_hold") return null;
   if (!d.holdUntil) return "On hold, no end date";
   const days = daysBetween(today, d.holdUntil);
-  if (days < 0) return capAfterNumber(`Hold ended ${-days} ${days === -1 ? "day" : "days"} ago`);
+  if (days < 0) return lineCase(`Hold ended ${-days} ${days === -1 ? "day" : "days"} ago`);
   if (days === 0) return "The hold ends today";
   if (days === 1) return "On hold until tomorrow";
-  if (days <= 14) return capAfterNumber(`On hold ${days} more days`);
+  if (days <= 14) return lineCase(`On hold ${days} more days`);
   return "On hold until " + monthDay(d.holdUntil);
 }
 

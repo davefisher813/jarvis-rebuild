@@ -1,7 +1,7 @@
 import type { Workout, WorkoutExercise, MeasureKind, SetLog } from "./types";
 import { scoreOf, has, fieldsFor, toLb, LB_PER_KG } from "./measures";
 import { liftRef, sameLift, sameLiftAnyKind, type LiftLike } from "./identity";
-import { capAfterNumber, lineCase } from "../shared/casing";
+import { lineCase } from "../shared/casing";
 
 // GOALS ON THE BAR, D12-A/C (Training Catalog V2, approved 2026-08-31).
 //
@@ -258,6 +258,6 @@ export function trainingMeasureState(m: TrainingMeasure, workouts: Workout[], no
   return {
     done, target, met,
     pct: Math.min(100, Math.round((done / target) * 100)),
-    line: capAfterNumber(`${done} of ${target} ${per}`),
+    line: lineCase(`${done} of ${target} ${per}`),
   };
 }

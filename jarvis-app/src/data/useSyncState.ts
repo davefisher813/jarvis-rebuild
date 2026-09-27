@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import type { SyncState } from "@core";
 import { useStore } from "./NotesProvider";
-import { capAfterNumber } from "../shared/casing";
+import { lineCase } from "../shared/casing";
 
 // UP-PLAT-05 (2026-09-06): "A sync line that tells the truth."
 //
@@ -53,7 +53,7 @@ export type SyncFact = { text: string; tone?: "warn" | "date" };
 // so both facts drew in one grey. They are separate facts now; the page
 // renders each as a .fact and the stylesheet draws the separator.
 export function syncFacts(s: SyncState, now = Date.now()): SyncFact[] {
-  const waiting: SyncFact = { text: capAfterNumber(s.queued === 1 ? "1 change waiting" : `${s.queued} changes waiting`), tone: "warn" };
+  const waiting: SyncFact = { text: lineCase(s.queued === 1 ? "1 change waiting" : `${s.queued} changes waiting`), tone: "warn" };
   const synced: SyncFact | null = s.lastSyncedAt === null ? null : { text: `Last synced ${syncedAgo(s.lastSyncedAt, now)}`, tone: "date" };
   if (!s.online) return s.queued > 0 ? [{ text: "Offline" }, waiting] : [{ text: "Offline" }];
   if (s.queued > 0) return synced ? [waiting, synced] : [waiting];

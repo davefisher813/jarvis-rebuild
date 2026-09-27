@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import SheetBar from "../shared/SheetBar";
-import { capAfterNumber, liftTitle } from "../shared/casing";
+import { liftTitle, lineCase } from "../shared/casing";
 import { MUSCLE_GROUPS, MUSCLE_LABEL } from "./muscles";
 import { EQUIPMENT_KINDS, EQUIPMENT_LABEL } from "./equipment";
 import type { LibraryRow } from "./libraryEdit";
@@ -117,8 +117,8 @@ export default function BatchSheet({ rows, store, onSave, onCancel }: {
               </div></div>
               <div className="pad-x"><div className="bp-sub">
                 {plan.unchanged > 0
-                  ? capAfterNumber(`${plan.unchanged} of the ${rows.length} selected already ${plan.unchanged === 1 ? "says" : "say"} this and stays as it is.`)
-                  : capAfterNumber(`All ${rows.length} selected change.`)}
+                  ? lineCase(`${plan.unchanged} of the ${rows.length} selected already ${plan.unchanged === 1 ? "says" : "say"} this and stays as it is.`)
+                  : lineCase(`All ${rows.length} selected change.`)}
               </div></div>
               <div className="pad-x">
                 <button type="button" className="btn btn-secondary btn-block" onClick={() => setPreview(false)}>Back to the Picker</button>
@@ -195,7 +195,7 @@ export default function BatchSheet({ rows, store, onSave, onCancel }: {
                   would actually touch -- is the one worth a line. */}
               <div className="pad-x"><div className="bp-sub">
                 {ready
-                  ? capAfterNumber(`${plan.changes.length} of the ${rows.length} selected would change`)
+                  ? lineCase(`${plan.changes.length} of the ${rows.length} selected would change`)
                   : "Pick what to write, then preview it"}
               </div></div>
             </>

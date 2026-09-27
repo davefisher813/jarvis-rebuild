@@ -25,7 +25,8 @@
 import type { Exercise, WorkoutExercise } from "./types";
 import { targetLine } from "./measures";
 import { elapsedMs, type LiveSession } from "./liveSession";
-import { capAfterNumber } from "../shared/casing";
+import { lineCase } from "../shared/casing";
+import { spanLabel } from "../shared/duration";
 
 export interface LiveLine {
   /** The exercise's name, exactly as the session carries it. */
@@ -43,15 +44,15 @@ export interface LiveLine {
 
 export interface LiveCard {
   dayName: string;
-  /** "12 min in", or null before a minute has passed -- a session that says
-   *  "0 min in" reads as broken rather than as new. */
+  /** "12 Min In", or null before a minute has passed -- a session that says
+   *  "0 Min In" reads as broken rather than as new. */
   elapsed: string | null;
-  /** "23 min left" against the budget the fit set, "Time's up" once it is
+  /** "23 Min Left" against the budget the fit set, "Time's Up" once it is
    *  gone, null when no budget was set (Dave 2026-09-19: "the time left in
    *  the workout if there's a timer set"). Read off budgetMin and the
    *  session's own clock, so a parked session holds its number. */
   left: string | null;
-  /** "2 of 6 logged", always true, never a countdown of what is owed. */
+  /** "2 of 6 Logged", always true, never a countdown of what is owed. */
   progress: string;
   /** The whole plan, in order. */
   lines: LiveLine[];
@@ -93,9 +94,9 @@ export function liveCard(s: LiveSession, now: number = Date.now()): LiveCard {
   const leftMs = s.budgetMin ? s.budgetMin * 60_000 - ms : null;
   return {
     dayName: s.dayName,
-    elapsed: mins >= 1 ? capAfterNumber(`${mins} min in`) : null,
-    left: leftMs === null ? null : leftMs >= 60_000 ? capAfterNumber(`${Math.ceil(leftMs / 60_000)} min left`) : "Time's up",
-    progress: capAfterNumber(`${done} of ${lines.length} logged`),
+    elapsed: mins >= 1 ? lineCase(`${spanLabel(mins)} in`) : null,
+    left: leftMs === null ? null : leftMs >= 60_000 ? lineCase(`${spanLabel(Math.ceil(leftMs / 60_000))} left`) : "Time's Up",
+    progress: lineCase(`${done} of ${lines.length} logged`),
     lines,
     current: lines.find((l) => l.current) ?? null,
     fresh: done === 0,

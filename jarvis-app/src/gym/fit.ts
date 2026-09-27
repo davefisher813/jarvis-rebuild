@@ -225,8 +225,8 @@ export function leverOffers(day: ProgramDay, history: Workout[], rack: RackConfi
       const uniform = rests.length > 0 && rests.every((r) => r === rests[0]);
       // "90 Sec", not "90s" (2026-09-26): the durations ruling spells a
       // seconds count out, and titleCase read the fused "90s" as a word.
-      const name = uniform ? `Rests ${rests[0]} → ${Math.max(REST_FLOOR_SEC, rests[0]! - REST_CUT_SEC)} Sec` : "Shorter Rests";
-      offers.push({ key: "restCut", name, sub: `Saves About ${save} Min`, est: true, on: !!plan.restCut, saveMin: save });
+      const name = uniform ? `Rests ${rests[0]} → ${secondsLabel(Math.max(REST_FLOOR_SEC, rests[0]! - REST_CUT_SEC))}` : "Shorter Rests";
+      offers.push({ key: "restCut", name, sub: `Saves ${aboutLabel(save)}`, est: true, on: !!plan.restCut, saveMin: save });
     }
   }
   // 2. Superset the pairs.
@@ -235,7 +235,7 @@ export function leverOffers(day: ProgramDay, history: Workout[], rack: RackConfi
     const save = saveOf({ ...plan, superset: true }, { ...plan, superset: false });
     if (pairs.length > 0 && save >= 1) {
       const name = pairs.length === 1 ? `Superset ${pairs[0]!.map((x) => x.name).join(" + ")}` : "Superset the Groups";
-      offers.push({ key: "superset", name, sub: `Saves About ${save} Min`, est: true, on: !!plan.superset, saveMin: save });
+      offers.push({ key: "superset", name, sub: `Saves ${aboutLabel(save)}`, est: true, on: !!plan.superset, saveMin: save });
     }
   }
   // 3. Trim last sets of accessories. Never the main lift.
@@ -249,7 +249,7 @@ export function leverOffers(day: ProgramDay, history: Workout[], rack: RackConfi
         const name = one ? `${one.name} ${one.sets.length} → ${one.sets.length - 1} Sets` : "Trim Last Accessory Sets";
         offers.push({
           key: "trim", name,
-          sub: `Saves About ${save} Min`, est: true,
+          sub: `Saves ${aboutLabel(save)}`, est: true,
           note: "Never Your Main Lift",
           on: Object.keys(plan.trims ?? {}).length > 0, saveMin: save,
         });
@@ -260,7 +260,7 @@ export function leverOffers(day: ProgramDay, history: Workout[], rack: RackConfi
   {
     const coolMin = day.coolDown?.length ? (day.coolDownMin ?? 0) : 0;
     if (coolMin > 0) {
-      offers.push({ key: "skipCool", name: "Skip the Cool-Down", sub: `Saves ${coolMin} Min`, est: false, on: !!plan.skipCool, saveMin: coolMin });
+      offers.push({ key: "skipCool", name: "Skip the Cool-Down", sub: `Saves ${spanLabel(coolMin)}`, est: false, on: !!plan.skipCool, saveMin: coolMin });
     }
   }
   return offers;

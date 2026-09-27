@@ -26,7 +26,7 @@ import type { SportSession } from "./loadCandidates";
 import type { SeasonFeedDraft } from "./seasonFeed";
 import { showToast } from "../shared/toast";
 import { WRITE_FAILED_MESSAGE } from "../shared/guard";
-import { capAfterNumber } from "../shared/casing";
+import { lineCase } from "../shared/casing";
 import { saveTextFile } from "../shared/saveTextFile";
 import { shareText, copyText } from "../shared/shareText";
 import ShareLineScreen from "./screens/ShareLineScreen";
@@ -610,7 +610,7 @@ export default function HealthFlow({
           onCommit={(draft) => take(
             onCommitSeasonFeed,
             draft,
-            capAfterNumber(draft.events.length + (draft.events.length === 1 ? " event added" : " events added")),
+            lineCase(draft.events.length + (draft.events.length === 1 ? " event added" : " events added")),
             onExit,
           )}
           onBack={onExit}
