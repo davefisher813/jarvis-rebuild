@@ -505,6 +505,9 @@ describe("TodayFlow: the meeting link and notes survive an edit", () => {
     // name to skip is the one inside a .fact, whatever line holds it.
     const dayRow = () => screen.getAllByText("Bridge Foundation Zoom").find((el) => !el.closest(".fact"))!;
     await waitFor(() => expect(dayRow()).toBeInTheDocument());
+    // The TV guide moves at all times (Dave 2026-09-27), and a moving card
+    // swallows the tap that would open a row: hold it first, then tap.
+    fireEvent.click(document.querySelector(".ticker-toggle") as HTMLElement);
     fireEvent.click(dayRow());
     fireEvent.click(await screen.findByRole("button", { name: "Edit" }));
     await screen.findByText("Edit Event");
