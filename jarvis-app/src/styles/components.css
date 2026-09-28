@@ -3218,6 +3218,12 @@ button {
   letter-spacing: var(--track-caps);
   color: var(--tx-2); padding-left: var(--s-2); border-left: 0.5px solid var(--card-bd);
   font-variant-numeric: tabular-nums; margin-left: var(--s-1); }
+/* 2026-09-28 (Dave): on the filled light capsule the waiting count rides in
+   white, with a white hairline, so it reads on the red. */
+[data-theme="light"] .focus-row .row-act .fc-n {
+  color: rgba(255, 255, 255, 0.85);
+  border-left-color: rgba(255, 255, 255, 0.45);
+}
 
 /* NO TWO CONTROLS IN ONE CORNER (Dave 2026-08-19, from the same screenshot).
    A card with an absolutely-positioned corner dismiss and a one-row body puts
@@ -4455,13 +4461,12 @@ button.check-linked:active { opacity: 1; background: var(--press-3); }
   background-color: var(--capsule-fill); box-shadow: none; color: var(--tint);
 }
 [data-theme="light"] .row-act, [data-theme="light"] .ruled .card .row.row-act {
-  color: var(--on-light-red);
-  /* 2026-09-27 (readable words red): the wash fill under a red label cannot
-     clear 4.5:1 with any red in the brand hue, so the light capsule is
-     outlined -- transparent, red border -- like the row pill. The label
-     sits on the card or the page, where the words red clears the bar. */
-  background-color: transparent;
-  border: 1px solid var(--on-light-red);
+  /* 2026-09-28 (Dave): the outlined pill read as unfinished. The light
+     capsule is a solid fill in the unified red with a white label, like
+     the Accept the Day button. */
+  color: #fff;
+  background-color: var(--accent-fill);
+  border: 1px solid var(--accent-fill);
 }
 .quiet-action {
   background-color: var(--press-1); box-shadow: none; color: var(--tx-2);
