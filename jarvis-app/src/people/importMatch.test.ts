@@ -136,7 +136,9 @@ describe("a contact becoming a person", () => {
   });
 
   it("writes no empty fields for a card that carried only a name", () => {
-    expect(draftFrom({ name: "Plain Person" })).toEqual({ name: "Plain Person", group: "contacts" });
+    // Brain Manual v1: an import also carries its triage marker (it waits in
+    // the triage queue); neither field is empty.
+    expect(draftFrom({ name: "Plain Person" })).toEqual({ name: "Plain Person", group: "contacts", triageState: "unsorted", source: "import" });
   });
 });
 

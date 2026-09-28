@@ -331,7 +331,8 @@ export default function PeopleFlow({ onBack, openId: initialOpenId, openNonce, o
       if (sheet.kind === "new") {
         // New people are always plain contacts; every fact is what the user
         // set in the sheet, nothing is inferred from where they tapped Add.
-        await people.create({ name: d.name, group: "contacts", ...facts });
+        // Brain Manual v1: added by hand is already sorted (Dave 2026-09-28).
+        await people.create({ name: d.name, group: "contacts", ...facts, triageState: "sorted", source: "manual" });
       } else if (sheet.kind === "edit") {
         await people.update(sheet.id, { name: d.name, ...facts });
       }

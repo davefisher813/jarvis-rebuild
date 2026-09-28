@@ -318,9 +318,15 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     if (!ok || !id) return;
     const filedId: string = id;
     const replacedRow: BrainMemoryRow | null = replaced;
-    say(`Saved to How You Write · Voice Sample ${count} of ${VOICE_SAMPLE_CAP} ✓`, {
+    // Offline or queued, the sample is on this phone only: it says so
+    // instead of "Saved" (Dave 2026-09-28).
+    say(brain.pending()
+      ? `Filed to How You Write · Voice Sample ${count} of ${VOICE_SAMPLE_CAP} · Will Sync`
+      : `Saved to How You Write · Voice Sample ${count} of ${VOICE_SAMPLE_CAP} ✓`, {
       label: "Undo",
-      run: () => void (replacedRow ? brain.restoreVoiceSample(filedId, replacedRow) : brain.unfile(filedId)),
+      // writeGuard: the restore runs before the delete (undoFiling), and a
+      // failure says so instead of vanishing.
+      run: () => void attemptWrite(() => (replacedRow ? brain.restoreVoiceSample(filedId, replacedRow) : brain.unfile(filedId))),
     }, UNDO_MS);
   };
   const saveVoice = (text: string) => {
@@ -345,7 +351,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     if (!ok || !personId) return;
     const pid: string = personId;
     setTriagedEmails((prev) => (prev.includes(s.email.toLowerCase()) ? prev : [...prev, s.email.toLowerCase()]));
-    say(filedContactToastText(), {
+    say(filedContactToastText(brain.pending()), {
       label: "Undo",
       run: () => {
         // writeGuard: an Undo whose delete fails must say so. The remove

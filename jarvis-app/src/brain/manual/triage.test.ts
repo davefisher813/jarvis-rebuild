@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import type { Person } from "../../people/types";
 import {
-  normalizeName, duplicatesOf, mergedNotes, isUnsorted, brainRolesOf,
+  isUnsorted, brainRolesOf,
   triageSource, personSourceLabel, brainRoleLabel, formatFiledDate,
 } from "./triage";
 
@@ -9,39 +9,16 @@ const person = (id: string, name: string, data: Record<string, unknown> = {}): P
   ({ id, data: { name, group: "contacts", ...data } } as Person);
 
 describe("triage helpers", () => {
-  it("normalizes names for duplicate matching", () => {
-    expect(normalizeName("Dave Fisher")).toBe("davefisher");
-    expect(normalizeName("  O'Brien-Jr. ")).toBe("obrienjr");
-  });
-
-  it("matches duplicates by name or email", () => {
-    const a = person("1", "Dave Fisher", { email: "Dave@Bffsa.org" });
-    const b = person("2", "dave  fisher");
-    const c = person("3", "Someone Else", { email: "dave@bffsa.org" });
-    const d = person("4", "Unrelated");
-    const all = [a, b, c, d];
-    expect(duplicatesOf(a, all).map((p) => p.id).sort()).toEqual(["2", "3"]);
-    expect(duplicatesOf(d, all)).toEqual([]);
-  });
-
-  it("does not match on empty emails", () => {
-    const a = person("1", "One");
-    const b = person("2", "Two");
-    expect(duplicatesOf(a, [a, b])).toEqual([]);
-  });
-
-  it("concatenates notes on merge, keeping both", () => {
-    const s = person("1", "A", { notes: "First" });
-    const l = person("2", "B", { notes: "Second" });
-    expect(mergedNotes(s, l)).toBe("First\n\nSecond");
-    expect(mergedNotes(person("1", "A"), l)).toBe("Second");
-    expect(mergedNotes(person("1", "A"), person("2", "B"))).toBeUndefined();
-  });
-
-  it("treats anything but sorted as unsorted", () => {
-    expect(isUnsorted(person("1", "A", {}))).toBe(true);
+  it("unsorted only when marked so, or imported before triage existed", () => {
     expect(isUnsorted(person("1", "A", { triageState: "unsorted" }))).toBe(true);
     expect(isUnsorted(person("1", "A", { triageState: "sorted" }))).toBe(false);
+    expect(isUnsorted(person("1", "A", { sourceUid: "vcard-1" }))).toBe(true);
+    expect(isUnsorted(person("1", "A", { source: "import" }))).toBe(true);
+  });
+
+  it("a person added by hand counts as sorted (Dave 2026-09-28)", () => {
+    expect(isUnsorted(person("1", "A", {}))).toBe(false);
+    expect(isUnsorted(person("1", "A", { source: "manual", triageState: "sorted" }))).toBe(false);
   });
 
   it("reads only string roles as brain roles", () => {
@@ -50,8 +27,9 @@ describe("triage helpers", () => {
     expect(brainRolesOf(p)).toEqual(["friend"]);
   });
 
-  it("defaults the source to import for pre-triage rows", () => {
-    expect(triageSource(person("1", "A", {}))).toBe("import");
+  it("a pre-triage row is an import only when it carries an import id", () => {
+    expect(triageSource(person("1", "A", {}))).toBe("manual");
+    expect(triageSource(person("1", "A", { sourceUid: "vcard-1" }))).toBe("import");
     expect(triageSource(person("1", "A", { source: "email" }))).toBe("email");
   });
 

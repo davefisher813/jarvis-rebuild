@@ -258,9 +258,9 @@ describe("EventSheet: the meeting itself", () => {
   });
 
   // The anti-drift rule: a guest already in Contacts opens the app's one
-  // person card, and a guest who is not gets the one triage verb,
-  // Who Is This?, with the real address, never a guess.
-  it("opens a known guest and offers Who Is This? for an unknown one", () => {
+  // person card, and a guest who is not is one tap to add with the real
+  // address, never a guess.
+  it("opens a known guest and offers to add an unknown one", () => {
     const onOpenPerson = vi.fn();
     const onAddPerson = vi.fn();
     render(
@@ -281,7 +281,7 @@ describe("EventSheet: the meeting itself", () => {
     expect(screen.getByText("Marco Diaz")).toBeInTheDocument();
     fireEvent.click(screen.getByText("Open"));
     expect(onOpenPerson).toHaveBeenCalledWith("p1");
-    fireEvent.click(screen.getByText("Who Is This?"));
+    fireEvent.click(screen.getByText("Add"));
     expect(onAddPerson).toHaveBeenCalledWith({ email: "nadia@example.com" });
   });
 });

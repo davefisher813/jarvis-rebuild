@@ -55,8 +55,6 @@ import { useAI } from "../ai/useAI";
 import { useAIContext } from "../ai/useAIContext";
 import { contextToText } from "../ai/context";
 import FilingSheet from "../ai/FilingSheet";
-import WhoIsThisSheet from "../ai/WhoIsThisSheet";
-import { UNDO_MS, filedContactToastText } from "../ai/brainMemory";
 import type { TaskItem } from "../tasks/TasksService";
 import { repeatRows } from "./repeats";
 import { overlapsOn, overlapLine, copyDay, durationOf, type Overlap } from "./dayEdit";
@@ -138,24 +136,10 @@ export default function ScheduleFlow({ onEditRoutine, openId, onNavigate }: { on
   const [noteTick, setNoteTick] = useState(0);
   // UP-CORE-10: a guest who is not in Contacts is one tap to add, with the
   // real name and address off the invite and nothing invented.
-  // Brain Manual v1 "Who Is This?" (2026-09-27): adding an unknown attendee
-  // opens the inline triage card instead of silently creating the contact.
-  // Save creates the person row AND writes the triage fields in one go;
-  // Cancel creates nothing.
-  const [triageGuest, setTriageGuest] = useState<{ name: string; email: string } | null>(null);
-  const saveGuestTriage = async (g: { name: string; email: string }, roles: string[], note: string) => {
-    if (!brain) return;
-    let personId: string | null = null;
-    const ok = await attemptWrite(async () => {
-      personId = await peopleSvc.create({ name: g.name, group: "contacts", email: g.email });
-      if (personId) await brain.triagePerson(personId, roles, note.trim() ? note.trim() : undefined, "event");
-    });
+  const addGuest = async (a: { email: string; name?: string }) => {
+    const ok = await attemptWrite(() => peopleSvc.create({ name: a.name?.trim() || a.email, group: "contacts", email: a.email }));
     setPeopleTick((n) => n + 1);
-    if (!ok || !personId) return;
-    const pid = personId;
-    // writeGuard: an Undo whose delete fails must say so, so the remove rides
-    // attemptWrite instead of a bare void.
-    showToast({ message: filedContactToastText(), actionLabel: "Undo", onAction: () => void attemptWrite(() => peopleSvc.remove(pid)) }, UNDO_MS);
+    if (ok) showToast({ message: "Added to Contacts" });
   };
 
   const cats = useCategories();
@@ -1674,7 +1658,7 @@ export default function ScheduleFlow({ onEditRoutine, openId, onNavigate }: { on
           travelMemory={travelMemory}
           knownPeople={people.map((p) => ({ id: p.id, name: p.data.name, email: p.data.email }))}
           onOpenPerson={(id) => setPrepPerson({ id, about: sheet.mode === "edit" ? sheet.initial.title : "" })}
-          onAddPerson={(a) => setTriageGuest({ name: a.name?.trim() || a.email, email: a.email })}
+          onAddPerson={(a) => void addGuest(a)}
         />
       )}
       {logDecision && (
@@ -1684,13 +1668,6 @@ export default function ScheduleFlow({ onEditRoutine, openId, onNavigate }: { on
           linkedItemIds={[logDecision.id]}
           source="event"
           onClose={() => setLogDecision(null)}
-        />
-      )}
-      {triageGuest && (
-        <WhoIsThisSheet
-          name={triageGuest.name}
-          onSave={(roles, note) => void saveGuestTriage(triageGuest, roles, note)}
-          onClose={() => setTriageGuest(null)}
         />
       )}
       {/* UP-CORE-10 (2026-09-05): MEETING PREP IS THE CARD THE APP ALREADY

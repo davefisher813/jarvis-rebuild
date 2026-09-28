@@ -2097,11 +2097,6 @@ describe("LAW: every module is reachable, or is listed as not", () => {
     // (HealthFlow.tsx left this list on 2026-09-05, HMN-F-06 option A: the
     // Brain's health area page mounts it behind the More row, on the Student
     // template. The law that pins that shape is further down this file.)
-    // Brain Manual v1 (2026-09-27): the philosophy/values/writing hub rows are
-    // SimpleListPage views over the one categorized memory (brain_memory)
-    // now. The old doc page is UNWIRED on purpose; it leaves this list only
-    // once manual v1 is the only surface the brain ever had.
-    "BrainDocPage.tsx": "Brain Manual v1: replaced by brain/manual/SimpleListPage.tsx",
   };
 
   // Who mentions which module, built in ONE pass over every file rather than
@@ -4053,9 +4048,7 @@ describe("LAW 12: a write survives the refresh racing it, and one thing never re
     const subscribers = COMPONENTS.filter((f) => read(f).includes("useFreshLists(")).map(rel).sort();
     expect(subscribers, "every list surface, not just the first three").toEqual([
       "brain/BrainFlow.tsx",
-      "brain/manual/DecisionsPage.tsx",
-      "brain/manual/KnowsPage.tsx",
-      "brain/manual/SimpleListPage.tsx",
+      "brain/manual/FiledRows.tsx",
       "brain/manual/TriageScreen.tsx",
       "gym/GymFlow.tsx",
       "money/MoneyFlow.tsx",
@@ -7171,12 +7164,7 @@ describe("LAW: a seam is wired or it is gone", () => {
     expect(flow, "only routable kinds open").toMatch(/SOURCE_ROUTE[^\n]*=\s*\{\s*note:\s*"note",\s*email:\s*"email"\s*\}/);
     expect(flow, "and the row gates on that map").toMatch(/onOpenSource && d\.source\.entityId && SOURCE_ROUTE\[d\.source\.kind\]/);
     const brain = read(join(SRC, "brain/BrainFlow.tsx"));
-    // Brain Manual v1 (2026-09-27): the Brain tab's Decisions row is the
-    // manual DecisionsPage over brain_memory now, not the old entity flow.
-    // The old component is not mounted by any tab (Bigger/Goal import only
-    // its fmtDay helper); the seam is gone from the shell, not left dangling.
-    expect(brain, "the shell mounts the manual decisions page").toMatch(/<DecisionsPage[\s\S]{0,200}?onBack/);
-    expect(brain, "and no longer mounts the old flow").not.toMatch(/<DecisionsFlow/);
+    expect(brain, "the shell's own router is what it gets").toMatch(/<DecisionsFlow[\s\S]{0,300}?onOpenSource=\{onOpenEntity\}/);
   });
 
   it("an event's provenance line opens its source on both surfaces", () => {

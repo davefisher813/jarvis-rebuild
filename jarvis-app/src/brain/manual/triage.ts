@@ -5,7 +5,6 @@ import type { Person } from "../../people/types";
  *  existing PeopleService so triage never touches person rows directly. */
 
 const CURSOR_KEY = "jarvis.brain.triage.cursor.v1";
-const SETUP_KEY = "jarvis.brain.setup.v1";
 
 /** Title Case labels for the fixed triage role chips (BRAIN_ROLES in the
  *  shared contract). A value outside the set falls back to itself. */
@@ -33,11 +32,13 @@ export function personSourceLabel(source?: string): string {
   }
 }
 
-/** The triage source for a row: its recorded source, or "import" when the
- *  row predates triage (the migration backfilled triageState only). */
+/** The triage source for a row: its recorded source, or, for a row that
+ *  predates triage, "import" when it carries an import's source id and
+ *  "manual" when it does not. */
 export function triageSource(p: Person): "email" | "calendar" | "event" | "import" | "manual" {
   const s = (p.data as { source?: string }).source;
-  return s === "email" || s === "calendar" || s === "event" || s === "import" || s === "manual" ? s : "import";
+  if (s === "email" || s === "calendar" || s === "event" || s === "import" || s === "manual") return s;
+  return p.data.sourceUid ? "import" : "manual";
 }
 
 /** The brain-role strings on a row: the entries the per-area editor ignores. */
@@ -46,48 +47,20 @@ export function brainRolesOf(p: Person): string[] {
   return Array.isArray(roles) ? roles.filter((r): r is string => typeof r === "string") : [];
 }
 
-/** A row is unsorted when triage never finished it: anything but "sorted",
- *  which is also what the migration backfilled, so old rows surface. */
+/** A row is unsorted only when something says so: triage marked it
+ *  unsorted (an import, a Who Is This? left open), or it predates triage
+ *  and came in from an import (it carries the import's source id). Anyone
+ *  added by hand counts as sorted (Dave 2026-09-28): he already said who
+ *  they are by adding them. No migration backfills this; it is read here. */
 export function isUnsorted(p: Person): boolean {
-  return (p.data as { triageState?: string }).triageState !== "sorted";
+  const state = (p.data as { triageState?: string }).triageState;
+  if (state === "sorted") return false;
+  if (state === "unsorted" || state === "needsInfo") return true;
+  return !!p.data.sourceUid || (p.data as { source?: string }).source === "import";
 }
 
 export function unsortedPeople(people: Person[]): Person[] {
   return people.filter(isUnsorted);
-}
-
-/** Two rows are the same person when their normalized names match, or when
- *  a non-empty email matches exactly (case-insensitive). */
-export function normalizeName(name: string): string {
-  return name.toLowerCase().replace(/[^a-z0-9]/g, "");
-}
-
-function emailOf(p: Person): string {
-  const e = (p.data as { email?: unknown }).email;
-  return typeof e === "string" ? e.trim().toLowerCase() : "";
-}
-
-export function duplicatesOf(p: Person, people: Person[]): Person[] {
-  const name = normalizeName(p.data.name);
-  const email = emailOf(p);
-  return people.filter((q) => {
-    if (q.id === p.id) return false;
-    if (email && emailOf(q) === email) return true;
-    const qn = normalizeName(q.data.name);
-    return name.length > 1 && qn === name;
-  });
-}
-
-/** Merge: the loser's notes join the survivor's (both kept, newest first is
- *  not assumed; concatenation in place), the loser row is deleted by the
- *  caller. */
-export function mergedNotes(survivor: Person, loser: Person): string | undefined {
-  const a = (survivor.data as { notes?: unknown }).notes;
-  const b = (loser.data as { notes?: unknown }).notes;
-  const sa = typeof a === "string" ? a.trim() : "";
-  const sb = typeof b === "string" ? b.trim() : "";
-  if (sa && sb) return `${sa}\n\n${sb}`;
-  return sa || sb || undefined;
 }
 
 function guarded(key: "get" | "set" | "remove", value?: string): string | null {
@@ -113,21 +86,6 @@ export function readTriageCursor(): string | null {
 
 export function writeTriageCursor(id: string | null): void {
   guarded(id === null ? "remove" : "set", id ?? undefined);
-}
-
-/** The "Set up your brain" card: dismissed once, hidden forever. */
-export function setupCardDismissed(): boolean {
-  try {
-    return typeof localStorage !== "undefined" && localStorage.getItem(SETUP_KEY) === "1";
-  } catch {
-    return false;
-  }
-}
-
-export function dismissSetupCard(): void {
-  try {
-    localStorage.setItem(SETUP_KEY, "1");
-  } catch { /* a private-mode write that fails just means the card returns */ }
 }
 
 /** "Mar 15", or "Mar 15, 2024" when the year is not this one. The decision

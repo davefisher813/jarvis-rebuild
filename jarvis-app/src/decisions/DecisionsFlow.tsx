@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode, useRef } from "react";
+import FiledRows from "../brain/manual/FiledRows";
 import { useDecisions, useProjects, useGoals, useCategories, useOptionalStrands } from "../data/NotesProvider";
 import PageHeader, { BarAction } from "../shared/PageHeader";
 import InlineEdit from "../shared/InlineEdit";
@@ -562,6 +563,8 @@ function ListScreen({ live, loading, projCat, onBack, onOpen, onAdd }: {
   onAdd: () => void;
 }) {
   const today = todayISO();
+  // Brain Manual v1: decisions filed from a task, an event or the + menu.
+  const [filed, setFiled] = useState(0);
   return (
     <div className="screen ruled">
       <PageHeader
@@ -570,7 +573,7 @@ function ListScreen({ live, loading, projCat, onBack, onOpen, onAdd }: {
         onBack={onBack}
         actions={<BarAction label="Add" onClick={onAdd}>{PLUS}</BarAction>}
       />
-      {!loading && live.length === 0 && (
+      {!loading && live.length === 0 && filed === 0 && (
         <div className="empty-state">
           <div className="empty-icon">{DECISION_ICO}</div>
           <div className="empty-title">Worth Remembering</div>
@@ -652,6 +655,7 @@ function ListScreen({ live, loading, projCat, onBack, onOpen, onAdd }: {
           })}
         </div></div>
       )}
+      <FiledRows categories={["decision"]} rowClass="row dec-row" onCount={setFiled} />
       <div className="screen-foot" />
     </div>
   );

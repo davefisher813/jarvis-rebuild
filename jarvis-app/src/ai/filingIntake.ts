@@ -1,8 +1,7 @@
 // Brain Manual v1 (Phase 1) - filing intake.
 //
 // The write half of the filing flow: turn a filing into a brain_memory row
-// payload (fileMemory, pure), write it (saveFiling, store injected), undo it
-// (undoFiling, per-filing), and confirm it (showFilingConfirm, the app's
+// payload (fileMemory, pure), undo it (undoFiling, per-filing), and confirm it (showFilingConfirm, the app's
 // existing toast pattern from shared/toast.ts - no new visual language).
 //
 // Flow doc §4: every flow ends the same way - a one-line toast naming the
@@ -34,7 +33,7 @@ export interface FileMemoryInput {
   linkedItemIds?: string[]; // decisions filed from a task/event
 }
 
-// The write surface saveFiling needs. Structural, not the class, so tests
+// The write surface undoFiling needs. Structural, not the class, so tests
 // inject a fake without an adapter. The real Store satisfies it: the
 // signatures below match Store.create/Store.delete exactly.
 export interface FilingStore {
@@ -71,30 +70,23 @@ export function fileMemory(input: FileMemoryInput): BrainMemoryData {
   return data;
 }
 
-// Writes the row and returns the new id; the caller keeps it for Undo.
-// Filing is a memory write, not an AI action, so it needs no approval card
-// at any AI Control level, including Off (flow doc §6).
-export async function saveFiling(input: FileMemoryInput, env: FilingEnv): Promise<string> {
-  // The ItemsData cast follows the TasksService convention (TasksService.ts):
-  // optional fields widen to string|undefined, which Record<string, Json>
-  // rejects, so the cast lives at the write boundary, not in the payload.
-  return env.store.create(env.ownerId, BRAIN_MEMORY_ENTITY, fileMemory(input) as unknown as ItemData);
-}
-
 // Per-filing undo: deletes exactly the row the filing created, nothing else
 // - never a toggle (SHARED-F-03). For the voice 6th-sample flow the caller
 // passes the row the new sample replaced, and it is recreated under its OLD
 // id so anything holding that id still opens it (the recreateFrom convention
 // in TasksService: `id` on create is for restores only).
+//
+// RESTORE BEFORE DELETE (Dave 2026-09-28): the replaced sample comes back
+// first, so a failure part way leaves both samples, never neither.
 export async function undoFiling(
   rowId: string,
   env: FilingEnv,
   restore?: { id: string; data: BrainMemoryData },
 ): Promise<void> {
-  await env.store.delete(env.ownerId, rowId);
   if (restore) {
     await env.store.create(env.ownerId, BRAIN_MEMORY_ENTITY, restore.data as unknown as ItemData, restore.id);
   }
+  await env.store.delete(env.ownerId, rowId);
 }
 
 // Voice cap helper (flow doc §4.4): with VOICE_SAMPLE_CAP samples already
@@ -112,9 +104,9 @@ export function oldestVoiceSample(rows: BrainMemoryRow[]): BrainMemoryRow | null
 // Undo capsule runs the caller's per-filing undo (writes the exact restore
 // state, SHARED-F-03), and the toast lives UNDO_MS (8s). Same component, same
 // styles as every other "Saved …" toast; no new visuals.
-export function showFilingConfirm(category: BrainMemoryCategory, onUndo: () => void): void {
+export function showFilingConfirm(category: BrainMemoryCategory, onUndo: () => void, pending = false): void {
   showToast(
-    { message: filedToastText(category), actionLabel: "Undo", onAction: onUndo },
+    { message: filedToastText(category, pending), actionLabel: "Undo", onAction: onUndo },
     UNDO_MS,
   );
 }

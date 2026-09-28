@@ -5,21 +5,22 @@ import { useFreshLists } from "../../data/useFreshLists";
 import { pressable } from "../../shared/pressable";
 import { attemptWrite } from "../../shared/guard";
 import { showToast } from "../../shared/toast";
-import { PERSON_ENTITY, BRAIN_ROLES } from "../../ai/brainMemory";
+import { PERSON_ENTITY, BRAIN_ROLES, UNDO_MS } from "../../ai/brainMemory";
+import RowActionSheet from "../../shared/RowActionSheet";
 import type { Person } from "../../people/types";
 import { personInitials, avatarClass } from "../../people/types";
 import {
   brainRoleLabel,
   brainRolesOf,
-  dismissSetupCard,
-  duplicatesOf,
   isUnsorted,
-  mergedNotes,
   personSourceLabel,
   readTriageCursor,
   triageSource,
   writeTriageCursor,
 } from "./triage";
+import { duplicatesOf, mergedPersonData } from "./merge";
+import { restorePatch, type Relinked } from "../../people/relink";
+import type { PersonData } from "../../people/types";
 
 /**
  * Contact triage (Brain Manual v1): one card at a time, each unsorted
@@ -28,8 +29,11 @@ import {
  * Skip leaves it unsorted for later. The cursor persists in localStorage,
  * so leaving and coming back resumes where the card left off.
  *
- * A card with a likely duplicate shows the merge view first: both rows, the
- * user picks the survivor, notes concatenate, the loser row is deleted.
+ * A card with a likely duplicate (a shared email or phone, never a name
+ * alone) shows the merge view first: both rows, the user picks the one to
+ * keep and confirms. The kept row takes every field the other held, every
+ * task, note, decision and strand that pointed at the other now points at
+ * the kept one, the other row is deleted, and Undo puts all of it back.
  */
 export default function TriageScreen({ onBack }: { onBack: () => void }) {
   const peopleSvc = usePeople();
@@ -43,6 +47,8 @@ export default function TriageScreen({ onBack }: { onBack: () => void }) {
   // Cards judged "not duplicates" this session, by id: the merge view stays
   // down for them even though the duplicate still matches.
   const [notDups, setNotDups] = useState<Set<string>>(new Set());
+  // The merge waiting on its confirm: which row stays, which goes.
+  const [confirming, setConfirming] = useState<{ survivor: Person; loser: Person } | null>(null);
 
   const reload = useCallback(async () => {
     const all = await peopleSvc.list();
@@ -107,14 +113,28 @@ export default function TriageScreen({ onBack }: { onBack: () => void }) {
   const doMerge = async (survivor: Person, loser: Person) => {
     if (busy) return;
     setBusy(true);
+    const before = survivor.data as unknown as Record<string, unknown>;
+    const merged = mergedPersonData(survivor, loser) as unknown as Record<string, unknown>;
+    const patch = (p: Record<string, unknown>) => p as unknown as Partial<PersonData>;
+    let relinked: Relinked[] = [];
     const ok = await attemptWrite(async () => {
-      const notes = mergedNotes(survivor, loser);
-      if (notes !== undefined) await peopleSvc.update(survivor.id, { notes });
+      // Kept row first, links second, the other row last: a failure part way
+      // leaves both contacts in place, never a link pointing at nothing.
+      await peopleSvc.update(survivor.id, patch(restorePatch(merged, before)));
+      relinked = await peopleSvc.relink(loser.id, survivor.id);
       await peopleSvc.remove(loser.id);
     });
     setBusy(false);
     if (!ok) return;
-    showToast({ message: "Merged ✓" });
+    const undo = () => void (async () => {
+      const back = await attemptWrite(async () => {
+        await peopleSvc.create(loser.data, loser.id);
+        await peopleSvc.unrelink(relinked);
+        await peopleSvc.update(survivor.id, patch(restorePatch(before, merged)));
+      });
+      if (back) await reload();
+    })();
+    showToast({ message: "Merged ✓", actionLabel: "Undo", onAction: undo }, UNDO_MS);
     const all = await reload();
     const nextOrder = all.filter(isUnsorted).map((p) => p.id);
     // Stay on the survivor when it still needs sorting.
@@ -133,8 +153,7 @@ export default function TriageScreen({ onBack }: { onBack: () => void }) {
         <div className="empty-state empty-compact">
           <div className="empty-title">All Sorted</div>
           <div className="empty-sub">Every Contact Has a Role</div>
-          {/* The sort is finished: the setup card's job is done too. */}
-          <button className="btn btn-primary" onClick={() => { dismissSetupCard(); onBack(); }}>Done</button>
+          <button className="btn btn-primary" onClick={onBack}>Done</button>
         </div>
       ) : (
         <>
@@ -145,12 +164,12 @@ export default function TriageScreen({ onBack }: { onBack: () => void }) {
               <div className="eyebrow">Possible Duplicate</div>
               <div className="conn-meta">Same Person Twice? Keep One.</div>
               {[current, ...dups.slice(0, 1)].map((p) => {
+                // The row and its pill both only ASK: nothing merges until
+                // the confirm, so a stray tap while scrolling deletes nobody.
                 const keep = () => {
                   const other = p.id === current.id ? dups[0]! : current;
-                  void doMerge(p, other);
+                  setConfirming({ survivor: p, loser: other });
                 };
-                // The whole row is the door: tapping it keeps this candidate,
-                // the same call the pill makes.
                 return (
                 <div {...pressable(keep)} className="offer-row" key={p.id}>
                   <div className={"av av-32 " + avatarClass(p.data.color)}>{personInitials(p.data.name)}</div>
@@ -208,6 +227,13 @@ export default function TriageScreen({ onBack }: { onBack: () => void }) {
           )}
           <div className="screen-foot" />
         </>
+      )}
+      {confirming && (
+        <RowActionSheet
+          title={`Keep ${confirming.survivor.data.name}? ${confirming.loser.data.name} Merges Into Them`}
+          actions={[{ label: "Merge", destructive: true, onPick: () => { const c = confirming; setConfirming(null); void doMerge(c.survivor, c.loser); } }]}
+          onCancel={() => setConfirming(null)}
+        />
       )}
     </div>
   );

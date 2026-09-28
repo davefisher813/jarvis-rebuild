@@ -93,18 +93,6 @@ export const BRAIN_ROLES = [
 ] as const;
 export type BrainRole = (typeof BRAIN_ROLES)[number];
 
-/** Chat trigger phrases for "log it: …". Ordered longest-first so the
- *  longest match wins. Matching is case-insensitive, prefix of message. */
-export const FILING_TRIGGERS = [
-  "log this decision",
-  "file this as",
-  "save this as",
-  "remember that",
-  "remember this",
-  "log this",
-  "log it",
-] as const;
-
 /** Whole memory block budget, chars (~4 chars/token). Spec §3.5. */
 export const MEMORY_BUDGET_CHARS = 12000;
 /** Philosophy / values are always included in full up to these caps. */
@@ -132,15 +120,17 @@ export function categoryLabel(c: BrainMemoryCategory): string {
   return CATEGORY_LABELS[c];
 }
 
-/** "Saved to Philosophy ✓" */
-export function filedToastText(c: BrainMemoryCategory): string {
-  return `Saved to ${categoryLabel(c)} ✓`;
+/** "Saved to Philosophy ✓", or, while the write is still on this phone
+ *  (offline, or queued), "Filed to Philosophy · Will Sync": a filing never
+ *  says Saved before it reaches the server (Dave 2026-09-28). */
+export function filedToastText(c: BrainMemoryCategory, pending = false): string {
+  return pending ? `Filed to ${categoryLabel(c)} · Will Sync` : `Saved to ${categoryLabel(c)} ✓`;
 }
 
 // "Who Is This?" ends on a contact, not a brain_memory row, but the same
 // confirm-toast shape applies -- shared so every surface names it once.
-export function filedContactToastText(): string {
-  return "Saved to Contacts ✓";
+export function filedContactToastText(pending = false): string {
+  return pending ? "Filed to Contacts · Will Sync" : "Saved to Contacts ✓";
 }
 
 /** Title Case source labels for the memory detail screen's "Filed from" line. */
@@ -157,26 +147,4 @@ export const BRAIN_SOURCE_LABEL: Record<BrainMemorySource, string> = {
 /** "Filed From Brain Chat" -- the detail screen's provenance line. */
 export function filedFromLabel(source: BrainMemorySource): string {
   return BRAIN_SOURCE_LABEL[source] ?? "The Brain Tab";
-}
-
-/** The em-dash code point, built numerically: the no-em-dash law bans the
- *  character itself in source, but users still type em dashes, so the
- *  trigger parser has to strip them. */
-const EM_DASH = String.fromCharCode(0x2014);
-
-/** Strip the trigger phrase from a chat message, returning the remainder. */
-export function stripTrigger(message: string): string | null {
-  const lower = message.trim().toLowerCase();
-  for (const t of FILING_TRIGGERS) {
-    if (lower.startsWith(t)) {
-      const rest = message.trim().slice(t.length).trim().replace(new RegExp(`^[:\\-–${EM_DASH}]\\s*`), "");
-      return rest;
-    }
-  }
-  return null;
-}
-
-/** True when a chat message asks to file something. */
-export function isFilingMessage(message: string): boolean {
-  return stripTrigger(message) !== null;
 }

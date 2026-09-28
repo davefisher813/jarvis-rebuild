@@ -207,11 +207,16 @@ type PeopleDetailEntry = NonNullable<AIContextInput["peopleDetail"]>[number];
 function mergePeopleDetail(base: PeopleDetailEntry[], filed: { name: string; label?: string }[]): PeopleDetailEntry[] {
   const out = base.map((b) => ({ ...b }));
   const idx = new Map<string, number>();
+  // A contact with no name must never fail the whole gather (and with it
+  // every AI call): nameless rows exist, so the key is guarded, not assumed.
+  const keyOf = (name: unknown) => (typeof name === "string" ? name.trim().toLowerCase() : "");
   out.forEach((b, i) => {
-    if (!idx.has(b.name.toLowerCase())) idx.set(b.name.toLowerCase(), i);
+    const k = keyOf(b.name);
+    if (k && !idx.has(k)) idx.set(k, i);
   });
   for (const f of filed) {
-    const key = f.name.toLowerCase();
+    const key = keyOf(f.name);
+    if (!key) continue;
     const i = idx.get(key);
     if (i === undefined) {
       idx.set(key, out.length);

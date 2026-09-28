@@ -1,10 +1,7 @@
 // @vitest-environment jsdom
-// Brain Manual v1 (Phase 1) — triage persistence and merge.
-// Flow doc §7, test 6 (triage). The triage helpers (duplicate matching,
-// note merge, unsorted detection) are covered in triage.test.ts; this file
-// covers the gaps the spec names: the progress cursor persists and resumes,
-// the setup card dismisses once, unsorted -> sorted writes the role, and a
-// merge concatenates the notes and removes the loser row.
+// Brain Manual v1 (Phase 1): triage persistence.
+// Flow doc §7, test 6 (triage). The progress cursor persists and resumes,
+// and unsorted -> sorted writes the role. The merge is merge.test.ts.
 
 import { describe, it, expect, beforeEach } from "vitest";
 import { Store, InMemoryAdapter, type ItemData } from "@core";
@@ -12,9 +9,6 @@ import type { Person } from "../../people/types";
 import {
   readTriageCursor,
   writeTriageCursor,
-  setupCardDismissed,
-  dismissSetupCard,
-  mergedNotes,
   isUnsorted,
 } from "./triage";
 import { BrainMemoryService } from "../../ai/brainMemoryService";
@@ -55,14 +49,6 @@ describe("triage progress cursor", () => {
   });
 });
 
-describe("setup brain card", () => {
-  it("dismisses once and stays dismissed", () => {
-    expect(setupCardDismissed()).toBe(false);
-    dismissSetupCard();
-    expect(setupCardDismissed()).toBe(true);
-  });
-});
-
 describe("triage writes", () => {
   const seedUnsorted = async (store: Store) =>
     store.create("u1", PERSON_ENTITY, {
@@ -82,31 +68,5 @@ describe("triage writes", () => {
     expect(data.roles).toContain("work");
     expect(data.triageState).toBe("sorted");
     expect(data.roleNote).toBe("Met at the game");
-  });
-
-  it("merge concatenates the notes and removes the loser row", async () => {
-    const store = new Store(new InMemoryAdapter());
-    const survivorId = await store.create(
-      "u1",
-      PERSON_ENTITY,
-      { name: "Dave Fisher", notes: "First" } as unknown as ItemData,
-    );
-    const loserId = await store.create(
-      "u1",
-      PERSON_ENTITY,
-      { name: "dave fisher", notes: "Second" } as unknown as ItemData,
-    );
-    const survivor = person(survivorId, "Dave Fisher", { notes: "First" });
-    const loser = person(loserId, "dave fisher", { notes: "Second" });
-    // The survivor keeps both notes; the caller deletes the loser row.
-    const merged = mergedNotes(survivor, loser);
-    await store.update("u1", survivorId, {
-      ...( (await store.read("u1", survivorId))!.data as Record<string, unknown> ),
-      notes: merged,
-    } as unknown as ItemData);
-    await store.delete("u1", loserId);
-    const kept = (await store.read("u1", survivorId))!;
-    expect((kept.data as { notes: string }).notes).toBe("First\n\nSecond");
-    expect(await store.read("u1", loserId)).toBeNull();
   });
 });

@@ -684,16 +684,15 @@ export default function EventSheet({
             {/* WHO IS IN THE ROOM. Google's list, read-only because nothing
                 here writes it back (the coverage map forbids write-back).
                 A guest already in Contacts opens the one person card the app
-                has; one who is not gets the one triage verb, Who Is This?,
-                with the real name and address, never a guess. */}
+                has; one who is not is a single tap to add, with the real
+                name and address, never a guess. */}
             {(initial?.attendees ?? []).map((a) => {
-              const known = onOpenPerson ? knownPeople.find((p) => p.email && p.email.trim().toLowerCase() === (a.email ?? "").trim().toLowerCase()) : undefined;
+              const known = onOpenPerson ? knownPeople.find((p) => p.email && p.email.toLowerCase() === a.email) : undefined;
               return (
                 // THE WHOLE ROW IS THE DOOR (Dave 2026-09-15): a known guest's
-                // row opens their card, an unknown one's does its one verb,
-                // Who Is This? (triage, never a silent add).
+                // row opens their card, an unknown one's does its one verb, Add.
                 <div className="row xs-row" key={a.email} role="button" tabIndex={0}
-                  aria-label={(known && onOpenPerson ? "Open " : "Who Is This? ") + (a.name || a.email)}
+                  aria-label={(known && onOpenPerson ? "Open " : "Add ") + (a.name || a.email)}
                   onClick={() => guestTap(a, known?.id)}
                   onKeyDown={(e) => { if (e.target === e.currentTarget) onPressKey(() => guestTap(a, known?.id))(e); }}>
                   <Tile tone="teal"><User className="ic" /></Tile>
@@ -705,7 +704,7 @@ export default function EventSheet({
                     <button type="button" className="pill-act" onClick={(e) => { e.stopPropagation(); onOpenPerson(known.id); }}>Open</button>
                   )}
                   {!known && onAddPerson && (
-                    <button type="button" className="pill-act" onClick={(e) => { e.stopPropagation(); onAddPerson(a); }}>Who Is This?</button>
+                    <button type="button" className="pill-act" onClick={(e) => { e.stopPropagation(); onAddPerson(a); }}>Add</button>
                   )}
                 </div>
               );

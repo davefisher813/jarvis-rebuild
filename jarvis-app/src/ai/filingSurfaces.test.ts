@@ -23,6 +23,7 @@ import {
   PERSON_ENTITY,
   UNDO_MS,
   VOICE_SAMPLE_CAP,
+  filedContactToastText,
   type BrainMemoryCategory,
 } from "./brainMemory";
 
@@ -111,6 +112,15 @@ describe("voice 5-sample cap and 6th-sample replacement", () => {
     expect(restored?.data.text).toBe(firstText);
     expect(after.some((r) => r.id === sixth.id)).toBe(false);
   });
+  it("a refused write at the cap leaves the oldest in place (new before old)", async () => {
+    const svc = mk();
+    for (const s of ["a", "b", "c", "d", "e"]) await svc.saveVoiceSample(LONG(s));
+    const before = (await svc.voiceSamples()).map((r) => r.id).sort();
+    const r = await svc.saveVoiceSample("   ");
+    expect(r.id).toBeNull();
+    expect(r.replaced).toBeNull();
+    expect((await svc.voiceSamples()).map((x) => x.id).sort()).toEqual(before);
+  });
   it("plain Undo deletes the row it just wrote", async () => {
     const svc = mk();
     const r = await svc.saveVoiceSample(LONG("gone"));
@@ -194,6 +204,17 @@ describe("destination toast + 8-second Undo", () => {
     const last = (showToast as unknown as { mock: { calls: [{ onAction: () => void }, number][] } }).mock.calls.at(-1)!;
     last[0].onAction();
     expect(onUndo).toHaveBeenCalledTimes(1);
+  });
+  it("offline or queued, the toast says Will Sync, never Saved", () => {
+    vi.clearAllMocks();
+    showFilingConfirm("philosophy", () => {}, true);
+    const [toast] = (showToast as unknown as { mock: { calls: [object, number][] } }).mock.calls[0]!;
+    expect((toast as { message: string }).message).toBe("Filed to Philosophy · Will Sync");
+    expect(filedContactToastText(true)).toBe("Filed to Contacts · Will Sync");
+    expect(filedContactToastText()).toBe("Saved to Contacts ✓");
+  });
+  it("pending() reads the store: false online with an empty queue", () => {
+    expect(mk().pending()).toBe(false);
   });
   it("filing writes a row the toast's Undo can delete (service round-trip)", async () => {
     const svc = mk();

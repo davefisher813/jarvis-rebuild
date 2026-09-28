@@ -7,7 +7,7 @@
 // along -- and emits the standard entity events.
 //
 // The pure core lives in filing.ts (countWords, voiceGuard) and
-// filingIntake.ts (fileMemory, saveFiling, undoFiling, oldestVoiceSample,
+// filingIntake.ts (fileMemory, undoFiling, oldestVoiceSample,
 // showFilingConfirm): this class owns the store access and the event
 // emission, and delegates the decisions to them, so the two never drift.
 //
@@ -17,7 +17,6 @@
 
 import type { Store, ItemData, Item } from "@core";
 import type { EventInput } from "../events";
-import { todayISO } from "../schedule/calendar";
 import {
   BRAIN_MEMORY_ENTITY,
   PERSON_ENTITY,
@@ -32,19 +31,6 @@ import { oldestVoiceSample, undoFiling } from "./filingIntake";
 
 export type { BrainMemoryRow };
 export type { VoiceGuardResult };
-
-/** Today's date (yyyy-mm-dd), re-exported for the Brain tab sheets. */
-export { todayISO as todayISODate };
-
-/** The Decisions page status filter. "all" shows every non-archived row;
- *  archived is its own filter. */
-export type DecisionFilter = "all" | "active" | "reversed" | "archived";
-
-export function decisionMatchesStatus(row: BrainMemoryRow, filter: DecisionFilter): boolean {
-  const status = row.data.status ?? "active";
-  if (filter === "all") return status !== "archived";
-  return status === filter;
-}
 
 /** One row's state in app words: Active, Reversed, Archived. */
 export function decisionStateLabel(row: BrainMemoryRow): string {
@@ -111,10 +97,14 @@ export class BrainMemoryService {
   // File a voice sample with the cap guard: at VOICE_SAMPLE_CAP the oldest
   // sample is replaced (oldestVoiceSample, filingIntake), and its snapshot
   // is returned so Undo can restore it.
+  //
+  // THE NEW ONE IS WRITTEN BEFORE THE OLD ONE GOES (Dave 2026-09-28). A
+  // failed or refused write leaves the oldest exactly where it was; a failed
+  // delete after a good write leaves one sample over the cap, never one short,
+  // and reports nothing replaced so Undo does not recreate a row that exists.
   async saveVoiceSample(text: string, source: BrainMemorySource = "email"): Promise<{ id: string | null; replaced: BrainMemoryRow | null; count: number }> {
     const samples = await this.voiceSamples();
-    const replaced = oldestVoiceSample(samples);
-    if (replaced) await this.unfile(replaced.id);
+    const oldest = oldestVoiceSample(samples);
     const id = await this.file({
       category: "voice",
       state: "LEARNED",
@@ -122,8 +112,24 @@ export class BrainMemoryService {
       source,
       wordCount: countWords(text),
     });
+    if (!id) return { id: null, replaced: null, count: samples.length };
+    let replaced: BrainMemoryRow | null = null;
+    if (oldest) {
+      try {
+        await this.unfile(oldest.id);
+        replaced = oldest;
+      } catch { /* over the cap by one until the next save; nothing lost */ }
+    }
     const after = await this.voiceSamples();
     return { id, replaced, count: after.length };
+  }
+
+  // Whether the last write is still on this phone: offline, or queued behind
+  // a dropped connection. A filing toast says "Will Sync" instead of "Saved"
+  // until it has reached the server (Dave 2026-09-28).
+  pending(): boolean {
+    const s = this.store.syncState();
+    return !s.online || s.queued > 0;
   }
 
   // Undo of a capped replacement: the new row goes away and the replaced
@@ -167,10 +173,6 @@ export class BrainMemoryService {
     return true;
   }
 
-  async setPinned(id: string, pinned: boolean): Promise<boolean> {
-    return this.update(id, { pinned });
-  }
-
   // Revisit (Decisions): the new value is a NEW row linked backward, the old
   // row is archived and linked forward. Nothing is ever deleted by a
   // revisit, so the trail of what changed survives.
@@ -191,10 +193,18 @@ export class BrainMemoryService {
 
   // Erase (Settings → Brain): every brain_memory row goes away. Contacts
   // keep their rows; their triage reset is the erase screen's own write.
-  async removeAll(): Promise<number> {
+  // One failed delete never stops the rest, and the count of rows still
+  // standing comes back, so the screen can say so and a second tap finishes
+  // the job (it re-reads what is left). Dave 2026-09-28: never stop halfway
+  // silently.
+  async removeAll(): Promise<{ removed: number; failed: number }> {
     const rows = await this.list();
-    for (const r of rows) await this.unfile(r.id);
-    return rows.length;
+    let removed = 0;
+    let failed = 0;
+    for (const r of rows) {
+      try { await this.unfile(r.id); removed++; } catch { failed++; }
+    }
+    return { removed, failed };
   }
 
   // "Who Is This?": write the triage fields onto the person row. The roles

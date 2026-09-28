@@ -7,6 +7,7 @@ import {
   filedFromLabel,
   type BrainMemoryCategory,
   type BrainMemoryRow,
+  filedToastText,
 } from "../../ai/brainMemory";
 import { decisionStateLabel } from "../../ai/brainMemoryService";
 import { fileMemory } from "../../ai/filingIntake";
@@ -57,7 +58,7 @@ export default function MemorySheet({
     );
     setSaving(false);
     if (!ok) return;
-    showToast({ message: "Saved ✓" });
+    showToast({ message: svc.pending() ? "Edited · Will Sync" : "Saved ✓" });
     onChanged();
     setMode("view");
   };
@@ -88,7 +89,7 @@ export default function MemorySheet({
     );
     setSaving(false);
     if (!ok) return;
-    showToast({ message: "Saved to Decisions ✓" });
+    showToast({ message: filedToastText("decision", svc.pending()) });
     onChanged();
     onClose();
   };

@@ -68,7 +68,7 @@ export default function FilingSheet({
     // The shared confirm: destination line + Undo for UNDO_MS (8s).
     // showFilingConfirm is the app's one toast (shared/toast.ts) -- no
     // second toast built.
-    showFilingConfirm(cat, () => void brain.unfile(filedId));
+    showFilingConfirm(cat, () => void brain.unfile(filedId), brain.pending());
     onClose();
   };
 

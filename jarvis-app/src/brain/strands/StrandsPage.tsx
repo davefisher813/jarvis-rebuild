@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useStrands } from "../../data/NotesProvider";
 import { useAI } from "../../ai/useAI";
+import FiledRows from "../manual/FiledRows";
 import TodaySuggestions from "../../today/TodaySuggestions";
 import { todayISO } from "../../ai/useAIContext";
 import { haptics } from "../../shared/haptics";
@@ -448,6 +449,8 @@ export default function StrandsPage({ onBack, openId: initialOpenId, openNonce, 
         </div></div>
       )}
 
+      {/* Brain Manual v1: facts filed from a note or the + menu. */}
+      <FiledRows categories={["fact"]} rowClass="row strand-row" />
       <div className="pad-x">
         <button className="row row-act" onClick={() => { setAdding(true); setText(""); setCat("work_style"); setRule(false); setKind(null); setChannel(null); }}>Add One Thing</button>
       </div>

@@ -45,17 +45,12 @@ export default function BrainPage({
   onOpenFact,
   onOpenWatching,
   categories = [],
-  setupCard,
 }: {
   onOpen: (key: string, name: string) => void;
   // C-38: a strand tapped in the top bands opens its sheet on What JARVIS
   // Knows; a WATCHING detector opens that page under its Watching filter.
   onOpenFact?: (id: string) => void;
   onOpenWatching?: (key: string) => void;
-  // Brain Manual v1: the setup card, handed down from BrainFlow (the seed
-  // sheet lives there too). The card renders above the nav list and hides
-  // itself once it has no audience; the page never has to know.
-  setupCard?: React.ReactNode;
   // LIFE_AREAS_TAB_HANDOFF (2026-09-16): "Your Areas" moved to Life, as the
   // Areas tab, so a category's name and what's filed under it live in one
   // place instead of the name here and the work there. Categories still
@@ -98,7 +93,6 @@ export default function BrainPage({
         areas={categories.map((c) => c.name)}
       />
       {bands > 0 && <div className="sh2 sh2-quiet"><span className="t">Explore</span></div>}
-      {setupCard}
       <div className="pad-x"><div className="card list-card-ruled nav-card">{NAV_ROWS.map(Row)}</div></div>
       <div className="screen-foot" />
     </div>

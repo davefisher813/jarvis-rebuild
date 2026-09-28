@@ -36,26 +36,40 @@ export default function BrainSettingsPage({ onBack }: { onBack: () => void }) {
     if (!ok) return;
   };
 
+  // RETRY-SAFE (Dave 2026-09-28): every row is tried, a failure never stops
+  // the rest, and anything left standing is counted and said out loud. The
+  // erase re-reads what is left each time, so tapping it again finishes the
+  // job instead of starting over. Only contacts that carry triage fields are
+  // written, and their triage state is cleared rather than set, so a person
+  // added by hand reads as sorted again and an import as unsorted.
   const doErase = async () => {
     if (busy) return;
     setBusy(true);
+    let left = 0;
     const ok = await attemptWrite(async () => {
-      await brainSvc.removeAll();
+      const brain = await brainSvc.removeAll();
+      left += brain.failed;
       const all = await peopleSvc.list();
       for (const p of all) {
+        const roles = p.data.roles ?? [];
+        const areaRoles = roles.filter((r) => typeof r !== "string");
+        const hasTriage = areaRoles.length !== roles.length || p.data.roleNote != null || p.data.triageState !== undefined;
+        if (!hasTriage) continue;
         // Triage strings go; the person sheet's per-area roles stay.
-        const areaRoles = (p.data.roles ?? []).filter((r) => typeof r !== "string");
-        await peopleSvc.update(p.id, {
-          roles: areaRoles.length ? areaRoles : undefined,
-          roleNote: null,
-          triageState: "unsorted",
-        });
+        try {
+          await peopleSvc.update(p.id, {
+            roles: areaRoles.length ? areaRoles : undefined,
+            roleNote: undefined,
+            triageState: undefined,
+          });
+        } catch { left++; }
       }
       writeTriageCursor(null);
     });
     setBusy(false);
     setArmed(false);
     if (!ok) return;
+    if (left > 0) { showToast({ message: `Erase Stopped Short · ${left} Left · Erase Again to Finish` }); return; }
     showToast({ message: "Brain Erased ✓" });
   };
 
