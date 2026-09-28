@@ -1771,10 +1771,8 @@ describe("LAW: stored shapes are versioned", () => {
     // 3:1 glyph bar on black AND on paper, so there is nothing to override.
     // AMENDED 2026-09-27 (§AQ, Dave: "Make all red Jarvis red."): light may
     // set it to Jarvis Red #FF3B30 and to nothing else, which is not darker.
-    // AMENDED 2026-09-28 (Dave): every red in light is the in-between
-    // #E42C18, his pick, and to nothing else.
     for (const m of CSS.matchAll(/\[data-theme=[^\]]*\][^{]*\{[^}]*--accent-glyph\s*:\s*([^;}]+)/g)) {
-      expect(m[1]!.trim().toUpperCase(), "a theme's --accent-glyph can only be the unified light red").toBe("#E42C18");
+      expect(m[1]!.trim().toUpperCase(), "a theme's --accent-glyph can only be Jarvis Red").toBe("#FF3B30");
     }
   });
 

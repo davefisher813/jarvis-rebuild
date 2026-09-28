@@ -339,12 +339,9 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
    raised capsule grey; its GLYPH ink (--cat-ic-*) only until 3:1. Hues that
    already clear keep the exact hex. The nine slots outside the fifteen keep
    their vibrant, already-readable values ("Maintain the vibrant but
-   readable theme"). See catalog §AQ.
-   AMENDED 2026-09-28 (Dave): the red slot joins the light unify, every red
-   in light is the in-between #E42C18, so a red category never sits next to
-   a different red. */
+   readable theme"). See catalog §AQ. */
 [data-theme="light"] {
-  --cat-red: #E42C18; --cat-orange: #FF8D0A; --cat-sky: #5CC4F5; --cat-pink: #FF6682; --cat-yellow: #FAC800;
+  --cat-red: #FF3B30; --cat-orange: #FF8D0A; --cat-sky: #5CC4F5; --cat-pink: #FF6682; --cat-yellow: #FAC800;
   --cat-green: #26A153; --cat-blue: #0A74FF; --cat-teal: #27CEC8; --cat-graphite: #707070;
   --cat-purple: #9A30CF; --cat-indigo: #3830CF; --cat-magenta: #E03EAA;
   --cat-lime: #9EDB43; --cat-sand: #C4994F; --cat-coral: #D92C12;
@@ -413,7 +410,7 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
    The other twelve slots are derived, have no Apple twin, and keep the
    chroma-first values below. */
 [data-theme="light"] {
-  --cat-tx-red: #E42C18;
+  --cat-tx-red: #FF3B30;
   --cat-tx-orange: #9A5305;
   --cat-tx-sky: #036F96;
   --cat-tx-pink: #BC244D;
@@ -448,7 +445,7 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
 /* Astra pass (2026-09-12): the same twelve take the fill as their glyph too;
    the rest keep the 3:1 values. */
 [data-theme="light"] {
-  --cat-ic-red: #E42C18;
+  --cat-ic-red: #FF3B30;
   --cat-ic-orange: #D37307;
   --cat-ic-sky: #2396C4;
   --cat-ic-pink: #EE5674;
@@ -1957,7 +1954,7 @@ body.jarvis-dragging { overflow: hidden; touch-action: none; -webkit-user-select
      grey it actually lands on: 4.14 on a row, 4.07 on the page's press, 3.91
      on a sheet's (2026-09-22, measured across 43 screens). #BC000E reads
      6.68 / 5.26 / 4.97 and is the same hue. */
-  --on-light-red: #E42C18; /* unified light red (Dave 2026-09-28): every red in light is the in-between red, 4.49:1 on white, 4.09:1 on the page, under the 4.5 bar by his ruling */
+  --on-light-red: #D22E24; /* readable words red (Dave 2026-09-27, follow-up to §AQ): the brand hue at 5.05:1 on white, 4.60:1 on the page */
   /* --on-light-good and --on-light-warn are gone with the allow-list
      (BROWSER-F-04, 2026-09-05): their values are what the light --good and
      --warn tokens are now, so the two fills that still want the darker green
@@ -3218,12 +3215,8 @@ button {
   letter-spacing: var(--track-caps);
   color: var(--tx-2); padding-left: var(--s-2); border-left: 0.5px solid var(--card-bd);
   font-variant-numeric: tabular-nums; margin-left: var(--s-1); }
-/* 2026-09-28 (Dave): on the filled light capsule the waiting count rides in
-   white, with a white hairline, so it reads on the red. */
-[data-theme="light"] .focus-row .row-act .fc-n {
-  color: rgba(255, 255, 255, 0.85);
-  border-left-color: rgba(255, 255, 255, 0.45);
-}
+/* 2026-09-28 (Dave): the waiting count rides in black on the grey pill. */
+[data-theme="light"] .focus-row .row-act .fc-n { color: #000; }
 
 /* NO TWO CONTROLS IN ONE CORNER (Dave 2026-08-19, from the same screenshot).
    A card with an absolutely-positioned corner dismiss and a one-row body puts
@@ -4371,7 +4364,7 @@ button.check-linked:active { opacity: 1; background: var(--press-3); }
    these are their daylight sisters: a warm sunrise breath in the morning,
    a cool indigo one in the evening, both fading before the first card. */
 [data-theme="light"] .today-hero.hero-morning {
-  background: linear-gradient(160deg, rgba(228,44,24,0.14), rgba(255,159,10,0.08) 45%, transparent 80%); }
+  background: linear-gradient(160deg, rgba(255,59,48,0.14), rgba(255,159,10,0.08) 45%, transparent 80%); }
 [data-theme="light"] .today-hero.hero-evening {
   background: linear-gradient(160deg, rgba(88,86,214,0.14), rgba(120,90,255,0.07) 45%, transparent 80%); }
 
@@ -4427,7 +4420,7 @@ button.check-linked:active { opacity: 1; background: var(--press-3); }
    re-letters a 50px button in the sheet red cannot reach a small pill that
    also carries the base class. The 50px base button is not a capsule and
    keeps its own fill in both themes. */
-[data-theme="light"] .btn { background: rgba(228,44,24,0.10); color: var(--on-light-red); }
+[data-theme="light"] .btn { background: rgba(255,59,48,0.10); color: var(--on-light-red); }
 [data-theme="light"] .btn-sm:not(.btn-primary):not(.btn-danger):not(.btn-secondary) {
   background-color: var(--capsule-fill); color: var(--on-light-red);
 }
@@ -4441,7 +4434,7 @@ button.check-linked:active { opacity: 1; background: var(--press-3); }
    The fill said "red action" and the ink said "not an action", in one
    theme only. The capsule rule below now paints both themes from one
    token, and the quiet variants keep their own fill in both. */
-[data-theme="light"] .note-fix { background: rgba(228,44,24,0.10); color: var(--on-light-red); }
+[data-theme="light"] .note-fix { background: rgba(255,59,48,0.10); color: var(--on-light-red); }
 /* THE ROW ACTION TAKES THE CAPSULE TOO (Dave 2026-09-22, Control Catalog:
    the in-list create rung, capsule).
 
@@ -4461,12 +4454,13 @@ button.check-linked:active { opacity: 1; background: var(--press-3); }
   background-color: var(--capsule-fill); box-shadow: none; color: var(--tint);
 }
 [data-theme="light"] .row-act, [data-theme="light"] .ruled .card .row.row-act {
-  /* 2026-09-28 (Dave): the outlined pill read as unfinished. The light
-     capsule is a solid fill in the unified red with a white label, like
-     the Accept the Day button. */
-  color: #fff;
-  background-color: var(--accent-fill);
-  border: 1px solid var(--accent-fill);
+  color: var(--on-light-red);
+  /* 2026-09-27 (readable words red): the wash fill under a red label cannot
+     clear 4.5:1 with any red in the brand hue, so the light capsule is
+     outlined -- transparent, red border -- like the row pill. The label
+     sits on the card or the page, where the words red clears the bar. */
+  background-color: transparent;
+  border: 1px solid var(--on-light-red);
 }
 .quiet-action {
   background-color: var(--press-1); box-shadow: none; color: var(--tx-2);
@@ -5169,10 +5163,10 @@ body.selecting .voice-dock { display: none; }
   padding: var(--s-2) 0; font-size: var(--t-body); font-weight: var(--w-bold);
   /* NOT --accent-tx: in dark that token is deliberately WHITE (the chip
      ruling, 2026-08-21), which would put white text on this white pill.
-     #E42C18 is --on-light-red's exact value, the unified light red,
-     correct here in BOTH themes because the pill is white in
+     #D22E24 is --on-light-red's exact value, the brand hue held to 5.05:1
+     on white, correct here in BOTH themes because the pill is white in
      both. */
-  background: #fff; color: #E42C18; }
+  background: #fff; color: #D22E24; }
 /* The hero's button is the screen's one fill now that its panel is not. */
 .mode-hero .mode-go { background: var(--accent-fill); color: #fff; }
 .mode-go.mode-go-quiet { background: var(--press-5); color: var(--tx-1); }
