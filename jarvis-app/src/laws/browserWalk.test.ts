@@ -541,31 +541,24 @@ describe("BROWSER-F-10: red words on a sheet grey are readable", () => {
     expect(ruleBody(css(), ".row-act, .ruled .card .row.row-act"), "dark: the capsule's label is its own --tint")
       .toMatch(/(^|[;\s])color:\s*var\(--tint\)/);
     const lightCap = ruleBody(css(), '[data-theme="light"] .row-act, [data-theme="light"] .ruled .card .row.row-act');
-    expect(lightCap, "light: the capsule's label is the words red")
-      .toMatch(/(^|[;\s])color:\s*var\(--on-light-red\)/);
-    // AMENDED 2026-09-27 (readable words red): no red in the brand hue clears
-    // 4.5:1 on the wash fill, so the light capsule is outlined -- transparent
-    // with a words-red border, like the row pill -- and its label sits on the
-    // card or the page, where the words red clears the bar.
-    expect(lightCap, "light: the capsule carries no wash fill")
-      .toMatch(/background(-color)?:\s*transparent/);
-    expect(lightCap, "light: the capsule's border is the words red")
-      .toMatch(/border:[^;]*var\(--on-light-red\)/);
+    // AMENDED 2026-09-28 (Dave): the outlined pill read as unfinished. The
+    // light capsule is a solid fill in the unified red with a white label,
+    // like the Accept the Day button -- --accent-fill is the token whose
+    // whole job is carrying white text. The law pins the fill and the white
+    // label, and holds white-on-unified-red (4.49:1) as the floor, so a
+    // future change can only make it more readable, never less.
+    expect(lightCap, "light: the capsule's label is white")
+      .toMatch(/(^|[;\s])color:\s*#fff/i);
+    expect(lightCap, "light: the capsule's fill is the unified red")
+      .toMatch(/background-color:\s*var\(--accent-fill\)/);
+    expect(lightCap, "light: the capsule's border matches its fill")
+      .toMatch(/border:[^;]*var\(--accent-fill\)/);
     const capDark = contrast(tokenIn("dark", "--tint"), resolve("dark", "--capsule-fill"));
     expect(capDark, `dark capsule label on its fill is ${capDark.toFixed(2)}:1`).toBeGreaterThanOrEqual(4.5);
-    const onLightRed = /--on-light-red:\s*(#[0-9A-Fa-f]{6})/.exec(bare)?.[1];
-    expect(onLightRed, "the light words red is declared").toBeTruthy();
-    // AMENDED 2026-09-28 (Dave): every red in light is the in-between
-    // #E42C18, his pick, so the capsule label can never clear the 4.5 bar --
-    // it reads 4.49:1 on a white card and 4.09:1 on the page, under the bar
-    // by his ruling. The law pins his hex and holds the measured pair as
-    // the floor, so a future change can only make it more readable, never
-    // less; any other red still clears 4.5.
-    expect(onLightRed!.toUpperCase(), "the light words red is Dave's unified red").toBe("#E42C18");
-    for (const [where, base, floor] of [["a white card", tokenIn("light", "--surface-1"), 4.4], ["the page", tokenIn("light", "--bg"), 4.0]] as const) {
-      const cr = contrast(onLightRed!, base);
-      expect(cr, `light capsule label on ${where} is ${cr.toFixed(2)}:1`).toBeGreaterThanOrEqual(floor);
-    }
+    const fillRed = tokenIn("light", "--accent-fill");
+    expect(fillRed.toUpperCase(), "the light capsule fill is Dave's unified red").toBe("#E42C18");
+    const cr = contrast("#ffffff", fillRed);
+    expect(cr, `light capsule white label on its fill is ${cr.toFixed(2)}:1`).toBeGreaterThanOrEqual(4.4);
     // The .btn variants declare their own ink against their own fill; taking
     // this token would invert .btn-danger's white on red.
     expect(rule![1]).toMatch(/:not\(\.btn-danger\)/);
