@@ -34,7 +34,7 @@ export function searchPeople(people: Person[], q: string): Person[] {
       has(p.data.name) ||
       has(p.data.relationship) ||
       (p.data.aliases ?? []).some(has) ||
-      (p.data.roles ?? []).some((r) => has(r.role)) ||
+      (p.data.roles ?? []).some((r) => has(typeof r === "string" ? r : r.role)) ||
       has(p.data.org) ||
       has(p.data.title),
   );

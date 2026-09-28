@@ -7,6 +7,9 @@ import { Facts, ruleStateFact, dayTone, type FactTone } from "./factsLine";
 import { loadOverrides, saveOverride, clearOverride, applyOverrides, type ThreadOverrides } from "./threadOverride";
 import type { TaskItem } from "../tasks/TasksService";
 import { attemptWrite } from "../shared/guard";
+import RowActionSheet from "../shared/RowActionSheet";
+import WhoIsThisSheet from "../ai/WhoIsThisSheet";
+import { UNDO_MS, VOICE_SAMPLE_CAP, filedContactToastText, type BrainMemoryRow } from "../ai/brainMemory";
 import SkeletonRows from "../shared/SkeletonRows";
 import NoticeCard from "../today/NoticeCard";
 import "../styles/mail-rows.css";
@@ -167,7 +170,7 @@ const DemoMail = __DEMO_SEED__ ? lazyWithRecovery(() => import("./DemoMail")) : 
 import { noDashes } from "../ai/suggestions";
 import { useOptionalAIContext } from "../ai/useAIContext";
 import { voiceToText } from "../ai/context";
-import { useOptionalTasks, useOptionalSchedule, useOptionalPeople, useOptionalProfile, useOptionalNotes, useOptionalProjects, useOptionalRoutine, useOptionalBrainDocs, useOptionalDecisions } from "../data/NotesProvider";
+import { useOptionalTasks, useOptionalSchedule, useOptionalPeople, useOptionalProfile, useOptionalNotes, useOptionalProjects, useOptionalRoutine, useOptionalBrainDocs, useOptionalDecisions, useOptionalBrainMemory } from "../data/NotesProvider";
 import { b64urlDecodeBytes } from "../connections/google/map";
 import { lineCase } from "../shared/casing";
 import { clockLabel, minutesLabel, secondsLabel } from "../shared/duration";
@@ -291,6 +294,70 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   const projectsSvc = useOptionalProjects();
   const routineSvc = useOptionalRoutine();
   const people = useOptionalPeople();
+  const brain = useOptionalBrainMemory();
+  // Brain Manual v1 (2026-09-27): "Save My Voice" confirm + "Who Is This?"
+  // triage. voiceConfirm holds the short sample awaiting its "save anyway";
+  // triageSender the unknown sender being triaged; triagedEmails keeps the
+  // just-triaged addresses reading as known until the contact list reloads.
+  const [voiceConfirm, setVoiceConfirm] = useState<string | null>(null);
+  const [triageSender, setTriageSender] = useState<{ name: string; email: string } | null>(null);
+  const [triagedEmails, setTriagedEmails] = useState<string[]>([]);
+
+  // "Save My Voice" (§4.4): the guardrails answer first -- duplicate skips
+  // with a notice, too-short offers "save anyway", ok files. Filing is the
+  // user's tap, so it bypasses aiGate at every AI Control level.
+  const fileVoiceSample = async (text: string) => {
+    if (!brain) return;
+    let id: string | null = null;
+    let replaced: BrainMemoryRow | null = null;
+    let count = 0;
+    const ok = await attemptWrite(async () => {
+      const r = await brain.saveVoiceSample(text);
+      id = r.id; replaced = r.replaced; count = r.count;
+    });
+    if (!ok || !id) return;
+    const filedId: string = id;
+    const replacedRow: BrainMemoryRow | null = replaced;
+    say(`Saved to How You Write · Voice Sample ${count} of ${VOICE_SAMPLE_CAP} ✓`, {
+      label: "Undo",
+      run: () => void (replacedRow ? brain.restoreVoiceSample(filedId, replacedRow) : brain.unfile(filedId)),
+    }, UNDO_MS);
+  };
+  const saveVoice = (text: string) => {
+    if (!brain) return;
+    void (async () => {
+      const check = await brain.voiceCheck(text);
+      if (check === "duplicate") { say("Already in Your Voice Samples"); return; }
+      if (check === "too-short") { setVoiceConfirm(text); return; }
+      await fileVoiceSample(text);
+    })();
+  };
+
+  // "Who Is This?": the unknown sender becomes a contact AND gets triaged
+  // in one go. Undo removes the row the tap created.
+  const saveSenderTriage = async (s: { name: string; email: string }, roles: string[], note: string) => {
+    if (!brain || !people) return;
+    let personId: string | null = null;
+    const ok = await attemptWrite(async () => {
+      personId = await people.create({ name: s.name, group: "contacts", email: s.email });
+      if (personId) await brain.triagePerson(personId, roles, note.trim() ? note.trim() : undefined, "email");
+    });
+    if (!ok || !personId) return;
+    const pid: string = personId;
+    setTriagedEmails((prev) => (prev.includes(s.email.toLowerCase()) ? prev : [...prev, s.email.toLowerCase()]));
+    say(filedContactToastText(), {
+      label: "Undo",
+      run: () => {
+        // writeGuard: an Undo whose delete fails must say so. The remove
+        // rides attemptWrite, and the local triage mark only clears once the
+        // row is actually gone, so a failed Undo cannot orphan a contact.
+        void attemptWrite(async () => {
+          await people.remove(pid);
+          setTriagedEmails((prev) => prev.filter((e) => e !== s.email.toLowerCase()));
+        });
+      },
+    }, UNDO_MS);
+  };
   const brainDocs = useOptionalBrainDocs();
   const decisionsSvc = useOptionalDecisions();
   // UP-MIND-10 (2026-09-05): Contacts by address, rebuilt when Contacts
@@ -316,7 +383,13 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   // NotesProvider, and a missing context means a plain prompt, never a crash.
   const gatherContext = useOptionalAIContext();
   const voiceText = useCallback(
-    () => gatherContext().then((c) => (c ? voiceToText(c, { channel: "email" }) : "")).catch(() => ""),
+    // Brain Manual v1: drafts are the one place voice samples may ride
+    // along (isDraft), and retrieval keys off the draft's subject so the
+    // samples match the topic, not the last thing filed.
+    (message = "") =>
+      gatherContext(undefined, { message, isDraft: true })
+        .then((c) => (c ? voiceToText(c, { channel: "email" }) : ""))
+        .catch(() => ""),
     [gatherContext],
   );
   const authToken = token ?? session?.access_token;
@@ -1123,7 +1196,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
           // the last rung changes CHANNEL rather than raising its voice.
           // The tone escalates; the blame never does.
           // The WAIT sets the tone, the ASK sets what the draft is for.
-          const p = nudgePrompt(row, await voiceText());
+          const p = nudgePrompt(row, await voiceText(row.subject));
           // PLUMB-F-13 (2026-09-05): this drafts an email, so it rides the
           // Email Drafts pin. Without it the pin gated the background card
           // job alone, and turning Email Drafts off still wrote a draft the
@@ -2711,7 +2784,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
       let note = defaultNote(target, t.subject);
       if (ai.available) {
         try {
-          const p = handoffPrompt(target, t.subject, effTriage[t.id]?.gist || "", await voiceText());
+          const p = handoffPrompt(target, t.subject, effTriage[t.id]?.gist || "", await voiceText(t.subject + " " + (effTriage[t.id]?.gist || "")));
           // PLUMB-F-13 (2026-09-05): the hand-off note is an email draft too.
           // Refused, the plain note stands, which is what the catch says.
           const written = noDashes((await ai.complete([{ role: "user", content: p.user }], p.system, { tier: "write", pin: "emailDrafts" })).trim());
@@ -3611,6 +3684,28 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
             <div className="msg-detail-subj">{thread.subject}</div>
             <div className="conn-meta">{thread.messages.length === 1 ? lastMsg(thread).from : thread.messages.length + " messages"}</div>
           </div>
+          {(() => {
+            // Brain Manual v1 "Who Is This?" (2026-09-27): inline in the
+            // thread when the sender isn't a contact -- the address lookup
+            // is the same one every email-born task uses, so a wrong person
+            // id is never attached.
+            if (!brain || !people) return null;
+            const first = thread.messages[0];
+            const senderEmail = (first?.fromEmail ?? "").trim().toLowerCase();
+            if (!senderEmail) return null;
+            // Never ask who he is: his own connected account addresses are not
+            // unknown. The thread's account first, then every connected one.
+            const ownAddrs = new Set(
+              [replyAllSelf, ...g.accounts.map((a) => a.email)].map((e) => (e || "").trim().toLowerCase()).filter(Boolean),
+            );
+            if (ownAddrs.has(senderEmail)) return null;
+            if (personIdFor(senderEmail) || triagedEmails.includes(senderEmail)) return null;
+            return (
+              <div className="msg-more-row">
+                <button className="quiet-action msg-more" onClick={() => setTriageSender({ name: first?.from || senderEmail, email: senderEmail })}>Who Is This?</button>
+              </div>
+            );
+          })()}
           {/* FOUR LAYERS OF ONE APPOINTMENT REMINDER (Dave 2026-08-25). His
               screenshot: the subject, then a JARVIS Summary, then the raw
               body opening with the same sentence, then "Read the whole thing
@@ -3668,6 +3763,12 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
             const asSent = !!m.html;
             const mode = bodyMode[m.id] ?? (asSent ? "sent" : "text");
             const setMode = (v: "sent" | "text" | "full") => setBodyMode((o) => ({ ...o, [m.id]: v }));
+            // Brain Manual v1 "Save My Voice" (2026-09-27): on the messages
+            // Dave sent himself -- his words, his voice. The thread's account
+            // email is the same "self" the reply-all builder uses, so the
+            // comparison is the one the app already trusts.
+            const selfEmail = (replyAllSelf || "").trim().toLowerCase();
+            const ownSent = !!brain && !!selfEmail && (m.fromEmail ?? "").trim().toLowerCase() === selfEmail;
             return (
             <div className={"msg-turn" + (focusMsg === m.id ? " ev-target" : "")} id={"msgturn-" + m.id} key={m.id}>
               <div className="msg-turn-head">
@@ -3678,7 +3779,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
               {mode === "sent"
                 ? <MailHtmlView html={m.html!} />
                 : <div className="msg-body">{long && mode === "text" ? leadIn(clean) : clean}</div>}
-              {(long || asSent) && (
+              {(long || asSent || ownSent) && (
                 <div className="msg-more-row">
                   {mode === "sent" && <button className="quiet-action msg-more" onClick={() => setMode("text")}>Show as Text</button>}
                   {mode === "text" && long && (
@@ -3686,6 +3787,9 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                   )}
                   {mode === "full" && <button className="quiet-action msg-more" onClick={() => setMode("text")}>Fold It Back</button>}
                   {mode !== "sent" && asSent && <button className="quiet-action msg-more" onClick={() => setMode("sent")}>Show as Sent</button>}
+                  {ownSent && (
+                    <button className="quiet-action msg-more" onClick={() => saveVoice(clean)}>Save My Voice</button>
+                  )}
                 </div>
               )}
               {m.attachments.length > 0 && (
@@ -4039,6 +4143,25 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
           {/* The page ends above the floating dock. */}
           <div className="msg-detail-tail" aria-hidden="true" />
         </div>
+        {/* Brain Manual v1: the short-sample "save anyway" confirm, in the
+            app's one action-sheet atoms. */}
+        {voiceConfirm !== null && (
+          <RowActionSheet
+            title="Too short to learn much from - save anyway?"
+            actions={[
+              { label: "Save", onPick: () => { const t = voiceConfirm; setVoiceConfirm(null); void fileVoiceSample(t); } },
+              { label: "Discard", onPick: () => setVoiceConfirm(null) },
+            ]}
+            onCancel={() => setVoiceConfirm(null)}
+          />
+        )}
+        {triageSender && (
+          <WhoIsThisSheet
+            name={triageSender.name}
+            onSave={(roles, note) => void saveSenderTriage(triageSender, roles, note)}
+            onClose={() => setTriageSender(null)}
+          />
+        )}
       </div>
     );
   }

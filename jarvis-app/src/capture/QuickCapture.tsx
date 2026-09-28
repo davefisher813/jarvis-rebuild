@@ -1,6 +1,7 @@
 import { createPortal } from "react-dom";
 import { useState, useRef, type ReactNode } from "react";
-import { useTasks, useSchedule, useNotes, useCategories, useOptionalRules, useOptionalStrands, useOptionalDecisions, usePeople, useProjects } from "../data/NotesProvider";
+import { useTasks, useSchedule, useNotes, useCategories, useOptionalRules, useOptionalStrands, useOptionalDecisions, useOptionalBrainMemory, usePeople, useProjects } from "../data/NotesProvider";
+import FilingSheet from "../ai/FilingSheet";
 import { STRAND_CATEGORY_LABEL, STRAND_TYPE_LABEL, type StrandCategory } from "../brain/strands/types";
 import { aliasTrigger } from "../rules/triggers";
 import { useAIContext, todayISO } from "../ai/useAIContext";
@@ -167,6 +168,10 @@ export default function QuickCapture({ ai, onClose, onOpen }: { ai: AIService; o
   const peopleSvc = usePeople();
   const projectsSvc = useProjects();
   const decisions = useOptionalDecisions();
+  // Brain Manual v1 (2026-09-27): the filing doors. Optional like the
+  // decisions seam above -- without a brain service they simply don't render.
+  const brain = useOptionalBrainMemory();
+  const [filingMode, setFilingMode] = useState<"decision" | "remember" | null>(null);
 
   const [text, setText] = useState("");
   const [phase, setPhase] = useState<"input" | "saving" | "saved">("input");
@@ -429,6 +434,17 @@ export default function QuickCapture({ ai, onClose, onOpen }: { ai: AIService; o
               )}
               <button className="btn btn-secondary btn-block" onClick={onClose} disabled={phase === "saving"}>Cancel</button>
             </div>
+            {/* Brain Manual v1 (2026-09-27): the filing doors ride under
+                Smart Paste's own actions -- the capture flow is untouched,
+                these open the one filing sheet (3 fields max) on top.
+                Stacked on the messages surfaces' own quiet-exits pattern
+                (.msg-quiet-acts): no new styling. */}
+            {brain && (
+              <div className="msg-quiet-acts">
+                <button className="quiet-action" onClick={() => setFilingMode("decision")}>Log the Decision</button>
+                <button className="quiet-action" onClick={() => setFilingMode("remember")}>Remember This</button>
+              </div>
+            )}
           </div>
         )}
 
@@ -556,6 +572,14 @@ export default function QuickCapture({ ai, onClose, onOpen }: { ai: AIService; o
           </div>
         )}
       </div>
+      {filingMode && (
+        <FilingSheet
+          mode={filingMode}
+          initialText=""
+          source="plus-menu"
+          onClose={() => setFilingMode(null)}
+        />
+      )}
     </div>,
     document.body,
   );

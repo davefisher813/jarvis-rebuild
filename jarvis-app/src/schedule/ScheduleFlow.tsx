@@ -3,7 +3,7 @@ import { sourceOpener } from "../shared/openSource";
 import { rowSource } from "../shared/provenance";
 import { useSchedule, useCategories, useTasks, useRoutine, useProjects, useGoals, useProfile, useNotes, useOptionalStrands, useOptionalRules, useOptionalGym } from "../data/NotesProvider";
 import { rememberTravel, type TravelMemory } from "./leaveBy";
-import { usePeople } from "../data/NotesProvider";
+import { usePeople, useOptionalBrainMemory } from "../data/NotesProvider";
 import type { Person } from "../people/types";
 import CallPrepSheet from "../people/CallPrepSheet";
 import GymFlow, { readActiveProgramId } from "../gym/GymFlow";
@@ -54,6 +54,9 @@ import { shiftBlock as shiftBlockAdjust, blockShiftFits, retimeBlock as retimeBl
 import { useAI } from "../ai/useAI";
 import { useAIContext } from "../ai/useAIContext";
 import { contextToText } from "../ai/context";
+import FilingSheet from "../ai/FilingSheet";
+import WhoIsThisSheet from "../ai/WhoIsThisSheet";
+import { UNDO_MS, filedContactToastText } from "../ai/brainMemory";
 import type { TaskItem } from "../tasks/TasksService";
 import { repeatRows } from "./repeats";
 import { overlapsOn, overlapLine, copyDay, durationOf, type Overlap } from "./dayEdit";
@@ -135,10 +138,24 @@ export default function ScheduleFlow({ onEditRoutine, openId, onNavigate }: { on
   const [noteTick, setNoteTick] = useState(0);
   // UP-CORE-10: a guest who is not in Contacts is one tap to add, with the
   // real name and address off the invite and nothing invented.
-  const addGuest = async (a: { email: string; name?: string }) => {
-    const ok = await attemptWrite(() => peopleSvc.create({ name: a.name?.trim() || a.email, group: "contacts", email: a.email }));
+  // Brain Manual v1 "Who Is This?" (2026-09-27): adding an unknown attendee
+  // opens the inline triage card instead of silently creating the contact.
+  // Save creates the person row AND writes the triage fields in one go;
+  // Cancel creates nothing.
+  const [triageGuest, setTriageGuest] = useState<{ name: string; email: string } | null>(null);
+  const saveGuestTriage = async (g: { name: string; email: string }, roles: string[], note: string) => {
+    if (!brain) return;
+    let personId: string | null = null;
+    const ok = await attemptWrite(async () => {
+      personId = await peopleSvc.create({ name: g.name, group: "contacts", email: g.email });
+      if (personId) await brain.triagePerson(personId, roles, note.trim() ? note.trim() : undefined, "event");
+    });
     setPeopleTick((n) => n + 1);
-    if (ok) showToast({ message: "Added to Contacts" });
+    if (!ok || !personId) return;
+    const pid = personId;
+    // writeGuard: an Undo whose delete fails must say so, so the remove rides
+    // attemptWrite instead of a bare void.
+    showToast({ message: filedContactToastText(), actionLabel: "Undo", onAction: () => void attemptWrite(() => peopleSvc.remove(pid)) }, UNDO_MS);
   };
 
   const cats = useCategories();
@@ -182,6 +199,10 @@ export default function ScheduleFlow({ onEditRoutine, openId, onNavigate }: { on
     return () => { on = false; };
   }, [projectsSvc, goalsSvc]);
   const [sheet, setSheet] = useState<SheetState>(null);
+  const brain = useOptionalBrainMemory();
+  // Brain Manual v1 "Log the Decision": the event being decided on, so the
+  // decision sheet prefills its title and links back to it.
+  const [logDecision, setLogDecision] = useState<{ id: string; title: string } | null>(null);
   // THE SAME TAP AS AN EVENT (2026-08-28, Dave: "when I click on something in
   // the schedule it should allow me to edit it like a normal scheduled
   // event"). Tapping a protected block used to open the whole Your Routine
@@ -1640,6 +1661,7 @@ export default function ScheduleFlow({ onEditRoutine, openId, onNavigate }: { on
           projects={sheetProjects(projList, goalList)}
           onDelete={sheet.mode === "edit" ? onDelete : undefined}
           onDuplicate={sheet.mode === "edit" ? () => void duplicateEvent(sheet.id) : undefined}
+          onLogDecision={sheet.mode === "edit" && brain ? () => setLogDecision({ id: sheet.id, title: sheet.initial.title }) : undefined}
           onMoveToAnytime={sheet.mode === "edit" ? () => { const id = sheet.id; setSheet(null); onUnschedule(id); } : undefined}
           onCancel={() => { setSheet(null); setNewStart(null); }}
           suggestTitles={(typed) => suggestTitles(allEvents, typed)}
@@ -1652,7 +1674,23 @@ export default function ScheduleFlow({ onEditRoutine, openId, onNavigate }: { on
           travelMemory={travelMemory}
           knownPeople={people.map((p) => ({ id: p.id, name: p.data.name, email: p.data.email }))}
           onOpenPerson={(id) => setPrepPerson({ id, about: sheet.mode === "edit" ? sheet.initial.title : "" })}
-          onAddPerson={(a) => void addGuest(a)}
+          onAddPerson={(a) => setTriageGuest({ name: a.name?.trim() || a.email, email: a.email })}
+        />
+      )}
+      {logDecision && (
+        <FilingSheet
+          mode="decision"
+          initialText={logDecision.title}
+          linkedItemIds={[logDecision.id]}
+          source="event"
+          onClose={() => setLogDecision(null)}
+        />
+      )}
+      {triageGuest && (
+        <WhoIsThisSheet
+          name={triageGuest.name}
+          onSave={(roles, note) => void saveGuestTriage(triageGuest, roles, note)}
+          onClose={() => setTriageGuest(null)}
         />
       )}
       {/* UP-CORE-10 (2026-09-05): MEETING PREP IS THE CARD THE APP ALREADY

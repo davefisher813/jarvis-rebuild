@@ -20,6 +20,7 @@ import ConnectionsPage from "../connections/ConnectionsPage";
 import EditTabsPage from "./EditTabsPage";
 import AIControlPage from "../settings/AIControlPage";
 import LearnedRulesPage from "../settings/LearnedRulesPage";
+import BrainSettingsPage from "../settings/BrainSettingsPage";
 import LearningLabPage from "../settings/LearningLabPage";
 import type { Destination } from "../shell/destinations";
 // Admin is a hidden owner-only surface; its chunk loads on first open.
@@ -94,6 +95,8 @@ export default function MoreFlow({
   if (route === "notifsettings") return <NotificationsPage onBack={() => setRoute("settings")} />;
   if (route === "aicontrol") return <AIControlPage onBack={() => setRoute("settings")} />;
   if (route === "learned") return <LearnedRulesPage onBack={() => setRoute("settings")} />;
+  // Brain Manual v1: Export and Erase for the categorized memory.
+  if (route === "brainsettings") return <BrainSettingsPage onBack={() => setRoute("settings")} />;
   if (route === "about") return <AboutPage onBack={() => setRoute("settings")} onTerms={() => setRoute("terms")} onPrivacy={() => setRoute("privacy")} onSupport={() => setRoute("support")} onSecret={canAdmin ? () => setRoute("admin") : undefined} />;
   if (route === "admin") return <Suspense fallback={<div className="screen" />}><AdminPanel isAdmin={canAdmin} source={adminSource} onBack={() => setRoute("settings")} /></Suspense>;
   if (route === "terms") return <TermsPage onBack={() => setRoute("about")} />;

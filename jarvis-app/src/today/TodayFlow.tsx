@@ -550,7 +550,9 @@ export default function TodayFlow({
     const person = msgPerson ? peopleList.find((p) => p.id === msgPerson.id) : undefined;
     if (!person) { setMsgVoice(""); return; }
     let live = true;
-    void gatherContext({ personId: person.id, personName: person.data.name })
+    // Brain Manual v1: the sheet drafts texts, so voice samples ride along
+    // (isDraft) and retrieval keys off what the message is about.
+    void gatherContext({ personId: person.id, personName: person.data.name }, { message: msgPerson?.about ?? "", isDraft: true })
       .then((c) => voiceToText(c, { styleRule: false }))
       .catch(() => "")
       .then((v) => { if (live) setMsgVoice(v); });

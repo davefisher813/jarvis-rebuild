@@ -56,13 +56,16 @@ function aboutOf(m: MentionItem): string {
     : `the upcoming "${m.title}"${m.sub ? ` on ${m.sub}` : ""}`;
 }
 
-export default function PeopleFlow({ onBack, openId: initialOpenId, openNonce, onOpenConsumed, onOpenNote, onOpenItem }: { onBack: () => void; openId?: string;
+export default function PeopleFlow({ onBack, openId: initialOpenId, openNonce, onOpenConsumed, onOpenNote, onOpenItem, onOpenTriage }: { onBack: () => void; openId?: string;
   // BRAIN-F-04 (2026-09-05): the shell's one-shot shape (shell/intents.ts).
   // This id used to be read once per mount and cleared only by a bottom-tab
   // tap, so backing out of a person, leaving Contacts and tapping Contacts
   // again opened them straight back up. The effect below consumes it.
   openNonce?: number; onOpenConsumed?: () => void;
-  onOpenNote?: (id: string) => void; onOpenItem?: (kind: string, id: string) => void }) {
+  onOpenNote?: (id: string) => void; onOpenItem?: (kind: string, id: string) => void;
+  // Brain Manual v1 triage: the Contacts list's "Continue Sorting" entry.
+  // Absent when PeopleFlow is reached from anywhere but the Brain tab.
+  onOpenTriage?: () => void }) {
   const people = usePeople();
   const notesSvc = useNotes();
   const catsSvc = useCategories();
@@ -245,11 +248,13 @@ export default function PeopleFlow({ onBack, openId: initialOpenId, openNonce, o
   // UP-MIND-23 (2026-09-05): the writing voice plus what is linked to THIS
   // person, gathered here because the sheet owns no services (its own law).
   // Empty until it resolves, which is the plain prompt, never a broken one.
+  // Brain Manual v1: the sheet drafts texts, so voice samples ride along
+  // (isDraft) and retrieval keys off what the message is about.
   const [msgVoice, setMsgVoice] = useState("");
   useEffect(() => {
     if (!msg || !current) { setMsgVoice(""); return; }
     let live = true;
-    void gatherCtx({ personId: current.id, personName: current.data.name })
+    void gatherCtx({ personId: current.id, personName: current.data.name }, { message: msg.about ?? "", isDraft: true })
       .then((c) => (c ? voiceToText(c, { styleRule: false, channel: "text" }) : ""))
       .catch(() => "")
       .then((v) => { if (live) setMsgVoice(v); });
@@ -301,10 +306,14 @@ export default function PeopleFlow({ onBack, openId: initialOpenId, openNonce, o
   const editing = sheet.kind === "edit" ? list.find((p) => p.id === sheet.id) : undefined;
 
   const onSave = async (d: PersonDraft) => {
+    // The roles key is shared with Brain triage (string entries): the sheet
+    // edits per-area roles only, so the triage strings ride along untouched.
+    const keptTriageRoles = (editing?.data.roles ?? []).filter((r): r is string => typeof r === "string");
+    const mergedRoles = [...d.roles, ...keptTriageRoles];
     const facts = {
       aliases: d.aliases.length ? d.aliases : undefined,
       relationship: d.relationship || undefined,
-      roles: d.roles.length ? d.roles : undefined,
+      roles: mergedRoles.length ? mergedRoles : undefined,
       birthday: d.birthday || undefined,
       notes: d.notes || undefined,
       color: d.color,
@@ -752,7 +761,8 @@ export default function PeopleFlow({ onBack, openId: initialOpenId, openNonce, o
           categoryColors={(current.data.categoryIds ?? []).map((id) => categories.find((c) => c.id === id)).filter((c): c is SheetCategoryOpt => !!c).map((c) => {
             // The role they hold IN this area, when one is set. Resolved here
             // like every other fact on that screen, which has no service access.
-            const role = (current.data.roles ?? []).find((r) => r.categoryId === c.id)?.role;
+            // String entries are Brain triage roles, not per-area roles.
+            const role = (current.data.roles ?? []).find((r): r is { categoryId: string; role: string } => typeof r !== "string" && r.categoryId === c.id)?.role;
             return role ? { name: c.name, color: c.color, role } : { name: c.name, color: c.color };
           })}
           onAddPoint={(text) => void addPoint(current.id, text)}
@@ -818,6 +828,7 @@ export default function PeopleFlow({ onBack, openId: initialOpenId, openNonce, o
         onClearDuplicateNotes={dupes.length > 0 ? () => void clearDupes() : undefined}
         onRepair={(id, f) => void repairOne(id, f)}
         onSkipRepair={skipRepair}
+        onOpenTriage={onOpenTriage}
         onBack={onBack}
       />
       {sheetEl}

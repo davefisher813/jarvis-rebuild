@@ -19,7 +19,7 @@ import type { Source } from "../../shared/provenance";
 import HeadMenu from "../../shared/HeadMenu";
 import { onPressKey } from "../../shared/pressable";
 import { Tile, tapField } from "../../shared/FormSheet";
-import { Calendar, Tag, Hourglass, Shuffle, Timer, Link2, FileText, User, Plus, FolderKanban } from "../../shared/icons";
+import { Calendar, Tag, Hourglass, Shuffle, Timer, Link2, FileText, User, Plus, FolderKanban, Brain } from "../../shared/icons";
 import { CalendarGlyph, ClockGlyph, RepeatGlyph, PinGlyph, BarbellGlyph, SunGlyph } from "../../shared/glyphs";
 import { spanLabel } from "../../shared/duration";
 
@@ -102,6 +102,7 @@ export default function EventSheet({
   onSave,
   onDelete,
   onDuplicate,
+  onLogDecision,
   onMoveToAnytime,
   onCancel,
   suggestTitles,
@@ -126,6 +127,9 @@ export default function EventSheet({
   onDelete?: (scope?: "this" | "series") => void;
   // E2: copy this event as a new one-off on the same day.
   onDuplicate?: () => void;
+  // Brain Manual v1 "Log the Decision": files a decision linked to this
+  // event. Optional -- the flow owns the sheet and the write.
+  onLogDecision?: () => void;
   onMoveToAnytime?: () => void;
   onCancel: () => void;
   // Memory layer (Session 3): past events offered whole while typing a title,
@@ -680,15 +684,16 @@ export default function EventSheet({
             {/* WHO IS IN THE ROOM. Google's list, read-only because nothing
                 here writes it back (the coverage map forbids write-back).
                 A guest already in Contacts opens the one person card the app
-                has; one who is not is a single tap to add, with the real
-                name and address, never a guess. */}
+                has; one who is not gets the one triage verb, Who Is This?,
+                with the real name and address, never a guess. */}
             {(initial?.attendees ?? []).map((a) => {
-              const known = onOpenPerson ? knownPeople.find((p) => p.email && p.email.toLowerCase() === a.email) : undefined;
+              const known = onOpenPerson ? knownPeople.find((p) => p.email && p.email.trim().toLowerCase() === (a.email ?? "").trim().toLowerCase()) : undefined;
               return (
                 // THE WHOLE ROW IS THE DOOR (Dave 2026-09-15): a known guest's
-                // row opens their card, an unknown one's does its one verb, Add.
+                // row opens their card, an unknown one's does its one verb,
+                // Who Is This? (triage, never a silent add).
                 <div className="row xs-row" key={a.email} role="button" tabIndex={0}
-                  aria-label={(known && onOpenPerson ? "Open " : "Add ") + (a.name || a.email)}
+                  aria-label={(known && onOpenPerson ? "Open " : "Who Is This? ") + (a.name || a.email)}
                   onClick={() => guestTap(a, known?.id)}
                   onKeyDown={(e) => { if (e.target === e.currentTarget) onPressKey(() => guestTap(a, known?.id))(e); }}>
                   <Tile tone="teal"><User className="ic" /></Tile>
@@ -700,7 +705,7 @@ export default function EventSheet({
                     <button type="button" className="pill-act" onClick={(e) => { e.stopPropagation(); onOpenPerson(known.id); }}>Open</button>
                   )}
                   {!known && onAddPerson && (
-                    <button type="button" className="pill-act" onClick={(e) => { e.stopPropagation(); onAddPerson(a); }}>Add</button>
+                    <button type="button" className="pill-act" onClick={(e) => { e.stopPropagation(); onAddPerson(a); }}>Who Is This?</button>
                   )}
                 </div>
               );
@@ -780,12 +785,22 @@ export default function EventSheet({
             </div>
           </div></div>
 
-          {mode === "edit" && ((onMoveToAnytime && recurrence === "none") || onDuplicate || onDelete) && (
+          {mode === "edit" && ((onMoveToAnytime && recurrence === "none") || onDuplicate || onLogDecision || onDelete) && (
             <div className="pad-x xs-actions"><div className="card xs-group">
               {onMoveToAnytime && recurrence === "none" && (
                 <div className="row xs-row" role="button" tabIndex={0} onClick={onMoveToAnytime}>
                   <Tile tone="sky"><SunGlyph /></Tile>
                   <div className="conn-name">Move to Anytime</div>
+                  <div className="chev"></div>
+                </div>
+              )}
+              {/* Brain Manual v1 (2026-09-27): one tap files the decision
+                  behind this event. Purple is the decision hue in the
+                  colour key. */}
+              {onLogDecision && (
+                <div className="row xs-row" role="button" tabIndex={0} onClick={onLogDecision}>
+                  <Tile tone="purple"><Brain className="ic" /></Tile>
+                  <div className="conn-name">Log the Decision</div>
                   <div className="chev"></div>
                 </div>
               )}

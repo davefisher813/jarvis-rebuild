@@ -1,6 +1,6 @@
 import type React from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useTasks, useCategories, useSchedule, useRoutine, useNotes, usePeople } from "../data/NotesProvider";
+import { useTasks, useCategories, useSchedule, useRoutine, useNotes, usePeople, useOptionalBrainMemory } from "../data/NotesProvider";
 import type { Person } from "../people/types";
 import CallPrepSheet from "../people/CallPrepSheet";
 import SyllabusUploadFlow from "../life/SyllabusUploadFlow";
@@ -32,6 +32,7 @@ import { showToast } from "../shared/toast";
 import { attemptWrite } from "../shared/guard";
 import { setAsideCandidates, firstStepCandidate, isFirstStepDismissed, dismissFirstStep, backOnTrackMessage, slidingLine, SLIDING_TAG } from "./lifecycle";
 import { useCategoryEstimates, useTaskEstimate } from "../schedule/useTaskEstimate";
+import FilingSheet from "../ai/FilingSheet";
 import { useAI } from "../ai/useAI";
 import { useAIContext } from "../ai/useAIContext";
 import { identityToText, voiceToText } from "../ai/context";
@@ -128,7 +129,9 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, startId, 
     const person = personSheet?.kind === "text" ? people.find((p) => p.id === personSheet.personId) : undefined;
     if (!person) { setMsgVoice(""); return; }
     let live = true;
-    void gatherContext({ personId: person.id, personName: person.data.name })
+    // Brain Manual v1: the sheet drafts texts, so voice samples ride along
+    // (isDraft) and retrieval keys off what the message is about.
+    void gatherContext({ personId: person.id, personName: person.data.name }, { message: personSheet?.about ?? "", isDraft: true })
       .then((c) => (c ? voiceToText(c, { styleRule: false }) : ""))
       .catch(() => "")
       .then((v) => { if (live) setMsgVoice(v); });
@@ -216,6 +219,10 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, startId, 
   const [offHoursCats, setOffHoursCats] = useState<ReadonlySet<string>>(new Set());
   const routineSvc = useRoutine();
   const [sheet, setSheet] = useState<SheetState>(null);
+  const brain = useOptionalBrainMemory();
+  // Brain Manual v1 "Log the Decision": the task being decided on, so the
+  // decision sheet prefills its text and links back to it.
+  const [logDecision, setLogDecision] = useState<{ id: string; text: string } | null>(null);
   // LINKED NOTES (Dave 2026-08-28, "very very easy to connect things"): same
   // reverse lookup Person/Project/Goal detail already use, kept in sync with
   // whichever task the sheet has open.
@@ -1160,6 +1167,10 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, startId, 
           })()}
           onSchedule={sheet.mode === "edit" ? onScheduleTask : undefined}
           onBreakDown={sheet.mode === "edit" && ai.available ? (t) => void breakDown(t) : undefined}
+          onLogDecision={sheet.mode === "edit" && brain ? () => {
+            const t = allItems.find((x) => x.id === sheet.id);
+            if (t) setLogDecision({ id: t.id, text: t.data.text });
+          } : undefined}
           onTextPerson={(() => {
             // UP-CORE-17: only when the task names a person who still exists
             // and has a number: MessageDraftSheet's own door out is an sms:
@@ -1194,6 +1205,15 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, startId, 
             });
             if (noteId) onOpenNote(noteId);
           })() : undefined}
+        />
+      )}
+      {logDecision && (
+        <FilingSheet
+          mode="decision"
+          initialText={logDecision.text}
+          linkedItemIds={[logDecision.id]}
+          source="task"
+          onClose={() => setLogDecision(null)}
         />
       )}
       {uploadOpen && (
