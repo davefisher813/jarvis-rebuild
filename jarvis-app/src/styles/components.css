@@ -3215,6 +3215,8 @@ button {
   letter-spacing: var(--track-caps);
   color: var(--tx-2); padding-left: var(--s-2); border-left: 0.5px solid var(--card-bd);
   font-variant-numeric: tabular-nums; margin-left: var(--s-1); }
+/* 2026-09-28 (Dave): the waiting count rides in black on the grey pill. */
+[data-theme="light"] .focus-row .row-act .fc-n { color: #000; }
 
 /* NO TWO CONTROLS IN ONE CORNER (Dave 2026-08-19, from the same screenshot).
    A card with an absolutely-positioned corner dismiss and a one-row body puts
