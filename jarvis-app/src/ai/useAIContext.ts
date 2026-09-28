@@ -4,6 +4,7 @@ import {
   useOptionalProfile, useOptionalPeople, useOptionalBrainDocs, useOptionalTasks, useOptionalSchedule,
   useOptionalCategories, useOptionalRoutine, useOptionalGoals, useOptionalProjects, useOptionalMoney,
   useOptionalStrands, useOptionalDecisions, useOptionalSeal, useOptionalMetrics, useOptionalGym, useOptionalNotes,
+  useOptionalBrainMemory,
 } from "../data/NotesProvider";
 import type { StrandsService } from "../brain/strands/StrandsService";
 import type { DecisionService } from "../decisions/DecisionService";
@@ -11,6 +12,10 @@ import type { NotesService } from "../notes/NotesService";
 import type { SealService } from "../review/seal";
 import type { MetricsService } from "../gym/MetricsService";
 import type { GymService } from "../gym/GymService";
+import type { Person } from "../people/types";
+import type { BrainMemoryRow } from "./brainMemory";
+import type { BrainMemoryService } from "./brainMemoryService";
+import { assembleMemory, draftInstructions, toContextInput, type MemorySection, type PersonRow } from "./memoryAssemble";
 import { trainingLines } from "../gym/trainingContext";
 import { readGymSettings, rackFrom } from "../gym/settings";
 import { protectedRangesFor, DEFAULT_ROUTINE } from "../routine/types";
@@ -19,7 +24,7 @@ import type { EventItem } from "../schedule/types";
 import { sealLines } from "../review/seal";
 import { rankForRecall } from "../brain/recall";
 import { pulseLines } from "../brain/pulse";
-import { assembleContext, type AIContext } from "./context";
+import { assembleContext, type AIContext, type AIContextInput } from "./context";
 import { routineToText } from "../routine/types";
 import { readSamples } from "../shared/timeSense";
 import { reachOf, liveGoals } from "../bigger/reach";
@@ -82,6 +87,141 @@ interface ContextServices {
   // for exactly this") but never wired. Same seam: no notes store means no
   // "Note: <title>" line in a scoped prompt, never a broken one.
   notes?: NotesService | null;
+  // Brain Manual v1 (2026-09-27): the filing intake's read side. Same seam
+  // as the rest: no brain store means no filed-memory sections, never a
+  // broken prompt.
+  brainMemory?: BrainMemoryService | null;
+}
+
+// Brain Manual v1 (2026-09-27): per-AI-call memory options. `message` is the
+// user's current message and drives the assembler's keyword retrieval of
+// decisions + people. `isDraft` is true ONLY for email/message
+// draft-generation calls, the one place voice samples may ride along: voice
+// samples must never enter normal chat context.
+export interface MemoryCallOpts {
+  message: string;
+  isDraft?: boolean;
+}
+
+/** Map the people service's rows into the memory assembler's PersonRow
+ *  shape. The assembler's brainRoles() keeps only the string entries of the
+ *  shared `roles` key, so the per-area role editor's objects never reach the
+ *  prompt. created_at/updated_at ride along for the shape; the assembler's
+ *  people retrieval scores on tokens, never on dates. */
+function toPersonRows(people: Person[]): PersonRow[] {
+  return people.map((p) => {
+    const stamp = new Date((p as unknown as { serverTime?: number }).serverTime ?? 0).toISOString();
+    return {
+      id: p.id,
+      data: {
+        ...(p.data.name ? { name: p.data.name } : {}),
+        roles: (p.data.roles ?? []).filter((r): r is string => typeof r === "string"),
+        // roleNote feeds the token scorer; triageState is deliberately
+        // dropped: the assembler's narrower TriageState is unused by
+        // retrieval, and the app's "needsInfo" member does not fit it.
+        ...(p.data.roleNote ? { roleNote: p.data.roleNote } : {}),
+      },
+      created_at: stamp,
+      updated_at: stamp,
+    };
+  });
+}
+
+/** What gatherFiledMemory hands back. `fields` feeds assembleContext (the
+ *  cached context prefix); `instructions` is draftInstructions(assembly),
+ *  which the caller places in the instructions block AFTER the cache
+ *  breakpoint, never in the cached prefix. */
+export interface FiledMemory {
+  fields: {
+    philosophy: string;
+    values: string;
+    voice: string;
+    voiceSamples: string[];
+    facts: string[];
+    decisions: string[];
+    peopleDetail: { name: string; label?: string }[];
+  };
+  instructions: string;
+}
+
+/**
+ * Brain Manual v1 (flow-doc §3): fetch the user's LEARNED brain_memory rows
+ * and person rows, run the pure memory assembler, and split the result into
+ * context-input fields and the instructions-half text. The brain_memory
+ * list() is the only I/O; the budgeting, ranking and rendering are the pure
+ * assembler, so this stays testable. Callers treat a rejection as "thinner
+ * context, never a broken one", the same rule as every optional read in
+ * gatherFrom.
+ */
+export async function gatherFiledMemory(
+  brainMemory: Pick<BrainMemoryService, "list"> | null | undefined,
+  people: Person[],
+  opts: MemoryCallOpts,
+): Promise<FiledMemory> {
+  const rows: BrainMemoryRow[] = brainMemory ? await brainMemory.list() : [];
+  const learned = rows.filter((r) => r.data && r.data.state === "LEARNED");
+  const assembly = assembleMemory({
+    memories: learned,
+    people: toPersonRows(people),
+    message: opts.message,
+    isDraft: opts.isDraft ?? false,
+  });
+  const mapped = toContextInput(assembly);
+  // toContextInput carries the item texts; the "+N more … filed" honesty
+  // line lives on each section's rendered lines, so reattach it wherever the
+  // budget truncated a section: that line is what tells the model the list
+  // is partial (flow-doc §3.5).
+  const sec = assembly.sections;
+  const moreLine = (s: MemorySection): string | null =>
+    s.omitted > 0 && s.lines.length > 0 ? s.lines[s.lines.length - 1] ?? null : null;
+  const withMore = (texts: string[], s: MemorySection): string[] => {
+    const m = moreLine(s);
+    return m ? [...texts, m] : texts;
+  };
+  const joinMore = (text: string, s: MemorySection): string => {
+    const m = moreLine(s);
+    return [text, m].filter((x): x is string => !!x).join("\n");
+  };
+  return {
+    fields: {
+      philosophy: joinMore(mapped.philosophy, sec.philosophy),
+      values: joinMore(mapped.values, sec.values),
+      voice: joinMore(mapped.voice, sec.voice),
+      voiceSamples: withMore(mapped.voiceSamples, sec.voice),
+      facts: withMore(mapped.facts, sec.facts),
+      decisions: withMore(mapped.decisions, sec.decisions),
+      peopleDetail: mapped.peopleDetail,
+    },
+    instructions: draftInstructions(assembly),
+  };
+}
+
+type PeopleDetailEntry = NonNullable<AIContextInput["peopleDetail"]>[number];
+
+/**
+ * Filed people entries (message-relevant, label from roles[0] + roleNote)
+ * merged over the full people list without duplicating names: a filed label
+ * fills in a person the sheet never labeled, and never clobbers the
+ * register/flagged guardrails the full entry carries.
+ */
+function mergePeopleDetail(base: PeopleDetailEntry[], filed: { name: string; label?: string }[]): PeopleDetailEntry[] {
+  const out = base.map((b) => ({ ...b }));
+  const idx = new Map<string, number>();
+  out.forEach((b, i) => {
+    if (!idx.has(b.name.toLowerCase())) idx.set(b.name.toLowerCase(), i);
+  });
+  for (const f of filed) {
+    const key = f.name.toLowerCase();
+    const i = idx.get(key);
+    if (i === undefined) {
+      idx.set(key, out.length);
+      out.push(f.label ? { name: f.name, label: f.label } : { name: f.name });
+    } else {
+      const entry = out[i];
+      if (entry && !entry.label && f.label) entry.label = f.label;
+    }
+  }
+  return out;
 }
 
 // Session 5: the ONE assembler behind every AI feature. Routine, goals,
@@ -93,7 +233,7 @@ interface ContextServices {
 // one. With no anchor every caller gets exactly the context it always got.
 export type ContextAbout = Anchor;
 
-async function gatherFrom(s: ContextServices, about?: ContextAbout): Promise<AIContext> {
+async function gatherFrom(s: ContextServices, about?: ContextAbout, memory?: MemoryCallOpts): Promise<AIContext> {
   const today = todayISO();
   // BRAIN-F-12 class (2026-09-05): every OPTIONAL read below this point is
   // wrapped ("thinner context, never a broken one"). These thirteen were not,
@@ -271,6 +411,20 @@ async function gatherFrom(s: ContextServices, about?: ContextAbout): Promise<AIC
   // doing it per goal would parse it five times to answer one question.
   const goalSamples = readSamples();
   const goalNow = Date.now();
+  // Brain Manual v1 (flow-doc §3): filed memory joins the context on every
+  // AI call. The fetch is the one I/O edge for the pure assembler; like
+  // every optional read in this function it is best-effort, so a failed read
+  // costs the filed-memory sections, never the prompt. Empty brain: every
+  // field below is empty and the prompt renders byte-identical to before.
+  let filed: FiledMemory["fields"] | null = null;
+  try {
+    filed = (
+      await gatherFiledMemory(s.brainMemory, ppl, {
+        message: memory?.message ?? "",
+        isDraft: memory?.isDraft ?? false,
+      })
+    ).fields;
+  } catch { /* thinner context, never a broken one */ }
   // UP-MIND-23: ONE HOP from the thing in hand. Built from the stores this
   // function already read, plus decisions and notes it reads for exactly
   // this; a failed read means a thinner block, never a broken prompt. Empty
@@ -313,12 +467,18 @@ async function gatherFrom(s: ContextServices, about?: ContextAbout): Promise<AIC
     name: p?.name,
     template: p?.template,
     people: ppl.map((x) => x.data.name),
-    peopleDetail: ppl.map((x) => ({
-      name: x.data.name,
-      label: x.data.relationship,
-      register: x.data.register,
-      flagged: x.data.flagged,
-    })),
+    // Brain Manual v1: filed people entries fill in labels the person sheet
+    // never set (roles[0] + roleNote), without duplicating names or clobbering
+    // the register/flagged guardrails.
+    peopleDetail: mergePeopleDetail(
+      ppl.map((x) => ({
+        name: x.data.name,
+        label: x.data.relationship,
+        register: x.data.register,
+        flagged: x.data.flagged,
+      })),
+      filed?.peopleDetail ?? [],
+    ),
     categories: cs.map((c) => ({ name: c.data.name })),
     // TRACE-03 (2026-09-07): the checklist rollup, counted here so the item
     // text never enters the assembler at all. Omitted on a task with no
@@ -357,8 +517,13 @@ async function gatherFrom(s: ContextServices, about?: ContextAbout): Promise<AIC
       })),
     ],
     voice,
-    values,
-    philosophy,
+    // Brain Manual v1: filed philosophy/values append after the legacy brain
+    // docs, so an existing prompt's head reads exactly as it did. Filed
+    // voice samples are deliberately NOT merged into `voice`: they ride
+    // `voiceSamples` (drafts only), and merging them here would print every
+    // sample twice in the draft pack.
+    values: [values, filed?.values].filter((x): x is string => !!x).join("\n"),
+    philosophy: [philosophy, filed?.philosophy].filter((x): x is string => !!x).join("\n"),
     routine: { workStartMin: rt.workStartMin, workEndMin: rt.workEndMin },
     routineDetail: routineToText(rt),
     // PICK 28 (2026-08-24): THE BRAIN KNOWS THE CURRENT GOALS, not the ones
@@ -395,7 +560,12 @@ async function gatherFrom(s: ContextServices, about?: ContextAbout): Promise<AIC
     related,
     writingFacts: writingFactLines,
     writingFactsByChannel: writingByChannel,
-    decisions: decisionLines,
+    // Brain Manual v1: filed decisions (retrieved per message) ride ahead of
+    // the settled-decision read-back; filed facts and voice samples are new
+    // fields the assembler fills, empty when the brain is empty.
+    decisions: [...(filed?.decisions ?? []), ...decisionLines],
+    facts: filed?.facts ?? [],
+    voiceSamples: filed?.voiceSamples ?? [],
     months: monthLines,
     pulse: pulseLinesOut,
     training: trainingLinesOut,
@@ -411,7 +581,9 @@ function isoPlus(iso: string, days: number): string {
 }
 
 // Returns a gather() that assembles the user's live context for the AI.
-export function useAIContext(): (about?: ContextAbout) => Promise<AIContext> {
+// `memory` carries the per-call memory options (the current message for
+// retrieval, isDraft for draft generation); filed memory joins every call.
+export function useAIContext(): (about?: ContextAbout, memory?: MemoryCallOpts) => Promise<AIContext> {
   const profile = useProfile();
   const people = usePeople();
   const docs = useBrainDocs();
@@ -428,10 +600,11 @@ export function useAIContext(): (about?: ContextAbout) => Promise<AIContext> {
   const metrics = useOptionalMetrics();
   const gym = useOptionalGym();
   const notes = useOptionalNotes();
+  const brainMemory = useOptionalBrainMemory();
 
   return useCallback(
-    (about?: ContextAbout) => gatherFrom({ profile, people, docs, tasks, schedule, cats, routine, goals, projects, money, strands, decisions, seal, metrics, gym, notes }, about),
-    [profile, people, docs, tasks, schedule, cats, routine, goals, projects, money, strands, decisions, seal, metrics, gym, notes],
+    (about?: ContextAbout, memory?: MemoryCallOpts) => gatherFrom({ profile, people, docs, tasks, schedule, cats, routine, goals, projects, money, strands, decisions, seal, metrics, gym, notes, brainMemory }, about, memory),
+    [profile, people, docs, tasks, schedule, cats, routine, goals, projects, money, strands, decisions, seal, metrics, gym, notes, brainMemory],
   );
 }
 
@@ -440,7 +613,7 @@ export function useAIContext(): (about?: ContextAbout) => Promise<AIContext> {
 // throwing, so personalization stays what it should be: an enhancement that
 // degrades to the plain prompt, never a new hard dependency. MessagesFlow uses
 // this for the same reason it uses useOptionalTasks.
-export function useOptionalAIContext(): (about?: ContextAbout) => Promise<AIContext | null> {
+export function useOptionalAIContext(): (about?: ContextAbout, memory?: MemoryCallOpts) => Promise<AIContext | null> {
   const profile = useOptionalProfile();
   const people = useOptionalPeople();
   const docs = useOptionalBrainDocs();
@@ -457,9 +630,10 @@ export function useOptionalAIContext(): (about?: ContextAbout) => Promise<AICont
   const metrics = useOptionalMetrics();
   const gym = useOptionalGym();
   const notes = useOptionalNotes();
+  const brainMemory = useOptionalBrainMemory();
 
-  return useCallback(async (about?: ContextAbout) => {
+  return useCallback(async (about?: ContextAbout, memory?: MemoryCallOpts) => {
     if (!profile || !people || !docs || !tasks || !schedule || !cats || !routine || !goals || !projects || !money) return null;
-    return gatherFrom({ profile, people, docs, tasks, schedule, cats, routine, goals, projects, money, strands, decisions, seal, metrics, gym, notes }, about);
-  }, [profile, people, docs, tasks, schedule, cats, routine, goals, projects, money, strands, decisions, seal, metrics, gym, notes]);
+    return gatherFrom({ profile, people, docs, tasks, schedule, cats, routine, goals, projects, money, strands, decisions, seal, metrics, gym, notes, brainMemory }, about, memory);
+  }, [profile, people, docs, tasks, schedule, cats, routine, goals, projects, money, strands, decisions, seal, metrics, gym, notes, brainMemory]);
 }

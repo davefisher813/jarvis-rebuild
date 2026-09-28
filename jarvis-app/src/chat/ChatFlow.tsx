@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { refileWith, type Undo } from "./refile";
 import PageHeader, { BarAction } from "../shared/PageHeader";
-import { useChat, useTasks, useSchedule, useNotes, useCategories, useOptionalStrands, useOptionalDecisions, usePeople, useOptionalFiles, useFileStore, useOptionalGym } from "../data/NotesProvider";
+import { useChat, useTasks, useSchedule, useNotes, useCategories, useOptionalStrands, useOptionalDecisions, usePeople, useOptionalFiles, useFileStore, useOptionalGym, useOptionalBrainMemory } from "../data/NotesProvider";
 import { useOptionalGoogle } from "../connections/google/GoogleSession";
 import { lastContactFor } from "../people/lastContact";
 import { askSaid } from "../messages/saidWhat";
@@ -18,7 +18,7 @@ import { effectiveLevel } from "../ai/aiGate";
 import ScheduleUploadFlow from "../schedule/screens/ScheduleUploadFlow";
 import GymUploadFlow from "../gym/UploadFlow";
 import { useAI } from "../ai/useAI";
-import { useAIContext, todayISO } from "../ai/useAIContext";
+import { useAIContext, todayISO, gatherFiledMemory } from "../ai/useAIContext";
 import { contextToText } from "../ai/context";
 import { chatSystemPrompt } from "./chatPrompt";
 import { nowHHMM } from "../today/todayData";
@@ -122,6 +122,7 @@ export default function ChatFlow({ onOpen, onCompose, askPersonId, askNonce, onA
   const notes = useNotes();
   const catsSvc = useCategories();
   const peopleSvc = usePeople();
+  const brainMemory = useOptionalBrainMemory();
   const strands = useOptionalStrands();
   const decisionsSvc = useOptionalDecisions();
   // UP-MIND-03: "when did I last talk to Marco" reads the cached Gmail
@@ -154,7 +155,9 @@ export default function ChatFlow({ onOpen, onCompose, askPersonId, askNonce, onA
   useEffect(() => {
     if (!textTo) { setTextVoice(""); return; }
     let live = true;
-    void gather({ personId: textTo.person.id, personName: textTo.person.data.name })
+    // Brain Manual v1: the text sheet is a draft surface, so voice samples
+    // ride along (isDraft) and retrieval keys off what the message says.
+    void gather({ personId: textTo.person.id, personName: textTo.person.data.name }, { message: textTo.about, isDraft: true })
       .then((c) => voiceToText(c, { styleRule: false, channel: "text" }))
       .catch(() => "")
       .then((v) => { if (live) setTextVoice(v); });
@@ -305,8 +308,9 @@ export default function ChatFlow({ onOpen, onCompose, askPersonId, askNonce, onA
     }
     // UP-MIND-23 (2026-09-05): scoped to the person being written to, so
     // the draft knows what is already decided with them and does not
-    // re-open it.
-    const voice = await gather({ personId: person.id, personName: person.data.name })
+    // re-open it. Brain Manual v1: this drafts an email, so voice samples
+    // ride along (isDraft).
+    const voice = await gather({ personId: person.id, personName: person.data.name }, { message: cmd.about || "", isDraft: true })
       .then((c) => voiceToText(c, { styleRule: false, channel: "text" }))
       .catch(() => "");
     let body = "";
@@ -511,7 +515,18 @@ export default function ChatFlow({ onOpen, onCompose, askPersonId, askNonce, onA
             return;
           }
           try {
-            const ctx = await gather();
+            // Brain Manual v1: the user's question drives the assembler's
+            // keyword retrieval inside gather. Voice samples stay out of
+            // chat context.
+            const ctx = await gather(undefined, { message: text });
+            // Brain Manual v1: the citation rule rides the instructions
+            // block, after the cache breakpoint. The filed context above is
+            // cached, this is not. A second read of the same rows,
+            // best-effort like every optional read, so an empty brain
+            // changes nothing.
+            const filedInstructions = await gatherFiledMemory(brainMemory, await peopleSvc.list().catch(() => []), { message: text })
+              .then((f) => f.instructions)
+              .catch(() => "");
             const raw = await ai.complete(
               // UP-MIND-04: the last six turns ride along, so "and what
               // about the week after" is a question rather than a fragment.
@@ -519,7 +534,7 @@ export default function ChatFlow({ onOpen, onCompose, askPersonId, askNonce, onA
               // (api/ai.ts:61) and the context block below is already most
               // of one prompt.
               recentTurns(history, text),
-              chatSystemPrompt(contextToText(ctx)),
+              chatSystemPrompt(contextToText(ctx), filedInstructions),
               { kind: "chat", background: false },
             );
             setPrior({ question: asked });
