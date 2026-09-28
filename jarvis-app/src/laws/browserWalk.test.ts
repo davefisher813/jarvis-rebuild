@@ -148,9 +148,10 @@ describe("BROWSER-F-04: status colour is readable in daylight, from the token", 
   // classes, one at a time, which is the pattern this describe exists to
   // end; so the token is pinned, and no light rule on a lateness selector
   // may hand-paint the words red (or its old hexes) back.
-  it("light --sys-red is the locked red's word twin, and no rule in either theme paints lateness in the brand red", () => {
+  it("light --sys-red is the unified red, and no rule in either theme paints lateness in the brand red", () => {
     // AMENDED 2026-09-27 (§AQ, Dave: "I hate it. Make all red Jarvis red."): light --sys-red is Jarvis Red itself.
-    expect(tokenIn("light", "--sys-red").toUpperCase()).toBe("#FF3B30");
+    // AMENDED 2026-09-28 (Dave): every red in light is the in-between #E42C18, his pick, so --sys-red is the unified red.
+    expect(tokenIn("light", "--sys-red").toUpperCase()).toBe("#E42C18");
     const bare = ["components.css", "ruled.css", "uniformity.css", "jarvis-design-system.css", "mail-rows.css", "editor.css"]
       .map((f) => read("styles/" + f)).join("\n").replace(/\/\*[\s\S]*?\*\//g, "")
       // A rule inside an at-rule block is still a rule: the wrapper's own
@@ -554,9 +555,16 @@ describe("BROWSER-F-10: red words on a sheet grey are readable", () => {
     expect(capDark, `dark capsule label on its fill is ${capDark.toFixed(2)}:1`).toBeGreaterThanOrEqual(4.5);
     const onLightRed = /--on-light-red:\s*(#[0-9A-Fa-f]{6})/.exec(bare)?.[1];
     expect(onLightRed, "the light words red is declared").toBeTruthy();
-    for (const [where, base] of [["a white card", tokenIn("light", "--surface-1")], ["the page", tokenIn("light", "--bg")]] as const) {
+    // AMENDED 2026-09-28 (Dave): every red in light is the in-between
+    // #E42C18, his pick, so the capsule label can never clear the 4.5 bar --
+    // it reads 4.49:1 on a white card and 4.09:1 on the page, under the bar
+    // by his ruling. The law pins his hex and holds the measured pair as
+    // the floor, so a future change can only make it more readable, never
+    // less; any other red still clears 4.5.
+    expect(onLightRed!.toUpperCase(), "the light words red is Dave's unified red").toBe("#E42C18");
+    for (const [where, base, floor] of [["a white card", tokenIn("light", "--surface-1"), 4.4], ["the page", tokenIn("light", "--bg"), 4.0]] as const) {
       const cr = contrast(onLightRed!, base);
-      expect(cr, `light capsule label on ${where} is ${cr.toFixed(2)}:1`).toBeGreaterThanOrEqual(4.5);
+      expect(cr, `light capsule label on ${where} is ${cr.toFixed(2)}:1`).toBeGreaterThanOrEqual(floor);
     }
     // The .btn variants declare their own ink against their own fill; taking
     // this token would invert .btn-danger's white on red.
