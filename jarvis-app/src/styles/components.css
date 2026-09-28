@@ -1954,7 +1954,7 @@ body.jarvis-dragging { overflow: hidden; touch-action: none; -webkit-user-select
      grey it actually lands on: 4.14 on a row, 4.07 on the page's press, 3.91
      on a sheet's (2026-09-22, measured across 43 screens). #BC000E reads
      6.68 / 5.26 / 4.97 and is the same hue. */
-  --on-light-red: #FF3B30; /* Jarvis Red, every light red (Dave 2026-09-27, §AQ) */
+  --on-light-red: #D22E24; /* readable words red (Dave 2026-09-27, follow-up to §AQ): the brand hue at 5.05:1 on white, 4.60:1 on the page */
   /* --on-light-good and --on-light-warn are gone with the allow-list
      (BROWSER-F-04, 2026-09-05): their values are what the light --good and
      --warn tokens are now, so the two fills that still want the darker green
@@ -4453,6 +4453,12 @@ button.check-linked:active { opacity: 1; background: var(--press-3); }
 }
 [data-theme="light"] .row-act, [data-theme="light"] .ruled .card .row.row-act {
   color: var(--on-light-red);
+  /* 2026-09-27 (readable words red): the wash fill under a red label cannot
+     clear 4.5:1 with any red in the brand hue, so the light capsule is
+     outlined -- transparent, red border -- like the row pill. The label
+     sits on the card or the page, where the words red clears the bar. */
+  background-color: transparent;
+  border: 1px solid var(--on-light-red);
 }
 .quiet-action {
   background-color: var(--press-1); box-shadow: none; color: var(--tx-2);
@@ -5155,10 +5161,10 @@ body.selecting .voice-dock { display: none; }
   padding: var(--s-2) 0; font-size: var(--t-body); font-weight: var(--w-bold);
   /* NOT --accent-tx: in dark that token is deliberately WHITE (the chip
      ruling, 2026-08-21), which would put white text on this white pill.
-     #DA0012 is --on-light-red's exact value, the brand hue held to 5.26:1
+     #D22E24 is --on-light-red's exact value, the brand hue held to 5.05:1
      on white, correct here in BOTH themes because the pill is white in
      both. */
-  background: #fff; color: #FF3B30; }
+  background: #fff; color: #D22E24; }
 /* The hero's button is the screen's one fill now that its panel is not. */
 .mode-hero .mode-go { background: var(--accent-fill); color: #fff; }
 .mode-go.mode-go-quiet { background: var(--press-5); color: var(--tx-1); }
