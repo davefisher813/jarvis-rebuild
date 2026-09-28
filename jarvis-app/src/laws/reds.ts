@@ -49,7 +49,7 @@ const OTHER_TOKENS = String.raw`sys-red[\w-]*|red(?!-tint)[\w-]*|cat-(?:[a-z]+-)
  *  readable words red -- the brand hue stepped down to 5.05:1 on white,
  *  4.60:1 on the page.
  *  A words red, never a tap red: TAP_RED is unchanged; ANY_RED gains it. */
-const OTHER_HEXES = String.raw`FF453A|FF3B30|FF6961|DC3126`;
+const OTHER_HEXES = String.raw`FF453A|FF3B30|FF6961|D22E24`;
 
 /** A token reference ends at its closing paren OR at the comma before a
  *  fallback: `var(--tint, #FF2B3C)` is the brand red as surely as
