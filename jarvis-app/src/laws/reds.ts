@@ -44,8 +44,12 @@ const OTHER_TOKENS = String.raw`sys-red[\w-]*|red(?!-tint)[\w-]*|cat-(?:[a-z]+-)
  *  --sys-red-on-sheet resolves to. The token itself was already a red here
  *  through sys-red[\w-]* above; its hex was not, so a rule hand-painting
  *  the sheet red would have read as no red at all. It is not a tap red, so
- *  TAP_RED is unchanged; ANY_RED gains it. */
-const OTHER_HEXES = String.raw`FF453A|FF3B30|FF6961`;
+ *  TAP_RED is unchanged; ANY_RED gains it.
+ *  AMENDED 2026-09-27 (Dave, follow-up to §AQ): #D22E24 joins them, the
+ *  readable words red -- the brand hue stepped down to 5.05:1 on white,
+ *  4.60:1 on the page.
+ *  A words red, never a tap red: TAP_RED is unchanged; ANY_RED gains it. */
+const OTHER_HEXES = String.raw`FF453A|FF3B30|FF6961|DC3126`;
 
 /** A token reference ends at its closing paren OR at the comma before a
  *  fallback: `var(--tint, #FF2B3C)` is the brand red as surely as
@@ -80,7 +84,11 @@ export const ANY_RED = new RegExp(
  *  red Jarvis red." Every red in light is #FF3B30, words included, chosen
  *  over readable twins knowing it reads 3.23:1 on the page. The contrast
  *  laws that measure a light red word exempt this one hex and nothing else;
- *  any other red still has to clear its bar. */
+ *  any other red still has to clear its bar.
+ *  AMENDED 2026-09-27 (Dave, same night): the words red steps down to
+ *  #D22E24 (5.05:1 on white, 4.60:1 on the page, in OTHER_HEXES above). #FF3B30 stays the brand
+ *  red for fills, glyphs and chrome, and the exemption below still covers
+ *  the category text red, which keeps the brand hex. */
 export const JARVIS_RED_LIGHT = "#FF3B30";
 export const isJarvisRedLight = (hex: string | undefined) =>
   (hex ?? "").toUpperCase() === JARVIS_RED_LIGHT;

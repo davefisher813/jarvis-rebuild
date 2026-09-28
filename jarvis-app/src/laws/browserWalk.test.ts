@@ -539,18 +539,24 @@ describe("BROWSER-F-10: red words on a sheet grey are readable", () => {
     // measurement is unchanged.
     expect(ruleBody(css(), ".row-act, .ruled .card .row.row-act"), "dark: the capsule's label is its own --tint")
       .toMatch(/(^|[;\s])color:\s*var\(--tint\)/);
-    expect(ruleBody(css(), '[data-theme="light"] .row-act, [data-theme="light"] .ruled .card .row.row-act'), "light: the capsule's label is the words red")
+    const lightCap = ruleBody(css(), '[data-theme="light"] .row-act, [data-theme="light"] .ruled .card .row.row-act');
+    expect(lightCap, "light: the capsule's label is the words red")
       .toMatch(/(^|[;\s])color:\s*var\(--on-light-red\)/);
+    // AMENDED 2026-09-27 (readable words red): no red in the brand hue clears
+    // 4.5:1 on the wash fill, so the light capsule is outlined -- transparent
+    // with a words-red border, like the row pill -- and its label sits on the
+    // card or the page, where the words red clears the bar.
+    expect(lightCap, "light: the capsule carries no wash fill")
+      .toMatch(/background(-color)?:\s*transparent/);
+    expect(lightCap, "light: the capsule's border is the words red")
+      .toMatch(/border:[^;]*var\(--on-light-red\)/);
     const capDark = contrast(tokenIn("dark", "--tint"), resolve("dark", "--capsule-fill"));
     expect(capDark, `dark capsule label on its fill is ${capDark.toFixed(2)}:1`).toBeGreaterThanOrEqual(4.5);
     const onLightRed = /--on-light-red:\s*(#[0-9A-Fa-f]{6})/.exec(bare)?.[1];
     expect(onLightRed, "the light words red is declared").toBeTruthy();
     for (const [where, base] of [["a white card", tokenIn("light", "--surface-1")], ["the page", tokenIn("light", "--bg")]] as const) {
-      const ground = "rgb(" + overC(resolve("light", "--capsule-fill"), base).join(",") + ")";
-      const cr = contrast(onLightRed!, ground);
-      // AMENDED 2026-09-27 (§AQ): Jarvis Red is Dave's ruling, exempt from the 4.5 bar.
-      if (isJarvisRedLight(onLightRed)) continue;
-      expect(cr, `light capsule label on its fill over ${where} is ${cr.toFixed(2)}:1`).toBeGreaterThanOrEqual(4.5);
+      const cr = contrast(onLightRed!, base);
+      expect(cr, `light capsule label on ${where} is ${cr.toFixed(2)}:1`).toBeGreaterThanOrEqual(4.5);
     }
     // The .btn variants declare their own ink against their own fill; taking
     // this token would invert .btn-danger's white on red.
