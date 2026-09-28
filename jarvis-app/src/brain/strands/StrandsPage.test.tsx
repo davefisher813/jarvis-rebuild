@@ -325,7 +325,11 @@ describe("Make It a Rule (S4-Q24)", () => {
 describe("the Brain hub actually reaches the page", () => {
   beforeEach(() => { vi.clearAllMocks(); svc.list.mockResolvedValue([]); });
 
-  it("What JARVIS Knows opens the strands screen", async () => {
+  // Brain Manual v1 (2026-09-27): "What JARVIS Knows" is the manual Knows page
+  // over brain_memory now; the strands screen stays reachable from the
+  // genome bands' deep links. The proof the row went somewhere is the new
+  // page's own furniture.
+  it("What JARVIS Knows opens the manual Knows page", async () => {
     render(
       <NotesProvider userId="u1">
         <BrainFlow />
@@ -334,7 +338,7 @@ describe("the Brain hub actually reaches the page", () => {
     fireEvent.click(await screen.findByText("What JARVIS Knows"));
     // The row and the screen title share their words, so the proof the row
     // went somewhere is the page's own furniture.
-    await screen.findByText("Add One Thing");
+    await screen.findByText("Nothing Filed Yet");
   });
 });
 

@@ -4,16 +4,24 @@ import { useCategories } from "../data/NotesProvider";
 import { useFreshLists } from "../data/useFreshLists";
 import { ENTITY_CATEGORY } from "../categories/types";
 import PeopleFlow from "../people/PeopleFlow";
-import BrainDocPage from "./docs/BrainDocPage";
 import CategoryDetail from "./CategoryDetail";
 import RoutineFlow from "../routine/RoutineFlow";
-import DecisionsFlow from "../decisions/DecisionsFlow";
 import InsightsFlow from "../review/InsightsFlow";
 import StrandsPage from "./strands/StrandsPage";
+// Brain Manual v1 (2026-09-27): the hub rows are views over the one
+// categorized memory (brain_memory), not the pre-manual surfaces. Strands
+// stay for the genome bands' deep links; the old DecisionsFlow stays wired
+// through BiggerPicture/Goal/Project; BrainDocPage is retired to UNWIRED.
+import KnowsPage from "./manual/KnowsPage";
+import DecisionsPage from "./manual/DecisionsPage";
+import SimpleListPage, { type SimpleTopic } from "./manual/SimpleListPage";
+import TriageScreen from "./manual/TriageScreen";
+import SetupBrainCard from "./manual/SetupBrainCard";
+import SeedSheet from "./manual/SeedSheet";
 import { usePushDepth } from "../shared/pushNav";
 import { effectiveKind } from "../categories/kinds";
 
-const DOC_TOPIC: Record<string, string> = {
+const DOC_TOPIC: Record<string, SimpleTopic> = {
   philosophy: "philosophy",
   writing: "writing",
   values: "values",
@@ -61,6 +69,14 @@ export default function BrainFlow({ openKey, openNonce, onKeyConsumed, routineBl
   // the Watching filter it opens under can land on and highlight that one
   // row instead of the same generic screen every watching row used to share.
   const [knowsFocusKey, setKnowsFocusKey] = useState<string | undefined>(undefined);
+  // Brain Manual v1: the triage screen's way back (the hub, or Contacts when
+  // it was opened from there), and the seed sheet behind the setup card.
+  const [triageReturn, setTriageReturn] = useState<string | null>(null);
+  const [seeding, setSeeding] = useState(false);
+  const openTriage = (from: string | null) => {
+    setTriageReturn(from);
+    setOpen({ key: "triage", name: "Sort Your Contacts" });
+  };
 
   // BRAIN-F-03: the deep link, every time it fires, not just at mount. The
   // nonce is in the deps because the shell can ask for the SAME door twice
@@ -102,7 +118,7 @@ export default function BrainFlow({ openKey, openNonce, onKeyConsumed, routineBl
   useEffect(() => {
     if (!open || !catsLoaded) return;
     const known = open.key in DOC_TOPIC
-      || ["knows", "month", "routine", "decisions", "contacts"].includes(open.key)
+      || ["knows", "strand", "month", "routine", "decisions", "contacts", "triage"].includes(open.key)
       || categories.some((c) => c.id === open.key);
     if (!known) setOpen(null);
   }, [open, catsLoaded, categories]);
@@ -138,9 +154,25 @@ export default function BrainFlow({ openKey, openNonce, onKeyConsumed, routineBl
   const detail = (() => {
     if (!open) return null;
     if (open.key === "knows") {
+      // A strand deep link (chat citation, search hit, the old fact intent)
+      // still opens the strand viewer: the genome bands never moved to the
+      // categorized memory. The hub row itself is the new Knows page.
+      if (factOpenId) {
+        return (
+          <StrandsPage
+            openId={factOpenId}
+            openNonce={factNonce}
+            onOpenConsumed={onFactConsumed}
+            onBack={() => setOpen(null)}
+          />
+        );
+      }
+      return <KnowsPage onBack={() => setOpen(null)} />;
+    }
+    if (open.key === "strand") {
       return (
         <StrandsPage
-          openId={topFact?.id ?? factOpenId}
+          openId={topFact?.id}
           openNonce={topFact ? topFact.nonce : factNonce}
           onOpenConsumed={() => { setTopFact(null); onFactConsumed?.(); }}
           initialFilter={knowsFilter}
@@ -160,17 +192,29 @@ export default function BrainFlow({ openKey, openNonce, onKeyConsumed, routineBl
       return <RoutineFlow onBack={() => setOpen(null)} focusId={routineBlockId} onFocusConsumed={onRoutineBlockConsumed} />;
     }
     if (open.key === "decisions") {
-      return <DecisionsFlow openId={decisionOpenId} openNonce={decisionNonce} onOpenConsumed={onDecisionConsumed}
-        onOpenSource={onOpenEntity} onBack={() => setOpen(null)} />;
+      // Deep links name brain_memory decision rows now (the filing intake
+      // files there). An old-entity decision id simply matches nothing and
+      // the link lands on the list; the old viewer stays reachable from
+      // BiggerPicture, goals and projects.
+      return <DecisionsPage openId={decisionOpenId} openNonce={decisionNonce} onOpenConsumed={onDecisionConsumed}
+        onBack={() => setOpen(null)} />;
     }
     if (open.key === "contacts") {
       // BRAIN-F-04: an explicit tap (personId, set by a person row on an area
       // page) wins over a link, which is spent the moment PeopleFlow opens it.
-      return <PeopleFlow openId={personId ?? personOpenId} openNonce={personNonce} onOpenConsumed={onPersonConsumed} onOpenNote={onOpenNote} onOpenItem={onOpenEntity} onBack={() => { setPersonId(undefined); setOpen(null); }} />;
+      return <PeopleFlow openId={personId ?? personOpenId} openNonce={personNonce} onOpenConsumed={onPersonConsumed} onOpenNote={onOpenNote} onOpenItem={onOpenEntity}
+        onOpenTriage={() => openTriage("contacts")}
+        onBack={() => { setPersonId(undefined); setOpen(null); }} />;
+    }
+    if (open.key === "triage") {
+      const back = triageReturn === "contacts"
+        ? () => setOpen({ key: "contacts", name: "Contacts" })
+        : () => setOpen(null);
+      return <TriageScreen onBack={back} />;
     }
     const topic = DOC_TOPIC[open.key];
     if (topic) {
-      return <BrainDocPage topic={topic} onBack={() => setOpen(null)} />;
+      return <SimpleListPage topic={topic} onBack={() => setOpen(null)} />;
     }
     const cat = categories.find((c) => c.id === open.key);
     if (cat) {
@@ -208,10 +252,19 @@ export default function BrainFlow({ openKey, openNonce, onKeyConsumed, routineBl
     <div className={pushCls} key="base">
       <BrainPage
         onOpen={(key, name) => setOpen({ key, name })}
-        onOpenFact={(id) => { setTopFact((t) => ({ id, nonce: (t?.nonce ?? 0) + 1 })); setOpen({ key: "knows", name: "What JARVIS Knows" }); }}
-        onOpenWatching={(key) => { setKnowsFilter("watching"); setKnowsFocusKey(key); setOpen({ key: "knows", name: "What JARVIS Knows" }); }}
+        onOpenFact={(id) => { setTopFact((t) => ({ id, nonce: (t?.nonce ?? 0) + 1 })); setOpen({ key: "strand", name: "What JARVIS Knows" }); }}
+        onOpenWatching={(key) => { setKnowsFilter("watching"); setKnowsFocusKey(key); setOpen({ key: "strand", name: "What JARVIS Knows" }); }}
         categories={categories}
+        setupCard={
+          <SetupBrainCard
+            onOpenTriage={() => openTriage(null)}
+            onOpenSeed={() => setSeeding(true)}
+          />
+        }
       />
+      {seeding && (
+        <SeedSheet onClose={() => setSeeding(false)} onSeeded={() => setSeeding(false)} />
+      )}
     </div>
   );
 }
