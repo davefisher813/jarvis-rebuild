@@ -1,4 +1,4 @@
-// Brain Manual v1 (Phase 1) — shared contracts.
+// Brain Manual v1 (Phase 1): shared contracts.
 //
 // One place for the brain-memory data shapes, constants, and category
 // metadata. Pure: no I/O, no Supabase imports. The memory assembler,
@@ -27,7 +27,12 @@ export type BrainMemorySource =
   | "note"
   | "email"
   | "task"
-  | "event";
+  | "event"
+  // Filed from a Brain tab page itself (the empty-state sheets, the
+  // philosophy/value/voice lists). The closest existing value would be
+  // "plus-menu", but the detail screen's "Filed from" line should say where
+  // the row really came from.
+  | "brain";
 
 export type DecisionStatus = "active" | "reversed" | "archived";
 
@@ -44,6 +49,12 @@ export interface BrainMemoryData {
   source: BrainMemorySource;
   wordCount?: number; // voice only
   pinned?: boolean;
+  // Supersede links (Decisions Revisit). The old row is archived, never
+  // deleted: it carries supersededBy -> the new row's id, and the new row
+  // carries supersedes -> the old row's id. Readers show the live row and
+  // reach the archived one through the link.
+  supersededBy?: string;
+  supersedes?: string;
 }
 
 /** A brain_memory row: table fields + data payload. */
@@ -54,12 +65,22 @@ export interface BrainMemoryRow {
   updated_at: string;
 }
 
-/** Triage fields merged into a person row's `data` jsonb. */
+/** Triage fields merged into a person row's `data` jsonb.
+ *
+ * NOTE on `roles`: person rows already carry `roles` for the per-area role
+ * editor (PersonRole[]: {categoryId, role}). The triage roles (BRAIN_ROLES
+ * strings) share the same key, so a row can hold both shapes at once and
+ * every reader must discriminate with `typeof r === "string"`. The triage
+ * screen preserves the object entries when it writes; the person sheet
+ * preserves the string entries when it saves. */
 export interface PersonTriageData {
   roles: string[];
   roleNote?: string;
   triageState: TriageState;
-  source?: "email" | "calendar" | "import" | "manual";
+  // "event": a guest added from a calendar event (the Schedule "Who Is
+  // This?" flow). Distinct from "calendar" (a contact that arrived with a
+  // calendar import) the way BrainMemorySource keeps both.
+  source?: "email" | "calendar" | "event" | "import" | "manual";
 }
 
 export const BRAIN_ROLES = [
@@ -106,7 +127,7 @@ const CATEGORY_LABELS: Record<BrainMemoryCategory, string> = {
   fact: "What JARVIS Knows",
 };
 
-/** "Philosophy", "Values", … — used in toasts and page headers. */
+/** "Philosophy", "Values", ...: used in toasts and page headers. */
 export function categoryLabel(c: BrainMemoryCategory): string {
   return CATEGORY_LABELS[c];
 }
@@ -116,12 +137,39 @@ export function filedToastText(c: BrainMemoryCategory): string {
   return `Saved to ${categoryLabel(c)} ✓`;
 }
 
+// "Who Is This?" ends on a contact, not a brain_memory row, but the same
+// confirm-toast shape applies -- shared so every surface names it once.
+export function filedContactToastText(): string {
+  return "Saved to Contacts ✓";
+}
+
+/** Title Case source labels for the memory detail screen's "Filed from" line. */
+export const BRAIN_SOURCE_LABEL: Record<BrainMemorySource, string> = {
+  "manual-chat": "Brain Chat",
+  "plus-menu": "Quick Add",
+  note: "A Note",
+  email: "An Email",
+  task: "A Task",
+  event: "An Event",
+  brain: "The Brain Tab",
+};
+
+/** "Filed From Brain Chat" -- the detail screen's provenance line. */
+export function filedFromLabel(source: BrainMemorySource): string {
+  return BRAIN_SOURCE_LABEL[source] ?? "The Brain Tab";
+}
+
+/** The em-dash code point, built numerically: the no-em-dash law bans the
+ *  character itself in source, but users still type em dashes, so the
+ *  trigger parser has to strip them. */
+const EM_DASH = String.fromCharCode(0x2014);
+
 /** Strip the trigger phrase from a chat message, returning the remainder. */
 export function stripTrigger(message: string): string | null {
   const lower = message.trim().toLowerCase();
   for (const t of FILING_TRIGGERS) {
     if (lower.startsWith(t)) {
-      const rest = message.trim().slice(t.length).trim().replace(/^[:\-–—]\s*/, "");
+      const rest = message.trim().slice(t.length).trim().replace(new RegExp(`^[:\\-–${EM_DASH}]\\s*`), "");
       return rest;
     }
   }

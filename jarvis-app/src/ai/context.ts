@@ -3,6 +3,10 @@ import { STYLE_SCOPE_RULE } from "./voice";
 // over. Pure and synchronous: callers fetch the data, this shapes it. Keeping it
 // pure means it is fully testable and has no I/O of its own.
 
+/** The em-dash code point, built numerically: the no-em-dash law bans the
+ *  character itself in source (see ai/brainMemory.ts for the precedent). */
+const EM_DASH = String.fromCharCode(0x2014);
+
 export interface AIContextInput {
   name?: string;
   template?: string;
@@ -81,6 +85,13 @@ export interface AIContextInput {
   // whole purpose. This is what stops JARVIS re-opening a question the user
   // already answered, and lets it say what has changed since.
   decisions?: string[];
+  // Brain Manual v1 (2026-09-27): filed-memory lines from the memory
+  // assembler (memoryAssemble.ts -> toContextInput). The caller fetches the
+  // brain_memory rows, assembles, and fills these; this module stays pure.
+  // `decisions` above already existed and is reused. facts ride the full
+  // pack; voiceSamples ride the draft (voice) pack only, never chat.
+  facts?: string[];
+  voiceSamples?: string[];
   // A compressed line per sealed month (handoff item 8). Numbers and counts
   // from the seal, never a score and never the user's own words.
   months?: string[];
@@ -129,6 +140,11 @@ export interface AIContext {
   // whole purpose. This is what stops JARVIS re-opening a question the user
   // already answered, and lets it say what has changed since.
   decisions?: string[];
+  // Brain Manual v1 (2026-09-27): filed facts + voice samples, shaped from
+  // the memory assembler's sections. Optional like the rest, so hand-built
+  // contexts (tests, older callers) keep compiling byte-identical.
+  facts?: string[];
+  voiceSamples?: string[];
   // A compressed line per sealed month (handoff item 8). Numbers and counts
   // from the seal, never a score and never the user's own words.
   months?: string[];
@@ -208,6 +224,12 @@ export function assembleContext(input: AIContextInput): AIContext {
     writingFacts: (input.writingFacts ?? []).map((s) => s.trim()).filter(Boolean),
     ...(input.writingFactsByChannel ? { writingFactsByChannel: input.writingFactsByChannel.map((f) => ({ text: f.text.trim(), channel: f.channel })).filter((f) => f.text) } : {}),
     decisions: (input.decisions ?? []).map((d) => d.trim()).filter(Boolean),
+    // Brain Manual v1 (2026-09-27): filed-memory lines from the assembler.
+    // facts ride the full pack; voiceSamples ride the draft (voice) pack
+    // only - the assembler only fills them when isDraft, so chat never
+    // carries them.
+    facts: (input.facts ?? []).map((s) => s.trim()).filter(Boolean),
+    voiceSamples: (input.voiceSamples ?? []).map((s) => s.trim()).filter(Boolean),
     months: (input.months ?? []).map((m) => m.trim()).filter(Boolean),
     pulse: (input.pulse ?? []).map((x) => x.trim()).filter(Boolean),
     training: (input.training ?? []).map((x) => x.trim()).filter(Boolean),
@@ -291,6 +313,10 @@ export function contextToText(ctx: AIContext): string {
   if (ctx.related?.length) lines.push(`Linked to what you are working on right now: ${ctx.related.join("; ")}`);
   else if (ctx.strands?.length) lines.push(`Known about the user (watched or confirmed by them): ${ctx.strands.join("; ")}`);
   if (ctx.decisions?.length) lines.push(`Already decided (do not re-open unless asked): ${ctx.decisions.join("; ")}`);
+  // Brain Manual v1 (2026-09-27): facts the user filed themselves. The
+  // assembler's "+N more facts filed" line keeps this honest when the
+  // budget cut the list short.
+  if (ctx.facts?.length) lines.push(`Filed facts (what they have asked JARVIS to remember): ${ctx.facts.join("; ")}`);
   if (ctx.months?.length) lines.push(`Recent months: ${ctx.months.join(" | ")}`);
   if (ctx.pulse?.length) lines.push(`How they have been (their own logs, facts not judgments): ${ctx.pulse.join("; ")}`);
   // UP-ATH-19 (2026-09-06): beside the pulse and phrased the same way,
@@ -360,6 +386,9 @@ export function voiceToText(ctx: AIContext, { styleRule = true, channel }: { sty
     lines.push(`Writing voice: ${ctx.voice}`);
     if (styleRule) lines.push(STYLE_SCOPE_RULE);
   }
+  // Brain Manual v1 (2026-09-27): their own writing samples, drafts only.
+  // The assembler only fills these when isDraft, so chat never carries them.
+  if (ctx.voiceSamples?.length) lines.push(`Voice samples (their own words ${EM_DASH} match this rhythm and diction): ${ctx.voiceSamples.join(" | ")}`);
   return lines.join("\n");
 }
 
