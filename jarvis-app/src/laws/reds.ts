@@ -48,8 +48,12 @@ const OTHER_TOKENS = String.raw`sys-red[\w-]*|red(?!-tint)[\w-]*|cat-(?:[a-z]+-)
  *  AMENDED 2026-09-27 (Dave, follow-up to §AQ): #D22E24 joins them, the
  *  readable words red -- the brand hue stepped down to 5.05:1 on white,
  *  4.60:1 on the page.
+ *  AMENDED 2026-09-28 (Dave): #E42C18 joins them, the unified light red --
+ *  every red in light is this one hex, his pick between the brand red and
+ *  the deep readable red, 4.49:1 on white and 4.09:1 on the page by his
+ *  ruling.
  *  A words red, never a tap red: TAP_RED is unchanged; ANY_RED gains it. */
-const OTHER_HEXES = String.raw`FF453A|FF3B30|FF6961|D22E24`;
+const OTHER_HEXES = String.raw`FF453A|FF3B30|FF6961|D22E24|E42C18`;
 
 /** A token reference ends at its closing paren OR at the comma before a
  *  fallback: `var(--tint, #FF2B3C)` is the brand red as surely as
@@ -88,7 +92,13 @@ export const ANY_RED = new RegExp(
  *  AMENDED 2026-09-27 (Dave, same night): the words red steps down to
  *  #D22E24 (5.05:1 on white, 4.60:1 on the page, in OTHER_HEXES above). #FF3B30 stays the brand
  *  red for fills, glyphs and chrome, and the exemption below still covers
- *  the category text red, which keeps the brand hex. */
-export const JARVIS_RED_LIGHT = "#FF3B30";
+ *  the category text red, which keeps the brand hex.
+ *  AMENDED 2026-09-28 (Dave): the stepped-down words red clashed with the
+ *  brand red on the same screens. Every red in light is now one red, the
+ *  in-between #E42C18, his pick -- words, fills, glyphs, chrome and the
+ *  category reds alike. It reads 4.49:1 on white and 4.09:1 on the page,
+ *  under the 4.5 bar by his ruling; the laws pin this hex and record the
+ *  pair. Dark is untouched. */
+export const JARVIS_RED_LIGHT = "#E42C18";
 export const isJarvisRedLight = (hex: string | undefined) =>
   (hex ?? "").toUpperCase() === JARVIS_RED_LIGHT;

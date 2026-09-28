@@ -495,10 +495,11 @@
      hex nobody has checked. The active tab is untouched: it wears the
      accent, and contrast was never its problem. */
   --tab-idle: var(--tx-quiet);
-  --red: #D22E24; --sys-red: #FF3B30; --blue: #0A74FF;
-  /* --red stepped down 2026-09-27 (Dave, follow-up to §AQ): the alias is
-     worn as words (sign-out, error lines), so it takes the readable words
-     red; --sys-red stays Apple's light system red for fills and chrome. */
+  --red: #E42C18; --sys-red: #E42C18; --blue: #0A74FF;
+  /* --red unified 2026-09-28 (Dave): every red in light is the in-between
+     red #E42C18, his pick between the brand red and the deep readable red,
+     so red text never sits next to a different red. --sys-red joins it;
+     dark is untouched. */
   /* BROWSER-F-04 (2026-09-05). These two were the iOS system green and orange,
      which are tuned to be read on BLACK. In light they sat on a pastel of
      their own hue and measured 2.0:1: "On Track", "Heavy right now", the
@@ -579,27 +580,34 @@
      #D22E24, 5.05:1 on white and 4.60:1 on the page, the lightest hex in the
      brand hue that clears the 4.5 bar on both grounds. Words only: fills, glyphs, the gradient, the tint and the
      chip wash stay #FF3B30, so the brand still reads Jarvis Red everywhere
-     but the small text. */
-  --accent: #FF3B30;
-  --accent-fill: #FF3B30;
-  --accent-glyph: #FF3B30;
-  --accent-grad: linear-gradient(180deg, #FF3B30, #FB5C74);
-  --tint: #FF3B30;
-  --accent-tx: #D22E24;
-  --danger-tx: #D22E24;
+     but the small text.
+     AMENDED 2026-09-28 (Dave): the stepped-down words red sat next to the
+     brand red on the same screens and the two reds clashed. Every red in
+     light is now one red, the in-between #E42C18, his pick: words, fills,
+     glyphs, the gradient's red stop, the tint, the chip border and text,
+     and the category reds. It reads 4.49:1 on a white card and 4.09:1 on
+     the page, under the 4.5 bar by his ruling; the laws pin this hex and
+     record the pair instead of clearing the bar. Dark is untouched. */
+  --accent: #E42C18;
+  --accent-fill: #E42C18;
+  --accent-glyph: #E42C18;
+  --accent-grad: linear-gradient(180deg, #E42C18, #FB5C74);
+  --tint: #E42C18;
+  --accent-tx: #E42C18;
+  --danger-tx: #E42C18;
   --danger-tx-raised: var(--danger-tx);
   /* ROW PILL, light theme (option B, catalog O.5 revised 2026-08-21).
      Outlined, no fill, so the same form reads in both themes. The border
-     and the text are the light-theme words red #D22E24 (stepped down from
-     Jarvis Red 2026-09-27, Dave): the border rides the text's hex so the
-     pill reads as one thing, 5.05:1 on the white card. */
+     and the text are the unified light red #E42C18 (2026-09-28, Dave): the
+     border rides the text's hex so the pill reads as one thing. */
   --accent-chip: transparent;
-  --accent-chip-bd: #D22E24;
-  --accent-chip-tx: #D22E24;
+  --accent-chip-bd: #E42C18;
+  --accent-chip-tx: #E42C18;
   /* Astra pass (2026-09-12): the washes step up to the strengths the approved
      harness draws them at, 18/18/16/18, so a tinted tile in daylight has a
-     visible body under the lighter ink above. The red wash is untouched. */
-  --red-tint: rgba(255,59,48,0.12); --warn-tint: rgba(255,141,10,0.18); --good-tint: rgba(38,161,83,0.18);
+     visible body under the lighter ink above. The red wash follows the
+     unified light red (2026-09-28, Dave): same 12% strength, #E42C18 hue. */
+  --red-tint: rgba(228,44,24,0.12); --warn-tint: rgba(255,141,10,0.18); --good-tint: rgba(38,161,83,0.18);
   --blue-tint: rgba(10,116,255,0.16); --yellow-tint: rgba(250,200,0,0.18);
   --glass-bg: rgba(255,255,255,0.78);
   --rim-card: rgba(255,255,255,0.9); --rim-bottom: rgba(0,0,0,0.04);
@@ -660,9 +668,9 @@ html[data-theme="light"], html[data-theme="light"] body { background-color: #F3F
 .t-body { font-size: var(--t-body); font-weight: var(--w-normal); line-height: var(--lh-relaxed); }
 .t-meta { font-size: var(--t-meta); font-weight: var(--w-normal); color: var(--tx-3); }
 /* 2026-09-28 (readable words red follow-up): Dave approved the thicker
-   subtext for the light theme only, so the 500 weight rides the light
-   theme and dark keeps 400. */
-[data-theme="light"] .t-meta { font-weight: var(--w-regular); }
+   subtext for the light theme only. 500 still read thin on his phone, so
+   the 600 weight rides the light theme and dark keeps 400. */
+[data-theme="light"] .t-meta { font-weight: var(--w-medium); }
 .eyebrow { font-size: var(--t-eyebrow); font-weight: var(--w-semi); text-transform: uppercase; letter-spacing: var(--track-eyebrow); color: var(--tx-3); }
 /* TASKS AUDIT 2026-08-29: an urgency tag riding beside the category on the
    same line, instead of fighting Start for the trailing slot. Its own font
