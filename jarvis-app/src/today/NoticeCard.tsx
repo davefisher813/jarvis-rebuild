@@ -49,7 +49,12 @@ export interface NoticeAction {
   /** THE FILLED CAPSULE (2026-09-19, Dave on the live workout row: "have it
    *  render at the top with a red button like start now"). Same .pill-go the
    *  dealt task's Start wears -- one shape, one fill, so a row that leads the
-   *  card reads as the primary thing to do rather than as one more notice. */
+   *  card reads as the primary thing to do rather than as one more notice.
+   *  NON-GO ACTIONS ARE NEUTRAL (2026-09-28, Dave from a screenshot: "why is
+   *  this red? style it exactly like" the Add / See All pills). A notice
+   *  action without go wears .pill-neutral -- the grey pill with ink text,
+   *  the same paint as .see-all.pill-action -- instead of the red text the
+   *  light .pill-act rule gives it. */
   go?: boolean;
 }
 
@@ -300,7 +305,7 @@ export default function NoticeCard({
           {subNode && !subDropped && <span className="conn-meta vrow-sub" ref={(el) => { subRef.current = el; }}>{subNode}</span>}
         </div>
         {action ? (
-          <button className={"pill-act" + (action.go ? " pill-go" : "")} onClick={(e) => { e.stopPropagation(); action.onClick(); }}>
+          <button className={"pill-act" + (action.go ? " pill-go" : " pill-neutral")} onClick={(e) => { e.stopPropagation(); action.onClick(); }}>
             {action.label}
           </button>
         ) : (
@@ -326,7 +331,7 @@ export default function NoticeCard({
               slot: both go on the verbs line below, together. See there. */}
           {action && !stack && !twoVerbs ? (
             <button
-              className={"pill-act" + (action.go ? " pill-go" : "")}
+              className={"pill-act" + (action.go ? " pill-go" : " pill-neutral")}
               onClick={(e) => { e.stopPropagation(); action.onClick(); }}
             >
               {action.label}
