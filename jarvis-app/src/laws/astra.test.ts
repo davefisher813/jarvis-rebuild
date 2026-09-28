@@ -133,7 +133,9 @@ describe("ASTRA law 3: the Remember star leads the row and is never its control"
     const bad: string[] = [];
     for (const f of COMPONENTS) {
       // The glyph's own definitions are not rows.
-      if (rel(f) === "shared/RowStar.tsx" || rel(f) === "shared/EntityStar.tsx") continue;
+      if (rel(f) === "shared/RowStar.tsx" || rel(f) === "shared/EntityStar.tsx" ||
+          // Brain Manual v1: the pin glyph's own definition.
+          rel(f) === "brain/manual/PinStar.tsx") continue;
       const src = read(f);
       // Push D: the glyph ships as shared/RowStar.tsx (the marker) and, from
       // Push E, shared/EntityStar.tsx (the tap), so either component tag
