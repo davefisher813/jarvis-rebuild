@@ -11,13 +11,17 @@ import type { AISystem } from "../ai/systemPrompt";
 // and on its own lets the proxy cache it once for all three (see
 // ai/systemPrompt.ts). The words are the same words; only the order changed,
 // and the instructions now sit closer to the question they are about.
-export function chatSystemPrompt(contextText: string): AISystem {
+export function chatSystemPrompt(contextText: string, memoryInstructions = ""): AISystem {
   return {
     context: contextText,
     instructions: [
       JARVIS_VOICE,
       "Task: answer the user's question from their real data above, briefly.",
       "If the data does not contain the answer, say you don't have it. Never invent records, numbers, or dates.",
-    ].join("\n"),
+      // Brain Manual v1: the citation rule, AFTER the cache breakpoint. Filed
+      // memory rides the cached context prefix; this rides the instructions.
+      // Empty when the brain is empty, so the prompt is unchanged then.
+      memoryInstructions.trim(),
+    ].filter(Boolean).join("\n"),
   };
 }

@@ -197,10 +197,12 @@ export default function DeckFlow({ ai, apiFor, threads, queueSend, limitMs, onDo
       // UP-MIND-23 (2026-09-05): scoped to the situation. The card is about
       // THIS thread and THIS sender, so the context walks one hop from them
       // instead of carrying every strand, decision and bill in the app.
+      // Brain Manual v1: deck card drafts are draft surfaces, so voice
+      // samples ride along (isDraft) and retrieval keys off the card text.
       const userVoice = await gatherContext({
         threadId: r.id,
         ...(person ? { personId: person.id, personName: person.data.name } : {}),
-      })
+      }, { message: threadSourceText(full), isDraft: true })
         .then((c) => voiceToText(c, { styleRule: false, channel: "email" }))
         .catch(() => "");
       if (!live()) return;

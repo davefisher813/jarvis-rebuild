@@ -68,6 +68,10 @@ const NO_UNDO: Record<string, string> = {
   "gym/GymFlow.tsx · Discarded · The Saved Session Stays": "the message says in its own words that nothing was lost",
   "notes/NotesFlow.tsx · Deleted for good": "Delete Forever, behind its own confirm; permanence is the feature",
   "settings/AdvancedPage.tsx · message: n === 0 ? \"No Chat History\" : `Dele": "a two-tap armed delete of all chat history; permanence is the point",
+  // Brain Manual v1 (2026-09-27): the Brain settings erase is a tap-twice
+  // armed delete of every brain_memory row, behind its own confirm; the
+  // point of the button is a clean brain, and rows cannot be un-erased.
+  "settings/BrainSettingsPage.tsx · Brain Erased ✓": "a two-tap armed erase of all brain memory; permanence is the point",
 };
 
 describe("LAW: a toast that says something is gone offers Undo", () => {

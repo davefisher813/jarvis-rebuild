@@ -95,6 +95,9 @@ export function draftFrom(c: ImportedContact): PersonData {
   return {
     name: c.name,
     group: "contacts",
+    // Brain Manual v1: an imported contact waits in the triage queue.
+    triageState: "unsorted",
+    source: "import",
     ...(c.birthday ? { birthday: c.birthday } : {}),
     ...(c.notes ? { notes: c.notes } : {}),
     ...(c.phone ? { phone: c.phone } : {}),

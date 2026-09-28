@@ -3,7 +3,7 @@ import { sourceOpener } from "../shared/openSource";
 import { rowSource } from "../shared/provenance";
 import { useSchedule, useCategories, useTasks, useRoutine, useProjects, useGoals, useProfile, useNotes, useOptionalStrands, useOptionalRules, useOptionalGym } from "../data/NotesProvider";
 import { rememberTravel, type TravelMemory } from "./leaveBy";
-import { usePeople } from "../data/NotesProvider";
+import { usePeople, useOptionalBrainMemory } from "../data/NotesProvider";
 import type { Person } from "../people/types";
 import CallPrepSheet from "../people/CallPrepSheet";
 import GymFlow, { readActiveProgramId } from "../gym/GymFlow";
@@ -54,6 +54,7 @@ import { shiftBlock as shiftBlockAdjust, blockShiftFits, retimeBlock as retimeBl
 import { useAI } from "../ai/useAI";
 import { useAIContext } from "../ai/useAIContext";
 import { contextToText } from "../ai/context";
+import FilingSheet from "../ai/FilingSheet";
 import type { TaskItem } from "../tasks/TasksService";
 import { repeatRows } from "./repeats";
 import { overlapsOn, overlapLine, copyDay, durationOf, type Overlap } from "./dayEdit";
@@ -182,6 +183,10 @@ export default function ScheduleFlow({ onEditRoutine, openId, onNavigate }: { on
     return () => { on = false; };
   }, [projectsSvc, goalsSvc]);
   const [sheet, setSheet] = useState<SheetState>(null);
+  const brain = useOptionalBrainMemory();
+  // Brain Manual v1 "Log the Decision": the event being decided on, so the
+  // decision sheet prefills its title and links back to it.
+  const [logDecision, setLogDecision] = useState<{ id: string; title: string } | null>(null);
   // THE SAME TAP AS AN EVENT (2026-08-28, Dave: "when I click on something in
   // the schedule it should allow me to edit it like a normal scheduled
   // event"). Tapping a protected block used to open the whole Your Routine
@@ -1640,6 +1645,7 @@ export default function ScheduleFlow({ onEditRoutine, openId, onNavigate }: { on
           projects={sheetProjects(projList, goalList)}
           onDelete={sheet.mode === "edit" ? onDelete : undefined}
           onDuplicate={sheet.mode === "edit" ? () => void duplicateEvent(sheet.id) : undefined}
+          onLogDecision={sheet.mode === "edit" && brain ? () => setLogDecision({ id: sheet.id, title: sheet.initial.title }) : undefined}
           onMoveToAnytime={sheet.mode === "edit" ? () => { const id = sheet.id; setSheet(null); onUnschedule(id); } : undefined}
           onCancel={() => { setSheet(null); setNewStart(null); }}
           suggestTitles={(typed) => suggestTitles(allEvents, typed)}
@@ -1653,6 +1659,15 @@ export default function ScheduleFlow({ onEditRoutine, openId, onNavigate }: { on
           knownPeople={people.map((p) => ({ id: p.id, name: p.data.name, email: p.data.email }))}
           onOpenPerson={(id) => setPrepPerson({ id, about: sheet.mode === "edit" ? sheet.initial.title : "" })}
           onAddPerson={(a) => void addGuest(a)}
+        />
+      )}
+      {logDecision && (
+        <FilingSheet
+          mode="decision"
+          initialText={logDecision.title}
+          linkedItemIds={[logDecision.id]}
+          source="event"
+          onClose={() => setLogDecision(null)}
         />
       )}
       {/* UP-CORE-10 (2026-09-05): MEETING PREP IS THE CARD THE APP ALREADY

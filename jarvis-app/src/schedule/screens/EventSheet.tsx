@@ -19,7 +19,7 @@ import type { Source } from "../../shared/provenance";
 import HeadMenu from "../../shared/HeadMenu";
 import { onPressKey } from "../../shared/pressable";
 import { Tile, tapField } from "../../shared/FormSheet";
-import { Calendar, Tag, Hourglass, Shuffle, Timer, Link2, FileText, User, Plus, FolderKanban } from "../../shared/icons";
+import { Calendar, Tag, Hourglass, Shuffle, Timer, Link2, FileText, User, Plus, FolderKanban, Brain } from "../../shared/icons";
 import { CalendarGlyph, ClockGlyph, RepeatGlyph, PinGlyph, BarbellGlyph, SunGlyph } from "../../shared/glyphs";
 import { spanLabel } from "../../shared/duration";
 
@@ -102,6 +102,7 @@ export default function EventSheet({
   onSave,
   onDelete,
   onDuplicate,
+  onLogDecision,
   onMoveToAnytime,
   onCancel,
   suggestTitles,
@@ -126,6 +127,9 @@ export default function EventSheet({
   onDelete?: (scope?: "this" | "series") => void;
   // E2: copy this event as a new one-off on the same day.
   onDuplicate?: () => void;
+  // Brain Manual v1 "Log the Decision": files a decision linked to this
+  // event. Optional -- the flow owns the sheet and the write.
+  onLogDecision?: () => void;
   onMoveToAnytime?: () => void;
   onCancel: () => void;
   // Memory layer (Session 3): past events offered whole while typing a title,
@@ -780,12 +784,22 @@ export default function EventSheet({
             </div>
           </div></div>
 
-          {mode === "edit" && ((onMoveToAnytime && recurrence === "none") || onDuplicate || onDelete) && (
+          {mode === "edit" && ((onMoveToAnytime && recurrence === "none") || onDuplicate || onLogDecision || onDelete) && (
             <div className="pad-x xs-actions"><div className="card xs-group">
               {onMoveToAnytime && recurrence === "none" && (
                 <div className="row xs-row" role="button" tabIndex={0} onClick={onMoveToAnytime}>
                   <Tile tone="sky"><SunGlyph /></Tile>
                   <div className="conn-name">Move to Anytime</div>
+                  <div className="chev"></div>
+                </div>
+              )}
+              {/* Brain Manual v1 (2026-09-27): one tap files the decision
+                  behind this event. Purple is the decision hue in the
+                  colour key. */}
+              {onLogDecision && (
+                <div className="row xs-row" role="button" tabIndex={0} onClick={onLogDecision}>
+                  <Tile tone="purple"><Brain className="ic" /></Tile>
+                  <div className="conn-name">Log the Decision</div>
                   <div className="chev"></div>
                 </div>
               )}

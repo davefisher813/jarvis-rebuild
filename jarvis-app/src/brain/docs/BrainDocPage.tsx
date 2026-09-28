@@ -16,6 +16,8 @@ import { showToast } from "../../shared/toast";
 import PageHeader from "../../shared/PageHeader";
 import MarkdownField from "../../shared/MarkdownField";
 import { pressable, onPressKey } from "../../shared/pressable";
+import FiledRows from "../manual/FiledRows";
+import type { BrainMemoryCategory } from "../../ai/brainMemory";
 import { cleanHardLines, HARD_LINE_LABEL, HARD_LINE_PROMISE, MAX_HARD_LINES, type HardLine, type HardLineKind } from "../hardLines";
 
 const PHOTO = (
@@ -27,6 +29,13 @@ const PHOTO_TASK: Record<string, string> = {
   writing: "The image is something the user wrote (texts, an email, a post). Study HOW they write: tone, sentence length, greetings or the lack of them, punctuation habits, words they favor. Reply with 3 to 6 short plain lines describing their style, each on its own line, no bullets or numbering, no preamble. These lines go straight into the user's own style notes.",
   values: "The image relates to what matters to this user. Reply with 2 to 4 short plain lines capturing the values it reveals, each on its own line, no preamble.",
   philosophy: "The image relates to how this user thinks about life or work. Reply with 2 to 4 short plain lines capturing the outlook it shows, each on its own line, no preamble.",
+};
+
+// Which filed category lands on which doc page.
+const FILED_FOR: Record<string, BrainMemoryCategory | undefined> = {
+  philosophy: "philosophy",
+  values: "value",
+  writing: "voice",
 };
 
 export default function BrainDocPage({ topic, onBack }: { topic: string; onBack: () => void }) {
@@ -299,6 +308,9 @@ export default function BrainDocPage({ topic, onBack }: { topic: string; onBack:
           </>
         )}
       </div>
+      {/* Brain Manual v1: what was filed to this page from a note, an
+          email or the + menu. Nothing filed, nothing drawn. */}
+      {FILED_FOR[topic] && <FiledRows categories={[FILED_FOR[topic]!]} />}
     </div>
   );
 }

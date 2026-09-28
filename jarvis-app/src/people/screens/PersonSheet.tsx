@@ -71,7 +71,14 @@ export default function PersonSheet({
   const [aliasText, setAliasText] = useState((initial?.aliases ?? []).join(", "));
   const [relationship, setRelationship] = useState(initial?.relationship ?? "");
   const [roles, setRoles] = useState<Record<string, string>>(
-    Object.fromEntries((initial?.roles ?? []).map((r) => [r.categoryId, r.role])),
+    // The roles key is shared with Brain triage (string entries): the sheet
+    // edits the per-area roles only, so the triage strings are filtered out
+    // here and preserved on save in PeopleFlow.
+    Object.fromEntries(
+      (initial?.roles ?? [])
+        .filter((r): r is { categoryId: string; role: string } => typeof r !== "string")
+        .map((r) => [r.categoryId, r.role]),
+    ),
   );
   const [birthday, setBirthday] = useState(initial?.birthday ?? "");
   const [notes, setNotes] = useState(initial?.notes ?? "");

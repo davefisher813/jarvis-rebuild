@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { sourceOpener } from "../shared/openSource";
 import { useFreshLists } from "../data/useFreshLists";
 import { ENTITY_NOTE } from "./types";
-import { useNotes, useCategories, useTasks, useSchedule, useProjects, useGoals, usePeople, useOptionalProfile, useFileStore, useOptionalDecisions } from "../data/NotesProvider";
+import { useNotes, useCategories, useTasks, useSchedule, useProjects, useGoals, usePeople, useOptionalProfile, useFileStore, useOptionalDecisions, useOptionalBrainMemory } from "../data/NotesProvider";
 import { useAI } from "../ai/useAI";
 import { findInNote, passLength, PASS_DELTA } from "./jarvisFound";
 import { catName } from "../shared/categories";
@@ -19,6 +19,8 @@ import { usePushDepth } from "../shared/pushNav";
 import Connections from "./screens/Connections";
 import LinkPicker from "./screens/LinkPicker";
 import { showToast } from "../shared/toast";
+import { fileMemory, showFilingConfirm } from "../ai/filingIntake";
+import type { BrainMemoryCategory } from "../ai/brainMemory";
 import { usePickFile, PICK_ANY, PICK_IMAGE } from "../shared/usePickFile";
 import { backendConfigured } from "../data/store";
 import { fileStem, sizeLabel } from "../files/types";
@@ -107,6 +109,19 @@ export default function NotesFlow({
   const projSvc = useProjects();
   const goalSvc = useGoals();
   const peopleSvc = usePeople();
+  const brain = useOptionalBrainMemory();
+
+  // Brain Manual v1 "File as…": the editor snapshots the selection (or the
+  // whole note) and this writes it. One tap, no form -- the confirm names
+  // the destination and offers Undo for UNDO_MS, via showFilingConfirm.
+  const fileNote = async (category: BrainMemoryCategory, text: string) => {
+    if (!brain) return;
+    let id: string | null = null;
+    const ok = await attemptWrite(async () => { id = await brain.file(fileMemory({ category, text, source: "note" })); });
+    if (!ok || !id) return;
+    const filedId = id;
+    showFilingConfirm(category, () => void brain.unfile(filedId), brain.pending());
+  };
   const [catList, setCatList] = useState<Category[]>([]);
   const defaultCatId = catList[0]?.id ?? "";
   const [screen, setScreen] = useState<Screen>("list");
@@ -955,6 +970,7 @@ export default function NotesFlow({
           saveState={saveState}
           onRetrySave={() => void flushDoc()}
           onBack={() => { void flushDoc().then(() => loadList()); setScreen("list"); }}
+          onFileNote={brain ? (category, text) => void fileNote(category, text) : undefined}
           onConnections={() => setScreen("connections")}
           onDeleteNote={async () => {
             if (!currentId) return;

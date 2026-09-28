@@ -1,5 +1,6 @@
 import type { Store, ItemData } from "@core";
 import { ENTITY_PERSON, type Person, type PersonData, type PersonGroup } from "./types";
+import { relinkPerson, unrelink as unrelinkRows, type Relinked } from "./relink";
 
 // UP-MIND-05 (2026-09-05): widened so reaching out to someone can be logged
 // as the act it is. entity.updated on a person says a field changed; it
@@ -58,6 +59,17 @@ export class PeopleService {
     await this.store.update(this.ownerId, id, next as unknown as ItemData);
     this.onEvent({ type: "entity.updated", entityType: ENTITY_PERSON, entityId: id });
     return true;
+  }
+
+  // Contact merge (Brain Manual v1): every task, note, decision and strand
+  // that points at `from` is pointed at `to`; the return is what each
+  // changed row held, for Undo.
+  async relink(from: string, to: string): Promise<Relinked[]> {
+    return relinkPerson(this.store, this.ownerId, from, to);
+  }
+
+  async unrelink(rows: Relinked[]): Promise<void> {
+    await unrelinkRows(this.store, this.ownerId, rows);
   }
 
   async remove(id: string): Promise<void> {

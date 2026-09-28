@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { MoreHorizontal, FileText, Image, Check, Plus, X, Trash2, Archive, Tag, Link2, ListChecks, Copy, Share, Search, AlignLeft, ArrowUp, ArrowDown, Clock } from "../../shared/icons";
+import { MoreHorizontal, FileText, Image, Check, Plus, X, Trash2, Archive, Tag, Link2, ListChecks, Copy, Share, Search, AlignLeft, ArrowUp, ArrowDown, Clock, Brain } from "../../shared/icons";
 import type { FoundCandidate, NoteVersion } from "../types";
 import { catColor } from "../../shared/categories";
 import InlineEdit from "../../shared/InlineEdit";
@@ -10,6 +10,9 @@ import { docWordCount } from "../docModel";
 import { docToMarkdown, docToPlainText } from "../markdown";
 import type { ExportImage } from "../exportDoc";
 import ExportSheet from "./ExportSheet";
+import FileAsSheet from "../../ai/FileAsSheet";
+import { pickFileText } from "../../ai/filing";
+import type { BrainMemoryCategory } from "../../ai/brainMemory";
 import RowActionSheet from "../../shared/RowActionSheet";
 import AISheet from "./AISheet";
 import { AI_ACTIONS, runAction, type AIActionKey } from "../aiActions";
@@ -252,6 +255,7 @@ export default function NoteEditor({
   onInsertPhoto,
   onInsertFile,
   onCreateTasks,
+  onFileNote,
   pinned,
   archived,
   tags,
@@ -287,6 +291,9 @@ export default function NoteEditor({
   onInsertPhoto?: () => void;
   onInsertFile?: () => void;
   onCreateTasks?: () => void;
+  // Brain Manual v1 "File as…": files the selection (or the whole note) to
+  // the brain. Optional like onCreateTasks -- the flow owns the write.
+  onFileNote?: (category: BrainMemoryCategory, text: string) => void;
   pinned?: boolean;
   archived?: boolean;
   tags?: string[];
@@ -313,6 +320,7 @@ export default function NoteEditor({
 }) {
   const guard = useHyperfocusGuard();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [fileAsOpen, setFileAsOpen] = useState(false);
   const [hasSelection, setHasSelection] = useState(false);
   const [relatedOpen, setRelatedOpen] = useState(false);
   const [copyAsOpen, setCopyAsOpen] = useState(false);
@@ -346,6 +354,17 @@ export default function NoteEditor({
   const words = docWordCount(note.doc);
   const hasChecklist = (note.doc.content ?? []).some((n) => n.type === "taskList");
   const liveDoc = (): Doc => editorRef.current?.getDoc() ?? note.doc;
+  // "File as…": the selection when one exists, otherwise the whole note
+  // (title included, the way "Note copied" reads it). Empty text means the
+  // menu item below renders disabled -- filing blank text is rejected
+  // client-side (flow-doc §6).
+  const fileSnapshot = (): string => {
+    const sel = editorRef.current?.getSelectionDoc();
+    return pickFileText(
+      sel ? docToPlainText(sel, { includeTitle: false }) : null,
+      docToPlainText(liveDoc(), { title, includeTitle: true }),
+    );
+  };
   const title = note.title.trim();
 
   const copy = async (kind: CopyKind) => {
@@ -432,6 +451,9 @@ export default function NoteEditor({
                   <button className="block-menu-item" role="menuitem" onClick={() => { setMenuOpen(false); onTags(); }}><Tag className="ic" /> Tags</button>
                 )}
                 <button className="block-menu-item" role="menuitem" onClick={() => { setMenuOpen(false); setCopyAsOpen(true); }}><Copy className="ic" /> Copy As</button>
+                {onFileNote && (
+                  <button className="block-menu-item" role="menuitem" disabled={!fileSnapshot()} onClick={() => { setMenuOpen(false); setFileAsOpen(true); }}><Brain className="ic" /> File As…</button>
+                )}
                 <button className="block-menu-item" role="menuitem" onClick={() => { setMenuOpen(false); setFindOpen(true); }}><Search className="ic" /> Find in Note</button>
                 <button className="block-menu-item" role="menuitem" onClick={() => { setMenuOpen(false); setOutline(editorRef.current?.outline() ?? []); }}><AlignLeft className="ic" /> Outline</button>
                 {inSection && (
@@ -609,6 +631,12 @@ export default function NoteEditor({
             { label: "Copy as Markdown", onPick: () => void copy("markdown") },
           ]}
           onCancel={() => setCopyAsOpen(false)}
+        />
+      )}
+      {fileAsOpen && onFileNote && (
+        <FileAsSheet
+          onPick={(category) => onFileNote(category, fileSnapshot())}
+          onClose={() => setFileAsOpen(false)}
         />
       )}
       {fallback !== null && <CopyFallback text={fallback} onClose={() => setFallback(null)} />}

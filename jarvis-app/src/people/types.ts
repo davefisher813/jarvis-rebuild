@@ -47,7 +47,13 @@ export interface PersonData {
   // Who they are IN A GIVEN AREA, when one label for the whole person is not
   // the truth. `relationship` above stays the general answer and is what a
   // person with one context still uses; this is for the ones who wear two.
-  roles?: PersonRole[];
+  // Brain Manual v1 triage SHARES this key for its fixed role set
+  // (BRAIN_ROLES strings: "friend", "coach", ...), so a row can hold both
+  // shapes at once. Every reader must discriminate: a string entry is a
+  // triage role, an object entry is a per-area role. The triage screen
+  // preserves the object entries when it writes; the person sheet preserves
+  // the string entries when it saves.
+  roles?: Array<PersonRole | string>;
   // NEXT TIME WE TALK (People handoff, 2026-09-16). Undated points, kept on
   // the person because that is the only place they mean anything. They raise
   // no notification and set no date: a talking point that nags is a task, and
@@ -104,6 +110,20 @@ export interface PersonData {
   // duration, never outcome: the app knows you dialed, nothing more, and it
   // does not pretend otherwise.
   lastCallAttempt?: string;
+  // Brain Manual v1 triage (2026-09-27): the one-line note from an in-flow
+  // "Who Is This?", and whether triage finished. The triage ROLES ride the
+  // shared `roles` key above as string entries (the union the other
+  // workstream established: per-area PersonRole objects + triage strings),
+  // written by triagePerson and read by brainRolesOf (src/brain/manual).
+  roleNote?: string | null;
+  // "unsorted" is the migration backfill (0042): every pre-triage row
+  // surfaces in the triage queue. "needsInfo" is reserved for a future
+  // pass that knows a row is missing something.
+  triageState?: "sorted" | "unsorted" | "needsInfo";
+  // Where the row came from, for the triage card's source line. Rows that
+  // predate triage have none and read as "Import". "event" is a guest added
+  // from a calendar event (Schedule "Who Is This?").
+  source?: "email" | "calendar" | "event" | "import" | "manual";
 }
 
 export interface Person {

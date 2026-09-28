@@ -7,7 +7,7 @@ import type { TaskStep } from "../../notes/types";
 import Provenance from "../../shared/ProvenanceLine";
 import type { Source } from "../../shared/provenance";
 import { whyWeak, isUsable, sentence, findClash, clashLine, cueIsDetectable, type IfThen, type CueKind } from "../ifThen";
-import { FileText, CheckSquare, Clock, Hourglass, Tag, FolderKanban, Calendar, MessageSquare, Sparkles, Check, User, X, CalendarDays} from "../../shared/icons";
+import { FileText, CheckSquare, Clock, Hourglass, Tag, FolderKanban, Calendar, MessageSquare, Sparkles, Check, User, X, CalendarDays, Brain } from "../../shared/icons";
 import { DUR_CHOICES, durLabel } from "../../schedule/durations";
 import { RepeatGlyph, PinGlyph, TargetGlyph } from "../../shared/glyphs";
 import { catColor } from "../../shared/categories";
@@ -112,6 +112,7 @@ export default function TaskSheet({
   onSave,
   onSchedule,
   onBreakDown,
+  onLogDecision,
   onTextPerson,
   onDelete,
   onCancel,
@@ -171,6 +172,9 @@ export default function TaskSheet({
   // Break It Down: hands the current text back so the flow can split it into
   // real tasks. Absent when AI is off, so the row never promises nothing.
   onBreakDown?: (text: string) => void;
+  // Brain Manual v1 "Log the Decision": files a decision linked to this
+  // task. Optional -- the flow owns the sheet and the write.
+  onLogDecision?: () => void;
   // UP-CORE-17 (2026-09-05): "Text Marco about the invoice" without leaving
   // the task. Present only when the linked person has a number, so the row
   // never promises a composer that cannot open.
@@ -760,6 +764,17 @@ export default function TaskSheet({
                 <div className="row xs-row" role="button" tabIndex={0} onClick={() => onBreakDown(text.trim())}>
                   <Tile tone="purple"><Sparkles className="ic" /></Tile>
                   <div className="conn-name">Break It Down</div>
+                  <div className="chev"></div>
+                </div>
+              )}
+              {/* Brain Manual v1 (2026-09-27): one tap files the decision
+                  behind this task -- the linked decision lives in the Brain,
+                  the row only opens the form sheet. Purple is the decision
+                  hue in the colour key. */}
+              {onLogDecision && (
+                <div className="row xs-row" role="button" tabIndex={0} onClick={onLogDecision}>
+                  <Tile tone="purple"><Brain className="ic" /></Tile>
+                  <div className="conn-name">Log the Decision</div>
                   <div className="chev"></div>
                 </div>
               )}

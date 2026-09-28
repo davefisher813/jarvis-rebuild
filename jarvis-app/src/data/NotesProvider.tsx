@@ -19,6 +19,7 @@ import { HealthService } from "../health/HealthService";
 import { LearnedRulesService } from "../rules/LearnedRulesService";
 import { ChatService } from "../chat/ChatService";
 import { DecisionService } from "../decisions/DecisionService";
+import { BrainMemoryService } from "../ai/brainMemoryService";
 import { StrandsService } from "../brain/strands/StrandsService";
 import { SealService } from "../review/seal";
 import { FilesService } from "../files/FilesService";
@@ -62,6 +63,9 @@ const BackupContext = createContext<BackupService | null>(null);
 const RoutineContext = createContext<RoutineService | null>(null);
 const ChatContext = createContext<ChatService | null>(null);
 const DecisionContext = createContext<DecisionService | null>(null);
+// Brain Manual v1 (2026-09-27): the filing intake's write path. Its own
+// context because every other service in this file has one.
+const BrainMemoryContext = createContext<BrainMemoryService | null>(null);
 const StrandsContext = createContext<StrandsService | null>(null);
 const SealContext = createContext<SealService | null>(null);
 const FilesContext = createContext<FilesService | null>(null);
@@ -91,7 +95,7 @@ export function NotesProvider({
   accessToken?: string;
   children: ReactNode;
 }) {
-  const { store, notes, tasks, schedule, categories, profile, people, brainDocs, areas, goals, projects, money, tracker, backup, routine, gym, metrics, health, rules, chat, decisions, strands, seal, files, fileStore } = useMemo(() => {
+  const { store, notes, tasks, schedule, categories, profile, people, brainDocs, areas, goals, projects, money, tracker, backup, routine, gym, metrics, health, rules, chat, decisions, brainMemory, strands, seal, files, fileStore } = useMemo(() => {
     const store = makeStore(accessToken, userId);
     return {
       store,
@@ -118,6 +122,7 @@ export function NotesProvider({
       health: new HealthService(store, userId, (e) => emit(e)),
       chat: new ChatService(store, userId),
       decisions: new DecisionService(store, userId, (e) => emit(e)),
+      brainMemory: new BrainMemoryService(store, userId, (e) => emit(e)),
       strands: new StrandsService(store, userId, (e) => emit(e)),
       seal: new SealService(store, userId, (e) => emit(e)),
     };
@@ -165,9 +170,11 @@ export function NotesProvider({
                       <RulesContext.Provider value={rules}>
                       <ChatContext.Provider value={chat}>
                       <DecisionContext.Provider value={decisions}>
+                      <BrainMemoryContext.Provider value={brainMemory}>
                       <StrandsContext.Provider value={strands}><SealContext.Provider value={seal}>
                       <FilesContext.Provider value={files}><FileStoreContext.Provider value={fileStore}>{children}</FileStoreContext.Provider></FilesContext.Provider>
                       </SealContext.Provider></StrandsContext.Provider>
+                      </BrainMemoryContext.Provider>
                       </DecisionContext.Provider>
                       </ChatContext.Provider>
                       </RulesContext.Provider>
@@ -377,6 +384,23 @@ export function useDecisions(): DecisionService {
 // useOptionalTasks).
 export function useOptionalDecisions(): DecisionService | null {
   return useContext(DecisionContext) ?? null;
+}
+
+// Brain Manual v1 filing buttons (note "File as…", "Save My Voice",
+// "Log the Decision", "Who Is This?", the + menu). Optional, like the
+// other enhancement surfaces: without a provider the buttons that need it
+// simply do not render.
+export function useOptionalBrainMemory(): BrainMemoryService | null {
+  return useContext(BrainMemoryContext) ?? null;
+}
+
+// The Brain tab pages (What JARVIS Knows, Decisions, the simple lists) are
+// not an enhancement: they read and write the brain directly, so they
+// require the provider the way notes and people do.
+export function useBrainMemory(): BrainMemoryService {
+  const s = useContext(BrainMemoryContext);
+  if (!s) throw new Error("useBrainMemory must be used inside NotesProvider");
+  return s;
 }
 
 export function useStrands(): StrandsService {

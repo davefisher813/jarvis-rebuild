@@ -3,9 +3,11 @@ import EntityStar from "../../shared/EntityStar";
 import type { Person } from "../types";
 import { personInitials, avatarClass } from "../types";
 import { searchPeople } from "../views";
-import { PeopleGlyph } from "../../shared/glyphs";
+import { PeopleGlyph, SweepGlyph } from "../../shared/glyphs";
 import { pressable } from "../../shared/pressable";
 import { lineCase } from "../../shared/casing";
+import { BRAIN_ROLES } from "../../ai/brainMemory";
+import { brainRoleLabel, brainRolesOf, isUnsorted } from "../../brain/manual/triage";
 
 const CHEV = (
   <div className="chev" />
@@ -36,6 +38,7 @@ export default function PeopleListPage({
   onSkipRepair,
   duplicateNotes = 0,
   onClearDuplicateNotes,
+  onOpenTriage,
   onBack,
 }: {
   people: Person[];
@@ -57,12 +60,22 @@ export default function PeopleListPage({
    *  which the old import did on its own line and nothing could undo. */
   duplicateNotes?: number;
   onClearDuplicateNotes?: () => void;
+  /** Brain Manual v1 triage entry. Present only when Contacts opens from the
+   *  Brain tab; the "Continue Sorting" row shows while unsorted remain. */
+  onOpenTriage?: () => void;
   onBack: () => void;
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [q, setQ] = useState("");
+  const [roleFilter, setRoleFilter] = useState<string | null>(null);
   const pendingIds = new Set(pendingReview.map((p) => p.id));
-  const shown = searchPeople(people, q).filter((p) => !pendingIds.has(p.id));
+  // Only the triage roles anyone actually holds become chips: the filter
+  // answers "who are my coaches", never "which roles exist in theory".
+  const rolesPresent = BRAIN_ROLES.filter((r) => people.some((p) => brainRolesOf(p).includes(r)));
+  const unsorted = people.filter(isUnsorted).length;
+  const shown = searchPeople(people, q)
+    .filter((p) => !pendingIds.has(p.id))
+    .filter((p) => !roleFilter || brainRolesOf(p).includes(roleFilter));
 
   const importRow = onImportFile && (
     <div {...pressable(() => fileRef.current?.click())} className="task-row p2 person-row-ruled">
@@ -108,6 +121,16 @@ export default function PeopleListPage({
             <input placeholder="Search People" aria-label="Search people" value={q} onChange={(e) => setQ(e.target.value)} />
           </div>
         </div>
+      )}
+
+      {rolesPresent.length > 0 && (
+        <div className="pad-x"><div className="chip-row chip-wrap-row">
+          {rolesPresent.map((r) => (
+            <button key={r} type="button" className={"chip" + (roleFilter === r ? " active" : "")}
+              aria-pressed={roleFilter === r}
+              onClick={() => setRoleFilter((f) => (f === r ? null : r))}>{brainRoleLabel(r)}</button>
+          ))}
+        </div></div>
       )}
 
       {/* Consent-first migration: the flag changes how JARVIS writes to a real
@@ -201,6 +224,19 @@ export default function PeopleListPage({
             glyph. */}
         <div className="sh2 sh2-quiet"><span className="t">Your People</span><span className="n">{shown.length}</span></div>
         <div className="pad-x"><div className="card list-card-ruled">
+          {/* Brain Manual v1 triage: the way back in while anyone is still
+              unsorted. It sits above the names because it is the job, not a
+              name; it leaves the moment the queue is empty. */}
+          {unsorted > 0 && onOpenTriage && (
+            <div {...pressable(onOpenTriage)} className="task-row p2 person-row-ruled">
+              <div className="task-check-tap gm-slot"><span className="row-glyph"><SweepGlyph /></span></div>
+              <div className="task-title">
+                <span className="task-name">Continue Sorting</span>
+                <div className="r-k"><span className="r-goal r-cat">{lineCase(`${unsorted} Left to Sort`)}</span></div>
+              </div>
+              {CHEV}
+            </div>
+          )}
           {shown.map((p) => (
             <div {...pressable(() => onOpen(p.id))} className="task-row p2 person-row-ruled" key={p.id}>
               {/* C-50 (Astra, 2026-09-12): the Remember star leads the row. */}
@@ -208,10 +244,14 @@ export default function PeopleListPage({
               <div className="task-check-tap"><div className={"av " + avatarClass(p.data.color)}>{personInitials(p.data.name)}</div></div>
               <div className="task-title">
                 <span className="task-name">{p.data.name}</span>
-                {/* the label, or the honest absence of one; a fact, not a nag */}
-                {/* C-59 (Astra, 2026-09-12): no label is an empty second
-                    line, not a nag. */}
-                <div className="r-k">{p.data.relationship && <span className="r-goal r-cat">{p.data.relationship}</span>}</div>
+                {/* the label, the triage roles, or the honest absence of both;
+                    one fact in the subline (C-59: no label is an empty second
+                    line, not a nag) */}
+                <div className="r-k">{p.data.relationship
+                  ? <span className="r-goal r-cat">{p.data.relationship}</span>
+                  : brainRolesOf(p).length > 0
+                    ? <span className="r-goal r-cat">{brainRolesOf(p).map(brainRoleLabel).join(" · ")}</span>
+                    : null}</div>
               </div>
               {CHEV}
             </div>

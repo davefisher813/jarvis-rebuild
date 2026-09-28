@@ -1050,6 +1050,13 @@ describe("LAW: one filled red per screen", () => {
       "gym/SessionScreen.tsx": "cond ternary: Start the Clock for a conditioning block, Log Set for a strip, never both",
       "gym/LibraryPage.tsx": "Save the Name lives in the edit card, Merge in the review card; the edit card is closed (setEditing(null)) before the picker that opens the review can be reached, so never both",
       "messages/DeckFlow.tsx": "the resume offer (Continue) is an early return before any card; the time's-up card (Finish This One) mounts only while the card's own actions are gated off by !timeUp",
+      // Brain Manual v1: the sheet is a mode machine (view / edit / forget);
+      // the edit save, the revisit save and the forget confirm never render
+      // together.
+      "brain/manual/MemorySheet.tsx": "mode machine: edit save, revisit save and forget confirm are exclusive modes",
+      // Brain Manual v1: the All Sorted empty state is an early return; the
+      // triage card's primary never renders with it.
+      "brain/manual/TriageScreen.tsx": "the All Sorted empty state is an early return before the triage card",
     };
 
     const bad: string[] = [];
@@ -4041,6 +4048,8 @@ describe("LAW 12: a write survives the refresh racing it, and one thing never re
     const subscribers = COMPONENTS.filter((f) => read(f).includes("useFreshLists(")).map(rel).sort();
     expect(subscribers, "every list surface, not just the first three").toEqual([
       "brain/BrainFlow.tsx",
+      "brain/manual/FiledRows.tsx",
+      "brain/manual/TriageScreen.tsx",
       "gym/GymFlow.tsx",
       "money/MoneyFlow.tsx",
       "notes/NotesFlow.tsx",

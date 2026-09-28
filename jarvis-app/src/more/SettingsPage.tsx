@@ -25,6 +25,9 @@ const ITEMS: Item[] = [
   { label: "Connections", route: "connections", group: 1 },
   { label: "AI Control", route: "aicontrol", group: 1 },
   { label: "What JARVIS Learned", route: "learned", group: 1 },
+  // Brain Manual v1: Export and Erase live one level below Settings, next to
+  // the brain's own row, not out on the More hub.
+  { label: "Brain", route: "brainsettings", group: 1 },
   { label: "Backup", route: "backup", group: 2 },
   { label: "Advanced", route: "advanced", group: 2 },
   { label: "About", route: "about", group: 2 },

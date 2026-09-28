@@ -55,6 +55,8 @@ export const FILLED_SETTINGS: Record<string, ReactNode> = {
   advanced: <SlidersHorizontal {...P} />,
   about: <Info {...P} />,
   training: <Barbell {...P} />,
+  // Brain Manual v1: the Settings → Brain row wears the Brain tab glyph.
+  brainsettings: <Brain {...P} />,
 };
 
 // A nav destination with no drawn filled glyph yet falls back to a filled

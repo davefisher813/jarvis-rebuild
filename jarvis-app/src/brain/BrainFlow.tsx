@@ -10,6 +10,10 @@ import RoutineFlow from "../routine/RoutineFlow";
 import DecisionsFlow from "../decisions/DecisionsFlow";
 import InsightsFlow from "../review/InsightsFlow";
 import StrandsPage from "./strands/StrandsPage";
+// Brain Manual v1: the contacts triage screen, opened from Contacts'
+// Continue Sorting row. The hub rows keep their own pages (Dave 2026-09-28:
+// nothing already saved goes invisible, and no screen looks new).
+import TriageScreen from "./manual/TriageScreen";
 import { usePushDepth } from "../shared/pushNav";
 import { effectiveKind } from "../categories/kinds";
 
@@ -102,7 +106,7 @@ export default function BrainFlow({ openKey, openNonce, onKeyConsumed, routineBl
   useEffect(() => {
     if (!open || !catsLoaded) return;
     const known = open.key in DOC_TOPIC
-      || ["knows", "month", "routine", "decisions", "contacts"].includes(open.key)
+      || ["knows", "month", "routine", "decisions", "contacts", "triage"].includes(open.key)
       || categories.some((c) => c.id === open.key);
     if (!known) setOpen(null);
   }, [open, catsLoaded, categories]);
@@ -166,7 +170,11 @@ export default function BrainFlow({ openKey, openNonce, onKeyConsumed, routineBl
     if (open.key === "contacts") {
       // BRAIN-F-04: an explicit tap (personId, set by a person row on an area
       // page) wins over a link, which is spent the moment PeopleFlow opens it.
-      return <PeopleFlow openId={personId ?? personOpenId} openNonce={personNonce} onOpenConsumed={onPersonConsumed} onOpenNote={onOpenNote} onOpenItem={onOpenEntity} onBack={() => { setPersonId(undefined); setOpen(null); }} />;
+      return <PeopleFlow openId={personId ?? personOpenId} openNonce={personNonce} onOpenConsumed={onPersonConsumed} onOpenNote={onOpenNote} onOpenItem={onOpenEntity}
+        onOpenTriage={() => setOpen({ key: "triage", name: "Sort Your Contacts" })} onBack={() => { setPersonId(undefined); setOpen(null); }} />;
+    }
+    if (open.key === "triage") {
+      return <TriageScreen onBack={() => setOpen({ key: "contacts", name: "Contacts" })} />;
     }
     const topic = DOC_TOPIC[open.key];
     if (topic) {
