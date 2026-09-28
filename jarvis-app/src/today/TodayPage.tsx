@@ -662,7 +662,7 @@ export default function TodayPage({
       <button className="row-act" onClick={onUpNext}>
         <BullseyeGlyph />
         <span className="fc-t">Focus</span>
-        {(upNextWaiting ?? 0) > 0 && <span className="fc-n">{upNextWaiting} Waiting</span>}
+        {(upNextWaiting ?? 0) > 0 && <span className="fc-n"><span className="fc-num">{upNextWaiting}</span> <span className="fc-lab">Waiting</span></span>}
       </button>
     </div>
   ) : null;
