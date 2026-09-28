@@ -5227,10 +5227,7 @@ describe("LAW: the open deck is not offered three times over", () => {
     // headliner counts nothing at all now. Focus carries the one true count.
     expect(head, "the headliner must not count the deck").not.toMatch(/otherCount/);
     const page = read(join(SRC, "today/TodayPage.tsx"));
-    // AMENDED 2026-09-28 (Dave): the count is two-tone now -- the number in
-    // black, the label in grey -- but Focus still states the deck's depth in
-    // this one place.
-    expect(page, "Focus keeps the deck's one count").toMatch(/<span className="fc-num">\{upNextWaiting\}<\/span> <span className="fc-lab">Waiting<\/span>/);
+    expect(page, "Focus keeps the deck's one count").toMatch(/\{upNextWaiting\} Waiting/);
   });
 });
 

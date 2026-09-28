@@ -3218,13 +3218,12 @@ button {
   letter-spacing: var(--track-caps);
   color: var(--tx-2); padding-left: var(--s-2); border-left: 0.5px solid var(--card-bd);
   font-variant-numeric: tabular-nums; margin-left: var(--s-1); }
-/* 2026-09-28 (Dave): the waiting count is two-tone on the filled light
-   capsule -- the number in black, the label in grey, with a dark hairline. */
+/* 2026-09-28 (Dave): on the filled light capsule the waiting count rides in
+   white, with a white hairline, so it reads on the red. */
 [data-theme="light"] .focus-row .row-act .fc-n {
-  border-left-color: rgba(0, 0, 0, 0.3);
+  color: rgba(255, 255, 255, 0.85);
+  border-left-color: rgba(255, 255, 255, 0.45);
 }
-[data-theme="light"] .focus-row .row-act .fc-num { color: #000; }
-[data-theme="light"] .focus-row .row-act .fc-lab { color: rgba(0, 0, 0, 0.55); }
 
 /* NO TWO CONTROLS IN ONE CORNER (Dave 2026-08-19, from the same screenshot).
    A card with an absolutely-positioned corner dismiss and a one-row body puts
