@@ -342,7 +342,7 @@ export default function NoticeCard({
         </div>
         {action && stack && (
           <div className="notice-stack">
-            <button className="pill-act" onClick={(e) => { e.stopPropagation(); action.onClick(); }}>
+            <button className={"pill-act" + (action.go ? " pill-go" : " pill-neutral")} onClick={(e) => { e.stopPropagation(); action.onClick(); }}>
               {action.label}
             </button>
           </div>
