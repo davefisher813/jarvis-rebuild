@@ -143,7 +143,7 @@ export async function refreshMailSnapshot(deps: SnapshotRefreshDeps): Promise<vo
     userId: deps.userId, account: email, api,
     rows: rows.filter((r) => r.account === email),
     triage: map,
-    classificationFor: (r) => classificationFrom(map[r.id]?.action),
+    classificationFor: (r) => classificationFrom(map[r.id]?.action, briefFor(r.lastMsgId, undefined, r.account ? { userId: deps.userId, account: r.account } : undefined)?.notification ?? undefined),
     readThread: (id) => readThread(email, api, id),
   }).catch(() => null)));
 

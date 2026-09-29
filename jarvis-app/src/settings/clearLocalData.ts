@@ -97,6 +97,13 @@ const SAFE_TO_CLEAR: readonly string[] = [
   "jarvis.mail.triage.v4", // the unscoped triage cache, before 2026-09-29
   "jarvis.mail.triage.v5", // the account-scoped one: one re-sort per account
   "jarvis.mail.brief.v1", // re-generated from the thread on its next open
+  // The thread brief and the v4 readings inside it (2026-09-29) carry SENTENCES
+  // copied out of the person's mail (a quote per appointment and per ask), so
+  // they belong to the last person on shared glass as much as the rows do.
+  // All three are caches: a thread is read again on its next open.
+  "jarvis.mail.brief.v3",
+  "jarvis.mail.brief.v4",
+  "jarvis.mail.briefchunk.v4",
   "jarvis.mail.tossasked.v1",
   "jarvis.mail.close.v1", // last-run marker for the weekly close offer
   "jarvis.mail.snooze.v1", // same-day, self-expiring notice state

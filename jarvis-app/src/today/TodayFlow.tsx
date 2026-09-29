@@ -99,9 +99,7 @@ import { openExternal } from "../messages/openExternal";
 import { copyPromised } from "../messages/clipboard";
 import { requestUnsubscribe } from "../messages/unsubscribeAction";
 import { evidenceFromThread } from "../messages/notificationScan";
-// The interim saver. When the appointment workstream merges, this one import
-// becomes `from "../messages/emailSchedule"` and interimAddMeeting.ts goes.
-import { addEmailMeetingOnce } from "../messages/interimAddMeeting";
+import { addEmailMeetingOnce } from "../messages/emailSchedule";
 import { showToast } from "../shared/toast";
 import { attemptWrite } from "../shared/guard";
 import RemindersStrip from "./RemindersStrip";
@@ -3533,7 +3531,7 @@ export default function TodayFlow({
       open: openExternal,
       copy: copyPromised,
       addMeeting: async (args) => {
-        const r = await addEmailMeetingOnce({ scheduleSvc: schedule, ...args });
+        const r = await addEmailMeetingOnce({ scheduleSvc: schedule, ...args, account: args.account ?? "" });
         if (r.status === "added") await reload();
         const undo = r.undo;
         return undo ? { ...r, undo: async () => { const ok = await undo(); await reload(); return ok; } } : r;
