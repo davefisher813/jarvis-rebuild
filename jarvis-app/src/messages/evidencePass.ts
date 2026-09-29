@@ -1,5 +1,6 @@
 import { anchorClaims, type EvidenceAsk, type EvidenceMessage } from "./evidence";
 import type { TriageMap } from "./triage";
+import { redactCodes } from "./notificationActions";
 
 // THE SECOND PASS (UP-MIND-12, the E6 fork, option B).
 //
@@ -65,7 +66,9 @@ export async function anchorNeedsYou(
     // something to find, and the model half gets the whole claim.
     if (t.act && !t.actEv) asks.push({ key: "act", phrase: [t.act.title, t.act.date].filter(Boolean).join(" ") });
     if (asks.length === 0) continue;
-    const found = await anchorClaims({ messages: full.messages, asks, complete });
+    // A one-time code in a body never goes to the model (2026-09-29): the
+    // model reads the redacted text and the span is checked against the same.
+    const found = await anchorClaims({ messages: full.messages.map((m) => ({ ...m, body: redactCodes(m.body) })), asks, complete });
     if (!found.by && !found.act) continue;
     out[r.id] = {
       ...t,

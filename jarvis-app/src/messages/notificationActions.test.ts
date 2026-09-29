@@ -182,6 +182,11 @@ describe("malformed, malicious and absent links", () => {
     expect(analyse({ ...driveRequest, fromEmail: "someone@evil.example" }).action).toBeNull();
   });
 
+  it("a forms link in mail that is not about a form is only a link", () => {
+    expect(analyse({ ...googleForm, subject: "Weekly update", body: "Some news for the club.", html: '<a href="https://docs.google.com/forms/d/e/1FAIpQLSfXYZ/viewform">Tell us more</a>' }).action).toBeNull();
+    expect(analyse({ ...googleForm, subject: "Weekly update", body: "Some news.", html: '<a href="https://docs.google.com/forms/d/e/1FAIpQLSfXYZ/viewform">Take the survey</a>' }).action?.kind).toBe("fill_form");
+  });
+
   it("a Google Form link that is a response edit page is refused", () => {
     const m: Sample = { ...googleForm, html: '<a href="https://docs.google.com/forms/d/e/1FAIpQLSfXYZ/viewform?edit2=2_ABC">Fill out form</a>' };
     expect(analyse(m).action).toBeNull();

@@ -81,8 +81,6 @@ export interface MailThread {
   // A code mail whose code was missing or ambiguous: a View Email notice until
   // this time (epoch ms), then nothing.
   viewUntil?: number;
-  // When the latest message arrived (epoch ms).
-  at?: number;
 }
 // UP-MIND-10 (2026-09-05): personId on every row that has a counterpart.
 // Optional everywhere, because a sender who is not in Contacts has no id and
@@ -701,7 +699,10 @@ export function mailNotices(
     const viewing = !t.action && t.viewUntil !== undefined && t.viewUntil > ms;
     if (live || viewing) notifyThreads.push(t);
   }
-  const notifies = notifyThreads.map((t) => notifyNotice(t, owner));
+  // Time-critical first (a code before a signature before a parcel), the
+  // snapshot's own order breaking ties: the sort is stable.
+  const pri = (t: MailThread) => (t.action ? actionPriority(t.action.kind) : 1);
+  const notifies = [...notifyThreads].sort((a, b) => pri(a) - pri(b)).map((t) => notifyNotice(t, owner));
   const notifyKeys = new Set(notifyThreads.map(threadKey));
   const isUrgent = (n: MailNotice) => !n.notification || actionPriority(n.notification.kind) <= actionPriority("fill_form");
   const urgentActions = notifies.filter(isUrgent);

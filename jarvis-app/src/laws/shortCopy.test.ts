@@ -58,6 +58,9 @@ const EXEMPT_FILES = new Set([
   "messages/triage.ts",
   "messages/deck.ts",
   "messages/waiting.ts",
+  // 2026-09-29: sample emails for the notification tests, other people's
+  // words in a test-support file. Never rendered.
+  "messages/notificationFixtures.ts",
   "messages/sentSweep.ts",
   "messages/cardDraft.ts",
   // Prompt files, plus the bodies of messages the user SENDS. An outgoing

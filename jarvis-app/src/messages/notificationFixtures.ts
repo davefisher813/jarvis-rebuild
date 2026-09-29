@@ -127,7 +127,7 @@ export const otpTwoCodes = s({
 
 export const otpInSubject = s({
   fromEmail: "no-reply@accounts.example.org", from: "Example",
-  subject: "123456 is your Example verification code",
+  subject: "Example: 123456 is your verification code",
   body: "Do not share this code with anyone.",
 });
 

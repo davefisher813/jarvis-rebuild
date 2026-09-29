@@ -18,8 +18,6 @@ export interface Counters {
   bodies: number;
   mutation: number;
   profile: number;
-  /** getAttachment calls: a calendar file fetched separately from the body. */
-  attachments: number;
 }
 
 // What a thread read (format=full) returns beyond the metadata: the text and
@@ -42,7 +40,9 @@ export class FakeMailbox {
   historyPageSize = 2;
   /** Refs per list page, small so the cursor is exercised when a test wants it. */
   listPageSize = 100;
-  counters: Counters = { list: 0, history: 0, metadata: 0, bodies: 0, mutation: 0, profile: 0, attachments: 0 };
+  counters: Counters = { list: 0, history: 0, metadata: 0, bodies: 0, mutation: 0, profile: 0 };
+  /** getAttachment calls: a calendar file fetched apart from the body. Kept off `counters`, which tests compare whole. */
+  attachmentReads = 0;
   /** Calendar files served by getAttachment, by attachment id. */
   private attachmentData = new Map<string, string>();
   /** Ids whose metadata read fails with a 500. */
@@ -230,7 +230,7 @@ export class FakeMailbox {
         return t ? this.fullOf(t) : ({ id, messages: [] } as unknown as GmailThreadFull);
       },
       getAttachment: async (_messageId, attachmentId) => {
-        c.attachments++;
+        this.attachmentReads++;
         const text = this.attachmentData.get(attachmentId) ?? "";
         return { data: b64urlEncode(text), size: text.length };
       },

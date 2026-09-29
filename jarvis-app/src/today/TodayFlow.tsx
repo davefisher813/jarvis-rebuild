@@ -94,7 +94,7 @@ import type { BlendMap } from "./YourDay";
 import GymFlow from "../gym/GymFlow";
 import { useGymDoor } from "../gym/useGymDoor";
 import { loadMailSnapshot, mailNotices, findThread, type MailNotice } from "../messages/home";
-import { executeMailAction, type MailActionResult, type MailActionDeps } from "../messages/executeMailAction";
+import { executeMailAction, type MailActionResult, type MailActionDeps, type MailActionTarget } from "../messages/executeMailAction";
 import { openExternal } from "../messages/openExternal";
 import { copyPromised } from "../messages/clipboard";
 import { requestUnsubscribe } from "../messages/unsubscribeAction";
@@ -3538,12 +3538,14 @@ export default function TodayFlow({
         const undo = r.undo;
         return undo ? { ...r, undo: async () => { const ok = await undo(); await reload(); return ok; } } : r;
       },
+      // A web unsubscribe needs no mail client, and a mailto with none says so
+      // (requestUnsubscribe counts a missing client as failed).
+      requestUnsub: (u, account, sender) => requestUnsubscribe(u, account, sender, {
+        apiFor: accountApi, open: openExternal, today: () => today,
+      }),
+      // The code left memory: read the exact message again. No model.
       ...(google.hasToken ? {
-        requestUnsub: (u, account, sender) => requestUnsubscribe(u, account, sender, {
-          apiFor: accountApi, open: openExternal, today: () => today,
-        }),
-        // The code left memory: read the exact message again. No model.
-        loadCode: async (t) => {
+        loadCode: async (t: MailActionTarget) => {
           const api = accountApi(t.account);
           if (!api) return null;
           const raw = await api.getThread(t.threadId);

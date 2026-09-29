@@ -3,7 +3,7 @@ import { b64urlDecodeBytes, mapGmailFull, type GmailFull, type GmailPart, type G
 import { pool, singleFlight } from "./inboxRefresh";
 import { mailAccountKey, mailThreadKey, type MailScope } from "./mailIdentity";
 import { isMachineAddress, isNoReply } from "./noReply";
-import type { NotificationClassification } from "./mailContracts";
+import type { MeetingCandidate, NotificationClassification } from "./mailContracts";
 import type { TriageMap } from "./triage";
 import {
   analyzeNotification, extractActionEvidence, rememberCode,
@@ -212,6 +212,8 @@ export interface ScanDeps {
   triage: TriageMap;
   /** The optional model reading for a row: a triage kind, or the brief's. Never required. */
   classificationFor?: (row: ThreadRow) => NotificationClassification | undefined;
+  /** Candidates the brief read from an itinerary, when it has read this thread. Never required. */
+  meetingsFor?: (row: ThreadRow) => readonly MeetingCandidate[] | undefined;
   /** One shared read for the whole pass, so two passes that want the same thread ask Gmail once. */
   readThread?: (threadId: string) => Promise<GmailThreadFull>;
   storage?: Store;
@@ -263,6 +265,7 @@ async function runScan(deps: ScanDeps): Promise<ScanResult> {
       const res = analyzeNotification(got.bundle, {
         ...(deps.triage[r.id]?.bucket ? { bucket: deps.triage[r.id]!.bucket } : {}),
         ...(deps.classificationFor?.(r) ? { classification: deps.classificationFor(r)! } : {}),
+        ...(deps.meetingsFor?.(r)?.length ? { meetings: deps.meetingsFor(r)! } : {}),
         messageAtMs: r.dateMs,
         now,
       });

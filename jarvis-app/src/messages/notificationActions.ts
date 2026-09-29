@@ -313,6 +313,7 @@ export interface ActionEvidenceBundle {
 }
 
 const MAX_LINKS = 24;
+const MAX_HTML = 400_000;
 
 function fnv(s: string): string {
   let h = 0x811c9dc5;
@@ -328,7 +329,9 @@ function linksFromHtml(html: string): RawLink[] {
   const out: RawLink[] = [];
   // Hidden anchors are dropped as the reader drops them: a link a person
   // cannot see is not one the app may point at.
-  const visible = dropHidden(html);
+  // Bounded: a mail is not a book, and an unclosed anchor must not make the
+  // scan quadratic.
+  const visible = dropHidden(html.slice(0, MAX_HTML));
   const re = /<a\b((?:"[^"]*"|'[^']*'|[^'">])*)>([\s\S]*?)<\/a\s*>/gi;
   for (const m of visible.matchAll(re)) {
     const href = /\bhref\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/i.exec(m[1] ?? "");
@@ -586,6 +589,9 @@ const RE_INVITE_SUBJECT = /^\s*(?:updated\s+invitation|invitation)\b/i;
 const RE_SIGN = /\b(?:docusign|e-?sign(?:ature)?|signature\s+(?:requested|needed|required)|please\s+sign|review\s+and\s+sign|sign\s+(?:the|this)\s+document|awaiting\s+your\s+signature)\b/i;
 const RE_TRACK = /\b(?:tracking|track\s+(?:your|my|the)\s+(?:package|order|shipment|delivery|parcel)|shipped|out\s+for\s+delivery|on\s+its\s+way|delivery\s+(?:update|status))\b/i;
 const RE_PAY = /\b(?:payment\s+(?:failed|declined|unsuccessful|problem|issue|was\s+declined|could\s+not\s+be\s+processed)|(?:couldn'?t|could\s+not|unable\s+to)\s+(?:process|charge)\s+your\s+(?:payment|card)|card\s+(?:was\s+)?declined|update\s+your\s+(?:payment|billing)|billing\s+(?:problem|issue)|failed\s+payment)\b/i;
+// A form link on its own is a link: it takes a word that says the form is what
+// the message is FOR (a newsletter that links to a survey is still a newsletter).
+const RE_FORM = /\b(?:fill\s*(?:it\s*)?out|form|survey|questionnaire|waiver|rsvp|registration|sign[- ]?up)\b/i;
 const RE_TRAVEL = /\b(?:flight|itinerary|boarding\s+pass|e-?ticket|reservation|hotel|check-?in|booking\s+confirmation|trip\s+confirmation)\b/i;
 
 export interface AnalyzeContext {
@@ -631,9 +637,9 @@ function detectProposals(b: ActionEvidenceBundle, ctx: AnalyzeContext): Notifica
   if (track) add(proposal("track", b, track));
   const pay = match(RE_PAY, head);
   if (pay) add(proposal("fix_payment", b, pay));
-  // A form link needs no sentence: the path is the evidence, and a bare
-  // response receipt (edit2=) is refused by the host rule.
-  if (b.links.some((l) => hostOk("fill_form", l, b) && relevant("fill_form", l))) add(proposal("fill_form", b));
+  // The path is the evidence that it is a form to fill, and a bare response
+  // receipt (edit2=) is refused by the host rule; the words say it is the point.
+  if (RE_FORM.test(head) || b.links.some((l) => RE_FORM.test(l.text))) add(proposal("fill_form", b, match(RE_FORM, head)));
   if (b.codes.length === 1 && b.codeMail) add({ kind: "copy_code" });
   const travel = match(RE_TRAVEL, head);
   if (travel && !invite && ((cal?.count ?? 0) > 0 || (ctx.meetings?.length ?? 0) > 0)) add({ kind: "add_travel", quote: travel });
@@ -951,7 +957,6 @@ export function buildNotificationSnapshot(input: SnapshotInput): NotificationSna
       gist,
       snippet: redactCodes(r.snippet ?? ""),
       lastMsgId: r.lastMsgId,
-      at: r.dateMs,
       ...(r.account ? { account: r.account } : {}),
       ...f,
     } satisfies MailThread;

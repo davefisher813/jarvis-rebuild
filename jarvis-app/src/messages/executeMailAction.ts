@@ -93,8 +93,9 @@ const fail = (message: string, extra: Partial<MailActionResult> = {}): MailActio
 
 export function executeMailAction(t: MailActionTarget, deps: MailActionDeps): Promise<MailActionResult> {
   const a = t.action;
-  // Re-checked here: a stored action is data, and data can be edited.
-  if (!canExecuteMailAction(a, { canOpen: true, canCopy: true, canSchedule: !!deps.addMeeting, hasMailApi: !!deps.requestUnsub })) {
+  // Re-checked here: a stored action is data, and data can be edited. Add to
+  // Schedule is always runnable: with nothing to write to it opens the review.
+  if (!canExecuteMailAction(a, { canOpen: true, canCopy: true, canSchedule: true, hasMailApi: !!deps.requestUnsub })) {
     return Promise.resolve(fail("Can't Do That From Here", { openThread: true }));
   }
   switch (a.kind) {
