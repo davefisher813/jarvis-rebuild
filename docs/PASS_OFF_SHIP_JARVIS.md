@@ -44,7 +44,7 @@ Do not skip or reorder. The database change must come BEFORE the merge.
 1. **Check server settings in Vercel.** Both `AI_MODEL` and `AI_MODEL_WRITE` must be models listed in the price table in `jarvis-app/src/ai/aiBudget.ts`. The Supabase service key must be set. If any of these is missing, AI features will refuse to run. This is on purpose (fails closed). Optional: set `AI_PRICE_MULTIPLIER_PERMILLE=1000`.
 2. **Run migration 0043.** File: `jarvis-core/supabase/migrations/0043_ai_spend_budget.sql`. It adds new tables and functions for the spending cap. It does not change existing data. First confirm which Supabase project is Jarvis's live one, then apply it.
 3. **Merge the branch to main.** This deploys.
-4. **Set the spending limit.** In the app: Settings, AI Control, spending limit. Until a limit is set, AI may refuse.
+4. **Set the spending limit very high.** Dave does not want a limit. He is the only user. The cap cannot be turned off (it always exists, default $5), so set it to $1000 in Settings, AI Control, spending limit. That is effectively no limit. Do not build an off switch unless Dave asks.
 5. **Phone check with Dave** (below).
 
 ## Phone Check For Dave
