@@ -160,3 +160,49 @@ export const bundleFor = (m: Sample, over: Partial<EvidenceInput> = {}): ActionE
     ...(m.ics ? { ics: m.ics } : {}),
     ...over,
   });
+
+// THE REAL SHAPE OF A GOOGLE SHARE-REQUEST MAIL (captured 2026-09-29 from a
+// live one, names, address and file id replaced). Three things in it broke
+// Grant Access: the button carries mso-hide:all (Outlook-only, but read as
+// hidden); the words that say it is a request are "Share request for" and
+// "requests access to an item"; and a message with no text part has the
+// sentence only in its HTML.
+const REAL_SHARE_REQUEST_HTML = `<html><head></head><body><table style="border-collapse: collapse; width: 100%; background-color: white; text-align: center;" role="presentation"><tr><td style="padding: 24px 0 16px 0;"><table style="border-collapse: collapse;font-family: Roboto, Arial, Helvetica, sans-serif;hyphens: auto; overflow-wrap: break-word; word-wrap: break-word; word-break: break-word;width: 90%; margin: auto;max-width: 700px;min-width: 280px; text-align: left;" role="presentation"><tr><td style="padding: 0;"><table style="width:100%; border: 1px solid #dadce0; border-radius: 8px; border-spacing: 0; table-layout:fixed; border-collapse: separate;" role="presentation"><tr><td style="padding: 4.5%;" dir="ltr"><div style="margin-bottom:32px;font-family: Google Sans, Roboto, Arial, Helvetica, sans-serif; font-style: normal; font-size: 28px; line-height: 36px; color: #3c4043;">Share a spreadsheet?</div><table style="border-collapse: collapse;font-family: Roboto, Arial, Helvetica, sans-serif; font-size:16px; line-height:24px; color:#202124; letter-spacing:0.1px; table-layout:fixed; width:100%; overflow-wrap: break-word;" role="presentation"><tr><td style="padding: 0; vertical-align:top; width:50px;"><!--[if mso]><v:oval xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" style="height:50px;width:50px;" fill="t" stroke="f"><v:fill type="frame" src="https://lh3.googleusercontent.com/a/ACg8ocI1vXoLlrgG-r-Y3AEjspHp0ASFTIKwWctaH6ShmHtXLILTng=s64" alt="Header profile photo" style="height:50px;width:50px;"/></v:oval><![endif]--><div style="mso-hide:all;"><img style="border-radius:50%; display:block;" width="50" height="50" src="https://lh3.googleusercontent.com/a/ACg8ocI1vXoLlrgG-r-Y3AEjspHp0ASFTIKwWctaH6ShmHtXLILTng=s64" alt="Header profile photo"></div></td><td style="padding: 0; vertical-align:top; padding-left:12px;"><div style="padding-top:12px;">Maya Chen (<a href="mailto:maya.chen@example.com" style="color:inherit;text-decoration:none">maya.chen@example.com</a>) is <b>requesting access</b> to the following spreadsheet:</div></td></tr></table><table style="border-spacing:0 4px; table-layout:fixed; width:100%; overflow-wrap: break-word;" role="presentation"><tr style="height:28px;"></tr><tr><td style="padding: 0;"><a href="https://docs.google.com/spreadsheets/d/1AbCdEfGhIjKlMnOpQ/edit?usp=sharing_esl&amp;userstoinvite=maya.chen@example.com&amp;sharingaction=manageaccess&amp;role=writer&amp;ts=6abb1991" target="_blank" style="color: #3c4043; display: inline-block; max-width: 100%; text-decoration: none; vertical-align: top;border: 1px solid #DADCE0; border-radius: 16px; white-space: nowrap;"><div style="line-height: 18px; overflow: hidden; text-overflow: ellipsis;padding: 6px 12px;"><span style="display: inline-block; vertical-align: middle; min-width: 26px; width: 26px;"><img src="https://ssl.gstatic.com/docs/doclist/images/mediatype/icon_1_spreadsheet_x64.png" width="18" height="18" style="vertical-align: top;" role="presentation"></span><span style="font: 500 14px/18px Google Sans, Roboto, Arial, Helvetica, sans-serif; display: inline; letter-spacing: 0.2px; vertical-align: middle;">Maya Chen | Q3 Roster</span></div></a></td></tr></table><table style="border-collapse: collapse;" role="presentation"><tr style="height: 32px"><td></td></tr></table><div><!--[if mso]><v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="https://docs.google.com/spreadsheets/d/1AbCdEfGhIjKlMnOpQ/edit?usp=sharing_esp&amp;userstoinvite=maya.chen@example.com&amp;sharingaction=manageaccess&amp;role=writer&amp;ts=6abb1991" style="height:36px; width:100px; v-text-anchor:middle;" arcsize="50%" stroke="f" fillcolor="#1a73e8"><w:anchorlock/><center style="color:#ffffff;font-family:Arial,Helvetica,sans-serif;font-weight:500;font-size:14px;">Manage sharing </center></v:roundrect><![endif]--><a href="https://docs.google.com/spreadsheets/d/1AbCdEfGhIjKlMnOpQ/edit?usp=sharing_esp&amp;userstoinvite=maya.chen@example.com&amp;sharingaction=manageaccess&amp;role=writer&amp;ts=6abb1991" class="material-button material-button-filled" target="_blank" tabindex="0" role="link" style="mso-hide:all;padding: 0 24px;font: 500 14px/36px Google Sans, Roboto, Arial, Helvetica, sans-serif; border: none; border-radius: 18px; box-sizing: border-box; display: inline-block; letter-spacing: .25px; min-height: 36px; text-align: center; text-decoration: none;background-color: #0B57D0; color: #fff; cursor: pointer;">Manage sharing</a></div></td></tr></table><table style="border-collapse: collapse; width: 100%;" role="presentation"><tr><td style="padding: 24px 4.5%"><table style="border-collapse: collapse; width: 100%;" dir="ltr"><tr><td style="padding: 0;font-family: Roboto, Arial, Helvetica, sans-serif; color: #5F6368; width: 100%; font-size: 12px; line-height: 16px; min-height: 40px; letter-spacing: .3px;">Google LLC, 1600 Amphitheatre Parkway, Mountain View, CA 94043, USA<br/> You have received this email because <a href="mailto:maya.chen@example.com" style="color:inherit;text-decoration:none">maya.chen@example.com</a> requested access to a spreadsheet in Google Sheets.</td><td style="padding: 0;padding-left: 20px; min-width: 96px"><a href="https://www.google.com/" target="_blank" style="text-decoration: none"><img src="https://www.gstatic.com/images/branding/googlelogo/2x/googlelogo_grey_tm_color_96x40dp.png" width="96" height="40" alt="Google" style="font-size:16px;font-weight:500;color:#5F6368"></a></td></tr></table></td></tr></table></td></tr></table></td></tr></table></body></html>`;
+
+const REAL_SHARE_REQUEST_URL = "https://docs.google.com/spreadsheets/d/1AbCdEfGhIjKlMnOpQ/edit?usp=sharing&userstoinvite=maya.chen@example.com&sharingaction=manageaccess&role=writer&ts=6abb1991";
+
+export const driveShareRequestReal = s({
+  fromEmail: "drive-shares-dm-noreply@google.com", from: "Maya Chen (via Google Sheets)",
+  subject: 'Share request for "Maya Chen | Q3 Roster"',
+  body: "maya.chen@example.com requests access to an item:\n\nMaya Chen | Q3 Roster\n" + REAL_SHARE_REQUEST_URL + "\n\nYou are the owner of this document. To give this user access, click the\nlink above and add them as a collaborator or viewer.",
+  html: REAL_SHARE_REQUEST_HTML,
+});
+
+/** The same mail with no text part at all: the HTML is all there is. */
+export const driveShareRequestHtmlOnly = s({
+  fromEmail: "drive-shares-dm-noreply@google.com", from: "Maya Chen (via Google Sheets)",
+  subject: 'Share request for "Maya Chen | Q3 Roster"',
+  body: "",
+  html: REAL_SHARE_REQUEST_HTML,
+});
+
+const folderRequestHtml = (href: string) =>
+  '<div>Share a folder?</div><div>Maya Chen (<a href="mailto:maya.chen@example.com">maya.chen@example.com</a>) is <b>requesting access</b> to the following folder:</div>'
+  + '<a href="' + href + '"><div>Q3 Roster</div></a>'
+  + '<a href="' + href + '">Manage sharing</a>';
+
+/** A request for a FOLDER: the link is a Drive folder, not a document. */
+export const driveFolderRequest = s({
+  fromEmail: "drive-shares-dm-noreply@google.com", from: "Maya Chen (via Google Drive)",
+  subject: 'Access request for "Q3 Roster"',
+  body: "Maya Chen is requesting access to the following folder:\nQ3 Roster\nGoogle LLC, 1600 Amphitheatre Parkway",
+  html: folderRequestHtml("https://drive.google.com/drive/folders/1AbCdEfGhIjKlMnOpQ?usp=sharing_esl&amp;userstoinvite=maya.chen@example.com&amp;sharingaction=manageaccess&amp;role=writer"),
+});
+
+/** A stranger's mail with a real folder link and the same words. Not Google, so not Grant Access. */
+export const strangerFolderRequest = s({
+  fromEmail: "maya@random-company.example", from: "Maya",
+  subject: 'Access request for "Q3 Roster"',
+  body: "Maya Chen is requesting access to the following folder:\nQ3 Roster",
+  html: folderRequestHtml("https://drive.google.com/drive/folders/1AbCdEfGhIjKlMnOpQ?usp=sharing"),
+});

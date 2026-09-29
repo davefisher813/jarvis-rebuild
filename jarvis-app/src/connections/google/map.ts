@@ -254,12 +254,15 @@ function normColor(v: string): string {
   return t;
 }
 
-function isHiddenStyle(style: string): boolean {
+function isHiddenStyle(style: string, outlookOnlyVisible = false): boolean {
   const s = style.toLowerCase().replace(/\s+/g, " ");
   if (/display\s*:\s*none/.test(s)) return true;
   if (/visibility\s*:\s*hidden/.test(s)) return true;
   // Outlook's own idiom for the same trick.
-  if (/mso-hide\s*:\s*all/.test(s)) return true;
+  // (mso-hide only hides in Outlook, where a VML twin stands in. A caller
+  // that acts on links, not on prose, reads the mail as every other client
+  // shows it, so it may ask for this one to stay visible.)
+  if (!outlookOnlyVisible && /mso-hide\s*:\s*all/.test(s)) return true;
   if (/font-size\s*:\s*0(?:\.0*)?\s*(?:px|pt|em|rem|%)?\s*(?:;|$)/.test(s)) return true;
   if (/opacity\s*:\s*0(?:\.0+)?\s*(?:;|$)/.test(s)) return true;
   if (/max-height\s*:\s*0(?:px)?\s*(?:;|$)/.test(s) && /overflow\s*:\s*hidden/.test(s)) return true;
@@ -293,13 +296,13 @@ function matchingClose(h: string, tag: string, from: number): number | null {
   return null;
 }
 
-export function dropHidden(h: string): string {
+export function dropHidden(h: string, opts: { outlookOnlyVisible?: boolean } = {}): string {
   const re = /<([a-zA-Z][a-zA-Z0-9]*)((?:"[^"]*"|'[^']*'|[^'">])*)>/g;
   let out = "";
   let kept = 0;
   let m: RegExpExecArray | null;
   while ((m = re.exec(h))) {
-    if (!isHiddenStyle(styleOf(m[2]!))) continue;
+    if (!isHiddenStyle(styleOf(m[2]!), opts.outlookOnlyVisible)) continue;
     out += h.slice(kept, m.index);
     const after = m.index + m[0].length;
     const tag = m[1]!.toLowerCase();
