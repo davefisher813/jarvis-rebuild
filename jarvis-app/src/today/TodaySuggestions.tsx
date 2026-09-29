@@ -454,6 +454,7 @@ export default function TodaySuggestions({ ai, always = false }: { ai: AIService
         // must ask for, so the body folds the card back to its whisper.
         onOpen={() => setOpen(false)}
         onDismiss={dismissThis}
+        dismissButton
       />
     );
   } else if (aiPick) {
@@ -474,6 +475,7 @@ export default function TodaySuggestions({ ai, always = false }: { ai: AIService
         // back to its whisper, the same way it opened.
         onOpen={() => setOpen(false)}
         onDismiss={dismissThis}
+        dismissButton
       />
     );
   } else if (aiError) {
@@ -552,6 +554,7 @@ export default function TodaySuggestions({ ai, always = false }: { ai: AIService
           stack
           action={{ label: "Remember This", onClick: () => void acceptMoment(m) }}
           onDismiss={() => dismissMoment(m)}
+          dismissButton
         />
       ))}
     </>

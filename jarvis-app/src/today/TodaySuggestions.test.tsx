@@ -19,7 +19,7 @@ describe("TodaySuggestions", () => {
     expect(screen.queryByLabelText("Dismiss")).not.toBeInTheDocument();
   });
 
-  it("shows exactly one AI row, dismissible on the swipe", async () => {
+  it("shows exactly one AI row, dismissible from a visible button beside its action", async () => {
     const fetchImpl = vi.fn(async () => ({
       ok: true,
       status: 200,
@@ -31,11 +31,11 @@ describe("TodaySuggestions", () => {
     await waitFor(() => expect(screen.getByText(/Noticed: Email Sam the Q3 Plan/)).toBeInTheDocument());
     fireEvent.click(screen.getByText(/Noticed: Email Sam the Q3 Plan/));
     await waitFor(() => expect(screen.getByText("Email Sam the Q3 Plan")).toBeInTheDocument());
-    expect(screen.getByText("Dismiss")).toBeInTheDocument();
+    expect(screen.getByLabelText("Dismiss")).toBeInTheDocument();
     // one row at a time: the second suggestion waits its turn
     expect(screen.queryByText("Reach out to Maya")).not.toBeInTheDocument();
     // dismissing from the corner reveals the next candidate
-    fireEvent.click(screen.getByText("Dismiss"));
+    fireEvent.click(screen.getByLabelText("Dismiss"));
     await waitFor(() => expect(screen.queryByText("Email Sam the Q3 Plan")).not.toBeInTheDocument());
   });
 });
@@ -56,7 +56,7 @@ describe("TodaySuggestions planning pattern (Brain Personalization Phase 2, 2026
     render(<NotesProvider userId="u3"><TodaySuggestions ai={new AIService({ available: false })} /></NotesProvider>);
     await waitFor(() => expect(screen.getByText(/^Noticed:/)).toBeInTheDocument());
     fireEvent.click(screen.getByText(/^Noticed:/));
-    await waitFor(() => expect(screen.getByText("Dismiss")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByLabelText("Dismiss")).toBeInTheDocument());
     // Casing sweep 2 (2026-09-27): Title Case by the whole rule (§H2); durations through shared/duration ("45 Min", "1h 30m").
     expect(screen.getByText(/Work Tasks Run 20 Min Long/)).toBeInTheDocument();
     expect(screen.queryByText(new RegExp(WORK))).not.toBeInTheDocument();
@@ -67,7 +67,7 @@ describe("TodaySuggestions planning pattern (Brain Personalization Phase 2, 2026
   it("shows nothing from a single correction, not enough evidence for a pattern", () => {
     emit({ type: "plan.duration_corrected", entityType: "task", entityId: "t1", props: { category: "work", n: 20 } });
     render(<NotesProvider userId="u4"><TodaySuggestions ai={new AIService({ available: false })} /></NotesProvider>);
-    expect(screen.queryByText("Dismiss")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Dismiss")).not.toBeInTheDocument();
   });
 });
 
@@ -154,7 +154,7 @@ describe("TodaySuggestions being-known moments", () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     completions(4, 10);
     render(<NotesProvider userId="b1"><TodaySuggestions ai={new AIService({ available: false })} /></NotesProvider>);
-    await waitFor(() => expect(screen.queryByText("Dismiss")).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByLabelText("Dismiss")).not.toBeInTheDocument());
   });
 
   it("surfaces the completion window once the evidence is real, with its own count", async () => {
@@ -244,7 +244,7 @@ describe("TodaySuggestions the whole day's moments (S4-Q21)", () => {
     await waitFor(() => expect(screen.getByText(/You train between/)).toBeInTheDocument());
     // The primary row renders first, so its own Dismiss is first in the DOM;
     // the extra card's is last.
-    const dismissButtons = screen.getAllByText("Dismiss");
+    const dismissButtons = screen.getAllByLabelText("Dismiss");
     fireEvent.click(dismissButtons[dismissButtons.length - 1]!);
     await waitFor(() => expect(screen.queryByText(/You train between/)).not.toBeInTheDocument());
     expect(screen.getByText(/Your tasks get done between/)).toBeInTheDocument();

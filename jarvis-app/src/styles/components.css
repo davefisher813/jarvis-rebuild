@@ -3908,6 +3908,12 @@ button {
   font-family: var(--f); font-size: var(--t-meta); font-weight: var(--w-semi);
   display: flex; align-items: center; justify-content: center; }
 .notice-dismiss { right: 0; background: var(--press-3); color: var(--tx-2); }
+/* THE VISIBLE DISMISS (audit 2026-09-29). A flex sibling of the capsule, a
+   real 44px box, so the two hit areas sit side by side and cannot overlap.
+   Quiet on purpose: a way out, not a verb (red is a verb). */
+.notice-x { flex-shrink: 0; align-self: center; width: var(--tap-min); height: var(--tap-min); margin-left: var(--s-1);
+  display: inline-flex; align-items: center; justify-content: center; padding: 0; border: 0; background: none; color: var(--tx-2); }
+.notice-x .ic { width: 18px; height: 18px; }
 .notice-alt { right: 0; background: var(--accent-chip); color: var(--accent-chip-tx); }
 /* Trashes the mail itself, not just the card (2026-08-26). Outermost slot,
    same edge Delete sits at on a real inbox row (MailSwipe) -- a swipe

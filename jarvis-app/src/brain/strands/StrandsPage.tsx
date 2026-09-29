@@ -15,6 +15,7 @@ import {
 } from "./types";
 import { pressable } from "../../shared/pressable";
 import ReadinessPanel, { useReadiness } from "./ReadinessPanel";
+import ReadinessSheet from "./ReadinessSheet";
 import { stateForStrand, toneForStrandState, STRAND_STATE_LABEL, bucketFor, confidenceWord, isWatching, type StrandBucket } from "./state";
 import { usedBy } from "./usedBy";
 import { watchingCount } from "../readiness";
@@ -128,6 +129,10 @@ export default function StrandsPage({ onBack, openId: initialOpenId, openNonce, 
   }, [initialOpenId, openNonce]);
   const open = openId ? strands.find((s) => s.id === openId) ?? null : null;
   const [adding, setAdding] = useState(false);
+  // AUDIT 2026-09-29: which readiness row's detail is open. A readiness row
+  // opens this, never the Add One Thing form; Tell JARVIS inside it is the
+  // way on to the form.
+  const [readyKey, setReadyKey] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
   const [text, setText] = useState("");
   const [cat, setCat] = useState<StrandCategory>("work_style");
@@ -304,6 +309,9 @@ export default function StrandsPage({ onBack, openId: initialOpenId, openNonce, 
     });
   };
 
+  const closeForm = () => { setAdding(false); setEditing(false); setOpenId(null); };
+  const readyRow = readyKey ? read.rows.find((r) => r.key === readyKey) ?? null : null;
+
   const tellAbout = (key: string) => {
     setAdding(true); setText(""); setCat(categoryForReadiness(key)); setRule(false); setKind(null); setChannel(null);
   };
@@ -335,7 +343,7 @@ export default function StrandsPage({ onBack, openId: initialOpenId, openNonce, 
         ))}
       </div>
 
-      <ReadinessPanel read={read} today={today} focusKey={focusReadinessKey} onTell={tellAbout} />
+      <ReadinessPanel read={read} today={today} focusKey={focusReadinessKey} onTell={tellAbout} onOpen={setReadyKey} />
 
       {filter === "watching" && (
         <>
@@ -357,8 +365,10 @@ export default function StrandsPage({ onBack, openId: initialOpenId, openNonce, 
             <div className="pad-x"><div className="card list-card-ruled">
               {watching.map((r) => (
                 // Row tap (Dave 2026-09-15): a watched detector is not a fact
-                // yet, so the row does its pill's verb, Tell JARVIS.
-                <div {...pressable(() => tellAbout(r.key))} className={"row strand-row" + (r.key === focusReadinessKey ? " rdy-row-focus" : "")} key={r.key}>
+                // yet. The row opens its readiness detail (audit 2026-09-29:
+                // it used to open the Add One Thing form); the pill is the
+                // one-tap way to Tell JARVIS.
+                <div {...pressable(() => setReadyKey(r.key))} className={"row strand-row" + (r.key === focusReadinessKey ? " rdy-row-focus" : "")} key={r.key}>
                   <div className="row-grow">
                     <div className="conn-name">{r.label}</div>
                     <div className="facts">
@@ -501,8 +511,12 @@ export default function StrandsPage({ onBack, openId: initialOpenId, openNonce, 
         </div>
       )}
 
+      {readyRow && (
+        <ReadinessSheet r={readyRow} onClose={() => setReadyKey(null)} onTell={() => { setReadyKey(null); tellAbout(readyRow.key); }} />
+      )}
+
       {(adding || (open && editing)) && (
-        <div className="sheet-scrim" onClick={() => { setAdding(false); setEditing(false); setOpenId(null); }}>
+        <div className="sheet-scrim" onClick={closeForm}>
           <div className="card" onClick={(e) => e.stopPropagation()}>
             <div className="sheet-handle" />
             <div className="grp"><div className="eyebrow">{adding ? "One True Thing" : "Say It Right"}</div></div>
@@ -551,6 +565,10 @@ export default function StrandsPage({ onBack, openId: initialOpenId, openNonce, 
             </div>
             <div className="pad-x sheet-actions">
               <button className="btn btn-primary btn-block" disabled={saving} onClick={() => void (adding ? doAdd() : doEdit())}>{saving ? "Saving..." : "Save"}</button>
+              {/* A VISIBLE WAY OUT (audit 2026-09-29): the form closed on the
+                  scrim or Escape only, so on a phone the only exit was to
+                  tap outside a sheet that fills the screen. */}
+              <button type="button" className="btn btn-secondary btn-block" onClick={closeForm}>Cancel</button>
             </div>
           </div>
         </div>
