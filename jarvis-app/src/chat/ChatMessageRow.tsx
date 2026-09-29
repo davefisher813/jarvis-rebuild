@@ -112,11 +112,12 @@ export default function ChatMessageRow({ m, prov, refs, onOpen, onFile }: {
   return (
     <div className={"chat-row " + (m.data.role === "user" ? "chat-row-user" : "chat-row-jarvis")}>
       {body}
-      <RowMenuButton
-        className="chat-row-menu"
-        what={m.data.role === "user" ? "Your Message" : "JARVIS Message"}
-        onMenu={() => setMenu(true)}
-      />
+      <span className="chat-row-menu">
+        <RowMenuButton
+          what={m.data.role === "user" ? "Your Message" : "JARVIS Message"}
+          onMenu={() => setMenu(true)}
+        />
+      </span>
       {menu && (
         <RowActionSheet
           title={m.data.role === "user" ? "Your Message" : "JARVIS Message"}

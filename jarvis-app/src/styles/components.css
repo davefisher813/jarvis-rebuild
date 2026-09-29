@@ -2687,13 +2687,13 @@ button {
 .chat-row > .chat-bubble { max-width: none; min-width: 0; align-self: auto; }
 /* On a pointer that hovers, the door is quiet until the row is hovered or
    anything in it has focus; it always keeps its place so nothing shifts. */
-.chat-row-menu { opacity: 0; }
-.chat-row:hover .chat-row-menu, .chat-row:focus-within .chat-row-menu, .chat-row-menu:focus-visible { opacity: 1; }
+.chat-row-menu { display: inline-flex; opacity: 0; }
+.chat-row:hover .chat-row-menu, .chat-row:focus-within .chat-row-menu { opacity: 1; }
 /* On a touch screen the long press is the door. The button stays in the
    accessibility tree for VoiceOver and Switch Control but takes no room and
    catches no touch until it has focus. */
 @media (hover: none) {
-  .chat-row-menu:not(:focus-visible) { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; opacity: 1; }
+  .chat-row-menu:not(:focus-within) { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; opacity: 1; }
 }
 .chat-prov { margin-top: var(--s-1); font-size: var(--t-eyebrow); font-weight: var(--w-semi); text-transform: uppercase; letter-spacing: var(--track-caps); color: var(--tx-3); }
 /* UP-MIND-02: the records the answer was built from, tappable. Sits under
