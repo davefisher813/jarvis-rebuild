@@ -119,6 +119,7 @@ import { chartableExercises, liftSessions } from "../gym/chartData";
 import { correlate, plateauFlag, hardSetRows, muscleMapFrom, backOffSignal, shouldOfferLighterWeek, correlationProgress, hardSetEvidence, volumeBreakdown, coverageGap } from "../gym/insights";
 import { readGymSettings, writeGymSettings } from "../gym/settings";
 import InsightsPage from "../insights/InsightsPage";
+import { notEnoughDaysLine } from "./insightCopy";
 import AllDataPage from "../insights/AllDataPage";
 import ExportSheet from "../insights/ExportSheet";
 import AssignMusclesSheet from "../insights/AssignMusclesSheet";
@@ -1559,8 +1560,8 @@ export default function CategoryDetail({
                     )}
                     {(doneWeek > 0 || overdue > 0 || (nextDue && nextTone !== "red") || stalled || line) && (
                       <div className="r-k">
-                        {doneWeek > 0 && <span className="uchip u-done">{doneWeek} Done</span>}
-                        {overdue > 0 && <span className="uchip u-late">{overdue} Late</span>}
+                        {doneWeek > 0 && <span className="uchip u-done">{`${doneWeek} Done`}</span>}
+                        {overdue > 0 && <span className="uchip u-late">{`${overdue} Late`}</span>}
                         {nextDue && nextTone === "warn" && <span className="uchip u-today">{nextDue === today ? "Today" : "Tomorrow"}</span>}
                         {nextDue && nextTone === "date" && <span className="fact date">{dayPhrase(nextDue, today).replace(/ /g, "\u00a0")}</span>}
                         {stalled && <span className="r-goal r-stalled">Stalled</span>}
@@ -1841,7 +1842,7 @@ export default function CategoryDetail({
                     middots were. */}
                 {rangeRows.length > 0 && (
                   <InsightCard evidence={hardSetEvidence(rangeRows, nowMs, hsBand ? rangeRows[0]!.range : undefined)} onExplain={explain}
-                    note={<>Last 7 days, working sets only, warm-ups excluded. {rangeRows[0]!.range.source}.</>}>
+                    note={["Last 7 days, working sets only, warm-ups excluded.", `${rangeRows[0]!.range.source}.`].join(" ")}>
                     <div className="ins-head">
                       <span className="ins-dot hue-hl-lime" />
                       <span className="ins-t">Weekly Volume</span>
@@ -1972,7 +1973,7 @@ export default function CategoryDetail({
                 ))}
                 {/* Bare: the one .pad-x above insets it, level with the cards. */}
                 {nearest && (
-                  <div className="input-hint">Not enough days yet for {nearest.def} and {nearest.ex}, {nearest.p.paired} of {nearest.p.needed} paired sessions.</div>
+                  <div className="input-hint">{notEnoughDaysLine(nearest)}</div>
                 )}
                 {offerLighter && (
                   <InsightCard key="lighter" evidence={backOff?.evidence} onExplain={explain} note="Never a Prescription, Just an Offer">
@@ -2287,7 +2288,7 @@ export default function CategoryDetail({
               <div className="task-row p2">
                 <div className="task-title">
                   <span className="task-name">No People Here Yet</span>
-                  <div className="r-k"><span className="r-goal r-cat">Open someone in Contacts and tag them {cat.data.name}</span></div>
+                  <div className="r-k"><span className="r-goal r-cat">{`Open someone in Contacts and tag them ${cat.data.name}`}</span></div>
                 </div>
               </div>
             )}

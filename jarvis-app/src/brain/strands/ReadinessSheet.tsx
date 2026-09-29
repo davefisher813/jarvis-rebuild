@@ -1,6 +1,5 @@
 import { readinessWord, toneForReadinessWord } from "./state";
 import { watchingCount, type Readiness } from "../readiness";
-import { Nums } from "../../bigger/GoalRowRuled";
 import { lineCase } from "../../shared/casing";
 
 // A READINESS ROW OPENS ITS OWN DETAIL (audit 2026-09-29). Tapping a row on
@@ -30,7 +29,7 @@ export default function ReadinessSheet({ r, onTell, onClose }: { r: Readiness; o
         <div className="pad-x sheet-form">
           <div className="strand-head">{r.label}</div>
           <div className="conn-meta">{watchingCount(r)}</div>
-          {r.detail && <div className="conn-meta"><Nums text={r.detail} /></div>}
+          {r.detail && <div className="conn-meta">{r.detail}</div>}
           <div className="conn-meta">{missingLine(r)}</div>
         </div>
         <div className="pad-x sheet-actions">

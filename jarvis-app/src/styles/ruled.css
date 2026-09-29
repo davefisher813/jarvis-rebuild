@@ -3168,3 +3168,27 @@
    set off by its own fill, so it needs no dot and takes a small margin. */
 .rem-card .facts > .fact:has(> .uchip)::before { content: none; }
 .rem-card .facts > .fact:has(> .uchip) { margin-left: var(--s-1h); }
+
+/* SETTINGS COPY SHOWS IN FULL (evening audit 2026-09-29). The two-line clamp on
+   .conn-meta is the no-wrap law for SUBS OF USER DATA (a note's first line, a
+   contact's company): the world sends those, and a row of unequal lengths
+   loses its rhythm. Everything under a Settings row, under a Settings card and
+   in the Learning Lab's rows is a sentence this app wrote, so it wraps and
+   shows whole; the row grows, nothing below is pushed off. "A lock-screen alert
+   15 minutes before, and its own row on the Notifications tab" measured 55px
+   in a 36px box. The foot lines (.input-hint) and the Lab's why-lines
+   (.rdy-why) never carried a clamp; they are named here so nothing that adds
+   one later cuts them without failing src/settings/settingsCopy.test.ts. */
+.ruled .set-card > .set-row .conn-meta {
+  display: block; -webkit-line-clamp: none; overflow: visible; white-space: normal; text-overflow: clip;
+  overflow-wrap: anywhere;
+}
+.ruled .input-hint, .ruled .rdy-why {
+  -webkit-line-clamp: none; max-height: none; overflow: visible; white-space: normal; text-overflow: clip;
+}
+/* Two facts in one value carry a real space between them in the markup (About's
+   "Build b375567 2026-09-29", AI Control's "12 ~$0.04"), so innerText and a
+   copy of the line have one. The dot the stylesheet draws between facts takes
+   that space as its left margin. */
+.about-hero .account-sub > .fact + .fact::before,
+.ruled .set-card .row-value > .fact + .fact::before { margin-left: 0; }

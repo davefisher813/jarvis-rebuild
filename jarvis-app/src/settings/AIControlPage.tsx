@@ -169,7 +169,7 @@ export default function AIControlPage({ onBack }: { onBack: () => void }) {
   const usd = estimateCost(tokens);
   const callsValue = count === null
     ? "Not tracked"
-    : usd === null ? String(count) : <><span className="fact">{count}</span><span className="fact est">~{formatUSD(usd)}</span></>;
+    : usd === null ? String(count) : <><span className="fact">{count}</span>{" "}<span className="fact est">{`~${formatUSD(usd)}`}</span></>;
   const inTok = tokens.reduce((n, t) => n + t.inputTokens + t.cacheReadTokens + t.cacheWriteTokens, 0);
   const outTok = tokens.reduce((n, t) => n + t.outputTokens, 0);
   const tokenRow = inTok + outTok > 0 ? `${formatTokens(inTok)} in, ${formatTokens(outTok)} out` : "";
