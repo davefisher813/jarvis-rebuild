@@ -141,7 +141,7 @@ function TwoAccounts({ apiOf, children }: { apiOf: (email: string) => GoogleApi;
   if (!seeded) return null;
   return (
     <GoogleSessionProvider
-      broker={{ authorize: async () => ({ token: "t-a@x.com", email: "a@x.com" }), silent: async (email) => "t-" + email }}
+      broker={{ authorize: async () => ({ token: "t-a@x.com", email: "a@x.com" }), silent: async (email) => ({ ok: true, token: "t-" + email, email, expiresAt: Date.now() + 3600e3, remembered: true, status: 200 }) }}
       makeApi={(_token, email) => apiOf(email ?? "a@x.com")}
     >
       {children}

@@ -85,4 +85,48 @@ describe("withSilentRefresh", () => {
     await expect(api429.getThread("x")).rejects.toThrow("thread 429");
     expect(refreshes).toBe(0);
   });
+
+  // MUTATION PREFLIGHT (2026-09-29): a write is replayed only when Google said
+  // 401, which means it was never run. Anything else may have run, and doing
+  // a Delete or a Send twice is worse than reporting one failure.
+  it("a write that ends in a network failure is not replayed", async () => {
+    let posts = 0;
+    let refreshes = 0;
+    const flaky = (() => { posts += 1; throw new TypeError("Failed to fetch"); }) as never;
+    const api = createGoogleApi("t", withSilentRefresh(flaky, async () => { refreshes += 1; return "fresh"; }));
+    await expect(api.trashThread("x")).rejects.toThrow("Failed to fetch");
+    await expect(api.sendMessage("RAW", "t1")).rejects.toThrow("Failed to fetch");
+    expect(posts).toBe(2); // once each
+    expect(refreshes).toBe(0);
+  });
+
+  it("a write refused with 403 or 500 goes to the caller after exactly one attempt", async () => {
+    for (const status of [403, 500, 503]) {
+      let calls = 0;
+      const api = createGoogleApi("t", withSilentRefresh((() => { calls += 1; return res({}, false, status); }) as never, async () => "fresh"));
+      await expect(api.modifyThread("x", ["A"], [])).rejects.toThrow("thread modify " + status);
+      expect(calls).toBe(1);
+    }
+  });
+
+  it("a write that meets 401 twice is replayed once, not forever", async () => {
+    let calls = 0;
+    let refreshes = 0;
+    const api = createGoogleApi("stale", withSilentRefresh((() => { calls += 1; return res({}, false, 401); }) as never, async () => { refreshes += 1; return "fresh"; }));
+    await expect(api.trashThread("x")).rejects.toThrow("thread trash 401");
+    expect(calls).toBe(2);
+    expect(refreshes).toBe(1);
+  });
+
+  it("the replay of a write carries the fresh token and the same body", async () => {
+    const seen: { auth: string; body?: string }[] = [];
+    const fakeFetch = (_u: string, init?: { headers?: Record<string, string>; body?: string }) => {
+      seen.push({ auth: bearer(init), body: init?.body });
+      return bearer(init) === "Bearer fresh" ? res({}) : res({}, false, 401);
+    };
+    const api = createGoogleApi("stale", withSilentRefresh(fakeFetch as never, async () => "fresh"));
+    await api.modifyThread("x", ["STARRED"], ["INBOX"]);
+    expect(seen.map((x) => x.auth)).toEqual(["Bearer stale", "Bearer fresh"]);
+    expect(seen[1]!.body).toBe(seen[0]!.body);
+  });
 });
