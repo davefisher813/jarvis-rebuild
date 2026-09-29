@@ -9,6 +9,7 @@
 
 import { noDashes } from "../ai/suggestions";
 import { HOSTILE_CLAUSE, untrustedBlock } from "./untrusted";
+import type { MeetingCandidate, NotificationClassification, ReplyRequirements } from "./mailContracts";
 
 export interface Brief {
   summary: string;
@@ -44,6 +45,17 @@ export interface Brief {
   // A separate extractor would double the mail spend to learn something the
   // same read already saw.
   meeting?: ConfirmedMeeting;
+  // BRIEF v4 (2026-09-29): three more readings of the same conversation, from
+  // the same one call, each optional and each meaning "not analysed" when
+  // absent. See mailContracts.ts for the laws they share. Declared here so the
+  // three screens that read them have one place to look; the prompt and the
+  // validation that fill them are the brief's own.
+  /** Appointments the conversation sets, asks for, proposes or cancels. [] means none. */
+  meetingCandidates?: MeetingCandidate[];
+  /** What the sender is waiting to hear back. [] means nothing. */
+  replyRequirements?: ReplyRequirements;
+  /** What a notification wants done. null means read and nothing is wanted. */
+  notification?: NotificationClassification | null;
 }
 
 /** A time both sides settled on, resolved against the reader's own today. */
