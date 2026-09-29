@@ -156,3 +156,67 @@ describe("the Assisted engine", () => {
     expect(s.basis!.source).toBe("1 Working Set on Sep 10");
   });
 });
+
+// 2026-09-29: "Suggested 595 Lb x 2" over a card whose Last line said 270 x 5,
+// with 360 x 3 and 450 x 3 before it. The Last header and the fields' seed read
+// THIS WORKOUT DAY's previous session first (prs.ts lastSessionFor); the
+// suggestion read the newest session of the lift on ANY day, so it built next
+// week's target on a different day's heaviest set.
+describe("suggestFor reads the same session the Last line does", () => {
+  const day = (id: string, date: string, sets: Partial<SetEntry>[]) => {
+    const w = wk(date, [wex("Bench", sets)]);
+    w.data.dayId = id;
+    return w;
+  };
+  const range = plan({ sets: [{ id: "p1", w: 270, r: 5 }] });
+  const clean = (w: number, r: number) => ({ w, r, moved: "clean" as const });
+
+  it("prefers this workout day's session over a newer session of another day", () => {
+    const h = [
+      day("heavy", "2026-09-10", [clean(270, 5), clean(270, 5)]),
+      day("light", "2026-09-17", [clean(590, 2)]),
+    ];
+    const anyDay = suggestFor(h, range)!;
+    expect(anyDay.from.w).toBe(590); // the old reading, still what no day preference gives
+    const sameDay = suggestFor(h, range, { preferDayId: "heavy" })!;
+    expect(sameDay.from.w).toBe(270);
+    expect(sameDay.next.w).toBe(275);
+  });
+
+  it("falls back to the newest session when this day has never trained the lift", () => {
+    const h = [day("light", "2026-09-17", [clean(225, 5)])];
+    expect(suggestFor(h, range, { preferDayId: "heavy" })!.from.w).toBe(225);
+  });
+
+  it("speaks in the lift's unit: a kg session is converted, not read as pounds", () => {
+    const kgSession = wk("2026-09-17", [{ exerciseId: "x", name: "Bench", kind: "weight_reps", unit: "kg",
+      sets: [{ id: "k1", w: 100, r: 5, moved: "clean" }] }]);
+    const s = suggestFor([kgSession], plan({ unit: "lb" }))!;
+    expect(s.from.w).toBeCloseTo(220.5, 0);
+    expect(s.next.w).toBeLessThan(230);
+  });
+
+  it("offers nothing when the heaviest set is more than 1.5x the tops before it (an outlier, not a trend)", () => {
+    const h = [
+      day("d", "2026-08-20", [clean(360, 3)]),
+      day("d", "2026-08-27", [clean(450, 3)]),
+      day("d", "2026-09-03", [clean(450, 3)]),
+      day("d", "2026-09-10", [clean(2250, 3)]),
+    ];
+    expect(suggestFor(h, plan({ sets: [{ id: "p1", w: 450, r: 3 }] }))).toBeNull();
+  });
+
+  it("still offers a real jump: a session 25 percent above the last is a trend, not an outlier", () => {
+    const h = [
+      day("d", "2026-08-20", [clean(360, 3)]),
+      day("d", "2026-08-27", [clean(360, 3)]),
+      day("d", "2026-09-03", [clean(450, 3)]),
+    ];
+    expect(suggestFor(h, plan({ sets: [{ id: "p1", w: 450, r: 3 }] }))!.next.w).toBe(455);
+  });
+
+  it("does not guard with fewer than two earlier sessions to compare", () => {
+    const h = [day("d", "2026-08-20", [clean(135, 5)]), day("d", "2026-09-03", [clean(400, 5)])];
+    expect(suggestFor(h, plan({ sets: [{ id: "p1", w: 400, r: 5 }] }))).not.toBeNull();
+  });
+});

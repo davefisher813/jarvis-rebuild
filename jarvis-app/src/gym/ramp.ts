@@ -112,6 +112,64 @@ export function rampFor(
   return out;
 }
 
+// THE RAMP IS A SUGGESTION, NOT A SECOND SET OF ROWS (2026-09-29, Dave: "Edit
+// the warm up feature. It is way too complicated. It seems like it's on some
+// automode but it's a huge pain to deal with.").
+//
+// The live session used to draw the whole ramp as dashed rows and count them
+// off by HOW MANY warm-ups were logged. Log two of your own (180, 270) and the
+// ramp's first two rows were "done" while its 160 and 225 stayed on screen,
+// offering weights already passed. Now the ramp feeds ONE thing, the Now
+// card's Warm-Up mode, and it is read against WHAT WAS LIFTED, not how many.
+
+/** The next ramp step the athlete has not already gone past: the first one
+ *  strictly heavier than the heaviest warm-up logged. Null when the ramp is
+ *  off (an empty list), exhausted, or the athlete warmed up beyond it. */
+export function nextRampStep(ramp: SetEntry[], logged: Pick<SetEntry, "w" | "warmup">[]): SetEntry | null {
+  const heaviest = Math.max(0, ...logged.filter((s) => s.warmup).map((s) => s.w ?? 0));
+  return ramp.find((r) => (r.w ?? 0) > heaviest) ?? null;
+}
+
+/** Does the Now card open in Warm-Up mode? Only before the first working set,
+ *  and only while the ramp still has a step to offer. After a working set, or
+ *  once the ramp is used up, it is Work mode, and one tap flips it either way. */
+export function startsInWarmUp(ramp: SetEntry[], logged: Pick<SetEntry, "w" | "warmup" | "drop">[]): boolean {
+  if (logged.some((s) => !s.warmup && !s.drop)) return false;
+  return nextRampStep(ramp, logged) !== null;
+}
+
+/** What the Warm-Up side of the toggle opens at, in the order that is least
+ *  surprising: the next ramp step; else what the last warm-up was (a repeat is
+ *  one tap to change); else half the working weight on a rack the bar can
+ *  build (never under the bar), or on the nearest `step` for a stack or a
+ *  dumbbell. Always a starting point, never a prescription. */
+export function warmupSeed(opts: {
+  ramp: SetEntry[];
+  logged: Pick<SetEntry, "w" | "r" | "warmup">[];
+  /** The working weight the athlete is about to lift, if anything says. */
+  work: number | null;
+  /** True when the lift has a bar to start from (equipment.plateMath). */
+  hasBar: boolean;
+  rack: RackConfig;
+  unit?: string;
+  /** The weight field's own increment. */
+  step: number;
+}): { w?: number; r?: number } {
+  const next = nextRampStep(opts.ramp, opts.logged);
+  if (next) return { w: next.w, r: next.r };
+  const lastWarm = [...opts.logged].reverse().find((s) => s.warmup && ((s.w ?? 0) > 0 || (s.r ?? 0) > 0));
+  if (lastWarm) return { ...((lastWarm.w ?? 0) > 0 ? { w: lastWarm.w } : {}), ...((lastWarm.r ?? 0) > 0 ? { r: lastWarm.r } : {}) };
+  const r = rackIn(opts.rack, opts.unit);
+  const work = opts.work ?? 0;
+  if (opts.hasBar) {
+    const half = work > 0 ? floorToRack(work / 2, r) : r.bar;
+    return { w: Math.max(r.bar, Math.round(half * 100) / 100), r: 8 };
+  }
+  if (work <= 0) return { r: 8 };
+  const step = opts.step > 0 ? opts.step : 1;
+  return { w: Math.max(step, Math.round(Math.floor(work / 2 / step + 1e-9) * step * 100) / 100), r: 8 };
+}
+
 /**
  * PLATE MATH (D8-A). What goes on ONE side to reach `total`, heaviest first.
  * Null when this rack cannot build that number exactly -- a wrong plate list

@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { FormSheet, Group, FieldRow, Row, DeleteRow } from "../shared/FormSheet";
+import { FormSheet, Group, FieldRow, Row, SwitchRow, DeleteRow } from "../shared/FormSheet";
+import { Flame } from "../shared/icons";
 import type { MeasureKind, SetEntry } from "./types";
 import type { fieldsFor } from "./measures";
 
@@ -20,6 +21,16 @@ import type { fieldsFor } from "./measures";
 //
 // A field left empty comes OFF the set (empty is legal, measures.ts): a
 // weight nobody said is not a zero.
+//
+// WARM-UP SET, THE ONE PLACE A LOGGED SET CHANGES KIND (2026-09-29, Dave: "I
+// should also be EASILY able to mark sets as warm ups and vice versa"). A
+// switch at the top of the sheet; Save writes `warmup` with the numbers, and
+// nothing else about the set moves. Whether a row says "Warm-Up" or "Set 3",
+// and what number the work sets carry, is derived from the flag everywhere
+// (stateWord.ts, workNoAt), so flipping it renumbers the work for free. A
+// warm-up carries no How Did It Move mark, so converting to one lets go of it.
+// A drop segment is its own thing and a "done" mark has no weight to warm up
+// with; neither is offered the switch.
 
 const MOVED_OPTIONS: { value: "clean" | "grind" | "missed"; label: string; hue: string }[] = [
   { value: "clean", label: "All Clean", hue: "mv-clean" },
@@ -48,8 +59,9 @@ export default function SetSheet({ title, kind, fields, entry, moveTracking = fa
   const [vals, setVals] = useState<Record<string, string>>(() =>
     Object.fromEntries(ordered.map((f) => [f.key, entry[f.key] ? String(entry[f.key]) : ""])));
   const [moved, setMoved] = useState<SetEntry["moved"]>(entry.moved);
+  const [warm, setWarm] = useState(!!entry.warmup);
   const save = () => {
-    const patch: Partial<SetEntry> = { moved };
+    const patch: Partial<SetEntry> = { moved: warm ? undefined : moved, warmup: warm ? true : undefined };
     for (const f of ordered) {
       const n = Number(vals[f.key]);
       (patch as Record<string, unknown>)[f.key] = vals[f.key]?.trim() !== "" && Number.isFinite(n) && n > 0 ? n : undefined;
@@ -57,7 +69,15 @@ export default function SetSheet({ title, kind, fields, entry, moveTracking = fa
     onSave(patch);
   };
   return (
-    <FormSheet title={title} onCancel={onCancel} onSave={save} dirty={moved !== entry.moved}>
+    <FormSheet title={title} onCancel={onCancel} onSave={save} dirty={moved !== entry.moved || warm !== !!entry.warmup}>
+      {/* THE KIND OF SET, FIRST: it changes what the rest of the sheet says. */}
+      {kind !== "done" && !entry.drop && (
+        <Group>
+          <SwitchRow tone="yellow" glyph={<Flame className="ic" />} label="Warm-Up Set" ariaLabel="Warm-up set"
+            meta={warm ? "Not Counted in Records" : "Counts as a Working Set"}
+            on={warm} onToggle={() => setWarm((w) => !w)} />
+        </Group>
+      )}
       {kind === "done" ? (
         <Group>
           <Row label={entry.done ? "Done" : "Mark Done"} onClick={() => onSave({ done: !entry.done, skipped: false })} />
@@ -73,7 +93,7 @@ export default function SetSheet({ title, kind, fields, entry, moveTracking = fa
       {/* HOW IT MOVED (catalog §4.5): observable events, never a feelings
           scale. Optional; tapping the active chip clears it. A warm-up and a
           drop are not the work and carry no mark (D6). */}
-      {moveTracking && !entry.skipped && !entry.warmup && !entry.drop && (
+      {moveTracking && !entry.skipped && !warm && !entry.drop && (
         <Group label="How Did It Move?">
           {/* row-tap: the three chips are the row; a tap on the gap between
               them must not pick one for the athlete */}

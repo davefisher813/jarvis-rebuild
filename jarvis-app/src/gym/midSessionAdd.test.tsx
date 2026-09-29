@@ -37,7 +37,7 @@ function strip(g: SetEntry) {
   return render(
     <SetStrip
       kind="weight_reps" unit="lb" entries={[]} ghost={[g]}
-      editableGhosts onLogGhost={() => {}}
+      editableGhosts
       onChange={() => {}}
     />,
   );
@@ -101,7 +101,7 @@ describe("the live log box does not print a zero nobody typed", () => {
     const onNowDraft = vi.fn();
     render(
       <SetStrip kind="weight_reps" unit="lb" entries={[]} ghost={[ghost({ r: 8 })]}
-        editableGhosts onLogGhost={() => {}} onNowDraft={onNowDraft} onChange={() => {}} />,
+        editableGhosts onNowDraft={onNowDraft} onChange={() => {}} />,
     );
     fireEvent.change(screen.getByLabelText("Set 1 weight"), { target: { value: "135" } });
     expect(onNowDraft).toHaveBeenLastCalledWith({ w: "135", r: "8" });

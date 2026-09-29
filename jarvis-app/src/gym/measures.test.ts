@@ -42,6 +42,11 @@ describe("the one-tap button names exactly the entry it will write", () => {
     expect(logButtonLabel(ex("time_faster", { unit: "sec" }), { v: 4.6 })).toBe("Log 4.6 Sec");
     expect(logButtonLabel(ex("done"), null)).toBe("Mark Done");
   });
+  it("names a warm-up as one (2026-09-29), and says so even with nothing typed", () => {
+    expect(logButtonLabel(ex("weight_reps", { unit: "lb" }), { w: 160, r: 5 }, true)).toBe("Log Warm-Up 160 Lb × 5");
+    expect(logButtonLabel(ex("weight_reps", { unit: "lb" }), { w: 270, r: 5 }, false)).toBe("Log 270 Lb × 5");
+    expect(logButtonLabel(ex("weight_reps", { unit: "lb" }), null, true)).toBe("Log Warm-Up");
+  });
   it("never reads the plan on its own: an entry with reps alone says reps alone", () => {
     const heavy = ex("weight_reps", { unit: "lb", sets: strip(2, { w: 135, r: 8 }) });
     expect(logButtonLabel(heavy, { r: 10 })).toBe("Log 10 Reps");
