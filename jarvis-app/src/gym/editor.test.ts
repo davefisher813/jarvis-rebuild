@@ -60,7 +60,9 @@ describe("D2: last time is wired everywhere sets render", () => {
     expect(s).toContain("onMatchLast={lastHit");
     // AMENDED 2026-09-26 (workout logging, Dave: only the red button logs):
     // Match puts last time's numbers IN THE FIELDS, and the bar writes them.
-    expect(s).toContain("setDraft(fieldsOf(entryFrom(src)))");
+    // AMENDED 2026-09-29: and lands the card on the Work side (warm: false),
+    // since last time's numbers are working sets.
+    expect(s).toContain("setDraft({ ...fieldsOf(entryFrom(src)), warm: false })");
     expect(s, "Match no longer writes a set on its own").not.toContain("onLog(entryFrom(src))");
   });
 

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { rampFor, DEFAULT_PLATES } from "./ramp";
+import { rampFor, nextRampStep, startsInWarmUp, warmupSeed, DEFAULT_PLATES, DEFAULT_BAR } from "./ramp";
 import type { Exercise } from "./types";
 
 const ex = (over: Partial<Exercise> = {}): Exercise => ({
@@ -112,5 +112,91 @@ describe("platesPerSide", () => {
     expect(platesPerSide(80, 20, [25, 20, 15, 10, 5, 2.5])).toEqual([25, 5]);
     expect(platesPerSide(225, 45, [45])).toEqual([45, 45]);
     expect(platesPerSide(235, 45, [45])).toBeNull();
+  });
+});
+
+// THE RAMP AS A SUGGESTION (2026-09-29). It feeds the Now card's Warm-Up side
+// and is read against what was LIFTED, never against how many warm-ups exist.
+describe("nextRampStep", () => {
+  const ramp = rampFor(ex(), { bar: 45, plates: DEFAULT_PLATES }); // 45, 90, 135, 190
+  const w = (weight: number, over = {}) => ({ w: weight, warmup: true, ...over });
+
+  it("is the first step when nothing has been warmed up", () => {
+    expect(nextRampStep(ramp, [])!.w).toBe(45);
+  });
+
+  it("is the first step strictly above the heaviest warm-up logged", () => {
+    expect(nextRampStep(ramp, [w(45)])!.w).toBe(90);
+    expect(nextRampStep(ramp, [w(100)])!.w).toBe(135);
+    expect(nextRampStep(ramp, [w(90)])!.w).toBe(135); // equal is passed, not repeated
+  });
+
+  it("does not care how many warm-ups there are or in what order: 180 then 270 passes the whole ramp", () => {
+    expect(nextRampStep(ramp, [w(270), w(180)])).toBeNull();
+    // ...whereas counting them would have offered the 3rd and 4th steps.
+    expect(nextRampStep(ramp, [w(100), w(120)])!.w).toBe(135);
+  });
+
+  it("ignores working sets and weightless warm-ups", () => {
+    expect(nextRampStep(ramp, [{ w: 225, warmup: false }, { warmup: true }])!.w).toBe(45);
+  });
+
+  it("is null for a lift with the ramp off or nothing to ramp", () => {
+    expect(nextRampStep([], [])).toBeNull();
+  });
+});
+
+describe("startsInWarmUp", () => {
+  const ramp = rampFor(ex(), { bar: 45, plates: DEFAULT_PLATES });
+  it("is true before any working set while a step remains", () => {
+    expect(startsInWarmUp(ramp, [])).toBe(true);
+    expect(startsInWarmUp(ramp, [{ w: 45, warmup: true }])).toBe(true);
+  });
+  it("is false once a working set has been logged, however many steps remain", () => {
+    expect(startsInWarmUp(ramp, [{ w: 225 }])).toBe(false);
+    expect(startsInWarmUp(ramp, [{ w: 45, warmup: true }, { w: 225 }])).toBe(false);
+  });
+  it("is false when the ramp is exhausted or off", () => {
+    expect(startsInWarmUp(ramp, [{ w: 200, warmup: true }])).toBe(false);
+    expect(startsInWarmUp([], [])).toBe(false);
+  });
+  it("a drop is not a working set", () => {
+    expect(startsInWarmUp(ramp, [{ w: 200, drop: true }])).toBe(true);
+  });
+});
+
+describe("warmupSeed", () => {
+  const rack = { bar: DEFAULT_BAR, plates: DEFAULT_PLATES };
+  const ramp = rampFor(ex(), rack);
+  const base = { ramp: [], logged: [], work: 225 as number | null, hasBar: true, rack, unit: "lb", step: 5 };
+
+  it("is the next ramp step, weight and reps", () => {
+    expect(warmupSeed({ ...base, ramp })).toEqual({ w: 45, r: 10 });
+    expect(warmupSeed({ ...base, ramp, logged: [{ w: 100, r: 8, warmup: true }] })).toEqual({ w: 135, r: 5 });
+  });
+
+  it("repeats the last warm-up when the ramp is used up, for one tap to change", () => {
+    expect(warmupSeed({ ...base, ramp, logged: [{ w: 180, r: 8, warmup: true }, { w: 270, r: 6, warmup: true }] })).toEqual({ w: 270, r: 6 });
+  });
+
+  it("with no ramp, is half the working weight floored to the rack, never under the bar", () => {
+    expect(warmupSeed(base)).toEqual({ w: 110, r: 8 });
+    expect(warmupSeed({ ...base, work: 65 })).toEqual({ w: 45, r: 8 });
+  });
+
+  it("with no working weight at all on a barbell, is the bar", () => {
+    expect(warmupSeed({ ...base, work: null })).toEqual({ w: 45, r: 8 });
+  });
+
+  it("on a lift with no bar, is half the weight on the field's own step, or just reps when nothing says", () => {
+    expect(warmupSeed({ ...base, hasBar: false, work: 50, step: 5 })).toEqual({ w: 25, r: 8 });
+    expect(warmupSeed({ ...base, hasBar: false, work: 55, step: 10 })).toEqual({ w: 20, r: 8 });
+    expect(warmupSeed({ ...base, hasBar: false, work: null })).toEqual({ r: 8 });
+  });
+
+  it("reads the rack in the lift's unit: a kg lifter on a kg bar", () => {
+    const kg = { bar: 20, plates: [25, 20, 15, 10, 5, 2.5, 1.25], unit: "kg" };
+    expect(warmupSeed({ ...base, rack: kg, unit: "kg", work: 100 }).w).toBe(50);
+    expect(warmupSeed({ ...base, rack: kg, unit: "kg", work: 30 }).w).toBe(20);
   });
 });

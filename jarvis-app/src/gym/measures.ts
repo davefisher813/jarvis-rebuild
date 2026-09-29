@@ -134,12 +134,15 @@ export function hasTarget(ex: Pick<Exercise, "kind" | "sets">): boolean {
  * (nextSet.ts), and says only what is in it. Cased by the whole rule ("Log
  * 20 Lb × 10", never "20 lb"), since a button is a line the app writes.
  */
-export function logButtonLabel(ex: Pick<Exercise, "kind" | "unit" | "timeUnit"> & { sided?: boolean }, next: SetLog | null): string {
+export function logButtonLabel(ex: Pick<Exercise, "kind" | "unit" | "timeUnit"> & { sided?: boolean }, next: SetLog | null, warmup = false): string {
   if (ex.kind === "done") return "Mark Done";
   const keys = fieldsFor(ex.kind).map((f) => f.key);
   const ready = next && keys.some((k) => (next[k] ?? 0) > 0);
-  if (!ready) return `Log ${entryNoun(ex.kind, false)}`;
-  return `Log ${lineCase(formatSet(ex, next!))}`;
+  // A warm-up says so on the button (2026-09-29): the thumb is already on it,
+  // and it is the one place that names what is about to be written.
+  const verb = warmup ? "Log Warm-Up" : "Log";
+  if (!ready) return warmup ? verb : `Log ${entryNoun(ex.kind, false)}`;
+  return `${verb} ${lineCase(formatSet(ex, next!))}`;
 }
 
 /** The plan as one line for the program pages: "3 × 135 lb × 8" when every

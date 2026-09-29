@@ -6884,6 +6884,10 @@ span.row-star { cursor: default; }
 .ruled.health-ruled .se-sugg .se-sugg-act { display: inline; margin-top: 0; }
 .ruled.health-ruled .se-sugg .se-sugg-act .act { margin-left: 0; }
 .ruled.health-ruled .se-sugg .ins-rows { flex-basis: 100%; margin-top: var(--s-1h); }
+/* WORK | WARM-UP on the Now row (2026-09-29): the app's own segmented pill,
+   full width of the row so either half is a thumb-sized target, sitting
+   between the kicker and the fields. */
+.ruled.health-ruled .se-mode { margin: var(--s-2) 0 var(--s-2h); }
 /* THE SET SHEET IS A PORTAL (§AD), so the How Did It Move chips need their
    hues named for the sheet's card as well as the health root. Same three
    meanings the strip's editor draws: clean lime, grind amber, miss pink. */

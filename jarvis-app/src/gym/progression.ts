@@ -1,5 +1,5 @@
-import type { Exercise, SetLog, Workout } from "./types";
-import { fieldsFor } from "./measures";
+import type { Exercise, SetEntry, SetLog, Workout } from "./types";
+import { fieldsFor, inUnit } from "./measures";
 import { liftRef, sameLift } from "./identity";
 import { lineCase } from "../shared/casing";
 
@@ -59,6 +59,13 @@ export interface SuggestOptions {
   /** The rack's smallest plate, both sides, as the increment for a barbell. */
   smallestJump?: number;
   equipmentLabel?: string;
+  /** THE SAME SESSION THE SCREEN CALLS "LAST" (2026-09-29). The live session
+   *  seeds its fields and prints its Last header from this workout day's own
+   *  previous session first (prs.ts lastSessionFor); the suggestion used to
+   *  read the newest session of the lift on ANY day, so the card could say
+   *  "Last 270 x 5" and "Suggested 595 x 2" in one breath, the second built on
+   *  a different day's heavy top set. Given, the same day answers first. */
+  preferDayId?: string;
 }
 
 /** The jump that fits the numbers the athlete actually lifts. A 5 lb jump on
@@ -76,20 +83,44 @@ function dayPhrase(iso: string): string {
   return y && m && d ? `${MONTHS[m - 1]} ${d}` : iso;
 }
 
-/** The last session that actually trained this exercise, by the same identity
- *  every other gym derivation uses (GYM-F-04: the library key when both sides
- *  have one, else name and kind). */
-function lastSession(history: Workout[], ex: Pick<Exercise, "name" | "kind"> & { exerciseKey?: string }) {
+/** The sessions that actually trained this exercise, oldest first, by the same
+ *  identity every other gym derivation uses (GYM-F-04: the library key when
+ *  both sides have one, else name and kind). Warm-ups and drops are not
+ *  evidence: they are supposed to move well. Weights come back in the unit the
+ *  lift is in NOW (2026-09-29): a session logged in kg used to be read as if
+ *  its numbers were pounds, or the other way round. */
+function sessionsOf(history: Workout[], ex: Pick<Exercise, "name" | "kind" | "unit"> & { exerciseKey?: string }) {
   const ref = liftRef(ex, ex.kind);
-  for (let i = history.length - 1; i >= 0; i--) {
-    const w = history[i]!;
+  const out: { date: string; dayId: string; sets: SetEntry[]; unit: string | undefined }[] = [];
+  for (const w of history) {
     const hit = w.data.exercises.find((e) => sameLift(ref, e));
-    // Warm-ups are not evidence: they are supposed to move well.
     const work = hit?.sets.filter((s) => !s.skipped && !s.warmup && !s.drop) ?? [];
-    if (hit && work.length) return { date: w.data.date, sets: work, unit: hit.unit };
+    if (!hit || !work.length) continue;
+    const convert = !!ex.unit && !!hit.unit && ex.unit !== hit.unit;
+    out.push({
+      date: w.data.date, dayId: w.data.dayId,
+      sets: convert ? work.map((s) => inUnit(ex.kind, s, hit.unit, ex.unit) as SetEntry) : work,
+      unit: convert ? ex.unit : hit.unit,
+    });
   }
-  return null;
+  return out;
 }
+
+/** The session to read and the ones before it. Same day first, else the
+ *  newest, exactly as the Last header chooses (prs.ts lastSessionFor). */
+function lastSession(history: Workout[], ex: Pick<Exercise, "name" | "kind" | "unit"> & { exerciseKey?: string }, preferDayId?: string) {
+  const all = sessionsOf(history, ex);
+  if (all.length === 0) return null;
+  const scope = preferDayId && all.some((x) => x.dayId === preferDayId) ? all.filter((x) => x.dayId === preferDayId) : all;
+  const last = scope[scope.length - 1]!;
+  return { ...last, before: scope.slice(0, -1).slice(-3) };
+}
+
+/** The most a suggestion may lean on one session's heaviest set: 1.5 times the
+ *  middle of the tops before it. Past that the number is not a trend, it is a
+ *  mistyped weight or another lift's, and building next week's target on it
+ *  is how a card ends up asking for double what was ever lifted. */
+const OUTLIER = 1.5;
 
 /**
  * What to offer for the next session of `ex`, or null when the log does not
@@ -98,7 +129,7 @@ function lastSession(history: Workout[], ex: Pick<Exercise, "name" | "kind"> & {
 export function suggestFor(history: Workout[], ex: Exercise, opts: SuggestOptions = {}): Suggestion | null {
   const mode = opts.mode ?? "assisted";
   if (mode === "manual" || mode === "program") return null;
-  const last = lastSession(history, ex);
+  const last = lastSession(history, ex, opts.preferDayId);
   if (!last) return null;
 
   const marked = last.sets.filter((s) => s.moved);
@@ -132,6 +163,19 @@ export function suggestFor(history: Workout[], ex: Exercise, opts: SuggestOption
   const top = [...last.sets].sort((a, b) => (b.w ?? b.r ?? 0) - (a.w ?? a.r ?? 0))[0]!;
   const from: SetLog = {};
   for (const k of keys) if (top[k] !== undefined) from[k] = top[k];
+
+  // THE OUTLIER GUARD (2026-09-29). The target is built on the session's
+  // heaviest set, so one absurd set (a typo, a rack pull filed under the deadlift)
+  // would be carried forward and bumped. With at least two earlier sessions to
+  // compare, a top set more than 1.5 times their median offers nothing: silence
+  // is the honest output of evidence that contradicts itself (rule 1).
+  if (keys.includes("w") && (from.w ?? 0) > 0 && last.before.length >= 2) {
+    const tops = last.before.map((x) => Math.max(...x.sets.map((y) => y.w ?? 0))).filter((t) => t > 0).sort((a, b) => a - b);
+    if (tops.length >= 2) {
+      const mid = tops.length % 2 ? tops[(tops.length - 1) / 2]! : (tops[tops.length / 2 - 1]! + tops[tops.length / 2]!) / 2;
+      if (from.w! > mid * OUTLIER) return null;
+    }
+  }
 
   const next: SetLog = { ...from };
   let jumpUsed = 0;

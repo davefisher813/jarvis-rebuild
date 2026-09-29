@@ -72,9 +72,32 @@ describe("§AN: one logging flow", () => {
     expect(cancel, "and Undo puts the session back").toMatch(/writeLive\(snap\); enterSession\(snap\)/);
   });
 
+  // DAVE, 2026-09-29: "Edit the warm up feature. It is way too complicated...
+  // I should also be EASILY able to mark sets as warm ups and vice versa."
+  it("the warm-up is a side of the Now card: no ramp rows, a Work | Warm-Up pill, one flag", () => {
+    const screen = read("gym/SessionScreen.tsx");
+    expect(screen, "the ramp is not counted off by how many warm-ups are logged").not.toMatch(/rampLeft|rampLogged/);
+    expect(screen, "the session decides the side through the ramp module").toMatch(/startsInWarmUp\(ramp, logged\)/);
+    expect(screen, "the pill flips the side").toMatch(/onNowMode=\{flipMode\}/);
+    expect(screen, "and the button and the write follow it").toMatch(/logButtonLabel\([^)]*pending, warm\)/);
+    expect(screen).toMatch(/\.\.\.\(warm \? \{ warmup: true \} : \{\}\)/);
+    const strip = read("gym/SetStrip.tsx");
+    expect(strip, "no warm-up row logs on tap any more").not.toMatch(/onLogGhost/);
+    expect(strip).toMatch(/className="segmented se-mode" role="group" aria-label="Set type"/);
+    const sheet = read("gym/SetSheet.tsx");
+    expect(sheet, "a logged set converts in the Set sheet").toMatch(/<SwitchRow[\s\S]{0,120}?label="Warm-Up Set"/);
+    expect(sheet).toMatch(/warmup: warm \? true : undefined/);
+  });
+
+  it("the suggestion reads the session the Last line reads", () => {
+    expect(read("gym/SessionScreen.tsx")).toMatch(/preferDayId: live\.dayId/);
+    expect(read("gym/progression.ts")).toMatch(/preferDayId\?: string/);
+  });
+
   it("the ruling is written down", () => {
     const cat = readFileSync(join(SRC, "..", "STYLING_CATALOG_V3.md"), "utf8");
     expect(cat).toMatch(/## AN\. One logging flow/);
     expect(cat).toMatch(/Three dots isn't obvious enough/);
+    expect(cat, "and so is the warm-up model").toMatch(/## §AS\. The warm-up is a side of the Now card/);
   });
 });

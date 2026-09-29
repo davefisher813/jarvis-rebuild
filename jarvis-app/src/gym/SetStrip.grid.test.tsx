@@ -12,14 +12,14 @@ import SetStrip from "./SetStrip";
 describe("SetStrip: the Now row's fields", () => {
   it("reports what is typed, as typed, and nothing on the row logs", () => {
     const onNowDraft = vi.fn();
-    const onLogGhost = vi.fn();
-    render(<SetStrip kind="weight_reps" unit="lb" entries={[]} onChange={() => {}} ghost={[{ id: "g1", w: 120, r: 10 }, { id: "g2", w: 120, r: 10 }]} editableGhosts onLogGhost={onLogGhost} onNowDraft={onNowDraft} />);
+    const onChange = vi.fn();
+    render(<SetStrip kind="weight_reps" unit="lb" entries={[]} onChange={onChange} ghost={[{ id: "g1", w: 120, r: 10 }, { id: "g2", w: 120, r: 10 }]} editableGhosts onNowDraft={onNowDraft} />);
     fireEvent.change(screen.getByLabelText("Set 1 weight"), { target: { value: "125" } });
     fireEvent.change(screen.getByLabelText("Set 1 reps"), { target: { value: "8" } });
     expect(onNowDraft).toHaveBeenLastCalledWith({ w: "125", r: "8" });
     expect(screen.queryByLabelText("Log set 1"), "no tick on the row").toBeNull();
     fireEvent.click(screen.getByText("Now · Set 1"));
-    expect(onLogGhost, "the row's body never logs").not.toHaveBeenCalled();
+    expect(onChange, "the row's body never logs").not.toHaveBeenCalled();
     // The row after it is the plan, read and not typed into.
     expect(screen.queryByLabelText("Set 2 weight")).toBeNull();
     expect(screen.getByText("120 Lb × 10")).toBeInTheDocument();
@@ -35,11 +35,36 @@ describe("SetStrip: the Now row's fields", () => {
     expect(screen.queryByLabelText("Set 1 reps")).toBeNull();
     expect(screen.getByText("10 Reps")).toBeInTheDocument();
   });
-  it("a warm-up row still logs its own ramp number on tap, since it has nothing to type", () => {
-    const onLogGhost = vi.fn();
-    render(<SetStrip kind="weight_reps" unit="lb" entries={[]} onChange={() => {}} ghost={[{ id: "w1", w: 95, r: 5, warmup: true }, { id: "g1", w: 120, r: 10 }]} editableGhosts onLogGhost={onLogGhost} />);
-    fireEvent.click(screen.getByText("Warm-Up"));
-    expect(onLogGhost).toHaveBeenCalledWith(0);
+  // 2026-09-29 (the warm-up simplification, Dave: "way too complicated"): the
+  // ramp no longer arrives as dashed Warm-Up rows that log on tap. A Warm-Up
+  // is the other side of the Now row's Work | Warm-Up pill.
+  it("a Warm-Up ghost is just a plan row now: it names itself and does not log on tap", () => {
+    const onChange = vi.fn();
+    render(<SetStrip kind="weight_reps" unit="lb" entries={[]} onChange={onChange} ghost={[{ id: "g1", w: 120, r: 10 }]} editableGhosts />);
+    expect(screen.queryByRole("group", { name: "Set type" }), "no pill unless the session asks for one").toBeNull();
+  });
+  it("the Now row carries the Work | Warm-Up pill, marks the side it is on, and reports the tap", () => {
+    const onNowMode = vi.fn();
+    const { rerender } = render(<SetStrip kind="weight_reps" unit="lb" entries={[]} onChange={() => {}} ghost={[{ id: "g1", w: 120, r: 10 }, { id: "g2", w: 120, r: 10 }]} editableGhosts nowWarm={false} onNowMode={onNowMode} />);
+    const pill = screen.getByRole("group", { name: "Set type" });
+    expect(pill).toHaveTextContent("WorkWarm-Up");
+    expect(screen.getByRole("button", { name: "Work" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByText("Now · Set 1")).toBeInTheDocument();
+    // ONE pill: only the row being logged has it, not the plan rows after it.
+    expect(screen.getAllByRole("group", { name: "Set type" })).toHaveLength(1);
+    fireEvent.click(screen.getByRole("button", { name: "Warm-Up" }));
+    expect(onNowMode).toHaveBeenCalledWith(true);
+    rerender(<SetStrip kind="weight_reps" unit="lb" entries={[]} onChange={() => {}} ghost={[{ id: "g1", w: 45, r: 10 }, { id: "g2", w: 120, r: 10 }]} editableGhosts nowWarm onNowMode={onNowMode} />);
+    expect(screen.getByRole("button", { name: "Warm-Up" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByText("Now · Warm-Up"), "the row is named for the side it is on").toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Work" }));
+    expect(onNowMode).toHaveBeenLastCalledWith(false);
+  });
+  it("the Warm-Up side drops the last-time line, which is about the work", () => {
+    render(<SetStrip kind="weight_reps" unit="lb" entries={[]} onChange={() => {}} ghost={[{ id: "g1", w: 45, r: 10 }]} editableGhosts nowWarm onNowMode={() => {}}
+      lastFor={() => "Last: 225 lb × 5"} onMatchLast={() => {}} />);
+    expect(screen.queryByText("Match")).toBeNull();
+    expect(screen.queryByText(/Last/)).toBeNull();
   });
   it("a Done row opens the session's sheet instead of the inline panel when asked to", () => {
     const onOpenSet = vi.fn();

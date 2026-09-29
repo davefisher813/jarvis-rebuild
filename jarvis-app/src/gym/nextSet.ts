@@ -84,7 +84,15 @@ export function nextSetEntry(opts: {
  *  empty, and "" is not 0), seeded from the one answer above and replaced by
  *  what is typed, and everything that names or writes the next set reads
  *  `withDraft(seed, draft)`. There is no second copy left to drift. */
-export interface SetDraft { w: string; r: string }
+export interface SetDraft {
+  w: string;
+  r: string;
+  /** WHICH KIND OF SET THE NOW CARD IS ON (2026-09-29). Absent means the
+   *  card's own default (ramp.ts startsInWarmUp); present means the athlete
+   *  flipped the Work / Warm-Up pill, and it stays through typing. Only the
+   *  session screen writes it, and a write clears the whole draft. */
+  warm?: boolean;
+}
 
 /** The strings the two fields open with for `seed`: a number the app knows,
  *  or empty, never a zero nobody typed (Dave 2026-09-17: "0135"). */

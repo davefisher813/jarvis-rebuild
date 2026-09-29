@@ -1032,3 +1032,18 @@ Light only. Dark is untouched. Category identity and action styling are separate
 **Known contrast pair under 4.5:1:** the red category's text on its own 18% chip, `#D12416` on about `#EFCECF`, 3.62:1. Recorded rather than altered because the ink is the approved value.
 
 Pinned by `reds.ts`, `browserWalk.test.ts`, `laws.test.ts`, `capsuleLaw.test.ts`, `colourKey.test.ts` and `healthSkin.test.ts`, each amended with this date.
+
+## §AS. The warm-up is a side of the Now card, not a set of rows (Dave 2026-09-29; amends D3-A, Training Catalog V2)
+
+Dave: "Edit the warm up feature. It is way too complicated. It seems like it's on some automode but it's a huge pain to deal with. I should also be EASILY able to mark sets as warm ups and vice versa."
+
+The old model drew the ramp as dashed "Warm-Up" rows under the logged sets and counted them off by how many warm-ups had been logged. Two warm-ups of his own (180 x 8, 270 x 6) left the ramp's 160 x 5 and 225 x 3 on screen, offering weights he had already passed. The new model, in one paragraph:
+
+- **The ramp is a suggestion.** `rampFor` (still derived from the plan's first working weight, still only when the exercise has Ramp on, still never stored) feeds the single Now card. `SetEntry.warmup` stays the only flag; no data changes.
+- **The Now card has a Work | Warm-Up pill** (the app's own `.segmented`, on the Now row, one tap). The mode is part of the draft (`SetDraft.warm`) and survives typing; the red button says "Log Warm-Up 160 Lb × 5" or "Log 270 Lb × 5" and writes `warmup: true` or nothing. Only the red button logs.
+- **Which side it opens on** (`ramp.ts startsInWarmUp`): Warm-Up while the ramp is on, no working set has been logged and a ramp step remains; Work otherwise. The step is `nextRampStep`, the first ramp weight strictly above the heaviest warm-up logged, so it follows what was lifted and not how many were logged. Warm-Up with no step to offer (`warmupSeed`) repeats the last warm-up, else half the working weight on the rack (never under the bar), else the bar. Always editable.
+- **Any logged set converts both ways in the Set sheet** ("Warm-Up Set" switch at the top; Save writes `warmup`). The row's name ("Warm-Up" or "Set n") and the work sets' numbers are derived, so converting renumbers for free; PRs, tonnage and Last already skip warm-ups (`scoreOf`, `setVolume`).
+- **Unchanged:** the dashed Up Next rows for the remaining working sets; the program day's Warm-Up checklist (`showWarm`, `warmDone`); the ramp switch in the exercise sheet.
+- **The suggestion line** (Suggested 595 x 2 over Last 270 x 5) was a bug, not a policy: `suggestFor` read the newest session of the lift on any day while the Last line and the prefill read this workout day's own previous session first. It now takes the same day first (`preferDayId`), converts a session logged in the other unit, and offers nothing when the heaviest set is more than 1.5 times the median of the tops before it.
+
+Pinned by `ramp.test.ts`, `SessionScreen.warmup.test.tsx`, `SetSheet.warmup.test.tsx`, `SetStrip.grid.test.tsx`, `progression.test.ts` and `laws/oneFlow.test.ts`.

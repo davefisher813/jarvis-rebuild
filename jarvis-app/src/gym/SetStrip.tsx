@@ -37,7 +37,7 @@ import { Trash2, Check } from "../shared/icons";
  * filled chips are the record.
  */
 export default function SetStrip({
-  kind, unit, timeUnit, style, entries, onChange, ghost, onLogGhost, nowDraft, onNowDraft, nowExtra, nowMatchesLast = false, onOpenSet, editableGhosts = false, disabled, prAt, moveTracking, lastFor, onMatchLast, handles = false, canAdd = true,
+  kind, unit, timeUnit, style, entries, onChange, ghost, nowDraft, onNowDraft, nowWarm = false, onNowMode, nowExtra, nowMatchesLast = false, onOpenSet, editableGhosts = false, disabled, prAt, moveTracking, lastFor, onMatchLast, handles = false, canAdd = true,
 }: {
   kind: MeasureKind;
   unit?: string;
@@ -57,13 +57,15 @@ export default function SetStrip({
   /** Planned sets not yet logged (live session only): shown as unfilled
    *  chips after the filled ones. ONE FLOW (2026-09-26, the workout logging
    *  pass-off: "Different styles show up for logging depending on what's
-   *  clicked. Needs one single clean logging flow"). Only a WARM-UP row logs
-   *  on tap, since a ramp set has nothing to type; the working set the
+   *  clicked. Needs one single clean logging flow"). The working set the
    *  athlete is on is the Now row below, and the sets after it are the plan,
    *  read and not tapped. A row body that logged the plan while the fields
-   *  on it said something else was two doors with two answers. */
+   *  on it said something else was two doors with two answers.
+   *
+   *  NO WARM-UP GHOSTS (2026-09-29). The ramp used to arrive here as dashed
+   *  "Warm-Up" rows of its own that logged on tap. It is a suggestion the Now
+   *  row carries now (`nowWarm`), so nothing in `ghost` is a warm-up. */
   ghost?: SetEntry[];
-  onLogGhost?: (ghostIdx: number) => void;
   /** THE FIELDS' OWN STRINGS, OWNED BY THE SESSION (2026-09-26). Given, the
    *  Now row shows exactly these and reports every keystroke back through
    *  onNowDraft, so the button's label, the fields and the write can never
@@ -72,6 +74,12 @@ export default function SetStrip({
    *  2026-09-26): the Now row has no tick of its own any more. */
   nowDraft?: SetDraft;
   onNowDraft?: (draft: SetDraft) => void;
+  /** WORK | WARM-UP, ON THE NOW ROW (2026-09-29). `nowWarm` says which side
+   *  the row is on; `onNowMode` is the pill that flips it in one tap and is
+   *  what makes the pill exist. On the warm-up side the row is named for it
+   *  and drops the last-time line, which is about the work. */
+  nowWarm?: boolean;
+  onNowMode?: (warm: boolean) => void;
   /** One line the session folds into the Now row under the fields: the
    *  progression's suggestion, in the estimate's ink (Dave, 2026-09-26:
    *  nothing above the Now row may change height when a set lands). */
@@ -222,22 +230,31 @@ export default function SetStrip({
             const st = setState(g, pos, nowPos);
             const isNow = st === "now";
             const grid = isNow && editableGhosts && kind === "weight_reps";
-            const lastText = (lastFor?.(pos) ?? null)?.replace(/^Last:?\s*/, "") ?? null;
-            const tappable = st === "warm" && !!onLogGhost && !disabled;
+            const warmNow = isNow && nowWarm;
+            const lastText = warmNow ? null : (lastFor?.(pos) ?? null)?.replace(/^Last:?\s*/, "") ?? null;
             return (
-              // row-tap: the Now row is the fields and the tick; a tap on its
-              // padding must not log a second answer beside them (2026-09-26)
-              <div className={"row set-chip-ghost" + (isNow ? " setrow-now" : "") + (st === "next" ? " se-next" : "")} key={g.id}
-                {...(tappable ? { role: "button", tabIndex: 0, onClick: () => onLogGhost!(i) } : {})}>
+              // row-tap: the Now row is the fields; a tap on its padding must
+              // not log a second answer beside them (2026-09-26)
+              <div className={"row set-chip-ghost" + (isNow ? " setrow-now" : "") + (st === "next" ? " se-next" : "")} key={g.id}>
                 <div className="row-grow">
                   {/* H-17 / R9 (2026-09-12): the row says its state. The working
                       set the athlete is on says Now and wears the cyan rule;
                       the rest say Up Next in quiet ink at full strength. */}
-                  <div className={"se-kick " + st}>{setKicker(st, workNoAt(pos))}
+                  <div className={"se-kick " + st}>{warmNow ? "Now · Warm-Up" : setKicker(st, workNoAt(pos))}
                     {/* An Up Next row carries last time's reference as the
                         same chip a Done row wears, at the kicker's end; on the
                         Now row the reference is the Match line below. */}
                     {!isNow && lastText && <span className="se-chip se-chip-last"><em>Last</em>{lineCase(lastText)}</span>}</div>
+                  {/* WORK | WARM-UP (2026-09-29). One two-way pill, on the row
+                      that is about to be logged, so calling a set a warm-up is
+                      one tap before it is written and the label on the red
+                      button follows. */}
+                  {isNow && onNowMode && !disabled && (
+                    <div className="segmented se-mode" role="group" aria-label="Set type">
+                      <button type="button" className={"seg" + (!nowWarm ? " active" : "")} aria-pressed={!nowWarm} onClick={() => onNowMode(false)}>Work</button>
+                      <button type="button" className={"seg" + (nowWarm ? " active" : "")} aria-pressed={!!nowWarm} onClick={() => onNowMode(true)}>Warm-Up</button>
+                    </div>
+                  )}
                   {grid
                     ? <GhostGrid entry={g} unit={unit} repWord={style ? repLabel(style) : "Reps"} step={fields.find((f) => f.key === "w")?.step ?? 0.5} setNo={workNoAt(pos)}
                         value={nowDraft} onDraft={onNowDraft} />

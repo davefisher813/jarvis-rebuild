@@ -13,7 +13,7 @@ import { newSetId, blankEntry, duplicateEntry, entryFrom } from "./strip";
 import { isSessionPR, lastHeader, lastSessionFor } from "./prs";
 import { readGymSettings, rackFrom } from "./settings";
 import { readHealthSettings } from "../health/settings";
-import { rampFor } from "./ramp";
+import { rampFor, startsInWarmUp, warmupSeed } from "./ramp";
 import { suggestFor, type Suggestion } from "./progression";
 import { groupLabels, fillerFor, nextInGroup, nextTurnInGroup, groupOf, roundRestFor } from "./groups";
 import { isLiveGroup, sessionExercises } from "./liveGroups";
@@ -250,14 +250,17 @@ export default function SessionScreen({
   const trimCount = live.trims?.[exercise.id] ?? 0;
   const planEx = trimCount > 0 ? { ...exercise, sets: exercise.sets.slice(0, Math.max(0, exercise.sets.length - trimCount)) } : exercise;
   // THE RAMP (D3-A). Derived from the exercise's own first working weight,
-  // never stored, so an edited plan re-ramps for free. Offered before the
-  // work and only until it has been logged.
+  // never stored, so an edited plan re-ramps for free. AS OF 2026-09-29 IT IS
+  // A SUGGESTION, NOT ROWS (Dave: "way too complicated... some automode"). It
+  // used to draw itself as dashed Warm-Up rows counted off by how many
+  // warm-ups were logged, so two warm-ups of his own (180, 270) left the
+  // ramp's 160 and 225 sitting on screen. Now it only decides what the Now
+  // card opens with: the next step above the heaviest warm-up logged, until
+  // the first working set lands or the ramp runs out (ramp.ts).
   const ramp = exercise.ramp ? rampFor(exercise, rackFrom(readGymSettings())) : [];
-  const rampLogged = logged.filter((s) => s.warmup).length;
   // Part 3 wave 2: a drop segment is not a working set, so it never advances
   // the athlete's place in the plan.
   const workLogged = logged.filter((s) => !s.warmup && !s.drop).length;
-  const rampLeft = ramp.slice(rampLogged);
   // THE NOW CARD SHOWS WHAT WILL ACTUALLY BE LOGGED (2026-09-21). It used to
   // show planEx.sets[workLogged] -- the template -- while the big red button
   // named plannedEntryAt() merged with a draft that every write cleared. Two
@@ -270,7 +273,28 @@ export default function SessionScreen({
   // guess with the fields' typing laid over it. The fields SHOW pending, the
   // button NAMES pending, and log() WRITES pending. There is no plan merged
   // underneath any of them, and no copy the fields keep for themselves.
-  const seed = nextSetEntry({ plan: planEx, logged, lastSession: seedHit?.sets ?? null });
+  //
+  // WORK OR WARM-UP (2026-09-29). The Now card is on one of two sides. Its
+  // default is startsInWarmUp (ramp on, no working set yet, a step left); the
+  // Work | Warm-Up pill overrides it through the draft, and the override
+  // survives typing and goes with the next write. Each side has its own
+  // starting numbers, and `seed` is the one for the side it is on.
+  const workSeed = nextSetEntry({ plan: planEx, logged, lastSession: seedHit?.sets ?? null });
+  const warm = draft?.warm ?? startsInWarmUp(ramp, logged);
+  const warmFields = fieldsFor(exercise.kind, { ...style, unit: exercise.unit });
+  const warmSeed: SetEntry | null = exercise.kind === "weight_reps"
+    ? {
+      id: "",
+      ...warmupSeed({
+        ramp, logged, work: workSeed?.w ?? null,
+        // A lift nobody has classified reads as a barbell, the ramp's own reading.
+        hasBar: !style.equipment || plateMath(style).hasBar,
+        rack: rackFrom(readGymSettings()), unit: exercise.unit,
+        step: warmFields.find((f) => f.key === "w")?.step ?? 0.5,
+      }),
+    }
+    : workSeed;
+  const seed = warm ? warmSeed : workSeed;
   const pending = withDraft(seed, draft);
   const fields: SetDraft = draft ?? fieldsOf(seed);
   const planGhosts = planEx.sets.slice(workLogged);
@@ -282,8 +306,11 @@ export default function SessionScreen({
   // The rows after it show the Now row's numbers (Dave's own "set before"
   // rule carried forward, so a row never changes numbers the moment it
   // becomes Now), each with its own Last chip.
-  const carry = (g: SetEntry): SetEntry => { const { w: _w, r: _r, ...rest } = g; return { ...rest, ...(pending?.w ? { w: pending.w } : {}), ...(pending?.r ? { r: pending.r } : {}) }; };
-  const ghost = [...rampLeft, ...(showNow ? [nowEntry, ...planGhosts.slice(1).map(carry)] : [])];
+  // On the Warm-Up side the rows after it still show the WORK's numbers, never
+  // the warm-up's.
+  const ahead = warm ? workSeed : pending;
+  const carry = (g: SetEntry): SetEntry => { const { w: _w, r: _r, ...rest } = g; return { ...rest, ...(ahead?.w ? { w: ahead.w } : {}), ...(ahead?.r ? { r: ahead.r } : {}) }; };
+  const ghost = showNow ? [nowEntry, ...planGhosts.slice(1).map(carry)] : [];
   // 2026-09-11: kept per exercise. This screen stays mounted as the athlete
   // moves through the session, so one flag meant Keep on Bench also dismissed
   // Squat's suggestion, and every lift after it, for the rest of the session.
@@ -324,6 +351,9 @@ export default function SessionScreen({
   const suggestion = workLogged === 0
     ? suggestFor(history, exercise, {
       mode: readHealthSettings().progression,
+      // The session the Last header names, this workout day's own first
+      // (2026-09-29), so "Last" and "Suggested" are built on the same lift.
+      preferDayId: live.dayId,
       // 2026-09-14: the smallest real jump is a PAIR of the smallest plates
       // on anything you load plates onto -- a barbell and a plate-loaded
       // machine both -- and is meaningless on a pinned stack.
@@ -455,8 +485,7 @@ export default function SessionScreen({
       return logged.slice(0, i).filter((s) => !s.warmup && !s.drop).length;
     }
     const g = i - logged.length;
-    if (g < rampLeft.length) return null;
-    return workLogged + (g - rampLeft.length);
+    return workLogged + g;
   };
   const lastAt = (i: number): SetEntry | undefined => {
     const pos = workPosAt(i);
@@ -573,7 +602,7 @@ export default function SessionScreen({
   const receiptForLog = (entry: SetEntry, movedTo?: string) => {
     const before = logged;
     const at = idx;
-    const said = exercise.kind === "done" ? `${liftTitle(exercise.name)} Logged` : `Logged ${lineCase(formatSet(exercise, entry))}`;
+    const said = exercise.kind === "done" ? `${liftTitle(exercise.name)} Logged` : `Logged ${entry.warmup ? "Warm-Up " : ""}${lineCase(formatSet(exercise, entry))}`;
     showToast({
       // In a superset the receipt says where the session just went, so the
       // screen changing under his thumb is never a surprise.
@@ -599,18 +628,36 @@ export default function SessionScreen({
   // than carrying last exercise's numbers onto the next one's button.
   useEffect(() => { setDraft(null); setExtraOpen(false); }, [exercise.name, exercise.kind, workLogged]);
 
+  /** THE WORK | WARM-UP PILL (2026-09-29). One tap, and the fields open at the
+   *  new side's own numbers: the plan's working set for Work, the next ramp
+   *  step (or a sensible default) for Warm-Up. Whatever was typed on the side
+   *  being left is dropped; the choice itself survives typing on this one. */
+  const flipMode = (toWarm: boolean) => {
+    if (toWarm === warm) return;
+    setDraft({ ...fieldsOf(toWarm ? warmSeed : workSeed), warm: toWarm });
+  };
+
   /** THE ONE WRITER (2026-09-26). The big red button and the tick on the
    *  Now row both land here, and it writes `pending`: the same entry the
    *  fields show and the button names. */
   const log = () => {
     if (exercise.kind === "done") { const e = { id: newSetId(), done: true }; onLog(e); receiptForLog(e); return; }
-    const e: SetEntry = { ...(pending ?? blankEntry()), id: newSetId() };
+    // THE PILL DECIDES THE FLAG (2026-09-29): what the button names is what is
+    // written, warm-up or work.
+    const e: SetEntry = { ...(pending ?? blankEntry()), id: newSetId(), ...(warm ? { warmup: true } : {}) };
     // D6-A, the accept (2026-09-26): the program's plan moves only when the
     // first working set is logged AT the suggested numbers. Use puts them in
     // the fields; this is the one explicit accept, and nothing else writes.
-    if (suggestion && workLogged === 0 && e.w === suggestion.next.w && e.r === suggestion.next.r) onAcceptSuggestion?.(suggestion);
+    if (!warm && suggestion && workLogged === 0 && e.w === suggestion.next.w && e.r === suggestion.next.r) onAcceptSuggestion?.(suggestion);
     onLog(e);
     setDraft(null);
+    if (warm) {
+      // A warm-up is not a turn in a superset and not a round: it rests like
+      // the old ramp row did on a single lift, and hands nothing over.
+      if (members.length <= 1) startRest();
+      receiptForLog(e);
+      return;
+    }
     startRest();
     // BACK AND FORTH, ON ITS OWN (2026-09-27, Dave: "it does not
     // automatically go back and forth from exercises during supersets"). In a
@@ -680,11 +727,11 @@ export default function SessionScreen({
   /** The suggestion, folded into the Now row (2026-09-26). */
   const [whyOpen, setWhyOpen] = useState(false);
   // A suggestion that says what the fields already say offers nothing.
-  const suggests = !!suggestion && !((suggestion.next.w ?? 0) === (pending?.w ?? 0) && (suggestion.next.r ?? 0) === (pending?.r ?? 0));
+  const suggests = !warm && !!suggestion && !((suggestion.next.w ?? 0) === (pending?.w ?? 0) && (suggestion.next.r ?? 0) === (pending?.r ?? 0));
   const nowExtra = suggestion && suggests && showNow ? (
     <div className="se-sugg">
       <span className="fact est">{`Suggested ${lineCase(formatSet(exercise, suggestion.next))}`}</span>
-      <button type="button" className="set-last-act se-sugg-act" onClick={(e) => { e.stopPropagation(); setDraft(fieldsOf({ id: "", ...suggestion.next })); }}><span className="act">Use</span></button>
+      <button type="button" className="set-last-act se-sugg-act" onClick={(e) => { e.stopPropagation(); setDraft({ ...fieldsOf({ id: "", ...suggestion.next }), warm: false }); }}><span className="act">Use</span></button>
       <button type="button" className="set-last-act se-sugg-act" aria-expanded={whyOpen} onClick={(e) => { e.stopPropagation(); setWhyOpen((o) => !o); }}><span className="act">{whyOpen ? "Hide Why" : "Why"}</span></button>
       {whyOpen && (
         <div className="ins-rows ins-ev">
@@ -704,7 +751,7 @@ export default function SessionScreen({
     </div>
   ) : null;
   /** Match hides once the fields already say what last time did. */
-  const nowLast = lastHit ? lastAt(logged.length + rampLeft.length) : undefined;
+  const nowLast = lastHit && !warm ? lastAt(logged.length) : undefined;
   const nowMatchesLast = !!nowLast && (nowLast.w ?? 0) === (pending?.w ?? 0) && (nowLast.r ?? 0) === (pending?.r ?? 0);
 
   return (
@@ -954,13 +1001,14 @@ export default function SessionScreen({
             style={style}
             entries={logged}
             ghost={ghost}
-            // A warm-up row logs its own ramp number on tap; it has nothing
-            // to type. The working set is the Now row, logged by its tick or
-            // the bar, and both are log() (2026-09-26).
-            onLogGhost={(i) => { const g = ghost[i]!; if (!g.warmup) return; onLog(duplicateEntry(g)); startRest(); }}
+            // The Now row is the only row that logs, by the red button, and
+            // that is log() (2026-09-26). A warm-up is a side of it, not a row
+            // of its own (2026-09-29).
             editableGhosts
             nowDraft={fields}
-            onNowDraft={setDraft}
+            onNowDraft={(d) => setDraft({ ...d, warm })}
+            nowWarm={warm}
+            onNowMode={flipMode}
             nowExtra={nowExtra}
             nowMatchesLast={nowMatchesLast}
             onOpenSet={setOpenSetId}
@@ -972,7 +1020,7 @@ export default function SessionScreen({
             // Match puts last time's numbers IN THE FIELDS (2026-09-26); the
             // tick or the bar then logs them like any other set, so there is
             // one door that writes and it always shows its number first.
-            onMatchLast={lastHit ? (i) => { const src = lastAt(i); if (src) setDraft(fieldsOf(entryFrom(src))); } : undefined}
+            onMatchLast={lastHit ? (i) => { const src = lastAt(i); if (src) setDraft({ ...fieldsOf(entryFrom(src)), warm: false }); } : undefined}
           />
         )}
       </div>
@@ -1116,7 +1164,7 @@ export default function SessionScreen({
                   {logged.length === 0 ? "Start the Clock" : "Run It Again"}
                 </button>
               : <button className="btn btn-primary btn-launch btn-lg" onClick={log}>
-                  {logButtonLabel({ ...exercise, sided: style.sided }, pending)}
+                  {logButtonLabel({ ...exercise, sided: style.sided }, pending, warm)}
                 </button>}
         </div>
       )}
