@@ -29,6 +29,14 @@ export function makeFakeGoogleApi(o: Partial<GoogleApi> = {}): GoogleApi {
     trashThread: o.trashThread ?? (async () => {}),
     untrashThread: o.untrashThread ?? (async () => {}),
     getProfile: o.getProfile ?? (async () => ({ emailAddress: "me@example.com" })),
+    // The incremental reader. Defaults describe an inbox that never changes,
+    // so a fake that only stubs listThreads sees the same mail on every read.
+    listInboxThreadRefs: o.listInboxThreadRefs ?? (async (max: number) => ({
+      refs: (await (o.listThreads ?? (async () => [] as GmailThreadMeta[]))(max)).map((t) => ({ id: t.id, historyId: "1" })),
+    })),
+    listHistory: o.listHistory ?? (async () => ({ threadIds: [], historyId: "1" })),
+    getThreadMeta: o.getThreadMeta ?? (async (id: string) =>
+      (await (o.listThreads ?? (async () => [] as GmailThreadMeta[]))(1000)).find((t) => t.id === id) ?? null),
     getAttachment: o.getAttachment ?? (async () => ({ data: "", size: 0 })),
   };
 }

@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { selfBlankGuard,
   buildTriageInput, parseTriage, fillSkipped, triageDelta,
-  loadTriageCache, saveTriageCache, splitByBucket, headline, noiseLine,
+  loadTriageFor, saveTriageFor, isAnalysed, splitByBucket, headline, noiseLine,
   applyKnownPeople, knownSenderEmails,
   type TriageMap,
 } from "./triage";
@@ -56,6 +56,21 @@ describe("fillSkipped", () => {
     expect(map.t2!.gist).toBe("Your policy renews Aug 12 for $214");
     expect(map.t1!.bucket).toBe("needs_you"); // untouched
   });
+
+  it("but it is a FALLBACK: flagged, so it never passes for an answer", () => {
+    const map = fillSkipped({ t1: { bucket: "needs_you", gist: "g", lastMsgId: "t1_m1" } }, ROWS);
+    expect(map.t2!.fallback).toBe(true);
+    expect(isAnalysed(map.t2)).toBe(false);
+    expect(isAnalysed(map.t1)).toBe(true);
+  });
+
+  it("counts its attempts, and never overwrites a real answer for the same content", () => {
+    const once = fillSkipped({}, ROWS);
+    expect(once.t2!.tries).toBe(1);
+    expect(fillSkipped(once, ROWS).t2!.tries).toBe(2);
+    const real = { t2: { bucket: "noise" as const, gist: "real", lastMsgId: ROWS[1]!.lastMsgId } };
+    expect(fillSkipped(real, ROWS).t2).toEqual(real.t2);
+  });
 });
 
 describe("triageDelta + cache", () => {
@@ -67,28 +82,60 @@ describe("triageDelta + cache", () => {
     expect(triageDelta(ROWS, cache).map((r) => r.id)).toEqual(["t2", "t3"]);
   });
 
+  it("a fallback is offered again only when a retry is due, and only while it has tries left", () => {
+    const fb = (tries: number): TriageMap => ({ t1: { bucket: "worth_knowing", gist: "g", lastMsgId: "t1_m1", fallback: true, tries } });
+    expect(triageDelta([ROWS[0]!], fb(1)).map((r) => r.id)).toEqual([]);
+    expect(triageDelta([ROWS[0]!], fb(1), { retryFallback: true }).map((r) => r.id)).toEqual(["t1"]);
+    expect(triageDelta([ROWS[0]!], fb(2), { retryFallback: true }).map((r) => r.id)).toEqual([]);
+  });
+
+  const SC = { userId: "u1", account: "me@example.com" };
+  const store = () => { let stored = ""; return { get: () => stored, set: (v: string) => { stored = v; }, storage: { getItem: () => stored || null, setItem: (_k: string, v: string) => { stored = v; } } }; };
+
   it("cache round-trips through storage and survives garbage", () => {
-    let stored = "";
-    const storage = { getItem: () => stored, setItem: (_k: string, v: string) => { stored = v; } };
+    const st = store();
     const map: TriageMap = { t1: { bucket: "needs_you", gist: "g", lastMsgId: "m" } };
-    saveTriageCache(map, storage);
-    expect(loadTriageCache(storage)).toEqual(map);
-    stored = "{broken";
-    expect(loadTriageCache(storage)).toEqual({});
-    stored = JSON.stringify({ t9: { bucket: "explode", gist: 4 } });
-    expect(loadTriageCache(storage)).toEqual({});
+    saveTriageFor(SC, map, st.storage);
+    expect(loadTriageFor(SC, st.storage)).toEqual(map);
+    st.set("{broken");
+    expect(loadTriageFor(SC, st.storage)).toEqual({});
+    st.set(JSON.stringify({ v: 5, accounts: { [Object.keys(JSON.parse(JSON.stringify({ v: 5, accounts: {} })).accounts)[0] ?? "x"]: 1 } }));
+    expect(loadTriageFor(SC, st.storage)).toEqual({});
+  });
+
+  it("entries that do not validate are dropped, and a fallback flag and tries survive the round trip", () => {
+    const st = store();
+    saveTriageFor(SC, {
+      t1: { bucket: "worth_knowing", gist: "g", lastMsgId: "m", fallback: true, tries: 1 },
+      t9: { bucket: "explode", gist: 4 } as never,
+    }, st.storage);
+    const back = loadTriageFor(SC, st.storage);
+    expect(back.t9).toBeUndefined();
+    expect(back.t1).toEqual({ bucket: "worth_knowing", gist: "g", lastMsgId: "m", fallback: true, tries: 1 });
+  });
+
+  it("is scoped: another account, or another owner, sees nothing", () => {
+    const st = store();
+    saveTriageFor(SC, { t1: { bucket: "noise", gist: "g", lastMsgId: "m" } }, st.storage);
+    expect(loadTriageFor({ userId: "u1", account: "other@example.com" }, st.storage)).toEqual({});
+    expect(loadTriageFor({ userId: "u2", account: SC.account }, st.storage)).toEqual({});
   });
 
   it("cache trims oldest-first at the cap", () => {
-    let stored = "";
-    const storage = { getItem: () => stored, setItem: (_k: string, v: string) => { stored = v; } };
+    const st = store();
     const big: TriageMap = {};
     for (let i = 0; i < 310; i++) big["t" + i] = { bucket: "noise", gist: "g", lastMsgId: "m" };
-    saveTriageCache(big, storage);
-    const back = loadTriageCache(storage);
+    saveTriageFor(SC, big, st.storage);
+    const back = loadTriageFor(SC, st.storage);
     expect(Object.keys(back)).toHaveLength(300);
     expect(back.t9).toBeUndefined();
     expect(back.t309).toBeDefined();
+  });
+
+  it("keeps working in memory when storage refuses the write", () => {
+    const full = { getItem: () => null, setItem: () => { throw new Error("quota"); } };
+    saveTriageFor(SC, { t1: { bucket: "noise", gist: "g", lastMsgId: "m" } }, full);
+    expect(loadTriageFor(SC, full).t1?.bucket).toBe("noise");
   });
 });
 

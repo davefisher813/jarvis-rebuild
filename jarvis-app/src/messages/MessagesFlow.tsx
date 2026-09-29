@@ -23,8 +23,8 @@ import {
   type ThreadRow, type ThreadFull, type MailFull, type EmailAttachment,
 } from "../connections/google/map";
 import { selfBlankGuard,
-  loadTriageCache, saveTriageCache, triageDelta, buildTriageInput, parseTriage, TRIAGE_SCHEMA,
-  fillSkipped, splitByBucket, noiseLine, sortByDeadline, byRank, applyKnownPeople, knownSenderEmails,
+  loadTriageView, saveTriageView, dropLegacyTriage, triageDelta,
+  splitByBucket, noiseLine, sortByDeadline, byRank, applyKnownPeople, knownSenderEmails,
   type TriageMap, type Bucket,
 } from "./triage";
 import { loadRules, saveRule, clearRule, applyRules, setRuleEnabled, setRuleAccount, type SenderRules } from "./rules";
@@ -35,7 +35,9 @@ import LetGoSwipe from "./LetGoSwipe";
 import { loadMuted, mute, unmute, dropMuted } from "./mute";
 import { parseUnsub, unsubLabel, unsubLine, UNSUB_SUBJECT, UNSUB_BODY, type Unsub } from "./unsubscribe";
 import { BRIEF_SYSTEM, briefPrompt, parseBrief, briefFor, saveBrief, type ConfirmedMeeting } from "./brief";
-import { loadRows, saveRows, mirrorRows, isFresh, markRead, invalidate as invalidateReads } from "./mailCache";
+import { loadRows, mirrorRows, isFresh, markRead, invalidate as invalidateReads, dropLegacyMailCache, type ReadKind } from "./mailCache";
+import { refreshInboxAccounts, loadMoreInbox, ensureThreadAnalysis, markGone, unmarkGone, MAIL_PAGE } from "./inboxRefresh";
+import { useUserId } from "../data/NotesProvider";
 import { emit } from "../events";
 import { usePushDepth } from "../shared/pushNav";
 import { Burst } from "../shared/Burst";
@@ -85,7 +87,6 @@ import { WRITE_FAILED_MESSAGE } from "../shared/guard";
 // EMAIL-F-18 (2026-09-05): one page of the inbox. Load More asks for one
 // page more (each account, newest first), which is the shape Gmail's threads
 // list gives us without a page token.
-const MAIL_PAGE = 30;
 // UP-MIND-17 (2026-09-05): how far Clean Out walks. Six pages of thirty is
 // most real inboxes and a bounded number of requests; past that the screen
 // still says "there may be more", which it already knew how to say.
@@ -441,6 +442,21 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     if (el) el.scrollTop = 0; else window.scrollTo(0, 0);
   }, [view]);
   const [rows, setRows] = useState<ThreadRow[]>([]);
+  // WHOSE MAIL (2026-09-29). Every cache this screen touches is keyed by the
+  // signed-in owner and the Google account, so a second account, or a second
+  // sign-in on the same phone, can never read the first one's rows. "local"
+  // only in a harness with no provider.
+  const userId = useUserId() ?? "local";
+  const userIdRef = useRef(userId);
+  userIdRef.current = userId;
+  const scopeOf = useCallback((account: string) => ({ userId, account }), [userId]);
+  // True for the one render after rows came FROM the server or the cache (as
+  // opposed to being edited here by an archive or a trash), and until the
+  // first paint or load has happened (so the empty initial state never
+  // overwrites a good cache).
+  const serverRows = useRef(false);
+  const mirrorArmed = useRef(false);
+  const satelliteBusy = useRef(new Set<ReadKind>());
   const [triage, setTriage] = useState<TriageMap>({});
   const [triaged, setTriaged] = useState(false);
   // Never show the wall: For You has three honest states besides "ready".
@@ -760,109 +776,117 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   // is still a wall. Now: 12 threads per request, 20s ceiling each, one silent
   // retry per batch, and the sorted view appears as soon as the FIRST batch
   // lands instead of waiting for the whole inbox.
-  const runTriage = useCallback(async (threads: ThreadRow[]) => {
+  const runTriage = useCallback(async (threads: ThreadRow[], force = false) => {
     if (!ai.available || triageBusy.current) return;
-    const cache = loadTriageCache();
-    const delta = triageDelta(threads, cache);
+    // THE SORT NOW LIVES IN inboxRefresh.ensureThreadAnalysis (2026-09-29), one
+    // implementation shared with the home snapshot and the pump, scoped by
+    // owner and account, joined when two callers ask at once. This is only
+    // the screen's half: progress, and what to show when it fails.
+    const accounts = [...new Set(threads.map((t) => t.account).filter((a): a is string => !!a))];
+    const cache = loadTriageView(userId, accounts);
+    const delta = triageDelta(threads, cache, { retryFallback: force });
     if (delta.length === 0) {
       setTriage(cache);
       setTriaged(true);
-      setTriageState("ready");
+      // A sort that failed leaves visible FALLBACK entries behind so nothing is
+      // hidden, and the next visit finds nothing left to ask. That must not
+      // read as "sorted": when NOTHING was ever actually analysed, the calm
+      // failed state (with Try Again) stays.
+      const allFallback = threads.length > 0 && threads.every((t) => cache[t.id]?.fallback);
+      if (allFallback) {
+        setTriageWhy((w) => w || "The sort didn't come back");
+        setTriageState((s) => (s === "ready" ? s : "failed"));
+      } else {
+        setTriageState("ready");
+      }
       return;
     }
     triageBusy.current = true;
     setTriageState((s) => (s === "ready" ? s : "pending"));
     setSortProg({ done: 0, total: delta.length });
-    let merged: TriageMap = { ...cache };
     let anyOk = false;
     let lastErr = "";
+    let base = 0;
     try {
-      for (let i = 0; i < delta.length; i += TRIAGE_BATCH) {
-        const batch = delta.slice(i, i + TRIAGE_BATCH);
-        let parsed = null;
-        for (let attempt = 0; attempt < 2 && !parsed; attempt++) {
-          try {
-            const raw = await withTimeout(
-              ai.complete(
-                [{ role: "user", content: buildTriageInput(batch) }],
-                "You output only a JSON array, nothing else.",
-                { kind: "triage", schema: TRIAGE_SCHEMA },
-              ),
-              TRIAGE_TIMEOUT_MS,
-            );
-            parsed = parseTriage(raw, batch);
-            if (!parsed) lastErr = "Sort came back unreadable";
-          } catch (e) {
-            // The raw AI response body used to land here and render under
-            // "Couldn't Sort Your Mail", cut off mid-JSON at 140 characters
-            // (2026-08-25).
-            // 2026-09-02: the proxy's 502 used to read as "Google's mail
-            // service is having trouble" (humanError knows only Gmail).
-            // The sort is the AI proxy; say what its upstream said.
-            lastErr = aiFailureLine(e, "The sort didn't come back");
-          }
-        }
-        // A batch that failed is still a batch that is no longer pending, so
-        // the count moves either way. It measures work attempted, not work
-        // that succeeded, and a stuck number would be the lie here.
-        setSortProg({ done: Math.min(i + batch.length, delta.length), total: delta.length });
-        if (!parsed) continue; // this batch stays unsorted; the rest still sorts
-        merged = fillSkipped({ ...merged, ...parsed }, batch);
-        anyOk = true;
-        // Render progress immediately: partial sorted beats a spinner.
-        saveTriageCache(merged);
-        setTriage(merged);
-        setTriaged(true);
-        setTriageState("ready");
+      // One account at a time: each has its own cache and its own cooldown,
+      // and a refusal (budget, sign-in) applies to the rest, so it ends the loop.
+      for (const account of accounts) {
+        const mine = threads.filter((t) => t.account === account);
+        const before = base;
+        const res = await ensureThreadAnalysis({ userId, account }, mine, {
+          ai, force,
+          onProgress: (p) => setSortProg({ done: Math.min(before + p.done, delta.length), total: delta.length }),
+          onBatch: () => {
+            // Render progress immediately: partial sorted beats a spinner.
+            setTriage(loadTriageView(userId, accounts));
+            setTriaged(true);
+            setTriageState("ready");
+          },
+        });
+        base += triageDelta(mine, cache, { retryFallback: force }).length;
+        const stillBlank = mine.some((t) => !loadTriageView(userId, [account])[t.id]);
+        if (res.status === "ok" || res.status === "partial" || res.status === "idle") anyOk = true;
+        else if (res.status === "cooldown" && !stillBlank) anyOk = true;
+        else lastErr = res.status === "cooldown" ? "Sorting is paused for a few minutes" : (res.message ?? "The sort didn't come back");
+        if (res.status === "budget" || res.status === "auth") break;
       }
       if (!anyOk) {
         setTriageWhy(lastErr);
         setTriageState((s) => (s === "ready" ? s : "failed"));
         return;
       }
-      // Anything a failed batch left behind is surfaced, never hidden.
-      merged = fillSkipped(merged, delta);
-      saveTriageCache(merged);
-      setTriage(merged);
+      // Anything a failed batch left behind is surfaced (as a visible
+      // fallback), never hidden.
+      setTriage(loadTriageView(userId, accounts));
+      setTriaged(true);
+      setTriageState("ready");
     } finally {
       triageBusy.current = false;
       // Cleared on every exit path, including the early return above, so a
       // sort that died never leaves a strip claiming it is still working.
       setSortProg(null);
     }
-  }, [ai]);
+  }, [ai, userId]);
 
   const loadThreads = useCallback(async (max?: number, force = false) => {
     const list = g.apis("mail");
     if (list.length === 0) return;
-    // THE READ HE ALREADY PAID FOR (2026-09-16). A tab switch remounts this
-    // whole screen, and the mount used to re-read the mailbox every time:
-    // about 93 Gmail requests per visit, per account. While the last read
-    // is still fresh the cached rows are the answer, and not one request is
-    // made. Anything deliberate (Load More, Try Again, a write that changed
-    // the inbox) passes force and always reads.
-    if (!force && max === undefined && isFresh("threads")) {
-      const cached = loadRows();
-      if (cached) {
-        pageRef.current = cached.page;
-        setRows(cached.rows);
-        setTriage(loadTriageCache());
-        // CACHED IS NOT SORTED. The rows come back without a request; whether
-        // they are SORTED is a separate question with its own cache, and only
-        // runTriage may answer it. Declaring "ready" here put unsorted mail
-        // under For You the moment anything re-ran this load.
-        void runTriage(cached.rows);
-        setLoading(false);
-        return;
-      }
+    dropLegacyMailCache();
+    dropLegacyTriage();
+    const accounts = list.map((a) => a.email);
+    // WHAT WAS ALREADY READ PAINTS AT ONCE, from each account's own cache
+    // (2026-09-16, and again 2026-09-29). A tab switch remounts this screen;
+    // the mount used to re-read the whole mailbox every time. Now: the cached
+    // window is on screen immediately, and what happens next is a CHEAP
+    // question to Gmail (one list, one history read), not a re-read. Nothing
+    // changed means no thread reads, no bodies and no AI, and no "Reading Your
+    // Inbox" screen, because the rows are already there.
+    const cachedPer = list.map(({ email }) => ({ email, c: loadRows(scopeOf(email)) }));
+    const haveAll = cachedPer.every((p) => p.c !== null);
+    const paint = () => {
+      const cachedRows = cachedPer.flatMap((p) => p.c?.rows ?? []).sort((a, b) => b.dateMs - a.dateMs);
+      pageRef.current = Math.max(MAIL_PAGE, ...cachedPer.map((p) => p.c?.page ?? 0));
+      serverRows.current = true;
+      setRows(cachedRows);
+      setTriage(loadTriageView(userId, accounts));
+      return cachedRows;
+    };
+    if (!force && max === undefined && haveAll && list.every(({ email }) => isFresh(scopeOf(email), "threads"))) {
+      const cachedRows = paint();
+      mirrorArmed.current = true;
+      // CACHED IS NOT SORTED. The rows come back without a request; whether
+      // they are SORTED is a separate question with its own cache, and only
+      // runTriage may answer it.
+      void runTriage(cachedRows);
+      setLoading(false);
+      return;
     }
-    // EMAIL-F-18 (2026-09-05): the page size is state now, not the literal
-    // 30 that used to be the whole inbox as far as this screen knew. A ref
+    // EMAIL-F-18 (2026-09-05): the page size is state, not a literal. A ref
     // rather than a dep so Load More can raise it without rebuilding the
     // callback (and re-running the load effect keyed on it).
     const want = max ?? pageRef.current;
     pageRef.current = want;
-    setLoading(true);
+    if (haveAll) { paint(); mirrorArmed.current = true; setLoading(false); } else setLoading(true);
     setError(null);
     setMailFailures([]);
     setMailDown(false);
@@ -871,57 +895,51 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
       // it lives in, and that account is where its reply will leave from.
       //
       // EMAIL-F-04 (2026-09-05): "An expired token or a dead network reads as
-      // Inbox Is Quiet and wipes the Today email band." This used to
-      // `.catch(() => [])` per account, so every transport failure became an
-      // empty inbox: runTriage([]) took its cache branch and set `triaged`,
-      // the snapshot effect wrote needsYou 0 with a fresh timestamp, and
-      // Today's band went blank until a real load happened to succeed.
-      // Fetched zero and fetch failed are different facts. A failed account
-      // is collected; if every account failed, the rows, the triage flag
-      // and the snapshot are all left exactly as they were (the last good
-      // read) and the failure is said in words a person can act on.
-      const failures: { email: string; error: unknown }[] = [];
-      const perAccount = await Promise.all(list.map(async ({ email, api }) => {
-        const metas = await api.listThreads(want).catch((e: unknown) => { failures.push({ email, error: e }); return null; });
-        if (!metas) return null;
-        return {
-          // EMAIL-F-18: Gmail answering with fewer threads than we asked for
-          // is the only honest signal that there is no more; it is the
-          // difference between "your inbox is empty" and "this is all we
-          // loaded", which the empty states used to get wrong.
-          all: metas.length < want,
-          rows: metas.map(mapThread)
-            .filter((t): t is ThreadRow => t !== null && t.inInbox)
-            .map((t) => ({ ...t, account: email })),
-        };
-      }));
+      // Inbox Is Quiet and wipes the Today email band." Fetched zero and
+      // fetch failed are different facts. A failed account keeps its last
+      // good rows (the refresh returns them, marked stale) and reports why; if
+      // every account failed the screen is left exactly as it was.
+      const out = await refreshInboxAccounts(userId, list, {
+        reason: force ? "manual" : "mount", ...(max !== undefined ? { want: max } : {}),
+        isCurrent: () => userIdRef.current === userId,
+      });
+      const failures = out.filter((o) => !o.result.ok);
       // One line per account that failed, each carrying its own cause: an
-      // expired token on one and a refusal on the other are two facts, and
-      // "failures[0]" spoke for both of them.
-      setMailFailures(failures.map((f) => ({ email: f.email, why: humanError(f.error, "Could not load mail") })));
-      // The page is down only when nothing answered. With one of two working,
-      // his other inbox is on the screen and the screen must not read as a
-      // total failure -- which it did whenever the working account happened
-      // to be empty, because the empty-with-an-error card keyed on `error`.
+      // expired token on one and a refusal on the other are two facts.
+      setMailFailures(failures.map((f) => ({ email: f.email, why: humanError(f.result.error, "Could not load mail") })));
+      // The page is down only when nothing answered.
       setMailDown(failures.length === list.length);
       if (failures.length === list.length) return;
-      const good = perAccount.filter((p): p is { all: boolean; rows: (ThreadRow & { account: string })[] } => p !== null);
-      const mapped = good.flatMap((p) => p.rows).sort((a, b) => b.dateMs - a.dateMs);
+      const mapped = out.flatMap((o) => o.result.rows).sort((a, b) => b.dateMs - a.dateMs);
       // Everything, only when every account said so and none of them failed.
-      setAtEnd(failures.length === 0 && good.every((p) => p.all));
+      setAtEnd(failures.length === 0 && out.every((o) => o.result.complete));
+      serverRows.current = true;
       setRows(mapped);
-      saveRows(mapped, want);
-      markRead("threads");
-      setTriage(loadTriageCache());
+      mirrorArmed.current = true;
+      // A pass is FRESH only once it finished: a clock set ahead of the work
+      // is how a failed read used to pass for a fresh one.
+      for (const o of out) if (o.result.ok) markRead(scopeOf(o.email), "threads");
+      setTriage(loadTriageView(userId, accounts));
       void runTriage(mapped);
       // Each satellite costs its own pile of requests and answers a question
       // that moves far more slowly than the inbox does, so each one keeps
-      // its own clock rather than riding the inbox's.
-      if (force || !isFresh("waiting")) { markRead("waiting"); void loadWaiting(); }
-      if (force || !isFresh("sweep")) { markRead("sweep"); void runSweep(); }
-      if (force || !isFresh("meetings")) {
-        markRead("meetings");
-        void findMeetings(splitByBucket(mapped, loadTriageCache()).needsYou);
+      // its own clock, per account, and is marked only when it SUCCEEDED.
+      // One pass at a time each: two loads overlapping (mount and the token
+      // effect both fire) must not both start the same expensive read just
+      // because neither has finished and marked its clock yet.
+      const stale = (k: ReadKind) => !satelliteBusy.current.has(k) && (force || list.some(({ email }) => !isFresh(scopeOf(email), k)));
+      const runPass = (k: ReadKind, go: () => Promise<boolean>) => {
+        satelliteBusy.current.add(k);
+        void go()
+          .then((ok) => { if (ok) for (const { email } of list) markRead(scopeOf(email), k); })
+          .catch(() => { /* a failed pass sets no clock */ })
+          .finally(() => { satelliteBusy.current.delete(k); });
+      };
+      if (stale("waiting")) runPass("waiting", () => loadWaiting());
+      if (stale("sweep")) runPass("sweep", () => runSweep());
+      if (stale("meetings")) {
+        const needs = splitByBucket(mapped, loadTriageView(userId, accounts)).needsYou;
+        runPass("meetings", () => findMeetings(needs));
       }
     } catch (e) {
       setError(humanError(e, "Could not load mail"));
@@ -932,20 +950,70 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     // which changes only when a token or the account list does), not on the
     // whole session object, so a shell re-render cannot re-run the inbox load.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [g.apis, runTriage]);
+  }, [g.apis, runTriage, userId]);
 
   // THE CACHE FOLLOWS THE LIST (2026-09-16). Archive, trash and Close It Out
   // all edit `rows` in place, and a cache that missed them would hand back
   // mail he has already dealt with on the next visit. The timestamp is not
   // touched: none of this was a fresh read, so the next expiry is still owed.
-  useEffect(() => { if (rows.length > 0) mirrorRows(rows); }, [rows]);
+  //
+  // 2026-09-29: per account, and an emptied list is mirrored too. The old
+  // guard (`rows.length > 0`) meant deleting the last thread left it in the
+  // cache to come back on the next visit. It is armed only after the first
+  // paint or load, so the empty initial state never overwrites a good cache.
+  //
+  // Everything removed here that the SERVER did not remove is also marked
+  // gone, so a read that began before an archive or trash cannot put the
+  // thread back; an Undo (rows coming back) lifts the mark.
+  const prevRows = useRef<ThreadRow[]>([]);
+  useEffect(() => {
+    const before = prevRows.current;
+    prevRows.current = rows;
+    if (!mirrorArmed.current) return;
+    const accounts = g.apis("mail").map((a) => a.email);
+    for (const email of accounts) mirrorRows(scopeOf(email), rows.filter((r) => r.account === email));
+    if (serverRows.current) { serverRows.current = false; return; }
+    const now = new Set(rows.map((r) => (r.account ?? "") + "\u001f" + r.id));
+    const then = new Set(before.map((r) => (r.account ?? "") + "\u001f" + r.id));
+    const byAccount = (list: ThreadRow[]) => {
+      const m = new Map<string, string[]>();
+      for (const r of list) if (r.account) m.set(r.account, [...(m.get(r.account) ?? []), r.id]);
+      return m;
+    };
+    for (const [email, ids] of byAccount(before.filter((r) => !now.has((r.account ?? "") + "\u001f" + r.id)))) markGone(scopeOf(email), ids);
+    for (const [email, ids] of byAccount(rows.filter((r) => !then.has((r.account ?? "") + "\u001f" + r.id)))) unmarkGone(scopeOf(email), ids);
+  }, [rows]);
 
   // EMAIL-F-18 (2026-09-05): the floor tells the truth about which of the two
   // things it is. "That's everything." is a statement about his inbox, and
   // this screen only earns it once every account has answered with fewer
   // threads than it asked for. Until then the floor says what it is showing
   // and offers the next page, which is also the only way to reach thread 31.
-  const loadMore = () => void loadThreads(pageRef.current + MAIL_PAGE, true);
+  // Load More follows Gmail's cursor from where the last page ended: the
+  // pages already on screen are not listed or read again.
+  const loadMore = () => void (async () => {
+    const list = g.apis("mail");
+    if (list.length === 0 || loading) return;
+    setLoading(true);
+    try {
+      const out = await Promise.all(list.map(async ({ email, api }) => ({
+        email, result: await loadMoreInbox(scopeOf(email), api, MAIL_PAGE, { isCurrent: () => userIdRef.current === userId }),
+      })));
+      const failures = out.filter((o) => !o.result.ok);
+      setMailFailures(failures.map((f) => ({ email: f.email, why: humanError(f.result.error, "Could not load mail") })));
+      if (failures.length === list.length) return;
+      const mapped = out.flatMap((o) => o.result.rows).sort((a, b) => b.dateMs - a.dateMs);
+      pageRef.current += MAIL_PAGE;
+      setAtEnd(failures.length === 0 && out.every((o) => o.result.complete));
+      serverRows.current = true;
+      setRows(mapped);
+      void runTriage(mapped);
+    } catch (e) {
+      setError(humanError(e, "Could not load mail"));
+    } finally {
+      setLoading(false);
+    }
+  })();
   const mailFloor = () => (atEnd ? <ListFloor /> : (
     <ListFloor>
       <>
@@ -972,13 +1040,16 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   // look like a proposal at all, and at most two calls per load. Almost no
   // mail proposes a time, and the mail that does always says so.
   const findMeetings = async (needsYou: ThreadRow[]) => {
-    if (!ai.available || !scheduleSvc) { setMeetings([]); return; }
+    // Returns true only when the pass FINISHED, so its clock is set by success
+    // and never by an attempt. With no AI or no schedule it did not run.
+    if (!ai.available || !scheduleSvc) { setMeetings([]); return false; }
     const candidates = needsYou
       .filter((r) => mightProposeTimes((r.subject || "") + " " + (r.snippet || "")))
       .slice(0, 2);
-    if (candidates.length === 0) { setMeetings([]); return; }
+    if (candidates.length === 0) { setMeetings([]); return true; }
     const todayIso = todayISO();
     const out: MailMeeting[] = [];
+    let complete = true;
     for (const r of candidates) {
       try {
         const api = apiFor(accountOfThread(r.id));
@@ -1004,9 +1075,10 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
           threadId: r.id, from: displayName(r.from), label: free.label,
           date: free.date, start: free.start, end: free.end, line: meetingLine(options),
         });
-      } catch { /* one unreadable thread never stops the rest */ }
+      } catch { complete = false; /* one unreadable thread never stops the rest */ }
     }
     setMeetings(out);
+    return complete;
   };
 
   // THE PROMISE SWEEP (E5). The commitment catcher already handles anything
@@ -1016,21 +1088,23 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   // UP-MIND-13 (2026-09-05): the pass itself moved to messages/sweepRun.ts,
   // so the connect screen can run the same one before this tab has ever
   // existed. Two implementations of one AI pass is how they drift.
-  const runSweep = async () => {
-    if (!ai.available) return;
+  const runSweep = async (): Promise<boolean> => {
+    if (!ai.available) return false;
     const n = await runSentSweep({
       apis: () => g.apis("mail"),
       complete: (messages, system) => ai.complete(messages as { role: "user" | "assistant"; content: string }[], system),
     });
     if (n !== null) setSweepTick((x) => x + 1);
+    return n !== null;
   };
 
   // Waiting On is a bonus layer: it loads after the inbox and fails to
   // nothing. Opens are looked up only for threads we actually tracked.
-  const loadWaiting = async () => {
+  const loadWaiting = async (): Promise<boolean> => {
+    let complete = true;
     try {
       const per = await Promise.all(g.apis("mail").map(async ({ email, api }) => {
-        const rows = await findWaiting(api, Date.now()).catch(() => []);
+        const rows = await findWaiting(api, Date.now()).catch(() => { complete = false; return []; });
         return rows.map((r) => ({ ...r, account: email }));
       }));
       // A thread he let go stops counting days. Filter BEFORE the slice, or
@@ -1061,7 +1135,8 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
         for (const p of pairs) if (found[p.trackId]) byThread[p.threadId] = found[p.trackId]!;
         setOpens(byThread);
       }
-    } catch { setWaiting([]); }
+      return complete;
+    } catch { setWaiting([]); return false; }
   };
 
   // ONE PLACE DECIDES (2026-08-21).
@@ -1394,8 +1469,11 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     try {
       // EMAIL-F-13: each draft keeps the account it was listed from, so
       // opening it reads through that account and its send leaves from it.
-      const per = await Promise.all(list.map(async ({ email, api }) =>
-        (await api.listDrafts(25).catch(() => [])).map((d) => ({ d, email }))));
+      const okAccounts: string[] = [];
+      const per = await Promise.all(list.map(async ({ email, api }) => {
+        const got = await api.listDrafts(25).then((x) => { okAccounts.push(email); return x; }).catch(() => []);
+        return got.map((d) => ({ d, email }));
+      }));
       setDraftsCapped(per.some((l) => l.length >= 25));
       setDrafts(per.flat().map(({ d, email }) => ({
         id: d.id,
@@ -1409,13 +1487,14 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
         account: email,
       })));
       setDraftsLoaded(true);
-      markRead("drafts");
+      // Only the accounts whose list actually ANSWERED get a clock.
+      for (const email of okAccounts) markRead(scopeOf(email), "drafts");
     } catch (e) {
       setError(humanError(e, "Could not load drafts"));
     } finally {
       setDraftsBusy(false);
     }
-  }, [g.apis]);
+  }, [g.apis, scopeOf]);
 
   useEffect(() => {
     if (g.hasToken) void loadThreads();
@@ -1432,7 +1511,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     // EMAIL (2026-09-16): draftsLoaded is React state, so it de-duped within
     // one mount and never across them, and a tab switch re-listed every
     // draft (1 + up to 25 gets per account). The clock survives the unmount.
-    if (g.hasToken && !draftsLoaded && !isFresh("drafts")) void loadDrafts();
+    if (g.hasToken && !draftsLoaded && !g.apis("mail").every(({ email }) => isFresh(scopeOf(email), "drafts"))) void loadDrafts();
   }, [g.hasToken, draftsLoaded, loadDrafts]);
 
   // Arriving from a home-page notice: open that exact thread once the inbox
@@ -1715,7 +1794,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
         (messages, system) => ai.complete(messages as { role: "user" | "assistant"; content: string }[], system),
       ).catch(() => triage);
       if (!live || next === triage) return;
-      saveTriageCache(next);
+      saveTriageView(userId, rows, next);
       setTriage(next);
     })();
     return () => { live = false; };
@@ -2055,7 +2134,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     enqueueOutbox(item);
     // A sent mail changes who owes whom, so the two passes that answer that
     // stop being fresh (2026-09-16).
-    invalidateReads(["waiting", "sweep"]);
+    for (const { email } of g.apis("mail")) invalidateReads(scopeOf(email), ["waiting", "sweep"]);
     clearLocalDraft(draftKey(editingDraftId)); // E-26: queued, so the safety copy goes
     setView("list");
   };
@@ -4517,7 +4596,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
               {/* 2026-09-02: a failed sort had no way to run again short of
                   leaving the tab. Try Again re-runs the same sort over the
                   rows already loaded; Show All Mail stays the way out. */}
-              <button className="btn btn-secondary btn-block" onClick={() => { setTriageWhy(""); setTriageState("pending"); void runTriage(rows); }}>Try Again</button>
+              <button className="btn btn-secondary btn-block" onClick={() => { setTriageWhy(""); setTriageState("pending"); void runTriage(rows, true); }}>Try Again</button>
               <button className="quiet-action" onClick={() => setFilter("all")}>Show All Mail</button>
             </div>
           </div></div></div>

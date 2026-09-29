@@ -5,10 +5,12 @@ import { makeFakeGoogleApi } from "../connections/google/fakeApi";
 import { AIService } from "../ai/AIService";
 import type { GmailMeta, GmailThreadMeta } from "../connections/google/map";
 import { loadMailSnapshot } from "./home";
-import { loadTriageCache, saveTriageCache } from "./triage";
+import { loadTriageFor, saveTriageFor } from "./triage";
 import { saveSweep } from "./sentSweep";
 import { markPromised } from "./commitments";
 import { setChase } from "./followUp";
+import { FakeMailbox } from "./fakeMailbox";
+import { resetInboxRefreshState } from "./inboxRefresh";
 
 // S6-Q34: "the email band only fills if you visit the Email tab." This is
 // the headless build MailSnapshotPump calls -- same MailSnapshot shape as
@@ -40,12 +42,13 @@ const TRIAGE_REPLY = JSON.stringify([
   { id: "t2", bucket: "noise", gist: "Promo" },
 ]);
 
+const SCOPE = { userId: "u1", account: "me@example.com" };
 beforeEach(() => localStorage.clear());
 
 describe("refreshMailSnapshot: builds the home snapshot with no component mounted", () => {
   it("fetches, triages, and saves needs-you threads", async () => {
     const api = makeFakeGoogleApi({ listThreads: async () => THREADS });
-    await refreshMailSnapshot({ apis: () => [{ email: "me@example.com", api }], ai: aiReturning(TRIAGE_REPLY) });
+    await refreshMailSnapshot({ userId: "u1", apis: () => [{ email: "me@example.com", api }], ai: aiReturning(TRIAGE_REPLY) });
 
     const snap = loadMailSnapshot();
     expect(snap.needsYou).toBe(1);
@@ -61,7 +64,7 @@ describe("refreshMailSnapshot: builds the home snapshot with no component mounte
   it("respects the triage cache: an already-sorted thread is never re-sent to the model", async () => {
     // Pre-seed the cache with BOTH threads already sorted, keyed by their
     // real lastMsgId, so triageDelta sees nothing new.
-    saveTriageCache({
+    saveTriageFor(SCOPE, {
       t1: { bucket: "needs_you", gist: "Cached gist", lastMsgId: "m2" },
       t2: { bucket: "noise", gist: "Cached noise", lastMsgId: "m3" },
     });
@@ -75,13 +78,13 @@ describe("refreshMailSnapshot: builds the home snapshot with no component mounte
       }) as unknown as typeof fetch,
     });
     const api = makeFakeGoogleApi({ listThreads: async () => THREADS });
-    await refreshMailSnapshot({ apis: () => [{ email: "me@example.com", api }], ai });
+    await refreshMailSnapshot({ userId: "u1", apis: () => [{ email: "me@example.com", api }], ai });
 
     expect(calls).toBe(0);
     const snap = loadMailSnapshot();
     expect(snap.threads[0]!.gist).toBe("Cached gist");
     // The cache on disk is unchanged: nothing new was merged into it.
-    expect(loadTriageCache().t1!.gist).toBe("Cached gist");
+    expect(loadTriageFor(SCOPE).t1!.gist).toBe("Cached gist");
   });
 
   it("includes waiting, promises, and chases -- none of which cost an AI call", async () => {
@@ -104,7 +107,7 @@ describe("refreshMailSnapshot: builds the home snapshot with no component mounte
       ],
       getProfile: async () => ({ emailAddress: "me@example.com" }),
     });
-    await refreshMailSnapshot({ apis: () => [{ email: "me@example.com", api }], ai: noAI });
+    await refreshMailSnapshot({ userId: "u1", apis: () => [{ email: "me@example.com", api }], ai: noAI });
 
     const snap = loadMailSnapshot();
     expect(snap.promises.some((p) => p.threadId === "tp1" && p.text === "Send the roster")).toBe(true);
@@ -133,12 +136,12 @@ describe("refreshMailSnapshot: builds the home snapshot with no component mounte
       ],
       getProfile: async () => ({ emailAddress: "me@example.com" }),
     });
-    await refreshMailSnapshot({ apis: () => [{ email: "me@example.com", api }], ai: noAI });
+    await refreshMailSnapshot({ userId: "u1", apis: () => [{ email: "me@example.com", api }], ai: noAI });
     expect(loadMailSnapshot().chases?.map((c) => c.threadId)).toEqual(["mine"]);
   });
 
   it("does nothing when no account has a live token", async () => {
-    await refreshMailSnapshot({ apis: () => [], ai: noAI });
+    await refreshMailSnapshot({ userId: "u1", apis: () => [], ai: noAI });
     // EMPTY, untouched -- no write happened at all.
     expect(loadMailSnapshot().ts).toBe(0);
   });
@@ -150,7 +153,7 @@ describe("refreshMailSnapshot: builds the home snapshot with no component mounte
       fetchImpl: (async () => { throw new Error("network down"); }) as unknown as typeof fetch,
     });
     const api = makeFakeGoogleApi({ listThreads: async () => THREADS });
-    await expect(refreshMailSnapshot({ apis: () => [{ email: "me@example.com", api }], ai: failing }))
+    await expect(refreshMailSnapshot({ userId: "u1", apis: () => [{ email: "me@example.com", api }], ai: failing }))
       .resolves.toBeUndefined();
 
     const snap = loadMailSnapshot();
@@ -164,20 +167,20 @@ describe("refreshMailSnapshot: builds the home snapshot with no component mounte
   // real snapshot with needsYou 0 every four hours.
   it("a failed fetch leaves the last good snapshot standing and reports the failure", async () => {
     const good = makeFakeGoogleApi({ listThreads: async () => THREADS });
-    await refreshMailSnapshot({ apis: () => [{ email: "me@example.com", api: good }], ai: aiReturning(TRIAGE_REPLY) });
+    await refreshMailSnapshot({ userId: "u1", apis: () => [{ email: "me@example.com", api: good }], ai: aiReturning(TRIAGE_REPLY) });
     const before = loadMailSnapshot();
     expect(before.needsYou).toBe(1);
 
     const dead = makeFakeGoogleApi({ listThreads: async () => { throw new Error("threads 401"); } });
-    await expect(refreshMailSnapshot({ apis: () => [{ email: "me@example.com", api: dead }], ai: noAI }))
+    await expect(refreshMailSnapshot({ userId: "u1", apis: () => [{ email: "me@example.com", api: dead }], ai: noAI }))
       .rejects.toThrow(/401/);
     expect(loadMailSnapshot()).toEqual(before);
   });
 
   it("a genuinely empty inbox still writes the honest empty snapshot", async () => {
-    saveTriageCache({});
+    saveTriageFor(SCOPE, {});
     const empty = makeFakeGoogleApi({ listThreads: async () => [] });
-    await refreshMailSnapshot({ apis: () => [{ email: "me@example.com", api: empty }], ai: noAI });
+    await refreshMailSnapshot({ userId: "u1", apis: () => [{ email: "me@example.com", api: empty }], ai: noAI });
     expect(loadMailSnapshot().ts).toBeGreaterThan(0);
     expect(loadMailSnapshot().needsYou).toBe(0);
   });
@@ -185,10 +188,64 @@ describe("refreshMailSnapshot: builds the home snapshot with no component mounte
   it("one dead account out of two still writes what the live one returned", async () => {
     const good = makeFakeGoogleApi({ listThreads: async () => THREADS });
     const dead = makeFakeGoogleApi({ listThreads: async () => { throw new Error("threads 401"); } });
-    await refreshMailSnapshot({
+    await refreshMailSnapshot({ userId: "u1",
       apis: () => [{ email: "a@x.com", api: dead }, { email: "b@x.com", api: good }],
       ai: aiReturning(TRIAGE_REPLY),
     });
     expect(loadMailSnapshot().threads.map((t) => t.account)).toEqual(["b@x.com"]);
+  });
+});
+
+// THE PUMP AND THE TAB ARE ONE READER (2026-09-29). The four-hour pump asks
+// the same coordinator the Email tab does, so a pump tick over an inbox the
+// tab already read costs two small reads: no thread metadata, no bodies, no
+// paid AI. Only mail that actually arrived is read and sorted.
+describe("refreshMailSnapshot shares the inbox read", () => {
+  it("a second pump over an unchanged inbox reads no threads and asks no model", async () => {
+    resetInboxRefreshState();
+    const box = new FakeMailbox("me@example.com");
+    for (let i = 1; i <= 4; i++) box.add("p" + i, { from: "Sender " + i + " <s" + i + "@x.com>" });
+    let asks = 0;
+    const ai = new AIService({
+      available: true, getToken: () => "tok",
+      fetchImpl: (async (_u: string, init: { body: string }) => {
+        asks++;
+        const content = (JSON.parse(init.body) as { messages: { content: string }[] }).messages[0]!.content;
+        const ids = [...content.matchAll(/"id":"([^"]+)"/g)].map((m) => m[1]!).filter((id) => id !== "...");
+        return { ok: true, status: 200, text: async () => "", json: async () => ({ text: JSON.stringify(ids.map((id) => ({ id, bucket: "needs_you", gist: "g", by: "" }))) }) };
+      }) as unknown as typeof fetch,
+    });
+    const deps = { userId: "u1", apis: () => [{ email: "me@example.com", api: box.api() }], ai };
+    await refreshMailSnapshot(deps);
+    expect(asks).toBe(1);
+    const before = { ...box.counters };
+    await refreshMailSnapshot(deps);
+    expect(box.counters.metadata - before.metadata).toBe(0);
+    expect(box.counters.bodies - before.bodies).toBe(0);
+    expect(asks).toBe(1);
+    // ...and one new reply is one thread read and one thread sorted.
+    box.receive("p3");
+    const b2 = { ...box.counters };
+    await refreshMailSnapshot(deps);
+    expect(box.counters.metadata - b2.metadata).toBe(1);
+    expect(asks).toBe(2);
+  });
+
+  it("an account that fails keeps its last good mail in the snapshot", async () => {
+    resetInboxRefreshState();
+    const a = new FakeMailbox("a@x.com");
+    const b = new FakeMailbox("b@x.com");
+    a.add("a1", { from: "Alice <al@x.com>" });
+    b.add("b1", { from: "Bob <bo@x.com>" });
+    const ai = aiReturning(JSON.stringify([
+      { id: "a1", bucket: "needs_you", gist: "from a" }, { id: "b1", bucket: "needs_you", gist: "from b" },
+    ]));
+    const both = { userId: "u1", apis: () => [{ email: "a@x.com", api: a.api() }, { email: "b@x.com", api: b.api() }], ai };
+    await refreshMailSnapshot(both);
+    expect(loadMailSnapshot().needsYou).toBe(2);
+    b.failList = true;
+    await refreshMailSnapshot(both);
+    // Account b could not be read this time, and its last good thread is still there.
+    expect(loadMailSnapshot().needsYou).toBe(2);
   });
 });

@@ -4,6 +4,7 @@ import { lineCase } from "../shared/casing";
 import type { ActProposal } from "./mailAct";
 import { HOSTILE_CLAUSE, untrustedBlock } from "./untrusted";
 import { evidenceIn, type Evidence } from "./evidence";
+import { mailAccountKey, type MailScope } from "./mailIdentity";
 
 // Triage (email 1): one AI pass sorts the inbox into what needs Dave, what is
 // worth knowing, and noise, with a one-line gist per thread so junk never has
@@ -35,7 +36,21 @@ export interface Triage {
   byEv?: Evidence;
   actEv?: Evidence;
 }
-export type TriageMap = Record<string, Triage & { lastMsgId: string }>;
+// An entry the model never actually answered (a batch that failed or timed
+// out, or a thread it skipped) is filled from the snippet so it stays visible,
+// and says so: `fallback`. It is NOT an AI result, so it must never be treated
+// as one (never preselected for a bulk action, never counted as sorted), and
+// it is retried a bounded number of times (`tries`) instead of being taken
+// for answered forever, which is what the old fill did.
+export type TriageMap = Record<string, Triage & { lastMsgId: string; fallback?: true; tries?: number }>;
+
+/** True when the model really read this thread. */
+export function isAnalysed(e: { fallback?: true } | undefined): boolean {
+  return !!e && !e.fallback;
+}
+
+/** How many times a fallback entry is offered to the model again. */
+export const FALLBACK_MAX_TRIES = 2;
 
 // v2: the cached shape gained "by" (the sender's stated deadline). Entries
 // written by v1 have no deadline and, because the delta only re-triages a
@@ -51,7 +66,11 @@ export type TriageMap = Record<string, Triage & { lastMsgId: string }>;
 // triples. Same reason as v2 and v3: the delta only re-triages a thread
 // when a NEW message arrives, so every email already in the inbox would
 // keep an entry with no span and never get a chip. One re-sort buys them.
-const CACHE_KEY = "jarvis.mail.triage.v4";
+// v5 (2026-09-29): the cache is scoped by owner and account (a map of maps),
+// and an entry can be a `fallback`. The unscoped v4 map cannot be attributed to
+// an owner or an account, so it is not migrated: one re-sort per account, once.
+const CACHE_KEY = "jarvis.mail.triage.v5";
+const LEGACY_KEY = "jarvis.mail.triage.v4";
 const CACHE_CAP = 300;
 // A FRAGMENT, NOT A PARAGRAPH (Dave 2026-08-25: "The subtext on email
 // previews feels a little lengthy. It should be right to the point").
@@ -250,19 +269,33 @@ export function applyKnownPeople<T extends { id: string; fromEmail: string }>(
   return out;
 }
 
-// A skipped thread is surfaced, not hidden: worth_knowing with its snippet.
+// A skipped thread is surfaced, not hidden: worth_knowing with its snippet,
+// flagged `fallback` so it never passes for something the model decided.
 export function fillSkipped(map: TriageMap, rows: ThreadRow[]): TriageMap {
   const out = { ...map };
   for (const r of rows) {
-    if (!out[r.id]) out[r.id] = { bucket: "worth_knowing", gist: r.snippet.slice(0, GIST_MAX), lastMsgId: r.lastMsgId };
+    const cur = out[r.id];
+    // A real answer for THIS content is never overwritten by a fill.
+    if (cur && cur.lastMsgId === r.lastMsgId && !cur.fallback) continue;
+    const priorTries = cur && cur.lastMsgId === r.lastMsgId ? cur.tries ?? 1 : 0;
+    out[r.id] = { bucket: "worth_knowing", gist: r.snippet.slice(0, GIST_MAX), lastMsgId: r.lastMsgId, fallback: true, tries: priorTries + 1 };
   }
   return out;
 }
 
 // Threads with no cache entry, or with a NEW latest message (someone wrote
 // again, whatever it was before, it may need Dave now).
-export function triageDelta(rows: ThreadRow[], cache: TriageMap): ThreadRow[] {
-  return rows.filter((r) => !cache[r.id] || cache[r.id]!.lastMsgId !== r.lastMsgId);
+//
+// A `fallback` entry is only offered again when the caller says a retry is
+// due (its cooldown has passed, or the person tapped Try Again), and only
+// while it has tries left, so a thread the model keeps skipping is not paid
+// for on every visit.
+export function triageDelta(rows: ThreadRow[], cache: TriageMap, opts: { retryFallback?: boolean } = {}): ThreadRow[] {
+  return rows.filter((r) => {
+    const e = cache[r.id];
+    if (!e || e.lastMsgId !== r.lastMsgId) return true;
+    return !!(opts.retryFallback && e.fallback && (e.tries ?? 1) < FALLBACK_MAX_TRIES);
+  });
 }
 
 // Stored evidence is read back with the same suspicion as everything else in
@@ -275,27 +308,48 @@ function readEv(v: unknown): Evidence | null {
   return { sourceMsgId, span, confidence: confidence === "low" ? "low" : "high" };
 }
 
-export function loadTriageCache(storage: Pick<Storage, "getItem"> = localStorage): TriageMap {
+function readEntries(raw: unknown): TriageMap {
+  const out: TriageMap = {};
+  if (typeof raw !== "object" || raw === null || Array.isArray(raw)) return out;
+  for (const [id, v] of Object.entries(raw as Record<string, unknown>)) {
+    if (typeof v !== "object" || v === null) continue;
+    const { bucket, gist, lastMsgId, by, act, byEv, actEv, fallback, tries } = v as { bucket?: unknown; gist?: unknown; lastMsgId?: unknown; by?: unknown; act?: unknown; byEv?: unknown; actEv?: unknown; fallback?: unknown; tries?: unknown };
+    if ((bucket === "needs_you" || bucket === "worth_knowing" || bucket === "noise")
+      && typeof gist === "string" && typeof lastMsgId === "string") {
+      // Carried through unread. Dropping it here would mean the button
+      // appears once, on the pass that triaged the thread, and never again.
+      const a = act && typeof act === "object" && !Array.isArray(act) ? (act as ActProposal) : undefined;
+      out[id] = {
+        bucket, gist, lastMsgId,
+        ...(typeof by === "string" && by ? { by } : {}), ...(a ? { act: a } : {}),
+        ...(readEv(byEv) ? { byEv: readEv(byEv)! } : {}), ...(readEv(actEv) ? { actEv: readEv(actEv)! } : {}),
+        ...(fallback === true ? { fallback: true as const } : {}),
+        ...(typeof tries === "number" && tries > 0 ? { tries: Math.floor(tries) } : {}),
+      };
+    }
+  }
+  return out;
+}
+
+interface AccountTriage { entries: TriageMap; retryAfter?: number }
+type AllTriage = Record<string, AccountTriage>;
+
+// The fallback memory, for the same reason as the mail cache: a phone that
+// refuses the write must not cost a re-sort on remount. Held only while the
+// durable write is failing, so it never shadows what storage holds.
+const triageMemory = new WeakMap<object, string>();
+
+function readAll(storage: Pick<Storage, "getItem">): AllTriage {
   try {
-    const raw = storage.getItem(CACHE_KEY);
+    const raw = triageMemory.get(storage) ?? storage.getItem(CACHE_KEY);
     if (!raw) return {};
-    const parsed = JSON.parse(raw) as unknown;
-    if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) return {};
-    const out: TriageMap = {};
-    for (const [id, v] of Object.entries(parsed as Record<string, unknown>)) {
-      if (typeof v !== "object" || v === null) continue;
-      const { bucket, gist, lastMsgId, by, act, byEv, actEv } = v as { bucket?: unknown; gist?: unknown; lastMsgId?: unknown; by?: unknown; act?: unknown; byEv?: unknown; actEv?: unknown };
-      if ((bucket === "needs_you" || bucket === "worth_knowing" || bucket === "noise")
-        && typeof gist === "string" && typeof lastMsgId === "string") {
-        // Carried through unread. Dropping it here would mean the button
-        // appears once, on the pass that triaged the thread, and never again.
-        const a = act && typeof act === "object" && !Array.isArray(act) ? (act as ActProposal) : undefined;
-        out[id] = {
-          bucket, gist, lastMsgId,
-          ...(typeof by === "string" && by ? { by } : {}), ...(a ? { act: a } : {}),
-          ...(readEv(byEv) ? { byEv: readEv(byEv)! } : {}), ...(readEv(actEv) ? { actEv: readEv(actEv)! } : {}),
-        };
-      }
+    const p = JSON.parse(raw) as { v?: unknown; accounts?: unknown } | null;
+    if (!p || p.v !== 5 || typeof p.accounts !== "object" || p.accounts === null || Array.isArray(p.accounts)) return {};
+    const out: AllTriage = {};
+    for (const [k, v] of Object.entries(p.accounts as Record<string, unknown>)) {
+      const acc = v as { entries?: unknown; retryAfter?: unknown } | null;
+      if (!acc || typeof acc !== "object") continue; // one bad account never takes the rest
+      out[k] = { entries: readEntries(acc.entries), ...(typeof acc.retryAfter === "number" ? { retryAfter: acc.retryAfter } : {}) };
     }
     return out;
   } catch {
@@ -303,16 +357,81 @@ export function loadTriageCache(storage: Pick<Storage, "getItem"> = localStorage
   }
 }
 
+function writeAll(storage: Pick<Storage, "setItem">, all: AllTriage): void {
+  const text = JSON.stringify({ v: 5, accounts: all });
+  try {
+    storage.setItem(CACHE_KEY, text);
+    triageMemory.delete(storage);
+  } catch {
+    // Storage full or unavailable: memory has it, and worst case triage re-runs next launch.
+    triageMemory.set(storage, text);
+  }
+}
+
+/** One account's triage. */
+export function loadTriageFor(scope: MailScope, storage: Pick<Storage, "getItem"> = localStorage): TriageMap {
+  return readAll(storage)[mailAccountKey(scope)]?.entries ?? {};
+}
+
 // Insertion order is preserved by JSON.stringify/parse, so trimming the front
 // drops the oldest entries first.
-export function saveTriageCache(map: TriageMap, storage: Pick<Storage, "setItem"> = localStorage): void {
-  try {
-    const ids = Object.keys(map);
-    const keep = ids.length > CACHE_CAP ? ids.slice(ids.length - CACHE_CAP) : ids;
-    const out: TriageMap = {};
-    for (const id of keep) out[id] = map[id]!;
-    storage.setItem(CACHE_KEY, JSON.stringify(out));
-  } catch { /* storage full or unavailable: triage just re-runs next time */ }
+export function saveTriageFor(scope: MailScope, map: TriageMap, storage: Pick<Storage, "getItem" | "setItem"> = localStorage): void {
+  const all = readAll(storage);
+  const k = mailAccountKey(scope);
+  const ids = Object.keys(map);
+  const keep = ids.length > CACHE_CAP ? ids.slice(ids.length - CACHE_CAP) : ids;
+  const entries: TriageMap = {};
+  for (const id of keep) entries[id] = map[id]!;
+  all[k] = { entries, ...(all[k]?.retryAfter !== undefined ? { retryAfter: all[k]!.retryAfter } : {}) };
+  writeAll(storage, all);
+}
+
+/** When an account's failed analysis may be offered again. 0 means now. */
+export function triageRetryAfter(scope: MailScope, storage: Pick<Storage, "getItem"> = localStorage): number {
+  return readAll(storage)[mailAccountKey(scope)]?.retryAfter ?? 0;
+}
+
+export function setTriageRetryAfter(scope: MailScope, at: number | null, storage: Pick<Storage, "getItem" | "setItem"> = localStorage): void {
+  const all = readAll(storage);
+  const k = mailAccountKey(scope);
+  const cur = all[k] ?? { entries: {} };
+  all[k] = at === null ? { entries: cur.entries } : { entries: cur.entries, retryAfter: at };
+  writeAll(storage, all);
+}
+
+/**
+ * The view every screen wants: one map keyed by thread id across the accounts
+ * on screen, each row looked up in ITS OWN account's cache. The store is
+ * scoped; the view is flat only because every screen indexes it by thread id.
+ * Two accounts sharing a thread id would collide in the view (never in the
+ * store), which real Gmail ids do not do.
+ */
+export function loadTriageView(userId: string, accounts: readonly string[], storage: Pick<Storage, "getItem"> = localStorage): TriageMap {
+  const all = readAll(storage);
+  const out: TriageMap = {};
+  for (const account of accounts) Object.assign(out, all[mailAccountKey({ userId, account })]?.entries ?? {});
+  return out;
+}
+
+/** Writes a flat view back, split by the account each row belongs to. Entries
+ *  for threads not in `rows` are left as they were. */
+export function saveTriageView(userId: string, rows: readonly (ThreadRow & { account?: string })[], view: TriageMap, storage: Pick<Storage, "getItem" | "setItem"> = localStorage): void {
+  const byAccount = new Map<string, TriageMap>();
+  for (const r of rows) {
+    if (!r.account || !view[r.id]) continue;
+    const m = byAccount.get(r.account) ?? {};
+    m[r.id] = view[r.id]!;
+    byAccount.set(r.account, m);
+  }
+  for (const [account, slice] of byAccount) {
+    const scope = { userId, account };
+    saveTriageFor(scope, { ...loadTriageFor(scope, storage), ...slice }, storage);
+  }
+}
+
+/** Removes the pre-scoping cache. Safe to call every time. */
+export function dropLegacyTriage(storage: Pick<Storage, "removeItem"> = localStorage): void {
+  try { storage.removeItem(LEGACY_KEY); } catch { /* private mode */ }
 }
 
 // --- Presentation helpers ---

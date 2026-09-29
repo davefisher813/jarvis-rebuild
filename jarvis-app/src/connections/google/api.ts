@@ -39,8 +39,30 @@ export interface GoogleApi {
   // Undo for a delete. Gmail keeps trashed mail for 30 days, so this always
   // works inside the window the app promises.
   untrashThread(id: string): Promise<void>;
-  getProfile(): Promise<{ emailAddress: string }>;
+  // historyId is Gmail's own number for "now" in this mailbox. It is a STRING
+  // end to end: it outgrows what a JS number holds exactly, and comparing or
+  // storing it as a number is how a checkpoint silently rounds.
+  getProfile(): Promise<{ emailAddress: string; historyId?: string }>;
+  // THE CHEAP HALF OF READING THE INBOX. One page of inbox thread REFS (id and
+  // the thread's own history id, nothing else), so "has anything changed?" is
+  // one small request and not thirty metadata reads.
+  listInboxThreadRefs(max: number, pageToken?: string): Promise<{ refs: ThreadRef[]; nextPageToken?: string }>;
+  // One page of Gmail history since a checkpoint, reduced to the threads it
+  // touched. Rejects with HistoryExpiredError when Gmail no longer holds
+  // history that far back (it keeps about a week), which the caller answers
+  // with a metadata resync, never with an empty inbox.
+  listHistory(startHistoryId: string, pageToken?: string): Promise<{ threadIds: string[]; historyId?: string; nextPageToken?: string }>;
+  // ONE thread's headers, for hydrating just the threads that changed. Null
+  // when the thread is gone (deleted), so the caller can evict it.
+  getThreadMeta(id: string): Promise<GmailThreadMeta | null>;
   getAttachment(messageId: string, attachmentId: string): Promise<{ data: string; size: number }>;
+}
+
+export interface ThreadRef { id: string; historyId: string }
+
+/** Gmail answered 404 to a history read: the checkpoint is too old to replay. */
+export class HistoryExpiredError extends Error {
+  constructor() { super("history expired"); this.name = "HistoryExpiredError"; }
 }
 
 export type FetchLike = (url: string, init?: { method?: string; headers?: Record<string, string>; body?: string }) => Promise<{
@@ -228,7 +250,53 @@ export function createGoogleApi(token: string, doFetch: FetchLike = fetch as unk
     async getProfile() {
       const r = await doFetch("https://gmail.googleapis.com/gmail/v1/users/me/profile", auth);
       if (!r.ok) throw new Error("profile " + r.status);
-      return (await r.json()) as { emailAddress: string };
+      const j = (await r.json()) as { emailAddress: string; historyId?: unknown };
+      // A string, always: a numeric historyId is coerced without arithmetic.
+      return { emailAddress: j.emailAddress, ...(j.historyId !== undefined && j.historyId !== null ? { historyId: String(j.historyId) } : {}) };
+    },
+    async listInboxThreadRefs(max, pageToken) {
+      const r = await doFetch(
+        "https://gmail.googleapis.com/gmail/v1/users/me/threads?labelIds=INBOX&maxResults=" + max +
+        (pageToken ? "&pageToken=" + encodeURIComponent(pageToken) : "") +
+        "&fields=" + encodeURIComponent("threads(id,historyId),nextPageToken"), auth);
+      if (!r.ok) throw new Error("threads " + r.status);
+      const j = (await r.json()) as { threads?: { id: string; historyId?: unknown }[]; nextPageToken?: string };
+      return {
+        refs: (j.threads || []).filter((t) => typeof t.id === "string").map((t) => ({ id: t.id, historyId: String(t.historyId ?? "") })),
+        ...(j.nextPageToken ? { nextPageToken: j.nextPageToken } : {}),
+      };
+    },
+    async listHistory(startHistoryId, pageToken) {
+      const r = await doFetch(
+        "https://gmail.googleapis.com/gmail/v1/users/me/history?startHistoryId=" + encodeURIComponent(startHistoryId) +
+        "&historyTypes=messageAdded&historyTypes=messageDeleted&historyTypes=labelAdded&historyTypes=labelRemoved&maxResults=500" +
+        (pageToken ? "&pageToken=" + encodeURIComponent(pageToken) : "") +
+        "&fields=" + encodeURIComponent("history(messagesAdded(message(threadId)),messagesDeleted(message(threadId)),labelsAdded(message(threadId)),labelsRemoved(message(threadId))),historyId,nextPageToken"), auth);
+      if (r.status === 404) throw new HistoryExpiredError();
+      if (!r.ok) throw new Error("history " + r.status);
+      const j = (await r.json()) as {
+        history?: Record<string, { message?: { threadId?: string } }[] | undefined>[];
+        historyId?: unknown; nextPageToken?: string;
+      };
+      const ids = new Set<string>();
+      for (const h of j.history || []) {
+        for (const kind of ["messagesAdded", "messagesDeleted", "labelsAdded", "labelsRemoved"]) {
+          for (const e of h[kind] || []) if (e.message?.threadId) ids.add(e.message.threadId);
+        }
+      }
+      return {
+        threadIds: [...ids],
+        ...(j.historyId !== undefined && j.historyId !== null ? { historyId: String(j.historyId) } : {}),
+        ...(j.nextPageToken ? { nextPageToken: j.nextPageToken } : {}),
+      };
+    },
+    async getThreadMeta(id) {
+      const r = await doFetch(
+        "https://gmail.googleapis.com/gmail/v1/users/me/threads/" + id +
+        "?format=metadata&metadataHeaders=From&metadataHeaders=Subject&metadataHeaders=Date&metadataHeaders=To", auth);
+      if (r.status === 404) return null;
+      if (!r.ok) throw new Error("thread meta " + r.status);
+      return (await r.json()) as GmailThreadMeta;
     },
     async getAttachment(messageId, attachmentId) {
       const r = await doFetch(

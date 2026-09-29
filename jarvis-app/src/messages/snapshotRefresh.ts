@@ -1,10 +1,10 @@
 import type { AIService } from "../ai/AIService";
 import type { GoogleApi } from "../connections/google/api";
-import { mapThread, type ThreadRow } from "../connections/google/map";
+import type { ThreadRow } from "../connections/google/map";
 import {
-  selfBlankGuard, loadTriageCache, saveTriageCache, triageDelta, buildTriageInput, parseTriage,
-  TRIAGE_SCHEMA, fillSkipped, splitByBucket, sortByDeadline, type TriageMap,
+  selfBlankGuard, loadTriageView, saveTriageView, splitByBucket, sortByDeadline, type TriageMap,
 } from "./triage";
+import { refreshInboxAccounts, ensureThreadAnalysis } from "./inboxRefresh";
 import { loadRules, applyRules } from "./rules";
 import { anchorNeedsYou } from "./evidencePass";
 import { makePersonIdFor, noPersonId, type PersonEmail } from "./personFor";
@@ -51,16 +51,6 @@ import { todayISO } from "../schedule/calendar";
 // Waiting On, already-swept promises, and due chases -- costs nothing beyond
 // the Gmail fetch and the same triage call the tab would have spent anyway,
 // and travels through unchanged.
-const TRIAGE_BATCH = 12;
-const TRIAGE_TIMEOUT_MS = 20000;
-
-function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
-  return Promise.race([
-    p,
-    new Promise<T>((_, reject) => setTimeout(() => reject(new Error("Sorting took too long.")), ms)),
-  ]);
-}
-
 // 2026-09-11: "answered" is read off the thread itself: its last message is
 // from someone who is not him. It used to be "in the inbox but not in
 // Waiting On", and Waiting On is capped at five and skips anything under two
@@ -74,6 +64,8 @@ export function answeredThreadIds(rows: ThreadRow[], myEmails: string[]): string
 export interface SnapshotRefreshDeps {
   /** Same accessor GoogleSession's useGoogle() exposes: g.apis("mail"). */
   apis: () => { email: string; api: GoogleApi }[];
+  /** Whose mail: every cache read and written here is scoped to this owner. */
+  userId: string;
   ai: AIService;
   now?: number;
   // UP-MIND-10 (2026-09-05): Contacts, for the person id on every row that
@@ -95,46 +87,33 @@ export async function refreshMailSnapshot(deps: SnapshotRefreshDeps): Promise<vo
   // own catch leaves the last good snapshot standing until the next check.
   // A partial failure still writes: what came back is real mail, and real
   // beats stale.
-  const failures: unknown[] = [];
-  const perAccount = await Promise.all(list.map(async ({ email, api }) => {
-    const metas = await api.listThreads(30).catch((e: unknown) => { failures.push(e); return null; });
-    if (!metas) return [];
-    return metas.map(mapThread)
-      .filter((t): t is ThreadRow => t !== null && t.inInbox)
-      .map((t) => ({ ...t, account: email }));
-  }));
-  if (failures.length === list.length) {
-    throw failures[0] instanceof Error ? failures[0] : new Error("Could not load mail");
+  // 2026-09-29: this used to be a second implementation of the inbox read
+  // (its own list, its own triage). It now asks the same coordinator the
+  // Email tab does, so a tab visit and a pump tick in the same minute are ONE
+  // read, "nothing changed" costs a list and a history read, and only the
+  // threads whose content moved are analysed. An account that fails keeps its
+  // last good rows (the refresh returns them, marked stale); if every account
+  // failed this throws and the pump's own catch leaves the last good snapshot
+  // standing until the next check.
+  const out = await refreshInboxAccounts(deps.userId, list, { reason: "pump" });
+  const failed = out.filter((o) => !o.result.ok);
+  if (failed.length === list.length) {
+    const e = failed[0]!.result.error;
+    throw e instanceof Error ? e : new Error("Could not load mail");
   }
-  const rows = perAccount.flat().sort((a, b) => b.dateMs - a.dateMs);
+  const rows = out.flatMap((o) => o.result.rows).sort((a, b) => b.dateMs - a.dateMs);
+  const accounts = list.map((a) => a.email);
 
   // Triage: cache-aware, same cache the Email tab reads and writes, so a
-  // thread already sorted by a tab visit is never re-sent to the model.
-  const cache = loadTriageCache();
-  let merged: TriageMap = { ...cache };
-  const delta = triageDelta(rows, cache);
-  if (delta.length > 0 && ai.available) {
-    for (let i = 0; i < delta.length; i += TRIAGE_BATCH) {
-      const batch = delta.slice(i, i + TRIAGE_BATCH);
-      try {
-        const raw = await withTimeout(
-          ai.complete(
-            [{ role: "user", content: buildTriageInput(batch) }],
-            "You output only a JSON array, nothing else.",
-            { kind: "triage", schema: TRIAGE_SCHEMA },
-          ),
-          TRIAGE_TIMEOUT_MS,
-        );
-        const parsed = parseTriage(raw, batch);
-        if (parsed) merged = fillSkipped({ ...merged, ...parsed }, batch);
-      } catch {
-        // This batch stays unsorted; the next refresh (or a real tab visit)
-        // tries again. A missed sort is silent, a wrong one is not.
-      }
+  // thread already sorted by a tab visit is never re-sent to the model. A
+  // budget or sign-in refusal ends the loop: the rest would be refused too.
+  if (ai.available) {
+    for (const { email } of list) {
+      const res = await ensureThreadAnalysis({ userId: deps.userId, account: email }, rows.filter((r) => r.account === email), { ai });
+      if (res.status === "budget" || res.status === "auth") break;
     }
-    merged = fillSkipped(merged, delta);
-    saveTriageCache(merged);
   }
+  const merged: TriageMap = loadTriageView(deps.userId, accounts);
 
   const rules = loadRules();
   let map = selfBlankGuard(applyRules(merged, rows, rules), rows, list.map((a) => a.email));
@@ -155,7 +134,7 @@ export async function refreshMailSnapshot(deps: SnapshotRefreshDeps): Promise<vo
       },
       (messages, system) => ai.complete(messages as { role: "user" | "assistant"; content: string }[], system),
     ).catch(() => before);
-    if (map !== before) saveTriageCache(map);
+    if (map !== before) saveTriageView(deps.userId, rows, map);
   }
   const { needsYou } = splitByBucket(rows, map);
   const ordered = sortByDeadline(needsYou, map);

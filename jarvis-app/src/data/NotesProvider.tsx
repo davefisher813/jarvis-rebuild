@@ -73,6 +73,10 @@ const FileStoreContext = createContext<FileStore | null>(null);
 // The Supabase access token, for callers that hit privileged endpoints (e.g.
 // the admin check). Undefined when signed out or in the local harness.
 const TokenContext = createContext<string | undefined>(undefined);
+// The signed-in user's id, for the one job that needs it outside a service:
+// scoping a device-local cache to its owner so a second sign-in on the same
+// phone can never read the first person's mail. Null outside a provider.
+const UserIdContext = createContext<string | null>(null);
 
 // UP-PLAT-05 (2026-09-06): the Store itself, for the one thing no service can
 // answer: whether this phone is caught up. Every service wraps the Store and
@@ -147,6 +151,7 @@ export function NotesProvider({
   useEffect(() => wireResumeRefresh(store), [store]);
   useEffect(() => wireRealtime(supabase, userId), [userId]);
   return (
+    <UserIdContext.Provider value={userId}>
     <TokenContext.Provider value={accessToken}>
     <StoreContext.Provider value={store}>
     <SettingsContext.Provider value={settings}>
@@ -198,6 +203,7 @@ export function NotesProvider({
     </SettingsContext.Provider>
     </StoreContext.Provider>
     </TokenContext.Provider>
+    </UserIdContext.Provider>
   );
 }
 
@@ -417,6 +423,10 @@ export function useOptionalStrands(): StrandsService | null {
 
 export function useAccessToken(): string | undefined {
   return useContext(TokenContext);
+}
+
+export function useUserId(): string | null {
+  return useContext(UserIdContext);
 }
 
 // Null outside a provider (the settings screens all live inside one; a test

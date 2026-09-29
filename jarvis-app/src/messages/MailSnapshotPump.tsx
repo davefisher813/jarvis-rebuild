@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import { useGoogle } from "../connections/google/GoogleSession";
 import { useAI } from "../ai/useAI";
-import { useOptionalPeople } from "../data/NotesProvider";
+import { useOptionalPeople, useUserId } from "../data/NotesProvider";
 import { refreshMailSnapshot } from "./snapshotRefresh";
 import { loadMailSnapshot } from "./home";
 import { loadWindows, peekLine, DEFAULT_WINDOWS } from "./batching";
@@ -35,6 +35,7 @@ export default function MailSnapshotPump() {
   // thread remember WHO they are about. Optional, same seam every other
   // enhancement in this app uses.
   const people = useOptionalPeople();
+  const userId = useUserId();
   const busy = useRef(false);
 
   // UP-MIND-14 (2026-09-05): the digest is scheduled from whatever the app
@@ -58,7 +59,7 @@ export default function MailSnapshotPump() {
 
   useEffect(() => {
     const check = () => {
-      if (!g.hasToken || busy.current) return;
+      if (!g.hasToken || !userId || busy.current) return;
       const now = new Date();
       const nowMin = now.getHours() * 60 + now.getMinutes();
       const w = loadWindows();
@@ -73,6 +74,7 @@ export default function MailSnapshotPump() {
       busy.current = true;
       void refreshMailSnapshot({
         apis: () => g.apis("mail"),
+        userId,
         ai,
         ...(people ? { people: async () => (await people.list()).map((p) => ({ id: p.id, ...(p.data.email ? { email: p.data.email } : {}) })) } : {}),
       })
@@ -82,7 +84,7 @@ export default function MailSnapshotPump() {
     check();
     const t = setInterval(check, CHECK_INTERVAL_MS);
     return () => clearInterval(t);
-  }, [g, ai, people]);
+  }, [g, ai, people, userId]);
 
   return null;
 }

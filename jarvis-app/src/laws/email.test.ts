@@ -311,37 +311,73 @@ describe("EMAIL law 10: Open Anyway outlives the tab switch", () => {
 // refresh ignores them.
 describe("EMAIL law 11: a return to the screen is not a reason to re-read the mail", () => {
   it("the inbox load answers from cache while its last read is fresh", () => {
-    expect(FLOW).toMatch(/if \(!force && max === undefined && isFresh\("threads"\)\) \{/);
-    const at = FLOW.indexOf('if (!force && max === undefined && isFresh("threads"))');
+    // 2026-09-29: the gate is per ACCOUNT now (every account's own clock), and
+    // the cached rows are read per account.
+    expect(FLOW).toMatch(/if \(!force && max === undefined && haveAll && list\.every\(\(\{ email \}\) => isFresh\(scopeOf\(email\), "threads"\)\)\) \{/);
+    const at = FLOW.indexOf('if (!force && max === undefined && haveAll');
     const branch = FLOW.slice(at, at + 900);
-    expect(branch, "and paints the rows it already has").toMatch(/loadRows\(\)/);
+    expect(branch, "and paints the rows it already has").toMatch(/const cachedRows = paint\(\)/);
+    expect(FLOW, "from each account's own cache").toMatch(/loadRows\(scopeOf\(email\)\)/);
     // Cached is not sorted. Rows that came back without a request say
     // nothing about whether they have been triaged, and only runTriage may
     // answer that: asserting it here put unsorted mail under For You.
     expect(branch, "the cache path declares the sort done itself")
       .not.toMatch(/setTriaged\(true\)|setTriageState\("ready"\)/);
-    expect(branch, "it must hand the question to runTriage").toMatch(/void runTriage\(cached\.rows\)/);
+    expect(branch, "it must hand the question to runTriage").toMatch(/void runTriage\(cachedRows\)/);
   });
-  it("every expensive satellite keeps its own clock", () => {
+  it("and when the read is stale it paints the cache FIRST and asks Gmail the cheap question", () => {
+    // Dave, 2026-09-16: "It also shouldn't need to read my emails every time
+    // I go back to the screen". Stale is not a reason to blank the screen, and
+    // it is not a reason to re-read thirty threads either.
+    expect(FLOW).toMatch(/if \(haveAll\) \{ paint\(\); mirrorArmed\.current = true; setLoading\(false\); \} else setLoading\(true\);/);
+    expect(FLOW, "the refresh is the coordinator's, not a second inbox reader").toMatch(/await refreshInboxAccounts\(userId, list,/);
+    expect(FLOW, "the tab lists threads itself again").not.toMatch(/api\.listThreads\(/);
+  });
+  it("every expensive satellite keeps its own clock, per account", () => {
     for (const kind of ["waiting", "sweep", "meetings"]) {
       expect(FLOW, kind + " must be gated on its own freshness")
-        .toMatch(new RegExp('force \\|\\| !isFresh\\("' + kind + '"\\)'));
+        .toMatch(new RegExp('if \\(stale\\("' + kind + '"\\)\\)'));
     }
-    expect(FLOW, "drafts too").toMatch(/!draftsLoaded && !isFresh\("drafts"\)/);
+    expect(FLOW, "and the gate is force, or ANY account's clock stale")
+      .toMatch(/force \|\| list\.some\(\(\{ email \}\) => !isFresh\(scopeOf\(email\), k\)\)/);
+    expect(FLOW, "drafts too").toMatch(/!draftsLoaded && !g\.apis\("mail"\)\.every\(\(\{ email \}\) => isFresh\(scopeOf\(email\), "drafts"\)\)/);
+  });
+  it("a clock is set by SUCCESS, never ahead of the work", () => {
+    // The old shape was `markRead("waiting"); void loadWaiting();`, which is
+    // how a read that failed passed for a fresh one.
+    expect(FLOW).not.toMatch(/markRead\([^)]*\);\s*void (loadWaiting|runSweep|findMeetings)/);
+    expect(FLOW).toMatch(/\.then\(\(ok\) => \{ if \(ok\) for \(const \{ email \} of list\) markRead\(scopeOf\(email\), k\); \}\)/);
+    expect(FLOW, "the threads clock is set per account that answered")
+      .toMatch(/for \(const o of out\) if \(o\.result\.ok\) markRead\(scopeOf\(o\.email\), "threads"\)/);
   });
   it("a deliberate refresh always wins", () => {
-    // Pull to refresh, Try Again and Load More all force the read.
+    // Pull to refresh and Try Again force the read; Load More follows the cursor.
     expect(FLOW).toMatch(/void loadThreads\(undefined, true\)/);
-    expect(FLOW).toMatch(/loadThreads\(pageRef\.current \+ MAIL_PAGE, true\)/);
+    expect(FLOW).toMatch(/loadMoreInbox\(scopeOf\(email\), api, MAIL_PAGE/);
   });
   it("a write that changed the inbox drops what it invalidated", () => {
-    expect(FLOW).toMatch(/invalidateReads\(\["waiting", "sweep"\]\)/);
+    expect(FLOW).toMatch(/invalidateReads\(scopeOf\(email\), \["waiting", "sweep"\]\)/);
   });
   it("a cached read may be stale but never old enough to be a lie", () => {
     const C = read(join(SRC, "messages/mailCache.ts"));
     expect(C).toMatch(/export const ROWS_MAX_AGE_MS/);
     const at = C.indexOf("export function loadRows");
-    expect(C.slice(at, at + 700), "loadRows must refuse rows past the max age")
-      .toMatch(/now - p\.ts > ROWS_MAX_AGE_MS \|\| now < p\.ts/);
+    expect(C.slice(at, at + 900), "loadRows must refuse rows past the max age")
+      .toMatch(/now - c\.checkedAt > ROWS_MAX_AGE_MS/);
+    expect(C, "and a timestamp from the future is not trusted").toMatch(/c\.checkedAt > now\) return null/);
+  });
+  it("no mail cache key is unscoped: every entry names its owner and account", () => {
+    // 2026-09-29: one global row list let two accounts overwrite each other
+    // and a second sign-in on the same phone read the first person's mail.
+    const C = read(join(SRC, "messages/mailCache.ts"));
+    for (const fn of ["loadRows", "saveRows", "mirrorRows", "clearRows", "markRead", "isFresh", "invalidate", "loadReads"]) {
+      expect(C, fn + " must take the account scope").toMatch(new RegExp("export function " + fn + "\\(\\s*scope: MailScope"));
+    }
+    expect(C, "a fixed, global storage key").not.toMatch(/const ROWS_KEY|const READS_KEY/);
+  });
+  it("an emptied inbox is a cached answer, and the last archive is persisted", () => {
+    const C = read(join(SRC, "messages/mailCache.ts"));
+    expect(C, "loadRows must not treat zero rows as a miss").not.toMatch(/rows\.length === 0\) return null/);
+    expect(FLOW, "the mirror effect must not skip an empty list").not.toMatch(/if \(rows\.length > 0\) mirrorRows/);
   });
 });

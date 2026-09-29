@@ -2098,6 +2098,9 @@ describe("LAW: every module is reachable, or is listed as not", () => {
     // functions of migration 0043, imported by the handler tests only. The
     // rules themselves are proven against a real Postgres.
     "fakeBudgetRpc.ts": "test only: in-memory stand-in for the ai_budget functions, for handler tests",
+    // 2026-09-29: a counting fake Gmail (labels, paged history, string history
+    // ids), imported by the tests that measure what reading the inbox costs.
+    "fakeMailbox.ts": "test only: a counting fake Gmail for the inbox refresh and cost tests",
     // (fileStorage.ts left this list on 2026-09-02: files/FileStore routes
     // every upload through it, from the clip on Notes and Money.)
     // (HealthFlow.tsx left this list on 2026-09-05, HMN-F-06 option A: the

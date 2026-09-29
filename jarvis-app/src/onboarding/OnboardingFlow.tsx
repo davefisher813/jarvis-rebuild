@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useProfile, useCategories, usePeople, useRoutine, useTasks, useOptionalStrands } from "../data/NotesProvider";
+import { useProfile, useCategories, usePeople, useRoutine, useTasks, useOptionalStrands, useUserId } from "../data/NotesProvider";
 import { wakeFromBrief, DEFAULT_ROUTINE } from "../routine/types";
 import { localParse } from "../ai/capture";
 import { useOptionalGoogle } from "../connections/google/GoogleSession";
@@ -71,6 +71,7 @@ export default function OnboardingFlow({ onFinish }: { onFinish: () => void }) {
   const profile = useProfile();
   const categories = useCategories();
   const peopleSvc = usePeople();
+  const userId = useUserId();
   const ai = useAI();
   const routine = useRoutine();
   const tasksSvc = useTasks();
@@ -131,6 +132,7 @@ export default function OnboardingFlow({ onFinish }: { onFinish: () => void }) {
     try {
       await refreshMailSnapshot({
         apis: () => google.apis("mail"),
+        userId: userId ?? "local",
         ai,
         people: async () => (await peopleSvc.list().catch(() => [])).map((p) => ({ id: p.id, ...(p.data.email ? { email: p.data.email } : {}) })),
       });
