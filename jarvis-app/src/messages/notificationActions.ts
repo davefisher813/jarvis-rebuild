@@ -321,6 +321,14 @@ function fnv(s: string): string {
   return h.toString(36);
 }
 
+/** The words an HTML mail shows: no styles, scripts, comments or hidden text. */
+function visibleText(html: string): string {
+  const clean = dropHidden(html.slice(0, MAX_HTML), { outlookOnlyVisible: true })
+    .replace(/<!--[\s\S]*?-->/g, " ")
+    .replace(/<(style|script|head)\b[\s\S]*?<\/\1\s*>/gi, " ");
+  return stripTags(clean).slice(0, 4000);
+}
+
 const stripTags = (h: string): string => decodeEntities(h.replace(/<[^>]*>/g, " ")).replace(/\s+/g, " ").trim();
 
 interface RawLink { url: string; text: string; source: ExtractedLink["source"] }
@@ -331,7 +339,9 @@ function linksFromHtml(html: string): RawLink[] {
   // cannot see is not one the app may point at.
   // Bounded: a mail is not a book, and an unclosed anchor must not make the
   // scan quadratic.
-  const visible = dropHidden(html.slice(0, MAX_HTML));
+  // A Google button carries mso-hide:all beside a VML twin for Outlook; every
+  // other client shows it, so it is a link a person can see.
+  const visible = dropHidden(html.slice(0, MAX_HTML), { outlookOnlyVisible: true });
   const re = /<a\b((?:"[^"]*"|'[^']*'|[^'">])*)>([\s\S]*?)<\/a\s*>/gi;
   for (const m of visible.matchAll(re)) {
     const href = /\bhref\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/i.exec(m[1] ?? "");
@@ -413,7 +423,11 @@ export function extractActionEvidence(input: EvidenceInput): ActionEvidenceBundl
     l.id = id;
   }
 
-  const text = (input.subject || "") + "\n" + (input.body || "");
+  // A message with no readable text part (or a stub of one) is read from what
+  // its HTML shows, so the sentence that says what it wants is still there.
+  const plain = input.body || "";
+  const shown = input.html && plain.trim().length < 40 ? visibleText(input.html) : "";
+  const text = (input.subject || "") + "\n" + (shown ? shown : plain);
   const head = text.slice(0, 1800);
   const unsub = input.listUnsubscribe ? parseUnsub(input.listUnsubscribe) : null;
   const unsubscribe = unsub && (unsub.kind === "mailto" || validateHttpsUrl(unsub.target)) ? unsub : null;
@@ -473,7 +487,9 @@ function relevant(kind: NotificationActionKind, l: ExtractedLink): boolean {
   const hay = l.text + " " + path;
   if (NOT_THE_ACTION.test(l.text) || /\/(unsubscribe|privacy|terms)\b/i.test(path)) return false;
   switch (kind) {
-    case "grant_access": return /\/(document|spreadsheets|presentation|file|drawings|forms)\//.test(path) || /\/open\b/.test(path);
+    // A request can be for a document, a sheet, a deck, a file, a form or a
+    // FOLDER (drive.google.com/drive/folders/ID, also under /drive/u/0/).
+    case "grant_access": return /\/(document|spreadsheets|presentation|file|drawings|forms|folders)\//.test(path) || /\/(drive\/(?:u\/\d+\/)?folders|open)\b/.test(path);
     case "open_share": return /\/(document|spreadsheets|presentation|file|drawings|forms|folders)\//.test(path) || /\/(drive\/folders|open)\b/.test(path);
     case "accept_invite": return /[?&]action=(RESPOND|VIEW)\b/i.test(path);
     case "fill_form": return /\/viewform\b/.test(path) || l.host === "forms.gle";
@@ -583,7 +599,10 @@ export function isCompleteMeeting(m: MeetingCandidate | undefined): m is Meeting
 // Detection: what a message looks like it wants, as proposals to be validated
 // ---------------------------------------------------------------------------
 
-const RE_ACCESS = /\b(?:request(?:s|ed|ing)?|asking(?:\s+for)?|wants?)\s+(?:for\s+)?(?:edit\s+|view\s+|comment\s+)?access\b|\baccess\s+request\b/i;
+// Google words this several ways: "requests access to an item", "is requesting
+// access to the following spreadsheet", "Share request for", "Access request
+// for", "needs access". All of them come from Google (checked where this runs).
+const RE_ACCESS = /\b(?:request(?:s|ed|ing)?|asking(?:\s+for)?|wants?|needs?|would\s+like)\s+(?:for\s+)?(?:edit\s+|view\s+|comment\s+)?access\b|\baccess\s+request\b|\bshare\s+request\b|\baccess\s+(?:is\s+)?requested\b/i;
 const RE_SHARE = /\b(?:shared|sharing)\b[^\n]{0,80}\bwith\s+you\b|\binvited\s+you\s+to\s+(?:view|edit|comment|collaborate)\b|\bhas\s+shared\b/i;
 const RE_INVITE_SUBJECT = /^\s*(?:updated\s+invitation|invitation)\b/i;
 const RE_SIGN = /\b(?:docusign|e-?sign(?:ature)?|signature\s+(?:requested|needed|required)|please\s+sign|review\s+and\s+sign|sign\s+(?:the|this)\s+document|awaiting\s+your\s+signature)\b/i;

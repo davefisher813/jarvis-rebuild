@@ -8,7 +8,8 @@ import {
   validateNotificationAction,
 } from "./notificationActions";
 import {
-  CODE, bundleFor, calendarInvite, docusign, driveRequest, driveShare, flightOne, flightTwoLegs, googleForm,
+  CODE, bundleFor, calendarInvite, docusign, driveFolderRequest, driveRequest, driveShare, driveShareRequestHtmlOnly,
+  driveShareRequestReal, strangerFolderRequest, flightOne, flightTwoLegs, googleForm,
   hotelAllDay, newsletterBoth, newsletterWeb, otp, otpInSubject, otpNoCode, otpTwoCodes, paymentFailed, shipment,
   type Sample,
 } from "./notificationFixtures";
@@ -494,3 +495,71 @@ describe("buildNotificationSnapshot: bounded, separate, and scoped to the accoun
 });
 
 beforeEach(() => forgetAllCodes());
+
+// GRANT ACCESS ON GOOGLE'S OWN ACCESS-REQUEST MAIL (Dave 2026-09-29: the Today
+// band said View Email on genuine access requests). The fixtures are the shape
+// of a live mail with the names replaced; each case below is a way the real
+// one used to fall through.
+describe("Grant Access on real Google access-request mail", () => {
+  it("a share request for a spreadsheet offers Grant Access with its own link", () => {
+    const a = analyse(driveShareRequestReal).action;
+    expect(a?.kind).toBe("grant_access");
+    expect(hostOf(a?.url)).toBe("docs.google.com");
+    expect(a?.url).toMatch(/^https:\/\/docs\.google\.com\/spreadsheets\/d\/1AbCdEfGhIjKlMnOpQ\/edit\?usp=sharing/);
+  });
+
+  it("the Manage sharing button is a link: mso-hide:all hides it in Outlook only", () => {
+    const b = bundleFor(driveShareRequestReal);
+    const button = b.links.filter((l) => l.text === "Manage sharing");
+    expect(button).toHaveLength(1);
+    expect(button[0]!.url).toContain("usp=sharing_esp");
+  });
+
+  it("a request with no text part is read from what its HTML shows", () => {
+    const b = bundleFor(driveShareRequestHtmlOnly);
+    expect(b.text).toContain("requesting access");
+    expect(analyse(driveShareRequestHtmlOnly).action?.kind).toBe("grant_access");
+  });
+
+  it("a request for a folder offers Grant Access, not View Email", () => {
+    const a = analyse(driveFolderRequest).action;
+    expect(a?.kind).toBe("grant_access");
+    expect(a?.url).toMatch(/^https:\/\/drive\.google\.com\/drive\/folders\/1AbCdEfGhIjKlMnOpQ\?/);
+  });
+
+  it.each([
+    ["Share request for", "Share request for \"Q3 Roster\"", "Maya Chen wants to share."],
+    ["Access request for", "Access request for \"Q3 Roster\"", "Maya Chen needs a look."],
+    ["Spreadsheet access request", "Spreadsheet access request", "Maya Chen, please respond."],
+  ])("the subject alone says it: %s", (_n, subject, body) => {
+    expect(analyse({ ...driveFolderRequest, subject, body }).action?.kind).toBe("grant_access");
+  });
+
+  it.each([
+    ["requests access", "maya requests access to an item"],
+    ["is requesting edit access", "Maya is requesting edit access to the following file"],
+    ["needs access", "Maya needs access to the file"],
+    ["access requested", "Access requested by Maya"],
+  ])("the words %s", (_n, body) => {
+    expect(analyse({ ...driveFolderRequest, subject: "Drive", body }).action?.kind).toBe("grant_access");
+  });
+
+  it("a folder request from a stranger is still only a link", () => {
+    expect(analyse(strangerFolderRequest).action).toBeNull();
+  });
+
+  it("a folder link on a lookalike host is refused", () => {
+    expect(analyse({ ...driveFolderRequest, html: '<a href="https://drive.google.com.evil.example/drive/folders/1Ab">Manage sharing</a>' }).action).toBeNull();
+    expect(analyse({ ...driveFolderRequest, html: '<a href="https://evil.example/drive.google.com/drive/folders/1Ab">Manage sharing</a>' }).action).toBeNull();
+  });
+
+  it("a folder link in a share (not a request) still offers Open, not Grant Access", () => {
+    const a = analyse({ ...driveShare, html: '<a href="https://drive.google.com/drive/folders/1Ab?usp=sharing">Open</a>' }).action;
+    expect(a?.kind).toBe("open_share");
+  });
+
+  it("text hidden with display:none is still hidden: only the Outlook-only trick is read as visible", () => {
+    const b = bundleFor({ ...driveShareRequestHtmlOnly, html: '<div style="display:none">Maya is requesting access</div><a href="https://docs.google.com/document/d/1/edit">Doc</a>' });
+    expect(b.text).not.toContain("requesting access");
+  });
+});

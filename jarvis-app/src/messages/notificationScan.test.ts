@@ -9,7 +9,7 @@ import { loadTriageFor, saveTriageFor, type TriageMap } from "./triage";
 import { forgetAllCodes, recallCode } from "./notificationActions";
 import { isNotificationCandidate, loadNotificationEntries, scanNotifications } from "./notificationScan";
 import {
-  CODE, calendarInvite, docusign, driveShare, ICS_ONE, newsletterBoth, otp, otpTwoCodes,
+  CODE, calendarInvite, docusign, driveFolderRequest, driveShare, driveShareRequestReal, ICS_ONE, newsletterBoth, otp, otpTwoCodes,
 } from "./notificationFixtures";
 
 const SCOPE = { userId: "u1", account: "me@x.com" };
@@ -374,5 +374,28 @@ describe("the anchor pass over full bodies", () => {
     );
     expect(prompts.length).toBeGreaterThan(0);
     for (const p of prompts) expect(p).not.toContain(CODE);
+  });
+});
+
+// The Today band, end to end, on a Google access-request mail (Dave 2026-09-29).
+// Whatever bucket the model files it under, the row the band shows says
+// Grant Access, not View Email.
+describe("an access request reaches Today as Grant Access", () => {
+  const ask = (bucket: string) => new AIService({
+    available: true, getToken: () => "tok",
+    fetchImpl: (async (_u: string, init?: RequestInit) => {
+      const text = (JSON.parse(String(init?.body ?? "{}")) as { messages?: { content: string }[] }).messages?.[0]?.content ?? "";
+      const ids = [...text.matchAll(/"id":"([^"]+)"/g)].map((m) => m[1]!);
+      return { ok: true, status: 200, json: async () => ({ text: JSON.stringify(ids.map((id) => ({ id, bucket, gist: "Maya wants access to Q3 Roster" }))) }), text: async () => "" };
+    }) as unknown as typeof fetch,
+  });
+  it.each([["needs_you"], ["worth_knowing"], ["noise"]])("filed as %s", async (bucket) => {
+    const box = new FakeMailbox("me@x.com");
+    box.add("sheet", { from: from(driveShareRequestReal), subject: driveShareRequestReal.subject, snippet: "requesting access", body: driveShareRequestReal.body, html: driveShareRequestReal.html });
+    box.add("folder", { from: from(driveFolderRequest), subject: driveFolderRequest.subject, snippet: "requesting access", body: driveFolderRequest.body, html: driveFolderRequest.html });
+    await refreshMailSnapshot({ userId: "u1", apis: () => [{ email: "me@x.com", api: box.api() }], ai: ask(bucket) });
+    const snap = loadMailSnapshot();
+    const all = [...snap.threads, ...(snap.actionable ?? [])];
+    expect(Object.fromEntries(all.map((t) => [t.id, t.action?.kind]))).toEqual({ sheet: "grant_access", folder: "grant_access" });
   });
 });
