@@ -28,7 +28,7 @@ import {
   type ThreadRow, type ThreadFull, type MailFull, type EmailAttachment,
 } from "../connections/google/map";
 import { selfBlankGuard,
-  loadTriageView, saveTriageView, dropLegacyTriage, triageDelta,
+  loadTriageView, saveTriageView, dropLegacyTriage, triageDelta, isAnalysed,
   splitByBucket, noiseLine, sortByDeadline, byRank, applyKnownPeople, knownSenderEmails,
   type TriageMap, type Bucket,
 } from "./triage";
@@ -40,8 +40,8 @@ import LetGoSwipe from "./LetGoSwipe";
 import { loadMuted, mute, unmute, dropMuted } from "./mute";
 import { parseUnsub, unsubLabel, unsubLine, UNSUB_SUBJECT, UNSUB_BODY, type Unsub } from "./unsubscribe";
 import { BRIEF_SYSTEM, briefPrompt, parseBrief, briefFor, saveBrief, type ConfirmedMeeting } from "./brief";
-import { loadRows, mirrorRows, isFresh, markRead, invalidate as invalidateReads, dropLegacyMailCache, type ReadKind } from "./mailCache";
-import { refreshInboxAccounts, loadMoreInbox, ensureThreadAnalysis, markGone, unmarkGone, MAIL_PAGE } from "./inboxRefresh";
+import { loadRows, loadAccount, mirrorRows, isFresh, markRead, invalidate as invalidateReads, dropLegacyMailCache, FRESH_MS, type ReadKind } from "./mailCache";
+import { refreshInboxAccounts, loadMoreInbox, ensureThreadAnalysis, loadFullInboxIndex, markGone, unmarkGone, MAIL_PAGE } from "./inboxRefresh";
 import { useUserId } from "../data/NotesProvider";
 import { emit } from "../events";
 import { usePushDepth } from "../shared/pushNav";
@@ -75,7 +75,8 @@ import { buildLedger, ledgerFloor, ledgerTone, type Ledger, type LedgerRow } fro
 import { settleAll, settleLine, type SettleWords } from "./settle";
 import { recordSweepDay, loadSweepDays, sweepWeek, receiptLines, sweepEstimate, type SweepReceipts } from "./sweep";
 import ListFloor from "../shared/ListFloor";
-import { senderPiles, selectedCount, selectedIds, purgeLabel, purgePromise, defaultPicks } from "./purge";
+import { senderPiles, selectedCount, selectedRows, purgeLabel, purgePromise, defaultPicks } from "./purge";
+import { buildTrashPlan, trashSelection, undoTrashSelection, confirmCopy, receiptLine, type EnsureApi, type TrashPlan } from "./bulkMail";
 import { readIcs } from "./ics";
 import { isNoReply, isBulk , isMachineAddress } from "./noReply";
 import { humanError } from "../connections/google/humanError";
@@ -95,7 +96,6 @@ import { WRITE_FAILED_MESSAGE } from "../shared/guard";
 // UP-MIND-17 (2026-09-05): how far Clean Out walks. Six pages of thirty is
 // most real inboxes and a bounded number of requests; past that the screen
 // still says "there may be more", which it already knew how to say.
-const PURGE_PAGES = 6;
 
 // The words every mail-archive receipt uses, in one place, because the four
 // batch sites used to phrase the same outcome four ways.
@@ -2477,40 +2477,55 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   // rather than to report three asks and send one.
   // UP-MIND-17 (2026-09-05): THE COUNT IS THE ACCOUNT, not the first page.
   // Clean Out used to speak for whatever thirty threads happened to be
-  // loaded: delete those and it said the inbox was down to what matters with
-  // hundreds still sitting in Gmail. This walks Gmail's own cursor, capped,
-  // and the rows it brings back feed the same piles the screen already
-  // builds, so nothing about the screen's rules changes.
-  const deepPages = useRef(false);
-  const deepLoad = async () => {
-    if (deepPages.current) return;
-    deepPages.current = true;
+  // loaded, and then, once it walked Gmail's cursor, for whatever six pages
+  // that got it (about 180 threads), which is still not the account.
+  //
+  // 2026-09-29: it now walks the cursor until it RUNS OUT (loadFullInboxIndex),
+  // reading metadata only, asking the model nothing, with progress, Stop and a
+  // Resume that continues from where it got to. It calls the inbox complete
+  // only when the cursor ran out and what changed during the walk was
+  // reconciled; until then the screen says it is still checking and shows no
+  // sender inventory, because a partial one would read as the whole.
+  const [scan, setScan] = useState<{ status: "idle" | "running" | "partial" | "failed" | "complete"; loaded: number; at: number }>({ status: "idle", loaded: 0, at: 0 });
+  const scanCtl = useRef<AbortController | null>(null);
+  const runScan = async (force = false) => {
+    if (scanCtl.current) return;
+    const list = g.apis("mail");
+    if (list.length === 0) return;
+    // A complete scan a moment ago is still the answer.
+    if (!force && scan.status === "complete" && Date.now() - scan.at < FRESH_MS.threads) return;
+    const ctl = new AbortController();
+    scanCtl.current = ctl;
+    const seen: Record<string, number> = {};
+    setScan({ status: "running", loaded: 0, at: 0 });
     try {
-      const per = await Promise.all(g.apis("mail").map(async ({ email, api }) => {
-        const out: ThreadRow[] = [];
-        let token: string | undefined;
-        for (let page = 0; page < PURGE_PAGES; page++) {
-          const res = await api.listThreadPage(MAIL_PAGE, token).catch(() => null);
-          if (!res) break;
-          out.push(...res.metas.map(mapThread)
-            .filter((t): t is ThreadRow => t !== null && t.inInbox)
-            .map((t) => ({ ...t, account: email })));
-          token = res.nextPageToken;
-          if (!token) break;
-        }
-        // No cursor left means Gmail has nothing more: the honest end, which
-        // is the only thing that lets this screen claim the inbox.
-        return { rows: out, all: !token };
-      }));
-      const merged = per.flatMap((p) => p.rows);
-      if (merged.length === 0) return;
+      const results = await Promise.all(list.map(async ({ email, api }) => ({
+        email,
+        r: await loadFullInboxIndex(scopeOf(email), api, {
+          signal: ctl.signal,
+          onProgress: (p) => { seen[email] = p.loaded; setScan((s) => ({ ...s, loaded: Object.values(seen).reduce((n, v) => n + v, 0) })); },
+        }),
+      })));
+      const complete = results.every((x) => x.r.complete);
+      const scanned = results.flatMap((x) => x.r.rows);
+      serverRows.current = true;
       setRows((cur) => {
-        const seen = new Set(cur.map((r) => r.id));
-        return [...cur, ...merged.filter((r) => !seen.has(r.id))].sort((a, b) => b.dateMs - a.dateMs);
+        // A finished account's rows ARE its inbox: they replace what was
+        // there. An unfinished one only adds what it found.
+        const done = new Set(results.filter((x) => x.r.complete).map((x) => x.email));
+        const kept = cur.filter((r) => !(r.account && done.has(r.account)));
+        const have = new Set(kept.map(rowKey));
+        return [...kept, ...scanned.filter((r) => !have.has(rowKey(r)))].sort((a, b) => b.dateMs - a.dateMs);
       });
-      if (per.every((p) => p.all)) setAtEnd(true);
+      if (complete) setAtEnd(true);
+      setScan({
+        status: complete ? "complete" : ctl.signal.aborted || results.every((x) => x.r.ok) ? "partial" : "failed",
+        loaded: scanned.length, at: Date.now(),
+      });
+    } catch {
+      setScan((s) => ({ ...s, status: "failed" }));
     } finally {
-      deepPages.current = false;
+      scanCtl.current = null;
     }
   };
 
@@ -2619,38 +2634,152 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     }
   };
 
-  // 11C: BULK DELETE, the same shape as archive and the same honesty.
-  // Trash, never the permanent-delete endpoint: that is the standing law and
-  // this is the surface where it matters most. Undo untrashes.
-  const deleteThreads = async (chosen: ThreadRow[]) => {
-    if (!chosen.length) return;
-    const ids = new Set(chosen.map((r) => r.id));
-    setRows((rs) => rs.filter((x) => !ids.has(x.id)));
-    setResults((rs) => (rs ? rs.filter((x) => !ids.has(x.id)) : rs));
-    const { ok, failed } = await settleAll(chosen, (r) => apiFor(r.account)?.trashThread(r.id));
-    if (failed.length) setRows((rs) => [...failed, ...rs.filter((x) => !failed.some((f) => f.id === x.id))].sort((a, b) => b.dateMs - a.dateMs));
-    // EMAIL-F-18: a purge that emptied the page pulls the next one in.
-    refillIfEmptied(rows.filter((r) => !ids.has(r.id)).length + failed.length);
-    say(lineCase(settleLine(ok.length, failed.length, DELETE_WORDS)), ok.length ? {
-      label: "Undo",
-      run: () => void (async () => {
-        setRows((rs) => [...ok, ...rs.filter((x) => !ids.has(x.id))].sort((a, b) => b.dateMs - a.dateMs));
-        const back = await settleAll(ok, (r) => apiFor(r.account)?.untrashThread(r.id));
-        if (back.failed.length) say(settleLine(back.ok.length, back.failed.length, UNTRASH_WORDS));
-      })(),
-    } : undefined, 8000);
+  // 11C: BULK DELETE, and now ONE PATH TO TRASH for every delete in this tab
+  // (2026-09-29): the row swipe, the thread's Delete, the fold's selection and
+  // Clean Out all come through moveToTrash. Trash, never the permanent-delete
+  // endpoint (the standing law, and Clean Out is where it matters most): label
+  // changes through Gmail's batchModify, recoverable for 30 days, one Undo.
+  //
+  // What that path guarantees, each one a thing the old per-thread loop got wrong:
+  //   - an account it cannot write through is REFUSED by name, never quietly
+  //     sent through another (the old `apiFor(x)?.trashThread` resolved to
+  //     nothing and the count called it a success);
+  //   - rows leave the list only for what Gmail CONFIRMED, and come back for
+  //     the rest, so the list, the cache and Today agree with Gmail;
+  //   - a batch that includes mail that may need him is asked about ONCE, not
+  //     per chunk, and a single explicit delete is one tap with an Undo;
+  //   - a selection survives a failed preflight, and only what moved is cleared.
+  const ensureMail: EnsureApi = async (account) => {
+    const r = await g.ensureGoogleSession(account, { forMutation: true });
+    return r.ok ? { ok: true, api: r.api } : { ok: false, message: r.message, code: r.code, retryable: r.retryable };
+  };
+  const rowKey = (r: { id: string; account?: string }) => (r.account ?? "") + "\u001f" + r.id;
+  // A row read moments ago is trusted without a re-read; anything older is read.
+  const rowTrusted = (r: ThreadRow) => {
+    if (!r.account) return false;
+    const c = loadAccount(scopeOf(r.account));
+    return !!c && Date.now() - c.checkedAt < FRESH_MS.threads;
+  };
+  // Mail that may need him: judged needs-you, never analysed (an unknown is
+  // not safe), or a VIP.
+  const mayNeedYou = (r: ThreadRow) => {
+    const t = effTriage[r.id];
+    return !t || t.fallback === true || t.bucket === "needs_you" || isVip(r.fromEmail, vips);
+  };
+  const [trashAsk, setTrashAsk] = useState<{ plan: TrashPlan; chosen: ThreadRow[]; after?: (moved: ThreadRow[]) => void; copy: NonNullable<ReturnType<typeof confirmCopy>> } | null>(null);
+  const [trashing, setTrashing] = useState(false);
+  const trashBusy = useRef(false);
+
+  const runTrash = async (plan: TrashPlan, chosen: ThreadRow[], after?: (moved: ThreadRow[]) => void) => {
+    trashBusy.current = true;
+    setTrashing(true);
+    try {
+      const sent = new Set(plan.accounts.flatMap((a) => a.threads.map((t) => rowKey({ id: t.threadId, account: a.account }))));
+      const sentRows = chosen.filter((r) => sent.has(rowKey(r)));
+      // Hidden at once, for exactly what is about to be sent. Whatever Gmail
+      // does not confirm comes back below.
+      setRows((rs) => rs.filter((x) => !sent.has(rowKey(x))));
+      setResults((rs) => (rs ? rs.filter((x) => !sent.has(rowKey(x))) : rs));
+      setView("list");
+      const res = await trashSelection(plan, { ensure: ensureMail });
+      const moved = new Set(res.outcomes.filter((o) => o.status === "trashed").map((o) => rowKey({ id: o.threadId, account: o.account })));
+      const movedRows = sentRows.filter((r) => moved.has(rowKey(r)));
+      const back = sentRows.filter((r) => !moved.has(rowKey(r)));
+      if (back.length) {
+        setRows((rs) => [...back, ...rs.filter((x) => !back.some((b) => rowKey(b) === rowKey(x)))].sort((a, b) => b.dateMs - a.dateMs));
+      }
+      // What was read about the inbox is no longer good for the accounts that changed.
+      for (const a of new Set(movedRows.map((r) => r.account))) if (a) invalidateReads(scopeOf(a), ["waiting", "sweep"]);
+      // EMAIL-F-07: a trashed thread is dealt with, so Waiting On stops counting it.
+      const wasWaiting = movedRows.filter((r) => letGoIfWaiting(r.id));
+      // EMAIL-F-18: a purge that emptied the page pulls the next one in.
+      refillIfEmptied(rows.filter((r) => !sent.has(rowKey(r))).length + back.length);
+      say(receiptLine(res), movedRows.length ? {
+        label: "Undo",
+        run: () => void (async () => {
+          setRows((rs) => [...movedRows, ...rs.filter((x) => !moved.has(rowKey(x)))].sort((a, b) => b.dateMs - a.dateMs));
+          for (const r of wasWaiting) undoLetGoFor(r.id);
+          const u = await undoTrashSelection(res, { ensure: ensureMail });
+          if (u.failed.length) {
+            // Only what really came back stays in the list.
+            const stuck = new Set(u.failed);
+            setRows((rs) => rs.filter((x) => !(moved.has(rowKey(x)) && stuck.has(x.id))));
+            say(u.message ?? "Couldn't Put It All Back \u00b7 What's Left Is in Your Trash");
+          }
+        })(),
+      } : undefined, 8000);
+      after?.(movedRows);
+    } finally {
+      trashBusy.current = false;
+      setTrashing(false);
+    }
   };
 
+  /**
+   * Moves conversations to Trash. `confirm` asks once, for the whole batch,
+   * only when it holds mail that may need him. Returns whether it went ahead
+   * (false: nothing moved yet, because it was refused, is waiting on the
+   * person's answer, or there was nothing to move).
+   */
+  const moveToTrash = async (chosen: ThreadRow[], opts: { confirm: boolean; after?: (moved: ThreadRow[]) => void }): Promise<boolean> => {
+    if (chosen.length === 0 || trashBusy.current) return false;
+    trashBusy.current = true;
+    setTrashing(true);
+    let handedOn = false;
+    try {
+      const plan = await buildTrashPlan(chosen, { ensure: ensureMail, trusted: rowTrusted });
+      if (plan.conversations === 0) {
+        // Refused by name, or nothing left to do. The selection stays as it was.
+        if (plan.blocked.length) say(plan.blocked[0]!.message);
+        else { say("Already Gone \u00b7 Nothing to Move"); void loadThreads(undefined, true); }
+        return false;
+      }
+      const inPlan = new Set(plan.accounts.flatMap((a) => a.threads.map((t) => rowKey({ id: t.threadId, account: a.account }))));
+      const risky = chosen.filter((r) => inPlan.has(rowKey(r)) && (mayNeedYou(r) || plan.changed.includes(r.id))).length;
+      const copy = opts.confirm ? confirmCopy(plan.conversations, risky) : null;
+      if (copy) {
+        trashBusy.current = false;
+        setTrashing(false);
+        setTrashAsk({ plan, chosen, copy, ...(opts.after ? { after: opts.after } : {}) });
+        return false;
+      }
+      handedOn = true;
+      await runTrash(plan, chosen, opts.after);
+      return true;
+    } catch (e) {
+      say(humanError(e, "Couldn't Move It \u00b7 Nothing Changed"));
+      return false;
+    } finally {
+      if (!handedOn && !trashAsk) { trashBusy.current = false; setTrashing(false); }
+    }
+  };
+
+  // The one confirmation, whole batch, never per chunk.
+  const trashSheet = trashAsk ? (
+    <RowActionSheet
+      title={trashAsk.copy.title}
+      actions={[{ label: trashAsk.copy.confirm, destructive: true, onPick: () => { const a = trashAsk; setTrashAsk(null); void runTrash(a.plan, a.chosen, a.after); } }]}
+      onCancel={() => setTrashAsk(null)}
+    />
+  ) : null;
+
+  const deleteThreads = (chosen: ThreadRow[], after?: (moved: ThreadRow[]) => void) => moveToTrash(chosen, { confirm: true, ...(after ? { after } : {}) });
+
+  // The selection is keyed by account AND thread id: a thread id means nothing
+  // without its mailbox.
   const deletePicked = async (all: ThreadRow[]) => {
-    const chosen = all.filter((r) => picked?.has(r.id));
-    setPicked(null);
-    await deleteThreads(chosen);
+    const chosen = all.filter((r) => picked?.has(rowKey(r)));
+    await deleteThreads(chosen, (moved) => {
+      // Only what moved leaves the selection; a refused or failed one stays picked.
+      const gone = new Set(moved.map(rowKey));
+      setPicked((cur) => (cur === null ? cur : new Set([...cur].filter((k) => !gone.has(k)))));
+    });
   };
 
   // E10: archive every picked row in one move, one Undo for the lot. Same
   // optimistic shape as archiveRow; a failed write un-hides its own row.
   const archivePicked = async (all: ThreadRow[]) => {
-    const chosen = all.filter((r) => picked?.has(r.id));
+    const chosen = all.filter((r) => picked?.has(rowKey(r)));
     setPicked(null);
     if (!chosen.length) return;
     const ids = new Set(chosen.map((r) => r.id));
@@ -2703,34 +2832,14 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   };
 
   // Delete goes to Gmail's Trash, recoverable for 30 days. The permanent
-  // delete endpoint is never called from this app.
+  // delete endpoint is never called from this app. One explicit delete is one
+  // tap with an Undo, and goes through the same path as a batch (no
+  // confirmation: a single deliberate act is not a batch).
   const trashThread = async (id: string, account?: string) => {
-    const api = apiFor(account ?? accountOfThread(id));
-    if (!api) return;
-    setRows((rs) => rs.filter((r) => r.id !== id));
-    setResults((rs) => (rs ? rs.filter((r) => r.id !== id) : rs));
-    // Deleting the thread you are reading must not leave you reading it.
-    setView("list");
-    const gone = rows.find((r) => r.id === id);
-    // DELETE HAS TO BE TRUE (2026-08-25). This said "In trash 30 days" with
-    // the rejection in an empty catch: the row vanished locally, the thread
-    // stayed in the inbox, and it reappeared on the next load with no mention.
-    // Archive, twelve lines up, got this right in August and Delete never did.
-    const { ok } = await settleAll([id], () => api.trashThread(id));
-    if (!ok.length) {
-      if (gone) setRows((rs) => [gone, ...rs.filter((x) => x.id !== id)].sort((a, b) => b.dateMs - a.dateMs));
-      say("Couldn't Delete It · Still in Your Inbox");
-      return;
-    }
-    // EMAIL-F-07: a trashed thread is dealt with, so Waiting On stops
-    // counting it. Only after the write landed, since trash is awaited.
-    const wasWaiting = letGoIfWaiting(id);
-    say("Deleted · In Trash 30 Days", { label: "Undo", run: () => void (async () => {
-      if (gone) setRows((rs) => [gone, ...rs.filter((x) => x.id !== id)].sort((a, b) => b.dateMs - a.dateMs));
-      if (wasWaiting) undoLetGoFor(id);
-      const { failed } = await settleAll([id], () => api.untrashThread(id));
-      if (failed.length) say("Couldn't Put It Back · Still in Trash");
-    })() });
+    const acct = account ?? accountOfThread(id);
+    const row = rows.find((r) => r.id === id && (!acct || r.account === acct))
+      ?? { id, from: "", fromEmail: "", subject: "", snippet: "", unread: false, inInbox: true, dateMs: 0, count: 2, lastMsgId: "", ...(acct ? { account: acct } : {}) };
+    await moveToTrash([row], { confirm: false });
   };
 
   const archiveAllNoise = async (noise: ThreadRow[], manual = true) => {
@@ -3197,9 +3306,12 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   if (view === "purge") {
     // E-29: the same rows the list shows (account chip and desk honoured),
     // so Clean Out never counts what the Sweep does not.
-    const piles = senderPiles(visibleRows, effTriage, vips);
+    // A thread nobody analysed is UNKNOWN, and unknown is never pre-picked:
+    // the scan reads the whole inbox without asking the model about any of it.
+    const piles = senderPiles(visibleRows, effTriage, vips, (id) => isAnalysed(effTriage[id]));
     const picks = purgePicks ?? defaultPicks(piles);
     const n = selectedCount(piles, picks);
+    const checking = scan.status !== "complete";
     const toggle = (email: string) => {
       const next = new Set(picks);
       if (next.has(email)) next.delete(email); else next.add(email);
@@ -3208,11 +3320,28 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     return (
       <div className={"screen ruled " + pushCls} key="purge">
         <div className="nav-bar">
-          <button className="nav-back" onClick={() => { setPurgePicks(null); setView("list"); }}>Email</button>
+          <button className="nav-back" onClick={() => { scanCtl.current?.abort(); setPurgePicks(null); setView("list"); }}>Email</button>
           <span className="nav-title">Clean Out</span>
           <button className="nav-action" onClick={() => setPurgePicks(new Set())}>None</button>
         </div>
-        {piles.length === 0 ? (
+        {checking ? (
+          /* PARTIAL NEVER SPEAKS FOR THE ACCOUNT (2026-09-29). Until the walk
+             has reached the end of the cursor there is no sender list, only
+             what is happening and, if it stopped, a way to continue. */
+          <div className="pad-x"><div className="card list-card-ruled"><div className="empty-state empty-compact">
+            <div className="empty-title">Checking Your Inbox</div>
+            <div className="empty-sub">
+              {scan.status === "running" || scan.status === "idle"
+                ? (scan.loaded > 0 ? scan.loaded + " found so far" : "Reading every page")
+                : scan.status === "failed" ? "Stopped early " + "\u00b7 " + scan.loaded + " found" : "Paused " + "\u00b7 " + scan.loaded + " found"}
+            </div>
+            {scan.status === "running" || scan.status === "idle" ? (
+              <button className="quiet-action" onClick={() => scanCtl.current?.abort()}>Stop</button>
+            ) : (
+              <button className="quiet-action" onClick={() => void runScan(true)}>Resume</button>
+            )}
+          </div></div></div>
+        ) : piles.length === 0 ? (
           <div className="pad-x"><div className="card list-card-ruled"><div className="empty-state empty-compact">
             {/* EMAIL-F-18 (2026-09-05): this used to speak for the whole
                 inbox off a page of 30. Delete the 30 and it said "already
@@ -3238,7 +3367,8 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                     <div className="conn-name">{p.name}</div>
                     {/* The safety line is on the ROW that is unsafe, not in a
                         legend somewhere. It is the reason not to tick it. */}
-                    {!p.safe && <div className="conn-meta purge-warn">Some of these needed you</div>}
+                    {p.needsYou && <div className="conn-meta purge-warn">Some of these needed you</div>}
+                    {!p.needsYou && p.unknown && <div className="conn-meta purge-warn">Not checked yet</div>}
                   </div>
                   <span className="purge-count">{p.count}</span>
                 </div>
@@ -3252,14 +3382,13 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                   one screen where the eye most needs red to mean something.
                   It goes red the moment it will actually delete, and not one
                   render before. */}
-              <button className={"btn btn-block " + (n === 0 ? "btn-secondary" : "btn-danger")} disabled={n === 0 || purging}
+              <button className={"btn btn-block " + (n === 0 ? "btn-secondary" : "btn-danger")} disabled={n === 0 || purging || trashing}
                 onClick={() => void (async () => {
                   setPurging(true);
                   try {
-                    const ids = new Set(selectedIds(piles, picks));
-                    await deleteThreads(unmutedRows.filter((r) => ids.has(r.id)));
-                    setPurgePicks(null);
-                    setView("list");
+                    // Matched on account AND id: a thread id is only
+                    // unique inside its own mailbox.
+                    await deleteThreads(selectedRows(piles, picks, unmutedRows), () => { setPurgePicks(null); setView("list"); });
                   } finally { setPurging(false); }
                 })()}>
                 {purging ? "Deleting..." : purgeLabel(n)}
@@ -3268,6 +3397,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
             </div>
           </>
         )}
+        {trashSheet}
         <div className="screen-foot" />
       </div>
     );
@@ -4274,6 +4404,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
           />
         )}
         {emailFiling.sheet}
+        {trashSheet}
         {triageSender && (
           <WhoIsThisSheet
             name={triageSender.name}
@@ -4315,9 +4446,11 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   //
   // E3: the unread dot becomes the rail, which also carries the deadline's
   // heat, so urgency is felt in the left margin before anything is read.
-  const togglePick = (id: string) => setPicked((cur) => {
+  // Picks are keyed by account AND thread id.
+  const togglePick = (r: ThreadRow) => setPicked((cur) => {
     const next = new Set(cur ?? []);
-    if (next.has(id)) next.delete(id); else next.add(id);
+    const k = rowKey(r);
+    if (next.has(k)) next.delete(k); else next.add(k);
     return next;
   });
 
@@ -4325,8 +4458,14 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   // swaps the rail for a checkbox and the row tap toggles instead of
   // opening; everything outside the fold is untouched, so select mode can
   // never archive something that needs you.
-  const threadRow = (r: ThreadRow, gist?: string, selectable = false, alwaysStrong = false) => {
-    const selecting = selectable && picked !== null;
+  const threadRow = (r: ThreadRow, gist?: string, _selectable = false, alwaysStrong = false) => {
+    // SELECT IS ON THE MAIN LIST NOW (2026-09-29). It used to live inside the
+    // expanded fold, so it could only ever reach Worth Knowing and Noise; in
+    // select mode every row is a checkbox and a tap toggles. Nothing outside
+    // select mode changes: tap opens, swipe acts. The safety is no longer "you
+    // cannot select what needs you" but "selecting it, and deleting it, asks
+    // once" (see moveToTrash).
+    const selecting = picked !== null;
     // NEEDS YOU IS ALREADY A VERDICT (alwaysStrong). Gmail's raw unread flag
     // used to be the only thing that made a subject line pop; three of
     // Dave's four Needs You rows had already been read elsewhere and so
@@ -4356,13 +4495,13 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
         caps after it, text and not a pill. Still a .row, so the card's
         hairlines, press state and tap height are the same as every grouped
         list in the app; mail-rows.css only says what sits inside. */}
-    <div className="row mrow" {...pressable(() => (selecting ? togglePick(r.id) : void openThread(r.id)))}
-      aria-pressed={selecting ? picked!.has(r.id) : undefined}>
+    <div className="row mrow" {...pressable(() => (selecting ? togglePick(r) : void openThread(r.id)))}
+      aria-pressed={selecting ? picked!.has(rowKey(r)) : undefined}>
       {/* C-50 (Astra, 2026-09-12): the Remember star leads the row. */}
       {!selecting && <EntityStar entityType="mail_thread" entityId={r.id} title={r.subject} />}
       <span className="mlead">
         {selecting ? (
-          <span className={"cb" + (picked!.has(r.id) ? " on" : "")} aria-label={picked!.has(r.id) ? "Picked" : "Not picked"}>{picked!.has(r.id) ? "\u2713" : ""}</span>
+          <span className={"cb" + (picked!.has(rowKey(r)) ? " on" : "")} aria-label={picked!.has(rowKey(r)) ? "Picked" : "Not picked"}>{picked!.has(rowKey(r)) ? "\u2713" : ""}</span>
         ) : lead.kind === "rail" ? (
           // 8A: a machine keeps the rail, lit only for a DEADLINE the sender
           // stated and never for mere unreadness. It sits centred in the
@@ -4432,6 +4571,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
         <div className="mwin">{windowStatusLine(windows, new Date())}</div>
       )}
       {/* E-28: the Later picker for a Needs You row. */}
+      {trashSheet}
       {laterFor && (
         <LaterSheet
           who={displayName(laterFor.from)}
@@ -4519,7 +4659,35 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
           {/* E-25: the real count, or 25+ once any account hit its cap. */}
           Drafts {draftsLoaded && drafts.length > 0 ? "(" + (draftsCapped ? "25+" : drafts.length) + ")" : ""}
         </button>
+        {/* SELECT, ON THE MAIN LIST (2026-09-29). It opens the fold too, so
+            every bucket is reachable: Needs You, Worth Knowing and Noise. */}
+        {filter !== "drafts" && results === null && (
+          <button className={"chip" + (picked !== null ? " on" : "")} aria-pressed={picked !== null}
+            onClick={() => { if (picked === null) { setPicked(new Set()); setRestOpen(true); } else setPicked(null); }}>Select</button>
+        )}
       </div>
+      {picked !== null && filter !== "drafts" && results === null && (() => {
+        // Only what is on screen: a fold that is shut, or a section filter
+        // that hides a row, hides it from Select All Shown too. (Clean Out is
+        // the whole-inbox tool; this is the list in front of you.)
+        const shown = forYou && showTriage ? [...needsYou, ...worthKnowing, ...noise] : listRows;
+        const mine = shown.filter((r) => picked.has(rowKey(r)));
+        return (
+          <div className="pad-x fold-tools">
+            <span className="conn-meta">{lineCase(mine.length + " selected")}</span>
+            <button className="quiet-action" onClick={() => setPicked(new Set(shown.map(rowKey)))} disabled={shown.length === 0}>Select All Shown</button>
+            <button className="btn-sm" onClick={() => void archivePicked(shown)} disabled={mine.length === 0 || trashing}>
+              {mine.length === 0 ? "Archive" : lineCase("Archive " + mine.length)}
+            </button>
+            {/* 11B: the other half of the job. Archive keeps it in the
+                account; delete moves it to Trash (30 days, one Undo). */}
+            <button className="btn-sm btn-danger" onClick={() => void deletePicked(shown)} disabled={mine.length === 0 || trashing}>
+              {mine.length === 0 ? "Delete" : lineCase("Delete " + mine.length)}
+            </button>
+            <button className="quiet-action" onClick={() => setPicked(null)}>Done</button>
+          </div>
+        );
+      })()}
       {/* EMAIL SECTIONS: All plus one chip per saved section; nothing at all
           until one exists. Not on Drafts or a search, which are not this
           list. */}
@@ -5150,28 +5318,6 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                   {/* V2 anatomy: the count is a pill, never buried in the line. */}
                   <span className="pill pill-subdued">{restCount}</span>
                 </div>
-                {/* E10: the one place bulk select lives. The fold holds
-                    everything that does not need Dave, which is exactly
-                    the pile where clearing ten at once is safe. */}
-                {restOpen && (picked === null ? (
-                  <div className="fold-tools">
-                    <button className="quiet-action" onClick={() => setPicked(new Set())}>Select</button>
-                  </div>
-                ) : (
-                  <div className="fold-tools">
-                    <button className="btn-sm" onClick={() => void archivePicked([...worthKnowing, ...noise])} disabled={picked.size === 0}>
-                      {picked.size === 0 ? "Archive Selected" : lineCase("Archive " + picked.size)}
-                    </button>
-                    {/* 11B: the other half of the job. Archive keeps it
-                        in the account; delete is for the mail that should
-                        not be in the account at all. Both count what
-                        landed, both undo. */}
-                    <button className="btn-sm btn-danger" onClick={() => void deletePicked([...worthKnowing, ...noise])} disabled={picked.size === 0}>
-                      {picked.size === 0 ? "Delete Selected" : lineCase("Delete " + picked.size)}
-                    </button>
-                    <button className="quiet-action" onClick={() => setPicked(null)}>Done</button>
-                  </div>
-                ))}
               </div>
               {/* The guard line: proof that folding is safe, derived or absent. */}
               {guardAfter === "fold" && guard}
@@ -5408,7 +5554,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                   number above it. EMAIL-F-18: and says where the number
                   came from until the inbox has been read to the bottom. */}
               {visibleRows.length > 0 && (
-                <div className="row" {...pressable(() => { setPurgePicks(null); void deepLoad(); setView("purge"); })}>
+                <div className="row" {...pressable(() => { setPurgePicks(null); void runScan(); setView("purge"); })}>
                   <span className="row-ico cat-bg-graphite" aria-hidden="true"><Archive className="ic" /></span>
                   <div className="row-grow">
                     <div className="conn-name">Clean Out</div>

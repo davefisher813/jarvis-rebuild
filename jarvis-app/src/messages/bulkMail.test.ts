@@ -222,7 +222,7 @@ describe("failures, one account at a time", () => {
     expect(s.trashed).toBe(5);
     expect(s.failed).toBe(1500);
     expect(receiptLine(res)).toContain("5 conversations moved to Trash. Gmail keeps them for 30 days.");
-    expect(receiptLine(res)).toContain("1500 conversations not moved.");
+    expect(receiptLine(res)).toContain("1500 not moved");
   }, 60000);
 
   it("at most two accounts are written at once", async () => {
@@ -279,7 +279,7 @@ describe("failures, one account at a time", () => {
     const plan = await buildTrashPlan(rows, { ensure: ensureFor({ [box.email]: box }), trusted: () => true });
     const res = await trashSelection(plan, { ensure });
     expect(summarize(res).unknown).toBe(2);
-    expect(receiptLine(res)).toContain("2 conversations unconfirmed. Check your Trash.");
+    expect(receiptLine(res)).toContain("2 unconfirmed \u00b7 Check your Trash");
   });
 
   it("a conversation that straddles two chunks, with the second refused, is partial: said precisely", async () => {
@@ -294,7 +294,7 @@ describe("failures, one account at a time", () => {
     const res = await trashSelection(plan, { ensure });
     expect(res.requests).toBe(2);
     expect(summarize(res)).toMatchObject({ trashed: 999, partial: 1 });
-    expect(receiptLine(res)).toContain("1 conversation only partly moved.");
+    expect(receiptLine(res)).toContain("1 conversation only partly moved");
     // Undo puts back the part that moved, and says the conversation is not whole.
     box.batchBehavior = () => "ok";
     const undo = await undoTrashSelection(res, { ensure });
@@ -387,6 +387,6 @@ describe("what the person is asked and told", () => {
     const ensure = ensureFor({ [box.email]: box });
     const res = await trashSelection(await buildTrashPlan(rows, { ensure, trusted: () => true }), { ensure });
     expect(receiptLine(res)).toBe("2 conversations moved to Trash. Gmail keeps them for 30 days.");
-    expect(receiptLine({ ...res, outcomes: [], blocked: [] })).toBe("Nothing to move.");
+    expect(receiptLine({ ...res, outcomes: [], blocked: [] })).toBe("Nothing to move");
   });
 });

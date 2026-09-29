@@ -78,7 +78,7 @@ export interface PlanDeps {
   trusted?: (row: ThreadRow) => boolean;
 }
 
-const UNKNOWN_ACCOUNT = "That mail's account isn't connected. Nothing was moved.";
+const UNKNOWN_ACCOUNT = "That mail's account isn't connected \u00b7 Nothing was moved";
 
 /**
  * Resolves conversations into message ids and snapshots their labels.
@@ -228,15 +228,15 @@ export async function trashSelection(plan: TrashPlan, deps: { ensure: EnsureApi 
         if (kind === "auth") {
           // This account's session is no good for writing. The rest of its
           // chunks are not attempted, and other accounts carry on.
-          stop = { message: "Google refused the change. Reconnect " + acct.account + ".", code: "GOOGLE_SIGNIN_REVOKED" };
+          stop = { message: "Google refused the change \u00b7 Reconnect " + acct.account, code: "GOOGLE_SIGNIN_REVOKED" };
         } else if (kind === "refused") {
-          stop = { message: "Gmail refused the change. Try again in a moment." };
+          stop = { message: "Gmail refused the change \u00b7 Try again in a moment" };
         } else {
           // Unknown: read the labels back before claiming anything.
           const read = await readBack(got.api, acct, chunk);
           if (read === null) {
             for (const id of chunk) unknown.add(id);
-            stop = { message: "Couldn't confirm what happened. Check your Trash." };
+            stop = { message: "Couldn't confirm what happened \u00b7 Check your Trash" };
           } else {
             for (const id of read.applied) applied.add(id);
           }
@@ -332,7 +332,7 @@ export async function undoTrashSelection(result: TrashResult, deps: { ensure: En
           await got.api.batchModifyMessages(chunk, add, ["TRASH"]);
         } catch {
           ok = false;
-          message = "Couldn't put it all back. What's left is in your Trash.";
+          message = "Couldn't put it all back \u00b7 What's left is in your Trash";
         }
       }
     }
@@ -381,9 +381,11 @@ export function receiptLine(result: TrashResult): string {
   const s = summarize(result);
   const noun = (n: number) => (n === 1 ? "conversation" : "conversations");
   const parts: string[] = [];
+  // Dave's own words (2026-09-28): "N conversations moved to Trash. Gmail
+  // keeps them for 30 days." Everything after it is a fragment.
   if (s.trashed > 0) parts.push(`${s.trashed} ${noun(s.trashed)} moved to Trash. Gmail keeps them for 30 days.`);
-  if (s.partial > 0) parts.push(`${s.partial} ${noun(s.partial)} only partly moved.`);
-  if (s.failed + s.blocked > 0) parts.push(`${s.failed + s.blocked} ${noun(s.failed + s.blocked)} not moved.`);
-  if (s.unknown > 0) parts.push(`${s.unknown} ${noun(s.unknown)} unconfirmed. Check your Trash.`);
-  return parts.join(" ") || "Nothing to move.";
+  if (s.partial > 0) parts.push(`${s.partial} ${noun(s.partial)} only partly moved`);
+  if (s.failed + s.blocked > 0) parts.push(`${s.failed + s.blocked} not moved`);
+  if (s.unknown > 0) parts.push(`${s.unknown} unconfirmed \u00b7 Check your Trash`);
+  return parts.join(" \u00b7 ") || "Nothing to move";
 }

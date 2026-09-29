@@ -53,6 +53,16 @@ const mutations = { modifyThread: vi.fn(), trashThread: vi.fn(), untrashThread: 
 const listMax: number[] = [];
 const apiWith = (threads: GmailThreadMeta[]) => makeFakeGoogleApi({
   listThreads: async (max: number) => { listMax.push(max); return threads.slice(0, max); },
+  // The inbox is read as a cursor now: a page of refs and a token while there
+  // is more. listMax records how many threads the reads have covered so far.
+  listInboxThreadRefs: async (max: number, token?: string) => {
+    const from = token ? Number(token) : 0;
+    listMax.push(from + max);
+    return {
+      refs: threads.slice(from, from + max).map((t) => ({ id: t.id, historyId: "1" })),
+      ...(from + max < threads.length ? { nextPageToken: String(from + max) } : {}),
+    };
+  },
   ...mutations,
 });
 
@@ -177,7 +187,7 @@ describe("section chips", () => {
 });
 
 describe("a section with no matches", () => {
-  const many = Array.from({ length: 30 }, (_, i) => thread("f" + i, "Sender" + i + " <s" + i + "@x.com>", "Note " + i, "hello " + i, 1000 - i));
+  const many = Array.from({ length: 45 }, (_, i) => thread("f" + i, "Sender" + i + " <s" + i + "@x.com>", "Note " + i, "hello " + i, 1000 - i));
 
   it("says No Matches in Loaded Mail and keeps Load More while Gmail has more pages", async () => {
     await openEmail([sec("Nothing", ["subject", "zzz-not-here"])], noAI, many);

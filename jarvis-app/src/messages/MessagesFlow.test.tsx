@@ -225,7 +225,7 @@ describe("MessagesFlow (threads)", () => {
 
 
   // E10 (2026-08-24): bulk select lives on the fold and nowhere else.
-  it("select mode clears a picked pile in one move, scoped to the fold", async () => {
+  it("select mode clears a picked pile in one move, from the main list", async () => {
     const archived: string[] = [];
     const ai = aiReturning(JSON.stringify([
       { id: "t1", bucket: "needs_you", gist: "Ridgeley needs the waiver by Friday." },
@@ -234,22 +234,23 @@ describe("MessagesFlow (threads)", () => {
     const api = makeApi({ modifyThread: async (id, _a, remove) => { if (remove.includes("INBOX")) archived.push(id); } });
     render(wrap(<MessagesFlow ai={ai} configured />, api));
     fireEvent.click(await screen.findByText("Connect Google"));
-    fireEvent.click(await screen.findByText("The Rest"));
+    await screen.findByText(/DoorDash receipt|The Rest/, {}, { timeout: 4000 });
 
-    // In: a quiet Select, no checkboxes yet. The tools stay on the fold's
-    // own card; Worth Knowing is a section head outside it (R10, §AM F7).
+    // Select lives on the MAIN list's chip row now (2026-09-29), not inside the fold.
     expect(screen.queryByLabelText("Not picked")).toBeNull();
-    expect(screen.getByText("Select").closest(".msg-fold > .card")).toBeTruthy();
-    const wkHead = screen.getByText("Worth Knowing").closest(".sh2")!;
-    expect(wkHead.closest(".card")).toBeNull();
-    expect(wkHead.querySelector(".n")).toHaveTextContent("1");
-    expect(wkHead.nextElementSibling?.querySelector(":scope > .card.list-card-ruled")).toHaveTextContent(/DoorDash receipt/);
-    fireEvent.click(await screen.findByText("Select"));
+    const select = await screen.findByRole("button", { name: "Select" });
+    expect(select.closest(".msg-chips")).toBeTruthy();
+    expect(select.closest(".msg-fold")).toBeNull();
+    fireEvent.click(select);
 
-    // The fold row toggles instead of opening; Needs You rows grow nothing.
+    // In select mode EVERY bucket is a checkbox, Needs You included, and the
+    // fold opened so nothing is out of reach.
+    expect(await screen.findAllByLabelText("Not picked")).toHaveLength(2);
+    expect(screen.getByText(/DoorDash receipt/)).toBeInTheDocument();
     fireEvent.click(screen.getByText(/DoorDash receipt/));
     expect(screen.getByLabelText("Picked")).toBeInTheDocument();
     expect(screen.getByText("Archive 1")).toBeInTheDocument();
+    expect(screen.getByText(/^1 selected$/i)).toBeInTheDocument();
 
     fireEvent.click(screen.getByText("Archive 1"));
     await waitFor(() => expect(archived).toEqual(["t2"]));
@@ -476,10 +477,15 @@ describe("MessagesFlow (threads)", () => {
   });
 
   it("deletes a thread to Gmail's trash, never permanently", async () => {
-    const trashed: string[] = [];
+    // 2026-09-29: Delete is a label change on the thread's MESSAGES through
+    // batchModify (add TRASH, remove INBOX), recoverable for 30 days. The
+    // thread-level trash call and any permanent delete are never made.
+    const batches: { ids: string[]; add: string[]; remove: string[] }[] = [];
+    let threadTrash = 0;
     let permanentDeleteCalled = false;
     const api = makeApi({
-      trashThread: async (id: string) => { trashed.push(id); },
+      batchModifyMessages: async (ids: string[], add: string[], remove: string[]) => { batches.push({ ids, add, remove }); },
+      trashThread: async () => { threadTrash++; },
       // If a permanent delete ever appears on the API, this must never fire.
       deleteThread: async () => { permanentDeleteCalled = true; },
     } as Parameters<typeof makeApi>[0]);
@@ -487,10 +493,14 @@ describe("MessagesFlow (threads)", () => {
     fireEvent.click(await screen.findByText("Connect Google"));
     fireEvent.click(await screen.findByText("Ridgeley"));
     fireEvent.click(await screen.findByLabelText("Delete"));
-    await waitFor(() => expect(trashed).toEqual(["t1"]));
+    await waitFor(() => expect(batches).toHaveLength(1));
+    expect([...batches[0]!.ids].sort()).toEqual(["m1", "m2"]); // both messages of the conversation
+    expect(batches[0]!.add).toEqual(["TRASH"]);
+    expect(batches[0]!.remove).toEqual(["INBOX"]);
     expect(permanentDeleteCalled).toBe(false);
-    // SPEC MOVED (short copy, 2026-08-15)
-    expect(await screen.findByText(/In Trash 30 Days/)).toBeInTheDocument();
+    expect(threadTrash).toBe(0);
+    // The receipt says what Gmail confirmed and what it keeps.
+    expect(await screen.findByText(/1 conversation moved to Trash\. Gmail keeps them for 30 days\./)).toBeInTheDocument();
     expect(screen.queryByText("Ridgeley")).toBeNull(); // gone from the list too
   });
 

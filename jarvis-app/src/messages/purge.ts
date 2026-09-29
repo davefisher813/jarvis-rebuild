@@ -40,8 +40,12 @@ export interface SenderPile {
   messages: number;
   /** Newest message in the pile, so a pile that is still live reads as live. */
   newestMs: number;
-  /** Nothing here was ever classified as needing him. */
+  /** Nothing here was ever classified as needing him, and all of it was actually checked. */
   safe: boolean;
+  /** At least one thread was judged to need him. */
+  needsYou: boolean;
+  /** At least one thread has no verdict yet (never analysed). Not safe, and not the same as needing him. */
+  unknown: boolean;
 }
 
 /**
@@ -76,7 +80,7 @@ export function senderPiles(
     if (vip.has(email)) continue;
     let p = by.get(email);
     if (!p) {
-      p = { email, name: displayName(r.from) || email, ids: [], refs: [], count: 0, messages: 0, newestMs: 0, safe: true };
+      p = { email, name: displayName(r.from) || email, ids: [], refs: [], count: 0, messages: 0, newestMs: 0, safe: true, needsYou: false, unknown: false };
       by.set(email, p);
     }
     p.ids.push(r.id);
@@ -84,8 +88,8 @@ export function senderPiles(
     p.count += 1;
     p.messages += Math.max(1, r.count || 1);
     if (r.dateMs > p.newestMs) p.newestMs = r.dateMs;
-    if (buckets[r.id]?.bucket === "needs_you") p.safe = false;
-    if (analysed && !analysed(r.id)) p.safe = false;
+    if (buckets[r.id]?.bucket === "needs_you") { p.safe = false; p.needsYou = true; }
+    if (analysed && !analysed(r.id)) { p.safe = false; p.unknown = true; }
   }
   // Biggest first: the whole point is to show which one decision removes the
   // most. Ties break on recency so two equal piles are not shuffled at random
