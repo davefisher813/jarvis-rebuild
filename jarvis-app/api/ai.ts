@@ -25,6 +25,11 @@ import { aiCallAllowed, effectiveLevel, refusalMessage, AI_PIN_KEYS, DEFAULT_AI_
 import { schemaOk, toolPayload, extractText } from "../src/ai/structured";
 import { tokenRow, withoutCacheCounts } from "../src/ai/tokenLog";
 import { systemPayload } from "../src/ai/systemPrompt";
+import {
+  PRICE_VERSION, actualCostMicrousd, budgetMessage, maxCostMicrousd, multiplierPermille,
+  type BudgetErrorCode,
+} from "../src/ai/aiBudget";
+import { markDispatched, releaseBudget, requestHash, reserveBudget, settleBudget } from "./_aiBudget";
 
 const ANTHROPIC_URL = "https://api.anthropic.com/v1/messages";
 const MODEL = process.env.AI_MODEL || "claude-sonnet-4-6";
@@ -62,9 +67,9 @@ export default async function handler(req: Request): Promise<Response> {
   const maxInput = parseInt(process.env.AI_MAX_INPUT_BYTES || "32768", 10);
   const maxVision = parseInt(process.env.AI_MAX_VISION_BYTES || "600000", 10);
   if (raw.length > maxVision) return json({ error: "Request too large" }, 413);
-  let body: { messages?: unknown; system?: unknown; tier?: unknown; kind?: unknown; background?: unknown; schema?: unknown; pin?: unknown };
+  let body: { messages?: unknown; system?: unknown; tier?: unknown; kind?: unknown; background?: unknown; schema?: unknown; pin?: unknown; requestId?: unknown };
   try {
-    body = JSON.parse(raw) as { messages?: unknown; system?: unknown; tier?: unknown; kind?: unknown; background?: unknown; schema?: unknown; pin?: unknown };
+    body = JSON.parse(raw) as typeof body;
   } catch {
     return json({ error: "Bad request" }, 400);
   }
@@ -142,6 +147,11 @@ export default async function handler(req: Request): Promise<Response> {
       return json({ error: "AI is temporarily unavailable. Try again later." }, 503);
     }
   }
+  // THE DOLLAR CAP NEEDS THE SERVICE KEY, ALWAYS. AI_REQUIRE_LIMITS=0 above
+  // only relaxes the call-count caps for local development; it never relaxes
+  // money. Without the key nothing can hold or settle a balance, so nothing is
+  // spent.
+  if (!serviceKey) return budgetRefusal("AI_BUDGET_UNAVAILABLE");
   if (serviceKey) {
     const svcJson = { apikey: serviceKey, Authorization: `Bearer ${serviceKey}`, "content-type": "application/json" };
     // Airtight path: one atomic check-and-record in the database (migration
@@ -195,31 +205,88 @@ export default async function handler(req: Request): Promise<Response> {
     });
   } catch { /* never block the reply on analytics */ }
 
-  const upstream = await fetch(ANTHROPIC_URL, {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      "x-api-key": key,
-      "anthropic-version": "2023-06-01",
-    },
-    body: JSON.stringify({
-      model: body.tier === "write" ? WRITE_MODEL : MODEL,
-      max_tokens: MAX_TOKENS,
-      // UP-PLAT-02 (2026-09-06): a system prompt may arrive as one string, as
-      // it always has, or split into { context, instructions }, in which case
-      // the context goes first as its own block with cache_control ephemeral.
-      // Anything else is dropped rather than forwarded. See
-      // src/ai/systemPrompt.ts for why the context has to be the prefix.
-      ...(systemPayload(body.system) ?? {}),
-      ...(schemaOk(body.schema) ? toolPayload(body.schema) : {}),
-      messages,
-    }),
+  // ---- THE DOLLAR CAP (migration 0043) ----
+  //
+  // Reserve a defensible MAXIMUM cost atomically before the one provider
+  // request, dispatch once, settle from the usage the provider returns. The
+  // database serialises per user, so cumulative dispatch cannot pass the cap
+  // however many of these run at once. See src/ai/aiBudget.ts for the bound
+  // and the price table, and _aiBudget.ts for the calls.
+  const model = body.tier === "write" ? WRITE_MODEL : MODEL;
+  const upstreamBody = {
+    model,
+    max_tokens: MAX_TOKENS,
+    // UP-PLAT-02 (2026-09-06): a system prompt may arrive as one string, as
+    // it always has, or split into { context, instructions }, in which case
+    // the context goes first as its own block with cache_control ephemeral.
+    // Anything else is dropped rather than forwarded. See
+    // src/ai/systemPrompt.ts for why the context has to be the prefix.
+    ...(systemPayload(body.system) ?? {}),
+    ...(schemaOk(body.schema) ? toolPayload(body.schema) : {}),
+    messages,
+  };
+  const permille = multiplierPermille(process.env.AI_PRICE_MULTIPLIER_PERMILLE);
+  const upstreamJson = JSON.stringify(upstreamBody);
+  const maxCost = maxCostMicrousd({
+    model,
+    textBytes: new TextEncoder().encode(JSON.stringify(stripImageData(upstreamBody))).length,
+    imageCount: countImages(messages),
+    usesCache: upstreamJson.includes('"cache_control"'),
+    usesTools: schemaOk(body.schema),
+    maxTokens: MAX_TOKENS,
+    permille,
   });
+  // No defensible maximum (an unpriced model) means no call. Never a guess.
+  if (maxCost === null) return budgetRefusal("AI_BUDGET_UNAVAILABLE");
+
+  const benv = { supaUrl: supaUrl as string, serviceKey };
+  const requestId = pickRequestId(req, body);
+  const verdict = await reserveBudget(benv, {
+    user: me.id, requestId, hash: await requestHash(raw), model, priceVersion: PRICE_VERSION, maxCost,
+  });
+  if (verdict.status === "unavailable") return budgetRefusal("AI_BUDGET_UNAVAILABLE");
+  if (verdict.status === "replay" || verdict.status === "hash_mismatch") return budgetRefusal("AI_BUDGET_REPLAY");
+  if (verdict.status === "paused") {
+    return budgetRefusal(verdict.limit === 0 ? "AI_BUDGET_OFF" : "AI_BUDGET_PAUSED", verdict.limit, verdict.remaining);
+  }
+  if (verdict.status === "over_limit") {
+    return budgetRefusal(verdict.remaining <= 0 ? "AI_BUDGET_REACHED" : "AI_BUDGET_REQUEST_TOO_LARGE", verdict.limit, verdict.remaining);
+  }
+
+  // The one-way step. Exactly one caller wins it per request id, so a
+  // duplicate can never dispatch twice. If it cannot be recorded, nothing was
+  // sent, so the hold goes back.
+  if (!(await markDispatched(benv, me.id, requestId))) {
+    await releaseBudget(benv, me.id, requestId);
+    return budgetRefusal("AI_BUDGET_REPLAY");
+  }
+
+  let upstream: Response;
+  try {
+    upstream = await fetch(ANTHROPIC_URL, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-api-key": key,
+        "anthropic-version": "2023-06-01",
+      },
+      body: upstreamJson,
+    });
+  } catch {
+    // The request may or may not have reached the provider, so it may or may
+    // not have been billed. The hold STAYS until it is reconciled; releasing
+    // on a guess is how a cap gets exceeded.
+    return json({ error: "Upstream error" }, 502);
+  }
   if (!upstream.ok) {
     const detail = await upstream.text().catch(() => "");
+    // A 4xx is the provider saying it refused the request: nothing ran,
+    // nothing was billed, so the hold can go back. A 5xx or 529 is not that
+    // certain, so it stays held.
+    if (upstream.status >= 400 && upstream.status < 500) await releaseBudget(benv, me.id, requestId, true);
     return json({ error: "Upstream error", detail }, 502);
   }
-  const data = (await upstream.json()) as {
+  let data: {
     content?: { type: string; text?: string; name?: string; input?: unknown }[];
     usage?: {
       input_tokens?: unknown;
@@ -228,15 +295,28 @@ export default async function handler(req: Request): Promise<Response> {
       cache_creation_input_tokens?: unknown;
     };
   };
+  try {
+    data = (await upstream.json()) as typeof data;
+  } catch {
+    // Billed but unreadable: settle at the reserved maximum, the worst case,
+    // rather than at zero.
+    await settleBudget(benv, me.id, requestId, maxCost);
+    return json({ error: "Upstream error" }, 502);
+  }
+
+  // Settle from what the provider says it used. Usage that is missing or
+  // malformed settles at the reserved maximum: an unknown cost is assumed to
+  // be the worst one. One settlement, never a retried generation.
+  const actual = actualCostMicrousd(model, data.usage, permille) ?? maxCost;
+  const settled = await settleBudget(benv, me.id, requestId, actual);
 
   // Token accounting (item 12): record what this call actually cost, into
   // ai_tokens (migration 0026), service-role only, best effort. A failed or
   // impossible accounting write never blocks a served reply; until 0026 runs
   // this insert 404s quietly and the app behaves exactly as before.
   try {
-    const model = body.tier === "write" ? WRITE_MODEL : MODEL;
     const row = tokenRow(me.id, kind, model, data.usage);
-    if (row && serviceKey) {
+    if (row) {
       const headers = { apikey: serviceKey, Authorization: `Bearer ${serviceKey}`, "content-type": "application/json", Prefer: "return=minimal" };
       const post = (r: unknown) => fetch(`${supaUrl}/rest/v1/ai_tokens`, { method: "POST", headers, body: JSON.stringify(r) });
       const wrote = await post(row);
@@ -251,7 +331,58 @@ export default async function handler(req: Request): Promise<Response> {
   // extractText returns the forced tool call's input stringified when a
   // schema rode along, and the joined text blocks otherwise: the { text }
   // envelope every existing client parses stays exactly the same shape.
-  return json({ text: extractText(data.content) });
+  // A valid answer is never thrown away over bookkeeping: if the ledger did
+  // not confirm the settlement the hold stays reserved (it is conservative),
+  // and the reply says so.
+  return json({ text: extractText(data.content), ...(settled ? {} : { accounting: "pending" }) });
+}
+
+// The status each refusal travels under: 402 for "you are out", 409 for a
+// repeated request id, 503 when the count itself is unavailable.
+const BUDGET_STATUS: Record<BudgetErrorCode, number> = {
+  AI_BUDGET_REACHED: 402,
+  AI_BUDGET_REQUEST_TOO_LARGE: 402,
+  AI_BUDGET_PAUSED: 402,
+  AI_BUDGET_OFF: 402,
+  AI_BUDGET_UNAVAILABLE: 503,
+  AI_BUDGET_REPLAY: 409,
+};
+
+function budgetRefusal(code: BudgetErrorCode, limitMicrousd?: number, remainingMicrousd?: number): Response {
+  return json({
+    error: budgetMessage({ code, limitMicrousd, remainingMicrousd }),
+    code,
+    ...(limitMicrousd !== undefined ? { limitMicrousd } : {}),
+    ...(remainingMicrousd !== undefined ? { remainingMicrousd } : {}),
+  }, BUDGET_STATUS[code]);
+}
+
+// The client names the logical call so a retried POST is recognised as the
+// same call and can never spend twice. A missing or malformed id gets a fresh
+// one: it is simply a new call.
+function pickRequestId(req: Request, body: { requestId?: unknown }): string {
+  const cand = req.headers.get("x-request-id") ?? (typeof body.requestId === "string" ? body.requestId : "");
+  return /^[A-Za-z0-9_-]{8,64}$/.test(cand) ? cand : crypto.randomUUID();
+}
+
+// The request with the base64 of IMAGE BLOCKS blanked, for sizing the text of
+// a call. Image tokens are bounded separately (a fixed per-image ceiling);
+// counting the base64 as text would inflate the bound by orders of magnitude.
+// Only a real image block's source.data is blanked, never a key that merely
+// happens to be called "data", so nothing else can hide bytes from the bound.
+function stripImageData(req: { messages: unknown[] } & Record<string, unknown>): unknown {
+  const messages = req.messages.map((m) => {
+    const c = (m as { content?: unknown }).content;
+    if (!Array.isArray(c)) return m;
+    return {
+      ...(m as object),
+      content: c.map((b) => {
+        const blk = b as { type?: string; source?: Record<string, unknown> };
+        return blk.type === "image" && blk.source ? { ...blk, source: { ...blk.source, data: "" } } : b;
+      }),
+    };
+  });
+  return { ...req, messages };
 }
 
 function json(obj: unknown, status = 200): Response {

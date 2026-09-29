@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import handler from "../../api/ai";
+import { FakeBudget } from "./fakeBudgetRpc";
 
 // UP-PLAT-04 (2026-09-06): FAIL CLOSED, PROVEN.
 //
@@ -17,6 +18,7 @@ import handler from "../../api/ai";
 // written against. DAVE_STEPS.md carries the env var.
 
 const upstream = vi.fn();
+let budget = new FakeBudget();
 
 function post(body: unknown): Request {
   return new Request("https://app.test/api/ai", {
@@ -30,6 +32,7 @@ const CALL = { messages: [{ role: "user", content: "hello" }], kind: "chat" };
 
 beforeEach(() => {
   upstream.mockReset();
+  budget = new FakeBudget();
   vi.stubEnv("ANTHROPIC_API_KEY", "sk-test");
   vi.stubEnv("VITE_SUPABASE_URL", "https://supa.test");
   vi.stubEnv("VITE_SUPABASE_ANON_KEY", "anon");
@@ -38,8 +41,9 @@ beforeEach(() => {
   // The proxy shouts into the log on every uncapped request. Expected here.
   vi.spyOn(console, "error").mockImplementation(() => {});
 
-  vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+  vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input);
+    if (url.includes("/rpc/ai_budget")) return budget.handle(url, JSON.parse(String(init?.body ?? "{}")))!;
     if (url.includes("/auth/v1/user")) {
       return new Response(JSON.stringify({ id: "user-1" }), { status: 200 });
     }
@@ -82,13 +86,15 @@ describe("an uncapped proxy (UP-PLAT-04)", () => {
     expect(body.error).toBe("AI is temporarily unavailable. Try again later.");
   });
 
-  it("opted out for local development, the old behaviour stands: it serves, loudly", async () => {
+  it("opting out of the count caps does NOT opt out of the dollar cap", async () => {
+    // AI_REQUIRE_LIMITS=0 used to serve uncapped in local development. The
+    // dollar cap cannot count without the service key, so it refuses: money
+    // has no local-development exemption.
     vi.stubEnv("AI_REQUIRE_LIMITS", "0");
     const res = await handler(post(CALL));
-    expect(res.status).toBe(200);
-    expect(upstream).toHaveBeenCalledTimes(1);
-    // eslint-disable-next-line no-console
-    expect(console.error).toHaveBeenCalled();
+    expect(res.status).toBe(503);
+    expect(upstream).not.toHaveBeenCalled();
+    expect(((await res.json()) as { code?: string }).code).toBe("AI_BUDGET_UNAVAILABLE");
   });
 
   it("the lever only fires on a MISSING key: with one, the caps do the work", async () => {

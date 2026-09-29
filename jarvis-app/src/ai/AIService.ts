@@ -3,6 +3,8 @@ import { backendConfigured } from "../data/store";
 import { aiCallAllowed, effectiveLevel, refusalMessage, type AIPinKey } from "./aiGate";
 import { getAIControl } from "./levelStore";
 import { wireSystem, type AISystem } from "./systemPrompt";
+import { AIBudgetError, isBudgetCode } from "./aiBudget";
+import { budgetBlocked, clearBudgetBlock, noteBudgetRefusal } from "./budgetBlock";
 
 export type { AISystem } from "./systemPrompt";
 
@@ -82,6 +84,12 @@ export class AIService {
     const level = effectiveLevel(getAIControl(), opts?.pin);
     const background = opts?.background ?? false;
     if (!aiCallAllowed(level, background)) throw new Error(refusalMessage(level, background));
+    // A budget refusal is remembered. Anything the user did not just ask for
+    // stops here, with the same error and no request, until the limit changes
+    // or a call they DID ask for gets through. Without this a feature that
+    // retries on failure spends its whole day knocking on a closed door.
+    const blocked = budgetBlocked();
+    if (background && blocked) throw blocked;
     const token = this.getToken?.();
     const res = await this.fetchImpl(this.endpoint, {
       method: "POST",
@@ -90,6 +98,9 @@ export class AIService {
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
       body: JSON.stringify({
+        // One id per logical call, so the server recognises a retried POST as
+        // the same call and can never spend on it twice.
+        requestId: newRequestId(),
         messages,
         system: wireSystem(system),
         ...(opts?.tier ? { tier: opts.tier } : {}),
@@ -106,9 +117,39 @@ export class AIService {
     });
     if (!res.ok) {
       const detail = await res.text().catch(() => "");
+      const refusal = parseBudgetRefusal(detail);
+      if (refusal) {
+        const err = new AIBudgetError(refusal);
+        noteBudgetRefusal(err);
+        throw err;
+      }
       throw new Error(`AI request failed (${res.status}). ${detail}`.trim());
     }
+    clearBudgetBlock();
     const data = (await res.json()) as { text?: string };
     return data.text ?? "";
+  }
+}
+
+function newRequestId(): string {
+  return typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+    ? crypto.randomUUID()
+    : `r${Date.now().toString(36)}${Math.random().toString(36).slice(2, 12)}`;
+}
+
+// The proxy answers a budget refusal as { error, code, limitMicrousd?,
+// remainingMicrousd? }. Only a KNOWN code counts, so an unrelated 402 from
+// somewhere else is never mistaken for one.
+function parseBudgetRefusal(detail: string): { code: import("./aiBudget").BudgetErrorCode; limitMicrousd?: number; remainingMicrousd?: number } | null {
+  try {
+    const j = JSON.parse(detail) as { code?: unknown; limitMicrousd?: unknown; remainingMicrousd?: unknown };
+    if (!isBudgetCode(j.code)) return null;
+    return {
+      code: j.code,
+      ...(typeof j.limitMicrousd === "number" ? { limitMicrousd: j.limitMicrousd } : {}),
+      ...(typeof j.remainingMicrousd === "number" ? { remainingMicrousd: j.remainingMicrousd } : {}),
+    };
+  } catch {
+    return null;
   }
 }
