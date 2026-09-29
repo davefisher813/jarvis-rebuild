@@ -24,7 +24,7 @@ export interface ProfileData {
   connections?: Record<string, boolean>;
   // Multi-account Google (2026-08-04): the persisted account list. Tokens are
   // never stored; only who to re-auth and which features each account powers.
-  googleAccounts?: { email: string; mail: boolean; cal: boolean }[];
+  googleAccounts?: { email: string; mail: boolean; cal: boolean; drive?: boolean }[];
   // UP-ATH-03 (2026-09-06): `rest` is the rest timer's buzz between sets.
   // Optional like `checkins`, and absent reads as ON: an existing profile has
   // never stored it, and defaulting a switch off would mean the feature ships

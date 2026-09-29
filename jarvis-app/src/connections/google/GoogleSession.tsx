@@ -42,6 +42,10 @@ const MODIFY_SCOPE = "https://www.googleapis.com/auth/gmail.modify";
 
 export interface GoogleAccount {
   email: string; mail: boolean; cal: boolean;
+  /** Linked to Google Drive (Dave 2026-09-29). Off until he turns it on; absent
+   *  on every account from before, which reads as off. The link is a
+   *  preference: the Drive scope itself is granted with the account's sign-in. */
+  drive?: boolean;
   /** The scope string this account actually authorized under. Absent on
    *  accounts from before 2026-08-26, which authorized as readonly. */
   scopes?: string;
@@ -88,7 +92,7 @@ interface GoogleSessionValue {
   reconnect: (email: string) => Promise<GoogleApi>;
   /** No email: disconnect everything (legacy behavior). */
   disconnect: (email?: string) => Promise<void>;
-  setFeature: (email: string, key: "mail" | "cal", on: boolean) => Promise<void>;
+  setFeature: (email: string, key: "mail" | "cal" | "drive", on: boolean) => Promise<void>;
   /** No email: the first account with a live token (single-account call sites keep working).
    *  READS ONLY. A write must go through ensureGoogleSession, which never
    *  falls back to another account. */
@@ -404,7 +408,7 @@ export function GoogleSessionProvider({
     }
   }, [accounts, persist, forgetAccountState]);
 
-  const setFeature = useCallback(async (email: string, key: "mail" | "cal", on: boolean) => {
+  const setFeature = useCallback(async (email: string, key: "mail" | "cal" | "drive", on: boolean) => {
     await persist(accounts.map((a) => (a.email === normalizeAccount(email) ? { ...a, [key]: on } : a)));
   }, [accounts, persist]);
 

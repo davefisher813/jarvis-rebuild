@@ -64,7 +64,7 @@ export default function ConnectionsPage({
   // back where it was when the write does not land. The page already has its
   // own error line, so the failure rides that instead of a toast, wearing the
   // app's one standard sentence for a write that did not land.
-  const toggleFeature = (email: string, key: "mail" | "cal", on: boolean) => run(async () => {
+  const toggleFeature = (email: string, key: "mail" | "cal" | "drive", on: boolean) => run(async () => {
     // GoogleSession.persist reverts its own optimistic update on failure, so
     // the chip follows the account list back.
     try {
@@ -174,6 +174,11 @@ export default function ConnectionsPage({
                     onClick={(ev) => { ev.stopPropagation(); void toggleFeature(a.email, "mail", !a.mail); }}>Email</button>
                   <button className={"chip" + (a.cal ? " on" : "")} disabled={busy}
                     onClick={(ev) => { ev.stopPropagation(); void toggleFeature(a.email, "cal", !a.cal); }}>Calendar</button>
+                  {/* DRIVE (Dave 2026-09-29): the same kind of link as the two
+                      beside it. It is what lets Grant Access on a Drive
+                      access-request email be one tap. */}
+                  <button className={"chip" + (a.drive ? " on" : "")} disabled={busy} aria-pressed={!!a.drive}
+                    onClick={(ev) => { ev.stopPropagation(); void toggleFeature(a.email, "drive", !a.drive); }}>Drive</button>
                   {/* Armed two-tap (2026-08-09): disconnect sat one accidental
                       tap away, styled like the harmless toggles beside it. */}
                   <button className="chip" disabled={busy}

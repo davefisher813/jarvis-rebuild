@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { googleConfigured } from "./config";
+import { googleConfigured, DRIVE_SCOPE, GOOGLE_SCOPES as SCOPES_UNDER_TEST } from "./config";
 
 describe("googleConfigured", () => {
   it("is off without a client id", () => {
@@ -73,5 +73,49 @@ describe("LAW: no endpoint without its scope", () => {
     // https://mail.google.com/ is full access INCLUDING permanent delete.
     // The app's standing law is trash-only; the scope list must agree.
     expect(GOOGLE_SCOPES).not.toContain("https://mail.google.com/");
+  });
+});
+
+// GOOGLE DRIVE (Dave 2026-09-29). The account links to Drive so Grant Access
+// on a Drive access-request email can be one tap. The scope list is the
+// contract: these pin what it holds and why.
+describe("the scope list asks for Drive", () => {
+  const list = SCOPES_UNDER_TEST.split(" ");
+  const PREVIOUS = [
+    "https://www.googleapis.com/auth/calendar.readonly",
+    "https://www.googleapis.com/auth/gmail.modify",
+    "https://www.googleapis.com/auth/gmail.send",
+  ];
+
+  it("holds the full drive scope, the one that can grant access to a file JARVIS did not create", () => {
+    expect(DRIVE_SCOPE).toBe("https://www.googleapis.com/auth/drive");
+    expect(list).toContain(DRIVE_SCOPE);
+  });
+
+  it("does not settle for a narrower one: drive.file only covers files the app made or opened, and the read scopes cannot share", () => {
+    for (const narrow of ["drive.file", "drive.readonly", "drive.metadata", "drive.metadata.readonly", "drive.appdata", "drive.photos.readonly"]) {
+      expect(list, narrow).not.toContain("https://www.googleapis.com/auth/" + narrow);
+    }
+  });
+
+  it("still asks for everything it asked for before", () => {
+    for (const s of PREVIOUS) expect(list).toContain(s);
+  });
+
+  it("is a clean list: no duplicates, all Google auth scopes, single spaces", () => {
+    expect(new Set(list).size).toBe(list.length);
+    for (const s of list) expect(s).toMatch(/^https:\/\/www\.googleapis\.com\/auth\/[a-z.]+$/);
+    expect(SCOPES_UNDER_TEST).toBe(list.join(" "));
+  });
+
+  it("differs from the list every connected account authorized under, which is what forces the reconnect", () => {
+    expect(SCOPES_UNDER_TEST).not.toBe(PREVIOUS.join(" "));
+  });
+
+  it("any Drive call the client makes is covered by it", () => {
+    // No Drive call exists yet. The day one does, it needs drive (or drive.file
+    // for a file the app made), and the list already has drive.
+    const api = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "api.ts"), "utf8");
+    if (/googleapis\.com\/drive\//.test(api)) expect(list).toContain(DRIVE_SCOPE);
   });
 });
