@@ -19,10 +19,10 @@ import { Ellipsis } from "./icons";
  * destructive pills in browsing lists." Two copies of one control is what
  * section 0 forbids, so it lives here and both screens read it.
  */
-export default function RowMenuButton({ onMenu, what }: { onMenu: () => void; what: string }) {
+export default function RowMenuButton({ onMenu, what, className }: { onMenu: () => void; what: string; className?: string }) {
   return (
     <button
-      className="row-menu-btn"
+      className={className ? "row-menu-btn " + className : "row-menu-btn"}
       aria-label={`More Actions for ${what}`}
       onClick={(e) => { e.stopPropagation(); onMenu(); }}
       onPointerDown={(e) => e.stopPropagation()}

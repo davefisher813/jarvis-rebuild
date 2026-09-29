@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useRef, useState, Suspense, useMemo } from "react";
 import { lazyWithRecovery } from "../shell/chunkRecovery";
 import PageHeader, { BarAction } from "../shared/PageHeader";
-import { Mail, Plus, Archive, Trash2, CornerUpLeft, Forward, Send, Tag, Clock, MessageSquare, Volume2, Hourglass, ListChecks, CalendarClock, FolderKanban } from "../shared/icons";
+import { Mail, Plus, Archive, Trash2, Brain, CornerUpLeft, Forward, Send, Tag, Clock, MessageSquare, Volume2, Hourglass, ListChecks, CalendarClock, FolderKanban } from "../shared/icons";
 import { leadFor, faceSlot } from "./rowAnatomy";
 import { Facts, ruleStateFact, dayTone, type FactTone } from "./factsLine";
+import { useEmailFiling } from "./useEmailFiling";
+import { emailFilingPreview } from "./emailFilingText";
 import { loadOverrides, saveOverride, clearOverride, applyOverrides, type ThreadOverrides } from "./threadOverride";
 import type { TaskItem } from "../tasks/TasksService";
 import { attemptWrite } from "../shared/guard";
@@ -403,6 +405,8 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   // moved its read to MailOutboxPump, which is where the pixel is now added.
   const profileSvc = useOptionalProfile();
   const [view, setView] = useState<View>("list");
+  // BRAIN "FILE IT" (2026-09-29): all of it lives in useEmailFiling.
+  const emailFiling = useEmailFiling(view === "detail");
   // A PUSHED SCREEN STARTS AT THE TOP (2026-08-25, caught by a browser walk
   // of the Clean Out). Nothing in the app resets scroll between views, so
   // opening a screen from a link at the FOOT of a long list lands you
@@ -3681,6 +3685,21 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
           <button className="nav-back" onClick={() => setView("list")}>Email</button>
           <span className="nav-title"></span>
           <div className="nav-actions">
+            {/* BRAIN "FILE IT" (2026-09-29): beside Archive and Delete, only
+                when the Brain service exists. Subject plus the current
+                snippet (or the plain text of the latest message); no AI. */}
+            {emailFiling.available && (
+              <button className="nav-action" aria-label="File It" onClick={() => emailFiling.open({
+                threadId: thread.id,
+                account: accountOfThread(thread.id),
+                subject: thread.subject,
+                preview: emailFilingPreview({
+                  lastSnippet: lastMsg(thread).snippet,
+                  rowSnippet: rows.find((r) => r.id === thread.id)?.snippet,
+                  lastBody: lastMsg(thread).body,
+                }),
+              })}><Brain className="ic cat-fg-purple" /></button>
+            )}
             <button className="nav-action danger" onClick={() => void trashThread(thread.id)} aria-label="Delete"><Trash2 className="ic" /></button>
             <button className="nav-action" onClick={() => archiveThread(thread.id)} aria-label="Archive"><Archive className="ic" /></button>
           </div>
@@ -4161,6 +4180,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
             onCancel={() => setVoiceConfirm(null)}
           />
         )}
+        {emailFiling.sheet}
         {triageSender && (
           <WhoIsThisSheet
             name={triageSender.name}

@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useOptionalBrainMemory } from "../data/NotesProvider";
 import { attemptWrite } from "../shared/guard";
+import { showToast } from "../shared/toast";
 import {
   type BrainMemoryCategory,
   type BrainMemorySource,
@@ -19,6 +20,19 @@ import { fileMemory, showFilingConfirm } from "./filingIntake";
 // .grp/.eyebrow, .pad-x .sheet-form, .input, .sheet-actions,
 // .btn .btn-primary/.btn-secondary .btn-block); the category picker is the
 // task sheet's own .segmented control. Nothing new was styled.
+//
+// 2026-09-29 (chat "Log It", email "File It"): the "what" box is the app's
+// multiline field (.input-multiline, as Smart Paste uses), because a whole
+// chat message or an email subject and preview does not fit on one line.
+// Three guarantees the longer text made worth stating:
+//   - A DOUBLE TAP CANNOT FILE TWICE. `saving` is state and lands a render
+//     late, so two taps in one frame both read it as false; the ref is the
+//     guard that is true the instant the first tap begins.
+//   - A FAILED SAVE KEEPS WHAT WAS TYPED. attemptWrite reports the failure and
+//     the sheet stays open with every field as it was.
+//   - NO BRAIN, NO SAVE. If the service goes away while the sheet is open
+//     the sheet says so and closes; nothing is written. Cancel, the scrim and
+//     Escape write nothing at any point.
 
 const REMEMBER_CATEGORIES: { key: BrainMemoryCategory; label: string }[] = [
   { key: "philosophy", label: "Philosophy" },
@@ -44,9 +58,16 @@ export default function FilingSheet({
   const [why, setWhy] = useState("");
   const [category, setCategory] = useState<BrainMemoryCategory>("fact");
   const [saving, setSaving] = useState(false);
+  const inFlight = useRef(false);
+
+  useEffect(() => {
+    if (brain) return;
+    showToast({ message: "Brain Unavailable · Nothing Saved" });
+    onClose();
+  }, [brain, onClose]);
 
   const save = async () => {
-    if (!brain || saving) return;
+    if (!brain || saving || inFlight.current) return;
     const text = what.trim();
     if (!text) return;
     const cat: BrainMemoryCategory = mode === "decision" ? "decision" : category;
@@ -59,11 +80,14 @@ export default function FilingSheet({
       source,
       linkedItemIds,
     });
+    inFlight.current = true;
     setSaving(true);
     let id: string | null = null;
     const ok = await attemptWrite(async () => { id = await brain.file(data); });
     setSaving(false);
-    if (!ok || !id) return;
+    // Released only when the save did not land: after a success the sheet is
+    // on its way out and must not take a third tap.
+    if (!ok || !id) { inFlight.current = false; return; }
     const filedId = id;
     // The shared confirm: destination line + Undo for UNDO_MS (8s).
     // showFilingConfirm is the app's one toast (shared/toast.ts) -- no
@@ -78,8 +102,8 @@ export default function FilingSheet({
         <div className="sheet-handle" />
         <div className="grp"><div className="eyebrow">{mode === "decision" ? "Log the Decision" : "Remember This"}</div></div>
         <div className="pad-x sheet-form">
-          <input
-            className="input"
+          <textarea
+            className="input input-multiline"
             aria-label={mode === "decision" ? "The Decision" : "What to Remember"}
             placeholder={mode === "decision" ? "The Decision" : "What to Remember"}
             value={what}
@@ -112,7 +136,7 @@ export default function FilingSheet({
             </div>
           )}
           <div className="sheet-actions">
-            <button className="btn btn-primary btn-block" onClick={() => void save()} disabled={!what.trim() || saving}>
+            <button className="btn btn-primary btn-block" onClick={() => void save()} disabled={!brain || !what.trim() || saving}>
               {saving ? "Saving…" : "Save"}
             </button>
             <button className="btn btn-secondary btn-block" onClick={onClose} disabled={saving}>Cancel</button>
