@@ -35,7 +35,7 @@ async function openPage(seed: EmailSection[] = [], extra: Record<string, unknown
   await waitFor(() => expect(profileRef).toBeTruthy());
   await profileRef!.save({ name: "Alex", ...(seed.length ? { emailSections: seed } : {}), ...extra });
   view.rerender(<NotesProvider userId={user}><Grab /><EmailSectionsPage onBack={() => {}} /></NotesProvider>);
-  await screen.findByRole("heading", { name: /Email Sections/i, level: 1 }).catch(() => screen.findAllByText("Email Sections"));
+  await screen.findAllByText("Email Sections");
   return { user, view };
 }
 const saved = async () => (await profileRef!.get())?.emailSections;
@@ -182,14 +182,19 @@ describe("Email Sections page: errors are shown, never fixed silently", () => {
     expect(await screen.findByText(SECTION_ERRORS.noMatchers)).toBeInTheDocument();
     expect(await saved()).toBeUndefined();
   });
-  it("more than 50 matchers is an error", async () => {
-    await openNew();
-    type(nameBox(), "Many");
-    type(textBox(), "m0");
-    for (let i = 1; i < 51; i++) { press("Add Matcher"); type(textBox(i + 1), "m" + i); }
+  it("more than 50 matchers is an error, and the 51st is not dropped", async () => {
+    const over: EmailSection = { id: newSectionId(), name: "Many", matchers: Array.from({ length: 51 }, (_, i) => ({ field: "sender" as const, text: "m" + i })) };
+    await openPage([over]);
+    fireEvent.click(await screen.findByText("Many"));
+    expect(screen.getByLabelText("Text to Match 51")).toBeInTheDocument();
     expect(screen.getByText(SECTION_ERRORS.tooManyMatchers)).toBeInTheDocument();
     press("Save Section");
-    expect(await saved()).toBeUndefined();
+    await waitFor(() => expect(screen.getByText(SECTION_ERRORS.tooManyMatchers)).toBeInTheDocument());
+    expect((await saved())![0]!.matchers).toHaveLength(51);
+    press("Remove Matcher 51");
+    expect(screen.queryByText(SECTION_ERRORS.tooManyMatchers)).toBeNull();
+    press("Save Section");
+    await waitFor(async () => expect((await saved())![0]!.matchers).toHaveLength(50));
   });
   it("at 50 sections a new one is refused with a visible error", async () => {
     const fifty = Array.from({ length: 50 }, (_, i) => sec("S" + i, "t" + i));
