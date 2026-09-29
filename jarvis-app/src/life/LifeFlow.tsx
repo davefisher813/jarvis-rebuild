@@ -63,7 +63,7 @@ export default function LifeFlow({
     return <RemindersFlow chrome={{ segments }} onOpenEntity={onOpenEntity} />;
   }
   if (seg === "tasks") {
-    return <TasksFlow title="Life" segments={segments} openId={taskOpenId} openNonce={taskNonce} onOpenConsumed={onTaskOpened} startId={startOpenId} startNonce={startNonce} onStartConsumed={onStartConsumed} openFilter={taskFilter} filterNonce={filterNonce} onFilterApplied={onFilterApplied} onOpenNote={onOpenNote} onGoEmail={onGoEmail} onWhatNow={onWhatNow} />;
+    return <TasksFlow title="Life" segments={segments} openId={taskOpenId} openNonce={taskNonce} onOpenConsumed={onTaskOpened} startId={startOpenId} startNonce={startNonce} onStartConsumed={onStartConsumed} openFilter={taskFilter} filterNonce={filterNonce} onFilterApplied={onFilterApplied} onOpenNote={onOpenNote} onGoEmail={onGoEmail} onOpenEntity={onOpenEntity} onWhatNow={onWhatNow} />;
   }
   return (
     <BiggerPictureFlow

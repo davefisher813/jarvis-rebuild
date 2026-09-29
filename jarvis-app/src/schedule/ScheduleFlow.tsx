@@ -75,7 +75,7 @@ import { spanLabel } from "../shared/duration";
 // anchor.
 type SheetState = { mode: "new" } | { mode: "edit"; id: string; occurrence: string; initial: EventDraft; source?: import("../shared/provenance").Source } | null;
 
-export default function ScheduleFlow({ onEditRoutine, openId, onNavigate }: { onEditRoutine?: (blockId?: string) => void; openId?: string; onNavigate?: (kind: string, id: string) => void } = {}) {
+export default function ScheduleFlow({ onEditRoutine, openId, openNonce, onOpenConsumed, onNavigate }: { onEditRoutine?: (blockId?: string) => void; openId?: string; openNonce?: number; onOpenConsumed?: () => void; onNavigate?: (kind: string, id: string) => void } = {}) {
   // UP-CORE-05 (2026-09-05): one map from a provenance stamp to a route,
   // shared with every other surface that shows the line (shared/openSource).
   const openSourceFor = useMemo(() => (onNavigate ? sourceOpener(onNavigate) : undefined), [onNavigate]);
@@ -609,6 +609,12 @@ export default function ScheduleFlow({ onEditRoutine, openId, onNavigate }: { on
 
   // When arriving via a note connection, jump to the event's own date and open
   // it once on mount. Uses the event's real date, not the current selection.
+  //
+  // ONE-SHOT, LIKE EVERY OTHER TAB (audit 2026-09-29): this effect keyed on the
+  // id alone and never handed it back, so the shell kept it. Opening the same
+  // event a second time (a search hit, a notification, a note's link) changed
+  // nothing the effect could see, and the tap did nothing at all. It now keys
+  // on the nonce too and clears the intent once the sheet is up (shell/intents.ts).
   useEffect(() => {
     if (!openId) return;
     let on = true;
@@ -622,10 +628,11 @@ export default function ScheduleFlow({ onEditRoutine, openId, onNavigate }: { on
       setSelected(occurrence);
       syncView(occurrence);
       setSheet({ mode: "edit", id: openId, occurrence, source: rowSource(e.source, e.moved), initial: { title: e.title, date: occurrence, start: e.start, end: e.end ?? "", category: e.category ?? "", location: e.location ?? "", recurrence: e.recurrence ?? "none", until: e.until ?? "", taskIds: e.taskIds ?? [], gym: !!e.gym, travelMin: e.travelMin ?? null, bufferMin: e.bufferMin ?? null, url: e.url ?? "", notes: e.notes ?? "", attendees: e.attendees ?? [], days: e.days ?? [], interval: e.interval ?? 1, projectId: e.projectId ?? "" } });
+      onOpenConsumed?.();
     })();
     return () => { on = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [openId]);
+  }, [openId, openNonce]);
 
   // SCHED-F-09 (2026-09-05): Undo puts the WHOLE event back, under its own
   // id. The hand-listed opts here dropped the series end, the skipped days,
@@ -1452,10 +1459,10 @@ export default function ScheduleFlow({ onEditRoutine, openId, onNavigate }: { on
           onEdit={() => { const d = detail; setDetail(null); void openEdit(d.id, d.occurrence); }}
           steps={steps}
           onToggleStep={(id) => void onToggleTask(id)}
-          onOpenStep={onNavigate ? (id) => onNavigate("tasks", id) : undefined}
+          onOpenStep={onNavigate ? (id) => onNavigate("task", id) : undefined}
           onAddStep={(text) => void addEventStep(detail.id, ev, text)}
           linkedNotes={linked}
-          onOpenNote={onNavigate ? (id) => onNavigate("notes", id) : undefined}
+          onOpenNote={onNavigate ? (id) => onNavigate("note", id) : undefined}
           openSourceFor={openSourceFor}
         />
       );
