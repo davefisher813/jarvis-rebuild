@@ -1774,7 +1774,8 @@ describe("LAW: stored shapes are versioned", () => {
     // AMENDED 2026-09-28 (Dave): every red in light is the in-between
     // #E42C18, his pick, and to nothing else.
     for (const m of CSS.matchAll(/\[data-theme=[^\]]*\][^{]*\{[^}]*--accent-glyph\s*:\s*([^;}]+)/g)) {
-      expect(m[1]!.trim().toUpperCase(), "a theme's --accent-glyph can only be the unified light red").toBe("#E42C18");
+      // AMENDED 2026-09-29 (Dave, the approved light palette): the action red #D12416.
+      expect(m[1]!.trim().toUpperCase(), "a theme's --accent-glyph can only be the light action red").toBe("#D12416");
     }
   });
 
@@ -7100,7 +7101,10 @@ describe("LAW: the structure ink never colours text (2026-09-14)", () => {
     const dark = blockOf("dark");
     const light = blockOf("light");
     for (const [name, block] of [["dark", dark], ["light", light]] as const) {
-      expect(pick(block, "--tx-2"), name + " secondary is one value").toBe(pick(block, "--tx-3"));
+      // AMENDED 2026-09-29 (Dave, the approved light palette): light keeps three
+      // text tiers (#111318, #363A43, #515661); dark keeps one secondary value.
+      if (name === "dark") expect(pick(block, "--tx-2"), name + " secondary is one value").toBe(pick(block, "--tx-3"));
+      else expect(pick(block, "--tx-3"), "light quiet labels are #515661").toBe("#515661");
       expect(pick(block, "--tx-4"), name + " structure is a solid grey").toMatch(/^#[0-9A-Fa-f]{6}$/);
     }
   });

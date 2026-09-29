@@ -52,8 +52,10 @@ const OTHER_TOKENS = String.raw`sys-red[\w-]*|red(?!-tint)[\w-]*|cat-(?:[a-z]+-)
  *  every red in light is this one hex, his pick between the brand red and
  *  the deep readable red, 4.49:1 on white and 4.09:1 on the page by his
  *  ruling.
+ *  AMENDED 2026-09-29 (Dave, the approved light palette): #D12416 joins
+ *  them, the action red. #E42C18 stays as the red CATEGORY fill only.
  *  A words red, never a tap red: TAP_RED is unchanged; ANY_RED gains it. */
-const OTHER_HEXES = String.raw`FF453A|FF3B30|FF6961|D22E24|E42C18`;
+const OTHER_HEXES = String.raw`FF453A|FF3B30|FF6961|D22E24|E42C18|D12416`;
 
 /** A token reference ends at its closing paren OR at the comma before a
  *  fallback: `var(--tint, #FF2B3C)` is the brand red as surely as
@@ -98,7 +100,12 @@ export const ANY_RED = new RegExp(
  *  in-between #E42C18, his pick -- words, fills, glyphs, chrome and the
  *  category reds alike. It reads 4.49:1 on white and 4.09:1 on the page,
  *  under the 4.5 bar by his ruling; the laws pin this hex and record the
- *  pair. Dark is untouched. */
-export const JARVIS_RED_LIGHT = "#E42C18";
+ *  pair. Dark is untouched.
+ *  AMENDED 2026-09-29 (Dave, the approved light palette): the action red is
+ *  #D12416 and supersedes #E42C18 for every action, word and glyph. Measured:
+ *  5.28:1 on white, 4.89 on the page, 4.68 on a #F0F1F4 pill. #E42C18 remains
+ *  only as the red category's fill. The one pair still under 4.5 is the red
+ *  category's text on its own 18% chip (3.62:1), recorded in the PR. */
+export const JARVIS_RED_LIGHT = "#D12416";
 export const isJarvisRedLight = (hex: string | undefined) =>
   (hex ?? "").toUpperCase() === JARVIS_RED_LIGHT;

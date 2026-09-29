@@ -151,7 +151,8 @@ describe("BROWSER-F-04: status colour is readable in daylight, from the token", 
   it("light --sys-red is the unified red, and no rule in either theme paints lateness in the brand red", () => {
     // AMENDED 2026-09-27 (§AQ, Dave: "I hate it. Make all red Jarvis red."): light --sys-red is Jarvis Red itself.
     // AMENDED 2026-09-28 (Dave): every red in light is the in-between #E42C18, his pick, so --sys-red is the unified red.
-    expect(tokenIn("light", "--sys-red").toUpperCase()).toBe("#E42C18");
+    // AMENDED 2026-09-29 (Dave, the approved light palette): the action red is #D12416 (5.28:1 on white, 4.89 on the page).
+    expect(tokenIn("light", "--sys-red").toUpperCase()).toBe("#D12416");
     const bare = ["components.css", "ruled.css", "uniformity.css", "jarvis-design-system.css", "mail-rows.css", "editor.css"]
       .map((f) => read("styles/" + f)).join("\n").replace(/\/\*[\s\S]*?\*\//g, "")
       // A rule inside an at-rule block is still a rule: the wrapper's own
@@ -556,7 +557,8 @@ describe("BROWSER-F-10: red words on a sheet grey are readable", () => {
     const capDark = contrast(tokenIn("dark", "--tint"), resolve("dark", "--capsule-fill"));
     expect(capDark, `dark capsule label on its fill is ${capDark.toFixed(2)}:1`).toBeGreaterThanOrEqual(4.5);
     const fillRed = tokenIn("light", "--accent-fill");
-    expect(fillRed.toUpperCase(), "the light capsule fill is Dave's unified red").toBe("#E42C18");
+    // AMENDED 2026-09-29 (Dave, the approved light palette): the action red is #D12416.
+    expect(fillRed.toUpperCase(), "the light capsule fill is Dave's action red").toBe("#D12416");
     const cr = contrast("#ffffff", fillRed);
     expect(cr, `light capsule white label on its fill is ${cr.toFixed(2)}:1`).toBeGreaterThanOrEqual(4.4);
     // The .btn variants declare their own ink against their own fill; taking
@@ -740,7 +742,11 @@ describe("BROWSER-F-09: quiet is not the same word as finished", () => {
   // ruling's own choice: "do not use faded paragraphs or grey helper text".
   it("the ramp is two tiers: one secondary, and a solid structure grey", () => {
     for (const theme of ["dark", "light"]) {
-      expect(tokenIn(theme, "--tx-2"), `${theme} --tx-2 and --tx-3 are one value`).toBe(tokenIn(theme, "--tx-3"));
+      // AMENDED 2026-09-29 (Dave, the approved light palette): light has three
+      // text tiers, #111318 titles, #363A43 supporting, #515661 quiet labels
+      // (10.1:1 and 6.8:1 on the page). Dark stays one secondary value.
+      if (theme === "dark") expect(tokenIn(theme, "--tx-2"), `${theme} --tx-2 and --tx-3 are one value`).toBe(tokenIn(theme, "--tx-3"));
+      else expect(tokenIn(theme, "--tx-2"), "light --tx-2 is the supporting tier").toBe("#363A43");
       expect(tokenIn(theme, "--tx-4"), `${theme} --tx-4 is a solid structure grey`).toMatch(/^#[0-9A-Fa-f]{6}$/);
     }
   });

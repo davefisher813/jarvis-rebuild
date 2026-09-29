@@ -902,7 +902,9 @@ const AUDIT = () => {
     if (a < 0.2) return false;
     const mx = Math.max(r, g, b), mn = Math.min(r, g, b);
     // Achromatic, and not the primary ink at either end of the ramp.
-    return mx - mn < 18 && mx < 244 && mn > 12;
+    // 2026-09-29: the light primary ink is #111318 (max channel 24), so the
+    // "near black" floor is on the brightest channel, not the darkest.
+    return mx - mn < 18 && mx < 244 && mx > 30;
   };
   const onOwnFill = (e, stop) => {
     let n = e;

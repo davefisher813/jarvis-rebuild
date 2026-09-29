@@ -413,7 +413,7 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
    The other twelve slots are derived, have no Apple twin, and keep the
    chroma-first values below. */
 [data-theme="light"] {
-  --cat-tx-red: #E42C18;
+  --cat-tx-red: #D12416;
   --cat-tx-orange: #9A5305;
   --cat-tx-sky: #036F96;
   --cat-tx-pink: #BC244D;
@@ -1961,7 +1961,7 @@ body.jarvis-dragging { overflow: hidden; touch-action: none; -webkit-user-select
      grey it actually lands on: 4.14 on a row, 4.07 on the page's press, 3.91
      on a sheet's (2026-09-22, measured across 43 screens). #BC000E reads
      6.68 / 5.26 / 4.97 and is the same hue. */
-  --on-light-red: #E42C18; /* unified light red (Dave 2026-09-28): every red in light is the in-between red, 4.49:1 on white, 4.09:1 on the page, under the 4.5 bar by his ruling */
+  --on-light-red: #D12416; /* unified light red (Dave 2026-09-28): every red in light is the in-between red, 4.49:1 on white, 4.09:1 on the page, under the 4.5 bar by his ruling */
   /* --on-light-good and --on-light-warn are gone with the allow-list
      (BROWSER-F-04, 2026-09-05): their values are what the light --good and
      --warn tokens are now, so the two fills that still want the darker green
@@ -4407,7 +4407,7 @@ button.check-linked:active { opacity: 1; background: var(--press-3); }
    these are their daylight sisters: a warm sunrise breath in the morning,
    a cool indigo one in the evening, both fading before the first card. */
 [data-theme="light"] .today-hero.hero-morning {
-  background: linear-gradient(160deg, rgba(228,44,24,0.14), rgba(255,159,10,0.08) 45%, transparent 80%); }
+  background: linear-gradient(160deg, rgba(209,36,22,0.14), rgba(255,159,10,0.08) 45%, transparent 80%); }
 [data-theme="light"] .today-hero.hero-evening {
   background: linear-gradient(160deg, rgba(88,86,214,0.14), rgba(120,90,255,0.07) 45%, transparent 80%); }
 
@@ -4463,7 +4463,7 @@ button.check-linked:active { opacity: 1; background: var(--press-3); }
    re-letters a 50px button in the sheet red cannot reach a small pill that
    also carries the base class. The 50px base button is not a capsule and
    keeps its own fill in both themes. */
-[data-theme="light"] .btn { background: rgba(228,44,24,0.10); color: var(--on-light-red); }
+[data-theme="light"] .btn { background: rgba(209,36,22,0.07); color: var(--on-light-red); }
 [data-theme="light"] .btn-sm:not(.btn-primary):not(.btn-danger):not(.btn-secondary) {
   background-color: var(--capsule-fill); color: var(--on-light-red);
 }
@@ -4477,7 +4477,7 @@ button.check-linked:active { opacity: 1; background: var(--press-3); }
    The fill said "red action" and the ink said "not an action", in one
    theme only. The capsule rule below now paints both themes from one
    token, and the quiet variants keep their own fill in both. */
-[data-theme="light"] .note-fix { background: rgba(228,44,24,0.10); color: var(--on-light-red); }
+[data-theme="light"] .note-fix { background: rgba(209,36,22,0.07); color: var(--on-light-red); }
 /* THE ROW ACTION TAKES THE CAPSULE TOO (Dave 2026-09-22, Control Catalog:
    the in-list create rung, capsule).
 
@@ -5208,7 +5208,7 @@ body.selecting .voice-dock { display: none; }
      #E42C18 is --on-light-red's exact value, the unified light red,
      correct here in BOTH themes because the pill is white in
      both. */
-  background: #fff; color: #E42C18; }
+  background: #fff; color: #D12416; }
 /* The hero's button is the screen's one fill now that its panel is not. */
 .mode-hero .mode-go { background: var(--accent-fill); color: #fff; }
 .mode-go.mode-go-quiet { background: var(--press-5); color: var(--tx-1); }
@@ -5947,7 +5947,7 @@ body.selecting .voice-dock { display: none; }
    2026-09-25). Blue is Health's cool-down, and this is not one.
    Its size, like the round line's and the landscape corners', is held with
    the clock-caps question for Dave (the receipt's tag is 11); not moved until he rules. */
-.cf-fmt { font-size: var(--t-caption); font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; color: var(--tx-3);
+.cf-fmt { font-size: var(--t-caption); font-weight: var(--w-bold); letter-spacing: 0.14em; text-transform: uppercase; color: var(--tx-3);
   background: var(--press-3); padding: var(--s-1) var(--s-2h); border-radius: var(--r-sm); }
 .cf-name { font-size: var(--t-sub); color: var(--tx-3); max-width: 70vw; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
@@ -5959,7 +5959,7 @@ body.selecting .voice-dock { display: none; }
 .cond-face.rest .cf-arc { stroke: var(--good-fill); }
 .cond-face.lead .cf-arc { stroke: var(--tx-3); }
 .cf-mid { text-align: center; display: flex; flex-direction: column; align-items: center; gap: var(--s-0h); }
-.cf-num { font-size: clamp(56px, 19vw, 84px); font-weight: 800; letter-spacing: -0.045em; line-height: 1;
+.cf-num { font-size: clamp(56px, 19vw, 84px); font-weight: var(--w-bold); letter-spacing: -0.045em; line-height: 1;
   font-variant-numeric: tabular-nums; }
 .cf-num.pulse { animation: cf-pulse 260ms ease-out; }
 .cf-lead { font-size: clamp(80px, 30vw, 120px); animation: cf-pulse 300ms ease-out; }
@@ -5993,7 +5993,7 @@ body.selecting .voice-dock { display: none; }
   .cf-num { font-size: clamp(120px, 34vw, 190px); }
   .cf-lead { font-size: clamp(120px, 34vw, 190px); }
   .cf-round, .cf-last { display: none; }
-  .cf-corner { display: block; position: absolute; font-size: var(--t-caption); font-weight: 800; letter-spacing: 0.12em;
+  .cf-corner { display: block; position: absolute; font-size: var(--t-caption); font-weight: var(--w-bold); letter-spacing: 0.12em;
     text-transform: uppercase; color: var(--tx-3); }
   .cf-tl { top: 14px; left: 18px; }
   .cf-tr { top: 14px; right: 18px; }
@@ -6013,7 +6013,7 @@ body.selecting .voice-dock { display: none; }
 /* ---------- THE RECEIPT ------------------------------------------------- */
 .cond-receipt { padding: var(--s-3) var(--s-4) var(--s-2h); }
 .cr-head { display: flex; align-items: center; gap: var(--s-2h); }
-.cr-fmt { font-size: var(--t-eyebrow); font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; color: var(--tx-3);
+.cr-fmt { font-size: var(--t-eyebrow); font-weight: var(--w-bold); letter-spacing: 0.12em; text-transform: uppercase; color: var(--tx-3);
   background: var(--press-3); padding: var(--s-1) var(--s-2); border-radius: var(--r-sm); flex-shrink: 0; }
 .cr-name { flex: 1; min-width: 0; font-size: var(--t-name); font-weight: var(--w-name); letter-spacing: var(--track-name); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* The cap is a length that cannot be tapped (§AM, AMENDED 2026-09-26, round
@@ -6049,12 +6049,12 @@ body.selecting .voice-dock { display: none; }
 .ruled.health-ruled .cr-d.dn { color: var(--hl-lime-ink); }
 .cr-score { display: flex; align-items: center; justify-content: space-between; gap: var(--s-2h); margin-top: var(--s-2h);
   padding-top: var(--s-2); border-top: 0.5px solid var(--divider); font-size: var(--t-sub); color: var(--tx-3); }
-.cr-score-v { display: inline-flex; align-items: center; gap: var(--s-1h); font-size: var(--t-h2); font-weight: 800; color: var(--tx-1);
+.cr-score-v { display: inline-flex; align-items: center; gap: var(--s-1h); font-size: var(--t-h2); font-weight: var(--w-bold); color: var(--tx-1);
   font-variant-numeric: tabular-nums; }
-.cr-score-v b { font-weight: 800; }
+.cr-score-v b { font-weight: var(--w-bold); }
 .cr-plus { font-size: calc(15px * var(--type-scale)); color: var(--tx-3); font-weight: 600; }
 .cr-extra { width: 56px; border: 0; border-radius: var(--r-sm); background: var(--press-3); color: var(--tx-1); font: inherit;
-  font-size: var(--t-h2); font-weight: 800; text-align: center; padding: var(--s-1) var(--s-1h); font-variant-numeric: tabular-nums; }
+  font-size: var(--t-h2); font-weight: var(--w-bold); text-align: center; padding: var(--s-1) var(--s-1h); font-variant-numeric: tabular-nums; }
 .cr-extra:focus { outline: 2px solid var(--blue); }
 .cr-extra::placeholder { color: var(--tx-2); font-weight: 600; }
 
@@ -6243,7 +6243,7 @@ body.selecting .voice-dock { display: none; }
 /* The state word (G5): coloured small caps, never a filled pill. Colour from
    the variant beside it; gray is the quiet one. The words themselves are a
    closed set, pinned by the law. */
-.fact.st { font-size: calc(11px * var(--type-scale)); font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; align-self: center; }
+.fact.st { font-size: calc(11px * var(--type-scale)); font-weight: var(--w-bold); letter-spacing: 0.06em; text-transform: uppercase; align-self: center; }
 .fact.st.gray { color: var(--tx-quiet); }
 
 /* .row-star: the Remember glyph. A 16px outline star at the leading edge of
@@ -6323,7 +6323,7 @@ body.selecting .voice-dock { display: none; }
 /* The glyph on an amber disc is dark (2026-09-22): white on #FF9500 is
    2.06:1 in both themes, the one badge in the app that failed everywhere. */
 .warn-disc { background: var(--warn-fill); color: var(--on-fill-dark); }
-.disc-glyph { font-size: calc(15px * var(--type-scale)); font-weight: 800; line-height: 1; }
+.disc-glyph { font-size: calc(15px * var(--type-scale)); font-weight: var(--w-bold); line-height: 1; }
 .strand-row .lib-disc { flex-shrink: 0; }
 span.row-star { cursor: default; }
 .strand-filters { padding-top: 0; }
@@ -6420,7 +6420,7 @@ span.row-star { cursor: default; }
    Worked is green (done), and Slipped and Next are amber (needs you soon);
    AMENDED 2026-09-26 (§AM): nothing is sky or red on this card any more, so
    those two kicker tones went with the tones that asked for them. */
-.eq-k { flex: 0 0 64px; font-size: var(--t-eyebrow); font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; }
+.eq-k { flex: 0 0 64px; font-size: var(--t-eyebrow); font-weight: var(--w-bold); letter-spacing: 0.06em; text-transform: uppercase; }
 .eq-good { color: var(--good); } .eq-warn { color: var(--warn); } .eq-quiet { color: var(--tx-3); }
 .eq .facts { flex: 1; min-width: 0; }
 .week-acts { margin-top: var(--s-2h); align-items: center; }

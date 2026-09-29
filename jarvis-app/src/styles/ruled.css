@@ -3053,3 +3053,93 @@
    0.2px shrink on a 220px fact is enough for an ellipsis. The number is
    short by construction and the door's words after it give way. */
 .ruled .money-tracker-row .facts > .fact:first-child { flex-shrink: 0; }
+
+/* ==========================================================================
+   THE APPROVED LIGHT PALETTE, APPLIED (Dave 2026-09-29). Light only; every
+   rule here is scoped to [data-theme="light"], dark is untouched.
+   ========================================================================== */
+
+/* AREA TILES: the icon on a filled tile is white where white clears 3:1
+   against the fill, and #111318 where it does not (measured per slot). */
+[data-theme="light"] .ruled .area-tile.cat-bg-red, [data-theme="light"] .ruled .area-tile.cat-bg-green, [data-theme="light"] .ruled .area-tile.cat-bg-blue, [data-theme="light"] .ruled .area-tile.cat-bg-graphite, [data-theme="light"] .ruled .area-tile.cat-bg-purple, [data-theme="light"] .ruled .area-tile.cat-bg-indigo, [data-theme="light"] .ruled .area-tile.cat-bg-magenta, [data-theme="light"] .ruled .area-tile.cat-bg-coral, [data-theme="light"] .ruled .area-tile.cat-bg-amber, [data-theme="light"] .ruled .area-tile.cat-bg-rust, [data-theme="light"] .ruled .area-tile.cat-bg-rose, [data-theme="light"] .ruled .area-tile.cat-bg-plum, [data-theme="light"] .ruled .area-tile.cat-bg-violet, [data-theme="light"] .ruled .area-tile.cat-bg-cyan, [data-theme="light"] .ruled .area-tile.cat-bg-mint, [data-theme="light"] .ruled .area-tile.cat-bg-olive, [data-theme="light"] .ruled .area-tile.cat-bg-slate { color: #FFFFFF; }
+[data-theme="light"] .ruled .area-tile.cat-bg-orange, [data-theme="light"] .ruled .area-tile.cat-bg-sky, [data-theme="light"] .ruled .area-tile.cat-bg-pink, [data-theme="light"] .ruled .area-tile.cat-bg-yellow, [data-theme="light"] .ruled .area-tile.cat-bg-teal, [data-theme="light"] .ruled .area-tile.cat-bg-lime, [data-theme="light"] .ruled .area-tile.cat-bg-sand { color: #111318; }
+
+/* Area names near-black, counts dark and not bold. */
+[data-theme="light"] .ruled .area-stack .conn-meta b { color: var(--tx-2); font-weight: var(--w-normal); }
+
+/* THE FOCUS BUTTON'S WAITING COUNT is neutral, never a second red beside the
+   red button: #111318 on #F0F1F4. */
+[data-theme="light"] .focus-row .row-act .fc-n { color: #111318; background-color: #F0F1F4; }
+
+/* ADD in the Life header: a secondary pill, #F0F1F4 with the action red on
+   both the plus and the word. */
+[data-theme="light"] .hdr-add { background: #F0F1F4; border-color: transparent; color: var(--red); }
+[data-theme="light"] .hdr-add .ic { color: var(--red); }
+
+/* URGENCY: TODAY and TOMORROW are neutral badges; amber is for real
+   warnings (Stalled, Overdue) only. */
+[data-theme="light"] .ruled .uchip.u-today { color: var(--tx-2); background: var(--surface-3); }
+[data-theme="light"] .ruled .uchip.u-late { color: var(--warn); background: var(--warn-tint); }
+[data-theme="light"] .ruled .r-goal.fact.warn { color: var(--tx-2); }
+[data-theme="light"] .ruled .r-goal.fact.warn b { color: var(--tx-2); font-weight: var(--w-semi); }
+
+/* REMINDERS carry the same hairlines every other list does: it starts where
+   the text starts, past the check. The rows sit inside a swipe shell, so the
+   sibling rule that never matched is the shell's. */
+[data-theme="light"] .card > .task-swipe:has(> .rem-row) + .task-swipe:has(> .rem-row) { position: relative; }
+[data-theme="light"] .card > .task-swipe:has(> .rem-row) + .task-swipe:has(> .rem-row)::before,
+[data-theme="light"] .card > .task-swipe:has(> .rem-row) + .rem-row::before,
+[data-theme="light"] .card > .rem-row + .task-swipe:has(> .rem-row)::before {
+  content: ""; position: absolute; z-index: 2; left: calc(var(--s-4) + 22px + var(--s-3)); right: 0; top: 0;
+  height: 0.5px; background: var(--divider); pointer-events: none; }
+
+/* HEALTH: metadata pills and facts are neutral (#363A43 on the neutral
+   pill); the lime that carries a number is the ink #4E7402, the bright lime
+   stays a decorative fill; chart tracks are the neutral grey. */
+[data-theme="light"] .ruled.health-ruled .se-chip,
+[data-theme="light"] .sheet-scrim > .card .se-chip,
+[data-theme="light"] .ruled.health-ruled .se-chip-best,
+[data-theme="light"] .ruled.health-ruled .se-chip-done,
+[data-theme="light"] .ruled.health-ruled .se-chip-last,
+[data-theme="light"] .ruled.health-ruled .se-chip-time,
+[data-theme="light"] .ruled.health-ruled .se-chip-budget,
+[data-theme="light"] .ruled.health-ruled .se-chip-pair,
+[data-theme="light"] .ruled.health-ruled .se-chip-est,
+[data-theme="light"] .ruled.health-ruled .se-chip-pin,
+[data-theme="light"] .ruled.health-ruled .se-chip-when,
+[data-theme="light"] .ruled.health-ruled .se-chip-game { color: var(--tx-2); background: var(--surface-3); }
+[data-theme="light"] .ruled.health-ruled .se-chip em { color: var(--tx-2); }
+[data-theme="light"] .ruled.health-ruled .fact.lime,
+[data-theme="light"] .sheet-scrim > .card .fact.lime { color: var(--tx-2); }
+[data-theme="light"] .ruled.health-ruled .h-week-count b,
+[data-theme="light"] .ruled.health-ruled .h-stat.lime b,
+[data-theme="light"] .ruled.health-ruled .stat-tile .stat-num,
+[data-theme="light"] .ruled.health-ruled .ins-big.lime { color: var(--hl-lime-ink); }
+[data-theme="light"] .chip.active.chip-lime,
+[data-theme="light"] .chip.chip-half.chip-lime { color: var(--hl-lime-ink); }
+[data-theme="light"] .ruled.health-ruled .ins-bar-track { background: var(--surface-3); }
+
+/* TABULAR NUMERALS wherever an amount, time or metric shows. */
+[data-theme="light"] .rem-time, [data-theme="light"] .fact.date, [data-theme="light"] .t-meta,
+[data-theme="light"] .h-stat b, [data-theme="light"] .h-week-count b, [data-theme="light"] .stat-num { font-variant-numeric: tabular-nums; }
+
+/* The dock stays one line at the phone width: the approved supporting size
+   (15) would tip "Add anything" onto a second line beside the name. */
+[data-theme="light"] .voice-hint { font-size: calc(14px * var(--type-scale)); }
+/* A late state is a real warning, so it wears the warning amber on its wash
+   (5.19:1), not the action red on a red tint (3.7:1). */
+[data-theme="light"] .ruled .st-late { color: var(--warn); background: var(--warn-tint); }
+
+/* PROJECT CARDS: WHITE TEXT OVER THE WHOLE GRADIENT (Dave 2026-09-29). The
+   lightest stops (olive, lime, mint, yellow, amber) put white words at 1.6 to
+   2.3:1. A dark scrim over the sheen, 42% at the top where the title sits and
+   30% at the foot, brings the brightest slot to 4.5:1 with no text shadow.
+   Light only; dark's cards are unchanged. */
+[data-theme="light"] .ruled .bp-card::before {
+  background:
+    linear-gradient(180deg, rgba(0, 0, 0, 0.42) 0%, rgba(0, 0, 0, 0.3) 100%),
+    radial-gradient(60% 95% at 62% -15%, rgba(255, 255, 255, 0.11), rgba(255, 255, 255, 0) 60%),
+    radial-gradient(75% 80% at -8% 65%, rgba(255, 255, 255, 0.10), rgba(255, 255, 255, 0) 75%),
+    radial-gradient(88% 60% at 35% 50%, rgba(0, 0, 0, 0.09), rgba(0, 0, 0, 0) 72%),
+    linear-gradient(153deg, var(--bp-a) 0%, var(--bp-b) 100%);
+}
