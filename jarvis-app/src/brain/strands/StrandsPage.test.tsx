@@ -460,3 +460,51 @@ describe("What JARVIS Knows says one word per detector", () => {
     expect(row?.querySelector(".fact.st")?.className).toContain("good");
   });
 });
+
+// AUDIT 2026-09-29 (production click-through). Two dead ends on this page:
+// the Add One Thing form could be left only by Escape or by tapping outside
+// it, and every readiness row, whatever it said, opened that same form.
+describe("What JARVIS Knows: leaving the form, and what a readiness row opens", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    svc.list.mockResolvedValue([]);
+    rows = null;
+    try { localStorage.clear(); } catch { /* private mode */ }
+  });
+
+  it("Add One Thing has a visible Cancel that closes it and saves nothing", async () => {
+    render(<StrandsPage onBack={() => {}} />);
+    fireEvent.click(await screen.findByText("Add One Thing"));
+    expect(screen.getByText("Something JARVIS Should Know About You")).toBeInTheDocument();
+    fireEvent.change(screen.getByPlaceholderText("e.g. Brainstorms best at night"), { target: { value: "Half typed" } });
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(screen.queryByText("Something JARVIS Should Know About You")).not.toBeInTheDocument();
+    expect(svc.add).not.toHaveBeenCalled();
+  });
+
+  it("a readiness row opens its readiness detail, not the Add One Thing form", async () => {
+    rows = [{ key: "training_window", label: "When You Train", have: 4, need: 10, unit: "sessions", state: "waiting", detail: "Needs 10 sessions, with one 3-hour stretch holding 40 percent of them" }];
+    render(<StrandsPage onBack={() => {}} />);
+    const label = await screen.findByText("When You Train");
+    fireEvent.click(label.closest(".rdy-row")!);
+    const dialog = await screen.findByRole("dialog", { name: "When You Train" });
+    expect(dialog).toHaveTextContent("Waiting");
+    expect(dialog).toHaveTextContent("4 of 10 Sessions");
+    expect(dialog).toHaveTextContent("6 More Sessions to Go");
+    // Not the insight form.
+    expect(screen.queryByText("Something JARVIS Should Know About You")).not.toBeInTheDocument();
+    // The way to add it yourself is one tap on from the detail.
+    fireEvent.click(screen.getByRole("button", { name: "Tell JARVIS" }));
+    expect(screen.queryByRole("dialog", { name: "When You Train" })).not.toBeInTheDocument();
+    expect(screen.getByText("Something JARVIS Should Know About You")).toBeInTheDocument();
+  });
+
+  it("the detail closes from its own Close button", async () => {
+    rows = [{ key: "training_window", label: "When You Train", have: 4, need: 10, unit: "sessions", state: "waiting" }];
+    render(<StrandsPage onBack={() => {}} />);
+    fireEvent.click((await screen.findByText("When You Train")).closest(".rdy-row")!);
+    await screen.findByRole("dialog", { name: "When You Train" });
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+    expect(screen.queryByRole("dialog", { name: "When You Train" })).not.toBeInTheDocument();
+  });
+});

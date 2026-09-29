@@ -21,7 +21,7 @@ describe("ReminderSheet", () => {
     fireEvent.click(screen.getByText("Save"));
     expect(onSave).not.toHaveBeenCalled();
     expect(screen.getByText("Enter something to remember.")).toBeInTheDocument();
-    expect(screen.getByText("Pick a time, or choose Unscheduled.")).toBeInTheDocument();
+    expect(screen.getByText("Pick a time to save this reminder, or choose Unscheduled.")).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText("Reminder"), { target: { value: "Meds" } });
     fireEvent.change(screen.getByLabelText("Time"), { target: { value: "21:00" } });
     fireEvent.click(screen.getByLabelText("Repeat"));
@@ -33,6 +33,23 @@ describe("ReminderSheet", () => {
     expect(r).toMatchObject({ time: "21:00", days: [1, 2, 3, 4, 5], onMiss: "let_go", scheduleKind: "timed", startDate: TUE, repeat: { kind: "weekdays", days: [1, 2, 3, 4, 5] }, followUp: null, tz: "local" });
     expect(extra.due).toBeNull();
     expect(extra.receipt).toBe("Reminder Set · Today, 9:00 PM");
+  });
+
+  it("Save with words but no time says so at the Time field, stays dimmed until a time is picked, and never goes dead", () => {
+    const onSave = vi.fn();
+    render(<ReminderSheet {...base} onSave={onSave} />);
+    fireEvent.change(screen.getByLabelText("Reminder"), { target: { value: "Call Alberto" } });
+    const save = screen.getByText("Save");
+    expect(save).toHaveClass("dim"); // dimmed, still tappable
+    fireEvent.click(save);
+    expect(onSave).not.toHaveBeenCalled();
+    expect(screen.getByText(/^Pick a time to save this reminder/)).toBeInTheDocument();
+    expect(screen.queryByText("Enter something to remember.")).not.toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Time"), { target: { value: "10:30" } });
+    expect(screen.queryByText(/^Pick a time to save this reminder/)).not.toBeInTheDocument();
+    expect(screen.getByText("Save")).not.toHaveClass("dim");
+    fireEvent.click(screen.getByText("Save"));
+    expect(onSave).toHaveBeenCalledTimes(1);
   });
 
   it("Tomorrow Morning is one tap: the day, the morning time, one time, and the green line says so", () => {

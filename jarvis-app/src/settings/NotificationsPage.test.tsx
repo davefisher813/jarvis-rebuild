@@ -8,6 +8,8 @@ import { ProfileService } from "../profile/ProfileService";
 import { subscribeToast } from "../shared/toast";
 import { WRITE_FAILED_MESSAGE } from "../shared/guard";
 import * as notifications from "../shared/notifications";
+import * as webPush from "../shared/webPush";
+import { reasonFor } from "../shared/webPush";
 import NotificationsPage from "./NotificationsPage";
 
 describe("NotificationsPage", () => {
@@ -120,5 +122,46 @@ describe("NotificationsPage, reminders", () => {
     // Casing sweep 3 (2026-09-27): Title Case by the whole rule (§H2); durations through shared/duration ("45 Min", "About 1 Min").
     await waitFor(() => expect(seen.some((m) => m.startsWith("Test Reminder in"))).toBe(true));
     stop();
+  });
+});
+
+// AUDIT 2026-09-29: on the web the "Alerts on this phone" switch needs OS or
+// browser permission and, in a Safari tab, a Home Screen launch. When it
+// cannot turn on it stayed off with nothing on screen saying why.
+describe("NotificationsPage, the Alerts switch says why it will not turn on", () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it("shows the reason on the row and again as a toast when tapped", async () => {
+    vi.spyOn(Capacitor, "isNativePlatform").mockReturnValue(false);
+    vi.spyOn(webPush, "currentStatus").mockResolvedValue("denied");
+    const seen: string[] = [];
+    const stop = subscribeToast((t) => { if (t) seen.push(t.message); });
+    render(<NotesProvider userId="u-alerts-denied"><NotificationsPage onBack={() => {}} /></NotesProvider>);
+    const sw = await screen.findByRole("switch", { name: "Alerts on this phone" });
+    await waitFor(() => expect(sw).toHaveAttribute("aria-disabled", "true"));
+    const row = sw.closest(".row")!;
+    expect(row.textContent).toContain(reasonFor("denied"));
+    expect(row.textContent).toContain("phone or browser settings");
+    fireEvent.click(sw);
+    expect(seen).toContain(reasonFor("denied"));
+    expect(sw).toHaveAttribute("aria-checked", "false");
+    stop();
+  });
+
+  it("a Safari tab is told to add JARVIS to the Home Screen, on the row", async () => {
+    vi.spyOn(Capacitor, "isNativePlatform").mockReturnValue(false);
+    vi.spyOn(webPush, "currentStatus").mockResolvedValue("not-standalone");
+    render(<NotesProvider userId="u-alerts-tab"><NotificationsPage onBack={() => {}} /></NotesProvider>);
+    const sw = await screen.findByRole("switch", { name: "Alerts on this phone" });
+    await waitFor(() => expect(sw.closest(".row")!.textContent).toContain("Home Screen"));
+  });
+
+  it("a switch that can be turned on carries no reason and no lock", async () => {
+    vi.spyOn(Capacitor, "isNativePlatform").mockReturnValue(false);
+    vi.spyOn(webPush, "currentStatus").mockResolvedValue("off");
+    render(<NotesProvider userId="u-alerts-off"><NotificationsPage onBack={() => {}} /></NotesProvider>);
+    const sw = await screen.findByRole("switch", { name: "Alerts on this phone" });
+    await waitFor(() => expect(sw).not.toHaveAttribute("aria-disabled"));
+    expect(sw.closest(".row")!.querySelector(".conn-meta")).toBeNull();
   });
 });

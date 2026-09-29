@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { webPushStatus, footFor, switchLocked, urlBase64ToUint8Array, resubscribeIfNeeded, enableWebPush, ALL_OR_NOTHING, type WebPushEnv, type WebPushStatus } from "./webPush";
+import { webPushStatus, footFor, reasonFor, switchLocked, urlBase64ToUint8Array, resubscribeIfNeeded, enableWebPush, ALL_OR_NOTHING, type WebPushEnv, type WebPushStatus } from "./webPush";
 
 vi.mock("@capacitor/core", () => ({ Capacitor: { isNativePlatform: () => false } }));
 
@@ -34,6 +34,25 @@ describe("one state, one sentence", () => {
     expect(footFor("not-standalone")).toContain("Home Screen");
     expect(footFor("no-push")).toContain("16.4");
     expect(footFor("denied")).toContain("Settings");
+  });
+
+  // AUDIT 2026-09-29: "Alerts on this phone" stayed off and said nothing.
+  // Every state that locks the switch must have a reason to show on its row.
+  it("every state that locks the switch has a reason, and the working ones have none", () => {
+    for (const s of ["no-sw", "not-standalone", "no-push", "denied", "no-key"] as WebPushStatus[]) {
+      expect(switchLocked(s), s).toBe(true);
+      expect(reasonFor(s).length, s).toBeGreaterThan(10);
+    }
+    for (const s of ["off", "on", "native"] as WebPushStatus[]) expect(reasonFor(s), s).toBe("");
+    expect(reasonFor("denied")).toContain("phone or browser settings");
+  });
+
+  // AUDIT 2026-09-29 read this sentence as "open it from ther". The source has
+  // always been whole (the audit tool clips at 100 characters); pin it so a
+  // real truncation could not land unseen.
+  it("the Home Screen sentence is whole and ends where a sentence ends", () => {
+    expect(footFor("not-standalone")).toMatch(/then open it from there$/);
+    expect(footFor("not-standalone").length).toBeGreaterThan(100);
   });
 
   it("only off and on can be tapped", () => {

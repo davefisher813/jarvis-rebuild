@@ -247,6 +247,7 @@ export default function NoteEditor({
   saveState = "idle",
   onRetrySave,
   onBack,
+  backLabel = "Notes",
   onEditTitle,
   onDocChange,
   onConnections,
@@ -283,6 +284,9 @@ export default function NoteEditor({
   saveState?: SaveState;
   onRetrySave?: () => void;
   onBack: () => void;
+  /** What the back button says: "Notes" for a note opened from the list, the
+   *  origin's name for one another page opened. */
+  backLabel?: string;
   onEditTitle?: (text: string) => void;
   onDocChange: (doc: Doc) => void;
   onConnections?: () => void;
@@ -425,7 +429,7 @@ export default function NoteEditor({
   return (
     <div className="screen screen-editor ruled">
       <div className="nav-bar">
-        <button className="nav-back" onClick={onBack}>Notes</button>
+        <button className="nav-back" onClick={onBack}>{backLabel}</button>
         <span className="nav-title"></span>
         <div className="nav-actions">
           <button className="nav-action" onMouseDown={(e) => e.preventDefault()} onClick={() => void copy("full")} aria-label="Copy Note">

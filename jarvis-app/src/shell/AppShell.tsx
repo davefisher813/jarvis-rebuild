@@ -20,6 +20,7 @@ const BrainFlow = lazyWithRecovery(() => import("../brain/BrainFlow"));
 import { dismissSplash } from "../shared/splash";
 import SkeletonScreen from "../shared/SkeletonScreen";
 import { DEFAULT_TABS, DESTINATIONS, MAX_TABS, extrasFor, migrateTabs } from "./destinations";
+import type { MoreRoute } from "../more/MorePage";
 import { NavOriginProvider, type NavOrigin } from "./navOrigin";
 import ReturnPill from "./ReturnPill";
 import { useTasks, useSchedule, useCategories, useProfile, useAreas, useGoals, useProjects, useMoney, usePeople, useDecisions, useOptionalSeal, useGym, useSettings } from "../data/NotesProvider";
@@ -128,7 +129,7 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
     return true;
   };
   // Deep-link into a More subpage (Email's Open Connections, Catalog V3.1).
-  const [moreRoute, setMoreRoute] = useState<"connections" | null>(null);
+  const [moreRoute, setMoreRoute] = useState<MoreRoute | null>(null);
   // THE ONE-SHOT INTENTS (the B5 group, 2026-09-05). Every one of these used
   // to be a bare id read once by a child at its own mount and cleared only by
   // a manual tab tap, which is why a deep link into the tab you were already
@@ -275,6 +276,17 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
 
   const [captureOpen, setCaptureOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+
+  // FIRST TAP, FIRST FETCH (audit 2026-09-29). Quick Capture and Search are
+  // lazy chunks reached from the always-visible dock, so the first tap was
+  // also the first network fetch of the chunk, and a slow or stale one threw
+  // straight past every boundary to the root "Reload Fixes It" card. Warm both
+  // shortly after boot (best effort; the real mount still runs the full
+  // recovery ladder), so the tap finds them already in the module cache.
+  useEffect(() => {
+    const t = setTimeout(() => { QuickCapture.preload(); SearchFlow.preload(); }, 1500);
+    return () => clearTimeout(t);
+  }, []);
 
   // Bootstrap: seed default categories, publish them to the resolver, optionally
   // seed demo data, and load the saved tab layout. Runs before anything renders.
@@ -643,14 +655,14 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
             every once-per-open job (the sweep, the autopay roll, the spot,
             the Day Loop draft, Fresh Start, the mail dismissals) runs for
             the new day instead of yesterday's. See shell/useDayKey.ts. */}
-        {active === "today" && <TodayFlow key={dayKey} focusNonce={focusIntent.nonce} onFocusOpened={focusIntent.clear} onStartNow={(id) => jump(() => { startIntent.fire(id); goLife("tasks"); })} reminderOpenId={reminderIntent.value} reminderNonce={reminderIntent.nonce} onReminderOpened={reminderIntent.clear} onOpenEntity={(kind, id) => void navigateToEntity(kind, id)} onGoSchedule={() => jump(() => setActive("schedule"))} onGoTasks={() => jump(() => goLife("tasks"))} onGoTasksAll={() => jump(() => { goLife("tasks"); taskFilterIntent.fire("all"); })} onGoTasksOverdue={() => jump(() => { goLife("tasks"); taskFilterIntent.fire("overdue"); })} onSearch={() => setSearchOpen(true)} onProfile={() => setActive("more")} onEditRoutine={goToRoutine} onGoEmail={(threadId?: string, draftId?: string) => jump(() => { if (threadId) mailIntent.fire(threadId); else mailIntent.clear(); if (draftId) draftIntent.fire(draftId); else draftIntent.clear(); setActive("messages"); })} onOpenNote={navigateToNote} onOpenProject={(id) => void navigateToEntity("project", id)} onRestoreSpot={(kind, id) => { if (kind === "note") navigateToNote(id); else if (kind === "gym") { brainIntent.fire(id); gymIntent.fire(true); setActive("brain"); } else void navigateToEntity(kind, id); }}
+        {active === "today" && <TodayFlow key={dayKey} focusOpen={focusIntent.value === true} focusNonce={focusIntent.nonce} onFocusOpened={focusIntent.clear} onStartNow={(id) => jump(() => { startIntent.fire(id); goLife("tasks"); })} reminderOpenId={reminderIntent.value} reminderNonce={reminderIntent.nonce} onReminderOpened={reminderIntent.clear} onOpenEntity={(kind, id) => void navigateToEntity(kind, id)} onGoSchedule={() => jump(() => setActive("schedule"))} onGoTasks={() => jump(() => goLife("tasks"))} onGoTasksAll={() => jump(() => { goLife("tasks"); taskFilterIntent.fire("all"); })} onGoTasksOverdue={() => jump(() => { goLife("tasks"); taskFilterIntent.fire("overdue"); })} onSearch={() => setSearchOpen(true)} onProfile={() => { setMoreRoute("account"); setActive("more"); }} onEditRoutine={goToRoutine} onGoEmail={(threadId?: string, draftId?: string) => jump(() => { if (threadId) mailIntent.fire(threadId); else mailIntent.clear(); if (draftId) draftIntent.fire(draftId); else draftIntent.clear(); setActive("messages"); })} onOpenNote={navigateToNote} onOpenProject={(id) => void navigateToEntity("project", id)} onRestoreSpot={(kind, id) => { if (kind === "note") navigateToNote(id); else if (kind === "gym") { brainIntent.fire(id); gymIntent.fire(true); setActive("brain"); } else void navigateToEntity(kind, id); }}
           /* UP-MIND-24 (2026-09-05): the meeting line's two taps. Both go to
              screens that already answer the question: the person's own card
              for what is open, and Chat for what you told them. */
           onOpenPerson={(personId) => void navigateToEntity("person", personId)}
           onAskSaid={(personId) => jump(() => { chatAskIntent.fire(personId); setActive("chat"); })} onGoBigger={(goalId?: string) => jump(() => { if (goalId) goalIntent.fire(goalId); else goalIntent.clear(); goLife("goals"); })} />}
         {active === "life" && <LifeFlow segment={lifeSegment} segmentNav={lifeNav} taskOpenId={taskIntent.value} taskNonce={taskIntent.nonce} onTaskOpened={taskIntent.clear} startOpenId={startIntent.value} startNonce={startIntent.nonce} onStartConsumed={startIntent.clear} taskFilter={taskFilterIntent.value} filterNonce={taskFilterIntent.nonce} onFilterApplied={taskFilterIntent.clear} projectOpenId={projectIntent.value} projectNonce={projectIntent.nonce} onProjectOpened={projectIntent.clear} goalOpenId={goalIntent.value} goalNonce={goalIntent.nonce} onGoalOpened={goalIntent.clear} onOpenNote={navigateToNote} onWhatNow={openFocus} onOpenDecision={(id) => void navigateToEntity("decision", id)} onGoEmail={(threadId) => jump(() => { mailIntent.fire(threadId); setActive("messages"); })} onOpenEntity={(kind, id) => void navigateToEntity(kind, id)} onOpenCategory={(id) => void navigateToEntity("category", id)} />}
-        {active === "schedule" && <ScheduleFlow onEditRoutine={goToRoutine} openId={eventIntent.value} onNavigate={(kind, id) => void navigateToEntity(kind, id)} />}
+        {active === "schedule" && <ScheduleFlow onEditRoutine={goToRoutine} openId={eventIntent.value} openNonce={eventIntent.nonce} onOpenConsumed={eventIntent.clear} onNavigate={(kind, id) => void navigateToEntity(kind, id)} />}
         {active === "brain" && <BrainFlow openKey={brainIntent.value} openNonce={brainIntent.nonce} onKeyConsumed={brainIntent.clear} routineBlockId={routineBlockIntent.value} onRoutineBlockConsumed={routineBlockIntent.clear} personOpenId={personIntent.value} personNonce={personIntent.nonce} onPersonConsumed={personIntent.clear} decisionOpenId={decisionIntent.value} decisionNonce={decisionIntent.nonce} onDecisionConsumed={decisionIntent.clear} factOpenId={factIntent.value} factNonce={factIntent.nonce} onFactConsumed={factIntent.clear} onOpenNote={navigateToNote} onOpenProject={(id) => void navigateToEntity("project", id)} onOpenEntity={(kind, id) => void navigateToEntity(kind, id)} onOpenMoney={() => jump(() => setActive("money"))} autoOpenGym={gymIntent.value === true} gymNonce={gymIntent.nonce} onGymConsumed={gymIntent.clear} healthLogKey={healthLogIntent.value} healthLogNonce={healthLogIntent.nonce} onHealthLogConsumed={healthLogIntent.clear} />}
         {active === "notes" && <NotesFlow seed={seedDemo} onChrome={(c) => setNotesChrome(c.tabBar)} onNavigate={navigateToEntity} openId={noteIntent.value} openNonce={noteIntent.nonce} onOpenConsumed={noteIntent.clear} />}
 
@@ -720,8 +732,12 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
           }} />
         </>
       )}
-      {captureOpen && <Suspense fallback={null}><QuickCapture ai={ai} onClose={() => setCaptureOpen(false)} onOpen={(kind, id) => void navigateToEntity(kind, id)} /></Suspense>}
-      {searchOpen && <Suspense fallback={null}><SearchFlow onClose={() => setSearchOpen(false)} onOpen={(kind, id) => {
+      {/* Each overlay wears its own boundary (audit 2026-09-29): they mount
+          outside the tab boundary above, so a failed chunk or a render crash
+          used to reach the root card. Now the sheet closes, a toast says so,
+          and the next tap starts a clean import (see lazyWithRecovery). */}
+      {captureOpen && <ErrorBoundary fallback={null} onFail={() => { setCaptureOpen(false); showToast({ message: "Couldn't Open Quick Capture · Try Again" }); }}><Suspense fallback={null}><QuickCapture ai={ai} onClose={() => setCaptureOpen(false)} onOpen={(kind, id) => void navigateToEntity(kind, id)} /></Suspense></ErrorBoundary>}
+      {searchOpen && <ErrorBoundary fallback={null} onFail={() => { setSearchOpen(false); showToast({ message: "Couldn't Open Search · Try Again" }); }}><Suspense fallback={null}><SearchFlow onClose={() => setSearchOpen(false)} onOpen={(kind, id) => {
         // A search hit becomes the open thing (2026-08-09). SHELL-F-21
         // (2026-09-05): an account is now one of them, so the only surface
         // still landing on its tab rather than its item is a category, which
@@ -730,7 +746,7 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
         // Areas tab needed the same door; one branch, two callers.
         if (kind === "account") jump(() => { accountIntent.fire(id); setActive("money"); });
         else void navigateToEntity(kind, id);
-      }} /></Suspense>}
+      }} /></Suspense></ErrorBoundary>}
     </div>
     </GoogleSessionProvider>
     </NavOriginProvider>

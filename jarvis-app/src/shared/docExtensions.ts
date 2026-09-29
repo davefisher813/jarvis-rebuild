@@ -58,7 +58,7 @@ function foldDecorations(state: EditorState, folded: number[]): DecorationSet {
   doc.forEach((node, offset) => {
     if (node.type.name !== "heading") return;
     const open = !folded.includes(offset);
-    decos.push(Decoration.widget(offset + 1, () => {
+    decos.push(Decoration.widget(offset + 1, (view) => {
       const b = document.createElement("button");
       b.type = "button";
       b.className = "doc-fold" + (open ? "" : " closed");
@@ -66,6 +66,20 @@ function foldDecorations(state: EditorState, folded: number[]): DecorationSet {
       b.setAttribute("aria-expanded", open ? "true" : "false");
       b.setAttribute("data-fold-pos", String(offset));
       b.contentEditable = "false";
+      // THE TAP LIVES ON THE BUTTON (click-through audit, 2026-09-29: "Fold
+      // section / Agenda fold: no visible folding on repeated clicks"). The
+      // widget says stopEvent: true, which tells ProseMirror to ignore every
+      // event that starts on it, so the plugin's handleClick below was never
+      // reached from a real tap; the tests toggled by command and never
+      // noticed. The button now carries its own click, and its mousedown is
+      // held so a tap does not move the caret or raise the keyboard.
+      b.addEventListener("mousedown", (e) => e.preventDefault());
+      b.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const pos = Number(b.getAttribute("data-fold-pos"));
+        if (Number.isFinite(pos)) view.dispatch(view.state.tr.setMeta(foldKey, { toggle: pos }));
+      });
       return b;
     }, { side: -1, key: "fold-" + offset + "-" + (open ? "o" : "c"), stopEvent: () => true, ignoreSelection: true }));
     if (!open) {

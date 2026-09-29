@@ -3,6 +3,7 @@ import { useSwipe } from "../shared/useSwipe";
 import { useLongPress } from "../shared/useLongPress";
 import { haptics } from "../shared/haptics";
 import { Quiet } from "./quiet";
+import { X } from "../shared/icons";
 
 // THE NOTICE LAW (A1, 2026-08-20), extended by FORM FOLLOWS DECISION
 // (Law 3E, approved 2026-08-22).
@@ -61,6 +62,7 @@ export default function NoticeCard({
   action,
   alt,
   onDismiss,
+  dismissButton = false,
   onDelete,
   onOpen,
   foot,
@@ -94,6 +96,17 @@ export default function NoticeCard({
   // swipe reveal elsewhere.
   alt?: NoticeAction;
   onDismiss?: () => void;
+  /** A VISIBLE DISMISS, FOR A CARD OUTSIDE THE STREAM (audit 2026-09-29, the
+   *  Brain suggestion banner: "the Add button hit area overlaps the Dismiss X
+   *  so X is untappable"). Dismiss is a swipe reveal that sits UNDER the card
+   *  at its right edge, which is exactly where the card's own capsule is, so
+   *  on a card whose reader never swipes (a mouse, VoiceOver, a switch) the
+   *  reveal is a control nothing can reach. With this on, Dismiss is a real
+   *  44px button in the card's own row, after the capsule as a flex sibling,
+   *  so the two hit areas cannot overlap by construction, and the hidden
+   *  reveal is not rendered (one Dismiss, not two). The Today stream never
+   *  passes it: there the corner x stays banned (laws.test.ts). */
+  dismissButton?: boolean;
   // Trashes the underlying mail, not just this card (2026-08-26, Dave: "I
   // should be able to delete from here"). Separate from onDismiss, which
   // only ever hid the notice and left the email exactly where it was, a
@@ -260,7 +273,8 @@ export default function NoticeCard({
   });
   // Both forms keep alt on the swipe reveal.
   const altOnReveal = alt;
-  const acts = (altOnReveal ? 1 : 0) + (onDismiss ? 1 : 0) + (onDelete ? 1 : 0);
+  const revealDismiss = !!onDismiss && !dismissButton;
+  const acts = (altOnReveal ? 1 : 0) + (revealDismiss ? 1 : 0) + (onDelete ? 1 : 0);
   const swipe = useSwipe({ revealW: acts * 88, enabled: acts > 0 });
   // UP-CORE-14: the hold that opens the tuning sheet. Only on a card that
   // names its producer, so an ordinary notice keeps every gesture it had.
@@ -279,6 +293,11 @@ export default function NoticeCard({
 
   // TWO VERBS, ONE LINE (2026-09-12): an expanded row with an alt puts both
   // its verbs on the line under the text, and the trailing slot goes empty.
+  const xButton = onDismiss && dismissButton ? (
+    <button type="button" className="notice-x" aria-label="Dismiss" onClick={(e) => { e.stopPropagation(); onDismiss(); }}>
+      <X className="ic" />
+    </button>
+  ) : null;
   const twoVerbs = !!alt && effForm === "card" && form === "row";
   const inner =
     effForm === "row" ? (
@@ -306,6 +325,7 @@ export default function NoticeCard({
         ) : (
           <div className="chev" />
         )}
+        {xButton}
       </div>
     ) : (
       <>
@@ -331,9 +351,10 @@ export default function NoticeCard({
             >
               {action.label}
             </button>
-          ) : onOpen && !twoVerbs ? (
+          ) : onOpen && !twoVerbs && !xButton ? (
             <div className="chev" />
           ) : null}
+          {xButton}
         </div>
         {action && stack && (
           <div className="notice-stack">
@@ -381,7 +402,7 @@ export default function NoticeCard({
   // per pair does not scale past two.
   let slot = 0;
   const deleteRight = onDelete ? slot++ * 88 : 0;
-  const dismissRight = onDismiss ? slot++ * 88 : 0;
+  const dismissRight = revealDismiss ? slot++ * 88 : 0;
   const altRight = altOnReveal ? slot++ * 88 : 0;
 
   return (
@@ -400,7 +421,7 @@ export default function NoticeCard({
             {altOnReveal.label}
           </button>
         )}
-        {onDismiss && (
+        {revealDismiss && (
           <button
             className="notice-dismiss"
             data-reveal

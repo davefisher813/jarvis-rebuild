@@ -10,7 +10,7 @@ import { fmtTime } from "../schedule/calendar";
 import { showToast } from "../shared/toast";
 import { attemptWrite } from "../shared/guard";
 import { useAccessToken } from "../data/NotesProvider";
-import { currentStatus, enableWebPush, disableWebPush, sendTestAlert, resubscribeIfNeeded, footFor, switchLocked, type WebPushStatus } from "../shared/webPush";
+import { currentStatus, enableWebPush, disableWebPush, sendTestAlert, resubscribeIfNeeded, footFor, reasonFor, switchLocked, type WebPushStatus } from "../shared/webPush";
 
 type Prefs = { overdue: boolean; events: boolean; goals: boolean; checkins: boolean; rest: boolean };
 const DEFAULT: Prefs = { overdue: true, events: true, goals: true, checkins: true, rest: true };
@@ -73,7 +73,7 @@ export default function NotificationsPage({ onBack }: { onBack: () => void }) {
     const p: Promise<string> = web === "on" ? disableWebPush(deps).then((ok) => (ok ? "off" : "failed")) : enableWebPush(deps);
     void p.then((r) => {
       setWebBusy(false);
-      if (r === "denied") showToast({ message: "Notifications Are Off for JARVIS in iOS Settings" });
+      if (r === "denied") showToast({ message: "Notifications Are Blocked for JARVIS · Allow Them in Your Phone or Browser Settings" });
       else if (r === "dismissed") showToast({ message: "Not Allowed Yet · Turn It on Whenever You Are Ready" });
       else if (r === "no-key") showToast({ message: "The Server Has No Push Key Yet" });
       else if (r === "failed") showToast({ message: "Could Not Change Alerts on This Phone · Try Again" });
@@ -109,7 +109,10 @@ export default function NotificationsPage({ onBack }: { onBack: () => void }) {
         <>
           <Head label="This Phone" />
           <Card>
-            <Switch label="Alerts on this phone" meta={web === null ? "Checking" : undefined} on={web === "on"} locked={web === null || webBusy || switchLocked(web)} onToggle={toggleWeb} ariaLabel="Alerts on this phone" />
+            {/* A locked switch says why, on the row and again on a tap (audit
+                2026-09-29: it stayed off and nothing said so). */}
+            <Switch label="Alerts on this phone" meta={web === null ? "Checking" : reasonFor(web) || undefined} on={web === "on"} locked={web === null || webBusy || switchLocked(web)} onToggle={toggleWeb} ariaLabel="Alerts on this phone"
+              onLocked={() => { if (web !== null && switchLocked(web)) showToast({ message: reasonFor(web) }); }} />
             {web === "on" && <Row label={webTesting ? "Sending" : "Send a Test Alert"} meta="Arrives in a few seconds" onClick={() => void sendWebTest()} disabled={webTesting} chev />}
           </Card>
         </>

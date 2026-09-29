@@ -118,12 +118,15 @@ function DetectorRow({ r }: { r: Readiness }) {
 // C-38 fix (2026-09-13): `focused` marks the one row a Needs You tap named,
 // so landing here reads as an answer to that specific tap instead of the
 // same generic list every watching row used to open on.
-function WordRow({ r, focused = false, onTell }: { r: Readiness; focused?: boolean; onTell?: () => void }) {
+function WordRow({ r, focused = false, onTell, onOpen }: { r: Readiness; focused?: boolean; onTell?: () => void; onOpen?: () => void }) {
   const w = readinessWord(r.state);
   return (
     // Row tap (Dave 2026-09-15, "I want all rows clickable"): a counting
     // detector has no fact to open yet, so any row says it outright.
-    <div id={"rdy-" + r.key} className={"row rdy-row" + (focused ? " rdy-row-focus" : "")} {...(onTell ? pressable(onTell) : {})}>
+    // Audit 2026-09-29: the row opens ITS DETAIL when the page gave it one; it
+    // used to go straight to the Add One Thing form. Without onOpen (a caller
+    // with no detail to show) it keeps saying it outright.
+    <div id={"rdy-" + r.key} className={"row rdy-row" + (focused ? " rdy-row-focus" : "")} {...(onOpen ? pressable(onOpen) : onTell ? pressable(onTell) : {})}>
       <div className="row-grow"><div className="conn-name">{r.label}</div></div>
       <span className={"fact st " + toneForReadinessWord(w)}>{w}</span>
       {/* THE ROW HE TAPPED CAN BE TOLD (Dave 2026-09-13: "I clicked on when
@@ -136,7 +139,7 @@ function WordRow({ r, focused = false, onTell }: { r: Readiness; focused?: boole
   );
 }
 
-export default function ReadinessPanel({ read, today, variant = "words", focusKey, onTell }: { read: ReadinessRead; today: string; variant?: "words" | "lab"; focusKey?: string; onTell?: (key: string) => void }) {
+export default function ReadinessPanel({ read, today, variant = "words", focusKey, onTell, onOpen }: { read: ReadinessRead; today: string; variant?: "words" | "lab"; focusKey?: string; onTell?: (key: string) => void; onOpen?: (key: string) => void }) {
   // C-38 fix: land ON the row a Needs You tap named, the same "land on the
   // sentence, not the thread" pattern MessagesFlow uses for a deep-linked
   // message, rather than just opening the same list every watching row did.
@@ -161,7 +164,7 @@ export default function ReadinessPanel({ read, today, variant = "words", focusKe
       <>
         <div className="sh2 sh2-quiet"><span className="t">Readiness</span><span className="n">{read.rows.length}</span></div>
         <div className="pad-x"><div className="card list-card-ruled">
-          {read.rows.map((r) => <WordRow r={r} focused={r.key === focusKey} onTell={onTell ? () => onTell(r.key) : undefined} key={r.key} />)}
+          {read.rows.map((r) => <WordRow r={r} focused={r.key === focusKey} onTell={onTell ? () => onTell(r.key) : undefined} onOpen={onOpen ? () => onOpen(r.key) : undefined} key={r.key} />)}
           {/* Not a button: the Lab is three taps away under Settings and
               this page has no door into More. The line says where, which
               is the receipt's whole job. */}

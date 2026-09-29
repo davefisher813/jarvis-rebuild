@@ -49,3 +49,19 @@ describe("TrainingPage: bar weight and plates (S5-Q32)", () => {
     await waitFor(() => expect(readGymSettings().plates).toContain(20));
   });
 });
+
+// AUDIT 2026-09-29 read the rack hint as "Inkg." / "Inlb." (no space). The
+// source has a space (it is JSX text plus an interpolation, which a reader
+// that joins text nodes without separators can garble). Not a bug in the app;
+// this pins the sentence a person is shown.
+describe("TrainingPage: the unit hint", () => {
+  beforeEach(() => { localStorage.clear(); });
+
+  it("reads 'In lb.' and 'In kg.' with the space, as one piece of text", () => {
+    render(<TrainingPage onBack={() => {}} />);
+    const hint = () => document.querySelector(".input-hint")!;
+    expect(hint().textContent).toMatch(/^In lb\. A lift logged/);
+    fireEvent.click(screen.getByText("kg", { selector: ".chip" }));
+    expect(hint().textContent).toMatch(/^In kg\. A lift logged/);
+  });
+});

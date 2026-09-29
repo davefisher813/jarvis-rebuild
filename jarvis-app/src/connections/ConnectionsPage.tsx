@@ -13,6 +13,8 @@ import { useLeaveVia } from "../shell/navOrigin";
 // account opens Google's chooser; reconnecting a known one uses a login hint
 // so the chooser stays out of the way. Honest "setup required" until a client
 // id exists.
+export const SIGNED_OUT_HELP = "Tap Reconnect to sign in again · Google asks once for access to Gmail, Calendar and Drive";
+
 export default function ConnectionsPage({
   onBack,
   configured = googleConfigured(),
@@ -161,6 +163,9 @@ export default function ConnectionsPage({
                     inbox with no reconnect anywhere; Reconnect All only
                     appeared when EVERY account was out. */}
                 {signedOut && <div className="facts"><span className="fact warn">Signed out</span></div>}
+                {/* Audit 2026-09-29: "Signed out" alone left no next step.
+                    Same scopes as ever; this only says what Reconnect does. */}
+                {signedOut && <div className="conn-meta">{SIGNED_OUT_HELP}</div>}
                 {/* A connection nothing has stored is shown as what it is
                     (2026-09-29): it works now and is gone at the next launch,
                     which is not what "Connected" has ever promised here. */}
