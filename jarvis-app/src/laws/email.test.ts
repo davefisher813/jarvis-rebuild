@@ -166,7 +166,7 @@ describe("EMAIL law 1: the composer autosaves locally, and only Cancel writes Gm
     expect(at, "MessagesFlow autosaves the compose").toBeGreaterThan(-1);
     const effect = FLOW.slice(FLOW.lastIndexOf("useEffect(", at), at + 900);
     expect(effect, "debounced a beat behind the keystroke").toMatch(/setTimeout\(/);
-    expect(effect, "keyed on every field").toMatch(/\[view, editingDraftId, draft\.to, draft\.cc, draft\.subject, draft\.body, draft\.threadId, draft\.account, draft\.inReplyTo\]/);
+    expect(effect, "keyed on every field").toMatch(/\[view, editingDraftId, draft\.to, draft\.cc, draft\.subject, draft\.body, draft\.threadId, draft\.account, draft\.inReplyTo, draft\.sourceRevision, draft\.overrides\]/);
   });
   it("cancelCompose's Gmail write path is untouched, and it is the only one", () => {
     const at = FLOW.indexOf("const cancelCompose = async () => {");
@@ -239,36 +239,62 @@ describe("EMAIL law 2: every manual task path asks for an existing task first", 
 // calendar. The event exists only after the tap, and the whole difference
 // between the two is one line of code, so the line is nailed down here.
 describe("EMAIL law 9: a meeting the mail mentions is filed only on the tap", () => {
-  const CARD = read(join(SRC, "messages/ThreadStateCard.tsx"));
-  it("the brief's meeting has exactly one writer, and it is the tap handler", () => {
-    const at = FLOW.indexOf("const addMeetingToCalendar =");
-    expect(at, "the tap handler exists").toBeGreaterThan(-1);
-    const body = FLOW.slice(at, FLOW.indexOf("\n  };", at));
-    expect(body, "and it is what writes the event").toMatch(/scheduleSvc\.createEvent\(m\.title/);
-    // Nowhere else in the screen may write an event out of a brief.
-    expect(FLOW.match(/createEvent\(m\.title/g)?.length, "one meeting writer").toBe(1);
+  // REWRITTEN 2026-09-29. The offer moved out of ThreadStateCard into
+  // MeetingFinishCard, and its writer out of MessagesFlow into
+  // emailSchedule.addEmailMeetingOnce (one idempotent door for the card, the
+  // .ics attachment and the Today notification actions). The rule is the same
+  // one line: reading earns the offer, only a tap writes.
+  const CARD = read(join(SRC, "messages/MeetingFinishCard.tsx"));
+  const STATE_CARD = read(join(SRC, "messages/ThreadStateCard.tsx"));
+  const DOOR = read(join(SRC, "messages/emailSchedule.ts"));
+  it("an email's appointment has exactly one writer, and it is the one door", () => {
+    expect(DOOR, "the door writes the event with its idempotency key and provenance").toMatch(/svc\.createEvent\(title, \{[\s\S]*?clientId: cid/);
+    expect(DOOR.match(/svc\.createEvent\(/g)?.length, "one appointment writer").toBe(1);
+    // Nowhere else in the mail screens is an appointment made out of a brief.
+    expect(FLOW, "the old inline writer is gone").not.toMatch(/createEvent\(m\.title/);
+    expect(FLOW, "the old inline writer is gone").not.toMatch(/const addMeetingToCalendar =/);
+    expect(CARD, "the card writes through the door").not.toMatch(/createEvent\(/);
+    expect(CARD).toMatch(/addEmailMeetingOnce\(/);
+    // The .ics attachment offer goes through the same door.
+    expect(FLOW).toMatch(/addEmailMeetingOnce\(\{ scheduleSvc, candidate: cand/);
+  });
+  it("the state card has no calendar action of its own", () => {
+    expect(STATE_CARD).not.toMatch(/onAddToCalendar|calendarState|Add to Calendar/);
   });
   it("nothing schedules it: no effect and no timer reaches the writer", () => {
     // Every call site of the writer must sit in a handler the person
     // pressed. An effect or a timeout around it would be the automatic
     // save he explicitly did not want.
-    for (const m of FLOW.matchAll(/addMeetingToCalendar\(/g)) {
-      const before = FLOW.slice(Math.max(0, m.index - 400), m.index);
-      const decl = /const addMeetingToCalendar =\s*$/.test(before.trimEnd() + "");
-      if (decl) continue;
-      expect(before, "a call to the writer sits inside an effect or a timer")
-        .not.toMatch(/useEffect\(|setTimeout\(|setInterval\(/);
+    for (const [name, src] of [["MessagesFlow", FLOW], ["MeetingFinishCard", CARD]] as const) {
+      for (const m of src.matchAll(/addEmailMeetingOnce\(/g)) {
+        const before = src.slice(Math.max(0, m.index - 500), m.index);
+        expect(before, name + ": a call to the writer sits inside an effect or a timer")
+          .not.toMatch(/useEffect\(|setTimeout\(|setInterval\(/);
+      }
     }
-    // And the card itself has no lifecycle at all: it cannot fire the offer
-    // for him on render.
-    expect(CARD, "ThreadStateCard runs an effect").not.toMatch(/useEffect/);
+    // The card's one effect only LOOKS. It names no writer at all.
+    const effects = [...CARD.matchAll(/useEffect\(\(\) => \{([\s\S]*?)\n  \}, \[/g)].map((m) => m[1]!);
+    expect(effects.length, "the card looks for what is already filed").toBe(1);
+    expect(effects[0]).not.toMatch(/addEmailMeetingOnce|createEvent|deleteEvent|recreateFrom|reviseFiledMeeting|applyEventDraft|moveDay|edit[A-Z]/);
+    // And the state card has no lifecycle at all.
+    expect(STATE_CARD, "ThreadStateCard runs an effect").not.toMatch(/useEffect/);
   });
   it("opening the thread only LOOKS for an event, it never makes one", () => {
-    const at = FLOW.indexOf("const findFiledMeeting =");
+    const at = DOOR.indexOf("export async function findFiledMeeting");
     expect(at).toBeGreaterThan(-1);
-    const body = FLOW.slice(at, FLOW.indexOf("\n  }, [scheduleSvc]);", at));
-    expect(body, "the load-time check writes").not.toMatch(/createEvent|updateEvent|deleteEvent/);
-    expect(body, "and it reads one day, not a scan").toMatch(/eventsOn\(m\.date\)/);
+    const body = DOOR.slice(at, DOOR.indexOf("\nasync function run(", at));
+    expect(body, "the load-time check writes").not.toMatch(/createEvent|updateEvent|deleteEvent|edit[A-Z]|moveDay|linkEmailIds/);
+    expect(body, "and it reads the events").toMatch(/listEvents\(\)/);
+  });
+  it("a cancellation never deletes: nothing in the card deletes except the person's own Delete Event", () => {
+    // deleteEvent appears in the card in exactly two places, Undo of its own
+    // add (through the door's confirmed undo, not directly) and the sheet's
+    // onDelete: never on a cancelled candidate by itself.
+    const calls = [...CARD.matchAll(/scheduleSvc\.deleteEvent\(/g)];
+    expect(calls.length).toBe(1);
+    const at = CARD.indexOf("const removeFiled = async");
+    expect(CARD.indexOf("scheduleSvc.deleteEvent(", at)).toBeGreaterThan(at);
+    expect(CARD).toMatch(/onDelete=\{\(\) => void removeFiled\(sheet\.offer\)\}/);
   });
 });
 

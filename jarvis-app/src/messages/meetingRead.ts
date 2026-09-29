@@ -177,7 +177,7 @@ function readTimes(text: string): TimeHit[] {
   const taken = (from: number) => used.some(([a, b]) => from >= a && from < b);
 
   // Ranges: "3-4 PM", "3 PM to 4 PM", "10:30 to 11:30 am", "from 9 until 10".
-  const range = /\b(\d{1,2})(?::(\d{2}))?\s*(am|pm)?\s*(?:-|–|—|to|until|till)\s*(\d{1,2})(?::(\d{2}))?\s*(am|pm)?\b/gi;
+  const range = /\b(\d{1,2})(?::(\d{2}))?\s*(am|pm)?\s*(?:-|\u2013|to|until|till)\s*(\d{1,2})(?::(\d{2}))?\s*(am|pm)?\b/gi;
   for (const m of t.matchAll(range)) {
     const h1 = +m[1]!, mi1 = m[2] ? +m[2] : 0, h2 = +m[4]!, mi2 = m[5] ? +m[5] : 0;
     if (h1 < 1 || h1 > 12 || h2 < 1 || h2 > 12 || mi1 > 59 || mi2 > 59) continue;
@@ -362,4 +362,16 @@ export function readWhen(sentence: string, sourceDay: string): WhenRead {
     conflicting: conflictingDays || conflictingTimes,
     signals,
   };
+}
+
+/**
+ * The hour a sentence named without saying AM or PM ("Tuesday at 3"), so the
+ * card can ask "3 AM or 3 PM" in the sender's own number instead of guessing
+ * which. Null when the sentence has no such hour, or has more than one.
+ */
+export function pendingHour(sentence: string): { hour: number; minute: number } | null {
+  const hits = readTimes(sentence.replace(/\s+/g, " ")).filter((t) => t.ambiguous && t.hour !== undefined && !t.endAmbiguous);
+  const all = readTimes(sentence.replace(/\s+/g, " "));
+  if (hits.length !== 1 || all.length !== 1) return null;
+  return { hour: hits[0]!.hour!, minute: hits[0]!.minute ?? 0 };
 }

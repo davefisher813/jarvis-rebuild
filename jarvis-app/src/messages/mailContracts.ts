@@ -46,7 +46,7 @@ export interface MeetingCandidate {
   dayPart?: "morning" | "afternoon" | "evening";
   /** What still has to be asked before this can go on a calendar. */
   missing: MeetingMissing[];
-  /** "stated" when the sender gave a length; "default" is shown as "1 hour · default", never as theirs. */
+  /** "stated" when the sender gave a length; "default" is shown as "1h · Default", never as theirs. */
   durationSource: "stated" | "default";
 }
 

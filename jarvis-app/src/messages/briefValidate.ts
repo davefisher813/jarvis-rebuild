@@ -93,7 +93,7 @@ export function validateMeetingCandidates(raw: unknown, ctx: ValidateContext): M
     let end = when.conflicting ? undefined : when.end;
     let durationSource: "stated" | "default" = when.durationStated && end ? "stated" : "default";
     if (start && !end) {
-      // The default is a default: it is drawn as "1 hour · default" and never
+      // The default is a default: it is drawn as "1h · Default" and never
       // as the sender's own length. It stays inside the day.
       end = minToHhmm(Math.min(24 * 60 - 1, hhmmToMin(start) + DEFAULT_MEETING_MIN));
       durationSource = "default";

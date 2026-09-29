@@ -39,7 +39,15 @@ import MailSwipe from "./MailSwipe";
 import LetGoSwipe from "./LetGoSwipe";
 import { loadMuted, mute, unmute, dropMuted } from "./mute";
 import { parseUnsub, unsubLabel, unsubLine, UNSUB_SUBJECT, UNSUB_BODY, type Unsub } from "./unsubscribe";
-import { BRIEF_SYSTEM, briefPrompt, parseBrief, briefFor, saveBrief, type ConfirmedMeeting } from "./brief";
+import { briefFor, isCurrentBrief, loadBriefs, type Brief } from "./brief";
+import { ensureThreadBrief } from "./threadBrief";
+import { revisionOf } from "./briefSource";
+import MeetingFinishCard, { type MeetingNotice } from "./MeetingFinishCard";
+import ReplyCoverage from "./ReplyCoverage";
+import { useReplyRequirements, replySourceOf } from "./useReplyRequirements";
+import { addEmailMeetingOnce, icsToCandidate } from "./emailSchedule";
+import { proposedFromBrief } from "./meetingOffers";
+import type { CoverageOverride } from "./replyCoverage";
 import { loadRows, loadAccount, mirrorRows, isFresh, markRead, invalidate as invalidateReads, dropLegacyMailCache, FRESH_MS, type ReadKind } from "./mailCache";
 import { refreshInboxAccounts, loadMoreInbox, ensureThreadAnalysis, loadFullInboxIndex, markGone, unmarkGone, MAIL_PAGE } from "./inboxRefresh";
 import { useUserId } from "../data/NotesProvider";
@@ -64,7 +72,7 @@ import { handoffTargets, defaultNote, handoffPrompt, forwardSubject, forwardDraf
 import { alreadyPromised, loadPromised } from "./commitments";
 import { saveMailSnapshot, mailNotices, loadMailSnapshot, byLabel, type MailMeeting } from "./home";
 import EvidenceChip from "./EvidenceChip";
-import ThreadStateCard, { whenLine } from "./ThreadStateCard";
+import ThreadStateCard from "./ThreadStateCard";
 import DecisionCaptureSheet from "../decisions/DecisionCaptureSheet";
 import { anchorNeedsYou, needsAnchor, ANCHOR_CAP } from "./evidencePass";
 import { makePersonIdFor, noPersonId, type PersonIdFor } from "./personFor";
@@ -156,7 +164,7 @@ import { nextOpening, BOOK_MIN } from "./bookTime";
 
 import { suggestAttachment, suggestLine, noteAsText, attachmentFilename, type AttachSuggestion, type Candidate } from "./attachSuggest";
 import { staleDrafts, staleLine, loadOffered } from "./staleDrafts";
-import { draftKey, loadLocalDraft, loadLocalDrafts, saveLocalDraft, clearLocalDraft, continuableReply, restoreInto, type LocalDrafts } from "./composeDraft";
+import { draftKey, loadLocalDraft, loadLocalDrafts, saveLocalDraft, clearLocalDraft, continuableReply, restoreInto, carriedOverrides, type LocalDrafts } from "./composeDraft";
 import { findTaskForThread, taskTitleOf } from "./dupTaskGuard";
 import LaterSheet, { TONIGHT_HHMM, type LaterPick } from "./LaterSheet";
 import { snoozeNotice } from "./snoozeNotice";
@@ -181,7 +189,11 @@ import { b64urlDecodeBytes } from "../connections/google/map";
 import { lineCase } from "../shared/casing";
 import { clockLabel, minutesLabel, secondsLabel } from "../shared/duration";
 
-type Draft = { to: string; cc?: string; subject: string; body: string; html?: string; inReplyTo?: string; threadId?: string; fromDeck?: boolean; account?: string; handoffTo?: string; attachment?: EmailAttachment; modelBody?: string };
+// sourceRevision and overrides are REPLY COVERAGE'S: the conversation revision a
+// reply was started against (with threadId and account, the source it answers),
+// and the marks made by hand on its checklist. A new compose and a forward
+// carry neither; they are not replies.
+type Draft = { to: string; cc?: string; subject: string; body: string; html?: string; inReplyTo?: string; threadId?: string; fromDeck?: boolean; account?: string; handoffTo?: string; attachment?: EmailAttachment; modelBody?: string; sourceRevision?: string; overrides?: Record<string, CoverageOverride> };
 // EMAIL-F-13 (2026-09-05): a draft belongs to the account that listed it.
 // Without the tag, opening a second-account draft went through the first
 // account's api and 404'd, and a legacy draft sent from the wrong address.
@@ -1075,11 +1087,17 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
         const full = mapThreadFull(await api.getThread(r.id));
         const last = full.messages[full.messages.length - 1];
         if (!last) continue;
-        const raw = await ai.complete(
-          [{ role: "user", content: meetingPrompt(displayName(r.from), full.subject, cleanBody(last.body), todayIso) }],
-          MEETING_SYSTEM,
-        );
-        const times = parseMeetingTimes(raw, todayIso);
+        // ONE READING, NOT TWO (2026-09-29). When the thread's brief was read
+        // by the v4 call, the times the sender PROPOSED are already in it
+        // (meetingCandidates, checked in code), so this pass does not ask the
+        // model the same question of the same message a second time.
+        const read = briefFor(last.id, loadBriefs(), scopeOf(accountOfThread(r.id) ?? ""));
+        const times = isCurrentBrief(read) && read.meetingCandidates
+          ? proposedFromBrief(read.meetingCandidates)
+          : parseMeetingTimes(await ai.complete(
+            [{ role: "user", content: meetingPrompt(displayName(r.from), full.subject, cleanBody(last.body), todayIso) }],
+            MEETING_SYSTEM,
+          ), todayIso);
         if (times.length === 0) continue;
         // Every day the sender named, checked against what is actually there.
         const days = [...new Set(times.map((t) => t.date))];
@@ -1773,6 +1791,17 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     rows.find((r) => r.id === id)?.account
     ?? results?.find((r) => r.id === id)?.account
     ?? deckRows?.find((r) => r.id === id)?.account;
+  // The conversation's latest message id as far as this screen knows it: the
+  // inbox row, a search hit, or the thread on screen. Undefined when it holds
+  // none of them, which is what a draft restored cold looks like.
+  const currentRevisionOf = (id: string): string | undefined =>
+    rows.find((r) => r.id === id)?.lastMsgId
+    ?? results?.find((r) => r.id === id)?.lastMsgId
+    ?? (thread && thread.id === id ? revisionOf(thread.messages, thread.id) : undefined);
+  // Every address the reader sends from. "You" in a conversation is decided by
+  // these, never by the model (briefSource.sourceMessages).
+  const selfEmailsFor = (account?: string): string[] =>
+    [...new Set([account ?? "", ...g.accounts.map((a) => a.email)].map((e) => e.trim().toLowerCase()).filter(Boolean))];
   // EMAIL-F-13: which account a sender's mail lands in, for the moves that
   // start from an address rather than from a thread (the unsubscribe sweep).
   const accountOfSender = (email: string) =>
@@ -1991,14 +2020,20 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     savePeek(peekUntil(windows, new Date()));
     setPeeked(true);
   };
-  // THE MEETING THE THREAD SETTLED ON (Dave 2026-09-16: "this should be
-  // EXTREMELY easy to add to the Jarvis calendar ... It should take ACTION
-  // if I want it to").
+  // THE THREAD'S ONE READING (2026-09-29). What the brief made of the open
+  // thread: the summary, the state card, and the three readings the appointment
+  // card and Reply Coverage stand on. It comes from ensureThreadBrief, the one
+  // door openThread and startReply share, and a reading that lands after Dave
+  // has opened another thread is ignored (activeThreadRef), so a slow answer
+  // for the last thread can never draw over this one.
   //
-  // Read on opening a thread, written only on the tap. "already" is set
-  // when an event made from THIS thread is found on the meeting's own day,
-  // so a second visit offers to open it rather than filing it twice.
-  const [calState, setCalState] = useState<"none" | "added" | "already">("none");
+  // The appointment itself (Dave 2026-09-16: "this should be EXTREMELY easy to
+  // add to the Jarvis calendar ... It should take ACTION if I want it to") is
+  // MeetingFinishCard's: read on opening, written only on the tap.
+  const [threadBriefOf, setThreadBrief] = useState<{ id: string; brief: Brief } | null>(null);
+  // Only ever the open thread's own: a reading set for another thread is not this one's.
+  const threadBrief = thread && threadBriefOf?.id === thread.id ? threadBriefOf.brief : null;
+  const activeThreadRef = useRef<string | null>(null);
   const [editWindows, setEditWindows] = useState(false);
   // E-14: the sheet's Save also carries the mirror choice; a change to
   // either is pushed to the profile so an opted-in device sees it next load.
@@ -2077,10 +2112,12 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
         ...(draft.threadId ? { threadId: draft.threadId } : {}),
         ...(draft.account ? { account: draft.account } : {}),
         ...(draft.inReplyTo ? { inReplyTo: draft.inReplyTo } : {}),
+        ...(draft.sourceRevision ? { sourceRevision: draft.sourceRevision } : {}),
+        ...(draft.overrides ? { overrides: draft.overrides } : {}),
       });
     }, 400);
     return () => clearTimeout(t);
-  }, [view, editingDraftId, draft.to, draft.cc, draft.subject, draft.body, draft.threadId, draft.account, draft.inReplyTo]);
+  }, [view, editingDraftId, draft.to, draft.cc, draft.subject, draft.body, draft.threadId, draft.account, draft.inReplyTo, draft.sourceRevision, draft.overrides]);
   useEffect(() => { setLocalDrafts(loadLocalDrafts()); }, [view]);
 
   const closeCompose = () => setView(thread && !editingDraftId ? "detail" : "list");
@@ -2212,46 +2249,6 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     say("Discarded", { label: "Undo", run: () => enqueueOutbox(item) });
   };
 
-  // THE TAP THAT FILES IT (Dave 2026-09-16). One event, from the time the
-  // thread settled on, stamped with the thread it came from so it can say
-  // where it came from later and so a second visit can find it.
-  //
-  // Nothing here runs on its own. Reading his mail is what earns the OFFER;
-  // it is not a licence to write to his calendar, and the whole point he
-  // made is that the app should take action when he wants it to.
-  const addMeetingToCalendar = async (threadId: string, m: ConfirmedMeeting) => {
-    if (!scheduleSvc) { say("A Calendar Isn't Connected"); return; }
-    // The id has to come back for the Undo, and attemptWrite answers with a
-    // boolean, so the id rides out through the closure the way TodayFlow's
-    // own creates already do.
-    let id: string | null = null;
-    const ok = await attemptWrite(async () => {
-      id = await scheduleSvc.createEvent(m.title, {
-        date: m.date, start: m.start, end: m.end,
-        source: madeBy("email", threadId),
-      });
-    });
-    if (!ok || !id) { say("Couldn't Add It \u00b7 Nothing Was Saved"); return; }
-    const eventId: string = id;
-    setCalState("added");
-    say("On Your Calendar \u00b7 " + whenLine(m, todayISO()), {
-      label: "Undo",
-      run: () => void (async () => {
-        await scheduleSvc.deleteEvent(eventId).catch(() => {});
-        setCalState("none");
-      })(),
-    });
-  };
-
-  /** Is this thread's meeting already filed? Read from the meeting's own
-   *  day only, so the check costs one local query and never a scan. */
-  const findFiledMeeting = useCallback(async (threadId: string, m: ConfirmedMeeting): Promise<string | null> => {
-    if (!scheduleSvc) return null;
-    const events = await scheduleSvc.eventsOn(m.date).catch(() => []);
-    const hit = events.find((e) => e.data.source?.type === "email" && e.data.source.ref === threadId);
-    return hit?.id ?? null;
-  }, [scheduleSvc]);
-
   // UP-MIND-12 (2026-09-05): `focusMsgId` is the message an evidence chip
   // pointed at. The thread opens scrolled to it and marks it, so "show me
   // where that came from" lands on the sentence rather than on the thread.
@@ -2268,9 +2265,10 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     setAttachDone(false);
     setSummary(null);
     setReplies(DEFAULT_ANSWERS);
-    // A new thread, a fresh answer about the calendar. Set on EVERY open so
-    // the last thread's "Added" cannot be read as this one's.
-    setCalState("none");
+    // A new thread, a fresh reading. Set on EVERY open so the last thread's
+    // appointment and checklist cannot be read as this one's.
+    setThreadBrief(null);
+    activeThreadRef.current = id;
     try {
       const full = mapThreadFull(await api.getThread(id));
       if (full.messages.length === 0) return;
@@ -2292,28 +2290,30 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
       // Routed through settleAll so the choice is visible rather than an
       // empty catch that reads like every other one that WAS a bug.
       void settleAll([id], () => api.modifyThread(id, [], ["UNREAD"]));
-      // ONE call for the summary and the replies, cached against the latest
-      // message id. Reopening a thread costs nothing until someone writes.
-      const lastId = full.messages[full.messages.length - 1]?.id || id;
-      const cached = briefFor(lastId);
-      if (cached) {
-        setSummary(cached.summary || null);
-        if (cached.replies.length) setReplies(cached.replies);
-        // Already filed? Asked once per open, against the meeting's own day.
-        if (cached.meeting) void findFiledMeeting(id, cached.meeting).then((hit) => { if (hit) setCalState("already"); });
-      } else if (ai.available) {
-        const convo = full.messages.slice(-4).map((m) => m.from + ": " + cleanBody(m.body).slice(0, 1200)).join("\n---\n");
-        if (convo.trim()) {
-          try {
-            // todayISO is what resolves "Monday at 3pm" into a real date.
-            const brief = parseBrief(await ai.complete([{ role: "user", content: briefPrompt(convo, todayISO()) }], BRIEF_SYSTEM));
-            if (brief) {
-              saveBrief(lastId, brief);
-              setSummary(brief.summary || null);
-              if (brief.replies.length) setReplies(brief.replies);
-              if (brief.meeting) void findFiledMeeting(id, brief.meeting).then((hit) => { if (hit) setCalState("already"); });
-            }
-          } catch { /* the thread still reads fine without either */ }
+      // ONE reading of the thread: the summary, the replies, the state card, the
+      // appointments and what is being asked, from one call cached against the
+      // account and the latest message id (threadBrief.ts). Reply asks for the
+      // same reading and joins it, so the thread is never read twice.
+      const account = accountOfThread(id) ?? "";
+      const scope = scopeOf(account);
+      const lastId = revisionOf(full.messages, id);
+      // A v3 summary still paints at once; the reading below upgrades it.
+      const shown = briefFor(lastId, loadBriefs(), scope);
+      if (shown) {
+        setThreadBrief({ id, brief: shown });
+        setSummary(shown.summary || null);
+        if (shown.replies.length) setReplies(shown.replies);
+      }
+      if (ai.available) {
+        const r = await ensureThreadBrief({
+          ai, scope, threadId: id, subject: full.subject, messages: full.messages, selfEmails: selfEmailsFor(account),
+        });
+        // Dave has opened something else since: this answer is not for the screen.
+        if (activeThreadRef.current !== id) return;
+        if (r.brief) {
+          setThreadBrief({ id, brief: r.brief });
+          setSummary(r.brief.summary || null);
+          if (r.brief.replies.length) setReplies(r.brief.replies);
         }
       }
     } catch (e) {
@@ -2955,7 +2955,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     const r = buildReply(lastMsg(t), "");
     setEditingDraftId(null);
     // E-26: a reply he was mid-way through on this thread comes back.
-    beginCompose(restoreInto<Draft>({ to: r.to, subject: r.subject, body: r.body, inReplyTo: r.inReplyTo, threadId: r.threadId, account: accountOfThread(t.id) }, loadLocalDraft("new")));
+    beginCompose(restoreInto<Draft>({ to: r.to, subject: r.subject, body: r.body, inReplyTo: r.inReplyTo, threadId: r.threadId, account: accountOfThread(t.id), sourceRevision: revisionOf(t.messages, t.id) }, loadLocalDraft("new")));
     setView("compose");
   };
   // S2-4: everyone else on the thread stays on the thread, as Cc, instead of
@@ -2965,7 +2965,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     const self = account || g.accounts[0]?.email || "";
     const r = buildReplyAll(lastMsg(t), self, "");
     setEditingDraftId(null);
-    beginCompose({ to: r.to, cc: r.cc, subject: r.subject, body: r.body, inReplyTo: r.inReplyTo, threadId: r.threadId, account });
+    beginCompose({ to: r.to, cc: r.cc, subject: r.subject, body: r.body, inReplyTo: r.inReplyTo, threadId: r.threadId, account, sourceRevision: revisionOf(t.messages, t.id) });
     setView("compose");
   };
   const startForward = (t: ThreadFull) => {
@@ -3030,13 +3030,18 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     const d = localDrafts[key];
     if (!d) return;
     setEditingDraftId(key === "new" ? null : key);
-    beginCompose({ to: d.to, cc: d.cc, subject: d.subject, body: d.body, inReplyTo: d.inReplyTo, threadId: d.threadId, account: d.account });
+    // Its checklist marks come back only if the conversation has not moved on
+    // since (composeDraft.carriedOverrides); the words always do.
+    beginCompose({
+      to: d.to, cc: d.cc, subject: d.subject, body: d.body, inReplyTo: d.inReplyTo, threadId: d.threadId, account: d.account,
+      ...(d.threadId ? carriedOverrides(d, currentRevisionOf(d.threadId)) : {}),
+    });
     setView("compose");
   };
   const quickReply = (t: ThreadFull, text: string) => {
     const r = buildReply(lastMsg(t), text);
     setEditingDraftId(null);
-    beginCompose({ to: r.to, subject: r.subject, body: text, inReplyTo: r.inReplyTo, threadId: r.threadId, account: accountOfThread(t.id) });
+    beginCompose({ to: r.to, subject: r.subject, body: text, inReplyTo: r.inReplyTo, threadId: r.threadId, account: accountOfThread(t.id), sourceRevision: revisionOf(t.messages, t.id) });
     setView("compose");
   };
   // EMAIL-F-13 (2026-09-05): read the draft through the account that holds
@@ -3061,7 +3066,8 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
       // E-26: an edit of this Gmail draft the tab lost wins over what Gmail
       // still holds; it is the newer of the two by construction.
       const local = loadLocalDraft(draftId);
-      beginCompose(local ? { ...fresh, to: local.to, cc: local.cc ?? fresh.cc, subject: local.subject, body: local.body } : fresh);
+      const source = fresh.threadId ? carriedOverrides(local ?? {}, currentRevisionOf(fresh.threadId)) : {};
+      beginCompose(local ? { ...fresh, to: local.to, cc: local.cc ?? fresh.cc, subject: local.subject, body: local.body, ...source } : { ...fresh, ...source });
       setView("compose");
     } catch (e) {
       setError(humanError(e, "Could not open draft"));
@@ -3069,6 +3075,47 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   };
 
   const pushCls = usePushDepth(view === "compose" ? 2 : view === "detail" || view === "deck" ? 1 : 0);
+
+  // REPLY COVERAGE (2026-09-29). A reply is answering one conversation at one
+  // revision in one mailbox: its source. What that conversation asked comes from
+  // the same one reading openThread made (cache, or the open thread through
+  // ensureThreadBrief, which joins a read already in flight), and it is looked
+  // up when the SOURCE changes, never as the words are typed. A new compose
+  // and a forward have no source: they are not replies.
+  const coverageSource = view === "compose" && draft.threadId
+    ? replySourceOf(draft, { account: accountOfThread(draft.threadId) ?? g.accounts[0]?.email ?? "", ...(currentRevisionOf(draft.threadId) ? { revision: currentRevisionOf(draft.threadId)! } : {}) })
+    : null;
+  const replyReqs = useReplyRequirements({
+    ai, userId, source: coverageSource, thread,
+    loadThread: async (account, threadId) => {
+      const api = apiFor(account);
+      return api ? mapThreadFull(await api.getThread(threadId)) : null;
+    },
+    selfEmails: selfEmailsFor(coverageSource?.account),
+  });
+  // A mark belongs to the revision it was made on. When the reading turns out
+  // to be for a newer one, the marks go and the words stay.
+  useEffect(() => {
+    if (view !== "compose" || !replyReqs) return;
+    if (draft.sourceRevision !== replyReqs.sourceRevision) {
+      setDraft((d) => {
+        const next: Draft = { ...d, sourceRevision: replyReqs.sourceRevision };
+        delete next.overrides;
+        return next;
+      });
+    }
+  }, [replyReqs?.sourceRevision, view]);
+  const draftFiles = useMemo(
+    () => (draft.attachment ? [{ filename: draft.attachment.filename, mime: draft.attachment.mimeType }] : []),
+    [draft.attachment],
+  );
+  const setCoverageMark = (key: string, mark: CoverageOverride | null) => setDraft((d) => {
+    const next: Draft = { ...d, overrides: { ...(d.overrides ?? {}) } };
+    if (mark) next.overrides![key] = mark;
+    else delete next.overrides![key];
+    if (Object.keys(next.overrides!).length === 0) delete next.overrides;
+    return next;
+  });
 
   // Muted threads never surface, however many replies land. The mail itself is
   // untouched in Gmail.
@@ -3128,7 +3175,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
             // fails on send and fails again on every Retry.
             // C-56: the model's draft rides along so the send can say what
             // he changed, in one word, and nothing else.
-            beginCompose({ to: r.to, subject: r.subject, body, inReplyTo: r.inReplyTo, threadId: r.threadId, fromDeck: true, account: accountOfThread(t.id), modelBody: body });
+            beginCompose({ to: r.to, subject: r.subject, body, inReplyTo: r.inReplyTo, threadId: r.threadId, fromDeck: true, account: accountOfThread(t.id), modelBody: body, sourceRevision: revisionOf(t.messages, t.id) });
             setView("compose");
           }}
           onHandled={(threadId, archived) => {
@@ -3831,6 +3878,18 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
               did. */}
           <div className="row mail-chips"><Dictate target={dictateTarget} /></div>
 
+          {/* REPLY COVERAGE: "Answered 3 of 4", a checklist behind a tap. It
+              reads the words already typed, locally, and never blocks Send. */}
+          {coverageSource && (
+            <ReplyCoverage
+              requirements={replyReqs}
+              text={draft.body}
+              attachments={draftFiles}
+              overrides={draft.overrides ?? {}}
+              onOverride={setCoverageMark}
+            />
+          )}
+
           {/* N15 (2026-08-20): they asked for the waiver, he has a waiver.
               Every mail client waits until Send and then asks if he forgot;
               none of them offers the file he actually owns. Only ever
@@ -3962,6 +4021,21 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
               A summary earns its place when there is something to summarise.
               One short message is already the shortest version of itself, and
               a paraphrase of two visible lines is furniture. */}
+          {/* THE APPOINTMENT, FIRST (2026-09-29). Above the summary and the
+              state card, outside both, so the one thing this feature exists
+              for is not behind a tap. Only with a Schedule service to write
+              to; the card reads on open and writes only on a tap. */}
+          {scheduleSvc && (
+            <MeetingFinishCard
+              key={thread.id}
+              scheduleSvc={scheduleSvc}
+              threadId={thread.id}
+              account={accountOfThread(thread.id) ?? ""}
+              candidates={threadBrief?.meetingCandidates}
+              order={thread.messages.map((m) => m.id)}
+              onNotice={(n: MeetingNotice) => say(n.message, n.undo)}
+            />
+          )}
           {summary && worthSummarising && (
             <div className="card msg-summary">
               <div className="eyebrow">JARVIS Summary</div>
@@ -3973,7 +4047,9 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
               us here, and absent entirely when the pass could not establish
               anything. */}
           {(() => {
-            const b = briefFor(thread.messages[thread.messages.length - 1]?.id || thread.id);
+            // The reading the open thread has: the fresh one from
+            // ensureThreadBrief, or the cached one (v3 included) until it lands.
+            const b = threadBrief ?? briefFor(revisionOf(thread.messages, thread.id), loadBriefs(), scopeOf(accountOfThread(thread.id) ?? ""));
             if (!b && !triaged) return null;
             const ev = effTriage[thread.id]?.byEv;
             return (
@@ -3983,8 +4059,6 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                 defaultOpen={fromLedger}
                 onOpenSource={(msgId) => setFocusMsg(msgId)}
                 onRemember={(decision) => setKeepDecision({ decision, threadId: thread.id })}
-                calendarState={calState}
-                {...(scheduleSvc ? { onAddToCalendar: (m: ConfirmedMeeting) => void addMeetingToCalendar(thread.id, m) } : {})}
                 {...(triaged ? {
                   override: overrides[thread.id] ?? null,
                   // E-16: this thread only. No sender rule is written here;
@@ -4324,13 +4398,28 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                   const { event: ev, count } = read;
                   const extra = count > 1 ? " · " + (count - 1) + " more in the file" : "";
                   if (ev.start && scheduleSvc) {
-                    const id = await scheduleSvc.createEvent(ev.title, {
-                      date: ev.date, start: ev.start,
-                      end: endOfAct(ev.start, ev.durationMin ?? 60),
-                      source: madeBy("email", thread.id),
-                    });
-                    if (!id) { say("Couldn't Add It · Nothing Was Saved", undefined, 3000); return; }
-                    say("On Your Schedule · " + dayPhrase(ev.date, todayISO()) + " " + fmtTime(ev.start).time + " " + fmtTime(ev.start).ap + extra, undefined, 3500);
+                    // THE ONE DOOR (2026-09-29): the same idempotent add the
+                    // appointment card uses, keyed by the invitation's own UID
+                    // when it has one, so a second tap, a reload or an updated
+                    // invitation never makes a second event. A cancellation is
+                    // reported and never written, and an update is NOT applied
+                    // over an event that is already there.
+                    const account = accountOfThread(thread.id) ?? "";
+                    const cand = icsToCandidate(ev, { account, threadId: thread.id, messageId: m.id });
+                    if (cand?.status === "cancelled") {
+                      say("Invite Is Cancelled \u00b7 Nothing Added" + extra, undefined, 3500);
+                      setAttachDone(true);
+                      return;
+                    }
+                    const r = cand ? await addEmailMeetingOnce({ scheduleSvc, candidate: cand, threadId: thread.id, account, title: ev.title }) : null;
+                    if (!r || r.status === "failed") { say(r?.message ?? "Couldn't Add It \u00b7 Nothing Was Saved", undefined, 3000); return; }
+                    // The file left the time or the zone open: the card stays, and the file opens.
+                    if (r.status === "incomplete") {
+                      say(r.message + " \u00b7 Opening the File", undefined, 3500);
+                      if (offer.attachmentId) void openAttachment(m.id, offer.attachmentId, offer.filename ?? "invite.ics", "text/calendar");
+                      return;
+                    }
+                    say(r.message + extra, undefined, 3500);
                   } else if (tasks) {
                     // Law 2: an all-day invite has a date and no time.
                     // It stays a date rather than becoming a 9am nobody
