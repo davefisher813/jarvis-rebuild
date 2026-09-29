@@ -72,6 +72,19 @@ export class NotesService {
   // person typed, which is what keeps the line meaningful when it appears.
   async createNote(title: string, category: string, connections: Connection[] = [], source?: Source): Promise<string | null> {
     if (!title || !String(title).trim()) return null;
+    return this.insertNote(title, category, connections, source);
+  }
+
+  /** A NOTE WITH NO TITLE YET (the Blank template, click-through audit
+   *  2026-09-29). The writing system (2026-09-14) names a blank note by its
+   *  first line, so it is born with an empty title on purpose. createNote
+   *  still refuses a blank title (spec R14: a typed title must say something),
+   *  which made Blank return null and the New Note screen swallow the tap. */
+  async createBlankNote(category = ""): Promise<string | null> {
+    return this.insertNote("", category, [], undefined);
+  }
+
+  private async insertNote(title: string, category: string, connections: Connection[], source?: Source): Promise<string | null> {
     const data: NoteData = { title, category, blocks: [], connections, ...(source ? { source } : {}) };
     const id = await this.store.create(this.ownerId, ENTITY_NOTE, data as unknown as ItemData);
     this.onEvent({ type: "entity.created", entityType: ENTITY_NOTE, entityId: id });

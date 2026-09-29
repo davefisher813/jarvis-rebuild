@@ -199,7 +199,7 @@ body.writing .screen-editor { padding-bottom: max(140px, var(--doc-kbar-clear, 0
    its heading hidden by a class the plugin puts on its blocks. Interface
    state only; an export sees every word. */
 .doc-pm h1, .doc-pm h2, .doc-pm h3 { position: relative; }
-.doc-pm .doc-fold { position: absolute; left: -26px; top: 50%; transform: translateY(-50%); width: 24px; height: 24px; border: 0; background: transparent; padding: 0; cursor: pointer; }
+.doc-pm .doc-fold { position: absolute; left: -22px; top: 50%; transform: translateY(-50%); width: 24px; height: 24px; border: 0; background: transparent; padding: 0; cursor: pointer; }
 .doc-pm .doc-fold::before { content: ""; display: block; width: 8px; height: 8px; margin: 0 auto; border-right: 1.5px solid var(--tx-4); border-bottom: 1.5px solid var(--tx-4); transform: rotate(45deg) translate(-2px, -2px); transition: transform var(--dur-fast) var(--ease-out); }
 .doc-pm .doc-fold.closed::before { transform: rotate(-45deg) translate(-1px, 1px); }
 .doc-pm .doc-folded { display: none; }

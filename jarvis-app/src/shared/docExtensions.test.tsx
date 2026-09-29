@@ -4,7 +4,7 @@
 // @vitest-environment jsdom
 import "./tiptapTest";
 import { describe, it, expect, vi } from "vitest";
-import { render, act, waitFor } from "@testing-library/react";
+import { render, act, waitFor, fireEvent } from "@testing-library/react";
 import { createRef } from "react";
 import DocEditor, { type DocEditorHandle, type Doc } from "./DocEditor";
 import { foldedHeadings, toggleFold, sectionEnd, outlineOf } from "./docExtensions";
@@ -32,6 +32,26 @@ describe("folding", () => {
     expect(ed.getJSON()).toEqual(DOC);
     await act(async () => { toggleFold(ed, agenda.pos); });
     expect(container.querySelectorAll(".doc-folded").length).toBe(0);
+  });
+
+  // CLICK-THROUGH AUDIT 2026-09-29: "Fold section: no visible folding on
+  // repeated clicks". Every test here drove the fold by command; a real tap on
+  // the chevron never reached the plugin, because the widget's stopEvent tells
+  // ProseMirror to ignore events that start on it. This one taps the button.
+  it("tapping the chevron folds the section, and tapping it again opens it", async () => {
+    const { ed, container } = mount();
+    const chevron = () => container.querySelector<HTMLButtonElement>('button.doc-fold[data-fold-pos="0"]')!;
+    expect(chevron().getAttribute("aria-label")).toBe("Fold section");
+    await act(async () => { fireEvent.click(chevron()); });
+    expect(foldedHeadings(ed)).toEqual([0]);
+    await waitFor(() => expect(container.querySelectorAll(".doc-folded").length).toBe(2));
+    expect(chevron().getAttribute("aria-label")).toBe("Unfold section");
+    expect(chevron().getAttribute("aria-expanded")).toBe("false");
+    await act(async () => { fireEvent.click(chevron()); });
+    expect(foldedHeadings(ed)).toEqual([]);
+    await waitFor(() => expect(container.querySelectorAll(".doc-folded").length).toBe(0));
+    await act(async () => { fireEvent.click(chevron()); });
+    expect(foldedHeadings(ed), "repeated taps keep working").toEqual([0]);
   });
 
   it("a fold survives typing above it, and a sub-heading stays inside its parent's section", async () => {
