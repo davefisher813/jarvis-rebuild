@@ -500,7 +500,10 @@ export default function NotesFlow({
       // wearing a category nobody chose, and the list's "color-coded" icons
       // were really one color: the first category's. A new note starts
       // unfiled; choosing its home is the editor's job, on the user's tap.
-      id = await svc.createNote(TEMPLATE_TITLE[key], "");
+      // Blank has no title until one is typed, and createNote refuses a blank
+      // title, so it has its own door (it used to return null here and the
+      // tap did nothing).
+      id = key === "blank" ? await svc.createBlankNote() : await svc.createNote(TEMPLATE_TITLE[key], "");
       if (id && key !== "blank") await svc.applyTemplate(id, key);
     });
     if (!id) return;

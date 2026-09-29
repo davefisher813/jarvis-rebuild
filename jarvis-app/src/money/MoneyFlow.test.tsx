@@ -419,3 +419,31 @@ describe("Read It prefills From a Receipt", () => {
     expect((screen.getByLabelText("Amount in dollars") as HTMLInputElement).value).toBe("42.75");
   });
 });
+
+// CLICK-THROUGH AUDIT 2026-09-29: "Add a Receipt: no form or picker opens".
+// The picker is the phone's own file sheet, so a headless driver sees nothing
+// draw; what can be pinned is that the tap opens the hidden file input inside
+// the tap itself (a picker opened after an await is blocked by iOS), and that
+// the file it returns is stored as a receipt.
+describe("Add a Receipt opens the file picker inside the tap", () => {
+  afterEach(() => { vi.restoreAllMocks(); });
+
+  it("clicks the file input synchronously, and a chosen file becomes a receipt", async () => {
+    const clicks: HTMLInputElement[] = [];
+    vi.spyOn(HTMLInputElement.prototype, "click").mockImplementation(function (this: HTMLInputElement) { clicks.push(this); });
+    vi.spyOn(MemoryFileStore.prototype, "url").mockResolvedValue("blob:receipt");
+    // jsdom has no object URLs or canvas, which the real upload wants.
+    vi.spyOn(MemoryFileStore.prototype, "upload").mockResolvedValue({ path: "u/lunch.png", name: "lunch.png", mime: "image/png", bytes: 1 });
+    render(<NotesProvider userId="receipt-add"><SeededReceipt /></NotesProvider>);
+    const add = await screen.findByLabelText("Add a Receipt");
+    fireEvent.click(add);
+    // Synchronous: nothing was awaited between the tap and the picker.
+    expect(clicks).toHaveLength(1);
+    expect(clicks[0]!.type).toBe("file");
+    expect(clicks[0]!.accept).toContain("image/*");
+    // Choosing a file stores it and says so.
+    const file = new File(["x"], "lunch.png", { type: "image/png" });
+    fireEvent.change(clicks[0]!, { target: { files: [file] } });
+    await waitFor(() => expect(screen.getByText("lunch.png")).toBeInTheDocument());
+  });
+});
