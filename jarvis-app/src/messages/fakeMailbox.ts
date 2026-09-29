@@ -1,5 +1,5 @@
 import { makeFakeGoogleApi } from "../connections/google/fakeApi";
-import { HistoryExpiredError, type GoogleApi } from "../connections/google/api";
+import { GmailHttpError, HistoryExpiredError, type GoogleApi } from "../connections/google/api";
 import type { GmailMeta, GmailThreadFull, GmailThreadMeta } from "../connections/google/map";
 
 // A small, honest Gmail for tests: threads with labels, a history log with
@@ -40,6 +40,16 @@ export class FakeMailbox {
   failMeta = new Set<string>();
   failList = false;
   failHistory = false;
+  /** Every batchModify request, in order (what was asked, and what the mailbox did with it). */
+  batchCalls: { ids: string[]; add: string[]; remove: string[]; outcome: string }[] = [];
+  /**
+   * How each batchModify request goes: "ok"; a number, which is an HTTP status
+   * the request is refused with (nothing applied); "network", where the
+   * request never reaches Gmail (nothing applied) and throws; or
+   * "network-applied", where Gmail APPLIED it and the answer was lost (the
+   * unknown outcome a timeout is). Default ok.
+   */
+  batchBehavior: (call: number, ids: string[]) => "ok" | number | "network" | "network-applied" = () => "ok";
   private msgSeq = 1;
   private clock = 1_700_000_000_000;
 
@@ -106,6 +116,22 @@ export class FakeMailbox {
     this.bump(threadId);
   }
 
+  messageIdsOf(threadId: string): string[] { return (this.threads.get(threadId)?.messages ?? []).map((m) => m.id); }
+  labelsOf(messageId: string): string[] {
+    for (const t of this.threads.values()) for (const m of t.messages) if (m.id === messageId) return [...m.labels].sort();
+    return [];
+  }
+  private applyLabels(ids: string[], add: string[], remove: string[]): void {
+    const touched = new Set<string>();
+    for (const t of this.threads.values()) for (const m of t.messages) {
+      if (!ids.includes(m.id)) continue;
+      for (const l of remove) m.labels.delete(l);
+      for (const l of add) m.labels.add(l);
+      touched.add(t.id);
+    }
+    for (const id of touched) this.bump(id);
+  }
+
   /** Makes every history entry so far unreadable, like Gmail expiring them. */
   // Entries up to now are gone. A start id equal to now is still valid (it
   // simply has nothing after it), as it is in Gmail, which is what makes a
@@ -164,6 +190,16 @@ export class FakeMailbox {
         c.bodies++;
         const t = this.threads.get(id);
         return (t ? this.metaOf(t) : { id, messages: [] }) as unknown as GmailThreadFull;
+      },
+      batchModifyMessages: async (ids, add, remove) => {
+        c.mutation++;
+        if (ids.length === 0 || ids.length > 1000) throw new Error("batchModify size");
+        const how = this.batchBehavior(this.batchCalls.length, ids);
+        if (how === "ok") { this.applyLabels(ids, add, remove); this.batchCalls.push({ ids, add, remove, outcome: "ok" }); return; }
+        if (how === "network-applied") { this.applyLabels(ids, add, remove); this.batchCalls.push({ ids, add, remove, outcome: "network-applied" }); throw new TypeError("Failed to fetch"); }
+        if (how === "network") { this.batchCalls.push({ ids, add, remove, outcome: "network" }); throw new TypeError("Failed to fetch"); }
+        this.batchCalls.push({ ids, add, remove, outcome: "status " + how });
+        throw new GmailHttpError("batch modify", how);
       },
       modifyThread: async () => { c.mutation++; },
       trashThread: async () => { c.mutation++; },

@@ -28,6 +28,7 @@ export function makeFakeGoogleApi(o: Partial<GoogleApi> = {}): GoogleApi {
     modifyThread: o.modifyThread ?? (async () => {}),
     trashThread: o.trashThread ?? (async () => {}),
     untrashThread: o.untrashThread ?? (async () => {}),
+    batchModifyMessages: o.batchModifyMessages ?? (async () => {}),
     getProfile: o.getProfile ?? (async () => ({ emailAddress: "me@example.com" })),
     // The incremental reader. Defaults describe an inbox that never changes,
     // so a fake that only stubs listThreads sees the same mail on every read.

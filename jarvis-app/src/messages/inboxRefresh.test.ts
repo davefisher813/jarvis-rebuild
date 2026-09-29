@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import {
   refreshInboxAccount, refreshInboxAccounts, loadMoreInbox, ensureThreadAnalysis, splitForSize, markGone, unmarkGone,
-  resetInboxRefreshState, singleFlight, pool, ANALYSIS_COOLDOWN_MS, TRIAGE_BATCH, MAIL_PAGE,
+  resetInboxRefreshState, singleFlight, pool, ANALYSIS_COOLDOWN_MS, TRIAGE_BATCH, MAIL_PAGE, loadFullInboxIndex,
 } from "./inboxRefresh";
 import { FakeMailbox } from "./fakeMailbox";
 import { loadAccount, loadRows, isFresh, markRead, saveAccount } from "./mailCache";
@@ -593,5 +593,138 @@ describe("analysis: failure never becomes a storm", () => {
     expect(loadTriageFor({ userId: "u1", account: "work@example.com" }, storage)).toEqual({});
     expect(loadTriageFor({ userId: "u2", account: "dave@example.com" }, storage)).toEqual({});
     expect(Object.keys(loadTriageFor(scope, storage))).toHaveLength(5);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// The whole inbox (Clean Out)
+// ---------------------------------------------------------------------------
+
+describe("loadFullInboxIndex: Clean Out speaks for the account", () => {
+  const big = (n: number) => { const m = new FakeMailbox(); for (let i = 1; i <= n; i++) m.add("b" + i); return m; };
+
+  it("walks past the old 180-thread cap to the end of the cursor", async () => {
+    const m = big(460);
+    m.listPageSize = 100;
+    const progress: number[] = [];
+    const r = await loadFullInboxIndex(scope, m.api(), { storage, now: clock, onProgress: (p) => progress.push(p.loaded) });
+    expect(r.ok).toBe(true);
+    expect(r.complete).toBe(true);
+    expect(r.rows).toHaveLength(460);
+    expect(new Set(r.rows.map((x) => x.id)).size).toBe(460);
+    expect(r.pages).toBe(5);
+    expect(progress).toEqual([100, 200, 300, 400, 460]);
+    expect(m.counters.bodies).toBe(0);
+  });
+
+  it("reads thread metadata at most four at a time, and asks the model nothing", async () => {
+    const m = big(40);
+    let live = 0; let peak = 0;
+    const api = m.api({
+      getThreadMeta: async (id) => { live++; peak = Math.max(peak, live); await new Promise((r) => setTimeout(r, 2)); try { return await m.api().getThreadMeta(id); } finally { live--; } },
+    });
+    const r = await loadFullInboxIndex(scope, api, { storage, now: clock });
+    expect(r.complete).toBe(true);
+    expect(peak).toBeLessThanOrEqual(4);
+    expect(peak).toBeGreaterThan(1);
+    // (there is no AI parameter to pass: this function cannot spend on analysis)
+  });
+
+  it("reuses metadata the cache already holds", async () => {
+    const m = big(30);
+    await refreshInboxAccount(scope, m.api(), { storage, now: clock, want: 30 });
+    const before = m.counters.metadata;
+    const r = await loadFullInboxIndex(scope, m.api(), { storage, now: clock });
+    expect(r.complete).toBe(true);
+    expect(m.counters.metadata - before).toBe(0);
+    expect(r.rows).toHaveLength(30);
+  });
+
+  it("a failed first page is never complete", async () => {
+    const m = big(10);
+    m.failList = true;
+    const r = await loadFullInboxIndex(scope, m.api(), { storage, now: clock });
+    expect(r.ok).toBe(false);
+    expect(r.complete).toBe(false);
+    expect(r.rows).toEqual([]);
+  });
+
+  it("a cursor that loops is not complete", async () => {
+    const m = big(10);
+    let n = 0;
+    const api = m.api({
+      listInboxThreadRefs: async () => {
+        n++;
+        return { refs: [{ id: "b" + n, historyId: "1" }], nextPageToken: "same" };
+      },
+    });
+    const r = await loadFullInboxIndex(scope, api, { storage, now: clock });
+    expect(r.complete).toBe(false);
+    expect(r.loop).toBe(true);
+    expect(n).toBeLessThan(5);
+  });
+
+  it("stops between pages when asked, and Resume continues from the cursor instead of starting over", async () => {
+    const m = big(300);
+    const ctl = new AbortController();
+    const first = await loadFullInboxIndex(scope, m.api(), { storage, now: clock, signal: ctl.signal, onProgress: (p) => { if (p.pages === 1) ctl.abort(); } });
+    expect(first.canceled).toBe(true);
+    expect(first.complete).toBe(false);
+    expect(first.rows).toHaveLength(100);
+    expect(first.resumable).toBe(true);
+    const listedBefore = m.counters.list;
+    const readBefore = m.counters.metadata;
+    const again = await loadFullInboxIndex(scope, m.api(), { storage, now: clock });
+    expect(again.complete).toBe(true);
+    expect(again.rows).toHaveLength(300);
+    // Two more pages, not three: the first was not walked again.
+    expect(m.counters.list - listedBefore).toBe(2);
+    expect(m.counters.metadata - readBefore).toBe(200);
+  });
+
+  it("a page that fails midway keeps what was walked and is resumable", async () => {
+    const m = big(300);
+    let calls = 0;
+    const api = m.api({
+      listInboxThreadRefs: async (max, tok) => { calls++; if (calls === 2) throw new Error("threads 500"); return m.api().listInboxThreadRefs(max, tok); },
+    });
+    const r = await loadFullInboxIndex(scope, api, { storage, now: clock });
+    expect(r.ok).toBe(false);
+    expect(r.complete).toBe(false);
+    expect(r.rows).toHaveLength(100);
+    expect(r.resumable).toBe(true);
+  });
+
+  it("reconciles what changed during the walk: arrivals in, archives out", async () => {
+    const m = big(250);
+    let fired = false;
+    const api = m.api({
+      listInboxThreadRefs: async (max, tok) => {
+        const out = await m.api().listInboxThreadRefs(max, tok);
+        if (!fired && tok) { fired = true; m.add("late"); m.archive("b1"); }
+        return out;
+      },
+    });
+    const r = await loadFullInboxIndex(scope, api, { storage, now: clock });
+    expect(r.complete).toBe(true);
+    const ids = new Set(r.rows.map((x) => x.id));
+    expect(ids.has("late")).toBe(true);
+    expect(ids.has("b1")).toBe(false);
+  });
+
+  it("history too old to replay means the walk is not vouched for", async () => {
+    const m = big(150);
+    const api = m.api({
+      listHistory: async () => { const { HistoryExpiredError } = await import("../connections/google/api"); throw new HistoryExpiredError(); },
+    });
+    const r = await loadFullInboxIndex(scope, api, { storage, now: clock });
+    expect(r.complete).toBe(false);
+    expect(r.rows).toHaveLength(150);
+  });
+
+  it("an empty inbox is a complete answer", async () => {
+    const r = await loadFullInboxIndex(scope, new FakeMailbox().api(), { storage, now: clock });
+    expect(r.complete).toBe(true);
+    expect(r.rows).toEqual([]);
   });
 });

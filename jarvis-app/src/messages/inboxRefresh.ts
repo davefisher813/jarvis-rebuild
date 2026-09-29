@@ -402,6 +402,209 @@ export async function loadMoreInbox(
 }
 
 // ---------------------------------------------------------------------------
+// The whole inbox, for Clean Out
+// ---------------------------------------------------------------------------
+//
+// Clean Out speaks for the ACCOUNT, and used to stop after six pages (about
+// 180 threads) and then talk as if it had seen everything. This follows
+// Gmail's cursor until it runs out. It reads metadata only, reuses what the
+// cache already holds, never asks the model anything (so a 5,000-thread scan
+// costs no AI), and remembers where it got to so a scan that is interrupted
+// resumes rather than restarts.
+//
+// Laws:
+//   - COMPLETE MEANS THE CURSOR RAN OUT. A first page that failed is not
+//     complete; a scan that stopped is not complete; a cursor that loops is
+//     not complete. Only a full walk, reconciled against what changed while
+//     it ran, is.
+//   - A PARTIAL SCAN NEVER SPEAKS FOR THE ACCOUNT. The caller shows progress
+//     and Resume; it does not show a sender inventory as if it were whole.
+//   - THIS CAN BE STOPPED. The abort signal is checked between pages.
+
+const SCAN_PREFIX = "jarvis.mail.scan.v1:";
+/** A scan older than this is started over: the checkpoint would be stale. */
+const SCAN_MAX_AGE_MS = 60 * 60e3;
+/** Past this many rows the progress is not persisted (it would not fit). */
+const SCAN_PERSIST_MAX = 5000;
+const SCAN_PAGE = 100;
+
+interface ScanState {
+  v: 1;
+  rows: ThreadRow[];
+  /** Thread history ids, to skip re-reading what the cache already has. */
+  marks: Record<string, ThreadMark>;
+  token?: string;
+  seenTokens: string[];
+  pages: number;
+  boundary?: string;
+  startedAt: number;
+}
+
+const scanMemory = new WeakMap<object, Map<string, string>>();
+function scanMem(storage: object): Map<string, string> {
+  let m = scanMemory.get(storage);
+  if (!m) { m = new Map(); scanMemory.set(storage, m); }
+  return m;
+}
+
+function loadScan(scope: MailScope, storage: Pick<Storage, "getItem">, now: number): ScanState | null {
+  const key = SCAN_PREFIX + mailAccountKey(scope);
+  try {
+    const raw = scanMem(storage).get(key) ?? storage.getItem(key);
+    if (!raw) return null;
+    const p = JSON.parse(raw) as Partial<ScanState> | null;
+    if (!p || p.v !== 1 || !Array.isArray(p.rows) || typeof p.startedAt !== "number") return null;
+    if (now - p.startedAt > SCAN_MAX_AGE_MS || p.startedAt > now) return null;
+    return {
+      v: 1, rows: p.rows, marks: p.marks && typeof p.marks === "object" ? p.marks : {},
+      ...(typeof p.token === "string" && p.token ? { token: p.token } : {}),
+      seenTokens: Array.isArray(p.seenTokens) ? p.seenTokens.filter((t): t is string => typeof t === "string") : [],
+      pages: typeof p.pages === "number" ? p.pages : 0,
+      ...(typeof p.boundary === "string" ? { boundary: p.boundary } : {}),
+      startedAt: p.startedAt,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function saveScan(scope: MailScope, st: ScanState | null, storage: Pick<Storage, "getItem" | "setItem">): void {
+  const key = SCAN_PREFIX + mailAccountKey(scope);
+  const mem = scanMem(storage);
+  if (st === null || st.rows.length > SCAN_PERSIST_MAX) {
+    mem.delete(key);
+    try { (storage as Partial<Storage>).removeItem?.(key); } catch { /* private mode */ }
+    return;
+  }
+  const text = JSON.stringify(st);
+  try { storage.setItem(key, text); mem.delete(key); } catch { mem.set(key, text); }
+}
+
+export interface FullIndexProgress { pages: number; loaded: number; complete: boolean }
+
+export interface FullIndexResult {
+  ok: boolean;
+  /** True ONLY when the cursor ran out and the result was reconciled. */
+  complete: boolean;
+  canceled: boolean;
+  /** Every inbox conversation found so far (all of them, when complete). */
+  rows: ThreadRow[];
+  pages: number;
+  /** Metadata reads made (cache hits are free). */
+  hydrated: number;
+  /** A saved position exists, so Resume will not start over. */
+  resumable: boolean;
+  /** The cursor handed back one it had already given. */
+  loop?: boolean;
+  error?: unknown;
+}
+
+export async function loadFullInboxIndex(
+  scope: MailScope,
+  api: GoogleApi,
+  opts: {
+    onProgress?: (p: FullIndexProgress) => void;
+    signal?: AbortSignal;
+    storage?: Pick<Storage, "getItem" | "setItem">;
+    now?: () => number;
+    pageSize?: number;
+  } = {},
+): Promise<FullIndexResult> {
+  return singleFlight(`scan#${mailAccountKey(scope)}`, () => runFullIndex(scope, api, opts));
+}
+
+async function runFullIndex(
+  scope: MailScope,
+  api: GoogleApi,
+  opts: { onProgress?: (p: FullIndexProgress) => void; signal?: AbortSignal; storage?: Pick<Storage, "getItem" | "setItem">; now?: () => number; pageSize?: number },
+): Promise<FullIndexResult> {
+  const clock = opts.now ?? Date.now;
+  const storage = opts.storage ?? localStorage;
+  const pageSize = opts.pageSize ?? SCAN_PAGE;
+  const cached = loadAccount(scope, clock(), storage);
+  const known = new Map((cached?.rows ?? []).map((r) => [r.id, r]));
+  let hydrated = 0;
+  let st: ScanState | null = loadScan(scope, storage, clock());
+  const result = (over: Partial<FullIndexResult>): FullIndexResult => ({
+    ok: false, complete: false, canceled: false, rows: st?.rows ?? [], pages: st?.pages ?? 0, hydrated,
+    resumable: !!st && !!st.token, ...over,
+  });
+
+  try {
+    if (!st) {
+      // The boundary is taken BEFORE the walk, so whatever changes while it
+      // runs is replayed at the end instead of being missed.
+      const boundary = (await api.getProfile()).historyId;
+      st = { v: 1, rows: [], marks: {}, seenTokens: [], pages: 0, ...(boundary ? { boundary } : {}), startedAt: clock() };
+    }
+    const byId = new Map(st.rows.map((r) => [r.id, r]));
+
+    const hydrate = async (id: string, h: string): Promise<void> => {
+      const prior = known.get(id);
+      const mark = cached?.marks[id];
+      if (prior && mark && h && mark.h === h) { byId.set(id, prior); st!.marks[id] = mark; return; }
+      hydrated++;
+      const meta = await api.getThreadMeta(id);
+      const row = meta ? mapThread(meta) : null;
+      if (row && row.inInbox) { byId.set(id, { ...row, account: scope.account }); st!.marks[id] = { h, rev: row.lastMsgId }; }
+      else byId.delete(id);
+    };
+
+    for (;;) {
+      if (opts.signal?.aborted) { saveScan(scope, st, storage); return result({ canceled: true, resumable: !!st.token }); }
+      const page = await api.listInboxThreadRefs(pageSize, st.token);
+      const next = page.nextPageToken;
+      // A cursor that returns to a token it already gave would walk forever.
+      if (next && (next === st.token || st.seenTokens.includes(next))) {
+        saveScan(scope, st, storage);
+        return result({ loop: true, error: new Error("Gmail's cursor looped") });
+      }
+      const fresh = page.refs.filter((r) => !byId.has(r.id));
+      await pool(fresh, HYDRATE_CONCURRENCY, (r) => hydrate(r.id, r.historyId));
+      st.rows = [...byId.values()];
+      st.pages++;
+      if (next) { st.seenTokens.push(next); st.token = next; } else delete st.token;
+      saveScan(scope, st, storage);
+      opts.onProgress?.({ pages: st.pages, loaded: st.rows.length, complete: !next });
+      if (!next) break;
+    }
+
+    // RECONCILE: what changed while the walk ran. Threads that arrived are
+    // added, threads that left are dropped, threads that changed are re-read.
+    if (st.boundary) {
+      let dirty: Set<string>;
+      try {
+        dirty = (await readAllHistory(api, st.boundary)).threadIds;
+      } catch (e) {
+        // A checkpoint too old to replay means this walk cannot be vouched
+        // for. Start over next time rather than claim it.
+        const walked = st.rows;
+        saveScan(scope, null, storage);
+        st = null;
+        return result({ error: e, resumable: false, rows: walked });
+      }
+      const reread = [...dirty];
+      await pool(reread, HYDRATE_CONCURRENCY, async (id) => {
+        hydrated++;
+        const meta = await api.getThreadMeta(id);
+        const row = meta ? mapThread(meta) : null;
+        if (row && row.inInbox) byId.set(id, { ...row, account: scope.account }); else byId.delete(id);
+      });
+      st.rows = [...byId.values()];
+    }
+    const rows = st.rows.sort((a, b) => b.dateMs - a.dateMs);
+    const pages = st.pages;
+    saveScan(scope, null, storage);
+    st = null;
+    return { ok: true, complete: true, canceled: false, rows, pages, hydrated, resumable: false };
+  } catch (error) {
+    // Whatever was walked stays saved: Resume picks up from the cursor.
+    if (st) saveScan(scope, st, storage);
+    return result({ error });
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Analysis: what the model is asked, and when
 // ---------------------------------------------------------------------------
 

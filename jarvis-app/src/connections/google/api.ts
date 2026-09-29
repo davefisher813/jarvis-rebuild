@@ -39,6 +39,13 @@ export interface GoogleApi {
   // Undo for a delete. Gmail keeps trashed mail for 30 days, so this always
   // works inside the window the app promises.
   untrashThread(id: string): Promise<void>;
+  // THE BATCH WRITE (2026-09-29): up to 1000 MESSAGE ids in one request, label
+  // changes only. Moving mail to Trash is `add TRASH, remove INBOX`, which is
+  // exactly what Gmail's own trash does and is recoverable for 30 days. The
+  // permanent-delete batch endpoint sits next to this one in Google's docs and
+  // is never called from this app: it cannot be undone, and this app promises
+  // an Undo. Rejects an empty list or more than 1000 ids before any request.
+  batchModifyMessages(ids: string[], addLabelIds: string[], removeLabelIds: string[]): Promise<void>;
   // historyId is Gmail's own number for "now" in this mailbox. It is a STRING
   // end to end: it outgrows what a JS number holds exactly, and comparing or
   // storing it as a number is how a checkpoint silently rounds.
@@ -59,6 +66,15 @@ export interface GoogleApi {
 }
 
 export interface ThreadRef { id: string; historyId: string }
+
+/** A Gmail request that answered with a status. Network failures are NOT this: they carry none. */
+export class GmailHttpError extends Error {
+  readonly status: number;
+  constructor(what: string, status: number) { super(what + " " + status); this.name = "GmailHttpError"; this.status = status; }
+}
+
+/** Gmail's documented ceiling for messages.batchModify. */
+export const BATCH_MODIFY_MAX = 1000;
 
 /** Gmail answered 404 to a history read: the checkpoint is too old to replay. */
 export class HistoryExpiredError extends Error {
@@ -246,6 +262,17 @@ export function createGoogleApi(token: string, doFetch: FetchLike = fetch as unk
         { method: "POST", headers: auth.headers },
       );
       if (!r.ok) throw new Error("thread untrash " + r.status);
+    },
+    async batchModifyMessages(ids, addLabelIds, removeLabelIds) {
+      if (ids.length === 0) throw new Error("batchModify needs at least one message id");
+      if (ids.length > BATCH_MODIFY_MAX) throw new Error("batchModify takes at most " + BATCH_MODIFY_MAX + " message ids");
+      const r = await doFetch("https://gmail.googleapis.com/gmail/v1/users/me/messages/batchModify", {
+        method: "POST",
+        headers: { ...auth.headers, "Content-Type": "application/json" },
+        body: JSON.stringify({ ids, addLabelIds, removeLabelIds }),
+      });
+      // Success is an empty 204: there is no body to read, and none is read.
+      if (!r.ok) throw new GmailHttpError("batch modify", r.status);
     },
     async getProfile() {
       const r = await doFetch("https://gmail.googleapis.com/gmail/v1/users/me/profile", auth);
