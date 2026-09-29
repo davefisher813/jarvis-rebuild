@@ -983,6 +983,10 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
   const [metricDefs, setMetricDefs] = useState<MetricDef[]>([]);
   const [metricLogs, setMetricLogs] = useState<MetricLog[]>([]);
   const [liftDetailFor, setLiftDetailFor] = useState<{ name: string; exerciseKey?: string; kind: MeasureKind; unit?: string; timeUnit?: string } | null>(startLift ?? null);
+  // Named on the way in (Insights, a Health finding): Back is the caller's
+  // page, not this flow's program. Cleared the moment he walks on into
+  // History, which has a screen of its own to land on.
+  const [liftFromOutside, setLiftFromOutside] = useState(!!startLift);
   const [liftGoalSheetOpen, setLiftGoalSheetOpen] = useState(false);
   // The week sheet's "Normal / Back-Off" choice, held at the top level so it
   // is one plain useState called unconditionally on every render -- NOT
@@ -1467,12 +1471,19 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
 
   // 2026-09-14: a saved session named on the way in opens in its editor
   // once the list has loaded (the Duration finding's way to the card).
+  //
+  // BACK GOES TO WHERE IT WAS OPENED (audit 2026-09-29): a session opened from
+  // All Data or Insights was named on the way in, so the screen behind it is
+  // the caller's, not this flow's program page. `workoutFromOutside` is set by
+  // exactly this effect, so a session reached by walking History (which has a
+  // screen of its own to land on) never sees it.
   const [workoutHandled, setWorkoutHandled] = useState(false);
+  const [workoutFromOutside, setWorkoutFromOutside] = useState(false);
   useEffect(() => {
     if (!startWorkoutId || workoutHandled || !loaded) return;
     setWorkoutHandled(true);
     const w = workouts.find((x) => x.id === startWorkoutId);
-    if (w) { setViewWorkout(w); setWorkoutDraft(w.data.exercises); }
+    if (w) { setViewWorkout(w); setWorkoutDraft(w.data.exercises); setWorkoutFromOutside(true); }
   }, [startWorkoutId, workoutHandled, loaded, workouts]);
 
   // THE DOOR OPENS (D4-C): mounted from the calendar's gym block. The
@@ -1763,8 +1774,8 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
           {...(detailClass ? { classification: detailClass } : {})}
           {...(detailRow ? { onEditClass: (open) => setClassOpen({ row: detailRow, open }) } : {})}
           {...(detailNote ? { note: detailNote } : {})}
-          onOpenLogs={() => { setLiftDetailFor(null); setHistoryOpen(true); setHistoryMode("sessions"); }}
-          onBack={() => setLiftDetailFor(null)}
+          onOpenLogs={() => { setLiftFromOutside(false); setLiftDetailFor(null); setHistoryOpen(true); setHistoryMode("sessions"); }}
+          onBack={() => { setLiftDetailFor(null); if (liftFromOutside) { setLiftFromOutside(false); onBack(); } }}
         />
         {/* The one classification editor, reachable from the exercise page as
             well as the library (§8), writing to the same store. */}
@@ -2140,6 +2151,8 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
     const closeWorkout = () => {
       setViewWorkout(null); setWorkoutDraft(null);
       setWorkoutMetaOpen(false); setWorkoutExMenu(null); setWorkoutExRename(null); setWorkoutAddOpen(false);
+      // Named on the way in: the way out is the caller's page.
+      if (workoutFromOutside) { setWorkoutFromOutside(false); onBack(); }
     };
     const patchDraft = (fn: (d: WorkoutExercise[]) => WorkoutExercise[]) => setWorkoutDraft((d) => (d ? fn(d) : d));
     /** The session's own two facts, written straight through rather than held
