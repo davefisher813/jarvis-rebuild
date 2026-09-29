@@ -28,6 +28,7 @@ import { FormSheet, Group, Row, FieldRow, Strip } from "../shared/FormSheet";
 import { Check } from "../shared/icons";
 
 import { attemptWrite } from "../shared/guard";
+import { useNavOrigin } from "../shell/navOrigin";
 import { recordSpot } from "../restore/whereYouWere";
 import CreateTasks from "./screens/CreateTasks";
 import QuickCreateSheet, { nextHalfHour, type QuickCreateKind } from "./screens/QuickCreateSheet";
@@ -485,8 +486,27 @@ export default function NotesFlow({
 
   // When arriving from another screen (e.g. a project's Linked Notes), open that
   // note once on mount.
+  //
+  // BACK GOES TO WHERE IT WAS OPENED (audit 2026-09-29): a note the shell
+  // opened for another page (Schedule's Add Notes, a task's linked note, a
+  // search hit) has that page as its previous screen, not this flow's list. The
+  // editor's Back used to close onto the Notes list, a tab nobody chose. While
+  // such a note is on screen the editor's own Back is the way home, so it
+  // claims the origin and the shell's return pill stands down. Any exit to the
+  // list (Back, delete, archive) ends the claim, so a note opened by walking
+  // the list is untouched.
+  const nav = useNavOrigin();
+  const { claim } = nav;
+  const [openedByJump, setOpenedByJump] = useState(false);
+  useEffect(() => { if (screen === "list") setOpenedByJump(false); }, [screen]);
+  const backToOrigin = openedByJump && !!nav.origin;
+  useEffect(() => {
+    if (!backToOrigin || screen !== "editor") return;
+    return claim();
+  }, [backToOrigin, screen, claim]);
   useEffect(() => {
     if (!openId) return;
+    setOpenedByJump(true);
     void openNote(openId);
     onOpenConsumed?.();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -500,7 +520,10 @@ export default function NotesFlow({
       // wearing a category nobody chose, and the list's "color-coded" icons
       // were really one color: the first category's. A new note starts
       // unfiled; choosing its home is the editor's job, on the user's tap.
-      id = await svc.createNote(TEMPLATE_TITLE[key], "");
+      // Blank has no title until one is typed, and createNote refuses a blank
+      // title, so it has its own door (it used to return null here and the
+      // tap did nothing).
+      id = key === "blank" ? await svc.createBlankNote() : await svc.createNote(TEMPLATE_TITLE[key], "");
       if (id && key !== "blank") await svc.applyTemplate(id, key);
     });
     if (!id) return;
@@ -969,7 +992,13 @@ export default function NotesFlow({
           note={current}
           saveState={saveState}
           onRetrySave={() => void flushDoc()}
-          onBack={() => { void flushDoc().then(() => loadList()); setScreen("list"); }}
+          backLabel={backToOrigin ? nav.origin!.label : undefined}
+          onBack={() => {
+            void flushDoc().then(() => loadList());
+            setScreen("list");
+            // Opened for another page: that page is the previous screen.
+            if (backToOrigin) nav.back();
+          }}
           onFileNote={brain ? (category, text) => void fileNote(category, text) : undefined}
           onConnections={() => setScreen("connections")}
           onDeleteNote={async () => {

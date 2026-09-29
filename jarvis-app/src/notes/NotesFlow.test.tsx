@@ -19,6 +19,7 @@ const openConnections = () => {
 import { Store, InMemoryAdapter, type Item, type ItemData } from "@core";
 import { NotesProvider, useNotes, useCategories, useTasks, useSchedule } from "../data/NotesProvider";
 import NotesFlow from "./NotesFlow";
+import { NavOriginProvider } from "../shell/navOrigin";
 import { setCategoryRegistry } from "../shared/categories";
 import { ScheduleService } from "../schedule/ScheduleService";
 import { subscribeToast, resetToasts } from "../shared/toast";
@@ -457,5 +458,92 @@ describe("the same note deep link, twice (HMN-F-19)", () => {
     // The same note, a second time: it opens, because the nonce moved.
     fireEvent.click(screen.getByText("Open It"));
     await waitFor(() => expect(screen.getByText("Notes", { selector: "button" })).toBeInTheDocument());
+  });
+});
+
+// BACK GOES TO WHERE IT WAS OPENED (audit 2026-09-29). Schedule's Add Notes
+// hands the shell a note to open; the editor's Back used to close onto the
+// Notes list, a tab nobody chose. A note the shell opened for another page now
+// returns there, says so on the button, and leaves the return pill out of it.
+describe("NotesFlow: a note opened for another page goes back to that page", () => {
+  async function shown(withOrigin: boolean) {
+    svcRef = null;
+    const user = "u-note-origin-" + Math.random().toString(36).slice(2);
+    const view = render(<NotesProvider userId={user}><Grab /></NotesProvider>);
+    await waitFor(() => expect(svcRef).toBeTruthy());
+    let id = "";
+    await act(async () => {
+      id = (await svcRef!.createNote("Standup", ""))!;
+      await svcRef!.addBlock(id, { type: "text", text: "" });
+    });
+    const back = vi.fn(() => true);
+    const claim = vi.fn(() => () => {});
+    view.rerender(
+      <NotesProvider userId={user}>
+        <Grab />
+        <NavOriginProvider value={{ origin: withOrigin ? { key: "schedule", label: "Schedule" } : null, back, claim, claimed: false }}>
+          <NotesFlow openId={id} />
+        </NavOriginProvider>
+      </NotesProvider>,
+    );
+    await waitFor(() => expect(screen.getByLabelText("Note")).toBeInTheDocument());
+    return { back, claim };
+  }
+
+  it("Back returns to the origin, not the Notes list", async () => {
+    const { back, claim } = await shown(true);
+    expect(claim, "the editor's Back is the way home, so the pill stands down").toHaveBeenCalled();
+    expect(screen.queryByText("Notes", { selector: ".nav-back" })).toBeNull();
+    fireEvent.click(screen.getByText("Schedule", { selector: ".nav-back" }));
+    expect(back).toHaveBeenCalledTimes(1);
+  });
+
+  it("with no jump behind it, Back is still the Notes list", async () => {
+    const { back, claim } = await shown(false);
+    expect(claim).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByText("Notes", { selector: ".nav-back" }));
+    expect(back).not.toHaveBeenCalled();
+  });
+});
+
+// CLICK-THROUGH AUDIT 2026-09-29, Notes. Three taps that looked dead.
+describe("NotesFlow: New Note and Import or Attach (click-through audit 2026-09-29)", () => {
+  afterEach(() => { vi.restoreAllMocks(); });
+
+  it("Blank makes an empty, untitled note and opens the editor on it (it used to return to the templates)", async () => {
+    svcRef = null;
+    const user = "u-blank-template";
+    render(<NotesProvider userId={user}><Grab /><NotesFlow /></NotesProvider>);
+    await waitFor(() => expect(svcRef).toBeTruthy());
+    fireEvent.click(await screen.findByLabelText("New Note", {}, { timeout: 4000 }));
+    fireEvent.click(await screen.findByText("Blank"));
+    // The editor, not the templates screen.
+    expect(await screen.findByLabelText("Note", {}, { timeout: 4000 })).toBeInTheDocument();
+    expect(screen.queryByText("Templates")).toBeNull();
+    const all = await svcRef!.list();
+    expect(all).toHaveLength(1);
+    expect((all[0] as { title: string }).title, "the list's own fallback for a note with no title yet").toBe("Untitled");
+  });
+
+  it("Import or Attach opens the file picker inside the tap, after the menu closes", async () => {
+    const clicks: HTMLInputElement[] = [];
+    vi.spyOn(HTMLInputElement.prototype, "click").mockImplementation(function (this: HTMLInputElement) { clicks.push(this); });
+    svcRef = null;
+    render(<NotesProvider userId="u-import-attach"><Grab /><NotesFlow /></NotesProvider>);
+    await waitFor(() => expect(svcRef).toBeTruthy());
+    fireEvent.click(await screen.findByLabelText("Notes Options", {}, { timeout: 4000 }));
+    fireEvent.click(screen.getByText("Import or Attach"));
+    // Synchronous with the tap, and the options sheet is gone.
+    expect(clicks).toHaveLength(1);
+    expect(clicks[0]!.type).toBe("file");
+    expect(clicks[0]!.isConnected, "the picker input outlives the menu that opened it").toBe(true);
+    expect(screen.queryByText("Notes Options")).toBeNull();
+    // The chosen file becomes a note titled after it, with the file attached.
+    vi.spyOn(MemoryFileStore.prototype, "upload").mockResolvedValue({ path: "u/n/menu.pdf", name: "menu.pdf", mime: "application/pdf", bytes: 10 });
+    fireEvent.change(clicks[0]!, { target: { files: [new File(["x"], "menu.pdf", { type: "application/pdf" })] } });
+    await waitFor(async () => {
+      const titles = (await svcRef!.list()).map((n) => (n as { title: string }).title);
+      expect(titles).toContain("Menu");
+    }, { timeout: 4000 });
   });
 });

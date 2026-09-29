@@ -234,6 +234,7 @@ export default function TodayFlow({
   reminderNonce,
   onReminderOpened,
   onOpenEntity,
+  focusOpen,
   focusNonce,
   onFocusOpened,
 }: {
@@ -241,6 +242,9 @@ export default function TodayFlow({
    *  capture bar's bolt, the Tasks list's own control -- fires an intent on
    *  the shell, which lands on Today and opens this. One mount, one deck,
    *  one clock. */
+  /** True while a door is asking for Focus. One-shot: the shell clears it the
+   *  moment Today acts on it, and a later visit to Today never sees it. */
+  focusOpen?: boolean;
   focusNonce?: number;
   onFocusOpened?: () => void;
   /** The reminders rebuild (push C): a banner's Open, and the door to any linked record. */
@@ -649,13 +653,17 @@ export default function TodayFlow({
   const [blockSheet, setBlockSheet] = useState<{ id: string; initial: BlockDraft } | null>(null);
   const [planOpen, setPlanOpen] = useState(false);
   const [upNextOpen, setUpNextOpen] = useState(false);
-  const focusSeen = useRef(0);
+  // FOCUS OPENS WHEN ASKED, NOT WHEN YOU COME BACK (audit 2026-09-29). This
+  // used to key on the nonce alone. The shell's clear() hands the value back
+  // but leaves the nonce where it was, and Today remounts on every visit, so
+  // a fresh mount saw a nonzero nonce it had never "seen" and re-opened a
+  // panel that had been dismissed. The value is what says a door is asking
+  // (shell/intents.ts: act on the value, keyed on both, then consume it).
   useEffect(() => {
-    if (!focusNonce || focusNonce === focusSeen.current) return;
-    focusSeen.current = focusNonce;
+    if (!focusOpen) return;
     setUpNextOpen(true);
     onFocusOpened?.();
-  }, [focusNonce, onFocusOpened]);
+  }, [focusOpen, focusNonce, onFocusOpened]);
   const [remAdjust, setRemAdjust] = useState<{ id: string; text: string } | null>(null);
   const [wrapUp, setWrapUp] = useState<string | null>(null);
   // THE MONTHLY REPORT (2026-08-25). Arrives as one row in the notice

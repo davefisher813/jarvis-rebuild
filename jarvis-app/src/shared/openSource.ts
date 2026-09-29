@@ -13,9 +13,17 @@ import type { Source, SourceType } from "./provenance";
 // here. Everything else returns undefined and Provenance renders a plain
 // fact, which is the honest answer: a button that does nothing is the bug in
 // a different costume.
+//
+// ONLY MAIL GOES TO EMAIL (audit 2026-09-29). "email" and "gmail" are the two
+// stamps that name a thread, so they are the only two rows that may land on the
+// Email tab, and there they land on a thread. A source that names a task (a
+// block or a step made out of one) opens that task, not the inbox: it was a
+// plain line before, which left "From a task" as the one origin with a record
+// behind it and no way to it.
 const ROUTE: Partial<Record<SourceType, string>> = {
   note: "note",
   event: "event",
+  task: "task",
   email: "email",
   gmail: "email",
   file: "file",

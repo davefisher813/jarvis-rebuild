@@ -5654,7 +5654,11 @@ body.selecting .voice-dock { display: none; }
    category dot where the option is an area, the count quiet on the right.
    The scrim is invisible: the page stays readable while the menu is up,
    and any tap outside closes it unchanged. */
-.hmenu-scrim { position: fixed; inset: 0; z-index: 300; }   /* above sheets (200): a sheet's rows open menus too */
+.hmenu-scrim { position: fixed; inset: 0; z-index: 300; pointer-events: none; }   /* above sheets (200): a sheet's rows open menus too */
+/* The scrim itself takes no touches; its backdrop does, less the cut-outs over
+   a sheet's own Cancel / Save / Done (HeadMenu.scrimWithHoles), and the panel. */
+.hmenu-back { position: absolute; inset: 0; pointer-events: auto; }
+.hmenu-scrim > .hmenu { pointer-events: auto; }
 .hmenu { position: fixed; min-width: 200px; max-width: calc(100vw - 32px); padding: var(--s-1h) 0;
   border-radius: var(--r-md); background: rgba(44, 44, 46, 0.96);   /* iOS's thick menu material: the list must not read through */
   -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat)); backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));

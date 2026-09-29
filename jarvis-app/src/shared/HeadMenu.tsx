@@ -28,6 +28,29 @@ export interface MenuOption {
   dot?: string;
 }
 
+// THE MENU MUST NOT WALL OFF THE SHEET'S WAY OUT (click-through audit,
+// 2026-09-29). The scrim is fixed over the whole screen at z 300, above the
+// sheets (200), so a dropdown left open inside an editor (the task and goal
+// sheets' Areas menu stays open on purpose, for a second pick) covered
+// Cancel and Save: a real pointer, or a driver that hit-tests before it
+// clicks, was told the sheet's buttons were unreachable and only Escape got
+// out. A sheet's own chrome (the bar with Cancel and Save, the action block
+// with its Done) is cut out of the scrim, so a thumb on it reaches it, and a
+// press there shuts the menu, the same as a press anywhere else outside it.
+const CHROME = ".sheet-bar, .sheet-actions";
+
+/** A clip-path that is the whole screen minus each rect. Even-odd, and every
+    hole is entered from the corner and left the same way, so the seams cancel
+    instead of leaving a sliver. */
+export function scrimWithHoles(w: number, h: number, holes: { left: number; top: number; right: number; bottom: number }[]): string | undefined {
+  if (holes.length === 0) return undefined;
+  const pts = [`0px 0px`, `${w}px 0px`, `${w}px ${h}px`, `0px ${h}px`, `0px 0px`];
+  for (const r of holes) {
+    pts.push(`${r.left}px ${r.top}px`, `${r.left}px ${r.bottom}px`, `${r.right}px ${r.bottom}px`, `${r.right}px ${r.top}px`, `${r.left}px ${r.top}px`, `0px 0px`);
+  }
+  return `polygon(evenodd, ${pts.join(", ")})`;
+}
+
 export default function HeadMenu({
   value,
   options,
@@ -72,12 +95,13 @@ export default function HeadMenu({
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
   const [box, setBox] = useState<{ top: number; bottom: number; left: number; right: number; fromRight: boolean; up: boolean; maxH: number } | null>(null);
+  const [clip, setClip] = useState<string | undefined>(undefined);
   const btn = useRef<HTMLButtonElement>(null);
   const current = options.find((o) => o.value === value);
   const word = label ?? current?.label ?? "";
 
   useLayoutEffect(() => {
-    if (!open) { setBox(null); setQ(""); return; }
+    if (!open) { setBox(null); setQ(""); setClip(undefined); return; }
     const r = btn.current?.getBoundingClientRect();
     if (!r) return;
     const vw = window.innerWidth, vh = window.innerHeight;
@@ -87,14 +111,27 @@ export default function HeadMenu({
     const want = options.length * 44 + 12 + (search ? 52 : 0);
     const below = vh - r.bottom - 12, above = r.top - 12;
     const up = want > below && above > below;
+    // Only a menu inside a sheet has chrome to leave reachable.
+    const sheet = btn.current?.closest(".sheet-scrim");
+    const holes = [...(sheet?.querySelectorAll<HTMLElement>(CHROME) ?? [])]
+      .map((el) => el.getBoundingClientRect())
+      .filter((b) => b.width > 0 && b.height > 0);
+    setClip(scrimWithHoles(vw, vh, holes));
     setBox({ top: r.bottom + 6, bottom: vh - r.top + 6, left: r.left, right: vw - r.right, fromRight, up, maxH: Math.max(132, Math.min(want, up ? above : below)) });
   }, [open, options.length]);
 
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
+    // A press on the sheet's own chrome, which the scrim leaves uncovered,
+    // closes the menu as a press on the scrim would, and still lands.
+    const onDown = (e: PointerEvent) => {
+      const t = e.target as Element | null;
+      if (t && !t.closest(".hmenu, .hmenu-scrim")) setOpen(false);
+    };
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    window.addEventListener("pointerdown", onDown, true);
+    return () => { window.removeEventListener("keydown", onKey); window.removeEventListener("pointerdown", onDown, true); };
   }, [open]);
 
   const isOn = (v: string) => (multi ? (v === "" ? (picked?.length ?? 0) === 0 : (picked ?? []).includes(v)) : v === value);
@@ -123,6 +160,8 @@ export default function HeadMenu({
       </button>
       {open && box && createPortal(
         <div className="hmenu-scrim" onClick={() => setOpen(false)}>
+          {/* The backdrop is its own layer so the cut-outs clip IT, never the panel. */}
+          <div className="hmenu-back" style={clip ? { clipPath: clip } : undefined} />
           <div
             className={"hmenu" + (box.fromRight ? " hmenu-right" : "") + (box.up ? " hmenu-up" : "")}
             role="menu"

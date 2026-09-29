@@ -41,3 +41,36 @@ describe("the live month's report (BRAIN-F-16)", () => {
     expect(container.querySelector(".rep-leg")?.textContent).toContain("Work");
   });
 });
+
+// CLICK-THROUGH AUDIT 2026-09-29: "YOUR HOURS 3 PM to 6 PM: tapping has no
+// effect". There is no hours setting to edit here (the band is read off when
+// things got finished), so the card is not an editor. It is the report's
+// "tap anything for its receipts" convention: the tap opens the Receipts sheet
+// with the fact under the band, and its Done closes it. Driving it without the
+// sheet in view (it rises from the foot of the screen) reads as a dead tap.
+import { fireEvent } from "@testing-library/react";
+import { ReportScreen } from "./ReportPage";
+import type { MonthReport } from "./report";
+
+const HOURS_REPORT: MonthReport = {
+  month: "2026-08", monthName: "August",
+  hero: { big: "3", label: "Things Moved", anchor: null, wins: [] },
+  tiles: [{ num: "84", label: "Done", tint: "good", delta: { text: "+12 vs July", up: true } }],
+  hours: { label: "3 PM to 6 PM", byHour: Array.from({ length: 24 }, (_, h) => (h >= 15 && h < 18 ? 9 : 1)), bandStart: 15 },
+  went: null, time: null, worth: [], patterns: [], life: [], learned: null, did: null, closer: null,
+  sealed: { title: "August Sealed", sub: "September Compares to This" },
+};
+
+describe("Your Hours in the monthly report", () => {
+  it("a tap opens the Receipts sheet for the band, and Done closes it", () => {
+    render(<ReportScreen report={HOURS_REPORT} capped={false} onCap={() => {}} onBack={() => {}} />);
+    expect(document.querySelector(".sheet-scrim")).toBeNull();
+    fireEvent.click(screen.getByText("Your Hours"));
+    const sheet = document.querySelector(".sheet-scrim")!;
+    expect(sheet, "the tap does something").toBeTruthy();
+    expect(sheet.textContent).toContain("Your Hours: 3 PM to 6 PM");
+    expect(sheet.textContent).toContain("84 Finishes This Month");
+    fireEvent.click(screen.getByText("Done", { selector: ".sheet-scrim button" }));
+    expect(document.querySelector(".sheet-scrim")).toBeNull();
+  });
+});

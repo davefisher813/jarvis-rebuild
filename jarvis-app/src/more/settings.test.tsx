@@ -9,6 +9,8 @@ import AppearancePage from "../settings/AppearancePage";
 import ProfilePage from "../settings/ProfilePage";
 import MoreFlow from "./MoreFlow";
 import { extrasFor } from "../shell/destinations";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 
 describe("Settings", () => {
   it("Appearance switches the theme", () => {
@@ -63,5 +65,33 @@ describe("Settings", () => {
     );
     fireEvent.click(screen.getByText("Notes"));
     expect(onOpen).toHaveBeenCalledWith("notes");
+  });
+});
+
+// AUDIT 2026-09-29: the avatar on Today is labelled "Account" and opened the
+// More hub. It now opens Settings, Account, through the shell's one-shot
+// route (the same door Email's Open Connections uses).
+describe("the Account avatar", () => {
+  it("MoreFlow opens on Account when the shell hands it that route", async () => {
+    const consumed = vi.fn();
+    render(
+      <AppearanceProvider>
+        <AuthProvider>
+        <NotesProvider userId="u1">
+          <MoreFlow extras={extrasFor(["today", "tasks", "schedule", "brain"])} onOpenExtra={() => {}} tabKeys={["today", "tasks", "schedule", "brain"]} onToggleTab={() => {}} openRoute="account" onRouteConsumed={consumed} />
+        </NotesProvider>
+        </AuthProvider>
+      </AppearanceProvider>,
+    );
+    expect(await screen.findByText("Edit Profile")).toBeInTheDocument(); // the Account page, not the More hub
+    expect(screen.queryByText("Edit Tabs")).toBeNull();
+    expect(consumed).toHaveBeenCalled();
+  });
+
+  it("Today's avatar is wired to that route, not to the bare More tab", () => {
+    const shell = readFileSync(join(__dirname, "../shell/AppShell.tsx"), "utf8");
+    expect(shell).toMatch(/onProfile=\{\(\) => \{ setMoreRoute\("account"\); setActive\("more"\); \}\}/);
+    const page = readFileSync(join(__dirname, "../today/TodayPage.tsx"), "utf8");
+    expect(page).toMatch(/className="today-av" aria-label="Account" onClick=\{onProfile\}/);
   });
 });
