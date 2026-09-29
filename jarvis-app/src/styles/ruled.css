@@ -3187,7 +3187,7 @@
   -webkit-line-clamp: none; max-height: none; overflow: visible; white-space: normal; text-overflow: clip;
 }
 /* Two facts in one value carry a real space between them in the markup (About's
-   "Build b375567 2026-09-29", AI Control's "12 ~$0.04"), so innerText and a
+   "Build b375567 2026-09-29", AI Control's "12 About $0.04"), so innerText and a
    copy of the line have one. The dot the stylesheet draws between facts takes
    that space as its left margin. */
 .about-hero .account-sub > .fact + .fact::before,
