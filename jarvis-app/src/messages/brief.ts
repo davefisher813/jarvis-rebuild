@@ -154,7 +154,7 @@ export function briefPrompt(convo: string, todayISO = "", links?: readonly Promp
     // LEFT OUT rather than guessed: a card that hedges is a card that has to
     // be checked, which is the trip it exists to save.
     "You may also add any of these, and you must leave out any you cannot establish from the text:\n" +
-    "state: one of waiting_on_you, waiting_on_them, scheduled, settled, no_action.\n" +
+    "state: one of waiting_on_you, waiting_on_them, scheduled, settled, no_action. Use scheduled when the thread holds a CONFIRMED date and time, including a one-sided booking or reservation confirmation.\n" +
     "agreed: up to 3 short fragments, each a thing the parties actually agreed.\n" +
     "unresolved: up to 3 short fragments, each a question the thread has not answered.\n" +
     "deadline: the date or phrase somebody stated, copied in their words.\n" +
@@ -170,10 +170,23 @@ export function briefPrompt(convo: string, todayISO = "", links?: readonly Promp
 // proposal, because an offer to put a maybe in the calendar is how a
 // calendar stops being trustworthy. Kept for the callers that have not moved
 // to the v4 call; the v4 call reads meetingCandidates instead.
+//
+// WHAT COUNTS AS CONFIRMED (Dave 2026-09-29, the live miss: a tee-time
+// confirmation, "Your Tee Time Booking ... has been accepted for: Date:
+// Thursday - October 01, 2026, Time: 11:20 AM", came back Settled with no
+// Add to Schedule). This used to say "BOTH sides have settled on", which a
+// booking or reservation confirmation can never meet: nobody negotiated, one
+// side simply confirmed. The requirement is a confirmed date and time, not a
+// two-party agreement. The guards below are unchanged.
+const CONFIRMED_BOOKINGS =
+  "A CONFIRMED date and time counts, including a one-sided booking or reservation confirmation " +
+  "(a tee time, a flight, a hotel, a car rental, a restaurant reservation, an appointment confirmation): " +
+  "the sender confirming it is enough, nobody has to have agreed to it.";
 function legacyMeetingInstructions(): string {
   return (
-    "meeting: ONLY when the thread shows a specific time BOTH sides have settled on, as " +
+    "meeting: when the thread shows a specific date and time that is CONFIRMED, as " +
     "{\"title\":\"<short name, their words>\",\"date\":\"YYYY-MM-DD\",\"start\":\"HH:MM\",\"durationMin\":<number>}. " +
+    CONFIRMED_BOOKINGS + " " +
     "Use 24-hour times, resolved against today's date above. " +
     "Leave it out entirely if the time is only PROPOSED, is one of several options, is conditional, or if you cannot resolve a real date. " +
     "Never invent a date, a time or a duration you were not given; default the duration to 60 when unstated.\n\n"
@@ -190,9 +203,10 @@ function v4Instructions(links: readonly PromptLink[] | undefined, zone: string |
   return (
     "Every message below starts with a header line naming its id, who wrote it and when" + (zone ? " (times are in " + zone + ")" : "") + ". " +
     "In the items below, messageId is copied from a header and quote is copied EXACTLY from that message's own text, one sentence or phrase, never from quoted history.\n" +
-    "meetingCandidates: every appointment, call or meeting the conversation SETS (agreed), ASKS for (requested), PROPOSES (proposed) or CANCELS (cancelled), as " +
+    "meetingCandidates: every appointment, call or meeting the conversation SETS or CONFIRMS (agreed), ASKS for (requested), PROPOSES (proposed) or CANCELS (cancelled), as " +
     "[{\"messageId\":\"...\",\"quote\":\"...\",\"title\":\"<short name>\",\"status\":\"agreed|requested|proposed|cancelled\"}]. " +
-    "The quote must contain the day and the time as the sender wrote them. Do NOT work out dates or times yourself and do not add any. " +
+    CONFIRMED_BOOKINGS + " Use agreed for it, and never for a proposal, one of several options or a conditional time. " +
+    "The quote must contain the day and the time as the sender wrote them; when they sit on separate lines of a confirmation (Date: ..., Time: ...), quote them together as one run of the text. Do NOT work out dates or times yourself and do not add any. " +
     "Give one item per option when several times are offered. Use [] when there are none.\n" +
     "replyRequirements: what the people writing to the reader are still waiting to hear back, as " +
     "[{\"messageId\":\"...\",\"quote\":\"...\",\"kind\":\"question|request|decision|commitment\",\"label\":\"<2 to 3 words>\"," +
@@ -269,10 +283,15 @@ export function parseBrief(raw: string, ctx?: BriefContext): Brief | null {
   // is "not analysed", an empty array is "analysed, none". Whatever is present
   // has been through the wall in briefValidate.ts.
   const v4 = ctx ? readV4(ctx, { meetingCandidates, replyRequirements, notification }) : null;
+  // A thread that holds a confirmed date and time is scheduled, not settled
+  // (Dave 2026-09-29, the tee-time confirmation that came back Settled). The
+  // model's own word stands unless it is one that says nothing is happening;
+  // a thread still waiting on somebody keeps that.
+  const state2 = scheduledState(st, mt, v4?.meetingCandidates);
   return {
     summary: s, replies: r,
     ...(v4 ?? {}),
-    ...(st ? { state: st } : {}),
+    ...(state2 ? { state: state2 } : {}),
     ...(ag.length ? { agreed: ag } : {}),
     ...(un.length ? { unresolved: un } : {}),
     ...(dl ? { deadline: dl } : {}),
@@ -280,6 +299,22 @@ export function parseBrief(raw: string, ctx?: BriefContext): Brief | null {
     ...(dc ? { decision: dc } : {}),
     ...(mt ? { meeting: mt } : {}),
   };
+}
+
+/** A candidate a card can act on: agreed, with a real day and a real time. */
+function isConfirmedCandidate(c: MeetingCandidate): boolean {
+  return c.status === "agreed" && !!c.date && !!c.start && c.missing.length === 0;
+}
+
+/** The thread's state once a confirmed meeting is known: settled and no-action become scheduled. */
+export function scheduledState(
+  st: ThreadState | undefined,
+  legacy: ConfirmedMeeting | null,
+  candidates: readonly MeetingCandidate[] | undefined,
+): ThreadState | undefined {
+  const confirmed = !!legacy || !!candidates?.some(isConfirmedCandidate);
+  if (!confirmed) return st;
+  return st === undefined || st === "settled" || st === "no_action" ? "scheduled" : st;
 }
 
 function readV4(

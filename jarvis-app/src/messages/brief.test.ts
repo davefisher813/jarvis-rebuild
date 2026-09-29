@@ -154,10 +154,13 @@ describe("parseMeeting", () => {
     expect(b?.meeting).toEqual({ title: "GM interview", date: "2026-09-21", start: "15:00", end: "15:45" });
   });
 
-  it("the prompt asks only for a settled time, and says today so a weekday resolves", () => {
+  it("the prompt asks only for a confirmed time, and says today so a weekday resolves", () => {
     const p = briefPrompt("AJ: Monday at 3pm works", "2026-09-16");
     expect(p).toContain("Today is 2026-09-16");
-    expect(p).toMatch(/BOTH sides have settled on/);
+    // AMENDED 2026-09-29 (Dave, the tee-time miss): a CONFIRMED date and time
+    // counts, one-sided booking confirmations included; "BOTH sides" is gone.
+    // bookingConfirmation.test.ts holds the whole wording.
+    expect(p).toMatch(/CONFIRMED date and time/);
     expect(p).toMatch(/Leave it out entirely if the time is only PROPOSED/);
   });
 });
