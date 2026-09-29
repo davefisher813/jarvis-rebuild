@@ -4673,18 +4673,20 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
         const shown = forYou && showTriage ? [...needsYou, ...worthKnowing, ...noise] : listRows;
         const mine = shown.filter((r) => picked.has(rowKey(r)));
         return (
-          <div className="pad-x fold-tools">
-            <span className="conn-meta">{lineCase(mine.length + " selected")}</span>
+          <div className="pad-x mail-select-bar">
+            <span className="conn-meta sel-count">{lineCase(mine.length + " selected")}</span>
             <button className="quiet-action" onClick={() => setPicked(new Set(shown.map(rowKey)))} disabled={shown.length === 0}>Select All Shown</button>
-            <button className="btn-sm" onClick={() => void archivePicked(shown)} disabled={mine.length === 0 || trashing}>
-              {mine.length === 0 ? "Archive" : lineCase("Archive " + mine.length)}
-            </button>
-            {/* 11B: the other half of the job. Archive keeps it in the
-                account; delete moves it to Trash (30 days, one Undo). */}
-            <button className="btn-sm btn-danger" onClick={() => void deletePicked(shown)} disabled={mine.length === 0 || trashing}>
-              {mine.length === 0 ? "Delete" : lineCase("Delete " + mine.length)}
-            </button>
             <button className="quiet-action" onClick={() => setPicked(null)}>Done</button>
+            <div className="sel-acts">
+              <button className="btn btn-secondary" onClick={() => void archivePicked(shown)} disabled={mine.length === 0 || trashing}>
+                {mine.length === 0 ? "Archive" : lineCase("Archive " + mine.length)}
+              </button>
+              {/* 11B: the other half of the job. Archive keeps it in the
+                  account; delete moves it to Trash (30 days, one Undo). */}
+              <button className={"btn " + (mine.length === 0 ? "btn-secondary" : "btn-danger")} onClick={() => void deletePicked(shown)} disabled={mine.length === 0 || trashing}>
+                {mine.length === 0 ? "Delete" : lineCase("Delete " + mine.length)}
+              </button>
+            </div>
           </div>
         );
       })()}

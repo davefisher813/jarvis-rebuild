@@ -2251,6 +2251,17 @@ button {
 .fold-tools { display: flex; justify-content: flex-end; align-items: center;
   gap: var(--s-2); padding: var(--s-1) var(--s-4); }
 
+/* SELECT ON THE MAIN LIST (2026-09-29). Two lines: the count with Select All
+   Shown and Done, then Archive and Delete as two equal full-width buttons, the
+   way Clean Out's foot does it. The first cut put five things in .fold-tools'
+   one right-aligned line and the count and the labels wrapped to pieces at
+   390px. Red goes on only when Delete will actually delete (L1). */
+.mail-select-bar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2); padding-top: var(--s-1); padding-bottom: var(--s-2); }
+.mail-select-bar .sel-count { flex: 1 1 auto; white-space: nowrap; }
+.mail-select-bar .quiet-action { white-space: nowrap; }
+.mail-select-bar .sel-acts { display: flex; gap: var(--s-2); flex: 1 0 100%; }
+.mail-select-bar .sel-acts .btn { flex: 1 1 0; white-space: nowrap; }
+
 /* E9: quick replies on the deck card. A row of whole answers under the
    drafted one; each sends through the same path as the primary. */
 .deck-chips { display: flex; gap: var(--s-2); flex-wrap: wrap; margin-top: var(--s-2); }
