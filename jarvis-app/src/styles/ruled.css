@@ -3143,3 +3143,28 @@
     radial-gradient(88% 60% at 35% 50%, rgba(0, 0, 0, 0.09), rgba(0, 0, 0, 0) 72%),
     linear-gradient(153deg, var(--bp-a) 0%, var(--bp-b) 100%);
 }
+
+/* ==========================================================================
+   FOLLOW-UPS TO THE APPROVED LIGHT PALETTE (Dave 2026-09-29, "finish all open
+   items"). Sizes and truncation, both themes.
+   ========================================================================== */
+
+/* The Focus button reaches the 44px tap minimum (the audit measured 40). */
+.focus-row .row-act { min-height: var(--tap-min); }
+
+/* A settings row's name is copy this app wrote, not a name the world sent, so
+   at large text it takes a second line rather than an ellipsis (the reasoning
+   .ob-screen already carries). Rows grow; nothing below is pushed off. */
+.ruled .set-card > .set-row .conn-name { white-space: normal; overflow: visible; text-overflow: clip; overflow-wrap: anywhere; }
+
+/* The urgency badge in a reminder's facts line is a whole word: it never
+   shrinks to "TO…". The area name beside it is what gives way. */
+.facts > .fact:has(> .uchip) { flex-shrink: 0; overflow: visible; text-overflow: clip; }
+/* If the badge and the area name do not fit beside the Snooze pill, the badge
+   takes a second line rather than squeezing the area name. */
+.rem-card .facts { flex-wrap: wrap; row-gap: 0; }
+.rem-card .facts > .fact.cat { flex-shrink: 0; max-width: 100%; }
+/* A wrapped badge would start its line with the "·" separator; the badge is
+   set off by its own fill, so it needs no dot and takes a small margin. */
+.rem-card .facts > .fact:has(> .uchip)::before { content: none; }
+.rem-card .facts > .fact:has(> .uchip) { margin-left: var(--s-1h); }

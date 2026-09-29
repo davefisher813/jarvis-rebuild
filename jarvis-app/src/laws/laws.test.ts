@@ -1250,6 +1250,10 @@ describe("LAW: one filled red per screen", () => {
       const rl = ratio(l, "#F2F2F7");
       // AMENDED 2026-09-27 (§AQ): light red text is Jarvis Red by Dave's ruling,
       // exempt from both text bars. Its glyph is still measured below.
+      // 2026-09-29: the exemption also covers the red slot's text on its own 18%
+      // chip (#D12416 on about #EFCECF is 3.62:1). No rendered surface pairs
+      // them (the light visual audit at 390, 430 and 1.4x type finds none); the
+      // red category's text lands on white, the page and #F0F1F4 (4.68 to 5.28).
       const jr = slot === "red" && isJarvisRedLight(l);
       if (rl < 4.5 && !jr) bad.push(`${slot} (light text): ${l} on #F2F2F7 is ${rl.toFixed(2)}:1`);
       const ch = (i: number) => Math.round(
