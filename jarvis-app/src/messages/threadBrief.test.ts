@@ -123,6 +123,15 @@ describe("ensureThreadBrief: one reading per account, revision and schema", () =
     expect(calls).toHaveLength(2);
   });
 
+  it("never throws, whatever goes wrong inside: it is a failed read with the error attached", async () => {
+    const { ai } = fakeAI();
+    const r = await ensureThreadBrief(args(ai, { selfEmails: null as unknown as string[] }));
+    expect(r).toMatchObject({ brief: null, source: "none" });
+    expect(r.error).toBeInstanceOf(Error);
+    // And the single-flight slot is free again.
+    expect((await ensureThreadBrief(args(ai))).source).toBe("model");
+  });
+
   it("an answer that is not JSON is a failed read", async () => {
     const { ai } = fakeAI({ answer: () => "I cannot help with that" });
     expect(await ensureThreadBrief(args(ai))).toMatchObject({ brief: null, source: "none" });
@@ -193,8 +202,9 @@ describe("ensureThreadBrief: long conversations are chunked, never silently cut"
     failSecond = false;
     const second = await ensureThreadBrief(args(ai, { messages: longThread() }));
     // The newest chunk came from the chunk cache; only the failed one (and any after it) went out.
-    expect(calls.length - callsAfterFirst).toBeLessThan(callsAfterFirst + 1);
-    expect(calls[callsAfterFirst]).not.toContain("msg9 sentence 89");
+    // The newest chunk is never asked for again.
+    expect(calls.slice(callsAfterFirst).every((p) => !p.includes("msg9 sentence 89"))).toBe(true);
+    expect(calls.length).toBeGreaterThan(callsAfterFirst);
     expect(second.error).toBeUndefined();
     expect(localStorage.getItem("jarvis.mail.brief.v4")).not.toBeNull();
   });

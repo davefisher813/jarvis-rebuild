@@ -213,7 +213,13 @@ export function ensureThreadBrief(args: ThreadBriefArgs): Promise<ThreadBriefRes
   }
   const key = mailMessageKey(args.scope, revision) + ":brief:v" + BRIEF_SCHEMA_VERSION + (args.links !== undefined ? ":links" : "");
   let mine = false;
-  const flight = singleFlight(key, () => { mine = true; return readThread(args, zone, revision); });
+  const flight = singleFlight(key, async () => {
+    mine = true;
+    // Never throws: an unexpected failure is a failed read, not an error the
+    // caller has to catch (openThread would have called it "Could not open").
+    try { return await readThread(args, zone, revision); }
+    catch (error) { return { brief: null, source: "none", calls: 0, revision, error } as ThreadBriefResult; }
+  });
   // A caller that joined a flight already running made no call of its own.
   return flight.then((r) => (mine ? r : { ...r, calls: 0 }));
 }
