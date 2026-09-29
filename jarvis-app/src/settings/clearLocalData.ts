@@ -1,5 +1,6 @@
 import { clearPreload } from "../data/preloadCache";
 import { clearAllMailCache } from "../messages/mailCache";
+import { forgetAllCodes } from "../messages/notificationActions";
 import { clearRecentErrors } from "../monitoring/monitor";
 
 // S3-Q17 (2026-09-04): "Clear Local Data destroys things with no other
@@ -99,6 +100,7 @@ const SAFE_TO_CLEAR: readonly string[] = [
   "jarvis.mail.tossasked.v1",
   "jarvis.mail.close.v1", // last-run marker for the weekly close offer
   "jarvis.mail.snooze.v1", // same-day, self-expiring notice state
+  "jarvis.mail.notify.v1", // what each thread's latest message wants done: re-read on the next refresh
 ];
 
 export function clearLocalData(storage: Pick<Storage, "removeItem"> = localStorage): void {
@@ -116,6 +118,9 @@ export function clearLocalData(storage: Pick<Storage, "removeItem"> = localStora
   // they were scoped). Same for the crash ring: its own
   // comment already names Clear Local Data as one of its two callers.
   clearAllMailCache(storage);
+  // A one-time code lives only in memory, and the next person on this phone
+  // must not be able to recall it.
+  forgetAllCodes();
   clearRecentErrors();
 }
 

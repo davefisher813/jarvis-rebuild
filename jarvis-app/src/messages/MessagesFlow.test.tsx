@@ -1718,6 +1718,32 @@ describe("reopening Email", () => {
     expect(asked[1]).toEqual(["r2"]);
   });
 
+  // NOTIFICATION ACTIONS (2026-09-29). The tab reads the body of a thread that
+  // looks like a notification and is new to the cache, once, writes the action
+  // onto Today's snapshot, and a remount that finds nothing new reads nothing.
+  it("reads a notification's body once, puts its action on Today's snapshot, and a remount reads nothing more", async () => {
+    const box = new FakeMailbox("me@example.com");
+    box.add("sign", {
+      from: "DocuSign <dse@docusign.net>", subject: "Please DocuSign: Lease", snippet: "review and sign", body: "Please review and sign.",
+      html: '<a href="https://na3.docusign.net/Signing/EmailStart.aspx?a=1&amp;er=2">REVIEW DOCUMENT</a>',
+    });
+    box.add("wei", { from: "Wei <wei@x.com>", subject: "Lunch Thursday?" });
+    const { ai } = countingAi();
+    const first = await openAndSettle(ai, box);
+    const found = () => [...loadMailSnapshot().threads, ...(loadMailSnapshot().actionable ?? [])].find((t) => t.id === "sign");
+    await waitFor(() => expect(found()?.action?.url).toBe("https://na3.docusign.net/Signing/EmailStart.aspx?a=1&er=2"));
+    expect(found()).toMatchObject({ account: "me@example.com", revision: expect.any(String) });
+    expect(box.counters.bodies).toBe(1); // the person's thread was never read for links
+    first.unmount();
+
+    invalidateReads(SC, ["threads"]);
+    const before = { ...box.counters };
+    await openAndSettle(ai, box);
+    await waitFor(() => expect(box.counters.list - before.list).toBe(1));
+    expect(box.counters.bodies - before.bodies).toBe(0);
+    expect(found()?.action?.kind).toBe("sign");
+  });
+
   it("an empty inbox is a cached answer too: the second visit paints it without reading anything", async () => {
     const box = new FakeMailbox("me@example.com");
     const first = await openAndSettle(noAI, box);

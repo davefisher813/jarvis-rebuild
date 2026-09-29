@@ -259,3 +259,48 @@ describe("applyKnownPeople", () => {
     expect(applyKnownPeople(map, [row("t1", "Sister", "Hey")], new Set())).toBe(map);
   });
 });
+
+// 2026-09-29: the optional action kind, and a code never reaching a model.
+describe("the optional notification kind", () => {
+  const withKind = (kind: unknown) => JSON.stringify([{ id: "t1", bucket: "noise", gist: "Share", action: kind }]);
+
+  it("keeps a kind from the list and drops anything else", () => {
+    expect(parseTriage(withKind("open_share"), ROWS)!.t1!.action).toBe("open_share");
+    expect(parseTriage(withKind("pay_now"), ROWS)!.t1!.action).toBeUndefined();
+    expect(parseTriage(withKind("https://evil.example/x"), ROWS)!.t1!.action).toBeUndefined();
+    expect(parseTriage(withKind(42), ROWS)!.t1!.action).toBeUndefined();
+    expect("action" in parseTriage(JSON.stringify([{ id: "t1", bucket: "noise", gist: "x" }]), ROWS)!.t1!).toBe(false);
+  });
+
+  it("survives the cache, and an entry cached before it reads as it did", () => {
+    const store = new Map<string, string>();
+    const storage = { getItem: (k: string) => store.get(k) ?? null, setItem: (k: string, v: string) => { store.set(k, v); } };
+    const scope = { userId: "u1", account: "a@x.com" };
+    saveTriageFor(scope, { t1: { bucket: "noise", gist: "Share", lastMsgId: "t1_m1", action: "open_share" }, t2: { bucket: "noise", gist: "Old", lastMsgId: "t2_m1" } }, storage);
+    const back = loadTriageFor(scope, storage);
+    expect(back.t1!.action).toBe("open_share");
+    expect(back.t2).toEqual({ bucket: "noise", gist: "Old", lastMsgId: "t2_m1" });
+  });
+
+  it("asks for a kind and never for a link or a code", () => {
+    const input = buildTriageInput(ROWS);
+    expect(input).toMatch(/"action"/);
+    expect(input).toMatch(/never write a link, an address or a code/);
+  });
+});
+
+describe("a code never reaches the model", () => {
+  const codeRow = row("t9", "Acme", "Your verification code is 004291", "Your verification code is 004291. It expires in 10 minutes.");
+  it("is blanked from the subject and the snippet before anything is sent", () => {
+    const input = buildTriageInput([codeRow, row("t8", "Geico", "Renewal", "Your policy renews Aug 12 for $2400")]);
+    expect(input).not.toContain("004291");
+    expect(input).toContain("$2400"); // an amount is not a code
+  });
+  it("is blanked from a gist the model echoed and from a fallback gist", () => {
+    const echoed = parseTriage(JSON.stringify([{ id: "t9", bucket: "noise", gist: "Code 004291" }]), [codeRow])!;
+    expect(echoed.t9!.gist).not.toContain("004291");
+    const skipped = parseTriage(JSON.stringify([{ id: "t9", bucket: "noise", gist: "" }]), [codeRow])!;
+    expect(skipped.t9!.gist).not.toContain("004291");
+    expect(fillSkipped({}, [codeRow]).t9!.gist).not.toContain("004291");
+  });
+});

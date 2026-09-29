@@ -139,3 +139,34 @@ describe("cardDraftJob", () => {
     expect(complete).not.toHaveBeenCalled();
   });
 });
+
+// 2026-09-29: an EXPLICIT allow-list. A draft is written over his name to a
+// person; the old code defaulted every kind it did not know to a reply.
+describe("cardDraftJob: no draft unless it is a message to somebody who can read it", () => {
+  const s = snap({ threads: [thread()], waiting: [wait()] });
+
+  it("drafts a reply, a nudge and a chase, and nothing else", () => {
+    expect(job({ kind: "reply", threadId: "t1" }, s)).not.toBeNull();
+    expect(job({ kind: "nudge", threadId: "w1" }, s)).not.toBeNull();
+    expect(job({ kind: "chase", threadId: "w1" }, s)).not.toBeNull();
+    for (const kind of ["deadline", "promised", "meeting", "draft", "act", "notify", "anything-new"]) {
+      expect(job({ kind, threadId: "t1" }, s), kind).toBeNull();
+    }
+  });
+
+  it("never drafts a reply to a no-reply sender, flagged or judged by its address", () => {
+    expect(job({ kind: "reply", threadId: "t1" }, snap({ threads: [thread({ noReply: true })] }))).toBeNull();
+    expect(job({ kind: "reply", threadId: "t1" }, snap({ threads: [thread({ fromEmail: "no-reply@acme.com" })] }))).toBeNull();
+    expect(job({ kind: "reply", threadId: "t1" }, snap({ threads: [thread({ snippet: "This is an automated message. Do not reply." })] }))).toBeNull();
+  });
+
+  it("never drafts to a thread that carries a specialised action", () => {
+    const withAction = thread({ action: { kind: "sign", evidence: { sourceMessageId: "m", sourceRevision: "m" }, url: "https://na3.docusign.net/Signing/x" } });
+    expect(job({ kind: "reply", threadId: "t1" }, snap({ threads: [withAction] }))).toBeNull();
+  });
+
+  it("never drafts a nudge or a chase to a no-reply address", () => {
+    expect(job({ kind: "nudge", threadId: "w1" }, snap({ waiting: [wait({ to: "no-reply@acme.com" })] }))).toBeNull();
+    expect(job({ kind: "chase", threadId: "c1" }, snap({ chases: [{ threadId: "c1", to: "donotreply@shop.com", subject: "Order" }] }))).toBeNull();
+  });
+});

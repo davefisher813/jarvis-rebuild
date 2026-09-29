@@ -1,6 +1,6 @@
 import type { AIService } from "../ai/AIService";
 import type { GoogleApi } from "../connections/google/api";
-import type { ThreadRow } from "../connections/google/map";
+import type { GmailThreadFull, ThreadRow } from "../connections/google/map";
 import {
   selfBlankGuard, loadTriageView, saveTriageView, splitByBucket, sortByDeadline, type TriageMap,
 } from "./triage";
@@ -17,6 +17,9 @@ import { loadChases, dueChases } from "./followUp";
 import { displayName } from "./names";
 import { briefFor } from "./brief";
 import { saveMailSnapshot } from "./home";
+import { buildNotificationSnapshot, classificationFrom, redactCodes } from "./notificationActions";
+import { notificationLookup, scanNotifications } from "./notificationScan";
+import { loadUnsubs } from "./unsubRecords";
 import { todayISO } from "../schedule/calendar";
 
 // S6-Q34 (2026-09-04): "the email band only fills if you visit the Email
@@ -117,19 +120,45 @@ export async function refreshMailSnapshot(deps: SnapshotRefreshDeps): Promise<vo
 
   const rules = loadRules();
   let map = selfBlankGuard(applyRules(merged, rows, rules), rows, list.map((a) => a.email));
+
+  // ONE READ PER THREAD PER PASS (2026-09-29). The notification scan and the
+  // anchor pass below both want full bodies, for overlapping threads. They ask
+  // through this memo, so a thread wanted by both is one request. There is no
+  // body cache across passes in this app to share; this is the sharing there is.
+  const apiByAccount = new Map(list.map((a) => [a.email, a.api]));
+  const bodies = new Map<string, Promise<GmailThreadFull>>();
+  const readThread = (account: string, api: GoogleApi, id: string): Promise<GmailThreadFull> => {
+    const k = account + "\u0000" + id;
+    let p = bodies.get(k);
+    if (!p) { p = api.getThread(id); bodies.set(k, p); }
+    return p;
+  };
+
+  // NOTIFICATION ACTIONS (2026-09-29). Bodies are read only for threads that
+  // look like notifications AND whose newest message has no answer yet; the
+  // answer, "nothing to do" included, is cached. An unchanged inbox reads
+  // nothing and asks no model anything. Deterministic: works with AI off. A
+  // failure here never fails the snapshot.
+  await Promise.all(list.map(({ email, api }) => scanNotifications({
+    userId: deps.userId, account: email, api,
+    rows: rows.filter((r) => r.account === email),
+    triage: map,
+    classificationFor: (r) => classificationFrom(map[r.id]?.action),
+    readThread: (id) => readThread(email, api, id),
+  }).catch(() => null)));
+
   // UP-MIND-12 (2026-09-05): the claims triage made from a 200-character
   // snippet get anchored to the sentence they came from, over the full body,
   // for the threads that need him. Capped and best-effort: a claim that
   // cannot be anchored keeps its place and renders without a chip.
   if (ai.available) {
-    const apiByAccount = new Map(list.map((a) => [a.email, a.api]));
     const before = map;
     map = await anchorNeedsYou(
       rows,
       map,
       async (id, account) => {
-        const api = (account ? apiByAccount.get(account) : undefined) ?? list[0]!.api;
-        const full = mapThreadFull(await api.getThread(id));
+        const acct = account && apiByAccount.has(account) ? account : list[0]!.email;
+        const full = mapThreadFull(await readThread(acct, apiByAccount.get(acct) ?? list[0]!.api, id));
         return { id: full.id, messages: full.messages.map((m) => ({ id: m.id, body: m.body })) };
       },
       (messages, system) => ai.complete(messages as { role: "user" | "assistant"; content: string }[], system),
@@ -157,22 +186,35 @@ export async function refreshMailSnapshot(deps: SnapshotRefreshDeps): Promise<vo
   const todayIso = todayISO();
   const answeredThreads = answeredThreadIds(rows, list.map((a) => a.email));
 
+  // The one helper the Email tab's own writer uses too: actionable threads
+  // apart from the six rows, and each row's account, revision and action.
+  const notif = buildNotificationSnapshot({
+    owner: deps.userId, rows, map,
+    entryFor: notificationLookup(deps.userId, accounts),
+    asked: loadUnsubs(),
+    excludeIds: new Set(ordered.slice(0, 6).map((r) => r.id)),
+    now,
+  });
+
   saveMailSnapshot({
     ts: Date.now(),
+    owner: deps.userId,
     needsYou: needsYou.length,
+    actionable: notif.actionable,
     threads: ordered.slice(0, 6).map((r) => ({
       id: r.id,
       from: displayName(r.from),
       fromEmail: r.fromEmail,
       subject: r.subject,
-      gist: map[r.id]?.gist ?? r.snippet ?? "",
+      gist: redactCodes(map[r.id]?.gist ?? r.snippet ?? ""),
+      ...notif.fields(r),
       by: map[r.id]?.by,
       act: map[r.id]?.act,
       ...(map[r.id]?.byEv ? { byEv: map[r.id]!.byEv! } : {}),
       ...(map[r.id]?.actEv ? { actEv: map[r.id]!.actEv! } : {}),
       account: (r as ThreadRow & { account?: string }).account,
       ...(personIdFor(r.fromEmail) ? { personId: personIdFor(r.fromEmail)! } : {}),
-      snippet: r.snippet ?? "",
+      snippet: redactCodes(r.snippet ?? ""),
       lastMsgId: r.lastMsgId,
       replies: briefFor(r.lastMsgId)?.replies,
     })),

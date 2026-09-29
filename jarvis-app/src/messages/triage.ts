@@ -5,6 +5,8 @@ import type { ActProposal } from "./mailAct";
 import { HOSTILE_CLAUSE, untrustedBlock } from "./untrusted";
 import { evidenceIn, type Evidence } from "./evidence";
 import { mailAccountKey, type MailScope } from "./mailIdentity";
+import type { NotificationActionKind } from "./mailContracts";
+import { NOTIFICATION_ACTION_KINDS, isNotificationKind, redactCodes } from "./notificationActions";
 
 // Triage (email 1): one AI pass sorts the inbox into what needs Dave, what is
 // worth knowing, and noise, with a one-line gist per thread so junk never has
@@ -35,6 +37,14 @@ export interface Triage {
   // still renders, hedged and without a chip.
   byEv?: Evidence;
   actEv?: Evidence;
+  // 2026-09-29: what KIND of notification this is, when it clearly is one. A
+  // kind and nothing else: never a link, never a code (the model is never
+  // shown a code, see redactCodes below). It is a hint that a thread is worth
+  // reading for its links; the action itself is built from the message in
+  // code (notificationActions.ts). Optional and NOT a schema bump: an entry
+  // cached before this field simply has no hint until a newer message
+  // arrives, and the deterministic reader covers it meanwhile.
+  action?: NotificationActionKind;
 }
 // An entry the model never actually answered (a batch that failed or timed
 // out, or a thread it skipped) is filled from the snippet so it stays visible,
@@ -106,7 +116,9 @@ Also write "act" WHEN AND ONLY WHEN the email states a dated commitment this per
 - "span": the sentence in the email that states this commitment, copied character for character. Use "" if you cannot copy it exactly.
 Leave "act" out for anything speculative, for marketing with a deadline, and for anything already in the past.
 
-Reply with ONLY a JSON array, one object per thread: [{"id":"...","bucket":"needs_you|worth_knowing|noise","gist":"...","by":"...","act":{...}}]
+Also write "action" ONLY when the message is clearly one of these automated notices, and otherwise leave it out: grant_access (someone asks for access to a file), open_share (a file was shared with you), accept_invite (a calendar invitation), sign (a document to sign), track (a parcel), add_travel (a flight or hotel booking), fill_form (a form to fill out), fix_payment (a failed payment), copy_code (a one-time verification code), unsubscribe (a newsletter). It is a kind only: never write a link, an address or a code.
+
+Reply with ONLY a JSON array, one object per thread: [{"id":"...","bucket":"needs_you|worth_knowing|noise","gist":"...","by":"...","act":{...},"action":"..."}]
 
 ${HOSTILE_CLAUSE}
 
@@ -129,6 +141,7 @@ export const TRIAGE_SCHEMA: Record<string, unknown> = {
           bucket: { type: "string", enum: ["needs_you", "worth_knowing", "noise"] },
           gist: { type: "string", description: "a fragment, at most 6 words, no sender name, no 'you'" },
           by: { type: "string", description: "sender's stated deadline in their words, or empty" },
+          action: { type: "string", enum: NOTIFICATION_ACTION_KINDS, description: "the kind of automated notice this is, only when it clearly is one; a kind only, never a link or a code" },
           bySpan: { type: "string", description: "the sender's whole sentence stating that deadline, copied exactly from the text, or empty" },
           act: {
             type: "object",
@@ -159,7 +172,9 @@ export const TRIAGE_SCHEMA: Record<string, unknown> = {
 // forged id inside the fence buys nothing.
 export function buildTriageInput(rows: ThreadRow[]): string {
   return TRIAGE_PROMPT + untrustedBlock(JSON.stringify(
-    rows.map((r) => ({ id: r.id, from: r.from, subject: r.subject, snippet: r.snippet.slice(0, 200) })),
+    // A one-time code is a secret that arrives in the subject or the first
+    // words: it is blanked before anything is sent (2026-09-29).
+    rows.map((r) => ({ id: r.id, from: r.from, subject: redactCodes(r.subject), snippet: redactCodes(r.snippet.slice(0, 200)) })),
   ));
 }
 
@@ -181,12 +196,12 @@ export function parseTriage(raw: string, rows: ThreadRow[]): TriageMap | null {
   const out: TriageMap = {};
   for (const item of parsed) {
     if (typeof item !== "object" || item === null) continue;
-    const { id, bucket, gist, by, act, bySpan } = item as { id?: unknown; bucket?: unknown; gist?: unknown; by?: unknown; act?: unknown; bySpan?: unknown };
+    const { id, bucket, gist, by, act, bySpan, action } = item as { id?: unknown; bucket?: unknown; gist?: unknown; by?: unknown; act?: unknown; bySpan?: unknown; action?: unknown };
     if (typeof id !== "string") continue;
     const row = byId.get(id);
     if (!row) continue;
     const b: Bucket = bucket === "needs_you" || bucket === "noise" ? bucket : "worth_knowing";
-    const g = noDashes(typeof gist === "string" && gist.trim() ? gist.trim().slice(0, GIST_MAX) : row.snippet.slice(0, GIST_MAX));
+    const g = noDashes(redactCodes(typeof gist === "string" && gist.trim() ? gist.trim().slice(0, GIST_MAX) : row.snippet.slice(0, GIST_MAX)));
     const d = typeof by === "string" ? by.trim().slice(0, 20) : "";
     // Stored RAW, resolved later. readAct needs to know what day it is, and
     // this cache outlives the day it was written: an appointment validated as
@@ -207,6 +222,8 @@ export function parseTriage(raw: string, rows: ThreadRow[]): TriageMap | null {
       bucket: b, gist: g, lastMsgId: row.lastMsgId,
       ...(d ? { by: d } : {}), ...(a ? { act: a } : {}),
       ...(byEv ? { byEv } : {}), ...(actEv ? { actEv } : {}),
+      // Validated against the list: anything else the model wrote is dropped.
+      ...(isNotificationKind(action) ? { action } : {}),
     };
   }
   return Object.keys(out).length ? out : null;
@@ -278,7 +295,7 @@ export function fillSkipped(map: TriageMap, rows: ThreadRow[]): TriageMap {
     // A real answer for THIS content is never overwritten by a fill.
     if (cur && cur.lastMsgId === r.lastMsgId && !cur.fallback) continue;
     const priorTries = cur && cur.lastMsgId === r.lastMsgId ? cur.tries ?? 1 : 0;
-    out[r.id] = { bucket: "worth_knowing", gist: r.snippet.slice(0, GIST_MAX), lastMsgId: r.lastMsgId, fallback: true, tries: priorTries + 1 };
+    out[r.id] = { bucket: "worth_knowing", gist: redactCodes(r.snippet.slice(0, GIST_MAX)), lastMsgId: r.lastMsgId, fallback: true, tries: priorTries + 1 };
   }
   return out;
 }
@@ -313,7 +330,7 @@ function readEntries(raw: unknown): TriageMap {
   if (typeof raw !== "object" || raw === null || Array.isArray(raw)) return out;
   for (const [id, v] of Object.entries(raw as Record<string, unknown>)) {
     if (typeof v !== "object" || v === null) continue;
-    const { bucket, gist, lastMsgId, by, act, byEv, actEv, fallback, tries } = v as { bucket?: unknown; gist?: unknown; lastMsgId?: unknown; by?: unknown; act?: unknown; byEv?: unknown; actEv?: unknown; fallback?: unknown; tries?: unknown };
+    const { bucket, gist, lastMsgId, by, act, byEv, actEv, fallback, tries, action } = v as { bucket?: unknown; gist?: unknown; lastMsgId?: unknown; by?: unknown; act?: unknown; byEv?: unknown; actEv?: unknown; fallback?: unknown; tries?: unknown; action?: unknown };
     if ((bucket === "needs_you" || bucket === "worth_knowing" || bucket === "noise")
       && typeof gist === "string" && typeof lastMsgId === "string") {
       // Carried through unread. Dropping it here would mean the button
@@ -323,6 +340,7 @@ function readEntries(raw: unknown): TriageMap {
         bucket, gist, lastMsgId,
         ...(typeof by === "string" && by ? { by } : {}), ...(a ? { act: a } : {}),
         ...(readEv(byEv) ? { byEv: readEv(byEv)! } : {}), ...(readEv(actEv) ? { actEv: readEv(actEv)! } : {}),
+        ...(isNotificationKind(action) ? { action } : {}),
         ...(fallback === true ? { fallback: true as const } : {}),
         ...(typeof tries === "number" && tries > 0 ? { tries: Math.floor(tries) } : {}),
       };
