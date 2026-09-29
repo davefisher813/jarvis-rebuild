@@ -246,9 +246,13 @@ export default function MeetingFinishCard({
         : o.kind === "ask" && o.hour ? { text: hourWord(o.hour.hour, o.hour.minute) + " · AM or PM?", tone: "warn" }
         : c.dayPart ? { text: titleCase(c.dayPart) + " · Time?", tone: "warn" }
         : o.kind === "ask" && { text: "Time?", tone: "warn" },
+      // The length comes BEFORE the zone: on one line the last fact gives way,
+      // and "1h · Default" is the honesty (the length is the app's, not the
+      // sender's), so it must not be the fact that gets cut. Found by rendering
+      // the card at 390px.
+      o.kind !== "cancelled_filed" && !!f.length && { text: f.length },
       o.kind !== "cancelled_filed" && !!c.start && { text: f.zoneLabel },
       o.kind !== "cancelled_filed" && !!f.yours && { text: f.yours },
-      o.kind !== "cancelled_filed" && !!f.length && { text: f.length },
       o.kind === "cancelled_filed" && { text: "Still on Your Calendar" },
       asking === "timezone" && { text: "Time Zone?", tone: "warn" },
     ];
