@@ -145,6 +145,10 @@ describe("LAW §AM: the colour key", () => {
       const c = textColour(body);
       if (!c) continue;
       if (KEY_INK.test(c)) continue;
+      // AMENDED 2026-09-29 (Dave, the approved light palette): in light --tx-2
+      // (#363A43) is its own tier above --tx-3 (#515661), so a light-scoped
+      // emphasis in --tx-2 is a real step up, not the same grey.
+      if (sel.startsWith('[data-theme="light"]') && /var\(--tx-2\)/.test(c)) continue;
       // An explicitly OFF or finished state is allowed to stay quiet: it is
       // not emphasis, it is the absence of it.
       if (/(\.off|\.rdy-off|\.done|\.completed|\.skipped|\.gone)(?![\w-])/.test(sel)) continue;

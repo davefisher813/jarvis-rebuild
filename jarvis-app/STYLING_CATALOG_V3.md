@@ -1006,3 +1006,29 @@ Laws: `SessionScreen.cta.test.tsx` (field, label and write agree; Match fills th
 **PDF.** The catalog's PDF visual record predates this revision and needs regenerating from this section.
 
 Pinned by `laws.test.ts` (every fill's on-colour, every ink on every ground and chip), `browserWalk.test.ts` (the key's words, the two-tier ramp) and `colourKey.test.ts` (the estimate ink).
+
+## §AR. The approved light palette (Dave 2026-09-29, supersedes §AQ where they differ)
+
+Light only. Dark is untouched. Category identity and action styling are separate roles: `#E42C18` stays the red category's fill; **`#D12416` is the action red** (primary buttons with white text, secondary pill labels and icons, links, the Add plus and word).
+
+| Role | Value |
+|---|---|
+| Page / cards / neutral pills and badges | `#F5F6F8` / `#FFFFFF` / `#F0F1F4` |
+| Text: titles and important values / supporting / quiet labels | `#111318` / `#363A43` / `#515661` (all opaque) |
+| Decorative dividers / control outlines / focus ring | `#E1E4E9` / `#737985` / `#111318` |
+| Completed | `#037134` on `#E5F3EA` |
+| Warning (Stalled, Overdue, late) | `#9A5305` on `#FFF0DB` |
+| Health lime: number ink / decorative fill / reference-range tint | `#4E7402` / `#9EDB43` / `#E7F1DC` |
+
+- Secondary pills (Start, Snooze, Add, View Email, Reply) are `#F0F1F4` with an `#D12416` label. Neutral controls (Area, Group, Reorder, Manage) are `#F0F1F4` with `#111318`.
+- The Focus button's waiting count is a neutral chip (`#111318` on `#F0F1F4`), never a second red.
+- TODAY and TOMORROW badges are neutral. Amber is only for real warnings. "JARVIS Found N" is one `#363A43` phrase.
+- Area tiles keep their fills; the icon is white where white clears 3:1 against the fill, else `#111318` (orange, sky, pink, yellow, teal, lime, sand take the dark icon).
+- Health metadata pills and facts are neutral. Lime carries numbers as ink `#4E7402`; the bright lime is a decorative fill only. This also settles the `#A6FF00` / `#9EDB43` mismatch: `--hl-lime` had been pinned equal to dark's `#A6FF00` in light.
+- Project cards carry a dark scrim (42% top, 30% foot) so white words clear 4.5:1 on every slot, with no text shadow.
+- Reminder rows carry the same hairlines as every other list.
+- Type (light only): weights step down one notch (bold 700, semi 600, medium 500, regular 400; nothing at 800), page title 32, body 16, supporting 15, task and note names 17.
+
+**Known contrast pair under 4.5:1:** the red category's text on its own 18% chip, `#D12416` on about `#EFCECF`, 3.62:1. Recorded rather than altered because the ink is the approved value.
+
+Pinned by `reds.ts`, `browserWalk.test.ts`, `laws.test.ts`, `capsuleLaw.test.ts`, `colourKey.test.ts` and `healthSkin.test.ts`, each amended with this date.

@@ -173,6 +173,14 @@ describe("HEALTH law 3: the light activity ramp equals the dark one", () => {
     for (const hue of RAMP) {
       expect(dark[hue], `dark --hl-${hue} is missing`).toBeTruthy();
       expect(light[hue], `light --hl-${hue} is missing`).toBeTruthy();
+      // AMENDED 2026-09-29 (Dave, the approved light palette): light lime is
+      // #9EDB43 with tint #E7F1DC and word ink #4E7402. The #A6FF00 that this
+      // law pinned was the source of the #A6FF00 / #9EDB43 mismatch he named.
+      if (hue === "lime") {
+        expect(light[hue], "light lime fill").toBe("#9EDB43");
+        expect(light[`${hue}-tint`], "light lime tint").toBe("#E7F1DC");
+        continue;
+      }
       expect(light[hue], `light --hl-${hue} was darkened away from dark`).toBe(dark[hue]);
       expect(light[`${hue}-tint`], `light --hl-${hue}-tint drifted from dark`).toBe(dark[`${hue}-tint`]);
     }
@@ -206,13 +214,16 @@ describe("HEALTH law 3: the light activity ramp equals the dark one", () => {
     return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
   };
   it("a word in a ramp hue clears 4.5:1 on its own tint and on the raised surface, in both themes", () => {
-    for (const [theme, card, raised] of [["dark", "#1c1c1e", "#2b2b2c"], ["light", "#ffffff", "#e4e4e5"]] as const) {
+    for (const [theme, card, raised] of [["dark", "#1c1c1e", "#2b2b2c"], ["light", "#ffffff", "#F0F1F4"]] as const) {
       const t = ramp(block('[data-theme="' + theme + '"] {'));
       for (const hue of RAMP) {
         const ink = t[`${hue}-ink`];
         expect(ink, `${theme} --hl-${hue}-ink is missing`).toMatch(/^#[0-9A-Fa-f]{6}$/);
         const alpha = Number((t[`${hue}-tint`] ?? "").match(/([\d.]+)\)$/)?.[1] ?? "0.16");
-        const onTint = ratio(ink!, over(t[hue]!, alpha, card));
+        // AMENDED 2026-09-29: light raised is the approved neutral #F0F1F4, and
+        // a tint written as an opaque hex (light lime, #E7F1DC) is measured as is.
+        const tintHex = /^#[0-9A-Fa-f]{6}$/.test(t[`${hue}-tint`] ?? "") ? t[`${hue}-tint`]! : over(t[hue]!, alpha, card);
+        const onTint = ratio(ink!, tintHex);
         const onRaised = ratio(ink!, raised);
         expect(onTint, `${theme} --hl-${hue}-ink reads ${onTint.toFixed(2)}:1 on its own tint`).toBeGreaterThanOrEqual(4.5);
         expect(onRaised, `${theme} --hl-${hue}-ink reads ${onRaised.toFixed(2)}:1 on the raised surface`).toBeGreaterThanOrEqual(4.5);
