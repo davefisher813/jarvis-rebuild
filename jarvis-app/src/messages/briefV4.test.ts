@@ -246,10 +246,10 @@ describe("brief v4: notification, only with a link list, only its own ids", () =
     const p4 = briefPrompt("x", "2026-09-21", undefined, { zone: ZONE, v4: true });
     expect(p4).toContain("meetingCandidates");
     expect(p4).toContain("replyRequirements");
-    expect(p4).not.toContain("meeting: ONLY");
+    expect(p4).not.toContain("meeting: when");
     expect(p4).not.toContain("Today is");
     const p3 = briefPrompt("x", "2026-09-21");
-    expect(p3).toContain("meeting: ONLY");
+    expect(p3).toContain("meeting: when the thread shows a specific date and time that is CONFIRMED");
     expect(p3).not.toContain("meetingCandidates");
     expect(BRIEF_SYSTEM).toContain("untrusted");
   });
