@@ -1496,6 +1496,10 @@
    well, so "Tokens Today" and its value were two greys on one row, and the
    one grey belongs to the value. */
 .ruled .set-card > .set-sub .conn-name { font-size: calc(14px * var(--type-scale)); }
+/* A validation line under the settings row it is about (Email Sections,
+   2026-09-29): the row's own inset, close under the field, in the red
+   .input-error already carries. */
+.ruled .set-card > .set-err { padding: 0 var(--s-4) var(--s-2); margin-top: 0; }
 .ruled .set-card > .row-act { margin: var(--s-1) auto; }
 .ruled .set-card > .row-act:disabled { opacity: 0.4; }
 /* THE SAME QUESTION browserWalk.test.ts ALREADY ASKED (2026-09-22). A bare

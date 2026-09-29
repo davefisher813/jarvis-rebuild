@@ -5,6 +5,9 @@ import { Mail, Plus, Archive, Trash2, Brain, CornerUpLeft, Forward, Send, Tag, C
 import { leadFor, faceSlot } from "./rowAnatomy";
 import { Facts, ruleStateFact, dayTone, type FactTone } from "./factsLine";
 import { useEmailFiling } from "./useEmailFiling";
+import { useEmailSections } from "./useEmailSections";
+import { filterBySection } from "./emailSections";
+import SectionFilterBar, { SectionNoMatch } from "./SectionFilterBar";
 import { emailFilingPreview } from "./emailFilingText";
 import { loadOverrides, saveOverride, clearOverride, applyOverrides, type ThreadOverrides } from "./threadOverride";
 import type { TaskItem } from "../tasks/TasksService";
@@ -468,6 +471,17 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   // multi-select on Needs You would be a tool for ignoring things that need
   // you.
   const [picked, setPicked] = useState<ReadonlySet<string> | null>(null);
+  // EMAIL SECTIONS (2026-09-29): the person's own saved filters over the
+  // loaded mail (messages/emailSections.ts). `sectionId` is which chip is on;
+  // null is All. onSectionChange is the ONE place a change of section also
+  // resets anything else, so a selection made under one section can never
+  // reach across into another: add further selection state to it.
+  const emailSections = useEmailSections();
+  const [sectionId, setSectionId] = useState<string | null>(null);
+  const onSectionChange = (id: string | null) => {
+    setSectionId(id);
+    setPicked(null);
+  };
   // 11A: the Clean Out screen's selection, keyed by SENDER rather than by
   // thread. Nobody wants to make four hundred decisions; everybody can make
   // eight.
@@ -4193,7 +4207,13 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   }
 
   // ---- list ----
-  const split = splitByBucket(visibleRows, effTriage);
+  // EMAIL SECTIONS: the rows are narrowed to the chosen section BEFORE the
+  // bucket split, so Needs You, Worth Knowing and Noise each show their share
+  // of it and every thread keeps the bucket the sort gave it. A section that
+  // was deleted since it was chosen reads as All. Local only: no AI, no Gmail.
+  const activeSection = emailSections.sections.find((x) => x.id === sectionId) ?? null;
+  const sectionRows = filterBySection(visibleRows, activeSection);
+  const split = splitByBucket(sectionRows, effTriage);
   // Real deadlines: Needs You is ordered by when the sender said they need it.
   const needsYou = sortByDeadline(split.needsYou, effTriage);
   const { worthKnowing, noise } = split;
@@ -4202,7 +4222,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   const forYou = filter === "triage" && results === null && ai.available;
   const showTriage = forYou && triaged;
   const restCount = worthKnowing.length + noise.length;
-  const listRows = results !== null ? results : visibleRows;
+  const listRows = results !== null ? results : sectionRows;
 
   // A triaged row shows the gist and NOTHING else: the thread count is inbox
   // bookkeeping, and bookkeeping is exactly what the fold is removing.
@@ -4421,6 +4441,12 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
           Drafts {draftsLoaded && drafts.length > 0 ? "(" + (draftsCapped ? "25+" : drafts.length) + ")" : ""}
         </button>
       </div>
+      {/* EMAIL SECTIONS: All plus one chip per saved section; nothing at all
+          until one exists. Not on Drafts or a search, which are not this
+          list. */}
+      {filter !== "drafts" && results === null && (
+        <SectionFilterBar sections={emailSections.sections} activeId={activeSection?.id ?? null} onChange={onSectionChange} />
+      )}
       {error && <div className="pad-x conn-error">{error}</div>}
       {/* One line per account that could not be read, each naming the account
           it is about. The full address, not acctLabel: two gmail accounts
@@ -4560,6 +4586,10 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
             <button className="quiet-action" onClick={() => setFilter("all")}>Show All Mail Instead</button>
           </div></div></div>
         )
+      ) : activeSection && results === null && visibleRows.length > 0 && sectionRows.length === 0 ? (
+        // EMAIL SECTIONS: only the loaded mail was searched, and the way to
+        // load more stays here.
+        <SectionNoMatch atEnd={atEnd} busy={loading} onLoadMore={loadMore} onShowAll={() => onSectionChange(null)} />
       ) : results !== null || !showTriage ? (
         // Search results, the All chip, or triage unavailable: honest threaded list.
         listRows.length === 0 ? (
@@ -5242,7 +5272,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
               archives actually happen, and the other two are the lists on
               this screen. A zero is not dressed up as an achievement. */}
           {triageState === "ready" && (() => {
-            const line = closeOut(cleared, visibleRows.length, needsYou.length); // E-29
+            const line = closeOut(cleared, sectionRows.length, needsYou.length); // E-29
             // Null means there is nothing true to say: nothing cleared and
             // things still owed. The Needs You section already carries that.
             if (!line) return null;

@@ -10,7 +10,7 @@ import {
   Brain, Note, Target, EnvelopeSimple, BellSimple, Wallet, Sparkle, GearSix,
   House, CheckSquare, CalendarBlank, UsersThree, GitFork, Compass, PenNib,
   Flag, Clock, UserCircle, Palette, Tag, SquaresFour, LinkSimple, Lightbulb,
-  CloudArrowUp, SlidersHorizontal, Info, Circle, CalendarCheck, Barbell,
+  CloudArrowUp, SlidersHorizontal, Info, Circle, CalendarCheck, Barbell, Funnel,
 } from "@phosphor-icons/react";
 
 const P = { weight: "fill" as const, className: "ic" };
@@ -55,6 +55,8 @@ export const FILLED_SETTINGS: Record<string, ReactNode> = {
   advanced: <SlidersHorizontal {...P} />,
   about: <Info {...P} />,
   training: <Barbell {...P} />,
+  // Email Sections (2026-09-29): the person's own filters over the Email tab.
+  emailsections: <Funnel {...P} />,
   // Brain Manual v1: the Settings → Brain row wears the Brain tab glyph.
   brainsettings: <Brain {...P} />,
 };
