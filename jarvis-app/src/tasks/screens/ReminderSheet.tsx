@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { ReminderInfo, RepeatRule, FollowUpConfig, LinkedItem, ContextTriggerConfig } from "../../notes/types";
 import { nextOccurrence, describeRepeat, followUpOf, repeatRuleOf, scheduleKindOf, WEEKDAYS, WEEKENDS } from "../reminders";
 import { COOLDOWNS, DEFAULT_COOLDOWN_MIN } from "../contextPrompts";
@@ -21,6 +21,11 @@ import LinkedItemSheet, { type LinkCandidate } from "./LinkedItemSheet";
 // read as they are typed and shown as chips. Save is never dead: whatever
 // is missing says so at its field. Pause, Skip, Export and Delete live on
 // the details sheet, not here.
+
+// The line Save leaves when a timed reminder has no time (audit 2026-09-29:
+// "Save does nothing until a time is picked"). Named once so the field, the
+// test and the sheet's own scroll-to-it all mean the same sentence.
+const TIME_MISSING = "Pick a time to save this reminder, or choose Unscheduled.";
 
 type RepeatKey = "once" | "daily" | "weekdaysOnly" | "weekends" | "weekly" | "monthly" | "every3" | "after3";
 const REPEAT_OPTIONS: { value: RepeatKey; label: string; rule: RepeatRule }[] = [
@@ -161,6 +166,16 @@ export default function ReminderSheet({
   };
   const next = when === "time" && effTime ? nextOccurrence(draft(), today, nowClock) : null;
 
+  // Save stays dimmed, never dead, while the form cannot be saved: the dim
+  // says "not yet" before the tap and the tap says exactly what is missing.
+  const incomplete = !effText.trim() || (when === "time" && !effTime) || (when === "area" && !category) || (when === "task" && link?.type !== "task");
+  // After a refused Save, bring the first message into view: on a phone the
+  // sheet scrolls and the line under Time can sit below the fold.
+  useEffect(() => {
+    if (!(errName || errTime || errArea || errLink)) return;
+    document.querySelector(".form-sheet .input-error")?.scrollIntoView?.({ block: "nearest" });
+  }, [errName, errTime, errArea, errLink]);
+
   const save = () => {
     const name = effText.trim();
     const missingName = !name;
@@ -201,7 +216,7 @@ export default function ReminderSheet({
         : { head: link?.type === "task" ? `After ${link.label ?? "the Task"}` : "After You Complete the Task", line: "An In-App Prompt That Never Blocks You" };
 
   return (
-    <FormSheet title={mode === "edit" ? "Edit Reminder" : "New Reminder"} onCancel={onCancel} onSave={save} saveLabel={saving ? "Saving" : "Save"}>
+    <FormSheet title={mode === "edit" ? "Edit Reminder" : "New Reminder"} onCancel={onCancel} onSave={save} saveLabel={saving ? "Saving" : "Save"} saveDisabled={incomplete}>
       <Group label="What Would You Like to Remember?">
         <FieldRow tone="orange" glyph={<BellGlyph />} value={text} onChange={(v) => { setText(v); setErrName(false); setReadOff(false); }} placeholder="e.g. Call Alberto"
           ariaLabel="Reminder" error={errName} right={false} onEnter={save} />
@@ -228,7 +243,7 @@ export default function ReminderSheet({
               {chip(isPick(h1), "In 1 Hour", () => pick(h1.day, h1.time), "h1")}
               {chip(isPick(tomorrowMorning), "Tomorrow Morning", () => pick(tomorrowMorning.day, tomorrowMorning.time), "tm")}
             </Strip>
-            <ErrorLine text={errTime ? "Pick a time, or choose Unscheduled." : null} />
+            <ErrorLine text={errTime ? TIME_MISSING : null} />
             <MenuRow tone="sky" glyph={<RepeatGlyph />} label="Repeat" value={keyOf(effRepeat)} word={REPEAT_OPTIONS.find((o) => o.value === keyOf(effRepeat))?.label ?? describeRepeat(effRepeat)} ariaLabel="Repeat"
               options={REPEAT_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
               onPick={(v) => { const o = REPEAT_OPTIONS.find((x) => x.value === v); if (o) setRepeat(o.rule); setRepeatTouched(true); if (readActive) setReadOff(true); }} />

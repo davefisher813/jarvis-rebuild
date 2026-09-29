@@ -4,6 +4,8 @@ import { render, act, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import NoticeCard from "./NoticeCard";
 import { Facts } from "../messages/factsLine";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 
 // THE DELETE SLOT (2026-08-26). Dave, off a real screenshot of a mail
 // notice's swipe reveal: "I should be able to delete from here." Dismiss
@@ -186,5 +188,46 @@ describe("the sub: one quiet run, or a facts line the producer tones (§AM)", ()
     const facts = [...meta.querySelectorAll(".fact")].map((f) => [f.className, f.textContent]);
     expect(facts).toEqual([["fact", "Same category"], ["fact est", "15m"]]);
     expect(meta.textContent).not.toContain("·");
+  });
+});
+
+// THE BRAIN SUGGESTION BANNER (audit 2026-09-29). Dismiss lived only on the
+// swipe reveal, absolutely positioned UNDER the card at its right edge, which
+// is where the capsule sits: the capsule's hit area covered it, so a tap
+// (or a click by name) could never reach Dismiss. dismissButton puts a real
+// 44px button in the row, beside the capsule, and drops the hidden duplicate.
+describe("NoticeCard: dismissButton", () => {
+  it("renders one visible Dismiss beside the action; each fires only its own handler", () => {
+    let added = 0;
+    let dismissed = 0;
+    const { container } = render(
+      <NoticeCard {...base} action={{ label: "Add", onClick: () => { added++; } }} onDismiss={() => { dismissed++; }} dismissButton />,
+    );
+    const x = screen.getByRole("button", { name: "Dismiss" });
+    const add = screen.getByRole("button", { name: "Add" });
+    // Siblings in one flex row: neither sits under the other.
+    expect(x.parentElement).toBe(add.parentElement);
+    expect(x.className).toContain("notice-x");
+    // The hidden swipe-reveal duplicate is gone: exactly one Dismiss.
+    expect(container.querySelector(".notice-dismiss")).toBeNull();
+    expect(screen.getAllByRole("button", { name: "Dismiss" })).toHaveLength(1);
+    act(() => { x.click(); });
+    expect([added, dismissed]).toEqual([0, 1]);
+    act(() => { add.click(); });
+    expect([added, dismissed]).toEqual([1, 1]);
+  });
+
+  it("without it, Dismiss stays the swipe reveal only (the Today stream is unchanged)", () => {
+    const { container } = render(<NoticeCard {...base} action={{ label: "Add", onClick: () => {} }} onDismiss={() => {}} />);
+    expect(container.querySelector(".notice-x")).toBeNull();
+    expect(container.querySelector(".notice-dismiss")).not.toBeNull();
+  });
+
+  it("the stylesheet gives the visible Dismiss a 44px box of its own", () => {
+    const css = readFileSync(resolve(__dirname, "../styles/components.css"), "utf8");
+    const rule = css.match(/\.notice-x\s*\{[^}]*\}/)?.[0] ?? "";
+    expect(rule).toMatch(/width:\s*var\(--tap-min\)/);
+    expect(rule).toMatch(/height:\s*var\(--tap-min\)/);
+    expect(rule).not.toMatch(/position:\s*absolute/);
   });
 });
