@@ -65,6 +65,23 @@ export function footFor(status: WebPushStatus): string {
   }
 }
 
+// WHY THE SWITCH WILL NOT TURN ON (audit 2026-09-29: "the Alerts toggle
+// silently stays off"). footFor is a paragraph at the foot of the page;
+// this is the line that sits on the switch's own row and is what a tap on a
+// locked switch says. Empty when the switch works.
+export function reasonFor(status: WebPushStatus): string {
+  switch (status) {
+    case "no-sw": return "This browser cannot receive alerts";
+    case "not-standalone": return "Add JARVIS to your Home Screen and open it from there to turn this on";
+    case "no-push": return "Needs iOS 16.4 or newer, opened from the Home Screen";
+    case "denied": return "Notifications are blocked · Allow them for JARVIS in your phone or browser settings";
+    case "no-key": return "The server has no push key yet";
+    case "native":
+    case "off":
+    case "on": return "";
+  }
+}
+
 // The lock: a state the switch cannot change by being tapped.
 export function switchLocked(status: WebPushStatus): boolean {
   return status !== "off" && status !== "on";

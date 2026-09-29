@@ -68,14 +68,22 @@ export function Row({ label, meta, value, onClick, forwardTo, chev = false, chil
 /** A row with the switch at the right. The whole row flips it (Dave
  *  2026-09-15, "I want all rows clickable"); a locked switch takes no tap
  *  from the row either. */
-export function Switch({ label, meta, on, onToggle, ariaLabel, locked = false }: {
+export function Switch({ label, meta, on, onToggle, ariaLabel, locked = false, onLocked }: {
   label: string; meta?: ReactNode; on: boolean; onToggle: () => void; ariaLabel?: string; locked?: boolean;
+  /** A locked switch answers a tap with nothing unless it is given a reason
+   *  to say (audit 2026-09-29: Edit Tabs at its cap and Alerts without OS
+   *  permission both sat there dead). The caller says why, usually in a toast. */
+  onLocked?: () => void;
 }) {
   return (
-    <Row label={label} meta={meta} onClick={locked ? undefined : onToggle}>
-      <div className={"switch" + (on ? "" : " off") + (locked ? " switch-locked" : "")} role="switch" aria-checked={on} aria-label={ariaLabel ?? label} tabIndex={0}
-        onClick={(e) => { e.stopPropagation(); if (!locked) { haptics.selection(); onToggle(); } }}
-        onKeyDown={(e) => { if (!locked && (e.key === " " || e.key === "Enter")) { e.preventDefault(); onToggle(); } }} />
+    <Row label={label} meta={meta} onClick={locked ? onLocked : onToggle}>
+      <div className={"switch" + (on ? "" : " off") + (locked ? " switch-locked" : "")} role="switch" aria-checked={on} aria-disabled={locked || undefined} aria-label={ariaLabel ?? label} tabIndex={0}
+        onClick={(e) => { e.stopPropagation(); if (!locked) { haptics.selection(); onToggle(); } else onLocked?.(); }}
+        onKeyDown={(e) => {
+          if (e.key !== " " && e.key !== "Enter") return;
+          e.preventDefault();
+          if (!locked) onToggle(); else onLocked?.();
+        }} />
     </Row>
   );
 }

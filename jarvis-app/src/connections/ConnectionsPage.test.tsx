@@ -1,12 +1,13 @@
 // SPEC MOVED (Catalog V3.1, 2026-08-18): Title Case everywhere; copy assertions updated.
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach } from "vitest";
+import { useState } from "react";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import { NotesProvider, useProfile } from "../data/NotesProvider";
 import { GoogleSessionProvider } from "./google/GoogleSession";
 import { makeFakeGoogleApi } from "./google/fakeApi";
-import ConnectionsPage from "./ConnectionsPage";
+import ConnectionsPage, { SIGNED_OUT_HELP } from "./ConnectionsPage";
 import { WRITE_FAILED_MESSAGE } from "../shared/guard";
 
 const api = makeFakeGoogleApi({
@@ -135,5 +136,36 @@ describe("ConnectionsPage toggles when the save fails", () => {
     fireEvent.click(sw);
     await waitFor(() => expect(screen.getByText(FAILED)).toBeInTheDocument());
     expect(screen.getByLabelText("Know When Your Email Is Opened")).toHaveAttribute("aria-checked", "true");
+  });
+});
+
+// AUDIT 2026-09-29: both Google accounts said "Signed out" and nothing else.
+// A signed-out account is one the profile remembers and this launch holds no
+// token for, so a fresh mount over the same stored profile is that state.
+describe("ConnectionsPage, a signed-out account", () => {
+  beforeEach(() => localStorage.clear());
+
+  it("says what to do next, next to the Reconnect it points at", async () => {
+    // One profile, and a session that can be thrown away and started again:
+    // the account is remembered, this launch holds no token for it.
+    function Relaunch() {
+      const [n, setN] = useState(0);
+      return (
+        <NotesProvider userId="u1">
+          <button onClick={() => setN(n + 1)}>relaunch</button>
+          <GoogleSessionProvider key={n} requestToken={async () => "tok"} makeApi={() => api}><ConnectionsPage configured /></GoogleSessionProvider>
+        </NotesProvider>
+      );
+    }
+    render(<Relaunch />);
+    fireEvent.click(await screen.findByText("Connect Google"));
+    await screen.findByText("me@example.com");
+    expect(screen.queryByText(SIGNED_OUT_HELP)).toBeNull(); // signed in: no nagging
+
+    fireEvent.click(screen.getByText("relaunch"));
+    await screen.findByText("Signed out");
+    expect(screen.getByText(SIGNED_OUT_HELP)).toBeInTheDocument();
+    expect(SIGNED_OUT_HELP).toMatch(/^Tap Reconnect to sign in again/);
+    expect(screen.getByText("Reconnect")).toBeInTheDocument();
   });
 });

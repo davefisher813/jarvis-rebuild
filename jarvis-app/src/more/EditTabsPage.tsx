@@ -1,7 +1,14 @@
 import { DESTINATIONS, MAX_TABS } from "../shell/destinations";
 import LargeTitleNav from "../shared/LargeTitleNav";
 import TabOrderList from "./TabOrderList";
-import { Head, Card, Switch } from "../settings/kit";
+import { Head, Card, Switch, Foot } from "../settings/kit";
+import { showToast } from "../shared/toast";
+
+// The tab bar has a cap (MAX_TABS) and a floor of one. A switch that hits
+// either used to lock with no word (audit 2026-09-29: "Notes, Notifications,
+// Money and Chat cannot be turned on"): the cap was working, nothing said so.
+export const TAB_CAP_MESSAGE = `The tab bar holds ${MAX_TABS} · Turn another off first`;
+export const TAB_FLOOR_MESSAGE = "The tab bar needs at least one tab";
 
 export default function EditTabsPage({
   tabKeys,
@@ -29,9 +36,11 @@ export default function EditTabsPage({
         {DESTINATIONS.map(({ key, label }) => {
           const on = tabKeys.includes(key);
           const locked = (on && tabKeys.length === 1) || (!on && atMax);
-          return <Switch key={key} label={label} on={on} locked={locked} onToggle={() => onToggle(key)} />;
+          return <Switch key={key} label={label} on={on} locked={locked} onToggle={() => onToggle(key)}
+            onLocked={() => showToast({ message: on ? TAB_FLOOR_MESSAGE : TAB_CAP_MESSAGE })} />;
         })}
       </Card>
+      {atMax && <Foot>{TAB_CAP_MESSAGE}</Foot>}
       <div className="screen-foot" />
     </div>
   );

@@ -20,6 +20,7 @@ const BrainFlow = lazyWithRecovery(() => import("../brain/BrainFlow"));
 import { dismissSplash } from "../shared/splash";
 import SkeletonScreen from "../shared/SkeletonScreen";
 import { DEFAULT_TABS, DESTINATIONS, MAX_TABS, extrasFor, migrateTabs } from "./destinations";
+import type { MoreRoute } from "../more/MorePage";
 import { NavOriginProvider, type NavOrigin } from "./navOrigin";
 import ReturnPill from "./ReturnPill";
 import { useTasks, useSchedule, useCategories, useProfile, useAreas, useGoals, useProjects, useMoney, usePeople, useDecisions, useOptionalSeal, useGym, useSettings } from "../data/NotesProvider";
@@ -128,7 +129,7 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
     return true;
   };
   // Deep-link into a More subpage (Email's Open Connections, Catalog V3.1).
-  const [moreRoute, setMoreRoute] = useState<"connections" | null>(null);
+  const [moreRoute, setMoreRoute] = useState<MoreRoute | null>(null);
   // THE ONE-SHOT INTENTS (the B5 group, 2026-09-05). Every one of these used
   // to be a bare id read once by a child at its own mount and cleared only by
   // a manual tab tap, which is why a deep link into the tab you were already
@@ -643,7 +644,7 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
             every once-per-open job (the sweep, the autopay roll, the spot,
             the Day Loop draft, Fresh Start, the mail dismissals) runs for
             the new day instead of yesterday's. See shell/useDayKey.ts. */}
-        {active === "today" && <TodayFlow key={dayKey} focusOpen={focusIntent.value === true} focusNonce={focusIntent.nonce} onFocusOpened={focusIntent.clear} onStartNow={(id) => jump(() => { startIntent.fire(id); goLife("tasks"); })} reminderOpenId={reminderIntent.value} reminderNonce={reminderIntent.nonce} onReminderOpened={reminderIntent.clear} onOpenEntity={(kind, id) => void navigateToEntity(kind, id)} onGoSchedule={() => jump(() => setActive("schedule"))} onGoTasks={() => jump(() => goLife("tasks"))} onGoTasksAll={() => jump(() => { goLife("tasks"); taskFilterIntent.fire("all"); })} onGoTasksOverdue={() => jump(() => { goLife("tasks"); taskFilterIntent.fire("overdue"); })} onSearch={() => setSearchOpen(true)} onProfile={() => setActive("more")} onEditRoutine={goToRoutine} onGoEmail={(threadId?: string, draftId?: string) => jump(() => { if (threadId) mailIntent.fire(threadId); else mailIntent.clear(); if (draftId) draftIntent.fire(draftId); else draftIntent.clear(); setActive("messages"); })} onOpenNote={navigateToNote} onOpenProject={(id) => void navigateToEntity("project", id)} onRestoreSpot={(kind, id) => { if (kind === "note") navigateToNote(id); else if (kind === "gym") { brainIntent.fire(id); gymIntent.fire(true); setActive("brain"); } else void navigateToEntity(kind, id); }}
+        {active === "today" && <TodayFlow key={dayKey} focusOpen={focusIntent.value === true} focusNonce={focusIntent.nonce} onFocusOpened={focusIntent.clear} onStartNow={(id) => jump(() => { startIntent.fire(id); goLife("tasks"); })} reminderOpenId={reminderIntent.value} reminderNonce={reminderIntent.nonce} onReminderOpened={reminderIntent.clear} onOpenEntity={(kind, id) => void navigateToEntity(kind, id)} onGoSchedule={() => jump(() => setActive("schedule"))} onGoTasks={() => jump(() => goLife("tasks"))} onGoTasksAll={() => jump(() => { goLife("tasks"); taskFilterIntent.fire("all"); })} onGoTasksOverdue={() => jump(() => { goLife("tasks"); taskFilterIntent.fire("overdue"); })} onSearch={() => setSearchOpen(true)} onProfile={() => { setMoreRoute("account"); setActive("more"); }} onEditRoutine={goToRoutine} onGoEmail={(threadId?: string, draftId?: string) => jump(() => { if (threadId) mailIntent.fire(threadId); else mailIntent.clear(); if (draftId) draftIntent.fire(draftId); else draftIntent.clear(); setActive("messages"); })} onOpenNote={navigateToNote} onOpenProject={(id) => void navigateToEntity("project", id)} onRestoreSpot={(kind, id) => { if (kind === "note") navigateToNote(id); else if (kind === "gym") { brainIntent.fire(id); gymIntent.fire(true); setActive("brain"); } else void navigateToEntity(kind, id); }}
           /* UP-MIND-24 (2026-09-05): the meeting line's two taps. Both go to
              screens that already answer the question: the person's own card
              for what is open, and Chat for what you told them. */
