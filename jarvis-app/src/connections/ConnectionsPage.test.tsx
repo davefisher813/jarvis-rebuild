@@ -88,6 +88,42 @@ describe("ConnectionsPage toggles when the save fails", () => {
     expect((screen.getByText("Calendar") as HTMLButtonElement).className).toContain("on");
   });
 
+  // GOOGLE DRIVE (Dave 2026-09-29): a third link beside Email and Calendar.
+  it("every account row offers Drive, off until it is turned on", async () => {
+    render(wrap(<ConnectionsPage configured />));
+    fireEvent.click(await screen.findByText("Connect Google"));
+    await screen.findByText("me@example.com");
+    const drive = screen.getByText("Drive") as HTMLButtonElement;
+    expect(drive.className).not.toContain("on");
+    expect(drive.getAttribute("aria-pressed")).toBe("false");
+    // Email and Calendar are unchanged: still on for a new account.
+    expect((screen.getByText("Email") as HTMLButtonElement).className).toContain("on");
+    expect((screen.getByText("Calendar") as HTMLButtonElement).className).toContain("on");
+  });
+
+  it("turning Drive on and off is saved, and touches nothing else", async () => {
+    render(wrap(<ConnectionsPage configured />));
+    fireEvent.click(await screen.findByText("Connect Google"));
+    await screen.findByText("me@example.com");
+    fireEvent.click(screen.getByText("Drive"));
+    await waitFor(() => expect((screen.getByText("Drive") as HTMLButtonElement).className).toContain("on"));
+    expect((screen.getByText("Drive") as HTMLButtonElement).getAttribute("aria-pressed")).toBe("true");
+    expect((screen.getByText("Email") as HTMLButtonElement).className).toContain("on");
+    expect((screen.getByText("Calendar") as HTMLButtonElement).className).toContain("on");
+    fireEvent.click(screen.getByText("Drive"));
+    await waitFor(() => expect((screen.getByText("Drive") as HTMLButtonElement).className).not.toContain("on"));
+  });
+
+  it("a Drive link that could not be saved goes back and says so", async () => {
+    render(wrap(<><ConnectionsPage configured /><BreakSaves /></>));
+    fireEvent.click(await screen.findByText("Connect Google"));
+    await screen.findByText("me@example.com");
+    fireEvent.click(screen.getByText("break-saves"));
+    fireEvent.click(screen.getByText("Drive"));
+    await waitFor(() => expect(screen.getByText(FAILED)).toBeInTheDocument());
+    expect((screen.getByText("Drive") as HTMLButtonElement).className).not.toContain("on");
+  });
+
   it("the open-tracking switch that could not be saved goes back and says so", async () => {
     render(wrap(<><ConnectionsPage configured /><BreakSaves /></>));
     fireEvent.click(await screen.findByText("Connect Google"));

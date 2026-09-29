@@ -138,6 +138,44 @@ describe("the scope gate", () => {
     expect(screen.getByTestId("tokened").textContent).not.toContain("old@x.com");
   });
 
+  // THE DRIVE SCOPE ADDITION (Dave 2026-09-29). Both of his accounts were
+  // stamped with the three-scope list. Adding drive changes the list, so the
+  // gate must refuse both silently, and one interactive reconnect each must
+  // stamp the new list. The stamp is compared as an exact string.
+  const PREVIOUS_LIST = [
+    "https://www.googleapis.com/auth/calendar.readonly",
+    "https://www.googleapis.com/auth/gmail.modify",
+    "https://www.googleapis.com/auth/gmail.send",
+  ].join(" ");
+
+  it("an account stamped with the list from before Drive is refused silently: both of them", async () => {
+    const silentCalls: string[] = [];
+    gateSetup(
+      [
+        { email: "one@x.com", mail: true, cal: true, scopes: PREVIOUS_LIST },
+        { email: "two@x.com", mail: true, cal: true, scopes: PREVIOUS_LIST },
+      ],
+      { authorize: async () => ({ token: "t-int", email: "one@x.com" }), silent: async (email) => { silentCalls.push(email); return good("t-" + email, email); } },
+    );
+    await waitFor(() => expect(screen.getByTestId("scopes")).toHaveTextContent("one@x.com:stale,two@x.com:stale"));
+    expect(silentCalls).toEqual([]);
+    expect(screen.getByTestId("tokened").textContent).toBe("");
+    expect(GOOGLE_SCOPES).toContain("https://www.googleapis.com/auth/drive");
+    expect(GOOGLE_SCOPES).not.toBe(PREVIOUS_LIST);
+  });
+
+  it("the one reconnect stamps the list with Drive, and the account is then current", async () => {
+    let authorized = 0;
+    gateSetup(
+      [{ email: "old@x.com", mail: true, cal: true, scopes: PREVIOUS_LIST }],
+      { authorize: async () => { authorized += 1; return { token: "t-int", email: "old@x.com" }; }, silent: async (email) => good("t-sil", email) },
+    );
+    await waitFor(() => expect(screen.getByTestId("scopes")).toHaveTextContent("old@x.com:stale"));
+    fireEvent.click(screen.getByText("reconnect-old"));
+    await waitFor(() => expect(screen.getByTestId("scopes")).toHaveTextContent("old@x.com:current"));
+    expect(authorized).toBe(1);
+  });
+
   it("reconnecting a stale account skips silent, goes interactive, and stamps the new scopes", async () => {
     const silentCalls: string[] = [];
     let authorized = 0;
@@ -358,6 +396,15 @@ describe("ensureGoogleSession for a mutation", () => {
     });
     expect(await ensure(into, "a@x.com")).toMatchObject({ ok: false, code: "GOOGLE_MISSING_SCOPE" });
     expect(silentFor).toEqual([]);
+  });
+
+  it("refuses an account stamped with the list from before Drive, for a write and for a read", async () => {
+    const PREV = "https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/gmail.modify https://www.googleapis.com/auth/gmail.send";
+    const into = await mount([{ email: "a@x.com", mail: true, cal: true, scopes: PREV }], {
+      authorize: neverInteractive, silent: async (e) => good("t", e),
+    });
+    expect(await ensure(into, "a@x.com")).toMatchObject({ ok: false, code: "GOOGLE_MISSING_SCOPE" });
+    expect(await ensure(into, "a@x.com", false)).toMatchObject({ ok: false, code: "GOOGLE_MISSING_SCOPE" });
   });
 
   it("refuses a token Google says cannot modify mail, even under current stamps", async () => {
