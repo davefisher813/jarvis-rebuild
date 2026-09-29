@@ -45,3 +45,35 @@ describe("SearchFlow with one read failing", () => {
     }
   });
 });
+
+// THE TOP RESULT (audit 2026-09-29): "clicking the top result does nothing".
+// A tap on the row and the keyboard's Search key both have to hand the first
+// hit to the shell, and close the overlay behind it.
+describe("SearchFlow: the top result opens", () => {
+  function SeededOpen({ onOpen, onClose }: { onOpen: (k: string, id: string) => void; onClose: () => void }) {
+    const tasks = useTasks();
+    const [ready, setReady] = useState(false);
+    useEffect(() => { (async () => { await tasks.createTask("Email Sam", {}); setReady(true); })(); }, [tasks]);
+    return ready ? <SearchFlow onClose={onClose} onOpen={onOpen} /> : null;
+  }
+  it("a tap on the first row opens it and closes the overlay", async () => {
+    const onOpen = vi.fn(); const onClose = vi.fn();
+    render(<NotesProvider userId="u-top-tap"><SeededOpen onOpen={onOpen} onClose={onClose} /></NotesProvider>);
+    fireEvent.change(await screen.findByPlaceholderText("Search Everything"), { target: { value: "sam" } });
+    fireEvent.click(await screen.findByText("Email Sam"));
+    expect(onOpen).toHaveBeenCalledWith("task", expect.any(String));
+    expect(onClose).toHaveBeenCalled();
+  });
+  it("Enter in the field opens the first row", async () => {
+    const onOpen = vi.fn(); const onClose = vi.fn();
+    render(<NotesProvider userId="u-top-enter"><SeededOpen onOpen={onOpen} onClose={onClose} /></NotesProvider>);
+    const field = await screen.findByPlaceholderText("Search Everything");
+    fireEvent.keyDown(field, { key: "Enter" });
+    expect(onOpen, "nothing typed, nothing to open").not.toHaveBeenCalled();
+    fireEvent.change(field, { target: { value: "sam" } });
+    await screen.findByText("Email Sam");
+    fireEvent.keyDown(field, { key: "Enter" });
+    expect(onOpen).toHaveBeenCalledWith("task", expect.any(String));
+    expect(onClose).toHaveBeenCalled();
+  });
+});

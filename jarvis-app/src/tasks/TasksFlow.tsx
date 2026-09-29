@@ -21,6 +21,7 @@ import { sheetProjects, sheetPeople } from "../tasks/screens/sheetLinks";
 import { buildParentIndex, parentForTask } from "../life/parent";
 import { sheetEvents, type SheetEvent as SheetEventRow } from "../schedule/sheetEvents";
 import { rowSource, type Source } from "../shared/provenance";
+import { sourceOpener } from "../shared/openSource";
 import { movedBy, burstSize, celebrationLine, type Moved } from "../shared/completion";
 import type { Project } from "../projects/types";
 import { partition, byCategory, filterOf, FILTERS, FILTER_LABEL, type Partitioned, type TaskFilter } from "./filters";
@@ -54,11 +55,14 @@ import { ENTITY_TASK } from "../notes/types";
 const EMPTY: Partitioned = { all: [], daily: [], today: [], overdue: [], upcoming: [], email: [], done: [] };
 type SheetState = { mode: "new"; initial?: Partial<TaskDraft> } | { mode: "edit"; id: string; initial: TaskDraft; source?: import("../shared/provenance").Source } | null;
 
-export default function TasksFlow({ openId, openNonce, onOpenConsumed, startId, startNonce, onStartConsumed, openFilter, filterNonce, onFilterApplied, onOpenNote, onGoEmail, onWhatNow, title, segments }: {
+export default function TasksFlow({ openId, openNonce, onOpenConsumed, startId, startNonce, onStartConsumed, openFilter, filterNonce, onFilterApplied, onOpenNote, onGoEmail, onOpenEntity, onWhatNow, title, segments }: {
   openId?: string; openFilter?: string; onOpenNote?: (id: string) => void;
   // SHARED-F-17 (2026-09-05): the mail route, so a task made from an email
   // can open the thread it came from.
   onGoEmail?: (threadId: string) => void;
+  /** The shell's one door to a record by kind and id: what a source that is
+   *  not a note or a thread (a task, an event, a file) opens through. */
+  onOpenEntity?: (kind: string, id: string) => void;
   // SHELL-F-12 (2026-09-05): the shell's one-shot shape (shell/intents.ts).
   // Both of these were read once per mount and cleared only by a bottom-tab
   // tap, and LifeFlow remounts this list on every segment change: arrive on a
@@ -210,8 +214,12 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, startId, 
     if (!ref) return undefined;
     if (source.type === "note" && onOpenNote) return () => onOpenNote(ref);
     if ((source.type === "email" || source.type === "gmail") && onGoEmail) return () => onGoEmail(ref);
-    return undefined;
-  }, [onOpenNote, onGoEmail]);
+    // Everything else the app can show (a task, an event, a file) goes through
+    // the one shared map, so this flow cannot disagree with the Schedule tab
+    // about where a source lives. Mail never gets here: it was answered above.
+    if (source.type === "email" || source.type === "gmail") return undefined;
+    return onOpenEntity ? sourceOpener(onOpenEntity)(source) : undefined;
+  }, [onOpenNote, onGoEmail, onOpenEntity]);
   const [categories, setCategories] = useState<SheetCategory[]>([]);
   const [pausedCats, setPausedCats] = useState<ReadonlySet<string>>(new Set());
   // Work-hours quiet set (audit 2026-08-10): after hours, work-category tasks

@@ -19,6 +19,7 @@ const openConnections = () => {
 import { Store, InMemoryAdapter, type Item, type ItemData } from "@core";
 import { NotesProvider, useNotes, useCategories, useTasks, useSchedule } from "../data/NotesProvider";
 import NotesFlow from "./NotesFlow";
+import { NavOriginProvider } from "../shell/navOrigin";
 import { setCategoryRegistry } from "../shared/categories";
 import { ScheduleService } from "../schedule/ScheduleService";
 import { subscribeToast, resetToasts } from "../shared/toast";
@@ -457,6 +458,51 @@ describe("the same note deep link, twice (HMN-F-19)", () => {
     // The same note, a second time: it opens, because the nonce moved.
     fireEvent.click(screen.getByText("Open It"));
     await waitFor(() => expect(screen.getByText("Notes", { selector: "button" })).toBeInTheDocument());
+  });
+});
+
+// BACK GOES TO WHERE IT WAS OPENED (audit 2026-09-29). Schedule's Add Notes
+// hands the shell a note to open; the editor's Back used to close onto the
+// Notes list, a tab nobody chose. A note the shell opened for another page now
+// returns there, says so on the button, and leaves the return pill out of it.
+describe("NotesFlow: a note opened for another page goes back to that page", () => {
+  async function shown(withOrigin: boolean) {
+    svcRef = null;
+    const user = "u-note-origin-" + Math.random().toString(36).slice(2);
+    const view = render(<NotesProvider userId={user}><Grab /></NotesProvider>);
+    await waitFor(() => expect(svcRef).toBeTruthy());
+    let id = "";
+    await act(async () => {
+      id = (await svcRef!.createNote("Standup", ""))!;
+      await svcRef!.addBlock(id, { type: "text", text: "" });
+    });
+    const back = vi.fn(() => true);
+    const claim = vi.fn(() => () => {});
+    view.rerender(
+      <NotesProvider userId={user}>
+        <Grab />
+        <NavOriginProvider value={{ origin: withOrigin ? { key: "schedule", label: "Schedule" } : null, back, claim, claimed: false }}>
+          <NotesFlow openId={id} />
+        </NavOriginProvider>
+      </NotesProvider>,
+    );
+    await waitFor(() => expect(screen.getByLabelText("Note")).toBeInTheDocument());
+    return { back, claim };
+  }
+
+  it("Back returns to the origin, not the Notes list", async () => {
+    const { back, claim } = await shown(true);
+    expect(claim, "the editor's Back is the way home, so the pill stands down").toHaveBeenCalled();
+    expect(screen.queryByText("Notes", { selector: ".nav-back" })).toBeNull();
+    fireEvent.click(screen.getByText("Schedule", { selector: ".nav-back" }));
+    expect(back).toHaveBeenCalledTimes(1);
+  });
+
+  it("with no jump behind it, Back is still the Notes list", async () => {
+    const { back, claim } = await shown(false);
+    expect(claim).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByText("Notes", { selector: ".nav-back" }));
+    expect(back).not.toHaveBeenCalled();
   });
 });
 

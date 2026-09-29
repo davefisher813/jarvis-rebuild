@@ -326,3 +326,28 @@ describe("A Place to Begin picks out of the view you are looking at", () => {
     expect(screen.queryByText("A Place to Begin")).toBeNull();
   });
 });
+
+// ONLY MAIL GOES TO EMAIL (audit 2026-09-29). A task whose source is another
+// task opens that task from its provenance line. The flow used to know two
+// doors (a note, a mail thread), so this line was a dead fact and the only
+// origin that did reach a door was Email.
+describe("TasksFlow: a task's source line opens what it names", () => {
+  function SeededFrom({ spy, onEmail }: { spy: (k: string, id: string) => void; onEmail: (id: string) => void }) {
+    const tasks = useTasks();
+    const [ready, setReady] = useState(false);
+    useEffect(() => {
+      (async () => {
+        await tasks.createTask("Follow Up With Sam", { due: todayISO(), source: { type: "task", ref: "task-origin-1", ts: Date.now() - 86_400_000 * 3 } });
+        setReady(true);
+      })();
+    }, [tasks]);
+    return ready ? <TasksFlow onOpenEntity={spy} onGoEmail={onEmail} /> : null;
+  }
+  it("routes a task source through the shell, and never to email", async () => {
+    const spy = vi.fn(); const onEmail = vi.fn();
+    render(<NotesProvider userId="u-task-source-door"><SeededFrom spy={spy} onEmail={onEmail} /></NotesProvider>);
+    fireEvent.click(await screen.findByText("From a task", undefined, { timeout: 4000 }));
+    expect(spy).toHaveBeenCalledWith("task", "task-origin-1");
+    expect(onEmail).not.toHaveBeenCalled();
+  });
+});
