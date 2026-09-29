@@ -2101,6 +2101,9 @@ describe("LAW: every module is reachable, or is listed as not", () => {
     // 2026-09-29: a counting fake Gmail (labels, paged history, string history
     // ids), imported by the tests that measure what reading the inbox costs.
     "fakeMailbox.ts": "test only: a counting fake Gmail for the inbox refresh and cost tests",
+    // 2026-09-29: sample notification mail (Google, DocuSign, UPS, Netflix,
+    // one-time codes), imported by the notification tests only.
+    "notificationFixtures.ts": "test only: sample notification mail for the notification tests",
     // (fileStorage.ts left this list on 2026-09-02: files/FileStore routes
     // every upload through it, from the clip on Notes and Money.)
     // (HealthFlow.tsx left this list on 2026-09-05, HMN-F-06 option A: the

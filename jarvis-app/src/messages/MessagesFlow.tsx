@@ -39,6 +39,8 @@ import MailSwipe from "./MailSwipe";
 import LetGoSwipe from "./LetGoSwipe";
 import { loadMuted, mute, unmute, dropMuted } from "./mute";
 import { parseUnsub, unsubLabel, unsubLine, UNSUB_SUBJECT, UNSUB_BODY, type Unsub } from "./unsubscribe";
+import { requestUnsubscribe } from "./unsubscribeAction";
+import { openExternal } from "./openExternal";
 import { BRIEF_SYSTEM, briefPrompt, parseBrief, briefFor, saveBrief, type ConfirmedMeeting } from "./brief";
 import { loadRows, loadAccount, mirrorRows, isFresh, markRead, invalidate as invalidateReads, dropLegacyMailCache, FRESH_MS, type ReadKind } from "./mailCache";
 import { refreshInboxAccounts, loadMoreInbox, ensureThreadAnalysis, loadFullInboxIndex, markGone, unmarkGone, MAIL_PAGE } from "./inboxRefresh";
@@ -63,6 +65,8 @@ import { PRESETS, loadMinutes, saveMinutes, clampMinutes } from "./drain";
 import { handoffTargets, defaultNote, handoffPrompt, forwardSubject, forwardDraft, type HandoffTarget } from "./handoff";
 import { alreadyPromised, loadPromised } from "./commitments";
 import { saveMailSnapshot, mailNotices, loadMailSnapshot, byLabel, type MailMeeting } from "./home";
+import { buildNotificationSnapshot, classificationFrom, redactCodes } from "./notificationActions";
+import { notificationLookup, scanNotifications } from "./notificationScan";
 import EvidenceChip from "./EvidenceChip";
 import ThreadStateCard, { whenLine } from "./ThreadStateCard";
 import DecisionCaptureSheet from "../decisions/DecisionCaptureSheet";
@@ -1647,6 +1651,32 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   // threads that were never real, until its 36-hour TTL happened to expire.
   // triaged is the real signal here; rows.length was never doing anything
   // triaged didn't already cover, except this.
+  // NOTIFICATION ACTIONS (2026-09-29). Reads the body of a thread only when its
+  // latest message is new to the notification cache AND it looks like a
+  // notification, and caches the answer ("nothing to do" included). A visit
+  // that finds nothing new reads nothing. When it did write, the snapshot below
+  // is rebuilt from the cache. See notificationScan.ts.
+  const [notifTick, setNotifTick] = useState(0);
+  useEffect(() => {
+    if (!triaged || rows.length === 0) return;
+    let live = true;
+    void (async () => {
+      let wrote = false;
+      for (const { email, api } of g.apis("mail")) {
+        const mine = rows.filter((r) => r.account === email);
+        if (mine.length === 0) continue;
+        const res = await scanNotifications({
+          userId, account: email, api, rows: mine, triage,
+          classificationFor: (r) => classificationFrom(triage[r.id]?.action),
+          isCurrent: () => userIdRef.current === userId,
+        }).catch(() => null);
+        if (res?.wrote) wrote = true;
+      }
+      if (live && wrote) setNotifTick((t) => t + 1);
+    })();
+    return () => { live = false; };
+  }, [triaged, rows, triage]);
+
   useEffect(() => {
     if (!triaged) return;
     const todayIso = todayISO();
@@ -1662,22 +1692,34 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     );
     const { needsYou } = splitByBucket(rows, map);
     const ordered = sortByDeadline(needsYou, map);
+    // The one helper the pump uses too (notificationActions.ts): the actionable
+    // threads kept apart from the six rows, and each row's account, revision
+    // and action. Reads the cache only.
+    const notif = buildNotificationSnapshot({
+      owner: userId, rows, map,
+      entryFor: notificationLookup(userId, g.accounts.map((a) => a.email)),
+      asked: unsubs,
+      excludeIds: new Set(ordered.slice(0, 6).map((r) => r.id)),
+    });
     saveMailSnapshot({
       ts: Date.now(),
+      owner: userId,
       needsYou: needsYou.length,
+      actionable: notif.actionable,
       threads: ordered.slice(0, 6).map((r) => ({
         id: r.id,
         from: displayName(r.from),
         fromEmail: r.fromEmail,
         subject: r.subject,
-        gist: map[r.id]?.gist ?? r.snippet ?? "",
+        gist: redactCodes(map[r.id]?.gist ?? r.snippet ?? ""),
+        ...notif.fields(r),
         by: map[r.id]?.by,
         // Unresolved on purpose: mailNotices validates it against the day it
         // is actually being read on, not the day this snapshot was written.
         act: map[r.id]?.act,
         account: (r as ThreadRow & { account?: string }).account,
         ...(personIdFor(r.fromEmail) ? { personId: personIdFor(r.fromEmail)! } : {}),
-        snippet: r.snippet ?? "",
+        snippet: redactCodes(r.snippet ?? ""),
         lastMsgId: r.lastMsgId,
         // Reuse the quick replies this thread already has. Regenerating them
         // for the home page would be a second AI call for an answer we own.
@@ -1705,7 +1747,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
         line: staleLine(d, Date.now()),
       })),
     });
-  }, [triaged, rows, triage, rules, waiting, sweepTick, meetings, drafts, personIdFor]);
+  }, [triaged, rows, triage, rules, waiting, sweepTick, meetings, drafts, personIdFor, notifTick, unsubs]);
 
   // Nothing-slips net: anything that has needed Dave for 3+ days becomes a
   // task, exactly once. This is what earns the right to fold the rest away.
@@ -2529,34 +2571,16 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     }
   };
 
+  // Extracted to unsubscribeAction.ts (2026-09-29) so Today's Unsubscribe
+  // button asks in exactly the same way. The tab keeps its own list in state.
   const requestUnsub = async (u: Unsub, account?: string, sender?: string): Promise<boolean> => {
-    let sent = false;
-    if (u.kind === "mailto") {
-      // EMAIL-F-13 (2026-09-05): the ask leaves from the address the list
-      // actually mails, not from whichever account happens to be first: a
-      // sender only honours an unsubscribe from the subscribed address.
-      const api = apiFor(account);
-      if (!api) return false;
-      const { ok } = await settleAll([u], () =>
-        api.sendMessage(encodeEmail({ to: u.target, subject: u.subject || UNSUB_SUBJECT, body: UNSUB_BODY })));
-      sent = ok.length > 0;
-    } else {
-      sent = !!window.open(u.target, "_blank", "noopener,noreferrer");
-    }
-    if (sent) {
-      emit({ type: "action", props: { name: "email.unsubscribe", kind: u.kind } });
-      // UP-MIND-17 (2026-09-05): WHEN, HOW and FROM WHICH ACCOUNT. Without
-      // those three the app could only ever say "asked", which is why it
-      // could never say "asked three weeks ago and they are still sending".
-      if (sender) {
-        setUnsubs(recordUnsub({
-          sender: sender.toLowerCase(),
-          askedISO: todayISO(),
-          via: u.kind === "mailto" ? "header" : "link",
-          ...(account ? { account } : {}),
-        }));
-      }
-    }
+    const { sent } = await requestUnsubscribe(u, account, sender, {
+      apiFor,
+      open: openExternal,
+      record: (r) => setUnsubs(recordUnsub(r)),
+      emit: (kind) => emit({ type: "action", props: { name: "email.unsubscribe", kind } }),
+      today: todayISO,
+    });
     return sent;
   };
 

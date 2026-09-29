@@ -99,6 +99,7 @@ const SAFE_TO_CLEAR: readonly string[] = [
   "jarvis.mail.tossasked.v1",
   "jarvis.mail.close.v1", // last-run marker for the weekly close offer
   "jarvis.mail.snooze.v1", // same-day, self-expiring notice state
+  "jarvis.mail.notify.v1", // what each thread's latest message wants done: re-read on the next refresh
 ];
 
 export function clearLocalData(storage: Pick<Storage, "removeItem"> = localStorage): void {

@@ -17,6 +17,21 @@
 
 const KEY = "jarvis.mail.snooze.v1";
 
+// A NOTICE'S KEY SAYS WHOSE, WHICH MAILBOX, WHICH MESSAGE AND WHICH ASK
+// (2026-09-29). A dismissal and a snooze are stored by notice key, and a bare
+// thread id is not a fact about one message: Gmail groups every code a sender
+// ever sends into one conversation, so "dismiss the code" filed under the
+// thread would hide the next code too. Keys for notification notices carry the
+// owner, the account, the thread, the revision (the message the action was
+// read from) and the action's kind, each percent-encoded so a separator cannot
+// be forged. Older keys ("reply:<thread>") are unchanged and still read.
+export interface NoticeScope { owner: string; account?: string; threadId: string; revision: string; kind: string }
+
+export function scopedNoticeKey(s: NoticeScope): string {
+  return ["notify", s.kind, s.owner, (s.account ?? "").trim().toLowerCase(), s.threadId, s.revision]
+    .map((p) => encodeURIComponent(p)).join(":");
+}
+
 export interface SnoozeStore { day: string; until: Record<string, string> } // key -> "HH:MM"
 
 export function loadSnoozes(

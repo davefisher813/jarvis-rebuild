@@ -1,6 +1,6 @@
 import { makeFakeGoogleApi } from "../connections/google/fakeApi";
 import { GmailHttpError, HistoryExpiredError, type GoogleApi } from "../connections/google/api";
-import type { GmailMeta, GmailThreadFull, GmailThreadMeta } from "../connections/google/map";
+import { b64urlEncode, type GmailMeta, type GmailThreadFull, type GmailThreadMeta } from "../connections/google/map";
 
 // A small, honest Gmail for tests: threads with labels, a history log with
 // Gmail's real shape (an ever-growing id as a STRING, paged), and a counter
@@ -18,9 +18,16 @@ export interface Counters {
   bodies: number;
   mutation: number;
   profile: number;
+  /** getAttachment calls: a calendar file fetched separately from the body. */
+  attachments: number;
 }
 
-interface FMessage { id: string; from: string; subject: string; snippet: string; at: number; labels: Set<string> }
+// What a thread read (format=full) returns beyond the metadata: the text and
+// HTML parts, extra headers (List-Unsubscribe), and a calendar file, inline or
+// as an attachment. Absent, a message reads as it always did: headers only.
+export interface FakeBody { body?: string; html?: string; headers?: Record<string, string>; ics?: string; icsAsAttachment?: boolean }
+
+interface FMessage extends FakeBody { id: string; from: string; subject: string; snippet: string; at: number; labels: Set<string> }
 interface FThread { id: string; messages: FMessage[]; historyId: bigint }
 
 export class FakeMailbox {
@@ -35,7 +42,9 @@ export class FakeMailbox {
   historyPageSize = 2;
   /** Refs per list page, small so the cursor is exercised when a test wants it. */
   listPageSize = 100;
-  counters: Counters = { list: 0, history: 0, metadata: 0, bodies: 0, mutation: 0, profile: 0 };
+  counters: Counters = { list: 0, history: 0, metadata: 0, bodies: 0, mutation: 0, profile: 0, attachments: 0 };
+  /** Calendar files served by getAttachment, by attachment id. */
+  private attachmentData = new Map<string, string>();
   /** Ids whose metadata read fails with a 500. */
   failMeta = new Set<string>();
   failList = false;
@@ -66,7 +75,7 @@ export class FakeMailbox {
   get historyId(): string { return this.hid.toString(); }
 
   /** Adds a whole thread to the inbox. */
-  add(id: string, opts: { from?: string; subject?: string; snippet?: string; unread?: boolean; messages?: number; at?: number } = {}): void {
+  add(id: string, opts: FakeBody & { from?: string; subject?: string; snippet?: string; unread?: boolean; messages?: number; at?: number } = {}): void {
     const msgs: FMessage[] = [];
     const n = opts.messages ?? 1;
     for (let i = 0; i < n; i++) {
@@ -74,6 +83,9 @@ export class FakeMailbox {
         id: `${id}_m${this.msgSeq++}`, from: opts.from ?? "Wei <wei@x.com>", subject: opts.subject ?? `Subject ${id}`,
         snippet: opts.snippet ?? `snippet ${id}`, at: (opts.at ?? (this.clock += 60_000)) + i,
         labels: new Set(["INBOX", ...(opts.unread === false ? [] : ["UNREAD"])]),
+        ...(opts.body !== undefined ? { body: opts.body } : {}), ...(opts.html !== undefined ? { html: opts.html } : {}),
+        ...(opts.headers ? { headers: opts.headers } : {}), ...(opts.ics !== undefined ? { ics: opts.ics } : {}),
+        ...(opts.icsAsAttachment ? { icsAsAttachment: true } : {}),
       });
     }
     this.threads.set(id, { id, messages: msgs, historyId: this.hid });
@@ -81,11 +93,14 @@ export class FakeMailbox {
   }
 
   /** A new message arrives in an existing thread. */
-  receive(threadId: string, opts: { from?: string; snippet?: string } = {}): string {
+  receive(threadId: string, opts: FakeBody & { from?: string; snippet?: string } = {}): string {
     const t = this.threads.get(threadId)!;
     const m: FMessage = {
       id: `${threadId}_m${this.msgSeq++}`, from: opts.from ?? "Wei <wei@x.com>", subject: t.messages[0]!.subject,
       snippet: opts.snippet ?? "a new reply", at: (this.clock += 60_000), labels: new Set(["INBOX", "UNREAD"]),
+      ...(opts.body !== undefined ? { body: opts.body } : {}), ...(opts.html !== undefined ? { html: opts.html } : {}),
+      ...(opts.headers ? { headers: opts.headers } : {}), ...(opts.ics !== undefined ? { ics: opts.ics } : {}),
+      ...(opts.icsAsAttachment ? { icsAsAttachment: true } : {}),
     };
     t.messages.push(m);
     this.bump(threadId);
@@ -156,6 +171,29 @@ export class FakeMailbox {
     };
   }
 
+  /** The full read: metadata plus the parts a message was given. */
+  private fullOf(t: FThread): GmailThreadFull {
+    const meta = this.metaOf(t);
+    return {
+      id: t.id,
+      messages: meta.messages!.map((mm, i) => {
+        const fm = t.messages[i]!;
+        const parts: { mimeType: string; body: { data?: string; attachmentId?: string }; filename?: string }[] = [];
+        if (fm.body !== undefined) parts.push({ mimeType: "text/plain", body: { data: b64urlEncode(fm.body) } });
+        if (fm.html !== undefined) parts.push({ mimeType: "text/html", body: { data: b64urlEncode(fm.html) } });
+        if (fm.ics !== undefined) {
+          if (fm.icsAsAttachment) {
+            const attachmentId = `${fm.id}_ics`;
+            this.attachmentData.set(attachmentId, fm.ics);
+            parts.push({ mimeType: "text/calendar", filename: "invite.ics", body: { attachmentId } });
+          } else parts.push({ mimeType: "text/calendar", body: { data: b64urlEncode(fm.ics) } });
+        }
+        const headers = [...(mm.payload?.headers ?? []), ...Object.entries(fm.headers ?? {}).map(([name, value]) => ({ name, value }))];
+        return { ...mm, threadId: t.id, payload: parts.length ? { headers, mimeType: "multipart/alternative", parts } : { headers } };
+      }),
+    } as GmailThreadFull;
+  }
+
   api(o: Partial<GoogleApi> = {}): GoogleApi {
     const c = this.counters;
     return makeFakeGoogleApi({
@@ -189,7 +227,12 @@ export class FakeMailbox {
       getThread: async (id) => {
         c.bodies++;
         const t = this.threads.get(id);
-        return (t ? this.metaOf(t) : { id, messages: [] }) as unknown as GmailThreadFull;
+        return t ? this.fullOf(t) : ({ id, messages: [] } as unknown as GmailThreadFull);
+      },
+      getAttachment: async (_messageId, attachmentId) => {
+        c.attachments++;
+        const text = this.attachmentData.get(attachmentId) ?? "";
+        return { data: b64urlEncode(text), size: text.length };
       },
       batchModifyMessages: async (ids, add, remove) => {
         c.mutation++;

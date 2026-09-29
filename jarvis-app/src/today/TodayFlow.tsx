@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { focusStarted } from "../events/focus";
-import { useSchedule, useTasks, useProfile, useCategories, useRoutine, usePeople, useProjects, useGoals, useDecisions, useNotes, useOptionalRules, useBrainDocs, useOptionalStrands } from "../data/NotesProvider";
+import { useUserId, useSchedule, useTasks, useProfile, useCategories, useRoutine, usePeople, useProjects, useGoals, useDecisions, useNotes, useOptionalRules, useBrainDocs, useOptionalStrands } from "../data/NotesProvider";
 import { pausedCategoryIds, effectiveKind } from "../categories/kinds";
 import { goalTone, catName, catColor as catColorOf } from "../shared/categories";
 import { workWindowOf, isSuggested, rankCandidates } from "../schedule/planMeta";
@@ -93,7 +93,15 @@ import { bestPerBlock, blockKind, recordBlend, loadBlendMemory } from "../schedu
 import type { BlendMap } from "./YourDay";
 import GymFlow from "../gym/GymFlow";
 import { useGymDoor } from "../gym/useGymDoor";
-import { loadMailSnapshot, mailNotices, type MailNotice } from "../messages/home";
+import { loadMailSnapshot, mailNotices, findThread, type MailNotice } from "../messages/home";
+import { executeMailAction, type MailActionResult, type MailActionDeps } from "../messages/executeMailAction";
+import { openExternal } from "../messages/openExternal";
+import { copyPromised } from "../messages/clipboard";
+import { requestUnsubscribe } from "../messages/unsubscribeAction";
+import { evidenceFromThread } from "../messages/notificationScan";
+// The interim saver. When the appointment workstream merges, this one import
+// becomes `from "../messages/emailSchedule"` and interimAddMeeting.ts goes.
+import { addEmailMeetingOnce } from "../messages/interimAddMeeting";
 import { showToast } from "../shared/toast";
 import { attemptWrite } from "../shared/guard";
 import RemindersStrip from "./RemindersStrip";
@@ -284,6 +292,8 @@ export default function TodayFlow({
   const strandsSvc = useOptionalStrands();
   const brainDocs = useBrainDocs();
   const google = useGoogle();
+  // Whose mail Today is showing: notification codes and dismissals are keyed by it.
+  const userId = useUserId() ?? "local";
   const schedule = useSchedule();
   // Read to answer "does the thing this bookmark names still exist" (Law 1),
   // and, since UP-CORE-08, to make and find a meeting's own page.
@@ -2268,7 +2278,7 @@ export default function TodayFlow({
     if (snap.threads.length === 0 && snap.waiting.length === 0) return;
     pregenRan.current = true;
     const jobs = mailNotices(snap, today, new Date(), PREGEN_CAP, [], [], loadNudgeCounts())
-      .filter((n) => n.kind === "reply" || n.kind === "deadline" || n.kind === "nudge" || n.kind === "chase")
+      .filter((n) => n.kind === "reply" || n.kind === "nudge" || n.kind === "chase")
       .map((n) => jobFor(n))
       .filter((j): j is NonNullable<typeof j> => !!j);
     if (jobs.length) void pregenerate(jobs);
@@ -3493,13 +3503,67 @@ export default function TodayFlow({
   // Both paths are honest about failure: no account, no thread, or an
   // unusable model reply all return empty, and the card opens the thread
   // instead of inventing something to send over his name.
-  const mailApiFor = (threadId: string) => {
+  const mailApiFor = (threadId: string, account?: string) => {
     const snap = loadMailSnapshot();
-    const t = snap.threads.find((x) => x.id === threadId);
+    // Both lists, and the account when the notice knows it: a notification
+    // thread is not among the needs-you rows, and two mailboxes can hold the
+    // same thread id.
+    const t = findThread(snap, threadId, account);
     const list = google.apis("mail");
     if (list.length === 0) return null;
-    const match = t?.account ? list.find((a) => a.email === t.account) : undefined;
+    const wanted = account ?? t?.account;
+    const match = wanted ? list.find((a) => a.email === wanted) : undefined;
     return (match ?? list[0])!.api;
+  };
+
+  // NOTIFICATION ACTIONS (2026-09-29). The dispatch is messages/executeMailAction.ts;
+  // this only supplies what it needs from this screen: the owner, the account's
+  // mail client, the schedule, and the browser. Nothing here detects anything
+  // or asks a model anything, and the tap that opens a page opens it inside
+  // the tap (executeMailAction calls `open` before its first await).
+  const accountApi = (account?: string) => {
+    const list = google.apis("mail");
+    if (account) return list.find((a) => a.email === account)?.api ?? null;
+    return list[0]?.api ?? null;
+  };
+  const takeNotification = (n: MailNotice): Promise<MailActionResult> => {
+    const a = n.notification!;
+    const deps: MailActionDeps = {
+      owner: userId,
+      open: openExternal,
+      copy: copyPromised,
+      addMeeting: async (args) => {
+        const r = await addEmailMeetingOnce({ scheduleSvc: schedule, ...args });
+        if (r.status === "added") await reload();
+        const undo = r.undo;
+        return undo ? { ...r, undo: async () => { const ok = await undo(); await reload(); return ok; } } : r;
+      },
+      ...(google.hasToken ? {
+        requestUnsub: (u, account, sender) => requestUnsubscribe(u, account, sender, {
+          apiFor: accountApi, open: openExternal, today: () => today,
+        }),
+        // The code left memory: read the exact message again. No model.
+        loadCode: async (t) => {
+          const api = accountApi(t.account);
+          if (!api) return null;
+          const raw = await api.getThread(t.threadId);
+          const got = await evidenceFromThread(raw, {
+            threadId: t.threadId,
+            messageId: t.action.evidence.sourceMessageId,
+            revision: t.action.evidence.sourceRevision,
+            fallback: { fromEmail: t.fromEmail ?? "", subject: "" },
+          }, api);
+          return got && got.bundle.codes.length === 1 ? got.bundle.codes[0]! : null;
+        },
+      } : {}),
+    };
+    const fromEmail = findThread(loadMailSnapshot(), n.threadId, n.account)?.fromEmail;
+    return executeMailAction({
+      action: a, threadId: n.threadId,
+      ...(n.account ? { account: n.account } : {}),
+      ...(n.fromName ? { from: n.fromName } : {}),
+      ...(fromEmail ? { fromEmail } : {}),
+    }, deps).catch(() => ({ status: "failed", message: "Couldn't Do That · Nothing Changed", settled: false, openThread: true }) as MailActionResult);
   };
 
 
@@ -3984,6 +4048,7 @@ export default function TodayFlow({
           onDraft={ai.available ? draftForCard : undefined}
           onTakeMeeting={google.hasToken ? takeMeeting : undefined}
           onTakeAct={takeAct}
+          onNotificationAction={takeNotification}
           onSend={google.hasToken ? sendFromCard : undefined}
           onDelete={google.hasToken ? deleteFromCard : undefined}
           onAddTask={addTaskFromMail}
