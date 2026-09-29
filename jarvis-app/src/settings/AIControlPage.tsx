@@ -10,7 +10,7 @@ import { budgetMessage, formatLimit, formatMicro, type BudgetStatus } from "../a
 import { clearBudgetBlock } from "../ai/budgetBlock";
 import { parseDollarsToMicro } from "../ai/limitInput";
 import { showToast } from "../shared/toast";
-import { Head, Card, Row, Menu, focusField } from "./kit";
+import { Head, Card, Row, Menu, Switch, focusField } from "./kit";
 import { attemptWrite } from "../shared/guard";
 
 const LEVEL_LABEL: Record<AILevel, string> = {
@@ -40,6 +40,20 @@ const PIN_KEYS: readonly AIPinKey[] = AI_PIN_KEYS;
 const PIN_OPTIONS = [{ value: "match", label: "Match Master" }, ...AI_LEVELS.map((l) => ({ value: l, label: LEVEL_LABEL[l] }))];
 
 interface Call { at: string; kind: string }
+
+// The level to come back to when AI is switched back on (Dave 2026-09-29: one
+// on/off switch). Remembered on this device only; the saved level itself is
+// what decides what runs.
+const RESUME_KEY = "jarvis.ai.resumeLevel";
+function readResume(): AILevel {
+  try {
+    const v = localStorage.getItem(RESUME_KEY);
+    return v && v !== "off" && (AI_LEVELS as readonly string[]).includes(v) ? (v as AILevel) : DEFAULT_AI_LEVEL;
+  } catch { return DEFAULT_AI_LEVEL; }
+}
+function writeResume(level: AILevel): void {
+  try { if (level !== "off") localStorage.setItem(RESUME_KEY, level); } catch { /* the switch still works */ }
+}
 
 /** The field's text for a limit: "5" for $5, "4.50" for $4.50. */
 function limitToText(micro: number): string {
@@ -96,7 +110,14 @@ export default function AIControlPage({ onBack }: { onBack: () => void }) {
     const ok = await attemptWrite(() => svc.save({ ai: next }));
     if (!ok) { setCtrl(prev); setAIControl(prev); }
   };
-  const setLevel = (level: AILevel) => { haptics.selection(); void apply({ ...ctrl, level }); };
+  const setLevel = (level: AILevel) => { haptics.selection(); writeResume(ctrl.level); void apply({ ...ctrl, level }); };
+  // ONE SWITCH (Dave 2026-09-29): off is the "off" level, on is the level it
+  // was at before, so the switch and the list below never disagree.
+  const aiOn = ctrl.level !== "off";
+  const toggleAI = () => {
+    if (aiOn) { writeResume(ctrl.level); void apply({ ...ctrl, level: "off" }); }
+    else void apply({ ...ctrl, level: readResume() });
+  };
   const setPin = (key: AIPinKey, v: string) => {
     haptics.selection();
     void apply({ ...ctrl, pins: { ...ctrl.pins, [key]: v as AILevel | "match" } });
@@ -156,6 +177,9 @@ export default function AIControlPage({ onBack }: { onBack: () => void }) {
   return (
     <div className="screen ruled">
       <LargeTitleNav title="AI Control" back="Settings" onBack={onBack} />
+      <Card>
+        <Switch label="AI" meta={aiOn ? "On" : "Off, nothing runs"} on={aiOn} onToggle={toggleAI} ariaLabel="AI on or off" />
+      </Card>
       <Head label="AI Level" />
       <Card>
         {AI_LEVELS.map((l) => (

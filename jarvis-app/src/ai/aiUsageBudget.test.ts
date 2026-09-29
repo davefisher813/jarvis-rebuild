@@ -17,6 +17,8 @@ function req(method: string, body?: unknown): Request {
 
 beforeEach(() => {
   budget = new FakeBudget();
+  // The cap is opt-in (AI_SPEND_CAP=1), off by default; these cases test it on.
+  vi.stubEnv("AI_SPEND_CAP", "1");
   vi.stubEnv("VITE_SUPABASE_URL", "https://supa.test");
   vi.stubEnv("VITE_SUPABASE_ANON_KEY", "anon");
   vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "service-key");

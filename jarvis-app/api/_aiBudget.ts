@@ -10,6 +10,15 @@
 
 import type { BudgetStatus } from "../src/ai/aiBudget";
 
+/** THE CAP IS OFF UNLESS AI_SPEND_CAP=1 (Dave, 2026-09-29: "No spending limit
+ *  at all. I'm testing everything in the PWA and I don't want anything gating
+ *  me... We'll design spending limits after the PWA is done."). The tables,
+ *  functions and this file stay, so turning it back on is one env var, but
+ *  nothing reserves, holds, refuses or settles a call while it is off. */
+export function capEnforced(): boolean {
+  return process.env.AI_SPEND_CAP === "1";
+}
+
 export interface BudgetEnv {
   supaUrl: string;
   serviceKey: string;

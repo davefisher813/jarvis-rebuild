@@ -13,7 +13,7 @@
 export const config = { runtime: "edge" };
 
 import { totalsByModel } from "../src/ai/tokenLog";
-import { budgetStatus, setLimit } from "./_aiBudget";
+import { budgetStatus, capEnforced, setLimit } from "./_aiBudget";
 
 // The most a person can set. A typo of a zero should not be a $50,000 cap.
 const MAX_LIMIT_MICROUSD = 1_000_000_000; // $1,000
@@ -46,6 +46,7 @@ export default async function handler(req: Request): Promise<Response> {
   // client last saw. Spent and held are never accepted from the browser: the
   // database owns them. The verified id above is the only owner.
   if (req.method === "PATCH") {
+    if (!capEnforced()) return json({ error: "There is no spending limit right now." }, 404);
     if (!serviceKey) return json({ error: "AI paused. The spending limit could not be checked.", code: "AI_BUDGET_UNAVAILABLE" }, 503);
     let patch: { limitMicrousd?: unknown; expectedVersion?: unknown };
     try { patch = (await req.json()) as typeof patch; } catch { return json({ error: "Bad request" }, 400); }
@@ -95,7 +96,7 @@ export default async function handler(req: Request): Promise<Response> {
 
   // The balance, read once here. Null when it cannot be read: the screen says
   // so rather than showing a stale or invented number.
-  const budget = await budgetStatus({ supaUrl, serviceKey }, me.id);
+  const budget = capEnforced() ? await budgetStatus({ supaUrl, serviceKey }, me.id) : null;
 
   return json({
     count: rows.length,

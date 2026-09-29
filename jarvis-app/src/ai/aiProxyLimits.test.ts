@@ -33,6 +33,8 @@ const CALL = { messages: [{ role: "user", content: "hello" }], kind: "chat" };
 beforeEach(() => {
   upstream.mockReset();
   budget = new FakeBudget();
+  // The cap is opt-in (AI_SPEND_CAP=1), off by default; these cases test it on.
+  vi.stubEnv("AI_SPEND_CAP", "1");
   vi.stubEnv("ANTHROPIC_API_KEY", "sk-test");
   vi.stubEnv("VITE_SUPABASE_URL", "https://supa.test");
   vi.stubEnv("VITE_SUPABASE_ANON_KEY", "anon");

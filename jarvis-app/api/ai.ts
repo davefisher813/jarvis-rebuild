@@ -29,7 +29,7 @@ import {
   PRICE_VERSION, actualCostMicrousd, budgetMessage, maxCostMicrousd, multiplierPermille,
   type BudgetErrorCode,
 } from "../src/ai/aiBudget";
-import { markDispatched, releaseBudget, requestHash, reserveBudget, settleBudget } from "./_aiBudget";
+import { capEnforced, markDispatched, releaseBudget, requestHash, reserveBudget, settleBudget } from "./_aiBudget";
 
 const ANTHROPIC_URL = "https://api.anthropic.com/v1/messages";
 const MODEL = process.env.AI_MODEL || "claude-sonnet-4-6";
@@ -151,7 +151,8 @@ export default async function handler(req: Request): Promise<Response> {
   // only relaxes the call-count caps for local development; it never relaxes
   // money. Without the key nothing can hold or settle a balance, so nothing is
   // spent.
-  if (!serviceKey) return budgetRefusal("AI_BUDGET_UNAVAILABLE");
+  const capOn = capEnforced();
+  if (capOn && !serviceKey) return budgetRefusal("AI_BUDGET_UNAVAILABLE");
   if (serviceKey) {
     const svcJson = { apikey: serviceKey, Authorization: `Bearer ${serviceKey}`, "content-type": "application/json" };
     // Airtight path: one atomic check-and-record in the database (migration
@@ -227,38 +228,42 @@ export default async function handler(req: Request): Promise<Response> {
   };
   const permille = multiplierPermille(process.env.AI_PRICE_MULTIPLIER_PERMILLE);
   const upstreamJson = JSON.stringify(upstreamBody);
-  const maxCost = maxCostMicrousd({
-    model,
-    textBytes: new TextEncoder().encode(JSON.stringify(stripImageData(upstreamBody))).length,
-    imageCount: countImages(messages),
-    usesCache: upstreamJson.includes('"cache_control"'),
-    usesTools: schemaOk(body.schema),
-    maxTokens: MAX_TOKENS,
-    permille,
-  });
-  // No defensible maximum (an unpriced model) means no call. Never a guess.
-  if (maxCost === null) return budgetRefusal("AI_BUDGET_UNAVAILABLE");
-
-  const benv = { supaUrl: supaUrl as string, serviceKey };
+  const benv = { supaUrl: supaUrl as string, serviceKey: serviceKey as string };
   const requestId = pickRequestId(req, body);
-  const verdict = await reserveBudget(benv, {
-    user: me.id, requestId, hash: await requestHash(raw), model, priceVersion: PRICE_VERSION, maxCost,
-  });
-  if (verdict.status === "unavailable") return budgetRefusal("AI_BUDGET_UNAVAILABLE");
-  if (verdict.status === "replay" || verdict.status === "hash_mismatch") return budgetRefusal("AI_BUDGET_REPLAY");
-  if (verdict.status === "paused") {
-    return budgetRefusal(verdict.limit === 0 ? "AI_BUDGET_OFF" : "AI_BUDGET_PAUSED", verdict.limit, verdict.remaining);
-  }
-  if (verdict.status === "over_limit") {
-    return budgetRefusal(verdict.remaining <= 0 ? "AI_BUDGET_REACHED" : "AI_BUDGET_REQUEST_TOO_LARGE", verdict.limit, verdict.remaining);
-  }
+  let maxCost = 0;
+  if (capOn) {
+    const m = maxCostMicrousd({
+      model,
+      textBytes: new TextEncoder().encode(JSON.stringify(stripImageData(upstreamBody))).length,
+      imageCount: countImages(messages),
+      usesCache: upstreamJson.includes('"cache_control"'),
+      usesTools: schemaOk(body.schema),
+      maxTokens: MAX_TOKENS,
+      permille,
+    });
+    // No defensible maximum (an unpriced model) means no call. Never a guess.
+    if (m === null) return budgetRefusal("AI_BUDGET_UNAVAILABLE");
+    maxCost = m;
 
-  // The one-way step. Exactly one caller wins it per request id, so a
-  // duplicate can never dispatch twice. If it cannot be recorded, nothing was
-  // sent, so the hold goes back.
-  if (!(await markDispatched(benv, me.id, requestId))) {
-    await releaseBudget(benv, me.id, requestId);
-    return budgetRefusal("AI_BUDGET_REPLAY");
+    const verdict = await reserveBudget(benv, {
+      user: me.id, requestId, hash: await requestHash(raw), model, priceVersion: PRICE_VERSION, maxCost,
+    });
+    if (verdict.status === "unavailable") return budgetRefusal("AI_BUDGET_UNAVAILABLE");
+    if (verdict.status === "replay" || verdict.status === "hash_mismatch") return budgetRefusal("AI_BUDGET_REPLAY");
+    if (verdict.status === "paused") {
+      return budgetRefusal(verdict.limit === 0 ? "AI_BUDGET_OFF" : "AI_BUDGET_PAUSED", verdict.limit, verdict.remaining);
+    }
+    if (verdict.status === "over_limit") {
+      return budgetRefusal(verdict.remaining <= 0 ? "AI_BUDGET_REACHED" : "AI_BUDGET_REQUEST_TOO_LARGE", verdict.limit, verdict.remaining);
+    }
+
+    // The one-way step. Exactly one caller wins it per request id, so a
+    // duplicate can never dispatch twice. If it cannot be recorded, nothing
+    // was sent, so the hold goes back.
+    if (!(await markDispatched(benv, me.id, requestId))) {
+      await releaseBudget(benv, me.id, requestId);
+      return budgetRefusal("AI_BUDGET_REPLAY");
+    }
   }
 
   let upstream: Response;
@@ -283,7 +288,7 @@ export default async function handler(req: Request): Promise<Response> {
     // A 4xx is the provider saying it refused the request: nothing ran,
     // nothing was billed, so the hold can go back. A 5xx or 529 is not that
     // certain, so it stays held.
-    if (upstream.status >= 400 && upstream.status < 500) await releaseBudget(benv, me.id, requestId, true);
+    if (capOn && upstream.status >= 400 && upstream.status < 500) await releaseBudget(benv, me.id, requestId, true);
     return json({ error: "Upstream error", detail }, 502);
   }
   let data: {
@@ -300,15 +305,18 @@ export default async function handler(req: Request): Promise<Response> {
   } catch {
     // Billed but unreadable: settle at the reserved maximum, the worst case,
     // rather than at zero.
-    await settleBudget(benv, me.id, requestId, maxCost);
+    if (capOn) await settleBudget(benv, me.id, requestId, maxCost);
     return json({ error: "Upstream error" }, 502);
   }
 
   // Settle from what the provider says it used. Usage that is missing or
   // malformed settles at the reserved maximum: an unknown cost is assumed to
   // be the worst one. One settlement, never a retried generation.
-  const actual = actualCostMicrousd(model, data.usage, permille) ?? maxCost;
-  const settled = await settleBudget(benv, me.id, requestId, actual);
+  let settled = true;
+  if (capOn) {
+    const actual = actualCostMicrousd(model, data.usage, permille) ?? maxCost;
+    settled = await settleBudget(benv, me.id, requestId, actual);
+  }
 
   // Token accounting (item 12): record what this call actually cost, into
   // ai_tokens (migration 0026), service-role only, best effort. A failed or
@@ -316,7 +324,7 @@ export default async function handler(req: Request): Promise<Response> {
   // this insert 404s quietly and the app behaves exactly as before.
   try {
     const row = tokenRow(me.id, kind, model, data.usage);
-    if (row) {
+    if (row && serviceKey) {
       const headers = { apikey: serviceKey, Authorization: `Bearer ${serviceKey}`, "content-type": "application/json", Prefer: "return=minimal" };
       const post = (r: unknown) => fetch(`${supaUrl}/rest/v1/ai_tokens`, { method: "POST", headers, body: JSON.stringify(r) });
       const wrote = await post(row);

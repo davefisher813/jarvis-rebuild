@@ -44,6 +44,35 @@ describe("AIControlPage", () => {
   });
 });
 
+// ONE AI SWITCH (Dave, 2026-09-29): off is the Off level, on returns to the
+// level it was at, and the list below always agrees with it.
+describe("AIControlPage on/off switch", () => {
+  it("turns AI off, then back to the level it was at", async () => {
+    vi.spyOn(ProfileService.prototype, "save").mockResolvedValue({} as never);
+    render(<NotesProvider userId="u1"><AIControlPage onBack={() => {}} /></NotesProvider>);
+    fireEvent.click(screen.getByText("Everything").closest(".row")!);
+    await waitFor(() => expect(getAIControl().level).toBe("everything"));
+
+    const sw = screen.getByRole("switch", { name: "AI on or off" });
+    expect(sw.getAttribute("aria-checked")).toBe("true");
+    fireEvent.click(sw);
+    await waitFor(() => expect(getAIControl().level).toBe("off"));
+    expect(screen.getByRole("switch", { name: "AI on or off" }).getAttribute("aria-checked")).toBe("false");
+    expect(screen.getByText("Off").closest(".row")!.getAttribute("aria-checked")).toBe("true");
+
+    fireEvent.click(screen.getByRole("switch", { name: "AI on or off" }));
+    await waitFor(() => expect(getAIControl().level).toBe("everything"));
+  });
+
+  it("a switch that could not be saved goes back", async () => {
+    vi.spyOn(ProfileService.prototype, "save").mockRejectedValue(new Error("network"));
+    render(<NotesProvider userId="u1"><AIControlPage onBack={() => {}} /></NotesProvider>);
+    fireEvent.click(screen.getByRole("switch", { name: "AI on or off" }));
+    await waitFor(() => expect(getAIControl().level).toBe(DEFAULT_AI_LEVEL));
+    expect(screen.getByRole("switch", { name: "AI on or off" }).getAttribute("aria-checked")).toBe("true");
+  });
+});
+
 // THE SPENDING LIMIT (Dave, 2026-09-28). The screen shows what the SERVER
 // holds, saves with one explicit tap, and goes back to the server's number on
 // any failure. No write per keystroke, no hopeful local balance.
