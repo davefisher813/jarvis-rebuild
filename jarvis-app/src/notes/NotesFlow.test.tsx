@@ -459,3 +459,45 @@ describe("the same note deep link, twice (HMN-F-19)", () => {
     await waitFor(() => expect(screen.getByText("Notes", { selector: "button" })).toBeInTheDocument());
   });
 });
+
+// CLICK-THROUGH AUDIT 2026-09-29, Notes. Three taps that looked dead.
+describe("NotesFlow: New Note and Import or Attach (click-through audit 2026-09-29)", () => {
+  afterEach(() => { vi.restoreAllMocks(); });
+
+  it("Blank makes an empty, untitled note and opens the editor on it (it used to return to the templates)", async () => {
+    svcRef = null;
+    const user = "u-blank-template";
+    render(<NotesProvider userId={user}><Grab /><NotesFlow /></NotesProvider>);
+    await waitFor(() => expect(svcRef).toBeTruthy());
+    fireEvent.click(await screen.findByLabelText("New Note", {}, { timeout: 4000 }));
+    fireEvent.click(await screen.findByText("Blank"));
+    // The editor, not the templates screen.
+    expect(await screen.findByLabelText("Note", {}, { timeout: 4000 })).toBeInTheDocument();
+    expect(screen.queryByText("Templates")).toBeNull();
+    const all = await svcRef!.list();
+    expect(all).toHaveLength(1);
+    expect((all[0] as { title: string }).title, "the list's own fallback for a note with no title yet").toBe("Untitled");
+  });
+
+  it("Import or Attach opens the file picker inside the tap, after the menu closes", async () => {
+    const clicks: HTMLInputElement[] = [];
+    vi.spyOn(HTMLInputElement.prototype, "click").mockImplementation(function (this: HTMLInputElement) { clicks.push(this); });
+    svcRef = null;
+    render(<NotesProvider userId="u-import-attach"><Grab /><NotesFlow /></NotesProvider>);
+    await waitFor(() => expect(svcRef).toBeTruthy());
+    fireEvent.click(await screen.findByLabelText("Notes Options", {}, { timeout: 4000 }));
+    fireEvent.click(screen.getByText("Import or Attach"));
+    // Synchronous with the tap, and the options sheet is gone.
+    expect(clicks).toHaveLength(1);
+    expect(clicks[0]!.type).toBe("file");
+    expect(clicks[0]!.isConnected, "the picker input outlives the menu that opened it").toBe(true);
+    expect(screen.queryByText("Notes Options")).toBeNull();
+    // The chosen file becomes a note titled after it, with the file attached.
+    vi.spyOn(MemoryFileStore.prototype, "upload").mockResolvedValue({ path: "u/n/menu.pdf", name: "menu.pdf", mime: "application/pdf", bytes: 10 });
+    fireEvent.change(clicks[0]!, { target: { files: [new File(["x"], "menu.pdf", { type: "application/pdf" })] } });
+    await waitFor(async () => {
+      const titles = (await svcRef!.list()).map((n) => (n as { title: string }).title);
+      expect(titles).toContain("Menu");
+    }, { timeout: 4000 });
+  });
+});
