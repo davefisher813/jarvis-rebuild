@@ -236,12 +236,17 @@ function judgeChoice(req: ReplyRequirement, clauses: string[]): Verdict {
 
 const cap = (s: string) => s.replace(/\b[a-z]/g, (m) => m.toUpperCase());
 
+// "Until Friday", "by Tuesday", "after the 5th": a deadline for something else,
+// not a day being proposed for the meeting.
+const DEADLINE_OF_SOMETHING = /\b(until|till|by|before|after|through)\s+(?:the\s+|next\s+|this\s+)?(?:mon|tue|wed|thu|fri|sat|sun|tomorrow|tonight|today|end|noon|\d)/;
+
 function judgeWhen(clauses: string[]): Verdict {
   let last: Ev | null = null;
   let value = "";
   let flipped = false;
   let sawNeg = false;
   for (const clause of clauses) {
+    if (DEADLINE_OF_SOMETHING.test(clause)) continue;
     if (!namesWhen(clause)) {
       // "Tuesday works, we'll see": a hedge with no day of its own softens the one before it.
       if (last === "pos" && isHedge(clause)) last = "hedge";

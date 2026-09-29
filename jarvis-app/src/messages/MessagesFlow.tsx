@@ -43,7 +43,7 @@ import { briefFor, isCurrentBrief, loadBriefs, type Brief } from "./brief";
 import { ensureThreadBrief } from "./threadBrief";
 import { revisionOf } from "./briefSource";
 import MeetingFinishCard, { type MeetingNotice } from "./MeetingFinishCard";
-import ReplyCoverage from "./ReplyCoverage";
+import ReplyCoverage from "./coverage/ReplyCoverage";
 import { useReplyRequirements, replySourceOf } from "./useReplyRequirements";
 import { addEmailMeetingOnce, icsToCandidate } from "./emailSchedule";
 import { proposedFromBrief } from "./meetingOffers";

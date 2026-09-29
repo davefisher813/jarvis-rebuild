@@ -350,13 +350,23 @@ function clip(s: string, max: number): string {
   return (back.length > max * 0.6 ? back : cut).replace(/[.,;:\s]+$/, "") + "\u2026";
 }
 
+// The home list asks briefFor once per row, and each ask used to parse the
+// whole cache again. The parse is kept per key against the exact text it came
+// from, so an unchanged cache is parsed once and a changed one is parsed anew.
+// Callers get the shared object and must not change it (saveBrief copies).
+const parsed = new Map<string, { raw: string; val: Cache }>();
 function readMap(key: string): Cache {
+  let raw: string;
+  try { raw = localStorage.getItem(key) || "{}"; } catch { return {}; }
+  const hit = parsed.get(key);
+  if (hit && hit.raw === raw) return hit.val;
+  let val: Cache = {};
   try {
-    const raw = JSON.parse(localStorage.getItem(key) || "{}") as unknown;
-    return typeof raw === "object" && raw !== null && !Array.isArray(raw) ? (raw as Cache) : {};
-  } catch {
-    return {};
-  }
+    const v = JSON.parse(raw) as unknown;
+    if (typeof v === "object" && v !== null && !Array.isArray(v)) val = v as Cache;
+  } catch { val = {}; }
+  parsed.set(key, { raw, val });
+  return val;
 }
 
 /**
@@ -400,7 +410,7 @@ export function isCurrentBrief(b: Brief | null): b is Brief {
 }
 
 export function saveBrief(lastMsgId: string, brief: Brief, scope?: MailScope): void {
-  const cache = readMap(KEY);
+  const cache: Cache = { ...readMap(KEY) };
   const key = scope ? mailMessageKey(scope, lastMsgId) : lastMsgId;
   // Re-saving moves the entry to the newest end, so the cap drops the oldest read.
   delete cache[key];

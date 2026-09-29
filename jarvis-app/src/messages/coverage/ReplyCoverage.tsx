@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
-import { haptics } from "../shared/haptics";
-import { rowDoor } from "../shared/rowDoor";
-import { Facts } from "./factsLine";
-import type { ReplyRequirements } from "./mailContracts";
+import { haptics } from "../../shared/haptics";
+import { rowDoor } from "../../shared/rowDoor";
+import { Facts } from "../factsLine";
+import type { ReplyRequirements } from "../mailContracts";
 import {
   coverageKey, coverageSummary, evaluateCoverage,
   type AttachmentFact, type CoverageItem, type CoverageOverride, type CoverageOverrides,
-} from "./replyCoverage";
+} from "../replyCoverage";
 
 // "ANSWERED 3 OF 4" (2026-09-29).
 //

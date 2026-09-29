@@ -258,6 +258,12 @@ describe("EMAIL law 9: a meeting the mail mentions is filed only on the tap", ()
     // The .ics attachment offer goes through the same door.
     expect(FLOW).toMatch(/addEmailMeetingOnce\(\{ scheduleSvc, candidate: cand/);
   });
+  it("the appointment card renders only when there is a Schedule service to write to", () => {
+    expect(FLOW).toMatch(/\{scheduleSvc && \(\s*<MeetingFinishCard/);
+    expect(FLOW.match(/<MeetingFinishCard/g)?.length, "one place draws it").toBe(1);
+    // And it sits above the messages: before the thread's message list is mapped.
+    expect(FLOW.indexOf("<MeetingFinishCard")).toBeLessThan(FLOW.indexOf("{thread.messages.map((m) => {"));
+  });
   it("the state card has no calendar action of its own", () => {
     expect(STATE_CARD).not.toMatch(/onAddToCalendar|calendarState|Add to Calendar/);
   });
@@ -405,5 +411,56 @@ describe("EMAIL law 11: a return to the screen is not a reason to re-read the ma
     const C = read(join(SRC, "messages/mailCache.ts"));
     expect(C, "loadRows must not treat zero rows as a miss").not.toMatch(/rows\.length === 0\) return null/);
     expect(FLOW, "the mirror effect must not skip an empty list").not.toMatch(/if \(rows\.length > 0\) mirrorRows/);
+  });
+});
+
+// 2026-09-29: THE BRIEF'S THREE NEW READINGS ARE UNTRUSTED, AND REPLY COVERAGE
+// IS LOCAL. Two rules that a later edit could quietly break, so they are
+// written down as checks.
+describe("EMAIL law 10: model output about a thread is checked in code before anything reads it", () => {
+  const BRIEF = read(join(SRC, "messages/brief.ts"));
+  const VALIDATE = read(join(SRC, "messages/briefValidate.ts"));
+  it("brief.ts hands the three readings to the validators and takes no date, time or id from the model", () => {
+    expect(BRIEF).toMatch(/validateMeetingCandidates\(/);
+    expect(BRIEF).toMatch(/validateReplyRequirements\(/);
+    expect(BRIEF).toMatch(/validateNotification\(/);
+    // Ids are hashed locally from the account, thread, message and sentence.
+    expect(VALIDATE).toMatch(/stableId\("mc"/);
+    expect(VALIDATE).toMatch(/stableId\("rr"/);
+    expect(VALIDATE, "a model-supplied id is never used").not.toMatch(/item\??\.id\b|item\[["']id["']\]/);
+    // Dates and times come out of the sentence, by code, against the message's own day.
+    expect(VALIDATE).toMatch(/readWhen\(quote,/);
+    expect(VALIDATE, "a model-supplied date is never used").not.toMatch(/item\??\.(date|start|end|timeZone)\b|\(item as[^)]*\)\.|item\[/);
+    // A claim's sentence must be inside the message it names.
+    expect(VALIDATE.match(/quoteIn\(/g)?.length, "every reading checks its quote").toBeGreaterThanOrEqual(3);
+  });
+  it("a notification may point at a link id it was shown and never carries a URL", () => {
+    expect(VALIDATE).toMatch(/links\.some\(\(l\) => l\.id === raw\.linkId\)/);
+    expect(read(join(SRC, "messages/mailContracts.ts"))).toMatch(/model never supplies a URL/);
+  });
+});
+
+describe("EMAIL law 11: Reply Coverage never leaves the device and never runs per keystroke", () => {
+  const EVAL = read(join(SRC, "messages/replyCoverage.ts")).replace(/\/\/.*$/gm, "");
+  const CARD = read(join(SRC, "messages/coverage/ReplyCoverage.tsx")).replace(/\/\/.*$/gm, "");
+  it("the evaluator is a pure function: no model, no network, no storage", () => {
+    for (const banned of [/\bfetch\s*\(/, /\.complete\s*\(/, /localStorage/, /sessionStorage/, /XMLHttpRequest/, /AIService/, /ensureThreadBrief/]) {
+      expect(EVAL, String(banned)).not.toMatch(banned);
+    }
+  });
+  it("the indicator never blocks or sends: it takes no send handler and touches no outbox", () => {
+    expect(CARD).not.toMatch(/onSend|enqueueOutbox|disabled=\{[^}]*coverage/i);
+    expect(CARD).not.toMatch(/ensureThreadBrief|\.complete\(|fetch\(/);
+  });
+  it("Send is not gated on coverage anywhere in the composer", () => {
+    const at = FLOW.indexOf("const send = (scheduledAt?: number) => {");
+    const body = FLOW.slice(at, FLOW.indexOf("\n  };", at));
+    expect(body).not.toMatch(/replyReqs|coverage|evaluateCoverage|overrides/i);
+    expect(FLOW).not.toMatch(/evaluateCoverage\(/);
+  });
+  it("the requirements are looked up when the SOURCE changes, keyed on it alone, never on the words", () => {
+    const hook = read(join(SRC, "messages/useReplyRequirements.ts"));
+    expect(hook).toMatch(/\}, \[key\]\);/);
+    expect(hook, "typing never reaches the lookup").not.toMatch(/draftText|\.body\b/);
   });
 });

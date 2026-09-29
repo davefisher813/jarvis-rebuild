@@ -150,6 +150,14 @@ describe("ambiguous prose stays open until the person says otherwise", () => {
     expect(evaluateCoverage([PLAYERS], "We have 2 questions", []).items[0]!.status).toBe("uncertain");
   });
 
+  it("a deadline for something else is not a day proposed: 'can't send the waiver until Friday' does not turn Tuesday down", () => {
+    const r = evaluateCoverage(FOUR, "Tuesday works, four players, yes you can publish. Can't send waiver until Friday", []);
+    expect(status(r)).toEqual({ day: "addressed", players: "addressed", waiver: "addressed", publish: "addressed" });
+    expect(r.items.find((i) => i.requirement.id === "waiver")).toMatchObject({ completes: false, note: "Deferred" });
+    // And a day named only as a deadline answers nothing.
+    expect(status(evaluateCoverage([DAY], "Will confirm by Friday", [])).day).toBe("open");
+  });
+
   it("a time is not the number of players", () => {
     expect(status(evaluateCoverage([PLAYERS], "Tuesday at 3 works", [])).players).toBe("open");
   });

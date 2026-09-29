@@ -1,9 +1,9 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import { Store, InMemoryAdapter } from "@core";
 import { ScheduleService } from "../schedule/ScheduleService";
 import {
   addEmailMeetingOnce, findFiledMeeting, icsToCandidate, meetingClientId, missingLine, resetEmailScheduleState,
-  reviseFiledMeeting, type EmailReviseSvc,
+  reviseFiledMeeting, applyEventDraft, draftFromEvent, type EmailReviseSvc,
 } from "./emailSchedule";
 import type { MeetingCandidate } from "./mailContracts";
 import { readIcs } from "./ics";
@@ -20,6 +20,8 @@ const setup = () => {
   const svc = new ScheduleService(store, "u1");
   return { store, svc };
 };
+// The store behind a service, to watch what actually gets written.
+const store = (svc: ScheduleService) => (svc as unknown as { store: Store }).store;
 const args = (svc: EmailReviseSvc, c = cand(), over: Record<string, unknown> = {}) => ({
   scheduleSvc: svc, candidate: c, threadId: "t1", account: ME, zone: NY, ...over,
 });
@@ -365,5 +367,51 @@ describe("icsToCandidate", () => {
     expect(gap.missing).toEqual(["time"]);
     const odd = icsToCandidate(read(ics("DTSTART;TZID=Customized Time Zone:20260923T130000")), ctx)!;
     expect(odd.missing).toEqual(["timezone"]);
+  });
+});
+
+describe("draftFromEvent and applyEventDraft: every field on the sheet round-trips", () => {
+  it("an event opens on the sheet with all of its fields, and saving it unchanged writes nothing", async () => {
+    const { svc } = setup();
+    const id = (await svc.createEvent("Practice", { date: "2026-09-22", start: "15:00", end: "16:00", category: "c1", location: "The Field", url: "https://zoom.example/1", notes: "Bring water", travelMin: 20, bufferMin: 10 }))!;
+    await svc.editGymDoor(id, true);
+    const data = (await svc.event(id))!;
+    const draft = draftFromEvent(data);
+    expect(draft).toMatchObject({ title: "Practice", date: "2026-09-22", start: "15:00", end: "16:00", category: "c1", location: "The Field", recurrence: "none", url: "https://zoom.example/1", notes: "Bring water", travelMin: 20, bufferMin: 10, gym: true });
+    const patch = vi.spyOn(store(svc), "update");
+    expect(await applyEventDraft(svc, id, draft)).toBe(true);
+    expect(patch).not.toHaveBeenCalled();
+  });
+
+  it("writes what the person changed on the sheet: area, place, repeat, weekdays, end date, travel, link, notes, tasks, gym", async () => {
+    const { svc } = setup();
+    const { id } = await addEmailMeetingOnce(args(svc)).then((r) => ({ id: r.eventId! }));
+    const ok = await applyEventDraft(svc, id, {
+      title: "Practice", date: "2026-09-22", start: "15:00", end: "16:00", category: "c2", location: "Field 3",
+      recurrence: "weekly", days: [2, 4], interval: 2, until: "2026-12-01", travelMin: 25, bufferMin: 5,
+      url: "https://zoom.example/2", notes: "Cleats", taskIds: ["task1"], gym: true,
+    });
+    expect(ok).toBe(true);
+    expect((await svc.event(id))!).toMatchObject({
+      category: "c2", location: "Field 3", recurrence: "weekly", days: [2, 4], interval: 2, until: "2026-12-01",
+      travelMin: 25, bufferMin: 5, url: "https://zoom.example/2", notes: "Cleats", gym: true,
+    });
+  });
+
+  it("a field whose row the sheet did not show is left alone: no project list, no project write", async () => {
+    const { svc } = setup();
+    const id = (await svc.createEvent("Practice", { date: "2026-09-22", start: "15:00", projectId: "p1" }))!;
+    await applyEventDraft(svc, id, { title: "Practice", date: "2026-09-22", start: "15:00", end: "", category: "", location: "", recurrence: "none" });
+    expect((await svc.event(id))!.projectId).toBe("p1");
+    await applyEventDraft(svc, id, { title: "Practice", date: "2026-09-22", start: "15:00", end: "", category: "", location: "", recurrence: "none", projectId: "" });
+    expect((await svc.event(id))!.projectId).toBeUndefined();
+  });
+
+  it("a write that throws is false, and an event that is gone is false", async () => {
+    const { svc } = setup();
+    const r = await addEmailMeetingOnce(args(svc));
+    (svc as unknown as { editLocation: unknown }).editLocation = async () => { throw new Error("no"); };
+    expect(await applyEventDraft(svc, r.eventId!, { title: "x", date: "2026-09-22", start: "15:00", end: "16:00", category: "", location: "Somewhere", recurrence: "none" })).toBe(false);
+    expect(await applyEventDraft(svc, "gone", { title: "x", date: "2026-09-22", start: "15:00", end: "", category: "", location: "", recurrence: "none" })).toBe(false);
   });
 });

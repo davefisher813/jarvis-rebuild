@@ -202,11 +202,16 @@ describe("MeetingFinishCard: missing details are requested, never guessed", () =
     expect(await svc.listEvents()).toHaveLength(0);
     // Give it a time and the event is made, once, through the same door.
     fireEvent.change(screen.getByLabelText("Start"), { target: { value: "09:30" } });
+    // Whatever else is typed on the sheet is written too, not dropped on Save.
+    fireEvent.change(screen.getByLabelText("Location"), { target: { value: "Field 3" } });
+    fireEvent.change(screen.getByLabelText("Meeting Notes"), { target: { value: "Bring cleats" } });
     fireEvent.click(screen.getByText("Save"));
     await screen.findByText("On Your Calendar");
     const evs = await svc.listEvents();
     expect(evs).toHaveLength(1);
-    expect(evs[0]!.data).toMatchObject({ date: "2026-09-24", start: "09:30" });
+    expect(evs[0]!.data).toMatchObject({ date: "2026-09-24", start: "09:30", location: "Field 3", notes: "Bring cleats" });
+    // And it is still the one door's row: keyed, so a second Save would not make another.
+    expect(evs[0]!.data.clientId).toMatch(/^emailmtg_/);
   });
 
   it("no day at all: Set Day opens the sheet", async () => {
