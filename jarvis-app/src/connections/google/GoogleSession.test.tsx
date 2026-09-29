@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, cleanup } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import { NotesProvider } from "../../data/NotesProvider";
 import { GoogleSessionProvider, useGoogle } from "./GoogleSession";
@@ -68,13 +68,20 @@ describe("GoogleSession multi-account", () => {
   });
 });
 
+// The typed answers a broker's silent path gives (2026-09-29): a fresh token
+// with its expiry, or a failure with its cause. Never a bare token or null.
+const good = (token: string, email: string, over: Partial<Extract<GoogleSessionResult, { ok: true }>> = {}): GoogleSessionResult =>
+  ({ ok: true, token, email, expiresAt: Date.now() + 3600e3, remembered: true, status: 200, ...over });
+const bad = (code: GoogleFailureCode, email = "a@x.com", status = 410): GoogleSessionResult =>
+  ({ ok: false, ...googleFailure(code, email, status) });
+
 // THE SCOPE GATE (2026-08-26, born from "deleting literally doesn't work").
 // A refresh token keeps minting access tokens with the scopes it was BORN
 // with, whatever config.ts says today. These tests hold the two halves of
 // the repair: silent minting refuses accounts whose stamped scopes are not
 // current, and every interactive authorize stamps the current scopes.
 import { GOOGLE_SCOPES } from "./config";
-import type { TokenBroker } from "./broker";
+import { googleFailure, type GoogleFailureCode, type GoogleSessionResult, type TokenBroker } from "./broker";
 import { useProfile } from "../../data/NotesProvider";
 import { useEffect, useState } from "react";
 
@@ -121,7 +128,7 @@ describe("the scope gate", () => {
       ],
       {
         authorize: async () => ({ token: "t-int", email: "old@x.com" }),
-        silent: async (email) => { silentCalls.push(email); return "t-" + email; },
+        silent: async (email) => { silentCalls.push(email); return good("t-" + email, email); },
       },
     );
     await waitFor(() => expect(screen.getByTestId("tokened")).toHaveTextContent("new@x.com"));
@@ -138,7 +145,7 @@ describe("the scope gate", () => {
       [{ email: "old@x.com", mail: true, cal: true }],
       {
         authorize: async () => { authorized += 1; return { token: "t-int", email: "old@x.com" }; },
-        silent: async (email) => { silentCalls.push(email); return "t-sil"; },
+        silent: async (email) => { silentCalls.push(email); return good("t-sil", email); },
       },
     );
     await waitFor(() => expect(screen.getByTestId("scopes")).toHaveTextContent("old@x.com:stale"));
@@ -198,7 +205,7 @@ describe("silent refresh (PLUMB-F-04)", () => {
     let n = 0;
     const broker: TokenBroker = {
       authorize: async () => { throw new Error("must not go interactive"); },
-      silent: async (email) => { n += 1; minted.push(email); return "tok" + n; },
+      silent: async (email) => { n += 1; minted.push(email); return good("tok" + n, email); },
     };
     const calls: string[] = [];
     // tok1 is the mount-time token, "expired" by the time he taps; tok2 works.
@@ -227,7 +234,7 @@ describe("silent refresh (PLUMB-F-04)", () => {
     const broker: TokenBroker = {
       authorize: async () => { throw new Error("must not go interactive"); },
       // The first mint (at mount) works; the refresh token is then revoked.
-      silent: async () => { n += 1; return n === 1 ? "tok1" : null; },
+      silent: async (email) => { n += 1; return n === 1 ? good("tok1", email) : bad("GOOGLE_SIGNIN_REVOKED", email); },
     };
     const calls: string[] = [];
     const fetchImpl = (_url: string, init?: FetchInit) => { calls.push(init?.headers?.Authorization ?? ""); return unauthorized(); };
@@ -245,7 +252,7 @@ describe("silent refresh (PLUMB-F-04)", () => {
       let n = 0;
       const broker: TokenBroker = {
         authorize: async () => { throw new Error("must not go interactive"); },
-        silent: async () => { n += 1; return "tok" + n; },
+        silent: async (email) => { n += 1; return good("tok" + n, email); },
       };
       const fetchImpl = () => ok({ emailAddress: "a@x.com" });
       render(<NotesProvider userId={"refresh-" + Math.random()}><RefreshHost broker={broker} fetchImpl={fetchImpl} /></NotesProvider>);
@@ -265,5 +272,404 @@ describe("silent refresh (PLUMB-F-04)", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+});
+
+// THE SESSION'S OWN ACCOUNT STATE AND THE WRITE PREFLIGHT (2026-09-29).
+//
+// Delete used to run on whatever token the session held, for whichever
+// account the row named, falling back to the first account when the row's
+// own was missing. These hold the gate every write passes now: the exact
+// account, mail on, the modify scope, a token good for the next minute, and
+// a getProfile that says the token really is that address. On any failure
+// nothing is touched, the caller's selection is the caller's to keep, and a
+// reconnect never resumes what the person had asked for.
+import type { GoogleApi } from "./api";
+import type { EnsureGoogleResult } from "./GoogleSession";
+
+type Seed = { email: string; mail: boolean; cal: boolean; scopes?: string }[];
+type Session = ReturnType<typeof useGoogle>;
+
+function Grab({ into }: { into: { current: Session | null } }) {
+  into.current = useGoogle();
+  return null;
+}
+
+function PreflightHost({ seed, broker, makeApi, into }: {
+  seed: Seed; broker: TokenBroker; makeApi: (token: string, email?: string) => GoogleApi; into: { current: Session | null };
+}) {
+  const profile = useProfile();
+  const [seeded, setSeeded] = useState(false);
+  useEffect(() => { void profile.save({ googleAccounts: seed }).then(() => setSeeded(true)); }, [profile, seed]);
+  if (!seeded) return null;
+  return <GoogleSessionProvider broker={broker} makeApi={makeApi}><Grab into={into} /></GoogleSessionProvider>;
+}
+
+const A = { email: "a@x.com", mail: true, cal: true, scopes: GOOGLE_SCOPES };
+const B = { email: "b@x.com", mail: true, cal: true, scopes: GOOGLE_SCOPES };
+const MODIFY = "https://www.googleapis.com/auth/gmail.modify";
+
+async function mount(seed: Seed, broker: TokenBroker, opts: { profileOf?: (token: string, email?: string) => string; trashed?: string[]; profiles?: string[] } = {}) {
+  const into: { current: Session | null } = { current: null };
+  const makeApi = (token: string, email?: string) => makeFakeGoogleApi({
+    getProfile: async () => { opts.profiles?.push(token); return { emailAddress: opts.profileOf ? opts.profileOf(token, email) : (email ?? "a@x.com") }; },
+    trashThread: async (id: string) => { opts.trashed?.push(token + ":" + id); },
+  });
+  render(<NotesProvider userId={"pre-" + Math.random()}><PreflightHost seed={seed} broker={broker} makeApi={makeApi} into={into} /></NotesProvider>);
+  await waitFor(() => expect(into.current).not.toBeNull());
+  return into as { current: Session };
+}
+
+const ensure = async (into: { current: Session }, email: string, forMutation = true): Promise<EnsureGoogleResult> => {
+  let out!: EnsureGoogleResult;
+  await act(async () => { out = await into.current.ensureGoogleSession(email, { forMutation }); });
+  return out;
+};
+
+const neverInteractive = async (): Promise<never> => { throw new Error("must not go interactive"); };
+
+describe("ensureGoogleSession for a mutation", () => {
+  it("refuses an account the session does not know, and never falls back to the first one", async () => {
+    const silentFor: string[] = [];
+    const trashed: string[] = [];
+    const into = await mount([A], {
+      authorize: neverInteractive,
+      silent: async (email) => { silentFor.push(email); return good("tok-" + email, email, { scope: MODIFY }); },
+    }, { trashed });
+    await waitFor(() => expect(into.current.tokenEmails).toEqual(["a@x.com"]));
+    const r = await ensure(into, "stranger@x.com");
+    expect(r).toMatchObject({ ok: false, code: "GOOGLE_UNKNOWN_ACCOUNT", email: "stranger@x.com" });
+    expect(silentFor).toEqual(["a@x.com"]); // only the mount mint; nothing was minted for or borrowed from anyone else
+    expect(trashed).toEqual([]);
+  });
+
+  it("refuses an account with mail turned off", async () => {
+    const into = await mount([{ ...A, mail: false }], { authorize: neverInteractive, silent: async (e) => good("t", e, { scope: MODIFY }) });
+    await waitFor(() => expect(into.current.tokenEmails).toEqual(["a@x.com"]));
+    expect(await ensure(into, "a@x.com")).toMatchObject({ ok: false, code: "GOOGLE_MAIL_DISABLED" });
+    // A read is another matter: the same account is fine to ask for a token.
+    expect((await ensure(into, "a@x.com", false)).ok).toBe(true);
+  });
+
+  it("refuses an account stamped with older scopes without asking the server", async () => {
+    const silentFor: string[] = [];
+    const into = await mount([{ email: "a@x.com", mail: true, cal: true }], {
+      authorize: neverInteractive, silent: async (e) => { silentFor.push(e); return good("t", e); },
+    });
+    expect(await ensure(into, "a@x.com")).toMatchObject({ ok: false, code: "GOOGLE_MISSING_SCOPE" });
+    expect(silentFor).toEqual([]);
+  });
+
+  it("refuses a token Google says cannot modify mail, even under current stamps", async () => {
+    const into = await mount([A], {
+      authorize: neverInteractive,
+      silent: async (e) => good("t", e, { scope: "https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/gmail.send" }),
+    });
+    await waitFor(() => expect(into.current.tokenEmails).toEqual(["a@x.com"]));
+    expect(await ensure(into, "a@x.com")).toMatchObject({ ok: false, code: "GOOGLE_MISSING_SCOPE" });
+  });
+
+  it("hands back an api bound to the good token, verified once with getProfile, and does not re-mint", async () => {
+    let mints = 0;
+    const profiles: string[] = [];
+    const into = await mount([A], {
+      authorize: neverInteractive, silent: async (e) => { mints += 1; return good("tok" + mints, e, { scope: MODIFY }); },
+    }, { profiles });
+    await waitFor(() => expect(into.current.tokenEmails).toEqual(["a@x.com"]));
+    const r = await ensure(into, " A@X.com ");
+    expect(r).toMatchObject({ ok: true, email: "a@x.com", token: "tok1", remembered: true });
+    expect(mints).toBe(1);
+    expect(profiles).toEqual(["tok1"]); // one profile check for the group
+  });
+
+  it("a read-only ensure does not spend a profile call", async () => {
+    const profiles: string[] = [];
+    const into = await mount([A], { authorize: neverInteractive, silent: async (e) => good("tok1", e, { scope: MODIFY }) }, { profiles });
+    await waitFor(() => expect(into.current.tokenEmails).toEqual(["a@x.com"]));
+    expect((await ensure(into, "a@x.com", false)).ok).toBe(true);
+    expect(profiles).toEqual([]);
+  });
+
+  it("refreshes a token inside the 60 second margin BEFORE the write, and binds the api to the fresh one", async () => {
+    let mints = 0;
+    const into = await mount([A], {
+      authorize: neverInteractive,
+      silent: async (e) => {
+        mints += 1;
+        // The mount-time token has 30 seconds left; the next one is healthy.
+        return good("tok" + mints, e, { scope: MODIFY, expiresAt: Date.now() + (mints === 1 ? 30e3 : 3600e3) });
+      },
+    });
+    await waitFor(() => expect(into.current.tokenEmails).toEqual(["a@x.com"]));
+    const r = await ensure(into, "a@x.com");
+    expect(mints).toBe(2);
+    expect(r).toMatchObject({ ok: true, token: "tok2" });
+  });
+
+  it("a token with more than a minute left is used as it is", async () => {
+    let mints = 0;
+    const into = await mount([A], {
+      authorize: neverInteractive,
+      silent: async (e) => { mints += 1; return good("tok" + mints, e, { scope: MODIFY, expiresAt: Date.now() + 120e3 }); },
+    });
+    await waitFor(() => expect(into.current.tokenEmails).toEqual(["a@x.com"]));
+    expect(await ensure(into, "a@x.com")).toMatchObject({ ok: true, token: "tok1" });
+    expect(mints).toBe(1);
+  });
+
+  it("two writes asking at once share ONE refresh per account", async () => {
+    let mints = 0;
+    let release!: () => void;
+    const gate = new Promise<void>((r) => { release = r; });
+    const into = await mount([A], {
+      authorize: neverInteractive,
+      silent: async (e) => {
+        mints += 1;
+        if (mints === 1) return good("tok1", e, { scope: MODIFY, expiresAt: Date.now() + 10e3 });
+        await gate;
+        return good("tok2", e, { scope: MODIFY });
+      },
+    });
+    await waitFor(() => expect(into.current.tokenEmails).toEqual(["a@x.com"]));
+    let both!: EnsureGoogleResult[];
+    await act(async () => {
+      const p = Promise.all([
+        into.current.ensureGoogleSession("a@x.com", { forMutation: true }),
+        into.current.ensureGoogleSession("a@x.com", { forMutation: true }),
+      ]);
+      release();
+      both = await p;
+    });
+    expect(mints).toBe(2); // the mount mint and one shared refresh
+    expect(both.map((r) => r.ok && r.token)).toEqual(["tok2", "tok2"]);
+  });
+
+  it("a token that belongs to another address is refused and dropped, never used", async () => {
+    const into = await mount([A, B], {
+      authorize: neverInteractive, silent: async (e) => good("tok-" + e, e, { scope: MODIFY }),
+    }, { profileOf: (token) => (token === "tok-b@x.com" ? "a@x.com" : token.slice(4)) });
+    await waitFor(() => expect(into.current.tokenEmails.sort()).toEqual(["a@x.com", "b@x.com"]));
+    expect(await ensure(into, "a@x.com")).toMatchObject({ ok: true });
+    const r = await ensure(into, "b@x.com");
+    expect(r).toMatchObject({ ok: false, code: "GOOGLE_ACCOUNT_MISMATCH" });
+    await waitFor(() => expect(into.current.tokenEmails).toEqual(["a@x.com"]));
+  });
+
+  it("names the cause when the refresh fails, for every cause", async () => {
+    const causes: GoogleFailureCode[] = [
+      "GOOGLE_NO_STORED_SIGNIN", "GOOGLE_STORED_SIGNIN_UNREADABLE", "GOOGLE_SIGNIN_REVOKED",
+      "GOOGLE_REFRESH_UNAVAILABLE", "GOOGLE_NETWORK_ERROR", "GOOGLE_AUTH_EXPIRED", "GOOGLE_STORAGE_FAILURE",
+    ];
+    for (const code of causes) {
+      let mints = 0;
+      const into = await mount([A], {
+        authorize: neverInteractive,
+        silent: async (e) => {
+          mints += 1;
+          return mints === 1 ? good("t1", e, { scope: MODIFY, expiresAt: Date.now() + 5e3 }) : bad(code, e);
+        },
+      });
+      await waitFor(() => expect(into.current.tokenEmails).toEqual(["a@x.com"]));
+      const r = await ensure(into, "a@x.com");
+      expect(r).toMatchObject({ ok: false, code, email: "a@x.com" });
+      expect(r.ok ? "" : r.message.length).toBeGreaterThan(5);
+      // The state a screen reads says the same thing.
+      await waitFor(() => expect(into.current.connectionOf("a@x.com").failure?.code).toBe(code));
+      cleanup();
+    }
+  });
+
+  it("legacy brokers with no silent path cannot refresh, and say the sign-in is not stored", async () => {
+    const into = await mount([A], { authorize: neverInteractive });
+    expect(await ensure(into, "a@x.com")).toMatchObject({ ok: false, code: "GOOGLE_NO_STORED_SIGNIN" });
+  });
+});
+
+// The phone behaviour: Delete refreshes first; a failed preflight keeps the
+// selection and says why in plain words; Reconnect does not delete anything.
+describe("a Delete that fails its preflight", () => {
+  function DeleteProbe({ into }: { into: { current: Session | null } }) {
+    const g = useGoogle();
+    into.current = g;
+    const [selected, setSelected] = useState(["t1", "t2"]);
+    const [said, setSaid] = useState("");
+    const del = async () => {
+      const r = await g.ensureGoogleSession("a@x.com", { forMutation: true });
+      if (!r.ok) { setSaid(r.message); return; } // nothing removed, nothing sent
+      for (const id of selected) await r.api.trashThread(id);
+      setSelected([]);
+      setSaid("Deleted");
+    };
+    return (
+      <div>
+        <button onClick={() => void del()}>delete</button>
+        <button onClick={() => void g.reconnect("a@x.com").catch((e: Error) => setSaid("reconnect:" + e.message))}>reconnect</button>
+        <div data-testid="selected">{selected.join(",")}</div>
+        <div data-testid="said">{said}</div>
+      </div>
+    );
+  }
+
+  function Host({ broker, trashed, into }: { broker: TokenBroker; trashed: string[]; into: { current: Session | null } }) {
+    const profile = useProfile();
+    const [seeded, setSeeded] = useState(false);
+    useEffect(() => { void profile.save({ googleAccounts: [A] }).then(() => setSeeded(true)); }, [profile]);
+    if (!seeded) return null;
+    return (
+      <GoogleSessionProvider broker={broker} makeApi={(token) => makeFakeGoogleApi({
+        getProfile: async () => ({ emailAddress: "a@x.com" }),
+        trashThread: async (id: string) => { trashed.push(token + ":" + id); },
+      })}>
+        <DeleteProbe into={into} />
+      </GoogleSessionProvider>
+    );
+  }
+
+  it("keeps the selection, names the cause, deletes nothing, and after Reconnect waits for a second tap", async () => {
+    const trashed: string[] = [];
+    let interactive = 0;
+    let mints = 0;
+    const broker: TokenBroker = {
+      authorize: async () => { interactive += 1; return { token: "tok-int", email: "a@x.com", expiresAt: Date.now() + 3600e3, remembered: true, scope: MODIFY }; },
+      silent: async (e) => {
+        mints += 1;
+        if (mints === 1) return good("tok1", e, { scope: MODIFY, expiresAt: Date.now() + 5e3 }); // about to die
+        return bad("GOOGLE_SIGNIN_REVOKED", e);
+      },
+    };
+    const into: { current: Session | null } = { current: null };
+    render(<NotesProvider userId={"del-" + Math.random()}><Host broker={broker} trashed={trashed} into={into} /></NotesProvider>);
+    await waitFor(() => expect(into.current?.tokenEmails).toEqual(["a@x.com"]));
+
+    fireEvent.click(screen.getByText("delete"));
+    await waitFor(() => expect(screen.getByTestId("said")).toHaveTextContent("Google revoked this sign-in. Reconnect a@x.com."));
+    expect(screen.getByTestId("selected")).toHaveTextContent("t1,t2"); // selection preserved
+    expect(trashed).toEqual([]); // no Gmail mutation
+    expect(interactive).toBe(0); // and Google's chooser was not opened for it
+
+    // The person taps Reconnect. It is interactive, and it deletes nothing.
+    fireEvent.click(screen.getByText("reconnect"));
+    await waitFor(() => expect(interactive).toBe(1));
+    await waitFor(() => expect(into.current!.connectionOf("a@x.com").failure).toBeNull());
+    expect(trashed).toEqual([]);
+    expect(screen.getByTestId("selected")).toHaveTextContent("t1,t2");
+
+    // Only their second tap on Delete runs it, on the fresh token.
+    fireEvent.click(screen.getByText("delete"));
+    await waitFor(() => expect(screen.getByTestId("said")).toHaveTextContent("Deleted"));
+    expect(trashed).toEqual(["tok-int:t1", "tok-int:t2"]);
+  });
+
+  it("a temporary failure never opens Google's chooser, from Delete or from Reconnect", async () => {
+    let interactive = 0;
+    let mints = 0;
+    const broker: TokenBroker = {
+      authorize: async () => { interactive += 1; return { token: "x", email: "a@x.com" }; },
+      silent: async (e) => {
+        mints += 1;
+        return mints === 1 ? good("tok1", e, { scope: MODIFY, expiresAt: Date.now() + 5e3 }) : bad("GOOGLE_NETWORK_ERROR", e, 0);
+      },
+    };
+    const trashed: string[] = [];
+    const into: { current: Session | null } = { current: null };
+    render(<NotesProvider userId={"del-" + Math.random()}><Host broker={broker} trashed={trashed} into={into} /></NotesProvider>);
+    await waitFor(() => expect(into.current?.tokenEmails).toEqual(["a@x.com"]));
+
+    fireEvent.click(screen.getByText("delete"));
+    await waitFor(() => expect(screen.getByTestId("said")).toHaveTextContent("Couldn't reach Google. Check your connection and try again."));
+    fireEvent.click(screen.getByText("reconnect"));
+    await waitFor(() => expect(screen.getByTestId("said")).toHaveTextContent(/^reconnect:Couldn't reach Google/));
+    expect(interactive).toBe(0);
+    expect(trashed).toEqual([]);
+    expect(screen.getByTestId("selected")).toHaveTextContent("t1,t2");
+  });
+});
+
+describe("per-account connection state", () => {
+  it("a connect the server could not store is shown as temporary at once, with the reason", async () => {
+    const into = await mount([], {
+      authorize: async () => ({
+        token: "tok", email: "a@x.com", expiresAt: Date.now() + 3600e3, remembered: false,
+        warning: googleFailure("GOOGLE_STORAGE_FAILURE", "a@x.com", 200),
+      }),
+    });
+    let added!: { remembered: boolean };
+    await act(async () => { added = await into.current.addAccount(); });
+    expect(added.remembered).toBe(false);
+    const c = into.current.connectionOf("a@x.com");
+    expect(c).toMatchObject({ connected: true, durable: false });
+    expect(c.failure?.code).toBe("GOOGLE_STORAGE_FAILURE");
+  });
+
+  it("a stored, confirmed connect is durable and clean", async () => {
+    const into = await mount([], {
+      authorize: async () => ({ token: "tok", email: "A@x.com", expiresAt: Date.now() + 3600e3, remembered: true, scope: MODIFY }),
+    });
+    await act(async () => { await into.current.addAccount(); });
+    expect(into.current.connectionOf("a@x.com")).toMatchObject({ connected: true, durable: true, failure: null });
+    expect(into.current.connectionOf("a@x.com").expiresAt).toBeGreaterThan(Date.now());
+  });
+
+  it("a token minted silently at mount is durable, and its expiry is tracked", async () => {
+    const at = Date.now() + 1800e3;
+    const into = await mount([A], { authorize: neverInteractive, silent: async (e) => good("t", e, { expiresAt: at }) });
+    await waitFor(() => expect(into.current.connectionOf("a@x.com").connected).toBe(true));
+    expect(into.current.connectionOf("a@x.com")).toMatchObject({ durable: true, expiresAt: at, failure: null });
+  });
+
+  it("mount restore keeps the cause when an account cannot be restored", async () => {
+    const into = await mount([A, B], {
+      authorize: neverInteractive,
+      silent: async (e) => (e === "a@x.com" ? bad("GOOGLE_STORED_SIGNIN_UNREADABLE", e) : good("tb", e)),
+    });
+    await waitFor(() => expect(into.current.connectionOf("b@x.com").connected).toBe(true));
+    await waitFor(() => expect(into.current.connectionOf("a@x.com").failure?.code).toBe("GOOGLE_STORED_SIGNIN_UNREADABLE"));
+    expect(into.current.connectionOf("a@x.com").connected).toBe(false);
+  });
+
+  it("disconnect forgets the account's state along with its token", async () => {
+    const into = await mount([A], { authorize: neverInteractive, silent: async (e) => good("t", e) });
+    await waitFor(() => expect(into.current.connectionOf("a@x.com").connected).toBe(true));
+    await act(async () => { await into.current.disconnect("a@x.com"); });
+    expect(into.current.connectionOf("a@x.com")).toMatchObject({ connected: false, durable: false, expiresAt: null, failure: null });
+  });
+});
+
+describe("foreground refresh follows the expiry the server gave", () => {
+  const foreground = async () => {
+    Object.defineProperty(document, "visibilityState", { value: "visible", configurable: true });
+    await act(async () => { document.dispatchEvent(new Event("visibilitychange")); });
+  };
+
+  it("leaves a token with an hour left alone", async () => {
+    let mints = 0;
+    const into = await mount([A], { authorize: neverInteractive, silent: async (e) => { mints += 1; return good("tok" + mints, e); } });
+    await waitFor(() => expect(into.current.tokenEmails).toEqual(["a@x.com"]));
+    await foreground();
+    expect(mints).toBe(1);
+  });
+
+  it("re-mints a token with under ten minutes left, and clears nothing it should keep", async () => {
+    let mints = 0;
+    const into = await mount([A], {
+      authorize: neverInteractive,
+      silent: async (e) => { mints += 1; return good("tok" + mints, e, { expiresAt: Date.now() + (mints === 1 ? 5 * 60e3 : 3600e3) }); },
+    });
+    await waitFor(() => expect(into.current.tokenEmails).toEqual(["a@x.com"]));
+    await foreground();
+    await waitFor(() => expect(mints).toBe(2));
+    await waitFor(() => expect(into.current.connectionOf("a@x.com").expiresAt).toBeGreaterThan(Date.now() + 30 * 60e3));
+  });
+
+  it("a foreground refresh that fails leaves the old token in place and records why", async () => {
+    let mints = 0;
+    const into = await mount([A], {
+      authorize: neverInteractive,
+      silent: async (e) => { mints += 1; return mints === 1 ? good("tok1", e, { expiresAt: Date.now() + 5 * 60e3 }) : bad("GOOGLE_NETWORK_ERROR", e, 0); },
+    });
+    await waitFor(() => expect(into.current.tokenEmails).toEqual(["a@x.com"]));
+    await foreground();
+    await waitFor(() => expect(into.current.connectionOf("a@x.com").failure?.code).toBe("GOOGLE_NETWORK_ERROR"));
+    expect(into.current.connectionOf("a@x.com").connected).toBe(true); // a temporary problem does not sign anyone out
   });
 });

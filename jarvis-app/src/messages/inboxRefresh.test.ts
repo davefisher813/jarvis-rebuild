@@ -372,7 +372,7 @@ describe("storage that fails", () => {
     const w = new FakeMailbox("work@example.com");
     w.add("x1");
     await refreshInboxAccount(other, w.api(), deps());
-    const key = [...storage.raw.keys()].find((k) => k.includes("work@example.com"))!;
+    const key = [...storage.raw.keys()].find((k) => k.includes(encodeURIComponent("work@example.com")))!;
     storage.raw.set(key, "{corrupt");
     // clear the write-through memory for the corrupt key by using a fresh object over the same map
     const fresh = { getItem: storage.getItem, setItem: storage.setItem, removeItem: storage.removeItem };

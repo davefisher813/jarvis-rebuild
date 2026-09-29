@@ -292,7 +292,9 @@ export function clearAllMailCache(storage: Pick<Storage, "removeItem"> & Partial
 
 /** One owner's mail, when an account is removed or they sign out. */
 export function clearOwnerMailCache(userId: string, storage: Storage = localStorage): void {
-  const prefix = ACCOUNT_PREFIX + userId.replace(/\u001f/g, "") + "\u001f";
+  // An account key is "mail:<user>:<account>", so an empty account leaves
+  // exactly the owner prefix, trailing separator and all: "u1:" never matches "u10:".
+  const prefix = ACCOUNT_PREFIX + mailAccountKey({ userId, account: "" });
   const mem = memoryFor(storage);
   for (const k of [...mem.keys()]) if (k.startsWith(prefix)) mem.delete(k);
   try {

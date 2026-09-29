@@ -1,40 +1,42 @@
-// WHO A PIECE OF MAIL BELONGS TO, IN ONE PLACE.
+// WHOSE MAIL IS THIS, IN ONE KEY (2026-09-29).
 //
-// A cache key that says only "thread 17c9a" is a bug waiting for a second
-// account, or a second sign-in on the same phone: the same id in another
-// mailbox would read the first one's rows. Every key this app stores mail
-// state under carries the owner (the signed-in user), the mailbox (the
-// Google account, normalised) and the thread or message inside it.
+// A Gmail thread id is only unique inside one mailbox. Two connected accounts
+// can hold a thread with the same id, and the app kept rows, selections,
+// undo lists and snapshots keyed on the bare id, so a tap on one account's
+// row could resolve to the other account's thread, and a Delete could go to
+// the wrong mailbox. The internal id of a thread or message now carries the
+// signed-in JARVIS user and the Gmail account it lives in. Gmail itself is
+// never sent these keys: every request still takes the raw provider id.
 //
-// Gmail itself still gets the RAW provider id. These keys are ours: they name
-// things in OUR storage and never travel to Google.
+// The account is normalised for identity only: whitespace trimmed, case
+// folded. Gmail's own dot and plus rules are NOT applied. "a.b@x.com" and
+// "ab@x.com" are the same mailbox to Gmail, but which of them the person
+// connected is the truth the app holds, and collapsing them here would be a
+// guess that merges two rows on some other provider's behalf.
+//
+// Every part is percent-encoded before joining, so the ":" separators cannot
+// be forged by an odd id or address. Pure, no imports.
 
-/** Whose mail: the signed-in user, and which of their Google accounts. */
-export interface MailScope {
-  userId: string;
-  account: string;
-}
+export type MailScope = { userId: string; account: string };
 
-/** Trim and lower-case only. Gmail's own dot and plus rules are left alone:
- *  they belong to Google, and guessing at them would merge two mailboxes. */
+/** The account as identity: trimmed and lowercased, nothing else. */
 export function normalizeAccount(email: string): string {
   return email.trim().toLowerCase();
 }
 
-function part(v: string): string {
-  // The separator is a character no user id, email or Gmail id contains, so a
-  // key can never be forged by an id that happens to look like another key.
-  return v.replace(/\u001f/g, "");
-}
+const part = (s: string): string => encodeURIComponent(s);
 
+/** One user's one Gmail account. */
 export function mailAccountKey(scope: MailScope): string {
-  return `${part(scope.userId)}\u001f${part(normalizeAccount(scope.account))}`;
+  return "mail:" + part(scope.userId) + ":" + part(normalizeAccount(scope.account));
 }
 
+/** A thread inside that account. `threadId` is Gmail's raw id, kept as given. */
 export function mailThreadKey(scope: MailScope, threadId: string): string {
-  return `${mailAccountKey(scope)}\u001f${part(threadId)}`;
+  return mailAccountKey(scope) + ":t:" + part(threadId);
 }
 
+/** A message inside that account. `messageId` is Gmail's raw id, kept as given. */
 export function mailMessageKey(scope: MailScope, messageId: string): string {
-  return `${mailAccountKey(scope)}\u001fm\u001f${part(messageId)}`;
+  return mailAccountKey(scope) + ":m:" + part(messageId);
 }

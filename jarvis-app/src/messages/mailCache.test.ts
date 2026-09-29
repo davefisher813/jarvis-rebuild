@@ -105,7 +105,7 @@ describe("mailCache is scoped by owner and account", () => {
     const s = mem();
     saveRows(A, [row("a")], 30, 1000, s);
     saveRows(B, [row("b", B.account)], 30, 1000, s);
-    const bad = [...s.raw.keys()].find((k) => k.includes("work@example.com"))!;
+    const bad = [...s.raw.keys()].find((k) => k.includes(encodeURIComponent("work@example.com")))!;
     const view = { getItem: (k: string) => (k === bad ? "}}corrupt" : s.getItem(k)), setItem: s.setItem };
     expect(loadRows(A, 1500, view)?.rows).toHaveLength(1);
     expect(loadRows(B, 1500, view)).toBeNull();
