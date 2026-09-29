@@ -25,6 +25,7 @@ import { inMonth, thisMonth, incomeCents, spentCents, fmtCents, ENTITY_MONEY_TX 
 import type { Goal } from "../life/types";
 import { savingsLine, savingsPct, savedTotal } from "../bigger/savings";
 import { usePickFile } from "../shared/usePickFile";
+import RowActionSheet from "../shared/RowActionSheet";
 import { sizeLabel, fileStem, type UserFile } from "../files/types";
 import { useAI } from "../ai/useAI";
 import { buildVisionMessage } from "../ai/AIService";
@@ -348,6 +349,13 @@ export default function MoneyFlow({ onOpenTask, openAccountId, openNonce, onOpen
     }
   };
   const picker = usePickFile((f) => void addReceipt(f));
+  // CLICK-THROUGH AUDIT 2026-09-29: the paperclip opened the phone's own file
+  // sheet the instant it was tapped, which a driver (or a slow WebView) cannot
+  // see, so it read as a dead button. The tap now opens a sheet of our own, and
+  // its one row opens the picker inside THAT tap (a picker opened after an
+  // await is blocked by iOS). The input stays mounted on the screen, so the
+  // sheet closing never takes the picker with it.
+  const [receiptSheet, setReceiptSheet] = useState(false);
   // B3-10 (2026-09-04): opening a receipt used to await fileStore.url()
   // (a real network round trip for the signed URL) before calling
   // window.open. Any await between a tap and window.open breaks the user-
@@ -756,10 +764,17 @@ export default function MoneyFlow({ onOpenTask, openAccountId, openNonce, onOpen
   return (
     <div className="screen ruled">
       <PageHeader title="Money" actions={<>
-        {filesSvc && fileStore && <BarAction label={uploading ? "Uploading" : "Add a Receipt"} onClick={() => !uploading && picker.open()}><Paperclip className="ic" /></BarAction>}
+        {filesSvc && fileStore && <BarAction label={uploading ? "Uploading" : "Add a Receipt"} onClick={() => !uploading && setReceiptSheet(true)}><Paperclip className="ic" /></BarAction>}
         <BarAction label="Add Account" onClick={() => setSheet({ kind: "new" })}>{PLUS}</BarAction>
       </>} />
       {picker.input}
+      {receiptSheet && (
+        <RowActionSheet
+          title="Add a Receipt"
+          actions={[{ label: "Take a Photo or Choose a File", onPick: () => picker.open() }]}
+          onCancel={() => setReceiptSheet(false)}
+        />
+      )}
       {accounts.length === 0 && bills.length === 0 && tagged.length === 0 ? (
         <>
         <div className="empty-state"><div className="empty-icon">{WALLET}</div><div className="empty-title">No Accounts Yet</div>

@@ -437,13 +437,34 @@ describe("Add a Receipt opens the file picker inside the tap", () => {
     render(<NotesProvider userId="receipt-add"><SeededReceipt /></NotesProvider>);
     const add = await screen.findByLabelText("Add a Receipt");
     fireEvent.click(add);
-    // Synchronous: nothing was awaited between the tap and the picker.
+    // The tap lands on a sheet of our own first, so it never reads as dead.
+    expect(screen.getByText("Add a Receipt", { selector: ".eyebrow" })).toBeInTheDocument();
+    expect(screen.getByText("Cancel")).toBeInTheDocument();
+    expect(clicks, "the phone's picker waits for the sheet's row").toHaveLength(0);
+    fireEvent.click(screen.getByText("Take a Photo or Choose a File"));
+    // Synchronous: nothing was awaited between the row's tap and the picker.
+    expect(screen.queryByText("Take a Photo or Choose a File")).toBeNull();
+    expect(clicks[0]!.isConnected, "the input outlives the sheet that opened it").toBe(true);
     expect(clicks).toHaveLength(1);
     expect(clicks[0]!.type).toBe("file");
     expect(clicks[0]!.accept).toContain("image/*");
     // Choosing a file stores it and says so.
     const file = new File(["x"], "lunch.png", { type: "image/png" });
+    let toast: string | undefined;
+    const off = subscribeToast((t) => { if (t) toast = t.message; });
     fireEvent.change(clicks[0]!, { target: { files: [file] } });
     await waitFor(() => expect(screen.getByText("lunch.png")).toBeInTheDocument());
+    expect(toast).toBe("Receipt Added");
+    off();
+  });
+
+  it("Cancel closes the sheet without opening the picker", async () => {
+    const clicks: HTMLInputElement[] = [];
+    vi.spyOn(HTMLInputElement.prototype, "click").mockImplementation(function (this: HTMLInputElement) { clicks.push(this); });
+    render(<NotesProvider userId="receipt-cancel"><SeededReceipt /></NotesProvider>);
+    fireEvent.click(await screen.findByLabelText("Add a Receipt"));
+    fireEvent.click(screen.getByText("Cancel"));
+    expect(screen.queryByText("Take a Photo or Choose a File")).toBeNull();
+    expect(clicks).toHaveLength(0);
   });
 });

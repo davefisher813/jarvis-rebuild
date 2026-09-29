@@ -21,6 +21,8 @@ export function usePickFile(onFile: (f: File) => void): { input: ReactNode; open
       ref={ref}
       className="visually-hidden-input"
       type="file"
+      tabIndex={-1}
+      aria-hidden="true"
       accept={PICK_ANY}
       onChange={(e) => { const f = e.target.files?.[0]; if (f) onFile(f); e.target.value = ""; }}
     />

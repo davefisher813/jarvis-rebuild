@@ -3,6 +3,7 @@ import PageHeader, { BarAction, BarText } from "../../shared/PageHeader";
 import LifeHeader, { OptionsButton, type HeaderView } from "../../shared/LifeHeader";
 import HeadMenu from "../../shared/HeadMenu";
 import OptionsSheet, { type OptionRow } from "../../shared/OptionsSheet";
+import RowActionSheet from "../../shared/RowActionSheet";
 import { Check, FileText, Paperclip, PenLine, Search, Tag, Trash2, Plus } from "../../shared/icons";
 import { useSwipe, type SwipeState } from "../../shared/useSwipe";
 import { useSelection } from "../../shared/useSelection";
@@ -180,6 +181,11 @@ export default function NotesList({
   const now = new Date();
   const [filter, setFilter] = useState<Filter>({ kind: "all" });
   const [optsOpen, setOptsOpen] = useState(false);
+  // CLICK-THROUGH AUDIT 2026-09-29: Import or Attach closed the menu and went
+  // straight to the phone's file sheet, which a driver cannot see, so the menu
+  // just seemed to vanish. It now lands on a sheet of our own; its row opens the
+  // picker inside that tap. The file input lives in NotesFlow and stays mounted.
+  const [importOpen, setImportOpen] = useState(false);
   /** Which sub-list the options sheet is showing: the areas, or the tags.
    *  Null is the sheet's own list of rows. */
   /** The area cut, composing with whichever view is chosen. Null is every
@@ -449,9 +455,16 @@ export default function NotesList({
           }] : []),
           ...(onAddFile ? [{
             key: "file", label: uploading ? "Uploading" : "Import or Attach",
-            onClick: () => { setOptsOpen(false); if (!uploading) onAddFile(); },
+            onClick: () => { setOptsOpen(false); if (!uploading) setImportOpen(true); },
           }] : []),
         ] as OptionRow[])} onClose={() => setOptsOpen(false)} />
+      )}
+      {importOpen && onAddFile && (
+        <RowActionSheet
+          title="Import or Attach"
+          actions={[{ label: "Choose a File", onPick: onAddFile }]}
+          onCancel={() => setImportOpen(false)}
+        />
       )}
       {onDeleteMany && (
         <SelectBar sel={sel} noun="Note" onDelete={() => { onDeleteMany(sel.selected); sel.exit(); }} />

@@ -525,7 +525,20 @@ describe("NotesFlow: New Note and Import or Attach (click-through audit 2026-09-
     expect((all[0] as { title: string }).title, "the list's own fallback for a note with no title yet").toBe("Untitled");
   });
 
-  it("Import or Attach opens the file picker inside the tap, after the menu closes", async () => {
+  it("Import or Attach: Cancel closes the sheet without opening the picker", async () => {
+    const clicks: HTMLInputElement[] = [];
+    vi.spyOn(HTMLInputElement.prototype, "click").mockImplementation(function (this: HTMLInputElement) { clicks.push(this); });
+    svcRef = null;
+    render(<NotesProvider userId="u-import-cancel"><Grab /><NotesFlow /></NotesProvider>);
+    await waitFor(() => expect(svcRef).toBeTruthy());
+    fireEvent.click(await screen.findByLabelText("Notes Options", {}, { timeout: 4000 }));
+    fireEvent.click(screen.getByText("Import or Attach"));
+    fireEvent.click(screen.getByText("Cancel"));
+    expect(screen.queryByText("Choose a File")).toBeNull();
+    expect(clicks).toHaveLength(0);
+  });
+
+  it("Import or Attach opens a sheet, then the file picker inside that sheet's tap", async () => {
     const clicks: HTMLInputElement[] = [];
     vi.spyOn(HTMLInputElement.prototype, "click").mockImplementation(function (this: HTMLInputElement) { clicks.push(this); });
     svcRef = null;
@@ -533,7 +546,15 @@ describe("NotesFlow: New Note and Import or Attach (click-through audit 2026-09-
     await waitFor(() => expect(svcRef).toBeTruthy());
     fireEvent.click(await screen.findByLabelText("Notes Options", {}, { timeout: 4000 }));
     fireEvent.click(screen.getByText("Import or Attach"));
-    // Synchronous with the tap, and the options sheet is gone.
+    // The options sheet is gone and a visible sheet of our own has replaced it;
+    // the phone's picker has not opened yet.
+    expect(screen.queryByText("Notes Options")).toBeNull();
+    expect(screen.getByText("Import or Attach", { selector: ".eyebrow" })).toBeInTheDocument();
+    expect(screen.getByText("Cancel")).toBeInTheDocument();
+    expect(clicks).toHaveLength(0);
+    fireEvent.click(screen.getByText("Choose a File"));
+    // Synchronous with the row's tap, and that sheet is gone too.
+    expect(screen.queryByText("Choose a File")).toBeNull();
     expect(clicks).toHaveLength(1);
     expect(clicks[0]!.type).toBe("file");
     expect(clicks[0]!.isConnected, "the picker input outlives the menu that opened it").toBe(true);
