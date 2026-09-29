@@ -61,7 +61,7 @@ const MONTHS: Record<string, number> = {
   october: 10, oct: 10, november: 11, nov: 11, december: 12, dec: 12,
 };
 
-interface DayHit { iso: string; at: number; kind: "explicit" | "relative" | "weekday"; wd?: number }
+interface DayHit { iso: string; at: number; kind: "explicit" | "relative" | "weekday"; wd?: number; yearStated?: boolean }
 
 // Days an email can name. Each hit carries its position so a repeated mention
 // of the same day is one day, and two different days are a conflict.
@@ -73,7 +73,7 @@ function readDays(text: string, sourceDay: string): DayHit[] {
   // 2026-09-23
   for (const m of text.matchAll(/\b(\d{4})-(\d{2})-(\d{2})\b/g)) {
     const iso = isoFromParts(+m[1]!, +m[2]!, +m[3]!);
-    if (iso) hits.push({ iso, at: m.index!, kind: "explicit" });
+    if (iso) hits.push({ iso, at: m.index!, kind: "explicit", yearStated: true });
   }
 
   // September 23rd, Sept. 23, Sep 23 2026. "may" only when capitalised: as a
@@ -87,7 +87,7 @@ function readDays(text: string, sourceDay: string): DayHit[] {
     const day = +m[2]!;
     if (m[3]) {
       const iso = isoFromParts(+m[3], month, day);
-      if (iso) hits.push({ iso, at: m.index!, kind: "explicit" });
+      if (iso) hits.push({ iso, at: m.index!, kind: "explicit", yearStated: true });
       continue;
     }
     // No year: the next time that date comes round, counted from the message.
@@ -113,7 +113,7 @@ function readDays(text: string, sourceDay: string): DayHit[] {
     if (m[3]) {
       const year = m[3].length === 2 ? 2000 + +m[3] : +m[3];
       const iso = isoFromParts(year, month, day);
-      if (iso) hits.push({ iso, at: m.index!, kind: "explicit" });
+      if (iso) hits.push({ iso, at: m.index!, kind: "explicit", yearStated: true });
       continue;
     }
     let iso = isoFromParts(sy, month, day);
@@ -292,9 +292,14 @@ function readZoneIn(text: string): { zone?: string; ambiguous?: string } {
  * When a sentence says. `sourceDay` is the day the MESSAGE was written, in the
  * zone it is read in (dayInZone of its own timestamp), never today.
  */
-export function readWhen(sentence: string, sourceDay: string): WhenRead {
+export function readWhen(sentence: string, sourceDay: string | null): WhenRead {
   const text = sentence.replace(/\s+/g, " ").trim();
-  const days = readDays(text, sourceDay);
+  // A message with no usable timestamp has no "day it was written", so nothing
+  // relative to it can be resolved: "tomorrow", "Tuesday" and a month-day with
+  // no year all stay unresolved, and only a date that states its own year is
+  // read. The card then asks for the day.
+  const allDays = readDays(text, sourceDay ?? "2000-01-01");
+  const days = sourceDay ? allDays : allDays.filter((d) => d.kind === "explicit" && d.yearStated);
   const times = readTimes(text);
   const part = readDayPart(text);
   const length = readLength(text);
@@ -349,7 +354,7 @@ export function readWhen(sentence: string, sourceDay: string): WhenRead {
   if (date === undefined) missing.unshift("date");
   if (zone.ambiguous) missing.push("timezone");
 
-  const signals = days.length > 0 || times.length > 0 || !!part;
+  const signals = allDays.length > 0 || times.length > 0 || !!part;
   return {
     ...(date ? { date } : {}),
     ...(start !== null ? { start: hhmm(start) } : {}),

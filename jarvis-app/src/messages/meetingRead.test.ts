@@ -169,4 +169,18 @@ describe("readWhen: the sentence, not the model, says when", () => {
     expect(readWhen("tomorrow at 2 PM", "2026-11-01").date).toBe("2026-11-02");
     expect(readWhen("tomorrow at 2 PM", "2026-12-31").date).toBe("2027-01-01");
   });
+
+  it("a message with no usable timestamp resolves nothing relative to it", () => {
+    for (const q of ["See you Tuesday at 3 PM", "Tomorrow at 10", "the 25th at 5 PM", "September 23 at 1 PM"]) {
+      const w = readWhen(q, null);
+      expect(w.date, q).toBeUndefined();
+      expect(w.missing, q).toContain("date");
+      expect(w.signals, q).toBe(true);
+    }
+    // A date that states its own year needs no reference day.
+    expect(readWhen("September 23, 2026 at 1 PM", null)).toMatchObject({ date: "2026-09-23", start: "13:00" });
+    expect(readWhen("2026-10-02 14:30", null).date).toBe("2026-10-02");
+    // The time itself never depended on the day.
+    expect(readWhen("See you Tuesday at 3 PM", null).start).toBe("15:00");
+  });
 });

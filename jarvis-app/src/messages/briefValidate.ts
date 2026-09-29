@@ -74,7 +74,9 @@ export function validateMeetingCandidates(raw: unknown, ctx: ValidateContext): M
     if (!quoteIn(msg.text, quote)) continue;
     const status = item.status;
     if (typeof status !== "string" || !(STATUSES as readonly string[]).includes(status)) continue;
-    const when = readWhen(quote, dayInZone(msg.dateMs, ctx.zone));
+    // A message with no readable time has no day it was written on: relative
+    // words in it stay unresolved rather than counting from 1970.
+    const when = readWhen(quote, Number.isFinite(msg.dateMs) && msg.dateMs > 0 ? dayInZone(msg.dateMs, ctx.zone) : null);
     // A claim about an appointment whose own sentence carries no day and no
     // time is not something a card can act on. A cancellation may name neither
     // ("I have to cancel"), and still removes an offer.

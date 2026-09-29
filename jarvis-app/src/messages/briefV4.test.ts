@@ -102,6 +102,15 @@ describe("brief v4: what survives the wall", () => {
     expect(b.meetingCandidates!.map((c) => c.status)).toEqual(["cancelled"]);
   });
 
+  it("a message with no readable date cannot anchor 'Tuesday': the day stays missing, never counted from 1970", () => {
+    const t = [msg("m1", "coach@club.org", "See you Tuesday at 3 PM.", 0)];
+    const b = parseBrief(answer({ meetingCandidates: [{ messageId: "m1", quote: "See you Tuesday at 3 PM", title: "Practice", status: "agreed" }] }), ctxFor(t))!;
+    const c = b.meetingCandidates![0]!;
+    expect(c.date).toBeUndefined();
+    expect(c.start).toBe("15:00");
+    expect(c.missing).toEqual(["date"]);
+  });
+
   it("two times in one sentence are not picked between", () => {
     const t = [msg("m1", "coach@club.org", "Could do Tuesday at 3 PM or Wednesday at 10 AM.")];
     const b = parseBrief(answer({ meetingCandidates: [{ messageId: "m1", quote: "Could do Tuesday at 3 PM or Wednesday at 10 AM", title: "x", status: "proposed" }] }), ctxFor(t))!;
