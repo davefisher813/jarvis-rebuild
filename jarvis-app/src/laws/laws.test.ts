@@ -2094,6 +2094,16 @@ describe("LAW: every module is reachable, or is listed as not", () => {
     // The writing system (2026-09-14): the jsdom layout shims a test imports
     // before it mounts the shared document editor. Test-only by design.
     "tiptapTest.ts": "test only: the layout shims for mounting DocEditor in jsdom",
+    // The spending limit (2026-09-29): an in-memory stand-in for the budget
+    // functions of migration 0043, imported by the handler tests only. The
+    // rules themselves are proven against a real Postgres.
+    "fakeBudgetRpc.ts": "test only: in-memory stand-in for the ai_budget functions, for handler tests",
+    // 2026-09-29: a counting fake Gmail (labels, paged history, string history
+    // ids), imported by the tests that measure what reading the inbox costs.
+    "fakeMailbox.ts": "test only: a counting fake Gmail for the inbox refresh and cost tests",
+    // 2026-09-29: sample notification mail (Google, DocuSign, UPS, Netflix,
+    // one-time codes), imported by the notification tests only.
+    "notificationFixtures.ts": "test only: sample notification mail for the notification tests",
     // (fileStorage.ts left this list on 2026-09-02: files/FileStore routes
     // every upload through it, from the clip on Notes and Money.)
     // (HealthFlow.tsx left this list on 2026-09-05, HMN-F-06 option A: the

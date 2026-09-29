@@ -24,7 +24,6 @@ import { chatSystemPrompt } from "./chatPrompt";
 import { nowHHMM } from "../today/todayData";
 import { addDays } from "../schedule/calendar";
 import { answerQuestion, looksLikeQuestion, rewriteFollowUp, detectDecision, type AnswerSnapshot, type Prior } from "./answers";
-import EntityStar from "../shared/EntityStar";
 // S6-Q42 (2026-09-05): the same needs-you snapshot the Email tab and Today
 // already read -- a synchronous cache read, no network, no AI call.
 import { loadMailSnapshot } from "../messages/home";
@@ -42,6 +41,9 @@ import { draftSystemPrompt } from "../people/messageDraft";
 import { voiceToText } from "../ai/context";
 import MessageDraftSheet from "../people/MessageDraftSheet";
 import type { Person } from "../people/types";
+import ChatMessageRow from "./ChatMessageRow";
+import FilingSheet from "../ai/FilingSheet";
+import { chatFilingText } from "./filingText";
 
 // Chat (addendum item 23): one box that ANSWERS (deterministic Q&A first,
 // grounded AI second, honest refusal offline), ACTS (command parser under
@@ -168,6 +170,11 @@ export default function ChatFlow({ onOpen, onCompose, askPersonId, askNonce, onA
   // from here, and never sent by anything this path touches.
   const [emailDraft, setEmailDraft] = useState<{ to: string; name: string; body: string } | null>(null);
   const endRef = useRef<HTMLDivElement | null>(null);
+  // BRAIN "LOG IT" (2026-09-29): the message being filed. The sheet is the
+  // one FilingSheet the app has; the row menu that opens it lives in
+  // ChatMessageRow and is only offered when the Brain service exists.
+  const [filingTarget, setFilingTarget] = useState<ChatMessage | null>(null);
+  const openMessageFiling = (m: ChatMessage) => setFilingTarget(m);
 
   const filesSvc = useOptionalFiles();
   const fileStore = useFileStore();
@@ -819,33 +826,14 @@ export default function ChatFlow({ onOpen, onCompose, askPersonId, askNonce, onA
           </div>
         )}
         {msgs.map((m) => (
-          <div key={m.id} className={"chat-bubble " + (m.data.role === "user" ? "chat-user" : "chat-jarvis")}>
-            <div className="chat-text">{m.data.text}</div>
-            {/* C-50: an AI answer can be remembered; the star leads its
-                provenance line and writes the answer's first line. */}
-            {m.data.role === "jarvis" && provLine(m) && (
-              <div className="chat-prov">
-                {m.data.provenance?.kind === "ai" && <EntityStar entityType="chat_message" entityId={m.id} title={m.data.text.split("\n")[0] ?? ""} />}
-                {/* §AM: an action receipt's "Done" is a done state, so it
-                    takes the key's green; the two source lines stay grey. */}
-                {m.data.provenance?.kind === "action"
-                  ? <span className="fact good">{provLine(m)}</span>
-                  : provLine(m)}
-              </div>
-            )}
-            {onOpen && refsOf(m).length > 0 && (
-              <div className="chip-row chat-refs">
-                {refsOf(m).map((r) => (
-                  <button
-                    key={r.kind + ":" + r.id}
-                    type="button"
-                    className="chip"
-                    onClick={() => onOpen(r.kind, r.id)}
-                  >{r.label}</button>
-                ))}
-              </div>
-            )}
-          </div>
+          <ChatMessageRow
+            key={m.id}
+            m={m}
+            prov={provLine(m)}
+            refs={refsOf(m)}
+            {...(onOpen ? { onOpen } : {})}
+            {...(brainMemory ? { onFile: openMessageFiling } : {})}
+          />
         ))}
         {/* UP-PLAT-08: refile chips, Smart Paste's anatomy applied to bytes.
             Only on the file still in hand, and only the three places it did
@@ -883,6 +871,20 @@ export default function ChatFlow({ onOpen, onCompose, askPersonId, askNonce, onA
         )}
         <div ref={endRef} />
       </div>
+      {/* BRAIN "LOG IT": remember mode (Philosophy, Value, Fact), the words as
+          said, linked to the message. Not gated on the service here: the
+          entry point already is, and the sheet itself closes with a plain
+          toast if the service goes away while it is open. */}
+      {filingTarget && (
+        <FilingSheet
+          key={`chat:${filingTarget.id}`}
+          mode="remember"
+          initialText={chatFilingText(filingTarget.data.role, filingTarget.data.text)}
+          source="manual-chat"
+          linkedItemIds={[filingTarget.id]}
+          onClose={() => setFilingTarget(null)}
+        />
+      )}
       {textTo && (
         <MessageDraftSheet
           person={textTo.person}

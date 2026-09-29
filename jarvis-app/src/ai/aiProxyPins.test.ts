@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import handler from "../../api/ai";
+import { FakeBudget } from "./fakeBudgetRpc";
 import { AIService } from "./AIService";
 import { setAIControl } from "./levelStore";
 
@@ -32,10 +33,12 @@ beforeEach(() => {
   vi.stubEnv("VITE_SUPABASE_URL", "https://supa.test");
   vi.stubEnv("VITE_SUPABASE_ANON_KEY", "anon");
   vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "service-key");
-  vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+  const budget = new FakeBudget();
+  vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input);
     if (url.includes("/auth/v1/user")) return new Response(JSON.stringify({ id: "user-1" }), { status: 200 });
     if (url.includes("/rest/v1/item")) return new Response(JSON.stringify([{ data: { ai: profileAi } }]), { status: 200 });
+    if (url.includes("/rpc/ai_budget")) return budget.handle(url, JSON.parse(String(init?.body ?? "{}")))!;
     if (url.includes("/rpc/ai_try_consume")) return new Response(JSON.stringify({ allowed: true }), { status: 200 });
     if (url.includes("api.anthropic.com")) {
       upstream();

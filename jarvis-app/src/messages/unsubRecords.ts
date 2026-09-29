@@ -22,6 +22,13 @@ const CAP = 200;
 
 export type UnsubVia = "header" | "link" | "rule";
 
+// WHAT ACTUALLY HAPPENED (2026-09-29). "asked" is a request that left the
+// building and was acknowledged: a mailto the mail server accepted. "opened" is
+// the sender's own page opened in a tab: nothing was sent, and only the person
+// can finish it there, so it is never recorded as a completed ask. A record
+// from before this field has no state and reads as it always did.
+export type UnsubState = "asked" | "opened";
+
 export interface UnsubRecord {
   sender: string;
   /** Local YYYY-MM-DD the ask went out. */
@@ -30,7 +37,10 @@ export interface UnsubRecord {
   /** Which mail account asked. A sender only honours an unsubscribe from
    *  the subscribed address, so this is what a re-ask has to use. */
   account?: string;
+  state?: UnsubState;
 }
+
+const sameAccount = (a?: string, b?: string): boolean => (a ?? "").trim().toLowerCase() === (b ?? "").trim().toLowerCase();
 
 function readRaw(storage: Pick<Storage, "getItem">): unknown {
   try { return JSON.parse(storage.getItem(KEY) || "null"); } catch { return null; }
@@ -42,7 +52,7 @@ export function loadUnsubs(storage: Pick<Storage, "getItem"> = localStorage): Un
   if (Array.isArray(raw)) {
     for (const v of raw) {
       if (typeof v !== "object" || v === null) continue;
-      const { sender, askedISO, via, account } = v as Record<string, unknown>;
+      const { sender, askedISO, via, account, state } = v as Record<string, unknown>;
       if (typeof sender !== "string" || !sender.trim()) continue;
       if (typeof askedISO !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(askedISO)) continue;
       out.push({
@@ -50,6 +60,7 @@ export function loadUnsubs(storage: Pick<Storage, "getItem"> = localStorage): Un
         askedISO,
         via: via === "header" || via === "link" || via === "rule" ? via : "header",
         ...(typeof account === "string" && account ? { account } : {}),
+        ...(state === "asked" || state === "opened" ? { state } : {}),
       });
     }
     return out;
@@ -79,9 +90,24 @@ export function recordUnsub(
 ): UnsubRecord[] {
   const sender = r.sender.trim().toLowerCase();
   if (!sender) return loadUnsubs(storage);
-  const next = [...loadUnsubs(storage).filter((x) => x.sender !== sender), { ...r, sender }].slice(-CAP);
+  // ONE RECORD PER ACCOUNT AND SENDER (2026-09-29). A sender only honours an
+  // unsubscribe from the subscribed address, so asking from one account says
+  // nothing about the other, and de-duplicating by sender alone let the second
+  // account's ask replace the first's. A record from before accounts were kept
+  // has none: it stays where it is (the app must not forget it asked), and is
+  // read as "asked from somewhere" until an ask from a known account speaks for
+  // that account (see askedFor and stillSending).
+  const next = [...loadUnsubs(storage).filter((x) => !(x.sender === sender && sameAccount(x.account, r.account))), { ...r, sender }].slice(-CAP);
   try { storage.setItem(KEY, JSON.stringify(next)); } catch { /* private mode */ }
   return next;
+}
+
+/** Has this sender been asked from this account? A record with no account
+ *  (from before they were kept) answers for any account, conservatively: it is
+ *  never re-offered, and never mistaken for a different mailbox's ask. */
+export function askedFor(records: readonly UnsubRecord[], sender: string, account?: string): boolean {
+  const s = sender.trim().toLowerCase();
+  return records.some((r) => r.sender === s && (!r.account || !account || sameAccount(r.account, account)));
 }
 
 /** Every address that has been asked, for the offer paths that only need to
@@ -105,14 +131,18 @@ export const BLOCK_AFTER = 3;
  *  fetch: this is a fact about mail already in hand. */
 export function stillSending(
   records: UnsubRecord[],
-  rows: { fromEmail: string; dateMs: number }[],
+  rows: { fromEmail: string; dateMs: number; account?: string }[],
 ): StillSending[] {
   const out: StillSending[] = [];
   for (const r of records) {
     if (!r.askedISO) continue; // migrated: no date, so nothing can be counted from it
+    // An unscoped record yields to an account's own for the same sender: the
+    // newer, more specific ask is the one that speaks.
+    if (!r.account && records.some((o) => o.account && o.sender === r.sender)) continue;
     const after = Date.parse(r.askedISO + "T23:59:59");
     if (!isFinite(after)) continue;
-    const since = rows.filter((x) => (x.fromEmail || "").toLowerCase() === r.sender && x.dateMs > after).length;
+    const since = rows.filter((x) => (x.fromEmail || "").toLowerCase() === r.sender && x.dateMs > after
+      && (!r.account || !x.account || sameAccount(r.account, x.account))).length;
     if (since > 0) out.push({ record: r, since });
   }
   return out.sort((a, b) => b.since - a.since);
@@ -131,10 +161,11 @@ function daysAgo(iso: string, today: string): number {
  *  is a separate control rather than a sentence telling anybody what to do
  *  about it. */
 export function unsubReceipt(r: UnsubRecord, today: string): string {
-  if (!r.askedISO) return "Asked";
+  const verb = r.state === "opened" ? "Opened page" : "Asked";
+  if (!r.askedISO) return verb;
   const d = daysAgo(r.askedISO, today);
   const when = d === 0 ? "today" : d === 1 ? "yesterday" : d < 14 ? `${d} days ago` : `${Math.round(d / 7)} weeks ago`;
-  return lineCase(`Asked ${when}`);
+  return lineCase(`${verb} ${when}`);
 }
 
 export function canBlock(s: StillSending): boolean {

@@ -33,6 +33,14 @@ const EXEMPT_FILES = new Set([
   // Their few UI strings are individually short-copy compliant; the file
   // stays here because the scanner cannot tell a prompt from a label.
   "ai/voice.ts",
+  // The Trash receipt (Dave, 2026-09-28): "N conversations moved to Trash.
+  // Gmail keeps them for 30 days." is his sentence, in his words. Every other
+  // string in the file is a fragment.
+  "messages/bulkMail.ts",
+  // The spending limit's refusals (Dave, 2026-09-28): "AI paused. You reached
+  // your $5 limit." is his sentence, in his words, two short sentences on
+  // purpose. The file holds nothing else that renders.
+  "ai/aiBudget.ts",
   "chat/chatPrompt.ts",
   "tasks/breakdown.ts",
   "ai/capture.ts",
@@ -50,6 +58,9 @@ const EXEMPT_FILES = new Set([
   "messages/triage.ts",
   "messages/deck.ts",
   "messages/waiting.ts",
+  // 2026-09-29: sample emails for the notification tests, other people's
+  // words in a test-support file. Never rendered.
+  "messages/notificationFixtures.ts",
   "messages/sentSweep.ts",
   "messages/cardDraft.ts",
   // Prompt files, plus the bodies of messages the user SENDS. An outgoing

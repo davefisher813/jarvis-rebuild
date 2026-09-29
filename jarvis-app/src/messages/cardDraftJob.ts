@@ -21,7 +21,8 @@
 
 import { contentHash, type PregenRequest } from "../ai/pregen";
 import { cardNudgePrompt, cardReplyPrompt, parseCardDraft } from "./cardDraft";
-import type { MailSnapshot } from "./home";
+import { threadIsNoReply, type MailSnapshot } from "./home";
+import { isNoReply } from "./noReply";
 
 export interface CardNotice { kind: string; threadId: string }
 
@@ -47,6 +48,14 @@ interface Source {
   material: string;
 }
 
+// AN EXPLICIT ALLOW-LIST (2026-09-29). A draft is written over his name to a
+// person, so only the kinds that ARE a message to a person get one. This
+// defaulted many kinds to a reply (a deadline card, and anything new that
+// nobody thought about), which is how a no-reply notification could be drafted
+// a warm answer. A kind not named here gets nothing, and a new kind has to be
+// added on purpose.
+const DRAFTABLE = new Set(["reply", "nudge", "chase"]);
+
 function sourceFor(
   n: CardNotice,
   snap: MailSnapshot,
@@ -54,12 +63,15 @@ function sourceFor(
   extraInstruction: (subject: string, days: number, sent: number) => string,
   voice: string,
 ): Source | null {
+  if (!DRAFTABLE.has(n.kind)) return null;
   if (n.kind === "nudge" || n.kind === "chase") {
     const w = snap.waiting.find((x) => x.threadId === n.threadId);
     const c = (snap.chases ?? []).find((x) => x.threadId === n.threadId);
     const to = w?.to ?? c?.to;
     const subject = w?.subject ?? c?.subject;
     if (!to || !subject) return null;
+    // Nobody reads the mailbox a nudge or a chase would go to.
+    if (isNoReply(to)) return null;
     const days = w?.days ?? 0;
     const sent = nudgeCounts[n.threadId] ?? 0;
     const p = cardNudgePrompt(to, subject, days, voice);
@@ -80,6 +92,9 @@ function sourceFor(
   }
   const t = snap.threads.find((x) => x.id === n.threadId);
   if (!t) return null;
+  // The cached source must be replyable: a no-reply sender, a bulk sender or a
+  // thread with a specialised action is never AI-drafted to.
+  if (threadIsNoReply(t) || t.action) return null;
   const body = t.snippet ?? t.gist ?? "";
   const p = cardReplyPrompt(t.from, t.subject, t.gist, body, voice);
   return {

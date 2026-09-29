@@ -31,6 +31,9 @@ import { todayISO } from "../schedule/calendar";
 import { recordToss } from "./selfClean";
 import { recordUnsub } from "./unsubRecords";
 import { saveRule } from "./rules";
+import { resetInboxRefreshState } from "./inboxRefresh";
+import { invalidate as invalidateReads } from "./mailCache";
+import { FakeMailbox } from "./fakeMailbox";
 
 const noAI = new AIService({ available: false });
 
@@ -141,7 +144,7 @@ function TwoAccounts({ apiOf, children }: { apiOf: (email: string) => GoogleApi;
   if (!seeded) return null;
   return (
     <GoogleSessionProvider
-      broker={{ authorize: async () => ({ token: "t-a@x.com", email: "a@x.com" }), silent: async (email) => "t-" + email }}
+      broker={{ authorize: async () => ({ token: "t-a@x.com", email: "a@x.com" }), silent: async (email) => ({ ok: true, token: "t-" + email, email, expiresAt: Date.now() + 3600e3, remembered: true, status: 200 }) }}
       makeApi={(_token, email) => apiOf(email ?? "a@x.com")}
     >
       {children}
@@ -149,7 +152,7 @@ function TwoAccounts({ apiOf, children }: { apiOf: (email: string) => GoogleApi;
   );
 }
 
-beforeEach(() => { localStorage.clear(); resetOutboxForTest(); });
+beforeEach(() => { localStorage.clear(); resetOutboxForTest(); resetInboxRefreshState(); });
 
 describe("MessagesFlow (threads)", () => {
   it("connects and lists threads: latest sender's voice, first message's subject, count", async () => {
@@ -222,7 +225,7 @@ describe("MessagesFlow (threads)", () => {
 
 
   // E10 (2026-08-24): bulk select lives on the fold and nowhere else.
-  it("select mode clears a picked pile in one move, scoped to the fold", async () => {
+  it("select mode clears a picked pile in one move, from the main list", async () => {
     const archived: string[] = [];
     const ai = aiReturning(JSON.stringify([
       { id: "t1", bucket: "needs_you", gist: "Ridgeley needs the waiver by Friday." },
@@ -231,22 +234,23 @@ describe("MessagesFlow (threads)", () => {
     const api = makeApi({ modifyThread: async (id, _a, remove) => { if (remove.includes("INBOX")) archived.push(id); } });
     render(wrap(<MessagesFlow ai={ai} configured />, api));
     fireEvent.click(await screen.findByText("Connect Google"));
-    fireEvent.click(await screen.findByText("The Rest"));
+    await screen.findByText(/DoorDash receipt|The Rest/, {}, { timeout: 4000 });
 
-    // In: a quiet Select, no checkboxes yet. The tools stay on the fold's
-    // own card; Worth Knowing is a section head outside it (R10, §AM F7).
+    // Select lives on the MAIN list's chip row now (2026-09-29), not inside the fold.
     expect(screen.queryByLabelText("Not picked")).toBeNull();
-    expect(screen.getByText("Select").closest(".msg-fold > .card")).toBeTruthy();
-    const wkHead = screen.getByText("Worth Knowing").closest(".sh2")!;
-    expect(wkHead.closest(".card")).toBeNull();
-    expect(wkHead.querySelector(".n")).toHaveTextContent("1");
-    expect(wkHead.nextElementSibling?.querySelector(":scope > .card.list-card-ruled")).toHaveTextContent(/DoorDash receipt/);
-    fireEvent.click(await screen.findByText("Select"));
+    const select = await screen.findByRole("button", { name: "Select" });
+    expect(select.closest(".msg-chips")).toBeTruthy();
+    expect(select.closest(".msg-fold")).toBeNull();
+    fireEvent.click(select);
 
-    // The fold row toggles instead of opening; Needs You rows grow nothing.
+    // In select mode EVERY bucket is a checkbox, Needs You included, and the
+    // fold opened so nothing is out of reach.
+    expect(await screen.findAllByLabelText("Not picked")).toHaveLength(2);
+    expect(screen.getByText(/DoorDash receipt/)).toBeInTheDocument();
     fireEvent.click(screen.getByText(/DoorDash receipt/));
     expect(screen.getByLabelText("Picked")).toBeInTheDocument();
     expect(screen.getByText("Archive 1")).toBeInTheDocument();
+    expect(screen.getByText(/^1 selected$/i)).toBeInTheDocument();
 
     fireEvent.click(screen.getByText("Archive 1"));
     await waitFor(() => expect(archived).toEqual(["t2"]));
@@ -473,10 +477,15 @@ describe("MessagesFlow (threads)", () => {
   });
 
   it("deletes a thread to Gmail's trash, never permanently", async () => {
-    const trashed: string[] = [];
+    // 2026-09-29: Delete is a label change on the thread's MESSAGES through
+    // batchModify (add TRASH, remove INBOX), recoverable for 30 days. The
+    // thread-level trash call and any permanent delete are never made.
+    const batches: { ids: string[]; add: string[]; remove: string[] }[] = [];
+    let threadTrash = 0;
     let permanentDeleteCalled = false;
     const api = makeApi({
-      trashThread: async (id: string) => { trashed.push(id); },
+      batchModifyMessages: async (ids: string[], add: string[], remove: string[]) => { batches.push({ ids, add, remove }); },
+      trashThread: async () => { threadTrash++; },
       // If a permanent delete ever appears on the API, this must never fire.
       deleteThread: async () => { permanentDeleteCalled = true; },
     } as Parameters<typeof makeApi>[0]);
@@ -484,10 +493,14 @@ describe("MessagesFlow (threads)", () => {
     fireEvent.click(await screen.findByText("Connect Google"));
     fireEvent.click(await screen.findByText("Ridgeley"));
     fireEvent.click(await screen.findByLabelText("Delete"));
-    await waitFor(() => expect(trashed).toEqual(["t1"]));
+    await waitFor(() => expect(batches).toHaveLength(1));
+    expect([...batches[0]!.ids].sort()).toEqual(["m1", "m2"]); // both messages of the conversation
+    expect(batches[0]!.add).toEqual(["TRASH"]);
+    expect(batches[0]!.remove).toEqual(["INBOX"]);
     expect(permanentDeleteCalled).toBe(false);
-    // SPEC MOVED (short copy, 2026-08-15)
-    expect(await screen.findByText(/In Trash 30 Days/)).toBeInTheDocument();
+    expect(threadTrash).toBe(0);
+    // The receipt says what Gmail confirmed and what it keeps.
+    expect(await screen.findByText(/1 conversation moved to Trash\. Gmail keeps them for 30 days\./)).toBeInTheDocument();
     expect(screen.queryByText("Ridgeley")).toBeNull(); // gone from the list too
   });
 
@@ -1042,28 +1055,39 @@ describe("MessagesFlow (threads)", () => {
     messages: [msg("pm" + (from + i), "Sender " + (from + i) + " <s" + (from + i) + "@x.com>", "Subject " + (from + i), "snip", ["INBOX"], 1000 + from + i)],
   }));
 
-  it("a full page offers Load More, and the floor only claims everything once a page comes back short", async () => {
-    const asks: number[] = [];
-    const api = makeApi({ listThreads: async (n: number) => { asks.push(n); return page(Math.min(n, 30)); } });
-    render(wrap(<MessagesFlow ai={noAI} configured />, api));
+  it("a full page offers Load More, follows Gmail's cursor, and only claims everything when the cursor runs out", async () => {
+    const box = new FakeMailbox("me@example.com");
+    for (let i = 1; i <= 45; i++) box.add("p" + i);
+    box.listPageSize = 30;
+    render(wrap(<MessagesFlow ai={noAI} configured />, box.api()));
     fireEvent.click(await screen.findByText("Connect Google"));
-    // 30 asked for, 30 returned: there may be more, so the floor says what it
-    // is showing and offers the next page instead of "That's everything."
+    // 30 of 45 loaded, and Gmail handed back a cursor: there is more, so the
+    // floor says what it is showing and offers the next page instead of
+    // "That's everything."
     await screen.findByText("Load More");
     expect(screen.getByText("Showing what's loaded so far.")).toBeInTheDocument();
-    expect(asks[asks.length - 1]).toBe(30);
+    const listedBefore = box.counters.list;
+    const readBefore = box.counters.metadata;
     fireEvent.click(screen.getByText("Load More"));
-    await waitFor(() => expect(asks).toContain(60));
-    // 60 asked for, 30 returned: now the inbox has a bottom and it says so.
+    // The next page only: one list from the cursor, fifteen new thread reads,
+    // and the thirty already on screen are not read again.
     await screen.findByText("That's everything.");
+    expect(box.counters.list - listedBefore).toBe(1);
+    expect(box.counters.metadata - readBefore).toBe(15);
     expect(screen.queryByText("Load More")).toBeNull();
   });
 
   it("an emptied page does not claim the inbox is empty", async () => {
-    // Thirty threads, none of them still in the inbox: the list is empty and
-    // the page was full, which is "nothing more loaded", not "Inbox Empty".
+    // Thirty threads listed, none of them still in the inbox by the time they
+    // are read (archived from another device mid-load), with more behind the
+    // cursor: that is "nothing more loaded", not "Inbox Empty".
     const archived = page(30).map((t) => ({ ...t, messages: t.messages.map((m) => ({ ...m, labelIds: [] })) }));
-    render(wrap(<MessagesFlow ai={noAI} configured />, makeApi({ listThreads: async () => archived })));
+    const api = makeApi({
+      listThreads: async () => archived,
+      listInboxThreadRefs: async () => ({ refs: archived.map((t) => ({ id: t.id, historyId: "1" })), nextPageToken: "more" }),
+      getThreadMeta: async (id: string) => archived.find((t) => t.id === id) ?? null,
+    });
+    render(wrap(<MessagesFlow ai={noAI} configured />, api));
     fireEvent.click(await screen.findByText("Connect Google"));
     await waitFor(() => expect(screen.getByText("Nothing More Loaded")).toBeInTheDocument(), { timeout: 3000 });
     expect(screen.queryByText("Inbox Empty")).toBeNull();
@@ -1617,5 +1641,132 @@ describe("MessagesFlow (the mail cache)", () => {
     fireEvent.click(await screen.findByText("Connect Google"));
     expect(await screen.findByText("Reading Your Inbox")).toBeInTheDocument();
     expect(screen.queryByText("Ridgeley"), "unsorted mail under For You").toBeNull();
+  });
+});
+
+// REOPENING EMAIL COSTS NOTHING NEW (2026-09-29). Dave, 2026-09-16: "It also
+// shouldn't need to read my emails every time I go back to the screen it's
+// killing api usage". The screen remounts on every tab switch, so this is
+// measured across a real unmount and remount, with a mailbox that counts every
+// kind of request and an AI that counts every paid call.
+describe("reopening Email", () => {
+  const SC = { userId: "u1", account: "me@example.com" };
+
+  function countingAi() {
+    const asked: string[][] = [];
+    const ai = new AIService({
+      available: true,
+      getToken: () => "tok",
+      fetchImpl: (async (_u: string, init: { body: string }) => {
+        const content = (JSON.parse(init.body) as { messages: { content: string }[] }).messages[0]!.content;
+        // (the prompt's own example line also says "id":"..."; that is not a thread)
+        const ids = [...content.matchAll(/"id":"([^"]+)"/g)].map((m) => m[1]!).filter((id) => id !== "...");
+        asked.push(ids);
+        return { ok: true, status: 200, text: async () => "", json: async () => ({ text: JSON.stringify(ids.map((id) => ({ id, bucket: "needs_you", gist: "g " + id, by: "" }))) }) };
+      }) as unknown as typeof fetch,
+    });
+    return { ai, asked };
+  }
+
+  async function openAndSettle(ai: AIService, box: FakeMailbox) {
+    const view = render(wrap(<MessagesFlow ai={ai} configured />, box.api()));
+    fireEvent.click(await screen.findByText("Connect Google"));
+    return view;
+  }
+
+  it("a remount paints the cached inbox at once and asks Gmail only the cheap question", async () => {
+    const box = new FakeMailbox("me@example.com");
+    for (let i = 1; i <= 5; i++) box.add("r" + i, { subject: "Subject r" + i, from: "Sender " + i + " <s" + i + "@x.com>" });
+    const { ai, asked } = countingAi();
+    const first = await openAndSettle(ai, box);
+    await screen.findByText("Sender 5");
+    await waitFor(() => expect(asked.length).toBe(1));
+    first.unmount();
+
+    // Three minutes later (the inbox clock is stale, so the screen WILL check).
+    invalidateReads(SC, ["threads"]);
+    const before = { ...box.counters };
+    const askedBefore = asked.length;
+    await openAndSettle(ai, box);
+    // Painted from the cache: never the wall, never a spinner over mail he has.
+    await screen.findByText("Sender 5");
+    expect(screen.queryByText("Reading Your Inbox")).toBeNull();
+    await waitFor(() => expect(box.counters.list - before.list).toBe(1));
+    await waitFor(() => expect(box.counters.history - before.history).toBe(1));
+    // No thread reads, no bodies, and not one paid AI call.
+    expect(box.counters.metadata - before.metadata).toBe(0);
+    expect(box.counters.bodies - before.bodies).toBe(0);
+    expect(asked.length).toBe(askedBefore);
+    expect(screen.queryByText("Reading Your Inbox")).toBeNull();
+  });
+
+  it("one new reply reads and sorts only its own thread", async () => {
+    const box = new FakeMailbox("me@example.com");
+    for (let i = 1; i <= 5; i++) box.add("r" + i, { from: "Sender " + i + " <s" + i + "@x.com>" });
+    const { ai, asked } = countingAi();
+    const first = await openAndSettle(ai, box);
+    await screen.findByText("Sender 5");
+    await waitFor(() => expect(asked.length).toBe(1));
+    first.unmount();
+
+    box.receive("r2", { from: "Sender 2 <s2@x.com>", snippet: "a brand new reply" });
+    invalidateReads(SC, ["threads"]);
+    const before = { ...box.counters };
+    await openAndSettle(ai, box);
+    await waitFor(() => expect(asked.length).toBe(2));
+    expect(box.counters.metadata - before.metadata).toBe(1);
+    expect(asked[1]).toEqual(["r2"]);
+  });
+
+  // NOTIFICATION ACTIONS (2026-09-29). The tab reads the body of a thread that
+  // looks like a notification and is new to the cache, once, writes the action
+  // onto Today's snapshot, and a remount that finds nothing new reads nothing.
+  it("reads a notification's body once, puts its action on Today's snapshot, and a remount reads nothing more", async () => {
+    const box = new FakeMailbox("me@example.com");
+    box.add("sign", {
+      from: "DocuSign <dse@docusign.net>", subject: "Please DocuSign: Lease", snippet: "review and sign", body: "Please review and sign.",
+      html: '<a href="https://na3.docusign.net/Signing/EmailStart.aspx?a=1&amp;er=2">REVIEW DOCUMENT</a>',
+    });
+    box.add("wei", { from: "Wei <wei@x.com>", subject: "Lunch Thursday?" });
+    const { ai } = countingAi();
+    const first = await openAndSettle(ai, box);
+    const found = () => [...loadMailSnapshot().threads, ...(loadMailSnapshot().actionable ?? [])].find((t) => t.id === "sign");
+    await waitFor(() => expect(found()?.action?.url).toBe("https://na3.docusign.net/Signing/EmailStart.aspx?a=1&er=2"));
+    expect(found()).toMatchObject({ account: "me@example.com", revision: expect.any(String) });
+    expect(box.counters.bodies).toBe(1); // the person's thread was never read for links
+    first.unmount();
+
+    invalidateReads(SC, ["threads"]);
+    const before = { ...box.counters };
+    await openAndSettle(ai, box);
+    await waitFor(() => expect(box.counters.list - before.list).toBe(1));
+    expect(box.counters.bodies - before.bodies).toBe(0);
+    expect(found()?.action?.kind).toBe("sign");
+  });
+
+  it("an empty inbox is a cached answer too: the second visit paints it without reading anything", async () => {
+    const box = new FakeMailbox("me@example.com");
+    const first = await openAndSettle(noAI, box);
+    await screen.findByText("Inbox Empty");
+    first.unmount();
+    invalidateReads(SC, ["threads"]);
+    const before = { ...box.counters };
+    await openAndSettle(noAI, box);
+    await screen.findByText("Inbox Empty");
+    await waitFor(() => expect(box.counters.list - before.list).toBe(1));
+    expect(box.counters.metadata - before.metadata).toBe(0);
+  });
+
+  it("a failed check keeps the mail he had, and says why instead of going blank", async () => {
+    const box = new FakeMailbox("me@example.com");
+    for (let i = 1; i <= 3; i++) box.add("r" + i, { from: "Sender " + i + " <s" + i + "@x.com>" });
+    const first = await openAndSettle(noAI, box);
+    await screen.findByText("Sender 3");
+    first.unmount();
+    invalidateReads(SC, ["threads"]);
+    box.failList = true;
+    await openAndSettle(noAI, box);
+    await screen.findByText("Sender 3");
+    expect(screen.queryByText("Inbox Empty")).toBeNull();
   });
 });

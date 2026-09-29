@@ -1652,6 +1652,10 @@ a.row.person-reach { color: inherit; text-decoration: none; }
    grey in dark (Choose Photo, Cancel on the Profile Photo sheet). The
    destructive verb keeps its red, in the sheet twin that clears the grey. */
 .sheet-scrim > .card .action-sheet button.destructive { color: var(--sys-red-on-sheet); }
+/* An action-sheet verb with a glyph before it (RowAction.icon, 2026-09-29).
+   The label stays centred as a group; the caller colours the glyph. */
+.action-sheet button.has-icon { display: flex; align-items: center; justify-content: center; gap: var(--s-2); }
+.action-sheet button.has-icon .ic { width: 20px; height: 20px; flex-shrink: 0; }
 /* The gym's ActionSheet draws its rows in .sheet-actions; its destructive
    verb (Cancel Workout, 2026-09-27) takes the same red. */
 .sheet-scrim > .card .sheet-actions .btn.destructive { color: var(--sys-red-on-sheet); }
@@ -2247,6 +2251,17 @@ button {
 .fold-tools { display: flex; justify-content: flex-end; align-items: center;
   gap: var(--s-2); padding: var(--s-1) var(--s-4); }
 
+/* SELECT ON THE MAIN LIST (2026-09-29). Two lines: the count with Select All
+   Shown and Done, then Archive and Delete as two equal full-width buttons, the
+   way Clean Out's foot does it. The first cut put five things in .fold-tools'
+   one right-aligned line and the count and the labels wrapped to pieces at
+   390px. Red goes on only when Delete will actually delete (L1). */
+.mail-select-bar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2); padding-top: var(--s-1); padding-bottom: var(--s-2); }
+.mail-select-bar .sel-count { flex: 1 1 auto; white-space: nowrap; }
+.mail-select-bar .quiet-action { white-space: nowrap; }
+.mail-select-bar .sel-acts { display: flex; gap: var(--s-2); flex: 1 0 100%; }
+.mail-select-bar .sel-acts .btn { flex: 1 1 0; white-space: nowrap; }
+
 /* E9: quick replies on the deck card. A row of whole answers under the
    drafted one; each sends through the same path as the primary. */
 .deck-chips { display: flex; gap: var(--s-2); flex-wrap: wrap; margin-top: var(--s-2); }
@@ -2673,6 +2688,24 @@ button {
 .chat-user { align-self: flex-end; background: var(--accent-fill); color: #fff; border-bottom-right-radius: 6px; }
 .chat-jarvis { align-self: flex-start; background: var(--press-3); color: var(--tx-1); border-bottom-left-radius: 6px; }
 .chat-text { font-size: var(--t-body); line-height: var(--lh-relaxed); white-space: pre-wrap; }
+/* THE BUBBLE AND ITS MENU DOOR (2026-09-29, Brain "Log It"). Only a row that
+   has a menu is wrapped, so a chat with no Brain draws exactly the bubbles it
+   always did. The row takes the bubble's 78% and the bubble fills what the
+   door leaves. A user row reverses so the door sits on the outer side. */
+.chat-row { position: relative; display: flex; align-items: center; gap: var(--s-1); max-width: 78%; }
+.chat-row-user { align-self: flex-end; flex-direction: row-reverse; }
+.chat-row-jarvis { align-self: flex-start; }
+.chat-row > .chat-bubble { max-width: none; min-width: 0; align-self: auto; }
+/* On a pointer that hovers, the door is quiet until the row is hovered or
+   anything in it has focus; it always keeps its place so nothing shifts. */
+.chat-row-menu { display: inline-flex; opacity: 0; }
+.chat-row:hover .chat-row-menu, .chat-row:focus-within .chat-row-menu { opacity: 1; }
+/* On a touch screen the long press is the door. The button stays in the
+   accessibility tree for VoiceOver and Switch Control but takes no room and
+   catches no touch until it has focus. */
+@media (hover: none) {
+  .chat-row-menu:not(:focus-within) { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; opacity: 1; }
+}
 .chat-prov { margin-top: var(--s-1); font-size: var(--t-eyebrow); font-weight: var(--w-semi); text-transform: uppercase; letter-spacing: var(--track-caps); color: var(--tx-3); }
 /* UP-MIND-02: the records the answer was built from, tappable. Sits under
    the provenance line because the line says where it came from and these

@@ -166,7 +166,7 @@ describe("EMAIL law 1: the composer autosaves locally, and only Cancel writes Gm
     expect(at, "MessagesFlow autosaves the compose").toBeGreaterThan(-1);
     const effect = FLOW.slice(FLOW.lastIndexOf("useEffect(", at), at + 900);
     expect(effect, "debounced a beat behind the keystroke").toMatch(/setTimeout\(/);
-    expect(effect, "keyed on every field").toMatch(/\[view, editingDraftId, draft\.to, draft\.cc, draft\.subject, draft\.body, draft\.threadId, draft\.account, draft\.inReplyTo\]/);
+    expect(effect, "keyed on every field").toMatch(/\[view, editingDraftId, draft\.to, draft\.cc, draft\.subject, draft\.body, draft\.threadId, draft\.account, draft\.inReplyTo, draft\.sourceRevision, draft\.overrides\]/);
   });
   it("cancelCompose's Gmail write path is untouched, and it is the only one", () => {
     const at = FLOW.indexOf("const cancelCompose = async () => {");
@@ -239,36 +239,68 @@ describe("EMAIL law 2: every manual task path asks for an existing task first", 
 // calendar. The event exists only after the tap, and the whole difference
 // between the two is one line of code, so the line is nailed down here.
 describe("EMAIL law 9: a meeting the mail mentions is filed only on the tap", () => {
-  const CARD = read(join(SRC, "messages/ThreadStateCard.tsx"));
-  it("the brief's meeting has exactly one writer, and it is the tap handler", () => {
-    const at = FLOW.indexOf("const addMeetingToCalendar =");
-    expect(at, "the tap handler exists").toBeGreaterThan(-1);
-    const body = FLOW.slice(at, FLOW.indexOf("\n  };", at));
-    expect(body, "and it is what writes the event").toMatch(/scheduleSvc\.createEvent\(m\.title/);
-    // Nowhere else in the screen may write an event out of a brief.
-    expect(FLOW.match(/createEvent\(m\.title/g)?.length, "one meeting writer").toBe(1);
+  // REWRITTEN 2026-09-29. The offer moved out of ThreadStateCard into
+  // MeetingFinishCard, and its writer out of MessagesFlow into
+  // emailSchedule.addEmailMeetingOnce (one idempotent door for the card, the
+  // .ics attachment and the Today notification actions). The rule is the same
+  // one line: reading earns the offer, only a tap writes.
+  const CARD = read(join(SRC, "messages/MeetingFinishCard.tsx"));
+  const STATE_CARD = read(join(SRC, "messages/ThreadStateCard.tsx"));
+  const DOOR = read(join(SRC, "messages/emailSchedule.ts"));
+  it("an email's appointment has exactly one writer, and it is the one door", () => {
+    expect(DOOR, "the door writes the event with its idempotency key and provenance").toMatch(/svc\.createEvent\(title, \{[\s\S]*?clientId: cid/);
+    expect(DOOR.match(/svc\.createEvent\(/g)?.length, "one appointment writer").toBe(1);
+    // Nowhere else in the mail screens is an appointment made out of a brief.
+    expect(FLOW, "the old inline writer is gone").not.toMatch(/createEvent\(m\.title/);
+    expect(FLOW, "the old inline writer is gone").not.toMatch(/const addMeetingToCalendar =/);
+    expect(CARD, "the card writes through the door").not.toMatch(/createEvent\(/);
+    expect(CARD).toMatch(/addEmailMeetingOnce\(/);
+    // The .ics attachment offer goes through the same door.
+    expect(FLOW).toMatch(/addEmailMeetingOnce\(\{ scheduleSvc, candidate: cand/);
+  });
+  it("the appointment card renders only when there is a Schedule service to write to", () => {
+    expect(FLOW).toMatch(/\{scheduleSvc && \(\s*<MeetingFinishCard/);
+    expect(FLOW.match(/<MeetingFinishCard/g)?.length, "one place draws it").toBe(1);
+    // And it sits above the messages: before the thread's message list is mapped.
+    expect(FLOW.indexOf("<MeetingFinishCard")).toBeLessThan(FLOW.indexOf("{thread.messages.map((m) => {"));
+  });
+  it("the state card has no calendar action of its own", () => {
+    expect(STATE_CARD).not.toMatch(/onAddToCalendar|calendarState|Add to Calendar/);
   });
   it("nothing schedules it: no effect and no timer reaches the writer", () => {
     // Every call site of the writer must sit in a handler the person
     // pressed. An effect or a timeout around it would be the automatic
     // save he explicitly did not want.
-    for (const m of FLOW.matchAll(/addMeetingToCalendar\(/g)) {
-      const before = FLOW.slice(Math.max(0, m.index - 400), m.index);
-      const decl = /const addMeetingToCalendar =\s*$/.test(before.trimEnd() + "");
-      if (decl) continue;
-      expect(before, "a call to the writer sits inside an effect or a timer")
-        .not.toMatch(/useEffect\(|setTimeout\(|setInterval\(/);
+    for (const [name, src] of [["MessagesFlow", FLOW], ["MeetingFinishCard", CARD]] as const) {
+      for (const m of src.matchAll(/addEmailMeetingOnce\(/g)) {
+        const before = src.slice(Math.max(0, m.index - 500), m.index);
+        expect(before, name + ": a call to the writer sits inside an effect or a timer")
+          .not.toMatch(/useEffect\(|setTimeout\(|setInterval\(/);
+      }
     }
-    // And the card itself has no lifecycle at all: it cannot fire the offer
-    // for him on render.
-    expect(CARD, "ThreadStateCard runs an effect").not.toMatch(/useEffect/);
+    // The card's one effect only LOOKS. It names no writer at all.
+    const effects = [...CARD.matchAll(/useEffect\(\(\) => \{([\s\S]*?)\n  \}, \[/g)].map((m) => m[1]!);
+    expect(effects.length, "the card looks for what is already filed").toBe(1);
+    expect(effects[0]).not.toMatch(/addEmailMeetingOnce|createEvent|deleteEvent|recreateFrom|reviseFiledMeeting|applyEventDraft|moveDay|edit[A-Z]/);
+    // And the state card has no lifecycle at all.
+    expect(STATE_CARD, "ThreadStateCard runs an effect").not.toMatch(/useEffect/);
   });
   it("opening the thread only LOOKS for an event, it never makes one", () => {
-    const at = FLOW.indexOf("const findFiledMeeting =");
+    const at = DOOR.indexOf("export async function findFiledMeeting");
     expect(at).toBeGreaterThan(-1);
-    const body = FLOW.slice(at, FLOW.indexOf("\n  }, [scheduleSvc]);", at));
-    expect(body, "the load-time check writes").not.toMatch(/createEvent|updateEvent|deleteEvent/);
-    expect(body, "and it reads one day, not a scan").toMatch(/eventsOn\(m\.date\)/);
+    const body = DOOR.slice(at, DOOR.indexOf("\nasync function run(", at));
+    expect(body, "the load-time check writes").not.toMatch(/createEvent|updateEvent|deleteEvent|edit[A-Z]|moveDay|linkEmailIds/);
+    expect(body, "and it reads the events").toMatch(/listEvents\(\)/);
+  });
+  it("a cancellation never deletes: nothing in the card deletes except the person's own Delete Event", () => {
+    // deleteEvent appears in the card in exactly two places, Undo of its own
+    // add (through the door's confirmed undo, not directly) and the sheet's
+    // onDelete: never on a cancelled candidate by itself.
+    const calls = [...CARD.matchAll(/scheduleSvc\.deleteEvent\(/g)];
+    expect(calls.length).toBe(1);
+    const at = CARD.indexOf("const removeFiled = async");
+    expect(CARD.indexOf("scheduleSvc.deleteEvent(", at)).toBeGreaterThan(at);
+    expect(CARD).toMatch(/onDelete=\{\(\) => void removeFiled\(sheet\.offer\)\}/);
   });
 });
 
@@ -311,37 +343,124 @@ describe("EMAIL law 10: Open Anyway outlives the tab switch", () => {
 // refresh ignores them.
 describe("EMAIL law 11: a return to the screen is not a reason to re-read the mail", () => {
   it("the inbox load answers from cache while its last read is fresh", () => {
-    expect(FLOW).toMatch(/if \(!force && max === undefined && isFresh\("threads"\)\) \{/);
-    const at = FLOW.indexOf('if (!force && max === undefined && isFresh("threads"))');
+    // 2026-09-29: the gate is per ACCOUNT now (every account's own clock), and
+    // the cached rows are read per account.
+    expect(FLOW).toMatch(/if \(!force && max === undefined && haveAll && list\.every\(\(\{ email \}\) => isFresh\(scopeOf\(email\), "threads"\)\)\) \{/);
+    const at = FLOW.indexOf('if (!force && max === undefined && haveAll');
     const branch = FLOW.slice(at, at + 900);
-    expect(branch, "and paints the rows it already has").toMatch(/loadRows\(\)/);
+    expect(branch, "and paints the rows it already has").toMatch(/const cachedRows = paint\(\)/);
+    expect(FLOW, "from each account's own cache").toMatch(/loadRows\(scopeOf\(email\)\)/);
     // Cached is not sorted. Rows that came back without a request say
     // nothing about whether they have been triaged, and only runTriage may
     // answer that: asserting it here put unsorted mail under For You.
     expect(branch, "the cache path declares the sort done itself")
       .not.toMatch(/setTriaged\(true\)|setTriageState\("ready"\)/);
-    expect(branch, "it must hand the question to runTriage").toMatch(/void runTriage\(cached\.rows\)/);
+    expect(branch, "it must hand the question to runTriage").toMatch(/void runTriage\(cachedRows\)/);
   });
-  it("every expensive satellite keeps its own clock", () => {
+  it("and when the read is stale it paints the cache FIRST and asks Gmail the cheap question", () => {
+    // Dave, 2026-09-16: "It also shouldn't need to read my emails every time
+    // I go back to the screen". Stale is not a reason to blank the screen, and
+    // it is not a reason to re-read thirty threads either.
+    expect(FLOW).toMatch(/if \(haveAll\) \{ paint\(\); mirrorArmed\.current = true; setLoading\(false\); \} else setLoading\(true\);/);
+    expect(FLOW, "the refresh is the coordinator's, not a second inbox reader").toMatch(/await refreshInboxAccounts\(userId, list,/);
+    expect(FLOW, "the tab lists threads itself again").not.toMatch(/api\.listThreads\(/);
+  });
+  it("every expensive satellite keeps its own clock, per account", () => {
     for (const kind of ["waiting", "sweep", "meetings"]) {
       expect(FLOW, kind + " must be gated on its own freshness")
-        .toMatch(new RegExp('force \\|\\| !isFresh\\("' + kind + '"\\)'));
+        .toMatch(new RegExp('if \\(stale\\("' + kind + '"\\)\\)'));
     }
-    expect(FLOW, "drafts too").toMatch(/!draftsLoaded && !isFresh\("drafts"\)/);
+    expect(FLOW, "and the gate is force, or ANY account's clock stale")
+      .toMatch(/force \|\| list\.some\(\(\{ email \}\) => !isFresh\(scopeOf\(email\), k\)\)/);
+    expect(FLOW, "drafts too").toMatch(/!draftsLoaded && !g\.apis\("mail"\)\.every\(\(\{ email \}\) => isFresh\(scopeOf\(email\), "drafts"\)\)/);
+  });
+  it("a clock is set by SUCCESS, never ahead of the work", () => {
+    // The old shape was `markRead("waiting"); void loadWaiting();`, which is
+    // how a read that failed passed for a fresh one.
+    expect(FLOW).not.toMatch(/markRead\([^)]*\);\s*void (loadWaiting|runSweep|findMeetings)/);
+    expect(FLOW).toMatch(/\.then\(\(ok\) => \{ if \(ok\) for \(const \{ email \} of list\) markRead\(scopeOf\(email\), k\); \}\)/);
+    expect(FLOW, "the threads clock is set per account that answered")
+      .toMatch(/for \(const o of out\) if \(o\.result\.ok\) markRead\(scopeOf\(o\.email\), "threads"\)/);
   });
   it("a deliberate refresh always wins", () => {
-    // Pull to refresh, Try Again and Load More all force the read.
+    // Pull to refresh and Try Again force the read; Load More follows the cursor.
     expect(FLOW).toMatch(/void loadThreads\(undefined, true\)/);
-    expect(FLOW).toMatch(/loadThreads\(pageRef\.current \+ MAIL_PAGE, true\)/);
+    expect(FLOW).toMatch(/loadMoreInbox\(scopeOf\(email\), api, MAIL_PAGE/);
   });
   it("a write that changed the inbox drops what it invalidated", () => {
-    expect(FLOW).toMatch(/invalidateReads\(\["waiting", "sweep"\]\)/);
+    expect(FLOW).toMatch(/invalidateReads\(scopeOf\(email\), \["waiting", "sweep"\]\)/);
   });
   it("a cached read may be stale but never old enough to be a lie", () => {
     const C = read(join(SRC, "messages/mailCache.ts"));
     expect(C).toMatch(/export const ROWS_MAX_AGE_MS/);
     const at = C.indexOf("export function loadRows");
-    expect(C.slice(at, at + 700), "loadRows must refuse rows past the max age")
-      .toMatch(/now - p\.ts > ROWS_MAX_AGE_MS \|\| now < p\.ts/);
+    expect(C.slice(at, at + 900), "loadRows must refuse rows past the max age")
+      .toMatch(/now - c\.checkedAt > ROWS_MAX_AGE_MS/);
+    expect(C, "and a timestamp from the future is not trusted").toMatch(/c\.checkedAt > now\) return null/);
+  });
+  it("no mail cache key is unscoped: every entry names its owner and account", () => {
+    // 2026-09-29: one global row list let two accounts overwrite each other
+    // and a second sign-in on the same phone read the first person's mail.
+    const C = read(join(SRC, "messages/mailCache.ts"));
+    for (const fn of ["loadRows", "saveRows", "mirrorRows", "clearRows", "markRead", "isFresh", "invalidate", "loadReads"]) {
+      expect(C, fn + " must take the account scope").toMatch(new RegExp("export function " + fn + "\\(\\s*scope: MailScope"));
+    }
+    expect(C, "a fixed, global storage key").not.toMatch(/const ROWS_KEY|const READS_KEY/);
+  });
+  it("an emptied inbox is a cached answer, and the last archive is persisted", () => {
+    const C = read(join(SRC, "messages/mailCache.ts"));
+    expect(C, "loadRows must not treat zero rows as a miss").not.toMatch(/rows\.length === 0\) return null/);
+    expect(FLOW, "the mirror effect must not skip an empty list").not.toMatch(/if \(rows\.length > 0\) mirrorRows/);
+  });
+});
+
+// 2026-09-29: THE BRIEF'S THREE NEW READINGS ARE UNTRUSTED, AND REPLY COVERAGE
+// IS LOCAL. Two rules that a later edit could quietly break, so they are
+// written down as checks.
+describe("EMAIL law 10: model output about a thread is checked in code before anything reads it", () => {
+  const BRIEF = read(join(SRC, "messages/brief.ts"));
+  const VALIDATE = read(join(SRC, "messages/briefValidate.ts"));
+  it("brief.ts hands the three readings to the validators and takes no date, time or id from the model", () => {
+    expect(BRIEF).toMatch(/validateMeetingCandidates\(/);
+    expect(BRIEF).toMatch(/validateReplyRequirements\(/);
+    expect(BRIEF).toMatch(/validateNotification\(/);
+    // Ids are hashed locally from the account, thread, message and sentence.
+    expect(VALIDATE).toMatch(/stableId\("mc"/);
+    expect(VALIDATE).toMatch(/stableId\("rr"/);
+    expect(VALIDATE, "a model-supplied id is never used").not.toMatch(/item\??\.id\b|item\[["']id["']\]/);
+    // Dates and times come out of the sentence, by code, against the message's own day.
+    expect(VALIDATE).toMatch(/readWhen\(quote,/);
+    expect(VALIDATE, "a model-supplied date is never used").not.toMatch(/item\??\.(date|start|end|timeZone)\b|\(item as[^)]*\)\.|item\[/);
+    // A claim's sentence must be inside the message it names.
+    expect(VALIDATE.match(/quoteIn\(/g)?.length, "every reading checks its quote").toBeGreaterThanOrEqual(3);
+  });
+  it("a notification may point at a link id it was shown and never carries a URL", () => {
+    expect(VALIDATE).toMatch(/links\.some\(\(l\) => l\.id === raw\.linkId\)/);
+    expect(read(join(SRC, "messages/mailContracts.ts"))).toMatch(/model never supplies a URL/);
+  });
+});
+
+describe("EMAIL law 11: Reply Coverage never leaves the device and never runs per keystroke", () => {
+  const EVAL = read(join(SRC, "messages/replyCoverage.ts")).replace(/\/\/.*$/gm, "");
+  const CARD = read(join(SRC, "messages/coverage/ReplyCoverage.tsx")).replace(/\/\/.*$/gm, "");
+  it("the evaluator is a pure function: no model, no network, no storage", () => {
+    for (const banned of [/\bfetch\s*\(/, /\.complete\s*\(/, /localStorage/, /sessionStorage/, /XMLHttpRequest/, /AIService/, /ensureThreadBrief/]) {
+      expect(EVAL, String(banned)).not.toMatch(banned);
+    }
+  });
+  it("the indicator never blocks or sends: it takes no send handler and touches no outbox", () => {
+    expect(CARD).not.toMatch(/onSend|enqueueOutbox|disabled=\{[^}]*coverage/i);
+    expect(CARD).not.toMatch(/ensureThreadBrief|\.complete\(|fetch\(/);
+  });
+  it("Send is not gated on coverage anywhere in the composer", () => {
+    const at = FLOW.indexOf("const send = (scheduledAt?: number) => {");
+    const body = FLOW.slice(at, FLOW.indexOf("\n  };", at));
+    expect(body).not.toMatch(/replyReqs|coverage|evaluateCoverage|overrides/i);
+    expect(FLOW).not.toMatch(/evaluateCoverage\(/);
+  });
+  it("the requirements are looked up when the SOURCE changes, keyed on it alone, never on the words", () => {
+    const hook = read(join(SRC, "messages/useReplyRequirements.ts"));
+    expect(hook).toMatch(/\}, \[key\]\);/);
+    expect(hook, "typing never reaches the lookup").not.toMatch(/draftText|\.body\b/);
   });
 });

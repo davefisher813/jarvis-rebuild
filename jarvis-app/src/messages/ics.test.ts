@@ -71,12 +71,11 @@ describe("the formats that actually turn up", () => {
     expect(e.durationMin).toBe(30);
   });
 
-  it("reads a TZID stamp as local wall time", () => {
-    // Documented trade: converting needs a timezone database this app does
-    // not ship. The card shows the time before you tap it for this reason.
-    const e = readIcs(wrap("SUMMARY:Visit\r\nDTSTART;TZID=America/New_York:20260923T130000")).event!;
+  it("a TZID in the reader's own zone is that wall clock, untouched", () => {
+    const e = readIcs(wrap("SUMMARY:Visit\r\nDTSTART;TZID=America/New_York:20260923T130000"), { zone: "America/New_York" }).event!;
     expect(e.start).toBe("13:00");
     expect(e.date).toBe("2026-09-23");
+    expect(e.sourceZone).toBeUndefined();
   });
 
   it("a TZID that just spells out UTC converts, it doesn't read as literal local time", () => {
@@ -131,5 +130,129 @@ describe("the formats that actually turn up", () => {
   it("ignores a DTEND that is before its DTSTART", () => {
     const e = readIcs(wrap("SUMMARY:X\r\nDTSTART:20260923T130000\r\nDTEND:20260923T120000")).event!;
     expect(e.durationMin).toBeUndefined();
+  });
+});
+
+// 2026-09-29: identity, status and zone. The old reader called any TZID but
+// UTC the reader's local time, which is only right when the invitation is in
+// the reader's own zone.
+const NY = { zone: "America/New_York" };
+const LON = { zone: "Europe/London" };
+
+describe("a named zone is converted, not read as local", () => {
+  it("Los Angeles 10:00 is 1 PM in New York, and the file's own clock is kept beside it", () => {
+    const e = readIcs(wrap("SUMMARY:Call\r\nDTSTART;TZID=America/Los_Angeles:20260923T100000"), NY).event!;
+    expect(e.date).toBe("2026-09-23");
+    expect(e.start).toBe("13:00");
+    expect(e.sourceZone).toBe("America/Los_Angeles");
+    expect(e.sourceDate).toBe("2026-09-23");
+    expect(e.sourceStart).toBe("10:00");
+  });
+
+  it("the date moves too: Tokyo 8 AM is the evening before in New York", () => {
+    const e = readIcs(wrap("SUMMARY:Call\r\nDTSTART;TZID=Asia/Tokyo:20260923T080000"), NY).event!;
+    expect(e.date).toBe("2026-09-22");
+    expect(e.start).toBe("19:00");
+  });
+
+  it("follows daylight saving in the file's zone: London 13:00 is 8 AM in New York in September and 9 AM in the last week of October", () => {
+    // London is on BST (UTC+1) until Oct 25 2026, New York on EDT until Nov 1.
+    expect(readIcs(wrap("SUMMARY:X\r\nDTSTART;TZID=Europe/London:20260930T130000"), NY).event!.start).toBe("08:00");
+    // Between the two changes London is on GMT and New York is still on EDT.
+    expect(readIcs(wrap("SUMMARY:X\r\nDTSTART;TZID=Europe/London:20261027T130000"), NY).event!.start).toBe("09:00");
+    // After both have changed.
+    expect(readIcs(wrap("SUMMARY:X\r\nDTSTART;TZID=Europe/London:20261201T130000"), NY).event!.start).toBe("08:00");
+  });
+
+  it("follows daylight saving in the reader's zone: the same UTC file lands an hour apart across the change", () => {
+    expect(readIcs(wrap("SUMMARY:X\r\nDTSTART:20261031T170000Z"), NY).event!.start).toBe("13:00");
+    expect(readIcs(wrap("SUMMARY:X\r\nDTSTART:20261101T170000Z"), NY).event!.start).toBe("12:00");
+  });
+
+  it("a duration is real elapsed time: 1:30 to 3:30 across the spring-forward night is one hour", () => {
+    const e = readIcs(wrap("SUMMARY:X\r\nDTSTART;TZID=America/New_York:20260308T013000\r\nDTEND;TZID=America/New_York:20260308T033000"), NY).event!;
+    expect(e.start).toBe("01:30");
+    expect(e.durationMin).toBe(60);
+  });
+
+  it("a wall clock that does not exist in its zone is flagged, not quietly moved", () => {
+    // 2:30 AM on 2026-03-08 does not exist in New York: the clock jumps from 2:00 to 3:00.
+    const e = readIcs(wrap("SUMMARY:X\r\nDTSTART;TZID=America/New_York:20260308T023000"), LON).event!;
+    expect(e.timeUncertain).toBe(true);
+  });
+
+  it("a wall clock that happens twice is flagged too", () => {
+    // 1:30 AM on 2026-11-01 happens twice in New York.
+    const e = readIcs(wrap("SUMMARY:X\r\nDTSTART;TZID=America/New_York:20261101T013000"), LON).event!;
+    expect(e.timeUncertain).toBe(true);
+    // An ordinary time that day is not.
+    expect(readIcs(wrap("SUMMARY:X\r\nDTSTART;TZID=America/New_York:20261101T093000"), LON).event!.timeUncertain).toBeUndefined();
+  });
+
+  it("Windows zone names from Outlook are read for the common US zones", () => {
+    const e = readIcs(wrap("SUMMARY:X\r\nDTSTART;TZID=Eastern Standard Time:20260923T130000"), { zone: "America/Los_Angeles" }).event!;
+    expect(e.start).toBe("10:00");
+    expect(e.sourceZone).toBe("America/New_York");
+  });
+
+  it("a zone it cannot resolve is read as the reader's own clock AND flagged", () => {
+    const e = readIcs(wrap("SUMMARY:X\r\nDTSTART;TZID=Customized Time Zone:20260923T130000"), NY).event!;
+    expect(e.start).toBe("13:00");
+    expect(e.zoneUnresolved).toBe("Customized Time Zone");
+    expect(e.sourceZone).toBeUndefined();
+  });
+
+  it("floating times are the reader's own, on any zone", () => {
+    expect(readIcs(wrap("SUMMARY:X\r\nDTSTART:20260923T130000"), { zone: "Asia/Tokyo" }).event!.start).toBe("13:00");
+  });
+
+  it("an all-day event is still just a date, whatever zone is named", () => {
+    const e = readIcs(wrap("SUMMARY:X\r\nDTSTART;VALUE=DATE;TZID=Asia/Tokyo:20260923"), NY).event!;
+    expect(e).toEqual({ title: "X", date: "2026-09-23" });
+  });
+});
+
+describe("identity and status", () => {
+  const invite = (extra: string, cal = "") => `BEGIN:VCALENDAR\r\nVERSION:2.0\r\n${cal}BEGIN:VEVENT\r\nSUMMARY:Review\r\nDTSTART:20260923T130000\r\n${extra}\r\nEND:VEVENT\r\nEND:VCALENDAR`;
+
+  it("reads UID and SEQUENCE, so a changed invitation is the same event", () => {
+    const a = readIcs(invite("UID:abc-123@calendar.example\r\nSEQUENCE:0"), NY).event!;
+    const b = readIcs(invite("UID:abc-123@calendar.example\r\nSEQUENCE:2"), NY).event!;
+    expect(a.uid).toBe("abc-123@calendar.example");
+    expect(b.uid).toBe(a.uid);
+    expect([a.sequence, b.sequence]).toEqual([0, 2]);
+  });
+
+  it("METHOD:CANCEL and STATUS:CANCELLED both read as cancelled", () => {
+    expect(readIcs(invite("UID:x", "METHOD:CANCEL\r\n"), NY).event!).toMatchObject({ method: "CANCEL", status: "cancelled" });
+    expect(readIcs(invite("UID:x\r\nSTATUS:CANCELLED"), NY).event!.status).toBe("cancelled");
+    expect(readIcs(invite("UID:x\r\nSTATUS:CANCELED"), NY).event!.status).toBe("cancelled");
+    expect(readIcs(invite("UID:x\r\nSTATUS:TENTATIVE"), NY).event!.status).toBe("tentative");
+    expect(readIcs(invite("UID:x", "METHOD:REQUEST\r\n"), NY).event!.status).toBeUndefined();
+  });
+
+  it("reads the organizer and attendees, with quoted names and mailto values", () => {
+    const e = readIcs(invite([
+      'ORGANIZER;CN="Patel, MD":mailto:Office@Clinic.example',
+      "ATTENDEE;CN=Dave Fisher;PARTSTAT=ACCEPTED:mailto:dave@me.com",
+      "ATTENDEE:mailto:nurse@clinic.example",
+    ].join("\r\n")), NY).event!;
+    expect(e.organizer).toEqual({ email: "office@clinic.example", name: "Patel, MD" });
+    expect(e.attendees).toEqual([{ email: "dave@me.com", name: "Dave Fisher" }, { email: "nurse@clinic.example" }]);
+  });
+
+  it("an event with none of it carries none of it", () => {
+    const e = readIcs(wrap("SUMMARY:Plain\r\nDTSTART:20260923T130000"), NY).event!;
+    expect(e).toEqual({ title: "Plain", date: "2026-09-23", start: "13:00" });
+  });
+
+  it("still reads only the first event, and says how many there were", () => {
+    const raw = "BEGIN:VCALENDAR\r\nMETHOD:REQUEST\r\n"
+      + "BEGIN:VEVENT\r\nUID:one\r\nSUMMARY:First\r\nDTSTART:20260923T130000\r\nEND:VEVENT\r\n"
+      + "BEGIN:VEVENT\r\nUID:two\r\nSUMMARY:Second\r\nDTSTART:20260924T090000\r\nSTATUS:CANCELLED\r\nEND:VEVENT\r\nEND:VCALENDAR";
+    const r = readIcs(raw, NY);
+    expect(r.count).toBe(2);
+    expect(r.event).toMatchObject({ uid: "one", title: "First", method: "REQUEST" });
+    expect(r.event!.status).toBeUndefined();
   });
 });

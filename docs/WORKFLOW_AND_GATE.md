@@ -47,12 +47,12 @@ those fail locally and nowhere else.
 
 ```
 jarvis-core:  npx tsc --noEmit
-              npx vitest run                      # 94 tests
+              npx vitest run                      # 95 tests
 
 jarvis-app:   npx tsc --noEmit
               npx eslint src
               npx vitest run src/laws
-              npx vitest run                      # 425 files / 5063 tests
+              npx vitest run                      # 654 files / ~8000 tests (counts as of 2026-09-29)
               npm run build
               npm run build:legal && git diff --exit-code public/
 ```

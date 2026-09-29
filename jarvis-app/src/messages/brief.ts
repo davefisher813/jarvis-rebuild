@@ -9,6 +9,10 @@
 
 import { noDashes } from "../ai/suggestions";
 import { HOSTILE_CLAUSE, untrustedBlock } from "./untrusted";
+import { BRIEF_SCHEMA_VERSION, type MeetingCandidate, type NotificationClassification, type PromptLink, type ReplyRequirements } from "./mailContracts";
+import { mailMessageKey, type MailScope } from "./mailIdentity";
+import type { SourceMessage } from "./briefSource";
+import { validateMeetingCandidates, validateNotification, validateReplyRequirements } from "./briefValidate";
 
 export interface Brief {
   summary: string;
@@ -44,6 +48,25 @@ export interface Brief {
   // A separate extractor would double the mail spend to learn something the
   // same read already saw.
   meeting?: ConfirmedMeeting;
+  // BRIEF v4 (2026-09-29): three more readings of the same conversation, from
+  // the same one call, each optional and each meaning "not analysed" when
+  // absent. See mailContracts.ts for the laws they share. Declared here so the
+  // three screens that read them have one place to look; the prompt and the
+  // validation that fill them are the brief's own.
+  /** Appointments the conversation sets, asks for, proposes or cancels. [] means none. */
+  meetingCandidates?: MeetingCandidate[];
+  /** What the sender is waiting to hear back. [] means nothing. */
+  replyRequirements?: ReplyRequirements;
+  /** What a notification wants done. null means read and nothing is wanted. */
+  notification?: NotificationClassification | null;
+  /**
+   * Set on every entry the v4 reading wrote, whether or not it found anything:
+   * it is how a v4 answer is told from a v3 one that merely lacks the new
+   * fields. A v3 entry still displays; it is upgraded on the next open.
+   */
+  schema?: number;
+  /** True when the reading was given a link list, so a notification asked about is not asked twice. */
+  linksSeen?: boolean;
 }
 
 /** A time both sides settled on, resolved against the reader's own today. */
@@ -77,7 +100,15 @@ const STATES = Object.keys(THREAD_STATE_LABEL) as ThreadState[];
 // message arrives, so every thread already summarised would keep an entry
 // with no meeting and never get one. One re-summary on the next open buys
 // the calendar offer.
-const KEY = "jarvis.mail.brief.v3";
+// v4 (2026-09-29): the cached shape gained meetingCandidates, replyRequirements
+// and notification, all from the same one call. UNLIKE v2 and v3 this bump does
+// NOT mean "everything is stale": the v3 entries keep their own key, are read
+// as a fallback so an already-summarised thread paints its summary at once, and
+// each thread is upgraded lazily, on the open that finds its entry without the
+// v4 mark (ensureThreadBrief in threadBrief.ts). Nothing is cleared at deploy,
+// and nothing pays for an upgrade until somebody opens that thread.
+const KEY = "jarvis.mail.brief.v4";
+const KEY_V3 = "jarvis.mail.brief.v3";
 const CAP = 100;
 const REPLY_MAX = 6; // words
 // A WALL BEHIND THE INSTRUCTION (2026-08-25). The prompt asks for 15 words
@@ -91,10 +122,23 @@ type Cache = Record<string, Brief>;
 export const BRIEF_SYSTEM =
   "You output only a JSON object, nothing else.\n" + HOSTILE_CLAUSE;
 
-export function briefPrompt(convo: string, todayISO = ""): string {
+/**
+ * The v4 reading's extra inputs. Present means "this is the v4 call": the
+ * conversation carries message ids and dates in its own headers, and the model
+ * is asked for the three new readings instead of the v3 `meeting`.
+ */
+export interface BriefPromptOptions {
+  /** The zone every timestamp in the conversation headers is written in. */
+  zone?: string;
+  /** True for the v4 call. */
+  v4?: boolean;
+}
+
+export function briefPrompt(convo: string, todayISO = "", links?: readonly PromptLink[], opts: BriefPromptOptions = {}): string {
+  const v4 = !!opts.v4;
   return (
     "Read this email conversation.\n\n" +
-    (todayISO ? "Today is " + todayISO + ".\n\n" : "") +
+    (todayISO && !v4 ? "Today is " + todayISO + ".\n\n" : "") +
     'Reply with ONLY: {"summary":"...","replies":["...","...","..."]}\n\n' +
     // THE SAME DISEASE AS THE PREVIEWS (Dave 2026-08-25: "The subtext on
     // email previews feels a little lengthy. It should be right to the
@@ -116,21 +160,83 @@ export function briefPrompt(convo: string, todayISO = ""): string {
     "deadline: the date or phrase somebody stated, copied in their words.\n" +
     "next: the single next action, starting with a verb, under 8 words.\n" +
     "decision: a settled choice the thread contains, COPIED as a sentence from the text. Leave it out unless you can copy it exactly.\n" +
-    // The confirmed meeting. Deliberately narrow: CONFIRMED only, never a
-    // proposal, because an offer to put a maybe in the calendar is how a
-    // calendar stops being trustworthy.
+    (v4 ? v4Instructions(links, opts.zone) : legacyMeetingInstructions()) +
+    // UP-MIND-06 (2026-09-05): the whole conversation is outside text.
+    untrustedBlock(convo + (v4 && links ? linkBlock(links) : ""))
+  );
+}
+
+// The confirmed meeting. Deliberately narrow: CONFIRMED only, never a
+// proposal, because an offer to put a maybe in the calendar is how a
+// calendar stops being trustworthy. Kept for the callers that have not moved
+// to the v4 call; the v4 call reads meetingCandidates instead.
+function legacyMeetingInstructions(): string {
+  return (
     "meeting: ONLY when the thread shows a specific time BOTH sides have settled on, as " +
     "{\"title\":\"<short name, their words>\",\"date\":\"YYYY-MM-DD\",\"start\":\"HH:MM\",\"durationMin\":<number>}. " +
     "Use 24-hour times, resolved against today's date above. " +
     "Leave it out entirely if the time is only PROPOSED, is one of several options, is conditional, or if you cannot resolve a real date. " +
-    "Never invent a date, a time or a duration you were not given; default the duration to 60 when unstated.\n\n" +
-    // UP-MIND-06 (2026-09-05): the whole conversation is outside text.
-    untrustedBlock(convo)
+    "Never invent a date, a time or a duration you were not given; default the duration to 60 when unstated.\n\n"
   );
 }
 
+// BRIEF v4 (2026-09-29). Three more readings from the same one call. The model
+// is asked to POINT (a message id, a sentence copied exactly) and never to
+// resolve: dates and times are read out of the sentence by code (meetingRead.ts)
+// against the day the message was written, ids are hashed locally, and a link
+// is only ever an id from the list below. Every one is checked in
+// briefValidate.ts and dropped if it does not hold.
+function v4Instructions(links: readonly PromptLink[] | undefined, zone: string | undefined): string {
+  return (
+    "Every message below starts with a header line naming its id, who wrote it and when" + (zone ? " (times are in " + zone + ")" : "") + ". " +
+    "In the items below, messageId is copied from a header and quote is copied EXACTLY from that message's own text, one sentence or phrase, never from quoted history.\n" +
+    "meetingCandidates: every appointment, call or meeting the conversation SETS (agreed), ASKS for (requested), PROPOSES (proposed) or CANCELS (cancelled), as " +
+    "[{\"messageId\":\"...\",\"quote\":\"...\",\"title\":\"<short name>\",\"status\":\"agreed|requested|proposed|cancelled\"}]. " +
+    "The quote must contain the day and the time as the sender wrote them. Do NOT work out dates or times yourself and do not add any. " +
+    "Give one item per option when several times are offered. Use [] when there are none.\n" +
+    "replyRequirements: what the people writing to the reader are still waiting to hear back, as " +
+    "[{\"messageId\":\"...\",\"quote\":\"...\",\"kind\":\"question|request|decision|commitment\",\"label\":\"<2 to 3 words>\"," +
+    "\"match\":{\"kind\":\"choice|date_time|quantity|attachment|free_text\",\"topicTerms\":[\"<words a reply would use>\"],\"choices\":[\"<each option>\"],\"evidenceTerms\":[\"<other words that show it was answered>\"]}}]. " +
+    "Only questions, requests, decisions and commitments addressed TO the reader. Leave out greetings, rhetorical questions, promises the sender makes about themselves, asks already answered by a later message from the reader, and requests aimed at someone else. " +
+    "Use kind attachment when the sender wants a file. Use choices only when the sender offered options. Use [] when nothing is being asked.\n" +
+    (links !== undefined
+      ? "notification: when the newest message is an automated notice asking the reader to do one thing, {\"kind\":\"grant_access|open_share|accept_invite|sign|track|add_travel|fill_form|fix_payment|copy_code|unsubscribe\",\"linkId\":\"<an id from LINKS, if the action opens one>\",\"quote\":\"<the sentence that says so>\"}. " +
+        "linkId must be one of the ids listed under LINKS and nothing else. Use null when nothing is being asked.\n"
+      : "") +
+    "\n"
+  );
+}
+
+// The links a notice carries, as an id, the host and the words on the link.
+// The model is never shown the address itself and cannot return one.
+function linkBlock(links: readonly PromptLink[]): string {
+  if (links.length === 0) return "\nLINKS: none";
+  return "\nLINKS:\n" + links.slice(0, 12).map((l) => l.id + " | " + l.host + " | " + l.text.replace(/\s+/g, " ").slice(0, 80)).join("\n");
+}
+
+/**
+ * What the v4 reading needs to check a model answer against the conversation
+ * that produced it. Without it `parseBrief` is the v3 parser and reads none of
+ * the new fields, so every existing caller and test is untouched.
+ */
+export interface BriefContext {
+  account: string;
+  threadId: string;
+  subject?: string;
+  /** What THIS call showed the model, with the text it was shown. */
+  messages: readonly SourceMessage[];
+  /** The zone the conversation's timestamps were written in. */
+  zone: string;
+  /** The latest message id the reading was made from. */
+  sourceRevision: string;
+  /** False when part of the conversation was not read. Never shown as complete then. */
+  completeSource: boolean;
+  /** The link list the model was shown. Undefined means notifications were not asked about. */
+  links?: readonly PromptLink[];
+}
+
 // Tolerant: a missing or malformed half never poisons the other half.
-export function parseBrief(raw: string): Brief | null {
+export function parseBrief(raw: string, ctx?: BriefContext): Brief | null {
   const start = raw.indexOf("{");
   const end = raw.lastIndexOf("}");
   if (start < 0 || end <= start) return null;
@@ -141,7 +247,7 @@ export function parseBrief(raw: string): Brief | null {
     return null;
   }
   if (typeof o !== "object" || o === null) return null;
-  const { summary, replies, state, agreed, unresolved, deadline, next, decision, meeting } = o as Record<string, unknown>;
+  const { summary, replies, state, agreed, unresolved, deadline, next, decision, meeting, meetingCandidates, replyRequirements, notification } = o as Record<string, unknown>;
   const s = typeof summary === "string" ? clip(noDashes(summary.trim()), SUMMARY_MAX) : "";
   const r = Array.isArray(replies)
     ? replies.filter((x): x is string => typeof x === "string" && !!x.trim()).map((x) => noDashes(x.trim())).slice(0, 3)
@@ -159,8 +265,13 @@ export function parseBrief(raw: string): Brief | null {
   const nx = typeof next === "string" && next.trim() ? noDashes(clip(next.trim(), 60)) : "";
   const dc = typeof decision === "string" && decision.trim() ? noDashes(decision.trim().slice(0, 200)) : "";
   const mt = parseMeeting(meeting);
+  // v4. Each reading is present only when the model ANSWERED it: an omitted key
+  // is "not analysed", an empty array is "analysed, none". Whatever is present
+  // has been through the wall in briefValidate.ts.
+  const v4 = ctx ? readV4(ctx, { meetingCandidates, replyRequirements, notification }) : null;
   return {
     summary: s, replies: r,
+    ...(v4 ?? {}),
     ...(st ? { state: st } : {}),
     ...(ag.length ? { agreed: ag } : {}),
     ...(un.length ? { unresolved: un } : {}),
@@ -169,6 +280,29 @@ export function parseBrief(raw: string): Brief | null {
     ...(dc ? { decision: dc } : {}),
     ...(mt ? { meeting: mt } : {}),
   };
+}
+
+function readV4(
+  ctx: BriefContext,
+  got: { meetingCandidates: unknown; replyRequirements: unknown; notification: unknown },
+): Pick<Brief, "meetingCandidates" | "replyRequirements" | "notification" | "schema" | "linksSeen"> {
+  const vctx = { account: ctx.account, threadId: ctx.threadId, ...(ctx.subject ? { subject: ctx.subject } : {}), messages: ctx.messages, zone: ctx.zone };
+  const out: Pick<Brief, "meetingCandidates" | "replyRequirements" | "notification" | "schema" | "linksSeen"> = { schema: BRIEF_SCHEMA_VERSION };
+  if (Array.isArray(got.meetingCandidates)) out.meetingCandidates = validateMeetingCandidates(got.meetingCandidates, vctx);
+  if (Array.isArray(got.replyRequirements)) {
+    out.replyRequirements = {
+      items: validateReplyRequirements(got.replyRequirements, vctx),
+      completeSource: ctx.completeSource,
+      sourceRevision: ctx.sourceRevision,
+    };
+  }
+  if (ctx.links !== undefined) {
+    out.linksSeen = true;
+    // A key that is absent is "not analysed"; one that is present and does not
+    // survive is "analysed, nothing wanted".
+    if (got.notification !== undefined) out.notification = validateNotification(got.notification, ctx.links, ctx.messages) ?? null;
+  }
+  return out;
 }
 
 // STRICT, BECAUSE THIS ONE WRITES TO A CALENDAR. Every field has to be
@@ -216,25 +350,71 @@ function clip(s: string, max: number): string {
   return (back.length > max * 0.6 ? back : cut).replace(/[.,;:\s]+$/, "") + "\u2026";
 }
 
-export function loadBriefs(): Cache {
+// The home list asks briefFor once per row, and each ask used to parse the
+// whole cache again. The parse is kept per key against the exact text it came
+// from, so an unchanged cache is parsed once and a changed one is parsed anew.
+// Callers get the shared object and must not change it (saveBrief copies).
+const parsed = new Map<string, { raw: string; val: Cache }>();
+function readMap(key: string): Cache {
+  let raw: string;
+  try { raw = localStorage.getItem(key) || "{}"; } catch { return {}; }
+  const hit = parsed.get(key);
+  if (hit && hit.raw === raw) return hit.val;
+  let val: Cache = {};
   try {
-    const raw = JSON.parse(localStorage.getItem(KEY) || "{}") as unknown;
-    return typeof raw === "object" && raw !== null && !Array.isArray(raw) ? (raw as Cache) : {};
-  } catch {
-    return {};
-  }
+    const v = JSON.parse(raw) as unknown;
+    if (typeof v === "object" && v !== null && !Array.isArray(v)) val = v as Cache;
+  } catch { val = {}; }
+  parsed.set(key, { raw, val });
+  return val;
 }
+
+/**
+ * Every brief this device holds: the v3 entries underneath, the v4 entries on
+ * top. A thread summarised before v4 still shows its summary and state card
+ * the instant it opens; it just has no `schema` mark, which is what tells
+ * ensureThreadBrief to read it again once, when somebody opens it.
+ */
+export function loadBriefs(): Cache {
+  return { ...readMap(KEY_V3), ...readMap(KEY) };
+}
+
+const isBrief = (b: unknown): b is Brief => !!b && typeof (b as Brief).summary === "string";
 
 // Keyed by the thread's LATEST message id: a new reply invalidates it, which
-// is exactly when the summary stops being true.
-export function briefFor(lastMsgId: string, cache: Cache = loadBriefs()): Brief | null {
-  const hit = cache[lastMsgId];
-  return hit && typeof hit.summary === "string" ? hit : null;
+// is exactly when the summary stops being true. v4 entries are keyed by account
+// as well (mailMessageKey), because two connected mailboxes can hold a message
+// with the same id; the bare id still finds an entry, so a caller with no
+// account (the home snapshot's reply chips) keeps working.
+export function briefFor(lastMsgId: string, cache: Cache = loadBriefs(), scope?: MailScope): Brief | null {
+  if (scope) {
+    const scoped = cache[mailMessageKey(scope, lastMsgId)];
+    if (isBrief(scoped)) return scoped;
+  }
+  // A caller with no account (the home snapshot's reply chips) takes a v4
+  // entry for that message id from whichever mailbox has one, ahead of a v3
+  // entry that has no account to prove.
+  if (!scope) {
+    const suffix = ":m:" + encodeURIComponent(lastMsgId);
+    for (const k of Object.keys(cache)) {
+      if (k.endsWith(suffix) && isBrief(cache[k])) return cache[k]!;
+    }
+  }
+  const bare = cache[lastMsgId];
+  return isBrief(bare) ? bare : null;
 }
 
-export function saveBrief(lastMsgId: string, brief: Brief): void {
-  const cache = loadBriefs();
-  cache[lastMsgId] = brief;
+/** True only for an entry the v4 reading wrote. A v3 entry displays but is not this. */
+export function isCurrentBrief(b: Brief | null): b is Brief {
+  return !!b && b.schema === BRIEF_SCHEMA_VERSION;
+}
+
+export function saveBrief(lastMsgId: string, brief: Brief, scope?: MailScope): void {
+  const cache: Cache = { ...readMap(KEY) };
+  const key = scope ? mailMessageKey(scope, lastMsgId) : lastMsgId;
+  // Re-saving moves the entry to the newest end, so the cap drops the oldest read.
+  delete cache[key];
+  cache[key] = brief;
   const keys = Object.keys(cache);
   const trimmed: Cache = {};
   for (const k of keys.slice(-CAP)) trimmed[k] = cache[k]!;

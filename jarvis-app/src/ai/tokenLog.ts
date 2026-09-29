@@ -10,6 +10,8 @@
 // two more counters on the same usage object. They are the only way to know
 // whether prompt caching is actually paying for itself, so they ride into the
 // same ledger under Anthropic's own names.
+import { nanoPriceOf } from "./aiBudget";
+
 export interface AnthropicUsage {
   input_tokens?: unknown;
   output_tokens?: unknown;
@@ -75,6 +77,12 @@ function toCount(v: unknown): number | null {
 // model family in the id ("claude-sonnet-4-6" is a sonnet) so a version bump
 // does not silently drop a model out of the table.
 //
+// 2026-09-29 (the spending limit): the server now ADMITS calls against an
+// exact-id table (src/ai/aiBudget.ts) and this display estimate reads the same
+// table first, so the number under "AI Calls Today" and the balance in AI
+// Control are priced by one source. The family match below stays only as the
+// fallback for a model that is no longer in that table (old ai_tokens rows).
+//
 // A model this table does not know prices at NULL, not zero. An estimate
 // nobody can trace is worse than no estimate, and a fake zero next to a real
 // bill is the exact shape of lie this codebase does not tell.
@@ -87,6 +95,8 @@ const PRICES: readonly { family: string; price: ModelPrice }[] = [
 ];
 
 export function priceOf(model: string): ModelPrice | null {
+  const exact = nanoPriceOf(model);
+  if (exact) return { input: exact.input / 1000, output: exact.output / 1000 };
   const m = (model || "").toLowerCase();
   return PRICES.find((p) => m.includes(p.family))?.price ?? null;
 }
@@ -135,8 +145,12 @@ export function estimateCost(totals: TokenTotals[]): number | null {
     if (!p) return null;
     usd += (t.inputTokens * p.input) / 1e6;
     usd += (t.outputTokens * p.output) / 1e6;
-    usd += (t.cacheReadTokens * p.input * CACHE_READ_MULTIPLIER) / 1e6;
-    usd += (t.cacheWriteTokens * p.input * CACHE_WRITE_MULTIPLIER) / 1e6;
+    // An exact-table model carries its own cache rates (they are not always
+    // 0.1x: Opus 5.5 reads at 0.05x, Fable 5.1 at 0.025x); the rest use the
+    // standard multipliers.
+    const n = nanoPriceOf(t.model);
+    usd += (t.cacheReadTokens * (n ? n.cacheRead / 1000 : p.input * CACHE_READ_MULTIPLIER)) / 1e6;
+    usd += (t.cacheWriteTokens * (n ? n.cacheWrite5m / 1000 : p.input * CACHE_WRITE_MULTIPLIER)) / 1e6;
   }
   return usd;
 }

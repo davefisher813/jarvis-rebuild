@@ -13,6 +13,10 @@
 export const config = { runtime: "edge" };
 
 import { totalsByModel } from "../src/ai/tokenLog";
+import { budgetStatus, capEnforced, setLimit } from "./_aiBudget";
+
+// The most a person can set. A typo of a zero should not be a $50,000 cap.
+const MAX_LIMIT_MICROUSD = 1_000_000_000; // $1,000
 
 function json(data: unknown, status = 200): Response {
   return new Response(JSON.stringify(data), {
@@ -22,7 +26,7 @@ function json(data: unknown, status = 200): Response {
 }
 
 export default async function handler(req: Request): Promise<Response> {
-  if (req.method !== "GET") return json({ error: "Method not allowed" }, 405);
+  if (req.method !== "GET" && req.method !== "PATCH") return json({ error: "Method not allowed" }, 405);
 
   const auth = req.headers.get("authorization") || "";
   const token = auth.startsWith("Bearer ") ? auth.slice(7) : "";
@@ -37,9 +41,32 @@ export default async function handler(req: Request): Promise<Response> {
   if (!me.id) return json({ error: "Unauthorized" }, 401);
 
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  // THE SPENDING LIMIT. PATCH takes ONLY the new limit and the version the
+  // client last saw. Spent and held are never accepted from the browser: the
+  // database owns them. The verified id above is the only owner.
+  if (req.method === "PATCH") {
+    if (!capEnforced()) return json({ error: "There is no spending limit right now." }, 404);
+    if (!serviceKey) return json({ error: "AI paused. The spending limit could not be checked.", code: "AI_BUDGET_UNAVAILABLE" }, 503);
+    let patch: { limitMicrousd?: unknown; expectedVersion?: unknown };
+    try { patch = (await req.json()) as typeof patch; } catch { return json({ error: "Bad request" }, 400); }
+    const lim = patch.limitMicrousd, ver = patch.expectedVersion;
+    if (typeof lim !== "number" || !Number.isInteger(lim) || lim < 0 || lim > MAX_LIMIT_MICROUSD
+      || typeof ver !== "number" || !Number.isInteger(ver) || ver < 1) {
+      return json({ error: "Bad request" }, 400);
+    }
+    const out = await setLimit({ supaUrl, serviceKey }, me.id, lim, ver);
+    if (out.status === "ok") return json({ budget: out.budget });
+    if (out.status === "version_conflict") {
+      return json({ error: "Your limit changed somewhere else. Reload and try again.", code: "VERSION_CONFLICT", budget: out.budget }, 409);
+    }
+    if (out.status === "invalid") return json({ error: "Bad request" }, 400);
+    return json({ error: "AI paused. The spending limit could not be checked.", code: "AI_BUDGET_UNAVAILABLE" }, 503);
+  }
+
   // Without the service key there is no usage log at all (the proxy shouts
   // about that state on every call). Honest null, not a fake zero.
-  if (!serviceKey) return json({ count: null, calls: [], tokens: [] });
+  if (!serviceKey) return json({ count: null, calls: [], tokens: [], budget: null });
 
   // "Today" is the last 24 hours, matching the global cap's window, so the
   // number the user sees moves the same way the limit does.
@@ -49,7 +76,7 @@ export default async function handler(req: Request): Promise<Response> {
     `${supaUrl}/rest/v1/ai_usage?user_id=eq.${me.id}&created_at=gte.${since}&select=created_at,kind&order=created_at.desc&limit=200`,
     { headers: svc },
   );
-  if (!r.ok) return json({ count: null, calls: [], tokens: [] });
+  if (!r.ok) return json({ count: null, calls: [], tokens: [], budget: null });
   const rows = (await r.json()) as { created_at: string; kind?: string }[];
 
   // The cost half. Best effort and separate from the count: a token read that
@@ -67,9 +94,14 @@ export default async function handler(req: Request): Promise<Response> {
     if (tr.ok) tokens = totalsByModel((await tr.json()) as Record<string, unknown>[]);
   } catch { /* the count still stands on its own */ }
 
+  // The balance, read once here. Null when it cannot be read: the screen says
+  // so rather than showing a stale or invented number.
+  const budget = capEnforced() ? await budgetStatus({ supaUrl, serviceKey }, me.id) : null;
+
   return json({
     count: rows.length,
     calls: rows.map((x) => ({ at: x.created_at, kind: x.kind || "" })),
     tokens,
+    budget,
   });
 }

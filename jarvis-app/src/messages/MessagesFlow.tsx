@@ -1,9 +1,14 @@
 import { useCallback, useEffect, useRef, useState, Suspense, useMemo } from "react";
 import { lazyWithRecovery } from "../shell/chunkRecovery";
 import PageHeader, { BarAction } from "../shared/PageHeader";
-import { Mail, Plus, Archive, Trash2, CornerUpLeft, Forward, Send, Tag, Clock, MessageSquare, Volume2, Hourglass, ListChecks, CalendarClock, FolderKanban } from "../shared/icons";
+import { Mail, Plus, Archive, Trash2, Brain, CornerUpLeft, Forward, Send, Tag, Clock, MessageSquare, Volume2, Hourglass, ListChecks, CalendarClock, FolderKanban } from "../shared/icons";
 import { leadFor, faceSlot } from "./rowAnatomy";
 import { Facts, ruleStateFact, dayTone, type FactTone } from "./factsLine";
+import { useEmailFiling } from "./useEmailFiling";
+import { useEmailSections } from "./useEmailSections";
+import { filterBySection } from "./emailSections";
+import SectionFilterBar, { SectionNoMatch } from "./SectionFilterBar";
+import { emailFilingPreview } from "./emailFilingText";
 import { loadOverrides, saveOverride, clearOverride, applyOverrides, type ThreadOverrides } from "./threadOverride";
 import type { TaskItem } from "../tasks/TasksService";
 import { attemptWrite } from "../shared/guard";
@@ -23,8 +28,8 @@ import {
   type ThreadRow, type ThreadFull, type MailFull, type EmailAttachment,
 } from "../connections/google/map";
 import { selfBlankGuard,
-  loadTriageCache, saveTriageCache, triageDelta, buildTriageInput, parseTriage, TRIAGE_SCHEMA,
-  fillSkipped, splitByBucket, noiseLine, sortByDeadline, byRank, applyKnownPeople, knownSenderEmails,
+  loadTriageView, saveTriageView, dropLegacyTriage, triageDelta, isAnalysed,
+  splitByBucket, noiseLine, sortByDeadline, byRank, applyKnownPeople, knownSenderEmails,
   type TriageMap, type Bucket,
 } from "./triage";
 import { loadRules, saveRule, clearRule, applyRules, setRuleEnabled, setRuleAccount, type SenderRules } from "./rules";
@@ -34,8 +39,20 @@ import MailSwipe from "./MailSwipe";
 import LetGoSwipe from "./LetGoSwipe";
 import { loadMuted, mute, unmute, dropMuted } from "./mute";
 import { parseUnsub, unsubLabel, unsubLine, UNSUB_SUBJECT, UNSUB_BODY, type Unsub } from "./unsubscribe";
-import { BRIEF_SYSTEM, briefPrompt, parseBrief, briefFor, saveBrief, type ConfirmedMeeting } from "./brief";
-import { loadRows, saveRows, mirrorRows, isFresh, markRead, invalidate as invalidateReads } from "./mailCache";
+import { requestUnsubscribe } from "./unsubscribeAction";
+import { openExternal } from "./openExternal";
+import { briefFor, isCurrentBrief, loadBriefs, type Brief } from "./brief";
+import { ensureThreadBrief } from "./threadBrief";
+import { revisionOf } from "./briefSource";
+import MeetingFinishCard, { type MeetingNotice } from "./MeetingFinishCard";
+import ReplyCoverage from "./coverage/ReplyCoverage";
+import { useReplyRequirements, replySourceOf } from "./useReplyRequirements";
+import { addEmailMeetingOnce, icsToCandidate } from "./emailSchedule";
+import { proposedFromBrief } from "./meetingOffers";
+import type { CoverageOverride } from "./replyCoverage";
+import { loadRows, loadAccount, mirrorRows, isFresh, markRead, invalidate as invalidateReads, dropLegacyMailCache, FRESH_MS, type ReadKind } from "./mailCache";
+import { refreshInboxAccounts, loadMoreInbox, ensureThreadAnalysis, loadFullInboxIndex, markGone, unmarkGone, MAIL_PAGE } from "./inboxRefresh";
+import { useUserId } from "../data/NotesProvider";
 import { emit } from "../events";
 import { usePushDepth } from "../shared/pushNav";
 import { Burst } from "../shared/Burst";
@@ -56,8 +73,10 @@ import { PRESETS, loadMinutes, saveMinutes, clampMinutes } from "./drain";
 import { handoffTargets, defaultNote, handoffPrompt, forwardSubject, forwardDraft, type HandoffTarget } from "./handoff";
 import { alreadyPromised, loadPromised } from "./commitments";
 import { saveMailSnapshot, mailNotices, loadMailSnapshot, byLabel, type MailMeeting } from "./home";
+import { buildNotificationSnapshot, classificationFrom, redactCodes } from "./notificationActions";
+import { notificationLookup, scanNotifications } from "./notificationScan";
 import EvidenceChip from "./EvidenceChip";
-import ThreadStateCard, { whenLine } from "./ThreadStateCard";
+import ThreadStateCard from "./ThreadStateCard";
 import DecisionCaptureSheet from "../decisions/DecisionCaptureSheet";
 import { anchorNeedsYou, needsAnchor, ANCHOR_CAP } from "./evidencePass";
 import { makePersonIdFor, noPersonId, type PersonIdFor } from "./personFor";
@@ -68,7 +87,8 @@ import { buildLedger, ledgerFloor, ledgerTone, type Ledger, type LedgerRow } fro
 import { settleAll, settleLine, type SettleWords } from "./settle";
 import { recordSweepDay, loadSweepDays, sweepWeek, receiptLines, sweepEstimate, type SweepReceipts } from "./sweep";
 import ListFloor from "../shared/ListFloor";
-import { senderPiles, selectedCount, selectedIds, purgeLabel, purgePromise, defaultPicks } from "./purge";
+import { senderPiles, selectedCount, selectedRows, purgeLabel, purgePromise, defaultPicks } from "./purge";
+import { buildTrashPlan, trashSelection, undoTrashSelection, confirmCopy, receiptLine, type EnsureApi, type TrashPlan } from "./bulkMail";
 import { readIcs } from "./ics";
 import { isNoReply, isBulk , isMachineAddress } from "./noReply";
 import { humanError } from "../connections/google/humanError";
@@ -85,11 +105,9 @@ import { WRITE_FAILED_MESSAGE } from "../shared/guard";
 // EMAIL-F-18 (2026-09-05): one page of the inbox. Load More asks for one
 // page more (each account, newest first), which is the shape Gmail's threads
 // list gives us without a page token.
-const MAIL_PAGE = 30;
 // UP-MIND-17 (2026-09-05): how far Clean Out walks. Six pages of thirty is
 // most real inboxes and a bounded number of requests; past that the screen
 // still says "there may be more", which it already knew how to say.
-const PURGE_PAGES = 6;
 
 // The words every mail-archive receipt uses, in one place, because the four
 // batch sites used to phrase the same outcome four ways.
@@ -150,7 +168,7 @@ import { nextOpening, BOOK_MIN } from "./bookTime";
 
 import { suggestAttachment, suggestLine, noteAsText, attachmentFilename, type AttachSuggestion, type Candidate } from "./attachSuggest";
 import { staleDrafts, staleLine, loadOffered } from "./staleDrafts";
-import { draftKey, loadLocalDraft, loadLocalDrafts, saveLocalDraft, clearLocalDraft, continuableReply, restoreInto, type LocalDrafts } from "./composeDraft";
+import { draftKey, loadLocalDraft, loadLocalDrafts, saveLocalDraft, clearLocalDraft, continuableReply, restoreInto, carriedOverrides, type LocalDrafts } from "./composeDraft";
 import { findTaskForThread, taskTitleOf } from "./dupTaskGuard";
 import LaterSheet, { TONIGHT_HHMM, type LaterPick } from "./LaterSheet";
 import { snoozeNotice } from "./snoozeNotice";
@@ -175,7 +193,11 @@ import { b64urlDecodeBytes } from "../connections/google/map";
 import { lineCase } from "../shared/casing";
 import { clockLabel, minutesLabel, secondsLabel } from "../shared/duration";
 
-type Draft = { to: string; cc?: string; subject: string; body: string; html?: string; inReplyTo?: string; threadId?: string; fromDeck?: boolean; account?: string; handoffTo?: string; attachment?: EmailAttachment; modelBody?: string };
+// sourceRevision and overrides are REPLY COVERAGE'S: the conversation revision a
+// reply was started against (with threadId and account, the source it answers),
+// and the marks made by hand on its checklist. A new compose and a forward
+// carry neither; they are not replies.
+type Draft = { to: string; cc?: string; subject: string; body: string; html?: string; inReplyTo?: string; threadId?: string; fromDeck?: boolean; account?: string; handoffTo?: string; attachment?: EmailAttachment; modelBody?: string; sourceRevision?: string; overrides?: Record<string, CoverageOverride> };
 // EMAIL-F-13 (2026-09-05): a draft belongs to the account that listed it.
 // Without the tag, opening a second-account draft went through the first
 // account's api and 404'd, and a legacy draft sent from the wrong address.
@@ -403,6 +425,8 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   // moved its read to MailOutboxPump, which is where the pixel is now added.
   const profileSvc = useOptionalProfile();
   const [view, setView] = useState<View>("list");
+  // BRAIN "FILE IT" (2026-09-29): all of it lives in useEmailFiling.
+  const emailFiling = useEmailFiling(view === "detail");
   // A PUSHED SCREEN STARTS AT THE TOP (2026-08-25, caught by a browser walk
   // of the Clean Out). Nothing in the app resets scroll between views, so
   // opening a screen from a link at the FOOT of a long list lands you
@@ -441,6 +465,21 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     if (el) el.scrollTop = 0; else window.scrollTo(0, 0);
   }, [view]);
   const [rows, setRows] = useState<ThreadRow[]>([]);
+  // WHOSE MAIL (2026-09-29). Every cache this screen touches is keyed by the
+  // signed-in owner and the Google account, so a second account, or a second
+  // sign-in on the same phone, can never read the first one's rows. "local"
+  // only in a harness with no provider.
+  const userId = useUserId() ?? "local";
+  const userIdRef = useRef(userId);
+  userIdRef.current = userId;
+  const scopeOf = useCallback((account: string) => ({ userId, account }), [userId]);
+  // True for the one render after rows came FROM the server or the cache (as
+  // opposed to being edited here by an archive or a trash), and until the
+  // first paint or load has happened (so the empty initial state never
+  // overwrites a good cache).
+  const serverRows = useRef(false);
+  const mirrorArmed = useRef(false);
+  const satelliteBusy = useRef(new Set<ReadKind>());
   const [triage, setTriage] = useState<TriageMap>({});
   const [triaged, setTriaged] = useState(false);
   // Never show the wall: For You has three honest states besides "ready".
@@ -464,6 +503,17 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   // multi-select on Needs You would be a tool for ignoring things that need
   // you.
   const [picked, setPicked] = useState<ReadonlySet<string> | null>(null);
+  // EMAIL SECTIONS (2026-09-29): the person's own saved filters over the
+  // loaded mail (messages/emailSections.ts). `sectionId` is which chip is on;
+  // null is All. onSectionChange is the ONE place a change of section also
+  // resets anything else, so a selection made under one section can never
+  // reach across into another: add further selection state to it.
+  const emailSections = useEmailSections();
+  const [sectionId, setSectionId] = useState<string | null>(null);
+  const onSectionChange = (id: string | null) => {
+    setSectionId(id);
+    setPicked(null);
+  };
   // 11A: the Clean Out screen's selection, keyed by SENDER rather than by
   // thread. Nobody wants to make four hundred decisions; everybody can make
   // eight.
@@ -760,109 +810,117 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   // is still a wall. Now: 12 threads per request, 20s ceiling each, one silent
   // retry per batch, and the sorted view appears as soon as the FIRST batch
   // lands instead of waiting for the whole inbox.
-  const runTriage = useCallback(async (threads: ThreadRow[]) => {
+  const runTriage = useCallback(async (threads: ThreadRow[], force = false) => {
     if (!ai.available || triageBusy.current) return;
-    const cache = loadTriageCache();
-    const delta = triageDelta(threads, cache);
+    // THE SORT NOW LIVES IN inboxRefresh.ensureThreadAnalysis (2026-09-29), one
+    // implementation shared with the home snapshot and the pump, scoped by
+    // owner and account, joined when two callers ask at once. This is only
+    // the screen's half: progress, and what to show when it fails.
+    const accounts = [...new Set(threads.map((t) => t.account).filter((a): a is string => !!a))];
+    const cache = loadTriageView(userId, accounts);
+    const delta = triageDelta(threads, cache, { retryFallback: force });
     if (delta.length === 0) {
       setTriage(cache);
       setTriaged(true);
-      setTriageState("ready");
+      // A sort that failed leaves visible FALLBACK entries behind so nothing is
+      // hidden, and the next visit finds nothing left to ask. That must not
+      // read as "sorted": when NOTHING was ever actually analysed, the calm
+      // failed state (with Try Again) stays.
+      const allFallback = threads.length > 0 && threads.every((t) => cache[t.id]?.fallback);
+      if (allFallback) {
+        setTriageWhy((w) => w || "The sort didn't come back");
+        setTriageState((s) => (s === "ready" ? s : "failed"));
+      } else {
+        setTriageState("ready");
+      }
       return;
     }
     triageBusy.current = true;
     setTriageState((s) => (s === "ready" ? s : "pending"));
     setSortProg({ done: 0, total: delta.length });
-    let merged: TriageMap = { ...cache };
     let anyOk = false;
     let lastErr = "";
+    let base = 0;
     try {
-      for (let i = 0; i < delta.length; i += TRIAGE_BATCH) {
-        const batch = delta.slice(i, i + TRIAGE_BATCH);
-        let parsed = null;
-        for (let attempt = 0; attempt < 2 && !parsed; attempt++) {
-          try {
-            const raw = await withTimeout(
-              ai.complete(
-                [{ role: "user", content: buildTriageInput(batch) }],
-                "You output only a JSON array, nothing else.",
-                { kind: "triage", schema: TRIAGE_SCHEMA },
-              ),
-              TRIAGE_TIMEOUT_MS,
-            );
-            parsed = parseTriage(raw, batch);
-            if (!parsed) lastErr = "Sort came back unreadable";
-          } catch (e) {
-            // The raw AI response body used to land here and render under
-            // "Couldn't Sort Your Mail", cut off mid-JSON at 140 characters
-            // (2026-08-25).
-            // 2026-09-02: the proxy's 502 used to read as "Google's mail
-            // service is having trouble" (humanError knows only Gmail).
-            // The sort is the AI proxy; say what its upstream said.
-            lastErr = aiFailureLine(e, "The sort didn't come back");
-          }
-        }
-        // A batch that failed is still a batch that is no longer pending, so
-        // the count moves either way. It measures work attempted, not work
-        // that succeeded, and a stuck number would be the lie here.
-        setSortProg({ done: Math.min(i + batch.length, delta.length), total: delta.length });
-        if (!parsed) continue; // this batch stays unsorted; the rest still sorts
-        merged = fillSkipped({ ...merged, ...parsed }, batch);
-        anyOk = true;
-        // Render progress immediately: partial sorted beats a spinner.
-        saveTriageCache(merged);
-        setTriage(merged);
-        setTriaged(true);
-        setTriageState("ready");
+      // One account at a time: each has its own cache and its own cooldown,
+      // and a refusal (budget, sign-in) applies to the rest, so it ends the loop.
+      for (const account of accounts) {
+        const mine = threads.filter((t) => t.account === account);
+        const before = base;
+        const res = await ensureThreadAnalysis({ userId, account }, mine, {
+          ai, force,
+          onProgress: (p) => setSortProg({ done: Math.min(before + p.done, delta.length), total: delta.length }),
+          onBatch: () => {
+            // Render progress immediately: partial sorted beats a spinner.
+            setTriage(loadTriageView(userId, accounts));
+            setTriaged(true);
+            setTriageState("ready");
+          },
+        });
+        base += triageDelta(mine, cache, { retryFallback: force }).length;
+        const stillBlank = mine.some((t) => !loadTriageView(userId, [account])[t.id]);
+        if (res.status === "ok" || res.status === "partial" || res.status === "idle") anyOk = true;
+        else if (res.status === "cooldown" && !stillBlank) anyOk = true;
+        else lastErr = res.status === "cooldown" ? "Sorting is paused for a few minutes" : (res.message ?? "The sort didn't come back");
+        if (res.status === "budget" || res.status === "auth") break;
       }
       if (!anyOk) {
         setTriageWhy(lastErr);
         setTriageState((s) => (s === "ready" ? s : "failed"));
         return;
       }
-      // Anything a failed batch left behind is surfaced, never hidden.
-      merged = fillSkipped(merged, delta);
-      saveTriageCache(merged);
-      setTriage(merged);
+      // Anything a failed batch left behind is surfaced (as a visible
+      // fallback), never hidden.
+      setTriage(loadTriageView(userId, accounts));
+      setTriaged(true);
+      setTriageState("ready");
     } finally {
       triageBusy.current = false;
       // Cleared on every exit path, including the early return above, so a
       // sort that died never leaves a strip claiming it is still working.
       setSortProg(null);
     }
-  }, [ai]);
+  }, [ai, userId]);
 
   const loadThreads = useCallback(async (max?: number, force = false) => {
     const list = g.apis("mail");
     if (list.length === 0) return;
-    // THE READ HE ALREADY PAID FOR (2026-09-16). A tab switch remounts this
-    // whole screen, and the mount used to re-read the mailbox every time:
-    // about 93 Gmail requests per visit, per account. While the last read
-    // is still fresh the cached rows are the answer, and not one request is
-    // made. Anything deliberate (Load More, Try Again, a write that changed
-    // the inbox) passes force and always reads.
-    if (!force && max === undefined && isFresh("threads")) {
-      const cached = loadRows();
-      if (cached) {
-        pageRef.current = cached.page;
-        setRows(cached.rows);
-        setTriage(loadTriageCache());
-        // CACHED IS NOT SORTED. The rows come back without a request; whether
-        // they are SORTED is a separate question with its own cache, and only
-        // runTriage may answer it. Declaring "ready" here put unsorted mail
-        // under For You the moment anything re-ran this load.
-        void runTriage(cached.rows);
-        setLoading(false);
-        return;
-      }
+    dropLegacyMailCache();
+    dropLegacyTriage();
+    const accounts = list.map((a) => a.email);
+    // WHAT WAS ALREADY READ PAINTS AT ONCE, from each account's own cache
+    // (2026-09-16, and again 2026-09-29). A tab switch remounts this screen;
+    // the mount used to re-read the whole mailbox every time. Now: the cached
+    // window is on screen immediately, and what happens next is a CHEAP
+    // question to Gmail (one list, one history read), not a re-read. Nothing
+    // changed means no thread reads, no bodies and no AI, and no "Reading Your
+    // Inbox" screen, because the rows are already there.
+    const cachedPer = list.map(({ email }) => ({ email, c: loadRows(scopeOf(email)) }));
+    const haveAll = cachedPer.every((p) => p.c !== null);
+    const paint = () => {
+      const cachedRows = cachedPer.flatMap((p) => p.c?.rows ?? []).sort((a, b) => b.dateMs - a.dateMs);
+      pageRef.current = Math.max(MAIL_PAGE, ...cachedPer.map((p) => p.c?.page ?? 0));
+      serverRows.current = true;
+      setRows(cachedRows);
+      setTriage(loadTriageView(userId, accounts));
+      return cachedRows;
+    };
+    if (!force && max === undefined && haveAll && list.every(({ email }) => isFresh(scopeOf(email), "threads"))) {
+      const cachedRows = paint();
+      mirrorArmed.current = true;
+      // CACHED IS NOT SORTED. The rows come back without a request; whether
+      // they are SORTED is a separate question with its own cache, and only
+      // runTriage may answer it.
+      void runTriage(cachedRows);
+      setLoading(false);
+      return;
     }
-    // EMAIL-F-18 (2026-09-05): the page size is state now, not the literal
-    // 30 that used to be the whole inbox as far as this screen knew. A ref
+    // EMAIL-F-18 (2026-09-05): the page size is state, not a literal. A ref
     // rather than a dep so Load More can raise it without rebuilding the
     // callback (and re-running the load effect keyed on it).
     const want = max ?? pageRef.current;
     pageRef.current = want;
-    setLoading(true);
+    if (haveAll) { paint(); mirrorArmed.current = true; setLoading(false); } else setLoading(true);
     setError(null);
     setMailFailures([]);
     setMailDown(false);
@@ -871,57 +929,51 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
       // it lives in, and that account is where its reply will leave from.
       //
       // EMAIL-F-04 (2026-09-05): "An expired token or a dead network reads as
-      // Inbox Is Quiet and wipes the Today email band." This used to
-      // `.catch(() => [])` per account, so every transport failure became an
-      // empty inbox: runTriage([]) took its cache branch and set `triaged`,
-      // the snapshot effect wrote needsYou 0 with a fresh timestamp, and
-      // Today's band went blank until a real load happened to succeed.
-      // Fetched zero and fetch failed are different facts. A failed account
-      // is collected; if every account failed, the rows, the triage flag
-      // and the snapshot are all left exactly as they were (the last good
-      // read) and the failure is said in words a person can act on.
-      const failures: { email: string; error: unknown }[] = [];
-      const perAccount = await Promise.all(list.map(async ({ email, api }) => {
-        const metas = await api.listThreads(want).catch((e: unknown) => { failures.push({ email, error: e }); return null; });
-        if (!metas) return null;
-        return {
-          // EMAIL-F-18: Gmail answering with fewer threads than we asked for
-          // is the only honest signal that there is no more; it is the
-          // difference between "your inbox is empty" and "this is all we
-          // loaded", which the empty states used to get wrong.
-          all: metas.length < want,
-          rows: metas.map(mapThread)
-            .filter((t): t is ThreadRow => t !== null && t.inInbox)
-            .map((t) => ({ ...t, account: email })),
-        };
-      }));
+      // Inbox Is Quiet and wipes the Today email band." Fetched zero and
+      // fetch failed are different facts. A failed account keeps its last
+      // good rows (the refresh returns them, marked stale) and reports why; if
+      // every account failed the screen is left exactly as it was.
+      const out = await refreshInboxAccounts(userId, list, {
+        reason: force ? "manual" : "mount", ...(max !== undefined ? { want: max } : {}),
+        isCurrent: () => userIdRef.current === userId,
+      });
+      const failures = out.filter((o) => !o.result.ok);
       // One line per account that failed, each carrying its own cause: an
-      // expired token on one and a refusal on the other are two facts, and
-      // "failures[0]" spoke for both of them.
-      setMailFailures(failures.map((f) => ({ email: f.email, why: humanError(f.error, "Could not load mail") })));
-      // The page is down only when nothing answered. With one of two working,
-      // his other inbox is on the screen and the screen must not read as a
-      // total failure -- which it did whenever the working account happened
-      // to be empty, because the empty-with-an-error card keyed on `error`.
+      // expired token on one and a refusal on the other are two facts.
+      setMailFailures(failures.map((f) => ({ email: f.email, why: humanError(f.result.error, "Could not load mail") })));
+      // The page is down only when nothing answered.
       setMailDown(failures.length === list.length);
       if (failures.length === list.length) return;
-      const good = perAccount.filter((p): p is { all: boolean; rows: (ThreadRow & { account: string })[] } => p !== null);
-      const mapped = good.flatMap((p) => p.rows).sort((a, b) => b.dateMs - a.dateMs);
+      const mapped = out.flatMap((o) => o.result.rows).sort((a, b) => b.dateMs - a.dateMs);
       // Everything, only when every account said so and none of them failed.
-      setAtEnd(failures.length === 0 && good.every((p) => p.all));
+      setAtEnd(failures.length === 0 && out.every((o) => o.result.complete));
+      serverRows.current = true;
       setRows(mapped);
-      saveRows(mapped, want);
-      markRead("threads");
-      setTriage(loadTriageCache());
+      mirrorArmed.current = true;
+      // A pass is FRESH only once it finished: a clock set ahead of the work
+      // is how a failed read used to pass for a fresh one.
+      for (const o of out) if (o.result.ok) markRead(scopeOf(o.email), "threads");
+      setTriage(loadTriageView(userId, accounts));
       void runTriage(mapped);
       // Each satellite costs its own pile of requests and answers a question
       // that moves far more slowly than the inbox does, so each one keeps
-      // its own clock rather than riding the inbox's.
-      if (force || !isFresh("waiting")) { markRead("waiting"); void loadWaiting(); }
-      if (force || !isFresh("sweep")) { markRead("sweep"); void runSweep(); }
-      if (force || !isFresh("meetings")) {
-        markRead("meetings");
-        void findMeetings(splitByBucket(mapped, loadTriageCache()).needsYou);
+      // its own clock, per account, and is marked only when it SUCCEEDED.
+      // One pass at a time each: two loads overlapping (mount and the token
+      // effect both fire) must not both start the same expensive read just
+      // because neither has finished and marked its clock yet.
+      const stale = (k: ReadKind) => !satelliteBusy.current.has(k) && (force || list.some(({ email }) => !isFresh(scopeOf(email), k)));
+      const runPass = (k: ReadKind, go: () => Promise<boolean>) => {
+        satelliteBusy.current.add(k);
+        void go()
+          .then((ok) => { if (ok) for (const { email } of list) markRead(scopeOf(email), k); })
+          .catch(() => { /* a failed pass sets no clock */ })
+          .finally(() => { satelliteBusy.current.delete(k); });
+      };
+      if (stale("waiting")) runPass("waiting", () => loadWaiting());
+      if (stale("sweep")) runPass("sweep", () => runSweep());
+      if (stale("meetings")) {
+        const needs = splitByBucket(mapped, loadTriageView(userId, accounts)).needsYou;
+        runPass("meetings", () => findMeetings(needs));
       }
     } catch (e) {
       setError(humanError(e, "Could not load mail"));
@@ -932,20 +984,70 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     // which changes only when a token or the account list does), not on the
     // whole session object, so a shell re-render cannot re-run the inbox load.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [g.apis, runTriage]);
+  }, [g.apis, runTriage, userId]);
 
   // THE CACHE FOLLOWS THE LIST (2026-09-16). Archive, trash and Close It Out
   // all edit `rows` in place, and a cache that missed them would hand back
   // mail he has already dealt with on the next visit. The timestamp is not
   // touched: none of this was a fresh read, so the next expiry is still owed.
-  useEffect(() => { if (rows.length > 0) mirrorRows(rows); }, [rows]);
+  //
+  // 2026-09-29: per account, and an emptied list is mirrored too. The old
+  // guard (`rows.length > 0`) meant deleting the last thread left it in the
+  // cache to come back on the next visit. It is armed only after the first
+  // paint or load, so the empty initial state never overwrites a good cache.
+  //
+  // Everything removed here that the SERVER did not remove is also marked
+  // gone, so a read that began before an archive or trash cannot put the
+  // thread back; an Undo (rows coming back) lifts the mark.
+  const prevRows = useRef<ThreadRow[]>([]);
+  useEffect(() => {
+    const before = prevRows.current;
+    prevRows.current = rows;
+    if (!mirrorArmed.current) return;
+    const accounts = g.apis("mail").map((a) => a.email);
+    for (const email of accounts) mirrorRows(scopeOf(email), rows.filter((r) => r.account === email));
+    if (serverRows.current) { serverRows.current = false; return; }
+    const now = new Set(rows.map((r) => (r.account ?? "") + "\u001f" + r.id));
+    const then = new Set(before.map((r) => (r.account ?? "") + "\u001f" + r.id));
+    const byAccount = (list: ThreadRow[]) => {
+      const m = new Map<string, string[]>();
+      for (const r of list) if (r.account) m.set(r.account, [...(m.get(r.account) ?? []), r.id]);
+      return m;
+    };
+    for (const [email, ids] of byAccount(before.filter((r) => !now.has((r.account ?? "") + "\u001f" + r.id)))) markGone(scopeOf(email), ids);
+    for (const [email, ids] of byAccount(rows.filter((r) => !then.has((r.account ?? "") + "\u001f" + r.id)))) unmarkGone(scopeOf(email), ids);
+  }, [rows]);
 
   // EMAIL-F-18 (2026-09-05): the floor tells the truth about which of the two
   // things it is. "That's everything." is a statement about his inbox, and
   // this screen only earns it once every account has answered with fewer
   // threads than it asked for. Until then the floor says what it is showing
   // and offers the next page, which is also the only way to reach thread 31.
-  const loadMore = () => void loadThreads(pageRef.current + MAIL_PAGE, true);
+  // Load More follows Gmail's cursor from where the last page ended: the
+  // pages already on screen are not listed or read again.
+  const loadMore = () => void (async () => {
+    const list = g.apis("mail");
+    if (list.length === 0 || loading) return;
+    setLoading(true);
+    try {
+      const out = await Promise.all(list.map(async ({ email, api }) => ({
+        email, result: await loadMoreInbox(scopeOf(email), api, MAIL_PAGE, { isCurrent: () => userIdRef.current === userId }),
+      })));
+      const failures = out.filter((o) => !o.result.ok);
+      setMailFailures(failures.map((f) => ({ email: f.email, why: humanError(f.result.error, "Could not load mail") })));
+      if (failures.length === list.length) return;
+      const mapped = out.flatMap((o) => o.result.rows).sort((a, b) => b.dateMs - a.dateMs);
+      pageRef.current += MAIL_PAGE;
+      setAtEnd(failures.length === 0 && out.every((o) => o.result.complete));
+      serverRows.current = true;
+      setRows(mapped);
+      void runTriage(mapped);
+    } catch (e) {
+      setError(humanError(e, "Could not load mail"));
+    } finally {
+      setLoading(false);
+    }
+  })();
   const mailFloor = () => (atEnd ? <ListFloor /> : (
     <ListFloor>
       <>
@@ -972,13 +1074,16 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   // look like a proposal at all, and at most two calls per load. Almost no
   // mail proposes a time, and the mail that does always says so.
   const findMeetings = async (needsYou: ThreadRow[]) => {
-    if (!ai.available || !scheduleSvc) { setMeetings([]); return; }
+    // Returns true only when the pass FINISHED, so its clock is set by success
+    // and never by an attempt. With no AI or no schedule it did not run.
+    if (!ai.available || !scheduleSvc) { setMeetings([]); return false; }
     const candidates = needsYou
       .filter((r) => mightProposeTimes((r.subject || "") + " " + (r.snippet || "")))
       .slice(0, 2);
-    if (candidates.length === 0) { setMeetings([]); return; }
+    if (candidates.length === 0) { setMeetings([]); return true; }
     const todayIso = todayISO();
     const out: MailMeeting[] = [];
+    let complete = true;
     for (const r of candidates) {
       try {
         const api = apiFor(accountOfThread(r.id));
@@ -986,11 +1091,17 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
         const full = mapThreadFull(await api.getThread(r.id));
         const last = full.messages[full.messages.length - 1];
         if (!last) continue;
-        const raw = await ai.complete(
-          [{ role: "user", content: meetingPrompt(displayName(r.from), full.subject, cleanBody(last.body), todayIso) }],
-          MEETING_SYSTEM,
-        );
-        const times = parseMeetingTimes(raw, todayIso);
+        // ONE READING, NOT TWO (2026-09-29). When the thread's brief was read
+        // by the v4 call, the times the sender PROPOSED are already in it
+        // (meetingCandidates, checked in code), so this pass does not ask the
+        // model the same question of the same message a second time.
+        const read = briefFor(last.id, loadBriefs(), scopeOf(accountOfThread(r.id) ?? ""));
+        const times = isCurrentBrief(read) && read.meetingCandidates
+          ? proposedFromBrief(read.meetingCandidates)
+          : parseMeetingTimes(await ai.complete(
+            [{ role: "user", content: meetingPrompt(displayName(r.from), full.subject, cleanBody(last.body), todayIso) }],
+            MEETING_SYSTEM,
+          ), todayIso);
         if (times.length === 0) continue;
         // Every day the sender named, checked against what is actually there.
         const days = [...new Set(times.map((t) => t.date))];
@@ -1004,9 +1115,10 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
           threadId: r.id, from: displayName(r.from), label: free.label,
           date: free.date, start: free.start, end: free.end, line: meetingLine(options),
         });
-      } catch { /* one unreadable thread never stops the rest */ }
+      } catch { complete = false; /* one unreadable thread never stops the rest */ }
     }
     setMeetings(out);
+    return complete;
   };
 
   // THE PROMISE SWEEP (E5). The commitment catcher already handles anything
@@ -1016,21 +1128,23 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   // UP-MIND-13 (2026-09-05): the pass itself moved to messages/sweepRun.ts,
   // so the connect screen can run the same one before this tab has ever
   // existed. Two implementations of one AI pass is how they drift.
-  const runSweep = async () => {
-    if (!ai.available) return;
+  const runSweep = async (): Promise<boolean> => {
+    if (!ai.available) return false;
     const n = await runSentSweep({
       apis: () => g.apis("mail"),
       complete: (messages, system) => ai.complete(messages as { role: "user" | "assistant"; content: string }[], system),
     });
     if (n !== null) setSweepTick((x) => x + 1);
+    return n !== null;
   };
 
   // Waiting On is a bonus layer: it loads after the inbox and fails to
   // nothing. Opens are looked up only for threads we actually tracked.
-  const loadWaiting = async () => {
+  const loadWaiting = async (): Promise<boolean> => {
+    let complete = true;
     try {
       const per = await Promise.all(g.apis("mail").map(async ({ email, api }) => {
-        const rows = await findWaiting(api, Date.now()).catch(() => []);
+        const rows = await findWaiting(api, Date.now()).catch(() => { complete = false; return []; });
         return rows.map((r) => ({ ...r, account: email }));
       }));
       // A thread he let go stops counting days. Filter BEFORE the slice, or
@@ -1061,7 +1175,8 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
         for (const p of pairs) if (found[p.trackId]) byThread[p.threadId] = found[p.trackId]!;
         setOpens(byThread);
       }
-    } catch { setWaiting([]); }
+      return complete;
+    } catch { setWaiting([]); return false; }
   };
 
   // ONE PLACE DECIDES (2026-08-21).
@@ -1394,8 +1509,11 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     try {
       // EMAIL-F-13: each draft keeps the account it was listed from, so
       // opening it reads through that account and its send leaves from it.
-      const per = await Promise.all(list.map(async ({ email, api }) =>
-        (await api.listDrafts(25).catch(() => [])).map((d) => ({ d, email }))));
+      const okAccounts: string[] = [];
+      const per = await Promise.all(list.map(async ({ email, api }) => {
+        const got = await api.listDrafts(25).then((x) => { okAccounts.push(email); return x; }).catch(() => []);
+        return got.map((d) => ({ d, email }));
+      }));
       setDraftsCapped(per.some((l) => l.length >= 25));
       setDrafts(per.flat().map(({ d, email }) => ({
         id: d.id,
@@ -1409,13 +1527,14 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
         account: email,
       })));
       setDraftsLoaded(true);
-      markRead("drafts");
+      // Only the accounts whose list actually ANSWERED get a clock.
+      for (const email of okAccounts) markRead(scopeOf(email), "drafts");
     } catch (e) {
       setError(humanError(e, "Could not load drafts"));
     } finally {
       setDraftsBusy(false);
     }
-  }, [g.apis]);
+  }, [g.apis, scopeOf]);
 
   useEffect(() => {
     if (g.hasToken) void loadThreads();
@@ -1432,7 +1551,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     // EMAIL (2026-09-16): draftsLoaded is React state, so it de-duped within
     // one mount and never across them, and a tab switch re-listed every
     // draft (1 + up to 25 gets per account). The clock survives the unmount.
-    if (g.hasToken && !draftsLoaded && !isFresh("drafts")) void loadDrafts();
+    if (g.hasToken && !draftsLoaded && !g.apis("mail").every(({ email }) => isFresh(scopeOf(email), "drafts"))) void loadDrafts();
   }, [g.hasToken, draftsLoaded, loadDrafts]);
 
   // Arriving from a home-page notice: open that exact thread once the inbox
@@ -1550,6 +1669,32 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   // threads that were never real, until its 36-hour TTL happened to expire.
   // triaged is the real signal here; rows.length was never doing anything
   // triaged didn't already cover, except this.
+  // NOTIFICATION ACTIONS (2026-09-29). Reads the body of a thread only when its
+  // latest message is new to the notification cache AND it looks like a
+  // notification, and caches the answer ("nothing to do" included). A visit
+  // that finds nothing new reads nothing. When it did write, the snapshot below
+  // is rebuilt from the cache. See notificationScan.ts.
+  const [notifTick, setNotifTick] = useState(0);
+  useEffect(() => {
+    if (!triaged || rows.length === 0) return;
+    let live = true;
+    void (async () => {
+      let wrote = false;
+      for (const { email, api } of g.apis("mail")) {
+        const mine = rows.filter((r) => r.account === email);
+        if (mine.length === 0) continue;
+        const res = await scanNotifications({
+          userId, account: email, api, rows: mine, triage,
+          classificationFor: (r) => classificationFrom(triage[r.id]?.action, briefFor(r.lastMsgId, undefined, r.account ? { userId, account: r.account } : undefined)?.notification ?? undefined),
+          isCurrent: () => userIdRef.current === userId,
+        }).catch(() => null);
+        if (res?.wrote) wrote = true;
+      }
+      if (live && wrote) setNotifTick((t) => t + 1);
+    })();
+    return () => { live = false; };
+  }, [triaged, rows, triage]);
+
   useEffect(() => {
     if (!triaged) return;
     const todayIso = todayISO();
@@ -1565,22 +1710,34 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     );
     const { needsYou } = splitByBucket(rows, map);
     const ordered = sortByDeadline(needsYou, map);
+    // The one helper the pump uses too (notificationActions.ts): the actionable
+    // threads kept apart from the six rows, and each row's account, revision
+    // and action. Reads the cache only.
+    const notif = buildNotificationSnapshot({
+      owner: userId, rows, map,
+      entryFor: notificationLookup(userId, g.accounts.map((a) => a.email)),
+      asked: unsubs,
+      excludeIds: new Set(ordered.slice(0, 6).map((r) => r.id)),
+    });
     saveMailSnapshot({
       ts: Date.now(),
+      owner: userId,
       needsYou: needsYou.length,
+      actionable: notif.actionable,
       threads: ordered.slice(0, 6).map((r) => ({
         id: r.id,
         from: displayName(r.from),
         fromEmail: r.fromEmail,
         subject: r.subject,
-        gist: map[r.id]?.gist ?? r.snippet ?? "",
+        gist: redactCodes(map[r.id]?.gist ?? r.snippet ?? ""),
+        ...notif.fields(r),
         by: map[r.id]?.by,
         // Unresolved on purpose: mailNotices validates it against the day it
         // is actually being read on, not the day this snapshot was written.
         act: map[r.id]?.act,
         account: (r as ThreadRow & { account?: string }).account,
         ...(personIdFor(r.fromEmail) ? { personId: personIdFor(r.fromEmail)! } : {}),
-        snippet: r.snippet ?? "",
+        snippet: redactCodes(r.snippet ?? ""),
         lastMsgId: r.lastMsgId,
         // Reuse the quick replies this thread already has. Regenerating them
         // for the home page would be a second AI call for an answer we own.
@@ -1608,7 +1765,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
         line: staleLine(d, Date.now()),
       })),
     });
-  }, [triaged, rows, triage, rules, waiting, sweepTick, meetings, drafts, personIdFor]);
+  }, [triaged, rows, triage, rules, waiting, sweepTick, meetings, drafts, personIdFor, notifTick, unsubs]);
 
   // Nothing-slips net: anything that has needed Dave for 3+ days becomes a
   // task, exactly once. This is what earns the right to fold the rest away.
@@ -1676,6 +1833,17 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     rows.find((r) => r.id === id)?.account
     ?? results?.find((r) => r.id === id)?.account
     ?? deckRows?.find((r) => r.id === id)?.account;
+  // The conversation's latest message id as far as this screen knows it: the
+  // inbox row, a search hit, or the thread on screen. Undefined when it holds
+  // none of them, which is what a draft restored cold looks like.
+  const currentRevisionOf = (id: string): string | undefined =>
+    rows.find((r) => r.id === id)?.lastMsgId
+    ?? results?.find((r) => r.id === id)?.lastMsgId
+    ?? (thread && thread.id === id ? revisionOf(thread.messages, thread.id) : undefined);
+  // Every address the reader sends from. "You" in a conversation is decided by
+  // these, never by the model (briefSource.sourceMessages).
+  const selfEmailsFor = (account?: string): string[] =>
+    [...new Set([account ?? "", ...g.accounts.map((a) => a.email)].map((e) => e.trim().toLowerCase()).filter(Boolean))];
   // EMAIL-F-13: which account a sender's mail lands in, for the moves that
   // start from an address rather than from a thread (the unsubscribe sweep).
   const accountOfSender = (email: string) =>
@@ -1715,7 +1883,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
         (messages, system) => ai.complete(messages as { role: "user" | "assistant"; content: string }[], system),
       ).catch(() => triage);
       if (!live || next === triage) return;
-      saveTriageCache(next);
+      saveTriageView(userId, rows, next);
       setTriage(next);
     })();
     return () => { live = false; };
@@ -1894,14 +2062,20 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     savePeek(peekUntil(windows, new Date()));
     setPeeked(true);
   };
-  // THE MEETING THE THREAD SETTLED ON (Dave 2026-09-16: "this should be
-  // EXTREMELY easy to add to the Jarvis calendar ... It should take ACTION
-  // if I want it to").
+  // THE THREAD'S ONE READING (2026-09-29). What the brief made of the open
+  // thread: the summary, the state card, and the three readings the appointment
+  // card and Reply Coverage stand on. It comes from ensureThreadBrief, the one
+  // door openThread and startReply share, and a reading that lands after Dave
+  // has opened another thread is ignored (activeThreadRef), so a slow answer
+  // for the last thread can never draw over this one.
   //
-  // Read on opening a thread, written only on the tap. "already" is set
-  // when an event made from THIS thread is found on the meeting's own day,
-  // so a second visit offers to open it rather than filing it twice.
-  const [calState, setCalState] = useState<"none" | "added" | "already">("none");
+  // The appointment itself (Dave 2026-09-16: "this should be EXTREMELY easy to
+  // add to the Jarvis calendar ... It should take ACTION if I want it to") is
+  // MeetingFinishCard's: read on opening, written only on the tap.
+  const [threadBriefOf, setThreadBrief] = useState<{ id: string; brief: Brief } | null>(null);
+  // Only ever the open thread's own: a reading set for another thread is not this one's.
+  const threadBrief = thread && threadBriefOf?.id === thread.id ? threadBriefOf.brief : null;
+  const activeThreadRef = useRef<string | null>(null);
   const [editWindows, setEditWindows] = useState(false);
   // E-14: the sheet's Save also carries the mirror choice; a change to
   // either is pushed to the profile so an opted-in device sees it next load.
@@ -1980,10 +2154,12 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
         ...(draft.threadId ? { threadId: draft.threadId } : {}),
         ...(draft.account ? { account: draft.account } : {}),
         ...(draft.inReplyTo ? { inReplyTo: draft.inReplyTo } : {}),
+        ...(draft.sourceRevision ? { sourceRevision: draft.sourceRevision } : {}),
+        ...(draft.overrides ? { overrides: draft.overrides } : {}),
       });
     }, 400);
     return () => clearTimeout(t);
-  }, [view, editingDraftId, draft.to, draft.cc, draft.subject, draft.body, draft.threadId, draft.account, draft.inReplyTo]);
+  }, [view, editingDraftId, draft.to, draft.cc, draft.subject, draft.body, draft.threadId, draft.account, draft.inReplyTo, draft.sourceRevision, draft.overrides]);
   useEffect(() => { setLocalDrafts(loadLocalDrafts()); }, [view]);
 
   const closeCompose = () => setView(thread && !editingDraftId ? "detail" : "list");
@@ -2055,7 +2231,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     enqueueOutbox(item);
     // A sent mail changes who owes whom, so the two passes that answer that
     // stop being fresh (2026-09-16).
-    invalidateReads(["waiting", "sweep"]);
+    for (const { email } of g.apis("mail")) invalidateReads(scopeOf(email), ["waiting", "sweep"]);
     clearLocalDraft(draftKey(editingDraftId)); // E-26: queued, so the safety copy goes
     setView("list");
   };
@@ -2115,46 +2291,6 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     say("Discarded", { label: "Undo", run: () => enqueueOutbox(item) });
   };
 
-  // THE TAP THAT FILES IT (Dave 2026-09-16). One event, from the time the
-  // thread settled on, stamped with the thread it came from so it can say
-  // where it came from later and so a second visit can find it.
-  //
-  // Nothing here runs on its own. Reading his mail is what earns the OFFER;
-  // it is not a licence to write to his calendar, and the whole point he
-  // made is that the app should take action when he wants it to.
-  const addMeetingToCalendar = async (threadId: string, m: ConfirmedMeeting) => {
-    if (!scheduleSvc) { say("A Calendar Isn't Connected"); return; }
-    // The id has to come back for the Undo, and attemptWrite answers with a
-    // boolean, so the id rides out through the closure the way TodayFlow's
-    // own creates already do.
-    let id: string | null = null;
-    const ok = await attemptWrite(async () => {
-      id = await scheduleSvc.createEvent(m.title, {
-        date: m.date, start: m.start, end: m.end,
-        source: madeBy("email", threadId),
-      });
-    });
-    if (!ok || !id) { say("Couldn't Add It \u00b7 Nothing Was Saved"); return; }
-    const eventId: string = id;
-    setCalState("added");
-    say("On Your Calendar \u00b7 " + whenLine(m, todayISO()), {
-      label: "Undo",
-      run: () => void (async () => {
-        await scheduleSvc.deleteEvent(eventId).catch(() => {});
-        setCalState("none");
-      })(),
-    });
-  };
-
-  /** Is this thread's meeting already filed? Read from the meeting's own
-   *  day only, so the check costs one local query and never a scan. */
-  const findFiledMeeting = useCallback(async (threadId: string, m: ConfirmedMeeting): Promise<string | null> => {
-    if (!scheduleSvc) return null;
-    const events = await scheduleSvc.eventsOn(m.date).catch(() => []);
-    const hit = events.find((e) => e.data.source?.type === "email" && e.data.source.ref === threadId);
-    return hit?.id ?? null;
-  }, [scheduleSvc]);
-
   // UP-MIND-12 (2026-09-05): `focusMsgId` is the message an evidence chip
   // pointed at. The thread opens scrolled to it and marks it, so "show me
   // where that came from" lands on the sentence rather than on the thread.
@@ -2171,9 +2307,10 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     setAttachDone(false);
     setSummary(null);
     setReplies(DEFAULT_ANSWERS);
-    // A new thread, a fresh answer about the calendar. Set on EVERY open so
-    // the last thread's "Added" cannot be read as this one's.
-    setCalState("none");
+    // A new thread, a fresh reading. Set on EVERY open so the last thread's
+    // appointment and checklist cannot be read as this one's.
+    setThreadBrief(null);
+    activeThreadRef.current = id;
     try {
       const full = mapThreadFull(await api.getThread(id));
       if (full.messages.length === 0) return;
@@ -2195,28 +2332,30 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
       // Routed through settleAll so the choice is visible rather than an
       // empty catch that reads like every other one that WAS a bug.
       void settleAll([id], () => api.modifyThread(id, [], ["UNREAD"]));
-      // ONE call for the summary and the replies, cached against the latest
-      // message id. Reopening a thread costs nothing until someone writes.
-      const lastId = full.messages[full.messages.length - 1]?.id || id;
-      const cached = briefFor(lastId);
-      if (cached) {
-        setSummary(cached.summary || null);
-        if (cached.replies.length) setReplies(cached.replies);
-        // Already filed? Asked once per open, against the meeting's own day.
-        if (cached.meeting) void findFiledMeeting(id, cached.meeting).then((hit) => { if (hit) setCalState("already"); });
-      } else if (ai.available) {
-        const convo = full.messages.slice(-4).map((m) => m.from + ": " + cleanBody(m.body).slice(0, 1200)).join("\n---\n");
-        if (convo.trim()) {
-          try {
-            // todayISO is what resolves "Monday at 3pm" into a real date.
-            const brief = parseBrief(await ai.complete([{ role: "user", content: briefPrompt(convo, todayISO()) }], BRIEF_SYSTEM));
-            if (brief) {
-              saveBrief(lastId, brief);
-              setSummary(brief.summary || null);
-              if (brief.replies.length) setReplies(brief.replies);
-              if (brief.meeting) void findFiledMeeting(id, brief.meeting).then((hit) => { if (hit) setCalState("already"); });
-            }
-          } catch { /* the thread still reads fine without either */ }
+      // ONE reading of the thread: the summary, the replies, the state card, the
+      // appointments and what is being asked, from one call cached against the
+      // account and the latest message id (threadBrief.ts). Reply asks for the
+      // same reading and joins it, so the thread is never read twice.
+      const account = accountOfThread(id) ?? "";
+      const scope = scopeOf(account);
+      const lastId = revisionOf(full.messages, id);
+      // A v3 summary still paints at once; the reading below upgrades it.
+      const shown = briefFor(lastId, loadBriefs(), scope);
+      if (shown) {
+        setThreadBrief({ id, brief: shown });
+        setSummary(shown.summary || null);
+        if (shown.replies.length) setReplies(shown.replies);
+      }
+      if (ai.available) {
+        const r = await ensureThreadBrief({
+          ai, scope, threadId: id, subject: full.subject, messages: full.messages, selfEmails: selfEmailsFor(account),
+        });
+        // Dave has opened something else since: this answer is not for the screen.
+        if (activeThreadRef.current !== id) return;
+        if (r.brief) {
+          setThreadBrief({ id, brief: r.brief });
+          setSummary(r.brief.summary || null);
+          if (r.brief.replies.length) setReplies(r.brief.replies);
         }
       }
     } catch (e) {
@@ -2380,71 +2519,68 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   // rather than to report three asks and send one.
   // UP-MIND-17 (2026-09-05): THE COUNT IS THE ACCOUNT, not the first page.
   // Clean Out used to speak for whatever thirty threads happened to be
-  // loaded: delete those and it said the inbox was down to what matters with
-  // hundreds still sitting in Gmail. This walks Gmail's own cursor, capped,
-  // and the rows it brings back feed the same piles the screen already
-  // builds, so nothing about the screen's rules changes.
-  const deepPages = useRef(false);
-  const deepLoad = async () => {
-    if (deepPages.current) return;
-    deepPages.current = true;
+  // loaded, and then, once it walked Gmail's cursor, for whatever six pages
+  // that got it (about 180 threads), which is still not the account.
+  //
+  // 2026-09-29: it now walks the cursor until it RUNS OUT (loadFullInboxIndex),
+  // reading metadata only, asking the model nothing, with progress, Stop and a
+  // Resume that continues from where it got to. It calls the inbox complete
+  // only when the cursor ran out and what changed during the walk was
+  // reconciled; until then the screen says it is still checking and shows no
+  // sender inventory, because a partial one would read as the whole.
+  const [scan, setScan] = useState<{ status: "idle" | "running" | "partial" | "failed" | "complete"; loaded: number; at: number }>({ status: "idle", loaded: 0, at: 0 });
+  const scanCtl = useRef<AbortController | null>(null);
+  const runScan = async (force = false) => {
+    if (scanCtl.current) return;
+    const list = g.apis("mail");
+    if (list.length === 0) return;
+    // A complete scan a moment ago is still the answer.
+    if (!force && scan.status === "complete" && Date.now() - scan.at < FRESH_MS.threads) return;
+    const ctl = new AbortController();
+    scanCtl.current = ctl;
+    const seen: Record<string, number> = {};
+    setScan({ status: "running", loaded: 0, at: 0 });
     try {
-      const per = await Promise.all(g.apis("mail").map(async ({ email, api }) => {
-        const out: ThreadRow[] = [];
-        let token: string | undefined;
-        for (let page = 0; page < PURGE_PAGES; page++) {
-          const res = await api.listThreadPage(MAIL_PAGE, token).catch(() => null);
-          if (!res) break;
-          out.push(...res.metas.map(mapThread)
-            .filter((t): t is ThreadRow => t !== null && t.inInbox)
-            .map((t) => ({ ...t, account: email })));
-          token = res.nextPageToken;
-          if (!token) break;
-        }
-        // No cursor left means Gmail has nothing more: the honest end, which
-        // is the only thing that lets this screen claim the inbox.
-        return { rows: out, all: !token };
-      }));
-      const merged = per.flatMap((p) => p.rows);
-      if (merged.length === 0) return;
+      const results = await Promise.all(list.map(async ({ email, api }) => ({
+        email,
+        r: await loadFullInboxIndex(scopeOf(email), api, {
+          signal: ctl.signal,
+          onProgress: (p) => { seen[email] = p.loaded; setScan((s) => ({ ...s, loaded: Object.values(seen).reduce((n, v) => n + v, 0) })); },
+        }),
+      })));
+      const complete = results.every((x) => x.r.complete);
+      const scanned = results.flatMap((x) => x.r.rows);
+      serverRows.current = true;
       setRows((cur) => {
-        const seen = new Set(cur.map((r) => r.id));
-        return [...cur, ...merged.filter((r) => !seen.has(r.id))].sort((a, b) => b.dateMs - a.dateMs);
+        // A finished account's rows ARE its inbox: they replace what was
+        // there. An unfinished one only adds what it found.
+        const done = new Set(results.filter((x) => x.r.complete).map((x) => x.email));
+        const kept = cur.filter((r) => !(r.account && done.has(r.account)));
+        const have = new Set(kept.map(rowKey));
+        return [...kept, ...scanned.filter((r) => !have.has(rowKey(r)))].sort((a, b) => b.dateMs - a.dateMs);
       });
-      if (per.every((p) => p.all)) setAtEnd(true);
+      if (complete) setAtEnd(true);
+      setScan({
+        status: complete ? "complete" : ctl.signal.aborted || results.every((x) => x.r.ok) ? "partial" : "failed",
+        loaded: scanned.length, at: Date.now(),
+      });
+    } catch {
+      setScan((s) => ({ ...s, status: "failed" }));
     } finally {
-      deepPages.current = false;
+      scanCtl.current = null;
     }
   };
 
+  // Extracted to unsubscribeAction.ts (2026-09-29) so Today's Unsubscribe
+  // button asks in exactly the same way. The tab keeps its own list in state.
   const requestUnsub = async (u: Unsub, account?: string, sender?: string): Promise<boolean> => {
-    let sent = false;
-    if (u.kind === "mailto") {
-      // EMAIL-F-13 (2026-09-05): the ask leaves from the address the list
-      // actually mails, not from whichever account happens to be first: a
-      // sender only honours an unsubscribe from the subscribed address.
-      const api = apiFor(account);
-      if (!api) return false;
-      const { ok } = await settleAll([u], () =>
-        api.sendMessage(encodeEmail({ to: u.target, subject: u.subject || UNSUB_SUBJECT, body: UNSUB_BODY })));
-      sent = ok.length > 0;
-    } else {
-      sent = !!window.open(u.target, "_blank", "noopener,noreferrer");
-    }
-    if (sent) {
-      emit({ type: "action", props: { name: "email.unsubscribe", kind: u.kind } });
-      // UP-MIND-17 (2026-09-05): WHEN, HOW and FROM WHICH ACCOUNT. Without
-      // those three the app could only ever say "asked", which is why it
-      // could never say "asked three weeks ago and they are still sending".
-      if (sender) {
-        setUnsubs(recordUnsub({
-          sender: sender.toLowerCase(),
-          askedISO: todayISO(),
-          via: u.kind === "mailto" ? "header" : "link",
-          ...(account ? { account } : {}),
-        }));
-      }
-    }
+    const { sent } = await requestUnsubscribe(u, account, sender, {
+      apiFor,
+      open: openExternal,
+      record: (r) => setUnsubs(recordUnsub(r)),
+      emit: (kind) => emit({ type: "action", props: { name: "email.unsubscribe", kind } }),
+      today: todayISO,
+    });
     return sent;
   };
 
@@ -2522,38 +2658,152 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     }
   };
 
-  // 11C: BULK DELETE, the same shape as archive and the same honesty.
-  // Trash, never the permanent-delete endpoint: that is the standing law and
-  // this is the surface where it matters most. Undo untrashes.
-  const deleteThreads = async (chosen: ThreadRow[]) => {
-    if (!chosen.length) return;
-    const ids = new Set(chosen.map((r) => r.id));
-    setRows((rs) => rs.filter((x) => !ids.has(x.id)));
-    setResults((rs) => (rs ? rs.filter((x) => !ids.has(x.id)) : rs));
-    const { ok, failed } = await settleAll(chosen, (r) => apiFor(r.account)?.trashThread(r.id));
-    if (failed.length) setRows((rs) => [...failed, ...rs.filter((x) => !failed.some((f) => f.id === x.id))].sort((a, b) => b.dateMs - a.dateMs));
-    // EMAIL-F-18: a purge that emptied the page pulls the next one in.
-    refillIfEmptied(rows.filter((r) => !ids.has(r.id)).length + failed.length);
-    say(lineCase(settleLine(ok.length, failed.length, DELETE_WORDS)), ok.length ? {
-      label: "Undo",
-      run: () => void (async () => {
-        setRows((rs) => [...ok, ...rs.filter((x) => !ids.has(x.id))].sort((a, b) => b.dateMs - a.dateMs));
-        const back = await settleAll(ok, (r) => apiFor(r.account)?.untrashThread(r.id));
-        if (back.failed.length) say(settleLine(back.ok.length, back.failed.length, UNTRASH_WORDS));
-      })(),
-    } : undefined, 8000);
+  // 11C: BULK DELETE, and now ONE PATH TO TRASH for every delete in this tab
+  // (2026-09-29): the row swipe, the thread's Delete, the fold's selection and
+  // Clean Out all come through moveToTrash. Trash, never the permanent-delete
+  // endpoint (the standing law, and Clean Out is where it matters most): label
+  // changes through Gmail's batchModify, recoverable for 30 days, one Undo.
+  //
+  // What that path guarantees, each one a thing the old per-thread loop got wrong:
+  //   - an account it cannot write through is REFUSED by name, never quietly
+  //     sent through another (the old `apiFor(x)?.trashThread` resolved to
+  //     nothing and the count called it a success);
+  //   - rows leave the list only for what Gmail CONFIRMED, and come back for
+  //     the rest, so the list, the cache and Today agree with Gmail;
+  //   - a batch that includes mail that may need him is asked about ONCE, not
+  //     per chunk, and a single explicit delete is one tap with an Undo;
+  //   - a selection survives a failed preflight, and only what moved is cleared.
+  const ensureMail: EnsureApi = async (account) => {
+    const r = await g.ensureGoogleSession(account, { forMutation: true });
+    return r.ok ? { ok: true, api: r.api } : { ok: false, message: r.message, code: r.code, retryable: r.retryable };
+  };
+  const rowKey = (r: { id: string; account?: string }) => (r.account ?? "") + "\u001f" + r.id;
+  // A row read moments ago is trusted without a re-read; anything older is read.
+  const rowTrusted = (r: ThreadRow) => {
+    if (!r.account) return false;
+    const c = loadAccount(scopeOf(r.account));
+    return !!c && Date.now() - c.checkedAt < FRESH_MS.threads;
+  };
+  // Mail that may need him: judged needs-you, never analysed (an unknown is
+  // not safe), or a VIP.
+  const mayNeedYou = (r: ThreadRow) => {
+    const t = effTriage[r.id];
+    return !t || t.fallback === true || t.bucket === "needs_you" || isVip(r.fromEmail, vips);
+  };
+  const [trashAsk, setTrashAsk] = useState<{ plan: TrashPlan; chosen: ThreadRow[]; after?: (moved: ThreadRow[]) => void; copy: NonNullable<ReturnType<typeof confirmCopy>> } | null>(null);
+  const [trashing, setTrashing] = useState(false);
+  const trashBusy = useRef(false);
+
+  const runTrash = async (plan: TrashPlan, chosen: ThreadRow[], after?: (moved: ThreadRow[]) => void) => {
+    trashBusy.current = true;
+    setTrashing(true);
+    try {
+      const sent = new Set(plan.accounts.flatMap((a) => a.threads.map((t) => rowKey({ id: t.threadId, account: a.account }))));
+      const sentRows = chosen.filter((r) => sent.has(rowKey(r)));
+      // Hidden at once, for exactly what is about to be sent. Whatever Gmail
+      // does not confirm comes back below.
+      setRows((rs) => rs.filter((x) => !sent.has(rowKey(x))));
+      setResults((rs) => (rs ? rs.filter((x) => !sent.has(rowKey(x))) : rs));
+      setView("list");
+      const res = await trashSelection(plan, { ensure: ensureMail });
+      const moved = new Set(res.outcomes.filter((o) => o.status === "trashed").map((o) => rowKey({ id: o.threadId, account: o.account })));
+      const movedRows = sentRows.filter((r) => moved.has(rowKey(r)));
+      const back = sentRows.filter((r) => !moved.has(rowKey(r)));
+      if (back.length) {
+        setRows((rs) => [...back, ...rs.filter((x) => !back.some((b) => rowKey(b) === rowKey(x)))].sort((a, b) => b.dateMs - a.dateMs));
+      }
+      // What was read about the inbox is no longer good for the accounts that changed.
+      for (const a of new Set(movedRows.map((r) => r.account))) if (a) invalidateReads(scopeOf(a), ["waiting", "sweep"]);
+      // EMAIL-F-07: a trashed thread is dealt with, so Waiting On stops counting it.
+      const wasWaiting = movedRows.filter((r) => letGoIfWaiting(r.id));
+      // EMAIL-F-18: a purge that emptied the page pulls the next one in.
+      refillIfEmptied(rows.filter((r) => !sent.has(rowKey(r))).length + back.length);
+      say(receiptLine(res), movedRows.length ? {
+        label: "Undo",
+        run: () => void (async () => {
+          setRows((rs) => [...movedRows, ...rs.filter((x) => !moved.has(rowKey(x)))].sort((a, b) => b.dateMs - a.dateMs));
+          for (const r of wasWaiting) undoLetGoFor(r.id);
+          const u = await undoTrashSelection(res, { ensure: ensureMail });
+          if (u.failed.length) {
+            // Only what really came back stays in the list.
+            const stuck = new Set(u.failed);
+            setRows((rs) => rs.filter((x) => !(moved.has(rowKey(x)) && stuck.has(x.id))));
+            say(u.message ?? "Couldn't Put It All Back \u00b7 What's Left Is in Your Trash");
+          }
+        })(),
+      } : undefined, 8000);
+      after?.(movedRows);
+    } finally {
+      trashBusy.current = false;
+      setTrashing(false);
+    }
   };
 
+  /**
+   * Moves conversations to Trash. `confirm` asks once, for the whole batch,
+   * only when it holds mail that may need him. Returns whether it went ahead
+   * (false: nothing moved yet, because it was refused, is waiting on the
+   * person's answer, or there was nothing to move).
+   */
+  const moveToTrash = async (chosen: ThreadRow[], opts: { confirm: boolean; after?: (moved: ThreadRow[]) => void }): Promise<boolean> => {
+    if (chosen.length === 0 || trashBusy.current) return false;
+    trashBusy.current = true;
+    setTrashing(true);
+    let handedOn = false;
+    try {
+      const plan = await buildTrashPlan(chosen, { ensure: ensureMail, trusted: rowTrusted });
+      if (plan.conversations === 0) {
+        // Refused by name, or nothing left to do. The selection stays as it was.
+        if (plan.blocked.length) say(plan.blocked[0]!.message);
+        else { say("Already Gone \u00b7 Nothing to Move"); void loadThreads(undefined, true); }
+        return false;
+      }
+      const inPlan = new Set(plan.accounts.flatMap((a) => a.threads.map((t) => rowKey({ id: t.threadId, account: a.account }))));
+      const risky = chosen.filter((r) => inPlan.has(rowKey(r)) && (mayNeedYou(r) || plan.changed.includes(r.id))).length;
+      const copy = opts.confirm ? confirmCopy(plan.conversations, risky) : null;
+      if (copy) {
+        trashBusy.current = false;
+        setTrashing(false);
+        setTrashAsk({ plan, chosen, copy, ...(opts.after ? { after: opts.after } : {}) });
+        return false;
+      }
+      handedOn = true;
+      await runTrash(plan, chosen, opts.after);
+      return true;
+    } catch (e) {
+      say(humanError(e, "Couldn't Move It \u00b7 Nothing Changed"));
+      return false;
+    } finally {
+      if (!handedOn && !trashAsk) { trashBusy.current = false; setTrashing(false); }
+    }
+  };
+
+  // The one confirmation, whole batch, never per chunk.
+  const trashSheet = trashAsk ? (
+    <RowActionSheet
+      title={trashAsk.copy.title}
+      actions={[{ label: trashAsk.copy.confirm, destructive: true, onPick: () => { const a = trashAsk; setTrashAsk(null); void runTrash(a.plan, a.chosen, a.after); } }]}
+      onCancel={() => setTrashAsk(null)}
+    />
+  ) : null;
+
+  const deleteThreads = (chosen: ThreadRow[], after?: (moved: ThreadRow[]) => void) => moveToTrash(chosen, { confirm: true, ...(after ? { after } : {}) });
+
+  // The selection is keyed by account AND thread id: a thread id means nothing
+  // without its mailbox.
   const deletePicked = async (all: ThreadRow[]) => {
-    const chosen = all.filter((r) => picked?.has(r.id));
-    setPicked(null);
-    await deleteThreads(chosen);
+    const chosen = all.filter((r) => picked?.has(rowKey(r)));
+    await deleteThreads(chosen, (moved) => {
+      // Only what moved leaves the selection; a refused or failed one stays picked.
+      const gone = new Set(moved.map(rowKey));
+      setPicked((cur) => (cur === null ? cur : new Set([...cur].filter((k) => !gone.has(k)))));
+    });
   };
 
   // E10: archive every picked row in one move, one Undo for the lot. Same
   // optimistic shape as archiveRow; a failed write un-hides its own row.
   const archivePicked = async (all: ThreadRow[]) => {
-    const chosen = all.filter((r) => picked?.has(r.id));
+    const chosen = all.filter((r) => picked?.has(rowKey(r)));
     setPicked(null);
     if (!chosen.length) return;
     const ids = new Set(chosen.map((r) => r.id));
@@ -2606,34 +2856,14 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   };
 
   // Delete goes to Gmail's Trash, recoverable for 30 days. The permanent
-  // delete endpoint is never called from this app.
+  // delete endpoint is never called from this app. One explicit delete is one
+  // tap with an Undo, and goes through the same path as a batch (no
+  // confirmation: a single deliberate act is not a batch).
   const trashThread = async (id: string, account?: string) => {
-    const api = apiFor(account ?? accountOfThread(id));
-    if (!api) return;
-    setRows((rs) => rs.filter((r) => r.id !== id));
-    setResults((rs) => (rs ? rs.filter((r) => r.id !== id) : rs));
-    // Deleting the thread you are reading must not leave you reading it.
-    setView("list");
-    const gone = rows.find((r) => r.id === id);
-    // DELETE HAS TO BE TRUE (2026-08-25). This said "In trash 30 days" with
-    // the rejection in an empty catch: the row vanished locally, the thread
-    // stayed in the inbox, and it reappeared on the next load with no mention.
-    // Archive, twelve lines up, got this right in August and Delete never did.
-    const { ok } = await settleAll([id], () => api.trashThread(id));
-    if (!ok.length) {
-      if (gone) setRows((rs) => [gone, ...rs.filter((x) => x.id !== id)].sort((a, b) => b.dateMs - a.dateMs));
-      say("Couldn't Delete It · Still in Your Inbox");
-      return;
-    }
-    // EMAIL-F-07: a trashed thread is dealt with, so Waiting On stops
-    // counting it. Only after the write landed, since trash is awaited.
-    const wasWaiting = letGoIfWaiting(id);
-    say("Deleted · In Trash 30 Days", { label: "Undo", run: () => void (async () => {
-      if (gone) setRows((rs) => [gone, ...rs.filter((x) => x.id !== id)].sort((a, b) => b.dateMs - a.dateMs));
-      if (wasWaiting) undoLetGoFor(id);
-      const { failed } = await settleAll([id], () => api.untrashThread(id));
-      if (failed.length) say("Couldn't Put It Back · Still in Trash");
-    })() });
+    const acct = account ?? accountOfThread(id);
+    const row = rows.find((r) => r.id === id && (!acct || r.account === acct))
+      ?? { id, from: "", fromEmail: "", subject: "", snippet: "", unread: false, inInbox: true, dateMs: 0, count: 2, lastMsgId: "", ...(acct ? { account: acct } : {}) };
+    await moveToTrash([row], { confirm: false });
   };
 
   const archiveAllNoise = async (noise: ThreadRow[], manual = true) => {
@@ -2749,7 +2979,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     const r = buildReply(lastMsg(t), "");
     setEditingDraftId(null);
     // E-26: a reply he was mid-way through on this thread comes back.
-    beginCompose(restoreInto<Draft>({ to: r.to, subject: r.subject, body: r.body, inReplyTo: r.inReplyTo, threadId: r.threadId, account: accountOfThread(t.id) }, loadLocalDraft("new")));
+    beginCompose(restoreInto<Draft>({ to: r.to, subject: r.subject, body: r.body, inReplyTo: r.inReplyTo, threadId: r.threadId, account: accountOfThread(t.id), sourceRevision: revisionOf(t.messages, t.id) }, loadLocalDraft("new")));
     setView("compose");
   };
   // S2-4: everyone else on the thread stays on the thread, as Cc, instead of
@@ -2759,7 +2989,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     const self = account || g.accounts[0]?.email || "";
     const r = buildReplyAll(lastMsg(t), self, "");
     setEditingDraftId(null);
-    beginCompose({ to: r.to, cc: r.cc, subject: r.subject, body: r.body, inReplyTo: r.inReplyTo, threadId: r.threadId, account });
+    beginCompose({ to: r.to, cc: r.cc, subject: r.subject, body: r.body, inReplyTo: r.inReplyTo, threadId: r.threadId, account, sourceRevision: revisionOf(t.messages, t.id) });
     setView("compose");
   };
   const startForward = (t: ThreadFull) => {
@@ -2824,13 +3054,18 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     const d = localDrafts[key];
     if (!d) return;
     setEditingDraftId(key === "new" ? null : key);
-    beginCompose({ to: d.to, cc: d.cc, subject: d.subject, body: d.body, inReplyTo: d.inReplyTo, threadId: d.threadId, account: d.account });
+    // Its checklist marks come back only if the conversation has not moved on
+    // since (composeDraft.carriedOverrides); the words always do.
+    beginCompose({
+      to: d.to, cc: d.cc, subject: d.subject, body: d.body, inReplyTo: d.inReplyTo, threadId: d.threadId, account: d.account,
+      ...(d.threadId ? carriedOverrides(d, currentRevisionOf(d.threadId)) : {}),
+    });
     setView("compose");
   };
   const quickReply = (t: ThreadFull, text: string) => {
     const r = buildReply(lastMsg(t), text);
     setEditingDraftId(null);
-    beginCompose({ to: r.to, subject: r.subject, body: text, inReplyTo: r.inReplyTo, threadId: r.threadId, account: accountOfThread(t.id) });
+    beginCompose({ to: r.to, subject: r.subject, body: text, inReplyTo: r.inReplyTo, threadId: r.threadId, account: accountOfThread(t.id), sourceRevision: revisionOf(t.messages, t.id) });
     setView("compose");
   };
   // EMAIL-F-13 (2026-09-05): read the draft through the account that holds
@@ -2855,7 +3090,8 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
       // E-26: an edit of this Gmail draft the tab lost wins over what Gmail
       // still holds; it is the newer of the two by construction.
       const local = loadLocalDraft(draftId);
-      beginCompose(local ? { ...fresh, to: local.to, cc: local.cc ?? fresh.cc, subject: local.subject, body: local.body } : fresh);
+      const source = fresh.threadId ? carriedOverrides(local ?? {}, currentRevisionOf(fresh.threadId)) : {};
+      beginCompose(local ? { ...fresh, to: local.to, cc: local.cc ?? fresh.cc, subject: local.subject, body: local.body, ...source } : { ...fresh, ...source });
       setView("compose");
     } catch (e) {
       setError(humanError(e, "Could not open draft"));
@@ -2863,6 +3099,47 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   };
 
   const pushCls = usePushDepth(view === "compose" ? 2 : view === "detail" || view === "deck" ? 1 : 0);
+
+  // REPLY COVERAGE (2026-09-29). A reply is answering one conversation at one
+  // revision in one mailbox: its source. What that conversation asked comes from
+  // the same one reading openThread made (cache, or the open thread through
+  // ensureThreadBrief, which joins a read already in flight), and it is looked
+  // up when the SOURCE changes, never as the words are typed. A new compose
+  // and a forward have no source: they are not replies.
+  const coverageSource = view === "compose" && draft.threadId
+    ? replySourceOf(draft, { account: accountOfThread(draft.threadId) ?? g.accounts[0]?.email ?? "", ...(currentRevisionOf(draft.threadId) ? { revision: currentRevisionOf(draft.threadId)! } : {}) })
+    : null;
+  const replyReqs = useReplyRequirements({
+    ai, userId, source: coverageSource, thread,
+    loadThread: async (account, threadId) => {
+      const api = apiFor(account);
+      return api ? mapThreadFull(await api.getThread(threadId)) : null;
+    },
+    selfEmails: selfEmailsFor(coverageSource?.account),
+  });
+  // A mark belongs to the revision it was made on. When the reading turns out
+  // to be for a newer one, the marks go and the words stay.
+  useEffect(() => {
+    if (view !== "compose" || !replyReqs) return;
+    if (draft.sourceRevision !== replyReqs.sourceRevision) {
+      setDraft((d) => {
+        const next: Draft = { ...d, sourceRevision: replyReqs.sourceRevision };
+        delete next.overrides;
+        return next;
+      });
+    }
+  }, [replyReqs?.sourceRevision, view]);
+  const draftFiles = useMemo(
+    () => (draft.attachment ? [{ filename: draft.attachment.filename, mime: draft.attachment.mimeType }] : []),
+    [draft.attachment],
+  );
+  const setCoverageMark = (key: string, mark: CoverageOverride | null) => setDraft((d) => {
+    const next: Draft = { ...d, overrides: { ...(d.overrides ?? {}) } };
+    if (mark) next.overrides![key] = mark;
+    else delete next.overrides![key];
+    if (Object.keys(next.overrides!).length === 0) delete next.overrides;
+    return next;
+  });
 
   // Muted threads never surface, however many replies land. The mail itself is
   // untouched in Gmail.
@@ -2922,7 +3199,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
             // fails on send and fails again on every Retry.
             // C-56: the model's draft rides along so the send can say what
             // he changed, in one word, and nothing else.
-            beginCompose({ to: r.to, subject: r.subject, body, inReplyTo: r.inReplyTo, threadId: r.threadId, fromDeck: true, account: accountOfThread(t.id), modelBody: body });
+            beginCompose({ to: r.to, subject: r.subject, body, inReplyTo: r.inReplyTo, threadId: r.threadId, fromDeck: true, account: accountOfThread(t.id), modelBody: body, sourceRevision: revisionOf(t.messages, t.id) });
             setView("compose");
           }}
           onHandled={(threadId, archived) => {
@@ -3100,9 +3377,12 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   if (view === "purge") {
     // E-29: the same rows the list shows (account chip and desk honoured),
     // so Clean Out never counts what the Sweep does not.
-    const piles = senderPiles(visibleRows, effTriage, vips);
+    // A thread nobody analysed is UNKNOWN, and unknown is never pre-picked:
+    // the scan reads the whole inbox without asking the model about any of it.
+    const piles = senderPiles(visibleRows, effTriage, vips, (id) => isAnalysed(effTriage[id]));
     const picks = purgePicks ?? defaultPicks(piles);
     const n = selectedCount(piles, picks);
+    const checking = scan.status !== "complete";
     const toggle = (email: string) => {
       const next = new Set(picks);
       if (next.has(email)) next.delete(email); else next.add(email);
@@ -3111,11 +3391,28 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     return (
       <div className={"screen ruled " + pushCls} key="purge">
         <div className="nav-bar">
-          <button className="nav-back" onClick={() => { setPurgePicks(null); setView("list"); }}>Email</button>
+          <button className="nav-back" onClick={() => { scanCtl.current?.abort(); setPurgePicks(null); setView("list"); }}>Email</button>
           <span className="nav-title">Clean Out</span>
           <button className="nav-action" onClick={() => setPurgePicks(new Set())}>None</button>
         </div>
-        {piles.length === 0 ? (
+        {checking ? (
+          /* PARTIAL NEVER SPEAKS FOR THE ACCOUNT (2026-09-29). Until the walk
+             has reached the end of the cursor there is no sender list, only
+             what is happening and, if it stopped, a way to continue. */
+          <div className="pad-x"><div className="card list-card-ruled"><div className="empty-state empty-compact">
+            <div className="empty-title">Checking Your Inbox</div>
+            <div className="empty-sub">
+              {scan.status === "running" || scan.status === "idle"
+                ? (scan.loaded > 0 ? scan.loaded + " found so far" : "Reading every page")
+                : scan.status === "failed" ? "Stopped early " + "\u00b7 " + scan.loaded + " found" : "Paused " + "\u00b7 " + scan.loaded + " found"}
+            </div>
+            {scan.status === "running" || scan.status === "idle" ? (
+              <button className="quiet-action" onClick={() => scanCtl.current?.abort()}>Stop</button>
+            ) : (
+              <button className="quiet-action" onClick={() => void runScan(true)}>Resume</button>
+            )}
+          </div></div></div>
+        ) : piles.length === 0 ? (
           <div className="pad-x"><div className="card list-card-ruled"><div className="empty-state empty-compact">
             {/* EMAIL-F-18 (2026-09-05): this used to speak for the whole
                 inbox off a page of 30. Delete the 30 and it said "already
@@ -3141,7 +3438,8 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                     <div className="conn-name">{p.name}</div>
                     {/* The safety line is on the ROW that is unsafe, not in a
                         legend somewhere. It is the reason not to tick it. */}
-                    {!p.safe && <div className="conn-meta purge-warn">Some of these needed you</div>}
+                    {p.needsYou && <div className="conn-meta purge-warn">Some of these needed you</div>}
+                    {!p.needsYou && p.unknown && <div className="conn-meta purge-warn">Not checked yet</div>}
                   </div>
                   <span className="purge-count">{p.count}</span>
                 </div>
@@ -3155,14 +3453,13 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                   one screen where the eye most needs red to mean something.
                   It goes red the moment it will actually delete, and not one
                   render before. */}
-              <button className={"btn btn-block " + (n === 0 ? "btn-secondary" : "btn-danger")} disabled={n === 0 || purging}
+              <button className={"btn btn-block " + (n === 0 ? "btn-secondary" : "btn-danger")} disabled={n === 0 || purging || trashing}
                 onClick={() => void (async () => {
                   setPurging(true);
                   try {
-                    const ids = new Set(selectedIds(piles, picks));
-                    await deleteThreads(unmutedRows.filter((r) => ids.has(r.id)));
-                    setPurgePicks(null);
-                    setView("list");
+                    // Matched on account AND id: a thread id is only
+                    // unique inside its own mailbox.
+                    await deleteThreads(selectedRows(piles, picks, unmutedRows), () => { setPurgePicks(null); setView("list"); });
                   } finally { setPurging(false); }
                 })()}>
                 {purging ? "Deleting..." : purgeLabel(n)}
@@ -3171,6 +3468,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
             </div>
           </>
         )}
+        {trashSheet}
         <div className="screen-foot" />
       </div>
     );
@@ -3604,6 +3902,18 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
               did. */}
           <div className="row mail-chips"><Dictate target={dictateTarget} /></div>
 
+          {/* REPLY COVERAGE: "Answered 3 of 4", a checklist behind a tap. It
+              reads the words already typed, locally, and never blocks Send. */}
+          {coverageSource && (
+            <ReplyCoverage
+              requirements={replyReqs}
+              text={draft.body}
+              attachments={draftFiles}
+              overrides={draft.overrides ?? {}}
+              onOverride={setCoverageMark}
+            />
+          )}
+
           {/* N15 (2026-08-20): they asked for the waiver, he has a waiver.
               Every mail client waits until Send and then asks if he forgot;
               none of them offers the file he actually owns. Only ever
@@ -3681,6 +3991,21 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
           <button className="nav-back" onClick={() => setView("list")}>Email</button>
           <span className="nav-title"></span>
           <div className="nav-actions">
+            {/* BRAIN "FILE IT" (2026-09-29): beside Archive and Delete, only
+                when the Brain service exists. Subject plus the current
+                snippet (or the plain text of the latest message); no AI. */}
+            {emailFiling.available && (
+              <button className="nav-action" aria-label="File It" onClick={() => emailFiling.open({
+                threadId: thread.id,
+                account: accountOfThread(thread.id),
+                subject: thread.subject,
+                preview: emailFilingPreview({
+                  lastSnippet: lastMsg(thread).snippet,
+                  rowSnippet: rows.find((r) => r.id === thread.id)?.snippet,
+                  lastBody: lastMsg(thread).body,
+                }),
+              })}><Brain className="ic cat-fg-purple" /></button>
+            )}
             <button className="nav-action danger" onClick={() => void trashThread(thread.id)} aria-label="Delete"><Trash2 className="ic" /></button>
             <button className="nav-action" onClick={() => archiveThread(thread.id)} aria-label="Archive"><Archive className="ic" /></button>
           </div>
@@ -3720,6 +4045,21 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
               A summary earns its place when there is something to summarise.
               One short message is already the shortest version of itself, and
               a paraphrase of two visible lines is furniture. */}
+          {/* THE APPOINTMENT, FIRST (2026-09-29). Above the summary and the
+              state card, outside both, so the one thing this feature exists
+              for is not behind a tap. Only with a Schedule service to write
+              to; the card reads on open and writes only on a tap. */}
+          {scheduleSvc && (
+            <MeetingFinishCard
+              key={thread.id}
+              scheduleSvc={scheduleSvc}
+              threadId={thread.id}
+              account={accountOfThread(thread.id) ?? ""}
+              candidates={threadBrief?.meetingCandidates}
+              order={thread.messages.map((m) => m.id)}
+              onNotice={(n: MeetingNotice) => say(n.message, n.undo)}
+            />
+          )}
           {summary && worthSummarising && (
             <div className="card msg-summary">
               <div className="eyebrow">JARVIS Summary</div>
@@ -3731,7 +4071,9 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
               us here, and absent entirely when the pass could not establish
               anything. */}
           {(() => {
-            const b = briefFor(thread.messages[thread.messages.length - 1]?.id || thread.id);
+            // The reading the open thread has: the fresh one from
+            // ensureThreadBrief, or the cached one (v3 included) until it lands.
+            const b = threadBrief ?? briefFor(revisionOf(thread.messages, thread.id), loadBriefs(), scopeOf(accountOfThread(thread.id) ?? ""));
             if (!b && !triaged) return null;
             const ev = effTriage[thread.id]?.byEv;
             return (
@@ -3741,8 +4083,6 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                 defaultOpen={fromLedger}
                 onOpenSource={(msgId) => setFocusMsg(msgId)}
                 onRemember={(decision) => setKeepDecision({ decision, threadId: thread.id })}
-                calendarState={calState}
-                {...(scheduleSvc ? { onAddToCalendar: (m: ConfirmedMeeting) => void addMeetingToCalendar(thread.id, m) } : {})}
                 {...(triaged ? {
                   override: overrides[thread.id] ?? null,
                   // E-16: this thread only. No sender rule is written here;
@@ -4082,13 +4422,28 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                   const { event: ev, count } = read;
                   const extra = count > 1 ? " · " + (count - 1) + " more in the file" : "";
                   if (ev.start && scheduleSvc) {
-                    const id = await scheduleSvc.createEvent(ev.title, {
-                      date: ev.date, start: ev.start,
-                      end: endOfAct(ev.start, ev.durationMin ?? 60),
-                      source: madeBy("email", thread.id),
-                    });
-                    if (!id) { say("Couldn't Add It · Nothing Was Saved", undefined, 3000); return; }
-                    say("On Your Schedule · " + dayPhrase(ev.date, todayISO()) + " " + fmtTime(ev.start).time + " " + fmtTime(ev.start).ap + extra, undefined, 3500);
+                    // THE ONE DOOR (2026-09-29): the same idempotent add the
+                    // appointment card uses, keyed by the invitation's own UID
+                    // when it has one, so a second tap, a reload or an updated
+                    // invitation never makes a second event. A cancellation is
+                    // reported and never written, and an update is NOT applied
+                    // over an event that is already there.
+                    const account = accountOfThread(thread.id) ?? "";
+                    const cand = icsToCandidate(ev, { account, threadId: thread.id, messageId: m.id });
+                    if (cand?.status === "cancelled") {
+                      say("Invite Is Cancelled \u00b7 Nothing Added" + extra, undefined, 3500);
+                      setAttachDone(true);
+                      return;
+                    }
+                    const r = cand ? await addEmailMeetingOnce({ scheduleSvc, candidate: cand, threadId: thread.id, account, title: ev.title }) : null;
+                    if (!r || r.status === "failed") { say(r?.message ?? "Couldn't Add It \u00b7 Nothing Was Saved", undefined, 3000); return; }
+                    // The file left the time or the zone open: the card stays, and the file opens.
+                    if (r.status === "incomplete") {
+                      say(r.message + " \u00b7 Opening the File", undefined, 3500);
+                      if (offer.attachmentId) void openAttachment(m.id, offer.attachmentId, offer.filename ?? "invite.ics", "text/calendar");
+                      return;
+                    }
+                    say(r.message + extra, undefined, 3500);
                   } else if (tasks) {
                     // Law 2: an all-day invite has a date and no time.
                     // It stays a date rather than becoming a 9am nobody
@@ -4161,6 +4516,8 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
             onCancel={() => setVoiceConfirm(null)}
           />
         )}
+        {emailFiling.sheet}
+        {trashSheet}
         {triageSender && (
           <WhoIsThisSheet
             name={triageSender.name}
@@ -4173,7 +4530,13 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   }
 
   // ---- list ----
-  const split = splitByBucket(visibleRows, effTriage);
+  // EMAIL SECTIONS: the rows are narrowed to the chosen section BEFORE the
+  // bucket split, so Needs You, Worth Knowing and Noise each show their share
+  // of it and every thread keeps the bucket the sort gave it. A section that
+  // was deleted since it was chosen reads as All. Local only: no AI, no Gmail.
+  const activeSection = emailSections.sections.find((x) => x.id === sectionId) ?? null;
+  const sectionRows = filterBySection(visibleRows, activeSection);
+  const split = splitByBucket(sectionRows, effTriage);
   // Real deadlines: Needs You is ordered by when the sender said they need it.
   const needsYou = sortByDeadline(split.needsYou, effTriage);
   const { worthKnowing, noise } = split;
@@ -4182,7 +4545,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   const forYou = filter === "triage" && results === null && ai.available;
   const showTriage = forYou && triaged;
   const restCount = worthKnowing.length + noise.length;
-  const listRows = results !== null ? results : visibleRows;
+  const listRows = results !== null ? results : sectionRows;
 
   // A triaged row shows the gist and NOTHING else: the thread count is inbox
   // bookkeeping, and bookkeeping is exactly what the fold is removing.
@@ -4196,9 +4559,11 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   //
   // E3: the unread dot becomes the rail, which also carries the deadline's
   // heat, so urgency is felt in the left margin before anything is read.
-  const togglePick = (id: string) => setPicked((cur) => {
+  // Picks are keyed by account AND thread id.
+  const togglePick = (r: ThreadRow) => setPicked((cur) => {
     const next = new Set(cur ?? []);
-    if (next.has(id)) next.delete(id); else next.add(id);
+    const k = rowKey(r);
+    if (next.has(k)) next.delete(k); else next.add(k);
     return next;
   });
 
@@ -4206,8 +4571,14 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   // swaps the rail for a checkbox and the row tap toggles instead of
   // opening; everything outside the fold is untouched, so select mode can
   // never archive something that needs you.
-  const threadRow = (r: ThreadRow, gist?: string, selectable = false, alwaysStrong = false) => {
-    const selecting = selectable && picked !== null;
+  const threadRow = (r: ThreadRow, gist?: string, _selectable = false, alwaysStrong = false) => {
+    // SELECT IS ON THE MAIN LIST NOW (2026-09-29). It used to live inside the
+    // expanded fold, so it could only ever reach Worth Knowing and Noise; in
+    // select mode every row is a checkbox and a tap toggles. Nothing outside
+    // select mode changes: tap opens, swipe acts. The safety is no longer "you
+    // cannot select what needs you" but "selecting it, and deleting it, asks
+    // once" (see moveToTrash).
+    const selecting = picked !== null;
     // NEEDS YOU IS ALREADY A VERDICT (alwaysStrong). Gmail's raw unread flag
     // used to be the only thing that made a subject line pop; three of
     // Dave's four Needs You rows had already been read elsewhere and so
@@ -4237,13 +4608,13 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
         caps after it, text and not a pill. Still a .row, so the card's
         hairlines, press state and tap height are the same as every grouped
         list in the app; mail-rows.css only says what sits inside. */}
-    <div className="row mrow" {...pressable(() => (selecting ? togglePick(r.id) : void openThread(r.id)))}
-      aria-pressed={selecting ? picked!.has(r.id) : undefined}>
+    <div className="row mrow" {...pressable(() => (selecting ? togglePick(r) : void openThread(r.id)))}
+      aria-pressed={selecting ? picked!.has(rowKey(r)) : undefined}>
       {/* C-50 (Astra, 2026-09-12): the Remember star leads the row. */}
       {!selecting && <EntityStar entityType="mail_thread" entityId={r.id} title={r.subject} />}
       <span className="mlead">
         {selecting ? (
-          <span className={"cb" + (picked!.has(r.id) ? " on" : "")} aria-label={picked!.has(r.id) ? "Picked" : "Not picked"}>{picked!.has(r.id) ? "\u2713" : ""}</span>
+          <span className={"cb" + (picked!.has(rowKey(r)) ? " on" : "")} aria-label={picked!.has(rowKey(r)) ? "Picked" : "Not picked"}>{picked!.has(rowKey(r)) ? "\u2713" : ""}</span>
         ) : lead.kind === "rail" ? (
           // 8A: a machine keeps the rail, lit only for a DEADLINE the sender
           // stated and never for mere unreadness. It sits centred in the
@@ -4313,6 +4684,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
         <div className="mwin">{windowStatusLine(windows, new Date())}</div>
       )}
       {/* E-28: the Later picker for a Needs You row. */}
+      {trashSheet}
       {laterFor && (
         <LaterSheet
           who={displayName(laterFor.from)}
@@ -4400,7 +4772,43 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
           {/* E-25: the real count, or 25+ once any account hit its cap. */}
           Drafts {draftsLoaded && drafts.length > 0 ? "(" + (draftsCapped ? "25+" : drafts.length) + ")" : ""}
         </button>
+        {/* SELECT, ON THE MAIN LIST (2026-09-29). It opens the fold too, so
+            every bucket is reachable: Needs You, Worth Knowing and Noise. */}
+        {filter !== "drafts" && results === null && (
+          <button className={"chip" + (picked !== null ? " on" : "")} aria-pressed={picked !== null}
+            onClick={() => { if (picked === null) { setPicked(new Set()); setRestOpen(true); } else setPicked(null); }}>Select</button>
+        )}
       </div>
+      {picked !== null && filter !== "drafts" && results === null && (() => {
+        // Only what is on screen: a fold that is shut, or a section filter
+        // that hides a row, hides it from Select All Shown too. (Clean Out is
+        // the whole-inbox tool; this is the list in front of you.)
+        const shown = forYou && showTriage ? [...needsYou, ...worthKnowing, ...noise] : listRows;
+        const mine = shown.filter((r) => picked.has(rowKey(r)));
+        return (
+          <div className="pad-x mail-select-bar">
+            <span className="conn-meta sel-count">{lineCase(mine.length + " selected")}</span>
+            <button className="quiet-action" onClick={() => setPicked(new Set(shown.map(rowKey)))} disabled={shown.length === 0}>Select All Shown</button>
+            <button className="quiet-action" onClick={() => setPicked(null)}>Done</button>
+            <div className="sel-acts">
+              <button className="btn btn-secondary" onClick={() => void archivePicked(shown)} disabled={mine.length === 0 || trashing}>
+                {mine.length === 0 ? "Archive" : lineCase("Archive " + mine.length)}
+              </button>
+              {/* 11B: the other half of the job. Archive keeps it in the
+                  account; delete moves it to Trash (30 days, one Undo). */}
+              <button className={"btn " + (mine.length === 0 ? "btn-secondary" : "btn-danger")} onClick={() => void deletePicked(shown)} disabled={mine.length === 0 || trashing}>
+                {mine.length === 0 ? "Delete" : lineCase("Delete " + mine.length)}
+              </button>
+            </div>
+          </div>
+        );
+      })()}
+      {/* EMAIL SECTIONS: All plus one chip per saved section; nothing at all
+          until one exists. Not on Drafts or a search, which are not this
+          list. */}
+      {filter !== "drafts" && results === null && (
+        <SectionFilterBar sections={emailSections.sections} activeId={activeSection?.id ?? null} onChange={onSectionChange} />
+      )}
       {error && <div className="pad-x conn-error">{error}</div>}
       {/* One line per account that could not be read, each naming the account
           it is about. The full address, not acctLabel: two gmail accounts
@@ -4517,7 +4925,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
               {/* 2026-09-02: a failed sort had no way to run again short of
                   leaving the tab. Try Again re-runs the same sort over the
                   rows already loaded; Show All Mail stays the way out. */}
-              <button className="btn btn-secondary btn-block" onClick={() => { setTriageWhy(""); setTriageState("pending"); void runTriage(rows); }}>Try Again</button>
+              <button className="btn btn-secondary btn-block" onClick={() => { setTriageWhy(""); setTriageState("pending"); void runTriage(rows, true); }}>Try Again</button>
               <button className="quiet-action" onClick={() => setFilter("all")}>Show All Mail</button>
             </div>
           </div></div></div>
@@ -4540,6 +4948,10 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
             <button className="quiet-action" onClick={() => setFilter("all")}>Show All Mail Instead</button>
           </div></div></div>
         )
+      ) : activeSection && results === null && visibleRows.length > 0 && sectionRows.length === 0 ? (
+        // EMAIL SECTIONS: only the loaded mail was searched, and the way to
+        // load more stays here.
+        <SectionNoMatch atEnd={atEnd} busy={loading} onLoadMore={loadMore} onShowAll={() => onSectionChange(null)} />
       ) : results !== null || !showTriage ? (
         // Search results, the All chip, or triage unavailable: honest threaded list.
         listRows.length === 0 ? (
@@ -5021,28 +5433,6 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                   {/* V2 anatomy: the count is a pill, never buried in the line. */}
                   <span className="pill pill-subdued">{restCount}</span>
                 </div>
-                {/* E10: the one place bulk select lives. The fold holds
-                    everything that does not need Dave, which is exactly
-                    the pile where clearing ten at once is safe. */}
-                {restOpen && (picked === null ? (
-                  <div className="fold-tools">
-                    <button className="quiet-action" onClick={() => setPicked(new Set())}>Select</button>
-                  </div>
-                ) : (
-                  <div className="fold-tools">
-                    <button className="btn-sm" onClick={() => void archivePicked([...worthKnowing, ...noise])} disabled={picked.size === 0}>
-                      {picked.size === 0 ? "Archive Selected" : lineCase("Archive " + picked.size)}
-                    </button>
-                    {/* 11B: the other half of the job. Archive keeps it
-                        in the account; delete is for the mail that should
-                        not be in the account at all. Both count what
-                        landed, both undo. */}
-                    <button className="btn-sm btn-danger" onClick={() => void deletePicked([...worthKnowing, ...noise])} disabled={picked.size === 0}>
-                      {picked.size === 0 ? "Delete Selected" : lineCase("Delete " + picked.size)}
-                    </button>
-                    <button className="quiet-action" onClick={() => setPicked(null)}>Done</button>
-                  </div>
-                ))}
               </div>
               {/* The guard line: proof that folding is safe, derived or absent. */}
               {guardAfter === "fold" && guard}
@@ -5222,7 +5612,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
               archives actually happen, and the other two are the lists on
               this screen. A zero is not dressed up as an achievement. */}
           {triageState === "ready" && (() => {
-            const line = closeOut(cleared, visibleRows.length, needsYou.length); // E-29
+            const line = closeOut(cleared, sectionRows.length, needsYou.length); // E-29
             // Null means there is nothing true to say: nothing cleared and
             // things still owed. The Needs You section already carries that.
             if (!line) return null;
@@ -5279,7 +5669,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                   number above it. EMAIL-F-18: and says where the number
                   came from until the inbox has been read to the bottom. */}
               {visibleRows.length > 0 && (
-                <div className="row" {...pressable(() => { setPurgePicks(null); void deepLoad(); setView("purge"); })}>
+                <div className="row" {...pressable(() => { setPurgePicks(null); void runScan(); setView("purge"); })}>
                   <span className="row-ico cat-bg-graphite" aria-hidden="true"><Archive className="ic" /></span>
                   <div className="row-grow">
                     <div className="conn-name">Clean Out</div>

@@ -1,14 +1,11 @@
 import { useState } from "react";
-import { THREAD_STATE_LABEL, type Brief, type ConfirmedMeeting } from "./brief";
+import { THREAD_STATE_LABEL, type Brief } from "./brief";
 import EvidenceChip from "./EvidenceChip";
 import type { Evidence } from "./evidence";
 import type { Bucket } from "./triage";
 import { deadlineTone } from "./home";
 import { haptics } from "../shared/haptics";
 import { rowDoor } from "../shared/rowDoor";
-import { dayPhrase, monthDay } from "../money/bills";
-import { fmtTime, todayISO } from "../schedule/calendar";
-import { Facts } from "./factsLine";
 
 // WHERE THIS STANDS (UP-MIND-19, Email E9, 5.6 and 5.13; Brain build order 5).
 //
@@ -39,10 +36,16 @@ import { Facts } from "./factsLine";
 // and an inner pad-x indented the detail against everything above it.
 //
 // The order is now by what the reader came for: WHAT IS TRUE (the state and
-// its deadline, as one facts line), WHAT TO DO (the calendar offer, the
-// decision offer), WHAT WAS SAID (agreed and open, behind More), and only
-// then HOW TO CORRECT IT. Corrections go last on purpose: they are the
-// rarest thing anyone does here and they were sitting first.
+// its deadline, as one facts line), WHAT TO DO (the decision offer), WHAT WAS
+// SAID (agreed and open, behind More), and only then HOW TO CORRECT IT.
+// Corrections go last on purpose: they are the rarest thing anyone does here
+// and they were sitting first.
+//
+// THE CALENDAR OFFER LEFT THIS CARD (2026-09-29). It lived here, in a card that
+// is collapsed by default, and the one action the whole feature exists for was
+// the one you had to open something to reach. It is MeetingFinishCard now,
+// above the messages, and this card no longer has a calendar action of its
+// own: two places offering the same write is how it gets offered twice.
 export default function ThreadStateCard({
   brief,
   evidence,
@@ -51,9 +54,6 @@ export default function ThreadStateCard({
   onOpenSource,
   override,
   onOverride,
-  onAddToCalendar,
-  calendarState = "none",
-  onOpenCalendar,
 }: {
   /** Null when the pass established nothing: the card then draws only the
    *  two correction capsules, if it has them, and nothing else. */
@@ -71,24 +71,12 @@ export default function ThreadStateCard({
   override?: Bucket | null;
   /** Needs Me / Not for Me. Tapping the one already set clears it. */
   onOverride?: (bucket: "needs_you" | "worth_knowing" | null) => void;
-  /** THE TAP (2026-09-16). Absent means no calendar is reachable, and the
-   *  card then states the time without offering to file it. */
-  onAddToCalendar?: (m: ConfirmedMeeting) => void;
-  /** Whether this thread's meeting is already on the calendar. "added" is
-   *  the receipt after the tap; "already" is one found on load, so a second
-   *  visit cannot file the same interview twice. */
-  calendarState?: "none" | "added" | "already";
-  /** Opens the event this thread already put on the calendar. */
-  onOpenCalendar?: () => void;
 }) {
   const [open, setOpen] = useState(defaultOpen);
   const toggleOpen = () => { haptics.selection(); setOpen((v) => !v); };
   const detail = !!brief && (!!brief.agreed?.length || !!brief.unresolved?.length);
-  const meeting = brief?.meeting;
-  const when = meeting ? whenParts(meeting) : null;
-  const has = !!brief && (!!brief.state || detail || !!brief.deadline || !!brief.next || !!meeting);
+  const has = !!brief && (!!brief.state || detail || !!brief.deadline || !!brief.next);
   if (!has && !brief?.decision && !onOverride) return null;
-  const onCal = calendarState !== "none";
   return (
     <div className="card msg-summary">
       <div className="eyebrow">Where This Stands</div>
@@ -114,29 +102,6 @@ export default function ThreadStateCard({
             </span>
           )}
           {brief.next && <span className="fact">{"Next: " + brief.next}</span>}
-        </div>
-      )}
-
-      {/* WHAT TO DO. The time the thread actually settled on, and one tap to
-          put it in the calendar. Nothing is written until that tap: reading
-          his mail is what earns the offer, not the right to file it. */}
-      {meeting && (
-        <div className="row msg-stands-act" {...(onCal
-          ? (onOpenCalendar ? rowDoor(() => { haptics.selection(); onOpenCalendar(); }) : {})
-          : (onAddToCalendar ? rowDoor(() => { haptics.selection(); onAddToCalendar(meeting); }) : {}))}>
-          <div className="row-grow">
-            <div className="conn-name">{meeting.title}</div>
-            {/* The day and the hours are two facts (§AM R6, R8): the day is
-                a neutral date in small caps, the hours the one grey. */}
-            {when && <Facts facts={[{ text: when.day, tone: "date" }, { text: when.time }]} />}
-          </div>
-          {onCal ? (
-            <span className="fact good msg-stands-done">{calendarState === "added" ? "Added" : "On your calendar"}</span>
-          ) : onAddToCalendar ? (
-            <button className="pill-act" onClick={(e) => { e.stopPropagation(); haptics.selection(); onAddToCalendar(meeting); }}>
-              Add to Calendar
-            </button>
-          ) : null}
         </div>
       )}
 
@@ -195,36 +160,4 @@ export default function ThreadStateCard({
       )}
     </div>
   );
-}
-
-/** The meeting in the app's own clock words, never the model's phrasing. */
-/** THE DATE IS PART OF THE OFFER (2026-09-18, Dave: "Nothing happened. Why
- *  didn't it create the event").
- *
- *  This printed dayPhrase alone, which for anything two to six days out is a
- *  bare weekday NAME -- "Monday". So a meeting the summariser resolved to
- *  the WRONG Monday read exactly like one resolved to the right one, and the
- *  only screen that could have shown the difference was hiding it. The one
- *  thing you would check before tapping Add to Calendar was the one thing
- *  not on the card.
- *
- *  Today and tomorrow keep their words: they are unambiguous, and a date
- *  beside them is noise. Everything else carries the date it will be filed
- *  under, which is the number that has to be right.
- *
- *  §AM R6 (2026-09-26): the card draws the day and the hours as two facts,
- *  with the separator from CSS, so they come apart here. The one-string
- *  form, for the toast, joins them with a comma rather than a typed dot. */
-export function whenParts(m: ConfirmedMeeting, today = todayISO()): { day: string; time: string } {
-  const s = fmtTime(m.start);
-  const e = fmtTime(m.end);
-  const phrase = dayPhrase(m.date, today);
-  const named = phrase === "Today" || phrase === "Tomorrow" || phrase === "Yesterday";
-  const day = named || phrase === monthDay(m.date) ? phrase : phrase + ", " + monthDay(m.date);
-  return { day, time: s.time + " " + s.ap + " to " + e.time + " " + e.ap };
-}
-
-export function whenLine(m: ConfirmedMeeting, today = todayISO()): string {
-  const w = whenParts(m, today);
-  return w.day + ", " + w.time;
 }

@@ -161,6 +161,10 @@ export default function ConnectionsPage({
                     inbox with no reconnect anywhere; Reconnect All only
                     appeared when EVERY account was out. */}
                 {signedOut && <div className="facts"><span className="fact warn">Signed out</span></div>}
+                {/* A connection nothing has stored is shown as what it is
+                    (2026-09-29): it works now and is gone at the next launch,
+                    which is not what "Connected" has ever promised here. */}
+                {!signedOut && !g.connectionOf(a.email).durable && <div className="facts"><span className="fact warn">Temporary</span></div>}
                 <div className="msg-chips conn-acct-chips">
                   {signedOut && (
                     <button className="chip on" disabled={busy}

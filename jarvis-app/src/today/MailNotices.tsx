@@ -1,14 +1,18 @@
 import { useEffect, useRef, useState } from "react";
 import { useOptionalSchedule } from "../data/NotesProvider";
 import { addDays, occursOn } from "../schedule/calendar";
-import { Mail, Clock, CalendarClock, CornerUpLeft, CalendarCheck, BellRing, PenLine, CalendarPlus } from "../shared/icons";
+import { Mail, Clock, CalendarClock, CornerUpLeft, CalendarCheck, BellRing, PenLine, CalendarPlus, ShieldAlert, Share, Send, Wallet, Copy, CircleSlash, FileText } from "../shared/icons";
 import NoticeCard from "./NoticeCard";
 import { showToast } from "../shared/toast";
 import { haptics } from "../shared/haptics";
 import {
-  loadMailSnapshot, mailNotices, residualLine, loadDismissed, dismissNotice, setDismissed,
+  loadMailSnapshot, mailNotices, residualLine, loadDismissed, dismissNotice, setDismissed, findThread,
   type MailKind, type MailNotice, type NoticeFact, type DayEvent,
 } from "../messages/home";
+import type { NotificationActionKind } from "../messages/mailContracts";
+import { BUSY_LABEL } from "../messages/notificationActions";
+import type { MailActionResult } from "../messages/executeMailAction";
+import { copyPromised } from "../messages/clipboard";
 import type { MailAct } from "../messages/mailAct";
 import EvidenceChip from "../messages/EvidenceChip";
 import Dictate from "../shared/Dictate";
@@ -41,8 +45,32 @@ const ICON: Record<MailKind, React.ReactNode> = {
   chase: <BellRing className="ic" />,
   draft: <PenLine className="ic" />,
   act: <CalendarPlus className="ic" />,
+  // A notification's own glyph is the one for its action (ACTION_ICON); this is
+  // the View Email one, for a notice with no action we can vouch for.
+  notify: <Mail className="ic" />,
 };
 
+// EXHAUSTIVE OVER THE ACTIONS (2026-09-29): a new kind cannot ship without a
+// glyph, because the type will not compile until it has one.
+const ACTION_ICON: Record<NotificationActionKind, React.ReactNode> = {
+  grant_access: <ShieldAlert className="ic" />,
+  open_share: <Share className="ic" />,
+  accept_invite: <CalendarCheck className="ic" />,
+  sign: <PenLine className="ic" />,
+  track: <Send className="ic" />,
+  add_travel: <CalendarPlus className="ic" />,
+  fill_form: <FileText className="ic" />,
+  fix_payment: <Wallet className="ic" />,
+  copy_code: <Copy className="ic" />,
+  unsubscribe: <CircleSlash className="ic" />,
+};
+
+/** The label while a notice's action is being carried out. Never says done. */
+function busyLabel(n: MailNotice): string {
+  if (n.kind === "meeting") return "Booking…";
+  if (n.kind === "notify") return n.notification ? BUSY_LABEL[n.notification.kind] : "Opening…";
+  return "Writing…";
+}
 export interface MailDraft { text: string; sending: boolean }
 
 // A NOTICE'S LINE, DRAWN WITH THE KEY (§AM R6, R8, 2026-09-26). A bill's
@@ -96,6 +124,7 @@ export default function MailNotices({
   onTakeMeeting,
   onTakeAct,
   onDelete,
+  onNotificationAction,
   max = 3,
 }: {
   today: string;
@@ -142,6 +171,12 @@ export default function MailNotices({
   // in the inbox and this notice reappeared the next time the snapshot
   // refreshed. null means no account could be resolved for the thread.
   onDelete?: (n: MailNotice) => Promise<{ ok: boolean; undo?: () => Promise<void> } | null>;
+  // 2026-09-29: the tap on a notification (Grant Access, Sign, Track, Copy
+  // Code...). It MUST be called synchronously from the tap, because the page
+  // it opens has to open inside the gesture. It never rejects; the result says
+  // what really happened (see messages/executeMailAction.ts). Absent, a
+  // notification notice opens its thread.
+  onNotificationAction?: (n: MailNotice) => Promise<MailActionResult>;
   max?: number;
 }) {
   const [hidden, setHidden] = useState<string[]>(() => loadDismissed(today));
@@ -149,6 +184,8 @@ export default function MailNotices({
   const [done, setDone] = useState<string[]>([]);
   const [drafts, setDrafts] = useState<Record<string, MailDraft>>({});
   const [busy, setBusy] = useState<string | null>(null);
+  // A link that would not open, exactly as validated, offered as Copy Link.
+  const [fallbacks, setFallbacks] = useState<Record<string, string>>({});
   const draftRef = useRef<HTMLTextAreaElement | null>(null);
   // UP-MIND-07 (2026-09-05): today and tomorrow, for the collision clause on
   // a deadline the sender put a clock on. Optional provider on purpose: with
@@ -202,8 +239,15 @@ export default function MailNotices({
   const asleep = sleepingNow(snoozed, nowHHMM);
   // The nudges already sent ride in, so a wait's age wears the rung the
   // rail gives the same thread (one nudge direct, two firm), not the clock's.
-  const notices = mailNotices(snap, today, new Date(), max, [...hidden, ...done, ...asleep], dayEvents, loadNudgeCounts());
-  const residual = residualLine(snap, notices.map((n) => n.threadId));
+  // Asked for everything, cut to `max` here, so the band knows how many
+  // notifications did not fit and See All can say so (residualLine).
+  const everything = mailNotices(snap, today, new Date(), Math.max(max, 50), [...hidden, ...done, ...asleep], dayEvents, loadNudgeCounts());
+  const notices = everything.slice(0, max);
+  const residual = residualLine(
+    snap,
+    notices.map((n) => n.threadId),
+    everything.slice(max).filter((n) => n.kind === "notify").map((n) => n.threadId),
+  );
   // Reported from an EFFECT, never during render: telling a parent to set
   // state while rendering is how a render loop starts.
   const isEmpty = notices.length === 0 && !residual;
@@ -212,7 +256,9 @@ export default function MailNotices({
   const choices = snoozeChoices(nowHHMM);
 
   const canWrite = !!onDraft && !!onSend;
-  const writable = (n: MailNotice) => canWrite && (n.kind === "reply" || n.kind === "nudge" || n.kind === "chase");
+  // No Write Back on anything nobody can answer, and none on a notification:
+  // its button is its own action.
+  const writable = (n: MailNotice) => canWrite && !n.noReply && (n.kind === "reply" || n.kind === "nudge" || n.kind === "chase");
 
   const finish = (n: MailNotice, message: string) => {
     markDone(n.key);
@@ -220,7 +266,36 @@ export default function MailNotices({
     showToast({ message });
   };
 
+  // A NOTIFICATION'S TAP. The handler is invoked in the same tick as the tap so
+  // a page it opens is opened inside the gesture. What comes back is the truth:
+  // only a finished job clears the notice, and an opened page never does.
+  const notify = (n: MailNotice) => {
+    if (!n.notification || !onNotificationAction) { onOpenThread?.(n.threadId); return; }
+    if (busy === n.key) return; // a second tap while the first is working is not a second action
+    haptics.selection();
+    setBusy(n.key);
+    void onNotificationAction(n).then((res) => {
+      setBusy(null);
+      if (res.fallbackUrl) setFallbacks((f) => ({ ...f, [n.key]: res.fallbackUrl! }));
+      else setFallbacks((f) => { if (!(n.key in f)) return f; const x = { ...f }; delete x[n.key]; return x; });
+      if (res.settled) {
+        markDone(n.key);
+        showToast({
+          message: res.message,
+          ...(res.undo ? { actionLabel: "Undo", onAction: () => { void res.undo!().then((ok) => { if (ok) unmarkDone(n.key); else showToast({ message: "Couldn't Take It Back" }); }); } } : {}),
+        });
+      } else {
+        showToast({
+          message: res.message,
+          ...(res.undo ? { actionLabel: "Undo", onAction: () => { void res.undo!().then((ok) => showToast({ message: ok ? "Taken Back" : "Couldn't Take It Back" })); } } : {}),
+        });
+      }
+      if (res.openThread) onOpenThread?.(n.threadId);
+    });
+  };
+
   const act = (n: MailNotice) => {
+    if (n.kind === "notify") { notify(n); return; }
     // BEFORE n.task, because a dated commitment is more specific than a task.
     // An appointment reminder that also names a deadline would otherwise land
     // as a to-do about an appointment instead of the appointment.
@@ -384,8 +459,8 @@ export default function MailNotices({
         const loading = busy === n.key;
         // U2: the quick answers this thread already has. One tap is a whole
         // reply; nothing here is a fragment he has to finish.
-        const thread = snap.threads.find((t) => t.id === n.threadId);
-        const chips = n.kind === "reply" && canWrite ? quickAnswers(thread?.replies) : [];
+        const thread = findThread(snap, n.threadId, n.account);
+        const chips = n.kind === "reply" && canWrite && !n.noReply ? quickAnswers(thread?.replies) : [];
         return (
           <NoticeCard
             key={n.key}
@@ -408,7 +483,7 @@ export default function MailNotices({
             // ellipsing, and it is not uniform so the latch never drops it.
             uniform={!n.facts}
             wrap={!!n.facts}
-            icon={ICON[n.kind]}
+            icon={n.notification ? ACTION_ICON[n.notification.kind] : ICON[n.kind]}
             tone={n.tone}
             title={n.title}
             sub={draft ? undefined : n.facts ? <NoticeFacts facts={n.facts} wrap /> : n.sub}
@@ -419,7 +494,7 @@ export default function MailNotices({
             // because the verb alone would not say what it makes.
             action={{
               label: loading
-                ? (n.kind === "meeting" ? "Booking…" : "Writing…")
+                ? busyLabel(n)
                 : writable(n) && !draft ? (n.kind === "reply" ? "Write Back" : n.action) : n.action,
               onClick: () => act(n),
             }}
@@ -446,6 +521,22 @@ export default function MailNotices({
                       evidence={n.evidence}
                       onOpenSource={onOpenThread ? () => onOpenThread(n.threadId) : undefined}
                     />
+                  </div>
+                )}
+                {fallbacks[n.key] && (
+                  /* row-tap: the page would not open, so the exact validated link is offered to copy; the card body still opens the thread */
+                  <div className="row mail-chips">
+                    <button
+                      className="chip chip-act"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const url = fallbacks[n.key]!;
+                        void copyPromised(url).then(
+                          () => showToast({ message: "Link copied" }),
+                          () => showToast({ message: "Couldn't Copy · Nothing on Your Clipboard" }),
+                        );
+                      }}
+                    >Copy Link</button>
                   </div>
                 )}
                 {chips.length > 0 && !draft && (

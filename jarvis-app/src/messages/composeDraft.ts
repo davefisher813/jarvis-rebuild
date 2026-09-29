@@ -23,6 +23,13 @@ export interface LocalDraft {
   threadId?: string;
   account?: string;
   inReplyTo?: string;
+  // REPLY COVERAGE (2026-09-29). The revision of the conversation this reply
+  // was started against (its latest message id), and the marks the person made
+  // by hand on the checklist ("this one is answered"). The marks belong to the
+  // revision they were made on: a newer message can change what is being
+  // asked, so restoreInto drops them (never the words) when the revision moved.
+  sourceRevision?: string;
+  overrides?: Record<string, "addressed" | "open">;
   savedAt: number;
 }
 
@@ -33,6 +40,13 @@ export function draftKey(editingDraftId: string | null | undefined): string {
 }
 
 const str = (v: unknown): string | undefined => (typeof v === "string" && v ? v : undefined);
+
+function cleanOverrides(v: unknown): Record<string, "addressed" | "open"> | undefined {
+  if (typeof v !== "object" || v === null || Array.isArray(v)) return undefined;
+  const out: Record<string, "addressed" | "open"> = {};
+  for (const [k, m] of Object.entries(v as Record<string, unknown>)) if (m === "addressed" || m === "open") out[k] = m;
+  return Object.keys(out).length ? out : undefined;
+}
 
 export function loadLocalDrafts(storage: Pick<Storage, "getItem"> = localStorage): LocalDrafts {
   try {
@@ -51,6 +65,8 @@ export function loadLocalDrafts(storage: Pick<Storage, "getItem"> = localStorage
         ...(str(d.threadId) ? { threadId: d.threadId as string } : {}),
         ...(str(d.account) ? { account: d.account as string } : {}),
         ...(str(d.inReplyTo) ? { inReplyTo: d.inReplyTo as string } : {}),
+        ...(str(d.sourceRevision) ? { sourceRevision: d.sourceRevision as string } : {}),
+        ...(cleanOverrides(d.overrides) ? { overrides: cleanOverrides(d.overrides)! } : {}),
       };
     }
     return out;
@@ -110,10 +126,18 @@ export function continuableReply(all: LocalDrafts): { key: string; draft: LocalD
  *  over a fresh one when it is for the same conversation (both with no
  *  thread, or both with this thread); a saved reply never leaks into a
  *  fresh compose and vice versa. */
-type Composable = { to: string; subject: string; body: string; cc?: string; threadId?: string; account?: string; inReplyTo?: string };
+type Composable = {
+  to: string; subject: string; body: string; cc?: string; threadId?: string; account?: string; inReplyTo?: string;
+  sourceRevision?: string; overrides?: Record<string, "addressed" | "open">;
+};
 export function restoreInto<T extends Composable>(fresh: T, saved: LocalDraft | null): T {
   if (!saved || !draftHasWords(saved)) return fresh;
   if ((saved.threadId ?? null) !== (fresh.threadId ?? null)) return fresh;
+  // The marks survive only on the revision they were made on. `fresh` is built
+  // from the conversation as it is NOW, so its revision is the current one: a
+  // saved mark from an older revision is dropped and the draft, words and
+  // all, is kept.
+  const sameRevision = !!saved.sourceRevision && saved.sourceRevision === fresh.sourceRevision;
   return {
     ...fresh,
     to: saved.to,
@@ -122,5 +146,25 @@ export function restoreInto<T extends Composable>(fresh: T, saved: LocalDraft | 
     ...(saved.cc !== undefined ? { cc: saved.cc } : {}),
     ...(saved.account ? { account: saved.account } : {}),
     ...(saved.inReplyTo ? { inReplyTo: saved.inReplyTo } : {}),
+    ...(sameRevision && saved.overrides ? { overrides: saved.overrides } : {}),
+  };
+}
+
+/**
+ * A saved draft reopened with no conversation in hand (Continue Your Reply, the
+ * Drafts list): its marks are kept when the conversation is still at the
+ * revision the draft was started on, and reset when it moved. `current` is the
+ * latest message id the inbox knows for that thread, or undefined when it does
+ * not know, in which case the marks are kept and the reading corrects itself
+ * once the thread is read.
+ */
+export function carriedOverrides(
+  saved: Pick<LocalDraft, "sourceRevision" | "overrides">, current: string | undefined,
+): { sourceRevision?: string; overrides?: Record<string, "addressed" | "open"> } {
+  const revision = current ?? saved.sourceRevision;
+  const keep = !current || !saved.sourceRevision || saved.sourceRevision === current;
+  return {
+    ...(revision ? { sourceRevision: revision } : {}),
+    ...(keep && saved.overrides ? { overrides: saved.overrides } : {}),
   };
 }

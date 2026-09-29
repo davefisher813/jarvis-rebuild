@@ -23,6 +23,7 @@ const ITEMS: Item[] = [
   { label: "Booking", route: "booking", group: 1 },
   { label: "Edit Tabs", route: "edittabs", group: 1 },
   { label: "Connections", route: "connections", group: 1 },
+  { label: "Email Sections", route: "emailsections", group: 1 },
   { label: "AI Control", route: "aicontrol", group: 1 },
   { label: "What JARVIS Learned", route: "learned", group: 1 },
   // Brain Manual v1: Export and Erase live one level below Settings, next to

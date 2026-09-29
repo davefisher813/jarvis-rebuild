@@ -293,7 +293,7 @@ function matchingClose(h: string, tag: string, from: number): number | null {
   return null;
 }
 
-function dropHidden(h: string): string {
+export function dropHidden(h: string): string {
   const re = /<([a-zA-Z][a-zA-Z0-9]*)((?:"[^"]*"|'[^']*'|[^'">])*)>/g;
   let out = "";
   let kept = 0;

@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { createPortal } from "react-dom";
 
 // SHELL-F-22 + BROWSER-F-14 (2026-09-05): the tap-alternative for gesture-only
@@ -25,6 +26,10 @@ export interface RowAction {
   // Shown and greyed rather than dropped, so the buttons do not move around
   // under the thumb from one row to the next.
   disabled?: boolean;
+  // An optional glyph before the label (2026-09-29, Brain "Log It" on a chat
+  // message). Absent means the plain centred label every other menu draws, so
+  // no existing caller changes. The caller owns the glyph's colour class.
+  icon?: ReactNode;
 }
 
 export default function RowActionSheet({
@@ -46,11 +51,11 @@ export default function RowActionSheet({
           {actions.map((a) => (
             <button
               key={a.label}
-              className={a.destructive ? "destructive" : undefined}
+              className={[a.destructive ? "destructive" : "", a.icon ? "has-icon" : ""].filter(Boolean).join(" ") || undefined}
               disabled={a.disabled}
               onClick={() => { if (a.disabled) return; onCancel(); a.onPick(); }}
             >
-              {a.label}
+              {a.icon}{a.label}
             </button>
           ))}
         </div>

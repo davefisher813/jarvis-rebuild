@@ -8,6 +8,12 @@ import { readAct, actLabel, type ActProposal, type MailAct } from "./mailAct";
 import type { Evidence } from "./evidence";
 import { hedge, confidenceOf, isHigh } from "./confidence";
 import { dayTone, type FactTone } from "./factsLine";
+import { isNoReply } from "./noReply";
+import type { NotificationAction, NotificationActionKind } from "./mailContracts";
+import {
+  ACTION_LABEL, VIEW_LABEL, actionPriority, hostOf, isNotificationKind, labelFor, readStoredAction,
+} from "./notificationActions";
+import { scopedNoticeKey } from "./snoozeNotice";
 
 // THE HOME-PAGE EMAIL SURFACE (Dave 2026-08-20: "give me ideas to make the
 // email homepage feature actually useful or we can scratch it because right
@@ -62,6 +68,19 @@ export interface MailThread {
   actEv?: Evidence;
   // UP-MIND-10 (2026-09-05): the sender, when they are someone in Contacts.
   personId?: string;
+  // 2026-09-29, notification actions. The content revision this row was read
+  // at (the thread's last message id): an action, a dismissal and a snooze are
+  // all about ONE revision, and a newer message is a new question. Optional so
+  // a snapshot written before this field still reads.
+  revision?: string;
+  // The sender has no reply path (a no-reply address, a bulk sender, a message
+  // that says so): Today never offers Write Back or a quick reply on it.
+  noReply?: boolean;
+  // What the message wants done, validated in code (notificationActions.ts).
+  action?: NotificationAction;
+  // A code mail whose code was missing or ambiguous: a View Email notice until
+  // this time (epoch ms), then nothing.
+  viewUntil?: number;
 }
 // UP-MIND-10 (2026-09-05): personId on every row that has a counterpart.
 // Optional everywhere, because a sender who is not in Contacts has no id and
@@ -80,8 +99,16 @@ export interface MailDraftRow { id: string; threadId: string; to: string; subjec
 
 export interface MailSnapshot {
   ts: number;
+  // Whose mail this is (the signed-in user id), so a notice's dismissal key
+  // cannot be confused across owners. Absent on a snapshot from before it.
+  owner?: string;
   needsYou: number;           // the true total, so the residual line is honest
   threads: MailThread[];      // needs-you threads, deadline order
+  // Bounded threads that carry a notification action (grant access, sign,
+  // track, copy code...), from ANY bucket, kept apart from the six needs-you
+  // rows so a worth-knowing or noise notice can surface. Optional: an old
+  // snapshot has none.
+  actionable?: MailThread[];
   waiting: MailWaiting[];     // longest wait first
   promises: MailPromise[];
   meetings?: MailMeeting[];
@@ -89,7 +116,7 @@ export interface MailSnapshot {
   drafts?: MailDraftRow[];
 }
 
-export type MailKind = "deadline" | "reply" | "promised" | "nudge" | "meeting" | "chase" | "draft" | "act";
+export type MailKind = "deadline" | "reply" | "promised" | "nudge" | "meeting" | "chase" | "draft" | "act" | "notify";
 
 /** One fact on a notice's line, for Today to draw with the Colour Key (§AM).
  *  `tone` is the key's colour for what the fact means; `num` is a number with
@@ -129,6 +156,14 @@ export interface MailNotice {
   // thread, so a draft id reached the thread opener and it returned silently
   // (2026-08-25). The draft is what the button is about; it travels.
   draftId?: string;
+  // Present on kind "notify": which mailbox, which message revision, and what
+  // it wants done. Absent `notification` on a notify notice is View Email.
+  notification?: NotificationAction;
+  account?: string;
+  revision?: string;
+  fromName?: string;
+  /** Today offers no Write Back and no reply chip on this one. */
+  noReply?: boolean;
 }
 
 const KEY = "jarvis.mail.home.v1";
@@ -136,7 +171,24 @@ const KEY = "jarvis.mail.home.v1";
 // rather than telling him about an inbox from last week.
 export const SNAPSHOT_MAX_AGE_MS = 36 * 3600e3;
 
-export const EMPTY: MailSnapshot = { ts: 0, needsYou: 0, threads: [], waiting: [], promises: [], meetings: [], chases: [], drafts: [] };
+export const EMPTY: MailSnapshot = { ts: 0, needsYou: 0, threads: [], waiting: [], promises: [], meetings: [], chases: [], drafts: [], actionable: [] };
+
+// A stored row is read back with the suspicion every stored shape gets: the
+// fields that drive behaviour are re-checked, and an action that fails its
+// own validation is dropped from the row rather than trusted.
+function readThreads(raw: unknown): MailThread[] {
+  if (!Array.isArray(raw)) return [];
+  const out: MailThread[] = [];
+  for (const v of raw) {
+    if (typeof v !== "object" || v === null) continue;
+    const t = v as MailThread;
+    if (typeof t.id !== "string" || !t.id) continue;
+    const action = readStoredAction((v as { action?: unknown }).action);
+    const { action: _drop, ...rest } = t;
+    out.push(action ? { ...rest, action } : rest);
+  }
+  return out;
+}
 
 export function saveMailSnapshot(snap: MailSnapshot, storage: Pick<Storage, "setItem"> = localStorage): void {
   try { storage.setItem(KEY, JSON.stringify(snap)); } catch { /* private mode */ }
@@ -153,8 +205,10 @@ export function loadMailSnapshot(
     if (now - p.ts > SNAPSHOT_MAX_AGE_MS) return EMPTY;
     return {
       ts: p.ts,
+      ...(typeof p.owner === "string" && p.owner ? { owner: p.owner } : {}),
       needsYou: typeof p.needsYou === "number" ? p.needsYou : 0,
-      threads: Array.isArray(p.threads) ? p.threads : [],
+      threads: readThreads(p.threads),
+      actionable: readThreads(p.actionable),
       waiting: Array.isArray(p.waiting) ? p.waiting : [],
       promises: Array.isArray(p.promises) ? p.promises : [],
       meetings: Array.isArray(p.meetings) ? p.meetings : [],
@@ -314,6 +368,7 @@ function deadlineNotice(t: MailThread, todayISO: string, now: Date, events: DayE
     ],
     action: "Add Task",
     tone: "cat-fg-red",
+    ...(t.account ? { account: t.account } : {}),
     ...(t.byEv ? { evidence: t.byEv } : {}),
     // A subject of "(no subject)" is a list placeholder; titleCase turned it
     // into the literal task name "(No Subject)" (2026-08-25).
@@ -321,7 +376,20 @@ function deadlineNotice(t: MailThread, todayISO: string, now: Date, events: DayE
   };
 }
 
-function replyNotice(t: MailThread): MailNotice {
+// Whether anyone can answer this thread from here. The snapshot's own flag
+// wins (it knew whether the message carried a List-Unsubscribe); a row from
+// before the flag is judged by its address and its opening words.
+export function threadIsNoReply(t: MailThread): boolean {
+  return t.noReply === true || isNoReply(t.fromEmail, t.snippet ?? "");
+}
+
+// NULL FOR A MAILBOX NOBODY READS (2026-09-29). Reply, and the Write Back the
+// card turns it into, are the app offering to write to an address that will
+// bounce or reach a queue nobody empties. Such a thread is still surfaced
+// when it needs him (viewNotice), and still gets a specialised action when
+// its message wants one (notifyNotice); it just never gets a reply.
+function replyNotice(t: MailThread): MailNotice | null {
+  if (threadIsNoReply(t)) return null;
   return {
     key: "reply:" + t.id,
     kind: "reply",
@@ -330,6 +398,52 @@ function replyNotice(t: MailThread): MailNotice {
     sub: t.gist || t.subject,
     action: "Reply",
     tone: "cat-fg-blue",
+    ...(t.account ? { account: t.account } : {}),
+  };
+}
+
+// The tone each action wears. Exhaustive by type.
+const NOTIFY_TONE: Record<NotificationActionKind, string> = {
+  grant_access: "cat-fg-orange",
+  open_share: "cat-fg-blue",
+  accept_invite: "cat-fg-sky",
+  sign: "cat-fg-purple",
+  track: "cat-fg-green",
+  add_travel: "cat-fg-sky",
+  fill_form: "cat-fg-yellow",
+  fix_payment: "cat-fg-red",
+  copy_code: "cat-fg-slate",
+  unsubscribe: "cat-fg-slate",
+};
+
+// Where the tap goes is shown for the three that leave for somebody else's
+// site: a signing page, a billing page, a tracking page. The hostname is read
+// off the validated URL, never off the message.
+const SHOWS_HOST: ReadonlySet<NotificationActionKind> = new Set<NotificationActionKind>(["sign", "fix_payment", "track"]);
+
+/** A thread's notice for the action its message wants, or for View Email when
+ *  it wants none we can vouch for. The key is scoped by owner, account,
+ *  thread, revision and kind, so a dismissal of one code never hides the next. */
+function notifyNotice(t: MailThread, owner: string, fallbackRevision = ""): MailNotice {
+  const a = t.action;
+  const revision = t.revision ?? t.lastMsgId ?? fallbackRevision;
+  const kind = a?.kind ?? "view";
+  const host = a && SHOWS_HOST.has(a.kind) ? hostOf(a.url) : "";
+  const line = t.gist || t.subject;
+  return {
+    key: scopedNoticeKey({ owner, ...(t.account ? { account: t.account } : {}), threadId: t.id, revision, kind }),
+    kind: "notify",
+    threadId: t.id,
+    title: t.from,
+    sub: host ? `${line} \u00b7 ${host}` : line,
+    ...(host ? { facts: [{ text: host }, { text: line }] } : {}),
+    action: labelFor(a),
+    tone: a ? NOTIFY_TONE[a.kind] : "cat-fg-slate",
+    ...(a ? { notification: a } : {}),
+    ...(t.account ? { account: t.account } : {}),
+    revision,
+    fromName: t.from,
+    noReply: true,
   };
 }
 
@@ -476,6 +590,7 @@ function actNotice(t: MailThread, a: MailAct, todayISO: string): MailNotice {
     ...(facts ? { facts } : {}),
     action: actLabel(a),
     tone: a.verb === "bill" ? "cat-fg-green" : "cat-fg-sky",
+    ...(t.account ? { account: t.account } : {}),
     act: a,
     ...(t.actEv ? { evidence: t.actEv } : {}),
   };
@@ -565,11 +680,43 @@ export function mailNotices(
 
   const deadlines = threads.map((t) => deadlineNotice(t, todayISO, now, events)).filter((n): n is MailNotice => n !== null);
   const deadlineIds = new Set(deadlines.map((d) => d.threadId));
-  // A thread already surfaced as a deadline or as a dated commitment is not
-  // also surfaced as a reply. An appointment reminder that also says "let us
-  // know if this time doesn't work" would otherwise take two of the three
+
+  // WHAT THE MESSAGE WANTS DONE (2026-09-29). Threads that carry a validated
+  // action, from the needs-you rows AND from the separate actionable list, so a
+  // worth-knowing or noise thread can surface. An action that has stopped being
+  // useful (a code past its time) is not offered. A code mail with no single
+  // code is a View Email for the few minutes it matters.
+  const ms = now.getTime();
+  const owner = snap.owner ?? "";
+  const threadKey = (t: { id: string; account?: string }) => (t.account ?? "") + "\u0000" + t.id;
+  const seenThread = new Set<string>();
+  const notifyThreads: MailThread[] = [];
+  for (const t of [...(snap.actionable ?? []), ...threads]) {
+    const k = threadKey(t);
+    if (seenThread.has(k)) continue;
+    seenThread.add(k);
+    const live = t.action && !(t.action.expiresAt && Date.parse(t.action.expiresAt) < ms);
+    const viewing = !t.action && t.viewUntil !== undefined && t.viewUntil > ms;
+    if (live || viewing) notifyThreads.push(t);
+  }
+  // Time-critical first (a code before a signature before a parcel), the
+  // snapshot's own order breaking ties: the sort is stable.
+  const pri = (t: MailThread) => (t.action ? actionPriority(t.action.kind) : 1);
+  const notifies = [...notifyThreads].sort((a, b) => pri(a) - pri(b)).map((t) => notifyNotice(t, owner));
+  const notifyKeys = new Set(notifyThreads.map(threadKey));
+  const isUrgent = (n: MailNotice) => !n.notification || actionPriority(n.notification.kind) <= actionPriority("fill_form");
+  const urgentActions = notifies.filter(isUrgent);
+  const lightActions = notifies.filter((n) => !isUrgent(n));
+
+  // A thread already surfaced as a deadline, a dated commitment or an action is
+  // not also surfaced as a reply. An appointment reminder that also says "let
+  // us know if this time doesn't work" would otherwise take two of the three
   // slots on the page to say one thing.
-  const replies = threads.filter((t) => !deadlineIds.has(t.id) && !actIds.has(t.id)).map(replyNotice);
+  const covered = (t: MailThread) => deadlineIds.has(t.id) || actIds.has(t.id) || notifyKeys.has(threadKey(t));
+  const replies = threads.filter((t) => !covered(t)).map(replyNotice).filter((n): n is MailNotice => n !== null);
+  // A needs-you thread nobody can answer, with nothing more specific to offer,
+  // is still his to look at: View Email, never Reply.
+  const views = threads.filter((t) => !covered(t) && threadIsNoReply(t)).map((t) => notifyNotice(t, owner));
   const promises = [...snap.promises]
     .sort((a, b) => (a.due ?? "9999").localeCompare(b.due ?? "9999"))
     .map((p) => promiseNotice(p, todayISO));
@@ -581,9 +728,11 @@ export function mailNotices(
 
   // Lane order IS priority order. A meeting he can book in one tap and a
   // deadline someone named beat everything: both are other people's clocks.
-  // Drafts go last, because an unsent draft is the only thing on this list
-  // that is nobody's problem but his.
-  const lanes = [meetings, acts, deadlines, replies, chases, promises, nudges, drafts]
+  // The time-critical actions (a code, a signature, a failed payment, an
+  // invitation) come next; the light ones (a share, a parcel, an unsubscribe)
+  // wait behind the promises and nudges. Drafts go last, because an unsent
+  // draft is the only thing on this list that is nobody's problem but his.
+  const lanes = [meetings, acts, deadlines, urgentActions, replies, views, chases, promises, nudges, lightActions, drafts]
     .map((l) => l.filter((n) => !skip.has(n.key)));
   const out: MailNotice[] = [];
   // TWO CARDS THAT READ THE SAME ARE ONE CARD SAID TWICE (Dave 2026-08-25,
@@ -594,9 +743,16 @@ export function mailNotices(
   // two real threads with the same sender and the same gist, and every lane
   // rule here is about KINDS, so nothing was watching for it. He cannot tell
   // them apart, so the second one is not information, it is the pile.
+  //
+  // 2026-09-29: the words alone are not identity. Two mailboxes can each hold
+  // a notice with the same title, and two messages can each want a different
+  // thing, so the signature carries the account, and a notification is
+  // identified by its own scoped key (owner, account, thread, revision, kind).
   const seen = new Set<string>();
   const fresh = (n: MailNotice) => {
-    const sig = [n.title, n.sub, n.action].map((s) => s.toLowerCase()).join("\u0000");
+    const sig = n.kind === "notify"
+      ? n.key
+      : [n.title, n.sub, n.action, n.account ?? ""].map((s) => s.toLowerCase()).join("\u0000");
     if (seen.has(sig)) return false;
     seen.add(sig);
     return true;
@@ -616,12 +772,24 @@ export function mailNotices(
   return out;
 }
 
+/** A thread by id, and by account when the caller knows it: both lists, so an
+ *  actionable thread that is not a needs-you row is found too. */
+export function findThread(snap: MailSnapshot, threadId: string, account?: string): MailThread | undefined {
+  const all = [...snap.threads, ...(snap.actionable ?? [])];
+  return all.find((t) => t.id === threadId && (!account || !t.account || t.account === account))
+    ?? all.find((t) => t.id === threadId);
+}
+
 // The count survives, demoted to a footnote. It is the truth (he has an
 // inbox) without being the headline (he is behind). Silent when the notices
 // above already cover everything that needs him.
-export function residualLine(snap: MailSnapshot, shownThreadIds: string[]): string {
+export function residualLine(snap: MailSnapshot, shownThreadIds: string[], unshownActionIds: string[] = []): string {
   const covered = new Set(shownThreadIds);
-  const left = snap.needsYou - snap.threads.filter((t) => covered.has(t.id)).length;
+  // Threads with an action that the cap cut, and that are not already counted
+  // as needing him: they are in the inbox and the band did not have room.
+  const needing = new Set(snap.threads.map((t) => t.id));
+  const extra = new Set(unshownActionIds.filter((id) => !needing.has(id) && !covered.has(id))).size;
+  const left = snap.needsYou - snap.threads.filter((t) => covered.has(t.id)).length + extra;
   if (left <= 0) return "";
   return titleCase(`${left} more ${left === 1 ? "email" : "emails"} in your inbox`);
 }

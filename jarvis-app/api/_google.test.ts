@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { IOS_TAG, encrypt, decrypt, refreshAccessToken, ownerMailbox, sendRaw } from "./_google";
+import { IOS_TAG, encrypt, decrypt, refreshAccessToken, ownerMailbox, sendRaw, googleFailure, GOOGLE_CODES } from "./_google";
 
 // THE GOOGLE GRANT (2026-09-19). These were untested for as long as they were
 // private to the sign-in endpoint. The booking confirmation is the second
@@ -79,6 +79,17 @@ describe("refreshAccessToken", () => {
     vi.stubGlobal("fetch", vi.fn(async () => bad({ error: "invalid_grant" })));
     const r = await refreshAccessToken(IOS_TAG + "1//dead", CLIENTS);
     expect(r).toEqual({ ok: false, error: "invalid_grant" });
+  });
+
+  it("passes along the scopes Google says the token carries", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => ok({ access_token: "at", scope: "a b" })));
+    const r = await refreshAccessToken("1//web", CLIENTS);
+    expect(r).toEqual({ ok: true, got: { accessToken: "at", expiresIn: 3600, scope: "a b" } });
+  });
+
+  it("an error page from Google is a failed refresh, not an exception", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => ({ ok: false, status: 502, json: async () => { throw new SyntaxError("<html>"); } }) as unknown as Response));
+    expect(await refreshAccessToken(IOS_TAG + "1//x", CLIENTS)).toEqual({ ok: false, error: "Refresh failed" });
   });
 
   it("does not try a second client when there is no iOS client configured", async () => {
@@ -171,5 +182,22 @@ describe("sendRaw", () => {
   it("says it did not go when the network is down", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => { throw new Error("offline"); }));
     expect(await sendRaw("at", "cmF3")).toBe(false);
+  });
+});
+
+describe("googleFailure", () => {
+  it("every code has a stable status, a plain message and no token in it", () => {
+    for (const code of GOOGLE_CODES) {
+      const f = googleFailure(code, "a@x.com");
+      expect(f.code).toBe(code);
+      expect(f.message.length).toBeGreaterThan(10);
+      expect(f.status).toBeGreaterThanOrEqual(400);
+      expect(f.message).not.toMatch(/1\/\/|Bearer/);
+    }
+  });
+
+  it("only a sign-in that is gone or expired is final; the rest are worth retrying", () => {
+    const retry = GOOGLE_CODES.filter((c) => googleFailure(c).retryable).sort();
+    expect(retry).toEqual(["GOOGLE_NETWORK_ERROR", "GOOGLE_REFRESH_UNAVAILABLE", "GOOGLE_STORAGE_FAILURE"]);
   });
 });

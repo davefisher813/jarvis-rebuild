@@ -1,5 +1,6 @@
 import type { TemplateKey } from "../categories/defaults";
 import type { SenderRules } from "../messages/rules";
+import type { EmailSection } from "../messages/emailSections";
 import type { Envelope } from "../money/budget";
 
 // One per-user profile record, written by onboarding and read across the app
@@ -95,6 +96,13 @@ export interface ProfileData {
   // exists so a second device has something to hydrate from. See
   // messages/mailSync.ts.
   mail?: { vips?: string[]; rules?: SenderRules; muted?: string[]; letGo?: string[] };
+  // EMAIL SECTIONS (2026-09-29): the user's own saved filters over the
+  // loaded mail (messages/emailSections.ts). Top level and not inside `mail`
+  // on purpose: they are not learned from anything and are not mirrored to a
+  // localStorage copy, so there is one place they live and one truth to sync.
+  // The server merges patches field by field, so this whole list is one
+  // field: a save carries the full list and the newest save wins.
+  emailSections?: EmailSection[];
   // PLUMB-F-18 (2026-09-05): corrections seen once but not yet paired. A rule
   // is born from TWO identical corrections, and while these lived in
   // localStorage the pair had to happen on ONE device: correcting "practice"

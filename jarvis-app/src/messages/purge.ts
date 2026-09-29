@@ -25,12 +25,27 @@ export interface SenderPile {
   email: string;
   /** What to show a person. */
   name: string;
+  /** Thread ids. Only unique WITHIN an account: use `refs` to act on them. */
   ids: string[];
+  /**
+   * Every conversation in the pile with the account it lives in. A sender can
+   * fill two accounts, and the pile shows them as one decision; but a thread
+   * id means nothing without its account, so actions are built from these and
+   * stay separated by account.
+   */
+  refs: { id: string; account: string }[];
+  /** Conversations. What the screen counts and the button names. */
   count: number;
+  /** Messages across those conversations, for the places that report them. */
+  messages: number;
   /** Newest message in the pile, so a pile that is still live reads as live. */
   newestMs: number;
-  /** Nothing here was ever classified as needing him. */
+  /** Nothing here was ever classified as needing him, and all of it was actually checked. */
   safe: boolean;
+  /** At least one thread was judged to need him. */
+  needsYou: boolean;
+  /** At least one thread has no verdict yet (never analysed). Not safe, and not the same as needing him. */
+  unknown: boolean;
 }
 
 /**
@@ -47,6 +62,12 @@ export function senderPiles(
   rows: readonly ThreadRow[],
   buckets: Record<string, { bucket: string }> = {},
   vips: readonly string[] = [],
+  // A thread nobody has analysed is UNKNOWN, and unknown is not safe. Clean
+  // Out scans the whole inbox without asking the model about any of it, so
+  // most of what it finds has no verdict at all; a pile is only pre-selectable
+  // when every thread in it was actually judged not to need him. Omitted, the
+  // old rule holds (only an explicit needs_you makes a pile unsafe).
+  analysed?: (threadId: string) => boolean,
 ): SenderPile[] {
   const vip = new Set(vips.map((v) => v.toLowerCase()));
   const by = new Map<string, SenderPile>();
@@ -59,13 +80,16 @@ export function senderPiles(
     if (vip.has(email)) continue;
     let p = by.get(email);
     if (!p) {
-      p = { email, name: displayName(r.from) || email, ids: [], count: 0, newestMs: 0, safe: true };
+      p = { email, name: displayName(r.from) || email, ids: [], refs: [], count: 0, messages: 0, newestMs: 0, safe: true, needsYou: false, unknown: false };
       by.set(email, p);
     }
     p.ids.push(r.id);
+    p.refs.push({ id: r.id, account: r.account ?? "" });
     p.count += 1;
+    p.messages += Math.max(1, r.count || 1);
     if (r.dateMs > p.newestMs) p.newestMs = r.dateMs;
-    if (buckets[r.id]?.bucket === "needs_you") p.safe = false;
+    if (buckets[r.id]?.bucket === "needs_you") { p.safe = false; p.needsYou = true; }
+    if (analysed && !analysed(r.id)) { p.safe = false; p.unknown = true; }
   }
   // Biggest first: the whole point is to show which one decision removes the
   // most. Ties break on recency so two equal piles are not shuffled at random
@@ -80,6 +104,25 @@ export function selectedCount(piles: readonly SenderPile[], picked: ReadonlySet<
 
 export function selectedIds(piles: readonly SenderPile[], picked: ReadonlySet<string>): string[] {
   return piles.flatMap((p) => (picked.has(p.email) ? p.ids : []));
+}
+
+/** Messages, not conversations, for the picked piles. */
+export function selectedMessages(piles: readonly SenderPile[], picked: ReadonlySet<string>): number {
+  return piles.reduce((n, p) => n + (picked.has(p.email) ? p.messages : 0), 0);
+}
+
+/**
+ * The picked conversations as rows, matched on account AND id. Matching on id
+ * alone would let one account's thread stand in for another's, which is the
+ * mistake this exists to prevent.
+ */
+export function selectedRows<T extends { id: string; account?: string }>(
+  piles: readonly SenderPile[],
+  picked: ReadonlySet<string>,
+  rows: readonly T[],
+): T[] {
+  const want = new Set(piles.flatMap((p) => (picked.has(p.email) ? p.refs.map((r) => r.account + "\u001f" + r.id) : [])));
+  return rows.filter((r) => want.has((r.account ?? "") + "\u001f" + r.id));
 }
 
 /**

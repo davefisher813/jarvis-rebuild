@@ -1,5 +1,6 @@
 import { clearPreload } from "../data/preloadCache";
-import { clearRows } from "../messages/mailCache";
+import { clearAllMailCache } from "../messages/mailCache";
+import { forgetAllCodes } from "../messages/notificationActions";
 import { clearRecentErrors } from "../monitoring/monitor";
 
 // S3-Q17 (2026-09-04): "Clear Local Data destroys things with no other
@@ -93,10 +94,20 @@ const SAFE_TO_CLEAR: readonly string[] = [
   "jarvis.mail.waiting.cache.v1",
   "jarvis.mail.voice.v1", // re-fetched from Gmail on demand
   "jarvis.mail.triage.v3", // re-triaged from the thread on its next open
+  "jarvis.mail.triage.v4", // the unscoped triage cache, before 2026-09-29
+  "jarvis.mail.triage.v5", // the account-scoped one: one re-sort per account
   "jarvis.mail.brief.v1", // re-generated from the thread on its next open
+  // The thread brief and the v4 readings inside it (2026-09-29) carry SENTENCES
+  // copied out of the person's mail (a quote per appointment and per ask), so
+  // they belong to the last person on shared glass as much as the rows do.
+  // All three are caches: a thread is read again on its next open.
+  "jarvis.mail.brief.v3",
+  "jarvis.mail.brief.v4",
+  "jarvis.mail.briefchunk.v4",
   "jarvis.mail.tossasked.v1",
   "jarvis.mail.close.v1", // last-run marker for the weekly close offer
   "jarvis.mail.snooze.v1", // same-day, self-expiring notice state
+  "jarvis.mail.notify.v1", // what each thread's latest message wants done: re-read on the next refresh
 ];
 
 export function clearLocalData(storage: Pick<Storage, "removeItem"> = localStorage): void {
@@ -109,10 +120,14 @@ export function clearLocalData(storage: Pick<Storage, "removeItem"> = localStora
   clearPreload();
   // The cached inbox rows are a fetch cache (rebuilt from Gmail on the next
   // Email visit) and, on shared glass, exactly the last person's life on the
-  // phone that SHELL-F-10 exists to remove. clearRows() was written and
-  // tested but never called from here. Same for the crash ring: its own
+  // phone that SHELL-F-10 exists to remove. clearAllMailCache() clears
+  // every owner's and every account's rows (and the unscoped keys from before
+  // they were scoped). Same for the crash ring: its own
   // comment already names Clear Local Data as one of its two callers.
-  clearRows(storage);
+  clearAllMailCache(storage);
+  // A one-time code lives only in memory, and the next person on this phone
+  // must not be able to recall it.
+  forgetAllCodes();
   clearRecentErrors();
 }
 

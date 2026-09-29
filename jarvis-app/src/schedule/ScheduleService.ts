@@ -34,7 +34,7 @@ export class ScheduleService {
 
   async createEvent(
     title: string,
-    opts: { date: string; start: string; category?: string; end?: string; location?: string; recurrence?: EventRecurrence; until?: string; gcalId?: string; gcalHash?: string; bookingId?: string; sourceTaskId?: string; sitting?: number; taskIds?: string[]; source?: import("../shared/provenance").Source; gym?: boolean; travelMin?: number; bufferMin?: number; url?: string; notes?: string; attendees?: { email: string; name?: string }[]; days?: number[]; interval?: 1 | 2; projectId?: string },
+    opts: { date: string; start: string; category?: string; end?: string; location?: string; recurrence?: EventRecurrence; until?: string; gcalId?: string; gcalHash?: string; bookingId?: string; clientId?: string; sourceTaskId?: string; sitting?: number; taskIds?: string[]; source?: import("../shared/provenance").Source; gym?: boolean; travelMin?: number; bufferMin?: number; url?: string; notes?: string; attendees?: { email: string; name?: string }[]; days?: number[]; interval?: 1 | 2; projectId?: string },
   ): Promise<string | null> {
     if (!title || !title.trim() || !opts.date || !opts.start) return null;
     const data: EventData = {
@@ -55,6 +55,10 @@ export class ScheduleService {
     // PLUMB-F-07: what Google said at import time, so a later import can tell
     // its own change from one he made here. Only ever set by the importer.
     if (opts.gcalHash) data.gcalHash = opts.gcalHash;
+    // 2026-09-29: the idempotency key for an appointment an email set. See
+    // EventData.clientId: a second create with the same value resolves to the
+    // row that landed first, in the adapters and in the database.
+    if (opts.clientId) data.clientId = opts.clientId;
     if (opts.sourceTaskId) data.sourceTaskId = opts.sourceTaskId;
     // SCHED-F-04 (2026-09-05): which sitting of that task this block is, when
     // Split It made more than one. The dedupe sweep groups on the pair, so a
@@ -112,6 +116,16 @@ export class ScheduleService {
     await this.store.update(this.ownerId, id, patch as unknown as ItemData);
     this.onEvent({ type: "entity.updated", entityType: ENTITY_EVENT, entityId: id });
     return true;
+  }
+
+  // 2026-09-29: a rescheduled appointment, reviewed and applied to the event
+  // it changes, is also THAT event's answer for the new detection, so the next
+  // open does not offer to add it a second time. Appends; never edits clientId.
+  async linkEmailIds(id: string, ids: string[]): Promise<boolean> {
+    const e = await this.get(id);
+    if (!e) return false;
+    const next = [...new Set([...(e.emailIds ?? []), ...ids.filter(Boolean)])];
+    return this.patch(id, { emailIds: next });
   }
 
   editTitle(id: string, title: string): Promise<boolean> {

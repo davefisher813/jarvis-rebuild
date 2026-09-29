@@ -6,7 +6,11 @@ import { apiUrl } from "../shared/apiBase";
 import { AI_LEVELS, AI_PIN_KEYS, DEFAULT_AI_LEVEL, type AIControlState, type AILevel, type AIPinKey } from "../ai/aiGate";
 import { setAIControl } from "../ai/levelStore";
 import { estimateCost, formatTokens, formatUSD, type TokenTotals } from "../ai/tokenLog";
-import { Head, Card, Row, Menu } from "./kit";
+import { budgetMessage, formatLimit, formatMicro, type BudgetStatus } from "../ai/aiBudget";
+import { clearBudgetBlock } from "../ai/budgetBlock";
+import { parseDollarsToMicro } from "../ai/limitInput";
+import { showToast } from "../shared/toast";
+import { Head, Card, Row, Menu, Switch, focusField } from "./kit";
 import { attemptWrite } from "../shared/guard";
 
 const LEVEL_LABEL: Record<AILevel, string> = {
@@ -37,6 +41,25 @@ const PIN_OPTIONS = [{ value: "match", label: "Match Master" }, ...AI_LEVELS.map
 
 interface Call { at: string; kind: string }
 
+// The level to come back to when AI is switched back on (Dave 2026-09-29: one
+// on/off switch). Remembered on this device only; the saved level itself is
+// what decides what runs.
+const RESUME_KEY = "jarvis.ai.resumeLevel";
+function readResume(): AILevel {
+  try {
+    const v = localStorage.getItem(RESUME_KEY);
+    return v && v !== "off" && (AI_LEVELS as readonly string[]).includes(v) ? (v as AILevel) : DEFAULT_AI_LEVEL;
+  } catch { return DEFAULT_AI_LEVEL; }
+}
+function writeResume(level: AILevel): void {
+  try { if (level !== "off") localStorage.setItem(RESUME_KEY, level); } catch { /* the switch still works */ }
+}
+
+/** The field's text for a limit: "5" for $5, "4.50" for $4.50. */
+function limitToText(micro: number): string {
+  return micro % 1_000_000 === 0 ? String(micro / 1_000_000) : (micro / 1_000_000).toFixed(2);
+}
+
 function kindLabel(kind: string): string {
   return kind ? kind.replace(/[_-]+/g, " ") : "AI call";
 }
@@ -52,6 +75,11 @@ export default function AIControlPage({ onBack }: { onBack: () => void }) {
   // the endpoint answers, and an empty array is a legal answer: an account
   // that ran nothing today has no tokens, and no row claims otherwise.
   const [tokens, setTokens] = useState<TokenTotals[]>([]);
+  // The spending limit. Only ever what the SERVER last said: a save waits for
+  // the server's answer and shows that, never a hopeful local number.
+  const [budget, setBudget] = useState<BudgetStatus | null>(null);
+  const [limitText, setLimitText] = useState("");
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     void svc.get().then((p) => { if (p?.ai) setCtrl(p.ai); });
@@ -61,8 +89,11 @@ export default function AIControlPage({ onBack }: { onBack: () => void }) {
     if (!token) return;
     void fetch(apiUrl("/api/ai-usage"), { headers: { Authorization: `Bearer ${token}` } })
       .then((r) => (r.ok ? r.json() : null))
-      .then((d: { count?: number | null; calls?: Call[]; tokens?: TokenTotals[] } | null) => {
-        if (d) { setCount(d.count ?? null); setCalls(d.calls ?? []); setTokens(d.tokens ?? []); }
+      .then((d: { count?: number | null; calls?: Call[]; tokens?: TokenTotals[]; budget?: BudgetStatus | null } | null) => {
+        if (d) {
+          setCount(d.count ?? null); setCalls(d.calls ?? []); setTokens(d.tokens ?? []);
+          if (d.budget) { setBudget(d.budget); setLimitText(limitToText(d.budget.limitMicrousd)); }
+        }
       })
       .catch(() => { /* the count is a fact or absent, never a guess */ });
   }, [token]);
@@ -79,11 +110,57 @@ export default function AIControlPage({ onBack }: { onBack: () => void }) {
     const ok = await attemptWrite(() => svc.save({ ai: next }));
     if (!ok) { setCtrl(prev); setAIControl(prev); }
   };
-  const setLevel = (level: AILevel) => { haptics.selection(); void apply({ ...ctrl, level }); };
+  const setLevel = (level: AILevel) => { haptics.selection(); writeResume(ctrl.level); void apply({ ...ctrl, level }); };
+  // ONE SWITCH (Dave 2026-09-29): off is the "off" level, on is the level it
+  // was at before, so the switch and the list below never disagree.
+  const aiOn = ctrl.level !== "off";
+  const toggleAI = () => {
+    if (aiOn) { writeResume(ctrl.level); void apply({ ...ctrl, level: "off" }); }
+    else void apply({ ...ctrl, level: readResume() });
+  };
   const setPin = (key: AIPinKey, v: string) => {
     haptics.selection();
     void apply({ ...ctrl, pins: { ...ctrl.pins, [key]: v as AILevel | "match" } });
   };
+
+  // ONE explicit Save, no write per keystroke. The new limit goes to the
+  // server with the version this screen last saw; on any failure the field
+  // goes back to what the server holds, so the screen never shows a limit
+  // that is not in force.
+  const newLimit = parseDollarsToMicro(limitText);
+  const dirty = budget !== null && newLimit !== null && newLimit !== budget.limitMicrousd;
+  const saveLimit = async () => {
+    if (!budget || newLimit === null || saving) return;
+    setSaving(true);
+    try {
+      const r = await fetch(apiUrl("/api/ai-usage"), {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ limitMicrousd: newLimit, expectedVersion: budget.version }),
+      });
+      const d = (await r.json().catch(() => null)) as { budget?: BudgetStatus; error?: string } | null;
+      if (d?.budget) { setBudget(d.budget); setLimitText(limitToText(d.budget.limitMicrousd)); }
+      else setLimitText(limitToText(budget.limitMicrousd));
+      if (r.ok && d?.budget) {
+        // The limit changed, so a refusal remembered from before is stale.
+        clearBudgetBlock();
+        showToast({ message: `Limit saved. ${formatLimit(d.budget.limitMicrousd)}.` });
+      } else {
+        showToast({ message: d?.error || "Limit not saved, nothing changed" });
+      }
+    } catch {
+      setLimitText(limitToText(budget.limitMicrousd));
+      showToast({ message: "Limit not saved, nothing changed" });
+    } finally {
+      setSaving(false);
+    }
+  };
+  const atCap = budget !== null && !budget.paused && budget.remainingMicrousd === 0 && budget.limitMicrousd > 0;
+  const budgetNote = budget === null ? null
+    : budget.limitMicrousd === 0 ? budgetMessage({ code: "AI_BUDGET_OFF" })
+    : budget.paused ? budgetMessage({ code: "AI_BUDGET_PAUSED" })
+    : atCap ? budgetMessage({ code: "AI_BUDGET_REACHED", limitMicrousd: budget.limitMicrousd })
+    : null;
 
   // UP-PLAT-04 (2026-09-06): "N calls, ~$0.0X". The tilde is load-bearing:
   // this is list price times measured tokens, not the invoice. So the cost
@@ -100,6 +177,9 @@ export default function AIControlPage({ onBack }: { onBack: () => void }) {
   return (
     <div className="screen ruled">
       <LargeTitleNav title="AI Control" back="Settings" onBack={onBack} />
+      <Card>
+        <Switch label="AI" meta={aiOn ? "On" : "Off, nothing runs"} on={aiOn} onToggle={toggleAI} ariaLabel="AI on or off" />
+      </Card>
       <Head label="AI Level" />
       <Card>
         {AI_LEVELS.map((l) => (
@@ -118,6 +198,32 @@ export default function AIControlPage({ onBack }: { onBack: () => void }) {
           <Menu key={k} label={PIN_LABEL[k]} value={ctrl.pins?.[k] ?? "match"} options={PIN_OPTIONS} onPick={(v) => setPin(k, v)} />
         ))}
       </Card>
+      {/* The spending limit (Dave, 2026-09-28, $5 default). Since the date it
+          started, not per day or month: he has not chosen a period, so nothing
+          here resets on its own. A balance can read a little low, because a
+          call is held at its highest possible cost until it finishes. */}
+      {budget ? (
+        <>
+          <Head label="AI Spending Limit" />
+          <Card>
+            <Row label={`${formatMicro(budget.remainingMicrousd)} remaining of ${formatLimit(budget.limitMicrousd)}`}
+              meta={`Since ${new Date(budget.periodStart).toLocaleDateString([], { month: "short", day: "numeric" })}`} />
+            {budget.heldMicrousd > 0 && (
+              <Row label="Pending" value={`${formatMicro(budget.heldMicrousd, "up")} held`} className="set-sub" />
+            )}
+            <div className="row set-row" onClick={focusField}>
+              <div className="conn-name">Limit in Dollars</div>
+              <input className="set-field" type="text" inputMode="decimal" aria-label="Limit in dollars" value={limitText}
+                onChange={(e) => setLimitText(e.target.value)} />
+            </div>
+            <Row label={saving ? "Saving" : "Save Limit"} onClick={dirty && !saving ? () => { void saveLimit(); } : undefined}
+              disabled={!dirty || saving} />
+          </Card>
+          <div className="pad-x"><div className="input-hint">
+            {budgetNote ?? "Zero turns paid AI off · A running call is held at its highest possible cost, so the balance can read a little low"}
+          </div></div>
+        </>
+      ) : null}
       <Head label="What Ran" />
       <Card>
         <Row label="AI Calls Today" value={callsValue} onClick={calls.length ? () => setShowCalls(!showCalls) : undefined} />

@@ -8,6 +8,7 @@
 // named. This reads the proxy's envelope first and says what it said.
 
 import { humanError } from "../connections/google/humanError";
+import { isBudgetError } from "./aiBudget";
 
 const MAX = 140;
 
@@ -48,6 +49,9 @@ export interface AIFailure {
 }
 
 export function aiFailure(e: unknown, fallback: string): AIFailure {
+  // The spending limit speaks for itself, in its own plain words, never as
+  // "Server said 402" and never as raw JSON.
+  if (isBudgetError(e)) return { line: e.message, reason: e.message };
   const raw = e instanceof Error ? e.message : typeof e === "string" ? e : "";
   const m = /^AI request failed \((\d{3})\)\.?\s*([\s\S]*)$/.exec(raw);
   if (!m) return { line: humanError(e, fallback), reason: null };

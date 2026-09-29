@@ -44,7 +44,50 @@ export async function decrypt(packedB64: string, secretB64: string): Promise<str
 }
 
 export interface GoogleClients { clientId: string; clientSecret: string; iosClientId: string }
-export interface Refreshed { accessToken: string; expiresIn: number }
+export interface Refreshed { accessToken: string; expiresIn: number; scope?: string }
+
+// WHY A REFRESH FAILED, IN WORDS THE APP CAN ACT ON (2026-09-29).
+//
+// api/google.ts used to answer every refresh failure with a bare status and
+// an error string, and the app collapsed all of them to "no token", so a dead
+// network, a revoked grant and a database blip all sent the person through
+// the Google chooser. Each cause now has one stable code. The client keys its
+// behaviour on the CODE (which failures may ever open the chooser, which are
+// worth a retry) and shows the MESSAGE. The messages are Dave's handoff
+// wording; `[account]` is the address. Nothing here ever carries a token or
+// any mail content.
+export const GOOGLE_CODES = [
+  "GOOGLE_NO_STORED_SIGNIN",
+  "GOOGLE_STORED_SIGNIN_UNREADABLE",
+  "GOOGLE_SIGNIN_REVOKED",
+  "GOOGLE_REFRESH_UNAVAILABLE",
+  "GOOGLE_NETWORK_ERROR",
+  "GOOGLE_AUTH_EXPIRED",
+  "GOOGLE_STORAGE_FAILURE",
+] as const;
+export type GoogleCode = (typeof GOOGLE_CODES)[number];
+
+export interface GoogleFailure { code: GoogleCode; message: string; retryable: boolean; status: number }
+
+export function googleFailure(code: GoogleCode, account = ""): GoogleFailure {
+  const who = account || "this account";
+  switch (code) {
+    case "GOOGLE_NO_STORED_SIGNIN":
+      return { code, status: 410, retryable: false, message: `Google isn't set to stay signed in. Reconnect ${who}.` };
+    case "GOOGLE_STORED_SIGNIN_UNREADABLE":
+      return { code, status: 410, retryable: false, message: `The saved Google sign-in couldn't be opened. Reconnect ${who}.` };
+    case "GOOGLE_SIGNIN_REVOKED":
+      return { code, status: 410, retryable: false, message: `Google revoked this sign-in. Reconnect ${who}.` };
+    case "GOOGLE_REFRESH_UNAVAILABLE":
+      return { code, status: 502, retryable: true, message: "Google couldn't refresh right now. Try again." };
+    case "GOOGLE_NETWORK_ERROR":
+      return { code, status: 503, retryable: true, message: "Couldn't reach Google. Check your connection and try again." };
+    case "GOOGLE_AUTH_EXPIRED":
+      return { code, status: 401, retryable: false, message: "Your JARVIS sign-in expired. Sign in again." };
+    case "GOOGLE_STORAGE_FAILURE":
+      return { code, status: 503, retryable: true, message: "JARVIS couldn't reach its saved sign-ins. Try again." };
+  }
+}
 
 /** A fresh access token from a stored refresh token.
  *
@@ -59,14 +102,17 @@ export async function refreshAccessToken(
 ): Promise<{ ok: true; got: Refreshed } | { ok: false; error: string }> {
   const tagged = stored.startsWith(IOS_TAG);
   const refreshToken = tagged ? stored.slice(IOS_TAG.length) : stored;
-  type Tok = { access_token?: string; expires_in?: number; error?: string };
+  type Tok = { access_token?: string; expires_in?: number; scope?: string; error?: string };
   const attempt = async (params: Record<string, string>): Promise<{ ok: boolean; tok: Tok }> => {
     const r = await fetch(TOKEN_URL, {
       method: "POST",
       headers: { "content-type": "application/x-www-form-urlencoded" },
       body: new URLSearchParams({ refresh_token: refreshToken, grant_type: "refresh_token", ...params }),
     });
-    return { ok: r.ok, tok: (await r.json()) as Tok };
+    // A 5xx with an HTML body is Google being down, not a broken client:
+    // an unreadable body becomes an empty one so it is reported as a failed
+    // refresh. Only a fetch that never completes throws (a network failure).
+    return { ok: r.ok, tok: (await r.json().catch(() => ({}))) as Tok };
   };
   const viaWeb = () => attempt({ client_id: clients.clientId, client_secret: clients.clientSecret });
   // The iOS client has no secret; the token alone proves it (see IOS_TAG).
@@ -78,7 +124,14 @@ export async function refreshAccessToken(
     if (second.ok && second.tok.access_token) res = second;
   }
   if (!res.ok || !res.tok.access_token) return { ok: false, error: res.tok.error || "Refresh failed" };
-  return { ok: true, got: { accessToken: res.tok.access_token, expiresIn: res.tok.expires_in ?? 3600 } };
+  return {
+    ok: true,
+    got: {
+      accessToken: res.tok.access_token,
+      expiresIn: res.tok.expires_in ?? 3600,
+      ...(res.tok.scope ? { scope: res.tok.scope } : {}),
+    },
+  };
 }
 
 export interface Mailbox { accessToken: string; email: string }

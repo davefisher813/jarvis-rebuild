@@ -26,6 +26,15 @@ export class ProfileService {
     return r ? r.data : null;
   }
 
+  // Whether the last write is still on this phone: offline, or queued behind
+  // a dropped connection (the same truth BrainMemoryService.pending() tells).
+  // A screen that saved through here says "Will Sync" until this is false
+  // rather than claiming the server has it.
+  pending(): boolean {
+    const s = this.store.syncState();
+    return !s.online || s.queued > 0;
+  }
+
   async isOnboarded(): Promise<boolean> {
     return (await this.get())?.onboarded ?? false;
   }

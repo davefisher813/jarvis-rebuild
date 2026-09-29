@@ -74,6 +74,19 @@ export interface EventData {
   // never clobbered. Absent on events imported before that, and on every
   // event he made himself.
   gcalHash?: string;
+  // ONE ROW PER APPOINTMENT AN EMAIL SET (2026-09-29). A calendar offer made
+  // from a mail is stamped with a client id derived from the account, the
+  // thread and the detected appointment, so tapping Add twice, on two devices,
+  // or after a reload lands as the SAME row: the core store treats a second
+  // create with the same clientId as the first (jarvis-core adapters, and the
+  // unique index in migration 0039 on the database). The value is written
+  // once, at creation, and never edited, so the index keeps holding.
+  clientId?: string;
+  // The other detected appointments this row answers for: a reschedule the
+  // person reviewed and applied to THIS event. The unique index only covers
+  // clientId, so these are found by reading, not by the database, which is why
+  // the offer also checks them before it offers Add.
+  emailIds?: string[];
   sourceTaskId?: string; // task this block was generated from, via Plan my day
   // SCHED-F-04 (2026-09-05): WHICH SITTING OF THAT TASK this block is, 1-based,
   // absent when the task was placed as one block. Split It (P13, 2026-08-20)
