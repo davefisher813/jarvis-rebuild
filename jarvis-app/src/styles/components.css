@@ -1094,7 +1094,12 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 .legal-body { padding-bottom: var(--s-8); }
 .legal-h { font-size: var(--t-body); font-weight: var(--w-semi); color: var(--tx-1); margin: var(--s-4) 0 var(--s-1); }
 .legal-body p { font-size: var(--t-body); color: var(--tx-2); line-height: 1.5; margin: 0 0 var(--s-2); }
-.visually-hidden-input { display: none; }
+/* A file input that a button opens with input.click(). OFF SCREEN, NOT
+   display:none (2026-09-29 click-through audit): some iOS and WebView builds
+   only raise the file sheet for an input that still has a box, and a tap that
+   opens nothing reads as a dead button. It keeps a 1px box, takes no room and
+   no touches. */
+.visually-hidden-input { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; border: 0; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); opacity: 0; pointer-events: none; }
 
 /* Completion animation (task check-off): JARVIS punch + success flash */
 @keyframes taskDoneFlash { 0% { background: var(--good-tint); } 100% { background: transparent; } }

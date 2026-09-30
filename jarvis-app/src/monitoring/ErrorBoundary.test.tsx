@@ -61,7 +61,7 @@ describe("ErrorBoundary", () => {
     expect(screen.getByText("Something Went Wrong")).toBeInTheDocument();
   });
 
-  // AppShell keys the boundary on the active tab (<ErrorBoundary key={active}>),
+  // AppShell keys the boundary on the active tab (<ErrorBoundary key={active + ":" + rootNonce}>),
   // so switching tabs is a remount, not a re-render -- this is what actually
   // clears a tripped boundary's state.failed, since nothing else does.
   it("keying the boundary on a changing value recovers it, the way switching tabs does", () => {

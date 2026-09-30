@@ -95,6 +95,16 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
 
   const [tabKeys, setTabKeys] = useState<string[]>(DEFAULT_TABS);
   const [active, setActive] = useState<string>("today");
+  // TAPPING THE TAB YOU ARE ON GOES BACK TO ITS ROOT (2026-09-29 click-through
+  // audit: "five taps on Brain did not navigate"). The Health area is a screen
+  // INSIDE the Brain tab (Life > Areas > Health jumps to it), so from Health
+  // the Brain tab already reads as active and setActive("brain") changed
+  // nothing: the flow kept its own open screen, and only a reload got out.
+  // iOS's own rule for a tab bar is that a second tap pops to the root, so a
+  // tap on the active tab bumps this, which is part of the flow's key below
+  // and remounts it fresh (the same thing any other tab's tap already does to
+  // the tab you leave).
+  const [rootNonce, setRootNonce] = useState(0);
 
   // WHERE YOU CAME FROM (Dave 2026-09-21: "There are a bunch that take you to
   // other pages and not the previous page"). See shell/navOrigin.tsx for what
@@ -577,7 +587,7 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
   const scroller = useRef<HTMLDivElement>(null);
   useEffect(() => {
     scroller.current?.scrollTo({ top: 0, behavior: "instant" as ScrollBehavior });
-  }, [active, sessionOpen]);
+  }, [active, sessionOpen, rootNonce]);
   const showTabBar = active === "notes" ? notesChrome : !sessionOpen;
   const showCapture = showTabBar && active !== "chat";
 
@@ -648,8 +658,8 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
             outermost fallback for pre-shell crashes (Sign In, onboarding),
             where no tab bar exists yet. */}
         <Suspense fallback={<SkeletonScreen hero={false} />}>
-        <ErrorBoundary key={active}>
-        <div key={active}>
+        <ErrorBoundary key={active + ":" + rootNonce}>
+        <div key={active + ":" + rootNonce}>
         {/* TODAY-F-02 (2026-09-05): keyed on the local date as well as the
             tab, so a day change while the app sits on Today remounts it and
             every once-per-open job (the sweep, the autopay roll, the spot,
@@ -728,6 +738,11 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
             // and the back buttons that were borrowing it go back to their
             // own behaviour.
             setOrigin(null);
+            // The tab already open: back to its root, not a no-op. Today
+            // (its once-per-open jobs re-run on a mount) and Chat (a draft
+            // in the composer) keep their old behaviour: nothing nests inside
+            // them that a tab tap needs to pop.
+            if (k === active && k !== "today" && k !== "chat") setRootNonce((n) => n + 1);
             setActive(k);
           }} />
         </>
