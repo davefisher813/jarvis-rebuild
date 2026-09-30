@@ -52,7 +52,8 @@ describe("one state, one sentence", () => {
   // real truncation could not land unseen.
   it("the Home Screen sentence is whole and ends where a sentence ends", () => {
     expect(footFor("not-standalone")).toMatch(/then open it from there$/);
-    expect(footFor("not-standalone").length).toBeGreaterThan(100);
+    // Kept under 100 characters (2026-09-30) so a 100-character reader cannot clip it.
+    expect(footFor("not-standalone").length).toBeLessThan(100);
   });
 
   it("only off and on can be tapped", () => {

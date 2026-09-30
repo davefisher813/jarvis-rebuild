@@ -211,7 +211,7 @@ describe("no Settings sentence is split across text nodes", () => {
     const text = whys.map((w) => w.textContent).join("\n");
     expect(text).toMatch(/Needs 10 completions, with one 3-hour stretch holding 40 percent of them/);
     expect(text).toMatch(/Needs 3 corrections in one area, same way, 10 minutes or more, from this device's log/);
-    expect(text).toMatch(/so a quiet month looks the same/);
+    expect(text).toMatch(/a quiet month looks the same/);
   });
 });
 
@@ -251,5 +251,23 @@ describe("Settings copy is never clamped or cut by the stylesheet", () => {
         }
       }
     }
+  });
+});
+
+// The evening audit reads at most 100 characters of an element and reported both of these
+// as cut mid-word ("...from ther", "...a quiet month l"). Both are whole in source, so they
+// are kept under 100 so no reader can clip them (2026-09-30).
+describe("the two lines a 100-character reader used to clip", () => {
+  it("every blocked-state Home Screen foot fits in 100 characters", () => {
+    // off and on carry the all-or-nothing sentence as well, by design, and are not in this batch.
+    for (const s of ["no-sw", "not-standalone", "no-push", "denied", "no-key"] as const) {
+      expect(footFor(s).length, s).toBeLessThan(100);
+    }
+  });
+  it("the Learning Lab consolidation line fits in 100 characters", async () => {
+    const src = (await import("node:fs")).readFileSync("src/brain/strands/ReadinessPanel.tsx", "utf8");
+    const m = /const passWhy = !pass\s*\? "([^"]+)"/.exec(src);
+    expect(m).not.toBeNull();
+    expect(m![1]!.length).toBeLessThan(100);
   });
 });

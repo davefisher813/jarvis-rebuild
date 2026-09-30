@@ -182,7 +182,7 @@ export default function ReadinessPanel({ read, today, variant = "words", focusKe
   const pass = readConsolidation();
   const passAge = pass ? daysSince(pass.day, today) : 0;
   const passWhy = !pass
-    ? "No day recorded yet, but the pass only records a day it had something to propose, so a quiet month looks the same"
+    ? "No day recorded yet, but a quiet month looks the same, since the pass records only days it proposes"
     : passAge === 0
       ? "Ran today, and what it chose is offered on What JARVIS Knows"
       : `Last recorded ${passAge} ${passAge === 1 ? "day" : "days"} ago, and it reviews once a local day, whenever the app is open`;

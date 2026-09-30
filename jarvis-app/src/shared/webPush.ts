@@ -55,9 +55,9 @@ export const ALL_OR_NOTHING = "All alerts or none · The four switches above onl
 export function footFor(status: WebPushStatus): string {
   switch (status) {
     case "no-sw": return "This browser cannot receive alerts";
-    case "not-standalone": return "Add JARVIS to your Home Screen to get alerts: Share, then Add to Home Screen, then open it from there";
+    case "not-standalone": return "Add JARVIS to your Home Screen for alerts: Share, then Add to Home Screen, then open it from there";
     case "no-push": return "Alerts need iOS 16.4 or newer, opened from the Home Screen";
-    case "denied": return "Notifications are off for JARVIS in iOS Settings · Turn them on under Settings, Notifications, JARVIS";
+    case "denied": return "Notifications are off for JARVIS in iOS Settings · Turn them on under Notifications, JARVIS";
     case "no-key": return "The server has no push key yet, so alerts cannot be set up";
     case "off": return `Turn on Alerts on This Phone and iOS will ask to allow notifications · ${ALL_OR_NOTHING}`;
     case "on": return `Alerts arrive on this phone · ${ALL_OR_NOTHING}`;
