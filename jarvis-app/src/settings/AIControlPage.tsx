@@ -162,14 +162,15 @@ export default function AIControlPage({ onBack }: { onBack: () => void }) {
     : atCap ? budgetMessage({ code: "AI_BUDGET_REACHED", limitMicrousd: budget.limitMicrousd })
     : null;
 
-  // UP-PLAT-04 (2026-09-06): "N calls, ~$0.0X". The tilde is load-bearing:
+  // UP-PLAT-04 (2026-09-06): "N calls, About $0.0X". The word is load-bearing (the tilde was
+  // spelled out 2026-09-29, the no-tilde law):
   // this is list price times measured tokens, not the invoice. So the cost
   // is an estimate and wears the key's sky (§AM, 2026-09-26), and the
   // separator between the two facts is the stylesheet's.
   const usd = estimateCost(tokens);
   const callsValue = count === null
     ? "Not tracked"
-    : usd === null ? String(count) : <><span className="fact">{count}</span><span className="fact est">~{formatUSD(usd)}</span></>;
+    : usd === null ? String(count) : <><span className="fact">{count}</span>{" "}<span className="fact est">{`About ${formatUSD(usd)}`}</span></>;
   const inTok = tokens.reduce((n, t) => n + t.inputTokens + t.cacheReadTokens + t.cacheWriteTokens, 0);
   const outTok = tokens.reduce((n, t) => n + t.outputTokens, 0);
   const tokenRow = inTok + outTok > 0 ? `${formatTokens(inTok)} in, ${formatTokens(outTok)} out` : "";

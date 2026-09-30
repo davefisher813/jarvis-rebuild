@@ -54,7 +54,7 @@ export default function InsightEvidence({ evidence, explain }: {
       {open && (
         <div className="ins-rows ins-ev">
           <div className="ins-row"><span className="ins-k">Kind</span><span className="ins-sub">{evidence.label}</span></div>
-          <div className="ins-row"><span className="ins-k">Range</span><span className="ins-sub">{shortDate(evidence.from)} to {shortDate(evidence.to)}</span></div>
+          <div className="ins-row"><span className="ins-k">Range</span><span className="ins-sub">{`${shortDate(evidence.from)} to ${shortDate(evidence.to)}`}</span></div>
           <div className="ins-row"><span className="ins-k">Records</span><span className="ins-sub">{evidence.records}</span></div>
           <div className="ins-row"><span className="ins-k">Method</span><span className="ins-sub">{evidence.method}</span></div>
           <div className="ins-row"><span className="ins-k">Shows</span><span className="ins-sub">{evidence.supports}</span></div>
@@ -65,7 +65,7 @@ export default function InsightEvidence({ evidence, explain }: {
             <div className="ins-row"><span className="ins-k">Our Convention</span><span className="ins-sub">{evidence.convention}</span></div>
           )}
           {evidence.minimum && (
-            <div className="ins-row"><span className="ins-k">Minimum</span><span className="ins-sub">{evidence.minimum.name} {evidence.minimum.value}, {evidence.minimum.reason}</span></div>
+            <div className="ins-row"><span className="ins-k">Minimum</span><span className="ins-sub">{`${evidence.minimum.name} ${evidence.minimum.value}, ${evidence.minimum.reason}`}</span></div>
           )}
           {explained && <div className="ins-line">{explained}</div>}
         </div>

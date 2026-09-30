@@ -7,7 +7,6 @@ import { readConsolidation } from "../nightly";
 import { daysSince } from "../recall";
 import { readiness, READINESS_WINDOW_DAYS, type Readiness, type ReadinessState } from "../readiness";
 import { readinessWord, toneForReadinessWord } from "./state";
-import { Nums } from "../../bigger/GoalRowRuled";
 import type { DerivePerson } from "../derive";
 import type { Strand } from "./types";
 import { pressable } from "../../shared/pressable";
@@ -89,12 +88,18 @@ const STATE_CLASS: Record<ReadinessState, string> = {
   known: "rdy-good", ready: "rdy-good", close: "rdy-warn", waiting: "", muted: "rdy-off",
 };
 
+// The sentence under a detector is ONE text node. It used to go through Nums,
+// which cuts it at every number and bolds the number, so "Needs 10 emails
+// handled, with one 3-hour stretch holding 40 percent of them" was seven
+// nodes, and a reader that takes each node and trims it (the evening audit's
+// did) joined them as "Needs10emails handled, with one3-hour stretch...".
+// This is a diagnostic page and its sentences are words first.
 function Row({ label, why, slot, tone = "" }: { label: string; why: string; slot?: string; tone?: string }) {
   return (
     <div className="row rdy-row">
       <div className="row-grow">
         <div className="conn-name">{label}</div>
-        <div className="rdy-why"><Nums text={why} /></div>
+        <div className="rdy-why">{why}</div>
       </div>
       {slot !== undefined && <span className={"rdy-n " + tone}><b>{slot}</b></span>}
     </div>
@@ -106,7 +111,7 @@ function DetectorRow({ r }: { r: Readiness }) {
     <div className="row rdy-row">
       <div className="row-grow">
         <div className="conn-name">{r.label}</div>
-        {r.detail && <div className="rdy-why"><Nums text={r.detail} /></div>}
+        {r.detail && <div className="rdy-why">{r.detail}</div>}
       </div>
       <span className={"rdy-n " + STATE_CLASS[r.state]}><b>{r.have}</b>/{r.need}</span>
     </div>

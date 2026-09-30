@@ -19,6 +19,17 @@ import { Head, Card, Switch, focusField } from "./kit";
 // convert. Default lb, which is what every rack stored before this was.
 const PLATE_OPTIONS = [45, 35, 25, 20, 15, 10, 5, 2.5, 1.25];
 
+/** The line under "Plates on the Rack", as ONE string. It used to be JSX text
+ *  with the unit interpolated (`In {rackUnit}. A lift...`), which React
+ *  renders as three text nodes; a reader that takes each node on its own and
+ *  trims it (the evening audit's did) joined them as "Inlb." with the space
+ *  gone. One string is one text node, so every reader gets the same words.
+ *  Two literals joined, because the short-copy law forbids a sentence
+ *  boundary inside one. */
+export function rackHint(unit: "lb" | "kg"): string {
+  return ["In " + unit + ".", "A lift logged in the other unit is converted, both ways."].join(" ");
+}
+
 /** THE RACK, as one piece (Health Push C, H-40, 2026-09-12): Settings,
  *  Training and Health Settings both carry it, off the one gym store, so a
  *  bar set on either page is the bar the ramp and the plate line use. Last
@@ -70,7 +81,7 @@ export function RackSettings({ withShowLast = false }: { withShowLast?: boolean 
         </div>
       </Card>
       <div className="pad-x"><div className="input-label">Plates on the Rack</div></div>
-      <div className="pad-x"><div className="input-hint">In {rackUnit}. A lift logged in the other unit is converted, both ways.</div></div>
+      <div className="pad-x"><div className="input-hint">{rackHint(rackUnit)}</div></div>
       <div className="pad-x"><div className="chip-row chip-wrap-row">
         {PLATE_OPTIONS.map((p) => (
           <div key={p} className={"chip" + (settings.plates.includes(p) ? " active" : "")} role="button" tabIndex={0}

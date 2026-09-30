@@ -171,7 +171,7 @@ function MatcherRows({ n, field, text, error, onField, onText, onRemove }: {
         <input className="set-field" aria-label={`Text to Match ${n}`} placeholder="Text to Match" value={text} onChange={(e) => onText(e.target.value)} />
       </div>
       {error && <div className="input-error set-err" role="alert">{error}</div>}
-      <button type="button" className="row row-act" onClick={onRemove}>Remove Matcher {n}</button>
+      <button type="button" className="row row-act" onClick={onRemove}>{`Remove Matcher ${n}`}</button>
     </>
   );
 }

@@ -1,4 +1,4 @@
-import { useRef, type KeyboardEvent, type MouseEvent, type ReactNode } from "react";
+import { useId, useRef, type KeyboardEvent, type MouseEvent, type ReactNode } from "react";
 import HeadMenu, { type MenuOption } from "../shared/HeadMenu";
 import { haptics } from "../shared/haptics";
 
@@ -20,8 +20,20 @@ export function Card({ children, className = "" }: { children: ReactNode; classN
 }
 
 /** A row: the words at the left, whatever sits at the right. */
-export function Row({ label, meta, value, onClick, forwardTo, chev = false, children, className = "", disabled = false }: {
+export function Row({ label, meta, metaId, value, onClick, forwardTo, chev = false, children, className = "", disabled = false, plain = false }: {
   label: ReactNode; meta?: ReactNode; value?: ReactNode; onClick?: () => void;
+  /** An id for the meta line, so a control inside the row can point at it
+      (aria-describedby) instead of the row repeating it as its own name. */
+  metaId?: string;
+  /** THE ROW HOLDS ITS OWN CONTROL (audit 2026-09-29: "Overdue and due tasks
+      ... Overdue and due tasks"). A row with a tap and no role=button is
+      still tappable by pointer, but a row WITH role=button takes its name
+      from everything inside it, and a switch inside carries its own name, so
+      a screen reader (or an accessibility snapshot) read the label twice,
+      once for the row and once for the switch. When the control inside is
+      the real target, the row is plain: pointer-only, no role, no tab stop,
+      and the control is the one thing announced. */
+  plain?: boolean;
   /** THE ROW IS THE CONTROL'S HIT AREA (audit 2026-09-26). A CSS selector
       for the control this row holds; the row then passes its own taps to
       it, as FormSheet's Row has since SHARED-F-11, so the label and the
@@ -37,6 +49,7 @@ export function Row({ label, meta, value, onClick, forwardTo, chev = false, chil
   chev?: boolean; children?: ReactNode; className?: string; disabled?: boolean;
 }) {
   const box = useRef<HTMLDivElement>(null);
+  const semantic = !!onClick && !plain;
   const tap = onClick && !disabled ? () => { haptics.selection(); onClick(); } : undefined;
   // A tap that started INSIDE the control is the control's own; forwarding
   // it would fire the handler twice and a menu would open and shut in one
@@ -55,9 +68,9 @@ export function Row({ label, meta, value, onClick, forwardTo, chev = false, chil
     tap();
   } : undefined;
   return (
-    <div ref={box} className={"row set-row " + className} role={onClick ? "button" : undefined} tabIndex={onClick ? 0 : undefined} aria-disabled={disabled || undefined}
+    <div ref={box} className={"row set-row " + className} role={semantic ? "button" : undefined} tabIndex={semantic ? 0 : undefined} aria-disabled={disabled || undefined}
       data-forwards={forward ? forwardTo : undefined} onClick={tap ?? forward} onKeyDown={key}>
-      <div className="row-grow"><div className="conn-name">{label}</div>{meta && <div className="conn-meta">{meta}</div>}</div>
+      <div className="row-grow"><div className="conn-name">{label}</div>{meta && <div className="conn-meta" id={metaId}>{meta}</div>}</div>
       {value !== undefined && <span className="row-value">{value}</span>}
       {children}
       {chev && <div className="chev" />}
@@ -75,9 +88,10 @@ export function Switch({ label, meta, on, onToggle, ariaLabel, locked = false, o
    *  permission both sat there dead). The caller says why, usually in a toast. */
   onLocked?: () => void;
 }) {
+  const metaId = useId();
   return (
-    <Row label={label} meta={meta} onClick={locked ? onLocked : onToggle}>
-      <div className={"switch" + (on ? "" : " off") + (locked ? " switch-locked" : "")} role="switch" aria-checked={on} aria-disabled={locked || undefined} aria-label={ariaLabel ?? label} tabIndex={0}
+    <Row label={label} meta={meta} metaId={metaId} plain onClick={locked ? onLocked : onToggle}>
+      <div className={"switch" + (on ? "" : " off") + (locked ? " switch-locked" : "")} role="switch" aria-checked={on} aria-disabled={locked || undefined} aria-label={ariaLabel ?? label} aria-describedby={meta ? metaId : undefined} tabIndex={0}
         onClick={(e) => { e.stopPropagation(); if (!locked) { haptics.selection(); onToggle(); } else onLocked?.(); }}
         onKeyDown={(e) => {
           if (e.key !== " " && e.key !== "Enter") return;
