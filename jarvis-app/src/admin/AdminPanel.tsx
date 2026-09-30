@@ -1,9 +1,10 @@
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { ShieldAlert } from "../shared/icons";
 import { formatUSD } from "../ai/tokenLog";
 import type { AdminService, AdminUser, AdminUsage, AdminBilling, AdminFeedbackItem } from "./AdminService";
 import { pct, type AdminMetrics } from "./adminMetrics";
 import { pressable } from "../shared/pressable";
+import { Switch } from "../settings/kit";
 
 // The master-account panel. Gated by isAdmin for UX; the real boundary is the
 // server (privileged endpoint + RLS). When the source is unavailable (no server
@@ -65,6 +66,20 @@ export default function AdminPanel({ isAdmin, source, onBack }: {
       await source.setUserStatus(u.id, next);
     } catch (e) {
       setUsers((xs) => xs.map((x) => (x.id === u.id ? { ...x, status: was } : x)));
+      setError((e as Error).message || "Action failed");
+    }
+  };
+
+  // THE ADMIN SWITCH FOR AI (Dave 2026-09-30): same shape as the row above, the
+  // row flips first and goes back if the write fails, so the panel never says an
+  // account has AI when the server did not save it.
+  const toggleAi = async (u: AdminUser) => {
+    const next = !u.aiAllowed;
+    setUsers((xs) => xs.map((x) => (x.id === u.id ? { ...x, aiAllowed: next } : x)));
+    try {
+      await source.setUserAiAllowed(u.id, next);
+    } catch (e) {
+      setUsers((xs) => xs.map((x) => (x.id === u.id ? { ...x, aiAllowed: !next } : x)));
       setError((e as Error).message || "Action failed");
     }
   };
@@ -228,7 +243,8 @@ export default function AdminPanel({ isAdmin, source, onBack }: {
       ) : (
         <div className="pad-x"><div className="card">
           {users.map((u) => (
-            <div className="row" key={u.id} aria-expanded={openUser === u.id} {...pressable(() => setOpenUser(openUser === u.id ? null : u.id))}>
+            <Fragment key={u.id}>
+            <div className="row" aria-expanded={openUser === u.id} {...pressable(() => setOpenUser(openUser === u.id ? null : u.id))}>
               <div className="row-grow">
                 <div className="conn-name">{u.email}{u.role === "admin" && <span className="adm-role">admin</span>}</div>
                 {/* §AK/§AM: the plan is the row's one grey and the join date
@@ -249,6 +265,8 @@ export default function AdminPanel({ isAdmin, source, onBack }: {
               </div>
               <button className="pill-act" onClick={(ev) => { ev.stopPropagation(); void toggle(u); }}>{u.status === "active" ? "Disable" : "Enable"}</button>
             </div>
+            <Switch label="AI Allowed" meta={`${u.aiAllowed ? "On" : "Off, cannot use AI"} · ${u.email}`} on={u.aiAllowed} onToggle={() => void toggleAi(u)} ariaLabel={`AI allowed for ${u.email}`} />
+            </Fragment>
           ))}
         </div></div>
       )}

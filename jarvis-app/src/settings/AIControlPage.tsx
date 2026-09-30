@@ -5,6 +5,7 @@ import { haptics } from "../shared/haptics";
 import { apiUrl } from "../shared/apiBase";
 import { AI_LEVELS, AI_PIN_KEYS, DEFAULT_AI_LEVEL, type AIControlState, type AILevel, type AIPinKey } from "../ai/aiGate";
 import { setAIControl } from "../ai/levelStore";
+import { useAdminAiBlocked } from "../ai/useAdminAiGate";
 import { estimateCost, formatTokens, formatUSD, type TokenTotals } from "../ai/tokenLog";
 import { budgetMessage, formatLimit, formatMicro, type BudgetStatus } from "../ai/aiBudget";
 import { clearBudgetBlock } from "../ai/budgetBlock";
@@ -110,15 +111,23 @@ export default function AIControlPage({ onBack }: { onBack: () => void }) {
     const ok = await attemptWrite(() => svc.save({ ai: next }));
     if (!ok) { setCtrl(prev); setAIControl(prev); }
   };
-  const setLevel = (level: AILevel) => { haptics.selection(); writeResume(ctrl.level); void apply({ ...ctrl, level }); };
+  const setLevel = (level: AILevel) => { if (adminOff) { sayAdminOff(); return; } haptics.selection(); writeResume(ctrl.level); void apply({ ...ctrl, level }); };
   // ONE SWITCH (Dave 2026-09-29): off is the "off" level, on is the level it
   // was at before, so the switch and the list below never disagree.
-  const aiOn = ctrl.level !== "off";
+  // THE ADMIN SWITCH (Dave 2026-09-30). While the admin has AI turned off for
+  // this account nothing on this screen can change it: the server refuses the
+  // calls whatever is chosen here, and the saved choice is left alone so it is
+  // still the user's when the admin turns AI back on.
+  const adminOff = useAdminAiBlocked();
+  const aiOn = !adminOff && ctrl.level !== "off";
+  const sayAdminOff = () => { haptics.selection(); showToast({ message: "Turned off by admin" }); };
   const toggleAI = () => {
+    if (adminOff) { sayAdminOff(); return; }
     if (aiOn) { writeResume(ctrl.level); void apply({ ...ctrl, level: "off" }); }
     else void apply({ ...ctrl, level: readResume() });
   };
   const setPin = (key: AIPinKey, v: string) => {
+    if (adminOff) { sayAdminOff(); return; }
     haptics.selection();
     void apply({ ...ctrl, pins: { ...ctrl.pins, [key]: v as AILevel | "match" } });
   };
@@ -179,7 +188,7 @@ export default function AIControlPage({ onBack }: { onBack: () => void }) {
     <div className="screen ruled">
       <LargeTitleNav title="AI Control" back="Settings" onBack={onBack} />
       <Card>
-        <Switch label="AI" meta={aiOn ? "On" : "Off, nothing runs"} on={aiOn} onToggle={toggleAI} ariaLabel="AI on or off" />
+        <Switch label="AI" meta={adminOff ? "Turned off by admin" : aiOn ? "On" : "Off, nothing runs"} on={aiOn} onToggle={toggleAI} ariaLabel="AI on or off" locked={adminOff} onLocked={sayAdminOff} />
       </Card>
       <Head label="AI Level" />
       <Card>

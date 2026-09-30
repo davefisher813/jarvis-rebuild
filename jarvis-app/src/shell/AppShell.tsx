@@ -24,7 +24,8 @@ import type { MoreRoute } from "../more/MorePage";
 import { NavOriginProvider, type NavOrigin } from "./navOrigin";
 import ReturnPill from "./ReturnPill";
 import { useTasks, useSchedule, useCategories, useProfile, useAreas, useGoals, useProjects, useMoney, usePeople, useDecisions, useOptionalSeal, useGym, useSettings } from "../data/NotesProvider";
-import { useAuth } from "../auth/AuthProvider";
+import { useAuth, useOptionalSession } from "../auth/AuthProvider";
+import { useAdminAiGate } from "../ai/useAdminAiGate";
 import { onNotificationTap, ensureTaskReminders, registerNotificationActions, ACTION_DONE, ACTION_TOMORROW, ACTION_SNOOZE, BANNER_SNOOZE_MIN } from "../shared/notifications";
 import { nowHHMM } from "../today/todayData";
 import { effectiveKind } from "../categories/kinds";
@@ -92,6 +93,9 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
   const settings = useSettings();
   const { signOut, backendConfigured } = useAuth();
   const ai = useAI();
+  // The admin switch for this account (Dave 2026-09-30): asked of the server on
+  // mount and on every return to the foreground. See ai/useAdminAiGate.ts.
+  useAdminAiGate(useOptionalSession()?.access_token);
 
   const [tabKeys, setTabKeys] = useState<string[]>(DEFAULT_TABS);
   const [active, setActive] = useState<string>("today");

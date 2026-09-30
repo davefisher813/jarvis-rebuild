@@ -13,6 +13,9 @@ export interface AdminUser {
   plan: string;
   status: "active" | "disabled";
   role: "user" | "admin";
+  /** The admin switch for AI on this account (Dave 2026-09-30). True unless
+   *  the admin has turned it off; the account's own user cannot change it. */
+  aiAllowed: boolean;
 }
 export interface AdminUsage {
   totalUsers: number;
@@ -55,6 +58,7 @@ export interface AdminService {
   sample?: boolean; // true when showing labelled sample data (demo only)
   listUsers(): Promise<AdminUser[]>;
   setUserStatus(id: string, status: "active" | "disabled"): Promise<void>;
+  setUserAiAllowed(id: string, allowed: boolean): Promise<void>;
   usage(): Promise<AdminUsage>;
   billing(): Promise<AdminBilling>;
   feedback(): Promise<AdminFeedbackItem[]>;
@@ -98,6 +102,14 @@ export function createAdminApi(token: string, available = adminConfigured(), doF
       });
       if (!r.ok) throw new Error("admin " + r.status);
     },
+    async setUserAiAllowed(id, allowed) {
+      const r = await doFetch(base + "/users", {
+        method: "POST",
+        headers: { ...auth.headers, "Content-Type": "application/json" },
+        body: JSON.stringify({ id, aiAllowed: allowed }),
+      });
+      if (!r.ok) throw new Error("admin " + r.status);
+    },
     async usage() { return (await get("/usage")) as AdminUsage; },
     async billing() { return (await get("/billing")) as AdminBilling; },
     async feedback() { return ((await get("/feedback")) as { feedback: AdminFeedbackItem[] }).feedback; },
@@ -109,15 +121,16 @@ export function createAdminApi(token: string, available = adminConfigured(), doF
 // without a server. The UI shows a "Sample data" banner whenever sample is true.
 export function makeSampleAdminSource(): AdminService {
   const users: AdminUser[] = [
-    { id: "u_001", email: "you@yourdomain.com", createdAt: "2026-05-01", plan: "Pro", status: "active", role: "admin" },
-    { id: "u_002", email: "first.beta@email.com", createdAt: "2026-05-18", plan: "Pro", status: "active", role: "user" },
-    { id: "u_003", email: "trial.user@email.com", createdAt: "2026-05-24", plan: "Trial", status: "active", role: "user" },
+    { id: "u_001", email: "you@yourdomain.com", createdAt: "2026-05-01", plan: "Pro", status: "active", role: "admin", aiAllowed: true },
+    { id: "u_002", email: "first.beta@email.com", createdAt: "2026-05-18", plan: "Pro", status: "active", role: "user", aiAllowed: true },
+    { id: "u_003", email: "trial.user@email.com", createdAt: "2026-05-24", plan: "Trial", status: "active", role: "user", aiAllowed: false },
   ];
   return {
     available: true,
     sample: true,
     async listUsers() { return users; },
     async setUserStatus() { /* sample: no-op */ },
+    async setUserAiAllowed() { /* sample: no-op */ },
     async usage() { return { totalUsers: 3, activeUsers: 2, signups7d: 1, aiCalls30d: 42 }; },
     async billing() { return { mrr: 36, activeSubs: 2, trialing: 1, currency: "USD" }; },
     async feedback() {

@@ -1,7 +1,7 @@
 import { apiUrl } from "../shared/apiBase";
 import { backendConfigured } from "../data/store";
-import { aiCallAllowed, effectiveLevel, refusalMessage, type AIPinKey } from "./aiGate";
-import { getAIControl } from "./levelStore";
+import { aiCallAllowed, effectiveLevel, refusalMessage, ADMIN_AI_CODE, ADMIN_AI_MESSAGE, type AIPinKey } from "./aiGate";
+import { getAIControl, isAdminAiBlocked, setAdminAiBlocked } from "./levelStore";
 import { wireSystem, type AISystem } from "./systemPrompt";
 import { AIBudgetError, isBudgetCode } from "./aiBudget";
 import { budgetBlocked, clearBudgetBlock, noteBudgetRefusal } from "./budgetBlock";
@@ -81,6 +81,9 @@ export class AIService {
     opts?: { tier?: "write"; kind?: string; background?: boolean; pin?: AIPinKey; schema?: Record<string, unknown> },
   ): Promise<string> {
     if (!this.available) throw new Error("AI is not configured in this build.");
+    // The admin switch is checked first and says its own reason: a user whose
+    // AI was turned off for them should not be told to look in Settings.
+    if (isAdminAiBlocked()) throw new Error(ADMIN_AI_MESSAGE);
     const level = effectiveLevel(getAIControl(), opts?.pin);
     const background = opts?.background ?? false;
     if (!aiCallAllowed(level, background)) throw new Error(refusalMessage(level, background));
@@ -117,6 +120,14 @@ export class AIService {
     });
     if (!res.ok) {
       const detail = await res.text().catch(() => "");
+      // The proxy is the authority on the admin switch. A refusal with its code
+      // means this session was still offering AI to an account that has had it
+      // turned off (the app had not asked yet, or the admin just flipped it):
+      // remember it so the rest of the session stops trying, and say why.
+      if (res.status === 403 && adminRefusal(detail)) {
+        setAdminAiBlocked(true);
+        throw new Error(ADMIN_AI_MESSAGE);
+      }
       const refusal = parseBudgetRefusal(detail);
       if (refusal) {
         const err = new AIBudgetError(refusal);
@@ -129,6 +140,10 @@ export class AIService {
     const data = (await res.json()) as { text?: string };
     return data.text ?? "";
   }
+}
+
+function adminRefusal(detail: string): boolean {
+  try { return (JSON.parse(detail) as { code?: unknown }).code === ADMIN_AI_CODE; } catch { return false; }
 }
 
 function newRequestId(): string {

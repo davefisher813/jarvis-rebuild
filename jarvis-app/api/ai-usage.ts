@@ -13,6 +13,7 @@
 export const config = { runtime: "edge" };
 
 import { totalsByModel } from "../src/ai/tokenLog";
+import { adminAiAllowed } from "../src/ai/aiGate";
 import { budgetStatus, capEnforced, setLimit } from "./_aiBudget";
 
 // The most a person can set. A typo of a zero should not be a $50,000 cap.
@@ -37,8 +38,17 @@ export default async function handler(req: Request): Promise<Response> {
     headers: { Authorization: `Bearer ${token}`, apikey: supaAnon },
   });
   if (!who.ok) return json({ error: "Unauthorized" }, 401);
-  const me = (await who.json()) as { id?: string };
+  const me = (await who.json()) as { id?: string; app_metadata?: unknown };
   if (!me.id) return json({ error: "Unauthorized" }, 401);
+
+  // THE ADMIN SWITCH, FOR THE APP TO EXPLAIN (Dave 2026-09-30). The proxy is
+  // the authority; this only tells the app whether to say "turned off by
+  // admin" instead of offering a switch that could never work. ?status=1 is a
+  // cheap answer with no usage reads, because the app asks on every return to
+  // the foreground.
+  if (req.method === "GET" && new URL(req.url).searchParams.get("status") === "1") {
+    return json({ allowed: adminAiAllowed(me.app_metadata) });
+  }
 
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
