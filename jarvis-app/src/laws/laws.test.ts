@@ -4823,16 +4823,19 @@ describe("LAW: the foot of a list", () => {
 // is expensive to stand up and beside the point of what this law protects);
 // ErrorBoundary's own reset-on-key-change mechanism is proven directly, with
 // no such tree, in monitoring/ErrorBoundary.test.tsx.
+// 2026-09-29: the key gained rootNonce (a tap on the tab you are already on
+// remounts its flow, so a crashed tab also resets on a second tap). Still keyed
+// on the active tab first; the law is otherwise unchanged.
 describe("LAW: a tab's crash is its own, never the shell's", () => {
   it("the tab content is wrapped in an ErrorBoundary keyed on the active tab", () => {
     const shell = read(join(SRC, "shell/AppShell.tsx"));
     expect(shell, "a per-tab boundary, remounted (and so reset) on every tab switch")
-      .toMatch(/<ErrorBoundary key=\{active\}>/);
+      .toMatch(/<ErrorBoundary key=\{active \+ ":" \+ rootNonce\}>/);
   });
 
   it("VoiceBar and TabBar sit outside that boundary, so a crashed tab can't take them down", () => {
     const shell = read(join(SRC, "shell/AppShell.tsx"));
-    const boundaryOpen = shell.indexOf("<ErrorBoundary key={active}>");
+    const boundaryOpen = shell.indexOf('<ErrorBoundary key={active + ":" + rootNonce}>');
     const boundaryClose = shell.indexOf("</ErrorBoundary>");
     expect(boundaryOpen, "the boundary must exist").toBeGreaterThan(-1);
     expect(boundaryClose, "and close").toBeGreaterThan(boundaryOpen);

@@ -1458,10 +1458,11 @@ describe("SCROLL RESET: a screen does not inherit the last one's position", () =
     expect(shell, "the scroller is held, not queried for by class").toMatch(/const scroller = useRef<HTMLDivElement>\(null\)/);
     expect(shell).toMatch(/<div className="app-scroll" ref=\{scroller\}>/);
     expect(shell).toMatch(/scroller\.current\?\.scrollTo\(\{ top: 0/);
+    // 2026-09-29: rootNonce joined the list (a second tap on the open tab pops to its root, scrolled to the top).
     // The two screen changes this component can see. A live session is one of
     // them because the gym sits four components below the shell and swaps the
     // whole surface without the tab ever changing.
-    expect(shell).toMatch(/\}, \[active, sessionOpen\]\);/);
+    expect(shell).toMatch(/\}, \[active, sessionOpen, rootNonce\]\);/);
   });
 
   it("does not animate a move the person did not make", () => {
