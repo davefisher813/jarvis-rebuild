@@ -229,7 +229,7 @@ export default function InsightsFlow({ onBack, onOpenTask, onOpenEntity, onOpenM
                   </div>
                   <div className="facts week-legend">
                     {week.stack.map((s) => s.id === "open"
-                      ? <span className="fact" key={s.id}>Open {hoursOf(s.minutes)}</span>
+                      ? <span className="fact" key={s.id}>{`Open ${hoursOf(s.minutes)}`}</span>
                       : <span className="fact cat" key={s.id}><span className={"cd cat-bg-" + s.color} />{s.name} {hoursOf(s.minutes)}</span>)}
                   </div>
                 </>
@@ -269,7 +269,7 @@ export default function InsightsFlow({ onBack, onOpenTask, onOpenEntity, onOpenM
         <div className="pad-x"><div className="card list-card-ruled">
           <div {...pressable(() => setScreen({ kind: "live" }))} className="row">
             <div className="row-grow">
-              <div className="conn-name">{monthName(monthKey)}, So Far</div>
+              <div className="conn-name">{`${monthName(monthKey)}, So Far`}</div>
               {/* THE SUB IS NOT A KICKER (Dave 2026-09-03, pic 5: "too much
                   same color text"). Every row on this page wrote its second
                   line as .eyebrow, which CSS shouts in caps at the same
@@ -305,7 +305,7 @@ export default function InsightsFlow({ onBack, onOpenTask, onOpenEntity, onOpenM
               <div {...pressable(() => setScreen({ kind: "month", month: s.data.month }))} className="row" key={s.id}>
                 <div className="lib-ico lib-disc strand-disc">{filledIcon("month")}</div>
                 <div className="row-grow">
-                  <div className="conn-name">{monthName(s.data.month)} {s.data.month.slice(0, 4)}</div>
+                  <div className="conn-name">{`${monthName(s.data.month)} ${s.data.month.slice(0, 4)}`}</div>
                   <div className="facts">
                     <span className="fact"><b>{moved}</b> Moved</span>
                     <span className="fact good">{lineCase(`${s.data.done} Done`)}</span>

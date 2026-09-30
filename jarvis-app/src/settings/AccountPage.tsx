@@ -102,7 +102,7 @@ export default function AccountPage({ onBack, onEditProfile, onSignOut }: { onBa
         <input ref={fileRef} type="file" accept="image/*" hidden aria-label="Profile photo"
           onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; void onFile(f); }} />
         <div className="account-name">{p?.name || "Your name"}</div>
-        <div className="account-sub">{tmpl} plan</div>
+        <div className="account-sub">{`${tmpl} plan`}</div>
       </div></div>
       <Head label="Account" />
       <Card>

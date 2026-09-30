@@ -480,7 +480,7 @@ export default function StrandsPage({ onBack, openId: initialOpenId, openNonce, 
             </span></div></div>
             <div className="pad-x sheet-form">
               <div className="strand-head">{open.data.text}</div>
-              <div className="conn-meta">Confirmed {monthDay(open.data.lastConfirmed)}</div>
+              <div className="conn-meta">{`Confirmed ${monthDay(open.data.lastConfirmed)}`}</div>
               {/* A receipt is what happened and the day it did: one grey for
                   the what, and the day in small caps (§AM F5), so the pair
                   is not two of the same grey side by side. */}
