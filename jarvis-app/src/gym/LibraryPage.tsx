@@ -20,7 +20,7 @@ import {
   classOf, needsMuscles, rowChips, valueLine, type Chip, type ClassStore, type Classification,
   type MovementPattern, type MuscleScope, MOVEMENTS, MOVEMENT_LABEL,
 } from "./classify";
-import { filterCount, floorLine, NO_FILTER, SORT_LABEL, viewRows, type LibraryFilter, type SortKey } from "./libraryView";
+import { DEFAULT_SORT, defaultView, filterCount, floorLine, NO_FILTER, SORT_LABEL, viewRows, type LibraryFilter, type SortKey } from "./libraryView";
 
 // EXERCISES (was "Your Lifts", renamed 2026-09-14 on Dave's word: "Rename
 // 'Your Lifts' to 'Exercises' so the library covers all exercise types").
@@ -55,7 +55,7 @@ function chipTone(ch: Chip): string {
 
 export default function LibraryPage({
   rows, store, todayIso, onOpen, onRename, onSetClass, onBatch, onMerge, onToggleHidden,
-  onToggleFavorite, onSetGoal, onCreate, dismissedDupes, onDismissDuplicate, onBack,
+  onToggleFavorite, onSetGoal, onCreate, onDelete, dismissedDupes, onDismissDuplicate, onBack,
 }: {
   rows: LibraryRow[];
   /** Every exercise's classification, by library key. */
@@ -82,6 +82,10 @@ export default function LibraryPage({
    *  first version asked two questions and left the other nine to a second
    *  sheet, which is two forms to fill for one lift. */
   onCreate?: (draft: Omit<Exercise, "id">) => void;
+  /** DELETE FOR REAL (2026-10-01). Asks for the confirm; the page deletes
+   *  nothing. The flow works out what would go, guards the exercise that is in
+   *  a workout right now, and runs the write with an Undo. */
+  onDelete?: (row: LibraryRow) => void;
   dismissedDupes?: string[];
   onDismissDuplicate?: (id: string) => void;
   onBack: () => void;
@@ -92,7 +96,7 @@ export default function LibraryPage({
   // athlete to the same filtered list at the same place -- which is what
   // makes classifying forty exercises in one sitting possible at all.
   const [filter, setFilter] = useState<LibraryFilter>(NO_FILTER);
-  const [sort, setSort] = useState<SortKey>("recent");
+  const [sort, setSort] = useState<SortKey>(DEFAULT_SORT);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [renaming, setRenaming] = useState<LibraryRow | null>(null);
   const [draft, setDraft] = useState("");
@@ -146,7 +150,16 @@ export default function LibraryPage({
     return s;
   }, [dupes]);
 
-  const view = useMemo(() => viewRows(rows, store, filter, sort, dupeKeys), [rows, store, filter, sort, dupeKeys]);
+  // THE OPENING LIST IS THE BADGE'S LIST (2026-10-01). With nothing typed, no
+  // filter on and the opening order, the page asks libraryView.defaultView,
+  // the same function the Health dashboard's Exercises count asks, so the two
+  // cannot drift. Any filter, search or other order is the page's own.
+  const opening = filter.q.trim() === "" && filterCount(filter) === 0 && !filter.showHidden && !filter.showArchived && sort === DEFAULT_SORT;
+  const openingCount = useMemo(() => defaultView(rows, store).rows.length, [rows, store]);
+  const view = useMemo(
+    () => (opening ? defaultView(rows, store) : viewRows(rows, store, filter, sort, dupeKeys)),
+    [opening, rows, store, filter, sort, dupeKeys],
+  );
   // A just-saved row is re-admitted in the list's own order rather than pinned
   // to the top, so nothing else moves either.
   const shown = useMemo(() => {
@@ -176,6 +189,7 @@ export default function LibraryPage({
     { label: "Merge Into Another Exercise", onClick: () => setMerging(r) },
     ...(onToggleFavorite ? [{ label: r.favorite ? "Remove From Favorites" : "Add to Favorites", onClick: () => onToggleFavorite(r) }] : []),
     { label: r.hidden ? "Offer It Again" : "Hide From Suggestions", onClick: () => onToggleHidden(r) },
+    ...(onDelete ? [{ label: "Delete Exercise", onClick: () => onDelete(r), destructive: true }] : []),
   ];
 
   return (
@@ -191,7 +205,7 @@ export default function LibraryPage({
             which is LAW L1's other half -- red is a verb, never a status.
             It reads in the quiet ink a fact wears, like every other count
             in the app's section heads. */}
-        <span className="nav-action nav-count">{rows.length}</span>
+        <span className="nav-action nav-count">{openingCount}</span>
       </div>
 
       {rows.length === 0 ? (

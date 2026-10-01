@@ -163,11 +163,6 @@ export function composeLibrary(programs: Program[], workouts: Workout[], seeds: 
   );
 }
 
-/** How many exercises the library holds: the badge on the Health dashboard. */
-export function libraryCount(programs: Program[], workouts: Workout[], seeds: LibrarySeeds = {}): number {
-  return composeLibrary(programs, workouts, seeds).length;
-}
-
 /** Case-insensitive substring match on the typed text, most recent first.
  *  Empty query returns the most recently used entries -- useful for "recent"
  *  pickers (Swap, Add Mid-Session) that open with nothing typed yet.
