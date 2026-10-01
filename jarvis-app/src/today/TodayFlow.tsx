@@ -7,7 +7,7 @@ import { workWindowOf, isSuggested, rankCandidates } from "../schedule/planMeta"
 import type { Category } from "../categories/types";
 import type { Project } from "../projects/types";
 import type { Goal } from "../life/types";
-import { todayISO, fmtTime, addMinutes, minToHHMM, shiftFitsDay, nextOccurrence, nextFreeSlot, addDays, daysBetween } from "../schedule/calendar";
+import { fmtRange, todayISO, fmtTime, addMinutes, minutesBetween, minToHHMM, shiftFitsDay, nextOccurrence, nextFreeSlot, addDays, daysBetween } from "../schedule/calendar";
 import { ENTITY_EVENT, type EventItem } from "../schedule/types";
 import { ENTITY_TASK } from "../notes/types";
 import { useFreshLists } from "../data/useFreshLists";
@@ -35,14 +35,21 @@ import CallPrepSheet from "../people/CallPrepSheet";
 import MessageDraftSheet from "../people/MessageDraftSheet";
 import TaskSheet, { type SheetCategory, type TaskDraft } from "../tasks/screens/TaskSheet";
 import EventSheet, { type EventDraft } from "../schedule/screens/EventSheet";
+import GapSheet from "../schedule/screens/GapSheet";
+import { suggestTitles, suggestLocations } from "../schedule/memory";
+import { gapOptions, gapBlock, type GapOption } from "../schedule/gapOffer";
+import { createEventFromDraft } from "../schedule/eventCreate";
 import EventDetailPage from "../schedule/screens/EventDetailPage";
-import BlockSheet, { type BlockDraft } from "../schedule/screens/BlockSheet";
+import BlockSheet, { type BlockDraft, type BlockDay } from "../schedule/screens/BlockSheet";
 import PlanDaySheet from "../schedule/screens/PlanDaySheet";
 import { aiPlanDay } from "../schedule/planDayAI";
-import { DEFAULT_ROUTINE, planWindowFor, protectedRangesFor, type RoutineData } from "../routine/types";
+import { DEFAULT_ROUTINE, planWindowFor, protectedRangesOn, blockForDate, exceptionOn, type RoutineData } from "../routine/types";
 import { chronotypeFor, peakWindowFor } from "../schedule/energy";
 import { daySizing } from "../schedule/daySizing";
 import { shiftFutureEvents, shiftPlan, restoreShift } from "../schedule/runningLate";
+import { useConflictGuard } from "../schedule/useConflictGuard";
+import { bookedTaskIds } from "../schedule/planDedupe";
+import { shiftNewConflicts, nextFreeSlot as nextFreeTime } from "../schedule/conflicts";
 import { ensureCheckinNotifications, cancelCheckinNotifications, ensureEventReminders, ensureTaskReminders } from "../shared/notifications";
 import { badgeCount, setAppBadge } from "../shared/badge";
 import { isEvening, eveningStats, weekRecap, todayPlan } from "./evening";
@@ -68,12 +75,12 @@ import { cardDraftJob } from "../messages/cardDraftJob";
 import { DUR_CHOICES, durLabel } from "../schedule/durations";
 import { heldBy, heldLine, type HardLine } from "../brain/hardLines";
 import {
-  moveEvent as moveEventAdjust, undoMoveEvent as undoMoveEventAdjust, type MoveOutcome,
+  type MoveOutcome,
   resizeEvent as resizeEventAdjust, undoResizeEvent as undoResizeEventAdjust, type ResizeOutcome,
   skipEventToday as skipEventTodayAdjust, undoSkipEventToday as undoSkipEventTodayAdjust,
   pushEventTomorrow as pushEventTomorrowAdjust, undoPushEventTomorrow as undoPushEventTomorrowAdjust, type PushOutcome,
 } from "../schedule/eventAdjust";
-import { shiftBlock as shiftBlockAdjust, blockShiftFits, retimeBlock as retimeBlockAdjust, resizeBlock as resizeBlockAdjust, editBlockBasics, removeBlock as removeBlockAdjust } from "../routine/blockAdjust";
+import { shiftBlockForDate, blockShiftFits, retimeBlockForDate, resizeBlockForDate, retimeBlockOn, skipBlockOn, setBlockException, editBlockBasics, removeBlock as removeBlockAdjust } from "../routine/blockAdjust";
 import { overlapsOn } from "../schedule/dayEdit";
 import { isKept } from "../schedule/overlapAck";
 import { attachInfo, firstMoveOf, type AttachInfo } from "../schedule/attachments";
@@ -163,7 +170,7 @@ import { Suspense } from "react";
 import { lazyWithRecovery } from "../shell/chunkRecovery";
 import { isOffTrack, rankOpen, reasonFor } from "../upnext/upnext";
 import { backOnTrackMessage } from "../tasks/lifecycle";
-import { moveEventToAnytime, undoMoveToAnytime, duplicateEvent } from "../schedule/eventMoves";
+import { moveEventToAnytime, undoMoveToAnytime, duplicateEvent, commitRetime, undoRetime } from "../schedule/eventMoves";
 import { ClockGlyph, DocGlyph, ForkGlyph, SweepGlyph, TargetGlyph, CheckCircleGlyph, BarbellGlyph, GiftGlyph, FolderOpenGlyph } from "../shared/glyphs";
 import { Clock, CircleSlash } from "../shared/icons";
 import { isFromEmail } from "../tasks/origin";
@@ -315,6 +322,9 @@ export default function TodayFlow({
   const [todayEvents, setTodayEvents] = useState<EventItem[]>([]);
   const [tomorrowEvents, setTomorrowEvents] = useState<EventItem[]>([]);
   const [allEvents, setAllEvents] = useState<EventItem[]>([]);
+  // WARN, THEN ALLOW (2026-10-01, the audit's P0 #2): the same guard
+  // Schedule holds, so a time written from Today asks what it lands on.
+  const { guard: conflictGuard, guardBatch, moveToast, lineFor, itemsFor, ask: askConflict, conflictSheet } = useConflictGuard(allEvents, routineData);
   const [taskItems, setTaskItems] = useState<TaskItem[]>([]);
   // NOT THE EMAILS (Dave 2026-09-17: "they must go to the email section").
   // A task born from a thread is the Ready to Send band's: it never leads
@@ -650,9 +660,15 @@ export default function TodayFlow({
   // THE SAME TAP AS AN EVENT (2026-08-28, Dave: "when I click on something in
   // the schedule it should allow me to edit it like a normal scheduled
   // event"). Same shape as eventSheet above, for a protected block.
-  const [blockSheet, setBlockSheet] = useState<{ id: string; initial: BlockDraft } | null>(null);
+  const [blockSheet, setBlockSheet] = useState<{ id: string; initial: BlockDraft; day?: BlockDay } | null>(null);
   const [planOpen, setPlanOpen] = useState(false);
   const [upNextOpen, setUpNextOpen] = useState(false);
+  // NEW EVENT FROM TODAY and SCHEDULE SOMETHING HERE (schedule audit
+  // 2026-10-01, items 8 and 7). Both are sheets the Schedule tab already had;
+  // Today now opens the same ones. The gap sheet is what a tap on the Now
+  // card's open window offers, in place of going straight to Focus.
+  const [newEventOpen, setNewEventOpen] = useState(false);
+  const [gapSheetOpen, setGapSheetOpen] = useState(false);
   // FOCUS OPENS WHEN ASKED, NOT WHEN YOU COME BACK (audit 2026-09-29). This
   // used to key on the nonce alone. The shell's clear() hands the value back
   // but leaves the nonce where it was, and Today remounts on every visit, so
@@ -728,12 +744,14 @@ export default function TodayFlow({
       const dNow = new Date();
       await schedule.healPlanDuplicates(today, dNow.getHours() * 60 + dNow.getMinutes());
       await schedule.healPlanDuplicates(tmrw, null);
+      // The importer's own copy of an appointment another door wrote (#3).
+      await schedule.healTwinEvents();
       const [te, tm, tk, prof, all, capRule, durations] = await Promise.all([
         schedule.eventsOn(today),
         schedule.eventsOn(tmrw),
         tasks.listTasks(),
         profile.get(),
-        schedule.listEvents(),
+        schedule.listDisplayEvents(),
         // S4-Q26 (2026-09-04): read through the rules list, not the
         // profile field, so deleting the row in What JARVIS Learned
         // genuinely un-caps the day.
@@ -946,30 +964,42 @@ export default function TodayFlow({
     const word = mins < 0
       ? `Back ${spanLabel(Math.abs(mins))}`
       : `Forward ${spanLabel(mins)}`;
+    // One tap, never refused; the toast says what the new time lands on.
+    const note = moveToast(today, { id, start: e.start, end: e.end, forTask: !!e.sourceTaskId }, addMinutes(e.start, mins));
     let outcome: MoveOutcome | null = null;
-    const ok = await attemptWrite(async () => { outcome = await moveEventAdjust(id, addMinutes(e.start, mins), today, schedule); });
+    const ok = await attemptWrite(async () => { outcome = await commitRetime(id, { start: addMinutes(e.start, mins) }, today, schedule); });
     await reload();
     const o = outcome as MoveOutcome | null;
     if (!ok || !o?.ok) return;
     showToast({
-      message: o.repeating ? word + " · Just Today" : word,
+      message: [word, o.repeating ? "Just Today" : "", note].filter(Boolean).join(" · "),
       actionLabel: "Undo",
-      onAction: async () => { await attemptWrite(() => undoMoveEventAdjust(id, today, o, schedule)); await reload(); },
+      onAction: async () => { await attemptWrite(() => undoRetime(id, today, o, schedule)); await reload(); },
     });
   };
 
-  const onMoveTo = async (id: string, start: string) => {
-    const t = fmtTime(start);
-    const label = `Moved to ${t.time} ${t.ap}`;
+  const onMoveTo = async (id: string, start: string, end?: string) => {
+    // A time he picked asks what it lands on first (P0 #2, 2026-10-01), the
+    // same prompt Schedule's retime gives; a nudge only says it in the toast.
+    const cur = await schedule.event(id);
+    const kept = cur?.end ? Math.max(15, minutesBetween(cur.start, cur.end)) : 60;
+    const checked = await conflictGuard(
+      { date: today, start, end: end ?? (cur?.end ? addMinutes(start, kept) : undefined), ignoreId: id, forTask: !!cur?.sourceTaskId },
+      async (slot) => slot,
+    );
+    if (checked.status === "cancelled") return;
+    const at = checked.value ?? { start, end };
+    const at12 = fmtTime(at.start);
+    const label = `Moved to ${at12.time} ${at12.ap}`;
     let outcome: MoveOutcome | null = null;
-    const ok = await attemptWrite(async () => { outcome = await moveEventAdjust(id, start, today, schedule); });
+    const ok = await attemptWrite(async () => { outcome = await commitRetime(id, { start: at.start, ...(end && at.end ? { end: at.end } : {}) }, today, schedule); });
     await reload();
     const o = outcome as MoveOutcome | null;
     if (!ok || !o?.ok) return;
     showToast({
       message: o.repeating ? label + " · Just Today" : label,
       actionLabel: "Undo",
-      onAction: async () => { await attemptWrite(() => undoMoveEventAdjust(id, today, o, schedule)); await reload(); },
+      onAction: async () => { await attemptWrite(() => undoRetime(id, today, o, schedule)); await reload(); },
     });
   };
 
@@ -1024,8 +1054,9 @@ export default function TodayFlow({
     const before = routineData;
     // SCHED-F-18: the same refusal a late event gets, for a protected block.
     const cur = (before.protectedBlocks ?? []).find((b) => b.id === id);
-    if (cur && !blockShiftFits(cur.startMin, cur.endMin, mins)) { showToast({ message: "That Would Run Past Midnight" }); return; }
-    const after = shiftBlockAdjust(before, id, mins);
+    const curDay = cur ? (blockForDate(cur, planDate) ?? cur) : undefined;
+    if (curDay && !blockShiftFits(curDay.startMin, curDay.endMin, mins)) { showToast({ message: "That Would Run Past Midnight" }); return; }
+    const after = shiftBlockForDate(before, id, planDate, mins);
     if (!after) return;
     const ok = await attemptWrite(() => routine.save(after));
     if (!ok) return;
@@ -1042,7 +1073,7 @@ export default function TodayFlow({
 
   const onRetimeBlock = async (id: string, startMin: number) => {
     const before = routineData;
-    const after = retimeBlockAdjust(before, id, startMin);
+    const after = retimeBlockForDate(before, id, planDate, startMin);
     if (!after) return;
     const ok = await attemptWrite(() => routine.save(after));
     if (!ok) return;
@@ -1058,7 +1089,7 @@ export default function TodayFlow({
   const onResizeBlock = async (id: string, endMin: number) => {
     const before = routineData;
     const beforeBlock = (before.protectedBlocks ?? []).find((b) => b.id === id);
-    const after = resizeBlockAdjust(before, id, endMin);
+    const after = resizeBlockForDate(before, id, planDate, endMin);
     if (!after || !beforeBlock) return;
     const ok = await attemptWrite(() => routine.save(after));
     if (!ok) return;
@@ -1076,7 +1107,15 @@ export default function TodayFlow({
   const onOpenBlock = (id: string) => {
     const b = (routineData.protectedBlocks ?? []).find((x) => x.id === id);
     if (!b) return;
-    setBlockSheet({ id, initial: { label: b.label, startMin: b.startMin, endMin: b.endMin, days: [...b.days] } });
+    // The day the sheet opened from, with the block's times as that day
+    // shows them (JUST THIS DAY, 2026-10-01). A block the day skips has no
+    // row to tap, so the resolved block is always there.
+    const here = blockForDate(b, planDate) ?? b;
+    setBlockSheet({
+      id,
+      initial: { label: b.label, startMin: b.startMin, endMin: b.endMin, days: [...b.days] },
+      day: { date: planDate, startMin: here.startMin, endMin: here.endMin, edited: exceptionOn(b, planDate) !== null },
+    });
   };
   const onSaveBlock = async (draft: BlockDraft) => {
     if (!blockSheet) return;
@@ -1103,6 +1142,43 @@ export default function TodayFlow({
       onAction: async () => { if (await attemptWrite(() => routine.save(before))) setRoutineData(before); },
     });
   };
+  // JUST THIS DAY (2026-10-01). The sheet's This Day scope writes one date's
+  // exception on the block and never the weekly rule; Every Day (onSaveBlock
+  // above) is the rule and never an exception. One writer per scope, one
+  // Undo for each.
+  const commitBlockDay = async (after: RoutineData | null, message: string) => {
+    if (!after) return;
+    const before = routineData;
+    if (!(await attemptWrite(() => routine.save(after)))) return;
+    setRoutineData(after);
+    showToast({
+      message: lineCase(message),
+      actionLabel: "Undo",
+      onAction: async () => { if (await attemptWrite(() => routine.save(before))) setRoutineData(before); },
+    });
+  };
+  const labelOfBlock = (id: string) => (routineData.protectedBlocks ?? []).find((b) => b.id === id)?.label ?? "Block";
+  const onSaveBlockDay = async (win: { startMin: number; endMin: number }) => {
+    if (!blockSheet) return;
+    const id = blockSheet.id;
+    setBlockSheet(null);
+    await commitBlockDay(retimeBlockOn(routineData, id, planDate, win.startMin, win.endMin), labelOfBlock(id) + " changed for just today");
+  };
+  const onSkipBlockDay = async () => {
+    if (!blockSheet) return;
+    const id = blockSheet.id;
+    setBlockSheet(null);
+    await commitBlockDay(skipBlockOn(routineData, id, planDate), labelOfBlock(id) + " skipped today");
+  };
+  const backToNormalFor = async (id: string) => {
+    await commitBlockDay(setBlockException(routineData, id, planDate, null), labelOfBlock(id) + " back to normal");
+  };
+  const onBackToNormalSheet = async () => {
+    if (!blockSheet) return;
+    const id = blockSheet.id;
+    setBlockSheet(null);
+    await backToNormalFor(id);
+  };
   const onEditBlockFull = () => {
     if (!blockSheet) return;
     const id = blockSheet.id;
@@ -1114,6 +1190,13 @@ export default function TodayFlow({
     if (!eventSheet) return;
     const id = eventSheet.id;
     const recurring = (eventSheet.initial.recurrence ?? "none") !== "none";
+    // WARN, THEN ALLOW (2026-10-01), as ScheduleFlow.onSave: a retimed event
+    // asks what the new time lands on; a rename never re-asks.
+    if (draft.date !== eventSheet.initial.date || draft.start !== eventSheet.initial.start || (draft.end || "") !== (eventSheet.initial.end ?? "")) {
+      const checked = await conflictGuard({ date: draft.date, start: draft.start, end: draft.end || undefined, ignoreId: id }, async (slot) => slot);
+      if (checked.status === "cancelled") return false;
+      if (checked.status === "moved" && checked.value) draft = { ...draft, start: checked.value.start, end: checked.value.end ?? draft.end };
+    }
     if (recurring && scope === "this") {
       // Same split ScheduleFlow.onSave uses: exdate the series on the
       // occurrence the sheet opened on (not the draft's date, which he may
@@ -1256,7 +1339,13 @@ export default function TodayFlow({
     if (!sheet) return;
     const id = sheet.id;
     let landed = false;
-    const ok = await attemptWrite(async () => { landed = (await scheduleTask(id, today, tasks, schedule)).ok; });
+    let cancelled = false;
+    const ok = await attemptWrite(async () => {
+      const r = await scheduleTask(id, today, tasks, schedule, new Date(), { routine: routineData, ask: askConflict });
+      landed = r.ok;
+      cancelled = !!r.cancelled;
+    });
+    if (cancelled) return;
     setSheet(null);
     await reload();
     if (ok) showToast({ message: landed ? "Added to schedule" : "Couldn't find that task" });
@@ -1353,7 +1442,11 @@ export default function TodayFlow({
   // offers what is due by tomorrow and skips what tomorrow already holds.
   // "overdue" stays measured against the real today either way.
   const candidatesFor = (dateISO: string, evts: EventItem[]) => {
-    const plannedTaskIds = new Set(evts.map((e) => e.data.sourceTaskId).filter((x): x is string => !!x));
+    // Booked on ANY day from today on, not only the planned one (P0 #2).
+    const plannedTaskIds = new Set([
+      ...evts.map((e) => e.data.sourceTaskId).filter((x): x is string => !!x),
+      ...bookedTaskIds(allEvents, today),
+    ]);
     return taskItems
       // A REMINDER IS NOT A TASK (catalog Q1). It rides the task entity for
       // storage only: it never enters a task list, Up Next, or a plan. This
@@ -1408,7 +1501,10 @@ export default function TodayFlow({
   const planEnd = planWindow.endMin;
   // Phase 2 planning context: protected ranges for the target day, the
   // inferred energy peak, and how heavy yesterday felt.
-  const blocked = protectedRangesFor(routineData, dow);
+  const blocked = protectedRangesOn(routineData, planDate);
+  // The blocks this date skips: not walls, but still drawn so Back to Normal
+  // can be reached (JUST THIS DAY, 2026-10-01).
+  const skippedBlocks = protectedRangesOn(routineData, planDate, { withSkipped: true }).filter((r) => r.skipped);
   // Overlap awareness and attached-task counts (2026-08-28), same as
   // Schedule's day list already computes for its own rows. Today reads the
   // identical pure functions on its own event/task lists rather than
@@ -1505,6 +1601,10 @@ export default function TodayFlow({
   };
 
   const onPlanCommit = async (blocks: { taskId: string; text: string; category: string; start: string; end: string; sitting?: number }[], picks: string[], leanedOn?: string[]) => {
+    // Only a pick placed by hand can land on something (the planner routes
+    // around events and walls); back out and the sheet stays open.
+    const replacing = new Set((planningTomorrow ? tomorrowEvents : todayEvents).filter((e) => blocks.some((b) => b.taskId === e.data.sourceTaskId)).map((e) => e.id));
+    if (!(await guardBatch(planDate, blocks, replacing))) return false;
     // Replace, never add (hotfix 2026-08-21): commitPlan sweeps each task's
     // prior plan event on this day before writing, against a fresh read.
     let ids: string[] = [];
@@ -1608,7 +1708,9 @@ export default function TodayFlow({
   const onRunningLate = async (mins: number) => {
     // SCHED-F-18 (2026-09-05): the plan is told the size of the shift, so
     // events it would carry past midnight are out of the restore list too.
-    const { prior, skipped, crossed } = shiftPlan(todayEvents, nhm, mins);
+    const { prior, skipped, crossed, future } = shiftPlan(todayEvents, nhm, mins);
+    // What the push lands on that did not move, said in the receipt (P0 #2).
+    const clash = shiftNewConflicts(todayEvents, today, future, mins, todayBlocked);
     if (prior.length === 0) {
       if (crossed) showToast({ message: "Nothing Moved · The Rest Would Run Past Midnight" });
       return;
@@ -1625,7 +1727,7 @@ export default function TodayFlow({
     if (moved === 0) return;
     await reload();
     showToast({
-      message: lineCase(`${moved} ${moved === 1 ? "event" : "events"} +${spanLabel(mins)}${skipped ? ` · ${skipped} repeating stayed` : ""}${crossed ? ` · ${crossed} would pass midnight` : ""}`),
+      message: lineCase(`${moved} ${moved === 1 ? "event" : "events"} +${spanLabel(mins)}${skipped ? ` · ${skipped} repeating stayed` : ""}${crossed ? ` · ${crossed} would pass midnight` : ""}${clash.count ? ` · ${clash.count} new ${clash.count === 1 ? "overlap" : "overlaps"}` : ""}`),
       actionLabel: "Undo",
       onAction: undoShift,
     });
@@ -1896,7 +1998,7 @@ export default function TodayFlow({
   // instant; Accept stays the one honest commit moment.
   const todayDow = new Date().getDay();
   const todayWindow = planWindowFor(routineData, todayDow);
-  const todayBlocked = protectedRangesFor(routineData, todayDow);
+  const todayBlocked = protectedRangesOn(routineData, today);
   const draftStart = (() => { const d = new Date(); const n = Math.ceil((d.getHours() * 60 + d.getMinutes()) / 15) * 15; return Math.max(n, todayWindow.wakeMin); })();
   useEffect(() => {
     if (loading || evening) return;
@@ -1939,7 +2041,7 @@ export default function TodayFlow({
       events: tomorrowEvents,
       startMin: win.wakeMin,
       endMin: win.endMin,
-      blocked: protectedRangesFor(routineData, dow),
+      blocked: protectedRangesOn(routineData, tomorrow),
       maxBlocks: sizing.maxBlocks,
       estimateFor: (c) => estimates[c] ?? 45,
     }));
@@ -2022,6 +2124,10 @@ export default function TodayFlow({
       setDayDraft(done);
       return;
     }
+    // Ask once if the card's times now land on something (an event arrived
+    // since it was drawn); the blocks this replaces are not a clash.
+    const replacing = new Set(todayEvents.filter((e) => live.some((b) => b.taskId === e.data.sourceTaskId)).map((e) => e.id));
+    if (!(await guardBatch(today, live, replacing))) return;
     let ids: string[] = [];
     const ok = await attemptWrite(async () => {
       ids = (await schedule.commitPlan(today, live.map((b) => ({
@@ -2552,7 +2658,7 @@ export default function TodayFlow({
             // ROW-TAP (Dave 2026-09-15: "I want all rows clickable"): the row
             // is the open window, and filling it is its one verb, so the
             // whole line opens the same picker the pill does.
-            <div className="row" {...rowDoor(() => setUpNextOpen(true))}>
+            <div className="row" {...rowDoor(() => setGapSheetOpen(true))}>
               <RowIcon kind="event" />
               <div className="row-stack">
                 <div className="conn-name truncate">{shortSpan(nowCtx.gapMin)} Open</div>
@@ -2573,7 +2679,10 @@ export default function TodayFlow({
                   day's own button row a few hundred pixels below, which is
                   the same verb twice in one section. This card is about the
                   next few minutes; planning the day belongs to the day. */}
-              <button className="pill-act" onClick={own(() => setUpNextOpen(true))}>Focus</button>
+              {/* SCHEDULE SOMETHING HERE (item 7, 2026-10-01): the open window's
+                  tap offers the tasks that fit, with Focus one option in the
+                  sheet. The pill used to say Focus and go straight there. */}
+              <button className="pill-act" onClick={own(() => setGapSheetOpen(true))}>Fill It</button>
             </div>
           )}
           </>
@@ -2722,12 +2831,14 @@ export default function TodayFlow({
     acceptingOne.current = true;
     try {
       let ids: string[] = [];
-      const ok = await attemptWrite(async () => {
-        ids = (await schedule.commitPlan(today, [{
-          taskId: b.taskId, text: b.text, category: b.category, start: b.start, end: b.end,
-        }], undefined, { picks: [b.taskId] })).created;
-      });
-      if (!ok) return;
+      // Book It asks what the time lands on first (conflicts.ts).
+      const checked = await conflictGuard({ date: today, start: b.start, end: b.end, forTask: true }, (slot) =>
+        attemptWrite(async () => {
+          ids = (await schedule.commitPlan(today, [{
+            taskId: b.taskId, text: b.text, category: b.category, start: slot.start, end: slot.end ?? b.end,
+          }], undefined, { picks: [b.taskId] })).created;
+        }));
+      if (checked.status === "cancelled" || !checked.value) return;
       setTuning(null);
       await reload();
       showToast({
@@ -3695,7 +3806,10 @@ export default function TodayFlow({
     const snap = loadMailSnapshot();
     const m = (snap.meetings ?? []).find((x) => x.threadId === threadId);
     if (!m) return null;
-    const made = await attemptWrite(() =>
+    // Already on the calendar by another door (the import, the email offer):
+    // the reply still goes, a second row does not (audit #3, 2026-10-01).
+    const have = await schedule.findTwin("Call With " + m.from, m.date, m.start, true).catch(() => null);
+    const made = have ? true : await attemptWrite(() =>
       schedule.createEvent("Call With " + m.from, { date: m.date, start: m.start, end: m.end }));
     if (!made) return null;
     await reload();
@@ -3724,6 +3838,10 @@ export default function TodayFlow({
     // that cannot name what it is undoing is not an undo.
     let made: string | null = null;
     if (a.verb === "schedule") {
+      // The calendar import or the email's own offer may already hold this
+      // appointment: say so instead of writing it twice (audit #3).
+      const have = await schedule.findTwin(a.title, a.date, a.start!, true).catch(() => null);
+      if (have) return { receipt: lineCase(`Already on your schedule · ${when} ${fmtTime(a.start!).time} ${fmtTime(a.start!).ap}`) };
       const ok = await attemptWrite(async () => {
         made = await schedule.createEvent(a.title, {
           date: a.date, start: a.start!, end: endOfAct(a.start!, a.durationMin ?? 60), source: src,
@@ -3884,7 +4002,10 @@ export default function TodayFlow({
   // rather than leaving two. Undo puts both halves back.
   const moveToTomorrow = async (t: TaskItem) => {
     const mins = t.data.estimateMin && t.data.estimateMin > 0 ? t.data.estimateMin : 60;
-    const start = nextFreeSlot(tomorrowEvents, tmrw, new Date(), mins);
+    // The nearest free stretch of tomorrow, events AND routine blocks (the
+    // old walk saw events alone and could book across Breakfast; P0 #2).
+    const free = nextFreeTime(itemsFor(tmrw), mins, 9 * 60, { forTask: true });
+    const start = free !== null ? minToHHMM(free) : nextFreeSlot(tomorrowEvents, tmrw, new Date(), mins);
     const end = addMinutes(start, mins);
     const wasDue = t.data.due ?? null;
     let evId: string | null = null;
@@ -4009,6 +4130,71 @@ export default function TodayFlow({
     );
   }
 
+  // The gap the Now card is standing in, as a start and the choices that fit
+  // it. The pool is every open task not already on today (an event carrying its
+  // id, or a standing proposal holding it); the ranking is the Now card's own.
+  const gapStart = nowCtx.gapMin !== null && nowCtx.nextStart
+    ? minToHHMM(Number(nowCtx.nextStart.slice(0, 2)) * 60 + Number(nowCtx.nextStart.slice(3, 5)) - nowCtx.gapMin)
+    : nhm;
+  const gapChoices = gapSheetOpen && nowCtx.gapMin !== null
+    ? gapOptions(
+        taskItems.map((t) => ({ id: t.id, text: t.data.text, category: t.data.category ?? "", done: t.data.done, due: t.data.due, bill: t.data.bill, reminder: t.data.reminder, estimateMin: t.data.estimateMin })),
+        nowCtx.gapMin, today, (cat) => estimates[cat] ?? 45,
+        {
+          paused: pausedCats,
+          planned: new Set([
+            ...todayEvents.map((e) => e.data.sourceTaskId).filter((x): x is string => !!x),
+            ...liveDraftBlocks.map((b) => b.taskId),
+          ]),
+        },
+      )
+    : [];
+  const bookIntoGap = async (o: GapOption) => {
+    setGapSheetOpen(false);
+    const { start, end } = gapBlock(gapStart, o.minutes);
+    let made: string[] = [];
+    const ok = await attemptWrite(async () => {
+      const r = await schedule.commitPlan(today, [{ taskId: o.id, text: o.text, category: o.category, start, end }]);
+      made = r.created;
+    });
+    await reload();
+    if (!ok) return;
+    showToast({
+      message: `Scheduled ${fmtRange(start, end)}`,
+      actionLabel: "Undo",
+      onAction: async () => {
+        await attemptWrite(async () => { for (const id of made) await schedule.deleteEvent(id); });
+        await reload();
+      },
+    });
+  };
+  // Where a new event opens: the nearest free hour from now, events AND the
+  // routine's blocks (the old walk saw events alone).
+  const newEventStart = (): string => {
+    const d = new Date();
+    const floor = Math.max(9 * 60, Math.ceil((d.getHours() * 60 + d.getMinutes()) / 30) * 30);
+    const free = nextFreeTime(itemsFor(today), 60, floor);
+    return free !== null ? minToHHMM(free) : nextFreeSlot(todayEvents, today, d);
+  };
+  const onCreateEvent = async (draft: EventDraft) => {
+    // A new event asks what its time lands on first (P0 #2, 2026-10-01);
+    // backing out leaves the sheet open for another try.
+    const checked = await conflictGuard({ date: draft.date, start: draft.start, end: draft.end || undefined }, async (slot) => slot);
+    if (checked.status === "cancelled") return false;
+    if (checked.status === "moved" && checked.value) draft = { ...draft, start: checked.value.start, end: checked.value.end ?? draft.end };
+    let id: string | null = null;
+    const ok = await attemptWrite(async () => { id = await createEventFromDraft(draft, schedule); });
+    setNewEventOpen(false);
+    await reload();
+    if (!ok || !id) return;
+    const made = id as string;
+    showToast({
+      message: lineCase(`Added ${draft.title}`),
+      actionLabel: "Undo",
+      onAction: async () => { await attemptWrite(() => schedule.deleteEvent(made)); await reload(); },
+    });
+  };
+
   return (
     <>
     <TodayPage
@@ -4102,6 +4288,8 @@ export default function TodayFlow({
       onOpenEvent={onOpenEvent}
       onEditRoutine={onEditRoutine}
       onOpenBlock={onOpenBlock}
+      skippedBlocks={skippedBlocks}
+      onBackToNormal={(id: string) => void backToNormalFor(id)}
       conflicts={conflicts}
       attachMap={attachMap}
       firstMoveMap={firstMoveMap}
@@ -4145,6 +4333,7 @@ export default function TodayFlow({
       onSearch={onSearch}
       onProfile={onProfile}
       onSeeAllSchedule={onGoSchedule}
+      onNewEvent={() => setNewEventOpen(true)}
       onSeeAllTasks={onGoTasks}
       // TODAY-F-16 (2026-09-05): the "all" door landed in AppShell with WAVE
       // 4 and this flow has accepted it ever since without ever passing it
@@ -4275,12 +4464,14 @@ export default function TodayFlow({
         onCancel={() => setSheet(null)}
       />
     )}
+    {conflictSheet}
     {eventSheet && (
       <EventSheet
         mode="edit"
         initial={eventSheet.initial}
         categories={categories}
         projects={sheetProjects(projList, goalList)}
+        conflictLine={(d, st, en) => lineFor(d, st, en, eventSheet.id)}
         onSave={onSaveEvent}
         onDelete={onDeleteEvent}
         onMoveToAnytime={onEventToAnytime}
@@ -4291,10 +4482,39 @@ export default function TodayFlow({
     {blockSheet && (
       <BlockSheet
         initial={blockSheet.initial}
+        day={blockSheet.day}
         onSave={onSaveBlock}
+        onSaveDay={onSaveBlockDay}
+        onSkipDay={onSkipBlockDay}
+        onBackToNormal={onBackToNormalSheet}
         onDelete={onDeleteBlock}
         onEditFull={onEditRoutine ? onEditBlockFull : undefined}
         onCancel={() => setBlockSheet(null)}
+      />
+    )}
+    {newEventOpen && (
+      <EventSheet
+        mode="new"
+        initial={{ date: today, start: newEventStart() }}
+        categories={categories}
+        projects={sheetProjects(projList, goalList)}
+        conflictLine={(d, st, en) => lineFor(d, st, en)}
+        onSave={onCreateEvent}
+        onCancel={() => setNewEventOpen(false)}
+        suggestTitles={(typed) => suggestTitles(allEvents, typed)}
+        suggestLocations={(t) => suggestLocations(allEvents, t)}
+      />
+    )}
+    {gapSheetOpen && nowCtx.gapMin !== null && nowCtx.nextStart && (
+      <GapSheet
+        start={gapStart}
+        end={nowCtx.nextStart}
+        minutes={nowCtx.gapMin}
+        options={gapChoices}
+        onBook={(o) => void bookIntoGap(o)}
+        onNewEvent={() => { setGapSheetOpen(false); setNewEventOpen(true); }}
+        onFocus={() => { setGapSheetOpen(false); setUpNextOpen(true); }}
+        onClose={() => setGapSheetOpen(false)}
       />
     )}
     {upNextOpen && (

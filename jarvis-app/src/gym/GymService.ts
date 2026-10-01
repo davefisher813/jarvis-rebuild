@@ -79,6 +79,17 @@ export class GymService {
     this.onEvent({ type: "entity.deleted", entityType: ENTITY_WORKOUT, entityId: id });
   }
 
+  /** Put a removed session back UNDER ITS OWN ID. Undo of deleting an exercise
+   *  with its history restores the sessions that deletion emptied, and anything
+   *  that points at a session by id (a receipt, a calendar stamp) has to find
+   *  it again. The store accepts an id for exactly this (HMN-F-15); only ever
+   *  pass the id of a row that is gone. */
+  async restoreWorkout(id: string, data: WorkoutData): Promise<string> {
+    const back = await this.store.create(this.ownerId, ENTITY_WORKOUT, data as unknown as ItemData, id);
+    this.onEvent({ type: "entity.created", entityType: ENTITY_WORKOUT, entityId: back });
+    return back;
+  }
+
   // EDIT A FINISHED WORKOUT (catalog §3.7). A mistyped set used to be
   // permanent, and poisoned PR history the OTHER direction: a fat-fingered
   // 1350x5 becomes an unbeatable, demoralising "best" forever. PRs and the

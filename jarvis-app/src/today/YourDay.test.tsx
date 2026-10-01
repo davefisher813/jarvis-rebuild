@@ -378,3 +378,26 @@ describe("the nesting bug", () => {
     expect(screen.getByText(/Until 1:00/)).toBeInTheDocument();
   });
 });
+
+// SCHEDULE AUDIT 2026-10-01, item 8: "No explicit New Event on the Today
+// page." The day card's head carries a New Event pill beside Schedule.
+describe("YourDay: New Event", () => {
+  it("shows the pill beside Schedule and fires it", () => {
+    const onNewEvent = vi.fn();
+    render(<YourDay events={[ev("a", "09:00")]} now="08:00" nowLabel="8:00" onSeeAll={() => {}} onNewEvent={onNewEvent} />);
+    const pill = screen.getByRole("button", { name: "New Event" });
+    expect(pill.parentElement, "in the head's action group, next to Schedule").toContainElement(screen.getByRole("button", { name: "Schedule" }));
+    fireEvent.click(pill);
+    expect(onNewEvent).toHaveBeenCalledTimes(1);
+  });
+
+  it("is there on an empty day too, which is when you most want to add one", () => {
+    render(<YourDay events={[]} now="08:00" nowLabel="8:00" onSeeAll={() => {}} onNewEvent={() => {}} />);
+    expect(screen.getByRole("button", { name: "New Event" })).toBeInTheDocument();
+  });
+
+  it("is absent when the page has no sheet to open", () => {
+    render(<YourDay events={[ev("a", "09:00")]} now="08:00" nowLabel="8:00" onSeeAll={() => {}} />);
+    expect(screen.queryByRole("button", { name: "New Event" })).toBeNull();
+  });
+});

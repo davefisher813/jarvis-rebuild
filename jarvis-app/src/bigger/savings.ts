@@ -24,7 +24,36 @@ export function savingsLine(target: number, entries: SavedEntry[] | undefined): 
   return lineCase(`${formatMoney(total)} of ${formatMoney(target)} saved`);
 }
 
-/** Entries newest-first for the receipts list. */
+/** A logged entry with its place in the stored list, so a tap on a row can
+ *  name the exact entry (two $50s on one day are otherwise the same thing). */
+export interface SavedRow { entry: SavedEntry; index: number }
+
+/** Entries newest-first for the receipts list. Same day: the one logged last
+ *  first. */
+export function savedRows(entries: SavedEntry[] | undefined): SavedRow[] {
+  return (entries ?? [])
+    .map((entry, index) => ({ entry, index }))
+    .sort((a, b) => b.entry.d.localeCompare(a.entry.d) || b.index - a.index);
+}
+
 export function savedNewestFirst(entries: SavedEntry[] | undefined): SavedEntry[] {
-  return [...(entries ?? [])].sort((a, b) => b.d.localeCompare(a.d));
+  return savedRows(entries).map((r) => r.entry);
+}
+
+/** The list with one entry's amount changed. Its day stays: this corrects a
+ *  mistyped amount, it does not move money to another day. Null when the
+ *  index is not in the list or the amount is not a positive number, so a stale
+ *  tap writes nothing. */
+export function editSavedAt(entries: SavedEntry[] | undefined, index: number, amount: number): SavedEntry[] | null {
+  const list = entries ?? [];
+  if (!Number.isInteger(index) || index < 0 || index >= list.length) return null;
+  if (!Number.isFinite(amount) || !(amount > 0)) return null;
+  return list.map((e, i) => (i === index ? { ...e, amount } : e));
+}
+
+/** The list without one entry. Null when the index is not in the list. */
+export function removeSavedAt(entries: SavedEntry[] | undefined, index: number): SavedEntry[] | null {
+  const list = entries ?? [];
+  if (!Number.isInteger(index) || index < 0 || index >= list.length) return null;
+  return list.filter((_, i) => i !== index);
 }

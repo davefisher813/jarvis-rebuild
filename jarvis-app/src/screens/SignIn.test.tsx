@@ -28,7 +28,15 @@ vi.mock("../auth/AuthProvider", () => ({
 
 vi.mock("../shared/splash", () => ({ dismissSplash: () => {} }));
 
+// Whether the backend has Apple switched on (auth/providers.ts). Tests flip it.
+let appleEnabled = true;
+vi.mock("../auth/providers", async (orig) => ({
+  ...(await orig<typeof import("../auth/providers")>()),
+  useProviderEnabled: () => appleEnabled,
+}));
+
 beforeEach(() => {
+  appleEnabled = true;
   signInWithPassword.mockReset();
   signUpWithPassword.mockReset();
   sendPasswordReset.mockReset();
@@ -116,11 +124,37 @@ describe("SignIn: Apple and the magic link", () => {
     await waitFor(() => expect(signInWithApple).toHaveBeenCalledTimes(1));
   });
 
-  it("says what went wrong when the provider is not switched on", async () => {
+  // DEMO WEEK (Dave 2026-10-01): a tester tapped Continue with Apple and landed on
+  // {"code":400,"error_code":"validation_failed","msg":"Unsupported provider:
+  // provider is not enabled"}. Apple needs Dave's Apple Developer credentials in the
+  // Supabase dashboard, so until then the button is not offered at all, and if the
+  // call ever fails that way the person is told what to do, not the raw error.
+  it("never shows the raw backend error when the provider is not switched on", async () => {
     signInWithApple.mockRejectedValue(new Error("Unsupported provider: provider is not enabled"));
     render(<SignIn />);
     fireEvent.click(screen.getByText("Continue with Apple"));
-    await waitFor(() => expect(screen.getByText(/provider is not enabled/)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("Apple sign-in is not switched on yet · Use email instead")).toBeInTheDocument());
+    expect(screen.queryByText(/Unsupported provider|provider is not enabled|validation_failed/)).toBeNull();
+  });
+
+  it("does not offer Apple at all until the backend has it switched on", () => {
+    appleEnabled = false;
+    render(<SignIn />);
+    expect(screen.queryByText("Continue with Apple")).toBeNull();
+    expect(screen.queryByText(/If you already have a JARVIS account, continue with email/)).toBeNull();
+    // Email is the way in, and it leads.
+    const email = screen.getByText("Continue with Email").closest("button")!;
+    expect(email).toBeInTheDocument();
+    expect(email.className).toContain("btn-primary");
+    fireEvent.click(email);
+    expect(screen.getByPlaceholderText("you@email.com")).toBeInTheDocument();
+  });
+
+  it("offers Apple again, first, the moment it is switched on", () => {
+    render(<SignIn />);
+    const apple = screen.getByText("Continue with Apple").closest("button")!;
+    expect(apple.className).toContain("btn-primary");
+    expect(screen.getByText("Continue with Email").closest("button")!.className).toContain("btn-secondary");
   });
 
   it("emails a sign-in link to the address in the field, and says so", async () => {

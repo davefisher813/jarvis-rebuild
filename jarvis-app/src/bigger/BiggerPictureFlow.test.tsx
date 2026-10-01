@@ -1,13 +1,13 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import { useEffect, useState } from "react";
 import { NotesProvider, useGoals, useProjects, useTasks, useCategories } from "../data/NotesProvider";
 import type { GoalService } from "../life/GoalService";
 import type { TasksService } from "../tasks/TasksService";
 import type { ProjectsService } from "../projects/ProjectsService";
-import { subscribeToast } from "../shared/toast";
+import { subscribeToast, hideToast } from "../shared/toast";
 import { WRITE_FAILED_MESSAGE } from "../shared/guard";
 import BiggerPictureFlow from "./BiggerPictureFlow";
 
@@ -47,6 +47,117 @@ describe("BiggerPictureFlow savings (LIFE-F-18)", () => {
     } finally {
       vi.useRealTimers();
       process.env.TZ = prevTz;
+    }
+  });
+});
+
+// SAVINGS ENTRIES CAN BE CORRECTED (Dave 2026-10-01, a demo-week tester).
+// The list was append-only: a mistyped amount stayed in the total forever.
+// Tapping a row opens Edit Amount and Remove Entry; Remove confirms first.
+let editRef: { svc: GoalService; id: string } | null = null;
+let entriesSeed = [{ d: "2026-06-01", amount: 100 }, { d: "2026-07-01", amount: 5000 }];
+function SeedEntries() {
+  const goals = useGoals();
+  const [id, setId] = useState("");
+  useEffect(() => {
+    (async () => {
+      const gid = await goals.create({
+        title: "Emergency Fund", state: "on_track", moneyTarget: 5000,
+        saved: entriesSeed,
+      });
+      editRef = { svc: goals, id: gid! };
+      setId(gid!);
+    })();
+  }, [goals]);
+  return id ? <BiggerPictureFlow openGoalId={id} /> : null;
+}
+
+describe("BiggerPictureFlow savings entries can be corrected", () => {
+  it("Edit Amount fixes a mistyped entry, keeps its day, and Undo puts it back", async () => {
+    const seen: { message: string; onAction?: () => void }[] = [];
+    const stop = subscribeToast((t) => { if (t) seen.push(t); });
+    try {
+      render(<NotesProvider userId="u-savings-edit"><SeedEntries /></NotesProvider>);
+      fireEvent.click(await screen.findByRole("button", { name: "$5,000 on Jul 1, edit or remove" }));
+      fireEvent.click(await screen.findByText("Edit Amount"));
+      const input = await screen.findByLabelText("Amount in dollars");
+      expect(input).toHaveValue("5000");
+      fireEvent.change(input, { target: { value: "50" } });
+      fireEvent.click(screen.getByText("Save"));
+      await waitFor(async () => {
+        const g = await editRef!.svc.get(editRef!.id);
+        expect(g?.data.saved).toEqual([{ d: "2026-06-01", amount: 100 }, { d: "2026-07-01", amount: 50 }]);
+      });
+      const toast = seen[seen.length - 1]!;
+      expect(toast.message).toBe("Amount Changed");
+      toast.onAction!();
+      await waitFor(async () => {
+        const g = await editRef!.svc.get(editRef!.id);
+        expect(g?.data.saved?.[1]?.amount).toBe(5000);
+      });
+    } finally {
+      stop();
+      hideToast();
+    }
+  });
+
+  it("an old entry past the first five is reachable too (Show All Entries)", async () => {
+    entriesSeed = Array.from({ length: 7 }, (_, i) => ({ d: `2026-0${i + 1}-01`, amount: 10 * (i + 1) }));
+    try {
+      render(<NotesProvider userId="u-savings-all"><SeedEntries /></NotesProvider>);
+      await screen.findByRole("button", { name: "$70 on Jul 1, edit or remove" });
+      expect(screen.queryByRole("button", { name: "$10 on Jan 1, edit or remove" })).toBeNull();
+      fireEvent.click(screen.getByText("Show All Entries"));
+      fireEvent.click(await screen.findByRole("button", { name: "$10 on Jan 1, edit or remove" }));
+      fireEvent.click(await screen.findByText("Remove Entry"));
+      const dialog = await screen.findByRole("dialog", { name: "Remove $10 on Jan 1" });
+      fireEvent.click(within(dialog).getByRole("button", { name: "Remove Entry" }));
+      await waitFor(async () => expect((await editRef!.svc.get(editRef!.id))?.data.saved).toHaveLength(6));
+    } finally {
+      entriesSeed = [{ d: "2026-06-01", amount: 100 }, { d: "2026-07-01", amount: 5000 }];
+      hideToast();
+    }
+  });
+
+  it("an empty or zero amount cannot be saved over an entry", async () => {
+    render(<NotesProvider userId="u-savings-edit-bad"><SeedEntries /></NotesProvider>);
+    fireEvent.click(await screen.findByRole("button", { name: "$5,000 on Jul 1, edit or remove" }));
+    fireEvent.click(await screen.findByText("Edit Amount"));
+    fireEvent.change(await screen.findByLabelText("Amount in dollars"), { target: { value: "0" } });
+    fireEvent.click(screen.getByText("Save"));
+    // Nothing written, and the sheet is still there to fix it.
+    expect(screen.getByLabelText("Amount in dollars")).toBeInTheDocument();
+    expect((await editRef!.svc.get(editRef!.id))?.data.saved?.[1]?.amount).toBe(5000);
+  });
+
+  it("Remove Entry asks first: Cancel keeps it, the confirm removes it, Undo restores it", async () => {
+    const seen: { message: string; onAction?: () => void }[] = [];
+    const stop = subscribeToast((t) => { if (t) seen.push(t); });
+    try {
+      render(<NotesProvider userId="u-savings-remove"><SeedEntries /></NotesProvider>);
+      fireEvent.click(await screen.findByRole("button", { name: "$5,000 on Jul 1, edit or remove" }));
+      fireEvent.click(await screen.findByText("Remove Entry"));
+      let dialog = await screen.findByRole("dialog", { name: "Remove $5,000 on Jul 1" });
+      // The button only asks.
+      expect((await editRef!.svc.get(editRef!.id))?.data.saved).toHaveLength(2);
+      fireEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
+      await waitFor(() => expect(screen.queryByRole("dialog", { name: "Remove $5,000 on Jul 1" })).toBeNull());
+      expect((await editRef!.svc.get(editRef!.id))?.data.saved).toHaveLength(2);
+
+      fireEvent.click(await screen.findByRole("button", { name: "$5,000 on Jul 1, edit or remove" }));
+      fireEvent.click(await screen.findByText("Remove Entry"));
+      dialog = await screen.findByRole("dialog", { name: "Remove $5,000 on Jul 1" });
+      fireEvent.click(within(dialog).getByRole("button", { name: "Remove Entry" }));
+      await waitFor(async () => {
+        expect((await editRef!.svc.get(editRef!.id))?.data.saved).toEqual([{ d: "2026-06-01", amount: 100 }]);
+      });
+      const toast = seen[seen.length - 1]!;
+      expect(toast.message).toBe("Entry Removed");
+      toast.onAction!();
+      await waitFor(async () => expect((await editRef!.svc.get(editRef!.id))?.data.saved).toHaveLength(2));
+    } finally {
+      stop();
+      hideToast();
     }
   });
 });

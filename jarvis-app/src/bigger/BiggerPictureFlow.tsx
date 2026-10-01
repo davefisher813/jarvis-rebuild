@@ -45,6 +45,7 @@ import { useAIContext } from "../ai/useAIContext";
 import { identityToText } from "../ai/context";
 import { firstStepPrompt, parseFirstStep } from "../tasks/firstStep";
 import { showToast } from "../shared/toast";
+import { editSavedAt, removeSavedAt } from "./savings";
 import { todayISO } from "../tasks/grouping";
 import { TargetGlyph, FolderOpenGlyph } from "../shared/glyphs";
 import NoticeCard from "../today/NoticeCard";
@@ -1025,6 +1026,42 @@ export default function BiggerPictureFlow({ openId, openNonce, onOpenConsumed, o
             const d = today;
             await attemptWrite(() => goalsSvc.update(goalDetail.id, { saved: [...(goalDetail.data.saved ?? []), { d, amount }] }));
             await reload();
+          }}
+          // A logged entry can be wrong, and the total with it (Dave 2026-10-01,
+          // a demo-week tester). Both writes are by the entry's place in the
+          // stored list, guarded so a stale tap changes nothing, and both hand
+          // back an Undo that puts the list as it was.
+          onEditSavings={async (index, amount) => {
+            const before = goalDetail.data.saved ?? [];
+            const next = editSavedAt(before, index, amount);
+            if (!next) return;
+            const ok = await attemptWrite(() => goalsSvc.update(goalDetail.id, { saved: next }));
+            await reload();
+            if (!ok) return;
+            showToast({
+              message: "Amount Changed",
+              actionLabel: "Undo",
+              onAction: () => void (async () => {
+                await attemptWrite(() => goalsSvc.update(goalDetail.id, { saved: before }));
+                await reload();
+              })(),
+            });
+          }}
+          onRemoveSavings={async (index) => {
+            const before = goalDetail.data.saved ?? [];
+            const next = removeSavedAt(before, index);
+            if (!next) return;
+            const ok = await attemptWrite(() => goalsSvc.update(goalDetail.id, { saved: next }));
+            await reload();
+            if (!ok) return;
+            showToast({
+              message: "Entry Removed",
+              actionLabel: "Undo",
+              onAction: () => void (async () => {
+                await attemptWrite(() => goalsSvc.update(goalDetail.id, { saved: before }));
+                await reload();
+              })(),
+            });
           }}
         />
         {(sheet.kind === "newProject" || sheet.kind === "editGoal") && sheet.kind === "newProject" && (

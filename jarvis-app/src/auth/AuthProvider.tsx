@@ -13,6 +13,7 @@ import { supabase } from "./supabaseClient";
 import { emit } from "../events";
 import { apiUrl } from "../shared/apiBase";
 import { appleNativeAvailable, signInWithAppleNative } from "./appleSignIn";
+import { APPLE_UNAVAILABLE, isUnsupportedProvider, providerFlags } from "./providers";
 import { authRedirectTo, startAuthLinks } from "./authLink";
 import { showToast } from "../shared/toast";
 
@@ -93,8 +94,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // default without a second round trip.
       signInWithApple: async () => {
         if (!supabase) throw new Error("Auth backend not configured");
+        // The web path REDIRECTS the browser to the backend. If Apple is not
+        // switched on there, the person lands on a raw JSON error page and no
+        // code of ours ever sees it, so ask first (auth/providers.ts). An
+        // unknown answer is treated as a no, same as the screen does.
+        if ((await providerFlags())?.apple !== true) throw new Error(APPLE_UNAVAILABLE);
         if (!appleNativeAvailable()) {
-          await supabase.auth.signInWithOAuth({ provider: "apple" });
+          const { error: oauthError } = await supabase.auth.signInWithOAuth({ provider: "apple" });
+          if (oauthError) throw new Error(isUnsupportedProvider(oauthError) ? APPLE_UNAVAILABLE : oauthError.message);
           return;
         }
         const apple = await signInWithAppleNative();
@@ -103,7 +110,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           token: apple.identityToken,
           nonce: apple.nonce,
         });
-        if (error) throw error;
+        if (error) throw new Error(isUnsupportedProvider(error) ? APPLE_UNAVAILABLE : error.message);
         if (apple.name) {
           // Best effort: a failed metadata write must not undo a sign-in that
           // worked. The name is a convenience, the session is the point.

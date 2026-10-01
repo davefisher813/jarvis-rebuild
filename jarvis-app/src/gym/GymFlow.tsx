@@ -21,7 +21,7 @@ import { liftMeasureState, trainingMeasureState, type LiftMeasure, type Training
 import type { MetricDef, MetricLog } from "./metrics";
 import LiftDetailScreen from "./LiftDetailScreen";
 import LiftGoalSheet from "./LiftGoalSheet";
-import { readLive, writeLive, clearLive, logSet, setLoggedSets, skipExercise, swapExercise, addExerciseMidSession, sessionExercisesSameAsLastTime, programExerciseFor, queueFinished, flushPending, hasWork, isStillActive, parkLive, resumeLive, twinWorkout, type LiveSession, elapsedMs } from "./liveSession";
+import { readLive, readPending, writeLive, clearLive, logSet, setLoggedSets, skipExercise, swapExercise, addExerciseMidSession, sessionExercisesSameAsLastTime, programExerciseFor, queueFinished, flushPending, hasWork, isStillActive, parkLive, resumeLive, twinWorkout, type LiveSession, elapsedMs } from "./liveSession";
 import { bumpStrip, uniformStrip } from "./strip";
 import { composeLibrary, newExerciseKey, type LibraryEntry } from "./library";
 import LibraryPickSheet from "./LibraryPickSheet";
@@ -53,6 +53,11 @@ import { classOf, EMPTY_CLASS, isBlank, mergeClass, muscleListOf, needsMuscles, 
 import ClassifySheet from "./ClassifySheet";
 import { expectedSignature, patchSignature, planMerge, repointGoal, undoSafe, type MergePlan, type MergeState } from "./merge";
 import { MergeReviewSheet } from "./DuplicateReview";
+import DeleteExerciseSheet, { type DeleteStage } from "./DeleteExerciseSheet";
+import {
+  deletePatch, deleteUndoSafe, inProgressOf, invertDeletePatch, planDelete, settingsApply, settingsBefore, settingsRestore, settingsWithout,
+  type DeletePatch, type DeletePlan, type RestorePatch,
+} from "./deleteExercise";
 import { pairId } from "./duplicates";
 import { mmss } from "./conditioning";
 import DurationCard from "./DurationCard";
@@ -952,6 +957,13 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
   // on its own, and `pending` has to be true for exactly as long as the
   // writes are in flight.
   const [mergeState, setMergeState] = useState<MergeState | null>(null);
+  // THE DELETE, the same shape: the plan, the patch and its pre-image are all
+  // captured when the confirm opens, before anything is written, so Undo puts
+  // back exactly what was there however many times a failed write is retried.
+  const [deleteState, setDeleteState] = useState<{
+    plan: DeletePlan; patch: DeletePatch; inverse: RestorePatch;
+    before: ReturnType<typeof settingsBefore>; stage: DeleteStage; note: string | null;
+  } | null>(null);
   /** The shared classification editor, opened from the exercise page. */
   const [classOpen, setClassOpen] = useState<{ row: LibraryRow; open: Chip["field"] } | null>(null);
   /** THE RECORDS AS THEY STAND RIGHT NOW, for anything that has to read them
@@ -2010,6 +2022,107 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
       });
     };
 
+    /** The library's in-memory copies of GymSettings, read again from the
+     *  store. Each is read once at mount and written on change, so a write that
+     *  does not go through their own setters (the delete, and its Undo) has to
+     *  bring them back in step or the page would keep drawing the old list. */
+    const resyncSettings = () => {
+      const gs = readGymSettings();
+      setHiddenKeys(gs.hiddenKeys ?? []);
+      setAliasMap(gs.aliases ?? {});
+      setFavoriteKeys(gs.favoriteKeys ?? []);
+      setMuscleByKey((gs.muscleByKey ?? {}) as Record<string, MuscleGroup[]>);
+      setClassStore(readClassStore(gs.classByKey, gs.muscleByKey));
+      setCreatedLifts(gs.createdLifts ?? []);
+      setDismissedDupes(gs.dismissedDupes ?? []);
+    };
+
+    /**
+     * DELETE EXERCISE, THE ASK. Works out from the records exactly what would
+     * go and opens the confirm; writes nothing. An exercise that is in a
+     * workout right now (or one finished and still saving) is refused up
+     * front: the session screen reads its exercises from the live record, and
+     * a deleted exercise under it would break the workout in the athlete's
+     * hand.
+     */
+    const askDelete = (r: LibraryRow) => {
+      const busy = inProgressOf(r, readLive() ?? live, readPending());
+      if (busy === "live") { showToast({ message: "In your workout right now" }); return; }
+      if (busy === "pending") { showToast({ message: "A finished workout is still saving" }); return; }
+      const plan = planDelete({ row: r, workouts, programs: allPrograms, goals, settings: readGymSettings() });
+      const withHistory = plan.tier === "history";
+      const patch = deletePatch(workouts, allPrograms, r, withHistory);
+      const gs = readGymSettings();
+      setDeleteState({
+        plan, patch, inverse: invertDeletePatch(patch, workouts, allPrograms),
+        before: settingsBefore(gs, settingsWithout(gs, r)), stage: "asking", note: null,
+      });
+    };
+
+    /**
+     * THE DELETE ITSELF. Data first, one write per record that changed, then
+     * the settings; nothing says deleted until every write has returned. A
+     * failure keeps the sheet open and says how far it got, and the next tap
+     * writes only what is left (the patch is rebuilt from the records as they
+     * stand), while Undo keeps the pre-image taken before the first write.
+     */
+    const runDelete = async (state: NonNullable<typeof deleteState>) => {
+      const { plan, patch, inverse, before } = state;
+      const name = liftTitle(plan.row.name);
+      const live2 = inProgressOf(plan.row, readLive() ?? live, readPending());
+      if (live2) { setDeleteState(null); showToast({ message: live2 === "live" ? "In your workout right now" : "A finished workout is still saving" }); return; }
+      setDeleteState({ ...state, stage: "pending", note: null });
+      const todo = deletePatch(workouts, allPrograms, plan.row, plan.tier === "history");
+      const total = todo.workouts.length + todo.programs.length + todo.remove.length;
+      let applied = 0;
+      const ok = await attemptWrite(async () => {
+        for (const w of todo.workouts) { await svc.updateWorkout(w.id, { exercises: w.exercises }); applied++; }
+        for (const p of todo.programs) { await svc.updateProgram(p.id, { weeks: p.weeks }); applied++; }
+        for (const w of todo.remove) { await svc.removeWorkout(w.id); applied++; }
+      });
+      await reload();
+      if (!ok) {
+        setDeleteState({
+          ...state, stage: "asking",
+          note: applied > 0 ? `${applied} of ${total} saved, Delete Exercise finishes the rest` : "Nothing was changed, the exercise is exactly as it was",
+        });
+        return;
+      }
+      const gs = readGymSettings();
+      writeGymSettings(settingsApply(gs, settingsWithout(gs, plan.row)));
+      resyncSettings();
+      setDeleteState(null);
+      showToast({
+        message: `${name} deleted`,
+        actionLabel: "Undo",
+        onAction: () => void (async () => {
+          // The records as they are at the tap, against what the delete left.
+          if (!deleteUndoSafe(patch, recordsRef.current)) { showToast({ message: "Too much has changed since to undo this safely" }); return; }
+          const back = await attemptWrite(async () => {
+            for (const w of inverse.workouts) await svc.updateWorkout(w.id, { exercises: w.exercises });
+            for (const p of inverse.programs) await svc.updateProgram(p.id, { weeks: p.weeks });
+            for (const w of inverse.restore) await svc.restoreWorkout(w.id, w.data);
+          });
+          await reload();
+          if (!back) return;
+          writeGymSettings(settingsRestore(readGymSettings(), before));
+          resyncSettings();
+          showToast({ message: `${name} is back` });
+        })(),
+      });
+    };
+
+    /** ARCHIVE INSTEAD, from the delete confirm: the existing archive (a flag on
+     *  the classification), nothing removed. */
+    const archiveInstead = (plan: DeletePlan) => {
+      setDeleteState(null);
+      const r = rowsNow().find((x) => x.key === plan.row.key);
+      if (!r) return;
+      const storeBefore = classStore;
+      saveClassStore({ ...classStore, [r.key]: { ...classOf(classStore, r), archived: true } });
+      showToast({ message: `${liftTitle(r.name)} archived`, actionLabel: "Undo", onAction: () => saveClassStore(storeBefore) });
+    };
+
     return (
       <>
         <LibraryPage
@@ -2107,6 +2220,7 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
             writeGymSettings({ ...readGymSettings(), hiddenKeys: next });
             showToast({ message: r.hidden ? `${r.name} is offered again` : `${r.name} hidden from suggestions` });
           }}
+          onDelete={askDelete}
           dismissedDupes={dismissedDupes}
           onDismissDuplicate={(id) => {
             const next = dismissedDupes.includes(id) ? dismissedDupes : [...dismissedDupes, id];
@@ -2116,6 +2230,16 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
           }}
           onBack={() => setLibraryOpen(false)}
         />
+        {deleteState && (
+          <DeleteExerciseSheet
+            plan={deleteState.plan}
+            stage={deleteState.stage}
+            note={deleteState.note}
+            onDelete={() => void runDelete(deleteState)}
+            onArchive={() => archiveInstead(deleteState.plan)}
+            onCancel={() => setDeleteState(null)}
+          />
+        )}
         {mergeState && (
           <MergeReviewSheet
             state={mergeState}

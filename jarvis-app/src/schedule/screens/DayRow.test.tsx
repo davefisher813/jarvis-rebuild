@@ -79,10 +79,14 @@ describe("DayRow quick actions", () => {
     expect(onDelete).toHaveBeenCalled();
   });
 
+  // AMENDED 2026-10-01 (schedule audit, item 4): the picker is the Change Time
+  // sheet and commits on Move, not on the first change of the clock input.
   it("keeps the time picker, which is where earlier still lives", () => {
     const { onMoveTo } = render1();
     fireEvent.click(screen.getByLabelText(/Change time or length/));
     fireEvent.change(screen.getByLabelText("New time"), { target: { value: "09:45" } });
+    expect(onMoveTo, "a draft: nothing is written until Move").not.toHaveBeenCalled();
+    fireEvent.click(screen.getByText("Move"));
     expect(onMoveTo).toHaveBeenCalledWith("09:45");
   });
 
@@ -134,6 +138,7 @@ describe("DayRow quick actions", () => {
     fireEvent.click(screen.getByLabelText("Change time or length, currently 10:00 AM"));
     expect(onOpen).not.toHaveBeenCalled();
     fireEvent.change(screen.getByLabelText("New time"), { target: { value: "14:30" } });
+    fireEvent.click(screen.getByText("Move"));
     expect(onMoveTo).toHaveBeenCalledWith("14:30");
   });
 });
@@ -178,12 +183,13 @@ describe("DayRow resize", () => {
     expect(screen.queryByLabelText(/Change length/)).toBeNull();
   });
 
-  it("the time popover sets the length as well as the time", () => {
+  it("the time sheet sets the length as well as the time", () => {
     const onMoveTo = vi.fn();
     const { onSetEnd } = withEnd({ onMoveTo }, { end: undefined });
     fireEvent.click(screen.getByLabelText("Change time or length, currently 10:00 AM"));
     expect(screen.getByText("How Long")).toBeInTheDocument();
     fireEvent.click(screen.getByLabelText("Client Call: 45 minutes"));
+    fireEvent.click(screen.getByText("Move"));
     expect(onSetEnd).toHaveBeenCalledWith("10:45");
     expect(onMoveTo).not.toHaveBeenCalled();
   });
@@ -243,33 +249,101 @@ describe("DayRow: the first move (S6-Q36)", () => {
   });
 });
 
-// BROWSER-F-17 (2026-09-05). The time editor was absolutely positioned at
-// top: 50% with a translateY(-50%), which centres it ON the row it edits: the
-// browser walk caught "15m" sitting over "+Call Ridgeline About the Field" and
-// "12:15PM +45m open" over "New time", so the title of the thing being changed
-// was hidden while it was changed. jsdom measures every rect as zero, so where
-// it LANDS belongs to the browser walk; what this holds is that it hangs below
-// by default and only flips up when the measurement says to.
-describe("BROWSER-F-17: the time editor hangs under the row, not over it", () => {
-  const openPicker = () => {
+// SCHEDULE AUDIT 2026-10-01, item 4 ("moving items is inflexible"). This block
+// was BROWSER-F-17 (2026-09-05): the time editor was a popover hung under the
+// row, anchored with top/bottom maths so it would not cover the row it edits.
+// The popover is gone; the same tap opens the Change Time sheet, which is
+// portalled to the body, so no list clip or swipe transform can hide it, and
+// which holds a draft until Move. jsdom has no layout, so where it paints
+// belongs to the browser walk; what is held here is what it offers and when
+// it writes.
+describe("the Change Time sheet (schedule audit 2026-10-01)", () => {
+  const open = (props: Record<string, unknown> = {}, over: Partial<EventItem["data"]> = {}) => {
+    const onMoveTo = vi.fn();
+    const onSetEnd = vi.fn();
+    const onOpen = vi.fn();
     const { container } = render(
-      <DayRow e={ev()} conflict={false} isNext={false} isPast={false} now={null}
-        onOpen={() => {}} onMoveTo={() => {}} onSetEnd={() => {}} />,
+      <DayRow e={ev(over)} conflict={false} isNext={false} isPast={false} now={null}
+        onOpen={onOpen} onMoveTo={onMoveTo} onSetEnd={onSetEnd} {...props} />,
     );
     fireEvent.click(container.querySelector(".sched-time-btn")!);
-    return container;
+    return { onMoveTo, onSetEnd, onOpen };
   };
 
-  it("opens under the row", () => {
-    const pop = openPicker().querySelector(".time-pop")!;
-    expect(pop).toBeInTheDocument();
-    expect(pop.className, "down is the default; up is the exception").not.toContain("time-pop-up");
+  it("opens as a sheet on the body, not a popover inside the list", () => {
+    open();
+    const sheet = document.body.querySelector(".form-sheet")!;
+    expect(sheet, "a sheet").toBeInTheDocument();
+    expect(sheet.closest(".sched-swipe-wrap"), "outside the row's clip").toBeNull();
+    expect(document.querySelector(".time-pop")).toBeNull();
   });
 
-  it("still carries both halves of the block, the time and the length", () => {
-    const container = openPicker();
-    expect(container.querySelector('[aria-label="New time"]')).toBeInTheDocument();
-    expect(container.querySelector(".time-pop-durs")).toBeInTheDocument();
+  it("carries both halves of the block: the start with its nudge chips, and the length", () => {
+    open();
+    expect(screen.getByLabelText("New time")).toBeInTheDocument();
+    for (const l of ["\u221230m", "\u221215m", "+15m", "+30m"]) expect(screen.getByText(l)).toBeInTheDocument();
+    expect(screen.getByLabelText("Client Call: 30 minutes")).toBeInTheDocument();
+  });
+
+  it("a nudge chip moves the draft and Move commits it once", () => {
+    const { onMoveTo } = open();
+    fireEvent.click(screen.getByText("+30m"));
+    fireEvent.click(screen.getByText("\u221215m"));
+    expect(onMoveTo).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByText("Move"));
+    expect(onMoveTo).toHaveBeenCalledTimes(1);
+    expect(onMoveTo).toHaveBeenCalledWith("10:15");
+  });
+
+  it("a new start and a new length are ONE commit, so one Undo", () => {
+    const { onMoveTo, onSetEnd } = open();
+    fireEvent.click(screen.getByText("+30m"));
+    fireEvent.click(screen.getByLabelText("Client Call: 120 minutes"));
+    fireEvent.click(screen.getByText("Move"));
+    expect(onMoveTo).toHaveBeenCalledTimes(1);
+    expect(onMoveTo).toHaveBeenCalledWith("10:30", "12:30");
+    expect(onSetEnd).not.toHaveBeenCalled();
+  });
+
+  it("a length change alone resizes the event the way the length chips do", () => {
+    const { onMoveTo, onSetEnd } = open();
+    fireEvent.click(screen.getByLabelText("Client Call: 45 minutes"));
+    fireEvent.click(screen.getByText("Move"));
+    expect(onSetEnd).toHaveBeenCalledWith("10:45");
+    expect(onMoveTo).not.toHaveBeenCalled();
+  });
+
+  it("Cancel writes nothing, and Move with no change writes nothing", () => {
+    const { onMoveTo, onSetEnd } = open();
+    fireEvent.click(screen.getByText("+15m"));
+    fireEvent.click(screen.getByText("Cancel"));
+    expect(document.querySelector(".form-sheet")).toBeNull();
+    fireEvent.click(document.querySelector(".sched-time-btn")!);
+    fireEvent.click(screen.getByText("Move"));
+    expect(onMoveTo).not.toHaveBeenCalled();
+    expect(onSetEnd).not.toHaveBeenCalled();
+  });
+
+  it("a nudge refuses at the edge of the day instead of clamping", () => {
+    const { onMoveTo } = open({}, { start: "23:30", end: "23:50" });
+    const later = screen.getByLabelText("Later by 30 minutes");
+    expect(later).toHaveAttribute("aria-disabled", "true");
+    fireEvent.click(later);
+    fireEvent.click(screen.getByText("Move"));
+    expect(onMoveTo).not.toHaveBeenCalled();
+  });
+
+  it("an event with no end can be given a length from the same sheet", () => {
+    const { onMoveTo, onSetEnd } = open({}, { end: undefined });
+    fireEvent.click(screen.getByLabelText("Client Call: 60 minutes"));
+    fireEvent.click(screen.getByText("Move"));
+    expect(onSetEnd).toHaveBeenCalledWith("11:00");
+    expect(onMoveTo).not.toHaveBeenCalled();
+  });
+
+  it("opening it does not open the editor", () => {
+    const { onOpen } = open();
+    expect(onOpen).not.toHaveBeenCalled();
   });
 });
 

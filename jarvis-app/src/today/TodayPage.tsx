@@ -221,6 +221,7 @@ export default function TodayPage({
   onOpenTask,
   avatar = "",
   onSeeAllSchedule,
+  onNewEvent,
   onPlanDay,
   onPlanTomorrow,
   onRunningLate,
@@ -241,6 +242,8 @@ export default function TodayPage({
   onOpenEvent,
   onEditRoutine,
   onOpenBlock,
+  skippedBlocks,
+  onBackToNormal,
   onSeeAllTasks,
   onSeeAllOpen,
   onSeeAllOverdue,
@@ -332,6 +335,8 @@ export default function TodayPage({
   // else's name.
   avatar?: string;
   onSeeAllSchedule: () => void;
+  /** The New Event pill on the day card's head (item 8, 2026-10-01). */
+  onNewEvent?: () => void;
   onPlanDay?: () => void;
   onPlanTomorrow?: () => void; // evening-only entry aiming the sheet at tomorrow (2026-08-09)
   onRunningLate?: (mins: number) => void; // shift the rest of today from here (2026-08-09)
@@ -361,7 +366,10 @@ export default function TodayPage({
   onFifteenAgain?: () => void;
   onFifteenStop?: () => void;
   freshStart?: () => void;
-  locked?: { s: number; e: number; label: string; id?: string }[];
+  locked?: { s: number; e: number; label: string; id?: string; justToday?: boolean }[];
+  // JUST THIS DAY (2026-10-01): the blocks today skips, and the one door back.
+  skippedBlocks?: { s: number; e: number; label: string; id?: string }[];
+  onBackToNormal?: (blockId: string) => void;
   onOpenEvent?: (id: string) => void;
   onEditRoutine?: (blockId?: string) => void;
   // The actual tap target on a locked row (2026-08-28): opens BlockSheet, the
@@ -375,7 +383,7 @@ export default function TodayPage({
   // S6-Q36: same per-event shape as attachMap.
   firstMoveMap?: Record<string, string>;
   onShift?: (id: string, mins: number) => void;
-  onMoveTo?: (id: string, start: string) => void;
+  onMoveTo?: (id: string, start: string, end?: string) => void;
   onSetEnd?: (id: string, end: string) => void;
   onSkipToday?: (id: string) => void;
   onPushTomorrow?: (id: string) => void;
@@ -1016,6 +1024,7 @@ export default function TodayPage({
         now={now}
         nowLabel={nowLabel}
         onSeeAll={onSeeAllSchedule}
+        onNewEvent={onNewEvent}
         onPlanDay={onPlanDay}
         onPlanTomorrow={onPlanTomorrow}
         tomorrowShown={!!tomorrowSection}
@@ -1024,6 +1033,8 @@ export default function TodayPage({
         onOpenEvent={onOpenEvent}
         onEditRoutine={onEditRoutine}
         onOpenBlock={onOpenBlock}
+        skippedBlocks={skippedBlocks}
+        onBackToNormal={onBackToNormal}
         blendMap={blendMap}
         title={evening ? "Tonight" : "Your Day"}
         emptyText={evening ? "Nothing Else Tonight" : "Nothing Scheduled Today"}

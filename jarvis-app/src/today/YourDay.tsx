@@ -11,6 +11,7 @@ import { holdersIn, holderFor, holderKey, spanOf, type HoldRange } from "../sche
 import { stateForEvent, stateForBlock } from "../schedule/stateWord";
 import HeldTasks from "../schedule/screens/HeldTasks";
 import LockedRow from "../schedule/screens/LockedRow";
+import SkippedBlocks, { type SkippedBlock } from "../schedule/screens/SkippedBlocks";
 import type { PlanBlock } from "../schedule/planDay";
 
 // A standing proposal for this day, plus the handlers that edit it. Absent
@@ -108,7 +109,7 @@ function DaySet({
   // S6-Q36: same per-event shape as attachMap.
   firstMoveMap?: Record<string, string>;
   onShift?: (id: string, mins: number) => void;
-  onMoveTo?: (id: string, start: string) => void;
+  onMoveTo?: (id: string, start: string, end?: string) => void;
   onSetEnd?: (id: string, end: string) => void;
   onSkipToday?: (id: string) => void;
   onPushTomorrow?: (id: string) => void;
@@ -200,7 +201,7 @@ function DaySet({
           {...(stateWords ? { state: stateForEvent(en.ev.data, { today: todayISODate(), nowMin }) } : {})}
           onOpen={onOpenEvent ? () => onOpenEvent(en.ev.id) : undefined}
           onShift={onShift ? (m) => onShift(en.ev.id, m) : undefined}
-          onMoveTo={onMoveTo ? (t) => onMoveTo(en.ev.id, t) : undefined}
+          onMoveTo={onMoveTo ? (t, end) => onMoveTo(en.ev.id, t, end) : undefined}
           onSetEnd={onSetEnd ? (end) => onSetEnd(en.ev.id, end) : undefined}
           onSkipToday={onSkipToday ? () => onSkipToday(en.ev.id) : undefined}
           onPushTomorrow={onPushTomorrow ? () => onPushTomorrow(en.ev.id) : undefined}
@@ -237,6 +238,7 @@ function DaySet({
           onDrop={() => proposed!.onDrop(en.b.taskId)}
           {...(proposed!.onComplete ? { onComplete: () => proposed!.onComplete!(en.b.taskId) } : {})}
           {...(proposed!.onAccept ? { onAccept: () => proposed!.onAccept!(en.b.taskId) } : {})}
+          {...(proposed!.onOpen ? { onOpen: () => proposed!.onOpen!(en.b.taskId) } : {})}
         />,
       );
     } else {
@@ -246,7 +248,12 @@ function DaySet({
       out.push(
         <LockedRow
           key={"lock-" + i}
-          l={en.l}
+          // THE GUIDE SHOWS THE RESOLVED TIME AND NOTHING ELSE (coordinator,
+          // 2026-10-01, on Dave's 2026-09-27 freeze): a day's exception is
+          // already in l.s / l.e, and its "Just Today" note and Back to
+          // Normal belong to the Schedule tab and the sheet, never to the
+          // rows this day card contains.
+          l={{ ...en.l, justToday: false }}
           past={en.l.e <= nowMin}
           {...(stateWords ? { state: stateForBlock(en.l) } : {})}
           onOpen={blockId && onOpenBlock ? () => onOpenBlock(blockId) : onEditRoutine ? () => onEditRoutine(blockId) : undefined}
@@ -330,9 +337,12 @@ const FocusIcon = () => (
 export default function YourDay({
   events,
   locked = [],
+  skippedBlocks = [],
+  onBackToNormal,
   now,
   nowLabel,
   onSeeAll,
+  onNewEvent,
   primary,
   onPlanDay,
   onPlanTomorrow,
@@ -365,9 +375,17 @@ export default function YourDay({
 }: {
   events: EventItem[];
   locked?: LockedRange[];
+  /** The blocks today skips (Just This Day), drawn as quiet lines under the header. */
+  skippedBlocks?: SkippedBlock[];
+  onBackToNormal?: (blockId: string) => void;
   now: string;
   nowLabel: string;
   onSeeAll: () => void;
+  /** NEW EVENT FROM TODAY (schedule audit 2026-10-01, item 8). The page you
+   *  start the day on could edit an event and could not add one. The pill
+   *  rides the section head beside Schedule and opens the same New Event
+   *  sheet the Schedule tab's "+" does. Absent, the head is what it was. */
+  onNewEvent?: () => void;
   /** ACCEPT SITS BESIDE PLAN MY DAY (Dave 2026-09-11: "Accept the day and plan
    *  my day should be next to each other where plan my day currently is").
    *  The draft's commit button, handed in so it shares this row rather than
@@ -400,7 +418,7 @@ export default function YourDay({
   // S6-Q36: same per-event shape as attachMap.
   firstMoveMap?: Record<string, string>;
   onShift?: (id: string, mins: number) => void;
-  onMoveTo?: (id: string, start: string) => void;
+  onMoveTo?: (id: string, start: string, end?: string) => void;
   onSetEnd?: (id: string, end: string) => void;
   onSkipToday?: (id: string) => void;
   onPushTomorrow?: (id: string) => void;
@@ -573,6 +591,7 @@ export default function YourDay({
   ) : null;
 
   const header = (
+    <>
     <div className="sh2">
       <span className="t">{nowHead ? "Now" : title}</span>
       <span className="sec-left">
@@ -586,9 +605,12 @@ export default function YourDay({
             <svg className="icon-play" viewBox="0 0 24 24"><polygon points="7,5 19,12 7,19" /></svg>
           </button>
         )}
+      {onNewEvent && <button className="see-all pill-action" onClick={onNewEvent}>New Event</button>}
       <button className="see-all pill-action" onClick={onSeeAll}>Schedule</button>
       </span>
     </div>
+    <SkippedBlocks blocks={skippedBlocks} onBackToNormal={onBackToNormal} />
+    </>
   );
 
   // A day with five proposals and no meetings is not an empty day. The

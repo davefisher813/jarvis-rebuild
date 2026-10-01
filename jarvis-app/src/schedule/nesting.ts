@@ -36,6 +36,9 @@ export interface HoldRange {
   // The routine block's own id (2026-08-28), so a tap can jump straight back
   // to editing it. Optional: not every HoldRange producer has one.
   id?: string;
+  // This day carries an exception for the block (2026-10-01): moved or
+  // resized for the day only. The row says so and offers Back to Normal.
+  justToday?: boolean;
   // Deliberately NOT redeclaring `free` here. RoutineData types it as a list
   // of channels, and a narrower guess would make every real ProtectedRange
   // fail to assign. Nesting does not read it; anything that does should take
