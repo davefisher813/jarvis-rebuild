@@ -85,6 +85,7 @@ export default function RetimeSheet({
       </div></div>
       <div className="grp xs-grp"><div className="eyebrow">How Long</div></div>
       <div className="pad-x"><div className="card xs-group">
+        {/* row-tap: chip strip, each chip its own pick; the strip is not an item */}
         <div className="row xs-strip">
           <div className="chip-row">
             {DUR_CHOICES.map((d) => (

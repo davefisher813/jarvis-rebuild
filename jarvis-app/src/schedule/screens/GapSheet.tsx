@@ -3,6 +3,7 @@ import { fmtTime } from "../calendar";
 import { catColor, catName } from "../../shared/categories";
 import { spanLabel } from "../../shared/duration";
 import { durLabel } from "../durations";
+import { rowDoor, own } from "../../shared/rowDoor";
 import type { GapOption } from "../gapOffer";
 
 // SCHEDULE SOMETHING HERE (schedule audit 2026-10-01, item 7). The sheet a
@@ -49,7 +50,7 @@ export default function GapSheet({
           {options.length > 0 ? (
             <div className="card gap-offer">
               {options.map((o) => (
-                <div className="row gap-offer-row" key={o.id}>
+                <div className="row gap-offer-row" key={o.id} {...rowDoor(() => onBook(o))}>
                   <span className={"cat-dot cat-bg-" + catColor(o.category)} />
                   <div className="row-grow">
                     <div className="conn-name truncate">{o.text}</div>
@@ -58,7 +59,7 @@ export default function GapSheet({
                       <span className="fact"><b>{durLabel(o.minutes)}</b></span>
                     </div>
                   </div>
-                  <button type="button" className="pill-act" aria-label={`Book ${o.text} at ${s.time} ${s.ap}`} onClick={() => onBook(o)}>Book</button>
+                  <button type="button" className="pill-act" aria-label={`Book ${o.text} at ${s.time} ${s.ap}`} onClick={own(() => onBook(o))}>Book</button>
                 </div>
               ))}
             </div>

@@ -4079,6 +4079,12 @@ button {
 .plan-doneby .input-compact, .plan-add .input-compact, .plan-protect .input-compact { height: 34px; font-size: var(--t-meta); }
 .plan-doneby .input-compact { width: 118px; flex: 0 0 auto; }
 .plan-protect .input-compact { min-width: 0; }
+/* SCHEDULE SOMETHING HERE (schedule audit 2026-10-01). The list of tasks that
+   fit an open gap, inside the gap sheet: one ruled card, a row per task, the
+   Book pill at the right. The whole row books (rowDoor). */
+.gap-offer { margin-top: var(--s-2); }
+.gap-offer-row { align-items: center; gap: var(--s-3); cursor: pointer; }
+
 /* WRAPS, AND NO BUTTON BREAKS ITS OWN WORDS (schedule audit 2026-10-01). A
    proposed row now carries three verbs (Book It, Edit Task, Move to Anytime)
    and on a 390px phone the third was clipped and the first folded onto two

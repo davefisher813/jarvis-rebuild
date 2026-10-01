@@ -33,6 +33,13 @@ describe("GapSheet", () => {
     expect(onBook).toHaveBeenCalledWith(opts[1]);
   });
 
+  it("the whole row books, as every row in the app is a door", () => {
+    const { onBook } = sheet();
+    fireEvent.click(screen.getByText("Call the dentist"));
+    expect(onBook).toHaveBeenCalledWith(opts[0]);
+    expect(onBook).toHaveBeenCalledTimes(1);
+  });
+
   it("keeps both old doors: New Event, and Focus", () => {
     const { onNewEvent, onFocus } = sheet();
     fireEvent.click(screen.getByText("New Event"));
