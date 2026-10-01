@@ -54,7 +54,7 @@ describe("DeleteExerciseSheet: an exercise with logged history", () => {
     render(<DeleteExerciseSheet {...noop} plan={history} stage="asking" />);
     expect(screen.getByText("5 sessions, 14 sets")).toHaveClass("fact", "lime");
     expect(screen.getByText("Used in 1 program day")).toBeInTheDocument();
-    expect(screen.getByText("Its 5 sessions come out of your history")).toBeInTheDocument();
+    expect(screen.getByText("It comes out of 5 sessions in your history")).toBeInTheDocument();
     expect(screen.getByText("2 Sessions left empty are removed")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Delete Exercise and Its History" })).toHaveClass("destructive");
     expect(screen.getByRole("button", { name: "Archive Instead" })).not.toHaveClass("destructive");

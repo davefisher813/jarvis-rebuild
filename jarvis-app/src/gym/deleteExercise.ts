@@ -323,7 +323,7 @@ export function goesLines(plan: DeletePlan): string[] {
   const out = ["It leaves your Exercises list"];
   if (plan.programDays > 0) out.push(`It comes out of ${plural(plan.programDays, "program day", "program days")}`);
   if (plan.tier === "history") {
-    out.push(`Its ${plural(plan.sessions, "session", "sessions")} come${plan.sessions === 1 ? "s" : ""} out of your history`);
+    out.push(`It comes out of ${plural(plan.sessions, "session", "sessions")} in your history`);
     if (plan.emptied > 0) out.push(`${plural(plan.emptied, "session", "sessions")} left empty ${plan.emptied === 1 ? "is" : "are"} removed`);
   }
   if (plan.clears.length) out.push(`It also clears ${joinWords(plan.clears)}`);

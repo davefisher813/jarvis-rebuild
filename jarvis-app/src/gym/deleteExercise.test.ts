@@ -122,14 +122,14 @@ describe("the sheet's words come from the plan", () => {
     expect(goesLines(plan)).toEqual([
       "It leaves your Exercises list",
       "It comes out of 2 program days",
-      "Its 2 sessions come out of your history",
+      "It comes out of 2 sessions in your history",
       "1 Session left empty is removed",
     ]);
   });
 
   it("a single session reads in the singular", () => {
     const plan = planDelete({ row: row("Curl", "ek-curl"), workouts: [workout("w", "2026-09-01", [wex("Curl", "ek-curl", 1)])], programs: [] });
-    expect(goesLines(plan)).toContain("Its 1 session comes out of your history");
+    expect(goesLines(plan)).toContain("It comes out of 1 session in your history");
     expect(goesLines(plan)).toContain("1 Session left empty is removed");
   });
 
