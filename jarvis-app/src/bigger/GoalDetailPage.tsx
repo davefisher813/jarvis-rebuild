@@ -10,7 +10,8 @@ import { CHECKIN_LABEL, type CheckinWord } from "./checkin";
 import ProjectRowRuled from "./ProjectRowRuled";
 import RowActionSheet from "../shared/RowActionSheet";
 import { closable, projStatus, type ProjectRow } from "./progress";
-import { savingsLine, savingsPct, savedNewestFirst, savedTotal } from "./savings";
+import { savingsLine, savingsPct, savedRows, savedTotal } from "./savings";
+import RemoveSavingsSheet from "./RemoveSavingsSheet";
 import { catColor } from "../shared/categories";
 import { haptics } from "../shared/haptics";
 import { fmtDay } from "../decisions/DecisionsFlow";
@@ -59,6 +60,8 @@ export default function GoalDetailPage({
   onLinkSuggestion,
   onDismissSuggestion,
   onAddSavings,
+  onEditSavings,
+  onRemoveSavings,
   onAchieve,
   moving = 0,
   rowOf,
@@ -99,6 +102,10 @@ export default function GoalDetailPage({
   onLinkSuggestion?: (projectId: string) => void;
   onDismissSuggestion?: (projectId: string) => void;
   onAddSavings?: (amount: number) => void; // Money v1: append a dated entry
+  /** Correct one logged entry's amount; index is its place in goal.data.saved. */
+  onEditSavings?: (index: number, amount: number) => void;
+  /** Remove one logged entry, after the confirm. */
+  onRemoveSavings?: (index: number) => void;
   // Finishing a goal was buried in the edit sheet behind a segmented control.
   // The biggest moment in the app does not live inside a form.
   onAchieve?: () => void;
@@ -163,6 +170,11 @@ export default function GoalDetailPage({
   const [dropWhy, setDropWhy] = useState("");
   const [savingsOpen, setSavingsOpen] = useState(false);
   const [savingsAmt, setSavingsAmt] = useState("");
+  // A tap on a logged entry: which one (its place in the stored list), and
+  // which step of correcting it is open.
+  const [savingsRow, setSavingsRow] = useState<{ index: number; step: "menu" | "edit" | "remove" } | null>(null);
+  const [savingsEditAmt, setSavingsEditAmt] = useState("");
+  const [savingsAll, setSavingsAll] = useState(false);
   const [moveFor, setMoveFor] = useState<string | null>(null);
   const movingProject = moveFor ? projects.find((x) => x.id === moveFor) ?? null : null;
   // C-36
@@ -334,13 +346,23 @@ export default function GoalDetailPage({
         <>
           <div className="sh2 sh2-quiet"><span className="t">Savings</span>{goal.data.saved && goal.data.saved.length > 0 && <span className="n">{goal.data.saved.length}</span>}</div>
           <div className="pad-x"><div className="card list-card-ruled">
-            {savedNewestFirst(goal.data.saved).slice(0, 5).map((e, i) => (
-              <div className="task-row p2" key={e.d + "-" + i}>
-                <div className="task-check-tap gm-slot"><DollarGlyph /></div>
-                {/* The day it was saved is a neutral date: small caps (§AM F5). */}
-                <div className="task-title"><span className="task-name">{formatMoney(e.amount)}</span><div className="r-k"><span className="fact date">{monthDay(e.d)}</span></div></div>
-              </div>
-            ))}
+            {savedRows(goal.data.saved).slice(0, savingsAll ? undefined : 5).map(({ entry: e, index }) => {
+              const open = () => { if (onEditSavings || onRemoveSavings) setSavingsRow({ index, step: "menu" }); };
+              return (
+                <div className="task-row p2" key={index} role="button" tabIndex={0}
+                  aria-label={`${formatMoney(e.amount)} on ${monthDay(e.d)}, edit or remove`}
+                  onClick={open} onKeyDown={rowKey(open)}>
+                  <div className="task-check-tap gm-slot"><DollarGlyph /></div>
+                  {/* The day it was saved is a neutral date: small caps (§AM F5). */}
+                  <div className="task-title"><span className="task-name">{formatMoney(e.amount)}</span><div className="r-k"><span className="fact date">{monthDay(e.d)}</span></div></div>
+                </div>
+              );
+            })}
+            {(goal.data.saved?.length ?? 0) > 5 && (
+              <button className="row row-act" onClick={() => setSavingsAll((v) => !v)}>
+                {savingsAll ? "Show Fewer" : "Show All Entries"}
+              </button>
+            )}
             <button className="row row-act" onClick={() => { setSavingsAmt(""); setSavingsOpen(true); }}>Add to Savings</button>
           </div></div>
         </>
@@ -432,6 +454,40 @@ export default function GoalDetailPage({
           </Group>
         </FormSheet>
       )}
+
+      {savingsRow && (() => {
+        const entry = (goal.data.saved ?? [])[savingsRow.index];
+        if (!entry) return null;
+        const close = () => setSavingsRow(null);
+        if (savingsRow.step === "menu") {
+          return (
+            <RowActionSheet
+              title={`${formatMoney(entry.amount)} on ${monthDay(entry.d)}`}
+              actions={[
+                ...(onEditSavings ? [{ label: "Edit Amount", onPick: () => { setSavingsEditAmt(String(entry.amount)); setSavingsRow({ index: savingsRow.index, step: "edit" }); } }] : []),
+                ...(onRemoveSavings ? [{ label: "Remove Entry", destructive: true, onPick: () => setSavingsRow({ index: savingsRow.index, step: "remove" }) }] : []),
+              ]}
+              // The sheet calls this before a pick; the pick then sets the next step.
+              onCancel={close}
+            />
+          );
+        }
+        if (savingsRow.step === "edit" && onEditSavings) {
+          const valid = Number.isFinite(Number(savingsEditAmt)) && Number(savingsEditAmt) > 0;
+          return (
+            <FormSheet title="Edit Amount" onCancel={close} saveDisabled={!valid}
+              onSave={() => { if (!valid) return; onEditSavings(savingsRow.index, Number(savingsEditAmt)); close(); }}>
+              <Group label="Amount">
+                <FieldRow tone="green" glyph={<DollarGlyph />} label="Dollars" value={savingsEditAmt} onChange={setSavingsEditAmt} placeholder="0" inputMode="decimal" ariaLabel="Amount in dollars" />
+              </Group>
+            </FormSheet>
+          );
+        }
+        if (savingsRow.step === "remove" && onRemoveSavings) {
+          return <RemoveSavingsSheet entry={entry} all={goal.data.saved} onRemove={() => { onRemoveSavings(savingsRow.index); close(); }} onCancel={close} />;
+        }
+        return null;
+      })()}
 
       {/* WHAT THE PAGE OFFERS IS WHAT IS AVAILABLE (Dave 2026-08-22, picks 11
           and 8). Mark Achieved used to be the primary action on a goal with no
