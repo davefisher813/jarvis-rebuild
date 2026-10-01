@@ -14,6 +14,9 @@ const onAuthStateChange = vi.fn();
 const resetPasswordForEmail = vi.fn();
 const updateUser = vi.fn();
 const signOut = vi.fn();
+const signInWithOAuth = vi.fn();
+const signInWithIdToken = vi.fn();
+const flags = vi.fn();
 
 vi.mock("./supabaseClient", () => ({
   supabase: {
@@ -23,8 +26,15 @@ vi.mock("./supabaseClient", () => ({
       resetPasswordForEmail: (...a: unknown[]) => resetPasswordForEmail(...a),
       updateUser: (...a: unknown[]) => updateUser(...a),
       signOut: (...a: unknown[]) => signOut(...a),
+      signInWithOAuth: (...a: unknown[]) => signInWithOAuth(...a),
+      signInWithIdToken: (...a: unknown[]) => signInWithIdToken(...a),
     },
   },
+}));
+
+vi.mock("./providers", async (orig) => ({
+  ...(await orig<typeof import("./providers")>()),
+  providerFlags: () => flags(),
 }));
 
 function Harness({ onReady }: { onReady: (v: ReturnType<typeof useAuth>) => void }) {
@@ -49,6 +59,9 @@ beforeEach(() => {
   resetPasswordForEmail.mockReset();
   updateUser.mockReset().mockResolvedValue({ error: null });
   signOut.mockReset().mockResolvedValue({ error: null });
+  signInWithOAuth.mockReset().mockResolvedValue({ error: null });
+  signInWithIdToken.mockReset();
+  flags.mockReset().mockResolvedValue({ apple: true });
 });
 
 afterEach(() => { vi.unstubAllGlobals(); });
@@ -192,5 +205,43 @@ describe("signOut clears the device", () => {
     expect(localStorage.getItem("jarvis.mail.vip.v1")).toBeNull();
     expect(localStorage.getItem("jarvis.music.v1")).toBeNull();
     expect(localStorage.getItem("jarvis.mail.outbox.v1")).toBe("x");
+  });
+});
+
+// DEMO WEEK (Dave 2026-10-01): the web Apple path REDIRECTS the browser to the
+// backend. With Apple not switched on, that lands the person on a raw Supabase
+// JSON error page that no code of ours can catch, so the provider is checked
+// FIRST and the redirect never starts.
+describe("signInWithApple when the backend has not switched Apple on", () => {
+  it("never starts the redirect, and says what to do instead", async () => {
+    flags.mockResolvedValue({ apple: false, email: true });
+    const get = renderAuth();
+    await waitFor(() => expect(get().ready).toBe(true));
+    await expect(get().signInWithApple()).rejects.toThrow("Apple sign-in is not switched on yet · Use email instead");
+    expect(signInWithOAuth).not.toHaveBeenCalled();
+  });
+
+  it("an unknown answer counts as not switched on", async () => {
+    flags.mockResolvedValue(null);
+    const get = renderAuth();
+    await waitFor(() => expect(get().ready).toBe(true));
+    await expect(get().signInWithApple()).rejects.toThrow(/not switched on yet/);
+    expect(signInWithOAuth).not.toHaveBeenCalled();
+  });
+
+  it("once it is switched on, the redirect starts as before", async () => {
+    flags.mockResolvedValue({ apple: true });
+    const get = renderAuth();
+    await waitFor(() => expect(get().ready).toBe(true));
+    await get().signInWithApple();
+    expect(signInWithOAuth).toHaveBeenCalledWith({ provider: "apple" });
+  });
+
+  it("a raw Unsupported provider error from the backend is never passed on", async () => {
+    flags.mockResolvedValue({ apple: true });
+    signInWithOAuth.mockResolvedValue({ error: { message: "Unsupported provider: provider is not enabled" } });
+    const get = renderAuth();
+    await waitFor(() => expect(get().ready).toBe(true));
+    await expect(get().signInWithApple()).rejects.toThrow("Apple sign-in is not switched on yet · Use email instead");
   });
 });

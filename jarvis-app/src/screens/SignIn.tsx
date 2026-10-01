@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Brain, Mail } from "../shared/icons";
 import { useAuth } from "../auth/AuthProvider";
+import { appleErrorMessage, useProviderEnabled } from "../auth/providers";
 import { dismissSplash } from "../shared/splash";
 import TermsPage from "../settings/TermsPage";
 import PrivacyPage from "../settings/PrivacyPage";
@@ -18,6 +19,8 @@ import PrivacyPage from "../settings/PrivacyPage";
 export default function SignIn() {
   const { signInWithPassword, signUpWithPassword, sendPasswordReset, signInWithApple, signInWithEmail, backendConfigured } = useAuth();
   useEffect(() => { dismissSplash(); }, []);
+  // Apple is offered only once the backend says it is switched on (auth/providers.ts).
+  const appleOn = useProviderEnabled("apple");
   const [view, setView] = useState<"choose" | "email">("choose");
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   // UP-LAUNCH-11 (2026-09-05), fork option B: the link is the way in, and the
@@ -66,8 +69,9 @@ export default function SignIn() {
       await signInWithApple();
     } catch (e) {
       // Supabase says "Unsupported provider" until Apple is enabled on the
-      // project, and that sentence is the truth about this build.
-      setError(e instanceof Error ? e.message : "Couldn't reach Apple · Try again");
+      // project. That is true and useless to a tester, so it is said as what to
+      // do instead; the button is not shown in that state anyway.
+      setError(appleErrorMessage(e));
     } finally {
       setAppleBusy(false);
     }
@@ -177,11 +181,15 @@ export default function SignIn() {
         <p className="signin-tag">Your day, handled.</p>
 
         <div className="signin-actions">
-          {/* Apple first, per the domain spec for this slice. */}
-          <button className="btn btn-lg btn-block btn-primary" onClick={() => void continueWithApple()} disabled={appleBusy}>
-            {appleBusy ? "Opening..." : "Continue with Apple"}
-          </button>
-          <button className="btn btn-lg btn-block btn-secondary" onClick={() => setView("email")}>
+          {/* Apple first, per the domain spec for this slice, but only when the
+              backend has it switched on: a dead button sent a tester to a raw
+              Supabase error page (Dave 2026-10-01). */}
+          {appleOn && (
+            <button className="btn btn-lg btn-block btn-primary" onClick={() => void continueWithApple()} disabled={appleBusy}>
+              {appleBusy ? "Opening..." : "Continue with Apple"}
+            </button>
+          )}
+          <button className={"btn btn-lg btn-block " + (appleOn ? "btn-secondary" : "btn-primary")} onClick={() => setView("email")}>
             <Mail size={20} /> Continue with Email
           </button>
         </div>
@@ -190,7 +198,7 @@ export default function SignIn() {
             password account, so Apple would quietly create a SECOND JARVIS
             account with none of the person's things in it. Nothing in the
             flow can detect that has happened, so it is said before it does. */}
-        <p className="signin-tag">If you already have a JARVIS account, continue with email so you keep it.</p>
+        {appleOn && <p className="signin-tag">If you already have a JARVIS account, continue with email so you keep it.</p>}
         {error && <div className="pad-x"><div className="input-error">{error}</div></div>}
 
         <p className="signin-legal">
