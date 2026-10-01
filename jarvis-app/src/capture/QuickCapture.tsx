@@ -1,6 +1,6 @@
 import { createPortal } from "react-dom";
 import { useState, useRef, type ReactNode } from "react";
-import { X } from "lucide-react";
+import { X } from "../shared/icons";
 import { useTasks, useSchedule, useNotes, useCategories, useOptionalRules, useOptionalStrands, useOptionalDecisions, useOptionalBrainMemory, usePeople, useProjects } from "../data/NotesProvider";
 import FilingSheet from "../ai/FilingSheet";
 import { STRAND_CATEGORY_LABEL, STRAND_TYPE_LABEL, type StrandCategory } from "../brain/strands/types";
@@ -478,13 +478,15 @@ export default function QuickCapture({ ai, onClose, onOpen }: { ai: AIService; o
               {saved.map((s) => {
                 if (s.removed) {
                   return (
-                    <div key={s.id} className="capture-saved capture-removed">
-                      <div className="row">
+                    <div key={s.id} className="capture-saved">
+                      {/* The whole row is the door (Redo), as on every row with a control. */}
+                      <div className="row" role="button" tabIndex={0} onClick={() => void onRedo(s)}
+                        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); void onRedo(s); } }}>
                         <div className="row-stack">
                           <div className="conn-name">{s.title}</div>
-                          <div className="facts"><span className="fact st">Removed</span></div>
+                          <div className="facts"><span className="fact">Removed</span></div>
                         </div>
-                        <button className="btn-sm" onClick={() => void onRedo(s)}>Redo</button>
+                        <button className="btn-sm" onClick={(e) => { e.stopPropagation(); void onRedo(s); }}>Redo</button>
                       </div>
                     </div>
                   );
