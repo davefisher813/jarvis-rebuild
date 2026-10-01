@@ -11,6 +11,7 @@ import { holdersIn, holderFor, holderKey, spanOf, type HoldRange } from "../sche
 import { stateForEvent, stateForBlock } from "../schedule/stateWord";
 import HeldTasks from "../schedule/screens/HeldTasks";
 import LockedRow from "../schedule/screens/LockedRow";
+import SkippedBlocks, { type SkippedBlock } from "../schedule/screens/SkippedBlocks";
 import type { PlanBlock } from "../schedule/planDay";
 
 // A standing proposal for this day, plus the handlers that edit it. Absent
@@ -247,7 +248,12 @@ function DaySet({
       out.push(
         <LockedRow
           key={"lock-" + i}
-          l={en.l}
+          // THE GUIDE SHOWS THE RESOLVED TIME AND NOTHING ELSE (coordinator,
+          // 2026-10-01, on Dave's 2026-09-27 freeze): a day's exception is
+          // already in l.s / l.e, and its "Just Today" note and Back to
+          // Normal belong to the Schedule tab and the sheet, never to the
+          // rows this day card contains.
+          l={{ ...en.l, justToday: false }}
           past={en.l.e <= nowMin}
           {...(stateWords ? { state: stateForBlock(en.l) } : {})}
           onOpen={blockId && onOpenBlock ? () => onOpenBlock(blockId) : onEditRoutine ? () => onEditRoutine(blockId) : undefined}
@@ -331,6 +337,8 @@ const FocusIcon = () => (
 export default function YourDay({
   events,
   locked = [],
+  skippedBlocks = [],
+  onBackToNormal,
   now,
   nowLabel,
   onSeeAll,
@@ -367,6 +375,9 @@ export default function YourDay({
 }: {
   events: EventItem[];
   locked?: LockedRange[];
+  /** The blocks today skips (Just This Day), drawn as quiet lines under the header. */
+  skippedBlocks?: SkippedBlock[];
+  onBackToNormal?: (blockId: string) => void;
   now: string;
   nowLabel: string;
   onSeeAll: () => void;
@@ -580,6 +591,7 @@ export default function YourDay({
   ) : null;
 
   const header = (
+    <>
     <div className="sh2">
       <span className="t">{nowHead ? "Now" : title}</span>
       <span className="sec-left">
@@ -597,6 +609,8 @@ export default function YourDay({
       <button className="see-all pill-action" onClick={onSeeAll}>Schedule</button>
       </span>
     </div>
+    <SkippedBlocks blocks={skippedBlocks} onBackToNormal={onBackToNormal} />
+    </>
   );
 
   // A day with five proposals and no meetings is not an empty day. The

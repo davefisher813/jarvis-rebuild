@@ -63,6 +63,25 @@ export interface ProtectedBlock {
   // block written before 2026-08-21 keeps behaving exactly as it did.
   mode?: BlockMode;
   free?: FreeChannel[];
+  // JUST THIS DAY (2026-10-01, the Schedule audit's first finding: moving
+  // today's Breakfast moved it every day, because every edit wrote the weekly
+  // rule). A recurring block can now carry per-date exceptions, keyed by the
+  // local ISO date they apply to. Absent means no exception anywhere, so every
+  // block saved before this renders exactly as it did: no migration. An
+  // exception never edits the rule, and a rule edit never touches one. Read
+  // them ONLY through blockForDate / protectedRangesOn below, so the day list,
+  // Today, the planner's capacity and the week all see the same answer.
+  exceptions?: Record<string, BlockException>;
+}
+
+// One day's difference from the rule. skip drops the block from that day; a
+// start/end replaces the rule's for that day only (either may be given: a
+// resize sets only the end, a move sets both). Dates in the past are inert and
+// pruned the next time any exception is written (pruneExceptions).
+export interface BlockException {
+  skip?: boolean;
+  startMin?: number;
+  endMin?: number;
 }
 
 export interface RoutineData {
@@ -101,17 +120,65 @@ export const DEFAULT_ROUTINE: RoutineData = {
 // Schedule - can jump straight back to editing THAT block instead of
 // dropping the user at the top of the whole routine list to hunt for it
 // again. Dave: "I don't want to keep asking for the same thing."
-export interface ProtectedRange { s: number; e: number; label: string; soft?: boolean; kind?: BlockKind; mode?: BlockMode; free?: FreeChannel[]; id?: string }
+export interface ProtectedRange { s: number; e: number; label: string; soft?: boolean; kind?: BlockKind; mode?: BlockMode; free?: FreeChannel[]; id?: string;
+  // True when this day carries an exception for the block (a retime or a
+  // resize), so the row can say "Just today" and offer Back to Normal. skipped
+  // ranges are only ever returned when asked for (see protectedRangesOn).
+  justToday?: boolean; skipped?: boolean }
 
 // The protected ranges that apply on a given day of week, as sorted busy
 // ranges for the planner, hard and soft together. Malformed blocks (end at or
 // before start, empty label, no days) are dropped so a bad entry can never
 // wipe out a day. dow: 0=Sun ... 6=Sat (JS getDay).
 export function protectedRangesFor(r: RoutineData, dow: number): ProtectedRange[] {
-  return (r.protectedBlocks ?? [])
-    .filter((b) => b.endMin > b.startMin && b.label.trim() !== "" && b.days.includes(dow))
-    .map((b) => ({ s: b.startMin, e: b.endMin, label: b.label.trim(), id: b.id, ...(b.soft ? { soft: true } : {}), ...(b.kind ? { kind: b.kind } : {}), ...(b.mode ? { mode: b.mode } : {}), ...(b.free ? { free: b.free } : {}) }))
-    .sort((a, b) => a.s - b.s || a.e - b.e);
+  return rangesOf(r, dow);
+}
+
+// THE ONE RESOLVER (2026-10-01). What a recurring block is on a given date:
+// the block itself when the date carries no exception, the block with that
+// day's start/end laid over it when it does, and null when the day skips it.
+// Everything that asks "when is this block, on that day" goes through here,
+// and nothing else reads exceptions.
+export function blockForDate(b: ProtectedBlock, date: string): ProtectedBlock | null {
+  const ex = b.exceptions?.[date];
+  if (!ex) return b;
+  if (ex.skip) return null;
+  const startMin = ex.startMin ?? b.startMin;
+  const endMin = ex.endMin ?? b.endMin;
+  return startMin === b.startMin && endMin === b.endMin ? b : { ...b, startMin, endMin };
+}
+
+export function exceptionOn(b: ProtectedBlock, date: string): BlockException | null {
+  return b.exceptions?.[date] ?? null;
+}
+
+const dowOfIso = (date: string): number => new Date(date + "T12:00:00").getDay();
+
+// The same ranges as protectedRangesFor, for one DATE, so exceptions apply.
+// This is what every day-shaped reader should call. withSkipped adds the
+// blocks the day skips, flagged skipped, for the one surface that has to show
+// them (so Back to Normal can be reached); the planner never asks for them.
+export function protectedRangesOn(r: RoutineData, date: string, opts: { withSkipped?: boolean } = {}): ProtectedRange[] {
+  return rangesOf(r, dowOfIso(date), date, opts.withSkipped === true);
+}
+
+function rangesOf(r: RoutineData, dow: number, date?: string, withSkipped = false): ProtectedRange[] {
+  const out: ProtectedRange[] = [];
+  for (const rule of r.protectedBlocks ?? []) {
+    if (!rule.days.includes(dow)) continue;
+    const skipped = date !== undefined && exceptionOn(rule, date)?.skip === true;
+    const b = date === undefined ? rule : blockForDate(rule, date);
+    const use = b ?? (skipped && withSkipped ? rule : null);
+    if (!use) continue;
+    if (use.endMin <= use.startMin || use.label.trim() === "") continue;
+    const moved = date !== undefined && !skipped && b !== rule;
+    out.push({
+      s: use.startMin, e: use.endMin, label: use.label.trim(), id: use.id,
+      ...(use.soft ? { soft: true } : {}), ...(use.kind ? { kind: use.kind } : {}), ...(use.mode ? { mode: use.mode } : {}), ...(use.free ? { free: use.free } : {}),
+      ...(moved ? { justToday: true } : {}), ...(skipped ? { skipped: true, justToday: true } : {}),
+    });
+  }
+  return out.sort((a, b) => a.s - b.s || a.e - b.e);
 }
 
 // Focus blocks pull tasks IN (2026-08-10, Dave's call): a block like Deep

@@ -12,7 +12,9 @@
 // Minutes-from-midnight throughout, because that is what ProtectedBlock
 // already stores - no HH:MM parsing needed, unlike eventAdjust.ts.
 
-import type { RoutineData, ProtectedBlock } from "./types";
+import type { RoutineData, ProtectedBlock, BlockException } from "./types";
+import { blockForDate, exceptionOn } from "./types";
+import { todayISO, addDays } from "../schedule/calendar";
 
 function withBlock(routine: RoutineData, id: string, patch: (b: ProtectedBlock) => ProtectedBlock): RoutineData | null {
   const blocks = routine.protectedBlocks ?? [];
@@ -91,4 +93,93 @@ export function removeBlock(routine: RoutineData, id: string): RoutineData | nul
   const blocks = routine.protectedBlocks ?? [];
   if (!blocks.some((b) => b.id === id)) return null;
   return { ...routine, protectedBlocks: blocks.filter((b) => b.id !== id) };
+}
+
+// JUST THIS DAY (2026-10-01). The per-date half of the block model: every
+// function above edits the weekly RULE, these edit one date's exception on
+// it, and neither side ever touches the other (a rule edit leaves exceptions
+// where they are; an exception edit leaves the rule alone). Same contract as
+// the rest of this file: the WHOLE routine back with one block patched, null
+// when the block is gone.
+
+// How long a past exception is kept before it is dropped. A week of grace so
+// "what did I do on Tuesday" still reads right on Friday; beyond that it can
+// never be seen again and only weighs the record down.
+const KEEP_PAST_DAYS = 7;
+
+// Drops exceptions for dates well in the past, and an empty map entirely so a
+// block with nothing left to say is byte-identical to one that never had any.
+export function pruneExceptions(b: ProtectedBlock, today: string = todayISO()): ProtectedBlock {
+  if (!b.exceptions) return b;
+  const floor = addDays(today, -KEEP_PAST_DAYS);
+  const kept = Object.entries(b.exceptions).filter(([d]) => d >= floor);
+  const { exceptions: _drop, ...rest } = b;
+  void _drop;
+  return kept.length === 0 ? rest : { ...rest, exceptions: Object.fromEntries(kept) };
+}
+
+// Set (or with null, clear) one date's exception. An exception that says what
+// the rule already says is no exception, so it is cleared rather than stored:
+// moving a block "just today" back to its usual time IS Back to Normal.
+export function setBlockException(routine: RoutineData, id: string, date: string, ex: BlockException | null, today: string = todayISO()): RoutineData | null {
+  return withBlock(routine, id, (b) => {
+    const map: Record<string, BlockException> = { ...(b.exceptions ?? {}) };
+    const same = !!ex && !ex.skip
+      && (ex.startMin === undefined || ex.startMin === b.startMin)
+      && (ex.endMin === undefined || ex.endMin === b.endMin);
+    if (!ex || same) delete map[date];
+    else map[date] = ex.skip
+      ? { skip: true }
+      : {
+        ...(ex.startMin !== undefined ? { startMin: clamp(ex.startMin) } : {}),
+        ...(ex.endMin !== undefined ? { endMin: clamp(ex.endMin) } : {}),
+      };
+    const { exceptions: _drop, ...rest } = b;
+    void _drop;
+    return pruneExceptions(Object.keys(map).length === 0 ? rest : { ...rest, exceptions: map }, today);
+  });
+}
+
+// Move one date's occurrence to an exact window, for that date only.
+export function retimeBlockOn(routine: RoutineData, id: string, date: string, startMin: number, endMin: number): RoutineData | null {
+  return setBlockException(routine, id, date, { startMin, endMin });
+}
+
+// Skip the block on one date; Back to Normal is setBlockException(..., null).
+export function skipBlockOn(routine: RoutineData, id: string, date: string): RoutineData | null {
+  return setBlockException(routine, id, date, { skip: true });
+}
+
+// The row's own gestures (swipe, tap the time, tap Until) on a date that
+// already carries an exception edit THAT exception, so a row marked "Just
+// today" stays just today instead of silently writing the rule underneath an
+// override that hides the change. On any other date they edit the rule, as
+// they always did.
+function dayEdit(routine: RoutineData, id: string, date: string, next: (cur: ProtectedBlock) => { startMin: number; endMin: number } | null): RoutineData | null | undefined {
+  const rule = (routine.protectedBlocks ?? []).find((b) => b.id === id);
+  if (!rule) return null;
+  const ex = exceptionOn(rule, date);
+  if (!ex || ex.skip) return undefined;
+  const cur = blockForDate(rule, date) ?? rule;
+  const win = next(cur);
+  return win ? retimeBlockOn(routine, id, date, win.startMin, win.endMin) : null;
+}
+
+export function shiftBlockForDate(routine: RoutineData, id: string, date: string, mins: number): RoutineData | null {
+  const r = dayEdit(routine, id, date, (cur) => (blockShiftFits(cur.startMin, cur.endMin, mins)
+    ? { startMin: cur.startMin + mins, endMin: cur.endMin + mins } : null));
+  return r === undefined ? shiftBlock(routine, id, mins) : r;
+}
+
+export function retimeBlockForDate(routine: RoutineData, id: string, date: string, startMin: number): RoutineData | null {
+  const r = dayEdit(routine, id, date, (cur) => {
+    const s = clamp(startMin);
+    return { startMin: s, endMin: clamp(s + (cur.endMin - cur.startMin)) };
+  });
+  return r === undefined ? retimeBlock(routine, id, startMin) : r;
+}
+
+export function resizeBlockForDate(routine: RoutineData, id: string, date: string, endMin: number): RoutineData | null {
+  const r = dayEdit(routine, id, date, (cur) => ({ startMin: cur.startMin, endMin: clamp(endMin) }));
+  return r === undefined ? resizeBlock(routine, id, endMin) : r;
 }
