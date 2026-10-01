@@ -1,4 +1,4 @@
-import { createContext, useContext, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { fmtTime, minToHHMM } from "../calendar";
 import { useSwipe } from "../../shared/useSwipe";
 import { SCHED_ACT_W } from "./schedRail";
@@ -34,10 +34,6 @@ import type { ReactNode } from "react";
 
 import { toneFor, type StateWord } from "../stateWord";
 import { lineCase } from "../../shared/casing";
-
-// Back to Normal for a row whose caller cannot hand it down as a prop (Today's
-// day list is built several components deep). YourDay provides it.
-export const BackToNormalContext = createContext<((blockId: string) => void) | undefined>(undefined);
 
 export interface LockedRowRange {
   s: number;
@@ -77,8 +73,7 @@ export default function LockedRow({
 }) {
   const m = modeOf(l);
   const holds = m === "holds";
-  const ctxBack = useContext(BackToNormalContext);
-  const backToNormal = onBackToNormal ?? (l.id && ctxBack ? () => ctxBack(l.id!) : undefined);
+  const backToNormal = onBackToNormal;
   const t = fmtTime(minToHHMM(l.s));
   const end = fmtTime(minToHHMM(l.e));
   // THE COUNT SAID ONCE (2026-09-22, Dave: "too much grey subtext... it's

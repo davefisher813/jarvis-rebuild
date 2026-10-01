@@ -10,7 +10,7 @@ import type { AttachInfo } from "../schedule/attachments";
 import { holdersIn, holderFor, holderKey, spanOf, type HoldRange } from "../schedule/nesting";
 import { stateForEvent, stateForBlock } from "../schedule/stateWord";
 import HeldTasks from "../schedule/screens/HeldTasks";
-import LockedRow, { BackToNormalContext } from "../schedule/screens/LockedRow";
+import LockedRow from "../schedule/screens/LockedRow";
 import SkippedBlocks, { type SkippedBlock } from "../schedule/screens/SkippedBlocks";
 import type { PlanBlock } from "../schedule/planDay";
 
@@ -247,7 +247,12 @@ function DaySet({
       out.push(
         <LockedRow
           key={"lock-" + i}
-          l={en.l}
+          // THE GUIDE SHOWS THE RESOLVED TIME AND NOTHING ELSE (coordinator,
+          // 2026-10-01, on Dave's 2026-09-27 freeze): a day's exception is
+          // already in l.s / l.e, and its "Just Today" note and Back to
+          // Normal belong to the Schedule tab and the sheet, never to the
+          // rows this day card contains.
+          l={{ ...en.l, justToday: false }}
           past={en.l.e <= nowMin}
           {...(stateWords ? { state: stateForBlock(en.l) } : {})}
           onOpen={blockId && onOpenBlock ? () => onOpenBlock(blockId) : onEditRoutine ? () => onEditRoutine(blockId) : undefined}
@@ -328,19 +333,7 @@ const FocusIcon = () => (
   <BullseyeGlyph />
 );
 
-// JUST THIS DAY (2026-10-01): the way back from a day's exception reaches the
-// locked rows through context, because they are built several components deep
-// and some of those calls sit inside the frozen TV guide, which does not get
-// edited to carry a prop.
-export default function YourDay(props: React.ComponentProps<typeof YourDayBody>) {
-  return (
-    <BackToNormalContext.Provider value={props.onBackToNormal}>
-      <YourDayBody {...props} />
-    </BackToNormalContext.Provider>
-  );
-}
-
-function YourDayBody({
+export default function YourDay({
   events,
   locked = [],
   skippedBlocks = [],
