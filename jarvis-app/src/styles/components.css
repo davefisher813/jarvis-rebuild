@@ -723,6 +723,16 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
    because the 44px law only ever named three classes. The paint stays 40 so
    nothing reflows; the hit box reaches 44. */
 .row-act::after { content: ""; position: absolute; inset: -2px 0; }
+/* THE CREATE SITS UNDER A ROW, NOT ON IT (2026-10-01, live audit: "Add a Note"
+   on the Edit Task sheet looked pasted over the When and Where row's edge).
+   Two causes, both here. A pill that follows a row got only the 4px base
+   margin, so its top edge touched the row's foot. And as a .row following a
+   .row it inherited the list hairline (.row + .row::before at top: 0), which
+   painted a line straight along the pill's top edge and read as the card
+   border cutting through it. A pill placed as a row of a card keeps a full
+   --s-3 above and below and carries no hairline: the capsule is its own edge. */
+.card > .row:not(.row-act) + .row.row-act { margin-top: var(--s-3); margin-bottom: var(--s-3); }
+.card > .row:not(.row-act) + .row.row-act::before { content: none; }
 /* The tail of a full-bleed list: centres whatever grows the list. */
 .list-foot { display: flex; justify-content: center; padding: var(--s-2) var(--s-4) var(--s-3); }
 .input-multiline { height: auto; min-height: 88px; padding-top: var(--s-2h); resize: none; line-height: var(--lh-relaxed); font-family: inherit; }
@@ -6947,8 +6957,10 @@ span.row-star { cursor: default; }
    text edge (§H.1: a tiled card indents every text to 56, and a card never
    mixes), chips included, so the card has one edge; and the dividers inset
    to that edge too (§H.2), including the one under a row that has no tile
-   of its own. A card with no tile keeps its 16 edge. */
-.sheet-scrim > .card .xs-group:has(> .row > .row-ico) > .row:not(:has(> .row-ico)) { padding-left: calc(var(--s-4) + 28px + var(--s-3)); }
+   of its own. A card with no tile keeps its 16 edge. A .row-act is a button,
+   not a text line: it is excluded from the indent (2026-10-01, it pushed the
+   centred "Add a Note" label 38px right of its own capsule's centre). */
+.sheet-scrim > .card .xs-group:has(> .row > .row-ico) > .row:not(.row-act):not(:has(> .row-ico)) { padding-left: calc(var(--s-4) + 28px + var(--s-3)); }
 .sheet-scrim > .card .xs-group:has(> .row > .row-ico) > .row + .row::before { left: calc(var(--s-4) + 28px + var(--s-3)); }
 /* The typed row's label is a row name (16, semibold, primary ink), the way
    every other sheet writes a row's label; it had no rule outside a ruled
