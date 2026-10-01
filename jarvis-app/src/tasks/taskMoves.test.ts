@@ -8,6 +8,8 @@ import { moveEventToAnytime } from "../schedule/eventMoves";
 import { liveBlocks } from "../dayloop/dayLoop";
 import { sourceLabel, sourceWhen } from "../shared/provenance";
 import type { AIService } from "../ai/AIService";
+import { DEFAULT_ROUTINE, type RoutineData } from "../routine/types";
+import type { ConflictAsk } from "../schedule/withConflictCheck";
 
 // LIFE-F-04 (2026-09-05): Add to Schedule used to take the task's due day
 // whatever it was, so an overdue task booked its hour on a day that had
@@ -162,5 +164,55 @@ describe("Add to Schedule links the block back to its task (TRACE-01)", () => {
     const res = await moveEventToAnytime(events[0]!.id, schedule, tasks);
     expect(res.madeTaskId).toBeUndefined();
     expect((await tasks.listTasks()).length).toBe(before);
+  });
+});
+
+
+// THE SCHEDULE AUDIT'S P0 #2 (2026-10-01). "Add to Schedule" booked with one
+// tap and no time choice, and auto-placed a task at 9:30 directly across the
+// Breakfast block (9:30 to 10:00). It read the events alone and stepped on
+// the half hour. It must land in the next FREE slot, events and routine
+// blocks both, and say so only when the day has none.
+describe("Add to Schedule lands in the next free slot (P0 #2)", () => {
+  const today = "2026-10-02"; // a Friday
+  const now = new Date(2026, 9, 2, 8, 0, 0);
+  const routine: RoutineData = {
+    ...DEFAULT_ROUTINE,
+    wakeMin: 7 * 60,
+    protectedBlocks: [{ id: "bf", label: "Breakfast", startMin: 9 * 60 + 30, endMin: 10 * 60, days: [0, 1, 2, 3, 4, 5, 6], kind: "meal" }],
+  };
+
+  it("does not book across Breakfast: the first hour that clears it is 10:00", async () => {
+    const { tasks, schedule, created } = writers(null);
+    const res = await scheduleTask("t1", today, tasks, schedule, now, { routine });
+    expect(res).toEqual({ ok: true, date: today, start: "10:00" });
+    expect(created[0]?.opts).toMatchObject({ date: today, start: "10:00", end: "11:00" });
+  });
+
+  it("without the routine it still avoids the day's events", async () => {
+    const { tasks, created } = writers(null);
+    const busy = { eventsOn: async () => [{ id: "e", data: { title: "Interview", date: today, start: "09:00", end: "10:30", category: "" } }], createEvent: async (title: string, opts: Record<string, unknown>) => { created.push({ title, opts }); } };
+    const res = await scheduleTask("t1", today, tasks, busy, now);
+    expect(res.start).toBe("10:30");
+  });
+
+  it("a day with no free hour asks, and Book Anyway writes it", async () => {
+    const { tasks, created } = writers(null);
+    const full = { eventsOn: async () => [{ id: "e", data: { title: "All day", date: today, start: "00:00", end: "23:59", category: "" } }], createEvent: async (title: string, opts: Record<string, unknown>) => { created.push({ title, opts }); } };
+    const asked: ConflictAsk[] = [];
+    const res = await scheduleTask("t1", today, tasks, full, now, { ask: async (a) => { asked.push(a); return "book"; } });
+    expect(asked.length).toBe(1);
+    expect(asked[0]!.line).toBe("Overlaps All Day 12:00 AM to 11:59 PM");
+    expect(asked[0]!.altLabel).toBeNull();
+    expect(res.ok).toBe(true);
+    expect(created.length).toBe(1);
+  });
+
+  it("Cancel writes nothing and says so", async () => {
+    const { tasks, created } = writers(null);
+    const full = { eventsOn: async () => [{ id: "e", data: { title: "All day", date: today, start: "00:00", end: "23:59", category: "" } }], createEvent: async (title: string, opts: Record<string, unknown>) => { created.push({ title, opts }); } };
+    const res = await scheduleTask("t1", today, tasks, full, now, { ask: async () => "cancel" });
+    expect(res.cancelled).toBe(true);
+    expect(created).toEqual([]);
   });
 });

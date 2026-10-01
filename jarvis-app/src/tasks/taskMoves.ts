@@ -20,7 +20,11 @@
 import type { AIService } from "../ai/AIService";
 import type { TaskData } from "../notes/types";
 import { breakdownPrompt, parseBreakdown } from "./breakdown";
-import { nextFreeSlot, addMinutes } from "../schedule/calendar";
+import { nextFreeSlot as calendarFreeSlot, addMinutes } from "../schedule/calendar";
+import { dayItemsFor, nextFreeSlot, minToHhmm } from "../schedule/conflicts";
+import { withConflictCheck, type AskFn } from "../schedule/withConflictCheck";
+import { activeHoursFor, protectedRangesFor, type RoutineData } from "../routine/types";
+import type { EventItem } from "../schedule/types";
 import { madeBy } from "../shared/provenance";
 import { lineCase } from "../shared/casing";
 
@@ -73,20 +77,40 @@ export async function scheduleTask(
   tasks: TaskWriter,
   schedule: ScheduleWriter,
   now = new Date(),
-): Promise<{ ok: boolean; date?: string; start?: string }> {
+  // The routine, so its protected blocks count as taken time, and the prompt
+  // for the rare case there is no free slot (both optional: a caller without
+  // them behaves as it always did, minus the overlap with events).
+  opts: { routine?: RoutineData; ask?: AskFn } = {},
+): Promise<{ ok: boolean; date?: string; start?: string; cancelled?: true }> {
   const t = await tasks.task(taskId);
   if (!t) return { ok: false };
   const date = t.due && t.due >= today ? t.due : today;
-  const start = nextFreeSlot(await schedule.eventsOn(date) as never, date, now);
-  await schedule.createEvent(t.text, {
-    date,
-    start,
-    end: addMinutes(start, 60),
-    category: t.category || undefined,
-    sourceTaskId: taskId,
-    source: madeBy("task", taskId),
+  const events = await schedule.eventsOn(date) as EventItem[];
+  // THE NEXT FREE SLOT, NOT THE FIRST ONE (audit 2026-10-01, P0 #2). This
+  // asked the events alone and stepped on the half hour, so it booked a task
+  // at 9:30 straight across the Breakfast block with one tap and no word. It
+  // now reads the same day the conflict check reads: events AND the routine's
+  // blocks, and lands in the nearest stretch that touches none of them.
+  const dow = new Date(Number(date.slice(0, 4)), Number(date.slice(5, 7)) - 1, Number(date.slice(8, 10))).getDay();
+  const items = dayItemsFor(events, date, opts.routine ? protectedRangesFor(opts.routine, dow) : []);
+  let from = 9 * 60;
+  if (opts.routine) from = Math.max(from, activeHoursFor(opts.routine, dow).wakeMin);
+  if (date === today) from = Math.max(from, Math.ceil((now.getHours() * 60 + now.getMinutes()) / 30) * 30);
+  const free = nextFreeSlot(items, 60, from, { forTask: true });
+  // No free hour anywhere: the old walk's answer, and the prompt says so.
+  const start = free !== null ? minToHhmm(free) : calendarFreeSlot(events, date, now);
+  const placed = await withConflictCheck({ items, start, end: addMinutes(start, 60), forTask: true }, opts.ask, async (slot) => {
+    await schedule.createEvent(t.text, {
+      date,
+      start: slot.start,
+      end: slot.end ?? addMinutes(slot.start, 60),
+      category: t.category || undefined,
+      sourceTaskId: taskId,
+      source: madeBy("task", taskId),
+    });
   });
-  return { ok: true, date, start };
+  if (placed.status === "cancelled") return { ok: true, date, start, cancelled: true };
+  return { ok: true, date, start: placed.start };
 }
 
 export interface BreakdownResult {

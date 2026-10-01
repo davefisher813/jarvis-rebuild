@@ -64,5 +64,5 @@ export function useConflictGuard(events: EventItem[], routine: RoutineData) {
     return cs.length ? conflictLine(cs) : null;
   }, [itemsFor]);
 
-  return { guard, guardBatch, moveToast, lineFor, itemsFor, conflictSheet: sheet };
+  return { guard, guardBatch, moveToast, lineFor, itemsFor, ask, conflictSheet: sheet };
 }
