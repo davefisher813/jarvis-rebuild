@@ -162,7 +162,7 @@ import WindowsSheet from "./WindowsSheet";
 import { loadLinks, linkThread, type LinkMap } from "./threadLink";
 import { saidEmpty, askSaid } from "./saidWhat";
 import { autoReplyEnabled, setAutoReplyEnabled, AUTO_REPLY_EXPLAINER } from "./autoReply";
-import { protectedRangesFor, isFocusRange } from "../routine/types";
+import { protectedRangesOn, isFocusRange } from "../routine/types";
 import { fmtTime, todayISO, addDays, eventsForDate } from "../schedule/calendar";
 import { nextOpening, BOOK_MIN } from "./bookTime";
 
@@ -1465,8 +1465,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
         const busyFor = async (date: string) => {
           const r = await routineSvc?.get().catch(() => null);
           if (!r) return [];
-          const dow = new Date(date + "T12:00:00").getDay();
-          return protectedRangesFor(r, dow).filter((l) => !isFocusRange(l)).map((l) => ({ s: l.s, e: l.e }));
+          return protectedRangesOn(r, date).filter((l) => !isFocusRange(l)).map((l) => ({ s: l.s, e: l.e }));
         };
         const slot = nextOpening(
           { date: today, events: eventsForDate(all, today), busy: await busyFor(today) },

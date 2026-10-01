@@ -13,6 +13,7 @@ import { pressable, onPressKey } from "../../shared/pressable";
 import SkeletonRows from "../../shared/SkeletonRows";
 import DayRow from "./DayRow";
 import LockedRow from "./LockedRow";
+import SkippedBlocks, { type SkippedBlock } from "./SkippedBlocks";
 import AnytimeRow from "./AnytimeRow";
 import ProposedRow, { blockMinutes } from "./ProposedRow";
 import { stateForEvent, stateForBlock } from "../stateWord";
@@ -31,7 +32,7 @@ import { lineCase } from "../../shared/casing";
 import { spanShort, longestStretch, stretchLabel } from "../weekRows";
 import { spanLabel } from "../../shared/duration";
 
-export interface LockedRange { s: number; e: number; label: string; soft?: boolean; kind?: string; id?: string }
+export interface LockedRange { s: number; e: number; label: string; soft?: boolean; kind?: string; id?: string; justToday?: boolean }
 
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 const WD = ["S", "M", "T", "W", "T", "F", "S"];
@@ -94,7 +95,7 @@ export default function SchedulePage({
   onShiftBlock, onRetimeBlock, onResizeBlock, onDeleteBlock, onDeleteEvent,
   proposed, dayFooter,
   anytimeItems = [], onToggleTask, onScheduleTask, onOpenTask, parentOf, attachMap = {}, firstMoveMap = {}, blendMap = {},
-  windowStartMin, windowEndMin,
+  windowStartMin, windowEndMin, skippedBlocks = [], onBackToNormal,
 }: {
   year: number; month: number; selected: string; todayDate: string;
   dots: Record<number, string[]>; dayEvents: EventItem[]; conflicts?: Set<string>;
@@ -149,6 +150,11 @@ export default function SchedulePage({
   // scheduled event"). A tap on a locked row opens BlockSheet - the same
   // small sheet an event opens - instead of leaving for Your Routine.
   onOpenBlock?: (blockId: string) => void;
+  // JUST THIS DAY (2026-10-01): the blocks this date skips, and the way back.
+  // A skipped block is out of `locked` (it is not a wall that day); it stays
+  // visible here so skipping is reversible.
+  skippedBlocks?: SkippedBlock[];
+  onBackToNormal?: (blockId: string) => void;
   // The standing proposal for THIS date, drawn among the real rows.
   proposed?: import("../../today/YourDay").ProposedDay;
   dayFooter?: import("react").ReactNode;
@@ -689,6 +695,7 @@ export default function SchedulePage({
         </div>
       )}
 
+      {mode === "day" && !loading && <SkippedBlocks blocks={skippedBlocks} onBackToNormal={onBackToNormal} />}
       {loading ? (
         <SkeletonRows />
       ) : loadFailed ? (
@@ -832,6 +839,7 @@ export default function SchedulePage({
                 past={isToday && en.l.e <= nowMin}
                 state={stateForBlock(en.l)}
                 onOpen={id && onOpenBlock ? () => onOpenBlock(id) : () => onEditRoutine?.(id)}
+                {...(onBackToNormal && id ? { onBackToNormal: () => onBackToNormal(id) } : {})}
                 heldCount={heldProps.length}
                 onFillBlock={onFillBlock ? () => onFillBlock(en.l.s, en.l.e) : undefined}
                 onShift={onShiftBlock && id ? (m) => onShiftBlock(id, m) : undefined}

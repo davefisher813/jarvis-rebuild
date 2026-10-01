@@ -40,10 +40,10 @@ import { suggestTitles, suggestLocations } from "../schedule/memory";
 import { gapOptions, gapBlock, type GapOption } from "../schedule/gapOffer";
 import { createEventFromDraft } from "../schedule/eventCreate";
 import EventDetailPage from "../schedule/screens/EventDetailPage";
-import BlockSheet, { type BlockDraft } from "../schedule/screens/BlockSheet";
+import BlockSheet, { type BlockDraft, type BlockDay } from "../schedule/screens/BlockSheet";
 import PlanDaySheet from "../schedule/screens/PlanDaySheet";
 import { aiPlanDay } from "../schedule/planDayAI";
-import { DEFAULT_ROUTINE, planWindowFor, protectedRangesFor, type RoutineData } from "../routine/types";
+import { DEFAULT_ROUTINE, planWindowFor, protectedRangesOn, blockForDate, exceptionOn, type RoutineData } from "../routine/types";
 import { chronotypeFor, peakWindowFor } from "../schedule/energy";
 import { daySizing } from "../schedule/daySizing";
 import { shiftFutureEvents, shiftPlan, restoreShift } from "../schedule/runningLate";
@@ -77,7 +77,7 @@ import {
   skipEventToday as skipEventTodayAdjust, undoSkipEventToday as undoSkipEventTodayAdjust,
   pushEventTomorrow as pushEventTomorrowAdjust, undoPushEventTomorrow as undoPushEventTomorrowAdjust, type PushOutcome,
 } from "../schedule/eventAdjust";
-import { shiftBlock as shiftBlockAdjust, blockShiftFits, retimeBlock as retimeBlockAdjust, resizeBlock as resizeBlockAdjust, editBlockBasics, removeBlock as removeBlockAdjust } from "../routine/blockAdjust";
+import { shiftBlockForDate, blockShiftFits, retimeBlockForDate, resizeBlockForDate, retimeBlockOn, skipBlockOn, setBlockException, editBlockBasics, removeBlock as removeBlockAdjust } from "../routine/blockAdjust";
 import { overlapsOn } from "../schedule/dayEdit";
 import { isKept } from "../schedule/overlapAck";
 import { attachInfo, firstMoveOf, type AttachInfo } from "../schedule/attachments";
@@ -654,7 +654,7 @@ export default function TodayFlow({
   // THE SAME TAP AS AN EVENT (2026-08-28, Dave: "when I click on something in
   // the schedule it should allow me to edit it like a normal scheduled
   // event"). Same shape as eventSheet above, for a protected block.
-  const [blockSheet, setBlockSheet] = useState<{ id: string; initial: BlockDraft } | null>(null);
+  const [blockSheet, setBlockSheet] = useState<{ id: string; initial: BlockDraft; day?: BlockDay } | null>(null);
   const [planOpen, setPlanOpen] = useState(false);
   const [upNextOpen, setUpNextOpen] = useState(false);
   // NEW EVENT FROM TODAY and SCHEDULE SOMETHING HERE (schedule audit
@@ -1034,8 +1034,9 @@ export default function TodayFlow({
     const before = routineData;
     // SCHED-F-18: the same refusal a late event gets, for a protected block.
     const cur = (before.protectedBlocks ?? []).find((b) => b.id === id);
-    if (cur && !blockShiftFits(cur.startMin, cur.endMin, mins)) { showToast({ message: "That Would Run Past Midnight" }); return; }
-    const after = shiftBlockAdjust(before, id, mins);
+    const curDay = cur ? (blockForDate(cur, planDate) ?? cur) : undefined;
+    if (curDay && !blockShiftFits(curDay.startMin, curDay.endMin, mins)) { showToast({ message: "That Would Run Past Midnight" }); return; }
+    const after = shiftBlockForDate(before, id, planDate, mins);
     if (!after) return;
     const ok = await attemptWrite(() => routine.save(after));
     if (!ok) return;
@@ -1052,7 +1053,7 @@ export default function TodayFlow({
 
   const onRetimeBlock = async (id: string, startMin: number) => {
     const before = routineData;
-    const after = retimeBlockAdjust(before, id, startMin);
+    const after = retimeBlockForDate(before, id, planDate, startMin);
     if (!after) return;
     const ok = await attemptWrite(() => routine.save(after));
     if (!ok) return;
@@ -1068,7 +1069,7 @@ export default function TodayFlow({
   const onResizeBlock = async (id: string, endMin: number) => {
     const before = routineData;
     const beforeBlock = (before.protectedBlocks ?? []).find((b) => b.id === id);
-    const after = resizeBlockAdjust(before, id, endMin);
+    const after = resizeBlockForDate(before, id, planDate, endMin);
     if (!after || !beforeBlock) return;
     const ok = await attemptWrite(() => routine.save(after));
     if (!ok) return;
@@ -1086,7 +1087,15 @@ export default function TodayFlow({
   const onOpenBlock = (id: string) => {
     const b = (routineData.protectedBlocks ?? []).find((x) => x.id === id);
     if (!b) return;
-    setBlockSheet({ id, initial: { label: b.label, startMin: b.startMin, endMin: b.endMin, days: [...b.days] } });
+    // The day the sheet opened from, with the block's times as that day
+    // shows them (JUST THIS DAY, 2026-10-01). A block the day skips has no
+    // row to tap, so the resolved block is always there.
+    const here = blockForDate(b, planDate) ?? b;
+    setBlockSheet({
+      id,
+      initial: { label: b.label, startMin: b.startMin, endMin: b.endMin, days: [...b.days] },
+      day: { date: planDate, startMin: here.startMin, endMin: here.endMin, edited: exceptionOn(b, planDate) !== null },
+    });
   };
   const onSaveBlock = async (draft: BlockDraft) => {
     if (!blockSheet) return;
@@ -1112,6 +1121,43 @@ export default function TodayFlow({
       actionLabel: "Undo",
       onAction: async () => { if (await attemptWrite(() => routine.save(before))) setRoutineData(before); },
     });
+  };
+  // JUST THIS DAY (2026-10-01). The sheet's This Day scope writes one date's
+  // exception on the block and never the weekly rule; Every Day (onSaveBlock
+  // above) is the rule and never an exception. One writer per scope, one
+  // Undo for each.
+  const commitBlockDay = async (after: RoutineData | null, message: string) => {
+    if (!after) return;
+    const before = routineData;
+    if (!(await attemptWrite(() => routine.save(after)))) return;
+    setRoutineData(after);
+    showToast({
+      message: lineCase(message),
+      actionLabel: "Undo",
+      onAction: async () => { if (await attemptWrite(() => routine.save(before))) setRoutineData(before); },
+    });
+  };
+  const labelOfBlock = (id: string) => (routineData.protectedBlocks ?? []).find((b) => b.id === id)?.label ?? "Block";
+  const onSaveBlockDay = async (win: { startMin: number; endMin: number }) => {
+    if (!blockSheet) return;
+    const id = blockSheet.id;
+    setBlockSheet(null);
+    await commitBlockDay(retimeBlockOn(routineData, id, planDate, win.startMin, win.endMin), labelOfBlock(id) + " changed for just today");
+  };
+  const onSkipBlockDay = async () => {
+    if (!blockSheet) return;
+    const id = blockSheet.id;
+    setBlockSheet(null);
+    await commitBlockDay(skipBlockOn(routineData, id, planDate), labelOfBlock(id) + " skipped today");
+  };
+  const backToNormalFor = async (id: string) => {
+    await commitBlockDay(setBlockException(routineData, id, planDate, null), labelOfBlock(id) + " back to normal");
+  };
+  const onBackToNormalSheet = async () => {
+    if (!blockSheet) return;
+    const id = blockSheet.id;
+    setBlockSheet(null);
+    await backToNormalFor(id);
   };
   const onEditBlockFull = () => {
     if (!blockSheet) return;
@@ -1418,7 +1464,10 @@ export default function TodayFlow({
   const planEnd = planWindow.endMin;
   // Phase 2 planning context: protected ranges for the target day, the
   // inferred energy peak, and how heavy yesterday felt.
-  const blocked = protectedRangesFor(routineData, dow);
+  const blocked = protectedRangesOn(routineData, planDate);
+  // The blocks this date skips: not walls, but still drawn so Back to Normal
+  // can be reached (JUST THIS DAY, 2026-10-01).
+  const skippedBlocks = protectedRangesOn(routineData, planDate, { withSkipped: true }).filter((r) => r.skipped);
   // Overlap awareness and attached-task counts (2026-08-28), same as
   // Schedule's day list already computes for its own rows. Today reads the
   // identical pure functions on its own event/task lists rather than
@@ -1906,7 +1955,7 @@ export default function TodayFlow({
   // instant; Accept stays the one honest commit moment.
   const todayDow = new Date().getDay();
   const todayWindow = planWindowFor(routineData, todayDow);
-  const todayBlocked = protectedRangesFor(routineData, todayDow);
+  const todayBlocked = protectedRangesOn(routineData, today);
   const draftStart = (() => { const d = new Date(); const n = Math.ceil((d.getHours() * 60 + d.getMinutes()) / 15) * 15; return Math.max(n, todayWindow.wakeMin); })();
   useEffect(() => {
     if (loading || evening) return;
@@ -1949,7 +1998,7 @@ export default function TodayFlow({
       events: tomorrowEvents,
       startMin: win.wakeMin,
       endMin: win.endMin,
-      blocked: protectedRangesFor(routineData, dow),
+      blocked: protectedRangesOn(routineData, tomorrow),
       maxBlocks: sizing.maxBlocks,
       estimateFor: (c) => estimates[c] ?? 45,
     }));
@@ -4153,6 +4202,8 @@ export default function TodayFlow({
       onOpenEvent={onOpenEvent}
       onEditRoutine={onEditRoutine}
       onOpenBlock={onOpenBlock}
+      skippedBlocks={skippedBlocks}
+      onBackToNormal={(id: string) => void backToNormalFor(id)}
       conflicts={conflicts}
       attachMap={attachMap}
       firstMoveMap={firstMoveMap}
@@ -4343,7 +4394,11 @@ export default function TodayFlow({
     {blockSheet && (
       <BlockSheet
         initial={blockSheet.initial}
+        day={blockSheet.day}
         onSave={onSaveBlock}
+        onSaveDay={onSaveBlockDay}
+        onSkipDay={onSkipBlockDay}
+        onBackToNormal={onBackToNormalSheet}
         onDelete={onDeleteBlock}
         onEditFull={onEditRoutine ? onEditBlockFull : undefined}
         onCancel={() => setBlockSheet(null)}

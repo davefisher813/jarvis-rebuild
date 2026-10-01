@@ -242,6 +242,8 @@ export default function TodayPage({
   onOpenEvent,
   onEditRoutine,
   onOpenBlock,
+  skippedBlocks,
+  onBackToNormal,
   onSeeAllTasks,
   onSeeAllOpen,
   onSeeAllOverdue,
@@ -364,7 +366,10 @@ export default function TodayPage({
   onFifteenAgain?: () => void;
   onFifteenStop?: () => void;
   freshStart?: () => void;
-  locked?: { s: number; e: number; label: string; id?: string }[];
+  locked?: { s: number; e: number; label: string; id?: string; justToday?: boolean }[];
+  // JUST THIS DAY (2026-10-01): the blocks today skips, and the one door back.
+  skippedBlocks?: { s: number; e: number; label: string; id?: string }[];
+  onBackToNormal?: (blockId: string) => void;
   onOpenEvent?: (id: string) => void;
   onEditRoutine?: (blockId?: string) => void;
   // The actual tap target on a locked row (2026-08-28): opens BlockSheet, the
@@ -1028,6 +1033,8 @@ export default function TodayPage({
         onOpenEvent={onOpenEvent}
         onEditRoutine={onEditRoutine}
         onOpenBlock={onOpenBlock}
+        skippedBlocks={skippedBlocks}
+        onBackToNormal={onBackToNormal}
         blendMap={blendMap}
         title={evening ? "Tonight" : "Your Day"}
         emptyText={evening ? "Nothing Else Tonight" : "Nothing Scheduled Today"}
