@@ -1,5 +1,3 @@
-import { fmtTime, minToHHMM } from "../calendar";
-
 // THE BLOCKS A DAY SKIPS (JUST THIS DAY, 2026-10-01). A block skipped for one
 // date is gone from that day's list and from the planner's walls, which is the
 // point, and it also leaves nothing to tap. This is the one place it stays
@@ -12,10 +10,9 @@ export default function SkippedBlocks({ blocks, onBackToNormal }: { blocks: Skip
   return (
     <div className="skipped-blocks">
       {blocks.map((b) => {
-        const t = fmtTime(minToHHMM(b.s));
         return (
           <div className="skipped-row" key={b.id ?? b.label + b.s}>
-            <span className="skipped-t">{b.label} <span className="skipped-w">&middot; {t.time} {t.ap} &middot; Skipped Today</span></span>
+            <span className="skipped-t">{b.label} <span className="skipped-w">&middot; Skipped Today</span></span>
             {b.id && onBackToNormal && (
               <button type="button" className="block-add skipped-back" onClick={() => onBackToNormal(b.id!)}>Back to Normal</button>
             )}

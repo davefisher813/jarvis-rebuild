@@ -186,17 +186,24 @@ export default function LockedRow({
                   <span className="sched-until">Until {end.time} {end.ap}</span>
                 )}
               </span>
-              {/* THE DAY'S OWN EXCEPTION, SAID ON THE ROW (2026-10-01). A block
-                  moved or resized for one day reads exactly like its rule
-                  until it says otherwise, and the rule is what every other
-                  day shows. Same .sched-fact unit as "Until", so it wraps
-                  whole or not at all. */}
-              {l.justToday && (
-                <span className="sched-fact"><span className="sched-sep">&middot;</span><span className="sched-until">Just Today</span></span>
-              )}
             </div>
-            {l.justToday && onOpen && backToNormal && (
-              <button type="button" className="block-add" onClick={(ev) => { ev.stopPropagation(); backToNormal(); }}>Back to Normal</button>
+            {/* THE DAY'S OWN EXCEPTION, SAID ON THE ROW (2026-10-01). A block
+                moved or resized for one day reads exactly like its rule
+                until it says otherwise, and the rule is what every other day
+                shows. Its own line, because the meta line above already
+                spends its width on the state word and "Until", and a fact
+                added there is clipped at 390px (the facts line is one line,
+                whole facts only, by Dave's pick of 2026-09-27). */}
+            {l.justToday && (
+              <div className="sched-exc">
+                <span className="sched-until">Just Today</span>
+                {onOpen && backToNormal && (
+                  <>
+                    <span className="sched-sep">&middot;</span>
+                    <button type="button" className="block-add block-add-inline" onClick={(ev) => { ev.stopPropagation(); backToNormal(); }}>Back to Normal</button>
+                  </>
+                )}
+              </div>
             )}
             {children}
             {/* THE HALF THAT WAS UNREACHABLE: blending only ever attached to

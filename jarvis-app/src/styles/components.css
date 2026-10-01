@@ -7020,3 +7020,5 @@ span.row-star { cursor: default; }
 .skipped-t { min-width: 0; font-size: var(--t-meta); font-weight: var(--w-medium); color: var(--tx-2); }
 .skipped-w { font-weight: var(--w-regular); }
 .skipped-back { margin-top: 0; flex: none; }
+.sched-exc { display: flex; align-items: center; gap: var(--s-1h); margin-top: var(--s-1); min-width: 0; font-size: var(--t-meta); color: var(--tx-3); }
+.block-add-inline { display: inline; margin-top: 0; padding: 0; white-space: nowrap; }

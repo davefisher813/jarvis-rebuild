@@ -90,3 +90,13 @@ than on the phone.
 `--w-regular`, `-0.01em`. In Life the four lenses sit next to each other and
 any difference reads as a mistake. If the task row's type moves, move this
 with it.
+
+## Protected blocks have per-day exceptions (2026-10-01)
+
+A recurring protected block can carry `exceptions` (ISO date to
+`{ skip } | { startMin, endMin }`), written by the Edit Protected Time sheet's
+This Day scope. The weekly rule is never edited by it, and a rule edit never
+touches an exception. Read a block's time for a date ONLY through
+`blockForDate` / `protectedRangesOn` in `src/routine/types.ts`; the dow-only
+`protectedRangesFor` does not see exceptions. Past dates are inert and pruned
+on the next write.
