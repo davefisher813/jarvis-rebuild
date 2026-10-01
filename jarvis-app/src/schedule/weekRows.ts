@@ -2,7 +2,7 @@ import type { EventItem } from "./types";
 import { eventsForDate, openSlots, minToHHMM } from "./calendar";
 import { durationOf } from "./dayEdit";
 import type { RoutineData } from "../routine/types";
-import { planWindowFor, protectedRangesFor, isFocusRange } from "../routine/types";
+import { planWindowFor, protectedRangesOn, isFocusRange } from "../routine/types";
 import { spanLabel } from "../shared/duration";
 
 // THE WEEK (D2, approved 2026-09-01: "Week becomes seven day-rows with
@@ -43,7 +43,7 @@ export function weekRowsFor(dates: string[], events: EventItem[], routine: Routi
     // ahead counts its whole waking window.
     const openFrom = today && today.date === date ? Math.max(win.wakeMin, today.nowMin) : win.wakeMin;
     const evs = eventsForDate(events, date);
-    const locked = protectedRangesFor(routine, jsDow);
+    const locked = protectedRangesOn(routine, date);
     const blocks: WeekBlock[] = [
       // Containers first, so an event inside one paints over its outline.
       ...locked.map((l) => ({ s: l.s, e: l.e, category: "", title: l.label, hollow: true })),

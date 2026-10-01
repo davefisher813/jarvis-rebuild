@@ -7010,3 +7010,13 @@ span.row-star { cursor: default; }
    facts line under it is the category dot, the key's outcome and the
    small-caps date. */
 .dec-row .conn-meta { display: block; -webkit-line-clamp: none; overflow: visible; white-space: normal; text-overflow: clip; }
+
+/* JUST THIS DAY (2026-10-01): the This Day / Every Day control at the top of
+   the protected-time sheet. The app's own .segmented, given the room the
+   groups below it keep. */
+.form-sheet .xs-scope { padding-top: var(--s-2); padding-bottom: var(--s-1); }
+.skipped-blocks { display: flex; flex-direction: column; gap: var(--s-1); padding: 0 var(--s-4) var(--s-2); }
+.skipped-row { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); }
+.skipped-t { min-width: 0; font-size: var(--t-meta); font-weight: var(--w-medium); color: var(--tx-2); }
+.skipped-w { font-weight: var(--w-regular); }
+.skipped-back { margin-top: 0; flex: none; }

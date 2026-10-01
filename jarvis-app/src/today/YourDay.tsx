@@ -10,7 +10,8 @@ import type { AttachInfo } from "../schedule/attachments";
 import { holdersIn, holderFor, holderKey, spanOf, type HoldRange } from "../schedule/nesting";
 import { stateForEvent, stateForBlock } from "../schedule/stateWord";
 import HeldTasks from "../schedule/screens/HeldTasks";
-import LockedRow from "../schedule/screens/LockedRow";
+import LockedRow, { BackToNormalContext } from "../schedule/screens/LockedRow";
+import SkippedBlocks, { type SkippedBlock } from "../schedule/screens/SkippedBlocks";
 import type { PlanBlock } from "../schedule/planDay";
 
 // A standing proposal for this day, plus the handlers that edit it. Absent
@@ -327,9 +328,23 @@ const FocusIcon = () => (
   <BullseyeGlyph />
 );
 
-export default function YourDay({
+// JUST THIS DAY (2026-10-01): the way back from a day's exception reaches the
+// locked rows through context, because they are built several components deep
+// and some of those calls sit inside the frozen TV guide, which does not get
+// edited to carry a prop.
+export default function YourDay(props: React.ComponentProps<typeof YourDayBody>) {
+  return (
+    <BackToNormalContext.Provider value={props.onBackToNormal}>
+      <YourDayBody {...props} />
+    </BackToNormalContext.Provider>
+  );
+}
+
+function YourDayBody({
   events,
   locked = [],
+  skippedBlocks = [],
+  onBackToNormal,
   now,
   nowLabel,
   onSeeAll,
@@ -365,6 +380,9 @@ export default function YourDay({
 }: {
   events: EventItem[];
   locked?: LockedRange[];
+  /** The blocks today skips (Just This Day), drawn as quiet lines under the header. */
+  skippedBlocks?: SkippedBlock[];
+  onBackToNormal?: (blockId: string) => void;
   now: string;
   nowLabel: string;
   onSeeAll: () => void;
@@ -573,6 +591,7 @@ export default function YourDay({
   ) : null;
 
   const header = (
+    <>
     <div className="sh2">
       <span className="t">{nowHead ? "Now" : title}</span>
       <span className="sec-left">
@@ -589,6 +608,8 @@ export default function YourDay({
       <button className="see-all pill-action" onClick={onSeeAll}>Schedule</button>
       </span>
     </div>
+    <SkippedBlocks blocks={skippedBlocks} onBackToNormal={onBackToNormal} />
+    </>
   );
 
   // A day with five proposals and no meetings is not an empty day. The

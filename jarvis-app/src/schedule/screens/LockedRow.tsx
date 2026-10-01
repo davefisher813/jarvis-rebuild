@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { createContext, useContext, useRef, useState } from "react";
 import { fmtTime, minToHHMM } from "../calendar";
 import { useSwipe } from "../../shared/useSwipe";
 import { SCHED_ACT_W } from "./schedRail";
@@ -35,6 +35,10 @@ import type { ReactNode } from "react";
 import { toneFor, type StateWord } from "../stateWord";
 import { lineCase } from "../../shared/casing";
 
+// Back to Normal for a row whose caller cannot hand it down as a prop (Today's
+// day list is built several components deep). YourDay provides it.
+export const BackToNormalContext = createContext<((blockId: string) => void) | undefined>(undefined);
+
 export interface LockedRowRange {
   s: number;
   e: number;
@@ -44,10 +48,13 @@ export interface LockedRowRange {
   mode?: string;
   soft?: boolean;
   free?: string[];
+  // This day carries an exception for the block (JUST THIS DAY, 2026-10-01):
+  // the row says so, and offers Back to Normal when given the handler.
+  justToday?: boolean;
 }
 
 export default function LockedRow({
-  l, past, onOpen, onShift, onRetime, onResize, onDelete, heldCount, onFillBlock, children, state = null,
+  l, past, onOpen, onShift, onRetime, onResize, onDelete, heldCount, onFillBlock, onBackToNormal, children, state = null,
 }: {
   l: LockedRowRange;
   past: boolean;
@@ -64,10 +71,14 @@ export default function LockedRow({
   // caller (who already builds the held-tasks list for `children`) counts.
   heldCount?: number;
   onFillBlock?: () => void;
+  /** Clears this day's exception; offered only on a row that has one. */
+  onBackToNormal?: () => void;
   children?: ReactNode;
 }) {
   const m = modeOf(l);
   const holds = m === "holds";
+  const ctxBack = useContext(BackToNormalContext);
+  const backToNormal = onBackToNormal ?? (l.id && ctxBack ? () => ctxBack(l.id!) : undefined);
   const t = fmtTime(minToHHMM(l.s));
   const end = fmtTime(minToHHMM(l.e));
   // THE COUNT SAID ONCE (2026-09-22, Dave: "too much grey subtext... it's
@@ -175,7 +186,18 @@ export default function LockedRow({
                   <span className="sched-until">Until {end.time} {end.ap}</span>
                 )}
               </span>
+              {/* THE DAY'S OWN EXCEPTION, SAID ON THE ROW (2026-10-01). A block
+                  moved or resized for one day reads exactly like its rule
+                  until it says otherwise, and the rule is what every other
+                  day shows. Same .sched-fact unit as "Until", so it wraps
+                  whole or not at all. */}
+              {l.justToday && (
+                <span className="sched-fact"><span className="sched-sep">&middot;</span><span className="sched-until">Just Today</span></span>
+              )}
             </div>
+            {l.justToday && onOpen && backToNormal && (
+              <button type="button" className="block-add" onClick={(ev) => { ev.stopPropagation(); backToNormal(); }}>Back to Normal</button>
+            )}
             {children}
             {/* THE HALF THAT WAS UNREACHABLE: blending only ever attached to
                 real calendar events, so the one block built to receive tasks

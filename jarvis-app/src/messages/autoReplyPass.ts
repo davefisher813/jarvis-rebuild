@@ -1,6 +1,6 @@
 import type { GoogleApi } from "../connections/google/api";
 import { mapThread, mapThreadFull, buildReply, encodeEmail } from "../connections/google/map";
-import { protectedRangesFor, isFocusRange, type RoutineData } from "../routine/types";
+import { protectedRangesOn, isFocusRange, type RoutineData } from "../routine/types";
 import { fmtTime, todayISO } from "../schedule/calendar";
 import { autoReplyBody, autoReplyEnabled, loadAutoState, markAutoReplied, shouldAutoReply } from "./autoReply";
 import { loadVips } from "./vip";
@@ -45,7 +45,7 @@ export interface AutoReplyDeps {
 /** The focus block covering this instant, or null. Nothing sends outside one. */
 export function runningFocusBlock(r: RoutineData, now: Date): { s: number; e: number } | null {
   const min = now.getHours() * 60 + now.getMinutes();
-  return protectedRangesFor(r, now.getDay()).find((b) => isFocusRange(b) && min >= b.s && min < b.e) ?? null;
+  return protectedRangesOn(r, todayISO(now)).find((b) => isFocusRange(b) && min >= b.s && min < b.e) ?? null;
 }
 
 // EMAIL-F-16: the id is a LOCAL day plus the block's start minute. It used to

@@ -18,7 +18,7 @@ import type { BrainMemoryService } from "./brainMemoryService";
 import { assembleMemory, draftInstructions, toContextInput, type MemorySection, type PersonRow } from "./memoryAssemble";
 import { trainingLines } from "../gym/trainingContext";
 import { readGymSettings, rackFrom } from "../gym/settings";
-import { protectedRangesFor, DEFAULT_ROUTINE } from "../routine/types";
+import { protectedRangesOn, DEFAULT_ROUTINE } from "../routine/types";
 import { occursOn, addDays } from "../schedule/calendar";
 import type { EventItem } from "../schedule/types";
 import { sealLines } from "../review/seal";
@@ -377,7 +377,7 @@ async function gatherFrom(s: ContextServices, about?: ContextAbout, memory?: Mem
           if (events.some((e) => e.data.category === catId && occursOn(e.data, iso))) { nextGame = iso; break; }
         }
       }
-      const gymBlock = rt ? protectedRangesFor(rt, dow).find((b) => b.kind === "gym") : undefined;
+      const gymBlock = rt ? protectedRangesOn(rt, today).find((b) => b.kind === "gym") : undefined;
       trainingLinesOut = trainingLines({
         program,
         workouts,
