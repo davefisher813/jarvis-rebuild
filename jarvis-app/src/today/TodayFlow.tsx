@@ -7,7 +7,7 @@ import { workWindowOf, isSuggested, rankCandidates } from "../schedule/planMeta"
 import type { Category } from "../categories/types";
 import type { Project } from "../projects/types";
 import type { Goal } from "../life/types";
-import { todayISO, fmtTime, addMinutes, minToHHMM, shiftFitsDay, nextOccurrence, nextFreeSlot, addDays, daysBetween } from "../schedule/calendar";
+import { fmtRange, todayISO, fmtTime, addMinutes, minutesBetween, minToHHMM, shiftFitsDay, nextOccurrence, nextFreeSlot, addDays, daysBetween } from "../schedule/calendar";
 import { ENTITY_EVENT, type EventItem } from "../schedule/types";
 import { ENTITY_TASK } from "../notes/types";
 import { useFreshLists } from "../data/useFreshLists";
@@ -35,6 +35,10 @@ import CallPrepSheet from "../people/CallPrepSheet";
 import MessageDraftSheet from "../people/MessageDraftSheet";
 import TaskSheet, { type SheetCategory, type TaskDraft } from "../tasks/screens/TaskSheet";
 import EventSheet, { type EventDraft } from "../schedule/screens/EventSheet";
+import GapSheet from "../schedule/screens/GapSheet";
+import { suggestTitles, suggestLocations } from "../schedule/memory";
+import { gapOptions, gapBlock, type GapOption } from "../schedule/gapOffer";
+import { createEventFromDraft } from "../schedule/eventCreate";
 import EventDetailPage from "../schedule/screens/EventDetailPage";
 import BlockSheet, { type BlockDraft } from "../schedule/screens/BlockSheet";
 import PlanDaySheet from "../schedule/screens/PlanDaySheet";
@@ -71,7 +75,7 @@ import { cardDraftJob } from "../messages/cardDraftJob";
 import { DUR_CHOICES, durLabel } from "../schedule/durations";
 import { heldBy, heldLine, type HardLine } from "../brain/hardLines";
 import {
-  moveEvent as moveEventAdjust, undoMoveEvent as undoMoveEventAdjust, type MoveOutcome,
+  type MoveOutcome,
   resizeEvent as resizeEventAdjust, undoResizeEvent as undoResizeEventAdjust, type ResizeOutcome,
   skipEventToday as skipEventTodayAdjust, undoSkipEventToday as undoSkipEventTodayAdjust,
   pushEventTomorrow as pushEventTomorrowAdjust, undoPushEventTomorrow as undoPushEventTomorrowAdjust, type PushOutcome,
@@ -166,7 +170,7 @@ import { Suspense } from "react";
 import { lazyWithRecovery } from "../shell/chunkRecovery";
 import { isOffTrack, rankOpen, reasonFor } from "../upnext/upnext";
 import { backOnTrackMessage } from "../tasks/lifecycle";
-import { moveEventToAnytime, undoMoveToAnytime, duplicateEvent } from "../schedule/eventMoves";
+import { moveEventToAnytime, undoMoveToAnytime, duplicateEvent, commitRetime, undoRetime } from "../schedule/eventMoves";
 import { ClockGlyph, DocGlyph, ForkGlyph, SweepGlyph, TargetGlyph, CheckCircleGlyph, BarbellGlyph, GiftGlyph, FolderOpenGlyph } from "../shared/glyphs";
 import { Clock, CircleSlash } from "../shared/icons";
 import { isFromEmail } from "../tasks/origin";
@@ -320,7 +324,7 @@ export default function TodayFlow({
   const [allEvents, setAllEvents] = useState<EventItem[]>([]);
   // WARN, THEN ALLOW (2026-10-01, the audit's P0 #2): the same guard
   // Schedule holds, so a time written from Today asks what it lands on.
-  const { guard: conflictGuard, guardBatch, moveToast, itemsFor, ask: askConflict, conflictSheet } = useConflictGuard(allEvents, routineData);
+  const { guard: conflictGuard, guardBatch, moveToast, lineFor, itemsFor, ask: askConflict, conflictSheet } = useConflictGuard(allEvents, routineData);
   const [taskItems, setTaskItems] = useState<TaskItem[]>([]);
   // NOT THE EMAILS (Dave 2026-09-17: "they must go to the email section").
   // A task born from a thread is the Ready to Send band's: it never leads
@@ -659,6 +663,12 @@ export default function TodayFlow({
   const [blockSheet, setBlockSheet] = useState<{ id: string; initial: BlockDraft } | null>(null);
   const [planOpen, setPlanOpen] = useState(false);
   const [upNextOpen, setUpNextOpen] = useState(false);
+  // NEW EVENT FROM TODAY and SCHEDULE SOMETHING HERE (schedule audit
+  // 2026-10-01, items 8 and 7). Both are sheets the Schedule tab already had;
+  // Today now opens the same ones. The gap sheet is what a tap on the Now
+  // card's open window offers, in place of going straight to Focus.
+  const [newEventOpen, setNewEventOpen] = useState(false);
+  const [gapSheetOpen, setGapSheetOpen] = useState(false);
   // FOCUS OPENS WHEN ASKED, NOT WHEN YOU COME BACK (audit 2026-09-29). This
   // used to key on the nonce alone. The shell's clear() hands the value back
   // but leaves the nonce where it was, and Today remounts on every visit, so
@@ -957,31 +967,39 @@ export default function TodayFlow({
     // One tap, never refused; the toast says what the new time lands on.
     const note = moveToast(today, { id, start: e.start, end: e.end, forTask: !!e.sourceTaskId }, addMinutes(e.start, mins));
     let outcome: MoveOutcome | null = null;
-    const ok = await attemptWrite(async () => { outcome = await moveEventAdjust(id, addMinutes(e.start, mins), today, schedule); });
+    const ok = await attemptWrite(async () => { outcome = await commitRetime(id, { start: addMinutes(e.start, mins) }, today, schedule); });
     await reload();
     const o = outcome as MoveOutcome | null;
     if (!ok || !o?.ok) return;
     showToast({
       message: [word, o.repeating ? "Just Today" : "", note].filter(Boolean).join(" · "),
       actionLabel: "Undo",
-      onAction: async () => { await attemptWrite(() => undoMoveEventAdjust(id, today, o, schedule)); await reload(); },
+      onAction: async () => { await attemptWrite(() => undoRetime(id, today, o, schedule)); await reload(); },
     });
   };
 
-  const onMoveTo = async (id: string, start: string) => {
-    const t = fmtTime(start);
-    const label = `Moved to ${t.time} ${t.ap}`;
+  const onMoveTo = async (id: string, start: string, end?: string) => {
+    // A time he picked asks what it lands on first (P0 #2, 2026-10-01), the
+    // same prompt Schedule's retime gives; a nudge only says it in the toast.
     const cur = await schedule.event(id);
-    const note = cur ? moveToast(today, { id, start: cur.start, end: cur.end, forTask: !!cur.sourceTaskId }, start) : "";
+    const kept = cur?.end ? Math.max(15, minutesBetween(cur.start, cur.end)) : 60;
+    const checked = await conflictGuard(
+      { date: today, start, end: end ?? (cur?.end ? addMinutes(start, kept) : undefined), ignoreId: id, forTask: !!cur?.sourceTaskId },
+      async (slot) => slot,
+    );
+    if (checked.status === "cancelled") return;
+    const at = checked.value ?? { start, end };
+    const at12 = fmtTime(at.start);
+    const label = `Moved to ${at12.time} ${at12.ap}`;
     let outcome: MoveOutcome | null = null;
-    const ok = await attemptWrite(async () => { outcome = await moveEventAdjust(id, start, today, schedule); });
+    const ok = await attemptWrite(async () => { outcome = await commitRetime(id, { start: at.start, ...(end && at.end ? { end: at.end } : {}) }, today, schedule); });
     await reload();
     const o = outcome as MoveOutcome | null;
     if (!ok || !o?.ok) return;
     showToast({
-      message: [label, o.repeating ? "Just Today" : "", note].filter(Boolean).join(" · "),
+      message: o.repeating ? label + " · Just Today" : label,
       actionLabel: "Undo",
-      onAction: async () => { await attemptWrite(() => undoMoveEventAdjust(id, today, o, schedule)); await reload(); },
+      onAction: async () => { await attemptWrite(() => undoRetime(id, today, o, schedule)); await reload(); },
     });
   };
 
@@ -2577,7 +2595,7 @@ export default function TodayFlow({
             // ROW-TAP (Dave 2026-09-15: "I want all rows clickable"): the row
             // is the open window, and filling it is its one verb, so the
             // whole line opens the same picker the pill does.
-            <div className="row" {...rowDoor(() => setUpNextOpen(true))}>
+            <div className="row" {...rowDoor(() => setGapSheetOpen(true))}>
               <RowIcon kind="event" />
               <div className="row-stack">
                 <div className="conn-name truncate">{shortSpan(nowCtx.gapMin)} Open</div>
@@ -2598,7 +2616,10 @@ export default function TodayFlow({
                   day's own button row a few hundred pixels below, which is
                   the same verb twice in one section. This card is about the
                   next few minutes; planning the day belongs to the day. */}
-              <button className="pill-act" onClick={own(() => setUpNextOpen(true))}>Focus</button>
+              {/* SCHEDULE SOMETHING HERE (item 7, 2026-10-01): the open window's
+                  tap offers the tasks that fit, with Focus one option in the
+                  sheet. The pill used to say Focus and go straight there. */}
+              <button className="pill-act" onClick={own(() => setGapSheetOpen(true))}>Fill It</button>
             </div>
           )}
           </>
@@ -4046,6 +4067,71 @@ export default function TodayFlow({
     );
   }
 
+  // The gap the Now card is standing in, as a start and the choices that fit
+  // it. The pool is every open task not already on today (an event carrying its
+  // id, or a standing proposal holding it); the ranking is the Now card's own.
+  const gapStart = nowCtx.gapMin !== null && nowCtx.nextStart
+    ? minToHHMM(Number(nowCtx.nextStart.slice(0, 2)) * 60 + Number(nowCtx.nextStart.slice(3, 5)) - nowCtx.gapMin)
+    : nhm;
+  const gapChoices = gapSheetOpen && nowCtx.gapMin !== null
+    ? gapOptions(
+        taskItems.map((t) => ({ id: t.id, text: t.data.text, category: t.data.category ?? "", done: t.data.done, due: t.data.due, bill: t.data.bill, reminder: t.data.reminder, estimateMin: t.data.estimateMin })),
+        nowCtx.gapMin, today, (cat) => estimates[cat] ?? 45,
+        {
+          paused: pausedCats,
+          planned: new Set([
+            ...todayEvents.map((e) => e.data.sourceTaskId).filter((x): x is string => !!x),
+            ...liveDraftBlocks.map((b) => b.taskId),
+          ]),
+        },
+      )
+    : [];
+  const bookIntoGap = async (o: GapOption) => {
+    setGapSheetOpen(false);
+    const { start, end } = gapBlock(gapStart, o.minutes);
+    let made: string[] = [];
+    const ok = await attemptWrite(async () => {
+      const r = await schedule.commitPlan(today, [{ taskId: o.id, text: o.text, category: o.category, start, end }]);
+      made = r.created;
+    });
+    await reload();
+    if (!ok) return;
+    showToast({
+      message: `Scheduled ${fmtRange(start, end)}`,
+      actionLabel: "Undo",
+      onAction: async () => {
+        await attemptWrite(async () => { for (const id of made) await schedule.deleteEvent(id); });
+        await reload();
+      },
+    });
+  };
+  // Where a new event opens: the nearest free hour from now, events AND the
+  // routine's blocks (the old walk saw events alone).
+  const newEventStart = (): string => {
+    const d = new Date();
+    const floor = Math.max(9 * 60, Math.ceil((d.getHours() * 60 + d.getMinutes()) / 30) * 30);
+    const free = nextFreeTime(itemsFor(today), 60, floor);
+    return free !== null ? minToHHMM(free) : nextFreeSlot(todayEvents, today, d);
+  };
+  const onCreateEvent = async (draft: EventDraft) => {
+    // A new event asks what its time lands on first (P0 #2, 2026-10-01);
+    // backing out leaves the sheet open for another try.
+    const checked = await conflictGuard({ date: draft.date, start: draft.start, end: draft.end || undefined }, async (slot) => slot);
+    if (checked.status === "cancelled") return false;
+    if (checked.status === "moved" && checked.value) draft = { ...draft, start: checked.value.start, end: checked.value.end ?? draft.end };
+    let id: string | null = null;
+    const ok = await attemptWrite(async () => { id = await createEventFromDraft(draft, schedule); });
+    setNewEventOpen(false);
+    await reload();
+    if (!ok || !id) return;
+    const made = id as string;
+    showToast({
+      message: lineCase(`Added ${draft.title}`),
+      actionLabel: "Undo",
+      onAction: async () => { await attemptWrite(() => schedule.deleteEvent(made)); await reload(); },
+    });
+  };
+
   return (
     <>
     <TodayPage
@@ -4182,6 +4268,7 @@ export default function TodayFlow({
       onSearch={onSearch}
       onProfile={onProfile}
       onSeeAllSchedule={onGoSchedule}
+      onNewEvent={() => setNewEventOpen(true)}
       onSeeAllTasks={onGoTasks}
       // TODAY-F-16 (2026-09-05): the "all" door landed in AppShell with WAVE
       // 4 and this flow has accepted it ever since without ever passing it
@@ -4319,6 +4406,7 @@ export default function TodayFlow({
         initial={eventSheet.initial}
         categories={categories}
         projects={sheetProjects(projList, goalList)}
+        conflictLine={(d, st, en) => lineFor(d, st, en, eventSheet.id)}
         onSave={onSaveEvent}
         onDelete={onDeleteEvent}
         onMoveToAnytime={onEventToAnytime}
@@ -4333,6 +4421,31 @@ export default function TodayFlow({
         onDelete={onDeleteBlock}
         onEditFull={onEditRoutine ? onEditBlockFull : undefined}
         onCancel={() => setBlockSheet(null)}
+      />
+    )}
+    {newEventOpen && (
+      <EventSheet
+        mode="new"
+        initial={{ date: today, start: newEventStart() }}
+        categories={categories}
+        projects={sheetProjects(projList, goalList)}
+        conflictLine={(d, st, en) => lineFor(d, st, en)}
+        onSave={onCreateEvent}
+        onCancel={() => setNewEventOpen(false)}
+        suggestTitles={(typed) => suggestTitles(allEvents, typed)}
+        suggestLocations={(t) => suggestLocations(allEvents, t)}
+      />
+    )}
+    {gapSheetOpen && nowCtx.gapMin !== null && nowCtx.nextStart && (
+      <GapSheet
+        start={gapStart}
+        end={nowCtx.nextStart}
+        minutes={nowCtx.gapMin}
+        options={gapChoices}
+        onBook={(o) => void bookIntoGap(o)}
+        onNewEvent={() => { setGapSheetOpen(false); setNewEventOpen(true); }}
+        onFocus={() => { setGapSheetOpen(false); setUpNextOpen(true); }}
+        onClose={() => setGapSheetOpen(false)}
       />
     )}
     {upNextOpen && (

@@ -37,19 +37,25 @@ export interface MoveOutcome {
   event?: EventData;
   repeating: boolean;
   copyId?: string | null;
+  /** The move gave an end to an event that had none (the retime sheet can
+   *  set a length at the same time), so an Undo has an end to clear. */
+  wroteEnd?: boolean;
 }
 
-export async function moveEvent(id: string, toStart: string, viewedDate: string, events: EventWriter): Promise<MoveOutcome> {
+// `endOverride` (2026-10-01): the retime sheet changes WHEN and HOW LONG in
+// one commit. Absent, the length is kept exactly as it was, which is what
+// every nudge and swipe has always meant.
+export async function moveEvent(id: string, toStart: string, viewedDate: string, events: EventWriter, endOverride?: string): Promise<MoveOutcome> {
   const e = await events.event(id);
   if (!e) return { ok: false, repeating: false };
   const repeating = (e.recurrence ?? "none") !== "none";
   const dur = e.end ? minutesBetween(e.start, e.end) : null;
-  const newEnd = dur !== null ? addMinutes(toStart, dur) : undefined;
+  const newEnd = endOverride ?? (dur !== null ? addMinutes(toStart, dur) : undefined);
 
   if (!repeating) {
     await events.editTime(id, toStart);
-    if (e.end) await events.editEnd(id, newEnd!);
-    return { ok: true, event: e, repeating: false };
+    if (newEnd !== undefined) await events.editEnd(id, newEnd);
+    return { ok: true, event: e, repeating: false, ...(!e.end && newEnd !== undefined ? { wroteEnd: true } : {}) };
   }
 
   await events.addExdate(id, viewedDate);
@@ -69,6 +75,7 @@ export async function undoMoveEvent(id: string, viewedDate: string, outcome: Mov
   if (!outcome.repeating) {
     await events.editTime(id, outcome.event.start);
     if (outcome.event.end) await events.editEnd(id, outcome.event.end);
+    else if (outcome.wroteEnd) await events.editEnd(id, "");
     return;
   }
   if (outcome.copyId) await events.deleteEvent(outcome.copyId);

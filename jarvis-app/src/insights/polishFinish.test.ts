@@ -159,7 +159,11 @@ describe("All Data's set tables", () => {
 // 4. "Drop the repeated Weight x Reps from the add-from-your-lifts list."
 describe("the last two", () => {
   it("the exercise count is a quiet badge", () => {
-    expect(src("gym", "LibraryPage.tsx")).toMatch(/<span className="nav-action nav-count">\{rows\.length\}<\/span>/);
+    // AMENDED 2026-10-01: the badge still wears the quiet class; what it counts
+    // is no longer every row but the page's opening list (archived and hidden
+    // left out), the same number the Health dashboard's door shows.
+    // See libraryView.defaultView and HealthDoors.test.tsx.
+    expect(src("gym", "LibraryPage.tsx")).toMatch(/<span className="nav-action nav-count">\{openingCount\}<\/span>/);
     const rule = /\.nav-action\.nav-count \{[^{}]*\}/.exec(src("styles", "components.css"))?.[0] ?? "";
     expect(rule, "the rule must exist").toBeTruthy();
     expect(rule).toMatch(/color:\s*var\(--tx-3\)/);

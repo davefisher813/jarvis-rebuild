@@ -53,7 +53,8 @@ export function useConflictGuard(events: EventItem[], routine: RoutineData) {
     date: string,
     moved: { id: string; start: string; end?: string; forTask?: boolean },
     toStart: string,
-  ): string => moveNote(itemsFor(date), moved, toStart), [itemsFor]);
+    toEnd?: string,
+  ): string => moveNote(itemsFor(date), moved, toStart, toEnd), [itemsFor]);
 
   /** The live fact for a sheet being edited: the line, or null when the time is clear. */
   const lineFor = useCallback((date: string, start: string, end: string, ignoreId?: string): string | null => {

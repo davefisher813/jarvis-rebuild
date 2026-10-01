@@ -89,7 +89,7 @@ function weekRange(cells: WeekCell[]): string {
 export default function SchedulePage({
   year, month, selected, todayDate, dots, dayEvents, conflicts, gymDoorFor,
   mode = "month", onMode, weekCells = [], weekRows = [], loading, loadFailed, onRetryLoad, repeats = [], overlap, onFixOverlap, clashCount = 0, onOverlapBadge, onCopyDay,
-  onPrev, onNext, onSelect, onNew, onOpenEvent, onPickSlot, onPlanDay, onUpload, onDeleteMany,
+  onPrev, onNext, onSelect, onNew, onOpenEvent, onPickSlot, onGapOffer, onPlanDay, onUpload, onDeleteMany,
   locked = [], now, onEditRoutine, onOpenBlock, onFillBlock, onShift, onMoveTo, onSetEnd, onSkipToday, onPushTomorrow, onRunningLate, openSourceFor, notedEvents, onNotes,
   onShiftBlock, onRetimeBlock, onResizeBlock, onDeleteBlock, onDeleteEvent,
   proposed, dayFooter,
@@ -132,7 +132,11 @@ export default function SchedulePage({
   // as the id. eventsForDate already remaps a recurring event's date to the
   // day being viewed, and the editor needs that day to know which occurrence
   // was tapped. The Repeats list has no day and passes none.
-  onNew?: () => void; onOpenEvent?: (id: string, occurrenceDate?: string) => void; onPickSlot?: (start: string) => void; onPlanDay?: () => void; onUpload?: () => void;
+  onNew?: () => void; onOpenEvent?: (id: string, occurrenceDate?: string) => void; onPickSlot?: (start: string) => void;
+  // SCHEDULE SOMETHING HERE (2026-10-01): a tap on an Open row offers the tasks
+  // that fit instead of a blank form. Absent, the row opens New Event as it did.
+  onGapOffer?: (start: string, end: string) => void;
+  onPlanDay?: () => void; onUpload?: () => void;
   // Bulk delete for the selected day (2026-08-24).
   onDeleteMany?: (ids: string[]) => void;
   locked?: LockedRange[]; now?: string | null;
@@ -151,7 +155,7 @@ export default function SchedulePage({
   // Drop a task straight into a holding block (2026-08-21).
   onFillBlock?: (startMin: number, endMin: number) => void;
   onShift?: (id: string, mins: number) => void;
-  onMoveTo?: (id: string, start: string) => void;
+  onMoveTo?: (id: string, start: string, end?: string) => void;
   onSetEnd?: (id: string, end: string) => void;
   // UP-CORE-05 (2026-09-05): handed down to every row's provenance line.
   openSourceFor?: (source: Source) => (() => void) | undefined;
@@ -291,6 +295,16 @@ export default function SchedulePage({
     }, 260);
     window.addEventListener("pointermove", move, { passive: false });
     window.addEventListener("pointerup", up);
+  };
+  // ONE ANSWER TO "TAP A PROPOSED TASK" (schedule audit 2026-10-01, item 5).
+  // A task nested under a block opens the task editor, as it does on Today;
+  // the standalone row expands in place and carries the same door as an Edit
+  // Task button. This was the nested rows' onToggle, which sets state only
+  // ProposedRow reads, so on a nested row the tap did nothing visible. A flow
+  // with no editor wired keeps the toggle.
+  const openProposed = (taskId: string) => {
+    if (proposed?.onOpen) proposed.onOpen(taskId);
+    else proposed?.onToggle(taskId);
   };
   const isToday = selected === todayDate && !!now;
   // S6-Q41 (2026-09-05): "weather never reaches the Schedule tab." Today
@@ -767,7 +781,7 @@ export default function SchedulePage({
                    The gap carries its own window so the drop can read it. */
                 data-gap-start={en.start}
                 data-gap-end={en.end}
-                onClick={() => onPickSlot?.(en.start)}
+                onClick={() => (onGapOffer ? onGapOffer(en.start, en.end) : onPickSlot?.(en.start))}
               >
                 {/* NO "TAP TO FILL IT" (Dave 2026-08-25: "there's no need to
                     say (tap to fill). The display for those slots also do not
@@ -805,6 +819,8 @@ export default function SchedulePage({
                 onToggle={() => proposed!.onToggle(en.b.taskId)}
                 onDuration={(m) => proposed!.onDuration(en.b.taskId, m)}
                 onDrop={() => proposed!.onDrop(en.b.taskId)}
+                {...(proposed!.onAccept ? { onAccept: () => proposed!.onAccept!(en.b.taskId) } : {})}
+                {...(proposed!.onOpen ? { onOpen: () => proposed!.onOpen!(en.b.taskId) } : {})}
               />
             ) : en.kind === "locked" ? (() => {
               const heldProps = heldPropBy.get(en.l.label + "@" + en.l.s) ?? [];
@@ -834,11 +850,11 @@ export default function SchedulePage({
                       <div
                         className="block-held block-held-prop"
                         key={"p" + b.taskId}
-                        {...pressable(() => proposed?.onToggle(b.taskId))}
+                        {...pressable(() => openProposed(b.taskId))}
                         /* the pointer path keeps its own stopPropagation, as
                            the held block above it does: this row sits inside
                            the routine row. */
-                        onClick={(ev) => { ev.stopPropagation(); proposed?.onToggle(b.taskId); }}
+                        onClick={(ev) => { ev.stopPropagation(); openProposed(b.taskId); }}
                       >
                         <span className={"cat-dot-hollow cat-bd-" + catColor(b.category)} />
                         <span className="block-held-t truncate">{b.text}</span>
@@ -872,7 +888,7 @@ export default function SchedulePage({
                   state={stateForEvent(en.e.data, isToday ? { today: en.e.data.date, nowMin } : null)}
                   onOpen={() => onOpenEvent?.(en.e.id, en.e.data.date)}
                   onShift={onShift ? (m) => onShift(en.e.id, m) : undefined}
-                  onMoveTo={onMoveTo ? (t) => onMoveTo(en.e.id, t) : undefined}
+                  onMoveTo={onMoveTo ? (t, end) => onMoveTo(en.e.id, t, end) : undefined}
                   onSetEnd={onSetEnd ? (end) => onSetEnd(en.e.id, end) : undefined}
                   selecting={sel.active}
                   picked={sel.isSelected(en.e.id)}

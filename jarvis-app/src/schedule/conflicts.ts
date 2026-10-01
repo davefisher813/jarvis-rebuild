@@ -229,10 +229,13 @@ export function moveNote(
   items: DayItem[],
   moved: { id: string; start: string; end?: string; forTask?: boolean },
   toStart: string,
+  /** The new end when the move also sets one (the time picker); otherwise the length is kept. */
+  toEnd?: string,
 ): string {
   const s = toMin(moved.start);
-  const len = moved.end ? Math.max(15, toMin(moved.end) - s) : 60;
-  const was = new Set(findConflicts(items, { start: s, end: s + len, ignoreId: moved.id, forTask: moved.forTask }).map((c) => c.item.id));
+  const kept = moved.end ? Math.max(15, toMin(moved.end) - s) : 60;
+  const len = toEnd ? Math.max(15, toMin(toEnd) - toMin(toStart)) : kept;
+  const was = new Set(findConflicts(items, { start: s, end: s + kept, ignoreId: moved.id, forTask: moved.forTask }).map((c) => c.item.id));
   const t = toMin(toStart);
   const now = findConflicts(items, { start: t, end: t + len, ignoreId: moved.id, forTask: moved.forTask }).filter((c) => !was.has(c.item.id));
   return conflictLine(now);

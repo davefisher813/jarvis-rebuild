@@ -16,6 +16,8 @@
 // differ per surface.
 
 import { duplicateOf } from "./dayEdit";
+import { minToHHMM } from "./calendar";
+import { moveEvent, undoMoveEvent, type MoveOutcome } from "./eventAdjust";
 import type { EventData, EventItem } from "./types";
 
 interface EventWriter {
@@ -83,4 +85,38 @@ export async function duplicateEvent(
     category: d.category || undefined, location: d.location,
   });
   return { ok: true, madeId: madeId ?? undefined };
+}
+
+// COMMIT A NEW TIME (2026-10-01). Every way of saying "this event starts
+// here now" goes through this one function: the swipe nudges, the retime
+// sheet, the Overlaps sheet's nudge. They were each calling moveEvent on
+// their own, which is three doors into the same write. One door means a
+// check that has to look at the new time (an overlap warning, a bedtime
+// guard) hooks in at exactly one place, not at every surface that can move
+// an event.
+//
+// `end` is optional: the retime sheet changes when AND how long in one
+// commit, and everything else keeps the length it had. A repeating event
+// moves ONE occurrence, never the series (see moveEvent); the outcome is
+// what undoRetime needs.
+type RetimeWriter = Parameters<typeof moveEvent>[3];
+export interface RetimeChange { start: string; end?: string }
+
+export function commitRetime(id: string, change: RetimeChange, viewedDate: string, events: RetimeWriter): Promise<MoveOutcome> {
+  return moveEvent(id, change.start, viewedDate, events, change.end);
+}
+
+export function undoRetime(id: string, viewedDate: string, outcome: MoveOutcome, events: RetimeWriter): Promise<void> {
+  return undoMoveEvent(id, viewedDate, outcome, events);
+}
+
+// A NUDGE THAT REFUSES RATHER THAN CLAMPS. addMinutes stops at the edge of the
+// day, which would pin the start and quietly change how long the block is:
+// a "move" that resizes is a bug, not a nudge. Returns the new start, or null
+// when the move would carry the block (start plus its length) off the day.
+export function nudgeStart(start: string, delta: number, lengthMin: number | null): string | null {
+  const p = start.split(":");
+  const next = Number(p[0] ?? 0) * 60 + Number(p[1] ?? 0) + delta;
+  if (next < 0 || next + (lengthMin ?? 0) > 24 * 60 - 1) return null;
+  return minToHHMM(next);
 }
