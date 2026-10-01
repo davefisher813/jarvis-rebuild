@@ -30,6 +30,9 @@ import { isKept, keepBoth } from "./overlapAck";
 import OverlapSheet from "./screens/OverlapSheet";
 import { planDay } from "./planDay";
 import { anytimeTasksForDay } from "./anytime";
+import { gapOptions, gapBlock, type GapOption } from "./gapOffer";
+import { useCategoryEstimates } from "./useTaskEstimate";
+import GapSheet from "./screens/GapSheet";
 import { suggestTitles, suggestLocations, repeatCandidate } from "./memory";
 import { attachInfo, firstMoveOf, followUpCandidate, type AttachInfo } from "./attachments";
 import { bestPerBlock, blockKind, recordBlend, loadBlendMemory } from "./blend";
@@ -45,7 +48,7 @@ import { chronotypeFor, peakWindowFor } from "./energy";
 import { isSuggested, rankCandidates } from "./planMeta";
 import { shiftFutureEvents, restoreShift, type ShiftResult } from "./runningLate";
 import {
-  moveEvent as moveEventAdjust, undoMoveEvent as undoMoveEventAdjust, type MoveOutcome,
+  type MoveOutcome,
   resizeEvent as resizeEventAdjust, undoResizeEvent as undoResizeEventAdjust, type ResizeOutcome,
   skipEventToday as skipEventTodayAdjust, undoSkipEventToday as undoSkipEventTodayAdjust,
   pushEventTomorrow as pushEventTomorrowAdjust, undoPushEventTomorrow as undoPushEventTomorrowAdjust, type PushOutcome,
@@ -63,7 +66,7 @@ import { useFreshLists } from "../data/useFreshLists";
 import { recordSpot } from "../restore/whereYouWere";
 import { ENTITY_EVENT } from "./types";
 import { ENTITY_TASK } from "../notes/types";
-import { moveEventToAnytime, undoMoveToAnytime, duplicateEvent as duplicateEventMove } from "./eventMoves";
+import { moveEventToAnytime, undoMoveToAnytime, duplicateEvent as duplicateEventMove, commitRetime, undoRetime } from "./eventMoves";
 import TaskSheet, { type TaskDraft } from "../tasks/screens/TaskSheet";
 import { sheetEvents } from "./sheetEvents";
 import type { Recurrence } from "../notes/types";
@@ -75,7 +78,7 @@ import { spanLabel } from "../shared/duration";
 // anchor.
 type SheetState = { mode: "new" } | { mode: "edit"; id: string; occurrence: string; initial: EventDraft; source?: import("../shared/provenance").Source } | null;
 
-export default function ScheduleFlow({ onEditRoutine, openId, openNonce, onOpenConsumed, onNavigate }: { onEditRoutine?: (blockId?: string) => void; openId?: string; openNonce?: number; onOpenConsumed?: () => void; onNavigate?: (kind: string, id: string) => void } = {}) {
+export default function ScheduleFlow({ onEditRoutine, openId, openNonce, onOpenConsumed, onNavigate, onFocus }: { onEditRoutine?: (blockId?: string) => void; openId?: string; openNonce?: number; onOpenConsumed?: () => void; onNavigate?: (kind: string, id: string) => void; /** The Focus door, for the gap sheet's Focus option (item 7, 2026-10-01). */ onFocus?: () => void } = {}) {
   // UP-CORE-05 (2026-09-05): one map from a provenance stamp to a route,
   // shared with every other surface that shows the line (shared/openSource).
   const openSourceFor = useMemo(() => (onNavigate ? sourceOpener(onNavigate) : undefined), [onNavigate]);
@@ -518,6 +521,8 @@ export default function ScheduleFlow({ onEditRoutine, openId, openNonce, onOpenC
     onDuration: (id: string, minutes: number) => applyProposalEdit({ minutes: { [id]: minutes } }),
     onDrop: (id: string) => { setTuning(null); applyProposalEdit({ drop: id }); },
     onAccept: (id: string) => void acceptOne(id),
+    // The same door a nested proposed task opens (item 5, 2026-10-01).
+    onOpen: (id: string) => void onOpenTask(id),
   } : undefined;
 
   const onAIPlan = ai.available
@@ -926,6 +931,47 @@ export default function ScheduleFlow({ onEditRoutine, openId, openNonce, onOpenC
     ? anytimeTasksForDay(taskItems, dayEvents, selected, draftClaims(standingDraft), pausedCats)
     : [];
 
+  // SCHEDULE SOMETHING HERE (schedule audit 2026-10-01, item 7). A tap on an
+  // Open row used to open a blank New Event form, so the invitation to use the
+  // time never said what could go in it. It opens a sheet of the tasks that
+  // fit instead, one tap each to book, with New Event (the old door) and
+  // Focus beside them. The pool is the strip's own, so nothing already on the
+  // day or held by the standing proposal is offered; the ranking is the Now
+  // card's (schedule/gapOffer.ts).
+  const catEstimates = useCategoryEstimates();
+  const [gapOffer, setGapOffer] = useState<{ start: string; end: string } | null>(null);
+  const gapMinutes = gapOffer ? toMin(gapOffer.end) - toMin(gapOffer.start) : 0;
+  const gapChoices = gapOffer
+    ? gapOptions(
+        anytimeTasksForDay(taskItems, dayEvents, selected, draftClaims(standingDraft), pausedCats)
+          .map((t) => ({ id: t.id, text: t.data.text, category: t.data.category ?? "", done: !!t.data.done, due: (t.data.due as string) || null, bill: t.data.bill, reminder: t.data.reminder, estimateMin: t.data.estimateMin })),
+        gapMinutes, selected, (cat) => catEstimates[cat] ?? 45,
+      )
+    : [];
+  const bookIntoGap = async (o: GapOption) => {
+    const g = gapOffer;
+    if (!g) return;
+    setGapOffer(null);
+    const { start, end } = gapBlock(g.start, o.minutes);
+    let made: string[] = [];
+    const ok = await attemptWrite(async () => {
+      const r = await svc.commitPlan(selected, [{ taskId: o.id, text: o.text, category: o.category, start, end }]);
+      made = r.created;
+    });
+    await reload();
+    await reloadTasks();
+    if (!ok) return;
+    showToast({
+      message: `Scheduled ${fmtRange(start, end)}`,
+      actionLabel: "Undo",
+      onAction: async () => {
+        await attemptWrite(async () => { for (const id of made) await svc.deleteEvent(id); });
+        await reload();
+        await reloadTasks();
+      },
+    });
+  };
+
   // Tap the circle: complete the task (it leaves the strip).
   // Make a task from inside the planner, due on the day being planned.
   const addPlanTask = async (text: string) => {
@@ -1125,16 +1171,16 @@ export default function ScheduleFlow({ onEditRoutine, openId, openNonce, onOpenC
   // ./eventAdjust.ts so Today can offer the identical actions instead of a
   // second implementation of each. This function keeps the label wording and
   // the toast/undo wiring, which legitimately differ per surface.
-  const moveEvent = async (id: string, toStart: string, label: string) => {
+  const moveEvent = async (id: string, toStart: string, label: string, end?: string) => {
     let outcome: MoveOutcome | null = null;
-    const ok = await attemptWrite(async () => { outcome = await moveEventAdjust(id, toStart, selected, svc); });
+    const ok = await attemptWrite(async () => { outcome = await commitRetime(id, { start: toStart, ...(end ? { end } : {}) }, selected, svc); });
     await reload();
     const o = outcome as MoveOutcome | null;
     if (!ok || !o?.ok) return;
     showToast({
       message: o.repeating ? label + " · Just Today" : label,
       actionLabel: "Undo",
-      onAction: async () => { await attemptWrite(() => undoMoveEventAdjust(id, selected, o, svc)); await reload(); },
+      onAction: async () => { await attemptWrite(() => undoRetime(id, selected, o, svc)); await reload(); },
     });
   };
 
@@ -1178,9 +1224,9 @@ export default function ScheduleFlow({ onEditRoutine, openId, openNonce, onOpenC
   };
 
   // Move to an exact time (the time tap, and later the drag drop).
-  const onMoveTo = async (id: string, start: string) => {
+  const onMoveTo = async (id: string, start: string, end?: string) => {
     const t = fmtTime(start);
-    await moveEvent(id, start, `Moved to ${t.time} ${t.ap}`);
+    await moveEvent(id, start, `Moved to ${t.time} ${t.ap}`, end);
   };
 
   // SKIP JUST THIS ONE: a repeating thing you are not doing today should not
@@ -1504,6 +1550,7 @@ export default function ScheduleFlow({ onEditRoutine, openId, openNonce, onOpenC
         onNew={() => setSheet({ mode: "new" })}
         onOpenEvent={(id, occurrenceDate) => setDetail({ id, occurrence: occurrenceDate })}
         onPickSlot={onPickSlot}
+        onGapOffer={(start, end) => setGapOffer({ start, end })}
         onPlanDay={() => setPlanOpen(true)}
         onUpload={ai.available ? () => setUploadOpen(true) : undefined}
         onDeleteMany={onDeleteManyEvents}
@@ -1666,6 +1713,18 @@ export default function ScheduleFlow({ onEditRoutine, openId, openNonce, onOpenC
           knownPeople={people.map((p) => ({ id: p.id, name: p.data.name, email: p.data.email }))}
           onOpenPerson={(id) => setPrepPerson({ id, about: sheet.mode === "edit" ? sheet.initial.title : "" })}
           onAddPerson={(a) => void addGuest(a)}
+        />
+      )}
+      {gapOffer && (
+        <GapSheet
+          start={gapOffer.start}
+          end={gapOffer.end}
+          minutes={gapMinutes}
+          options={gapChoices}
+          onBook={(o) => void bookIntoGap(o)}
+          onNewEvent={() => { const start = gapOffer.start; setGapOffer(null); onPickSlot(start); }}
+          onFocus={onFocus ? () => { setGapOffer(null); onFocus(); } : undefined}
+          onClose={() => setGapOffer(null)}
         />
       )}
       {logDecision && (

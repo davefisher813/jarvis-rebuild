@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import EntityStar from "../../shared/EntityStar";
 import type { EventItem } from "../types";
 import { useSwipe } from "../../shared/useSwipe";
@@ -16,6 +16,7 @@ import { rowSource, type Source } from "../../shared/provenance";
 import { toneFor, type StateWord } from "../stateWord";
 import { lineCase } from "../../shared/casing";
 import { minutesLabel } from "../../shared/duration";
+import RetimeSheet from "./RetimeSheet";
 
 // One event row on the Schedule day list. Same anatomy as before, plus the
 // roadmap-v2 basics: swipe left reveals Push 15 / Tomorrow (recurring events
@@ -85,7 +86,9 @@ export default function DayRow({
   now: string | null; // "HH:MM" when viewing today, else null
   onOpen?: () => void;
   onShift?: (mins: number) => void;
-  onMoveTo?: (start: string) => void;
+  /** Put this event at a new start, optionally with a new end in the same
+   *  commit (the retime sheet sets both). One call, one Undo. */
+  onMoveTo?: (start: string, end?: string) => void;
   onSkipToday?: () => void;
   onPushTomorrow?: () => void;
   /** Swipe left, Delete. Confirmation and Undo belong to the caller. */
@@ -152,24 +155,6 @@ export default function DayRow({
   const [sizing, setSizing] = useState(false);
   const durs = useRef<HTMLDivElement>(null);
   useChipInView(durs, sizing);
-  // BROWSER-F-17 (2026-09-05). The time editor was centred on the row it
-  // edits (top: 50%, translateY(-50%)), so opening it hid the title of the
-  // thing being changed, and the nested task under it: the browser walk caught
-  // "15m" sitting on "+Call Ridgeline About the Field". It hangs under the row
-  // now, and flips above only when under would run off the bottom of the
-  // screen, which is the same rule HeadMenu uses. Measured after the first
-  // paint rather than guessed, because the panel's height depends on whether
-  // the event has a length at all.
-  const pop = useRef<HTMLDivElement>(null);
-  const [popUp, setPopUp] = useState(false);
-  useLayoutEffect(() => {
-    if (!picking) { setPopUp(false); return; }
-    const r = pop.current?.getBoundingClientRect();
-    if (!r) return;
-    const offBottom = r.bottom > window.innerHeight - 8;
-    const roomAbove = r.top - r.height - 8 > 0;
-    if (offBottom && roomAbove) setPopUp(true);
-  }, [picking]);
   const mins = e.data.end ? minutesBetween(e.data.start, e.data.end) : null;
   // A re-flow that happened today outranks where the block came from; an
   // older move is history nobody is looking for (rowSource).
@@ -545,41 +530,34 @@ export default function DayRow({
       {/* TAP THE TIME (M3): a time change should not cost the whole editor.
           AMENDED 2026-09-02 (A Cleaner Top, Dave on the meta-line pick: "I
           would like the same functionality as the option you recommended as
-          well"). The recommended shape put the length under the time and
-          set it by tapping there. He took the other line but wants that
-          reach, so the time popover carries both halves of the block now:
-          when it starts, and how long it runs. That is also what makes the
-          red "Set Length" capsule removable -- a block with no length is
-          still one tap from having one, at the control you would tap. */}
+          well"). The time control carries both halves of the block: when it
+          starts, and how long it runs. That is also what makes the red "Set
+          Length" capsule removable -- a block with no length is still one
+          tap from having one, at the control you would tap.
+
+          AMENDED 2026-10-01 (schedule audit, item 4): it is a SHEET now, not
+          a popover hung under the row. The popover lived inside the list's
+          clip and the swipe transform, committed on the first change of the
+          clock input, and could not be reached at all from some places. The
+          sheet is portalled, holds a draft (start by the native input and
+          the nudge chips, length by the shared chips) and commits once, on
+          Move, as one move with one Undo. See RetimeSheet. */}
       {picking && onMoveTo && (
-        <>
-          <div className="time-pop-scrim" onClick={() => setPicking(false)} />
-          <div className={"time-pop" + (popUp ? " time-pop-up" : "")} ref={pop}>
-            <input
-              className="input time-pop-input"
-              type="time"
-              aria-label="New time"
-              defaultValue={e.data.start}
-              onChange={(ev) => { const v = ev.target.value; if (v) { setPicking(false); onMoveTo(v); } }}
-            />
-            {onSetEnd && (
-              <div className="time-pop-durs">
-                <div className="input-label">How Long</div>
-                <div className="chip-row plan-durs">
-                  {DUR_CHOICES.map((d) => (
-                    <button
-                      key={d}
-                      type="button"
-                      className={"chip" + (mins === d ? " chip-on" : "")}
-                      aria-label={e.data.title + ": " + d + " minutes"}
-                      onClick={() => { setPicking(false); onSetEnd(endFor(e.data.start, d)); }}
-                    >{durLabel(d)}</button>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        </>
+        <RetimeSheet
+          title={e.data.title}
+          start={e.data.start}
+          minutes={mins}
+          onCancel={() => setPicking(false)}
+          onSave={(s, m) => {
+            setPicking(false);
+            const lenChanged = m != null && m !== mins;
+            const end = lenChanged ? endFor(s, m) : undefined;
+            if (s !== e.data.start) { if (end) onMoveTo(s, end); else onMoveTo(s); }
+            // Length alone resizes the series, as the length chips always
+            // have; a start change moves this one day and takes the length.
+            else if (end) (onSetEnd ?? ((x: string) => onMoveTo(s, x)))(end);
+          }}
+        />
       )}
     </div>
   );
