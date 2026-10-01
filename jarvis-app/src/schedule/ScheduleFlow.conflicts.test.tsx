@@ -16,6 +16,7 @@ import { todayISO, addDays } from "./calendar";
 import { useOneShot } from "../shell/intents";
 import { DEFAULT_ROUTINE } from "../routine/types";
 import ScheduleFlow from "./ScheduleFlow";
+import { subscribeToast } from "../shared/toast";
 
 let openId = "";
 function Shell() {
@@ -119,5 +120,24 @@ describe("Schedule: Plan My Day does not offer what is already booked", () => {
     fireEvent.click(await screen.findByText("Plan My Day"));
     expect((await screen.findAllByText("Fresh thing")).length).toBeGreaterThan(1);
     expect(screen.queryByText("Already booked thing")).not.toBeInTheDocument();
+  });
+});
+
+describe("Schedule: a nudge stays one tap and says what it landed on", () => {
+  it("+1h from the Fix It sheet moves the event and the toast names the new clash", async () => {
+    const today = todayISO();
+    const t = setup("u-conflict-nudge", async (h) => {
+      await h.sched.createEvent("Deep Work", { date: today, start: "13:00", end: "14:30" });
+      const moving = (await h.sched.createEvent("Test Interview", { date: today, start: "13:30", end: "14:00" }))!;
+      await h.sched.createEvent("Drive to Ridgeline", { date: today, start: "14:45", end: "15:30" });
+      openId = moving;
+    });
+    const said: string[] = [];
+    const off = subscribeToast((m) => { if (m) said.push(m.message); });
+    fireEvent.click(await screen.findByText("Fix It", undefined, { timeout: 4000 }));
+    fireEvent.click(await screen.findByText("+1h"));
+    await waitFor(() => expect(said.join("|")).toContain("Forward 1h · Overlaps Drive to Ridgeline 2:45 to 3:30 PM"));
+    off();
+    await waitFor(async () => expect((await t.get().sched.event(openId))!.start).toBe("14:30"));
   });
 });
