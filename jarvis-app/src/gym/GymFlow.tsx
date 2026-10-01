@@ -23,7 +23,7 @@ import LiftDetailScreen from "./LiftDetailScreen";
 import LiftGoalSheet from "./LiftGoalSheet";
 import { readLive, writeLive, clearLive, logSet, setLoggedSets, skipExercise, swapExercise, addExerciseMidSession, sessionExercisesSameAsLastTime, programExerciseFor, queueFinished, flushPending, hasWork, isStillActive, parkLive, resumeLive, twinWorkout, type LiveSession, elapsedMs } from "./liveSession";
 import { bumpStrip, uniformStrip } from "./strip";
-import { buildLibrary, newExerciseKey, withAliases, withCreated, withFavorites, type LibraryEntry } from "./library";
+import { composeLibrary, newExerciseKey, type LibraryEntry } from "./library";
 import LibraryPickSheet from "./LibraryPickSheet";
 import { emit } from "../events";
 import { dayWithSessionEntry, movedToDay } from "./edit";
@@ -1021,7 +1021,7 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
   // workout, recomputed only when the underlying data actually changes.
   recordsRef.current = { workouts, programs: allPrograms };
   const library = useMemo(
-    () => withFavorites(withAliases(withCreated(buildLibrary(allPrograms, workouts), createdLifts), aliasMap), favoriteKeys),
+    () => composeLibrary(allPrograms, workouts, { created: createdLifts, aliases: aliasMap, favoriteKeys }),
     [allPrograms, workouts, aliasMap, favoriteKeys, createdLifts],
   );
 

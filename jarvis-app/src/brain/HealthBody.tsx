@@ -1,7 +1,7 @@
 import { useMemo, useState, type ReactNode } from "react";
 import type { Program, Workout } from "../gym/types";
 import { nextDayFor, SCRATCH_DAY_ID, SCRATCH_DAY_NAME } from "../gym/nextDay";
-import { buildLibrary } from "../gym/library";
+import { libraryCount } from "../gym/library";
 import { todayDow } from "../gym/pins";
 import { estimateDay } from "../gym/fit";
 import { readGymSettings, rackFrom } from "../gym/settings";
@@ -57,11 +57,14 @@ export type RecordsOpen =
   | { kind: "day"; date: string };
 
 export default function HealthBody({
-  program, workouts, overview, today, isEvening, gymEvent, findings,
+  program, libraryPrograms, workouts, overview, today, isEvening, gymEvent, findings,
   live = null, onResume, onStart, onAdjustTime, onOpenGym, onOpenRecords, onOpenFinding, onOpenInsights, onOpenAllData,
   logActions, onOpenSettings, sections, more, adds, view, onView, onOpenExercises, onOpenHistory,
 }: {
   program: Program | null;
+  /** Every program, archived ones too: what the Exercises page builds from.
+   *  Optional so a caller that only has the active one still counts honestly. */
+  libraryPrograms?: Program[];
   workouts: Workout[];
   /** The last seven days, from insights/analytics.periodOverview. */
   overview: PeriodOverview;
@@ -106,9 +109,19 @@ export default function HealthBody({
     ? `${isEvening ? "Tonight" : "Today"} ${fmtTime(gymEvent.start).time} ${fmtTime(gymEvent.start).ap}`
     : next?.when === "today" ? "Today" : next?.when === "tomorrow" ? "Tomorrow" : next?.when ? next.when : null;
   const days = (program?.data.weeks ?? []).flatMap((w) => w.days);
-  // The count beside the Exercises door, from the same builder the library
-  // itself is built from, so the badge and the page can never disagree.
-  const exerciseCount = useMemo(() => buildLibrary(program ? [program] : [], workouts).length, [program, workouts]);
+  // The count beside the Exercises door, from the same composer the Exercises
+  // page builds its list with (gym/library.composeLibrary): every program,
+  // archived ones included, every finished workout, and the lifts added by
+  // hand. It counted only the active program's lifts and logged workouts, so
+  // a tester who added four exercises by hand saw "0 Exercises" beside a list
+  // of four (2026-09-30). The hand-made lifts live in GymSettings, so they are
+  // read here the way the page reads them and the memo is keyed on them.
+  const gymSeeds = readGymSettings();
+  const seedSig = `${(gymSeeds.createdLifts ?? []).map((c) => c.key).join(",")}|${Object.keys(gymSeeds.aliases ?? {}).length}`;
+  const exerciseCount = useMemo(
+    () => libraryCount(libraryPrograms ?? (program ? [program] : []), workouts, { created: gymSeeds.createdLifts, aliases: gymSeeds.aliases, favoriteKeys: gymSeeds.favoriteKeys }),
+    [libraryPrograms, program, workouts, seedSig],
+  );
   const maxMin = Math.max(1, ...overview.days.map((d) => d.activeMin));
   const range = `${monthDay(overview.period.from)} to ${monthDay(overview.period.to)}`;
   const findGlyph = (f: Finding): ReactNode =>

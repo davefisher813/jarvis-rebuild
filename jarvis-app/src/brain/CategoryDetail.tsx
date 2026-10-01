@@ -265,6 +265,8 @@ export default function CategoryDetail({
   const gymSvc = useGym();
   const metricsSvc = useMetrics();
   const [programs, setPrograms] = useState<Program[]>([]);
+  // Active and archived: the Exercises count reads the same set the page does.
+  const [libraryPrograms, setLibraryPrograms] = useState<Program[]>([]);
   const [workouts, setWorkouts] = useState<Workout[]>([]);
   const [gymOpen, setGymOpen] = useState(!!autoOpenGym);
   // 2026-09-14: the coverage insight hands you Your Lifts directly, rather
@@ -448,6 +450,7 @@ export default function CategoryDetail({
   useEffect(() => {
     let on = true;
     gymSvc.listPrograms().then((p) => { if (on) setPrograms(p); }).catch(() => {});
+    gymSvc.listPrograms(true).then((p) => { if (on) setLibraryPrograms(p); }).catch(() => {});
     // The page reads the gym, it does not open it: last session, the week's
     // dots, a fresh PR and a climber all come from the workout list.
     gymSvc.listWorkouts().then((w) => { if (on) setWorkouts(w); }).catch(() => {});
@@ -2129,6 +2132,7 @@ export default function CategoryDetail({
       ) : kind === "health" ? (
         <HealthBody
           program={programs[0] ?? null}
+          libraryPrograms={libraryPrograms}
           workouts={workouts}
           overview={weekOverview}
           today={today}
