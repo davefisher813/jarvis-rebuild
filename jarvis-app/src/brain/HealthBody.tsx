@@ -1,7 +1,7 @@
 import { useMemo, useState, type ReactNode } from "react";
 import type { Program, Workout } from "../gym/types";
 import { nextDayFor, SCRATCH_DAY_ID, SCRATCH_DAY_NAME } from "../gym/nextDay";
-import { shownLibraryCount, shownSignature } from "../gym/libraryView";
+import { seedsFromSettings, shownLibraryCount, shownSignature } from "../gym/libraryView";
 import { todayDow } from "../gym/pins";
 import { estimateDay } from "../gym/fit";
 import { readGymSettings, rackFrom } from "../gym/settings";
@@ -120,11 +120,11 @@ export default function HealthBody({
   // already taken off the list (2026-10-01). The hand-made, hidden and archived
   // state live in GymSettings, so they are read here the way the page reads
   // them and the memo is keyed on a signature of them.
-  const gymSeeds = readGymSettings();
+  const gymSeeds = seedsFromSettings(readGymSettings());
   const seedSig = shownSignature(gymSeeds);
   const exerciseCount = useMemo(
     () => shownLibraryCount(libraryPrograms ?? (program ? [program] : []), workouts, gymSeeds),
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- gymSeeds is re-read every render; seedSig is its signature
+    // gymSeeds is re-read every render; seedSig is its signature.
     [libraryPrograms, program, workouts, seedSig],
   );
   const maxMin = Math.max(1, ...overview.days.map((d) => d.activeMin));

@@ -21,6 +21,7 @@ import { libraryRows, type LibraryRow } from "./libraryEdit";
 import { classOf, needsMuscles, readClassStore, type ClassStore, type MovementPattern } from "./classify";
 import { composeLibrary, type LibrarySeeds } from "./library";
 import type { Program, Workout } from "./types";
+import type { GymSettings } from "./settings";
 
 export type SortKey = "recent" | "name" | "most";
 
@@ -170,6 +171,16 @@ export interface ShownSeeds extends LibrarySeeds {
   hiddenKeys?: string[];
   classByKey?: Record<string, unknown>;
   muscleByKey?: Record<string, string[]>;
+}
+
+/** The seeds as GymSettings stores them, named the way the library composer
+ *  and the default view want them. One mapping, so a caller cannot hand the
+ *  settings over under the wrong field name and silently count nothing. */
+export function seedsFromSettings(s: GymSettings): ShownSeeds {
+  return {
+    created: s.createdLifts, aliases: s.aliases, favoriteKeys: s.favoriteKeys,
+    hiddenKeys: s.hiddenKeys, classByKey: s.classByKey, muscleByKey: s.muscleByKey,
+  };
 }
 
 /** The page's default list built from the raw records, start to finish: the

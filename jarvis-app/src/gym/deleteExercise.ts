@@ -25,6 +25,7 @@ import type { Goal } from "../life/types";
 import type { LiveSession } from "./liveSession";
 import type { Program, Workout, WorkoutData, WorkoutExercise, Exercise } from "./types";
 import type { CreatedLift, GymSettings } from "./settings";
+import { capAfterNumber } from "../shared/casing";
 import { fallbackKey } from "./library";
 import { ungroupExercise } from "./groups";
 import { sameLiftAnyKind } from "./identity";
@@ -66,8 +67,6 @@ export interface DeletePatch extends LibraryPatch {
 export interface RestorePatch extends LibraryPatch {
   restore: Workout[];
 }
-
-export const NO_DELETE: DeletePatch = { workouts: [], programs: [], remove: [] };
 
 function keySet(row: Pick<LibraryRow, "key" | "exerciseKey">): Set<string> {
   return new Set([row.key, ...(row.exerciseKey ? [row.exerciseKey] : [])]);
@@ -118,10 +117,6 @@ export function deletePatch(workouts: Workout[], programs: Program[], row: Pick<
     if (touched) out.programs.push({ id: p.id, weeks });
   }
   return out;
-}
-
-export function isEmptyDelete(p: DeletePatch): boolean {
-  return p.workouts.length === 0 && p.programs.length === 0 && p.remove.length === 0;
 }
 
 /** The pre-image, read from the records as they stand BEFORE the patch lands.
@@ -332,7 +327,8 @@ export function goesLines(plan: DeletePlan): string[] {
     if (plan.emptied > 0) out.push(`${plural(plan.emptied, "session", "sessions")} left empty ${plan.emptied === 1 ? "is" : "are"} removed`);
   }
   if (plan.clears.length) out.push(`It also clears ${joinWords(plan.clears)}`);
-  return out;
+  // A line that opens on a number hands its capital to the word behind it.
+  return out.map(capAfterNumber);
 }
 
 function joinWords(list: string[]): string {
@@ -342,5 +338,6 @@ function joinWords(list: string[]): string {
 
 /** What stays, said once: the athlete's goals are theirs. */
 export function staysLine(plan: DeletePlan): string | null {
-  return plan.goals > 0 ? `${plural(plan.goals, "goal", "goals")} on it stays as it is` : null;
+  if (plan.goals === 0) return null;
+  return capAfterNumber(plan.goals === 1 ? `${plan.goals} goal on it stays as it is` : `${plan.goals} goals on it stay as they are`);
 }

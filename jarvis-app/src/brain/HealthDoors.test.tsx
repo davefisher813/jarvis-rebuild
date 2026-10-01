@@ -4,7 +4,11 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import HealthBody from "./HealthBody";
 import { readFileSync } from "node:fs";
-import { composeLibrary, libraryCount } from "../gym/library";
+import { composeLibrary, fallbackKey } from "../gym/library";
+import { shownLibraryCount, defaultView } from "../gym/libraryView";
+import { libraryRows } from "../gym/libraryEdit";
+import { readClassStore } from "../gym/classify";
+import LibraryPage from "../gym/LibraryPage";
 import { readGymSettings, writeGymSettings, type CreatedLift } from "../gym/settings";
 import type { Program, Workout } from "../gym/types";
 import { periodFor, periodOverview } from "../insights/analytics";
@@ -144,7 +148,7 @@ describe("the Exercises badge counts what the Exercises page lists", () => {
     const seeds = { created: HAND_MADE };
     const list = composeLibrary([program], workouts, seeds);
     for (const c of HAND_MADE) expect(list.map((e) => e.name)).toContain(c.name);
-    expect(libraryCount([program], workouts, seeds)).toBe(list.length);
+    expect(shownLibraryCount([program], workouts, seeds)).toBe(list.length);
     writeGymSettings({ ...readGymSettings(), createdLifts: HAND_MADE });
     render(<HealthBody {...base} onOpenExercises={() => {}} />);
     expect(badge()).toBe(`${list.length} Exercises`);
@@ -154,8 +158,123 @@ describe("the Exercises badge counts what the Exercises page lists", () => {
     const gym = readFileSync("src/gym/GymFlow.tsx", "utf8");
     const body = readFileSync("src/brain/HealthBody.tsx", "utf8");
     expect(gym).toMatch(/composeLibrary\(/);
-    expect(body).toMatch(/libraryCount\(/);
+    expect(body).toMatch(/shownLibraryCount\(/);
     expect(gym).not.toMatch(/withCreated\(/);
     expect(body).not.toMatch(/buildLibrary\(/);
+  });
+
+  it("the page's opening list and the badge both ask libraryView.defaultView", () => {
+    const view = readFileSync("src/gym/libraryView.ts", "utf8");
+    const page = readFileSync("src/gym/LibraryPage.tsx", "utf8");
+    expect(page).toMatch(/defaultView\(/);
+    expect(view).toMatch(/export function shownLibrary\([\s\S]*defaultView\(/);
+  });
+});
+
+// THE BADGE IS THE PAGE'S OPENING LIST (2026-10-01). Verified live: adding an
+// exercise took the badge 37 to 38, and archiving it left 38, because the page
+// takes archived and hidden rows off its list and the badge counted them. The
+// number beside the door is now libraryView.shownLibraryCount, the count of the
+// very view the page opens in, so every case below is checked two ways: the
+// badge, and the rows the page actually draws from the same records.
+describe("the Exercises badge is the page's opening list, archived and hidden left out", () => {
+  const MADE: CreatedLift[] = [{ key: "ek-test", name: "Test Press", kind: "weight_reps" }];
+  const badge = () => Array.from(document.querySelectorAll(".h-door-n")).map((n) => n.textContent)[0];
+  const BENCH = fallbackKey("Bench Press", "weight_reps");
+  let saved: ReturnType<typeof readGymSettings>;
+  beforeEach(() => { saved = readGymSettings(); });
+  afterEach(() => { writeGymSettings(saved); });
+
+  /** Rows on the Exercises page when it opens, drawn from the same records the
+   *  badge reads, through the same composition GymFlow hands the page. */
+  function pageRows(): number {
+    const gs = readGymSettings();
+    const lib = composeLibrary([program], workouts, { created: gs.createdLifts, aliases: gs.aliases, favoriteKeys: gs.favoriteKeys });
+    const rows = libraryRows(lib, workouts, gs.hiddenKeys ?? []);
+    const store = readClassStore(gs.classByKey, gs.muscleByKey);
+    const { unmount } = render(
+      <LibraryPage rows={rows} store={store} todayIso={today} onOpen={() => {}} onRename={() => {}} onSetClass={() => {}}
+        onMerge={() => {}} onToggleHidden={() => {}} onBack={() => {}} />,
+    );
+    const n = document.querySelectorAll(".ex-row").length;
+    unmount();
+    return n;
+  }
+  const BASE = 3; // Bench Press, Row, and Test Press
+
+  function check(expected: number) {
+    const { unmount } = render(<HealthBody {...base} onOpenExercises={() => {}} />);
+    expect(badge()).toBe(`${expected} Exercises`);
+    unmount();
+    expect(pageRows()).toBe(expected);
+  }
+
+  it("counts a hand-made exercise, on the badge and on the page", () => {
+    writeGymSettings({ ...readGymSettings(), createdLifts: MADE });
+    check(BASE);
+  });
+
+  it("does not count an archived one, and the page agrees", () => {
+    writeGymSettings({ ...readGymSettings(), createdLifts: MADE, classByKey: { "ek-test": { archived: true } } });
+    check(BASE - 1);
+  });
+
+  it("does not count a hidden one, and the page agrees", () => {
+    writeGymSettings({ ...readGymSettings(), createdLifts: MADE, hiddenKeys: ["ek-test"] });
+    check(BASE - 1);
+  });
+
+  it("an archived exercise that has history is not counted either", () => {
+    writeGymSettings({ ...readGymSettings(), createdLifts: MADE, classByKey: { [BENCH]: { archived: true } } });
+    check(BASE - 1);
+  });
+
+  it("restoring it counts it again", () => {
+    writeGymSettings({ ...readGymSettings(), createdLifts: MADE, classByKey: { "ek-test": { archived: true } }, hiddenKeys: ["ek-test"] });
+    check(BASE - 1);
+    writeGymSettings({ ...readGymSettings(), classByKey: {} });
+    check(BASE - 1); // still hidden
+    writeGymSettings({ ...readGymSettings(), hiddenKeys: [] });
+    check(BASE);
+  });
+
+  it("the badge on a mounted dashboard follows the settings on the next render", () => {
+    writeGymSettings({ ...readGymSettings(), createdLifts: MADE });
+    const { rerender } = render(<HealthBody {...base} onOpenExercises={() => {}} />);
+    expect(badge()).toBe("3 Exercises");
+    writeGymSettings({ ...readGymSettings(), classByKey: { "ek-test": { archived: true } } });
+    rerender(<HealthBody {...base} onOpenExercises={() => {}} />);
+    expect(badge()).toBe("2 Exercises");
+    writeGymSettings({ ...readGymSettings(), classByKey: {}, hiddenKeys: ["ek-test"] });
+    rerender(<HealthBody {...base} onOpenExercises={() => {}} />);
+    expect(badge()).toBe("2 Exercises");
+    writeGymSettings({ ...readGymSettings(), hiddenKeys: [] });
+    rerender(<HealthBody {...base} onOpenExercises={() => {}} />);
+    expect(badge()).toBe("3 Exercises");
+  });
+
+  it("the page's header count is the same number, and the Archived chip still shows the archived row", () => {
+    writeGymSettings({ ...readGymSettings(), createdLifts: MADE, classByKey: { "ek-test": { archived: true } } });
+    const gs = readGymSettings();
+    const lib = composeLibrary([program], workouts, { created: gs.createdLifts });
+    const rows = libraryRows(lib, workouts, []);
+    const store = readClassStore(gs.classByKey, gs.muscleByKey);
+    expect(defaultView(rows, store).rows).toHaveLength(2);
+    render(
+      <LibraryPage rows={rows} store={store} todayIso={today} onOpen={() => {}} onRename={() => {}} onSetClass={() => {}}
+        onMerge={() => {}} onToggleHidden={() => {}} onBack={() => {}} />,
+    );
+    expect(document.querySelector(".nav-count")?.textContent).toBe("2");
+    expect(screen.queryByText("Test Press")).toBeNull();
+    // The floor line says one is out of sight rather than leaving it unexplained.
+    expect(screen.getByText("2 of 3 Shown, 1 Archived.")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Filters" }));
+    fireEvent.click(screen.getByRole("button", { name: "Archived" }));
+    expect(screen.getByText("Test Press")).toBeInTheDocument();
+    expect(document.querySelectorAll(".ex-row")).toHaveLength(3);
+    // The header badge is the opening list's count; the chip does not move it.
+    expect(document.querySelector(".nav-count")?.textContent).toBe("2");
+    fireEvent.click(screen.getByRole("button", { name: "Archived" }));
+    expect(screen.queryByText("Test Press")).toBeNull();
   });
 });
