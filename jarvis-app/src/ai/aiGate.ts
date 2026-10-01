@@ -53,6 +53,20 @@ export function aiCallAllowed(level: AILevel, background: boolean): boolean {
   return true;
 }
 
+// THE ADMIN SWITCH (Dave 2026-09-30, demo week). A second, separate gate that
+// only the admin can move. It lives in the account's Supabase app_metadata
+// (`ai_allowed`), which a signed-in user cannot write: that is the whole point,
+// because everything in the profile above is the user's own to change. Absent
+// means allowed, so every existing and every new account behaves as before;
+// only an explicit `false` blocks. Pure and shared, like the level gate, so the
+// proxy (authoritative) and the app (which only explains) read it one way.
+export const ADMIN_AI_CODE = "AI_ADMIN_BLOCKED";
+export const ADMIN_AI_MESSAGE = "AI is turned off for this account by the admin.";
+export function adminAiAllowed(appMetadata: unknown): boolean {
+  if (!appMetadata || typeof appMetadata !== "object") return true;
+  return (appMetadata as { ai_allowed?: unknown }).ai_allowed !== false;
+}
+
 // The refusal message for each blocked case. Sentence case: the app talks.
 export function refusalMessage(level: AILevel, background: boolean): string {
   if (level === "off") return "AI is turned off in Settings.";

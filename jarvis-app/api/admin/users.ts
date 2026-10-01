@@ -31,7 +31,28 @@ export default async function handler(req: Request): Promise<Response> {
   }
 
   if (req.method === "POST") {
-    const body = (await req.json().catch(() => ({}))) as { id?: string; status?: string };
+    const body = (await req.json().catch(() => ({}))) as { id?: string; status?: string; aiAllowed?: unknown };
+
+    // THE ADMIN SWITCH FOR AI (Dave 2026-09-30). One account, one boolean, kept
+    // in Supabase app_metadata: writable only with the service key this
+    // endpoint holds (requireAdmin above already proved the caller is on the
+    // server-side allowlist), never by the account's own user, which is the
+    // reason it is not in the profile. GoTrue merges app_metadata, so this
+    // touches nothing else stored there. The proxy reads it on the very call
+    // that verifies the token, so a flip bites on the next request.
+    if (body.status === undefined && typeof body.aiAllowed === "boolean") {
+      if (typeof body.id !== "string" || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(body.id)) {
+        return json({ error: "Bad request" }, 400);
+      }
+      const r = await fetch(`${ctx.url}/auth/v1/admin/users/${body.id}`, {
+        method: "PUT",
+        headers: { ...svcHeaders(ctx), "content-type": "application/json" },
+        body: JSON.stringify({ app_metadata: { ai_allowed: body.aiAllowed } }),
+      });
+      if (!r.ok) return json({ error: "Could not update user" }, 502);
+      return json({ ok: true, aiAllowed: body.aiAllowed });
+    }
+
     if (!body.id || (body.status !== "active" && body.status !== "disabled")) return json({ error: "Bad request" }, 400);
     // 10 years, the maximum ban this endpoint will ever set. The old value
     // was 876000h (about 100 years), which the 2026-08-14 corrections pack

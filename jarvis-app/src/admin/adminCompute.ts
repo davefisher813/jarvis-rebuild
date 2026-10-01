@@ -3,6 +3,7 @@
 // here for shaping.
 import type { AdminUser, AdminUsage, AdminBilling, AdminSpend } from "./AdminService";
 import { estimateCost, totalsByModel, type TokenRow } from "../ai/tokenLog";
+import { adminAiAllowed } from "../ai/aiGate";
 
 export interface RawUser {
   id: string;
@@ -10,6 +11,8 @@ export interface RawUser {
   created_at?: string;
   last_sign_in_at?: string | null;
   banned_until?: string | null;
+  /** Written only with the service key, never by the account's own user. */
+  app_metadata?: { ai_allowed?: unknown } | null;
 }
 export interface ProfileRow { owner_id: string; data?: { role?: string; plan?: string } }
 
@@ -28,6 +31,8 @@ export function mapUsers(raw: RawUser[], profiles: ProfileRow[], now = Date.now(
       plan: p.plan || "Free",
       status: banned ? "disabled" : "active",
       role: p.role === "admin" ? "admin" : "user",
+      // Absent means allowed, exactly as the proxy reads it (ai/aiGate.ts).
+      aiAllowed: adminAiAllowed(u.app_metadata),
     };
   });
 }

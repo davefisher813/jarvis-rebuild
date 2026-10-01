@@ -27,7 +27,7 @@ describe("AdminPanel", () => {
     expect(await screen.findByText(/gym timer keeps running/)).toBeInTheDocument();
     const noEndpoint: AdminService = {
       available: true,
-      async listUsers() { return []; }, async setUserStatus() {},
+      async listUsers() { return []; }, async setUserStatus() {}, async setUserAiAllowed() {},
       async usage() { return { totalUsers: 0, activeUsers: 0, signups7d: 0, aiCalls30d: 0 }; },
       async billing() { return { mrr: 0, activeSubs: 0, trialing: 0, currency: "USD" }; },
       async feedback() { throw new Error("admin 404"); },
@@ -41,8 +41,8 @@ describe("AdminPanel", () => {
     let called: [string, string] | null = null;
     const src: AdminService = {
       available: true,
-      async listUsers() { return [{ id: "u1", email: "a@b.com", createdAt: "2026-01-01", plan: "Pro", status: "active", role: "user" }]; },
-      async setUserStatus(id, st) { called = [id, st]; },
+      async listUsers() { return [{ id: "u1", email: "a@b.com", createdAt: "2026-01-01", plan: "Pro", status: "active", role: "user", aiAllowed: true }]; },
+      async setUserStatus(id, st) { called = [id, st]; }, async setUserAiAllowed() {},
       async usage() { return { totalUsers: 1, activeUsers: 1, signups7d: 0, aiCalls30d: 0 }; },
       async billing() { return { mrr: 0, activeSubs: 0, trialing: 0, currency: "USD" }; },
       async feedback() { return []; },
@@ -59,8 +59,8 @@ describe("AdminPanel", () => {
   it("puts the row back when the server refuses the change", async () => {
     const src: AdminService = {
       available: true,
-      async listUsers() { return [{ id: "u1", email: "a@b.com", createdAt: "2026-01-01", plan: "Pro", status: "active", role: "user" }]; },
-      async setUserStatus() { throw new Error("admin 502"); },
+      async listUsers() { return [{ id: "u1", email: "a@b.com", createdAt: "2026-01-01", plan: "Pro", status: "active", role: "user", aiAllowed: true }]; },
+      async setUserStatus() { throw new Error("admin 502"); }, async setUserAiAllowed() {},
       async usage() { return { totalUsers: 1, activeUsers: 1, signups7d: 0, aiCalls30d: 0 }; },
       async billing() { return { mrr: 0, activeSubs: 0, trialing: 0, currency: "USD" }; },
       async feedback() { return []; },
@@ -81,7 +81,7 @@ describe("AdminPanel", () => {
   it("draws a spend row's cost white and an unpriced one amber", async () => {
     const src: AdminService = {
       available: true,
-      async listUsers() { return []; }, async setUserStatus() {},
+      async listUsers() { return []; }, async setUserStatus() {}, async setUserAiAllowed() {},
       async usage() {
         return { totalUsers: 2, activeUsers: 2, signups7d: 0, aiCalls30d: 13, spend: [
           { id: "u1", email: "a@b.com", calls: 12, usd: 4.2 },
@@ -106,7 +106,7 @@ describe("AdminPanel", () => {
   it("draws a feedback row's parts as separate facts with no baked separator", async () => {
     const src: AdminService = {
       available: true,
-      async listUsers() { return []; }, async setUserStatus() {},
+      async listUsers() { return []; }, async setUserStatus() {}, async setUserAiAllowed() {},
       async usage() { return { totalUsers: 0, activeUsers: 0, signups7d: 0, aiCalls30d: 0 }; },
       async billing() { return { mrr: 0, activeSubs: 0, trialing: 0, currency: "USD" }; },
       async feedback() {
@@ -141,8 +141,8 @@ describe("AdminPanel", () => {
   it("shows the account id as its own fact on the open user row", async () => {
     const src: AdminService = {
       available: true,
-      async listUsers() { return [{ id: "u1", email: "a@b.com", createdAt: "2026-01-01", plan: "Pro", status: "active", role: "user" }]; },
-      async setUserStatus() {},
+      async listUsers() { return [{ id: "u1", email: "a@b.com", createdAt: "2026-01-01", plan: "Pro", status: "active", role: "user", aiAllowed: true }]; },
+      async setUserStatus() {}, async setUserAiAllowed() {},
       async usage() { return { totalUsers: 1, activeUsers: 1, signups7d: 0, aiCalls30d: 0 }; },
       async billing() { return { mrr: 0, activeSubs: 0, trialing: 0, currency: "USD" }; },
       async feedback() { return []; },
@@ -161,7 +161,7 @@ describe("AdminPanel", () => {
   it("is honest when there is no admin server", () => {
     const src: AdminService = {
       available: false,
-      async listUsers() { return []; }, async setUserStatus() {},
+      async listUsers() { return []; }, async setUserStatus() {}, async setUserAiAllowed() {},
       async usage() { return { totalUsers: 0, activeUsers: 0, signups7d: 0, aiCalls30d: 0 }; },
       async billing() { return { mrr: 0, activeSubs: 0, trialing: 0, currency: "USD" }; },
       async feedback() { return []; },
@@ -180,5 +180,50 @@ describe("createAdminApi availability", () => {
   it("follows what the caller already proved, not only the build flag", () => {
     expect(createAdminApi("tok", true).available).toBe(true);
     expect(createAdminApi("tok", false).available).toBe(false);
+  });
+});
+
+// THE ADMIN SWITCH FOR AI (Dave 2026-09-30): one toggle per account, one tap.
+describe("AdminPanel: AI Allowed per account", () => {
+  const mk = (over: Partial<AdminService> = {}): AdminService => ({
+    available: true,
+    async listUsers() {
+      return [
+        { id: "u1", email: "on@b.com", createdAt: "2026-01-01", plan: "Pro", status: "active", role: "user", aiAllowed: true },
+        { id: "u2", email: "off@b.com", createdAt: "2026-01-01", plan: "Pro", status: "active", role: "user", aiAllowed: false },
+      ];
+    },
+    async setUserStatus() {}, async setUserAiAllowed() {},
+    async usage() { return { totalUsers: 2, activeUsers: 1, signups7d: 0, aiCalls30d: 0 }; },
+    async billing() { return { mrr: 0, activeSubs: 0, trialing: 0, currency: "USD" }; },
+    async feedback() { return []; },
+    async metrics() { throw new Error("no metrics endpoint"); },
+    ...over,
+  });
+
+  it("shows each account's state and flips it both ways through the source", async () => {
+    const calls: [string, boolean][] = [];
+    render(<AdminPanel isAdmin source={mk({ async setUserAiAllowed(id, a) { calls.push([id, a]); } })} />);
+    const on = await screen.findByRole("switch", { name: "AI allowed for on@b.com" });
+    const off = screen.getByRole("switch", { name: "AI allowed for off@b.com" });
+    expect(on.getAttribute("aria-checked")).toBe("true");
+    expect(off.getAttribute("aria-checked")).toBe("false");
+
+    fireEvent.click(on);
+    await waitFor(() => expect(calls).toEqual([["u1", false]]));
+    expect(screen.getByRole("switch", { name: "AI allowed for on@b.com" }).getAttribute("aria-checked")).toBe("false");
+
+    fireEvent.click(screen.getByRole("switch", { name: "AI allowed for off@b.com" }));
+    await waitFor(() => expect(calls).toEqual([["u1", false], ["u2", true]]));
+    expect(screen.getByRole("switch", { name: "AI allowed for off@b.com" }).getAttribute("aria-checked")).toBe("true");
+  });
+
+  it("puts the switch back when the server refuses, and does not touch the account status", async () => {
+    let status = 0;
+    render(<AdminPanel isAdmin source={mk({ async setUserAiAllowed() { throw new Error("admin 502"); }, async setUserStatus() { status += 1; } })} />);
+    fireEvent.click(await screen.findByRole("switch", { name: "AI allowed for on@b.com" }));
+    expect(await screen.findByText(/admin 502/)).toBeInTheDocument();
+    expect(screen.getByRole("switch", { name: "AI allowed for on@b.com" }).getAttribute("aria-checked")).toBe("true");
+    expect(status).toBe(0);
   });
 });

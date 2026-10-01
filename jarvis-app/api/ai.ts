@@ -21,7 +21,7 @@
 // never slip under the counter (the old version logged after, which under-counted).
 export const config = { runtime: "edge" };
 
-import { aiCallAllowed, effectiveLevel, refusalMessage, AI_PIN_KEYS, DEFAULT_AI_LEVEL, type AIControlState, type AIPinKey } from "../src/ai/aiGate";
+import { aiCallAllowed, effectiveLevel, refusalMessage, adminAiAllowed, ADMIN_AI_CODE, ADMIN_AI_MESSAGE, AI_PIN_KEYS, DEFAULT_AI_LEVEL, type AIControlState, type AIPinKey } from "../src/ai/aiGate";
 import { schemaOk, toolPayload, extractText } from "../src/ai/structured";
 import { tokenRow, withoutCacheCounts } from "../src/ai/tokenLog";
 import { systemPayload } from "../src/ai/systemPrompt";
@@ -56,8 +56,17 @@ export default async function handler(req: Request): Promise<Response> {
     headers: { Authorization: `Bearer ${token}`, apikey: supaAnon },
   });
   if (!who.ok) return json({ error: "Unauthorized" }, 401);
-  const me = (await who.json()) as { id?: string };
+  const me = (await who.json()) as { id?: string; app_metadata?: unknown };
   if (!me.id) return json({ error: "Unauthorized" }, 401);
+
+  // THE ADMIN SWITCH (Dave 2026-09-30). app_metadata comes back on the very
+  // call that verified the token, read fresh from the auth database, so this
+  // costs no extra lookup and a flip by the admin bites on the next request.
+  // It is checked before the body is read, before the stored profile, before
+  // any counting or budget: a blocked account reaches nothing. app_metadata is
+  // writable only with the service key, so the account's own user (or a
+  // hostile client) cannot clear it, unlike everything in the profile below.
+  if (!adminAiAllowed(me.app_metadata)) return json({ error: ADMIN_AI_MESSAGE, code: ADMIN_AI_CODE }, 403);
 
   // Parse and size-check the input BEFORE any counting or upstream work.
   // Two size regimes: plain text requests keep the tight cap; a request
