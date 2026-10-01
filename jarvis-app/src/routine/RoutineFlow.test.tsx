@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import { NotesProvider } from "../data/NotesProvider";
 import { RoutineService } from "./RoutineService";
@@ -98,6 +98,26 @@ describe("RoutineFlow blocks save on the tap (BRAIN-F-06)", () => {
     expect(screen.getByText("Saved")).toBeInTheDocument();
   });
 
+  it("Cancel on the Delete Block confirm keeps the block", async () => {
+    render(
+      <NotesProvider userId="u-routine-f06b-cancel">
+        <CaptureRoutine />
+        <RoutineFlow onBack={() => {}} />
+      </NotesProvider>,
+    );
+    fireEvent.click(await screen.findByText("Add Protected Time"));
+    fireEvent.change(await screen.findByLabelText("Name"), { target: { value: "Lunch" } });
+    fireEvent.click(screen.getByText("Add Block"));
+    await waitFor(async () => expect((await routineRef!.get()).protectedBlocks ?? []).toHaveLength(1));
+
+    fireEvent.click(screen.getByText(/^Lunch/));
+    fireEvent.click(await screen.findByText("Delete Block"));
+    const dialog = await screen.findByRole("dialog", { name: "Delete Lunch" });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Delete Lunch" })).toBeNull());
+    expect((await routineRef!.get()).protectedBlocks ?? []).toHaveLength(1);
+  });
+
   it("Delete Block writes through and hands back an Undo that restores it", async () => {
     const seen: { message: string; onAction?: () => void }[] = [];
     const stop = subscribeToast((t) => { if (t) seen.push(t); });
@@ -115,6 +135,10 @@ describe("RoutineFlow blocks save on the tap (BRAIN-F-06)", () => {
 
       fireEvent.click(screen.getByText(/^Lunch/));
       fireEvent.click(await screen.findByText("Delete Block"));
+      // The button only asks. Nothing is deleted until the confirm sheet says so.
+      const dialog = await screen.findByRole("dialog", { name: "Delete Lunch" });
+      expect((await routineRef!.get()).protectedBlocks ?? []).toHaveLength(1);
+      fireEvent.click(within(dialog).getByRole("button", { name: "Delete Block" }));
       await waitFor(async () => expect((await routineRef!.get()).protectedBlocks ?? []).toHaveLength(0));
 
       const toast = seen[seen.length - 1]!;

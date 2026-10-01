@@ -22,6 +22,7 @@ import type { Project } from "../projects/types";
 import type { Goal } from "../life/types";
 import SchedulePage from "./screens/SchedulePage";
 import EventSheet, { type SheetCategory, type EventDraft } from "./screens/EventSheet";
+import DeleteBlockSheet from "../routine/DeleteBlockSheet";
 import BlockSheet, { type BlockDraft, type BlockDay } from "./screens/BlockSheet";
 import ScheduleUploadFlow from "./screens/ScheduleUploadFlow";
 import { todayISO, weekOf, addDays, addMinutes, fmtTime, eventsForDate, nextFreeSlot, fmtRange, minToHHMM, nextOccurrence, daysBetween, shiftFitsDay, minutesBetween } from "./calendar";
@@ -1441,9 +1442,17 @@ export default function ScheduleFlow({ onEditRoutine, openId, openNonce, onOpenC
       onAction: async () => { if (await attemptWrite(() => routine.save(before))) setRoutineData(before); },
     });
   };
-  const onDeleteBlock = async () => {
+  // Delete Block asks first (Dave 2026-10-01): the sheet stays open under the
+  // confirm, so Cancel lands back on the block rather than on nothing.
+  const [confirmBlockDelete, setConfirmBlockDelete] = useState<string | null>(null);
+  const onDeleteBlock = () => {
     if (!blockSheet) return;
-    const id = blockSheet.id;
+    setConfirmBlockDelete(blockSheet.id);
+  };
+  const confirmedDeleteBlock = async () => {
+    const id = confirmBlockDelete;
+    setConfirmBlockDelete(null);
+    if (!id) return;
     setBlockSheet(null);
     await deleteBlockById(id);
   };
@@ -1897,6 +1906,13 @@ export default function ScheduleFlow({ onEditRoutine, openId, openNonce, onOpenC
           onDelete={onDeleteBlock}
           onEditFull={onEditRoutine ? onEditBlockFull : undefined}
           onCancel={() => setBlockSheet(null)}
+        />
+      )}
+      {confirmBlockDelete && (routineData.protectedBlocks ?? []).some((b) => b.id === confirmBlockDelete) && (
+        <DeleteBlockSheet
+          block={(routineData.protectedBlocks ?? []).find((b) => b.id === confirmBlockDelete)!}
+          onDelete={() => void confirmedDeleteBlock()}
+          onCancel={() => setConfirmBlockDelete(null)}
         />
       )}
       {guard && (

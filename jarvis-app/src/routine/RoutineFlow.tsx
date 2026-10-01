@@ -10,6 +10,7 @@ import PageHeader from "../shared/PageHeader";
 import { Head, Card, Row, Switch, Foot } from "../settings/kit";
 import { FormSheet, Group, FieldRow, Strip, Note, ErrorLine, DeleteRow } from "../shared/FormSheet";
 import { pressable } from "../shared/pressable";
+import DeleteBlockSheet from "./DeleteBlockSheet";
 
 
 // minutes-from-midnight <-> "HH:MM" for native time inputs.
@@ -240,9 +241,11 @@ export default function RoutineFlow({ onBack, focusId, onFocusConsumed }: { onBa
     // True now: the toast follows the write, not the local edit.
     showToast({ message: `Duplicated ${block.label}` });
   };
-  // Reversible without a confirm (L: no window.confirm, an Undo instead), and
-  // real: the row is gone from the server the moment it leaves the list.
+  // Delete Block asks first (Dave 2026-10-01): a confirm sheet, then an Undo
+  // after. This is the id being asked about.
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const removeBlock = async (id: string) => {
+    setConfirmDelete(null);
     const gone = blocks.find((b) => b.id === id);
     const next = blocks.filter((b) => b.id !== id);
     if (!await writeBlocks(next)) return;
@@ -478,12 +481,19 @@ export default function RoutineFlow({ onBack, focusId, onFocusConsumed }: { onBa
             {form.id && (
               <>
                 <button type="button" className="btn btn-tertiary btn-block" disabled={!formValid} onClick={() => void duplicateForm()}>Duplicate as New Block</button>
-                <DeleteRow label="Delete Block" onClick={() => void removeBlock(form.id!)} />
+                <DeleteRow label="Delete Block" onClick={() => setConfirmDelete(form.id!)} />
               </>
             )}
           </FormSheet>
         );
       })()}
+      {confirmDelete && blocks.some((b) => b.id === confirmDelete) && (
+        <DeleteBlockSheet
+          block={blocks.find((b) => b.id === confirmDelete)!}
+          onDelete={() => void removeBlock(confirmDelete)}
+          onCancel={() => setConfirmDelete(null)}
+        />
+      )}
     </div>
   );
 }
