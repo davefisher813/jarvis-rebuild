@@ -276,7 +276,11 @@ export default function RemindersStrip({
             aria-label={missed.length + (missed.length === 1 ? " Missed Reminder" : " Missed Reminders")}
             onClick={() => setMissedOpen(true)}
             onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setMissedOpen(true); } }}>
-            <span className="rem-missed-n">{missed.length} Missed</span>
+            {/* SAY WHAT IT IS AND WHAT THE TAP DOES (2026-10-01, live audit: "1
+                Missed" with a bare chevron gave no clear path to review it).
+                The count names the thing, and "Review" names the door. */}
+            <span className="rem-missed-n">{`${missed.length} Missed ${missed.length === 1 ? "Reminder" : "Reminders"}`}</span>
+            <span className="rem-missed-go">Review</span>
             <div className="chev" />
           </div>
         )}
