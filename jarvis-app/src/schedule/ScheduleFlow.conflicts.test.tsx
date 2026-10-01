@@ -141,3 +141,32 @@ describe("Schedule: a nudge stays one tap and says what it landed on", () => {
     await waitFor(async () => expect((await t.get().sched.event(openId))!.start).toBe("14:30"));
   });
 });
+
+describe("Schedule: a time he picks in the retime sheet asks first", () => {
+  it("Move onto another event: Cancel writes nothing, Book Anyway commits through the one door", async () => {
+    const tomorrow = addDays(todayISO(), 1);
+    let movingId = "";
+    const t = setup("u-conflict-retime", async (h) => {
+      movingId = (await h.sched.createEvent("Standup", { date: tomorrow, start: "09:00", end: "09:30" }))!;
+      await h.sched.createEvent("Interview", { date: tomorrow, start: "10:00", end: "11:00" });
+    });
+    await screen.findAllByText("Schedule");
+    fireEvent.click(await screen.findByLabelText("Next"));
+    fireEvent.click(await screen.findByLabelText(/Change time or length, currently 9:00 AM/, undefined, { timeout: 4000 }));
+    fireEvent.change(await screen.findByLabelText("New time"), { target: { value: "10:30" } });
+    fireEvent.click(screen.getByText("Move"));
+
+    expect(await screen.findByText("Already Booked")).toBeInTheDocument();
+    expect(screen.getAllByText("Overlaps Interview 10:00 to 11:00 AM").length).toBeGreaterThan(0);
+    fireEvent.click(screen.getByText("Cancel", { selector: ".sheet-actions button" }));
+    await waitFor(() => expect(screen.queryByText("Already Booked")).not.toBeInTheDocument());
+    expect((await t.get().sched.event(movingId))!.start).toBe("09:00");
+
+    // Backing out leaves the event where it was; asking again is one more pick.
+    fireEvent.click(await screen.findByLabelText(/Change time or length, currently 9:00 AM/));
+    fireEvent.change(await screen.findByLabelText("New time"), { target: { value: "10:30" } });
+    fireEvent.click(screen.getByText("Move"));
+    fireEvent.click(await screen.findByText("Book Anyway"));
+    await waitFor(async () => expect((await t.get().sched.event(movingId))!.start).toBe("10:30"));
+  });
+});
