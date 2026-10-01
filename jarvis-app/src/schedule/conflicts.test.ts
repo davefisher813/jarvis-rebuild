@@ -4,6 +4,8 @@ import {
 } from "./conflicts";
 import { withConflictCheck, askFor, type ConflictAsk } from "./withConflictCheck";
 import type { EventItem } from "./types";
+import { planDay } from "./planDay";
+import { splitProtectedRanges } from "../routine/types";
 import type { ProtectedRange } from "../routine/types";
 
 // The Schedule audit's P0 #2: nothing asked "what does this land on" before a
@@ -231,3 +233,20 @@ describe("withConflictCheck: warn, then allow", () => {
     expect(r.status).toBe("booked");
   });
 });
+
+
+describe("Plan My Day never proposes into a fixed event or a protected block", () => {
+  it("every pick on the audit's day clears every real conflict, judged by the same rules the prompt uses", () => {
+    const golf = ev("golf", "Golf", "11:20", "13:20");
+    const split = splitProtectedRanges(ranges);
+    const tasks = ["a", "b", "c", "d", "e", "f"].map((id) => ({ id, text: id, category: "", durationMin: 45 }));
+    const plan = planDay(tasks, [golf], hm(8), hm(20), 10, split.hard, split.soft, split.focus);
+    expect(plan.blocks.length).toBeGreaterThan(0);
+    const items = dayItemsFor([golf], DAY, ranges);
+    for (const b of plan.blocks) {
+      const real = findConflicts(items, { start: hhm(b.start), end: hhm(b.end), forTask: true }).filter((c) => c.severity === "conflict");
+      expect(real, `${b.taskId} at ${b.start}`).toEqual([]);
+    }
+  });
+});
+const hhm = (t: string) => hm(Number(t.slice(0, 2)), Number(t.slice(3, 5)));

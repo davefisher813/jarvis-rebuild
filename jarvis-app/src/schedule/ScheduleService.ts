@@ -3,6 +3,7 @@ import type { EventInput } from "../events";
 import { ENTITY_EVENT, type EventData, type EventItem, type EventRecurrence } from "./types";
 import { eventsForDate, dotsForMonth } from "./calendar";
 import { planDuplicateIds, supersededPlanEventIds } from "./planDedupe";
+import { dedupeEvents, twinsToHeal, findTwin } from "./eventTwins";
 import { recordPicks } from "../events/planOutcome";
 import { madeBy } from "../shared/provenance";
 import { isTravel } from "./leaveBy";
@@ -343,11 +344,40 @@ export class ScheduleService {
     return items.map((i) => ({ id: i.id, data: i.data as unknown as EventData }));
   }
 
+  // WHAT THE TABS DRAW (2026-10-01, audit #3). Every door onto the calendar
+  // dedupes against itself, so one real appointment could arrive twice by two
+  // doors (Google, and the email that announced it). listEvents stays RAW,
+  // because the importer and the email door must see every row they own; this
+  // is the same list with each twin drawn once (eventTwins.ts).
+  async listDisplayEvents(): Promise<EventItem[]> {
+    return dedupeEvents(await this.listEvents());
+  }
+
   async eventsOn(date: string): Promise<EventItem[]> {
-    return eventsForDate(await this.listEvents(), date);
+    return eventsForDate(await this.listDisplayEvents(), date);
   }
   async daysWithEvents(year: number, month: number): Promise<Record<number, string[]>> {
-    return dotsForMonth(await this.listEvents(), year, month);
+    return dotsForMonth(await this.listDisplayEvents(), year, month);
+  }
+
+  // The write boundary for a door that is about to add an appointment: the row
+  // it would duplicate, or null. `loose` also accepts "Phone Interview" for
+  // "Phone Interview with Equinox" (an email's subject against a calendar's
+  // title); the importer is strict, since swallowing a distinct event is worse
+  // than showing a twin.
+  async findTwin(title: string, date: string, start: string, loose = false): Promise<EventItem | null> {
+    return findTwin(await this.listEvents(), { title, date, start }, loose);
+  }
+
+  // Self-healing sweep at the read boundary, the twin of healPlanDuplicates:
+  // the importer's own redundant copy of an appointment another door already
+  // wrote is deleted, acting only on twins visible in one consistent read.
+  // Anything that is not the importer's (an email's row, a booking, something
+  // typed) is hidden by listDisplayEvents but never removed unseen.
+  async healTwinEvents(): Promise<number> {
+    const ids = twinsToHeal(await this.listEvents());
+    for (const id of ids) await this.deleteEvent(id);
+    return ids.length;
   }
   async countOn(date: string): Promise<number> {
     return (await this.eventsOn(date)).length;

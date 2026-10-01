@@ -1,6 +1,7 @@
 import type { ScheduleService } from "../../schedule/ScheduleService";
 import type { EventData } from "../../schedule/types";
 import { todayISO, addDays } from "../../schedule/calendar";
+import { findTwin, twinsToHeal, userWork } from "../../schedule/eventTwins";
 import type { GoogleApi } from "./api";
 import { mapGoogleEvent, type MappedEvent } from "./map";
 
@@ -97,15 +98,6 @@ async function trustedExisting(
   return existing;
 }
 
-// How much of himself is in this copy. Used only to decide WHICH duplicate
-// survives the sweep: the one he filed, linked or marked as the gym door,
-// rather than whichever happened to be created first. Before this, the sweep
-// could keep the bare copy and delete the one he had worked on.
-function userWork(d: EventData): number {
-  return (d.category ? 1 : 0) + (d.taskIds?.length ? 1 : 0) + (d.gym ? 1 : 0) +
-    (d.sourceTaskId ? 1 : 0) + (d.trained && Object.keys(d.trained).length ? 1 : 0);
-}
-
 export async function importCalendar(
   api: Pick<GoogleApi, "listUpcomingEvents">,
   schedule: ScheduleService,
@@ -187,9 +179,26 @@ export async function importCalendar(
     kept.push({ id: e.id, data: d });
   }
 
+  // ONE APPOINTMENT, ONE ROW ACROSS DOORS (2026-10-01, audit #3). The sweep
+  // above only ever compared gcal-imported rows with each other, so an
+  // appointment another door had already written (the email offer, a booking,
+  // his own hand) was imported a SECOND time under its Google id: the
+  // "Phone Interview with Equinox" that showed twice. A copy of this
+  // importer's own making that a surviving twin makes redundant goes, exactly
+  // like the same-id and same-slot copies above; anything else is only ever
+  // hidden on read (eventTwins.ts), never deleted from here.
+  const redundant = new Set(twinsToHeal(existing));
+  for (const e of kept) {
+    if (!redundant.has(e.id)) continue;
+    await schedule.deleteEvent(e.id);
+    seen.delete(e.data.gcalId!);
+    seenSlots.delete(slotOf(e.data));
+  }
+  const doors = existing.filter((e) => !e.data.gcalId);
+
   let updated = 0;
   let removed = 0;
-  for (const e of kept) {
+  for (const e of kept.filter((k) => !redundant.has(k.id))) {
     const gcalId = e.data.gcalId!;
     const m = liveById.get(gcalId);
     if (!m) {
@@ -252,6 +261,8 @@ export async function importCalendar(
   let created = 0;
   for (const m of live) {
     if (seen.has(m.gcalId) || seenSlots.has(slotOf(m))) continue;
+    // Another door already wrote this appointment: do not write it again.
+    if (findTwin(doors, m)) continue;
     const id = await schedule.createEvent(m.title, {
       date: m.date,
       start: m.start,

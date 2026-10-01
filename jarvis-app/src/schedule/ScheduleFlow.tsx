@@ -30,7 +30,7 @@ import { isKept, keepBoth } from "./overlapAck";
 import OverlapSheet from "./screens/OverlapSheet";
 import { useConflictGuard } from "./useConflictGuard";
 import { bookedTaskIds } from "./planDedupe";
-import { shiftNewConflicts } from "./conflicts";
+import { shiftNewConflicts, nextFreeSlot as nextFreeTime } from "./conflicts";
 import { planDay } from "./planDay";
 import { anytimeTasksForDay } from "./anytime";
 import { suggestTitles, suggestLocations, repeatCandidate } from "./memory";
@@ -225,7 +225,7 @@ export default function ScheduleFlow({ onEditRoutine, openId, openNonce, onOpenC
   const [routineSet, setRoutineSet] = useState(true);
   // WARN, THEN ALLOW (2026-10-01, the audit's P0 #2): every commit that puts
   // something at a time asks first what that time lands on. See conflicts.ts.
-  const { guard: conflictGuard, guardBatch, moveToast, lineFor, conflictSheet } = useConflictGuard(allEvents, routineData);
+  const { guard: conflictGuard, guardBatch, moveToast, lineFor, itemsFor, conflictSheet } = useConflictGuard(allEvents, routineData);
   const [loading, setLoading] = useState(true);
   // SCHED-F-14 (2026-09-05): the last reload failed. The page renders what it
   // has and a quiet row says so, with the retry on it.
@@ -258,9 +258,12 @@ export default function ScheduleFlow({ onEditRoutine, openId, openNonce, onOpenC
       const d = new Date();
       const healNow = selected === todayISO() ? d.getHours() * 60 + d.getMinutes() : null;
       await svc.healPlanDuplicates(selected, healNow);
+      // Audit #3: the importer's own copy of an appointment another door wrote
+      // goes, and any twin that remains is drawn once (eventTwins.ts).
+      await svc.healTwinEvents();
       setDots(await svc.daysWithEvents(view.y, view.m));
       setDayEvents(await svc.eventsOn(selected));
-      setAllEvents(await svc.listEvents());
+      setAllEvents(await svc.listDisplayEvents());
       setLoadFailed(false);
     } catch {
       setLoadFailed(true);
@@ -590,7 +593,12 @@ export default function ScheduleFlow({ onEditRoutine, openId, openNonce, onOpenC
 
   const suggestSlot = (date: string) => {
     const exclude = sheet && sheet.mode === "edit" ? sheet.id : null;
-    return nextFreeSlot(allEvents.filter((e) => e.id !== exclude), date, new Date());
+    // "Use Next Free Slot" clears the routine's blocks too, not only events
+    // (P0 #2, 2026-10-01): the same free-time rule Add to Schedule uses.
+    const now = new Date();
+    const floor = date === todayISO(now) ? Math.ceil((now.getHours() * 60 + now.getMinutes()) / 30) * 30 : 0;
+    const free = nextFreeTime(itemsFor(date), 60, Math.max(9 * 60, floor), { ignoreId: exclude ?? undefined });
+    return free !== null ? minToHHMM(free) : nextFreeSlot(allEvents.filter((e) => e.id !== exclude), date, now);
   };
 
   // THE WEEK (D2): seven rows from the same window and open-slot rule the
@@ -1417,14 +1425,14 @@ export default function ScheduleFlow({ onEditRoutine, openId, openNonce, onOpenC
   // start, so the result is re-checked against the day before the button is
   // allowed to promise it.
   const overlapNextFree = (o: Overlap): string | null => {
-    const others = eventsForDate(allEvents, selected).filter((e) => e.id !== o.b.id);
     const dur = durationOf(o.b.data);
     const aEnd = toMin(o.a.data.start) + durationOf(o.a.data);
-    const slot = nextFreeSlot(others, selected, new Date(), dur, minToHHMM(Math.min(aEnd, 24 * 60 - 1)));
-    const s = toMin(slot);
-    const honest = s + dur <= 24 * 60 && s >= aEnd
-      && !others.some((e) => { const es = toMin(e.data.start), ee = e.data.end ? toMin(e.data.end) : es + 60; return s < ee && es < s + dur; });
-    return honest ? slot : null;
+    const now = new Date();
+    const floor = selected === todayISO(now) ? Math.ceil((now.getHours() * 60 + now.getMinutes()) / 30) * 30 : 0;
+    // Events AND the routine's blocks, so the offered slot is free of both
+    // (P0 #2, 2026-10-01). Null when the day has nothing honest to offer.
+    const free = nextFreeTime(itemsFor(selected), dur, Math.max(aEnd, floor), { ignoreId: o.b.id, forTask: !!o.b.data.sourceTaskId });
+    return free !== null && free + dur <= 24 * 60 ? minToHHMM(free) : null;
   };
   const overlapMoveToFree = async (o: Overlap) => {
     const slot = overlapNextFree(o);

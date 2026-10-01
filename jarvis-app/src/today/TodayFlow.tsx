@@ -734,12 +734,14 @@ export default function TodayFlow({
       const dNow = new Date();
       await schedule.healPlanDuplicates(today, dNow.getHours() * 60 + dNow.getMinutes());
       await schedule.healPlanDuplicates(tmrw, null);
+      // The importer's own copy of an appointment another door wrote (#3).
+      await schedule.healTwinEvents();
       const [te, tm, tk, prof, all, capRule, durations] = await Promise.all([
         schedule.eventsOn(today),
         schedule.eventsOn(tmrw),
         tasks.listTasks(),
         profile.get(),
-        schedule.listEvents(),
+        schedule.listDisplayEvents(),
         // S4-Q26 (2026-09-04): read through the rules list, not the
         // profile field, so deleting the row in What JARVIS Learned
         // genuinely un-caps the day.
@@ -3720,7 +3722,10 @@ export default function TodayFlow({
     const snap = loadMailSnapshot();
     const m = (snap.meetings ?? []).find((x) => x.threadId === threadId);
     if (!m) return null;
-    const made = await attemptWrite(() =>
+    // Already on the calendar by another door (the import, the email offer):
+    // the reply still goes, a second row does not (audit #3, 2026-10-01).
+    const have = await schedule.findTwin("Call With " + m.from, m.date, m.start, true).catch(() => null);
+    const made = have ? true : await attemptWrite(() =>
       schedule.createEvent("Call With " + m.from, { date: m.date, start: m.start, end: m.end }));
     if (!made) return null;
     await reload();
@@ -3749,6 +3754,10 @@ export default function TodayFlow({
     // that cannot name what it is undoing is not an undo.
     let made: string | null = null;
     if (a.verb === "schedule") {
+      // The calendar import or the email's own offer may already hold this
+      // appointment: say so instead of writing it twice (audit #3).
+      const have = await schedule.findTwin(a.title, a.date, a.start!, true).catch(() => null);
+      if (have) return { receipt: lineCase(`Already on your schedule · ${when} ${fmtTime(a.start!).time} ${fmtTime(a.start!).ap}`) };
       const ok = await attemptWrite(async () => {
         made = await schedule.createEvent(a.title, {
           date: a.date, start: a.start!, end: endOfAct(a.start!, a.durationMin ?? 60), source: src,
