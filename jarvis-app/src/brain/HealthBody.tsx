@@ -1,7 +1,7 @@
 import { useMemo, useState, type ReactNode } from "react";
 import type { Program, Workout } from "../gym/types";
 import { nextDayFor, SCRATCH_DAY_ID, SCRATCH_DAY_NAME } from "../gym/nextDay";
-import { libraryCount } from "../gym/library";
+import { shownLibraryCount, shownSignature } from "../gym/libraryView";
 import { todayDow } from "../gym/pins";
 import { estimateDay } from "../gym/fit";
 import { readGymSettings, rackFrom } from "../gym/settings";
@@ -109,17 +109,22 @@ export default function HealthBody({
     ? `${isEvening ? "Tonight" : "Today"} ${fmtTime(gymEvent.start).time} ${fmtTime(gymEvent.start).ap}`
     : next?.when === "today" ? "Today" : next?.when === "tomorrow" ? "Tomorrow" : next?.when ? next.when : null;
   const days = (program?.data.weeks ?? []).flatMap((w) => w.days);
-  // The count beside the Exercises door, from the same composer the Exercises
-  // page builds its list with (gym/library.composeLibrary): every program,
-  // archived ones included, every finished workout, and the lifts added by
-  // hand. It counted only the active program's lifts and logged workouts, so
-  // a tester who added four exercises by hand saw "0 Exercises" beside a list
-  // of four (2026-09-30). The hand-made lifts live in GymSettings, so they are
-  // read here the way the page reads them and the memo is keyed on them.
+  // The count beside the Exercises door is the number of rows the Exercises
+  // page lists when it opens (gym/libraryView.shownLibraryCount, the same
+  // default view the page draws): every program, archived ones included, every
+  // finished workout and the lifts added by hand, less the ones archived or
+  // hidden, which sit behind the page's Archived and Hidden chips. It counted
+  // only the active program's lifts and logged workouts, so a tester who added
+  // four exercises by hand saw "0 Exercises" beside a list of four
+  // (2026-09-30), and then it counted an archived exercise the page had
+  // already taken off the list (2026-10-01). The hand-made, hidden and archived
+  // state live in GymSettings, so they are read here the way the page reads
+  // them and the memo is keyed on a signature of them.
   const gymSeeds = readGymSettings();
-  const seedSig = `${(gymSeeds.createdLifts ?? []).map((c) => c.key).join(",")}|${Object.keys(gymSeeds.aliases ?? {}).length}`;
+  const seedSig = shownSignature(gymSeeds);
   const exerciseCount = useMemo(
-    () => libraryCount(libraryPrograms ?? (program ? [program] : []), workouts, { created: gymSeeds.createdLifts, aliases: gymSeeds.aliases, favoriteKeys: gymSeeds.favoriteKeys }),
+    () => shownLibraryCount(libraryPrograms ?? (program ? [program] : []), workouts, gymSeeds),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- gymSeeds is re-read every render; seedSig is its signature
     [libraryPrograms, program, workouts, seedSig],
   );
   const maxMin = Math.max(1, ...overview.days.map((d) => d.activeMin));

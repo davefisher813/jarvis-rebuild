@@ -17,8 +17,10 @@
 import { capAfterNumber } from "../shared/casing";
 import type { MuscleGroup } from "./muscles";
 import type { Equipment } from "./equipment";
-import type { LibraryRow } from "./libraryEdit";
-import { classOf, needsMuscles, type ClassStore, type MovementPattern } from "./classify";
+import { libraryRows, type LibraryRow } from "./libraryEdit";
+import { classOf, needsMuscles, readClassStore, type ClassStore, type MovementPattern } from "./classify";
+import { composeLibrary, type LibrarySeeds } from "./library";
+import type { Program, Workout } from "./types";
 
 export type SortKey = "recent" | "name" | "most";
 
@@ -47,6 +49,9 @@ export interface LibraryFilter {
 }
 
 export const NO_FILTER: LibraryFilter = { q: "" };
+
+/** The order the page opens in. */
+export const DEFAULT_SORT: SortKey = "recent";
 
 export function filterCount(f: LibraryFilter): number {
   return [f.muscle, f.equipment, f.movement, f.favorites || undefined, f.missing || undefined, f.dupes || undefined]
@@ -143,4 +148,55 @@ export function floorLine(v: ViewResult, total: number, filter: LibraryFilter): 
   // Commas, not baked middots (§AM F3): this is a sentence under the list,
   // and each count still hands its capital to the word behind it.
   return [`${v.rows.length} of ${total} shown`, ...away].map(capAfterNumber).join(", ") + ".";
+}
+
+/** THE EXERCISES PAGE'S DEFAULT LIST, AND THE BADGE THAT COUNTS IT
+ *  (2026-10-01). The Health dashboard's "N Exercises" has to be the number of
+ *  rows the page lists when it opens, with nothing typed and no filter on.
+ *  Archived and hidden rows are not in that list (they are behind the Archived
+ *  and Hidden chips, and the floor line says how many), so they are not in the
+ *  badge either: archiving an exercise took the row off the page and left the
+ *  badge where it was.
+ *
+ *  `defaultView` is the page's own opening view; the page and the badge both
+ *  call it, so they cannot drift. */
+export function defaultView(rows: LibraryRow[], store: ClassStore): ViewResult {
+  return viewRows(rows, store, NO_FILTER, DEFAULT_SORT);
+}
+
+/** Everything the library composes from besides programs and workouts, as
+ *  GymSettings keeps it. Every field is optional; absent means none. */
+export interface ShownSeeds extends LibrarySeeds {
+  hiddenKeys?: string[];
+  classByKey?: Record<string, unknown>;
+  muscleByKey?: Record<string, string[]>;
+}
+
+/** The page's default list built from the raw records, start to finish: the
+ *  composed library, its rows with hidden state, the classification store,
+ *  and the default view over them. */
+export function shownLibrary(programs: Program[], workouts: Workout[], seeds: ShownSeeds = {}): ViewResult {
+  const library = composeLibrary(programs, workouts, seeds);
+  const rows = libraryRows(library, workouts, seeds.hiddenKeys ?? []);
+  return defaultView(rows, readClassStore(seeds.classByKey, seeds.muscleByKey));
+}
+
+/** How many exercises the Exercises page lists by default: the Health badge. */
+export function shownLibraryCount(programs: Program[], workouts: Workout[], seeds: ShownSeeds = {}): number {
+  return shownLibrary(programs, workouts, seeds).rows.length;
+}
+
+/** A short string that changes whenever anything the default list depends on
+ *  outside programs and workouts changes: which exercises were made by hand,
+ *  which are hidden, which are archived. For a memo key. */
+export function shownSignature(seeds: ShownSeeds): string {
+  const store = readClassStore(seeds.classByKey, seeds.muscleByKey);
+  const archived = Object.entries(store).filter(([, c]) => c.archived).map(([k]) => k).sort();
+  return [
+    (seeds.created ?? []).map((c) => c.key).join(","),
+    [...(seeds.hiddenKeys ?? [])].sort().join(","),
+    archived.join(","),
+    Object.keys(seeds.aliases ?? {}).length,
+    (seeds.favoriteKeys ?? []).length,
+  ].join("|");
 }
