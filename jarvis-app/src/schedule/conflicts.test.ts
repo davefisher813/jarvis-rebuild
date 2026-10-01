@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
-  dayItemsFor, findConflicts, nextFreeSlot, conflictLine, hasRealConflict, shiftNewConflicts, spanText,
+  dayItemsFor, findConflicts, nextFreeSlot, conflictLine, hasRealConflict, shiftNewConflicts, spanText, moveNote,
 } from "./conflicts";
 import { withConflictCheck, askFor, type ConflictAsk } from "./withConflictCheck";
 import type { EventItem } from "./types";
@@ -155,6 +155,22 @@ describe("shiftNewConflicts (Running Late)", () => {
     const day = [ev("m", "Call", "09:00", "09:30")];
     expect(shiftNewConflicts(day, DAY, day, 30, ranges).count).toBe(1);
     expect(shiftNewConflicts(day, DAY, day, 240, ranges).count).toBe(0);
+  });
+});
+
+describe("moveNote (a nudge's toast line)", () => {
+  const items = dayItemsFor([ev("m", "Call", "08:00", "09:00"), ev("o", "Interview", "09:30", "10:30")], DAY, []);
+  const call = { id: "m", start: "08:00", end: "09:00" };
+
+  it("names what a nudge into an occupied slot lands on", () => {
+    expect(moveNote(items, call, "09:15")).toBe("Overlaps Interview 9:30 to 10:30 AM");
+  });
+  it("is quiet when the nudge lands on nothing", () => {
+    expect(moveNote(items, call, "08:15")).toBe("");
+  });
+  it("does not repeat a clash the event already had", () => {
+    const clash = dayItemsFor([ev("m", "Call", "09:00", "10:00"), ev("o", "Interview", "09:30", "10:30")], DAY, []);
+    expect(moveNote(clash, { id: "m", start: "09:00", end: "10:00" }, "09:15")).toBe("");
   });
 });
 

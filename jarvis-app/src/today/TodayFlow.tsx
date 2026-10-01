@@ -44,6 +44,7 @@ import { chronotypeFor, peakWindowFor } from "../schedule/energy";
 import { daySizing } from "../schedule/daySizing";
 import { shiftFutureEvents, shiftPlan, restoreShift } from "../schedule/runningLate";
 import { useConflictGuard } from "../schedule/useConflictGuard";
+import { bookedTaskIds } from "../schedule/planDedupe";
 import { shiftNewConflicts, nextFreeSlot as nextFreeTime } from "../schedule/conflicts";
 import { ensureCheckinNotifications, cancelCheckinNotifications, ensureEventReminders, ensureTaskReminders } from "../shared/notifications";
 import { badgeCount, setAppBadge } from "../shared/badge";
@@ -1375,7 +1376,11 @@ export default function TodayFlow({
   // offers what is due by tomorrow and skips what tomorrow already holds.
   // "overdue" stays measured against the real today either way.
   const candidatesFor = (dateISO: string, evts: EventItem[]) => {
-    const plannedTaskIds = new Set(evts.map((e) => e.data.sourceTaskId).filter((x): x is string => !!x));
+    // Booked on ANY day from today on, not only the planned one (P0 #2).
+    const plannedTaskIds = new Set([
+      ...evts.map((e) => e.data.sourceTaskId).filter((x): x is string => !!x),
+      ...bookedTaskIds(allEvents, today),
+    ]);
     return taskItems
       // A REMINDER IS NOT A TASK (catalog Q1). It rides the task entity for
       // storage only: it never enters a task list, Up Next, or a plan. This

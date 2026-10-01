@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { Store, InMemoryAdapter } from "@core";
 import { ScheduleService } from "./ScheduleService";
-import { planDuplicateIds, supersededPlanEventIds, isPlanEvent } from "./planDedupe";
+import { planDuplicateIds, supersededPlanEventIds, isPlanEvent, bookedTaskIds } from "./planDedupe";
 import type { EventItem } from "./types";
 
 // One planner event per task per day (hotfix 2026-08-21). These pin the law
@@ -192,5 +192,27 @@ describe("two sittings of one task are two blocks, not a duplicate", () => {
     await svc.commitPlan(DAY, [{ taskId: "t1", text: "Write Report", category: "work", start: "09:00", end: "12:00" }]);
     const mine = (await svc.eventsOn(DAY)).filter((e) => e.data.sourceTaskId === "t1");
     expect(mine.map((e) => e.data.title)).toEqual(["Write Report"]);
+  });
+});
+
+
+// P0 #2 (2026-10-01): a task already scheduled today appeared as a Friday
+// pick. The unit is the task, on any day from the floor forward.
+describe("bookedTaskIds", () => {
+  it("a task booked today or later is booked, whatever day is being planned", () => {
+    const evs = [
+      ev("a", { sourceTaskId: "t1", date: "2026-10-01" }),
+      ev("b", { sourceTaskId: "t2", date: "2026-10-05" }),
+    ];
+    expect([...bookedTaskIds(evs, "2026-10-01")].sort()).toEqual(["t1", "t2"]);
+  });
+
+  it("a block that has already passed is a missed block, not a booking", () => {
+    expect([...bookedTaskIds([ev("a", { sourceTaskId: "t1", date: "2026-09-30" })], "2026-10-01")]).toEqual([]);
+  });
+
+  it("events with no task, and recurring series, are never a task's booking", () => {
+    const evs = [ev("a", {}), ev("b", { sourceTaskId: "t1", recurrence: "weekly" })];
+    expect(bookedTaskIds(evs, "2026-01-01").size).toBe(0);
   });
 });

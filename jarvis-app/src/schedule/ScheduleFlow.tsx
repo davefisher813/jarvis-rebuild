@@ -29,6 +29,7 @@ import { durLabel } from "./durations";
 import { isKept, keepBoth } from "./overlapAck";
 import OverlapSheet from "./screens/OverlapSheet";
 import { useConflictGuard } from "./useConflictGuard";
+import { bookedTaskIds } from "./planDedupe";
 import { shiftNewConflicts } from "./conflicts";
 import { planDay } from "./planDay";
 import { anytimeTasksForDay } from "./anytime";
@@ -355,7 +356,12 @@ export default function ScheduleFlow({ onEditRoutine, openId, openNonce, onOpenC
   const goalIdx = buildGoalIndex(projList, liveGoals(goalList));
   const parentIdx = useMemo(() => buildParentIndex(projList, goalList, taskItems, allEvents), [projList, goalList, taskItems, allEvents]);
   const realToday = todayISO();
-  const plannedTaskIds = new Set(dayEvents.map((e) => e.data.sourceTaskId).filter((x): x is string => !!x));
+  // Booked on ANY day from today on, not only the one being planned: a task
+  // already scheduled for today is not a Friday pick (P0 #2, 2026-10-01).
+  const plannedTaskIds = new Set([
+    ...dayEvents.map((e) => e.data.sourceTaskId).filter((x): x is string => !!x),
+    ...bookedTaskIds(allEvents, realToday),
+  ]);
   const planCandidates = taskItems
     // A reminder is not a task (catalog Q1): never a plan candidate.
     .filter((t) => !t.data.done && !t.data.reminder && !plannedTaskIds.has(t.id) && (!t.data.due || (t.data.due as string) <= selected))
@@ -953,7 +959,9 @@ export default function ScheduleFlow({ onEditRoutine, openId, openNonce, onOpenC
     // SCHED-F-06 (2026-09-05): the same two carve-outs planCandidates makes
     // above, now made by the strip's own builder: no reminders, and nothing
     // from a paused category except a bill.
-    ? anytimeTasksForDay(taskItems, dayEvents, selected, draftClaims(standingDraft), pausedCats)
+    // A task with a block on ANOTHER day is not Anytime on this one either:
+    // Drop would book it a second time (P0 #2, 2026-10-01).
+    ? anytimeTasksForDay(taskItems, dayEvents, selected, new Set([...draftClaims(standingDraft), ...bookedTaskIds(allEvents, realToday)]), pausedCats)
     : [];
 
   // Tap the circle: complete the task (it leaves the strip).
