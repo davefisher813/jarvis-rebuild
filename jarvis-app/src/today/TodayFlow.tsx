@@ -2048,11 +2048,25 @@ export default function TodayFlow({
     });
   };
 
+  // CLEAR THIS PLAN HAS AN UNDO (2026-10-01, live audit: the button sits right
+  // beside "N More in Anytime" and cleared the whole standing plan on one
+  // stray tap, with nothing said and no way back). The clear is exactly
+  // reversible, because it only sets `dismissed` on the draft: Undo writes the
+  // draft back as it was, picks, blocks and order intact.
   const dismissDraft = () => {
     if (!dayDraft) return;
-    const next = { ...dayDraft, dismissed: true };
+    const was = dayDraft;
+    const next = { ...was, dismissed: true };
     writeDraft(next);
     setDayDraft(next);
+    showToast({
+      message: "Plan cleared",
+      actionLabel: "Undo",
+      onAction: () => {
+        writeDraft(was);
+        setDayDraft(was);
+      },
+    });
   };
 
   // Re-flow (push 16): the remainder re-draped around reality. Automatic

@@ -463,6 +463,23 @@ describe("TodayFlow: Plan My Day carries the same brain Schedule's does (UP-MIND
     expect(opts.profile).toContain("User:");
     expect(Array.isArray(opts.strands)).toBe(true);
   });
+
+  // CLEAR THIS PLAN HAS AN UNDO (2026-10-01, live audit). The button sits
+  // beside "N More in Anytime" and used to wipe the standing plan on one
+  // stray tap, with no word and no way back.
+  it("Clear This Plan says so with an Undo that brings the same plan back", async () => {
+    showToast.mockClear();
+    render(<NotesProvider userId="today-clear-plan-undo"><SeededPlanTask /></NotesProvider>);
+    await waitFor(() => expect(screen.getByText("Draft the proposal")).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("button", { name: "Clear This Plan" }));
+    expect(screen.queryByRole("button", { name: "Clear This Plan" }), "the plan is cleared").toBeNull();
+    const cleared = showToast.mock.calls.map((c) => c[0] as { message: string; actionLabel?: string; onAction?: () => void })
+      .find((t) => t.message === "Plan cleared");
+    expect(cleared, "clearing the plan says so").toBeTruthy();
+    expect(cleared!.actionLabel).toBe("Undo");
+    await act(async () => { cleared!.onAction!(); });
+    expect(screen.getByRole("button", { name: "Clear This Plan" }), "Undo restores the standing plan").toBeInTheDocument();
+  });
 });
 
 // MEETING FIELDS, EDITED FROM TODAY (Dave 2026-09-19: "Meeting Link and
