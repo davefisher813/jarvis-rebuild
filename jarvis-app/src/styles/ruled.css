@@ -3011,6 +3011,7 @@
 .rem-row.rem-missed-row { cursor: pointer; }
 .rem-missed-n { flex: 1; min-width: 0; font-size: calc(16px * var(--type-scale)); letter-spacing: -0.01em;
   font-weight: var(--w-semi); color: var(--sys-red); }
+.rem-missed-go { flex-shrink: 0; font-size: calc(15px * var(--type-scale)); font-weight: var(--w-medium); color: var(--tx-2); }
 .rem-row.rem-missed-row .chev { flex-shrink: 0; }
 /* The missed list on its sheet: the strip's rows on a sheet's grouped card,
    transparent like every ruled row, the whole row the tap. The ring is drawn

@@ -23,7 +23,9 @@ describe("RemindersStrip: the next three and one Missed row", () => {
     expect(screen.getByText("Take Meds")).toBeInTheDocument();
     expect(container.querySelectorAll(".rem-row:not(.rem-missed-row)")).toHaveLength(3);
     const row = container.querySelector(".rem-missed-row")!;
-    expect(row).toHaveTextContent("2 Missed");
+    expect(row).toHaveTextContent("2 Missed Reminders");
+    // The door is named (2026-10-01): "Review" says what the tap does.
+    expect(row.querySelector(".rem-missed-go")).toHaveTextContent("Review");
     expect(row.querySelector(".chev")).toBeTruthy();
     expect(screen.queryByText("Vitamin D")).toBeNull();
   });
@@ -42,6 +44,16 @@ describe("RemindersStrip: the next three and one Missed row", () => {
     expect(onTickMissed).not.toHaveBeenCalled();
     fireEvent.click(rows[1]!);
     expect(onTickMissed).toHaveBeenCalledWith("stretch");
+  });
+
+  it("one missed reminder reads singular and still opens the review sheet", () => {
+    const { container } = render(<RemindersStrip items={next} missed={[missed[0]!]} onTickMissed={() => {}} />);
+    const row = container.querySelector(".rem-missed-row")!;
+    expect(row.querySelector(".rem-missed-n")!.textContent).toBe("1 Missed Reminder");
+    expect(row).toHaveAttribute("aria-label", "1 Missed Reminder");
+    fireEvent.click(row);
+    expect(screen.getByText("Missed Reminders")).toBeInTheDocument();
+    expect(document.querySelectorAll(".sheet-scrim .rem-tick-row")).toHaveLength(1);
   });
 
   it("with nothing missed there is no count row", () => {

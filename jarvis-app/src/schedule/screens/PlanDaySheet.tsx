@@ -690,7 +690,7 @@ export default function PlanDaySheet({
                 <div className="row-stack">
                   <div className="conn-name">
                     {ranges.focus[0]
-                      ? `Picks Land in ${ranges.focus[0].label}, ${label(fromMin(ranges.focus[0].s))}`
+                      ? `Picks Go into ${ranges.focus[0].label}, ${label(fromMin(ranges.focus[0].s))}`
                       : "Your Protected Time"}
                   </div>
                   {/* ONE RUN, NOT TWO GREYS (§AK, 2026-09-22): what it
@@ -760,13 +760,18 @@ export default function PlanDaySheet({
                 <div className="pad-x"><div className="facts plan-facts">
                   {/* A COLOUR, NOT A SECOND GREY (§AM F2, Dave 2026-09-22).
                       This line carries two facts, and §AK allows it ONE
-                      regular grey; "Picks land in..." keeps it. The peak is
+                      regular grey; "Picks go into..." keeps it. The peak is
                       worked out from his routine (schedule/energy.ts), so it
                       wears the key's colour for an estimate, sky. It was
                       amber for a while, and amber means "needs you soon",
                       which a peak window never does. */}
-                  {energy && <span className="fact est">Peak {label(fromMin(energy.peakStartMin)).replace(/:00/, "")} to {label(fromMin(energy.peakEndMin)).replace(/:00/, "")}</span>}
-                  {ranges.focus[0] && <span className="fact">Picks Land in {ranges.focus[0].label}</span>}
+                  {/* TWO FACTS, EACH ITS OWN ELEMENT AND ONE TEXT NODE (2026-10-01,
+                      live audit: "Peak 7 PM to 10 PM · Picks Land in Deep
+                      Work" read as one claim, as if the peak WERE the Deep
+                      Work block). When he works best is one fact; which block
+                      the picks go into is another. */}
+                  {energy && <span className="fact est">{`Your Peak Is ${label(fromMin(energy.peakStartMin)).replace(/:00/, "")} to ${label(fromMin(energy.peakEndMin)).replace(/:00/, "")}`}</span>}
+                  {ranges.focus[0] && <span className="fact">{`Picks Go into ${ranges.focus[0].label}`}</span>}
                 </div></div>
               )}
               {groups.map((g) => (

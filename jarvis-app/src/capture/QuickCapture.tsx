@@ -1,5 +1,6 @@
 import { createPortal } from "react-dom";
 import { useState, useRef, type ReactNode } from "react";
+import { X } from "../shared/icons";
 import { useTasks, useSchedule, useNotes, useCategories, useOptionalRules, useOptionalStrands, useOptionalDecisions, useOptionalBrainMemory, usePeople, useProjects } from "../data/NotesProvider";
 import FilingSheet from "../ai/FilingSheet";
 import { STRAND_CATEGORY_LABEL, STRAND_TYPE_LABEL, type StrandCategory } from "../brain/strands/types";
@@ -134,6 +135,12 @@ function receiptFacts(s: SavedEntity, names: { person?: string; project?: string
   return out;
 }
 
+// A receipt row after its Undo (2026-10-01, live audit: Undo removed the item
+// and the sheet carried on as if nothing had happened). The row stays where it
+// was and says "Removed" with a Redo, so the tap has a visible answer and a
+// wrong Undo is one tap from right.
+type Saved = SavedEntity & { removed?: boolean };
+
 function fmtRecent(ts: number): string {
   const d = new Date(ts);
   const today = new Date();
@@ -175,7 +182,7 @@ export default function QuickCapture({ ai, onClose, onOpen }: { ai: AIService; o
 
   const [text, setText] = useState("");
   const [phase, setPhase] = useState<"input" | "saving" | "saved">("input");
-  const [saved, setSaved] = useState<SavedEntity[]>([]);
+  const [saved, setSaved] = useState<Saved[]>([]);
   const [cats, setCats] = useState<Category[]>([]);
   const [recents, setRecents] = useState<RecentCapture[]>([]);
   const [error, setError] = useState("");
@@ -298,9 +305,26 @@ export default function QuickCapture({ ai, onClose, onOpen }: { ai: AIService; o
     const ok = await attemptWrite(() => undoSaved(s, deps(cats)));
     if (!ok) return;
     dropCapture(s.id);
-    const left = saved.filter((x) => x.id !== s.id);
-    setSaved(left);
-    if (left.length === 0) setPhase("input");
+    setSaved(saved.map((x) => (x.id === s.id ? { ...x, removed: true } : x)));
+  };
+
+  // REDO re-reads the very line the capture came from, so what comes back is
+  // what a fresh capture of it would be. The new receipt takes the old one's
+  // place.
+  const onRedo = async (s: Saved) => {
+    const out: SavedEntity[] = [];
+    const ok = await attemptWrite(() => smartPasteSave(s.raw ?? s.title, deps(cats), out));
+    if (!ok || out.length === 0) return;
+    haptics.selection();
+    setSaved((cur) => cur.flatMap((x) => (x.id === s.id ? out : [x])));
+    setRecents((cur) => cur.filter((r) => !out.some((o) => o.id === r.id)));
+  };
+
+  // A Recent Captures row is only the log's receipt; clearing it leaves the
+  // task, event or note it points at exactly where it is.
+  const onForget = (id: string) => {
+    dropCapture(id);
+    setRecents((cur) => cur.filter((r) => r.id !== id));
   };
 
   // SHELL-F-02 (2026-09-05): a null from refileSaved is a REFUSAL by the
@@ -402,7 +426,7 @@ export default function QuickCapture({ ai, onClose, onOpen }: { ai: AIService; o
     <div className="sheet-scrim" onClick={() => { if (phase !== "saving") onClose(); }}>
       <div className="card" onClick={(e) => e.stopPropagation()}>
         <div className="sheet-handle" />
-        <div className="grp"><div className="eyebrow">{phase === "saved" ? "Saved" : "Smart Paste"}</div></div>
+        <div className="grp"><div className="eyebrow">{phase !== "saved" ? "Smart Paste" : saved.every((x) => x.removed) ? "Smart Paste" : "Saved"}</div></div>
 
         {phase !== "saved" && (
           <div className="pad-x sheet-form">
@@ -452,6 +476,21 @@ export default function QuickCapture({ ai, onClose, onOpen }: { ai: AIService; o
           <div className="pad-x sheet-form">
             <div className="capture-saved-list">
               {saved.map((s) => {
+                if (s.removed) {
+                  return (
+                    <div key={s.id} className="capture-saved">
+                      {/* The whole row is the door (Redo), as on every row with a control. */}
+                      <div className="row" role="button" tabIndex={0} onClick={() => void onRedo(s)}
+                        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); void onRedo(s); } }}>
+                        <div className="row-stack">
+                          <div className="conn-name">{s.title}</div>
+                          <div className="facts"><span className="fact">Removed</span></div>
+                        </div>
+                        <button className="btn-sm" onClick={(e) => { e.stopPropagation(); void onRedo(s); }}>Redo</button>
+                      </div>
+                    </div>
+                  );
+                }
                 // Two Marcos: the choice chips below name the person, lit
                 // once one is picked, so the line does not say it again.
                 const asking = s.kind === "task" && (s.personChoices?.length ?? 0) > 1;
@@ -559,6 +598,10 @@ export default function QuickCapture({ ai, onClose, onOpen }: { ai: AIService; o
                         <div className="facts"><span className="fact">{KIND_LABEL[r.kind]}</span><span className="fact date">{fmtRecent(r.ts)}</span></div>
                       </div>
                       {onOpen && <div className="chev" />}
+                      <button type="button" className="conn-remove" aria-label={"Remove " + r.title + " from Recent Captures"}
+                        onClick={(e) => { e.stopPropagation(); onForget(r.id); }}>
+                        <X className="ic" />
+                      </button>
                     </div>
                   ))}
                 </div>
@@ -566,7 +609,11 @@ export default function QuickCapture({ ai, onClose, onOpen }: { ai: AIService; o
             )}
 
             <div className="sheet-actions">
-              <button className="btn btn-primary btn-block" onClick={() => { setText(""); setSaved([]); onClose(); showToast({ message: saved.length === 1 ? "Saved" : `Saved ${saved.length} items` }); }}>Done</button>
+              <button className="btn btn-primary btn-block" onClick={() => {
+                const kept = saved.filter((x) => !x.removed).length;
+                setText(""); setSaved([]); onClose();
+                if (kept > 0) showToast({ message: kept === 1 ? "Saved" : `Saved ${kept} items` });
+              }}>Done</button>
               <button className="btn btn-secondary btn-block" onClick={() => { setText(""); setSaved([]); setPhase("input"); }}>Capture Another</button>
             </div>
           </div>

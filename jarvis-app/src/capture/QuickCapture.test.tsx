@@ -519,3 +519,80 @@ describe("QuickCapture: a set goes to the live session", () => {
     await waitFor(() => expect(screen.getByText("Saved")).toBeInTheDocument());
   });
 });
+
+// UNDO ANSWERS ON SCREEN (2026-10-01, live audit): after Undo the record was
+// gone but the sheet carried on with no word, so it was unclear anything had
+// happened. The row stays where it was and says Removed, with a Redo.
+describe("QuickCapture: Undo shows a Removed state with a Redo", () => {
+  it("Undo deletes the record and the row reads Removed; Redo brings it back", async () => {
+    render(
+      <NotesProvider userId="u-undo-removed">
+        <CaptureStrands />
+        <QuickCapture ai={new AIService({ available: false })} onClose={() => {}} />
+      </NotesProvider>,
+    );
+    fireEvent.change(screen.getByPlaceholderText(/Paste or type/), { target: { value: "Renew the domain" } });
+    fireEvent.click(screen.getByText("Capture"));
+    await waitFor(() => expect(screen.getByText("Saved")).toBeInTheDocument());
+    expect(await tasksRef!.listTasks()).toHaveLength(1);
+
+    fireEvent.click(screen.getByText("Undo"));
+    await waitFor(async () => expect(await tasksRef!.listTasks()).toHaveLength(0));
+    // The sheet says what happened and stays on the receipt.
+    await waitFor(() => expect(screen.getByText("Removed", { selector: ".fact" })).toBeInTheDocument());
+    expect(screen.getByText("Renew the Domain")).toBeInTheDocument();
+    expect(screen.queryByText("Undo")).toBeNull();
+    expect(screen.queryByPlaceholderText(/Paste or type/), "it does not silently fall back to an empty input").toBeNull();
+
+    fireEvent.click(screen.getByText("Redo"));
+    await waitFor(() => expect(screen.getByText("Undo")).toBeInTheDocument());
+    expect(screen.queryByText("Removed", { selector: ".fact" })).toBeNull();
+    expect(await tasksRef!.listTasks()).toHaveLength(1);
+  });
+
+  it("Done after removing everything does not claim anything was saved", async () => {
+    showToast.mockClear();
+    const onClose = vi.fn();
+    render(
+      <NotesProvider userId="u-undo-done">
+        <QuickCapture ai={new AIService({ available: false })} onClose={onClose} />
+      </NotesProvider>,
+    );
+    fireEvent.change(screen.getByPlaceholderText(/Paste or type/), { target: { value: "Renew the domain" } });
+    fireEvent.click(screen.getByText("Capture"));
+    await waitFor(() => expect(screen.getByText("Saved")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("Undo"));
+    await waitFor(() => expect(screen.getByText("Removed", { selector: ".fact" })).toBeInTheDocument());
+    fireEvent.click(screen.getByText("Done"));
+    expect(onClose).toHaveBeenCalled();
+    expect(showToast).not.toHaveBeenCalled();
+  });
+});
+
+// RECENT CAPTURES CAN BE CLEARED BY THE OWNER (2026-10-01, live audit: old
+// test captures sat in the strip with no way to remove them). The strip lives
+// in this device's localStorage, so clearing the row is the whole fix; the
+// task, event or note it points at is not touched.
+describe("QuickCapture: a Recent Captures row can be removed", () => {
+  it("the X clears that row from the strip and from storage, and opens nothing", async () => {
+    recordCapture({ id: "old-1", kind: "task", title: "Audit test", ts: Date.now() - 60000 });
+    recordCapture({ id: "old-2", kind: "note", title: "Ideas for the offsite", ts: Date.now() - 50000 });
+    const onOpen = vi.fn();
+    render(
+      <NotesProvider userId="u-recent-remove">
+        <QuickCapture ai={new AIService({ available: false })} onClose={() => {}} onOpen={onOpen} />
+      </NotesProvider>,
+    );
+    fireEvent.change(screen.getByPlaceholderText(/Paste or type/), { target: { value: "Water the plants" } });
+    fireEvent.click(screen.getByText("Capture"));
+    await waitFor(() => expect(screen.getByText("Recent Captures")).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole("button", { name: "Remove Audit test from Recent Captures" }));
+    expect(screen.queryByText("Audit test")).toBeNull();
+    expect(screen.getByText("Ideas for the offsite")).toBeInTheDocument();
+    expect(onOpen, "removing a row must not open it").not.toHaveBeenCalled();
+    const stored = JSON.parse(localStorage.getItem("jarvis.captures.v1") || "[]") as { id: string }[];
+    expect(stored.map((r) => r.id)).not.toContain("old-1");
+    expect(stored.map((r) => r.id)).toContain("old-2");
+  });
+});
