@@ -416,3 +416,22 @@ describe("Split It reaches the calendar as two sittings", () => {
     expect(got[0]![0]!.text).toContain("(1 of 2)");
   });
 });
+
+// TWO FACTS, NOT ONE CLAIM (2026-10-01, live audit). The line read "Peak 7 PM
+// to 10 PM · Picks Land in Deep Work", which fused when he works best with
+// which block the picks go into. Each is its own element and one text node.
+describe("the plan facts line says two separate things", () => {
+  const FOCUS: PlanBlocked[] = [{ s: 9 * 60, e: 11 * 60, label: "Deep Work", kind: "focus" }];
+  it("the peak and the landing block are separate facts, one text node each", () => {
+    render(sheet({ blocked: FOCUS, energy: { peakStartMin: 19 * 60, peakEndMin: 22 * 60 } }));
+    const facts = [...document.querySelectorAll(".plan-facts > .fact")];
+    expect(facts.map((f) => f.textContent)).toEqual(["Your Peak Is 7 PM to 10 PM", "Picks Go into Deep Work"]);
+    facts.forEach((f) => expect(f.childNodes.length, "built as ONE text node").toBe(1));
+    expect(document.body.textContent).not.toMatch(/Picks Land/);
+  });
+
+  it("with no peak known, only the landing fact shows", () => {
+    render(sheet({ blocked: FOCUS }));
+    expect([...document.querySelectorAll(".plan-facts > .fact")].map((f) => f.textContent)).toEqual(["Picks Go into Deep Work"]);
+  });
+});
