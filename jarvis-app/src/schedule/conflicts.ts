@@ -218,3 +218,22 @@ export function shiftNewConflicts(
   }
   return { count, first };
 }
+
+/**
+ * A NUDGE'S TOAST LINE. Moving an event to `toStart` (keeping its length):
+ * the line for the clashes that move CREATES, or "" when it creates none.
+ * Clashes the event already had at its old time are not repeated, so a
+ * nudge out of an overlap never scolds and a nudge within one stays quiet.
+ */
+export function moveNote(
+  items: DayItem[],
+  moved: { id: string; start: string; end?: string; forTask?: boolean },
+  toStart: string,
+): string {
+  const s = toMin(moved.start);
+  const len = moved.end ? Math.max(15, toMin(moved.end) - s) : 60;
+  const was = new Set(findConflicts(items, { start: s, end: s + len, ignoreId: moved.id, forTask: moved.forTask }).map((c) => c.item.id));
+  const t = toMin(toStart);
+  const now = findConflicts(items, { start: t, end: t + len, ignoreId: moved.id, forTask: moved.forTask }).filter((c) => !was.has(c.item.id));
+  return conflictLine(now);
+}

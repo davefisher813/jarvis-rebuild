@@ -145,7 +145,10 @@ export default function PlanDaySheet({
   onAddTask?: (text: string) => Promise<PlanCandidate | null>;
   /** The third argument (2026-09-13) is what the AI plan leaned on, so the
    *  host can remember it for the day's Why sheet; a host may ignore it. */
-  onCommit: (blocks: PlanBlock[], picks: string[], leanedOn?: string[]) => void;
+  // Resolves false when the host backed out (a time conflict the person chose
+  // not to book), so the sheet un-latches and stays open instead of hanging
+  // on "Saving".
+  onCommit: (blocks: PlanBlock[], picks: string[], leanedOn?: string[]) => void | boolean | Promise<void | boolean>;
   // The user's chosen day cap from the monthly report, when set.
   chosenCap?: number;
   onClose: () => void;
@@ -543,7 +546,7 @@ export default function PlanDaySheet({
         ).catch(() => { /* the next identical override re-observes it */ });
       }
     }
-    onCommit(
+    const done = onCommit(
       committed.map((b) => {
         const sitting = sittingOf(b.taskId);
         return { ...b, taskId: realId(b.taskId), ...(sitting ? { sitting } : {}) };
@@ -553,6 +556,7 @@ export default function PlanDaySheet({
       Array.from(new Set(picks.map(realId))),
       leanedOn,
     );
+    void Promise.resolve(done).then((v) => { if (v === false) { committing.current = false; setSaving(false); } });
   };
 
   const hide = (k: string) => setDismissed((d) => ({ ...d, [k]: true }));

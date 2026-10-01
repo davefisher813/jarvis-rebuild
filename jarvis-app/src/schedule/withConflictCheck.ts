@@ -91,3 +91,38 @@ export async function withConflictCheck<T>(
   }
   return { status: "booked", value: await commit(asIs), conflicts: found.ask.conflicts, ...asIs };
 }
+
+/**
+ * A BATCH, ASKED ONCE (Accept the Day, a Plan My Day commit). The planner
+ * routes around events and protected blocks itself, so a clean plan never
+ * reaches the prompt; a hand-placed pick, or a draft gone stale since it was
+ * made, does. One line for the whole set, and only Book Anyway or Cancel:
+ * "Use ..." names one slot and a batch has several.
+ */
+export async function checkBatch(
+  items: DayItem[],
+  blocks: { taskId: string; text?: string; start: string; end: string }[],
+  ask: AskFn | undefined,
+  /** Ids of events this batch is about to replace, which it cannot clash with. */
+  replacing: ReadonlySet<string> = new Set(),
+): Promise<{ go: boolean; conflicts: Conflict[] }> {
+  const live = items.filter((i) => !replacing.has(i.id));
+  const placed: DayItem[] = [];
+  const all: Conflict[] = [];
+  for (const b of blocks) {
+    const s = hhmmToMin(b.start);
+    const e = hhmmToMin(b.end);
+    for (const c of findConflicts([...live, ...placed], { start: s, end: e, forTask: true })) {
+      if (!all.some((x) => x.item.id === c.item.id)) all.push(c);
+    }
+    placed.push({ id: "batch:" + b.taskId + "@" + b.start, title: b.text?.trim() || "Another Pick", start: s, end: e, kind: "task" });
+  }
+  if (all.length === 0 || !ask) return { go: true, conflicts: all };
+  const choice = await ask({
+    line: conflictLine(all),
+    tone: hasRealConflict(all) ? "conflict" : "soft",
+    altLabel: null,
+    conflicts: all,
+  });
+  return { go: choice !== "cancel", conflicts: all };
+}

@@ -28,6 +28,8 @@ import { todayISO, weekOf, addDays, addMinutes, fmtTime, eventsForDate, nextFree
 import { durLabel } from "./durations";
 import { isKept, keepBoth } from "./overlapAck";
 import OverlapSheet from "./screens/OverlapSheet";
+import { useConflictGuard } from "./useConflictGuard";
+import { shiftNewConflicts } from "./conflicts";
 import { planDay } from "./planDay";
 import { anytimeTasksForDay } from "./anytime";
 import { suggestTitles, suggestLocations, repeatCandidate } from "./memory";
@@ -43,7 +45,7 @@ import { aiPlanDay } from "./planDayAI";
 import { DEFAULT_ROUTINE, planWindowFor, protectedRangesFor, splitProtectedRanges, type RoutineData } from "../routine/types";
 import { chronotypeFor, peakWindowFor } from "./energy";
 import { isSuggested, rankCandidates } from "./planMeta";
-import { shiftFutureEvents, restoreShift, type ShiftResult } from "./runningLate";
+import { shiftFutureEvents, shiftPlan, restoreShift, type ShiftResult } from "./runningLate";
 import {
   moveEvent as moveEventAdjust, undoMoveEvent as undoMoveEventAdjust, type MoveOutcome,
   resizeEvent as resizeEventAdjust, undoResizeEvent as undoResizeEventAdjust, type ResizeOutcome,
@@ -220,6 +222,9 @@ export default function ScheduleFlow({ onEditRoutine, openId, openNonce, onOpenC
   const strandsSvc = useOptionalStrands();
   const [routineData, setRoutineData] = useState<RoutineData>(DEFAULT_ROUTINE);
   const [routineSet, setRoutineSet] = useState(true);
+  // WARN, THEN ALLOW (2026-10-01, the audit's P0 #2): every commit that puts
+  // something at a time asks first what that time lands on. See conflicts.ts.
+  const { guard: conflictGuard, guardBatch, moveToast, lineFor, conflictSheet } = useConflictGuard(allEvents, routineData);
   const [loading, setLoading] = useState(true);
   // SCHED-F-14 (2026-09-05): the last reload failed. The page renders what it
   // has and a quiet row says so, with the retry on it.
@@ -437,6 +442,11 @@ export default function ScheduleFlow({ onEditRoutine, openId, openNonce, onOpenC
     if (!standingDraft || liveDraftBlocks.length === 0 || accepting.current) return;
     accepting.current = true;
     try {
+    // The draft may be stale (an event landed since it was made) or hand
+    // edited, so ask once before the whole day is written. The blocks this
+    // commit replaces are not things it can clash with.
+    const replacing = new Set(dayEvents.filter((e) => liveDraftBlocks.some((b) => b.taskId === e.data.sourceTaskId)).map((e) => e.id));
+    if (!(await guardBatch(selected, liveDraftBlocks, replacing))) return;
     let ids: string[] = [];
     const ok = await attemptWrite(async () => {
       ids = (await svc.commitPlan(selected, liveDraftBlocks.map((b) => ({
@@ -495,10 +505,13 @@ export default function ScheduleFlow({ onEditRoutine, openId, openNonce, onOpenC
     accepting.current = true;
     try {
       let ids: string[] = [];
-      const ok = await attemptWrite(async () => {
-        ids = (await svc.commitPlan(selected, [{ taskId: b.taskId, text: b.text, category: b.category, start: b.start, end: b.end }], undefined, { picks: [b.taskId] })).created;
-      });
-      if (!ok) return;
+      // Book It asks what the time lands on first: Book Anyway, Use the next
+      // free slot, or Cancel (conflicts.ts).
+      const checked = await conflictGuard({ date: selected, start: b.start, end: b.end, forTask: true }, async (slot) =>
+        attemptWrite(async () => {
+          ids = (await svc.commitPlan(selected, [{ taskId: b.taskId, text: b.text, category: b.category, start: slot.start, end: slot.end ?? b.end }], undefined, { picks: [b.taskId] })).created;
+        }));
+      if (checked.status === "cancelled" || !checked.value) return;
       setTuning(null);
       await reload();
       showToast({
@@ -542,6 +555,10 @@ export default function ScheduleFlow({ onEditRoutine, openId, openNonce, onOpenC
       }
     : undefined;
   const onPlanCommit = async (blocks: { taskId: string; text: string; category: string; start: string; end: string; sitting?: number }[], picks: string[]) => {
+    // The planner routes around events and walls itself, so only a pick he
+    // placed by hand reaches this prompt. Back out and the sheet stays open.
+    const replacing = new Set(dayEvents.filter((e) => blocks.some((b) => b.taskId === e.data.sourceTaskId)).map((e) => e.id));
+    if (!(await guardBatch(selected, blocks, replacing))) return false;
     // Replace, never add (hotfix 2026-08-21): commitPlan sweeps each task's
     // prior plan event on this day before writing, against a fresh read.
     let ids: string[] = [];
@@ -651,6 +668,19 @@ export default function ScheduleFlow({ onEditRoutine, openId, openNonce, onOpenC
   };
 
   const onSave = async (draft: EventDraft, scope?: "this" | "series") => {
+    // WARN, THEN ALLOW (2026-10-01): a time that lands on something asks
+    // first. An edit that did not touch the day or the times stays quiet, so
+    // renaming an event that was already overlapping never re-asks.
+    const retimed = !sheet || sheet.mode === "new" || draft.date !== sheet.initial.date
+      || draft.start !== sheet.initial.start || (draft.end || "") !== (sheet.initial.end ?? "");
+    if (sheet && retimed) {
+      const checked = await conflictGuard(
+        { date: draft.date, start: draft.start, end: draft.end || undefined, ignoreId: sheet.mode === "edit" ? sheet.id : undefined },
+        async (slot) => slot,
+      );
+      if (checked.status === "cancelled") return false;
+      if (checked.status === "moved" && checked.value) draft = { ...draft, start: checked.value.start, end: checked.value.end ?? draft.end };
+    }
     let newEventId: string | null = null;
     let newEventDate: string | null = null;
     if (sheet?.mode === "new") {
@@ -1034,12 +1064,17 @@ export default function ScheduleFlow({ onEditRoutine, openId, openNonce, onOpenC
     // long-winded way to press a button. When the finger landed on real open
     // time, that IS the answer and the planner does not get a vote.
     if (droppedAt) {
-      const okDrop = await attemptWrite(() => svc.commitPlan(selected, [{
-        taskId: id, text: t.text, category: t.category ?? "",
-        start: droppedAt, end: addMinutes(droppedAt, 60),
-      }]));
+      let landedAt = droppedAt;
+      const dropped = await conflictGuard({ date: selected, start: droppedAt, end: addMinutes(droppedAt, 60), forTask: true }, (slot) => {
+        landedAt = slot.start;
+        return attemptWrite(() => svc.commitPlan(selected, [{
+          taskId: id, text: t.text, category: t.category ?? "",
+          start: slot.start, end: slot.end ?? addMinutes(slot.start, 60),
+        }]));
+      });
+      if (dropped.status === "cancelled") return;
       await reload();
-      if (okDrop) showToast({ message: `Scheduled ${fmtTime(droppedAt).time}${fmtTime(droppedAt).ap}` });
+      if (dropped.value) showToast({ message: `Scheduled ${fmtTime(landedAt).time}${fmtTime(landedAt).ap}` });
       return;
     }
     // Land the block through the SAME ladder Plan My Day uses (2026-08-10),
@@ -1052,13 +1087,21 @@ export default function ScheduleFlow({ onEditRoutine, openId, openNonce, onOpenC
       [{ id, text: t.text, category: t.category ?? "", durationMin: 60 }],
       eventsForDate(allEvents, selected), planStart, planEnd, 10, split.hard, split.soft, split.focus,
     );
-    const start = drop.blocks[0]?.start ?? nextFreeSlot(allEvents, selected, new Date());
-    const end = addMinutes(start, 60);
+    let start = drop.blocks[0]?.start ?? nextFreeSlot(allEvents, selected, new Date());
+    let end = addMinutes(start, 60);
     let evId: string | null = null;
-    const ok = await attemptWrite(async () => {
-      const r = await svc.commitPlan(selected, [{ taskId: id, text: t.text, category: t.category ?? "", start, end }]);
-      evId = r.created[0] ?? null;
-    });
+    // The ladder routes around events and walls, so this asks only when the
+    // day truly had no room (a soft block it had to sit on) or the fallback
+    // slot was the best it could do.
+    const placed = await conflictGuard({ date: selected, start, end, forTask: true }, (slot) =>
+      attemptWrite(async () => {
+        start = slot.start;
+        end = slot.end ?? addMinutes(slot.start, 60);
+        const r = await svc.commitPlan(selected, [{ taskId: id, text: t.text, category: t.category ?? "", start, end }]);
+        evId = r.created[0] ?? null;
+      }));
+    if (placed.status === "cancelled") return;
+    const ok = !!placed.value;
     await reload();
     await reloadTasks();
     if (!ok) return;
@@ -1126,13 +1169,18 @@ export default function ScheduleFlow({ onEditRoutine, openId, openNonce, onOpenC
   // second implementation of each. This function keeps the label wording and
   // the toast/undo wiring, which legitimately differ per surface.
   const moveEvent = async (id: string, toStart: string, label: string) => {
+    // A nudge stays one tap and is never refused. What it lands on is said in
+    // the toast instead (conflicts.moveNote), and only when the move CREATES
+    // the clash, so nudging out of one never scolds.
+    const cur = await svc.event(id);
+    const note = cur ? moveToast(selected, { id, start: cur.start, end: cur.end, forTask: !!cur.sourceTaskId }, toStart) : "";
     let outcome: MoveOutcome | null = null;
     const ok = await attemptWrite(async () => { outcome = await moveEventAdjust(id, toStart, selected, svc); });
     await reload();
     const o = outcome as MoveOutcome | null;
     if (!ok || !o?.ok) return;
     showToast({
-      message: o.repeating ? label + " · Just Today" : label,
+      message: [label, o.repeating ? "Just Today" : "", note].filter(Boolean).join(" · "),
       actionLabel: "Undo",
       onAction: async () => { await attemptWrite(() => undoMoveEventAdjust(id, selected, o, svc)); await reload(); },
     });
@@ -1325,6 +1373,9 @@ export default function ScheduleFlow({ onEditRoutine, openId, openNonce, onOpenC
   // toast says what moved and Undo restores every prior time.
   const onRunningLate = async (mins: number) => {
     let shift: ShiftResult | null = null;
+    // What the push will land on that did NOT move (a repeating event that
+    // stayed, a protected block), worked out before the writes, said after.
+    const clash = shiftNewConflicts(dayEvents, selected, shiftPlan(dayEvents, nowHHMM, mins).future, mins, blocked);
     const ok = await attemptWrite(async () => { shift = await shiftFutureEvents(svc, dayEvents, nowHHMM, mins); });
     await reload();
     if (!ok || !shift) return;
@@ -1333,7 +1384,7 @@ export default function ScheduleFlow({ onEditRoutine, openId, openNonce, onOpenC
     // it was, and the receipt says so rather than leaving a silent hole.
     if (moved === 0) { if (crossed) showToast({ message: "Nothing Moved · The Rest Would Run Past Midnight" }); return; }
     showToast({
-      message: lineCase(`${moved} ${moved === 1 ? "event" : "events"} +${spanLabel(mins)}${skipped ? ` · ${skipped} repeating stayed` : ""}${crossed ? ` · ${crossed} would pass midnight` : ""}`),
+      message: lineCase(`${moved} ${moved === 1 ? "event" : "events"} +${spanLabel(mins)}${skipped ? ` · ${skipped} repeating stayed` : ""}${crossed ? ` · ${crossed} would pass midnight` : ""}${clash.count ? ` · ${clash.count} new ${clash.count === 1 ? "overlap" : "overlaps"}` : ""}`),
       actionLabel: "Undo",
       onAction: async () => { await attemptWrite(() => restoreShift(svc, prior)); await reload(); },
     });
@@ -1647,6 +1698,7 @@ export default function ScheduleFlow({ onEditRoutine, openId, openNonce, onOpenC
           initial={sheet.mode === "edit" ? sheet.initial : { date: selected, start: newStart ?? nextFreeSlot(dayEvents, selected, new Date()) }}
           categories={categories}
           checkConflict={checkConflict}
+          conflictLine={(d, st, en) => lineFor(d, st, en, sheet && sheet.mode === "edit" ? sheet.id : undefined)}
           suggestSlot={suggestSlot}
           onSave={onSave}
           projects={sheetProjects(projList, goalList)}
@@ -1695,6 +1747,7 @@ export default function ScheduleFlow({ onEditRoutine, openId, openNonce, onOpenC
           onClose={() => setPrepPerson(null)}
         />
       )}
+      {conflictSheet}
       {blockSheet && (
         <BlockSheet
           initial={blockSheet.initial}
