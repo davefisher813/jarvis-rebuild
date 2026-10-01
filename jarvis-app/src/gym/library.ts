@@ -145,6 +145,29 @@ export function withCreated(library: LibraryEntry[], created: CreatedLift[]): Li
   return [...library, ...extra].sort((a, b) => b.lastUsed - a.lastUsed || a.name.localeCompare(b.name));
 }
 
+/** THE LIBRARY AS THE EXERCISES PAGE SHOWS IT, in one place (2026-10-01). The
+ *  page composed this chain itself while the Health dashboard's badge counted
+ *  buildLibrary alone, so an exercise added by hand (a created lift, kept in
+ *  GymSettings) was in the list and missing from the count: a tester who added
+ *  four saw "0 Exercises". Both now call this, so they cannot drift again.
+ *  Every input beyond programs and workouts is optional and defaults to none. */
+export interface LibrarySeeds {
+  created?: CreatedLift[];
+  aliases?: Record<string, string[]>;
+  favoriteKeys?: string[];
+}
+export function composeLibrary(programs: Program[], workouts: Workout[], seeds: LibrarySeeds = {}): LibraryEntry[] {
+  return withFavorites(
+    withAliases(withCreated(buildLibrary(programs, workouts), seeds.created ?? []), seeds.aliases ?? {}),
+    seeds.favoriteKeys ?? [],
+  );
+}
+
+/** How many exercises the library holds: the badge on the Health dashboard. */
+export function libraryCount(programs: Program[], workouts: Workout[], seeds: LibrarySeeds = {}): number {
+  return composeLibrary(programs, workouts, seeds).length;
+}
+
 /** Case-insensitive substring match on the typed text, most recent first.
  *  Empty query returns the most recently used entries -- useful for "recent"
  *  pickers (Swap, Add Mid-Session) that open with nothing typed yet.
