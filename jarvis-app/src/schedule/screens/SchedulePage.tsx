@@ -292,6 +292,16 @@ export default function SchedulePage({
     window.addEventListener("pointermove", move, { passive: false });
     window.addEventListener("pointerup", up);
   };
+  // ONE ANSWER TO "TAP A PROPOSED TASK" (schedule audit 2026-10-01, item 5).
+  // A task nested under a block opens the task editor, as it does on Today;
+  // the standalone row expands in place and carries the same door as an Edit
+  // Task button. This was the nested rows' onToggle, which sets state only
+  // ProposedRow reads, so on a nested row the tap did nothing visible. A flow
+  // with no editor wired keeps the toggle.
+  const openProposed = (taskId: string) => {
+    if (proposed?.onOpen) proposed.onOpen(taskId);
+    else proposed?.onToggle(taskId);
+  };
   const isToday = selected === todayDate && !!now;
   // S6-Q41 (2026-09-05): "weather never reaches the Schedule tab." Today
   // already shows it (YourDay.tsx); this tab never passed a date at all.
@@ -805,6 +815,8 @@ export default function SchedulePage({
                 onToggle={() => proposed!.onToggle(en.b.taskId)}
                 onDuration={(m) => proposed!.onDuration(en.b.taskId, m)}
                 onDrop={() => proposed!.onDrop(en.b.taskId)}
+                {...(proposed!.onAccept ? { onAccept: () => proposed!.onAccept!(en.b.taskId) } : {})}
+                {...(proposed!.onOpen ? { onOpen: () => proposed!.onOpen!(en.b.taskId) } : {})}
               />
             ) : en.kind === "locked" ? (() => {
               const heldProps = heldPropBy.get(en.l.label + "@" + en.l.s) ?? [];
@@ -834,11 +846,11 @@ export default function SchedulePage({
                       <div
                         className="block-held block-held-prop"
                         key={"p" + b.taskId}
-                        {...pressable(() => proposed?.onToggle(b.taskId))}
+                        {...pressable(() => openProposed(b.taskId))}
                         /* the pointer path keeps its own stopPropagation, as
                            the held block above it does: this row sits inside
                            the routine row. */
-                        onClick={(ev) => { ev.stopPropagation(); proposed?.onToggle(b.taskId); }}
+                        onClick={(ev) => { ev.stopPropagation(); openProposed(b.taskId); }}
                       >
                         <span className={"cat-dot-hollow cat-bd-" + catColor(b.category)} />
                         <span className="block-held-t truncate">{b.text}</span>

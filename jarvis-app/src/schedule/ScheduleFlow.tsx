@@ -518,6 +518,8 @@ export default function ScheduleFlow({ onEditRoutine, openId, openNonce, onOpenC
     onDuration: (id: string, minutes: number) => applyProposalEdit({ minutes: { [id]: minutes } }),
     onDrop: (id: string) => { setTuning(null); applyProposalEdit({ drop: id }); },
     onAccept: (id: string) => void acceptOne(id),
+    // The same door a nested proposed task opens (item 5, 2026-10-01).
+    onOpen: (id: string) => void onOpenTask(id),
   } : undefined;
 
   const onAIPlan = ai.available

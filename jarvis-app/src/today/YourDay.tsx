@@ -237,6 +237,7 @@ function DaySet({
           onDrop={() => proposed!.onDrop(en.b.taskId)}
           {...(proposed!.onComplete ? { onComplete: () => proposed!.onComplete!(en.b.taskId) } : {})}
           {...(proposed!.onAccept ? { onAccept: () => proposed!.onAccept!(en.b.taskId) } : {})}
+          {...(proposed!.onOpen ? { onOpen: () => proposed!.onOpen!(en.b.taskId) } : {})}
         />,
       );
     } else {

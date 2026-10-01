@@ -36,6 +36,7 @@ export default function ProposedRow({
   onDrop,
   onComplete,
   onAccept,
+  onOpen,
 }: {
   block: PlanBlock;
   open: boolean;
@@ -56,6 +57,13 @@ export default function ProposedRow({
    *  wherever it is shown. Optional: a caller that only offers the whole-day
    *  Accept passes nothing and this row is what it was. */
   onAccept?: () => void;
+  /** OPEN THE TASK (schedule audit 2026-10-01, item 5). A proposed task
+   *  nested under a block opened the full Edit Task sheet; the same task as
+   *  a row of its own expanded to duration chips and had no way to open it.
+   *  One task, two behaviours by where it happened to sit. This is the way
+   *  in from the expanded row, so the two answer the same. Optional: a
+   *  caller with no editor wired renders exactly as it did. */
+  onOpen?: () => void;
 }) {
   const t = fmtTime(block.start);
   const slot = catColor(block.category);
@@ -136,6 +144,7 @@ export default function ProposedRow({
               {/* Booking one block is the affirmative move, so it leads and
                   Move to Anytime stays the quiet one beside it. */}
               {onAccept && <button type="button" className="btn btn-primary btn-sm" onClick={onAccept}>Book It</button>}
+              {onOpen && <button type="button" className="btn-sm" onClick={onOpen}>Edit Task</button>}
               <button type="button" className="btn-sm" onClick={onDrop}>Move to Anytime</button>
             </div>
           </div>
