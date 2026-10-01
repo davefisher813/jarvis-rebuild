@@ -40,6 +40,7 @@ import { identityToText, voiceToText } from "../ai/context";
 import { firstStepPrompt, parseFirstStep } from "./firstStep";
 import { rankOpen } from "../upnext/upnext";
 import { FIFTEEN } from "./rightNow";
+import { useConflictAsk } from "../schedule/screens/ConflictSheet";
 import { scheduleTask, breakDownTask, undoBreakdown, splitLine, type BreakdownResult } from "./taskMoves";
 import { emit } from "../events";
 import { chainQuietToday, dismissChain, nextBest, chainReason } from "./momentum";
@@ -226,6 +227,7 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, startId, 
   // get no First Step offers. Same exclusion mechanics as the season pause.
   const [offHoursCats, setOffHoursCats] = useState<ReadonlySet<string>>(new Set());
   const routineSvc = useRoutine();
+  const { ask: askConflict, sheet: conflictSheet } = useConflictAsk();
   const [sheet, setSheet] = useState<SheetState>(null);
   const brain = useOptionalBrainMemory();
   // Brain Manual v1 "Log the Decision": the task being decided on, so the
@@ -698,7 +700,15 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, startId, 
     if (sheet?.mode !== "edit") return;
     const id = sheet.id;
     let landed = false;
-    const ok = await attemptWrite(async () => { landed = (await scheduleTask(id, today, svc, schedule)).ok; });
+    let cancelled = false;
+    // One tap still books it, now in the next FREE slot (events and routine
+    // blocks both). Only a day with no free hour asks first (P0 #2, 2026-10-01).
+    const ok = await attemptWrite(async () => {
+      const r = await scheduleTask(id, today, svc, schedule, new Date(), { routine: await routineSvc.get(), ask: askConflict });
+      landed = r.ok;
+      cancelled = !!r.cancelled;
+    });
+    if (cancelled) return;
     setSheet(null);
     if (ok) showToast({ message: landed ? "Added to Schedule" : "Couldn't Find That Task" });
   };
@@ -1063,6 +1073,7 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, startId, 
 
   return (
     <>
+      {conflictSheet}
       <TasksPage
         title={title}
         segments={segments}

@@ -8,6 +8,7 @@ import type { AddMeetingResult, MeetingCandidate, MeetingMissing } from "./mailC
 import { inReadersZone, whenLine } from "./meetingWhen";
 import { deviceZone } from "./zoneTime";
 import { todayISO } from "../schedule/calendar";
+import { findTwin } from "../schedule/eventTwins";
 
 // PUTTING WHAT AN EMAIL SET ON THE CALENDAR, ONCE (2026-09-29).
 //
@@ -100,7 +101,7 @@ export function missingLine(missing: readonly MeetingMissing[]): string {
  */
 export async function findFiledMeeting(
   scheduleSvc: Pick<ScheduleService, "listEvents">,
-  args: { account: string; threadId: string; candidate: MeetingCandidate; zone?: string },
+  args: { account: string; threadId: string; candidate: MeetingCandidate; zone?: string; title?: string },
 ): Promise<string | null> {
   const cid = meetingClientId(args.account, args.candidate.id);
   const events = await scheduleSvc.listEvents();
@@ -112,7 +113,17 @@ export async function findFiledMeeting(
     const src = e.data.source;
     return !!slot && src?.type === "email" && src.ref === args.threadId && !e.data.clientId && e.data.date === slot.date && e.data.start === slot.start;
   });
-  return hit?.id ?? null;
+  if (hit) return hit.id;
+  // ANOTHER DOOR MAY HAVE WRITTEN IT (2026-10-01, audit #3). The calendar
+  // import, a booking, or his own hand can already hold this very
+  // appointment, under the organiser's title rather than the email's subject
+  // and with no clientId. Same day, same start, alike title is the same
+  // appointment, and the answer is "already", not a second row.
+  // A row with its own clientId is another detection's (the same appointment
+  // read from a different mailbox is deliberately its own event, per mailbox);
+  // the read boundary still draws such twins once.
+  const twin = slot ? findTwin(events.filter((e) => !e.data.clientId), { title: args.title ?? args.candidate.title, date: slot.date, start: slot.start }, true) : null;
+  return twin?.id ?? null;
 }
 
 async function run(args: AddEmailMeetingArgs, cid: string): Promise<AddMeetingResult> {
@@ -131,7 +142,7 @@ async function run(args: AddEmailMeetingArgs, cid: string): Promise<AddMeetingRe
   let existing: string | null = null;
   let looked = true;
   try {
-    existing = await findFiledMeeting(svc, { account: args.account, threadId: args.threadId, candidate: c, zone });
+    existing = await findFiledMeeting(svc, { account: args.account, threadId: args.threadId, candidate: c, zone, title: args.title });
   } catch {
     // Could not look. The create below is still idempotent (item 2 above), but
     // this run cannot say whether it added the row or found it, so it will not

@@ -83,3 +83,25 @@ export function supersededPlanEventIds(events: EventItem[], picks: PlanKey[]): s
   const tasks = new Set(picks.map((p) => p.taskId));
   return events.filter((e) => isPlanEvent(e) && tasks.has(e.data.sourceTaskId!)).map((e) => e.id);
 }
+
+// A TASK THAT ALREADY HAS A TIME IS NOT A PICK (audit 2026-10-01, P0 #2).
+// Plan My Day excluded the tasks the SELECTED day already held and nothing
+// else, so a task booked today still showed up as a Friday pick and could be
+// booked a second time. The unit is the task, on any day from `fromDate`
+// forward: a block that has already passed is a missed block, not a booking,
+// and its task is rightly offered again.
+//
+// Read by every surface that builds plan candidates (Schedule, Today, the
+// Day Loop's draft), so none of them can disagree about it. Recurring events
+// are never a task's booking, so they are ignored here.
+export function bookedTaskIds(events: EventItem[], fromDate: string): Set<string> {
+  const out = new Set<string>();
+  for (const e of events) {
+    const id = e.data.sourceTaskId;
+    if (!id) continue;
+    if (e.data.recurrence && e.data.recurrence !== "none") continue;
+    if (e.data.date < fromDate) continue;
+    out.add(id);
+  }
+  return out;
+}

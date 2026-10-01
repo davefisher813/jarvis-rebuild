@@ -14,6 +14,7 @@ import { supabase } from "../../auth/supabaseClient";
 import type { WindowClient } from "../../brain/window";
 import PlanStrip from "./PlanStrip";
 import { splitProtectedRanges, type BlockKind } from "../../routine/types";
+import { dayItemsFor, findConflicts, conflictLine, hhmmToMin } from "../conflicts";
 import { openMinutes, loadOf, dropToFit, dropLine, hhmm, autoSelect } from "../planLoad";
 import { capOffer } from "../planCap";
 import { splitSittings, SITTING_MAX } from "../splitSitting";
@@ -145,7 +146,10 @@ export default function PlanDaySheet({
   onAddTask?: (text: string) => Promise<PlanCandidate | null>;
   /** The third argument (2026-09-13) is what the AI plan leaned on, so the
    *  host can remember it for the day's Why sheet; a host may ignore it. */
-  onCommit: (blocks: PlanBlock[], picks: string[], leanedOn?: string[]) => void;
+  // Resolves false when the host backed out (a time conflict the person chose
+  // not to book), so the sheet un-latches and stays open instead of hanging
+  // on "Saving".
+  onCommit: (blocks: PlanBlock[], picks: string[], leanedOn?: string[]) => void | boolean | Promise<void | boolean>;
   // The user's chosen day cap from the monthly report, when set.
   chosenCap?: number;
   onClose: () => void;
@@ -433,6 +437,17 @@ export default function PlanDaySheet({
     onKeyDown: (e: RKeyboardEvent) => { if (e.target === e.currentTarget) onPressKey(fn)(e); },
   });
   const blockFor = (id: string) => plan.blocks.find((b) => realId(b.taskId) === id);
+  // A pick he PLACED BY HAND can land on a fixed event or a protected block
+  // (the planner never does: it routes around both). Said on the row, in one
+  // line, and asked once more at the commit (P0 #2, 2026-10-01).
+  const dayBusy = useMemo(() => dayItemsFor(events, date, blocked), [events, date, blocked]);
+  const handPlacedLine = (id: string): string | null => {
+    if (!overrides[id]) return null;
+    const b = blockFor(id);
+    if (!b) return null;
+    const real = findConflicts(dayBusy, { start: hhmmToMin(b.start), end: hhmmToMin(b.end), forTask: true }).filter((c) => c.severity === "conflict");
+    return real.length ? conflictLine(real) : null;
+  };
   const timeFor = (id: string) => blockFor(id)?.start ?? null;
 
   const addTask = async () => {
@@ -543,7 +558,7 @@ export default function PlanDaySheet({
         ).catch(() => { /* the next identical override re-observes it */ });
       }
     }
-    onCommit(
+    const done = onCommit(
       committed.map((b) => {
         const sitting = sittingOf(b.taskId);
         return { ...b, taskId: realId(b.taskId), ...(sitting ? { sitting } : {}) };
@@ -553,6 +568,7 @@ export default function PlanDaySheet({
       Array.from(new Set(picks.map(realId))),
       leanedOn,
     );
+    void Promise.resolve(done).then((v) => { if (v === false) { committing.current = false; setSaving(false); } });
   };
 
   const hide = (k: string) => setDismissed((d) => ({ ...d, [k]: true }));
@@ -809,6 +825,9 @@ export default function PlanDaySheet({
                             )}
                             {on && blockFor(t.id)?.overSoft && (
                               <div className="conn-meta"><span className="fact warn">Overlaps Your {blockFor(t.id)!.overSoft}</span></div>
+                            )}
+                            {on && handPlacedLine(t.id) && (
+                              <div className="conn-meta"><span className="fact warn">{handPlacedLine(t.id)}</span></div>
                             )}
                             {chunks && <div className="conn-meta"><span className="fact"><b>{sittingsOf(chunks)}</b></span></div>}
                           </div>

@@ -98,6 +98,7 @@ export default function EventSheet({
   initial,
   categories,
   checkConflict,
+  conflictLine,
   suggestSlot,
   onSave,
   onDelete,
@@ -122,8 +123,13 @@ export default function EventSheet({
   initial?: Partial<EventDraft>;
   categories: SheetCategory[];
   checkConflict?: (date: string, start: string, end: string) => boolean;
+  // The line naming WHAT the time lands on ("Overlaps Breakfast 9:30 to 10:00
+  // AM"), events and routine blocks both. Wins over the bare fact above.
+  conflictLine?: (date: string, start: string, end: string) => string | null;
   suggestSlot?: (date: string) => string;
-  onSave: (draft: EventDraft, scope?: "this" | "series") => void;
+  // Resolves false when the host asked about a time conflict and the person
+  // backed out: the sheet un-latches and stays open for another try.
+  onSave: (draft: EventDraft, scope?: "this" | "series") => void | boolean | Promise<void | boolean>;
   onDelete?: (scope?: "this" | "series") => void;
   // E2: copy this event as a new one-off on the same day.
   onDuplicate?: () => void;
@@ -223,7 +229,8 @@ export default function EventSheet({
   };
 
   const endInvalid = !!end && end <= start;
-  const conflict = checkConflict?.(date, start, end) ?? false;
+  const conflictText = conflictLine?.(date, start, end) ?? null;
+  const conflict = conflictText !== null || (checkConflict?.(date, start, end) ?? false);
 
   const recurringEdit = mode === "edit" && recurrence !== "none";
 
@@ -264,7 +271,8 @@ export default function EventSheet({
       // hidden row must not write its empty default over a real value).
       ...(projects.length > 0 ? { projectId } : {}),
     };
-    recurringEdit ? onSave(draft, scope) : onSave(draft);
+    const done = recurringEdit ? onSave(draft, scope) : onSave(draft);
+    void Promise.resolve(done).then((v) => { if (v === false) setSaving(false); });
   };
 
   // Attachments: only non-recurring events hold tasks (links live on the event
@@ -453,7 +461,7 @@ export default function EventSheet({
           {err && !endInvalid && <div className="input-error xs-error">Needs title · Date · Start</div>}
           {conflict && !endInvalid && (
             <div className="input-hint xs-note">
-              <span className="fact warn">Overlaps Another Event</span>
+              <span className="fact warn">{conflictText ?? "Overlaps Another Event"}</span>
               {suggestSlot && (
                 <button type="button" className="note-fix" onClick={() => {
                   const dur = durNow || 60;
