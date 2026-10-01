@@ -375,7 +375,7 @@ export default function TodayPage({
   // S6-Q36: same per-event shape as attachMap.
   firstMoveMap?: Record<string, string>;
   onShift?: (id: string, mins: number) => void;
-  onMoveTo?: (id: string, start: string) => void;
+  onMoveTo?: (id: string, start: string, end?: string) => void;
   onSetEnd?: (id: string, end: string) => void;
   onSkipToday?: (id: string) => void;
   onPushTomorrow?: (id: string) => void;

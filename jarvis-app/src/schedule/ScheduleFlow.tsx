@@ -45,7 +45,7 @@ import { chronotypeFor, peakWindowFor } from "./energy";
 import { isSuggested, rankCandidates } from "./planMeta";
 import { shiftFutureEvents, restoreShift, type ShiftResult } from "./runningLate";
 import {
-  moveEvent as moveEventAdjust, undoMoveEvent as undoMoveEventAdjust, type MoveOutcome,
+  type MoveOutcome,
   resizeEvent as resizeEventAdjust, undoResizeEvent as undoResizeEventAdjust, type ResizeOutcome,
   skipEventToday as skipEventTodayAdjust, undoSkipEventToday as undoSkipEventTodayAdjust,
   pushEventTomorrow as pushEventTomorrowAdjust, undoPushEventTomorrow as undoPushEventTomorrowAdjust, type PushOutcome,
@@ -63,7 +63,7 @@ import { useFreshLists } from "../data/useFreshLists";
 import { recordSpot } from "../restore/whereYouWere";
 import { ENTITY_EVENT } from "./types";
 import { ENTITY_TASK } from "../notes/types";
-import { moveEventToAnytime, undoMoveToAnytime, duplicateEvent as duplicateEventMove } from "./eventMoves";
+import { moveEventToAnytime, undoMoveToAnytime, duplicateEvent as duplicateEventMove, commitRetime, undoRetime } from "./eventMoves";
 import TaskSheet, { type TaskDraft } from "../tasks/screens/TaskSheet";
 import { sheetEvents } from "./sheetEvents";
 import type { Recurrence } from "../notes/types";
@@ -1125,16 +1125,16 @@ export default function ScheduleFlow({ onEditRoutine, openId, openNonce, onOpenC
   // ./eventAdjust.ts so Today can offer the identical actions instead of a
   // second implementation of each. This function keeps the label wording and
   // the toast/undo wiring, which legitimately differ per surface.
-  const moveEvent = async (id: string, toStart: string, label: string) => {
+  const moveEvent = async (id: string, toStart: string, label: string, end?: string) => {
     let outcome: MoveOutcome | null = null;
-    const ok = await attemptWrite(async () => { outcome = await moveEventAdjust(id, toStart, selected, svc); });
+    const ok = await attemptWrite(async () => { outcome = await commitRetime(id, { start: toStart, ...(end ? { end } : {}) }, selected, svc); });
     await reload();
     const o = outcome as MoveOutcome | null;
     if (!ok || !o?.ok) return;
     showToast({
       message: o.repeating ? label + " · Just Today" : label,
       actionLabel: "Undo",
-      onAction: async () => { await attemptWrite(() => undoMoveEventAdjust(id, selected, o, svc)); await reload(); },
+      onAction: async () => { await attemptWrite(() => undoRetime(id, selected, o, svc)); await reload(); },
     });
   };
 
@@ -1178,9 +1178,9 @@ export default function ScheduleFlow({ onEditRoutine, openId, openNonce, onOpenC
   };
 
   // Move to an exact time (the time tap, and later the drag drop).
-  const onMoveTo = async (id: string, start: string) => {
+  const onMoveTo = async (id: string, start: string, end?: string) => {
     const t = fmtTime(start);
-    await moveEvent(id, start, `Moved to ${t.time} ${t.ap}`);
+    await moveEvent(id, start, `Moved to ${t.time} ${t.ap}`, end);
   };
 
   // SKIP JUST THIS ONE: a repeating thing you are not doing today should not

@@ -4744,12 +4744,13 @@ describe("LAW 17: the Schedule head is two rows, the day starts at Now, and the 
     expect(CSS, "and its rule with it").not.toMatch(/\.sched-until-empty\s*\{/);
     expect(src, "the length renders only when there is one").toMatch(/\{mins != null && \(/);
     expect(src, "and it is the span, not the end time").toMatch(/>\{durLabel\(mins\)\}<\/button>/);
-    // The anchor is the className expression, not a literal: BROWSER-F-17
-    // (2026-09-05) gave the popover an up variant, so the class is composed.
-    // Same assertion, same element, it just is not a plain string any more.
-    const pop = src.slice(src.indexOf('className={"time-pop"'));
-    expect(pop, "the time popover carries the length too").toMatch(/time-pop-durs/);
-    expect(pop, "and its chips write an end time").toMatch(/onSetEnd\(endFor\(e\.data\.start, d\)\)/);
+    // AMENDED 2026-10-01 (schedule audit, item 4): the popover (time-pop,
+    // BROWSER-F-17's up/down variants) became the Change Time sheet. The law
+    // is unchanged in what it protects: the time control carries the length
+    // too, and a length chip writes an end time.
+    const pop = src.slice(src.indexOf("<RetimeSheet"));
+    expect(pop, "the time control carries the length too").toMatch(/minutes=\{mins\}/);
+    expect(pop, "and a length change writes an end time").toMatch(/endFor\(s, m\)/);
     expect(src, "and says so").toMatch(/"Change time or length, currently "/);
   });
 

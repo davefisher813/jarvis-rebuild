@@ -151,7 +151,7 @@ export default function SchedulePage({
   // Drop a task straight into a holding block (2026-08-21).
   onFillBlock?: (startMin: number, endMin: number) => void;
   onShift?: (id: string, mins: number) => void;
-  onMoveTo?: (id: string, start: string) => void;
+  onMoveTo?: (id: string, start: string, end?: string) => void;
   onSetEnd?: (id: string, end: string) => void;
   // UP-CORE-05 (2026-09-05): handed down to every row's provenance line.
   openSourceFor?: (source: Source) => (() => void) | undefined;
@@ -872,7 +872,7 @@ export default function SchedulePage({
                   state={stateForEvent(en.e.data, isToday ? { today: en.e.data.date, nowMin } : null)}
                   onOpen={() => onOpenEvent?.(en.e.id, en.e.data.date)}
                   onShift={onShift ? (m) => onShift(en.e.id, m) : undefined}
-                  onMoveTo={onMoveTo ? (t) => onMoveTo(en.e.id, t) : undefined}
+                  onMoveTo={onMoveTo ? (t, end) => onMoveTo(en.e.id, t, end) : undefined}
                   onSetEnd={onSetEnd ? (end) => onSetEnd(en.e.id, end) : undefined}
                   selecting={sel.active}
                   picked={sel.isSelected(en.e.id)}

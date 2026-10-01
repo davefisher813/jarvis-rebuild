@@ -68,7 +68,7 @@ import { cardDraftJob } from "../messages/cardDraftJob";
 import { DUR_CHOICES, durLabel } from "../schedule/durations";
 import { heldBy, heldLine, type HardLine } from "../brain/hardLines";
 import {
-  moveEvent as moveEventAdjust, undoMoveEvent as undoMoveEventAdjust, type MoveOutcome,
+  type MoveOutcome,
   resizeEvent as resizeEventAdjust, undoResizeEvent as undoResizeEventAdjust, type ResizeOutcome,
   skipEventToday as skipEventTodayAdjust, undoSkipEventToday as undoSkipEventTodayAdjust,
   pushEventTomorrow as pushEventTomorrowAdjust, undoPushEventTomorrow as undoPushEventTomorrowAdjust, type PushOutcome,
@@ -163,7 +163,7 @@ import { Suspense } from "react";
 import { lazyWithRecovery } from "../shell/chunkRecovery";
 import { isOffTrack, rankOpen, reasonFor } from "../upnext/upnext";
 import { backOnTrackMessage } from "../tasks/lifecycle";
-import { moveEventToAnytime, undoMoveToAnytime, duplicateEvent } from "../schedule/eventMoves";
+import { moveEventToAnytime, undoMoveToAnytime, duplicateEvent, commitRetime, undoRetime } from "../schedule/eventMoves";
 import { ClockGlyph, DocGlyph, ForkGlyph, SweepGlyph, TargetGlyph, CheckCircleGlyph, BarbellGlyph, GiftGlyph, FolderOpenGlyph } from "../shared/glyphs";
 import { Clock, CircleSlash } from "../shared/icons";
 import { isFromEmail } from "../tasks/origin";
@@ -947,29 +947,29 @@ export default function TodayFlow({
       ? `Back ${spanLabel(Math.abs(mins))}`
       : `Forward ${spanLabel(mins)}`;
     let outcome: MoveOutcome | null = null;
-    const ok = await attemptWrite(async () => { outcome = await moveEventAdjust(id, addMinutes(e.start, mins), today, schedule); });
+    const ok = await attemptWrite(async () => { outcome = await commitRetime(id, { start: addMinutes(e.start, mins) }, today, schedule); });
     await reload();
     const o = outcome as MoveOutcome | null;
     if (!ok || !o?.ok) return;
     showToast({
       message: o.repeating ? word + " · Just Today" : word,
       actionLabel: "Undo",
-      onAction: async () => { await attemptWrite(() => undoMoveEventAdjust(id, today, o, schedule)); await reload(); },
+      onAction: async () => { await attemptWrite(() => undoRetime(id, today, o, schedule)); await reload(); },
     });
   };
 
-  const onMoveTo = async (id: string, start: string) => {
+  const onMoveTo = async (id: string, start: string, end?: string) => {
     const t = fmtTime(start);
     const label = `Moved to ${t.time} ${t.ap}`;
     let outcome: MoveOutcome | null = null;
-    const ok = await attemptWrite(async () => { outcome = await moveEventAdjust(id, start, today, schedule); });
+    const ok = await attemptWrite(async () => { outcome = await commitRetime(id, { start, ...(end ? { end } : {}) }, today, schedule); });
     await reload();
     const o = outcome as MoveOutcome | null;
     if (!ok || !o?.ok) return;
     showToast({
       message: o.repeating ? label + " · Just Today" : label,
       actionLabel: "Undo",
-      onAction: async () => { await attemptWrite(() => undoMoveEventAdjust(id, today, o, schedule)); await reload(); },
+      onAction: async () => { await attemptWrite(() => undoRetime(id, today, o, schedule)); await reload(); },
     });
   };
 

@@ -108,7 +108,7 @@ function DaySet({
   // S6-Q36: same per-event shape as attachMap.
   firstMoveMap?: Record<string, string>;
   onShift?: (id: string, mins: number) => void;
-  onMoveTo?: (id: string, start: string) => void;
+  onMoveTo?: (id: string, start: string, end?: string) => void;
   onSetEnd?: (id: string, end: string) => void;
   onSkipToday?: (id: string) => void;
   onPushTomorrow?: (id: string) => void;
@@ -200,7 +200,7 @@ function DaySet({
           {...(stateWords ? { state: stateForEvent(en.ev.data, { today: todayISODate(), nowMin }) } : {})}
           onOpen={onOpenEvent ? () => onOpenEvent(en.ev.id) : undefined}
           onShift={onShift ? (m) => onShift(en.ev.id, m) : undefined}
-          onMoveTo={onMoveTo ? (t) => onMoveTo(en.ev.id, t) : undefined}
+          onMoveTo={onMoveTo ? (t, end) => onMoveTo(en.ev.id, t, end) : undefined}
           onSetEnd={onSetEnd ? (end) => onSetEnd(en.ev.id, end) : undefined}
           onSkipToday={onSkipToday ? () => onSkipToday(en.ev.id) : undefined}
           onPushTomorrow={onPushTomorrow ? () => onPushTomorrow(en.ev.id) : undefined}
@@ -400,7 +400,7 @@ export default function YourDay({
   // S6-Q36: same per-event shape as attachMap.
   firstMoveMap?: Record<string, string>;
   onShift?: (id: string, mins: number) => void;
-  onMoveTo?: (id: string, start: string) => void;
+  onMoveTo?: (id: string, start: string, end?: string) => void;
   onSetEnd?: (id: string, end: string) => void;
   onSkipToday?: (id: string) => void;
   onPushTomorrow?: (id: string) => void;
