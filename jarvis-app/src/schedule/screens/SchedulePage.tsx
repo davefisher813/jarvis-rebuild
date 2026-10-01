@@ -89,7 +89,7 @@ function weekRange(cells: WeekCell[]): string {
 export default function SchedulePage({
   year, month, selected, todayDate, dots, dayEvents, conflicts, gymDoorFor,
   mode = "month", onMode, weekCells = [], weekRows = [], loading, loadFailed, onRetryLoad, repeats = [], overlap, onFixOverlap, clashCount = 0, onOverlapBadge, onCopyDay,
-  onPrev, onNext, onSelect, onNew, onOpenEvent, onPickSlot, onPlanDay, onUpload, onDeleteMany,
+  onPrev, onNext, onSelect, onNew, onOpenEvent, onPickSlot, onGapOffer, onPlanDay, onUpload, onDeleteMany,
   locked = [], now, onEditRoutine, onOpenBlock, onFillBlock, onShift, onMoveTo, onSetEnd, onSkipToday, onPushTomorrow, onRunningLate, openSourceFor, notedEvents, onNotes,
   onShiftBlock, onRetimeBlock, onResizeBlock, onDeleteBlock, onDeleteEvent,
   proposed, dayFooter,
@@ -132,7 +132,11 @@ export default function SchedulePage({
   // as the id. eventsForDate already remaps a recurring event's date to the
   // day being viewed, and the editor needs that day to know which occurrence
   // was tapped. The Repeats list has no day and passes none.
-  onNew?: () => void; onOpenEvent?: (id: string, occurrenceDate?: string) => void; onPickSlot?: (start: string) => void; onPlanDay?: () => void; onUpload?: () => void;
+  onNew?: () => void; onOpenEvent?: (id: string, occurrenceDate?: string) => void; onPickSlot?: (start: string) => void;
+  // SCHEDULE SOMETHING HERE (2026-10-01): a tap on an Open row offers the tasks
+  // that fit instead of a blank form. Absent, the row opens New Event as it did.
+  onGapOffer?: (start: string, end: string) => void;
+  onPlanDay?: () => void; onUpload?: () => void;
   // Bulk delete for the selected day (2026-08-24).
   onDeleteMany?: (ids: string[]) => void;
   locked?: LockedRange[]; now?: string | null;
@@ -777,7 +781,7 @@ export default function SchedulePage({
                    The gap carries its own window so the drop can read it. */
                 data-gap-start={en.start}
                 data-gap-end={en.end}
-                onClick={() => onPickSlot?.(en.start)}
+                onClick={() => (onGapOffer ? onGapOffer(en.start, en.end) : onPickSlot?.(en.start))}
               >
                 {/* NO "TAP TO FILL IT" (Dave 2026-08-25: "there's no need to
                     say (tap to fill). The display for those slots also do not

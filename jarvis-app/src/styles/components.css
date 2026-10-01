@@ -4079,7 +4079,12 @@ button {
 .plan-doneby .input-compact, .plan-add .input-compact, .plan-protect .input-compact { height: 34px; font-size: var(--t-meta); }
 .plan-doneby .input-compact { width: 118px; flex: 0 0 auto; }
 .plan-protect .input-compact { min-width: 0; }
-.plan-when { display: flex; align-items: center; gap: var(--s-2); margin-top: var(--s-2); }
+/* WRAPS, AND NO BUTTON BREAKS ITS OWN WORDS (schedule audit 2026-10-01). A
+   proposed row now carries three verbs (Book It, Edit Task, Move to Anytime)
+   and on a 390px phone the third was clipped and the first folded onto two
+   lines. A verb that does not fit goes to the next line whole. */
+.plan-when { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2); margin-top: var(--s-2); }
+.plan-when > .btn-sm { white-space: nowrap; flex-shrink: 0; }
 .plan-doneby, .plan-add, .plan-protect { display: flex; align-items: center; gap: var(--s-2); padding: var(--s-2) 0; }
 .plan-add .input, .plan-protect .input { flex: 1; min-width: 0; }
 .plan-feel { margin: var(--s-1) 0 var(--s-2); }

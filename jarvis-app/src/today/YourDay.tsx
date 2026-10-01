@@ -334,6 +334,7 @@ export default function YourDay({
   now,
   nowLabel,
   onSeeAll,
+  onNewEvent,
   primary,
   onPlanDay,
   onPlanTomorrow,
@@ -369,6 +370,11 @@ export default function YourDay({
   now: string;
   nowLabel: string;
   onSeeAll: () => void;
+  /** NEW EVENT FROM TODAY (schedule audit 2026-10-01, item 8). The page you
+   *  start the day on could edit an event and could not add one. The pill
+   *  rides the section head beside Schedule and opens the same New Event
+   *  sheet the Schedule tab's "+" does. Absent, the head is what it was. */
+  onNewEvent?: () => void;
   /** ACCEPT SITS BESIDE PLAN MY DAY (Dave 2026-09-11: "Accept the day and plan
    *  my day should be next to each other where plan my day currently is").
    *  The draft's commit button, handed in so it shares this row rather than
@@ -587,6 +593,7 @@ export default function YourDay({
             <svg className="icon-play" viewBox="0 0 24 24"><polygon points="7,5 19,12 7,19" /></svg>
           </button>
         )}
+      {onNewEvent && <button className="see-all pill-action" onClick={onNewEvent}>New Event</button>}
       <button className="see-all pill-action" onClick={onSeeAll}>Schedule</button>
       </span>
     </div>

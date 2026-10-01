@@ -136,35 +136,35 @@ export interface GapCandidate {
   estimateMin: number;
 }
 
-export function gapFill(
-  tasks: { id: string; text: string; category: string; done: boolean; due?: string | null; bill?: unknown; reminder?: unknown; estimateMin?: number }[],
-  gapMin: number | null,
+// THE TASKS THAT FIT, IN OFFER ORDER (2026-10-01). gapFill below deals one of
+// these to the Now card; the Schedule tab's "Schedule something here" sheet
+// lists several. They were going to be two rankings of the same question, so
+// the question lives here once: which open tasks fit this much room, and
+// which come first. `buffer` is the breathing room the estimate must leave:
+// the Now card keeps its ten minutes, the sheet that lets you choose books
+// the task into the gap exactly and asks for none.
+type GapTaskIn = { id: string; text: string; category: string; done: boolean; due?: string | null; bill?: unknown; reminder?: unknown; estimateMin?: number };
+
+export function gapFits(
+  tasks: GapTaskIn[],
+  gapMin: number,
   today: string,
   estimateFor: (category: string) => number,
-  // TODAY-F-20 (2026-09-05): categories paused for the season. The planner
-  // has refused to offer their tasks since candidatesFor learned the rule,
-  // but the pause lived in that one caller instead of here, and this is the
-  // other place a task becomes work: a paused category's task could be dealt
-  // by the Now card with a Start pill. Bills need no exemption here (unlike
-  // candidatesFor, where pausing Money must never silence rent) because a
-  // bill never reaches the gap offer at all, see the filter below.
   paused: ReadonlySet<string> = new Set<string>(),
-): GapCandidate | null {
-  if (gapMin === null || gapMin < GAP_MIN_MINUTES) return null;
+  buffer: number = GAP_BUFFER,
+): { t: GapTaskIn; est: number }[] {
   // B6-5 (2026-09-04): "The Now card can offer a reminder as work." Every
   // other chokepoint that turns tasks into a work queue (filters.ts,
   // upnext.ts) excludes reminders; this one did not, so a 50-minute gap
   // could deal Morning Meds a Start button and a ritual sheet.
   const open = tasks.filter((t) => !t.done && !t.bill && !t.reminder && !paused.has(t.category));
-  if (open.length === 0) return null;
   const fits = open
     // UP-CORE-02 (2026-09-05): the task's own length before the category's
     // median. This is the whole point of the gap offer: a ten minute call
     // fits a twenty minute gap, and it never did while every task in a
     // category was the same size.
     .map((t) => ({ t, est: t.estimateMin ?? estimateFor(t.category) }))
-    .filter((x) => x.est + GAP_BUFFER <= gapMin);
-  if (fits.length === 0) return null;
+    .filter((x) => x.est + buffer <= gapMin);
   // Due today first, then overdue, then anything; nearest due inside a tier.
   const rank = (due?: string | null): [number, string] => {
     if (!due) return [2, "9999"];
@@ -177,7 +177,26 @@ export function gapFill(
     const [rb, db] = rank(b.t.due);
     return ra - rb || da.localeCompare(db) || a.t.text.localeCompare(b.t.text);
   });
-  const pick = fits[0]!;
+  return fits;
+}
+
+export function gapFill(
+  tasks: GapTaskIn[],
+  gapMin: number | null,
+  today: string,
+  estimateFor: (category: string) => number,
+  // TODAY-F-20 (2026-09-05): categories paused for the season. The planner
+  // has refused to offer their tasks since candidatesFor learned the rule,
+  // but the pause lived in that one caller instead of here, and this is the
+  // other place a task becomes work: a paused category's task could be dealt
+  // by the Now card with a Start pill. Bills need no exemption here (unlike
+  // candidatesFor, where pausing Money must never silence rent) because a
+  // bill never reaches the gap offer at all, see gapFits.
+  paused: ReadonlySet<string> = new Set<string>(),
+): GapCandidate | null {
+  if (gapMin === null || gapMin < GAP_MIN_MINUTES) return null;
+  const pick = gapFits(tasks, gapMin, today, estimateFor, paused)[0];
+  if (!pick) return null;
   return { id: pick.t.id, text: pick.t.text, estimateMin: pick.est };
 }
 
