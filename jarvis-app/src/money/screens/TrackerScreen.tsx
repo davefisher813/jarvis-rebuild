@@ -9,15 +9,15 @@ import { lineCase, titleCase } from "../../shared/casing";
 import { showToast } from "../../shared/toast";
 import { attemptWrite } from "../../shared/guard";
 import {
-  EMPTY_TRACKER, byCategory, categoryColor, dollarsToCents, fmtCents, fmtDay, inMonth,
-  incomeCents, knownCategories, monthLabel, monthlySubTotal, monthOf, shiftMonth, spentCents,
+  EMPTY_TRACKER, categoryColor, dollarsToCents, fmtCents, fmtDay, inMonth,
+  incomeCents, knownCategories, monthLabel, monthlySubTotal, monthOf, shiftMonth,
   thisMonth, topMerchants,
   type SubFrequency, type TrackerAccount, type TrackerAccountData, type TrackerAccountType, type TrackerBudgetData, type TrackerData, type TrackerSub, type TrackerSubData, type TrackerTx, type TrackerTxData,
 } from "../tracker";
 import MatchesCard from "./MatchesCard";
 import HistoryList from "./HistoryList";
 import { categoryChoices, lastCategoryFor } from "../categoryDefault";
-import { allocationsFromRows, discrepancyLines, displayRows, monthActuals, newRow, rowsFromAllocations, seedRows, type BudgetRow } from "../budgetView";
+import { allocationsFromRows, discrepancyLines, displayRows, monthActuals, monthSpend, newRow, rowsForNewMonth, rowsFromAllocations, type BudgetRow } from "../budgetView";
 import { overLine } from "../ledger/actuals";
 import { ENTITY_MONEY_BILL, ENTITY_MONEY_RECEIPT, type Bill, type Receipt } from "../ledger/types";
 import { removeTxWithLinks, unmatchTx, type LinkChange } from "../txLinks";
@@ -135,7 +135,7 @@ export default function TrackerScreen({ onBack }: { onBack: () => void }) {
         </div>
       </div>
       {tab === "dashboard" && (
-        <Dashboard month={month} onMonth={setMonth} txs={monthTxs} data={data} onSaved={reload} />
+        <Dashboard month={month} onMonth={setMonth} txs={monthTxs} receipts={recs.receipts} data={data} onSaved={reload} />
       )}
       {tab === "transactions" && (
         <Transactions data={data} month={month} receipts={recs.receipts} bills={recs.bills} onSaved={reload} />
@@ -174,8 +174,8 @@ function SectionHead({ label, count }: { label: string; count?: number }) {
 
 /* -------------------------------- Dashboard ------------------------------- */
 
-function Dashboard({ month, onMonth, txs, data, onSaved }: {
-  month: string; onMonth: (m: string) => void; txs: TrackerTx[]; data: TrackerData;
+function Dashboard({ month, onMonth, txs, receipts, data, onSaved }: {
+  month: string; onMonth: (m: string) => void; txs: TrackerTx[]; receipts: Receipt[]; data: TrackerData;
   onSaved: () => Promise<void>;
 }) {
   const svc = useTracker();
@@ -200,10 +200,11 @@ function Dashboard({ month, onMonth, txs, data, onSaved }: {
       onAction: async () => { await attemptWrite(() => svc.saveAccount(null, a.data)); await onSaved(); },
     });
   };
-  const spent = spentCents(txs);
+  // Out and the categories are the budget's own sum: payments plus standalone
+  // receipts, a linked pair once (budgetView.monthSpend).
+  const { spent, cats } = useMemo(() => monthSpend(month, data.txs, receipts), [month, data.txs, receipts]);
   const income = incomeCents(txs);
   const net = income - spent;
-  const cats = useMemo(() => byCategory(txs), [txs]);
   const merchants = useMemo(() => topMerchants(txs), [txs]);
   const biggest = cats.length > 0 ? cats[0]![1] : 1;
   const budget = data.budgets.find((b) => b.data.month === month);
@@ -602,11 +603,16 @@ function Budgets({ month, onMonth, data, receipts, onSaved }: {
   // month with no budget starts from the proposed names. Keyed on the stored
   // content, so an unrelated reload does not wipe what is being typed.
   const stored = existing ? JSON.stringify(existing.data) : "";
+  // A month with no budget opens with the last budget's categories and limits
+  // (Dave 2026-10-03), and says where they came from. The key is the earlier
+  // budgets' content, so saving this month does not re-copy over what was typed.
+  const [copiedFrom, setCopiedFrom] = useState<string | undefined>(undefined);
   useEffect(() => {
     const b = existing?.data;
     setIncome(b ? (b.expectedIncomeCents / 100).toFixed(2) : "");
     setTarget(b ? (b.savingsTargetCents / 100).toFixed(2) : "");
-    setRows(b ? rowsFromAllocations(b.allocations) : seedRows());
+    if (b) { setRows(rowsFromAllocations(b.allocations)); setCopiedFrom(undefined); }
+    else { const n = rowsForNewMonth(data.budgets, month); setRows(n.rows); setCopiedFrom(n.from); }
     setFocusKey(null);
   }, [month, stored]);
 
@@ -650,6 +656,9 @@ function Budgets({ month, onMonth, data, receipts, onSaved }: {
             placeholder="0.00" value={target} onChange={(e) => setTarget(e.target.value)} />
         </div>
       </div></div>
+      {copiedFrom && !existing && (
+        <div className="pad-x mt-note"><span className="fact">Limits Copied From {monthLabel(copiedFrom)}</span></div>
+      )}
       {/* What has gone out so far, a fact. A payment and the receipt linked
           to it are one amount here. */}
       <div className="pad-x mt-note">

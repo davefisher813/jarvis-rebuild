@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { allocationsFromRows, discrepancyLines, displayRows, monthActuals, newRow, rowsFromAllocations, seedRows } from "./budgetView";
+import { allocationsFromRows, discrepancyLines, displayRows, monthActuals, monthSpend, newRow, previousBudget, rowsForNewMonth, rowsFromAllocations, seedRows } from "./budgetView";
 import { DEFAULT_BUDGET_CATEGORIES, type ReceiptData } from "./ledger/types";
 import { overLine } from "./ledger/actuals";
 import { fmtCents } from "./tracker";
@@ -107,5 +107,59 @@ describe("what the month shows against the limits", () => {
     const receipts = [rc("r1", "Market", 4712, "2026-09-08", { linkedTransactionId: "t1" })];
     const a = monthActuals(month, rows, [tx("t1", "Market", 4750, "2026-09-08", "Groceries", { matchedReceiptId: "r1" })], receipts);
     expect(discrepancyLines(a, receipts)).toEqual([]);
+  });
+});
+
+// DAVE 2026-10-03: the Dashboard counts what the Budget counts, and a new
+// month opens with the last budget's limits.
+describe("monthSpend: the Dashboard's Out and categories are the budget's own sum", () => {
+  const month = "2026-09";
+  it("adds a standalone receipt to Out and to its category", () => {
+    const s = monthSpend(month, [tx("t1", "Cafe", 1000, "2026-09-02", "Dining")], [rc("r1", "Hardware", 2500, "2026-09-05", { category: "Home" })]);
+    expect(s.spent).toBe(3500);
+    expect(s.cats).toEqual([["Home", 2500], ["Dining", 1000]]);
+  });
+  it("counts a receipt linked to a payment once, at the payment", () => {
+    const s = monthSpend(month, [tx("t1", "Stop & Shop", 4712, "2026-09-08", "Groceries", { matchedReceiptId: "r1" })], [rc("r1", "Stop & Shop", 4712, "2026-09-08", { category: "Groceries", linkedTransactionId: "t1" })]);
+    expect(s.spent).toBe(4712);
+    expect(s.cats).toEqual([["Groceries", 4712]]);
+  });
+  it("a receipt linked to a payment in another month is not counted again here", () => {
+    const s = monthSpend("2026-10", [tx("t1", "Cafe", 900, "2026-09-30", "Dining", { matchedReceiptId: "r1" })], [rc("r1", "Cafe", 900, "2026-10-01", { category: "Dining", linkedTransactionId: "t1" })]);
+    expect(s.spent).toBe(0);
+  });
+  it("is the same number the budget shows", () => {
+    const txs = [tx("t1", "Cafe", 1000, "2026-09-02", "Dining")];
+    const receipts = [rc("r1", "Hardware", 2500, "2026-09-05")];
+    expect(monthSpend(month, txs, receipts).spent).toBe(monthActuals(month, [], txs, receipts).totalSpent);
+  });
+  it("income and other months are not spend, and an empty month is empty", () => {
+    expect(monthSpend(month, [tx("t1", "Pay", -90000, "2026-09-01", "Income"), tx("t2", "Cafe", 700, "2026-08-31", "Dining")], []).spent).toBe(0);
+    expect(monthSpend(month, [], [])).toEqual({ spent: 0, cats: [] });
+  });
+});
+
+describe("a new month opens with the last budget's limits", () => {
+  const b = (month: string, allocations: Record<string, number>) => ({ id: "b" + month, data: { month, expectedIncomeCents: 500000, savingsTargetCents: 100000, allocations } });
+  it("copies the latest earlier budget's names and limits, and says where from", () => {
+    const n = rowsForNewMonth([b("2026-08", { Golf: 10000 }), b("2026-09", { Golf: 20000, Dining: 45050 })], "2026-10");
+    expect(n.from).toBe("2026-09");
+    expect(n.rows.map((r) => [r.name, r.limit])).toEqual([["Golf", "200.00"], ["Dining", "450.50"]]);
+  });
+  it("skips over a month with no budget, and never copies a later or the same month", () => {
+    expect(rowsForNewMonth([b("2026-08", { Golf: 10000 })], "2026-10").from).toBe("2026-08");
+    expect(previousBudget([b("2026-11", { Golf: 1 }), b("2026-10", { Golf: 2 })], "2026-10")).toBeUndefined();
+  });
+  it("with nothing earlier, the nine proposed names with blank limits", () => {
+    const n = rowsForNewMonth([], "2026-10");
+    expect(n.from).toBeUndefined();
+    expect(n.rows.map((r) => r.name)).toEqual([...DEFAULT_BUDGET_CATEGORIES]);
+    expect(n.rows.every((r) => r.limit === "")).toBe(true);
+  });
+  it("an earlier budget with no limits lends nothing", () => {
+    expect(rowsForNewMonth([b("2026-09", {})], "2026-10").from).toBeUndefined();
+  });
+  it("the copy does not carry income or the savings target", () => {
+    expect(rowsForNewMonth([b("2026-09", { Golf: 20000 })], "2026-10").rows).toHaveLength(1);
   });
 });

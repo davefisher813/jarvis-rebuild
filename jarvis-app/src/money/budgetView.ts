@@ -1,7 +1,7 @@
 import { budgetActuals, type Actuals, type ActualsRow } from "./ledger/actuals";
 import type { TxLike } from "./ledger/reconcile";
 import { DEFAULT_BUDGET_CATEGORIES, UNCATEGORIZED, type ReceiptData } from "./ledger/types";
-import { dollarsToCents, fmtCents } from "./tracker";
+import { dollarsToCents, fmtCents, type TrackerBudget } from "./tracker";
 
 // THE MONTHLY BUDGET, AS THE SCREEN DRAWS IT (Money ledger, 2026-10-03).
 //
@@ -75,6 +75,36 @@ export function displayRows(rows: BudgetRow[], actuals: Actuals): DisplayRow[] {
   const un = byName.get(UNCATEGORIZED);
   out.push({ name: UNCATEGORIZED, limit: null, spent: un?.spent ?? 0, remaining: null, overBy: 0 });
   return out;
+}
+
+/** A NEW MONTH STARTS FROM THE LAST BUDGET (Dave 2026-10-03). The latest budget
+ *  set before this month lends its category names and limits, so a month is
+ *  not re-typed from nothing. Only the limits: income and the savings target
+ *  are the person's to say again. Nothing is stored until they save. */
+export function previousBudget(budgets: TrackerBudget[], month: string): TrackerBudget | undefined {
+  return budgets
+    .filter((b) => b.data.month < month && Object.keys(b.data.allocations).length > 0)
+    .sort((a, b) => b.data.month.localeCompare(a.data.month))[0];
+}
+
+/** The rows a month with no budget opens with, and the month they came from
+ *  (so the screen can say so). The nine proposed names only when there is no
+ *  earlier budget to copy. */
+export function rowsForNewMonth(budgets: TrackerBudget[], month: string): { rows: BudgetRow[]; from?: string } {
+  const prev = previousBudget(budgets, month);
+  return prev ? { rows: rowsFromAllocations(prev.data.allocations), from: prev.data.month } : { rows: seedRows() };
+}
+
+/** THE DASHBOARD COUNTS WHAT THE BUDGET COUNTS (Dave 2026-10-03). "Out" and
+ *  "Spending by Category" are the month's payments plus its standalone
+ *  receipts, a receipt linked to a payment counted once, so the Dashboard and
+ *  the Budget total can never disagree. Biggest first; a category with nothing
+ *  spent is not listed. */
+export function monthSpend(month: string, txs: TxLike[], receipts: { id: string; data: ReceiptData }[]): { spent: number; cats: [string, number][] } {
+  const a = budgetActuals({ month, allocations: {}, txs, receipts });
+  const cats = a.rows.filter((r) => r.spent > 0).map((r): [string, number] => [r.name, r.spent])
+    .sort((x, y) => y[1] - x[1] || x[0].localeCompare(y[0]));
+  return { spent: a.totalSpent, cats };
 }
 
 /** The month's actuals for the rows as they stand in the form. */

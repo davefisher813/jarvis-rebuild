@@ -148,6 +148,52 @@ describe("Tracker transactions: added by hand, no bank", () => {
   });
 });
 
+describe("Dashboard counts what the Budget counts (Dave 2026-10-03)", () => {
+  it("Out and Spending by Category include a standalone receipt, and match the Budget total", async () => {
+    mount("dash-receipt", async (h) => {
+      await h.tracker.saveTx(null, tx({ date: day(2), merchant: "Cafe", name: "CAFE", amountCents: 1000, category: "Dining" }));
+      const r = await h.ledger.addReceipt({ vendor: "Hardware", amount: "25.00", transactionDate: day(5), category: "Home" }, "manual", TODAY);
+      if (!r.ok) throw new Error("seed");
+    });
+    // The dashboard is the first tab.
+    expect(await screen.findByText("$35.00", undefined, { timeout: 4000 })).toBeInTheDocument();   // Out
+    expect(screen.getByText("Home")).toBeInTheDocument();
+    expect(screen.getByText("$25.00")).toBeInTheDocument();
+    await tab("Budgets");
+    expect((await screen.findAllByText("$35.00")).length).toBeGreaterThan(0);                       // Spent
+  });
+
+  it("a receipt linked to a payment is one amount on the Dashboard", async () => {
+    mount("dash-pair", async (h) => { await seedPair(h); });
+    expect(await screen.findAllByText("$47.12", undefined, { timeout: 4000 })).not.toHaveLength(0);
+    expect(screen.queryByText("$94.24")).toBeNull();
+  });
+});
+
+describe("a new month's budget copies last month's limits (Dave 2026-10-03)", () => {
+  it("opens with the previous budget's names and limits, says so, and stores nothing until Save", async () => {
+    const prev = new Date(); prev.setDate(1); prev.setMonth(prev.getMonth() - 1);
+    const prevMonth = `${prev.getFullYear()}-${String(prev.getMonth() + 1).padStart(2, "0")}`;
+    const h = mount("bg-copy", async (s) => {
+      await s.tracker.saveBudget({ month: prevMonth, expectedIncomeCents: 500000, savingsTargetCents: 100000, allocations: { Golf: 20000, Restaurants: 45050 } });
+    });
+    await tab("Budgets");
+    expect((await screen.findByLabelText("Golf limit") as HTMLInputElement).value).toBe("200.00");
+    expect((screen.getByLabelText("Restaurants limit") as HTMLInputElement).value).toBe("450.50");
+    expect(screen.queryByLabelText("Dining limit")).toBeNull();               // not the nine proposed names
+    expect(screen.getByText(`Limits Copied From ${monthLabel(prevMonth)}`)).toBeInTheDocument();
+    // income and savings target are the person's to say again
+    expect((screen.getByLabelText("Expected income") as HTMLInputElement).value).toBe("");
+    // nothing stored for this month until Save
+    expect((await h.current!.tracker.load()).budgets.filter((b) => b.data.month === MONTH)).toHaveLength(0);
+    fireEvent.click(screen.getByText("Save"));
+    await waitFor(async () => {
+      const saved = (await h.current!.tracker.load()).budgets.find((b) => b.data.month === MONTH);
+      expect(saved?.data.allocations).toEqual({ Golf: 20000, Restaurants: 45050 });
+    });
+  });
+});
+
 describe("Tracker budget: monthly, on actuals", () => {
   it("a month with no budget starts from the nine names with blank limits", async () => {
     mount("bg-seed");
