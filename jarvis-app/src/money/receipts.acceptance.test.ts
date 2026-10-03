@@ -2,10 +2,9 @@ import { describe, it, expect } from "vitest";
 import { Store, InMemoryAdapter } from "@core";
 import { LedgerService } from "./ledger/LedgerService";
 import { TrackerService } from "./TrackerService";
-import { monthActuals } from "./budgetView";
+import { monthActuals, newRow } from "./budgetView";
 import { removeTxWithLinks, unmatchTx } from "./txLinks";
 import { billStatus } from "./ledger/status";
-import { newRow } from "./budgetView";
 
 // THE LEDGER'S ACCEPTANCE FOR RECEIPTS, BY HAND, NO AI (Money ledger, 2026-10-03).
 // A receipt and the payment it belongs to are one expense, and one purchase

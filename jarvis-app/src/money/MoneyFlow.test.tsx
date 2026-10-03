@@ -379,92 +379,284 @@ describe("a Credit account is a debt, typed as a plain number (HMN-F-13)", () =>
   });
 });
 
-// 2026-09-11: Read It filled the "paid" sheet's own initial, but the sheet was
-// only ever handed the edit bill's, so From a Receipt opened empty.
-import { useOptionalFiles } from "../data/NotesProvider";
+// MONEY LEDGER (2026-10-03): receipts are records. Four ways in, none needing
+// AI; Read It only ever fills the receipt sheet for the person to confirm.
+import { useOptionalFiles, useLedger } from "../data/NotesProvider";
 import { MemoryFileStore } from "../files/FileStore";
+import type { LedgerService } from "./ledger/LedgerService";
+import type { FilesService } from "../files/FilesService";
 
-function SeededReceipt() {
-  const files = useOptionalFiles();
-  const tasks = useTasks();
-  const [ready, setReady] = useState(false);
+const toasts: string[] = [];
+let unsub: (() => void) | undefined;
+function listenToasts() { toasts.length = 0; unsub?.(); unsub = subscribeToast((t) => { if (t) toasts.push(t.message); }); }
+
+interface Handles { ledger: LedgerService; files: FilesService }
+function Grab({ into, seedFile }: { into: { current?: Handles }; seedFile?: boolean }) {
+  const ledger = useLedger();
+  const files = useOptionalFiles()!;
+  const [ready, setReady] = useState(!seedFile);
   useEffect(() => {
-    void (async () => {
-      // One bill, so the page is past its empty state and Receipts shows.
-      await tasks.createTask("Rent", { bill: { amount: 100 } });
-      await files!.create({ name: "corner-store.png", path: "p/corner-store.png", mime: "image/png", bytes: 10, scope: "money", addedAt: "2026-09-01" });
-      setReady(true);
-    })();
-  }, [files, tasks]);
+    into.current = { ledger, files };
+    if (!seedFile) return;
+    void files.create({ name: "corner-store.png", path: "p/corner-store.png", mime: "image/png", bytes: 10, scope: "money", addedAt: "2026-09-01" }).then(() => setReady(true));
+  }, [ledger, files, into, seedFile]);
   return ready ? <MoneyFlow /> : null;
 }
 
-describe("Read It prefills From a Receipt", () => {
-  afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); aiState.available = false; aiState.reply = ""; });
+async function typeReceipt(vendor: string, amount: string) {
+  fireEvent.click(await screen.findByLabelText("Add a Receipt"));
+  expect(await screen.findByText("New Receipt")).toBeInTheDocument();
+  fireEvent.change(screen.getByLabelText("Vendor"), { target: { value: vendor } });
+  fireEvent.change(screen.getByLabelText("Amount"), { target: { value: amount } });
+  fireEvent.click(screen.getByText("Save"));
+}
 
-  it("opens the sheet with the vendor and total the receipt read", async () => {
-    aiState.available = true;
-    aiState.reply = '{"vendor":"Corner Store","total":42.75,"date":"2026-09-03","currency":"USD"}';
-    vi.spyOn(MemoryFileStore.prototype, "url").mockResolvedValue("blob:receipt");
-    vi.stubGlobal("fetch", vi.fn(async () => ({ blob: async () => new Blob(["x"], { type: "image/png" }) })));
-    render(<NotesProvider userId="receipt-read"><SeededReceipt /></NotesProvider>);
+describe("Typing a receipt is the shortest way in", () => {
+  afterEach(() => { vi.restoreAllMocks(); unsub?.(); });
 
-    const readIt = await screen.findByLabelText("Read corner-store.png");
-    // The URL resolves a beat after the row; Read It waits for it.
-    await waitFor(() => {
-      if (!screen.queryByText("From a Receipt")) fireEvent.click(readIt);
-      expect(screen.getByText("From a Receipt")).toBeInTheDocument();
-    });
-    expect((screen.getByLabelText("Bill name") as HTMLInputElement).value).toBe("Corner Store");
-    expect((screen.getByLabelText("Amount in dollars") as HTMLInputElement).value).toBe("42.75");
+  it("vendor, amount, Save: a record dated today, listed with its amount", async () => {
+    listenToasts();
+    const h: { current?: Handles } = {};
+    render(<NotesProvider userId="rc-type"><Grab into={h} /></NotesProvider>);
+    fireEvent.click(await screen.findByLabelText("Add a Receipt"));
+    await screen.findByText("New Receipt");
+    // The date opens on today and is editable; nothing else is required.
+    expect((screen.getByLabelText("Date") as HTMLInputElement).value).toBe(todayISO());
+    fireEvent.change(screen.getByLabelText("Vendor"), { target: { value: "Stop & Shop" } });
+    fireEvent.change(screen.getByLabelText("Amount"), { target: { value: "47.12" } });
+    fireEvent.click(screen.getByText("Save"));
+    await waitFor(async () => expect(await h.current!.ledger.listReceipts()).toHaveLength(1));
+    const [r] = await h.current!.ledger.listReceipts();
+    expect(r!.data).toMatchObject({ vendor: "Stop & Shop", amountCents: 4712, currency: "USD", transactionDate: todayISO(), source: "manual" });
+    expect(r!.data.attachmentFileId).toBeUndefined();
+    expect(await screen.findByText("Stop & Shop")).toBeInTheDocument();
+    expect(screen.getByText("$47.12")).toBeInTheDocument();
+    expect(toasts).toContain("Receipt Saved");
+    // A receipt is never a bill.
+    expect(await h.current!.ledger.listBills()).toEqual([]);
+  });
+
+  it("saving the same vendor, amount and date again is one record, and says Already Saved", async () => {
+    listenToasts();
+    const h: { current?: Handles } = {};
+    render(<NotesProvider userId="rc-dup"><Grab into={h} /></NotesProvider>);
+    await typeReceipt("Stop & Shop", "47.12");
+    await waitFor(() => expect(toasts).toContain("Receipt Saved"));
+    await typeReceipt("stop & shop", "47.12");
+    await waitFor(() => expect(toasts).toContain("Already Saved"));
+    expect(await h.current!.ledger.listReceipts()).toHaveLength(1);
+  });
+
+  it("a receipt with no vendor or amount does not save, and says what is missing", async () => {
+    const h: { current?: Handles } = {};
+    render(<NotesProvider userId="rc-bad"><Grab into={h} /></NotesProvider>);
+    fireEvent.click(await screen.findByLabelText("Add a Receipt"));
+    await screen.findByText("New Receipt");
+    fireEvent.click(screen.getByText("Save"));
+    expect(await screen.findByText("A vendor and an amount")).toBeInTheDocument();
+    expect(await h.current!.ledger.listReceipts()).toEqual([]);
+  });
+
+  it("the category opens on the one this vendor usually gets", async () => {
+    const h: { current?: Handles } = {};
+    render(<NotesProvider userId="rc-cat"><Grab into={h} /></NotesProvider>);
+    await waitFor(() => expect(h.current).toBeTruthy());
+    await h.current!.ledger.addReceipt({ vendor: "Stop & Shop", amount: "10", transactionDate: "2026-09-01", category: "Groceries" }, "manual", todayISO());
+    fireEvent.click(await screen.findByLabelText("Add a Receipt"));
+    await screen.findByText("New Receipt");
+    fireEvent.change(screen.getByLabelText("Vendor"), { target: { value: "Stop and Shop" } });
+    // "Stop and Shop" is not the same normalised vendor as "Stop & Shop": no guess
+    expect(screen.getByText("None", { selector: ".dd *, .dd" })).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Vendor"), { target: { value: "STOP & SHOP" } });
+    await waitFor(() => expect(screen.getAllByText("Groceries").length).toBeGreaterThan(0));
+    fireEvent.change(screen.getByLabelText("Amount"), { target: { value: "12.00" } });
+    fireEvent.click(screen.getByText("Save"));
+    await waitFor(async () => expect(await h.current!.ledger.listReceipts()).toHaveLength(2));
+    const added = (await h.current!.ledger.listReceipts()).find((r) => r.data.amountCents === 1200)!;
+    expect(added.data.category).toBe("Groceries");
   });
 });
 
 // CLICK-THROUGH AUDIT 2026-09-29: "Add a Receipt: no form or picker opens".
-// The picker is the phone's own file sheet, so a headless driver sees nothing
-// draw; what can be pinned is that the tap opens the hidden file input inside
-// the tap itself (a picker opened after an await is blocked by iOS), and that
-// the file it returns is stored as a receipt.
-describe("Add a Receipt opens the file picker inside the tap", () => {
-  afterEach(() => { vi.restoreAllMocks(); });
+// The phone's picker draws outside the page, so what can be pinned is that the
+// row opens the hidden file input inside its own tap (a picker opened after an
+// await is blocked by iOS), and that the file it returns is kept with the receipt.
+describe("Take a Photo and Attach a File open the picker inside the tap", () => {
+  afterEach(() => { vi.restoreAllMocks(); unsub?.(); });
 
-  it("clicks the file input synchronously, and a chosen file becomes a receipt", async () => {
+  it("opens the sheet first, then the picker synchronously, and the file is kept with the record", async () => {
+    listenToasts();
     const clicks: HTMLInputElement[] = [];
     vi.spyOn(HTMLInputElement.prototype, "click").mockImplementation(function (this: HTMLInputElement) { clicks.push(this); });
     vi.spyOn(MemoryFileStore.prototype, "url").mockResolvedValue("blob:receipt");
-    // jsdom has no object URLs or canvas, which the real upload wants.
     vi.spyOn(MemoryFileStore.prototype, "upload").mockResolvedValue({ path: "u/lunch.png", name: "lunch.png", mime: "image/png", bytes: 1 });
-    render(<NotesProvider userId="receipt-add"><SeededReceipt /></NotesProvider>);
-    const add = await screen.findByLabelText("Add a Receipt");
-    fireEvent.click(add);
-    // The tap lands on a sheet of our own first, so it never reads as dead.
-    expect(screen.getByText("Add a Receipt", { selector: ".eyebrow" })).toBeInTheDocument();
-    expect(screen.getByText("Cancel")).toBeInTheDocument();
-    expect(clicks, "the phone's picker waits for the sheet's row").toHaveLength(0);
-    fireEvent.click(screen.getByText("Take a Photo or Choose a File"));
-    // Synchronous: nothing was awaited between the row's tap and the picker.
-    expect(screen.queryByText("Take a Photo or Choose a File")).toBeNull();
-    expect(clicks[0]!.isConnected, "the input outlives the sheet that opened it").toBe(true);
+    const h: { current?: Handles } = {};
+    render(<NotesProvider userId="rc-attach"><Grab into={h} /></NotesProvider>);
+    fireEvent.click(await screen.findByLabelText("Add a Receipt"));
+    await screen.findByText("New Receipt");
+    expect(clicks, "nothing opens until a row is tapped").toHaveLength(0);
+
+    fireEvent.click(screen.getByText("Attach a File"));
     expect(clicks).toHaveLength(1);
     expect(clicks[0]!.type).toBe("file");
     expect(clicks[0]!.accept).toContain("image/*");
-    // Choosing a file stores it and says so.
-    const file = new File(["x"], "lunch.png", { type: "image/png" });
-    let toast: string | undefined;
-    const off = subscribeToast((t) => { if (t) toast = t.message; });
-    fireEvent.change(clicks[0]!, { target: { files: [file] } });
-    await waitFor(() => expect(screen.getByText("lunch.png")).toBeInTheDocument());
-    expect(toast).toBe("Receipt Added");
-    off();
+    expect(clicks[0]!.accept).toContain("application/pdf");
+    expect(clicks[0]!.isConnected, "the input outlives the tap").toBe(true);
+
+    fireEvent.click(screen.getByText("Take a Photo"));
+    expect(clicks).toHaveLength(2);
+    expect(clicks[1]!.getAttribute("capture")).toBe("environment");
+    expect(clicks[1]!.accept).toBe("image/*");
+
+    // Choosing a file attaches it; saving keeps the file row and names it on the record.
+    fireEvent.change(clicks[0]!, { target: { files: [new File(["x"], "lunch.png", { type: "image/png" })] } });
+    expect(await screen.findByText("lunch.png")).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Vendor"), { target: { value: "Corner Cafe" } });
+    fireEvent.change(screen.getByLabelText("Amount"), { target: { value: "12.50" } });
+    fireEvent.click(screen.getByText("Save"));
+    await waitFor(async () => expect(await h.current!.ledger.listReceipts()).toHaveLength(1));
+    const [r] = await h.current!.ledger.listReceipts();
+    const stored = await h.current!.files.list("money");
+    expect(stored).toHaveLength(1);
+    expect(r!.data.attachmentFileId).toBe(stored[0]!.id);
+    expect(stored[0]!.data.path).toBe("u/lunch.png");
+    // It shows through the record, not again as a loose file.
+    await screen.findByText("Corner Cafe");
+    expect(screen.queryByText("Files")).toBeNull();
   });
 
-  it("Cancel closes the sheet without opening the picker", async () => {
+  it("a duplicate save does not leave its second photo behind", async () => {
+    listenToasts();
     const clicks: HTMLInputElement[] = [];
     vi.spyOn(HTMLInputElement.prototype, "click").mockImplementation(function (this: HTMLInputElement) { clicks.push(this); });
-    render(<NotesProvider userId="receipt-cancel"><SeededReceipt /></NotesProvider>);
+    vi.spyOn(MemoryFileStore.prototype, "url").mockResolvedValue("blob:receipt");
+    vi.spyOn(MemoryFileStore.prototype, "upload").mockResolvedValue({ path: "u/again.png", name: "again.png", mime: "image/png", bytes: 1 });
+    const h: { current?: Handles } = {};
+    render(<NotesProvider userId="rc-dup-photo"><Grab into={h} /></NotesProvider>);
+    await waitFor(() => expect(h.current).toBeTruthy());
+    await h.current!.ledger.addReceipt({ vendor: "Corner Cafe", amount: "12.50", transactionDate: todayISO() }, "manual", todayISO());
     fireEvent.click(await screen.findByLabelText("Add a Receipt"));
+    await screen.findByText("New Receipt");
+    fireEvent.click(screen.getByText("Attach a File"));
+    fireEvent.change(clicks[0]!, { target: { files: [new File(["x"], "again.png", { type: "image/png" })] } });
+    await screen.findByText("again.png");
+    fireEvent.change(screen.getByLabelText("Vendor"), { target: { value: "Corner Cafe" } });
+    fireEvent.change(screen.getByLabelText("Amount"), { target: { value: "12.50" } });
+    fireEvent.click(screen.getByText("Save"));
+    await waitFor(() => expect(toasts).toContain("Already Saved"));
+    expect(await h.current!.ledger.listReceipts()).toHaveLength(1);
+    expect(await h.current!.files.list("money")).toEqual([]);
+  });
+
+  it("Cancel closes the sheet without opening a picker", async () => {
+    const clicks: HTMLInputElement[] = [];
+    vi.spyOn(HTMLInputElement.prototype, "click").mockImplementation(function (this: HTMLInputElement) { clicks.push(this); });
+    const h: { current?: Handles } = {};
+    render(<NotesProvider userId="rc-cancel"><Grab into={h} /></NotesProvider>);
+    fireEvent.click(await screen.findByLabelText("Add a Receipt"));
+    await screen.findByText("New Receipt");
     fireEvent.click(screen.getByText("Cancel"));
-    expect(screen.queryByText("Take a Photo or Choose a File")).toBeNull();
+    expect(screen.queryByText("New Receipt")).toBeNull();
     expect(clicks).toHaveLength(0);
+  });
+});
+
+describe("Read It proposes a receipt; the person confirms", () => {
+  afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); aiState.available = false; aiState.reply = ""; unsub?.(); });
+
+  it("on a file uploaded earlier, it fills the receipt sheet and saves nothing until Save", async () => {
+    aiState.available = true;
+    aiState.reply = '{"vendor":"Corner Store","total":42.75,"date":"2026-09-03","currency":"USD"}';
+    vi.spyOn(MemoryFileStore.prototype, "url").mockResolvedValue("blob:receipt");
+    vi.stubGlobal("fetch", vi.fn(async () => ({ blob: async () => new Blob(["x"], { type: "image/png" }) })));
+    const h: { current?: Handles } = {};
+    render(<NotesProvider userId="receipt-read"><Grab into={h} seedFile /></NotesProvider>);
+
+    const readIt = await screen.findByLabelText("Read corner-store.png");
+    await waitFor(() => {
+      if (!screen.queryByText("New Receipt")) fireEvent.click(readIt);
+      expect(screen.getByText("New Receipt")).toBeInTheDocument();
+    });
+    expect((screen.getByLabelText("Vendor") as HTMLInputElement).value).toBe("Corner Store");
+    expect((screen.getByLabelText("Amount") as HTMLInputElement).value).toBe("42.75");
+    expect((screen.getByLabelText("Date") as HTMLInputElement).value).toBe("2026-09-03");
+    // A candidate, not a record, and never a bill.
+    expect(await h.current!.ledger.listReceipts()).toEqual([]);
+    expect(await h.current!.ledger.listBills()).toEqual([]);
+
+    fireEvent.click(screen.getByText("Save"));
+    await waitFor(async () => expect(await h.current!.ledger.listReceipts()).toHaveLength(1));
+    const [r] = await h.current!.ledger.listReceipts();
+    const file = (await h.current!.files.list("money"))[0]!;
+    expect(r!.data).toMatchObject({ vendor: "Corner Store", amountCents: 4275, transactionDate: "2026-09-03", attachmentFileId: file.id });
+    // The file now belongs to the record: it is no longer listed twice.
+    await waitFor(() => expect(screen.queryByLabelText("Read corner-store.png")).toBeNull());
+    expect(await h.current!.ledger.listBills()).toEqual([]);
+  });
+
+  it("a read that finds no receipt says so and opens nothing", async () => {
+    listenToasts();
+    aiState.available = true;
+    aiState.reply = "I cannot read that";
+    vi.spyOn(MemoryFileStore.prototype, "url").mockResolvedValue("blob:receipt");
+    vi.stubGlobal("fetch", vi.fn(async () => ({ blob: async () => new Blob(["x"], { type: "image/png" }) })));
+    const h: { current?: Handles } = {};
+    render(<NotesProvider userId="receipt-read-miss"><Grab into={h} seedFile /></NotesProvider>);
+    const readIt = await screen.findByLabelText("Read corner-store.png");
+    await waitFor(() => {
+      // The URL resolves a beat after the row; Read It waits for it.
+      if (!toasts.some((t) => t.startsWith("Couldn't Read That"))) fireEvent.click(readIt);
+      expect(toasts.some((t) => t.startsWith("Couldn't Read That"))).toBe(true);
+    });
+    expect(screen.queryByText("New Receipt")).toBeNull();
+  });
+
+  it("with AI off, Read It is not offered on a file or inside the sheet", async () => {
+    aiState.available = false;
+    vi.spyOn(HTMLInputElement.prototype, "click").mockImplementation(() => undefined);
+    const h: { current?: Handles } = {};
+    render(<NotesProvider userId="receipt-ai-off"><Grab into={h} seedFile /></NotesProvider>);
+    await screen.findByText("corner-store.png");
+    expect(screen.queryByLabelText("Read corner-store.png")).toBeNull();
+    // Typing still works, and an attached photo offers no read.
+    await typeReceipt("Cafe", "5");
+    await waitFor(async () => expect(await h.current!.ledger.listReceipts()).toHaveLength(1));
+    fireEvent.click(await screen.findByLabelText("Add a Receipt"));
+    await screen.findByText("New Receipt");
+    expect(screen.queryByText("Read It")).toBeNull();
+  });
+});
+
+describe("A receipt's own sheet", () => {
+  afterEach(() => { vi.restoreAllMocks(); unsub?.(); });
+
+  it("edits through a correction that shows in its history, and delete has an Undo", async () => {
+    const actions: Array<(() => void) | undefined> = [];
+    toasts.length = 0;
+    unsub?.();
+    unsub = subscribeToast((t) => { if (t) { toasts.push(t.message); actions.push(t.onAction); } });
+    const h: { current?: Handles } = {};
+    render(<NotesProvider userId="rc-detail"><Grab into={h} /></NotesProvider>);
+    await waitFor(() => expect(h.current).toBeTruthy());
+    const made = await h.current!.ledger.addReceipt({ vendor: "Cafe", amount: "5.00", transactionDate: "2026-09-08" }, "manual", todayISO());
+    if (!made.ok) throw new Error("seed");
+
+    fireEvent.click(await screen.findByText("Cafe"));
+    await screen.findByText("Not Matched");
+    fireEvent.change(screen.getByLabelText("Amount"), { target: { value: "6.50" } });
+    fireEvent.click(screen.getByText("Save"));
+    await waitFor(async () => expect((await h.current!.ledger.getReceipt(made.id))!.data.amountCents).toBe(650));
+    const after = (await h.current!.ledger.getReceipt(made.id))!;
+    expect(after.data.history.map((x) => x.action)).toEqual(["created", "corrected"]);
+
+    // History is readable on the sheet.
+    fireEvent.click(await screen.findByText("Cafe"));
+    expect(await screen.findByText("Amount $5.00 to $6.50")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText("Delete Receipt"));
+    await waitFor(async () => expect(await h.current!.ledger.listReceipts()).toEqual([]));
+    expect(toasts).toContain("Receipt Deleted");
+    actions[actions.length - 1]!();
+    await waitFor(async () => expect((await h.current!.ledger.getReceipt(made.id))?.data.amountCents).toBe(650));
   });
 });

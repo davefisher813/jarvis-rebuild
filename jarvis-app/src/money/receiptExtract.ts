@@ -8,18 +8,20 @@
 //
 // The same distillation the schedule and syllabus uploads use: extract, and
 // then a REVIEW that a person confirms. Nothing here writes anything; the
-// bill sheet opens prefilled and Save is still a tap.
+// receipt sheet opens prefilled (a candidate, never a bill and never saved on
+// its own) and Save is still a tap. Money ledger, 2026-10-03: a read receipt
+// is a RECEIPT record, not a paid bill.
 //
 // Three refusals, and each is the difference between a record and a guess:
 //   - the vendor is the source's own words, never tidied into a brand name
 //   - a total that is not a number is no total, and the sheet opens with the
 //     amount blank rather than with a plausible one
-//   - a date the receipt does not state is not invented; the review falls
-//     back to today, which is the one date the person can check at a glance
+//   - a date the receipt does not state is not invented; the sheet keeps
+//     today, which is the one date the person can check at a glance
 //
 // No bank data, no transaction sync, no balance is inferred. The honest-money
-// law stands: balances are self-reported and this only ever produces one
-// paid bill that a person confirmed.
+// law stands: balances are self-reported and this only ever proposes one
+// receipt that a person confirmed.
 
 export const RECEIPT_EXTRACT_PROMPT = [
   "Read this receipt.",
