@@ -44,10 +44,18 @@ function cleanStylesheet(css: string): string {
 }
 
 /** Sanitise a mail's HTML into a self-contained document for a sandboxed frame. */
-export function sanitizeMailHtml(html: string, opts: { dark?: boolean } = {}): string {
+// REMOTE IMAGES ON REQUEST (docs/jarvis-unified, slice 05; IMPLEMENTATION-SPEC.md
+// 13: "no remote resource fetch"). The unified Email tab asks for
+// remoteImages: false until the person taps Show Images: an http(s) <img>
+// loses its src (its alt stays), a stylesheet or inline style loses its
+// https url(), and inline data: and cid: pictures stay, since they fetch
+// nothing. Every other caller keeps the default, which is what it was.
+export function sanitizeMailHtml(html: string, opts: { dark?: boolean; remoteImages?: boolean } = {}): string {
   if (typeof DOMParser === "undefined") return "";
   const doc = new DOMParser().parseFromString(html, "text/html");
-  const sheets = Array.from(doc.querySelectorAll("style")).map((el) => cleanStylesheet(el.textContent || ""));
+  const remote = opts.remoteImages !== false;
+  const noRemote = (css: string): string => remote ? css : css.replace(/url\s*\(\s*(['"]?)https?:[^)]*\)/gi, "none");
+  const sheets = Array.from(doc.querySelectorAll("style")).map((el) => noRemote(cleanStylesheet(el.textContent || "")));
   doc.querySelectorAll("style").forEach((el) => el.remove());
   for (const tag of DROP_TAGS) doc.querySelectorAll(tag).forEach((el) => el.remove());
   const walker = doc.createTreeWalker(doc.body, NodeFilter.SHOW_ELEMENT);
@@ -57,13 +65,16 @@ export function sanitizeMailHtml(html: string, opts: { dark?: boolean } = {}): s
     for (const a of Array.from(el.attributes)) {
       const n = a.name.toLowerCase();
       if (n.startsWith("on")) { el.removeAttribute(a.name); continue; }
-      if (n === "style") { const c = cleanStyle(a.value); if (c) el.setAttribute("style", c); else el.removeAttribute("style"); continue; }
+      if (n === "style") { const c = noRemote(cleanStyle(a.value)); if (c) el.setAttribute("style", c); else el.removeAttribute("style"); continue; }
       if (n === "class" || n === "id") continue;
       if (!SAFE_ATTR.has(n)) { el.removeAttribute(a.name); continue; }
       if ((n === "href" || n === "src") && !SAFE_URL.test(a.value.trim())) el.removeAttribute(a.name);
     }
     if (el.tagName === "A") { el.setAttribute("target", "_blank"); el.setAttribute("rel", "noopener noreferrer"); }
-    if (el.tagName === "IMG") { el.setAttribute("loading", "lazy"); }
+    if (el.tagName === "IMG") {
+      el.setAttribute("loading", "lazy");
+      if (!remote && /^https?:/i.test(el.getAttribute("src") ?? "")) { el.removeAttribute("src"); el.setAttribute("data-remote", "off"); }
+    }
   }
   const dark = opts.dark !== false;
   // ONE SCHEME, THE APP'S (Dave 2026-09-04, screenshot: the app in Light,

@@ -1,0 +1,53 @@
+/* ==========================================================================
+   THE EMAIL TAB (docs/jarvis-unified, slice 05). The redesign in place keeps
+   the app's own theme and the approved mail row (mail-rows.css); this sheet
+   only adds what the new screens need and nothing else had: the freshness
+   line under the title, a quiet note that can hold one action, the search
+   coverage line, the message head, the headers disclosure, the body as text,
+   the pull-to-refresh hint. Every colour is a token; nothing here is red.
+   ========================================================================== */
+
+/* The one line under the title: honest freshness, tappable to Accounts. */
+.email-fresh { display: block; width: 100%; text-align: left; background: none; border: 0; font-family: var(--f);
+  padding: 0 var(--s-6) var(--s-2); font-size: var(--t-caption); font-weight: var(--w-medium); color: var(--tx-2); line-height: 1.4; }
+.email-fresh:focus-visible { outline: 2px solid var(--tint); outline-offset: 2px; border-radius: var(--r-xs); }
+
+/* A quiet note: one fact and, when there is one, one action beside it. */
+.email-note { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3);
+  margin: var(--s-2) var(--s-4) 0; padding: var(--s-2h) var(--s-4); border-radius: var(--r-md);
+  background: var(--warn-tint); color: var(--warn); font-size: var(--t-caption); font-weight: var(--w-medium); line-height: 1.4; }
+.email-note.quiet { background: var(--press-3); color: var(--tx-2); }
+.email-note > span { min-width: 0; overflow-wrap: anywhere; }
+.email-note .quiet-action { flex: 0 0 auto; }
+
+/* Search: what was searched and how far it reached. */
+.email-cover { padding: var(--s-2) var(--s-6) var(--s-1); font-size: var(--t-caption); color: var(--tx-3); line-height: 1.4; }
+
+/* The message head: the subject may wrap; the facts under it never truncate
+   a sender or a date (02: stack, never cut essential values). */
+.email-head { padding: var(--s-3) var(--s-6) 0; }
+.email-subject { font-size: var(--t-h3); font-weight: var(--w-semi); color: var(--tx-1); line-height: 1.3; overflow-wrap: anywhere; }
+.email-meta { margin-top: var(--s-1); font-size: var(--t-caption); color: var(--tx-2); line-height: 1.4; overflow-wrap: anywhere; }
+.email-head .quiet-action { margin-top: var(--s-2); }
+.email-headers { margin: var(--s-2) var(--s-6) 0; padding: 0; display: grid; grid-template-columns: auto 1fr; gap: var(--s-0h) var(--s-3);
+  font-size: var(--t-caption); color: var(--tx-2); line-height: 1.4; overflow-wrap: anywhere; }
+.email-headers dt { font-weight: var(--w-semi); color: var(--tx-3); }
+.email-headers dd { margin: 0; }
+
+/* The body as text, when the mail has no HTML: the sender's line breaks, no overflow. */
+.email-body { padding: var(--s-3) var(--s-6); font-size: var(--t-body); line-height: 1.5; color: var(--tx-1);
+  white-space: pre-wrap; overflow-wrap: anywhere; unicode-bidi: plaintext; }
+
+/* The count on a chip: quiet, tabular. */
+.email-chip-n { margin-left: var(--s-1); opacity: 0.7; font-variant-numeric: tabular-nums; }
+
+/* The paperclip after a subject: a glyph, not a chip. */
+.mclip { width: 12px; height: 12px; vertical-align: -1px; margin-left: var(--s-1); color: var(--tx-3); }
+
+/* Pull to refresh: a line that appears while the finger is past the threshold. */
+.email-pull { height: 0; overflow: hidden; text-align: center; font-size: var(--t-caption); color: var(--tx-3); transition: height var(--dur-fast) var(--ease-out); }
+.email-pull.on { height: 28px; line-height: 28px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .email-pull { transition: none; }
+}

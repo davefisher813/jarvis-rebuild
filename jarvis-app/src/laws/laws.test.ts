@@ -2117,10 +2117,8 @@ describe("LAW: every module is reachable, or is listed as not", () => {
     // scoped context (preview, grant, export, import, revoke). The screens
     // that call it are the AI Hub, slice 04; the functions behind it are
     // proven by jarvis-core/supabase/tests/gateway.sh and its own tests.
-    // Slice 02's category preference logic (three taps, one question, a
-    // local tag rule). The category chips that record a tap are the Email
-    // redesign, slice 05.
-    "categoryTaps.ts": "slice 05 adds the category chips that record the taps",
+    // (categoryTaps.ts left this list on 2026-10-03, slice 05: email/categories.ts
+    // records the taps behind the Email tab's File Under.)
     "sends.ts": "slice 07 mounts the Review Send sheet that calls it",
     "worker.ts": "slice 07 adds the api/email send route that runs it on the server",
     // (fileStorage.ts left this list on 2026-09-02: files/FileStore routes

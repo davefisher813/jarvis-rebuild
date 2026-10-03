@@ -40,6 +40,7 @@ import BookingImportPump from "../booking/BookingImportPump";
 import TodayOutboxPump from "../messages/TodayOutboxPump";
 import MailOutboxPump from "../messages/MailOutboxPump";
 import MailSnapshotPump from "../messages/MailSnapshotPump";
+import { flagOn } from "../substrate/flags";
 import BrainPump from "../brain/BrainPump";
 import AutoReplyPump from "../messages/AutoReplyPump";
 
@@ -48,6 +49,9 @@ import AutoReplyPump from "../messages/AutoReplyPump";
 // to launch. Everything else fetches its chunk on first open.
 const NotesFlow = lazyWithRecovery(() => import("../notes/NotesFlow"));
 const MessagesFlow = lazyWithRecovery(() => import("../messages/MessagesFlow"));
+// THE UNIFIED EMAIL TAB (docs/jarvis-unified, slice 05): behind email_intake_v1
+// the Email tab is the new flow; off, it is exactly the MessagesFlow it was.
+const EmailFlow = lazyWithRecovery(() => import("../email/EmailFlow"));
 const NotificationsFlow = lazyWithRecovery(() => import("../notifications/NotificationsFlow"));
 const MoneyFlow = lazyWithRecovery(() => import("../money/MoneyFlow"));
 const ChatFlow = lazyWithRecovery(() => import("../chat/ChatFlow"));
@@ -685,7 +689,8 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
         {active === "brain" && <BrainFlow openKey={brainIntent.value} openNonce={brainIntent.nonce} onKeyConsumed={brainIntent.clear} routineBlockId={routineBlockIntent.value} onRoutineBlockConsumed={routineBlockIntent.clear} personOpenId={personIntent.value} personNonce={personIntent.nonce} onPersonConsumed={personIntent.clear} decisionOpenId={decisionIntent.value} decisionNonce={decisionIntent.nonce} onDecisionConsumed={decisionIntent.clear} factOpenId={factIntent.value} factNonce={factIntent.nonce} onFactConsumed={factIntent.clear} onOpenNote={navigateToNote} onOpenProject={(id) => void navigateToEntity("project", id)} onOpenEntity={(kind, id) => void navigateToEntity(kind, id)} onOpenMoney={() => jump(() => setActive("money"))} autoOpenGym={gymIntent.value === true} gymNonce={gymIntent.nonce} onGymConsumed={gymIntent.clear} healthLogKey={healthLogIntent.value} healthLogNonce={healthLogIntent.nonce} onHealthLogConsumed={healthLogIntent.clear} />}
         {active === "notes" && <NotesFlow seed={seedDemo} onChrome={(c) => setNotesChrome(c.tabBar)} onNavigate={navigateToEntity} openId={noteIntent.value} openNonce={noteIntent.nonce} onOpenConsumed={noteIntent.clear} />}
 
-        {active === "messages" && <MessagesFlow ai={ai} demoMail={seedDemo} openThreadId={mailIntent.value} threadNonce={mailIntent.nonce} onThreadConsumed={mailIntent.clear} openDraftId={draftIntent.value} draftNonce={draftIntent.nonce} onDraftConsumed={draftIntent.clear} composeNonce={composeIntent.nonce} onComposeConsumed={composeIntent.clear} onOpenConnections={() => jump(() => { setMoreRoute("connections"); setActive("more"); })} onOpenTask={(id) => void navigateToEntity("task", id)} />}
+        {active === "messages" && flagOn("email_intake_v1") && <EmailFlow openId={mailIntent.value} openNonce={mailIntent.nonce} onOpenConsumed={mailIntent.clear} onOpenConnections={() => jump(() => { setMoreRoute("connections"); setActive("more"); })} />}
+        {active === "messages" && !flagOn("email_intake_v1") && <MessagesFlow ai={ai} demoMail={seedDemo} openThreadId={mailIntent.value} threadNonce={mailIntent.nonce} onThreadConsumed={mailIntent.clear} openDraftId={draftIntent.value} draftNonce={draftIntent.nonce} onDraftConsumed={draftIntent.clear} composeNonce={composeIntent.nonce} onComposeConsumed={composeIntent.clear} onOpenConnections={() => jump(() => { setMoreRoute("connections"); setActive("more"); })} onOpenTask={(id) => void navigateToEntity("task", id)} />}
         {active === "notifications" && <NotificationsFlow onOpen={(kind, id) => void navigateToEntity(kind, id)} />}
         {active === "money" && <MoneyFlow onOpenTask={(id) => void navigateToEntity("task", id)} onOpenEntity={(k, id) => void navigateToEntity(k, id)} openAccountId={accountIntent.value} openNonce={accountIntent.nonce} onOpenConsumed={accountIntent.clear} />}
         {active === "chat" && <ChatFlow

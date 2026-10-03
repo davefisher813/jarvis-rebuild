@@ -52,7 +52,10 @@ import { mailAccountKey, type MailScope } from "./mailIdentity";
 //     the app, so a remount finds it instead of spending the requests again.
 
 export const CACHE_SCHEMA = 2;
-const ACCOUNT_PREFIX = "jarvis.mail.acct.v2:";
+// Exported for the unified Email tab's own device cache (email/deviceCache.ts,
+// slice 05), which keeps its keys under this prefix so clearAllMailCache and
+// clearOwnerMailCache take them with the rest.
+export const ACCOUNT_PREFIX = "jarvis.mail.acct.v2:";
 // The pre-scoping keys. Their owner and account cannot be proven (one global
 // row list, no user id), so they are dropped rather than guessed at.
 const LEGACY_KEYS = ["jarvis.mail.rows.v1", "jarvis.mail.reads.v1"];
