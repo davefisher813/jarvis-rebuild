@@ -653,7 +653,9 @@ export default function MoneyFlow({ onOpenTask, onOpenEntity, openAccountId, ope
       message: "Bill Deleted",
       actionLabel: "Undo",
       onAction: async () => {
-        await attemptWrite(() => tasksSvc.createTask(gone.text, { due: gone.due ?? null, recurrence: gone.recurrence ?? undefined, bill: gone.bill }));
+        // createTask will not make a bill any more (a new bill is a ledger
+        // bill); Undo puts the stored task back whole, as it was.
+        await attemptWrite(() => tasksSvc.recreateFrom(gone));
         await reload();
       },
     });
@@ -1077,7 +1079,9 @@ export default function MoneyFlow({ onOpenTask, onOpenEntity, openAccountId, ope
             // the bills already show, and two answers. Nothing is scheduled
             // until Yes.
             <div className="pad-x"><div className="card list-card-ruled bill-suggest">
-              <div className="task-row p2">
+              {/* The row opens the latest bill (its history is the evidence for
+                  the offer); Yes and Not Now are the two answers. */}
+              <div className="task-row p2" {...pressable(() => setDetailId(suggestion.billId))}>
                 <div className="task-title">
                   <span className="task-name">{suggestion.vendor + ", " + billAmount({ amountCents: suggestion.amountCents, currency: suggestionCurrency })}</span>
                   <div className="r-k"><div className="facts">
@@ -1085,8 +1089,8 @@ export default function MoneyFlow({ onOpenTask, onOpenEntity, openAccountId, ope
                     <span className="fact">Make It Monthly?</span>
                   </div></div>
                 </div>
-                <button className="pill-act" onClick={() => void acceptSuggestion(suggestion)}>Yes</button>
-                <button className="pill-act pill-quiet" onClick={() => { dismissSuggestion(suggestionKey(suggestion)); setSuggestTick((n) => n + 1); }}>Not Now</button>
+                <button className="pill-act" onClick={(e) => { e.stopPropagation(); void acceptSuggestion(suggestion); }}>Yes</button>
+                <button className="pill-act pill-quiet" onClick={(e) => { e.stopPropagation(); dismissSuggestion(suggestionKey(suggestion)); setSuggestTick((n) => n + 1); }}>Not Now</button>
               </div>
             </div></div>
           )}
@@ -1281,7 +1285,7 @@ export default function MoneyFlow({ onOpenTask, onOpenEntity, openAccountId, ope
               message: "Bill Deleted",
               actionLabel: "Undo",
               onAction: async () => {
-                if (gone) await attemptWrite(() => tasksSvc.createTask(gone.text, { due: gone.due ?? null, recurrence: gone.recurrence ?? undefined, bill: gone.bill }));
+                if (gone) await attemptWrite(() => tasksSvc.recreateFrom(gone));
                 await reload();
               },
             });

@@ -13,12 +13,14 @@ import { ENTITY_TASK } from "../notes/types";
 import { useFreshLists } from "../data/useFreshLists";
 import type { TaskItem } from "../tasks/TasksService";
 import { greetingFor, longDate, shortDate } from "./greeting";
-import { tomorrowISO, nowHHMM, daySummary, dayRing, todaysTasks, billsLine, billsDueSoon, payableBill } from "./todayData";
+import { tomorrowISO, nowHHMM, daySummary, dayRing, todaysTasks, billsLine, dueBills, payTarget } from "./todayData";
 import TodayPage from "./TodayPage";
 import MailNotices from "./MailNotices";
 import ReportFlow, { reportSeen, markReportSeen } from "../review/ReportPage";
 import { monthName as monthTitle } from "../review/report";
-import { useOptionalSeal } from "../data/NotesProvider";
+import { useOptionalSeal, useOptionalLedger } from "../data/NotesProvider";
+import { ENTITY_MONEY_BILL, type Bill } from "../money/ledger/types";
+import { useMarkBillPaid } from "../money/useMarkBillPaid";
 import NoticeCard from "./NoticeCard";
 import { rowDoor, own } from "../shared/rowDoor";
 import { FAILING, WAITING, NEW, RESUME, LIVE, spotIsDuplicate } from "./stream";
@@ -326,6 +328,10 @@ export default function TodayFlow({
   // Schedule holds, so a time written from Today asks what it lands on.
   const { guard: conflictGuard, guardBatch, moveToast, lineFor, itemsFor, ask: askConflict, conflictSheet } = useConflictGuard(allEvents, routineData);
   const [taskItems, setTaskItems] = useState<TaskItem[]>([]);
+  // Bills in the Money ledger. They are not tasks, so they only reach Today
+  // through the bill card below (todayData.billsLine).
+  const ledgerSvc = useOptionalLedger();
+  const [ledgerBills, setLedgerBills] = useState<Bill[]>([]);
   // NOT THE EMAILS (Dave 2026-09-17: "they must go to the email section").
   // A task born from a thread is the Ready to Send band's: it never leads
   // Your Move, never rides the momentum chain, never sits in the slid card.
@@ -746,7 +752,7 @@ export default function TodayFlow({
       await schedule.healPlanDuplicates(tmrw, null);
       // The importer's own copy of an appointment another door wrote (#3).
       await schedule.healTwinEvents();
-      const [te, tm, tk, prof, all, capRule, durations] = await Promise.all([
+      const [te, tm, tk, prof, all, capRule, durations, lb] = await Promise.all([
         schedule.eventsOn(today),
         schedule.eventsOn(tmrw),
         tasks.listTasks(),
@@ -757,7 +763,11 @@ export default function TodayFlow({
         // genuinely un-caps the day.
         rulesSvc ? rulesSvc.resolve("plan.cap", "day") : Promise.resolve(null),
         readCommittedDurationsWindowed(supabase as unknown as WindowClient | null, Date.now()),
+        // Best effort: a ledger that cannot be read costs the bill card its
+        // ledger bills, never the day.
+        ledgerSvc ? ledgerSvc.listBills().catch(() => null) : Promise.resolve(null),
       ]);
+      if (lb) setLedgerBills(lb);
       // create() pre-announces, so this is a no-op in the normal case; see
       // that method's comment for why a second, generic announcement here
       // would say less than the toast already shown at creation.
@@ -779,7 +789,7 @@ export default function TodayFlow({
     } finally {
       setLoading(false);
     }
-  }, [schedule, tasks, profile, rulesSvc, today, tmrw]);
+  }, [schedule, tasks, profile, rulesSvc, ledgerSvc, today, tmrw]);
 
   useEffect(() => { reload(); }, [reload]);
   // THE REPAINT TODAY NEVER GOT (Dave 2026-08-30: "things aren't clearing").
@@ -789,6 +799,12 @@ export default function TodayFlow({
   // was stale, every surface repainted except the one he opens first. Today
   // draws both tasks and events, so it listens for both.
   useFreshLists([ENTITY_TASK, ENTITY_EVENT], reload);
+  // The bill card also draws ledger bills, so a bill changed on another device
+  // repaints it (a separate call: the line above is Law 12's exact match).
+  useFreshLists([ENTITY_MONEY_BILL], reload);
+  // Mark Paid for a ledger bill from the bill card: the same door the Money
+  // tab uses (confirm, or one tap with Undo), so the two cannot disagree.
+  const ledgerPay = useMarkBillPaid(reload);
 
   // WHAT THE TICK MOVED (dopamine layer, 2026-08-20). The strongest finding
   // in the motivation literature is Amabile's: nothing drives people like
@@ -4267,7 +4283,7 @@ export default function TodayFlow({
           onResidualChange={setMailResidual}
         />
       }
-      billLine={billsLine(taskItems, today) ?? undefined}
+      billLine={billsLine(taskItems, today, ledgerBills) ?? undefined}
       // B5 (2026-09-04): bills.ts's own first rule is that autopay never
       // says "paid" -- the app cannot know a payment cleared -- but this
       // offered the button on whatever bill was soonest, autopay or not.
@@ -4275,13 +4291,16 @@ export default function TodayFlow({
       // autopay" is exactly what money's law wants said); payableBill()
       // withholds only the false "Paid" affordance.
       onPayBill={(() => {
-        const next = payableBill(taskItems, today);
-        return next ? () => void onToggleTask(next.id) : undefined;
+        const next = payTarget(taskItems, today, ledgerBills);
+        if (!next) return undefined;
+        return next.kind === "task" ? () => void onToggleTask(next.task.id) : () => ledgerPay.request(next.bill);
       })()}
       onOpenBill={(() => {
-        const due = billsDueSoon(taskItems, today);
+        const due = dueBills(taskItems, today, ledgerBills);
         const one = due.length === 1 ? due[0] : undefined;
-        return one ? () => void onOpenTask(one.id) : onGoTasks;
+        if (one) return one.kind === "ledger" ? () => onOpenEntity?.("bill", one.id) : () => void onOpenTask(one.id);
+        // Several bills: legacy ones live in Tasks, ledger ones in Money.
+        return due.some((b) => b.kind === "ledger") && onOpenEntity ? () => onOpenEntity("bill", "") : onGoTasks;
       })()}
       freshStart={offTrack ? () => setFreshOpen(true) : undefined}
       locked={blocked}
@@ -4465,6 +4484,7 @@ export default function TodayFlow({
       />
     )}
     {conflictSheet}
+    {ledgerPay.sheet}
     {eventSheet && (
       <EventSheet
         mode="edit"
