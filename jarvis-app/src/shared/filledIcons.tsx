@@ -10,8 +10,7 @@ import {
   Brain, Note, Target, EnvelopeSimple, BellSimple, Wallet, Sparkle, GearSix,
   House, CheckSquare, CalendarBlank, UsersThree, GitFork, Compass, PenNib,
   Flag, Clock, UserCircle, Palette, Tag, SquaresFour, LinkSimple, Lightbulb,
-  CloudArrowUp, SlidersHorizontal, Info, Circle, CalendarCheck, Barbell, Funnel,
-} from "@phosphor-icons/react";
+  CloudArrowUp, SlidersHorizontal, Info, Circle, CalendarCheck, Barbell, Funnel, Robot } from "@phosphor-icons/react";
 
 const P = { weight: "fill" as const, className: "ic" };
 
@@ -20,6 +19,8 @@ export const FILLED: Record<string, ReactNode> = {
   knows: <Sparkle {...P} />,
   contacts: <UsersThree {...P} />,
   decisions: <GitFork {...P} />,
+  // The AI Hub (docs/jarvis-unified, slice 04): assistants, review, activity.
+  aihub: <Robot {...P} />,
   philosophy: <Compass {...P} />,
   writing: <PenNib {...P} />,
   values: <Flag {...P} />,

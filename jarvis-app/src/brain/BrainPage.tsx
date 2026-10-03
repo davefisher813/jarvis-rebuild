@@ -4,6 +4,7 @@ import type { CategoryKind } from "../categories/types";
 import PageHeader from "../shared/PageHeader";
 import { filledIcon } from "../shared/filledIcons";
 import { pressable } from "../shared/pressable";
+import { flagOn } from "../substrate/flags";
 
 // Inline icons so the build matches the approved preview exactly (no icon-name drift).
 const svg = (children: ReactNode) => (
@@ -28,6 +29,11 @@ const NAV_ROWS: BrainRow[] = [
   { key: "month", name: "Insights", icon: filledIcon("month"), color: "lib-ico-brand" },
   { key: "contacts", name: "Contacts", icon: filledIcon("contacts"), color: "lib-ico-brand" },
   { key: "decisions", name: "Decisions", icon: filledIcon("decisions"), color: "lib-ico-brand" },
+  // THE AI HUB (docs/jarvis-unified, slice 04): assistants, the review of
+  // what they suggested, and the receipts. Under Brain, as the spec asks (no
+  // seventh tab), and only when the substrate flag is on, so a build whose
+  // database has not got migrations 0044 to 0047 shows nothing new.
+  ...(flagOn("substrate_v1") ? [{ key: "aihub", name: "AI Hub", icon: filledIcon("aihub"), color: "lib-ico-brand" } as BrainRow] : []),
   { key: "philosophy", name: "Life Philosophy", icon: filledIcon("philosophy"), color: "lib-ico-brand" },
   { key: "writing", name: "How You Write", icon: filledIcon("writing"), color: "lib-ico-brand" },
   { key: "values", name: "Values", icon: filledIcon("values"), color: "lib-ico-brand" },

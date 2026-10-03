@@ -9,7 +9,7 @@ describe("the command path's answers", () => {
       const line = COMMAND_LINES[code];
       expect(line.length).toBeGreaterThan(0);
       expect(line).not.toMatch(/\. [A-Z]/);
-      expect(line).not.toMatch(/—/);
+      expect(line).not.toMatch(/\u2014/);
       expect(line.endsWith(".")).toBe(false);
     }
   });

@@ -216,3 +216,63 @@ a live database. No provider was called: the Gmail send itself is slice 07's
 2. **Migrations 0044 to 0046 not applied.** Dave's, in order, on a Postgres 15 or newer project. Nothing in the app changes until the cards (06) and Activity (04) call these functions; the flags stay off.
 3. **No deploy, no live verification.** The three phone rows in the checklist are the live checks.
 4. **The phone's own reading of the Undo toast and the receipt detail waits for its screens** (slices 04 and 06); the lines and the ten-second window are tested as functions.
+
+## Slice 04: the AI Hub and durable decision review (2026-10-03)
+
+Same branch, on top of slice 03. Not merged. Not deployed. Nothing applied to
+a live database. The Hub is behind `VITE_JARVIS_FLAGS=substrate_v1`, so a
+build with the flag off shows nothing new anywhere.
+
+### What landed
+
+| Area | Files |
+|---|---|
+| Schema | `jarvis-core/supabase/migrations/0047_review_and_hub.sql`: `proposal.created_by` widened to `system`; the helpers `jarvis_decision_conflicts` (same project, same constraint key, different value), `jarvis_dependency_cycle`, `jarvis_dependencies_write`; the person's functions `decision_save` (save, and with `p_replace_item` replace in one transaction), `decision_withdraw`, `exploration_keep`, `proposal_classify`, `proposal_dismiss`, `decision_dependencies_check` (run by the person opening the Hub; never in the background), `connection_set_mode`, `connection_add_manual`, `job_open`, `hub_overview`, `decision_history`. Additive. |
+| Rollback | `jarvis-core/supabase/rollback/0047_review_and_hub_down.sql` (narrows the author check back only when no system row exists). |
+| Proof | `jarvis-core/supabase/tests/review.sh`: 77 checks against the stubbed Supabase, UTF8. |
+| Screens | `src/hub/HubFlow.tsx` (the flow under Brain > AI Hub: Agents, Review, Activity; the AI switch; the inherited states), `AgentsTab.tsx` (H1), `AgentDetail.tsx` (H4), `ContextPreview.tsx` (H5), `ReviewTab.tsx` (H2), `DecisionSheet.tsx` (save, edit, replace, the conflict comparison), `DecisionDetail.tsx` (H6), `ActivityTab.tsx` (H3), `ReceiptDetail.tsx` (H7), `sheets.tsx` (add, withdraw, import, confirm), `hubClient.ts`, `copy.ts`, `format.ts`. |
+| Surface | `src/styles/hub.css`: section 02's fixed palette as tokens on the Hub's root, the focus ring, the capsules, the compare grid, the quiet and danger row actions; loaded from `main.tsx`. |
+| Doors | `brain/BrainPage.tsx` (the AI Hub row, behind the flag), `brain/BrainFlow.tsx` (the route), `shared/filledIcons.tsx` (the glyph). |
+| Tests | `hub/HubFlow.test.tsx` (18, every screen through the real components against a recording session), `hub/hubClient.test.ts` (7), `hub/format.test.ts` (4). |
+| Laws | `laws.test.ts`: `agentClient.ts` off the unwired list (wired now). `undoLaw.test.ts`: the receipt erasure toast rostered with its reason. |
+| QA | `qa/checklists/2026-10-03-unified-substrate-04.md` (device rows open), `qa/previews/unified-substrate-04/` (eight screens, light and dark, 390 wide, from a scratch bench through the real stylesheets; the bench was deleted before the commit). |
+| Docs | REPO-MAP.md section 4 (the homes, built) and section 6 (deviations 17 to 21); ACCEPTANCE-MATRIX.md rows S03, S11, S12, S16. |
+
+### What the database proof shows (`tests/review.sh`, exit 0, 77 ok)
+
+- The Hub's one read: the AI switch live, the person's connections with mode and verified capabilities, the proposal still a proposal, the projects, the email review count only (never a candidate's vendor); another owner's hub holds none of it; anon cannot read it.
+- S03: classifying a proposal to Mentioned and back is advisory and writes no decision (the active set is unchanged); a stale revision cannot classify; another owner cannot touch it.
+- Save: no statement and no reason are MISSING_DETAILS naming the field; another owner's project is NOT_FOUND; a dependency that is not the owner's is refused and nothing lands; the save from the proposal is confirmed as version 1 with the exact verb, an item the Decisions module reads (statement, reason, the project link as the module writes it), an active version with its constraint and alternative, a real dependency edge carrying the task's revision, the proposal closed as accepted, the agent credited and the person approving; saving the same proposal again replays; the active set grew by exactly one.
+- Conflicts: a colliding constraint is refused and named with both values and nothing lands; Replace makes version 2, marks version 1 superseded in one transaction, keeps the earlier statement and reason, points back, leaves one active version, moves the module's item, and the receipt's diff shows old and new.
+- Cycles: budget may depend on flights; flights may not then depend on budget; informed_by is not a cycle.
+- S12: a replaced decision is a change its dependants review ("Flights Changed · Review 1 Dependent Decision"); a changed task raises one constraint_change suggestion by the system in Decided, marks the dependency changed and the decision untouched, says so in Activity, marks the decision Needs Review in the hub; running it again adds nothing; dismissing records the reviewed revision and a later change suggests again.
+- Withdraw: no reason is MISSING_DETAILS; a stale item revision is DESTINATION_CHANGED; withdrawn with its reason, nothing erased, the item marked, the task it depended on untouched; withdraw again replays; history reads every version with its state; another owner cannot read it.
+- S11: Keep as note makes an exploration_note attached to the project, with no decision_version; the active-constraint read never returns it; the hub lists it under notes, not decisions.
+- Modes and assistants: a mode change answers with the ceiling's capabilities and creates no grant; a stale revision is SOURCE_CHANGED; another owner cannot set it; a manual assistant has no transport and no token; an empty name is MISSING_DETAILS.
+- Jobs: one per assistant and project, reused; the person's own job for an export; another owner's project or a foreign connection is NOT_FOUND; a preview through the job is scoped to its project.
+
+### What the component tests show (`src/hub/HubFlow.test.tsx`, 18 passing)
+
+Three tabs, the AI switch, the brief, the assistant row with mode, project and shares; Add makes a manual assistant with the typed name. The empty Agents state carries Add Assistant and says JARVIS still works. Admin off locks the switch and a tap only says so. The agent detail shows every mode's exact ceiling; picking one sends the revision and makes no grant; Revoke is one call. The preview opens a job for the project, shows the manifest (records, fields, what is left out, the expiry), makes the grant by its hash only on Share, and Cancel shares nothing. Review: Not Saved Yet on a Decided proposal; Save opens the sheet prefilled and sends the project, the proposal and its revision; a missing reason never reaches the server; a conflict shows both values side by side and Replace sends `p_replace_item`; Mentioned's Keep as Note and Move to Decided send the right calls and no decision; the Email count is a door and the body never contains a candidate's words; the empty state carries Paste a Conversation. The decision detail shows the active version, its constraint and history; Withdraw sends the reason under the item's revision. Activity lists dated rows with their exact verbs, Reads keeps only reads, a row opens the receipt, Undo presents the item's revision, Delete asks first then erases, Copy carries no hash. First-load error shows Retry and recovers; offline shows the banner, keeps saved content and refuses a save with the offline line; no client is an honest unavailable.
+
+### Repository checks
+
+| Check | Command | Result |
+|---|---|---|
+| Database proofs | `tests/review.sh`, `tests/commands.sh`, `tests/substrate.sh`, `tests/gateway.sh` | exit 0, 77 ok; the three earlier proofs unchanged |
+| App typecheck | `npx tsc --noEmit` | exit 0 |
+| App lint | `npx eslint src` | 0 errors, 39 warnings (baseline) |
+| Hub, substrate and laws | `npx vitest run src/hub src/laws src/substrate` | 57 files, 945 tests passed |
+| Previews | the scratch bench served by `vite` on 5183, captured by Playwright at 390 by 844, 2x, light and dark | 16 shots under `qa/previews/unified-substrate-04/` |
+| Full gate | `QA_PUBLISH=0 node qa/check.js` | Run 1: every stage PASS (core-types, core-tests, app-types, app-lint at the gate's own 41-warning count of the unchanged baseline, app-tests the whole suite with the Hub's 30 tests and every law in 244s, app-build, app-legal) except `house`, which this time found a TENTH em-dash file beside slice 01's nine: `src/substrate/commands/errors.test.ts`, one literal em dash inside the regex that forbids em dashes, written in slice 03 and tracked since. Fixed in this commit: the probe uses the `\u2014` escape, so the test still bites and the file is clean. Run 2, on the fixed tree: every stage PASS (core-types, core-tests, app-types, app-lint at the same 41 warnings, app-tests the whole suite in 244s, app-build, app-legal) and `house` back to exactly slice 01's nine pre-existing files, none of them touched by this slice. The gate's own exit is 1 for that house list and for the open manual checklist, as it was for slices 01 to 03. The preview note is satisfied: the shots are under `qa/previews/unified-substrate-04/`. The manual checklist reads `open` (eight device rows), which is the truth. Reports under `qa/reports/`, gitignored. |
+
+### What the previews show, and what they do not
+
+The eight screens in the package's cream palette inside the Hub only; in dark mode the Hub is a light island, as section 02's fixed theme asks and as REPO-MAP.md deviation 17 records, so Dave can say yes or no to the colour by looking. One filled red per screen (the primary); the other row actions are quiet; the single destructive verb on a screen wears the error tint. They run on Linux with no SF font, so a long title truncates a little earlier than on the phone. They are not a device check: rows 1 to 8 of the checklist stay open.
+
+### Gates this session did not pass, stated plainly
+
+1. **Migrations 0044 to 0047 not applied; the flag not set.** Both are Dave's. With `VITE_JARVIS_FLAGS` empty the Brain shows no AI Hub row and nothing changes; with `substrate_v1` on and the migrations absent the Hub would show "Couldn't Reach JARVIS · Try Again" and Retry, never a blank.
+2. **The palette is Dave's call.** The spec's fixed light theme is applied inside the Hub; the previews show the island in dark mode. One block in `src/styles/hub.css` to delete if he prefers the app's own tokens; nothing else moves.
+3. **No deploy, no live verification, no device.** The share sheet on export, 200% text and the keyboard over the sheets are the device rows.
+4. **No verified adapter.** Add makes a manual assistant; a Connect that cannot connect is not offered.

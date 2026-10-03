@@ -17,6 +17,7 @@ import "./styles/uniformity.css";
 import "./styles/components.css";
 import "./styles/editor.css";
 import "./styles/ruled.css";
+import "./styles/hub.css";
 
 initMonitoring();
 // A sheet is fixed to the layout viewport, and iOS moves the VISIBLE one when

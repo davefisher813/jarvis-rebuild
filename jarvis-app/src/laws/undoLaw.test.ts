@@ -72,6 +72,11 @@ const NO_UNDO: Record<string, string> = {
   // armed delete of every brain_memory row, behind its own confirm; the
   // point of the button is a clean brain, and rows cannot be un-erased.
   "settings/BrainSettingsPage.tsx · Brain Erased ✓": "a two-tap armed erase of all brain memory; permanence is the point",
+  // The unified substrate (slice 04, spec S19): deleting a receipt is an
+  // erasure behind its own confirm sheet. The words are gone for good and a
+  // tombstone stays; the action it recorded is NOT undone, and the toast says
+  // so in its own words. There is nothing to bring back.
+  "hub/ReceiptDetail.tsx · Receipt Deleted · The Action Stands": "an erasure behind its own confirm; the words go for good, the action stands, and the toast says so",
 };
 
 describe("LAW: a toast that says something is gone offers Undo", () => {
