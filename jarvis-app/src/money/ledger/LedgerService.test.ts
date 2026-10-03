@@ -238,6 +238,22 @@ describe("receipts: corrections, dates and the manual default", () => {
   });
 });
 
+describe("a receipt typed first can get its photo later", () => {
+  it("adds and removes the attachment, with history, and does not change the fingerprint", async () => {
+    const { ledger } = setup();
+    const a = ok(await ledger.addReceipt({ vendor: "Cafe", amount: 4.5 }, "manual", TODAY));
+    const fp = (await ledger.getReceipt(a.id))!.data.fingerprint;
+    ok(await ledger.correctReceipt(a.id, { attachmentFileId: "file-1" }));
+    let r = (await ledger.getReceipt(a.id))!;
+    expect(r.data.attachmentFileId).toBe("file-1");
+    expect(r.data.fingerprint).toBe(fp);
+    expect(r.data.history.at(-1)!.changes).toEqual({ attachmentFileId: { to: "file-1" } });
+    ok(await ledger.correctReceipt(a.id, { attachmentFileId: null }));
+    r = (await ledger.getReceipt(a.id))!;
+    expect(r.data.attachmentFileId).toBeUndefined();
+  });
+});
+
 describe("existing transaction rows read unchanged (no migration of September)", () => {
   it("a row with none of the ledger's fields still lists, matches nothing and counts as before", async () => {
     const { ledger, store } = setup();

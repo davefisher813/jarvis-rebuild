@@ -204,7 +204,7 @@ export class LedgerService {
     return { ok: true, id: made, duplicate: false };
   }
 
-  async correctReceipt(id: string, c: { vendor?: string; amount?: string | number | null; transactionDate?: string | null; category?: string | null }): Promise<WriteResult> {
+  async correctReceipt(id: string, c: { vendor?: string; amount?: string | number | null; transactionDate?: string | null; category?: string | null; attachmentFileId?: string | null }): Promise<WriteResult> {
     const cur = await this.getReceipt(id);
     if (!cur) return { ok: false, reason: "missing" };
     const before = cur.data;
@@ -217,7 +217,9 @@ export class LedgerService {
       next.transactionDate = d.value;
     }
     if (c.category !== undefined) { const t = c.category?.trim(); if (t) next.category = t; else delete next.category; }
-    const changes = diffFields(before, next, ["vendor", "amountCents", "transactionDate", "category"]);
+    // A photo or file can be added to a receipt typed first, or taken off.
+    if (c.attachmentFileId !== undefined) { const f = c.attachmentFileId?.trim(); if (f) next.attachmentFileId = f; else delete next.attachmentFileId; }
+    const changes = diffFields(before, next, ["vendor", "amountCents", "transactionDate", "category", "attachmentFileId"]);
     if (!Object.keys(changes).length) return { ok: true };
     next.fingerprint = fingerprintOf({ kind: "receipt", vendor: next.vendor, amountCents: next.amountCents, date: next.transactionDate, source: next.source });
     next.history = appended(before.history, entry("user", "corrected", changes, this.now));
