@@ -3076,6 +3076,8 @@
    both the plus and the word. */
 [data-theme="light"] .hdr-add { background: #F0F1F4; border-color: transparent; color: var(--red); }
 [data-theme="light"] .hdr-add .ic { color: var(--red); }
+/* The flip (Dave 2026-10-03): the header search field and options button were the card tone on a white page with no border, so no field showed. The neutral fill gives them a shape, the same as the Add button beside them. */
+[data-theme="light"] .hdr-search, [data-theme="light"] .hdr-opts { background: var(--surface-3); }
 
 /* URGENCY: TODAY and TOMORROW are neutral badges; amber is for real
    warnings (Stalled, Overdue) only. */

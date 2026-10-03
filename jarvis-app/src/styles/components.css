@@ -2899,7 +2899,7 @@ button {
    the title left a band as tall as the hero where "Good Evening, Dave" was
    sliding up through the iOS clock with nothing behind it. See useCondensed. */
 .pagebar.on, .pagebar.solid { background: rgba(12,12,14,0.82); -webkit-backdrop-filter: blur(22px) saturate(160%); backdrop-filter: blur(22px) saturate(160%); box-shadow: 0 0.5px 0 var(--divider); }
-[data-theme="light"] .pagebar.on, [data-theme="light"] .pagebar.solid { background: rgba(249,249,251,0.86); }
+[data-theme="light"] .pagebar.on, [data-theme="light"] .pagebar.solid { background: rgba(255,255,255,0.86); }
 .pagebar.on .pagebar-title { opacity: 1; }
 /* The energy line takes the Apple Music icon gradient (red into its lighter
    stop) before fading out. Pure decoration, no text near it, so the light
@@ -3572,7 +3572,7 @@ button {
 .nav-bar { position: sticky; top: 0; z-index: 40; background: rgba(12,12,14,0.82);
   -webkit-backdrop-filter: blur(22px) saturate(160%); backdrop-filter: blur(22px) saturate(160%);
   border-bottom: 0.5px solid var(--divider); padding-top: calc(var(--s-1) + var(--safe-top, env(safe-area-inset-top, 0px))); }
-[data-theme="light"] .nav-bar { background: rgba(249,249,251,0.86); }
+[data-theme="light"] .nav-bar { background: rgba(255,255,255,0.86); }
 /* The condensed title is the condensed title, whichever bar is drawing it.
    AMENDED 2026-09-26 (audit leftovers): it was position: absolute, left 0,
    right 0, centred on the whole bar, so at --type-scale 1.4 "Pull Day" ran
@@ -5106,6 +5106,7 @@ body.selecting .voice-dock { display: none; }
 .rep-win-good { background: var(--good-tint); } .rep-win-good .rep-win-val { color: var(--good); }
 .rep-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-2); }
 .rep-grid .stat-tile { border-radius: var(--r-md); padding: var(--s-3h) var(--s-2) var(--s-3); text-align: center; }
+[data-theme="light"] .rep-grid .stat-tile.stat-plain { background: var(--surface-3); }
 /* The delta is the tile's one quiet fact (§AM F1/F4, 2026-09-25): the fact
    size and weight in the one grey, under the caps label's grey. It was a
    raw 11px in the grey bolded, which is the grey made heavier. A rise
@@ -5260,7 +5261,7 @@ body.selecting .voice-dock { display: none; }
 [data-theme="light"] .launch-row { background: #FAFAFB; box-shadow: var(--shadow-card); }
 /* THE WHITE IS WHITE (Dave 2026-10-03): the surfaces that float over the page
    are pure white, not the card tone. Sheets and modals in light only. */
-[data-theme="light"] .sheet-scrim > .card, [data-theme="light"] .modal { background: #FFFFFF; }
+[data-theme="light"] .sheet-scrim > .card, [data-theme="light"] .modal, [data-theme="light"] .ag-card { background: #FFFFFF; }
 
 /* THE SET STRIP (gym catalog §3.1). One row per set: tap to edit, hold to
    duplicate, swipe to delete, drag to reorder via the shared ReorderList
@@ -6862,7 +6863,7 @@ span.row-star { cursor: default; }
   background-color: var(--capsule-fill); box-shadow: 0 2px 10px rgba(0, 0, 0, 0.45); }
 .return-pill { isolation: isolate; }
 [data-theme="light"] .return-pill { color: var(--on-light-red); }
-[data-theme="light"] .return-pill::before { background-color: var(--surface-2); }
+[data-theme="light"] .return-pill::before { background-color: #FFFFFF; }
 .return-pill .ic { width: 17px; height: 17px; }
 .return-pill:active { opacity: 0.85; }
 
