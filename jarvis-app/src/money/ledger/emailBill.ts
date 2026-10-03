@@ -182,3 +182,29 @@ export async function fileEmailBill(
   );
   return settled(r, c);
 }
+
+/** What a door says after filing, and the one tap that goes with it: Undo for a
+ *  bill it just added, Update for a changed one. `run` resolves with the line to
+ *  say afterwards, so every door words the follow-up the same way. */
+export interface FiledNote {
+  message: string;
+  action?: { label: "Undo" | "Update"; run: () => Promise<string> };
+}
+
+export function noteFor(f: FiledBill, ledger: Pick<LedgerService, "removeBill">): FiledNote {
+  if (f.status === "added") {
+    const id = f.id;
+    return {
+      message: f.message,
+      action: {
+        label: "Undo",
+        run: async () => ((await ledger.removeBill(id)) ? "Removed from Money" : "Couldn't Remove It · Still in Money"),
+      },
+    };
+  }
+  if (f.status === "update") {
+    const apply = f.apply;
+    return { message: f.message, action: { label: "Update", run: async () => (await apply()).message } };
+  }
+  return { message: f.message };
+}

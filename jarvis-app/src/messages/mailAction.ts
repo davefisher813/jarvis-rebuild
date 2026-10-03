@@ -110,6 +110,9 @@ export interface ActionOpts {
   // a sheet that prints Add as Task with no task service is a sheet full of
   // buttons that do nothing, which is worse than a shorter sheet.
   canTask?: boolean;
+  // A bill goes to Money, not to Tasks (ledger hard rule 1), so it has its own
+  // gate. Absent, it follows canTask, as it did before.
+  canBill?: boolean;
   canSchedule?: boolean;
   // UP-MIND-09: the surface can set a thread aside for a desk. False on any
   // caller with nowhere to put it (the Today card, which can only draft), so
@@ -193,7 +196,7 @@ export function decide(
   // handler is missing, never to require ceremony from the common caller.
   const task = opts.canTask !== false ? [A.addTask()] : [];
   const block = opts.canSchedule !== false ? [A.blockTime()] : [];
-  const bill = opts.billable && opts.canTask !== false ? [A.addBill()] : [];
+  const bill = opts.billable && (opts.canBill ?? opts.canTask) !== false ? [A.addBill()] : [];
   // Texting needs the same number Call needs. Without one the button opens
   // an empty Messages thread, which is the "Try Calling" bug wearing a
   // different coat.
