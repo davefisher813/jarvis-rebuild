@@ -78,6 +78,21 @@ as $$
       or current_user not in ('anon', 'authenticated');
 $$;
 
+-- THE REQUEST'S OWN ROLE (slice 09, the pre-merge review). Inside a SECURITY
+-- DEFINER body current_user is the function's owner, so jarvis_is_server()'s
+-- second clause is true for every caller there and a gate built on it never
+-- fires. A function that chooses between the person's path and the server's
+-- on the caller's word must read the request's verified role instead: the JWT
+-- claim PostgREST sets, which no definer context changes.
+create or replace function jarvis_is_service_request()
+returns boolean
+language sql
+stable
+set search_path = public
+as $$
+  select coalesce(auth.role(), '') = 'service_role';
+$$;
+
 -- updated_at, kept strictly increasing the way item's is (0001).
 create or replace function jarvis_touch_updated_at()
 returns trigger
@@ -1100,6 +1115,8 @@ $$;
 -- anything: one answers "is this server code", the other validates a shape.
 revoke all on function jarvis_is_server() from public;
 grant execute on function jarvis_is_server() to anon, authenticated, service_role;
+revoke all on function jarvis_is_service_request() from public;
+grant execute on function jarvis_is_service_request() to anon, authenticated, service_role;
 revoke all on function jarvis_touch_updated_at() from public, anon, authenticated;
 revoke all on function jarvis_touch_revision() from public, anon, authenticated;
 revoke all on function jarvis_protect_columns() from public, anon, authenticated;

@@ -397,7 +397,9 @@ declare
   granted boolean := false;
 begin
   if p_connection is not null then
-    if not jarvis_is_server() or p_owner is null then raise exception 'server only' using errcode = '42501'; end if;
+    -- The request's verified role, not current_user: inside this definer body current_user is the owner of the
+    -- function, so jarvis_is_server() would let any signed-in caller name another person as p_owner (slice 09).
+    if not jarvis_is_service_request() or p_owner is null then raise exception 'server only' using errcode = '42501'; end if;
     owner := p_owner;
     select * into c from agent_connection where id = p_connection and owner_id = owner;
     if not found then return jsonb_build_object('error', 'SCOPE_DENIED'); end if;
@@ -497,7 +499,9 @@ declare
   transport text := 'manual';
 begin
   if p_connection is not null then
-    if not jarvis_is_server() or p_owner is null then raise exception 'server only' using errcode = '42501'; end if;
+    -- The request's verified role, not current_user: inside this definer body current_user is the owner of the
+    -- function, so jarvis_is_server() would let any signed-in caller name another person as p_owner (slice 09).
+    if not jarvis_is_service_request() or p_owner is null then raise exception 'server only' using errcode = '42501'; end if;
     owner := p_owner;
     actor_kind := 'agent';
     transport := 'https';

@@ -476,7 +476,63 @@ end;
 $$;
 
 -- ---------------------------------------------------------------------------
--- 4. Grants.
+-- 4. What the pre-merge review found (slice 09).
+-- ---------------------------------------------------------------------------
+-- A DRAFT'S REVISION COUNTS THE PERSON'S EDITS. 0044's trigger moved it on
+-- every update, so send_approve marking the row 'sending' and draft_outcome
+-- settling it left the revision past the one the review bound: the dispatch
+-- refused every send as REVIEW_CHANGED, and a settled send read as a conflict
+-- on the device. Only the content columns move it now; the state writers
+-- leave it where the review saw it.
+drop trigger if exists email_draft_touch on email_draft;
+create trigger email_draft_touch before insert or update of account_id, thread_id, to_addresses, cc_addresses, bcc_addresses, subject, body_text, attachment_refs, reply_headers on email_draft
+  for each row execute function jarvis_touch_revision();
+
+-- CANCELLING A SEND THAT NEVER LEFT FREES THE DRAFT. 0046's command_cancel
+-- cancelled the queued command and left the draft 'sending', which no save,
+-- review or discard would touch again. Same function, one more line.
+create or replace function command_cancel(p_action uuid)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  owner uuid := auth.uid();
+  a action%rowtype;
+  ob outbox_command%rowtype;
+  held boolean := false;
+begin
+  if owner is null then return jsonb_build_object('error', 'AUTH_REQUIRED'); end if;
+  select * into a from action where id = p_action and owner_id = owner for update;
+  if not found then return jsonb_build_object('error', 'NOT_FOUND'); end if;
+  if a.state = 'cancelled' then return jsonb_build_object('action_id', a.id, 'state', 'cancelled', 'replay', true); end if;
+  select * into ob from outbox_command where action_id = a.id for update;
+  held := found;
+  if a.state in ('proposed', 'approved') and (not held or ob.state in ('reviewed', 'queued')) then
+    if held then update outbox_command set state = 'cancelled', error_code = 'CANCELLED' where id = ob.id; end if;
+    update approval set expires_at = least(expires_at, now()) where action_id = a.id and consumed_at is null;
+    -- A send that never left is a draft again (slice 09, the pre-merge review): the row the tap marked
+    -- 'sending' goes back to the person to edit, review or discard, with the cancelled action in its receipts.
+    if a.kind = 'send_email' then
+      update email_draft set send_state = 'draft', sent_action_id = null
+       where owner_id = owner and sent_action_id = a.id and send_state = 'sending';
+    end if;
+    perform jarvis_receipt_append(owner, a.id, 'cancelled', left('Cancelled · ' || a.verb, 200), 'user', null, '', 'verified_jarvis');
+    return jsonb_build_object('action_id', a.id, 'state', 'cancelled');
+  end if;
+  if a.state in ('running', 'cancellation_requested') or (held and ob.state in ('claimed', 'dispatched')) then
+    if a.state <> 'cancellation_requested' then
+      perform jarvis_receipt_append(owner, a.id, 'cancellation_requested', 'Already Handed to Gmail · Checking the Result', 'user', null, '', 'verified_jarvis');
+    end if;
+    return jsonb_build_object('action_id', a.id, 'state', 'cancellation_requested');
+  end if;
+  return jsonb_build_object('error', 'INVALID_PAYLOAD', 'detail', a.state);
+end;
+$$;
+
+-- ---------------------------------------------------------------------------
+-- 5. Grants.
 -- ---------------------------------------------------------------------------
 revoke all on function email_body_store(uuid, uuid, text, text, jsonb, jsonb) from public, anon, authenticated;
 grant execute on function email_body_store(uuid, uuid, text, text, jsonb, jsonb) to service_role;

@@ -127,6 +127,7 @@ check "B cannot tap A's review" NOT_FOUND "$(as_user $B $AUTH "select send_appro
 AP1=$(as_user $A $AUTH "select send_approve('$D1','$N1','$H1','k-1')")
 ACT1=$(echo "$AP1" | jget action_id)
 check "the tap: approved, the outbox queued, the draft sending with its action" "approved|queued|sending|$ACT1" "$(echo "$AP1" | jget state)|$(q -c "select state from outbox_command where action_id='$ACT1'")|$(q -c "select send_state || '|' || sent_action_id from email_draft where id='$D1'")"
+check "the tap leaves the revision where the review bound it (the dispatch compares the two)" "$(echo "$RV1" | py "print(d['exact']['draft_revision'])")" "$(q -c "select revision from email_draft where id='$D1'")"
 check "a second tap on the same review is the same action, replayed" "$ACT1|true" "$(as_user $A $AUTH "select send_approve('$D1','$N1','$H1','k-2')" | py "print(d['action_id']+'|'+str(d.get('replay')).lower())")"
 check "the other review of the same draft cannot send it again" "DRAFT_SENT|sending" "$(as_user $A $AUTH "select send_approve('$D1','$(echo "$RV1B" | jget review.review_nonce)','$H1','k-3')" | py "print(d['error']+'|'+d['send_state'])")"
 check "a sending draft is not the browser's to edit, review or discard" "DRAFT_SENT|DRAFT_SENT|DRAFT_SENT" "$(as_user $A $AUTH "select draft_save('$D1','$ACCT_A','{\"subject\":\"late edit\"}')" | jget error)|$(as_user $A $AUTH "select send_review('$D1')" | jget error)|$(as_user $A $AUTH "select draft_discard('$D1')" | jget error)"
@@ -153,6 +154,7 @@ check "the one-way mark" t "$(as_user $A $SVC "select outbox_dispatched('$OB1','
 check "the provider's answer settles it confirmed with a provider_ack receipt" "confirmed" "$(as_user $A $SVC "select outbox_settle('$OB1','$TOK','confirmed','Sent Reply to Coach@example.test and 1 More','{\"provider\":\"gmail\",\"message_id\":\"gm-77\",\"thread_id\":\"t-a2\",\"accepted_at\":\"2026-10-03T16:00:00Z\"}')" | jget state)"
 check "the browser cannot mark a draft's outcome" 42501 "$(as_user_state $A $AUTH "select draft_outcome('$ACT1','confirmed','gm-77')")"
 check "the draft is sent, with the provider's id" "sent|gm-77" "$(as_user $A $SVC "select draft_outcome('$ACT1','confirmed','gm-77')" | jget send_state)|$(q -c "select provider_message_id from email_draft where id='$D1'")"
+check "settling the send leaves the revision alone (a settled send is not a conflict on the device)" "$(echo "$RV1" | py "print(d['exact']['draft_revision'])")" "$(q -c "select revision from email_draft where id='$D1'")"
 check "the sent list carries it first with the action's state and the provider's answer" "$D1|sent|confirmed|gm-77" "$(as_user $A $AUTH "select draft_list()" | py "s=d['sent'][0]; print(s['id']+'|'+s['send_state']+'|'+s['action_state']+'|'+s['provider_ack']['message_id'])")"
 check "a sent draft stays sent: no edit, no review, no discard, no second outcome" "DRAFT_SENT|DRAFT_SENT|DRAFT_SENT|INVALID_PAYLOAD" "$(as_user $A $AUTH "select draft_save('$D1','$ACCT_A','{\"subject\":\"x\"}')" | jget error)|$(as_user $A $AUTH "select send_review('$D1')" | jget error)|$(as_user $A $AUTH "select draft_discard('$D1')" | jget error)|$(as_user $A $SVC "select draft_outcome('$ACT1','failed')" | jget error)"
 check "the tap replays after the send too, never a second send" "$ACT1|true|sent" "$(as_user $A $AUTH "select send_approve('$D1','$N1','$H1','k-8')" | py "print(d['action_id']+'|'+str(d.get('replay')).lower()+'|'+d['send_state'])")"
@@ -181,6 +183,17 @@ check "the draft is unknown: no edit, no review (OUTCOME_UNKNOWN), no discard" "
 check "the worker never claims an unknown command again" "" "$(as_user $A $SVC "select outbox_claim('w-1')")"
 check "absence of a search hit is not evidence: reconcile needs a provider id" INVALID_PAYLOAD "$(as_user $A $SVC "select outbox_reconcile('$OB7','confirmed','Sent to slow@example.test','{}')" | jget error)"
 check "evidence settles it: confirmed, then the draft sent with the id" "confirmed|sent|gm-88" "$(as_user $A $SVC "select outbox_reconcile('$OB7','confirmed','Sent to slow@example.test','{\"provider_message_id\":\"gm-88\",\"provider\":\"gmail\"}')" | jget state)|$(as_user $A $SVC "select draft_outcome('$ACT7','confirmed','gm-88')" | jget send_state)|$(q -c "select provider_message_id from email_draft where id='$D7'")"
+
+echo "-- slice 09 (the pre-merge review): cancelling a send that never left frees the draft"
+S8=$(as_user $A $AUTH "select draft_save(null,'$ACCT_A','{\"to_addresses\":[\"to@example.test\"],\"subject\":\"Cancel me\",\"body_text\":\"z\"}')")
+D8=$(echo "$S8" | jget draft_id)
+RV8=$(as_user $A $AUTH "select send_review('$D8')")
+AP8=$(as_user $A $AUTH "select send_approve('$D8','$(echo "$RV8" | jget review.review_nonce)','$(echo "$RV8" | jget review.payload_hash)','k-c1')")
+ACT8=$(echo "$AP8" | jget action_id)
+check "approved and sending, the command queued" "sending|queued" "$(q -c "select send_state from email_draft where id='$D8'")|$(q -c "select state from outbox_command where action_id='$ACT8'")"
+check "Edit after the tap, before anything left: the command cancelled and the draft a draft again" "cancelled|cancelled|draft|" "$(as_user $A $AUTH "select command_cancel('$ACT8')" | jget state)|$(q -c "select state from outbox_command where action_id='$ACT8'")|$(q -c "select send_state || '|' || coalesce(sent_action_id::text, '') from email_draft where id='$D8'")"
+check "the freed draft saves and reviews again" "$D8|review" "$(as_user $A $AUTH "select draft_save('$D8','$ACCT_A','{\"to_addresses\":[\"to@example.test\"],\"subject\":\"Cancel me, edited\",\"body_text\":\"z\"}')" | jget draft_id)|$(as_user $A $AUTH "select send_review('$D8')" | py "print('review' if d.get('review') else d.get('error'))")"
+check "the cancelled action stays cancelled, in the receipts" "cancelled|1" "$(q -c "select state from action where id='$ACT8'")|$(q -c "select count(*) from receipt_event where action_id='$ACT8' and state='cancelled'")"
 
 echo "-- S16: nothing here writes an item"
 check "no item was written by any draft, review, tap or outcome" "$ITEMS_BEFORE" "$(q -c "select count(*) from item where owner_id='$A'")"

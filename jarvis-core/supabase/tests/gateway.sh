@@ -100,6 +100,8 @@ check "...counted" 1 "$(echo "$PX" | jget omitted_counts.unauthorized)"
 check "...and B's task id is not in the manifest" "" "$(echo "$PX" | python3 -c "import json,sys; d=json.load(sys.stdin); print(''.join(m['resource_id'] for m in d['manifest'] if m['resource_id']=='$B_TASK'))")"
 check "B cannot preview A's job" SCOPE_DENIED "$(as_user $B authenticated "select context_preview('$JOB')" | jget error)"
 check "a forged owner on a real connection is denied" SCOPE_DENIED "$(as_user $A $SVC "select context_preview('$JOB','{}','{}',null,'$B','$CONN')" | jget error)"
+check "a signed-in caller cannot take the server's path by naming an owner (the request's role decides, not current_user)" 42501 "$(as_user_state $B authenticated "select context_preview('$JOB','{}','{}',null,'$A','$CONN')")"
+check "nor on issue" 42501 "$(as_user_state $B authenticated "select context_issue('$JOB','x','{}','{}',null,'$A','$CONN')")"
 
 echo "-- the grant is the exact preview"
 check "issue before any grant is denied" SCOPE_DENIED "$(as_user $A $SVC "select context_issue('$JOB','$HASH','{}','{}',null,'$A','$CONN')" | jget error)"

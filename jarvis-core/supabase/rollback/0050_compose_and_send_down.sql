@@ -63,3 +63,44 @@ end;
 $$;
 
 alter table email_message_body drop column if exists reply_headers;
+
+-- Slice 09 put the revision trigger on the content columns only and taught
+-- command_cancel to free a sending draft; back to 0044's trigger and 0046's
+-- function.
+drop trigger if exists email_draft_touch on email_draft;
+create trigger email_draft_touch before insert or update on email_draft
+  for each row execute function jarvis_touch_revision();
+
+create or replace function command_cancel(p_action uuid)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  owner uuid := auth.uid();
+  a action%rowtype;
+  ob outbox_command%rowtype;
+  held boolean := false;
+begin
+  if owner is null then return jsonb_build_object('error', 'AUTH_REQUIRED'); end if;
+  select * into a from action where id = p_action and owner_id = owner for update;
+  if not found then return jsonb_build_object('error', 'NOT_FOUND'); end if;
+  if a.state = 'cancelled' then return jsonb_build_object('action_id', a.id, 'state', 'cancelled', 'replay', true); end if;
+  select * into ob from outbox_command where action_id = a.id for update;
+  held := found;
+  if a.state in ('proposed', 'approved') and (not held or ob.state in ('reviewed', 'queued')) then
+    if held then update outbox_command set state = 'cancelled', error_code = 'CANCELLED' where id = ob.id; end if;
+    update approval set expires_at = least(expires_at, now()) where action_id = a.id and consumed_at is null;
+    perform jarvis_receipt_append(owner, a.id, 'cancelled', left('Cancelled · ' || a.verb, 200), 'user', null, '', 'verified_jarvis');
+    return jsonb_build_object('action_id', a.id, 'state', 'cancelled');
+  end if;
+  if a.state in ('running', 'cancellation_requested') or (held and ob.state in ('claimed', 'dispatched')) then
+    if a.state <> 'cancellation_requested' then
+      perform jarvis_receipt_append(owner, a.id, 'cancellation_requested', 'Already Handed to Gmail · Checking the Result', 'user', null, '', 'verified_jarvis');
+    end if;
+    return jsonb_build_object('action_id', a.id, 'state', 'cancellation_requested');
+  end if;
+  return jsonb_build_object('error', 'INVALID_PAYLOAD', 'detail', a.state);
+end;
+$$;

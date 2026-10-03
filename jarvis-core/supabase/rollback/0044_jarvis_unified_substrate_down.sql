@@ -41,6 +41,7 @@ drop function if exists jarvis_protect_columns();
 drop function if exists jarvis_touch_revision();
 drop function if exists jarvis_touch_updated_at();
 drop function if exists jarvis_is_server();
+drop function if exists jarvis_is_service_request();
 
 drop index if exists item_id_owner_idx;
 
