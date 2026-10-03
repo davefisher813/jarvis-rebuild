@@ -47,6 +47,9 @@ import { ENTITY_BRAIN_DOC } from "../brain/docs/types";
 import { ENTITY_DECISION } from "../decisions/types";
 import { ENTITY_AREA, ENTITY_GOAL } from "../life/types";
 import { ENTITY_PERSON } from "../people/types";
+// The unified substrate (2026-10-03, docs/jarvis-unified): two item kinds, registered by migration 0044.
+import { ENTITY_WAITING } from "../substrate/waiting/types";
+import { ENTITY_EXPLORATION_NOTE } from "../substrate/exploration/types";
 
 export const ALL_ENTITY_TYPES: readonly string[] = [
   ENTITY_ACCOUNT,
@@ -82,4 +85,6 @@ export const ALL_ENTITY_TYPES: readonly string[] = [
   ENTITY_AREA,
   ENTITY_GOAL,
   ENTITY_PERSON,
+  ENTITY_WAITING,
+  ENTITY_EXPLORATION_NOTE,
 ];

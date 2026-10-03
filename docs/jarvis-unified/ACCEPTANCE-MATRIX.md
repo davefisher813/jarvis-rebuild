@@ -1,0 +1,60 @@
+# Release acceptance tracker
+
+Production implementation has not been run or tested by this design package. Populate evidence during the build.
+
+| ID | Feature_or_given_when | Expected_result | Status | Evidence |
+| --- | --- | --- | --- | --- |
+| E01 | Chronological mailbox | Incoming messages sort internal_date DESC then provider_id DESC, across selected accounts; no ranking or implicit collapsed threads. | NOT RUN - production build pending |  |
+| E02 | Refresh and pagination | Pull or Refresh fetches new mail; cursor pages 30 rows without reordering old rows or losing scroll; freshness advances only on successful sync. | NOT RUN - production build pending |  |
+| E03 | Search | Sender, subject and body literal text, optional account/category; cached results labeled until provider search finishes; clear restores prior list. | NOT RUN - production build pending |  |
+| E04 | Category grouping | Explicit chips filter locally with visible count; All includes every cached inbox message; remembered categories never archive/hide. | NOT RUN - production build pending |  |
+| E05 | Message detail | Full sanitized message, headers disclosure, evidence and attachments; back restores position. | NOT RUN - production build pending |  |
+| E06 | Read/unread | Open marks read through user-origin provider command; failure restores badge and shows Retry; explicit Mark unread works. | NOT RUN - production build pending |  |
+| E07 | Card generation | Only deterministic supported fields/explicit user capture/explicitly invoked agent suggestions create cards; no cards for ordinary promo or generic expenses mail. | NOT RUN - production build pending |  |
+| E08 | Card edit | Details sheet edits typed fields, validates required data and dates; Save changes updates only candidate, never destination. | NOT RUN - production build pending |  |
+| E09 | Card approval | One Save/Track/Add creates exactly shown record once with provenance and receipt; no second popup. | NOT RUN - production build pending |  |
+| E10 | Dismiss | Dismiss removes only card, not mail; menu “Show dismissed suggestions” restores candidate; same fingerprint stays dismissed. | NOT RUN - production build pending |  |
+| E11 | Receipts and Undo | Confirmed action becomes compact inline receipt linked to detail/destination; Undo follows 07.4 revision guard. | NOT RUN - production build pending |  |
+| E12 | Waiting tracker | Only approved waiting items, Open/Resolved segments, explicit follow-up dates and source links. | NOT RUN - production build pending |  |
+| E13 | Resolve/reopen | Resolve updates that waiting item only; Reopen reverses status; no automatic outbound mail. | NOT RUN - production build pending |  |
+| E14 | Follow-up draft | Draft follow-up opens editable draft, does not send; recipient verified from source headers and displayed. | NOT RUN - production build pending |  |
+| E15 | Today entry | Generic review count plus up to 5 eligible committed items; candidate titles/amounts never appear. | NOT RUN - production build pending |  |
+| E16 | Compose | New draft with account, To/Cc/Bcc, subject, body and attachments; local save then server save, revision-aware. | NOT RUN - production build pending |  |
+| E17 | Reply/reply all | Reply headers preserved; Reply all shows all recipients, excludes own identities, never pulls Bcc from history. | NOT RUN - production build pending |  |
+| E18 | Exact send approval | Final review binds all content/account fields; any edit invalidates; single dispatch under parallel taps. | NOT RUN - production build pending |  |
+| E19 | Drafts/Sent | Saved local drafts and confirmed sent records listed; Sent means provider accepted, not recipient read. | NOT RUN - production build pending |  |
+| E20 | Provider escape | Validated account/thread link opens exact Gmail thread; if unavailable button says “Open Gmail”, with explanation. | NOT RUN - production build pending |  |
+| E21 | Account states | Account picker, connected timestamp, reauth, disconnected, partial-sync error; one failing account does not blank another. | NOT RUN - production build pending |  |
+| E22 | Offline | Cached mail and inert drafts readable; no life saves/sends queued; retry requires tap after reconnection. | NOT RUN - production build pending |  |
+| E23 | Attachments | Metadata + download via authorized proxy; unsafe/unsupported preview falls back to download/provider. | NOT RUN - production build pending |  |
+| E24 | Manual capture | From message choose bill/receipt/task/event/waiting, fill fields with visible source; fully useful with AI off. | NOT RUN - production build pending |  |
+| E25 | Source updates/conflicts | Changed source invalidates stale candidate approval and shows diff before reapproval; saved records never silently mutate. | NOT RUN - production build pending |  |
+| E26 | Accessibility | Keyboard and VoiceOver navigation, readable labels, 44px targets, 200% text and reduced motion pass. | NOT RUN - production build pending |  |
+| E27 | AI controls | AI off retains all deterministic cards, search, capture, waiting and compose; agent call endpoints reject. | NOT RUN - production build pending |  |
+| E28 | State recovery | Empty/loading/failure/reauth/offline states preserve edits and distinguish no results from failed loading. | NOT RUN - production build pending |  |
+| E29 | Archive/trash | In detail menu, explicit per-message actions only when adapter supports them; Undo verified provider command; no permanent deletion. | NOT RUN - production build pending |  |
+| E30 | Local export | Export permitted context/receipt; never includes unapproved email payload through global export. | NOT RUN - production build pending |  |
+| S01 | AI off, user opens all surfaces | manual decisions, exports, captures, compose and waiting work; no model/network inference | NOT RUN - production build pending |  |
+| S02 | read-only agent submits draft or proposal | 403; no stored payload or destination; safe denied receipt | NOT RUN - production build pending |  |
+| S03 | Help me proposes project decision | proposal only; active-decision query unchanged until Save | NOT RUN - production build pending |  |
+| S04 | Just handle it sends/creates bill | denied without user-bound command; mode cannot bypass Email ceiling | NOT RUN - production build pending |  |
+| S05 | project-scoped agent requests another project/Health | 403/no unauthorized titles/counts; no scope expansion | NOT RUN - production build pending |  |
+| S06 | permitted context read | only manifest fields, read receipt before release, cap/expiry enforced | NOT RUN - production build pending |  |
+| S07 | connection revoked with queued call | epoch invalidation blocks disclosure/dispatch; post-dispatch limitation honestly shown | NOT RUN - production build pending |  |
+| S08 | two users enumerate identifiers | no cross-user reads/writes through tables, views, RPC or attachments | PARTIAL, LOCAL (slice 01): every substrate table, cross-user select/insert/update/delete and composite references, proven on a local Postgres 16 with a stubbed Supabase. Views, RPC commands and attachments arrive in later slices. Not run on the live project. | `jarvis-core/supabase/tests/substrate.sh`, 143 checks; RELEASE-EVIDENCE.md slice 01 |
+| S09 | third category tap occurs | suggestion only; Remember creates exact local rule, Not now does nothing | NOT RUN - production build pending |  |
+| S10 | rule applied to 41 updates | all 41 rows remain in All; receipt “Grouped 41 updates by category” | NOT RUN - production build pending |  |
+| S11 | Mentioned item is kept | exploration_note not active decision; user can explicitly promote later | NOT RUN - production build pending |  |
+| S12 | decision replaced/withdrawn | immutable history and reason, dependency suggestions, no silent downstream edits | NOT RUN - production build pending |  |
+| S13 | assistant reports outside action | reported_external, never verified; no execution side effects | NOT RUN - production build pending |  |
+| S14 | local commit fails mid-transaction | no orphan item/confirmed receipt; retry under same logical key safe | NOT RUN - production build pending |  |
+| S15 | same candidate committed concurrently | one item, one logical confirmed action, all callers same result | NOT RUN - production build pending |  |
+| S16 | candidate unapproved | absent from all life module queries/context/Today payload; generic count only | STRUCTURAL (slice 01): a candidate is its own table, not an entity type, so no item query, backup, search or Today read can return one. The generic count and the context exclusion arrive with slices 02 and 08. | `src/laws/substrateBoundary.test.ts` law 1; `substrate.sh`, the "candidates never enter item queries" section |
+| S17 | body/recipient/account edited after review | old approval rejected; draft retained; new review required | NOT RUN - production build pending |  |
+| S18 | send transport timeout | unknown receipt, no automatic resend; reconciliation evidence required | NOT RUN - production build pending |  |
+| S19 | purge receipt/content | no private payload in retention/search/export; action not undone; minimal tombstone only | NOT RUN - production build pending |  |
+| S20 | unverified AI provider | unavailable/manual route; no misleading connected badge or fabricated OAuth | NOT RUN - production build pending |  |
+| S21 | malformed agent/tool text includes execute=true | schema rejection, no privilege gain or hidden action | NOT RUN - production build pending |  |
+| S22 | package expired or source revision stale | new user-approved package/review required; no stale writes | NOT RUN - production build pending |  |
+| S23 | scope permission revocation while browser offline | server enforcement works independently; UI refresh corrects cached status | NOT RUN - production build pending |  |
+| S24 | provider account disconnects | token unavailable to agents, cached state labeled, approved items retained | NOT RUN - production build pending |  |
