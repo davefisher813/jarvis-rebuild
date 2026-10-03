@@ -40,6 +40,7 @@ import BookingImportPump from "../booking/BookingImportPump";
 import TodayOutboxPump from "../messages/TodayOutboxPump";
 import MailOutboxPump from "../messages/MailOutboxPump";
 import MailSnapshotPump from "../messages/MailSnapshotPump";
+import { flagOn } from "../substrate/flags";
 import BrainPump from "../brain/BrainPump";
 import AutoReplyPump from "../messages/AutoReplyPump";
 
@@ -48,6 +49,10 @@ import AutoReplyPump from "../messages/AutoReplyPump";
 // to launch. Everything else fetches its chunk on first open.
 const NotesFlow = lazyWithRecovery(() => import("../notes/NotesFlow"));
 const MessagesFlow = lazyWithRecovery(() => import("../messages/MessagesFlow"));
+// THE UNIFIED EMAIL TAB (docs/jarvis-unified, slice 05): behind email_intake_v1
+// the Email tab is the new flow; off, it is exactly the MessagesFlow it was.
+const EmailFlow = lazyWithRecovery(() => import("../email/EmailFlow"));
+type EmailFocus = import("../email/waiting").EmailFocus;
 const NotificationsFlow = lazyWithRecovery(() => import("../notifications/NotificationsFlow"));
 const MoneyFlow = lazyWithRecovery(() => import("../money/MoneyFlow"));
 const ChatFlow = lazyWithRecovery(() => import("../chat/ChatFlow"));
@@ -200,6 +205,8 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
   // A home-page email notice opens THE THREAD, never the inbox. Landing in a
   // list he then has to search is the trip the old count line made him take.
   const mailIntent = useOneShot<string>();
+  // Slice 08: Today's review line and a Waiting record open the Email tab on a focus, not a thread.
+  const emailFocusIntent = useOneShot<EmailFocus>();
   // "Finish It" on an unsent draft, which is a different destination from a
   // thread: a draft composed from scratch has no thread to open.
   const draftIntent = useOneShot<string>();
@@ -243,6 +250,7 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
     // the shell already knows how to open one: the same one-shot Today's
     // mail notices ride. Without this branch a cited thread chip did nothing.
     if (kind === "thread") { mailIntent.fire(targetId); draftIntent.clear(); setActive("messages"); return; }
+    if (kind === "waiting") { emailFocusIntent.fire({ kind: "waiting", id: targetId }); setActive("messages"); return; }
     if (kind === "task") { taskIntent.fire(targetId); goLife("tasks"); }
     else if (kind === "project") { projectIntent.fire(targetId); goLife("projects"); }
     else if (kind === "event") { eventIntent.fire(targetId); setActive("schedule"); }
@@ -639,16 +647,26 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
         tab, so the schedule is right whether or not he opens the right
         screen. */}
     <BookingImportPump />
-    <TodayOutboxPump />
+    {/* THE OLD MAIL PUMPS STAY OFF WHILE THE UNIFIED EMAIL TAB IS ON
+        (docs/jarvis-unified, slice 09; IMPLEMENTATION-SPEC.md 00, 16, 17).
+        Each of the four below runs on a timer: the Today and Email outboxes
+        send what the old screens queued, the auto-reply answers mail by
+        itself during a focus block, and the snapshot pump reads Gmail and
+        asks the model every few hours. The unified tab promises that nothing
+        reads, proposes or sends without a tap, so with email_intake_v1 on
+        none of them mounts; their switches live in screens the flag replaces,
+        and their queues are left exactly as they were for the flag going off
+        again. With the flag off this block is what it was. */}
+    {!flagOn("email_intake_v1") && <TodayOutboxPump />}
     {/* EMAIL-F-01 (2026-09-05): the Email tab's own outbox (Send, Schedule
         Send, Send & Next) is pumped here, where nothing unmounts on a tab
         switch, instead of inside MessagesFlow, which does. */}
-    <MailOutboxPump ai={ai} />
+    {!flagOn("email_intake_v1") && <MailOutboxPump ai={ai} />}
     {/* EMAIL-F-16 (2026-09-05): the heads-down auto-reply is a courtesy for
         the time he is NOT looking at his email, so it runs here rather than
         inside the Email tab, which is only mounted when he is. */}
-    <AutoReplyPump />
-    <MailSnapshotPump />
+    {!flagOn("email_intake_v1") && <AutoReplyPump />}
+    {!flagOn("email_intake_v1") && <MailSnapshotPump />}
     {/* UP-MIND-05 (2026-09-05): the once-a-day consolidation ran from inside
         TodaySuggestions, so a day that screen never rendered was a day the
         Brain never reviewed. Keyed on the local day, mounted where the mail
@@ -674,7 +692,7 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
             every once-per-open job (the sweep, the autopay roll, the spot,
             the Day Loop draft, Fresh Start, the mail dismissals) runs for
             the new day instead of yesterday's. See shell/useDayKey.ts. */}
-        {active === "today" && <TodayFlow key={dayKey} focusOpen={focusIntent.value === true} focusNonce={focusIntent.nonce} onFocusOpened={focusIntent.clear} onStartNow={(id) => jump(() => { startIntent.fire(id); goLife("tasks"); })} reminderOpenId={reminderIntent.value} reminderNonce={reminderIntent.nonce} onReminderOpened={reminderIntent.clear} onOpenEntity={(kind, id) => void navigateToEntity(kind, id)} onGoSchedule={() => jump(() => setActive("schedule"))} onGoTasks={() => jump(() => goLife("tasks"))} onGoTasksAll={() => jump(() => { goLife("tasks"); taskFilterIntent.fire("all"); })} onGoTasksOverdue={() => jump(() => { goLife("tasks"); taskFilterIntent.fire("overdue"); })} onSearch={() => setSearchOpen(true)} onProfile={() => { setMoreRoute("account"); setActive("more"); }} onEditRoutine={goToRoutine} onGoEmail={(threadId?: string, draftId?: string) => jump(() => { if (threadId) mailIntent.fire(threadId); else mailIntent.clear(); if (draftId) draftIntent.fire(draftId); else draftIntent.clear(); setActive("messages"); })} onOpenNote={navigateToNote} onOpenProject={(id) => void navigateToEntity("project", id)} onRestoreSpot={(kind, id) => { if (kind === "note") navigateToNote(id); else if (kind === "gym") { brainIntent.fire(id); gymIntent.fire(true); setActive("brain"); } else void navigateToEntity(kind, id); }}
+        {active === "today" && <TodayFlow key={dayKey} focusOpen={focusIntent.value === true} focusNonce={focusIntent.nonce} onFocusOpened={focusIntent.clear} onStartNow={(id) => jump(() => { startIntent.fire(id); goLife("tasks"); })} reminderOpenId={reminderIntent.value} reminderNonce={reminderIntent.nonce} onReminderOpened={reminderIntent.clear} onOpenEntity={(kind, id) => void navigateToEntity(kind, id)} onGoSchedule={() => jump(() => setActive("schedule"))} onGoTasks={() => jump(() => goLife("tasks"))} onGoTasksAll={() => jump(() => { goLife("tasks"); taskFilterIntent.fire("all"); })} onGoTasksOverdue={() => jump(() => { goLife("tasks"); taskFilterIntent.fire("overdue"); })} onSearch={() => setSearchOpen(true)} onProfile={() => { setMoreRoute("account"); setActive("more"); }} onEditRoutine={goToRoutine} onGoEmail={(threadId?: string, draftId?: string) => jump(() => { if (threadId) mailIntent.fire(threadId); else mailIntent.clear(); if (draftId) draftIntent.fire(draftId); else draftIntent.clear(); setActive("messages"); })} onGoEmailFocus={(focus) => jump(() => { emailFocusIntent.fire(focus); setActive("messages"); })} onOpenNote={navigateToNote} onOpenProject={(id) => void navigateToEntity("project", id)} onRestoreSpot={(kind, id) => { if (kind === "note") navigateToNote(id); else if (kind === "gym") { brainIntent.fire(id); gymIntent.fire(true); setActive("brain"); } else void navigateToEntity(kind, id); }}
           /* UP-MIND-24 (2026-09-05): the meeting line's two taps. Both go to
              screens that already answer the question: the person's own card
              for what is open, and Chat for what you told them. */
@@ -685,7 +703,8 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
         {active === "brain" && <BrainFlow openKey={brainIntent.value} openNonce={brainIntent.nonce} onKeyConsumed={brainIntent.clear} routineBlockId={routineBlockIntent.value} onRoutineBlockConsumed={routineBlockIntent.clear} personOpenId={personIntent.value} personNonce={personIntent.nonce} onPersonConsumed={personIntent.clear} decisionOpenId={decisionIntent.value} decisionNonce={decisionIntent.nonce} onDecisionConsumed={decisionIntent.clear} factOpenId={factIntent.value} factNonce={factIntent.nonce} onFactConsumed={factIntent.clear} onOpenNote={navigateToNote} onOpenProject={(id) => void navigateToEntity("project", id)} onOpenEntity={(kind, id) => void navigateToEntity(kind, id)} onOpenMoney={() => jump(() => setActive("money"))} autoOpenGym={gymIntent.value === true} gymNonce={gymIntent.nonce} onGymConsumed={gymIntent.clear} healthLogKey={healthLogIntent.value} healthLogNonce={healthLogIntent.nonce} onHealthLogConsumed={healthLogIntent.clear} />}
         {active === "notes" && <NotesFlow seed={seedDemo} onChrome={(c) => setNotesChrome(c.tabBar)} onNavigate={navigateToEntity} openId={noteIntent.value} openNonce={noteIntent.nonce} onOpenConsumed={noteIntent.clear} />}
 
-        {active === "messages" && <MessagesFlow ai={ai} demoMail={seedDemo} openThreadId={mailIntent.value} threadNonce={mailIntent.nonce} onThreadConsumed={mailIntent.clear} openDraftId={draftIntent.value} draftNonce={draftIntent.nonce} onDraftConsumed={draftIntent.clear} composeNonce={composeIntent.nonce} onComposeConsumed={composeIntent.clear} onOpenConnections={() => jump(() => { setMoreRoute("connections"); setActive("more"); })} onOpenTask={(id) => void navigateToEntity("task", id)} />}
+        {active === "messages" && flagOn("email_intake_v1") && <EmailFlow openId={mailIntent.value} openNonce={mailIntent.nonce} onOpenConsumed={mailIntent.clear} focus={emailFocusIntent.value} focusNonce={emailFocusIntent.nonce} onFocusConsumed={emailFocusIntent.clear} onOpenConnections={() => jump(() => { setMoreRoute("connections"); setActive("more"); })} onOpenEntity={(kind, id) => void navigateToEntity(kind, id)} onOpenModule={(m) => jump(() => { if (m === "Money") setActive("money"); else if (m === "Tasks") goLife("tasks"); else if (m === "Schedule") setActive("schedule"); })} />}
+        {active === "messages" && !flagOn("email_intake_v1") && <MessagesFlow ai={ai} demoMail={seedDemo} openThreadId={mailIntent.value} threadNonce={mailIntent.nonce} onThreadConsumed={mailIntent.clear} openDraftId={draftIntent.value} draftNonce={draftIntent.nonce} onDraftConsumed={draftIntent.clear} composeNonce={composeIntent.nonce} onComposeConsumed={composeIntent.clear} onOpenConnections={() => jump(() => { setMoreRoute("connections"); setActive("more"); })} onOpenTask={(id) => void navigateToEntity("task", id)} />}
         {active === "notifications" && <NotificationsFlow onOpen={(kind, id) => void navigateToEntity(kind, id)} />}
         {active === "money" && <MoneyFlow onOpenTask={(id) => void navigateToEntity("task", id)} onOpenEntity={(k, id) => void navigateToEntity(k, id)} openAccountId={accountIntent.value} openNonce={accountIntent.nonce} onOpenConsumed={accountIntent.clear} />}
         {active === "chat" && <ChatFlow

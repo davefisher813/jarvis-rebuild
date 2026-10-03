@@ -9,6 +9,7 @@ import CategoryDetail from "./CategoryDetail";
 import RoutineFlow from "../routine/RoutineFlow";
 import DecisionsFlow from "../decisions/DecisionsFlow";
 import InsightsFlow from "../review/InsightsFlow";
+import HubFlow from "../hub/HubFlow";
 import StrandsPage from "./strands/StrandsPage";
 // Brain Manual v1: the contacts triage screen, opened from Contacts'
 // Continue Sorting row. The hub rows keep their own pages (Dave 2026-09-28:
@@ -162,6 +163,11 @@ export default function BrainFlow({ openKey, openNonce, onKeyConsumed, routineBl
     }
     if (open.key === "routine") {
       return <RoutineFlow onBack={() => setOpen(null)} focusId={routineBlockId} onFocusConsumed={onRoutineBlockConsumed} />;
+    }
+    if (open.key === "aihub") {
+      // THE AI HUB (docs/jarvis-unified, slice 04). Its Email door is the
+      // shell's own email entity route; its records open their owning module.
+      return <HubFlow onBack={() => setOpen(null)} onOpenEntity={onOpenEntity} onOpenEmail={onOpenEntity ? () => onOpenEntity("email", "") : undefined} />;
     }
     if (open.key === "decisions") {
       return <DecisionsFlow openId={decisionOpenId} openNonce={decisionNonce} onOpenConsumed={onDecisionConsumed}

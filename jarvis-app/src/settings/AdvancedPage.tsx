@@ -8,6 +8,17 @@ import { Head, Card, Row, DangerRow, Foot, Switch } from "./kit";
 import { readDoneClearing, type DoneClearing } from "../bigger/doneClearing";
 import { SETTING_DONE_CLEARING, SETTING_EMAIL_TASKS } from "../data/SettingsService";
 import { readEmailTaskHome, type EmailTaskHome } from "../tasks/emailTasks";
+import { useSubstrateReadiness } from "../substrate/useReadiness";
+import { flagsOn } from "../substrate/flags";
+import { CAPTURE_KINDS, type CaptureKind } from "../substrate/contracts";
+
+// THE UNIFIED SUBSTRATE'S OWN READINESS (docs/jarvis-unified, slice 01). The
+// one place the app says whether migration 0044 has been run and which
+// destinations a card could save to. It never says ready on a guess: a
+// missing function, a failed ask or an unregistered kind all read Not Ready.
+const CAPTURE_LABEL: Record<CaptureKind, string> = {
+  bill: "Bills to Money", receipt: "Receipts to Money", task: "Tasks", event: "Schedule", waiting: "Waiting",
+};
 
 export default function AdvancedPage({ onBack, onExport, onLearningLab }: { onBack: () => void; onExport?: () => void; onLearningLab?: () => void }) {
   const chat = useChat();
@@ -29,6 +40,11 @@ export default function AdvancedPage({ onBack, onExport, onLearningLab }: { onBa
     setEmailHomeState(next);
     void settings?.set(SETTING_EMAIL_TASKS, next);
   };
+  // THE UNIFIED SUBSTRATE'S OWN ROWS SHOW ONLY WHEN A FLAG IS ON (slice 09, the
+  // pre-merge review): with every flag off this screen is exactly what it was,
+  // and no readiness call is made for a section nobody sees.
+  const flags = flagsOn();
+  const readiness = useSubstrateReadiness(flags.length > 0);
   const [confirm, setConfirm] = useState(false);
   const [chatArmed, setChatArmed] = useState(false);
   const [chatBusy, setChatBusy] = useState(false);
@@ -66,6 +82,14 @@ export default function AdvancedPage({ onBack, onExport, onLearningLab }: { onBa
       <Card>
         <Row label="Learning Lab" chev onClick={onLearningLab} />
       </Card>
+      {flags.length > 0 && (<>
+      <Head label="Unified Substrate" />
+      <Card>
+        <Row label="Database" value={!readiness ? "Checking" : readiness.migration === "applied" ? "Migration 0044 Applied" : readiness.migration === "missing" ? "Migration 0044 Not Applied" : "Couldn't Check"} />
+        {CAPTURE_KINDS.map((k) => <Row key={k} label={CAPTURE_LABEL[k]} value={readiness?.kinds[k].state === "ready" ? "Ready" : "Not Ready"} />)}
+        <Row label="Flags" value={flags.join(", ")} />
+      </Card>
+      </>)}
       <Head label="Data" />
       <Card>
         <Row label="Export Data" value="JSON" onClick={onExport} />

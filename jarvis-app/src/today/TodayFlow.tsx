@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { focusStarted } from "../events/focus";
-import { useUserId, useSchedule, useTasks, useProfile, useCategories, useRoutine, usePeople, useProjects, useGoals, useDecisions, useNotes, useOptionalRules, useBrainDocs, useOptionalStrands } from "../data/NotesProvider";
+import { useUserId, useSchedule, useTasks, useProfile, useCategories, useRoutine, usePeople, useProjects, useGoals, useDecisions, useNotes, useOptionalRules, useBrainDocs, useOptionalStrands, useStore } from "../data/NotesProvider";
+import EmailToday from "./EmailToday";
+import { flagOn } from "../substrate/flags";
+import { WaitingService } from "../substrate/waiting/WaitingService";
+import type { EmailFocus } from "../email/waiting";
+import { EMAIL_BAND_TITLE, OPEN_EMAIL } from "../email/copy";
 import { pausedCategoryIds, effectiveKind } from "../categories/kinds";
 import { goalTone, catName, catColor as catColorOf } from "../shared/categories";
 import { workWindowOf, isSuggested, rankCandidates } from "../schedule/planMeta";
@@ -230,6 +235,7 @@ export default function TodayFlow({
   onGoTasksAll,
   onGoTasksOverdue,
   onGoEmail,
+  onGoEmailFocus,
   onStartNow,
   onSearch,
   onProfile,
@@ -274,6 +280,8 @@ export default function TodayFlow({
   // opens that goal; without one it lands on the Bigger Picture itself.
   onGoBigger?: (goalId?: string) => void;
   onGoEmail?: (threadId?: string, draftId?: string) => void;
+  /** Slice 08: the unified Email band's doors (the review line, a waiting record). */
+  onGoEmailFocus?: (focus: EmailFocus) => void;
   /** Start Now (Dave 2026-09-17): the Start screen for a task, on the Tasks tab. */
   onStartNow?: (id: string) => void;
   onSearch?: () => void;
@@ -335,6 +343,11 @@ export default function TodayFlow({
   // through the bill card below (todayData.billsLine).
   const ledgerSvc = useOptionalLedger();
   const [ledgerBills, setLedgerBills] = useState<Bill[]>([]);
+  // Slice 08: the unified Email band behind its flag, and the Waiting store it reads.
+  const unifiedEmail = flagOn("email_intake_v1");
+  const storeForWaiting = useStore();
+  const uidForWaiting = useUserId();
+  const waitingSvc = useMemo(() => (storeForWaiting && uidForWaiting ? new WaitingService(storeForWaiting, uidForWaiting) : null), [storeForWaiting, uidForWaiting]);
   // NOT THE EMAILS (Dave 2026-09-17: "they must go to the email section").
   // A task born from a thread is the Ready to Send band's: it never leads
   // Your Move, never rides the momentum chain, never sits in the slid card.
@@ -4293,7 +4306,12 @@ export default function TodayFlow({
       onStartTask={onStartNow}
       onSeeAllMail={!mailEmpty && !mailResidual && onGoEmail ? () => onGoEmail() : undefined}
       mailEmpty={mailEmpty}
-      mail={
+      mailHead={unifiedEmail ? { title: EMAIL_BAND_TITLE, action: OPEN_EMAIL } : undefined}
+      mail={unifiedEmail ? (
+        <EmailToday key="mail" client={supabase} tasks={tasks} schedule={schedule} waiting={waitingSvc} today={today} excludeIds={upNextRows.map((r) => r.id)}
+          onOpenEmail={(focus) => { if (focus && onGoEmailFocus) onGoEmailFocus(focus); else onGoEmail?.(); }}
+          onOpenEntity={(kind, id) => onOpenEntity?.(kind, id)} onEmptyChange={setMailEmpty} />
+      ) : (
         <MailNotices
           key="mail"
           today={today}
@@ -4311,7 +4329,7 @@ export default function TodayFlow({
           onEmptyChange={setMailEmpty}
           onResidualChange={setMailResidual}
         />
-      }
+      )}
       billLine={billsLine(taskItems, today, ledgerBills) ?? undefined}
       // B5 (2026-09-04): bills.ts's own first rule is that autopay never
       // says "paid" -- the app cannot know a payment cleared -- but this

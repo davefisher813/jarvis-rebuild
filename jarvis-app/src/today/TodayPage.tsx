@@ -273,6 +273,7 @@ export default function TodayPage({
   onCallPerson,
   mail,
   onSeeAllMail,
+  mailHead,
   mailEmpty,
   billLine,
   onPayBill,
@@ -312,6 +313,8 @@ export default function TodayPage({
   // → deal with it here" line "serves absolutely no purpose"). The flow hands
   // this in already built; nothing needing him means nothing renders.
   mail?: ReactNode;
+  /** The band's own head (slice 08: the unified Email band says Email, Open Email). */
+  mailHead?: { title: string; action: string };
   onSeeAllMail?: () => void;
   // The band and its head appear together or not at all.
   mailEmpty?: boolean;
@@ -1004,8 +1007,8 @@ export default function TodayPage({
           {/* C-26 (Astra, 2026-09-12): the band is named for what it wants
               from him, not for the app it came out of. Open Inbox stays, and
               the rows under it are untouched. */}
-          <span className="t">Ready to Send</span>
-          {onSeeAllMail && <button className="see-all pill-action" onClick={onSeeAllMail}>Open Inbox</button>}
+          <span className="t">{mailHead?.title ?? "Ready to Send"}</span>
+          {onSeeAllMail && <button className="see-all pill-action" onClick={onSeeAllMail}>{mailHead?.action ?? "Open Inbox"}</button>}
         </div>
       )}
       {/* stream-grouped: the mail rows ride inside one card (MailNotices

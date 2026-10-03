@@ -71,10 +71,10 @@ const swept = (r: string) => !SECOND_PASS.some((p) => r.startsWith(p)) && !isSen
 const RULED = readFileSync(join(SRC, "styles/ruled.css"), "utf8");
 
 describe("LAW: no em dashes, anywhere", () => {
-  // Cost: three separate sweeps missed these, because they hide as —
+  // Cost: three separate sweeps missed these, because they hide as an em dash
   // escapes and because truncated grep output lies.
   it("no literal em dash in any source file", () => {
-    const hits = SOURCES.filter((f) => read(f).includes("—")).map(rel);
+    const hits = SOURCES.filter((f) => read(f).includes("\u2014")).map(rel);
     expect(hits).toEqual([]);
   });
 
@@ -2074,6 +2074,10 @@ describe("LAW: every module is reachable, or is listed as not", () => {
     "booking-link.ts",
     "bookings.ts",
     "booking-busy.ts",
+    // The agent gateway (docs/jarvis-unified, slice 02): an outside
+    // assistant reaches api/agent.ts by URL with its own token; nothing in
+    // the app imports it, by design.
+    "agent.ts",
   ];
 
   // Written, tested, and NOT reachable from the running app. Each line is a
@@ -2109,6 +2113,12 @@ describe("LAW: every module is reachable, or is listed as not", () => {
     // 2026-09-29: sample notification mail (Google, DocuSign, UPS, Netflix,
     // one-time codes), imported by the notification tests only.
     "notificationFixtures.ts": "test only: sample notification mail for the notification tests",
+    // The unified substrate (2026-10-03, slice 02): the person's side of
+    // scoped context (preview, grant, export, import, revoke). The screens
+    // that call it are the AI Hub, slice 04; the functions behind it are
+    // proven by jarvis-core/supabase/tests/gateway.sh and its own tests.
+    // (categoryTaps.ts left this list on 2026-10-03, slice 05: email/categories.ts
+    // records the taps behind the Email tab's File Under.)
     // (fileStorage.ts left this list on 2026-09-02: files/FileStore routes
     // every upload through it, from the clip on Notes and Money.)
     // (HealthFlow.tsx left this list on 2026-09-05, HMN-F-06 option A: the

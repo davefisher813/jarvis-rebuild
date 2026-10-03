@@ -1,0 +1,140 @@
+/* ==========================================================================
+   THE EMAIL TAB (docs/jarvis-unified, slice 05). The redesign in place keeps
+   the app's own theme and the approved mail row (mail-rows.css); this sheet
+   only adds what the new screens need and nothing else had: the freshness
+   line under the title, a quiet note that can hold one action, the search
+   coverage line, the message head, the headers disclosure, the body as text,
+   the pull-to-refresh hint. Every colour is a token; nothing here is red.
+   ========================================================================== */
+
+/* The one line under the title: honest freshness, tappable to Accounts. */
+.email-fresh { display: block; width: 100%; text-align: left; background: none; border: 0; font-family: var(--f);
+  padding: 0 var(--s-6) var(--s-2); font-size: var(--t-caption); font-weight: var(--w-medium); color: var(--tx-2); line-height: 1.4; }
+.email-fresh:focus-visible { outline: 2px solid var(--tint); outline-offset: 2px; border-radius: var(--r-xs); }
+
+/* A quiet note: one fact and, when there is one, one action beside it. */
+.email-note { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3);
+  margin: var(--s-2) var(--s-4) 0; padding: var(--s-2h) var(--s-4); border-radius: var(--r-md);
+  background: var(--warn-tint); color: var(--warn); font-size: var(--t-caption); font-weight: var(--w-medium); line-height: 1.4; }
+.email-note.quiet { background: var(--press-3); color: var(--tx-2); }
+.email-note > span { min-width: 0; overflow-wrap: anywhere; }
+.email-note .quiet-action { flex: 0 0 auto; }
+
+/* Search: what was searched and how far it reached. */
+.email-cover { padding: var(--s-2) var(--s-6) var(--s-1); font-size: var(--t-caption); color: var(--tx-3); line-height: 1.4; }
+
+/* The message head: the subject may wrap; the facts under it never truncate
+   a sender or a date (02: stack, never cut essential values). */
+.email-head { padding: var(--s-3) var(--s-6) 0; }
+.email-subject { font-size: var(--t-h3); font-weight: var(--w-semi); color: var(--tx-1); line-height: 1.3; overflow-wrap: anywhere; }
+.email-meta { margin-top: var(--s-1); font-size: var(--t-caption); color: var(--tx-2); line-height: 1.4; overflow-wrap: anywhere; }
+.email-head .quiet-action { margin-top: var(--s-2); }
+.email-headers { margin: var(--s-2) var(--s-6) 0; padding: 0; display: grid; grid-template-columns: auto 1fr; gap: var(--s-0h) var(--s-3);
+  font-size: var(--t-caption); color: var(--tx-2); line-height: 1.4; overflow-wrap: anywhere; }
+.email-headers dt { font-weight: var(--w-semi); color: var(--tx-3); }
+.email-headers dd { margin: 0; }
+
+/* The body as text, when the mail has no HTML: the sender's line breaks, no overflow. */
+.email-body { padding: var(--s-3) var(--s-6); font-size: var(--t-body); line-height: 1.5; color: var(--tx-1);
+  white-space: pre-wrap; overflow-wrap: anywhere; unicode-bidi: plaintext; }
+
+/* The count on a chip: quiet, tabular. */
+.email-chip-n { margin-left: var(--s-1); opacity: 0.7; font-variant-numeric: tabular-nums; }
+
+/* The paperclip after a subject: a glyph, not a chip. */
+.mclip { width: 12px; height: 12px; vertical-align: -1px; margin-left: var(--s-1); color: var(--tx-3); }
+
+/* Pull to refresh: a line that appears while the finger is past the threshold. */
+.email-pull { height: 0; overflow: hidden; text-align: center; font-size: var(--t-caption); color: var(--tx-3); transition: height var(--dur-fast) var(--ease-out); }
+.email-pull.on { height: 28px; line-height: 28px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .email-pull { transition: none; }
+}
+
+/* ---- Cards (slice 06): one effect each, tinted by where it lands, never
+   red: the screen's one red stays the screen's. ---- */
+.email-card { margin: var(--s-2) var(--s-4) var(--s-1); padding: var(--s-3h) var(--s-4); border-radius: var(--r-lg); background: var(--press-3); color: var(--tx-1); }
+.email-card.bill, .email-card.receipt { background: var(--good-tint); }
+.email-card.event { background: var(--blue-tint); }
+.email-card.task { background: var(--hl-violet-tint); }
+.email-card.waiting { background: var(--yellow-tint); }
+.email-card.stale, .email-card.dismissed { background: var(--press-3); }
+.email-card-head { display: flex; align-items: center; justify-content: space-between; gap: var(--s-2); }
+.email-badge { display: inline-block; font-size: var(--t-micro); font-weight: var(--w-bold); letter-spacing: 0.06em; text-transform: uppercase; color: var(--tx-2);
+  padding: 2px var(--s-2); border-radius: var(--r-pill); background: rgba(127, 127, 127, 0.14); }
+.email-badge + .email-badge { margin-left: var(--s-1); }
+.email-card-x { width: 32px; height: 32px; border-radius: var(--r-circle); border: 0; background: rgba(127, 127, 127, 0.14); color: var(--tx-2); font-size: var(--t-body); line-height: 32px; text-align: center; flex: 0 0 auto; }
+.email-card-title { margin-top: var(--s-1h); font-size: var(--t-caption); font-weight: var(--w-medium); color: var(--tx-2); }
+.email-card-value { margin-top: var(--s-0h); font-size: 22px; font-weight: var(--w-bold); letter-spacing: -0.01em; color: var(--tx-1); line-height: 1.2; overflow-wrap: anywhere; }
+.email-card-detail { margin-top: var(--s-0h); font-size: var(--t-caption); color: var(--tx-2); line-height: 1.4; overflow-wrap: anywhere; }
+.email-card-note { margin-top: var(--s-2); font-size: var(--t-caption); font-weight: var(--w-medium); color: var(--warn); }
+.email-card-acts { display: flex; align-items: center; gap: var(--s-2); margin-top: var(--s-3); flex-wrap: wrap; }
+.email-card-go { flex: 1 1 auto; min-height: 44px; padding: 0 var(--s-4); border: 0; border-radius: var(--r-pill); font-family: var(--f); font-size: var(--t-body); font-weight: var(--w-semi); color: var(--bg); background: var(--tx-1); }
+.email-card.bill .email-card-go, .email-card.receipt .email-card-go { background: var(--good-fill); color: var(--on-fill-dark); }
+.email-card.event .email-card-go { background: var(--cat-blue); color: var(--on-fill-dark); }
+.email-card.task .email-card-go { background: var(--cat-purple); color: var(--on-fill-dark); }
+.email-card.waiting .email-card-go { background: var(--warn-fill); color: var(--on-fill-dark); }
+.email-card-go:disabled { opacity: 0.45; }
+.email-card-acts .quiet-action { flex: 0 0 auto; }
+.email-receipt-line { display: flex; align-items: center; gap: var(--s-2); margin: var(--s-2) var(--s-4) var(--s-1); padding: var(--s-2h) var(--s-4); border-radius: var(--r-md);
+  background: var(--good-tint); color: var(--tx-1); font-size: var(--t-caption); font-weight: var(--w-medium); }
+.email-receipt-line > span { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
+.email-more { margin: 0 var(--s-4) var(--s-2); }
+
+/* The capture sheet (M3). */
+.email-sheet-body { overflow-y: auto; padding: 0 var(--s-4) var(--s-2); }
+.email-field { display: block; margin-bottom: var(--s-3); }
+.email-field-label { display: block; font-size: var(--t-caption); font-weight: var(--w-semi); color: var(--tx-2); margin-bottom: var(--s-1); }
+.email-field-input { width: 100%; min-height: 44px; padding: var(--s-2) var(--s-3); border-radius: var(--r-md); border: 1px solid var(--divider); background: var(--surface-1); color: var(--tx-1); font-family: var(--f); font-size: var(--t-body); }
+.email-field.missing .email-field-input { border-color: var(--warn); box-shadow: 0 0 0 2px var(--warn-tint); }
+.email-field-note { margin-top: var(--s-1); font-size: var(--t-micro); color: var(--tx-3); }
+.email-field-row { display: flex; gap: var(--s-2); }
+.email-field-row > .email-field { flex: 1 1 0; min-width: 0; }
+.email-evidence { margin: var(--s-2) 0 var(--s-3); padding: var(--s-3); border-radius: var(--r-md); background: var(--press-3); font-size: var(--t-caption); color: var(--tx-2); line-height: 1.45; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 160px; overflow-y: auto; }
+.email-sheet-acts { display: flex; flex-direction: column; gap: var(--s-2); padding: var(--s-2) var(--s-4) var(--s-4); }
+.email-sheet-acts .btn { width: 100%; min-height: 48px; }
+.email-compare { display: grid; grid-template-columns: auto 1fr; gap: var(--s-0h) var(--s-3); margin-top: var(--s-2); font-size: var(--t-caption); color: var(--tx-2); }
+.email-compare dt { font-weight: var(--w-semi); color: var(--tx-3); }
+.email-compare dd { margin: 0; color: var(--tx-1); }
+
+/* ---- compose, review, send (slice 07) ---- */
+.email-compose .email-ccbcc { min-height: 44px; }
+.email-compose .xs-input { flex: 1; min-width: 0; height: 32px; padding: 0; background: transparent; border: 0; outline: none; font: inherit; font-size: calc(16px * var(--type-scale, 1)); color: var(--tx-1, inherit); }
+.email-compose .xs-field { text-align: right; color: var(--tx-2); }
+.email-compose .xs-input::placeholder { color: var(--tx-3, var(--tx-2)); }
+.email-compose .email-body-row { display: block; }
+.email-compose .xs-textrow { align-items: stretch; padding-top: 10px; padding-bottom: 10px; }
+.email-compose .xs-textarea { width: 100%; height: auto; min-height: 180px; padding: 0; resize: none; line-height: 1.5; text-align: left; }
+.email-eyebrow { padding: 10px 4px 6px; }
+.email-conflict { padding: 8px 0 4px; }
+.email-warn { color: var(--warn-ink, #8a5a00); }
+.email-warn-word { color: var(--warn-ink, #8a5a00); font-style: italic; }
+.email-compose-acts { flex-direction: column; align-items: center; gap: 10px; padding: 8px 16px 0; }
+.email-compose-acts .btn-primary { min-width: 240px; min-height: 48px; }
+.email-compose-acts .quiet-action { width: 100%; }
+.email-review-card { padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; }
+.email-review-facts { display: grid; grid-template-columns: auto 1fr; column-gap: 12px; row-gap: 4px; margin: 0; font-size: 14px; }
+.email-review-facts dt { color: var(--ink-3, #6b6b6b); }
+.email-review-facts dd { margin: 0; overflow-wrap: anywhere; }
+.email-review-body { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 16px; line-height: 1.45; padding-top: 6px; border-top: 1px solid var(--line, rgba(0, 0, 0, 0.08)); }
+.email-review-attachments { padding-top: 4px; }
+.email-outcome-sent { border-left: 4px solid var(--good-fill, #2a9d4b); }
+.email-outcome-failed { border-left: 4px solid var(--warn-fill, #f09a00); }
+.email-outcome-unknown { border-left: 4px solid var(--cat-blue, #2f6fdb); }
+.email-outcome-sending { border-left: 4px solid var(--line, rgba(0, 0, 0, 0.12)); }
+.email-review, .email-outcome, .email-drafts { padding-bottom: 24px; }
+.email-reply-acts { display: flex; gap: 10px; align-items: center; padding: 4px 16px 10px; }
+.email-drafts-door { margin-bottom: 10px; }
+.email-file-input { display: none; }
+
+/* ---- Waiting, and Email on Today (slice 08) ---- */
+.email-waiting-chips { padding: 6px 16px 2px; }
+.email-waiting-card { padding: 14px 16px; display: flex; flex-direction: column; gap: 6px; }
+.email-waiting-title { font-size: 20px; font-weight: var(--w-semi, 600); line-height: 1.25; overflow-wrap: anywhere; }
+.email-waiting-badges { display: flex; gap: 6px; flex-wrap: wrap; }
+.email-waiting-note { white-space: pre-wrap; overflow-wrap: anywhere; }
+.email-quote { white-space: pre-wrap; overflow-wrap: anywhere; font-style: italic; color: var(--tx-2); padding: 10px 16px; }
+.email-today-band .row { min-height: 52px; }
+.email-today-ic { width: 20px; height: 20px; flex: 0 0 20px; margin-right: 12px; color: var(--tx-2); }
+.email-waiting { padding-bottom: 24px; }

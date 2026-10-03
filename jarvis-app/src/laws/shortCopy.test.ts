@@ -37,6 +37,12 @@ const EXEMPT_FILES = new Set([
   // Gmail keeps them for 30 days." is his sentence, in his words. Every other
   // string in the file is a fragment.
   "messages/bulkMail.ts",
+  // The agent protocol's error vocabulary (docs/jarvis-unified, slice 02):
+  // the one safe line an OUTSIDE assistant reads in an API answer, from
+  // API-AND-VALIDATION.md, never drawn on a screen. And the export file's
+  // disclosure lines, written into a file the person hands to somebody else.
+  "substrate/gateway/protocol.ts",
+  "substrate/context/exportImport.ts",
   // The spending limit's refusals (Dave, 2026-09-28): "AI paused. You reached
   // your $5 limit." is his sentence, in his words, two short sentences on
   // purpose. The file holds nothing else that renders.

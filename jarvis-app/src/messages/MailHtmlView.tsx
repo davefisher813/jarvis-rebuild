@@ -27,12 +27,12 @@ function useRootTheme(): RootTheme {
 // The mail as the sender laid it out, in a frame that cannot run anything.
 // No scripts (the sandbox has none), links open outside, and the frame
 // grows to its content so the page scrolls, never the frame.
-export default function MailHtmlView({ html, dark }: { html: string; dark?: boolean }) {
+export default function MailHtmlView({ html, dark, remoteImages }: { html: string; dark?: boolean; /** False keeps http(s) pictures from loading until the person asks (slice 05). */ remoteImages?: boolean }) {
   const ref = useRef<HTMLIFrameElement>(null);
   const rootTheme = useRootTheme();
   // An explicit prop still wins; absent one, the app's theme decides.
   const isDark = dark ?? rootTheme === "dark";
-  const doc = useMemo(() => sanitizeMailHtml(html, { dark: isDark }), [html, isDark]);
+  const doc = useMemo(() => sanitizeMailHtml(html, { dark: isDark, ...(remoteImages === undefined ? {} : { remoteImages }) }), [html, isDark, remoteImages]);
   useEffect(() => {
     const f = ref.current;
     if (!f) return;
