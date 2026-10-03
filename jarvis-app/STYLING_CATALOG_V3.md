@@ -1035,11 +1035,12 @@ Pinned by `reds.ts`, `browserWalk.test.ts`, `laws.test.ts`, `capsuleLaw.test.ts`
 
 ## §AT. The light-mode flip (Dave 2026-10-03, from the approved "Light Mode Flip" preview)
 
-Light only. Dark is untouched. The page and the cards swapped: **the page is `#FFFFFF`, cards are `#F5F6F8`**. Nothing else in §AR moved: text, dividers, control outlines, the focus ring, the action red, status colours and the neutral pill `#F0F1F4` are as approved.
+Light only. Dark is untouched. The page and the cards swapped, then the same day Dave said "the white isn't white enough" and the whites were finished: **the page is `#FFFFFF`, cards are `#FAFAFB`, and the surfaces that float over the page are pure `#FFFFFF`** (tab bar, sheets, modals, the JARVIS dock). Nothing else in §AR moved: text, dividers, control outlines, the focus ring, the action red, status colours and the neutral pill `#F0F1F4` are as approved.
 
-- Where it lives: `--bg` `#FFFFFF`, `--surface-1` and `--surface-2` `#F5F6F8` in the light block of `jarvis-design-system.css`; the forced `html`/`body` ground; `.card`; and the classes that hard-coded white and so did not follow the tokens (`.promo-card`, `.voice-bar`, `.voice-search`, `.mode-card`, `.mode-card.mode-hero`, `.launch-row`), now `#F5F6F8`.
-- What it costs, measured on the rendered components (contrast ratio, 1.0 is invisible): grouped rows inside a sheet against their sheet 1.14 to 1.05, a neutral chip against its card 1.14 to 1.05, a secondary button against its card slightly lower. A card against the page stays 1.09 and is carried by its shadow. The bottom nav against the page stays about 1.03.
-- Because `#F0F1F4` is now very close to a card, a neutral pill on a card is carried by its label and shape more than by its fill.
+- Where it lives: `--bg` `#FFFFFF`, `--surface-1` and `--surface-2` `#FAFAFB`, `--nav-bg` `#FFFFFF` and a lighter `--shadow-card` in the light block of `jarvis-design-system.css`; the forced `html`/`body` ground; `.card`; the classes that hard-coded a ground and so did not follow the tokens (`.promo-card`, `.mode-card`, `.mode-card.mode-hero`, `.launch-row` at `#FAFAFB`; `.voice-bar`, `.voice-search`, sheets (`.sheet-scrim > .card`) and `.modal` at `#FFFFFF`).
+- Why `--surface-2` stays the card tone and sheets are set directly: `--surface-2` also grounds inputs, stat tiles and editors, and a white tile on a white page would vanish.
+- What it measures (contrast ratio, 1.0 is invisible): card against the page 1.04 (carried by a light shadow), grouped rows against their white sheet 1.13, a neutral chip against its card 1.08.
+- The card shadow is `0 1px 2px` at 5% and `0 6px 16px` at 5%, so it stops tinting the white page around each card.
 
 ## §AS. The warm-up is a side of the Now card, not a set of rows (Dave 2026-09-29; amends D3-A, Training Catalog V2)
 

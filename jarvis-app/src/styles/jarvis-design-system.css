@@ -461,9 +461,12 @@
      the page is white and the cards take the gray the page used to be. The two
      hexes swapped and nothing else moved: secondary pills, dividers, text and
      every accent are as approved on 2026-09-29. The page record: page #FFFFFF,
-     cards #F5F6F8 (was page #F5F6F8, cards #FFFFFF). */
+     cards #F5F6F8 (was page #F5F6F8, cards #FFFFFF).
+     SAME DAY, "THE WHITE ISN'T WHITE ENOUGH" (Dave): cards step to #FAFAFB; the
+     tab bar, sheets, modals and the JARVIS dock are pure #FFFFFF; the card
+     shadow is lighter so it stops tinting the white page around each card. */
   --bg: #FFFFFF;
-  --surface-1: #F5F6F8; --surface-2: #F5F6F8; --surface-3: #F0F1F4;
+  --surface-1: #FAFAFB; --surface-2: #FAFAFB; --surface-3: #F0F1F4;
   --ctl-outline: #737985;
   --focus-ring: #111318;
   /* The hairline serves INPUTS; cards drop their border entirely (border
@@ -641,12 +644,12 @@
   --blue-tint: rgba(10,116,255,0.16); --yellow-tint: rgba(250,200,0,0.18);
   --glass-bg: rgba(255,255,255,0.78);
   --rim-card: rgba(255,255,255,0.9); --rim-bottom: rgba(0,0,0,0.04);
-  --nav-bg: rgba(250,250,252,0.86);
+  --nav-bg: #FFFFFF;
   --skel: rgba(0,0,0,0.06); --skel-shim: rgba(0,0,0,0.12);
   /* Two-layer elevation: a tight contact shadow that draws the card's edge,
      and a soft ambient that lifts it. The old single 24px blur at 10% read
      as smudge, not height. */
-  --shadow-card: 0 1px 2px rgba(17,18,26,0.06), 0 10px 24px rgba(17,18,26,0.09);
+  --shadow-card: 0 1px 2px rgba(17,18,26,0.05), 0 6px 16px rgba(17,18,26,0.05);
   --shadow-float: 0 2px 6px rgba(17,18,26,0.09), 0 16px 36px rgba(17,18,26,0.13);
   /* Selection steel, softened: pure black selection pills read as tar on
      the light page. Near-black keeps the 2026-08-02 doctrine (picked is
@@ -727,7 +730,7 @@ html[data-theme="light"], html[data-theme="light"] body { background-color: #FFF
   box-shadow: inset 0 0.5px 0 var(--rim-card), inset 0 -0.5px 0 var(--rim-bottom), 0 8px 24px rgba(0,0,0,0.55);
 }
 [data-theme="light"] .card {
-  background: #F5F6F8;
+  background: #FAFAFB;
   -webkit-backdrop-filter: none; backdrop-filter: none;
   /* Elevation only. Border + shadow together was the mud: the hairline drew
      a gray outline through the shadow's softest part. */

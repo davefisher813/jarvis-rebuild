@@ -214,7 +214,7 @@ describe("HEALTH law 3: the light activity ramp equals the dark one", () => {
     return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
   };
   it("a word in a ramp hue clears 4.5:1 on its own tint and on the raised surface, in both themes", () => {
-    for (const [theme, card, raised] of [["dark", "#1c1c1e", "#2b2b2c"], ["light", "#F5F6F8", "#F0F1F4"]] as const) {
+    for (const [theme, card, raised] of [["dark", "#1c1c1e", "#2b2b2c"], ["light", "#FAFAFB", "#F0F1F4"]] as const) {
       const t = ramp(block('[data-theme="' + theme + '"] {'));
       for (const hue of RAMP) {
         const ink = t[`${hue}-ink`];

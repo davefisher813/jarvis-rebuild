@@ -3023,7 +3023,7 @@ button {
    two lines) and the colored hierarchy slots (.fact-*, colored kickers). */
 .promo-card { background: #1C1C1E; border-radius: var(--r-xl); margin: 0 var(--s-4) var(--s-3);
   padding: var(--s-4); position: relative; animation: restoreIn var(--dur-slow) var(--ease-spring); }
-[data-theme="light"] .promo-card { background: #F5F6F8; box-shadow: var(--shadow-card); border: 0.5px solid var(--card-bd); }
+[data-theme="light"] .promo-card { background: #FAFAFB; box-shadow: var(--shadow-card); border: 0.5px solid var(--card-bd); }
 .promo-head { display: flex; gap: var(--s-3h); align-items: center; }
 .promo-badge { width: 52px; height: 52px; border-radius: var(--r-circle); display: flex; align-items: center;
   justify-content: center; flex-shrink: 0; color: #fff; }
@@ -4446,8 +4446,8 @@ button.check-linked:active { opacity: 1; background: var(--press-3); }
 /* The floating chrome floats. The capture bar was a gray pill on a gray
    page; it is a white instrument on the desk now, same for its two
    siblings. */
-[data-theme="light"] .voice-bar { background: #F5F6F8; box-shadow: var(--shadow-float); }
-[data-theme="light"] .voice-search { background: #F5F6F8; box-shadow: var(--shadow-float); }
+[data-theme="light"] .voice-bar { background: #FFFFFF; box-shadow: var(--shadow-float); }
+[data-theme="light"] .voice-search { background: #FFFFFF; box-shadow: var(--shadow-float); }
 
 /* A draft field inside a white card sits on the paper tone, mirroring how
    dark nests lighter-on-dark. */
@@ -5244,8 +5244,8 @@ body.selecting .voice-dock { display: none; }
 /* The hero's button is the screen's one fill now that its panel is not. */
 .mode-hero .mode-go { background: var(--accent-fill); color: #fff; }
 .mode-go.mode-go-quiet { background: var(--press-5); color: var(--tx-1); }
-[data-theme="light"] .mode-card { background: #F5F6F8; box-shadow: var(--shadow-card); }
-[data-theme="light"] .mode-card.mode-hero { background: #F5F6F8; box-shadow: var(--shadow-card); }
+[data-theme="light"] .mode-card { background: #FAFAFB; box-shadow: var(--shadow-card); }
+[data-theme="light"] .mode-card.mode-hero { background: #FAFAFB; box-shadow: var(--shadow-card); }
 [data-theme="light"] .mode-go { box-shadow: 0 0 0 0.5px rgba(0,0,0,0.06); }
 
 /* The launcher row: one mode, full width, its count and its reason. */
@@ -5257,7 +5257,10 @@ body.selecting .voice-dock { display: none; }
   background: var(--red-tint); color: var(--accent-tx); }
 .launch-ic .ic { width: 20px; height: 20px; }
 .launch-tt { font-size: var(--t-h3); font-weight: var(--w-semi); color: var(--tx-1); }
-[data-theme="light"] .launch-row { background: #F5F6F8; box-shadow: var(--shadow-card); }
+[data-theme="light"] .launch-row { background: #FAFAFB; box-shadow: var(--shadow-card); }
+/* THE WHITE IS WHITE (Dave 2026-10-03): the surfaces that float over the page
+   are pure white, not the card tone. Sheets and modals in light only. */
+[data-theme="light"] .sheet-scrim > .card, [data-theme="light"] .modal { background: #FFFFFF; }
 
 /* THE SET STRIP (gym catalog §3.1). One row per set: tap to edit, hold to
    duplicate, swipe to delete, drag to reorder via the shared ReorderList
