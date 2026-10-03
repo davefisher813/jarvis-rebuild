@@ -11,6 +11,7 @@ import { GoalService } from "../life/GoalService";
 import { ProjectsService } from "../projects/ProjectsService";
 import { MoneyService } from "../money/MoneyService";
 import { TrackerService } from "../money/TrackerService";
+import { LedgerService } from "../money/ledger/LedgerService";
 import { BackupService } from "../backup/BackupService";
 import { RoutineService } from "../routine/RoutineService";
 import { GymService } from "../gym/GymService";
@@ -51,6 +52,10 @@ const MoneyContext = createContext<MoneyService | null>(null);
 // because its records are its own entity types, and its own context because
 // every other service in this file has one.
 const TrackerContext = createContext<TrackerService | null>(null);
+// The Money ledger (spec 2026-10-02): bills and receipts, the reconciliation
+// between them and the Tracker's transactions. Its own service because its
+// records are their own entity types.
+const LedgerContext = createContext<LedgerService | null>(null);
 const GymContext = createContext<GymService | null>(null);
 const MetricsContext = createContext<MetricsService | null>(null);
 // S5-Q29 (2026-09-04): the Health module's service, real and fully tested
@@ -99,7 +104,7 @@ export function NotesProvider({
   accessToken?: string;
   children: ReactNode;
 }) {
-  const { store, notes, tasks, schedule, categories, profile, people, brainDocs, areas, goals, projects, money, tracker, backup, routine, gym, metrics, health, rules, chat, decisions, brainMemory, strands, seal, files, fileStore } = useMemo(() => {
+  const { store, notes, tasks, schedule, categories, profile, people, brainDocs, areas, goals, projects, money, tracker, ledger, backup, routine, gym, metrics, health, rules, chat, decisions, brainMemory, strands, seal, files, fileStore } = useMemo(() => {
     const store = makeStore(accessToken, userId);
     return {
       store,
@@ -119,6 +124,7 @@ export function NotesProvider({
       projects: new ProjectsService(store, userId, (e) => emit(e)),
       money: new MoneyService(store, userId, (e) => emit(e)),
       tracker: new TrackerService(store, userId, (e) => emit(e)),
+      ledger: new LedgerService(store, userId, (e) => emit(e)),
       backup: new BackupService(store, userId),
       routine: new RoutineService(store, userId),
       gym: new GymService(store, userId, (e) => emit(e)),
@@ -167,6 +173,7 @@ export function NotesProvider({
                       <ProjectContext.Provider value={projects}>
                       <MoneyContext.Provider value={money}>
                       <TrackerContext.Provider value={tracker}>
+                      <LedgerContext.Provider value={ledger}>
                       <BackupContext.Provider value={backup}>
                       <RoutineContext.Provider value={routine}>
                       <GymContext.Provider value={gym}>
@@ -188,6 +195,7 @@ export function NotesProvider({
                       </GymContext.Provider>
                       </RoutineContext.Provider>
                       </BackupContext.Provider>
+                      </LedgerContext.Provider>
                       </TrackerContext.Provider>
                       </MoneyContext.Provider>
                     </ProjectContext.Provider>
@@ -250,6 +258,12 @@ export function useOptionalRoutine(): RoutineService | null { return useContext(
 export function useOptionalGoals(): GoalService | null { return useContext(GoalContext) ?? null; }
 export function useOptionalProjects(): ProjectsService | null { return useContext(ProjectContext) ?? null; }
 export function useOptionalMoney(): MoneyService | null { return useContext(MoneyContext) ?? null; }
+export function useLedger(): LedgerService {
+  const s = useContext(LedgerContext);
+  if (!s) throw new Error("useLedger must be used inside NotesProvider");
+  return s;
+}
+export function useOptionalLedger(): LedgerService | null { return useContext(LedgerContext) ?? null; }
 export function useTracker(): TrackerService {
   const s = useContext(TrackerContext);
   if (!s) throw new Error("useTracker must be used inside NotesProvider");

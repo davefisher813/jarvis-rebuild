@@ -25,8 +25,8 @@ describe("parseDeckPlan", () => {
   it("parses each kind and keeps only the matching payload", () => {
     expect(parseDeckPlan(JSON.stringify({ kind: "reply", why: "Ridgeley wants the waiver.", reply: "On it tonight." })))
       .toEqual({ kind: "reply", why: "Ridgeley wants the waiver.", reply: "On it tonight." });
-    expect(parseDeckPlan(JSON.stringify({ kind: "bill", why: "w", bill: { name: "Geico", amount: 214, due: "2026-08-12" } }), GEICO_EMAIL))
-      .toEqual({ kind: "bill", why: "w", bill: { name: "Geico", amount: 214, due: "2026-08-12" } });
+    expect(parseDeckPlan(JSON.stringify({ kind: "bill", why: "w", bill: { name: "Geico", amount: 214, due: "2026-09-15" } }), GEICO_EMAIL))
+      .toEqual({ kind: "bill", why: "w", bill: { name: "Geico", amount: 214, due: "2026-09-15" } });
     expect(parseDeckPlan(JSON.stringify({ kind: "event", why: "w", event: { title: "Dr. Patel", date: "2026-08-08", start: "14:30" } }), PATEL_EMAIL))
       .toEqual({ kind: "event", why: "w", event: { title: "Dr. Patel", date: "2026-08-08", start: "14:30" } });
     expect(parseDeckPlan(JSON.stringify({ kind: "archive", why: "Nothing needed." })))
@@ -48,6 +48,12 @@ describe("parseDeckPlan", () => {
       "Your bill for 9999999 is ready.",
     )!;
     expect(p.bill!.amount).toBe(100000);
+  });
+
+  it("keeps the bill but drops a due date the email never wrote (ledger rule 3: no invented dates)", () => {
+    const p = parseDeckPlan(JSON.stringify({ kind: "bill", why: "w", bill: { name: "Geico", amount: 214, due: "2026-08-12" } }), GEICO_EMAIL)!;
+    expect(p.bill).toEqual({ name: "Geico", amount: 214 });
+    expect("due" in p.bill!).toBe(false);
   });
 
   it("rejects a bill amount with no anchor in the email -- hallucinated or planted by a hidden instruction, either way not real", () => {

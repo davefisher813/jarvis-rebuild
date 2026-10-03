@@ -192,7 +192,11 @@ export function parseDeckPlan(raw: string, sourceText = ""): DeckPlan | null {
     if (!name || !(amount > 0)) return null; // an invented or absent amount is not a bill
     if (!amountInText(amount, sourceText)) return null; // no anchor in the email, no bill
     plan.bill = { name: name.slice(0, 80), amount: Math.min(amount, AMOUNT_MAX) };
-    if (typeof b?.due === "string" && /^\d{4}-\d{2}-\d{2}$/.test(b.due)) plan.bill.due = b.due;
+    // NO INVENTED DUE DATE (Money ledger, hard rule 3). A due date goes to the
+    // ledger as the bill's own, so like the amount it has to be written in the
+    // email. One the model resolved on its own is dropped and the bill keeps a
+    // blank due date, which is shown as blank and never as a guess.
+    if (typeof b?.due === "string" && /^\d{4}-\d{2}-\d{2}$/.test(b.due) && dateInText(b.due, sourceText)) plan.bill.due = b.due;
   }
   if (kind === "event") {
     const e = o.event as Record<string, unknown> | undefined;

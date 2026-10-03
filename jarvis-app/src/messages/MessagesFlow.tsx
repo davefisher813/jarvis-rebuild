@@ -95,6 +95,7 @@ import { humanError } from "../connections/google/humanError";
 import { aiFailureLine } from "../ai/failureLine";
 import { endOfAct } from "./mailAct";
 import { dayPhrase, monthDay } from "../money/bills";
+import { fileEmailBill, noteFor, type FiledBill } from "../money/ledger/emailBill";
 import { heldBy, heldLine, type HardLine } from "../brain/hardLines";
 import Dictate from "../shared/Dictate";
 import DocEditor, { type DocEditorHandle, type Doc } from "../shared/DocEditor";
@@ -188,7 +189,7 @@ const DemoMail = __DEMO_SEED__ ? lazyWithRecovery(() => import("./DemoMail")) : 
 import { noDashes } from "../ai/suggestions";
 import { useOptionalAIContext } from "../ai/useAIContext";
 import { voiceToText } from "../ai/context";
-import { useOptionalTasks, useOptionalSchedule, useOptionalPeople, useOptionalProfile, useOptionalNotes, useOptionalProjects, useOptionalRoutine, useOptionalBrainDocs, useOptionalDecisions, useOptionalBrainMemory } from "../data/NotesProvider";
+import { useOptionalLedger, useOptionalTasks, useOptionalSchedule, useOptionalPeople, useOptionalProfile, useOptionalNotes, useOptionalProjects, useOptionalRoutine, useOptionalBrainDocs, useOptionalDecisions, useOptionalBrainMemory } from "../data/NotesProvider";
 import { b64urlDecodeBytes } from "../connections/google/map";
 import { lineCase } from "../shared/casing";
 import { clockLabel, minutesLabel, secondsLabel } from "../shared/duration";
@@ -311,6 +312,8 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   composeNonce?: number; onComposeConsumed?: () => void }) {
   const g = useGoogle();
   const tasks = useOptionalTasks();
+  // Bills live in Money and never become tasks (ledger hard rule 1).
+  const moneyLedger = useOptionalLedger();
   const scheduleSvc = useOptionalSchedule();
   const notesSvc = useOptionalNotes();
   const projectsSvc = useOptionalProjects();
@@ -1196,9 +1199,10 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
       // appears out of a subject line reading "Order #D2565").
       billable: amountIn(row.subject ?? "") != null,
       canTask: !!tasks,
+      canBill: !!moneyLedger,
       canSchedule: !!scheduleSvc,
     });
-  }, [book, colleagues, nudgeCounts, tasks, scheduleSvc]);
+  }, [book, colleagues, nudgeCounts, tasks, moneyLedger, scheduleSvc]);
 
   // A thread he let go stops counting days. Hoisted out of the Waiting On
   // render (2026-08-21) because the swipe sheet closes rows too, and two
@@ -1426,17 +1430,16 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
         const amount = amountIn(row.subject ?? "");
         // Silent returns, both of them (2026-08-25). A label that promises
         // "Files it under Money" may not answer a tap with nothing.
-        if (!tasks) { say("Tasks Aren't Available Right Now"); return; }
+        // A bill is filed in the Money ledger and never becomes a task
+        // (ledger hard rule 1). No due date is passed: the subject states
+        // none, and a guessed one is worse than a blank (rule 3).
+        if (!moneyLedger) { say("Money Isn't Available Right Now"); return; }
         if (amount == null) { say("No Amount in That One · Nothing to File"); return; }
-        const id = await tasks.createTask(laterTaskTitle(displayName(row.to), row.subject ?? ""), {
-          bill: { amount },
-          source: madeBy("email", row.threadId),
-          // UP-MIND-10 (2026-09-05): who it is with, when they are in Contacts.
-          ...(personIdFor(row.toEmail) ? { personId: personIdFor(row.toEmail)! } : {}),
-        });
-        // toFixed, not toLocaleString: the latter drops the trailing cent, so
-        // $1,234.50 was printing as $1,234.5 on every money receipt.
-        say(id ? "Added to Money · $" + amount.toFixed(2) : "Couldn't File It · Nothing Was Saved");
+        try {
+          sayFiled(await fileEmailBill(moneyLedger, { vendor: displayName(row.to), amount, notes: row.subject ?? "" }, row.threadId));
+        } catch {
+          say("Couldn't File It · Nothing Was Saved");
+        }
         return;
       }
       case "add_task": {
@@ -2622,6 +2625,15 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   // toast's action slot when the shell gave us somewhere to go.
   const sayAlreadyTask = (dup: TaskItem) => {
     say("Already a Task \u00b7 " + taskTitleOf(dup), onOpenTask ? { label: "Open Task", run: () => onOpenTask(dup.id) } : undefined);
+  };
+
+  // THE ONE RECEIPT FOR A BILL FILED FROM MAIL. Where it went (Money), what
+  // it was, and the one tap that goes with it: Undo for a new bill, Update
+  // for a thread whose bill is already in Money at another amount or date.
+  const sayFiled = (f: FiledBill, ms?: number) => {
+    const n = noteFor(f, moneyLedger!);
+    const a = n.action;
+    say(n.message, a ? { label: a.label, run: () => { void a.run().then((m) => say(m), () => say("Couldn't Save It · Nothing Was Changed")); } } : undefined, ms ?? (a?.label === "Update" ? 12000 : undefined));
   };
 
   // E-28: Later from a Needs You row. The sheet asks when; the task is made
@@ -4458,6 +4470,17 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                   setAttachDone(true);
                   return;
                 }
+                // A bill is Money's, never a task (ledger hard rule 1): the
+                // card files it in the ledger, keyed to this thread, with no
+                // due date because the subject and body state none here.
+                if (offer.kind === "bill" && offer.amount != null) {
+                  if (!moneyLedger) { say("Money Isn't Available Right Now", undefined, 3000); return; }
+                  const f = await fileEmailBill(moneyLedger, { vendor: displayName(m.from), amount: offer.amount, notes: offer.title }, thread.id);
+                  sayFiled(f, f.status === "update" ? 12000 : 3000);
+                  // An offer waiting on an answer stays; everything else is spent.
+                  if (f.status === "added" || f.status === "duplicate") setAttachDone(true);
+                  return;
+                }
                 // A card offering a write with no service behind it is a
                 // button that does nothing, silently. The sheet's own file
                 // legislated against this shape; this card never got it.
@@ -4465,14 +4488,10 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                 // E-30: one task per thread.
                 const dup = await findTaskForThread(tasks, thread.id);
                 if (dup) { sayAlreadyTask(dup); return; }
-                const id = offer.kind === "bill" && offer.amount != null
-                  ? await tasks.createTask(offer.title, { bill: { amount: offer.amount }, fromThread: thread.id, source: madeBy("email", thread.id) })
-                  : await tasks.createTask(offer.title, { fromThread: thread.id, source: madeBy("email", thread.id) });
+                const id = await tasks.createTask(offer.title, { fromThread: thread.id, source: madeBy("email", thread.id) });
                 // createTask returns null for blank text without throwing.
                 if (!id) { say("Couldn't Add It · Nothing Was Saved", undefined, 3000); return; }
-                say(offer.kind === "bill" && offer.amount != null
-                  ? "Added to Money · $" + offer.amount.toFixed(2)
-                  : "Added to your tasks", undefined, 3000);
+                say("Added to your tasks", undefined, 3000);
                 setAttachDone(true);
               } catch {
                 // Unwrapped before (2026-08-25): a throwing write produced
@@ -4499,7 +4518,19 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
             );
           })()}
 
-          {toast && <div className="conn-status">{toast}</div>}
+          {/* The thread page's receipt carries the follow-up too (Update, for a
+              bill already in Money at another amount): a toast whose action
+              is not drawn is an offer nobody can take. */}
+          {toast && (
+            <div className="conn-status">
+              <span>{toast}</span>
+              {undo && (
+                <button className="quiet-action msg-undo" onClick={() => { undo.run(); setUndo(null); setToast(null); }}>
+                  {undo.label}
+                </button>
+              )}
+            </div>
+          )}
           {/* The page ends above the floating dock. */}
           <div className="msg-detail-tail" aria-hidden="true" />
         </div>

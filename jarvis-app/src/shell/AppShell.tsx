@@ -23,7 +23,7 @@ import { DEFAULT_TABS, DESTINATIONS, MAX_TABS, extrasFor, migrateTabs } from "./
 import type { MoreRoute } from "../more/MorePage";
 import { NavOriginProvider, type NavOrigin } from "./navOrigin";
 import ReturnPill from "./ReturnPill";
-import { useTasks, useSchedule, useCategories, useProfile, useAreas, useGoals, useProjects, useMoney, usePeople, useDecisions, useOptionalSeal, useGym, useSettings } from "../data/NotesProvider";
+import { useTasks, useSchedule, useCategories, useProfile, useAreas, useGoals, useProjects, useMoney, usePeople, useDecisions, useOptionalSeal, useOptionalLedger, useGym, useSettings } from "../data/NotesProvider";
 import { useAuth, useOptionalSession } from "../auth/AuthProvider";
 import { useAdminAiGate } from "../ai/useAdminAiGate";
 import { onNotificationTap, ensureTaskReminders, registerNotificationActions, ACTION_DONE, ACTION_TOMORROW, ACTION_SNOOZE, BANNER_SNOOZE_MIN } from "../shared/notifications";
@@ -90,6 +90,8 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
   const decisions = useDecisions();
   const gym = useGym();
   const sealSvc = useOptionalSeal();
+  // The demo's bills are seeded into Money's ledger, not as tasks.
+  const ledgerSvc = useOptionalLedger();
   const settings = useSettings();
   const { signOut, backendConfigured } = useAuth();
   const ai = useAI();
@@ -263,6 +265,9 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
     else if (kind === "email") { mailIntent.fire(targetId); setActive("messages"); }
     else if (kind === "healthItem") { healthLogIntent.fire(targetId); setActive("brain"); }
     else if (kind === "file") { setActive("money"); }
+    // MONEY LEDGER: a bill opens its own page in Money (the id rides the same
+    // one-shot an account does); no id is the Money tab itself.
+    else if (kind === "bill") { if (targetId) accountIntent.fire(targetId); setActive("money"); }
     // LIFE_AREAS_TAB_HANDOFF (2026-09-16): the Areas tab opens a category's
     // own page the same way a search hit always has (SHELL-F-21) -- this was
     // missing from the shared function itself, so wiring the Areas tab to
@@ -355,7 +360,7 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
       // contains the seed module at all (see vite.config.ts).
       if (__DEMO_SEED__ && seedDemo) {
         const seed = await import("../data/seed");
-        await seed.seedDemoData(tasks, schedule, cats, { areas, goals, projects, money, people, decisions, seal: sealSvc ?? undefined, gym });
+        await seed.seedDemoData(tasks, schedule, cats, { areas, goals, projects, money, people, decisions, seal: sealSvc ?? undefined, ledger: ledgerSvc ?? undefined, gym });
         seed.seedDemoMail();
       }
       if (!on) return;
@@ -390,7 +395,7 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
       setReady(true);
     })();
     return () => { on = false; };
-  }, [seedDemo, tasks, schedule, categories, profile, areas, goals, projects, money, people, decisions, sealSvc, gym, settings]);
+  }, [seedDemo, tasks, schedule, categories, profile, areas, goals, projects, money, people, decisions, sealSvc, ledgerSvc, gym, settings]);
 
   // Keep the category name/color resolver in sync when a category is created,
   // renamed, recolored, or deleted, so edits reflect live everywhere (schedule,
@@ -682,7 +687,7 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
 
         {active === "messages" && <MessagesFlow ai={ai} demoMail={seedDemo} openThreadId={mailIntent.value} threadNonce={mailIntent.nonce} onThreadConsumed={mailIntent.clear} openDraftId={draftIntent.value} draftNonce={draftIntent.nonce} onDraftConsumed={draftIntent.clear} composeNonce={composeIntent.nonce} onComposeConsumed={composeIntent.clear} onOpenConnections={() => jump(() => { setMoreRoute("connections"); setActive("more"); })} onOpenTask={(id) => void navigateToEntity("task", id)} />}
         {active === "notifications" && <NotificationsFlow onOpen={(kind, id) => void navigateToEntity(kind, id)} />}
-        {active === "money" && <MoneyFlow onOpenTask={(id) => void navigateToEntity("task", id)} openAccountId={accountIntent.value} openNonce={accountIntent.nonce} onOpenConsumed={accountIntent.clear} />}
+        {active === "money" && <MoneyFlow onOpenTask={(id) => void navigateToEntity("task", id)} onOpenEntity={(k, id) => void navigateToEntity(k, id)} openAccountId={accountIntent.value} openNonce={accountIntent.nonce} onOpenConsumed={accountIntent.clear} />}
         {active === "chat" && <ChatFlow
           askPersonId={chatAskIntent.value}
           askNonce={chatAskIntent.nonce}

@@ -344,10 +344,15 @@ export function classifyLine(line: string, today: string, ctx: CaptureContext = 
     };
   }
 
-  // A BILL IS A TASK WEARING MONEY (Money v1). An amount he wrote is the one
-  // switch: no amount, no bill. The repeat rides along only when he wrote one
-  // ("$1,200 rent on the 1st" is not a claim that rent is monthly, however
-  // obvious that is; "every month" is).
+  // A LINE WITH AN AMOUNT READS AS A BILL, AND A BILL IS MONEY'S (Money
+  // ledger, hard rule 1). This only READS it: the candidate keeps kind "task"
+  // because the parse has no other word for it, and applyCapture files any
+  // task-kind result that carries `bill` in the ledger, never as a task (and
+  // TasksService.createTask would refuse it if anything tried). An amount he
+  // wrote is the one switch: no amount, no bill. The date is only the day he
+  // named, and the repeat rides along only when he wrote one ("$1,200 rent on
+  // the 1st" is not a claim that rent is monthly, however obvious that is;
+  // "every month" is).
   if (money) {
     return {
       kind: "task",

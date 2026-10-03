@@ -10,6 +10,9 @@ import type { NotesService } from "../notes/NotesService";
 import { suggestCategory } from "../schedule/memory";
 import { todayISO as isoOf } from "../schedule/calendar";
 import type { Recurrence } from "../notes/types";
+import type { LedgerService } from "../money/ledger/LedgerService";
+import { fileManualBill, noteFor } from "../money/ledger/emailBill";
+import type { BillRecurrence } from "../money/ledger/types";
 
 const RECURRENCES: Recurrence[] = ["daily", "weekly", "monthly", "weekdays"];
 
@@ -175,6 +178,30 @@ interface ApplyServices {
   tasks: TasksService;
   schedule: ScheduleService;
   notes: NotesService;
+  // Where a bill goes (ledger hard rule 1). Optional: without it the bill
+  // lane is closed and says so; it is never made a task instead.
+  ledger?: Pick<LedgerService, "addBill" | "removeBill">;
+}
+
+/** A task's repeat word as a bill's. A bill is not daily and has no weekdays. */
+export function billRecurrenceOf(r: Recurrence | undefined): BillRecurrence | undefined {
+  return r === "weekly" || r === "monthly" ? r : undefined;
+}
+
+/** The vendor a captured line names: its title without the leading verb. */
+export function billVendorOf(title: string): string {
+  const t = title.trim();
+  const bare = t.replace(/^(pay|bill)\s+/i, "").trim();
+  return bare || t;
+}
+
+export interface Applied {
+  id: string | null;
+  /** "bill" when the line was filed in Money. */
+  kind: CaptureResult["kind"] | "bill";
+  /** What to tell the person when nothing was made: already in Money, what is
+   *  missing, or that Money is not available. */
+  note?: string;
 }
 
 export async function applyCapture(
@@ -183,7 +210,27 @@ export async function applyCapture(
   categories: Category[],
   today: string,
   source?: import("../shared/provenance").Source,
-): Promise<{ id: string | null; kind: CaptureResult["kind"] }> {
+  // Who or which project a bill is for, already resolved by the caller, so the
+  // ledger bill's notes keep what the line named.
+  who?: string,
+): Promise<Applied> {
+  // A BILL IS MONEY'S, NEVER A TASK (ledger hard rule 1). A line that read as a
+  // bill is filed in the ledger as typed or pasted: source manual, the due
+  // date only when the person wrote one (rule 3), a repeat only when they
+  // wrote that too. TasksService.createTask would refuse it anyway.
+  if (r.kind === "task" && r.bill) {
+    if (!svc.ledger) return { id: null, kind: "bill", note: "Money Isn't Available Right Now" };
+    const notes = [r.notes?.trim(), who ? "For " + who : ""].filter(Boolean).join(". ");
+    const filed = await fileManualBill(svc.ledger, {
+      vendor: billVendorOf(r.title),
+      amount: r.bill.amount,
+      dueDate: r.date ?? null,
+      notes: notes || null,
+      recurrence: billRecurrenceOf(r.recurrence) ?? null,
+    });
+    if (filed.status === "added") return { id: filed.id, kind: "bill" };
+    return { id: null, kind: "bill", note: noteFor(filed, svc.ledger).message };
+  }
   // SHELL-F-06 (2026-09-05): the AI path fills `category` with a NAME (the
   // prompt asks for one), a learned rule fills it with an ID (rules key on
   // ids so a renamed area keeps its rule). This matched by name only, so a
@@ -230,7 +277,6 @@ export async function applyCapture(
       source,
       ...(r.recurrence ? { recurrence: r.recurrence } : {}),
       ...(r.reminder ? { reminder: r.reminder } : {}),
-      ...(r.bill ? { bill: r.bill } : {}),
       ...(r.personId ? { personId: r.personId } : {}),
       ...(r.projectId ? { projectId: r.projectId } : {}),
     });

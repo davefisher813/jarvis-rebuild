@@ -14,6 +14,18 @@ import { BUSY_LABEL } from "../messages/notificationActions";
 import type { MailActionResult } from "../messages/executeMailAction";
 import { copyPromised } from "../messages/clipboard";
 import type { MailAct } from "../messages/mailAct";
+
+// What taking an act answers: the receipt, how to take it back, and for a bill
+// whose thread is already in Money, the offer to update it instead. `held`
+// means nothing was done, so the notice stays where it is (a refusal with its
+// reason, or an offer waiting on an answer). `offer.run` resolves with the
+// line to say once it is answered.
+export interface MailActResult {
+  receipt: string;
+  undo?: () => Promise<void>;
+  held?: true;
+  offer?: { label: string; run: () => Promise<string> };
+}
 import EvidenceChip from "../messages/EvidenceChip";
 import Dictate from "../shared/Dictate";
 import { loadSnoozes, snoozeNotice, sleepingNow, snoozeChoices } from "../messages/snoozeNotice";
@@ -165,7 +177,7 @@ export default function MailNotices({
   // receipt to show and, when the write can be taken back, how to take it
   // back. null means nothing landed, and the card says so rather than
   // claiming a save.
-  onTakeAct?: (a: MailAct, threadId: string) => Promise<{ receipt: string; undo?: () => Promise<void> } | null>;
+  onTakeAct?: (a: MailAct, threadId: string) => Promise<MailActResult | null>;
   // Trashes the mail itself (2026-08-26, Dave: "I should be able to delete
   // from here"). Dismiss, above, only ever hid the card; the email stayed
   // in the inbox and this notice reappeared the next time the snapshot
@@ -308,6 +320,19 @@ export default function MailNotices({
         if (!done) {
           showToast({ message: "Couldn't Add It · Opening the Thread" });
           onOpenThread?.(n.threadId);
+          return;
+        }
+        // Held: nothing was written. A refusal says what is missing and an
+        // offer waits for its answer; either way the notice stays, and it is
+        // spent only when the offer is taken.
+        if (done.held) {
+          showToast(
+            {
+              message: done.receipt,
+              ...(done.offer ? { actionLabel: done.offer.label, onAction: () => { void done.offer!.run().then((m) => { markDone(n.key); showToast({ message: m }); }, () => showToast({ message: "Couldn't Save It \u00b7 Nothing Was Changed" })); } } : {}),
+            },
+            done.offer ? 12000 : 5000,
+          );
           return;
         }
         // Undo is not politeness here. This is the only card that writes to

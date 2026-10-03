@@ -4,6 +4,15 @@ import { TasksService } from "./TasksService";
 import { nextDue } from "./grouping";
 import { partition } from "./filters";
 import type { TaskItem } from "./TasksService";
+import type { BillInfo, Recurrence } from "../notes/types";
+// A bill task from before the Money ledger. createTask refuses bills now (a
+// bill lives in Money, hard rule 1), but the bills already stored still have
+// to behave, and recreateFrom writes a whole record as it is: that is how Undo
+// restores one, and how a test makes one.
+async function legacyBill(svc: TasksService, text: string, o: { due?: string; recurrence?: Recurrence; bill: BillInfo }): Promise<string | null> {
+  return svc.recreateFrom({ text, category: "", done: false, ...o });
+}
+
 
 describe("recurrence", () => {
   it("computes the next occurrence per cadence", () => {
@@ -69,7 +78,7 @@ describe("recurrence", () => {
 
   it("Undo on a plain task puts done back to false and drops the bill receipt", async () => {
     const svc = new TasksService(new Store(new InMemoryAdapter()), "u");
-    const id = (await svc.createTask("Deposit", { due: "2026-09-05", bill: { amount: 40 } }))!;
+    const id = (await legacyBill(svc, "Deposit", { due: "2026-09-05", bill: { amount: 40 } }))!;
     const before = (await svc.task(id))!;
     await svc.toggleDone(id);
     expect((await svc.task(id))!.done).toBe(true);

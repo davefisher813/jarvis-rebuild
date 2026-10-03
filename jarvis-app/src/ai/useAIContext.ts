@@ -4,7 +4,7 @@ import {
   useOptionalProfile, useOptionalPeople, useOptionalBrainDocs, useOptionalTasks, useOptionalSchedule,
   useOptionalCategories, useOptionalRoutine, useOptionalGoals, useOptionalProjects, useOptionalMoney,
   useOptionalStrands, useOptionalDecisions, useOptionalSeal, useOptionalMetrics, useOptionalGym, useOptionalNotes,
-  useOptionalBrainMemory,
+  useOptionalBrainMemory, useOptionalLedger,
 } from "../data/NotesProvider";
 import type { StrandsService } from "../brain/strands/StrandsService";
 import type { DecisionService } from "../decisions/DecisionService";
@@ -12,6 +12,10 @@ import type { NotesService } from "../notes/NotesService";
 import type { SealService } from "../review/seal";
 import type { MetricsService } from "../gym/MetricsService";
 import type { GymService } from "../gym/GymService";
+import type { LedgerService } from "../money/ledger/LedgerService";
+import type { Bill } from "../money/ledger/types";
+import { isPaid } from "../money/ledger/status";
+import { ledgerBillsOut } from "../money/billView";
 import type { Person } from "../people/types";
 import type { BrainMemoryRow } from "./brainMemory";
 import type { BrainMemoryService } from "./brainMemoryService";
@@ -91,6 +95,11 @@ interface ContextServices {
   // as the rest: no brain store means no filed-memory sections, never a
   // broken prompt.
   brainMemory?: BrainMemoryService | null;
+  // MONEY LEDGER (2026-10-03): bills are their own records now, not tasks.
+  // Optional on the same seam: no ledger means the legacy bill tasks alone,
+  // as before. Without it Chat would quote a Yours number the Money tab no
+  // longer shows.
+  ledger?: LedgerService | null;
 }
 
 // Brain Manual v1 (2026-09-27): per-AI-call memory options. `message` is the
@@ -398,13 +407,15 @@ async function gatherFrom(s: ContextServices, about?: ContextAbout, memory?: Mem
   // stale "Personal only" copy of this check used to leave Student's Money
   // tab showing payday math the AI would then deny existed.
   const openBills = activeBills(tk, today).filter((b) => !b.data.done);
+  const ledgerBills = s.ledger ? await s.ledger.listBills().catch(() => [] as Bill[]) : [];
+  const openLedgerBills = ledgerBills.filter((b) => !isPaid(b.data));
   const payday = (p?.template ?? "personal") !== "business" ? p?.payday : undefined;
   let cashFlow: { paycheck: number; nextPayday: string; billsOut: number; setAside: number; left: number; short: boolean } | null = null;
   if (payday) {
     const next = paydayNext(payday, today);
     const billsOut = openBills
       .filter((b) => !!b.data.due && b.data.due <= next)
-      .reduce((sum, b) => sum + (b.data.bill?.amount ?? 0), 0);
+      .reduce((sum, b) => sum + (b.data.bill?.amount ?? 0), 0) + ledgerBillsOut(ledgerBills, next, today);
     // HMN-F-12 (2026-09-05): read off the profile this function already has,
     // so Chat on a second device knows about the same envelopes the Money
     // tab there is subtracting. It used to read this phone's localStorage.
@@ -554,12 +565,22 @@ async function gatherFrom(s: ContextServices, about?: ContextAbout, memory?: Mem
     // reaches the model as the debt it is and Chat cannot quote a total the
     // Money tab disagrees with.
     money: mn.map((a) => ({ name: a.data.name, balance: signedBalance(a.data) })),
-    bills: openBills.map((b) => ({
-      name: b.data.text,
-      amount: b.data.bill?.amount ?? 0,
-      due: b.data.due,
-      ...(b.data.bill?.autopay ? { autopay: true } : {}),
-    })),
+    bills: [
+      ...openBills.map((b) => ({
+        name: b.data.text,
+        amount: b.data.bill?.amount ?? 0,
+        due: b.data.due,
+        ...(b.data.bill?.autopay ? { autopay: true } : {}),
+      })),
+      // A ledger bill in another currency carries its code, and a bill with no
+      // due date carries none: nothing is guessed for the model either.
+      ...openLedgerBills.map((b) => ({
+        name: b.data.currency === "USD" ? b.data.vendor : `${b.data.vendor} (${b.data.currency})`,
+        amount: b.data.amountCents / 100,
+        due: b.data.dueDate,
+        ...(b.data.autopay ? { autopay: true } : {}),
+      })),
+    ],
     cashFlow,
     strands: scopedStrands ?? strandLines,
     related,
@@ -606,10 +627,11 @@ export function useAIContext(): (about?: ContextAbout, memory?: MemoryCallOpts) 
   const gym = useOptionalGym();
   const notes = useOptionalNotes();
   const brainMemory = useOptionalBrainMemory();
+  const ledger = useOptionalLedger();
 
   return useCallback(
-    (about?: ContextAbout, memory?: MemoryCallOpts) => gatherFrom({ profile, people, docs, tasks, schedule, cats, routine, goals, projects, money, strands, decisions, seal, metrics, gym, notes, brainMemory }, about, memory),
-    [profile, people, docs, tasks, schedule, cats, routine, goals, projects, money, strands, decisions, seal, metrics, gym, notes, brainMemory],
+    (about?: ContextAbout, memory?: MemoryCallOpts) => gatherFrom({ profile, people, docs, tasks, schedule, cats, routine, goals, projects, money, strands, decisions, seal, metrics, gym, notes, brainMemory, ledger }, about, memory),
+    [profile, people, docs, tasks, schedule, cats, routine, goals, projects, money, strands, decisions, seal, metrics, gym, notes, brainMemory, ledger],
   );
 }
 
@@ -636,9 +658,10 @@ export function useOptionalAIContext(): (about?: ContextAbout, memory?: MemoryCa
   const gym = useOptionalGym();
   const notes = useOptionalNotes();
   const brainMemory = useOptionalBrainMemory();
+  const ledger = useOptionalLedger();
 
   return useCallback(async (about?: ContextAbout, memory?: MemoryCallOpts) => {
     if (!profile || !people || !docs || !tasks || !schedule || !cats || !routine || !goals || !projects || !money) return null;
-    return gatherFrom({ profile, people, docs, tasks, schedule, cats, routine, goals, projects, money, strands, decisions, seal, metrics, gym, notes, brainMemory }, about, memory);
-  }, [profile, people, docs, tasks, schedule, cats, routine, goals, projects, money, strands, decisions, seal, metrics, gym, notes, brainMemory]);
+    return gatherFrom({ profile, people, docs, tasks, schedule, cats, routine, goals, projects, money, strands, decisions, seal, metrics, gym, notes, brainMemory, ledger }, about, memory);
+  }, [profile, people, docs, tasks, schedule, cats, routine, goals, projects, money, strands, decisions, seal, metrics, gym, notes, brainMemory, ledger]);
 }

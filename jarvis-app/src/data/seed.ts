@@ -12,6 +12,7 @@ import type { PeopleService } from "../people/PeopleService";
 import type { DecisionService } from "../decisions/DecisionService";
 import type { SealService } from "../review/seal";
 import type { GymService } from "../gym/GymService";
+import type { LedgerService } from "../money/ledger/LedgerService";
 import type { Category } from "../categories/types";
 import { todayISO } from "../schedule/calendar";
 import { saveMailSnapshot } from "../messages/home";
@@ -31,6 +32,9 @@ interface Extras {
   decisions?: DecisionService;
   seal?: SealService;
   gym?: GymService;
+  // Where the demo's bills go. Absent, no bills are seeded: a bill is never a
+  // task (Money ledger, hard rule 1).
+  ledger?: LedgerService;
 }
 
 // A REAL PROGRAM IN THE DEMO (2026-09-21). Until this, the gym seed wrote
@@ -214,9 +218,18 @@ export async function seedDemoData(
     await people.create({ name: "Sam Okafor", group: "contacts", relationship: "Coach" });
   }
 
-  // Bills are recurring money tasks; two due soon so the Money page and the
-  // Today money line both populate.
+  // Bills live in Money's ledger, never as tasks (ledger hard rule 1). Rent and
+  // Internet are due soon so the Money page and the Today money line both
+  // populate; the due dates and the monthly repeat are the demo person's own,
+  // as if typed in. An account that already holds bill tasks from before the
+  // ledger keeps them and is not seeded a second set.
   const existingTasks = await tasks.listTasks();
+  const ledger = extras?.ledger;
+  if (ledger && !existingTasks.some((t) => t.data.bill) && (await ledger.listBills()).length === 0) {
+    await ledger.addBill({ vendor: "Rent", amount: 2200, dueDate: addDays(today, 2), recurrence: "monthly" }, "manual", "user");
+    await ledger.addBill({ vendor: "Internet", amount: 89, dueDate: addDays(today, 6), recurrence: "monthly", autopay: true }, "manual", "user");
+    await ledger.addBill({ vendor: "Car Insurance", amount: 148, dueDate: addDays(today, 12), recurrence: "monthly" }, "manual", "user");
+  }
 
   // Reminders (2026-08-19): the meds case, so the strip is populated in the
   // demo. Morning is already ticked; the afternoon one is still open.
@@ -224,12 +237,6 @@ export async function seedDemoData(
     await tasks.createTask("Morning Meds", { category: cat("Health"), reminder: { time: "08:00", lastDone: today } });
     await tasks.createTask("Vitamin D", { category: cat("Health"), reminder: { time: "13:00" } });
     await tasks.createTask("Night Meds", { category: cat("Health"), reminder: { time: "21:00" } });
-  }
-
-  if (!existingTasks.some((t) => t.data.bill)) {
-    await tasks.createTask("Rent", { category: cat("Money"), due: addDays(today, 2), recurrence: "monthly", bill: { amount: 2200 } });
-    await tasks.createTask("Internet", { category: cat("Money"), due: addDays(today, 6), recurrence: "monthly", bill: { amount: 89, autopay: true } });
-    await tasks.createTask("Car Insurance", { category: cat("Money"), due: addDays(today, 12), recurrence: "monthly", bill: { amount: 148 } });
   }
 
   // Decision Records: one live with a revisit due TODAY (so the Today card

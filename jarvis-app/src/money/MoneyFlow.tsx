@@ -1,17 +1,26 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import PageHeader, { BarAction } from "../shared/PageHeader";
-import { useMoney, useTasks, useProfile, useCategories, useOptionalGoals, useOptionalFiles, useFileStore, useTracker } from "../data/NotesProvider";
+import { useMoney, useTasks, useProfile, useCategories, useOptionalGoals, useTracker, useOptionalLedger } from "../data/NotesProvider";
 import { effectiveKind } from "../categories/kinds";
 import { ACCOUNT_META, ACCOUNT_KINDS, ENTITY_ACCOUNT, formatMoney, totalBalance, isLiability, signedBalance, type Account, type AccountData, type AccountKind } from "./types";
 import { useFreshLists } from "../data/useFreshLists";
-import { ENTITY_TASK } from "../notes/types";
+import { ENTITY_TASK, type Recurrence } from "../notes/types";
 import {
   loadEnvelopes, forgetLocalEnvelopes, cleanEnvelopes, setAsideTotal, leftToSpend, leftSub, shortLine,
   daysUntil, perDayLine, envelopeId, type Envelope,
 } from "./budget";
 import { activeBills, billSubline, paydayLine, paydayNext, monthDay, paidThisMonth, type PaydayInfo, type PaydayFreq } from "./bills";
 import BillSheet, { type BillDraft } from "./BillSheet";
+import BillDetailSheet from "./screens/BillDetailSheet";
+import { useMarkBillPaid } from "./useMarkBillPaid";
+import { billAmount, ledgerBillsOut, ledgerChip, ledgerLine, ledgerPaidThisMonth, mergedBills } from "./billView";
+import { suggestMonthly } from "./ledger/recurring";
+import { isPaid } from "./ledger/status";
+import { ENTITY_MONEY_BILL, type Bill, type BillRecurrence } from "./ledger/types";
+import { dismissSuggestion, isSuggestionDismissed, suggestionKey } from "./suggestionMemory";
 import TrackerScreen from "./screens/TrackerScreen";
+import ReceiptsSection from "./screens/ReceiptsSection";
+import MatchesCard from "./screens/MatchesCard";
 import type { TaskItem } from "../tasks/TasksService";
 import { showToast } from "../shared/toast";
 import { todayISO } from "../tasks/grouping";
@@ -24,16 +33,8 @@ import { lineCase, titleCase } from "../shared/casing";
 import { inMonth, thisMonth, incomeCents, spentCents, fmtCents, ENTITY_MONEY_TX } from "./tracker";
 import type { Goal } from "../life/types";
 import { savingsLine, savingsPct, savedTotal } from "../bigger/savings";
-import { usePickFile } from "../shared/usePickFile";
-import RowActionSheet from "../shared/RowActionSheet";
-import { sizeLabel, fileStem, type UserFile } from "../files/types";
-import { useAI } from "../ai/useAI";
-import { buildVisionMessage } from "../ai/AIService";
-import { JARVIS_VOICE } from "../ai/voice";
-import { encodeImageForVision } from "../shared/imageEncode";
 import { madeBy } from "../shared/provenance";
-import { RECEIPT_EXTRACT_PROMPT, parseReceiptExtract } from "./receiptExtract";
-import { Paperclip, Image as ImageGlyph, FileText, Calendar, FolderKanban, Check as CheckGlyph, Trash2 } from "../shared/icons";
+import { Paperclip, Calendar, FolderKanban, Check as CheckGlyph, Trash2 } from "../shared/icons";
 import { useSwipe } from "../shared/useSwipe";
 import { FormSheet, Group, FieldRow, MenuRow, DeleteRow, ErrorLine } from "../shared/FormSheet";
 import { pressable, onPressKey } from "../shared/pressable";
@@ -203,12 +204,17 @@ function BillRow({ paid, autopay, label, onPay, onDelete, children }: {
 type BillSheetState =
   | { kind: "closed" }
   | { kind: "new" }
+  // A legacy bill (a task with data.bill) keeps the sheet and the path it has
+  // always had; a ledger bill edits through correctBill.
   | { kind: "edit"; id: string }
+  | { kind: "editLedger"; id: string }
   // UP-CORE-13 (2026-09-05): a receipt that has been read. The draft is
   // prefilled from what the picture said and nothing is written until Save.
   | { kind: "paid"; initial: BillDraft; paidOn: string; fileId: string };
 
-export default function MoneyFlow({ onOpenTask, openAccountId, openNonce, onOpenConsumed }: { onOpenTask?: (id: string) => void;
+export default function MoneyFlow({ onOpenTask, onOpenEntity, openAccountId, openNonce, onOpenConsumed }: { onOpenTask?: (id: string) => void;
+  /** The shell's door to any entity, used to open the email a bill came from. */
+  onOpenEntity?: (kind: string, id: string) => void;
   // SHELL-F-21 (2026-09-05): a Money search hit used to land on this tab's
   // normal first screen, with the account it named neither opened nor
   // highlighted, and the row in search wore a chevron promising otherwise
@@ -222,6 +228,7 @@ export default function MoneyFlow({ onOpenTask, openAccountId, openNonce, onOpen
   const profileSvc = useProfile();
   const catsSvc = useCategories();
   const trackerSvc = useTracker();
+  const ledger = useOptionalLedger();
   const [accounts, setAccounts] = useState<Account[]>([]);
   // THE TRACKER ROW'S NET (2026-09-26, the pass-off: "the Tracker row's net
   // green (more in) or red (more out)"). This month's income less spending
@@ -230,6 +237,10 @@ export default function MoneyFlow({ onOpenTask, openAccountId, openNonce, onOpen
   // month, and the row then says only where it goes.
   const [monthNet, setMonthNet] = useState<number | null>(null);
   const [bills, setBills] = useState<TaskItem[]>([]);
+  // Bills in the Money ledger (their own entity, never tasks). The list below
+  // shows these and the legacy bill tasks together.
+  const [ledgerBills, setLedgerBills] = useState<Bill[]>([]);
+  const [detailId, setDetailId] = useState<string | null>(null);
   const [paidMonth, setPaidMonth] = useState<{ total: number; count: number }>({ total: 0, count: 0 });
   // Also tagged Money (2026-08-10): the "Money" category used to be its own
   // page with tasks like "Budget Review" or "File Taxes" living only there.
@@ -314,94 +325,25 @@ export default function MoneyFlow({ onOpenTask, openAccountId, openNonce, onOpen
   };
   const today = todayISO();
 
-  // RECEIPTS (Dave 2026-09-02: "both pages need to have a pic/file upload
-  // button (that's fully wired)"; picked "A Receipts card on the page").
-  // The clip in the bar opens the phone's own sheet (camera, library,
-  // files); the file goes to the user's private storage and lands in the
-  // Receipts card, newest first: name, date, size. Tap opens it; the trash
-  // removes it with Undo. The row is made first because the storage path
-  // carries its id; a failed upload takes the row back with it.
-  const ai = useAI();
-  const filesSvc = useOptionalFiles();
-  const fileStore = useFileStore();
-  const [receipts, setReceipts] = useState<UserFile[]>([]);
-  const [uploading, setUploading] = useState(false);
-  const loadReceipts = useCallback(async () => {
-    if (!filesSvc) return;
-    setReceipts(await filesSvc.list("money"));
-  }, [filesSvc]);
-  useEffect(() => { void loadReceipts(); }, [loadReceipts]);
-  const addReceipt = async (f: File) => {
-    if (!filesSvc || !fileStore || uploading) return;
-    setUploading(true);
-    let id: string | null = null;
-    try {
-      id = await filesSvc.create({ name: f.name, path: "", mime: f.type, bytes: f.size, scope: "money", addedAt: today });
-      const stored = await fileStore.upload(id, f);
-      await filesSvc.update(id, { path: stored.path, name: stored.name, mime: stored.mime, bytes: stored.bytes });
-      await loadReceipts();
-      showToast({ message: "Receipt Added" });
-    } catch (e) {
-      if (id) await filesSvc.remove(id).catch(() => undefined);
-      showToast({ message: e instanceof Error && e.message ? e.message : "Couldn't upload that file." });
-    } finally {
-      setUploading(false);
-    }
-  };
-  const picker = usePickFile((f) => void addReceipt(f));
-  // CLICK-THROUGH AUDIT 2026-09-29: the paperclip opened the phone's own file
-  // sheet the instant it was tapped, which a driver (or a slow WebView) cannot
-  // see, so it read as a dead button. The tap now opens a sheet of our own, and
-  // its one row opens the picker inside THAT tap (a picker opened after an
-  // await is blocked by iOS). The input stays mounted on the screen, so the
-  // sheet closing never takes the picker with it.
-  const [receiptSheet, setReceiptSheet] = useState(false);
-  // B3-10 (2026-09-04): opening a receipt used to await fileStore.url()
-  // (a real network round trip for the signed URL) before calling
-  // window.open. Any await between a tap and window.open breaks the user-
-  // gesture chain iOS requires, so Safari silently treats it as a popup and
-  // blocks it: no error, no file, nothing. NoteEditor's Attachment avoids
-  // this by resolving each file's URL ahead of time (useFileUrl) so its own
-  // open() is a synchronous handler; this resolves the whole receipts list
-  // the same way, once, whenever it changes.
-  const [receiptUrls, setReceiptUrls] = useState<Record<string, string | null>>({});
-  useEffect(() => {
-    let live = true;
-    if (!fileStore || receipts.length === 0) { setReceiptUrls({}); return; }
-    void Promise.all(receipts.map(async (r) => [r.id, await fileStore.url(r.data.path)] as const))
-      .then((pairs) => { if (live) setReceiptUrls(Object.fromEntries(pairs)); });
-    return () => { live = false; };
-  }, [fileStore, receipts]);
-  const openReceipt = (r: UserFile) => {
-    const url = receiptUrls[r.id];
-    if (!url) { showToast({ message: "Couldn't Open That File \u00b7 Try Again in a Moment" }); return; }
-    window.open(url, "_blank", "noopener");
-  };
-  const removeReceipt = async (r: UserFile) => {
-    if (!filesSvc) return;
-    const ok = await attemptWrite(() => filesSvc.remove(r.id));
-    if (!ok) return;
-    await loadReceipts();
-    // The bytes go a beat after the row, so Undo can bring the row back
-    // whole. Undo re-creates the row on the same path and cancels the sweep.
-    let undone = false;
-    const sweep = setTimeout(() => { if (!undone) void fileStore?.remove([r.data.path]); }, 6000);
-    showToast({
-      message: "Receipt Removed", actionLabel: "Undo",
-      onAction: async () => { undone = true; clearTimeout(sweep); await attemptWrite(() => filesSvc.create(r.data)); await loadReceipts(); },
-    });
-  };
+  // RECEIPTS are records now (Money ledger, 2026-10-03) and live in
+  // screens/ReceiptsSection. The paperclip in the bar only asks it to open a
+  // new one, by bumping this number.
+  const [receiptAdd, setReceiptAdd] = useState(0);
 
   const reload = useCallback(async () => {
     // Autopay bills whose date passed roll themselves forward first, so the
     // list never shows an autopay bill pretending to be overdue.
     await tasksSvc.rollAutopayBills();
-    const [accts, allTasks, prof, cats, trk] = await Promise.all([
+    const [accts, allTasks, prof, cats, trk, lb] = await Promise.all([
       svc.list(), tasksSvc.listTasks(), profileSvc.get(), catsSvc.list(),
       // Best effort: a tracker that cannot be read costs the row its net,
       // never the page.
       trackerSvc.load().catch(() => null),
+      // The ledger's bills, best effort for the same reason: a failed read
+      // keeps what is on screen (null) rather than showing no bills at all.
+      ledger ? ledger.listBills().catch(() => null) : Promise.resolve([] as Bill[]),
     ]);
+    if (lb) setLedgerBills(lb);
     setAccounts(accts);
     const txs = trk ? inMonth(trk.txs, thisMonth()) : [];
     setMonthNet(txs.length > 0 ? incomeCents(txs) - spentCents(txs) : null);
@@ -409,7 +351,9 @@ export default function MoneyFlow({ onOpenTask, openAccountId, openNonce, onOpen
     // UP-CORE-13 (2026-09-05): what actually went out this month, from the
     // paid bills the app holds. Read off the whole task list, because
     // activeBills drops a one-time bill thirty days after it was paid.
-    setPaidMonth(paidThisMonth(allTasks, todayISO()));
+    const legacyPaid = paidThisMonth(allTasks, todayISO());
+    const ledgerPaid = lb ? ledgerPaidThisMonth(lb, todayISO()) : { total: 0, count: 0 };
+    setPaidMonth({ total: legacyPaid.total + ledgerPaid.total, count: legacyPaid.count + ledgerPaid.count });
     setPayday(prof?.payday);
     setPayHalfOn((prof?.template ?? "personal") !== "business");
     // HMN-F-12: the profile is the truth. An account that has never written
@@ -427,24 +371,28 @@ export default function MoneyFlow({ onOpenTask, openAccountId, openNonce, onOpen
     }
     const moneyCatIds = new Set(cats.filter((c) => effectiveKind(c.data) === "money").map((c) => c.id));
     setTagged(allTasks.filter((t) => !t.data.done && !t.data.bill && moneyCatIds.has(t.data.category ?? "")));
-  }, [svc, tasksSvc, profileSvc, catsSvc, trackerSvc]);
+  }, [svc, tasksSvc, profileSvc, catsSvc, trackerSvc, ledger]);
   useEffect(() => { void reload(); }, [reload]);
   // UP-PLAT-06 (2026-09-06): this page draws accounts AND the bills that live
   // as tasks, so a bill paid on the laptop repaints here too.
   // The tracker's transactions too (2026-09-26): the Tracker row carries
   // this month's net, so an import or an edit on another device repaints it.
-  useFreshLists([ENTITY_ACCOUNT, ENTITY_TASK, ENTITY_MONEY_TX], reload);
+  useFreshLists([ENTITY_ACCOUNT, ENTITY_TASK, ENTITY_MONEY_TX, ENTITY_MONEY_BILL], reload);
 
   // SHELL-F-21: the account the shell was asked to open, once the list it
   // lives in has arrived. Held until then rather than opening an empty sheet;
   // an id with no account behind it (deleted since) opens nothing, quietly,
   // the same as a link to a deleted person.
+  // A BILL IS OPENED THE SAME WAY (a Today bill card, a search hit): the id
+  // may name a ledger bill, which opens its own page.
   useEffect(() => {
-    if (!openAccountId || !accounts.some((a) => a.id === openAccountId)) return;
-    setSheet({ kind: "edit", id: openAccountId });
+    if (!openAccountId) return;
+    if (accounts.some((a) => a.id === openAccountId)) setSheet({ kind: "edit", id: openAccountId });
+    else if (ledgerBills.some((b) => b.id === openAccountId)) setDetailId(openAccountId);
+    else return;
     onOpenConsumed?.();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [openAccountId, openNonce, accounts]);
+  }, [openAccountId, openNonce, accounts, ledgerBills]);
 
   const editing = sheet.kind === "edit" ? accounts.find((a) => a.id === sheet.id) : undefined;
   // HMN-F-09 (2026-09-05): Money was the last module writing outside the
@@ -459,73 +407,96 @@ export default function MoneyFlow({ onOpenTask, openAccountId, openNonce, onOpen
     return true;
   };
 
-  // UP-CORE-13 (2026-09-05): READ IT. The Privacy Policy already promises
-  // this ("documents you upload for extraction are processed to create the
-  // records you review"), and a receipt has been a picture and nothing else
-  // since the clip shipped. One vision call, then the same review every
-  // other extractor in this app insists on: the bill sheet opens prefilled
-  // and Save is still a tap.
-  const [reading, setReading] = useState<string | null>(null);
-  const readReceipt = async (r: UserFile) => {
-    const url = receiptUrls[r.id];
-    if (!ai.available || !url || reading) return;
-    setReading(r.id);
-    try {
-      // The same signed URL the row already resolved for opening it, fetched
-      // back as bytes so the vision encoder can do its downscale and its
-      // budget check (shared/imageEncode).
-      const blob = await (await fetch(url)).blob();
-      const img = await encodeImageForVision(new File([blob], r.data.name, { type: r.data.mime || blob.type }));
-      const out = await ai.complete(
-        [buildVisionMessage(RECEIPT_EXTRACT_PROMPT, img.data, img.mediaType)],
-        JARVIS_VOICE,
-        { kind: "receipt", pin: "pasteFallback" },
-      );
-      const read = parseReceiptExtract(out);
-      if (!read) { showToast({ message: "Couldn't Read That \u00b7 Try a Clearer Photo" }); return; }
-      setBillSheet({
-        kind: "paid",
-        // The date it was paid: the receipt's own, or the day the file was
-        // added, which is a date he can check rather than one JARVIS made up.
-        paidOn: read.date ?? r.data.addedAt,
-        fileId: r.id,
-        initial: {
-          text: read.vendor || fileStem(r.data.name),
-          due: read.date ?? r.data.addedAt,
-          // A receipt is one purchase. Nothing here claims it repeats.
-          recurrence: null,
-          bill: { amount: read.total ?? 0 },
-        },
-      });
-    } catch {
-      showToast({ message: "Couldn't Read That Receipt \u00b7 Try Again" });
-    } finally {
-      setReading(null);
-    }
-  };
-
   const editingBill = billSheet.kind === "edit" ? bills.find((b) => b.id === billSheet.id) : undefined;
+  const detailBill = detailId ? ledgerBills.find((b) => b.id === detailId) : undefined;
+  const editingLedger = billSheet.kind === "editLedger" ? ledgerBills.find((b) => b.id === billSheet.id) : undefined;
+  // The sheet's draft as the ledger takes it. A blank due date stays blank (a
+  // guessed one is worse than none), a blank currency is dollars, and only a
+  // repeat the ledger knows is passed on.
+  const ledgerInput = (d: BillDraft) => ({
+    vendor: d.text,
+    amount: d.bill.amount,
+    currency: d.currency ?? null,
+    dueDate: d.due || null,
+    notes: d.notes || null,
+    autopay: !!d.bill.autopay,
+    payUrl: d.bill.payUrl ?? null,
+    recurrence: (d.recurrence === "weekly" || d.recurrence === "monthly" || d.recurrence === "yearly" ? d.recurrence : null) as BillRecurrence | null,
+  });
   const saveBill = async (d: BillDraft): Promise<boolean> => {
+    let note: string | null = null;
     const ok = await attemptWrite(async () => {
-      if (billSheet.kind === "new") {
-        await tasksSvc.createTask(d.text, { due: d.due || null, recurrence: d.recurrence ?? undefined, bill: d.bill });
-      } else if (billSheet.kind === "paid") {
-        // Already paid, by definition: a receipt is a record of something
-        // that happened. lastDone is what the Paid This Month card counts,
-        // and the provenance line says where the record came from.
-        await tasksSvc.createTask(d.text, {
-          due: d.due || null,
-          bill: d.bill,
-          done: true,
-          lastDone: billSheet.paidOn,
-          source: madeBy("file", billSheet.fileId),
-        });
+      if (billSheet.kind === "new" || billSheet.kind === "paid") {
+        // A new bill is a LEDGER bill, never a task (the ledger's first rule).
+        if (!ledger) throw new Error("no ledger");
+        const r = await ledger.addBill(ledgerInput(d));
+        if (!r.ok) throw new Error(r.errors.join(","));
+        if (r.duplicate) note = "Already On Your List";
+        if (billSheet.kind === "paid") {
+          // From a Receipt: the sheet said "Files as paid <day>" and the person
+          // pressed Save, which is their own word that it was paid that day.
+          const w = await ledger.markBillPaidByUser(r.id, billSheet.paidOn);
+          if (!w.ok) throw new Error(w.reason);
+        }
+      } else if (billSheet.kind === "editLedger") {
+        if (!ledger) throw new Error("no ledger");
+        const { recurrence, ...rest } = ledgerInput(d);
+        const r = await ledger.correctBill(billSheet.id, { ...rest, recurrence });
+        if (!r.ok) throw new Error(r.reason);
       } else if (billSheet.kind === "edit") {
-        await tasksSvc.updateBillTask(billSheet.id, { text: d.text, due: d.due || null, recurrence: d.recurrence, bill: d.bill });
+        // A legacy bill task keeps the path it has always had.
+        await tasksSvc.updateBillTask(billSheet.id, { text: d.text, due: d.due || null, recurrence: d.recurrence as Recurrence | null, bill: d.bill });
       }
     });
     if (!ok) return false;
     setBillSheet({ kind: "closed" }); await reload();
+    if (note) showToast({ message: note });
+    return true;
+  };
+
+  // MARK PAID for a ledger bill, through the one door every Mark Paid shares
+  // (confirm, or one tap with Undo: confirmMarkPaid.ts). Legacy rows use
+  // markPaid below, untouched.
+  const ledgerPay = useMarkBillPaid(reload);
+
+  // Take the paid state off. The toast's Undo puts back exactly what was there:
+  // the payment link for a matched payment, the person's word otherwise.
+  const removePaidState = async (b: Bill) => {
+    if (!ledger) return;
+    const was = b.data;
+    if (!(await attemptWrite(async () => { const r = await ledger.unmarkBillPaid(b.id); if (!r.ok) throw new Error(r.reason); }))) return;
+    await reload();
+    showToast({
+      message: "Marked Unpaid", actionLabel: "Undo",
+      onAction: () => void (async () => {
+        await attemptWrite(async () => {
+          const e = was.paidEvidence;
+          if (!e || !was.paidAt) return;
+          const r = e.type === "transaction" ? await ledger.approveBillMatch(b.id, e.transactionId) : await ledger.markBillPaid(b.id, e, was.paidAt);
+          if (!r.ok) throw new Error(r.reason);
+        });
+        await reload();
+      })(),
+    });
+  };
+
+  // Delete a ledger bill with the way back (restoreBill puts the same record
+  // under the same id). The snapshot is the service's own, taken before the
+  // delete.
+  const deleteLedgerBill = async (b: Bill): Promise<boolean> => {
+    if (!ledger) return false;
+    const taken: { bill: Bill | null } = { bill: null };
+    if (!(await attemptWrite(async () => { taken.bill = await ledger.removeBill(b.id); }))) return false;
+    setDetailId(null);
+    await reload();
+    showToast({
+      message: "Bill Deleted",
+      actionLabel: "Undo",
+      onAction: async () => {
+        if (taken.bill) await attemptWrite(() => ledger.restoreBill(taken.bill!));
+        await reload();
+      },
+    });
     return true;
   };
 
@@ -558,13 +529,18 @@ export default function MoneyFlow({ onOpenTask, openAccountId, openNonce, onOpen
       message: "Bill Deleted",
       actionLabel: "Undo",
       onAction: async () => {
-        await attemptWrite(() => tasksSvc.createTask(gone.text, { due: gone.due ?? null, recurrence: gone.recurrence ?? undefined, bill: gone.bill }));
+        // createTask will not make a bill any more (a new bill is a ledger
+        // bill); Undo puts the stored task back whole, as it was.
+        await attemptWrite(() => tasksSvc.recreateFrom(gone));
         await reload();
       },
     });
   };
 
-  const anchor = payday && payHalfOn && bills.length > 0 ? paydayLine(payday, bills, today) : null;
+  const entries = mergedBills(ledgerBills, bills, today);
+  const anchor = payday && payHalfOn && entries.length > 0
+    ? paydayLine(payday, bills, today, ledgerBillsOut(ledgerBills, paydayNext(payday, today), today))
+    : null;
 
   // What is actually his. Derived from the paycheck he entered, the bills he
   // entered, and the money he chose to reserve. Absent entirely without a
@@ -572,7 +548,7 @@ export default function MoneyFlow({ onOpenTask, openAccountId, openNonce, onOpen
   const nextPay = payday && payHalfOn ? paydayNext(payday, today) : null;
   const billsOut = nextPay
     ? bills.filter((b) => !b.data.done && !!b.data.due && b.data.due <= nextPay)
-        .reduce((sum, b) => sum + (b.data.bill?.amount ?? 0), 0)
+        .reduce((sum, b) => sum + (b.data.bill?.amount ?? 0), 0) + ledgerBillsOut(ledgerBills, nextPay, today)
     : 0;
   const setAside = setAsideTotal(envelopes);
   const left = payday && payHalfOn ? leftToSpend(payday.amount, billsOut, setAside) : null;
@@ -599,24 +575,29 @@ export default function MoneyFlow({ onOpenTask, openAccountId, openNonce, onOpen
     }
   };
 
-  // THE BILL ROW (ruled 2026-09-01: amount right, urgency chip; built with the
-  // Notes and Money port 2026-09-02). The task row's own anatomy: the
-  // rounded-square check (autopay wears the repeat glyph in that column,
-  // because there is nothing to tick), the name, one grey line with the
-  // chip and the date words, the amount in the trailing column. The caps
-  // eyebrow that used to carry the date is gone with the rest of them.
-  const billRows = (
-    <>
-      {anchor && (
-        <div className="task-row p2" {...pressable(() => setPaydayOpen(true))}>
-          <div className="task-title">
-            <span className="task-name">{anchor.title}</span>
-            <div className="r-k"><span className="r-goal r-cat"><Amounts text={lineCase(anchor.sub)} /></span></div>
-          </div>
-          {CHEV}
-        </div>
-      )}
-      {bills.map((b) => {
+  // THE ONE SUGGESTION AT A TIME (quiet by design): three or more bills from
+  // one vendor, the same amount, on consecutive months, none already monthly,
+  // and not waved off this session. suggestMonthly reads the bills the person
+  // entered and asks no model.
+  const [, setSuggestTick] = useState(0);
+  const suggestion = suggestMonthly(ledgerBills).find((x) => !isSuggestionDismissed(suggestionKey(x)));
+  const suggestionCurrency = ledgerBills.find((b) => b.id === suggestion?.billId)?.data.currency ?? "USD";
+  const acceptSuggestion = async (x: NonNullable<typeof suggestion>) => {
+    if (!ledger) return;
+    const ok = await attemptWrite(async () => { const r = await ledger.confirmBillRecurrence(x.billId, x.recurrence); if (!r.ok) throw new Error(r.reason); });
+    if (!ok) return;
+    await reload();
+    showToast({
+      message: "Now Monthly", actionLabel: "Undo",
+      onAction: () => void (async () => {
+        await attemptWrite(async () => { const r = await ledger.correctBill(x.billId, { recurrence: null }); if (!r.ok) throw new Error(r.reason); });
+        await reload();
+      })(),
+    });
+  };
+
+  // A legacy bill row: a task with data.bill, exactly as it has always drawn.
+  const legacyRow = (b: TaskItem) => {
         const sub = billSubline(b, today);
         const info = b.data.bill!;
         const paid = sub.state === "paid";
@@ -664,8 +645,75 @@ export default function MoneyFlow({ onOpenTask, openAccountId, openNonce, onOpen
             )}
           </BillRow>
         );
-      })}
-      {payHalfOn && !payday && bills.length > 0 && (
+  };
+
+  // A LEDGER BILL ROW. The same anatomy as the legacy row beside it (check,
+  // name, one grey line with the chip, amount) so the two read as one list;
+  // what differs is the source of every word (billView.ts, from the ledger's
+  // computed status) and that a tap opens the bill's own page.
+  const ledgerRow = (bill: Bill) => {
+    const d = bill.data;
+    const paid = isPaid(d);
+    const chip = paid ? null : ledgerChip(d, today);
+    const line = ledgerLine(d, today);
+    // With a chip saying how close ("Due in 3 Days"), the line only says which
+    // day, so "Due" is not said twice.
+    const lineEl = paid
+      ? <span className="r-goal fact good">{line.text}</span>
+      : line.state === "reconfirm"
+        ? <span className="r-goal r-cat">{line.text}</span>
+        : line.state === "autopay"
+          ? <><span className="r-goal r-cat">{line.text}</span>{line.when && <span className="fact date">{line.when}</span>}</>
+          : line.state === "due"
+            ? <span className="fact date">{chip && d.dueDate ? monthDay(d.dueDate) : line.text}</span>
+            : null;
+    return (
+      <BillRow key={bill.id} paid={paid} autopay={!!d.autopay} label={d.vendor}
+        onPay={() => ledgerPay.request(bill)} onDelete={() => void deleteLedgerBill(bill)}>
+        {d.autopay ? (
+          <div className="task-check-tap"><span className="gm-slot cat-fg-blue">{REPEAT}</span></div>
+        ) : (
+          <div className="task-check-tap" role="checkbox" aria-checked={paid} aria-label={paid ? "Paid" : "Mark paid"}
+            onClick={(e) => { e.stopPropagation(); if (paid) setDetailId(bill.id); else ledgerPay.request(bill); }}>
+            <div className={"task-check" + (paid ? " done" : "")} />
+          </div>
+        )}
+        <div className="task-title" {...pressable(() => setDetailId(bill.id))}>
+          <span className="task-name">{d.vendor}</span>
+          {(chip || lineEl) && (
+            <div className="r-k">
+              {chip && <span className={"uchip " + chip.cls}>{chip.text}</span>}
+              {lineEl}
+            </div>
+          )}
+        </div>
+        <span className={"money-amt" + (paid ? " paid" : "")}>{billAmount(d)}</span>
+        {!d.autopay && !paid && d.payUrl && (
+          <a className="bill-pay" href={d.payUrl} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>Pay</a>
+        )}
+      </BillRow>
+    );
+  };
+
+  // THE BILL ROW (ruled 2026-09-01: amount right, urgency chip; built with the
+  // Notes and Money port 2026-09-02). The task row's own anatomy: the
+  // rounded-square check (autopay wears the repeat glyph in that column,
+  // because there is nothing to tick), the name, one grey line with the
+  // chip and the date words, the amount in the trailing column. The caps
+  // eyebrow that used to carry the date is gone with the rest of them.
+  const billRows = (
+    <>
+      {anchor && (
+        <div className="task-row p2" {...pressable(() => setPaydayOpen(true))}>
+          <div className="task-title">
+            <span className="task-name">{anchor.title}</span>
+            <div className="r-k"><span className="r-goal r-cat"><Amounts text={lineCase(anchor.sub)} /></span></div>
+          </div>
+          {CHEV}
+        </div>
+      )}
+      {entries.map((e) => (e.kind === "legacy" ? legacyRow(e.task) : ledgerRow(e.bill)))}
+      {payHalfOn && !payday && entries.length > 0 && (
         <div className="task-row p2" {...pressable(() => setPaydayOpen(true))}>
           <div className="task-title"><span className="task-name">Set Up Payday</span></div>
           {CHEV}
@@ -727,6 +775,8 @@ export default function MoneyFlow({ onOpenTask, openAccountId, openNonce, onOpen
     </div>
   );
 
+  const receiptsSection = <ReceiptsSection addNonce={receiptAdd} />;
+
   // Back from the tracker re-reads: the row under it says this month's net
   // and the tracker is where that number changes.
   if (tracker) return <TrackerScreen onBack={() => { setTracker(false); void reload(); }} />;
@@ -764,23 +814,17 @@ export default function MoneyFlow({ onOpenTask, openAccountId, openNonce, onOpen
   return (
     <div className="screen ruled">
       <PageHeader title="Money" actions={<>
-        {filesSvc && fileStore && <BarAction label={uploading ? "Uploading" : "Add a Receipt"} onClick={() => !uploading && setReceiptSheet(true)}><Paperclip className="ic" /></BarAction>}
+        <BarAction label="Add a Receipt" onClick={() => setReceiptAdd((n) => n + 1)}><Paperclip className="ic" /></BarAction>
         <BarAction label="Add Account" onClick={() => setSheet({ kind: "new" })}>{PLUS}</BarAction>
       </>} />
-      {picker.input}
-      {receiptSheet && (
-        <RowActionSheet
-          title="Add a Receipt"
-          actions={[{ label: "Take a Photo or Choose a File", onPick: () => picker.open() }]}
-          onCancel={() => setReceiptSheet(false)}
-        />
-      )}
-      {accounts.length === 0 && bills.length === 0 && tagged.length === 0 ? (
+      {accounts.length === 0 && entries.length === 0 && tagged.length === 0 ? (
         <>
         <div className="empty-state"><div className="empty-icon">{WALLET}</div><div className="empty-title">No Accounts Yet</div>
           <button className="btn btn-primary" onClick={() => setSheet({ kind: "new" })}>Add an Account</button>
           <button className="btn btn-secondary" onClick={() => setBillSheet({ kind: "new" })}>Add a Bill</button></div>
           {trackerRow}
+          <MatchesCard />
+          {receiptsSection}
         </>
       ) : (
         <>
@@ -900,8 +944,30 @@ export default function MoneyFlow({ onOpenTask, openAccountId, openNonce, onOpen
 
           {trackerRow}
 
-          <div className="sh2 sh2-quiet"><span className="t">Bills</span>{bills.length > 0 && <span className="n">{bills.length}</span>}</div>
+          <MatchesCard />
+
+          <div className="sh2 sh2-quiet"><span className="t">Bills</span>{entries.length > 0 && <span className="n">{entries.length}</span>}</div>
           <div className="pad-x"><div className="card list-card-ruled">{billRows}</div></div>
+          {suggestion && (
+            // A QUIET OFFER, NEVER A SCHEDULE (the ledger's rule): the pattern
+            // the bills already show, and two answers. Nothing is scheduled
+            // until Yes.
+            <div className="pad-x"><div className="card list-card-ruled bill-suggest">
+              {/* The row opens the latest bill (its history is the evidence for
+                  the offer); Yes and Not Now are the two answers. */}
+              <div className="task-row p2" {...pressable(() => setDetailId(suggestion.billId))}>
+                <div className="task-title">
+                  <span className="task-name">{suggestion.vendor + ", " + billAmount({ amountCents: suggestion.amountCents, currency: suggestionCurrency })}</span>
+                  <div className="r-k"><div className="facts">
+                    <span className="fact">{lineCase(`${suggestion.count} months in a row`)}</span>
+                    <span className="fact">Make It Monthly?</span>
+                  </div></div>
+                </div>
+                <button className="pill-act" onClick={(e) => { e.stopPropagation(); void acceptSuggestion(suggestion); }}>Yes</button>
+                <button className="pill-act pill-quiet" onClick={(e) => { e.stopPropagation(); dismissSuggestion(suggestionKey(suggestion)); setSuggestTick((n) => n + 1); }}>Not Now</button>
+              </div>
+            </div></div>
+          )}
 
           {/* UP-CORE-13 (2026-09-05): PAID THIS MONTH. Money could say what
               is owed and never what has gone out, so the receipts a person
@@ -993,40 +1059,7 @@ export default function MoneyFlow({ onOpenTask, openAccountId, openNonce, onOpen
             </>
           )}
 
-          {receipts.length > 0 && (
-            <>
-              <div className="sh2 sh2-quiet"><span className="t">Receipts</span><span className="n">{receipts.length}</span></div>
-              <div className="pad-x"><div className="card list-card-ruled">
-                {receipts.map((r) => (
-                  <div className="task-row p2 file-row" {...pressable(() => openReceipt(r))} key={r.id}>
-                    {/* The type is the glyph's colour: a picture in blue, a
-                        document in the brand red, the editor's own pairing. */}
-                    <div className="task-check-tap"><span className={"gm-slot " + (r.data.mime.startsWith("image/") ? "cat-fg-blue" : "cat-fg-brand")}>
-                      {r.data.mime.startsWith("image/") ? <ImageGlyph className="ic" /> : <FileText className="ic" />}
-                    </span></div>
-                    <div className="task-title">
-                      <span className="task-name">{r.data.name}</span>
-                      {/* The day it came in is a date, small caps (§AM F5);
-                          the size keeps the row's one grey, with no dot baked
-                          between them (F3). */}
-                      <div className="r-k"><span className="fact date">{monthDay(r.data.addedAt)}</span>{r.data.bytes > 0 && <span className="r-goal r-cat">{sizeLabel(r.data.bytes)}</span>}</div>
-                    </div>
-                    {/* UP-CORE-13 (2026-09-05): Read It, on a picture the
-                        app can actually read. A PDF or a text file is left
-                        alone rather than offered a button that fails. */}
-                    {ai.available && r.data.mime.startsWith("image/") && (
-                      <button className="pill-act" aria-label={"Read " + r.data.name}
-                        onClick={(e) => { e.stopPropagation(); void readReceipt(r); }}>
-                        {reading === r.id ? "Reading" : "Read It"}
-                      </button>
-                    )}
-                    <button className="conn-remove" aria-label={"Remove " + r.data.name}
-                      onClick={(e) => { e.stopPropagation(); void removeReceipt(r); }}>{TRASH}</button>
-                  </div>
-                ))}
-              </div></div>
-            </>
-          )}
+          {receiptsSection}
 
           {MONEY_TOP !== "hero-accts" && (
             <>
@@ -1063,10 +1096,24 @@ export default function MoneyFlow({ onOpenTask, openAccountId, openNonce, onOpen
           paidOn={billSheet.kind === "paid" ? billSheet.paidOn : undefined}
           // 2026-09-11: "paid" carries the receipt's read-out in its own
           // initial; only reading editingBill opened From a Receipt empty.
+          ledger={billSheet.kind !== "edit"}
           initial={billSheet.kind === "paid" ? billSheet.initial
+            : editingLedger ? {
+                text: editingLedger.data.vendor, due: editingLedger.data.dueDate ?? "", recurrence: editingLedger.data.recurrence ?? null,
+                notes: editingLedger.data.notes ?? "", currency: editingLedger.data.currency,
+                bill: {
+                  amount: editingLedger.data.amountCents / 100,
+                  ...(editingLedger.data.autopay ? { autopay: true } : {}),
+                  ...(editingLedger.data.payUrl ? { payUrl: editingLedger.data.payUrl } : {}),
+                },
+              }
             : editingBill ? { text: editingBill.data.text, due: editingBill.data.due ?? "", recurrence: editingBill.data.recurrence ?? null, bill: editingBill.data.bill! } : undefined}
           onSave={saveBill}
-          onDelete={billSheet.kind === "edit" ? async () => {
+          onDelete={billSheet.kind === "editLedger" ? async () => {
+            // A ledger bill's Delete takes the sheet with it only once the
+            // delete has landed, and Undo is restoreBill.
+            if (editingLedger && (await deleteLedgerBill(editingLedger))) setBillSheet({ kind: "closed" });
+          } : billSheet.kind === "edit" ? async () => {
             const gone = editingBill ? { ...editingBill.data } : null;
             const id = billSheet.id;
             // HMN-F-09: the sheet used to close before the write, so a failed
@@ -1079,13 +1126,22 @@ export default function MoneyFlow({ onOpenTask, openAccountId, openNonce, onOpen
               message: "Bill Deleted",
               actionLabel: "Undo",
               onAction: async () => {
-                if (gone) await attemptWrite(() => tasksSvc.createTask(gone.text, { due: gone.due ?? null, recurrence: gone.recurrence ?? undefined, bill: gone.bill }));
+                if (gone) await attemptWrite(() => tasksSvc.recreateFrom(gone));
                 await reload();
               },
             });
           } : undefined}
           onCancel={() => setBillSheet({ kind: "closed" })} />
       )}
+      {detailBill && (
+        <BillDetailSheet bill={detailBill} today={today} onOpenEntity={onOpenEntity}
+          onClose={() => setDetailId(null)}
+          onEdit={() => setBillSheet({ kind: "editLedger", id: detailBill.id })}
+          onMarkPaid={() => ledgerPay.request(detailBill)}
+          onRemovePaid={() => void removePaidState(detailBill)}
+          onDelete={() => void deleteLedgerBill(detailBill)} />
+      )}
+      {ledgerPay.sheet}
       {paydayOpen && (
         <PaydaySheet initial={payday}
           onSave={async (p) => {

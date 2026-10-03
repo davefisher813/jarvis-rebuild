@@ -1,7 +1,7 @@
 import { createPortal } from "react-dom";
 import { useState, useRef, type ReactNode } from "react";
 import { X } from "../shared/icons";
-import { useTasks, useSchedule, useNotes, useCategories, useOptionalRules, useOptionalStrands, useOptionalDecisions, useOptionalBrainMemory, usePeople, useProjects } from "../data/NotesProvider";
+import { useTasks, useSchedule, useNotes, useCategories, useOptionalRules, useOptionalStrands, useOptionalDecisions, useOptionalBrainMemory, useOptionalLedger, usePeople, useProjects } from "../data/NotesProvider";
 import FilingSheet from "../ai/FilingSheet";
 import { STRAND_CATEGORY_LABEL, STRAND_TYPE_LABEL, type StrandCategory } from "../brain/strands/types";
 import { aliasTrigger } from "../rules/triggers";
@@ -34,7 +34,7 @@ import { lineCase } from "../shared/casing";
 // refile targets (KINDS below): a decision record and a person's card are
 // not things a task can be turned into by a chip, and offering it would be a
 // control that promises a move nobody built.
-const KIND_LABEL: Record<SavedEntity["kind"], string> = { task: "Task", event: "Event", note: "Note", fact: "Fact", decision: "Decision", person: "Person" };
+const KIND_LABEL: Record<SavedEntity["kind"], string> = { task: "Task", event: "Event", note: "Note", fact: "Fact", decision: "Decision", person: "Person", bill: "Bill" };
 const KINDS: SavedEntity["kind"][] = ["task", "event", "note", "fact"];
 const FACT_CATEGORIES = Object.keys(STRAND_CATEGORY_LABEL) as StrandCategory[];
 
@@ -65,7 +65,8 @@ function fmtClock(hhmm: string): string {
 // nothing more, so they stay neutral.
 function whenParts(s: SavedEntity): { text: string; tone: ReturnType<typeof dayTone> }[] {
   const parts: { text: string; tone: ReturnType<typeof dayTone> }[] = [];
-  if (s.date) parts.push({ text: weekdayLongDate(s.date), tone: s.kind === "task" ? dayTone(s.date, todayISO()) : "date" });
+  // A bill's date is its due date, so it wears the due window a task's does.
+  if (s.date) parts.push({ text: weekdayLongDate(s.date), tone: s.kind === "task" || s.kind === "bill" ? dayTone(s.date, todayISO()) : "date" });
   if (s.start) parts.push({ text: fmtClock(s.start), tone: "date" });
   return parts;
 }
@@ -113,7 +114,8 @@ function receiptFacts(s: SavedEntity, names: { person?: string; project?: string
   const out: ReactNode[] = [];
   const who = [names.person, names.project].filter(Boolean).join(", ");
   // The one grey word run a record with no chip carries, who folded in.
-  const kindRun = !KINDS.includes(s.kind) ? KIND_LABEL[s.kind] + (who ? " for " + who : "")
+  // A bill has no kind run: its own Bill fact below is the word.
+  const kindRun = s.kind === "bill" ? null : !KINDS.includes(s.kind) ? KIND_LABEL[s.kind] + (who ? " for " + who : "")
     // C-49: the kind the prefix chose, when it is not plain Fact.
     : s.kind === "fact" && s.factType && s.factType !== "fact" ? STRAND_TYPE_LABEL[s.factType] + (who ? " about " + who : "")
     : null;
@@ -175,6 +177,8 @@ export default function QuickCapture({ ai, onClose, onOpen }: { ai: AIService; o
   const peopleSvc = usePeople();
   const projectsSvc = useProjects();
   const decisions = useOptionalDecisions();
+  // Where a bill goes. Money's ledger, never a task (ledger hard rule 1).
+  const ledger = useOptionalLedger();
   // Brain Manual v1 (2026-09-27): the filing doors. Optional like the
   // decisions seam above -- without a brain service they simply don't render.
   const brain = useOptionalBrainMemory();
@@ -203,7 +207,7 @@ export default function QuickCapture({ ai, onClose, onOpen }: { ai: AIService; o
   // it did before.
   const deps = (categories: Category[], who: { people?: { id: string; name: string }[]; projects?: { id: string; title: string }[] } = { people, projects }) =>
     ({ ai, gather, tasks, schedule, notes, categories, today: todayISO(), ...who, ...(rules ? { rules } : {}), ...(strands ? { strands } : {}),
-      ...(decisions ? { decisions } : {}), peopleSvc });
+      ...(decisions ? { decisions } : {}), ...(ledger ? { ledger } : {}), peopleSvc });
 
   // UP-ATH-18 (2026-09-06, option A): THE SET GOES TO THE SESSION, NOT TO A
   // LIST. While a session is live the bar is standing right next to the
@@ -285,16 +289,20 @@ export default function QuickCapture({ ai, onClose, onOpen }: { ai: AIService; o
     // stating: "Nothing to save in that" would be false, since the sentence
     // was read perfectly and there was simply nowhere to put it.
     let refused = false;
+    // A line that read as a bill and was not filed: already in Money, what it
+    // lacked, or that Money is unavailable. Said out loud, never a task.
+    let billNote = "";
     const ok = await attemptWrite(() =>
-      smartPasteSave(t, { ...deps(categories, { people: ps, projects: prs }), onFactRefused: () => { refused = true; } }, out));
+      smartPasteSave(t, { ...deps(categories, { people: ps, projects: prs }), onFactRefused: () => { refused = true; }, onBillNote: (m) => { billNote = m; } }, out));
     if (out.length === 0) {
       // The middle dot, not a full stop: the short-copy law forbids a
       // sentence boundary in rendered copy, and this is the exact string
       // TodaySuggestions already says for the identical refusal.
-      if (ok) setError(refused ? "The Brain Is Full · Prune It in What JARVIS Knows" : "Nothing to save in that.");
+      if (ok) setError(refused ? "The Brain Is Full · Prune It in What JARVIS Knows" : billNote || "Nothing to save in that.");
       setPhase("input");
       return;
     }
+    if (billNote) showToast({ message: billNote });
     haptics.selection();
     setSaved(out);
     setRecents(readRecentCaptures().filter((r) => !out.some((s) => s.id === r.id)));
@@ -530,7 +538,12 @@ export default function QuickCapture({ ai, onClose, onOpen }: { ai: AIService; o
                       {/* SHELL-F-02: no Brain, no Fact chip. Offering a lane
                           that cannot take the record is a chip that can only
                           refuse. */}
-                      {KINDS.filter((k) => k !== "fact" || strands).map((k) => (
+                      {/* A bill lives in Money: no task, event, note or area
+                          chip can move it out, so the one chip says where it
+                          is, lit and inert (hard rule 1). */}
+                      {s.kind === "bill" ? (
+                        <div className="chip active" role="radio" aria-checked="true">In Money</div>
+                      ) : KINDS.filter((k) => k !== "fact" || strands).map((k) => (
                         <div key={k} className={"chip" + (s.kind === k ? " active" : "")} role="radio" aria-checked={s.kind === k} tabIndex={0} onClick={() => void onKind(s, k)}>{KIND_LABEL[k]}</div>
                       ))}
                       {/* A strand does not use the app's category taxonomy, so
@@ -538,7 +551,7 @@ export default function QuickCapture({ ai, onClose, onOpen }: { ai: AIService; o
                           (S4-Q22): the category is a guess same as any other
                           capture, and selfFact.ts has always said the receipt
                           lets it be changed. */}
-                      {s.kind === "fact"
+                      {s.kind === "bill" ? null : s.kind === "fact"
                         ? FACT_CATEGORIES.map((c) => (
                             <div key={c} className={"chip" + (s.factCategory === c ? " active" : "")} role="radio" aria-checked={s.factCategory === c} tabIndex={0} onClick={() => void onFactCat(s, c)}>
                               {STRAND_CATEGORY_LABEL[c]}
