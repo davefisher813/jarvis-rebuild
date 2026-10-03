@@ -23,10 +23,12 @@ export class FilesService {
 
   // The row is made BEFORE the bytes go up, because the storage path is
   // built from the row's id. A failed upload deletes the row again.
-  async create(data: FileData): Promise<string> {
-    const id = await this.store.create(this.ownerId, ENTITY_FILE, data as unknown as ItemData);
-    this.onEvent({ type: "entity.created", entityType: ENTITY_FILE, entityId: id });
-    return id;
+  // An Undo brings a row back under its own id (`id`), so a record that names
+  // the file by id (a receipt's attachmentFileId) still finds it.
+  async create(data: FileData, id?: string): Promise<string> {
+    const made = await this.store.create(this.ownerId, ENTITY_FILE, data as unknown as ItemData, id);
+    this.onEvent({ type: "entity.created", entityType: ENTITY_FILE, entityId: made });
+    return made;
   }
 
   async update(id: string, patch: Partial<FileData>): Promise<boolean> {
