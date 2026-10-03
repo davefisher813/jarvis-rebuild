@@ -798,7 +798,7 @@ export default function MoneyFlow({ onOpenTask, onOpenEntity, openAccountId, ope
           <div className="task-check-tap"><span className="gm-slot cat-fg-blue">{REPEAT}</span></div>
         ) : (
           <div className="task-check-tap" role="checkbox" aria-checked={paid} aria-label={paid ? "Paid" : "Mark paid"}
-            onClick={(e) => { e.stopPropagation(); if (!paid) ledgerPay.request(bill); }}>
+            onClick={(e) => { e.stopPropagation(); if (paid) setDetailId(bill.id); else ledgerPay.request(bill); }}>
             <div className={"task-check" + (paid ? " done" : "")} />
           </div>
         )}
