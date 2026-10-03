@@ -2074,6 +2074,10 @@ describe("LAW: every module is reachable, or is listed as not", () => {
     "booking-link.ts",
     "bookings.ts",
     "booking-busy.ts",
+    // The agent gateway (docs/jarvis-unified, slice 02): an outside
+    // assistant reaches api/agent.ts by URL with its own token; nothing in
+    // the app imports it, by design.
+    "agent.ts",
   ];
 
   // Written, tested, and NOT reachable from the running app. Each line is a
@@ -2109,6 +2113,15 @@ describe("LAW: every module is reachable, or is listed as not", () => {
     // 2026-09-29: sample notification mail (Google, DocuSign, UPS, Netflix,
     // one-time codes), imported by the notification tests only.
     "notificationFixtures.ts": "test only: sample notification mail for the notification tests",
+    // The unified substrate (2026-10-03, slice 02): the person's side of
+    // scoped context (preview, grant, export, import, revoke). The screens
+    // that call it are the AI Hub, slice 04; the functions behind it are
+    // proven by jarvis-core/supabase/tests/gateway.sh and its own tests.
+    "agentClient.ts": "slice 04 mounts the AI Hub screens that call it",
+    // Slice 02's category preference logic (three taps, one question, a
+    // local tag rule). The category chips that record a tap are the Email
+    // redesign, slice 05.
+    "categoryTaps.ts": "slice 05 adds the category chips that record the taps",
     // (fileStorage.ts left this list on 2026-09-02: files/FileStore routes
     // every upload through it, from the clip on Notes and Money.)
     // (HealthFlow.tsx left this list on 2026-09-05, HMN-F-06 option A: the

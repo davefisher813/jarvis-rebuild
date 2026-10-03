@@ -103,12 +103,18 @@ Section 14's user commands and section 05's agent methods are built in slices 02
 
 | Logical API | Home | Slice |
 |---|---|---|
-| approveCandidate, editCandidate, dismissCandidate, undoAction | Postgres functions (SECURITY DEFINER, explicit `auth.uid()` actor check, one transaction, locks on candidate and action), called over PostgREST by the signed-in session | 03 |
+| Agent gateway `capabilities`, `context.preview`, `context.issue`, `proposal.submit`, `draft.submit`, `review.link`, `action.status` | BUILT (02): `api/agent.ts` over `src/substrate/gateway/handler.ts` (protocol in `gateway/protocol.ts`, the ceiling in `authz/engine.ts`, the shape check in `schema.ts`); the functions in migration 0045 (`agent_resolve_token`, `agent_rate_take`, `agent_capabilities`, `context_preview`, `context_issue`, `context_snapshot_store`, `proposal_submit`, `draft_submit`, `review_link`, `action_status`), service role only | 02 |
+| `connection.revoke`, grantScope, previewContext, exportContext, importProposals | BUILT (02): functions `connection_revoke`, `scope_grant_create`, `context_preview`, `context_issue` (as the person: a manual export), `proposals_import`, callable by the signed-in session; the person's side in `src/substrate/agentClient.ts` and `context/exportImport.ts` | 02 |
+| acceptCategoryPreference and the third-tap suggestion | BUILT (02), logic only: `src/substrate/policy/categoryTaps.ts`; the taps arrive with the category chips (05); the suggestion row is `policy_suggestion` | 02, 05 |
+| Verified adapters, live Connect | NOT BUILT, by design: no adapter is verified for this deployment, so the Hub offers manual export and import for every assistant and no Connect. `agent_connection_verify` is the server's door for one when it exists; the `verified_agent_adapters` flag stays off. | 02 |
+| approveCandidate, editCandidate, dismissCandidate, undoAction | NEXT: Postgres functions (SECURITY DEFINER, explicit `auth.uid()` actor check, one transaction, locks on candidate and action), called over PostgREST by the signed-in session | 03 |
 | saveDecision, replaceDecision, withdrawDecision, keepExploration | Postgres functions, same shape | 04 |
 | resolveWaiting, reopenWaiting | `WaitingService` (slice 01) plus a receipt through the command path | 08 |
 | saveDraft, reviewSend, sendApproved, getAction | `api/email/*.ts` (Vercel) for anything that touches Gmail; the outbox claim and reconciliation as functions | 07 |
 | getHub, setMode, grantScope, revokeAgent, toggleAI, previewContext, exportContext, importProposals, acceptCategoryPreference | `api/agent/*.ts` and functions | 02 and 04 |
 | Agent gateway `capabilities`, `context.preview`, `context.issue`, `proposal.submit`, `draft.submit`, `review.link`, `action.status`, `connection.revoke` | `api/agent/*.ts`, agent token resolved server side against `agent_connection` and `jarvis_private.agent_credential` | 02 |
+
+Where the hash lives: the manifest hash a person approves is computed by `jarvis_context_shape` (sha256 over the manifest's jsonb text) and nowhere else, so the preview, the grant and the issue compare one number; the TypeScript canonical hash (`substrate/canonical.ts`) is for payloads the client builds (candidates, sends). The context snapshot behind a package is encrypted by `api/agent.ts` with `JARVIS_CONTEXT_KEY` (the same AES-GCM as the Google tokens) and stored by `context_snapshot_store`; without the key the gateway refuses to issue.
 
 Why functions and not only edge functions: a local save must lock, validate, write the item, link evidence, mark the candidate and append the receipt in ONE transaction, and PostgREST offers no multi-statement transaction to an edge function. External dispatch (a send) is the opposite: it must not run inside a transaction, so it is an edge function with a durable outbox row and a fenced claim.
 

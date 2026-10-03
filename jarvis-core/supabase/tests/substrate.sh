@@ -57,12 +57,14 @@ q -f "$here/stub_supabase.sql" >/dev/null
 for f in $(ls "$here"/../migrations/*.sql | sort); do q -f "$f" >/dev/null; done
 schema_after_forward=$(q -c "select string_agg(table_schema||'.'||table_name||':'||column_name||':'||data_type, ',' order by table_schema, table_name, ordinal_position) from information_schema.columns where table_schema in ('public','jarvis_private')")
 
-echo "-- rollback, then forward again"
-q -f "$here/../rollback/0044_jarvis_unified_substrate_down.sql" >/dev/null
+echo "-- rollback (newest first), then forward again"
+for down in $(ls "$here"/../rollback/*_down.sql | sort -r); do q -f "$down" >/dev/null; done
 check "rollback removes the substrate tables" 0 "$(q -c "select count(*) from information_schema.tables where table_name in ('action','email_candidate','receipt_event','agent_connection')")"
 check "rollback leaves item alone" 1 "$(q -c "select count(*) from information_schema.tables where table_name = 'item'")"
+check "rollback leaves the private schema gone" 0 "$(q -c "select count(*) from information_schema.schemata where schema_name = 'jarvis_private'")"
 q -f "$here/../migrations/0044_jarvis_unified_substrate.sql" >/dev/null
 check "forward again is idempotent (second run)" ok "$(q -f "$here/../migrations/0044_jarvis_unified_substrate.sql" >/dev/null 2>&1 && echo ok)"
+for later in $(ls "$here"/../migrations/004[5-9]_*.sql "$here"/../migrations/00[5-9]*_*.sql 2>/dev/null | sort); do q -f "$later" >/dev/null; done
 schema_after_again=$(q -c "select string_agg(table_schema||'.'||table_name||':'||column_name||':'||data_type, ',' order by table_schema, table_name, ordinal_position) from information_schema.columns where table_schema in ('public','jarvis_private')")
 check "schema identical after rollback and forward" "$schema_after_forward" "$schema_after_again"
 
