@@ -1,3 +1,4 @@
+import { guardTaskCandidate } from "../money/ledger/guard";
 import type { Store, Item, ItemData } from "@core";
 import type { EventInput } from "../events";
 import { setCategories as setCategoriesOf } from "./categories";
@@ -65,6 +66,10 @@ export class TasksService {
     id?: string,
   ): Promise<string | null> {
     if (!text || !text.trim()) return null;
+    // BILLS NEVER BECOME TASKS (Money ledger, hard rule 1). The door itself is
+    // shut, so no screen, parser or email path can make a bill a task by going
+    // around a button. A bill belongs to LedgerService.addBill.
+    if (!guardTaskCandidate({ bill: opts.bill }, "TasksService.createTask").ok) return null;
     const data: TaskData = { text: text.trim(), category: opts.category ?? "", done: false };
     // Only written when there genuinely are extras, so a single-category task
     // stores exactly what it always did.

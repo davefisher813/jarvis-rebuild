@@ -16,6 +16,8 @@
 // against a bank statement and is right for this screen, whose whole job is
 // spending: the biggest number is the one that cost the most.
 
+import type { HistoryEntry, TxSource } from "./ledger/types";
+
 export const ENTITY_MONEY_ACCOUNT = "money_account";
 export const ENTITY_MONEY_TX = "money_tx";
 export const ENTITY_MONEY_BUDGET = "money_budget";
@@ -44,9 +46,23 @@ export interface TrackerTxData {
   category: string;
   /** The account's NAME, as the statement carries it. */
   account: string;
+  // MONEY LEDGER (2026-10-02). All optional, so every row stored before this
+  // reads exactly as it did; the ledger fills them in as it links records.
+  /** ISO code; absent means USD. */
+  currency?: string;
+  source?: TxSource;
+  /** The receipt this payment was matched to (a link, never a merge). */
+  matchedReceiptId?: string;
+  /** The bill this payment was matched to and is the evidence for. */
+  paysBillId?: string;
+  fingerprint?: string;
+  history?: HistoryEntry[];
 }
 export interface TrackerBudgetData {
   month: string;
+  /** Ledger (2026-10-02): the spec's budget name and notes. The period is the month. */
+  name?: string;
+  notes?: string;
   expectedIncomeCents: number;
   savingsTargetCents: number;
   /** Category name to its limit in cents. */

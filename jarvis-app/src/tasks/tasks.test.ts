@@ -58,6 +58,15 @@ describe("grouping logic", () => {
 });
 
 import { partition, filterOf, byCategory } from "./filters";
+import type { BillInfo, Recurrence } from "../notes/types";
+// A bill task from before the Money ledger. createTask refuses bills now (a
+// bill lives in Money, hard rule 1), but the bills already stored still have
+// to behave, and recreateFrom writes a whole record as it is: that is how Undo
+// restores one, and how a test makes one.
+async function legacyBill(svc: TasksService, text: string, o: { due?: string; recurrence?: Recurrence; bill: BillInfo }): Promise<string | null> {
+  return svc.recreateFrom({ text, category: "", done: false, ...o });
+}
+
 
 describe("filter partitioning (chips)", () => {
   const mk = (over: Partial<TaskData>): TaskData => ({ text: "x", category: "brain", done: false, ...over });
@@ -111,7 +120,7 @@ describe("bills on the task entity (Money v1)", () => {
   it("a one-time bill stamps a dated receipt on completion", async () => {
     const store = new Store(new InMemoryAdapter());
     const svc = new TasksService(store, "u1");
-    const id = await svc.createTask("Deposit for trip", { due: todayISO(), bill: { amount: 300 } });
+    const id = await legacyBill(svc, "Deposit for trip", { due: todayISO(), bill: { amount: 300 } });
     await svc.toggleDone(id!);
     const t = await svc.task(id!);
     expect(t!.done).toBe(true);
@@ -123,8 +132,8 @@ describe("bills on the task entity (Money v1)", () => {
     const store = new Store(new InMemoryAdapter());
     const events: string[] = [];
     const svc = new TasksService(store, "u1", (e) => events.push(e.type));
-    const id = await svc.createTask("Rent", { due: "2026-07-01", recurrence: "monthly", bill: { amount: 1850, autopay: true } });
-    const manual = await svc.createTask("Electric", { due: "2026-07-01", recurrence: "monthly", bill: { amount: 120 } });
+    const id = await legacyBill(svc, "Rent", { due: "2026-07-01", recurrence: "monthly", bill: { amount: 1850, autopay: true } });
+    const manual = await legacyBill(svc, "Electric", { due: "2026-07-01", recurrence: "monthly", bill: { amount: 120 } });
     events.length = 0;
     const rolled = await svc.rollAutopayBills("2026-08-03");
     expect(rolled).toBe(1); // manual bills are NEVER auto-rolled
@@ -146,8 +155,8 @@ describe("bills on the task entity (Money v1)", () => {
     const store = new Store(new InMemoryAdapter());
     const events: string[] = [];
     const svc = new TasksService(store, "u1", (e) => events.push(e.type));
-    const id = await svc.createTask("Car Registration", { due: "2026-07-20", bill: { amount: 85, autopay: true } });
-    const ahead = await svc.createTask("Insurance", { due: "2026-09-01", bill: { amount: 300, autopay: true } });
+    const id = await legacyBill(svc, "Car Registration", { due: "2026-07-20", bill: { amount: 85, autopay: true } });
+    const ahead = await legacyBill(svc, "Insurance", { due: "2026-09-01", bill: { amount: 300, autopay: true } });
     events.length = 0;
     expect(await svc.rollAutopayBills("2026-08-03")).toBe(1);
     const t = await svc.task(id!);
@@ -164,7 +173,7 @@ describe("bills on the task entity (Money v1)", () => {
     const store = new Store(new InMemoryAdapter());
     const events: string[] = [];
     const svc = new TasksService(store, "u1", (e) => events.push(e.type));
-    const id = await svc.createTask("Internet", { due: "2026-08-05", recurrence: "monthly", bill: { amount: 80 } });
+    const id = await legacyBill(svc, "Internet", { due: "2026-08-05", recurrence: "monthly", bill: { amount: 80 } });
     events.length = 0;
     await svc.updateBillTask(id!, { due: "2026-08-20", bill: { amount: 85, payUrl: "https://pay.example.com" } });
     const t = await svc.task(id!);
@@ -238,12 +247,13 @@ describe("recreateFrom (undo-after-delete restores the whole task)", () => {
       due: "2026-09-10",
       recurrence: "monthly",
       projectId: "proj-1",
-      bill: { amount: 2200 },
       plan: { cue: { kind: "after", what: "coffee" }, then: "call the landlord" },
       steps: [{ text: "Call landlord", done: false }],
       fromNote: "note-1",
       fromThread: "thread-1",
     });
+    // createTask will not make a bill; one already stored is given its amount here.
+    await store.update("u1", id!, { bill: { amount: 2200 } });
     const original = await svc.task(id!);
     await svc.deleteTask(id!);
     const restoredId = await svc.recreateFrom(original!);

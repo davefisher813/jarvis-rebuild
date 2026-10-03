@@ -12,6 +12,15 @@ import { TasksService } from "./TasksService";
 import { recordSpot, touchActivity, restorableSpot, SESSION_GAP_MS, EXPIRY_MS } from "../restore/whereYouWere";
 import { nextBest, chainQuietToday, dismissChain, chainReason } from "./momentum";
 import { runAutoSweep, undoSweep, sweepable, setAsideCandidate, markOffered, readReceipt, retrySweep, liveMoved, dismissSweepCard, sweepCardDismissed } from "./autoSweep";
+import type { BillInfo, Recurrence } from "../notes/types";
+// A bill task from before the Money ledger. createTask refuses bills now (a
+// bill lives in Money, hard rule 1), but the bills already stored still have
+// to behave, and recreateFrom writes a whole record as it is: that is how Undo
+// restores one, and how a test makes one.
+async function legacyBill(svc: TasksService, text: string, o: { due?: string; recurrence?: Recurrence; bill: BillInfo }): Promise<string | null> {
+  return svc.recreateFrom({ text, category: "", done: false, ...o });
+}
+
 
 const TODAY = "2026-08-15";
 const U = "user1";
@@ -113,7 +122,7 @@ describe("Auto-Sweep", () => {
   it("moves overdue tasks to today with a receipt; bills and events are untouched", async () => {
     const tasks = svc();
     const a = (await tasks.createTask("Old one", { due: "2026-08-13" }))!;
-    const b = (await tasks.createTask("Rent", { due: "2026-08-13", bill: { amount: 1200 } }))!;
+    const b = (await legacyBill(tasks, "Rent", { due: "2026-08-13", bill: { amount: 1200 } }))!;
     const receipt = (await runAutoSweep(tasks, TODAY))!;
     expect(receipt.moved.map((m) => m.id)).toEqual([a]);
     expect((await tasks.task(a))!.due).toBe(TODAY);
