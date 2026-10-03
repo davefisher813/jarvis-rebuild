@@ -7045,3 +7045,11 @@ span.row-star { cursor: default; }
 .skipped-back { margin-top: 0; flex: none; }
 .sched-exc { display: flex; align-items: center; gap: var(--s-1h); margin-top: var(--s-1); min-width: 0; font-size: var(--t-meta); color: var(--tx-3); }
 .block-add-inline { display: inline; margin-top: 0; padding: 0; white-space: nowrap; }
+
+/* MONEY LEDGER: RECEIPTS AND BUDGET */
+/* A match proposal: the words on the left, the two answers stacked on the
+   right so neither is a dead corner (the row itself opens the same two). */
+.match-row { align-items: flex-start; }
+.match-row .task-title { min-width: 0; }
+.match-acts { display: flex; flex-direction: column; align-items: flex-end; gap: var(--s-1); flex: none; }
+.match-acts .quiet-action { white-space: nowrap; }
