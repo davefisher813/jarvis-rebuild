@@ -8,7 +8,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
 import "@testing-library/jest-dom";
-import { NotesProvider, useOptionalStrands, useTasks, useCategories, usePeople } from "../data/NotesProvider";
+import { NotesProvider, useOptionalStrands, useTasks, useCategories, usePeople, useLedger } from "../data/NotesProvider";
+import type { LedgerService } from "../money/ledger/LedgerService";
 import { AIService } from "../ai/AIService";
 import QuickCapture from "./QuickCapture";
 import { recordCapture } from "../paste/captureLog";
@@ -295,6 +296,44 @@ describe("QuickCapture receipt reads as facts (§AM)", () => {
     expect(facts[1]!.querySelector("b")?.textContent).toMatch(/^\$50/);
     // The only plain grey fact on the line is the bill; Marco is inside it.
     expect(facts.filter((f) => f.className === "fact")).toHaveLength(1);
+  });
+
+  // MONEY LEDGER (hard rule 1): the receipt of a bill says where it went, offers
+  // no way to turn it into a task, an event or a note, and Undo takes it out of
+  // Money. Pasting it again says it is already there, and files nothing.
+  it("a bill's receipt says In Money, offers no task chip, undoes out of Money, and a repeat is refused out loud", async () => {
+    let ledgerRef: LedgerService | null = null;
+    let taskRef: ReturnType<typeof useTasks> | null = null;
+    function Grab() { ledgerRef = useLedger(); taskRef = useTasks(); return null; }
+    render(
+      <NotesProvider userId="u-receipt-bill-money">
+        <Grab />
+        <QuickCapture ai={new AIService({ available: false })} onClose={() => {}} />
+      </NotesProvider>,
+    );
+    const box = screen.getByPlaceholderText(/Paste or type/);
+    fireEvent.change(box, { target: { value: "pay Geico $214" } });
+    fireEvent.click(screen.getByText("Capture"));
+    await waitFor(() => expect(screen.getByText("Saved")).toBeInTheDocument());
+    expect(screen.getByText("In Money")).toBeInTheDocument();
+    expect(screen.queryByText("Task")).toBeNull();
+    expect(screen.queryByText("Event")).toBeNull();
+    expect((await ledgerRef!.listBills()).map((b) => b.data.vendor)).toEqual(["Geico"]);
+    expect(await taskRef!.listTasks()).toEqual([]);
+
+    // Undo takes it out of Money.
+    fireEvent.click(screen.getByText("Undo"));
+    await waitFor(async () => expect(await ledgerRef!.listBills()).toEqual([]));
+
+    // Filed again, then pasted a third time with "Save Anyway": already there.
+    fireEvent.click(screen.getByText("Redo"));
+    await waitFor(async () => expect(await ledgerRef!.listBills()).toHaveLength(1));
+    fireEvent.click(screen.getByText("Capture Another"));
+    fireEvent.change(screen.getByPlaceholderText(/Paste or type/), { target: { value: "pay Geico $214" } });
+    fireEvent.click(screen.getByText("Capture"));
+    fireEvent.click(await screen.findByText("Save Anyway"));
+    expect(await screen.findByText("Already in Money · Geico $214.00")).toBeInTheDocument();
+    expect(await ledgerRef!.listBills()).toHaveLength(1);
   });
 
   // §AM R8 (2026-09-26): a task's date is a due date, so it wears the due

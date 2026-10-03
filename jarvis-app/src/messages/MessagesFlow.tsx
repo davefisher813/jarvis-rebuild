@@ -4518,7 +4518,19 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
             );
           })()}
 
-          {toast && <div className="conn-status">{toast}</div>}
+          {/* The thread page's receipt carries the follow-up too (Update, for a
+              bill already in Money at another amount): a toast whose action
+              is not drawn is an offer nobody can take. */}
+          {toast && (
+            <div className="conn-status">
+              <span>{toast}</span>
+              {undo && (
+                <button className="quiet-action msg-undo" onClick={() => { undo.run(); setUndo(null); setToast(null); }}>
+                  {undo.label}
+                </button>
+              )}
+            </div>
+          )}
           {/* The page ends above the floating dock. */}
           <div className="msg-detail-tail" aria-hidden="true" />
         </div>

@@ -96,14 +96,15 @@ export function describeUpdate(existing: Bill, incoming: IncomingBill): BillUpda
   const now = amountChanged ? moneyWords(cents!, d.currency) : was;
   let prompt: string;
   if (amountChanged) {
-    prompt = `${d.vendor} is already in Money at ${was}. Update it to ${now}${dueChanged ? `, due ${dayWords(due!)}` : ""}?`;
+    prompt = `${d.vendor} is already in Money at ${was} \u00b7 Update it to ${now}${dueChanged ? `, due ${dayWords(due!)}` : ""}?`;
   } else if (d.dueDate) {
-    prompt = `${d.vendor} is already in Money, due ${dayWords(d.dueDate)}. Change the due date to ${dayWords(due!)}?`;
+    prompt = `${d.vendor} is already in Money, due ${dayWords(d.dueDate)} \u00b7 Change the due date to ${dayWords(due!)}?`;
   } else {
-    prompt = `${d.vendor} is already in Money with no due date. Set it to ${dayWords(due!)}?`;
+    prompt = `${d.vendor} is already in Money with no due date \u00b7 Set it to ${dayWords(due!)}?`;
   }
   const reopensPaid = isPaid(d);
-  if (reopensPaid) prompt += " It will need its paid mark confirmed again.";
+  // The paid mark waits for the person (rule 2), so the question says so.
+  if (reopensPaid) prompt = prompt.slice(0, -1) + " and confirm it paid again?";
   return { billId: existing.id, vendor: d.vendor, correction, changes, reopensPaid, prompt };
 }
 

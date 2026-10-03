@@ -17,6 +17,8 @@ import type { AIContext } from "../ai/context";
 import { LearnedRulesService } from "../rules/LearnedRulesService";
 import { aliasTrigger } from "../rules/triggers";
 import { LedgerService } from "../money/ledger/LedgerService";
+import { applyCapture } from "../ai/capture";
+import { clearRejections, recentRejections } from "../money/ledger/guard";
 
 const TODAY = "2026-08-15"; // a Saturday
 const U = "user1";
@@ -839,5 +841,62 @@ describe("a paste that fails partway", () => {
     expect(out).toHaveLength(1);
     expect(await deps.tasks.task(out[0]!.id)).not.toBeNull();
     expect(pasteSeenAge(text)).not.toBeNull();
+  });
+});
+
+// MONEY LEDGER (hard rule 1): a pasted or AI-captured bill is Money's.
+describe("a bill in a paste goes to Money, never to the task pipeline", () => {
+  it("files it once, says so when it is pasted again, and undo removes it from Money", async () => {
+    clearRejections();
+    const deps = rig({ n: 0 });
+    const notes: string[] = [];
+    const first = await smartPasteSave("pay Geico $214", { ...deps, onBillNote: (m) => notes.push(m) });
+    expect(first).toHaveLength(1);
+    expect(first[0]!.kind).toBe("bill");
+    const bills = await (deps.ledger as LedgerService).listBills();
+    expect(bills).toHaveLength(1);
+    // A paste states no due date, and the ledger holds none.
+    expect(bills[0]!.data).toMatchObject({ vendor: "Geico", amountCents: 21400, source: "manual" });
+    expect(bills[0]!.data.dueDate).toBeUndefined();
+    expect(await deps.tasks.listTasks()).toEqual([]);
+    expect(recentRejections()).toEqual([]);
+
+    const again = await smartPasteSave("pay Geico $214", { ...deps, onBillNote: (m) => notes.push(m) });
+    expect(again).toEqual([]);
+    expect(notes).toEqual(["Already in Money · Geico $214.00"]);
+    expect(await (deps.ledger as LedgerService).listBills()).toHaveLength(1);
+
+    await undoSaved(first[0]!, deps);
+    expect(await (deps.ledger as LedgerService).listBills()).toEqual([]);
+  });
+
+  it("with no Money available it says so and makes no task", async () => {
+    const deps = rig({ n: 0 });
+    delete deps.ledger;
+    const notes: string[] = [];
+    const saved = await smartPasteSave("pay Geico $214", { ...deps, onBillNote: (m) => notes.push(m) });
+    expect(saved).toEqual([]);
+    expect(notes).toEqual(["Money Isn't Available Right Now"]);
+    expect(await deps.tasks.listTasks()).toEqual([]);
+  });
+
+  it("an AI-read capture with a bill takes the same road, and a repeat only if the person wrote one", async () => {
+    const deps = rig({ n: 0 });
+    const r = await applyCapture({ kind: "task", title: "Pay Geico", bill: { amount: 214 }, recurrence: "monthly" }, deps, [], TODAY, undefined, "Marco");
+    expect(r.kind).toBe("bill");
+    const [b] = await (deps.ledger as LedgerService).listBills();
+    expect(b!.data).toMatchObject({ vendor: "Geico", recurrence: "monthly", notes: "For Marco" });
+    expect(await deps.tasks.listTasks()).toEqual([]);
+    // A bill is never daily: the repeat is dropped, not turned into something else.
+    const d = await applyCapture({ kind: "task", title: "Pay Water", bill: { amount: 30 }, recurrence: "daily" }, deps, [], TODAY);
+    expect(d.kind).toBe("bill");
+    expect((await (deps.ledger as LedgerService).listBills()).find((x) => x.id === d.id)!.data.recurrence).toBeUndefined();
+  });
+
+  it("a bill without a readable amount stays an ordinary task", async () => {
+    const deps = rig({ n: 0 });
+    const saved = await smartPasteSave("call Geico about the premium", deps);
+    expect(saved[0]!.kind).not.toBe("bill");
+    expect(await (deps.ledger as LedgerService).listBills()).toEqual([]);
   });
 });

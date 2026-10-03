@@ -40,24 +40,24 @@ describe("describeUpdate", () => {
   });
   it("asks the question for a new amount", () => {
     const u = describeUpdate(billOf(), { amount: 90 })!;
-    expect(u.prompt).toBe("ConEdison is already in Money at $84.12. Update it to $90.00?");
+    expect(u.prompt).toBe("ConEdison is already in Money at $84.12 · Update it to $90.00?");
     expect(u.correction).toEqual({ amount: 90 });
     expect(u.changes).toEqual(["amount"]);
     expect(u.reopensPaid).toBe(false);
   });
   it("asks about a changed or newly stated due date", () => {
     expect(describeUpdate(billOf({ dueDate: "2026-10-05" }), { amount: 84.12, dueDate: "2026-10-12" })!.prompt)
-      .toBe("ConEdison is already in Money, due Oct 5. Change the due date to Oct 12?");
+      .toBe("ConEdison is already in Money, due Oct 5 · Change the due date to Oct 12?");
     expect(describeUpdate(billOf(), { amount: 84.12, dueDate: "2026-10-12" })!.prompt)
-      .toBe("ConEdison is already in Money with no due date. Set it to Oct 12?");
+      .toBe("ConEdison is already in Money with no due date · Set it to Oct 12?");
     expect(describeUpdate(billOf(), { amount: 90, dueDate: "2026-10-12" })!.prompt)
-      .toBe("ConEdison is already in Money at $84.12. Update it to $90.00, due Oct 12?");
+      .toBe("ConEdison is already in Money at $84.12 · Update it to $90.00, due Oct 12?");
   });
   it("says so when applying it reopens a paid bill", () => {
     const paid = billOf({ paidAt: "2026-10-03", paidEvidence: { type: "user_confirmed" } });
     const u = describeUpdate(paid, { amount: 90 })!;
     expect(u.reopensPaid).toBe(true);
-    expect(u.prompt).toContain("paid mark confirmed again");
+    expect(u.prompt).toBe("ConEdison is already in Money at $84.12 · Update it to $90.00 and confirm it paid again?");
   });
   it("does not offer an unreadable amount as a change", () => {
     expect(describeUpdate(billOf(), { amount: "lots" })).toBeNull();
@@ -87,7 +87,7 @@ describe("fileEmailBill, against a real ledger", () => {
     if (later.status !== "update") throw new Error("expected an update offer, got " + later.status);
     // nothing written yet
     expect((await ledger.listBills())[0]!.data.amountCents).toBe(8412);
-    expect(later.message).toBe("ConEdison is already in Money at $84.12. Update it to $90.00, due Oct 20?");
+    expect(later.message).toBe("ConEdison is already in Money at $84.12 · Update it to $90.00, due Oct 20?");
     const done = await later.apply();
     expect(done).toEqual({ ok: true, message: "Updated in Money · $90.00" });
     const bills = await ledger.listBills();
