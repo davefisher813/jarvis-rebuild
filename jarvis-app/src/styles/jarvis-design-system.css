@@ -462,11 +462,12 @@
      hexes swapped and nothing else moved: secondary pills, dividers, text and
      every accent are as approved on 2026-09-29. The page record: page #FFFFFF,
      cards #F5F6F8 (was page #F5F6F8, cards #FFFFFF).
-     SAME DAY, "THE WHITE ISN'T WHITE ENOUGH" (Dave): cards step to #FAFAFB; the
-     tab bar, sheets, modals and the JARVIS dock are pure #FFFFFF; the card
-     shadow is lighter so it stops tinting the white page around each card. */
+     SAME DAY, "THE WHITE ISN'T WHITE ENOUGH" (Dave): the tab bar, top bars,
+     sheets, modals and the JARVIS dock are pure #FFFFFF, and the card carries a
+     hairline edge. Cards stay #F5F6F8: a fainter #FAFAFB was tried and judged
+     too close to the white page (1.04:1 against 1.08:1). */
   --bg: #FFFFFF;
-  --surface-1: #FAFAFB; --surface-2: #FAFAFB; --surface-3: #F0F1F4;
+  --surface-1: #F5F6F8; --surface-2: #F5F6F8; --surface-3: #F0F1F4;
   --ctl-outline: #737985;
   --focus-ring: #111318;
   /* The hairline serves INPUTS; cards drop their border entirely (border
@@ -730,7 +731,7 @@ html[data-theme="light"], html[data-theme="light"] body { background-color: #FFF
   box-shadow: inset 0 0.5px 0 var(--rim-card), inset 0 -0.5px 0 var(--rim-bottom), 0 8px 24px rgba(0,0,0,0.55);
 }
 [data-theme="light"] .card {
-  background: #FAFAFB;
+  background: #F5F6F8;
   -webkit-backdrop-filter: none; backdrop-filter: none;
   /* Elevation only. Border + shadow together was the mud: the hairline drew
      a gray outline through the shadow's softest part. */
