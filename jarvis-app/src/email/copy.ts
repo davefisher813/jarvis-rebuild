@@ -239,3 +239,45 @@ export function sentWord(n: number): string {
 }
 export const DRAFTS_AND_SENT = "Drafts and Sent From JARVIS";
 export const VIEW_RECEIPT_LONG = "View Receipt";
+
+// ---- Waiting, and Email on Today (slice 08) ----
+export const WAITING_TITLE = "Waiting";
+export const OPEN_VIEW = "Open";
+export const RESOLVED_VIEW = "Resolved";
+export const WAITING_ON = "Waiting On";
+export const SINCE = "Since";
+export const RESOLVE = "Resolve";
+export const REOPEN = "Reopen";
+export const RESOLVED_WORD = "Resolved";
+export const DRAFT_FOLLOW_UP = "Draft Follow-Up";
+export const FOLLOW_UP_DATE = "Follow-Up Date";
+export const CLEAR_DATE = "Clear Date";
+export const NO_FOLLOW_UP = "No Follow-Up Date";
+export const FOLLOW_UP_TODAY = "Follow Up Today";
+export const NEW_REPLY = "New Reply";
+export const REVIEW_REPLY = "Review Reply";
+export const RESOLUTION_NOTE = "Add a Note (Optional)";
+export const RESOLUTION_NOTE_LABEL = "Note";
+export const SOURCE_MESSAGE = "Open Source Message";
+export const SOURCE_DELETED = "Source Email Deleted · Excerpt Kept";
+export const SOURCE_DISCONNECTED = "Mailbox Disconnected · Excerpt Kept";
+export const TRACKED_FROM = "Tracked From an Email";
+export const PICK_RECIPIENT = "Pick the Address From the Source";
+export const NO_RECIPIENT = "No Address in the Source · Type One";
+export const FOLLOW_UP_IS_LOCAL = "A Follow-Up Date Is a Reminder Here · Not a Task, Not an Event";
+export const REPLY_NEVER_RESOLVES = "A Reply Never Resolves This on Its Own";
+export const EMPTY_RESOLVED = { title: "Nothing Resolved Yet", sub: "Resolve a request here when it arrives", action: "Show Open" };
+export const REVIEW_FILTER = "Showing Items to Review";
+export const SHOW_ALL_ROWS = "Show All";
+export const EMAIL_BAND_TITLE = "Email";
+export const OPEN_EMAIL = "Open Email";
+export const OPEN_TO_REVIEW = "Open Email to Review";
+export function followUpWas(monthDayWord: string): string {
+  return `Follow Up Was ${monthDayWord}`;
+}
+export function followUpOnWord(monthDayWord: string): string {
+  return `Follow Up ${monthDayWord}`;
+}
+export function countWord(n: number, one: string, many: string): string {
+  return `${n} ${n === 1 ? one : many}`;
+}

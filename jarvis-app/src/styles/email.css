@@ -127,3 +127,14 @@
 .email-reply-acts { display: flex; gap: 10px; align-items: center; padding: 4px 16px 10px; }
 .email-drafts-door { margin-bottom: 10px; }
 .email-file-input { display: none; }
+
+/* ---- Waiting, and Email on Today (slice 08) ---- */
+.email-waiting-chips { padding: 6px 16px 2px; }
+.email-waiting-card { padding: 14px 16px; display: flex; flex-direction: column; gap: 6px; }
+.email-waiting-title { font-size: 20px; font-weight: var(--w-semi, 600); line-height: 1.25; overflow-wrap: anywhere; }
+.email-waiting-badges { display: flex; gap: 6px; flex-wrap: wrap; }
+.email-waiting-note { white-space: pre-wrap; overflow-wrap: anywhere; }
+.email-quote { white-space: pre-wrap; overflow-wrap: anywhere; font-style: italic; color: var(--tx-2); padding: 10px 16px; }
+.email-today-band .row { min-height: 52px; }
+.email-today-ic { width: 20px; height: 20px; flex: 0 0 20px; margin-right: 12px; color: var(--tx-2); }
+.email-waiting { padding-bottom: 24px; }

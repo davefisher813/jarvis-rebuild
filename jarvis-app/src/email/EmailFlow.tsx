@@ -35,7 +35,7 @@ import { usePushDepth } from "../shared/pushNav";
 import { showToast } from "../shared/toast";
 import { supabase } from "../auth/supabaseClient";
 import { useOptionalSession } from "../auth/AuthProvider";
-import { useOptionalCategories, useOptionalLedger, useFileStore, useUserId } from "../data/NotesProvider";
+import { useOptionalCategories, useOptionalLedger, useFileStore, useStore, useUserId } from "../data/NotesProvider";
 import { failure, lineFor, newRequestId, type CommandFailure } from "../substrate/commands/errors";
 import { cancelCommand } from "../substrate/commands/sends";
 import { fetchReadiness, notReadyLine, readinessFrom, type Readiness } from "../substrate/destinations/registry";
@@ -50,6 +50,7 @@ import {
   NO_CLIENT, OFFLINE_LINE, PULL_HINT, REAUTH_LINE, RECONNECT, REFRESHING, REFRESH_FAILED, REFRESH_LABEL, REMEMBER, RETRY, RULE_KEPT, SEARCH_LABEL, SEGMENTS, SHOW_DISMISSED, SUGGEST_TITLE,
   TRASHED, UNDO, foundLine, type Segment,
   COMPOSE_LABEL, DRAFT_DISCARDED, DRAFT_KEPT, NOT_SENT_TITLE, NOW_CONFIRMED, SENT_TITLE, STILL_UNKNOWN, UNKNOWN_TITLE, SENDING_LINE,
+  REVIEW_FILTER, SHOW_ALL_ROWS, WAITING_TITLE,
 } from "./copy";
 import {
   answerSuggestion, inboxPage, listAccounts, mergeRows, mirrorAccounts, newestFirst, offerSuggestion, readMessage, syncAccount, PAGE,
@@ -68,6 +69,12 @@ import SendReviewScreen from "./SendReviewScreen";
 import SendOutcomeScreen from "./SendOutcomeScreen";
 import DraftsScreen from "./DraftsScreen";
 import { emptyFields, fieldsOf, getDraft, newLocalKey, outcomeOf, reconcileSend, replyFields, saveDraft, sendApproved, type DraftFields, type DraftRow, type LocalDraft, type Review } from "./drafts";
+import WaitingList, { type WaitingView } from "./WaitingList";
+import WaitingDetail, { type FollowUpStart } from "./WaitingDetail";
+import { localDate, threadsLatest, type EmailFocus, type LatestInThread } from "./waiting";
+import { WaitingService } from "../substrate/waiting/WaitingService";
+import type { WaitingItem } from "../substrate/waiting/types";
+import { replySubject } from "../connections/google/map";
 import EmptyState from "./EmptyState";
 import CandidateCards, { type Conflict } from "./CandidateCards";
 import CaptureSheet from "./CaptureSheet";
@@ -87,7 +94,9 @@ type Screen =
   | { kind: "compose"; start: ComposeStart; from: Screen }
   | { kind: "review"; draftId: string; revision: number; fields: DraftFields; review: Review; requestId: string; start: ComposeStart; from: Screen }
   | { kind: "outcome"; draft: DraftRow }
-  | { kind: "drafts" };
+  | { kind: "drafts" }
+  // Slice 08: one waiting record.
+  | { kind: "waiting"; id: string };
 
 const outcomeTitle = (d: DraftRow): string => { const o = outcomeOf(d); return o === "sent" ? SENT_TITLE : o === "unknown" ? UNKNOWN_TITLE : o === "failed" ? NOT_SENT_TITLE : SENDING_LINE; };
 
@@ -116,7 +125,7 @@ export function manualStart(kind: CaptureKind, row: InboxRow, zone: string, now:
   }
 }
 
-export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModule, openId, openNonce, onOpenConsumed, client: given, token: givenToken, userId: givenUser, categories: givenCategories, now: nowFn = () => new Date(), zone: givenZone, initialScreen }: {
+export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModule, openId, openNonce, onOpenConsumed, focus, focusNonce, onFocusConsumed, client: given, token: givenToken, userId: givenUser, categories: givenCategories, now: nowFn = () => new Date(), zone: givenZone, initialScreen, waiting: givenWaiting }: {
   onOpenConnections: () => void;
   /** A life record's own screen (a receipt's destination). */
   onOpenEntity?: (kind: string, id: string) => void;
@@ -136,6 +145,12 @@ export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModul
   zone?: string;
   /** Where a bench or a test starts; the app always starts at the root. */
   initialScreen?: "search" | "accounts";
+  /** A focus another surface asked for (Today's review line, a waiting record). */
+  focus?: EmailFocus | null;
+  focusNonce?: number;
+  onFocusConsumed?: () => void;
+  /** The Waiting store. A test passes its own; undefined means the app's. */
+  waiting?: WaitingService | null;
 }) {
   const client: RpcClient | null = given === undefined ? supabase : given;
   const session = useOptionalSession();
@@ -144,6 +159,7 @@ export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModul
   const userId = givenUser ?? ctxUser ?? "local";
   const catsSvc = useOptionalCategories();
   const ledger = useOptionalLedger();
+  const store = useStore();
   const zone = givenZone ?? readerZone();
 
   const snapshot = useMemo(() => loadSnapshot(userId), [userId]);
@@ -183,6 +199,12 @@ export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModul
   const [checking, setChecking] = useState(false);
   const [checkLine, setCheckLine] = useState<string | CommandFailure | null>(null);
   const [draftsReload, setDraftsReload] = useState(0);
+  // Waiting (slice 08).
+  const waitingSvc = useMemo(() => (givenWaiting !== undefined ? givenWaiting : store ? new WaitingService(store, userId) : null), [givenWaiting, store, userId]);
+  const [waitingItems, setWaitingItems] = useState<WaitingItem[]>([]);
+  const [waitingView, setWaitingView] = useState<WaitingView>("open");
+  const [waitingLatest, setWaitingLatest] = useState<Record<string, LatestInThread>>({});
+  const [reviewOnly, setReviewOnly] = useState(false);
   const depth = screen.kind === "root" ? 0
     : screen.kind === "receipt" || screen.kind === "review" || screen.kind === "outcome" || screen.kind === "drafts" ? 2
       : screen.kind === "compose" && screen.from.kind !== "root" ? 2 : 1;
@@ -495,12 +517,42 @@ export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModul
   const catOf = useCallback((r: InboxRow) => categoryOf(r, tags, rules), [tags, rules]);
   const counts = useMemo(() => countsByCategory(rows, tags, rules), [rows, tags, rules]);
   const chips = useMemo(() => categories.filter((c) => (counts[c.id] ?? 0) > 0), [categories, counts]);
-  const visible = useMemo(() => (chip ? rows.filter((r) => catOf(r) === chip) : rows), [rows, chip, catOf]);
+  const visible = useMemo(() => {
+    const base = chip ? rows.filter((r) => catOf(r) === chip) : rows;
+    return reviewOnly ? base.filter((r) => (cards[r.id] ?? []).some(isProvisional)) : base;
+  }, [rows, chip, catOf, reviewOnly, cards]);
   const groups = useMemo(() => dayGroups(visible, now), [visible, now]);
   const live = accounts.filter((a) => a.state !== "disconnected");
   const labels = live.length > 1 ? accountLabels(live.map((a) => a.address)) : {};
   const reauth = accounts.some((a) => a.state === "reauth");
   const accountOf = (row: InboxRow) => accounts.find((a) => a.id === row.account_id) ?? null;
+
+  // ---- waiting (slice 08) ---------------------------------------------------
+  const loadWaiting = useCallback(async () => {
+    if (!waitingSvc) return;
+    try {
+      const items = await waitingSvc.list();
+      setWaitingItems(items);
+      const threads = [...new Set(items.filter((i) => i.data.status === "open" && i.data.threadId).map((i) => i.data.threadId!))];
+      if (client && threads.length) { const r = await threadsLatest(client, threads); if (r.ok) setWaitingLatest(r.value); }
+    } catch { /* the list stays as it was */ }
+  }, [waitingSvc, client]);
+  useEffect(() => { if (segment === "waiting") void loadWaiting(); }, [segment, loadWaiting]);
+  // A focus from Today or a receipt: the inbox narrowed to its cards, or one record.
+  useEffect(() => {
+    if (!focus || !focusNonce) return;
+    if (focus.kind === "candidates") { setSegment("inbox"); setChip(null); setReviewOnly(true); setScreen({ kind: "root" }); }
+    else { setSegment("waiting"); setScreen({ kind: "waiting", id: focus.id }); void loadWaiting(); }
+    onFocusConsumed?.();
+    // The nonce is the signal; the focus value rides with it.
+  }, [focusNonce]);
+  const todayLocal = localDate(now.toISOString(), zone);
+  const openMessageById = async (id: string) => {
+    if (!client) return;
+    const r = await readMessage(client, id);
+    if (r.ok) { setScreen({ kind: "message", row: rowOf(r.value), from: "inbox" }); void loadCards([r.value.id]); }
+    else showToast({ message: lineFor(r) });
+  };
 
   // ---- compose, review, send (slice 07) ------------------------------------
   const canCompose = accounts.some((a) => a.state === "connected");
@@ -521,6 +573,17 @@ export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModul
   const openLocal = (l: LocalDraft) => {
     setSendFailure(null);
     setScreen({ kind: "compose", start: { localKey: l.key, draftId: l.draft_id, accountId: l.account_id || defaultAccountId(), fields: l.fields, revision: l.revision }, from: { kind: "drafts" } });
+  };
+  // A follow-up: the composer, to a real address from the thread, under the thread's newest message.
+  const startFollowUp = (it: WaitingItem, start: FollowUpStart) => {
+    const acct = accounts.find((a) => a.address === it.data.account) ?? accounts.find((a) => a.state === "connected") ?? accounts[0];
+    if (!acct) return;
+    const m = start.message;
+    const refs = [...(m?.references ?? [])];
+    if (m?.message_id_header && !refs.includes(m.message_id_header)) refs.push(m.message_id_header);
+    const fields: DraftFields = { ...emptyFields(), to_addresses: start.to ? [start.to] : [], subject: replySubject(m?.subject || it.data.title), thread_id: it.data.threadId ?? null,
+      reply_headers: { in_reply_to: m?.message_id_header || null, references: refs, thread_id: it.data.threadId ?? null } };
+    startCompose(fields, acct.id, { kind: "waiting", id: it.id }, { replyingTo: it.data.counterpartyDisplay || undefined });
   };
   const discarded = (copy: { accountId: string; fields: DraftFields } | null, from: Screen) => {
     setScreen(from.kind === "compose" || from.kind === "review" ? { kind: "root" } : from);
@@ -617,6 +680,19 @@ export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModul
       <AccountsScreen accounts={accounts} onBack={() => setScreen({ kind: "root" })} onOpenConnections={onOpenConnections} onOpenDrafts={client ? () => setScreen({ kind: "drafts" }) : undefined} />
     </div>;
   }
+  if (screen.kind === "waiting" && client) {
+    const it = waitingItems.find((w) => w.id === screen.id);
+    if (!it) {
+      return <div className={pushCls}><div className="screen ruled"><PageHeader title={WAITING_TITLE} back={EMAIL_TITLE} onBack={() => setScreen({ kind: "root" })} /><SkeletonRows rows={2} /><div className="screen-foot" /></div></div>;
+    }
+    return <div className={pushCls}>
+      <WaitingDetail client={client} item={it} own={accounts.map((a) => a.address)} today={todayLocal} zone={zone} offline={offline} latest={it.data.threadId ? waitingLatest[it.data.threadId] : undefined}
+        onBack={() => { setSegment("waiting"); setScreen({ kind: "root" }); }}
+        onChanged={(data) => setWaitingItems((list) => list.map((w) => (w.id === it.id ? { id: w.id, data } : w)))}
+        onOpenMessage={(id) => void openMessageById(id)}
+        onDraftFollowUp={(start) => startFollowUp(it, start)} />
+    </div>;
+  }
   if (screen.kind === "compose" && client) {
     const from = screen.from;
     const start = screen.start;
@@ -695,8 +771,14 @@ export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModul
         </div></div>
       )}
 
-      {client && segment === "waiting" && (
+      {client && segment === "waiting" && (waitingSvc ? (
+        <WaitingList items={waitingItems} latest={waitingLatest} own={accounts.map((a) => a.address)} today={todayLocal} zone={zone} view={waitingView} onView={setWaitingView}
+          onOpen={(it) => setScreen({ kind: "waiting", id: it.id })} onShowInbox={() => setSegment("inbox")} />
+      ) : (
         <EmptyState copy={EMPTY_WAITING} onAction={() => setSegment("inbox")} />
+      ))}
+      {client && segment === "inbox" && reviewOnly && (
+        <div className="email-note"><span>{REVIEW_FILTER} · {visible.length}</span><button className="quiet-action" onClick={() => setReviewOnly(false)}>{SHOW_ALL_ROWS}</button></div>
       )}
 
       {client && segment === "inbox" && !pending && !error && accounts.length === 0 && (

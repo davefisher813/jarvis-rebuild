@@ -471,3 +471,61 @@ The composer with From, To, the Cc / Bcc row, the subject and the body, Attach a
 3. **Attachments on a device.** The upload path runs through the app's own storage (`useFileStore`), which the bench and the tests do not have; the hash check at dispatch is proven in the route test with fake storage. A real upload from a phone is the device row.
 4. **The two older route test files** (`api/_google.test.ts`, `api/_receipt.test.ts`, `api/_email.test.ts`) do not typecheck under the strict flags and never did; `tsconfig.api.json` excludes test files so the routes themselves are checked. They run and pass under vitest as before.
 5. **Waiting and Today** are slice 08: a Waiting row saved from a card has no segment to list it yet; the Today feed does not know about sends.
+
+
+## Slice 08: Waiting and the restrained Today feed (2026-10-03)
+
+Same branch, on top of slice 07. Not merged. Not deployed. Nothing applied to
+a live database. Waiting lives inside the Email tab and the Email band on
+Today behind `VITE_JARVIS_FLAGS=email_intake_v1`; with the flag off Today's
+mail band and the Email tab are untouched. The frozen Today TV guide in
+`YourDay.tsx` was not touched (its hash law holds).
+
+### What landed
+
+| Area | Files |
+|---|---|
+| Schema | `jarvis-core/supabase/migrations/0051_waiting_and_today.sql`: `waiting_resolve`, `waiting_reopen`, `waiting_follow_up` (through one internal writer: lock the record, check it has not moved, patch it, record the action and its receipt, as the person; a second tap replays; a follow-up date is a field on the record, never a task or an event); `thread_messages` (the source and every cached message of its thread, newest first, with the Reply-To, Message-ID and References the body kept), `threads_latest` (the newest cached message per thread), `evidence_read` (the excerpt and the source's state), `candidate_review_count` (cards per card, on messages still here, in mailboxes not disconnected; no title, no amount). Additive; explicit grants; the writer is not the browser's to call. |
+| Rollback | `jarvis-core/supabase/rollback/0051_waiting_and_today_down.sql`. |
+| Proof | `jarvis-core/supabase/tests/waiting.sh`: 39 checks against the stubbed Supabase, UTF8. |
+| Screens | `src/email/WaitingList.tsx` (M4: Open and Resolved, who, how long in local dates, the follow-up date and its tone only when chosen, New Reply), `WaitingDetail.tsx` (the record, the follow-up date with Clear, the New Reply with Review Reply, the excerpt it was tracked from with the source's state, Open Source Message and Open in Gmail as plain door rows, one filled red that is Resolve or Reopen, an optional note, Draft Follow-Up), `waiting.ts` (the functions through the session, ages and follow-up states in local dates, New Reply, the follow-up's real recipients, the ordering, and the Today rows as a pure function), `EmailFlow.tsx` (the Waiting segment, the record screen, the focus from Today: the inbox narrowed to its cards with Show All, or one record; the follow-up into slice 07's composer, threaded), `copy.ts`. |
+| Today | `src/today/EmailToday.tsx` (the band: the count first, then committed email-origin tasks due today or overdue, events today, open waiting records with a follow-up due; five at most; each destination once and never the dealt task; a tap opens Email on a focus or the record's own module), `TodayFlow.tsx` (behind the flag the band replaces MailNotices as the page's mail band; the Waiting store from the app's Store), `TodayPage.tsx` (`mailHead`: the band's own head, "Email · Open Email"), `shell/AppShell.tsx` (the focus as a one-shot beside the thread one; a waiting entity opens the record). |
+| Surface | `src/styles/email.css`: the Waiting chips, the record card, the quote, the Today band's rows and icons. |
+| Tests | `src/email/waiting.test.ts` (10: ages across a zone boundary, follow-up states, the ordering, New Reply, the follow-up's recipients, the Today rows with 0, 1, 3, 5 and 8 items, the cap, dedupe, tomorrow kept off, no proposed title), `src/email/EmailFlow.waiting.test.tsx` (8: Track then Waiting then Resolve then Reopen against the real in-memory Store, a resolution note, a follow-up date making no task and no event, deleted evidence, New Reply without closure, Draft Follow-Up to the real address threaded under the newest message, two senders asking, the focus from Today), `src/today/EmailToday.test.tsx` (5: the count per card with nothing proposed, eligible items and the cap, nothing when empty, eight items and the dealt task excluded, a waiting row opening Email). |
+| QA | `qa/checklists/2026-10-03-unified-substrate-08.md` (device rows open), `qa/previews/unified-substrate-08/` (Waiting, a record with New Reply, a resolved record, the Today band; light and dark, 390 wide, from a scratch bench deleted before the commit). |
+| Docs | REPO-MAP.md section 4 (the Waiting row, built) and section 6 (deviations 36 to 39); ACCEPTANCE-MATRIX.md rows E12 to E15. |
+
+### What the database proof shows (`tests/waiting.sh`, exit 0, 39 ok)
+
+- Rollback and forward again are clean; forward twice is idempotent.
+- E13: Resolve leaves the record resolved with the time and the note; one action (the person's, on the email surface, confirmed, pointing at the record) and one receipt saying "Resolved · Peña's Transcript" with the status before and after; the Activity feed lists it; a second tap with the same key is the same action; resolving a resolved record is the same answer with no new action; another owner cannot touch it; anon cannot; a task is not a waiting record; a record that moved under the person is DESTINATION_CHANGED; Reopen leaves it open with the note and the time gone, with its own receipt; reopening an open record is the same answer; no send_email action and no outbox row came of any of it.
+- 12: a follow-up date lands on the record with a receipt naming the date; no task and no event was made; the same date again is the same answer; cleared, the date is gone and the receipt says so; the record count never moved.
+- E12: the thread reads back with the source's sender, account and the Reply-To the body kept; another owner reads nothing; before a reply the thread's latest is the source; after a reply it is the reply, from the counterparty, and an unknown thread is absent; the record is still open; the thread reads two messages newest first; the evidence keeps its excerpt and is available; a deleted source is said so with the excerpt kept and the thread read marks the message deleted; another owner cannot read the evidence.
+- E15: the count is the fixture's two proposed cards; the answer carries no title, amount or payload; a dismissed card drops out; a card on a message that is gone drops out; a mailbox that needs reconnecting still counts; a disconnected one does not; another owner's number is their own; anon has none.
+
+### What the component tests show (`EmailFlow.waiting.test.tsx`, 8; `EmailToday.test.tsx`, 5; `waiting.test.ts`, 10)
+
+A tracked record is listed under Open with who and how long and nothing red; Resolve is one call with the receipt's verb on the toast and the record moves to Resolved; Reopen reverses it; nothing is sent and the Store holds one record throughout; a resolution note rides on the record. Setting a follow-up date writes the record and no task or event; the list shows it in a warning tone only when due; Clear Date removes it. Deleted evidence keeps its excerpt and says so, with no door to a message that is gone. An incoming reply is New Reply on the row and the record, Review Reply opens the message, and the record stays open with Resolve still the person's. Draft Follow-Up opens the composer to the thread's real address, threaded under its newest message, sending nothing; two senders make the person pick. The review focus narrows the inbox to rows with cards and Show All restores; a waiting focus opens the record. On Today: the count leads, labelled per card, carrying no title or amount, and opens Email on the review focus; committed email-origin items due today or overdue ride under it while a plain task, a done task and a tomorrow callback do not, five at most, nothing padded; with no count and nothing due the band renders nothing and says so; eight eligible items are five rows and the task Today deals itself is left to it; a waiting row opens Email on that record. The pure half: ages in whole local days with the person's date winning across midnight, follow-up states, the ordering, New Reply, recipients from the thread's own senders (Reply-To first, never the person), the Today rows with 0, 1, 3, 5 and 8 items.
+
+### Repository checks
+
+| Check | Command | Result |
+|---|---|---|
+| Database proofs | `tests/waiting.sh` | exit 0, 39 ok; the earlier proofs unchanged |
+| App typecheck | `npx tsc --noEmit` | exit 0 |
+| App lint | `npx eslint src/email src/today/EmailToday.tsx src/today/TodayFlow.tsx src/today/TodayPage.tsx src/shell/AppShell.tsx` | 0 errors, 0 warnings |
+| The slice's tests | `npx vitest run src/email src/today/EmailToday.test.tsx src/today/TodayFlow.test.tsx src/today/TodayPage.test.tsx` | see the gate for the whole; the three new suites are 23 tests |
+| Laws | `npx vitest run src/laws` | every law passing once the scratch bench was removed, the TV guide's hash among them; the one-filled-red law caught Resolve and Reopen as two primaries on the record and they are one button now |
+| Previews | the scratch bench served by `vite` on 5183, captured by Playwright at 390 by 844, 2x, light and dark | 8 shots under `qa/previews/unified-substrate-08/` |
+| Full gate | `QA_PUBLISH=0 node qa/check.js` | Every stage PASS (core-types, core-tests, app-types, app-lint at the same 41 warnings as before this slice, app-tests the whole suite with the Waiting and Today tests and every law in 264s, app-build, app-legal); `house` lists exactly slice 01's nine pre-existing em-dash files, none touched here. The gate's own exit is 1 for that house list and for the open manual checklist (twelve device rows), as it was for slices 01 to 07. Reports under `qa/reports/`, gitignored. |
+
+### What the previews show, and what they do not
+
+Waiting under Open with three records (one with Follow Up Today in a warning tone, one with New Reply, one plain) and the Resolved count on its chip; a record with New Reply and Review Reply, the follow-up date field, the excerpt it was tracked from, Open Source Message and Open in Gmail as door rows, Resolve as the screen's one red, Add a Note and Draft Follow-Up; a resolved record with its note and Reopen; Today's Email band under its own head with "2 Email Items to Review", an overdue task, a record whose follow-up is today and a call at 10:00. They run on Linux with no SF font. They are not a device check: rows 1 to 12 of the checklist stay open.
+
+### Gates this session did not pass, stated plainly
+
+1. **Migrations 0044 to 0051 not applied; the flag not set.** All Dave's. With the flag off nothing here mounts; with it on and 0051 absent, the Waiting list still reads from the app's Store, Resolve says "Couldn't Reach JARVIS · Try Again" and changes nothing, and Today's band shows no count (the function is missing, read as nothing to say) while the committed items still list.
+2. **No live Gmail and no device.** A real reply arriving, a source deleted in Gmail and the band on a real Today are the device rows.
+3. **Notifications** stay off and out of scope (12): nothing here notifies.
+4. **Hardening, the full integration pass and production verification** are slice 09.
