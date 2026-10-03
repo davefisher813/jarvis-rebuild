@@ -161,6 +161,9 @@ const IDENTITY_KEYS: readonly string[] = [
   "jarvis.mail.letgo.v1",
   "jarvis.mail.links.v1", // which thread belongs to which project: the last person's projects
   "jarvis.mail.autoreply.on.v1", // whether JARVIS answers mail on this person's behalf
+  // --- The unified Email tab's area rules (substrate/policy/categoryTaps.ts), slice 09 ---
+  "jarvis.mail.categoryTaps.v1", // the senders, accounts and message ids behind the three-tap question: the last person's mail
+  "jarvis.mail.categoryRules.v1", // the sender rules Remember kept: the last person's preferences
 
   // --- Music (music/music.ts) ---
   "jarvis.music.v1", // the remembered playlist per context

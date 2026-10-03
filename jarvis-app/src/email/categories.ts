@@ -10,9 +10,10 @@
 import { ACCOUNT_PREFIX } from "../messages/mailCache";
 import { mailAccountKey } from "../messages/mailIdentity";
 import {
-  categoryFor, declineRule, loadRules, loadTaps, recordTap, rememberRule, saveRules, saveTaps, suggestionDue,
+  categoryFor, declineRule, groupedLine, loadRules, loadTaps, normalizeSender, recordTap, rememberRule, saveRules, saveTaps, suggestionDue,
   type CategoryRuleShape, type CategoryTap, type RulesStore, type SuggestionDue,
 } from "../substrate/policy/categoryTaps";
+import { ONLY_TAGS, RULE_KEPT } from "./copy";
 import type { InboxRow } from "./emailClient";
 
 type Store = Pick<Storage, "getItem" | "setItem">;
@@ -66,6 +67,16 @@ export function fileUnder(userId: string, row: Pick<InboxRow, "id" | "account_id
   saveTaps(storage, taps);
   const rules = loadRules(storage);
   return { tags, suggestion: suggestionDue(taps, tap, rules.rules, rules.decisions, now) };
+}
+
+/** S10: how many loaded rows a rule tags right now. The receipt names this exact count; every row stays in All. */
+export function rowsUnderRule(rows: readonly Pick<InboxRow, "account_id" | "from_address">[], shape: CategoryRuleShape): number {
+  return rows.filter((r) => r.account_id === shape.account_id && normalizeSender(r.from_address) === shape.sender_exact).length;
+}
+
+/** The toast after Remember: the count it grouped, and what a rule never does. */
+export function ruleKeptLine(n: number): string {
+  return n > 0 ? `${groupedLine(n)} · ${ONLY_TAGS}` : RULE_KEPT;
 }
 
 /** Remember: the exact rule, kept on this phone. */

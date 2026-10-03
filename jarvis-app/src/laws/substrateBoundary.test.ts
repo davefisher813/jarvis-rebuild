@@ -132,3 +132,43 @@ describe("SUBSTRATE law 4: no credential in a public table", () => {
     expect(sql).not.toMatch(/grant usage on schema jarvis_private to (anon|authenticated)/);
   });
 });
+
+// THE EMAIL MODULE RUNS WITH AI OFF (slice 09; IMPLEMENTATION-SPEC.md 13 "AI
+// off", 15 E27 and S01, 17 "no AI network calls with AI off"). Everything
+// under src/email, src/substrate, src/hub and the Today band is rules and
+// taps: none of it may import the AI client or name an AI route, and nothing
+// in it runs on a timer except the two debounces the spec asks for (search
+// after 400ms of quiet, the composer's save after 500ms and 1s). A scheduled
+// scan would start as a setInterval; this law is where it would fail.
+describe("SUBSTRATE law 5: the Email module runs with AI off", () => {
+  const MANUAL = SOURCES.filter((f) => /^(email|substrate|hub)\//.test(rel(f)) || rel(f) === "today/EmailToday.tsx");
+
+  it("covers the module", () => {
+    expect(MANUAL.length).toBeGreaterThan(40);
+  });
+
+  it("imports no AI client and names no AI route", () => {
+    const bad: string[] = [];
+    for (const f of MANUAL) {
+      const src = read(f);
+      // The Hub holds the AI switch itself (the level, the admin block): those three modules are settings, not a model call.
+      for (const m of src.matchAll(/from\s+["'](?:\.\.\/)+ai\/([A-Za-z]+)["']/g)) {
+        if (!["levelStore", "aiGate", "useAdminAiGate"].includes(m[1]!)) bad.push(`${rel(f)}: imports src/ai/${m[1]}`);
+      }
+      if (/\/api\/(ai|agent|chat|voice|vision|hub)\b/.test(src)) bad.push(`${rel(f)}: names an AI route`);
+      if (/\b(AIService|useAI|useAIContext|aiFetch|anthropic)\b/i.test(src)) bad.push(`${rel(f)}: names the AI client`);
+    }
+    expect(bad).toEqual([]);
+  });
+
+  it("runs nothing on a timer but the two debounces", () => {
+    const ALLOWED_TIMEOUTS = new Set(["email/SearchScreen.tsx", "email/ComposeScreen.tsx"]);
+    const bad: string[] = [];
+    for (const f of MANUAL) {
+      const src = read(f);
+      if (/\bsetInterval\s*\(/.test(src)) bad.push(`${rel(f)}: setInterval`);
+      if (/\bsetTimeout\s*\(/.test(src) && !ALLOWED_TIMEOUTS.has(rel(f))) bad.push(`${rel(f)}: setTimeout`);
+    }
+    expect(bad).toEqual([]);
+  });
+});

@@ -529,3 +529,83 @@ Waiting under Open with three records (one with Follow Up Today in a warning ton
 2. **No live Gmail and no device.** A real reply arriving, a source deleted in Gmail and the band on a real Today are the device rows.
 3. **Notifications** stay off and out of scope (12): nothing here notifies.
 4. **Hardening, the full integration pass and production verification** are slice 09.
+
+## Slice 09: hardening, full integration and production verification (2026-10-03)
+
+Same branch, on top of slice 08. Not merged, not deployed, nothing applied to
+a live database: this session holds no deploy authorisation and was told to
+wait for Dave's word before any merge. What follows is what the repository
+and a local Postgres can prove, what they found, and the exact gates left.
+
+### What landed
+
+| Area | Files |
+|---|---|
+| The audit's three findings, fixed | `src/shell/AppShell.tsx`: with `email_intake_v1` on, the four timers of the earlier Email module (the Today and Email outboxes, the heads-down auto-reply, the snapshot refresh that reads Gmail and asks the model) no longer mount; with the flag off the shell is unchanged. `src/settings/clearLocalData.ts`: sign-out now removes the area taps and rules (`jarvis.mail.categoryTaps.v1`, `jarvis.mail.categoryRules.v1`), the two email keys it left behind. `src/email/EmailFlow.tsx`, `candidates.ts`, `copy.ts`: Today's "N Email Items to Review" and the Email review focus count the same set (cards proposed or needing details) in the same unit (cards); the focus line says "M More in Older Mail" when the loaded pages hold less than Today's count. |
+| Hardening | `src/email/MailRow.tsx` (memoised: a row redraws only when its own row, label or handler changed or the minute turned), `EmailFlow.tsx` (one handler for every row), `src/email/categories.ts` (`rowsUnderRule`, `ruleKeptLine`: Remember's receipt names the exact count, S10), `src/email/WaitingDetail.tsx` was already one red (slice 08). |
+| Laws | `src/laws/substrateBoundary.test.ts` law 5: every file under `src/email`, `src/substrate`, `src/hub` and the Today band imports no AI client (the Hub's own switch modules excepted), names no AI route, and runs on no timer beyond the two debounces. |
+| Rehearsal | `jarvis-core/supabase/tests/rehearsal.sh`: fresh install 0001 to 0051, rollback 0051 to 0044 in reverse, forward again, forward twice, the leakage inspection, every proof. |
+| Proofs | `jarvis-core/supabase/tests/email.sh`: after its own rollback-and-forward of 0048 it forwards 0049 to 0051 again and checks the chain ends as a deployment would (what the rehearsal found, below). |
+| QA | `qa/checklists/2026-10-03-unified-substrate-09.md` (fourteen rows: device, project and Dave); `qa/previews/unified-substrate-09/` (the review focus with one card loaded and three more past the loaded pages, light and dark, 390 wide, from a scratch bench deleted before the commit). |
+| Tests | `src/email/InboxList.test.tsx` (500 rows: drawn once, no redraw on the parent's re-render, one changed row redraws alone, a minute's turn redraws once; a fresh closure would redraw all, which is why the flow keeps one), `src/email/categories.test.ts` (the receipt after Remember), `src/settings/clearLocalData.test.ts` (the two keys). |
+| Docs | ACCEPTANCE-MATRIX.md rows E26 (partial, the device half named), E27, E30, S01, S08, S09, S10, S23, S24; REPO-MAP.md deviations 40 to 46. |
+
+### The production-surface audit (read-only, the whole app)
+
+Run before anything was changed, over `jarvis-app/src`, `jarvis-app/api` and
+migrations 0044 to 0051, for five things. Findings, and what was done:
+
+1. **Demo identities, fake OAuth, fixture sends, scenario controls.** None on a production surface. Sample addresses live in tests and comments; the three older bench pages (`condBench`, `emailBench`, `healthBench`) are reached only by their own HTML files, which the build does not take (`index.html` loads `main.tsx` alone; `laws/noDemoData.test.ts` reads `dist/`); the old demo seed is a dynamic import behind a build-time flag that is false here. The composer's To placeholder is `name@example.com`, a format hint. Nothing changed.
+2. **Background scanning and autonomous actions.** No Vercel cron, no `pg_cron`, no service-worker periodic sync; the Email tab syncs on open, pull, Refresh, Load More and on a message's open; the rules run on those triggers and never on a timer; the send route runs the worker for the tapped action only. **Found:** the shell mounted the earlier Email module's four pumps whatever the flag said: a snapshot refresh every few hours that reads Gmail and asks the model, an auto-reply that sends during a focus block with no tap, an outbox pump that after each send asks the model for a commitment and creates a task, and the Today outbox. **Fixed:** with `email_intake_v1` on none of them mounts; their queues are left as they were; with the flag off nothing changed. Law 5 now fails any timer the module might grow.
+3. **Sign-out purge.** The sign-out path removes the mail cache, the cached bodies, the drafts, the readings and the tags under the mail prefix. **Found:** the area taps and rules were not under it and not scoped to a person. **Fixed:** both keys join the identity keys the purge removes; the test names them.
+4. **Exact language.** No vague "handled" counts; no delivery promise ("Gmail Accepted It · Accepted Is Not Read"; receipts say "Sent Reply to …"); the Gmail link says "Open in Gmail" only for a thread id of Gmail's own shape and "Open Gmail" with why otherwise; rule cards say "Suggested by a Rule · Approved by You" and only an agent's card says Assistant. **Found:** Today's review count counted cards while the Email filter it opened counted loaded rows with any provisional card. **Fixed:** one set, one unit, and the line names what sits past the loaded pages.
+5. **Receipt retention and deletion.** No retention period and no scheduled purge exist for actions, receipts, approvals or outbox rows; receipts are append-only by trigger; Delete Receipt (`receipt_erase`) blanks a receipt to the one word Erased and keeps the rows; approvals expire at five minutes, queued sends at five minutes, suggestions at thirty days; `approvals_sweep` and `context_packages_sweep` exist and nothing calls them yet (the former expires, the latter deletes shared-context snapshots a day after expiry); rows are hard-deleted only by account deletion (`delete_owned`). Section 03.5's 24-hour purges after a disconnect are not built: a disconnect removes the token at once and leaves cached bodies and candidate payloads in place until Remove Cached Mail or account deletion. Listed under the gates below; nothing changed here.
+
+### What the rehearsal shows (`tests/rehearsal.sh`, local Postgres 16, UTF8)
+
+- Fresh install of 0001 to 0051 on an empty UTF8 database: 29 tables and 117 functions in `public`; the eighteen substrate tables present.
+- Rollback 0051 to 0044 in reverse order: the eighteen tables and the private schema gone; the older app's eleven tables untouched.
+- Forward again, 0044 to 0051: the same 29 tables and 117 functions as the fresh install. Forward a second time: nothing changes.
+- Leakage inspection: no secret, credential, password, key or token column in the substrate's public tables; row security on all eighteen; no substrate function PUBLIC may run; no outbox function a browser role may run (the worker's lease token has no power from a browser); the browser roles cannot use `jarvis_private`. For the record, the older app's `google_tokens.token_enc` (0018): AES-GCM ciphertext under the server's key, row security on with no policy, so the browser roles' default table privilege reads no row; it predates the substrate and is not changed.
+- Every proof, in order, each on its own fresh database: `substrate.sh` 144, `gateway.sh` 113, `commands.sh` 167, `review.sh` 77, `email.sh` 58, `candidates.sh` 31, `sends.sh` 72, `waiting.sh` 39, `ai_budget.sh` 48: 749 checks, every script exit 0, ALL OK.
+- What the first run found: `email.sh` stopped at its 38th check. Its own rehearsal step forwards 0048 again after the whole chain, which brings back the five-argument `email_body_store` that 0050 replaced with the six-argument one, and two overloads make every positional call ambiguous. A deployment never runs 0048 after 0050, and the route calls the function by named arguments, so nothing in production was wrong; the proof now forwards 0049 to 0051 again after its own step and checks that one `email_body_store` remains, the six-argument one. Slice 07's note that the older proofs were "unchanged" was true and insufficient: they had not been re-run after 0050. They all have now.
+
+### What the component tests show
+
+`InboxList.test.tsx`: 500 cached rows draw once; the parent re-rendering with the same rows, a new groups array over the same rows, or the clock ten seconds on draws no row again; one changed row redraws that row alone; the minute turning redraws each row once; a fresh handler closure on every render would redraw every row, which is why `EmailFlow` keeps one. `categories.test.ts`: the count a rule tags is the exact sender in that account, case aside; the receipt reads "Grouped 41 Updates by Category · Only Tags, Never Hides", "Grouped 1 Update by Category · …", and "Remembered · Only Tags, Never Hides" with nothing loaded. `clearLocalData.test.ts`: sign-out takes the two keys with it; Clear Local Data leaves them, like every identity key.
+
+### Repository checks
+
+| Check | Command | Result |
+|---|---|---|
+| App typecheck | `npx tsc --noEmit` | exit 0 |
+| Routes typecheck | `npx tsc -p tsconfig.api.json` | exit 0 |
+| App lint | `npx eslint` on every file this slice touched | 0 errors, 0 warnings |
+| The slice's tests | `npx vitest run src/email src/laws src/settings/clearLocalData.test.ts src/today/EmailToday.test.tsx src/shell` | 63 files, 949 tests passed |
+| Laws | `npx vitest run src/laws` | every law passing, law 5 among them; the TV guide's hash holds |
+| Rehearsal | `tests/rehearsal.sh` | exit 0, ALL OK: 12 checks of the chain and 749 across the nine proofs |
+| Production build | inside the gate (`npm run build`) | `dist/` 5.1MB; the largest chunks: the entry 1.29MB, `dist` 404KB, `jspdf` 399KB, `BrainFlow` 371KB, `NotesProvider` 204KB (sizes before compression, unchanged in shape by this branch) |
+| Full gate | `QA_PUBLISH=0 node qa/check.js` | Run 1 (before the previews): every stage PASS (core-types, core-tests, app-types, app-lint at the same 41 warnings as before this slice, app-tests the whole suite with law 5 and the new tests in 277s, app-build, app-legal); `house` listed slice 01's nine pre-existing em-dash files and noted that a touched screen had no shots, which the two review-focus shots then answered. Run 2, on the final tree with the bench removed: every stage PASS (app-tests 266s); `house` lists exactly the nine files and the open manual checklist (fourteen rows: device, project and Dave), the same two reasons its exit has been 1 for every slice. Reports under `qa/reports/`, gitignored. |
+
+### Integration with main
+
+`origin/main` is `199e4bd` (Money, PR 47) and has not moved since slice 01 branched from it; the branch is nine commits on top of it with no conflict and nothing to rebase. Money's contracts are the ones the adapters were written against: the destination contract tests write through `LedgerService`, `TasksService`, `ScheduleService` and `WaitingService` (`destinations.contract.test.ts`, `toModules.test.ts`), and `substrate_readiness` is asked before any Save opens. No merge was made: Dave asked to be told first.
+
+### The rollout, in order, and the way back
+
+1. Apply `0044` to `0051` on the project, in order; each is additive and idempotent (the rehearsal ran every forward script twice). Nothing in the app changes yet: every new surface is behind a flag.
+2. Set the server variables the routes need and do not have yet: `JARVIS_CONTEXT_KEY` (the gateway's key); `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` and `SUPABASE_ANON_KEY` (already set for the older routes); the Google client values are the ones the older Gmail connection uses.
+3. Deploy with `VITE_JARVIS_FLAGS=substrate_v1,email_intake_v1`. The Email tab becomes the unified one, Today's mail band becomes the Email band, the old mail pumps stop mounting. More > Advanced lists the flags on.
+4. Send one message to your own address through Review Send (checklist row 13) before anyone else's.
+5. **Back:** redeploy with `VITE_JARVIS_FLAGS` empty. The old tab and its pumps return exactly; nothing the person saved is lost, since every card, draft, send and receipt is a row in its own table and every destination write is an ordinary item. The schema can stay. If it must go: `rollback/0051_…_down.sql` to `0044_…_down.sql`, in that order, which drops the substrate's tables and the private schema and leaves the older tables as they were (rehearsed); do that only on a database with no substrate rows worth keeping, because the rows go with the tables.
+
+### Gates this session did not pass, stated plainly
+
+1. **Merge.** Not done, on Dave's instruction. The branch is green at every stage of the gate with the same house list as `main` has. The merge goes through the protected workflow on his word.
+2. **Deploy and live verification.** No deploy authorisation in this session; nothing was deployed; no live commit or route was verified. The rollout above is the procedure, not a report.
+3. **Migrations and variables.** Not applied, not set. Dave's.
+4. **A phone.** Rows 1 and 3 to 13 of checklist 09: AI off end to end on a device, offline, a revoked grant, a second person after sign-out, 200% text, VoiceOver, the 500-row scroll's timing, the first real send. The automated halves are in the laws and the suites; the device halves are open.
+5. **A real Gmail.** Every provider path is proven against a fake Gmail and the real functions in Postgres; no real mail was read, sent, queued or scheduled in this session.
+6. **Retention (section 03.5).** The 24-hour purge of cached bodies and candidate payloads after a disconnect, the 15-minute job snapshot expiry sweep and the context-package sweep are not scheduled: nothing in this deployment runs on a schedule, by the same rule that keeps the module off timers. The functions that exist (`approvals_sweep`, `context_packages_sweep`) are called by nothing. A deliberate decision is needed on where a sweep may run (a user-triggered sweep on sign-in, or a scheduled database job with no AI and no external action), and it is not made here.
+7. **The nine pre-existing em-dash files** on `main`, untouched by this branch; the gate's `house` stage names them and will until they are cleaned on `main`.
+8. **The palette.** The light-mode flip is another chat's work in progress; this branch's screens were drawn against the stylesheets as they are on `main` today.

@@ -119,6 +119,8 @@ describe("clearSignedOutData", () => {
     "jarvis.mail.letgo.v1",
     "jarvis.mail.links.v1",
     "jarvis.mail.autoreply.on.v1",
+    "jarvis.mail.categoryTaps.v1",
+    "jarvis.mail.categoryRules.v1",
     "jarvis.music.v1",
   ];
 

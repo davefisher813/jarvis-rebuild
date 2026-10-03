@@ -2,7 +2,7 @@
 // 08 E04, 00.1). A tap tags one message; three taps on one sender earn one
 // question; Remember makes a rule that only tags; no rule means no category.
 import { describe, it, expect } from "vitest";
-import { categoryOf, countsByCategory, fileUnder, loadRules, loadTags, notNow, remember } from "./categories";
+import { categoryOf, countsByCategory, fileUnder, loadRules, loadTags, notNow, remember, rowsUnderRule, ruleKeptLine } from "./categories";
 import type { InboxRow } from "./emailClient";
 
 class MemStore {
@@ -66,5 +66,22 @@ describe("File Under", () => {
     const s = new MemStore();
     fileUnder("u1", row("m1"), "bills", T(0), s);
     expect(loadTags("u2", s)).toEqual({});
+  });
+});
+
+describe("the receipt after Remember (S10)", () => {
+  const shape = { sender_exact: "billing@conedison.test", account_id: "acct-1", category_id: "cat-bills" };
+  it("counts the loaded rows the rule tags: the exact sender, case aside, in that account only", () => {
+    const rows = [
+      row("1"), row("2", "Billing@ConEdison.test"),
+      row("3", "other@conedison.test"), row("4", "billing@conedison.test", "acct-2"),
+    ];
+    expect(rowsUnderRule(rows, shape)).toBe(2);
+    expect(rowsUnderRule([], shape)).toBe(0);
+  });
+  it("names the exact count and what a rule never does; with nothing loaded it says only that it remembered", () => {
+    expect(ruleKeptLine(41)).toBe("Grouped 41 Updates by Category · Only Tags, Never Hides");
+    expect(ruleKeptLine(1)).toBe("Grouped 1 Update by Category · Only Tags, Never Hides");
+    expect(ruleKeptLine(0)).toBe("Remembered · Only Tags, Never Hides");
   });
 });

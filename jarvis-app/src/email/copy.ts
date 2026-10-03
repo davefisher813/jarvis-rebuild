@@ -90,7 +90,8 @@ export const UNSUPPORTED_ACTION = "Not Available for This Account";
 export const SUGGEST_TITLE = "Use This Area Next Time?";
 export const REMEMBER = "Remember";
 export const NOT_NOW = "Not Now";
-export const RULE_KEPT = "Remembered · Only Tags, Never Hides";
+export const ONLY_TAGS = "Only Tags, Never Hides";
+export const RULE_KEPT = "Remembered · " + ONLY_TAGS;
 export const AREAS_LABEL = "Areas";
 
 // Accounts (M9).
@@ -268,6 +269,8 @@ export const FOLLOW_UP_IS_LOCAL = "A Follow-Up Date Is a Reminder Here · Not a 
 export const REPLY_NEVER_RESOLVES = "A Reply Never Resolves This on Its Own";
 export const EMPTY_RESOLVED = { title: "Nothing Resolved Yet", sub: "Resolve a request here when it arrives", action: "Show Open" };
 export const REVIEW_FILTER = "Showing Items to Review";
+/** The rest of Today's count sits on mail older than the loaded pages (the list is newest first). */
+export const moreInOlderMail = (n: number): string => `${n} More in Older Mail`;
 export const SHOW_ALL_ROWS = "Show All";
 export const EMAIL_BAND_TITLE = "Email";
 export const OPEN_EMAIL = "Open Email";

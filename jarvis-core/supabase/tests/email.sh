@@ -38,6 +38,12 @@ check "rollback removes the cache functions and the html column" "0|0" "$(q -c "
 q -f "$here/../migrations/0048_email_cache_and_provider.sql" >/dev/null
 q -f "$here/../migrations/0048_email_cache_and_provider.sql" >/dev/null
 check "forward again is idempotent" 2 "$(q -c "select count(*) from pg_proc where proname in ('email_inbox','email_sync_apply')")"
+# Slice 09 (the rehearsal found it): 0048 forwarded after 0050 brings back the five-argument email_body_store
+# that 0050 replaced, and two overloads make every positional call ambiguous. A real deployment never runs
+# 0048 after 0050; the proof does, so it forwards the later migrations again (each is idempotent) and
+# checks the chain ends where a deployment would.
+for f in $(ls "$here"/../migrations/00{49,50,51}_*.sql | sort); do q -f "$f" >/dev/null; done
+check "the chain ends as a deployment would: one email_body_store, the six-argument one" "email_body_store(uuid,uuid,text,text,jsonb,jsonb)" "$(q -c "select string_agg(oid::regprocedure::text, ',') from pg_proc where proname='email_body_store'")"
 
 A=00000000-0000-0000-0000-00000000000a
 B=00000000-0000-0000-0000-00000000000b

@@ -5,6 +5,7 @@
 // unread, the account as small caps after it when more than one mailbox is
 // in the list. The whole row is the door; it holds no control of its own.
 
+import { memo } from "react";
 import { Paperclip } from "../shared/icons";
 // The approved row anatomy. MessagesFlow imports this sheet for itself; this
 // tab mounts instead of it, so it brings the sheet along.
@@ -14,7 +15,7 @@ import { leadFor } from "../messages/rowAnatomy";
 import { senderOf, whenShort } from "./format";
 import type { InboxRow } from "./emailClient";
 
-export default function MailRow({ row, accountLabel, now, onOpen }: {
+function MailRowBody({ row, accountLabel, now, onOpen }: {
   row: InboxRow;
   /** More than one mailbox is in the list, so each row says whose it is; empty when there is one. */
   accountLabel: string;
@@ -46,3 +47,12 @@ export default function MailRow({ row, accountLabel, now, onOpen }: {
     </div>
   );
 }
+
+// A LONG LIST DOES NOT REDRAW EVERY ROW (slice 09; IMPLEMENTATION-SPEC.md 17:
+// "500-row cache scroll free of repeated full-list rerenders"). The parent
+// re-renders on every keystroke, card and sync; a row redraws only when its
+// own row object, its label or its handler changed, or the clock crossed a
+// minute (the time words are minute-coarse). InboxList.test.tsx counts.
+const sameMinute = (a: Date, b: Date): boolean => Math.floor(a.getTime() / 60000) === Math.floor(b.getTime() / 60000);
+const MailRow = memo(MailRowBody, (a, b) => a.row === b.row && a.accountLabel === b.accountLabel && a.onOpen === b.onOpen && sameMinute(a.now, b.now));
+export default MailRow;

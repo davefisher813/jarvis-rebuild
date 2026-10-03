@@ -47,17 +47,17 @@ import { monthDay } from "../money/bills";
 import ReceiptDetail from "../hub/ReceiptDetail";
 import {
   ALL_CHIP, ARCHIVED, AREAS_LABEL, CAPTURE_KIND, CAPTURE_TITLE, EMAIL_TITLE, EMPTY_ACCOUNTS, EMPTY_FILTER, EMPTY_INBOX, EMPTY_WAITING, FIND_DETAILS, HIDE_DISMISSED, MESSAGE_TITLE, NOT_NOW,
-  NO_CLIENT, OFFLINE_LINE, PULL_HINT, REAUTH_LINE, RECONNECT, REFRESHING, REFRESH_FAILED, REFRESH_LABEL, REMEMBER, RETRY, RULE_KEPT, SEARCH_LABEL, SEGMENTS, SHOW_DISMISSED, SUGGEST_TITLE,
+  NO_CLIENT, OFFLINE_LINE, PULL_HINT, REAUTH_LINE, RECONNECT, REFRESHING, REFRESH_FAILED, REFRESH_LABEL, REMEMBER, RETRY, SEARCH_LABEL, SEGMENTS, SHOW_DISMISSED, SUGGEST_TITLE,
   TRASHED, UNDO, foundLine, type Segment,
   COMPOSE_LABEL, DRAFT_DISCARDED, DRAFT_KEPT, NOT_SENT_TITLE, NOW_CONFIRMED, SENT_TITLE, STILL_UNKNOWN, UNKNOWN_TITLE, SENDING_LINE,
-  REVIEW_FILTER, SHOW_ALL_ROWS, WAITING_TITLE,
+  REVIEW_FILTER, moreInOlderMail, SHOW_ALL_ROWS, WAITING_TITLE,
 } from "./copy";
 import {
   answerSuggestion, inboxPage, listAccounts, mergeRows, mirrorAccounts, newestFirst, offerSuggestion, readMessage, syncAccount, PAGE,
   type EmailAccount, type InboxRow, type MessageDetail, type RpcClient,
 } from "./emailClient";
 import { forgetMessage, loadSnapshot, saveSnapshot } from "./deviceCache";
-import { categoryOf, countsByCategory, fileUnder, loadRules, loadTags, notNow, remember, type RulesStore, type SuggestionDue, type Tags } from "./categories";
+import { categoryOf, countsByCategory, fileUnder, loadRules, loadTags, notNow, remember, rowsUnderRule, ruleKeptLine, type RulesStore, type SuggestionDue, type Tags } from "./categories";
 import { accountLabels, dayGroups, freshnessLine, senderOf } from "./format";
 import { usePull } from "./usePull";
 import InboxList from "./InboxList";
@@ -71,7 +71,7 @@ import DraftsScreen from "./DraftsScreen";
 import { emptyFields, fieldsOf, getDraft, newLocalKey, outcomeOf, reconcileSend, replyFields, saveDraft, sendApproved, type DraftFields, type DraftRow, type LocalDraft, type Review } from "./drafts";
 import WaitingList, { type WaitingView } from "./WaitingList";
 import WaitingDetail, { type FollowUpStart } from "./WaitingDetail";
-import { localDate, threadsLatest, type EmailFocus, type LatestInThread } from "./waiting";
+import { localDate, reviewCount, threadsLatest, type EmailFocus, type LatestInThread } from "./waiting";
 import { WaitingService } from "../substrate/waiting/WaitingService";
 import type { WaitingItem } from "../substrate/waiting/types";
 import { replySubject } from "../connections/google/map";
@@ -79,7 +79,7 @@ import EmptyState from "./EmptyState";
 import CandidateCards, { type Conflict } from "./CandidateCards";
 import CaptureSheet from "./CaptureSheet";
 import {
-  candidatesFor, contextFor, isProvisional, proposeCandidate, proposeExtracted, readWithRules, readerZone, readingKey, readingsOf, rememberReading, textOf,
+  candidatesFor, contextFor, isProvisional, isToReview, proposeCandidate, proposeExtracted, readWithRules, readerZone, readingKey, readingsOf, rememberReading, textOf,
   type Candidate,
 } from "./candidates";
 import { EXTRACTOR_VERSION } from "../substrate/extract";
@@ -205,6 +205,8 @@ export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModul
   const [waitingView, setWaitingView] = useState<WaitingView>("open");
   const [waitingLatest, setWaitingLatest] = useState<Record<string, LatestInThread>>({});
   const [reviewOnly, setReviewOnly] = useState(false);
+  /** Today's count, read once when the review focus opens: the loaded pages may not hold all of it. */
+  const [reviewTotal, setReviewTotal] = useState<number | null>(null);
   const depth = screen.kind === "root" ? 0
     : screen.kind === "receipt" || screen.kind === "review" || screen.kind === "outcome" || screen.kind === "drafts" ? 2
       : screen.kind === "compose" && screen.from.kind !== "root" ? 2 : 1;
@@ -491,9 +493,13 @@ export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModul
     setQuestion(null);
     const at = now.toISOString();
     setRules(yes ? remember(q.rule, q.suggestionId, at) : notNow(q.rule, at));
-    if (yes) showToast({ message: RULE_KEPT });
+    // S10: the receipt names the exact count the rule tags right now, on this phone; every row stays in All.
+    if (yes) showToast({ message: ruleKeptLine(rowsUnderRule(rows, q.rule)) });
     if (client && q.suggestionId && !offline) await answerSuggestion(client, q.suggestionId, yes ? "accepted" : "dismissed");
-  }, [client, offline, now]);
+  }, [client, offline, now, rows]);
+
+  // One handler for every inbox row, so a memoised row is not redrawn by a new closure (slice 09).
+  const openInboxRow = useCallback((row: InboxRow) => setScreen({ kind: "message", row, from: "inbox" }), []);
 
   // A message another surface asked for: found in the loaded rows, else read
   // from the cache; an id that is not the person's simply does not open.
@@ -519,8 +525,10 @@ export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModul
   const chips = useMemo(() => categories.filter((c) => (counts[c.id] ?? 0) > 0), [categories, counts]);
   const visible = useMemo(() => {
     const base = chip ? rows.filter((r) => catOf(r) === chip) : rows;
-    return reviewOnly ? base.filter((r) => (cards[r.id] ?? []).some(isProvisional)) : base;
+    return reviewOnly ? base.filter((r) => (cards[r.id] ?? []).some(isToReview)) : base;
   }, [rows, chip, catOf, reviewOnly, cards]);
+  // The review focus counts cards, as Today does, never rows: the two numbers are the same number.
+  const loadedToReview = useMemo(() => (reviewOnly ? visible.reduce((n, r) => n + (cards[r.id] ?? []).filter(isToReview).length, 0) : 0), [reviewOnly, visible, cards]);
   const groups = useMemo(() => dayGroups(visible, now), [visible, now]);
   const live = accounts.filter((a) => a.state !== "disconnected");
   const labels = live.length > 1 ? accountLabels(live.map((a) => a.address)) : {};
@@ -541,7 +549,12 @@ export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModul
   // A focus from Today or a receipt: the inbox narrowed to its cards, or one record.
   useEffect(() => {
     if (!focus || !focusNonce) return;
-    if (focus.kind === "candidates") { setSegment("inbox"); setChip(null); setReviewOnly(true); setScreen({ kind: "root" }); }
+    if (focus.kind === "candidates") {
+      setSegment("inbox"); setChip(null); setReviewOnly(true); setScreen({ kind: "root" });
+      // Today's number, so the line can say how much of it is past the loaded pages (one read, on the tap).
+      setReviewTotal(null);
+      if (client && !offline) void reviewCount(client).then((r) => setReviewTotal(r.ok ? r.value.count : null));
+    }
     else { setSegment("waiting"); setScreen({ kind: "waiting", id: focus.id }); void loadWaiting(); }
     onFocusConsumed?.();
     // The nonce is the signal; the focus value rides with it.
@@ -778,7 +791,7 @@ export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModul
         <EmptyState copy={EMPTY_WAITING} onAction={() => setSegment("inbox")} />
       ))}
       {client && segment === "inbox" && reviewOnly && (
-        <div className="email-note"><span>{REVIEW_FILTER} · {visible.length}</span><button className="quiet-action" onClick={() => setReviewOnly(false)}>{SHOW_ALL_ROWS}</button></div>
+        <div className="email-note"><span>{REVIEW_FILTER} · {loadedToReview}{reviewTotal !== null && reviewTotal > loadedToReview ? ` · ${moreInOlderMail(reviewTotal - loadedToReview)}` : ""}</span><button className="quiet-action" onClick={() => setReviewOnly(false)}>{SHOW_ALL_ROWS}</button></div>
       )}
 
       {client && segment === "inbox" && !pending && !error && accounts.length === 0 && (
@@ -792,7 +805,7 @@ export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModul
       )}
       {client && segment === "inbox" && visible.length > 0 && (
         <InboxList groups={groups} labels={labels} now={now} atEnd={atEnd} moreBusy={moreBusy} onLoadMore={() => void loadMore()}
-          onOpen={(row) => setScreen({ kind: "message", row, from: "inbox" })} renderBelow={cardsFor} />
+          onOpen={openInboxRow} renderBelow={cardsFor} />
       )}
       <div className="screen-foot" />
 

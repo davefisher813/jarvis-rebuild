@@ -647,16 +647,26 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
         tab, so the schedule is right whether or not he opens the right
         screen. */}
     <BookingImportPump />
-    <TodayOutboxPump />
+    {/* THE OLD MAIL PUMPS STAY OFF WHILE THE UNIFIED EMAIL TAB IS ON
+        (docs/jarvis-unified, slice 09; IMPLEMENTATION-SPEC.md 00, 16, 17).
+        Each of the four below runs on a timer: the Today and Email outboxes
+        send what the old screens queued, the auto-reply answers mail by
+        itself during a focus block, and the snapshot pump reads Gmail and
+        asks the model every few hours. The unified tab promises that nothing
+        reads, proposes or sends without a tap, so with email_intake_v1 on
+        none of them mounts; their switches live in screens the flag replaces,
+        and their queues are left exactly as they were for the flag going off
+        again. With the flag off this block is what it was. */}
+    {!flagOn("email_intake_v1") && <TodayOutboxPump />}
     {/* EMAIL-F-01 (2026-09-05): the Email tab's own outbox (Send, Schedule
         Send, Send & Next) is pumped here, where nothing unmounts on a tab
         switch, instead of inside MessagesFlow, which does. */}
-    <MailOutboxPump ai={ai} />
+    {!flagOn("email_intake_v1") && <MailOutboxPump ai={ai} />}
     {/* EMAIL-F-16 (2026-09-05): the heads-down auto-reply is a courtesy for
         the time he is NOT looking at his email, so it runs here rather than
         inside the Email tab, which is only mounted when he is. */}
-    <AutoReplyPump />
-    <MailSnapshotPump />
+    {!flagOn("email_intake_v1") && <AutoReplyPump />}
+    {!flagOn("email_intake_v1") && <MailSnapshotPump />}
     {/* UP-MIND-05 (2026-09-05): the once-a-day consolidation ran from inside
         TodaySuggestions, so a day that screen never rendered was a day the
         Brain never reviewed. Keyed on the local day, mounted where the mail

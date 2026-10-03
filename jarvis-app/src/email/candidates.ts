@@ -129,6 +129,8 @@ export { readingKey };
 
 export const PROVISIONAL: readonly CandidateStatus[] = ["proposed", "needs_details", "conflict", "stale"];
 export const isProvisional = (c: Pick<Candidate, "status">): boolean => PROVISIONAL.includes(c.status);
+/** What "to review" means, on Today and in the review focus alike: the server's `candidate_review_count` counts exactly this set (0051), so the number on Today and the number in Email are one number. */
+export const isToReview = (c: Pick<Candidate, "status">): boolean => c.status === "proposed" || c.status === "needs_details";
 /** E25: the card was read from a copy of the message that is no longer the message. */
 export const isStale = (c: Pick<Candidate, "status" | "source_hash" | "message_source_hash">): boolean => c.status === "stale" || (isProvisional(c) && c.source_hash !== c.message_source_hash);
 
