@@ -53,7 +53,8 @@ describe("SUBSTRATE law 1: a candidate is not an item", () => {
   it("the provisional mail store is named only inside the substrate and the Email module", () => {
     const bad = SOURCES.filter((f) => /email_candidate|email_message\b/.test(read(f)))
       .map(rel)
-      .filter((r) => !r.startsWith("substrate/") && !r.startsWith("messages/"));
+      // src/email/ is the Email module since slice 05 (2026-10-03); messages/ is the older mail code it grew from.
+      .filter((r) => !r.startsWith("substrate/") && !r.startsWith("messages/") && !r.startsWith("email/"));
     expect(bad).toEqual([]);
   });
 });

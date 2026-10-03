@@ -113,3 +113,49 @@ export function messagesWord(n: number): string {
 export function accountsWord(n: number): string {
   return `${n} ${n === 1 ? "Account" : "Accounts"}`;
 }
+
+// Cards (slice 06): a card proposes one effect; the person's tap commits it,
+// once, with no second question. Its words name the exact effect.
+export const SUGGESTIONS = "Suggestions";
+export const DETAILS = "Details";
+export const DISMISS = "Dismiss";
+export const RESTORE = "Restore";
+export const SHOW_DISMISSED = "Show Dismissed Suggestions";
+export const HIDE_DISMISSED = "Hide Dismissed Suggestions";
+export const FIND_DETAILS = "Find Useful Details";
+export const CAPTURE_TITLE = "Capture";
+export const NOT_SAVED_YET = "Not Saved Yet";
+export const NEEDS_DETAILS = "Needs Details";
+export const AGENT_SUGGESTION = "Assistant Suggestion";
+export const EMAIL_CHANGED = "Email Changed · Review These Details";
+export const REVIEW_LATEST = "Review Latest Details";
+export const SAVE_CHANGES = "Save Changes";
+export const KEEP_IN_EMAIL = "Keep in Email";
+export const VIEW_RECEIPT = "View";
+export const MAY_EXIST = "This May Already Be Saved";
+export const KEEP_SEPARATE = "Keep Separate";
+export const PREVIOUSLY_SAVED = "Previously Saved";
+export const LATEST = "Latest";
+export const SOURCE_EVIDENCE = "Source Evidence";
+export const ENTERED_BY_YOU = "Entered by You";
+export const FROM_THE_EMAIL = "From the Email";
+export const NO_DUE_DATE = "No Due Date";
+export const NOTHING_FOUND = "No Useful Details Found · Capture One by Hand";
+export const CAPTURE_DONE_ELSEWHERE = "Saved From Another Device · Open It to Review";
+export const OPEN_MODULE: Record<string, string> = { Money: "Open Money", Tasks: "Open Tasks", Schedule: "Open Schedule", Email: "Open Waiting" };
+export const UPDATE_IN: Record<string, string> = { Money: "Open Money to Update", Tasks: "Open Tasks to Update", Schedule: "Open Schedule to Update", Email: "Open Waiting to Update" };
+export const SAVES_ONLY: Record<string, string> = {
+  bill: "Saves Only the Bill · Sends Nothing · Makes No Task",
+  receipt: "Saves Only the Receipt · Sends Nothing",
+  task: "Adds Only the Task · Sends Nothing",
+  event: "Adds Only the Event · Sends Nothing",
+  waiting: "Tracks Only This · Sends Nothing",
+};
+export const CAPTURE_KIND: Record<string, string> = { bill: "Capture a Bill", receipt: "Capture a Receipt", task: "Capture a Task", event: "Capture an Event", waiting: "Capture Something You're Waiting On" };
+
+export function moreSuggestions(n: number): string {
+  return `${n} More ${n === 1 ? "Suggestion" : "Suggestions"}`;
+}
+export function foundLine(n: number): string {
+  return n === 0 ? NOTHING_FOUND : `Found ${n} ${n === 1 ? "Suggestion" : "Suggestions"}`;
+}

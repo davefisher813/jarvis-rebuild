@@ -71,6 +71,9 @@ function rig(o: { rows?: InboxRow[]; accounts?: EmailAccount[]; rpc?: Partial<Re
     email_search_cached: (a) => { const q = String(a.p_q).toLowerCase(); const hits = all.filter((r) => `${r.from_name} ${r.subject} ${r.snippet}`.toLowerCase().includes(q)); return { rows: hits, coverage: "cached", q: a.p_q, window: all.length }; },
     policy_suggestion_offer: () => ({ suggestion_id: "s1", status: "suggested", replay: false }),
     policy_suggestion_answer: (a) => ({ suggestion_id: a.p_suggestion, status: a.p_answer, replay: false }),
+    substrate_readiness: () => ({ registered: ["money_bill", "money_receipt", "task", "event", "waiting"] }),
+    candidates_for: () => [],
+    candidate_propose: () => ({ candidate_id: "c-x", revision: 1, status: "proposed", payload_hash: "h", replay: false, stale_marked: 0 }),
     ...o.rpc,
   };
   const client: RpcClient = { rpc: async (fn, args) => { calls.push({ fn, args: args as Record<string, unknown> }); const f = table[fn]; if (!f) throw new Error("no fake for " + fn); return { data: f(args as Record<string, unknown>), error: null }; } };
@@ -224,7 +227,8 @@ describe("M2: the message", () => {
     await act(async () => { t.onAction!(); });
     await waitFor(() => expect(subjects()).toEqual(["m3", "m2", "m1", "m0"]));
     expect(r.posts.find((p) => p.body.op === "unarchive")).toBeTruthy();
-    expect(r.calls.some((c) => /capture|candidate|item|create|save/.test(c.fn))).toBe(false);
+    // Archive is a provider command: nothing here writes a life record or approves a card.
+    expect(r.calls.some((c) => /^(capture_approve|action_undo|decision_save|exploration_keep)$/.test(c.fn))).toBe(false);
   });
 
   it("archive and trash are offered only when the account can do them", async () => {
@@ -321,7 +325,8 @@ describe("E21, E22, E28: accounts and states", () => {
     expect(subjects()).toEqual(["m3", "m2", "m1", "m0"]);
     expect(screen.getByText(OFFLINE_LINE)).toBeInTheDocument();
     expect(r.posts).toEqual([]);
-    expect(r.calls).toEqual([]);
+    // The one question asked of the database offline is which doors are open; no mail is asked for.
+    expect(r.calls.filter((c) => c.fn !== "substrate_readiness")).toEqual([]);
   });
 
   it("a mailbox that needs reconnecting keeps its mail and asks for the one fix, which goes to Connections", async () => {

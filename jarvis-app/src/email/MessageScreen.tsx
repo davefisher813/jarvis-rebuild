@@ -9,7 +9,7 @@
 // id is Gmail's; otherwise the button says Open Gmail and says why. Nothing
 // here captures, extracts or infers; a card is slice 06's.
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import PageHeader, { BarAction } from "../shared/PageHeader";
 import RowActionSheet, { type RowAction } from "../shared/RowActionSheet";
 import SkeletonRows from "../shared/SkeletonRows";
@@ -30,6 +30,7 @@ import {
 import { attachmentBlob, downloadAttachment, gmailLink, labelMessage, openMessage, readMessage, type AttachmentMeta, type EmailAccount, type InboxRow, type MessageDetail, type RpcClient } from "./emailClient";
 import { loadMessage, saveMessage } from "./deviceCache";
 import { hasRemoteImages, senderOf, sizeLine } from "./format";
+import { textOf } from "./candidates";
 
 const MAX_ATTACHMENT = 20 * 1024 * 1024;
 
@@ -41,7 +42,7 @@ export interface LeftInbox {
   restored: Partial<InboxRow>;
 }
 
-export default function MessageScreen({ client, token, userId, row, account, offline, categories, categoryId, onBack, onRowChanged, onLeftInbox, onFileUnder }: {
+export default function MessageScreen({ client, token, userId, row, account, offline, categories, categoryId, onBack, onRowChanged, onLeftInbox, onFileUnder, cards, moreActions, onBodyText }: {
   client: RpcClient;
   token: string | null | undefined;
   userId: string;
@@ -57,6 +58,12 @@ export default function MessageScreen({ client, token, userId, row, account, off
   /** Archived or trashed: the row leaves the inbox; the flow shows the toast whose Undo is the reverse provider command. */
   onLeftInbox: (row: InboxRow, info: LeftInbox) => void;
   onFileUnder: (row: InboxRow, categoryId: string) => void;
+  /** The message's cards (slice 06), drawn by the flow. */
+  cards?: ReactNode;
+  /** Extra rows for the More menu (Find Useful Details, Capture, dismissed suggestions). */
+  moreActions?: RowAction[];
+  /** The body as text, once it is known, for the rules to read. */
+  onBodyText?: (text: string) => void;
 }) {
   const [detail, setDetail] = useState<MessageDetail | null>(() => loadMessage(userId, row.id));
   const [loading, setLoading] = useState(true);
@@ -130,6 +137,14 @@ export default function MessageScreen({ client, token, userId, row, account, off
 
   const m = detail;
   const link = useMemo(() => gmailLink(row.account, m?.thread_id ?? row.thread_id), [row.account, row.thread_id, m?.thread_id]);
+  const toldRules = useRef<string | null>(null);
+  useEffect(() => {
+    if (!m || !onBodyText || !m.has_body) return;
+    const key = `${m.id}:${m.source_hash}`;
+    if (toldRules.current === key) return;
+    toldRules.current = key;
+    onBodyText(textOf(m));
+  }, [m, onBodyText]);
   const can = (what: "archive" | "trash") => !!account?.capabilities?.[what];
 
   const toggleUnread = async () => {
@@ -193,6 +208,7 @@ export default function MessageScreen({ client, token, userId, row, account, off
     { label: ARCHIVE, onPick: () => void leave("archive"), disabled: !can("archive") || !token || offline || !m },
     { label: TRASH, onPick: () => void leave("trash"), disabled: !can("trash") || !token || offline || !m, destructive: true },
     { label: COPY_ID, onPick: () => void copyId() },
+    ...(moreActions ?? []),
   ];
 
   const attachments = m?.attachments?.length ? m.attachments : row.attachment_metadata;
@@ -226,6 +242,7 @@ export default function MessageScreen({ client, token, userId, row, account, off
         </div>
       )}
       {m?.deleted && <div className="email-note quiet"><span>{SOURCE_GONE}</span></div>}
+      {cards}
 
       {loading && !m && !error && <SkeletonRows rows={3} />}
       {error && !m && (

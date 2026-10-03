@@ -1,7 +1,7 @@
-// THE EMAIL TAB, REDESIGNED IN PLACE (docs/jarvis-unified, slice 05;
-// IMPLEMENTATION-SPEC.md 08 E01 to E06, E20 to E23, E28, E29; 09 M1, M2,
-// M8, M9; 11; 13). Behind the email_intake_v1 flag the Email tab mounts this
-// instead of the old MessagesFlow. What it is:
+// THE EMAIL TAB, REDESIGNED IN PLACE (docs/jarvis-unified, slices 05 and 06;
+// IMPLEMENTATION-SPEC.md 08 E01 to E11, E20 to E25, E28, E29; 09 M1, M2, M3,
+// M8, M9; 10; 11; 13). Behind the email_intake_v1 flag the Email tab mounts
+// this instead of the old MessagesFlow. What it is:
 //
 //   - every inbox row of every connected mailbox, newest first by Gmail's
 //     receipt time with a stable id tiebreak, thirty at a time, under day
@@ -14,27 +14,40 @@
 //   - the message, sanitised; read on open through a provider command the
 //     person caused; archive and trash explicit, receipted, undoable;
 //   - offline: the last page and the opened messages, readable, nothing
-//     queued; reauth: the mail stays, the banner asks for the one fix.
+//     queued; reauth: the mail stays, the banner asks for the one fix;
+//   - cards (slice 06): the deterministic rules read a loaded row's subject
+//     and snippet, and an opened message's text, once per message per
+//     version, and propose at most one card per kind; a card commits in one
+//     tap through slice 03's atomic door and becomes a receipt line; manual
+//     capture is the same sheet with empty fields and needs no model.
 //
 // The Gmail token is never here. Reads go to the cache with the session;
 // commands go to api/email/* with the session; the server holds the grant.
-// Nothing runs on a timer: open, pull, tap. No candidate is created here.
+// Nothing runs on a timer: open, pull, tap. No card is ever an item until
+// the person's tap makes it one.
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import PageHeader, { BarAction } from "../shared/PageHeader";
 import SkeletonRows from "../shared/SkeletonRows";
-import RowActionSheet from "../shared/RowActionSheet";
+import RowActionSheet, { type RowAction } from "../shared/RowActionSheet";
 import { RotateCcw, Search } from "../shared/icons";
 import { usePushDepth } from "../shared/pushNav";
 import { showToast } from "../shared/toast";
 import { supabase } from "../auth/supabaseClient";
 import { useOptionalSession } from "../auth/AuthProvider";
-import { useOptionalCategories, useUserId } from "../data/NotesProvider";
+import { useOptionalCategories, useOptionalLedger, useUserId } from "../data/NotesProvider";
 import { failure, lineFor, type CommandFailure } from "../substrate/commands/errors";
+import { fetchReadiness, notReadyLine, readinessFrom, type Readiness } from "../substrate/destinations/registry";
+import type { CaptureKind, CapturePayload } from "../substrate/contracts";
 import type { Category } from "../categories/types";
+import type { Bill, Receipt } from "../money/ledger/types";
+import { moneyWords } from "../money/ledger/emailBill";
+import { monthDay } from "../money/bills";
+import ReceiptDetail from "../hub/ReceiptDetail";
 import {
-  ALL_CHIP, ARCHIVED, AREAS_LABEL, EMAIL_TITLE, EMPTY_ACCOUNTS, EMPTY_FILTER, EMPTY_INBOX, EMPTY_WAITING, NOT_NOW, NO_CLIENT, OFFLINE_LINE, PULL_HINT, REAUTH_LINE, RECONNECT,
-  REFRESHING, REFRESH_FAILED, REFRESH_LABEL, REMEMBER, RETRY, RULE_KEPT, SEARCH_LABEL, SEGMENTS, SUGGEST_TITLE, TRASHED, UNDO, type Segment,
+  ALL_CHIP, ARCHIVED, AREAS_LABEL, CAPTURE_KIND, CAPTURE_TITLE, EMAIL_TITLE, EMPTY_ACCOUNTS, EMPTY_FILTER, EMPTY_INBOX, EMPTY_WAITING, FIND_DETAILS, HIDE_DISMISSED, MESSAGE_TITLE, NOT_NOW,
+  NO_CLIENT, OFFLINE_LINE, PULL_HINT, REAUTH_LINE, RECONNECT, REFRESHING, REFRESH_FAILED, REFRESH_LABEL, REMEMBER, RETRY, RULE_KEPT, SEARCH_LABEL, SEGMENTS, SHOW_DISMISSED, SUGGEST_TITLE,
+  TRASHED, UNDO, foundLine, type Segment,
 } from "./copy";
 import {
   answerSuggestion, inboxPage, listAccounts, mergeRows, mirrorAccounts, newestFirst, offerSuggestion, readMessage, syncAccount, PAGE,
@@ -49,12 +62,20 @@ import MessageScreen, { type LeftInbox } from "./MessageScreen";
 import SearchScreen, { EMPTY_SEARCH_STATE, type SearchState } from "./SearchScreen";
 import AccountsScreen from "./AccountsScreen";
 import EmptyState from "./EmptyState";
+import CandidateCards, { type Conflict } from "./CandidateCards";
+import CaptureSheet from "./CaptureSheet";
+import {
+  candidatesFor, contextFor, isProvisional, proposeCandidate, proposeExtracted, readWithRules, readerZone, readingKey, readingsOf, rememberReading, textOf,
+  type Candidate,
+} from "./candidates";
+import { EXTRACTOR_VERSION } from "../substrate/extract";
 
 type Screen =
   | { kind: "root" }
   | { kind: "message"; row: InboxRow; from: "inbox" | "search" }
   | { kind: "search" }
-  | { kind: "accounts" };
+  | { kind: "accounts" }
+  | { kind: "receipt"; actionId: string; from: Screen };
 
 interface Question extends SuggestionDue { suggestionId: string | null }
 
@@ -64,8 +85,29 @@ const rowOf = (m: MessageDetail): InboxRow => ({
   attachment_metadata: m.attachments ?? [], provider_labels: m.provider_labels, source_hash: m.source_hash, read: m.read,
 });
 
-export default function EmailFlow({ onOpenConnections, openId, openNonce, onOpenConsumed, client: given, token: givenToken, userId: givenUser, categories: givenCategories, now: nowFn = () => new Date(), initialScreen }: {
+/** A manual capture starts empty, with what the message already says (the sender, its date) filled in and the rest named as missing. */
+export function manualStart(kind: CaptureKind, row: InboxRow, zone: string, now: Date): { payload: CapturePayload; missing: string[] } {
+  const who = row.from_name.trim() || row.from_address;
+  const day = row.internal_date.slice(0, 10);
+  switch (kind) {
+    case "bill": return { payload: { kind, issuer: who, amount: { minor_units: 0, currency: "" }, due_date: null, no_due_date_confirmed: false }, missing: ["amount", "currency", "due_date"] };
+    case "receipt": return { payload: { kind, merchant: who, amount: { minor_units: 0, currency: "" }, purchase_date: day, transaction_type: "purchase" }, missing: ["amount", "currency"] };
+    case "task": return { payload: { kind, title: "", due_date: null, notes: "" }, missing: ["title"] };
+    case "event": {
+      const start = new Date(now.getTime() + 3600e3); start.setMinutes(0, 0, 0);
+      const end = new Date(start.getTime() + 3600e3);
+      return { payload: { kind, title: "", time: { all_day: false, start_at: start.toISOString(), end_at: end.toISOString(), timezone: zone, selected_offset: "" }, location: null, external_uid: null }, missing: ["title"] };
+    }
+    case "waiting": return { payload: { kind, title: "", waiting_for: "", counterparty_display: who, contact_id: null, follow_up_on: null }, missing: ["title", "waiting_for"] };
+  }
+}
+
+export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModule, openId, openNonce, onOpenConsumed, client: given, token: givenToken, userId: givenUser, categories: givenCategories, now: nowFn = () => new Date(), zone: givenZone, initialScreen }: {
   onOpenConnections: () => void;
+  /** A life record's own screen (a receipt's destination). */
+  onOpenEntity?: (kind: string, id: string) => void;
+  /** A module's tab, when a record has no screen of its own to open (Money). */
+  onOpenModule?: (module: string) => void;
   /** A message id another surface asked for (the Hub's evidence, a receipt). */
   openId?: string | null;
   openNonce?: number;
@@ -76,6 +118,8 @@ export default function EmailFlow({ onOpenConnections, openId, openNonce, onOpen
   userId?: string;
   categories?: Category[];
   now?: () => Date;
+  /** The reader's zone; a test pins it. */
+  zone?: string;
   /** Where a bench or a test starts; the app always starts at the root. */
   initialScreen?: "search" | "accounts";
 }) {
@@ -85,6 +129,8 @@ export default function EmailFlow({ onOpenConnections, openId, openNonce, onOpen
   const ctxUser = useUserId();
   const userId = givenUser ?? ctxUser ?? "local";
   const catsSvc = useOptionalCategories();
+  const ledger = useOptionalLedger();
+  const zone = givenZone ?? readerZone();
 
   const snapshot = useMemo(() => loadSnapshot(userId), [userId]);
   const [accounts, setAccounts] = useState<EmailAccount[]>(snapshot?.accounts ?? []);
@@ -106,8 +152,17 @@ export default function EmailFlow({ onOpenConnections, openId, openNonce, onOpen
   const [tags, setTags] = useState<Tags>(() => loadTags(userId));
   const [rules, setRules] = useState<RulesStore>(() => loadRules(localStorage));
   const [question, setQuestion] = useState<Question | null>(null);
+  // Cards (slice 06).
+  const [cards, setCards] = useState<Record<string, Candidate[]>>({});
+  const [showDismissed, setShowDismissed] = useState(false);
+  const [sheet, setSheet] = useState<{ candidate: Candidate; row: InboxRow; text?: string } | null>(null);
+  const [capturing, setCapturing] = useState<{ row: InboxRow; text?: string } | null>(null);
+  const [readiness, setReadiness] = useState<Readiness>(() => readinessFrom(null, "unknown"));
+  const [bills, setBills] = useState<Bill[]>([]);
+  const [receipts, setReceipts] = useState<Receipt[]>([]);
+  const bodyText = useRef<Record<string, string>>({});
   const loaded = useRef(false);
-  const pushCls = usePushDepth(screen.kind === "root" ? 0 : 1);
+  const pushCls = usePushDepth(screen.kind === "root" ? 0 : screen.kind === "receipt" ? 2 : 1);
   const now = nowFn();
 
   useEffect(() => {
@@ -125,7 +180,144 @@ export default function EmailFlow({ onOpenConnections, openId, openNonce, onOpen
     return () => { alive = false; };
   }, [catsSvc, givenCategories]);
 
+  // Which doors are open, asked once; a module that cannot be proven ready is not.
+  useEffect(() => {
+    if (!client) return;
+    let alive = true;
+    void fetchReadiness((fn) => client.rpc(fn, {})).then((r) => { if (alive) setReadiness(r); });
+    return () => { alive = false; };
+  }, [client]);
+
+  // Money's own records, for the cross-message duplicate question (10.1 step 7).
+  useEffect(() => {
+    if (!ledger) return;
+    let alive = true;
+    void Promise.all([ledger.listBills(), ledger.listReceipts()]).then(([b, r]) => { if (alive) { setBills(b); setReceipts(r); } }).catch(() => { /* Money not reachable: no conflict line, the save still asks the server */ });
+    return () => { alive = false; };
+  }, [ledger, cards]);
+
   const persist = useCallback((a: EmailAccount[], r: InboxRow[]) => saveSnapshot(userId, { accounts: a, rows: r }), [userId]);
+
+  // ---- cards --------------------------------------------------------------
+
+  const loadCards = useCallback(async (ids: string[], includeDismissed = showDismissed) => {
+    if (!client || ids.length === 0) return;
+    const r = await candidatesFor(client, ids, includeDismissed);
+    if (!r.ok) return;
+    setCards((prev) => {
+      const next = { ...prev };
+      for (const id of ids) next[id] = [];
+      for (const c of r.value) (next[c.message_id] ??= []).push(c);
+      return next;
+    });
+  }, [client, showDismissed]);
+
+  // The rules over a loaded row's subject and snippet, once per message per
+  // version on this phone (the server deduplicates by fingerprint anyway).
+  const readRows = useCallback(async (list: InboxRow[]) => {
+    if (!client || offline) return;
+    const seen = readingsOf(userId);
+    const touched: string[] = [];
+    for (const row of list) {
+      const key = readingKey(row.account_id, row.id, row.source_hash);
+      if (seen.has(key)) continue;
+      const proposals = readWithRules(row, zone);
+      // A reading is remembered only when every proposal reached the server:
+      // a dropped signal is read again next time, not lost to this phone.
+      let kept = true;
+      if (proposals.length) {
+        kept = (await proposeExtracted(client, proposals, { id: row.id, source_hash: row.source_hash })).failed === 0;
+        touched.push(row.id);
+      }
+      if (kept) rememberReading(userId, key);
+    }
+    if (touched.length) await loadCards(touched);
+  }, [client, offline, userId, zone, loadCards]);
+
+  // The rules over an opened message's text, once per message per version;
+  // Find Useful Details reads it again on purpose.
+  const readBody = useCallback(async (row: InboxRow, text: string, force = false): Promise<number> => {
+    bodyText.current[row.id] = text;
+    if (!client || offline) return 0;
+    const key = readingKey(row.account_id, row.id, row.source_hash) + ":body";
+    if (!force && readingsOf(userId).has(key)) return 0;
+    const proposals = readWithRules(row, zone, text);
+    let kept = true;
+    if (proposals.length) kept = (await proposeExtracted(client, proposals, { id: row.id, source_hash: row.source_hash })).failed === 0;
+    if (kept) rememberReading(userId, key);
+    await loadCards([row.id]);
+    return proposals.length;
+  }, [client, offline, userId, zone, loadCards]);
+
+  useEffect(() => {
+    // Dismissed cards shown or hidden: the page reads again.
+    const ids = Object.keys(cards);
+    if (ids.length) void loadCards(ids, showDismissed);
+    // Only the switch matters here.
+  }, [showDismissed]);
+
+  const ready = useCallback((kind: CaptureKind) => readiness.kinds[kind].state === "ready", [readiness]);
+  const readyLine = useCallback((kind: CaptureKind) => { const k = readiness.kinds[kind]; return k.state === "ready" ? "" : k.reason || notReadyLine(kind); }, [readiness]);
+
+  const conflictOf = useCallback((c: Candidate): Conflict | null => {
+    if (c.saved_sibling) return null;
+    const p = c.payload;
+    if (p.kind === "bill") {
+      const hit = bills.find((b) => b.data.vendor.trim().toLowerCase() === p.issuer.trim().toLowerCase() && b.data.amountCents === p.amount.minor_units && (b.data.dueDate ?? null) === p.due_date);
+      return hit ? { line: `${hit.data.vendor} · ${moneyWords(hit.data.amountCents, hit.data.currency)}${hit.data.dueDate ? " · Due " + monthDay(hit.data.dueDate) : ""}` } : null;
+    }
+    if (p.kind === "receipt") {
+      const hit = receipts.find((r) => r.data.vendor.trim().toLowerCase() === p.merchant.trim().toLowerCase() && r.data.amountCents === p.amount.minor_units && r.data.transactionDate === p.purchase_date);
+      return hit ? { line: `${hit.data.vendor} · ${moneyWords(hit.data.amountCents, hit.data.currency)} · ${monthDay(hit.data.transactionDate)}` } : null;
+    }
+    return null;
+  }, [bills, receipts]);
+
+  // A stale card: read the message again with the rules and open the refreshed card.
+  const reviewLatest = useCallback(async (c: Candidate, row: InboxRow) => {
+    if (!client) return;
+    let text = bodyText.current[row.id];
+    let current = row;
+    const m = await readMessage(client, row.id);
+    if (m.ok) { current = rowOf(m.value); text = m.value.has_body ? textOf(m.value) : text; }
+    const n = await readBody(current, text ?? current.snippet, true);
+    const r = await candidatesFor(client, [row.id], showDismissed);
+    if (!r.ok) return;
+    setCards((prev) => ({ ...prev, [row.id]: r.value }));
+    const fresh = r.value.filter((x) => x.kind === c.kind && isProvisional(x) && x.source_hash === x.message_source_hash).sort((a, b) => b.updated_at.localeCompare(a.updated_at))[0];
+    if (fresh) setSheet({ candidate: fresh, row: current, text });
+    else showToast({ message: foundLine(n) });
+  }, [client, readBody, showDismissed]);
+
+  // Manual capture: an empty card of the chosen kind, then the sheet.
+  const startCapture = useCallback(async (row: InboxRow, kind: CaptureKind, text?: string) => {
+    if (!client) return;
+    const start = manualStart(kind, row, zone, now);
+    const r = await proposeCandidate(client, {
+      message_id: row.id, kind, payload: start.payload, provenance: {}, missing: start.missing,
+      fingerprint: `manual:${kind}:${now.getTime().toString(36)}`, extractor_version: "manual", source_hash: row.source_hash, origin: "manual",
+    });
+    if (!r.ok) { showToast({ message: lineFor(r) }); return; }
+    const list = await candidatesFor(client, [row.id], showDismissed);
+    if (!list.ok) return;
+    setCards((prev) => ({ ...prev, [row.id]: list.value }));
+    const made = list.value.find((x) => x.id === r.value.candidate_id);
+    if (made) setSheet({ candidate: made, row, text });
+  }, [client, zone, now, showDismissed]);
+
+  const cardsFor = (row: InboxRow): ReactNode => {
+    const list = cards[row.id];
+    if (!client || !list || list.length === 0) return null;
+    return (
+      <CandidateCards client={client} candidates={list} row={row} ctx={contextFor(row, zone, nowFn)} ready={ready} readyLine={readyLine} offline={offline}
+        evidenceExcerpt={bodyText.current[row.id]?.slice(0, 2000)} showDismissed={showDismissed} conflictOf={conflictOf} now={nowFn}
+        onChanged={() => loadCards([row.id])} onDetails={(c) => setSheet({ candidate: c, row, text: bodyText.current[row.id] })} onReview={(c) => void reviewLatest(c, row)}
+        onReceipt={(actionId) => setScreen((s) => ({ kind: "receipt", actionId, from: s }))}
+        onOpenModule={(module, destinationId) => { if (destinationId && module !== "Money" && onOpenEntity) onOpenEntity(module === "Tasks" ? "task" : module === "Schedule" ? "event" : "waiting", destinationId); else onOpenModule?.(module); }} />
+    );
+  };
+
+  // ---- the inbox ------------------------------------------------------------
 
   // The one load: accounts, a sync of each live mailbox (this is the pull or
   // the open, never a timer), then the first page from the cache. A failure
@@ -163,18 +355,21 @@ export default function EmailFlow({ onOpenConnections, openId, openNonce, onOpen
     if (!page.ok) { setError(page); setPending(false); setRefreshing(false); return; }
     const fresh = page.value.rows;
     setCachedTotal(page.value.cached_total);
+    let merged: InboxRow[] = fresh;
     setRows((prev) => {
       // The first page is the truth for what it covers; rows the person had
       // already scrolled to, older than its last row, stay where they were.
       const last = fresh[fresh.length - 1];
       const older = mode === "refresh" && last && fresh.length >= PAGE ? prev.filter((r) => newestFirst(last, r) < 0) : [];
-      const merged = mergeRows(fresh, older);
+      merged = mergeRows(fresh, older);
       persist(accountsNow, merged);
       return merged;
     });
     setPending(false);
     setRefreshing(false);
-  }, [client, token, offline, persist]);
+    await loadCards(merged.map((r) => r.id));
+    void readRows(merged);
+  }, [client, token, offline, persist, loadCards, readRows]);
 
   useEffect(() => {
     if (loaded.current) return;
@@ -208,7 +403,9 @@ export default function EmailFlow({ onOpenConnections, openId, openNonce, onOpen
     if (!page.ok) { showToast({ message: lineFor(page) }); return; }
     setCachedTotal(page.value.cached_total);
     setRows((prev) => { const merged = mergeRows(prev, page.value.rows); persist(accounts, merged); return merged; });
-  }, [client, rows, cachedTotal, token, offline, providerNext, moreBusy, accounts, persist]);
+    await loadCards(page.value.rows.map((r) => r.id));
+    void readRows(page.value.rows);
+  }, [client, rows, cachedTotal, token, offline, providerNext, moreBusy, accounts, persist, loadCards, readRows]);
 
   const patchRow = useCallback((patch: Partial<InboxRow> & { id: string }) => {
     setRows((prev) => {
@@ -262,7 +459,7 @@ export default function EmailFlow({ onOpenConnections, openId, openNonce, onOpen
       if (found) { setScreen({ kind: "message", row: found, from: "inbox" }); onOpenConsumed?.(); return; }
       const m = await readMessage(client, openId);
       if (!alive) return;
-      if (m.ok) setScreen({ kind: "message", row: rowOf(m.value), from: "inbox" });
+      if (m.ok) { setScreen({ kind: "message", row: rowOf(m.value), from: "inbox" }); void loadCards([openId]); }
       onOpenConsumed?.();
     })();
     return () => { alive = false; };
@@ -282,22 +479,45 @@ export default function EmailFlow({ onOpenConnections, openId, openNonce, onOpen
   const accountOf = (row: InboxRow) => accounts.find((a) => a.id === row.account_id) ?? null;
   const issueLines = Object.entries(syncIssues).map(([address, line]) => `Didn't Refresh · ${address} · ${line}`);
 
+  const sheetEl = sheet && client ? (
+    <CaptureSheet client={client} candidate={sheet.candidate} row={sheet.row} ctx={contextFor(sheet.row, zone, nowFn)} ready={ready} readyLine={readyLine} offline={offline}
+      evidenceText={sheet.text ?? bodyText.current[sheet.row.id]} onClose={() => setSheet(null)} onChanged={() => loadCards([sheet.row.id])} />
+  ) : null;
+  const captureEl = capturing ? (
+    <RowActionSheet title={CAPTURE_TITLE} actions={(["bill", "receipt", "task", "event", "waiting"] as CaptureKind[]).map((k) => ({ label: CAPTURE_KIND[k]!, onPick: () => void startCapture(capturing.row, k, capturing.text) }))} onCancel={() => setCapturing(null)} />
+  ) : null;
+
+  if (screen.kind === "receipt" && client) {
+    const from = screen.from;
+    return <div className={pushCls}>
+      <ReceiptDetail client={client} actionId={screen.actionId} offline={offline} back={from.kind === "message" ? MESSAGE_TITLE : EMAIL_TITLE}
+        onBack={() => setScreen(from)} onChanged={() => { const ids = Object.keys(cards); if (ids.length) void loadCards(ids); }} onOpenItem={onOpenEntity} />
+    </div>;
+  }
   if (screen.kind === "message" && client) {
     const row = screen.row;
+    const current = rows.find((r) => r.id === row.id) ?? row;
+    const more: RowAction[] = [
+      { label: FIND_DETAILS, onPick: () => void (async () => { const n = await readBody(current, bodyText.current[row.id] ?? current.snippet, true); showToast({ message: foundLine(n) }); })(), disabled: offline },
+      { label: CAPTURE_TITLE, onPick: () => setCapturing({ row: current, text: bodyText.current[row.id] }), disabled: offline },
+      { label: showDismissed ? HIDE_DISMISSED : SHOW_DISMISSED, onPick: () => setShowDismissed((v) => !v) },
+    ];
     return <div className={pushCls}>
-      <MessageScreen client={client} token={token} userId={userId} row={rows.find((r) => r.id === row.id) ?? row} account={accountOf(row)} offline={offline}
+      <MessageScreen client={client} token={token} userId={userId} row={current} account={accountOf(row)} offline={offline}
         categories={categories} categoryId={catOf(row)}
         onBack={() => setScreen(screen.from === "search" ? { kind: "search" } : { kind: "root" })}
         onRowChanged={patchRow}
         onLeftInbox={leftInbox}
-        onFileUnder={(r, c) => void onFileUnder(r, c)} />
+        onFileUnder={(r, c) => void onFileUnder(r, c)}
+        cards={cardsFor(current)} moreActions={more} onBodyText={(text) => void readBody(current, text)} />
+      {sheetEl}{captureEl}
     </div>;
   }
   if (screen.kind === "search" && client) {
     return <div className={pushCls}>
       <SearchScreen client={client} token={token} accounts={accounts} labels={labels} offline={offline} state={search} onState={setSearch}
         categories={categories} categoryOf={catOf} categoryId={searchChip} onCategory={setSearchChip} now={now}
-        onBack={() => setScreen({ kind: "root" })} onOpen={(row) => setScreen({ kind: "message", row, from: "search" })} />
+        onBack={() => setScreen({ kind: "root" })} onOpen={(row) => { setScreen({ kind: "message", row, from: "search" }); void loadCards([row.id]); }} />
     </div>;
   }
   if (screen.kind === "accounts") {
@@ -308,7 +528,7 @@ export default function EmailFlow({ onOpenConnections, openId, openNonce, onOpen
 
   const fresh = freshnessLine(accounts, now);
   return (
-    <div className={"screen ruled " + pushCls} {...handlers}>
+    <div className={"screen ruled " + pushCls} {...handlers} data-extractor={EXTRACTOR_VERSION}>
       <PageHeader title={EMAIL_TITLE} actions={<>
         <BarAction label={SEARCH_LABEL} onClick={() => setScreen({ kind: "search" })}><Search className="ic" /></BarAction>
         <BarAction label={REFRESH_LABEL} onClick={() => void load("refresh")}><RotateCcw className="ic" /></BarAction>
@@ -363,7 +583,7 @@ export default function EmailFlow({ onOpenConnections, openId, openNonce, onOpen
       )}
       {client && segment === "inbox" && visible.length > 0 && (
         <InboxList groups={groups} labels={labels} now={now} atEnd={atEnd} moreBusy={moreBusy} onLoadMore={() => void loadMore()}
-          onOpen={(row) => setScreen({ kind: "message", row, from: "inbox" })} />
+          onOpen={(row) => setScreen({ kind: "message", row, from: "inbox" })} renderBelow={cardsFor} />
       )}
       <div className="screen-foot" />
 
@@ -372,6 +592,7 @@ export default function EmailFlow({ onOpenConnections, openId, openNonce, onOpen
           actions={[{ label: REMEMBER, onPick: () => void answer(question, true) }, { label: NOT_NOW, onPick: () => void answer(question, false) }]}
           onCancel={() => void answer(question, false)} />
       )}
+      {sheetEl}{captureEl}
     </div>
   );
 }

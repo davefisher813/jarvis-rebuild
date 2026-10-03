@@ -343,3 +343,64 @@ The inbox with two mailboxes (the account as small caps on each row, the whole a
 3. **The palette.** The tab keeps the app's tokens (deviation 22); the Hub's cream island is the sample. One decision for Dave covers both.
 4. **Waiting, compose, reply, capture and cards** are slices 06 to 08: the Waiting segment is an honest empty state, the message has no Reply and no Capture yet, and no candidate is created anywhere in this slice.
 5. **The category question's row is not in the Activity feed yet** (deviation 26).
+
+## Slice 06: deterministic candidates and destination captures (2026-10-03)
+
+Same branch, on top of slice 05. Not merged. Not deployed. Nothing applied to
+a live database. The cards live inside the Email tab behind
+`VITE_JARVIS_FLAGS=email_intake_v1`; with the flag off nothing here mounts.
+
+### What landed
+
+| Area | Files |
+|---|---|
+| Schema | `jarvis-core/supabase/migrations/0049_candidates.sql`: `candidate_propose` (the browser's door for a reading: dedupe by fingerprint; a dismissed fingerprint stays dismissed, replayed; a saved one is replayed as saved; a changed source or payload refreshes the card with a new revision and the older reading of the message is marked stale; a source hash that is not the message's, or a deleted message, is SOURCE_CHANGED; no item is ever written) and `candidates_for` (a page's cards, every status or without the dismissed, each with the message's current source hash and the saved sibling of the same kind). Additive; explicit grants to the signed-in session. |
+| Rollback | `jarvis-core/supabase/rollback/0049_candidates_down.sql`. |
+| Proof | `jarvis-core/supabase/tests/candidates.sh`: 31 checks against the stubbed Supabase, UTF8. |
+| Rules | `src/substrate/extract/`: `text.ts` (the text the rules read: quoted mail and signatures dropped, excerpts and sentences), `money.ts` (amounts with their currency, a bare symbol asks for the currency, "1,234" is ambiguous), `dates.ts` (dates with a year supplied or asked, relative days, times, ranges by a dash character range, durations, the zone and the instant with the DST cases named), `templates.ts` (the five cards of section 10 with provenance per field and the fields still missing; the ICS and the flight itinerary), `index.ts` (`extractCandidates`, `fingerprintOf`, `readingKey`, `EXTRACTOR_VERSION`). A pure function; no network, no model. |
+| Screens | `src/email/CandidateCards.tsx` (the cards under a row or a message), `CaptureSheet.tsx` (the Details sheet per kind, Save Changes, Keep in Email, Source Evidence, what the save adds), `candidates.ts` (the row's shape, `candidates_for` and `candidate_propose` through the session, the one reading per message per version on this device, the card's lines from its payload alone, the words for each kind), `EmailFlow.tsx` (reads a page's cards, runs the rules over loaded rows and opened messages, the receipt screen, Review Latest Details, Capture by hand from More, the conflict check against Money's own list), `InboxList.tsx` (`renderBelow`), `MessageScreen.tsx` (`cards`, `moreActions`, `onBodyText`), `copy.ts`. |
+| Surface | `src/styles/email.css`: the cards in the module fills with dark text on the fill, the badges, the receipt line, the count, the evidence block, the comparison, the sheet's actions and fields. No card is red. |
+| Door | `shell/AppShell.tsx`: a receipt's destination opens its own screen; a module with no screen for the record opens its tab (Money, Tasks, Schedule). |
+| Tests | `src/substrate/extract/extract.test.ts` (21: the four fixture cards and the two rows with none; three of each kind; missing currency, date and zone; a bill's date that never becomes a task or an event; a flight's receipt and itinerary as two cards; the DST and non-existent instants; the same fingerprints on every run), `src/substrate/extract/toModules.test.ts` (7: a fixture mail read by the rules, prepared by the adapter the card would use, inserted exactly as `capture_approve` inserts it and read back through LedgerService, TasksService, ScheduleService and WaitingService; a bill lands only in Money), `src/email/EmailFlow.cards.test.tsx` (9: the screens against a fake session with the candidate table's rules), `src/email/EmailFlow.test.tsx` (17, two expectations widened for the new reads). |
+| Laws | `src/laws/substrateBoundary.test.ts`: `src/email/` is the Email module (it has been since slice 05); the provisional store may be named there. No other law moved. |
+| QA | `qa/checklists/2026-10-03-unified-substrate-06.md` (device rows open), `qa/previews/unified-substrate-06/` (nine screens, light and dark, 390 wide, from a scratch bench through the real stylesheets; the bench was deleted before the commit). |
+| Docs | REPO-MAP.md section 4 (the rules and the two functions, built; the slice 03 row names its callers) and section 6 (deviations 28 to 31); ACCEPTANCE-MATRIX.md rows E07 to E11, E24, E25. |
+
+### What the database proof shows (`tests/candidates.sh`, exit 0, 31 ok)
+
+- Rollback and forward again are clean; forward twice is idempotent.
+- E07: a reading becomes one proposed card with its payload hash, revision 1, its provenance and the rules version; the same fingerprint again is the same card, replayed, with nothing changed; a reading with a different payload under the same fingerprint refreshes the card (new revision, new hash, still proposed); a reading whose source hash is not the message's is refused as SOURCE_CHANGED and nothing is written; a missing field makes the card needs_details; an origin other than rule or manual is refused; no item exists after any proposal.
+- E10: a dismissed card proposed again stays dismissed and says so; a restore brings it back as proposed.
+- E25: a new reading of a message marks the message's older provisional readings stale and reports how many; a saved card is never marked stale; a saved card of the same kind rides along as the saved sibling of the fresh card.
+- The page read: `candidates_for` returns a page's cards in the order they were made, each with the message's current source hash; the dismissed are out unless asked for; another owner sees nothing; a bill candidate can never point at a task item (the 0044 trigger, checked again here).
+
+### What the rules show (`extract.test.ts`, 21 passing)
+
+Con Edison is one bill, $142.30 due October 15, every field from the email, the issuer from the sender, nothing missing; Coach Miller's promise is one waiting card from the sender's own words; Delta's payment receipt is one receipt and never an event; Mrs. Rodriguez's call is one event on October 4 at 10:00 Eastern for fifteen minutes with the offset chosen; Wei's summary and the promo make nothing. Three of each: invoices and balances and a symbol with no currency (asks); a hotel, a purchase with the message's date, a refund kept as a refund; three tasks with and without deadlines; an advisor meeting, a practice with a range, an ICS; three waits. The bill's date never becomes a task or an event; a flight's itinerary is an event and its receipt a receipt, and neither makes the other; a time in a zone the email does not name asks for the zone; a time that does not exist on the spring-forward night and a time that happens twice in the autumn are named, with the offsets offered earliest first; the same text gives the same cards and the same fingerprints on every run.
+
+### What the component tests show (`EmailFlow.cards.test.tsx`, 9 passing)
+
+The rules read the loaded rows: Con Edison gets a bill card and Coach Miller a waiting card, Wei and the promo none, each proposal carrying its fingerprint, provenance and version, no item anywhere, and no second reading of a row this phone already read. One tap on Save Bill is one `capture_approve` with the shown revision and payload hash and the adapter's exact record (vendor, cents, due date), the card becomes "Saved Bill · $142.30" with View, and Undo on the toast is one `action_undo` that brings the card back. View opens the receipt with its destination. Two cards under one mail save independently. The cross dismisses the card and only the card; Show Dismissed Suggestions lists it with Restore; the same fingerprint proposed again is the dismissed row. A card read from an older copy of the email says Email Changed with Review Latest Details and no Save. Money not ready keeps the bill's door shut with the module's own line while the task's door stays open. Capture a Task from More opens the sheet empty, the typed title opens Add Task, the save is an edit and then the one approval, the task is in the list with the exact text, and no model and no network beyond the email routes were touched. Save Changes edits the card and writes nothing anywhere else.
+
+### Repository checks
+
+| Check | Command | Result |
+|---|---|---|
+| Database proofs | `tests/candidates.sh` | exit 0, 31 ok; `email.sh`, `review.sh`, `commands.sh`, `substrate.sh`, `gateway.sh` unchanged |
+| App typecheck | `npx tsc --noEmit` | exit 0 |
+| App lint | `npx eslint src/email src/substrate/extract src/substrate/destinations src/shell/AppShell.tsx` | 0 errors, 0 warnings |
+| The slice's tests | `npx vitest run src/email src/substrate/extract src/substrate/destinations` | 9 files, 104 tests passed |
+| Laws | `npx vitest run src/laws src/substrate/extract` | 42 files, 828 tests passed (once the scratch bench was removed; the reachability law names it while it exists, as it should) |
+| Previews | the scratch bench served by `vite` on 5183, captured by Playwright at 390 by 844, 2x, light and dark | 18 shots under `qa/previews/unified-substrate-06/` |
+| Full gate | `QA_PUBLISH=0 node qa/check.js` | Every stage PASS (core-types, core-tests, app-types, app-lint at the same 41 warnings as before this slice, app-tests the whole suite with the cards' tests and every law in 262s, app-build, app-legal); `house` lists exactly slice 01's nine pre-existing em-dash files, none touched here. The gate's own exit is 1 for that house list and for the open manual checklist (ten device rows), as it was for slices 01 to 05. Reports under `qa/reports/`, gitignored. |
+
+### What the previews show, and what they do not
+
+The inbox with a green Money card under Con Edison (the amount large, "Due Oct 15 · Con Edison", Save Bill and Details, the cross) and an amber Waiting card under Coach Miller, nothing under Wei or the promo; the message with its card above the body; the Details sheet with the bill's fields, the summary line, the message's text as Source Evidence, the provenance line and "Saves Only the Bill · Sends Nothing"; the saved card as a receipt line with View, and the receipt itself in the Hub's island with its before and after, its evidence and Undo; a mail with three readings showing two cards and "1 More Suggestion"; a stale card with Email Changed and Review Latest Details; Money not ready with the bill's door shut and the task's open; Capture a Task by hand with its empty sheet. The cards wear the module fills and none is red. They run on Linux with no SF font, and the sheet's title truncates there sooner than on the phone. They are not a device check: rows 1 to 10 of the checklist stay open.
+
+### Gates this session did not pass, stated plainly
+
+1. **Migrations 0044 to 0049 not applied; the flag not set.** All Dave's. With the flag off nothing here mounts; with it on and 0049 absent, `candidates_for` and `candidate_propose` are missing functions: the page shows its rows with no cards and says nothing about them (the readings are not remembered, so they run again once the migration lands), and a Capture by hand says "Couldn't Reach JARVIS · Try Again" on a toast. Never a blank.
+2. **No live Gmail and no device.** The rules are proven on fixture mail; real mail's wording is the device rows. The sheet above a real keyboard, 200% text and the scroll of a long card list are device rows.
+3. **Money's conflict check reads the device's loaded ledger** (deviation 31); the server's fingerprint dedupe stands behind it, so a duplicate is refused either way, but the "May Already Exist" line is only as current as the last ledger read.
+4. **Compose, replies and sending** are slice 07; the Waiting segment and the Today feed slice 08. A waiting card saves a Waiting row today; the segment that lists them is next.
