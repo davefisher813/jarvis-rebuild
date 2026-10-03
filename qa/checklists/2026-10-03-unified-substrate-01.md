@@ -4,7 +4,7 @@ Commit: 68ef481 (the slice 01 commit on `claude/trusting-faraday-avniag`; this c
 Date: 2026-10-03
 Checked by: Claude Code, in the repo; the phone rows are Dave's
 QA report: `QA_PUBLISH=0 node qa/check.js`, not published
-Preview: qa/previews/2026-10-03-unified-substrate-01/ (the Advanced card, 390 by 844, both themes, before and after the migration)
+Preview: qa/previews/unified-substrate-01/ (the Advanced card, 390 by 844, both themes, before and after the migration)
 
 **What Dave asked for, in his words:** "Start with JARVIS-Unified/START-HERE.md, then work through the 9 sequenced prompts in JARVIS-Unified/prompts/ in order (01 through 09). Work on your own branch, keep it rebased on main, and do NOT merge to main - report back as each prompt's work lands and wait for Dave's go-ahead before any merge."
 
