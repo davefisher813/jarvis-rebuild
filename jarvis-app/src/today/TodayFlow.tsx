@@ -15,12 +15,13 @@ import type { TaskItem } from "../tasks/TasksService";
 import { greetingFor, longDate, shortDate } from "./greeting";
 import { tomorrowISO, nowHHMM, daySummary, dayRing, todaysTasks, billsLine, dueBills, payTarget } from "./todayData";
 import TodayPage from "./TodayPage";
-import MailNotices from "./MailNotices";
+import MailNotices, { type MailActResult } from "./MailNotices";
 import ReportFlow, { reportSeen, markReportSeen } from "../review/ReportPage";
 import { monthName as monthTitle } from "../review/report";
 import { useOptionalSeal, useOptionalLedger } from "../data/NotesProvider";
 import { ENTITY_MONEY_BILL, type Bill } from "../money/ledger/types";
 import { useMarkBillPaid } from "../money/useMarkBillPaid";
+import { fileEmailBill, type FiledBill } from "../money/ledger/emailBill";
 import NoticeCard from "./NoticeCard";
 import { rowDoor, own } from "../shared/rowDoor";
 import { FAILING, WAITING, NEW, RESUME, LIVE, spotIsDuplicate } from "./stream";
@@ -310,6 +311,8 @@ export default function TodayFlow({
   // and, since UP-CORE-08, to make and find a meeting's own page.
   const notesSvc = useNotes();
   const tasks = useTasks();
+  // Where a mail bill goes: Money, never Tasks (ledger hard rule 1).
+  const mailLedger = useOptionalLedger();
   const profile = useProfile();
   const rulesSvc = useOptionalRules();
   const routine = useRoutine();
@@ -3846,7 +3849,7 @@ export default function TodayFlow({
   // mistaken for something he typed. It returns the receipt AND the undo,
   // because this is the only card that changes the schedule without opening
   // anything first, so a wrong one has to be one tap from gone.
-  const takeAct = async (a: MailAct, threadId: string): Promise<{ receipt: string; undo?: () => Promise<void> } | null> => {
+  const takeAct = async (a: MailAct, threadId: string): Promise<MailActResult | null> => {
     const src = { type: "gmail" as const, ref: threadId, ts: Date.now() };
     const when = dayPhrase(a.date, today);
     // attemptWrite resolves a boolean, so the new id comes back out through a
@@ -3871,6 +3874,35 @@ export default function TodayFlow({
         undo: async () => { await attemptWrite(() => schedule.deleteEvent(id)); await reload(); },
       };
     }
+    if (a.verb === "bill") {
+      // A BILL IS MONEY'S, NEVER A TASK (ledger hard rule 1). It is filed in
+      // the ledger, keyed to this thread, with the date the mail stated as
+      // its due date (readAct drops an act with no readable date). A thread
+      // already in Money is not filed twice: the same amount is reported and
+      // a changed amount or date is offered as an update, nothing written.
+      if (!mailLedger) return null;
+      const box: { f?: FiledBill } = {};
+      const wrote = await attemptWrite(async () => {
+        box.f = await fileEmailBill(mailLedger, { vendor: a.title, amount: a.amount!, dueDate: a.date }, threadId);
+      });
+      const f = box.f;
+      if (!wrote || !f) return null;
+      if (f.status === "invalid") return { receipt: f.message, held: true };
+      if (f.status === "update") {
+        return {
+          receipt: f.message,
+          held: true,
+          offer: { label: "Update", run: async () => { const r = await f.apply(); await reload(); return r.message; } },
+        };
+      }
+      await reload();
+      if (f.status === "duplicate") return { receipt: lineCase(f.message) };
+      const billId = f.id;
+      return {
+        receipt: lineCase(`In Money · $${a.amount!.toFixed(2)} due ${when}`),
+        undo: async () => { await attemptWrite(() => mailLedger.removeBill(billId)); await reload(); },
+      };
+    }
     const ok = await attemptWrite(async () => {
       made = await tasks.createTask(a.title, {
         due: a.date,
@@ -3880,9 +3912,6 @@ export default function TodayFlow({
         // them to someone in Contacts. Read off the snapshot rather than
         // matched here, so there is one resolver and one rule.
         ...(personIdOfThread(threadId) ? { personId: personIdOfThread(threadId)! } : {}),
-        // A bill is a task wearing money facts (notes/types.ts), so Money
-        // needs no separate write and the row appears where he pays things.
-        ...(a.verb === "bill" ? { bill: { amount: a.amount! } } : {}),
         ...inheritFromThread(taskItems, threadId),
       });
     });
@@ -3890,7 +3919,7 @@ export default function TodayFlow({
     if (!ok || !id) return null;
     await reload();
     return {
-      receipt: lineCase(a.verb === "bill" ? `In Money · $${a.amount!.toFixed(2)} due ${when}` : `Added to your tasks · ${when}`),
+      receipt: lineCase(`Added to your tasks · ${when}`),
       undo: async () => { await attemptWrite(() => tasks.deleteTask(id)); await reload(); },
     };
   };

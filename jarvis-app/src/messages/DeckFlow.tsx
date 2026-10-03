@@ -2,7 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { AIService } from "../ai/AIService";
 import type { GoogleApi } from "../connections/google/api";
 import { mapThreadFull, buildReply, type ThreadRow, type ThreadFull } from "../connections/google/map";
-import { useTasks, useSchedule, usePeople } from "../data/NotesProvider";
+import { useTasks, useSchedule, usePeople, useLedger } from "../data/NotesProvider";
+import { fileEmailBill, noteFor } from "../money/ledger/emailBill";
 import { makePersonIdFor, noPersonId, type PersonIdFor } from "./personFor";
 import { useAIContext } from "../ai/useAIContext";
 import { voiceToText } from "../ai/context";
@@ -87,6 +88,8 @@ export default function DeckFlow({ ai, apiFor, threads, queueSend, limitMs, onDo
   now?: () => number;
   }) {
   const tasks = useTasks();
+  // A bill is Money's and never a task (ledger hard rule 1).
+  const ledger = useLedger();
   const schedule = useSchedule();
   const people = usePeople();
   // UP-MIND-10 (2026-09-05): the Sweep writes bills, events and tasks off a
@@ -386,15 +389,34 @@ export default function DeckFlow({ ai, apiFor, threads, queueSend, limitMs, onDo
         // back to the thread two days later. madeBy("email", row.id) is the
         // same stamp those paths already use; row.id is the thread id
         // (archiveRemote below sends it straight to modifyThread).
-        await tasks.createTask("Pay " + plan.bill.name, {
-          due: plan.bill.due ?? null,
-          bill: { amount: plan.bill.amount },
-          fromThread: row.id,
-          source: madeBy("email", row.id),
-          ...(personIdFor(row.fromEmail) ? { personId: personIdFor(row.fromEmail)! } : {}),
-        });
-        cleared = await archiveRemote(row.id, row.account);
-        receipts.current.bills += 1;
+        //
+        // MONEY'S, NOT A TASK'S (ledger hard rule 1). The bill is filed in the
+        // ledger, keyed to this thread (`gmail:<id>`), with the due date only
+        // when the email wrote one (parseDeckPlan drops the rest: rule 3). A
+        // thread whose bill is already in Money is not filed twice (rule 4):
+        // the same amount is reported, a changed amount or date is offered
+        // as an update and the mail stays in the inbox until it is answered.
+        const filed = await fileEmailBill(ledger, { vendor: plan.bill.name, amount: plan.bill.amount, dueDate: plan.bill.due ?? null }, row.id);
+        if (filed.status === "invalid") {
+          // Nothing written, nothing archived: the card stays where it is.
+          showToast({ message: filed.message });
+          return;
+        }
+        const note = noteFor(filed, ledger);
+        showToast(
+          {
+            message: note.message,
+            ...(note.action ? { actionLabel: note.action.label, onAction: () => { void note.action!.run().then((m) => showToast({ message: m }), () => showToast({ message: "Couldn't Save It \u00b7 Nothing Was Changed" })); } } : {}),
+          },
+          filed.status === "update" ? 12000 : 5000,
+        );
+        if (filed.status === "update") {
+          cleared = false;
+        } else {
+          cleared = await archiveRemote(row.id, row.account);
+          if (filed.status === "added") receipts.current.bills += 1;
+          else receipts.current.archived += 1;
+        }
       } else if (plan.kind === "event" && plan.event) {
         await schedule.createEvent(plan.event.title, {
           date: plan.event.date,

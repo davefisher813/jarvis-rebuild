@@ -218,7 +218,11 @@ describe("EMAIL law 2: every manual task path asks for an existing task first", 
   it("the ledger, the attachment offer, the waiting row, and the Later picker", () => {
     guardedBefore(FLOW, "const id = await tasks.createTask(r.what, {", "the ledger's Add Task");
     guardedBefore(FLOW, "const id = await tasks.createTask(ev.title, { due: ev.date, fromThread: thread.id", "the attachment offer's all-day invite");
-    guardedBefore(FLOW, "? await tasks.createTask(offer.title, { bill: { amount: offer.amount }, fromThread: thread.id", "the attachment offer");
+    // A bill offer is Money's (ledger hard rule 1): it asks the ledger for the
+    // thread's bill first (fileEmailBill), and only a plain offer makes a task.
+    expect(FLOW, "the attachment offer's bill never reaches createTask").not.toMatch(/createTask\(offer\.title, \{ bill/);
+    expect(FLOW, "the attachment offer files its bill by thread").toMatch(/fileEmailBill\(moneyLedger, \{ vendor: displayName\(m\.from\), amount: offer\.amount/);
+    guardedBefore(FLOW, "const id = await tasks.createTask(offer.title, { fromThread: thread.id", "the attachment offer's task");
     guardedBefore(FLOW, "const id = await tasks.createTask(laterTaskTitle(displayName(row.to), row.subject ?? \"\"), {\n          due: todayISO(),", "the waiting row's Add Task");
     guardedBefore(FLOW, "const id = await tasks.createTask(laterTaskTitle(displayName(r.from), r.subject), {", "the Later picker");
   });

@@ -12,6 +12,7 @@ import { ProjectsService } from "./projects/ProjectsService";
 import { MoneyService } from "./money/MoneyService";
 import { PeopleService } from "./people/PeopleService";
 import type { SealService } from "./review/seal";
+import { LedgerService } from "./money/ledger/LedgerService";
 import { todaysTasks, daySummary } from "./today/todayData";
 import { todayISO } from "./schedule/calendar";
 
@@ -90,6 +91,31 @@ describe("integration: demo seed feeds Today", () => {
     await seedDemoData(tasks, schedule, cats);
     expect((await schedule.listEvents()).length).toBe(12);
     expect((await tasks.listTasks()).length).toBe(9);
+  });
+});
+
+describe("integration: the demo's bills are Money's, not tasks", () => {
+  it("seeds Rent, Internet and Car Insurance into the ledger, no bill task, once", async () => {
+    const { tasks, schedule, categories, store, o } = svc();
+    await categories.seedDefaults("personal");
+    const ledger = new LedgerService(store, o);
+    const extras = { ...extrasFor(store, o), ledger };
+    await seedDemoData(tasks, schedule, await categories.list(), extras);
+    await seedDemoData(tasks, schedule, await categories.list(), extras);
+    const bills = await ledger.listBills();
+    expect(bills.map((b) => b.data.vendor).sort()).toEqual(["Car Insurance", "Internet", "Rent"]);
+    expect(bills.every((b) => b.data.source === "manual" && !!b.data.dueDate)).toBe(true);
+    expect((await tasks.listTasks()).some((t) => t.data.bill)).toBe(false);
+  });
+
+  it("leaves an account that already holds bill tasks alone", async () => {
+    const { tasks, schedule, categories, store, o } = svc();
+    await categories.seedDefaults("personal");
+    // A legacy bill task is read through the store directly: createTask now refuses one.
+    await store.create(o, "task", { text: "Rent", category: "", done: false, bill: { amount: 2200 } } as never);
+    const ledger = new LedgerService(store, o);
+    await seedDemoData(tasks, schedule, await categories.list(), { ...extrasFor(store, o), ledger });
+    expect(await ledger.listBills()).toEqual([]);
   });
 });
 
