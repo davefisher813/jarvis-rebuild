@@ -100,7 +100,8 @@ export async function handleAgentRequest(req: GatewayRequest, deps: GatewayDeps)
   // 4b. The ceiling, from what the token resolved to. The database asks the
   // same questions again with the switches and the grant in hand; this
   // refuses the plainly refused (a read-only agent proposing, an unverified
-  // capability) without a round trip and without a receipt of a denied call.
+  // capability) before any function runs. The refusal leaves a safe receipt
+  // (who, which method, which code; never the params), coalesced by the hour.
   const op = operationOf(method, (params as { surface?: unknown }).surface);
   if (op) {
     const verdict = authorize({
@@ -114,7 +115,11 @@ export async function handleAgentRequest(req: GatewayRequest, deps: GatewayDeps)
       aiSwitch: "ok",
       operation: op,
     });
-    if (!verdict.allow) return fail(verdict.code === "USER_ONLY" ? "SCOPE_DENIED" : verdict.code, cid);
+    if (!verdict.allow) {
+      const code = verdict.code === "USER_ONLY" ? "SCOPE_DENIED" : verdict.code;
+      await deps.rpc("access_denied_record", { p_owner: agent.owner_id, p_connection: agent.connection_id, p_method: method, p_code: code }).then(() => undefined, () => undefined);
+      return fail(code, cid);
+    }
   }
 
   const owner = agent.owner_id;

@@ -83,10 +83,19 @@ describe("the agent gateway handler", () => {
     expect(r.status).toBe(403);
     expect((r.body as { code: string }).code).toBe("MODE_CEILING");
     expect(ro.calls.map((c) => c.fn)).not.toContain("proposal_submit");
+    // The safe denied receipt (S02): who, which method, which code. Never the params.
+    const denied = ro.calls.find((c) => c.fn === "access_denied_record");
+    expect(denied?.args).toEqual({ p_owner: OWNER, p_connection: CONN, p_method: "proposal.submit", p_code: "MODE_CEILING" });
+    expect(JSON.stringify(denied)).not.toContain("statement");
     const nd = rig();
     const d = await handleAgentRequest(post({ protocol_version: 1, method: "draft.submit", params: { package_id: PKG, draft: { account_id: OWNER, to: ["a@example.test"] } } }), nd.deps);
     expect((d.body as { code: string }).code).toBe("CAPABILITY_UNVERIFIED");
     expect(nd.calls.map((c) => c.fn)).not.toContain("draft_submit");
+    expect(nd.calls.find((c) => c.fn === "access_denied_record")?.args.p_code).toBe("CAPABILITY_UNVERIFIED");
+    // A failing receipt write never turns a refusal into anything else.
+    const broken = rig({ access_denied_record: () => ({ data: null, error: { code: "500" } }) }, "connected", "read_only");
+    const still = await handleAgentRequest(post({ protocol_version: 1, method: "proposal.submit", params: { package_id: PKG, surface: "project", type: "decision", payload: { statement: "x" }, idempotency_key: "k" } }), broken.deps);
+    expect(still.status).toBe(403);
   });
   it("a function's refusal becomes the protocol's error: code, safe line, correlation id, status", async () => {
     const r = await handleAgentRequest(post({ protocol_version: 1, method: "context.preview", params: { job_id: JOB } }), rig({ context_preview: () => ({ data: { error: "STALE_SCOPE" }, error: null }) }).deps);

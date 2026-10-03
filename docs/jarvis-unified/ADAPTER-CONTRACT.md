@@ -86,6 +86,26 @@ adapter's `destinationKind` matches the registry's route. Anything less is
 Here". A missing function (PostgREST `PGRST202`) reads as the migration not
 applied. Nothing is ever ready on a guess.
 
+## What the server checks again (slice 03)
+
+`capture_approve` takes the adapter's output as `p_prepared`:
+
+```
+{ destination_kind, data, exact_effect, display_summary, module_version, evidence_excerpt? }
+```
+
+`src/substrate/commands/captures.ts` builds it with `preparedForServer(prepared)`; `data` is byte for byte the adapter's `data`. The database then takes its own second look before the item is written (`jarvis_capture_valid`), the same invariants the module writers hold, named as the first field that fails:
+
+| Kind | Destination | Must hold |
+|---|---|---|
+| bill | `money_bill` only | `vendor` non-empty; `amountCents` a positive integer; `currency` three capitals; `dueDate` ISO if present; `fingerprint` and a `history` array; never `paidAt` or `paidEvidence` on a capture |
+| receipt | `money_receipt` only | `vendor`, positive integer `amountCents`, `currency`, ISO `transactionDate`, `fingerprint`, `history` |
+| task | `task` only | `text` non-empty; `due` ISO if present; never `bill`, `amount`, `amountCents` or `vendor` (a bill is never a task) |
+| event | `event` only | `title`; `date` ISO and `start` HH:MM; `end` HH:MM if present |
+| waiting | `waiting` only | `title`, `waitingFor`, `counterpartyDisplay`; `status` open |
+
+A kind that does not match the candidate's kind is INVALID_PAYLOAD; a destination whose entity type is not registered is MODULE_UNAVAILABLE and the candidate stays. Money's duplicate rule is applied by the server as well: the same `fingerprint` is the same record, the receipt says "Already in Money · ..." and nothing new is written; Undo then refuses, because the capture created nothing.
+
 ## Changing it
 
 - A module that changes its stored shape updates its writer, watches the

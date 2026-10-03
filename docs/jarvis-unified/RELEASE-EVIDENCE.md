@@ -156,3 +156,63 @@ a live database. No agent token exists anywhere but the test harness.
 2. **Migrations 0044 and 0045 not applied; `JARVIS_CONTEXT_KEY` not set.** Both are Dave's, in that order. Nothing in the app changes until slice 04 draws the Hub.
 3. **No deploy, no live verification.** The three phone rows in the checklist are the live checks.
 4. **Denied agent calls write no receipt.** The spec asks for "safe denied receipt" (S02). This slice answers a denial and logs a correlation id; a `denied` receipt row per refused call is deferred to slice 03 with the rest of the receipt vocabulary, so one slice decides what a denied receipt carries.
+
+## Slice 03: shared commands, exact approvals and receipts (2026-10-03)
+
+Same branch, on top of slice 02. Not merged. Not deployed. Nothing applied to
+a live database. No provider was called: the Gmail send itself is slice 07's
+`dispatch`; this slice is the machine that makes it safe.
+
+### What landed
+
+| Area | Files |
+|---|---|
+| Schema | `jarvis-core/supabase/migrations/0046_commands_approvals_receipts.sql`: the `outbox_command` table (reviewed, queued, claimed, dispatched, confirmed, failed, outcome_unknown, cancelled; a fencing token and a lease); the helpers `jarvis_receipt_append`, `jarvis_capture_valid`, `jarvis_undo_block`, `jarvis_action_provisional_email`, `jarvis_action_replay`, and 0044's receipt trigger extended so an erasure may set the verb to Erased; the person's functions `candidate_edit`, `candidate_dismiss`, `candidate_restore`, `capture_approve`, `action_undo`, `receipt_erase`, `command_review`, `command_approve`, `command_cancel`, `activity_feed`, `receipt_detail`; the server's `outbox_claim`, `outbox_dispatched`, `outbox_settle`, `outbox_reconcile`, `outbox_sweep`, `approvals_sweep`, `reported_external_record`, `access_denied_record`. Additive. |
+| Rollback | `jarvis-core/supabase/rollback/0046_commands_approvals_receipts_down.sql` (puts 0044's trigger function back as it was). |
+| Proof | `jarvis-core/supabase/tests/commands.sh`: 167 checks against the stubbed Supabase, UTF8 like the live project. |
+| Client | `src/substrate/commands/errors.ts` (the command result shape, the error vocabulary with its house lines, the request id), `commands/captures.ts` (approve through the adapter's `prepare`, undo, edit, dismiss, restore, the ten-second Undo toast window), `commands/sends.ts` (review, tap, cancel, the five-minute nonce), `commands/receipts.ts` (the feed, the detail, erase, the actor and assurance and status lines, the review count line, the export text). |
+| Worker | `src/substrate/outbox/worker.ts`: claim, mark dispatched, call the provider, settle; a throw after the mark is outcome_unknown; a lost lease at the mark means nothing leaves. Pure, with the provider call injected; `api/email/*.ts` runs it in slice 07. |
+| Gateway | `src/substrate/gateway/handler.ts`: a refusal at the ceiling now writes the safe denied receipt (`access_denied_record`: who, method, code; never the params), closing slice 02's fourth open gate. |
+| Tests | `commands/errors.test.ts`, `commands/captures.test.ts`, `commands/sends.test.ts`, `commands/receipts.test.ts`, `outbox/worker.test.ts`; `gateway/handler.test.ts` extended. |
+| Laws | `laws.test.ts`: `sends.ts` and `worker.ts` rostered as unwired with the slice that wires them (07). The number-leading-line law reshaped two lines ("1 To Review in Email", the interval "2 Minutes"). |
+| Docs | REPO-MAP.md section 4 (the homes, now built) and section 6 (deviations 11 to 16); ADAPTER-CONTRACT.md "What the server checks again"; ACCEPTANCE-MATRIX.md rows S04, S07, S13 to S19, S24. |
+
+### What the database proof shows (`tests/commands.sh`, exit 0, 167 ok)
+
+- S16, before anything is saved: the global feed omits the suggestion row, never carries the candidate's vendor, and carries only the review count; the Email scope shows the suggestion; another owner's feed holds none of it.
+- Access: anon cannot approve; another owner's candidate is NOT_FOUND; no session is AUTH_REQUIRED.
+- Refusals that write nothing: a stale revision and a wrong hash are SOURCE_CHANGED with the owned current values; a bill sent to Tasks is refused; a task carrying an amount is refused as bill_is_not_a_task; an unregistered destination is MODULE_UNAVAILABLE; a bill without its ledger fields is MISSING_DETAILS; an authority key in an edit refuses the edit whole; after all of them, no item, no action, the candidate still proposed.
+- S14: a trigger made the receipt insert fail after the item write; no item, no action, no approval, no evidence; the candidate still proposed.
+- The atomic save: confirmed with the exact verb "Saved $142.30 Bill to Money"; a Money bill owned by the person carrying the adapter's data untouched; the candidate saved and pointing at it; the key is the server's; the rule is the actor and the person the initiator; the approval created and consumed by the tap, bound to the hash and the account; one confirmed receipt with the evidence excerpt (not the message) and the card's fields as the diff.
+- S15: the same request id replays; another device with another id and the same card gets the same action; an older card on another device is IDEMPOTENCY_CONFLICT with the saved action; two sessions racing for the task card name one action, write one task, and exactly one of them was the write.
+- The feed after a save shows the exact verb, marks it undoable, and the review count fell; the detail carries the chain, the evidence, the actor and approved-by-you; another owner cannot read it.
+- Undo: a wrong expected revision is DESTINATION_CHANGED; the undo removes the item with "Removed From Money · Con Edison", brings the card back at a new revision with no destination, records the reversal on the original's chain, replays, and the feed stops offering it; the old card's revision cannot be approved again, the current one saves as a new action under a new key; an item edited since (paid) is DESTINATION_CHANGED then REFERENCED and untouched; a task an event points at is REFERENCED; an item removed elsewhere is "Item removed".
+- Edit, needs details, dismiss, restore: a missing field makes needs_details at a new revision tagged entered_by_user; approving it names the field; a stale edit is SOURCE_CHANGED; the hash moves with an edit and the old hash cannot approve the new card; dismiss is by revision, leaves the source row untouched, blocks approval; restore; a source that changed underneath is SOURCE_CHANGED and the card is marked stale.
+- An agent-origin capture credits the agent (actor), names the person (initiator and approved_by), and the receipt names the assistant.
+- S19: erase leaves Erased with no words anywhere, an opaque action tombstone, the item untouched; the browser cannot update or delete a receipt; a server cannot rewrite a verb outside an erasure; another owner's erase is NOT_FOUND; a settled send's snapshot is blanked; an in-flight command refuses erasure.
+- Sends: an authority key in a review is refused; a review needs the person's connected account; the snapshot is held in the outbox as reviewed and nothing can claim it; S17: a different hash is REVIEW_CHANGED with the approval unconsumed; another owner cannot tap; the tap approves and queues, consumes the approval once, replays, and the nonce cannot bind another payload; the browser cannot claim or settle; the worker claims under a token with the exact payload and the action runs; a second worker finds nothing; a wrong token is NOT_FOUND; a claim never dispatched cannot be confirmed; cancel while claimed is cancellation_requested; unknown before dispatch settles as failed with no provider ack.
+- S18: dispatched under the token once; cancel after dispatch cannot recall it; a failure without a refusal code is outcome_unknown with the honest line; an unknown command is never claimed again; reconciliation refuses no evidence and refuses absence of a search hit; a provider message id confirms with provider_ack assurance.
+- A lapsed claim that never dispatched is claimed again as attempt 2 and the old token is dead; a dispatched command past its lease is never claimed and the sweep marks it unknown.
+- Approval expiry: a tap after the nonce lapsed is APPROVAL_EXPIRED, the action closed and the snapshot cancelled; a queued command approved more than five minutes ago lapses at the claim with "Not Sent · Approval Expired · Review It Again"; the sweep closes reviews nobody tapped.
+- Cancel: a review, then the tap does nothing; a queued command, then nothing to claim.
+- S07 and S24: a queued command whose account needs reauth fails at the claim with "Not Sent · Reconnect Gmail"; a review with the account disconnected is PROVIDER_AUTH; disconnected after dispatch, the ack still settles it as confirmed with the provider's ack; a send cannot be called confirmed without an ack; the spent token is dead.
+- S13: a reported outside action is reported_external in words, replays by key, moves no JARVIS command, cannot be recorded by the browser, and a revoked connection cannot report.
+- S02: a denied agent call is recorded as who, method and code with no params; a repeat in the hour bumps the count and adds no receipt; a different code is its own row; the browser cannot record one; a non-code is refused; another owner's connection is NOT_FOUND; the person sees "Denied · Suggest" in Activity.
+- Invariants over everything above: no confirmed capture receipt without its committed item (except the one the person removed in Tasks, counted); no confirmed send receipt without a provider ack; no receipt outside its action's owner; every approval bound to its action's hash; receipts a gapless sequence per action; the global feed still carries no provisional text.
+
+### Repository checks
+
+| Check | Command | Result |
+|---|---|---|
+| Database proofs | `tests/commands.sh`, `tests/substrate.sh`, `tests/gateway.sh` | exit 0, 167 ok; exit 0, 144 ok; exit 0, 113 ok |
+| App typecheck | `npx tsc --noEmit` | exit 0 |
+| App lint | `npx eslint src` | 0 errors, 39 warnings (baseline; the new files add none) |
+| Substrate and laws | `npx vitest run src/substrate src/laws` | 54 files, 915 tests passed |
+| Full gate | `QA_PUBLISH=0 node qa/check.js` | Run 1 (`qa/reports/2026-10-03T07-30-…`): every stage PASS except `house`, which added a tenth file to slice 01's nine: `src/laws/laws.test.ts`, 2 em dashes, because this branch edits that file (the rosters) and a touched file loses its grandfathering. Fixed: the comment names the character in words and the law's own probe uses the `\u2014` escape, so the law still bites and the file is clean; its baseline entry is removed. Run 2 (`qa/reports/2026-10-03T07-39-…`, gitignored): core-types, core-tests (95 tests), app-types, app-lint (41 warnings, the gate's own count of the unchanged baseline), app-tests (the whole suite, 246s), app-build and app-legal all PASS. The `house` stage FAILS on the same nine pre-existing em-dash files slice 01 named, every one byte-identical on `main` and untouched by this branch; nothing new. The preview note is the same branch-diff artifact as slice 02 (slice 01's `AdvancedPage.tsx`; this slice touched no screen). The manual checklist reads `open` (three device rows), which is the truth. |
+
+### Gates this session did not pass, stated plainly
+
+1. **No provider call, so no send.** The worker's `dispatch` is injected and slice 07 supplies the Gmail one; nothing in this slice can send mail, and the acceptance rows above say LOCAL PROOF, not live.
+2. **Migrations 0044 to 0046 not applied.** Dave's, in order, on a Postgres 15 or newer project. Nothing in the app changes until the cards (06) and Activity (04) call these functions; the flags stay off.
+3. **No deploy, no live verification.** The three phone rows in the checklist are the live checks.
+4. **The phone's own reading of the Undo toast and the receipt detail waits for its screens** (slices 04 and 06); the lines and the ten-second window are tested as functions.

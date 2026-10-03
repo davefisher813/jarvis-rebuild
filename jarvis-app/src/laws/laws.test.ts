@@ -71,10 +71,10 @@ const swept = (r: string) => !SECOND_PASS.some((p) => r.startsWith(p)) && !isSen
 const RULED = readFileSync(join(SRC, "styles/ruled.css"), "utf8");
 
 describe("LAW: no em dashes, anywhere", () => {
-  // Cost: three separate sweeps missed these, because they hide as —
+  // Cost: three separate sweeps missed these, because they hide as an em dash
   // escapes and because truncated grep output lies.
   it("no literal em dash in any source file", () => {
-    const hits = SOURCES.filter((f) => read(f).includes("—")).map(rel);
+    const hits = SOURCES.filter((f) => read(f).includes("\u2014")).map(rel);
     expect(hits).toEqual([]);
   });
 
@@ -2122,6 +2122,8 @@ describe("LAW: every module is reachable, or is listed as not", () => {
     // local tag rule). The category chips that record a tap are the Email
     // redesign, slice 05.
     "categoryTaps.ts": "slice 05 adds the category chips that record the taps",
+    "sends.ts": "slice 07 mounts the Review Send sheet that calls it",
+    "worker.ts": "slice 07 adds the api/email send route that runs it on the server",
     // (fileStorage.ts left this list on 2026-09-02: files/FileStore routes
     // every upload through it, from the clip on Notes and Money.)
     // (HealthFlow.tsx left this list on 2026-09-05, HMN-F-06 option A: the
