@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import PageHeader, { BarAction } from "../shared/PageHeader";
-import { useMoney, useTasks, useProfile, useCategories, useOptionalGoals, useOptionalFiles, useFileStore, useTracker, useOptionalLedger } from "../data/NotesProvider";
+import { useMoney, useTasks, useProfile, useCategories, useOptionalGoals, useTracker, useOptionalLedger } from "../data/NotesProvider";
 import { effectiveKind } from "../categories/kinds";
 import { ACCOUNT_META, ACCOUNT_KINDS, ENTITY_ACCOUNT, formatMoney, totalBalance, isLiability, signedBalance, type Account, type AccountData, type AccountKind } from "./types";
 import { useFreshLists } from "../data/useFreshLists";
@@ -19,6 +19,8 @@ import { isPaid } from "./ledger/status";
 import { ENTITY_MONEY_BILL, type Bill, type BillRecurrence } from "./ledger/types";
 import { dismissSuggestion, isSuggestionDismissed, suggestionKey } from "./suggestionMemory";
 import TrackerScreen from "./screens/TrackerScreen";
+import ReceiptsSection from "./screens/ReceiptsSection";
+import MatchesCard from "./screens/MatchesCard";
 import type { TaskItem } from "../tasks/TasksService";
 import { showToast } from "../shared/toast";
 import { todayISO } from "../tasks/grouping";
@@ -31,16 +33,8 @@ import { lineCase, titleCase } from "../shared/casing";
 import { inMonth, thisMonth, incomeCents, spentCents, fmtCents, ENTITY_MONEY_TX } from "./tracker";
 import type { Goal } from "../life/types";
 import { savingsLine, savingsPct, savedTotal } from "../bigger/savings";
-import { usePickFile } from "../shared/usePickFile";
-import RowActionSheet from "../shared/RowActionSheet";
-import { sizeLabel, fileStem, type UserFile } from "../files/types";
-import { useAI } from "../ai/useAI";
-import { buildVisionMessage } from "../ai/AIService";
-import { JARVIS_VOICE } from "../ai/voice";
-import { encodeImageForVision } from "../shared/imageEncode";
 import { madeBy } from "../shared/provenance";
-import { RECEIPT_EXTRACT_PROMPT, parseReceiptExtract } from "./receiptExtract";
-import { Paperclip, Image as ImageGlyph, FileText, Calendar, FolderKanban, Check as CheckGlyph, Trash2 } from "../shared/icons";
+import { Paperclip, Calendar, FolderKanban, Check as CheckGlyph, Trash2 } from "../shared/icons";
 import { useSwipe } from "../shared/useSwipe";
 import { FormSheet, Group, FieldRow, MenuRow, DeleteRow, ErrorLine } from "../shared/FormSheet";
 import { pressable, onPressKey } from "../shared/pressable";
@@ -331,83 +325,10 @@ export default function MoneyFlow({ onOpenTask, onOpenEntity, openAccountId, ope
   };
   const today = todayISO();
 
-  // RECEIPTS (Dave 2026-09-02: "both pages need to have a pic/file upload
-  // button (that's fully wired)"; picked "A Receipts card on the page").
-  // The clip in the bar opens the phone's own sheet (camera, library,
-  // files); the file goes to the user's private storage and lands in the
-  // Receipts card, newest first: name, date, size. Tap opens it; the trash
-  // removes it with Undo. The row is made first because the storage path
-  // carries its id; a failed upload takes the row back with it.
-  const ai = useAI();
-  const filesSvc = useOptionalFiles();
-  const fileStore = useFileStore();
-  const [receipts, setReceipts] = useState<UserFile[]>([]);
-  const [uploading, setUploading] = useState(false);
-  const loadReceipts = useCallback(async () => {
-    if (!filesSvc) return;
-    setReceipts(await filesSvc.list("money"));
-  }, [filesSvc]);
-  useEffect(() => { void loadReceipts(); }, [loadReceipts]);
-  const addReceipt = async (f: File) => {
-    if (!filesSvc || !fileStore || uploading) return;
-    setUploading(true);
-    let id: string | null = null;
-    try {
-      id = await filesSvc.create({ name: f.name, path: "", mime: f.type, bytes: f.size, scope: "money", addedAt: today });
-      const stored = await fileStore.upload(id, f);
-      await filesSvc.update(id, { path: stored.path, name: stored.name, mime: stored.mime, bytes: stored.bytes });
-      await loadReceipts();
-      showToast({ message: "Receipt Added" });
-    } catch (e) {
-      if (id) await filesSvc.remove(id).catch(() => undefined);
-      showToast({ message: e instanceof Error && e.message ? e.message : "Couldn't upload that file." });
-    } finally {
-      setUploading(false);
-    }
-  };
-  const picker = usePickFile((f) => void addReceipt(f));
-  // CLICK-THROUGH AUDIT 2026-09-29: the paperclip opened the phone's own file
-  // sheet the instant it was tapped, which a driver (or a slow WebView) cannot
-  // see, so it read as a dead button. The tap now opens a sheet of our own, and
-  // its one row opens the picker inside THAT tap (a picker opened after an
-  // await is blocked by iOS). The input stays mounted on the screen, so the
-  // sheet closing never takes the picker with it.
-  const [receiptSheet, setReceiptSheet] = useState(false);
-  // B3-10 (2026-09-04): opening a receipt used to await fileStore.url()
-  // (a real network round trip for the signed URL) before calling
-  // window.open. Any await between a tap and window.open breaks the user-
-  // gesture chain iOS requires, so Safari silently treats it as a popup and
-  // blocks it: no error, no file, nothing. NoteEditor's Attachment avoids
-  // this by resolving each file's URL ahead of time (useFileUrl) so its own
-  // open() is a synchronous handler; this resolves the whole receipts list
-  // the same way, once, whenever it changes.
-  const [receiptUrls, setReceiptUrls] = useState<Record<string, string | null>>({});
-  useEffect(() => {
-    let live = true;
-    if (!fileStore || receipts.length === 0) { setReceiptUrls({}); return; }
-    void Promise.all(receipts.map(async (r) => [r.id, await fileStore.url(r.data.path)] as const))
-      .then((pairs) => { if (live) setReceiptUrls(Object.fromEntries(pairs)); });
-    return () => { live = false; };
-  }, [fileStore, receipts]);
-  const openReceipt = (r: UserFile) => {
-    const url = receiptUrls[r.id];
-    if (!url) { showToast({ message: "Couldn't Open That File \u00b7 Try Again in a Moment" }); return; }
-    window.open(url, "_blank", "noopener");
-  };
-  const removeReceipt = async (r: UserFile) => {
-    if (!filesSvc) return;
-    const ok = await attemptWrite(() => filesSvc.remove(r.id));
-    if (!ok) return;
-    await loadReceipts();
-    // The bytes go a beat after the row, so Undo can bring the row back
-    // whole. Undo re-creates the row on the same path and cancels the sweep.
-    let undone = false;
-    const sweep = setTimeout(() => { if (!undone) void fileStore?.remove([r.data.path]); }, 6000);
-    showToast({
-      message: "Receipt Removed", actionLabel: "Undo",
-      onAction: async () => { undone = true; clearTimeout(sweep); await attemptWrite(() => filesSvc.create(r.data)); await loadReceipts(); },
-    });
-  };
+  // RECEIPTS are records now (Money ledger, 2026-10-03) and live in
+  // screens/ReceiptsSection. The paperclip in the bar only asks it to open a
+  // new one, by bumping this number.
+  const [receiptAdd, setReceiptAdd] = useState(0);
 
   const reload = useCallback(async () => {
     // Autopay bills whose date passed roll themselves forward first, so the
@@ -484,51 +405,6 @@ export default function MoneyFlow({ onOpenTask, onOpenEntity, openAccountId, ope
     if (!ok) return false;
     setSheet({ kind: "closed" }); await reload();
     return true;
-  };
-
-  // UP-CORE-13 (2026-09-05): READ IT. The Privacy Policy already promises
-  // this ("documents you upload for extraction are processed to create the
-  // records you review"), and a receipt has been a picture and nothing else
-  // since the clip shipped. One vision call, then the same review every
-  // other extractor in this app insists on: the bill sheet opens prefilled
-  // and Save is still a tap.
-  const [reading, setReading] = useState<string | null>(null);
-  const readReceipt = async (r: UserFile) => {
-    const url = receiptUrls[r.id];
-    if (!ai.available || !url || reading) return;
-    setReading(r.id);
-    try {
-      // The same signed URL the row already resolved for opening it, fetched
-      // back as bytes so the vision encoder can do its downscale and its
-      // budget check (shared/imageEncode).
-      const blob = await (await fetch(url)).blob();
-      const img = await encodeImageForVision(new File([blob], r.data.name, { type: r.data.mime || blob.type }));
-      const out = await ai.complete(
-        [buildVisionMessage(RECEIPT_EXTRACT_PROMPT, img.data, img.mediaType)],
-        JARVIS_VOICE,
-        { kind: "receipt", pin: "pasteFallback" },
-      );
-      const read = parseReceiptExtract(out);
-      if (!read) { showToast({ message: "Couldn't Read That \u00b7 Try a Clearer Photo" }); return; }
-      setBillSheet({
-        kind: "paid",
-        // The date it was paid: the receipt's own, or the day the file was
-        // added, which is a date he can check rather than one JARVIS made up.
-        paidOn: read.date ?? r.data.addedAt,
-        fileId: r.id,
-        initial: {
-          text: read.vendor || fileStem(r.data.name),
-          due: read.date ?? r.data.addedAt,
-          // A receipt is one purchase. Nothing here claims it repeats.
-          recurrence: null,
-          bill: { amount: read.total ?? 0 },
-        },
-      });
-    } catch {
-      showToast({ message: "Couldn't Read That Receipt \u00b7 Try Again" });
-    } finally {
-      setReading(null);
-    }
   };
 
   const editingBill = billSheet.kind === "edit" ? bills.find((b) => b.id === billSheet.id) : undefined;
@@ -899,6 +775,8 @@ export default function MoneyFlow({ onOpenTask, onOpenEntity, openAccountId, ope
     </div>
   );
 
+  const receiptsSection = <ReceiptsSection addNonce={receiptAdd} />;
+
   // Back from the tracker re-reads: the row under it says this month's net
   // and the tracker is where that number changes.
   if (tracker) return <TrackerScreen onBack={() => { setTracker(false); void reload(); }} />;
@@ -936,23 +814,17 @@ export default function MoneyFlow({ onOpenTask, onOpenEntity, openAccountId, ope
   return (
     <div className="screen ruled">
       <PageHeader title="Money" actions={<>
-        {filesSvc && fileStore && <BarAction label={uploading ? "Uploading" : "Add a Receipt"} onClick={() => !uploading && setReceiptSheet(true)}><Paperclip className="ic" /></BarAction>}
+        <BarAction label="Add a Receipt" onClick={() => setReceiptAdd((n) => n + 1)}><Paperclip className="ic" /></BarAction>
         <BarAction label="Add Account" onClick={() => setSheet({ kind: "new" })}>{PLUS}</BarAction>
       </>} />
-      {picker.input}
-      {receiptSheet && (
-        <RowActionSheet
-          title="Add a Receipt"
-          actions={[{ label: "Take a Photo or Choose a File", onPick: () => picker.open() }]}
-          onCancel={() => setReceiptSheet(false)}
-        />
-      )}
       {accounts.length === 0 && entries.length === 0 && tagged.length === 0 ? (
         <>
         <div className="empty-state"><div className="empty-icon">{WALLET}</div><div className="empty-title">No Accounts Yet</div>
           <button className="btn btn-primary" onClick={() => setSheet({ kind: "new" })}>Add an Account</button>
           <button className="btn btn-secondary" onClick={() => setBillSheet({ kind: "new" })}>Add a Bill</button></div>
           {trackerRow}
+          <MatchesCard />
+          {receiptsSection}
         </>
       ) : (
         <>
@@ -1072,6 +944,8 @@ export default function MoneyFlow({ onOpenTask, onOpenEntity, openAccountId, ope
 
           {trackerRow}
 
+          <MatchesCard />
+
           <div className="sh2 sh2-quiet"><span className="t">Bills</span>{entries.length > 0 && <span className="n">{entries.length}</span>}</div>
           <div className="pad-x"><div className="card list-card-ruled">{billRows}</div></div>
           {suggestion && (
@@ -1185,40 +1059,7 @@ export default function MoneyFlow({ onOpenTask, onOpenEntity, openAccountId, ope
             </>
           )}
 
-          {receipts.length > 0 && (
-            <>
-              <div className="sh2 sh2-quiet"><span className="t">Receipts</span><span className="n">{receipts.length}</span></div>
-              <div className="pad-x"><div className="card list-card-ruled">
-                {receipts.map((r) => (
-                  <div className="task-row p2 file-row" {...pressable(() => openReceipt(r))} key={r.id}>
-                    {/* The type is the glyph's colour: a picture in blue, a
-                        document in the brand red, the editor's own pairing. */}
-                    <div className="task-check-tap"><span className={"gm-slot " + (r.data.mime.startsWith("image/") ? "cat-fg-blue" : "cat-fg-brand")}>
-                      {r.data.mime.startsWith("image/") ? <ImageGlyph className="ic" /> : <FileText className="ic" />}
-                    </span></div>
-                    <div className="task-title">
-                      <span className="task-name">{r.data.name}</span>
-                      {/* The day it came in is a date, small caps (§AM F5);
-                          the size keeps the row's one grey, with no dot baked
-                          between them (F3). */}
-                      <div className="r-k"><span className="fact date">{monthDay(r.data.addedAt)}</span>{r.data.bytes > 0 && <span className="r-goal r-cat">{sizeLabel(r.data.bytes)}</span>}</div>
-                    </div>
-                    {/* UP-CORE-13 (2026-09-05): Read It, on a picture the
-                        app can actually read. A PDF or a text file is left
-                        alone rather than offered a button that fails. */}
-                    {ai.available && r.data.mime.startsWith("image/") && (
-                      <button className="pill-act" aria-label={"Read " + r.data.name}
-                        onClick={(e) => { e.stopPropagation(); void readReceipt(r); }}>
-                        {reading === r.id ? "Reading" : "Read It"}
-                      </button>
-                    )}
-                    <button className="conn-remove" aria-label={"Remove " + r.data.name}
-                      onClick={(e) => { e.stopPropagation(); void removeReceipt(r); }}>{TRASH}</button>
-                  </div>
-                ))}
-              </div></div>
-            </>
-          )}
+          {receiptsSection}
 
           {MONEY_TOP !== "hero-accts" && (
             <>

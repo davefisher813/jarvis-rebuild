@@ -234,3 +234,83 @@ describe("TrackerService", () => {
     expect(accounts).toHaveLength(4);
   });
 });
+
+// MONEY LEDGER (2026-10-03): an edit shows in the row's own history, and an
+// edit never drops what the ledger linked to it.
+describe("TrackerService: transaction history and links", () => {
+  const NOW = () => "2026-10-03T10:00:00.000Z";
+  const base: TrackerTxData = {
+    date: "2026-09-08", month: "2026-09", merchant: "Stop & Shop", name: "Stop & Shop", amountCents: 4712, category: "Groceries", account: "CHK",
+  };
+  const make = () => {
+    const store = new Store(new InMemoryAdapter());
+    return { store, s: new TrackerService(store, "u", () => {}, NOW) };
+  };
+
+  it("a new row starts its history with 'created' and is typed by hand", async () => {
+    const { s } = make();
+    await s.saveTx(null, base);
+    const t = (await s.load()).txs[0]!;
+    expect(t.data.source).toBe("manual");
+    expect(t.data.history).toEqual([{ at: NOW(), by: "user", action: "created" }]);
+    expect(t.data.fingerprint).toBe("tx|stop shop|4712|2026-09-08|local");
+  });
+
+  it("an edit appends what changed, before and after, in the same write", async () => {
+    const { s } = make();
+    const id = (await s.saveTx(null, base))!;
+    await s.saveTx(id, { ...base, amountCents: 6000, category: "Household" });
+    const t = (await s.load()).txs[0]!;
+    expect(t.data.amountCents).toBe(6000);
+    expect(t.data.history).toHaveLength(2);
+    expect(t.data.history![1]).toEqual({
+      at: NOW(), by: "user", action: "corrected",
+      changes: { amountCents: { from: 4712, to: 6000 }, category: { from: "Groceries", to: "Household" } },
+    });
+    // the fingerprint follows the money
+    expect(t.data.fingerprint).toBe("tx|stop shop|6000|2026-09-08|local");
+  });
+
+  it("saving with nothing changed adds no history line", async () => {
+    const { s } = make();
+    const id = (await s.saveTx(null, base))!;
+    await s.saveTx(id, { ...base });
+    expect((await s.load()).txs[0]!.data.history).toHaveLength(1);
+  });
+
+  it("an edit keeps matchedReceiptId, paysBillId, fingerprint, history, currency and source", async () => {
+    const { store, s } = make();
+    const id = (await s.saveTx(null, base))!;
+    // the ledger links and sets a currency, behind the sheet's back
+    await store.update("u", id, { matchedReceiptId: "r1", paysBillId: "b1", currency: "CAD", history: [
+      { at: NOW(), by: "user", action: "created" }, { at: NOW(), by: "user", action: "matched to a receipt" },
+    ] } as never);
+    // the sheet sends only the fields it owns (this is what TxSheet builds)
+    await s.saveTx(id, { ...base, merchant: "Stop and Shop", amountCents: 5000 });
+    const t = (await s.load()).txs[0]!;
+    expect(t.data).toMatchObject({ matchedReceiptId: "r1", paysBillId: "b1", currency: "CAD", source: "manual", merchant: "Stop and Shop", amountCents: 5000 });
+    expect(t.data.history!.map((h) => h.action)).toEqual(["created", "matched to a receipt", "corrected"]);
+    expect(t.data.fingerprint).toBeTruthy();
+  });
+
+  it("an edit cannot overwrite a link with a stale copy from the caller", async () => {
+    const { store, s } = make();
+    const id = (await s.saveTx(null, base))!;
+    const stale = (await s.load()).txs[0]!.data;
+    await store.update("u", id, { matchedReceiptId: "r1" } as never);
+    await s.saveTx(id, { ...stale, category: "Other" });
+    expect((await s.load()).txs[0]!.data.matchedReceiptId).toBe("r1");
+  });
+
+  it("a restored row (Undo) comes back under its own id with its history and links", async () => {
+    const { s } = make();
+    const id = (await s.saveTx(null, base))!;
+    const gone = (await s.load()).txs[0]!;
+    await s.removeTx(id);
+    expect((await s.load()).txs).toHaveLength(0);
+    await s.restoreTx(gone);
+    const back = (await s.load()).txs[0]!;
+    expect(back.id).toBe(id);
+    expect(back.data.history).toEqual(gone.data.history);
+  });
+});
