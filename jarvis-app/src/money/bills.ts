@@ -164,6 +164,9 @@ export function paydayLine(
   p: PaydayInfo,
   bills: TaskItem[],
   today: string,
+  // Dollars of unpaid LEDGER bills due on or before payday (billView.ts
+  // ledgerBillsOut): the same rule, applied to bills that are no longer tasks.
+  ledgerOut = 0,
 ): { title: string; sub: string } | null {
   const payday = paydayNext(p, today);
   // HMN-F-10 (2026-09-05), option A. A fourth filter used to drop an autopay
@@ -178,7 +181,7 @@ export function paydayLine(
   const out = bills
     .filter(isBillTask)
     .filter((t) => !t.data.done && !!t.data.due && t.data.due <= payday)
-    .reduce((sum, t) => sum + (t.data.bill?.amount ?? 0), 0);
+    .reduce((sum, t) => sum + (t.data.bill?.amount ?? 0), 0) + ledgerOut;
   if (out === 0) return null;
   const when = dayPhrase(payday, today);
   return {

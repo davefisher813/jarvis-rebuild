@@ -8,6 +8,16 @@ import MoneyFlow from "./MoneyFlow";
 import { todayISO } from "../tasks/grouping";
 import { monthDay } from "./bills";
 import type { TemplateKey } from "../categories/defaults";
+import type { TasksService } from "../tasks/TasksService";
+import type { BillInfo } from "../notes/types";
+
+// A BILL TASK FROM BEFORE THE MONEY LEDGER. createTask refuses bills now (a
+// bill lives in Money, hard rule 1), but the bills already stored are tasks and
+// have to keep working; recreateFrom writes a whole record as it is, which is
+// how Undo restores one and how a test makes one.
+async function legacyBill(svc: TasksService, text: string, o: { due?: string; category?: string; bill: BillInfo }): Promise<string | null> {
+  return svc.recreateFrom({ text, category: o.category ?? "", done: false, ...o });
+}
 
 // 2026-09-11: AI is off for every test here except the receipt read, which
 // flips it on for itself. The encoder needs a real canvas, so it is stubbed.
@@ -38,15 +48,21 @@ describe("MoneyFlow", () => {
 
   it("adds a bill and marks it paid with a dated receipt; autopay copy never says paid", async () => {
     render(<NotesProvider userId="u2"><MoneyFlow /></NotesProvider>);
-    // From empty: the bill path exists without an account
+    // From empty: the bill path exists without an account. Three taps' worth:
+    // the name, the amount, Save. The bill is a LEDGER bill, not a task.
     fireEvent.click(await screen.findByText("Add a Bill"));
     fireEvent.change(screen.getByPlaceholderText("e.g. Rent"), { target: { value: "Electric" } });
     fireEvent.change(screen.getByPlaceholderText("0"), { target: { value: "120" } });
     fireEvent.click(screen.getByText("Save"));
     await waitFor(() => expect(screen.getByText("Electric")).toBeInTheDocument());
     expect(screen.getByText("$120")).toBeInTheDocument();
-    // mark paid -> dated receipt appears
+    // No due date was typed, so none is shown and none is invented.
+    expect(screen.queryByText(/Due /)).not.toBeInTheDocument();
+    // Mark paid asks first ("I paid this", dated today), then the dated
+    // receipt appears.
     fireEvent.click(screen.getByLabelText("Mark paid"));
+    expect(await screen.findByText("Mark Paid")).toBeInTheDocument();
+    fireEvent.click(screen.getByText("I Paid This"));
     // UP-CORE-13 (2026-09-05): scoped to the ROW's own line. The page grew a
     // "Paid This Month" head, which is a different claim about the same word
     // and used to make this query ambiguous.
@@ -83,7 +99,7 @@ function SeededTagged({ onOpenTask }: { onOpenTask?: (id: string) => void }) {
       // items are finished, and bills already have their own section.
       const doneId = await tasks.createTask("Old Money Thing", { category: id! });
       await tasks.toggleDone(doneId!);
-      await tasks.createTask("Rent", { category: id!, bill: { amount: 100 } });
+      await legacyBill(tasks, "Rent", { category: id!, bill: { amount: 100 } });
       // A non-money category's task must never leak into this list either.
       const other = await cats.create("Home", "blue");
       await tasks.createTask("Fix Sink", { category: other! });
@@ -135,7 +151,7 @@ function SeededTemplate({ template, withPayday }: { template: TemplateKey; withP
         template,
         ...(withPayday ? { payday: { amount: 500, next: todayISO(), freq: "biweekly" as const } } : {}),
       });
-      await tasks.createTask("Rent", { bill: { amount: 100 } });
+      await legacyBill(tasks, "Rent", { bill: { amount: 100 } });
       setReady(true);
     })();
   }, [profile, tasks, template, withPayday]);
@@ -204,7 +220,7 @@ function AccountLink() {
 // a bad connection latched the button on "Saving" with no toast and nothing
 // stored, and Cancel (which throws the typing away) was the only way out.
 import { MoneyService } from "./MoneyService";
-import { TasksService } from "../tasks/TasksService";
+import { LedgerService } from "./ledger/LedgerService";
 import { subscribeToast, resetToasts } from "../shared/toast";
 import { WRITE_FAILED_MESSAGE } from "../shared/guard";
 
@@ -233,7 +249,7 @@ describe("Money writes that fail say so and give the button back (HMN-F-09)", ()
   it("a failed bill save toasts and unlatches Save", async () => {
     const seen: string[] = [];
     const stop = subscribeToast((t) => { if (t) seen.push(t.message); });
-    vi.spyOn(TasksService.prototype, "createTask").mockRejectedValue(new Error("offline"));
+    vi.spyOn(LedgerService.prototype, "addBill").mockRejectedValue(new Error("offline"));
     render(<NotesProvider userId="fail-bill"><MoneyFlow /></NotesProvider>);
     fireEvent.click(await screen.findByText("Add a Bill"));
     fireEvent.change(screen.getByPlaceholderText("e.g. Rent"), { target: { value: "Electric" } });
@@ -257,9 +273,12 @@ describe("Money writes that fail say so and give the button back (HMN-F-09)", ()
     await waitFor(() => expect(screen.getByText("Electric")).toBeInTheDocument());
 
     const stop = subscribeToast((t) => { if (t) seen.push(t.message); });
-    vi.spyOn(TasksService.prototype, "toggleDone").mockRejectedValue(new Error("offline"));
+    vi.spyOn(LedgerService.prototype, "markBillPaidByUser").mockRejectedValue(new Error("offline"));
     fireEvent.click(screen.getByLabelText("Mark paid"));
+    fireEvent.click(await screen.findByText("I Paid This"));
     await waitFor(() => expect(seen).toContain(WRITE_FAILED_MESSAGE));
+    // Nothing was claimed: the bill is still unpaid and the confirm still open.
+    expect(screen.queryByText(/^Paid \w{3} \d/)).not.toBeInTheDocument();
     stop();
   });
 });
@@ -295,7 +314,7 @@ function SeededForEnvelopes() {
       await profile.save({ template: "personal", payday: { amount: 500, next: todayISO(), freq: "biweekly" as const } });
       // One bill, so the page is past its empty state and the budget half
       // (which is what Set Aside lives in) renders at all.
-      await tasks.createTask("Rent", { bill: { amount: 100 } });
+      await legacyBill(tasks, "Rent", { bill: { amount: 100 } });
       setReady(true);
     })();
   }, [profile, tasks]);

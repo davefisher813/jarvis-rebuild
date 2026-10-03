@@ -4,6 +4,10 @@ import type { EventItem } from "../schedule/types";
 import type { TaskItem } from "../tasks/TasksService";
 import { partition } from "../tasks/filters";
 import { lineCase } from "../shared/casing";
+import { billAmount } from "../money/billView";
+import { dayGap } from "../money/ledger/dates";
+import { billStatus } from "../money/ledger/status";
+import type { Bill } from "../money/ledger/types";
 
 function isoOf(d: Date): string {
   const y = d.getFullYear();
@@ -136,12 +140,63 @@ export interface BillLine {
   sub?: string;
   /** One bill: what it costs, when it has an amount. */
   amount?: string;
-  /** One bill: when it is due, and the key's tone for that day. */
-  due?: { text: string; tone: "warn" | "date" };
+  /** One bill: when it is due, and the key's tone for that day. "red" is a
+   *  ledger bill past its explicit due date (the Colour Key's late). */
+  due?: { text: string; tone: "warn" | "date" | "red" };
 }
 
-export function billsLine(tasks: TaskItem[], today: string): BillLine | null {
-  const due = billsDueSoon(tasks, today);
+// LEDGER BILLS ON THIS CARD (Money ledger, lane B). A ledger bill is not a
+// task, so it never reaches Today's task lists; this card is where it reaches
+// Today. The rule is the one legacy bills have always had (due within three
+// days), plus the half a legacy bill gets from being a task: a bill already
+// past its explicit due date is here too, in the key's red, until it is paid.
+// A bill with no due date is never due and never late, so it is never here.
+export interface DueBill {
+  kind: "task" | "ledger";
+  id: string;
+  name: string;
+  amount?: string;
+  /** The explicit due day. */
+  iso: string;
+  /** Whole days past it; 0 when it is not late. */
+  late: number;
+  autopay: boolean;
+}
+
+/** Everything the card speaks for, soonest (or latest-overdue) first. */
+export function dueBills(tasks: TaskItem[], today: string, ledger: Bill[] = []): DueBill[] {
+  const out: DueBill[] = billsDueSoon(tasks, today).map((t) => ({
+    kind: "task",
+    id: t.id,
+    name: t.data.text.replace(/^Pay /, ""),
+    ...(t.data.bill?.amount ? { amount: `$${t.data.bill.amount}` } : {}),
+    iso: t.data.due as string,
+    late: 0,
+    autopay: !!t.data.bill?.autopay,
+  }));
+  const horizon = new Date(today + "T00:00:00");
+  horizon.setDate(horizon.getDate() + 3);
+  const cutoff = isoOf(horizon);
+  for (const b of ledger) {
+    const d = b.data;
+    const status = billStatus(d, today);
+    if (status !== "overdue" && status !== "due") continue;
+    if (!d.dueDate || (status === "due" && d.dueDate > cutoff)) continue;
+    out.push({
+      kind: "ledger",
+      id: b.id,
+      name: d.vendor,
+      amount: billAmount(d),
+      iso: d.dueDate,
+      late: status === "overdue" ? -dayGap(today, d.dueDate) : 0,
+      autopay: !!d.autopay,
+    });
+  }
+  return out.sort((a, b) => a.iso.localeCompare(b.iso) || a.name.localeCompare(b.name));
+}
+
+export function billsLine(tasks: TaskItem[], today: string, ledger: Bill[] = []): BillLine | null {
+  const due = dueBills(tasks, today, ledger);
   if (due.length === 0) return null;
 
   // TODAY-F-12 (2026-09-05): "tomorrow" was an exact 86,400,000ms gap, which
@@ -152,20 +207,43 @@ export function billsLine(tasks: TaskItem[], today: string): BillLine | null {
     if (iso === tomorrowISO(today)) return "tomorrow";
     return new Date(iso + "T00:00:00").toLocaleDateString([], { weekday: "long" });
   };
-  const name = (t: TaskItem) => t.data.text.replace(/^Pay /, "");
 
   if (due.length === 1) {
-    const t = due[0]!;
-    const amt = t.data.bill?.amount;
-    const iso = t.data.due as string;
+    const b = due[0]!;
     return {
-      title: name(t),
-      ...(amt ? { amount: `$${amt}` } : {}),
-      due: { text: lineCase(`Due ${when(iso)}`), tone: iso === today || iso === tomorrowISO(today) ? "warn" : "date" },
+      title: b.name,
+      ...(b.amount ? { amount: b.amount } : {}),
+      due: b.late > 0
+        ? { text: lineCase(b.late === 1 ? "1 day late" : `${b.late} days late`), tone: "red" }
+        : { text: lineCase(`Due ${when(b.iso)}`), tone: b.iso === today || b.iso === tomorrowISO(today) ? "warn" : "date" },
     };
   }
+  const late = due.filter((b) => b.late > 0).length;
   return {
-    title: lineCase(`${due.length} bills due soon`),
-    sub: due.map(name).join(", "),
+    title: lineCase(late === 0 ? `${due.length} bills due soon` : late === due.length ? `${due.length} bills late` : `${due.length} bills due or late`),
+    sub: due.map((b) => b.name).join(", "),
   };
+}
+
+/** What the card's Paid button may act on. Legacy behaviour is unchanged
+ *  (the soonest payable bill task) until a ledger bill is on the card; then
+ *  the button belongs to a card that speaks for exactly one bill, and never
+ *  for an autopay one: autopay cannot say paid, and a button over several
+ *  bills would have to guess which. */
+export type PayTarget = { kind: "task"; task: TaskItem } | { kind: "ledger"; bill: Bill };
+
+export function payTarget(tasks: TaskItem[], today: string, ledger: Bill[] = []): PayTarget | null {
+  const due = dueBills(tasks, today, ledger);
+  if (!due.some((b) => b.kind === "ledger")) {
+    const t = payableBill(tasks, today);
+    return t ? { kind: "task", task: t } : null;
+  }
+  const one = due.length === 1 ? due[0]! : undefined;
+  if (!one || one.autopay) return null;
+  if (one.kind === "ledger") {
+    const bill = ledger.find((b) => b.id === one.id);
+    return bill ? { kind: "ledger", bill } : null;
+  }
+  const task = tasks.find((t) => t.id === one.id);
+  return task ? { kind: "task", task } : null;
 }

@@ -1,0 +1,116 @@
+import { useEffect, useState } from "react";
+import { FormSheet, Group, Row, Note, DeleteRow } from "../../shared/FormSheet";
+import Provenance from "../../shared/ProvenanceLine";
+import { sourceOpener } from "../../shared/openSource";
+import type { Source } from "../../shared/provenance";
+import { Calendar, Link2 } from "../../shared/icons";
+import { DollarGlyph, RepeatGlyph, WalletGlyph, CheckCircleGlyph } from "../../shared/glyphs";
+import { useOptionalLedger } from "../../data/NotesProvider";
+import { lineCase } from "../../shared/casing";
+import { monthDay } from "../bills";
+import { billAmount, evidenceLine, historyLines, ledgerChip, ledgerStatusWord } from "../billView";
+import { isPaid } from "../ledger/status";
+import type { Bill } from "../ledger/types";
+import type { TrackerTx } from "../tracker";
+
+// THE BILL'S OWN PAGE (Money ledger, lane B). Everything the ledger knows
+// about one bill, in plain words: where it stands, what proves it paid, where
+// it came from, and every change to it, oldest first. Nothing on it is
+// guessed. A bill with no due date shows no date; a bill is "Paid" only with
+// the evidence line saying who said so.
+//
+// Actions are the sheet's rows, not a menu: Mark Paid (or, when a correction
+// reopened a paid bill, Confirm It Is Still Paid), Remove Paid State, Delete
+// Bill. Delete comes back through the parent's Undo (restoreBill).
+export default function BillDetailSheet({ bill, today, onClose, onEdit, onMarkPaid, onRemovePaid, onDelete, onOpenEntity }: {
+  bill: Bill;
+  today: string;
+  onClose: () => void;
+  onEdit: () => void;
+  onMarkPaid: () => void;
+  onRemovePaid: () => void;
+  onDelete: () => void;
+  /** The shell's door to an email thread, the one every From-an-email line uses. */
+  onOpenEntity?: (kind: string, id: string) => void;
+}) {
+  const d = bill.data;
+  const ledger = useOptionalLedger();
+  const [txs, setTxs] = useState<TrackerTx[]>([]);
+  // The payment that proved it paid is read only when there is one to read.
+  const wantsTx = d.paidEvidence?.type === "transaction";
+  useEffect(() => {
+    if (!wantsTx || !ledger) return;
+    let live = true;
+    void ledger.listTxs().then((t) => { if (live) setTxs(t); }, () => undefined);
+    return () => { live = false; };
+  }, [wantsTx, ledger]);
+
+  const paid = isPaid(d);
+  const reopened = !paid && !!d.paidAt && !!d.paidNeedsReconfirm;
+  const chip = ledgerChip(d, today);
+  const evidence = evidenceLine(d, txs);
+  const history = historyLines(d.history, d.currency);
+  const source: Source | undefined = d.source !== "manual" && d.source.type === "email"
+    ? { type: "email", ...(d.source.ref ? { ref: d.source.ref } : {}), ts: Date.parse(d.history[0]?.at ?? "") || 0 }
+    : undefined;
+  const open = source && onOpenEntity ? sourceOpener(onOpenEntity)(source) : undefined;
+
+  return (
+    <FormSheet title="Bill" onCancel={onClose} onSave={onEdit} saveLabel="Edit">
+      <Group label="Bill">
+        <Row tone="yellow" glyph={<WalletGlyph />} label="Vendor"><span className="bill-val">{d.vendor}</span></Row>
+        <Row tone="green" glyph={<DollarGlyph />} label="Amount"><span className={"money-amt bill-val" + (paid ? " paid" : "")}>{billAmount(d)}</span></Row>
+        <Row tone="orange" glyph={<Calendar className="ic" />} label="Due">
+          <span className="bill-val">{d.dueDate ? monthDay(d.dueDate) : "None"}</span>
+        </Row>
+        <Row tone="blue" glyph={<CheckCircleGlyph />} label="Status">
+          {chip
+            ? <span className={"uchip bill-val " + chip.cls}>{chip.text}</span>
+            : <span className={"bill-val" + (paid ? " fact good" : "")}>{ledgerStatusWord(d, today)}</span>}
+        </Row>
+        {d.recurrence && <Row tone="sky" glyph={<RepeatGlyph />} label="Repeats"><span className="bill-val">{lineCase(d.recurrence)}</span></Row>}
+        {d.autopay && <Row tone="blue" glyph={<RepeatGlyph />} label="Autopay"><span className="bill-val">On</span></Row>}
+        {d.notes && <Row label="Notes"><span className="bill-val bill-notes">{d.notes}</span></Row>}
+        {d.payUrl && !paid && (
+          <Row tone="indigo" glyph={<Link2 className="ic" />} label="Pay Link">
+            <a className="bill-pay bill-val" href={d.payUrl} target="_blank" rel="noopener noreferrer">Pay</a>
+          </Row>
+        )}
+      </Group>
+      {evidence && <Note>{evidence}</Note>}
+      {source && <div className="pad-x bill-prov"><Provenance source={source} onOpen={open} /></div>}
+
+      {(!paid || reopened) && (
+        <Group className="xs-actions">
+          <Row onClick={onMarkPaid} chev label={reopened ? "Confirm It Is Still Paid" : "Mark Paid"} />
+        </Group>
+      )}
+      {!!d.paidAt && (
+        <Group className="xs-actions">
+          <Row onClick={onRemovePaid} label="Remove Paid State" />
+        </Group>
+      )}
+
+      <Group label="History">
+        {history.map((h, i) => (
+          <Row key={i} label={h.what} meta={<span className="facts"><span className="fact">{h.who}</span>{h.when && <span className="fact date">{h.when}</span>}</span>}>
+            {h.changes.length > 0 && (
+              <div className="bill-changes">
+                {h.changes.map((c) => (
+                  <div key={c.label} className="bill-change">
+                    <span className="bill-change-k">{c.label}</span>
+                    <span className="bill-change-v">{c.from}</span>
+                    <span className="bill-change-to">to</span>
+                    <span className="bill-change-v">{c.to}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Row>
+        ))}
+      </Group>
+
+      <Group className="xs-actions"><DeleteRow label="Delete Bill" onClick={onDelete} /></Group>
+    </FormSheet>
+  );
+}
