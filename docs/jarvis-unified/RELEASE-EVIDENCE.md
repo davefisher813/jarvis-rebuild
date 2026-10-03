@@ -60,7 +60,8 @@ proves, as the browser roles with `auth.uid()` set the way PostgREST sets it:
 | Substrate, laws, settings, backup tests | `npx vitest run src/substrate src/laws src/settings src/backup` | 63 files, 1017 tests passed |
 | The new law bites | planted `export const ENTITY_BAD = "email_candidate"` under `src/substrate/`, ran `laws/substrateBoundary.test.ts` | failed naming the constant; reverted; passes again |
 | Case clash scan | `git ls-files \| sed -E 's/\.(tsx?\|jsx?\|mjs\|cjs)$//' \| sort -u \| sort -f \| uniq -di` | empty |
-| Full gate | `QA_PUBLISH=0 node qa/check.js` (core tsc and tests, app tsc, lint, laws, whole suite, build, legal pages, house rules) | GATE_RESULT_PLACEHOLDER |
+| Full gate, run 1 | `QA_PUBLISH=0 node qa/check.js` at `68ef481` with the tree dirty | core-types, core-tests, app-types, app-lint passed; app-tests failed on ONE law, the reachability law, which named `substrateBench.tsx`: the scratch bench that rendered the Advanced card previews was in the tree during the run. It was deleted before anything was committed, as CLAUDE.md requires. |
+| Full gate, run 2 | same command, bench removed, checklist and previews present | GATE2_RESULT_PLACEHOLDER |
 | Baseline before the slice | same tree at `199e4bd`: `tsc` exit 0; `vitest run` 723 files, 8882 passed, 5 skipped | recorded for comparison |
 
 ### Acceptance rows touched
