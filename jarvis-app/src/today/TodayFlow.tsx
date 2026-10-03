@@ -4273,7 +4273,6 @@ export default function TodayFlow({
       onRunningLate={onRunningLate}
       onUpNext={() => setUpNextOpen(true)}
       upNext={upNextRows}
-      upNextWaiting={Math.max(0, upNextAll.length - 1)}
       upNextReason={upNextAll[0] ? reasonFor(upNextAll[0], today, inPeakNow) : null}
       moveCategory={moveCategory}
       moveEstimate={moveEstimate}

@@ -227,7 +227,6 @@ export default function TodayPage({
   onRunningLate,
   onUpNext,
   upNext,
-  upNextWaiting,
   upNextReason,
   moveCategory,
   moveEstimate,
@@ -342,7 +341,6 @@ export default function TodayPage({
   onRunningLate?: (mins: number) => void; // shift the rest of today from here (2026-08-09)
   onUpNext?: () => void;
   /** Count of open tasks behind the dealt card; the receipt line's number. */
-  upNextWaiting?: number;
   /** The dealt card's reason line (reasonFor, computed by the flow). */
   upNextReason?: string | null;
   upNext?: TaskItem[];
@@ -656,21 +654,17 @@ export default function TodayPage({
     // full-width left-aligned row with a chevron was a LIST row pretending to
     // be a button.
     //
-    // A BUTTON'S LABEL IS ITS LABEL (Dave 2026-09-11: "Focus got mixed up with
-    // 23"). The waiting count rode inside the pill as a bare number chip, and
-    // a bare number tucked against a verb inside one rounded shape does not
-    // read as two facts -- it reads as one garbled label, "Focus 23". The
-    // count is worth keeping (it is the fact that makes the button worth
-    // tapping, and the Focus flow itself never states how deep the deck is),
-    // so it stays, saying what it counts. A chip that is a whole phrase can
-    // never be swallowed by the word in front of it, and it is set off in its
-    // own weight and ink so the eye takes them as two things.
+    // JUST THE WORD (Dave 2026-10-03: "Get rid of 13 waiting and just have a
+    // red Focus button"). The pill once carried the deck's count as a chip
+    // ("Focus 23", then "Focus | 23 Waiting"); it read as a second control
+    // sitting inside the first, and under Start Now it made two loud things.
+    // The button is its verb now and nothing else. The Focus screen is where
+    // the deck is counted.
     // row-tap: centring wrapper whose only content is the Focus button itself
     <div key="waiting" className="notice-clear-row focus-row">
       <button className="row-act" onClick={onUpNext}>
         <BullseyeGlyph />
         <span className="fc-t">Focus</span>
-        {(upNextWaiting ?? 0) > 0 && <span className="fc-n">{upNextWaiting} Waiting</span>}
       </button>
     </div>
   ) : null;

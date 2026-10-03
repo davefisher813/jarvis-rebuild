@@ -1021,7 +1021,7 @@ Light only. Dark is untouched. Category identity and action styling are separate
 | Health lime: number ink / decorative fill / reference-range tint | `#4E7402` / `#9EDB43` / `#E7F1DC` |
 
 - Secondary pills (Start, Snooze, Add, View Email, Reply) are `#F0F1F4` with an `#D12416` label. Neutral controls (Area, Group, Reorder, Manage) are `#F0F1F4` with `#111318`.
-- The Focus button's waiting count is a neutral chip (`#111318` on `#F0F1F4`), never a second red.
+- The Focus button carries no count (Dave 2026-10-03: "just have a red Focus button"). It is the bullseye and the word. Red in light; dark keeps its neutral capsule with the red word.
 - TODAY and TOMORROW badges are neutral. Amber is only for real warnings. "JARVIS Found N" is one `#363A43` phrase.
 - Area tiles keep their fills; the icon is white where white clears 3:1 against the fill, else `#111318` (orange, sky, pink, yellow, teal, lime, sand take the dark icon).
 - Health metadata pills and facts are neutral. Lime carries numbers as ink `#4E7402`; the bright lime is a decorative fill only. This also settles the `#A6FF00` / `#9EDB43` mismatch: `--hl-lime` had been pinned equal to dark's `#A6FF00` in light.

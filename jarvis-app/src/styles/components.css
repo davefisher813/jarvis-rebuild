@@ -3252,29 +3252,13 @@ button {
    IS .row-act in .notice-clear-row now, so the shape comes from the app
    rather than from a class of its own; this adds only the two things those
    two buttons do not have -- centring rather than flex-end, the glyph's
-   sizing, and the waiting count as a chip inside the pill. */
-/* TWO FACTS, TWO SHAPES (Dave 2026-09-11: "Focus got mixed up with 23"). The
-   count was a bare number in the same rounded run as the verb, so "Focus" and
-   "23" fused into one label. It says what it counts now, and it is separated
-   the way this app separates a label from its evidence everywhere else: its
-   own weight, its own ink, and a hairline it sits behind. */
+   and sizing. */
 .focus-row { justify-content: center; padding-bottom: var(--s-1); }
 .focus-row .row-act { gap: var(--s-2); }
 .focus-row .row-act .ic { width: 17px; height: 17px; flex-shrink: 0; }
 .focus-row .row-act .fc-t { font-weight: var(--w-semi); }
-.focus-row .row-act .fc-n { font-size: var(--t-eyebrow); font-weight: var(--w-semi); text-transform: uppercase;
-  letter-spacing: var(--track-caps);
-  color: var(--tx-2); padding-left: var(--s-2); border-left: 0.5px solid var(--card-bd);
-  font-variant-numeric: tabular-nums; margin-left: var(--s-1); }
-/* 2026-09-28 (Dave): the waiting count is a grey chip with black text on the
-   red pill -- the same grey/black treatment as the Add and See All pills. */
-[data-theme="light"] .focus-row .row-act .fc-n {
-  color: #000;
-  background-color: var(--press-3);
-  border-left: 0;
-  border-radius: var(--r-pill);
-  padding: var(--s-1) var(--s-2);
-}
+/* 2026-10-03 (Dave): no count inside the pill. "Get rid of 13 waiting and just
+   have a red Focus button." The bullseye and the verb are the whole control. */
 
 /* NO TWO CONTROLS IN ONE CORNER (Dave 2026-08-19, from the same screenshot).
    A card with an absolutely-positioned corner dismiss and a one-row body puts
