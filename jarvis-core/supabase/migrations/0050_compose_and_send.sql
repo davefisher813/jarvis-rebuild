@@ -132,6 +132,7 @@ begin
    where jsonb_typeof(e) <> 'object'
       or coalesce(e ->> 'filename', '') = '' or length(e ->> 'filename') > 255 or (e ->> 'filename') ~ E'[\\r\\n"]'
       or coalesce(e ->> 'storage_id', '') = '' or length(e ->> 'storage_id') > 512
+      or (e ->> 'storage_id') ~ '(^|/)\.\.?(/|$)' or (e ->> 'storage_id') ~ '(^|/)(/|$)' 
       or jsonb_typeof(e -> 'size_bytes') <> 'number' or (e ->> 'size_bytes')::numeric <= 0 or (e ->> 'size_bytes')::numeric > 20971520
       or (e ? 'sha256' and not (e ->> 'sha256') ~ '^[0-9a-f]{64}$')
       or length(coalesce(e ->> 'mime_type', '')) > 255;
@@ -330,6 +331,8 @@ begin
   for e in select * from jsonb_array_elements(d.attachment_refs) loop
     if jsonb_typeof(e) <> 'object' or coalesce(e ->> 'sha256', '') !~ '^[0-9a-f]{64}$' or coalesce(e ->> 'filename', '') = ''
        or coalesce(e ->> 'storage_id', '') = '' or position(owner::text || '/' in e ->> 'storage_id') <> 1
+       -- the owner's folder segment by segment: no "..", no ".", no empty segment, so the path cannot fold out of it
+       or (e ->> 'storage_id') ~ '(^|/)\.\.?(/|$)' or (e ->> 'storage_id') ~ '(^|/)(/|$)' 
        or jsonb_typeof(e -> 'size_bytes') <> 'number' or (e ->> 'size_bytes')::numeric <= 0 then
       return jsonb_build_object('error', 'INVALID_PAYLOAD', 'detail', 'attachment', 'filename', e ->> 'filename');
     end if;

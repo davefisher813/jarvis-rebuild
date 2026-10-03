@@ -60,6 +60,8 @@ async function stubWorld(w: Partial<World>) {
     if (url.includes("/rest/v1/rpc/email_account_upsert")) return res({ account_id: ACCT[String(body?.p_address)] ?? "acct-new" });
     if (url.includes("/rest/v1/email_account?")) {
       if (u.searchParams.get("select") === "id,address,state") return res(world.accountRows ?? Object.entries(ACCT).map(([address, id]) => ({ id, address, state: "connected" })));
+      const address = u.searchParams.get("address")?.replace("eq.", "");
+      if (address) return res(ACCT[address] ? [{ id: ACCT[address], cursor: world.cursor[address] ?? null, state: "connected" }] : []);
       const id = u.searchParams.get("id")?.replace("eq.", "") ?? "";
       const email = Object.keys(ACCT).find((e) => ACCT[e] === id) ?? DAVE;
       return res([{ id, cursor: world.cursor[email] ?? null, state: "connected" }]);
@@ -184,12 +186,24 @@ describe("POST /api/email/sync", () => {
     expect(rpc("email_sync_failed")[0]).toMatchObject({ p_reauth: true });
   });
 
+  it("an address with no stored sign-in and no mailbox row creates nothing: 410, no account row made, no reauth recorded", async () => {
+    await stubWorld({ tokens: {} });
+    const r = await answer(await syncHandler(post("/api/email/sync", { email: "nobody@example.test" })));
+    expect(r.status).toBe(410);
+    expect(r.json).toMatchObject({ code: "PROVIDER_AUTH" });
+    expect(rpc("email_account_upsert")).toEqual([]);
+    expect(rpc("email_sync_failed")).toEqual([]);
+    expect(gmailCalls()).toEqual([]);
+  });
+
   it("a revoked grant at Google's door is the same answer", async () => {
     const f = await stubWorld({ gmail: listingGmail() });
+    const enc = await encrypt("1//refresh", KEY);
     f.mockImplementationOnce(async (url: string) => { calls.push({ url, method: "GET", body: null }); return res({ id: USER }); });
+    f.mockImplementationOnce(async (url: string) => { calls.push({ url, method: "GET", body: null }); return res([{ email: DAVE }]); });
     f.mockImplementationOnce(async (url: string) => { calls.push({ url, method: "POST", body: null }); return res({ account_id: "acct-dave" }); });
     f.mockImplementationOnce(async (url: string) => { calls.push({ url, method: "GET", body: null }); return res([{ id: "acct-dave", cursor: null, state: "connected" }]); });
-    f.mockImplementationOnce(async (url: string) => { calls.push({ url, method: "GET", body: null }); return res([{ token_enc: await encrypt("1//refresh", KEY) }]); });
+    f.mockImplementationOnce(async (url: string) => { calls.push({ url, method: "GET", body: null }); return res([{ token_enc: enc }]); });
     f.mockImplementationOnce(async (url: string) => { calls.push({ url, method: "POST", body: null }); return res({ error: "invalid_grant" }, 400); });
     const r = await answer(await syncHandler(post("/api/email/sync", { email: DAVE })));
     expect(r.status).toBe(410);

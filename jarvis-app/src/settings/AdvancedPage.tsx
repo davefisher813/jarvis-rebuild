@@ -40,8 +40,11 @@ export default function AdvancedPage({ onBack, onExport, onLearningLab }: { onBa
     setEmailHomeState(next);
     void settings?.set(SETTING_EMAIL_TASKS, next);
   };
-  const readiness = useSubstrateReadiness();
+  // THE UNIFIED SUBSTRATE'S OWN ROWS SHOW ONLY WHEN A FLAG IS ON (slice 09, the
+  // pre-merge review): with every flag off this screen is exactly what it was,
+  // and no readiness call is made for a section nobody sees.
   const flags = flagsOn();
+  const readiness = useSubstrateReadiness(flags.length > 0);
   const [confirm, setConfirm] = useState(false);
   const [chatArmed, setChatArmed] = useState(false);
   const [chatBusy, setChatBusy] = useState(false);
@@ -79,12 +82,14 @@ export default function AdvancedPage({ onBack, onExport, onLearningLab }: { onBa
       <Card>
         <Row label="Learning Lab" chev onClick={onLearningLab} />
       </Card>
+      {flags.length > 0 && (<>
       <Head label="Unified Substrate" />
       <Card>
         <Row label="Database" value={!readiness ? "Checking" : readiness.migration === "applied" ? "Migration 0044 Applied" : readiness.migration === "missing" ? "Migration 0044 Not Applied" : "Couldn't Check"} />
         {CAPTURE_KINDS.map((k) => <Row key={k} label={CAPTURE_LABEL[k]} value={readiness?.kinds[k].state === "ready" ? "Ready" : "Not Ready"} />)}
-        <Row label="Flags" value={flags.length ? flags.join(", ") : "All Off"} />
+        <Row label="Flags" value={flags.join(", ")} />
       </Card>
+      </>)}
       <Head label="Data" />
       <Card>
         <Row label="Export Data" value="JSON" onClick={onExport} />

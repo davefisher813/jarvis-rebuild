@@ -8,6 +8,7 @@
 // Message-ID; a refusal before the call fails the command with its code and
 // nothing is sent; a timeout or a 5xx after the body went is unknown, once,
 // with no second call; Check Again settles only on a found message.
+import { insideOwnerFolder } from "../_send";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import sendHandler from "./send";
 import reconcileHandler from "./reconcile";
@@ -206,6 +207,16 @@ describe("POST /api/email/send", () => {
     expect(r.json).toMatchObject({ outcome: "failed" });
     expect(sent("/storage/v1/object/").length).toBe(0);
     expect(rpc("outbox_settle")[0]).toMatchObject({ p_state: "failed", p_error: "REVIEW_CHANGED" });
+  });
+
+  it("an attachment path that starts with the owner's folder but folds out of it (a \"..\" segment) never leaves and is never fetched", async () => {
+    await stubWorld({ claim: { outbox_id: OB, action_id: ACT, owner_id: USER, kind: "send_email", payload: exact({ attachments: [{ storage_id: `${USER}/../someone-else/draft/x.pdf`, filename: "x.pdf", size_bytes: 3, sha256: "a".repeat(64), mime_type: "application/pdf" }] }) } });
+    const r = await answer(await sendHandler(post("/api/email/send", tap)));
+    expect(r.json).toMatchObject({ outcome: "failed" });
+    expect(sent("/storage/v1/object/").length).toBe(0);
+    expect(rpc("outbox_settle")[0]).toMatchObject({ p_state: "failed", p_error: "REVIEW_CHANGED" });
+    expect(insideOwnerFolder(USER, `${USER}/draft/x.pdf`)).toBe(true);
+    for (const bad of [`${USER}/../x`, `${USER}/./x`, `${USER}//x`, `${USER}/`, USER, `/${USER}/x`, `${USER}x/y`]) expect(insideOwnerFolder(USER, bad), bad).toBe(false);
   });
 
   it("Gmail refusing the scope is Not Sent with PROVIDER_SCOPE; a revoked token marks the account reauth", async () => {

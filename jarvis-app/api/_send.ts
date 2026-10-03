@@ -50,9 +50,17 @@ export async function draftStillExact(env: EmailEnv, cmd: ClaimedCommand, exact:
   return null;
 }
 
+/** A storage path that stays inside the owner's own folder: owner first, then real segments only. */
+export function insideOwnerFolder(owner: string, storageId: string): boolean {
+  const segs = storageId.split("/");
+  return segs.length >= 2 && segs[0] === owner && segs.every((seg) => seg !== "" && seg !== "." && seg !== "..");
+}
+
 /** The bytes the person reviewed, or why not: fetched with the service role from the owner's own folder, sized and hashed against the ref. */
 export async function fetchAttachment(env: EmailEnv, owner: string, ref: ExactAttachment): Promise<{ ok: true; bytes: Uint8Array } | { ok: false; code: string }> {
-  if (!ref.storage_id.startsWith(owner + "/")) return { ok: false, code: "REVIEW_CHANGED" };
+  // The owner's folder, segment by segment: a prefix test alone lets "<owner>/../<other>/x" through, and the
+  // URL the fetch builds would fold the dots away and read with the service role. No empty, "." or ".." segment.
+  if (!insideOwnerFolder(owner, ref.storage_id)) return { ok: false, code: "REVIEW_CHANGED" };
   let r: Response;
   try {
     r = await fetch(`${env.supaUrl}/storage/v1/object/${BUCKET}/${ref.storage_id.split("/").map(encodeURIComponent).join("/")}`, { headers: { apikey: env.service, Authorization: `Bearer ${env.service}` } });

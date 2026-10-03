@@ -127,6 +127,16 @@ export async function serviceSelect<T>(env: EmailEnv, table: string, query: stri
 
 /** The account row for this person and address, made if missing (the mirror of a stored sign-in). */
 export async function ensureAccount(env: EmailEnv, userId: string, email: string): Promise<{ id: string; cursor: string | null; state: string } | Fail> {
+  // A mailbox row mirrors a stored sign-in. With none for this address: a row that already exists is answered as it
+  // is (so the failed refresh that follows can mark it reauth), and an address with no row creates nothing. A request
+  // body never births a mailbox; the picker does (accounts.ts), from the sign-ins that exist.
+  const signIn = await serviceSelect<{ email: string }>(env, "google_tokens", `user_id=eq.${userId}&email=eq.${encodeURIComponent(email)}&select=email`);
+  if (signIn === null) return fail("UNAVAILABLE");
+  if (!signIn[0]) {
+    const known = await serviceSelect<{ id: string; cursor: string | null; state: string }>(env, "email_account", `owner_id=eq.${userId}&address=eq.${encodeURIComponent(email.toLowerCase())}&select=id,cursor,state`);
+    if (known === null) return fail("UNAVAILABLE");
+    return known[0] ?? fail("PROVIDER_AUTH");
+  }
   const up = await serviceRpc(env, "email_account_upsert", { p_owner: userId, p_address: email, p_scopes: [], p_capabilities: { archive: true, trash: true, read: true } });
   const id = (up.data as { account_id?: string } | null)?.account_id;
   if (!id) return fail("UNAVAILABLE");
