@@ -16,6 +16,7 @@ import type { AIService } from "../ai/AIService";
 import type { AIContext } from "../ai/context";
 import { LearnedRulesService } from "../rules/LearnedRulesService";
 import { aliasTrigger } from "../rules/triggers";
+import { LedgerService } from "../money/ledger/LedgerService";
 
 const TODAY = "2026-08-15"; // a Saturday
 const U = "user1";
@@ -33,6 +34,7 @@ function rig(aiCalls: { n: number }, available = true): PasteDeps {
     tasks: new TasksService(store, U),
     schedule: new ScheduleService(store, U),
     notes: new NotesService(store, U),
+    ledger: new LedgerService(store, U),
     categories: [],
     today: TODAY,
   } as unknown as PasteDeps;
@@ -652,7 +654,7 @@ describe("capture reads reminders, repeats, bills and people", () => {
     expect(classifyLine("order tile", TODAY, { projects }).projectId).toBeUndefined();
   });
 
-  it("writes the reminder, the bill and the repeat all the way through to the task", async () => {
+  it("writes the reminder to a task and the bill to Money, never to a task", async () => {
     const calls = { n: 0 };
     const deps = rig(calls);
     const saved = await smartPasteSave("meds 9pm every day\n$1,200 rent on the 1st", deps);
@@ -660,12 +662,18 @@ describe("capture reads reminders, repeats, bills and people", () => {
     const tasks = await deps.tasks.listTasks();
     const meds = tasks.find((t) => t.data.text === "Meds")!;
     expect(meds.data.reminder).toEqual({ time: "21:00" });
-    const rent = tasks.find((t) => t.data.bill)!;
-    expect(rent.data.bill).toEqual({ amount: 1200 });
-    expect(rent.data.due).toBe("2026-09-01");
+    // The bill is NOT a task (ledger hard rule 1): it is a Money bill.
+    expect(tasks.find((t) => t.data.bill)).toBeUndefined();
+    expect(tasks.some((t) => /rent/i.test(t.data.text))).toBe(false);
+    const bills = await (deps.ledger as LedgerService).listBills();
+    expect(bills).toHaveLength(1);
+    expect(bills[0]!.data).toMatchObject({ vendor: "Rent", amountCents: 120000, dueDate: "2026-09-01", source: "manual" });
     // The receipt gets the same facts, so it can show the read.
     expect(saved.find((s) => s.title === "Meds")!.reminder).toEqual({ time: "21:00" });
-    expect(saved.find((s) => s.bill)!.bill).toEqual({ amount: 1200 });
+    const rent = saved.find((s) => s.bill)!;
+    expect(rent.bill).toEqual({ amount: 1200 });
+    expect(rent.kind).toBe("bill");
+    expect(rent.id).toBe(bills[0]!.id);
   });
 });
 

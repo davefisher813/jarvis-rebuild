@@ -23,7 +23,7 @@ import { DEFAULT_TABS, DESTINATIONS, MAX_TABS, extrasFor, migrateTabs } from "./
 import type { MoreRoute } from "../more/MorePage";
 import { NavOriginProvider, type NavOrigin } from "./navOrigin";
 import ReturnPill from "./ReturnPill";
-import { useTasks, useSchedule, useCategories, useProfile, useAreas, useGoals, useProjects, useMoney, usePeople, useDecisions, useOptionalSeal, useGym, useSettings } from "../data/NotesProvider";
+import { useTasks, useSchedule, useCategories, useProfile, useAreas, useGoals, useProjects, useMoney, usePeople, useDecisions, useOptionalSeal, useOptionalLedger, useGym, useSettings } from "../data/NotesProvider";
 import { useAuth, useOptionalSession } from "../auth/AuthProvider";
 import { useAdminAiGate } from "../ai/useAdminAiGate";
 import { onNotificationTap, ensureTaskReminders, registerNotificationActions, ACTION_DONE, ACTION_TOMORROW, ACTION_SNOOZE, BANNER_SNOOZE_MIN } from "../shared/notifications";
@@ -90,6 +90,8 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
   const decisions = useDecisions();
   const gym = useGym();
   const sealSvc = useOptionalSeal();
+  // The demo's bills are seeded into Money's ledger, not as tasks.
+  const ledgerSvc = useOptionalLedger();
   const settings = useSettings();
   const { signOut, backendConfigured } = useAuth();
   const ai = useAI();
@@ -355,7 +357,7 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
       // contains the seed module at all (see vite.config.ts).
       if (__DEMO_SEED__ && seedDemo) {
         const seed = await import("../data/seed");
-        await seed.seedDemoData(tasks, schedule, cats, { areas, goals, projects, money, people, decisions, seal: sealSvc ?? undefined, gym });
+        await seed.seedDemoData(tasks, schedule, cats, { areas, goals, projects, money, people, decisions, seal: sealSvc ?? undefined, ledger: ledgerSvc ?? undefined, gym });
         seed.seedDemoMail();
       }
       if (!on) return;
@@ -390,7 +392,7 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
       setReady(true);
     })();
     return () => { on = false; };
-  }, [seedDemo, tasks, schedule, categories, profile, areas, goals, projects, money, people, decisions, sealSvc, gym, settings]);
+  }, [seedDemo, tasks, schedule, categories, profile, areas, goals, projects, money, people, decisions, sealSvc, ledgerSvc, gym, settings]);
 
   // Keep the category name/color resolver in sync when a category is created,
   // renamed, recolored, or deleted, so edits reflect live everywhere (schedule,

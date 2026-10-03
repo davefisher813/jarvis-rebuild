@@ -6,7 +6,7 @@
 // (locked principle 1, minimum taps).
 
 import type { AIService } from "../ai/AIService";
-import { captureSystemPrompt, parseCapture, applyCapture, CAPTURE_SCHEMA, type CaptureResult } from "../ai/capture";
+import { captureSystemPrompt, parseCapture, applyCapture, billRecurrenceOf, CAPTURE_SCHEMA, type CaptureResult } from "../ai/capture";
 import type { AIContext } from "../ai/context";
 import type { TasksService } from "../tasks/TasksService";
 import type { ScheduleService } from "../schedule/ScheduleService";
@@ -25,6 +25,7 @@ import { aliasTrigger } from "../rules/triggers";
 import type { LearnedRule, LearnedRulesService } from "../rules/LearnedRulesService";
 import type { StrandsService } from "../brain/strands/StrandsService";
 import type { StrandCategory } from "../brain/strands/types";
+import type { LedgerService } from "../money/ledger/LedgerService";
 
 export interface SavedEntity {
   id: string;
@@ -33,7 +34,9 @@ export interface SavedEntity {
   // UP-MIND-08 (2026-09-05): "decision" lands in the Decisions log and
   // "person" updates a contact's card. Both are records, not list rows, and
   // both are reversible from the same receipt as everything else here.
-  kind: "task" | "event" | "note" | "fact" | "decision" | "person";
+  // "bill" (Money ledger): a line that read as a bill is filed in Money, and
+  // its receipt and Undo are the ledger's, never a task's.
+  kind: "task" | "event" | "note" | "fact" | "decision" | "person" | "bill";
   title: string;
   date?: string;
   start?: string;
@@ -69,6 +72,12 @@ export interface SavedEntity {
 }
 
 export interface PasteDeps {
+  // Where a bill goes. Optional like every lane: absent, a bill is refused out
+  // loud (onBillNote) and is never made a task instead.
+  ledger?: Pick<LedgerService, "addBill" | "removeBill">;
+  // Called when a line read as a bill and nothing was filed: already in Money,
+  // what is missing, or that Money is unavailable. Same seam as onFactRefused.
+  onBillNote?: (message: string) => void;
   ai: AIService;
   gather: () => Promise<AIContext>;
   tasks: TasksService;
@@ -355,11 +364,18 @@ async function saveEntities(text: string, deps: PasteDeps, saved: SavedEntity[])
       }
     }
     result = await categoryFromRule(result, e.raw, deps);
-    const { id } = await applyCapture(result, deps, deps.categories, deps.today, madeBy("paste"));
+    const billFor = [
+      deps.people?.find((p) => p.id === result.personId)?.name,
+      deps.projects?.find((p) => p.id === result.projectId)?.title,
+    ].filter(Boolean).join(", ");
+    const applied = await applyCapture(result, deps, deps.categories, deps.today, madeBy("paste"), billFor);
+    const { id } = applied;
+    if (applied.note) deps.onBillNote?.(applied.note);
     if (id) {
+      const isBill = applied.kind === "bill";
       const s: SavedEntity = {
         id,
-        kind: result.kind,
+        kind: isBill ? "bill" : result.kind,
         title: result.title,
         ...(result.date ? { date: result.date } : {}),
         ...(result.start ? { start: result.start } : {}),
@@ -367,7 +383,8 @@ async function saveEntities(text: string, deps: PasteDeps, saved: SavedEntity[])
         // UP-CORE-01: the extra reads, for the receipt. personChoices comes
         // off the parse rather than the result: nobody was filed, which is
         // the whole point of it reaching the receipt.
-        ...(result.recurrence ? { recurrence: result.recurrence } : {}),
+        // A bill's receipt shows the repeat only if the ledger kept it.
+        ...(isBill ? (billRecurrenceOf(result.recurrence) ? { recurrence: result.recurrence! } : {}) : result.recurrence ? { recurrence: result.recurrence } : {}),
         ...(result.reminder ? { reminder: result.reminder } : {}),
         ...(result.bill ? { bill: result.bill } : {}),
         ...(result.personId ? { personId: result.personId } : {}),
@@ -376,7 +393,9 @@ async function saveEntities(text: string, deps: PasteDeps, saved: SavedEntity[])
         raw: e.raw,
       };
       saved.push(s);
-      recordCapture({ id, kind: s.kind, title: s.title, ts: Date.now() });
+      // Recent Captures opens a task, event, note or fact; a bill is opened in
+      // Money, which that strip has no door to, so it is not listed there.
+      if (s.kind !== "bill") recordCapture({ id, kind: s.kind, title: s.title, ts: Date.now() });
     }
   }
   return saved;
@@ -385,8 +404,13 @@ async function saveEntities(text: string, deps: PasteDeps, saved: SavedEntity[])
 // Undo one created entity: the record disappears entirely.
 export async function undoSaved(
   s: SavedEntity,
-  deps: Pick<PasteDeps, "tasks" | "schedule" | "notes" | "strands" | "decisions" | "peopleSvc">,
+  deps: Pick<PasteDeps, "tasks" | "schedule" | "notes" | "strands" | "decisions" | "peopleSvc" | "ledger">,
 ): Promise<void> {
+  // A bill filed in Money comes back out of Money (never through the task door).
+  if (s.kind === "bill") {
+    await deps.ledger?.removeBill(s.id);
+    return;
+  }
   // UP-MIND-08: a decision record is removed outright. A person's card is
   // PUT BACK to what it held: the card almost always existed before the
   // sentence, and deleting a contact because one field was typed wrong
@@ -444,6 +468,9 @@ export async function refileSaved(
   // chips never offer them (QuickCapture's KINDS), and this refuses rather
   // than half-writing one if a future caller asks.
   if (toKind === "decision" || toKind === "person") return null;
+  // A bill is Money's and never becomes a task, an event or a note by a chip,
+  // and nothing is refiled INTO Money from here (ledger hard rule 1).
+  if (toKind === "bill" || s.kind === "bill") return null;
   // Refiling one AWAY is the ordinary path: the target is created first and
   // the original removed after (SHELL-F-02's order), which undoSaved
   // already handles for both kinds.
@@ -482,7 +509,7 @@ export async function refileSaved(
     try { await undoSaved(next, deps); } catch { /* the original still stands; the receipt keeps tracking it */ }
     throw e;
   }
-  recordCapture({ id: next.id, kind: next.kind, title: next.title, ts: Date.now() });
+  if (next.kind !== "bill") recordCapture({ id: next.id, kind: next.kind, title: next.title, ts: Date.now() });
   return next;
 }
 
@@ -492,6 +519,7 @@ export async function recategorizeSaved(
   categoryId: string,
   deps: Pick<PasteDeps, "tasks" | "schedule" | "notes">,
 ): Promise<void> {
+  if (s.kind === "bill") return; // a ledger bill has no area
   if (s.kind === "task") await deps.tasks.setCategory(s.id, categoryId);
   else if (s.kind === "event") await deps.schedule.editCategory(s.id, categoryId);
   else await deps.notes.setCategory(s.id, categoryId);
