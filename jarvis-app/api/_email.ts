@@ -76,7 +76,28 @@ export async function authedUser(req: Request, env: EmailEnv): Promise<{ id: str
   return u.id ? { id: u.id } : fail("AUTH_REQUIRED");
 }
 
+/** The session's token as the request carried it, for a call made as the person. */
+export function bearerOf(req: Request): string {
+  const auth = req.headers.get("authorization") || "";
+  return auth.startsWith("Bearer ") ? auth.slice(7) : "";
+}
+
 export interface RpcResult { data: unknown; error: unknown }
+
+/** A call to one of the person's own functions, as the person: auth.uid() is theirs, the row policies are theirs, nothing is widened. */
+export async function userRpc(env: EmailEnv, token: string, fn: string, args: Record<string, unknown>): Promise<RpcResult> {
+  try {
+    const r = await fetch(`${env.supaUrl}/rest/v1/rpc/${fn}`, {
+      method: "POST",
+      headers: { apikey: env.anon, Authorization: `Bearer ${token}`, "content-type": "application/json" },
+      body: JSON.stringify(args),
+    });
+    const data = await r.json().catch(() => null);
+    return r.ok ? { data, error: null } : { data: null, error: { status: r.status, data } };
+  } catch (err) {
+    return { data: null, error: err };
+  }
+}
 
 /** A service-role call to one of the cache's functions. */
 export async function serviceRpc(env: EmailEnv, fn: string, args: Record<string, unknown>): Promise<RpcResult> {

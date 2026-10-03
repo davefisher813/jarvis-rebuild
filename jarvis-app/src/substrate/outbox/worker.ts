@@ -39,6 +39,8 @@ export interface WorkerDeps {
   worker: string;
   /** How long the claim is good for, as a Postgres interval (case does not matter to Postgres). Default two minutes. */
   lease?: string;
+  /** One command only: the action the request that approved it now carries out (outbox_claim_action, slice 07). Without it, the oldest queued command. */
+  action?: string;
 }
 
 export type WorkerResult =
@@ -56,7 +58,9 @@ async function call(rpc: RpcClient["rpc"], fn: string, args: Record<string, unkn
 
 /** One command, start to finish. Call it again for the next; it answers handled:false when the queue is empty. */
 export async function runOutboxOnce(deps: WorkerDeps): Promise<WorkerResult> {
-  const claimed = (await call(deps.rpc, "outbox_claim", { p_worker: deps.worker, p_lease: deps.lease ?? "2 Minutes" })) as (ClaimedCommand & { skipped?: string; reason?: string }) | null;
+  const claimed = (deps.action
+    ? await call(deps.rpc, "outbox_claim_action", { p_worker: deps.worker, p_action: deps.action, p_lease: deps.lease ?? "2 Minutes" })
+    : await call(deps.rpc, "outbox_claim", { p_worker: deps.worker, p_lease: deps.lease ?? "2 Minutes" })) as (ClaimedCommand & { skipped?: string; reason?: string }) | null;
   if (!claimed) return { handled: false };
   if (claimed.skipped) return { handled: true, outbox_id: claimed.skipped, skipped: claimed.reason ?? "SKIPPED" };
 

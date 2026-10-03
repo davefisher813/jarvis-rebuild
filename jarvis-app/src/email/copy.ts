@@ -159,3 +159,83 @@ export function moreSuggestions(n: number): string {
 export function foundLine(n: number): string {
   return n === 0 ? NOTHING_FOUND : `Found ${n} ${n === 1 ? "Suggestion" : "Suggestions"}`;
 }
+
+// ---- compose, review, send (slice 07) ----
+export const COMPOSE_LABEL = "Compose";
+export const COMPOSE_TITLE = "New Message";
+export const REPLY = "Reply";
+export const REPLY_ALL = "Reply All";
+export const FROM_LABEL = "From";
+export const TO_LABEL = "To";
+export const CC_LABEL = "Cc";
+export const BCC_LABEL = "Bcc";
+export const SUBJECT_LABEL = "Subject";
+export const BODY_LABEL = "Message";
+export const CC_BCC = "Cc / Bcc";
+export const ATTACH = "Attach a File";
+export const ATTACHMENTS_LABEL = "Attachments";
+export const REMOVE_ATTACHMENT = "Remove";
+export const UPLOADING = "Uploading";
+export const REVIEW_SEND = "Review Send";
+export const CLOSE_DRAFT = "Close";
+export const DISCARD_DRAFT = "Discard Draft";
+export const DRAFT_DISCARDED = "Draft Discarded";
+export const DRAFT_KEPT = "Draft Kept";
+export const DRAFT_ONLY = "Draft Only · Nothing Is Sent";
+export const SAVED_HERE = "Saved on This Device";
+export const SAVED_LINE = "Saved";
+export const SAVING_LINE = "Saving";
+export const SAVE_FAILED = "Couldn't Save to JARVIS · Kept on This Device";
+export const KEEP_THIS_DRAFT = "Keep This Draft";
+export const USE_NEWER_DRAFT = "Use Newer Draft";
+export const THIS_DEVICE = "On This Device";
+export const OTHER_DEVICE = "Newer · From Another Device";
+export const NEEDS_RECIPIENT = "Add a Recipient Before Reviewing";
+export const BAD_ADDRESS = "Check This Address";
+export const OFFLINE_SEND = "Connect to Send · Your Draft Is Saved on This Device";
+export const ATTACHMENTS_WAIT = "Wait for Every Attachment Before Reviewing";
+export const ATTACH_NEEDS_APP = "Attachments Need the App's Storage";
+export const ATTACH_TOO_MUCH = "Over 20 MB Together · Remove a File";
+export const ATTACH_FAILED = "Couldn't Attach That File";
+export const REVIEW_TITLE = "Review This Exact Message";
+export const NOT_SENT_YET = "Not Sent Yet";
+export const SEND_THIS = "Send This Message";
+export const EDIT_MESSAGE = "Edit Message";
+export const APPROVAL_SCOPE = "Your Approval Covers Only This Account, These Recipients and This Exact Message";
+export const EMPTY_SUBJECT_WARN = "No Subject";
+export const EMPTY_BODY_WARN = "Empty Message";
+export const REVIEW_EXPIRED = "Approval Expired · Review It Again";
+export const REVIEW_AGAIN = "Review Again";
+export const SENDING_LINE = "Sending";
+export const SENT_TITLE = "Sent";
+export const NOT_SENT_TITLE = "Not Sent";
+export const UNKNOWN_TITLE = "Send Status Unknown";
+export const SENT_LINE = "Gmail Accepted It · Accepted Is Not Read";
+export const SENT_FROM = "Sent From";
+export const UNKNOWN_WHY = "JARVIS Couldn't Confirm Whether Gmail Accepted It · Nothing Is Resent on Its Own";
+export const CHECK_GMAIL = "Check Gmail Before Trying Again";
+export const CHECK_AGAIN = "Check Again";
+export const RESEND_SHUT = "Resend Unavailable While Unknown";
+export const STILL_UNKNOWN = "Still Unknown · Not Found in Gmail Yet";
+export const NOW_CONFIRMED = "Found in Gmail · Sent";
+export const DRAFTS_TITLE = "Drafts";
+export const SENT_FOLDER = "Sent From JARVIS";
+export const EMPTY_DRAFTS = { title: "No Saved Drafts", sub: "A message you close without sending waits here", action: "Write a Message" };
+export const EMPTY_SENT = { title: "No Messages Sent From JARVIS Yet", sub: "Every send you approve is listed here with its receipt", action: "Write a Message" };
+export const FORWARD_IN_GMAIL = "Forward in Gmail";
+export const FORWARD_WHY = "Forwarding and Rich Formatting Stay in Gmail";
+export const SENT_BADGE = "Sent";
+export const FAILED_BADGE = "Not Sent";
+export const UNKNOWN_BADGE = "Unknown";
+export const SENDING_BADGE = "Sending";
+export const DRAFT_BADGE = "Draft";
+export const NO_SUBJECT = "(No Subject)";
+export const RECIPIENTS_LABEL = "Recipients";
+export function draftsWord(n: number): string {
+  return `${n} ${n === 1 ? "Draft" : "Drafts"}`;
+}
+export function sentWord(n: number): string {
+  return `${n} Sent`;
+}
+export const DRAFTS_AND_SENT = "Drafts and Sent From JARVIS";
+export const VIEW_RECEIPT_LONG = "View Receipt";

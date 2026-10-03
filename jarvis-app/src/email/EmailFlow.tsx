@@ -30,13 +30,14 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import PageHeader, { BarAction } from "../shared/PageHeader";
 import SkeletonRows from "../shared/SkeletonRows";
 import RowActionSheet, { type RowAction } from "../shared/RowActionSheet";
-import { RotateCcw, Search } from "../shared/icons";
+import { PenLine, RotateCcw, Search } from "../shared/icons";
 import { usePushDepth } from "../shared/pushNav";
 import { showToast } from "../shared/toast";
 import { supabase } from "../auth/supabaseClient";
 import { useOptionalSession } from "../auth/AuthProvider";
-import { useOptionalCategories, useOptionalLedger, useUserId } from "../data/NotesProvider";
-import { failure, lineFor, type CommandFailure } from "../substrate/commands/errors";
+import { useOptionalCategories, useOptionalLedger, useFileStore, useUserId } from "../data/NotesProvider";
+import { failure, lineFor, newRequestId, type CommandFailure } from "../substrate/commands/errors";
+import { cancelCommand } from "../substrate/commands/sends";
 import { fetchReadiness, notReadyLine, readinessFrom, type Readiness } from "../substrate/destinations/registry";
 import type { CaptureKind, CapturePayload } from "../substrate/contracts";
 import type { Category } from "../categories/types";
@@ -48,6 +49,7 @@ import {
   ALL_CHIP, ARCHIVED, AREAS_LABEL, CAPTURE_KIND, CAPTURE_TITLE, EMAIL_TITLE, EMPTY_ACCOUNTS, EMPTY_FILTER, EMPTY_INBOX, EMPTY_WAITING, FIND_DETAILS, HIDE_DISMISSED, MESSAGE_TITLE, NOT_NOW,
   NO_CLIENT, OFFLINE_LINE, PULL_HINT, REAUTH_LINE, RECONNECT, REFRESHING, REFRESH_FAILED, REFRESH_LABEL, REMEMBER, RETRY, RULE_KEPT, SEARCH_LABEL, SEGMENTS, SHOW_DISMISSED, SUGGEST_TITLE,
   TRASHED, UNDO, foundLine, type Segment,
+  COMPOSE_LABEL, DRAFT_DISCARDED, DRAFT_KEPT, NOT_SENT_TITLE, NOW_CONFIRMED, SENT_TITLE, STILL_UNKNOWN, UNKNOWN_TITLE, SENDING_LINE,
 } from "./copy";
 import {
   answerSuggestion, inboxPage, listAccounts, mergeRows, mirrorAccounts, newestFirst, offerSuggestion, readMessage, syncAccount, PAGE,
@@ -55,12 +57,17 @@ import {
 } from "./emailClient";
 import { forgetMessage, loadSnapshot, saveSnapshot } from "./deviceCache";
 import { categoryOf, countsByCategory, fileUnder, loadRules, loadTags, notNow, remember, type RulesStore, type SuggestionDue, type Tags } from "./categories";
-import { accountLabels, dayGroups, freshnessLine } from "./format";
+import { accountLabels, dayGroups, freshnessLine, senderOf } from "./format";
 import { usePull } from "./usePull";
 import InboxList from "./InboxList";
 import MessageScreen, { type LeftInbox } from "./MessageScreen";
 import SearchScreen, { EMPTY_SEARCH_STATE, type SearchState } from "./SearchScreen";
 import AccountsScreen from "./AccountsScreen";
+import ComposeScreen, { type ComposeStart } from "./ComposeScreen";
+import SendReviewScreen from "./SendReviewScreen";
+import SendOutcomeScreen from "./SendOutcomeScreen";
+import DraftsScreen from "./DraftsScreen";
+import { emptyFields, fieldsOf, getDraft, newLocalKey, outcomeOf, reconcileSend, replyFields, saveDraft, sendApproved, type DraftFields, type DraftRow, type LocalDraft, type Review } from "./drafts";
 import EmptyState from "./EmptyState";
 import CandidateCards, { type Conflict } from "./CandidateCards";
 import CaptureSheet from "./CaptureSheet";
@@ -75,7 +82,14 @@ type Screen =
   | { kind: "message"; row: InboxRow; from: "inbox" | "search" }
   | { kind: "search" }
   | { kind: "accounts" }
-  | { kind: "receipt"; actionId: string; from: Screen };
+  | { kind: "receipt"; actionId: string; from: Screen }
+  // Slice 07: the composer, the exact review, the outcome, the drafts.
+  | { kind: "compose"; start: ComposeStart; from: Screen }
+  | { kind: "review"; draftId: string; revision: number; fields: DraftFields; review: Review; requestId: string; start: ComposeStart; from: Screen }
+  | { kind: "outcome"; draft: DraftRow }
+  | { kind: "drafts" };
+
+const outcomeTitle = (d: DraftRow): string => { const o = outcomeOf(d); return o === "sent" ? SENT_TITLE : o === "unknown" ? UNKNOWN_TITLE : o === "failed" ? NOT_SENT_TITLE : SENDING_LINE; };
 
 interface Question extends SuggestionDue { suggestionId: string | null }
 
@@ -162,7 +176,17 @@ export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModul
   const [receipts, setReceipts] = useState<Receipt[]>([]);
   const bodyText = useRef<Record<string, string>>({});
   const loaded = useRef(false);
-  const pushCls = usePushDepth(screen.kind === "root" ? 0 : screen.kind === "receipt" ? 2 : 1);
+  // Compose, review, send (slice 07).
+  const fileStore = useFileStore();
+  const [sending, setSending] = useState(false);
+  const [sendFailure, setSendFailure] = useState<CommandFailure | null>(null);
+  const [checking, setChecking] = useState(false);
+  const [checkLine, setCheckLine] = useState<string | CommandFailure | null>(null);
+  const [draftsReload, setDraftsReload] = useState(0);
+  const depth = screen.kind === "root" ? 0
+    : screen.kind === "receipt" || screen.kind === "review" || screen.kind === "outcome" || screen.kind === "drafts" ? 2
+      : screen.kind === "compose" && screen.from.kind !== "root" ? 2 : 1;
+  const pushCls = usePushDepth(depth);
   const now = nowFn();
 
   useEffect(() => {
@@ -477,6 +501,73 @@ export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModul
   const labels = live.length > 1 ? accountLabels(live.map((a) => a.address)) : {};
   const reauth = accounts.some((a) => a.state === "reauth");
   const accountOf = (row: InboxRow) => accounts.find((a) => a.id === row.account_id) ?? null;
+
+  // ---- compose, review, send (slice 07) ------------------------------------
+  const canCompose = accounts.some((a) => a.state === "connected");
+  const defaultAccountId = () => (accounts.find((a) => a.state === "connected") ?? accounts[0])?.id ?? "";
+  const startCompose = (fields: DraftFields, accountId: string, from: Screen, extra: Partial<ComposeStart> = {}) => {
+    setSendFailure(null);
+    setScreen({ kind: "compose", start: { localKey: newLocalKey(nowFn), draftId: null, accountId, fields, revision: null, ...extra }, from });
+  };
+  const startReply = (m: MessageDetail, all: boolean, from: Screen) => {
+    const acct = accounts.find((a) => a.id === m.account_id);
+    if (!acct) return;
+    startCompose(replyFields(m, accounts.map((a) => a.address), all), acct.id, from, { replyingTo: senderOf(m) });
+  };
+  const openDraft = (d: DraftRow) => {
+    setSendFailure(null);
+    setScreen({ kind: "compose", start: { localKey: d.id, draftId: d.id, accountId: d.account_id, fields: fieldsOf(d), revision: d.revision, failedLine: d.send_state === "failed" ? d.action_verb ?? null : null }, from: { kind: "drafts" } });
+  };
+  const openLocal = (l: LocalDraft) => {
+    setSendFailure(null);
+    setScreen({ kind: "compose", start: { localKey: l.key, draftId: l.draft_id, accountId: l.account_id || defaultAccountId(), fields: l.fields, revision: l.revision }, from: { kind: "drafts" } });
+  };
+  const discarded = (copy: { accountId: string; fields: DraftFields } | null, from: Screen) => {
+    setScreen(from.kind === "compose" || from.kind === "review" ? { kind: "root" } : from);
+    setDraftsReload((n) => n + 1);
+    const undo = copy && client ? async () => {
+      const r = await saveDraft(client, null, copy.accountId, copy.fields, null);
+      if (!r.ok) { showToast({ message: lineFor(r) }); return; }
+      showToast({ message: DRAFT_KEPT });
+      setDraftsReload((n) => n + 1);
+    } : null;
+    showToast({ message: DRAFT_DISCARDED, ...(undo ? { actionLabel: UNDO, onAction: () => void undo() } : {}) });
+  };
+  // The tap. One request id per review: a second tap, or a retry, replays the same action.
+  const send = async (s: Extract<Screen, { kind: "review" }>) => {
+    if (sending || !client) return;
+    setSending(true);
+    setSendFailure(null);
+    const r = await sendApproved(token, { draft_id: s.draftId, review_nonce: s.review.review.review_nonce, shown_payload_hash: s.review.review.payload_hash, request_id: s.requestId });
+    setSending(false);
+    if (!r.ok) { setSendFailure(r); return; }
+    let draft = r.value.draft;
+    if (!draft) { const g = await getDraft(client, s.draftId); draft = g.ok ? g.value : null; }
+    if (!draft) { setSendFailure(failure("UNAVAILABLE")); return; }
+    setDraftsReload((n) => n + 1);
+    if (outcomeOf(draft) === "sent") showToast({ message: draft.action_verb ?? s.review.verb });
+    setCheckLine(null);
+    setScreen({ kind: "outcome", draft });
+  };
+  // Check Again: only the message found in Gmail settles an unknown send.
+  const checkAgain = async (d: DraftRow) => {
+    if (checking || !d.sent_action_id || !client) return;
+    setChecking(true);
+    setCheckLine(null);
+    const r = await reconcileSend(token, d.sent_action_id);
+    setChecking(false);
+    if (!r.ok) { setCheckLine(r); return; }
+    if (r.value.found && r.value.draft) {
+      setCheckLine(NOW_CONFIRMED);
+      setDraftsReload((n) => n + 1);
+      showToast({ message: r.value.draft.action_verb ?? NOW_CONFIRMED });
+      setScreen({ kind: "outcome", draft: r.value.draft });
+      return;
+    }
+    if (r.value.found === false) { setCheckLine(STILL_UNKNOWN); return; }
+    const g = await getDraft(client, d.id);
+    if (g.ok) setScreen({ kind: "outcome", draft: g.value });
+  };
   const issueLines = Object.entries(syncIssues).map(([address, line]) => `Didn't Refresh · ${address} · ${line}`);
 
   const sheetEl = sheet && client ? (
@@ -490,7 +581,7 @@ export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModul
   if (screen.kind === "receipt" && client) {
     const from = screen.from;
     return <div className={pushCls}>
-      <ReceiptDetail client={client} actionId={screen.actionId} offline={offline} back={from.kind === "message" ? MESSAGE_TITLE : EMAIL_TITLE}
+      <ReceiptDetail client={client} actionId={screen.actionId} offline={offline} back={from.kind === "message" ? MESSAGE_TITLE : from.kind === "outcome" ? outcomeTitle(from.draft) : EMAIL_TITLE}
         onBack={() => setScreen(from)} onChanged={() => { const ids = Object.keys(cards); if (ids.length) void loadCards(ids); }} onOpenItem={onOpenEntity} />
     </div>;
   }
@@ -509,7 +600,8 @@ export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModul
         onRowChanged={patchRow}
         onLeftInbox={leftInbox}
         onFileUnder={(r, c) => void onFileUnder(r, c)}
-        cards={cardsFor(current)} moreActions={more} onBodyText={(text) => void readBody(current, text)} />
+        cards={cardsFor(current)} moreActions={more} onBodyText={(text) => void readBody(current, text)}
+        onReply={(m, all) => startReply(m, all, screen)} />
       {sheetEl}{captureEl}
     </div>;
   }
@@ -522,7 +614,41 @@ export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModul
   }
   if (screen.kind === "accounts") {
     return <div className={pushCls}>
-      <AccountsScreen accounts={accounts} onBack={() => setScreen({ kind: "root" })} onOpenConnections={onOpenConnections} />
+      <AccountsScreen accounts={accounts} onBack={() => setScreen({ kind: "root" })} onOpenConnections={onOpenConnections} onOpenDrafts={client ? () => setScreen({ kind: "drafts" }) : undefined} />
+    </div>;
+  }
+  if (screen.kind === "compose" && client) {
+    const from = screen.from;
+    const start = screen.start;
+    return <div className={pushCls}>
+      <ComposeScreen client={client} userId={userId} accounts={accounts} offline={offline} fileStore={fileStore} start={start} now={nowFn}
+        onBack={() => { setDraftsReload((n) => n + 1); setScreen(from.kind === "review" || from.kind === "compose" ? { kind: "root" } : from); }}
+        onReview={(draftId, revision, fields, review) => setScreen({ kind: "review", draftId, revision, fields, review, requestId: newRequestId(), start: { ...start, localKey: draftId, draftId, fields, revision }, from })}
+        onDiscarded={(copy) => discarded(copy, from)} />
+    </div>;
+  }
+  if (screen.kind === "review" && client) {
+    const s = screen;
+    const backToCompose = () => { void cancelCommand(client, s.review.review.action_id); setSendFailure(null); setScreen({ kind: "compose", start: s.start, from: s.from }); };
+    return <div className={pushCls}>
+      <SendReviewScreen review={s.review} offline={offline} now={nowFn} sending={sending} failure={sendFailure} onEdit={backToCompose} onSend={() => void send(s)} onReviewAgain={backToCompose} />
+    </div>;
+  }
+  if (screen.kind === "outcome" && client) {
+    const d = screen.draft;
+    return <div className={pushCls}>
+      <SendOutcomeScreen draft={d} offline={offline} checking={checking} checkLine={checkLine}
+        onBack={() => { setCheckLine(null); setScreen({ kind: "root" }); }}
+        onReviewAgain={() => openDraft(d)}
+        onCheckAgain={() => void checkAgain(d)}
+        onReceipt={(actionId) => setScreen({ kind: "receipt", actionId, from: screen })} />
+    </div>;
+  }
+  if (screen.kind === "drafts" && client) {
+    return <div className={pushCls}>
+      <DraftsScreen client={client} userId={userId} offline={offline} reloadKey={draftsReload} onBack={() => setScreen({ kind: "accounts" })}
+        onCompose={() => startCompose(emptyFields(), defaultAccountId(), { kind: "drafts" })} onOpenDraft={openDraft} onOpenLocal={openLocal}
+        onOpenSent={(d) => { setCheckLine(null); setScreen({ kind: "outcome", draft: d }); }} />
     </div>;
   }
 
@@ -530,6 +656,7 @@ export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModul
   return (
     <div className={"screen ruled " + pushCls} {...handlers} data-extractor={EXTRACTOR_VERSION}>
       <PageHeader title={EMAIL_TITLE} actions={<>
+        {canCompose && client && <BarAction label={COMPOSE_LABEL} onClick={() => startCompose(emptyFields(), defaultAccountId(), { kind: "root" })}><PenLine className="ic" /></BarAction>}
         <BarAction label={SEARCH_LABEL} onClick={() => setScreen({ kind: "search" })}><Search className="ic" /></BarAction>
         <BarAction label={REFRESH_LABEL} onClick={() => void load("refresh")}><RotateCcw className="ic" /></BarAction>
       </>}>

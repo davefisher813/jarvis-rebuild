@@ -12,7 +12,7 @@
 // asked for, so a conflict with another device resolves to the provider.
 export const config = { runtime: "edge" };
 
-import { authedUser, bodyOf, ensureAccount, failResponse, fail, gmail, gmailFail, isEmail, isId, json, mailboxToken, readEnv, readBody, serviceRpc, serviceSelect, type EmailEnv } from "../_email";
+import { authedUser, bodyOf, ensureAccount, failResponse, fail, firstAddress, gmail, gmailFail, headerOf, isEmail, isId, json, mailboxToken, readEnv, readBody, serviceRpc, serviceSelect, type EmailEnv } from "../_email";
 import type { GmailFull } from "../../src/connections/google/map";
 
 export const OPS = ["open", "read", "unread", "archive", "unarchive", "trash", "untrash"] as const;
@@ -66,7 +66,15 @@ export default async function handler(req: Request): Promise<Response> {
     if (!a.ok) return failResponse(gmailFail(a));
     const full = a.body as GmailFull;
     const b = bodyOf(full);
-    const stored = await serviceRpc(env, "email_body_store", { p_owner: who.id, p_message: cached.id, p_text: b.text, p_html: b.html, p_attachments: b.attachments });
+    // The headers a reply needs (slice 07): kept with the body, never guessed later.
+    const hs = full.payload?.headers;
+    const headers = {
+      message_id: headerOf(hs, "Message-ID") || headerOf(hs, "Message-Id"),
+      in_reply_to: headerOf(hs, "In-Reply-To"),
+      references: headerOf(hs, "References").split(/\s+/).filter(Boolean),
+      reply_to: firstAddress(headerOf(hs, "Reply-To")).address,
+    };
+    const stored = await serviceRpc(env, "email_body_store", { p_owner: who.id, p_message: cached.id, p_text: b.text, p_html: b.html, p_attachments: b.attachments, p_headers: headers });
     if (stored.error) return failResponse(fail("UNAVAILABLE"));
     // Labels can have moved since the list was read; the open answers with the truth.
     await serviceRpc(env, "email_labels_set", { p_owner: who.id, p_message: cached.id, p_labels: full.labelIds ?? cached.provider_labels });

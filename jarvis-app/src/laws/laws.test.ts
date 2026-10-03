@@ -2119,8 +2119,6 @@ describe("LAW: every module is reachable, or is listed as not", () => {
     // proven by jarvis-core/supabase/tests/gateway.sh and its own tests.
     // (categoryTaps.ts left this list on 2026-10-03, slice 05: email/categories.ts
     // records the taps behind the Email tab's File Under.)
-    "sends.ts": "slice 07 mounts the Review Send sheet that calls it",
-    "worker.ts": "slice 07 adds the api/email send route that runs it on the server",
     // (fileStorage.ts left this list on 2026-09-02: files/FileStore routes
     // every upload through it, from the clip on Notes and Money.)
     // (HealthFlow.tsx left this list on 2026-09-05, HMN-F-06 option A: the

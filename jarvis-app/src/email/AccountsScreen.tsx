@@ -8,14 +8,16 @@ import PageHeader from "../shared/PageHeader";
 import ListFloor from "../shared/ListFloor";
 import { rowDoor } from "../shared/rowDoor";
 import { whenLine } from "../hub/format";
-import { ACCOUNTS_TITLE, ADD_GMAIL, CONNECT_WHERE, EMAIL_TITLE, EMPTY_ACCOUNTS, NOT_SYNCED, RECONNECT, RETENTION_NOTE, STATE_WORD, messagesWord } from "./copy";
+import { ACCOUNTS_TITLE, ADD_GMAIL, CONNECT_WHERE, DRAFTS_AND_SENT, EMAIL_TITLE, EMPTY_ACCOUNTS, NOT_SYNCED, RECONNECT, RETENTION_NOTE, STATE_WORD, messagesWord } from "./copy";
 import type { EmailAccount } from "./emailClient";
 import EmptyState from "./EmptyState";
 
-export default function AccountsScreen({ accounts, onBack, onOpenConnections }: {
+export default function AccountsScreen({ accounts, onBack, onOpenConnections, onOpenDrafts }: {
   accounts: EmailAccount[];
   onBack: () => void;
   onOpenConnections: () => void;
+  /** Drafts and what was sent from JARVIS (slice 07), reached from the mailbox picker as section 09 says. */
+  onOpenDrafts?: () => void;
 }) {
   const needsReauth = accounts.some((a) => a.state === "reauth");
   return (
@@ -25,6 +27,11 @@ export default function AccountsScreen({ accounts, onBack, onOpenConnections }: 
         <EmptyState copy={EMPTY_ACCOUNTS} onAction={onOpenConnections} />
       ) : (
         <div className="pad-x">
+          {onOpenDrafts && (
+            <div className="card list-card-ruled email-drafts-door">
+              <div className="row" {...rowDoor(onOpenDrafts)}><div className="row-grow"><div className="conn-name">{DRAFTS_AND_SENT}</div></div><div className="chev"></div></div>
+            </div>
+          )}
           <div className="card list-card-ruled">
             {accounts.map((a) => (
               <div className="row" key={a.id} {...rowDoor(onOpenConnections)}>

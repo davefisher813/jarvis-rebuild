@@ -26,6 +26,7 @@ import {
   ARCHIVE, ATTACHMENTS, ATTACHMENT_FAILED, ATTACHMENT_SAVED, ATTACHMENT_SHARED, ATTACHMENT_TOO_BIG, BODY_PENDING, COPIED_ID, COPY_ID, DOWNLOADING,
   EMAIL_TITLE, FILE_UNDER, GENERIC_WHY, HIDE_HEADERS, MARK_READ, MARK_UNREAD, MESSAGE_TITLE, MORE_LABEL, NO_BODY_OFFLINE, OPEN_GMAIL_EXACT, OPEN_GMAIL_GENERIC,
   IMAGES_OFF, PUT_BACK, READ_CONFLICT, READ_FAILED, RESTORED, RETRY, SHOW_HEADERS, SHOW_IMAGES, SOURCE_GONE, TRASH, UNREAD_FAILED, UNSUPPORTED_ACTION,
+  FORWARD_IN_GMAIL, FORWARD_WHY, REPLY, REPLY_ALL,
 } from "./copy";
 import { attachmentBlob, downloadAttachment, gmailLink, labelMessage, openMessage, readMessage, type AttachmentMeta, type EmailAccount, type InboxRow, type MessageDetail, type RpcClient } from "./emailClient";
 import { loadMessage, saveMessage } from "./deviceCache";
@@ -33,6 +34,13 @@ import { hasRemoteImages, senderOf, sizeLine } from "./format";
 import { textOf } from "./candidates";
 
 const MAX_ATTACHMENT = 20 * 1024 * 1024;
+
+/** Somebody besides the person and the sender was on the message: Reply All has a reason to exist. */
+export function othersOn(m: Pick<MessageDetail, "from_address" | "to_addresses" | "cc_addresses">, account: Pick<EmailAccount, "address"> | null): boolean {
+  const mine = (account?.address ?? "").toLowerCase();
+  const from = m.from_address.toLowerCase();
+  return [...m.to_addresses, ...m.cc_addresses].some((a) => { const x = a.address.toLowerCase(); return x && x !== mine && x !== from; });
+}
 
 export interface LeftInbox {
   op: "archive" | "trash";
@@ -42,7 +50,7 @@ export interface LeftInbox {
   restored: Partial<InboxRow>;
 }
 
-export default function MessageScreen({ client, token, userId, row, account, offline, categories, categoryId, onBack, onRowChanged, onLeftInbox, onFileUnder, cards, moreActions, onBodyText }: {
+export default function MessageScreen({ client, token, userId, row, account, offline, categories, categoryId, onBack, onRowChanged, onLeftInbox, onFileUnder, cards, moreActions, onBodyText, onReply }: {
   client: RpcClient;
   token: string | null | undefined;
   userId: string;
@@ -64,6 +72,8 @@ export default function MessageScreen({ client, token, userId, row, account, off
   moreActions?: RowAction[];
   /** The body as text, once it is known, for the rules to read. */
   onBodyText?: (text: string) => void;
+  /** Reply and Reply All (slice 07): the composer opens with the message's own headers. */
+  onReply?: (m: MessageDetail, all: boolean) => void;
 }) {
   const [detail, setDetail] = useState<MessageDetail | null>(() => loadMessage(userId, row.id));
   const [loading, setLoading] = useState(true);
@@ -208,6 +218,8 @@ export default function MessageScreen({ client, token, userId, row, account, off
     { label: ARCHIVE, onPick: () => void leave("archive"), disabled: !can("archive") || !token || offline || !m },
     { label: TRASH, onPick: () => void leave("trash"), disabled: !can("trash") || !token || offline || !m, destructive: true },
     { label: COPY_ID, onPick: () => void copyId() },
+    // Forwarding and rich formatting stay in Gmail (11): the honest door, said so.
+    { label: FORWARD_IN_GMAIL, onPick: () => { showToast({ message: FORWARD_WHY }); openGmail(); } },
     ...(moreActions ?? []),
   ];
 
@@ -224,6 +236,12 @@ export default function MessageScreen({ client, token, userId, row, account, off
         <div className="email-meta">{row.account}{categoryId ? ` · ${categories.find((c) => c.id === categoryId)?.data.name ?? ""}` : ""}</div>
         <button className="quiet-action" onClick={() => setHeaders((h) => !h)}>{headers ? HIDE_HEADERS : SHOW_HEADERS}</button>
       </div>
+      {onReply && m && !m.deleted && (
+        <div className="email-reply-acts">
+          <button className="btn-primary" onClick={() => onReply(m, false)} disabled={offline || !account || account.state !== "connected"}>{REPLY}</button>
+          {othersOn(m, account) && <button className="quiet-action" onClick={() => onReply(m, true)} disabled={offline || !account || account.state !== "connected"}>{REPLY_ALL}</button>}
+        </div>
+      )}
       {headers && m && (
         <dl className="email-headers">
           <dt>From</dt><dd>{m.from_name ? `${m.from_name} <${m.from_address}>` : m.from_address}</dd>

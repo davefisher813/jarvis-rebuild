@@ -17,7 +17,7 @@ function fake(opts: { claim?: unknown[]; dispatchedOk?: boolean; outcome?: Dispa
     worker: "test",
     rpc: async (fn, args) => {
       calls.push({ fn, args });
-      if (fn === "outbox_claim") return { data: claims.length ? claims.shift() : null, error: null };
+      if (fn === "outbox_claim" || fn === "outbox_claim_action") return { data: claims.length ? claims.shift() : null, error: null };
       if (fn === "outbox_dispatched") return { data: opts.dispatchedOk ?? true, error: null };
       if (fn === "outbox_settle") return { data: { outbox_id: "ob-1", state: (args as { p_state: string }).p_state }, error: null };
       return { data: null, error: { message: "unknown fn" } };
@@ -34,6 +34,14 @@ function fake(opts: { claim?: unknown[]; dispatchedOk?: boolean; outcome?: Dispa
 const settleArgs = (f: Fake) => f.calls.find((c) => c.fn === "outbox_settle")?.args;
 
 describe("the outbox worker", () => {
+  it("with an action named it claims that one command and no other (slice 07: the request that approved a send carries it out)", async () => {
+    const f = fake();
+    const r = await runOutboxOnce({ ...f.deps, action: "act-1" });
+    expect(f.calls[0]).toEqual({ fn: "outbox_claim_action", args: { p_worker: "test", p_action: "act-1", p_lease: "2 Minutes" } });
+    expect(f.calls.map((c) => c.fn)).toEqual(["outbox_claim_action", "outbox_dispatched", "outbox_settle"]);
+    expect(r).toMatchObject({ handled: true, action_id: "act-1", state: "confirmed" });
+  });
+
   it("claim, mark dispatched, call the provider, settle confirmed with the ack", async () => {
     const f = fake();
     const r = await runOutboxOnce(f.deps);

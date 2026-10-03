@@ -75,7 +75,11 @@ export interface MessageDetail {
   has_body: boolean;
   text: string | null;
   html: string | null;
+  /** The headers a reply needs, kept with the body on open (slice 07). */
+  reply_headers?: ReplyHeadersOf;
 }
+
+export interface ReplyHeadersOf { message_id?: string; in_reply_to?: string; references?: string[]; reply_to?: string }
 
 export interface InboxPage { rows: InboxRow[]; cached_total: number; page: number }
 export interface CachedSearch { rows: InboxRow[]; coverage: "cached"; q: string; window: number }
