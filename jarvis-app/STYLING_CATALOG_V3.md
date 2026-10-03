@@ -1013,7 +1013,7 @@ Light only. Dark is untouched. Category identity and action styling are separate
 
 | Role | Value |
 |---|---|
-| Page / cards / neutral pills and badges | `#F5F6F8` / `#FFFFFF` / `#F0F1F4` |
+| Page / cards / neutral pills and badges | `#FFFFFF` / `#F5F6F8` / `#F0F1F4` (flipped 2026-10-03, see §AT; was `#F5F6F8` / `#FFFFFF`) |
 | Text: titles and important values / supporting / quiet labels | `#111318` / `#363A43` / `#515661` (all opaque) |
 | Decorative dividers / control outlines / focus ring | `#E1E4E9` / `#737985` / `#111318` |
 | Completed | `#037134` on `#E5F3EA` |
@@ -1032,6 +1032,14 @@ Light only. Dark is untouched. Category identity and action styling are separate
 **Known contrast pair under 4.5:1:** the red category's text on its own 18% chip, `#D12416` on about `#EFCECF`, 3.62:1. Recorded rather than altered because the ink is the approved value.
 
 Pinned by `reds.ts`, `browserWalk.test.ts`, `laws.test.ts`, `capsuleLaw.test.ts`, `colourKey.test.ts` and `healthSkin.test.ts`, each amended with this date.
+
+## §AT. The light-mode flip (Dave 2026-10-03, from the approved "Light Mode Flip" preview)
+
+Light only. Dark is untouched. The page and the cards swapped: **the page is `#FFFFFF`, cards are `#F5F6F8`**. Nothing else in §AR moved: text, dividers, control outlines, the focus ring, the action red, status colours and the neutral pill `#F0F1F4` are as approved.
+
+- Where it lives: `--bg` `#FFFFFF`, `--surface-1` and `--surface-2` `#F5F6F8` in the light block of `jarvis-design-system.css`; the forced `html`/`body` ground; `.card`; and the classes that hard-coded white and so did not follow the tokens (`.promo-card`, `.voice-bar`, `.voice-search`, `.mode-card`, `.mode-card.mode-hero`, `.launch-row`), now `#F5F6F8`.
+- What it costs, measured on the rendered components (contrast ratio, 1.0 is invisible): grouped rows inside a sheet against their sheet 1.14 to 1.05, a neutral chip against its card 1.14 to 1.05, a secondary button against its card slightly lower. A card against the page stays 1.09 and is carried by its shadow. The bottom nav against the page stays about 1.03.
+- Because `#F0F1F4` is now very close to a card, a neutral pill on a card is carried by its label and shape more than by its fill.
 
 ## §AS. The warm-up is a side of the Now card, not a set of rows (Dave 2026-09-29; amends D3-A, Training Catalog V2)
 

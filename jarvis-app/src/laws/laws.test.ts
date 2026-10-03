@@ -1800,7 +1800,7 @@ describe("LAW: stored shapes are versioned", () => {
       return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
     };
     // page, white card, and the strict constant the palette sweep judges by
-    for (const ground of ["#F3F4F9", "#FFFFFF", "#F1F2F7", "#F2F2F7"]) {
+    for (const ground of ["#F3F4F9", "#FFFFFF", "#F5F6F8", "#F1F2F7", "#F2F2F7"]) {
       expect(ratio("#FF2B3C", ground), "glyph red on " + ground).toBeGreaterThanOrEqual(3);
     }
   });
