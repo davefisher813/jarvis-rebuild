@@ -38,6 +38,7 @@ import { Paperclip, Calendar, FolderKanban, Check as CheckGlyph, Trash2 } from "
 import { useSwipe } from "../shared/useSwipe";
 import { FormSheet, Group, FieldRow, MenuRow, DeleteRow, ErrorLine } from "../shared/FormSheet";
 import { pressable, onPressKey } from "../shared/pressable";
+import { rowDoor } from "../shared/rowDoor";
 
 const CHEV = <div className="chev" />;
 const PLUS = <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>;
@@ -160,13 +161,17 @@ type Sheet = { kind: "closed" } | { kind: "new" } | { kind: "edit"; id: string }
 // Autopay is exempt by the money law: the app cannot know a payment cleared,
 // so there is nothing here for a gesture to claim. A bill already paid has
 // nothing to mark.
-function BillRow({ paid, autopay, label, onPay, onDelete, children }: {
+function BillRow({ paid, autopay, label, onPay, onDelete, onOpen, children }: {
   paid: boolean;
   autopay: boolean;
   /** The bill's name, for the delete button's accessible name. */
   label: string;
   onPay: () => void;
   onDelete?: () => void;
+  /** Opens the bill. The whole row is the door (the tap sweep, 2026-10-04): an
+      autopay bill's repeat glyph and every bill's amount did nothing when
+      tapped, because only the title block opened it. */
+  onOpen: () => void;
   children: React.ReactNode;
 }) {
   const completable = !paid && !autopay;
@@ -194,6 +199,7 @@ function BillRow({ paid, autopay, label, onPay, onDelete, children }: {
         className={"task-row p2" + (swipe.dragging ? " swiping" : "")}
         style={swipe.dx ? { transform: `translateX(${swipe.dx}px)` } : undefined}
         {...swipe.handlers}
+        {...rowDoor(onOpen)}
       >
         {children}
       </div>
@@ -620,7 +626,8 @@ export default function MoneyFlow({ onOpenTask, onOpenEntity, openAccountId, ope
               : null;
         return (
           <BillRow key={b.id} paid={paid} autopay={!!info.autopay} label={b.data.text}
-            onPay={() => void markPaid(b)} onDelete={() => void deleteBill(b)}>
+            onPay={() => void markPaid(b)} onDelete={() => void deleteBill(b)}
+            onOpen={() => setBillSheet({ kind: "edit", id: b.id })}>
             {info.autopay ? (
               <div className="task-check-tap"><span className="gm-slot cat-fg-blue">{REPEAT}</span></div>
             ) : (
@@ -669,7 +676,8 @@ export default function MoneyFlow({ onOpenTask, onOpenEntity, openAccountId, ope
             : null;
     return (
       <BillRow key={bill.id} paid={paid} autopay={!!d.autopay} label={d.vendor}
-        onPay={() => ledgerPay.request(bill)} onDelete={() => void deleteLedgerBill(bill)}>
+        onPay={() => ledgerPay.request(bill)} onDelete={() => void deleteLedgerBill(bill)}
+        onOpen={() => setDetailId(bill.id)}>
         {d.autopay ? (
           <div className="task-check-tap"><span className="gm-slot cat-fg-blue">{REPEAT}</span></div>
         ) : (

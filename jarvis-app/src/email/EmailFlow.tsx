@@ -746,8 +746,11 @@ export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModul
     <div className={"screen ruled " + pushCls} {...handlers} data-extractor={EXTRACTOR_VERSION}>
       <PageHeader title={EMAIL_TITLE} actions={<>
         {canCompose && client && <BarAction label={COMPOSE_LABEL} onClick={() => startCompose(emptyFields(), defaultAccountId(), { kind: "root" })}><PenLine className="ic" /></BarAction>}
-        <BarAction label={SEARCH_LABEL} onClick={() => setScreen({ kind: "search" })}><Search className="ic" /></BarAction>
-        <BarAction label={REFRESH_LABEL} onClick={() => void load("refresh")}><RotateCcw className="ic" /></BarAction>
+        {/* Search and Refresh need a mailbox to ask: with no client (the not-set-up
+            state) both did nothing when tapped, the tap sweep's finding
+            (2026-10-04, Dave: no dead buttons), so they are not offered. */}
+        {client && <BarAction label={SEARCH_LABEL} onClick={() => setScreen({ kind: "search" })}><Search className="ic" /></BarAction>}
+        {client && <BarAction label={REFRESH_LABEL} onClick={() => void load("refresh")}><RotateCcw className="ic" /></BarAction>}
       </>}>
         {fresh && <button className="email-fresh" onClick={() => setScreen({ kind: "accounts" })}>{refreshing ? REFRESHING : fresh}</button>}
         <div className="pad-x">

@@ -369,3 +369,24 @@ describe("E21, E22, E28: accounts and states", () => {
     expect(within(document.body).queryByText(EMPTY_FILTER.title)).toBeNull();
   });
 });
+
+// NO MAILBOX, NO BUTTONS THAT NEED ONE (the tap sweep, 2026-10-04, Dave: no dead
+// buttons). With no client (the not-set-up state) Search and Refresh did nothing
+// when tapped: the screen only ever showed the not-set-up card. They are not
+// offered there, and are with a client.
+describe("EmailFlow header with no mailbox client", () => {
+  it("offers Search and Refresh when there is a client", async () => {
+    const r = rig();
+    render(<EmailFlow client={r.client} token="jwt" userId={USER} categories={categories} now={() => NOW} onOpenConnections={() => {}} />);
+    expect(await screen.findByRole("button", { name: "Search" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Refresh" })).toBeInTheDocument();
+  });
+
+  it("offers neither when there is none, and still offers the way to Connections", async () => {
+    render(<EmailFlow client={null} token="jwt" userId={USER} categories={categories} now={() => NOW} onOpenConnections={() => {}} />);
+    expect(await screen.findByText(/Open Connections/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Search" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Refresh" })).not.toBeInTheDocument();
+  });
+});
+
