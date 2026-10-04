@@ -33,7 +33,8 @@ export function pressable(onClick: () => void, opts?: { disabled?: boolean }): P
   return {
     role: "button",
     // -1 keeps the row out of the tab order without taking its role away, for
-    // a cell that is rendered but not choosable (a day outside the month).
+    // a cell that is rendered but not choosable right now. Nothing passes it
+    // today: the month grid's spill-over days used to, and are tappable now.
     tabIndex: opts?.disabled ? -1 : 0,
     onClick: () => { if (!opts?.disabled) onClick(); },
     onKeyDown: (e: KeyboardEvent) => {

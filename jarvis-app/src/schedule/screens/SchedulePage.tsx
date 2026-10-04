@@ -513,16 +513,17 @@ export default function SchedulePage({
               /* SCHED-F-19 (2026-09-05): a day cell was a bare div with an
                  onClick, so a keyboard or a switch control could not pick a
                  day at all while every other tappable row on this page carried
-                 role and a tab stop. A cell outside the month keeps the role
-                 (it is still a cell) and leaves the tab order, which is what
-                 tabIndex -1 says and what Tab through six weeks of grid needs
-                 in order not to stop on 42 things. */
+                 role and a tab stop. A day spilling in from the next or the
+                 last month used to be inert: it looked like every other day and
+                 did nothing (Dave, 2026-10-04: no dead buttons). It is a day
+                 like any other now, and picking one moves the grid to its
+                 month (ScheduleFlow's onSelect). */
               <div
                 className={cls}
                 key={cell.date}
                 aria-label={cell.date}
                 aria-current={isSel ? "date" : undefined}
-                {...pressable(() => onSelect?.(cell.date), { disabled: !cell.inMonth })}
+                {...pressable(() => onSelect?.(cell.date))}
               >
                 {cell.day}
                 <div className="cal-dots">{cellDots.map((c, i) => <div className={"cal-dot cat-bg-" + catColor(c)} key={i} />)}</div>

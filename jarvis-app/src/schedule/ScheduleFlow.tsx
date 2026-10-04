@@ -1683,7 +1683,7 @@ export default function ScheduleFlow({ onEditRoutine, openId, openNonce, onOpenC
         weekRows={weekRows}
         onPrev={onPrev}
         onNext={onNext}
-        onSelect={setSelected}
+        onSelect={(iso) => { setSelected(iso); syncView(iso); }}
         onNew={() => setSheet({ mode: "new" })}
         onOpenEvent={(id, occurrenceDate) => setDetail({ id, occurrence: occurrenceDate })}
         onPickSlot={onPickSlot}
