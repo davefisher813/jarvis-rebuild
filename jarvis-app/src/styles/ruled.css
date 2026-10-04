@@ -124,7 +124,10 @@
    inside a ruled stream card is the ruled row's: 16/500 for the name. */
 .ruled .stream-grouped .notice-card-uniform { min-height: 56px; }
 .ruled .stream-card .conn-name { font-size: var(--t-name); font-weight: var(--w-name); letter-spacing: var(--track-name); }
-.ruled .stream-card .vrow-fact { font-size: calc(16px * var(--type-scale)); font-weight: var(--w-regular); letter-spacing: -0.01em; }
+/* A notice row's title is the name of what the row is about, like every other name in the card, so it wears the name
+   weight (Dave, 2026-10-04, on the live Today: "Your September is ready", "7 Moved to Today" and "Create V1 of Hitting
+   App" were regular weight beside a bold task title above them). It is one token, so light and dark cannot differ. */
+.ruled .stream-card .vrow-fact { font-size: calc(16px * var(--type-scale)); font-weight: var(--w-name); letter-spacing: -0.01em; }
 
 /* AN UPSTREAM ERROR IS READ, NOT GLANCED AT (TRACE-04, 2026-09-07).
    ai/failureLine.ts exists because Dave lost two weeks in 2026-09-02 to a

@@ -115,6 +115,29 @@ describe("THE NAME OF A THING IS ONE TREATMENT", () => {
     expect(offenders, "state belongs in the ink, not the weight").toEqual([]);
   });
 
+  // A NOTICE ROW'S TITLE IS A NAME (Dave, 2026-10-04, from the live Today: "Your
+  // September is ready", "7 Moved to Today" and "Create V1 of Hitting App" were
+  // regular weight under a bold task title). Its class is .vrow-fact, which the
+  // roster above cannot list (it sets its own 16px), so it is held here.
+  it("a notice row's title wears the name weight, not a lighter one", () => {
+    const rule = rules().find((r) => r.sel === ".ruled .stream-card .vrow-fact");
+    expect(rule, "the stream card's notice title rule exists").toBeTruthy();
+    expect(rule!.body).toMatch(/font-weight:\s*var\(--w-name\)/);
+  });
+
+  // LIGHT AND DARK DIFFER IN COLOUR (Dave, 2026-10-04: "the only difference
+  // between light mode and dark mode is the colors... same weights"). The light
+  // block used to step the whole weight ramp down a notch; the ramp is :root's
+  // alone now, so a weight can never differ by theme.
+  it("sets no weight token under the light theme", () => {
+    const bare = DS.replace(/\/\*[\s\S]*?\*\//g, "");
+    const offenders: string[] = [];
+    for (const m of bare.matchAll(/\[data-theme="light"\]\s*\{([^{}]*)\}/g)) {
+      for (const w of (m[1] ?? "").matchAll(/--(w-[a-z]+)\s*:/g)) offenders.push(`[data-theme="light"] sets --${w[1]}`);
+    }
+    expect(offenders, "one weight ramp, in :root").toEqual([]);
+  });
+
   // AND IT STAYS HEAVIER THAN THE LINE UNDER IT. The whole point: the ladder,
   // not the number. .conn-meta is the subtext's own token weight.
   it("keeps the name above its own subtext", () => {

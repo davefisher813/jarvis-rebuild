@@ -680,3 +680,7 @@ Dave's audit of the live build found six faults, all fixed in code (deviations 5
 
 Not changed, as Dave noted: Discard Draft works live; Undo in Activity and Revoke Assistant could not be tapped (no activity, no assistant) and need no action once the missing database functions are in.
 
+### Card titles, one weight in both themes (2026-10-04, on Dave's word)
+
+Dave's screenshot of the live Today (light mode) showed the Your Move and Email card titles still regular weight after the notification-title fix, and he ruled that light and dark differ only in color. Measured in a real browser on the five rows he named: before, light 600, 400, 400, 400, 600 and dark 700, 500, 500, 500, 700; after, 700 for all five in both themes. The cause was two things: the light block stepped every weight down a notch, and the notice-row title was set to the regular weight in both themes. Both are fixed at the token, not by a longer selector (deviation 62), and two Type Law tests hold them (`typeLaw.test.ts`). Left for Dave's yes or no: the light-only sizes and the filled-versus-outline icons, which also differ between the themes.
+
