@@ -724,7 +724,8 @@ describe("BROWSER-F-09: quiet is not the same word as finished", () => {
   it("--tx-quiet clears AA on every ground it lands on, in both themes", () => {
     const grounds: Array<[string, string[]]> = [
       ["dark", ["#000000", "#1C1C1E", "#2C2C2E"]],
-      ["light", ["#FFFFFF", "#F3F4F9"]],
+      // The flip (Dave 2026-10-03): the page is #FFFFFF, a card is #F5F6F8, a raised row #F0F1F4.
+      ["light", ["#FFFFFF", "#F5F6F8", "#F0F1F4"]],
     ];
     for (const [theme, gs] of grounds) {
       for (const g of gs) {

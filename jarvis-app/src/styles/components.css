@@ -2899,7 +2899,7 @@ button {
    the title left a band as tall as the hero where "Good Evening, Dave" was
    sliding up through the iOS clock with nothing behind it. See useCondensed. */
 .pagebar.on, .pagebar.solid { background: rgba(12,12,14,0.82); -webkit-backdrop-filter: blur(22px) saturate(160%); backdrop-filter: blur(22px) saturate(160%); box-shadow: 0 0.5px 0 var(--divider); }
-[data-theme="light"] .pagebar.on, [data-theme="light"] .pagebar.solid { background: rgba(249,249,251,0.86); }
+[data-theme="light"] .pagebar.on, [data-theme="light"] .pagebar.solid { background: rgba(255,255,255,0.86); }
 .pagebar.on .pagebar-title { opacity: 1; }
 /* The energy line takes the Apple Music icon gradient (red into its lighter
    stop) before fading out. Pure decoration, no text near it, so the light
@@ -3023,7 +3023,7 @@ button {
    two lines) and the colored hierarchy slots (.fact-*, colored kickers). */
 .promo-card { background: #1C1C1E; border-radius: var(--r-xl); margin: 0 var(--s-4) var(--s-3);
   padding: var(--s-4); position: relative; animation: restoreIn var(--dur-slow) var(--ease-spring); }
-[data-theme="light"] .promo-card { background: #FFFFFF; box-shadow: var(--shadow-card); border: 0.5px solid var(--card-bd); }
+[data-theme="light"] .promo-card { background: #F5F6F8; box-shadow: var(--shadow-card); border: 0.5px solid var(--card-bd); }
 .promo-head { display: flex; gap: var(--s-3h); align-items: center; }
 .promo-badge { width: 52px; height: 52px; border-radius: var(--r-circle); display: flex; align-items: center;
   justify-content: center; flex-shrink: 0; color: #fff; }
@@ -3252,29 +3252,13 @@ button {
    IS .row-act in .notice-clear-row now, so the shape comes from the app
    rather than from a class of its own; this adds only the two things those
    two buttons do not have -- centring rather than flex-end, the glyph's
-   sizing, and the waiting count as a chip inside the pill. */
-/* TWO FACTS, TWO SHAPES (Dave 2026-09-11: "Focus got mixed up with 23"). The
-   count was a bare number in the same rounded run as the verb, so "Focus" and
-   "23" fused into one label. It says what it counts now, and it is separated
-   the way this app separates a label from its evidence everywhere else: its
-   own weight, its own ink, and a hairline it sits behind. */
+   and sizing. */
 .focus-row { justify-content: center; padding-bottom: var(--s-1); }
 .focus-row .row-act { gap: var(--s-2); }
 .focus-row .row-act .ic { width: 17px; height: 17px; flex-shrink: 0; }
 .focus-row .row-act .fc-t { font-weight: var(--w-semi); }
-.focus-row .row-act .fc-n { font-size: var(--t-eyebrow); font-weight: var(--w-semi); text-transform: uppercase;
-  letter-spacing: var(--track-caps);
-  color: var(--tx-2); padding-left: var(--s-2); border-left: 0.5px solid var(--card-bd);
-  font-variant-numeric: tabular-nums; margin-left: var(--s-1); }
-/* 2026-09-28 (Dave): the waiting count is a grey chip with black text on the
-   red pill -- the same grey/black treatment as the Add and See All pills. */
-[data-theme="light"] .focus-row .row-act .fc-n {
-  color: #000;
-  background-color: var(--press-3);
-  border-left: 0;
-  border-radius: var(--r-pill);
-  padding: var(--s-1) var(--s-2);
-}
+/* 2026-10-03 (Dave): no count inside the pill. "Get rid of 13 waiting and just
+   have a red Focus button." The bullseye and the verb are the whole control. */
 
 /* NO TWO CONTROLS IN ONE CORNER (Dave 2026-08-19, from the same screenshot).
    A card with an absolutely-positioned corner dismiss and a one-row body puts
@@ -3572,7 +3556,7 @@ button {
 .nav-bar { position: sticky; top: 0; z-index: 40; background: rgba(12,12,14,0.82);
   -webkit-backdrop-filter: blur(22px) saturate(160%); backdrop-filter: blur(22px) saturate(160%);
   border-bottom: 0.5px solid var(--divider); padding-top: calc(var(--s-1) + var(--safe-top, env(safe-area-inset-top, 0px))); }
-[data-theme="light"] .nav-bar { background: rgba(249,249,251,0.86); }
+[data-theme="light"] .nav-bar { background: rgba(255,255,255,0.86); }
 /* The condensed title is the condensed title, whichever bar is drawing it.
    AMENDED 2026-09-26 (audit leftovers): it was position: absolute, left 0,
    right 0, centred on the whole bar, so at --type-scale 1.4 "Pull Day" ran
@@ -5106,6 +5090,7 @@ body.selecting .voice-dock { display: none; }
 .rep-win-good { background: var(--good-tint); } .rep-win-good .rep-win-val { color: var(--good); }
 .rep-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-2); }
 .rep-grid .stat-tile { border-radius: var(--r-md); padding: var(--s-3h) var(--s-2) var(--s-3); text-align: center; }
+[data-theme="light"] .rep-grid .stat-tile.stat-plain { background: var(--surface-3); }
 /* The delta is the tile's one quiet fact (§AM F1/F4, 2026-09-25): the fact
    size and weight in the one grey, under the caps label's grey. It was a
    raw 11px in the grey bolded, which is the grey made heavier. A rise
@@ -5244,8 +5229,8 @@ body.selecting .voice-dock { display: none; }
 /* The hero's button is the screen's one fill now that its panel is not. */
 .mode-hero .mode-go { background: var(--accent-fill); color: #fff; }
 .mode-go.mode-go-quiet { background: var(--press-5); color: var(--tx-1); }
-[data-theme="light"] .mode-card { background: #FFFFFF; box-shadow: var(--shadow-card); }
-[data-theme="light"] .mode-card.mode-hero { background: #FFFFFF; box-shadow: var(--shadow-card); }
+[data-theme="light"] .mode-card { background: #F5F6F8; box-shadow: var(--shadow-card); }
+[data-theme="light"] .mode-card.mode-hero { background: #F5F6F8; box-shadow: var(--shadow-card); }
 [data-theme="light"] .mode-go { box-shadow: 0 0 0 0.5px rgba(0,0,0,0.06); }
 
 /* The launcher row: one mode, full width, its count and its reason. */
@@ -5257,7 +5242,10 @@ body.selecting .voice-dock { display: none; }
   background: var(--red-tint); color: var(--accent-tx); }
 .launch-ic .ic { width: 20px; height: 20px; }
 .launch-tt { font-size: var(--t-h3); font-weight: var(--w-semi); color: var(--tx-1); }
-[data-theme="light"] .launch-row { background: #FFFFFF; box-shadow: var(--shadow-card); }
+[data-theme="light"] .launch-row { background: #F5F6F8; box-shadow: var(--shadow-card); }
+/* THE WHITE IS WHITE (Dave 2026-10-03): the surfaces that float over the page
+   are pure white, not the card tone. Sheets and modals in light only. */
+[data-theme="light"] .sheet-scrim > .card, [data-theme="light"] .modal, [data-theme="light"] .ag-card { background: #FFFFFF; }
 
 /* THE SET STRIP (gym catalog §3.1). One row per set: tap to edit, hold to
    duplicate, swipe to delete, drag to reorder via the shared ReorderList
@@ -6859,7 +6847,7 @@ span.row-star { cursor: default; }
   background-color: var(--capsule-fill); box-shadow: 0 2px 10px rgba(0, 0, 0, 0.45); }
 .return-pill { isolation: isolate; }
 [data-theme="light"] .return-pill { color: var(--on-light-red); }
-[data-theme="light"] .return-pill::before { background-color: var(--surface-2); }
+[data-theme="light"] .return-pill::before { background-color: #FFFFFF; }
 .return-pill .ic { width: 17px; height: 17px; }
 .return-pill:active { opacity: 0.85; }
 

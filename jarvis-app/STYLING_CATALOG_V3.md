@@ -1013,7 +1013,7 @@ Light only. Dark is untouched. Category identity and action styling are separate
 
 | Role | Value |
 |---|---|
-| Page / cards / neutral pills and badges | `#F5F6F8` / `#FFFFFF` / `#F0F1F4` |
+| Page / cards / neutral pills and badges | `#FFFFFF` / `#F5F6F8` / `#F0F1F4` (flipped 2026-10-03, see §AT; was `#F5F6F8` / `#FFFFFF`) |
 | Text: titles and important values / supporting / quiet labels | `#111318` / `#363A43` / `#515661` (all opaque) |
 | Decorative dividers / control outlines / focus ring | `#E1E4E9` / `#737985` / `#111318` |
 | Completed | `#037134` on `#E5F3EA` |
@@ -1021,7 +1021,7 @@ Light only. Dark is untouched. Category identity and action styling are separate
 | Health lime: number ink / decorative fill / reference-range tint | `#4E7402` / `#9EDB43` / `#E7F1DC` |
 
 - Secondary pills (Start, Snooze, Add, View Email, Reply) are `#F0F1F4` with an `#D12416` label. Neutral controls (Area, Group, Reorder, Manage) are `#F0F1F4` with `#111318`.
-- The Focus button's waiting count is a neutral chip (`#111318` on `#F0F1F4`), never a second red.
+- The Focus button carries no count (Dave 2026-10-03: "just have a red Focus button"). It is the bullseye and the word. Red in light; dark keeps its neutral capsule with the red word.
 - TODAY and TOMORROW badges are neutral. Amber is only for real warnings. "JARVIS Found N" is one `#363A43` phrase.
 - Area tiles keep their fills; the icon is white where white clears 3:1 against the fill, else `#111318` (orange, sky, pink, yellow, teal, lime, sand take the dark icon).
 - Health metadata pills and facts are neutral. Lime carries numbers as ink `#4E7402`; the bright lime is a decorative fill only. This also settles the `#A6FF00` / `#9EDB43` mismatch: `--hl-lime` had been pinned equal to dark's `#A6FF00` in light.
@@ -1032,6 +1032,16 @@ Light only. Dark is untouched. Category identity and action styling are separate
 **Known contrast pair under 4.5:1:** the red category's text on its own 18% chip, `#D12416` on about `#EFCECF`, 3.62:1. Recorded rather than altered because the ink is the approved value.
 
 Pinned by `reds.ts`, `browserWalk.test.ts`, `laws.test.ts`, `capsuleLaw.test.ts`, `colourKey.test.ts` and `healthSkin.test.ts`, each amended with this date.
+
+## §AT. The light-mode flip (Dave 2026-10-03, from the approved "Light Mode Flip" preview)
+
+Light only. Dark is untouched. The page and the cards swapped, then the same day Dave said "the white isn't white enough" and the whites were finished: **the page is `#FFFFFF`, cards are `#F5F6F8` (a fainter `#FAFAFB` was tried and dropped: 1.04:1 against the page was too close to white), and the surfaces that float over the page are pure `#FFFFFF`** (tab bar, sheets, modals, the JARVIS dock). Nothing else in §AR moved: text, dividers, control outlines, the focus ring, the action red, status colours and the neutral pill `#F0F1F4` are as approved.
+
+- Where it lives: `--bg` `#FFFFFF`, `--surface-1` and `--surface-2` `#F5F6F8`, `--nav-bg` `#FFFFFF` and a lighter `--shadow-card` in the light block of `jarvis-design-system.css`; the forced `html`/`body` ground; `.card`; the classes that hard-coded a ground and so did not follow the tokens (`.promo-card`, `.mode-card`, `.mode-card.mode-hero`, `.launch-row` at `#F5F6F8`; `.voice-bar`, `.voice-search`, sheets (`.sheet-scrim > .card`) and `.modal` at `#FFFFFF`).
+- Why `--surface-2` stays the card tone and sheets are set directly: `--surface-2` also grounds inputs, stat tiles and editors, and a white tile on a white page would vanish.
+- What it measures (contrast ratio, 1.0 is invisible): card against the page 1.04 (carried by a light shadow), grouped rows against their white sheet 1.13, a neutral chip against its card 1.08.
+- The card shadow is a 1px hairline at 16%, `0 1px 2px` at 6% and `0 6px 16px` at 5%. The wide halo is light so it stops tinting the white page around each card; the hairline is what keeps a `#F5F6F8` card readable on white (a card is only 1.08:1 against the page, so the shadow is its outline).
+- Found by the independent review of the flip and fixed with it: the top bars (`.pagebar`, `.nav-bar`) were still the old near-gray and are `rgba(255,255,255,.86)`; the Life header search field and options button take `--surface-3` so a field shows on white; plain monthly-report tiles take `--surface-3`; the Return pill and the anchor-guard dialog are `#FFFFFF` like the other floating surfaces.
 
 ## §AS. The warm-up is a side of the Now card, not a set of rows (Dave 2026-09-29; amends D3-A, Training Catalog V2)
 

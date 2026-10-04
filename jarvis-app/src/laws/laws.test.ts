@@ -1800,7 +1800,7 @@ describe("LAW: stored shapes are versioned", () => {
       return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
     };
     // page, white card, and the strict constant the palette sweep judges by
-    for (const ground of ["#F3F4F9", "#FFFFFF", "#F1F2F7", "#F2F2F7"]) {
+    for (const ground of ["#F3F4F9", "#FFFFFF", "#F5F6F8", "#FAFAFB", "#F1F2F7", "#F2F2F7"]) {
       expect(ratio("#FF2B3C", ground), "glyph red on " + ground).toBeGreaterThanOrEqual(3);
     }
   });
@@ -5250,13 +5250,13 @@ describe("LAW: the open deck is not offered three times over", () => {
     expect(hits, "the open-gap row calls its door Focus now (Dave 2026-09-17); nothing else may say Pick Something").toBe(0);
   });
 
-  it("only one control states how deep the deck is", () => {
+  it("no control on Today states how deep the deck is", () => {
     const head = read(join(SRC, "today/MoveHeadliner.tsx"));
     // The runner-up row went with Other Good Choices (2026-09-16), so the
-    // headliner counts nothing at all now. Focus carries the one true count.
+    // headliner counts nothing at all now, and since 2026-10-03 neither does Focus.
     expect(head, "the headliner must not count the deck").not.toMatch(/otherCount/);
     const page = read(join(SRC, "today/TodayPage.tsx"));
-    expect(page, "Focus keeps the deck's one count").toMatch(/\{upNextWaiting\} Waiting/);
+    expect(page, "Focus is just the word now (Dave 2026-10-03): no count inside the pill").not.toMatch(/upNextWaiting|fc-n/);
   });
 });
 

@@ -77,7 +77,7 @@ describe("TodayPage", () => {
     // nothing folded, so the head carries no See All (the button belongs to
     // the fold now, not to navigation).
     const { container } = render(
-      <TodayPage {...base} upNext={[tk("over", "2026-05-18")]} upNextWaiting={2}
+      <TodayPage {...base} upNext={[tk("over", "2026-05-18")]}
         upNextReason="Waiting 2 days" onUpNext={() => {}} />,
     );
     expect(screen.getByText("Your Move")).toBeInTheDocument();
@@ -96,12 +96,11 @@ describe("TodayPage", () => {
     // FOCUS REPLACED THE RECEIPT (Dave 2026-09-11: "The focus button should
     // be all the way up top under your move and replace that small grey
     // subtext that renders the up next page"). Both called onUpNext, so the
-    // page was carrying one destination twice; the count survives as the chip
-    // that makes it worth tapping -- SAYING WHAT IT COUNTS (Dave 2026-09-11:
-    // "Focus got mixed up with 23"), so the verb and the count can never fuse
-    // into one label.
+    // page was carrying one destination twice. Since 2026-10-03 (Dave: "just have a
+    // red Focus button") the pill is the word alone, with no count.
     expect(screen.getByText("Focus")).toBeInTheDocument();
-    expect(document.querySelector(".focus-row .fc-n")).toHaveTextContent("2 Waiting");
+    expect(document.querySelector(".focus-row .fc-n"), "Focus carries no count (Dave 2026-10-03)").toBeNull();
+    expect(document.querySelector(".focus-row .row-act")).toHaveTextContent(/^Focus$/);
     // C-24: one headliner, and no task row left in the stream at all.
     expect(container.querySelectorAll(".hl-title").length).toBe(1);
     expect(container.querySelectorAll(".heads-up-stream .task-row").length).toBe(0);
@@ -438,7 +437,7 @@ describe("a workout in progress", () => {
       <NoticeCard key="d" weight={RESUME} icon={<span />} tone="cat-fg-blue" title="Resume D" action={{ label: "Open", onClick: () => {} }} />,
     ];
     const { container } = render(
-      <TodayPage {...base} liveGym={live} notices={notices} upNext={[tk("over", "2026-05-18")]} upNextWaiting={2} upNextReason="Waiting 2 days" onUpNext={() => {}} />,
+      <TodayPage {...base} liveGym={live} notices={notices} upNext={[tk("over", "2026-05-18")]} upNextReason="Waiting 2 days" onUpNext={() => {}} />,
     );
     const card = container.querySelector(".stream-card")!;
     const names = [...card.querySelectorAll(".conn-name")].map((n) => n.textContent);
