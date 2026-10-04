@@ -658,12 +658,7 @@ Code (deviations 53 and 54):
 
 Tests: each of the three new tests in `BrainFlow.test.tsx`, `AboutPage.test.tsx` and `settings.test.tsx` fails with the fix removed and passes with it; `useIsAdmin.test.tsx` and three new `AdminPanel.test.tsx` cases cover the probe.
 
-Database (deviation 55): the Email backend fault was the migrations. 0044 to 0051 were applied to production on 2026-10-03 and 10-04 by another session, in hand-rewritten chunks. This session fingerprinted production against a fresh local install of `main`'s migrations: triggers, indexes, seed rows, tables, policies and grants matched; functions did not. Seventeen functions were replaced from `main`'s text in nine migrations named `repair_main_safe_1` to `_9`, and each now hashes identically to `main`. Among them is the request-role gate of deviation 52, which production lacked. Dave approved the rest, but the Supabase connector holds any statement containing DROP or DELETE until someone approves it inside the connector, and it timed out each time. Nothing was routed around that gate. The items went to Dave as one SQL file of `main`'s own text, in one transaction, to run in the SQL Editor. Locally it ran clean and left the database identical to `main`. Until it is run, production still has:
-
-- `action_undo`, `draft_discard`, `context_packages_sweep`, `connection_revoke` are missing, and `delete_owned` is the older version: their bodies contain DELETE.
-- `proposal_created_by_check` lacks `system` (0047 drops and re-adds it). Until it is widened, `decision_dependencies_check` cannot record a changed dependency.
-- The five-argument `email_body_store` sits beside the six-argument one; 0050 drops it.
-- `public.zz_probe`, a leftover test table from the other session.
+Database (deviation 55): the Email backend fault was the migrations. 0044 to 0051 were applied to production on 2026-10-03 and 10-04 by another session, in hand-rewritten chunks. This session fingerprinted production against a fresh local install of `main`'s migrations: triggers, indexes, seed rows, tables, policies and grants matched; functions did not. Seventeen functions were replaced from `main`'s text in nine migrations named `repair_main_safe_1` to `_9`, and each hashed identically to `main`. Among them is the request-role gate of deviation 52, which production lacked. The remaining four items contained DROP or DELETE, which the Supabase connector holds for approval inside the connector, and it timed out each time; nothing was routed around that gate. They went to Dave as one SQL file of `main`'s own text, in one transaction, and Dave ran it in the SQL Editor on 2026-10-04. Afterwards production was fingerprinted again with the same query as the local `main` install: md5 `24c80ab602c1a16abc7b72b9a70a0414` over 127 objects (functions, ACLs, table columns, row security, policies, constraints and grants) on both sides, so production now equals `main`. `action_undo`, `draft_discard`, `context_packages_sweep`, `connection_revoke` exist, `delete_owned` is current, `proposal_created_by_check` allows `system`, the older `email_body_store` is gone and `public.zz_probe` is dropped. The Clear Expired Shares row therefore has its database function and answers with a count.
 
 Vercel: `JARVIS_CONTEXT_KEY` (32 random bytes, base64, sensitive) set for Production and Preview on 2026-10-04.
 
@@ -676,9 +671,9 @@ Dave's audit of the live build found six faults, all fixed in code (deviations 5
 3. **Today's overlap:** "18 More in Anytime" and "Clear This Plan" each answer their own taps. Reproduced and re-checked in a real browser at 390px wide.
 4. **Export Data JSON** exports in place instead of opening Backup. Test: `AdvancedPage.test.tsx`.
 5. **Search Everything** shows the results on Enter and opens nothing. Test: `SearchFlow.test.tsx`.
-6. **The context sweep** has a door: AI Hub > Agents > Clear Expired Shares, through `api/context/sweep` (tests: `api/context/sweep.test.ts`, `HubFlow.test.tsx`). The function itself is one of the four still missing from production until the repair SQL is run, so until then the row answers Couldn't Reach JARVIS.
+6. **The context sweep** has a door: AI Hub > Agents > Clear Expired Shares, through `api/context/sweep` (tests: `api/context/sweep.test.ts`, `HubFlow.test.tsx`). The function is in production since the repair SQL was run (see the Database paragraph above).
 
-Not changed, as Dave noted: Discard Draft works live; Undo in Activity and Revoke Assistant could not be tapped (no activity, no assistant) and need no action once the missing database functions are in.
+Not changed, as Dave noted: Discard Draft works live; Undo in Activity and Revoke Assistant could not be tapped (no activity, no assistant) and need no action now that the database functions are in.
 
 ### Card titles, one weight in both themes (2026-10-04, on Dave's word)
 
