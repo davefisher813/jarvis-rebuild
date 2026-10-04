@@ -64,16 +64,18 @@ describe("SearchFlow: the top result opens", () => {
     expect(onOpen).toHaveBeenCalledWith("task", expect.any(String));
     expect(onClose).toHaveBeenCalled();
   });
-  it("Enter in the field opens the first row", async () => {
+  // Dave's audit, 2026-10-04: submitting a query opened the first task's editor instead of showing the results.
+  it("Enter in the field shows the results and opens nothing", async () => {
     const onOpen = vi.fn(); const onClose = vi.fn();
     render(<NotesProvider userId="u-top-enter"><SeededOpen onOpen={onOpen} onClose={onClose} /></NotesProvider>);
-    const field = await screen.findByPlaceholderText("Search Everything");
-    fireEvent.keyDown(field, { key: "Enter" });
-    expect(onOpen, "nothing typed, nothing to open").not.toHaveBeenCalled();
+    const field = await screen.findByPlaceholderText("Search Everything") as HTMLInputElement;
+    field.focus();
     fireEvent.change(field, { target: { value: "sam" } });
     await screen.findByText("Email Sam");
     fireEvent.keyDown(field, { key: "Enter" });
-    expect(onOpen).toHaveBeenCalledWith("task", expect.any(String));
-    expect(onClose).toHaveBeenCalled();
+    expect(onOpen, "the Search key must not open a row").not.toHaveBeenCalled();
+    expect(onClose, "nor close the search").not.toHaveBeenCalled();
+    expect(screen.getByText("Email Sam"), "the results stay on screen").toBeInTheDocument();
+    expect(document.activeElement, "the keyboard is put away so every result is in view").not.toBe(field);
   });
 });

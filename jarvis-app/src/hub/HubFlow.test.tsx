@@ -9,6 +9,7 @@ import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor, within, cleanup } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import HubFlow, { OFFLINE_LINE } from "./HubFlow";
+import { NotesProvider } from "../data/NotesProvider";
 import type { HubOverview, RpcClient } from "./hubClient";
 import { setAdminAiBlocked } from "../ai/levelStore";
 import { subscribeToast, resetToasts } from "../shared/toast";
@@ -156,6 +157,69 @@ describe("H4 Agent detail and H5 preview", () => {
     expect(calls.some((c) => c.fn === "scope_grant_create")).toBe(false);
     fireEvent.click(screen.getByRole("button", { name: "Share Once · 15 Minutes" }));
     await waitFor(() => expect(calls.find((c) => c.fn === "scope_grant_create")?.args).toMatchObject({ p_job: "j1", p_manifest_hash: "f".repeat(64), p_duration: "once" }));
+  });
+});
+
+// Slice 09 QA (2026-10-04): "Export Shared Context" from the Review tab toasted "The request didn't match the
+// protocol" every time. The person's own export has a job with no assistant, a grant names an assistant, and the
+// fake above grants anything, so no test saw the refusal. This fake refuses the grant the way the database does.
+describe("H5 the person's own export", () => {
+  it("Paste or Import a Conversation > Export Shared Context makes no grant and issues the package", async () => {
+    const issued = { package_id: "pk1", job_id: "j1", project_id: "p1", purpose: "Export Summer Travel", manifest: [], data: {}, expires_at: "2026-10-04T12:15:00Z", package_hash: "f".repeat(64) };
+    const { client, calls } = rig({
+      scope_grant_create: () => ({ error: "INVALID_PAYLOAD", detail: "a grant names an assistant" }),
+      context_issue: () => issued,
+    });
+    render(<HubFlow onBack={() => {}} client={client} />);
+    await screen.findByText("Claude");
+    tab("Review");
+    fireEvent.click(screen.getByRole("button", { name: "Paste or Import a Conversation" }));
+    expect(await screen.findByText("3 Records")).toBeInTheDocument();
+    expect(calls.find((c) => c.fn === "job_open")?.args).toEqual({ p_agent: null, p_project: "p1", p_purpose: "Export Summer Travel" });
+    fireEvent.click(screen.getByRole("button", { name: "Export Shared Context" }));
+    await waitFor(() => expect(calls.some((c) => c.fn === "context_issue")).toBe(true));
+    expect(calls.some((c) => c.fn === "scope_grant_create")).toBe(false);
+    expect(calls.find((c) => c.fn === "context_issue")?.args).toMatchObject({ p_job: "j1", p_manifest_hash: "f".repeat(64) });
+    await waitFor(() => expect(toasts.length).toBeGreaterThan(0));
+    expect(toasts).not.toContain("The request didn't match the protocol.");
+  });
+});
+
+// Slice 09 QA (2026-10-04): context_packages_sweep had no door. It is run by the person's own tap on the Agents tab,
+// through the signed-in route, and says what it cleared.
+describe("H1 Clear Expired Shares", () => {
+  const withFetch = (impl: (url: string, init: RequestInit) => Promise<Response>) => {
+    const f = vi.fn(impl);
+    vi.stubGlobal("fetch", f);
+    return f;
+  };
+  afterEach(() => { vi.unstubAllGlobals(); });
+
+  it("the row posts to the sweep route with the session and toasts the counts", async () => {
+    const f = withFetch(async () => new Response(JSON.stringify({ ok: true, expired: 2, purged: 1 }), { status: 200 }));
+    const { client } = rig();
+    render(<NotesProvider userId="u1" accessToken="tok-1"><HubFlow onBack={() => {}} client={client} /></NotesProvider>);
+    await screen.findByText("Claude");
+    fireEvent.click(screen.getByRole("button", { name: "Clear Expired Shares" }));
+    await waitFor(() => expect(toasts).toContain("Cleared 2 Expired Shares · Removed 1 Copy"));
+    expect(f).toHaveBeenCalledTimes(1);
+    const [url, init] = f.mock.calls[0]!;
+    expect(String(url)).toMatch(/\/api\/context\/sweep$/);
+    expect(init.method).toBe("POST");
+    expect((init.headers as Record<string, string>).Authorization).toBe("Bearer tok-1");
+  });
+
+  it("nothing expired says so; a failed route says it could not reach JARVIS", async () => {
+    withFetch(async () => new Response(JSON.stringify({ ok: true, expired: 0, purged: 0 }), { status: 200 }));
+    const { client } = rig();
+    render(<NotesProvider userId="u1" accessToken="tok-1"><HubFlow onBack={() => {}} client={client} /></NotesProvider>);
+    await screen.findByText("Claude");
+    fireEvent.click(screen.getByRole("button", { name: "Clear Expired Shares" }));
+    await waitFor(() => expect(toasts).toContain("Nothing Expired · All Clear"));
+    vi.unstubAllGlobals();
+    withFetch(async () => new Response(JSON.stringify({ code: "UNAVAILABLE" }), { status: 503 }));
+    fireEvent.click(screen.getByRole("button", { name: "Clear Expired Shares" }));
+    await waitFor(() => expect(toasts).toContain("Couldn't Reach JARVIS · Try Again"));
   });
 });
 

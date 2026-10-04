@@ -83,22 +83,22 @@ export default function SearchFlow({ onClose, onOpen }: { onClose: () => void; o
   };
   // Remember the query (it found something), close, go.
   const open = (kind: string, id: string) => { close(); onOpen?.(kind, id); };
-  // THE TOP RESULT IS ONE KEY AWAY (audit 2026-09-29). The field had no Enter
-  // at all, so the keyboard's Search key, the one thing a person reaches for
-  // after typing, did nothing. It opens the first row on screen; the order
-  // here is the order the sections are drawn below, so "first" means first.
-  const firstHit = (): [string, string] | null => {
-    if (!results || empty) return null;
-    const first = (kind: string, rows: { id: string }[]): [string, string] | null => (rows[0] ? [kind, rows[0].id] : null);
-    return first("event", results.events) ?? first("task", results.tasks) ?? first("person", results.people) ?? first("note", results.notes)
-      ?? first("project", results.projects) ?? first("goal", results.goals) ?? first("decision", results.decisions)
-      ?? first("account", results.accounts) ?? first("file", results.files) ?? first("fact", results.facts) ?? first("category", results.categories);
+  // THE SEARCH KEY SHOWS THE RESULTS; IT OPENS NOTHING (Dave's audit, 2026-10-04,
+  // reversing the 2026-09-29 "top result is one key away" change). Submitting a
+  // query used to open the first match's editor, which pulled the person out of
+  // the search before they had seen what it found. The results are already on
+  // screen as they type; the Search key now puts the keyboard away so all of
+  // them are in view, and the person chooses.
+  const submit = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key !== "Enter") return;
+    e.preventDefault();
+    e.currentTarget.blur();
   };
 
   return (
     <div className="search-overlay ruled">
       <div className="search-top">
-        <div className="search-bar">{MAG}<input value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => { if (e.key !== "Enter") return; const hit = firstHit(); if (hit) { e.preventDefault(); open(hit[0], hit[1]); } }} enterKeyHint="search" placeholder="Search Everything" autoFocus /></div>
+        <div className="search-bar">{MAG}<input value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={submit} enterKeyHint="search" placeholder="Search Everything" autoFocus /></div>
         <button className="search-cancel" data-layer-close onClick={close}>Cancel</button>
       </div>
 

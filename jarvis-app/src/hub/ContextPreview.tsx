@@ -61,11 +61,17 @@ export default function ContextPreview({ client, connection, projectId, projectT
   const share = async (how: "once" | "project" | "export") => {
     if (!jobId || !preview || busy || offline) return;
     setBusy(how);
-    const g = await grantScope(client, jobId, preview.manifest_hash, how === "project" ? "project" : "once");
-    if (!g.ok) { setBusy(null); showToast({ message: PROTOCOL_ERRORS[g.code].safe_message }); if (g.code === "STALE_SCOPE") void load(); return; }
+    // An export makes no grant (slice 09 QA, 2026-10-04). A grant names an assistant, and the person's own export
+    // has none (its job has no agent), so scope_grant_create refused it and every export toasted "The request
+    // didn't match the protocol". context_issue takes the person's tap as the authority and writes the
+    // disclosure receipt itself; a grant is only for an assistant that will read later.
+    if (how !== "export") {
+      const g = await grantScope(client, jobId, preview.manifest_hash, how === "project" ? "project" : "once");
+      if (!g.ok) { setBusy(null); showToast({ message: PROTOCOL_ERRORS[g.code].safe_message }); if (g.code === "STALE_SCOPE") void load(); return; }
+    }
     if (how === "export") {
       const x = await exportContext(client, jobId, preview.manifest_hash);
-      if (!x.ok) { setBusy(null); showToast({ message: PROTOCOL_ERRORS[x.code].safe_message }); return; }
+      if (!x.ok) { setBusy(null); showToast({ message: PROTOCOL_ERRORS[x.code].safe_message }); if (x.code === "STALE_SCOPE") void load(); return; }
       const said = await shareText(x.value.fileName, x.value.text);
       setShared(said);
       showToast({ message: said });

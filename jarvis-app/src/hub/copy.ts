@@ -91,3 +91,9 @@ export const conflictsWith = (title: string): string => `Conflicts With ${title}
 export function recordsLine(n: number): string {
   return n === 1 ? "1 Record" : `${n} Records`;
 }
+
+/** The context sweep's one row (slice 09 QA): the person's own tap, because nothing here runs on a timer. */
+export const SWEEP_ROW = { label: "Clear Expired Shares", meta: "Removes the Copies of Context That Have Run Out", working: "Clearing…" } as const;
+export const sweepLine = (expired: number, purged: number): string =>
+  expired + purged === 0 ? "Nothing Expired · All Clear"
+    : `Cleared ${expired} Expired ${expired === 1 ? "Share" : "Shares"} · Removed ${purged} ${purged === 1 ? "Copy" : "Copies"}`;
