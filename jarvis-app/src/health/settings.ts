@@ -2,9 +2,10 @@ import type { Storage2 } from "../gym/liveSession";
 
 // HEALTH SETTINGS (Health Push C, H-40, Dave's picks 2026-09-12). One
 // versioned key for the choices the Health page and the live session read:
-// which shortcut tiles the Daily Log shows, whether the rest timer makes a
-// sound and arms a notification, whether a PR is celebrated, and the weekly
-// sets band the Weekly Volume card compares against.
+// which shortcuts the Health page offers (only Water changes anything, see
+// WORKING_SHORTCUTS), whether the rest timer makes a sound and arms a
+// notification, whether a PR is celebrated, and the weekly sets band the
+// Weekly Volume card compares against.
 //
 // THE BAND IS NOT HARD WIRED (Dave 2026-09-13: "I don't want anything hard
 // wired that shouldn't be"). The studied range in gym/muscles.ts stays the
@@ -18,8 +19,9 @@ import type { Storage2 } from "../gym/liveSession";
 export type ShortcutKey = "bedtime" | "water" | "meal" | "checkin" | "medication" | "effort" | "discomfort";
 
 // THE REFERENCE'S SHORTCUTS (2026-09-14): Sleep, Meal, Water and Check In on
-// by default, Medication as the optional one with its last dose visible.
-// Bedtime keeps its name: the Sleep metric (hours) is a tile of its own.
+// by default. Bedtime keeps its name: the Sleep metric (hours) is a tile of
+// its own. All seven keys stay valid (a stored list is read as it was, and
+// the reminder link pickers name every logger by its key).
 export const SHORTCUTS: { key: ShortcutKey; label: string }[] = [
   { key: "bedtime", label: "Bedtime" },
   { key: "meal", label: "Meal" },
@@ -29,6 +31,13 @@ export const SHORTCUTS: { key: ShortcutKey; label: string }[] = [
   { key: "effort", label: "Session Effort" },
   { key: "discomfort", label: "Discomfort" },
 ];
+/** THE SHORTCUTS A CHIP CAN CHANGE (2026-10-04). The chips were meant to pick
+ *  the tiles under Daily Log, but the Health page dropped those tiles for the
+ *  rows of Log Something, where every logger is always listed (approved
+ *  design, 2026-09-14), and Medication is its own page and door. Only Water
+ *  still gates something, a row in Log Something, so it is the only chip
+ *  Health Settings offers: a chip that changes nothing is a dead button. */
+export const WORKING_SHORTCUTS: ShortcutKey[] = ["water"];
 /** The version of the default shortcut set a stored record was seeded with. */
 const SHORTCUT_SEED = 2;
 
@@ -36,9 +45,12 @@ export interface VolumeBand { low: number; high: number }
 
 /** Part 3 wave 5 (Dave's 9b and O2a). Assisted: the app suggests the next
  *  target from completed working sets and the marks; Manual: it suggests
- *  nothing; Program: the plan as written is the target and nothing is added. */
-export type ProgressionMode = "assisted" | "manual" | "program";
-export const PROGRESSION_MODES: ProgressionMode[] = ["assisted", "manual", "program"];
+ *  nothing. A third mode, Program ("the plan as written"), behaved exactly
+ *  like Manual in suggestFor and the Now row never read the mode, so it was
+ *  taken off the menu 2026-10-04; a stored "program" reads as Manual, which is
+ *  what it always did. */
+export type ProgressionMode = "assisted" | "manual";
+export const PROGRESSION_MODES: ProgressionMode[] = ["assisted", "manual"];
 
 export interface HealthSettings {
   shortcuts: ShortcutKey[];
@@ -88,6 +100,9 @@ export function readHealthSettings(store: Storage2 = browserStorage()): HealthSe
       && p.volumeBand.low > 0 && p.volumeBand.high > p.volumeBand.low
       ? { low: p.volumeBand.low, high: p.volumeBand.high }
       : null;
+    // A stored "program" (a mode taken off the menu, see ProgressionMode) is
+    // Manual, which is what it always behaved as.
+    const storedMode = p.progression as string | undefined;
     const out: HealthSettings = {
       shortcuts,
       seeded: SHORTCUT_SEED,
@@ -95,7 +110,7 @@ export function readHealthSettings(store: Storage2 = browserStorage()): HealthSe
       restNotify: p.restNotify !== false,
       celebrations: p.celebrations !== false,
       volumeBand: band,
-      progression: PROGRESSION_MODES.includes(p.progression as ProgressionMode) ? (p.progression as ProgressionMode) : "assisted",
+      progression: storedMode === "program" ? "manual" : PROGRESSION_MODES.includes(storedMode as ProgressionMode) ? (storedMode as ProgressionMode) : "assisted",
     };
     if (!seeded) store.write(KEY, JSON.stringify(out));
     return out;

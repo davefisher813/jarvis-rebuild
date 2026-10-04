@@ -41,12 +41,6 @@ const CHEV = <div className="chev" />;
 
 // S5-Q29 (2026-09-04): the one-tap loggers, now the rows of Log Something.
 export type HealthLoggerKey = "lightsOut" | "tookIt" | "callIt" | "pointAtIt" | "meal" | "checkin";
-export interface HealthLoggerRow {
-  key: HealthLoggerKey;
-  label: string;
-  sub: string;
-  value: string | null;
-}
 /** One row of the Log Something sheet: a label and what tapping it does. */
 export interface LogAction { label: string; onPick: () => void }
 

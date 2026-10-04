@@ -69,7 +69,6 @@ import MedicationScreen from "../health/screens/MedicationScreen";
 import MealScreen from "../health/screens/MealScreen";
 // 2026-09-14: the reference's check-in.
 import CheckInScreen from "../health/screens/CheckInScreen";
-import { checkInLine } from "../health/checkin";
 import { doseRows, doseToast } from "../health/meds";
 import type { LightsOutEntry, TookItEntry, CallItEntry, PointAtItEntry, MedDefEntry, MealEntry, CheckInEntry } from "../health/types";
 import { stillThere, stillThereSummary, stillThereMessage } from "../health/timelines";
@@ -85,7 +84,7 @@ import type { SessionStartCandidate } from "../health/medWindow";
 import type { EventItem } from "../schedule/types";
 import type { TemplateKey } from "../categories/defaults";
 import { localDayParts } from "../events/serverSink";
-import type { HealthLoggerKey, HealthLoggerRow, LogAction, RecordsOpen } from "./HealthBody";
+import type { HealthLoggerKey, LogAction, RecordsOpen } from "./HealthBody";
 import { periodFor, periodOverview, muscleBreakdown } from "../insights/analytics";
 import { findings, type Finding, type LiftId } from "../insights/findings";
 import type { HealthView } from "../insights/HealthNav";
@@ -110,7 +109,6 @@ import type { MetricDef, MetricLog } from "../gym/metrics";
 import { newMetricDefData, activeMetrics, pulsePlan, logOn } from "../gym/metrics";
 import { readLive, isStillActive, readPending as readGymPending } from "../gym/liveSession";
 import { readPending as readHealthPending } from "../health/offlineQueue";
-import { chronologicalLog, type LogOpen } from "../health/log";
 import { InsightCard } from "./InsightEvidence";
 import { explainEvidence } from "./explainInsight";
 import { readHealthSettings } from "../health/settings";
@@ -1140,13 +1138,10 @@ export default function CategoryDetail({
   // always says what tapping it does, with the last log appended when there is
   // one. Nothing about the stored records or their keys changes: this is the
   // label, and the label is the whole complaint.
-  // ONE GRID, SO THE VALUE IS THE TILE'S OWN (Dave 2026-09-10: "Daily logs
-  // should be combined with metrics in the most efficient way possible"). A
-  // logger is a tile now, the same three slots a metric tile has, so its last
-  // log becomes the tile's VALUE ("Today", "7/10") and the explanation stays
-  // on the meta line where it belongs. Medication is gone from this list: it
-  // is a page of its own ("medication related stuff should all be its own
-  // page") and a door, not a one-tap log.
+  // (2026-10-04: the logger tiles this paragraph described are gone, see THE
+  // SHORTCUTS below. Medication stays a page of its own, "medication related
+  // stuff should all be its own page" (Dave 2026-09-10), a door and not a
+  // one-tap log; whenLogged now feeds only that door's last-dose line.)
   const whenLogged = (at: number | undefined) => {
     if (at == null) return null;
     const p = agoPhrase(localDayParts(at).day, today);
@@ -1160,22 +1155,13 @@ export default function CategoryDetail({
   // session is a thing you open, so they moved into the gym: the receipt, and
   // any logged session reopened from Recent or History. His own metrics
   // (sleep, bodyweight, protein) are his to place and stay where he put them.
-  // THE SHORTCUTS HE PICKED (H-14, Health Push C, 2026-09-12): the tiles
-  // under Daily Log come from Health Settings. Bedtime alone by default;
-  // Session Effort and Discomfort only when he asked for them on the home
-  // page (Dave 2026-09-10 moved them onto the session; the choice is his).
+  // THE SHORTCUTS (2026-10-04): the Daily Log tiles these once built were
+  // replaced by the rows of Log Something (the approved design of 2026-09-14,
+  // every logger always listed), and the array that mapped the Bedtime, Meal,
+  // Check In, Session Effort and Discomfort chips to them was built and never
+  // rendered, so those chips changed nothing. Health Settings now offers only
+  // the chip that still does: Water, which adds its row below.
   const hs = kind === "health" ? readHealthSettings() : null;
-  const lastCall = callIt[callIt.length - 1];
-  const lastCheckIn = checkins[checkins.length - 1];
-  const healthLoggers: HealthLoggerRow[] = kind !== "health" || !hs ? [] : [
-    // The tile keeps the name Bedtime: his Sleep metric is its own tile, and
-    // two tiles called Sleep would be the fork the hue law exists to stop.
-    ...(hs.shortcuts.includes("bedtime") ? [{ key: "lightsOut" as const, label: "Bedtime", sub: "When the Night Ended", value: whenLogged(lightsOut[lightsOut.length - 1]?.data.at) }] : []),
-    ...(hs.shortcuts.includes("meal") ? [{ key: "meal" as const, label: "Meal", sub: "What You Ate", value: whenLogged(meals[meals.length - 1]?.data.at) }] : []),
-    ...(hs.shortcuts.includes("checkin") ? [{ key: "checkin" as const, label: "Check In", sub: "Energy and Mood", value: lastCheckIn && localDayParts(lastCheckIn.data.at).day === today ? (checkInLine(lastCheckIn.data) ? "Today" : "Today") : whenLogged(lastCheckIn?.data.at) }] : []),
-    ...(hs.shortcuts.includes("effort") ? [{ key: "callIt" as const, label: "Session Effort", sub: "How Hard It Was, 0 to 10", value: lastCall ? `${lastCall.data.rpe}/10` : null }] : []),
-    ...(hs.shortcuts.includes("discomfort") ? [{ key: "pointAtIt" as const, label: "Discomfort", sub: "Where It Hurts", value: whenLogged(pointAtIt[pointAtIt.length - 1]?.data.at) }] : []),
-  ];
   const waterDef = hs?.shortcuts.includes("water") ? metricDefs.find((d) => d.data.presetKey === "water" && !d.data.hidden) ?? null : null;
   const waterToday = waterDef ? (logOn(metricLogs, waterDef.id, today)?.data.value ?? 0) : 0;
   // With the shortcut on and no metric yet (the reference's default set),
@@ -1196,16 +1182,11 @@ export default function CategoryDetail({
     const logged = liveSession.exercises.reduce((n, e) => n + e.sets.filter((s) => !s.skipped).length, 0);
     return { dayName: liveSession.dayName, nextExercise: ex?.name ?? null, setNo: Math.min(working + 1, Math.max(planned, working + 1)), setTotal: planned, logged };
   })() : null;
-  // H-48: today's log, from the same records the tiles read.
-  const healthLog = kind === "health" ? chronologicalLog({ day: today, lightsOut, tookIt, callIt, pointAtIt, workouts, metricDefs, metricLogs, medDefs, meals, checkins }) : [];
   // H-53: what is still waiting to sync, health logs and workouts alike.
+  // (H-48's chronological "today's log" and its row-to-screen router were
+  // computed here and read by nothing once the page became the week, the next
+  // workout and the findings; removed 2026-10-04 with health/log.ts.)
   const pendingCount = kind === "health" ? readHealthPending().length + readGymPending().length : 0;
-  const openLog = (o: LogOpen) => {
-    if (o.kind === "workout") setGymOpen(true);
-    else if (o.kind === "metric") { const def = metricDefs.find((d) => d.id === o.defId); if (def) setMetricSheet({ kind: "log", def }); }
-    else if (o.kind === "tookIt") setMedPage(true);
-    else setHealthScreen(o.kind);
-  };
   // The Medication door says when the last dose was, and nothing else
   // (Dave 2026-09-13: no grey sentence under a door).
   const medSub = whenLogged(tookIt[tookIt.length - 1]?.data.at);

@@ -4,6 +4,7 @@ import { Clock, Bell, ShieldAlert } from "../../shared/icons";
 import { WarningGlyph } from "../../shared/glyphs";
 import { fmtTime } from "../../schedule/calendar";
 import { morningTime, setMorningTime } from "../quickReminder";
+import { DEFAULT_QUIET_FROM, DEFAULT_QUIET_TO } from "../reminders";
 
 // REMINDER SETTINGS (the reminders rebuild push E, Dave's interactive
 // preview: "Helpful. On your terms."). Quiet hours, the default follow-up,
@@ -17,7 +18,7 @@ export interface ReminderPrefs {
   defaultFollowUp: boolean;
   privateAlerts: boolean;
 }
-export const DEFAULT_REMINDER_PREFS: ReminderPrefs = { quietHours: false, quietFrom: "21:00", quietTo: "08:00", defaultFollowUp: false, privateAlerts: false };
+export const DEFAULT_REMINDER_PREFS: ReminderPrefs = { quietHours: false, quietFrom: DEFAULT_QUIET_FROM, quietTo: DEFAULT_QUIET_TO, defaultFollowUp: false, privateAlerts: false };
 
 const clock = (hhmm: string) => { const t = fmtTime(hhmm); return `${t.time} ${t.ap}`; };
 
@@ -47,7 +48,11 @@ export default function ReminderSettingsSheet({ initial, native, permission, tes
             <FieldRow tone="indigo" glyph={<Clock className="ic" />} label="To" type="time" value={p.quietTo} onChange={(v) => { if (/^\d{2}:\d{2}$/.test(v)) patch({ quietTo: v }); }} ariaLabel="Quiet to" />
           </>
         )}
-        <Note>Follow-ups and in-app prompts wait until quiet hours end · A reminder's own alert still rings</Note>
+        {/* 2026-10-04: the note promised follow-ups "wait" and in-app prompts
+            too. The scheduler skips a follow-up that would land in the window
+            (notifications.ts), nothing defers it, and no in-app prompt reads
+            this setting. It says only what happens. */}
+        <Note>A Follow-up That Would Land in Quiet Hours Is Skipped · A Reminder's Own Alert Still Rings</Note>
       </Group>
       <Group label="Follow-up">
         <SwitchRow tone="sand" glyph={<WarningGlyph />} label="Default Follow-up" meta="Once After 1 Hour for New Reminders" on={p.defaultFollowUp} onToggle={() => patch({ defaultFollowUp: !p.defaultFollowUp })} ariaLabel="Default follow-up" />

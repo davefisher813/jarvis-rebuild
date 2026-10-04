@@ -26,9 +26,9 @@ import ReturnPill from "./ReturnPill";
 import { useTasks, useSchedule, useCategories, useProfile, useAreas, useGoals, useProjects, useMoney, usePeople, useDecisions, useOptionalSeal, useOptionalLedger, useGym, useSettings } from "../data/NotesProvider";
 import { useAuth, useOptionalSession } from "../auth/AuthProvider";
 import { useAdminAiGate } from "../ai/useAdminAiGate";
-import { onNotificationTap, ensureTaskReminders, registerNotificationActions, ACTION_DONE, ACTION_TOMORROW, ACTION_SNOOZE, BANNER_SNOOZE_MIN } from "../shared/notifications";
+import { onNotificationTap, registerNotificationActions, ACTION_DONE, ACTION_TOMORROW, ACTION_SNOOZE, BANNER_SNOOZE_MIN } from "../shared/notifications";
 import { nowHHMM } from "../today/todayData";
-import { effectiveKind } from "../categories/kinds";
+import { armTaskReminders } from "../tasks/armReminders";
 import type { LifeSegment } from "../life/LifeSegments";
 import { addDays } from "../schedule/calendar";
 import { isDone as isReminderDone, snoozeTime } from "../tasks/reminders";
@@ -540,26 +540,18 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
   // the shell is up, again whenever the app comes back to the foreground,
   // and again when the day rolls over. Same queue as every other scheduler
   // call (SHARED-F-06), so it cannot interleave with Today's own.
+  // 2026-10-04: the arguments come from armTaskReminders (tasks/armReminders),
+  // the same builder Today and the Reminder Settings save use, so whichever
+  // of them runs last arms with the person's Hide Sensitive Details and Quiet
+  // Hours instead of undoing them.
   useEffect(() => {
     if (!ready) return;
-    const arm = () => void (async () => {
-      try {
-        const [all, prof, cats] = await Promise.all([tasks.listTasks(), profile.get(), categories.list()]);
-        const notify = prof?.notify;
-        const health = new Set(cats.filter((c) => effectiveKind(c.data) === "health").map((c) => c.id));
-        await ensureTaskReminders(
-          all.filter((t) => !!t.data.reminder).map((t) => ({ id: t.id, text: t.data.text, reminder: t.data.reminder!, sensitive: !!notify?.privateAlerts && !!t.data.category && health.has(t.data.category) })),
-          todayISO(),
-          Date.now(),
-          notify?.quietHours ? { quietFrom: notify.quietFrom ?? "21:00", quietTo: notify.quietTo ?? "08:00" } : {},
-        );
-      } catch { /* the next foreground tries again; nothing was lost */ }
-    })();
+    const arm = () => void armTaskReminders({ tasks, profile, categories }, todayISO());
     arm();
     const onVisible = () => { if (document.visibilityState === "visible") arm(); };
     document.addEventListener("visibilitychange", onVisible);
     return () => document.removeEventListener("visibilitychange", onVisible);
-  }, [ready, tasks, dayKey]);
+  }, [ready, tasks, profile, categories, dayKey]);
 
   // SHELL-F-14 (2026-09-05): these two predate the attemptWrite convention
   // every other user-initiated write in the app goes through. The tab bar

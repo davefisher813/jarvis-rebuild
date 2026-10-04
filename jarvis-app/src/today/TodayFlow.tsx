@@ -59,7 +59,8 @@ import { shiftFutureEvents, shiftPlan, restoreShift } from "../schedule/runningL
 import { useConflictGuard } from "../schedule/useConflictGuard";
 import { bookedTaskIds } from "../schedule/planDedupe";
 import { shiftNewConflicts, nextFreeSlot as nextFreeTime } from "../schedule/conflicts";
-import { ensureCheckinNotifications, cancelCheckinNotifications, ensureEventReminders, ensureTaskReminders } from "../shared/notifications";
+import { ensureCheckinNotifications, cancelCheckinNotifications, ensureEventReminders } from "../shared/notifications";
+import { armTaskReminders } from "../tasks/armReminders";
 import { badgeCount, setAppBadge } from "../shared/badge";
 import { isEvening, eveningStats, weekRecap, todayPlan } from "./evening";
 import { pendingPicks } from "../events/planOutcome";
@@ -1721,14 +1722,16 @@ export default function TodayFlow({
   // events, which sweeps in every calendar item whether the user wants a
   // buzz for it or not): setting a reminder is itself the opt-in.
   useEffect(() => {
-    const inputs = taskItems
-      .filter((t) => !!t.data.reminder)
-      .map((t) => ({ id: t.id, text: t.data.text, reminder: t.data.reminder! }));
     // TODAY-F-15 (2026-09-05): the seam expands a week now, not two days, so
     // a weekend away no longer runs the arming out. AppShell re-arms on every
     // foreground as well, so this is no longer the only thing that ever does.
-    void ensureTaskReminders(inputs, today);
-  }, [taskItems, today]);
+    // 2026-10-04: through the same builder AppShell uses (armTaskReminders),
+    // with the settings read fresh. This call used to carry neither Hide
+    // Sensitive Details nor Quiet Hours, and it fires on every reload, so it
+    // undid both whenever Today was mounted. taskItems is the trigger only:
+    // the list is read inside, so the empty first-mount list arms nothing.
+    void armTaskReminders({ tasks, profile, categories: cats }, today);
+  }, [taskItems, today, tasks, profile, cats]);
 
   // Running Late lands on Today too (2026-08-09): the plan lives here, so the
   // one-tap recovery for falling behind has to live here. Same shared shift

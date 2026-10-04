@@ -32,8 +32,9 @@ export interface ProfileData {
   notify?: {
     overdue: boolean; events: boolean; goals: boolean; checkins?: boolean; rest?: boolean;
     // THE REMINDER SETTINGS (the reminders rebuild push E, 2026-09-15).
-    // Quiet hours silence follow-up asks and context prompts between the two
-    // clock times; a reminder's own alert still rings. Default follow-up
+    // Quiet hours skip follow-up asks that would land between the two clock
+    // times (context prompts do not read it); a reminder's own alert still
+    // rings. Default follow-up
     // gives a new reminder one ask an hour on. Private alerts make a health
     // reminder's banner say only that there is one.
     quietHours?: boolean; quietFrom?: string; quietTo?: string;

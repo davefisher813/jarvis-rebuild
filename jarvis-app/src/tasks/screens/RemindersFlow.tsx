@@ -9,6 +9,7 @@ import { catName } from "../../shared/categories";
 import { todayISO } from "../grouping";
 import { nowHHMM } from "../../today/todayData";
 import { attemptWrite } from "../../shared/guard";
+import { armTaskReminders } from "../armReminders";
 import { showToast } from "../../shared/toast";
 import { fmtTime } from "../../schedule/calendar";
 import { notificationPermissionState, sendTestReminder, TEST_REMINDER_DELAY_S, type NotifyPermission } from "../../shared/notifications";
@@ -201,7 +202,14 @@ export default function RemindersFlow({ chrome, onOpenEntity, openId, onOpened, 
     setSettingsOpen(false);
     const next = { overdue: true, events: true, goals: true, ...(notify ?? {}), ...p };
     const ok = await attemptWrite(() => profile.save({ notify: next }));
-    if (ok) { setNotify(next); showToast({ message: "Reminder Settings Saved" }); }
+    if (ok) {
+      setNotify(next);
+      showToast({ message: "Reminder Settings Saved" });
+      // 2026-10-04: queued banners were built under the old settings and
+      // nothing re-armed them until the next foreground; this puts the flip
+      // on the phone now. Native only, a no-op everywhere else.
+      void armTaskReminders({ tasks, profile, categories: categoriesSvc }, today);
+    }
   };
   const sendTest = async () => {
     if (testing) return;

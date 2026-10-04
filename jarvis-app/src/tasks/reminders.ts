@@ -508,6 +508,12 @@ export function followUpWords(r: ReminderInfo): string {
   return once + " After " + delay;
 }
 
+// The window a person who switches Quiet Hours on starts with. One home so
+// the settings sheet and the arming code (armReminders.ts) cannot disagree
+// about what an unset From or To means (2026-10-04).
+export const DEFAULT_QUIET_FROM = "21:00";
+export const DEFAULT_QUIET_TO = "08:00";
+
 // Quiet hours (push E): a clock time inside the window, which may wrap
 // midnight. The window is closed at its end, so 8:00 with quiet to 8:00 is
 // not quiet.

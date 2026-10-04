@@ -42,7 +42,10 @@ export interface SuggestionBasis {
   marks: string;
 }
 
-export type ProgressionMode = "assisted" | "manual" | "program";
+// Two modes (2026-10-04): a third, Program, offered "the plan as written" but
+// returned nothing exactly as Manual does, so it was taken off the menu and a
+// stored "program" reads as Manual (health/settings.ts).
+export type ProgressionMode = "assisted" | "manual";
 
 /** THE ASSISTED ENGINE (Part 3 wave 5, 2026-09-13; Dave's 9b and O2a).
  *  Double progression, a stated policy and not an evidence claim: the plan
@@ -53,7 +56,7 @@ export type ProgressionMode = "assisted" | "manual" | "program";
  *  back. Completed working sets only, never warm-ups or drops. His marks
  *  win when they exist (a miss is a step back, a grind a hold), because a
  *  set he called a grind is not a set that cleared anything. Manual offers
- *  nothing; Program takes the plan as written and adds nothing. */
+ *  nothing. */
 export interface SuggestOptions {
   mode?: ProgressionMode;
   /** The rack's smallest plate, both sides, as the increment for a barbell. */
@@ -128,7 +131,7 @@ const OUTLIER = 1.5;
  */
 export function suggestFor(history: Workout[], ex: Exercise, opts: SuggestOptions = {}): Suggestion | null {
   const mode = opts.mode ?? "assisted";
-  if (mode === "manual" || mode === "program") return null;
+  if (mode === "manual") return null;
   const last = lastSession(history, ex, opts.preferDayId);
   if (!last) return null;
 
