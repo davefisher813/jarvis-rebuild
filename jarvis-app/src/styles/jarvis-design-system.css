@@ -428,10 +428,14 @@
    contrast audit is untouched. */
 [data-theme="light"] {
   /* TYPE SCALE, LIGHT ONLY (Dave's approved palette pass, 2026-09-29): the
-     weights step down one notch so nothing reaches 800 (title 700, names 600,
-     medium 500, body 400) and the sizes take the approved scale (page title
-     32, body 16, supporting 15, task and note names 17). Dark keeps its own. */
-  --w-bold: 700; --w-semi: 600; --w-medium: 500; --w-regular: 400;
+     sizes take the approved scale (page title 32, body 16, supporting 15, task
+     and note names 17). Dark keeps its own.
+     THE WEIGHTS ARE NOT HERE ANY MORE (Dave, 2026-10-04: "the only difference
+     between light mode and dark mode is the colors. Same weights, same layout,
+     same everything"). This block used to step every weight down one notch, so
+     a name that is 700 in dark was 600 in light and a title on a notice row was
+     400. Light now reads the one weight ramp in :root, and the Type Law holds
+     it: no weight token is set under [data-theme="light"]. */
   --t-h1: calc(32px * var(--type-scale));
   --t-body: calc(16px * var(--type-scale));
   --t-meta: calc(15px * var(--type-scale));
@@ -705,10 +709,6 @@ html[data-theme="light"], html[data-theme="light"] body { background-color: #FFF
    subtext for the light theme only. 500 still read thin on his phone, so
    the 600 weight rides the light theme and dark keeps 400. */
 [data-theme="light"] .t-meta { font-weight: var(--w-normal); } /* 2026-09-29: supporting text is 15/21 at 400 in the approved scale */
-/* Notification titles stay full bold in light mode (Dave, 2026-10-04). The light
-   scale steps names down to 600 through --w-name; a notification's title is the
-   whole row, so it keeps 700. Scoped to .notif-row so every other list keeps 600. */
-[data-theme="light"] .ruled .task-row.notif-row .task-title > .task-name { font-weight: var(--w-bold); }
 .eyebrow { font-size: var(--t-eyebrow); font-weight: var(--w-semi); text-transform: uppercase; letter-spacing: var(--track-eyebrow); color: var(--tx-3); }
 /* TASKS AUDIT 2026-08-29: an urgency tag riding beside the category on the
    same line, instead of fighting Start for the trailing slot. Its own font
