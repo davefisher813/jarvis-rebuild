@@ -23,7 +23,7 @@ import { breakdownPrompt, parseBreakdown } from "./breakdown";
 import { nextFreeSlot as calendarFreeSlot, addMinutes } from "../schedule/calendar";
 import { dayItemsFor, nextFreeSlot, minToHhmm } from "../schedule/conflicts";
 import { withConflictCheck, type AskFn } from "../schedule/withConflictCheck";
-import { activeHoursFor, protectedRangesFor, type RoutineData } from "../routine/types";
+import { activeHoursFor, protectedRangesOn, type RoutineData } from "../routine/types";
 import type { EventItem } from "../schedule/types";
 import { madeBy } from "../shared/provenance";
 import { lineCase } from "../shared/casing";
@@ -92,7 +92,9 @@ export async function scheduleTask(
   // now reads the same day the conflict check reads: events AND the routine's
   // blocks, and lands in the nearest stretch that touches none of them.
   const dow = new Date(Number(date.slice(0, 4)), Number(date.slice(5, 7)) - 1, Number(date.slice(8, 10))).getDay();
-  const items = dayItemsFor(events, date, opts.routine ? protectedRangesFor(opts.routine, dow) : []);
+  // By DATE, so a block's This Day exception is seen (2026-10-04): a skipped
+  // block no longer steps the task around it, a retimed one does at its new time.
+  const items = dayItemsFor(events, date, opts.routine ? protectedRangesOn(opts.routine, date) : []);
   let from = 9 * 60;
   if (opts.routine) from = Math.max(from, activeHoursFor(opts.routine, dow).wakeMin);
   if (date === today) from = Math.max(from, Math.ceil((now.getHours() * 60 + now.getMinutes()) / 30) * 30);

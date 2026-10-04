@@ -739,10 +739,11 @@ export default function TodayFlow({
   const reloadPeople = async () => { setPeopleTick((n) => n + 1); };
 
   // 2026-10-04: the UP-CORE-08 notes door lived on the Now card's pill, and
-  // Dave took that pill out on 2026-09-17 ("its Notes pill is gone"). Its
-  // notedEvents scan, noteTick and openEventNote stayed behind, read by
-  // nothing, and ran a notes read on every events change. They are gone; the
-  // door is not coming back here, and onOpenNote is now the event page's.
+  // the 2026-09-17 pass off Dave's phone list took that pill out ("its Notes
+  // pill is gone", commit 88ab1261). Its notedEvents scan, noteTick and
+  // openEventNote stayed behind, read by nothing, and ran a notes read on
+  // every events change. They are gone; the door is not coming back here, and
+  // onOpenNote is now the event page's.
 
   // TODAY-F-14 (2026-09-05): a rejection anywhere in here used to be dropped
   // (the effect below never caught it) and setLoading(false) was the last

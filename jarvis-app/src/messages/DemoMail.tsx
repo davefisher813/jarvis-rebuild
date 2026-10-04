@@ -7,7 +7,7 @@
 import { useEffect, useState } from "react";
 import PageHeader, { BarAction } from "../shared/PageHeader";
 import { showToast } from "../shared/toast";
-import { Plus, Archive, Clock, Volume2, CalendarClock } from "../shared/icons";
+import { Mail, Plus, Archive, Clock, Volume2, CalendarClock } from "../shared/icons";
 import { leadFor } from "./rowAnatomy";
 import { saveMailSnapshot } from "./home";
 import { decide } from "./mailAction";
@@ -72,7 +72,34 @@ export default function DemoMail({ onConnect }: { onConnect?: () => void }) {
   // only Send explains itself. Dave sees the page, nothing pretends to mail.
   const [composing, setComposing] = useState(false);
   const [outcome, setOutcome] = useState<"needs" | "waiting">("needs");
+  // 2026-10-04: the three view chips select, like the live page's. They only
+  // toasted before, so the active chip could never move and All and Drafts
+  // could not be reached.
+  const [view, setView] = useState<"triage" | "all" | "drafts">("triage");
   const [draft, setDraft] = useState({ to: "", subject: "", body: "" });
+
+  // EM2 to EM4: the mail row, one anatomy with the live page's. Every row in
+  // Needs You earned its bold (alwaysStrong on the live page). The same rows
+  // are the whole inbox the demo has, so the All view draws them too.
+  const needsRows = () => NEEDS.map((r) => {
+    const lead = leadFor({ from: r.from, fromEmail: r.from.toLowerCase().replace(/\s+/g, "") + "@example.com", by: r.due?.toLowerCase(), displayName: r.from });
+    return (
+    <div className="row mrow" role="button" tabIndex={0} key={r.from} onClick={demoTap}>
+      <span className="mlead">
+        {lead.kind === "rail"
+          ? <span className={"mrail" + (lead.railTone === "warn" ? " due" : "")}></span>
+          : <span className={"mface cat-bg-" + lead.face} aria-hidden="true">{lead.initial}</span>}
+      </span>
+      <div className="ms">
+        <div className="mline1">
+          <span className="mfrom strong">{r.from}</span>
+          {r.due ? <span className="mdue">{r.due}</span> : <span className="mwhen">{r.when}</span>}
+        </div>
+        <div className="mline2 strong">{r.sub}</div>
+      </div>
+    </div>
+    );
+  });
 
   if (composing) {
     return (
@@ -97,14 +124,30 @@ export default function DemoMail({ onConnect }: { onConnect?: () => void }) {
     <div className="screen ruled">
       <PageHeader title="Email" actions={<BarAction label="New Message" onClick={() => setComposing(true)}><Plus className="ic" /></BarAction>} />
       {/* EM1 (2026-09-12): the first screen opens on the view chips and the
-          outcome switch; search lives on the All view, which the demo does
-          not draw. The demo never shows an anatomy the app does not have. */}
+          outcome switch. 2026-10-04: the chips select. All is the flat list
+          of the inbox threads the demo has (search is not drawn); Drafts has
+          none, so it is the live page's empty state. The demo never shows an
+          anatomy the app does not have. */}
       <div className="pad-x msg-chips">
-        <button className="chip on" onClick={demoTap}>For You</button>
-        <button className="chip" onClick={demoTap}>All</button>
-        <button className="chip" onClick={demoTap}>Drafts</button>
+        <button className={"chip" + (view === "triage" ? " on" : "")} onClick={() => setView("triage")}>For You</button>
+        <button className={"chip" + (view === "all" ? " on" : "")} onClick={() => setView("all")}>All</button>
+        <button className={"chip" + (view === "drafts" ? " on" : "")} onClick={() => setView("drafts")}>Drafts</button>
       </div>
 
+      {view === "all" && (<>
+      <div><div className="list-flat">{needsRows()}</div></div>
+      <ListFloor />
+      </>)}
+
+      {view === "drafts" && (
+        <div className="pad-x"><div className="card"><div className="empty-state">
+          <div className="empty-icon"><Mail className="ic" /></div>
+          <div className="empty-title">No Drafts</div>
+          <button className="btn btn-secondary" onClick={() => setComposing(true)}>New Email</button>
+        </div></div></div>
+      )}
+
+      {view === "triage" && (<>
       {/* THE OUTCOME SWITCH (ruled 2026-09-01), the same one MessagesFlow
           draws: one section at a time, counts on the labels. The demo never
           shows an anatomy the app does not have. */}
@@ -124,28 +167,8 @@ export default function DemoMail({ onConnect }: { onConnect?: () => void }) {
         <span className="t">Needs You</span>
         <button className="see-all pill-action" onClick={demoTap}>Sweep {"\u00b7"} About 2 min</button>
       </div>
-      {/* EM2 to EM4: the mail row, one anatomy with the live page's. Every
-          row in Needs You earned its bold (alwaysStrong on the live page). */}
       <div className="pad-x"><div className="card list-card-ruled">
-        {NEEDS.map((r) => {
-          const lead = leadFor({ from: r.from, fromEmail: r.from.toLowerCase().replace(/\s+/g, "") + "@example.com", by: r.due?.toLowerCase(), displayName: r.from });
-          return (
-          <div className="row mrow" role="button" tabIndex={0} key={r.from} onClick={demoTap}>
-            <span className="mlead">
-              {lead.kind === "rail"
-                ? <span className={"mrail" + (lead.railTone === "warn" ? " due" : "")}></span>
-                : <span className={"mface cat-bg-" + lead.face} aria-hidden="true">{lead.initial}</span>}
-            </span>
-            <div className="ms">
-              <div className="mline1">
-                <span className="mfrom strong">{r.from}</span>
-                {r.due ? <span className="mdue">{r.due}</span> : <span className="mwhen">{r.when}</span>}
-              </div>
-              <div className="mline2 strong">{r.sub}</div>
-            </div>
-          </div>
-          );
-        })}
+        {needsRows()}
       </div></div>
       <ListFloor>That&rsquo;s every one that needs you.</ListFloor>
       </>)}
@@ -227,6 +250,7 @@ export default function DemoMail({ onConnect }: { onConnect?: () => void }) {
           <div className="chev" />
         </div>
       </div></div>
+      </>)}
 
       {onConnect && (
         <div className="pad-x conn-action">

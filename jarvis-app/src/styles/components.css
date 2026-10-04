@@ -5723,6 +5723,9 @@ body.selecting .voice-dock { display: none; }
 .sheet-bar-cancel { color: var(--tx-2); text-align: left; }
 .sheet-bar-save { color: var(--tint); font-weight: var(--w-semi); text-align: right; }
 .sheet-bar-save.dim { opacity: 0.4; }
+/* A row action that cannot run yet but still answers a tap with the reason
+   (AI Hub's Preview Shared Context, 2026-10-04): the same dim, the same rule. */
+.row-act.dim { opacity: 0.4; }
 .sheet-bar-title { flex: 1; min-width: 0; text-align: center; font-size: calc(17px * var(--type-scale)); font-weight: var(--w-semi); color: var(--tx-1);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 

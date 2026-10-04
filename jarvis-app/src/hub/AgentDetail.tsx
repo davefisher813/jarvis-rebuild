@@ -13,7 +13,7 @@ import { modeSummary } from "../substrate/authz/engine";
 import type { AgentMode } from "../substrate/contracts";
 import { revokeAgent } from "../substrate/agentClient";
 import { COMMAND_LINES } from "../substrate/commands/errors";
-import { MODES, MODE_LABEL, NOTHING_SHARED, PICK_PROJECT_FIRST, PREVIEW_CONTEXT, REVOKE, REVOKE_NOTE, STATUS_WORD, TRANSPORT_WORD, HUB_TITLE } from "./copy";
+import { MODES, MODE_LABEL, NOTHING_SHARED, PICK_PROJECT_FIRST, PREVIEW_AI_OFF, PREVIEW_CONTEXT, PREVIEW_OFFLINE, PREVIEW_REVOKED, REVOKE, REVOKE_NOTE, STATUS_WORD, TRANSPORT_WORD, HUB_TITLE } from "./copy";
 import { setMode, type HubConnection, type HubProject, type RpcClient } from "./hubClient";
 import { facts, whenLine } from "./format";
 
@@ -54,7 +54,12 @@ export default function AgentDetail({ client, connection, projects, aiAllowed, o
     await onChanged();
   };
 
-  const canPreview = !revoked && aiAllowed && !offline && !!projectId;
+  // DIMMED, STILL TAPPABLE (2026-10-04; shared/SheetBar's rule: the tap is what
+  // surfaces the missing thing). The row was natively disabled while its onClick
+  // opened with the "Pick a Project First" toast, which a disabled button never
+  // fires, so a new assistant (no project yet) showed a grey row that did
+  // nothing and said nothing. The same went for AI off and for offline.
+  const previewWhy = revoked ? PREVIEW_REVOKED : !aiAllowed ? PREVIEW_AI_OFF : offline ? PREVIEW_OFFLINE : !projectId ? PICK_PROJECT_FIRST : null;
 
   return (
     <div className="screen ruled hub">
@@ -94,8 +99,8 @@ export default function AgentDetail({ client, connection, projects, aiAllowed, o
             </div>
           </div>
         ))}
-        <button className="row row-act" disabled={!canPreview} aria-disabled={!canPreview}
-          onClick={() => { if (!projectId) { showToast({ message: PICK_PROJECT_FIRST }); return; } if (canPreview) onPreview(c.id, projectId); }}>{PREVIEW_CONTEXT}</button>
+        <button className={"row row-act" + (previewWhy ? " dim" : "")} aria-disabled={previewWhy ? true : undefined}
+          onClick={() => { if (previewWhy) { showToast({ message: previewWhy }); return; } onPreview(c.id, projectId); }}>{PREVIEW_CONTEXT}</button>
       </div></div>
 
       <div className="pad-x"><div className="card list-card-ruled">

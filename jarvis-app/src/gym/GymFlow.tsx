@@ -155,7 +155,10 @@ function NameSheet({ title, initial, placeholder, backOff, season, gameCategory,
           </div>
           {backOff && (
             <div className="field">
-              <div className="input-label">Load</div>
+              {/* "Week Type", not "Load" (2026-10-04): the flag marks a lighter
+                  week and is shown back as the Back-Off pill; nothing scales a
+                  weight or a set from it, and a heading of Load said it would. */}
+              <div className="input-label">Week Type</div>
               <div className="chip-row">
                 <div className={"chip" + (!backOff.value ? " active" : "")} role="button" tabIndex={0} aria-pressed={!backOff.value}
                   onClick={() => backOff.onChange(false)}>Normal Week</div>
@@ -240,7 +243,9 @@ function BumpSheet({ weekLabel, onSave, onCancel }: {
             </div>
           </div>
           <div className="field">
-            <div className="input-label">Load</div>
+            {/* Not "Load": the weight and reps above are what bump the copy;
+                this only marks the new week (see NameSheet). */}
+            <div className="input-label">Week Type</div>
             <div className="chip-row">
               <div className={"chip" + (!backOff ? " active" : "")} role="button" tabIndex={0} aria-pressed={!backOff} onClick={() => setBackOff(false)}>Normal Week</div>
               <div className={"chip" + (backOff ? " active" : "")} role="button" tabIndex={0} aria-pressed={backOff} onClick={() => setBackOff(true)}>Back-Off Week</div>

@@ -38,7 +38,7 @@ import DeckFlow from "./DeckFlow";
 import MailSwipe from "./MailSwipe";
 import LetGoSwipe from "./LetGoSwipe";
 import { loadMuted, mute, unmute, dropMuted } from "./mute";
-import { parseUnsub, unsubLabel, unsubLine, UNSUB_SUBJECT, UNSUB_BODY, type Unsub } from "./unsubscribe";
+import { parseUnsub, unsubLabel, unsubLine, type Unsub } from "./unsubscribe";
 import { requestUnsubscribe } from "./unsubscribeAction";
 import { openExternal } from "./openExternal";
 import { briefFor, isCurrentBrief, loadBriefs, type Brief } from "./brief";
@@ -2487,23 +2487,22 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     // claimed the REQUEST was made whether or not it was (2026-08-25): the
     // send failure went into an empty catch and window.open's null was never
     // read. Both are now the thing the receipt is about.
-    let sent: boolean;
-    if (u.kind === "mailto") {
-      const api = apiFor(accountOfThread(t.id));
-      if (!api) return;
-      const raw = encodeEmail({ to: u.target, subject: u.subject || UNSUB_SUBJECT, body: UNSUB_BODY });
-      const { ok } = await settleAll([raw], () => api.sendMessage(raw));
-      sent = ok.length > 0;
-    } else {
-      sent = !!window.open(u.target, "_blank", "noopener,noreferrer");
-    }
+    // 2026-10-04: and this was a hand-rolled copy of requestUnsub, so it had
+    // drifted from it twice. Its window.open carried "noopener", which makes
+    // window.open return null, so an opened page read as a blocked tab; and it
+    // never wrote the record, so a sender asked from the thread was not under
+    // Asked to Stop and was offered to the sweep again. It asks through the
+    // shared path now, called before any await so an http link still opens
+    // inside the tap.
+    const sent = await requestUnsub(u, accountOfThread(t.id), m.fromEmail);
     if (!sent) {
       say(u.kind === "mailto" ? "Couldn't Send It · Nothing Was Asked" : "Your Browser Blocked That Tab · Nothing Was Asked");
       return;
     }
-    emit({ type: "action", props: { name: "email.unsubscribe", kind: u.kind } });
     setView("list");
-    say(unsubLine(m.from));
+    // A page opened is not an ask sent (unsubscribeAction.ts records it as
+    // opened), so only a mailto says "Asked".
+    say(u.kind === "mailto" ? unsubLine(m.from) : "Opened Unsubscribe Page · Finish It There");
   };
 
   // N9: one sender's unsubscribe, without opening their mail. Same two forms
@@ -4813,7 +4812,12 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
         // Only what is on screen: a fold that is shut, or a section filter
         // that hides a row, hides it from Select All Shown too. (Clean Out is
         // the whole-inbox tool; this is the list in front of you.)
-        const shown = forYou && showTriage ? [...needsYou, ...worthKnowing, ...noise] : listRows;
+        // 2026-10-04: and the outcome switch hides it too. Needs You is drawn
+        // only while its outcome is the one showing, so with Waiting On or
+        // Nothing Owed up, Select All Shown picked rows nobody could see and
+        // Archive N moved them. The same test the list is drawn by.
+        const needsDrawn = outcomeShown(outcome, needsYou, waiting, decideFor) === "needs";
+        const shown = forYou && showTriage ? [...(needsDrawn ? needsYou : []), ...worthKnowing, ...noise] : listRows;
         const mine = shown.filter((r) => picked.has(rowKey(r)));
         return (
           <div className="pad-x mail-select-bar">

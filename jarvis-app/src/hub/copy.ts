@@ -39,7 +39,15 @@ export const EXPORT_CONTEXT = "Export Shared Context";
 export const PASTE_BACK = "Paste What Came Back";
 export const NOTHING_SHARED = "Nothing Shared Yet";
 export const PICK_PROJECT_FIRST = "Pick a Project First";
+// Why Preview Shared Context is dimmed (2026-10-04): it stays tappable and says so.
+export const PREVIEW_REVOKED = "Access Revoked · Nothing Left to Preview";
+export const PREVIEW_AI_OFF = "AI Is Off · Turn It On to Preview";
+export const PREVIEW_OFFLINE = "Offline · Connect to Preview";
 export const CANCEL_SHARES_NOTHING = "Cancel Shares Nothing";
+export const EXPORT_NOT_SENT = "Couldn't Share · Your Export Is Below";
+export const EXPORT_COPIED = "Copied · Paste It Into Your Assistant";
+export const COPY_EXPORT = "Copy Export";
+export const COPY_EXPORT_FAILED = "Couldn't Copy · Select the Text Below";
 export const EXPORT_CAVEAT = "A Copy Outside JARVIS Cannot Be Recalled · Revoking Does Not Reach It";
 
 export const REVIEW_HEAD = "Save What We Decided";

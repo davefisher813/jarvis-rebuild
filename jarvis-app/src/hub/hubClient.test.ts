@@ -69,6 +69,11 @@ describe("the calls", () => {
   });
   it("a receipt's destination is its owning module, by the action's kind", () => {
     expect(destinationKindOf("capture_bill")).toBe("money");
+    expect(destinationKindOf("capture_receipt")).toBe("money");
+    // 2026-10-04: a kept exploration is not a Notes-module note, so it must not
+    // be sent to the Notes tab (getNote refuses it and the editor drew empty).
+    expect(destinationKindOf("exploration_keep")).toBe("exploration");
+    expect(destinationKindOf("exploration_keep")).not.toBe("note");
     expect(destinationKindOf("capture_task")).toBe("task");
     expect(destinationKindOf("capture_event")).toBe("event");
     expect(destinationKindOf("decision_save")).toBe("decision");

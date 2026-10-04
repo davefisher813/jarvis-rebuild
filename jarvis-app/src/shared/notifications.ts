@@ -132,8 +132,13 @@ export function buildCheckinNotifications(routine: RoutineData, briefTime?: stri
   if (eveningMin < sleepAdj && eveningMin < 24 * 60) {
     out.push({
       id: EVENING_ID,
-      title: "How did today feel?",
-      body: "One Tap · Better Plans",
+      // 2026-10-04: this asked "How did today feel?" and promised a one-tap
+      // answer that would make plans better. Today has had no mood answer
+      // since the evening card was deleted (2026-09-09), so the tap landed on
+      // a question nothing could take. It says what the tap now lands on: the
+      // evening Today, whose Still Open lists what is left.
+      title: "Ready to wrap up the day?",
+      body: "Still Open has what's left",
       hour: Math.floor(eveningMin / 60),
       minute: eveningMin % 60,
     });

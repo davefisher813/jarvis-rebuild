@@ -478,6 +478,11 @@ export default function NotesFlow({
         if (ok) clearDraft(id);
       } else clearDraft(id);
     }
+    // NEVER AN EMPTY EDITOR (2026-10-04). An id that is not a note this screen
+    // can load (an exploration a receipt pointed at, a note deleted since the
+    // link was made) used to switch to the editor with nothing in it, tab bar
+    // hidden and no Back drawn, so the person was stranded. Say so and stay.
+    if (!(await svc.note(id))) { showToast({ message: "Couldn't Open That Note" }); return; }
     setLinkedFrom([]); setRelated([]); setFound([]);
     openCurrentId(id);
     await loadCurrent(id);
@@ -866,7 +871,8 @@ export default function NotesFlow({
     for (const id of gone) void fileStore?.removeAll(id);
     await loadList();
     if (!ok || gone.length === 0) return;
-    showToast({ message: gone.length === 1 ? "Deleted for Good" : `${gone.length} Notes Deleted for Good` });
+    if (gone.length === 1) showToast({ message: "Deleted for Good" });
+    else showToast({ message: `${gone.length} Notes Deleted for Good` });
   };
 
   if (screen === "list") {

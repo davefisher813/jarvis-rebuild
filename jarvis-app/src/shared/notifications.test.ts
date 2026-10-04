@@ -12,6 +12,16 @@ describe("buildCheckinNotifications", () => {
     expect(n[1]).toMatchObject({ id: EVENING_ID, hour: 20, minute: 0 });
   });
 
+  // The evening alert asked "How did today feel?" and promised "One Tap ·
+  // Better Plans" (2026-10-04), but nothing on Today takes a mood answer since
+  // the evening card was deleted, so the promised tap recorded nothing.
+  it("the evening alert promises only what the tap lands on: Today's Still Open", () => {
+    const evening = buildCheckinNotifications(r({ sleepMin: 22 * 60 }), "07:00").find((x) => x.id === EVENING_ID)!;
+    expect(evening.title).toBe("Ready to wrap up the day?");
+    expect(evening.body).toBe("Still Open has what's left");
+    expect(`${evening.title} ${evening.body}`).not.toMatch(/feel|one tap|better plans/i);
+  });
+
   it("falls back to wake + 15 without a brief time", () => {
     const n = buildCheckinNotifications(r({ wakeMin: 6 * 60 + 30 }));
     expect(n[0]).toMatchObject({ hour: 6, minute: 45 });

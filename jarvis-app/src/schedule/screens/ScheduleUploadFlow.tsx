@@ -26,6 +26,17 @@ interface Row extends ScheduleRow {
   category: string;
   recurrence: EventRecurrence;
   skip: boolean;
+  // What the fix sheet can set beyond the columns a parsed schedule has
+  // (2026-10-04): the series end and cadence, the meeting, the trip and the
+  // training door. applyFix used to read none of them, so they were drawn,
+  // accepted and thrown away on import. Absent means the sheet never set it.
+  until?: string;
+  interval?: 1 | 2;
+  url?: string;
+  notes?: string;
+  travelMin?: number | null;
+  bufferMin?: number | null;
+  gym?: boolean;
 }
 
 function toRows(extracted: ExtractedEvent[], fallbackYear: number, existing: EventItem[], defaultCategory: string): Row[] {
@@ -34,7 +45,13 @@ function toRows(extracted: ExtractedEvent[], fallbackYear: number, existing: Eve
     // arrives with its repeat already on, so a printed timetable imports as
     // repeating classes rather than one week of dated events. It is a chip,
     // so the read is visible and one tap from wrong to right.
-    .map((r) => ({ ...r, category: defaultCategory, recurrence: (r.repeats ? "weekly" : "none") as EventRecurrence, skip: false }));
+    .map((r) => ({
+      ...r, category: defaultCategory, recurrence: (r.repeats ? "weekly" : "none") as EventRecurrence, skip: false,
+      // A row that updates a 2 Weeks series starts on that cadence (2026-10-04):
+      // the fix sheet opens on this row, and the write below would otherwise
+      // read its blank as "every week" and quietly clear the cadence.
+      ...(r.matchId && existing.find((e) => e.id === r.matchId)?.data.interval === 2 ? { interval: 2 as const } : {}),
+    }));
 }
 
 // Upload a schedule (photo or pasted text). The model extracts what it can
@@ -129,7 +146,15 @@ export default function ScheduleUploadFlow({
 
   const applyFix = (i: number, draft: EventDraft) => {
     setRows((cur) => cur && cur.map((r, ri) => (ri === i
-      ? { ...r, title: draft.title, date: draft.date, start: draft.start, end: draft.end, location: draft.location, category: draft.category, recurrence: draft.recurrence, days: draft.days ?? r.days, repeats: draft.recurrence === "weekly", noTime: false }
+      ? {
+        ...r, title: draft.title, date: draft.date, start: draft.start, end: draft.end, location: draft.location, category: draft.category, recurrence: draft.recurrence, days: draft.days ?? r.days, repeats: draft.recurrence === "weekly", noTime: false,
+        // Every field the sheet hands back, set or cleared as it left the
+        // sheet, so a fix reopened shows what was chosen and the import
+        // writes it. The sheet leaves a key out when it is unset, which is
+        // why each is assigned rather than spread.
+        until: draft.until || undefined, interval: draft.recurrence === "weekly" ? (draft.interval ?? 1) : undefined,
+        url: draft.url, notes: draft.notes, travelMin: draft.travelMin, bufferMin: draft.bufferMin, gym: draft.gym,
+      }
       : r)));
     setFixIdx(null);
   };
@@ -163,15 +188,26 @@ export default function ScheduleUploadFlow({
           await svc.editTime(r.matchId, r.start);
           await svc.editEnd(r.matchId, r.end);
           await svc.editRecurrence(r.matchId, r.recurrence);
-          if (r.recurrence === "weekly") await svc.editWeekdays(r.matchId, r.days);
+          if (r.recurrence === "weekly") await svc.editWeekdays(r.matchId, r.days, r.interval ?? 1);
           await svc.editLocation(r.matchId, r.location);
           await svc.editCategory(r.matchId, r.category);
+          // The rest is written only where the fix set it. The sheet opens on
+          // the extracted columns, not on the matched event, so a blank here
+          // is "never touched", and clearing would erase the event's own.
+          if (r.recurrence !== "none" && r.until) await svc.editUntil(r.matchId, r.until);
+          if (r.travelMin != null) await svc.editTravel(r.matchId, r.travelMin, r.bufferMin ?? null);
+          if (r.url !== undefined || r.notes !== undefined) await svc.editMeeting(r.matchId, { ...(r.url !== undefined ? { url: r.url } : {}), ...(r.notes !== undefined ? { notes: r.notes } : {}) });
+          if (r.gym) await svc.editGymDoor(r.matchId, true);
         } else {
           const id = await svc.createEvent(r.title, {
             date: r.date, start: r.start, end: r.end || undefined,
             category: r.category || undefined, location: r.location || undefined, recurrence: r.recurrence,
             // UP-CORE-11: the weekdays the grid showed, on a weekly row.
             days: r.recurrence === "weekly" ? r.days : undefined,
+            // The rest of what the fix sheet set (createEvent drops the ones
+            // that mean nothing here: an end on a one-off, travel with no place).
+            until: r.until || undefined, interval: r.recurrence === "weekly" ? r.interval : undefined,
+            url: r.url, notes: r.notes, travelMin: r.travelMin ?? undefined, bufferMin: r.bufferMin ?? undefined, gym: r.gym,
           });
           if (id) created.push(id);
         }
@@ -199,6 +235,14 @@ export default function ScheduleUploadFlow({
           await svc.editRecurrence(u.id, u.prev.recurrence ?? "none");
           await svc.editLocation(u.id, u.prev.location ?? "");
           await svc.editCategory(u.id, u.prev.category ?? "");
+          // And every field the import now writes (2026-10-04), so Undo puts
+          // back the whole event and not just the columns it used to touch.
+          // After the recurrence and the place, which clear their dependants.
+          await svc.editWeekdays(u.id, u.prev.days ?? [], u.prev.interval === 2 ? 2 : 1);
+          await svc.editUntil(u.id, u.prev.until ?? null);
+          await svc.editTravel(u.id, u.prev.travelMin ?? null, u.prev.bufferMin ?? null);
+          await svc.editMeeting(u.id, { url: u.prev.url ?? "", notes: u.prev.notes ?? "" });
+          await svc.editGymDoor(u.id, !!u.prev.gym);
         }
       });
     };
@@ -319,8 +363,18 @@ export default function ScheduleUploadFlow({
               title: rows[fixIdx]!.title, date: rows[fixIdx]!.date, start: rows[fixIdx]!.start, end: rows[fixIdx]!.end,
               category: rows[fixIdx]!.category, location: rows[fixIdx]!.location, recurrence: rows[fixIdx]!.recurrence,
               days: rows[fixIdx]!.days,
+              // What an earlier fix set, so reopening the row shows it.
+              ...(rows[fixIdx]!.until ? { until: rows[fixIdx]!.until } : {}),
+              ...(rows[fixIdx]!.interval ? { interval: rows[fixIdx]!.interval } : {}),
+              ...(rows[fixIdx]!.url ? { url: rows[fixIdx]!.url } : {}),
+              ...(rows[fixIdx]!.notes ? { notes: rows[fixIdx]!.notes } : {}),
+              ...(rows[fixIdx]!.travelMin != null ? { travelMin: rows[fixIdx]!.travelMin } : {}),
+              ...(rows[fixIdx]!.bufferMin != null ? { bufferMin: rows[fixIdx]!.bufferMin } : {}),
+              ...(rows[fixIdx]!.gym ? { gym: true } : {}),
             }}
             categories={categories}
+            // A staged row has no other occurrences to apply to.
+            noScope
             onSave={(draft) => applyFix(fixIdx, draft)}
             onCancel={() => setFixIdx(null)}
           />

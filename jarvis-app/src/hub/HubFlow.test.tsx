@@ -413,3 +413,176 @@ describe("the states every screen inherits", () => {
     expect(await screen.findByText("Couldn't Reach JARVIS · Try Again")).toBeInTheDocument();
   });
 });
+
+// OPEN IT, FROM A RECEIPT (2026-10-04, the dead-button sweep). A bill or receipt
+// capture hands the shell "money", which had no branch (pinned in
+// shell/hubOpenIt.test.tsx). A Kept as Note receipt pointed at the Notes tab,
+// which cannot load an exploration and drew an empty editor: the Hub opens it
+// itself, in Review > Mentioned under its project.
+describe("H7 Open It", () => {
+  const keptDetail: Detail = {
+    ...detail, action_id: "act7", kind: "exploration_keep", verb: "Kept as Note · Explore a second summer team", destination_id: "n7", undoable: false,
+    receipts: [{ ...detail.receipts[0]!, receipt_id: "r7", exact_verb: "Kept as Note · Explore a second summer team", after_ref: "n7", diff: [], evidence_refs: [] }], evidence: [],
+  };
+  const keptFeed: FeedRow[] = [{ ...feed[0]!, receipt_id: "r7", action_id: "act7", exact_verb: "Kept as Note · Explore a second summer team", kind: "exploration_keep", destination_id: "n7", undoable: false }];
+  const noteOverview: HubOverview = {
+    ...overview,
+    projects: [...overview.projects, { id: "p2", title: "Fall Camp", status: "active" }],
+    exploration_notes: [{ id: "n7", text: "Explore a second summer team", project_id: "p2", created_at: NOW }],
+  };
+  const openKept = async (ov: HubOverview) => {
+    const onOpenEntity = vi.fn();
+    const { client } = rig({ activity_feed: () => ({ rows: keptFeed, email_review_count: 0, scope: "global" }), receipt_detail: () => keptDetail }, ov);
+    render(<HubFlow onBack={() => {}} client={client} onOpenEntity={onOpenEntity} />);
+    await screen.findByText("Claude");
+    tab("Activity");
+    fireEvent.click(await screen.findByText("Kept as Note · Explore a second summer team"));
+    fireEvent.click(await screen.findByRole("button", { name: "Open It" }));
+    return { onOpenEntity };
+  };
+
+  it("a Kept as Note receipt opens Review > Mentioned on the note's own project, and never calls the shell", async () => {
+    const { onOpenEntity } = await openKept(noteOverview);
+    expect(await screen.findByText("Save What We Decided")).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Mentioned" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("tab", { name: "Fall Camp" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByText("Explore a second summer team", { selector: ".conn-name" })).toBeInTheDocument();
+    expect(onOpenEntity).not.toHaveBeenCalled();
+  });
+
+  it("a kept note that is no longer there says so and stays on the receipt", async () => {
+    const { onOpenEntity } = await openKept({ ...noteOverview, exploration_notes: [] });
+    await waitFor(() => expect(toasts).toContain("Couldn't Open That Note"));
+    expect(screen.getByRole("button", { name: "Open It" })).toBeInTheDocument();
+    expect(onOpenEntity).not.toHaveBeenCalled();
+  });
+
+  it("a Bill capture hands the shell the Money destination and the item's id", async () => {
+    const onOpenEntity = vi.fn();
+    const { client } = rig();
+    render(<HubFlow onBack={() => {}} client={client} onOpenEntity={onOpenEntity} />);
+    await screen.findByText("Claude");
+    tab("Activity");
+    fireEvent.click(await screen.findByText("Saved $142.30 Bill to Money"));
+    fireEvent.click(await screen.findByRole("button", { name: "Open It" }));
+    expect(onOpenEntity).toHaveBeenCalledWith("money", "item1");
+  });
+});
+
+// PREVIEW SHARED CONTEXT IS DIMMED, NOT DEAD (2026-10-04). The row was natively
+// disabled while its onClick opened with the "Pick a Project First" toast,
+// which a disabled button never fires: a new assistant (no project yet) showed
+// a grey row that did nothing and said nothing. It stays tappable and says why.
+describe("H4 Preview Shared Context when it cannot run yet", () => {
+  const noProject: HubOverview = { ...overview, connections: [{ ...overview.connections[0]!, project_id: null, project_title: null, open_grants: 0, grants: [] }] };
+  const openAgent = async (ov: HubOverview) => {
+    const r = rig({}, ov);
+    render(<HubFlow onBack={() => {}} client={r.client} />);
+    fireEvent.click(await screen.findByText("Claude"));
+    return { ...r, row: await screen.findByRole("button", { name: "Preview Shared Context" }) };
+  };
+
+  it("a new assistant with no project: the tap says Pick a Project First and opens nothing", async () => {
+    const { row, calls } = await openAgent(noProject);
+    expect(row).not.toBeDisabled();
+    expect(row).toHaveAttribute("aria-disabled", "true");
+    fireEvent.click(row);
+    expect(toasts).toContain("Pick a Project First");
+    expect(calls.some((c) => c.fn === "job_open")).toBe(false);
+  });
+
+  it("with AI off it says so instead of staying silent", async () => {
+    setAdminAiBlocked(true);
+    const { row, calls } = await openAgent(overview);
+    fireEvent.click(row);
+    expect(toasts).toContain("AI Is Off · Turn It On to Preview");
+    expect(calls.some((c) => c.fn === "job_open")).toBe(false);
+  });
+
+  it("offline it says so", async () => {
+    Object.defineProperty(window.navigator, "onLine", { value: false, configurable: true });
+    try {
+      const { row } = await openAgent(overview);
+      fireEvent.click(row);
+      expect(toasts).toContain("Offline · Connect to Preview");
+    } finally {
+      Object.defineProperty(window.navigator, "onLine", { value: true, configurable: true });
+    }
+  });
+
+  it("when nothing is in the way it is a live row with no dim", async () => {
+    const { row } = await openAgent(overview);
+    expect(row).not.toHaveAttribute("aria-disabled");
+    expect(row.className).not.toContain("dim");
+  });
+});
+
+// EXPORT SHARED CONTEXT, WHEN NOBODY TOOK THE EXPORT (2026-10-04). It said
+// "Export Ready · Copy It From the Activity Receipt" when the share sheet and the
+// clipboard had both refused, pointing at a receipt that never holds the package:
+// the disclosure was written and the words were gone. It now says it could not,
+// and keeps the words on screen.
+describe("H5 an export that neither the share sheet nor the clipboard took", () => {
+  const issued = { package_id: "pk1", job_id: "j1", project_id: "p1", purpose: "Export Summer Travel", manifest: [], data: { note: "the package" }, expires_at: "2026-10-04T12:15:00Z", package_hash: "f".repeat(64) };
+  const setNav = (name: "share" | "clipboard", value: unknown) => Object.defineProperty(window.navigator, name, { value, configurable: true });
+  afterEach(() => { setNav("share", undefined); setNav("clipboard", undefined); });
+
+  async function runExport() {
+    const { client } = rig({ context_issue: () => issued });
+    render(<HubFlow onBack={() => {}} client={client} />);
+    await screen.findByText("Claude");
+    tab("Review");
+    fireEvent.click(screen.getByRole("button", { name: "Paste or Import a Conversation" }));
+    expect(await screen.findByText("3 Records")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Export Shared Context" }));
+  }
+
+  it("says it could not share, never Export Ready, and keeps the words to copy by hand", async () => {
+    setNav("share", async () => { throw new Error("NotAllowedError"); });
+    setNav("clipboard", undefined);
+    await runExport();
+    const box = await screen.findByLabelText("The export, ready to copy");
+    expect((box as HTMLTextAreaElement).value).toContain("the package");
+    expect(toasts).toContain("Couldn't Share · Your Export Is Below");
+    expect(toasts.join("|")).not.toContain("Export Ready");
+    expect(document.body.textContent).not.toContain("Activity Receipt");
+  });
+
+  it("Copy Export is a fresh tap: it copies, says so only then, and puts the words away", async () => {
+    setNav("share", undefined);
+    setNav("clipboard", undefined);
+    await runExport();
+    const box = await screen.findByLabelText("The export, ready to copy");
+    const text = (box as HTMLTextAreaElement).value;
+    // Still no clipboard: the tap fails honestly and the words stay.
+    fireEvent.click(screen.getByRole("button", { name: "Copy Export" }));
+    await waitFor(() => expect(toasts).toContain("Couldn't Copy · Select the Text Below"));
+    expect(screen.getByLabelText("The export, ready to copy")).toBeInTheDocument();
+    // The clipboard is there on a later tap.
+    const written: string[] = [];
+    setNav("clipboard", { writeText: async (t: string) => { written.push(t); } });
+    fireEvent.click(screen.getByRole("button", { name: "Copy Export" }));
+    await waitFor(() => expect(toasts).toContain("Copied · Paste It Into Your Assistant"));
+    expect(written).toEqual([text]);
+    expect(screen.queryByLabelText("The export, ready to copy")).toBeNull();
+  });
+
+  it("a refused share sheet falls to the clipboard and says Copied, with nothing left on screen", async () => {
+    const written: string[] = [];
+    setNav("share", async () => { throw new Error("NotAllowedError"); });
+    setNav("clipboard", { writeText: async (t: string) => { written.push(t); } });
+    await runExport();
+    await waitFor(() => expect(toasts).toContain("Copied · Paste It Into Your Assistant"));
+    expect(written).toHaveLength(1);
+    expect(screen.queryByLabelText("The export, ready to copy")).toBeNull();
+  });
+
+  it("a share that went through says Shared", async () => {
+    const share = vi.fn(async () => {});
+    setNav("share", share);
+    await runExport();
+    await waitFor(() => expect(toasts).toContain("Shared"));
+    expect(share).toHaveBeenCalledTimes(1);
+    expect(screen.queryByLabelText("The export, ready to copy")).toBeNull();
+  });
+});

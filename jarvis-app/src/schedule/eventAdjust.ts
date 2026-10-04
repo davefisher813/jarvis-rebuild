@@ -11,6 +11,7 @@
 
 import type { EventData } from "./types";
 import { addDays, addMinutes, minutesBetween } from "./calendar";
+import { carriedFields } from "./dayEdit";
 
 interface EventWriter {
   event(id: string): Promise<EventData | null>;
@@ -61,11 +62,12 @@ export async function moveEvent(id: string, toStart: string, viewedDate: string,
   await events.addExdate(id, viewedDate);
   // SCHED-F-09 (2026-09-05): the copy carries the Training Door. Moving one
   // day of a door series produced a block that no longer opened the gym,
-  // which is the whole reason that block exists.
+  // which is the whole reason that block exists. 2026-10-04: and the rest of
+  // what makes it the same meeting (link, notes, travel, project).
   const copyId = await events.createEvent(e.title, {
     date: viewedDate, start: toStart, end: newEnd,
     category: e.category || undefined, location: e.location || undefined,
-    ...(e.gym ? { gym: true } : {}),
+    ...carriedFields(e),
   });
   return { ok: true, event: e, repeating: true, copyId };
 }
@@ -144,8 +146,9 @@ export async function pushEventTomorrow(id: string, viewedDate: string, events: 
   const copyId = await events.createEvent(e.title, {
     date: addDays(viewedDate, 1), start: e.start, end: e.end,
     category: e.category || undefined, location: e.location || undefined,
-    // SCHED-F-09: a copy of a door block is still the door.
-    ...(e.gym ? { gym: true } : {}),
+    // SCHED-F-09: a copy of a door block is still the door (2026-10-04: and
+    // still carries its link, notes, travel and project).
+    ...carriedFields(e),
   });
   return { ok: true, repeating: true, fromDate: viewedDate, copyId };
 }

@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { Store, InMemoryAdapter } from "@core";
 import { ScheduleService } from "./ScheduleService";
-import { pushEventTomorrow, undoPushEventTomorrow } from "./eventAdjust";
+import { pushEventTomorrow, undoPushEventTomorrow, moveEvent } from "./eventAdjust";
 
 const svc = () => new ScheduleService(new Store(new InMemoryAdapter()), "u");
 
@@ -63,5 +63,33 @@ describe("pushEventTomorrow", () => {
     expect(out.ok).toBe(false);
     await undoPushEventTomorrow("nope", out, s);
     expect((await s.listEvents()).length).toBe(0);
+  });
+});
+
+// THE ONE-OCCURRENCE COPY KEEPS THE MEETING (2026-10-04). Moving or pushing a
+// single day of a repeating event leaves a standalone copy; it carried the
+// door (SCHED-F-09) and nothing else, so one Tuesday of a weekly Zoom lost its
+// link, notes, travel time and project at the moment it was moved.
+describe("a repeating move or push leaves a copy that is still the same meeting", () => {
+  const series = {
+    date: "2026-10-06", start: "10:00", end: "11:00", location: "Rink 2", recurrence: "weekly" as const,
+    gym: true, url: "https://zoom.example/j/9", notes: "Bring the chart", travelMin: 25, bufferMin: 10, projectId: "proj-1",
+  };
+  const kept = { gym: true, url: "https://zoom.example/j/9", notes: "Bring the chart", travelMin: 25, bufferMin: 10, projectId: "proj-1" };
+
+  it("moveEvent: the copy at the new time carries link, notes, travel, buffer and project", async () => {
+    const s = svc();
+    const id = (await s.createEvent("Standup", series))!;
+    const out = await moveEvent(id, "11:00", "2026-10-13", s);
+    expect(out.repeating).toBe(true);
+    expect((await s.event(out.copyId!))!).toMatchObject({ date: "2026-10-13", start: "11:00", end: "12:00", ...kept });
+  });
+
+  it("pushEventTomorrow: the copy on the next day carries them too", async () => {
+    const s = svc();
+    const id = (await s.createEvent("Standup", series))!;
+    const out = await pushEventTomorrow(id, "2026-10-13", s);
+    expect(out.repeating).toBe(true);
+    expect((await s.event(out.copyId!))!).toMatchObject({ date: "2026-10-14", start: "10:00", end: "11:00", ...kept });
   });
 });

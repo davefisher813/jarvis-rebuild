@@ -8,23 +8,26 @@
 import { useEffect, useState } from "react";
 import PageHeader from "../shared/PageHeader";
 import { showToast } from "../shared/toast";
+import { copyText, shareText } from "../shared/shareText";
 import { exportContext, grantScope, importProposals, previewContext, type PreviewResult } from "../substrate/agentClient";
 import { PROTOCOL_ERRORS } from "../substrate/gateway/protocol";
 import { COMMAND_LINES } from "../substrate/commands/errors";
-import { CANCEL_SHARES_NOTHING, EXPORT_CAVEAT, EXPORT_CONTEXT, PASTE_BACK, SHARE_ONCE, SHARE_PROJECT, recordsLine } from "./copy";
+import { CANCEL_SHARES_NOTHING, COPY_EXPORT, COPY_EXPORT_FAILED, EXPORT_CAVEAT, EXPORT_CONTEXT, EXPORT_COPIED, EXPORT_NOT_SENT, PASTE_BACK, SHARE_ONCE, SHARE_PROJECT, recordsLine } from "./copy";
 import { openJob, type HubConnection, type RpcClient } from "./hubClient";
 import { ImportSheet } from "./sheets";
 
-/** Hand the export to the phone's share sheet, or the clipboard, and say which. */
-async function shareText(fileName: string, text: string): Promise<string> {
-  const nav = typeof navigator !== "undefined" ? (navigator as Navigator & { share?: (d: { title: string; text: string }) => Promise<void>; clipboard?: { writeText: (t: string) => Promise<void> } }) : undefined;
+/** Hand the export to the share sheet, else the clipboard, and say which. Null
+ *  means NEITHER took it, which the caller must not dress up as a success: the
+ *  package exists only in this function's argument, and the disclosure receipt
+ *  is already written (2026-10-04, it used to answer "Export Ready · Copy It From
+ *  the Activity Receipt" over a receipt that never holds the package). */
+async function deliver(fileName: string, text: string): Promise<string | null> {
   try {
-    if (nav?.share) { await nav.share({ title: fileName, text }); return "Shared"; }
-  } catch { /* the person closed the share sheet; the clipboard is next */ }
-  try {
-    if (nav?.clipboard) { await nav.clipboard.writeText(text); return "Copied · Paste It Into Your Assistant"; }
-  } catch { /* no clipboard either */ }
-  return "Export Ready · Copy It From the Activity Receipt";
+    const r = await shareText(text, fileName);
+    if (r === "shared") return "Shared";
+    if (r === "copied") return EXPORT_COPIED;
+  } catch { /* share refused, often because this runs after an await and the tap is spent; the clipboard is next */ }
+  try { await copyText(text); return EXPORT_COPIED; } catch { return null; }
 }
 
 export default function ContextPreview({ client, connection, projectId, projectTitle, offline, onBack, onImported }: {
@@ -44,6 +47,10 @@ export default function ContextPreview({ client, connection, projectId, projectT
   const [importing, setImporting] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
   const [shared, setShared] = useState<string | null>(null);
+  // The export's words, kept on screen when neither the share sheet nor the
+  // clipboard took them, so they can be copied by hand (or with the button
+  // below, whose tap is a fresh gesture the clipboard will accept).
+  const [held, setHeld] = useState<string | null>(null);
   const manual = !connection || connection.transport === "manual";
 
   const load = async () => {
@@ -61,6 +68,7 @@ export default function ContextPreview({ client, connection, projectId, projectT
   const share = async (how: "once" | "project" | "export") => {
     if (!jobId || !preview || busy || offline) return;
     setBusy(how);
+    setHeld(null);
     // An export makes no grant (slice 09 QA, 2026-10-04). A grant names an assistant, and the person's own export
     // has none (its job has no agent), so scope_grant_create refused it and every export toasted "The request
     // didn't match the protocol". context_issue takes the person's tap as the authority and writes the
@@ -72,15 +80,28 @@ export default function ContextPreview({ client, connection, projectId, projectT
     if (how === "export") {
       const x = await exportContext(client, jobId, preview.manifest_hash);
       if (!x.ok) { setBusy(null); showToast({ message: PROTOCOL_ERRORS[x.code].safe_message }); if (x.code === "STALE_SCOPE") void load(); return; }
-      const said = await shareText(x.value.fileName, x.value.text);
-      setShared(said);
-      showToast({ message: said });
+      const said = await deliver(x.value.fileName, x.value.text);
+      if (said === null) setHeld(x.value.text);
+      setShared(said ?? EXPORT_NOT_SENT);
+      showToast({ message: said ?? EXPORT_NOT_SENT });
     } else {
       const line = how === "once" ? `Shared ${recordsLine(preview.record_count)} · 15 Minutes` : `Shared ${recordsLine(preview.record_count)} · For This Project`;
       setShared(line);
       showToast({ message: line });
     }
     setBusy(null);
+  };
+
+  const copyHeld = async () => {
+    if (held === null) return;
+    try {
+      await copyText(held);
+      setHeld(null);
+      setShared(EXPORT_COPIED);
+      showToast({ message: EXPORT_COPIED });
+    } catch {
+      showToast({ message: COPY_EXPORT_FAILED });
+    }
   };
 
   const doImport = async (text: string) => {
@@ -130,6 +151,12 @@ export default function ContextPreview({ client, connection, projectId, projectT
         </div></div>
       )}
       {shared && <div className="hub-note">{shared}</div>}
+      {held !== null && (
+        <div className="pad-x"><div className="card list-card-ruled">
+          <button className="row row-act" onClick={() => void copyHeld()}>{COPY_EXPORT}</button>
+          <textarea className="copy-fallback" readOnly value={held} aria-label="The export, ready to copy" onFocus={(e) => e.currentTarget.select()} />
+        </div></div>
+      )}
       <div className="hub-note">{EXPORT_CAVEAT}</div>
       <div className="screen-foot" />
       {importing && <ImportSheet projectTitle={projectTitle} busy={busy === "import"} error={importError} onCancel={() => { setImporting(false); setImportError(null); }} onSave={(t) => void doImport(t)} />}

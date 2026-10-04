@@ -597,6 +597,7 @@ function Budgets({ month, onMonth, data, receipts, onSaved }: {
   const [target, setTarget] = useState("");
   const [rows, setRows] = useState<BudgetRow[]>([]);
   const [focusKey, setFocusKey] = useState<string | null>(null);
+  const nameRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   // The month is the record. Changing months loads that month's numbers
   // rather than carrying the last one's into a form that would save them; a
@@ -621,6 +622,16 @@ function Budgets({ month, onMonth, data, receipts, onSaved }: {
   const discrepancies = useMemo(() => discrepancyLines(actuals, receipts), [actuals, receipts]);
 
   const save = async () => {
+    // A LIMIT WITH NO NAME IS NOT DROPPED IN SILENCE (2026-10-04). A blank row
+    // and a name with no limit are left out on purpose (the proposed names are
+    // only suggestions), but a limit he typed against no name used to vanish
+    // under "Budget Saved". Say so, and put the cursor on the name.
+    const unnamed = rows.find((r) => !r.name.trim() && dollarsToCents(r.limit) > 0);
+    if (unnamed) {
+      showToast({ message: "Name That Category First" });
+      nameRefs.current[unnamed.key]?.focus();
+      return;
+    }
     const d: TrackerBudgetData = {
       month,
       // The name is the month's own unless one was set.
@@ -688,7 +699,7 @@ function Budgets({ month, onMonth, data, receipts, onSaved }: {
                 <span className="mt-cat-name">
                   <i className="mt-dot" style={{ "--cat": categoryColor(row.name || "New") } as React.CSSProperties} />
                   {form
-                    ? <input className="input mt-inline" aria-label={(row.name || "New category") + " name"} placeholder="Name"
+                    ? <input ref={(el) => { nameRefs.current[form.key] = el; }} className="input mt-inline" aria-label={(row.name || "New category") + " name"} placeholder="Name"
                         autoFocus={form.key === focusKey} value={form.name} onChange={(e) => edit(form.key, { name: e.target.value })} />
                     : lineCase(row.name)}
                 </span>
@@ -757,9 +768,19 @@ function Subscriptions({ data, onSaved }: { data: TrackerData; onSaved: () => Pr
   // ref flips on the first line of the first call and stops the second dead.
   const busyRef = useRef(false);
   const [busy, setBusy] = useState(false);
+  // WHAT IS MISSING, SAID (2026-10-04). A tap on Add with no name or no amount
+  // returned without a word, so the row looked dead; it now names what is
+  // missing and puts the cursor there.
+  const nameRef = useRef<HTMLInputElement>(null);
+  const amountRef = useRef<HTMLInputElement>(null);
   const add = async () => {
+    if (busyRef.current) return;
     const cents = dollarsToCents(amount);
-    if (busyRef.current || !name.trim() || cents <= 0) return;
+    if (!name.trim() || cents <= 0) {
+      showToast({ message: !name.trim() && cents <= 0 ? "Add a Name and an Amount" : !name.trim() ? "Add a Name First" : "Add an Amount First" });
+      (!name.trim() ? nameRef : amountRef).current?.focus();
+      return;
+    }
     busyRef.current = true;
     setBusy(true);
     try {
@@ -851,12 +872,12 @@ function Subscriptions({ data, onSaved }: { data: TrackerData; onSaved: () => Pr
       <div className="pad-x"><div className="card list-card-ruled">
         <div className="row" onClick={tapField}>
           <div className="row-grow"><div className="conn-name">Name</div></div>
-          <input className="input mt-inline" aria-label="New subscription name" placeholder="Netflix"
+          <input ref={nameRef} className="input mt-inline" aria-label="New subscription name" placeholder="Netflix"
             value={name} onChange={(e) => setName(e.target.value)} />
         </div>
         <div className="row" onClick={tapField}>
           <div className="row-grow"><div className="conn-name">Amount</div></div>
-          <input className="input mt-inline" inputMode="decimal" aria-label="New subscription amount"
+          <input ref={amountRef} className="input mt-inline" inputMode="decimal" aria-label="New subscription amount"
             placeholder="0.00" value={amount} onChange={(e) => setAmount(e.target.value)} />
         </div>
         <div className="row" onClick={tapField}>

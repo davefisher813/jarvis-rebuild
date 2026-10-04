@@ -67,6 +67,10 @@ const NO_UNDO: Record<string, string> = {
   "chat/ChatFlow.tsx · Note removed": "same, for the note",
   "gym/GymFlow.tsx · Discarded · The Saved Session Stays": "the message says in its own words that nothing was lost",
   "notes/NotesFlow.tsx · Deleted for good": "Delete Forever, behind its own confirm; permanence is the feature",
+  // 2026-10-04: select mode's Delete inside Recently Deleted is the same
+  // permanent delete for the ticked notes, behind its own confirm sheet.
+  "notes/NotesFlow.tsx · Deleted for Good": "bulk Delete Forever with one note ticked, behind its own confirm; permanence is the feature",
+  "notes/NotesFlow.tsx · ${gone.length} Notes Deleted for Good": "bulk Delete Forever, behind its own confirm; permanence is the feature",
   "settings/AdvancedPage.tsx · message: n === 0 ? \"No Chat History\" : `Dele": "a two-tap armed delete of all chat history; permanence is the point",
   // Brain Manual v1 (2026-09-27): the Brain settings erase is a tap-twice
   // armed delete of every brain_memory row, behind its own confirm; the

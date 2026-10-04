@@ -118,6 +118,7 @@ export default function EventSheet({
   onOpenPerson,
   onAddPerson,
   projects = [],
+  noScope = false,
 }: {
   mode: "new" | "edit";
   initial?: Partial<EventDraft>;
@@ -168,6 +169,10 @@ export default function EventSheet({
   // task sheet takes; without it the row does not render, so a caller that
   // cannot save it never shows a control that would lie.
   projects?: SheetProject[];
+  // Hides Apply To (2026-10-04). A staged import row is not a stored series:
+  // there is no other occurrence to apply a choice to, so the row asked a
+  // question the save never read.
+  noScope?: boolean;
 }) {
   // The band under this sheet is re-read on open (viewport.ts, 2026-09-26).
   useEffect(() => { nudgeViewport(); }, []);
@@ -232,7 +237,7 @@ export default function EventSheet({
   const conflictText = conflictLine?.(date, start, end) ?? null;
   const conflict = conflictText !== null || (checkConflict?.(date, start, end) ?? false);
 
-  const recurringEdit = mode === "edit" && recurrence !== "none";
+  const recurringEdit = mode === "edit" && recurrence !== "none" && !noScope;
 
   const guestTap = (a: { email: string; name?: string }, knownId: string | undefined) => {
     if (knownId && onOpenPerson) onOpenPerson(knownId);

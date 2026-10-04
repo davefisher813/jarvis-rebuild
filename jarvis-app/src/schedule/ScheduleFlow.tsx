@@ -64,7 +64,7 @@ import { contextToText } from "../ai/context";
 import FilingSheet from "../ai/FilingSheet";
 import type { TaskItem } from "../tasks/TasksService";
 import { repeatRows } from "./repeats";
-import { overlapsOn, overlapLine, copyDay, durationOf, type Overlap } from "./dayEdit";
+import { overlapsOn, overlapLine, copyDay, carriedFields, durationOf, type Overlap } from "./dayEdit";
 import { lineCase } from "../shared/casing";
 import { useFreshLists } from "../data/useFreshLists";
 import { recordSpot } from "../restore/whereYouWere";
@@ -1602,7 +1602,7 @@ export default function ScheduleFlow({ onEditRoutine, openId, openNonce, onOpenC
     const made: string[] = [];
     const ok = await attemptWrite(async () => {
       for (const c of copies) {
-        const id = await svc.createEvent(c.title, { date: c.date, start: c.start, end: c.end, category: c.category || undefined, location: c.location });
+        const id = await svc.createEvent(c.title, { date: c.date, start: c.start, end: c.end, category: c.category || undefined, location: c.location, ...carriedFields(c) });
         if (id) made.push(id);
       }
     });

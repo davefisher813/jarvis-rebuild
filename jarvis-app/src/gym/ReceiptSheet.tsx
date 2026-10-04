@@ -129,11 +129,14 @@ export default function ReceiptSheet({ dayName, receipt, workouts, onDone, onKee
             <>
               <div className="grp"><div className="eyebrow">How It Went</div></div>
               <div className="card">
+                {/* Both close the receipt, which commits the session, so both carry
+                    the note typed below (2026-10-04): onDone() with no argument
+                    saved the workout without it and the typing was silently lost. */}
                 {onRateSession && (
-                  <button className="row row-act" onClick={() => { onDone(); onRateSession(); }}>Rate It, 1 to 10</button>
+                  <button className="row row-act" onClick={() => { onDone(note); onRateSession(); }}>Rate It, 1 to 10</button>
                 )}
                 {onLogSoreSpot && (
-                  <button className="row row-act" onClick={() => { onDone(); onLogSoreSpot(); }}>Something Hurts</button>
+                  <button className="row row-act" onClick={() => { onDone(note); onLogSoreSpot(); }}>Something Hurts</button>
                 )}
               </div>
             </>

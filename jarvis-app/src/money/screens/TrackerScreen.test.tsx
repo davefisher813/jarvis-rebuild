@@ -284,3 +284,80 @@ describe("Tracker budget: monthly, on actuals", () => {
     expect(document.body.textContent).not.toMatch(/pace|project|forecast|on track|at this rate|will run|weekly|per week/i);
   });
 });
+
+// ADD SAYS WHAT IS MISSING (2026-10-04, the dead-button sweep). Add on a new
+// subscription returned without a word when the name or the amount was empty,
+// so the row looked dead. It names what is missing and puts the cursor there.
+describe("Tracker subscriptions: Add with something missing", () => {
+  const messages = () => toasts.map((t) => t.message);
+  const tapAdd = () => fireEvent.click(screen.getByText("Add", { selector: ".pill-act" }));
+  const open = async (id: string) => {
+    const h = mount(id);
+    await tab("Subscriptions");
+    await screen.findByLabelText("New subscription name");
+    return h;
+  };
+
+  it("nothing typed: says a name and an amount, and the cursor goes to the name", async () => {
+    const h = await open("sub-none");
+    tapAdd();
+    expect(messages()).toContain("Add a Name and an Amount");
+    expect(screen.getByLabelText("New subscription name")).toHaveFocus();
+    expect((await h.current!.tracker.load()).subs).toHaveLength(0);
+  });
+
+  it("a name and no amount: says the amount, and the cursor goes to the amount", async () => {
+    const h = await open("sub-name");
+    fireEvent.change(screen.getByLabelText("New subscription name"), { target: { value: "Netflix" } });
+    tapAdd();
+    expect(messages()).toContain("Add an Amount First");
+    expect(screen.getByLabelText("New subscription amount")).toHaveFocus();
+    expect((await h.current!.tracker.load()).subs).toHaveLength(0);
+  });
+
+  it("an amount and no name: says the name, and the cursor goes to the name", async () => {
+    const h = await open("sub-amount");
+    fireEvent.change(screen.getByLabelText("New subscription amount"), { target: { value: "15.99" } });
+    tapAdd();
+    expect(messages()).toContain("Add a Name First");
+    expect(screen.getByLabelText("New subscription name")).toHaveFocus();
+    expect((await h.current!.tracker.load()).subs).toHaveLength(0);
+  });
+
+  it("a complete row still saves, with no complaint", async () => {
+    const h = await open("sub-ok");
+    fireEvent.change(screen.getByLabelText("New subscription name"), { target: { value: "Netflix" } });
+    fireEvent.change(screen.getByLabelText("New subscription amount"), { target: { value: "15.99" } });
+    tapAdd();
+    await waitFor(async () => expect((await h.current!.tracker.load()).subs).toHaveLength(1));
+    expect(messages().filter((m) => /^Add a|^Add an/.test(m))).toEqual([]);
+  });
+});
+
+// A BUDGET LIMIT WITH NO NAME IS NOT DROPPED UNDER "BUDGET SAVED" (2026-10-04).
+// A blank row and a name with no limit are left out on purpose; a limit typed
+// against no name is something he entered and used to vanish in silence.
+describe("Tracker budgets: a limit with no name", () => {
+  it("says to name it, puts the cursor on the name, and saves nothing", async () => {
+    const h = mount("bg-unnamed");
+    await tab("Budgets");
+    fireEvent.click(await screen.findByText("Add a Category"));
+    fireEvent.change(screen.getByLabelText("New category limit"), { target: { value: "40" } });
+    fireEvent.click(screen.getByText("Save", { selector: ".pill-act" }));
+    expect(toasts.map((t) => t.message)).toContain("Name That Category First");
+    expect(screen.getByLabelText("New category name")).toHaveFocus();
+    expect((await h.current!.tracker.load()).budgets).toHaveLength(0);
+    expect(toasts.map((t) => t.message)).not.toContain("Budget Saved");
+  });
+
+  it("a blank row and a name with no limit are still left out, as before", async () => {
+    const h = mount("bg-blank");
+    await tab("Budgets");
+    fireEvent.click(await screen.findByText("Add a Category"));
+    fireEvent.change(await screen.findByLabelText("Groceries limit"), { target: { value: "200" } });
+    fireEvent.click(screen.getByText("Save", { selector: ".pill-act" }));
+    await waitFor(async () => expect((await h.current!.tracker.load()).budgets).toHaveLength(1));
+    expect((await h.current!.tracker.load()).budgets[0]!.data.allocations).toEqual({ Groceries: 20000 });
+    expect(toasts.map((t) => t.message)).not.toContain("Name That Category First");
+  });
+});
