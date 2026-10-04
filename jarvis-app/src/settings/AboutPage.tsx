@@ -1,5 +1,6 @@
 import { useRef } from "react";
 import LargeTitleNav from "../shared/LargeTitleNav";
+import { pressable } from "../shared/pressable";
 import { Head, Card, Row } from "./kit";
 
 export default function AboutPage({ onBack, onTerms, onPrivacy, onSupport, onSecret }: { onBack: () => void; onTerms?: () => void; onPrivacy?: () => void; onSupport?: () => void; onSecret?: () => void }) {
@@ -17,7 +18,12 @@ export default function AboutPage({ onBack, onTerms, onPrivacy, onSupport, onSec
             away. There is no version number to show (package.json has none),
             so it shows what actually identifies a build, the same stamp
             Advanced shows. Still the door to the test bench at five taps. */}
-        <div className="account-sub" onClick={bump}>
+        {/* Slice 09 QA (2026-10-04): fifteen taps on an iPhone opened nothing. The cause was
+            MoreFlow, not this line: the door was wired only once the admin probe had already
+            answered yes, so taps before that answer, or in a session where it failed, went
+            nowhere. The line is also a full control now (role, tab stop, Enter and Space) with
+            a 44px-class tap area, which is what pressable() is for. */}
+        <div className="account-sub about-build" {...pressable(bump)}>
           {typeof __BUILD_ID__ === "string" ? <><span className="fact">{`Build ${__BUILD_ID__}`}</span>{" "}<span className="fact date">{__BUILD_DATE__}</span></> : "Build dev"}
         </div>
       </div></div>

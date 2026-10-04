@@ -705,6 +705,10 @@ html[data-theme="light"], html[data-theme="light"] body { background-color: #FFF
    subtext for the light theme only. 500 still read thin on his phone, so
    the 600 weight rides the light theme and dark keeps 400. */
 [data-theme="light"] .t-meta { font-weight: var(--w-normal); } /* 2026-09-29: supporting text is 15/21 at 400 in the approved scale */
+/* Notification titles stay full bold in light mode (Dave, 2026-10-04). The light
+   scale steps names down to 600 through --w-name; a notification's title is the
+   whole row, so it keeps 700. Scoped to .notif-row so every other list keeps 600. */
+[data-theme="light"] .ruled .task-row.notif-row .task-title > .task-name { font-weight: var(--w-bold); }
 .eyebrow { font-size: var(--t-eyebrow); font-weight: var(--w-semi); text-transform: uppercase; letter-spacing: var(--track-eyebrow); color: var(--tx-3); }
 /* TASKS AUDIT 2026-08-29: an urgency tag riding beside the category on the
    same line, instead of fighting Start for the trailing slot. Its own font

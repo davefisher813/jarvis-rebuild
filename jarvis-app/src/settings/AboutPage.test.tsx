@@ -21,4 +21,16 @@ describe("AboutPage", () => {
     for (let i = 0; i < 5; i++) fireEvent.click(stamp);
     expect(onSecret).toHaveBeenCalledTimes(1);
   });
+
+  // Slice 09 QA (2026-10-04): the build line is a full control now: a button
+  // role, a tab stop, and Enter or Space count as a tap.
+  it("the build line is a real control: button role, focusable, and five Enters open the door", () => {
+    const onSecret = vi.fn();
+    render(<AboutPage onBack={() => {}} onSecret={onSecret} />);
+    const line = screen.getByRole("button", { name: /^Build / });
+    expect(line).toHaveClass("about-build");
+    expect(line).toHaveAttribute("tabindex", "0");
+    for (let i = 0; i < 5; i++) fireEvent.keyDown(line, { key: "Enter" });
+    expect(onSecret).toHaveBeenCalledTimes(1);
+  });
 });

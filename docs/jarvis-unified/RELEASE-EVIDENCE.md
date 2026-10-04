@@ -635,3 +635,35 @@ Found and deferred to the follow-up, before any migration is applied (none reach
 The route finder read 33 files and confirmed the rest: every route authenticates before any provider or database work; every service-role query is scoped by the session's owner and the SQL re-checks it; no access or refresh token reaches a response, a log or a receipt; bodies are validated and the error vocabulary is fixed; the gateway refuses authority keys at any depth and applies the mode ceiling before any call; there are no CORS headers and `vercel.json` rewrites only non-API paths; a second send is stopped by the outbox fence, one non-retried Gmail call and the nonce consumed on approval.
 
 Checks after the fixes: `tsc` exit 0 for the app and the routes; eslint 0 errors on every touched file; `npx vitest run api` 9 files, 140 tests; `tests/sends.sh` 79 ok and `tests/commands.sh` 167 ok with the replaced `command_cancel`; `tests/gateway.sh` 115 ok; `src/settings` and `src/laws` 58 files, 967 tests; the rehearsal run again on the final SQL: ALL OK, 12 checks of the chain and 758 across the nine proofs (`gateway.sh` 115, `sends.sh` 79, the rest unchanged). The full gate on this tree: every stage PASS (core-types, core-tests, app-types, app-lint at the same 41 warnings, app-tests the whole suite in 263s, app-build, app-legal); `house` lists exactly the nine pre-existing em-dash files and the open device checklist, as for every slice.
+
+### Merged and deployed (2026-10-03, on Dave's word)
+
+Dave's word was "Merge". Pull request davefisher813/jarvis-rebuild#48 went to `main` as a merge commit, `2484642`, so every slice commit the sections above cite stays reachable from `main`. Its head was `c22f17b`: the nine slices plus the pre-merge review's two fix commits (`0d4df1a`, `c22f17b`). CI was green on that head twice (the push run 37133238439 and the pull request run 37133241867: jarvis-core, jarvis-app, npm audit) and the pull request read clean against `main` at `199e4bd`. `main` carries no branch protection; the pull request was the repository's own convention (PRs 42 to 47).
+
+Vercel deployed `main` as it does on every merge: deployment `dpl_FVHPeKKnRiHC4id41AZHTqSGMesp`, production, commit `2484642`, READY at 15:37:05 UTC, aliased to `jarvis-rebuild.vercel.app`. Live checks through the Vercel connector (the container's own egress to that host is denied by network policy): the page answers 200 with the new build (last modified 15:37:35 UTC); `GET /api/email/accounts` answers 405, the route is live and refuses the wrong method before anything else. No session was used and no mail was read or sent.
+
+What the deployed app does differently today: nothing a person sees. `VITE_JARVIS_FLAGS` is unset on the project, so every new surface is off and the old mail pumps still run; the `api/email/*` routes and the agent gateway are reachable and answer `UNAVAILABLE` to a signed-in caller until the migrations exist. Migrations 0044 to 0051 are not applied; `JARVIS_CONTEXT_KEY` is not set.
+
+Still running at the time of the merge: the pre-merge review's last dimensions (CI parity, live-migration safety, privacy escape) and the three-lens verification of every finding. The merge did not wait for them because none can touch a person before the migrations are applied and the flags are set; their confirmed findings, the deferred items named above (the wider outbox sweep, the twenty-eight raise-only gates, the notes) and this record go in a follow-up pull request that waits for Dave's word like this one did. **Do not apply the migrations before that follow-up is in.**
+
+### Production QA fixes (2026-10-04, on Dave's word)
+
+Dave's QA with `VITE_JARVIS_FLAGS=substrate_v1,email_intake_v1` live found three faults: the AI Hub row on Brain did nothing, the Email tab said Couldn't Reach JARVIS, and five taps on About's build line did not open Admin. He also approved one light-mode style fix for this batch.
+
+Code (deviations 53 and 54):
+
+1. **AI Hub.** `aihub` joined `BrainFlow`'s known keys. Before, the row opened the Hub and the unknown-key guard closed it a frame later.
+2. **Admin door.** It is always wired; the Admin screen decides. The admin check retries a transient failure and shows Couldn't Check Access with Try Again, so only a real no reads Not Authorized. Dave's account (`90c8a179-737f-4dcb-b315-c5f5c64c63e7`) is on the server's allow-list. The variable is write-only in Vercel, so this was shown from the record instead: his was the only session active between 11:45 and 14:45 UTC, and `/api/admin/usage`, which answers 200 only to an allow-listed account, answered 200 six times in that window.
+3. **Notification titles in light mode** keep 700 (`jarvis-design-system.css`, scoped to `.notif-row`).
+
+Tests: each of the three new tests in `BrainFlow.test.tsx`, `AboutPage.test.tsx` and `settings.test.tsx` fails with the fix removed and passes with it; `useIsAdmin.test.tsx` and three new `AdminPanel.test.tsx` cases cover the probe.
+
+Database (deviation 55): the Email backend fault was the migrations. 0044 to 0051 were applied to production on 2026-10-03 and 10-04 by another session, in hand-rewritten chunks. This session fingerprinted production against a fresh local install of `main`'s migrations: triggers, indexes, seed rows, tables, policies and grants matched; functions did not. Seventeen functions were replaced from `main`'s text in nine migrations named `repair_main_safe_1` to `_9`, and each now hashes identically to `main`. Among them is the request-role gate of deviation 52, which production lacked. Dave approved the rest, but the Supabase connector holds any statement containing DROP or DELETE until someone approves it inside the connector, and it timed out each time. Nothing was routed around that gate. The items went to Dave as one SQL file of `main`'s own text, in one transaction, to run in the SQL Editor. Locally it ran clean and left the database identical to `main`. Until it is run, production still has:
+
+- `action_undo`, `draft_discard`, `context_packages_sweep`, `connection_revoke` are missing, and `delete_owned` is the older version: their bodies contain DELETE.
+- `proposal_created_by_check` lacks `system` (0047 drops and re-adds it). Until it is widened, `decision_dependencies_check` cannot record a changed dependency.
+- The five-argument `email_body_store` sits beside the six-argument one; 0050 drops it.
+- `public.zz_probe`, a leftover test table from the other session.
+
+Vercel: `JARVIS_CONTEXT_KEY` (32 random bytes, base64, sensitive) set for Production and Preview on 2026-10-04.
+
