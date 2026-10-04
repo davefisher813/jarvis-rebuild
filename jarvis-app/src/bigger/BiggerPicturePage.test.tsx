@@ -82,7 +82,7 @@ describe("BiggerPicturePage Goals lens, a finished goal", () => {
 // resets both and says so; with nothing narrowing it, the row is a status line and not a button that does nothing.
 describe("BiggerPicturePage Goals Options sheet", () => {
   const goals = [
-    { id: "g1", data: { title: "Run Three Times a Week", state: "active" as const, tags: ["health"] } },
+    { id: "g1", data: { title: "Run Three Times a Week", state: "on_track" as const, tags: ["health"] } },
     { id: "g2", data: { title: "Run a Half", state: "achieved" as const, achievedOn: "2026-09-12", tags: ["health"] } },
   ];
   const page = () => render(
