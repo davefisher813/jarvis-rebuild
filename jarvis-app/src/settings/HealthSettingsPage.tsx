@@ -1,14 +1,15 @@
 import { useState } from "react";
 import LargeTitleNav from "../shared/LargeTitleNav";
 import { Head, Card, Switch, Row, Menu, focusField } from "./kit";
-import { readHealthSettings, updateHealthSettings, SHORTCUTS, type HealthSettings, type ShortcutKey } from "../health/settings";
+import { Capacitor } from "@capacitor/core";
+import { readHealthSettings, updateHealthSettings, SHORTCUTS, WORKING_SHORTCUTS, type HealthSettings, type ShortcutKey } from "../health/settings";
 import { readGymSettings, writeGymSettings } from "../gym/settings";
 import { HARD_SET_RANGE } from "../gym/muscles";
 import { RackSettings } from "./TrainingPage";
 
 // HEALTH SETTINGS (Health Push C, H-40, Dave's picks 2026-09-12), reached
-// from the Health page. Shortcuts (which tiles the Daily Log shows), the
-// session (rest sound, rest notification, last time on every set,
+// from the Health page. Shortcuts (Water, the one that adds a row to Log
+// Something), the session (rest sound, rest notification, last time on every set,
 // celebrations), the weekly sets band the Weekly Volume card compares
 // against (Dave 2026-09-13: "I don't want anything hard wired that shouldn't
 // be"), and the rack, the same controls Settings, Training already carries.
@@ -60,9 +61,12 @@ export default function HealthSettingsPage({ onBack, onEnableWater, doors = [], 
     <div className="screen ruled">
       <LargeTitleNav title="Health Settings" back="Health" onBack={onBack} />
       <Head label="Shortcuts" />
-      <div className="pad-x"><div className="input-hint">The tiles under Daily Log. Your own metrics are chosen from Add.</div></div>
+      {/* 2026-10-04: Log Something always lists Bedtime, Meal, Check In, Session
+          Effort, Discomfort and Medication, so a chip for any of them changed
+          nothing. Water is the one a chip still decides. */}
+      <div className="pad-x"><div className="input-hint">Water adds a row to Log Something · The other loggers are always there · Your own metrics are chosen from Add</div></div>
       <div className="pad-x"><div className="chip-row chip-wrap-row" role="group" aria-label="Shortcuts">
-        {SHORTCUTS.map(({ key, label }) => {
+        {SHORTCUTS.filter(({ key }) => WORKING_SHORTCUTS.includes(key)).map(({ key, label }) => {
           const on = s.shortcuts.includes(key);
           return (
             <div key={key} className={"chip" + (on ? " active" : "")} role="button" tabIndex={0} aria-pressed={on} onClick={() => toggleShortcut(key)}>{label}</div>
@@ -88,14 +92,17 @@ export default function HealthSettingsPage({ onBack, onEnableWater, doors = [], 
       <Head label="Session" />
       <Card>
         <Switch label="Rest Timer Sound" meta="Three notes when the rest is over" on={s.restSound} onToggle={() => set({ restSound: !s.restSound })} />
-        <Switch label="Rest Notification" meta="A buzz on the lock screen when the rest is over" on={s.restNotify} onToggle={() => set({ restNotify: !s.restNotify })} />
+        {/* A lock-screen alert is the native app's own; the web build never
+            schedules one, so there the switch would change nothing (2026-10-04). */}
+        {Capacitor.isNativePlatform() && <Switch label="Rest Notification" meta="A buzz on the lock screen when the rest is over" on={s.restNotify} onToggle={() => set({ restNotify: !s.restNotify })} />}
         <Switch label="Last Time on Every Set" meta="Last session beside each set, with tap-to-match" on={showLast} onToggle={toggleShowLast} />
         <Switch label="Celebrations" meta="The PR mark, and New Best on the receipt" on={s.celebrations} onToggle={() => set({ celebrations: !s.celebrations })} />
-        {/* Part 3 wave 5: the progression engine's mode, easy to change. */}
-        <Menu label="Progression" meta={s.progression === "assisted" ? "A next target from your completed sets, with its basis on tap" : s.progression === "manual" ? "No suggestions" : "The plan as written"}
+        {/* Part 3 wave 5: the progression engine's mode, easy to change. Two
+            modes since 2026-10-04: Program did what Manual does. */}
+        <Menu label="Progression" meta={s.progression === "assisted" ? "A next target from your completed sets, with its basis on tap" : "No suggestions"}
           value={s.progression} ariaLabel="Progression"
-          options={[{ value: "assisted", label: "Assisted" }, { value: "manual", label: "Manual" }, { value: "program", label: "Program" }]}
-          onPick={(v) => set({ progression: v === "manual" ? "manual" : v === "program" ? "program" : "assisted" })} />
+          options={[{ value: "assisted", label: "Assisted" }, { value: "manual", label: "Manual" }]}
+          onPick={(v) => set({ progression: v === "manual" ? "manual" : "assisted" })} />
       </Card>
       <Head label="Weekly Sets" />
       <Card>
