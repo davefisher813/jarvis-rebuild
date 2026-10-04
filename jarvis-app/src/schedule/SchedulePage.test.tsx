@@ -46,14 +46,11 @@ describe("SchedulePage", () => {
       expect(cells.every((c) => c.getAttribute("role") === "button")).toBe(true);
     });
 
-    it("a day in this month is a tab stop and a day outside it is not", () => {
+    it("every day, in this month or spilling in from another, is a tab stop", () => {
       const { container } = render(<SchedulePage {...base} />);
-      const inMonth = [...container.querySelectorAll(".cal-cell:not(.out)")];
       const outside = [...container.querySelectorAll(".cal-cell.out")];
-      expect(inMonth.length).toBeGreaterThan(0);
       expect(outside.length, "May 2026 spills into April and June").toBeGreaterThan(0);
-      expect(inMonth.every((c) => c.getAttribute("tabindex") === "0")).toBe(true);
-      expect(outside.every((c) => c.getAttribute("tabindex") === "-1")).toBe(true);
+      expect([...container.querySelectorAll(".cal-cell")].every((c) => c.getAttribute("tabindex") === "0")).toBe(true);
     });
 
     for (const k of ["Enter", " "]) {
@@ -65,13 +62,19 @@ describe("SchedulePage", () => {
       });
     }
 
-    it("a day outside the month picks nothing, by key or by tap", () => {
+    // Dave, 2026-10-04: no dead buttons. A day spilling in from the last or
+    // the next month used to be inert; it is a day like any other now.
+    it("a day outside the month picks that day, by key and by tap", () => {
       const onSelect = vi.fn();
       const { container } = render(<SchedulePage {...base} onSelect={onSelect} />);
       const out = container.querySelector(".cal-cell.out")!;
+      const date = out.getAttribute("aria-label")!;
+      expect(date).not.toMatch(/^2026-05/);
       fireEvent.keyDown(out, { key: "Enter" });
       fireEvent.click(out);
-      expect(onSelect).not.toHaveBeenCalled();
+      expect(onSelect).toHaveBeenCalledTimes(2);
+      expect(onSelect).toHaveBeenNthCalledWith(1, date);
+      expect(onSelect).toHaveBeenNthCalledWith(2, date);
     });
   });
 

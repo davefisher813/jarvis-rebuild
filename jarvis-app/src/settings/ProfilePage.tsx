@@ -1,10 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useProfile, useCategories } from "../data/NotesProvider";
 import type { TemplateKey } from "../categories/defaults";
 import LargeTitleNav from "../shared/LargeTitleNav";
 import { Head, Card, Menu, focusField } from "./kit";
 import { attemptWrite } from "../shared/guard";
 import { showToast } from "../shared/toast";
+import { announceProfileName } from "../profile/profileName";
 
 const LABEL: Record<TemplateKey, string> = { personal: "Personal", business: "Business", student: "Student" };
 const TEMPLATE_OPTIONS = [
@@ -21,10 +22,16 @@ export default function ProfilePage({ onBack }: { onBack: () => void }) {
   const [name, setName] = useState("");
   const [template, setTemplate] = useState<TemplateKey>("personal");
   const [saved, setSaved] = useState(false);
+  // The fields are filled from the saved record ONCE. Every token refresh
+  // rebuilds the services, so `profile` changes under a signed-in person, and
+  // reading again put the saved name back over a name they were typing, with
+  // Save still lit to save the old one.
+  const hydrated = useRef(false);
   useEffect(() => {
     let on = true;
     profile.get().then((p) => {
-      if (!on || !p) return;
+      if (!on || !p || hydrated.current) return;
+      hydrated.current = true;
       setName(p.name);
       setTemplate(p.template);
     });
@@ -35,6 +42,9 @@ export default function ProfilePage({ onBack }: { onBack: () => void }) {
   const save = async () => {
     const ok = await attemptWrite(() => profile.save({ name: name.trim() }));
     setSaved(ok);
+    // Today's disc and greeting are on a screen that may still be mounted;
+    // they follow without a reload (profile/profileName.ts).
+    if (ok) announceProfileName(name.trim());
   };
   // S3-Q20 (2026-09-04): Template was a dead read-only row, so the only way
   // to change Personal/Business/Student was Redo Setup -- the full ~15-tap

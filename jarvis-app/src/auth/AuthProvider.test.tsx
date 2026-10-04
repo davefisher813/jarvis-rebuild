@@ -231,6 +231,103 @@ describe("password recovery", () => {
   });
 });
 
+// ACCOUNT > CHANGE PASSWORD (2026-10-04, Dave). updateUser({ password }) works
+// on any live session without the old password, so the old one is proven first
+// by signing in with it, and nothing is written when that fails.
+describe("changePassword", () => {
+  const withEmail = (email: string | undefined) =>
+    getSession.mockResolvedValue({ data: { session: { access_token: "tok123", user: { id: "u1", ...(email ? { email } : {}) } } } });
+
+  it("checks the current password with the account's own email, then writes the new one", async () => {
+    withEmail("dave@example.com");
+    const get = renderAuth();
+    await waitFor(() => expect(get().ready).toBe(true));
+    await get().changePassword("old-pass-1", "new-pass-2");
+    expect(signInWithPassword).toHaveBeenCalledWith({ email: "dave@example.com", password: "old-pass-1" });
+    expect(updateUser).toHaveBeenCalledWith({ password: "new-pass-2" });
+    // The proof comes first: a write that ran before it would be the hole this closes.
+    expect(signInWithPassword.mock.invocationCallOrder[0]!).toBeLessThan(updateUser.mock.invocationCallOrder[0]!);
+  });
+
+  it("a wrong current password throws Supabase's own refusal and writes nothing", async () => {
+    withEmail("dave@example.com");
+    signInWithPassword.mockResolvedValue({ error: Object.assign(new Error("Invalid login credentials"), { code: "invalid_credentials" }) });
+    const get = renderAuth();
+    await waitFor(() => expect(get().ready).toBe(true));
+    await expect(get().changePassword("wrong", "new-pass-2")).rejects.toMatchObject({ code: "invalid_credentials" });
+    expect(updateUser).not.toHaveBeenCalled();
+  });
+
+  it("a refusal to write the new password comes back as it was sent", async () => {
+    withEmail("dave@example.com");
+    updateUser.mockResolvedValue({ error: Object.assign(new Error("same"), { code: "same_password" }) });
+    const get = renderAuth();
+    await waitFor(() => expect(get().ready).toBe(true));
+    await expect(get().changePassword("old-pass-1", "old-pass-1")).rejects.toMatchObject({ code: "same_password" });
+  });
+
+  // THE REVIEW'S FINDINGS (2026-10-04): getSession can fail, and a write can land with its answer lost.
+  it("a session that could not be read is the connection's or the session's answer, never 'no email'", async () => {
+    const offline = Object.assign(new Error("Failed to fetch"), { name: "AuthRetryableFetchError" });
+    getSession.mockResolvedValue({ data: { session: null }, error: offline });
+    const get = renderAuth();
+    await waitFor(() => expect(get().ready).toBe(true));
+    await expect(get().changePassword("old-pass-1", "new-pass-2")).rejects.toBe(offline);
+    expect(signInWithPassword).not.toHaveBeenCalled();
+    expect(updateUser).not.toHaveBeenCalled();
+  });
+
+  it("no session and no error is a signed-out answer, not 'no email'", async () => {
+    getSession.mockResolvedValue({ data: { session: null }, error: null });
+    const get = renderAuth();
+    await waitFor(() => expect(get().ready).toBe(true));
+    await expect(get().changePassword("old-pass-1", "new-pass-2")).rejects.toMatchObject({ code: "session_not_found" });
+    expect(updateUser).not.toHaveBeenCalled();
+  });
+
+  it("a write whose answer was lost, but which landed, is a success", async () => {
+    withEmail("dave@example.com");
+    updateUser.mockResolvedValue({ error: Object.assign(new Error("Failed to fetch"), { name: "AuthRetryableFetchError" }) });
+    // First sign-in proves the current password; the second asks whether the NEW one now works.
+    signInWithPassword.mockResolvedValue({ error: null });
+    const get = renderAuth();
+    await waitFor(() => expect(get().ready).toBe(true));
+    await expect(get().changePassword("old-pass-1", "new-pass-2")).resolves.toBeUndefined();
+    expect(signInWithPassword).toHaveBeenNthCalledWith(1, { email: "dave@example.com", password: "old-pass-1" });
+    expect(signInWithPassword).toHaveBeenNthCalledWith(2, { email: "dave@example.com", password: "new-pass-2" });
+  });
+
+  it("a lost answer where the new password does not sign in is still the connection's failure", async () => {
+    withEmail("dave@example.com");
+    const lost = Object.assign(new Error("Failed to fetch"), { name: "AuthRetryableFetchError" });
+    updateUser.mockResolvedValue({ error: lost });
+    signInWithPassword
+      .mockResolvedValueOnce({ error: null })
+      .mockResolvedValueOnce({ error: Object.assign(new Error("Invalid login credentials"), { code: "invalid_credentials" }) });
+    const get = renderAuth();
+    await waitFor(() => expect(get().ready).toBe(true));
+    await expect(get().changePassword("old-pass-1", "new-pass-2")).rejects.toBe(lost);
+  });
+
+  it("a refusal that is not a lost answer is not second-guessed", async () => {
+    withEmail("dave@example.com");
+    updateUser.mockResolvedValue({ error: Object.assign(new Error("same"), { code: "same_password" }) });
+    const get = renderAuth();
+    await waitFor(() => expect(get().ready).toBe(true));
+    await expect(get().changePassword("old-pass-1", "old-pass-1")).rejects.toMatchObject({ code: "same_password" });
+    expect(signInWithPassword).toHaveBeenCalledTimes(1);
+  });
+
+  it("an account with no email has nothing to check against, and says so", async () => {
+    withEmail(undefined);
+    const get = renderAuth();
+    await waitFor(() => expect(get().ready).toBe(true));
+    await expect(get().changePassword("old-pass-1", "new-pass-2")).rejects.toThrow(/no email/);
+    expect(signInWithPassword).not.toHaveBeenCalled();
+    expect(updateUser).not.toHaveBeenCalled();
+  });
+});
+
 // THE RECOVERY WINDOW SURVIVES A RELOAD (P0, 2026-10-04). On a first visit the
 // service worker's first claim used to reload the page about three seconds
 // after a reset link landed, and the in-memory flag went with it: the person

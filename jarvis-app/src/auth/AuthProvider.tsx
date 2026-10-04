@@ -15,6 +15,7 @@ import { apiUrl } from "../shared/apiBase";
 import { appleNativeAvailable, signInWithAppleNative } from "./appleSignIn";
 import { APPLE_UNAVAILABLE, isUnsupportedProvider, providerFlags } from "./providers";
 import { authRedirectTo, startAuthLinks } from "./authLink";
+import { PASSWORD_WORDS } from "./passwordRules";
 import { showToast } from "../shared/toast";
 
 // Auth state for the app. Wraps Supabase Auth. When no backend is configured
@@ -36,6 +37,10 @@ interface AuthValue {
   // Password screen instead of the app for exactly that window.
   recovery: boolean;
   updatePassword: (password: string) => Promise<void>;
+  // Account > Change Password (2026-10-04): the signed-in person changing a
+  // password they know. Supabase's updateUser does not ask for the old one,
+  // so this proves it first by signing in with it.
+  changePassword: (current: string, next: string) => Promise<void>;
 }
 
 // THE RECOVERY WINDOW SURVIVES A RELOAD (P0, 2026-10-04). A reset link opens
@@ -193,6 +198,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (error) throw error;
         writeRecovery(false);
         setRecovery(false);
+      },
+      // ACCOUNT > CHANGE PASSWORD (2026-10-04, Dave). A live session can call
+      // updateUser({ password }) without knowing the old password, so a phone
+      // left unlocked could change it. The current password is checked first,
+      // by signing in with it: the same user, so the session carries on, and a
+      // wrong one stops here with Supabase's own invalid_credentials. An
+      // account that has no email (nothing to check a password against) says
+      // so rather than guessing.
+      changePassword: async (current: string, next: string) => {
+        if (!supabase) throw new Error("Auth backend not configured");
+        // getSession can fail (an expired token that could not be refreshed
+        // offline, a 5xx): that is the connection's or the session's answer,
+        // not "this account has no email".
+        const { data, error: sessionError } = await supabase.auth.getSession();
+        if (sessionError) throw sessionError;
+        if (!data.session) throw Object.assign(new Error("Auth session missing!"), { code: "session_not_found" });
+        const email = data.session.user.email;
+        if (!email) throw new Error(PASSWORD_WORDS.noEmail);
+        const check = await supabase.auth.signInWithPassword({ email, password: current });
+        if (check.error) throw check.error;
+        const { error } = await supabase.auth.updateUser({ password: next });
+        if (error) {
+          // A write can land and its answer be lost. If the connection is what
+          // failed, ask the one question that settles it: does the new password
+          // sign in? Then the person is told it worked rather than, on the
+          // next tap, that their current password is wrong.
+          if (error.name === "AuthRetryableFetchError") {
+            const landed = await supabase.auth.signInWithPassword({ email, password: next });
+            if (!landed.error) return;
+          }
+          throw error;
+        }
       },
       signOut: async () => {
         await supabase?.auth.signOut();

@@ -165,3 +165,28 @@ describe("AccountPage avatar (a tap that changes the photo)", () => {
     await screen.findByRole("button", { name: "Add profile photo" });
   });
 });
+
+// Account > Change Password (2026-10-04, Dave: "no way to edit username or
+// password"): one more row in the Account card, under Edit Profile, that opens
+// the sheet. It is offered only where there is an account.
+describe("AccountPage Change Password row", () => {
+  it("sits in the Account card right under Edit Profile", () => {
+    render(
+      <AuthProvider>
+        <NotesProvider userId="u-acct">
+          <AccountPage onBack={() => {}} onEditProfile={() => {}} />
+        </NotesProvider>
+      </AuthProvider>,
+    );
+    const rows = [...document.querySelectorAll(".set-card .conn-name")].map((n) => n.textContent);
+    expect(rows.slice(0, 3)).toEqual(["Edit Profile", "Change Password", "Template"]);
+  });
+
+  it("opens the sheet on a tap and closes it on Cancel", () => {
+    renderPage();
+    fireEvent.click(screen.getByText("Change Password"));
+    expect(screen.getByLabelText("Current password")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(screen.queryByLabelText("Current password")).not.toBeInTheDocument();
+  });
+});
