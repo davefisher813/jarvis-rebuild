@@ -76,6 +76,7 @@ export const COPY_RECEIPT = "Copy Receipt";
 export const DELETE_RECEIPT = "Delete Receipt";
 export const COPIED = "Copied";
 export const ITEM_REMOVED = "Item Removed";
+export const NOTE_NOT_FOUND = "Couldn't Open That Note";
 export const UNDONE = "Undone";
 
 /** "3 Email Items to Review" (T1, H2): the one Email fact a global surface may show. */

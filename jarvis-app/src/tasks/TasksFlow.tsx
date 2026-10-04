@@ -412,8 +412,13 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, startId, 
         onAction: async () => {
           const proj = projects.find((x) => x.id === advanced.projectId);
           if (!proj) return;
-          await attemptWrite(() => projectsSvc.update(proj.id, { ...proj.data, status: "done" }));
+          // 2026-10-04: the celebration was unconditional, so a failed write
+          // ("Couldn't Save") was overwritten by it, and so was update()
+          // answering false for a project deleted elsewhere in the toast's
+          // five seconds. Only a write that landed celebrates.
+          const ok = await attemptWrite(async () => { if (!(await projectsSvc.update(proj.id, { ...proj.data, status: "done" }))) throw new Error("project missing"); });
           await reload();
+          if (!ok) return;
           showToast({ message: lineCase(celebrationLine("project", proj.id) + " · " + proj.data.title) });
         },
       });

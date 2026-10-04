@@ -29,4 +29,14 @@ describe("booking settings", () => {
     s.write("jarvis.booking.settings.v1", "{nope");
     expect(readBookingSettings(s)).toEqual(DEFAULT_BOOKING_SETTINGS);
   });
+  // ONE CHOICE EACH (2026-10-04). The server serves "anyone with the link" and
+  // one link-only visibility; the other words did nothing or closed the link.
+  // What an earlier build stored still reads, as the choice that works.
+  it("reads the words an earlier build stored as the one choice that works", () => {
+    const s = mem();
+    s.write("jarvis.booking.settings.v1", JSON.stringify({ available: true, who: "approved", visibility: "named" }));
+    expect(readBookingSettings(s)).toMatchObject({ available: true, who: "anyone", visibility: "link" });
+    s.write("jarvis.booking.settings.v1", JSON.stringify({ who: "connections", visibility: "public" }));
+    expect(readBookingSettings(s)).toMatchObject({ who: "anyone", visibility: "link" });
+  });
 });

@@ -7,6 +7,7 @@ import { Mail, CalendarDays, Link2, Plus } from "../shared/icons";
 import { WRITE_FAILED_MESSAGE } from "../shared/guard";
 import { pressable } from "../shared/pressable";
 import { useLeaveVia } from "../shell/navOrigin";
+import { flagOn } from "../substrate/flags";
 
 // Settings -> Connections (multi-account, 2026-08-04). Each Google account is
 // its own row with its own feature toggles and its own disconnect. Adding an
@@ -66,7 +67,7 @@ export default function ConnectionsPage({
   // back where it was when the write does not land. The page already has its
   // own error line, so the failure rides that instead of a toast, wearing the
   // app's one standard sentence for a write that did not land.
-  const toggleFeature = (email: string, key: "mail" | "cal" | "drive", on: boolean) => run(async () => {
+  const toggleFeature = (email: string, key: "mail" | "cal", on: boolean) => run(async () => {
     // GoogleSession.persist reverts its own optimistic update on failure, so
     // the chip follows the account list back.
     try {
@@ -121,6 +122,11 @@ export default function ConnectionsPage({
   });
 
   const leave = useLeaveVia("Settings", () => onBack?.());
+  // The pixel is added by the legacy mail pump alone. The unified Email tab
+  // (email_intake_v1) has no tracking code on its send path, so there the
+  // switch would say on or off over a send that does neither (2026-10-04); it
+  // is not shown rather than shown dead.
+  const showTracking = g.accounts.some((a) => a.mail) && !flagOn("email_intake_v1");
 
   return (
     <div className="screen ruled">
@@ -179,11 +185,11 @@ export default function ConnectionsPage({
                     onClick={(ev) => { ev.stopPropagation(); void toggleFeature(a.email, "mail", !a.mail); }}>Email</button>
                   <button className={"chip" + (a.cal ? " on" : "")} disabled={busy}
                     onClick={(ev) => { ev.stopPropagation(); void toggleFeature(a.email, "cal", !a.cal); }}>Calendar</button>
-                  {/* DRIVE (Dave 2026-09-29): the same kind of link as the two
-                      beside it. It is what lets Grant Access on a Drive
-                      access-request email be one tap. */}
-                  <button className={"chip" + (a.drive ? " on" : "")} disabled={busy} aria-pressed={!!a.drive}
-                    onClick={(ev) => { ev.stopPropagation(); void toggleFeature(a.email, "drive", !a.drive); }}>Drive</button>
+                  {/* NO DRIVE CHIP (2026-10-04). It stored a flag that nothing
+                      read: Grant Access still only opens Google's own request
+                      page and no code calls Drive, so the chip was a switch
+                      wired to nothing. The stored field stays readable in the
+                      profile for the day a Drive call exists. */}
                   {/* Armed two-tap (2026-08-09): disconnect sat one accidental
                       tap away, styled like the harmless toggles beside it. */}
                   <button className="chip" disabled={busy}
@@ -214,7 +220,7 @@ export default function ConnectionsPage({
         )}
       </div>
 
-      {(g.accounts.some((a) => a.cal) || g.accounts.some((a) => a.mail)) && <div className="sh2 sh2-quiet"><span className="t">What Flows In</span></div>}
+      {(g.accounts.some((a) => a.cal) || showTracking) && <div className="sh2 sh2-quiet"><span className="t">What Flows In</span></div>}
       {g.accounts.some((a) => a.cal) && (
         <div className="pad-x"><div className="card list-card-ruled"><div className="row">
           <div className="proj-icon cat-bg-sky"><CalendarDays className="ic" /></div>
@@ -225,7 +231,7 @@ export default function ConnectionsPage({
         </div></div></div>
       )}
 
-      {g.accounts.some((a) => a.mail) && (
+      {showTracking && (
         <div className="pad-x"><div className="card list-card-ruled conn-mail-card"><div className="row" {...pressable(() => { if (!busy) void toggleTrackOpens(); })}>
           <div className="row-grow">
             <div className="conn-name">Know When Your Email Is Opened</div>

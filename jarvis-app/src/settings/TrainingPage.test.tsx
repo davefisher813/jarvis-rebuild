@@ -3,7 +3,7 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import TrainingPage from "./TrainingPage";
-import { readGymSettings } from "../gym/settings";
+import { readGymSettings, writeGymSettings } from "../gym/settings";
 
 // S5-Q32 (2026-09-04): "bar weight and plates have no control." Every plate
 // calculation read a stored barWeight/plates that nothing in the app could
@@ -63,5 +63,20 @@ describe("TrainingPage: the unit hint", () => {
     expect(hint().textContent).toMatch(/^In lb\. A lift logged/);
     fireEvent.click(screen.getByText("kg", { selector: ".chip" }));
     expect(hint().textContent).toMatch(/^In kg\. A lift logged/);
+  });
+});
+
+// 2026-10-04 (audit): a rack tap wrote back the gym blob as it was when the
+// page mounted, so whatever another control had saved since was rolled back.
+describe("TrainingPage: a rack tap lands on what is stored now", () => {
+  beforeEach(() => { localStorage.clear(); });
+
+  it("keeps a value saved elsewhere after the page mounted", async () => {
+    render(<TrainingPage onBack={() => {}} />);
+    writeGymSettings({ ...readGymSettings(), showLast: false, hiddenKeys: ["bench"] });
+    fireEvent.click(screen.getByText("5", { selector: ".chip" }));
+    await waitFor(() => expect(readGymSettings().plates).not.toContain(5));
+    expect(readGymSettings().showLast).toBe(false);
+    expect(readGymSettings().hiddenKeys).toEqual(["bench"]);
   });
 });

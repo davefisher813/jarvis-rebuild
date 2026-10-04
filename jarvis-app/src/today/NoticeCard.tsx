@@ -77,6 +77,7 @@ export default function NoticeCard({
   anchor,
   automation,
   onTune,
+  tuneChoices = ["more", "less", "never"],
 }: {
   icon: ReactNode;
   // UP-CORE-14 (2026-09-05): which producer made this card ("gap-fill",
@@ -86,6 +87,11 @@ export default function NoticeCard({
   // no services.
   automation?: string;
   onTune?: (choice: "more" | "less" | "never") => void;
+  // The choices the hold offers. A producer that nothing can show MORE of
+  // offers only Less and Never (2026-10-04: the
+  // Learned Day card wrote a "more" rule that no reader lifted anything for,
+  // a menu option that stored a rule and a success toast and did nothing).
+  tuneChoices?: ReadonlyArray<"more" | "less" | "never">;
   // A cat-fg-* class. Color is the notice's category, never decoration.
   tone?: string;
   title: ReactNode;
@@ -485,9 +491,9 @@ export default function NoticeCard({
           <>
             <div className="block-menu-scrim" onClick={() => setTuneOpen(false)} />
             <div className="block-menu notice-tune">
-              <button className="block-menu-item" onClick={() => { setTuneOpen(false); onTune("more"); }}>More Like This</button>
-              <button className="block-menu-item" onClick={() => { setTuneOpen(false); onTune("less"); }}>Less of This</button>
-              <button className="block-menu-item danger" onClick={() => { setTuneOpen(false); onTune("never"); }}>Never</button>
+              {tuneChoices.includes("more") && <button className="block-menu-item" onClick={() => { setTuneOpen(false); onTune("more"); }}>More Like This</button>}
+              {tuneChoices.includes("less") && <button className="block-menu-item" onClick={() => { setTuneOpen(false); onTune("less"); }}>Less of This</button>}
+              {tuneChoices.includes("never") && <button className="block-menu-item danger" onClick={() => { setTuneOpen(false); onTune("never"); }}>Never</button>}
             </div>
           </>
         )}

@@ -49,6 +49,20 @@ export default function NotificationsPage({ onBack }: { onBack: () => void }) {
   };
   const native = Capacitor.isNativePlatform();
   const denied = perm === "denied";
+  // 2026-10-04: the permission was read on open and after each ask here, so a
+  // person who went to iOS Settings, allowed notifications and came back to
+  // this still-mounted page found the switches locked and the foot saying
+  // "off" until they left and reopened it. The app coming back to the
+  // foreground is the same signal the shell re-arms reminders on.
+  useEffect(() => {
+    if (!native) return;
+    const onVisible = () => { if (document.visibilityState === "visible") readPerm(); };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [native, readPerm]);
+  // A locked switch answers a tap with the reason (kit.tsx Switch: a locked
+  // switch with no onLocked sat there dead, audit 2026-09-29).
+  const sayDenied = () => showToast({ message: "Notifications Are Off for JARVIS in iOS Settings · Turn Them on There" });
   // WEB PUSH (2026-09-20, Dave's go through Clemenza). The web half of this
   // page: one master switch behind a real tap, gated on a Home Screen launch
   // and iOS 16.4, with a sentence for every state, and a test row. It is all
@@ -119,30 +133,34 @@ export default function NotificationsPage({ onBack }: { onBack: () => void }) {
       )}
       <Head label="Tell Me About" />
       <Card>
-        {/* Denied at the OS level: the switches are shown, and locked. They
-            are not lying about their own state (the preference really is on
-            or off, and it still filters the in-app Notifications screen), but
-            flipping one cannot make a single alert arrive, and a control that
-            answers a tap with nothing at all is worse than one that says why.
-            The foot below carries the why. */}
-        <Switch label="Overdue and due tasks" meta="On the Notifications tab, not a lock-screen alert" on={prefs.overdue} locked={denied} onToggle={() => set({ overdue: !prefs.overdue })} />
-        <Switch label="Today's events" meta="A lock-screen alert 15 minutes before, and its own row on the Notifications tab" on={prefs.events} locked={denied} onToggle={() => set({ events: !prefs.events })} />
-        <Switch label="Daily check-ins" meta="Two lock-screen prompts, morning and night" on={prefs.checkins} locked={denied} onToggle={() => set({ checkins: !prefs.checkins })} />
-        <Switch label="Goal and life-area nudges" meta="On the Notifications tab when a goal falls behind" on={prefs.goals} locked={denied} onToggle={() => set({ goals: !prefs.goals })} />
+        {/* Denied at the OS level, only the two lock-screen switches are locked
+            (2026-10-04). Overdue, today's events and goal nudges each still
+            filter the in-app Notifications screen with the OS refusing, so a
+            lock on them took away a working control. Daily check-ins and the
+            rest timer exist only as lock-screen alerts, and only the phone
+            app schedules those: the web build has nothing for them to do, so
+            it does not show them. A locked tap says why. */}
+        <Switch label="Overdue and due tasks" meta="On the Notifications tab, not a lock-screen alert" on={prefs.overdue} onToggle={() => set({ overdue: !prefs.overdue })} />
+        <Switch label="Today's events" meta="A lock-screen alert 15 minutes before, and its own row on the Notifications tab" on={prefs.events} onToggle={() => set({ events: !prefs.events })} />
+        {native && <Switch label="Daily check-ins" meta="Two lock-screen prompts, morning and night" on={prefs.checkins} locked={denied} onLocked={sayDenied} onToggle={() => set({ checkins: !prefs.checkins })} />}
+        <Switch label="Goal and life-area nudges" meta="On the Notifications tab when a goal falls behind" on={prefs.goals} onToggle={() => set({ goals: !prefs.goals })} />
         {/* UP-ATH-03 (2026-09-06): the rest timer's buzz between sets. The
             only alert on this page the athlete asked for by starting the
             thing that schedules it, which is why it is last and why it is
             on by default. */}
-        <Switch label="Rest timer" meta="A buzz on the lock screen when the rest is over" on={prefs.rest} locked={denied} onToggle={() => { updateHealthSettings({ restNotify: !prefs.rest }); void set({ rest: !prefs.rest }); }} />
+        {native && <Switch label="Rest timer" meta="A buzz on the lock screen when the rest is over" on={prefs.rest} locked={denied} onLocked={sayDenied} onToggle={() => { updateHealthSettings({ restNotify: !prefs.rest }); void set({ rest: !prefs.rest }); }} />}
       </Card>
       {/* A4 (audit 2026-08-21, catalog Q8: never promise what the platform
-          cannot do). A page called Notifications with four switches on it
+          cannot do). A page called Notifications with switches on it
           reads as phone alerts. On the web these switches only decide what
           appears on the Notifications screen inside the app, because the
           notification seam is a deliberate no-op off native: a PWA that asks
           for permission it will not use well has spent that permission for
           nothing. Say so once, plainly, instead of letting him find out by
-          waiting for a buzz that was never coming. */}
+          waiting for a buzz that was never coming. (2026-10-04: the two
+          switches that were only ever lock-screen alerts, Daily check-ins and
+          Rest timer, are not drawn on the web at all, so the foot's claim
+          holds for every switch the web shows.) */}
       <Head label="Reminders" />
       <Card>
         <Menu label="Morning" meta="What Tomorrow Morning means" value={morning} word={morningWord(morning)} ariaLabel="Morning time"
@@ -154,7 +172,7 @@ export default function NotificationsPage({ onBack }: { onBack: () => void }) {
         {!native
           ? (web === null ? "Checking whether this phone can get alerts" : footFor(web))
           : denied
-            ? "Notifications are off for JARVIS in iOS Settings · Turn them on there and nothing here has to change"
+            ? "Notifications are off for JARVIS in iOS Settings · Daily check-ins and Rest timer need them · Turn them on there and nothing here has to change"
             : perm === "prompt"
               // Asked for the first time by turning a switch on, which is what
               // S1-03 moved here. Saying so beats promising alerts that are

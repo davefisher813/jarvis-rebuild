@@ -3,6 +3,7 @@ import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import RemindersPage from "./RemindersPage";
+import { setCategoryRegistry } from "../../shared/categories";
 import { pageSections, type PageTab } from "../reminders";
 import type { TaskItem } from "../TasksService";
 import type { ReminderInfo } from "../../notes/types";
@@ -183,5 +184,41 @@ describe("RemindersPage", () => {
     expect(onQuery).toHaveBeenCalledWith("meds");
     fireEvent.click(screen.getByText("Today", { selector: ".nav-back" }));
     expect(onBack).toHaveBeenCalled();
+  });
+});
+
+// 2026-10-04: a Reminders search is one list over every reminder, whatever
+// view is open, done ones included. The scope line named the open view
+// ("Today Reminders") and offered "Search Done Too", a button that only
+// switched the view and changed no row. It names what was searched, and the
+// one cut that does narrow it, the Area, is the one it offers to undo.
+describe("RemindersPage: what a search says it searched", () => {
+  const rows = [
+    item({ time: "09:00" }, "Call Plumber", "w1", "c-work"),
+    item({ time: "10:00" }, "Call Mother", "f1", "c-fam"),
+    item({ time: "07:00", lastDone: TUE }, "Call Dentist", "w2", "c-work"),
+  ];
+  const searching = (tab: PageTab) => page(tab, { query: "call", sections: pageSections(rows, tab, TUE, "09:30", "call") }, rows);
+  const scope = () => document.querySelector(".hdr-scope-n")?.textContent;
+
+  it("names every reminder, not the open view, and has no Done button to offer", () => {
+    for (const tab of ["today", "upcoming", "routines", "done"] as PageTab[]) {
+      const r = searching(tab);
+      expect(scope(), tab).toBe("3 results in All Reminders");
+      expect(screen.queryByText("Search Done Too"), tab).toBeNull();
+      expect(document.querySelector(".hdr-scope-all"), tab).toBeNull();
+      r.unmount();
+    }
+  });
+
+  it("an Area cut is named in the line and is the one thing Search All Areas undoes", () => {
+    setCategoryRegistry([{ id: "c-work", name: "Work", color: "blue" }, { id: "c-fam", name: "Family", color: "pink" }]);
+    searching("today");
+    fireEvent.click(document.querySelector('.hdr-controls .dd[aria-label="Area"]')!);
+    fireEvent.click(screen.getByRole("menuitemradio", { name: "Work" }));
+    expect(scope()).toBe("2 results in All Reminders in Work");
+    fireEvent.click(screen.getByText("Search All Areas"));
+    expect(scope()).toBe("3 results in All Reminders");
+    expect(screen.queryByText("Search All Areas")).toBeNull();
   });
 });

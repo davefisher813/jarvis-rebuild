@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
 import LargeTitleNav from "../shared/LargeTitleNav";
-import { Head, Card, Switch, Menu, Foot, DangerRow } from "./kit";
+import { Head, Card, Switch, Foot, DangerRow } from "./kit";
 import { pressable } from "../shared/pressable";
 import { lineCase } from "../shared/casing";
 import {
-  readBookingSettings, updateBookingSettings, DURATIONS, WHO_LABEL, VISIBILITY_LABEL,
-  type BookingSettings, type BookingWho, type BookingVisibility, type BookingDuration,
+  readBookingSettings, updateBookingSettings, DURATIONS, WHO_LABEL,
+  type BookingSettings, type BookingDuration,
 } from "../booking/settings";
 import { readLink, saveLink, removeLink, linkUrl, type LinkFace } from "../booking/link";
 import { readBookings, cancelBooking, importBookings } from "../booking/importBookings";
@@ -16,6 +16,7 @@ import DayOffSheet from "../booking/DayOffSheet";
 import { readDaysOff, saveDaysOff, dayOffLabel } from "../booking/daysOff";
 import { useOptionalSchedule } from "../data/NotesProvider";
 import { showToast } from "../shared/toast";
+import { copyText } from "../shared/shareText";
 
 // YOUR TIMES (Track 3, 2026-09-14; the preview's Booking Settings screen:
 // "One screen. Day toggles and a duration list, no wizard"). Available or
@@ -45,6 +46,7 @@ function When({ b }: { b: BookingFace }) {
 export default function BookingPage({
   onBack,
   readLinkImpl = readLink,
+  saveLinkImpl = saveLink,
   readBookingsImpl = readBookings,
   cancelImpl = cancelBooking,
   readDaysOffImpl = readDaysOff,
@@ -52,6 +54,7 @@ export default function BookingPage({
 }: {
   onBack: () => void;
   readLinkImpl?: typeof readLink;
+  saveLinkImpl?: typeof saveLink;
   readBookingsImpl?: typeof readBookings;
   cancelImpl?: typeof cancelBooking;
   readDaysOffImpl?: typeof readDaysOff;
@@ -136,10 +139,17 @@ export default function BookingPage({
     if (busy) return;
     setBusy(true);
     try {
-      const made = await saveLink(s);
+      const made = await saveLinkImpl(s);
       setLink(made);
       setDirty(false);
-      showToast({ message: made ? "Your Link Is Live" : "Saved on This Device" });
+      // Live means somebody can book on it. A link with no hours open is an
+      // address that offers nothing, and a link the server wrote as
+      // named_contacts answers 404 to everyone; neither is "live" (2026-10-04).
+      showToast({
+        message: !made ? "Saved on This Device"
+          : made.visibility === "named_contacts" ? "Saved · The Link Is Closed to Everyone"
+          : made.days > 0 ? "Your Link Is Live" : "Saved · No Hours Are Open Yet",
+      });
     } catch {
       showToast({ message: "Couldn't Reach the Booking Server \u00b7 Try Again" });
     } finally { setBusy(false); }
@@ -157,6 +167,17 @@ export default function BookingPage({
     } catch {
       showToast({ message: "Couldn't Reach the Booking Server \u00b7 Try Again" });
     } finally { setBusy(false); }
+  };
+  // COPY, AND SAY SO ONLY IF IT WORKED (2026-10-04). `navigator.clipboard?.`
+  // short-circuited the whole chain where there is no clipboard, so the tap
+  // closed a sheet and did nothing, with no toast and no way to get the text.
+  // copyText throws there and when a write is refused; the failure shows the
+  // text itself so it can be read off.
+  const copyOrShow = (text: string, done: string) => {
+    copyText(text).then(
+      () => showToast({ message: done }),
+      () => showToast({ message: `Couldn't Copy \u00b7 ${text}` }),
+    );
   };
   const toggleDay = (d: number) => set({ days: s.days.includes(d) ? s.days.filter((x) => x !== d) : [...s.days, d].sort((a, b) => a - b) });
   return (
@@ -183,28 +204,30 @@ export default function BookingPage({
           </div>
         </div>
       </Card>
+      {/* ONE ANSWER, NOT A MENU (2026-10-04). The server serves the link to
+          anyone who holds it: it never reads who may book, and a link made
+          visible to "named contacts" answered 404 to everyone because there is
+          no way to name one. So there is nothing to choose, and a menu over
+          one working answer would be a control that does nothing. */}
       <Head label="Who Can Book" />
       <Card>
-        <Menu label="Who Can Book" value={s.who} ariaLabel="Who can book" word={WHO_LABEL[s.who]}
-          options={(Object.keys(WHO_LABEL) as BookingWho[]).map((k) => ({ value: k, label: WHO_LABEL[k] }))}
-          onPick={(v) => set({ who: v as BookingWho })} />
-        <Menu label="Visibility" value={s.visibility} ariaLabel="Visibility" word={VISIBILITY_LABEL[s.visibility]}
-          options={(Object.keys(VISIBILITY_LABEL) as BookingVisibility[]).map((k) => ({ value: k, label: VISIBILITY_LABEL[k] }))}
-          onPick={(v) => set({ visibility: v as BookingVisibility })} />
+        <div className="row">
+          <div className="row-grow">
+            <div className="conn-name">{WHO_LABEL.anyone}</div>
+            <div className="conn-meta">Not listed anywhere, only people you give it to can find it</div>
+          </div>
+        </div>
       </Card>
       <Head label="Your Link" />
       <Card>
         {link ? (
-          <div className="row set-row" {...pressable(() => {
-            const url = linkUrl(link.slug);
-            navigator.clipboard?.writeText(url).then(
-              () => showToast({ message: "Link Copied" }),
-              () => showToast({ message: url }),
-            );
-          })}>
+          <div className="row set-row" {...pressable(() => copyOrShow(linkUrl(link.slug), "Link Copied"))}>
             <div className="row-grow">
               <div className="conn-name">{linkUrl(link.slug)}</div>
-              <div className="conn-meta">{link.days > 0 ? lineCase(`Open ${link.days} ${link.days === 1 ? "day" : "days"} a week, tap to copy`) : "No hours set, nobody can book"}</div>
+              {/* A link an older build published as named_contacts is still
+                  stored that way, and the public page answers 404 to everyone
+                  until it is republished (2026-10-04). */}
+              <div className="conn-meta">{link.visibility === "named_contacts" ? "Closed to everyone, republish to open it" : link.days > 0 ? lineCase(`Open ${link.days} ${link.days === 1 ? "day" : "days"} a week, tap to copy`) : "No hours set, nobody can book"}</div>
             </div>
           </div>
         ) : (
@@ -285,10 +308,7 @@ export default function BookingPage({
               onPick: () => {
                 const email = acting.guestEmail;
                 setActing(null);
-                navigator.clipboard?.writeText(email).then(
-                  () => showToast({ message: "Email Copied" }),
-                  () => showToast({ message: email }),
-                );
+                copyOrShow(email, "Email Copied");
               },
             }] : []),
             {

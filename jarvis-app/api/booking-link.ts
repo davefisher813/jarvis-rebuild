@@ -71,7 +71,8 @@ export default async function handler(req: Request): Promise<Response> {
       const rules = ruleRows(s, c.owner, timezone);
       if (rules.length > 0) await ins(c, "availability_rules", rules);
 
-      const visibility = VISIBILITY_ROW[s.visibility];
+      const visibility = VISIBILITY_ROW[s.visibility] ?? "link_only";
+      const mode = WHO_ROW[s.who] ?? "open_link";
       let slug = link?.slug ?? "";
       if (link) {
         await patch(c, `booking_links?id=eq.${link.id}`, { visibility, bookable_type_id: typeId });
@@ -82,9 +83,9 @@ export default async function handler(req: Request): Promise<Response> {
           org_id: org, owner_id: c.owner, bookable_type_id: typeId, slug: makeSlug(), visibility,
         });
         slug = made[0]!.slug;
-        await ins(c, "booking_permissions", { booking_link_id: made[0]!.id, mode: WHO_ROW[s.who] });
+        await ins(c, "booking_permissions", { booking_link_id: made[0]!.id, mode });
       }
-      if (link) await patch(c, `booking_permissions?booking_link_id=eq.${link.id}`, { mode: WHO_ROW[s.who] });
+      if (link) await patch(c, `booking_permissions?booking_link_id=eq.${link.id}`, { mode });
 
       return json({ link: { slug, visibility, days: rules.length } });
     }

@@ -392,6 +392,49 @@ describe("NotesFlow: Recently Deleted", () => {
   });
 });
 
+// 2026-10-04: select mode's Delete inside Recently Deleted ran trashNote on
+// notes that were already trashed. Nothing was deleted, the 30-day clock
+// restarted, the toast said "deleted" and its Undo put the notes back in
+// Notes. It is the permanent delete now, behind a confirm, with no Undo.
+describe("NotesFlow: bulk Delete inside Recently Deleted", () => {
+  it("deletes the ticked notes for good once confirmed, leaves the rest, and offers no Undo", async () => {
+    svcRef = null;
+    const user = "u-trash-bulk-forever";
+    // A toast with an action from an earlier test would hold the slot.
+    resetToasts();
+    document.getElementById("select-bar-host")?.remove();
+    const host = document.createElement("div"); host.id = "select-bar-host"; document.body.appendChild(host);
+    const view = render(<NotesProvider userId={user}><Grab /></NotesProvider>);
+    await waitFor(() => expect(svcRef).toBeTruthy());
+    const svc = svcRef!;
+    let a = "", b = "", keep = "";
+    await act(async () => {
+      a = (await svc.createNote("Gone One", ""))!; b = (await svc.createNote("Gone Two", ""))!; keep = (await svc.createNote("Kept Note", ""))!;
+      await svc.trashNote(a); await svc.trashNote(b);
+    });
+    view.rerender(<NotesProvider userId={user}><Grab /><NotesFlow /></NotesProvider>);
+    await screen.findByText("Kept Note", {}, { timeout: 4000 });
+    fireEvent.click(screen.getByLabelText("View"));
+    fireEvent.click(await screen.findByRole("menuitemradio", { name: /Recently Deleted/ }));
+    await screen.findByText("Gone One");
+    fireEvent.click(screen.getByLabelText("Notes Options"));
+    fireEvent.click(screen.getByText("Select Notes"));
+    fireEvent.click(screen.getByText("Select All"));
+    const got: { message: string; actionLabel?: string }[] = [];
+    const stop = subscribeToast((t) => { if (t) got.push(t); });
+    fireEvent.click(document.querySelector(".select-del")!);
+    // Nothing is deleted until the confirm is answered.
+    expect(await svc.note(a)).not.toBeNull();
+    fireEvent.click(screen.getByText("Delete 2 Notes Forever"));
+    await waitFor(async () => { expect(await svc.note(a)).toBeNull(); expect(await svc.note(b)).toBeNull(); }, { timeout: 4000 });
+    expect(await svc.note(keep)).not.toBeNull();
+    await waitFor(() => expect(got.at(-1)?.message).toBe("2 Notes Deleted for Good"), { timeout: 4000 });
+    expect(got.at(-1)?.actionLabel).toBeUndefined();
+    stop();
+    resetToasts();
+  });
+});
+
 // QUICK APPEND (the writing system, wave 3): the swipe's Add puts lines on
 // the end of a note without opening it.
 describe("NotesFlow: quick append from the list", () => {

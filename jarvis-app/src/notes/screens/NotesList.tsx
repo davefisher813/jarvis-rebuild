@@ -155,6 +155,7 @@ export default function NotesList({
   onAddFile,
   uploading = false,
   onDeleteMany,
+  onDeleteManyForever,
   onFile,
   onAppend,
   onRestore,
@@ -169,6 +170,9 @@ export default function NotesList({
   onAddFile?: () => void;
   uploading?: boolean;
   onDeleteMany?: (ids: string[]) => void;
+  // Select mode's Delete inside Recently Deleted: the same permanent delete
+  // the row's Forever swipe runs, for the ticked notes.
+  onDeleteManyForever?: (ids: string[]) => void;
   // The swipe's two moves (2026-09-02): file under an area, delete one.
   onFile?: (id: string) => void;
   onAppend?: (id: string) => void;
@@ -214,14 +218,25 @@ export default function NotesList({
     : filter.kind === "unfiled" ? live.filter((n) => !n.category)
     : filter.kind === "tag" ? live.filter((n) => (n.tags ?? []).includes(filter.tag))
     : live;
-  // The two cuts compose, in the order they are chosen: the view says which
-  // notes are in play, the area says which of those are this one's.
-  const filtered = area ? inView.filter((n) => n.category === area) : inView;
+  // The cuts compose, in the order they are chosen: the view (or tag) says
+  // which notes are in play, the area says which of those are this one's.
+  // 2026-10-04: a search runs INSIDE them. It used to start from every kept
+  // note whatever the View and Tag menus said, so those two menus did
+  // nothing the moment the box had text, and the scope line named a view it
+  // had not searched. With no cut chosen (All) it still reaches the archive
+  // (S6-Q37), because that is what All plus a search has always meant; any
+  // chosen view or tag is the whole pool, Recently Deleted included.
+  const pool = query && filter.kind === "all" ? kept : inView;
   // S6-Q37: title OR body, same two-part rule search.ts's noteHas uses.
-  // Search reaches the archive too.
-  const searched = query ? kept.filter((n) => n.title.toLowerCase().includes(query) || n.body.toLowerCase().includes(query)) : filtered;
-  // A search is still cut by the area, which is what the scope line says.
-  const shown = query && area ? searched.filter((n) => n.category === area) : searched;
+  const searched = query ? pool.filter((n) => n.title.toLowerCase().includes(query) || n.body.toLowerCase().includes(query)) : pool;
+  const shown = area ? searched.filter((n) => n.category === area) : searched;
+  const viewWord = filter.kind === "tag" ? "#" + filter.tag
+    : filter.kind === "archived" ? "Archived"
+    : filter.kind === "deleted" ? "Recently Deleted"
+    : VIEWS.find((v) => v.key === filter.kind)?.label ?? "All";
+  // Recently Deleted's bulk Delete is the one that cannot be undone (below).
+  const inDeleted = filter.kind === "deleted";
+  const [confirmForever, setConfirmForever] = useState<string[] | null>(null);
   // The SEARCHED list, not the whole one. Select All while a search is
   // narrowing the page must mean the notes on screen: deleting the ones
   // hidden behind a query would be the worst possible version of this.
@@ -374,7 +389,10 @@ export default function NotesList({
           onView={(k) => setFilter({ kind: k } as Filter)}
           scope={q.trim() ? {
             count: shown.length,
-            where: `${VIEWS.find((v) => v.key === filter.kind)?.label ?? "All"} notes${area ? ` in ${catName(area) || "this area"}` : ""}`,
+            // The view or tag the search ran inside, said as it is (Archived,
+            // Recently Deleted and a tag used to print "All"), and the one
+            // button that widens it to the whole library.
+            where: `${viewWord} notes${area ? ` in ${catName(area) || "this area"}` : ""}`,
             ...(filter.kind !== "all" || area ? { onAll: () => { setFilter({ kind: "all" }); setArea(null); }, allLabel: "Search all notes" } : {}),
           } : undefined}
           // AREA AND TAG, STACKED (Dave 2026-09-17: "Make multiple dropdown
@@ -449,7 +467,10 @@ export default function NotesList({
           this same sheet rather than a second sheet on top of it. */}
       {optsOpen && (
         <OptionsSheet title="Notes Options" rows={([
-          ...(onDeleteMany && shown.length > 0 ? [{
+          // Recently Deleted offers it only where there is a Delete Forever
+          // to run: the bulk Delete there used to re-delete notes that were
+          // already deleted, report success, and Undo put them back in Notes.
+          ...(onDeleteMany && shown.length > 0 && (!inDeleted || onDeleteManyForever) ? [{
             key: "select", label: "Select Notes",
             onClick: () => { setOptsOpen(false); sel.enter(); },
           }] : []),
@@ -467,7 +488,25 @@ export default function NotesList({
         />
       )}
       {onDeleteMany && (
-        <SelectBar sel={sel} noun="Note" onDelete={() => { onDeleteMany(sel.selected); sel.exit(); }} />
+        <SelectBar sel={sel} noun="Note" forever={inDeleted && !!onDeleteManyForever}
+          onDelete={() => {
+            // These notes are already in the trash, so Delete here is the
+            // permanent one: it says Forever on the bar and asks first,
+            // because Undo cannot bring them back.
+            if (inDeleted && onDeleteManyForever) { setConfirmForever(sel.selected); return; }
+            onDeleteMany(sel.selected); sel.exit();
+          }} />
+      )}
+      {confirmForever && onDeleteManyForever && (
+        <RowActionSheet
+          title={confirmForever.length === 1 ? "Delete this note for good? It cannot be brought back." : `Delete ${confirmForever.length} notes for good? They cannot be brought back.`}
+          actions={[{
+            label: confirmForever.length === 1 ? "Delete Note Forever" : `Delete ${confirmForever.length} Notes Forever`,
+            destructive: true,
+            onPick: () => { onDeleteManyForever(confirmForever); sel.exit(); },
+          }]}
+          onCancel={() => setConfirmForever(null)}
+        />
       )}
       <div className="screen-foot" />
     </div>

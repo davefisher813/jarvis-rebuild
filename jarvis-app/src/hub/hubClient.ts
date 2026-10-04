@@ -226,7 +226,10 @@ export function destinationKindOf(actionKind: string): string | null {
     case "capture_event": return "event";
     case "capture_waiting": return "waiting";
     case "decision_save": case "decision_replace": case "decision_withdraw": return "decision";
-    case "exploration_keep": return "note";
+    // A kept exploration is NOT a Notes-module note: it is its own item kind that
+    // NotesService.getNote refuses, so "note" opened an empty editor. It lives in
+    // Review > Mentioned, and the Hub opens it there itself (2026-10-04).
+    case "exploration_keep": return "exploration";
     default: return null;
   }
 }

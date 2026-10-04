@@ -114,10 +114,12 @@ describe("applySuggestion", () => {
 describe("the Assisted engine", () => {
   const range = plan({ sets: [{ id: "p1", w: 225, r: 6 }, { id: "p2", w: 225, r: 8 }] });
 
-  it("Manual and Program offer nothing", () => {
+  // 2026-10-04: Program was a third mode that returned nothing exactly as
+  // Manual does; it left the menu and a stored one reads as Manual
+  // (health/settings.test.ts), so the engine has the two that differ.
+  it("Manual offers nothing and Assisted does", () => {
     const h = [wk("2026-09-10", [wex("Bench", [{ w: 225, r: 8, moved: "clean" }])])];
     expect(suggestFor(h, range, { mode: "manual" })).toBeNull();
-    expect(suggestFor(h, range, { mode: "program" })).toBeNull();
     expect(suggestFor(h, range, { mode: "assisted" })).not.toBeNull();
   });
 

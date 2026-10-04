@@ -184,13 +184,17 @@ export default function BiggerPicturePage({
   }
 
   const openRows = projectRows.filter((r) => bucketOf(r) !== "done");
-  const doneRows = projectRows.filter((r) => bucketOf(r) === "done");
+  // The Done receipts below are cut by the header's search and Area like the
+  // live lists (2026-10-04): these two are every finished one, and doneRows /
+  // doneGoals, defined once the cuts exist, are the ones the receipt counts
+  // and opens. It used to count and list them all whatever was chosen.
+  const doneRowsAll = projectRows.filter((r) => bucketOf(r) === "done");
   // A GOAL HE FINISHED IS NOT LIVE WORK. It leaves the area cards and lands
   // in the Done section at the foot of the lens, newest first, exactly as a
   // done project already does. Dropped goals are a different thing (abandoned,
   // not finished) and stay hidden as they always were.
   const liveGoals = goals.filter((g) => !g.data.dropped && g.data.state !== "achieved");
-  const doneGoals = goals
+  const doneGoalsAll = goals
     .filter((g) => !g.data.dropped && g.data.state === "achieved")
     .sort((a, b) => (b.data.achievedOn ?? "").localeCompare(a.data.achievedOn ?? ""));
 
@@ -381,6 +385,8 @@ export default function BiggerPicturePage({
   const inArea = (cat: string | null) => !areaOnly || cat === areaOnly;
   const lensRows = projectRows.filter((r) => inView(r) && hit(r.project.data.title) && inArea(r.project.data.category ?? null));
   const lensOrphans = areaOnly ? [] : orphanRows.filter((r) => inView(r) && hit(r.project.data.title));
+  const doneRows = doneRowsAll.filter((r) => hit(r.project.data.title) && inArea(r.project.data.category ?? null));
+  const doneGoals = doneGoalsAll.filter((g) => hit(g.data.title) && inArea(homeOf(g)));
   /** The goals this view shows. Achieved goals leave the area cards on the
    *  Active view exactly as they always have; the chips are what bring them
    *  back, in place of the folded receipt at the foot. */

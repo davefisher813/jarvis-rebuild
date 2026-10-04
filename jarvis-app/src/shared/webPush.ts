@@ -50,7 +50,7 @@ export function webPushStatus(e: WebPushEnv): WebPushStatus {
 // Clemenza, condition 1: the master switch is all or nothing, because the
 // server sends every alert to every device and ignores the four category
 // switches. The copy says so where the switch is, not in a doc.
-export const ALL_OR_NOTHING = "All alerts or none · The four switches above only shape the Notifications screen inside the app";
+export const ALL_OR_NOTHING = "All alerts or none · The switches above only shape the Notifications screen inside the app";
 
 export function footFor(status: WebPushStatus): string {
   switch (status) {

@@ -78,6 +78,8 @@
 .ruled .card .rem-row,
 .ruled .card .notice-card, .ruled .card .notice-card-row, .ruled .card .stream-card > .task-row { background: transparent; }
 .ruled .card .task-swipe > .task-del, .ruled .card .task-swipe > .task-snooze,
+/* 2026-10-04: the one-action reveal's outer-slot modifier (components.css). */
+.ruled .card .task-swipe > .task-snooze-solo,
 /* UP-CORE-15 shipped a new reveal, the leading green Done rail, and did not
    add it here. Every ruled card is a glass card, so its rows are transparent
    by the rule above and a reveal is hidden rather than covered: the rail was

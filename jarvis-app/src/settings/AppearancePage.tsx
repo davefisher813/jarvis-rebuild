@@ -43,9 +43,12 @@ export default function AppearancePage({ onBack }: { onBack: () => void }) {
         <Menu label="Text Size" value={appearance.textSize} options={SIZE_OPTIONS}
           onPick={(v) => { setTextSize(v as TextSize); save({ textSize: v as TextSize }); }} />
       </Card>
-      {/* Sentence case: this talks. It says what the setting is for and what
-          it does not do, which is override the phone downward. */}
-      <Foot>Bigger text everywhere in JARVIS. Your phone&rsquo;s own text size still applies.</Foot>
+      {/* Sentence case: this talks. It says what the setting is for and says
+          nothing about the phone's own text size: the line that promised it
+          "still applies" was never built (appearance/textZoom.ts reads null
+          until the text-zoom plugin is installed), so it went 2026-10-04.
+          Put it back only with the plugin. */}
+      <Foot>Bigger text everywhere in JARVIS</Foot>
       <div className="screen-foot" />
     </div>
   );

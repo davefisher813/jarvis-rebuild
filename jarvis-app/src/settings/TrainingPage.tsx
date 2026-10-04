@@ -36,8 +36,13 @@ export function rackHint(unit: "lb" | "kg"): string {
  *  Time on Every Set rides along where the page asks for it. */
 export function RackSettings({ withShowLast = false }: { withShowLast?: boolean }) {
   const [settings, setSettings] = useState<GymSettings>(() => readGymSettings());
+  // 2026-10-04: the patch lands on what storage holds NOW, not on the snapshot
+  // taken at mount. Health Settings writes Last Time on Every Set from a
+  // sibling control, and writing {...settings, ...patch} put the stale
+  // showLast back with the next plate chip, so the switch read Off while the
+  // ghosts came back. Taking the fresh blob also refreshes this snapshot.
   const set = (patch: Partial<GymSettings>) => {
-    const next = { ...settings, ...patch };
+    const next = { ...readGymSettings(), ...patch };
     setSettings(next);
     writeGymSettings(next);
   };

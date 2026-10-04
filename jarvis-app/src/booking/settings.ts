@@ -7,8 +7,16 @@ import type { Storage2 } from "../gym/liveSession";
 // project to live in yet. When they do, this record is what seeds
 // availability_rules and booking_links; nothing here is invented twice.
 
-export type BookingWho = "anyone" | "approved" | "connections";
-export type BookingVisibility = "public" | "link" | "named";
+// ONE CHOICE EACH (2026-10-04, the dead-button sweep). The screen offered three
+// answers to "who can book" and three to "how is the link found", and the
+// server honours exactly one of each: api/book.ts never reads
+// booking_permissions, public and link_only are the same open grid, and a
+// named_contacts link answered 404 to everyone because there is no way to name
+// a contact. A choice that changes nothing, or breaks the link, is not
+// offered. What an earlier build stored ("approved", "connections", "public",
+// "named") still reads, and reads as the one that works.
+export type BookingWho = "anyone";
+export type BookingVisibility = "link";
 export const DURATIONS = [15, 30, 45, 60] as const;
 export type BookingDuration = (typeof DURATIONS)[number];
 
@@ -31,13 +39,6 @@ export const DEFAULT_BOOKING_SETTINGS: BookingSettings = {
 
 export const WHO_LABEL: Record<BookingWho, string> = {
   anyone: "Anyone With the Link",
-  approved: "Approved Contacts",
-  connections: "Your Connections",
-};
-export const VISIBILITY_LABEL: Record<BookingVisibility, string> = {
-  public: "Public Link",
-  link: "Link Only",
-  named: "Named Contacts",
 };
 
 const KEY = "jarvis.booking.settings.v1";
@@ -60,8 +61,8 @@ export function readBookingSettings(store: Storage2 = browserStorage()): Booking
       available: p.available === true,
       days,
       durationMin: (DURATIONS as readonly number[]).includes(p.durationMin as number) ? (p.durationMin as BookingDuration) : 30,
-      who: p.who && p.who in WHO_LABEL ? p.who : "anyone",
-      visibility: p.visibility && p.visibility in VISIBILITY_LABEL ? p.visibility : "link",
+      who: "anyone",
+      visibility: "link",
     };
   } catch {
     return { ...DEFAULT_BOOKING_SETTINGS };

@@ -18,7 +18,7 @@ import { getAIControl, setAIControl } from "../ai/levelStore";
 import { useAdminAiBlocked } from "../ai/useAdminAiGate";
 import { DEFAULT_AI_LEVEL, type AIControlState } from "../ai/aiGate";
 import { COMMAND_LINES, failure, type CommandFailure } from "../substrate/commands/errors";
-import { ADMIN_OFF, HUB_TITLE, TABS, sweepLine, type ActivityFilter, type HubTab } from "./copy";
+import { ADMIN_OFF, HUB_TITLE, NOTE_NOT_FOUND, TABS, sweepLine, type ActivityFilter, type HubTab } from "./copy";
 import { checkDependencies, hubOverview, addManualAssistant, sweepExpiredShares, type HubOverview, type ProposalSegment, type RpcClient } from "./hubClient";
 import AgentsTab from "./AgentsTab";
 import AgentDetail from "./AgentDetail";
@@ -140,7 +140,19 @@ export default function HubFlow({ onBack, onOpenEntity, onOpenEmail, client: giv
     setScreen({ kind: "agent", id: r.value.connection_id });
   };
 
-  const openItem = onOpenEntity ? (kind: string, id: string) => onOpenEntity(kind, id) : undefined;
+  // A kept exploration lives in Review > Mentioned, under its project: the Hub
+  // opens it itself, because the shell's Notes screen cannot load one and landed
+  // on an empty editor (2026-10-04). A note that is no longer in the overview
+  // says so and stays put.
+  const openItem = onOpenEntity ? (kind: string, id: string) => {
+    if (kind !== "exploration") { onOpenEntity(kind, id); return; }
+    const note = overview?.exploration_notes.find((n) => n.id === id);
+    if (!note) { showToast({ message: NOTE_NOT_FOUND }); return; }
+    if (note.project_id) setProjectId(note.project_id);
+    setSegment("mentioned");
+    setTab("review");
+    setScreen({ kind: "root" });
+  } : undefined;
   const connectionOf = (id: string) => overview?.connections.find((c) => c.id === id) ?? null;
   const projectTitle = (id: string) => overview?.projects.find((p) => p.id === id)?.title ?? "Project";
 

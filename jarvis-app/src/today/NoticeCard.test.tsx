@@ -153,6 +153,25 @@ describe("holding an automated card (UP-CORE-14)", () => {
     vi.useRealTimers();
   });
 
+  // 2026-10-04 (audit): the Learned Day card wrote a "more" rule nothing read.
+  // A caller names the choices its producer can honour; the default is all
+  // three, so Today's cards are unchanged.
+  it("offers only the choices a card names, and all three by default", () => {
+    vi.useFakeTimers();
+    const onTune = vi.fn();
+    const { unmount } = render(<NoticeCard icon={<i />} title="Tuesdays" automation="learned-day" onTune={onTune} tuneChoices={["less", "never"]} />);
+    hold(document.querySelector(".notice-card")!);
+    expect(screen.queryByText("More Like This")).toBeNull();
+    expect(screen.getByText("Less of This")).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Never"));
+    expect(onTune).toHaveBeenCalledWith("never");
+    unmount();
+    render(<NoticeCard icon={<i />} title="Keep going" automation="momentum" onTune={onTune} />);
+    hold(document.querySelector(".notice-card")!);
+    expect(screen.getAllByRole("button").map((b) => b.textContent).filter((t) => ["More Like This", "Less of This", "Never"].includes(t ?? ""))).toEqual(["More Like This", "Less of This", "Never"]);
+    vi.useRealTimers();
+  });
+
   it("does nothing on a card that names no producer", () => {
     vi.useFakeTimers();
     render(<NoticeCard icon={<i />} title="Rent due" />);

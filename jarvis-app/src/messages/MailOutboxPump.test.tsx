@@ -15,6 +15,7 @@ import { enqueueTodaySend, getTodayOutbox, markTodaySendState, resetTodayOutboxF
 import { processOutboxSend, type SendDeps } from "./sendPump";
 import { loadNudgeCounts } from "./escalate";
 import { loadChases, setChase } from "./followUp";
+import { useProfile } from "../data/NotesProvider";
 
 const noAI = new AIService({ available: false });
 
@@ -234,5 +235,66 @@ describe("processOutboxSend: the side effects the tab used to own", () => {
     expect(getOutbox()[0]!.state).toBe("failed");
     expect(getOutbox()[0]!.error).toMatch(/Google's mail service/);
     expect(loadOutbox()[0]!.state).toBe("failed");
+  });
+});
+
+// KNOW WHEN YOUR EMAIL IS OPENED, READ AT SEND TIME (2026-10-04). The pump is
+// mounted once for the whole session and used to read profile.trackOpens once
+// per profile identity, so the switch on Connections said off and the next
+// mail still carried the pixel until the token rotated or the app relaunched.
+describe("open tracking is read when the mail leaves, not when the pump mounted", () => {
+  const body = (raw: string) => Buffer.from(raw, "base64url").toString("utf8");
+
+  it("the profile's answer at send time beats the value the pump was built with", async () => {
+    const raws: string[] = [];
+    const api = makeFakeGoogleApi({ sendMessage: async (raw) => { raws.push(raw); return { id: "s1" }; } });
+    const base: SendDeps = { apiFor: () => api, ai: noAI, tasks: null, trackOpens: true };
+    enqueueOutbox(item({ id: "t-off", trackId: "trk-1" }));
+    await processOutboxSend(getOutbox()[0]!, { ...base, readTrackOpens: async () => false });
+    expect(body(raws[0]!)).not.toContain("/api/open");
+
+    enqueueOutbox(item({ id: "t-on", trackId: "trk-2" }));
+    await processOutboxSend(getOutbox()[0]!, { ...base, trackOpens: false, readTrackOpens: async () => true });
+    expect(body(raws[1]!)).toContain("/api/open?t=trk-2");
+  });
+
+  it("a read that fails falls back to the pump's own value rather than losing the send", async () => {
+    const raws: string[] = [];
+    const api = makeFakeGoogleApi({ sendMessage: async (raw) => { raws.push(raw); return { id: "s1" }; } });
+    enqueueOutbox(item({ id: "t-bad", trackId: "trk-3" }));
+    await processOutboxSend(getOutbox()[0]!, {
+      apiFor: () => api, ai: noAI, tasks: null, trackOpens: false,
+      readTrackOpens: async () => { throw new Error("store"); },
+    });
+    expect(raws).toHaveLength(1);
+    expect(body(raws[0]!)).not.toContain("/api/open");
+  });
+
+  function TurnOff() {
+    const profile = useProfile();
+    return <button onClick={() => void profile.save({ trackOpens: false })}>turn-off</button>;
+  }
+
+  it("the mounted pump stops adding the pixel the moment the switch is saved off", async () => {
+    const raws: string[] = [];
+    const api = makeFakeGoogleApi({ sendMessage: async (raw) => { raws.push(raw); return { id: "s1" }; } });
+    render(
+      <NotesProvider userId="u1">
+        <GoogleSessionProvider requestToken={async () => "tok"} makeApi={() => api}>
+          <MailOutboxPump ai={noAI} />
+          <Connector />
+          <TurnOff />
+        </GoogleSessionProvider>
+      </NotesProvider>,
+    );
+    fireEvent.click(await screen.findByText("connect"));
+    await screen.findByText("tokened");
+    // The pump's own copy is settled at its default (on) before the switch moves.
+    await new Promise((r) => setTimeout(r, 50));
+    fireEvent.click(screen.getByText("turn-off"));
+    await new Promise((r) => setTimeout(r, 50));
+    enqueueOutbox(item({ id: "after-off", trackId: "trk-4", dueMs: Date.now() - 1000 }));
+    await waitFor(() => expect(raws).toHaveLength(1), { timeout: 4000 });
+    expect(body(raws[0]!)).not.toContain("/api/open");
   });
 });

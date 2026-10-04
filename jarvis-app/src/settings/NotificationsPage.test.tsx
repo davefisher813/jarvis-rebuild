@@ -64,14 +64,16 @@ describe("NotificationsPage tells the truth about the OS permission", () => {
   const onPhone = () => vi.spyOn(Capacitor, "isNativePlatform").mockReturnValue(true);
   afterEach(() => vi.restoreAllMocks());
 
-  it("says notifications are off in Settings, and locks the switches", async () => {
+  it("says notifications are off in Settings, and locks the two lock-screen switches", async () => {
     onPhone();
     vi.spyOn(notifications, "notificationPermissionState").mockResolvedValue("denied");
     render(<NotesProvider userId="u-notif-denied"><NotificationsPage onBack={() => {}} /></NotesProvider>);
     await waitFor(() => expect(screen.getByText(/Notifications are off for JARVIS in iOS Settings/)).toBeInTheDocument());
     expect(screen.queryByText(/arrive on this phone/)).not.toBeInTheDocument();
-    const row = (await screen.findByText("Today's events")).closest(".row")!;
-    expect(row.querySelector(".switch-locked")).not.toBeNull();
+    // 2026-10-04: only the alerts that exist as lock-screen alerts are locked.
+    for (const name of ["Daily check-ins", "Rest timer"]) {
+      expect((await screen.findByText(name)).closest(".row")!.querySelector(".switch-locked"), name).not.toBeNull();
+    }
   });
 
   it("keeps the promise only when the OS has actually granted it", async () => {
@@ -163,5 +165,93 @@ describe("NotificationsPage, the Alerts switch says why it will not turn on", ()
     const sw = await screen.findByRole("switch", { name: "Alerts on this phone" });
     await waitFor(() => expect(sw).not.toHaveAttribute("aria-disabled"));
     expect(sw.closest(".row")!.querySelector(".conn-meta")).toBeNull();
+  });
+});
+
+// 2026-10-04 (audit): with notifications denied the five switches were all
+// locked with no answer to a tap, though three of them still filter the
+// in-app Notifications screen; and the phone's own permission was read only
+// on open, so granting it in iOS Settings left the page locked.
+describe("NotificationsPage, the lock is honest", () => {
+  const onPhone = () => vi.spyOn(Capacitor, "isNativePlatform").mockReturnValue(true);
+  afterEach(() => vi.restoreAllMocks());
+  const rowOf = async (name: string) => (await screen.findByText(name)).closest(".row")!;
+
+  it("a locked tap says why, and changes nothing", async () => {
+    onPhone();
+    vi.spyOn(notifications, "notificationPermissionState").mockResolvedValue("denied");
+    const seen: string[] = [];
+    const stop = subscribeToast((t) => { if (t) seen.push(t.message); });
+    render(<NotesProvider userId="u-lock-says"><NotificationsPage onBack={() => {}} /></NotesProvider>);
+    for (const name of ["Daily check-ins", "Rest timer"]) {
+      const row = await rowOf(name);
+      await waitFor(() => expect(row.querySelector(".switch-locked")).not.toBeNull());
+      const sw = row.querySelector(".switch")!;
+      const before = sw.getAttribute("aria-checked");
+      seen.length = 0;
+      fireEvent.click(sw);
+      expect(seen, name + " switch tap").toEqual(["Notifications Are Off for JARVIS in iOS Settings · Turn Them on There"]);
+      fireEvent.click(row);
+      expect(seen, name + " row tap").toHaveLength(2);
+      expect(sw.getAttribute("aria-checked")).toBe(before);
+    }
+    stop();
+  });
+
+  it("overdue, events and goals stay usable with notifications denied, because they still filter the in-app screen", async () => {
+    onPhone();
+    vi.spyOn(notifications, "notificationPermissionState").mockResolvedValue("denied");
+    render(<NotesProvider userId="u-lock-free"><NotificationsPage onBack={() => {}} /></NotesProvider>);
+    await waitFor(() => expect(screen.getByText(/Notifications are off for JARVIS in iOS Settings/)).toBeInTheDocument());
+    for (const name of ["Overdue and due tasks", "Today's events", "Goal and life-area nudges"]) {
+      const sw = (await rowOf(name)).querySelector(".switch")!;
+      expect(sw.classList.contains("switch-locked"), name + " is not locked").toBe(false);
+      expect(sw.getAttribute("aria-checked")).toBe("true");
+      fireEvent.click(sw);
+      await waitFor(() => expect(sw.getAttribute("aria-checked"), name + " turned off").toBe("false"));
+    }
+  });
+
+  it("coming back to the app after allowing notifications in iOS Settings unlocks the switches", async () => {
+    onPhone();
+    const state = vi.spyOn(notifications, "notificationPermissionState").mockResolvedValue("denied");
+    render(<NotesProvider userId="u-lock-resume"><NotificationsPage onBack={() => {}} /></NotesProvider>);
+    const row = await rowOf("Daily check-ins");
+    await waitFor(() => expect(row.querySelector(".switch-locked")).not.toBeNull());
+    state.mockResolvedValue("granted");
+    document.dispatchEvent(new Event("visibilitychange"));
+    await waitFor(() => expect(row.querySelector(".switch-locked")).toBeNull());
+    expect(screen.getByText(/arrive on this phone/)).toBeInTheDocument();
+  });
+});
+
+// 2026-10-04 (audit): Daily check-ins and Rest timer are lock-screen alerts
+// the phone app schedules; the web build never does, so on the web the two
+// switches saved a value nothing read.
+describe("NotificationsPage, on the web", () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it("does not draw the two lock-screen switches, and keeps the three that shape the in-app screen", async () => {
+    vi.spyOn(Capacitor, "isNativePlatform").mockReturnValue(false);
+    vi.spyOn(webPush, "currentStatus").mockResolvedValue("off");
+    render(<NotesProvider userId="u-web-switches"><NotificationsPage onBack={() => {}} /></NotesProvider>);
+    await screen.findByText("Today's events");
+    for (const name of ["Overdue and due tasks", "Today's events", "Goal and life-area nudges"]) {
+      expect(screen.getByRole("switch", { name })).toBeInTheDocument();
+    }
+    expect(screen.queryByRole("switch", { name: "Daily check-ins" })).toBeNull();
+    expect(screen.queryByRole("switch", { name: "Rest timer" })).toBeNull();
+    // The web foot's promise is true of every switch left.
+    await waitFor(() => expect(screen.getByText(/The switches above only shape the Notifications screen inside the app/)).toBeInTheDocument());
+  });
+
+  it("draws all five on the phone app", async () => {
+    vi.spyOn(Capacitor, "isNativePlatform").mockReturnValue(true);
+    vi.spyOn(notifications, "notificationPermissionState").mockResolvedValue("granted");
+    render(<NotesProvider userId="u-phone-switches"><NotificationsPage onBack={() => {}} /></NotesProvider>);
+    await screen.findByText("Today's events");
+    for (const name of ["Overdue and due tasks", "Today's events", "Daily check-ins", "Goal and life-area nudges", "Rest timer"]) {
+      expect(screen.getByRole("switch", { name })).toBeInTheDocument();
+    }
   });
 });

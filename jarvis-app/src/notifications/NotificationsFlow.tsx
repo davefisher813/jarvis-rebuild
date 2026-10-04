@@ -71,7 +71,10 @@ function NudgeRow({ title, onDismiss, children }: { title: string; onDismiss: ()
   const press = useLongPress({ onLongPress: () => { haptics.selection(); setMenu(true); } });
   return (
     <div className="task-swipe">
-      <button className="task-snooze" onClick={onDismiss} aria-label="Dismiss">
+      {/* 2026-10-04: the OUTER slot (task-snooze-solo, right:0). A bare
+          .task-snooze is the second slot, which an 88px reveal leaves
+          covered by the row, so this button was unreachable by swipe. */}
+      <button className="task-snooze task-snooze-solo" onClick={onDismiss} aria-label="Dismiss">
         <X className="ic" />
         <span className="swipe-label">Dismiss</span>
       </button>

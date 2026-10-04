@@ -121,3 +121,67 @@ describe("BiggerPicturePage Goals Options sheet", () => {
     expect(container.textContent).toContain("Run a Half");
   });
 });
+
+// 2026-10-04: the Done receipt at the foot of the Active view counted and
+// listed EVERY finished project or goal, whatever the Area menu or the search
+// box had chosen: Area = Work still read "3 Done Projects" and opened Home's.
+describe("BiggerPicturePage: the Done receipt obeys the Area cut and the search", () => {
+  const pr = (id: string, title: string, category: string, status: string): ProjectRow => ({
+    project: { id, data: { title, status, category, due: "2026-09-06" } as ProjectRow["project"]["data"] },
+    progress: { done: 1, total: 2, pct: 50 }, stalled: false, lastAt: null,
+  });
+  const sections = [{ id: "work", name: "Work", color: "blue" }, { id: "home", name: "Home", color: "green" }];
+  const projects = [
+    pr("a", "Work Live", "work", "active"),
+    pr("b", "Work Done", "work", "done"),
+    pr("c", "Home Done One", "home", "done"),
+    pr("d", "Home Done Two", "home", "done"),
+  ];
+  const goalRow = (id: string, title: string, area: string) => ({ id, data: { title, state: "achieved" as const, achievedOn: "2026-09-12", tags: [area] } });
+  const pickArea = (name: string) => {
+    fireEvent.click(document.querySelector('.hdr-controls .dd[aria-label="Area"]')!);
+    fireEvent.click(screen.getByRole("menuitemradio", { name }));
+  };
+  const projectsPage = () => render(
+    <BiggerPicturePage lens="projects" segments={<div />} goals={[]} reachOfGoal={reach} projectRows={projects} sections={sections}
+      onAddGoal={() => {}} onOpenGoal={() => {}} onAddProject={() => {}} onOpenProject={() => {}} />,
+  );
+  const goalsPage = () => render(
+    <BiggerPicturePage lens="goals" segments={<div />} reachOfGoal={reach} projectRows={[]} sections={sections}
+      goals={[goalRow("g1", "Run a Half", "home"), goalRow("g2", "Ship the Site", "work"), goalRow("g3", "Ship the Deck", "work")]}
+      onAddGoal={() => {}} onOpenGoal={() => {}} onAddProject={() => {}} onOpenProject={() => {}} />,
+  );
+  const receipt = () => document.querySelector(".receipt-line .rl-t")?.textContent;
+
+  it("Area counts and opens only that area's finished projects", () => {
+    projectsPage();
+    expect(receipt()).toBe("3 Done Projects");
+    pickArea("Work");
+    expect(receipt()).toBe("1 Done Project");
+    fireEvent.click(document.querySelector(".receipt-line")!);
+    expect(screen.getByText("Work Done")).toBeInTheDocument();
+    expect(screen.queryByText("Home Done One")).toBeNull();
+    expect(screen.queryByText("Home Done Two")).toBeNull();
+  });
+
+  it("the search counts only the finished projects it matches, and a search matching none draws no receipt", () => {
+    projectsPage();
+    fireEvent.change(screen.getByPlaceholderText("Search Projects"), { target: { value: "two" } });
+    expect(receipt()).toBe("1 Done Project");
+    fireEvent.change(screen.getByPlaceholderText("Search Projects"), { target: { value: "zzz" } });
+    expect(receipt()).toBeUndefined();
+  });
+
+  it("the Goals lens does the same for achieved goals", () => {
+    goalsPage();
+    expect(receipt()).toBe("3 Done Goals");
+    pickArea("Home");
+    expect(receipt()).toBe("1 Done Goal");
+    fireEvent.click(document.querySelector(".receipt-line")!);
+    expect(screen.getByText("Run a Half")).toBeInTheDocument();
+    expect(screen.queryByText("Ship the Site")).toBeNull();
+    pickArea("All Areas");
+    fireEvent.change(screen.getByPlaceholderText("Search Goals"), { target: { value: "deck" } });
+    expect(receipt()).toBe("1 Done Goal");
+  });
+});

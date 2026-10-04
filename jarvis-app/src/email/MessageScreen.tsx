@@ -17,6 +17,7 @@ import { MoreHorizontal } from "../shared/icons";
 import { rowDoor } from "../shared/rowDoor";
 import { showToast } from "../shared/toast";
 import { saveFile } from "../shared/saveFile";
+import { copyText } from "../shared/shareText";
 import { lineFor, type CommandFailure } from "../substrate/commands/errors";
 import MailHtmlView from "../messages/MailHtmlView";
 import { openExternal } from "../messages/openExternal";
@@ -34,6 +35,7 @@ import { hasRemoteImages, senderOf, sizeLine } from "./format";
 import { textOf } from "./candidates";
 
 const MAX_ATTACHMENT = 20 * 1024 * 1024;
+const COPY_FAILED = "Couldn't Copy";
 
 /** Somebody besides the person and the sender was on the message: Reply All has a reason to exist. */
 export function othersOn(m: Pick<MessageDetail, "from_address" | "to_addresses" | "cc_addresses">, account: Pick<EmailAccount, "address"> | null): boolean {
@@ -203,8 +205,14 @@ export default function MessageScreen({ client, token, userId, row, account, off
     }
   };
 
+  // COPY, AND SAY SO ONLY IF IT WORKED (2026-10-04). `navigator.clipboard?.`
+  // resolved to undefined where there is no clipboard, so the await passed and
+  // "Message Id Copied" went up over nothing, and a refused write fell into an
+  // empty catch and said nothing at all. copyText throws in both cases; the
+  // failure puts the id itself in the toast so it can be read off.
   const copyId = async () => {
-    try { await navigator.clipboard?.writeText(`${row.account} · ${row.provider_id}`); showToast({ message: COPIED_ID }); } catch { /* no clipboard here */ }
+    const text = `${row.account} · ${row.provider_id}`;
+    try { await copyText(text); showToast({ message: COPIED_ID }); } catch { showToast({ message: `${COPY_FAILED} · ${text}` }); }
   };
 
   const openGmail = () => {

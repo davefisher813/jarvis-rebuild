@@ -255,10 +255,17 @@ export default function RemindersPage({
       views={views}
       view={tab}
       onView={(k) => onTab(k as PageTab)}
+      // 2026-10-04: a search is one list over EVERY reminder, whatever view
+      // is open (pageSections, "a search is one section over titles and
+      // areas, whatever the view"), and it already includes the done ones.
+      // The line named the open view ("Today Reminders") and offered "Search
+      // Done Too", a button that only switched the view and changed no row.
+      // It says what was searched, and the Area cut, which does narrow it,
+      // with the one widening there really is: back to every area.
       scope={query.trim() ? {
         count: shownSections.reduce((n, sec) => n + sec.rows.length, 0),
-        where: `${PAGE_TABS.find((t) => t.key === tab)?.label ?? tab} Reminders`,
-        ...(tab !== "done" ? { onAll: () => onTab("done"), allLabel: "Search Done Too" } : {}),
+        where: area ? `All Reminders in ${catName(area) || "This Area"}` : "All Reminders",
+        ...(area ? { onAll: () => setArea(null), allLabel: "Search All Areas" } : {}),
       } : undefined}
       drops={areaIds.length > 0 ? (
         <HeadMenu

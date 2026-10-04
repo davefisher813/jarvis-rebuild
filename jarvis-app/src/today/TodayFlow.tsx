@@ -153,6 +153,10 @@ const BIRTHDAY_ABOUT = "a short happy-birthday message";
 // "HH:MM" as minutes. calendar.ts keeps its own copy private, and this file
 // needs the one comparison (UP-CORE-08's "which event am I inside").
 const minsOf = (hhmm: string): number => Number(hhmm.slice(0, 2)) * 60 + Number(hhmm.slice(3, 5));
+// projectsSvc.update answers false for a row that is gone (a stale id); that
+// is a failed save to the person tapping, so it throws into attemptWrite
+// (BiggerPictureFlow's mustUpdate, LIFE-F-17).
+const mustUpdateProject = async (p: Promise<boolean>) => { if (!(await p)) throw new Error("project missing"); };
 // Calendar days forward, stepped with setDate so a clocks-change day counts
 // as one day (the timezone law; same helper shape as schedule/calendar).
 const addDaysISO = (iso: string, n: number): string => {
@@ -613,12 +617,6 @@ export default function TodayFlow({
   // A dismissal lives in storage, so a bump is what tells the render to go
   // read it again (the same pattern the sweep and goal cards use).
   const [birthdayDismissTick, setBirthdayDismissTick] = useState(0);
-  // UP-CORE-08 (2026-09-05): which of today's events already have a note, in
-  // ONE read (eventsWithNotes scans the note list once), plus the door that
-  // makes one titled and linked the first time and opens it every time
-  // after. Same function the Schedule tab's row glyph calls.
-  const [notedEvents, setNotedEvents] = useState<ReadonlySet<string>>(new Set());
-  const [noteTick, setNoteTick] = useState(0);
   // UP-CORE-14 (2026-09-05): what he has told the automations. Read once
   // with the rules list; every producer below asks before it speaks, and
   // every answer is a row in What JARVIS Learned that deleting reverts.
@@ -656,11 +654,6 @@ export default function TodayFlow({
     automation: name,
     onTune: (choice: TuningChoice) => void tune(name, choice, evidence),
   });
-  useEffect(() => {
-    let on = true;
-    notesSvc.eventsWithNotes(todayEvents.map((e) => e.id)).then((set) => { if (on) setNotedEvents(set); }).catch(() => {});
-    return () => { on = false; };
-  }, [notesSvc, todayEvents, noteTick]);
   // UP-CORE-09 (2026-09-05): the Momentum Chain's slot, on the tab where
   // ticks actually happen. Holds the task offered after the last completion;
   // the next tick replaces it and Not Now empties it for the day.
@@ -745,16 +738,11 @@ export default function TodayFlow({
   // talked", so the read that fed it runs again.
   const reloadPeople = async () => { setPeopleTick((n) => n + 1); };
 
-  const openEventNote = async (e: EventItem) => {
-    const existing = await notesSvc.notesLinkedTo(e.id);
-    if (existing[0]) { onOpenNote?.(existing[0].id); return; }
-    let noteId: string | null = null;
-    const ok = await attemptWrite(async () => {
-      noteId = await notesSvc.createForEvent({ id: e.id, title: e.data.title, date: today, category: e.data.category });
-    });
-    setNoteTick((n) => n + 1);
-    if (ok && noteId) onOpenNote?.(noteId);
-  };
+  // 2026-10-04: the UP-CORE-08 notes door lived on the Now card's pill, and
+  // Dave took that pill out on 2026-09-17 ("its Notes pill is gone"). Its
+  // notedEvents scan, noteTick and openEventNote stayed behind, read by
+  // nothing, and ran a notes read on every events change. They are gone; the
+  // door is not coming back here, and onOpenNote is now the event page's.
 
   // TODAY-F-14 (2026-09-05): a rejection anywhere in here used to be dropped
   // (the effect below never caught it) and setLoading(false) was the last
@@ -882,8 +870,14 @@ export default function TodayFlow({
         onAction: async () => {
           const proj = projList.find((p) => p.id === advanced.projectId);
           if (!proj) return;
-          await attemptWrite(() => projectsSvc.update(proj.id, { ...proj.data, status: "done" }));
+          // 2026-10-04: the celebration was unconditional, so a write that
+          // failed ("Couldn't Save") was overwritten by "project finished",
+          // and so was update() answering false for a project deleted on
+          // another device inside the toast's five seconds. Both are a
+          // failed save now, and only a write that landed celebrates.
+          const ok = await attemptWrite(() => mustUpdateProject(projectsSvc.update(proj.id, { ...proj.data, status: "done" })));
           await reload();
+          if (!ok) return;
           showToast({ message: celebrationLine("project", proj.id) + " · " + proj.data.title });
         },
       });
@@ -1867,7 +1861,7 @@ export default function TodayFlow({
   const closeProject = async (id: string) => {
     const proj = projList.find((p) => p.id === id);
     if (!proj) return;
-    const ok = await attemptWrite(() => projectsSvc.update(id, { ...proj.data, status: "done" }));
+    const ok = await attemptWrite(() => mustUpdateProject(projectsSvc.update(id, { ...proj.data, status: "done" })));
     await reload();
     if (ok) showToast({ message: celebrationLine("project", id) + " · " + proj.data.title });
   };
@@ -2283,6 +2277,18 @@ export default function TodayFlow({
 
   // Hook order is unconditional: this must sit ABOVE the loading return.
   const [remSheet, setRemSheet] = useState<{ mode: "new" } | { mode: "edit"; id: string; text: string; reminder: ReminderInfo; due?: string | null; category?: string } | null>(null);
+  // 2026-10-04: Reminder Settings' Default Follow-up. The Reminders page
+  // passes it to its New sheet; this second ReminderSheet (the strip's Add)
+  // passed nothing, so a reminder made from Today ignored the switch. It is
+  // read again whenever Reminders Home closes, because that is the one place
+  // the switch is flipped and Today stays mounted underneath it.
+  const [defaultFollowUp, setDefaultFollowUp] = useState(false);
+  useEffect(() => {
+    if (remHome) return;
+    let on = true;
+    profile.get().then((p) => { if (on) setDefaultFollowUp(!!p?.notify?.defaultFollowUp); }).catch(() => {});
+    return () => { on = false; };
+  }, [profile, remHome]);
 
   // EVERY HOOK SITS ABOVE THE EARLY RETURN. React counts hooks by call order,
   // so one declared below `if (loading) return` runs on some renders and not
@@ -2500,7 +2506,12 @@ export default function TodayFlow({
           steps={taskItems.filter((t) => t.data.eventId === eventDetail).map((t) => ({ id: t.id, text: t.data.text, done: !!t.data.done }))}
           onToggleStep={(id) => void onToggleTask(id)}
           onAddStep={(text) => void addEventStep(eventDetail, ev, text)}
-          linkedNotes={eventDetailNotes}
+          // 2026-10-04: the Notes rows drew a chevron here and did nothing,
+          // because no door was passed (the same page on Schedule opens
+          // them). They open through the shell's own note door, and with no
+          // door in hand the section is not offered at all.
+          linkedNotes={onOpenNote ? eventDetailNotes : []}
+          onOpenNote={onOpenNote}
           openSourceFor={openSourceFor}
         />
       );
@@ -3602,8 +3613,14 @@ export default function TodayFlow({
   // seam events already use for editing an event's time does the work.
   const onAskAgainReminder = async (id: string) => {
     const to = snoozeTime(nhm, 15);
-    await attemptWrite(() => tasks.snoozeReminder(id, to, today));
+    // 2026-10-04: the toast was unconditional. A write that threw had its
+    // "Couldn't Save" replaced by "Asking Again at 9:15", and snoozeReminder
+    // answering false (the reminder was deleted elsewhere) counted as a
+    // success too, so the person was told it would ask again when nothing
+    // had moved. Only a write that landed says so.
+    const ok = await attemptWrite(async () => { if (!(await tasks.snoozeReminder(id, to, today))) throw new Error("reminder missing"); });
     await reload();
+    if (!ok) return;
     showToast({ message: "Asking Again at " + fmtTime(to).time + " " + fmtTime(to).ap });
   };
   // The Ask Again verb the missed cards carried ("If You Miss It" promises
@@ -4179,6 +4196,7 @@ export default function TodayFlow({
         mode={remSheet.mode}
         initial={remSheet.mode === "edit" ? { text: remSheet.text, reminder: remSheet.reminder, due: remSheet.due, category: remSheet.category } : undefined}
         categories={categories.map((c) => ({ id: c.id, name: c.name, color: c.color as string }))}
+        defaultFollowUp={defaultFollowUp}
         onSave={(text, r, extra) => void onSaveReminder(text, r, extra)}
         onOpenLinked={onOpenEntity ? openLinked : undefined}
         linkCandidates={linkCandidates}

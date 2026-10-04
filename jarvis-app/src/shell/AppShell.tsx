@@ -276,7 +276,11 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
     else if (kind === "file") { setActive("money"); }
     // MONEY LEDGER: a bill opens its own page in Money (the id rides the same
     // one-shot an account does); no id is the Money tab itself.
-    else if (kind === "bill") { if (targetId) accountIntent.fire(targetId); setActive("money"); }
+    // "money" is what the AI Hub's Open It sends for a captured bill or receipt
+    // (hub/hubClient destinationKindOf), and it had no branch, so the tap set a
+    // Back pill and opened nothing (2026-10-04). A bill's id opens its page; a
+    // receipt's lands on the Money tab, where Receipts live.
+    else if (kind === "bill" || kind === "money") { if (targetId) accountIntent.fire(targetId); setActive("money"); }
     // LIFE_AREAS_TAB_HANDOFF (2026-09-16): the Areas tab opens a category's
     // own page the same way a search hit always has (SHELL-F-21) -- this was
     // missing from the shared function itself, so wiring the Areas tab to

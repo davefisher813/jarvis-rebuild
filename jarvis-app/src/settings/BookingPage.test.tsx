@@ -1,11 +1,11 @@
 // @vitest-environment jsdom
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import BookingPage from "./BookingPage";
 import { readBookingSettings } from "../booking/settings";
 import type { BookingFace } from "../booking/bookedEvents";
-import { subscribeToast } from "../shared/toast";
+import { subscribeToast, resetToasts } from "../shared/toast";
 
 const LINK = { slug: "wide-harbour", visibility: "link_only", days: 5 };
 const BOOKED: BookingFace[] = [{
@@ -36,7 +36,9 @@ async function openCancel() {
 
 // Track 3 (2026-09-14): Your Times, one screen, writes through as it goes.
 describe("BookingPage", () => {
-  beforeEach(() => { localStorage.clear(); });
+  // The toast store replays its current toast to a new subscriber, so a toast
+  // left by the last test would otherwise read as this test's.
+  beforeEach(() => { localStorage.clear(); resetToasts(); });
   it("turns availability on, toggles a day and a duration, and offers to publish when no link exists yet", () => {
     render(<BookingPage onBack={() => {}} />);
     fireEvent.click(screen.getByRole("switch", { name: "Available for Booking" }));
@@ -198,5 +200,108 @@ describe("BookingPage", () => {
     render(<BookingPage onBack={() => {}} {...published(BOOKED)} />);
     fireEvent.click(await screen.findByText("Intro Call with Ada Lovelace"));
     expect(await screen.findByRole("button", { name: "Copy Their Email" })).toBeInTheDocument();
+  });
+
+  // ONE ANSWER, NOT A DEAD MENU (2026-10-04). Who Can Book and Visibility were
+  // stored and sent to the server and the server read neither: Approved
+  // Contacts, Your Connections and Public Link all behaved as "anyone with the
+  // link", and Named Contacts made the link answer 404 to everyone with no way
+  // to name a contact. A menu over choices that do nothing is not offered.
+  it("offers no Who Can Book or Visibility menu, and says the one thing that is true", () => {
+    render(<BookingPage onBack={() => {}} />);
+    expect(screen.queryByRole("button", { name: "Who can book" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Visibility" })).toBeNull();
+    for (const gone of ["Approved Contacts", "Your Connections", "Named Contacts", "Public Link"]) {
+      expect(screen.queryByText(gone)).toBeNull();
+    }
+    expect(screen.getByText("Anyone With the Link")).toBeInTheDocument();
+  });
+
+  // The honest toast. "Live" means somebody can book on it.
+  it("says the link is live only when it has hours somebody can book", async () => {
+    const said = toasts();
+    const saveLinkImpl = vi.fn(async () => ({ slug: "wide-harbour", visibility: "link_only", days: 5 }));
+    render(<BookingPage onBack={() => {}} {...published([])} saveLinkImpl={saveLinkImpl} />);
+    fireEvent.click(await screen.findByRole("button", { name: "Republish" }));
+    await waitFor(() => expect(said).toContain("Your Link Is Live"));
+    expect(saveLinkImpl).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not call a link with no open hours live", async () => {
+    const said = toasts();
+    render(<BookingPage onBack={() => {}} {...published([])}
+      saveLinkImpl={async () => ({ slug: "wide-harbour", visibility: "link_only", days: 0 })} />);
+    fireEvent.click(await screen.findByRole("button", { name: "Republish" }));
+    await waitFor(() => expect(said).toContain("Saved \u00b7 No Hours Are Open Yet"));
+    expect(said).not.toContain("Your Link Is Live");
+  });
+
+  it("does not call a link live when the server stored it as closed to everyone", async () => {
+    const said = toasts();
+    render(<BookingPage onBack={() => {}} {...published([])}
+      saveLinkImpl={async () => ({ slug: "wide-harbour", visibility: "named_contacts", days: 5 })} />);
+    fireEvent.click(await screen.findByRole("button", { name: "Republish" }));
+    await waitFor(() => expect(said).toContain("Saved \u00b7 The Link Is Closed to Everyone"));
+    expect(said).not.toContain("Your Link Is Live");
+  });
+
+  it("says on the address row that a link an older build made named_contacts is closed", async () => {
+    render(<BookingPage onBack={() => {}} {...noDays} readBookingsImpl={async () => []}
+      readLinkImpl={async () => ({ slug: "wide-harbour", visibility: "named_contacts", days: 5 })} />);
+    expect(await screen.findByText(/Closed to everyone/)).toBeInTheDocument();
+    expect(screen.queryByText(/tap to copy/)).toBeNull();
+  });
+
+  // COPY, AND SAY SO ONLY IF IT WORKED (2026-10-04). `navigator.clipboard?.`
+  // short-circuited the chain where there is no clipboard: the sheet closed
+  // and nothing happened, with no toast and no way to get the text.
+  describe("copy actions", () => {
+    const setClipboard = (c: unknown) => Object.defineProperty(navigator, "clipboard", { value: c, configurable: true });
+    afterEach(() => setClipboard(undefined));
+
+    it("Copy Their Email copies, and says Email Copied only after it did", async () => {
+      const writeText = vi.fn(async () => {});
+      setClipboard({ writeText });
+      const said = toasts();
+      render(<BookingPage onBack={() => {}} {...published(BOOKED)} />);
+      fireEvent.click(await screen.findByText("Intro Call with Ada Lovelace"));
+      fireEvent.click(await screen.findByRole("button", { name: "Copy Their Email" }));
+      await waitFor(() => expect(said).toContain("Email Copied"));
+      expect(writeText).toHaveBeenCalledWith("ada@example.com");
+    });
+
+    it("Copy Their Email with no clipboard says it could not, and shows the address to read off", async () => {
+      setClipboard(undefined);
+      const said = toasts();
+      render(<BookingPage onBack={() => {}} {...published(BOOKED)} />);
+      fireEvent.click(await screen.findByText("Intro Call with Ada Lovelace"));
+      fireEvent.click(await screen.findByRole("button", { name: "Copy Their Email" }));
+      await waitFor(() => expect(said).toContain("Couldn't Copy \u00b7 ada@example.com"));
+      expect(said).not.toContain("Email Copied");
+    });
+
+    it("a refused write is not reported as a copy either", async () => {
+      setClipboard({ writeText: async () => { throw new Error("denied"); } });
+      const said = toasts();
+      render(<BookingPage onBack={() => {}} {...published(BOOKED)} />);
+      fireEvent.click(await screen.findByText("Intro Call with Ada Lovelace"));
+      fireEvent.click(await screen.findByRole("button", { name: "Copy Their Email" }));
+      await waitFor(() => expect(said).toContain("Couldn't Copy \u00b7 ada@example.com"));
+      expect(said).not.toContain("Email Copied");
+    });
+
+    it("tapping the address copies the link, or shows it when it cannot", async () => {
+      const writeText = vi.fn(async () => {});
+      setClipboard({ writeText });
+      const said = toasts();
+      render(<BookingPage onBack={() => {}} {...published([])} />);
+      fireEvent.click(await screen.findByText(/wide-harbour/));
+      await waitFor(() => expect(said).toContain("Link Copied"));
+      expect(writeText).toHaveBeenCalledWith(expect.stringContaining("/book/wide-harbour"));
+
+      setClipboard(undefined);
+      fireEvent.click(screen.getByText(/wide-harbour/));
+      await waitFor(() => expect(said.some((m) => m.startsWith("Couldn't Copy \u00b7 ") && m.includes("/book/wide-harbour"))).toBe(true));
+    });
   });
 });

@@ -31,11 +31,15 @@ export default function SelectBar({
   onExtra,
   projects,
   onMoveToProject,
+  forever = false,
 }: {
   sel: Selection;
   onDelete: () => void;
   // Singular. "task" gives "Delete 1 Task" and "Delete 3 Tasks".
   noun: string;
+  // 2026-10-04: a delete Undo cannot cover (Notes' Recently Deleted) says so
+  // on the button, "Delete 3 Forever", and its page puts a confirm in front.
+  forever?: boolean;
   // One optional surface-specific bulk action beside Delete, e.g. Mark Done
   // on tasks. Absent on surfaces where nothing else makes sense in bulk.
   extraLabel?: string;
@@ -111,10 +115,10 @@ export default function SelectBar({
         className="btn btn-primary btn-sm select-del"
         disabled={n === 0}
         onClick={onDelete}
-        aria-label={"Delete " + n + " " + label}
+        aria-label={"Delete " + n + " " + label + (forever ? " Forever" : "")}
       >
         <Trash2 className="ic" />
-        Delete {n > 0 ? n : ""}
+        Delete {n > 0 ? n : ""}{forever ? " Forever" : ""}
       </button>
     </div>,
     host,

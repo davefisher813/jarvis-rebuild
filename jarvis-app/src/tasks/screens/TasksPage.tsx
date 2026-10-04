@@ -620,7 +620,10 @@ export function MomentumRow({
   const sameArea = !!reason && /^same (category|area)/i.test(reason);
   return (
     <div className="task-swipe">
-      <button className="task-snooze" onClick={() => closeThen(onNotNow)} aria-label="Not now">
+      {/* 2026-10-04: the OUTER slot, as the nudge row's Dismiss: the one
+          action of an 88px reveal sits at right:0, where the row has
+          slid off it (a bare .task-snooze stays under the row). */}
+      <button className="task-snooze task-snooze-solo" onClick={() => closeThen(onNotNow)} aria-label="Not now">
         <Clock className="ic" />
         <span className="swipe-label">Not Now</span>
       </button>

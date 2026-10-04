@@ -1035,3 +1035,57 @@ describe("CategoryDetail person row: the wait age takes the nudge count", () => 
     expect(recent).not.toHaveClass("warn");
   });
 });
+
+// 2026-10-04 (audit): the Learned Day card's hold menu offered More Like This,
+// which wrote a "more" rule, toasted a success and changed nothing: only
+// Today's own stream cards are weighted by it, and this card is not in the
+// stream. Less and Never take effect (tuningAllows), so the card offers those.
+import { act } from "@testing-library/react";
+
+function SeededLearnedDay() {
+  const tasks = useTasks();
+  const cats = useCategories();
+  const [cid, setCid] = useState("");
+  useEffect(() => {
+    (async () => {
+      const id = await cats.create("Bridge", "blue");
+      for (const t of ["Call plumber", "Fix gate", "Order paint"]) await tasks.createTask(t, { category: id! });
+      // Five of eight completions on a Tuesday: a single clear winner, enough to call a pattern.
+      const dows = [2, 2, 2, 2, 2, 1, 3, 4];
+      localStorage.setItem("jarvis.timesense.v1", JSON.stringify(dows.map((dow, i) => ({ t: Date.now() - (i + 8) * 86400000, h: 10, dow, cat: id }))));
+      setCid(id!);
+    })();
+  }, [tasks, cats]);
+  return cid ? <CategoryDetail categoryId={cid} onBack={() => {}} /> : null;
+}
+
+describe("CategoryDetail, the Learned Day card's hold menu", () => {
+  beforeEach(() => localStorage.clear());
+  afterEach(() => { vi.useRealTimers(); localStorage.clear(); });
+
+  it("offers Less of This and Never, and no More Like This that would change nothing", async () => {
+    render(<NotesProvider userId="ld1"><SeededLearnedDay /></NotesProvider>);
+    const card = (await screen.findByText("Tuesdays Get the Most Done")).closest(".notice-card")!;
+    vi.useFakeTimers();
+    fireEvent.touchStart(card, { touches: [{ clientX: 10, clientY: 10 }] });
+    act(() => { vi.advanceTimersByTime(600); });
+    expect(screen.getByText("Less of This")).toBeInTheDocument();
+    expect(screen.getByText("Never")).toBeInTheDocument();
+    expect(screen.queryByText("More Like This")).toBeNull();
+  });
+});
+
+// 2026-10-04 (audit): the Health page computed a chronological log, a router
+// for its rows and a shortcut-to-tile array, and rendered none of them. Dead
+// computation reads as a live feature to the next person, so the page's source
+// is held to what it draws.
+describe("CategoryDetail carries no dead Health computation", () => {
+  it("has no unrendered logger tiles, today's log or log router", async () => {
+    const { readFileSync } = await import("node:fs");
+    const { join } = await import("node:path");
+    const src = readFileSync(join(__dirname, "CategoryDetail.tsx"), "utf8");
+    for (const dead of ["healthLoggers", "HealthLoggerRow", "chronologicalLog", "const healthLog ", "const openLog "]) {
+      expect(src, dead + " is built and read by nothing").not.toContain(dead);
+    }
+  });
+});

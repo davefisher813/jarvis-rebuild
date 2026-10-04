@@ -852,6 +852,22 @@ export default function NotesFlow({
     await loadList();
     showToast({ message: "Deleted for good" });
   };
+  // 2026-10-04: select mode's Delete inside Recently Deleted. It used to run
+  // trashNote on notes that were already trashed: nothing was deleted, the
+  // 30-day clock restarted, the toast said "deleted" and its Undo put the
+  // notes back in Notes. This is deleteForever for each ticked note. The
+  // count is what actually went: a write that fails partway keeps the ones
+  // already gone out of the list and says only "Couldn't Save", never a
+  // success it did not earn. No Undo, because there is nothing to undo to.
+  const deleteManyForever = async (ids: string[]) => {
+    if (ids.length === 0) return;
+    const gone: string[] = [];
+    const ok = await attemptWrite(async () => { for (const id of ids) { await svc.deleteNote(id); gone.push(id); } });
+    for (const id of gone) void fileStore?.removeAll(id);
+    await loadList();
+    if (!ok || gone.length === 0) return;
+    showToast({ message: gone.length === 1 ? "Deleted for Good" : `${gone.length} Notes Deleted for Good` });
+  };
 
   if (screen === "list") {
     return (
@@ -863,6 +879,7 @@ export default function NotesFlow({
         onAddFile={fileStore ? () => pickInto(null, "file") : undefined}
         uploading={uploading}
         onDeleteMany={onDeleteManyNotes}
+        onDeleteManyForever={(ids) => void deleteManyForever(ids)}
         onDelete={(id) => void onDeleteManyNotes([id])}
         onFile={(id) => setFiling(id)}
         onAppend={(id) => setAppending(id)}

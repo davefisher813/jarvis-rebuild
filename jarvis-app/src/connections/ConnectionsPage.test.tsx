@@ -1,6 +1,6 @@
 // SPEC MOVED (Catalog V3.1, 2026-08-18): Title Case everywhere; copy assertions updated.
 // @vitest-environment jsdom
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import { useState } from "react";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom";
@@ -9,6 +9,14 @@ import { GoogleSessionProvider } from "./google/GoogleSession";
 import { makeFakeGoogleApi } from "./google/fakeApi";
 import ConnectionsPage, { SIGNED_OUT_HELP } from "./ConnectionsPage";
 import { WRITE_FAILED_MESSAGE } from "../shared/guard";
+
+// The build flag is a module constant, so the unified-Email case is reached by
+// answering for it here; every other flag keeps its real answer.
+const flags = vi.hoisted(() => ({ intake: false }));
+vi.mock("../substrate/flags", async (orig) => {
+  const real = await orig<typeof import("../substrate/flags")>();
+  return { ...real, flagOn: (f: Parameters<typeof real.flagOn>[0]) => (f === "email_intake_v1" ? flags.intake : real.flagOn(f)) };
+});
 
 const api = makeFakeGoogleApi({
   listUpcomingEvents: async () => [{ id: "g1", summary: "Standup", start: { dateTime: "2026-06-01T09:00:00Z" } }],
@@ -89,40 +97,41 @@ describe("ConnectionsPage toggles when the save fails", () => {
     expect((screen.getByText("Calendar") as HTMLButtonElement).className).toContain("on");
   });
 
-  // GOOGLE DRIVE (Dave 2026-09-29): a third link beside Email and Calendar.
-  it("every account row offers Drive, off until it is turned on", async () => {
+  // NO DEAD DRIVE CHIP (2026-10-04). Dave asked for a Drive link on 2026-09-29
+  // so Grant Access could be one tap; the chip stored a flag and nothing ever
+  // read it, and Grant Access still only opens Google's own page. A chip that
+  // changes nothing is not offered.
+  it("offers Email and Calendar on an account row, and no Drive chip that changes nothing", async () => {
     render(wrap(<ConnectionsPage configured />));
     fireEvent.click(await screen.findByText("Connect Google"));
     await screen.findByText("me@example.com");
-    const drive = screen.getByText("Drive") as HTMLButtonElement;
-    expect(drive.className).not.toContain("on");
-    expect(drive.getAttribute("aria-pressed")).toBe("false");
-    // Email and Calendar are unchanged: still on for a new account.
     expect((screen.getByText("Email") as HTMLButtonElement).className).toContain("on");
     expect((screen.getByText("Calendar") as HTMLButtonElement).className).toContain("on");
+    expect(screen.queryByText("Drive")).toBeNull();
   });
 
-  it("turning Drive on and off is saved, and touches nothing else", async () => {
+  // READ RECEIPTS ONLY WHERE THEY EXIST (2026-10-04). The pixel is added by the
+  // legacy mail pump. The unified Email tab sends with no tracking code at all,
+  // so under email_intake_v1 the switch would be on or off over nothing.
+  it("shows the open-tracking switch on the legacy mail path", async () => {
+    flags.intake = false;
     render(wrap(<ConnectionsPage configured />));
     fireEvent.click(await screen.findByText("Connect Google"));
     await screen.findByText("me@example.com");
-    fireEvent.click(screen.getByText("Drive"));
-    await waitFor(() => expect((screen.getByText("Drive") as HTMLButtonElement).className).toContain("on"));
-    expect((screen.getByText("Drive") as HTMLButtonElement).getAttribute("aria-pressed")).toBe("true");
-    expect((screen.getByText("Email") as HTMLButtonElement).className).toContain("on");
-    expect((screen.getByText("Calendar") as HTMLButtonElement).className).toContain("on");
-    fireEvent.click(screen.getByText("Drive"));
-    await waitFor(() => expect((screen.getByText("Drive") as HTMLButtonElement).className).not.toContain("on"));
+    expect(await screen.findByLabelText("Know When Your Email Is Opened")).toBeInTheDocument();
   });
 
-  it("a Drive link that could not be saved goes back and says so", async () => {
-    render(wrap(<><ConnectionsPage configured /><BreakSaves /></>));
-    fireEvent.click(await screen.findByText("Connect Google"));
-    await screen.findByText("me@example.com");
-    fireEvent.click(screen.getByText("break-saves"));
-    fireEvent.click(screen.getByText("Drive"));
-    await waitFor(() => expect(screen.getByText(FAILED)).toBeInTheDocument());
-    expect((screen.getByText("Drive") as HTMLButtonElement).className).not.toContain("on");
+  it("does not show a read-receipt switch the unified Email send cannot honour", async () => {
+    flags.intake = true;
+    try {
+      render(wrap(<ConnectionsPage configured />));
+      fireEvent.click(await screen.findByText("Connect Google"));
+      await screen.findByText("me@example.com");
+      expect(screen.queryByLabelText("Know When Your Email Is Opened")).toBeNull();
+      expect(screen.queryByText("Know When Your Email Is Opened")).toBeNull();
+      // Calendar is on for a new account, so its own line is still there.
+      expect(screen.getByText("Calendar Import")).toBeInTheDocument();
+    } finally { flags.intake = false; }
   });
 
   it("the open-tracking switch that could not be saved goes back and says so", async () => {

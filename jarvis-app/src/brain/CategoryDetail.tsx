@@ -2213,6 +2213,9 @@ export default function CategoryDetail({
             uniform={false}
             onOpen={() => upNextRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}
             automation="learned-day"
+            // Less and Never only (2026-10-04): the card is not in Today's
+            // stream, so no reader ever lifted it for a "more" rule.
+            tuneChoices={["less", "never"]}
             onTune={(choice) => void tune("learned-day", choice, `${DOW_PLURAL[learnedDay.dow]} Get the Most Done`)}
           />
         </div></div>
