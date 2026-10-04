@@ -5,12 +5,17 @@ import type { AdminService, AdminUser, AdminUsage, AdminBilling, AdminFeedbackIt
 import { pct, type AdminMetrics } from "./adminMetrics";
 import { pressable } from "../shared/pressable";
 import { Switch } from "../settings/kit";
+import SkeletonRows from "../shared/SkeletonRows";
+import type { AdminProbe } from "./useIsAdmin";
 
 // The master-account panel. Gated by isAdmin for UX; the real boundary is the
 // server (privileged endpoint + RLS). When the source is unavailable (no server
 // yet) each section says so honestly rather than inventing numbers.
-export default function AdminPanel({ isAdmin, source, onBack }: {
+export default function AdminPanel({ isAdmin, probe, onRecheck, source, onBack }: {
   isAdmin: boolean;
+  /** What the server's admin check has said so far. Omitted means it has answered: isAdmin is the answer. */
+  probe?: AdminProbe;
+  onRecheck?: () => void;
   source: AdminService;
   onBack?: () => void;
 }) {
@@ -83,6 +88,31 @@ export default function AdminPanel({ isAdmin, source, onBack }: {
       setError((e as Error).message || "Action failed");
     }
   };
+
+  // Slice 09 QA (2026-10-04): the door opens for everyone now, so the screen
+  // has to tell "still asking" and "could not ask" apart from a real no.
+  if (!isAdmin && probe === "checking") {
+    return (
+      <div className="screen">
+        <div className="nav-bar"><button className="nav-back" onClick={onBack}>Back</button><div className="nav-large">Admin</div></div>
+        <SkeletonRows rows={3} />
+      </div>
+    );
+  }
+
+  if (!isAdmin && probe === "error") {
+    return (
+      <div className="screen">
+        <div className="nav-bar"><button className="nav-back" onClick={onBack}>Back</button><div className="nav-large">Admin</div></div>
+        <div className="pad-x"><div className="card"><div className="empty-state">
+          <div className="empty-icon"><ShieldAlert className="ic" /></div>
+          <div className="empty-title">Couldn't Check Access</div>
+          <div className="empty-sub">The admin server did not answer</div>
+          <button className="btn btn-secondary btn-block" onClick={onRecheck}>Try Again</button>
+        </div></div></div>
+      </div>
+    );
+  }
 
   if (!isAdmin) {
     return (

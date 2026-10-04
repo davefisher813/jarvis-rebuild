@@ -27,7 +27,7 @@ import type { Destination } from "../shell/destinations";
 // Admin is a hidden owner-only surface; its chunk loads on first open.
 const AdminPanel = lazyWithRecovery(() => import("../admin/AdminPanel"));
 import { createAdminApi, adminConfigured, makeSampleAdminSource } from "../admin/AdminService";
-import { useIsAdmin } from "../admin/useIsAdmin";
+import { useAdminProbe } from "../admin/useIsAdmin";
 import { useAuth } from "../auth/AuthProvider";
 import { backendConfigured } from "../data/store";
 
@@ -56,7 +56,8 @@ export default function MoreFlow({
   openRoute?: MoreRoute | null;
   onRouteConsumed?: () => void;
 }) {
-  const isAdmin = useIsAdmin();
+  const adminProbe = useAdminProbe();
+  const isAdmin = adminProbe.state === "yes";
   const { session } = useAuth();
   const canAdmin = !backendConfigured || isAdmin;
   // PLUMB-F-21 (2026-09-05): isAdmin IS the probe. useIsAdmin only returns
@@ -100,8 +101,8 @@ export default function MoreFlow({
   if (route === "learned") return <LearnedRulesPage onBack={() => setRoute("settings")} />;
   // Brain Manual v1: Export and Erase for the categorized memory.
   if (route === "brainsettings") return <BrainSettingsPage onBack={() => setRoute("settings")} />;
-  if (route === "about") return <AboutPage onBack={() => setRoute("settings")} onTerms={() => setRoute("terms")} onPrivacy={() => setRoute("privacy")} onSupport={() => setRoute("support")} onSecret={canAdmin ? () => setRoute("admin") : undefined} />;
-  if (route === "admin") return <Suspense fallback={<div className="screen" />}><AdminPanel isAdmin={canAdmin} source={adminSource} onBack={() => setRoute("settings")} /></Suspense>;
+  if (route === "about") return <AboutPage onBack={() => setRoute("settings")} onTerms={() => setRoute("terms")} onPrivacy={() => setRoute("privacy")} onSupport={() => setRoute("support")} onSecret={() => setRoute("admin")} />;
+  if (route === "admin") return <Suspense fallback={<div className="screen" />}><AdminPanel isAdmin={canAdmin} probe={backendConfigured ? adminProbe.state : "yes"} onRecheck={adminProbe.recheck} source={adminSource} onBack={() => setRoute("settings")} /></Suspense>;
   if (route === "terms") return <TermsPage onBack={() => setRoute("about")} />;
   if (route === "privacy") return <PrivacyPage onBack={() => setRoute("about")} />;
   if (route === "support") return <SupportPage onBack={() => setRoute("about")} />;

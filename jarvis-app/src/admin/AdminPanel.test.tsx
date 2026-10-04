@@ -1,6 +1,6 @@
 // SPEC MOVED (Catalog V3.1, 2026-08-18): Title Case everywhere; copy assertions updated.
 // @vitest-environment jsdom
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import AdminPanel from "./AdminPanel";
@@ -9,6 +9,28 @@ import { createAdminApi, makeSampleAdminSource, type AdminService } from "./Admi
 describe("AdminPanel", () => {
   it("blocks non-admins", () => {
     render(<AdminPanel isAdmin={false} source={makeSampleAdminSource()} />);
+    expect(screen.getByText("Not Authorized")).toBeInTheDocument();
+  });
+
+  // Slice 09 QA (2026-10-04): the door opens for everyone now, so "still
+  // asking" and "could not ask" must not read as a verdict.
+  it("while the server is still being asked, shows a load, not Not Authorized", () => {
+    render(<AdminPanel isAdmin={false} probe="checking" source={makeSampleAdminSource()} />);
+    expect(screen.queryByText("Not Authorized")).not.toBeInTheDocument();
+    expect(document.querySelector(".skel-row")).not.toBeNull();
+  });
+
+  it("when the server could not be asked, offers Try Again instead of a dead end", () => {
+    const onRecheck = vi.fn();
+    render(<AdminPanel isAdmin={false} probe="error" onRecheck={onRecheck} source={makeSampleAdminSource()} />);
+    expect(screen.queryByText("Not Authorized")).not.toBeInTheDocument();
+    expect(screen.getByText("Couldn't Check Access")).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Try Again"));
+    expect(onRecheck).toHaveBeenCalledTimes(1);
+  });
+
+  it("a real no from the server still says Not Authorized", () => {
+    render(<AdminPanel isAdmin={false} probe="no" source={makeSampleAdminSource()} />);
     expect(screen.getByText("Not Authorized")).toBeInTheDocument();
   });
 

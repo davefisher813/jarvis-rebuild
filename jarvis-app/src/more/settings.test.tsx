@@ -52,6 +52,29 @@ describe("Settings", () => {
     await waitFor(() => expect(screen.getByText("Edit Tabs")).toBeInTheDocument());
   });
 
+  // Slice 09 QA (2026-10-04): the door to Admin only existed once the admin
+  // probe had said yes, so for everyone it had not answered for, five taps did
+  // nothing. The door is always wired now; the Admin screen itself says Not
+  // Authorized when the server does.
+  it("More -> Settings -> About -> five taps on the build line opens Admin", async () => {
+    render(
+      <AppearanceProvider>
+        <AuthProvider>
+        <NotesProvider userId="u1">
+          <MoreFlow extras={extrasFor(["today", "tasks", "schedule", "brain"])} onOpenExtra={() => {}} tabKeys={["today", "tasks", "schedule", "brain"]} onToggleTab={() => {}} />
+        </NotesProvider>
+        </AuthProvider>
+      </AppearanceProvider>,
+    );
+    fireEvent.click(screen.getAllByText("Settings")[0]!);
+    await waitFor(() => expect(screen.getByText("About")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("About"));
+    const line = await screen.findByRole("button", { name: /^Build / });
+    for (let i = 0; i < 5; i++) fireEvent.click(line);
+    // The panel is lazy; the title is what both of its branches render.
+    await waitFor(() => expect(screen.getByText("Admin")).toBeInTheDocument());
+  });
+
   it("More lists an unpicked page and can open it", () => {
     const onOpen = vi.fn();
     render(

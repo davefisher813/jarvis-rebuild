@@ -107,7 +107,9 @@ export default function BrainFlow({ openKey, openNonce, onKeyConsumed, routineBl
   useEffect(() => {
     if (!open || !catsLoaded) return;
     const known = open.key in DOC_TOPIC
-      || ["knows", "month", "routine", "decisions", "contacts", "triage"].includes(open.key)
+      // "aihub" joined this list in slice 09's QA (2026-10-04): the row set the key and this guard
+      // closed it back to the hub a frame later, so the AI Hub read as a dead button.
+      || ["knows", "month", "routine", "decisions", "contacts", "triage", "aihub"].includes(open.key)
       || categories.some((c) => c.id === open.key);
     if (!known) setOpen(null);
   }, [open, catsLoaded, categories]);
