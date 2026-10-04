@@ -1,53 +1,32 @@
-/* THE AI HUB'S SURFACE (docs/jarvis-unified, IMPLEMENTATION-SPEC.md section
-   02; slice 04). The package asks for a fixed light theme on the new
-   surfaces: a warm cream canvas, white cards, dark readable text, saturated
-   accents. The app has one token system and a light flip in flight on its
-   own branch, so the package's palette is applied HERE ONLY, as tokens on
-   the Hub's root, and every shared component inside it (cards, rows, the
-   segmented control, the page bar) restyles through the tokens it already
-   reads. Nothing outside .hub changes. Dropping this block is one edit if
-   Dave prefers the app's own tokens (REPO-MAP.md section 6, item 9). */
+/* THE AI HUB'S SURFACE (docs/jarvis-unified, slice 04). The Hub wears the
+   app's own tokens, in the active theme, like every other screen (Dave,
+   2026-10-04: "no mixed themes within the app"). It used to apply the
+   package's fixed cream palette as tokens on its root, which left a light
+   island inside the dark app and a cream sheet over it; that block is gone
+   (REPO-MAP.md deviation 56). What stays here are the role colors the
+   capsules and the focus ring use, given once per theme so each one keeps
+   its contrast on the page it sits on. */
 .hub {
-  /* Section 02's fixed palette, as the app's own token names. */
-  --bg: #FFF8EF;
-  --surface-1: #FFFFFF;
-  --surface-2: #F4EEE5;
-  --surface-3: #F4EEE5;
-  --tx-1: #20283D;
-  --tx-2: #364057;
-  --tx-3: #364057;
-  --tx-4: #6B7390;
-  --divider: rgba(32, 40, 61, 0.12);
-  --press-3: #F4EEE5;
-  --glass-bg: #FFFFFF;
-  --sel-bg: #20283D;
-  --sel-fg: #FFFFFF;
-  --accent: #C92B3A;
-  --accent-fill: #C92B3A;
-  --accent-tx: #C92B3A;
-  --accent-chrome: #C92B3A;
-  --tint: #C92B3A;
-  --danger-tx: #A82230;
-  /* The accents the package names, and their tints. */
-  --hub-money: #087D65; --hub-money-tint: #E4F7EE;
-  --hub-travel: #285EC9; --hub-travel-tint: #EAF0FF;
-  --hub-review: #7542BC; --hub-review-tint: #F2EAFE;
-  --hub-waiting: #975500; --hub-waiting-tint: #FFF0CD;
-  --hub-error: #A82230; --hub-error-tint: #FFE8EA;
-  --hub-shadow: 0 8px 28px rgba(47, 35, 24, 0.06);
-  --hub-focus: 3px solid #285EC9;
+  /* Dark is the app's default skin; light overrides below. */
+  --hub-money: #5BD9AE; --hub-money-tint: rgba(91, 217, 174, 0.16);
+  --hub-travel: #8DB4FF; --hub-travel-tint: rgba(141, 180, 255, 0.16);
+  --hub-review: #C3A2FF; --hub-review-tint: rgba(195, 162, 255, 0.16);
+  --hub-waiting: #F2B04A; --hub-waiting-tint: rgba(242, 176, 74, 0.16);
+  --hub-error: #FF6B75; --hub-error-tint: rgba(255, 107, 117, 0.16);
+  --hub-focus: 3px solid #8DB4FF;
   background: var(--bg);
   color: var(--tx-1);
   min-height: 100vh;
   min-height: 100dvh;
 }
-.hub .card {
-  background: var(--surface-1);
-  -webkit-backdrop-filter: none; backdrop-filter: none;
-  box-shadow: var(--hub-shadow);
-  border: 0;
+[data-theme="light"] .hub {
+  --hub-money: #087D65; --hub-money-tint: #E4F7EE;
+  --hub-travel: #285EC9; --hub-travel-tint: #EAF0FF;
+  --hub-review: #7542BC; --hub-review-tint: #F2EAFE;
+  --hub-waiting: #975500; --hub-waiting-tint: #FFF0CD;
+  --hub-error: #A82230; --hub-error-tint: #FFE8EA;
+  --hub-focus: 3px solid #285EC9;
 }
-.hub .pagebar.solid { background: var(--bg); }
 /* Section 02: a visible 3px focus ring, offset, on every control. */
 .hub :is(button, [role="button"], [role="tab"], [role="switch"], [role="radio"], input, textarea):focus-visible {
   outline: var(--hub-focus);

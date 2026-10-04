@@ -13,13 +13,13 @@ import { usePushDepth } from "../shared/pushNav";
 import { showToast } from "../shared/toast";
 import { attemptWrite } from "../shared/guard";
 import { supabase } from "../auth/supabaseClient";
-import { useOptionalProfile, useOptionalTasks } from "../data/NotesProvider";
+import { useAccessToken, useOptionalProfile, useOptionalTasks } from "../data/NotesProvider";
 import { getAIControl, setAIControl } from "../ai/levelStore";
 import { useAdminAiBlocked } from "../ai/useAdminAiGate";
 import { DEFAULT_AI_LEVEL, type AIControlState } from "../ai/aiGate";
 import { COMMAND_LINES, failure, type CommandFailure } from "../substrate/commands/errors";
-import { ADMIN_OFF, HUB_TITLE, TABS, type ActivityFilter, type HubTab } from "./copy";
-import { checkDependencies, hubOverview, addManualAssistant, type HubOverview, type ProposalSegment, type RpcClient } from "./hubClient";
+import { ADMIN_OFF, HUB_TITLE, TABS, sweepLine, type ActivityFilter, type HubTab } from "./copy";
+import { checkDependencies, hubOverview, addManualAssistant, sweepExpiredShares, type HubOverview, type ProposalSegment, type RpcClient } from "./hubClient";
 import AgentsTab from "./AgentsTab";
 import AgentDetail from "./AgentDetail";
 import ContextPreview from "./ContextPreview";
@@ -92,6 +92,16 @@ export default function HubFlow({ onBack, onOpenEntity, onOpenEmail, client: giv
   const adminOff = useAdminAiBlocked();
   const [ctrl, setCtrl] = useState<AIControlState>(() => getAIControl());
   const aiOn = !adminOff && ctrl.level !== "off";
+  // Clear Expired Shares: the context sweep, on the person's own tap (nothing in this deployment runs on a timer).
+  const token = useAccessToken();
+  const [sweeping, setSweeping] = useState(false);
+  const sweep = async () => {
+    if (sweeping) return;
+    setSweeping(true);
+    const r = await sweepExpiredShares(token);
+    setSweeping(false);
+    showToast({ message: r.ok ? sweepLine(r.value.expired, r.value.purged) : COMMAND_LINES[r.code] });
+  };
   const toggleAI = async () => {
     if (adminOff) { showToast({ message: ADMIN_OFF }); return; }
     if (!profile) { showToast({ message: COMMAND_LINES.UNAVAILABLE }); return; }
@@ -181,7 +191,7 @@ export default function HubFlow({ onBack, onOpenEntity, onOpenEmail, client: giv
 
       {overview && client && tab === "agents" && (
         <AgentsTab connections={overview.connections} aiOn={aiOn} adminOff={adminOff} canToggle={!!profile} onToggleAI={() => void toggleAI()}
-          onOpenAgent={(id) => setScreen({ kind: "agent", id })} onAdd={() => setAdding(true)} />
+          onOpenAgent={(id) => setScreen({ kind: "agent", id })} onAdd={() => setAdding(true)} onSweep={() => void sweep()} sweeping={sweeping} />
       )}
       {overview && client && tab === "review" && (
         <ReviewTab client={client} overview={overview} projectId={projectId} onPickProject={setProjectId} segment={segment} onSegment={setSegment} offline={offline} taskOptions={taskOptions}

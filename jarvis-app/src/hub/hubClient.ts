@@ -7,6 +7,7 @@
 
 import type { AgentMode } from "../substrate/contracts";
 import { callCommand, newRequestId, type CommandResult, type RpcClient } from "../substrate/commands/errors";
+import { apiPost } from "../email/emailClient";
 
 export type { RpcClient };
 
@@ -228,4 +229,9 @@ export function destinationKindOf(actionKind: string): string | null {
     case "exploration_keep": return "note";
     default: return null;
   }
+}
+
+/** Clear Expired Shares (slice 09 QA, 2026-10-04): the person's tap runs the context sweep through api/context/sweep. */
+export function sweepExpiredShares(token: string | null | undefined, doFetch?: typeof fetch): Promise<CommandResult<{ ok: true; expired: number; purged: number }>> {
+  return apiPost<{ ok: true; expired: number; purged: number }>("/api/context/sweep", {}, token, doFetch);
 }

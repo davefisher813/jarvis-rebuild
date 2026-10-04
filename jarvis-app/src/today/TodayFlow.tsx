@@ -2900,7 +2900,7 @@ export default function TodayFlow({
               .receipt-line, which is the quiet caps row with the chevron on
               the right, and it sits at the foot of the thing it folds. Same
               control, same behaviour, the house shape. */}
-          <button className="receipt-line" aria-expanded={draftMoreOpen} onClick={() => setDraftMoreOpen((o) => !o)}>
+          <button className="receipt-line draft-fold" aria-expanded={draftMoreOpen} onClick={() => setDraftMoreOpen((o) => !o)}>
             <span className="rl-t">{lineCase(`${dayDraft.anytime.length} More in Anytime`)}</span>
             <div className={"chev chev-down" + (draftMoreOpen ? " chev-open" : "")} />
           </button>
@@ -2930,9 +2930,15 @@ export default function TodayFlow({
           that name no object). "Not Today" answers a question the page
           stopped asking three sections ago; what the tap actually does is
           clear the plan standing above it. */}
-      <button className="receipt-line" onClick={dismissDraft}>
-        <span className="rl-t">Clear This Plan</span>
-      </button>
+      {/* Slice 09 QA (2026-10-04): this line's tap area reaches 14px past its paint (.receipt-line::after), and it
+          sat flush under "N More in Anytime", so it answered the taps meant for the line above and for the last
+          Anytime row's Add. The wrapper's gap keeps the two areas apart; the button stays the exact quiet line
+          LAW 8 holds. */}
+      <div className="draft-clear">
+        <button className="receipt-line" onClick={dismissDraft}>
+          <span className="rl-t">Clear This Plan</span>
+        </button>
+      </div>
     </>
   ) : null;
 
