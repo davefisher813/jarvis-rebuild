@@ -18,6 +18,7 @@ beforeEach(() => { changePassword.mockReset().mockResolvedValue(undefined); toas
 afterEach(() => { stop(); resetToasts(); });
 
 const open = (onClose = vi.fn()) => { render(<ChangePasswordSheet onClose={onClose} />); return onClose; };
+const focused = () => (document.activeElement as HTMLElement | null)?.getAttribute("aria-label");
 const type = (label: string, value: string) => fireEvent.change(screen.getByLabelText(label), { target: { value } });
 const fill = (cur = "old-pass-1", next = "new-pass-2", conf = next) => { type("Current password", cur); type("New password", next); type("Confirm new password", conf); };
 const save = () => fireEvent.click(screen.getByRole("button", { name: /^(Save|Saving)$/ }));
@@ -124,5 +125,51 @@ describe("Change Password sheet", () => {
     fireEvent.keyDown(screen.getByLabelText("Confirm new password"), { key: "Enter" });
     await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
     expect(changePassword).toHaveBeenCalledWith("old-pass-1", "new-pass-2");
+  });
+
+  // THE REVIEW'S FINDINGS (2026-10-04)
+  it("Return moves on through the fields instead of judging a form that is not finished", () => {
+    open();
+    type("Current password", "old-pass-1");
+    fireEvent.keyDown(screen.getByLabelText("Current password"), { key: "Enter" });
+    expect(focused()).toBe("New password");
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    fireEvent.keyDown(screen.getByLabelText("New password"), { key: "Enter" });
+    expect(focused()).toBe("Confirm new password");
+    expect(changePassword).not.toHaveBeenCalled();
+    expect(screen.getByLabelText("Current password")).toHaveAttribute("enterkeyhint", "next");
+    expect(screen.getByLabelText("Confirm new password")).toHaveAttribute("enterkeyhint", "go");
+  });
+
+  it("a problem is announced, and the field it belongs to is marked invalid", () => {
+    open(); fill("old-pass-1", "new-pass-2", "new-pass-3"); save();
+    expect(screen.getByRole("alert")).toHaveTextContent("The two new passwords don't match");
+    expect(screen.getByLabelText("Confirm new password")).toHaveAttribute("aria-invalid", "true");
+    expect(screen.getByLabelText("New password")).not.toHaveAttribute("aria-invalid");
+  });
+
+  it("a save that finishes after the sheet was closed does not close the next one, and still says it worked", async () => {
+    let release!: () => void;
+    changePassword.mockReturnValue(new Promise<void>((r) => { release = r; }));
+    const onClose = vi.fn();
+    const { unmount } = render(<ChangePasswordSheet onClose={onClose} />);
+    fill(); save();
+    unmount(); // Cancel while it was saving
+    release();
+    await waitFor(() => expect(toasts).toContain("Password Updated"));
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it("a failure that arrives after the sheet was closed is dropped quietly", async () => {
+    let fail!: (e: unknown) => void;
+    changePassword.mockReturnValue(new Promise<void>((_, rej) => { fail = rej; }));
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const { unmount } = render(<ChangePasswordSheet onClose={vi.fn()} />);
+    fill(); save();
+    unmount();
+    fail(new TypeError("Failed to fetch"));
+    await new Promise((r) => setTimeout(r, 20));
+    expect(spy).not.toHaveBeenCalled();
+    spy.mockRestore();
   });
 });

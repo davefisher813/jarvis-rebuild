@@ -164,3 +164,25 @@ describe("ProfilePage Name (Edit Profile)", () => {
     expect(document.querySelector(".account-av .av")?.textContent).toBe("M");
   });
 });
+
+// A TOKEN REFRESH MUST NOT PUT THE SAVED NAME BACK OVER THE ONE BEING TYPED
+// (the review's finding, 2026-10-04). Every refresh rebuilds the services under
+// a signed-in person, so the page's profile changes; the fields are filled once.
+describe("ProfilePage keeps what is being typed", () => {
+  it("a rebuilt profile service does not overwrite the Name field", async () => {
+    // The in-memory store of a test run starts empty after every rebuild, so
+    // the saved record is stood in for: every service reads "Saved Name".
+    vi.spyOn(ProfileService.prototype, "get").mockResolvedValue({ name: "Saved Name", template: "personal", gmail: false, onboarded: true } as never);
+    const view = (token: string) => (
+      <NotesProvider userId="u-name-refresh" accessToken={token}>
+        <ProfilePage onBack={() => {}} />
+      </NotesProvider>
+    );
+    const { rerender } = render(view("token-a"));
+    await waitFor(() => expect((screen.getByLabelText("Name") as HTMLInputElement).value).toBe("Saved Name"));
+    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Dave typing" } });
+    rerender(view("token-b"));
+    await act(async () => { await new Promise((r) => setTimeout(r, 30)); });
+    expect((screen.getByLabelText("Name") as HTMLInputElement).value).toBe("Dave typing");
+  });
+});

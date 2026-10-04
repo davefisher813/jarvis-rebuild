@@ -19,7 +19,7 @@ export const PASSWORD_WORDS = {
   tooShort: `Use at least ${MIN_PASSWORD_LENGTH} characters`,
   sameAsCurrent: "Your new password has to be different from your current one",
   mismatch: "The two new passwords don't match",
-  wrongCurrent: "That isn't your current password. If you signed in with an email link and never set one, use Forgot Password on the sign-in screen.",
+  wrongCurrent: "That isn't your current password · If you signed in with an email link and never set one, use Forgot Password on the sign-in screen",
   tooWeak: "That password is too easy to guess · Try a longer one, with numbers or symbols",
   tooManyTries: "Too many tries · Wait a minute and try again",
   offline: "Couldn't reach JARVIS · Check your connection and try again",

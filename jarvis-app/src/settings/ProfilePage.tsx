@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useProfile, useCategories } from "../data/NotesProvider";
 import type { TemplateKey } from "../categories/defaults";
 import LargeTitleNav from "../shared/LargeTitleNav";
@@ -22,10 +22,16 @@ export default function ProfilePage({ onBack }: { onBack: () => void }) {
   const [name, setName] = useState("");
   const [template, setTemplate] = useState<TemplateKey>("personal");
   const [saved, setSaved] = useState(false);
+  // The fields are filled from the saved record ONCE. Every token refresh
+  // rebuilds the services, so `profile` changes under a signed-in person, and
+  // reading again put the saved name back over a name they were typing, with
+  // Save still lit to save the old one.
+  const hydrated = useRef(false);
   useEffect(() => {
     let on = true;
     profile.get().then((p) => {
-      if (!on || !p) return;
+      if (!on || !p || hydrated.current) return;
+      hydrated.current = true;
       setName(p.name);
       setTemplate(p.template);
     });

@@ -1,6 +1,13 @@
 import { describe, it, expect } from "vitest";
 import { MIN_PASSWORD_LENGTH, PASSWORD_WORDS, passwordErrorOf, passwordProblem } from "./passwordRules";
 
+describe("PASSWORD_WORDS", () => {
+  // shortCopy law: no rendered string carries a sentence boundary; a second thought is joined with a middle dot.
+  it("no message carries a full stop followed by a new sentence", () => {
+    for (const [k, v] of Object.entries(PASSWORD_WORDS)) expect(v, k).not.toMatch(/\.\s+[A-Z]/);
+  });
+});
+
 describe("passwordProblem", () => {
   const ok = { current: "old-pass-1", next: "new-pass-2", confirm: "new-pass-2" };
 

@@ -165,13 +165,15 @@ export function Row({ tone, glyph, label, meta, children, onClick, forwardTo, ch
 
 /** The row that IS an input: a typed value, at the right when it has a
     label beside it, filling the row when it is the row's only thing. */
-export function FieldRow({ tone, glyph, label, value, onChange, placeholder, type = "text", inputMode, ariaLabel, error = false, right = true, onEnter, autoComplete }: {
+export function FieldRow({ tone, glyph, label, value, onChange, placeholder, type = "text", inputMode, ariaLabel, error = false, right = true, onEnter, autoComplete, enterKeyHint }: {
   tone?: string; glyph?: ReactNode; label?: string; value: string; onChange: (v: string) => void; placeholder?: string;
   type?: "text" | "date" | "time" | "url" | "email" | "tel" | "password"; inputMode?: "text" | "numeric" | "decimal"; ariaLabel: string; error?: boolean; right?: boolean;
   /** What the browser may fill: "current-password" and "new-password" tell a password manager which is which. */
   autoComplete?: string;
-  /** Enter in the field saves, for the sheets that are one name long. */
+  /** Enter in the field saves, for the sheets that are one name long, or moves on to the next field. */
   onEnter?: () => void;
+  /** The label on the keyboard's Return key: "next" where Return moves on, "go" where it saves. */
+  enterKeyHint?: "next" | "go" | "done";
 }) {
   return (
     <div className="row xs-row" onClick={tapField}>
@@ -182,8 +184,10 @@ export function FieldRow({ tone, glyph, label, value, onChange, placeholder, typ
         type={type}
         inputMode={inputMode}
         autoComplete={autoComplete}
+        enterKeyHint={enterKeyHint}
         placeholder={placeholder}
         aria-label={ariaLabel}
+        aria-invalid={error || undefined}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         onKeyDown={onEnter ? (e) => { if (e.key === "Enter") onEnter(); } : undefined}
@@ -246,5 +250,5 @@ export function DeleteRow({ label, onClick }: { label: string; onClick: () => vo
 
 /** The line under a group that says what is wrong. */
 export function ErrorLine({ text }: { text: string | null | undefined }) {
-  return text ? <div className="input-error xs-error">{text}</div> : null;
+  return text ? <div className="input-error xs-error" role="alert">{text}</div> : null;
 }
