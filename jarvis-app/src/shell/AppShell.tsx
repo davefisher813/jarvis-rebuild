@@ -76,7 +76,8 @@ import { useOneShot } from "./intents";
 import { useSessionOpen } from "../gym/sessionChrome";
 import { attemptWrite } from "../shared/guard";
 import { useAppearance, type Appearance } from "../appearance/AppearanceProvider";
-import { SETTING_APPEARANCE, SETTING_DONE_CLEARING, SETTING_EMAIL_TASKS } from "../data/SettingsService";
+import { SETTING_APPEARANCE, SETTING_DONE_CLEARING, SETTING_EMAIL_TASKS, SETTING_FEEDBACK } from "../data/SettingsService";
+import { useFeedback } from "../encourage/FeedbackProvider";
 import { minutesLabel } from "../shared/duration";
 
 // Hosts the app. The bottom tab bar is user-editable: tabKeys (from the profile)
@@ -336,6 +337,11 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
   const appearance = useAppearance();
   const appearanceRef = useRef(appearance);
   appearanceRef.current = appearance;
+  // The account's feedback style (encourage/): adopted once at boot, the same
+  // way the appearance is, so a new phone is already as he left it.
+  const feedback = useFeedback();
+  const feedbackRef = useRef(feedback);
+  feedbackRef.current = feedback;
 
   const firstBoot = useRef(true);
   useEffect(() => {
@@ -380,6 +386,8 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
       // launch that reaches the network.
       const storedAppearance = await settings?.pull<Partial<Appearance>>(SETTING_APPEARANCE);
       if (storedAppearance) appearanceRef.current.applyAppearance(storedAppearance);
+      const storedFeedback = await settings?.pull<unknown>(SETTING_FEEDBACK);
+      if (storedFeedback) feedbackRef.current.adopt(storedFeedback);
       // 2026-09-12: and the same for whether a finished thing closes itself
       // (bigger/doneClearing.ts). Pulled for the mirror's sake only: every
       // reader takes it synchronously off the mirror, so there is nothing to

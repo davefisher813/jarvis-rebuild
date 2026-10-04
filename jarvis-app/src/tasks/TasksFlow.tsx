@@ -7,7 +7,11 @@ import SyllabusUploadFlow from "../life/SyllabusUploadFlow";
 import MessageDraftSheet from "../people/MessageDraftSheet";
 import { pausedCategoryIds, offHoursCategoryIds } from "../categories/kinds";
 import TasksPage, { MomentumRow } from "./screens/TasksPage";
-import StartScreen from "./screens/StartScreen";
+import StartScreen, { type StartAck } from "./screens/StartScreen";
+import { stepCounts, lastWorked as lastWorkedOf, whenWorked } from "./progress";
+import { stepDoneLine, allDoneLine, workedLine, stopLine, undoLine } from "../encourage/messages";
+import { playCompletion } from "../encourage/effects";
+import { useFeedback } from "../encourage/FeedbackProvider";
 import { startAction, shapeOf, blockerOf, type StartAction, type StartTarget, type InTheWay } from "./startAction";
 import { contextFor, type StartRecords } from "./startGround";
 import { loadSession, saveSession, clearSession, sessionHasWork, loadSessions } from "./startStore";
@@ -26,7 +30,7 @@ import { movedBy, burstSize, celebrationLine, type Moved } from "../shared/compl
 import type { Project } from "../projects/types";
 import { partition, byCategory, filterOf, FILTERS, FILTER_LABEL, type Partitioned, type TaskFilter } from "./filters";
 import type { Recurrence, TaskData } from "../notes/types";
-import type { TaskItem } from "./TasksService";
+import type { TaskItem, StepWrite } from "./TasksService";
 import { todayISO } from "./grouping";
 import { nextFreeSlot, addMinutes, addDays } from "../schedule/calendar";
 import { showToast } from "../shared/toast";
@@ -728,7 +732,17 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, startId, 
   // time is a real thing people want, it is simply not what the word Start
   // should mean. What Start means now is that the resolver went and found
   // whatever is already openable on this task and put it on screen.
-  const [starting, setStarting] = useState<{ target: StartTarget; action: StartAction; tags: string[] } | null>(null);
+  const [starting, setStarting] = useState<{ target: StartTarget; action: StartAction; tags: string[]; progress: { done: number; total: number }; worked: string | null } | null>(null);
+  // What the last thing done on the working surface made true. It lives here,
+  // not in the screen, because finishing a step re-resolves the screen to the
+  // next move and the sentence has to survive that.
+  const [startAck, setStartAck] = useState<(StartAck & { undo?: () => Promise<void> }) | null>(null);
+  const { prefs: feedbackPrefs } = useFeedback();
+  const ackNonce = useRef(0);
+  const acknowledge = (a: Omit<StartAck, "nonce" | "canUndo"> & { undo?: () => Promise<void> }) => {
+    ackNonce.current += 1;
+    setStartAck({ ...a, canUndo: !!a.undo, nonce: ackNonce.current });
+  };
   // Choosing another HIDES this one for the visit; nothing is written, and
   // nothing is deferred. Same posture the What Now sheet's Something Else
   // already takes.
@@ -746,7 +760,7 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, startId, 
 
   /** Load only the links this task actually claims, then resolve. Nothing
    *  is fetched that the task does not already point at. */
-  const openStart = useCallback(async (id: string) => {
+  const openStart = useCallback(async (id: string, keepAck = false) => {
     const t = await svc.task(id);
     if (!t) return;
     const target: StartTarget = { kind: "task", id, title: t.text, data: t };
@@ -773,7 +787,15 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, startId, 
       today,
       shapeIsComms: comms,
     });
-    setStarting({ target, action: startAction(target, ctx), tags: tagsForTask(id, t) });
+    const w = lastWorkedOf(t);
+    setStarting({
+      target, action: startAction(target, ctx), tags: tagsForTask(id, t),
+      progress: stepCounts(t.steps),
+      worked: w ? lastWorkedLine(whenWorked(w.at, today), w.note) : null,
+    });
+    // A fresh Start from the list begins with a clean slate; re-resolving
+    // after a tick keeps the sentence that was just earned.
+    if (!keepAck) setStartAck(null);
   }, [svc, notesSvc, schedule, peopleSvc, today, projects, goalIdx]);
 
   /** The chips over the title: what this belongs to, from real records. */
@@ -805,7 +827,9 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, startId, 
     const { target, action } = starting;
     const id = target.id;
     const words = text.trim();
-    if (!words) return null;
+    // Writing a draft, a note or a first step needs words; ticking the step
+    // already on screen does not, and must work with the box empty.
+    if (!words && action.completion.saves !== "step_tick") return null;
     switch (action.completion.saves) {
       case "draft":
       case "note": {
@@ -839,21 +863,118 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, startId, 
       case "step_tick": {
         // Ticks the step that is already there. Nothing is ever invented to
         // tick: if there is no open step, there is nothing to report done.
+        // The step is the one the screen SHOWED (its place and its words), so
+        // a second tap, a stale screen or a second device ticks nothing twice
+        // and never ticks a different one (TasksService.setStepDone).
         const t = await svc.task(id);
         if (!t) return null;
         const steps = [...(t.steps ?? [])];
-        const at = steps.findIndex((x) => !x.done && x.text.trim());
+        const at = action.step ? action.step.index : steps.findIndex((x) => !x.done && x.text.trim());
         if (at < 0) return null;
-        steps[at] = { ...steps[at]!, done: true };
-        const ok = await attemptWrite(() => svc.setSteps(id, steps));
+        const words = action.step?.text ?? steps[at]?.text ?? "";
+        let wrote = null as StepWrite | null;
+        const ok = await attemptWrite(async () => { wrote = await svc.setStepDone(id, at, words, true); });
         if (!ok) return null;
         clearSession(id);
+        if (!wrote) { await reload(); await openStart(id, true); return "Already Up to Date"; }
+        // Saved. Now, and only now, the acknowledgment (the effects follow
+        // the write, never the tap; and only for a real change of state).
+        const { changed, before, steps: after } = wrote as StepWrite;
+        const counts = stepCounts(after);
+        if (changed) {
+          playCompletion();
+          const left = after.some((x) => !x.done && x.text.trim());
+          acknowledge({
+            line: left ? stepDoneLine(feedbackPrefs.encouragement, counts.done, counts.total) : allDoneLine(feedbackPrefs.encouragement),
+            done: counts.done, total: counts.total, allDone: !left,
+            undo: () => undoStepTick(id, before, after),
+          });
+        }
         await reload();
-        return "Step Ticked \u00b7 The Task Stays Open";
+        await openStart(id, true);
+        return null;
       }
       default:
         return null;
     }
+  };
+
+  /** "Last Worked on Today", and the note if there was one. */
+  const lastWorkedLine = (when: string, note?: string): string =>
+    lineCase(`last worked on ${when.toLowerCase()}`) + (note ? ` \u00b7 ${note}` : "");
+
+  /** A signature of the steps that matter: words and state, blank lines out. */
+  const stepSig = (steps: import("../notes/types").TaskStep[] | undefined): string =>
+    JSON.stringify((steps ?? []).filter((x) => x.text.trim()).map((x) => [x.text.trim(), x.done]));
+
+  /** Put a tick back by SETTING the exact list it came from, never by
+   *  toggling. If the list has moved on since (another edit, another device)
+   *  nothing is overwritten. No shame either way: the line just says so. */
+  const undoStepTick = async (id: string, before: import("../notes/types").TaskStep[], after: import("../notes/types").TaskStep[]): Promise<void> => {
+    const t = await svc.task(id);
+    if (!t || stepSig(t.steps) !== stepSig(after)) { showToast({ message: lineCase("already changed \u00b7 nothing to undo") }); return; }
+    const ok = await attemptWrite(() => svc.setSteps(id, before));
+    if (!ok) return;
+    const counts = stepCounts(before);
+    await reload();
+    await openStart(id, true);
+    acknowledge({ line: undoLine(feedbackPrefs.encouragement), done: counts.done, total: counts.total, allDone: false });
+  };
+
+  /** Reword the step on screen. */
+  const editStep = async (text: string): Promise<boolean> => {
+    const st = starting?.action.step;
+    if (!starting || !st) return false;
+    const id = starting.target.id;
+    let wrote = null as StepWrite | null;
+    const ok = await attemptWrite(async () => { wrote = await svc.setStepText(id, st.index, st.text, text); });
+    if (!ok) return false;
+    if (!wrote) { showToast({ message: lineCase("this move changed \u00b7 reopen it to edit") }); return false; }
+    const counts = stepCounts((wrote as StepWrite).steps);
+    await reload();
+    await openStart(id, true);
+    acknowledge({ line: lineCase("saved \u00b7 your move is updated"), done: counts.done, total: counts.total, allDone: false });
+    return true;
+  };
+
+  /** Make This Smaller, on a step that exists: the person's own smaller
+   *  first move goes in front of it. The app never writes the step. */
+  const smallerStep = async (text: string): Promise<boolean> => {
+    const st = starting?.action.step;
+    if (!starting || !st) return false;
+    const id = starting.target.id;
+    let wrote = null as StepWrite | null;
+    const ok = await attemptWrite(async () => { wrote = await svc.insertStepBefore(id, st.index, text); });
+    if (!ok) return false;
+    if (!wrote) return false;
+    const counts = stepCounts((wrote as StepWrite).steps);
+    clearSession(id);
+    await reload();
+    await openStart(id, true);
+    acknowledge({ line: lineCase("saved \u00b7 a smaller move is next"), done: counts.done, total: counts.total, allDone: false });
+    return true;
+  };
+
+  /** Worked on It: partial progress, kept apart from completion. */
+  const workedOn = async (note: string): Promise<boolean> => {
+    if (!starting) return false;
+    const id = starting.target.id;
+    let wrote = null as { changed: boolean } | null;
+    const ok = await attemptWrite(async () => { wrote = await svc.logWorkedOn(id, note || undefined); });
+    if (!ok || !wrote) return false;
+    if (!(wrote as { changed: boolean }).changed) return true; // the same tap twice is one entry
+    const t = await svc.task(id);
+    const counts = stepCounts(t?.steps);
+    await reload();
+    await openStart(id, true);
+    acknowledge({ line: workedLine(feedbackPrefs.encouragement), done: counts.done, total: counts.total, allDone: false });
+    return true;
+  };
+
+  /** Stop for now. Saved where it stands, nothing asked, nothing scolded. */
+  const doneForNow = (stopPoint: string) => {
+    leaveStart(stopPoint);
+    showToast({ message: stopLine(feedbackPrefs.encouragement) });
   };
 
   /** Something's in the Way, answered. Only Missing Information writes a
@@ -934,6 +1055,7 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, startId, 
       saveSession(starting.target.id, { kind: starting.action.kind, draft, stopPoint });
     }
     setStarting(null);
+    setStartAck(null);
   };
 
   // THE KEEPS SLIDING ROW (Fewer Buttons, Dave 2026-09-02: "I don't like all
@@ -1067,6 +1189,14 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, startId, 
         onFinish={() => { const id = starting.target.id; setStarting(null); void onToggle(id); }}
         onStartTimer={() => void bookBlock(starting.target.id, starting.target.title, starting.target.data?.category)}
         timerLabel="Fifteen Minutes, as a Real Block"
+        progress={starting.progress}
+        lastWorked={starting.worked}
+        ack={startAck}
+        onUndoAck={() => void startAck?.undo?.()}
+        onEditStep={editStep}
+        onSmallerStep={smallerStep}
+        onWorked={workedOn}
+        onDoneForNow={doneForNow}
       />
     );
   }

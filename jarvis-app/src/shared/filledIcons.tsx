@@ -10,7 +10,7 @@ import {
   Brain, Note, Target, EnvelopeSimple, BellSimple, Wallet, Sparkle, GearSix,
   House, CheckSquare, CalendarBlank, UsersThree, GitFork, Compass, PenNib,
   Flag, Clock, UserCircle, Palette, Tag, SquaresFour, LinkSimple, Lightbulb,
-  CloudArrowUp, SlidersHorizontal, Info, Circle, CalendarCheck, Barbell, Funnel, Robot } from "@phosphor-icons/react";
+  CloudArrowUp, SlidersHorizontal, Info, Circle, CalendarCheck, Barbell, Funnel, Robot, HandHeart } from "@phosphor-icons/react";
 
 const P = { weight: "fill" as const, className: "ic" };
 
@@ -47,6 +47,8 @@ export const FILLED_SETTINGS: Record<string, ReactNode> = {
   account: <UserCircle {...P} />,
   notifsettings: <BellSimple {...P} />,
   appearance: <Palette {...P} />,
+  // Feedback Style (2026-10-04): how the app says a step is done.
+  feedbackstyle: <HandHeart {...P} />,
   categories: <Tag {...P} />,
   edittabs: <SquaresFour {...P} />,
   connections: <LinkSimple {...P} />,

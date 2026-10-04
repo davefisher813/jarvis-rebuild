@@ -1,6 +1,7 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { AppearanceProvider } from "./appearance/AppearanceProvider";
+import { FeedbackProvider } from "./encourage/FeedbackProvider";
 import { AuthProvider } from "./auth/AuthProvider";
 import { emit } from "./events";
 import { startEventPipeline } from "./events/pipeline";
@@ -47,9 +48,11 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <ErrorBoundary>
       <AppearanceProvider>
-        <AuthProvider>
-          <App />
-        </AuthProvider>
+        <FeedbackProvider>
+          <AuthProvider>
+            <App />
+          </AuthProvider>
+        </FeedbackProvider>
       </AppearanceProvider>
     </ErrorBoundary>
   </React.StrictMode>,
