@@ -19,6 +19,7 @@ import ProjectRowRuled from "./ProjectRowRuled";
 import RowActionSheet from "../shared/RowActionSheet";
 import { nextMilestone } from "./measure";
 import { lineCase, titleCase } from "../shared/casing";
+import { showToast } from "../shared/toast";
 import { fmtDay } from "../decisions/DecisionsFlow";
 
 // YOUR LIFE (the Life Merge, Dave 2026-08-26: "it's stupid having them
@@ -623,7 +624,16 @@ export default function BiggerPicturePage({
           row, and the one control that puts everything back. */}
       {optsOpen && (
         <OptionsSheet title={projectsLens ? "Projects Options" : "Goals Options"} rows={[
-          { key: "all", label: "Show Everything", onClick: () => { setOptsOpen(false); setView("all"); setAreaOnly(null); } },
+          // A button that can change nothing is not offered as a button (Dave, 2026-10-04: "does Show Everything actually
+          // do anything?"). With a status or an area narrowing the list it resets both, says what it was showing, and
+          // confirms; with nothing narrowing it, the row is a plain status line, with no chevron and no tap.
+          view !== "all" || areaOnly
+            ? {
+                key: "all", label: "Show Everything",
+                value: [(projectsLens ? PROJECT_VIEWS : GOAL_VIEWS).find((v) => v.key === view)?.label, areaOnly ? sections.find((c) => c.id === areaOnly)?.name ?? null : null].filter(Boolean).join(" \u00b7 "),
+                onClick: () => { setOptsOpen(false); setView("all"); setAreaOnly(null); showToast({ message: "Showing Everything" }); },
+              }
+            : { key: "all", label: "Showing Everything", value: "All Statuses \u00b7 All Areas" },
         ]} onClose={() => setOptsOpen(false)} />
       )}
     </div>

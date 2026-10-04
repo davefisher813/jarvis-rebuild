@@ -38,12 +38,24 @@ interface AuthValue {
   updatePassword: (password: string) => Promise<void>;
 }
 
+// THE RECOVERY WINDOW SURVIVES A RELOAD (P0, 2026-10-04). A reset link opens
+// the app in a browser, Supabase signs that browser in from the URL and
+// raises PASSWORD_RECOVERY once. The flag lived only in memory, so any reload
+// after the landing (the service worker's, a deploy check, iOS dropping the
+// tab) found a signed-in session and no flag, and the person who came to set a
+// new password was handed the ordinary app instead. The tab remembers it for
+// as long as the tab lives, and it goes the moment the password is saved, the
+// person signs out, or the session it belonged to is gone.
+const RECOVERY_KEY = "jarvis.auth.recovery.v1";
+const readRecovery = (): boolean => { try { return sessionStorage.getItem(RECOVERY_KEY) === "1"; } catch { return false; } };
+const writeRecovery = (on: boolean): void => { try { if (on) sessionStorage.setItem(RECOVERY_KEY, "1"); else sessionStorage.removeItem(RECOVERY_KEY); } catch { /* private mode: it lives in memory only */ } };
+
 const AuthContext = createContext<AuthValue | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [ready, setReady] = useState(false);
-  const [recovery, setRecovery] = useState(false);
+  const [recovery, setRecovery] = useState(readRecovery);
 
   useEffect(() => {
     if (!supabase) {
@@ -52,19 +64,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session);
+      // A remembered recovery with no session behind it is stale.
+      if (!data.session) { writeRecovery(false); setRecovery(false); }
       setReady(true);
     });
     const { data: sub } = supabase.auth.onAuthStateChange((event, s) => {
       setSession(s);
       if (event === "SIGNED_IN") emit({ type: "auth.signed_in" });
-      if (event === "SIGNED_OUT") { setRecovery(false); emit({ type: "auth.signed_out" }); }
+      if (event === "SIGNED_OUT") { writeRecovery(false); setRecovery(false); emit({ type: "auth.signed_out" }); }
       // SHELL-F-04 (2026-09-05): the reset email's link opens the app in a
       // browser and detectSessionInUrl signs that browser in, so JARVIS
       // showed the ordinary app and offered nowhere to type a new password.
       // The old one still did not work, and the locked-out user stayed
       // locked out. This is the event Supabase raises for exactly that
       // landing, and it is the whole signal the app needs.
-      if (event === "PASSWORD_RECOVERY") setRecovery(true);
+      if (event === "PASSWORD_RECOVERY") { writeRecovery(true); setRecovery(true); }
     });
     // UP-LAUNCH-11: the native half of the same landing. On the phone a
     // magic link or a reset link arrives as a jarvis:// URL through
@@ -100,7 +114,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // unknown answer is treated as a no, same as the screen does.
         if ((await providerFlags())?.apple !== true) throw new Error(APPLE_UNAVAILABLE);
         if (!appleNativeAvailable()) {
-          const { error: oauthError } = await supabase.auth.signInWithOAuth({ provider: "apple" });
+          // THE WEB REDIRECT NEEDS ITS OWN LANDING (2026-10-04, P0). With no
+          // redirectTo, Supabase sends the browser back to the project's Site
+          // URL, which was still localhost:3000: Safari said it could not
+          // connect to the server. Every email and OAuth call below names
+          // where it lands, and src/laws/authRedirects.test.ts holds them to it.
+          const to = authRedirectTo();
+          const { error: oauthError } = await supabase.auth.signInWithOAuth({ provider: "apple", ...(to ? { options: { redirectTo: to } } : {}) });
           if (oauthError) throw new Error(isUnsupportedProvider(oauthError) ? APPLE_UNAVAILABLE : oauthError.message);
           return;
         }
@@ -130,7 +150,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       },
       signUpWithPassword: async (email: string, password: string) => {
         if (!supabase) throw new Error("Auth backend not configured");
-        const res = await supabase.auth.signUp({ email, password });
+        // With email confirmation on, signUp sends a confirmation link, and
+        // a link with no redirect lands on the project's Site URL.
+        const to = authRedirectTo();
+        const res = await supabase.auth.signUp({ email, password, ...(to ? { options: { emailRedirectTo: to } } : {}) });
         if (res.error) throw res.error;
         // With email confirmation off, a session comes back immediately. If not,
         // fall back to an explicit password sign-in.
@@ -168,10 +191,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (!supabase) throw new Error("Auth backend not configured");
         const { error } = await supabase.auth.updateUser({ password });
         if (error) throw error;
+        writeRecovery(false);
         setRecovery(false);
       },
       signOut: async () => {
         await supabase?.auth.signOut();
+        writeRecovery(false);
         setRecovery(false);
         // One user's data on shared glass dies with the session,
         // unconditionally.
