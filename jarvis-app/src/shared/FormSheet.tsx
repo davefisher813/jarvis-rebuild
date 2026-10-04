@@ -165,9 +165,11 @@ export function Row({ tone, glyph, label, meta, children, onClick, forwardTo, ch
 
 /** The row that IS an input: a typed value, at the right when it has a
     label beside it, filling the row when it is the row's only thing. */
-export function FieldRow({ tone, glyph, label, value, onChange, placeholder, type = "text", inputMode, ariaLabel, error = false, right = true, onEnter }: {
+export function FieldRow({ tone, glyph, label, value, onChange, placeholder, type = "text", inputMode, ariaLabel, error = false, right = true, onEnter, autoComplete }: {
   tone?: string; glyph?: ReactNode; label?: string; value: string; onChange: (v: string) => void; placeholder?: string;
-  type?: "text" | "date" | "time" | "url" | "email" | "tel"; inputMode?: "text" | "numeric" | "decimal"; ariaLabel: string; error?: boolean; right?: boolean;
+  type?: "text" | "date" | "time" | "url" | "email" | "tel" | "password"; inputMode?: "text" | "numeric" | "decimal"; ariaLabel: string; error?: boolean; right?: boolean;
+  /** What the browser may fill: "current-password" and "new-password" tell a password manager which is which. */
+  autoComplete?: string;
   /** Enter in the field saves, for the sheets that are one name long. */
   onEnter?: () => void;
 }) {
@@ -179,6 +181,7 @@ export function FieldRow({ tone, glyph, label, value, onChange, placeholder, typ
         className={"xs-input" + (label && right ? " xs-field" : "") + (error ? " input-error" : "")}
         type={type}
         inputMode={inputMode}
+        autoComplete={autoComplete}
         placeholder={placeholder}
         aria-label={ariaLabel}
         value={value}

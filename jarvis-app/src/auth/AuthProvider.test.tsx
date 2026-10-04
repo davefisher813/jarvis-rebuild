@@ -231,6 +231,51 @@ describe("password recovery", () => {
   });
 });
 
+// ACCOUNT > CHANGE PASSWORD (2026-10-04, Dave). updateUser({ password }) works
+// on any live session without the old password, so the old one is proven first
+// by signing in with it, and nothing is written when that fails.
+describe("changePassword", () => {
+  const withEmail = (email: string | undefined) =>
+    getSession.mockResolvedValue({ data: { session: { access_token: "tok123", user: { id: "u1", ...(email ? { email } : {}) } } } });
+
+  it("checks the current password with the account's own email, then writes the new one", async () => {
+    withEmail("dave@example.com");
+    const get = renderAuth();
+    await waitFor(() => expect(get().ready).toBe(true));
+    await get().changePassword("old-pass-1", "new-pass-2");
+    expect(signInWithPassword).toHaveBeenCalledWith({ email: "dave@example.com", password: "old-pass-1" });
+    expect(updateUser).toHaveBeenCalledWith({ password: "new-pass-2" });
+    // The proof comes first: a write that ran before it would be the hole this closes.
+    expect(signInWithPassword.mock.invocationCallOrder[0]!).toBeLessThan(updateUser.mock.invocationCallOrder[0]!);
+  });
+
+  it("a wrong current password throws Supabase's own refusal and writes nothing", async () => {
+    withEmail("dave@example.com");
+    signInWithPassword.mockResolvedValue({ error: Object.assign(new Error("Invalid login credentials"), { code: "invalid_credentials" }) });
+    const get = renderAuth();
+    await waitFor(() => expect(get().ready).toBe(true));
+    await expect(get().changePassword("wrong", "new-pass-2")).rejects.toMatchObject({ code: "invalid_credentials" });
+    expect(updateUser).not.toHaveBeenCalled();
+  });
+
+  it("a refusal to write the new password comes back as it was sent", async () => {
+    withEmail("dave@example.com");
+    updateUser.mockResolvedValue({ error: Object.assign(new Error("same"), { code: "same_password" }) });
+    const get = renderAuth();
+    await waitFor(() => expect(get().ready).toBe(true));
+    await expect(get().changePassword("old-pass-1", "old-pass-1")).rejects.toMatchObject({ code: "same_password" });
+  });
+
+  it("an account with no email has nothing to check against, and says so", async () => {
+    withEmail(undefined);
+    const get = renderAuth();
+    await waitFor(() => expect(get().ready).toBe(true));
+    await expect(get().changePassword("old-pass-1", "new-pass-2")).rejects.toThrow(/no email/);
+    expect(signInWithPassword).not.toHaveBeenCalled();
+    expect(updateUser).not.toHaveBeenCalled();
+  });
+});
+
 // THE RECOVERY WINDOW SURVIVES A RELOAD (P0, 2026-10-04). On a first visit the
 // service worker's first claim used to reload the page about three seconds
 // after a reset link landed, and the in-memory flag went with it: the person

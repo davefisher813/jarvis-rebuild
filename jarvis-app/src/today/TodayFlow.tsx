@@ -17,6 +17,7 @@ import { ENTITY_EVENT, type EventItem } from "../schedule/types";
 import { ENTITY_TASK } from "../notes/types";
 import { useFreshLists } from "../data/useFreshLists";
 import type { TaskItem } from "../tasks/TasksService";
+import { onProfileName } from "../profile/profileName";
 import { greetingFor, longDate, shortDate } from "./greeting";
 import { tomorrowISO, nowHHMM, daySummary, dayRing, todaysTasks, billsLine, dueBills, payTarget } from "./todayData";
 import TodayPage from "./TodayPage";
@@ -327,6 +328,9 @@ export default function TodayFlow({
   const [routineData, setRoutineData] = useState<RoutineData>(DEFAULT_ROUTINE);
   const [routineSet, setRoutineSet] = useState(true);
   const [name, setName] = useState("");
+  // A name saved on Edit Profile reaches the disc and the greeting here without
+  // a reload (profile/profileName.ts).
+  useEffect(() => onProfileName(setName), []);
   const [planCap, setPlanCap] = useState<number | undefined>(undefined);
   // S4-Q28 (2026-09-04): fetched through the window (not the local device log
   // alone) so a duration committed on one phone teaches the planner on a

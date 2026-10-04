@@ -1,11 +1,15 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { useState } from "react";
 import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import { NotesProvider, useCategories, useProfile } from "../data/NotesProvider";
 import { ProfileService } from "../profile/ProfileService";
 import { WRITE_FAILED_MESSAGE } from "../shared/guard";
 import ProfilePage from "./ProfilePage";
+import AccountPage from "./AccountPage";
+import { onProfileName } from "../profile/profileName";
+import { AuthProvider } from "../auth/AuthProvider";
 
 // S3-Q20 (2026-09-04): "Changing template means redoing intake." Template
 // used to be a dead read-only row here; the only path to change it was Redo
@@ -96,5 +100,67 @@ describe("ProfilePage Template picker (S3-Q20)", () => {
     fireEvent.click(screen.getByRole("button", { name: "Template" }));
     fireEvent.click(screen.getByRole("menuitemradio", { name: "Personal" }));
     expect(showToast).not.toHaveBeenCalled();
+  });
+});
+
+// EDIT PROFILE CHANGES THE NAME, AND THE NAME FOLLOWS (2026-10-04, Dave: "verify
+// username change persists and shows everywhere the name appears"). The name is
+// the profile's one display name: this page writes it, the Account card and
+// Today's disc and greeting read it, so each is checked against the same saved
+// record, and the mounted screens are told without a reload.
+describe("ProfilePage Name (Edit Profile)", () => {
+  it("saves the trimmed name on the profile record and says it is saved", async () => {
+    renderPage("u-name-save");
+    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "  Dave Fisher  " } });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Saved" })).toBeInTheDocument());
+    expect((await profileRef!.get())?.name).toBe("Dave Fisher");
+  });
+
+  it("tells every mounted screen the new name, once, and only when the write landed", async () => {
+    const heard: string[] = [];
+    const stop = onProfileName((n) => heard.push(n));
+    renderPage("u-name-announce");
+    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Dave F" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(heard).toEqual(["Dave F"]));
+    stop();
+  });
+
+  it("a write that fails announces nothing and does not latch Saved", async () => {
+    const heard: string[] = [];
+    const stop = onProfileName((n) => heard.push(n));
+    renderPage("u-name-fail");
+    vi.spyOn(ProfileService.prototype, "save").mockRejectedValue(new Error("offline"));
+    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Dave F" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(showToast).toHaveBeenCalled());
+    expect(heard).toEqual([]);
+    expect(screen.queryByRole("button", { name: "Saved" })).not.toBeInTheDocument();
+    stop();
+  });
+
+  it("persists: a later screen reads the saved name, and the Account card shows it with its initial", async () => {
+    // One provider, two pages, the way More does it: Account opens Profile,
+    // Profile goes back to Account, which reads the record afresh.
+    function Route() {
+      const [page, setPage] = useState<"profile" | "account">("profile");
+      return page === "profile"
+        ? <ProfilePage onBack={() => setPage("account")} />
+        : <AccountPage onBack={() => {}} />;
+    }
+    render(
+      <AuthProvider>
+        <NotesProvider userId="u-name-persist">
+          <Route />
+        </NotesProvider>
+      </AuthProvider>,
+    );
+    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Mara Lin" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Saved" })).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("button", { name: "Account" }));
+    expect(await screen.findByText("Mara Lin")).toBeInTheDocument();
+    expect(document.querySelector(".account-av .av")?.textContent).toBe("M");
   });
 });

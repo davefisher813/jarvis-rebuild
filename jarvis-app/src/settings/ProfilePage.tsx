@@ -5,6 +5,7 @@ import LargeTitleNav from "../shared/LargeTitleNav";
 import { Head, Card, Menu, focusField } from "./kit";
 import { attemptWrite } from "../shared/guard";
 import { showToast } from "../shared/toast";
+import { announceProfileName } from "../profile/profileName";
 
 const LABEL: Record<TemplateKey, string> = { personal: "Personal", business: "Business", student: "Student" };
 const TEMPLATE_OPTIONS = [
@@ -35,6 +36,9 @@ export default function ProfilePage({ onBack }: { onBack: () => void }) {
   const save = async () => {
     const ok = await attemptWrite(() => profile.save({ name: name.trim() }));
     setSaved(ok);
+    // Today's disc and greeting are on a screen that may still be mounted;
+    // they follow without a reload (profile/profileName.ts).
+    if (ok) announceProfileName(name.trim());
   };
   // S3-Q20 (2026-09-04): Template was a dead read-only row, so the only way
   // to change Personal/Business/Student was Redo Setup -- the full ~15-tap

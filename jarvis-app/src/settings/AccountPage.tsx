@@ -9,6 +9,7 @@ import { attemptWrite } from "../shared/guard";
 import { showToast } from "../shared/toast";
 import RowActionSheet from "../shared/RowActionSheet";
 import { avatarFromFile, announceAvatar } from "../profile/avatarPhoto";
+import ChangePasswordSheet from "./ChangePasswordSheet";
 
 export default function AccountPage({ onBack, onEditProfile, onSignOut }: { onBack: () => void; onEditProfile?: () => void; onSignOut?: () => void }) {
   const svc = useProfile();
@@ -67,6 +68,9 @@ export default function AccountPage({ onBack, onEditProfile, onSignOut }: { onBa
   // Choose Photo opens the system picker through a hidden file input; the
   // photo is cut to a 256px square on the phone and saved on the profile.
   const [photoSheet, setPhotoSheet] = useState(false);
+  // Change Password is one more row of the Account card and one sheet; it is
+  // only offered where there is an account to change a password on.
+  const [passwordSheet, setPasswordSheet] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const photo = p?.avatar ?? "";
   const savePhoto = async (next: string): Promise<boolean> => {
@@ -107,6 +111,7 @@ export default function AccountPage({ onBack, onEditProfile, onSignOut }: { onBa
       <Head label="Account" />
       <Card>
         {onEditProfile && <Row label="Edit Profile" onClick={onEditProfile} chev />}
+        {backendConfigured && <Row label="Change Password" onClick={() => setPasswordSheet(true)} chev />}
         <Row label="Template" value={tmpl} />
         {/* B4 (2026-09-04): "Active" was a literal string, true only by
             coincidence when a real account exists. This page also renders in
@@ -147,6 +152,7 @@ export default function AccountPage({ onBack, onEditProfile, onSignOut }: { onBa
         </div>
       )}
       <div className="screen-foot" />
+      {passwordSheet && <ChangePasswordSheet onClose={() => setPasswordSheet(false)} />}
       {photoSheet && (
         <RowActionSheet
           title="Profile Photo"
