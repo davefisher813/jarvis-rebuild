@@ -4,6 +4,7 @@ import { render, screen, fireEvent, act, waitFor } from "@testing-library/react"
 import "@testing-library/jest-dom";
 import PlanDaySheet, { type PlanCandidate, type PlanBlocked } from "./PlanDaySheet";
 import { fmtTime } from "../calendar";
+import { subscribeToast, resetToasts } from "../../shared/toast";
 
 function label(hhmm: string) { const t = fmtTime(hhmm); return `${t.time} ${t.ap}`; }
 
@@ -433,5 +434,41 @@ describe("the plan facts line says two separate things", () => {
   it("with no peak known, only the landing fact shows", () => {
     render(sheet({ blocked: FOCUS }));
     expect([...document.querySelectorAll(".plan-facts > .fact")].map((f) => f.textContent)).toEqual(["Picks Go into Deep Work"]);
+  });
+});
+
+// PLAN IT NEVER GOES QUIET (2026-10-04). With nothing picked, Plan It returned
+// when autoSelect found nothing and said nothing: a tap that looked dead. The
+// only way it finds nothing with tasks on the list is a day cap that leaves no
+// room (chosenCap of 0), so the tap says so, and says which day.
+describe("Plan It says why when it plans nothing", () => {
+  const toasts = (run: () => void): string[] => {
+    resetToasts();
+    const seen: string[] = [];
+    const stop = subscribeToast((t) => { if (t) seen.push(t.message); });
+    try { run(); } finally { stop(); }
+    return seen;
+  };
+
+  it("a day with no room left for a pick names that, for today", () => {
+    render(sheet({ chosenCap: 0 }));
+    // Nothing was seeded, so the primary is Plan It and it is live.
+    const planIt = screen.getByText("Plan It");
+    expect(planIt).toBeEnabled();
+    expect(toasts(() => fireEvent.click(planIt))).toEqual(["No Room Left Today"]);
+    // And it did not pretend to plan.
+    expect(document.querySelectorAll(".p3-row.on").length).toBe(0);
+  });
+
+  it("names tomorrow when the sheet is planning tomorrow", () => {
+    render(sheet({ chosenCap: 0, target: "tomorrow", onTarget: () => {} }));
+    expect(toasts(() => fireEvent.click(screen.getByText("Plan It")))).toEqual(["No Room Left Tomorrow"]);
+  });
+
+  it("a day with room still plans on the tap, with no toast", () => {
+    render(sheet({ tasks: TASKS.slice(0, 1) }));
+    fireEvent.click(screen.getByText("Email vendor"));
+    expect(toasts(() => fireEvent.click(screen.getByText("Plan It")))).toEqual([]);
+    expect(document.querySelectorAll(".p3-row.on").length).toBe(1);
   });
 });

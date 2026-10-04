@@ -20,7 +20,7 @@ export const KIND_LABEL: Record<ReportKind, string> = {
   checkin: "Check Ins",
 };
 
-export default function DoctorReportScreen({ report, range, onRange, custom, onCustom, kinds, onToggleKind, hasMeals = false, hasCheckins = false, onExport, onCopy, onBack }: {
+export default function DoctorReportScreen({ report, range, onRange, custom, onCustom, kinds, onToggleKind, hasAteBefore = false, hasMeals = false, hasCheckins = false, onExport, onCopy, onBack }: {
   report: DoctorReport;
   range: ReportRange;
   onRange: (r: ReportRange) => void;
@@ -29,6 +29,11 @@ export default function DoctorReportScreen({ report, range, onRange, custom, onC
   onCustom: (c: { from: string; to: string }) => void;
   kinds: ReportKind[];
   onToggleKind: (k: ReportKind) => void;
+  /** Ate Before is offered only once there is a mark to include (2026-10-04).
+   *  Nothing in the app records one while Ate Before stays dormant (it asks
+   *  about a practice or a game and nothing marks an event as either), so an
+   *  always-on chip toggled a filter over nothing. */
+  hasAteBefore?: boolean;
   /** Meals is offered only once there is a meal to include. */
   hasMeals?: boolean;
   /** Check Ins is offered only once there is one to include. */
@@ -45,7 +50,7 @@ export default function DoctorReportScreen({ report, range, onRange, custom, onC
   // Row tap (Dave 2026-09-15, "I want all rows clickable"): a date row
   // focuses its field; a tap on the field itself is left to the field.
   const focusRow = (ref: RefObject<HTMLInputElement | null>) => (e: MouseEvent) => { if (e.target !== ref.current) ref.current?.focus(); };
-  const offered: ReportKind[] = ["dose", "lights_out", "food", "session", ...(hasMeals ? ["meal" as const] : []), ...(hasCheckins ? ["checkin" as const] : [])];
+  const offered: ReportKind[] = ["dose", "lights_out", ...(hasAteBefore ? ["food" as const] : []), "session", ...(hasMeals ? ["meal" as const] : []), ...(hasCheckins ? ["checkin" as const] : [])];
   return (
     <div className="screen ruled health-ruled">
       <div className="nav-bar">

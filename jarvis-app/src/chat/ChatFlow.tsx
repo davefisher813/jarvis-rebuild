@@ -372,8 +372,12 @@ export default function ChatFlow({ onOpen, onCompose, askPersonId, askNonce, onA
       showToast({
         message: "Task deleted",
         actionLabel: "Undo",
+        // 2026-10-04: Undo wrote a bare text, category and due copy under a
+        // NEW id, so a recurring task, its steps, notes and links did not come
+        // back and anything holding the old id stopped opening it. Every
+        // other task Undo writes the whole snapshot back under its own id.
         onAction: async () => {
-          if (snapshotTask) await attemptWrite(() => tasksSvc.createTask(snapshotTask.text, { category: snapshotTask.category, due: snapshotTask.due ?? null }));
+          if (snapshotTask) await attemptWrite(() => tasksSvc.recreateFrom(snapshotTask, target.id));
         },
       });
     }
@@ -673,17 +677,23 @@ export default function ChatFlow({ onOpen, onCompose, askPersonId, askNonce, onA
       kind: "action",
       refs: [{ kind: "file", id: rowId, label: file.name }],
     });
-    const remove: Undo = async () => {
+    // 2026-10-04: the result of the delete was thrown away, so a delete that
+    // failed (attemptWrite had already said so) was followed at once by
+    // "Receipt removed", which replaced the failure and was not true. The
+    // stored file went too, leaving a receipt row pointing at nothing. Both
+    // now wait on the row actually being gone.
+    const takeBack = async (): Promise<boolean> => {
       const row = await filesSvc.get(rowId);
-      await attemptWrite(() => filesSvc.remove(rowId));
-      if (row?.data.path) void fileStore.remove([row.data.path]);
+      const gone = await attemptWrite(() => filesSvc.remove(rowId));
+      if (gone && row?.data.path) void fileStore.remove([row.data.path]);
+      return gone;
     };
+    const remove: Undo = async () => { await takeBack(); };
     showToast({
       message: "Filed to Money",
       actionLabel: "Undo",
       onAction: async () => {
-        await remove();
-        showToast({ message: "Receipt removed" });
+        if (await takeBack()) showToast({ message: "Receipt removed" });
       },
     });
     return remove;
@@ -708,16 +718,19 @@ export default function ChatFlow({ onOpen, onCompose, askPersonId, askNonce, onA
       kind: "action",
       refs: [{ kind: "note", id: noteId, label: fileStem(file.name) }],
     });
-    const remove: Undo = async () => {
-      await attemptWrite(() => notes.deleteNote(noteId));
-      void fileStore.removeAll(noteId);
+    // 2026-10-04: same as the receipt above: "Note removed" and the attached
+    // files going are earned by the note being gone, not by the tap.
+    const takeBack = async (): Promise<boolean> => {
+      const gone = await attemptWrite(() => notes.deleteNote(noteId));
+      if (gone) void fileStore.removeAll(noteId);
+      return gone;
     };
+    const remove: Undo = async () => { await takeBack(); };
     showToast({
       message: "Saved to Notes",
       actionLabel: "Undo",
       onAction: async () => {
-        await remove();
-        showToast({ message: "Note removed" });
+        if (await takeBack()) showToast({ message: "Note removed" });
       },
     });
     return remove;
@@ -746,7 +759,11 @@ export default function ChatFlow({ onOpen, onCompose, askPersonId, askNonce, onA
       await say("user", said ? `${said} · ${file.name}` : file.name);
       const decided = routeFile({ name: file.name, mime: file.type, text: said });
       const to = decided?.to ?? await askWhere(file, said);
-      setLastUndo(await deliver(file, to, decided?.why ?? "Read from the file itself"));
+      // 2026-10-04: an Undo is a function, and setState given a function
+      // CALLS it as an updater, so every receipt and note filed here was
+      // taken straight back the moment it was filed. Wrapped, it is stored.
+      const undo = await deliver(file, to, decided?.why ?? "Read from the file itself");
+      setLastUndo(() => undo);
     } catch (e) {
       // Never a silent failure: the bytes did not land and the thread says so.
       await say("jarvis", e instanceof Error && e.message ? e.message : "Couldn't save that file", { kind: "records" });
@@ -768,7 +785,8 @@ export default function ChatFlow({ onOpen, onCompose, askPersonId, askNonce, onA
     try {
       // The new place first, then the old filing comes back; a delivery
       // that fails leaves the file where it was.
-      setLastUndo(await refileWith(() => deliver(lastFile, to, "You moved it here"), lastUndo));
+      const undo = await refileWith(() => deliver(lastFile, to, "You moved it here"), lastUndo);
+      setLastUndo(() => undo);
     } catch (e) {
       await say("jarvis", e instanceof Error && e.message ? e.message : "Couldn't save that file", { kind: "records" });
     } finally {

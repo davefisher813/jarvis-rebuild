@@ -43,6 +43,19 @@ describe("dayItemsFor", () => {
     expect(items.find((i) => i.title === "Deep Work")).toMatchObject({ kind: "flexible", holds: true });
   });
 
+  // KEPT CLEAR WHEN POSSIBLE REACHES A BLEND (2026-10-04). A commute or a gym
+  // is busy time (a wall) until its flexible switch is on; the conflict check
+  // used to hold a blend as protected whatever the switch said.
+  it("a Can Blend block is a wall, and flexible once its switch is on", () => {
+    const blends: ProtectedRange[] = [
+      { s: hm(7), e: hm(8), label: "Drive", id: "c1", kind: "commute" },
+      { s: hm(8), e: hm(9), label: "School Run", id: "c2", kind: "commute", soft: true },
+    ];
+    const kind = (title: string) => dayItemsFor([], DAY, blends).find((i) => i.title === title)?.kind;
+    expect(kind("Drive")).toBe("protected");
+    expect(kind("School Run")).toBe("flexible");
+  });
+
   it("an event with no end is an hour, like the calendar says", () => {
     const [i] = dayItemsFor([ev("e", "Call", "09:00", undefined)], DAY);
     expect(i).toMatchObject({ start: hm(9), end: hm(10) });

@@ -35,6 +35,17 @@ describe("DoctorReportScreen choosers", () => {
     expect(screen.getByRole("button", { name: "Meals" })).toHaveAttribute("aria-pressed", "false");
   });
 
+  // AN INCLUDE CHIP NEEDS SOMETHING TO INCLUDE (2026-10-04). Ate Before was
+  // always offered, but nothing in the app records one (the screen that does
+  // stays dormant), so the chip filtered nothing; Meals and Check Ins already
+  // wait for a row of their own.
+  it("offers Ate Before only once a mark exists to include", () => {
+    const { rerender } = render(<DoctorReportScreen {...base} kinds={[...base.kinds]} />);
+    expect(screen.queryByRole("button", { name: "Ate Before" })).toBeNull();
+    rerender(<DoctorReportScreen {...base} kinds={[...base.kinds]} hasAteBefore />);
+    expect(screen.getByRole("button", { name: "Ate Before" })).toHaveAttribute("aria-pressed", "true");
+  });
+
   it("still labels itself the family's own log and exports only on a tap", () => {
     const onExport = vi.fn();
     render(<DoctorReportScreen {...base} kinds={[...base.kinds]} onExport={onExport} />);

@@ -23,7 +23,7 @@ import LiftDetailScreen from "./LiftDetailScreen";
 import LiftGoalSheet from "./LiftGoalSheet";
 import { readLive, readPending, writeLive, clearLive, logSet, setLoggedSets, skipExercise, swapExercise, addExerciseMidSession, sessionExercisesSameAsLastTime, programExerciseFor, queueFinished, flushPending, hasWork, isStillActive, parkLive, resumeLive, twinWorkout, type LiveSession, elapsedMs } from "./liveSession";
 import { bumpStrip, uniformStrip } from "./strip";
-import { composeLibrary, newExerciseKey, type LibraryEntry } from "./library";
+import { composeLibrary, newExerciseKey, planOf, type LibraryEntry } from "./library";
 import LibraryPickSheet from "./LibraryPickSheet";
 import { emit } from "../events";
 import { dayWithSessionEntry, movedToDay } from "./edit";
@@ -927,13 +927,16 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
    *  and not at all if the session was abandoned. A seed costs nothing and
    *  withCreated drops it the moment a real sighting of the same name at the
    *  same measurement exists, so this never doubles a row. */
-  const seedLibrary = (draft: { name: string; kind: MeasureKind; unit?: string; exerciseKey?: string }) => {
+  const seedLibrary = (draft: { name: string; kind: MeasureKind; unit?: string; exerciseKey?: string } & Parameters<typeof planOf>[0]) => {
     const name = draft.name.trim();
     if (!name) return;
     const known = library.some((e) => e.name.trim().toLowerCase() === name.toLowerCase() && e.kind === draft.kind)
       || createdLifts.some((c) => c.name.trim().toLowerCase() === name.toLowerCase() && c.kind === draft.kind);
     if (known) return;
-    saveCreatedLifts([...createdLifts, { key: draft.exerciseKey ?? newExerciseKey(), name, kind: draft.kind, ...(draft.unit ? { unit: draft.unit } : {}) }]);
+    // The plan rides with the seed (2026-10-04), so the rest, ramp, clock and
+    // note the sheet showed are there when the lift is picked again.
+    const plan = planOf(draft);
+    saveCreatedLifts([...createdLifts, { key: draft.exerciseKey ?? newExerciseKey(), name, kind: draft.kind, ...(draft.unit ? { unit: draft.unit } : {}), ...(plan ? { plan } : {}) }]);
   };
   // WHAT EACH EXERCISE IS (2026-09-14, second pass). The whole classification
   // by library key, read once through classify.readClassStore -- which also
@@ -956,6 +959,17 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
     }
     setMuscleByKey(muscles as Record<string, MuscleGroup[]>);
     writeGymSettings({ ...readGymSettings(), classByKey: next, muscleByKey: muscles });
+  };
+  /** THE MUSCLE A SHEET WAS TOLD (2026-10-04), filed as the classification it
+   *  is. Both places that add a lift from the sheet use it: the library page's
+   *  create, and a lift added to a finished workout, which dropped the muscle
+   *  because nothing on a workout record reads one. A stored muscle wins, so
+   *  adding a lift that is already classified never rewrites it. */
+  const classifyFromSheet = (key: string, draft: { kind: MeasureKind; muscleGroup?: MuscleGroup } & Parameters<typeof loadFields>[0]) => {
+    if (!key || !draft.muscleGroup) return;
+    const cur = classStore[key];
+    if (cur && muscleListOf(cur).length > 0) return;
+    saveClassStore({ ...classStore, [key]: { ...(cur ?? EMPTY_CLASS), primary: [draft.muscleGroup], measure: draft.kind, ...loadFields(draft) } });
   };
   // THE MERGE, AS A STATE MACHINE (gym/merge.ts). Held here rather than in
   // the page because the write lives here: the sheet may not enter `merged`
@@ -2150,17 +2164,21 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
             // The sheet is the whole editor now, so whatever it was told
             // travels with the seed rather than being asked for again the
             // first time the lift is used.
+            // And what it PLANNED (2026-10-04): the strip, rest, ramp, filler,
+            // note and clock were shown on the sheet and dropped on save. They
+            // ride with the seed and are laid back into the sheet when the
+            // lift is picked into a day or a session (see ExerciseSheet).
+            const plan = planOf(draft);
             saveCreatedLifts([...createdLifts, {
               key, name: cased, kind: draft.kind,
               ...(draft.unit ? { unit: draft.unit } : {}),
               ...loadFields(draft),
+              ...(plan ? { plan } : {}),
             }]);
             // A muscle is a CLASSIFICATION, not a property of the entry, so it
             // goes where every other muscle assignment goes -- which is also
             // what takes the amber Assign Muscles chip off the new row.
-            if (draft.muscleGroup) {
-              saveClassStore({ ...classStore, [key]: { ...EMPTY_CLASS, primary: [draft.muscleGroup], measure: draft.kind, ...loadFields(draft) } });
-            }
+            classifyFromSheet(key, draft);
             showToast({ message: `${cased} added` });
           }}
           // THE GOAL OPTION, WHERE THE EXERCISE IS (Dave 2026-09-12: "the list
@@ -2495,6 +2513,9 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
         {workoutAddOpen && (
           <ExerciseSheet
             mode="new"
+            // A saved session has no clock, rest or ramp to run and no note
+            // field, so the sheet does not draw them (2026-10-04).
+            record
             library={library}
             history={workouts}
             onSave={(draft) => {
@@ -2508,6 +2529,9 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
                 sets: draft.sets, custom: true, plan: draft.sets,
               }]);
               seedLibrary(draft);
+              // The muscle it was told goes where a muscle lives (the class
+              // store), the one place the record side can ever read it from.
+              classifyFromSheet(draft.exerciseKey ?? "", draft);
               setWorkoutAddOpen(false);
             }}
             onCancel={() => setWorkoutAddOpen(false)}

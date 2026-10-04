@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRoutine, useOptionalStrands } from "../data/NotesProvider";
 import type { Strand } from "../brain/strands/types";
 import { lineCase } from "../shared/casing";
-import { DEFAULT_ROUTINE, isOvernight, isWorkOutsideActive, defaultModeFor, freeOf, MODE_LABEL, MODE_HELP, FREE_CHANNELS, type RoutineData, type ProtectedBlock, type BlockKind, type BlockMode, type FreeChannel } from "./types";
+import { DEFAULT_ROUTINE, isOvernight, isWorkOutsideActive, defaultModeFor, freeOf, blendNote, MODE_LABEL, MODE_HELP, FREE_CHANNELS, type RoutineData, type ProtectedBlock, type BlockKind, type BlockMode, type FreeChannel } from "./types";
 import { fmtTime } from "../schedule/calendar";
 import { showToast } from "../shared/toast";
 import { attemptWrite } from "../shared/guard";
@@ -444,7 +444,9 @@ export default function RoutineFlow({ onBack, focusId, onFocusConsumed }: { onBa
                       );
                     })}
                   </Strip>
-                  <Note>A call fits · Typing does not</Note>
+                  {/* Says what the chosen channels mean (2026-10-04), not one
+                      fixed line for every choice. */}
+                  <Note>{blendNote(form.free.length ? form.free : freeOf({ kind: form.kind }))}</Note>
                 </>
               )}
             </Group>

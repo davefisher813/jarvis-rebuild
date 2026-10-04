@@ -72,8 +72,10 @@ function blockKind(r: ProtectedRange): { kind: ItemKind; holds?: boolean } {
   const mode = modeOf(r);
   // Deep Work and its kin: time FOR tasks, never a wall.
   if (mode === "holds") return { kind: "flexible", holds: true };
-  // A commute or the gym is busy time even when a channel is free.
-  if (mode === "blends") return { kind: "protected" };
+  // A commute or the gym is busy time even when a channel is free, so a blend
+  // is a wall like Protected (2026-10-04: and, like Protected, only a
+  // preference once its Kept Clear When Possible switch is on; it used to be a
+  // wall whatever the switch said).
   return { kind: r.soft ? "flexible" : "protected" };
 }
 

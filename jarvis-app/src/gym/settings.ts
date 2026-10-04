@@ -1,4 +1,4 @@
-import type { MeasureKind } from "./types";
+import type { CondBlock, MeasureKind, SetEntry } from "./types";
 import type { Counted } from "./equipment";
 import type { Storage2 } from "./liveSession";
 import { DEFAULT_BAR, DEFAULT_PLATES } from "./ramp";
@@ -106,6 +106,25 @@ export interface CreatedLift {
   equipment?: string;
   counted?: Counted;
   sided?: boolean;
+  /** WHAT THE SHEET PLANNED (2026-10-04): the strip, the rest timer, the ramp,
+   *  the filler flag, the note and the clock. The create sheet is the whole
+   *  exercise editor and shows all of them, and a seed that dropped them threw
+   *  away answers the athlete had just given. Read back when the lift is picked
+   *  into a day or a session (ExerciseSheet.pickSuggestion), the one place a
+   *  rest or a ramp takes effect: the library row has no session to run one. */
+  plan?: CreatedPlan;
+}
+
+/** The fields of an exercise that mean something in a session rather than in
+ *  the library. See `CreatedLift.plan`. */
+export interface CreatedPlan {
+  sets?: SetEntry[];
+  timeUnit?: string;
+  restSec?: number;
+  ramp?: true;
+  filler?: true;
+  note?: string;
+  cond?: CondBlock;
 }
 
 /** One merge, as it happened. `undoable` goes false the moment anything else

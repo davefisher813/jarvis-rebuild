@@ -12,8 +12,12 @@ const MARK_LABEL: Record<MedWindowMarkKind, string> = {
 // analysis, no correlation claim, no arrow drawn between any two marks: this
 // screen renders exactly the facts medWindow.ts hands it, in the order they
 // happened, and nothing that reads a relationship between them.
-export default function MedWindowScreen({ days, onOpenDoctorReport, onBack }: {
+export default function MedWindowScreen({ days, hasFood = true, onOpenDoctorReport, onBack }: {
   days: MedWindowDay[];
+  /** Whether any food mark exists to draw (2026-10-04). Food comes only from
+   *  Ate Before, which the app does not record while it stays dormant, so the
+   *  header named a fact that could never appear. False says three. */
+  hasFood?: boolean;
   onOpenDoctorReport: () => void;
   onBack: () => void;
 }) {
@@ -25,14 +29,14 @@ export default function MedWindowScreen({ days, onOpenDoctorReport, onBack }: {
       </div>
 
       <div className="pad-x"><div className="card pad">
-        <div className="p3-q">Four Facts a Day</div>
-        <div className="bp-sub">Dose, food, session start, lights out. Nothing compared, nothing explained.</div>
+        <div className="p3-q">{hasFood ? "Four Facts a Day" : "Three Facts a Day"}</div>
+        <div className="bp-sub">{hasFood ? "Dose, food, session start, lights out" : "Dose, session start, lights out"} · nothing compared, nothing explained</div>
       </div></div>
 
       {days.length === 0 ? (
         <div className="empty-state">
           <div className="empty-title">Nothing Logged Yet</div>
-          <div className="empty-sub">A day with any of the four facts shows up here</div>
+          <div className="empty-sub">A day with any of the {hasFood ? "four" : "three"} facts shows up here</div>
         </div>
       ) : (
         days.map((day) => (

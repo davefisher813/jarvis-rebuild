@@ -26,6 +26,7 @@ import { tapField } from "../../shared/FormSheet";
 import { onPressKey } from "../../shared/pressable";
 import { spanLabel } from "../../shared/duration";
 import { lineCase } from "../../shared/casing";
+import { showToast } from "../../shared/toast";
 
 const BUFFER = 10;
 const DEFAULT_DUR = 45;
@@ -945,7 +946,14 @@ export default function PlanDaySheet({
               disabled={allTasks.length === 0}
               onClick={() => {
                 const chosen = autoSelect(allTasks, open, durFor, seedCap);
-                if (chosen.length === 0) return;
+                if (chosen.length === 0) {
+                  // 2026-10-04: this returned and said nothing, a tap that
+                  // looked like it did nothing. autoSelect finds nothing only
+                  // when there is nothing to pick from or the day's cap leaves
+                  // no room for a pick, so the toast says which.
+                  showToast({ message: allTasks.length === 0 ? "Nothing to Plan Yet" : `No Room Left ${target === "tomorrow" ? "Tomorrow" : "Today"}` });
+                  return;
+                }
                 setPicks(chosen);
                 setOverrides({});
                 if (cap?.n != null && chosen.length === cap.n) setUsedUsual(true);

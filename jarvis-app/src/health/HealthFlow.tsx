@@ -431,6 +431,7 @@ export default function HealthFlow({
       return (
         <MedWindowScreen
           days={medWindowDays(tookIt, ateBefore, sessionStarts, lightsOut)}
+          hasFood={ateBefore.some((a) => a.data.ate)}
           onOpenDoctorReport={() => setScreen("doctorReport")}
           onBack={onExit}
         />
@@ -447,6 +448,7 @@ export default function HealthFlow({
           onCustom={setReportCustom}
           kinds={reportKinds}
           onToggleKind={(k) => setReportKinds((ks) => (ks.includes(k) ? ks.filter((x) => x !== k) : [...ks, k]))}
+          hasAteBefore={ateBefore.length > 0}
           hasMeals={meals.length > 0}
           hasCheckins={checkins.length > 0}
           // HMN-F-22 (2026-09-05): Export This Log used to toast the

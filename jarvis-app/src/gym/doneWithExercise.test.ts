@@ -82,7 +82,10 @@ describe("creating a lift from the library carries what the sheet was told", () 
     // Not on the entry: a muscle is a CLASSIFICATION, and putting it in the
     // class store is also what takes the amber Assign Muscles chip off the
     // brand new row.
-    expect(FLOW).toContain("if (draft.muscleGroup) {");
+    // 2026-10-04: through classifyFromSheet, which a lift added to a finished
+    // workout shares, so the muscle is filed the same way from both doors.
+    expect(FLOW).toContain("classifyFromSheet(key, draft);");
+    expect(FLOW).toContain("if (!key || !draft.muscleGroup) return;");
     expect(FLOW).toContain("primary: [draft.muscleGroup], measure: draft.kind");
   });
 

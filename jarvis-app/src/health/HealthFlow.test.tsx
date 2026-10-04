@@ -349,6 +349,46 @@ describe("HealthFlow: The Season Feed reads a pasted schedule into draft events"
   });
 });
 
+describe("HealthFlow: the Doctor Report offers only the kinds it can include", () => {
+  it("has no Ate Before chip until an Ate Before mark has been logged", async () => {
+    const store = new Store(new InMemoryAdapter());
+    render(<HealthFlow store={store} ownerId="u-ate-chip-none" initialScreen="doctorReport" onExit={() => {}} />);
+    await waitFor(() => expect(screen.getByRole("button", { name: "Doses" })).toBeInTheDocument());
+    expect(screen.queryByRole("button", { name: "Ate Before" })).toBeNull();
+  });
+
+  it("offers it once a mark is on file (an old or synced row stays reachable)", async () => {
+    const store = new Store(new InMemoryAdapter());
+    const svc = new HealthService(store, "u-ate-chip-some");
+    svc.logAteBefore({ date: "2026-09-01", ate: true });
+    await svc.flush();
+    render(<HealthFlow store={store} ownerId="u-ate-chip-some" initialScreen="doctorReport" onExit={() => {}} />);
+    expect(await screen.findByRole("button", { name: "Ate Before" })).toBeInTheDocument();
+  });
+});
+
+describe("HealthFlow: the Med Window names only the facts it can draw", () => {
+  // Food comes only from Ate Before, which nothing in the app records while
+  // that screen stays dormant, so the header said four facts and showed three.
+  it("says three facts, without food, until a food mark exists", async () => {
+    const store = new Store(new InMemoryAdapter());
+    render(<HealthFlow store={store} ownerId="u-medwin-none" initialScreen="medWindow" onExit={() => {}} />);
+    expect(await screen.findByText("Three Facts a Day")).toBeInTheDocument();
+    expect(screen.getByText(/^Dose, session start, lights out/)).toBeInTheDocument();
+    expect(screen.queryByText("Four Facts a Day")).toBeNull();
+  });
+
+  it("says four, food included, once an ate-before mark is on file", async () => {
+    const store = new Store(new InMemoryAdapter());
+    const svc = new HealthService(store, "u-medwin-food");
+    svc.logAteBefore({ date: "2026-09-01", ate: true });
+    await svc.flush();
+    render(<HealthFlow store={store} ownerId="u-medwin-food" initialScreen="medWindow" onExit={() => {}} />);
+    expect(await screen.findByText("Four Facts a Day")).toBeInTheDocument();
+    expect(screen.getByText(/^Dose, food, session start, lights out/)).toBeInTheDocument();
+  });
+});
+
 describe("HealthFlow: Back On Track, extended to health", () => {
   it("celebrates a real logging run returning after a real gap, naming the run and not the gap", async () => {
     const store = new Store(new InMemoryAdapter());

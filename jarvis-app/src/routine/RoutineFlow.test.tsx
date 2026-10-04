@@ -182,3 +182,28 @@ describe("RoutineFlow protected time: the row shows every fact", () => {
     expect(meta.textContent).not.toContain("·");
   });
 });
+
+// THE NOTE UNDER THE FREE-CHANNEL CHIPS FOLLOWS THEM (2026-10-04). It read "A
+// call fits · Typing does not" whatever was picked, so turning Hands on still
+// said no typing and a gym with only ears free still said a call fits.
+describe("RoutineFlow Can Blend: the note says what the chips mean", () => {
+  it("changes with the channels picked", async () => {
+    render(
+      <NotesProvider userId="u-routine-blend-note">
+        <CaptureRoutine />
+        <RoutineFlow onBack={() => {}} />
+      </NotesProvider>,
+    );
+    fireEvent.click(await screen.findByText("Add Protected Time"));
+    fireEvent.change(await screen.findByLabelText("Name"), { target: { value: "Drive" } });
+    // The kind chip, not the preset of the same name above the form.
+    fireEvent.click(screen.getByRole("button", { name: "Commute", pressed: false }));
+    // A commute defaults to Can Blend with the mouth and ears free.
+    expect(screen.getByText("A call fits · Typing does not")).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Mouth"));
+    expect(screen.getByText("Listening fits · Typing does not")).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Hands"));
+    expect(screen.getByText("Listening fits · Typing fits")).toBeInTheDocument();
+    expect(screen.queryByText("A call fits · Typing does not")).toBeNull();
+  });
+});

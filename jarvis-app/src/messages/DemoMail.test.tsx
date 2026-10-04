@@ -3,10 +3,14 @@
 // when the demoMail prop says so, never from environment sniffing (that
 // gate broke 20 tests the first time; this file keeps it honest).
 // @vitest-environment jsdom
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import DemoMail from "./DemoMail";
+
+const showToast = vi.hoisted(() => vi.fn());
+vi.mock("../shared/toast", async (importOriginal) => ({ ...(await importOriginal<typeof import("../shared/toast")>()), showToast }));
+beforeEach(() => showToast.mockReset());
 
 describe("DemoMail fixture", () => {
   it("renders the full email anatomy: promo, Needs You, Waiting On, The Rest", () => {
@@ -64,3 +68,63 @@ describe("DemoMail fixture", () => {
     expect(tapped).toBe(true);
   });
 });
+
+// DEAD-BUTTON AUDIT (2026-10-04): For You, All and Drafts only toasted, so the
+// active chip never moved and All and Drafts could not be reached. They select
+// now, like the live page's.
+describe("DemoMail view chips", () => {
+  const chip = (name: string) => screen.getByRole("button", { name });
+
+  it("starts on For You, and each chip becomes the active one when tapped", () => {
+    render(<DemoMail />);
+    expect(chip("For You").className).toContain("on");
+    expect(chip("All").className).not.toContain("on");
+    expect(chip("Drafts").className).not.toContain("on");
+
+    fireEvent.click(chip("All"));
+    expect(chip("All").className).toContain("on");
+    expect(chip("For You").className).not.toContain("on");
+
+    fireEvent.click(chip("Drafts"));
+    expect(chip("Drafts").className).toContain("on");
+    expect(chip("All").className).not.toContain("on");
+
+    fireEvent.click(chip("For You"));
+    expect(chip("For You").className).toContain("on");
+    expect(chip("Drafts").className).not.toContain("on");
+    // Selecting a view is not a demo-only apology.
+    expect(showToast).not.toHaveBeenCalled();
+  });
+
+  it("All is the flat list of the demo's inbox rows, with no triage anatomy around it", () => {
+    render(<DemoMail />);
+    fireEvent.click(chip("All"));
+    expect(screen.getByText("Northwind Cloud")).toBeInTheDocument();
+    expect(screen.getByText("Nadia Brandt")).toBeInTheDocument();
+    expect(screen.getByText("App Store Team")).toBeInTheDocument();
+    expect(document.querySelectorAll(".mrow")).toHaveLength(3);
+    expect(screen.queryByRole("tablist")).toBeNull();
+    expect(screen.queryByText("The Rest")).toBeNull();
+    // Back on For You the outcome switch and the fold return.
+    fireEvent.click(chip("For You"));
+    expect(screen.getAllByRole("tab")).toHaveLength(2);
+    expect(screen.getByText("The Rest")).toBeInTheDocument();
+  });
+
+  it("Drafts is the live page's empty state, and its New Email opens the composer", () => {
+    render(<DemoMail />);
+    fireEvent.click(chip("Drafts"));
+    expect(screen.getByText("No Drafts")).toBeInTheDocument();
+    expect(screen.queryByText("Northwind Cloud")).toBeNull();
+    expect(screen.queryByRole("tablist")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "New Email" }));
+    expect(screen.getByPlaceholderText("To")).toBeInTheDocument();
+  });
+
+  it("the demo toast still speaks for the rows that stay demo-only", () => {
+    render(<DemoMail />);
+    fireEvent.click(screen.getByText("Northwind Cloud"));
+    expect(showToast).toHaveBeenCalledWith({ message: "Demo Mail · Connect Google for the Real Thing" });
+  });
+});
+
