@@ -1,6 +1,8 @@
 // @vitest-environment jsdom
-import { describe, it, expect, afterEach } from "vitest";
-import { render, cleanup, fireEvent } from "@testing-library/react";
+import { describe, it, expect, afterEach, beforeEach } from "vitest";
+import "@testing-library/jest-dom";
+import { render, cleanup, fireEvent, screen } from "@testing-library/react";
+import { subscribeToast, resetToasts } from "../shared/toast";
 import BiggerPicturePage from "./BiggerPicturePage";
 import type { ProjectRow } from "./progress";
 import type { GoalReach } from "./reach";
@@ -73,5 +75,49 @@ describe("BiggerPicturePage Goals lens, a finished goal", () => {
     const meter = container.querySelector(".goal-row-ruled .goal-meter") as HTMLElement;
     expect(meter.querySelector(".fact.date")?.textContent).toBe("Finished September 12");
     expect(meter.querySelector("b")).toBeNull();
+  });
+});
+
+// DAVE'S AUDIT, 2026-10-04: "does Show Everything actually do anything?" With a status or an area narrowing the list it
+// resets both and says so; with nothing narrowing it, the row is a status line and not a button that does nothing.
+describe("BiggerPicturePage Goals Options sheet", () => {
+  const goals = [
+    { id: "g1", data: { title: "Run Three Times a Week", state: "active" as const, tags: ["health"] } },
+    { id: "g2", data: { title: "Run a Half", state: "achieved" as const, achievedOn: "2026-09-12", tags: ["health"] } },
+  ];
+  const page = () => render(
+    <BiggerPicturePage lens="goals" segments={<div />} goals={goals} reachOfGoal={reach} projectRows={[]}
+      sections={[{ id: "health", name: "Health", color: "green" }]}
+      onAddGoal={() => {}} onOpenGoal={() => {}} onAddProject={() => {}} onOpenProject={() => {}} />,
+  );
+  const toasts: string[] = [];
+  let stop = () => {};
+  beforeEach(() => { toasts.length = 0; stop = subscribeToast((t) => { if (t) toasts.push(t.message); }); });
+  afterEach(() => { stop(); resetToasts(); });
+
+  it("narrowed to Active, Show Everything names what it was showing, widens the list, confirms, and closes", () => {
+    const { container } = page();
+    expect(container.textContent).not.toContain("Run a Half");
+    fireEvent.click(screen.getByLabelText("Goals Options"));
+    expect(document.querySelector(".opt-val")?.textContent).toBe("Active");
+    fireEvent.click(screen.getByText("Show Everything"));
+    expect(document.querySelector(".opt-bar")).toBeNull();
+    expect(container.textContent).toContain("Run a Half");
+    expect(toasts).toContain("Showing Everything");
+  });
+
+  it("already showing everything: no button that does nothing, a status line that says so", () => {
+    const { container } = page();
+    fireEvent.click(screen.getByLabelText("Goals Options"));
+    fireEvent.click(screen.getByText("Show Everything"));
+    fireEvent.click(screen.getByLabelText("Goals Options"));
+    const row = screen.getByText("Showing Everything").closest(".row")!;
+    expect(row.getAttribute("role")).toBeNull();
+    expect(row.querySelector(".chev")).toBeNull();
+    expect(screen.queryByText("Show Everything")).toBeNull();
+    // Done still dismisses it.
+    fireEvent.click(document.querySelector(".opt-done")!);
+    expect(document.querySelector(".opt-bar")).toBeNull();
+    expect(container.textContent).toContain("Run a Half");
   });
 });
