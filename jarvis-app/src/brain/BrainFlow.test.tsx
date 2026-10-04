@@ -187,6 +187,32 @@ describe("BrainFlow deep links while the tab is already open (BRAIN-F-03)", () =
   });
 });
 
+// Slice 09 QA (2026-10-04): the AI Hub row set openKey "aihub", and the guard
+// that closes an unknown key (a category deleted under a stale search result)
+// did not know it, so the hub opened and closed within a frame: a dead button.
+describe("BrainFlow: the AI Hub key opens the hub and stays open", () => {
+  function HubLink() {
+    const [key, setKey] = useState<string | undefined>(undefined);
+    const [nonce, setNonce] = useState(0);
+    return (
+      <>
+        <button onClick={() => { setKey("aihub"); setNonce((n) => n + 1); }}>Open Hub</button>
+        <BrainFlow openKey={key} openNonce={nonce} onKeyConsumed={() => setKey(undefined)} />
+      </>
+    );
+  }
+  it("renders the AI Hub screen after the key arrives, and it is still there a few frames later", async () => {
+    render(<NotesProvider userId="hub1"><HubLink /></NotesProvider>);
+    expect(await screen.findByText("Contacts")).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Open Hub"));
+    await waitFor(() => expect(screen.getAllByText("AI Hub").length).toBeGreaterThan(0));
+    // The bug closed it on the next effect pass; give it several.
+    await new Promise((r) => setTimeout(r, 50));
+    expect(screen.getAllByText("AI Hub").length).toBeGreaterThan(0);
+    expect(screen.queryByText("Contacts")).not.toBeInTheDocument();
+  });
+});
+
 // BRAIN-F-04 (2026-09-05): the person, decision, fact and gym intents were
 // consumed at a child's mount and cleared only by a bottom-tab tap, so
 // following a link to a person and backing all the way out left the id sitting

@@ -3193,3 +3193,8 @@
    that space as its left margin. */
 .about-hero .account-sub > .fact + .fact::before,
 .ruled .set-card .row-value > .fact + .fact::before { margin-left: 0; }
+/* The build line is the door to the Admin screen (five taps, slice 09 QA 2026-10-04). The
+   padding and the matching negative margin cancel, so the line sits exactly where it did and
+   only the tap target grows; the line stays a block, not flex, because the dot between the two
+   facts takes its spacing from the markup's own space. */
+.about-hero .about-build { cursor: pointer; padding: var(--s-3) var(--s-4); margin: calc(-1 * var(--s-3)) calc(-1 * var(--s-4)); }
