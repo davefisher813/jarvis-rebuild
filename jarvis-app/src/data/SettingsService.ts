@@ -208,3 +208,9 @@ export const SETTING_DONE_CLEARING = "doneClearing";
 // task list it should be an option but not default"). "email" or "list", read
 // by tasks/emailTasks.ts; "email" is the default.
 export const SETTING_EMAIL_TASKS = "emailTasks";
+
+// HOW THE APP ACKNOWLEDGES A FINISHED STEP (ADHD Reward Design Brief,
+// 2026-10-04). One object, because it is one screen's worth of choices:
+// celebration, motion, sound, haptics, encouragement, accountability. The
+// defaults are the Gentle ones and live in encourage/prefs.ts.
+export const SETTING_FEEDBACK = "feedbackStyle";

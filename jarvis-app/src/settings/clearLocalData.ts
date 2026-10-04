@@ -67,6 +67,9 @@ const SAFE_TO_CLEAR: readonly string[] = [
   // --- People (people/lastContact.ts) ---
   "jarvis.people.lastcontact.v1", // explicit day-cache, "never persisted server-side" by design
 
+  // --- Feedback Style (encourage/prefs.ts) ---
+  "jarvis.quiettoday.v1", // the date Quiet Today was set for; a day-long switch, not data
+
   // --- Tasks (bigger/related.ts, bigger/stalled.ts, tasks/momentum.ts, tasks/overwhelmed.ts, tasks/autoSweep.ts, tasks/lifecycle.ts) ---
   "jarvis.link.dismissed.v1",
   "jarvis.projstep.dismissed",

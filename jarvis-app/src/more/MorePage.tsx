@@ -6,7 +6,7 @@ const Chev = () => (
   <div className="chev" />
 );
 
-export type MoreRoute = "settings" | "profile" | "appearance" | "categories" | "edittabs" | "account" | "notifsettings" | "about" | "advanced" | "backup" | "connections" | "aicontrol" | "learned" | "training" | "learninglab" | "booking" | "terms" | "privacy" | "support" | "admin" | "hub" | "data" | "brainsettings" | "emailsections";
+export type MoreRoute = "settings" | "profile" | "appearance" | "categories" | "edittabs" | "account" | "notifsettings" | "about" | "advanced" | "backup" | "connections" | "aicontrol" | "learned" | "training" | "learninglab" | "booking" | "terms" | "privacy" | "support" | "admin" | "hub" | "data" | "brainsettings" | "emailsections" | "feedbackstyle";
 
 // Section tiles. Two rules, both of them load-bearing:
 //

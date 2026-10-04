@@ -7,6 +7,17 @@ import TasksPage, { MomentumRow } from "./screens/TasksPage";
 import type { TaskItem } from "./TasksService";
 import type { TaskFilter } from "./filters";
 import { setCategoryRegistry } from "../shared/categories";
+import { FeedbackProvider } from "../encourage/FeedbackProvider";
+import { DEFAULT_FEEDBACK, setLiveFeedback } from "../encourage/prefs";
+import type { ReactNode } from "react";
+
+// The 8-dot burst is the Expressive celebration (Feedback Style); the default,
+// Gentle, answers a tick with the checkmark and one short pulse. These tests
+// are about the burst itself, so they ask for Expressive.
+const Expressive = ({ children }: { children: ReactNode }) => {
+  setLiveFeedback({ ...DEFAULT_FEEDBACK, celebration: "expressive" });
+  return <FeedbackProvider>{children}</FeedbackProvider>;
+};
 
 setCategoryRegistry([
   { id: "orgB", name: "Ridgeley", color: "sky" },
@@ -229,7 +240,7 @@ describe("TasksPage", () => {
   it("fires onToggle after the completion animation window (optimistic check)", () => {
     vi.useFakeTimers();
     const onToggle = vi.fn();
-    const { container } = render(<TasksPage filter="today" counts={counts} items={[tk("a", "2026-05-20")]} today="2026-05-20" onToggle={onToggle} />);
+    const { container } = render(<TasksPage filter="today" counts={counts} items={[tk("a", "2026-05-20")]} today="2026-05-20" onToggle={onToggle} />, { wrapper: Expressive });
     fireEvent.click(container.querySelector(".task-check") as HTMLElement);
     // check flips immediately (optimistic), burst plays, toggle is held 600ms
     expect(container.querySelector(".task-check.done")).toBeTruthy();
@@ -540,6 +551,7 @@ describe("the burst escalates with what the tick moved", () => {
     render(
       <TasksPage filter="all" counts={counts} items={[tk("a", "2026-05-20")]} today="2026-05-20"
         categories={[{ id: "orgB", name: "Ridgeley", color: "sky" }]} {...extra} />,
+      { wrapper: Expressive },
     );
 
   it("a loose task bursts small", () => {

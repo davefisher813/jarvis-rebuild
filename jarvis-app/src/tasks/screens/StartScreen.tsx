@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import type { StartAction, StartTarget, StartSource, InTheWay } from "../startAction";
 import { smallerAction, IN_THE_WAY } from "../startAction";
 import { suggestStopPoint } from "../startStore";
@@ -6,6 +6,7 @@ import { createPortal } from "react-dom";
 import { pressable } from "../../shared/pressable";
 import { useLeaveVia } from "../../shell/navOrigin";
 import { lineCase } from "../../shared/casing";
+import { progressLabel } from "../../encourage/messages";
 
 // THE WORKING SURFACE (Start Now, 2026-09-16).
 //
@@ -25,6 +26,24 @@ import { lineCase } from "../../shared/casing";
 // The anatomy is the app's: a ruled screen, a nav bar, one card, and the
 // facts line the mail rows and the goal page already use, so nothing here
 // is a new visual language.
+
+/** What just became true, in words, and where the task stands now. It is
+ *  state, not a prize: it stays on screen until the next action, whatever
+ *  the celebration setting is, and nothing on the screen waits for it. */
+export interface StartAck {
+  line: string;
+  done: number;
+  total: number;
+  /** The last open step was just done. The task is NOT done: finishing it is
+   *  its own tap, so this is a stopping point and never a second completion. */
+  allDone: boolean;
+  /** Offered only when there is an exact state to put back. */
+  canUndo: boolean;
+  /** Changes with every acknowledgment so a new one replays its pulse. */
+  nonce: number;
+}
+
+type EditorMode = "edit" | "smaller" | "worked";
 
 export interface StartScreenProps {
   target: StartTarget;
@@ -48,11 +67,27 @@ export interface StartScreenProps {
   /** Optional support, chosen by the person, never by the app. */
   onStartTimer?: () => void;
   timerLabel?: string;
+  /** Where the task's own steps stand: "1 of 4 Complete" and a fill. */
+  progress?: { done: number; total: number } | null;
+  /** The last time it was worked on, as a plain fact ("Last Worked on Today"). */
+  lastWorked?: string | null;
+  /** The acknowledgment of the last thing done here. */
+  ack?: StartAck | null;
+  onUndoAck?: () => void;
+  /** Rewrite the words of the step on screen. Resolves true when saved. */
+  onEditStep?: (text: string) => Promise<boolean>;
+  /** The person's own smaller first move, placed in front of the step. */
+  onSmallerStep?: (text: string) => Promise<boolean>;
+  /** Partial progress, with an optional note. Never completes anything. */
+  onWorked?: (note: string) => Promise<boolean>;
+  /** Stop for now: saved, no failure language, no reason asked for. */
+  onDoneForNow?: (stopPoint: string) => void;
 }
 
 export default function StartScreen({
   target, action, tags = [], onDraftChange, onPrimary, onOpenDestination,
   onBack, onInTheWay, onFinish, onStartTimer, timerLabel,
+  progress, lastWorked, ack, onUndoAck, onEditStep, onSmallerStep, onWorked, onDoneForNow,
 }: StartScreenProps) {
   // The action on screen can be simplified without the task changing, so the
   // screen owns which version of it is showing.
@@ -63,6 +98,14 @@ export default function StartScreen({
   const [receipt, setReceipt] = useState<string | null>(null);
   const [ask, setAsk] = useState(false);
   const boxRef = useRef<HTMLTextAreaElement>(null);
+  // The small inline editor under the work card: rewrite this move, name a
+  // smaller one, or log that you worked on it. One at a time, never a wizard.
+  const [mode, setMode] = useState<EditorMode | null>(null);
+  const [editorText, setEditorText] = useState("");
+  const [editorBusy, setEditorBusy] = useState(false);
+  // After the last open step the card steps aside for a stopping point;
+  // Add Another Move brings it back.
+  const [reopened, setReopened] = useState(false);
 
   // A late re-resolve must never overwrite words already being typed. The
   // seed only lands while the box is still untouched.
@@ -70,6 +113,8 @@ export default function StartScreen({
   useEffect(() => {
     setShown(action);
     setShrinks(0);
+    setMode(null);
+    setReopened(false);
     if (!touched.current) setText(action.seed ?? "");
   }, [action]);
 
@@ -103,6 +148,29 @@ export default function StartScreen({
   // this screen and it is written before anything navigates.
   const leave = useLeaveVia("All Tasks", () => onBack(suggestStopPoint(text)));
 
+  const openEditor = (m: EditorMode) => {
+    setMode(m);
+    setEditorText(m === "edit" ? (shown.step?.text ?? "") : "");
+  };
+  const submitEditor = () => void (async () => {
+    if (editorBusy || !mode) return;
+    const words = editorText.trim();
+    // A note on Worked on It is optional. The other two need words.
+    if (!words && mode !== "worked") return;
+    const send = mode === "edit" ? onEditStep : mode === "smaller" ? onSmallerStep : onWorked;
+    if (!send) return;
+    setEditorBusy(true);
+    try {
+      if (await send(words)) { setMode(null); setEditorText(""); }
+    } finally {
+      setEditorBusy(false);
+    }
+  })();
+
+  const atRest = !!ack?.allDone && !reopened;
+  const hasStep = !!shown.step;
+  const pct = progress && progress.total > 0 ? Math.round((progress.done / progress.total) * 100) : 0;
+
   return (
     <div className="screen ruled start-ruled">
       <div className="nav-bar">
@@ -120,6 +188,37 @@ export default function StartScreen({
         <div className="start-title">{target.title}</div>
       </div>
 
+      {progress && progress.total > 0 && (
+        <div className="pad-x"><div className="fb-progress">
+          {/* One labelled quantity: this task's own steps. The fill is the
+              same number the words say, never a score. */}
+          <div className="fb-track" aria-hidden="true"><div className="fb-fill" style={{ "--p": pct } as CSSProperties} /></div>
+          <div className="fb-count">{progressLabel(progress.done, progress.total)}</div>
+        </div></div>
+      )}
+      {lastWorked && <div className="pad-x"><div className="start-last">{lastWorked}</div></div>}
+
+      {/* A live region that is always present, so a new acknowledgment is
+          announced once, politely, and nothing else on the screen is. */}
+      <div className="pad-x" role="status" aria-live="polite">
+        {ack && (
+          <div className="fb-ack" key={ack.nonce}>
+            <svg className="fb-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>
+            <span className="fb-ack-line">{ack.line}</span>
+            {ack.canUndo && onUndoAck && <button className="quiet-action" onClick={onUndoAck}>Undo</button>}
+          </div>
+        )}
+      </div>
+
+      {atRest ? (
+        <div className="pad-x"><div className="card pad start-card">
+          <div className="start-headline">Nothing Left Here</div>
+          <div className="start-truth">The Task Stays Open Until You Finish It</div>
+          <div className="start-acts">
+            <button className="btn btn-secondary btn-block" onClick={() => setReopened(true)}>Add Another Move</button>
+          </div>
+        </div></div>
+      ) : (<>
       <div className="sh2 sh2-quiet"><span className="t">Your First Action</span></div>
 
       <div className="pad-x"><div className="card pad start-card">
@@ -179,17 +278,44 @@ export default function StartScreen({
         <div className="start-truth">{truthOf(shown)}</div>
         {receipt && <div className="conn-status">{receipt}</div>}
       </div></div>
+      </>)}
 
       {/* Subordinate on purpose: one dominant action per surface, and these
           are the ways out of it rather than competitors to it. */}
       <div className="pad-x start-support">
-        {smaller && (
+        {smaller && !(hasStep && onSmallerStep) && (
           <button className="quiet-action" onClick={() => { setShown(smaller); setShrinks((n) => n + 1); }}>
             Make this smaller
           </button>
         )}
+        {hasStep && onSmallerStep && !atRest && (
+          <button className="quiet-action" onClick={() => openEditor("smaller")}>Make this smaller</button>
+        )}
+        {hasStep && onEditStep && !atRest && (
+          <button className="quiet-action" onClick={() => openEditor("edit")}>Edit This Move</button>
+        )}
+        {onWorked && <button className="quiet-action" onClick={() => openEditor("worked")}>Worked on It</button>}
         <button className="quiet-action" onClick={() => setAsk(true)}>Something’s in the way</button>
+        {onDoneForNow && <button className="quiet-action" onClick={() => onDoneForNow(suggestStopPoint(text))}>Done for Now</button>}
       </div>
+
+      {mode && (
+        <div className="pad-x"><div className="card pad start-card fb-editor">
+          <div className="start-label">{mode === "edit" ? "Reword This Move" : mode === "smaller" ? "What Is a Smaller First Move?" : "Anything to Note? (Optional)"}</div>
+          <textarea
+            className="msg-textarea start-box"
+            aria-label={mode === "edit" ? "Reword this move" : mode === "smaller" ? "A smaller first move" : "A note on what you worked on"}
+            value={editorText}
+            onChange={(e) => setEditorText(e.target.value)}
+          />
+          <div className="start-acts fb-editor-acts">
+            <button className="btn btn-secondary btn-block" disabled={editorBusy || (mode !== "worked" && !editorText.trim())} onClick={submitEditor}>
+              {mode === "edit" ? "Save Change" : mode === "smaller" ? "Save Smaller Move" : "Log It"}
+            </button>
+            <button className="btn btn-tertiary btn-block" onClick={() => setMode(null)}>Cancel</button>
+          </div>
+        </div></div>
+      )}
 
       <div className="sh2 sh2-quiet"><span className="t">Optional Support</span></div>
       <div className="pad-x"><div className="card list-card-ruled">

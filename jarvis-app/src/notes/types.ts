@@ -36,6 +36,18 @@ export interface TaskStep {
   done: boolean;
 }
 
+// WORKED ON IT (ADHD Reward Design Brief, 2026-10-04): partial progress that
+// is recorded without being completion. A person who spent an hour on a big
+// task and did not finish a step still did something, and the app says so in
+// a line of its own. It never ticks a step, never ticks the task, and has no
+// weight: nothing counts these up into a score.
+export interface WorkedOn {
+  /** ISO timestamp of when it was logged. */
+  at: string;
+  /** What the person said, if they said anything. Never required. */
+  note?: string;
+}
+
 export interface Block {
   id: string;
   type: BlockType;
@@ -307,6 +319,8 @@ export interface TaskData {
   // Rides the task entity the same way; display-only rollup, never
   // auto-completes the task (TasksService.setSteps, TaskSheet's Steps group).
   steps?: TaskStep[];
+  // Partial progress, newest last, capped. See WorkedOn.
+  worked?: WorkedOn[];
   // THE TASK'S NOTES (the writing system, wave 3c): the longer text under a
   // task, as Markdown from the shared editor's compact level.
   notes?: string;

@@ -10,6 +10,7 @@ import { countEnactment } from "./automaticity";
 import { withEvent, repeatRuleOf, scheduleKindOf, runsOn } from "./reminders";
 import { isUsable, type IfThen } from "./ifThen";
 import { madeBy } from "../shared/provenance";
+import { addWorked } from "./progress";
 
 export interface TaskItem {
   id: string;
@@ -29,6 +30,9 @@ const MAX_ESTIMATE_MIN = 8 * 60;
 function isLength(min: number | null | undefined): min is number {
   return typeof min === "number" && Number.isFinite(min) && Number.isInteger(min) && min > 0 && min <= MAX_ESTIMATE_MIN;
 }
+/** What a one-step writer reports: whether anything changed, the list as it
+ *  was (for an exact Undo) and the list now. */
+export interface StepWrite { changed: boolean; before: TaskStep[]; steps: TaskStep[] }
 export interface GroupedTasks {
   today: TaskItem[];
   upcoming: TaskItem[];
@@ -571,6 +575,71 @@ export class TasksService {
     await this.store.update(this.ownerId, id, { steps: clean.length ? clean : null } as unknown as ItemData);
     this.onEvent({ type: "entity.updated", entityType: ENTITY_TASK, entityId: id });
     return true;
+  }
+
+  // ONE STEP, EXACTLY. setSteps replaces the whole list from whatever copy the
+  // caller holds, which is right for a sheet editing the list and wrong for a
+  // tap on one step: a stale copy, a second tap or a second device could tick
+  // the wrong row or tick one twice. These writers address a step by its
+  // position AND the words the caller saw there, read the task fresh, and set
+  // an exact state, so the same call twice is one change (the second answers
+  // changed: false) and a step that moved or was edited elsewhere is refused
+  // instead of guessed at. Each returns the list as it was, for an Undo that
+  // sets that exact list back rather than toggling.
+  async setStepDone(id: string, index: number, expectedText: string, done: boolean): Promise<StepWrite | null> {
+    const t = await this.getTask(id);
+    if (!t) return null;
+    const before = (t.steps ?? []).map((x) => ({ ...x }));
+    const at = before[index];
+    if (!at || at.text.trim() !== expectedText.trim()) return null;
+    if (at.done === done) return { changed: false, before, steps: before };
+    const steps = before.map((x, i) => (i === index ? { ...x, done } : x));
+    const ok = await this.setSteps(id, steps);
+    return ok ? { changed: true, before, steps } : null;
+  }
+
+  /** Rewrite the words of one open step. A done step is history and is not
+   *  edited; blank words are refused rather than silently deleting the step. */
+  async setStepText(id: string, index: number, expectedText: string, text: string): Promise<StepWrite | null> {
+    const next = text.trim();
+    if (!next) return null;
+    const t = await this.getTask(id);
+    if (!t) return null;
+    const before = (t.steps ?? []).map((x) => ({ ...x }));
+    const at = before[index];
+    if (!at || at.done || at.text.trim() !== expectedText.trim()) return null;
+    if (at.text.trim() === next) return { changed: false, before, steps: before };
+    const steps = before.map((x, i) => (i === index ? { ...x, text: next } : x));
+    const ok = await this.setSteps(id, steps);
+    return ok ? { changed: true, before, steps } : null;
+  }
+
+  /** The person's own smaller first move goes in front of the step it makes
+   *  smaller, so it becomes the next thing Start offers. */
+  async insertStepBefore(id: string, index: number, text: string): Promise<StepWrite | null> {
+    const next = text.trim();
+    if (!next) return null;
+    const t = await this.getTask(id);
+    if (!t) return null;
+    const before = (t.steps ?? []).map((x) => ({ ...x }));
+    const at = Math.max(0, Math.min(index, before.length));
+    const steps = [...before.slice(0, at), { text: next, done: false }, ...before.slice(at)];
+    const ok = await this.setSteps(id, steps);
+    return ok ? { changed: true, before, steps } : null;
+  }
+
+  // WORKED ON IT: partial progress, recorded and kept apart from completion.
+  // It touches nothing but its own list: no step, no `done`, no event that a
+  // gaming layer could count. The same note twice inside half a minute is one
+  // entry (a double tap), see progress.addWorked.
+  async logWorkedOn(id: string, note?: string, now: Date = new Date()): Promise<{ changed: boolean } | null> {
+    const t = await this.getTask(id);
+    if (!t) return null;
+    const { list, changed } = addWorked(t.worked, note, now);
+    if (!changed) return { changed: false };
+    await this.store.update(this.ownerId, id, { worked: list } as unknown as ItemData);
+    this.onEvent({ type: "entity.updated", entityType: ENTITY_TASK, entityId: id });
+    return { changed: true };
   }
 
   // THE TASK'S NOTES (wave 3c): the longer text, whole, or null to clear.
