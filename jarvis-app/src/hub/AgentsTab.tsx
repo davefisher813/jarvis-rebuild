@@ -6,13 +6,13 @@
 
 import { Card, Switch } from "../settings/kit";
 import { pressable } from "../shared/pressable";
-import { ADMIN_OFF, AI_OFF, AI_OFF_STILL_WORKS, AI_ON, BRIEF, EMPTY_AGENTS, MODE_LABEL, STATUS_WORD } from "./copy";
+import { ADMIN_OFF, AI_OFF, AI_OFF_STILL_WORKS, AI_ON, BRIEF, EMPTY_AGENTS, MODE_LABEL, STATUS_WORD, SWEEP_ROW } from "./copy";
 import type { HubConnection } from "./hubClient";
 import { facts } from "./format";
 
 const Chev = () => <div className="chev" />;
 
-export default function AgentsTab({ connections, aiOn, adminOff, canToggle, onToggleAI, onOpenAgent, onAdd }: {
+export default function AgentsTab({ connections, aiOn, adminOff, canToggle, onToggleAI, onOpenAgent, onAdd, onSweep, sweeping }: {
   connections: HubConnection[];
   aiOn: boolean;
   adminOff: boolean;
@@ -21,6 +21,9 @@ export default function AgentsTab({ connections, aiOn, adminOff, canToggle, onTo
   onToggleAI: () => void;
   onOpenAgent: (id: string) => void;
   onAdd: () => void;
+  /** Runs the context sweep: expire what has run out, delete the copies whose time has come. */
+  onSweep: () => void;
+  sweeping: boolean;
 }) {
   const live = connections.filter((c) => c.status !== "revoked");
   const gone = connections.filter((c) => c.status === "revoked");
@@ -75,6 +78,13 @@ export default function AgentsTab({ connections, aiOn, adminOff, canToggle, onTo
           </div></div>
         </>
       )}
+
+      {/* The sweep's one door (slice 09 QA, 2026-10-04): nothing here runs on a timer, so clearing what has expired is the
+          person's own tap. Always shown, because the person's own exports leave packages with no assistant at all. */}
+      <div className="pad-x"><div className="card list-card-ruled">
+        <button className="row row-act hub-quiet" disabled={sweeping} onClick={onSweep}>{sweeping ? SWEEP_ROW.working : SWEEP_ROW.label}</button>
+      </div></div>
+      <div className="hub-note">{SWEEP_ROW.meta}</div>
 
       <div className="hub-note">{AI_OFF_STILL_WORKS}</div>
     </>

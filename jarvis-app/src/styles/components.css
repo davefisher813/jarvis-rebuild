@@ -2447,6 +2447,12 @@ button {
 .receipt-line .chev { flex-shrink: 0; }
 /* Painted at about 19px, which is a bad target and well under --tap-min. */
 .receipt-line::after { content: ""; position: absolute; inset: -14px 0; }
+/* Two of these lines, or one under a row, would hand each other's taps over: the reach above is 14px past the paint,
+   so a neighbour closer than 14px loses its own edge to it. Today's draft tail is the case that stacked them (Dave's
+   audit, 2026-10-04: "18 More in Anytime" answered by "Clear This Plan"): a gap above the clear line, and below the
+   fold line while its rows are open, so each reach ends in empty space. */
+.draft-clear { margin-top: var(--s-4); }
+.receipt-line.draft-fold[aria-expanded="true"] { margin-bottom: var(--s-4); }
 
 /* THE 44px SWEEP (2026-08-24, page-by-page walk).
  

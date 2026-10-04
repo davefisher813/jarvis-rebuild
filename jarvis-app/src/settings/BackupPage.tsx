@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import LargeTitleNav from "../shared/LargeTitleNav";
 import { useBackup, useStore } from "../data/NotesProvider";
 import { backendConfigured } from "../data/store";
-import { saveBackupFile } from "../backup/exportFile";
+import { LAST_EXPORT_KEY, runBackupExport } from "../backup/runExport";
 import { useSyncState, syncFacts } from "../data/useSyncState";
 import { attemptWrite } from "../shared/guard";
 import { Head, Card, Row, Foot } from "./kit";
@@ -17,28 +17,21 @@ export default function BackupPage({ onBack }: { onBack: () => void }) {
   const [busy, setBusy] = useState(false);
   const [pending, setPending] = useState<{ bundle: unknown; label: string } | null>(null);
   const [lastExport, setLastExport] = useState<string>(() => {
-    try { return localStorage.getItem("jarvis.backup.lastExport") ?? ""; } catch { return ""; }
+    try { return localStorage.getItem(LAST_EXPORT_KEY) ?? ""; } catch { return ""; }
   });
 
   const onExport = async () => {
     setBusy(true);
-    try {
-      const bundle = await backup.exportBundle();
-      // SHELL-F-23 (2026-09-05): dismissing the iOS share sheet used to read
-      // "Export Failed · Try Again". Nothing failed: the person closed the
-      // sheet. Nothing left the app either, so nothing is claimed and the
-      // Last exported stamp is left where it was.
-      const sent = await saveBackupFile(bundle);
-      if (!sent) { setStatus(""); return; }
-      setStatus(`Exported ${bundle.items.length} ${bundle.items.length === 1 ? "item" : "items"}.`);
-      const stamp = bundle.exportedAt.slice(0, 10);
-      setLastExport(stamp);
-      try { localStorage.setItem("jarvis.backup.lastExport", stamp); } catch { /* cosmetic */ }
-    } catch {
-      setStatus("Export Failed · Try Again");
-    } finally {
-      setBusy(false);
-    }
+    // SHELL-F-23 (2026-09-05): dismissing the iOS share sheet used to read
+    // "Export Failed · Try Again". Nothing failed: the person closed the
+    // sheet. Nothing left the app either, so nothing is claimed and the
+    // Last exported stamp is left where it was.
+    const r = await runBackupExport(backup);
+    setBusy(false);
+    if (r.kind === "cancelled") { setStatus(""); return; }
+    if (r.kind === "failed") { setStatus("Export Failed · Try Again"); return; }
+    setStatus(`Exported ${r.count} ${r.count === 1 ? "item" : "items"}.`);
+    setLastExport(r.stamp);
   };
 
   // UP-PLAT-05: drains the queue now instead of waiting out the backoff in

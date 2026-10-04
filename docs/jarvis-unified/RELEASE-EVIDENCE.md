@@ -667,3 +667,16 @@ Database (deviation 55): the Email backend fault was the migrations. 0044 to 005
 
 Vercel: `JARVIS_CONTEXT_KEY` (32 random bytes, base64, sensitive) set for Production and Preview on 2026-10-04.
 
+### Production audit fixes (2026-10-04, build 57d792c, on Dave's word)
+
+Dave's audit of the live build found six faults, all fixed in code (deviations 56 to 61):
+
+1. **Export Shared Context failed** with "The request didn't match the protocol": the Hub asked for a grant the database refuses when there is no assistant. The export no longer asks. Test: `HubFlow.test.tsx`, fails without the fix.
+2. **Theme mixing:** the Hub and its sheet are in the app's active theme.
+3. **Today's overlap:** "18 More in Anytime" and "Clear This Plan" each answer their own taps. Reproduced and re-checked in a real browser at 390px wide.
+4. **Export Data JSON** exports in place instead of opening Backup. Test: `AdvancedPage.test.tsx`.
+5. **Search Everything** shows the results on Enter and opens nothing. Test: `SearchFlow.test.tsx`.
+6. **The context sweep** has a door: AI Hub > Agents > Clear Expired Shares, through `api/context/sweep` (tests: `api/context/sweep.test.ts`, `HubFlow.test.tsx`). The function itself is one of the four still missing from production until the repair SQL is run, so until then the row answers Couldn't Reach JARVIS.
+
+Not changed, as Dave noted: Discard Draft works live; Undo in Activity and Revoke Assistant could not be tapped (no activity, no assistant) and need no action once the missing database functions are in.
+

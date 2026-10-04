@@ -1,6 +1,7 @@
 import { useState } from "react";
 import LargeTitleNav from "../shared/LargeTitleNav";
-import { useChat, useSettings } from "../data/NotesProvider";
+import { useBackup, useChat, useSettings } from "../data/NotesProvider";
+import { runBackupExport } from "../backup/runExport";
 import { attemptWrite } from "../shared/guard";
 import { showToast } from "../shared/toast";
 import { clearLocalData } from "./clearLocalData";
@@ -20,8 +21,20 @@ const CAPTURE_LABEL: Record<CaptureKind, string> = {
   bill: "Bills to Money", receipt: "Receipts to Money", task: "Tasks", event: "Schedule", waiting: "Waiting",
 };
 
-export default function AdvancedPage({ onBack, onExport, onLearningLab }: { onBack: () => void; onExport?: () => void; onLearningLab?: () => void }) {
+export default function AdvancedPage({ onBack, onLearningLab }: { onBack: () => void; onLearningLab?: () => void }) {
   const chat = useChat();
+  const backup = useBackup();
+  // Export Data exports (slice 09 QA, 2026-10-04: it opened the Backup page). The same file Backup makes, the same
+  // honest answer: a count when the file left the app, nothing when the share sheet was dismissed.
+  const [exporting, setExporting] = useState(false);
+  const exportNow = async () => {
+    if (exporting) return;
+    setExporting(true);
+    const r = await runBackupExport(backup);
+    setExporting(false);
+    if (r.kind === "sent") showToast({ message: `Exported ${r.count} ${r.count === 1 ? "Item" : "Items"}` });
+    else if (r.kind === "failed") showToast({ message: "Export Failed · Try Again" });
+  };
   const settings = useSettings();
   // WHO SAYS A THING IS DONE (Dave 2026-09-12: "the user should be able to
   // decide if it automatically clears or needs permission"). Off is Ask First,
@@ -92,7 +105,7 @@ export default function AdvancedPage({ onBack, onExport, onLearningLab }: { onBa
       </>)}
       <Head label="Data" />
       <Card>
-        <Row label="Export Data" value="JSON" onClick={onExport} />
+        <Row label="Export Data" value={exporting ? "Exporting" : "JSON"} onClick={() => void exportNow()} disabled={exporting} />
         {/* Which commit this build came from. Exists so "is my phone on the
             new build?" is a ten-second look instead of a debugging session:
             that question has now been guessed at twice and guessed wrong. */}

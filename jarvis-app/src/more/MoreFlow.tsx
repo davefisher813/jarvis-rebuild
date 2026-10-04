@@ -108,7 +108,7 @@ export default function MoreFlow({
   if (route === "terms") return <TermsPage onBack={() => setRoute("about")} />;
   if (route === "privacy") return <PrivacyPage onBack={() => setRoute("about")} />;
   if (route === "support") return <SupportPage onBack={() => setRoute("about")} />;
-  if (route === "advanced") return <AdvancedPage onBack={() => setRoute("settings")} onExport={() => setRoute("backup")} onLearningLab={() => setRoute("learninglab")} />;
+  if (route === "advanced") return <AdvancedPage onBack={() => setRoute("settings")} onLearningLab={() => setRoute("learninglab")} />;
   if (route === "learninglab") return <LearningLabPage onBack={() => setRoute("advanced")} />;
   if (route === "backup") return <BackupPage onBack={() => setRoute("settings")} />;
 
