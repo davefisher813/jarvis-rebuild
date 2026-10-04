@@ -290,6 +290,32 @@ describe("HealthFlow: The Handoff carries no body data", () => {
     render(<HealthFlow store={store} ownerId="u1" initialScreen="handoff" onExit={() => {}} />);
     await waitFor(() => expect(screen.getByText("Nothing Needs You Right Now")).toBeInTheDocument());
   });
+
+  // THE DOOR NEEDS WHAT IT OPENS (2026-10-04). The app mounts HealthFlow with
+  // no ai and no onCommitSeasonFeed, so "Add a Team Schedule" opened "The
+  // Season Feed Isn't On" for every user; with the seams it opens the feed.
+  it("does not offer Add a Team Schedule when the Season Feed cannot read or commit", async () => {
+    const store = new Store(new InMemoryAdapter());
+    render(<HealthFlow store={store} ownerId="u1" initialScreen="handoff" onExit={() => {}} />);
+    await waitFor(() => expect(screen.getByText("Open the Locker")).toBeInTheDocument());
+    expect(screen.queryByText("Add a Team Schedule")).toBeNull();
+  });
+
+  it("does not offer it with the reader alone either (a feed that cannot write)", async () => {
+    const store = new Store(new InMemoryAdapter());
+    const ai = new AIService({ available: true, fetchImpl: (async () => ({ ok: true, json: async () => ({ text: "{}" }) })) as unknown as typeof fetch });
+    render(<HealthFlow store={store} ownerId="u1" initialScreen="handoff" ai={ai} onExit={() => {}} />);
+    await waitFor(() => expect(screen.getByText("Open the Locker")).toBeInTheDocument());
+    expect(screen.queryByText("Add a Team Schedule")).toBeNull();
+  });
+
+  it("offers it, and it opens the Season Feed, when both seams are there", async () => {
+    const store = new Store(new InMemoryAdapter());
+    const ai = new AIService({ available: true, fetchImpl: (async () => ({ ok: true, json: async () => ({ text: "{}" }) })) as unknown as typeof fetch });
+    render(<HealthFlow store={store} ownerId="u1" initialScreen="handoff" ai={ai} onCommitSeasonFeed={vi.fn()} onExit={() => {}} />);
+    fireEvent.click(await screen.findByText("Add a Team Schedule"));
+    await waitFor(() => expect(screen.getByText("Or Paste It")).toBeInTheDocument());
+  });
 });
 
 describe("HealthFlow: The Season Feed reads a pasted schedule into draft events", () => {

@@ -10,7 +10,10 @@ import type { HandoffItem } from "../handoff";
 // athlete's own ownerId, as What They See already does for the Share Line.
 export default function HandoffScreen({ items, onOpenSeasonFeed, onOpenLocker, onBack }: {
   items: HandoffItem[];
-  onOpenSeasonFeed: () => void;
+  // Optional (2026-10-04): the door is drawn only when the Season Feed can
+  // read a schedule and commit it. The app mounts HealthFlow with neither
+  // seam, so the door led to "The Season Feed Isn't On" for everyone.
+  onOpenSeasonFeed?: () => void;
   onOpenLocker: () => void;
   onBack: () => void;
 }) {
@@ -41,7 +44,7 @@ export default function HandoffScreen({ items, onOpenSeasonFeed, onOpenLocker, o
 
       <div className="pad-x sheet-actions">
         <button className="btn btn-secondary btn-block" onClick={onOpenLocker}>Open the Locker</button>
-        <button className="btn btn-secondary btn-block" onClick={onOpenSeasonFeed}>Add a Team Schedule</button>
+        {onOpenSeasonFeed && <button className="btn btn-secondary btn-block" onClick={onOpenSeasonFeed}>Add a Team Schedule</button>}
       </div>
       <div className="screen-foot" />
     </div>

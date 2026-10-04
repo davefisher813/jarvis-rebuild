@@ -110,7 +110,9 @@ describe("what the handoff forbids", () => {
     expect(notes, "Area and Tag are the cuts on the control line, in that order")
       .toMatch(/drops=\{[\s\S]*?ariaLabel="Area"[\s\S]*?ariaLabel="Tag"[\s\S]*?\)\}/);
     expect(notes, "the area is its own axis, not a view").not.toMatch(/\{ kind: "area"; id: string \}/);
-    expect(notes).toContain("const filtered = area ? inView.filter((n) => n.category === area) : inView;");
+    // AMENDED 2026-10-04: a search now runs inside the chosen view or tag, so the area cut is the LAST
+    // cut, applied to what the view and the search left (it was applied to the view before the search).
+    expect(notes).toContain("const shown = area ? searched.filter((n) => n.category === area) : searched;");
     expect(notes, "and the capsule states which area, so no second line has to")
       .toMatch(/value=\{area \?\? "all"\}/);
   });

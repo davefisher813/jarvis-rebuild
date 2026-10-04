@@ -640,7 +640,10 @@ export default function HealthFlow({
       return (
         <HandoffScreen
           items={handoffItems(state, lockerDocs, today)}
-          onOpenSeasonFeed={() => setScreen("seasonFeed")}
+          // 2026-10-04: the door needs both seams the Season Feed uses, the
+          // reader (ai) and the write (onCommitSeasonFeed). Without them it
+          // opened a screen that could not do its job, so it is not drawn.
+          onOpenSeasonFeed={ai && onCommitSeasonFeed ? () => setScreen("seasonFeed") : undefined}
           onOpenLocker={() => setScreen("locker")}
           onBack={onExit}
         />
