@@ -231,6 +231,31 @@ describe("TaskSheet", () => {
   });
 });
 
+// THE RING ANSWERS ITS OWN TAP (the tap sweep, 2026-10-04, Dave: no dead
+// buttons). The Mark Done row's ring is a checkbox, so the row's door leaves a
+// tap on it to it, and it had no handler: the ring did nothing while the words
+// beside it finished the task.
+describe("the Mark Done row in the edit sheet", () => {
+  const mark = (onSave = vi.fn()) => {
+    render(<TaskSheet mode="edit" initial={{ text: "Send Invoice", category: "c2", due: tomorrow }} categories={CATS} onSave={onSave} onCancel={() => {}} />);
+    return onSave;
+  };
+
+  it("finishes the task when the ring is tapped", () => {
+    const onSave = mark();
+    fireEvent.click(screen.getByRole("checkbox", { name: "Mark done" }));
+    expect(onSave).toHaveBeenCalledTimes(1);
+    expect(onSave.mock.calls[0]![0]).toMatchObject({ text: "Send Invoice", closeNow: true });
+  });
+
+  it("finishes it the same way when the words beside the ring are tapped, and only once", () => {
+    const onSave = mark();
+    fireEvent.click(screen.getByText("Mark Done"));
+    expect(onSave).toHaveBeenCalledTimes(1);
+    expect(onSave.mock.calls[0]![0]).toMatchObject({ closeNow: true });
+  });
+});
+
 describe("editing a task that owns a plan (2026-08-25)", () => {
   const PLAN = { cue: { kind: "after" as const, what: "Lunch" }, then: "send the invoice" };
   const OTHERS = [

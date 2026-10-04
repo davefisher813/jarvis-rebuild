@@ -465,6 +465,40 @@ describe("what is left before payday counts ledger bills", () => {
   });
 });
 
+// THE WHOLE BILL ROW IS THE DOOR (the tap sweep, 2026-10-04, Dave: no dead
+// buttons). An autopay bill's repeat glyph and every bill's amount did nothing
+// when tapped; only the title block opened the bill. Each of them opens it now,
+// and the row's own controls (the pay ring, Pay) still keep their taps.
+describe("every part of a bill row opens the bill", () => {
+  it("the amount of a ledger bill opens its page", async () => {
+    mount("mb-door-amount", async (l) => { await add(l, { vendor: "Water", amount: 40, dueDate: day(5) }); });
+    const row = (await screen.findByText("Water")).closest(".task-row") as HTMLElement;
+    fireEvent.click(row.querySelector(".money-amt")!);
+    expect(await screen.findByText("Delete Bill")).toBeInTheDocument();
+  });
+
+  it("an autopay bill's repeat glyph, which is not a control, opens its page", async () => {
+    mount("mb-door-glyph", async (l) => { await add(l, { vendor: "Internet", amount: 89, autopay: true }); });
+    const row = (await screen.findByText("Internet")).closest(".task-row") as HTMLElement;
+    fireEvent.click(row.querySelector(".task-check-tap")!);
+    expect(await screen.findByText("Delete Bill")).toBeInTheDocument();
+  });
+
+  it("a legacy bill's amount opens the old Edit Bill sheet", async () => {
+    mount("mb-door-legacy", async (_l, t) => { await legacyBill(t, "Rent", { due: day(4), bill: { amount: 1850 } }); });
+    const row = (await screen.findByText("Rent")).closest(".task-row") as HTMLElement;
+    fireEvent.click(row.querySelector(".money-amt")!);
+    expect(await screen.findByText("Edit Bill")).toBeInTheDocument();
+  });
+
+  it("the pay ring keeps its own tap: it does not also open the bill", async () => {
+    mount("mb-door-ring", async (l) => { await add(l, { vendor: "Gas", amount: 60, dueDate: day(3) }); });
+    const row = (await screen.findByText("Gas")).closest(".task-row") as HTMLElement;
+    fireEvent.click(row.querySelector("[role=checkbox]")!);
+    await waitFor(() => expect(screen.queryByText("Delete Bill")).toBeNull());
+  });
+});
+
 describe("legacy bill tasks keep working exactly as before", () => {
   it("a legacy bill lists, opens the old Edit Bill sheet, and saves through the task path", async () => {
     mount("mb-legacy-edit", async (_l, t) => { await legacyBill(t, "Rent", { due: day(4), bill: { amount: 1850 } }); });

@@ -12,7 +12,7 @@ import { DUR_CHOICES, durLabel } from "../../schedule/durations";
 import { RepeatGlyph, PinGlyph, TargetGlyph } from "../../shared/glyphs";
 import { catColor } from "../../shared/categories";
 import SheetBar from "../../shared/SheetBar";
-import { rowDoor } from "../../shared/rowDoor";
+import { rowDoor, own } from "../../shared/rowDoor";
 import HeadMenu from "../../shared/HeadMenu";
 import { tapField } from "../../shared/FormSheet";
 import { onPressKey } from "../../shared/pressable";
@@ -438,7 +438,11 @@ export default function TaskSheet({
                 thumb aimed anywhere on the row does the one thing the row is
                 for. */}
             <div className="row xs-row" {...rowDoor(() => void save(true))}>
-              <div className="task-check-tap" role="checkbox" aria-checked={false} aria-label="Mark done">
+              {/* THE RING ANSWERS ITS OWN TAP (the tap sweep, 2026-10-04). It is a
+                  checkbox, so the row's door leaves a tap on it to it, and it had
+                  no handler: the ring did nothing while the words beside it
+                  finished the task. */}
+              <div className="task-check-tap" role="checkbox" aria-checked={false} aria-label="Mark done" onClick={own(() => void save(true))}>
                 <div className="task-check" />
               </div>
               <div className="row-grow"><div className="conn-name">Mark Done</div></div>
