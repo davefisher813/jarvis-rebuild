@@ -7056,3 +7056,50 @@ span.row-star { cursor: default; }
 .match-row .task-title { min-width: 0; }
 .match-acts { display: flex; flex-direction: column; align-items: flex-end; gap: var(--s-1); flex: none; }
 .match-acts .quiet-action { white-space: nowrap; }
+
+/* === FEEDBACK STYLE (v1) ===================================================
+   Acknowledgment on the working surface and the Gentle effects. Gentle is the
+   default: one 200ms local pulse on the check, nothing else moves. Expressive
+   keeps the older 420ms pop and the burst. Off and reduced motion draw the
+   same state with nothing moving. html[data-celebrate] and html[data-motion]
+   are set by FeedbackProvider; the media query is the fallback for a first
+   paint before the provider has run. */
+@keyframes fbPulse { 0% { transform: scale(1); } 50% { transform: scale(1.14); } 100% { transform: scale(1); } }
+html[data-celebrate="gentle"] .task-row.just-done { animation: none; }
+html[data-celebrate="gentle"] .task-row.just-done .task-check,
+html[data-celebrate="gentle"] .cb.on.just-checked { animation: fbPulse 200ms var(--ease-out); }
+html[data-celebrate="off"] .task-row.just-done,
+html[data-celebrate="off"] .task-row.just-done .task-check,
+html[data-celebrate="off"] .cb.on.just-checked { animation: none; }
+
+.fb-progress { display: flex; align-items: center; gap: var(--s-3); padding: var(--s-2) 0; }
+.fb-track { flex: 1; height: 6px; border-radius: var(--r-pill); background: var(--press-3); overflow: hidden; }
+.fb-fill { height: 100%; width: calc(var(--p, 0) * 1%); border-radius: var(--r-pill); background: var(--good-fill);
+  transition: width 260ms var(--ease-out); }
+.fb-count { font-size: var(--t-meta); color: var(--tx-2); font-feature-settings: 'tnum'; white-space: nowrap; }
+.start-last { font-size: var(--t-meta); color: var(--tx-3); padding-bottom: var(--s-2); }
+
+/* The acknowledgment is state, not a toast: it stays until the next action,
+   sits in the flow, and never covers the button that comes next. */
+.fb-ack { display: flex; align-items: center; gap: var(--s-2h); padding: var(--s-2h) var(--s-3);
+  margin: var(--s-1) 0 var(--s-2); border-radius: var(--r-md); background: var(--good-tint); color: var(--tx-1);
+  animation: fbAckIn 200ms var(--ease-out); }
+@keyframes fbAckIn { 0% { opacity: 0; } 100% { opacity: 1; } }
+.fb-check { width: 18px; height: 18px; flex-shrink: 0; color: var(--good); }
+.fb-ack-line { flex: 1; min-width: 0; font-size: var(--t-body); font-weight: var(--w-medium); line-height: var(--lh-snug); }
+.fb-editor { gap: var(--s-3); }
+.fb-editor-acts { display: flex; gap: var(--s-2); flex-wrap: wrap; }
+
+html[data-motion="reduce"] .task-row.just-done,
+html[data-motion="reduce"] .task-row.just-done .task-check,
+html[data-motion="reduce"] .cb.on.just-checked,
+html[data-motion="reduce"] .fb-ack { animation: none; }
+html[data-motion="reduce"] .fb-fill { transition: none; }
+@media (prefers-reduced-motion: reduce) {
+  html:not([data-motion="full"]) .task-row.just-done,
+  html:not([data-motion="full"]) .task-row.just-done .task-check,
+  html:not([data-motion="full"]) .cb.on.just-checked,
+  html:not([data-motion="full"]) .fb-ack { animation: none; }
+  html:not([data-motion="full"]) .fb-fill { transition: none; }
+}
+/* === END FEEDBACK STYLE === */

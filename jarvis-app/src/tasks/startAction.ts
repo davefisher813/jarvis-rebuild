@@ -86,6 +86,11 @@ export interface StartAction {
   /** Seed text for the work area, from saved work or a deterministic
    *  template. Never model output at this layer. */
   seed?: string;
+  /** The step on the screen, when the move is one of the task's own steps:
+   *  its position AND its words as they were when the screen resolved. The
+   *  tap addresses that step exactly, so a second tap, a stale screen or a
+   *  second device cannot tick a different one (TasksService.setStepDone). */
+  step?: { index: number; text: string };
   /** What the app actually read. */
   sources: StartSource[];
   /** Named holes, rendered as explicit placeholders and never filled in. */
@@ -245,9 +250,11 @@ export function startAction(target: StartTarget, ctx: StartContext = {}): StartA
   // 1. Saved work. A box he opened and typed nothing into is not work; a
   // stopping point with no draft still is, because it is where he left off.
   const saved = ctx.saved;
+  const stepNow = firstOpenStep(target.data);
   if (saved && (saved.draft?.trim() || saved.stopPoint?.trim())) {
     return {
       kind: "resume",
+      ...(stepNow ? { step: stepNow } : {}),
       headline: "Where You Left Off",
       verb: verbForSaved(saved.kind),
       launchLabel: "Resume",
@@ -262,10 +269,11 @@ export function startAction(target: StartTarget, ctx: StartContext = {}): StartA
 
   // 2. A child the user wrote. Steps ride the task; children ride a project
   // or a goal. Either way the first unfinished one in THEIR order is it.
-  const step = firstOpenStep(target.data);
+  const step = stepNow;
   if (step) {
     return {
       kind: "open_child_task",
+      step,
       // It is HIS step: either he wrote it on the task, or he answered the
       // question below and this is the answer coming back. The app never
       // authors one, which is what makes offering to tick it honest.

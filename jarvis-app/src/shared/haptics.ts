@@ -7,6 +7,8 @@
 // can never throw into a UI handler.
 import { Capacitor } from "@capacitor/core";
 import { Haptics, ImpactStyle, NotificationType } from "@capacitor/haptics";
+import { isQuietToday, readFeedback } from "../encourage/prefs";
+import { todayISO } from "../tasks/grouping";
 
 export type HapticKind = "selection" | "success" | "warning" | "impact";
 
@@ -34,9 +36,14 @@ function fire(kind: HapticKind): void {
   }
 }
 
+// The completion tap is a choice, off until chosen (Feedback Style, Dave
+// 2026-10-04) and silent all day under Quiet Today. The other kinds are the
+// controls' own feel (a switch, a row) and are not part of that choice.
+const completionAllowed = (): boolean => readFeedback().haptics && !isQuietToday(todayISO());
+
 export const haptics = {
   selection: () => fire("selection"),
-  success: () => fire("success"),
+  success: () => { if (completionAllowed()) fire("success"); },
   warning: () => fire("warning"),
   impact: () => fire("impact"),
 };

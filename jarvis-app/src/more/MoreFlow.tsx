@@ -4,6 +4,7 @@ import MorePage, { type MoreRoute } from "./MorePage";
 import { usePushDepth } from "../shared/pushNav";
 import ProfilePage from "../settings/ProfilePage";
 import AppearancePage from "../settings/AppearancePage";
+import FeedbackStylePage from "../settings/FeedbackStylePage";
 import TrainingPage from "../settings/TrainingPage";
 import BookingPage from "../settings/BookingPage";
 import SettingsPage from "./SettingsPage";
@@ -79,7 +80,7 @@ export default function MoreFlow({
   const DEPTH: Record<string, number> = {
     hub: 0,
     settings: 1,
-    appearance: 2, categories: 2, connections: 2, edittabs: 2, account: 2, notifsettings: 2, about: 2, advanced: 2, backup: 2, aicontrol: 2, learned: 2, booking: 2, emailsections: 2,
+    appearance: 2, categories: 2, connections: 2, edittabs: 2, account: 2, notifsettings: 2, about: 2, advanced: 2, backup: 2, aicontrol: 2, learned: 2, booking: 2, emailsections: 2, feedbackstyle: 2,
     profile: 3, terms: 3, privacy: 3, support: 3, admin: 3,
   };
   const pushCls = usePushDepth(DEPTH[route] ?? 1);
@@ -88,6 +89,7 @@ export default function MoreFlow({
   if (route === "settings") return <SettingsPage onNavigate={(r) => setRoute(r)} onBack={() => setRoute("hub")} />;
   if (route === "profile") return <ProfilePage onBack={() => setRoute("account")} />;
   if (route === "appearance") return <AppearancePage onBack={() => setRoute("settings")} />;
+  if (route === "feedbackstyle") return <FeedbackStylePage onBack={() => setRoute("settings")} />;
   if (route === "training") return <TrainingPage onBack={() => setRoute("settings")} />;
   if (route === "booking") return <BookingPage onBack={() => setRoute("settings")} />;
   if (route === "categories") return <CategoriesFlow onBack={() => setRoute("settings")} />;
