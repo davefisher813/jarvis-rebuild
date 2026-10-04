@@ -12,6 +12,7 @@ import { initMonitoring } from "./monitoring/monitor";
 import { startAppUrlListener } from "./native/appUrl";
 import { trackVisualViewport } from "./shared/viewport";
 import { checkBuild } from "./shared/buildCheck";
+import { reloadOnWorkerUpdate } from "./shared/serviceWorkerReload";
 
 import "./styles/jarvis-design-system.css";
 import "./styles/uniformity.css";
@@ -65,12 +66,9 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
 // then triggers a one-time reload so the user always lands on fresh code instead
 // of a stale cached shell (the cause of the earlier black-screen after deploy).
 if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
-  let reloadedForUpdate = false;
-  navigator.serviceWorker.addEventListener("controllerchange", () => {
-    if (reloadedForUpdate) return;
-    reloadedForUpdate = true;
-    window.location.reload();
-  });
+  // A first visit is claimed by its first worker without a reload; only a
+  // worker that replaces another reloads (shared/serviceWorkerReload.ts).
+  reloadOnWorkerUpdate(navigator.serviceWorker, () => window.location.reload());
   // AND IT ASKS AGAIN EVERY TIME THE APP COMES BACK TO THE FRONT
   // (2026-09-16, Dave: "I don't see any difference... it's been the same push
   // forever").

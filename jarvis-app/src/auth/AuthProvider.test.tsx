@@ -16,6 +16,9 @@ const updateUser = vi.fn();
 const signOut = vi.fn();
 const signInWithOAuth = vi.fn();
 const signInWithIdToken = vi.fn();
+const signInWithOtp = vi.fn();
+const signUp = vi.fn();
+const signInWithPassword = vi.fn();
 const flags = vi.fn();
 
 vi.mock("./supabaseClient", () => ({
@@ -28,6 +31,9 @@ vi.mock("./supabaseClient", () => ({
       signOut: (...a: unknown[]) => signOut(...a),
       signInWithOAuth: (...a: unknown[]) => signInWithOAuth(...a),
       signInWithIdToken: (...a: unknown[]) => signInWithIdToken(...a),
+      signInWithOtp: (...a: unknown[]) => signInWithOtp(...a),
+      signUp: (...a: unknown[]) => signUp(...a),
+      signInWithPassword: (...a: unknown[]) => signInWithPassword(...a),
     },
   },
 }));
@@ -54,6 +60,7 @@ function renderAuth(): () => ReturnType<typeof useAuth> {
 }
 
 beforeEach(() => {
+  sessionStorage.clear();
   getSession.mockReset().mockResolvedValue({ data: { session: { access_token: "tok123", user: { id: "u1" } } } });
   onAuthStateChange.mockReset().mockReturnValue({ data: { subscription: { unsubscribe: vi.fn() } } });
   resetPasswordForEmail.mockReset();
@@ -61,6 +68,9 @@ beforeEach(() => {
   signOut.mockReset().mockResolvedValue({ error: null });
   signInWithOAuth.mockReset().mockResolvedValue({ error: null });
   signInWithIdToken.mockReset();
+  signInWithOtp.mockReset().mockResolvedValue({ error: null });
+  signUp.mockReset().mockResolvedValue({ error: null, data: { session: { access_token: "t" } } });
+  signInWithPassword.mockReset().mockResolvedValue({ error: null });
   flags.mockReset().mockResolvedValue({ apple: true });
 });
 
@@ -84,6 +94,44 @@ describe("sendPasswordReset", () => {
     const get = renderAuth();
     await waitFor(() => expect(get().ready).toBe(true));
     await expect(get().sendPasswordReset("dave@example.com")).rejects.toThrow("rate limited");
+  });
+});
+
+// WHERE EVERY AUTH EMAIL AND REDIRECT LANDS (P0, 2026-10-04). A tester resetting
+// her password tapped the link and Safari went to localhost: the project's
+// Site URL was the default, and Supabase falls back to it whenever the
+// redirect the app names is not on its allow list. The app already named the
+// production origin; these hold that, and hold the two calls that did not
+// (Apple on the web, sign-up) to the same rule. jsdom's origin is a real http
+// origin, so webOrigin() hands it over here exactly as the browser does.
+describe("every auth email and redirect names where it lands", () => {
+  it("the magic link asks to land on this origin", async () => {
+    const get = renderAuth();
+    await waitFor(() => expect(get().ready).toBe(true));
+    await get().signInWithEmail("tester@example.com");
+    expect(signInWithOtp).toHaveBeenCalledWith({ email: "tester@example.com", options: { emailRedirectTo: window.location.origin } });
+  });
+
+  it("the password reset asks to land on this origin", async () => {
+    resetPasswordForEmail.mockResolvedValue({ error: null });
+    const get = renderAuth();
+    await waitFor(() => expect(get().ready).toBe(true));
+    await get().sendPasswordReset("tester@example.com");
+    expect(resetPasswordForEmail).toHaveBeenCalledWith("tester@example.com", { redirectTo: window.location.origin });
+  });
+
+  it("the sign-up confirmation asks to land on this origin", async () => {
+    const get = renderAuth();
+    await waitFor(() => expect(get().ready).toBe(true));
+    await get().signUpWithPassword("tester@example.com", "secret1");
+    expect(signUp).toHaveBeenCalledWith({ email: "tester@example.com", password: "secret1", options: { emailRedirectTo: window.location.origin } });
+  });
+
+  it("Apple on the web asks to land on this origin", async () => {
+    const get = renderAuth();
+    await waitFor(() => expect(get().ready).toBe(true));
+    await get().signInWithApple();
+    expect(signInWithOAuth).toHaveBeenCalledWith({ provider: "apple", options: { redirectTo: window.location.origin } });
   });
 });
 
@@ -183,6 +231,71 @@ describe("password recovery", () => {
   });
 });
 
+// THE RECOVERY WINDOW SURVIVES A RELOAD (P0, 2026-10-04). On a first visit the
+// service worker's first claim used to reload the page about three seconds
+// after a reset link landed, and the in-memory flag went with it: the person
+// was signed in by the recovery session and shown the ordinary app, with no
+// place to set the new password.
+describe("the recovery window survives a reload", () => {
+  const KEY = "jarvis.auth.recovery.v1";
+  beforeEach(() => { sessionStorage.removeItem(KEY); });
+  const fireAuthEvent = (event: string) => {
+    const cb = onAuthStateChange.mock.calls[0]![0] as (e: string, s: unknown) => void;
+    act(() => cb(event, { access_token: "tok123", user: { id: "u1" } }));
+  };
+
+  it("the landing is remembered by the tab", async () => {
+    const get = renderAuth();
+    await waitFor(() => expect(get().ready).toBe(true));
+    fireAuthEvent("PASSWORD_RECOVERY");
+    await waitFor(() => expect(get().recovery).toBe(true));
+    expect(sessionStorage.getItem(KEY)).toBe("1");
+  });
+
+  it("a reload after the landing still shows the new-password screen", async () => {
+    sessionStorage.setItem(KEY, "1");
+    const get = renderAuth();
+    await waitFor(() => expect(get().ready).toBe(true));
+    expect(get().recovery).toBe(true);
+  });
+
+  it("a remembered recovery with no session behind it is dropped", async () => {
+    sessionStorage.setItem(KEY, "1");
+    getSession.mockResolvedValue({ data: { session: null } });
+    const get = renderAuth();
+    await waitFor(() => expect(get().ready).toBe(true));
+    expect(get().recovery).toBe(false);
+    expect(sessionStorage.getItem(KEY)).toBeNull();
+  });
+
+  it("saving the new password forgets it", async () => {
+    sessionStorage.setItem(KEY, "1");
+    const get = renderAuth();
+    await waitFor(() => expect(get().ready).toBe(true));
+    await act(async () => { await get().updatePassword("hunter2!"); });
+    expect(sessionStorage.getItem(KEY)).toBeNull();
+    expect(get().recovery).toBe(false);
+  });
+
+  it("a failed save keeps it, so the person can try again after a reload", async () => {
+    sessionStorage.setItem(KEY, "1");
+    updateUser.mockResolvedValue({ error: new Error("weak password") });
+    const get = renderAuth();
+    await waitFor(() => expect(get().ready).toBe(true));
+    await expect(get().updatePassword("short")).rejects.toThrow("weak password");
+    expect(sessionStorage.getItem(KEY)).toBe("1");
+  });
+
+  it("signing out forgets it", async () => {
+    sessionStorage.setItem(KEY, "1");
+    const get = renderAuth();
+    await waitFor(() => expect(get().ready).toBe(true));
+    await act(async () => { await get().signOut(); });
+    expect(sessionStorage.getItem(KEY)).toBeNull();
+    expect(get().recovery).toBe(false);
+  });
+});
+
 // SHELL-F-10 (2026-09-05): "Sign out leaves the previous account's device
 // data for the next sign-in." Dave signs out, a family member signs in on
 // the same phone, and Quick Capture lists Dave's last ten capture titles.
@@ -234,7 +347,7 @@ describe("signInWithApple when the backend has not switched Apple on", () => {
     const get = renderAuth();
     await waitFor(() => expect(get().ready).toBe(true));
     await get().signInWithApple();
-    expect(signInWithOAuth).toHaveBeenCalledWith({ provider: "apple" });
+    expect(signInWithOAuth).toHaveBeenCalledWith({ provider: "apple", options: { redirectTo: window.location.origin } });
   });
 
   it("a raw Unsupported provider error from the backend is never passed on", async () => {
