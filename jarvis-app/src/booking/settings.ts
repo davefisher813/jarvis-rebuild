@@ -38,7 +38,7 @@ export const DEFAULT_BOOKING_SETTINGS: BookingSettings = {
 };
 
 export const WHO_LABEL: Record<BookingWho, string> = {
-  anyone: "Anyone With the Link",
+  anyone: "Anyone with the Link",
 };
 
 const KEY = "jarvis.booking.settings.v1";

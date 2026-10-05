@@ -250,7 +250,7 @@ export async function scheduleRestOver(at: number, body: string, nowMs: number =
       const perm = await LocalNotifications.checkPermissions();
       if (perm.display !== "granted") return;
       await LocalNotifications.schedule({
-        notifications: [{ id: REST_OVER_ID, title: "Rest over", body, schedule: { at: new Date(at), allowWhileIdle: true } }],
+        notifications: [{ id: REST_OVER_ID, title: "Rest Over", body, schedule: { at: new Date(at), allowWhileIdle: true } }],
       });
     } catch {
       /* notifications are a bonus, never a crash */
@@ -326,7 +326,7 @@ export function registerNotificationActions(): Promise<void> {
             actions: [
               { id: ACTION_OPEN, title: "Open", foreground: true },
               { id: ACTION_DONE, title: "Done" },
-              { id: ACTION_SNOOZE, title: "Snooze 15m" },
+              { id: ACTION_SNOOZE, title: "Snooze 15 Min" },
             ],
           },
         ],
@@ -497,7 +497,7 @@ export function buildEventReminders(
         out.push({
           id: 0,
           title: e.title.trim(),
-          body: e.location ? `Leave now for ${e.location}` : "Leave now",
+          body: e.location ? `Leave Now for ${e.location}` : "Leave Now",
           at,
           lead: leaveLead,
           leave: true,
@@ -641,7 +641,7 @@ export interface ReminderNotifyOptions {
   quietTo?: string;
 }
 export const PRIVATE_TITLE = "Health Reminder";
-export const PRIVATE_BODY = "Open JARVIS to see it";
+export const PRIVATE_BODY = "Open JARVIS to See It"; // Title Case, a banner the app writes (2026-10-05)
 export function buildTaskReminderNotifications(
   reminders: TaskReminderInput[],
   today: string,
@@ -685,7 +685,7 @@ export function buildTaskReminderNotifications(
           if (fu.stopAt && (again.getHours() * 60 + again.getMinutes()) > (Number(fu.stopAt.slice(0, 2)) * 60 + Number(fu.stopAt.slice(3, 5)))) break;
           const clock = String(again.getHours()).padStart(2, "0") + ":" + String(again.getMinutes()).padStart(2, "0");
           if (opts.quietFrom && opts.quietTo && inQuietHours(clock, opts.quietFrom, opts.quietTo)) continue;
-          if (again.getTime() > nowMs) out.push({ title, body: r.sensitive ? PRIVATE_BODY : "Asking again", at: again, taskId: r.id });
+          if (again.getTime() > nowMs) out.push({ title, body: r.sensitive ? PRIVATE_BODY : "Asking Again", at: again, taskId: r.id });
         }
       }
     }
@@ -807,7 +807,7 @@ export async function sendTestReminder(): Promise<"sent" | "denied" | "unsupport
       notifications: [{
         id: TEST_REMINDER_ID,
         title: "Test Reminder",
-        body: "This is how a reminder arrives",
+        body: "This Is How a Reminder Arrives",
         schedule: { at: new Date(Date.now() + TEST_REMINDER_DELAY_S * 1000), allowWhileIdle: true },
         actionTypeId: REMINDER_ACTION_TYPE,
       }],

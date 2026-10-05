@@ -15,8 +15,11 @@ export type HubTab = (typeof TABS)[number]["key"];
 export const BRIEF = "Your Context · Your Call";
 export const AI_OFF_STILL_WORKS = "AI Off? Every Core JARVIS Tool Still Works";
 export const ADMIN_OFF = "Turned Off by Admin";
-export const AI_ON = "On";
-export const AI_OFF = "Off · Nothing Runs";
+// 2026-10-05 (catalog gate): the AI row's line used to say "On" under a switch
+// that already shows it is on (a line that restates the row, R1) and
+// "Off · Nothing Runs" with the dot baked into a string drawn in .conn-meta
+// (R6). On says nothing now; Off says the one thing the switch cannot.
+export const AI_OFF = "Nothing Runs";
 
 export const EMPTY_AGENTS = { title: "No Assistant Connected", sub: "JARVIS Still Works", action: "Add Assistant" };
 export const EMPTY_REVIEW = { title: "Nothing Waiting for Your Decision", sub: "New Project Suggestions Appear Here", action: "Paste a Conversation" };
@@ -65,7 +68,8 @@ export const WITHDRAW_DECISION = "Withdraw Decision";
 export const NEEDS_REVIEW = "Needs Review";
 export const DECISION_CHANGED = "This Decision Changed · Review the Latest Version";
 export const ENTERED_BY_YOU = "Entered by You";
-export const REPLACE_LINE = "Replace Supersedes the Earlier Version · History Stays";
+// 2026-10-05: drawn in a row's .conn-meta, so the dot that was baked into it (R6) is a comma.
+export const REPLACE_LINE = "Replace Supersedes the Earlier Version, History Stays";
 export const WITHDRAW_LINE = "Withdrawn Decisions No Longer Guide New Plans · Related Records Remain";
 export const DEP_CHANGED_NOTE = "A Dependency Changed · Review This Decision";
 export const MARK_REVIEWED = "Mark Reviewed";
@@ -106,3 +110,12 @@ export const SWEEP_ROW = { label: "Clear Expired Shares", meta: "Removes the Cop
 export const sweepLine = (expired: number, purged: number): string =>
   expired + purged === 0 ? "Nothing Expired · All Clear"
     : `Cleared ${expired} Expired ${expired === 1 ? "Share" : "Shares"} · Removed ${purged} ${purged === 1 ? "Copy" : "Copies"}`;
+
+/** Under the Provider card (2026-10-05): this was the fourth fact on the provider row, a sentence among greys; it is the card's note now. */
+export const PROVIDER_ACK_NOTE = "Accepted Means Gmail Took It, Not That It Was Read";
+
+/** The two always-true lines the preview's rows used to carry as a baked-dot tail (2026-10-05): its note, under the card. */
+export const PREVIEW_ALWAYS = "Health, Money and Mail Are Never Shared, and a Read Receipt Is Written First";
+
+/** The import sheet's row line (2026-10-05, R6): it had a middle dot baked into it and drew inside .conn-meta; one fragment with a comma, one grey. */
+export const IMPORT_LANDS = "Everything Lands in Mentioned, Nothing Is Decided by Pasting";

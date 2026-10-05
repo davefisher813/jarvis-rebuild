@@ -6,7 +6,9 @@ import {
   type MetricDef, type MetricLog, type MetricType, type MetricPreset,
 } from "./metrics";
 import Stepper from "../shared/Stepper";
+import { lineCase } from "../shared/casing";
 import { own } from "../shared/rowDoor";
+import { shortDate } from "../shared/dateFormat";
 import { PulseGlyph } from "../shared/glyphs";
 
 const CHEV = <div className="chev" />;
@@ -61,7 +63,10 @@ export function MetricLogSheet({ def, date, initial, goalLine, onSetGoal, onSave
         <div className="sheet-handle" />
         <div className="grp"><div className="eyebrow">{def.data.name}</div></div>
         <div className="pad-x sheet-form">
-          <div className="conn-meta">{date}</div>
+          {/* 2026-10-05 (the catalog gate): the day is said the way a person says it
+              ("Oct 5") as a neutral date in small caps (R8). It printed the ISO
+              string the log is keyed by, "2026-10-05", in a plain grey line. */}
+          <div className="facts"><span className="fact date">{shortDate(date)}</span></div>
           {def.data.type === "yesno" ? (
             <div className="field">
               {/* The whole row flips the answer (Dave 2026-09-15: "I want all rows clickable"). */}
@@ -83,7 +88,7 @@ export function MetricLogSheet({ def, date, initial, goalLine, onSetGoal, onSave
           ) : (
             <div className="field">
               <div className="row">
-                <div className="row-grow"><div className="conn-name">{num}{def.data.unit ? ` ${def.data.unit}` : ""}</div></div>
+                <div className="row-grow"><div className="conn-name">{lineCase(`${num}${def.data.unit ? ` ${def.data.unit}` : ""}`)}</div></div>
                 <Stepper value={num} step={step} min={0} label={def.data.name} onChange={setNum} />
               </div>
             </div>

@@ -77,6 +77,15 @@ export default function ReplyCoverage({
   );
 }
 
+/** The one fact a line leads with: the state, and the reason when the reading has one. */
+function statusFact(item: CoverageItem): string {
+  const word = item.status === "addressed" ? "Answered" : item.status === "uncertain" ? "Maybe" : "Open";
+  if (!item.note) return word;
+  // A hand mark says everything itself ("Marked Answered"); a note that repeats the word adds nothing.
+  if (/^Marked /.test(item.note) || item.note.startsWith(word)) return item.note;
+  return word + ", " + item.note;
+}
+
 function Line({ item, mark, onOverride }: { item: CoverageItem; mark: CoverageOverride | undefined; onOverride: (key: string, mark: CoverageOverride | null) => void }) {
   const key = coverageKey(item.requirement);
   // One control per line: take the mark back, or make one the reading did not.
@@ -89,10 +98,13 @@ function Line({ item, mark, onOverride }: { item: CoverageItem; mark: CoverageOv
     <div className="row" {...rowDoor(go)}>
       <div className="row-grow">
         <div className="conn-name">{item.requirement.label}</div>
-        <Facts facts={[
-          item.status === "addressed" ? { text: "Answered", tone: "good" } : item.status === "uncertain" ? { text: "Maybe", tone: "warn" } : { text: "Open" },
-          item.note ? { text: item.note } : null,
-        ]} />
+        {/* 2026-10-05 (the catalog gate): ONE toned fact, then the sender's own words
+            as the row's one grey (R1). The status and its note were two facts, the
+            status plain grey when Open, the note a plain grey beside the quote: two
+            or three greys on a row. The state wears the key (answered is green; a
+            Maybe or an Open ask needs you, amber), and its reason rides inside it
+            ("Open, Nothing Is Attached"). A mark's note is the whole fact. */}
+        <Facts facts={[{ text: statusFact(item), tone: item.status === "addressed" ? "good" : "warn" }]} />
         <div className="conn-meta">{item.requirement.sourceQuote}</div>
       </div>
       <button className="pill-act" onClick={(e) => { e.stopPropagation(); go(); }}>{action.label}</button>

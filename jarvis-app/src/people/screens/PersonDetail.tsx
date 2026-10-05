@@ -166,8 +166,8 @@ export default function PersonDetail({
   // How JARVIS writes to them, stated in the card because it drives every
   // draft. Flagged wins over register, same precedence the drafting stack uses.
   const writeStyle = flagged
-    ? "With care, always professional"
-    : register === "friend" ? "Like a close friend"
+    ? "With Care, Always Professional"
+    : register === "friend" ? "Like a Close Friend"
     : register === "casual" ? "Casual"
     : register === "professional" ? "Professional"
     : undefined;
@@ -324,13 +324,13 @@ export default function PersonDetail({
         <div className="pad-x"><div className="card list-card-ruled">
           <KV label="Relationship" value={relationship} onEdit={onEdit} />
           <KV label="Birthday" value={birthday} onEdit={onEdit} />
-          <KV label="JARVIS writes" value={writeStyle} onEdit={onEdit} />
+          <KV label="JARVIS Writes" value={writeStyle} onEdit={onEdit} />
           <KV label="Areas" value={categoryNames.length > 0 ? categoryNames.join(", ") : undefined} onEdit={onEdit} />
           {/* UP-ATH-07: the one person Say It to Someone reaches. It sat
               under the name as a second grey beside the relationship (§AK),
               so it is a fact of its own here. No tap: the person sheet does
               not set it. */}
-          {trustedAdult && <KV label="Say It to Someone" value="Trusted adult" />}
+          {trustedAdult && <KV label="Say It to Someone" value="Trusted Adult" />}
           {lastTalked && (
             // Row tap (Dave 2026-09-15, "I want all rows clickable"): a quiet
             // contact's row drafts the check in, as its pill does. It opens a
@@ -374,7 +374,7 @@ export default function PersonDetail({
               <div className="row" key={"promise:" + p.threadId} {...(onAddTask ? pressable(() => onAddTask(p)) : {})}>
                 <div className="row-grow">
                   <div className="conn-name">{p.text}</div>
-                  <div className="facts"><span className="fact">You promised</span>{p.due && <span className={"fact " + dueTone(p.due, todayISO())}>{shortDate(p.due)}</span>}</div>
+                  <div className="facts"><span className="fact">You Promised</span>{p.due && <span className={"fact " + dueTone(p.due, todayISO())}>{shortDate(p.due)}</span>}</div>
                 </div>
                 {onAddTask && <button type="button" className="pill-act" onClick={(ev) => { ev.stopPropagation(); onAddTask(p); }}>Add Task</button>}
               </div>

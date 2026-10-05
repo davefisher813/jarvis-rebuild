@@ -393,8 +393,11 @@ export default function NotesList({
             // The view or tag the search ran inside, said as it is (Archived,
             // Recently Deleted and a tag used to print "All"), and the one
             // button that widens it to the whole library.
-            where: `${viewWord} notes${area ? ` in ${catName(area) || "this area"}` : ""}`,
-            ...(filter.kind !== "all" || area ? { onAll: () => { setFilter({ kind: "all" }); setArea(null); }, allLabel: "Search all notes" } : {}),
+            // Title Case like every other page's scope words and widen button
+            // (Tasks "Today Tasks" / "Search All Tasks", Reminders "Search All
+            // Areas"); it read "All notes" and "Search all notes" (2026-10-05).
+            where: `${viewWord} Notes${area ? ` in ${catName(area) || "This Area"}` : ""}`,
+            ...(filter.kind !== "all" || area ? { onAll: () => { setFilter({ kind: "all" }); setArea(null); }, allLabel: "Search All Notes" } : {}),
           } : undefined}
           // AREA AND TAG, STACKED (Dave 2026-09-17: "Make multiple dropdown
           // chips like areas in the most logical way possible. Stack
@@ -500,7 +503,11 @@ export default function NotesList({
       )}
       {confirmForever && onDeleteManyForever && (
         <RowActionSheet
-          title={confirmForever.length === 1 ? "Delete this note for good? It cannot be brought back." : `Delete ${confirmForever.length} notes for good? They cannot be brought back.`}
+          // A sheet's title is an 11px caps label, never a sentence (the
+          // 2026-09-26 caps ruling): it was two sentences, "Delete this note
+          // for good? It cannot be brought back." Title Case, one short line,
+          // and "No Undo" is the catalog's own word for it, joined with a comma so the label is one phrase (2026-10-05).
+          title={confirmForever.length === 1 ? "Delete This Note for Good, No Undo" : `Delete ${confirmForever.length} Notes for Good, No Undo`}
           actions={[{
             label: confirmForever.length === 1 ? "Delete Note Forever" : `Delete ${confirmForever.length} Notes Forever`,
             destructive: true,

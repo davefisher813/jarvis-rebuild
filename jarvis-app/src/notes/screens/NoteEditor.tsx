@@ -376,7 +376,7 @@ export default function NoteEditor({
     const text = kind === "markdown" ? docToMarkdown(doc, { title }) : docToPlainText(doc, { title, includeTitle: kind !== "body" });
     try {
       await copyText(text);
-      showToast({ message: kind === "body" ? "Body copied" : kind === "markdown" ? "Copied as Markdown" : "Note copied" });
+      showToast({ message: kind === "body" ? "Body Copied" : kind === "markdown" ? "Copied as Markdown" : "Note Copied" });
     } catch {
       setFallback(text);
     }
@@ -416,7 +416,7 @@ export default function NoteEditor({
     const doc = editorRef.current?.sectionDoc();
     if (!doc) return;
     const text = docToPlainText(doc, { includeTitle: false });
-    try { await copyText(text); showToast({ message: "Section copied" }); } catch { setFallback(text); }
+    try { await copyText(text); showToast({ message: "Section Copied" }); } catch { setFallback(text); }
   };
 
   const saveLine =
@@ -665,7 +665,7 @@ export default function NoteEditor({
           stale={aiStale}
           onApply={() => { if (aiRun.result !== null) editorRef.current?.replaceRange(aiRun.from, aiRun.to, parseMarkdown(aiRun.result)); setAiRun(null); showToast({ message: "Applied · Undo Is on the Bar" }); }}
           onInsert={() => { if (aiRun.result !== null) editorRef.current?.insertAtCaret(parseMarkdown(aiRun.result)); setAiRun(null); }}
-          onCopy={() => { if (aiRun.result !== null) void copyText(aiRun.result).then(() => showToast({ message: "Result copied" })).catch(() => setFallback(aiRun.result)); }}
+          onCopy={() => { if (aiRun.result !== null) void copyText(aiRun.result).then(() => showToast({ message: "Result Copied" })).catch(() => setFallback(aiRun.result)); }}
           onRetry={() => void runAI(aiRun.action, { from: aiRun.from, to: aiRun.to, text: aiRun.text })}
           onClose={() => setAiRun(null)}
         />

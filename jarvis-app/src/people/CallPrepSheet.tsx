@@ -3,6 +3,7 @@ import { useState } from "react";
 import type { Person } from "./types";
 import { attemptWrite } from "../shared/guard";
 import { showToast } from "../shared/toast";
+import { lineCase } from "../shared/casing";
 
 // Call Prep Card (addendum item 2, approved preview 2026-08-15). Opens
 // INSTANTLY with everything the app already knows about this person;
@@ -21,11 +22,14 @@ function ago(iso: string | undefined): string | null {
   const ms = Date.now() - new Date(iso).getTime();
   if (!Number.isFinite(ms) || ms < 0) return null;
   const days = Math.floor(ms / 86400000);
+  // Lowercase on purpose: it is read into "You called ..." and cased as one
+  // line by lineCase where it renders, so "a month ago" lands as "You Called
+  // a Month Ago" (a small word mid-line) instead of "You Called A Month Ago".
   if (days === 0) return "today";
   if (days === 1) return "yesterday";
-  if (days < 30) return `${days} Days ago`;
+  if (days < 30) return `${days} days ago`;
   const months = Math.floor(days / 30);
-  return months === 1 ? "A month ago" : `${months} Months ago`;
+  return months === 1 ? "a month ago" : `${months} months ago`;
 }
 
 export default function CallPrepSheet({
@@ -57,8 +61,8 @@ export default function CallPrepSheet({
   const [captureText, setCaptureText] = useState("");
   const lastCalled = ago(lastCallAttempt || undefined);
   const writeStyle = flagged
-    ? "With care, always professional"
-    : register === "friend" ? "Like a close friend"
+    ? "With Care, Always Professional"
+    : register === "friend" ? "Like a Close Friend"
     : register === "casual" ? "Casual"
     : register === "professional" ? "Professional"
     : undefined;
@@ -72,7 +76,7 @@ export default function CallPrepSheet({
     if (!ok || !payload) return;
     const prior = (payload as { prior: string | undefined }).prior;
     showToast({
-      message: "Call logged",
+      message: "Call Logged",
       actionLabel: "Undo",
       onAction: () => void attemptWrite(() => onUndoCall(prior)),
     });
@@ -100,7 +104,7 @@ export default function CallPrepSheet({
           <div className="row">
             <div className="row-stack">
               <div className="conn-name">{name}</div>
-              {lastCalled && <div className="conn-meta">You called {lastCalled}</div>}
+              {lastCalled && <div className="conn-meta">{lineCase("You called " + lastCalled)}</div>}
             </div>
           </div>
           {reason && (

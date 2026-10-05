@@ -35,7 +35,7 @@ function Side({ row, c }: { row: LibraryRow; c: Classification }) {
   // and where they agree they separate nothing.
   const kit = [valueLine(c, "equipment"), identityLine(c)].filter(Boolean).join(", ");
   const count = row.sessions > 0
-    ? `${row.sessions} ${row.sessions === 1 ? "session" : "sessions"}` + (row.sets > 0 ? `, ${row.sets} ${row.sets === 1 ? "set" : "sets"}` : "")
+    ? lineCase(`${row.sessions} ${row.sessions === 1 ? "session" : "sessions"}` + (row.sets > 0 ? `, ${row.sets} ${row.sets === 1 ? "set" : "sets"}` : ""))
     : null;
   const one = row.firstDate ?? row.lastDate;
   const span = row.firstDate && row.lastDate && row.lastDate !== row.firstDate
@@ -226,7 +226,7 @@ export function DuplicatesSheet({ pairs, sideOf, onReview, onKeepSeparate, onClo
                         {differs && <span className="fact amber">{`${ea} and ${eb}`}</span>}
                       </div>
                       <div className="facts">
-                        <span className="fact lime">{`${d.fold.sessions} and ${d.keep.sessions} ${d.keep.sessions === 1 && d.fold.sessions === 1 ? "session" : "sessions"}`}</span>
+                        <span className="fact lime">{`${d.fold.sessions} and ${d.keep.sessions} ${d.keep.sessions === 1 && d.fold.sessions === 1 ? "Session" : "Sessions"}`}</span>
                         {d.fold.firstDate && <span className="fact date">{`${d.fold.name} from ${shortDate(d.fold.firstDate)}`}</span>}
                         {d.keep.firstDate && <span className="fact date">{`${d.keep.name} from ${shortDate(d.keep.firstDate)}`}</span>}
                       </div>

@@ -8,19 +8,26 @@
 import { rowDoor } from "../shared/rowDoor";
 import { monthDay } from "../money/bills";
 import type { WaitingItem } from "../substrate/waiting/types";
-import { EMPTY_RESOLVED, EMPTY_WAITING, FOLLOW_UP_TODAY, NEW_REPLY, OPEN_VIEW, RESOLVED_VIEW, RESOLVED_WORD, WAITING_ON, countWord, followUpOnWord, followUpWas } from "./copy";
+import { EMPTY_RESOLVED, EMPTY_WAITING, FOLLOW_UP_TODAY, NEW_REPLY, OPEN_VIEW, RESOLVED_VIEW, RESOLVED_WORD, WAITING_ON, followUpOnWord, followUpWas } from "./copy";
+import EmailFacts from "./EmailFacts";
+import type { EmailFact } from "./format";
 import EmptyState from "./EmptyState";
 import ListFloor from "../shared/ListFloor";
-import { ageWord, followUpState, newReply, orderWaiting, type LatestInThread } from "./waiting";
+import { ageWord, followUpState, newReply, orderWaiting, windowTone, type LatestInThread } from "./waiting";
 
 export type WaitingView = "open" | "resolved";
 
-export function followUpWord(followUpOn: string | undefined, today: string): { word: string; warn: boolean } | null {
+/**
+ * The follow-up date in the key's colour (2026-10-05): late is red, today or tomorrow amber, later a neutral
+ * date in small caps. It was amber for "was due" and a plain grey for everything later, which drew a missed
+ * follow-up in the colour of a due one and a due one in the colour of nothing.
+ */
+export function followUpWord(followUpOn: string | undefined, today: string): { word: string; tone: "red" | "warn" | "date" } | null {
   const s = followUpState(followUpOn, today);
   if (s === "none" || !followUpOn) return null;
-  if (s === "today") return { word: FOLLOW_UP_TODAY, warn: true };
-  if (s === "overdue") return { word: followUpWas(monthDay(followUpOn)), warn: true };
-  return { word: followUpOnWord(monthDay(followUpOn)), warn: false };
+  if (s === "today") return { word: FOLLOW_UP_TODAY, tone: "warn" };
+  if (s === "overdue") return { word: followUpWas(monthDay(followUpOn)), tone: "red" };
+  return { word: followUpOnWord(monthDay(followUpOn)), tone: windowTone(followUpOn, today) };
 }
 
 export default function WaitingList({ items, latest, own, today, zone, view, onView, onOpen, onShowInbox }: {
@@ -54,27 +61,26 @@ export default function WaitingList({ items, latest, own, today, zone, view, onV
               const d = it.data;
               const fu = view === "open" ? followUpWord(d.followUpOn, today) : null;
               const reply = newReply(d, d.threadId ? latest[d.threadId] : undefined, own);
+              // ONE facts line, the colour first and the free-text name last (2026-10-05): the follow-up date wears
+              // its key colour, the age is a neutral small-caps fact, "Waiting On" is the line's one grey. New
+              // Reply is amber too, so it sits on its own line (one coloured fact per line), and only when there is one.
+              const line: EmailFact[] = [
+                ...(fu ? [{ text: fu.word, tone: fu.tone }] : []),
+                view === "open" ? { text: ageWord(d.startedAt, today, zone), tone: "date" as const } : { text: `${RESOLVED_WORD}${d.resolvedAt ? " " + monthDay(d.resolvedAt.slice(0, 10)) : ""}`, tone: "good" as const },
+                { text: `${WAITING_ON} ${d.counterpartyDisplay || "Someone"}` },
+              ];
               return (
                 <div className="row" key={it.id} {...rowDoor(() => onOpen(it))} data-waiting={it.id}>
                   <div className="row-grow">
                     <div className="conn-name truncate">{d.title}</div>
-                    <div className="facts">
-                      <span className="fact">{WAITING_ON} {d.counterpartyDisplay || "Someone"}</span>
-                      <span className="fact">{view === "open" ? ageWord(d.startedAt, today, zone) : `${RESOLVED_WORD} ${d.resolvedAt ? monthDay(d.resolvedAt.slice(0, 10)) : ""}`.trim()}</span>
-                    </div>
-                    {(fu || reply) && (
-                      <div className="facts">
-                        {fu && <span className={"fact" + (fu.warn ? " warn" : "")}>{fu.word}</span>}
-                        {reply && <span className="fact warn">{NEW_REPLY}</span>}
-                      </div>
-                    )}
+                    <EmailFacts wrap facts={line} />
+                    {reply && <EmailFacts wrap facts={[{ text: NEW_REPLY, tone: "warn" }]} />}
                   </div>
                   <div className="chev"></div>
                 </div>
               );
             })}
           </div>
-          <div className="email-note quiet"><span>{countWord(list.length, "Record", "Records")}</span></div>
           <ListFloor />
         </div>
       )}

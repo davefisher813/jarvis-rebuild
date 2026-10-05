@@ -8,5 +8,5 @@ export default defineConfig({
   resolve: {
     alias: { "@core": resolve(__dirname, "../jarvis-core/src/index.ts") },
   },
-  test: { globals: true, environment: "node" },
+  test: { globals: true, environment: "node", setupFiles: ["./src/laws/catalogSetup.ts"] },
 });

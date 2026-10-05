@@ -97,7 +97,7 @@ export function nowContext(events: EventItem[], locked: LockedRange[], nowHHMM: 
 
   const next = slots.find((s) => s.s > now);
   if (!next) {
-    return { head: "Clear From Here", tail: null, gapMin: null, nextStart: null, nextTitle: null, nextLeave };
+    return { head: "Clear from Here", tail: null, gapMin: null, nextStart: null, nextTitle: null, nextLeave };
   }
   const gap = next.s - now;
   // UP-CORE-07: when the next thing has to be travelled to, the free window

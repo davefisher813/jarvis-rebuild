@@ -228,11 +228,11 @@ describe("Reply Coverage in the composer", () => {
     await act(async () => { await new Promise((r) => setTimeout(r, 400)); });
     expect(screen.getByText("Answered 0 of 1")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Check" }));
-    expect(await screen.findByText("Nothing Is Attached")).toBeInTheDocument();
+    expect(await screen.findByText("Open, Nothing Is Attached")).toBeInTheDocument();
     // A decline is an answer (and does not complete it).
     await type("Can't send waiver until Friday");
     await waitFor(() => expect(screen.getByText("Answered 1 of 1")).toBeInTheDocument(), { timeout: 2000 });
-    expect(screen.getByText("Deferred")).toBeInTheDocument();
+    expect(screen.getByText("Answered, Deferred")).toBeInTheDocument();
     // Delete the sentence and the check goes back.
     await type("Thanks");
     await waitFor(() => expect(screen.getByText("Answered 0 of 1")).toBeInTheDocument(), { timeout: 2000 });

@@ -557,7 +557,8 @@ export default function MailNotices({
                         e.stopPropagation();
                         const url = fallbacks[n.key]!;
                         void copyPromised(url).then(
-                          () => showToast({ message: "Link copied" }),
+                          // 2026-10-05: Title Case, like every other line the app writes ("Link copied" was the one lowercase toast here).
+                          () => showToast({ message: "Link Copied" }),
                           () => showToast({ message: "Couldn't Copy · Nothing on Your Clipboard" }),
                         );
                       }}
@@ -594,11 +595,12 @@ export default function MailNotices({
                       <button className="pill-act" disabled={draft.sending} onClick={() => void send(n, draft.text)}>
                         {draft.sending ? "Sending…" : "Send"}
                       </button>
-                      <button className="plan-drop" disabled={draft.sending} onClick={() => setDrafts((d) => { const x = { ...d }; delete x[n.key]; return x; })}>
+                      {/* 2026-10-05: the two quiet verbs are capsules, the Capsule (section AL), not bare tap-red words beside the Send capsule. */}
+                      <button className="quiet-action" disabled={draft.sending} onClick={() => setDrafts((d) => { const x = { ...d }; delete x[n.key]; return x; })}>
                         Discard
                       </button>
                       {onOpenThread && (
-                        <button className="plan-drop" disabled={draft.sending} onClick={() => onOpenThread(n.threadId)}>Open It</button>
+                        <button className="quiet-action" disabled={draft.sending} onClick={() => onOpenThread(n.threadId)}>Open It</button>
                       )}
                     </div>
                   </div>
@@ -633,7 +635,7 @@ export default function MailNotices({
               const keys = notices.map((n) => n.key);
               setHidden(setDismissed([...was, ...keys], today));
               showToast({
-                message: keys.length + " cleared",
+                message: keys.length + " Cleared", // 2026-10-05: the word after a number is Title Case too ("45 Min").
                 actionLabel: "Undo",
                 // The list AS IT WAS, written back in one go. Removing the
                 // keys one at a time would be the same thing said less

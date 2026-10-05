@@ -62,7 +62,7 @@ export default function AllDataPage({ view, onView, records, filter, onFilter, t
   const quietLine = (r: DataRecord) => {
     const detail = r.detail && !r.sets ? r.detail : null;
     if (r.source !== "Imported") return detail;
-    return detail ? `${detail}, imported` : "Imported";
+    return detail ? `${detail}, Imported` : "Imported";
   };
   const deletable = (r: DataRecord) => r.open.kind !== "workout" && r.open.kind !== "metric" && !("pending" in r.open && r.open.pending);
   // The row whose options are open. One at a time; the sheet is the app's own.

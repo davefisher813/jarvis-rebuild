@@ -16,6 +16,7 @@ import {
 } from "../tracker";
 import MatchesCard from "./MatchesCard";
 import HistoryList from "./HistoryList";
+import { LinkedFacts } from "../MoneyFacts";
 import { categoryChoices, lastCategoryFor } from "../categoryDefault";
 import { allocationsFromRows, discrepancyLines, displayRows, isUncategorized, monthActuals, monthSpend, newRow, rowsForNewMonth, rowsFromAllocations, type BudgetRow } from "../budgetView";
 import { overLine } from "../ledger/actuals";
@@ -277,10 +278,12 @@ function Dashboard({ month, onMonth, txs, receipts, data, onSaved }: {
         </div>
       )}
 
-      <SectionHead label="Spending by Category" count={cats.length} />
-      {cats.length === 0 ? (
-        <div className="pad-x mt-note">Nothing Spent This Month</div>
-      ) : (
+      {/* No "Nothing Spent This Month" under an empty head (2026-10-05, the
+          visual catalog gate, R1: a placeholder that states nothing, which
+          the head's own 0 already said). With nothing spent the section is
+          not drawn, as Top Merchants below it is not. */}
+      {cats.length > 0 && <SectionHead label="Spending by Category" count={cats.length} />}
+      {cats.length > 0 && (
         <div className="pad-x">
           {cats.map(([name, cents], i) => (
             <div className="mt-cat" key={name}>
@@ -435,17 +438,23 @@ function Transactions({ data, month, receipts, bills, onSaved }: {
                   row's one grey, its mark the dot at the row's head. The dot
                   between them is drawn by .facts, never baked in (F3). A
                   payment that is matched says so (Money ledger, 2026-10-03). */}
+              {/* Matched is the key's green and leads the free-text category
+                  (2026-10-05, visual catalog gate, R1 and R3): it was a second
+                  grey beside the category. */}
               <div className="facts">
                 <span className="fact date">{fmtDay(t.data.date)}</span>
+                {(t.data.matchedReceiptId || t.data.paysBillId) && <span className="fact good">Matched</span>}
                 <span className="fact">{lineCase(t.data.category)}</span>
-                {(t.data.matchedReceiptId || t.data.paysBillId) && <span className="fact">Matched</span>}
               </div>
             </div>
             <div className={"mt-amt" + (t.data.amountCents < 0 ? " good" : "")}>{fmtCents(t.data.amountCents)}</div>
           </div>
         ))}
-        {shown.length === 0 && (
-          <div className="row"><div className="row-grow"><div className="conn-meta">{data.txs.length === 0 ? "Nothing Tracked Yet" : "Nothing Matches"}</div></div></div>
+        {/* "Nothing Tracked Yet" is gone (2026-10-05, visual catalog gate, R1):
+            the head's 0 says it and Add Manually is the next thing. Only a
+            filter that hides every row says so, because the 0 does not say why. */}
+        {shown.length === 0 && data.txs.length > 0 && (
+          <div className="row"><div className="row-grow"><div className="conn-meta">Nothing Matches</div></div></div>
         )}
         {/* There is no bank connection in this version: every transaction is
             one the person adds, or one they approve from a bill or a receipt. */}
@@ -558,14 +567,16 @@ function TxSheet({ initial, accounts, categories, categoryFor, links, onUnmatch,
         <Group label="Match">
           {(links.receipt || initial.matchedReceiptId) && (
             <Row tone="green" glyph={<Link2 className="ic" />} label="Matched to a Receipt"
-              meta={links.receipt ? lineCase(`${links.receipt.data.vendor} ${fmtCents(links.receipt.data.amountCents)} ${fmtDay(links.receipt.data.transactionDate)}`) : "Counted Once"}
+              meta={links.receipt
+                ? <LinkedFacts name={links.receipt.data.vendor} sameAs={initial.merchant} cents={links.receipt.data.amountCents} day={links.receipt.data.transactionDate} />
+                : "Counted Once"}
               onClick={() => onUnmatch?.("receipt")}>
               <button type="button" className="pill-act" onClick={(e) => { e.stopPropagation(); onUnmatch?.("receipt"); }}>Unmatch</button>
             </Row>
           )}
           {(links.bill || initial.paysBillId) && (
             <Row tone="green" glyph={<Link2 className="ic" />} label="Pays a Bill"
-              meta={links.bill ? lineCase(`${links.bill.data.vendor} ${fmtCents(links.bill.data.amountCents)}`) : undefined}
+              meta={links.bill ? <LinkedFacts name={links.bill.data.vendor} sameAs={initial.merchant} cents={links.bill.data.amountCents} /> : undefined}
               onClick={links.billPaidByThis ? () => onUnmatch?.("bill") : undefined}>
               {links.billPaidByThis && (
                 <button type="button" className="pill-act" onClick={(e) => { e.stopPropagation(); onUnmatch?.("bill"); }}>Unmatch</button>
@@ -670,8 +681,11 @@ function Budgets({ month, onMonth, data, receipts, onSaved }: {
             placeholder="0.00" value={target} onChange={(e) => setTarget(e.target.value)} />
         </div>
       </div></div>
+      {/* The note under the card is the group-footer pattern (2026-10-05,
+          visual catalog gate, R9): it was a second grey .fact line stacked on
+          the Spent line below it. */}
       {copiedFrom && !existing && (
-        <div className="pad-x mt-note"><span className="fact">Limits Copied From {monthLabel(copiedFrom)}</span></div>
+        <div className="pad-x"><div className="input-hint">Limits Copied From {monthLabel(copiedFrom)}</div></div>
       )}
       {/* What has gone out so far, a fact. A payment and the receipt linked
           to it are one amount here. */}
@@ -681,11 +695,18 @@ function Budgets({ month, onMonth, data, receipts, onSaved }: {
 
       {discrepancies.map((d) => (
         <div className="pad-x mt-note" key={d.key}>
-          <div className="facts">
-            {d.vendor && <span className="fact">{titleCase(d.vendor)}</span>}
-            <span className="fact">{lineCase(d.says)}</span>
-            <span className="fact">{lineCase(d.counted)}</span>
+          {/* ONE GREY, AND NOTHING CLIPPED (2026-10-05, visual catalog gate,
+              R1, R3 and the facts-never-clip ruling). The vendor, what each
+              side says and which one counted were three greys on a nowrap
+              .facts line that cut the last. The short toned facts lead on one
+              line (the vendor, the white fact, and the payment being the one
+              counted, the key's green) and what the two say, the row's one
+              grey, goes under it whole, so no separator hangs at a wrap. */}
+          <div className="conn-meta">
+            {d.vendor && <span className="fact"><b>{titleCase(d.vendor)}</b></span>}
+            <span className="fact good">{lineCase(d.counted)}</span>
           </div>
+          <div className="conn-meta"><span className="fact">{lineCase(d.says)}</span></div>
         </div>
       ))}
 
@@ -843,7 +864,10 @@ function Subscriptions({ data, onSaved }: { data: TrackerData; onSaved: () => Pr
       </div>
 
       <SectionHead label="Subscriptions" count={data.subs.length} />
-      <div className="pad-x"><div className="card list-card-ruled">
+      {/* No "Nothing Tracked Yet" row, and no empty card (2026-10-05, visual
+          catalog gate, R1): the head's 0 says it, and Add One is the next
+          section. */}
+      {data.subs.length > 0 && <div className="pad-x"><div className="card list-card-ruled">
         {data.subs.map((s) => (
           // The row is a door to the editor now; Cancel stays on its own
           // button beside it, because stopping a real charge should not need
@@ -866,10 +890,7 @@ function Subscriptions({ data, onSaved }: { data: TrackerData; onSaved: () => Pr
             </button>
           </div>
         ))}
-        {data.subs.length === 0 && (
-          <div className="row"><div className="row-grow"><div className="conn-meta">Nothing Tracked Yet</div></div></div>
-        )}
-      </div></div>
+      </div></div>}
 
       <SectionHead label="Add One" />
       <div className="pad-x"><div className="card list-card-ruled">

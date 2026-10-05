@@ -106,7 +106,9 @@ export default function AccountPage({ onBack, onEditProfile, onSignOut }: { onBa
         <input ref={fileRef} type="file" accept="image/*" hidden aria-label="Profile photo"
           onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; void onFile(f); }} />
         <div className="account-name">{p?.name || "Your name"}</div>
-        <div className="account-sub">{`${tmpl} plan`}</div>
+        {/* CATALOG PASS (2026-10-05, Dave "I am sick of this"): Title Case on
+            every grey line the app writes, so "Personal plan" is "Personal Plan". */}
+        <div className="account-sub">{`${tmpl} Plan`}</div>
       </div></div>
       <Head label="Account" />
       <Card>
@@ -118,8 +120,10 @@ export default function AccountPage({ onBack, onEditProfile, onSignOut }: { onBa
             the no-backend local/demo build (App.tsx), where there is no
             account to be active, so the honest value follows the same signal
             BackupPage uses. */}
-        <Row label="Status" value={backendConfigured ? "Active" : "Local"} />
-        <Row label={redoArmed ? "Tap again to redo setup" : "Redo Setup"} meta={redoArmed ? "Your data stays" : undefined} chev
+        {/* 2026-10-05: an account that is active is on track, so the key draws
+            it green (the way Backup draws sync On); Local is a plain fact. */}
+        <Row label="Status" value={backendConfigured ? <span className="fact good">Active</span> : "Local"} />
+        <Row label={redoArmed ? "Tap Again to Redo Setup" : "Redo Setup"} meta={redoArmed ? "Your Data Stays" : undefined} chev
           onClick={async () => {
             if (!redoArmed) { setRedoArmed(true); return; }
             // SHELL-F-14 (2026-09-05): this write had no catch, so a failed

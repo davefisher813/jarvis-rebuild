@@ -493,7 +493,7 @@ export default function HealthFlow({
           onAddWindDown={() => {
             const offer = nightBeforeOffer(nightBeforeCommitments, Date.now());
             if (!offer) return;
-            const line = "Wind Down at " + new Date(offer.windDownAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+            const line = "Wind Down at " + new Date(offer.windDownAt).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
             take(onOffer, { kind: "windDown", at: offer.windDownAt, line }, OFFER_RECEIPT.windDown);
           }}
           onBack={onExit}

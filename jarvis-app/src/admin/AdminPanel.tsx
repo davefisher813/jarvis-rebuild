@@ -4,7 +4,8 @@ import { formatUSD } from "../ai/tokenLog";
 import type { AdminService, AdminUser, AdminUsage, AdminBilling, AdminFeedbackItem } from "./AdminService";
 import { pct, type AdminMetrics } from "./adminMetrics";
 import { pressable } from "../shared/pressable";
-import { Switch } from "../settings/kit";
+import { Switch, Head } from "../settings/kit";
+import { lineCase } from "../shared/casing";
 import SkeletonRows from "../shared/SkeletonRows";
 import type { AdminProbe } from "./useIsAdmin";
 
@@ -53,7 +54,7 @@ export default function AdminPanel({ isAdmin, probe, onRecheck, source, onBack }
           if (on) setMetrics(m);
         } catch { /* the section says so for itself */ }
       } catch (e) {
-        if (on) setError((e as Error).message || "Could not load admin data");
+        if (on) setError((e as Error).message || "Could Not Load Admin Data");
       }
     })();
     return () => { on = false; };
@@ -71,7 +72,7 @@ export default function AdminPanel({ isAdmin, probe, onRecheck, source, onBack }
       await source.setUserStatus(u.id, next);
     } catch (e) {
       setUsers((xs) => xs.map((x) => (x.id === u.id ? { ...x, status: was } : x)));
-      setError((e as Error).message || "Action failed");
+      setError((e as Error).message || "Action Failed");
     }
   };
 
@@ -85,7 +86,7 @@ export default function AdminPanel({ isAdmin, probe, onRecheck, source, onBack }
       await source.setUserAiAllowed(u.id, next);
     } catch (e) {
       setUsers((xs) => xs.map((x) => (x.id === u.id ? { ...x, aiAllowed: !next } : x)));
-      setError((e as Error).message || "Action failed");
+      setError((e as Error).message || "Action Failed");
     }
   };
 
@@ -107,7 +108,7 @@ export default function AdminPanel({ isAdmin, probe, onRecheck, source, onBack }
         <div className="pad-x"><div className="card"><div className="empty-state">
           <div className="empty-icon"><ShieldAlert className="ic" /></div>
           <div className="empty-title">Couldn't Check Access</div>
-          <div className="empty-sub">The admin server did not answer</div>
+          <div className="empty-sub">The Admin Server Did Not Answer</div>
           <button className="btn btn-secondary btn-block" onClick={onRecheck}>Try Again</button>
         </div></div></div>
       </div>
@@ -121,7 +122,7 @@ export default function AdminPanel({ isAdmin, probe, onRecheck, source, onBack }
         <div className="pad-x"><div className="card"><div className="empty-state">
           <div className="empty-icon"><ShieldAlert className="ic" /></div>
           <div className="empty-title">Not Authorized</div>
-          <div className="empty-sub">Master account only</div>
+          <div className="empty-sub">Master Account Only</div>
         </div></div></div>
       </div>
     );
@@ -138,20 +139,22 @@ export default function AdminPanel({ isAdmin, probe, onRecheck, source, onBack }
     <div className="screen">
       <div className="nav-bar"><button className="nav-back" onClick={onBack}>Back</button><div className="nav-large">Admin</div></div>
 
-      {source.sample && <div className="pad-x"><div className="adm-banner">Sample data, for layout preview only.</div></div>}
+      {source.sample && <div className="pad-x"><div className="adm-banner">Sample Data, for Layout Preview Only</div></div>}
       {error && <div className="pad-x conn-error">{error}</div>}
 
-      <div className="grp"><div className="eyebrow">Usage</div></div>
+      {/* SECTION HEADS ARE .sh2 (§AM F7, 2026-10-05): this screen drew them as a
+          .grp eyebrow, a second head style the catalog does not have. */}
+      <Head label="Usage" />
       {!source.available ? serverNote : (
         <div className="pad-x"><div className="adm-grid">
           <div className="adm-tile"><div className="adm-num">{usage?.totalUsers ?? "-"}</div><div className="adm-label">Users</div></div>
           <div className="adm-tile"><div className="adm-num">{usage?.activeUsers ?? "-"}</div><div className="adm-label">Active</div></div>
           <div className="adm-tile"><div className="adm-num">{usage?.signups7d ?? "-"}</div><div className="adm-label">Signups 7d</div></div>
-          <div className="adm-tile"><div className="adm-num">{usage?.aiCalls30d ?? "-"}</div><div className="adm-label">AI calls 30d</div></div>
+          <div className="adm-tile"><div className="adm-num">{usage?.aiCalls30d ?? "-"}</div><div className="adm-label">AI Calls 30d</div></div>
           {/* UP-PLAT-04 (2026-09-06): the bill, not just the call count. A
               dash when nothing was measured or a model in the window has no
               price: an unpriced estimate is not an estimate. */}
-          <div className="adm-tile"><div className="adm-num">{usage?.aiCost30d != null ? formatUSD(usage.aiCost30d) : "-"}</div><div className="adm-label">AI cost 30d</div></div>
+          <div className="adm-tile"><div className="adm-num">{usage?.aiCost30d != null ? formatUSD(usage.aiCost30d) : "-"}</div><div className="adm-label">AI Cost 30d</div></div>
         </div></div>
       )}
 
@@ -161,7 +164,7 @@ export default function AdminPanel({ isAdmin, probe, onRecheck, source, onBack }
           row rather than a column of zeros. */}
       {source.available && !!usage?.spend?.length && (
         <>
-          <div className="grp"><div className="eyebrow">AI Spend 30d</div></div>
+          <Head label="AI Spend 30d" />
           <div className="pad-x"><div className="card">
             {usage.spend.map((s) => (
               <div className="row" key={s.id}>
@@ -172,8 +175,8 @@ export default function AdminPanel({ isAdmin, probe, onRecheck, source, onBack }
                       table does not know needs the admin to add it, so it is
                       amber, on the facts line rather than in the value slot. */}
                   <div className="facts">
-                    <span className="fact">{s.calls} {s.calls === 1 ? "call" : "calls"}</span>
-                    {s.usd == null && <span className="fact warn">Not priced</span>}
+                    <span className="fact">{`${s.calls} ${s.calls === 1 ? "Call" : "Calls"}`}</span>
+                    {s.usd == null && <span className="fact warn">Not Priced</span>}
                   </div>
                 </div>
                 {s.usd != null && <span className="money-amt">{formatUSD(s.usd)}</span>}
@@ -183,7 +186,7 @@ export default function AdminPanel({ isAdmin, probe, onRecheck, source, onBack }
         </>
       )}
 
-      <div className="grp"><div className="eyebrow">Billing</div></div>
+      <Head label="Billing" />
       {!source.available ? serverNote : (
         <div className="pad-x"><div className="adm-grid">
           <div className="adm-tile"><div className="adm-num">{billing ? "$" + billing.mrr : "-"}</div><div className="adm-label">MRR</div></div>
@@ -196,38 +199,38 @@ export default function AdminPanel({ isAdmin, probe, onRecheck, source, onBack }
           answered from rows this app already writes. Every one of them is a
           dash rather than a zero when there is nobody to count yet: an
           invented number here is a decision made on a lie. */}
-      <div className="grp"><div className="eyebrow">Metrics</div></div>
+      <Head label="Metrics" />
       {!source.available ? serverNote : metrics === null ? (
         <div className="pad-x"><div className="card"><div className="empty-state">
           <div className="empty-title">Metrics Are Not Loaded</div>
-          <div className="empty-sub">This deploy has no metrics endpoint yet</div>
+          <div className="empty-sub">This Deploy Has No Metrics Endpoint Yet</div>
         </div></div></div>
       ) : (
         <>
           <div className="pad-x"><div className="adm-grid">
-            <div className="adm-tile"><div className="adm-num">{pct(metrics.onboardingRate)}</div><div className="adm-label">Finished onboarding</div></div>
-            <div className="adm-tile"><div className="adm-num">{metrics.weeklyActive}</div><div className="adm-label">Active this week</div></div>
-            <div className="adm-tile"><div className="adm-num">{pct(metrics.d1)}</div><div className="adm-label">Came back next day{metrics.d1Basis ? " (" + metrics.d1Basis + ")" : ""}</div></div>
-            <div className="adm-tile"><div className="adm-num">{pct(metrics.d7)}</div><div className="adm-label">Came back day 7{metrics.d7Basis ? " (" + metrics.d7Basis + ")" : ""}</div></div>
-            <div className="adm-tile"><div className="adm-num">{metrics.aiCallsPerActive ?? "-"}</div><div className="adm-label">AI calls per active</div></div>
+            <div className="adm-tile"><div className="adm-num">{pct(metrics.onboardingRate)}</div><div className="adm-label">Finished Onboarding</div></div>
+            <div className="adm-tile"><div className="adm-num">{metrics.weeklyActive}</div><div className="adm-label">Active This Week</div></div>
+            <div className="adm-tile"><div className="adm-num">{pct(metrics.d1)}</div><div className="adm-label">Came Back Next Day{metrics.d1Basis ? " (" + metrics.d1Basis + ")" : ""}</div></div>
+            <div className="adm-tile"><div className="adm-num">{pct(metrics.d7)}</div><div className="adm-label">Came Back Day 7{metrics.d7Basis ? " (" + metrics.d7Basis + ")" : ""}</div></div>
+            <div className="adm-tile"><div className="adm-num">{metrics.aiCallsPerActive ?? "-"}</div><div className="adm-label">AI Calls per Active</div></div>
             <div className="adm-tile"><div className="adm-num">{metrics.signups7d}</div><div className="adm-label">Signups 7d</div></div>
             {/* The funnel behind "Finished onboarding", one number per tile,
                 the way every other count on this screen is drawn. */}
-            <div className="adm-tile"><div className="adm-num">{metrics.funnel.started}</div><div className="adm-label">Started intake</div></div>
-            <div className="adm-tile"><div className="adm-num">{metrics.funnel.finished}</div><div className="adm-label">Finished intake</div></div>
-            <div className="adm-tile"><div className="adm-num">{metrics.funnel.skipped}</div><div className="adm-label">Skipped intake</div></div>
+            <div className="adm-tile"><div className="adm-num">{metrics.funnel.started}</div><div className="adm-label">Started Intake</div></div>
+            <div className="adm-tile"><div className="adm-num">{metrics.funnel.finished}</div><div className="adm-label">Finished Intake</div></div>
+            <div className="adm-tile"><div className="adm-num">{metrics.funnel.skipped}</div><div className="adm-label">Skipped Intake</div></div>
           </div></div>
           {metrics.truncated && (
-            <div className="pad-x"><div className="list-floor">Too many days of history to walk, so the two return numbers are withheld rather than guessed</div></div>
+            <div className="pad-x"><div className="list-floor">History Too Long, Return Numbers Withheld</div></div>
           )}
         </>
       )}
 
-      <div className="grp"><div className="eyebrow">Feedback{feedback?.length ? " (" + feedback.length + ")" : ""}</div></div>
+      <Head label="Feedback" count={feedback?.length || undefined} />
       {!source.available ? serverNote : feedback === null ? (
         <div className="pad-x"><div className="card"><div className="empty-state">
           <div className="empty-title">Feedback Is Not Loaded</div>
-          <div className="empty-sub">This deploy has no feedback endpoint yet</div>
+          <div className="empty-sub">This Deploy Has No Feedback Endpoint Yet</div>
         </div></div></div>
       ) : feedback.length === 0 ? (
         <div className="pad-x"><div className="card"><div className="empty-state"><div className="empty-title">Nothing Sent Yet</div></div></div></div>
@@ -253,8 +256,8 @@ export default function AdminPanel({ isAdmin, probe, onRecheck, source, onBack }
                   {(build || f.lastError || from.length > 0) && (
                     <div className="facts">
                       {build && <span className="fact"><b>{build}</b></span>}
-                      {f.lastError && <span className="fact red">Last error</span>}
-                      {from.length > 0 && <span className="fact">{from.join(" on ")}</span>}
+                      {f.lastError && <span className="fact red">Last Error</span>}
+                      {from.length > 0 && <span className="fact">{lineCase(from.join(" on "))}</span>}
                     </div>
                   )}
                 </div>
@@ -264,10 +267,10 @@ export default function AdminPanel({ isAdmin, probe, onRecheck, source, onBack }
         </div></div>
       )}
       {feedback !== null && feedback.length >= 50 && (
-        <div className="pad-x"><div className="list-floor">Showing the newest 50</div></div>
+        <div className="pad-x"><div className="list-floor">Showing the Newest 50</div></div>
       )}
 
-      <div className="grp"><div className="eyebrow">Users{users.length ? " (" + users.length + ")" : ""}</div></div>
+      <Head label="Users" count={users.length || undefined} />
       {!source.available ? serverNote : users.length === 0 ? (
         <div className="pad-x"><div className="card"><div className="empty-state"><div className="empty-title">No Users Yet</div></div></div></div>
       ) : (
@@ -288,14 +291,19 @@ export default function AdminPanel({ isAdmin, probe, onRecheck, source, onBack }
                     the feedback row's build is; last, so it is what gives
                     way when the line runs out. */}
                 <div className="facts">
-                  <span className="fact">{u.plan}</span>
+                  <span className="fact">{lineCase(u.plan)}</span>
                   {openUser === u.id && <span className="fact date">Joined {u.createdAt.slice(0, 10)}</span>}
                   {openUser === u.id && <span className="fact"><b>{u.id}</b></span>}
                 </div>
               </div>
               <button className="pill-act" onClick={(ev) => { ev.stopPropagation(); void toggle(u); }}>{u.status === "active" ? "Disable" : "Enable"}</button>
             </div>
-            <Switch label="AI Allowed" meta={`${u.aiAllowed ? "On" : "Off, cannot use AI"} · ${u.email}`} on={u.aiAllowed} onToggle={() => void toggleAi(u)} ariaLabel={`AI allowed for ${u.email}`} />
+            {/* 2026-10-05 (the catalog gate): the meta line was "On · a@b.com", a
+                middle dot typed into a meta string (§AM F3), the account's email
+                again right under the row that already names it, and "On" beside a
+                switch that says on. A row with nothing to say shows nothing; the
+                switch's own name still carries the email for a screen reader. */}
+            <Switch label="AI Allowed" on={u.aiAllowed} onToggle={() => void toggleAi(u)} ariaLabel={`AI allowed for ${u.email}`} />
             </Fragment>
           ))}
         </div></div>

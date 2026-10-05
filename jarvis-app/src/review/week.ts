@@ -29,7 +29,7 @@ import { formatMoney } from "../money/types";
 // between Learned and Next. Every fact is Title Case through lineCase().
 //
 // Percent is allowed inside this card only where C-65 allows it in a
-// report: an area line may say "26% vs Usual 35%" beside its hours. Every
+// report: an area line may say "26% Vs Usual 35%" beside its hours. Every
 // other number here is a count.
 
 export type LineKey = "Worked" | "Slipped" | "Changed" | "Learned" | "Money" | "Mail" | "People" | "Health" | "Decided" | "Next";

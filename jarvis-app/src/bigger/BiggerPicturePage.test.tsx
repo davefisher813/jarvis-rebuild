@@ -185,3 +185,51 @@ describe("BiggerPicturePage: the Done receipt obeys the Area cut and the search"
     expect(receipt()).toBe("1 Done Goal");
   });
 });
+
+// THE CATALOG HARD GATE (Dave 2026-10-05): Title Case on every line the app
+// writes, and a separator is drawn by CSS, never typed into a string (R6). The
+// search scope read "Active projects" beside Tasks' "Today Tasks"; the Options
+// sheet's value baked a middle dot ("Active \u00b7 Health", "All Statuses \u00b7
+// All Areas") into one grey run.
+describe("BiggerPicturePage: the catalog (scope words, Options value)", () => {
+  const goals = [
+    { id: "g1", data: { title: "Run Three Times a Week", state: "on_track" as const, tags: ["health"] } },
+    { id: "g2", data: { title: "Run a Half", state: "achieved" as const, achievedOn: "2026-09-12", tags: ["health"] } },
+  ];
+  const sections = [{ id: "health", name: "Health", color: "green" }];
+  const goalsPage = () => render(
+    <BiggerPicturePage lens="goals" segments={<div />} goals={goals} reachOfGoal={reach} projectRows={[]}
+      sections={sections} onAddGoal={() => {}} onOpenGoal={() => {}} onAddProject={() => {}} onOpenProject={() => {}} />,
+  );
+  const projectsPage = () => render(
+    <BiggerPicturePage lens="projects" segments={<div />} goals={[]} reachOfGoal={reach} projectRows={[row({ category: "health" })]}
+      sections={sections} onAddGoal={() => {}} onOpenGoal={() => {}} onAddProject={() => {}} onOpenProject={() => {}} />,
+  );
+  const scope = () => document.querySelector(".hdr-scope-n")?.textContent ?? "";
+
+  it("the scope's place is Title Case on both lenses", () => {
+    goalsPage();
+    fireEvent.change(screen.getByPlaceholderText("Search Goals"), { target: { value: "run" } });
+    expect(scope()).toBe("1 Result in Active Goals");
+    cleanup();
+    projectsPage();
+    fireEvent.change(screen.getByPlaceholderText("Search Projects"), { target: { value: "remodel" } });
+    expect(scope()).toBe("1 Result in Active Projects");
+  });
+
+  it("the Options value is one comma list, never a middle dot in the string", () => {
+    goalsPage();
+    // Narrow by area so the value carries two answers.
+    fireEvent.click(document.querySelector('.hdr-controls .dd[aria-label="Area"]')!);
+    fireEvent.click(screen.getByRole("menuitemradio", { name: /Health/ }));
+    fireEvent.click(screen.getByLabelText("Goals Options"));
+    const narrowed = document.querySelector(".opt-val")!.textContent!;
+    expect(narrowed).toBe("Active, Health");
+    expect(narrowed).not.toContain("\u00b7");
+    fireEvent.click(screen.getByText("Show Everything"));
+    fireEvent.click(screen.getByLabelText("Goals Options"));
+    const all = document.querySelector(".opt-val")!.textContent!;
+    expect(all).toBe("All Statuses, All Areas");
+    expect(all).not.toContain("\u00b7");
+  });
+});

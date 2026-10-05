@@ -1,6 +1,7 @@
 import { useRef, type ReactNode } from "react";
 import { Plus, Search, SlidersHorizontal, X } from "./icons";
 import HeadMenu from "./HeadMenu";
+import { capAfterNumber } from "./casing";
 
 // ONE HEADER, FIVE PAGES (Dave 2026-09-17, the Unified Headers handoff:
 // "unify the headers of Tasks, Reminders, Notes, Projects and Goals using the
@@ -199,7 +200,9 @@ export default function LifeHeader({
         <div className="hdr-scope">
           {/* A count and where it looked, as facts. Never "no results": the
               records are not missing, the scope is narrow. */}
-          <span className="hdr-scope-n">{`${scope.count} ${scope.count === 1 ? "result" : "results"} in ${scope.where}`}</span>
+          {/* The word after the number is capitalised, as everywhere (Dave
+              2026-10-05: "2 Results", never "2 results"). */}
+          <span className="hdr-scope-n">{capAfterNumber(`${scope.count} ${scope.count === 1 ? "result" : "results"} in ${scope.where}`)}</span>
           {scope.onAll && scope.allLabel && (
             <button type="button" className="hdr-scope-all" onClick={scope.onAll}>{scope.allLabel}</button>
           )}

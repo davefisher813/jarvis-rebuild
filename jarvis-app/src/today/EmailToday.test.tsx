@@ -139,4 +139,24 @@ describe("Email on Today follows the visual catalog", () => {
       expect(grey.length).toBeLessThanOrEqual(1);
     }
   });
+
+  // A facts line ellipsizes only its LAST fact. The waiting row led with the long free-text name and ended on the amber
+  // "Follow Up Today", so a long counterparty pushed the colour off the row before it shortened itself.
+  it("the toned fact leads and the free-text name is last, so a long name gives way before the colour does", async () => {
+    const root = await band();
+    const waiting = root.querySelector('[data-email-row="waiting"]')!;
+    const facts = [...waiting.querySelectorAll(".fact")];
+    expect(facts.map((f) => f.textContent)).toEqual(["Follow Up Today", "Waiting On Coach Miller"]);
+    expect(facts[0]).toHaveClass("warn");
+    expect(facts.at(-1)).not.toHaveClass("warn");
+    expect(facts.at(-1)).not.toHaveClass("red");
+  });
+
+  it("a row with a fact is one facts line, and the review row, which has none, draws no line at all", async () => {
+    const root = await band();
+    for (const row of root.querySelectorAll("[data-email-row]")) {
+      const lines = row.querySelectorAll(".facts").length;
+      expect(lines).toBe(row.getAttribute("data-email-row") === "review" ? 0 : 1);
+    }
+  });
 });

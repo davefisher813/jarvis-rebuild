@@ -14,6 +14,7 @@ import type { TaskItem } from "../tasks/TasksService";
 import type { EventItem } from "../schedule/types";
 import type { MailAddress } from "./emailClient";
 import { fmtTime } from "../schedule/calendar";
+import type { EmailFact } from "./format";
 
 export interface WaitingWrite {
   action_id?: string | null;
@@ -108,6 +109,16 @@ export function ageWord(startedAt: string, today: string, zone?: string): string
   return `${Math.floor(n / 365)} ${Math.floor(n / 365) === 1 ? "Year" : "Years"}`;
 }
 
+/**
+ * A date's colour follows the window (the rulebook, settled 2026-09-26): past is
+ * red, today or tomorrow is amber, later is a neutral date in small caps.
+ * Dates are local YYYY-MM-DD; `today` is the person's own today.
+ */
+export function windowTone(date: string, today: string): "red" | "warn" | "date" {
+  const n = daysBetween(today, date);
+  return n < 0 ? "red" : n <= 1 ? "warn" : "date";
+}
+
 export type FollowUpState = "none" | "overdue" | "today" | "upcoming";
 export function followUpState(followUpOn: string | undefined, today: string): FollowUpState {
   if (!followUpOn) return "none";
@@ -154,7 +165,7 @@ export function orderWaiting(items: readonly WaitingItem[], today: string): { op
 export const TODAY_EMAIL_CAP = 5;
 
 /** One fact under a Today Email row. `tone`: warn = due, red = late, date = a neutral time (small caps). No tone = the row's one grey. */
-export interface TodayEmailFact { text: string; tone?: "warn" | "red" | "date" }
+export type TodayEmailFact = EmailFact;
 
 export interface TodayEmailRow {
   kind: "review" | "task" | "event" | "waiting";
@@ -207,7 +218,10 @@ export function emailTodayRows(input: { count: number; tasks: readonly TaskItem[
     const d = w.data;
     if (d.status !== "open" || !d.followUpOn || d.followUpOn > input.today) continue;
     const overdue = d.followUpOn < input.today;
-    take({ kind: "waiting", id: w.id, title: d.title, facts: [{ text: `Waiting On ${d.counterpartyDisplay || "Someone"}` }, overdue ? { text: "Follow Up Was " + monthDayOf(d.followUpOn), tone: "red" } : { text: "Follow Up Today", tone: "warn" }], sort: [overdue ? 0 : 1, d.followUpOn, w.id] });
+    // 2026-10-05: the toned fact leads and the free-text name goes last. A facts line ellipsizes only its LAST
+    // fact, so a long counterparty ("Peña's Transcript Coordinator, Registrar's Office") used to push "Follow Up
+    // Today" off the row before it shortened itself; the colour is the part that must always survive.
+    take({ kind: "waiting", id: w.id, title: d.title, facts: [overdue ? { text: "Follow Up Was " + monthDayOf(d.followUpOn), tone: "red" } : { text: "Follow Up Today", tone: "warn" }, { text: `Waiting On ${d.counterpartyDisplay || "Someone"}` }], sort: [overdue ? 0 : 1, d.followUpOn, w.id] });
   }
   rows.sort((a, b) => a.sort[0] - b.sort[0] || a.sort[1].localeCompare(b.sort[1]) || a.sort[2].localeCompare(b.sort[2]));
   const head: TodayEmailRow[] = input.count > 0 ? [{ kind: "review", id: "review", title: reviewLine(input.count), facts: [], sort: [-1, "", ""] }] : [];

@@ -3,10 +3,10 @@ import { FormSheet, Group, FieldRow, MenuRow, Row, DeleteRow, ErrorLine } from "
 import { Calendar, FolderKanban, Link2, Paperclip, Tag } from "../../shared/icons";
 import { DollarGlyph } from "../../shared/glyphs";
 import { showToast } from "../../shared/toast";
-import { lineCase } from "../../shared/casing";
 import { parseCents } from "../ledger/cents";
 import type { Receipt } from "../ledger/types";
-import { fmtCents, fmtDay, type TrackerTx } from "../tracker";
+import type { TrackerTx } from "../tracker";
+import { LinkedFacts } from "../MoneyFacts";
 import HistoryList from "./HistoryList";
 
 // ONE RECEIPT (Money ledger, 2026-10-03): edit it, open what was attached,
@@ -65,14 +65,20 @@ export default function ReceiptDetailSheet({ receipt, linked, categories, attach
       <ErrorLine text={touched && !valid ? "A vendor and an amount" : null} />
       {attachmentName && (
         <Group label="Attachment">
-          <Row tone="indigo" glyph={<Paperclip className="ic" />} label={attachmentName} meta="Tap to Open" onClick={open} chev />
+          {/* No "Tap to Open" under it (2026-10-05, visual catalog gate, R1):
+              the row IS the open, with its chevron, and a line that states
+              the action the row already is says nothing. */}
+          <Row tone="indigo" glyph={<Paperclip className="ic" />} label={attachmentName} onClick={open} chev />
         </Group>
       )}
       <Group label="Match">
         {d.linkedTransactionId ? (
           <Row tone="green" glyph={<Link2 className="ic" />} label="Matched to a Payment"
+            // The payment's amount, day and name are separate facts, each
+            // wearing what it means (2026-10-05, visual catalog gate, R6): it
+            // was one joined string in one grey run.
             meta={linked
-              ? lineCase(`${linked.data.merchant} ${fmtCents(linked.data.amountCents)} ${fmtDay(linked.data.date)}`)
+              ? <LinkedFacts name={linked.data.merchant} sameAs={d.vendor} cents={linked.data.amountCents} day={linked.data.date} />
               : "That Payment Is Gone"}
             onClick={onUnmatch}>
             <button type="button" className="pill-act" onClick={(e) => { e.stopPropagation(); onUnmatch(); }}>Unmatch</button>

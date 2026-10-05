@@ -88,7 +88,7 @@ describe("LibraryPage: the duplicate review room", () => {
     // The equipment differs, which is the fact most likely to prove these are
     // NOT one exercise, so it is stated in amber on the pair itself.
     expect(screen.getByText("Barbell and Smith Machine")).toHaveClass("fact", "amber");
-    expect(screen.getByText("1 and 9 sessions")).toBeInTheDocument();
+    expect(screen.getByText("1 and 9 Sessions")).toBeInTheDocument();
     expect(screen.getByText(/A matching name is not a proof/)).toBeInTheDocument();
   });
 

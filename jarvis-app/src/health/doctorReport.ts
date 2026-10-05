@@ -112,7 +112,7 @@ export function doctorReportText(report: DoctorReport): string {
     "",
   ];
   for (const r of report.rows) {
-    lines.push(r.date + "  " + new Date(r.at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) + "  " + r.label);
+    lines.push(r.date + "  " + new Date(r.at).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true }) + "  " + r.label);
   }
   return lines.join("\n");
 }

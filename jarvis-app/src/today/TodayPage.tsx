@@ -68,7 +68,7 @@ function StreamMember(props: { weight: number; anchor?: boolean; children: React
 // Clearing the last task of a six-month project used to burst exactly like
 // ticking "buy milk"; the flow can answer that before the tick, from the
 // projects and tasks it already holds, so the answer arrives with the row.
-function TaskRow({ t, u, sub, parent, today, burstSize = "small", onToggle, onOpen, onStart }: { t: TaskItem; u: { kind: UrgencyKind; label: string } | null; sub?: string | null; parent?: ParentLine | null; today?: string; burstSize?: BurstSize; onToggle?: () => void; onOpen?: () => void; onStart?: () => void }) {
+function TaskRow({ t, u, parent, today, burstSize = "small", onToggle, onOpen, onStart }: { t: TaskItem; u: { kind: UrgencyKind; label: string } | null; parent?: ParentLine | null; today?: string; burstSize?: BurstSize; onToggle?: () => void; onOpen?: () => void; onStart?: () => void }) {
   const [bursting, fireBurst] = useBurst();
   const [localDone, setLocalDone] = useState(false);
   const pending = useRef(false);
@@ -89,17 +89,13 @@ function TaskRow({ t, u, sub, parent, today, burstSize = "small", onToggle, onOp
   // Tasks page needed the same slot and section 0 allows exactly one version
   // of it. Today's own answer is unchanged.
   const steps = stepsOf(t.data);
-  // SAY IT ONCE. The reason line the dealt card owes (reasonFor) leads with
-  // the due distance: "Due today", "Waiting 2 days". The kicker chip now says
-  // exactly that, so when a chip renders, the reason's due-part is dropped
-  // and only what the chip does NOT say survives ("your focus peak"). A
-  // reason with nothing left after that renders no line at all.
-  const reason = (() => {
-    if (!sub) return null;
-    if (!dist) return sub;
-    const kept = sub.split(" \u00b7 ").filter((part) => !/^(due today|waiting )/i.test(part));
-    return kept.length ? kept.join(" \u00b7 ") : null;
-  })();
+  // THE REASON LINE IS GONE (2026-10-05, the catalog hard gate). This took a
+  // `sub` string, the dealt card's reasonFor line joined with a typed middle dot,
+  // and split it back apart on that dot to drop the half the chip already says.
+  // Nothing passes `sub` (the dealt card is Your Move's row, MoveHeadliner), so it
+  // was dead code carrying exactly the pattern R6 bans: a data builder's dotted
+  // string cut up and printed inside a .r-k line. If a reason ever returns it
+  // arrives as separate facts, never a string to split.
   return (
     // THE WHOLE ROW IS THE DOOR (Dave 2026-09-15: "I want all rows
     // clickable. How is the first thing that renders on the app not
@@ -125,13 +121,11 @@ function TaskRow({ t, u, sub, parent, today, burstSize = "small", onToggle, onOp
             gone; the glyph carries the colour now. Two lines, always. */}
         <div className="r-k">
           {dist && !done && <span className={"uchip " + (dist.kind === "late" ? "u-late" : "u-today")}>{dist.label}</span>}
-          {reason
-            ? <span className="r-goal r-why">{reason.charAt(0).toUpperCase() + reason.slice(1)}</span>
-            : parent
-              ? <ParentLineGlyph p={parent} />
-              : originLabel(t.data)
-                ? <span className="r-goal r-cat">{originLabel(t.data)}</span>
-                : null}
+          {parent
+            ? <ParentLineGlyph p={parent} />
+            : originLabel(t.data)
+              ? <span className="r-goal r-cat">{originLabel(t.data)}</span>
+              : null}
         </div>
       </div>
       {/* THE RIGHT SLOT SAYS THE CHECKLIST IS THERE (TRACE-02, 2026-09-07).

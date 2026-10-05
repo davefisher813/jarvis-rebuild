@@ -15,10 +15,12 @@ import type { Category } from "../categories/types";
 import MailRow from "./MailRow";
 import {
   ALL_ACCOUNTS, ALL_CHIP, AREAS_LABEL, COVER_CACHED, COVER_GMAIL, EMAIL_TITLE, EMPTY_SEARCH, LOADING_MORE, MORE_FROM_GMAIL, SAVED_MAIL_ONLY, SEARCHING_GMAIL, SEARCH_FAILED,
-  SEARCH_LABEL, SEARCH_PLACEHOLDER, SEARCH_RESULTS_FLOOR, accountsWord, messagesWord,
+  SEARCH_LABEL, SEARCH_PLACEHOLDER, SEARCH_RESULTS_FLOOR, DIDNT_ANSWER, accountsWord, messagesWord,
 } from "./copy";
 import { mergeRows, searchCached, searchGmail, type EmailAccount, type InboxRow, type RpcClient } from "./emailClient";
 import EmptyState from "./EmptyState";
+import EmailFacts from "./EmailFacts";
+import type { EmailFact } from "./format";
 
 export interface SearchState {
   q: string;
@@ -96,18 +98,31 @@ export default function SearchScreen({ client, token, accounts, labels, offline,
   }, [draft]);
 
   const shown = categoryId ? state.rows.filter((r) => categoryOf(r) === categoryId) : state.rows;
-  const coverLine = (() => {
-    if (!state.q) return "";
+  // 2026-10-05: the coverage line is FACTS, never one string joined by middle dots ("Gmail · All Accounts · Didn't
+  // Answer · work@... · 1 Message"). The source and the account are small caps (a label, the way the inbox row
+  // draws its account), what was reached or not is the one grey or amber, and the count is a white number. A line
+  // whose job is to show every fact, so it wraps rather than ellipsizing (see EmailFacts `wrap`).
+  const coverFacts: EmailFact[] = (() => {
+    if (!state.q) return [];
     if (state.coverage === "provider") {
       const who = state.scope ? state.scope : state.failed.length ? `${accountsWord(state.covered.length)} Covered` : ALL_ACCOUNTS;
-      const failed = state.failed.length ? ` · Didn't Answer · ${state.failed.map((f) => f.email).join(", ")}` : "";
-      return `${COVER_GMAIL} · ${who}${failed} · ${messagesWord(state.rows.length)}`;
+      return [
+        { text: COVER_GMAIL, tone: "date" },
+        { text: who },
+        ...(state.failed.length ? [{ text: `${DIDNT_ANSWER} ${state.failed.map((f) => f.email).join(", ")}`, tone: "warn" as const }] : []),
+        { text: messagesWord(state.rows.length), strong: true },
+      ];
     }
     if (state.coverage === "cached") {
-      const why = state.transportFailed ? ` · ${state.transportFailed}` : offline || !token ? ` · ${SAVED_MAIL_ONLY}` : state.searching ? ` · ${SEARCHING_GMAIL}` : "";
-      return `${COVER_CACHED} · ${messagesWord(state.window)} Searched${why}`;
+      // Gmail not reached is an error (red), saved mail only is a limit (amber), searching is the one grey.
+      const why: EmailFact | null = state.transportFailed ? { text: state.transportFailed, tone: "red" } : offline || !token ? { text: SAVED_MAIL_ONLY, tone: "warn" } : state.searching ? { text: SEARCHING_GMAIL } : null;
+      return [
+        { text: COVER_CACHED, tone: "date" },
+        { text: `${messagesWord(state.window)} Searched`, strong: true },
+        ...(why ? [why] : []),
+      ];
     }
-    return "";
+    return [];
   })();
 
   return (
@@ -137,7 +152,7 @@ export default function SearchScreen({ client, token, accounts, labels, offline,
         )}
       </PageHeader>
 
-      {coverLine && <div className="email-cover" aria-live="polite">{coverLine}</div>}
+      {coverFacts.length > 0 && <div className="email-cover" aria-live="polite"><EmailFacts wrap facts={coverFacts} /></div>}
 
       {state.q && !state.searching && state.transportFailed && state.rows.length === 0 && (
         <EmptyState copy={SEARCH_FAILED} onAction={() => void run(draft, state.scope)} />

@@ -304,7 +304,7 @@ export default function ScheduleUploadFlow({
             <div className="pad-x"><div className="card list-card-ruled pad row">
               <img className="upload-thumb" src={thumb} alt="Uploaded schedule" />
               <div className="row-grow">
-                <div className="conn-name">{rows.length} {rows.length === 1 ? "event" : "events"} found</div>
+                <div className="conn-name">{lineCase(`${rows.length} ${rows.length === 1 ? "event" : "events"} found`)}</div>
               </div>
             </div></div>
           )}

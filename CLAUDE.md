@@ -41,8 +41,12 @@ a small change. The written catalog and the definition of done are in
 `jarvis-app/src/laws/`. In short: one grey per row, a row with nothing to say
 shows nothing, facts are spans with the dot drawn by CSS (never a dot in a
 string, and that includes strings built in data helpers), colour only for
-meaning, Title Case, 12-hour times, 44px taps, light and dark differ in
-colour only. A report on any UI change ends with one line: "Catalog: checked,
+meaning, Title Case (and the word behind a leading number is capitalized:
+"2 Blocks", never "2 blocks", Dave 2026-10-05; checked on the DOM by every
+jsdom test and by the tap sweep), 12-hour times, 44px taps, no action alone in a box (a card with only a
+button in it is not drawn; the capsule stands by itself), a type icon wears its
+type's colour (Email teal, Task red, Event sky, Waiting purple; never flat
+black), light and dark differ in colour only. A report on any UI change ends with one line: "Catalog: checked,
 no drift", or what was found and fixed. A law that blocks a correct change is
 reported, never edited around.
 

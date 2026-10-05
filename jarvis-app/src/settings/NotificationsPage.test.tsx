@@ -16,7 +16,7 @@ import { readHealthSettings, updateHealthSettings } from "../health/settings";
 describe("NotificationsPage", () => {
   it("toggles a pref off", async () => {
     render(<NotesProvider userId="u1"><NotificationsPage onBack={() => {}} /></NotesProvider>);
-    const row = (await screen.findByText("Today's events")).closest(".row")!;
+    const row = (await screen.findByText("Today's Events")).closest(".row")!;
     const sw = row.querySelector(".switch")!;
     expect(sw.getAttribute("aria-checked")).toBe("true");
     fireEvent.click(sw);
@@ -24,14 +24,14 @@ describe("NotificationsPage", () => {
   });
 
   // S1-03 (2026-09-04): "The events switch cannot work on its own." Turning
-  // off Daily check-ins used to leave nothing that ever asked for the OS
+  // off Daily Check-Ins used to leave nothing that ever asked for the OS
   // permission, so an events-only user was permanently blocked with no
   // explanation. This page is now the one place that asks, on any switch's
   // off-to-on edge, whichever switch it is.
   it("asks for notification permission on the off-to-on edge, not the on-to-off one", async () => {
     const spy = vi.spyOn(notifications, "requestNotificationPermission").mockResolvedValue(true);
     render(<NotesProvider userId="u1"><NotificationsPage onBack={() => {}} /></NotesProvider>);
-    const row = (await screen.findByText("Today's events")).closest(".row")!;
+    const row = (await screen.findByText("Today's Events")).closest(".row")!;
     const sw = row.querySelector(".switch")!;
     fireEvent.click(sw); // on -> off
     await waitFor(() => expect(sw.getAttribute("aria-checked")).toBe("false"));
@@ -48,7 +48,7 @@ describe("NotificationsPage", () => {
     const stop = subscribeToast((t) => { if (t) seen.push(t.message); });
     const save = vi.spyOn(ProfileService.prototype, "save").mockRejectedValue(new Error("network"));
     render(<NotesProvider userId="u1"><NotificationsPage onBack={() => {}} /></NotesProvider>);
-    const row = (await screen.findByText("Today's events")).closest(".row")!;
+    const row = (await screen.findByText("Today's Events")).closest(".row")!;
     const sw = row.querySelector(".switch")!;
     fireEvent.click(sw);
     await waitFor(() => expect(seen).toContain(WRITE_FAILED_MESSAGE));
@@ -72,7 +72,7 @@ describe("NotificationsPage tells the truth about the OS permission", () => {
     await waitFor(() => expect(screen.getByText(/Notifications are off for JARVIS in iOS Settings/)).toBeInTheDocument());
     expect(screen.queryByText(/arrive on this phone/)).not.toBeInTheDocument();
     // 2026-10-04: only the alerts that exist as lock-screen alerts are locked.
-    for (const name of ["Daily check-ins", "Rest timer"]) {
+    for (const name of ["Daily Check-Ins", "Rest Timer"]) {
       expect((await screen.findByText(name)).closest(".row")!.querySelector(".switch-locked"), name).not.toBeNull();
     }
   });
@@ -82,7 +82,7 @@ describe("NotificationsPage tells the truth about the OS permission", () => {
     vi.spyOn(notifications, "notificationPermissionState").mockResolvedValue("granted");
     render(<NotesProvider userId="u-notif-granted"><NotificationsPage onBack={() => {}} /></NotesProvider>);
     await waitFor(() => expect(screen.getByText(/arrive on this phone/)).toBeInTheDocument());
-    const row = (await screen.findByText("Today's events")).closest(".row")!;
+    const row = (await screen.findByText("Today's Events")).closest(".row")!;
     expect(row.querySelector(".switch-locked")).toBeNull();
   });
 
@@ -128,7 +128,7 @@ describe("NotificationsPage, reminders", () => {
   });
 });
 
-// AUDIT 2026-09-29: on the web the "Alerts on this phone" switch needs OS or
+// AUDIT 2026-09-29: on the web the "Alerts on This Phone" switch needs OS or
 // browser permission and, in a Safari tab, a Home Screen launch. When it
 // cannot turn on it stayed off with nothing on screen saying why.
 describe("NotificationsPage, the Alerts switch says why it will not turn on", () => {
@@ -140,11 +140,13 @@ describe("NotificationsPage, the Alerts switch says why it will not turn on", ()
     const seen: string[] = [];
     const stop = subscribeToast((t) => { if (t) seen.push(t.message); });
     render(<NotesProvider userId="u-alerts-denied"><NotificationsPage onBack={() => {}} /></NotesProvider>);
-    const sw = await screen.findByRole("switch", { name: "Alerts on this phone" });
+    const sw = await screen.findByRole("switch", { name: "Alerts on This Phone" });
     await waitFor(() => expect(sw).toHaveAttribute("aria-disabled", "true"));
     const row = sw.closest(".row")!;
-    expect(row.textContent).toContain(reasonFor("denied"));
-    expect(row.textContent).toContain("phone or browser settings");
+    // The row says it in one Title Case fragment with no typed dot (2026-10-05,
+    // the catalog gate); the toast keeps reasonFor's whole sentence.
+    expect(row.querySelector(".conn-meta")!.textContent).toBe("Blocked in Phone or Browser Settings");
+    expect(row.textContent).not.toContain("\u00b7");
     fireEvent.click(sw);
     expect(seen).toContain(reasonFor("denied"));
     expect(sw).toHaveAttribute("aria-checked", "false");
@@ -155,7 +157,7 @@ describe("NotificationsPage, the Alerts switch says why it will not turn on", ()
     vi.spyOn(Capacitor, "isNativePlatform").mockReturnValue(false);
     vi.spyOn(webPush, "currentStatus").mockResolvedValue("not-standalone");
     render(<NotesProvider userId="u-alerts-tab"><NotificationsPage onBack={() => {}} /></NotesProvider>);
-    const sw = await screen.findByRole("switch", { name: "Alerts on this phone" });
+    const sw = await screen.findByRole("switch", { name: "Alerts on This Phone" });
     await waitFor(() => expect(sw.closest(".row")!.textContent).toContain("Home Screen"));
   });
 
@@ -163,7 +165,7 @@ describe("NotificationsPage, the Alerts switch says why it will not turn on", ()
     vi.spyOn(Capacitor, "isNativePlatform").mockReturnValue(false);
     vi.spyOn(webPush, "currentStatus").mockResolvedValue("off");
     render(<NotesProvider userId="u-alerts-off"><NotificationsPage onBack={() => {}} /></NotesProvider>);
-    const sw = await screen.findByRole("switch", { name: "Alerts on this phone" });
+    const sw = await screen.findByRole("switch", { name: "Alerts on This Phone" });
     await waitFor(() => expect(sw).not.toHaveAttribute("aria-disabled"));
     expect(sw.closest(".row")!.querySelector(".conn-meta")).toBeNull();
   });
@@ -184,7 +186,7 @@ describe("NotificationsPage, the lock is honest", () => {
     const seen: string[] = [];
     const stop = subscribeToast((t) => { if (t) seen.push(t.message); });
     render(<NotesProvider userId="u-lock-says"><NotificationsPage onBack={() => {}} /></NotesProvider>);
-    for (const name of ["Daily check-ins", "Rest timer"]) {
+    for (const name of ["Daily Check-Ins", "Rest Timer"]) {
       const row = await rowOf(name);
       await waitFor(() => expect(row.querySelector(".switch-locked")).not.toBeNull());
       const sw = row.querySelector(".switch")!;
@@ -204,7 +206,7 @@ describe("NotificationsPage, the lock is honest", () => {
     vi.spyOn(notifications, "notificationPermissionState").mockResolvedValue("denied");
     render(<NotesProvider userId="u-lock-free"><NotificationsPage onBack={() => {}} /></NotesProvider>);
     await waitFor(() => expect(screen.getByText(/Notifications are off for JARVIS in iOS Settings/)).toBeInTheDocument());
-    for (const name of ["Overdue and due tasks", "Today's events", "Goal and life-area nudges"]) {
+    for (const name of ["Overdue and Due Tasks", "Today's Events", "Goal and Life-Area Nudges"]) {
       const sw = (await rowOf(name)).querySelector(".switch")!;
       expect(sw.classList.contains("switch-locked"), name + " is not locked").toBe(false);
       expect(sw.getAttribute("aria-checked")).toBe("true");
@@ -217,7 +219,7 @@ describe("NotificationsPage, the lock is honest", () => {
     onPhone();
     const state = vi.spyOn(notifications, "notificationPermissionState").mockResolvedValue("denied");
     render(<NotesProvider userId="u-lock-resume"><NotificationsPage onBack={() => {}} /></NotesProvider>);
-    const row = await rowOf("Daily check-ins");
+    const row = await rowOf("Daily Check-Ins");
     await waitFor(() => expect(row.querySelector(".switch-locked")).not.toBeNull());
     state.mockResolvedValue("granted");
     document.dispatchEvent(new Event("visibilitychange"));
@@ -226,7 +228,7 @@ describe("NotificationsPage, the lock is honest", () => {
   });
 });
 
-// 2026-10-04 (audit): Daily check-ins and Rest timer are lock-screen alerts
+// 2026-10-04 (audit): Daily Check-Ins and Rest timer are lock-screen alerts
 // the phone app schedules; the web build never does, so on the web the two
 // switches saved a value nothing read.
 describe("NotificationsPage, on the web", () => {
@@ -236,12 +238,12 @@ describe("NotificationsPage, on the web", () => {
     vi.spyOn(Capacitor, "isNativePlatform").mockReturnValue(false);
     vi.spyOn(webPush, "currentStatus").mockResolvedValue("off");
     render(<NotesProvider userId="u-web-switches"><NotificationsPage onBack={() => {}} /></NotesProvider>);
-    await screen.findByText("Today's events");
-    for (const name of ["Overdue and due tasks", "Today's events", "Goal and life-area nudges"]) {
+    await screen.findByText("Today's Events");
+    for (const name of ["Overdue and Due Tasks", "Today's Events", "Goal and Life-Area Nudges"]) {
       expect(screen.getByRole("switch", { name })).toBeInTheDocument();
     }
-    expect(screen.queryByRole("switch", { name: "Daily check-ins" })).toBeNull();
-    expect(screen.queryByRole("switch", { name: "Rest timer" })).toBeNull();
+    expect(screen.queryByRole("switch", { name: "Daily Check-Ins" })).toBeNull();
+    expect(screen.queryByRole("switch", { name: "Rest Timer" })).toBeNull();
     // The web foot's promise is true of every switch left.
     await waitFor(() => expect(screen.getByText(/The switches above only shape the Notifications screen inside the app/)).toBeInTheDocument());
   });
@@ -250,8 +252,8 @@ describe("NotificationsPage, on the web", () => {
     vi.spyOn(Capacitor, "isNativePlatform").mockReturnValue(true);
     vi.spyOn(notifications, "notificationPermissionState").mockResolvedValue("granted");
     render(<NotesProvider userId="u-phone-switches"><NotificationsPage onBack={() => {}} /></NotesProvider>);
-    await screen.findByText("Today's events");
-    for (const name of ["Overdue and due tasks", "Today's events", "Daily check-ins", "Goal and life-area nudges", "Rest timer"]) {
+    await screen.findByText("Today's Events");
+    for (const name of ["Overdue and Due Tasks", "Today's Events", "Daily Check-Ins", "Goal and Life-Area Nudges", "Rest Timer"]) {
       expect(screen.getByRole("switch", { name })).toBeInTheDocument();
     }
   });
@@ -262,7 +264,7 @@ describe("NotificationsPage, on the web", () => {
 // Health Settings changes only the latter, so the two switches could disagree.
 describe("NotificationsPage, the Rest timer switch and the rest buzz share one setting", () => {
   afterEach(() => { vi.restoreAllMocks(); window.localStorage.clear(); });
-  const restSwitch = async () => (await screen.findByText("Rest timer")).closest(".row")!.querySelector(".switch")!;
+  const restSwitch = async () => (await screen.findByText("Rest Timer")).closest(".row")!.querySelector(".switch")!;
   const phone = () => {
     vi.spyOn(Capacitor, "isNativePlatform").mockReturnValue(true);
     vi.spyOn(notifications, "notificationPermissionState").mockResolvedValue("granted");
@@ -302,7 +304,7 @@ describe("NotificationsPage, the Rest timer switch and the rest buzz share one s
     render(<NotesProvider userId="u-rest-no-copy"><NotificationsPage onBack={() => {}} /></NotesProvider>);
     await restSwitch();
     await new Promise((r) => setTimeout(r, 50));
-    fireEvent.click((await screen.findByText("Today's events")).closest(".row")!.querySelector(".switch")!);
+    fireEvent.click((await screen.findByText("Today's Events")).closest(".row")!.querySelector(".switch")!);
     await waitFor(() => expect(save).toHaveBeenCalled());
     for (const call of save.mock.calls) expect((call[0] as { notify?: object }).notify).not.toHaveProperty("rest");
   });

@@ -97,7 +97,9 @@ describe("H1 Agents", () => {
     expect(screen.getAllByRole("tab").map((t) => t.textContent)).toEqual(["Agents", "Review", "Activity"]);
     expect(screen.getByText("Your Context · Your Call")).toBeInTheDocument();
     expect(screen.getByRole("switch", { name: "AI on or off" })).toBeInTheDocument();
-    expect(screen.getByText("Help Me · Summer Travel · 1 Share Open")).toBeInTheDocument();
+    // 2026-10-05 (catalog gate): the row's one grey is what the assistant may do; the project and the open
+    // shares are on its detail page, not a second and third grey here.
+    expect(screen.getByText("Help Me")).toBeInTheDocument();
     expect(screen.getByText("Connected")).toBeInTheDocument();
     expect(calls.map((c) => c.fn).slice(0, 2)).toEqual(["decision_dependencies_check", "hub_overview"]);
     fireEvent.click(screen.getByText("Add Assistant"));
@@ -132,7 +134,9 @@ describe("H4 Agent detail and H5 preview", () => {
     render(<HubFlow onBack={() => {}} client={client} />);
     fireEvent.click(await screen.findByText("Claude"));
     expect(await screen.findByText("Read Only")).toBeInTheDocument();
-    expect(screen.getAllByText("Saves and Sends Still Need Your Tap").length).toBeGreaterThanOrEqual(3);
+    // Each mode is ONE grey line; the sentence every mode ends on is said once, under the group (2026-10-05).
+    expect(screen.getByText("Reads Only What You Share, No Suggestions, No Drafts")).toBeInTheDocument();
+    expect(screen.getAllByText("Saves and Sends Still Need Your Tap")).toHaveLength(1);
     fireEvent.click(screen.getByRole("radio", { name: /Read Only/ }));
     await waitFor(() => expect(calls.find((c) => c.fn === "connection_set_mode")?.args).toEqual({ p_connection: "c1", p_expected_revision: 3, p_mode: "read_only" }));
     expect(calls.some((c) => c.fn === "scope_grant_create")).toBe(false);
@@ -152,7 +156,7 @@ describe("H4 Agent detail and H5 preview", () => {
     expect(await screen.findByText("3 Records")).toBeInTheDocument();
     expect(calls.find((c) => c.fn === "job_open")?.args).toEqual({ p_agent: "c1", p_project: "p1", p_purpose: "Help with Summer Travel" });
     expect(calls.find((c) => c.fn === "context_preview")?.args).toMatchObject({ p_job: "j1" });
-    expect(screen.getByText("status, title")).toBeInTheDocument();
+    expect(screen.getByText("Status, Title")).toBeInTheDocument();
     expect(screen.getByText("Cancel Shares Nothing")).toBeInTheDocument();
     expect(calls.some((c) => c.fn === "scope_grant_create")).toBe(false);
     fireEvent.click(screen.getByRole("button", { name: "Share Once · 15 Minutes" }));
@@ -273,8 +277,10 @@ describe("H2 Review", () => {
     fireEvent.change(screen.getByLabelText("Constraint value"), { target: { value: "3000" } });
     fireEvent.click(sheetSave());
     expect(await screen.findByText("Conflicts With Trip Budget")).toBeInTheDocument();
-    expect(screen.getByText("trip_budget_usd · 2400")).toBeInTheDocument();
-    expect(screen.getByText("trip_budget_usd · 3000")).toBeInTheDocument();
+    // The key is the line's one grey in Title Case; each side's value is its own white fact (2026-10-05).
+    expect(screen.getAllByText("Trip Budget Usd")).toHaveLength(2);
+    expect(screen.getByText("2400")).toBeInTheDocument();
+    expect(screen.getByText("3000")).toBeInTheDocument();
     fireEvent.click(screen.getByText("Replace Trip Budget With This"));
     await waitFor(() => expect(calls.filter((c) => c.fn === "decision_save")).toHaveLength(2));
     expect(calls.filter((c) => c.fn === "decision_save")[1]?.args).toMatchObject({ p_replace_item: "d1", p_constraints: [{ key: "trip_budget_usd", value: "3000" }] });
@@ -322,8 +328,8 @@ describe("H6 Decision detail", () => {
     await screen.findByText("Claude");
     tab("Review");
     fireEvent.click(screen.getByText("Trip Budget"));
-    expect(await screen.findByText("Active · Version 1")).toBeInTheDocument();
-    expect(screen.getByText("trip_budget_usd")).toBeInTheDocument();
+    expect(await screen.findByText("Active, Version 1")).toBeInTheDocument();
+    expect(screen.getByText("Trip Budget Usd")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Replace With a New Decision" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Withdraw Decision" }));
     fireEvent.change(screen.getByLabelText("Reason for withdrawing"), { target: { value: "Plans changed" } });
@@ -345,7 +351,7 @@ describe("H3 Activity and H7 receipt", () => {
     expect(screen.queryByText("Saved $142.30 Bill to Money")).not.toBeInTheDocument();
     tab("All");
     fireEvent.click(screen.getByText("Saved $142.30 Bill to Money"));
-    expect(await screen.findByText("Suggested by a Rule · Approved by You")).toBeInTheDocument();
+    expect(await screen.findByText("Suggested by a Rule, Approved by You")).toBeInTheDocument();
     expect(screen.getByText("Amount due $142.30 by Oct 15")).toBeInTheDocument();
     const page = within(document.body);
     fireEvent.click(page.getByRole("button", { name: "Undo" }));
@@ -446,7 +452,8 @@ describe("H7 Open It", () => {
     expect(await screen.findByText("Save What We Decided")).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "Mentioned" })).toHaveAttribute("aria-selected", "true");
     expect(screen.getByRole("tab", { name: "Fall Camp" })).toHaveAttribute("aria-selected", "true");
-    expect(screen.getByText("Explore a second summer team", { selector: ".conn-name" })).toBeInTheDocument();
+    // Shown in Title Case (2026-10-05, his typed titles are re-cased on display only; line 299 holds that the stored text is unchanged).
+    expect(screen.getByText("Explore a Second Summer Team", { selector: ".conn-name" })).toBeInTheDocument();
     expect(onOpenEntity).not.toHaveBeenCalled();
   });
 

@@ -91,3 +91,34 @@ describe("nudge dismissals", () => {
     expect(buildFeed({ tasks, events: [], goals: [] }, "2026-05-25", undefined, loadNudgeDismissed("2026-05-25", s))).toHaveLength(1);
   });
 });
+
+// THE CATALOG HARD GATE (Dave 2026-10-05): a row with nothing to say shows
+// nothing, and every line the app writes is Title Case. An event nudge is the
+// start time in a chip; its grey "Today" only repeated the section (every
+// event in this feed is today's) and the chip beside it.
+describe("buildFeed: the catalog", () => {
+  const goals: Goal[] = [{ id: "g", data: { title: "Ship app", state: "at_risk" } }];
+  const feed = buildFeed({
+    tasks: [T("2", "Call bank", "2026-05-24"), T("1", "Pay invoice", "2026-05-01")],
+    events: [E("9", "Standup", "2026-05-24", "09:00")],
+    goals,
+  }, "2026-05-24", "08:00");
+
+  it("an event nudge carries no sub line, only its time", () => {
+    const ev = feed.find((n) => n.kind === "event")!;
+    expect(ev.sub).toBe("");
+    expect(ev.when).toBe("09:00");
+  });
+
+  it("every sub the feed writes is Title Case", () => {
+    const SMALL = new Set(["a", "an", "and", "at", "by", "for", "from", "in", "of", "on", "or", "the", "to", "with"]);
+    for (const n of feed) {
+      const words = n.sub.split(/\s+/).filter(Boolean);
+      words.forEach((w, i) => {
+        if (/^[a-z]/.test(w)) expect(i > 0 && i < words.length - 1 && SMALL.has(w), `${n.kind}: "${n.sub}"`).toBe(true);
+      });
+    }
+    expect(feed.find((n) => n.kind === "due_today")!.sub).toBe("Due Today");
+    expect(feed.find((n) => n.kind === "goal_risk")!.sub).toBe("Goal at Risk");
+  });
+});

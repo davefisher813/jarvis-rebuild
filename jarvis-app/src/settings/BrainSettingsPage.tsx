@@ -92,7 +92,8 @@ export default function BrainSettingsPage({ onBack }: { onBack: () => void }) {
           ? <DangerRow label="Tap Again to Confirm the Erase" onClick={() => void doErase()} disabled={busy} />
           : <DangerRow label="Erase Brain Data" onClick={() => setArmed(true)} disabled={busy} />}
       </Card>
-      <Foot>Decisions, Principles, Values, Writing Samples and Facts Are Deleted. Contacts Stay, but Their Roles Go Back to Unsorted.</Foot>
+      {/* One note, fragments joined by a dot, never two sentences (2026-10-05, the catalog gate). */}
+      <Foot>Decisions, Principles, Values, Writing Samples and Facts Are Deleted · Contacts Stay, but Their Roles Go Back to Unsorted</Foot>
     </div>
   );
 }

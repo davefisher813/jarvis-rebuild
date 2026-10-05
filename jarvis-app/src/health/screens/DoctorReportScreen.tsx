@@ -1,6 +1,7 @@
 import { useRef, type MouseEvent, type RefObject } from "react";
 import type { DoctorReport, ReportKind } from "../doctorReport";
 import { shortDate } from "../../shared/dateFormat";
+import { clockOf } from "../meds";
 
 // TAKE THIS TO THE DOCTOR (Part 4; Health Push F, H-47). A plain, dated
 // summary of a window the person chooses, family-owned, no interpretation.
@@ -60,8 +61,13 @@ export default function DoctorReportScreen({ report, range, onRange, custom, onC
 
       <div className="pad-x"><div className="card pad">
         <div className="p3-q">The Family's Own Log</div>
-        <div className="bp-sub">{report.fromDate} through {report.toDate}. Not a medical record, and nothing here is a reading of it.</div>
+        {/* 2026-10-05 (the catalog gate): the window is a date fact in the words
+            a person says ("Aug 24 to Oct 5"), not the ISO strings the report
+            keeps, and the disclaimer is a note under the card (the group-footer
+            pattern), not a second sentence in one grey run. */}
+        <div className="facts"><span className="fact date">{shortDate(report.fromDate)} to {shortDate(report.toDate)}</span></div>
       </div></div>
+      <div className="pad-x"><div className="input-hint">Not a medical record, and nothing here is a reading of it.</div></div>
 
       <div className="sh2 sh2-quiet"><span className="t">Range</span></div>
       <div className="pad-x">
@@ -111,7 +117,7 @@ export default function DoctorReportScreen({ report, range, onRange, custom, onC
                     a grey trailing value, which was the one grey twice (§AK). */}
                 <div className="facts">
                   <span className="fact date">{shortDate(r.date)}</span>
-                  <span className="fact date">{new Date(r.at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</span>
+                  <span className="fact date">{clockOf(r.at)}</span>
                 </div>
               </div>
             </div>

@@ -49,6 +49,7 @@ import { editSavedAt, removeSavedAt } from "./savings";
 import { todayISO } from "../tasks/grouping";
 import { TargetGlyph, FolderOpenGlyph } from "../shared/glyphs";
 import NoticeCard from "../today/NoticeCard";
+import { Facts } from "../messages/factsLine";
 import { lineCase } from "../shared/casing";
 
 // Hoisted: a fresh object per render would make every consumer's memo stale.
@@ -402,7 +403,9 @@ export default function BiggerPictureFlow({ openId, openNonce, onOpenConsumed, o
           icon={<FolderOpenGlyph />}
           tone="cat-fg-orange"
           title={stalled.data.title}
-          sub={projStep && projStep.projectId === stalled.id ? "Start With: " + projStep.step : "Nothing Is Moving Here"}
+          // STALLED IS AMBER (2026-10-05, the catalog hard gate): why this row is here is
+          // the key's "needs you soon", and it was drawn in the row's plain grey.
+          sub={projStep && projStep.projectId === stalled.id ? "Start With: " + projStep.step : <Facts facts={[{ text: "Nothing Is Moving Here", tone: "warn" }]} />}
           action={projStep && projStep.projectId === stalled.id
             ? { label: projStepBusy ? "Adding..." : "Add", onClick: () => void projStepAccept() }
             : { label: projStepBusy ? "Thinking..." : "First Step", onClick: () => void projStepAsk() }}

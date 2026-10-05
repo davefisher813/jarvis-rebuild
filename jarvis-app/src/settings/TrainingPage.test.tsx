@@ -57,12 +57,12 @@ describe("TrainingPage: bar weight and plates (S5-Q32)", () => {
 describe("TrainingPage: the unit hint", () => {
   beforeEach(() => { localStorage.clear(); });
 
-  it("reads 'In lb.' and 'In kg.' with the space, as one piece of text", () => {
+  it("reads 'In Lb' and 'In Kg' with the space, as one piece of text", () => {
     render(<TrainingPage onBack={() => {}} />);
     const hint = () => document.querySelector(".input-hint")!;
-    expect(hint().textContent).toMatch(/^In lb\. A lift logged/);
-    fireEvent.click(screen.getByText("kg", { selector: ".chip" }));
-    expect(hint().textContent).toMatch(/^In kg\. A lift logged/);
+    expect(hint().textContent).toMatch(/^In Lb · A lift logged/);
+    fireEvent.click(screen.getByText("Kg", { selector: ".chip" }));
+    expect(hint().textContent).toMatch(/^In Kg · A lift logged/);
   });
 });
 

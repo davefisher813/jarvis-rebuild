@@ -146,6 +146,9 @@ describe("LifeFlow, the one ask", () => {
     expect(pill.closest(".one-ask-row .stream-card .notice-card")).toBeTruthy();
     expect(document.querySelector(".promo-card")).toBeNull();
     expect(screen.getByText("Nothing Is Moving Here")).toBeInTheDocument();
+    // THE CATALOG HARD GATE (2026-10-05): stalled is the key's amber, so the
+    // line is a .fact.warn and not the row's plain grey.
+    expect(screen.getByText("Nothing Is Moving Here")).toHaveClass("fact", "warn");
   });
 });
 

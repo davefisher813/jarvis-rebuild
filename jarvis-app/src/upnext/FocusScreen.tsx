@@ -188,7 +188,7 @@ export default function FocusScreen({
             {/* The screen used to say nothing about the rest, so one card in
                 the middle of a black page read as the whole app being empty. */}
             <div className="focus-rest">
-              {waiting > 0 ? `${waiting} more waiting` : "Last one open"}
+              {waiting > 0 ? `${waiting} More Waiting` : "Last one open"}
             </div>
           </>
         ) : (

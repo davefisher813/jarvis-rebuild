@@ -198,7 +198,7 @@ export default function RemindersStrip({
         {onAdd && hasRows && <button className="see-all pill-action" onClick={onAdd}>Add</button>}
         {onSeeAll && <button className="see-all pill-action" onClick={onSeeAll}>See All</button>}
       </div>
-      <div className="pad-x"><div className="card">
+      {hasRows && <div className="pad-x"><div className="card">
         {items.map((r) => (
           <ReminderRow key={r.id} r={r} bursting={burstId === r.id}
             onTickRow={() => { if (!r.done) celebrate(r.id); onTick?.(r.id, !r.done); }}
@@ -284,12 +284,18 @@ export default function RemindersStrip({
             <div className="chev" />
           </div>
         )}
-        {!hasRows && onAdd && (
-          <button className="row row-act" onClick={onAdd}>
+      </div></div>}
+      {/* AN ACTION NEVER SITS IN A BOX (Dave 2026-10-05, the grey rectangle
+          around Add a Reminder). With no reminders there is no card at all:
+          the labelled create is the same pill as Add All to Calendar and
+          New Event, standing alone under the head. */}
+      {!hasRows && onAdd && (
+        <div className="notice-clear-row">
+          <button className="row-act" onClick={onAdd}>
             <Plus className="ic" />Add a Reminder
           </button>
-        )}
-      </div></div>
+        </div>
+      )}
       {/* OUTSIDE THE CARD, LIKE CLEAR ALL (Dave 2026-09-11: "the add all to
           calendar button should render exactly the same as the clear all
           button above it. Not inside the container").

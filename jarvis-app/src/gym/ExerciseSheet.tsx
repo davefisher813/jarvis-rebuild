@@ -497,7 +497,7 @@ export default function ExerciseSheet({ mode, initial, library, history, onSave,
                 <div className="row xs-row" onClick={toggleStrip}>
                   <div className="row-grow">
                     <div className="conn-name">Customize Individual Sets</div>
-                    <div className="conn-meta">{isUniformStrip(kind, sets) ? "Uniform" : "Varies by set"}</div>
+                    <div className="conn-meta">{isUniformStrip(kind, sets) ? "Uniform" : "Varies by Set"}</div>
                   </div>
                   <button className="pill-act pill-neutral" aria-expanded={stripOpen} onClick={own(toggleStrip)}>
                     {stripOpen ? "Hide" : "Show"}
@@ -641,7 +641,7 @@ export default function ExerciseSheet({ mode, initial, library, history, onSave,
                 <Tile tone="teal"><Hourglass className="ic" /></Tile>
                 <div className="row-grow">
                   <div className="conn-name">Rest After the Round</div>
-                  <div className="conn-meta">{roundRestSec > 0 ? "Once every member has gone" : "Rest after every set"}</div>
+                  <div className="conn-meta">{roundRestSec > 0 ? "Once Every Member Has Gone" : "Rest After Every Set"}</div>
                 </div>
                 <HeadMenu variant="value" ariaLabel="Rest After the Round" value={String(roundRestSec)} off={roundRestSec === 0}
                   options={restOptions(roundRestSec)} onPick={(v) => setRoundRestSec(Number(v))} />
@@ -655,7 +655,7 @@ export default function ExerciseSheet({ mode, initial, library, history, onSave,
               <Tile tone="purple"><Shuffle className="ic" /></Tile>
               <div className="row-grow">
                 <div className="conn-name">Filler</div>
-                <div className="conn-meta">Offered during a pair's rest</div>
+                <div className="conn-meta">Offered During a Pair's Rest</div>
               </div>
               <div className={"switch" + (filler ? "" : " off")} role="switch" aria-checked={filler} aria-label="Filler" tabIndex={0}
                 onClick={own(() => setFiller((f) => !f))} />

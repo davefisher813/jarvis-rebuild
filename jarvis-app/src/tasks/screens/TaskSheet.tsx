@@ -490,6 +490,15 @@ export default function TaskSheet({
             <div className="eyebrow">Checklist</div>
             {steps.length > 0 && <div className="conn-meta">{stepsDone} of {steps.length}</div>}
           </div>
+          {/* AN ACTION NEVER SITS IN A BOX (Dave 2026-10-05, the grey rectangle
+              round Add a Reminder). With no items there is no card, only the
+              labelled capsule standing alone under the head, the same shape
+              as Add All to Calendar. */}
+          {steps.length === 0 ? (
+            <div className="notice-clear-row">
+              <button type="button" className="row-act" onClick={addStep}>Add Item</button>
+            </div>
+          ) : (
           <div className="pad-x"><div className="card xs-group">
             {steps.map((s, i) => (
               <div className="row xs-row" key={i} onClick={tapField}>
@@ -532,6 +541,7 @@ export default function TaskSheet({
               </div>
             )}
           </div></div>
+          )}
 
           <div className="grp xs-grp"><div className="eyebrow">When</div></div>
           <div className="pad-x"><div className="card xs-group">

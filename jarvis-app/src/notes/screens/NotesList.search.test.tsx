@@ -40,20 +40,20 @@ describe("a Notes search runs inside the chosen view and tag", () => {
     const { container } = render(<NotesList notes={LIST} />);
     search("plan");
     expect(titles(container)).toEqual(["Archived Plan", "Pinned Plan", "Plain Plan", "Tagged Plan"]);
-    expect(scopeLine()).toBe("4 results in All notes");
-    expect(screen.queryByText("Search all notes")).toBeNull();
+    expect(scopeLine()).toBe("4 Results in All Notes");
+    expect(screen.queryByText("Search All Notes")).toBeNull();
   });
 
-  it("Pinned narrows the typed search, the scope line says so, and Search all notes widens it for real", () => {
+  it("Pinned narrows the typed search, the scope line says so, and Search All Notes widens it for real", () => {
     const { container } = render(<NotesList notes={LIST} />);
     search("plan");
     pickView(/^Pinned/);
     expect(titles(container)).toEqual(["Pinned Plan"]);
-    expect(scopeLine()).toBe("1 result in Pinned notes");
-    fireEvent.click(screen.getByText("Search all notes"));
+    expect(scopeLine()).toBe("1 Result in Pinned Notes");
+    fireEvent.click(screen.getByText("Search All Notes"));
     expect(titles(container)).toHaveLength(4);
     expect(screen.getByLabelText("View")).toHaveTextContent("All");
-    expect(scopeLine()).toBe("4 results in All notes");
+    expect(scopeLine()).toBe("4 Results in All Notes");
   });
 
   it("a tag narrows the typed search and the scope line names the tag", () => {
@@ -62,7 +62,7 @@ describe("a Notes search runs inside the chosen view and tag", () => {
     fireEvent.click(document.querySelector('.hdr-controls .dd[aria-label="Tag"]')!);
     fireEvent.click(screen.getByRole("menuitemradio", { name: "#q3" }));
     expect(titles(container)).toEqual(["Tagged Plan"]);
-    expect(scopeLine()).toBe("1 result in #q3 notes");
+    expect(scopeLine()).toBe("1 Result in #q3 Notes");
   });
 
   it("Archived narrows the typed search to the archive", () => {
@@ -70,7 +70,7 @@ describe("a Notes search runs inside the chosen view and tag", () => {
     search("plan");
     pickView(/^Archived/);
     expect(titles(container)).toEqual(["Archived Plan"]);
-    expect(scopeLine()).toBe("1 result in Archived notes");
+    expect(scopeLine()).toBe("1 Result in Archived Notes");
   });
 
   it("Recently Deleted can be searched, and only it", () => {
@@ -79,7 +79,7 @@ describe("a Notes search runs inside the chosen view and tag", () => {
     expect(titles(container)).toEqual([]);
     pickView(/^Recently Deleted/);
     expect(titles(container)).toEqual(["Deleted Plan Two"]);
-    expect(scopeLine()).toBe("1 result in Recently Deleted notes");
+    expect(scopeLine()).toBe("1 Result in Recently Deleted Notes");
   });
 });
 
@@ -134,5 +134,41 @@ describe("Delete in select mode inside Recently Deleted", () => {
     pickView(/^Recently Deleted/);
     fireEvent.click(screen.getByLabelText("Notes Options"));
     expect(screen.queryByText("Select Notes")).toBeNull();
+  });
+});
+
+// THE CATALOG HARD GATE (Dave 2026-10-05): every line the app writes is Title
+// Case. The scope words and the widen button were the one pair on any page in
+// sentence case ("All notes", "Search all notes"), and the Forever confirm's
+// title was two sentences in an 11px caps label.
+describe("Notes: the catalog (Title Case, no sentence in a caps label)", () => {
+  const SMALL = new Set(["a", "an", "and", "as", "at", "by", "for", "from", "in", "of", "on", "or", "the", "to", "with"]);
+  const titleCased = (t: string) => t.split(/\s+/).filter(Boolean).every((w, i, all) => !/^[a-z]/.test(w) || (i > 0 && i < all.length - 1 && SMALL.has(w)));
+
+  it("the scope line's place and the widen button are Title Case in every view", () => {
+    render(<NotesList notes={LIST} />);
+    search("plan");
+    for (const view of [/^Pinned/, /^Archived/, /^Recently Deleted/]) {
+      pickView(view);
+      // "N result(s) in " is LifeHeader's own frame; what the page hands it is the place.
+      const place = scopeLine()!.replace(/^\d+ Results? in /, "");
+      expect(titleCased(place), place).toBe(true);
+      const widen = document.querySelector(".hdr-scope-all")!.textContent!;
+      expect(widen).toBe("Search All Notes");
+    }
+  });
+
+  it("the Forever confirm is a short Title Case label, never two sentences in caps", () => {
+    render(<NotesList notes={LIST} onDeleteMany={vi.fn()} onDeleteManyForever={vi.fn()} />);
+    pickView(/^Recently Deleted/);
+    fireEvent.click(screen.getByLabelText("Notes Options"));
+    fireEvent.click(screen.getByText("Select Notes"));
+    fireEvent.click(screen.getByText("Select All"));
+    fireEvent.click(document.querySelector(".select-del")!);
+    const title = document.querySelector(".sheet-scrim .grp .eyebrow")!.textContent!;
+    expect(title).toBe("Delete 2 Notes for Good, No Undo");
+    expect(title, "one label, not a sentence").not.toMatch(/[.?!] [A-Z]/);
+    expect(titleCased(title)).toBe(true);
+    expect(title.split(/\s+/).length, "an 11px caps label is a few words").toBeLessThanOrEqual(9);
   });
 });

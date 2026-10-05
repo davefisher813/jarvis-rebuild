@@ -2064,6 +2064,7 @@ describe("LAW: every module is reachable, or is listed as not", () => {
     // AMENDED 2026-09-26 (round 3): the one definition of red that the
     // Colour Key, F-04 and L1 read. Laws only; the app never imports it.
     "reds.ts",                             // the laws' shared reds, read by colourKey, browserWalk and laws tests
+    "catalogSetup.ts",                     // vitest setupFile: runs the visual-catalog DOM checks after every jsdom test (vitest.config.ts)
     "sentenceCase.ts",                     // the casing law's sentence-case roster (Batch 1 casing, 2026-09-26), read by laws.test.ts
     // A serverless route is an entry point: Vercel reaches api/book.ts by
     // URL, exactly the way the browser reaches main.tsx, and nothing imports
@@ -4717,7 +4718,7 @@ describe("LAW 17: the Schedule head is two rows, the day starts at Now, and the 
     expect(src, "past gaps are dropped, past events are kept")
       .toMatch(/const pastShown = pastEntries\.filter\(\(en\) => en\.kind !== "gap"\);/);
     expect(src, "the fold names what it holds, and claims nothing about how it went")
-      .toMatch(/Earlier<span className="n">\{en\.n\} \{en\.n === 1 \? "block" : "blocks"\}<\/span>/);
+      .toMatch(/Earlier<span className="n">\{en\.n\} \{en\.n === 1 \? "Block" : "Blocks"\}<\/span>/);
     expect(src, "the fold is shut on arrival").toMatch(/const \[earlierOpen, setEarlierOpen\] = useState\(false\)/);
     // Only on today: on another date nothing is behind you and nothing is now.
     expect(src, "the fold is a today-only shape, on every mode that draws the day")

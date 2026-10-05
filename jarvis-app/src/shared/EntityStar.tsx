@@ -21,7 +21,7 @@ export default function EntityStar({ entityType, entityId, title }: { entityType
   const tap = async () => {
     haptics.selection();
     const r = await toggle(title.trim().slice(0, 140));
-    if (r === "starred") showToast({ message: "JARVIS will remember that", actionLabel: "Undo", onAction: () => void toggle(title) });
+    if (r === "starred") showToast({ message: "JARVIS Will Remember That", actionLabel: "Undo", onAction: () => void toggle(title) });
     else if (r === "unstarred") showToast({ message: "Forgotten", actionLabel: "Undo", onAction: () => void toggle(title) });
     else if (r === "full") showToast({ message: "The Brain Is Full · Prune It in What JARVIS Knows" });
     else showToast({ message: "Couldn't Save · Try Again" });

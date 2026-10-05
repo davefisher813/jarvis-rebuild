@@ -202,7 +202,7 @@ describe("the two forms", () => {
 
 describe("the quiet line", () => {
   it("data pops, words whisper", () => {
-    render(<div data-testid="q"><Quiet s="Slid 3d · 6/17 by night" /></div>);
+    render(<div data-testid="q"><Quiet s="Slid 3d · 6/17 By Night" /></div>);
     const bright = [...document.querySelectorAll(".qd")].map((e) => e.textContent);
     expect(bright).toEqual(["3d", "6/17"]);
   });

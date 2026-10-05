@@ -11,6 +11,7 @@ import { budgetMessage, formatLimit, formatMicro, type BudgetStatus } from "../a
 import { clearBudgetBlock } from "../ai/budgetBlock";
 import { parseDollarsToMicro } from "../ai/limitInput";
 import { showToast } from "../shared/toast";
+import { titleCase } from "../shared/casing";
 import { Head, Card, Row, Menu, Switch, focusField } from "./kit";
 import { attemptWrite } from "../shared/guard";
 
@@ -20,11 +21,13 @@ const LEVEL_LABEL: Record<AILevel, string> = {
   request: "On Request",
   off: "Off",
 };
+// Title Case, like every grey line under a row name (2026-10-05, the catalog
+// gate: "Only when you ask" read as a sentence).
 const LEVEL_SUB: Record<AILevel, string> = {
-  everything: "Acts with receipts and undo, you still send",
-  draft: "Drafts ready, nothing acts",
-  request: "Only when you ask",
-  off: "Zero AI calls, nothing deleted",
+  everything: "Acts with Receipts and Undo, You Still Send",
+  draft: "Drafts Ready, Nothing Acts",
+  request: "Only When You Ask",
+  off: "Zero AI Calls, Nothing Deleted",
 };
 const PIN_LABEL: Record<AIPinKey, string> = {
   emailDrafts: "Email Drafts",
@@ -62,7 +65,8 @@ function limitToText(micro: number): string {
 }
 
 function kindLabel(kind: string): string {
-  return kind ? kind.replace(/[_-]+/g, " ") : "AI call";
+  // A row name is Title Case (2026-10-05): the raw kind is "email_draft".
+  return kind ? titleCase(kind.replace(/[_-]+/g, " ")) : "AI Call";
 }
 
 export default function AIControlPage({ onBack }: { onBack: () => void }) {
@@ -120,7 +124,7 @@ export default function AIControlPage({ onBack }: { onBack: () => void }) {
   // still the user's when the admin turns AI back on.
   const adminOff = useAdminAiBlocked();
   const aiOn = !adminOff && ctrl.level !== "off";
-  const sayAdminOff = () => { haptics.selection(); showToast({ message: "Turned off by admin" }); };
+  const sayAdminOff = () => { haptics.selection(); showToast({ message: "Turned Off by Admin" }); };
   const toggleAI = () => {
     if (adminOff) { sayAdminOff(); return; }
     if (aiOn) { writeResume(ctrl.level); void apply({ ...ctrl, level: "off" }); }
@@ -153,13 +157,13 @@ export default function AIControlPage({ onBack }: { onBack: () => void }) {
       if (r.ok && d?.budget) {
         // The limit changed, so a refusal remembered from before is stale.
         clearBudgetBlock();
-        showToast({ message: `Limit saved. ${formatLimit(d.budget.limitMicrousd)}.` });
+        showToast({ message: `Limit Saved \u00b7 ${formatLimit(d.budget.limitMicrousd)}` });
       } else {
-        showToast({ message: d?.error || "Limit not saved, nothing changed" });
+        showToast({ message: d?.error || "Limit Not Saved \u00b7 Nothing Changed" });
       }
     } catch {
       setLimitText(limitToText(budget.limitMicrousd));
-      showToast({ message: "Limit not saved, nothing changed" });
+      showToast({ message: "Limit Not Saved \u00b7 Nothing Changed" });
     } finally {
       setSaving(false);
     }
@@ -178,17 +182,20 @@ export default function AIControlPage({ onBack }: { onBack: () => void }) {
   // separator between the two facts is the stylesheet's.
   const usd = estimateCost(tokens);
   const callsValue = count === null
-    ? "Not tracked"
+    ? "Not Tracked"
     : usd === null ? String(count) : <><span className="fact">{count}</span>{" "}<span className="fact est">{`About ${formatUSD(usd)}`}</span></>;
   const inTok = tokens.reduce((n, t) => n + t.inputTokens + t.cacheReadTokens + t.cacheWriteTokens, 0);
   const outTok = tokens.reduce((n, t) => n + t.outputTokens, 0);
-  const tokenRow = inTok + outTok > 0 ? `${formatTokens(inTok)} in, ${formatTokens(outTok)} out` : "";
+  const tokenRow = inTok + outTok > 0 ? `${formatTokens(inTok)} In, ${formatTokens(outTok)} Out` : "";
 
   return (
     <div className="screen ruled">
       <LargeTitleNav title="AI Control" back="Settings" onBack={onBack} />
       <Card>
-        <Switch label="AI" meta={adminOff ? "Turned off by admin" : aiOn ? "On" : "Off, nothing runs"} on={aiOn} onToggle={toggleAI} ariaLabel="AI on or off" locked={adminOff} onLocked={sayAdminOff} />
+        {/* A row with nothing to say shows nothing (2026-10-05): "On" and "Off,
+            nothing runs" only repeated the switch beside them, and the Off level
+            below already says nothing runs. Only the admin's block is news. */}
+        <Switch label="AI" meta={adminOff ? "Turned Off by Admin" : undefined} on={aiOn} onToggle={toggleAI} ariaLabel="AI on or off" locked={adminOff} onLocked={sayAdminOff} />
       </Card>
       <Head label="AI Level" />
       <Card>
@@ -216,10 +223,11 @@ export default function AIControlPage({ onBack }: { onBack: () => void }) {
         <>
           <Head label="AI Spending Limit" />
           <Card>
-            <Row label={`${formatMicro(budget.remainingMicrousd)} remaining of ${formatLimit(budget.limitMicrousd)}`}
-              meta={`Since ${new Date(budget.periodStart).toLocaleDateString([], { month: "short", day: "numeric" })}`} />
+            <Row label={`${formatMicro(budget.remainingMicrousd)} Remaining of ${formatLimit(budget.limitMicrousd)}`}
+              // A neutral date on a row is a small-caps date fact (§AM F5; 2026-10-05).
+              meta={<span className="fact date">{`Since ${new Date(budget.periodStart).toLocaleDateString([], { month: "short", day: "numeric" })}`}</span>} />
             {budget.heldMicrousd > 0 && (
-              <Row label="Pending" value={`${formatMicro(budget.heldMicrousd, "up")} held`} className="set-sub" />
+              <Row label="Pending" value={`${formatMicro(budget.heldMicrousd, "up")} Held`} className="set-sub" />
             )}
             <div className="row set-row" onClick={focusField}>
               <div className="conn-name">Limit in Dollars</div>
@@ -227,7 +235,7 @@ export default function AIControlPage({ onBack }: { onBack: () => void }) {
                 onChange={(e) => setLimitText(e.target.value)} />
             </div>
             <Row label={saving ? "Saving" : "Save Limit"} onClick={dirty && !saving ? () => { void saveLimit(); } : undefined}
-              disabled={!dirty || saving} />
+              disabled={!dirty || saving} className="set-act" />
           </Card>
           <div className="pad-x"><div className="input-hint">
             {budgetNote ?? "Zero turns paid AI off · A running call is held at its highest possible cost, so the balance can read a little low"}
@@ -243,7 +251,7 @@ export default function AIControlPage({ onBack }: { onBack: () => void }) {
             fact, the cost is an estimate, and neither is invented. */}
         {tokenRow && <Row label="Tokens Today" value={tokenRow} className="set-sub" />}
         {showCalls && calls.map((c, i) => (
-          <Row key={i} label={kindLabel(c.kind)} value={<span className="fact date">{new Date(c.at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</span>} className="set-sub" />
+          <Row key={i} label={kindLabel(c.kind)} value={<span className="fact date">{new Date(c.at).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true })}</span>} className="set-sub" />
         ))}
       </Card>
       <div className="screen-foot" />

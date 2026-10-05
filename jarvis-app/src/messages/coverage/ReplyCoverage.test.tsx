@@ -68,6 +68,41 @@ describe("ReplyCoverage: the indicator", () => {
   });
 });
 
+// THE CATALOG, CHECKED ON WHAT THE CHECKLIST DRAWS (Dave 2026-10-05). A line was a plain-grey
+// status, a plain-grey note and the sender's quote in the same grey: up to three greys on one row.
+describe("ReplyCoverage: a line follows the catalog (2026-10-05)", () => {
+  const greys = (row: Element) => Array.from(row.querySelectorAll(".fact, .conn-meta"))
+    .filter((e) => !e.matches(".good, .warn, .red, .est, .date, .st") && !e.querySelector("b") && !(e.matches(".conn-meta") && e.querySelector(".fact")));
+
+  it("every line is one toned fact and the sender's words, so at most one grey, with no typed dot", () => {
+    render(<Harness reqs={REQS()} text={"Tuesday works, four players, yes you can publish. Can't send waiver until Friday"} overrides={{ publish: "open" }} />);
+    fireEvent.click(screen.getByRole("button", { name: "Check" }));
+    const rows = Array.from(document.querySelectorAll(".card > .row")).slice(1);
+    expect(rows).toHaveLength(4);
+    for (const row of rows) {
+      expect(greys(row).map((g) => g.textContent), row.textContent ?? "").toHaveLength(1);
+      expect(row.querySelectorAll(".facts .fact")).toHaveLength(1);
+      expect(row.querySelector(".facts")!.textContent).not.toContain("\u00b7");
+    }
+  });
+
+  it("an ask the draft leaves open needs you, so it is amber, and says why inside the one fact", () => {
+    render(<Harness reqs={REQS()} text={TEXT} />);
+    fireEvent.click(screen.getByRole("button", { name: "Check" }));
+    const waiver = screen.getByText("Waiver").closest(".row") as HTMLElement;
+    expect(waiver.querySelector(".fact")!.className).toBe("fact warn");
+    expect(waiver.querySelector(".fact")!.textContent).toBe("Open");
+  });
+
+  it("claiming a file that is not attached says why inside the same fact", () => {
+    render(<Harness reqs={REQS()} text={TEXT + ". I attached the waiver"} />);
+    fireEvent.click(screen.getByRole("button", { name: "Check" }));
+    const waiver = screen.getByText("Waiver").closest(".row") as HTMLElement;
+    expect(waiver.querySelector(".fact")!.textContent).toBe("Open, Nothing Is Attached");
+    expect(waiver.querySelectorAll(".facts .fact")).toHaveLength(1);
+  });
+});
+
 describe("ReplyCoverage: the checklist", () => {
   it("tapping opens a small checklist: each ask, whether it is answered, and why", () => {
     render(<Harness reqs={REQS()} text={"Tuesday works, four players, yes you can publish. Can't send waiver until Friday"} />);
@@ -75,9 +110,10 @@ describe("ReplyCoverage: the checklist", () => {
     fireEvent.click(screen.getByRole("button", { name: "Check" }));
     expect(screen.getByText("Which Day")).toBeInTheDocument();
     expect(screen.getByText("Waiver")).toBeInTheDocument();
-    expect(screen.getByText("Deferred")).toBeInTheDocument();
-    expect(screen.getByText("Says 4")).toBeInTheDocument();
-    expect(screen.getAllByText("Answered").length).toBeGreaterThanOrEqual(4);
+    // The state and its reason are one toned fact (2026-10-05, the catalog gate).
+    expect(screen.getByText("Answered, Deferred")).toBeInTheDocument();
+    expect(screen.getByText("Answered, Says 4")).toBeInTheDocument();
+    expect(document.querySelectorAll(".fact.good").length).toBeGreaterThanOrEqual(4);
     // Each line carries the sender's own words.
     expect(screen.getByText("Quote for Waiver")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Hide" }));
@@ -112,7 +148,7 @@ describe("ReplyCoverage: the checklist", () => {
     render(<Harness reqs={REQS()} text={TEXT} overrides={{ waiver: "addressed" }} />);
     expect(screen.getByText("Answered 4 of 4")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Check" }));
-    expect(screen.getByText("Marked Answered")).toBeInTheDocument();
+    expect(screen.getByText("Marked Answered")).toHaveClass("fact", "good");
   });
 
   it("it never blocks anything: it renders no disabled control and no send", () => {

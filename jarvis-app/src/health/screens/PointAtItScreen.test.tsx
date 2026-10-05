@@ -63,4 +63,14 @@ describe("PointAtItScreen: how it feels", () => {
     expect(onDetail).toHaveBeenCalledWith({ feel: "stiffness", level: "mild", note: "After deadlifts" });
     expect(screen.getByText("Done")).toBeInTheDocument();
   });
+
+  // THE NUMBER RULE (Dave 2026-10-05): the word behind a number is capitalized wherever the
+  // number sits in the phrase, not only when it opens it ("Over 9 Days").
+  it("the span under the spot says '9 Days' with a capital, and '1 Day' in the singular", () => {
+    const { container, rerender } = render(<PointAtItScreen patterns={PATTERN} onLog={() => {}} onBack={() => {}} />);
+    const span = () => Array.from(container.querySelectorAll(".bp-sub")).map((e) => e.textContent).filter((t) => /^Over /.test(t ?? ""));
+    expect(span()).toEqual(["Over 9 Days"]);
+    rerender(<PointAtItScreen patterns={[{ ...PATTERN[0]!, days: 1 }]} onLog={() => {}} onBack={() => {}} />);
+    expect(span()).toEqual(["Over 1 Day"]);
+  });
 });

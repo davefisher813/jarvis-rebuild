@@ -83,7 +83,7 @@ describe("Copy", () => {
     const text = writeText.mock.calls[0]![0] as string;
     expect(text.startsWith("Convo with Berto\n\nAGENDA\n")).toBe(true);
     expect(text).toContain("[x] Talk pricing");
-    await waitFor(() => expect(seen).toContain("Note copied"));
+    await waitFor(() => expect(seen).toContain("Note Copied"));
     stop(); resetToasts();
   });
 

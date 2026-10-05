@@ -13,6 +13,7 @@ import { activeBills, billSubline, paydayLine, paydayNext, monthDay, paidThisMon
 import BillSheet, { type BillDraft } from "./BillSheet";
 import BillDetailSheet from "./screens/BillDetailSheet";
 import { useMarkBillPaid } from "./useMarkBillPaid";
+import { Amounts } from "./MoneyFacts";
 import { billAmount, ledgerBillsOut, ledgerChip, ledgerLine, ledgerPaidThisMonth, mergedBills } from "./billView";
 import { suggestMonthly } from "./ledger/recurring";
 import { isPaid } from "./ledger/status";
@@ -65,13 +66,6 @@ function billChip(t: TaskItem, today: string): { cls: string; text: string } | n
 }
 
 const initialOf = (s: string) => (s.trim()[0] ?? "?").toUpperCase();
-
-// The amounts in a quiet money line step up to white (§AM F1: a number with
-// no state inside a grey line is a white <b>); the words keep the line's one
-// grey. The dollar sign goes with its number, so the split is on the amount.
-function Amounts({ text }: { text: string }) {
-  return <>{text.split(/(\$\d{1,3}(?:,\d{3})*(?:\.\d+)?)/).map((s, i) => (i % 2 === 1 ? <b key={i}>{s}</b> : s))}</>;
-}
 
 function AccountSheet({ mode, initial, onSave, onDelete, onCancel }: {
   mode: "new" | "edit"; initial?: AccountData; onSave: (d: AccountData) => void | Promise<boolean | void>; onDelete?: () => void; onCancel: () => void;
@@ -668,7 +662,12 @@ export default function MoneyFlow({ onOpenTask, onOpenEntity, openAccountId, ope
     const lineEl = paid
       ? <span className="r-goal fact good">{line.text}</span>
       : line.state === "reconfirm"
-        ? <span className="r-goal r-cat">{line.text}</span>
+        // 2026-10-05 (visual catalog gate, R3): a correction reopened a paid
+        // bill and it waits for the person, which is the key's "needs you
+        // soon" amber, not the row's grey. (In light a stylesheet rule still
+        // draws .r-goal.fact.warn in grey; reported, not worked around here,
+        // because a bare .fact.warn takes the row title's size.)
+        ? <span className="r-goal fact warn">{line.text}</span>
         : line.state === "autopay"
           ? <><span className="r-goal r-cat">{line.text}</span>{line.when && <span className="fact date">{line.when}</span>}</>
           : line.state === "due"
@@ -968,11 +967,21 @@ export default function MoneyFlow({ onOpenTask, onOpenEntity, openAccountId, ope
                   <span className="task-name">{suggestion.vendor + ", " + billAmount({ amountCents: suggestion.amountCents, currency: suggestionCurrency })}</span>
                   <div className="r-k"><div className="facts">
                     <span className="fact">{lineCase(`${suggestion.count} months in a row`)}</span>
-                    <span className="fact">Make It Monthly?</span>
                   </div></div>
                 </div>
-                <button className="pill-act" onClick={(e) => { e.stopPropagation(); void acceptSuggestion(suggestion); }}>Yes</button>
-                <button className="pill-act pill-quiet" onClick={(e) => { e.stopPropagation(); dismissSuggestion(suggestionKey(suggestion)); setSuggestTick((n) => n + 1); }}>Not Now</button>
+              </div>
+              {/* THE QUESTION IS THE TITLE OF ITS OWN ROW (2026-10-05, Dave's
+                  visual catalog gate, R1 and R5, and the facts-never-clip
+                  ruling). It was a second grey fact beside the count, and beside
+                  the two pills the title column is 140px wide, so the line cut
+                  the count to "3 Months in a R..." and never drew the question,
+                  the only thing that says what Yes means. As a name it has the
+                  row's width, the count keeps the row above as its one grey, and
+                  Yes and Not Now answer it on the same line. */}
+              <div className="row">
+                <div className="row-grow"><div className="conn-name truncate">Make It Monthly?</div></div>
+                <button className="pill-act" onClick={() => void acceptSuggestion(suggestion)}>Yes</button>
+                <button className="pill-act pill-quiet" onClick={() => { dismissSuggestion(suggestionKey(suggestion)); setSuggestTick((n) => n + 1); }}>Not Now</button>
               </div>
             </div></div>
           )}

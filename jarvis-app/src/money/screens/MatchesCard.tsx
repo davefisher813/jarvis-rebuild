@@ -29,13 +29,20 @@ interface Loaded {
 
 const EMPTY: Loaded = { receiptProposals: [], billProposals: [], receipts: [], bills: [], txs: [] };
 
-function Side({ label, name, amount, day }: { label: string; name: string; amount: string; day: string }) {
+// NO GREY AT ALL (2026-10-05, Dave's visual catalog gate, R1 and R5). Each side
+// was a label, an amount, a day and a name: two greys a line, four a row, and
+// the name said the vendor the headline already says (a proposal only exists
+// when the two vendors are the same after normalising, so the name can add
+// nothing but its spelling). Now the label and the amount are the white facts
+// (a number with no state) and the day the small-caps date: the headline above
+// is the row's title and carries the words, so the line carries only what it
+// does not.
+function Side({ label, amount, day }: { label: string; amount: string; day: string }) {
   return (
     <div className="facts">
-      <span className="fact">{label}</span>
+      <span className="fact"><b>{label}</b></span>
       <span className="fact"><b>{amount}</b></span>
       <span className="fact date">{fmtDay(day)}</span>
-      <span className="fact">{lineCase(name)}</span>
     </div>
   );
 }
@@ -104,8 +111,8 @@ export default function MatchesCard({ onChanged }: { onChanged?: () => void }) {
           <div className="task-row p2 match-row" key={v.key} {...pressable(() => setMenu(v))}>
             <div className="task-title">
               <span className="task-name">{lineCase(v.headline)}</span>
-              <Side {...v.record} />
-              <Side {...v.payment} />
+              <Side label={v.record.label} amount={v.record.amount} day={v.record.day} />
+              <Side label={v.payment.label} amount={v.payment.amount} day={v.payment.day} />
             </div>
             <div className="match-acts">
               <button className="pill-act" disabled={busy !== null} onClick={(e) => { e.stopPropagation(); void link(v); }}>Link</button>

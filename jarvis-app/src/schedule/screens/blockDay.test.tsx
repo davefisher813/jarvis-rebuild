@@ -52,6 +52,10 @@ describe("the day timeline", () => {
     const { container } = render(page(DAY, skipped, { onBackToNormal: onBack }));
     expect(container.querySelector(".sched-locked")).toBeNull();
     expect(screen.getByText(/Skipped Today/)).toBeInTheDocument();
+    // THE CATALOG (Dave 2026-10-05): the state word carries no dot of its own;
+    // the separator is its own span (R6).
+    expect(container.querySelector(".skipped-w")!.textContent).toBe("Skipped Today");
+    expect(container.querySelector(".skipped-t > .sched-sep")).not.toBeNull();
     fireEvent.click(screen.getByText("Back to Normal"));
     expect(onBack).toHaveBeenCalledWith("bf");
   });

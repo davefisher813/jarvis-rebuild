@@ -34,7 +34,7 @@ function Seed({ onDone }: { onDone: () => void }) {
 }
 
 describe("LearnedRulesPage resolves category ids to names", () => {
-  it('shows "Elite Squad means Elite Squad", never the raw category id', async () => {
+  it('shows "Elite Squad Means Elite Squad", never the raw category id', async () => {
     let seeded = false;
     const { rerender } = render(
       <NotesProvider userId="u-rules">
@@ -49,6 +49,6 @@ describe("LearnedRulesPage resolves category ids to names", () => {
         <LearnedRulesPage onBack={() => {}} />
       </NotesProvider>,
     );
-    await waitFor(() => expect(screen.getByText("Elite Squad means Elite Squad")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("Elite Squad Means Elite Squad")).toBeInTheDocument());
   });
 });

@@ -1024,7 +1024,7 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 .msg-sends { font-size: var(--t-meta); color: var(--tint); font-weight: var(--w-medium); }
 .empty-sub { font-size: var(--t-sub); font-weight: var(--w-sub); color: var(--tx-3); text-align: center; max-width: 280px; }
 .money-hero { padding: var(--s-5) var(--s-4); }
-.money-hero-label { font-size: var(--t-meta); color: var(--tx-3); font-weight: var(--w-medium); margin-bottom: var(--s-1); }
+.money-hero-label { font-size: var(--t-sub); color: var(--tx-3); font-weight: var(--w-sub); margin-bottom: var(--s-1); }
 .money-hero-total { font-size: var(--t-h1); font-weight: var(--w-bold); color: var(--tx-1); }
 .money-amt { font-size: var(--t-body); font-weight: var(--w-semi); color: var(--tx-1); }
 /* Money v1 bills (2026-08-03). .bill-pay is the pay deep-link (tint text is
@@ -3117,9 +3117,10 @@ button {
    that may take a systemic color. Weight carries them over the 60% grey. */
 .fact-warn { color: var(--warn); font-weight: var(--w-semi); }
 .fact-good { color: var(--good); font-weight: var(--w-semi); }
-.fact-red { color: var(--red); font-weight: var(--w-semi); }
-.fact-sky { color: var(--cat-sky, #64D2FF); font-weight: var(--w-semi); }
-.fact-purple { color: var(--cat-purple, #BF5AF2); font-weight: var(--w-semi); }
+/* 2026-10-05 (visual catalog gate, R3): the red, sky and purple slots that
+   stood here had no call site anywhere, and two of them painted WORDS in a
+   category colour with a raw hex fallback, which the Colour Key forbids
+   (sky is an estimate and wears its own ink; purple is not in the key). */
 
 /* DECISION RECORD (brainstorm shipment 1, built 2026-08-18 to Catalog V3.3).
    The record reads as blocks: the decision line big, the reason in the
@@ -4165,7 +4166,7 @@ button {
 .doc-editorial .doc-title {
   font-family: "Newsreader", Georgia, "Times New Roman", serif;
   font-size: var(--t-title);
-  font-weight: 600;
+  font-weight: var(--w-medium);
   line-height: 1.25;
   letter-spacing: -0.01em;
   margin-bottom: var(--s-3);
@@ -5099,7 +5100,7 @@ body.selecting .voice-dock { display: none; }
 .rep-title { font-size: var(--t-h3); font-weight: var(--w-semi); color: var(--tx-1); line-height: var(--lh-default); }
 .rep-wins { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-2); margin-top: var(--s-3h); }
 .rep-win { border-radius: var(--r-md); padding: var(--s-3) var(--s-3h); }
-.rep-win-name { font-size: var(--t-sub); font-weight: var(--w-medium); color: var(--tx-3); }
+.rep-win-name { font-size: var(--t-sub); font-weight: var(--w-sub); color: var(--tx-3); }
 .rep-win-val { font-size: calc(17px * var(--type-scale)); font-weight: var(--w-bold); margin-top: var(--s-0h); }
 .rep-win-good { background: var(--good-tint); } .rep-win-good .rep-win-val { color: var(--good); }
 .rep-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-2); }
@@ -5982,7 +5983,7 @@ body.selecting .voice-dock { display: none; }
 .cf-top { position: absolute; top: max(14px, env(safe-area-inset-top)); left: 0; right: 0;
   display: flex; flex-direction: column; align-items: center; gap: var(--s-1); }
 .cf-cancel { position: absolute; left: 14px; top: 0; border: 0; background: none; color: var(--tx-3);
-  font: inherit; font-size: calc(15px * var(--type-scale)); font-weight: 600; padding: var(--s-2) var(--s-1h); cursor: pointer; }
+  font: inherit; font-size: calc(15px * var(--type-scale)); font-weight: var(--w-medium); padding: var(--s-2) var(--s-1h); cursor: pointer; }
 /* The format tag names a format; it means nothing the key colours, so it is
    the neutral tag: its fill and caps set it apart, in the one grey (§AM,
    2026-09-25). Blue is Health's cool-down, and this is not one.
@@ -6005,16 +6006,16 @@ body.selecting .voice-dock { display: none; }
 .cf-num.pulse { animation: cf-pulse 260ms ease-out; }
 .cf-lead { font-size: clamp(80px, 30vw, 120px); animation: cf-pulse 300ms ease-out; }
 @keyframes cf-pulse { 0% { transform: scale(1.14); } 100% { transform: scale(1); } }
-.cf-round { font-size: calc(15px * var(--type-scale)); font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--tx-3); margin-top: var(--s-1); }
+.cf-round { font-size: calc(15px * var(--type-scale)); font-weight: var(--w-semi); letter-spacing: 0.06em; text-transform: uppercase; color: var(--tx-3); margin-top: var(--s-1); }
 .cf-last { font-size: var(--t-sub); color: var(--tx-3); font-variant-numeric: tabular-nums; min-height: 18px; }
 
 .cf-roundbtn { margin-top: var(--s-6h); border: 0; border-radius: var(--r-pill); background: #fff; color: #000; font: inherit;
-  font-size: var(--t-h2); font-weight: 700; padding: var(--s-4) 0; width: min(64vw, 240px); cursor: pointer; }
+  font-size: var(--t-h2); font-weight: var(--w-semi); padding: var(--s-4) 0; width: min(64vw, 240px); cursor: pointer; }
 .cf-roundbtn:active { transform: scale(0.97); }
 
 .cf-slide { position: relative; margin-top: var(--s-3h); width: min(64vw, 240px); height: 50px; border-radius: var(--r-pill);
   background: var(--press-3); display: flex; align-items: center; justify-content: center; overflow: hidden; }
-.cf-slide-t { color: var(--tx-3); font-size: var(--t-caption); font-weight: 600; letter-spacing: 0.02em; padding-left: var(--s-7); }
+.cf-slide-t { color: var(--tx-3); font-size: var(--t-caption); font-weight: var(--w-medium); letter-spacing: 0.02em; padding-left: var(--s-7); }
 .cf-knob { position: absolute; left: 5px; top: 5px; width: 40px; height: 40px; border-radius: var(--r-circle); background: var(--sys-red);
   display: grid; place-items: center; touch-action: none; cursor: grab; transition: transform 180ms ease; }
 .cf-knob.dragging { transition: none; cursor: grabbing; }
@@ -6038,7 +6039,7 @@ body.selecting .voice-dock { display: none; }
     text-transform: uppercase; color: var(--tx-3); }
   .cf-tl { top: 14px; left: 18px; }
   .cf-tr { top: 14px; right: 18px; }
-  .cf-bl { bottom: 14px; left: 18px; color: var(--tx-2); text-transform: none; letter-spacing: 0; font-weight: 600;
+  .cf-bl { bottom: 14px; left: 18px; color: var(--tx-2); text-transform: none; letter-spacing: 0; font-weight: var(--w-medium);
     font-variant-numeric: tabular-nums; }
   .cf-roundbtn { position: absolute; right: 18px; bottom: 12px; margin: 0; width: auto; padding: var(--s-3) var(--s-7); font-size: calc(16px * var(--type-scale)); }
   .cf-slide { position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%); margin: 0; width: 200px; height: 42px; }
@@ -6070,7 +6071,7 @@ body.selecting .voice-dock { display: none; }
 /* GYM-F-10 (2026-09-05): the attempt title row now carries the delete a
    misfired run needs, so it is a row rather than a lone label. */
 .cr-attempt-t { display: flex; align-items: center; justify-content: space-between; gap: var(--s-2);
-  font-size: var(--t-eyebrow); font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--tx-3); margin: var(--s-2) 0 var(--s-0h); }
+  font-size: var(--t-eyebrow); font-weight: var(--w-semi); letter-spacing: 0.08em; text-transform: uppercase; color: var(--tx-3); margin: var(--s-2) 0 var(--s-0h); }
 .cr-del { background: none; border: 0; padding: var(--s-0h); color: var(--tx-2); display: inline-flex; cursor: pointer; }
 .cr-del:active { color: var(--red); }
 .cr-del .ic { width: 16px; height: 16px; }
@@ -6079,7 +6080,7 @@ body.selecting .voice-dock { display: none; }
 .cr-table { width: 100%; border-collapse: collapse; font-size: var(--t-sub); font-variant-numeric: tabular-nums; margin-top: var(--s-1); }
 .cr-table td { padding: var(--s-1h) var(--s-1); border-top: 0.5px solid var(--divider); color: var(--tx-2); }
 .cr-n { color: var(--tx-2); width: 36px; }
-.cr-t { color: var(--tx-1); font-weight: 600; }
+.cr-t { color: var(--tx-1); font-weight: var(--w-medium); }
 .cr-score-l { min-width: 0; }
 .cr-d { text-align: right; color: var(--tx-2); width: 60px; }
 .cr-d.up { color: var(--warn); }
@@ -6093,11 +6094,11 @@ body.selecting .voice-dock { display: none; }
 .cr-score-v { display: inline-flex; align-items: center; gap: var(--s-1h); font-size: var(--t-h2); font-weight: var(--w-bold); color: var(--tx-1);
   font-variant-numeric: tabular-nums; }
 .cr-score-v b { font-weight: var(--w-bold); }
-.cr-plus { font-size: calc(15px * var(--type-scale)); color: var(--tx-3); font-weight: 600; }
+.cr-plus { font-size: calc(15px * var(--type-scale)); color: var(--tx-3); font-weight: var(--w-medium); }
 .cr-extra { width: 56px; border: 0; border-radius: var(--r-sm); background: var(--press-3); color: var(--tx-1); font: inherit;
   font-size: var(--t-h2); font-weight: var(--w-bold); text-align: center; padding: var(--s-1) var(--s-1h); font-variant-numeric: tabular-nums; }
 .cr-extra:focus { outline: 2px solid var(--blue); }
-.cr-extra::placeholder { color: var(--tx-2); font-weight: 600; }
+.cr-extra::placeholder { color: var(--tx-2); font-weight: var(--w-medium); }
 
 /* HOW TODAY WENT (2026-09-09): a pick that got done reads as struck through
    and stepped back, the same treatment a skipped set chip already wears. It
@@ -6437,7 +6438,7 @@ span.row-star { cursor: default; }
    arbitrary data, so the fix is the one already used for known short app
    copy elsewhere (.voice-hint, 2026-09-21): wrap rather than ellipsize.
    Identical at scale 1, where all three already fit on one line. */
-.itile span { display: block; margin-top: var(--s-1); font-size: var(--t-eyebrow); font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; white-space: normal; overflow: visible; text-overflow: clip; }
+.itile span { display: block; margin-top: var(--s-1); font-size: var(--t-eyebrow); font-weight: var(--w-semi); text-transform: uppercase; letter-spacing: 0.04em; white-space: normal; overflow: visible; text-overflow: clip; }
 .itile-good { background: color-mix(in srgb, var(--good) 14%, transparent); color: var(--good); }
 /* ONLY DONE HAS A COLOUR (§AM, 2026-09-25). Goals moved and flexible hours
    are counts with no state, so they are the tile the key gives a number
@@ -6631,7 +6632,7 @@ span.row-star { cursor: default; }
   display: flex; align-items: baseline; justify-content: space-between; gap: var(--s-3);
   padding: 0 var(--s-4); margin-top: var(--s-3h);
 }
-.hdr-scope-n { font-size: var(--t-meta); font-weight: var(--w-regular); color: var(--tx-3); }
+.hdr-scope-n { font-size: var(--t-sub); font-weight: var(--w-sub); color: var(--tx-3); }
 .hdr-scope-all {
   flex-shrink: 0; background: none; border: 0; padding: 0;
   font-family: var(--f); font-size: var(--t-meta); font-weight: var(--w-semi); color: var(--tint);
@@ -7093,8 +7094,10 @@ html[data-celebrate="off"] .cb.on.just-checked { animation: none; }
 .fb-track { flex: 1; height: 6px; border-radius: var(--r-pill); background: var(--press-3); overflow: hidden; }
 .fb-fill { height: 100%; width: calc(var(--p, 0) * 1%); border-radius: var(--r-pill); background: var(--good-fill);
   transition: width 260ms var(--ease-out); }
-.fb-count { font-size: var(--t-meta); color: var(--tx-2); font-feature-settings: 'tnum'; white-space: nowrap; }
-.start-last { font-size: var(--t-meta); color: var(--tx-3); padding-bottom: var(--s-2); }
+/* The count is a facts line (2026-10-05): the size, weight and ink come from
+   the facts primitives and its white <b>, so this class is layout only. It
+   used to state --tx-2 and a size of its own, a second grey. */
+.fb-count { flex: none; margin-top: 0; font-feature-settings: 'tnum'; }
 
 /* The acknowledgment is state, not a toast: it stays until the next action,
    sits in the flow, and never covers the button that comes next. */
@@ -7105,6 +7108,12 @@ html[data-celebrate="off"] .cb.on.just-checked { animation: none; }
 .fb-check { width: 18px; height: 18px; flex-shrink: 0; color: var(--good); }
 .fb-ack-line { flex: 1; min-width: 0; font-size: var(--t-body); font-weight: var(--w-medium); line-height: var(--lh-snug); }
 .fb-editor { gap: var(--s-3); }
+/* THE WAYS OUT WRAP (2026-10-05, measured at 390px). Five quiet actions share
+   one flex row that cannot wrap, so with a step on screen the row ran to 713px
+   and "Worked on It", "Something's in the way" and "Done for Now" sat past the
+   screen edge, unreachable. Wrapping keeps every one on screen at a 44px tap
+   height, and the row gap keeps two lines from touching. */
+.fb-support { flex-wrap: wrap; row-gap: var(--s-1); }
 .fb-editor-acts { display: flex; gap: var(--s-2); flex-wrap: wrap; }
 
 html[data-motion="reduce"] .task-row.just-done,

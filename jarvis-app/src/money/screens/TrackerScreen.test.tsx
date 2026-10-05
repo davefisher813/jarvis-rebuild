@@ -58,7 +58,8 @@ describe("Tracker transactions: added by hand, no bank", () => {
     mount("tr-copy");
     await tab("Transactions");
     expect(await screen.findByText("Add Manually")).toBeInTheDocument();
-    expect(screen.getByText("Nothing Tracked Yet")).toBeInTheDocument();
+    // No placeholder row under the head: its 0 says it (2026-10-05, the visual catalog gate).
+    expect(screen.queryByText("Nothing Tracked Yet")).toBeNull();
     expect(document.body.textContent).not.toMatch(/connect (a )?bank|link (a )?bank|sync/i);
     expect(screen.queryByText("Add a Transaction")).toBeNull();
   });

@@ -2103,7 +2103,7 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
       if (!ok) {
         setDeleteState({
           ...state, stage: "asking",
-          note: applied > 0 ? `${applied} of ${total} saved, Delete Exercise finishes the rest` : "Nothing was changed, the exercise is exactly as it was",
+          note: lineCase(applied > 0 ? `${applied} of ${total} Saved, Delete Exercise finishes the rest` : "Nothing was changed, the exercise is exactly as it was"),
         });
         return;
       }
@@ -3707,7 +3707,7 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
                           {w.label}
                           {w.backOff && <span className="pill pill-subdued week-back-off">Back-Off</span>}
                         </div>
-                        <div className="conn-meta">{w.days.length} {w.days.length === 1 ? "day" : "days"}</div>
+                        <div className="conn-meta">{w.days.length} {w.days.length === 1 ? "Day" : "Days"}</div>
                       </div>
                       {CHEV}
                     </div>

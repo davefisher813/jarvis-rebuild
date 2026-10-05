@@ -264,7 +264,7 @@ function DaySet({
           onDelete={onDeleteBlock && blockId ? () => onDeleteBlock(blockId) : undefined}
         >
           {props.length > 0 && (
-            <HeldTasks count={props.length} alwaysOpen={expandHeld}>
+            <HeldTasks count={props.length} label="Task" alwaysOpen={expandHeld}>
               <>
               {/* A TASK HELD IN A BLOCK IS STILL A TASK (2026-09-15).
                   It had no completion control, and its one tap was dead --
@@ -309,7 +309,7 @@ function DaySet({
   // Merged mode with nothing ahead: say so rather than render an empty strip
   // under a band that promised "the rest of today".
   if (fromMin !== undefined && shown.length === 0) {
-    return <div className="pad-x day-clear">Nothing else scheduled</div>;
+    return <div className="pad-x day-clear">Nothing Else Scheduled</div>;
   }
   return <>{out}</>;
 }
@@ -353,7 +353,7 @@ export default function YourDay({
   onEditRoutine,
   onOpenBlock,
   title = "Your Day",
-  emptyText = "Nothing scheduled today",
+  emptyText = "Nothing Scheduled Today", // Title Case on every line (2026-10-05)
   blendMap = {},
   proposed,
   footer,

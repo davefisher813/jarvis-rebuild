@@ -4,7 +4,7 @@ import { loadMailSnapshot } from "../messages/home";
 import { titleCase as titleCaseMail } from "../shared/casing";
 import { loadLinks } from "../messages/threadLink";
 import { linksOf } from "../decisions/types";
-import { openWith as openWithPerson, type MentionItem } from "./mentions";
+import { openWith as openWithPerson, reminderAtLabel, type MentionItem } from "./mentions";
 import { todayISO } from "../tasks/grouping";
 import { ENTITY_PERSON, type Person } from "./types";
 import { unfilePerson, refilePerson, type UnfiledFromPerson } from "./unfile";
@@ -20,16 +20,9 @@ import PersonSheet, { type PersonDraft } from "./screens/PersonSheet";
 import { usePushDepth } from "../shared/pushNav";
 import { parseContactsFile, parseContactsCSV, csvMapping, type CsvMapping } from "./importContacts";
 import { planImport, mergeReview, draftFrom, planFacts, summaryLine, describe, type MatchPlan } from "./importMatch";
-import { fmtTime } from "../schedule/calendar";
 import { lineCase } from "../shared/casing";
 import HeadMenu from "../shared/HeadMenu";
 
-// "Reminds at 2:00PM". The words, not just the clock, so the row says why
-// there is a time on it at all.
-const reminderLabel = (hhmm: string) => {
-  const t = fmtTime(hhmm);
-  return `Reminds at ${t.time}${t.ap}`;
-};
 import { repairCandidates, applyFindings, cleanupCandidates, type NoteFinding } from "./repairNotes";
 import { showToast } from "../shared/toast";
 import { attemptWrite } from "../shared/guard";
@@ -181,7 +174,7 @@ export default function PeopleFlow({ onBack, openId: initialOpenId, openNonce, o
           // data comes pre-resolved and mentions.ts holds no formatter.
           ts.map((t) => ({
             id: t.id, text: t.data.text, done: t.data.done, due: t.data.due ?? null, personId: t.data.personId,
-            ...(t.data.reminder ? { reminderAt: reminderLabel(t.data.reminder.time) } : {}),
+            ...(t.data.reminder ? { reminderAt: reminderAtLabel(t.data.reminder.time) } : {}),
           })),
           evs.map((e) => ({ id: e.id, title: e.data.title, date: e.data.date, start: e.data.start, location: e.data.location })),
           todayISO(),
@@ -277,7 +270,7 @@ export default function PeopleFlow({ onBack, openId: initialOpenId, openNonce, o
   // The ago alone. Gone quiet is a state, and the card says it in the
   // Colour Key's amber on this same value (and in the Check In pill), not as
   // a second fact joined on with a dot (§AM, R5 and R6).
-  const lastTalked = lastMs != null ? agoLabel(lastMs, nowMs) : undefined;
+  const lastTalked = lastMs != null ? lineCase(agoLabel(lastMs, nowMs)) : undefined; // "3 Days Ago", never "3 Days ago" (2026-10-05)
 
   // The check-in draft (2026-08-10's checkinPrompt, reused verbatim): drafts
   // a short, warm reopening line in the user's own voice and hands it to the
@@ -357,7 +350,7 @@ export default function PeopleFlow({ onBack, openId: initialOpenId, openNonce, o
     const ok = await attemptWrite(() => people.update(p.id, { ...p.data, flagged: false, group: "contacts" }));
     if (!ok) return;
     await reload();
-    showToast({ message: p.data.name + " moved to Contacts" });
+    showToast({ message: p.data.name + " Moved to Contacts" });
   };
   // B10/B12 (2026-08-23): this was the worst one in the audit. Deleting a
   // person removed the contact AND every fact recorded about them, with no
@@ -384,7 +377,7 @@ export default function PeopleFlow({ onBack, openId: initialOpenId, openNonce, o
     await reload();
     if (!kept) return;
     showToast({
-      message: kept.name + " deleted",
+      message: kept.name + " Deleted",
       actionLabel: "Undo",
       // BRAIN-F-13 (2026-09-05): back under the SAME id. A new id left the
       // card standing with its Linked Notes empty and any decision attached
@@ -565,7 +558,7 @@ export default function PeopleFlow({ onBack, openId: initialOpenId, openNonce, o
     await reload();
     if (!ok) return;
     showToast({
-      message: (finding.kind === "phone" ? "Number" : "Address") + " moved to " + p.data.name,
+      message: (finding.kind === "phone" ? "Number" : "Address") + " Moved to " + p.data.name,
       actionLabel: "Undo",
       onAction: async () => {
         await attemptWrite(() => people.update(personId, {
@@ -663,7 +656,13 @@ export default function PeopleFlow({ onBack, openId: initialOpenId, openNonce, o
         <div className="grp"><div className="eyebrow">Import Contacts</div></div>
         <div className="pad-x sheet-form">
           {importPlan.bad ? (
-            <div className="plan-sub">Couldn't Read That File · Use .vcf or .csv with Names</div>
+            // THE FAILURE AND THE FIX ARE TWO LINES, NOT ONE STRING WITH A DOT
+            // IN IT (2026-10-05, the catalog hard gate): the error is the app's
+            // error line, and what to do about it is the sheet's one grey.
+            <>
+              <div className="conn-error">Couldn't Read That File</div>
+              <div className="plan-sub">Use .vcf or .csv with Names</div>
+            </>
           ) : (
             <>
               {/* THE SUMMARY SAYS ALL FOUR THINGS (People handoff: "Show
@@ -692,8 +691,12 @@ export default function PeopleFlow({ onBack, openId: initialOpenId, openNonce, o
               {pending > 0 && review[reviewAt] && !resolved[reviewAt] && (
                 <div className="card list-card-ruled">
                   <div className="pad">
-                    <div className="conn-name">{review[reviewAt]!.contact.name} is already a name you have</div>
-                    <div className="bp-sub">Same name, nothing else in common. Which is this?</div>
+                    {/* A question as the title and the evidence as the one grey line, both
+                        Title Case, and no sentence boundary in a rendered line
+                        (it read "{name} is already a name you have" over "Same
+                        name, nothing else in common. Which is this?"; 2026-10-05). */}
+                    <div className="conn-name">Which One Is {review[reviewAt]!.contact.name}?</div>
+                    <div className="bp-sub">Same Name, Nothing Else in Common</div>
                   </div>
                   {review[reviewAt]!.candidates.map((c) => {
                     const known = describe(c);

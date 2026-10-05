@@ -12,6 +12,8 @@ describe("NotificationsFlow", () => {
   it("shows caught-up empty state with no data", async () => {
     render(<NotesProvider userId="u1"><NotificationsFlow /></NotesProvider>);
     expect(await screen.findByText("You're All Caught Up")).toBeInTheDocument();
+    // Title Case on the empty state's line too (the catalog hard gate, 2026-10-05).
+    expect(document.querySelector(".empty-sub")!.textContent).toBe("Overdue Tasks, Today's Events and Goals at Risk");
   });
 });
 

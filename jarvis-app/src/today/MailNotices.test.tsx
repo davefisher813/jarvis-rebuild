@@ -75,6 +75,24 @@ describe("MailNotices: Clear All", () => {
     // isolated test; what belongs to THIS component is that both cards go.
     expect(container.querySelectorAll(".pad-x")).toHaveLength(0);
   });
+
+  // 2026-10-05, Dave's visual catalog gate: every word the app writes is Title Case, the word after a number too
+  // ("45 Min"). This toast said "2 cleared", the one lowercase line the band wrote.
+  it("says how many it cleared in Title Case, with an Undo", () => {
+    hideToast();
+    let toast: ToastState | null = null;
+    const unsub = subscribeToast((t) => { if (t) toast = t; });
+    saveMailSnapshot(snap({
+      needsYou: 2,
+      threads: [thread("t1", "Nadia Brandt", "invoice attached"), thread("t2", "Rob Ellis", "the deck for Friday")],
+    }));
+    render(<MailNotices today={TODAY} nowHHMM="09:00" onAddTask={async () => true} />);
+    fireEvent.click(screen.getByText("Clear All"));
+    expect(toast!.message).toBe("2 Cleared");
+    expect(toast!.message).toMatch(/^\d+ [A-Z]/);
+    expect(toast!.actionLabel).toBe("Undo");
+    unsub();
+  });
 });
 
 // THE DELETE SWIPE (2026-08-26). Dave, off a real screenshot: "I should be
@@ -176,6 +194,21 @@ describe("MailNotices: a chip holds the send", () => {
     toast!.onAction!();
     expect(getTodayOutbox()).toHaveLength(0);
     unsub();
+  });
+
+  // 2026-10-05, Dave's visual catalog gate (the Capsule, section AL): every tappable control that is not the screen's one
+  // filled primary is a capsule, never bare words. Send was a capsule; Discard and Open It beside it were bare red words.
+  it("the draft's quiet verbs are capsules beside Send, not bare words", async () => {
+    saveMailSnapshot(snap({ needsYou: 1, threads: [thread("t1", "Nadia Brandt", "invoice attached")] }));
+    render(<MailNotices today={TODAY} nowHHMM="09:00" onAddTask={async () => true} onDraft={async () => "Yes"} onSend={(async () => null) as never} onOpenThread={() => {}} />);
+    fireEvent.click(screen.getByText("Write Back"));
+    await screen.findByText("Discard");
+    expect(screen.getByText("Send")).toHaveClass("pill-act");
+    for (const word of ["Discard", "Open It"]) {
+      const b = screen.getByText(word);
+      expect(b, word).toHaveClass("quiet-action");
+      expect(b, word).not.toHaveClass("plan-drop");
+    }
   });
 
   it("a send that never made the queue says so and keeps the words", async () => {

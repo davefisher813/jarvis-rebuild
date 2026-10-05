@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from "react";
+import { lineCase } from "../../shared/casing";
 
 // THE WORK A BLOCK IS HOLDING (Dave 2026-08-25: "any tasks within events in
 // the schedule should be able to compress").
@@ -62,7 +63,8 @@ export default function HeldTasks({
           onClick={(e) => { e.stopPropagation(); setOpen(!open); }}
         >
           <span className={"chev chev-down" + (shown ? " chev-open" : "")} />
-          {shown ? "Hide" : count + " " + label + (count === 1 ? "" : "s")}
+          {/* 2026-10-05: the word behind the number is capitalized ("5 Tasks"), the number rule. */}
+          {shown ? "Hide" : lineCase(count + " " + label + (count === 1 ? "" : "s"))}
         </button>
       )}
       {shown && children}

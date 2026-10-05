@@ -28,9 +28,9 @@ describe("InsightsPage", () => {
     render(<InsightsPage view="insights" onView={() => {}} today={today} workouts={workouts} metricDefs={[sleep]} metricLogs={logs} logs={none} muscleMap={new Map()} cards={null}
       onOpenLift={onOpenLift} onOpenWorkout={onOpenWorkout} onOpenAllData={onAll} onAssignMuscles={onAssign} onExport={() => {}} />);
     expect(screen.getByText("Incline Bench")).toBeInTheDocument();
-    expect(screen.getAllByText("135 lb").length).toBeGreaterThan(0);
-    expect(screen.getByText("+10 lb since Aug 31")).toBeInTheDocument();
-    expect(screen.getByText("3 comparable sessions")).toBeInTheDocument();
+    expect(screen.getAllByText("135 Lb").length).toBeGreaterThan(0);
+    expect(screen.getByText("+10 Lb Since Aug 31")).toBeInTheDocument();
+    expect(screen.getByText("3 Comparable Sessions")).toBeInTheDocument();
     // The chart's points open their session, and the list twin is there.
     fireEvent.click(screen.getByRole("button", { name: "Sep 7, 130 lb, open the session" }));
     expect(onOpenWorkout).toHaveBeenCalledWith("b");
@@ -43,7 +43,7 @@ describe("InsightsPage", () => {
     expect(onAssign).toHaveBeenCalledWith([{ name: "Incline Bench", exerciseKey: "k1", sets: 1 }]);
     // Sleep over the nights logged, never a zero for a night not logged.
     expect(screen.getByText("7h 30m")).toBeInTheDocument();
-    expect(screen.getByText("Average across 2 logged nights of 7")).toBeInTheDocument();
+    expect(screen.getByText("Average Across 2 Logged Nights of 7")).toBeInTheDocument();
     fireEvent.click(screen.getByText("View Sleep Logs"));
     expect(onAll).toHaveBeenCalledWith("sleep", expect.objectContaining({ key: "7d" }));
   });
@@ -58,16 +58,20 @@ describe("InsightsPage", () => {
     // not it is open, so the law still reads the words; what changed is that
     // they are behind a summary that names the question.
     expect(screen.getByText("What Is Being Compared")).toBeInTheDocument();
-    expect(screen.getByText(/Spans the sessions, not only this period/)).toBeInTheDocument();
+    expect(screen.getByText(/Spans the Sessions, Not Only This Period/)).toBeInTheDocument();
+    // THE CATALOG (Dave 2026-10-05): the basis lines are Title Case, like every other fact line.
+    expect(screen.getByText("Same Exercise, Same Equipment, Same Unit, Same Rep Count")).toBeInTheDocument();
+    expect(screen.getByText("First Muscle Whole, the Rest Half, by the App's Convention")).toBeInTheDocument();
+    expect(screen.getByText("Working Sets Only, Warm-Ups Not Counted")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("tab", { name: "Strength" }));
-    expect(screen.getByText("3 sessions in the period")).toBeInTheDocument();
+    expect(screen.getByText("3 Sessions in the Period")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("tab", { name: "Rest and Readings" }));
     // AMENDED 2026-09-16 (Dave's Rest and Readings screenshot). The row said
     // "Not logged · No log in 7 days" -- the same fact twice -- and the logged
     // form ran to three clauses whose third was the second subtracted from the
     // period. Two facts: when it last happened, and how much of the window is
     // covered.
-    expect(screen.getByText(/2 of 30 days/)).toBeInTheDocument();
+    expect(screen.getByText(/2 of 30 Days/)).toBeInTheDocument();
     expect(screen.queryByText(/without a log/), "the subtraction is not printed").toBeNull();
   });
   // THE OVERVIEW CARD IS A CHOICE (Dave 2026-09-18: "I have no way to select
@@ -82,15 +86,15 @@ describe("InsightsPage", () => {
     // The default, and the card says it chose its own subject.
     const head = () => document.querySelector(".ins-card .ins-head")!;
     expect(head()).toHaveTextContent("Incline Bench");
-    expect(screen.getByText("Biggest gain")).toBeInTheDocument();
+    expect(screen.getByText("Biggest Gain")).toBeInTheDocument();
 
     // Point it somewhere else: the head names it and the numbers follow.
     fireEvent.click(screen.getAllByLabelText("Choose exercise")[0]!);
     fireEvent.click(screen.getByText("Lat Pull Down"));
     expect(head()).toHaveTextContent("Lat Pull Down");
-    expect(screen.getByText("+20 lb since Sep 8")).toBeInTheDocument();
+    expect(screen.getByText("+20 Lb Since Sep 8")).toBeInTheDocument();
     // A chosen exercise is not the automatic pick, so it stops claiming to be.
-    expect(screen.queryByText("Biggest gain")).toBeNull();
+    expect(screen.queryByText("Biggest Gain")).toBeNull();
     // And View Sets still opens the exercise it is now about.
     fireEvent.click(screen.getAllByText("View Sets")[0]!);
     expect(onOpenLift).toHaveBeenCalledWith(expect.objectContaining({ name: "Lat Pull Down" }));
@@ -99,7 +103,7 @@ describe("InsightsPage", () => {
     fireEvent.click(screen.getAllByLabelText("Choose exercise")[0]!);
     fireEvent.click(screen.getByText("Biggest Gain"));
     expect(head()).toHaveTextContent("Incline Bench");
-    expect(screen.getByText("Biggest gain")).toBeInTheDocument();
+    expect(screen.getByText("Biggest Gain")).toBeInTheDocument();
   });
 
   // A lift you picked that has nothing to compare keeps its head, so the
@@ -117,7 +121,7 @@ describe("InsightsPage", () => {
     expect(screen.queryByText(/No two sessions at the same rep count/), "no manual").toBeNull();
     expect(screen.queryByText(/are what it takes/), "nor the other wording of it").toBeNull();
     // The counts it has, instead of a paragraph about the one it has not.
-    expect(screen.getByText("1 session in the period")).toBeInTheDocument();
+    expect(screen.getByText("1 Session in the Period")).toBeInTheDocument();
     expect(screen.getByText("1 Recorded in All")).toBeInTheDocument();
     expect(screen.getAllByLabelText("Choose exercise").length, "still changeable").toBeGreaterThan(0);
   });
@@ -126,6 +130,16 @@ describe("InsightsPage", () => {
     render(<InsightsPage view="insights" onView={() => {}} today={today} workouts={[]} metricDefs={[]} metricLogs={[]} logs={none} muscleMap={new Map()} cards={null}
       onOpenLift={() => {}} onOpenWorkout={() => {}} onOpenAllData={() => {}} onAssignMuscles={() => {}} onExport={() => {}} />);
     expect(screen.getByText("Nothing Logged Yet")).toBeInTheDocument();
+  });
+});
+
+// THE CATALOG (Dave 2026-10-05): an imported record's quiet line is Title Case after the comma.
+describe("AllDataPage: an imported record's quiet line", () => {
+  it("reads 'Walk, Imported', the word after the comma capitalized", () => {
+    const rec = { id: "x1", category: "effort", date: "2026-09-13", at: T("2026-09-13", 9), title: "Steps", value: "9,000", detail: "Walk", source: "Imported", hue: "lime", open: { kind: "metric", id: "x1" } } as never;
+    const filter = { category: "all" as const, range: "30d" as const, period: periodFor("30d", today), date: null, query: "" };
+    render(<AllDataPage view="data" onView={() => {}} records={[rec]} filter={filter} onFilter={() => {}} today={today} scrollRef={{ current: 0 }} onOpen={() => {}} onDelete={() => {}} onExport={() => {}} />);
+    expect(screen.getByText("Walk, Imported")).toBeInTheDocument();
   });
 });
 
@@ -164,10 +178,23 @@ describe("AllDataPage", () => {
   });
 });
 
+// THE CATALOG (Dave 2026-10-05): the context under a discomfort row, with no named spot, is "Spots on the Map".
+describe("InsightsPage: a discomfort row with no named spot", () => {
+  it("says Spots on the Map, Title Case, as its one grey", () => {
+    const pointAtIt = [{ id: "p1", data: { category: "body", at: T("2026-09-12", 9), side: "front" } }];
+    render(<InsightsPage view="insights" onView={() => {}} today={today} workouts={[]} metricDefs={[]} metricLogs={[]} logs={{ ...none, pointAtIt: pointAtIt as never }} muscleMap={new Map()} cards={null}
+      onOpenLift={() => {}} onOpenWorkout={() => {}} onOpenAllData={() => {}} onAssignMuscles={() => {}} onExport={() => {}} />);
+    fireEvent.click(screen.getByRole("tab", { name: "Rest and Readings" }));
+    expect(screen.getByText("Spots on the Map")).toBeInTheDocument();
+  });
+});
+
 describe("AssignMusclesSheet", () => {
   it("applies a batch to every row, lets one row differ, and saves one map", () => {
     const onSave = vi.fn();
     render(<AssignMusclesSheet untagged={[{ name: "Row", exerciseKey: "r", sets: 6 }, { name: "Curl", exerciseKey: "c", sets: 3 }]} current={{ x: ["quads"] }} onSave={onSave} onClose={() => {}} />);
+    // THE CATALOG (Dave 2026-10-05): the rule under the count is a Title Case fact like every other.
+    expect(screen.getByText("The First Muscle Counts a Set Whole, the Rest Half")).toBeInTheDocument();
     const batch = screen.getByRole("group", { name: "Muscles for every exercise" });
     fireEvent.click(batch.querySelector('[aria-pressed]')!);
     fireEvent.click(screen.getByText("Apply to All Listed"));

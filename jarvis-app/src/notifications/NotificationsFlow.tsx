@@ -142,7 +142,7 @@ export default function NotificationsFlow({ onOpen }: { onOpen?: (kind: string, 
       <PageHeader title="Notifications" />
       {feed.length === 0 ? (
         <div className="empty-state"><div className="empty-icon">{BELL}</div><div className="empty-title">You're All Caught Up</div>
-          <div className="empty-sub">Overdue tasks, today's events and goals at risk</div></div>
+          <div className="empty-sub">Overdue Tasks, Today's Events and Goals at Risk</div></div>
       ) : (
         <div>
           {bands.map((b) => (

@@ -24,10 +24,12 @@ const PLATE_OPTIONS = [45, 35, 25, 20, 15, 10, 5, 2.5, 1.25];
  *  renders as three text nodes; a reader that takes each node on its own and
  *  trims it (the evening audit's did) joined them as "Inlb." with the space
  *  gone. One string is one text node, so every reader gets the same words.
- *  Two literals joined, because the short-copy law forbids a sentence
- *  boundary inside one. */
+ *  2026-10-05 (the catalog gate): it had been built as two sentences joined
+ *  by a space, which is the sentence boundary the short-copy law forbids in a
+ *  note, only hidden from its scan. A note is fragments joined by a dot, and
+ *  the unit is a word, so it takes a capital like the chip beside it. */
 export function rackHint(unit: "lb" | "kg"): string {
-  return ["In " + unit + ".", "A lift logged in the other unit is converted, both ways."].join(" ");
+  return `In ${unit === "kg" ? "Kg" : "Lb"} \u00b7 A lift logged in the other unit is converted, both ways`;
 }
 
 /** THE RACK, as one piece (Health Push C, H-40, 2026-09-12): Settings,
@@ -60,7 +62,7 @@ export function RackSettings({ withShowLast = false }: { withShowLast?: boolean 
     <>
       <Card>
         {withShowLast && (
-          <Switch label="Last Time on Every Set" meta="Last session beside each set, with tap-to-match" on={settings.showLast}
+          <Switch label="Last Time on Every Set" meta="Last Session Beside Each Set, with Tap-to-Match" on={settings.showLast}
             onToggle={() => set({ showLast: !settings.showLast })} />
         )}
         {/* Row tap (Dave 2026-09-15, "I want all rows clickable"): the row
@@ -70,7 +72,7 @@ export function RackSettings({ withShowLast = false }: { withShowLast?: boolean 
           <div className="chip-row">
             {(["lb", "kg"] as const).map((u) => (
               <div key={u} className={"chip" + (rackUnit === u ? " active" : "")} role="button" tabIndex={0}
-                aria-pressed={rackUnit === u} onClick={(e) => { e.stopPropagation(); set({ rackUnit: u }); }}>{u}</div>
+                aria-pressed={rackUnit === u} onClick={(e) => { e.stopPropagation(); set({ rackUnit: u }); }}>{u === "kg" ? "Kg" : "Lb"}</div>
             ))}
           </div>
         </div>

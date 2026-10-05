@@ -28,14 +28,14 @@ describe("PersonDetail reach and facts", () => {
 
   it("shows how JARVIS writes to them and their categories", () => {
     render(<PersonDetail person={MOM} onEdit={() => {}} onBack={() => {}} categoryNames={["Family"]} />);
-    expect(screen.getByText("Like a close friend")).toBeInTheDocument();
+    expect(screen.getByText("Like a Close Friend")).toBeInTheDocument();
     expect(screen.getByText("Family")).toBeInTheDocument();
   });
 
   it("flagged wins over register, same precedence as drafting", () => {
     const flagged: Person = { id: "p2", data: { ...MOM.data, flagged: true } };
     render(<PersonDetail person={flagged} onEdit={() => {}} onBack={() => {}} />);
-    expect(screen.getByText("With care, always professional")).toBeInTheDocument();
+    expect(screen.getByText("With Care, Always Professional")).toBeInTheDocument();
   });
 
   it("no email or phone means no reach card, not empty launchers", () => {
@@ -90,21 +90,21 @@ describe("PersonDetail: Last Talked and the check-in draft (S6-Q40)", () => {
   // person, resolved by the caller like everything else on this card.
   it("says Trusted adult on the person Say It to Someone reaches, and on nobody else", () => {
     render(<PersonDetail person={MOM} onEdit={() => {}} onBack={() => {}} trustedAdult />);
-    expect(screen.getByText("Trusted adult")).toBeInTheDocument();
+    expect(screen.getByText("Trusted Adult")).toBeInTheDocument();
     // Its own row in About, not a second grey under the name (§AK).
-    expect(screen.getByText("Trusted adult").closest(".row")).toHaveTextContent(/^Say It to SomeoneTrusted adult$/);
+    expect(screen.getByText("Trusted Adult").closest(".row")).toHaveTextContent(/^Say It to SomeoneTrusted Adult$/);
   });
 
   it("opens About for it even on a person with nothing else to say", () => {
     const bare: Person = { id: "p5", data: { name: "Coach Dee", group: "contacts" } };
     render(<PersonDetail person={bare} onEdit={() => {}} onBack={() => {}} trustedAdult />);
     expect(screen.getByText("About")).toBeInTheDocument();
-    expect(screen.getByText("Trusted adult")).toBeInTheDocument();
+    expect(screen.getByText("Trusted Adult")).toBeInTheDocument();
   });
 
   it("says nothing about it on an ordinary person", () => {
     render(<PersonDetail person={MOM} onEdit={() => {}} onBack={() => {}} />);
-    expect(screen.queryByText("Trusted adult")).not.toBeInTheDocument();
+    expect(screen.queryByText("Trusted Adult")).not.toBeInTheDocument();
   });
 });
 
@@ -335,7 +335,7 @@ describe("PersonDetail: a promise's deadline takes the key", () => {
     const factsOf = (text: string) => screen.getByText(text).closest(".row")!.querySelector(".facts")!;
     for (const t of ["Send the lease", "Pay the deposit", "Book the table", "Return the ladder", "Plan the trip", "Call the plumber"]) {
       const words = factsOf(t).querySelector(".fact")!;
-      expect(words.textContent).toBe("You promised");
+      expect(words.textContent).toBe("You Promised");
       expect(words.className, t).toBe("fact");
     }
     expect(factsOf("Send the lease").querySelectorAll(".fact")[1]!.className).toBe("fact red");

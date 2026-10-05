@@ -13,9 +13,9 @@ describe("RitualSheet", () => {
     const onSet = vi.fn();
     render(<RitualSheet initial={INITIAL} onSet={onSet} onCancel={() => {}} />);
     expect(screen.getByText("Write the sponsor deck")).toBeInTheDocument();
-    expect(screen.getByText(/^Ends .*Finishing is not the point\.$/)).toBeInTheDocument();
+    expect(screen.getByText("Ends 9:25 AM · Finishing Is Not the Point")).toBeInTheDocument();
     fireEvent.click(screen.getByLabelText("For"));
-    fireEvent.click(screen.getByRole("menuitemradio", { name: "45m" }));
+    fireEvent.click(screen.getByRole("menuitemradio", { name: "45 Min" }));
     fireEvent.click(screen.getByText("Set It"));
     expect(onSet).toHaveBeenCalledWith({ ...INITIAL, minutes: 45 });
   });
@@ -27,5 +27,27 @@ describe("RitualSheet", () => {
     fireEvent.click(screen.getByText("Set It"));
     expect(onSet).not.toHaveBeenCalled();
     expect(screen.getByText(/Name the first move/)).toBeInTheDocument();
+  });
+});
+
+// THE CATALOG HARD GATE (Dave 2026-10-05): every clock is 12-hour with AM/PM, a
+// length is the one duration shape ("45 Min"), and no drawn line carries a
+// sentence boundary.
+describe("RitualSheet: the catalog", () => {
+  it("draws the end time 12-hour and the lengths as minutes, never 09:25 or 25m", () => {
+    render(<RitualSheet initial={{ ...INITIAL, startHHMM: "13:40" }} onSet={() => {}} onCancel={() => {}} />);
+    expect(screen.getByText("Ends 2:05 PM · Finishing Is Not the Point")).toBeInTheDocument();
+    expect(screen.getByLabelText("For")).toHaveTextContent("25 Min");
+    fireEvent.click(screen.getByLabelText("For"));
+    expect(screen.getAllByRole("menuitemradio").map((m) => m.textContent)).toEqual(["10 Min", "25 Min", "45 Min"]);
+    // No 24-hour clock and no fused "25m" anywhere in what the sheet draws.
+    const drawn = [...document.querySelectorAll(".input-hint, .dd, [role=menuitemradio]")].map((e) => e.textContent).join(" | ");
+    expect(drawn).not.toMatch(/\b(1[3-9]|2[0-3]):\d\d\b|\b0\d:\d\d\b|\b\d+m\b/);
+    expect(document.body.textContent).not.toMatch(/[a-z]\. [A-Z]/);
+  });
+
+  it("an end past midnight still reads 12-hour", () => {
+    render(<RitualSheet initial={{ ...INITIAL, startHHMM: "23:50" }} onSet={() => {}} onCancel={() => {}} />);
+    expect(screen.getByText("Ends 12:15 AM · Finishing Is Not the Point")).toBeInTheDocument();
   });
 });

@@ -25,7 +25,7 @@ import type { Goal } from "../life/types";
 import type { LiveSession } from "./liveSession";
 import type { Program, Workout, WorkoutData, WorkoutExercise, Exercise } from "./types";
 import type { CreatedLift, GymSettings } from "./settings";
-import { capAfterNumber } from "../shared/casing";
+import { lineCase } from "../shared/casing";
 import { fallbackKey } from "./library";
 import { ungroupExercise } from "./groups";
 import { sameLiftAnyKind } from "./identity";
@@ -307,15 +307,17 @@ export function inProgressOf(
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
-/** "5 sessions, 14 sets": what is logged under it. Absent when nothing is. */
+/** "5 Sessions, 14 Sets": what is logged under it. Absent when nothing is.
+ *  2026-10-05 (the catalog gate): the word behind every number is capitalized,
+ *  the second one too ("14 Sets"), which capAfterNumber alone never reached. */
 export function historyLine(plan: DeletePlan): string | null {
   if (plan.sessions === 0) return null;
-  return plural(plan.sessions, "session", "sessions") + (plan.sets > 0 ? `, ${plural(plan.sets, "set", "sets")}` : "");
+  return lineCase(plural(plan.sessions, "session", "sessions") + (plan.sets > 0 ? `, ${plural(plan.sets, "set", "sets")}` : ""));
 }
 
-/** "Used in 3 program days". Absent when it is in none. */
+/** "Used in 3 Program Days". Absent when it is in none. */
 export function programLine(plan: DeletePlan): string | null {
-  return plan.programDays > 0 ? `Used in ${plural(plan.programDays, "program day", "program days")}` : null;
+  return plan.programDays > 0 ? lineCase(`Used in ${plural(plan.programDays, "program day", "program days")}`) : null;
 }
 
 /** The lines of "What Goes", each one a true statement about this delete. */
@@ -327,8 +329,10 @@ export function goesLines(plan: DeletePlan): string[] {
     if (plan.emptied > 0) out.push(`${plural(plan.emptied, "session", "sessions")} left empty ${plan.emptied === 1 ? "is" : "are"} removed`);
   }
   if (plan.clears.length) out.push(`It also clears ${joinWords(plan.clears)}`);
-  // A line that opens on a number hands its capital to the word behind it.
-  return out.map(capAfterNumber);
+  // Every line is Title Case (2026-10-05, the catalog gate): a line that opens
+  // on a number hands its capital to the word behind it, and so does every
+  // other number in it ("It Comes Out of 2 Sessions in Your History").
+  return out.map(lineCase);
 }
 
 function joinWords(list: string[]): string {
@@ -339,5 +343,5 @@ function joinWords(list: string[]): string {
 /** What stays, said once: the athlete's goals are theirs. */
 export function staysLine(plan: DeletePlan): string | null {
   if (plan.goals === 0) return null;
-  return capAfterNumber(plan.goals === 1 ? `${plan.goals} goal on it stays as it is` : `${plan.goals} goals on it stay as they are`);
+  return lineCase(plan.goals === 1 ? `${plan.goals} goal on it stays as it is` : `${plan.goals} goals on it stay as they are`);
 }

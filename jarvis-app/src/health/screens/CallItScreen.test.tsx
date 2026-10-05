@@ -30,4 +30,11 @@ describe("CallItScreen", () => {
     expect(onLog).toHaveBeenCalledWith(7);
     expect(screen.getByText("Logged 7 Of 10")).toBeInTheDocument();
   });
+
+  // THE CATALOG (Dave 2026-10-05): a day is said in words ("Sep 3"), never the phone's numeric "9/3/2026".
+  it("recent sessions name their day in words", () => {
+    const { container } = render(<CallItScreen history={[{ at: new Date(2026, 8, 3, 18, 0).getTime(), rpe: 6 }]} onLog={() => {}} onBack={() => {}} />);
+    const titles = Array.from(container.querySelectorAll(".row .conn-name")).map((n) => n.textContent);
+    expect(titles).toEqual(["Sep 3"]);
+  });
 });

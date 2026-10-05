@@ -419,6 +419,8 @@ describe("DeckFlow time's up (E-21)", () => {
     clock.t += 2500;
     await tick();
     expect(await screen.findByText(/Time’s up · 1 of 2/)).toBeInTheDocument();
+    // THE CATALOG (Dave 2026-10-05): the kicker is Title Case.
+    expect(screen.getByText("Session Over")).toBeInTheDocument();
     expect(onDone).not.toHaveBeenCalled();
     // The card behind is still on screen, dimmed and untappable.
     expect(screen.getByText("Alpha")).toBeInTheDocument();

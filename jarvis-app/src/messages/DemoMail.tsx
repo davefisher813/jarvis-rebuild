@@ -165,7 +165,7 @@ export default function DemoMail({ onConnect }: { onConnect?: () => void }) {
           shape MessagesFlow draws, in place of the Mission Deck card. */}
       <div className="sh2 sh2-quiet">
         <span className="t">Needs You</span>
-        <button className="see-all pill-action" onClick={demoTap}>Sweep {"\u00b7"} About 2 min</button>
+        <button className="see-all pill-action" onClick={demoTap}>Sweep {"\u00b7"} About 2 Min</button>
       </div>
       <div className="pad-x"><div className="card list-card-ruled">
         {needsRows()}
@@ -221,7 +221,7 @@ export default function DemoMail({ onConnect }: { onConnect?: () => void }) {
           <span className="row-ico cat-bg-graphite" aria-hidden="true"><Archive className="ic" /></span>
           <div className="row-grow">
             <div className="conn-name">Clean Out</div>
-            <div className="conn-meta">14 Threads from 6 senders</div>
+            <div className="conn-meta">14 Threads from 6 Senders</div>
           </div>
           <div className="chev" />
         </div>
@@ -229,7 +229,7 @@ export default function DemoMail({ onConnect }: { onConnect?: () => void }) {
           <span className="row-ico cat-bg-graphite" aria-hidden="true"><Clock className="ic" /></span>
           <div className="row-grow">
             <div className="conn-name">Only a Few Minutes?</div>
-            <div className="conn-meta">A timed drain that stops itself</div>
+            <div className="conn-meta">A Timed Drain That Stops Itself</div>
           </div>
           <div className="chev" />
         </div>
@@ -237,7 +237,7 @@ export default function DemoMail({ onConnect }: { onConnect?: () => void }) {
           <span className="row-ico cat-bg-graphite" aria-hidden="true"><Volume2 className="ic" /></span>
           <div className="row-grow">
             <div className="conn-name">Read It to Me</div>
-            <div className="conn-meta">Senders and gists, never the message</div>
+            <div className="conn-meta">Senders and Gists, Never the Message</div>
           </div>
           <span className="pill-act">Play</span>
         </div>
@@ -245,7 +245,7 @@ export default function DemoMail({ onConnect }: { onConnect?: () => void }) {
           <span className="row-ico cat-bg-graphite" aria-hidden="true"><CalendarClock className="ic" /></span>
           <div className="row-grow">
             <div className="conn-name">Email Windows</div>
-            <div className="conn-meta">Open email on a schedule</div>
+            <div className="conn-meta">Open Email on a Schedule</div>
           </div>
           <div className="chev" />
         </div>

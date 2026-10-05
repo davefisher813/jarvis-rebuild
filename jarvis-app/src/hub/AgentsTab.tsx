@@ -4,11 +4,22 @@
 // assistant (export and import); a Connect button that cannot connect is a
 // false sign, so there is none.
 
-import { Card, Switch } from "../settings/kit";
+import { Card, Foot, Switch } from "../settings/kit";
 import { pressable } from "../shared/pressable";
-import { ADMIN_OFF, AI_OFF, AI_OFF_STILL_WORKS, AI_ON, BRIEF, EMPTY_AGENTS, MODE_LABEL, STATUS_WORD, SWEEP_ROW } from "./copy";
+import { ADMIN_OFF, AI_OFF, AI_OFF_STILL_WORKS, BRIEF, EMPTY_AGENTS, MODE_LABEL, STATUS_WORD, SWEEP_ROW } from "./copy";
 import type { HubConnection } from "./hubClient";
-import { facts } from "./format";
+import HubFacts from "./HubFacts";
+import { whenFacts } from "./format";
+
+// 2026-10-05 (catalog gate, R1 and R3): an assistant's row is its name, ONE
+// grey (what it may do), and a status word that wears the key only when it
+// MEANS something: Connected is green, an expired link is red (ran out), an
+// unavailable one amber (stalled). "Manual" is how every assistant here is
+// added, so it said nothing and sat beside the mode as a second grey; it
+// shows nothing now (the detail page still names the transport). The project
+// and the open-share count left the row for the same reason (a third and a
+// fourth grey, "No Project Yet" a placeholder): the detail page carries both.
+const STATUS_TONE: Record<string, string> = { connected: " fg-good", expired: " fact red", unavailable: " fact warn" };
 
 const Chev = () => <div className="chev" />;
 
@@ -30,9 +41,9 @@ export default function AgentsTab({ connections, aiOn, adminOff, canToggle, onTo
   const sayLocked = () => onToggleAI();
   return (
     <>
-      <div className="hub-brief">{BRIEF}</div>
+      <Foot>{BRIEF}</Foot>
       <div className="pad-x"><Card>
-        <Switch label="AI" meta={adminOff ? ADMIN_OFF : aiOn ? AI_ON : AI_OFF} on={aiOn} onToggle={onToggleAI} ariaLabel="AI on or off" locked={adminOff || !canToggle} onLocked={sayLocked} />
+        <Switch label="AI" meta={adminOff ? ADMIN_OFF : aiOn ? undefined : AI_OFF} on={aiOn} onToggle={onToggleAI} ariaLabel="AI on or off" locked={adminOff || !canToggle} onLocked={sayLocked} />
       </Card></div>
 
       {live.length === 0 && (
@@ -51,9 +62,9 @@ export default function AgentsTab({ connections, aiOn, adminOff, canToggle, onTo
               <div {...pressable(() => onOpenAgent(c.id))} className="row" key={c.id}>
                 <div className="row-grow">
                   <div className="conn-name">{c.display_name}</div>
-                  <div className="conn-meta">{facts(MODE_LABEL[c.mode], c.project_title ?? "No Project Yet", c.open_grants > 0 ? (c.open_grants === 1 ? "1 Share Open" : `${c.open_grants} Shares Open`) : null)}</div>
+                  <HubFacts facts={[{ text: MODE_LABEL[c.mode] }]} />
                 </div>
-                <span className={"row-status" + (c.status === "connected" ? " fg-good" : "")}>{STATUS_WORD[c.status] ?? c.status}</span>
+                {STATUS_TONE[c.status] && <span className={"row-status" + STATUS_TONE[c.status]}>{STATUS_WORD[c.status] ?? c.status}</span>}
                 <Chev />
               </div>
             ))}
@@ -70,7 +81,7 @@ export default function AgentsTab({ connections, aiOn, adminOff, canToggle, onTo
               <div {...pressable(() => onOpenAgent(c.id))} className="row" key={c.id}>
                 <div className="row-grow">
                   <div className="conn-name">{c.display_name}</div>
-                  <div className="conn-meta">{STATUS_WORD.revoked}</div>
+                  <HubFacts facts={c.revoked_at ? whenFacts(c.revoked_at) : []} />
                 </div>
                 <Chev />
               </div>
@@ -84,9 +95,9 @@ export default function AgentsTab({ connections, aiOn, adminOff, canToggle, onTo
       <div className="pad-x"><div className="card list-card-ruled">
         <button className="row row-act hub-quiet" disabled={sweeping} onClick={onSweep}>{sweeping ? SWEEP_ROW.working : SWEEP_ROW.label}</button>
       </div></div>
-      <div className="hub-note">{SWEEP_ROW.meta}</div>
+      <Foot>{SWEEP_ROW.meta}</Foot>
 
-      <div className="hub-note">{AI_OFF_STILL_WORKS}</div>
+      <Foot>{AI_OFF_STILL_WORKS}</Foot>
     </>
   );
 }

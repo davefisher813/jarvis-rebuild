@@ -7,8 +7,9 @@
 import PageHeader from "../shared/PageHeader";
 import ListFloor from "../shared/ListFloor";
 import { rowDoor } from "../shared/rowDoor";
-import { whenLine } from "../hub/format";
-import { ACCOUNTS_TITLE, ADD_GMAIL, CONNECT_WHERE, DRAFTS_AND_SENT, EMAIL_TITLE, EMPTY_ACCOUNTS, NOT_SYNCED, RECONNECT, RETENTION_NOTE, STATE_WORD, messagesWord } from "./copy";
+import { ACCOUNTS_TITLE, ADD_GMAIL, DRAFTS_AND_SENT, EMAIL_TITLE, EMPTY_ACCOUNTS, NOT_SYNCED, RECONNECT, RETENTION_NOTE, STATE_WORD, messagesWord } from "./copy";
+import EmailFacts from "./EmailFacts";
+import { updatedFacts, type EmailFact } from "./format";
 import type { EmailAccount } from "./emailClient";
 import EmptyState from "./EmptyState";
 
@@ -33,21 +34,28 @@ export default function AccountsScreen({ accounts, onBack, onOpenConnections, on
             </div>
           )}
           <div className="card list-card-ruled">
-            {accounts.map((a) => (
-              <div className="row" key={a.id} {...rowDoor(onOpenConnections)}>
-                <div className="row-grow">
-                  <div className="conn-name truncate">{a.address}</div>
-                  <div className="facts"><span className={"fact" + (a.state === "reauth" ? " warn" : "")}>{STATE_WORD[a.state]}</span></div>
-                  {a.state !== "disconnected" && <div className="facts"><span className="fact">{a.last_sync_at ? `Updated ${whenLine(a.last_sync_at)}` : NOT_SYNCED}</span></div>}
-                  <div className="facts"><span className="fact">{messagesWord(a.cached)} Saved</span></div>
-                  {a.sync_error && a.state !== "disconnected" && <div className="facts"><span className="fact">{a.sync_error}</span></div>}
+            {accounts.map((a) => {
+              // 2026-10-05: ONE facts line per mailbox (it was four stacked grey lines). The state wears its key colour
+              // (connected green, needs reconnecting amber), the sync time is the grey plus small caps, the saved count
+              // is a white number with no state. A sync error is its own amber line, only when there is one.
+              const line: EmailFact[] = [
+                { text: STATE_WORD[a.state], ...(a.state === "connected" ? { tone: "good" as const } : a.state === "reauth" ? { tone: "warn" as const } : {}) },
+                ...(a.state === "disconnected" ? [] : a.last_sync_at ? updatedFacts(a.last_sync_at) : [{ text: NOT_SYNCED }]),
+                { text: `${messagesWord(a.cached)} Saved`, strong: true },
+              ];
+              return (
+                <div className="row" key={a.id} {...rowDoor(onOpenConnections)}>
+                  <div className="row-grow">
+                    <div className="conn-name truncate">{a.address}</div>
+                    <EmailFacts wrap facts={line} />
+                    {a.sync_error && a.state !== "disconnected" && <EmailFacts wrap facts={[{ text: a.sync_error, tone: "warn" }]} />}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
             <button className="row row-act" onClick={onOpenConnections}>{needsReauth ? RECONNECT : ADD_GMAIL}</button>
           </div>
           <div className="email-note quiet"><span>{RETENTION_NOTE}</span></div>
-          <div className="email-note quiet"><span>{CONNECT_WHERE}</span></div>
           <ListFloor />
         </div>
       )}

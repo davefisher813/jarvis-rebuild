@@ -171,6 +171,13 @@ function capWord(w: string): string {
 const SMALL_FORMS = new Set(["w/", "vs", "vs.", "via"]);
 
 export function lineCase(text: string): string {
+  return capAfterNumber(lineCaseWords(text));
+}
+
+// lineCase's per-word pass. The number rule (capAfterNumber) runs on top of it,
+// so a small word right behind a leading number is capitalized like any other
+// ("$5,000 On Jul 1", "88 At the Peak"; Dave 2026-10-05, "2 Blocks").
+function lineCaseWords(text: string): string {
   return text
     .split("\u00b7")
     .map((seg) => {

@@ -1,6 +1,7 @@
 import { BATCH_MODIFY_MAX, GmailHttpError, type GoogleApi } from "../connections/google/api";
 import { mapThread, type GmailThreadMeta, type ThreadRow } from "../connections/google/map";
 import { pool, HYDRATE_CONCURRENCY } from "./inboxRefresh";
+import { lineCase } from "../shared/casing";
 
 // MOVE MANY CONVERSATIONS TO TRASH, AND MEAN IT (2026-09-29).
 //
@@ -382,8 +383,11 @@ export function receiptLine(result: TrashResult): string {
   const noun = (n: number) => (n === 1 ? "conversation" : "conversations");
   const parts: string[] = [];
   // Dave's own words (2026-09-28): "N conversations moved to Trash. Gmail
-  // keeps them for 30 days." Everything after it is a fragment.
-  if (s.trashed > 0) parts.push(`${s.trashed} ${noun(s.trashed)} moved to Trash. Gmail keeps them for 30 days.`);
+  // keeps them for 30 days." Everything after it is a fragment. Drawn with a
+  // middle dot where his full stop sat (no ". [A-Z]" boundary in a rendered
+  // string) and through lineCase, so the word behind the number is a capital
+  // ("2 Conversations Moved to Trash", 2026-10-05).
+  if (s.trashed > 0) parts.push(lineCase(`${s.trashed} ${noun(s.trashed)} moved to Trash \u00b7 Gmail keeps them for 30 days`));
   if (s.partial > 0) parts.push(`${s.partial} ${noun(s.partial)} only partly moved`);
   if (s.failed + s.blocked > 0) parts.push(`${s.failed + s.blocked} not moved`);
   if (s.unknown > 0) parts.push(`${s.unknown} unconfirmed \u00b7 Check your Trash`);

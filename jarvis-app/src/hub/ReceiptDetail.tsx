@@ -10,10 +10,53 @@ import { showToast } from "../shared/toast";
 import { undoCapture } from "../substrate/commands/captures";
 import { COMMAND_LINES } from "../substrate/commands/errors";
 import { actorLine, assuranceLine, eraseReceipt, exportReceipt, receiptDetail, statusLine, ERASE_NOTE, type ReceiptDetail as Detail } from "../substrate/commands/receipts";
-import { COPIED, COPY_RECEIPT, DELETE_RECEIPT, ITEM_REMOVED, OPEN_DESTINATION, UNDO, UNDONE } from "./copy";
+import { COPIED, COPY_RECEIPT, DELETE_RECEIPT, ITEM_REMOVED, OPEN_DESTINATION, PROVIDER_ACK_NOTE, UNDO, UNDONE } from "./copy";
 import { destinationKindOf, type RpcClient } from "./hubClient";
 import { ConfirmSheet } from "./sheets";
-import { facts, whenLine } from "./format";
+import { dotParts, whenFacts } from "./format";
+import HubFacts, { type HubFact, type HubFactInput } from "./HubFacts";
+import { Foot } from "../settings/kit";
+import type { ReceiptEvent } from "../substrate/commands/receipts";
+
+// 2026-10-05 (catalog gate, R1, R3, R5 and R6). Every line on this page was
+// `facts(...)`, a middle-dotted string drawn in one .fact or .conn-meta, and
+// the card above it stacked a second grey (the actor, in .hub-text) over the
+// facts. Each line is a list of facts now. The key is the status: Done is
+// green, Not Done red, Unknown amber; a state with no colour joins the actor
+// as the line's one grey ("Working, Claude") instead of standing beside it as
+// a second one. The moment is two small-caps date facts.
+const stateTone = (state: string): HubFact["tone"] => (state === "confirmed" ? "good" : state === "failed" ? "red" : state === "outcome_unknown" ? "warn" : undefined);
+
+export function historyFacts(r: Pick<ReceiptEvent, "state" | "actor_display" | "occurred_at" | "error_code">): HubFactInput[] {
+  const when = whenFacts(r.occurred_at);
+  // The error's line is a reason and a reassurance joined by a dot ("Connect to Save · Your Details Are Still Here");
+  // the fact is the reason, the first part, so no dot is drawn from a string (R6).
+  if (r.error_code) return [{ text: dotParts(COMMAND_LINES[r.error_code as keyof typeof COMMAND_LINES] ?? r.error_code)[0] ?? r.error_code, tone: "red" }, { text: r.actor_display }, ...when];
+  const tone = stateTone(r.state);
+  return tone ? [{ text: statusLine(r.state), tone }, { text: r.actor_display }, ...when] : [{ text: `${statusLine(r.state)}, ${r.actor_display}` }, ...when];
+}
+
+/** The card's line: who (one grey, with a caveat of its own in amber), when, and how sure (green). */
+export function cardFacts(d: Pick<Detail, "actor_kind" | "actor_display" | "approved_by_user" | "created_at">, assurance: ReceiptEvent["assurance"] | undefined): HubFactInput[] {
+  const parts = dotParts(actorLine({ ...d, assurance }));
+  const caveat = parts.filter((p) => /Not Verified/.test(p));
+  const who = parts.filter((p) => !caveat.includes(p)).join(", ");
+  return [
+    who && { text: who },
+    ...caveat.map((text): HubFact => ({ text, tone: "warn" })),
+    ...whenFacts(d.created_at),
+    assurance && assurance !== "reported_external" && { text: assuranceLine(assurance), tone: "good" },
+  ];
+}
+
+/** The provider row's line: the message id (the one grey), then the outbox in its key colour, folding a retry count into it. */
+export function providerFacts(ack: Record<string, unknown> | null, outbox: Detail["outbox"]): HubFactInput[] {
+  const id = ack ? String(ack.id ?? ack.provider_message_id ?? "") : "";
+  return [
+    id && { text: `Message ${id}` },
+    outbox && { text: `Outbox ${statusLine(outbox.state)}` + (outbox.attempt > 1 ? `, ${outbox.attempt} Attempts` : ""), tone: stateTone(outbox.state) },
+  ];
+}
 
 async function copyText(t: string): Promise<boolean> {
   try {
@@ -81,7 +124,7 @@ export default function ReceiptDetail({ client, actionId, offline, back, onBack,
   return (
     <div className="screen ruled hub">
       <PageHeader title="Receipt" back={back} onBack={onBack} />
-      {!d && !error && <div className="hub-note">Loading…</div>}
+      {!d && !error && <Foot>Loading…</Foot>}
       {error && (
         <div className="pad-x"><div className="card list-card-ruled">
           <div className="row"><div className="conn-name">{error}</div></div>
@@ -93,8 +136,8 @@ export default function ReceiptDetail({ client, actionId, offline, back, onBack,
           <div className="pad-x"><div className="card pad hub-card">
             <span className={"hub-cap" + (d.state === "confirmed" ? " hub-cap-money" : d.state === "failed" ? " hub-cap-error" : d.state === "outcome_unknown" ? " hub-cap-waiting" : "")}>{statusLine(d.state)}</span>
             <div className="conn-name">{d.verb}</div>
-            <div className="hub-text">{actorLine({ ...d, assurance: last?.assurance })}</div>
-            <div className="facts"><span className="fact">{facts(whenLine(d.created_at), scope || null, last ? assuranceLine(last.assurance) : null)}</span></div>
+            {scope && <div className="hub-text">{scope}</div>}
+            <HubFacts facts={cardFacts(d, last?.assurance)} />
           </div></div>
 
           {diff.length > 0 && (
@@ -123,7 +166,7 @@ export default function ReceiptDetail({ client, actionId, offline, back, onBack,
                 {d.evidence.map((e) => (
                   <div className="row" key={e.id}><div className="row-grow">
                     <div className="hub-text">{e.excerpt}</div>
-                    <div className="conn-meta">{facts(e.type === "email" ? "From an Email" : e.type === "import" ? "From an Import" : "Entered by You", e.availability === "deleted" ? "Source Removed · Excerpt Kept" : e.availability === "disconnected" ? "Mailbox Disconnected · Excerpt Kept" : null)}</div>
+                    <HubFacts facts={[{ text: e.type === "email" ? "From an Email" : e.type === "import" ? "From an Import" : "Entered by You" }, e.availability === "deleted" && { text: "Source Removed, Excerpt Kept", tone: "warn" }, e.availability === "disconnected" && { text: "Mailbox Disconnected, Excerpt Kept", tone: "warn" }]} />
                   </div></div>
                 ))}
               </div></div>
@@ -136,9 +179,10 @@ export default function ReceiptDetail({ client, actionId, offline, back, onBack,
               <div className="pad-x"><div className="card list-card-ruled">
                 <div className="row"><div className="row-grow">
                   <div className="conn-name">{ack ? "Accepted by Gmail" : "No Acknowledgement"}</div>
-                  <div className="conn-meta">{facts(ack ? `Message ${String(ack.id ?? ack.provider_message_id ?? "")}` : null, d.outbox ? `Outbox ${statusLine(d.outbox.state)}` : null, d.outbox?.attempt ? (d.outbox.attempt === 1 ? "1 Attempt" : `${d.outbox.attempt} Attempts`) : null, "Accepted Means Gmail Took It, Not That It Was Read")}</div>
+                  <HubFacts facts={providerFacts(ack, d.outbox)} />
                 </div></div>
               </div></div>
+              {ack && <Foot>{PROVIDER_ACK_NOTE}</Foot>}
             </>
           )}
 
@@ -147,7 +191,7 @@ export default function ReceiptDetail({ client, actionId, offline, back, onBack,
             {d.receipts.map((r) => (
               <div className="row" key={r.receipt_id}><div className="row-grow">
                 <div className="conn-name">{r.exact_verb}</div>
-                <div className="conn-meta">{facts(statusLine(r.state), r.actor_display, whenLine(r.occurred_at), r.error_code ? COMMAND_LINES[r.error_code as keyof typeof COMMAND_LINES] ?? r.error_code : null)}</div>
+                <HubFacts facts={historyFacts(r)} />
               </div></div>
             ))}
           </div></div>
@@ -159,7 +203,7 @@ export default function ReceiptDetail({ client, actionId, offline, back, onBack,
             <button className="row row-act hub-quiet" onClick={() => void copy()}>{COPY_RECEIPT}</button>
             {!d.receipts.every((r) => r.erased_at) && <button className="row row-act hub-danger" disabled={offline} onClick={() => setConfirming(true)}>{DELETE_RECEIPT}</button>}
           </div></div>
-          <div className="hub-note">{ERASE_NOTE}</div>
+          <Foot>{ERASE_NOTE}</Foot>
         </>
       )}
       <div className="screen-foot" />

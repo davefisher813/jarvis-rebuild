@@ -171,7 +171,7 @@ describe("MailNotices: the tap", () => {
     expect(toasts.at(-1)!.message).toBe("Couldn't Take It Back");
   });
 
-  it("a page that would not open offers the exact link to copy, and says Link copied only after it was", async () => {
+  it("a page that would not open offers the exact link to copy, and says Link Copied only after it was", async () => {
     const writeText = vi.fn(async () => {});
     Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
     saveMailSnapshot(snap({ actionable: [note("1", act1("sign", URLS.sign))] }));
@@ -181,10 +181,10 @@ describe("MailNotices: the tap", () => {
     fireEvent.click(await screen.findByText("Copy Link"));
     await waitFor(() => expect(writeText).toHaveBeenCalledWith(URLS.sign));
     await flush();
-    expect(toasts.at(-1)!.message).toBe("Link copied");
+    expect(toasts.at(-1)!.message).toBe("Link Copied");
   });
 
-  it("a link copy the clipboard refused does not say Link copied", async () => {
+  it("a link copy the clipboard refused does not say Link Copied", async () => {
     Object.defineProperty(navigator, "clipboard", { value: { writeText: async () => { throw new Error("NotAllowed"); } }, configurable: true });
     saveMailSnapshot(snap({ actionable: [note("1", act1("sign", URLS.sign))] }));
     render(<MailNotices today={TODAY} nowHHMM="09:00" onAddTask={async () => true}
@@ -192,7 +192,7 @@ describe("MailNotices: the tap", () => {
     fireEvent.click(screen.getByText("Sign"));
     fireEvent.click(await screen.findByText("Copy Link"));
     await flush();
-    expect(toasts.every((t) => t.message !== "Link copied")).toBe(true);
+    expect(toasts.every((t) => t.message !== "Link Copied")).toBe(true);
   });
 
   it("with no handler wired, the tap opens the thread", () => {

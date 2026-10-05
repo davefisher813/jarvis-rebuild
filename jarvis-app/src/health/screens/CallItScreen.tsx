@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { CallItPoint } from "../timelines";
+import { shortDateFromMs } from "../../shared/dateFormat";
 
 const BLOCKS = Array.from({ length: 10 }, (_, i) => i + 1);
 
@@ -74,7 +75,7 @@ export default function CallItScreen({ durationMin, history, onLog, onBack }: {
           <div className="pad-x"><div className="card list-card-ruled">
             {recent.map((p, i) => (
               <div className="row" key={i}>
-                <div className="row-grow"><div className="conn-name">{new Date(p.at).toLocaleDateString()}</div></div>
+                <div className="row-grow"><div className="conn-name">{shortDateFromMs(p.at)}</div></div>
                 <span className="pill">{p.rpe}/10</span>
               </div>
             ))}

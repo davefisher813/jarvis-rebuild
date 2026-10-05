@@ -17,21 +17,35 @@ describe("daysLine", () => {
 });
 
 describe("blockDeleteLines", () => {
-  it("states the block and that it leaves every day", () => {
-    const { when, goes } = blockDeleteLines(lunch);
-    expect(when).toContain("Weekdays");
-    expect(goes).toHaveLength(2);
-    expect(goes[1]).toBe("It leaves every day it repeats on");
+  it("says what the block is as two facts and that it leaves every day", () => {
+    const { days, time, goes } = blockDeleteLines(lunch);
+    expect(days).toBe("Weekdays");
+    expect(time).toBe("12:00 PM to 1:00 PM");
+    expect(goes).toEqual(["It Leaves Every Day It Repeats On"]);
   });
 
-  it("counts one-day changes, singular and plural", () => {
+  it("counts one-day changes, singular and plural, in Title Case", () => {
     const one = blockDeleteLines({ ...lunch, exceptions: { "2026-10-01": { startMin: 700, endMin: 760 } } } as ProtectedBlock);
-    expect(one.goes[2]).toBe("1 one-day change made to it");
+    expect(one.goes[1]).toBe("1 One-Day Change Made to It");
     const two = blockDeleteLines({
       ...lunch,
       exceptions: { "2026-10-01": { startMin: 700, endMin: 760 }, "2026-10-02": { startMin: 700, endMin: 760 } },
     } as ProtectedBlock);
-    expect(two.goes[2]).toBe("2 one-day changes made to it");
+    expect(two.goes[1]).toBe("2 One-Day Changes Made to It");
+  });
+});
+
+// THE CATALOG, CHECKED ON WHAT THE SHEET DRAWS (Dave 2026-10-05). The block's days
+// and clock were one string with a dot typed into it, drawn inside one .fact.
+describe("DeleteBlockSheet: the catalog (2026-10-05)", () => {
+  it("draws the days and the clock as two small-caps date facts, no typed dot, and no line that repeats them", () => {
+    render(<DeleteBlockSheet block={lunch} onDelete={() => {}} onCancel={() => {}} />);
+    const facts = Array.from(document.querySelectorAll(".dup-name ~ .facts .fact"));
+    expect(facts.map((f) => f.textContent)).toEqual(["Weekdays", "12:00 PM to 1:00 PM"]);
+    expect(facts.every((f) => f.classList.contains("date"))).toBe(true);
+    expect(document.querySelector(".dup-name ~ .facts")!.textContent).not.toContain("\u00b7");
+    const goes = Array.from(document.querySelectorAll(".conn-meta")).map((l) => l.textContent);
+    expect(goes).toEqual(["It Leaves Every Day It Repeats On"]);
   });
 });
 

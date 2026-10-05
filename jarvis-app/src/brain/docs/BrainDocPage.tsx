@@ -7,6 +7,7 @@ import { writingProposals, type WritingProposal } from "../writingProposals";
 import type { LearnedRule } from "../../rules/LearnedRulesService";
 import { attemptWrite } from "../../shared/guard";
 import RowStar from "../../shared/RowStar";
+import { lineCase } from "../../shared/casing";
 import { docMeta } from "./types";
 import { useAI } from "../../ai/useAI";
 import { buildVisionMessage } from "../../ai/AIService";
@@ -216,7 +217,7 @@ export default function BrainDocPage({ topic, onBack }: { topic: string; onBack:
                           <div className="facts">
                             {st && <span className={"fact st " + toneForStrandState(st)}>{STRAND_STATE_LABEL[st]}</span>}
                             {s.data.strength === "rule" && <span className="fact st">Rule</span>}
-                            {(s.data.evidence?.length ?? 0) > 0 && <span className="fact">{s.data.evidence!.length} edits</span>}
+                            {(s.data.evidence?.length ?? 0) > 0 && <span className="fact">{lineCase(`${s.data.evidence!.length} edits`)}</span>}
                           </div>
                         </div>
                       </div>
@@ -227,7 +228,7 @@ export default function BrainDocPage({ topic, onBack }: { topic: string; onBack:
                     <div className="row strand-row" key={"ask:" + p.rule.id}>
                       <div className="row-grow">
                         <div className="conn-name">{p.text}</div>
-                        <div className="facts"><span className="fact st warn">Needs Confirmation</span><span className="fact">{p.edits} edits</span></div>
+                        <div className="facts"><span className="fact st warn">Needs Confirmation</span><span className="fact">{lineCase(`${p.edits} edits`)}</span></div>
                       </div>
                       <button type="button" className="pill-act" onClick={(ev) => { ev.stopPropagation(); void confirmProposal(p); }}>That's Right</button>
                     </div>

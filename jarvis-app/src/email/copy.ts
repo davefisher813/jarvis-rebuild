@@ -31,14 +31,15 @@ export const REAUTH_LINE = "Gmail Needs Reconnecting · Saved Mail Is Still Here
 export const RECONNECT = "Reconnect Gmail";
 export const NOT_SYNCED = "Not Synced Yet";
 
-// Empty states: each one carries its action (law L7).
-export const EMPTY_INBOX = { title: "Nothing in Your Inbox", sub: "New mail lands here on the next refresh", action: REFRESH_LABEL };
-export const EMPTY_FILTER = { title: "Nothing Here Under This Area", sub: "Every message is still in All", action: SHOW_ALL };
-export const EMPTY_WAITING = { title: "Nothing You're Waiting On", sub: "Track a reply from a message and it waits here", action: "Show Inbox" };
-export const EMPTY_SEARCH = { title: "No Matching Mail", sub: "Try a different search or area", action: "Clear Search" };
-export const SEARCH_FAILED = { title: "Couldn't Search Gmail", sub: "Saved mail was searched · Gmail wasn't reached", action: "Try Again" };
-export const EMPTY_ACCOUNTS = { title: "No Gmail Connected", sub: "Connect a mailbox and its inbox reads here", action: "Add Gmail" };
-export const NO_CLIENT = { title: "Email Isn't Set Up on This Build", sub: "The app has no database to read mail from", action: "Open Connections" };
+// Empty states: each one carries its action (law L7). 2026-10-05: every sub is Title Case, like every other line the
+// app writes ("New mail lands here" was sentence case); the casing boundary names only chat, note bodies, onboarding and field notes.
+export const EMPTY_INBOX = { title: "Nothing in Your Inbox", sub: "New Mail Lands Here on the Next Refresh", action: REFRESH_LABEL };
+export const EMPTY_FILTER = { title: "Nothing Here Under This Area", sub: "Every Message Is Still in All", action: SHOW_ALL };
+export const EMPTY_WAITING = { title: "Nothing You're Waiting On", sub: "Track a Reply from a Message and It Waits Here", action: "Show Inbox" };
+export const EMPTY_SEARCH = { title: "No Matching Mail", sub: "Try a Different Search or Area", action: "Clear Search" };
+export const SEARCH_FAILED = { title: "Couldn't Search Gmail", sub: "Saved Mail Was Searched · Gmail Wasn't Reached", action: "Try Again" };
+export const EMPTY_ACCOUNTS = { title: "No Gmail Connected", sub: "Connect a Mailbox and Its Inbox Reads Here", action: "Add Gmail" };
+export const NO_CLIENT = { title: "Email Isn't Set Up on This Build", sub: "The App Has No Database to Read Mail From", action: "Open Connections" };
 
 // Search: provenance and coverage, said plainly (11: "never silently claim
 // the entire account was searched if only a window was fetched").
@@ -47,7 +48,8 @@ export const SAVED_MAIL_ONLY = "Searching Saved Mail Only";
 export const COVER_CACHED = "Saved Mail";
 export const COVER_GMAIL = "Gmail";
 export const ALL_ACCOUNTS = "All Accounts";
-export const MORE_FROM_GMAIL = "More From Gmail";
+export const MORE_FROM_GMAIL = "More from Gmail";
+export const DIDNT_ANSWER = "Didn't Answer:";
 export const SEARCH_RESULTS_FLOOR = "That's every match.";
 
 // The message screen.
@@ -66,7 +68,7 @@ export const UNDO = "Undo";
 export const ARCHIVED = "Archived";
 export const TRASHED = "Moved to Trash";
 export const PUT_BACK = "Put Back in Inbox";
-export const RESTORED = "Restored From Trash";
+export const RESTORED = "Restored from Trash";
 export const OPEN_GMAIL_EXACT = "Open in Gmail";
 export const OPEN_GMAIL_GENERIC = "Open Gmail";
 export const GENERIC_WHY = "Gmail Gave No Link for This Message · Opening Your Inbox Instead";
@@ -98,11 +100,13 @@ export const AREAS_LABEL = "Areas";
 export const ACCOUNTS_TITLE = "Accounts";
 export const ADD_GMAIL = "Add Gmail";
 export const RETENTION_NOTE = "Disconnecting Keeps Saved Mail and Every Approved Record · Only the Sign-In Goes";
-export const CONNECT_WHERE = "Connect and Disconnect Under Settings · Connections";
+// 2026-10-05: CONNECT_WHERE ("Connect and Disconnect Under Settings · Connections") is gone. It told the person where
+// to go, under a screen whose rows and whose Add Gmail button already go there: a manual line, not a fact.
 export const STATE_WORD: Record<"connected" | "reauth" | "disconnected", string> = {
   connected: "Connected",
   reauth: "Needs Reconnecting",
-  disconnected: "Disconnected · Saved Mail Kept",
+  // 2026-10-05: no "· Saved Mail Kept". The row's own "N Messages Saved" fact says it, and a dotted string cannot be a fact.
+  disconnected: "Disconnected",
 };
 
 /** "3 Messages", "1 Message". */
@@ -142,8 +146,6 @@ export const ENTERED_BY_YOU = "Entered by You";
 export const FROM_THE_EMAIL = "From the Email";
 export const NO_DUE_DATE = "No Due Date";
 export const NOTHING_FOUND = "No Useful Details Found · Capture One by Hand";
-export const CAPTURE_DONE_ELSEWHERE = "Saved From Another Device · Open It to Review";
-export const OPEN_MODULE: Record<string, string> = { Money: "Open Money", Tasks: "Open Tasks", Schedule: "Open Schedule", Email: "Open Waiting" };
 export const UPDATE_IN: Record<string, string> = { Money: "Open Money to Update", Tasks: "Open Tasks to Update", Schedule: "Open Schedule to Update", Email: "Open Waiting to Update" };
 export const SAVES_ONLY: Record<string, string> = {
   bill: "Saves Only the Bill · Sends Nothing · Makes No Task",
@@ -191,6 +193,7 @@ export const KEEP_THIS_DRAFT = "Keep This Draft";
 export const USE_NEWER_DRAFT = "Use Newer Draft";
 export const THIS_DEVICE = "On This Device";
 export const OTHER_DEVICE = "Newer · From Another Device";
+export const CONFLICT_TITLE = "Edited on Another Device";
 export const NEEDS_RECIPIENT = "Add a Recipient Before Reviewing";
 export const BAD_ADDRESS = "Check This Address";
 export const OFFLINE_SEND = "Connect to Send · Your Draft Is Saved on This Device";
@@ -214,31 +217,22 @@ export const UNKNOWN_TITLE = "Send Status Unknown";
 export const SENT_LINE = "Gmail Accepted It · Accepted Is Not Read";
 export const SENT_FROM = "Sent From";
 export const UNKNOWN_WHY = "JARVIS Couldn't Confirm Whether Gmail Accepted It · Nothing Is Resent on Its Own";
-export const CHECK_GMAIL = "Check Gmail Before Trying Again";
 export const CHECK_AGAIN = "Check Again";
 export const RESEND_SHUT = "Resend Unavailable While Unknown";
 export const STILL_UNKNOWN = "Still Unknown · Not Found in Gmail Yet";
 export const NOW_CONFIRMED = "Found in Gmail · Sent";
 export const DRAFTS_TITLE = "Drafts";
-export const SENT_FOLDER = "Sent From JARVIS";
-export const EMPTY_DRAFTS = { title: "No Saved Drafts", sub: "A message you close without sending waits here", action: "Write a Message" };
-export const EMPTY_SENT = { title: "No Messages Sent From JARVIS Yet", sub: "Every send you approve is listed here with its receipt", action: "Write a Message" };
+export const SENT_FOLDER = "Sent from JARVIS";
+export const EMPTY_DRAFTS = { title: "No Saved Drafts", sub: "A Message You Close Without Sending Waits Here", action: "Write a Message" };
 export const FORWARD_IN_GMAIL = "Forward in Gmail";
 export const FORWARD_WHY = "Forwarding and Rich Formatting Stay in Gmail";
 export const SENT_BADGE = "Sent";
 export const FAILED_BADGE = "Not Sent";
 export const UNKNOWN_BADGE = "Unknown";
 export const SENDING_BADGE = "Sending";
-export const DRAFT_BADGE = "Draft";
 export const NO_SUBJECT = "(No Subject)";
 export const RECIPIENTS_LABEL = "Recipients";
-export function draftsWord(n: number): string {
-  return `${n} ${n === 1 ? "Draft" : "Drafts"}`;
-}
-export function sentWord(n: number): string {
-  return `${n} Sent`;
-}
-export const DRAFTS_AND_SENT = "Drafts and Sent From JARVIS";
+export const DRAFTS_AND_SENT = "Drafts and Sent from JARVIS";
 export const VIEW_RECEIPT_LONG = "View Receipt";
 
 // ---- Waiting, and Email on Today (slice 08) ----
@@ -253,7 +247,6 @@ export const RESOLVED_WORD = "Resolved";
 export const DRAFT_FOLLOW_UP = "Draft Follow-Up";
 export const FOLLOW_UP_DATE = "Follow-Up Date";
 export const CLEAR_DATE = "Clear Date";
-export const NO_FOLLOW_UP = "No Follow-Up Date";
 export const FOLLOW_UP_TODAY = "Follow Up Today";
 export const NEW_REPLY = "New Reply";
 export const REVIEW_REPLY = "Review Reply";
@@ -262,25 +255,30 @@ export const RESOLUTION_NOTE_LABEL = "Note";
 export const SOURCE_MESSAGE = "Open Source Message";
 export const SOURCE_DELETED = "Source Email Deleted · Excerpt Kept";
 export const SOURCE_DISCONNECTED = "Mailbox Disconnected · Excerpt Kept";
-export const TRACKED_FROM = "Tracked From an Email";
-export const PICK_RECIPIENT = "Pick the Address From the Source";
+export const TRACKED_FROM = "Tracked from an Email";
+export const PICK_RECIPIENT = "Pick the Address from the Source";
 export const NO_RECIPIENT = "No Address in the Source · Type One";
-export const FOLLOW_UP_IS_LOCAL = "A Follow-Up Date Is a Reminder Here · Not a Task, Not an Event";
-export const REPLY_NEVER_RESOLVES = "A Reply Never Resolves This on Its Own";
-export const EMPTY_RESOLVED = { title: "Nothing Resolved Yet", sub: "Resolve a request here when it arrives", action: "Show Open" };
+// 2026-10-05: FOLLOW_UP_IS_LOCAL and REPLY_NEVER_RESOLVES are gone, and NO_FOLLOW_UP with them. Two described how the
+// app works (a manual under the page, true on an empty database) and one said "no date" under an empty date field (a
+// placeholder that states nothing). The behaviour is unchanged: a reply is shown and never closes anything, and a
+// follow-up date is still a local reminder.
+export const WAITED = "Waited";
+export const FOR_LABEL = "For";
+export const ACCOUNT_LABEL = "Account";
+export const EMPTY_RESOLVED = { title: "Nothing Resolved Yet", sub: "Resolve a Request Here When It Arrives", action: "Show Open" };
 export const REVIEW_FILTER = "Showing Items to Review";
 /** The rest of Today's count sits on mail older than the loaded pages (the list is newest first). */
 export const moreInOlderMail = (n: number): string => `${n} More in Older Mail`;
 export const SHOW_ALL_ROWS = "Show All";
 export const EMAIL_BAND_TITLE = "Email";
 export const OPEN_EMAIL = "Open Email";
-export const OPEN_TO_REVIEW = "Open Email to Review";
+// 2026-10-05: OPEN_TO_REVIEW ("Open Email to Review") is gone. It was the grey line under "5 Email Items to Review" on the Today
+// band that Dave photographed: a row that already is the door says nothing under its title. It was unused, and an unused
+// string is how a rule that was fixed comes back. Dead constants went with it: DRAFT_BADGE, draftsWord, sentWord, OPEN_MODULE,
+// CAPTURE_DONE_ELSEWHERE (the error table owns that sentence).
 export function followUpWas(monthDayWord: string): string {
   return `Follow Up Was ${monthDayWord}`;
 }
 export function followUpOnWord(monthDayWord: string): string {
   return `Follow Up ${monthDayWord}`;
-}
-export function countWord(n: number, one: string, many: string): string {
-  return `${n} ${n === 1 ? one : many}`;
 }

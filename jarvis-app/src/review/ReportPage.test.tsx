@@ -55,7 +55,7 @@ import type { MonthReport } from "./report";
 const HOURS_REPORT: MonthReport = {
   month: "2026-08", monthName: "August",
   hero: { big: "3", label: "Things Moved", anchor: null, wins: [] },
-  tiles: [{ num: "84", label: "Done", tint: "good", delta: { text: "+12 vs July", up: true } }],
+  tiles: [{ num: "84", label: "Done", tint: "good", delta: { text: "+12 Vs July", up: true } }],
   hours: { label: "3 PM to 6 PM", byHour: Array.from({ length: 24 }, (_, h) => (h >= 15 && h < 18 ? 9 : 1)), bandStart: 15 },
   went: null, time: null, worth: [], patterns: [], life: [], learned: null, did: null, closer: null,
   sealed: { title: "August Sealed", sub: "September Compares to This" },

@@ -178,10 +178,10 @@ export function planMerge(args: {
  *  nothing. */
 export function movesLine(plan: MergePlan): string {
   const bits: string[] = [];
-  if (plan.sessions) bits.push(`${plan.sessions} ${plan.sessions === 1 ? "session" : "sessions"}`);
-  if (plan.sets) bits.push(`${plan.sets} ${plan.sets === 1 ? "set" : "sets"}`);
-  if (plan.programDays) bits.push(`${plan.programDays} program ${plan.programDays === 1 ? "day" : "days"}`);
-  if (plan.goals.length) bits.push(`${plan.goals.length} ${plan.goals.length === 1 ? "goal" : "goals"}`);
+  if (plan.sessions) bits.push(`${plan.sessions} ${plan.sessions === 1 ? "Session" : "Sessions"}`);
+  if (plan.sets) bits.push(`${plan.sets} ${plan.sets === 1 ? "Set" : "Sets"}`);
+  if (plan.programDays) bits.push(`${plan.programDays} Program ${plan.programDays === 1 ? "Day" : "Days"}`);
+  if (plan.goals.length) bits.push(`${plan.goals.length} ${plan.goals.length === 1 ? "Goal" : "Goals"}`);
   if (!bits.length) return "Nothing logged under it yet, so only the name moves";
   // Commas, never a middle dot: a separator is the stylesheet's to draw, and
   // a string that carries its own is a facts line baked into a sentence.
@@ -216,7 +216,7 @@ export function remainingLine(state: MergeState): string | null {
   const total = totalWrites(state.plan);
   if (state.applied <= 0) return "Nothing was changed, both exercises are exactly as they were";
   if (state.applied >= total) return "Everything saved, but the last step did not confirm";
-  return `${state.applied} of ${total} saved and nothing was deleted, Retry finishes the rest`;
+  return `${state.applied} of ${total} Saved and nothing was deleted, Retry finishes the rest`;
 }
 
 /** WHAT THE RECORDS SHOULD LOOK LIKE ONCE THE PATCH HAS LANDED.

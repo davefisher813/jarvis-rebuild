@@ -429,7 +429,7 @@ describe("a workout in progress", () => {
   // handed in as its own slot and leads the Your Move card, above the dealt
   // task, whatever the stream ranks.
   it("leads the Your Move card above the dealt task, and is never folded", () => {
-    const live = <NoticeCard key="live-gym" icon={<span />} tone="cat-fg-orange" title="Back to Push Day 1" sub="46 min left" action={{ label: "Resume", onClick: () => {} }} />;
+    const live = <NoticeCard key="live-gym" icon={<span />} tone="cat-fg-orange" title="Back to Push Day 1" sub="46 Min Left" action={{ label: "Resume", onClick: () => {} }} />;
     const notices = [
       <NoticeCard key="a" weight={FAILING} icon={<span />} tone="cat-fg-red" title="Sliding A" action={{ label: "Fix", onClick: () => {} }} />,
       <NoticeCard key="b" weight={WAITING} icon={<span />} tone="cat-fg-yellow" title="Waiting B" action={{ label: "Open", onClick: () => {} }} />,

@@ -117,11 +117,14 @@ const FIELD_LABEL: Record<string, string> = {
 
 const WHO: Record<HistoryEntry["by"], string> = { user: "You", email: "An Email", system: "JARVIS" };
 
+// Title Case, because it lands inside a History line's facts (2026-10-05, the
+// visual catalog gate, H2): "Evidence None to You confirmed it" was a sentence
+// in a line the casing rule governs.
 function evidenceWord(e: unknown): string {
   const t = (e as { type?: string } | null)?.type;
-  if (t === "user_confirmed") return "You confirmed it";
-  if (t === "transaction") return "A matched payment";
-  if (t === "confirmation") return "A confirmation";
+  if (t === "user_confirmed") return "You Confirmed It";
+  if (t === "transaction") return "A Matched Payment";
+  if (t === "confirmation") return "A Confirmation";
   return "None";
 }
 

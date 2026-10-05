@@ -89,14 +89,14 @@ describe("buildWeek", () => {
 
   it("C-65: the vs-usual fact appears only in a report line, only when the share moved", () => {
     // "vs" is a small word (the lead, 2026-09-26); the rest is Title Case.
-    expect(vsUsual(26, 35)).toBe("26% vs Usual 35%");
+    expect(vsUsual(26, 35)).toBe("26% Vs Usual 35%");
     expect(vsUsual(33, 35)).toBeNull();
     expect(vsUsual(26, null)).toBeNull();
     const prevRows: WindowRow[] = [];
     const events = [ev("e1", "2026-09-08", "09:00", "12:00", "bridge"), ev("e2", "2026-09-09", "09:00", "17:00", "tucci"), ev("p1", "2026-09-02", "09:00", "17:00", "bridge"), ev("p2", "2026-09-03", "09:00", "11:00", "tucci")];
     const w = buildWeek({ today: TODAY, rows: [], prevRows, events, workouts: [], goals: [goal({ tags: ["bridge"] })], projects: [], categories: CATS });
     const next = w.lines.find((l) => l.key === "Next")!;
-    expect(next.facts[2]?.text).toBe("27% vs Usual 80%");
+    expect(next.facts[2]?.text).toBe("27% Vs Usual 80%");
     expect(next.facts[2]?.tone).toBe("warn");
   });
 

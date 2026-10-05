@@ -284,7 +284,7 @@ function fmtWhen(ms: number): string {
   const d = new Date(ms);
   const now = new Date();
   if (d.toDateString() === now.toDateString()) {
-    return d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+    return d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
   }
   return shortDateFromMs(ms);
 }
@@ -3416,8 +3416,8 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
             <div className="empty-title">Checking Your Inbox</div>
             <div className="empty-sub">
               {scan.status === "running" || scan.status === "idle"
-                ? (scan.loaded > 0 ? scan.loaded + " found so far" : "Reading every page")
-                : scan.status === "failed" ? "Stopped early " + "\u00b7 " + scan.loaded + " found" : "Paused " + "\u00b7 " + scan.loaded + " found"}
+                ? (scan.loaded > 0 ? lineCase(scan.loaded + " found so far") : "Reading every page")
+                : scan.status === "failed" ? "Stopped early " + "\u00b7 " + scan.loaded + " Found" : "Paused " + "\u00b7 " + scan.loaded + " Found"}
             </div>
             {scan.status === "running" || scan.status === "idle" ? (
               <button className="quiet-action" onClick={() => scanCtl.current?.abort()}>Stop</button>
@@ -3451,8 +3451,8 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                     <div className="conn-name">{p.name}</div>
                     {/* The safety line is on the ROW that is unsafe, not in a
                         legend somewhere. It is the reason not to tick it. */}
-                    {p.needsYou && <div className="conn-meta purge-warn">Some of these needed you</div>}
-                    {!p.needsYou && p.unknown && <div className="conn-meta purge-warn">Not checked yet</div>}
+                    {p.needsYou && <div className="conn-meta purge-warn">Some of These Needed You</div>}
+                    {!p.needsYou && p.unknown && <div className="conn-meta purge-warn">Not Checked Yet</div>}
                   </div>
                   <span className="purge-count">{p.count}</span>
                 </div>
@@ -3741,7 +3741,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                   <div className="conn-name truncate">{displayName(r.from)}</div>
                   {/* VIP is the mail row's own star, a MARK, so the subject
                       is the line's one grey (§AM R1). */}
-                  <div className="conn-meta truncate"><span className="mstar" role="img" aria-label="VIP">{"\u2605"}</span> {r.subject}</div>
+                  <div className="conn-meta truncate"><span className="mstar" role="img" aria-label="VIP">{"\u2605"}</span> <span data-sentence>{r.subject}</span></div>
                 </div>
                 <span className="pill-act">Open It</span>
               </div>
@@ -4025,8 +4025,8 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
         </div>
         <div className="pad-x">
           <div className="msg-detail-head">
-            <div className="msg-detail-subj">{thread.subject}</div>
-            <div className="conn-meta">{thread.messages.length === 1 ? lastMsg(thread).from : thread.messages.length + " messages"}</div>
+            <div className="msg-detail-subj" data-sentence>{thread.subject}</div>
+            <div className="conn-meta">{thread.messages.length === 1 ? lastMsg(thread).from : thread.messages.length + " Messages"}</div>
           </div>
           {(() => {
             // Brain Manual v1 "Who Is This?" (2026-09-27): inline in the
@@ -4679,7 +4679,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
             : <span className="mwhen">{fmtWhen(r.dateMs)}</span>}
         </div>
         <div className={"mline2" + (strong ? " strong" : "")}>
-          {gist ?? r.subject}{!gist && r.count > 1 && <><span className="sched-sep">{"\u00b7"}</span><b>{r.count}</b></>}
+          {gist ?? <span data-sentence>{r.subject}</span>}{!gist && r.count > 1 && <><span className="sched-sep">{"\u00b7"}</span><b>{r.count}</b></>}
           {g.accounts.length > 1 && r.account && <span className="macct">{acctLabel(r.account)}</span>}
         </div>
       </div>
@@ -4936,7 +4936,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                   <div className="conn-name">{draftTo(d.to)}</div>
                   {/* §AK R1: a draft with no subject has no line, never a
                       "(no subject)" placeholder. */}
-                  {d.subject.trim() !== "" && <div className="conn-meta">{d.subject}</div>}
+                  {d.subject.trim() !== "" && <div className="conn-meta" data-sentence>{d.subject}</div>}
                 </div>
               </div>
             ))}
@@ -5131,7 +5131,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
               {amnestyOpen && rows.filter((r) => set.ids.includes(r.id)).map((r) => (
                 <div className="row" key={r.id} {...pressable(() => void openThread(r.id))}>
                   <div className="row-grow">
-                    <div className="conn-name truncate">{r.subject}</div>
+                    <div className="conn-name truncate" data-sentence>{r.subject}</div>
                     <div className="conn-meta truncate">{displayName(r.from)}</div>
                   </div>
                   <div className="chev" />
@@ -5331,7 +5331,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                         { text: w.waitingDays === 1 ? "1 Day" : lineCase(w.waitingDays + " days"), tone: waitTone },
                         { text: nameFor(names, w.toEmail, w.to) },
                       ]} />
-                      <div className="wait-card-subj">{w.subject}</div>
+                      <div className="wait-card-subj" data-sentence>{w.subject}</div>
                       {/* A neutral date is small caps (R8). "No reply" went:
                           the whole deck is threads with no reply. */}
                       {opened && <Facts facts={[{ text: "Opened " + shortDate(opened), tone: "date" }]} />}
@@ -5742,7 +5742,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                   <span className="row-ico cat-bg-graphite" aria-hidden="true"><Clock className="ic" /></span>
                   <div className="row-grow">
                     <div className="conn-name">Only a Few Minutes?</div>
-                    <div className="conn-meta">A timed drain that stops itself</div>
+                    <div className="conn-meta">A Timed Drain That Stops Itself</div>
                   </div>
                   <div className="chev" />
                 </div>
@@ -5779,7 +5779,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                         the count, grey, is the fact that gives way
                         (2026-09-26). */}
                     <Facts facts={[
-                      { text: "Oldest " + oldest + (oldest === 1 ? " day" : " days"), tone: oldestTone },
+                      { text: lineCase("Oldest " + oldest + (oldest === 1 ? " day" : " days")), tone: oldestTone },
                       { text: lineCase(owed.length + " waiting on answers") },
                     ]} />
                   </div>
@@ -5807,7 +5807,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                     <span className="row-ico cat-bg-graphite" aria-hidden="true"><Volume2 className="ic" /></span>
                     <div className="row-grow">
                       <div className="conn-name">Read It to Me</div>
-                      <div className="conn-meta">Senders and gists, never the message</div>
+                      <div className="conn-meta">Senders and Gists, Never the Message</div>
                     </div>
                     <div className="mail-read-acts">
                       {speaking !== "idle" && (
@@ -5851,7 +5851,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                       close follows, it is the line's one grey (§AM R1, R6). */}
                   {windows.on
                     ? <Facts facts={[{ text: "On", tone: "good" }, { text: windowStatusLine(windows, new Date()) }]} />
-                    : <div className="conn-meta">Open email on a schedule</div>}
+                    : <div className="conn-meta">Open Email on a Schedule</div>}
                 </div>
                 <div className="chev" />
               </div>
@@ -6001,7 +6001,7 @@ function SendHold({
             <div className="row-glyph cat-fg-blue"><Send className="ic" /></div>
             <div className="row-grow">
               <div className="conn-name">Sending</div>
-              <div className="conn-meta">On its way</div>
+              <div className="conn-meta">On Its Way</div>
             </div>
           </div>
         </div>
@@ -6019,7 +6019,7 @@ function SendHold({
           <div className="row-glyph cat-fg-blue"><Send className="ic" /></div>
           <div className="row-grow">
             <div className="conn-name">{holdLine(item, now)}</div>
-            <div className="conn-meta">Nothing has left yet</div>
+            <div className="conn-meta">Nothing Has Left Yet</div>
           </div>
           <button className="pill-act" onClick={(e) => { e.stopPropagation(); onUndo(); }}>Undo</button>
         </div>

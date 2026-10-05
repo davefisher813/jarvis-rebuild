@@ -109,7 +109,7 @@ describe("E12, E13: Track, then Waiting, then Resolve and Reopen", () => {
     expect(rowEl.querySelector(".fact.warn")).toBeNull();
     fireEvent.click(rowEl);
     await waitFor(() => expect(screen.getByRole("button", { name: RESOLVE })).toBeInTheDocument());
-    expect(screen.getByText(/Since Oct 2/)).toBeInTheDocument();
+    expect(screen.getByText("Since").nextElementSibling).toHaveTextContent("Oct 2");
     fireEvent.click(screen.getByRole("button", { name: RESOLVE }));
     await waitFor(() => expect(screen.getByRole("button", { name: REOPEN })).toBeInTheDocument());
     const resolve = r.calls.find((c) => c.fn === "waiting_resolve")!;
@@ -164,7 +164,9 @@ describe("12: a follow-up date is tracker metadata", () => {
     fireEvent.click(document.querySelector(`[data-waiting='${id}']`) as HTMLElement);
     fireEvent.click(await screen.findByRole("button", { name: CLEAR_DATE }));
     await waitFor(() => expect((r.calls.filter((c) => c.fn === "waiting_follow_up").at(-1)!.args).p_date).toBeNull());
-    await waitFor(() => expect(screen.getByText("No Follow-Up Date")).toBeInTheDocument());
+    // 2026-10-05: no date says nothing. "No Follow-Up Date" was a placeholder under an empty date field.
+    await waitFor(() => expect(screen.queryByRole("button", { name: CLEAR_DATE })).toBeNull());
+    expect(screen.queryByText("No Follow-Up Date")).toBeNull();
   });
 });
 

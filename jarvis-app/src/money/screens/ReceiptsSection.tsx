@@ -153,7 +153,7 @@ export default function ReceiptsSection({ addNonce = 0 }: { addNonce?: number })
         await filesSvc.update(fileId, { path: stored.path, name: stored.name, mime: stored.mime, bytes: stored.bytes });
       } catch (e) {
         await takeBack();
-        showToast({ message: e instanceof Error && e.message ? e.message : "Couldn't upload that file." });
+        showToast({ message: e instanceof Error && e.message ? e.message : "Couldn't Upload That File" });
         return false;
       }
     }
@@ -267,11 +267,15 @@ export default function ReceiptsSection({ addNonce = 0 }: { addNonce?: number })
                   <div className="task-title">
                     <span className="task-name">{titleCase(r.data.vendor)}</span>
                     {/* The day is a date, small caps; the category keeps the
-                        row's one grey, and a matched receipt says so. */}
+                        row's one grey, and a matched receipt says so in the
+                        key's green (2026-10-05, visual catalog gate, R1 and
+                        R3: Matched was a second grey, and linked is the
+                        key's "logged"). The short toned facts lead and the
+                        free-text category goes last, the one that shrinks. */}
                     <div className="facts">
                       <span className="fact date">{monthDay(r.data.transactionDate)}</span>
+                      {r.data.linkedTransactionId && <span className="fact good">Matched</span>}
                       {r.data.category && <span className="fact">{lineCase(r.data.category)}</span>}
-                      {r.data.linkedTransactionId && <span className="fact">Matched</span>}
                     </div>
                   </div>
                   <div className="mt-amt">{fmtCents(r.data.amountCents)}</div>

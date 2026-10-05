@@ -28,6 +28,8 @@ import DecisionDetail from "./DecisionDetail";
 import ActivityTab from "./ActivityTab";
 import ReceiptDetail from "./ReceiptDetail";
 import { AddAssistantSheet } from "./sheets";
+import { shownOverview } from "./format";
+import { Foot } from "../settings/kit";
 import type { DependencyOption } from "./DecisionSheet";
 
 type Screen =
@@ -69,7 +71,7 @@ export default function HubFlow({ onBack, onOpenEntity, onOpenEmail, client: giv
     if (check) await checkDependencies(client);
     const r = await hubOverview(client);
     if (r.ok) {
-      setOverview(r.value);
+      setOverview(shownOverview(r.value));
       setError(null);
       setProjectId((p) => p && r.value.projects.some((x) => x.id === p) ? p : r.value.projects[0]?.id ?? null);
     } else setError(r);
@@ -186,7 +188,7 @@ export default function HubFlow({ onBack, onOpenEntity, onOpenEmail, client: giv
         </div>
       </PageHeader>
 
-      {offline && <div className="hub-note">{OFFLINE_LINE}</div>}
+      {offline && <Foot>{OFFLINE_LINE}</Foot>}
       {loading && !overview && <SkeletonRows rows={3} />}
       {error && !overview && !loading && (
         <div className="pad-x"><div className="card list-card-ruled">

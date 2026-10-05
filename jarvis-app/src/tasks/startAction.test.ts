@@ -163,7 +163,8 @@ describe("startAction: drafts are grounded or honest", () => {
     const a = startAction(task("Email Nadia about the invoice"));
     expect(a.kind).toBe("prepare_draft");
     expect(a.seed).toBe("");
-    expect(a.ready).toBe("Start the Message");
+    // 2026-10-05: nothing is ready yet, so the card says nothing (it used to say "Start the Message").
+    expect(a.ready).toBe("");
     expect(a.missing).toEqual([]);
   });
 
@@ -175,7 +176,7 @@ describe("startAction: drafts are grounded or honest", () => {
       const a = startAction(task("Reply to the failed build notice"), { fromEmailAddress: addr });
       expect(a.kind, addr).toBe("capture_next_action");
       expect(a.prompt, addr).toBe("Which error do you need to look at?");
-      expect(a.ready, addr).toBe("Capture the Error to Look At");
+      expect(a.ready, addr).toBe("");
     }
     // A real person on the same shaped task still gets the draft.
     const human = startAction(task("Reply to Nadia"), { fromEmailAddress: "nadia@school.org" });
@@ -196,7 +197,7 @@ describe("startAction: physical work and vague work", () => {
       // The answer is a QUESTION, and the title is never pasted into it.
       expect(a.prompt, title).toMatch(/\?$/);
       expect(a.prompt!.toLowerCase(), title).not.toContain(title.toLowerCase());
-      expect(a.ready, title).toBe("Start by Naming the First Step");
+      expect(a.ready, title).toBe("");
       expect(a.completion.saves, title).toBe("step_new");
       expect(a.completion.completesTask, title).toBe(false);
     }
@@ -239,7 +240,7 @@ describe("startAction: physical work and vague work", () => {
     const a = startAction(task("Clean up backend storage"));
     expect(a.kind).toBe("capture_next_action");
     expect(a.prompt).toBe("What is the first thing to look at?");
-    expect(a.ready).toBe("Start by Naming the First Step");
+    expect(a.ready).toBe("");
   });
 });
 

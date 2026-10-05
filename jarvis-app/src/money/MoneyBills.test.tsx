@@ -264,15 +264,16 @@ describe("the bill's page", () => {
     expect(screen.getByText("Created")).toBeInTheDocument();
     expect(screen.getByText("Marked Paid")).toBeInTheDocument();
     expect(screen.getByText("Corrected")).toBeInTheDocument();
-    const notes = screen.getAllByText("Notes").find((n) => n.classList.contains("bill-change-k"))!;
-    expect(notes.parentElement).toHaveTextContent("NotesNonetojuly bill");
+    // One white fact per change (2026-10-05, the visual catalog gate): the field, the before and the after.
+    expect(screen.getByText("Notes None to july bill")).toBeInTheDocument();
   });
 
-  it("a bill with no due date shows None for the date, never a made-up one", async () => {
+  it("a bill with no due date shows no date and no Due row at all, never a made-up one or a None placeholder", async () => {
     mount("mb-detail-none", async (l) => { await add(l, { vendor: "Water", amount: 40 }); });
     fireEvent.click(await screen.findByText("Water"));
-    const due = (await screen.findAllByText("Due")).find((n) => n.classList.contains("conn-name"))!;
-    expect(due.parentElement).toHaveTextContent("DueNone");
+    await screen.findByText("Delete Bill");
+    expect(screen.queryAllByText("Due").filter((n) => n.classList.contains("conn-name"))).toHaveLength(0);
+    expect(document.body.textContent).not.toMatch(/DueNone/);
   });
 
   it("editing a bill corrects it and the history shows what changed; a blank due date stays blank", async () => {
@@ -291,7 +292,7 @@ describe("the bill's page", () => {
     // the page behind the sheet shows it
     const to = await screen.findAllByText("$90");
     expect(to.length).toBeGreaterThan(0);
-    expect(screen.getByText("Amount", { selector: ".bill-change-k" })).toBeInTheDocument();
+    expect(screen.getByText(/^Amount \$84\.12 to \$90$/)).toBeInTheDocument();
   });
 
   it("correcting a paid bill's amount asks to confirm it is still paid, and confirming does", async () => {

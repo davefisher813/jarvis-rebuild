@@ -5,6 +5,7 @@ import { attemptWrite } from "../shared/guard";
 import { showToast } from "../shared/toast";
 import type { LearnedRule } from "../rules/LearnedRulesService";
 import { Head, Card, Row } from "./kit";
+import { lineCase, titleCase } from "../shared/casing";
 // UP-CORE-14 (2026-09-05): an automation tuning is a rule about a CARD, not
 // about a word, so "automation.goal-nudge means less" is the database
 // talking. tuningLine says it the way the app says it, and returns null for
@@ -57,7 +58,7 @@ export default function LearnedRulesPage({ onBack }: { onBack: () => void }) {
       <LargeTitleNav title="What JARVIS Learned" back="Settings" onBack={onBack} />
       {loaded && rules.length === 0 && (
         <div className="empty-state"><div className="empty-title">Nothing Learned Yet</div>
-          <div className="empty-sub">Correct JARVIS the same way twice and the rule lands here</div></div>
+          <div className="empty-sub">Correct JARVIS the Same Way Twice and the Rule Lands Here</div></div>
       )}
       {rules.length > 0 && (
         <>
@@ -70,8 +71,11 @@ export default function LearnedRulesPage({ onBack }: { onBack: () => void }) {
               // Rules stored before 2026-09-26 carry evidence joined with a
               // typed middle dot ("Keep going \u00b7 due today \u00b7 15m"),
               // and this line renders it, so it reads as a phrase instead.
-              <Row key={r.id} label={tuningLine(r) ?? `${label(r.data.from)} means ${label(r.data.to)}`}
-                meta={r.data.evidence[r.data.evidence.length - 1]?.replace(/\s*\u00b7\s*/g, ", ")}>
+              // CATALOG PASS (2026-10-05): the row's name and its one grey line are
+              // both lines the app writes, so both are Title Case ("dentist means
+              // Health" and "keep going, due today, 15m" were drawn as typed).
+              <Row key={r.id} label={tuningLine(r) ?? titleCase(`${label(r.data.from)} means ${label(r.data.to)}`)}
+                meta={lineCase(r.data.evidence[r.data.evidence.length - 1]?.replace(/\s*\u00b7\s*/g, ", ") ?? "") || undefined}>
                 <button className="pill-act" disabled={removing === r.id} onClick={() => void remove(r)}>{removing === r.id ? "..." : "Delete"}</button>
               </Row>
             ))}

@@ -67,7 +67,7 @@ export default function AdvancedPage({ onBack, onLearningLab }: { onBack: () => 
     setChatArmed(false);
     const ok = await attemptWrite(async () => {
       const n = await chat.clearAll();
-      showToast({ message: n === 0 ? "No Chat History" : `Deleted ${n} ${n === 1 ? "message" : "messages"}` });
+      showToast({ message: n === 0 ? "No Chat History" : `Deleted ${n} ${n === 1 ? "Message" : "Messages"}` });
     });
     if (!ok) showToast({ message: "Couldn't Delete · Try Again" });
     setChatBusy(false);
@@ -78,14 +78,14 @@ export default function AdvancedPage({ onBack, onLearningLab }: { onBack: () => 
       <Head label="Projects and Goals" />
       <Card>
         <Switch label="Clear Done Automatically"
-          meta="Off, a finished project or goal waits for you to close it"
+          meta="Off, a Finished Project or Goal Waits for You to Close It"
           on={doneClearing === "auto"}
           onToggle={() => setClearing(doneClearing === "auto" ? "ask" : "auto")} />
       </Card>
       <Head label="Tasks From Email" />
       <Card>
         <Switch label="Add to Your Task List"
-          meta="Off, they wait under From Email in Tasks"
+          meta="Off, They Wait Under From Email in Tasks"
           on={emailHome === "list"}
           onToggle={() => setEmailHome(emailHome === "list" ? "email" : "list")} />
       </Card>

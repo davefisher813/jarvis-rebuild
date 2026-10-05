@@ -60,9 +60,14 @@ export default function BillDetailSheet({ bill, today, onClose, onEdit, onMarkPa
       <Group label="Bill">
         <Row tone="yellow" glyph={<WalletGlyph />} label="Vendor"><span className="bill-val">{d.vendor}</span></Row>
         <Row tone="green" glyph={<DollarGlyph />} label="Amount"><span className={"money-amt bill-val" + (paid ? " paid" : "")}>{billAmount(d)}</span></Row>
-        <Row tone="orange" glyph={<Calendar className="ic" />} label="Due">
-          <span className="bill-val">{d.dueDate ? monthDay(d.dueDate) : "None"}</span>
-        </Row>
+        {/* A bill with no due date shows no Due row at all (2026-10-05, the
+            visual catalog gate, R1: a row with nothing to say shows nothing,
+            and "None" is the placeholder the rule names; it used to say "None"). */}
+        {d.dueDate && (
+          <Row tone="orange" glyph={<Calendar className="ic" />} label="Due">
+            <span className="bill-val">{monthDay(d.dueDate)}</span>
+          </Row>
+        )}
         <Row tone="blue" glyph={<CheckCircleGlyph />} label="Status">
           {chip
             ? <span className={"uchip bill-val " + chip.cls}>{chip.text}</span>
@@ -92,16 +97,18 @@ export default function BillDetailSheet({ bill, today, onClose, onEdit, onMarkPa
       )}
 
       <Group label="History">
+        {/* ONE GREY PER ROW (2026-10-05, visual catalog gate, R1). The line
+            under what happened was the one grey ("You" beside a small-caps
+            day) and every change under it was two more (the field name and
+            the word "to" in the grey, the values in white). Each change is
+            now ONE white fact, so who did it is the row's only grey. */}
         {history.map((h, i) => (
-          <Row key={i} label={h.what} meta={<span className="facts"><span className="fact">{h.who}</span>{h.when && <span className="fact date">{h.when}</span>}</span>}>
+          <Row key={i} label={h.what} meta={<><span className="fact">{h.who}</span>{h.when && <span className="fact date">{h.when}</span>}</>}>
             {h.changes.length > 0 && (
               <div className="bill-changes">
                 {h.changes.map((c) => (
                   <div key={c.label} className="bill-change">
-                    <span className="bill-change-k">{c.label}</span>
-                    <span className="bill-change-v">{c.from}</span>
-                    <span className="bill-change-to">to</span>
-                    <span className="bill-change-v">{c.to}</span>
+                    <span className="fact"><b>{`${c.label} ${c.from} to ${c.to}`}</b></span>
                   </div>
                 ))}
               </div>

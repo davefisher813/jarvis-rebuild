@@ -19,6 +19,7 @@ import { usePushDepth } from "../shared/pushNav";
 import Connections from "./screens/Connections";
 import LinkPicker from "./screens/LinkPicker";
 import { showToast } from "../shared/toast";
+import { lineCase } from "../shared/casing";
 import { fileMemory, showFilingConfirm } from "../ai/filingIntake";
 import type { BrainMemoryCategory } from "../ai/brainMemory";
 import { usePickFile, PICK_ANY, PICK_IMAGE } from "../shared/usePickFile";
@@ -219,7 +220,7 @@ export default function NotesFlow({
     const taskId = made.id;
     if (!ok || !taskId) return;
     showToast({
-      message: "Task made from the passage",
+      message: "Task Made from the Passage",
       actionLabel: "Undo",
       onAction: () => void enqueue(async () => {
         await attemptWrite(async () => {
@@ -240,7 +241,7 @@ export default function NotesFlow({
     const ok = await attemptWrite(() => svc.restoreVersion(currentId, at));
     if (!ok) return;
     await loadCurrent(currentId);
-    showToast({ message: "Version restored" });
+    showToast({ message: "Version Restored" });
   });
   const [linkedFrom, setLinkedFrom] = useState<{ id: string; title: string }[]>([]);
   const [related, setRelated] = useState<{ id: string; title: string; shared: number }[]>([]);
@@ -584,7 +585,7 @@ export default function NotesFlow({
       if (!ok) { void fileStore.remove([stored.path]); return false; }
       return true;
     } catch (e) {
-      showToast({ message: e instanceof Error && e.message ? e.message : "Couldn't upload that file." });
+      showToast({ message: lineCase(e instanceof Error && e.message ? e.message : "Couldn't upload that file.") });
       return false;
     } finally {
       setUploading(false);
@@ -596,7 +597,7 @@ export default function NotesFlow({
       // Into the open note.
       const ok = await attachFile(noteId, file, type);
       await enqueue(() => loadCurrent(noteId));
-      if (ok) showToast({ message: type === "photo" ? "Photo added" : "File added" });
+      if (ok) showToast({ message: type === "photo" ? "Photo Added" : "File Added" });
       return;
     }
     // From the list: a new note, titled after the file, opened on the file.
@@ -743,7 +744,7 @@ export default function NotesFlow({
       const taskId: string = id;
       await attemptWrite(() => svc.markFoundAdded(noteId, index));
       await loadCurrent(noteId);
-      showToast({ message: "Task added", actionLabel: "Undo", onAction: () => void (async () => { await attemptWrite(() => tasksSvc.deleteTask(taskId)); await attemptWrite(() => svc.markFoundAdded(noteId, index, false)); await loadCurrent(noteId); })() });
+      showToast({ message: "Task Added", actionLabel: "Undo", onAction: () => void (async () => { await attemptWrite(() => tasksSvc.deleteTask(taskId)); await attemptWrite(() => svc.markFoundAdded(noteId, index, false)); await loadCurrent(noteId); })() });
     } else if (c.kind === "decision" && decisionsSvc) {
       let id: string | null = null;
       const ok = await attemptWrite(async () => { id = await decisionsSvc.create({ decision: c.text, source: { kind: "note", entityId: noteId, at: new Date().toISOString() } }); });
@@ -751,7 +752,7 @@ export default function NotesFlow({
       const decId: string = id;
       await attemptWrite(() => svc.markFoundAdded(noteId, index));
       await loadCurrent(noteId);
-      showToast({ message: "Decision saved", actionLabel: "Undo", onAction: () => void (async () => { await attemptWrite(() => decisionsSvc.remove(decId)); await attemptWrite(() => svc.markFoundAdded(noteId, index, false)); await loadCurrent(noteId); })() });
+      showToast({ message: "Decision Saved", actionLabel: "Undo", onAction: () => void (async () => { await attemptWrite(() => decisionsSvc.remove(decId)); await attemptWrite(() => svc.markFoundAdded(noteId, index, false)); await loadCurrent(noteId); })() });
     }
   };
   const foundLink = async (index: number) => {
@@ -795,7 +796,7 @@ export default function NotesFlow({
       setScreen("list");
       showToast({ message: "Archived", actionLabel: "Undo", onAction: () => void (async () => { await attemptWrite(() => svc.setArchived(id, false)); await loadList(); })() });
     } else {
-      showToast({ message: "Back in your notes" });
+      showToast({ message: "Back in Your Notes" });
     }
   };
   const saveTags = async (tags: string[]) => {
@@ -819,7 +820,7 @@ export default function NotesFlow({
     if (!ok) return;
     const sweep = block.path ? sweepPathAfter(block.path) : null;
     showToast({
-      message: block.type === "photo" ? "Photo removed" : "File removed",
+      message: block.type === "photo" ? "Photo Removed" : "File Removed",
       actionLabel: "Undo",
       onAction: () => void enqueue(async () => {
         sweep?.cancel();
@@ -848,7 +849,7 @@ export default function NotesFlow({
     const n = gone;
     for (const id of ids) clearDraft(id);
     showToast({
-      message: n === 1 ? "Note deleted" : n + " notes deleted",
+      message: n === 1 ? "Note Deleted" : lineCase(n + " notes deleted"),
       actionLabel: "Undo",
       onAction: async () => {
         await attemptWrite(async () => { for (const id of ids) await svc.untrashNote(id); });
@@ -860,7 +861,7 @@ export default function NotesFlow({
     const ok = await attemptWrite(() => svc.untrashNote(id));
     if (!ok) return;
     await loadList();
-    showToast({ message: "Back in your notes" });
+    showToast({ message: "Back in Your Notes" });
   };
   const deleteForever = async (id: string) => {
     const ok = await attemptWrite(() => svc.deleteNote(id));
@@ -1052,7 +1053,7 @@ export default function NotesFlow({
             await loadList();
             setScreen("list");
             showToast({
-              message: "Note deleted",
+              message: "Note Deleted",
               actionLabel: "Undo",
               onAction: async () => {
                 await attemptWrite(() => svc.untrashNote(deletedId));

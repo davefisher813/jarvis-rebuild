@@ -87,7 +87,7 @@ describe("tiles and deltas", () => {
       prev: emptySeal("2026-07", { done: 72, sessions: 16, daysIn: 26, deposits: 11 }),
     }));
     expect(r.tiles.map((t) => t.label)).toEqual(["Done", "Sessions", "Days In", "Deposits"]);
-    expect(r.tiles[0]!.delta).toEqual({ text: "+12 vs July", up: true });
+    expect(r.tiles[0]!.delta).toEqual({ text: "+12 Vs July", up: true });
     expect(r.tiles[1]!.delta).toEqual({ text: "−2", up: false });
     expect(r.tiles[2]!.delta).toEqual({ text: "Same", up: false });
     const thin = buildReport(inputs({ seal: emptySeal("2026-08", { done: 3 }) }));
@@ -123,7 +123,7 @@ describe("worth a look", () => {
     // line's one grey with its count white (§AK, §AM; 2026-09-26).
     expect(quiet.sub).toEqual([
       { text: "2 This Month", tone: "warn" },
-      { text: "11 in July", parts: [{ b: "11" }, " in July"] },
+      { text: "11 In July", parts: [{ b: "11" }, " In July"] },
     ]);
     // No prior month, no quiet card: absence of evidence stays silent.
     const noPrev = buildReport(inputs({ seal: emptySeal("2026-08", { byCategory: { home: 2 } }) }));

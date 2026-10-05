@@ -12,9 +12,9 @@ import { lineCase } from "../../shared/casing";
 // It reads only the Readiness row it was handed, the same object the panel
 // draws from, so the sheet and the row cannot disagree.
 function missingLine(r: Readiness): string {
-  if (r.state === "known") return "JARVIS already knows this";
-  if (r.state === "muted") return "Switched off";
-  if (r.state === "ready") return "Enough evidence, waiting for you to accept it";
+  if (r.state === "known") return "JARVIS Already Knows This";
+  if (r.state === "muted") return "Switched Off";
+  if (r.state === "ready") return lineCase("Enough evidence, waiting for you to accept it");
   const short = Math.max(0, r.need - r.have);
   return lineCase(`${short} more ${r.unit} to go`);
 }
@@ -28,9 +28,23 @@ export default function ReadinessSheet({ r, onTell, onClose }: { r: Readiness; o
         <div className="grp"><div className="eyebrow"><span><span className={"fact st " + toneForReadinessWord(word)}>{word}</span></span></div></div>
         <div className="pad-x sheet-form">
           <div className="strand-head">{r.label}</div>
-          <div className="conn-meta">{watchingCount(r)}</div>
-          {r.detail && <div className="conn-meta">{r.detail}</div>}
-          <div className="conn-meta">{missingLine(r)}</div>
+          {/* 2026-10-05 (the catalog gate): three grey lines stacked under the head
+              (the count, the rule, what is missing) were three greys on one record
+              (R1). It is one facts line now: the count is a number with no state, so
+              white; what is missing wears its state (known is green, ready needs you
+              so amber, a count still short is the one grey). The rule that decides
+              the count is methodology, so it sits behind the labelled disclosure the
+              Classify sheet uses for its counting convention, in Title Case. */}
+          <div className="facts">
+            <span className="fact"><b>{watchingCount(r)}</b></span>
+            <span className={"fact" + (r.state === "known" ? " good" : r.state === "ready" ? " warn" : "")}>{missingLine(r)}</span>
+          </div>
+          {r.detail && (
+            <details className="exp-more">
+              <summary>How It Is Counted</summary>
+              <div className="conn-meta">{lineCase(r.detail)}</div>
+            </details>
+          )}
         </div>
         <div className="pad-x sheet-actions">
           <button type="button" className="btn btn-primary btn-block" onClick={onTell}>Tell JARVIS</button>

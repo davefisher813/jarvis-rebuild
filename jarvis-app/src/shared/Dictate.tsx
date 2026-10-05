@@ -25,7 +25,7 @@ import { haptics } from "./haptics";
 
 const KEY = "jarvis.dictation.hint.v1";
 
-export const DICTATION_HINT = "Tap the mic on your keyboard to talk";
+export const DICTATION_HINT = "Tap the Mic on Your Keyboard to Talk"; // Title Case, a toast (2026-10-05)
 
 export function hintSeen(storage: Pick<Storage, "getItem"> = localStorage): boolean {
   try { return storage.getItem(KEY) === "1"; } catch { return false; }

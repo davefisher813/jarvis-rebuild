@@ -2,6 +2,7 @@ import { useRef, useState, type MouseEvent } from "react";
 import type { StillTherePattern, StillThereSummaryRow } from "../timelines";
 import { pressable } from "../../shared/pressable";
 import { shortDate } from "../../shared/dateFormat";
+import { lineCase } from "../../shared/casing";
 import { BODY_REGIONS } from "../regions";
 import type { PointAtItDetail, PointAtItFeel, PointAtItLevel } from "../types";
 
@@ -180,7 +181,7 @@ export default function PointAtItScreen({ patterns, summaries = [], onLog, onDet
                 <div className="row" key={i}>
                   <div className="row-grow">
                     <div className="conn-name">{p.region ?? "Same Spot"}, {p.sessions} Sessions</div>
-                    <div className="bp-sub">Over {p.days} days</div>
+                    <div className="bp-sub">{lineCase(`Over ${p.days} ${p.days === 1 ? "day" : "days"}`)}</div>
                     {/* The days are neutral dates, so they take the date
                         fact's small caps (§AM F5): caps is what sets them
                         apart from the span above, which spent the row's one

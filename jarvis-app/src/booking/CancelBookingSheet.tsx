@@ -5,7 +5,8 @@ import { mapBooking, type BookingFace } from "./bookedEvents";
 const dayWords = (ms: number): string =>
   new Date(ms).toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" });
 const timeWords = (ms: number): string =>
-  new Date(ms).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  // 12-hour with AM or PM whatever the phone's region says (2026-10-05).
+  new Date(ms).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
 
 // CALLING A MEETING OFF (Track 3, 2026-09-19).
 //
@@ -30,7 +31,9 @@ export default function CancelBookingSheet({ booking, busy, error, onCancel, onC
 }) {
   const [reason, setReason] = useState("");
   const m = mapBooking(booking);
-  const who = booking.guestName.trim() || "them";
+  // "them gets an email" was the fallback for a guest with no name, a line that
+  // opened lowercase and broke its own grammar (2026-10-05, the catalog gate).
+  const who = booking.guestName.trim() || "The guest";
 
   return (
     <FormSheet

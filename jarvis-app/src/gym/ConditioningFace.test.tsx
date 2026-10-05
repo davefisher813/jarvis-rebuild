@@ -110,7 +110,8 @@ describe("CondReceipt", () => {
     const onChange = vi.fn();
     const { container } = render(<CondReceipt exercise={ex} entries={[{ id: "s1", r: 3, elapsed: 720, splits: [98, 202, 313] }]} onChange={onChange} />);
     expect(screen.getByText("AMRAP")).toBeInTheDocument();
-    expect(screen.getByText("5 pull-ups, 10 push-ups, 15 squats")).toBeInTheDocument();
+    // His own typed workout is shown as he wrote it; the catalog's number rule must leave it alone (2026-10-05).
+    expect(screen.getByText("5 pull-ups, 10 push-ups, 15 squats")).toHaveAttribute("data-user-text");
     const rows = container.querySelectorAll(".cr-table tr");
     expect(rows).toHaveLength(3);
     expect(rows[1]).toHaveTextContent("1:44");

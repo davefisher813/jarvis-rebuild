@@ -5,11 +5,22 @@
 
 import { useEffect, useState } from "react";
 import { pressable } from "../shared/pressable";
+import { Foot } from "../settings/kit";
 import { activityFeed, statusLine, type FeedRow } from "../substrate/commands/receipts";
 import { COMMAND_LINES } from "../substrate/commands/errors";
 import { EMPTY_ACTIVITY, FILTERS, emailItemsLine, type ActivityFilter } from "./copy";
 import { text, type HubOverview, type HubProposal, type RpcClient } from "./hubClient";
-import { dayLabel, facts, timeOf } from "./format";
+import { dayLabel, timeOf } from "./format";
+import HubFacts from "./HubFacts";
+
+// 2026-10-05 (catalog gate): a receipt row's line is the actor (its one
+// grey), the time (a neutral time, small caps) and, when the assistant only
+// REPORTED the action, "Not Verified" in amber (a caution the person needs).
+// The suggestion row says what it touches and nothing else: "Review X" stated
+// the action the row already is, "Suggestion" repeated its section head, and
+// "Nothing Was Rewritten" was a baked-dot reassurance that the decision page
+// already gives. The Email row's second line ("Inside Email · No Preview
+// Here") explained the row; a row with nothing to say shows nothing.
 
 const Chev = () => <div className="chev" />;
 const READ_KINDS = new Set(["read_context", "export_context"]);
@@ -72,7 +83,7 @@ export default function ActivityTab({ client, overview, refreshKey, filter, onFi
                 <div {...pressable(() => onOpenDecision(itemId))} className="row" key={s.id}>
                   <div className="row-grow">
                     <div className="conn-name">{`${text(s, "item_title") || "A Record"} ${text(s, "change") === "missing" ? "Was Removed" : "Changed"}`}</div>
-                    <div className="conn-meta">{facts(`Review ${text(s, "decision_title") || "This Decision"}`, "Suggestion · Nothing Was Rewritten")}</div>
+                    <HubFacts facts={[text(s, "decision_title") && { text: `Affects ${text(s, "decision_title")}` }]} />
                   </div>
                   <Chev />
                 </div>
@@ -82,7 +93,7 @@ export default function ActivityTab({ client, overview, refreshKey, filter, onFi
         </>
       )}
 
-      {rows === null && !error && <div className="hub-note">Loading…</div>}
+      {rows === null && !error && <Foot>Loading…</Foot>}
       {error && (
         <div className="pad-x"><div className="card list-card-ruled">
           <div className="row"><div className="conn-name">{error}</div></div>
@@ -106,7 +117,7 @@ export default function ActivityTab({ client, overview, refreshKey, filter, onFi
               <div {...pressable(() => onOpenReceipt(r.action_id))} className="row" key={r.receipt_id}>
                 <div className="row-grow">
                   <div className="conn-name">{r.exact_verb}</div>
-                  <div className="conn-meta">{facts(r.actor_display, timeOf(r.occurred_at), r.assurance === "reported_external" ? "Not Verified" : null)}</div>
+                  <HubFacts facts={[{ text: r.actor_display }, { text: timeOf(r.occurred_at), tone: "date" }, r.assurance === "reported_external" && { text: "Not Verified", tone: "warn" }]} />
                 </div>
                 {r.state !== "confirmed" && <span className={"hub-cap" + (r.state === "failed" ? " hub-cap-error" : r.state === "outcome_unknown" ? " hub-cap-waiting" : "")}>{statusLine(r.state)}</span>}
                 <Chev />
@@ -119,7 +130,7 @@ export default function ActivityTab({ client, overview, refreshKey, filter, onFi
       {emailLine && onOpenEmail && (
         <div className="pad-x"><div className="card list-card-ruled">
           <div {...pressable(onOpenEmail)} className="row">
-            <div className="row-grow"><div className="conn-name">{emailLine}</div><div className="conn-meta">Inside Email · No Preview Here</div></div>
+            <div className="row-grow"><div className="conn-name">{emailLine}</div></div>
             <Chev />
           </div>
         </div></div>

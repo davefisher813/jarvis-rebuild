@@ -9,6 +9,9 @@ import type { AIService } from "../../ai/AIService";
 import { subscribeToast, resetToasts } from "../../shared/toast";
 import type { ToastState } from "../../shared/toast";
 
+// The photo path draws the thumbnail card; the encoder needs a canvas the test environment lacks.
+vi.mock("../../shared/imageEncode", () => ({ encodeImageForVision: async () => ({ data: "AAAA", mediaType: "image/png" }) }));
+
 const CATS = [{ id: "c1", name: "Sports", color: "blue" as const }];
 
 // The model's answer, as the parser receives it.
@@ -251,5 +254,31 @@ describe("Schedule upload: what the fix sheet sets reaches the calendar", () => 
     fireEvent.click(await screen.findByText("Add 1 to Calendar"));
     await waitFor(() => expect(onDone).toHaveBeenCalled());
     expect(await svc.event(id)).toMatchObject({ location: "Rink 2", travelMin: 20, gym: true });
+  });
+});
+
+// THE NUMBER RULE (Dave 2026-10-05, "Earlier 2 blocks"): the thumbnail card's count is a title,
+// and the word behind the number is capitalized, singular and plural.
+describe("Schedule upload: the photo card follows the number rule (2026-10-05)", () => {
+  const readPhoto = async (events: Record<string, unknown>[], uid: string) => {
+    const svc = new ScheduleService(new Store(new InMemoryAdapter()), uid);
+    render(
+      <ScheduleUploadFlow ai={fakeAI(reply(events))} svc={svc} categories={CATS} existingEvents={[]} onDone={() => {}} onCancel={() => {}} />,
+    );
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    fireEvent.change(input, { target: { files: [new File(["x"], "s.png", { type: "image/png" })] } });
+    await screen.findByText("Review the Schedule");
+    return document.body;
+  };
+  const ev = (title: string, day: number) => ({ title, month: 9, day, year: 2026, start: "17:00", end: "18:00", location: "" });
+
+  it("says '2 Events Found' for two and '1 Event Found' for one", async () => {
+    const two = await readPhoto([ev("A", 12), ev("B", 13)], "u-upload-count-2");
+    expect(two.querySelector(".upload-thumb")!.parentElement!.querySelector(".conn-name")!.textContent).toBe("2 Events Found");
+  });
+
+  it("singular", async () => {
+    const one = await readPhoto([ev("A", 12)], "u-upload-count-1");
+    expect(one.querySelector(".upload-thumb")!.parentElement!.querySelector(".conn-name")!.textContent).toBe("1 Event Found");
   });
 });

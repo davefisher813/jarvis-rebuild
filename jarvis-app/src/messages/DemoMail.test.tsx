@@ -128,3 +128,27 @@ describe("DemoMail view chips", () => {
   });
 });
 
+
+// THE CATALOG, CHECKED ON WHAT THE DEMO DRAWS (Dave 2026-10-05). The demo
+// mirrors the live Tools rows, so a sub line the live page cases the demo must
+// case too: "14 Threads from 6 senders" and "About 2 min" had lowercase words
+// behind a number, and the three Tools descriptions were in sentence case.
+describe("DemoMail fixture: the catalog (2026-10-05)", () => {
+  const SMALL = new Set(["a", "an", "and", "at", "by", "for", "from", "in", "of", "on", "or", "the", "to", "with"]);
+  const lowercaseWords = (t: string) => t.split(/[\s·]+/).slice(1).filter((w) => /^[a-z]{2,}$/.test(w) && !SMALL.has(w));
+
+  it("every meta line under a Tools row is Title Case, the count's unit capitalized", () => {
+    render(<DemoMail />);
+    const metas = Array.from(document.querySelectorAll(".conn-meta")).map((m) => m.textContent ?? "");
+    expect(metas).toContain("14 Threads from 6 Senders");
+    expect(metas).toContain("A Timed Drain That Stops Itself");
+    expect(metas).toContain("Senders and Gists, Never the Message");
+    expect(metas).toContain("Open Email on a Schedule");
+    for (const t of metas) expect(lowercaseWords(t), t).toEqual([]);
+  });
+
+  it("the Sweep capsule says About 2 Min, as the live head does", () => {
+    render(<DemoMail />);
+    expect(screen.getByText("Sweep · About 2 Min")).toBeInTheDocument();
+  });
+});

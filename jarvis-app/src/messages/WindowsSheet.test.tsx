@@ -15,6 +15,8 @@ describe("the windows editor", () => {
     expect(screen.getByText("9 AM · 45 Min")).toBeInTheDocument();
     expect(screen.getByText("1 PM · 45 Min")).toBeInTheDocument();
     expect(screen.getByText("5 PM · 45 Min")).toBeInTheDocument();
+    // THE CATALOG (Dave 2026-10-05): the sheet's question is Title Case.
+    expect(screen.getByText("Email Opens Only in These Windows")).toBeInTheDocument();
     // The length chips live in the editor, one window at a time.
     expect(screen.queryByLabelText("Window 1: 90 minutes")).not.toBeInTheDocument();
     fireEvent.click(screen.getByLabelText("Edit window 1"));

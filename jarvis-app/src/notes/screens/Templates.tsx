@@ -11,12 +11,12 @@ const TEMPLATES_LIST: {
   cat: string;
   Icon: typeof AlignLeft;
 }[] = [
-  { key: "blank", name: "Blank", desc: "An empty page.", cat: "blue", Icon: AlignLeft },
-  { key: "meeting", name: "Meeting Notes", desc: "Date, attendees, agenda, decisions, action items.", cat: "sky", Icon: CalendarDays },
-  { key: "todo", name: "To-Do / Checklist", desc: "A checklist that turns into tasks.", cat: "green", Icon: ListTodo },
-  { key: "tracker", name: "Tracker", desc: "A table you define: rows, columns, sums.", cat: "yellow", Icon: Table },
-  { key: "brief", name: "Project Brief", desc: "Objective, key dates, tasks, notes.", cat: "red", Icon: FileText },
-  { key: "journal", name: "Log / Journal", desc: "Date-stamped entries over time.", cat: "teal", Icon: ListOrdered },
+  { key: "blank", name: "Blank", desc: "An Empty Page", cat: "blue", Icon: AlignLeft },
+  { key: "meeting", name: "Meeting Notes", desc: "Date, Attendees, Agenda, Decisions, Action Items", cat: "sky", Icon: CalendarDays },
+  { key: "todo", name: "To-Do / Checklist", desc: "A Checklist That Turns Into Tasks", cat: "green", Icon: ListTodo },
+  { key: "tracker", name: "Tracker", desc: "A Table You Define: Rows, Columns, Sums", cat: "yellow", Icon: Table },
+  { key: "brief", name: "Project Brief", desc: "Objective, Key Dates, Tasks, Notes", cat: "red", Icon: FileText },
+  { key: "journal", name: "Log / Journal", desc: "Date-Stamped Entries Over Time", cat: "teal", Icon: ListOrdered },
 ];
 
 export default function Templates({

@@ -46,7 +46,7 @@ export default function ReceiptSheet({ dayName, receipt, workouts, onDone, onKee
     { num: String(receipt.minutes), label: receipt.minutes === 1 ? "Minute" : "Minutes" },
     { num: String(receipt.exercises), label: receipt.exercises === 1 ? "Exercise" : "Exercises" },
   ];
-  if (receipt.volumeUnit) tiles.push({ num: receipt.volume.toLocaleString(), label: `${receipt.volumeUnit} moved` });
+  if (receipt.volumeUnit) tiles.push({ num: receipt.volume.toLocaleString(), label: lineCase(`${receipt.volumeUnit} moved`) });
   if (receipt.otherSets > 0) tiles.push({ num: String(receipt.otherSets), label: receipt.otherSets === 1 ? "Set" : "Sets" });
   if (receipt.prs.length && celebrations) tiles.push({ num: String(receipt.prs.length), label: receipt.prs.length === 1 ? "PR" : "PRs" });
 
@@ -84,7 +84,7 @@ export default function ReceiptSheet({ dayName, receipt, workouts, onDone, onKee
                         <div className="conn-name truncate">{name}</div>
                         {/* Row meta is quiet sentence case (gym reformat
                             2026-08-31); eyebrows are kickers. */}
-                        <div className="conn-meta">{n > 1 ? `Done ${n} times` : "Done"}</div>
+                        <div className="conn-meta">{n > 1 ? lineCase(`Done ${n} times`) : "Done"}</div>
                       </div>
                     </div>
                   );

@@ -37,7 +37,9 @@ const DAY_FULL = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Satur
 function When({ b }: { b: BookingFace }) {
   const d = new Date(b.startMs);
   const day = d.toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" });
-  const time = d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  // A clock time is 12-hour with AM or PM whatever the phone's region says
+  // (2026-10-05, the catalog gate: a 24-hour region drew "18:00").
+  const time = d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
   return <><span className="fact date">{day}</span><span className="fact date">{time}</span></>;
 }
 
@@ -186,7 +188,7 @@ export default function BookingPage({
       <LargeTitleNav title="Booking" back="Settings" onBack={onBack} />
       <Head label="Your Times" />
       <Card>
-        <Switch label="Available for Booking" meta={s.available ? lineCase(`${s.days.length} ${s.days.length === 1 ? "day" : "days"} a week`) : "Nobody can book you"} on={s.available} onToggle={() => set({ available: !s.available })} />
+        <Switch label="Available for Booking" meta={s.available ? lineCase(`${s.days.length} ${s.days.length === 1 ? "day" : "days"} a week`) : "Nobody Can Book You"} on={s.available} onToggle={() => set({ available: !s.available })} />
         <div className="row set-row">
           <div className="chip-row" role="group" aria-label="Days you take bookings">
             {DAYS.map((d, i) => (
@@ -215,7 +217,7 @@ export default function BookingPage({
         <div className="row">
           <div className="row-grow">
             <div className="conn-name">{WHO_LABEL.anyone}</div>
-            <div className="conn-meta">Not listed anywhere, only people you give it to can find it</div>
+            <div className="conn-meta">Not Listed Anywhere</div>
           </div>
         </div>
       </Card>
@@ -228,16 +230,15 @@ export default function BookingPage({
               {/* A link an older build published as named_contacts is still
                   stored that way, and the public page answers 404 to everyone
                   until it is republished (2026-10-04). */}
-              <div className="conn-meta">{link.visibility === "named_contacts" ? "Closed to everyone, republish to open it" : link.days > 0 ? lineCase(`Open ${link.days} ${link.days === 1 ? "day" : "days"} a week, tap to copy`) : "No hours set, nobody can book"}</div>
+              <div className="conn-meta">{link.visibility === "named_contacts" ? "Closed to Everyone, Republish to Open It" : link.days > 0 ? lineCase(`Open ${link.days} ${link.days === 1 ? "day" : "days"} a week, tap to copy`) : "No Hours Set, Nobody Can Book"}</div>
             </div>
           </div>
         ) : (
-          <div className="row">
-            <div className="row-grow">
-              <div className="conn-name">No Link Yet</div>
-              <div className="conn-meta">Publish your times to get an address you can give out</div>
-            </div>
-          </div>
+          // 2026-10-05 (the catalog gate): the title alone. The grey line under it
+          // told the person to publish, which the Publish My Times button right
+          // below already says. (A rendered check showed .empty-state stretches
+          // to fill a settings card, so the row stays a row.)
+          <div className="row"><div className="row-grow"><div className="conn-name">No Link Yet</div></div></div>
         )}
         {/* Not a row: a row in this app is a door, and this is a block
             holding one button. It takes the card's own padding instead. */}
@@ -250,7 +251,7 @@ export default function BookingPage({
           <DangerRow label="Take the Link Down" onClick={() => void takeDown()} disabled={busy} />
         )}
       </Card>
-      <Foot>Your times stay on this device. Publishing writes them to the booking server so the address above can offer them; taking the link down clears the hours and never cancels a booking you already have.</Foot>
+      <Foot>Your times stay on this device · Publishing writes them to the booking server so the address above can offer them · Taking the link down never cancels a booking you already have</Foot>
       <Head label="Days Off" />
       <Card>
         {daysOff.length > 0 ? daysOff.map((d) => (
@@ -260,12 +261,7 @@ export default function BookingPage({
             </div>
           </div>
         )) : (
-          <div className="row">
-            <div className="row-grow">
-              <div className="conn-name">No Days Off</div>
-              <div className="conn-meta">Your hours run every week you set them</div>
-            </div>
-          </div>
+          <div className="row"><div className="row-grow"><div className="conn-name">No Days Off</div></div></div>
         )}
         <div className="set-publish">
           <button type="button" className="btn btn-block" onClick={() => { setDayErr(null); setAddingDay(true); }} disabled={busy}>Add a Day Off</button>
@@ -288,12 +284,10 @@ export default function BookingPage({
                 </div>
               );
             }) : (
-              <div className="row">
-                <div className="row-grow">
-                  <div className="conn-name">Nobody Yet</div>
-                  <div className="conn-meta">{booked === null ? "Could not reach the booking server" : "Every booking also lands on your schedule"}</div>
-                </div>
-              </div>
+              // The Foot below already says every booking is on the schedule too, so
+              // an empty list says only that it is empty; a list that could not be
+              // asked says that instead (2026-10-05).
+              <div className="row"><div className="row-grow"><div className="conn-name">{booked === null ? "Could Not Reach the Booking Server" : "Nobody Yet"}</div></div></div>
             )}
           </Card>
           <Foot>These are on your schedule too, so you do not have to come back here to find them.</Foot>

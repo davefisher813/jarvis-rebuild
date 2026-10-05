@@ -583,7 +583,7 @@ export default function DeckFlow({ ai, apiFor, threads, queueSend, limitMs, onDo
             stays visible so the choice is about a thing he can see. */}
         {timeUp && (
           <div className="card pad deck-card sweep-timeup" role="dialog" aria-label="Time's up">
-            <div className="sweep-kicker-row"><span className="eyebrow">Session over</span></div>
+            <div className="sweep-kicker-row"><span className="eyebrow">Session Over</span></div>
             <div className="sweep-verb">{"Time\u2019s up \u00b7 " + (idx + 1) + " of " + hand.length}</div>
             <div className="deck-actions">
               <button className="btn btn-primary btn-block" onClick={() => { setTimeUp(false); setLastOne(true); }}>Finish This One</button>

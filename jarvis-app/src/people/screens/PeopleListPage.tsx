@@ -88,7 +88,7 @@ export default function PeopleListPage({
             csv must contain. "From your phone" was where to find a .vcf;
             the Name column is the thing that makes an import work, so the
             decoration goes and the requirement stays. 220 of 292 now. */}
-        <div className="r-k"><span className="r-goal r-cat">.vcf or .csv with a Name column</span></div>
+        <div className="r-k"><span className="r-goal r-cat">.vcf or .csv with a Name Column</span></div>
       </div>
     </div>
   );
@@ -166,7 +166,7 @@ export default function PeopleListPage({
                   ? "One contact has their own number in their notes as well"
                   : `${duplicateNotes} contacts have their own number in their notes as well`)}
               </div>
-              <div className="bp-sub">Left there by an old import</div>
+              <div className="bp-sub">Left There by an Old Import</div>
             </div>
             <button className="pill-act" onClick={onClearDuplicateNotes}>Clear Them</button>
           </div>
@@ -250,7 +250,11 @@ export default function PeopleListPage({
                 <div className="r-k">{p.data.relationship
                   ? <span className="r-goal r-cat">{p.data.relationship}</span>
                   : brainRolesOf(p).length > 0
-                    ? <span className="r-goal r-cat">{brainRolesOf(p).map(brainRoleLabel).join(" · ")}</span>
+                    // ONE RUN, SO A COMMA LIST (2026-10-05, the catalog hard
+                    // gate): the roles were joined with a middle dot typed into
+                    // the string, a separator CSS draws between facts and never
+                    // a character in the words (R6). They are one grey run.
+                    ? <span className="r-goal r-cat">{brainRolesOf(p).map(brainRoleLabel).join(", ")}</span>
                     : null}</div>
               </div>
               {CHEV}

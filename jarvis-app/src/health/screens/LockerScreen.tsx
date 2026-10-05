@@ -2,6 +2,7 @@ import { useState } from "react";
 import { LOCKER_DOC_KINDS, LOCKER_DOC_LABEL, currentDocs, expiringDocs } from "../locker";
 import type { LockerDocEntry, LockerDocKind } from "../types";
 import { pressable } from "../../shared/pressable";
+import { shortDate } from "../../shared/dateFormat";
 
 // THE LOCKER (Part 8). Document storage with expiry tracking. Zero medical
 // judgment, just storage: this screen never reads or shows what a document
@@ -67,7 +68,8 @@ export default function LockerScreen({
                 {/* The date itself is neutral, small caps (§AM F5). What it
                     means, lapsed or days left, is stated once, in its key
                     colour, on the Worth a Look row above. */}
-                {d.data.expiresAt && <div className="facts"><span className="fact date">Expires {d.data.expiresAt}</span></div>}
+                {/* 2026-10-05 (the catalog gate): the day is said in words ("Oct 10"), not as the ISO string the log is keyed by. */}
+                {d.data.expiresAt && <div className="facts"><span className="fact date">Expires {shortDate(d.data.expiresAt)}</span></div>}
               </div>
               {/* HMN-F-22 (2026-09-05): a document still in the pending
                   queue carries a placeholder id, so Remove on it deleted

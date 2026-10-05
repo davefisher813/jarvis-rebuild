@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { accountLabels, dayGroups, freshnessLine, senderOf, sizeLine, shortAccount, whenShort } from "./format";
+import { accountLabels, dayGroups, dotFacts, freshnessFacts, senderOf, sizeLine, shortAccount, updatedFacts, whenFacts, whenShort, whenWords } from "./format";
 import type { EmailAccount, InboxRow } from "./emailClient";
 
 const NOW = new Date("2026-10-03T15:00:00");
@@ -43,18 +43,37 @@ describe("sizes", () => {
 });
 
 describe("freshness", () => {
-  it("is the stalest good sync among the live accounts, with the count", () => {
-    const line = freshnessLine([
+  const texts = (f: { text: string }[]) => f.map((x) => x.text);
+  it("is the stalest good sync among the live accounts, with the count, as three facts and no middle dot", () => {
+    const f = freshnessFacts([
       account({ id: "a", last_sync_at: "2026-10-03T14:50:00" }),
       account({ id: "b", address: "work@example.test", last_sync_at: "2026-10-03T09:05:00" }),
       account({ id: "c", address: "old@example.test", state: "disconnected", last_sync_at: "2026-09-01T09:05:00" }),
     ], NOW);
-    expect(line).toMatch(/^Updated Today · 9:05/);
-    expect(line).toMatch(/2 Accounts$/);
+    expect(f.map((x) => x.text)).toEqual(["Updated Today", expect.stringMatching(/^9:05/), "2 Accounts"]);
+    // The day is the one grey, the clock is a neutral small-caps fact, the count is a white number with no state.
+    expect(f.map((x) => x.tone)).toEqual([undefined, "date", undefined]);
+    expect(f[2]!.strong).toBe(true);
+    for (const x of f) expect(x.text).not.toMatch(/\u00B7/);
   });
   it("says Not Synced Yet before the first good sync, and nothing with no live account", () => {
-    expect(freshnessLine([account({})], NOW)).toBe("Not Synced Yet · 1 Account");
-    expect(freshnessLine([account({ state: "disconnected" })], NOW)).toBe("");
+    expect(texts(freshnessFacts([account({})], NOW))).toEqual(["Not Synced Yet", "1 Account"]);
+    expect(freshnessFacts([account({ state: "disconnected" })], NOW)).toEqual([]);
+  });
+});
+
+describe("a time and a copy line are facts, never one string joined by middle dots (2026-10-05)", () => {
+  it("whenFacts is the day then the clock, both neutral small caps; whenWords is the same as one value for a table", () => {
+    const f = whenFacts("2026-10-03T09:12:00", NOW);
+    expect(f.map((x) => x.text)).toEqual(["Today", expect.stringMatching(/^9:12/)]);
+    expect(f.every((x) => x.tone === "date")).toBe(true);
+    expect(whenWords("2026-10-03T09:12:00", NOW)).toMatch(/^Today 9:12/);
+    expect(whenWords("2026-10-03T09:12:00", NOW)).not.toMatch(/\u00B7/);
+    expect(updatedFacts("2026-10-02T09:12:00", NOW).map((x) => x.text)[0]).toBe("Updated Yesterday");
+  });
+  it("dotFacts splits a copy constant at its dots: the first fact takes the tone, the rest are the one grey", () => {
+    expect(dotFacts("Gmail Accepted It \u00B7 Accepted Is Not Read", "good")).toEqual([{ text: "Gmail Accepted It", tone: "good" }, { text: "Accepted Is Not Read" }]);
+    expect(dotFacts("Offline")).toEqual([{ text: "Offline" }]);
   });
 });
 

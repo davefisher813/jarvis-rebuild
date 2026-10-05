@@ -54,8 +54,8 @@ function expectOneNode(el: Element | null, words: string) {
 
 describe("item 4: Training hint", () => {
   it("rackHint keeps its space in both units", () => {
-    expect(rackHint("lb")).toBe("In lb. A lift logged in the other unit is converted, both ways.");
-    expect(rackHint("kg")).toBe("In kg. A lift logged in the other unit is converted, both ways.");
+    expect(rackHint("lb")).toBe("In Lb \u00b7 A lift logged in the other unit is converted, both ways");
+    expect(rackHint("kg")).toBe("In Kg \u00b7 A lift logged in the other unit is converted, both ways");
   });
 
   it("renders as one text node, in a block, for lb and for kg", () => {
@@ -79,7 +79,7 @@ describe("item 7: Account, About, Brain", () => {
       <AuthProvider><NotesProvider userId="u-copy"><AccountPage onBack={() => {}} /></NotesProvider></AuthProvider>,
     );
     await waitFor(() => expect(container.querySelector(".account-sub")).not.toBeNull());
-    expectOneNode(container.querySelector(".account-sub"), "Personal plan");
+    expectOneNode(container.querySelector(".account-sub"), "Personal Plan");
   });
 
   it("About: the build label is one node and a real space stands between it and the date", () => {
@@ -101,7 +101,7 @@ describe("item 7: Account, About, Brain", () => {
     const { container } = render(<NotesProvider userId="u-brain"><BrainSettingsPage onBack={() => {}} /></NotesProvider>);
     expectOneNode(
       container.querySelector(".input-hint"),
-      "Decisions, Principles, Values, Writing Samples and Facts Are Deleted. Contacts Stay, but Their Roles Go Back to Unsorted.",
+      "Decisions, Principles, Values, Writing Samples and Facts Are Deleted \u00b7 Contacts Stay, but Their Roles Go Back to Unsorted",
     );
   });
 });
@@ -120,16 +120,16 @@ describe("item 5: Notifications foot and switch names", () => {
 
   it("a switch row is named once: the switch, described by its meta, and the row is not a second button", async () => {
     const { container } = render(<NotesProvider userId="u-n2"><NotificationsPage onBack={() => {}} /></NotesProvider>);
-    const sw = await screen.findByRole("switch", { name: "Overdue and due tasks" });
+    const sw = await screen.findByRole("switch", { name: "Overdue and Due Tasks" });
     // Exactly one control carries that name.
-    expect(screen.getAllByRole("switch", { name: "Overdue and due tasks" })).toHaveLength(1);
-    expect(screen.queryAllByRole("button", { name: /Overdue and due tasks/ })).toHaveLength(0);
+    expect(screen.getAllByRole("switch", { name: "Overdue and Due Tasks" })).toHaveLength(1);
+    expect(screen.queryAllByRole("button", { name: /Overdue and Due Tasks/ })).toHaveLength(0);
     const row = sw.closest(".set-row")!;
     expect(row.getAttribute("role")).toBeNull();
     expect(row.getAttribute("tabindex")).toBeNull();
     // The description is the row's own meta line, by id, not a copy of it.
     const described = sw.getAttribute("aria-describedby")!;
-    expect(container.ownerDocument.getElementById(described)!.textContent).toBe("On the Notifications tab, not a lock-screen alert");
+    expect(container.ownerDocument.getElementById(described)!.textContent).toBe("On the Notifications Tab, Not a Lock-Screen Alert");
     // No accessible name in the whole page says the same words twice.
     for (const s of screen.getAllByRole("switch")) {
       const name = s.getAttribute("aria-label")!;

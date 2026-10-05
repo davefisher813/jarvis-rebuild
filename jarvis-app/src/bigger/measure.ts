@@ -9,7 +9,7 @@ import type { MetricLog } from "../gym/metrics";
 import type { MetricMeasure } from "../gym/metricGoals";
 import { metricMeasureState } from "../gym/metricGoals";
 import { daysBetween } from "../upnext/upnext";
-import { lineCase } from "../shared/casing";
+import { lineCase, capAfterNumber } from "../shared/casing";
 import { clearsDoneAutomatically } from "./doneClearing";
 import type { PaceTone } from "./progress";
 
@@ -219,7 +219,7 @@ export function measureState(m: Measure | undefined, ctx: MeasureContext): Measu
       if (age < COMMIT_DAYS) {
         if (done > 0) return lineCase(`${done} done already`);
       } else {
-        return lineCase(`${target - done} to go`);
+        return capAfterNumber(lineCase(`${target - done} to go`)); // "11 To Go" (2026-10-05)
       }
     }
     return lineCase(`${done} of ${target} done`);

@@ -77,7 +77,7 @@ export default function WindowsSheet({
         <div className="sheet-handle" />
         <div className="grp"><div className="eyebrow">Email Windows</div></div>
         <div className="pad-x sheet-form">
-          <div className="p3-q">Email opens only in these windows</div>
+          <div className="p3-q">Email Opens Only in These Windows</div>
           <div className="plan-sub">Outside them the tab rests. Open Anyway always works, and VIPs always show.</div>
 
           {/* row-tap: seven day chips in a strip, each its own toggle; no item behind it */}

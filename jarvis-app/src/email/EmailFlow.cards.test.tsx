@@ -142,7 +142,9 @@ describe("E07: the rules read the loaded rows", () => {
     expect(cardEls().length).toBe(2);
     const bill = cardFor("bill")!;
     expect(bill).toHaveTextContent("$142.30");
-    expect(bill).toHaveTextContent("Due Oct 15 · Con Edison");
+    // 2026-10-05: the facts are separate spans, the dot is the stylesheet's; a later due date is a neutral small-caps fact, the issuer the one grey.
+    expect([...bill.querySelectorAll(".conn-meta .fact")].map((f) => f.textContent)).toEqual(["Due Oct 15", "Con Edison"]);
+    expect(bill.querySelector(".fact.date")).toHaveTextContent("Due Oct 15");
     expect(within(bill).getByText("Save Bill")).toBeEnabled();
     expect(within(bill).getByText("Money")).toBeInTheDocument();
     expect(cardFor("waiting")).toHaveTextContent("Peña's Transcript");
@@ -183,7 +185,8 @@ describe("E09, E11: one tap, one record, one receipt, and Undo", () => {
     expect(prepared.display_summary).toBe("Con Edison · $142.30 · Due Oct 15");
     // The record exists now, in Money's shape, and only now.
     expect(r.world.items).toEqual([{ id: expect.any(String), entity_type: "money_bill", data: prepared.data }]);
-    expect(document.querySelector(".email-receipt-line")).toHaveTextContent("Saved Bill · $142.30");
+    expect([...document.querySelectorAll(".email-receipt-line .fact")].map((f) => f.textContent)).toEqual(["\u2713 Saved Bill", "$142.30"]);
+    expect(document.querySelector(".email-receipt-line .fact.good")).toHaveTextContent("Saved Bill");
     expect(within(document.querySelector(".email-receipt-line") as HTMLElement).getByText(VIEW_RECEIPT)).toBeInTheDocument();
     expect(cardFor("bill")).toBeNull();
     expect(document.querySelectorAll(".sheet-scrim").length).toBe(0);
@@ -268,7 +271,8 @@ describe("two cards, dismiss, a changed email, a shut module", () => {
     mount(r);
     await waitFor(() => expect(cardFor("task")).toBeTruthy());
     const bill = cardFor("bill")!;
-    expect(bill).toHaveTextContent("Money Isn't Ready · Your Bill Is Still Here");
+    expect([...bill.querySelectorAll(".conn-meta")].map((l) => [...l.querySelectorAll(".fact")].map((f) => f.textContent))).toEqual([["Due Oct 15", "Con Edison"], ["Money Isn't Ready"]]);
+    expect(bill.querySelector(".fact.warn")).toHaveTextContent("Money Isn't Ready");
     expect(within(bill).getByText("Save Bill")).toBeDisabled();
     expect(within(cardFor("task")!).getByText("Add Task")).toBeEnabled();
     expect(r.calls.filter((c) => c.fn === "capture_approve")).toEqual([]);

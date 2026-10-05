@@ -73,7 +73,8 @@ describe("Today's Email rows (12, E15, T1)", () => {
     expect(rows.map((r) => `${r.kind}:${r.id}`)).toEqual(["review:review", "task:t-over", "waiting:w-over", "task:t-today", "waiting:w-today", "event:e-today"]);
     expect(rows[1]!.facts).toEqual([{ text: "Was Due Oct 1", tone: "red" }]);
     expect(rows[3]!.facts).toEqual([{ text: "Due Today", tone: "warn" }]);
-    expect(rows[4]!.facts).toEqual([{ text: "Waiting On Coach Miller" }, { text: "Follow Up Today", tone: "warn" }]);
+    // The toned fact leads and the free-text name is last: a facts line ellipsizes only its last fact.
+    expect(rows[4]!.facts).toEqual([{ text: "Follow Up Today", tone: "warn" }, { text: "Waiting On Coach Miller" }]);
     expect(rows[5]!.facts).toEqual([{ text: "10:00 AM to 10:15 AM", tone: "date" }]);
   });
   it("five at most including the count: 0, 1, 3, 5 and 8 eligible items", () => {

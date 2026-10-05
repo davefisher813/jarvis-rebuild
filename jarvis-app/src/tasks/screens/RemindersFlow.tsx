@@ -287,7 +287,10 @@ export default function RemindersFlow({ chrome, onOpenEntity, openId, onOpened, 
           onSave={(p) => void saveSettings(p)} onTest={() => void sendTest()} onCancel={() => setSettingsOpen(false)} />
       )}
       {confirmDelete && (
-        <RowActionSheet title="Delete this reminder? What it links to stays." onCancel={() => setConfirmDelete(null)}
+        // A sheet's title is an 11px caps label, never two sentences (the
+        // 2026-09-26 caps ruling): "Delete this reminder? What it links to
+        // stays." is one Title Case phrase now (2026-10-05).
+        <RowActionSheet title="Delete This Reminder, Not What It Links to" onCancel={() => setConfirmDelete(null)}
           actions={[{ label: "Delete Reminder", destructive: true, onPick: () => void remove(confirmDelete) }]} />
       )}
     </>

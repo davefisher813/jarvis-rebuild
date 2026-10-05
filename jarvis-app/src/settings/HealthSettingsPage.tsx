@@ -77,7 +77,7 @@ export default function HealthSettingsPage({ onBack, onEnableWater, doors = [], 
         <>
           <Head label="Reminders" />
           <Card>
-            <Switch label="Workout Reminder" meta={workoutReminder ? "Every day, on your reminders" : "One reminder, at a time you choose"} on={!!workoutReminder}
+            <Switch label="Workout Reminder" meta={workoutReminder ? "Every Day, on Your Reminders" : "One Reminder, at a Time You Choose"} on={!!workoutReminder}
               onToggle={() => onWorkoutReminder(workoutReminder ? null : "17:30")} />
             {workoutReminder && (
               <div className="row set-row" onClick={focusField}>
@@ -91,15 +91,15 @@ export default function HealthSettingsPage({ onBack, onEnableWater, doors = [], 
       )}
       <Head label="Session" />
       <Card>
-        <Switch label="Rest Timer Sound" meta="Three notes when the rest is over" on={s.restSound} onToggle={() => set({ restSound: !s.restSound })} />
+        <Switch label="Rest Timer Sound" meta="Three Notes When the Rest Is Over" on={s.restSound} onToggle={() => set({ restSound: !s.restSound })} />
         {/* A lock-screen alert is the native app's own; the web build never
             schedules one, so there the switch would change nothing (2026-10-04). */}
-        {Capacitor.isNativePlatform() && <Switch label="Rest Notification" meta="A buzz on the lock screen when the rest is over" on={s.restNotify} onToggle={() => set({ restNotify: !s.restNotify })} />}
-        <Switch label="Last Time on Every Set" meta="Last session beside each set, with tap-to-match" on={showLast} onToggle={toggleShowLast} />
-        <Switch label="Celebrations" meta="The PR mark, and New Best on the receipt" on={s.celebrations} onToggle={() => set({ celebrations: !s.celebrations })} />
+        {Capacitor.isNativePlatform() && <Switch label="Rest Notification" meta="A Buzz on the Lock Screen When the Rest Is Over" on={s.restNotify} onToggle={() => set({ restNotify: !s.restNotify })} />}
+        <Switch label="Last Time on Every Set" meta="Last Session Beside Each Set, with Tap-to-Match" on={showLast} onToggle={toggleShowLast} />
+        <Switch label="Celebrations" meta="The PR Mark, and New Best on the Receipt" on={s.celebrations} onToggle={() => set({ celebrations: !s.celebrations })} />
         {/* Part 3 wave 5: the progression engine's mode, easy to change. Two
             modes since 2026-10-04: Program did what Manual does. */}
-        <Menu label="Progression" meta={s.progression === "assisted" ? "A next target from your completed sets, with its basis on tap" : "No suggestions"}
+        <Menu label="Progression" meta={s.progression === "assisted" ? "A Next Target from Your Completed Sets, with Its Basis on Tap" : "No Suggestions"}
           value={s.progression} ariaLabel="Progression"
           options={[{ value: "assisted", label: "Assisted" }, { value: "manual", label: "Manual" }]}
           onPick={(v) => set({ progression: v === "manual" ? "manual" : "assisted" })} />
@@ -118,7 +118,7 @@ export default function HealthSettingsPage({ onBack, onEnableWater, doors = [], 
             onChange={(e) => { setHighIn(e.target.value); commitBand(Number(lowIn), Number(e.target.value)); }}
             onBlur={() => setHighIn(String((readHealthSettings().volumeBand ?? HARD_SET_RANGE).high))} />
         </div>
-        {s.volumeBand && <Row label="Use the Studied Range" meta={`${HARD_SET_RANGE.low} to ${HARD_SET_RANGE.high} working sets per muscle per week`} onClick={useStudied} />}
+        {s.volumeBand && <Row label="Use the Studied Range" meta={`${HARD_SET_RANGE.low} to ${HARD_SET_RANGE.high} Working Sets per Muscle per Week`} onClick={useStudied} />}
       </Card>
       <div className="pad-x"><div className="input-hint">{s.volumeBand ? "Your band, the one Weekly Volume compares against" : `The studied range, ${HARD_SET_RANGE.source}`}</div></div>
       <Head label="Rack" />

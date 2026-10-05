@@ -140,7 +140,7 @@ describe("the scope line", () => {
   it("says how many and where it looked, and offers to widen it", () => {
     const onAll = vi.fn();
     hdr({ query: "bridge", scope: { count: 2, where: "Active projects", onAll, allLabel: "Search all projects" } });
-    expect(screen.getByText("2 results in Active projects")).toBeInTheDocument();
+    expect(screen.getByText("2 Results in Active projects")).toBeInTheDocument();
     fireEvent.click(screen.getByText("Search all projects"));
     expect(onAll).toHaveBeenCalled();
     cleanup();
@@ -148,14 +148,14 @@ describe("the scope line", () => {
 
   it("counts one result as one result", () => {
     hdr({ query: "x", scope: { count: 1, where: "All notes" } });
-    expect(screen.getByText("1 result in All notes")).toBeInTheDocument();
+    expect(screen.getByText("1 Result in All notes")).toBeInTheDocument();
     cleanup();
   });
 
   // The view is already everything, so there is nothing to widen to.
   it("drops the widen control when it would be a no-op", () => {
     hdr({ query: "x", scope: { count: 0, where: "All tasks" } });
-    expect(screen.getByText("0 results in All tasks")).toBeInTheDocument();
+    expect(screen.getByText("0 Results in All tasks")).toBeInTheDocument();
     expect(document.querySelector(".hdr-scope-all")).toBeNull();
     cleanup();
   });
@@ -222,7 +222,7 @@ describe("the filter line", () => {
   // One line, one job: a search already says its own scope there.
   it("yields to the search scope while a search is running", () => {
     hdr({ query: "x", filters: { label: "Personal", onClear: () => {} }, scope: { count: 2, where: "All tasks" } });
-    expect(screen.getByText("2 results in All tasks")).toBeInTheDocument();
+    expect(screen.getByText("2 Results in All tasks")).toBeInTheDocument();
     expect(screen.queryByText("Personal")).toBeNull();
     cleanup();
   });

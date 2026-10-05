@@ -345,6 +345,13 @@ export default function GoalDetailPage({
       {target && onAddSavings && (
         <>
           <div className="sh2 sh2-quiet"><span className="t">Savings</span>{goal.data.saved && goal.data.saved.length > 0 && <span className="n">{goal.data.saved.length}</span>}</div>
+          {/* AN ACTION NEVER SITS IN A BOX (Dave 2026-10-05): with nothing saved
+              yet there is no list to group, so no card, only the capsule. */}
+          {(goal.data.saved?.length ?? 0) === 0 ? (
+            <div className="notice-clear-row">
+              <button className="row-act" onClick={() => { setSavingsAmt(""); setSavingsOpen(true); }}>Add to Savings</button>
+            </div>
+          ) : (
           <div className="pad-x"><div className="card list-card-ruled">
             {savedRows(goal.data.saved).slice(0, savingsAll ? undefined : 5).map(({ entry: e, index }) => {
               const open = () => { if (onEditSavings || onRemoveSavings) setSavingsRow({ index, step: "menu" }); };
@@ -365,6 +372,7 @@ export default function GoalDetailPage({
             )}
             <button className="row row-act" onClick={() => { setSavingsAmt(""); setSavingsOpen(true); }}>Add to Savings</button>
           </div></div>
+          )}
         </>
       )}
 
@@ -391,6 +399,14 @@ export default function GoalDetailPage({
       )}
 
       <div className="sh2 sh2-quiet"><span className="t">Projects</span>{projects.length > 0 && <span className="n">{projects.length}</span>}</div>
+      {/* AN ACTION NEVER SITS IN A BOX (Dave 2026-10-05): a goal with no
+          projects, whose page does not already offer the bottom Add a
+          Project, has no list to group, so no card, only the capsule. */}
+      {projects.length === 0 && !bottomAddsProject ? (
+        <div className="notice-clear-row">
+          <button className="row-act" onClick={onAddProject}>Add Project</button>
+        </div>
+      ) : (
       <div className="pad-x"><div className="card list-card-ruled">
         {projects.map((p) => {
           const row: ProjectRow = rowOf?.(p.id) ?? { project: p, progress: null, stalled: false, lastAt: null };
@@ -417,6 +433,7 @@ export default function GoalDetailPage({
             the trip. */}
         {!bottomAddsProject && <button className="row row-act" onClick={onAddProject}>Add Project</button>}
       </div></div>
+      )}
 
       {movingProject && onMoveProject && (
         <RowActionSheet title="Move to Goal" onCancel={() => setMoveFor(null)} actions={[
@@ -462,7 +479,7 @@ export default function GoalDetailPage({
         if (savingsRow.step === "menu") {
           return (
             <RowActionSheet
-              title={`${formatMoney(entry.amount)} on ${monthDay(entry.d)}`}
+              title={`Saved ${formatMoney(entry.amount)} on ${monthDay(entry.d)}`}
               actions={[
                 ...(onEditSavings ? [{ label: "Edit Amount", onPick: () => { setSavingsEditAmt(String(entry.amount)); setSavingsRow({ index: savingsRow.index, step: "edit" }); } }] : []),
                 ...(onRemoveSavings ? [{ label: "Remove Entry", destructive: true, onPick: () => setSavingsRow({ index: savingsRow.index, step: "remove" }) }] : []),

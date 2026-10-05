@@ -127,7 +127,7 @@ describe("HealthSettingsPage: a Rack control never rolls back a sibling's value"
   it("Last Time off, then the Rack Unit and Bar Weight: both land and Last Time stays off", () => {
     render(<HealthSettingsPage onBack={() => {}} />);
     fireEvent.click(screen.getByRole("switch", { name: "Last Time on Every Set" }));
-    fireEvent.click(screen.getByText("kg", { selector: ".chip" }));
+    fireEvent.click(screen.getByText("Kg", { selector: ".chip" }));
     fireEvent.change(screen.getByLabelText("Bar Weight"), { target: { value: "20" } });
     expect(readGymSettings()).toMatchObject({ rackUnit: "kg", barWeight: 20, showLast: false });
   });
@@ -142,7 +142,7 @@ describe("HealthSettingsPage: progression", () => {
     expect(screen.getAllByRole("menuitemradio").map((o) => o.textContent)).toEqual(["Assisted", "Manual"]);
     fireEvent.click(screen.getByRole("menuitemradio", { name: "Manual" }));
     expect(readHealthSettings().progression).toBe("manual");
-    expect(screen.getByText("No suggestions")).toBeInTheDocument();
+    expect(screen.getByText("No Suggestions")).toBeInTheDocument();
   });
 
   it("a Program stored before this reads as Manual on the page", () => {

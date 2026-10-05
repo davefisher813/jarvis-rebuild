@@ -77,7 +77,12 @@ export interface StartAction {
   /** The row and card launch label. */
   launchLabel: "Start" | "Resume" | "Unblock";
   /** One line under the name saying what is ready, for the list and the top
-   *  card. A fragment, and never a promise the action cannot keep. */
+   *  card. A fragment, and never a promise the action cannot keep.
+   *  EMPTY WHEN NOTHING IS READY YET (2026-10-05, the one-grey law): "Start
+   *  the Message" and "Start by Naming the First Step" said what the Start
+   *  button already says, a line that states the action the row already is.
+   *  A row with nothing to say shows nothing, and the card prints the line
+   *  only when it is not empty. */
   ready: string;
   /** Present when the primary action navigates to a real record. */
   destination?: StartDestination;
@@ -336,7 +341,7 @@ export function startAction(target: StartTarget, ctx: StartContext = {}): StartA
       headline: "Review a Prepared Message",
       verb: "Save Draft",
       launchLabel: "Start",
-      ready: lines.length > 0 ? "Editable Message Ready" : "Start the Message",
+      ready: lines.length > 0 ? "Editable Message Ready" : "",
       seed: lines.join("\n\n"),
       prompt: promptFor("comms", target.kind),
       sources: g?.sources ?? [],
@@ -359,7 +364,7 @@ export function startAction(target: StartTarget, ctx: StartContext = {}): StartA
     headline: "Name the First Step",
     verb: "Save First Step",
     launchLabel: "Start",
-    ready: machine ? "Capture the Error to Look At" : "Start by Naming the First Step",
+    ready: "",
     prompt: machine ? "Which error do you need to look at?" : promptFor(shape, target.kind),
     sources: [],
     missing: [],

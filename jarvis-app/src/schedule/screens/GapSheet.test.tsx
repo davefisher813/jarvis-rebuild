@@ -21,10 +21,22 @@ describe("GapSheet", () => {
   it("says what the gap is and lists the tasks that fit", () => {
     sheet();
     expect(screen.getByText("Schedule Something Here")).toBeInTheDocument();
-    expect(screen.getByText(/45 Min Open/)).toBeInTheDocument();
+    expect(document.querySelector(".facts .fact")!.textContent).toBe("45 Min Open");
     expect(screen.getByText(/12:15 PM to 1:00 PM/)).toBeInTheDocument();
     expect(screen.getByText("Call the dentist")).toBeInTheDocument();
     expect(screen.getByText("Update insurance docs")).toBeInTheDocument();
+  });
+
+  // THE CATALOG (Dave 2026-10-05): the gap line was one sub line with a dot typed
+  // into it and the length and the clock in the same grey.
+  it("the gap line is two facts the stylesheet separates: a white length and a small-caps clock, no typed dot", () => {
+    sheet();
+    const line = document.querySelector(".pad-x.sheet-form > .facts")!;
+    const facts = Array.from(line.querySelectorAll(".fact"));
+    expect(facts.map((f) => f.textContent)).toEqual(["45 Min Open", "12:15 PM to 1:00 PM"]);
+    expect(facts[0]!.querySelector("b")!.textContent).toBe("45 Min");
+    expect(facts[1]!.classList.contains("date")).toBe(true);
+    expect(line.textContent).not.toContain("\u00b7");
   });
 
   it("one tap on Book hands over that option", () => {

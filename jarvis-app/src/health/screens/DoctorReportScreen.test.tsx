@@ -55,3 +55,32 @@ describe("DoctorReportScreen choosers", () => {
     expect(onExport).toHaveBeenCalledTimes(1);
   });
 });
+
+// THE CATALOG, CHECKED ON WHAT THE SCREEN DRAWS (Dave 2026-10-05). The header
+// printed the report's own ISO dates in one sentence-case grey run with the
+// disclaimer, and each row's clock came from the phone's locale.
+describe("DoctorReportScreen: the catalog (2026-10-05)", () => {
+  const at = new Date(2026, 8, 3, 14, 5).getTime();
+  const withRows: DoctorReport = { ...report, rows: [{ date: "2026-09-03", at, kind: "dose", label: "Dose Logged" }] };
+
+  it("the window is one small-caps date fact in plain words, and the disclaimer is a note below the card", () => {
+    const { container } = render(<DoctorReportScreen {...base} kinds={[...base.kinds]} />);
+    const head = container.querySelector(".card.pad")!;
+    expect(head.querySelector(".fact.date")!.textContent).toBe("Aug 2 to Sep 13");
+    expect(head.textContent).not.toMatch(/\d{4}-\d{2}-\d{2}/);
+    const hint = container.querySelector(".input-hint")!;
+    expect(hint.textContent).toMatch(/^Not a medical record/);
+    expect(hint.closest(".card")).toBeNull();
+  });
+
+  it("a row's clock is 12-hour with AM or PM even where the phone's region is 24-hour", () => {
+    const orig = Date.prototype.toLocaleTimeString;
+    Date.prototype.toLocaleTimeString = function (loc?: string | string[], o?: Intl.DateTimeFormatOptions) { return orig.call(this, Array.isArray(loc) && loc.length === 0 ? "en-GB" : loc, o); };
+    try {
+      const { container } = render(<DoctorReportScreen {...base} kinds={[...base.kinds]} report={withRows} />);
+      const facts = Array.from(container.querySelectorAll(".row .fact.date")).map((f) => f.textContent ?? "");
+      expect(facts).toHaveLength(2);
+      expect(facts[1]).toMatch(/^\d{1,2}:\d{2}\s?(AM|PM)$/);
+    } finally { Date.prototype.toLocaleTimeString = orig; }
+  });
+});

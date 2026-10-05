@@ -705,10 +705,10 @@ html[data-theme="light"], html[data-theme="light"] body { background-color: #FFF
 .t-h3 { font-size: var(--t-h3); font-weight: var(--w-medium); line-height: var(--lh-default); }
 .t-body { font-size: var(--t-body); font-weight: var(--w-normal); line-height: var(--lh-relaxed); }
 .t-meta { font-size: var(--t-meta); font-weight: var(--w-normal); color: var(--tx-3); }
-/* 2026-09-28 (readable words red follow-up): Dave approved the thicker
-   subtext for the light theme only. 500 still read thin on his phone, so
-   the 600 weight rides the light theme and dark keeps 400. */
-[data-theme="light"] .t-meta { font-weight: var(--w-normal); } /* 2026-09-29: supporting text is 15/21 at 400 in the approved scale */
+/* 2026-10-05 (visual catalog gate): the light-only weight rule that stood
+   here restated the regular weight the line above already gives it, so it did
+   nothing today and was one edit from making the two themes differ in weight.
+   Removed; a weight is never set per theme (Dave 2026-10-04). */
 .eyebrow { font-size: var(--t-eyebrow); font-weight: var(--w-semi); text-transform: uppercase; letter-spacing: var(--track-eyebrow); color: var(--tx-3); }
 /* TASKS AUDIT 2026-08-29: an urgency tag riding beside the category on the
    same line, instead of fighting Start for the trailing slot. Its own font

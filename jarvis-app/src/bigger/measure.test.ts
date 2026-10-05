@@ -238,7 +238,7 @@ describe("to-date for new goals, to-go for committed ones (Life View pick 8)", (
   it("an established measure pulls with what is left", () => {
     const since = new Date(NOW - 40 * DAY).toISOString().slice(0, 10);
     const c = ctx({ reach, samples: [{ id: "x", t: NOW - DAY }] });
-    expect(measureState({ kind: "count", target: 12, since }, c)!.line).toBe("11 to Go");
+    expect(measureState({ kind: "count", target: 12, since }, c)!.line).toBe("11 To Go");
   });
   it("a young measure with nothing banked stays neutral, never a zero brag", () => {
     const since = new Date(NOW - 5 * DAY).toISOString().slice(0, 10);

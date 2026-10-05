@@ -48,7 +48,7 @@ describe("ConnectionsPage", () => {
   it("connects the first account, imports calendar, lists the account with its controls", async () => {
     render(wrap(<ConnectionsPage configured />));
     fireEvent.click(await screen.findByText("Connect Google"));
-    await waitFor(() => expect(screen.getByText("me@example.com connected. Imported 1 event.")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("me@example.com Connected · Imported 1 Event")).toBeInTheDocument());
     expect(screen.getByText("me@example.com")).toBeInTheDocument(); // account row
     expect(screen.getByText("Disconnect")).toBeInTheDocument();
     expect(screen.getByText("Add Google Account")).toBeInTheDocument(); // more can join
@@ -60,8 +60,8 @@ describe("ConnectionsPage", () => {
     await screen.findByText("me@example.com");
     fireEvent.click(screen.getByText("Disconnect"));
     // Armed two-tap (2026-08-09): first tap only arms.
-    fireEvent.click(screen.getByText("Tap again"));
-    await waitFor(() => expect(screen.getByText("me@example.com disconnected.")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("Tap Again"));
+    await waitFor(() => expect(screen.getByText("me@example.com Disconnected")).toBeInTheDocument());
     expect(screen.getByText("No Accounts Yet")).toBeInTheDocument();
   });
 });
@@ -172,9 +172,9 @@ describe("ConnectionsPage, a signed-out account", () => {
     expect(screen.queryByText(SIGNED_OUT_HELP)).toBeNull(); // signed in: no nagging
 
     fireEvent.click(screen.getByText("relaunch"));
-    await screen.findByText("Signed out");
+    await screen.findByText("Signed Out");
     expect(screen.getByText(SIGNED_OUT_HELP)).toBeInTheDocument();
-    expect(SIGNED_OUT_HELP).toMatch(/^Tap Reconnect to sign in again/);
+    expect(SIGNED_OUT_HELP).toMatch(/^Google Asks Once for Access/);
     expect(screen.getByText("Reconnect")).toBeInTheDocument();
   });
 });

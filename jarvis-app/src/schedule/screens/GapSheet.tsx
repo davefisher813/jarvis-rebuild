@@ -44,8 +44,13 @@ export default function GapSheet({
         <div className="sheet-handle" />
         <div className="grp"><div className="eyebrow">Schedule Something Here</div></div>
         <div className="pad-x sheet-form">
-          <div className="plan-sub">
-            {spanLabel(minutes)} Open &middot; {s.time} {s.ap} to {e.time} {e.ap}
+          {/* 2026-10-05 (the catalog gate): the gap is two facts and the stylesheet
+              draws the dot. It was one sub line with the dot typed into it
+              (R6), the length and the clock in the same grey (R1). The length
+              is white ink, the clock a neutral time in small caps (R8). */}
+          <div className="facts">
+            <span className="fact"><b>{spanLabel(minutes)}</b> Open</span>
+            <span className="fact date">{s.time} {s.ap} to {e.time} {e.ap}</span>
           </div>
           {options.length > 0 ? (
             <div className="card gap-offer">

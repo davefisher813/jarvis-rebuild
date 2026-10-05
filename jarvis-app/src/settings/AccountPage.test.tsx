@@ -58,8 +58,8 @@ describe("AccountPage Redo Setup (armed two-tap)", () => {
   it("one tap only arms: it says so, explains itself, and saves nothing", () => {
     renderPage();
     fireEvent.click(screen.getByText("Redo Setup"));
-    expect(screen.getByText("Tap again to redo setup")).toBeInTheDocument();
-    expect(screen.getByText(/Your data stays/)).toBeInTheDocument();
+    expect(screen.getByText("Tap Again to Redo Setup")).toBeInTheDocument();
+    expect(screen.getByText(/Your Data Stays/)).toBeInTheDocument();
     expect(profileSpy!.save).not.toHaveBeenCalled();
   });
 
@@ -67,10 +67,10 @@ describe("AccountPage Redo Setup (armed two-tap)", () => {
     vi.useFakeTimers();
     renderPage();
     fireEvent.click(screen.getByText("Redo Setup"));
-    expect(screen.getByText("Tap again to redo setup")).toBeInTheDocument();
+    expect(screen.getByText("Tap Again to Redo Setup")).toBeInTheDocument();
     act(() => { vi.advanceTimersByTime(4100); });
     expect(screen.getByText("Redo Setup")).toBeInTheDocument();
-    expect(screen.queryByText("Tap again to redo setup")).not.toBeInTheDocument();
+    expect(screen.queryByText("Tap Again to Redo Setup")).not.toBeInTheDocument();
     expect(profileSpy!.save).not.toHaveBeenCalled();
   });
 });
@@ -188,5 +188,26 @@ describe("AccountPage Change Password row", () => {
     expect(screen.getByLabelText("Current password")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
     expect(screen.queryByLabelText("Current password")).not.toBeInTheDocument();
+  });
+});
+
+// THE VISUAL CATALOG ON ACCOUNT (Dave 2026-10-05, "I am sick of this"). On a
+// build with a backend the page draws Status, Change Password and Delete
+// Account too, so it is read here, where that flag is on.
+describe("AccountPage follows the catalog", () => {
+  it("an active account is on track, so its Status value is the key's green fact", () => {
+    renderPage();
+    const status = [...document.querySelectorAll(".row")].find((r) => r.querySelector(".conn-name")?.textContent === "Status")!;
+    const value = status.querySelector(".row-value .fact")!;
+    expect(value.textContent).toBe("Active");
+    expect(value).toHaveClass("good");
+  });
+
+  it("the plan line under the name is Title Case, and no grey line on the page carries a typed dot", async () => {
+    const { container } = renderPage();
+    await waitFor(() => expect(container.querySelector(".account-sub")!.textContent).toBe("Personal Plan"));
+    for (const el of container.querySelectorAll(".conn-meta, .fact, .facts, .row-value, .account-sub")) {
+      expect(el.textContent, el.className).not.toContain("·");
+    }
   });
 });

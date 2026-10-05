@@ -66,14 +66,17 @@ describe("BookingPage", () => {
   it("says nobody yet when the link is live and unused", async () => {
     render(<BookingPage onBack={() => {}} {...published([])} />);
     expect(await screen.findByText("Nobody Yet")).toBeInTheDocument();
-    expect(screen.getByText(/lands on your schedule/)).toBeInTheDocument();
+    // The foot says every booking is on the schedule too, so the empty row
+    // does not say it a second time (2026-10-05, the catalog gate).
+    expect(screen.queryByText(/lands on your schedule/)).toBeNull();
+    expect(screen.getByText(/These are on your schedule too/)).toBeInTheDocument();
   });
 
   // Nobody having booked and not being able to ask are different facts, and
   // reading the second as the first tells him his link is dead when it is not.
   it("says it could not ask, rather than claiming nobody has booked", async () => {
     render(<BookingPage onBack={() => {}} {...published(null)} />);
-    expect(await screen.findByText(/Could not reach the booking server/)).toBeInTheDocument();
+    expect(await screen.findByText(/Could Not Reach the Booking Server/)).toBeInTheDocument();
   });
 
   it("does not ask about bookings on a link that does not exist yet", async () => {
@@ -214,7 +217,7 @@ describe("BookingPage", () => {
     for (const gone of ["Approved Contacts", "Your Connections", "Named Contacts", "Public Link"]) {
       expect(screen.queryByText(gone)).toBeNull();
     }
-    expect(screen.getByText("Anyone With the Link")).toBeInTheDocument();
+    expect(screen.getByText("Anyone with the Link")).toBeInTheDocument();
   });
 
   // The honest toast. "Live" means somebody can book on it.
@@ -248,7 +251,7 @@ describe("BookingPage", () => {
   it("says on the address row that a link an older build made named_contacts is closed", async () => {
     render(<BookingPage onBack={() => {}} {...noDays} readBookingsImpl={async () => []}
       readLinkImpl={async () => ({ slug: "wide-harbour", visibility: "named_contacts", days: 5 })} />);
-    expect(await screen.findByText(/Closed to everyone/)).toBeInTheDocument();
+    expect(await screen.findByText(/Closed to Everyone/)).toBeInTheDocument();
     expect(screen.queryByText(/tap to copy/)).toBeNull();
   });
 

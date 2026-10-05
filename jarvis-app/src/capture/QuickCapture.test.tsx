@@ -230,6 +230,23 @@ describe("QuickCapture receipt reads as facts (§AM)", () => {
   // gives way (a reminder's days and its project were being cut off).
   const receiptFacts = () => Array.from(document.querySelectorAll(".capture-saved .conn-meta > .fact"));
 
+  // THE CLOCK LAW (Dave 2026-10-05): 12-hour with AM or PM whatever the phone's region says.
+  it("a reminder's time is 12-hour with AM or PM even where the phone's region is 24-hour", async () => {
+    const orig = Date.prototype.toLocaleTimeString;
+    Date.prototype.toLocaleTimeString = function (loc?: string | string[], o?: Intl.DateTimeFormatOptions) { return orig.call(this, Array.isArray(loc) && loc.length === 0 ? "en-GB" : loc, o); };
+    try {
+      render(
+        <NotesProvider userId="u-receipt-remind-24h">
+          <QuickCapture ai={new AIService({ available: false })} onClose={() => {}} />
+        </NotesProvider>,
+      );
+      fireEvent.change(screen.getByPlaceholderText(/Paste or type/), { target: { value: "remind me to water the plants at 9pm" } });
+      fireEvent.click(screen.getByText("Capture"));
+      await waitFor(() => expect(screen.getByText("Saved")).toBeInTheDocument());
+      expect(receiptFacts().map((f) => f.textContent)[0]).toMatch(/^Reminder 9:00\sPM$/);
+    } finally { Date.prototype.toLocaleTimeString = orig; }
+  });
+
   it("a reminder says so beside its time, and every when is small caps", async () => {
     render(
       <NotesProvider userId="u-receipt-remind">
@@ -380,6 +397,26 @@ describe("QuickCapture receipt reads as facts (§AM)", () => {
     expect(facts.map((f) => f.className)).toEqual(["fact", "fact date"]);
     expect(facts[0]!.textContent).toBe("Note");
     expect(row.textContent).not.toContain("\u00b7");
+  });
+
+  // THE CLOCK LAW (Dave 2026-10-05): a recent capture's time is 12-hour with AM or PM in a 24-hour region too.
+  it("a recent capture's time says AM or PM even where the phone's region is 24-hour", async () => {
+    const orig = Date.prototype.toLocaleTimeString;
+    Date.prototype.toLocaleTimeString = function (loc?: string | string[], o?: Intl.DateTimeFormatOptions) { return orig.call(this, Array.isArray(loc) && loc.length === 0 ? "en-GB" : loc, o); };
+    try {
+      recordCapture({ id: "old-note-24h", kind: "note", title: "Locker code", ts: Date.now() - 60000 });
+      render(
+        <NotesProvider userId="u-recent-24h">
+          <QuickCapture ai={new AIService({ available: false })} onClose={() => {}} />
+        </NotesProvider>,
+      );
+      fireEvent.change(screen.getByPlaceholderText(/Paste or type/), { target: { value: "Renew the domain" } });
+      fireEvent.click(screen.getByText("Capture"));
+      await waitFor(() => expect(screen.getByText("Saved")).toBeInTheDocument());
+      const row = screen.getByText("Locker code").closest(".row")!;
+      // Today's captures show the clock; the clock must carry its meridiem.
+      expect(row.querySelector(".fact.date")!.textContent).toMatch(/^\d{1,2}:\d{2}\s?(AM|PM)$/);
+    } finally { Date.prototype.toLocaleTimeString = orig; }
   });
 });
 

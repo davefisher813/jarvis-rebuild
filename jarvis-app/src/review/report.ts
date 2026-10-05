@@ -46,7 +46,7 @@ export interface ReportSegment { id: string; name: string; color: string; n: num
 // with no target between them: the report says where the hours went and what
 // had none, and never which of those is the right answer.
 export interface TimeRow { id: string; name: string; color: string; label: string; pct: number;
-  // C-65 (Astra, 2026-09-12): "26% vs Usual 35%", beside the hours, only
+  // C-65 (Astra, 2026-09-12): "26% Vs Usual 35%", beside the hours, only
   // inside a report and only when the share moved against last month.
   vs?: string;
 }
@@ -177,7 +177,7 @@ export function deltaOf(now: number, prev: number | null, vs: string | null): { 
   if (prev == null) return null;
   const d = now - prev;
   if (d === 0) return { text: "Same", up: false };
-  if (d > 0) return { text: vs ? `+${d} vs ${vs}` : `+${d}`, up: true };
+  if (d > 0) return { text: vs ? lineCase(`+${d} vs ${vs}`) : `+${d}`, up: true };
   return { text: `${MINUS}${Math.abs(d)}`, up: false };
 }
 

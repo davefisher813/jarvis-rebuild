@@ -20,6 +20,16 @@ describe("TaskSheet", () => {
     expect(screen.queryByText("Delete Task")).not.toBeInTheDocument();
   });
 
+  // THE CATALOG HARD GATE (Dave 2026-10-05: the grey rectangle round "Add a
+  // Reminder"): with no checklist items there is no list to group, so the
+  // capsule stands alone and no card holds nothing but its label.
+  it("an empty checklist stands Add Item alone, not in a box", () => {
+    render(<TaskSheet mode="new" categories={CATS} onSave={() => {}} onCancel={() => {}} />);
+    const add = screen.getByRole("button", { name: "Add Item" });
+    expect(add.closest(".notice-clear-row")).not.toBeNull();
+    expect([...document.querySelectorAll(".card")].filter((c) => c.textContent?.trim() === "Add Item")).toHaveLength(0);
+  });
+
   it("blocks save on empty text, shows error, then saves trimmed", () => {
     const onSave = vi.fn();
     render(<TaskSheet mode="new" categories={CATS} onSave={onSave} onCancel={() => {}} />);

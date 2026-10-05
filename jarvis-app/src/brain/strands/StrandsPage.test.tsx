@@ -491,6 +491,13 @@ describe("What JARVIS Knows: leaving the form, and what a readiness row opens", 
     expect(dialog).toHaveTextContent("Waiting");
     expect(dialog).toHaveTextContent("4 of 10 Sessions");
     expect(dialog).toHaveTextContent("6 More Sessions to Go");
+    // THE CATALOG (Dave 2026-10-05): one facts line (a white count, then what is missing), not three
+    // grey lines; the rule behind the count sits behind a disclosure, in Title Case.
+    expect(dialog.querySelectorAll(".conn-meta")).toHaveLength(1);
+    expect(dialog.querySelector(".facts > .fact > b")!.textContent).toBe("4 of 10 Sessions");
+    expect(Array.from(dialog.querySelectorAll(".facts > .fact")).map((f) => f.textContent)).toEqual(["4 of 10 Sessions", "6 More Sessions to Go"]);
+    expect(dialog.querySelector("details .conn-meta")!.textContent).toBe("Needs 10 Sessions, with One 3-Hour Stretch Holding 40 Percent of Them");
+    expect(dialog.querySelector("details summary")!.textContent).toBe("How It Is Counted");
     // Not the insight form.
     expect(screen.queryByText("Something JARVIS Should Know About You")).not.toBeInTheDocument();
     // The way to add it yourself is one tap on from the detail.

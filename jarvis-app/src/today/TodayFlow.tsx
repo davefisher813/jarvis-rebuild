@@ -1171,7 +1171,7 @@ export default function TodayFlow({
     if (!ok) return;
     setRoutineData(after);
     showToast({
-      message: (removed?.label ?? "Block") + " deleted",
+      message: (removed?.label ?? "Block") + " Deleted", // Title Case after the name too (2026-10-05)
       actionLabel: "Undo",
       onAction: async () => { if (await attemptWrite(() => routine.save(before))) setRoutineData(before); },
     });
@@ -1358,7 +1358,7 @@ export default function TodayFlow({
     if (!(await attemptWrite(() => routine.save(after)))) return;
     setRoutineData(after);
     showToast({
-      message: (removed?.label ?? "Block") + " deleted",
+      message: (removed?.label ?? "Block") + " Deleted", // Title Case after the name too (2026-10-05)
       actionLabel: "Undo",
       onAction: async () => { if (await attemptWrite(() => routine.save(before))) setRoutineData(before); },
     });
@@ -1382,7 +1382,7 @@ export default function TodayFlow({
     if (cancelled) return;
     setSheet(null);
     await reload();
-    if (ok) showToast({ message: landed ? "Added to schedule" : "Couldn't find that task" });
+    if (ok) showToast({ message: landed ? "Added to Schedule" : "Couldn't Find That Task" }); // Title Case, as the Tasks tab says it (2026-10-05)
   };
 
 
@@ -2202,7 +2202,7 @@ export default function TodayFlow({
     writeDraft(next);
     setDayDraft(next);
     showToast({
-      message: "Plan cleared",
+      message: "Plan Cleared", // Title Case (2026-10-05)
       actionLabel: "Undo",
       onAction: () => {
         writeDraft(was);
@@ -2895,7 +2895,7 @@ export default function TodayFlow({
       setTuning(null);
       await reload();
       showToast({
-        message: "Booked " + fmtTime(b.start).time + fmtTime(b.start).ap,
+        message: "Booked " + fmtTime(b.start).time + " " + fmtTime(b.start).ap, // "3:00 PM", the one clock shape: it ran the AM/PM into the digits (2026-10-05)
         actionLabel: "Undo",
         onAction: async () => {
           await attemptWrite(async () => { for (const id of ids) await schedule.deleteEvent(id); });
@@ -3143,7 +3143,7 @@ export default function TodayFlow({
           weight={tuningWeight(tunings, "live-gym", LIVE)}
           icon={<BarbellGlyph />}
           tone="cat-fg-orange"
-          title={card.fresh ? `${card.dayName} is ready` : `Back to ${card.dayName}`}
+          title={card.fresh ? `${card.dayName} Is Ready` : `Back to ${card.dayName}`}
           sub={liveFacts(card, card.left ?? card.elapsed, (card.left ?? card.elapsed) ? null : card.progress)}
           action={{ label: card.fresh ? "Start" : "Resume", go: true, onClick: () => onRestoreSpot?.("gym", gymCatId ?? "") }}
           // ROW-TAP (Dave 2026-09-15: "I want all rows clickable"): the body
@@ -3162,7 +3162,11 @@ export default function TodayFlow({
     // null and says nothing), and the one thing to start with.
     back ? (
       <button key="back" data-receipt className="receipt-line" onClick={() => setUpNextOpen(true)}>
-        <span className="rl-t">{back.title}. {back.gone ? back.gone + ". " : ""}{back.ask}</span>
+        {/* ONE PHRASE, NOT THREE SENTENCES (2026-10-05, the catalog hard gate).
+            The parts were joined with ". " and a capital, so the rendered line
+            ("Welcome Back. Start With One?") carried a sentence boundary the
+            short-copy rule bans in any drawn string. A comma joins them. */}
+        <span className="rl-t">{[back.title, back.gone, back.ask].filter(Boolean).join(", ")}</span>
         <span className="chev" />
       </button>
     ) : null,
@@ -4111,7 +4115,7 @@ export default function TodayFlow({
     if (!ok) return;
     const when = fmtTime(start);
     showToast({
-      message: `Tomorrow at ${when.time}${when.ap}`,
+      message: `Tomorrow at ${when.time} ${when.ap}`, // "9:00 AM", not "9:00AM" (2026-10-05)
       actionLabel: "Undo",
       onAction: async () => {
         await attemptWrite(async () => {
@@ -4177,7 +4181,7 @@ export default function TodayFlow({
       // written against. Purple is the app's reflective tone and this is the
       // reflective object.
       tone="cat-fg-purple"
-      title={`Your ${monthTitle(reportMonth)} is ready`}
+      title={`Your ${monthTitle(reportMonth)} Is Ready`}
       sub="Two Minutes"
       action={{ label: "Read", onClick: () => setReportOpen(true) }}
       // ROW-TAP (Dave 2026-09-15): the body opens the report.

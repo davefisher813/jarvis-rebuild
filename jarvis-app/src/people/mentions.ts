@@ -1,3 +1,5 @@
+import { fmtTime } from "../schedule/calendar";
+
 // WHO A PIECE OF WORK IS ABOUT (B1, audit 2026-08-21).
 //
 // The person card was a business card: a name, a phone, a couple of
@@ -130,4 +132,13 @@ export function openWith(
     out.push({ id: e.id, kind: "event", title: e.title, sub: e.date });
   }
   return out.slice(0, max);
+}
+
+/** "Reminds at 2:00 PM": the reminder's own words on a person's Still Open row,
+ *  so the row says why there is a time on it at all. The clock keeps its one
+ *  shape, a space before AM or PM ("2:00 PM"); it was written "2:00PM"
+ *  (2026-10-05, the catalog hard gate). */
+export function reminderAtLabel(hhmm: string): string {
+  const t = fmtTime(hhmm);
+  return `Reminds at ${t.time} ${t.ap}`;
 }

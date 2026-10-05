@@ -146,3 +146,36 @@ describe("the goal hero", () => {
     expect(screen.getByText("$0 of $2,000 Saved")).toBeInTheDocument();
   });
 });
+
+// THE CATALOG HARD GATE (Dave 2026-10-05: the grey rectangle round "Add a
+// Reminder"): an action never sits in a box. A goal with no projects and a goal
+// with nothing saved have no list to group, so the capsule stands alone and no
+// card holds nothing but its label.
+describe("the goal page: an empty list draws the capsule, not a box round it", () => {
+  const boxesHolding = (label: string) =>
+    [...document.querySelectorAll(".card, .list-card-ruled")].filter((c) => c.textContent?.trim() === label);
+
+  it("a goal with no projects stands Add Project alone", () => {
+    view({ id: "g3", data: { title: "Learn Spanish", state: "on_track" } });
+    expect(screen.getByRole("button", { name: "Add Project" })).toBeInTheDocument();
+    expect(boxesHolding("Add Project")).toHaveLength(0);
+    expect(screen.getByRole("button", { name: "Add Project" }).closest(".notice-clear-row")).not.toBeNull();
+  });
+
+  it("a savings goal with nothing saved stands Add to Savings alone, and with entries it is a row of the list", () => {
+    const withSaved = (saved: { d: string; amount: number }[]) => (
+      <GoalDetailPage
+        goal={{ id: "g4", data: { title: "Emergency Fund", state: "on_track", moneyTarget: 1000, saved } }}
+        reach={EMPTY} projects={[]} nextActionTextOf={() => null}
+        onBack={() => {}} onEdit={() => {}} onOpenProject={() => {}} onAddProject={() => {}} onAddSavings={() => {}}
+      />
+    );
+    const { unmount } = render(withSaved([]));
+    expect(screen.getByRole("button", { name: "Add to Savings" }).closest(".notice-clear-row")).not.toBeNull();
+    expect(boxesHolding("Add to Savings")).toHaveLength(0);
+    unmount();
+    render(withSaved([{ d: "2026-07-01", amount: 50 }]));
+    // A list with rows keeps the create as its last row.
+    expect(screen.getByRole("button", { name: "Add to Savings" }).closest(".list-card-ruled")).not.toBeNull();
+  });
+});

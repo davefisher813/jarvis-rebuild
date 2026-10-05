@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { LENGTHS, endsAt, ritualIsReady, whyNotReady, type Ritual } from "../startRitual";
+import { LENGTHS, endsAtLabel, ritualIsReady, whyNotReady, type Ritual } from "../startRitual";
+import { minutesLabel } from "../../shared/duration";
 import { FormSheet, Group, Row, FieldRow, MenuRow, Note, ErrorLine } from "../../shared/FormSheet";
 import { Clock, Hourglass, Zap } from "../../shared/icons";
 import { SunriseGlyph } from "../../shared/glyphs";
@@ -38,10 +39,14 @@ export default function RitualSheet({
       </Group>
       <Group label="Plan">
         <FieldRow tone="orange" glyph={<Clock className="ic" />} label="Starts" type="time" value={start} onChange={setStart} ariaLabel="Starts" />
-        <MenuRow tone="blue" glyph={<Hourglass className="ic" />} label="For" value={String(minutes)} word={minutes + "m"} ariaLabel="For"
-          options={LENGTHS.map((m) => ({ value: String(m), label: m + "m" }))} onPick={(v) => setMinutes(Number(v))} />
+        <MenuRow tone="blue" glyph={<Hourglass className="ic" />} label="For" value={String(minutes)} word={minutesLabel(minutes)} ariaLabel="For"
+          options={LENGTHS.map((m) => ({ value: String(m), label: minutesLabel(m) }))} onPick={(v) => setMinutes(Number(v))} />
       </Group>
-      {ready && <Note>Ends {endsAt(draft)}. Finishing is not the point.</Note>}
+      {/* A NOTE IS FRAGMENTS JOINED BY A DOT, AND A CLOCK IS 12-HOUR (2026-10-05, the
+          catalog hard gate). It read "Ends 09:45. Finishing is not the point.": a
+          24-hour time and two sentences with a boundary the short-copy rule bans.
+          Lengths say "25 Min", the one duration shape. */}
+      {ready && <Note>Ends {endsAtLabel(draft)} · Finishing Is Not the Point</Note>}
       <Group label="First Move">
         <FieldRow tone="green" glyph={<Zap className="ic" />} value={firstMove} onChange={setFirstMove} placeholder="e.g. open the template"
           ariaLabel="First move" error={touched && !!why} right={false} onEnter={set} />

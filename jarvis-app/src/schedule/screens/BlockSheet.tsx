@@ -200,7 +200,7 @@ export default function BlockSheet({
           ))}
         </Strip>
       </Group>
-      <ErrorLine text={err && !endInvalid ? "Needs a name · At least one day" : null} />
+      <ErrorLine text={err && !endInvalid ? "Needs a Name · At Least One Day" : null} />
       </>)}
       {(onEditFull || onDelete || onDay) && (
         <Group className="xs-actions">

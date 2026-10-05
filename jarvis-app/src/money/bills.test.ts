@@ -112,7 +112,7 @@ describe("payday anchoring", () => {
       bill({ text: "rent", bill: { amount: 1850 }, due: "2026-08-20" }), // after payday: out of window
     ], TODAY);
     expect(line!.title).toBe("Between Now and Friday");
-    expect(line!.sub).toBe("$1,200 in, $165 of Bills Out");
+    expect(line!.sub).toBe("$1,200 Coming in, $165 of Bills Out");
   });
 
   // HMN-F-10 (2026-09-05), option A. The line carried a fourth filter that
@@ -132,7 +132,7 @@ describe("payday anchoring", () => {
     });
     const line = paydayLine(p, [weekly], TODAY);
     expect(line).not.toBeNull();
-    expect(line!.sub).toBe("$1,200 in, $500 of Bills Out");
+    expect(line!.sub).toBe("$1,200 Coming in, $500 of Bills Out");
     // And it agrees with the hero, which counts by the same one rule
     // (MoneyFlow.tsx: unpaid, dated, due on or before payday).
     const heroOut = [weekly]

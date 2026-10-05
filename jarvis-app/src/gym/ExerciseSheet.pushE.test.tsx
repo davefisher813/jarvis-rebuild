@@ -85,12 +85,29 @@ describe("ExerciseSheet: Rest After the Round", () => {
     expect(screen.queryByText("Rest After the Round")).toBeNull();
     rerender(<ExerciseSheet mode="edit" initial={existing} library={[]} history={[]} onSave={onSave} onCancel={() => {}} onPairWith={() => {}} partner="Row" />);
     expect(screen.getByText("Rest After the Round")).toBeInTheDocument();
-    expect(screen.getByText("Rest after every set")).toBeInTheDocument();
+    expect(screen.getByText("Rest After Every Set")).toBeInTheDocument();
     save();
     expect(onSave.mock.calls[0]![0]).not.toHaveProperty("roundRestSec");
     fireEvent.click(screen.getByRole("button", { name: "Rest After the Round" }));
     fireEvent.click(screen.getByRole("menuitemradio", { name: "1:00" }));
     save();
     expect(onSave.mock.calls[1]![0].roundRestSec).toBe(60);
+  });
+});
+
+// THE CATALOG, CHECKED ON WHAT THE SHEET DRAWS (Dave 2026-10-05): every meta line under a row is
+// Title Case ("Varies by Set", "Offered During a Pair's Rest"), not the sentence case they were
+// written in.
+describe("ExerciseSheet: the meta lines follow the catalog (2026-10-05)", () => {
+  const SMALL = new Set(["a", "an", "and", "at", "by", "for", "from", "in", "of", "on", "or", "the", "to", "with"]);
+  const lowercaseWords = (t: string) => t.split(/\s+/).slice(1).filter((w) => /^[a-z]{2,}$/.test(w) && !SMALL.has(w));
+
+  it("a lift's meta lines, including Filler's and a varying strip's, are Title Case", () => {
+    const varying: Exercise = { ...existing, sets: [{ id: "s1", w: 50, r: 10 }, { id: "s2", w: 60, r: 8 }] };
+    render(<ExerciseSheet mode="edit" initial={varying} library={[]} history={[]} onSave={() => {}} onCancel={() => {}} />);
+    const metas = Array.from(document.querySelectorAll(".conn-meta")).map((m) => m.textContent ?? "");
+    expect(metas).toContain("Offered During a Pair's Rest");
+    expect(metas).toContain("Varies by Set");
+    for (const t of metas) expect(lowercaseWords(t), t).toEqual([]);
   });
 });

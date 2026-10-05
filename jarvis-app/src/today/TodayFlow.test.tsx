@@ -474,7 +474,7 @@ describe("TodayFlow: Plan My Day carries the same brain Schedule's does (UP-MIND
     fireEvent.click(screen.getByRole("button", { name: "Clear This Plan" }));
     expect(screen.queryByRole("button", { name: "Clear This Plan" }), "the plan is cleared").toBeNull();
     const cleared = showToast.mock.calls.map((c) => c[0] as { message: string; actionLabel?: string; onAction?: () => void })
-      .find((t) => t.message === "Plan cleared");
+      .find((t) => t.message === "Plan Cleared");
     expect(cleared, "clearing the plan says so").toBeTruthy();
     expect(cleared!.actionLabel).toBe("Undo");
     await act(async () => { cleared!.onAction!(); });

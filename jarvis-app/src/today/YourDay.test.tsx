@@ -302,7 +302,7 @@ describe("Merge B: Now as the head", () => {
         now="12:18" nowLabel="12:18" onSeeAll={() => {}}
         nowHead={<div>head</div>} />,
     );
-    expect(screen.getByText("Nothing else scheduled")).toBeInTheDocument();
+    expect(screen.getByText("Nothing Else Scheduled")).toBeInTheDocument();
   });
 });
 

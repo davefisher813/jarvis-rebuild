@@ -158,7 +158,7 @@ export default function ProjectDetailPage({
         {steps.length > 0 && (
           <div className="proj-prog">
             <div className="proj-prog-bar"><span style={{ width: `${Math.round((doneSteps.length / steps.length) * 100)}%` }} /></div>
-            <div className="conn-meta">{doneSteps.length} of {steps.length} done</div>
+            <div className="conn-meta">{lineCase(`${doneSteps.length} of ${steps.length} done`)}</div>
           </div>
         )}
         {/* PICK 22 (Dave 2026-08-22): how big is this. Not a size someone
@@ -220,8 +220,8 @@ export default function ProjectDetailPage({
         {guessedArea && (
           <div className="row proj-guess" role="button" tabIndex={0} onClick={() => saveField({ category: guessedArea })}>
             <div className="row-grow">
-              <div className="conn-name">Set Area To {catName(guessedArea)}</div>
-              <div className="conn-meta">Most of this project&rsquo;s steps are already there.</div>
+              <div className="conn-name">Set Area to {catName(guessedArea)}</div>
+              <div className="conn-meta">Most of This Project&rsquo;s Steps Are Already There</div>
             </div>
             <span className={"cat-dot cat-bg-" + catColor(guessedArea)} />
           </div>
@@ -254,6 +254,17 @@ export default function ProjectDetailPage({
    work into a project looked like moving it somewhere else. The word is
    Tasks everywhere a reader can see it; the props keep their names. */}
           <div className="sh2 sh2-quiet"><span className="t">Tasks</span>{openSteps.length > 0 && <span className="n">{openSteps.length}</span>}</div>
+          {/* AN ACTION NEVER SITS IN A BOX (Dave 2026-10-05, the grey rectangle
+              round Add a Reminder). A project with no tasks has no list to
+              group, so there is no card: the labelled capsule stands alone
+              under the head. */}
+          {steps.length === 0 ? (
+            onAddStep && (
+              <div className="notice-clear-row">
+                <button className="row-act" onClick={() => { haptics.selection(); onAddStep(); }}>Add a Task</button>
+              </div>
+            )
+          ) : (
           <div className="pad-x"><div className="card list-card-ruled">
             {/* THE SHARED TASK ROW'S SHAPE (the rulings, 2026-09-02): the
                 check in its column, the name, and under it the chip and the
@@ -290,8 +301,11 @@ export default function ProjectDetailPage({
                 </div>
               );
             })}
+            {/* DONE IS GREEN, AND IT IS TITLE CASE (2026-10-05, the catalog hard
+                gate). It was a plain grey "Every task is done": a done state in
+                the one grey, the key's green drawn grey (§AM), in sentence case. */}
             {openSteps.length === 0 && steps.length > 0 && (
-              <div className="row"><div className="row-grow"><div className="conn-meta">Every task is done</div></div></div>
+              <div className="row"><div className="row-grow"><div className="facts"><span className="fact good">Every Task Is Done</span></div></div></div>
             )}
             {/* THE SAME DOOR AS EVERYWHERE (Dave 2026-09-02: "every place you
                 can add a task must render the add task modal"). This was an
@@ -302,6 +316,7 @@ export default function ProjectDetailPage({
               <button className="row row-act" onClick={() => { haptics.selection(); onAddStep(); }}>Add a Task</button>
             )}
           </div></div>
+          )}
           {doneSteps.length > 0 && (
             <div className="pad-x proj-done-fold">
               <button className="quiet-action" onClick={() => setDoneOpen(!doneOpen)}>
@@ -335,6 +350,13 @@ export default function ProjectDetailPage({
       {(linkedNotes.length > 0 || onAddNote) && (
         <>
           <div className="sh2 sh2-quiet"><span className="t">Linked Notes</span>{linkedNotes.length > 0 && <span className="n">{linkedNotes.length}</span>}</div>
+          {/* AN ACTION NEVER SITS IN A BOX (Dave 2026-10-05): with no linked
+              notes there is no list to group, so the capsule stands alone. */}
+          {linkedNotes.length === 0 ? (
+            <div className="notice-clear-row">
+              <button className="row-act" onClick={onAddNote}>Add a Note</button>
+            </div>
+          ) : (
           <div className="pad-x"><div className="card list-card-ruled">
             {linkedNotes.map((n) => (
               <div className="task-row p2 note-row" role={onOpenNote ? "button" : undefined} tabIndex={onOpenNote ? 0 : undefined} key={n.id} onClick={onOpenNote ? () => onOpenNote(n.id) : undefined}>
@@ -345,6 +367,7 @@ export default function ProjectDetailPage({
             ))}
             {onAddNote && <button className="row row-act" onClick={onAddNote}>Add a Note</button>}
           </div></div>
+          )}
         </>
       )}
       {/* EMAIL-F-19 (2026-09-05): the other half of N7's chip. He files a

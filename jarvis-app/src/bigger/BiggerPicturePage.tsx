@@ -463,7 +463,9 @@ export default function BiggerPicturePage({
           onView={setView}
           scope={qq ? {
             count: projectsLens ? lensRows.length : viewGoals.length,
-            where: `${(projectsLens ? PROJECT_VIEWS : GOAL_VIEWS).find((v) => v.key === view)?.label ?? "Active"} ${projectsLens ? "projects" : "goals"}`,
+            // Title Case, as Tasks says "Today Tasks" and Reminders "All
+            // Reminders": this read "Active projects" (2026-10-05).
+            where: `${(projectsLens ? PROJECT_VIEWS : GOAL_VIEWS).find((v) => v.key === view)?.label ?? "Active"} ${projectsLens ? "Projects" : "Goals"}`,
             ...(view !== "all" ? { onAll: () => setView("all"), allLabel: projectsLens ? "Search All Projects" : "Search All Goals" } : {}),
           } : undefined}
           // THE AREA, ON ITS OWN LINE (Dave 2026-09-17: "Make multiple
@@ -635,11 +637,13 @@ export default function BiggerPicturePage({
           // confirms; with nothing narrowing it, the row is a plain status line, with no chevron and no tap.
           view !== "all" || areaOnly
             ? {
+                // The value is ONE grey run, so its two answers are a comma
+                // list, not a middle dot baked into the string (R6, 2026-10-05).
                 key: "all", label: "Show Everything",
-                value: [(projectsLens ? PROJECT_VIEWS : GOAL_VIEWS).find((v) => v.key === view)?.label, areaOnly ? sections.find((c) => c.id === areaOnly)?.name ?? null : null].filter(Boolean).join(" \u00b7 "),
+                value: [(projectsLens ? PROJECT_VIEWS : GOAL_VIEWS).find((v) => v.key === view)?.label, areaOnly ? sections.find((c) => c.id === areaOnly)?.name ?? null : null].filter(Boolean).join(", "),
                 onClick: () => { setOptsOpen(false); setView("all"); setAreaOnly(null); showToast({ message: "Showing Everything" }); },
               }
-            : { key: "all", label: "Showing Everything", value: "All Statuses \u00b7 All Areas" },
+            : { key: "all", label: "Showing Everything", value: "All Statuses, All Areas" },
         ]} onClose={() => setOptsOpen(false)} />
       )}
     </div>

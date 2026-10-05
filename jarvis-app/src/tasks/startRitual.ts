@@ -1,4 +1,5 @@
 import { shortenToResponse, responseIsUsable, type IfThen } from "./ifThen";
+import { fmtTime } from "../schedule/calendar";
 
 // THE START RITUAL (C1, approved 2026-08-20).
 //
@@ -68,6 +69,14 @@ export function nextStart(nowHHMM: string): string {
 
 export function endsAt(r: Pick<Ritual, "startHHMM" | "minutes">): string {
   return fromMin(toMin(r.startHHMM) + r.minutes);
+}
+
+/** The same end time as a person reads it: "9:45 AM", never "09:45". endsAt stays
+ *  the HH:MM the arithmetic and the stored plan use; this is what the sheet
+ *  draws (2026-10-05, the catalog hard gate: clock times are 12-hour with AM/PM). */
+export function endsAtLabel(r: Pick<Ritual, "startHHMM" | "minutes">): string {
+  const t = fmtTime(endsAt(r));
+  return `${t.time} ${t.ap}`;
 }
 
 // TODAY-F-24 (2026-09-05): what a set ritual should write to the task's own

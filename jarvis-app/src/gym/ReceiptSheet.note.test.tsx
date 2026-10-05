@@ -50,3 +50,20 @@ describe("ReceiptSheet: the typed note survives every way out", () => {
     expect(onDone).toHaveBeenCalledWith("Left shoulder pinched on rows");
   });
 });
+
+// THE CATALOG, CHECKED ON WHAT THE RECEIPT DRAWS (Dave 2026-10-05, "45 min v 45 Min"): the
+// volume tile's unit and "Done N Times" are words behind a number and take a capital.
+describe("ReceiptSheet: units and counts follow the number rule (2026-10-05)", () => {
+  const done = (id: string) => ({ id, data: { programId: "p", dayId: "d", dayName: "Pull", date: "2026-09-01", startedAt: 1, endedAt: 2, exercises: [
+    { exerciseId: "x", name: "Band Pull-Aparts", kind: "done", sets: [{ id: "s1", done: true }] },
+  ] } }) as never;
+
+  it("the volume tile reads 'Lb Moved' and an exercise done three times reads 'Done 3 Times'", () => {
+    const { container } = render(
+      <ReceiptSheet dayName="Pull Day 1" receipt={{ ...receipt, doneNames: ["Band Pull-Aparts"] }} workouts={[done("a"), done("b"), done("c")]} onDone={() => {}} onRateSession={() => {}} onLogSoreSpot={() => {}} />,
+    );
+    const labels = Array.from(document.querySelectorAll(".stat-label")).map((l) => l.textContent);
+    expect(labels).toContain("Lb Moved");
+    expect(Array.from(container.ownerDocument.querySelectorAll(".conn-meta")).map((m) => m.textContent)).toContain("Done 3 Times");
+  });
+});

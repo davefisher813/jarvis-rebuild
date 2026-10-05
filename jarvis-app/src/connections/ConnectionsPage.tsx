@@ -14,7 +14,13 @@ import { flagOn } from "../substrate/flags";
 // account opens Google's chooser; reconnecting a known one uses a login hint
 // so the chooser stays out of the way. Honest "setup required" until a client
 // id exists.
-export const SIGNED_OUT_HELP = "Tap Reconnect to sign in again · Google asks once for access to Gmail, Calendar and Drive";
+// 2026-10-05 (the catalog gate, Dave "I am sick of this"). This line had a
+// middle dot typed into it and rendered in the row's meta line (§AM F3: the
+// separator is the stylesheet's, never a character in a string), it was
+// sentence case, and its first half ("Tap Reconnect to sign in again") said
+// what the Reconnect chip beside it, and the row's own tap, already are. What
+// is left is the one thing the row does not say: what Google will ask for.
+export const SIGNED_OUT_HELP = "Google Asks Once for Access to Gmail, Calendar and Drive";
 
 export default function ConnectionsPage({
   onBack,
@@ -52,7 +58,7 @@ export default function ConnectionsPage({
     try {
       setStatus(await work());
     } catch (e) {
-      setError((e as Error).message || "Something went wrong");
+      setError((e as Error).message || "Something Went Wrong");
     } finally {
       setBusy(false);
     }
@@ -96,15 +102,17 @@ export default function ConnectionsPage({
   // was zero, so a plain first connect still reads "Imported 12 events."
   const importLine = (s: { created: number; updated: number; removed: number }) => {
     const parts: string[] = [];
-    if (s.created > 0) parts.push("Imported " + s.created + (s.created === 1 ? " event." : " events."));
-    if (s.updated > 0) parts.push("Updated " + s.updated + (s.updated === 1 ? " event." : " events."));
-    if (s.removed > 0) parts.push("Removed " + s.removed + (s.removed === 1 ? " cancelled event." : " cancelled events."));
-    return parts.length > 0 ? " " + parts.join(" ") : "";
+    if (s.created > 0) parts.push("Imported " + s.created + (s.created === 1 ? " Event" : " Events"));
+    if (s.updated > 0) parts.push("Updated " + s.updated + (s.updated === 1 ? " Event" : " Events"));
+    if (s.removed > 0) parts.push("Removed " + s.removed + (s.removed === 1 ? " Cancelled Event" : " Cancelled Events"));
+    // Fragments joined by a dot, Title Case, no full stops: the receipt used
+    // to read "Imported 12 events. Updated 2 events." (2026-10-05).
+    return parts.length > 0 ? " \u00b7 " + parts.join(" \u00b7 ") : "";
   };
 
   const addAccount = () => run(async () => {
     const { api, email } = await g.addAccount();
-    return email + " connected." + importLine(await importCalendar(api, schedule));
+    return email + " Connected" + importLine(await importCalendar(api, schedule));
   });
 
   // Reconnect one account: silent first, so on an account that is already
@@ -112,13 +120,13 @@ export default function ConnectionsPage({
   // the account row.
   const reconnectOne = (email: string, signedOut: boolean) => run(async () => {
     await g.reconnect(email);
-    return email + (signedOut ? " reconnected." : " is connected.");
+    return email + (signedOut ? " Reconnected" : " Connected");
   });
 
   const reconnectAll = () => run(async () => {
     await g.connect();
     for (const { api } of g.apis("cal")) await importCalendar(api, schedule).catch(() => {});
-    return "Connected.";
+    return "Connected";
   });
 
   const leave = useLeaveVia("Settings", () => onBack?.());
@@ -141,8 +149,8 @@ export default function ConnectionsPage({
       {!configured && (
         <div className="pad-x"><div className="card list-card-ruled"><div className="empty-state">
           <div className="empty-icon"><Link2 className="ic" /></div>
+          {/* The grey line under it said the title again (2026-10-05). */}
           <div className="empty-title">Google Setup Required</div>
-          <div className="empty-sub">Needs Google setup first</div>
         </div></div></div>
       )}
 
@@ -161,14 +169,15 @@ export default function ConnectionsPage({
             // account detail, so the row does the one safe verb, Reconnect.
             // Disconnect stays on its own armed chip.
             <div className="row" key={a.email} {...pressable(() => { if (!busy) void reconnectOne(a.email, signedOut); })}>
-              <div className="proj-icon cat-bg-sky"><Mail className="ic" /></div>
+              {/* Mail is teal in the key (§AQ: Person / Mail); sky is Event (2026-10-05). */}
+              <div className="proj-icon cat-bg-teal"><Mail className="ic" /></div>
               <div className="row-grow">
                 <div className="conn-name truncate">{a.email}</div>
                 {/* Per-account signed-out state (2026-08-09): one expired
                     account used to silently drop its mail from the unified
                     inbox with no reconnect anywhere; Reconnect All only
                     appeared when EVERY account was out. */}
-                {signedOut && <div className="facts"><span className="fact warn">Signed out</span></div>}
+                {signedOut && <div className="facts"><span className="fact warn">Signed Out</span></div>}
                 {/* Audit 2026-09-29: "Signed out" alone left no next step.
                     Same scopes as ever; this only says what Reconnect does. */}
                 {signedOut && <div className="conn-meta">{SIGNED_OUT_HELP}</div>}
@@ -197,9 +206,9 @@ export default function ConnectionsPage({
                       ev.stopPropagation();
                       if (armDisc !== a.email) { setArmDisc(a.email); return; }
                       setArmDisc(null);
-                      void run(async () => { await g.disconnect(a.email); return a.email + " disconnected."; });
+                      void run(async () => { await g.disconnect(a.email); return a.email + " Disconnected"; });
                     }}>
-                    {armDisc === a.email ? "Tap again" : "Disconnect"}
+                    {armDisc === a.email ? "Tap Again" : "Disconnect"}
                   </button>
                 </div>
               </div>
@@ -226,7 +235,7 @@ export default function ConnectionsPage({
           <div className="proj-icon cat-bg-sky"><CalendarDays className="ic" /></div>
           <div className="row-grow">
             <div className="conn-name">Calendar Import</div>
-            <div className="conn-meta">Events flow into Schedule</div>
+            <div className="conn-meta">Events Flow Into Schedule</div>
           </div>
         </div></div></div>
       )}
@@ -235,7 +244,7 @@ export default function ConnectionsPage({
         <div className="pad-x"><div className="card list-card-ruled conn-mail-card"><div className="row" {...pressable(() => { if (!busy) void toggleTrackOpens(); })}>
           <div className="row-grow">
             <div className="conn-name">Know When Your Email Is Opened</div>
-            <div className="conn-meta">Read receipts on sent mail, which power Opened</div>
+            <div className="conn-meta">Read Receipts on Sent Mail, Which Power Opened</div>
           </div>
           <button
             className={"switch" + (trackOpens ? "" : " off")}

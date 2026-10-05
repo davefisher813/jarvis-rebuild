@@ -44,7 +44,8 @@ export default function CondReceipt({ exercise, entries, onChange, lastLine }: {
     <div className="card cond-receipt">
       <div className="cr-head">
         <span className="cr-fmt">{COND_LABEL[cond.format]}</span>
-        <span className="cr-name">{exercise.note ?? liftTitle(exercise.name)}</span>
+        {/* 2026-10-05: the note is his own typed workout ("5 pull-ups, 10 push-ups"), shown as he wrote it, so the catalog's number rule leaves it alone. */}
+        <span className="cr-name" {...(exercise.note ? { "data-user-text": "" } : {})}>{exercise.note ?? liftTitle(exercise.name)}</span>
         <span className="cr-cap">{condLength(cond)}</span>
       </div>
       {/* Before the clock runs the receipt shows last time's line, when

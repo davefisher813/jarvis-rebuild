@@ -12,6 +12,21 @@ import { attemptWrite } from "../shared/guard";
 import { useAccessToken } from "../data/NotesProvider";
 import { currentStatus, enableWebPush, disableWebPush, sendTestAlert, resubscribeIfNeeded, footFor, reasonFor, switchLocked, type WebPushStatus } from "../shared/webPush";
 
+// WHY THE SWITCH IS LOCKED, AS A META LINE (2026-10-05, Dave "I am sick of
+// this"). shared/webPush.reasonFor is written for a toast: sentences, and for
+// "denied" a middle dot baked into the string. Drawn straight into the row's
+// grey line it broke §AM F3 (the separator is the stylesheet's, never a typed
+// character) and the casing rule (every grey line is Title Case). The toast
+// keeps reasonFor; the row says the same thing in one short Title Case fragment.
+const WEB_META: Partial<Record<WebPushStatus, string>> = {
+  "no-sw": "Not Supported in This Browser",
+  "not-standalone": "Add JARVIS to Your Home Screen First",
+  "no-push": "Needs iOS 16.4 or Newer, from the Home Screen",
+  "denied": "Blocked in Phone or Browser Settings",
+  "no-key": "The Server Has No Push Key Yet",
+};
+const webMeta = (status: WebPushStatus): string | undefined => WEB_META[status];
+
 type Prefs = { overdue: boolean; events: boolean; goals: boolean; checkins: boolean };
 const DEFAULT: Prefs = { overdue: true, events: true, goals: true, checkins: true };
 
@@ -146,9 +161,9 @@ export default function NotificationsPage({ onBack }: { onBack: () => void }) {
           <Card>
             {/* A locked switch says why, on the row and again on a tap (audit
                 2026-09-29: it stayed off and nothing said so). */}
-            <Switch label="Alerts on this phone" meta={web === null ? "Checking" : reasonFor(web) || undefined} on={web === "on"} locked={web === null || webBusy || switchLocked(web)} onToggle={toggleWeb} ariaLabel="Alerts on this phone"
+            <Switch label="Alerts on This Phone" meta={web === null ? "Checking" : webMeta(web)} on={web === "on"} locked={web === null || webBusy || switchLocked(web)} onToggle={toggleWeb} ariaLabel="Alerts on This Phone"
               onLocked={() => { if (web !== null && switchLocked(web)) showToast({ message: reasonFor(web) }); }} />
-            {web === "on" && <Row label={webTesting ? "Sending" : "Send a Test Alert"} meta="Arrives in a few seconds" onClick={() => void sendWebTest()} disabled={webTesting} chev />}
+            {web === "on" && <Row label={webTesting ? "Sending" : "Send a Test Alert"} meta="Arrives in a Few Seconds" onClick={() => void sendWebTest()} disabled={webTesting} chev />}
           </Card>
         </>
       )}
@@ -161,15 +176,15 @@ export default function NotificationsPage({ onBack }: { onBack: () => void }) {
             rest timer exist only as lock-screen alerts, and only the phone
             app schedules those: the web build has nothing for them to do, so
             it does not show them. A locked tap says why. */}
-        <Switch label="Overdue and due tasks" meta="On the Notifications tab, not a lock-screen alert" on={prefs.overdue} onToggle={() => set({ overdue: !prefs.overdue })} />
-        <Switch label="Today's events" meta="A lock-screen alert 15 minutes before, and its own row on the Notifications tab" on={prefs.events} onToggle={() => set({ events: !prefs.events })} />
-        {native && <Switch label="Daily check-ins" meta="Two lock-screen prompts, morning and night" on={prefs.checkins} locked={denied} onLocked={sayDenied} onToggle={() => set({ checkins: !prefs.checkins })} />}
-        <Switch label="Goal and life-area nudges" meta="On the Notifications tab when a goal falls behind" on={prefs.goals} onToggle={() => set({ goals: !prefs.goals })} />
+        <Switch label="Overdue and Due Tasks" meta="On the Notifications Tab, Not a Lock-Screen Alert" on={prefs.overdue} onToggle={() => set({ overdue: !prefs.overdue })} />
+        <Switch label="Today's Events" meta="A Lock-Screen Alert 15 Min Before, Plus a Row on the Notifications Tab" on={prefs.events} onToggle={() => set({ events: !prefs.events })} />
+        {native && <Switch label="Daily Check-Ins" meta="Two Lock-Screen Prompts, Morning and Night" on={prefs.checkins} locked={denied} onLocked={sayDenied} onToggle={() => set({ checkins: !prefs.checkins })} />}
+        <Switch label="Goal and Life-Area Nudges" meta="On the Notifications Tab When a Goal Falls Behind" on={prefs.goals} onToggle={() => set({ goals: !prefs.goals })} />
         {/* UP-ATH-03 (2026-09-06): the rest timer's buzz between sets. The
             only alert on this page the athlete asked for by starting the
             thing that schedules it, which is why it is last and why it is
             on by default. */}
-        {native && <Switch label="Rest timer" meta="A buzz on the lock screen when the rest is over" on={restNotify} locked={denied} onLocked={sayDenied} onToggle={() => { const next = !restNotify; updateHealthSettings({ restNotify: next }); setRestNotify(next); if (next) void requestNotificationPermission().then(() => readPerm()); }} />}
+        {native && <Switch label="Rest Timer" meta="A Buzz on the Lock Screen When the Rest Is Over" on={restNotify} locked={denied} onLocked={sayDenied} onToggle={() => { const next = !restNotify; updateHealthSettings({ restNotify: next }); setRestNotify(next); if (next) void requestNotificationPermission().then(() => readPerm()); }} />}
       </Card>
       {/* A4 (audit 2026-08-21, catalog Q8: never promise what the platform
           cannot do). A page called Notifications with switches on it
@@ -184,10 +199,10 @@ export default function NotificationsPage({ onBack }: { onBack: () => void }) {
           holds for every switch the web shows.) */}
       <Head label="Reminders" />
       <Card>
-        <Menu label="Morning" meta="What Tomorrow Morning means" value={morning} word={morningWord(morning)} ariaLabel="Morning time"
+        <Menu label="Morning" meta="What Tomorrow Morning Means" value={morning} word={morningWord(morning)} ariaLabel="Morning time"
           options={["06:00", "06:30", "07:00", "07:30", "08:00", "08:30", "09:00", "09:30", "10:00"].map((v) => ({ value: v, label: morningWord(v) }))}
           onPick={(v) => { setMorning(v); setMorningTime(v); }} />
-        {native && <Row label={testing ? "Sending" : "Send a Test Reminder"} meta={denied ? "Off in iOS Settings" : `Arrives in ${TEST_REMINDER_DELAY_S} seconds`} onClick={() => void sendTest()} disabled={denied || testing} chev />}
+        {native && <Row label={testing ? "Sending" : "Send a Test Reminder"} meta={denied ? "Off in iOS Settings" : `Arrives in ${TEST_REMINDER_DELAY_S} Seconds`} onClick={() => void sendTest()} disabled={denied || testing} chev />}
       </Card>
       <Foot>
         {!native

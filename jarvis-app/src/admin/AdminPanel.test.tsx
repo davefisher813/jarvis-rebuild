@@ -38,7 +38,7 @@ describe("AdminPanel", () => {
     render(<AdminPanel isAdmin source={makeSampleAdminSource()} />);
     expect(await screen.findByText("$36")).toBeInTheDocument();
     expect(screen.getByText("you@yourdomain.com")).toBeInTheDocument();
-    expect(screen.getByText(/Sample data/)).toBeInTheDocument();
+    expect(screen.getByText(/Sample Data/)).toBeInTheDocument();
   });
 
   // UP-LAUNCH-16 (2026-09-05): the Feedback section, and the honest empty
@@ -116,8 +116,8 @@ describe("AdminPanel", () => {
     };
     render(<AdminPanel isAdmin source={src} />);
     expect(await screen.findByText("$4.20")).toHaveClass("money-amt");
-    expect(screen.getByText("Not priced")).toHaveClass("fact", "warn");
-    expect(screen.getByText("12 calls")).toHaveClass("fact");
+    expect(screen.getByText("Not Priced")).toHaveClass("fact", "warn");
+    expect(screen.getByText("12 Calls")).toHaveClass("fact");
   });
 
   // §AK/§AM F3 (2026-09-26): the feedback row's second line was one string
@@ -145,8 +145,8 @@ describe("AdminPanel", () => {
     const facts = row.querySelector(".facts") as HTMLElement;
     expect(facts.textContent).not.toMatch(/·/);
     expect(screen.getByText("abc1234").tagName).toBe("B");
-    expect(screen.getByText("Last error")).toHaveClass("fact", "red");
-    expect(screen.getByText("student on iPhone")).toHaveClass("fact");
+    expect(screen.getByText("Last Error")).toHaveClass("fact", "red");
+    expect(screen.getByText("Student on iPhone")).toHaveClass("fact");
     // A row with nothing to say shows no line at all.
     const bare = screen.getByText("Nothing else.").closest(".row") as HTMLElement;
     expect(bare.querySelector(".facts")).toBeNull();
@@ -154,7 +154,7 @@ describe("AdminPanel", () => {
     // on the line is drawn as the white build number.
     const noBuild = screen.getByText("No build on this one.").closest(".row") as HTMLElement;
     expect(noBuild.querySelector(".facts b")).toBeNull();
-    expect(screen.getByText("parent on iPad")).toHaveClass("fact");
+    expect(screen.getByText("Parent on iPad")).toHaveClass("fact");
   });
 
   // 2026-09-26: the open user row keeps the account id, the one place the

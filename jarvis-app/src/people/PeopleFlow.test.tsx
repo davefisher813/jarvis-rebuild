@@ -52,7 +52,7 @@ describe("PeopleFlow", () => {
     // The two things that were missing entirely: it says what happened, and
     // it offers the way back.
     const last = toasts[toasts.length - 1]!;
-    expect(last.message).toBe("Sam Rivera deleted");
+    expect(last.message).toBe("Sam Rivera Deleted");
     expect(last.actionLabel).toBe("Undo");
 
     last.onAction!();
@@ -184,7 +184,7 @@ describe("repairing contact details out of the notes", () => {
     });
     // It says what it did and hands back the way out.
     const last = toasts[toasts.length - 1]!;
-    expect(last.message).toBe("Number moved to Aaron Roman");
+    expect(last.message).toBe("Number Moved to Aaron Roman");
     expect(last.actionLabel).toBe("Undo");
     // THE NOTE IS KEPT: open the person and the sentence is still there.
     fireEvent.click(screen.getAllByText("Aaron Roman")[0]!);
@@ -237,8 +237,14 @@ describe("importing a file with a same-name stranger in it", () => {
     // Not "skipping 1 already here": a row waiting on an answer is something
     // to check, and saying otherwise was the lie the old preview told.
     // Casing sweep 1 (2026-09-26): Title Case by the whole rule (§H2), units spelled "Min".
-    expect(screen.getByText("1 to Check")).toBeInTheDocument();
-    expect(screen.getByText("John Smith is already a name you have")).toBeInTheDocument();
+    expect(screen.getByText("1 To Check")).toBeInTheDocument();
+    expect(screen.getByText("Which One Is John Smith?")).toBeInTheDocument();
+    // THE CATALOG HARD GATE (2026-10-05): the title is a Title Case question and
+    // the evidence is the card's one grey, with no sentence boundary in a
+    // rendered line (it read "...in common. Which is this?").
+    const evidence = screen.getByText("Same Name, Nothing Else in Common");
+    expect(evidence).toHaveClass("bp-sub");
+    expect(document.body.textContent).not.toMatch(/[a-z]\. [A-Z]/);
     // Both answers are on offer, and neither has happened yet.
     expect(screen.getByText("Someone New")).toBeInTheDocument();
   });
@@ -332,6 +338,13 @@ describe("a CSV whose headers mean nothing to the parser", () => {
     mount("m4");
     await drop("", "empty.csv");
     await waitFor(() => expect(screen.getByText(/Couldn't Read That File/)).toBeInTheDocument());
+    // THE CATALOG HARD GATE (2026-10-05): the failure and the fix are two lines,
+    // the error line and the sheet's one grey, with no middle dot typed between
+    // them (R6).
+    expect(screen.getByText("Couldn't Read That File")).toHaveClass("conn-error");
+    const fix = screen.getByText("Use .vcf or .csv with Names");
+    expect(fix).toHaveClass("plan-sub");
+    for (const el of document.querySelectorAll(".plan-sub, .conn-error")) expect(el.textContent).not.toContain("\u00b7");
   });
 });
 
@@ -358,7 +371,7 @@ describe("clearing a number that is in the notes and the field both", () => {
     await withBoth("d1", "Mom", "2035361094", "2035361094");
     // Casing sweep 3 (2026-09-27): Title Case by the whole rule (§H2); durations through shared/duration ("45 Min", "About 1 Min").
     expect(await screen.findByText("One Contact Has Their Own Number in Their Notes as Well")).toBeInTheDocument();
-    expect(screen.getByText("Left there by an old import")).toBeInTheDocument();
+    expect(screen.getByText("Left There by an Old Import")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Clear Them" }));
     await waitFor(() => {
       expect(screen.queryByRole("button", { name: "Clear Them" })).not.toBeInTheDocument();

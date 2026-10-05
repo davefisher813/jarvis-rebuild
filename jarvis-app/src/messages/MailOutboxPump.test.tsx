@@ -55,14 +55,14 @@ describe("MailOutboxPump: a queued send leaves while the Email tab is unmounted"
     fireEvent.click(await screen.findByLabelText("New Message"));
     fireEvent.change(screen.getByPlaceholderText("To"), { target: { value: "a@b.com" } });
     fireEvent.click(screen.getByText("Send"));
-    await waitFor(() => expect(screen.getByText("Nothing has left yet")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("Nothing Has Left Yet")).toBeInTheDocument());
     const [queued] = getOutbox();
     expect(queued!.state).toBe("held");
 
     // The tab switch: MessagesFlow is gone, and with it the effect that used
     // to be the only pump for this queue.
     fireEvent.click(screen.getByText("Today Tab"));
-    expect(screen.queryByText("Nothing has left yet")).toBeNull();
+    expect(screen.queryByText("Nothing Has Left Yet")).toBeNull();
     expect(screen.queryByLabelText("New Message")).toBeNull();
 
     // The hold runs out (Send Now's own move, standing in for twelve seconds

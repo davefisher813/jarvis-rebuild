@@ -49,7 +49,7 @@ function fmtClock(hhmm: string): string {
   const [h, m] = hhmm.split(":").map((x) => parseInt(x, 10));
   const d = new Date();
   d.setHours(h ?? 9, m ?? 0);
-  return d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  return d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
 }
 
 // The resolved date and the clock time, as two facts ("Thursday, Aug 20",
@@ -147,7 +147,7 @@ function fmtRecent(ts: number): string {
   const d = new Date(ts);
   const today = new Date();
   const sameDay = d.toDateString() === today.toDateString();
-  if (sameDay) return d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  if (sameDay) return d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
   const yd = new Date(today.getTime() - 86400000);
   if (d.toDateString() === yd.toDateString()) return "Yesterday";
   return shortDateFromMs(ts);

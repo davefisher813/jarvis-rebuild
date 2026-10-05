@@ -221,7 +221,7 @@ describe("failures, one account at a time", () => {
     const s = summarize(res);
     expect(s.trashed).toBe(5);
     expect(s.failed).toBe(1500);
-    expect(receiptLine(res)).toContain("5 conversations moved to Trash. Gmail keeps them for 30 days.");
+    expect(receiptLine(res)).toContain("5 Conversations Moved to Trash \u00b7 Gmail Keeps Them for 30 Days");
     expect(receiptLine(res)).toContain("1500 not moved");
   }, 60000);
 
@@ -386,7 +386,7 @@ describe("what the person is asked and told", () => {
     const rows = await rowsOf(box);
     const ensure = ensureFor({ [box.email]: box });
     const res = await trashSelection(await buildTrashPlan(rows, { ensure, trusted: () => true }), { ensure });
-    expect(receiptLine(res)).toBe("2 conversations moved to Trash. Gmail keeps them for 30 days.");
+    expect(receiptLine(res)).toBe("2 Conversations Moved to Trash \u00b7 Gmail Keeps Them for 30 Days");
     expect(receiptLine({ ...res, outcomes: [], blocked: [] })).toBe("Nothing to move");
   });
 });

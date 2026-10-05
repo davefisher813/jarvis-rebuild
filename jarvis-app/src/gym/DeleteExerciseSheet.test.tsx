@@ -23,7 +23,7 @@ describe("DeleteExerciseSheet: an exercise nobody has used", () => {
     render(<DeleteExerciseSheet {...noop} plan={plan()} stage="asking" />);
     expect(screen.getByText("Delete Exercise", { selector: ".eyebrow" })).toBeInTheDocument();
     expect(screen.getByText("Test Press")).toHaveClass("dup-name");
-    expect(screen.getByText("It leaves your Exercises list")).toBeInTheDocument();
+    expect(screen.getByText("It Leaves Your Exercises List")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Delete Exercise" })).toHaveClass("destructive");
     expect(screen.getByRole("button", { name: "Cancel" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Archive Instead" })).toBeNull();
@@ -32,15 +32,15 @@ describe("DeleteExerciseSheet: an exercise nobody has used", () => {
 
   it("names the saved details that go with it, only the ones there are", () => {
     render(<DeleteExerciseSheet {...noop} plan={plan({ clears: ["its muscles and details", "its favorite mark"] })} stage="asking" />);
-    expect(screen.getByText("It also clears its muscles and details and its favorite mark")).toBeInTheDocument();
+    expect(screen.getByText("It Also Clears Its Muscles and Details and Its Favorite Mark")).toBeInTheDocument();
   });
 });
 
 describe("DeleteExerciseSheet: an exercise in programs", () => {
   it("says Used in N program days and that each one loses it, and touches no session", () => {
     render(<DeleteExerciseSheet {...noop} plan={plan({ tier: "programs", programDays: 3 })} stage="asking" />);
-    expect(screen.getByText("Used in 3 program days")).toBeInTheDocument();
-    expect(screen.getByText("It comes out of 3 program days")).toBeInTheDocument();
+    expect(screen.getByText("Used in 3 Program Days")).toBeInTheDocument();
+    expect(screen.getByText("It Comes Out of 3 Program Days")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Delete Exercise" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Archive Instead" })).toBeNull();
     expect(screen.queryByText(/history/i)).toBeNull();
@@ -52,10 +52,10 @@ describe("DeleteExerciseSheet: an exercise with logged history", () => {
 
   it("asks in so many words: delete it and its history, or archive it instead, or cancel", () => {
     render(<DeleteExerciseSheet {...noop} plan={history} stage="asking" />);
-    expect(screen.getByText("5 sessions, 14 sets")).toHaveClass("fact", "lime");
-    expect(screen.getByText("Used in 1 program day")).toBeInTheDocument();
-    expect(screen.getByText("It comes out of 5 sessions in your history")).toBeInTheDocument();
-    expect(screen.getByText("2 Sessions left empty are removed")).toBeInTheDocument();
+    expect(screen.getByText("5 Sessions, 14 Sets")).toHaveClass("fact", "lime");
+    expect(screen.getByText("Used in 1 Program Day")).toBeInTheDocument();
+    expect(screen.getByText("It Comes Out of 5 Sessions in Your History")).toBeInTheDocument();
+    expect(screen.getByText("2 Sessions Left Empty Are Removed")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Delete Exercise and Its History" })).toHaveClass("destructive");
     expect(screen.getByRole("button", { name: "Archive Instead" })).not.toHaveClass("destructive");
     expect(screen.getByRole("button", { name: "Cancel" })).toBeInTheDocument();
@@ -93,13 +93,13 @@ describe("DeleteExerciseSheet: an exercise with logged history", () => {
 describe("DeleteExerciseSheet: goals and failures", () => {
   it("says the goals on it stay", () => {
     render(<DeleteExerciseSheet {...noop} plan={plan({ goals: 1 })} stage="asking" />);
-    expect(screen.getByText("1 Goal on it stays as it is")).toBeInTheDocument();
+    expect(screen.getByText("1 Goal on It Stays as It Is")).toBeInTheDocument();
   });
 
   it("a partial failure stays on the sheet and says how far it got", () => {
-    render(<DeleteExerciseSheet {...noop} plan={plan()} stage="asking" note="2 of 5 saved, Delete Exercise finishes the rest" />);
+    render(<DeleteExerciseSheet {...noop} plan={plan()} stage="asking" note="2 of 5 Saved, Delete Exercise Finishes the Rest" />);
     expect(screen.getByText("Not Everything Saved")).toBeInTheDocument();
-    expect(screen.getByText("2 of 5 saved, Delete Exercise finishes the rest")).toBeInTheDocument();
+    expect(screen.getByText("2 of 5 Saved, Delete Exercise Finishes the Rest")).toBeInTheDocument();
   });
 });
 

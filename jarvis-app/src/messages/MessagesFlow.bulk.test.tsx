@@ -189,7 +189,7 @@ describe("MessagesFlow: select on the main list", () => {
     await waitFor(() => expect(batches).toHaveLength(1));
     expect(batches[0]).toHaveLength(3);
     await waitFor(() => expect(screen.queryByText(/Waiver needed by Friday/)).toBeNull());
-    expect(await screen.findByText(/3 conversations moved to Trash\. Gmail keeps them for 30 days\./)).toBeInTheDocument();
+    expect(await screen.findByText(/3 Conversations Moved to Trash \u00b7 Gmail Keeps Them for 30 Days/)).toBeInTheDocument();
   });
 
   it("a batch of things already judged safe goes straight through with an Undo, no question", async () => {

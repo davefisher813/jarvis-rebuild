@@ -204,7 +204,7 @@ describe("RemindersPage: what a search says it searched", () => {
   it("names every reminder, not the open view, and has no Done button to offer", () => {
     for (const tab of ["today", "upcoming", "routines", "done"] as PageTab[]) {
       const r = searching(tab);
-      expect(scope(), tab).toBe("3 results in All Reminders");
+      expect(scope(), tab).toBe("3 Results in All Reminders");
       expect(screen.queryByText("Search Done Too"), tab).toBeNull();
       expect(document.querySelector(".hdr-scope-all"), tab).toBeNull();
       r.unmount();
@@ -216,9 +216,9 @@ describe("RemindersPage: what a search says it searched", () => {
     searching("today");
     fireEvent.click(document.querySelector('.hdr-controls .dd[aria-label="Area"]')!);
     fireEvent.click(screen.getByRole("menuitemradio", { name: "Work" }));
-    expect(scope()).toBe("2 results in All Reminders in Work");
+    expect(scope()).toBe("2 Results in All Reminders in Work");
     fireEvent.click(screen.getByText("Search All Areas"));
-    expect(scope()).toBe("3 results in All Reminders");
+    expect(scope()).toBe("3 Results in All Reminders");
     expect(screen.queryByText("Search All Areas")).toBeNull();
   });
 });

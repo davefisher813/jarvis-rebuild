@@ -564,7 +564,7 @@ export default function SchedulePage({
                       date mid-word and squeezed the skip count to nothing. */}
                   <div className="facts">
                     {!r.endless && <span className="fact date">{r.ends}</span>}
-                    {r.skipped > 0 && <span className="fact"><b>{r.skipped} skipped</b></span>}
+                    {r.skipped > 0 && <span className="fact"><b>{r.skipped} Skipped</b></span>}
                     <span className="fact">{r.cadence}</span>
                   </div>
                 </div>
@@ -596,10 +596,10 @@ export default function SchedulePage({
           ? [tickWin.windowS, ...(tickWin.windowS < 12 * 60 && tickWin.windowE > 12 * 60 ? [12 * 60] : []), tickWin.windowE]
               .map((m) => ({ m, pct: ((m - tickWin.windowS) / Math.max(1, tickWin.windowE - tickWin.windowS)) * 100 }))
           : [];
-        const tickLabel = (m: number) => { const h = Math.floor(m / 60) % 24; const r = m % 60; if (h === 12 && r === 0) return "noon"; return `${h % 12 || 12}${r ? ":" + String(r).padStart(2, "0") : ""} ${h >= 12 ? "PM" : "AM"}`; };
+        const tickLabel = (m: number) => { const h = Math.floor(m / 60) % 24; const r = m % 60; if (h === 12 && r === 0) return "Noon"; return `${h % 12 || 12}${r ? ":" + String(r).padStart(2, "0") : ""} ${h >= 12 ? "PM" : "AM"}`; };
         return (<>
         <div className="sh2 sh2-quiet wk-head"><span className="t">{weekWord(weekCells, todayDate)}</span>
-          <span className="n">{ahead.length === 0 ? "Over" : totalOpen > 0 ? `${spanShort(totalOpen)} open` : "Full"}</span></div>
+          <span className="n">{ahead.length === 0 ? "Over" : totalOpen > 0 ? `${spanShort(totalOpen)} Open` : "Full"}</span></div>
         <div className="pad-x"><div className="card list-card-ruled week-rows">
           {weekRows.map((r) => {
             const isToday = r.date === todayDate;
@@ -621,9 +621,9 @@ export default function SchedulePage({
                   </div>
                 </div>
                 {past
-                  ? <span className="wk-open">{r.count > 0 ? <><b>{r.count}</b> {r.count === 1 ? "block" : "blocks"}</> : ""}</span>
+                  ? <span className="wk-open">{r.count > 0 ? <><b>{r.count}</b> {r.count === 1 ? "Block" : "Blocks"}</> : ""}</span>
                   : r.openMin > 0
-                    ? <span className="wk-open"><b>{spanShort(r.openMin)}</b> open</span>
+                    ? <span className="wk-open"><b>{spanShort(r.openMin)}</b> Open</span>
                     : <span className="wk-open wk-full">Full</span>}
               </div>
             );
@@ -633,7 +633,7 @@ export default function SchedulePage({
           <div className="wk-ticks" aria-hidden="true">{ticks.map((t, i) => <span key={i} style={{ left: t.pct + "%" }} className={i === 0 ? "first" : i === ticks.length - 1 ? "last" : undefined}>{tickLabel(t.m)}</span>)}</div>
         )}
         {best && (
-          <div className="wk-note">Longest open stretch <b>{WK[best.row.dow]} {stretchLabel(best.s, best.e)}</b></div>
+          <div className="wk-note">Longest Open Stretch <b>{WK[best.row.dow]} {stretchLabel(best.s, best.e)}</b></div>
         )}
         </>);
       })()}
@@ -744,7 +744,7 @@ export default function SchedulePage({
                 aria-expanded={earlierOpen}
                 onClick={() => setEarlierOpen((v) => !v)}
               >
-                Earlier<span className="n">{en.n} {en.n === 1 ? "block" : "blocks"}</span>
+                Earlier<span className="n">{en.n} {en.n === 1 ? "Block" : "Blocks"}</span>
                 <span className={"chev chev-down" + (earlierOpen ? " chev-open" : "")} />
               </button>
             ) : en.kind === "now" ? (
@@ -872,7 +872,7 @@ export default function SchedulePage({
                           {/* A length that cannot be tapped is a number with
                               no state: white, not a second grey beside the
                               block's own kicker (§AK, §AM). */}
-                          <span className="fact"><b>{blockMinutes(b)}m</b></span>
+                          <span className="fact"><b>{spanLabel(blockMinutes(b))}</b></span>
                         </span>
                         {proposed?.onAccept && (
                           <button type="button" className="pill-act" onClick={(ev) => { ev.stopPropagation(); proposed.onAccept?.(b.taskId); }}>Accept</button>

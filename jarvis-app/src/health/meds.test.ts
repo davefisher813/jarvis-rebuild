@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { doseRows, lastDose, repeatWithin, doseToast, whenShort, DOSE_REPEAT_MS } from "./meds";
+import { doseRows, lastDose, repeatWithin, doseToast, whenShort, clockOf, DOSE_REPEAT_MS } from "./meds";
 import { BODY_REGIONS, regionByLabel } from "./regions";
 import type { MedDefEntry, TookItEntry } from "./types";
 
@@ -74,5 +74,18 @@ describe("the twelve regions", () => {
     expect(regionByLabel("Left Knee")?.side).toBe("front");
     expect(regionByLabel("Lower Back")?.side).toBe("back");
     expect(regionByLabel("Elbow")).toBeNull();
+  });
+});
+
+// THE CLOCK LAW (Dave 2026-10-05): 12-hour with AM or PM whatever the phone's region says.
+// An empty locale list follows the device, and a 24-hour region drew "14:05" on every dose row.
+describe("clockOf", () => {
+  it("is 12-hour with AM or PM even where the phone's region is 24-hour", () => {
+    const orig = Date.prototype.toLocaleTimeString;
+    Date.prototype.toLocaleTimeString = function (loc?: string | string[], o?: Intl.DateTimeFormatOptions) { return orig.call(this, Array.isArray(loc) && loc.length === 0 ? "en-GB" : loc, o); };
+    try {
+      expect(clockOf(new Date(2026, 9, 3, 14, 5).getTime())).toMatch(/^2:05\s?PM$/);
+      expect(clockOf(new Date(2026, 9, 3, 0, 7).getTime())).toMatch(/^12:07\s?AM$/);
+    } finally { Date.prototype.toLocaleTimeString = orig; }
   });
 });

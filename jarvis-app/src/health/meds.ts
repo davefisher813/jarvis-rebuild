@@ -71,8 +71,11 @@ export function sameLocalDay(a: number, b: number): boolean {
   return x.getFullYear() === y.getFullYear() && x.getMonth() === y.getMonth() && x.getDate() === y.getDate();
 }
 
+// 2026-10-05 (the catalog gate): 12-hour with AM or PM whatever the phone's
+// region says. The empty locale list followed the device, and a 24-hour region
+// drew "14:05" on every dose, meal and check-in row.
 export function clockOf(at: number): string {
-  return new Date(at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  return new Date(at).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
 }
 
 /** "8:05 AM" today, the short date otherwise: the Last fact on a med row. */

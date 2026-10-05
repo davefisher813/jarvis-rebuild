@@ -1,5 +1,6 @@
 import type { MedWindowDay, MedWindowMarkKind } from "../medWindow";
 import { weekdayShortDate } from "../../shared/dateFormat";
+import { clockOf } from "../meds";
 
 const MARK_LABEL: Record<MedWindowMarkKind, string> = {
   dose: "Dose",
@@ -30,8 +31,13 @@ export default function MedWindowScreen({ days, hasFood = true, onOpenDoctorRepo
 
       <div className="pad-x"><div className="card pad">
         <div className="p3-q">{hasFood ? "Four Facts a Day" : "Three Facts a Day"}</div>
-        <div className="bp-sub">{hasFood ? "Dose, food, session start, lights out" : "Dose, session start, lights out"} · Nothing Compared, Nothing Explained</div>
+        {/* 2026-10-05 (the catalog gate): the list is one grey run in Title
+            Case, and the promise under it is a note below the card (the
+            group-footer pattern). It was one string with a middle dot baked
+            in and the first half in sentence case (R6, §H2). */}
+        <div className="bp-sub">{hasFood ? "Dose, Food, Session Start, Lights Out" : "Dose, Session Start, Lights Out"}</div>
       </div></div>
+      <div className="pad-x"><div className="input-hint">Nothing Compared, Nothing Explained</div></div>
 
       {days.length === 0 ? (
         <div className="empty-state">
@@ -51,7 +57,7 @@ export default function MedWindowScreen({ days, hasFood = true, onOpenDoctorRepo
                         comes first so a long label is the fact that gives
                         way. The dot between them is CSS's (F3). */}
                     <div className="facts">
-                      <span className="fact date">{new Date(m.at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</span>
+                      <span className="fact date">{clockOf(m.at)}</span>
                       {m.label !== MARK_LABEL[m.kind] && <span className="fact">{m.label}</span>}
                     </div>
                   </div>

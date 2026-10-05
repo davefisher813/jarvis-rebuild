@@ -161,7 +161,7 @@ describe("what the preview and the receipt say", () => {
     }), 0);
     expect(l).toEqual([
       // Casing sweep 1 (2026-09-26): Title Case by the whole rule (§H2), units spelled "Min".
-      { text: "2 New, 1 to Update" },
+      { text: "2 New, 1 To Update" },
       { text: "5 Already Current", tone: "good" },
     ]);
   });
@@ -170,14 +170,14 @@ describe("what the preview and the receipt say", () => {
   // the lie the old preview told. It needs him, so it is amber.
   it("calls an unanswered row something to check, never something skipped", () => {
     const withReview = plan({ review: [{ contact: { name: "John Smith" }, candidates: [], reason: "same-name" as const }] });
-    expect(planFacts(withReview, 0)).toEqual([{ text: "1 to Check", tone: "warn" }]);
+    expect(planFacts(withReview, 0)).toEqual([{ text: "1 To Check", tone: "warn" }]);
     // Once answered it stops being counted as waiting.
-    expect(planFacts(withReview, 1)).toEqual([{ text: "Nothing to change" }]);
+    expect(planFacts(withReview, 1)).toEqual([{ text: "Nothing to Change" }]);
   });
 
   it("says plainly when a file would change nothing", () => {
-    expect(planFacts(plan(), 0)).toEqual([{ text: "Nothing to change" }]);
-    expect(summaryLine(0, 0, 0)).toBe("Nothing changed");
+    expect(planFacts(plan(), 0)).toEqual([{ text: "Nothing to Change" }]);
+    expect(summaryLine(0, 0, 0)).toBe("Nothing Changed");
   });
 
   it("reports only what actually happened", () => {

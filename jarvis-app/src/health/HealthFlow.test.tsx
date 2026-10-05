@@ -112,6 +112,9 @@ describe("HealthFlow: Refill Runway lands the call on the parent's list, not the
     fireEvent.change(screen.getByRole("spinbutton"), { target: { value: "5" } });
     fireEvent.click(screen.getByText("Log the Fill"));
     await waitFor(() => expect(screen.getByText("Worth a Call Soon")).toBeInTheDocument());
+    // THE NUMBER RULE (Dave 2026-10-05): the count under the fill reads "0 of 5 Taken", the word behind the number capitalized.
+    const taken = Array.from(document.querySelectorAll(".facts .fact")).map((f) => f.textContent ?? "").find((t) => /of 5/.test(t));
+    expect(taken).toBe("0 of 5 Taken");
     fireEvent.click(screen.getByText("Land It on the Parent's List"));
     expect(onLandParentTask).toHaveBeenCalledTimes(1);
     const line = onLandParentTask.mock.calls[0]![0] as string;
@@ -221,7 +224,9 @@ describe("HealthFlow: Two Days Off offers a real rest block", () => {
     const weekDates = ["2026-08-24", "2026-08-25", "2026-08-26", "2026-08-27", "2026-08-28", "2026-08-29", "2026-08-30"];
     const sessions = weekDates.slice(0, 6).map((date) => ({ date, org: "School Team", durationMin: 60 }));
     render(<HealthFlow store={store} ownerId="u1" initialScreen="twoDaysOff" sportSessions={sessions} weekDates={weekDates} onExit={() => {}} />);
-    await waitFor(() => expect(screen.getByText(weekDates[6]! + " Is Still Open")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("Sunday, Aug 30 Is Still Open")).toBeInTheDocument());
+    // THE CATALOG (Dave 2026-10-05): a day is said in words, never as the ISO string it is keyed by.
+    expect(document.body.textContent).not.toMatch(/\d{4}-\d{2}-\d{2}/);
   });
 });
 
@@ -264,6 +269,10 @@ describe("HealthFlow: The Locker tracks expiry with zero medical judgment", () =
     fireEvent.change(dateInput, { target: { value: soon } });
     fireEvent.click(screen.getByText("Save It"));
     await waitFor(() => expect(screen.getByText("Worth a Look")).toBeInTheDocument());
+    // THE CATALOG (Dave 2026-10-05): the document's day is said in words ("Oct 10"), never the ISO string it is keyed by.
+    const on = Array.from(document.querySelectorAll(".fact.date")).map((f) => f.textContent ?? "").find((t) => t.startsWith("Expires "))!;
+    expect(on).toMatch(/^Expires [A-Z][a-z]{2} \d{1,2}$/);
+    expect(document.body.textContent).not.toMatch(/\d{4}-\d{2}-\d{2}/);
   });
 
   // 2026-09-11: Remove had no catch, so a failed delete said nothing at all.
@@ -374,7 +383,7 @@ describe("HealthFlow: the Med Window names only the facts it can draw", () => {
     const store = new Store(new InMemoryAdapter());
     render(<HealthFlow store={store} ownerId="u-medwin-none" initialScreen="medWindow" onExit={() => {}} />);
     expect(await screen.findByText("Three Facts a Day")).toBeInTheDocument();
-    expect(screen.getByText(/^Dose, session start, lights out/)).toBeInTheDocument();
+    expect(screen.getByText("Dose, Session Start, Lights Out")).toBeInTheDocument();
     expect(screen.queryByText("Four Facts a Day")).toBeNull();
   });
 
@@ -385,7 +394,7 @@ describe("HealthFlow: the Med Window names only the facts it can draw", () => {
     await svc.flush();
     render(<HealthFlow store={store} ownerId="u-medwin-food" initialScreen="medWindow" onExit={() => {}} />);
     expect(await screen.findByText("Four Facts a Day")).toBeInTheDocument();
-    expect(screen.getByText(/^Dose, food, session start, lights out/)).toBeInTheDocument();
+    expect(screen.getByText("Dose, Food, Session Start, Lights Out")).toBeInTheDocument();
   });
 });
 
@@ -520,6 +529,27 @@ describe("HealthFlow: an offer is a thing, not a sentence", () => {
     const offer = onOffer.mock.calls[0]![0];
     expect(offer.kind).toBe("windDown");
     expect(typeof offer.at).toBe("number");
+  });
+
+  // THE CLOCK LAW (Dave 2026-10-05): the offer's line says "Wind Down at 9:30 PM", 12-hour with AM or PM,
+  // even where the phone's region is 24-hour.
+  it("The Night Before's offer line is 12-hour with AM or PM in a 24-hour region", async () => {
+    const orig = Date.prototype.toLocaleTimeString;
+    Date.prototype.toLocaleTimeString = function (loc?: string | string[], o?: Intl.DateTimeFormatOptions) { return orig.call(this, Array.isArray(loc) && loc.length === 0 ? "en-GB" : loc, o); };
+    try {
+      const store = new Store(new InMemoryAdapter());
+      const onOffer = vi.fn();
+      render(
+        <HealthFlow
+          store={store} ownerId="off1-24h" initialScreen="nightBefore" onExit={() => {}}
+          nightBeforeCommitments={[{ title: "First Bell", at: at(31) }]}
+          onOffer={onOffer}
+        />,
+      );
+      fireEvent.click(await screen.findByText("Add Wind Down"));
+      await waitFor(() => expect(onOffer).toHaveBeenCalled());
+      expect(onOffer.mock.calls[0]![0].line).toMatch(/^Wind Down at \d{1,2}:\d{2}\s?(AM|PM)$/);
+    } finally { Date.prototype.toLocaleTimeString = orig; }
   });
 
   it("Two Days Off offers a dated rest day", async () => {

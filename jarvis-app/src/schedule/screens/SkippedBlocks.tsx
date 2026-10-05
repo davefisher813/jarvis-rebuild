@@ -12,7 +12,11 @@ export default function SkippedBlocks({ blocks, onBackToNormal }: { blocks: Skip
       {blocks.map((b) => {
         return (
           <div className="skipped-row" key={b.id ?? b.label + b.s}>
-            <span className="skipped-t">{b.label} <span className="skipped-w">&middot; Skipped Today</span></span>
+            {/* 2026-10-05 (the catalog gate): the dot between the name and its
+                state was baked into the status text ("&middot; Skipped Today"),
+                so the state word carried a separator of its own (R6). It is the
+                separator primitive now, and the state is its own span. */}
+            <span className="skipped-t">{b.label} <span className="sched-sep">&middot;</span> <span className="skipped-w">Skipped Today</span></span>
             {b.id && onBackToNormal && (
               <button type="button" className="block-add skipped-back" onClick={() => onBackToNormal(b.id!)}>Back to Normal</button>
             )}

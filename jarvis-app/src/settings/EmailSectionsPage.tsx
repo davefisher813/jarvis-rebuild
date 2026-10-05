@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import LargeTitleNav from "../shared/LargeTitleNav";
 import { showToast } from "../shared/toast";
 import { Head, Card, Row, Menu, Foot, DangerRow, focusField } from "./kit";
@@ -30,10 +30,18 @@ const FIELD_OPTIONS = SECTION_FIELDS.map((f) => ({ value: f, label: FIELD_LABEL[
 
 interface Editing { isNew: boolean; index: number; draft: EmailSection; attempted: boolean }
 
-const summary = (s: EmailSection): string => {
+// THE ROW'S ONE GREY LINE (2026-10-05, the catalog gate). It was a string with
+// a middle dot typed between the matchers, drawn into the row's meta line (a
+// §AM F3 break: the separator is the stylesheet's), and "No Matchers" under a
+// section with nothing to match was a placeholder (a row with nothing to say
+// shows nothing). The matchers are one run of the row's one grey, comma
+// joined, with the overflow count as part of the same run; nothing at all
+// when there is nothing to show.
+const summary = (s: EmailSection): ReactNode => {
   const texts = s.matchers.map((m) => m.text.trim()).filter(Boolean);
-  if (texts.length === 0) return "No Matchers";
-  return texts.slice(0, 3).join(" · ") + (texts.length > 3 ? " · +" + (texts.length - 3) + " More" : "");
+  if (texts.length === 0) return undefined;
+  const shown = texts.slice(0, 3).join(", ") + (texts.length > 3 ? ", +" + (texts.length - 3) + " More" : "");
+  return <span className="fact">{shown}</span>;
 };
 
 export default function EmailSectionsPage({ onBack }: { onBack: () => void }) {
@@ -129,7 +137,7 @@ export default function EmailSectionsPage({ onBack }: { onBack: () => void }) {
       {!editing && loaded && sections.length === 0 && (
         <div className="empty-state">
           <div className="empty-title">No Sections Yet</div>
-          <div className="empty-sub">Filters you make appear as chips on the Email tab</div>
+          <div className="empty-sub">Filters You Make Appear as Chips on the Email Tab</div>
           <button type="button" className="btn btn-secondary" onClick={startNew} disabled={!available}>Add Section</button>
         </div>
       )}

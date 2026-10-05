@@ -131,7 +131,7 @@ describe("historyLines: what changed, when, by whom, from and to", () => {
     const lines = historyLines(u.history, u.currency);
     expect(lines.map((l) => l.what)).toEqual(["Created", "Marked Paid", "Paid State Removed"]);
     const marked = lines[1]!.changes.find((c) => c.label === "Evidence");
-    expect(marked).toEqual({ label: "Evidence", from: "None", to: "You confirmed it" });
+    expect(marked).toEqual({ label: "Evidence", from: "None", to: "You Confirmed It" });
     const removed = lines[2]!.changes.find((c) => c.label === "Paid Date");
     expect(removed).toEqual({ label: "Paid Date", from: "Oct 6", to: "None" });
   });

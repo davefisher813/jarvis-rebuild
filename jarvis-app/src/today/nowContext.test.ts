@@ -38,7 +38,7 @@ describe("Now Context (item 10)", () => {
 
   it("an empty rest-of-day is a clear fact, not a guess", () => {
     const ctx = nowContext([ev("Morning", "08:00", "09:00")], [], "20:00");
-    expect(ctx.head).toBe("Clear From Here");
+    expect(ctx.head).toBe("Clear from Here");
     expect(ctx.tail).toBeNull();
     expect(ctx.gapMin).toBeNull();
   });
