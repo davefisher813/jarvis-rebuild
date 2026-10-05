@@ -86,6 +86,8 @@ const NO_ACTION_EXISTS: Record<string, string> = {
   "admin/AdminPanel.tsx · Not Authorized": "the only move is to be someone else",
   "admin/AdminPanel.tsx · Metrics Are Not Loaded": "this deploy has no metrics endpoint; the panel reloads from its own bar",
   "admin/AdminPanel.tsx · Feedback Is Not Loaded": "same, for feedback",
+  "admin/AdminPanel.tsx · Errors Are Not Loaded": "2026-10-05: same, for errors; the deploy lacks the endpoint or the client_error table",
+  "admin/AdminPanel.tsx · No Crashes Yet": "2026-10-05: nothing has crashed, which is the good outcome; there is nothing to do about it",
   "admin/AdminPanel.tsx · Nothing Sent Yet": "nobody has written in; there is nothing to do about that",
   "admin/AdminPanel.tsx · Live Data Needs the Admin Server": "says in its own sub that it is wired at launch",
   "admin/AdminPanel.tsx · No Users Yet": "a count of other people, which this screen cannot create",

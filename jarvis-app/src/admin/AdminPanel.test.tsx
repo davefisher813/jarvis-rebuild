@@ -5,7 +5,7 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import AdminPanel from "./AdminPanel";
 import { capsulesInCards } from "../laws/catalogCheck";
-import { createAdminApi, makeSampleAdminSource, type AdminService } from "./AdminService";
+import { createAdminApi, makeSampleAdminSource, type AdminService, type AdminErrorGroup } from "./AdminService";
 
 describe("AdminPanel", () => {
   it("blocks non-admins", () => {
@@ -55,6 +55,7 @@ describe("AdminPanel", () => {
       async billing() { return { mrr: 0, activeSubs: 0, trialing: 0, currency: "USD" }; },
       async feedback() { throw new Error("admin 404"); },
       async metrics() { throw new Error("admin 404"); },
+      async errors() { throw new Error("no errors endpoint"); },
     };
     render(<AdminPanel isAdmin source={noEndpoint} />);
     expect(await screen.findByText("Feedback Is Not Loaded")).toBeInTheDocument();
@@ -70,6 +71,7 @@ describe("AdminPanel", () => {
       async billing() { return { mrr: 0, activeSubs: 0, trialing: 0, currency: "USD" }; },
       async feedback() { return []; },
       async metrics() { throw new Error("no metrics endpoint"); },
+      async errors() { throw new Error("no errors endpoint"); },
     };
     render(<AdminPanel isAdmin source={src} />);
     // THE ROW HAS NO PILL (Dave 2026-10-05, locked): a tap opens its sheet and the sheet holds Disable. It is not a swipe,
@@ -92,6 +94,7 @@ describe("AdminPanel", () => {
       async billing() { return { mrr: 0, activeSubs: 0, trialing: 0, currency: "USD" }; },
       async feedback() { return []; },
       async metrics() { throw new Error("no metrics endpoint"); },
+      async errors() { throw new Error("no errors endpoint"); },
     };
     render(<AdminPanel isAdmin source={src} />);
     fireEvent.click(await screen.findByText("a@b.com"));
@@ -119,6 +122,7 @@ describe("AdminPanel", () => {
       async billing() { return { mrr: 0, activeSubs: 0, trialing: 0, currency: "USD" }; },
       async feedback() { return []; },
       async metrics() { throw new Error("no metrics endpoint"); },
+      async errors() { throw new Error("no errors endpoint"); },
     };
     render(<AdminPanel isAdmin source={src} />);
     expect(await screen.findByText("$4.20")).toHaveClass("money-amt");
@@ -145,6 +149,7 @@ describe("AdminPanel", () => {
         ];
       },
       async metrics() { throw new Error("no metrics endpoint"); },
+      async errors() { throw new Error("no errors endpoint"); },
     };
     render(<AdminPanel isAdmin source={src} />);
     const row = (await screen.findByText("It froze.")).closest(".row") as HTMLElement;
@@ -174,6 +179,7 @@ describe("AdminPanel", () => {
       async billing() { return { mrr: 0, activeSubs: 0, trialing: 0, currency: "USD" }; },
       async feedback() { return []; },
       async metrics() { throw new Error("no metrics endpoint"); },
+      async errors() { throw new Error("no errors endpoint"); },
     };
     const { container } = render(<AdminPanel isAdmin source={src} />);
     const row = (await screen.findByText("a@b.com")).closest(".row") as HTMLElement;
@@ -195,6 +201,7 @@ describe("AdminPanel", () => {
       async billing() { return { mrr: 0, activeSubs: 0, trialing: 0, currency: "USD" }; },
       async feedback() { return []; },
       async metrics() { throw new Error("no metrics endpoint"); },
+      async errors() { throw new Error("no errors endpoint"); },
     };
     render(<AdminPanel isAdmin source={src} />);
     expect(screen.getAllByText("Live Data Needs the Admin Server").length).toBeGreaterThan(0);
@@ -227,6 +234,7 @@ describe("AdminPanel: AI Allowed per account", () => {
     async billing() { return { mrr: 0, activeSubs: 0, trialing: 0, currency: "USD" }; },
     async feedback() { return []; },
     async metrics() { throw new Error("no metrics endpoint"); },
+    async errors() { throw new Error("no errors endpoint"); },
     ...over,
   });
 
@@ -254,5 +262,79 @@ describe("AdminPanel: AI Allowed per account", () => {
     expect(await screen.findByText(/admin 502/)).toBeInTheDocument();
     expect(screen.getByRole("switch", { name: "AI allowed for on@b.com" }).getAttribute("aria-checked")).toBe("true");
     expect(status).toBe(0);
+  });
+});
+
+// 2026-10-05: the Errors section. Crashes are grouped by fingerprint on the
+// server; the panel draws the top of the list and says so when it is cut.
+describe("AdminPanel: Errors", () => {
+  const group = (i: number, over: Partial<AdminErrorGroup> = {}): AdminErrorGroup => ({
+    fingerprint: "fp" + i, count: 1, firstSeen: "2026-10-01T00:00:00Z", lastSeen: "2026-10-05T07:41:00Z",
+    name: "TypeError", message: "boom " + i, build: "abc1234", platform: "ios", ...over,
+  });
+  const mk = (errors: () => Promise<AdminErrorGroup[]>): AdminService => ({
+    available: true,
+    async listUsers() { return []; }, async setUserStatus() {}, async setUserAiAllowed() {},
+    async usage() { return { totalUsers: 0, activeUsers: 0, signups7d: 0, aiCalls30d: 0 }; },
+    async billing() { return { mrr: 0, activeSubs: 0, trialing: 0, currency: "USD" }; },
+    async feedback() { return []; },
+    async metrics() { throw new Error("no metrics endpoint"); },
+    errors,
+  });
+
+  it("lists a group with its name, message, count, platform, build and last date", async () => {
+    render(<AdminPanel isAdmin source={mk(async () => [group(1, { count: 7 }), group(2, { name: "RangeError", message: "bad date", platform: "web", build: "zzz9999" })])} />);
+    expect(await screen.findByText("TypeError: boom 1")).toBeInTheDocument();
+    expect(screen.getByText("7 times")).toBeInTheDocument();
+    expect(screen.getByText("1 time")).toBeInTheDocument();
+    expect(screen.getByText("RangeError: bad date")).toBeInTheDocument();
+    expect(screen.getByText("iOS")).toBeInTheDocument();
+    expect(screen.getByText("Web")).toBeInTheDocument();
+    expect(screen.getByText("zzz9999")).toBeInTheDocument();
+    expect(screen.getAllByText("Last 2026-10-05").length).toBe(2);
+    expect(screen.getByText("Errors")).toBeInTheDocument();
+    expect(screen.getByText("Errors").parentElement!.querySelector(".n")!.textContent).toBe("2");
+  });
+
+  it("draws only the top 20 groups and says how many there are", async () => {
+    const many = Array.from({ length: 25 }, (_, i) => group(i));
+    render(<AdminPanel isAdmin source={mk(async () => many)} />);
+    expect(await screen.findByText("TypeError: boom 0")).toBeInTheDocument();
+    expect(screen.getByText("TypeError: boom 19")).toBeInTheDocument();
+    expect(screen.queryByText("TypeError: boom 20")).not.toBeInTheDocument();
+    expect(screen.getByText("Showing the top 20 of 25")).toBeInTheDocument();
+  });
+
+  it("says nothing has crashed when the list is empty, and does not say it is cut", async () => {
+    render(<AdminPanel isAdmin source={mk(async () => [])} />);
+    expect(await screen.findByText("No Crashes Yet")).toBeInTheDocument();
+    expect(screen.queryByText(/Showing the top/)).not.toBeInTheDocument();
+  });
+
+  it("says the endpoint is missing, without blanking the other sections", async () => {
+    render(<AdminPanel isAdmin source={mk(async () => { throw new Error("admin 404"); })} />);
+    expect(await screen.findByText("Errors Are Not Loaded")).toBeInTheDocument();
+    expect(screen.getByText("Feedback")).toBeInTheDocument();
+    expect(screen.getByText("Usage")).toBeInTheDocument();
+  });
+
+  it("falls back to labelled sample crashes in the demo source", async () => {
+    render(<AdminPanel isAdmin source={makeSampleAdminSource()} />);
+    expect(await screen.findByText("TypeError: Cannot read properties of undefined")).toBeInTheDocument();
+    expect(screen.getByText("7 times")).toBeInTheDocument();
+    expect(screen.getByText(/Sample data/)).toBeInTheDocument();
+  });
+
+  it("the client reads /api/admin/errors with the admin's token and unwraps the groups", async () => {
+    const calls: { url: string; init?: { headers?: Record<string, string> } }[] = [];
+    const api = createAdminApi("tok", true, async (url, init) => { calls.push({ url, init }); return { ok: true, status: 200, json: async () => ({ errors: [group(1)] }) }; });
+    expect(await api.errors()).toEqual([group(1)]);
+    expect(calls[0]!.url).toMatch(/\/api\/admin\/errors$/);
+    expect(calls[0]!.init!.headers!.Authorization).toBe("Bearer tok");
+  });
+
+  it("the client throws on a refusal so the panel can say so", async () => {
+    const api = createAdminApi("tok", true, async () => ({ ok: false, status: 403, json: async () => ({}) }));
+    await expect(api.errors()).rejects.toThrow("admin 403");
   });
 });

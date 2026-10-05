@@ -17,6 +17,7 @@
 // No SDK: adding one would grow the bundle for a job that is one request. A
 // Sentry-style SDK can still be dropped in later through setErrorSink
 // without touching a caller.
+import { Capacitor } from "@capacitor/core";
 import { apiUrl } from "../shared/apiBase";
 import { scrubReport } from "./scrub";
 import { parseDsn, authHeader, envelope, type Dsn } from "./sentry";
@@ -90,6 +91,10 @@ export interface ErrorReport {
   build: string;
   path?: string;
   userAgent?: string;
+  /** "ios", "android" or "web", from Capacitor. 2026-10-05: the receiver
+      stores it so a crash can be read as "on the phone" or "in a browser";
+      a Capacitor webview's user agent does not say so reliably. */
+  platform?: string;
 }
 
 const STACK_CAP = 4000;
@@ -148,6 +153,11 @@ export function toErrorReport(error: unknown, context?: Record<string, unknown>)
   }
   if (typeof location !== "undefined") report.path = location.pathname;
   if (typeof navigator !== "undefined") report.userAgent = navigator.userAgent;
+  try {
+    report.platform = Capacitor.getPlatform();
+  } catch {
+    /* a report without a platform is still a report */
+  }
   return report;
 }
 
