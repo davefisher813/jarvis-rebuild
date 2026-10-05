@@ -3293,9 +3293,23 @@
 .ruled .sched-row:not(.sched-row-bare) > .sel-box,
 .ruled .sched-row:not(.sched-row-bare) > .sched-open-plus { flex: 0 0 var(--sched-lead); width: var(--sched-lead); margin: 0; }
 .ruled .sched-row:not(.sched-row-bare) > .sel-box { height: var(--sched-lead); }
-.ruled .sched-row:not(.sched-row-bare) > .sched-time { flex: 0 0 var(--sched-time-w); width: var(--sched-time-w); text-align: right; font-variant-numeric: tabular-nums; }
-.ruled .sched-row:not(.sched-row-bare) > .sched-time:first-child,
-.ruled .sched-row:not(.sched-row-bare) > .sched-bar + .sched-time { margin-left: calc(var(--sched-lead) + var(--s-3)); }
+/* THE TIME IS THE ROW'S FIRST ITEM AND ALWAYS STARTS AT THE SAME LEFT EDGE (Dave 2026-10-05, two photographs: the day card
+   had a dead region on the left, and "2:15 PM" began at one x while "3:00 PM" and "8:00 PM" sat further right). The time
+   column was right aligned behind the lead slot, and a row with no lead pushed it right by the lead's width, so a row's time
+   began wherever its own lead put it. Now the time leads (left aligned, one fixed column, tabular so the colons line up) and
+   the lead control (check, star, select ring, open plus) sits behind it; a row with no lead gives its body the lead's room,
+   so every title still starts at one x. Nothing in the row is placed by its siblings any more: each kind takes an order. */
+.ruled .sched-row:not(.sched-row-bare) > * { order: 3; }
+.ruled .sched-row:not(.sched-row-bare) > .sched-time { order: 0; flex: 0 0 var(--sched-time-w); width: var(--sched-time-w); text-align: left; font-variant-numeric: tabular-nums; }
+.ruled .sched-row:not(.sched-row-bare) > .row-star,
+.ruled .sched-row:not(.sched-row-bare) > .sched-check,
+.ruled .sched-row:not(.sched-row-bare) > .sel-box,
+.ruled .sched-row:not(.sched-row-bare) > .sched-open-plus { order: 1; }
+.ruled .sched-row:not(.sched-row-bare) > .sched-body { order: 2; }
+/* The lead's room is kept only in a card where some row has a lead, so a list of leadless rows (the protected blocks and
+   events of a plain day) has no empty slot between the time and the title. */
+.ruled .card:has(.sched-row:not(.sched-row-bare) > :is(.row-star, .sched-check, .sel-box, .sched-open-plus)) .sched-row:not(.sched-row-bare) > .sched-time:first-child ~ .sched-body,
+.ruled .card:has(.sched-row:not(.sched-row-bare) > :is(.row-star, .sched-check, .sel-box, .sched-open-plus)) .sched-row:not(.sched-row-bare) > .sched-bar + .sched-time ~ .sched-body { margin-left: calc(var(--sched-lead) + var(--s-3)); }
 /* The star is a 16px glyph in a 24px slot; its 44px hit is the expander, the same way the check's is, so the glyph keeps its
    size and the row loses no tap to it. */
 .ruled .sched-row > .row-star { position: relative; justify-content: center; }
