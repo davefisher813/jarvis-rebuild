@@ -6969,12 +6969,13 @@ span.row-star { cursor: default; }
 .life-hdr { padding-bottom: var(--s-7); }
 /* Words, not the uppercase eyebrow .dd draws by default: five of these sit
    where a sentence used to, and an all-caps line of five reads as shouting.
-   The view leads in the page's own ink; a cut that is not set is quiet, so
-   the line says at a glance whether anything is narrowing the list. */
+   Every capsule on the line wears the same ink and weight (Dave 2026-10-05:
+   "these should all match the black font"): Today, Area and Group read alike,
+   set or not. The chevron stays quiet. */
 .hdr-controls .dd {
   text-transform: none; letter-spacing: -0.01em;
-  font-size: var(--t-caption); font-weight: var(--w-medium);
-  color: var(--tx-2); min-height: 34px;
+  font-size: var(--t-caption); font-weight: var(--w-semi);
+  color: var(--tx-1); min-height: 34px;
 }
 .hdr-controls .dd.dd-lead { font-weight: var(--w-semi); color: var(--tx-1); }
 .hdr-controls .dd .dd-w { max-width: 40vw; }
