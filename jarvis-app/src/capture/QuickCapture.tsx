@@ -441,15 +441,26 @@ export default function QuickCapture({ ai, onClose, onOpen }: { ai: AIService; o
             <textarea
               ref={boxRef}
               className="input input-multiline"
-              placeholder="Paste or type · dinner with Marco Thursday 7pm"
+              aria-label="Paste or Type"
+              placeholder="Dinner with Marco Thursday 7:00 PM"
               value={text}
               onChange={(e) => { setText(e.target.value); setDupAge(null); }}
               autoFocus
             />
-            {/* UP-MIND-26 (2026-09-05): the capture failure is at the moment
-                of encoding, and every phone already has dictation on its
-                keyboard. This points at it. */}
-            <div className="row mail-chips"><Dictate target={boxRef} /></div>
+            {/* ONE ROW OF THE FIELD'S OWN AIDS, DIRECTLY UNDER IT (Dave 2026-10-05, the review: Speak sat 6px under the field at
+                x=41 while the field began at x=21, and Log the Decision and Remember This stood stacked under Cancel, 9px from
+                the sheet's foot, hierarchy upside down: primary, cancel, then more options). Speak, and the two ways to file
+                what he typed, are all the same kind of thing (a way to get the words in or to say where they go), so they are
+                one wrapping row of the quiet capsule on the field's own column, and the sheet reads field, aids, Capture,
+                Cancel.
+                UP-MIND-26 (2026-09-05): the capture failure is at the moment of encoding, and every phone already has
+                dictation on its keyboard. Speak points at it. Brain Manual v1 (2026-09-27): the filing doors open the one
+                filing sheet (3 fields max) on top; the capture flow is untouched. */}
+            <div className="msg-quiet-acts">
+              <Dictate target={boxRef} />
+              {brain && <button className="quiet-action" onClick={() => setFilingMode("decision")}>Log the Decision</button>}
+              {brain && <button className="quiet-action" onClick={() => setFilingMode("remember")}>Remember This</button>}
+            </div>
             {error && <div className="input-error">{error}</div>}
             {dupAge !== null && (
               <div className="input-note">You captured this exact text {Math.max(1, Math.round(dupAge / 86400000))} {dupAge < 86400000 * 1.5 ? "day" : "days"} ago.</div>
@@ -466,17 +477,6 @@ export default function QuickCapture({ ai, onClose, onOpen }: { ai: AIService; o
               )}
               <button className="btn btn-secondary btn-block" onClick={onClose} disabled={phase === "saving"}>Cancel</button>
             </div>
-            {/* Brain Manual v1 (2026-09-27): the filing doors ride under
-                Smart Paste's own actions -- the capture flow is untouched,
-                these open the one filing sheet (3 fields max) on top.
-                Stacked on the messages surfaces' own quiet-exits pattern
-                (.msg-quiet-acts): no new styling. */}
-            {brain && (
-              <div className="msg-quiet-acts">
-                <button className="quiet-action" onClick={() => setFilingMode("decision")}>Log the Decision</button>
-                <button className="quiet-action" onClick={() => setFilingMode("remember")}>Remember This</button>
-              </div>
-            )}
           </div>
         )}
 

@@ -101,9 +101,8 @@ describe("CATALOG: the stylesheets hold it (2026-10-05)", () => {
   // re-weighted in light alone, and tabular numerals were light-only.
   // The one rule left is named with its reason.
   // -------------------------------------------------------------------------
-  const LIGHT_TYPE_ALLOWED = new Map<string, string>([
-    ["[data-theme=\"light\"] .voice-hint", "font-size: pins the dock hint to 14 against the light-only --t-meta of 15; it goes with that token once Dave decides it (see the next test)"],
-  ]);
+  // Empty and staying empty: the one entry it held (the dock hint's light-only 14) went with the light-only size tokens.
+  const LIGHT_TYPE_ALLOWED = new Map<string, string>();
   const TYPE_PROPS = ["font-weight", "font-size", "letter-spacing", "line-height", "font-variant-numeric", "text-transform", "font-style"];
 
   it("no light-theme rule restyles type", () => {
@@ -119,18 +118,15 @@ describe("CATALOG: the stylesheets hold it (2026-10-05)", () => {
     expect(bad, "light and dark differ in colour only").toEqual([]);
   });
 
-  // The four light-only SIZE tokens are Dave's to keep or drop (they were
-  // approved 2026-09-29 and contradicted by "same everything" on 2026-10-04,
-  // and the 2026-10-04 commit left them for his yes or no). Their effect is
-  // measurable: every line on --t-meta is 15 in light and 14 in dark, the
-  // note under a field (.input-hint, R9 14px) included. This pins the set so
-  // a FIFTH cannot be added quietly, and fails the day he decides, so the
-  // voice-hint pin above goes with them.
-  it("the light block overrides exactly the four sizes Dave has not yet ruled on", () => {
+  // The four light-only SIZE tokens are gone (Dave 2026-10-04 "same everything", applied 2026-10-05, the perfect bar:
+  // "Quick Wins" wrapped to two lines in light because --t-meta was 15 there and 14 in dark, and every line ran
+  // 1 to 12px wider). The light block overrides NO size, weight, tracking, line-height or radius token: a fifth, or
+  // the four coming back, fails here.
+  it("the light block overrides no type or spacing token", () => {
     const light = RULES.find((r) => r.file === "jarvis-design-system.css" && r.sel === "[data-theme=\"light\"]");
     expect(light, "the light token block exists").toBeTruthy();
     const sizeTokens = [...light!.body.matchAll(/(--(?:t|w|s|r|lh|track)-[a-z0-9-]+)\s*:/g)].map((m) => m[1]).sort();
-    expect(sizeTokens).toEqual(["--t-body", "--t-h1", "--t-meta", "--t-name"]);
+    expect(sizeTokens).toEqual([]);
   });
 
   // -------------------------------------------------------------------------

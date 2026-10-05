@@ -23,6 +23,8 @@
      writes it: past 1.4 the tab bar loses its labels, which is a worse
      answer than "as big as this app goes". */
   --type-scale: 1;
+  /* The top bar's own ground: the page's warm colour, opaque, in both themes (D6: nothing reads through the bar). */
+  --bar-solid: var(--bg);
 
   /* TYPE SCALE (7-tier) */
   --t-display: calc(56px * var(--type-scale));  /* hero numbers only */
@@ -487,19 +489,12 @@
    selection steel softened off pure black. The measured text ramp from the
    contrast audit is untouched. */
 [data-theme="light"] {
-  /* TYPE SCALE, LIGHT ONLY (Dave's approved palette pass, 2026-09-29): the
-     sizes take the approved scale (page title 32, body 16, supporting 15, task
-     and note names 17). Dark keeps its own.
-     THE WEIGHTS ARE NOT HERE ANY MORE (Dave, 2026-10-04: "the only difference
-     between light mode and dark mode is the colors. Same weights, same layout,
-     same everything"). This block used to step every weight down one notch, so
-     a name that is 700 in dark was 600 in light and a title on a notice row was
-     400. Light now reads the one weight ramp in :root, and the Type Law holds
-     it: no weight token is set under [data-theme="light"]. */
-  --t-h1: calc(32px * var(--type-scale));
-  --t-body: calc(16px * var(--type-scale));
-  --t-meta: calc(15px * var(--type-scale));
-  --t-name: calc(17px * var(--type-scale));
+  /* NO TYPE SCALE HERE (Dave, 2026-10-04: "the only difference between light mode and dark mode is the colors. Same
+     weights, same layout, same everything"; applied 2026-10-05, the perfect bar). This block used to size the page title
+     at 32, body 16, supporting 15 and names 17 against dark's 34, 15, 14 and 16, so the same words ran wider in light:
+     "Create Calder Invoice" ended 12px further right, "Quick Wins" wrapped in the segmented control, and the tab strip
+     clipped a different tab. Light now reads the one size ramp in :root, the way it reads the one weight ramp, and the
+     Type Law and catalogStyles hold it: no size or weight token is set under [data-theme="light"]. */
   /* LIGHT MODE, LOCKED (Dave 2026-09-27, catalog §AQ). Canvas stays the
      Daylight page (his pick from a side-by-side with pure white). The label
      ramp is black-based, as picked: title 100%, secondary 60% (5.5-5.7:1 on
@@ -869,7 +864,11 @@ html[data-theme="light"], html[data-theme="light"] body { background-color: var(
 
 /* INPUTS */
 .input { width: 100%; min-height: 44px; padding: var(--s-2) var(--s-3); background: var(--surface-2); border: 0.5px solid var(--card-bd); border-radius: var(--r-field); font-size: var(--t-h3); color: var(--tx-1); font-family: var(--f); outline: none; }
-.input::placeholder { color: var(--tx-2); }
+/* A PLACEHOLDER IS A HINT, NOT A VALUE (Dave 2026-10-05, the review: "as bright as typed text, so it reads as content", on the
+   Smart Paste field and the search bar). --tx-2 and --tx-3 are one hex, a step below the typed ink but only just, so a
+   focused field with a hint in it read as already filled. --tx-quiet is the catalog's one quieter ink (dark 62% cream,
+   light the secondary grey), and it clears 4.5:1 on the field in both. */
+.input::placeholder { color: var(--tx-quiet); }
 .input:focus, .input.focused { border-color: var(--tint); border-width: 2px; padding: 0 calc(var(--s-3) - 1px); }
 .input.error { border-color: var(--sys-red); border-width: 2px; padding: 0 calc(var(--s-3) - 1px); }
 .input.disabled { background: var(--press-1); color: var(--tx-2); pointer-events: none; }
@@ -962,7 +961,7 @@ button:disabled, .btn:disabled { opacity: 0.38; cursor: default; }
 .search-bar { display: flex; align-items: center; gap: var(--s-2); background: var(--press-3); border: 2px solid transparent; border-radius: var(--r-field); padding: var(--s-1h) var(--s-3); min-height: var(--tap-min); }
 .search-bar:focus-within { border-color: var(--accent); }
 .search-bar input { background: transparent; border: 0; outline: none; flex: 1; font-size: var(--t-h3); color: var(--tx-1); font-family: var(--f); }
-.search-bar input::placeholder { color: var(--tx-2); }
+.search-bar input::placeholder { color: var(--tx-quiet); }
 .chip { background: var(--press-3); color: var(--tx-2); min-height: 28px; padding: 0 var(--s-3); border-radius: var(--r-pill); font-size: var(--t-meta); font-weight: var(--w-medium); display: inline-flex; align-items: center; gap: var(--s-1); }
 .chip.active, .chip.on { background: var(--sel-bg); color: var(--sel-fg); }
 

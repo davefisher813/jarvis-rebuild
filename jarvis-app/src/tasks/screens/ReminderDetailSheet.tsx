@@ -71,7 +71,9 @@ export default function ReminderDetailSheet({
             <Row tone="green" glyph={<Clock className="ic" />} label="When" meta={whenWords(r, occurrence?.date ?? null, occurrence?.time ?? null, today, area)} />
             <Row tone="sky" glyph={<RepeatGlyph />} label="Repeat" meta={timed ? describeRepeat(repeatRuleOf(r)) : "Never"} />
             <Row tone="sand" glyph={<WarningGlyph />} label="Follow-up" meta={followUpWords(r)} />
-            <Row tone="blue" glyph={<Forward className="ic" />} label="Opens" meta={link?.label ?? (link ? actionLabelFor(link) : "This Reminder")} />
+            {/* A ROW WITH NOTHING TO SAY SHOWS NOTHING (catalog rule 2, 2026-10-05): "Opens: This Reminder" named the thing the
+                sheet is already in. It shows only when the reminder opens something else. */}
+            {link && <Row tone="blue" glyph={<Forward className="ic" />} label="Opens" meta={link.label ?? actionLabelFor(link)} />}
           </Group>
 
           {advice && !done && (

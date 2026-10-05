@@ -89,4 +89,16 @@ describe("ReminderDetailSheet", () => {
     expect(stateFact("Done Today").className).toBe("fact good");
     expect(document.querySelector(".fact.when")).toBeNull();
   });
+
+  // A ROW WITH NOTHING TO SAY SHOWS NOTHING (catalog rule 2, 2026-10-05): "Opens: This Reminder" named the thing the sheet
+  // is already in. The row shows only when the reminder opens something else.
+  it("shows no Opens row when the reminder links to nothing, and one when it does", () => {
+    const plain = render(<ReminderDetailSheet {...base} item={item({ time: "21:00", onMiss: "let_go" })} />);
+    expect(screen.queryByText("Opens")).toBeNull();
+    expect(screen.queryByText("This Reminder")).toBeNull();
+    expect(screen.getByText("Follow-up")).toBeInTheDocument();
+    plain.unmount();
+    render(<ReminderDetailSheet {...base} item={item({ time: "09:00", linkedItem: { type: "task" as const, id: "t1", label: "Bridge Priorities" } })} />);
+    expect(screen.getByText("Opens")).toBeInTheDocument();
+  });
 });

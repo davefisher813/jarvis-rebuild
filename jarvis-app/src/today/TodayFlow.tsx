@@ -388,6 +388,11 @@ export default function TodayFlow({
   // what is left there. When it is showing, the head's Open Inbox is a
   // second door to the same room, so the head stands down.
   const [mailResidual, setMailResidual] = useState(false);
+  // CLEAR ALL LIVES ON THE BAND'S HEAD (Dave 2026-10-05, locked). The band owns what it has hidden, so it reports the
+  // one function up (null when there is nothing to clear in bulk) and the page draws it as the head's capsule. A function
+  // in state has to be wrapped, or React would call it as an updater.
+  const [mailClear, setMailClear] = useState<(() => void) | null>(null);
+  const onMailClearChange = useCallback((fn: (() => void) | null) => setMailClear(() => fn), []);
   const reflowGuard = useRef(0);
   // Double-tap guard for the per-block Accept, same shape as the Schedule
   // tab's. A plain object would be new on every render and guard nothing.
@@ -2821,20 +2826,23 @@ export default function TodayFlow({
             ...(onAskSaid ? [{ label: "What Did You Say", run: () => void onAskSaid(prep.person.id) }] : []),
           ]}>
           <div className="row" {...rowDoor(() => void (onOpenPerson ?? onAskSaid)?.(prep.person.id))}>
-            <RowIcon kind="event" />
+            {/* A PERSON, NOT AN EVENT (Dave 2026-10-05, the review: "a person avatar or initials tile instead of the event
+                icon"). The row is about the person he is about to meet, so it wears the person's tile, the same one the
+                People rows wear. */}
+            <RowIcon kind="person" />
             <div className="row-stack">
               {/* THE NAME IS THE TITLE; THE FACTS GO UNDER IT (§AK, §AM,
                   2026-09-26). meetingPrep used to join the name, the count
                   and the last mail with typed dots, so the facts truncated
                   with the title and wore its ink. It hands over the parts
                   now: the count is white (a count with no state), "with
-                  them" is the line's one grey, and the last mail is a
+                  them" is the line's one grey (Title Case, like every line the app writes), and the last mail is a
                   neutral date, so it is small caps. Its words were read on
                   meetingPrep's own clock, so nothing here reads a second. */}
               <div className="conn-name truncate">{prep.person.name}</div>
               {(prep.open.length > 0 || prep.lastMail) ? (
                 <div className="conn-meta facts">
-                  {prep.open.length > 0 && <span className="fact"><b>{lineCase(`${prep.open.length} open`)}</b> with them</span>}
+                  {prep.open.length > 0 && <span className="fact"><b>{lineCase(`${prep.open.length} open`)}</b> With Them</span>}
                   {prep.lastMail ? <span className="fact date">{prep.lastMail}</span> : null}
                 </div>
               ) : null}
@@ -2948,31 +2956,12 @@ export default function TodayFlow({
           )}
         </>
       )}
-      {/* FOUR FLOATING BUTTONS BECAME ONE ROW (Dave 2026-09-10 and 09-11).
-          The bottom of Today had accumulated Focus, Plan My Day, Accept the
-          Day and Not Today, on two different grids, none of them the page's
-          own column. Focus went to Your Move as a centred pill; Accept moved
-          UP into Plan My Day's row (draftPrimary below, YourDay's `primary`
-          slot) so the two decisions about the day sit side by side instead of
-          two sections apart. This is the quiet decline under them: clearing a
-          draft has to stay reachable, because Plan My Day stands its AI
-          refine down while a draft is standing, on purpose ("the card already
-          showed him a plan; re-plan must not silently renumber it"). Same
-          .receipt-line every quiet secondary in this app wears. */}
-      {/* IT SAYS WHAT IT DECLINES (Dave 2026-09-19, on the homepage: two
-          grey lines at the foot of the day, the second of them two words
-          that name no object). "Not Today" answers a question the page
-          stopped asking three sections ago; what the tap actually does is
-          clear the plan standing above it. */}
-      {/* Slice 09 QA (2026-10-04): this line's tap area reaches 14px past its paint (.receipt-line::after), and it
-          sat flush under "N More in Anytime", so it answered the taps meant for the line above and for the last
-          Anytime row's Add. The wrapper's gap keeps the two areas apart; the button stays the exact quiet line
-          LAW 8 holds. */}
-      <div className="draft-clear">
-        <button className="receipt-line" onClick={dismissDraft}>
-          <span className="rl-t">Clear This Plan</span>
-        </button>
-      </div>
+      {/* CLEAR THIS PLAN IS ON THE DAY'S HEAD (Dave 2026-10-05, locked: section-level actions live in the section head).
+          FOUR FLOATING BUTTONS BECAME ONE ROW (Dave 2026-09-10 and 09-11) and the last of them, the quiet decline, was a
+          grey receipt line under the Anytime fold that read as a caption, not a control. Clearing a draft still has to stay
+          reachable, because Plan My Day stands its AI refine down while a draft is standing, on purpose ("the card already
+          showed him a plan; re-plan must not silently renumber it"): it is the last item behind the day head's overflow,
+          in the destructive ink, and says what it declines (Dave 2026-09-19: "Not Today" named no object). */}
     </>
   ) : null;
 
@@ -3545,11 +3534,14 @@ export default function TodayFlow({
   // toast says so and offers the way back, the same as every other row that
   // leaves a screen on a tap (undoLaw).
   const onTickReminder = async (id: string, done: boolean) => {
+    // THE TOAST NAMES WHAT IT DID (Dave 2026-10-05, the review: "Marked Done" with no item name): the reminder and its new
+    // state, "Night Meds Done". Read before the write, because the tick takes the row off the strip.
+    const ticked = [...reminders, ...remPick.missed].find((r) => r.id === id);
     const ok = await attemptWrite(() => (done ? tasks.tickReminder(id, today) : tasks.untickReminder(id)));
     await reload();
     if (!ok || !done) return;
     showToast({
-      message: "Marked Done",
+      message: ticked ? titleCase(ticked.text) + " Done" : "Marked Done",
       actionLabel: "Undo",
       onAction: async () => {
         await attemptWrite(() => tasks.untickReminder(id));
@@ -4340,6 +4332,7 @@ export default function TodayFlow({
       onPlanDay={() => void openPlan("today")}
       onPlanTomorrow={evening ? () => void openPlan("tomorrow") : undefined}
       onRunningLate={onRunningLate}
+      onClearPlan={draftStanding ? dismissDraft : undefined}
       onUpNext={() => setUpNextOpen(true)}
       upNext={upNextRows}
       upNextReason={upNextAll[0] ? reasonFor(upNextAll[0], today, inPeakNow) : null}
@@ -4361,6 +4354,7 @@ export default function TodayFlow({
       onStartTask={onStartNow}
       onSeeAllMail={!mailEmpty && !mailResidual && onGoEmail ? () => onGoEmail() : undefined}
       mailEmpty={mailEmpty}
+      onClearMail={mailClear ?? undefined}
       mailHead={unifiedEmail ? { title: EMAIL_BAND_TITLE, action: OPEN_EMAIL } : undefined}
       mail={unifiedEmail ? (
         <EmailToday key="mail" client={supabase} tasks={tasks} schedule={schedule} waiting={waitingSvc} today={today} excludeIds={upNextRows.map((r) => r.id)}
@@ -4383,6 +4377,7 @@ export default function TodayFlow({
           onOpenEmail={onGoEmail ? () => onGoEmail() : undefined}
           onEmptyChange={setMailEmpty}
           onResidualChange={setMailResidual}
+          onClearAllChange={onMailClearChange}
         />
       )}
       billLine={billsLine(taskItems, today, ledgerBills) ?? undefined}

@@ -6,7 +6,7 @@
 import type { EventItem } from "../schedule/types";
 import type { LockedRange } from "./YourDay";
 import { leaveByOf } from "../schedule/leaveBy";
-import { lineCase } from "../shared/casing";
+import { lineCase, titleCase } from "../shared/casing";
 import { minutesLabel, spanLabel } from "../shared/duration";
 
 export interface NowContext {
@@ -233,9 +233,13 @@ export function hyperfocusGuard(events: EventItem[], nowHHMM: string): GuardLine
   const next = events
     .map((ev) => {
       const leave = leaveByOf(ev.data);
+      // THE TITLE IS SHOWN THE WAY EVERY ROW SHOWS IT (2026-10-05, the review: Focus said "Call With Nadia at 10 AM" while the
+      // Schedule row said "Call with Nadia"): his typed title in Title Case, which keeps a small word small. The record keeps
+      // what he typed.
+      const shown = titleCase(ev.data.title);
       return leave
-        ? { s: toMin(leave), title: ev.data.title, leaving: true }
-        : { s: toMin(ev.data.start), title: ev.data.title, leaving: false };
+        ? { s: toMin(leave), title: shown, leaving: true }
+        : { s: toMin(ev.data.start), title: shown, leaving: false };
     })
     .filter((x) => x.s > now)
     .sort((a, b) => a.s - b.s)[0];

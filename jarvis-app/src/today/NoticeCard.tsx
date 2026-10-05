@@ -79,6 +79,7 @@ export default function NoticeCard({
   onOpen,
   due = false,
   offer = false,
+  asRow = false,
   foot,
   form = "card",
   uniform = true,
@@ -142,6 +143,13 @@ export default function NoticeCard({
    *  form (Dave's lock: "notice and promo cards with their own words" are exempt). A notice that is about a THING (a
    *  project, a bill, a place you were) is a row, and a row has no capsule. */
   offer?: boolean;
+  /** THE CARD'S ANATOMY, DRAWN AS A ROW OF A LIST (2026-10-05, Dave's Ready to Send rows: "Clean rows, no pills anywhere").
+   *  A mail notice keeps the stacked card form (sender over its one grey line, a foot of chips and a draft under it) but
+   *  is a ROW of the band's grouped card, so it wears none of a card's capsule: its verb is the swipe (first in the tray),
+   *  the long-press menu, and, once its moment has come (`due`), the one quiet word on the row. The tap opens the row's
+   *  door (`onOpen`), or runs its one verb, or opens the sheet when it has several. An OFFER ignores this: it is the
+   *  question and its capsule is the answer. */
+  asRow?: boolean;
   // Extra rows below the main line, inside the same card (the email stack).
   foot?: ReactNode;
   form?: "card" | "row";
@@ -302,13 +310,15 @@ export default function NoticeCard({
   // Both forms keep alt on the swipe reveal.
   const altOnReveal = alt;
   const revealDismiss = !!onDismiss && !dismissButton;
-  // THE ROW'S VERB IS THE FIRST BUTTON IN ITS TRAY (2026-10-05): only the row form, because the card form draws it.
-  const rowAction = form === "row" && !offer ? action : undefined;
+  // THE ROW'S VERB IS THE FIRST BUTTON IN ITS TRAY (2026-10-05): the row form, and a card drawn as a row (`asRow`);
+  // any other card form draws its verb as a capsule.
+  const verbRow = (form === "row" || asRow) && !offer;
+  const rowAction = verbRow ? action : undefined;
   const acts = (rowAction ? 1 : 0) + (altOnReveal ? 1 : 0) + (revealDismiss ? 1 : 0) + (onDelete ? 1 : 0);
   // THE ROW'S VERBS, and its sheet for a row with no destination of its own: with two or more verbs a tap opens a sheet
   // holding every action the row has (the verbs, then Dismiss and Delete); with one, the tap just does it.
   const [sheetOpen, setSheetOpen] = useState(false);
-  const verbs = form === "row" && !offer ? [...(action ? [action] : []), ...(alt ? [alt] : [])] : [];
+  const verbs = verbRow ? [...(action ? [action] : []), ...(alt ? [alt] : [])] : [];
   const sheetActions = [
     ...verbs.map((v) => ({ label: v.label, onPick: v.onClick })),
     ...(onDismiss ? [{ label: "Dismiss", onPick: onDismiss }] : []),
@@ -358,6 +368,11 @@ export default function NoticeCard({
     if (verbs.length === 1) { verbs[0]!.onClick(); return; }
     if (verbs.length > 1) setSheetOpen(true);
   };
+  // THE DOOR OF A CARD (the card form's row). A real card opens `onOpen`; a card drawn as a row (`asRow`) opens its
+  // destination too, else runs its one verb, else opens the sheet that holds several, exactly as the row form's tap does.
+  const cardDoor: (() => void) | undefined = asRow && !offer
+    ? (onOpen ?? (verbs.length === 1 ? verbs[0]!.onClick : verbs.length > 1 ? () => setSheetOpen(true) : undefined))
+    : onOpen;
   const inner =
     effForm === "row" ? (
       <div
@@ -395,9 +410,9 @@ export default function NoticeCard({
       <>
         <div
           className="row"
-          role={onOpen ? "button" : undefined}
-          tabIndex={onOpen ? 0 : undefined}
-          onClick={onOpen}
+          role={cardDoor ? "button" : undefined}
+          tabIndex={cardDoor ? 0 : undefined}
+          onClick={cardDoor}
         >
           <div className={"row-glyph notice-disc " + (tone ?? DEFAULT_TONE).replace("cat-fg-", "cat-bg-")}>{icon}</div>
           <div className="row-grow">
@@ -408,14 +423,16 @@ export default function NoticeCard({
           </div>
           {/* An expanded row with two verbs carries neither in the trailing
               slot: both go on the verbs line below, together. See there. */}
-          {action && !stack && !twoVerbs ? (
+          {action && !stack && !twoVerbs && !verbRow ? (
             <button
               className={"pill-act" + (action.go ? " pill-go" : "")}
               onClick={(e) => { e.stopPropagation(); action.onClick(); }}
             >
               {action.label}
             </button>
-          ) : onOpen && !twoVerbs && !xButton ? (
+          ) : verbRow && due && action ? (
+            <RowCtxAction when label={action.label} onAct={action.onClick} />
+          ) : cardDoor && !twoVerbs && !xButton ? (
             <div className="chev" />
           ) : null}
           {xButton}
@@ -530,6 +547,7 @@ export default function NoticeCard({
             + (uniform && (effForm === "card" || effForm === "row") ? " notice-card-uniform" : "")
             + (stack ? " notice-card-stack" : "")
             + (wrap ? " notice-card-wrap" : "")
+            + (asRow && !offer && effForm === "card" ? " notice-card-asrow" : "")
             /* A UNIFORM CARD IS TWO LINES TALL, and how it spends them is
                its own business. With a sub, that is one line each. WITHOUT
                one, the title takes both, which costs nothing: the card is

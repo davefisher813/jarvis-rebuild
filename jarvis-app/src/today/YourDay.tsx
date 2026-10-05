@@ -13,6 +13,8 @@ import HeldTasks from "../schedule/screens/HeldTasks";
 import LockedRow from "../schedule/screens/LockedRow";
 import SkippedBlocks, { type SkippedBlock } from "../schedule/screens/SkippedBlocks";
 import type { PlanBlock } from "../schedule/planDay";
+import HeadMore from "../shared/HeadMore";
+import RowActionSheet, { type RowAction } from "../shared/RowActionSheet";
 
 // A standing proposal for this day, plus the handlers that edit it. Absent
 // when nothing is drafted, which is most of the time.
@@ -348,6 +350,7 @@ export default function YourDay({
   onPlanTomorrow,
   tomorrowShown = false,
   onRunningLate,
+  onClearPlan,
   onFocus,
   onOpenEvent,
   onEditRoutine,
@@ -399,6 +402,10 @@ export default function YourDay({
   // is told. Defaults false, which is the old behaviour.
   tomorrowShown?: boolean;
   onRunningLate?: (mins: number) => void;
+  /** CLEAR THIS PLAN (Dave 2026-10-05, locked). The standing draft's decline, which hung as a loose grey line under the
+   *  day. It is a day-level action, so it sits behind the head's overflow, last and in the destructive ink. Absent when
+   *  no draft is standing. */
+  onClearPlan?: () => void;
   onFocus?: () => void;
   onOpenEvent?: (id: string) => void;
   onEditRoutine?: (blockId?: string) => void;
@@ -535,33 +542,38 @@ export default function YourDay({
   // PLAN MY DAY AND PLAN TOMORROW ARE ON THE HEAD (Dave 2026-10-05, locked: "Section-level actions move into section
   // headers, never inside cards or rows"; Alfred R3 and R6: a red Plan My Day and a dark Plan Tomorrow sat inside the
   // Tonight card in two styles). They are the same capsule New Event and Schedule are, see `header` below. What is
-  // left under the day is the draft's one decision, which is the screen's one filled primary, and Running Late.
+  // left under the day is the draft's one decision, which is the screen's one filled primary.
   //
   // B15 (2026-08-23): ONE FILL PER SCREEN, and the fill belongs to whichever action advances the WHOLE screen. With a
-  // draft standing that is Accept the Day, which commits every hour of the day at once (`primary`).
-  const planButton = primary || hasFuture ? (
-    <>
-      {primary && <div className="plan-cta-row">{primary}</div>}
-      {hasFuture && (
-        <div className="plan-cta-row">
-          <button className={"plan-cta plan-cta-block plan-cta-ghost" + (lateOpen ? " late-armed" : "")} onClick={() => setLateOpen((v) => !v)}>Running Late?</button>
-        </div>
-      )}
-      {lateOpen && onRunningLate && (
-        <div className="late-chips">
-          <div className="segmented">
-            {LATE_CHOICES.map((m) => (
-              <button className="seg" key={m} onClick={() => { setLateOpen(false); onRunningLate(m); }}>+{m === 60 ? "1h" : m + "m"}</button>
-            ))}
-          </div>
-        </div>
-      )}
-    </>
-  ) : null;
+  // draft standing that is Accept the Day, which commits every hour of the day at once (`primary`). It stays under the
+  // card (D2, 2026-10-05): it is the proposal's own question, in its own words, and not a section action.
+  //
+  // RUNNING LATE AND CLEAR THIS PLAN ARE THE HEAD'S OVERFLOW (D1 and D2, 2026-10-05). Running Late was a full-width grey
+  // pill under Accept the Day and Clear This Plan a loose grey line under that: five unrelated controls stacked under
+  // one card. Both are day-level actions, so they sit behind the head's one overflow button, the same sheet every row
+  // menu opens. Running Late asks how late in a second sheet of its own.
+  const planButton = primary ? <div className="plan-cta-row">{primary}</div> : null;
+
+  // THE HEAD HOLDS TWO CAPSULES AND AN OVERFLOW (D1). In the order you use them: plan the day, add to it, go to it, then
+  // the actions that act on the day as a whole. The first two are capsules; the rest wait behind the one More button, so
+  // the head is always one line and never wraps a capsule onto a row of its own. Plan Tomorrow is here only when the page
+  // has no Tomorrow head of its own to carry it (tomorrowShown), so it is one capsule in one place.
+  const headActions: RowAction[] = [
+    ...(onPlanDay ? [{ label: "Plan My Day", onPick: onPlanDay }] : []),
+    ...(onPlanTomorrow && !tomorrowShown ? [{ label: "Plan Tomorrow", onPick: onPlanTomorrow }] : []),
+    ...(onNewEvent ? [{ label: "New Event", onPick: onNewEvent }] : []),
+    { label: "Schedule", onPick: onSeeAll },
+    ...(hasFuture ? [{ label: "Running Late", onPick: () => setLateOpen(true) }] : []),
+    ...(onClearPlan ? [{ label: "Clear This Plan", onPick: onClearPlan, destructive: true }] : []),
+  ];
+  const headCapsules = headActions.slice(0, 2);
+  const headMore = headActions.slice(2);
 
   const header = (
     <>
-    <div className="sh2">
+    {/* NOW IS A NEUTRAL HEAD (Dave 2026-10-05, D4: brand red only on things you can tap). It was the page's one accent
+        head (I3, 2026-08-24, "the only section about this minute"), and it is not tappable. */}
+    <div className="sh2 sh2-quiet">
       <span className="t">{nowHead ? "Now" : title}</span>
       <span className="sec-left">
         {(events.length > 0 || (proposed?.blocks.length ?? 0) > 0) && (
@@ -574,15 +586,20 @@ export default function YourDay({
             <svg className="icon-play" viewBox="0 0 24 24"><polygon points="7,5 19,12 7,19" /></svg>
           </button>
         )}
-      {/* ONE STYLE, IN THE ORDER YOU USE THEM: plan the day, add to it, go to it. Plan Tomorrow is here only when the
-          page has no Tomorrow head of its own to carry it (tomorrowShown), so it is one capsule in one place. */}
-      {onPlanDay && <button className="see-all pill-action" onClick={onPlanDay}>Plan My Day</button>}
-      {onPlanTomorrow && !tomorrowShown && <button className="see-all pill-action" onClick={onPlanTomorrow}>Plan Tomorrow</button>}
-      {onNewEvent && <button className="see-all pill-action" onClick={onNewEvent}>New Event</button>}
-      <button className="see-all pill-action" onClick={onSeeAll}>Schedule</button>
+        {headCapsules.map((a) => (
+          <button key={a.label} className="see-all pill-action" onClick={a.onPick}>{a.label}</button>
+        ))}
+        <HeadMore actions={headMore} label="Day Actions" />
       </span>
     </div>
     <SkippedBlocks blocks={skippedBlocks} onBackToNormal={onBackToNormal} />
+    {lateOpen && onRunningLate && (
+      <RowActionSheet
+        title="Running Late"
+        actions={LATE_CHOICES.map((m) => ({ label: m === 60 ? "1 Hour" : m + " Min", onPick: () => onRunningLate(m) }))}
+        onCancel={() => setLateOpen(false)}
+      />
+    )}
     </>
   );
 

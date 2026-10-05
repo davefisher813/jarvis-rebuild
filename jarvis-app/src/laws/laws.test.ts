@@ -3945,17 +3945,20 @@ describe("LAW 11: cards show their work, tags earn their shape, and no screen is
   // The other half of the reversal: the large page title wears the same
   // energy line the condensed pagebar wears, so the two read as one element
   // rather than as two headers trading places on scroll.
-  it("the signature stroke wears the condensed bar's exact energy line", () => {
+  it("the signature stroke is the energy line, leaves with the large title and keeps a gap under it", () => {
     const line = /linear-gradient\(90deg, #FA233B, #FB5C74 55%, rgba\(251,92,116,0\)\)/;
     const stroke = /\.pagehead-title::after \{[^}]*\}/.exec(CSS)?.[0] ?? "";
     expect(stroke, "the stroke exists").not.toBe("");
-    expect(stroke, "same gradient as .pagebar.on::after, not a lookalike").toMatch(line);
+    expect(stroke, "the energy-line gradient").toMatch(line);
     expect(stroke, "same 2px weight").toMatch(/height: 2px/);
     expect(stroke, "same 64px run").toMatch(/width: 64px/);
     // Both must stay identical: if one is ever retuned, the other has to move
     // with it or the condense animation stops reading as one object.
-    const bar = /\.pagebar\.on::after \{[^}]*\}/.exec(CSS)?.[0] ?? "";
-    expect(bar, "the bar still wears it too").toMatch(line);
+    // AMENDED 2026-10-05 (the perfect bar): the condensed bar no longer wears the stroke (it read as an orphaned underline
+    // pinned over the scrolled content); the stroke leaves with the large title, and keeps a gap under it so it never
+    // touches the chip row below.
+    expect(CSS, "the condensed bar wears no stroke").not.toMatch(/\.pagebar\.on::after \{/);
+    expect(stroke, "and a gap under the stroke, so it never touches the row below").toMatch(/margin-bottom: var\(--s-3\)/);
   });
 
   // FINDING 4. Every new note was born wearing defaultCatId -- whatever

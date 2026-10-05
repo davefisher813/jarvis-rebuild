@@ -1,6 +1,7 @@
 import { titleCase } from "../shared/casing";
 import type { ReactNode } from "react";
 import { Timer } from "../shared/icons";
+import PageHeader from "../shared/PageHeader";
 
 // FOCUS, THE ONE PLACE (Dave 2026-09-18: "why don't we combine focus and
 // pick one and roll it all under focus (which needs a major facelift as
@@ -103,10 +104,12 @@ export default function FocusScreen({
   const leadsWithStart = mode === "next" && !!onStartNow;
   return (
     <div className="search-overlay ruled focus-screen">
-      <div className="nav-bar">
-        <div className="nav-large">Focus</div>
-        <button className="nav-action-text" data-layer-close onClick={onClose}>Close</button>
-      </div>
+      {/* THE PAGE'S OWN HEADER (Dave 2026-10-05, the review: "Focus starts at x=12, not the 20px gutter every other page uses,
+          has no accent underline, and sits under a near-black band"). It was a hand-built .nav-bar with a .nav-large, which
+          is the pushed-page chrome without the page's gutter or its stroke: the shared PageHeader is the one header, so the
+          title sits on the 20px column with the signature stroke under it, the bar is the page's own colour, and Close is
+          the bar's trailing word at the same inset as every other bar action. */}
+      <PageHeader title="Focus" actions={<button className="nav-action-text" data-layer-close onClick={onClose}>Close</button>} />
 
       {/* ONE LINE: the two ways to work, and the music. It was two rows,
           because Music was a chip in a wrapping chip row. */}
@@ -189,7 +192,7 @@ export default function FocusScreen({
             {/* The screen used to say nothing about the rest, so one card in
                 the middle of a black page read as the whole app being empty. */}
             <div className="focus-rest">
-              {waiting > 0 ? `${waiting} More Waiting` : "Last one open"}
+              {waiting > 0 ? <><b>{waiting}</b> More Waiting</> : "Last One Open"}
             </div>
           </>
         ) : (

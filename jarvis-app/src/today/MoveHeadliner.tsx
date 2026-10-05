@@ -21,16 +21,17 @@
 //                one action on the row as text (RowCtxAction), the same verb
 //                as the swipe. Anything not yet late stays clean.
 //
-// THE CHIP SAYS THE DISTANCE. It is the app's own .uchip, the same one the task
-// rows further down this page wear, with the same words from the same producer
-// (distanceFor): TODAY in amber, "2 DAYS LATE" in red, and nothing at all for a
-// task due tomorrow or later, which is what keeps it loud.
+// THE DISTANCE IS A FACT, NOT A CHIP (2026-10-05, replacing Dave 2026-09-16's "today should be a chip"). The words come
+// from the app's one producer (distanceFor): Due Today in amber, "2 Days Late" in red, and nothing at all for a task due
+// tomorrow or later, which is what keeps it loud. The card is already Your Move, so a filled chip saying today repeated
+// its own head.
 //
 // THIS FILE ALSO HOLDS THE SHELL EVERY SWIPEABLE ROW ON TODAY WEARS
 // (SwipeShell below). The swipe laws are rostered by file, and one shell for
 // every Today row is one place the gesture is wired, the teaching peek runs and
 // a right swipe teaches the tip, instead of five copies of it.
 import { Check } from "../shared/icons";
+import { titleCase } from "../shared/casing";
 import { useSwipe } from "../shared/useSwipe";
 import { useRowMenu } from "../shared/useRowMenu";
 import type { RowAction } from "../shared/RowActionSheet";
@@ -143,6 +144,14 @@ export interface MoveFacts {
 // the one already on screen. A good ranking does not need explaining and a bad
 // one is not fixed by explaining it. What is left is Start, which commits real
 // minutes, and Tomorrow, which moves the task to a real slot and names it.
+// THE DISTANCE, AS A FACT (Dave 2026-10-05, the review: "a pill drawn inside the Your Move row ... repeats the context").
+// The row wore distanceFor's chip, TODAY in a filled amber capsule beside the area's dot; the card is already Your Move, so
+// a chip saying today repeated it, and a filled chip inside a row is the pill the catalog bans. It is a fact now, in the
+// key's own ink (due is amber, late is red) and in Title Case: Due Today, 2 Days Late. distanceFor still produces the
+// words and the kind, so this row and the task rows cannot disagree about the distance, only about its typography.
+const urgencyWords = (u: { label: string; kind: "today" | "late" }): string =>
+  u.kind === "today" ? "Due Today" : titleCase(u.label.toLowerCase());
+
 export default function MoveHeadliner({
   title, facts, onStart, onTomorrow, onDone, onAgain, onStop, onToggle, onOpen,
 }: {
@@ -239,10 +248,8 @@ export default function MoveHeadliner({
                   extended in laws/astra.test.ts). The chip is not a fact and
                   carries its own tint by rule; the second slot below is the
                   line's one coloured fact at most. */}
-              {facts.urgency ? (
-                <span className="fact">
-                  <span className={"uchip " + (facts.urgency.kind === "late" ? "u-late" : "u-today")}>{facts.urgency.label}</span>
-                </span>
+              {facts.urgency && !facts.over ? (
+                <span className={"fact " + (facts.urgency.kind === "late" ? "red" : "warn")}>{urgencyWords(facts.urgency)}</span>
               ) : facts.category ? (
                 <span className="fact cat"><span className={"cd cat-bg-" + facts.category.slot} />{facts.category.name}</span>
               ) : null}

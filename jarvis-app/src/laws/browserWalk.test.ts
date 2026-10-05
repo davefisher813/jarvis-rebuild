@@ -478,13 +478,17 @@ describe("BROWSER-F-10: red words on a sheet grey are readable", () => {
     expect(contrast("#C8210F", "#ECE5DA"), "light destructive words on the raised grey").toBeGreaterThanOrEqual(4.5);
   });
 
-  it("the return pill is 44 to the finger and clears the capture bar (2026-09-26)", () => {
+  it("the return pill is 44 to the finger and is a row of the shell, never over content (2026-10-05)", () => {
     const pill = ruleBody(css(), ".return-pill")!;
     expect(pill).toMatch(/min-height:\s*44px/);
     expect(pill, "the capsule is painted on ::before, not the box").toMatch(/background:\s*none/);
     expect(ruleBody(css(), ".return-pill::before")).toMatch(/inset:\s*5px 0/);
-    expect(pill, "its bottom is the measured dock, with the old 132 as the fallback").toMatch(/var\(--return-clear,\s*calc\(env\(safe-area-inset-bottom, 0px\) \+ 132px\)\)/);
-    expect(read("shell/ReturnPill.tsx")).toMatch(/setProperty\("--return-clear"/);
+    // D6: it floated (position: fixed over the scroll box, clear of the dock by a measured --return-clear) and covered
+    // whichever row sat at that height. It is in the shell's column now, so nothing can be under it.
+    expect(pill, "in flow, not fixed").toMatch(/position:\s*relative/);
+    expect(pill, "in flow, not fixed").not.toMatch(/position:\s*fixed/);
+    expect(pill).not.toMatch(/--return-clear/);
+    expect(read("shell/ReturnPill.tsx"), "nothing measures or publishes").not.toMatch(/setProperty\(|getBoundingClientRect/);
   });
 
   it("the sheet and toast verbs take it", () => {
@@ -546,18 +550,15 @@ describe("BROWSER-F-10: red words on a sheet grey are readable", () => {
     expect(ruleBody(css(), ".row-act, .ruled .card .row.row-act"), "dark: the capsule's label is its own --tint")
       .toMatch(/(^|[;\s])color:\s*var\(--tint\)/);
     const lightCap = ruleBody(css(), '[data-theme="light"] .row-act, [data-theme="light"] .ruled .card .row.row-act');
-    // AMENDED 2026-09-28 (Dave): the outlined pill read as unfinished. The
-    // light capsule is a solid fill in the unified red with a white label,
-    // like the Accept the Day button -- --accent-fill is the token whose
-    // whole job is carrying white text. The law pins the fill and the white
-    // label, and holds white-on-unified-red (4.49:1) as the floor, so a
-    // future change can only make it more readable, never less.
-    expect(lightCap, "light: the capsule's label is white")
-      .toMatch(/(^|[;\s])color:\s*#fff/i);
-    expect(lightCap, "light: the capsule's fill is the unified red")
-      .toMatch(/background-color:\s*var\(--accent-fill\)/);
-    expect(lightCap, "light: the capsule's border matches its fill")
-      .toMatch(/border:[^;]*var\(--accent-fill\)/);
+    // AMENDED 2026-10-05 (Dave, the perfect bar; decision D3: light and dark are one design in colour only). The
+    // 2026-09-28 light capsule was a solid red slab with a white label while dark drew the capsule fill, so the same
+    // control was two objects by theme. The light capsule is the capsule fill with the deep action red as its label
+    // (the pair .pill-act wears), and the screen's one primary is the only red fill.
+    expect(lightCap, "light: the capsule's label is the deep action red")
+      .toMatch(/(^|[;\s])color:\s*var\(--on-light-red\)/);
+    expect(lightCap, "light: the capsule's fill is the capsule fill, not a red slab")
+      .toMatch(/background-color:\s*var\(--capsule-fill\)/);
+    expect(lightCap, "light: the capsule is not red-filled or bordered").not.toMatch(/accent-fill/);
     const capDark = contrast(tokenIn("dark", "--tint"), resolve("dark", "--capsule-fill"));
     expect(capDark, `dark capsule label on its fill is ${capDark.toFixed(2)}:1`).toBeGreaterThanOrEqual(4.5);
     const fillRed = tokenIn("light", "--accent-fill");
@@ -1174,20 +1175,21 @@ describe("DYNAMIC-TYPE-1.4: the app's own words survive the largest text size", 
     expect(ruleBody(css(), ".notice-card .vrow-sub > .facts > .fact")).toMatch(/flex-shrink:\s*0/);
   });
 
-  it("the capture bar takes a second line rather than losing half a sentence", () => {
-    // The ninth finding, and the auditor could not see it: the hint did not
-    // CLIP, it wrapped to two lines and painted past the pill's right edge
-    // across the wordmark, on the one piece of chrome that is on every tab.
-    // A screenshot found it. The gap is named in docs/AUDIT_CHECKLIST.md.
-    // An ellipsis was tried first and the auditor then read "Add anything"
-    // losing 48% on ten screens, so the pill wraps and keeps every word.
+  it("the capture bar is ONE line that never wraps and never loses a character", () => {
+    // AMENDED 2026-10-05 (Dave, the perfect bar). The ninth finding (2026-09-21) was a hint that wrapped to two lines and
+    // painted past the pill's edge at Dynamic Type 1.4; the answer then was a pill that wrapped, which at 390 became a
+    // 72px pill with the name top-left and "Add anything" dropped to the bottom right. The row is the disc and ONE
+    // Title Case placeholder now (no wordmark beside the disc), so there is nothing to wrap: it fits the width it has at
+    // 1.4 (about 140 of 170px), and it keeps its words rather than ellipsizing.
     const u = read("styles/uniformity.css");
     const bar = ruleBody(u, ".voice-bar")!;
-    expect(bar, "the pill is what grows").toMatch(/flex-wrap:\s*wrap/);
-    expect(ruleBody(u, ".voice-name"), "the mark does not give up a character").toMatch(/flex-shrink:\s*0/);
+    expect(bar, "one line").toMatch(/flex-wrap:\s*nowrap/);
+    expect(bar, "56px, the height of the round buttons beside it").toMatch(/min-height:\s*56px/);
+    expect(u, "the wordmark beside the disc is gone").not.toMatch(/\.voice-name/);
     const hint = ruleBody(u, ".voice-hint")!;
-    expect(hint, "it moves to the next line whole, it does not clip").not.toMatch(/text-overflow:\s*ellipsis/);
-    expect(hint, "and it does not break mid-sentence on that line either").toMatch(/white-space:\s*nowrap/);
+    expect(hint, "it does not clip").not.toMatch(/text-overflow:\s*ellipsis/);
+    expect(hint, "and does not break mid-sentence").toMatch(/white-space:\s*nowrap/);
+    expect(hint, "and it is not pushed to the far edge").not.toMatch(/margin-left:\s*auto/);
     expect(hint).toMatch(/min-width:\s*0/);
   });
 

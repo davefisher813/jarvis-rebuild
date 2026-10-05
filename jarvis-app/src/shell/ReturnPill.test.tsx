@@ -7,65 +7,52 @@ import "@testing-library/jest-dom";
 import { NavOriginProvider, type NavOrigin } from "./navOrigin";
 import ReturnPill from "./ReturnPill";
 
-// CLEARANCE AT THE FOOT OF THE SCROLL BOX (Alfred 2026-10-04: "< Life" over the last rows of the Health page and
-// the gym screens). The pill floats inside the scroll box's bottom edge, so the last row scrolled to the end sat
-// under it. While the pill is drawn the shell publishes --return-pad, the room the pill takes, and .app-scroll pads
-// its foot by it. jsdom has no layout, so the rects are given.
+// THE PILL NEVER COVERS A ROW (Dave 2026-10-05, decision D6: floating chrome never covers content). It used to be
+// position: fixed over the foot of the scroll box ("ean Out", the foot of the Health goal card, "SUN 11" lost under
+// "< Today"). It is a row of the shell's own column between the scroll box and the capture bar now, so the scroll box is
+// shorter by the pill's height while a jump is live and nothing is ever under it.
 
 const LIFE: NavOrigin = { key: "life", label: "Life" };
-const root = document.documentElement;
-
-function rect(bottom: number, top: number): DOMRect {
-  return { top, bottom, left: 0, right: 0, width: 0, height: bottom - top, x: 0, y: top, toJSON() {} } as DOMRect;
-}
+const css = () => readFileSync(join(process.cwd(), "src/styles/components.css"), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
+const rule = (sel: string) => css().match(new RegExp(sel.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\s*\\{([^}]*)\\}"))![1]!;
 
 function mount(origin: NavOrigin | null, claimed = false) {
-  const scroll = document.createElement("div");
-  scroll.className = "app-scroll";
-  scroll.getBoundingClientRect = () => rect(689, 0);
-  document.body.appendChild(scroll);
-  const real = HTMLElement.prototype.getBoundingClientRect;
-  // The pill sits 8px above the scroll box's foot and is 44 tall: top 637 in a 689 box.
-  HTMLElement.prototype.getBoundingClientRect = function (this: HTMLElement) {
-    return this.classList.contains("return-pill") ? rect(681, 637) : real.call(this);
-  };
-  const view = render(
+  return render(
     <NavOriginProvider value={{ origin, back: () => true, claim: () => () => {}, claimed, clear: () => {} }}>
       <ReturnPill />
     </NavOriginProvider>,
   );
-  return { view, scroll, restore: () => { HTMLElement.prototype.getBoundingClientRect = real; scroll.remove(); } };
 }
 
-afterEach(() => { cleanup(); root.style.removeProperty("--return-pad"); root.style.removeProperty("--return-clear"); });
+afterEach(() => cleanup());
 
-describe("the return pill leaves the foot of the scroll box clear", () => {
-  it("publishes the room it takes (its height, the gap under it and a gap above it) while it is drawn", () => {
-    const m = mount(LIFE);
-    // 689 - 637 + 8: the last row ends 8px above the pill's top edge.
-    expect(root.style.getPropertyValue("--return-pad")).toBe("60px");
-    m.restore();
+describe("the return pill takes its own room", () => {
+  it("is drawn while a jump is live, labelled with where it returns to", () => {
+    mount(LIFE);
+    const pill = document.querySelector(".return-pill")!;
+    expect(pill).not.toBeNull();
+    expect(pill.textContent).toBe("Life");
   });
 
-  it("publishes nothing, and takes it back, when no pill is drawn", () => {
-    const m = mount(LIFE);
-    m.view.unmount();
-    expect(root.style.getPropertyValue("--return-pad")).toBe("");
-    const n = mount(null);
-    expect(root.style.getPropertyValue("--return-pad")).toBe("");
-    n.restore(); m.restore();
+  it("is a row in the shell's column: relative, never fixed, so nothing can sit under it", () => {
+    const r = rule(".return-pill");
+    expect(r).toMatch(/position:\s*relative/);
+    expect(r).not.toMatch(/position:\s*fixed/);
+    expect(r, "and 44px to the finger").toMatch(/min-height:\s*44px/);
   });
 
-  it("a page that claims the origin has no pill and so no padding", () => {
-    const m = mount(LIFE, true);
+  it("publishes nothing and the scroll box carries no clearance for it (the clearance machinery is gone)", () => {
+    mount(LIFE);
+    expect(document.documentElement.style.getPropertyValue("--return-pad")).toBe("");
+    expect(document.documentElement.style.getPropertyValue("--return-clear")).toBe("");
+    expect(css().match(/\.app-scroll\s*\{([^}]*)\}/)![1]).not.toMatch(/return-pad/);
+  });
+
+  it("a page that claims the origin has no pill, and no origin has none", () => {
+    mount(LIFE, true);
     expect(document.querySelector(".return-pill")).toBeNull();
-    expect(root.style.getPropertyValue("--return-pad")).toBe("");
-    m.restore();
-  });
-
-  it("the scroll box actually reads the property (a published value nothing reads is not clearance)", () => {
-    const css = readFileSync(join(process.cwd(), "src/styles/components.css"), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
-    const rule = css.match(/\.app-scroll\s*\{([^}]*)\}/)![1]!;
-    expect(rule).toMatch(/padding-bottom:\s*var\(--return-pad,\s*0px\)/);
+    cleanup();
+    mount(null);
+    expect(document.querySelector(".return-pill")).toBeNull();
   });
 });

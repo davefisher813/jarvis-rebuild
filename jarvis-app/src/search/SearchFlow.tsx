@@ -98,7 +98,7 @@ export default function SearchFlow({ onClose, onOpen }: { onClose: () => void; o
   return (
     <div className="search-overlay ruled">
       <div className="search-top">
-        <div className="search-bar">{MAG}<input value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={submit} enterKeyHint="search" placeholder="Search Everything" autoFocus /></div>
+        <div className="search-bar">{MAG}<input value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={submit} enterKeyHint="search" placeholder="Tasks, People, Notes, Events" autoFocus /></div>
         <button className="search-cancel" data-layer-close onClick={close}>Cancel</button>
       </div>
 
@@ -132,7 +132,9 @@ export default function SearchFlow({ onClose, onOpen }: { onClose: () => void; o
             </div></div>
           </>
         )}
-        {empty && recents.length === 0 && <div className="empty-state"><div className="empty-icon">{MAG}</div><div className="empty-title">Search Everything</div></div>}
+        {/* THE EMPTY STATE TELLS YOU WHAT TO TRY (Dave 2026-10-05, the review: it repeated the field's own words, "Search Everything"
+            under "Search Everything", and said nothing else). The field names what is searchable; this says what to type. */}
+        {empty && recents.length === 0 && <div className="empty-state"><div className="empty-icon">{MAG}</div><div className="empty-title">Find Anything</div><div className="empty-sub">Try a Name, a Task, or a Note</div></div>}
         {none && <div className="empty-state"><div className="empty-icon">{MAG}</div><div className="empty-title">No matches for &ldquo;{q.trim()}&rdquo;</div></div>}
 
         {results && !empty && results.events.length > 0 && (

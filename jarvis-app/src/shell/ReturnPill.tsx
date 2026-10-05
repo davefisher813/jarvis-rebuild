@@ -1,4 +1,3 @@
-import { useLayoutEffect, useRef } from "react";
 import { ChevronLeft } from "../shared/icons";
 import { useNavOrigin } from "./navOrigin";
 
@@ -24,63 +23,21 @@ import { useNavOrigin } from "./navOrigin";
 //
 // It sits above the tab bar rather than in a nav bar, because there is no nav
 // bar it could sit in that every one of these surfaces has.
-// ABOVE THE CAPTURE BAR, MEASURED (2026-09-26, the post-code audit). A fixed
-// 132px sat the pill 3px into the capture bar at 390x844 and deeper at type
-// scale 1.4, so "< Life" covered the bar's left end on any screen with
-// nothing to scroll. The dock is static chrome, so the shell reads its top
-// and publishes --return-clear (the dock's height from the bottom plus a
-// gap); the stylesheet keeps 132px as the fallback for a screen without one.
-// CLEARANCE AT THE FOOT OF THE SCROLL BOX (Alfred 2026-10-04, "< Life" over the
-// last rows of the gym screens and the Health page). The pill floats inside the
-// scroll box's bottom edge, so a page's LAST row, scrolled to the end, sat
-// exactly where the pill is. The pill is the way home and must not be the thing
-// that hides a row, so while it is drawn the scroll box is padded by exactly the
-// room the pill takes (--return-pad, read by .app-scroll): the last row scrolls
-// up above it. Measured from the pill and the box rather than assumed, so it is
-// right at type scale 1.4 and with or without a capture dock. Zero (and the
-// property removed) the moment the pill is not drawn.
-const PILL_GAP = 8;
-
-function useDockClear(on: boolean, pill: React.RefObject<HTMLButtonElement | null>) {
-  useLayoutEffect(() => {
-    if (!on) return;
-    const root = document.documentElement;
-    const measure = () => {
-      const dock = document.querySelector<HTMLElement>(".voice-dock");
-      if (!dock) root.style.removeProperty("--return-clear");
-      else {
-        const top = dock.getBoundingClientRect().top;
-        root.style.setProperty("--return-clear", `${Math.max(0, Math.round(window.innerHeight - top) + 8)}px`);
-      }
-      // The pill has just been moved by --return-clear; read where it landed.
-      const scroll = document.querySelector<HTMLElement>(".app-scroll");
-      const p = pill.current;
-      if (!scroll || !p) { root.style.removeProperty("--return-pad"); return; }
-      const need = Math.round(scroll.getBoundingClientRect().bottom - p.getBoundingClientRect().top + PILL_GAP);
-      if (need > 0) root.style.setProperty("--return-pad", `${need}px`);
-      else root.style.removeProperty("--return-pad");
-    };
-    measure();
-    const dock = document.querySelector<HTMLElement>(".voice-dock");
-    const ro = typeof ResizeObserver !== "undefined" && dock ? new ResizeObserver(measure) : null;
-    ro?.observe(dock!);
-    window.addEventListener("resize", measure);
-    return () => {
-      ro?.disconnect();
-      window.removeEventListener("resize", measure);
-      root.style.removeProperty("--return-clear");
-      root.style.removeProperty("--return-pad");
-    };
-  }, [on, pill]);
-}
-
+// IT TAKES ITS OWN ROOM (Dave 2026-10-05, "everything should look PERFECT"; decision D6: floating chrome never covers
+// content). It used to be position: fixed over the foot of the scroll box, with the shell measuring the dock to sit above
+// it (--return-clear) and padding the scroll box so the LAST row could scroll clear (--return-pad). That kept the pill off
+// the last row and nowhere else: at rest, with the page at its top, it sat on whatever row happened to be there, so
+// "Clean Out" read "ean Out", the foot of the Health goal card was hidden, and "SUN 11" lost its left edge. A pill that
+// floats over a scroller covers something on every screen that has a row at that height, which is all of them.
+//
+// It is a row of the shell's own column now, between the scroll box and the capture bar (the toast, when there is one,
+// sits above it, so the pill is out of the toast's way by order). The scroll box is exactly as much shorter as the pill
+// is tall while a jump is live, and not one pixel otherwise. Nothing measures, nothing publishes, and nothing is under it.
 export default function ReturnPill() {
   const nav = useNavOrigin();
-  const pill = useRef<HTMLButtonElement | null>(null);
-  useDockClear(!!nav.origin && !nav.claimed, pill);
   if (!nav.origin || nav.claimed) return null;
   return (
-    <button ref={pill} type="button" className="return-pill" onClick={() => nav.back()}>
+    <button type="button" className="return-pill" onClick={() => nav.back()}>
       <ChevronLeft className="ic" />
       {nav.origin.label}
     </button>

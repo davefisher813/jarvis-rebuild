@@ -5,6 +5,8 @@ import { buildGoalIndex, liveGoals } from "../../bigger/reach";
 import { effectiveKind } from "../../categories/kinds";
 import type { CategoryKind } from "../../categories/types";
 import PageHeader from "../../shared/PageHeader";
+import CategorySheet, { type CategoryDraft } from "../../categories/screens/CategorySheet";
+import { attemptWrite } from "../../shared/guard";
 import AreaItemStandard, { type AreaCounts, type AreaSummary } from "../cards/AreaItemStandard";
 
 // AREAS, FIRST (LIFE_AREAS_TAB_HANDOFF, 2026-09-16, from Dave's Brain
@@ -35,6 +37,7 @@ export default function AreasTab({ segments, onOpenCategory }: {
   const [loaded, setLoaded] = useState(false);
   const [health, setHealth] = useState<AreaRow | null>(null);
   const [areas, setAreas] = useState<AreaRow[]>([]);
+  const [adding, setAdding] = useState(false);
 
   const reload = useCallback(async () => {
     const [cats, tasks, projects, goals] = await Promise.all([
@@ -79,13 +82,29 @@ export default function AreasTab({ segments, onOpenCategory }: {
 
   const total = (health ? 1 : 0) + areas.length;
 
+  // THE ADD IS THE HEAD'S (Dave 2026-10-05, locked: a section-level action lives in the section head; the perfect bar:
+  // the Areas head held a bare count and the page offered no way to make an area). The same create the Areas page in
+  // Settings does, so an area made here is an area made there.
+  const addArea = async (draft: CategoryDraft): Promise<boolean> => {
+    const ok = await attemptWrite(async () => {
+      const id = await catsSvc.create(draft.name, draft.color, draft.icon);
+      if (id && (draft.kind !== "plain" || draft.season || draft.workHours)) {
+        await catsSvc.update(id, { kind: draft.kind, season: draft.season, workHours: draft.workHours });
+      }
+    });
+    if (!ok) return false;
+    setAdding(false);
+    await reload();
+    return true;
+  };
+
   return (
     <div className="screen ruled">
       <PageHeader title="Life" />
       {segments}
+      {loaded && <div className="sh2 sh2-quiet"><span className="t">Areas</span><button className="see-all pill-action" onClick={() => setAdding(true)}>Add Area</button></div>}
       {loaded && total > 0 && (
         <>
-          <div className="sh2 sh2-quiet"><span className="t">Areas</span><span className="n">{total}</span></div>
           <div className="pad-x area-cards">
             {health && <AreaItemStandard area={health} counts={health.counts} onOpen={() => onOpenCategory(health.id)} health />}
             {areas.map((a) => (
@@ -101,6 +120,7 @@ export default function AreasTab({ segments, onOpenCategory }: {
         </div></div>
       )}
       <div className="screen-foot" />
+      {adding && <CategorySheet mode="new" onSave={addArea} onCancel={() => setAdding(false)} />}
     </div>
   );
 }

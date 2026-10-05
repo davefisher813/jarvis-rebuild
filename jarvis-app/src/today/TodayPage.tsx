@@ -177,7 +177,7 @@ function SchedRow({ ev, onOpen }: { ev: EventItem; onOpen?: () => void }) {
   const t = fmtTime(ev.data.start);
   return (
     <div
-      className="sched-row"
+      className="sched-row sched-row-bare"
       // Every other event row on this page opens on tap (DayRow's onOpen).
       // The Tomorrow row never got that wiring, so it was the one event on
       // the page you could look at but not touch (Dave 2026-09-04: "I can't
@@ -186,13 +186,14 @@ function SchedRow({ ev, onOpen }: { ev: EventItem; onOpen?: () => void }) {
       tabIndex={onOpen ? 0 : undefined}
       onClick={onOpen}
     >
-      {/* Same category bar as every other event row (Dave 2026-08-19): the
-          Tomorrow rows are a separate component and would have been the one
-          place the signal went missing. */}
-      <span className={"sched-bar cat-bg-" + catColor(ev.data.category)} />
+      {/* THE AREA IS A DOT, ONCE (Dave 2026-10-05, D4: "area colour only on a dot"). These rows wore Dave's category bar
+          (2026-08-19) AND the dot on the line under the title, the one colour drawn twice. The dot carries the name, so it
+          stays and the bar goes. */}
       <div className="sched-time">{t.time}<span className="ampm">{t.ap}</span></div>
       <div className="sched-body">
-        <div className="sched-title">{titleCase(ev.data.title)}</div>
+        {/* THE TITLE WRAPS TO TWO LINES BEFORE IT ENDS (Dave 2026-09-26, 2026-09-27): its own span is what the ruled row
+            clamps, as DayRow's does. A bare text node in the flex title was cut at the card's edge mid-letter. */}
+        <div className="sched-title"><span className="sched-t">{titleCase(ev.data.title)}</span></div>
         {/* An event with no area rendered a dot and nothing after it (Dave's
             2026-09-04 screenshot: the call landed from an email with no
             area, so the second line was one grey dot). It then said "No
@@ -277,6 +278,8 @@ export default function TodayPage({
   onSeeAllMail,
   mailHead,
   mailEmpty,
+  onClearMail,
+  onClearPlan,
   billLine,
   onPayBill,
   onOpenBill,
@@ -320,6 +323,11 @@ export default function TodayPage({
   onSeeAllMail?: () => void;
   // The band and its head appear together or not at all.
   mailEmpty?: boolean;
+  /** Clear All, the band's one bulk action, drawn as the second capsule on its head (Dave 2026-10-05, locked: section-level
+   *  actions live in the section head). Absent when the band has fewer than two notices. */
+  onClearMail?: () => void;
+  /** Clear This Plan, the standing draft's decline, which lives in the day head's overflow (Dave 2026-10-05, locked). */
+  onClearPlan?: () => void;
   billLine?: BillLine; // bills due within 3 days, from billsLine (2026-08-09)
   onPayBill?: () => void; // marks the SOONEST due bill paid, with undo
   onOpenBill?: () => void; // the bill card's body: the bill, or the list of them
@@ -485,7 +493,9 @@ export default function TodayPage({
   // AMENDED 2026-09-26 (§AM): each tile wears the key's colour for what it
   // counts, and nothing else. Due is amber (needs you soon). Late is red at
   // any count: the key has no threshold, so one late task is as late as
-  // three. Goals are green (done, moved). Events stay quiet.
+  // three. Events stay quiet, and so do goals (AMENDED 2026-10-05: the goal
+  // tile counts the tasks that move a goal today, a count with no state, so
+  // its number is white; green means done and nothing here is done).
   const parts = (
     <div className="stat-tiles">
       {summary.events > 0 && (
@@ -512,7 +522,7 @@ export default function TodayPage({
       )}
       {/* PICK 5 (Dave 2026-08-22) survives as the goal tile: it counts what
           moves something he said he wants, and lands on the Bigger Picture.
-          Green, because moving a goal is the completion colour's job. Absent
+          Neutral since 2026-10-05 (it was green, and green means done). Absent
           on a day that moves nothing, which is a fact, not a scolding. */}
       {summary.moves > 0 && onGoBigger && (
         <span className="stat-tile st-goal" role="button" tabIndex={0} onClick={() => onGoBigger()}>
@@ -660,40 +670,15 @@ export default function TodayPage({
       onOpen={() => onOpenTask?.(upNextTop.id)}
     />
   ) : null;
-  // FOCUS BELONGS TO YOUR MOVE (Dave 2026-09-11: "The focus button should be
-  // all the way up top under your move and replace that small grey subtext
-  // that renders the up next page").
-  //
-  // Those two were always the same door -- TodayPage passed `onUpNext` to
-  // YourDay as `onFocus`, and this receipt called `onUpNext` too -- so the
-  // page carried one destination twice: once as a filled red button floating
-  // at the bottom between two other buttons, and once as a grey caps line
-  // here, which is where a person is actually standing when they want the
-  // next thing. One control now, in the place the question gets asked, and it
-  // still says how many are waiting because that is the fact that makes it
-  // worth tapping.
-  const waitingReceipt = upNextTop && onUpNext ? (
-    // ...and it is the app's own centred pill (Dave 2026-09-11: "Focus should
-    // be centered on the page and styled just like clear all and add to
-    // calendar buttons"). Those two are .row-act in a centring wrapper, which
-    // is what a standalone action under a card looks like in this app; a
-    // full-width left-aligned row with a chevron was a LIST row pretending to
-    // be a button.
-    //
-    // JUST THE WORD (Dave 2026-10-03: "Get rid of 13 waiting and just have a
-    // red Focus button"). The pill once carried the deck's count as a chip
-    // ("Focus 23", then "Focus | 23 Waiting"); it read as a second control
-    // sitting inside the first, and under Start Now it made two loud things.
-    // The button is its verb now and nothing else. The Focus screen is where
-    // the deck is counted.
-    // row-tap: centring wrapper whose only content is the Focus button itself
-    <div key="waiting" className="notice-clear-row focus-row">
-      <button className="row-act" onClick={onUpNext}>
-        <BullseyeGlyph />
-        <span className="fc-t">Focus</span>
-      </button>
-    </div>
-  ) : null;
+  // FOCUS BELONGS TO YOUR MOVE'S HEAD (Dave 2026-09-11: "The focus button should be all the way up top under your move
+  // and replace that small grey subtext that renders the up next page"; Dave 2026-10-03: "just have a red Focus button";
+  // Dave 2026-10-05, locked: a section-level action is a capsule in the section head, never a pill hung under its card).
+  // It was a centred .row-act under the Your Move card, which is the shape a standalone action took before the head
+  // took them all. It is the same door the dealt row's receipt opened: one control, in the place the question is asked,
+  // saying only its verb. The Focus screen is where the deck is counted.
+  const focusCapsule = upNextTop && onUpNext
+    ? <button className="see-all pill-action" onClick={onUpNext}>Focus</button>
+    : null;
 
   // THE RECAP IS NOT A WALL (Dave's screenshot 2026-08-26: fifteen bare rows
   // filling two screens at 10:35 PM). Evening shows the top of what is still
@@ -754,18 +739,21 @@ export default function TodayPage({
           which the head already offers elsewhere. It reads as the fact it is
           now, and the action is the one that helps: set tomorrow up. */}
       <div className="sh2 sh2-quiet"><span className="t">Tomorrow</span><span className="n">{tomorrowDate}</span>{planTomorrowCapsule}</div>
-      <div>
-        <div>
+      {/* ONE CARD, LIKE EVERY OTHER BAND (Dave 2026-10-05, the review: the hairlines under these rows ran to the screen's
+          edge because the rows sat on the page, outside any card). In the card a hairline ends at the card's edge, the same
+          place Your Move's and Reminders' do, in both themes. */}
+      <div className="pad-x">
+        <div className="card">
           {tomorrowEvents.map((ev) => (
             <SchedRow ev={ev} key={ev.id} onOpen={onOpenEvent ? () => onOpenEvent(ev.id) : undefined} />
           ))}
           {/* Weeklies/monthlies surface on their day only; the day before gets
               this one quiet heads-up row (roadmap v2 dailies weaving). */}
           {tomorrowTasks.map((t) => (
-            <div className="sched-row" key={t.id} {...(onOpenTask ? rowDoor(() => onOpenTask(t.id)) : {})}>
+            <div className="sched-row sched-row-bare" key={t.id} {...(onOpenTask ? rowDoor(() => onOpenTask(t.id)) : {})}>
               <div className="sched-time" />
               <div className="sched-body">
-                <div className="sched-title">{titleCase(t.data.text)}</div>
+                <div className="sched-title"><span className="sched-t">{titleCase(t.data.text)}</span></div>
                 {catName(t.data.category) && (
                   <div className="sched-cat"><span className={"cat-dot cat-bg-" + catColor(t.data.category)} />{catName(t.data.category)}</div>
                 )}
@@ -979,6 +967,7 @@ export default function TodayPage({
                   {streamOpen ? "Less" : "See All"}
                 </button>
               )}
+              {focusCapsule}
             </div>
             <div className="heads-up-stream stream-grouped">
               {/* ONE CARD, THREE ROWS (Dave 2026-08-26: bare rows "don't
@@ -1006,7 +995,6 @@ export default function TodayPage({
                     : r))}
                 </div>
               )}
-              {waitingReceipt}
               {ranked.receipts}
             </div>
           </>
@@ -1035,11 +1023,14 @@ export default function TodayPage({
               from him, not for the app it came out of. Open Inbox stays, and
               the rows under it are untouched. */}
           <span className="t">{mailHead?.title ?? "Ready to Send"}</span>
+          {/* CLEAR ALL RIDES THE HEAD (Dave 2026-10-05, locked), the first of the head's two capsules; the door out of the
+              band is the second. Two is the most a head holds. */}
+          {onClearMail && <button className="see-all pill-action" onClick={onClearMail}>Clear All</button>}
           {onSeeAllMail && <button className="see-all pill-action" onClick={onSeeAllMail}>{mailHead?.action ?? "Open Inbox"}</button>}
         </div>
       )}
       {/* stream-grouped: the mail rows ride inside one card (MailNotices
-          wraps them); the Clear All row and the receipt sit under it. */}
+          wraps them); the receipt sits under it. */}
       {mail && <div className="heads-up-stream stream-grouped">{mail}</div>}
 
       {reminders}
@@ -1059,6 +1050,7 @@ export default function TodayPage({
         onPlanTomorrow={onPlanTomorrow}
         tomorrowShown={!!(tomorrowSection || tomorrowEmpty)}
         onRunningLate={onRunningLate}
+        onClearPlan={onClearPlan}
         onFocus={evening ? undefined : onUpNext}
         onOpenEvent={onOpenEvent}
         onEditRoutine={onEditRoutine}

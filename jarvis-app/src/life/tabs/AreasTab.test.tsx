@@ -127,4 +127,23 @@ describe("AreasTab", () => {
     const row = (await screen.findByText("Personal", {}, { timeout: 3000 })).closest(".area-card") as HTMLElement;
     expect(row.querySelector(".conn-meta")).toBeNull();
   });
+
+  // THE ADD IS THE HEAD'S (Dave 2026-10-05, locked; the perfect bar: the Areas head held a bare count and the page offered
+  // no way to make an area).
+  it("the Areas head carries one Add Area capsule, which makes an area through the same sheet Settings uses", async () => {
+    render(<NotesProvider userId="areas-add"><Seeded /></NotesProvider>);
+    await screen.findByText("Bridge", {}, { timeout: 3000 });
+    const head = document.querySelector(".sh2")!;
+    expect(head.querySelector(".t")!.textContent).toBe("Areas");
+    expect(head.querySelector(".n"), "the bare count is gone").toBeNull();
+    const add = head.querySelector("button.see-all.pill-action") as HTMLButtonElement;
+    expect(add.textContent).toBe("Add Area");
+    expect(document.querySelectorAll(".sh2 button").length, "one capsule, not two").toBe(1);
+    fireEvent.click(add);
+    expect(await screen.findByText("New Area")).toBeInTheDocument();
+    fireEvent.change(screen.getByPlaceholderText(/name/i), { target: { value: "Garden" } });
+    fireEvent.click(screen.getByText("Save"));
+    expect(await screen.findByText("Garden", {}, { timeout: 3000 })).toBeInTheDocument();
+    expect(screen.queryByText("New Area")).toBeNull();
+  });
 });

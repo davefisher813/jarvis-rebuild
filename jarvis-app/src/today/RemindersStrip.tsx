@@ -1,4 +1,4 @@
-import { Check, Clock, Plus, CalendarPlus, Trash2 } from "../shared/icons";
+import { Check, Clock, Plus, Trash2 } from "../shared/icons";
 import { Burst } from "../shared/Burst";
 import React, { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -11,6 +11,7 @@ import type { ReminderView } from "../tasks/reminders";
 import { fmtTime } from "../schedule/calendar";
 import { catColor, catName } from "../shared/categories";
 import { titleCase } from "../shared/casing";
+import HeadMore from "../shared/HeadMore";
 
 /** How close a reminder is when its moment has come: inside this many minutes of the clock. */
 const DUE_NOW_MIN = 10;
@@ -220,10 +221,9 @@ export default function RemindersStrip({
 
   return (
     <>
-      {/* I3 (2026-08-24): quiet, like every other head on Today. Now is the
-          only section on that page allowed the accent. This strip renders its
-          own head rather than taking TodayPage's, which is exactly how it
-          survived the first sweep. */}
+      {/* I3 (2026-08-24): quiet, like every other head on Today (2026-10-05: Now too, since brand red is for what you
+          can tap). This strip renders its own head rather than taking TodayPage's, which is exactly how it survived the
+          first sweep. */}
       <div className="sh2 sh2-quiet">
         <span className="t">Reminders</span>
         {/* One Add, never two. An empty strip shows the LABELLED in-list create
@@ -232,6 +232,13 @@ export default function RemindersStrip({
             job, six pixels apart. */}
         {onAdd && hasRows && <button className="see-all pill-action" onClick={onAdd}>Add</button>}
         {onSeeAll && <button className="see-all pill-action" onClick={onSeeAll}>See All</button>}
+        {/* ADD ALL TO CALENDAR IS THE HEAD'S OVERFLOW (Dave 2026-10-05, D1 and D2). It hung as a centred pill under the
+            card (Dave 2026-09-11: "render exactly the same as the clear all button above it, not inside the container"),
+            which was the right answer before section actions had a home. They have one now: a head holds two capsules and
+            the rest sit behind one More button, so it is neither a third capsule nor a pill under the card. */}
+        {hasRows && onAddAllToCalendar && items.length > 0 && (
+          <HeadMore label="Reminder Actions" actions={[{ label: "Add All to Calendar", onPick: onAddAllToCalendar }]} />
+        )}
       </div>
       {hasRows && <div className="pad-x"><div className="card">
         {items.map((r) => (
@@ -327,21 +334,6 @@ export default function RemindersStrip({
         <div className="notice-clear-row">
           <button className="row-act" onClick={onAdd}>
             <Plus className="ic" />Add a Reminder
-          </button>
-        </div>
-      )}
-      {/* OUTSIDE THE CARD, LIKE CLEAR ALL (Dave 2026-09-11: "the add all to
-          calendar button should render exactly the same as the clear all
-          button above it. Not inside the container").
-          It was a trailing in-list row, which put a full-width control inside
-          a card of reminders -- so it read as a third reminder rather than as
-          the thing you do WITH the reminders. Clear All two sections up is the
-          same shape of action and it hangs under its card; this one hangs the
-          same way, same row, same pill. */}
-      {items.length > 0 && onAddAllToCalendar && (
-        <div className="notice-clear-row">
-          <button className="row-act" onClick={onAddAllToCalendar}>
-            <CalendarPlus className="ic" />Add All to Calendar
           </button>
         </div>
       )}

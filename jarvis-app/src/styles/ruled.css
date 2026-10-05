@@ -187,14 +187,18 @@
    soon), red is late from the first late task (the key has no threshold),
    and a plain count with no state (events, a week-on-week delta) takes the
    neutral raised chip layer with its number in white. */
-.ruled .st-goal  { background: var(--good-tint);  color: var(--good); }
-.ruled .st-quiet { background: var(--press-3);    color: var(--tx-2); }
-.ruled .st-quiet .st-n { color: var(--tx-1); }
+.ruled .st-goal, .ruled .st-quiet { background: var(--press-3); color: var(--tx-2); }
+.ruled .st-goal .st-n, .ruled .st-quiet .st-n { color: var(--tx-1); }
+/* 2026-10-05 (the review: "1 GOAL is green although nothing is done"): the goal tile counts the tasks that move a goal
+   today, a count with no state, so it is the neutral tile with its number in white, not the key's green, which means
+   done. Events is the same tile. */
 /* 2026-10-05: the 2026-09-26 note that stood here took the fade off two tiles'
    words (the quiet one measured 4.22:1 dimmed in light, the late one 3.13 to
    3.41:1 in dark) and left it on the green and amber ones. No tile's word is
    dimmed now, so the exception is gone with the fade it exempted. */
-.ruled .st-warn  { background: var(--warn-tint);  color: var(--warn); }
+.ruled .st-warn  { background: color-mix(in srgb, var(--warn) 16%, transparent); color: var(--warn); }
+/* ...and the due tile's wash is mixed from the amber itself, so it reads as deep as the others in daylight: the light
+   --warn-tint was #FFF0DB, a cream on cream that left only the number to say it was a tile (the review). */
 /* The late wash is mixed from the system red (AMENDED 2026-09-26, round-4
    review): the app's red tint token is the BRAND red's wash (the tap red at
    16% in dark, the words red at 10% in light), so the late word sat on the
@@ -741,7 +745,7 @@
    clips if a future label or a larger text size still overruns it. */
 .life-seg .segmented { overflow-x: auto; scrollbar-width: none; }
 .life-seg .segmented::-webkit-scrollbar { display: none; }
-.life-seg .segmented .seg { flex: 0 0 auto; padding-left: var(--s-2h); padding-right: var(--s-2h); white-space: nowrap; }
+.life-seg .segmented .seg { flex: 0 0 auto; padding-left: var(--s-1h); padding-right: var(--s-1h); white-space: nowrap; }
 
 /* ---------- SCHEDULE, PORTED (2026-09-02, fourth surface) ------------------
    The block row (contract §4.9, Schedule handoff §5.5): gutter 62, rail 3,
@@ -2892,7 +2896,13 @@
    top of "Next:" with nothing between them. The margin is the foot's, so it
    survives whatever the title does (measured against the two worst names in
    the bench: "Reynolds & Rowella General Manager..." and the 34-letter one). */
-.ruled .bp-card-foot { flex-shrink: 0; display: flex; flex-direction: column; gap: var(--s-1); margin-top: auto; padding-top: var(--s-2); }
+.ruled .bp-card-foot { flex-shrink: 0; display: flex; flex-direction: column; gap: var(--s-1); margin-top: auto; padding-top: var(--s-2);
+  /* z-index 0, BELOW THE TITLE (2026-10-05, the perfect bar). Every direct child of the card is z-index 1, the foot
+     included, and the foot comes later, so its whole stack (its scrim too) painted over the title: a title that ran to a
+     third line ("Website", "Cookout", "Store Launch", "Runway") had that last line dimmed and greyed by the fade ramping
+     in 16px above the footer, and it read as a rendering bug. At 0 the scrim and the foot's words still paint over the
+     card's gradient (later in the tree than ::before) and under the title, which keeps its 1. */
+  z-index: 0; }
 /* The card's two facts at the fact size, 14 (§AM F4, 2026-09-25); they were
    13. They take the card's own white rather than a raw near-white of their
    own: the ground is a fixed colour in both themes, so the key's greys
@@ -2924,8 +2934,18 @@
    the card whose whole job is to say what to do next, cut mid-word. Two lines
    holds every next action he has. */
 .ruled .bp-card-lead {
-  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
+  /* THREE LINES (2026-10-05, the perfect bar): at two, "Next: Swap Testimonial..." and "Next: Draft the Coach Onboardi..."
+     were cut mid-word on the card whose one job is to say what to do next. A third line holds them; the cards in a shelf
+     stretch level, so a short neighbour carries the room as a quiet gap, not a clip. */
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden;
 }
+/* A SHELF OF ONE OR TWO FILLS ITS GUTTERS (2026-10-05, the perfect bar). The 160px card left 18px of dead space after a
+   pair and 190px after a lone card (Goals), with no third card peeking to explain the gap, so the right edge looked
+   ragged. Exactly two split the row between them; one takes the row; three or more keep the 160px tile so the third peeks
+   and says the shelf scrolls. */
+.ruled .bp-grid > .bp-card:only-child,
+.ruled .bp-grid > .bp-card:first-child:nth-last-child(2),
+.ruled .bp-grid > .bp-card:nth-child(2):last-child { flex: 1 1 0; width: auto; max-width: none; min-width: 0; }
 /* The count is short by construction ("8 of 10 tasks"), so it stays one line.
    It is small caps (§AK V5.2, 2026-09-25): the lead above it is the card's
    one plain line, and a count in the same ink under it read as two of the
@@ -3080,9 +3100,6 @@
 .rem-time, .fact.date, .t-meta,
 .h-stat b, .h-week-count b, .stat-num { font-variant-numeric: tabular-nums; }
 
-/* The dock stays one line at the phone width: the approved supporting size
-   (15) would tip "Add anything" onto a second line beside the name. */
-[data-theme="light"] .voice-hint { font-size: calc(14px * var(--type-scale)); }
 /* A late state is a real warning, so it wears the warning amber on its wash
    (5.19:1), not the action red on a red tint (3.7:1). */
 [data-theme="light"] .ruled .st-late { color: var(--warn); background: var(--warn-tint); }
@@ -3105,9 +3122,6 @@
    FOLLOW-UPS TO THE APPROVED LIGHT PALETTE (Dave 2026-09-29, "finish all open
    items"). Sizes and truncation, both themes.
    ========================================================================== */
-
-/* The Focus button reaches the 44px tap minimum (the audit measured 40). */
-.focus-row .row-act { min-height: var(--tap-min); }
 
 /* A settings row's name is copy this app wrote, not a name the world sent, so
    at large text it takes a second line rather than an ellipsis (the reasoning
