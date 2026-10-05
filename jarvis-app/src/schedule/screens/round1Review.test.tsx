@@ -132,44 +132,37 @@ describe("the grid and the key, read off the stylesheet", () => {
     return m.map((x) => x[2]).join(" ");
   };
 
-  it("every row's lead and time are fixed slots, so every title starts at one x", () => {
-    expect(css).toMatch(/--sched-lead:\s*24px/);
-    expect(css).toMatch(/--sched-time-w:\s*calc\(68px \* var\(--type-scale\)\)/);
-    const time = body(".ruled .sched-row:not(.sched-row-bare) > .sched-time");
-    expect(time).toMatch(/flex:\s*0 0 var\(--sched-time-w\)/);
-    expect(time).toMatch(/width:\s*var\(--sched-time-w\)/);
-    const lead = body(".ruled .sched-row:not(.sched-row-bare) > .row-star");
-    expect(lead).toMatch(/flex:\s*0 0 var\(--sched-lead\)/);
-    // AMENDED 2026-10-05 (Dave, two photographs: a dead region on the left of the day card, and times that did not share a
-    // left edge): the time leads every row, left aligned, and the lead control sits behind it. A row with no lead gives its
-    // BODY the slot's room, and only in a card where some row has a lead, so titles still start at one x and a leadless day has
-    // no empty slot.
-    expect(time, "the time is left aligned, never right").toMatch(/text-align:\s*left/);
-    expect(time).not.toMatch(/text-align:\s*right/);
-    expect(time, "and is the row's first item").toMatch(/order:\s*0/);
-    expect(body(".ruled .sched-row:not(.sched-row-bare) > .sched-check")).toMatch(/order:\s*1/);
-    expect(body(".ruled .sched-row:not(.sched-row-bare) > .sched-body")).toMatch(/order:\s*2/);
-    expect(css, "no margin on the time itself").not.toMatch(/\.sched-time:first-child,\s*\n\.ruled \.sched-row:not\(\.sched-row-bare\) > \.sched-bar \+ \.sched-time \{ margin-left/);
-    expect(css, "the lead's room belongs to the body").toMatch(/\.sched-time:first-child ~ \.sched-body/);
-    // The star's 44px hit is an expander, not a bigger glyph.
-    expect(body(".ruled .sched-row > .row-star::after")).toMatch(/inset:/);
+  // THE SCHEDULE KEEPS ITS OLD GEOMETRY (Dave 2026-10-05, furious: "the schedule alignment must NOT change"). The round-1
+  // grid (a fixed 68px time column, a 24px lead slot, orders, a body margin) and the 8pt-grid move of --s-4 shifted every time
+  // 9px right and squeezed the titles. They are gone: the time is the row's own text width at one left edge, the title
+  // follows it, and the schedule's cards are drawn on the spacing steps they were approved on.
+  it("the day list has no fixed time column and no lead slot: every time shares one left edge because the row does", () => {
+    expect(css).not.toMatch(/--sched-lead/);
+    expect(body(".ruled .sched-row:not(.sched-row-bare) > .sched-time")).toBe("");
+    expect(body(".ruled .sched-row:not(.sched-row-bare) > *")).toBe("");
+    expect(css).not.toMatch(/\.sched-time:first-child ~ \.sched-body/);
+    expect(body(".ruled .sched-row > .sched-time")).toMatch(/width:\s*auto/);
+  });
+
+  it("the schedule's cards measure what they measured when he approved them", () => {
+    const rebound = body(".ruled .sched-card");
+    expect(rebound).toMatch(/--s-4:\s*16px/);
+    expect(rebound).toMatch(/--s-5:\s*18px/);
+    expect(rebound).toMatch(/--s-6:\s*20px/);
+  });
+
+  it("a task held in a protected block is a title with its facts under it: no capsule, no rule, nothing cut", () => {
+    const comp = readFileSync(join(__dirname, "../../styles/components.css"), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
+    const rule = (sel: string) => [...comp.matchAll(/([^{}]+)\{([^}]*)\}/g)].filter((x) => x[1]!.trim() === sel).map((x) => x[2]).join(" ");
+    expect(rule(".block-nest")).toMatch(/border-left:\s*0/);
+    expect(rule(".block-nest")).toMatch(/padding-left:\s*0/);
+    expect(rule(".block-held-col .block-held-facts")).toMatch(/flex-wrap:\s*wrap/);
   });
 
   it("a length is the key's sky estimate, never the brand red that means late or tap", () => {
     const len = body(".ruled .sched-until-btn");
     expect(len).toMatch(/color:\s*var\(--est-ink\)/);
     expect(len).not.toMatch(/--tint|--sys-red|--accent/);
-  });
-
-  it("the proposed rail is one 3px dashed line in the area's own colour", () => {
-    const rail = body(".ruled .sched-bar.sched-bar-proposed");
-    expect(rail).toMatch(/border-style:\s*dashed/);
-    expect(rail).toMatch(/border-width:\s*0 0 0 3px/);
-  });
-
-  it("the title takes the width and the notes glyph rides one fixed slot at the right edge", () => {
-    expect(body(".ruled .sched-title > .sched-t")).toMatch(/flex:\s*1 1 8em/);
-    expect(body(".ruled .sched-title")).toMatch(/flex-wrap:\s*wrap/);
   });
 });
 
