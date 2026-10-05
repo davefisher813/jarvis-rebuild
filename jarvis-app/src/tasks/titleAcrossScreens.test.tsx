@@ -30,7 +30,7 @@ describe("a task's title reads the same on every screen", () => {
     await waitFor(() => expect(container.querySelector(".focus-task")?.textContent).toBe(SHOWN));
 
     const counts: Record<TaskFilter, number> = { all: 1, daily: 0, today: 1, overdue: 0, upcoming: 0, email: 0, done: 0 };
-    const item: TaskItem = { id: "t1", data: { text: TYPED, done: false, due: null } };
+    const item: TaskItem = { id: "t1", data: { text: TYPED, category: "", done: false, due: null } };
     const list = render(<TasksPage filter="all" counts={counts} items={[item]} today="2026-05-20" />);
     expect(list.container.querySelector(".task-name")!.textContent).toBe(SHOWN);
     expect(screen.queryByText("Call With Nadia at 10 AM")).toBeNull();

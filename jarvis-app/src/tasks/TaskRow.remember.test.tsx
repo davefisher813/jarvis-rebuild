@@ -16,7 +16,7 @@ vi.mock("../shared/EntityStar", () => ({
 }));
 
 const counts: Record<TaskFilter, number> = { all: 1, daily: 0, today: 1, overdue: 0, upcoming: 0, email: 0, done: 0 };
-const item: TaskItem = { id: "t1", data: { text: "Draft the Coach Onboarding Email", done: false, due: null } };
+const item: TaskItem = { id: "t1", data: { text: "Draft the Coach Onboarding Email", category: "", done: false, due: null } };
 const page = () => render(<TasksPage filter="all" counts={counts} items={[item]} today="2026-05-20" />);
 
 describe("a task row's leading controls", () => {
