@@ -238,15 +238,15 @@ describe("an account row: a tap opens its sheet, a swipe deletes, and the name i
 describe("Money's type icon", () => {
   const css = readFileSync(join(process.cwd(), "src/styles/components.css"), "utf8");
 
-  it("an autopay bill's glyph is Money's green, and light takes the glyph set's twin, never the text ink", async () => {
+  it("an autopay bill's glyph is neutral (green is for paid, so it must not read as done), the checkbox column's own ink", async () => {
     const { container } = mount("ra-icon", async ({ ledger }) => {
       await addBill(ledger, { vendor: "Internet", amount: 89, autopay: true });
     });
     await screen.findByText("Internet", { selector: ".task-name" });
     const slot = container.querySelector(".task-check-tap .gm-slot") as HTMLElement;
-    expect(slot).toHaveClass("cat-fg-green");
-    expect(slot).not.toHaveClass("cat-fg-blue", "cat-fg-brand");
-    expect(css).toMatch(/\[data-theme="light"\] \.gm-slot\.cat-fg-green \{ color: var\(--cat-ic-green\); \}/);
-    expect(css).toMatch(/--cat-ic-green: #[0-9A-Fa-f]{6};/);
+    // Round 2 (D4): green is the key's "done", and a green repeat arrow in the check column read as already paid.
+    expect(slot).toHaveClass("cat-fg-graphite");
+    expect(slot).not.toHaveClass("cat-fg-green", "cat-fg-blue", "cat-fg-brand");
+    expect(css).toMatch(/--cat-ic-graphite: #[0-9A-Fa-f]{6};/);
   });
 });

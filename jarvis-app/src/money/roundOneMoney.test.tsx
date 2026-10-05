@@ -163,8 +163,8 @@ describe("Also Tagged Money does not repeat its own head on every row", () => {
     expect(areas).toHaveLength(1);
     expect(within(list).queryByText("Money")).toBeNull();
     const invoice = rowOf("Create Invoice");
-    // Today is the key's amber as text, never a filled chip.
-    expect(within(invoice).getByText("Today")).toHaveClass("fact", "warn");
+    // Due today is the key's amber as text, never a filled chip, and worded "Due" like Notifications' same task.
+    expect(within(invoice).getByText("Due Today")).toHaveClass("fact", "warn");
     expect(list.querySelector(".uchip")).toBeNull();
   });
 
@@ -201,7 +201,7 @@ const mountTracker = (id: string, seed?: (t: ReturnType<typeof useTracker>) => P
   render(<NotesProvider userId={id}><TrackerHarness seed={seed} /></NotesProvider>);
 const netValue = () => screen.getByText("Net").nextElementSibling as HTMLElement;
 
-describe("the Tracker's Net is green only when it is above zero", () => {
+describe("the Tracker's Net is green only when it is above zero, and never red", () => {
   it("zero is a number with no state: neither green nor red", async () => {
     mountTracker("r1-net0");
     await screen.findByText("Net");
@@ -209,11 +209,13 @@ describe("the Tracker's Net is green only when it is above zero", () => {
     expect(netValue()).not.toHaveClass("good");
     expect(netValue()).not.toHaveClass("red");
   });
-  it("more out than in is the key's red, more in than out is green", async () => {
+  it("more out than in is a white number with a true minus (red is for late), more in than out is green", async () => {
     mountTracker("r1-netneg", async (t) => { await t.saveTx(null, mtx({})); });
     await screen.findByText("Net");
-    await waitFor(() => expect(netValue()).toHaveTextContent("-$47.12"));
-    expect(netValue()).toHaveClass("fact", "red");
+    await waitFor(() => expect(netValue()).toHaveTextContent("\u2212$47.12"));
+    expect(netValue().textContent).not.toContain("-");
+    expect(netValue()).not.toHaveClass("red");
+    expect(netValue()).not.toHaveClass("good");
     cleanup();
     mountTracker("r1-netpos", async (t) => { await t.saveTx(null, mtx({ amountCents: -250000, merchant: "Payroll", name: "PAYROLL", category: "Income" })); });
     await screen.findByText("Net");

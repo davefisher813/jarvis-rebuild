@@ -323,10 +323,10 @@ function Dashboard({ month, onMonth, txs, receipts, data, onSaved }: {
         </div>
         <div className="card mt-sum">
           <div className="mt-sum-label">Net</div>
-          {/* Spent more than came in is over the limit, the key's red
-              (§AM), not amber, which means only near it. */}
-          {/* Zero is a number with no state, white; green only once more came in than went out (§AM). */}
-          <div className={"mt-sum-value" + (net > 0 ? " good" : net < 0 ? " fact red" : "")}>{fmtCents(net)}</div>
+          {/* Net is a number, not a verdict (2026-10-05, round 2, D4: red is for late and destructive, and "-$1,145.68" was
+              drawn red under September). Green only once more came in than went out; a deficit and zero are white, the
+              deficit with its true minus (fmtCents). Over a budget's limit is a different fact and keeps its own red. */}
+          <div className={"mt-sum-value" + (net > 0 ? " good" : "")}>{fmtCents(net)}</div>
         </div>
       </div>
       {/* One statement in the line's one grey, its two amounts stepping up
@@ -368,7 +368,8 @@ function Dashboard({ month, onMonth, txs, receipts, data, onSaved }: {
           <div className="pad-x"><div className="card list-card-ruled">
             {merchants.map(([name, cents]) => (
               <div className="row" key={name}>
-                <div className="row-grow"><div className="conn-name">{titleCase(name)}</div></div>
+                {/* A merchant's name wraps to a second line before it truncates (Dave 2026-09-26; the row has the room). */}
+                <div className="row-grow"><div className="conn-name truncate">{titleCase(name)}</div></div>
                 <div className="mt-amt">{fmtCents(cents)}</div>
               </div>
             ))}

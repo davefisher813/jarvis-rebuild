@@ -26,7 +26,8 @@ import type { TaskItem } from "../tasks/TasksService";
 import { showToast } from "../shared/toast";
 import { todayISO } from "../tasks/grouping";
 import { RepeatGlyph, WalletGlyph, DollarGlyph } from "../shared/glyphs";
-import { RowGlyph } from "../shared/anatomy";
+import { goalTone } from "../shared/categories";
+import { TargetGlyph } from "../shared/glyphs";
 import { TaskRow } from "../tasks/screens/TasksPage";
 import { categoriesOf } from "../tasks/categories";
 import { daysBetween } from "../upnext/upnext";
@@ -223,7 +224,11 @@ type BillSheetState =
   // prefilled from what the picture said and nothing is written until Save.
   | { kind: "paid"; initial: BillDraft; paidOn: string; fileId: string };
 
-export default function MoneyFlow({ onOpenTask, onOpenEntity, openAccountId, openNonce, onOpenConsumed }: { onOpenTask?: (id: string) => void;
+export default function MoneyFlow({ onBack, inTabBar, onOpenTask, onOpenEntity, openAccountId, openNonce, onOpenConsumed }: {
+  /** The way back to More, when Money is opened from there; a Money pinned in the tab bar has nowhere to go back to. */
+  onBack?: () => void;
+  inTabBar?: boolean;
+  onOpenTask?: (id: string) => void;
   /** The shell's door to any entity, used to open the email a bill came from. */
   onOpenEntity?: (kind: string, id: string) => void;
   // SHELL-F-21 (2026-09-05): a Money search hit used to land on this tab's
@@ -329,10 +334,7 @@ export default function MoneyFlow({ onOpenTask, onOpenEntity, openAccountId, ope
   };
   const today = todayISO();
 
-  // RECEIPTS are records now (Money ledger, 2026-10-03) and live in
-  // screens/ReceiptsSection. The paperclip in the bar only asks it to open a
-  // new one, by bumping this number.
-  const [receiptAdd, setReceiptAdd] = useState(0);
+  // RECEIPTS are records now (Money ledger, 2026-10-03) and live in screens/ReceiptsSection, whose head carries Add Receipt.
 
   const reload = useCallback(async () => {
     // Autopay bills whose date passed roll themselves forward first, so the
@@ -585,6 +587,8 @@ export default function MoneyFlow({ onOpenTask, onOpenEntity, openAccountId, ope
   const setAside = setAsideTotal(envelopes);
   const left = payday && payHalfOn ? leftToSpend(payday.amount, billsOut, setAside) : null;
   const daysLeft = nextPay ? daysUntil(today, nextPay) : 0;
+  // The accounts are one column of amounts: with cents on any of them, on all of them (2026-10-05, round 2).
+  const acctCents = listHasCents(accounts.map((a) => signedBalance(a.data)));
   const balanceAsOf = accounts.map((a) => a.data.asOf).filter((d): d is string => !!d).sort().pop();
 
   // TASKS TAGGED MONEY ARE TASKS (Health's Up Next got the same row on
@@ -809,7 +813,7 @@ export default function MoneyFlow({ onOpenTask, onOpenEntity, openAccountId, ope
             quiet ink with its sign, never in red (L1, red is a verb).
             HMN-F-13: a credit account shows what it takes off the total,
             so the row and the number above it can never disagree. */}
-        <span className={"money-amt" + (signedBalance(a.data) < 0 ? " money-neg" : "")}>{formatMoney(signedBalance(a.data))}</span>
+        <span className={"money-amt" + (signedBalance(a.data) < 0 ? " money-neg" : "")}>{formatMoney(signedBalance(a.data), { cents: acctCents })}</span>
       </MoneyRow>
     );
   };
@@ -844,7 +848,7 @@ export default function MoneyFlow({ onOpenTask, onOpenEntity, openAccountId, ope
     </div>
   );
 
-  const receiptsSection = <ReceiptsSection addNonce={receiptAdd} />;
+  const receiptsSection = <ReceiptsSection />;
 
   // Back from the tracker re-reads: the row under it says this month's net
   // and the tracker is where that number changes.
@@ -868,8 +872,13 @@ export default function MoneyFlow({ onOpenTask, onOpenEntity, openAccountId, ope
               this month, and the fact is kept short so it never ellipsizes
               beside the door's words at type scale 1.4. */}
           <div className="facts">
-            {monthNet != null && monthNet !== 0 && (
-              <span className={"fact " + (monthNet > 0 ? "good" : "red")}>{lineCase(`${fmtCents(Math.abs(monthNet))} more ${monthNet > 0 ? "in" : "out"}`)}</span>
+            {monthNet != null && monthNet > 0 && (
+              <span className="fact good">{lineCase(`${fmtCents(monthNet)} more in`)}</span>
+            )}
+            {/* More out than in is not late and not destructive, so it is not red (2026-10-05, round 2, D4): a number with no
+                state is white, the amount alone, its words the line's one grey. */}
+            {monthNet != null && monthNet < 0 && (
+              <span className="fact"><b>{fmtCents(Math.abs(monthNet))}</b> More Out</span>
             )}
             {monthNet === 0 && <span className="fact"><b>Even This Month</b></span>}
             <span className="fact">Spending, Budgets and Subscriptions</span>
@@ -882,9 +891,10 @@ export default function MoneyFlow({ onOpenTask, onOpenEntity, openAccountId, ope
 
   return (
     <div className="screen ruled">
-      {/* The bar keeps the receipt's paperclip. Add Account is the Accounts head's capsule now, one door for the one
-          action (Dave 2026-10-05, locked: a section-level action lives in its section head). */}
-      <PageHeader title="Money" actions={<BarAction label="Add a Receipt" onClick={() => setReceiptAdd((n) => n + 1)}><Paperclip className="ic" /></BarAction>} />
+      {/* The bar holds the way back to More and nothing else: Add Account is the Accounts head's capsule and Add Receipt the
+          Receipts head's, one door for each action (Dave 2026-10-05, locked: a section-level action lives in its section
+          head; round 2: an unlabelled red paperclip floated alone in the bar). */}
+      <PageHeader title="Money" {...(onBack && !inTabBar ? { back: "More", onBack } : {})} />
       {accounts.length === 0 && entries.length === 0 && tagged.length === 0 ? (
         <>
         <div className="empty-state"><div className="empty-icon">{WALLET}</div><div className="empty-title">No Accounts Yet</div>
@@ -969,7 +979,7 @@ export default function MoneyFlow({ onOpenTask, onOpenEntity, openAccountId, ope
             <div className="pad-x"><div className="card list-card-ruled money-hero-card">
               <div className="money-hero">
                 <div className="money-hero-label">Total Balance</div>
-                <div className="money-hero-total">{formatMoney(totalBalance(accounts))}</div>
+                <div className="money-hero-total">{formatMoney(totalBalance(accounts), { cents: acctCents })}</div>
                 {/* Self-reported and it says so: the app has no live feed.
                     The accounts are the rows right under it, so it does not
                     count them as well. */}
@@ -1069,8 +1079,9 @@ export default function MoneyFlow({ onOpenTask, onOpenEntity, openAccountId, ope
                       verb={{ label: "Add", icon: PLUS, run: add }}
                       menu={[{ label: "Add Money", onPick: add }]}
                       onOpen={add}>
-                      {/* Area color, brand red when unhomed -- the same
-                          goalTone every goal glyph wears (2026-08-31). */}
+                      {/* THE ONE goalTone every goal glyph wears on a goal LIST (Dave 2026-08-31: its area's colour, brand red when
+                          it has none). A mixed list (Notifications, Search) draws the goal's TYPE glyph, purple, because it has no
+                          area to speak of; the two are the same decision applied to two kinds of list. */}
                       <div className="task-check-tap"><span className={"gm-slot " + goalTone(g.data.tags)}><TargetGlyph /></span></div>
                       <div className="task-title">
                         {/* His own goal title is SHOWN in Title Case and stored
@@ -1105,6 +1116,7 @@ export default function MoneyFlow({ onOpenTask, onOpenEntity, openAccountId, ope
                     })()}
                     onOpen={onOpenTask}
                     onDelete={(id) => void deleteTagged(id)}
+                    dueFact
                   />
                 ))}
               </div></div>

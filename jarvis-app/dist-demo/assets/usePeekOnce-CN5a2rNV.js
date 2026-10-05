@@ -1,0 +1,1 @@
+import{i as e}from"./rolldown-runtime-Dd_uD5pT.js";import{Et as t}from"./icons-CHvKa32R.js";import{L as n,P as r}from"./glyphs-ByARWdVr.js";var i=e(t(),1),a=(0,i.createContext)(!1),o=900,s=!1;function c(e,t){let c=(0,i.useContext)(a);(0,i.useEffect)(()=>{if(!c||!t)return;let i=setTimeout(()=>{s||!n()||(s=!0,r(),e())},o);return()=>clearTimeout(i)},[c,t])}export{c as n,a as t};

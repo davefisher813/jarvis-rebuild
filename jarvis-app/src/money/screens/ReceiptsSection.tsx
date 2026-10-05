@@ -35,7 +35,7 @@ type SheetState =
   | { kind: "detail"; id: string }
   | null;
 
-export default function ReceiptsSection({ addNonce = 0 }: { addNonce?: number }) {
+export default function ReceiptsSection() {
   const ledger = useOptionalLedger();
   const filesSvc = useOptionalFiles();
   const fileStore = useFileStore();
@@ -64,14 +64,6 @@ export default function ReceiptsSection({ addNonce = 0 }: { addNonce?: number })
   }, [ledger, filesSvc, tracker]);
   useEffect(() => { void load(); }, [load]);
   useLedgerEvents([ENTITY_MONEY_RECEIPT, ENTITY_MONEY_TX, ENTITY_FILE], load);
-
-  // The header's paperclip asks for a new receipt by bumping this number.
-  const seen = useRef(addNonce);
-  useEffect(() => {
-    if (addNonce === seen.current) return;
-    seen.current = addNonce;
-    setSheet({ kind: "new", draft: emptyDraft(todayISO()), attachment: null });
-  }, [addNonce]);
 
   // A URL is resolved ahead of the tap, because a window.open after an await
   // is treated as a popup by iOS and silently blocked (B3-10, 2026-09-04).
@@ -252,9 +244,12 @@ export default function ReceiptsSection({ addNonce = 0 }: { addNonce?: number })
 
   return (
     <>
+      {/* ADD RECEIPT IS THE HEAD'S CAPSULE (2026-10-05, round 2, D2: it was an unlabelled red paperclip alone in the page's bar).
+          A Receipts section with nothing in it is its head and the capsule, no empty plate (rule 12). */}
+      <div className="sh2 sh2-quiet"><span className="t">Receipts</span>{rows.length > 0 && <span className="n">{rows.length}</span>}
+        <button className="see-all pill-action" onClick={() => setSheet({ kind: "new", draft: emptyDraft(todayISO()), attachment: null })}>Add Receipt</button></div>
       {rows.length > 0 && (
         <>
-          <div className="sh2 sh2-quiet"><span className="t">Receipts</span><span className="n">{rows.length}</span></div>
           <div className="pad-x"><div className="card list-card-ruled">
             {rows.map((r) => {
               const f = files.find((x) => x.id === r.data.attachmentFileId);

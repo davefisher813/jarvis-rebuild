@@ -7091,6 +7091,15 @@ span.row-star { cursor: default; }
    fades only the side it continues on, in both themes. The buttons are .seg buttons: the UA ground goes, the active one keeps
    the system's. */
 .mt-tabrow .segmented .seg { min-height: var(--tap-min); border: 0; font-family: inherit; }
+/* THE TRACKER'S FADE IS LONGER (2026-10-05, round 2: "Su" cut at the edge looked like a rendering bug in dark, where the track is a
+   whisper above the page). Four labels never share the row, so the one that continues takes a 44px ramp instead of 28: the
+   stub of its first letters dissolves into the ground rather than ending in a stub. Same ramp both themes, so only the colour differs. */
+.mt-tabrow .segmented[data-more="r"] { -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 44px), transparent 100%);
+  mask-image: linear-gradient(to right, #000 calc(100% - 44px), transparent 100%); }
+.mt-tabrow .segmented[data-more="l"] { -webkit-mask-image: linear-gradient(to left, #000 calc(100% - 44px), transparent 100%);
+  mask-image: linear-gradient(to left, #000 calc(100% - 44px), transparent 100%); }
+.mt-tabrow .segmented[data-more="lr"] { -webkit-mask-image: linear-gradient(to right, transparent 0, #000 44px, #000 calc(100% - 44px), transparent 100%);
+  mask-image: linear-gradient(to right, transparent 0, #000 44px, #000 calc(100% - 44px), transparent 100%); }
 .mt-tabrow .segmented .seg:not(.active) { background: transparent; }
 /* A NOTICE UNDER THE TITLE HAS ROOM (2026-10-05): the import offer sat on the title's underline with no gap. */
 .mt-notice { margin-top: var(--s-4); margin-bottom: var(--s-3); }

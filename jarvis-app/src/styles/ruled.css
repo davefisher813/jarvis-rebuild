@@ -1353,6 +1353,13 @@
    "Paid Sep 1" in --tx-3: the same hex, two greys differing only by weight.
    The key gives paid green, and the amount is what was paid. */
 .ruled .task-row .money-amt.paid { color: var(--good); }
+/* EVEN ROWS IN A MONEY CARD (2026-10-05, round 2: "Credit Card and Savings have no type line, so their rows are shorter and the card
+   rhythm is uneven"; "OCT 17" alone made Car Insurance 4px shorter than Rent). An account row with no kind to say (a kind its
+   name already says is not said twice) keeps the height of the rows beside it, and a bill's facts line keeps one line of fact
+   type whether it holds a 14px state or only an 11px date. Both are the same arithmetic the two-line row is made of: the
+   padding, the name's line, the gap and the fact's line, so they follow the type scale. */
+.ruled .money-hero-card > .task-swipe > .task-row { min-height: calc(var(--s-4) + 1.3 * var(--t-name) + var(--s-1) + 1.3 * var(--t-sub)); }
+.ruled .task-title > .r-k > .facts { min-height: calc(1.35 * var(--t-sub)); }
 /* Hairlines in a card of bare task rows: inset past the check column (44px
    tap target, the same edge the swipe shell's rows use) whenever the row on
    either side has one, so the autopay glyph row rules the same as a check. The row's own gap (s-2h) is what sets

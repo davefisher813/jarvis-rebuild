@@ -165,6 +165,7 @@ export function TaskRow({
   burstSize = "small",
   openSourceFor,
   person = null,
+  dueFact = false,
 }: {
   item: TaskItem;
   today: string;
@@ -235,6 +236,11 @@ export function TaskRow({
   // UP-CORE-17 (2026-09-05): who this task is about, when it names someone.
   // Tapping opens the Call Prep card, the app's one person card by law.
   person?: { name: string; onOpen?: () => void } | null;
+  /** THE DUE DAY IS A FACT ON THE ROW'S OWN LINE, WORDED "DUE" (2026-10-05, round 2: Money's Also Tagged drew "Today" under the
+   *  title but "WED" in grey caps at the right edge, and Notifications said "Due Today" for the same task). A caller whose list
+   *  is not already sectioned by day opts in: today and tomorrow are the key's amber, a later day is a small-caps date, a late
+   *  one stays red, and nothing is reserved at the row's right edge, so the title takes the full width. */
+  dueFact?: boolean;
 }) {
   const t = item.data;
   // WHERE IT LIVES, EVEN WHEN THE CALLER DID NOT SAY (§AM, 2026-09-26). A
@@ -244,7 +250,16 @@ export function TaskRow({
   // other row does, its dot ahead of its name, through the same parentForTask
   // the flows use.
   const parent = callerParent ?? areaLine(item, inArea);
-  const u = urgencyFor(t, today);
+  // With `dueFact` the day is a fact on the row's own line (below), so the trailing urgency fallback is not drawn: `u` is
+  // the fallback's alone, and `soon` is what the fact says.
+  const soon = urgencyFor(t, today);
+  const u = dueFact ? null : soon;
+  const soonFact: string | null = (() => {
+    if (!dueFact || t.done || !t.due || !soon || soon.kind !== "soon") return null;
+    const d = new Date(today + "T00:00:00");
+    d.setDate(d.getDate() + 1);
+    return todayISO(d) === t.due ? "tomorrow" : soon.label;
+  })();
   const prov = rowSource(t.source, t.moved);
   // ONE WHERE-IT-CAME-FROM PER ROW (§AK, 2026-09-26). When nothing ahead of
   // it claims the second line's slot, the origin mark draws the envelope and
@@ -265,7 +280,9 @@ export function TaskRow({
   // The distance chip: TODAY, 2 DAYS LATE, 3 WEEKS LATE, OVER A MONTH.
   // Same ladder as Today's dealt row (distanceFor). Muted on the Today
   // filter, where every row would say the same word.
-  const dist = distanceFor(t, today);
+  // A due-worded row says "Due Today" where a sectioned list says "Today" (the same word Notifications and the bills use).
+  const distance = distanceFor(t, today);
+  const dist = distance && dueFact && distance.kind === "today" ? { ...distance, label: "DUE TODAY" } : distance;
   const chip = dist && !t.done && !(muteToday && dist.kind === "today") ? dist : null;
   // TRACE-02b (2026-09-07): the checklist rollup, display only, counted by
   // the one shared piece Today's rows already use.
@@ -508,6 +525,11 @@ export function TaskRow({
                 Today is the key's amber and a late one the key's red, in the row's own type with no fill, so the same word
                 reads the same on the Tasks list, an area page and Money's Also Tagged. */}
             {chip && <span className={"r-goal fact " + (chip.kind === "late" ? "red" : "warn")}>{lineCase(chip.label.toLowerCase())}</span>}
+            {soonFact && (
+              soonFact === "tomorrow"
+                ? <span className="r-goal fact warn">Due Tomorrow</span>
+                : <span className="fact date">{"Due " + titleCase(soonFact.toLowerCase())}</span>
+            )}
             {/* E-31 (2026-09-12): a day he named in his own reply that the
                 catcher could not resolve. A proposal in the chip's slot, in
                 quiet ink, never a deadline; a real due date replaces it. */}

@@ -71,7 +71,9 @@ describe("the Bills list: ledger and legacy rows together", () => {
     // overdue: the state is text in the Colour Key's red, never a capsule on the row
     expect(within(row("Internet")).getByText("3 Days Late")).toHaveClass("fact", "red");
     expect(within(row("Internet")).getByText("3 Days Late")).not.toHaveClass("uchip");
-    expect(within(row("Internet")).getByText("$60")).toBeInTheDocument();
+    // one column, one shape: ConEdison's $84.12 carries cents, so every bill's amount does
+    expect(within(row("Internet")).getByText("$60.00")).toBeInTheDocument();
+    expect(within(row("Water")).getByText("$40.00")).toBeInTheDocument();
     // due soon: amber text, no fill, and the one date beside it
     expect(within(row("ConEdison")).getByText("Due in 3 Days")).toHaveClass("fact", "warn");
     expect(within(row("ConEdison")).getByText("Due in 3 Days")).not.toHaveClass("uchip");
