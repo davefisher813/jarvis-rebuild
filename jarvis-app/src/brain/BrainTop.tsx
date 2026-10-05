@@ -114,7 +114,6 @@ export default function BrainTop({ onOpenFact, onOpenWatching, onBands, areas = 
         if (memo) memo.principle = p;
       }
     } catch { /* no principle */ }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [svc, rulesSvc, decisionsSvc, areas, today, tick]);
   useEffect(() => { void reload(); }, [reload]);
   // The same read What JARVIS Knows makes, skipped entirely when there is no

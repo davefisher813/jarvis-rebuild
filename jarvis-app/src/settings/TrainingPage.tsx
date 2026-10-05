@@ -91,6 +91,7 @@ export function RackSettings({ withShowLast = false }: { withShowLast?: boolean 
           bare chip strip floated under the card in a third style. Its own quiet head, its own card, and the note under it. */}
       <Head label="Plates on the Rack" />
       <Card>
+        {/* row-tap: chip strip, every inch of it is one of the plate chips */}
         <div className="row set-row">
           <div className="chip-row chip-wrap-row">
             {PLATE_OPTIONS.map((p) => (

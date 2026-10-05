@@ -925,9 +925,10 @@ export default function SessionScreen({
           took the colour out of it -- it never had it, and the day screen
           beside it did, which is worse than either answer on its own. Same
           two classes, same tones, same eyebrow. */}
+      {/* THE SKIP IS THE GROUP'S LABEL ROW'S (Dave 2026-10-05, locked): Skip the Warm-Up and Skip the Cool-Down were rows at the
+          foot of their cards. Each card's label row carries it at the right, the one capsule a group's actions wear. */}
       {showWarm && (
         <div className="pad-x"><div className="card list-card-ruled banner-warn">
-          {/* THE SKIP IS THE GROUP'S LABEL ROW'S (Dave 2026-10-05, locked): Skip the Warm-Up was a row at the foot of the card. */}
           <div className="grp"><div className="eyebrow eyebrow-warn">Warm-Up{programDay?.warmUpMin ? ` · ${spanLabel(programDay.warmUpMin)}` : ""}</div>
             <button type="button" className="see-all pill-action" aria-label="Skip the Warm-Up" onClick={() => onFit({ warmSkipped: true })}>Skip</button>
           </div>

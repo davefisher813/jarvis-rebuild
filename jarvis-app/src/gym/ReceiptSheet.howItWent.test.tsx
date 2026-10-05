@@ -4,6 +4,7 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import ReceiptSheet from "./ReceiptSheet";
 import type { Receipt } from "./prs";
+import { capsulesInCards } from "../laws/catalogCheck";
 
 // WORKOUT LOGGING BELONGS WITH THE WORKOUT (Dave 2026-09-10: "how hard it was,
 // where it hurts, anything related to an actual workout should go where people
@@ -42,5 +43,25 @@ describe("ReceiptSheet: How It Went", () => {
     render(<ReceiptSheet dayName="Pull Day 1" receipt={receipt} workouts={[]} onDone={() => {}} />);
     expect(screen.queryByText("How It Went")).not.toBeInTheDocument();
     expect(screen.queryByText("Rate It, 1 to 10")).not.toBeInTheDocument();
+  });
+
+  // CLEAN ROWS (Dave 2026-10-05, locked: no pill in a row). Rate It and Something Hurts were capsule rows, and the goal's
+  // Mark Done a capsule on its row; they are rows now, doors with a chevron, and the goal's tap is its close-out.
+  it("draws no capsule in any card: How It Went is two door rows, and a goal hit closes on the row's own tap", () => {
+    const onAchieveGoal = vi.fn();
+    const withGoal: Receipt = { ...receipt, goalHits: [{ id: "g1", title: "Bench 225", line: "Hit 225 lb" }] };
+    render(
+      <ReceiptSheet dayName="Pull Day 1" receipt={withGoal} workouts={[]} onDone={() => {}} onAchieveGoal={onAchieveGoal}
+        onRateSession={() => {}} onLogSoreSpot={() => {}} />,
+    );
+    expect(capsulesInCards(document.body)).toEqual([]);
+    const rate = screen.getByText("Rate It, 1 to 10").closest(".row")!;
+    expect(rate.querySelector(".chev")).not.toBeNull();
+    const goal = screen.getByRole("button", { name: "Mark Done: Bench 225" });
+    expect(goal.querySelector(".pill-act")).toBeNull();
+    fireEvent.click(goal);
+    expect(onAchieveGoal).toHaveBeenCalledWith("g1");
+    // Once taken, the row says so quietly and is no longer a control.
+    expect(screen.queryByRole("button", { name: "Mark Done: Bench 225" })).toBeNull();
   });
 });

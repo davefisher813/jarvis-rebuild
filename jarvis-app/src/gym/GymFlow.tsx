@@ -575,7 +575,7 @@ function ProgramRow({ program, active, onSwitch, onMenu }: { program: Program; a
         <div className="conn-name truncate">{workoutTitle(program.data.name)}</div>
         {program.data.archived && !active && <div className="conn-meta">Archived</div>}
       </div>
-      {active && <div className="row-value"><span className="fact st">Active</span></div>}
+      {active && <div className="row-value"><span className="fact">Active</span></div>}
       <RowMenuButton onMenu={onMenu} what={program.data.name} />
     </div>
   );

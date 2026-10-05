@@ -23,6 +23,7 @@ import RowStar from "../../shared/RowStar";
 import { lineCase } from "../../shared/casing";
 import { spanLabel } from "../../shared/duration";
 import RowShell from "../RowShell";
+import RowSheet from "../RowSheet";
 import RowCtxAction from "../../shared/RowCtxAction";
 
 // C-40: the filter chips. Choosers, so filled chips. Watching is not a
@@ -483,48 +484,43 @@ export default function StrandsPage({ onBack, openId: initialOpenId, openNonce, 
       <div className="screen-foot" />
 
       {open && !editing && (
-        <div className="sheet-scrim" onClick={() => setOpenId(null)}>
-          <div className="card" onClick={(e) => e.stopPropagation()}>
-            <div className="sheet-handle" />
-            {/* The separators are drawn by CSS (.fact + .fact, §AM F3), never
-                typed into the words. The facts sit in one inline run so the
-                eyebrow's flex gap does not stand beside each drawn dot. */}
-            <div className="grp"><div className="eyebrow"><span>
-              <span className="fact">{STRAND_CATEGORY_LABEL[open.data.category]}</span>
-              <span className="fact">{SOURCE_LABEL[open.data.source]}</span>
-              {open.data.strength === "rule" && <span className="fact">Rule</span>}
-            </span></div></div>
-            <div className="pad-x sheet-form">
-              <div className="strand-head">{lineCase(open.data.text)}</div>
-              <div className="conn-meta">{`Confirmed ${monthDay(open.data.lastConfirmed)}`}</div>
-              {/* A receipt is what happened and the day it did: one grey for
-                  the what, and the day in small caps (§AM F5), so the pair
-                  is not two of the same grey side by side. */}
-              {(open.data.evidence ?? []).map((e, i) => (
-                <div className="strand-receipt" key={i}>
-                  <div className="r-what conn-meta">{receiptLine(open.data.derivation, e)}</div>
-                  <span className="fact date">{monthDay(e.day)}</span>
-                </div>
-              ))}
-              {/* C-43: where this fact is read, from the static map. ONE
-                  FACT, ONE RUN (§AK, 2026-09-21): a list in one fact, the
-                  same words and the same shape the row wears on the Brain
-                  hub, not a plain grey per surface. */}
-              <div className="strand-used">
-                <div className="input-label">Used By</div>
-                <div className="facts"><span className="fact">{usedBy(open.data.category).join(", ")}</span></div>
-              </div>
+        // ONE SHEET FOR A ROW (brain/RowSheet): the fact's own words and receipts in the middle, every answer beneath, Still
+        // True first and filled because it is the affirmative one and the other three are ways of taking something back.
+        // An answer does its own closing here (Edit keeps the row open to edit it), so the sheet does not close first.
+        <RowSheet
+          closeOnPick={false}
+          onClose={() => setOpenId(null)}
+          /* The separators are drawn by CSS (.fact + .fact, §AM F3), never typed into the words. The facts sit in one
+             inline run so the eyebrow's flex gap does not stand beside each drawn dot. */
+          eyebrow={<span>
+            <span className="fact">{STRAND_CATEGORY_LABEL[open.data.category]}</span>
+            <span className="fact">{SOURCE_LABEL[open.data.source]}</span>
+            {open.data.strength === "rule" && <span className="fact">Rule</span>}
+          </span>}
+          text={lineCase(open.data.text)}
+          answers={[
+            { label: "Still True", onPick: () => void doConfirm(open) },
+            { label: "Edit", onPick: () => { setEditing(true); setText(open.data.text); } },
+            { label: open.data.status === "active" ? "Pause" : "Resume", onPick: () => void doPause(open) },
+            { label: "Delete", destructive: true, onPick: () => void doDelete(open) },
+          ]}
+        >
+          <div className="conn-meta">{`Confirmed ${monthDay(open.data.lastConfirmed)}`}</div>
+          {/* A receipt is what happened and the day it did: one grey for the what, and the day in small caps (§AM F5), so
+              the pair is not two of the same grey side by side. */}
+          {(open.data.evidence ?? []).map((e, i) => (
+            <div className="strand-receipt" key={i}>
+              <div className="r-what conn-meta">{receiptLine(open.data.derivation, e)}</div>
+              <span className="fact date">{monthDay(e.day)}</span>
             </div>
-            <div className="pad-x sheet-actions">
-              {/* First, and above Edit, because it is the affirmative one and
-                  the other three are all ways of taking something back. */}
-              <button className="btn btn-primary btn-block" onClick={() => void doConfirm(open)}>Still True</button>
-              <button className="btn btn-secondary btn-block" onClick={() => { setEditing(true); setText(open.data.text); }}>Edit</button>
-              <button className="btn btn-secondary btn-block" onClick={() => void doPause(open)}>{open.data.status === "active" ? "Pause" : "Resume"}</button>
-              <button className="btn btn-secondary btn-block btn-danger-text" onClick={() => void doDelete(open)}>Delete</button>
-            </div>
+          ))}
+          {/* C-43: where this fact is read, from the static map. ONE FACT, ONE RUN (§AK, 2026-09-21): a list in one fact,
+              the same words and the same shape the row wears on the Brain hub, not a plain grey per surface. */}
+          <div className="strand-used">
+            <div className="input-label">Used By</div>
+            <div className="facts"><span className="fact">{usedBy(open.data.category).join(", ")}</span></div>
           </div>
-        </div>
+        </RowSheet>
       )}
 
       {readyRow && (

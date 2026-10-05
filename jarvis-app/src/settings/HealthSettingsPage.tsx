@@ -65,6 +65,7 @@ export default function HealthSettingsPage({ onBack, onEnableWater, doors = [], 
           Effort, Discomfort and Medication, so a chip for any of them changed
           nothing. Water is the one a chip still decides. */}
       <Card>
+        {/* row-tap: chip strip, every inch of it is one of the shortcut chips */}
         <div className="row set-row">
           <div className="chip-row chip-wrap-row" role="group" aria-label="Shortcuts">
             {SHORTCUTS.filter(({ key }) => WORKING_SHORTCUTS.includes(key)).map(({ key, label }) => {

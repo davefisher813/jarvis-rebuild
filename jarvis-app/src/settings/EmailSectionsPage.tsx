@@ -160,7 +160,9 @@ export default function EmailSectionsPage({ onBack }: { onBack: () => void }) {
         </Card>
       )}
       {capNote && <div className="pad-x"><div className="input-error" role="alert">{capNote}</div></div>}
-      {(sections.length > 0 || editing) && (
+      {/* One note at a time (2026-10-05, found rendering the editor): while a section is open its own note is on screen, and the
+          list's note under it said a second thing about the same page. */}
+      {sections.length > 0 && !editing && (
         <Foot>{queued ? "Saved on This Phone · Will Sync" : "Filters over mail already loaded · Nothing changes in Gmail"}</Foot>
       )}
       <div className="screen-foot" />

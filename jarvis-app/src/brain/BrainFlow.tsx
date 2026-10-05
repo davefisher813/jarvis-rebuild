@@ -17,7 +17,6 @@ import StrandsPage from "./strands/StrandsPage";
 // nothing already saved goes invisible, and no screen looks new).
 import TriageScreen from "./manual/TriageScreen";
 import { usePushDepth } from "../shared/pushNav";
-import { useScrollOnPush } from "./useScrollOnPush";
 import { useNavOrigin } from "../shell/navOrigin";
 import { effectiveKind } from "../categories/kinds";
 
@@ -147,7 +146,6 @@ export default function BrainFlow({ openKey, openNonce, onKeyConsumed, routineBl
   }, [healthLogKey, healthLogNonce, catsLoaded, categories, onHealthLogConsumed]);
 
   const pushCls = usePushDepth(open ? 1 : 0);
-  useScrollOnPush(open ? 1 : 0);
 
   // THE WAY HOME FROM A PAGE A JUMP OPENED (Alfred 2026-10-04: a floating "< Life" over Your Routine on the hub).
   // Life > Areas > Health, a search hit, a notice's Open: each is a cross-tab jump, and the shell keeps where it came

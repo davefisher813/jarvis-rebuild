@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { capsulesInCards, loneActionBoxes } from "../laws/catalogCheck";
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom";
@@ -373,6 +374,22 @@ describe("OnboardingFlow", () => {
     expect(screen.queryByDisplayValue("Clients")).not.toBeInTheDocument();
     fireEvent.click(screen.getByText("Add Area"));
     expect(screen.getByDisplayValue("New Area")).toBeInTheDocument();
+  });
+
+  // THE ADD IS THE HEAD'S (Dave 2026-10-05, locked): Add Area was a capsule row at the foot of the areas card, which is
+  // exactly the card-holds-its-own-create the catalog bans (a lone action box, and a capsule in a card).
+  it("Add Area is the Your Areas head's capsule, so the card holds only the areas", () => {
+    setup();
+    fireEvent.click(screen.getByText("Begin"));
+    fireEvent.change(screen.getByPlaceholderText("Your name"), { target: { value: "Sam" } });
+    fireEvent.click(screen.getByLabelText("Send"));
+    fireEvent.click(screen.getByText("Personal"));
+    const add = screen.getByRole("button", { name: "Add Area" });
+    expect(add.closest(".sh2"), "Add Area lives in the head").not.toBeNull();
+    expect(add.closest(".card")).toBeNull();
+    expect(screen.getByText("Your Areas")).toBeInTheDocument();
+    expect(capsulesInCards(document.body)).toEqual([]);
+    expect(loneActionBoxes(document.body)).toEqual([]);
   });
 });
 

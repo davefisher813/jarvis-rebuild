@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useState } from "react";
-import { createPortal } from "react-dom";
 import { useCategories, useGoals, useProjects, useGym, useTasks, useRules, useOptionalSeal, useSchedule, useOptionalPeople, useOptionalDecisions } from "../data/NotesProvider";
 import type { MonthSeal, MonthSealData } from "./seal";
 import { prevMonthKey, computeSeal } from "./seal";
@@ -19,6 +18,7 @@ import type { EventItem } from "../schedule/types";
 import { TargetGlyph, CheckCircleGlyph, LockGlyph } from "../shared/glyphs";
 import { pressable } from "../shared/pressable";
 import RowShell from "../brain/RowShell";
+import RowSheet from "../brain/RowSheet";
 
 // THE MONTHLY REPORT (2026-08-25, built from the approved v3 preview).
 // Reassurance leads, numbers and color carry it, sentences live behind the
@@ -73,30 +73,14 @@ interface ReportAnswer { label: string; onPick: () => void; destructive?: boolea
 interface OpenReceipts { title: string; lines: string[]; answers?: ReportAnswer[] }
 
 function ReceiptsSheet({ title, lines, answers = [], onDone }: { title: string; lines: string[]; answers?: ReportAnswer[]; onDone: () => void }) {
-  const [primary, ...rest] = answers;
-  return createPortal(
-    <div className="sheet-scrim" onClick={onDone}>
-      <div className="card" onClick={(e) => e.stopPropagation()}>
-        <div className="sheet-handle" />
-        <div className="grp"><div className="eyebrow">Receipts</div></div>
-        <div className="pad-x sheet-form">
-          <div className="rep-question">{title}</div>
-          <div className="card rep-gap">
-            {lines.map((l, i) => (
-              <div className="row" key={i}><div className="row-grow"><div className="rep-title">{l}</div></div></div>
-            ))}
-          </div>
-        </div>
-        <div className="pad-x sheet-actions">
-          {primary && <button className="btn btn-primary btn-block" onClick={() => { onDone(); primary.onPick(); }}>{primary.label}</button>}
-          {rest.map((a) => (
-            <button key={a.label} className={"btn btn-secondary btn-block" + (a.destructive ? " btn-danger-text" : "")} onClick={() => { onDone(); a.onPick(); }}>{a.label}</button>
-          ))}
-          <button className="btn btn-secondary btn-block" onClick={onDone}>Done</button>
-        </div>
+  return (
+    <RowSheet portal eyebrow="Receipts" text={title} answers={answers} cancelLabel="Done" onClose={onDone}>
+      <div className="card rep-gap">
+        {lines.map((l, i) => (
+          <div className="row" key={i}><div className="row-grow"><div className="rep-title">{l}</div></div></div>
+        ))}
       </div>
-    </div>,
-    document.body,
+    </RowSheet>
   );
 }
 

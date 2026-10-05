@@ -61,7 +61,7 @@ describe("LibraryPage: the row's anatomy", () => {
     const { rerender, container } = render(<LibraryPage {...base} rows={[row()]} />);
     // CLEAN ROW (Dave 2026-10-05, locked): the amber chip is a state fact now, and the action it was is the swipe's quick
     // verb. No pill, and no action text, on a row whose library is unclassified (every row would carry one).
-    expect(screen.getByText("No Muscles Yet")).toHaveClass("fact", "amber");
+    expect(screen.getByText("No Muscles Yet")).toHaveClass("fact", "warn");
     expect(container.querySelector(".ex-row .pill-act, .ex-row .ex-chip, .ex-row .row-ctx")).toBeNull();
     expect(screen.getByRole("button", { name: "Assign Muscles Bench Press" })).toHaveClass("task-verb");
     rerender(<LibraryPage {...base} onToggleFavorite={() => {}} store={{ bench: { ...EMPTY_CLASS, primary: ["chest"] } }} rows={[row()]} />);

@@ -19,7 +19,6 @@ import { lineCase } from "../shared/casing";
 import { Nums } from "../bigger/GoalRowRuled";
 import { CheckCircleGlyph, SunriseGlyph } from "../shared/glyphs";
 import { usePushDepth } from "../shared/pushNav";
-import { useScrollOnPush } from "../brain/useScrollOnPush";
 import PageHeader from "../shared/PageHeader";
 import { pressable } from "../shared/pressable";
 
@@ -141,7 +140,6 @@ export default function InsightsFlow({ onBack, onOpenTask, onOpenEntity, onOpenM
   const noThanks = () => setOffered(true);
 
   const pushCls = usePushDepth(screen ? 1 : 0);
-  useScrollOnPush(screen ? 1 : 0);
 
   const story = useMemo(() => {
     const items: { d: string; name: string; kind: "goal" | "project" }[] = [];

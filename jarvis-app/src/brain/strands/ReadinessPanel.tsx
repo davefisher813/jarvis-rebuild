@@ -87,7 +87,6 @@ export function useReadiness(strands: Strand[], enabled = true, memo?: ReadMemo)
       }
     })();
     return () => { live = false; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [peopleSvc, enabled]);
 
   const rows = read ? readiness(read.rows, strands, people, Date.now()) : [];

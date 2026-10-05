@@ -406,7 +406,7 @@ export default function LibraryPage({
                         {/* THE ONE NAG, AS A STATE (Dave 2026-10-05, locked: no pill and no action text on a row that is not
                             yet due). A library with nothing classified would draw an action on every row, so the row says what
                             is missing in the amber a state wears; the action itself is the swipe's Assign Muscles. */}
-                        {nag && <span className="fact amber">No Muscles Yet</span>}
+                        {nag && <span className="fact warn">No Muscles Yet</span>}
                       </div>
                     )}
                     {/* NO OTHER TITLE ON THE ROW (Dave 2026-09-18: "also

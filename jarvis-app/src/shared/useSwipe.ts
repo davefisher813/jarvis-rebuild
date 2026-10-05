@@ -72,6 +72,9 @@ export interface SwipeOptions {
   // A row that is not swipeable right now (e.g. schedule rows on other days)
   // keeps its markup and ignores the gesture.
   enabled?: boolean;
+  // A held row opens THIS (the row's context menu, shared/RowActionSheet) instead of toggling the tray (Dave
+  // 2026-10-05: "Long-press: context menu"). The context-menu event (right click, the iOS callout) says the same thing.
+  onLongPress?: () => void;
 }
 
 export interface SwipeState {
@@ -98,7 +101,7 @@ export interface SwipeState {
   peek: () => void;
 }
 
-export function useSwipe({ revealW, rightW = 0, onRightCommit, enabled = true }: SwipeOptions): SwipeState {
+export function useSwipe({ revealW, rightW = 0, onRightCommit, enabled = true, onLongPress }: SwipeOptions): SwipeState {
   const [dx, setDx] = useState(0);
   const [open, setOpen] = useState(false);
   const [dragging, setDragging] = useState(false);
@@ -118,7 +121,7 @@ export function useSwipe({ revealW, rightW = 0, onRightCommit, enabled = true }:
   const beginPress = () => {
     if (!enabled) return;
     endPress();
-    press.current = setTimeout(() => { press.current = undefined; if (!decided.current) toggle(); }, LONG_PRESS_MS);
+    press.current = setTimeout(() => { press.current = undefined; if (!decided.current) (onLongPress ?? toggle)(); }, LONG_PRESS_MS);
   };
   // A row can unmount mid-press (a notice dismissed elsewhere, a tab change).
   useEffect(() => endPress, []);
@@ -164,6 +167,7 @@ export function useSwipe({ revealW, rightW = 0, onRightCommit, enabled = true }:
     if (onRightCommit && rightW > 0 && dxRef.current > rightW / 2) {
       moveTo(0);
       setOpen(false);
+      noteSwiped();
       onRightCommit();
       return;
     }
@@ -197,7 +201,7 @@ export function useSwipe({ revealW, rightW = 0, onRightCommit, enabled = true }:
       onMouseDown: beginPress,
       onMouseUp: endPress,
       onMouseLeave: endPress,
-      onContextMenu: (e: React.MouseEvent) => { if (!enabled) return; e.preventDefault(); toggle(); },
+      onContextMenu: (e: React.MouseEvent) => { if (!enabled) return; e.preventDefault(); (onLongPress ?? toggle)(); },
     },
     revealFocus,
     closeThen,
