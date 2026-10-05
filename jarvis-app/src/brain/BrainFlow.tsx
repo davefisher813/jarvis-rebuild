@@ -82,7 +82,7 @@ export default function BrainFlow({ openKey, openNonce, onKeyConsumed, routineBl
     setPersonId(undefined);
     markJumped();
     onKeyConsumed?.();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [openKey, openNonce]);
 
   // Whether the category list has ARRIVED, which is not the same question as

@@ -75,7 +75,7 @@ export default function TriageScreen({ onBack }: { onBack: () => void }) {
       setPicked(brainRolesOf(current));
       setNote(typeof current.data.roleNote === "string" ? current.data.roleNote : "");
     }
-  }, [current?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [current?.id]);  
 
   const remaining = order.length - Math.min(idx, order.length);
 

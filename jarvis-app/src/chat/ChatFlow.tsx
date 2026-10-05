@@ -164,7 +164,7 @@ export default function ChatFlow({ onOpen, onCompose, askPersonId, askNonce, onA
       .catch(() => "")
       .then((v) => { if (live) setTextVoice(v); });
     return () => { live = false; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [textTo?.person.id]);
   // The email draft, shown in the bubble with an Open button. Never sent
   // from here, and never sent by anything this path touches.
@@ -420,7 +420,7 @@ export default function ChatFlow({ onOpen, onCompose, askPersonId, askNonce, onA
       // same rule the starter chips follow.
       setDraft(`What did I tell ${p.data.name} about `);
     })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [askPersonId, askNonce]);
 
   const send = async () => {

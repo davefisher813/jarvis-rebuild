@@ -1417,7 +1417,7 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
       void flushPending((w) => svc.saveWorkout(w)).then(() => reload());
       showToast({ message: `Saved unfinished ${s.dayName} · ${monthDay(s.date)}` });
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, []);
 
   const lastWorkoutForDay = useCallback((dayId: string): Workout | null => {

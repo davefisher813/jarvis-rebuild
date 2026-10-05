@@ -128,7 +128,7 @@ export default function StrandsPage({ onBack, openId: initialOpenId, openNonce, 
     if (!initialOpenId) return;
     setOpenId(initialOpenId);
     onOpenConsumed?.();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [initialOpenId, openNonce]);
   const open = openId ? strands.find((s) => s.id === openId) ?? null : null;
   const [adding, setAdding] = useState(false);

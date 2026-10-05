@@ -32,6 +32,6 @@ export function usePeekOnce(peek: () => void, can: boolean): void {
     }, PEEK_DELAY_MS);
     return () => clearTimeout(id);
     // The row's own `peek` changes identity on every render; the claim is what makes this run once.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [onToday, can]);
 }

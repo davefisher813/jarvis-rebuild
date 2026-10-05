@@ -65,10 +65,6 @@ export default function GoalRowRuled({ title, tone, body, status, bar, kind, mov
    *  in the row's grey, the day not bolded as if it were a count. */
   when?: string | null;
   onOpen?: () => void;
-  /** RETIRED (Dave 2026-10-05, "Clean rows, no pills anywhere"): the empty goal's Add a Project capsule is gone from the
-   *  row; its goal page holds the Add Project primary. Still accepted so a caller that has not dropped it compiles
-   *  (brain/CategoryDetail.tsx passes it); it draws nothing. */
-  onAddProject?: () => void;
 }) {
   const checkinKey = checkin ? checkinTone(checkin) : null;
   return (

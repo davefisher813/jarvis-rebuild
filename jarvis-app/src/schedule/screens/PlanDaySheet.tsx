@@ -377,7 +377,7 @@ export default function PlanDaySheet({
     // B5 (2026-09-04): this fires on mount, never a tap -- the definition of
     // a background call at "On Request".
     void runAI(picks, true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [picks]);
 
   // Tapping a row picks or unpicks it. NO silent cap: the fit line and the

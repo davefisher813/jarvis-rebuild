@@ -145,7 +145,7 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, startId, 
       .catch(() => "")
       .then((v) => { if (live) setMsgVoice(v); });
     return () => { live = false; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [personSheet?.kind, personSheet?.personId]);
   // UP-CORE-12 (2026-09-05): the syllabus door. A photographed syllabus is a
   // semester of work in one page, and the app could read a schedule photo and
@@ -538,7 +538,7 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, startId, 
     if (!openId) return;
     openEdit(openId);
     onOpenConsumed?.();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [openId, openNonce]);
   useEffect(() => {
     if (!startId) return;
@@ -552,7 +552,7 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, startId, 
     if (!openFilter || !(FILTERS as string[]).includes(openFilter)) return;
     setFilter(openFilter as TaskFilter);
     onFilterApplied?.();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [openFilter, filterNonce]);
 
   const onSave = async (draft: TaskDraft) => {

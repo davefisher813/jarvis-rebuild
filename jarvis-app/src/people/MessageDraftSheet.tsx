@@ -69,7 +69,7 @@ export default function MessageDraftSheet({
   }, [ai, person, about, userVoice]);
 
   // Draft exists at open.
-  useEffect(() => { void draft(tone); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { void draft(tone); }, []);  
 
   // The late voice: redraft once, only while the box still holds the AI's
   // own words (or nothing yet).

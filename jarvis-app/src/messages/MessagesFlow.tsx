@@ -999,7 +999,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     // EMAIL-F-12 (2026-09-05): keyed on the one field this reads (g.apis,
     // which changes only when a token or the account list does), not on the
     // whole session object, so a shell re-render cannot re-run the inbox load.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [g.apis, runTriage, userId]);
 
   // THE CACHE FOLLOWS THE LIST (2026-09-16). Archive, trash and Close It Out
@@ -1583,7 +1583,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     jumped.current = key;
     void openThread(openThreadId);
     onThreadConsumed?.();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [openThreadId, threadNonce, rows]);
 
   // "Finish It" lands HERE, in the draft, with the unsent words loaded
@@ -1597,7 +1597,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     jumpedDraft.current = key;
     void openDraft(openDraftId);
     onDraftConsumed?.();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [openDraftId, draftNonce]);
 
   // UP-MIND-22 (2026-09-05): Chat wrote a message and asked for the
@@ -1617,7 +1617,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     setThread(null);
     beginCompose({ to: d.to, subject: d.subject, body: d.body });
     setView("compose");
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [composeNonce]);
 
   // UP-MIND-11 (2026-09-05): THE LEDGER, built. Every half of "what did I
@@ -1650,7 +1650,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
       promises: liveSweep(loadSweep(), loadPromised()),
     }));
     setView("ledger");
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [rows, waiting, tasks, personIdFor, nudgeCounts]);
 
   // THE HOME SNAPSHOT (Dave 2026-08-20). Today must render instantly, so it
@@ -1902,7 +1902,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
       setTriage(next);
     })();
     return () => { live = false; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [ai.available, triaged, rows, triage]);
 
   // UP-MIND-12: land on the sentence, not on the thread. Runs once per open
@@ -1947,7 +1947,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     } finally {
       if (seq === searchSeq.current) setSearching(false);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [g, search, searchPeople, acctFilter]);
 
   // A sender row's door (Dave 2026-09-15: "I want all rows clickable"). A
@@ -1968,7 +1968,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     if (q.length < MIN_CHARS) return;
     const t = setTimeout(() => { void runSearch(q); }, DEBOUNCE_MS);
     return () => clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [search, searchPeople]);
 
   // Who a search can be about: Contacts with an address, then the senders
@@ -2968,7 +2968,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     if (allowed.length === 0) return;
     autoRan.current = true;
     void archiveAllNoise(allowed, false);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [triaged, autoNoise, rows, triage, rules, knownSenders, hardLines]);
 
   // N15: only ever something he ALREADY has. Nothing is generated, nothing is

@@ -547,7 +547,7 @@ export default function TodayFlow({
       } catch { /* next open tries again; nothing was lost by waiting */ }
     })();
     // Once, at open: the sweep is a first-open-of-the-day event by definition.
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);  
 
   // Revisit Day (Decision Record, Screen 07): appears once, on the date set,
   // above the day. At most one per day, oldest first. Days that passed
@@ -614,7 +614,7 @@ export default function TodayFlow({
       .catch(() => "")
       .then((v) => { if (live) setMsgVoice(v); });
     return () => { live = false; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [msgPerson?.id]);
   const [callPerson, setCallPerson] = useState<string | null>(null);
   const [peopleTick, setPeopleTick] = useState(0);
@@ -2063,7 +2063,7 @@ export default function TodayFlow({
     setDayDraft(d);
     // Once per day-open; candidate churn intra-day must not redraft an
     // undecided card out from under the user.
-  }, [loading]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [loading]);  
 
   // Overnight redraft: evening prepares tomorrow, so the next open is instant.
   useEffect(() => {
@@ -2083,7 +2083,7 @@ export default function TodayFlow({
       maxBlocks: sizing.maxBlocks,
       estimateFor: (c) => estimates[c] ?? 45,
     }));
-  }, [loading, evening]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [loading, evening]);  
 
   // B12 (2026-08-23): FIRES EXACTLY ONCE, same as the Schedule tab's copy.
   //
@@ -2267,7 +2267,7 @@ export default function TodayFlow({
         },
       });
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [dayDraft, todayEvents, taskItems, nowMin]);
 
   useEffect(() => {
@@ -2277,7 +2277,7 @@ export default function TodayFlow({
     if (t - reflowGuard.current < 5 * 60_000) return;
     reflowGuard.current = t;
     void runReflow();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [loading, evening, slippedCount, dayDraft]);
 
   // Hook order is unconditional: this must sit ABOVE the loading return.

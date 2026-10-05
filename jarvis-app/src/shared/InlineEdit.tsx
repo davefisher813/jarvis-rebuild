@@ -112,7 +112,7 @@ export default function InlineEdit({
     if (!el || showRich || document.activeElement === el) return;
     const want = shown(value);
     if (el.textContent !== want) el.textContent = want;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [value, showRich, display]);
   // Canvas flow: when this block was just created by Enter, put the caret in it.
   useEffect(() => {

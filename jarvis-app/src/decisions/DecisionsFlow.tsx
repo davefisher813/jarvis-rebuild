@@ -137,7 +137,7 @@ export default function DecisionsFlow({ onBack, openId, openNonce, onOpenConsume
     if (!openId) return;
     setView({ kind: "record", id: openId });
     onOpenConsumed?.();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [openId, openNonce]);
   const [sheet, setSheet] = useState<{ kind: "closed" } | { kind: "new" } | { kind: "supersede"; oldId: string }>({ kind: "closed" });
   const [editing, setEditing] = useState(false);

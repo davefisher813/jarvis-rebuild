@@ -25,7 +25,7 @@ export function usePushDepth(depth: number): string {
   useLayoutEffect(() => {
     const b = scrollBox();
     if (b && depth > 0) b.scrollTop = 0; // arriving already over the root (a deep link) is a new page too
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, []);
   useLayoutEffect(() => {
     if (depth === prev.current) return;

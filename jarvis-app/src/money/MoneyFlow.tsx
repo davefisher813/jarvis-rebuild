@@ -386,7 +386,7 @@ export default function MoneyFlow({ onOpenTask, onOpenEntity, openAccountId, ope
     else if (ledgerBills.some((b) => b.id === openAccountId)) setDetailId(openAccountId);
     else return;
     onOpenConsumed?.();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [openAccountId, openNonce, accounts, ledgerBills]);
 
   const editing = sheet.kind === "edit" ? accounts.find((a) => a.id === sheet.id) : undefined;

@@ -293,7 +293,7 @@ export default function CategoryDetail({
     if (!autoOpenGym) return;
     setGymOpen(true);
     onGymConsumed?.();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [autoOpenGym, gymNonce]);
   // The Health hero's Start names the day; the gym walks into it (2026-09-02).
   const [gymStartDay, setGymStartDay] = useState<string | null>(null);
@@ -1612,10 +1612,7 @@ export default function CategoryDetail({
       {goalsHere.length > 0 && <div className="pad-x"><div className="card list-card-ruled">
         {goalsHere.map((g) => (
           <GoalRowRuled key={g.id} title={g.title} tone={g.tone} body={g.line} status={g.status} bar={g.bar} kind={g.kind}
-            onOpen={onOpenGoal ? () => onOpenGoal(g.id) : undefined}
-            // The empty goal's one move (Dave's pass-off, 2026-09-26): the
-            // same ProjectSheet the Add Project row opens, born under it.
-            onAddProject={kind !== "health" ? () => setSheet({ kind: "project", goalId: g.id }) : undefined} />
+            onOpen={onOpenGoal ? () => onOpenGoal(g.id) : undefined} />
         ))}
       </div></div>}
       </>)}

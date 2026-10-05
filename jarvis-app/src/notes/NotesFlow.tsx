@@ -527,7 +527,7 @@ export default function NotesFlow({
     // jumped note keeps its claim while the person walks its links.
     void openNote(openId).then((ok) => { if (ok) setOpenedByJump(true); });
     onOpenConsumed?.();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [openId, openNonce]);
 
   const pickTemplate = async (key: TemplateKey) => {

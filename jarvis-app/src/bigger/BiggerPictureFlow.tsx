@@ -162,13 +162,13 @@ export default function BiggerPictureFlow({ openId, openNonce, onOpenConsumed, o
     if (!openId) return;
     setDetailId(openId);
     onOpenConsumed?.();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [openId, openNonce]);
   useEffect(() => {
     if (!openGoalId) return;
     setGoalDetailId(openGoalId);
     onGoalConsumed?.();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [openGoalId, goalNonce]);
   // Bumps after a dismissal so the derived suggestion re-reads storage.
   const [dismissTick, setDismissTick] = useState(0);

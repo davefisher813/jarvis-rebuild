@@ -673,7 +673,7 @@ export default function ScheduleFlow({ onEditRoutine, openId, openNonce, onOpenC
       onOpenConsumed?.();
     })();
     return () => { on = false; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [openId, openNonce]);
 
   // SCHED-F-09 (2026-09-05): Undo puts the WHOLE event back, under its own
@@ -964,7 +964,7 @@ export default function ScheduleFlow({ onEditRoutine, openId, openNonce, onOpenC
     });
     // One question at a time: the next candidate (if any) waits half a minute.
     setTimeout(() => { followUpBusy.current = false; }, 30000);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [loading, selected, allEvents, taskItems]);
 
   // --- Roadmap v2 Anytime row ---

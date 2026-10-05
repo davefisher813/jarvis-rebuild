@@ -143,7 +143,7 @@ export default function RoutineFlow({ onBack, focusId, onFocusConsumed }: { onBa
     // to Routine that does not come from tapping a block (the hub row, a
     // second look at the whole list) opens on the list, not back on Gym.
     onFocusConsumed?.();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [loaded, focusId, blocks]);
   const applyPreset = (p: Preset) => setForm((f) => ({ id: f?.id ?? null, label: p.label, startMin: p.startMin, endMin: p.endMin, days: [...p.days], kind: p.kind, soft: !!p.soft, location: f?.location ?? "", mode: null, free: [] }));
   const toggleDay = (d: number) => setForm((f) => (f ? { ...f, days: f.days.includes(d) ? f.days.filter((x) => x !== d) : [...f.days, d].sort((a, b) => a - b) } : f));

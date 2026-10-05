@@ -91,7 +91,7 @@ export default function PeopleFlow({ onBack, openId: initialOpenId, openNonce, o
     if (!initialOpenId) return;
     setOpenId(initialOpenId);
     onOpenConsumed?.();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [initialOpenId, openNonce]);
   const [linkedNotes, setLinkedNotes] = useState<{ id: string; title: string; category: string }[]>([]);
   const [sheet, setSheet] = useState<Sheet>({ kind: "closed" });
@@ -252,7 +252,7 @@ export default function PeopleFlow({ onBack, openId: initialOpenId, openNonce, o
       .catch(() => "")
       .then((v) => { if (live) setMsgVoice(v); });
     return () => { live = false; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [msg, current?.id]);
   const currentEmail = current?.data.email;
   const [lastMs, setLastMs] = useState<number | null>(null);
