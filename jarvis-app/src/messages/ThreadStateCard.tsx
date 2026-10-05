@@ -114,7 +114,7 @@ export default function ThreadStateCard({
             <div className="conn-name">Worth Remembering?</div>
             <div className="conn-meta">{brief.decision}</div>
           </div>
-          <button className="pill-act" onClick={(e) => { e.stopPropagation(); haptics.selection(); onRemember(brief.decision!); }}>Keep It</button>
+          <div className="chev" />
         </div>
       )}
 
@@ -123,8 +123,8 @@ export default function ThreadStateCard({
       {detail && (
         <>
           <div className="row msg-stands-more" {...rowDoor(toggleOpen)}>
-            <div className="row-grow"><div className="conn-meta">{open ? "Hide the detail" : "What was said"}</div></div>
-            <span className="pill-act">{open ? "Less" : "More"}</span>
+            <div className="row-grow"><div className="conn-meta">{open ? "Hide the Detail" : "What Was Said"}</div></div>
+            <div className="chev" />
           </div>
           {open && (
             <div className="msg-stands-detail">

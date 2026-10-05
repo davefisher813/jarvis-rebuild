@@ -374,8 +374,11 @@ describe("NotesFlow: Recently Deleted", () => {
     };
     await openDeleted();
     const row = await screen.findByText("Roster");
-    expect(screen.getByText("Restore")).toBeInTheDocument();
+    // CLEAN ROW (Dave 2026-10-05, locked): no Restore capsule on the row. Restore is the swipe's quickest verb, and a tap
+    // opens the row's menu (Restore, Delete Forever) because a deleted note has no note to open.
+    expect(document.querySelector(".note-row .pill-act")).toBeNull();
     fireEvent.click(row);
+    fireEvent.click(await screen.findByRole("button", { name: "Restore" }));
     await waitFor(async () => expect((await svc.note(id))!.deletedAt).toBeFalsy(), { timeout: 4000 });
     // Empty again, so the view is gone from the menu: a view of nothing is
     // furniture.
@@ -389,6 +392,77 @@ describe("NotesFlow: Recently Deleted", () => {
     await waitFor(async () => { await openDeleted(); }, { timeout: 4000 });
     fireEvent.click(await screen.findByLabelText(/^Delete forever/));
     await waitFor(async () => expect(await svc.note(id)).toBeNull(), { timeout: 4000 });
+  });
+});
+
+// 2026-10-04: select mode's Delete inside Recently Deleted ran trashNote on
+// notes that were already trashed. Nothing was deleted, the 30-day clock
+// restarted, the toast said "deleted" and its Undo put the notes back in
+// Notes. It is the permanent delete now, behind a confirm, with no Undo.
+describe("NotesFlow: bulk Delete inside Recently Deleted", () => {
+  it("deletes the ticked notes for good once confirmed, leaves the rest, and offers no Undo", async () => {
+    svcRef = null;
+    const user = "u-trash-bulk-forever";
+    // A toast with an action from an earlier test would hold the slot.
+    resetToasts();
+    document.getElementById("select-bar-host")?.remove();
+    const host = document.createElement("div"); host.id = "select-bar-host"; document.body.appendChild(host);
+    const view = render(<NotesProvider userId={user}><Grab /></NotesProvider>);
+    await waitFor(() => expect(svcRef).toBeTruthy());
+    const svc = svcRef!;
+    let a = "", b = "", keep = "";
+    await act(async () => {
+      a = (await svc.createNote("Gone One", ""))!; b = (await svc.createNote("Gone Two", ""))!; keep = (await svc.createNote("Kept Note", ""))!;
+      await svc.trashNote(a); await svc.trashNote(b);
+    });
+    view.rerender(<NotesProvider userId={user}><Grab /><NotesFlow /></NotesProvider>);
+    await screen.findByText("Kept Note", {}, { timeout: 4000 });
+    fireEvent.click(screen.getByLabelText("View"));
+    fireEvent.click(await screen.findByRole("menuitemradio", { name: /Recently Deleted/ }));
+    await screen.findByText("Gone One");
+    fireEvent.click(screen.getByLabelText("Notes Options"));
+    fireEvent.click(screen.getByText("Select Notes"));
+    fireEvent.click(screen.getByText("Select All"));
+    const got: { message: string; actionLabel?: string }[] = [];
+    const stop = subscribeToast((t) => { if (t) got.push(t); });
+    fireEvent.click(document.querySelector(".select-del")!);
+    // Nothing is deleted until the confirm is answered.
+    expect(await svc.note(a)).not.toBeNull();
+    fireEvent.click(screen.getByText("Delete 2 Notes Forever"));
+    await waitFor(async () => { expect(await svc.note(a)).toBeNull(); expect(await svc.note(b)).toBeNull(); }, { timeout: 4000 });
+    expect(await svc.note(keep)).not.toBeNull();
+    await waitFor(() => expect(got.at(-1)?.message).toBe("2 Notes Deleted for Good"), { timeout: 4000 });
+    expect(got.at(-1)?.actionLabel).toBeUndefined();
+    stop();
+    resetToasts();
+  });
+});
+
+// THE SWIPE'S QUICKEST VERB (Dave 2026-10-05, locked): Archive from the list, with the Undo the editor's Archive has.
+describe("NotesFlow: archive from the list", () => {
+  it("swipe-left Archive writes the flag, leaves the list, and Undo brings the note back", async () => {
+    svcRef = null;
+    const user = "u-archive-swipe";
+    resetToasts();
+    const view = render(<NotesProvider userId={user}><Grab /></NotesProvider>);
+    await waitFor(() => expect(svcRef).toBeTruthy());
+    const svc = svcRef!;
+    let id = "";
+    await act(async () => { id = (await svc.createNote("Old Roster", ""))!; await svc.createNote("Keeper", ""); });
+    view.rerender(<NotesProvider userId={user}><Grab /><NotesFlow /></NotesProvider>);
+    await screen.findByText("Old Roster", {}, { timeout: 4000 });
+    const got: { message: string; actionLabel?: string; onAction?: () => void }[] = [];
+    const stop = subscribeToast((t) => { if (t) got.push(t); });
+    fireEvent.click(screen.getByLabelText("Archive Old Roster"));
+    await waitFor(async () => expect((await svc.note(id))!.archived).toBe(true), { timeout: 4000 });
+    await waitFor(() => expect(screen.queryByText("Old Roster")).toBeNull(), { timeout: 4000 });
+    expect(got.at(-1)?.message).toBe("Archived");
+    expect(got.at(-1)?.actionLabel).toBe("Undo");
+    await act(async () => { got.at(-1)!.onAction!(); });
+    await waitFor(async () => expect((await svc.note(id))!.archived).toBeFalsy(), { timeout: 4000 });
+    await screen.findByText("Old Roster", {}, { timeout: 4000 });
+    stop();
+    resetToasts();
   });
 });
 
@@ -407,7 +481,9 @@ describe("NotesFlow: quick append from the list", () => {
       await svc.addBlock(id, { type: "text", text: "First line" });
     });
     view.rerender(<NotesProvider userId={user}><Grab /><NotesFlow /></NotesProvider>);
-    fireEvent.click(await screen.findByLabelText("Add to this note", {}, { timeout: 4000 }));
+    // The long press is the menu; Add a Line is in it (the swipe's Add tray was retired with the row's other pills).
+    fireEvent.contextMenu(await screen.findByText("Roster", {}, { timeout: 4000 }));
+    fireEvent.click(await screen.findByRole("button", { name: "Add a Line" }));
     const field = await screen.findByLabelText("Lines to add");
     await act(async () => { field.querySelector("p")!.textContent = "Bring the forms"; });
     await waitFor(() => expect(field.textContent).toContain("Bring the forms"));
@@ -481,7 +557,7 @@ describe("NotesFlow: a note opened for another page goes back to that page", () 
     view.rerender(
       <NotesProvider userId={user}>
         <Grab />
-        <NavOriginProvider value={{ origin: withOrigin ? { key: "schedule", label: "Schedule" } : null, back, claim, claimed: false }}>
+        <NavOriginProvider value={{ origin: withOrigin ? { key: "schedule", label: "Schedule" } : null, back, claim, claimed: false, clear: () => {} }}>
           <NotesFlow openId={id} />
         </NavOriginProvider>
       </NotesProvider>,

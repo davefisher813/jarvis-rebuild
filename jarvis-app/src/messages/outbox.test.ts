@@ -112,3 +112,17 @@ describe("schedule send", () => {
     expect(new Date(slot.at).getDate()).toBe(31);
   });
 });
+
+// THE CLOCK LAW (Dave 2026-10-05): the hold banner's clock is 12-hour with AM or PM
+// whatever the phone's region says.
+describe("whenLabel in a 24-hour region", () => {
+  const REF = new Date("2026-08-20T10:00:00");
+  it("still says AM or PM", () => {
+    const orig = Date.prototype.toLocaleTimeString;
+    Date.prototype.toLocaleTimeString = function (loc?: string | string[], o?: Intl.DateTimeFormatOptions) { return orig.call(this, Array.isArray(loc) && loc.length === 0 ? "en-GB" : loc, o); };
+    try {
+      expect(whenLabel(new Date("2026-08-20T16:00:00").getTime(), REF)).toBe("4:00 PM");
+      expect(whenLabel(new Date("2026-08-21T08:00:00").getTime(), REF)).toMatch(/^Tomorrow 8:00 AM$/);
+    } finally { Date.prototype.toLocaleTimeString = orig; }
+  });
+});

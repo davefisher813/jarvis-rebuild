@@ -71,7 +71,11 @@ export default async function handler(req: Request): Promise<Response> {
       const rules = ruleRows(s, c.owner, timezone);
       if (rules.length > 0) await ins(c, "availability_rules", rules);
 
-      const visibility = VISIBILITY_ROW[s.visibility];
+      // Own keys only (2026-10-05): "constructor" or "toString" on a plain
+      // object is an inherited function, which ?? does not replace, and the
+      // insert then fails on a missing column instead of landing on the open row.
+      const visibility = Object.hasOwn(VISIBILITY_ROW, s.visibility) ? VISIBILITY_ROW[s.visibility]! : "link_only";
+      const mode = Object.hasOwn(WHO_ROW, s.who) ? WHO_ROW[s.who]! : "open_link";
       let slug = link?.slug ?? "";
       if (link) {
         await patch(c, `booking_links?id=eq.${link.id}`, { visibility, bookable_type_id: typeId });
@@ -82,9 +86,9 @@ export default async function handler(req: Request): Promise<Response> {
           org_id: org, owner_id: c.owner, bookable_type_id: typeId, slug: makeSlug(), visibility,
         });
         slug = made[0]!.slug;
-        await ins(c, "booking_permissions", { booking_link_id: made[0]!.id, mode: WHO_ROW[s.who] });
+        await ins(c, "booking_permissions", { booking_link_id: made[0]!.id, mode });
       }
-      if (link) await patch(c, `booking_permissions?booking_link_id=eq.${link.id}`, { mode: WHO_ROW[s.who] });
+      if (link) await patch(c, `booking_permissions?booking_link_id=eq.${link.id}`, { mode });
 
       return json({ link: { slug, visibility, days: rules.length } });
     }

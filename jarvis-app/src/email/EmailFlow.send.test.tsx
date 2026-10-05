@@ -235,7 +235,9 @@ describe("E18: the review binds everything; one tap sends once", () => {
     expect(posted[0]!.body).toMatchObject({ draft_id: d.id, shown_payload_hash: "h".repeat(64) });
     expect(String(posted[0]!.body.review_nonce)).toMatch(/^n-/);
     expect(String(posted[0]!.body.request_id).length).toBeGreaterThan(8);
-    expect(screen.getByText(SENT_LINE)).toBeInTheDocument();
+    // 2026-10-05: SENT_LINE is two facts, the first green, the dot the stylesheet's.
+    expect(screen.getByText(SENT_LINE.split(" \u00B7 ")[0]!)).toHaveClass("fact", "good");
+    expect(screen.getByText(SENT_LINE.split(" \u00B7 ")[1]!)).toHaveClass("fact");
     expect(toasts.some((t) => t.message === "Sent to Coach@Example.TEST")).toBe(true);
     expect(d.send_state).toBe("sent");
   });
@@ -299,7 +301,8 @@ describe("M7: the outcomes", () => {
     await writeAndReview(r);
     fireEvent.click(byRole(SEND_THIS));
     await waitFor(() => expect(screen.getAllByText(UNKNOWN_TITLE).length).toBeGreaterThan(0), { timeout: 3000 });
-    expect(screen.getByText(UNKNOWN_WHY)).toBeInTheDocument();
+    expect(screen.getByText(UNKNOWN_WHY.split(" \u00B7 ")[0]!)).toHaveClass("fact", "warn");
+    expect(screen.getByText(UNKNOWN_WHY.split(" \u00B7 ")[1]!)).toHaveClass("fact");
     expect(byRole(RESEND_SHUT)).toBeDisabled();
     expect(screen.queryByRole("button", { name: SEND_THIS })).toBeNull();
     fireEvent.click(byRole(CHECK_AGAIN));

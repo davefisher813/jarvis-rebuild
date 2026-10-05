@@ -23,7 +23,7 @@ import LiftDetailScreen from "./LiftDetailScreen";
 import LiftGoalSheet from "./LiftGoalSheet";
 import { readLive, readPending, writeLive, clearLive, logSet, setLoggedSets, skipExercise, swapExercise, addExerciseMidSession, sessionExercisesSameAsLastTime, programExerciseFor, queueFinished, flushPending, hasWork, isStillActive, parkLive, resumeLive, twinWorkout, type LiveSession, elapsedMs } from "./liveSession";
 import { bumpStrip, uniformStrip } from "./strip";
-import { composeLibrary, newExerciseKey, type LibraryEntry } from "./library";
+import { composeLibrary, newExerciseKey, planOf, type LibraryEntry } from "./library";
 import LibraryPickSheet from "./LibraryPickSheet";
 import { emit } from "../events";
 import { dayWithSessionEntry, movedToDay } from "./edit";
@@ -67,6 +67,7 @@ import RowMenuButton from "../shared/RowMenuButton";
 import SetStrip from "./SetStrip";
 import ReorderList from "../shared/ReorderList";
 import SwipeDelete from "../shared/SwipeDelete";
+import GymSwipeRow from "./GymSwipeRow";
 import { usePushDepth } from "../shared/pushNav";
 import { pressable } from "../shared/pressable";
 import { useLongPress } from "../shared/useLongPress";
@@ -76,7 +77,7 @@ import { useAI } from "../ai/useAI";
 import { liftTitle, lineCase, workoutTitle } from "../shared/casing";
 import { minutesLabel, spanLabel } from "../shared/duration";
 import { BarbellGlyph } from "../shared/glyphs";
-import { Ellipsis } from "../shared/icons";
+import { Ellipsis, Forward } from "../shared/icons";
 import Stepper from "../shared/Stepper";
 import { own, rowDoor } from "../shared/rowDoor";
 
@@ -155,7 +156,10 @@ function NameSheet({ title, initial, placeholder, backOff, season, gameCategory,
           </div>
           {backOff && (
             <div className="field">
-              <div className="input-label">Load</div>
+              {/* "Week Type", not "Load" (2026-10-04): the flag marks a lighter
+                  week and is shown back as the Back-Off pill; nothing scales a
+                  weight or a set from it, and a heading of Load said it would. */}
+              <div className="input-label">Week Type</div>
               <div className="chip-row">
                 <div className={"chip" + (!backOff.value ? " active" : "")} role="button" tabIndex={0} aria-pressed={!backOff.value}
                   onClick={() => backOff.onChange(false)}>Normal Week</div>
@@ -240,7 +244,9 @@ function BumpSheet({ weekLabel, onSave, onCancel }: {
             </div>
           </div>
           <div className="field">
-            <div className="input-label">Load</div>
+            {/* Not "Load": the weight and reps above are what bump the copy;
+                this only marks the new week (see NameSheet). */}
+            <div className="input-label">Week Type</div>
             <div className="chip-row">
               <div className={"chip" + (!backOff ? " active" : "")} role="button" tabIndex={0} aria-pressed={!backOff} onClick={() => setBackOff(false)}>Normal Week</div>
               <div className={"chip" + (backOff ? " active" : "")} role="button" tabIndex={0} aria-pressed={backOff} onClick={() => setBackOff(true)}>Back-Off Week</div>
@@ -376,7 +382,7 @@ function LiftsRow({ count, onOpen }: { count: number; onOpen: () => void }) {
           beside it was one. The count is the only thing it ever said, so it
           says it in the trailing slot, in the capsule the ruled skin already
           draws for a small fact on a row. */}
-      <span className="ex-chip">{lineCase(count + (count === 1 ? " exercise" : " exercises"))}</span>
+      <div className="row-value"><span className="fact"><b>{lineCase(count + (count === 1 ? " exercise" : " exercises"))}</b></span></div>
       {CHEV}
     </div>
   );
@@ -439,7 +445,7 @@ function DayRow({ day, onOpen, onPin, onMenu, doneWord, current = false }: { day
           options already carried "Pin Days..." before this change, and the
           day screen keeps its Schedule row. What survives on the row is the
           claim itself, once made, in the quiet ink a fact wears. */}
-      {day.pinDays?.length ? <span className="se-chip se-chip-pin">{pinLabel(day.pinDays)}</span> : null}
+      {day.pinDays?.length ? <div className="row-value"><span className="fact">{pinLabel(day.pinDays)}</span></div> : null}
       {/* ONE TRAILING CONTROL (2026-09-16, Dave's Push Day 1 screenshot). The
           row wore a menu AND a chevron, which is the arity rule's two, and the
           two say the same thing twice: the row opens on tap like every
@@ -569,7 +575,7 @@ function ProgramRow({ program, active, onSwitch, onMenu }: { program: Program; a
         <div className="conn-name truncate">{workoutTitle(program.data.name)}</div>
         {program.data.archived && !active && <div className="conn-meta">Archived</div>}
       </div>
-      {active && <span className="pill pill-good">Active</span>}
+      {active && <div className="row-value"><span className="fact">Active</span></div>}
       <RowMenuButton onMenu={onMenu} what={program.data.name} />
     </div>
   );
@@ -679,7 +685,10 @@ function BlockSheet({ title, blocks, minutes, onSave, onCancel }: {
     <div className="sheet-scrim" onClick={onCancel}>
       <div className="card" onClick={(e) => e.stopPropagation()}>
         <div className="sheet-handle" />
-        <div className="grp"><div className="eyebrow">{title}</div></div>
+        {/* THE GROUP'S ADD IS ITS LABEL ROW'S (Dave 2026-10-05, locked): Add Another was a row at the foot of the items. */}
+        <div className="grp"><div className="eyebrow">{title}</div>
+          <button type="button" className="see-all pill-action" onClick={() => setRows((r) => [...r, { id: nid("b"), name: "" }])}>Add Another</button>
+        </div>
         <div className="pad-x sheet-form">
           {rows.map((b, i) => (
             <div className="field" key={b.id}>
@@ -690,7 +699,6 @@ function BlockSheet({ title, blocks, minutes, onSave, onCancel }: {
                 onChange={(e) => patch(b.id, { amount: e.target.value })} />
             </div>
           ))}
-          <button className="row-create" onClick={() => setRows((r) => [...r, { id: nid("b"), name: "" }])}>Add Another</button>
           <div className="field">
             <div className="input-label">Minutes</div>
             <div className="row">
@@ -886,6 +894,8 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
   // one card, and the one the athlete came for was first only by luck. Add Day
   // keeps the slot; the other two are behind one head action.
   const [manageOpen, setManageOpen] = useState(false);
+  /** The day screen's Add Exercise: from your lifts, or a new one. */
+  const [addExOpen, setAddExOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(!!startHistory);
   // UP-ATH-21 (2026-09-06): Your Lifts. `hiddenKeys` is read into state so a
   // hide shows immediately; the store is still the source of truth.
@@ -922,13 +932,16 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
    *  and not at all if the session was abandoned. A seed costs nothing and
    *  withCreated drops it the moment a real sighting of the same name at the
    *  same measurement exists, so this never doubles a row. */
-  const seedLibrary = (draft: { name: string; kind: MeasureKind; unit?: string; exerciseKey?: string }) => {
+  const seedLibrary = (draft: { name: string; kind: MeasureKind; unit?: string; exerciseKey?: string } & Parameters<typeof planOf>[0]) => {
     const name = draft.name.trim();
     if (!name) return;
     const known = library.some((e) => e.name.trim().toLowerCase() === name.toLowerCase() && e.kind === draft.kind)
       || createdLifts.some((c) => c.name.trim().toLowerCase() === name.toLowerCase() && c.kind === draft.kind);
     if (known) return;
-    saveCreatedLifts([...createdLifts, { key: draft.exerciseKey ?? newExerciseKey(), name, kind: draft.kind, ...(draft.unit ? { unit: draft.unit } : {}) }]);
+    // The plan rides with the seed (2026-10-04), so the rest, ramp, clock and
+    // note the sheet showed are there when the lift is picked again.
+    const plan = planOf(draft);
+    saveCreatedLifts([...createdLifts, { key: draft.exerciseKey ?? newExerciseKey(), name, kind: draft.kind, ...(draft.unit ? { unit: draft.unit } : {}), ...(plan ? { plan } : {}) }]);
   };
   // WHAT EACH EXERCISE IS (2026-09-14, second pass). The whole classification
   // by library key, read once through classify.readClassStore -- which also
@@ -951,6 +964,17 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
     }
     setMuscleByKey(muscles as Record<string, MuscleGroup[]>);
     writeGymSettings({ ...readGymSettings(), classByKey: next, muscleByKey: muscles });
+  };
+  /** THE MUSCLE A SHEET WAS TOLD (2026-10-04), filed as the classification it
+   *  is. Both places that add a lift from the sheet use it: the library page's
+   *  create, and a lift added to a finished workout, which dropped the muscle
+   *  because nothing on a workout record reads one. A stored muscle wins, so
+   *  adding a lift that is already classified never rewrites it. */
+  const classifyFromSheet = (key: string, draft: { kind: MeasureKind; muscleGroup?: MuscleGroup } & Parameters<typeof loadFields>[0]) => {
+    if (!key || !draft.muscleGroup) return;
+    const cur = classStore[key];
+    if (cur && muscleListOf(cur).length > 0) return;
+    saveClassStore({ ...classStore, [key]: { ...(cur ?? EMPTY_CLASS), primary: [draft.muscleGroup], measure: draft.kind, ...loadFields(draft) } });
   };
   // THE MERGE, AS A STATE MACHINE (gym/merge.ts). Held here rather than in
   // the page because the write lives here: the sheet may not enter `merged`
@@ -1393,7 +1417,7 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
       void flushPending((w) => svc.saveWorkout(w)).then(() => reload());
       showToast({ message: `Saved unfinished ${s.dayName} · ${monthDay(s.date)}` });
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, []);
 
   const lastWorkoutForDay = useCallback((dayId: string): Workout | null => {
@@ -2084,7 +2108,7 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
       if (!ok) {
         setDeleteState({
           ...state, stage: "asking",
-          note: applied > 0 ? `${applied} of ${total} saved, Delete Exercise finishes the rest` : "Nothing was changed, the exercise is exactly as it was",
+          note: lineCase(applied > 0 ? `${applied} of ${total} Saved, Delete Exercise finishes the rest` : "Nothing was changed, the exercise is exactly as it was"),
         });
         return;
       }
@@ -2145,17 +2169,21 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
             // The sheet is the whole editor now, so whatever it was told
             // travels with the seed rather than being asked for again the
             // first time the lift is used.
+            // And what it PLANNED (2026-10-04): the strip, rest, ramp, filler,
+            // note and clock were shown on the sheet and dropped on save. They
+            // ride with the seed and are laid back into the sheet when the
+            // lift is picked into a day or a session (see ExerciseSheet).
+            const plan = planOf(draft);
             saveCreatedLifts([...createdLifts, {
               key, name: cased, kind: draft.kind,
               ...(draft.unit ? { unit: draft.unit } : {}),
               ...loadFields(draft),
+              ...(plan ? { plan } : {}),
             }]);
             // A muscle is a CLASSIFICATION, not a property of the entry, so it
             // goes where every other muscle assignment goes -- which is also
             // what takes the amber Assign Muscles chip off the new row.
-            if (draft.muscleGroup) {
-              saveClassStore({ ...classStore, [key]: { ...EMPTY_CLASS, primary: [draft.muscleGroup], measure: draft.kind, ...loadFields(draft) } });
-            }
+            classifyFromSheet(key, draft);
             showToast({ message: `${cased} added` });
           }}
           // THE GOAL OPTION, WHERE THE EXERCISE IS (Dave 2026-09-12: "the list
@@ -2368,6 +2396,12 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
             mismatched pair of lists the moment an exercise can be added or
             removed. One list now, so a rename shows as you type it and a
             removed lift leaves rather than leaving a hole behind. */}
+        {/* THE ADD IS THE HEAD'S (Dave 2026-10-05, locked): a lift you forgot to log (2026-09-17) was a card holding only a
+            button at the foot. It is the one capsule on the Exercises head now, and the head draws only when there is a
+            workout to add to. */}
+        <div className="sh2 sh2-quiet"><span className="t">Exercises</span>
+          <button type="button" className="see-all pill-action" onClick={() => setWorkoutAddOpen(true)}>Add Exercise</button>
+        </div>
         {workoutDraft.map((e, ei) => (
           <div key={e.exerciseId + ei}>
             {/* The one head grammar of the gym pages (reformat 2026-08-31):
@@ -2397,11 +2431,6 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
             </div>
           </div>
         ))}
-        {/* A LIFT YOU FORGOT TO LOG (Dave 2026-09-17). Same .row-create the
-            program day and the live session spend on their own adds. */}
-        <div className="pad-x"><div className="card list-card-ruled">
-          <button className="row-create" onClick={() => setWorkoutAddOpen(true)}>Add Exercise</button>
-        </div></div>
         <div className="pad-x sheet-actions">
           {dirty && (
             <button className="btn btn-primary btn-launch btn-block" onClick={async () => {
@@ -2490,6 +2519,9 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
         {workoutAddOpen && (
           <ExerciseSheet
             mode="new"
+            // A saved session has no clock, rest or ramp to run and no note
+            // field, so the sheet does not draw them (2026-10-04).
+            record
             library={library}
             history={workouts}
             onSave={(draft) => {
@@ -2503,6 +2535,9 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
                 sets: draft.sets, custom: true, plan: draft.sets,
               }]);
               seedLibrary(draft);
+              // The muscle it was told goes where a muscle lives (the class
+              // store), the one place the record side can ever read it from.
+              classifyFromSheet(draft.exerciseKey ?? "", draft);
               setWorkoutAddOpen(false);
             }}
             onCancel={() => setWorkoutAddOpen(false)}
@@ -2954,6 +2989,13 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
             const added: Exercise[] = entries.map((e) => {
               const c = classStore[e.key] ?? classStore[e.exerciseKey ?? ""] ?? null;
               const kind = c?.measure ?? e.kind;
+              // 2026-10-05: what the create sheet planned (rest, ramp, filler,
+              // note, clock, strip) lands here too, as ExerciseSheet's pick
+              // does. Gated on the measure still being the one it was planned
+              // under, like the unit: a clock or a strip means nothing on
+              // another kind. A seed has no lastSets, so its strip is the plan's.
+              const p = kind === e.kind ? e.plan : undefined;
+              const planSets = p?.sets?.length && e.lastSets.length === 0 ? p.sets : null;
               return {
                 id: nid("e"),
                 name: e.name,
@@ -2962,13 +3004,20 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
                 // own default unit: the old unit could be yards on a kind that
                 // measures seconds, and a mismatched unit is a nonsense PR.
                 ...(kind === e.kind ? (e.unit ? { unit: e.unit } : {}) : (defaultUnit(kind) ? { unit: defaultUnit(kind)! } : {})),
-                ...(kind === e.kind && e.timeUnit ? { timeUnit: e.timeUnit } : {}),
+                ...(kind === e.kind && (e.timeUnit ?? p?.timeUnit) ? { timeUnit: (e.timeUnit ?? p?.timeUnit)! } : {}),
                 ...(c?.equipment ? { equipment: c.equipment } : e.equipment ? { equipment: e.equipment as Exercise["equipment"] } : {}),
                 ...(c?.counted ? { counted: c.counted } : e.counted ? { counted: e.counted } : {}),
                 exerciseKey: e.exerciseKey ?? newExerciseKey(),
+                ...(p?.restSec ? { restSec: p.restSec } : {}),
+                ...(p?.ramp ? { ramp: true } : {}),
+                ...(p?.filler ? { filler: true } : {}),
+                ...(p?.note ? { note: p.note } : {}),
+                ...(p?.cond ? { cond: p.cond } : {}),
                 sets: kind === e.kind && e.lastSets.length > 0
                   ? e.lastSets.map((s, i) => ({ ...s, id: `${nid("s")}${i}` }))
-                  : uniformStrip(3, { r: 8 }),
+                  : planSets
+                    ? planSets.map((s, i) => ({ ...s, id: `${nid("s")}${i}` }))
+                    : uniformStrip(3, { r: 8 }),
               };
             });
             const days = week.days.map((d) => (d.id === day.id ? { ...d, exercises: [...d.exercises, ...added] } : d));
@@ -3244,7 +3293,10 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
       <div className="sheet-scrim" onClick={() => setSwitcherOpen(false)}>
         <div className="card" onClick={(e) => e.stopPropagation()}>
           <div className="sheet-handle" />
-          <div className="grp"><div className="eyebrow">Programs</div></div>
+          {/* THE ADD IS THE LABEL ROW'S (Dave 2026-10-05, locked), never a row at the foot of the list. */}
+          <div className="grp"><div className="eyebrow">Programs</div>
+            <button type="button" className="see-all pill-action" onClick={() => { setSwitcherOpen(false); openProgramSheet(); }}>Add Program</button>
+          </div>
           <div><div className="list-flat">
             <ReorderList
               ids={programs.map((p) => p.id)}
@@ -3258,7 +3310,6 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
                 return <ProgramRow program={p} active={p.id === program?.id} onSwitch={() => switchProgram(p.id)} onMenu={() => setRowMenu({ kind: "program", program: p })} />;
               }}
             />
-            <button className="row-create" onClick={() => { setSwitcherOpen(false); openProgramSheet(); }}>Add Program</button>
           </div></div>
           {allPrograms.some((p) => p.data.archived) && (
             <>
@@ -3310,28 +3361,39 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
               minutes={openDay.warmUpMin}
               onEdit={() => setSheet({ kind: "block", weekId: activeWeek.id, dayId: openDay.id, which: "warmUp" })}
             />
+            {/* THE ADD IS THE HEAD'S (Dave 2026-10-05, locked): Add from Your Lifts and New Exercise were two rows at the foot
+                of the card. They are one capsule on the head now, beside Superset and Reorder, and it opens the two doors
+                (the fast one first, 2026-09-21) or goes straight to a new exercise when there is no library to pick from. */}
             <div className="sh2 sh2-quiet"><span className="t">Exercises</span>
-              {openDay.exercises.length > 1 && (
-                <span className="sec-left">
-                  {/* A SUPERSET IS A THING YOU DO, SO IT IS A BUTTON YOU CAN
-                      SEE (Dave, 2026-09-21). It was a long-press menu item
-                      called "Group With...", which is a hidden gesture under
-                      a word he does not use, and he could not find it: "no
-                      superset buttons anywhere in the workout pages". It
-                      sits beside Reorder because they are the same kind of
-                      move -- both rearrange the day rather than change a
-                      lift -- and it is hidden for a day with one exercise
-                      in it, which has nothing to pair. */}
-                  <button className="see-all pill-action" onClick={() => setPicker({ kind: "supersetDay", weekId: activeWeek.id, dayId: openDay.id })}>
-                    Superset
-                  </button>
-                  <button className="see-all pill-action" onClick={() => setReorderTarget((t) => (t === "exercises" ? null : "exercises"))}>
-                    {reorderTarget === "exercises" ? "Done" : "Reorder"}
-                  </button>
-                </span>
-              )}
+              <span className="sec-left">
+                {openDay.exercises.length > 1 && (
+                  <>
+                    {/* A SUPERSET IS A THING YOU DO, SO IT IS A BUTTON YOU CAN
+                        SEE (Dave, 2026-09-21). It was a long-press menu item
+                        called "Group With...", which is a hidden gesture under
+                        a word he does not use, and he could not find it: "no
+                        superset buttons anywhere in the workout pages". It
+                        sits beside Reorder because they are the same kind of
+                        move -- both rearrange the day rather than change a
+                        lift -- and it is hidden for a day with one exercise
+                        in it, which has nothing to pair. */}
+                    <button className="see-all pill-action" onClick={() => setPicker({ kind: "supersetDay", weekId: activeWeek.id, dayId: openDay.id })}>
+                      Superset
+                    </button>
+                    <button className="see-all pill-action" onClick={() => setReorderTarget((t) => (t === "exercises" ? null : "exercises"))}>
+                      {reorderTarget === "exercises" ? "Done" : "Reorder"}
+                    </button>
+                  </>
+                )}
+                {/* "Add" on the face, "Add Exercise" to a screen reader: three capsules share one head at 390 wide. */}
+                <button className="see-all pill-action" aria-label="Add Exercise"
+                  onClick={() => (library.length > 0 ? setAddExOpen(true) : setSheet({ kind: "exercise", weekId: activeWeek.id, dayId: openDay.id }))}>
+                  Add
+                </button>
+              </span>
             </div>
-            <div className="pad-x list-card"><div className="card list-card-ruled">
+            {/* A day with no exercise yet draws its head and the Add only: no empty plate (rule 12). */}
+            {openDay.exercises.length > 0 && <div className="pad-x list-card"><div className="card list-card-ruled">
               <ReorderList
                 ids={openDay.exercises.map((e) => e.id)}
                 onReorder={(ids) => void reorderExercises(activeWeek.id, openDay.id, ids)}
@@ -3349,27 +3411,7 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
                   );
                 }}
               />
-              {/* TWO DOORS (2026-09-14), IN THE OTHER ORDER (Dave, 2026-09-21:
-                  "the user should be able to essentially just populate
-                  workout days with workout options... It's kind of that way
-                  on accident right now").
-                  Both doors were already here and the fast one was second, so
-                  building a day meant meeting an eleven-field authoring sheet
-                  -- name, sets, reps, equipment, reps count, weight, unit,
-                  customize, measure, clock, muscle -- once per exercise.
-                  Picking from lifts you already have is the common move by a
-                  long way, and it is six taps for six lifts, so it leads.
-                  Authoring is the escape hatch for something genuinely new,
-                  and says so: "New Exercise" rather than "Add Exercise",
-                  because next to a picker "Add" described them both.
-                  It still hides itself on an empty library, where it would
-                  open onto nothing -- and then the authoring door is the only
-                  one, which is correct, because there is nothing to pick. */}
-              {library.length > 0 && (
-                <button className="row-create" onClick={() => setSheet({ kind: "fillDay", weekId: activeWeek.id, dayId: openDay.id })}>Add from Your Lifts</button>
-              )}
-              <button className="row-create" onClick={() => setSheet({ kind: "exercise", weekId: activeWeek.id, dayId: openDay.id })}>New Exercise</button>
-            </div></div>
+            </div></div>}
             {/* 2026-09-14 (the reference's day plan): an edit here reaches the
                 next session; a logged session keeps the numbers it logged.
                 BEHIND A LABELLED DISCLOSURE since the health polish pass
@@ -3424,6 +3466,16 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
             )}
             <div className="screen-foot" />
           </div>
+          {addExOpen && (
+            <ActionSheet
+              title="Add Exercise"
+              actions={[
+                { label: "Add from Your Lifts", onClick: () => setSheet({ kind: "fillDay", weekId: activeWeek.id, dayId: openDay.id }) },
+                { label: "New Exercise", onClick: () => setSheet({ kind: "exercise", weekId: activeWeek.id, dayId: openDay.id }) },
+              ]}
+              onClose={() => setAddExOpen(false)}
+            />
+          )}
           {sheetEl()}
           {rowMenuEl()}
           {pickerEl()}
@@ -3448,12 +3500,16 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
           {activeWeek.backOff && (
             <div className="pad-x"><span className="pill pill-subdued">Back-Off Week</span></div>
           )}
+          {/* THE ADD IS THE HEAD'S (Dave 2026-10-05, locked): Add Day was a row at the foot of the card. */}
           <div className="sh2 sh2-quiet"><span className="t">Days</span>
-            {activeWeek.days.length > 1 && (
-              <button className="see-all pill-action" onClick={() => setReorderTarget((t) => (t === "days" ? null : "days"))}>
-                {reorderTarget === "days" ? "Done" : "Reorder"}
-              </button>
-            )}
+            <span className="sec-left">
+              {activeWeek.days.length > 1 && (
+                <button className="see-all pill-action" onClick={() => setReorderTarget((t) => (t === "days" ? null : "days"))}>
+                  {reorderTarget === "days" ? "Done" : "Reorder"}
+                </button>
+              )}
+              <button className="see-all pill-action" onClick={() => setSheet({ kind: "day", weekId: activeWeek.id })}>Add Day</button>
+            </span>
           </div>
           <div className="pad-x list-card"><div className="card list-card-ruled">
             <ReorderList
@@ -3467,9 +3523,11 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
                   // SWIPE TO DELETE A DAY (Dave 2026-09-10: "It's way too hard
                   // to delete stuff especially"). Off while the list is in
                   // reorder mode, because two gestures on one row is neither.
-                  <SwipeDelete
-                    label={d.name}
+                  <GymSwipeRow
+                    name={d.name}
+                    verb={d.exercises.length > 0 ? { label: "Start", icon: <Forward className="ic" />, run: () => requestStart(d) } : null}
                     enabled={reorderTarget !== "days"}
+                    ownsPress
                     onDelete={() => void removeDayNow(activeWeek.id, d.id)}
                   >
                     <DayRow
@@ -3478,11 +3536,10 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
                       onPin={() => setPicker({ kind: "pinDays", weekId: activeWeek.id, day: d })}
                       onMenu={() => setRowMenu({ kind: "day", weekId: activeWeek.id, day: d })}
                     />
-                  </SwipeDelete>
+                  </GymSwipeRow>
                 );
               }}
             />
-            <button className="row-create" onClick={() => setSheet({ kind: "day", weekId: activeWeek.id })}>Add Day</button>
           </div></div>
           <div className="pad-x">
             <button className="btn btn-secondary btn-block" onClick={() => setSheet({ kind: "bump", weekId: activeWeek.id })}>Duplicate {activeWeek.label} & Bump</button>
@@ -3654,22 +3711,24 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
             {multiWeek ? (
               <>
                 <div className="sh2 sh2-quiet"><span className="t">Weeks</span>
-                  <button className="see-all pill-action" onClick={() => setManageOpen(true)}>Manage</button>
+                  <span className="sec-left">
+                    <button className="see-all pill-action" onClick={() => openWeekSheet()}>Add Week</button>
+                    <button className="see-all pill-action" onClick={() => setManageOpen(true)}>Manage</button>
+                  </span>
                 </div>
                 <div className="pad-x"><div className="card list-card-ruled">
                   {weeks.map((w) => (
                     <div className="row" role="button" tabIndex={0} key={w.id} onClick={() => setOpenWeekId(w.id)}>
                       <div className="row-grow">
-                        <div className="conn-name truncate">
-                          {w.label}
-                          {w.backOff && <span className="pill pill-subdued week-back-off">Back-Off</span>}
+                        <div className="conn-name truncate">{w.label}</div>
+                        {/* ONE FACT, THE ROW'S ONE GREY (Dave 2026-10-05): Back-Off was a pill on the name. A lighter week is a plan, so it stays neutral. */}
+                        <div className="facts">
+                          <span className="fact">{`${w.days.length} ${w.days.length === 1 ? "Day" : "Days"}${w.backOff ? ", Back-Off" : ""}`}</span>
                         </div>
-                        <div className="conn-meta">{w.days.length} {w.days.length === 1 ? "day" : "days"}</div>
                       </div>
                       {CHEV}
                     </div>
                   ))}
-                  <button className="row-create" onClick={() => openWeekSheet()}>Add Week</button>
                 </div></div>
               </>
             ) : (
@@ -3681,10 +3740,12 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
                         {reorderTarget === "days" ? "Done" : "Reorder"}
                       </button>
                     )}
+                    {singleWeek && <button className="see-all pill-action" onClick={() => setSheet({ kind: "day", weekId: singleWeek.id })}>Add Day</button>}
                     <button className="see-all pill-action" onClick={() => setManageOpen(true)}>Manage</button>
                   </span>
                 </div>
-                <div className="pad-x list-card"><div className="card list-card-ruled">
+                {/* A program with no day yet draws its head and the Add only: no empty plate (rule 12). */}
+                {singleWeek && singleWeek.days.length > 0 && <div className="pad-x list-card"><div className="card list-card-ruled">
                   {singleWeek && (
                     <ReorderList
                       ids={singleWeek.days.map((d) => d.id)}
@@ -3694,25 +3755,28 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
                         const d = singleWeek.days.find((x) => x.id === id);
                         if (!d) return null;
                         return (
-                          <DayRow
-                            day={d}
-                            doneWord={doneWordFor(d.id)}
-                            current={(live ?? parkedLive)?.dayId === d.id}
-                            onOpen={() => { setReorderTarget(null); setOpenDayId(d.id); }}
-                            onPin={() => setPicker({ kind: "pinDays", weekId: singleWeek.id, day: d })}
-                            onMenu={() => setRowMenu({ kind: "day", weekId: singleWeek.id, day: d })}
-                          />
+                          // CLEAN ROW, ONE QUICK VERB (Dave 2026-10-05, locked): swipe left Starts the day, then Delete.
+                          <GymSwipeRow
+                            name={d.name}
+                            verb={d.exercises.length > 0 ? { label: "Start", icon: <Forward className="ic" />, run: () => requestStart(d) } : null}
+                            enabled={reorderTarget !== "days"}
+                            ownsPress
+                            onDelete={() => void removeDayNow(singleWeek.id, d.id)}
+                          >
+                            <DayRow
+                              day={d}
+                              doneWord={doneWordFor(d.id)}
+                              current={(live ?? parkedLive)?.dayId === d.id}
+                              onOpen={() => { setReorderTarget(null); setOpenDayId(d.id); }}
+                              onPin={() => setPicker({ kind: "pinDays", weekId: singleWeek.id, day: d })}
+                              onMenu={() => setRowMenu({ kind: "day", weekId: singleWeek.id, day: d })}
+                            />
+                          </GymSwipeRow>
                         );
                       }}
                     />
                   )}
-                  {/* All three creates wear the ONE in-list create
-                      affordance -- .row-create, the approved preview's own
-                      full-width red-text card row (THE PREVIEW IS THE SPEC,
-                      2026-09-01). The floating .row-act pills were this
-                      page's "looks like absolute shit". */}
-                  {singleWeek && <button className="row-create" onClick={() => setSheet({ kind: "day", weekId: singleWeek.id })}>Add Day</button>}
-                </div></div>
+                </div></div>}
               </>
             )}
           </>
@@ -3758,7 +3822,8 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
                   // ...and to delete a mislogged session, which until now
                   // meant opening it and finding the delete inside (Dave
                   // 2026-09-10).
-                  <SwipeDelete key={w.id} label={w.data.dayName} onDelete={() => void removeWorkoutNow(w.id, w.data.dayName)}>
+                  <SwipeDelete key={w.id} label={w.data.dayName} onDelete={() => void removeWorkoutNow(w.id, w.data.dayName)}
+                    menu={[{ label: "Open", onPick: () => { setViewWorkout(w); setWorkoutDraft(w.data.exercises); } }]}>
                     <div className="row" role="button" tabIndex={0} onClick={() => { setViewWorkout(w); setWorkoutDraft(w.data.exercises); }}>
                       <div className="row-grow">
                         <div className="conn-name truncate">{workoutTitle(w.data.dayName)}</div>

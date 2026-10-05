@@ -12,10 +12,36 @@ import { DECISION_CHANGED, DEP_CHANGED_NOTE, MARK_REVIEWED, REPLACE_DECISION, WI
 import { conflictsOf, decisionHistory, dismissProposal, saveDecision, withdrawDecision, type Conflict, type DecisionHistory, type DecisionVersion, type HubOverview, type RpcClient } from "./hubClient";
 import DecisionSheet, { draftToInput, type DecisionDraft, type DependencyOption } from "./DecisionSheet";
 import { WithdrawSheet } from "./sheets";
-import { facts, whenLine } from "./format";
+import { whenFacts } from "./format";
+import HubFacts, { type HubFact, type HubFactInput } from "./HubFacts";
+import { Foot } from "../settings/kit";
+import { titleCase } from "../shared/casing";
 
 const STATUS_WORD: Record<DecisionVersion["status"], string> = { active: "Active", superseded: "Superseded", withdrawn: "Withdrawn" };
 const DEP_WORD: Record<string, string> = { current: "Current", changed: "Changed", missing: "Missing" };
+// 2026-10-05 (catalog gate, R3): a dependency's state wears the key. Current is
+// on track (green), Changed needs a look (amber), Missing is gone (red). The
+// chip was grey for Current and amber for both of the others.
+const DEP_CAP: Record<string, string> = { current: " hub-cap-money", changed: " hub-cap-waiting", missing: " hub-cap-error" };
+
+// 2026-10-05 (catalog gate, R1, R6 and the casing rule): a version's line was
+// "Version 1 · Active · Today · 9:12 AM" in ONE .fact, and a dependency's was
+// "Depends on · Decision record" (lowercase after the first word, the kind
+// repeated under a section already headed Depends On). Each is a list of
+// facts now: the version a white number, the status its key colour (Active is
+// on track, green; the other two are the line's one grey), the moment two
+// small-caps date facts.
+export const versionFacts = (v: Pick<DecisionVersion, "version" | "status" | "committed_at">): HubFactInput[] => [
+  { text: `Version ${v.version}`, strong: true },
+  v.status === "active" ? { text: STATUS_WORD[v.status], tone: "good" } : { text: STATUS_WORD[v.status] },
+  ...whenFacts(v.committed_at),
+];
+/** The kind is the section's own head when it is the usual one, and the line's one grey otherwise, joined to the record's kind. */
+export const dependencyFacts = (kind: string, entityType: string | null | undefined): HubFactInput[] => {
+  const words = [kind === "depends_on" ? "" : titleCase(kind.replace(/_/g, " ")), entityType ? titleCase(entityType.replace(/_/g, " ")) : ""].filter(Boolean);
+  return words.length ? [{ text: words.join(" ") }] : [];
+};
+
 const ENTITY_KIND: Record<string, string> = { task: "task", event: "event", decision_record: "decision", project: "project", goal: "goal", person: "person" };
 
 export default function DecisionDetail({ client, itemId, overview, offline, taskOptions, onBack, onChanged, onOpenItem }: {
@@ -85,23 +111,23 @@ export default function DecisionDetail({ client, itemId, overview, offline, task
   return (
     <div className="screen ruled hub">
       <PageHeader title="Decision" back="AI Hub" onBack={onBack} />
-      {!h && !error && <div className="hub-note">Loading…</div>}
+      {!h && !error && <Foot>Loading…</Foot>}
       {error && (
-        <div className="pad-x"><div className="card list-card-ruled">
-          <div className="row"><div className="conn-name">{error}</div></div>
-          <button className="row row-act hub-quiet" onClick={() => void load()}>Retry</button>
-        </div></div>
+        <>
+          <div className="pad-x"><div className="card list-card-ruled"><div className="row"><div className="conn-name">{error}</div></div></div></div>
+          <div className="notice-clear-row"><button className="row-act hub-quiet" onClick={() => void load()}>Retry</button></div>
+        </>
       )}
       {h && shown && (
         <>
-          {!active && <div className="hub-note">{DECISION_CHANGED}</div>}
-          {changedDeps.length > 0 && <div className="hub-note">{DEP_CHANGED_NOTE}</div>}
+          {!active && <Foot>{DECISION_CHANGED}</Foot>}
+          {changedDeps.length > 0 && <Foot>{DEP_CHANGED_NOTE}</Foot>}
 
-          <div className="sh2 sh2-quiet"><span className="t">{STATUS_WORD[shown.status]} · Version {shown.version}</span></div>
+          <div className="sh2 sh2-quiet"><span className="t">{STATUS_WORD[shown.status]}, Version {shown.version}</span></div>
           <div className="pad-x"><div className="card pad hub-card">
-            <div className="conn-name">{title}</div>
+            <div className="conn-name">{titleCase(title)}</div>
             <div className="hub-text hub-text-strong">{shown.statement}</div>
-            <div className="facts"><span className="fact">{facts(project?.title ?? null, whenLine(shown.committed_at))}</span></div>
+            <HubFacts facts={[project && { text: project.title }, ...whenFacts(shown.committed_at)]} />
           </div></div>
 
           <div className="sh2 sh2-quiet"><span className="t">Because</span></div>
@@ -111,7 +137,7 @@ export default function DecisionDetail({ client, itemId, overview, offline, task
             <>
               <div className="sh2 sh2-quiet"><span className="t">Ruled Out</span></div>
               <div className="pad-x"><div className="card list-card-ruled">
-                {shown.alternatives.map((a) => <div className="row" key={a}><div className="conn-name">{a}</div></div>)}
+                {shown.alternatives.map((a) => <div className="row" key={a}><div className="conn-name">{titleCase(a)}</div></div>)}
               </div></div>
             </>
           )}
@@ -120,12 +146,16 @@ export default function DecisionDetail({ client, itemId, overview, offline, task
             <>
               <div className="sh2 sh2-quiet"><span className="t">Constraints</span></div>
               <div className="pad-x"><div className="card list-card-ruled">
-                {shown.constraints.map((c) => <div className="row" key={c.key}><div className="row-grow"><div className="conn-name">{c.key}</div><div className="conn-meta">{c.value}</div></div></div>)}
+                {shown.constraints.map((c) => <div className="row" key={c.key}><div className="row-grow"><div className="conn-name">{titleCase(c.key.replace(/_/g, " "))}</div><HubFacts facts={[{ text: c.value }]} /></div></div>)}
               </div></div>
             </>
           )}
 
-          <div className="sh2 sh2-quiet"><span className="t">Depends On</span></div>
+          {/* Mark Reviewed is this section's own action (a changed dependency is what it answers), so it is the head's capsule. */}
+          <div className="sh2 sh2-quiet">
+            <span className="t">Depends On</span>
+            {suggestion && changedDeps.length > 0 && <button type="button" className="see-all pill-action" disabled={busy === "reviewed" || offline} onClick={() => void reviewed()}>{MARK_REVIEWED}</button>}
+          </div>
           <div className="pad-x"><div className="card list-card-ruled">
             {shown.dependencies.length === 0 && <div className="row"><div className="conn-name">Nothing Yet</div></div>}
             {shown.dependencies.map((d) => {
@@ -134,42 +164,41 @@ export default function DecisionDetail({ client, itemId, overview, offline, task
               return (
                 <div {...door} className="row" key={d.id}>
                   <div className="row-grow">
-                    <div className="conn-name">{d.title || "A Record"}</div>
-                    <div className="conn-meta">{facts(d.kind.replace("_", " ").replace(/^\w/, (ch) => ch.toUpperCase()), d.entity_type ? d.entity_type.replace("_", " ").replace(/^\w/, (ch) => ch.toUpperCase()) : null)}</div>
+                    <div className="conn-name">{titleCase(d.title || "A Record")}</div>
+                    <HubFacts facts={dependencyFacts(d.kind, d.entity_type)} />
                   </div>
-                  <span className={"hub-cap" + (d.status === "current" ? "" : " hub-cap-waiting")}>{DEP_WORD[d.status] ?? d.status}</span>
+                  <span className={"hub-cap" + (DEP_CAP[d.status] ?? "")}>{DEP_WORD[d.status] ?? d.status}</span>
                 </div>
               );
             })}
-            {suggestion && changedDeps.length > 0 && <button className="row row-act hub-quiet" disabled={busy === "reviewed" || offline} onClick={() => void reviewed()}>{MARK_REVIEWED}</button>}
           </div></div>
 
           <div className="sh2 sh2-quiet"><span className="t">Source</span></div>
           <div className="pad-x"><div className="card list-card-ruled">
             <div className="row"><div className="row-grow"><div className="conn-name">{typeof h.data.source === "object" && h.data.source && (h.data.source as { kind?: string }).kind === "chat" ? "Project Conversation" : ENTERED_BY_YOU}</div>
-              {h.evidence.length > 0 && <div className="conn-meta">{h.evidence.length === 1 ? "1 Evidence Excerpt" : `${h.evidence.length} Evidence Excerpts`}</div>}</div></div>
-            {h.evidence.map((e) => <div className="row" key={e.id}><div className="row-grow"><div className="hub-text">{e.excerpt}</div><div className="conn-meta">{facts(e.type === "email" ? "Email" : e.type === "import" ? "Import" : "Entered", e.availability !== "available" ? "Source No Longer Available" : null)}</div></div></div>)}
+              {h.evidence.length > 0 && <HubFacts facts={[{ text: h.evidence.length === 1 ? "1 Evidence Excerpt" : `${h.evidence.length} Evidence Excerpts` }]} />}</div></div>
+            {h.evidence.map((e) => <div className="row" key={e.id}><div className="row-grow"><div className="hub-text">{e.excerpt}</div><HubFacts facts={[{ text: e.type === "email" ? "Email" : e.type === "import" ? "Import" : "Entered" }, e.availability !== "available" && { text: "Source No Longer Available", tone: "warn" }]} /></div></div>)}
           </div></div>
 
           <div className="sh2 sh2-quiet"><span className="t">History</span></div>
           <div className="pad-x"><div className="card pad">
             {h.versions.map((v) => (
               <div className="hub-version" key={v.version_id}>
-                <div className="facts"><span className="fact">{facts(`Version ${v.version}`, STATUS_WORD[v.status], whenLine(v.committed_at))}</span></div>
+                <HubFacts facts={versionFacts(v)} />
                 <div className="hub-text hub-text-strong">{v.statement}</div>
                 <div className="hub-text">{v.rationale}</div>
-                {v.withdrawal_reason && <div className="hub-text">Withdrawn · {v.withdrawal_reason}</div>}
+                {v.withdrawal_reason && <div className="hub-text">{`Withdrawn Because ${v.withdrawal_reason}`}</div>}
               </div>
             ))}
           </div></div>
 
           {active && (
-            <div className="pad-x"><div className="card list-card-ruled">
-              <button className="row row-act" disabled={offline} onClick={() => { setConflicts([]); setSheet("replace"); }}>{REPLACE_DECISION}</button>
-              <button className="row row-act hub-danger" disabled={offline} onClick={() => setSheet("withdraw")}>{WITHDRAW_DECISION}</button>
-            </div></div>
+            <div className="hub-acts">
+              <button className="row-act" disabled={offline} onClick={() => { setConflicts([]); setSheet("replace"); }}>{REPLACE_DECISION}</button>
+              <button className="row-act hub-danger" disabled={offline} onClick={() => setSheet("withdraw")}>{WITHDRAW_DECISION}</button>
+            </div>
           )}
-          {!active && <div className="hub-note">{WITHDRAW_LINE}</div>}
+          {!active && <Foot>{WITHDRAW_LINE}</Foot>}
         </>
       )}
       <div className="screen-foot" />
@@ -179,7 +208,7 @@ export default function DecisionDetail({ client, itemId, overview, offline, task
           options={[...taskOptions, ...decisionOptions]} conflicts={conflicts} busy={busy === "replace"}
           onSave={(d) => void replace(d)} onReplace={(d) => void replace(d)} onCancel={() => { setSheet(null); setConflicts([]); }} />
       )}
-      {sheet === "withdraw" && shown && <WithdrawSheet title={shown.title} busy={busy === "withdraw"} onSave={(r) => void withdraw(r)} onCancel={() => setSheet(null)} />}
+      {sheet === "withdraw" && shown && <WithdrawSheet title={titleCase(shown.title)} busy={busy === "withdraw"} onSave={(r) => void withdraw(r)} onCancel={() => setSheet(null)} />}
     </div>
   );
 }

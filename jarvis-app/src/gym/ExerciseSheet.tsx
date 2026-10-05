@@ -3,7 +3,7 @@ import { lineCase, liftTitle } from "../shared/casing";
 import { minutesLabel } from "../shared/duration";
 import { createPortal } from "react-dom";
 import { Fragment, useRef, useState, type ReactNode } from "react";
-import { own } from "../shared/rowDoor";
+import { own, rowDoor } from "../shared/rowDoor";
 import { MEASURE_KINDS, MEASURE_LABEL, unitsFor, defaultUnit, TIME_UNITS, COND_FORMATS, COND_LABEL, type CondBlock, type CondFormat, type Exercise, type MeasureKind, type SetEntry, type Workout } from "./types";
 import { EQUIPMENT_KINDS, EQUIPMENT_LABEL, EQUIPMENT_NOTE, COUNTED_LABEL, asksCount, countsFor, defaultCount, loadStyleOf, weightless, type Counted, type Equipment, type LoadStyle } from "./equipment";
 import { condCap, condLength, mmss } from "./conditioning";
@@ -35,6 +35,19 @@ const REST_PRESETS = [0, 60, 90, 120, 180, 300];
 function restOptions(current: number): { value: string; label: string }[] {
   const all = REST_PRESETS.includes(current) ? REST_PRESETS : [...REST_PRESETS, current].sort((a, b) => a - b);
   return all.map((s) => ({ value: String(s), label: s === 0 ? "Off" : mmss(s) }));
+}
+
+// A clock block as the sheet's five fields (2026-10-04), shared by the opening
+// state and by picking a created lift, so a clock set on one reads back the
+// same on the other.
+function condFields(cond?: CondBlock): { format: CondFormat | null; min: number; interval: number; rest: number; rounds: number } {
+  return {
+    format: cond?.format ?? null,
+    min: cond && (cond.format === "amrap" || cond.format === "for_time") ? Math.round(cond.capSec / 60) : 12,
+    interval: cond?.intervalSec ?? (cond?.format === "tabata" ? 20 : 60),
+    rest: cond?.restSec ?? 10,
+    rounds: cond?.rounds ?? (cond?.format === "tabata" ? 8 : 10),
+  };
 }
 
 function freshTarget(kind: MeasureKind): { w?: number; r?: number; v?: number; t?: number } {
@@ -77,7 +90,7 @@ function Tile({ tone, children }: { tone: string; children: ReactNode }) {
 // In the Session (Rest Timer, Warm-Up Ramp, Filler), Note. The header is
 // the ruled sheet bar (Cancel, the name, Save); Delete sits alone at the
 // very bottom. The set strip keeps its chips, which he approved.
-export default function ExerciseSheet({ mode, initial, library, history, onSave, onDelete, onCancel, partner, onPairWith, alsoOnDay }: {
+export default function ExerciseSheet({ mode, initial, library, history, onSave, onDelete, onCancel, partner, onPairWith, alsoOnDay, record }: {
   mode: "new" | "edit";
   initial?: Exercise;
   /** THE EXERCISE LIBRARY (catalog §3.5): every exercise name ever used,
@@ -108,6 +121,12 @@ export default function ExerciseSheet({ mode, initial, library, history, onSave,
    *  the library until the workout was finished. Now the sheet asks, with the
    *  common answer already chosen. Absent when there is no day to add to. */
   alsoOnDay?: { dayName: string; value: boolean; onChange: (v: boolean) => void };
+  /** A LIFT ADDED TO A FINISHED SESSION (2026-10-04). A saved workout has no
+   *  clock to start, rest to ring or ramp to offer, and no note field to put
+   *  a line in, so those rows are not drawn: they were accepted here and
+   *  dropped on save. What the record does keep (the strip, the measure, the
+   *  equipment and the muscle) stays. */
+  record?: boolean;
 }) {
   const [name, setName] = useState(initial?.name ?? "");
   const [kind, setKind] = useState<MeasureKind>(initial?.kind ?? "weight_reps");
@@ -157,11 +176,12 @@ export default function ExerciseSheet({ mode, initial, library, history, onSave,
   // this is a strip; a format makes it a clock. The kind follows the format
   // (an AMRAP scores rounds, a For Time scores time, EMOM and Tabata count
   // the intervals they complete), so the athlete never has to know that.
-  const [condFormat, setCondFormat] = useState<CondFormat | null>(initial?.cond?.format ?? null);
-  const [condMin, setCondMin] = useState<number>(initial?.cond && (initial.cond.format === "amrap" || initial.cond.format === "for_time") ? Math.round(initial.cond.capSec / 60) : 12);
-  const [condInterval, setCondInterval] = useState<number>(initial?.cond?.intervalSec ?? (initial?.cond?.format === "tabata" ? 20 : 60));
-  const [condRest, setCondRest] = useState<number>(initial?.cond?.restSec ?? 10);
-  const [condRounds, setCondRounds] = useState<number>(initial?.cond?.rounds ?? (initial?.cond?.format === "tabata" ? 8 : 10));
+  const cf0 = condFields(initial?.cond);
+  const [condFormat, setCondFormat] = useState<CondFormat | null>(cf0.format);
+  const [condMin, setCondMin] = useState<number>(cf0.min);
+  const [condInterval, setCondInterval] = useState<number>(cf0.interval);
+  const [condRest, setCondRest] = useState<number>(cf0.rest);
+  const [condRounds, setCondRounds] = useState<number>(cf0.rounds);
   const condBlock: CondBlock | null = condFormat ? {
     format: condFormat,
     capSec: condCap(condFormat, { minutes: condMin, intervalSec: condFormat === "tabata" ? condInterval : condFormat === "emom" ? condInterval : undefined, restSec: condRest, rounds: condRounds }),
@@ -190,6 +210,9 @@ export default function ExerciseSheet({ mode, initial, library, history, onSave,
   // Form rows land their tap on their own field (Dave 2026-09-15: "I want all rows clickable").
   const nameRef = useRef<HTMLInputElement>(null);
   const noteRef = useRef<HTMLInputElement>(null);
+  // The note the last suggestion pick wrote, so a second pick can tell it from
+  // one the athlete typed.
+  const pickedNote = useRef("");
   const toggleStrip = () => { setStripOpen((o) => !o); setReorderSets(false); };
 
   // Picking a suggestion carries kind, unit and the last-used target forward
@@ -202,6 +225,34 @@ export default function ExerciseSheet({ mode, initial, library, history, onSave,
     setExerciseKey(entry.exerciseKey);
     if (entry.lastSets.length > 0) {
       setSets(entry.lastSets.map((s) => ({ ...s, id: `${s.id}p` })));
+    }
+    // A lift made on the library page carries what its sheet planned
+    // (2026-10-04): the strip, rest, ramp, filler, note and clock. The sheet
+    // that made it showed all of them, and this is where they take effect.
+    // A typed note is the athlete's, so only a blank one is filled.
+    const plan = entry.plan;
+    if (plan) {
+      if (plan.sets?.length && entry.lastSets.length === 0) setSets(plan.sets.map((s) => ({ ...s, id: `${s.id}p` })));
+      if (plan.timeUnit) setTimeUnit(plan.timeUnit);
+    }
+    // The session-side half is for a day or a live session, not a record.
+    // 2026-10-05: only the fields the plan NAMES are applied. A plan holds no
+    // zero rest, false flag or clock, so resetting the absent ones wiped what
+    // the athlete had already set on the open sheet.
+    if (plan && !record) {
+      if (plan.restSec !== undefined) setRestSec(plan.restSec);
+      if (plan.ramp) setRamp(true);
+      if (plan.filler) setFiller(true);
+      if (plan.cond) {
+        const c = condFields(plan.cond);
+        setCondFormat(c.format); setCondMin(c.min); setCondInterval(c.interval); setCondRest(c.rest); setCondRounds(c.rounds);
+      }
+      // The note an earlier pick put here is that pick's, not the athlete's:
+      // it is replaced (or cleared) by the next pick, a typed one is kept.
+      const prev = pickedNote.current;
+      const next = plan.note ?? "";
+      setNote((n) => (!n || n === prev ? next : n));
+      pickedNote.current = next;
     }
     setNameFocused(false);
   };
@@ -340,7 +391,7 @@ export default function ExerciseSheet({ mode, initial, library, history, onSave,
               <div className="grp xs-grp">
                 <div className="eyebrow">{countLabel(kind)}</div>
                 {stripOpen && sets.length > 1 && (
-                  <button className="pill-act pill-neutral" onClick={() => setReorderSets((r) => !r)}>{reorderSets ? "Done" : "Reorder"}</button>
+                  <button type="button" className="see-all pill-action" onClick={() => setReorderSets((r) => !r)}>{reorderSets ? "Done" : "Reorder"}</button>
                 )}
               </div>
               <div className="pad-x"><div className="card xs-group">
@@ -443,14 +494,14 @@ export default function ExerciseSheet({ mode, initial, library, history, onSave,
                       options={TIME_UNITS.map((u) => ({ value: u, label: u }))} onPick={setTimeUnit} />
                   </div>
                 )}
-                <div className="row xs-row" onClick={toggleStrip}>
+                {/* A DISCLOSURE ROW, NOT A BUTTON ON A ROW (Dave 2026-10-05, locked: no pill in a row). The row is the whole
+                    control and its chevron turns to say open or shut. */}
+                <div className="row xs-row" {...rowDoor(toggleStrip)} aria-expanded={stripOpen}>
                   <div className="row-grow">
                     <div className="conn-name">Customize Individual Sets</div>
-                    <div className="conn-meta">{isUniformStrip(kind, sets) ? "Uniform" : "Varies by set"}</div>
+                    <div className="conn-meta">{isUniformStrip(kind, sets) ? "Uniform" : "Varies by Set"}</div>
                   </div>
-                  <button className="pill-act pill-neutral" aria-expanded={stripOpen} onClick={own(toggleStrip)}>
-                    {stripOpen ? "Hide" : "Show"}
-                  </button>
+                  <div className={"chev chev-down" + (stripOpen ? " chev-open" : "")} />
                 </div>
                 {stripOpen && (
                   <div className="row xs-strip">
@@ -478,7 +529,7 @@ export default function ExerciseSheet({ mode, initial, library, history, onSave,
             {/* THE CONDITIONING BLOCK (2026-09-02). A format turns the strip
                 into a clock: the session offers Start the Clock instead of a
                 set to log, and writes a receipt with round splits after. */}
-            <div className="row xs-row">
+            {!record && <div className="row xs-row">
               <Tile tone="green"><Timer className="ic" /></Tile>
               <div className="row-grow">
                 <div className="conn-name">Clock</div>
@@ -489,7 +540,7 @@ export default function ExerciseSheet({ mode, initial, library, history, onSave,
               <HeadMenu variant="value" ariaLabel="Clock" value={condFormat ?? "off"} off={!condFormat}
                 options={[{ value: "off", label: "Off" }, ...COND_FORMATS.map((f) => ({ value: f, label: COND_LABEL[f] }))]}
                 onPick={(v) => pickFormat(v === "off" ? null : (v as CondFormat))} />
-            </div>
+            </div>}
             {(condFormat === "amrap" || condFormat === "for_time") && (
               <div className="row xs-row">
                 <div className="row-grow"><div className="conn-name">{condFormat === "amrap" ? "Window" : "Time Cap"}</div><div className="conn-meta">{minutesLabel(condMin)}</div></div>
@@ -534,6 +585,7 @@ export default function ExerciseSheet({ mode, initial, library, history, onSave,
           </div></div>
 
           {/* IN THE SESSION: what the live screen does with this exercise. */}
+          {!record && <>
           <div className="grp xs-grp"><div className="eyebrow">In the Session</div></div>
           <div className="pad-x"><div className="card xs-group">
             {/* REST TIMER (catalog §4.3), optional and per-exercise. 0 means no
@@ -572,14 +624,14 @@ export default function ExerciseSheet({ mode, initial, library, history, onSave,
                 and the door to the day's own Group With picker, so pairing no
                 longer hides behind a long press on the day list. */}
             {onPairWith && (
-              <div className="row xs-row" onClick={onPairWith}>
+              <div className="row xs-row" {...rowDoor(onPairWith)}>
                 <Tile tone="teal"><Link2 className="ic" /></Tile>
                 <div className="row-grow">
                   <div className="conn-name">Pair With</div>
-                  {/* Unpaired says nothing: the Choose capsule already says it (§AK). */}
+                  {/* Unpaired says nothing (§AK). The row is the door to the picker, so its chevron says so. */}
                   {partner && <div className="conn-meta">{partner}</div>}
                 </div>
-                <button className="pill-act pill-neutral" onClick={own(onPairWith)}>{partner ? "Change" : "Choose"}</button>
+                <div className="chev" />
               </div>
             )}
             {/* REST AFTER THE ROUND (Part 3 wave 2): only once the exercise
@@ -589,7 +641,7 @@ export default function ExerciseSheet({ mode, initial, library, history, onSave,
                 <Tile tone="teal"><Hourglass className="ic" /></Tile>
                 <div className="row-grow">
                   <div className="conn-name">Rest After the Round</div>
-                  <div className="conn-meta">{roundRestSec > 0 ? "Once every member has gone" : "Rest after every set"}</div>
+                  <div className="conn-meta">{roundRestSec > 0 ? "Once Every Member Has Gone" : "Rest After Every Set"}</div>
                 </div>
                 <HeadMenu variant="value" ariaLabel="Rest After the Round" value={String(roundRestSec)} off={roundRestSec === 0}
                   options={restOptions(roundRestSec)} onPick={(v) => setRoundRestSec(Number(v))} />
@@ -603,12 +655,13 @@ export default function ExerciseSheet({ mode, initial, library, history, onSave,
               <Tile tone="purple"><Shuffle className="ic" /></Tile>
               <div className="row-grow">
                 <div className="conn-name">Filler</div>
-                <div className="conn-meta">Offered during a pair's rest</div>
+                <div className="conn-meta">Offered During a Pair's Rest</div>
               </div>
               <div className={"switch" + (filler ? "" : " off")} role="switch" aria-checked={filler} aria-label="Filler" tabIndex={0}
                 onClick={own(() => setFiller((f) => !f))} />
             </div>
           </div></div>
+          </>}
 
           {alsoOnDay && (
             <>
@@ -629,6 +682,7 @@ export default function ExerciseSheet({ mode, initial, library, history, onSave,
             </>
           )}
 
+          {!record && <>
           <div className="grp xs-grp"><div className="eyebrow">Note</div></div>
           <div className="pad-x"><div className="card xs-group">
             <div className="row xs-row" onClick={() => noteRef.current?.focus()}>
@@ -637,6 +691,7 @@ export default function ExerciseSheet({ mode, initial, library, history, onSave,
               <input ref={noteRef} className="xs-input" placeholder="Optional" aria-label="Note" value={note} onChange={(e) => setNote(e.target.value)} />
             </div>
           </div></div>
+          </>}
 
           {mode === "edit" && onDelete && (
             // DELETE SITS ALONE AT THE VERY BOTTOM (ruled 2026-09-01). THE

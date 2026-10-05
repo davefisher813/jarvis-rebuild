@@ -15,7 +15,7 @@ export default function LegalScreen({ title, updated, back = "About", children, 
           launch." on every legal screen, including the two reachable from
           Sign In before an account exists. The three screens carry the
           reviewed text from public/ now, so there is nothing to warn about. */}
-      {updated && <div className="pad-x"><div className="legal-updated">{`Last updated ${updated}`}</div></div>}
+      {updated && <div className="pad-x"><div className="legal-updated">{`Last Updated ${updated}`}</div></div>}
       <div className="pad-x"><div className="card list-card-ruled legal-card"><div className="legal-body">{children}</div></div></div>
       <div className="screen-foot" />
     </div>

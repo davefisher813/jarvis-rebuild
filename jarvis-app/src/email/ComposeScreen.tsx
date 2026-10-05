@@ -10,6 +10,7 @@
 
 import { useCallback, useEffect, useRef, useState, type ChangeEvent } from "react";
 import PageHeader from "../shared/PageHeader";
+import RowActionSheet from "../shared/RowActionSheet";
 import { FieldRow, MenuRow, Row, TextRow, Tile } from "../shared/FormSheet";
 import { Mail, Paperclip } from "../shared/icons";
 import { rowDoor } from "../shared/rowDoor";
@@ -18,11 +19,12 @@ import { prepareUpload, validateUpload } from "../shared/fileStorage";
 import type { FileStore } from "../files/FileStore";
 import {
   ATTACH, ATTACH_FAILED, ATTACH_NEEDS_APP, ATTACH_TOO_MUCH, ATTACHMENTS_LABEL, ATTACHMENTS_WAIT, BAD_ADDRESS, BCC_LABEL, BODY_LABEL, CC_BCC, CC_LABEL, CLOSE_DRAFT, COMPOSE_TITLE,
-  DISCARD_DRAFT, DRAFT_ONLY, EMAIL_TITLE, FROM_LABEL, KEEP_THIS_DRAFT, NEEDS_RECIPIENT, OFFLINE_SEND, OTHER_DEVICE, REMOVE_ATTACHMENT, REPLY, REVIEW_SEND, SAVE_FAILED, SAVED_HERE,
-  SAVED_LINE, SAVING_LINE, SUBJECT_LABEL, THIS_DEVICE, TO_LABEL, UPLOADING, USE_NEWER_DRAFT,
+  CONFLICT_TITLE, DISCARD_DRAFT, DRAFT_ONLY, EMAIL_TITLE, FROM_LABEL, KEEP_THIS_DRAFT, NEEDS_RECIPIENT, OFFLINE_SEND, OTHER_DEVICE, REMOVE_ATTACHMENT, REPLY, REVIEW_SEND, SAVE_FAILED, SAVED_HERE,
+  NO_SUBJECT, SAVED_LINE, SAVING_LINE, SUBJECT_LABEL, THIS_DEVICE, TO_LABEL, UPLOADING, USE_NEWER_DRAFT,
 } from "./copy";
 import type { EmailAccount } from "./emailClient";
 import { sizeLine } from "./format";
+import EmailFacts from "./EmailFacts";
 import {
   attachmentsBytes, badAddresses, canonicalFields, discardDraft, fieldsOf, MAX_ATTACHMENTS_BYTES, reviewSend, saveDraft, saveLocalDraft, clearLocalDraft, sameFields, sha256Hex, splitAddresses,
   type AttachmentRef, type DraftFields, type DraftRow, type LocalDraft, type Review,
@@ -177,6 +179,7 @@ export default function ComposeScreen({ client, userId, accounts, offline, fileS
       }
     }
   };
+  const [removing, setRemoving] = useState<AttachmentRef | null>(null);
   const removeAttachment = (ref: AttachmentRef) => {
     setFields((f) => ({ ...f, attachment_refs: f.attachment_refs.filter((r) => r.storage_id !== ref.storage_id) }));
     void fileStore?.remove([ref.storage_id]);
@@ -269,12 +272,13 @@ export default function ComposeScreen({ client, userId, accounts, offline, fileS
   return (
     <div className="screen ruled email-compose">
       <PageHeader title={title} back={EMAIL_TITLE} onBack={() => void close()} />
-      {start.replyingTo && <div className="email-note quiet"><span>{`${REPLY} · ${start.replyingTo}`}</span></div>}
+      {/* 2026-10-05: the name alone. "Reply · Name" said "Reply" again under a page already titled Reply. */}
+      {start.replyingTo && <div className="email-note quiet"><EmailFacts wrap facts={[{ text: start.replyingTo }]} /></div>}
       <div className="pad-x"><div className="card xs-group xs">
         {connected.length > 1 ? (
-          <MenuRow tone="blue" glyph={<Mail className="ic" />} label={FROM_LABEL} value={accountId} options={connected.map((a) => ({ value: a.id, label: a.address }))} onPick={(v) => setAccountId(v)} ariaLabel={FROM_LABEL} word={account?.address ?? ""} />
+          <MenuRow tone="teal" glyph={<Mail className="ic" />} label={FROM_LABEL} value={accountId} options={connected.map((a) => ({ value: a.id, label: a.address }))} onPick={(v) => setAccountId(v)} ariaLabel={FROM_LABEL} word={account?.address ?? ""} />
         ) : (
-          <Row tone="blue" glyph={<Mail className="ic" />} label={FROM_LABEL} meta={account?.address ?? ""} />
+          <Row tone="teal" glyph={<Mail className="ic" />} label={FROM_LABEL} meta={account?.address ?? ""} />
         )}
         <FieldRow label={TO_LABEL} value={toText} onChange={setToText} placeholder="name@example.com" ariaLabel={TO_LABEL} error={badTo.length > 0} />
         {!ccOpen && <div className="row xs-row email-ccbcc" {...rowDoor(() => setCcOpen(true))}><div className="conn-name">{CC_BCC}</div><div className="chev"></div></div>}
@@ -290,11 +294,15 @@ export default function ComposeScreen({ client, userId, accounts, offline, fileS
       <div className="pad-x"><div className="card list-card-ruled">
         {fields.attachment_refs.length > 0 && <div className="eyebrow email-eyebrow">{ATTACHMENTS_LABEL}</div>}
         {fields.attachment_refs.map((r) => (
-          <div className="row" key={r.storage_id} {...rowDoor(() => removeAttachment(r))}>
+          // 2026-10-05 (Dave, locked: clean rows, no pills): the row is a door. Tap opens its sheet, and Remove is in it,
+          // so a stray tap on the row removes nothing and no control sits inside the row.
+          <div className="row" key={r.storage_id} {...rowDoor(() => setRemoving(r))} aria-label={`${r.filename} · ${sizeLine(r.size_bytes)}`}>
             <div className="row-grow">
               <div className="conn-name truncate">{r.filename}</div>
-              <div className="facts"><span className="fact">{sizeLine(r.size_bytes)}</span><span className="fact">{r.mime_type}</span><span className="fact">{REMOVE_ATTACHMENT}</span></div>
+              {/* A white size is the row's only fact. The file type repeated the extension. */}
+              <EmailFacts facts={[{ text: sizeLine(r.size_bytes), strong: true }]} />
             </div>
+            <div className="chev"></div>
           </div>
         ))}
         {uploading.map((n) => (
@@ -310,10 +318,12 @@ export default function ComposeScreen({ client, userId, accounts, offline, fileS
 
       {conflict && (
         <div className="pad-x"><div className="card list-card-ruled email-conflict">
-          <div className="eyebrow email-eyebrow">{lineFor({ code: "DRAFT_CONFLICT" })}</div>
+          {/* 2026-10-05: the kicker is the label ("Edited on Another Device"); the old one was a whole sentence in caps with its
+              instruction ("Choose Which Draft to Keep") under two buttons that say it. Each copy is its subject, then its words. */}
+          <div className="eyebrow email-eyebrow">{CONFLICT_TITLE}</div>
           <dl className="email-compare">
-            <dt>{THIS_DEVICE}</dt><dd>{fields.subject || "(No Subject)"} · {fields.body_text.slice(0, 160) || "(Empty)"}</dd>
-            <dt>{OTHER_DEVICE}</dt><dd>{conflict.subject || "(No Subject)"} · {conflict.body_text.slice(0, 160) || "(Empty)"}</dd>
+            <dt>{THIS_DEVICE}</dt><dd>{fields.subject || NO_SUBJECT}{fields.body_text && <EmailFacts wrap facts={[{ text: fields.body_text.slice(0, 160) }]} />}</dd>
+            <dt>{OTHER_DEVICE}</dt><dd>{conflict.subject || NO_SUBJECT}{conflict.body_text && <EmailFacts wrap facts={[{ text: conflict.body_text.slice(0, 160) }]} />}</dd>
           </dl>
           <div className="email-sheet-acts">
             <button className="quiet-action" onClick={() => void keepThis()}>{KEEP_THIS_DRAFT}</button>
@@ -322,8 +332,9 @@ export default function ComposeScreen({ client, userId, accounts, offline, fileS
         </div></div>
       )}
 
-      <div className="email-note quiet"><span>{saveLine}</span></div>
-      {line && <div className="email-note quiet email-warn"><span>{line}</span></div>}
+      {/* 2026-10-05: a refusal is an error line (the key's red, 14px), not a quiet note in a raw brown; the plain save state stays the quiet note. */}
+      {saveWord === "failed" ? <div className="pad-x"><div className="input-error" role="alert">{saveLine}</div></div> : <div className="email-note quiet"><span>{saveLine}</span></div>}
+      {line && <div className="pad-x"><div className="input-error" role="alert">{line}</div></div>}
       {offline && <div className="email-note quiet"><span>{OFFLINE_SEND}</span></div>}
       <div className="email-sheet-acts email-compose-acts">
         <button className="btn btn-primary" onClick={() => void review()} disabled={!canReview || offline}>{REVIEW_SEND}</button>
@@ -331,6 +342,13 @@ export default function ComposeScreen({ client, userId, accounts, offline, fileS
         <button className="quiet-action" onClick={() => void discard()}>{DISCARD_DRAFT}</button>
       </div>
       <div className="screen-foot" />
+      {removing && (
+        <RowActionSheet
+          title={removing.filename}
+          actions={[{ label: REMOVE_ATTACHMENT, destructive: true, onPick: () => removeAttachment(removing) }]}
+          onCancel={() => setRemoving(null)}
+        />
+      )}
     </div>
   );
 }

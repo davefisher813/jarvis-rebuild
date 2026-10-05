@@ -83,7 +83,7 @@ describe("Copy", () => {
     const text = writeText.mock.calls[0]![0] as string;
     expect(text.startsWith("Convo with Berto\n\nAGENDA\n")).toBe(true);
     expect(text).toContain("[x] Talk pricing");
-    await waitFor(() => expect(seen).toContain("Note copied"));
+    await waitFor(() => expect(seen).toContain("Note Copied"));
     stop(); resetToasts();
   });
 
@@ -332,5 +332,25 @@ describe("the Colour Key on the note screen", () => {
       expect(b).not.toHaveClass("pill-quiet");
     }
     expect(screen.getByLabelText("Next match")).toHaveClass("pill-quiet");
+  });
+});
+
+// CLEAN ROWS (Dave 2026-10-05, locked: no pill in a row). A candidate JARVIS found used to wear an Add or a Link capsule; it is a
+// row whose tap does that one verb, with a glyph at its edge saying which.
+describe("JARVIS Found", () => {
+  it("is clean rows: the tap adds or links, and no capsule sits in the card", () => {
+    const onFoundAdd = vi.fn();
+    const onFoundLink = vi.fn();
+    const found = [
+      { kind: "task", text: "Renew the lease", due: "Oct 9" },
+      { kind: "person", text: "Berto" },
+    ] as unknown as Parameters<typeof NoteEditor>[0]["found"];
+    const { container } = render(<NoteEditor {...base} found={found} onFoundAdd={onFoundAdd} onFoundLink={onFoundLink} />);
+    expect(container.querySelector(".card .pill-act")).toBeNull();
+    expect(container.querySelectorAll(".row-verb-ic").length).toBe(2);
+    fireEvent.click(screen.getByRole("button", { name: "Add Renew the lease" }));
+    expect(onFoundAdd).toHaveBeenCalledWith(0);
+    fireEvent.click(screen.getByRole("button", { name: "Link Berto" }));
+    expect(onFoundLink).toHaveBeenCalledWith(1);
   });
 });

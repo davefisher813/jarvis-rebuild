@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from "vitest";
 import { render } from "@testing-library/react";
+import "@testing-library/jest-dom";
 import GoalRowRuled from "./GoalRowRuled";
 
 // THE CHECK-IN WEARS WHAT IT SAYS (§AM, 2026-09-26). It was green whatever
@@ -70,5 +71,23 @@ describe("GoalRowRuled finish date", () => {
     const meter = container.querySelector(".goal-meter") as HTMLElement;
     expect(meter.querySelector(".fact.date")).toBeNull();
     expect(meter.querySelector("b")?.textContent).toBe("1");
+  });
+});
+
+// CLEAN ROWS (Dave 2026-10-05, locked: "Clean rows, no pills anywhere"). A goal with nothing under it used to offer
+// Add a Project as a capsule on its row. A row with nothing to say shows nothing; the goal's own page holds the
+// Add Project primary, and the row is the door to it.
+describe("GoalRowRuled has no pill", () => {
+  it("a goal with nothing under it draws its title and nothing else", () => {
+    const { container } = render(<GoalRowRuled title="learn spanish" tone="cat-fg-green" body="" status={null} bar={null} onOpen={() => {}} />);
+    expect(container.querySelectorAll(".pill-act, .row-act, .btn-sm, .quiet-action")).toHaveLength(0);
+    expect(container.querySelector(".goal-meter")).toBeNull();
+    expect(container.querySelector(".task-name")).toHaveTextContent("Learn Spanish");
+    expect(container.querySelector(".chev")).not.toBeNull();
+  });
+
+  it("the next milestone is shown in Title Case", () => {
+    const { container } = render(<GoalRowRuled title="Apartment" tone="cat-fg-green" body="" status={null} bar={null} next="hang art in hallway" />);
+    expect(container.querySelector(".r-next-v")).toHaveTextContent("Hang Art in Hallway");
   });
 });

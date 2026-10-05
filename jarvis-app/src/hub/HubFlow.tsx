@@ -18,7 +18,7 @@ import { getAIControl, setAIControl } from "../ai/levelStore";
 import { useAdminAiBlocked } from "../ai/useAdminAiGate";
 import { DEFAULT_AI_LEVEL, type AIControlState } from "../ai/aiGate";
 import { COMMAND_LINES, failure, type CommandFailure } from "../substrate/commands/errors";
-import { ADMIN_OFF, HUB_TITLE, TABS, sweepLine, type ActivityFilter, type HubTab } from "./copy";
+import { ADMIN_OFF, HUB_TITLE, NOTE_NOT_FOUND, TABS, sweepLine, type ActivityFilter, type HubTab } from "./copy";
 import { checkDependencies, hubOverview, addManualAssistant, sweepExpiredShares, type HubOverview, type ProposalSegment, type RpcClient } from "./hubClient";
 import AgentsTab from "./AgentsTab";
 import AgentDetail from "./AgentDetail";
@@ -28,6 +28,8 @@ import DecisionDetail from "./DecisionDetail";
 import ActivityTab from "./ActivityTab";
 import ReceiptDetail from "./ReceiptDetail";
 import { AddAssistantSheet } from "./sheets";
+import { shownOverview } from "./format";
+import { Foot } from "../settings/kit";
 import type { DependencyOption } from "./DecisionSheet";
 
 type Screen =
@@ -69,7 +71,7 @@ export default function HubFlow({ onBack, onOpenEntity, onOpenEmail, client: giv
     if (check) await checkDependencies(client);
     const r = await hubOverview(client);
     if (r.ok) {
-      setOverview(r.value);
+      setOverview(shownOverview(r.value));
       setError(null);
       setProjectId((p) => p && r.value.projects.some((x) => x.id === p) ? p : r.value.projects[0]?.id ?? null);
     } else setError(r);
@@ -140,13 +142,25 @@ export default function HubFlow({ onBack, onOpenEntity, onOpenEmail, client: giv
     setScreen({ kind: "agent", id: r.value.connection_id });
   };
 
-  const openItem = onOpenEntity ? (kind: string, id: string) => onOpenEntity(kind, id) : undefined;
+  // A kept exploration lives in Review > Mentioned, under its project: the Hub
+  // opens it itself, because the shell's Notes screen cannot load one and landed
+  // on an empty editor (2026-10-04). A note that is no longer in the overview
+  // says so and stays put.
+  const openItem = onOpenEntity ? (kind: string, id: string) => {
+    if (kind !== "exploration") { onOpenEntity(kind, id); return; }
+    const note = overview?.exploration_notes.find((n) => n.id === id);
+    if (!note) { showToast({ message: NOTE_NOT_FOUND }); return; }
+    if (note.project_id) setProjectId(note.project_id);
+    setSegment("mentioned");
+    setTab("review");
+    setScreen({ kind: "root" });
+  } : undefined;
   const connectionOf = (id: string) => overview?.connections.find((c) => c.id === id) ?? null;
   const projectTitle = (id: string) => overview?.projects.find((p) => p.id === id)?.title ?? "Project";
 
   if (client && overview && screen.kind === "agent") {
     const c = connectionOf(screen.id);
-    if (c) return <div className={pushCls}><AgentDetail client={client} connection={c} projects={overview.projects} aiAllowed={aiOn} offline={offline}
+    if (c) return <div className={pushCls}><AgentDetail client={client} connection={c} projects={overview.projects} aiAllowed={aiOn} adminOff={adminOff} offline={offline}
       onBack={() => setScreen({ kind: "root" })} onChanged={changed} onPreview={(connectionId, pid) => setScreen({ kind: "preview", connectionId, projectId: pid })} /></div>;
   }
   if (client && overview && screen.kind === "preview") {
@@ -174,19 +188,23 @@ export default function HubFlow({ onBack, onOpenEntity, onOpenEmail, client: giv
         </div>
       </PageHeader>
 
-      {offline && <div className="hub-note">{OFFLINE_LINE}</div>}
+      {offline && <Foot>{OFFLINE_LINE}</Foot>}
       {loading && !overview && <SkeletonRows rows={3} />}
       {error && !overview && !loading && (
-        <div className="pad-x"><div className="card list-card-ruled">
-          <div className="row"><div className="row-grow"><div className="conn-name">{COMMAND_LINES[error.code]}</div></div></div>
-          <button className="row row-act hub-quiet" onClick={() => void load(true)}>Retry</button>
-        </div></div>
+        <>
+          <div className="pad-x"><div className="card list-card-ruled">
+            <div className="row"><div className="row-grow"><div className="conn-name">{COMMAND_LINES[error.code]}</div></div></div>
+          </div></div>
+          <div className="notice-clear-row"><button className="row-act hub-quiet" onClick={() => void load(true)}>Retry</button></div>
+        </>
       )}
       {error && overview && (
-        <div className="pad-x"><div className="card list-card-ruled">
-          <div className="row"><div className="conn-name">{REFRESH_FAILED}</div></div>
-          <button className="row row-act hub-quiet" onClick={() => void load()}>Retry</button>
-        </div></div>
+        <>
+          <div className="pad-x"><div className="card list-card-ruled">
+            <div className="row"><div className="conn-name">{REFRESH_FAILED}</div></div>
+          </div></div>
+          <div className="notice-clear-row"><button className="row-act hub-quiet" onClick={() => void load()}>Retry</button></div>
+        </>
       )}
 
       {overview && client && tab === "agents" && (

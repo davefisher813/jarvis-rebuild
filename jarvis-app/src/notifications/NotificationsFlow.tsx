@@ -8,15 +8,14 @@ import { attemptWrite } from "../shared/guard";
 import { showToast } from "../shared/toast";
 import { haptics } from "../shared/haptics";
 import { BellGlyph } from "../shared/glyphs";
-import { useSwipe } from "../shared/useSwipe";
-import { useLongPress } from "../shared/useLongPress";
-import RowActionSheet from "../shared/RowActionSheet";
-import { X } from "../shared/icons";
+import RowCtxAction from "../shared/RowCtxAction";
+import { SwipeShell } from "../today/MoveHeadliner";
+import { titleCase } from "../shared/casing";
 import { fmtTime } from "../schedule/calendar";
 
-// An event's when is its start as HH:MM from the feed; the chip says it the
-// way the Schedule does ("5:30 PM").
-const whenWord = (w: string) => (/^\d\d:\d\d$/.test(w) ? `${fmtTime(w).time} ${fmtTime(w).ap}` : w);
+// An event's when is its start as HH:MM from the feed; the fact says it the
+// way the Schedule does ("5:30 PM"), with a non-breaking space so the time is never split from its AM or PM.
+const whenWord = (w: string) => (/^\d\d:\d\d$/.test(w) ? `${fmtTime(w).time}\u00a0${fmtTime(w).ap}` : w);
 
 const BELL = <BellGlyph />;
 
@@ -30,73 +29,56 @@ const KIND: Record<NudgeKind, RowKind> = {
   goal_risk: "goal",
 };
 
-// THE WHY TAKES THE COLOUR KEY (§AM, 2026-09-26). Every sub line here was the
-// same plain grey, so "Overdue" and "Due today" read as neutral as "Today"
-// under an event. Late and due are the task row's own urgency chips (Tasks,
-// Today and Projects draw the same facts that way); an at-risk goal needs
-// him soon, so it is amber.
-const SUB: Record<NudgeKind, string> = {
-  sliding: "r-goal r-cat",
-  overdue: "uchip u-late",
-  due_today: "uchip u-today",
-  event: "r-goal r-cat",
-  goal_risk: "r-goal fact warn",
+// THE WHY TAKES THE COLOUR KEY (§AM, 2026-09-26) AND DRAWS AS A FACT, NEVER A CAPSULE (Dave 2026-10-05, locked: "Clean
+// rows, no pills anywhere inside a card or a row"). Every row here wore a filled amber chip, five "Due Today" and five
+// clock times, so the one real signal on the screen was eleven. A state is now a coloured fact in the row's one line, the
+// way "Goal at Risk" always was: late is red, due is amber, and a neutral time is a small-caps date. Amber is rationed to
+// what is due or next: a task due today, the next event, an at-risk goal.
+type FactTone = "warn" | "red" | "date";
+const SUB_TONE: Record<NudgeKind, FactTone | undefined> = {
+  sliding: "warn",
+  overdue: "red",
+  due_today: "warn",
+  event: undefined,
+  goal_risk: "warn",
 };
 
-// The sliding task's evidence says what it says, in the key (2026-09-26). It
-// was left the one grey because the chip beside it carries the verdict, but
-// the chip is the verdict and not the evidence: "23 Days late" is a lateness
-// and "Pushed 3 times" is a stall, and grey said neither. Late is red and a
-// stall is the amber the Tasks row's own stalled line wears, which is how the
-// task sheet tones the same words. The line keeps .r-goal for its size and
-// truncation; the tone rides on it.
-function subClass(n: Nudge): string {
-  if (n.kind !== "sliding") return SUB[n.kind];
-  return /\blate$/i.test(n.sub) ? "r-goal fact red" : "r-goal r-cat r-stalled";
+// The sliding task's evidence says what it says, in the key (2026-09-26): "23 Days late" is a lateness and "Pushed 3
+// times" is a stall, and grey said neither. Late is red and a stall is the amber the Tasks row's own stalled line wears.
+function subTone(n: Nudge): FactTone | undefined {
+  if (n.kind !== "sliding") return SUB_TONE[n.kind];
+  return /\blate$/i.test(n.sub) ? "red" : "warn";
 }
 
 // A1 (audit 2026-08-21). Every row here was a static div: ten sentences
 // telling him things with nothing to do about any of them, which is how a
 // notification screen teaches you to stop reading it. The row opens the
 // thing it is about, and a task can be finished without leaving.
-// A row that can be swiped away (Law 2). Its own component because hooks
-// cannot be called inside the feed's map.
-function NudgeRow({ title, onDismiss, children }: { title: string; onDismiss: () => void; children: React.ReactNode }) {
-  const swipe = useSwipe({ revealW: 88 });
-  // SHELL-F-22 (2026-09-05): Dismiss lived behind the swipe reveal and
-  // nowhere else, on a screen whose rows also open on tap, so the one action
-  // that clears a row was the one action nothing on screen mentioned. Hold a
-  // row and it says so. The swipe is untouched.
-  const [menu, setMenu] = useState(false);
-  const press = useLongPress({ onLongPress: () => { haptics.selection(); setMenu(true); } });
+//
+// NO PILL ON THE ROW (Dave 2026-10-05, locked: "Clean rows, no pills anywhere"). The Done capsule that sat on every
+// task row is gone, and so is the long-press menu that was the second door to Dismiss. The row is the shell every Today
+// row wears (SwipeShell): swipe left is Done for a task and Dismiss for everything else, with Dismiss second behind a
+// Done; swipe right clears the row, Done for a task and Dismiss otherwise ("a notification is cleared, not finished",
+// laws.test.ts: the gesture means what it already meant); a tap opens the thing the row is about, whose sheet holds the
+// rest; and an OVERDUE task, whose moment has come, quietly shows Done as text on the row.
+function NudgeRow({ n, onDone, onDismiss, children }: { n: Nudge; onDone: () => void; onDismiss: () => void; children: React.ReactNode }) {
+  const isTask = n.entity === "task";
   return (
-    <div className="task-swipe">
-      <button className="task-snooze" onClick={onDismiss} aria-label="Dismiss">
-        <X className="ic" />
-        <span className="swipe-label">Dismiss</span>
-      </button>
-      <div
-        className={"swipe-shell" + (swipe.dragging ? " swiping" : "")}
-        style={{ transform: swipe.dx ? `translateX(${swipe.dx}px)` : undefined }}
-        {...press}
-        onTouchStart={(e) => { swipe.handlers.onTouchStart(e); press.onTouchStart(e); }}
-        onTouchMove={(e) => { swipe.handlers.onTouchMove(e); press.onTouchMove(e); }}
-        onTouchEnd={() => { swipe.handlers.onTouchEnd(); press.onTouchEnd(); }}
+    <div className="pad-x">
+      <SwipeShell
+        actions={[...(isTask ? [{ label: "Done", run: onDone }] : []), { label: "Dismiss", run: onDismiss }]}
+        onRight={isTask ? onDone : onDismiss}
+        rightLabel={isTask ? "Done" : "Dismiss"}
       >
         {children}
-      </div>
-      {menu && (
-        <RowActionSheet
-          title={title}
-          actions={[{ label: "Dismiss", onPick: onDismiss }]}
-          onCancel={() => setMenu(false)}
-        />
-      )}
+      </SwipeShell>
     </div>
   );
 }
 
-export default function NotificationsFlow({ onOpen }: { onOpen?: (kind: string, id: string) => void }) {
+// `onBack` is the way back to More, which is where this screen is opened from. Every other More page wears a red back link
+// at the top left; this one is a tab-bar extra, so the shell hands the way back in and the link draws only when it does.
+export default function NotificationsFlow({ onOpen, onBack }: { onOpen?: (kind: string, id: string) => void; onBack?: () => void }) {
   const tasksSvc = useTasks(); const sched = useSchedule(); const goalsSvc = useGoals(); const profileSvc = useProfile();
   const [feed, setFeed] = useState<Nudge[]>([]);
   const reload = useCallback(async () => {
@@ -122,32 +104,51 @@ export default function NotificationsFlow({ onOpen }: { onOpen?: (kind: string, 
     setFeed((f) => f.filter((x) => x.id !== n.id));
   };
 
+  // 2026-09-11: Undo puts back the pre-tap snapshot (SHARED-F-03), never a second toggleDone; and every row for this
+  // task goes, since the sliding one can also be overdue, and Done on the twin un-completed it.
+  const finishTask = (n: Nudge) => {
+    void (async () => {
+      const before = await tasksSvc.task(n.entityId);
+      const ok = await attemptWrite(() => tasksSvc.toggleDone(n.entityId));
+      if (!ok) return;
+      haptics.selection();
+      setFeed((f) => f.filter((x) => !(x.entity === "task" && x.entityId === n.entityId)));
+      if (before) showToast({
+        message: "Done",
+        actionLabel: "Undo",
+        onAction: async () => { await attemptWrite(() => tasksSvc.restoreCompletion(n.entityId, before)); await reload(); },
+      });
+    })();
+  };
+
   // NOTIFICATIONS ONTO THE RULINGS (2026-09-02). One quiet head with the
   // count, one card, and each nudge as the task row's shape: the type glyph
   // in the check column, the name, the why under it, the when at the
-  // right, Done as the one pill where finishing IS the answer, Dismiss on
-  // the swipe. The head splits into Needs You (overdue, due today) and
+  // right, and every verb a gesture (Done where finishing IS the answer,
+  // Dismiss beside it; Dave 2026-10-05, no pill on a row). The head splits into Needs You (overdue, due today) and
   // Coming Up (events, goals) when both have rows.
   const needs = feed.filter((n) => n.kind === "sliding" || n.kind === "overdue" || n.kind === "due_today");
   const coming = feed.filter((n) => n.kind !== "sliding" && n.kind !== "overdue" && n.kind !== "due_today");
+  // The feed is sorted by start and already drops what is over, so the first event is the one that is next.
+  const nextEventId = coming.find((n) => n.kind === "event")?.id;
   const bands = [
     { key: "needs", head: needs.length > 0 && coming.length > 0 ? "Needs You" : "Today", rows: needs },
     { key: "coming", head: "Coming Up", rows: coming },
   ].filter((b) => b.rows.length > 0);
   return (
     <div className="screen ruled">
-      <PageHeader title="Notifications" />
+      <PageHeader title="Notifications" {...(onBack ? { back: "More", onBack } : {})} />
       {feed.length === 0 ? (
         <div className="empty-state"><div className="empty-icon">{BELL}</div><div className="empty-title">You're All Caught Up</div>
-          <div className="empty-sub">Overdue tasks, today's events and goals at risk</div></div>
+          <div className="empty-sub">Overdue Tasks, Today's Events and Goals at Risk</div></div>
       ) : (
         <div>
           {bands.map((b) => (
             <div key={b.key}>
               <div className="sh2 sh2-quiet"><span className="t">{b.head}</span><span className="n">{b.rows.length}</span></div>
-              <div className="pad-x"><div className="card list-card-ruled">
+              <div className="heads-up-stream stream-grouped"><div className="card stream-card">
               {b.rows.map((n) => (
-                <NudgeRow key={n.id} title={n.title} onDismiss={() => onDismissNudge(n)}>
+                <NudgeRow key={n.id} n={n} onDone={() => finishTask(n)} onDismiss={() => onDismissNudge(n)}>
                 <div
                   className="task-row p2 notif-row"
                   role={onOpen ? "button" : undefined}
@@ -156,37 +157,20 @@ export default function NotificationsFlow({ onOpen }: { onOpen?: (kind: string, 
                 >
                   <div className="task-check-tap"><RowGlyph kind={KIND[n.kind]} /></div>
                   <div className="task-title">
-                    <span className="task-name">{n.title}</span>
-                    <div className="r-k">
-                      {n.when && <span className="uchip u-today">{whenWord(n.when)}</span>}
-                      {n.tag && <span className="slide-tag">{n.tag}</span>}
-                      {n.sub && <span className={subClass(n)}>{n.sub}</span>}
-                    </div>
+                    {/* Title Case whatever he typed (Dave 2026-10-05, Alfred R2); the record keeps his spelling. */}
+                    <span className="task-name">{titleCase(n.title)}</span>
+                    {(n.tag || n.sub || n.when) && (
+                      <div className="facts notif-facts">
+                        {n.tag && <span className="fact warn">{n.tag}</span>}
+                        {n.sub && <span className={"fact " + (subTone(n) ?? "")}>{n.sub}</span>}
+                        {/* Only the next event is amber; a later time is a neutral small-caps time. */}
+                        {n.when && <span className={"fact date" + (n.id === nextEventId ? " warn" : "")}>{whenWord(n.when)}</span>}
+                      </div>
+                    )}
                   </div>
-                  {/* One pill, and only where finishing IS the answer. An
-                      at-risk goal has no one-tap resolution and gets no button
-                      pretending otherwise. */}
-                  {n.entity === "task" && (
-                    <button className="pill-act" onClick={(e) => {
-                      e.stopPropagation();
-                      void (async () => {
-                        // 2026-09-11: Undo puts back the pre-tap snapshot
-                        // (SHARED-F-03), never a second toggleDone; and every
-                        // row for this task goes, since the sliding one can also
-                        // be overdue, and Done on the twin un-completed it.
-                        const before = await tasksSvc.task(n.entityId);
-                        const ok = await attemptWrite(() => tasksSvc.toggleDone(n.entityId));
-                        if (!ok) return;
-                        haptics.selection();
-                        setFeed((f) => f.filter((x) => !(x.entity === "task" && x.entityId === n.entityId)));
-                        if (before) showToast({
-                          message: "Done",
-                          actionLabel: "Undo",
-                          onAction: async () => { await attemptWrite(() => tasksSvc.restoreCompletion(n.entityId, before)); await reload(); },
-                        });
-                      })();
-                    }}>Done</button>
-                  )}
+                  {/* ITS MOMENT HAS COME (spec section 3): an overdue task shows its one verb as text, the same
+                      action as the swipe. Everything not yet late stays clean. */}
+                  {n.kind === "overdue" && <RowCtxAction when label="Done" onAct={() => finishTask(n)} />}
                 </div>
                 </NudgeRow>
               ))}

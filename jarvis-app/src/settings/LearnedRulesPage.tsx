@@ -1,10 +1,13 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRules, useCategories } from "../data/NotesProvider";
-import LargeTitleNav from "../shared/LargeTitleNav";
+import PageHeader from "../shared/PageHeader";
 import { attemptWrite } from "../shared/guard";
 import { showToast } from "../shared/toast";
 import type { LearnedRule } from "../rules/LearnedRulesService";
 import { Head, Card, Row } from "./kit";
+import { Lightbulb } from "../shared/icons";
+import SwipeDelete from "../shared/SwipeDelete";
+import { lineCase, titleCase } from "../shared/casing";
 // UP-CORE-14 (2026-09-05): an automation tuning is a rule about a CARD, not
 // about a word, so "automation.goal-nudge means less" is the database
 // talking. tuningLine says it the way the app says it, and returns null for
@@ -54,27 +57,45 @@ export default function LearnedRulesPage({ onBack }: { onBack: () => void }) {
 
   return (
     <div className="screen ruled">
-      <LargeTitleNav title="What JARVIS Learned" back="Settings" onBack={onBack} />
+      {/* ONE LINE, NOT TWO (2026-10-05, the review: the title wrapped to "What JARVIS / Learned" and made this the one Settings page with a title
+          twice the height). The name stays what the app calls it everywhere; the display title steps down one size so all of it fits the line. */}
+      <PageHeader title="What JARVIS Learned" back="Settings" onBack={onBack}
+        hero={<div className="pagehead-title pagehead-title-fit">What JARVIS Learned</div>} />
+      {/* THE SAME EMPTY SCREEN AS CONNECTIONS AND EMAIL SECTIONS (D9, the round 2 review: three whole-screen empties, three heights): the head the rules
+          will live under, then the app's one bare empty state. There is no capsule because nothing here is added by hand. */}
+      {loaded && rules.length === 0 && <Head label="Rules" />}
       {loaded && rules.length === 0 && (
-        <div className="empty-state"><div className="empty-title">Nothing Learned Yet</div>
-          <div className="empty-sub">Correct JARVIS the same way twice and the rule lands here</div></div>
+        <div className="empty-state empty-compact">
+          {/* D9: a crafted empty state, the type's glyph and colour, the title, one warm line. */}
+          <div className="empty-icon cat-fg-yellow"><Lightbulb className="ic" /></div>
+          <div className="empty-title">Nothing Learned Yet</div>
+          <div className="empty-sub">A Rule Lands Here After You Correct JARVIS Twice</div>
+        </div>
       )}
       {rules.length > 0 && (
         <>
           <Head label="Rules" count={rules.length} />
           <Card>
-            {rules.map((r) => (
+            {rules.map((r) => {
+              const name = tuningLine(r) ?? titleCase(`${label(r.data.from)} means ${label(r.data.to)}`);
+              return (
               // One line of evidence, the latest (§AK, 2026-09-26): a rule is
               // earned by two corrections, and both drawn stacked were two
               // grey runs under one title, identical for a voice rule.
               // Rules stored before 2026-09-26 carry evidence joined with a
               // typed middle dot ("Keep going \u00b7 due today \u00b7 15m"),
               // and this line renders it, so it reads as a phrase instead.
-              <Row key={r.id} label={tuningLine(r) ?? `${label(r.data.from)} means ${label(r.data.to)}`}
-                meta={r.data.evidence[r.data.evidence.length - 1]?.replace(/\s*\u00b7\s*/g, ", ")}>
-                <button className="pill-act" disabled={removing === r.id} onClick={() => void remove(r)}>{removing === r.id ? "..." : "Delete"}</button>
-              </Row>
-            ))}
+              // CATALOG PASS (2026-10-05): the row's name and its one grey line are
+              // both lines the app writes, so both are Title Case ("dentist means
+              // Health" and "keep going, due today, 15m" were drawn as typed).
+              // CLEAN ROW, SWIPE TO DELETE (Dave 2026-10-05, locked: no pill in a row). The Delete that was a capsule on
+              // the row is the swipe's one tray button now; Undo in the toast is unchanged.
+              <SwipeDelete key={r.id} label={name} enabled={removing === null} onDelete={() => void remove(r)}>
+                <Row label={name}
+                  meta={lineCase(r.data.evidence[r.data.evidence.length - 1]?.replace(/\s*\u00b7\s*/g, ", ") ?? "") || undefined} />
+              </SwipeDelete>
+              );
+            })}
           </Card>
         </>
       )}

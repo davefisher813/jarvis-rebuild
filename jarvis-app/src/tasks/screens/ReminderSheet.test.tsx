@@ -6,7 +6,7 @@ import ReminderSheet from "./ReminderSheet";
 
 // THE REMINDER FORM (push E, to Dave's interactive preview). What would you
 // like to remember; when should it appear; the day, the time, two
-// shortcuts, the rhythm; the green line; Area, Linked Action and Follow-up
+// shortcuts, the rhythm; the green line; Area, Linked Action and Follow-Up
 // behind a disclosure. Save is never dead.
 describe("ReminderSheet", () => {
   const TUE = "2026-09-15";
@@ -52,6 +52,24 @@ describe("ReminderSheet", () => {
     expect(onSave).toHaveBeenCalledTimes(1);
   });
 
+  // THE FIELD LANGUAGE (2026-10-05, the perfect bar): the Day and Time rows said "10/05/2026" and "--:-- --" with the browser's own
+  // glyphs. They say "Today" and "Pick a Time" in the app's words, take the picked clock as "9:00 PM", the real native input lies
+  // transparent over the whole row, and the two quick picks share one line instead of a row each.
+  it("Day and Time say their value in words, not as raw native fields, and the quick picks share one line", () => {
+    render(<ReminderSheet {...base} onSave={() => {}} />);
+    const day = screen.getByLabelText("Start day").closest(".pick-row")!;
+    const time = screen.getByLabelText("Time").closest(".pick-row")!;
+    expect(day.querySelector(".xs-pick-v")).toHaveTextContent("Today");
+    expect(time.querySelector(".xs-pick-v")).toHaveTextContent("Pick a Time");
+    expect(time.querySelector(".xs-pick")).toHaveClass("xs-pick-off");
+    expect(screen.getByLabelText("Time")).toHaveClass("pick-native");
+    fireEvent.change(screen.getByLabelText("Time"), { target: { value: "21:00" } });
+    expect(time.querySelector(".xs-pick-v")).toHaveTextContent("9:00 PM");
+    const strip = screen.getByText("In 1 Hour").closest(".xs-strip")!;
+    expect(strip.contains(screen.getByText("Tomorrow Morning")), "both quick picks on one line").toBe(true);
+    expect(screen.getByText("Area, Linked Action and Follow-Up"), "hyphenated words are Title Case too").toBeInTheDocument();
+  });
+
   it("Tomorrow Morning is one tap: the day, the morning time, one time, and the green line says so", () => {
     const onSave = vi.fn();
     render(<ReminderSheet {...base} onSave={onSave} />);
@@ -72,11 +90,13 @@ describe("ReminderSheet", () => {
     render(<ReminderSheet {...base} onSave={onSave} />);
     fireEvent.change(screen.getByLabelText("Reminder"), { target: { value: "Remind me to call the pharmacy tomorrow at 10am" } });
     expect(screen.getByText("Read from your words")).toBeInTheDocument();
-    expect(screen.getByText("Tomorrow")).toBeInTheDocument();
-    expect(screen.getByText("10:00 AM")).toBeInTheDocument();
+    // "Tomorrow" is the read chip and the Day row's own word; "10:00 AM" likewise (the Time row says it too).
+    expect(screen.getAllByText("Tomorrow").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText("10:00 AM").length).toBeGreaterThanOrEqual(1);
     fireEvent.click(screen.getByText("Save"));
     const [text, r, extra] = onSave.mock.calls[0]!;
-    expect(text).toBe("Call the pharmacy");
+    // The write door casing (Dave 2026-10-05): the title is saved in Title Case.
+    expect(text).toBe("Call the Pharmacy");
     expect(r.time).toBe("10:00");
     expect(extra.due).toBe(WED);
   });
@@ -140,10 +160,10 @@ describe("ReminderSheet", () => {
   it("a follow-up is opt-in, the settings default turns it on for a new reminder", () => {
     const onSave = vi.fn();
     const r1 = render(<ReminderSheet {...base} onSave={onSave} />);
-    expect(screen.getByLabelText("Follow-up").textContent).toContain("None");
+    expect(screen.getByLabelText("Follow-Up").textContent).toContain("None");
     r1.unmount();
     render(<ReminderSheet {...base} onSave={onSave} defaultFollowUp />);
-    expect(screen.getByLabelText("Follow-up").textContent).toContain("Once After 1 Hour");
+    expect(screen.getByLabelText("Follow-Up").textContent).toContain("Once After 1 Hour");
     fireEvent.change(screen.getByLabelText("Reminder"), { target: { value: "Meds" } });
     fireEvent.click(screen.getByText("In 1 Hour"));
     fireEvent.click(screen.getByText("Save"));
@@ -169,7 +189,7 @@ describe("ReminderSheet", () => {
     render(<ReminderSheet {...base} mode="edit" initial={{ text: "Stretch", reminder: { time: "07:00", days: [0, 6], linkedItem: link } }} onSave={onSave} onOpenLinked={onOpenLinked} />);
     expect((screen.getByLabelText("Reminder") as HTMLInputElement).value).toBe("Stretch");
     expect(screen.getByLabelText("Repeat").textContent).toContain("Weekends");
-    expect(screen.getByLabelText("Follow-up").textContent).toContain("Once After 15 Minutes");
+    expect(screen.getByLabelText("Follow-Up").textContent).toContain("Once After 15 Minutes");
     fireEvent.click(screen.getByText("Open Task"));
     expect(onOpenLinked).toHaveBeenCalledWith(link);
     fireEvent.click(screen.getByText("Save"));

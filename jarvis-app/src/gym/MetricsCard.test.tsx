@@ -22,8 +22,20 @@ describe("MetricLogSheet's goal row", () => {
   });
 
   it("shows the running state once a goal exists, not a bare Set a Goal", () => {
-    render(<MetricLogSheet def={def} date="2026-09-12" goalLine="176 of 170 lb" onSetGoal={() => {}} onSave={() => {}} onCancel={() => {}} />);
-    expect(screen.getByText("176 of 170 lb · Edit Goal")).toBeInTheDocument();
+    render(<MetricLogSheet def={def} date="2026-09-12" goalLine="176 of 170 Lb" onSetGoal={() => {}} onSave={() => {}} onCancel={() => {}} />);
+    expect(screen.getByText("176 of 170 Lb · Edit Goal")).toBeInTheDocument();
     expect(screen.queryByText("Set a Goal")).toBeNull();
+  });
+});
+
+// THE CATALOG, CHECKED ON WHAT THE SHEET DRAWS (Dave 2026-10-05). The sheet's day
+// line printed the ISO string the log is keyed by ("2026-09-12") in a plain grey
+// line; a day is said the way a person says it, in small caps (R8).
+describe("MetricLogSheet: the day line follows the catalog (2026-10-05)", () => {
+  it("shows the day as one small-caps date fact in plain words, never the ISO string", () => {
+    render(<MetricLogSheet def={def} date="2026-09-12" onSave={() => {}} onCancel={() => {}} />);
+    const fact = document.querySelector(".sheet-form > .facts > .fact.date")!;
+    expect(fact.textContent).toBe("Sep 12");
+    expect(document.body.textContent).not.toMatch(/\d{4}-\d{2}-\d{2}/);
   });
 });

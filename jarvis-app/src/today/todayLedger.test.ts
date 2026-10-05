@@ -53,7 +53,7 @@ describe("billsLine with ledger bills", () => {
     expect(billsLine([], T, [bill("a", { vendor: "ConEdison", dueDate: "2026-10-01" })])).toEqual({
       title: "ConEdison",
       amount: "$84.12",
-      due: { text: "2 Days Late", tone: "red" },
+      due: { text: "2 Days Late", tone: "red", now: true },
     });
   });
   it("one bill due tomorrow reads like a legacy bill, in the warn tone", () => {

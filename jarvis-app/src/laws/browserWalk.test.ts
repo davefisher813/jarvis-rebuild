@@ -331,11 +331,14 @@ describe("BROWSER-F-06: the app's own names and facts are not cut in half", () =
     expect(law![1]).toMatch(/\.pagebar-title\b/);
   });
 
-  it("the day word never shrinks and the count line is the one that gives", () => {
+  it("the day word never shrinks and the count line is its own whole second line, never an ellipsis", () => {
     expect(ruleBody(ruled(), ".ruled .sc-dayhead .t")).toMatch(/flex-shrink:\s*0/);
     const fact = ruleBody(ruled(), ".ruled .sc-dayhead .sc-fact")!;
-    expect(fact).toMatch(/overflow:\s*hidden/);
-    expect(fact).toMatch(/text-overflow:\s*ellipsis/);
+    // Round-1 review (2026-10-05, decision D8): "3h Open, 5 Prop..." read as a typo. The count takes the head's second line.
+    expect(fact).toMatch(/flex:\s*1 0 100%/);
+    expect(fact).toMatch(/white-space:\s*normal/);
+    expect(fact).not.toMatch(/text-overflow:\s*ellipsis/);
+    expect(fact).not.toMatch(/overflow:\s*hidden/);
   });
 
   // CORRECTED 2026-09-06. This test asserted the bug, not the fix.
@@ -471,16 +474,24 @@ describe("BROWSER-F-10: red words on a sheet grey are readable", () => {
     expect(ruleBody(css(), ".form-sheet .xs-del")).toMatch(/color:\s*var\(--danger-tx-raised\)/);
     const ds = read("styles/jarvis-design-system.css");
     expect(ds).toMatch(/--danger-tx-raised:\s*#FF8A80/);
-    expect(ds).toMatch(/--danger-tx-raised:\s*var\(--danger-tx\)/);
+    // AMENDED 2026-10-05 (Dave, the warm neutrals): light's raised card grey is
+    // #ECE5DA, where --danger-tx (the action red, which does not move) reads
+    // 4.22:1, so light takes a step deeper for destructive WORDS only.
+    expect(ds).toMatch(/--danger-tx-raised:\s*#C8210F/);
+    expect(contrast("#C8210F", "#ECE5DA"), "light destructive words on the raised grey").toBeGreaterThanOrEqual(4.5);
   });
 
-  it("the return pill is 44 to the finger and clears the capture bar (2026-09-26)", () => {
+  it("the return pill is 44 to the finger and is a row of the shell, never over content (2026-10-05)", () => {
     const pill = ruleBody(css(), ".return-pill")!;
     expect(pill).toMatch(/min-height:\s*44px/);
     expect(pill, "the capsule is painted on ::before, not the box").toMatch(/background:\s*none/);
     expect(ruleBody(css(), ".return-pill::before")).toMatch(/inset:\s*5px 0/);
-    expect(pill, "its bottom is the measured dock, with the old 132 as the fallback").toMatch(/var\(--return-clear,\s*calc\(env\(safe-area-inset-bottom, 0px\) \+ 132px\)\)/);
-    expect(read("shell/ReturnPill.tsx")).toMatch(/setProperty\("--return-clear"/);
+    // D6: it floated (position: fixed over the scroll box, clear of the dock by a measured --return-clear) and covered
+    // whichever row sat at that height. It is in the shell's column now, so nothing can be under it.
+    expect(pill, "in flow, not fixed").toMatch(/position:\s*relative/);
+    expect(pill, "in flow, not fixed").not.toMatch(/position:\s*fixed/);
+    expect(pill).not.toMatch(/--return-clear/);
+    expect(read("shell/ReturnPill.tsx"), "nothing measures or publishes").not.toMatch(/setProperty\(|getBoundingClientRect/);
   });
 
   it("the sheet and toast verbs take it", () => {
@@ -542,18 +553,15 @@ describe("BROWSER-F-10: red words on a sheet grey are readable", () => {
     expect(ruleBody(css(), ".row-act, .ruled .card .row.row-act"), "dark: the capsule's label is its own --tint")
       .toMatch(/(^|[;\s])color:\s*var\(--tint\)/);
     const lightCap = ruleBody(css(), '[data-theme="light"] .row-act, [data-theme="light"] .ruled .card .row.row-act');
-    // AMENDED 2026-09-28 (Dave): the outlined pill read as unfinished. The
-    // light capsule is a solid fill in the unified red with a white label,
-    // like the Accept the Day button -- --accent-fill is the token whose
-    // whole job is carrying white text. The law pins the fill and the white
-    // label, and holds white-on-unified-red (4.49:1) as the floor, so a
-    // future change can only make it more readable, never less.
-    expect(lightCap, "light: the capsule's label is white")
-      .toMatch(/(^|[;\s])color:\s*#fff/i);
-    expect(lightCap, "light: the capsule's fill is the unified red")
-      .toMatch(/background-color:\s*var\(--accent-fill\)/);
-    expect(lightCap, "light: the capsule's border matches its fill")
-      .toMatch(/border:[^;]*var\(--accent-fill\)/);
+    // AMENDED 2026-10-05 (Dave, the perfect bar; decision D3: light and dark are one design in colour only). The
+    // 2026-09-28 light capsule was a solid red slab with a white label while dark drew the capsule fill, so the same
+    // control was two objects by theme. The light capsule is the capsule fill with the deep action red as its label
+    // (the pair .pill-act wears), and the screen's one primary is the only red fill.
+    expect(lightCap, "light: the capsule's label is the deep action red")
+      .toMatch(/(^|[;\s])color:\s*var\(--on-light-red\)/);
+    expect(lightCap, "light: the capsule's fill is the capsule fill, not a red slab")
+      .toMatch(/background-color:\s*var\(--capsule-fill\)/);
+    expect(lightCap, "light: the capsule is not red-filled or bordered").not.toMatch(/accent-fill/);
     const capDark = contrast(tokenIn("dark", "--tint"), resolve("dark", "--capsule-fill"));
     expect(capDark, `dark capsule label on its fill is ${capDark.toFixed(2)}:1`).toBeGreaterThanOrEqual(4.5);
     const fillRed = tokenIn("light", "--accent-fill");
@@ -620,8 +628,12 @@ describe("BROWSER-F-10: red words on a sheet grey are readable", () => {
     const twin = tokenIn("dark", "--warn-on-sheet");
     const cr = contrast(twin, picked);
     expect(cr, `dark --warn-on-sheet on a picked row (${picked}) is ${cr.toFixed(2)}:1`).toBeGreaterThanOrEqual(4.5);
-    expect(contrast(tokenIn("dark", "--warn"), picked), "the plain system amber is why the twin exists")
-      .toBeLessThan(4.5);
+    // AMENDED 2026-10-05 (Dave, the warm neutrals): on the warm picked grey the
+    // plain system amber now reads 4.67:1, so it no longer FAILS there; the twin
+    // is kept because it is still the stronger ink on every raised grey, and the
+    // law holds that ordering instead of the old failure.
+    expect(cr, "the twin is at least as readable as the plain system amber")
+      .toBeGreaterThanOrEqual(contrast(tokenIn("dark", "--warn"), picked));
     expect(ruleBody(css(), ".p3-row.on .fact.warn"), "the picked row's amber facts wear it")
       .toMatch(/(^|[;\s])color:\s*var\(--warn-on-sheet\)/);
   });
@@ -723,9 +735,10 @@ describe("BROWSER-F-09: quiet is not the same word as finished", () => {
   // gone. Option B splits them. These hold the split.
   it("--tx-quiet clears AA on every ground it lands on, in both themes", () => {
     const grounds: Array<[string, string[]]> = [
-      ["dark", ["#000000", "#1C1C1E", "#2C2C2E"]],
-      // The flip (Dave 2026-10-03): the page is #FFFFFF, a card is #F5F6F8, a raised row #F0F1F4.
-      ["light", ["#FFFFFF", "#F5F6F8", "#F0F1F4"]],
+      // The warm neutrals (Dave 2026-10-05): charcoal page #1C1917, card #201C19, sheet #2C2723.
+      ["dark", ["#1C1917", "#201C19", "#2C2723"]],
+      // Cream page #FAF6F0, card #F3EEE6, raised #ECE5DA.
+      ["light", ["#FAF6F0", "#F3EEE6", "#ECE5DA"]],
     ];
     for (const [theme, gs] of grounds) {
       for (const g of gs) {
@@ -743,11 +756,11 @@ describe("BROWSER-F-09: quiet is not the same word as finished", () => {
   // ruling's own choice: "do not use faded paragraphs or grey helper text".
   it("the ramp is two tiers: one secondary, and a solid structure grey", () => {
     for (const theme of ["dark", "light"]) {
-      // AMENDED 2026-09-29 (Dave, the approved light palette): light has three
-      // text tiers, #111318 titles, #363A43 supporting, #515661 quiet labels
-      // (10.1:1 and 6.8:1 on the page). Dark stays one secondary value.
+      // AMENDED 2026-10-05 (Dave, the warm neutrals): light has three text
+      // tiers, #1F1A16 titles, #4A423A supporting, #5E554C quiet labels (9.2:1
+      // and 6.8:1 on the cream page). Dark stays one secondary value.
       if (theme === "dark") expect(tokenIn(theme, "--tx-2"), `${theme} --tx-2 and --tx-3 are one value`).toBe(tokenIn(theme, "--tx-3"));
-      else expect(tokenIn(theme, "--tx-2"), "light --tx-2 is the supporting tier").toBe("#363A43");
+      else expect(tokenIn(theme, "--tx-2"), "light --tx-2 is the supporting tier").toBe("#4A423A");
       expect(tokenIn(theme, "--tx-4"), `${theme} --tx-4 is a solid structure grey`).toMatch(/^#[0-9A-Fa-f]{6}$/);
     }
   });
@@ -1122,10 +1135,14 @@ describe("DYNAMIC-TYPE-1.4: the app's own words survive the largest text size", 
     expect(ruleBody(css(), ".notice-card .conn-name")).toMatch(/-webkit-line-clamp:\s*2/);
   });
 
-  it("the Tracker's import row wears the two-line class at its call site", () => {
-    expect(read("money/screens/TrackerScreen.tsx")).toMatch(/className="conn-name truncate">Import September Data</);
-    // .truncate is what that class means here, despite the name.
-    expect(ruleBody(css(), ".task-row .conn-name.truncate, .row .conn-name.truncate")).toMatch(/-webkit-line-clamp:\s*2/);
+  it("the Tracker's import offer is a notice card, whose title wears the two-line class", () => {
+    // AMENDED (Dave 2026-10-05, locked: clean rows, no pill in a row). The import was a row with a pill and a
+    // `conn-name truncate` title; it is now an offer NoticeCard (its own words and its one action), and the notice
+    // card draws its title as `.conn-name`, clamped at two lines by `.notice-card .conn-name`. Same property: a long
+    // title wraps to a second line and ends in an ellipsis, never a single clipped line.
+    expect(read("money/screens/TrackerScreen.tsx")).toMatch(/<NoticeCard[\s\S]{0,160}\boffer\b[\s\S]{0,60}title="Import September Data"/);
+    expect(read("today/NoticeCard.tsx"), "the card draws its title as .conn-name").toMatch(/className="conn-name[^"]*"[\s\S]{0,120}>\{title\}</);
+    expect(ruleBody(css(), ".notice-card .conn-name")).toMatch(/-webkit-line-clamp:\s*2/);
   });
 
   it("the focus card's reason wraps, because one card is not a list", () => {
@@ -1161,20 +1178,21 @@ describe("DYNAMIC-TYPE-1.4: the app's own words survive the largest text size", 
     expect(ruleBody(css(), ".notice-card .vrow-sub > .facts > .fact")).toMatch(/flex-shrink:\s*0/);
   });
 
-  it("the capture bar takes a second line rather than losing half a sentence", () => {
-    // The ninth finding, and the auditor could not see it: the hint did not
-    // CLIP, it wrapped to two lines and painted past the pill's right edge
-    // across the wordmark, on the one piece of chrome that is on every tab.
-    // A screenshot found it. The gap is named in docs/AUDIT_CHECKLIST.md.
-    // An ellipsis was tried first and the auditor then read "Add anything"
-    // losing 48% on ten screens, so the pill wraps and keeps every word.
+  it("the capture bar is ONE line that never wraps and never loses a character", () => {
+    // AMENDED 2026-10-05 (Dave, the perfect bar). The ninth finding (2026-09-21) was a hint that wrapped to two lines and
+    // painted past the pill's edge at Dynamic Type 1.4; the answer then was a pill that wrapped, which at 390 became a
+    // 72px pill with the name top-left and "Add anything" dropped to the bottom right. The row is the disc and ONE
+    // Title Case placeholder now (no wordmark beside the disc), so there is nothing to wrap: it fits the width it has at
+    // 1.4 (about 140 of 170px), and it keeps its words rather than ellipsizing.
     const u = read("styles/uniformity.css");
     const bar = ruleBody(u, ".voice-bar")!;
-    expect(bar, "the pill is what grows").toMatch(/flex-wrap:\s*wrap/);
-    expect(ruleBody(u, ".voice-name"), "the mark does not give up a character").toMatch(/flex-shrink:\s*0/);
+    expect(bar, "one line").toMatch(/flex-wrap:\s*nowrap/);
+    expect(bar, "56px, the height of the round buttons beside it").toMatch(/min-height:\s*56px/);
+    expect(u, "the wordmark beside the disc is gone").not.toMatch(/\.voice-name/);
     const hint = ruleBody(u, ".voice-hint")!;
-    expect(hint, "it moves to the next line whole, it does not clip").not.toMatch(/text-overflow:\s*ellipsis/);
-    expect(hint, "and it does not break mid-sentence on that line either").toMatch(/white-space:\s*nowrap/);
+    expect(hint, "it does not clip").not.toMatch(/text-overflow:\s*ellipsis/);
+    expect(hint, "and does not break mid-sentence").toMatch(/white-space:\s*nowrap/);
+    expect(hint, "and it is not pushed to the far edge").not.toMatch(/margin-left:\s*auto/);
     expect(hint).toMatch(/min-width:\s*0/);
   });
 

@@ -56,15 +56,15 @@ describe("settleAll: what landed, not what was tried", () => {
 
 describe("settleLine: a number he can check, never a hedge", () => {
   it("says the plain thing when everything worked", () => {
-    expect(settleLine(6, 0, ARCHIVE)).toBe("6 conversations archived");
+    expect(settleLine(6, 0, ARCHIVE)).toBe("6 Conversations archived");
   });
 
   it("gets singular right, because '1 conversations' costs the number its credibility", () => {
-    expect(settleLine(1, 0, ARCHIVE)).toBe("1 conversation archived");
+    expect(settleLine(1, 0, ARCHIVE)).toBe("1 Conversation archived");
   });
 
   it("names both halves when the batch was partial", () => {
-    expect(settleLine(4, 2, ARCHIVE)).toBe("4 conversations archived · 2 still in your inbox");
+    expect(settleLine(4, 2, ARCHIVE)).toBe("4 Conversations archived · 2 Still in your inbox");
   });
 
   it("does not claim a single one when none landed", () => {

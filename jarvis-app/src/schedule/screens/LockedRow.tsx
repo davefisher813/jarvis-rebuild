@@ -33,7 +33,9 @@ import type { ReactNode } from "react";
 // second one having to be built and, eventually, drift.
 
 import { toneFor, type StateWord } from "../stateWord";
-import { lineCase } from "../../shared/casing";
+import { lineCase, titleCase } from "../../shared/casing";
+import type { RowAction } from "../../shared/RowActionSheet";
+import { useRowMenu } from "../../shared/useRowMenu";
 
 export interface LockedRowRange {
   s: number;
@@ -111,7 +113,18 @@ export default function LockedRow({
   // 264px rail, so -15m was painted 32px outside the reveal and could not be
   // tapped. Same bug as DayRow's, same fix. See schedRail.ts.
   const acts = [!!onShift, !!onShift, !!onDelete].filter(Boolean).length;
-  const { dx, open, dragging, handlers, closeThen, toggle } = useSwipe({ revealW: acts * SCHED_ACT_W, enabled: swipeable });
+  // THE LONG PRESS IS THE MENU (Dave 2026-10-05, locked; the chevron grip that used to announce the swipe is gone: a permanent
+  // visual affordance). The same actions as the rail, plus the one the block is for.
+  const label = titleCase(l.label);
+  const menuActions: RowAction[] = [
+    ...(holds && onFillBlock ? [{ label: "Put a Task in This Block", onPick: onFillBlock }] : []),
+    ...(swipeable && onShift ? [{ label: "\u221215 Min", onPick: () => onShift(-15) }, { label: "+15 Min", onPick: () => onShift(15) }] : []),
+    ...(swipeable && onDelete ? [{ label: "Delete", destructive: true, onPick: onDelete }] : []),
+  ];
+  const rowMenu = useRowMenu({ title: label, actions: menuActions, swipeEnabled: swipeable });
+  const swipe = useSwipe({ revealW: acts * SCHED_ACT_W, enabled: swipeable, onLongPress: rowMenu.onLongPress });
+  const { dx, open, dragging, closeThen } = swipe;
+  const { handlers: rowHandlers, sheet } = rowMenu.bind(swipe);
   const [picking, setPicking] = useState(false);
   const [sizing, setSizing] = useState(false);
   const durs = useRef<HTMLDivElement>(null);
@@ -139,7 +152,7 @@ export default function LockedRow({
           role="button"
           tabIndex={0}
           onClick={() => (open ? closeThen() : onOpen?.())}
-          {...handlers}
+          {...rowHandlers}
         >
           {onRetime ? (
             <button
@@ -154,7 +167,7 @@ export default function LockedRow({
           <div className="sched-body">
             <div className="sched-title sched-lock-title">
               {!holds && <LockGlyph className="ic lock-ic" />}
-              <span className="sched-t">{l.label}</span>
+              <span className="sched-t">{label}</span>
             </div>
             <div className="sched-cat">
               {/* C-28 (Astra, 2026-09-12): the state word, ahead of the
@@ -208,19 +221,9 @@ export default function LockedRow({
               <button type="button" className="block-add" onClick={(ev) => { ev.stopPropagation(); onFillBlock(); }}>+ Put a Task in This Block</button>
             )}
           </div>
-          {swipeable && (
-            <button
-              type="button"
-              className={"sched-grip" + (open ? " open" : "")}
-              aria-label={open ? "Hide quick actions" : "Quick actions"}
-              aria-expanded={open}
-              onClick={(ev) => { ev.stopPropagation(); toggle(); }}
-            >
-              <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
-            </button>
-          )}
         </div>
       </div>
+      {sheet}
       {sizing && onResize && (
         <div className="draft-edit-body" onClick={(ev) => ev.stopPropagation()}>
           <div className="plan-controls">

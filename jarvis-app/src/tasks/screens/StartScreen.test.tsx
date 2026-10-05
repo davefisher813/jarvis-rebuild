@@ -28,7 +28,7 @@ describe("StartScreen: one tap lands on something workable", () => {
   it("puts the prepared draft on screen, names its hole, and says what Save will not do", () => {
     render(<StartScreen target={target} action={grounded} onDraftChange={() => {}} onPrimary={noop}
       onBack={() => {}} onInTheWay={() => {}} />);
-    expect(screen.getByText("Send team practice details")).toBeInTheDocument();
+    expect(screen.getByText("Send Team Practice Details")).toBeInTheDocument();
     expect(screen.getByText("Review a Prepared Message")).toBeInTheDocument();
     expect(screen.getByRole("textbox")).toHaveValue("Hi everyone,\n\nPractice is Saturday at 2:00 PM.");
     // The hole is named, not filled.
@@ -52,7 +52,7 @@ describe("StartScreen: one tap lands on something workable", () => {
       .map((el) => el.textContent ?? "").join(" ");
     expect(chrome).not.toMatch(/\d+:\d\d/);
     expect(chrome).not.toMatch(/remaining|left\b|counting/i);
-    fireEvent.click(screen.getByText("Start It"));
+    fireEvent.click(screen.getByText("Put It on the Day"));
     expect(onStartTimer).toHaveBeenCalledTimes(1);
   });
 
@@ -64,7 +64,7 @@ describe("StartScreen: one tap lands on something workable", () => {
     fireEvent.click(screen.getByText("Save Draft"));
     await waitFor(() => expect(onPrimary).toHaveBeenCalled());
     expect(onFinish, "saving a draft never finishes the task").not.toHaveBeenCalled();
-    fireEvent.click(screen.getByText("Finish"));
+    fireEvent.click(screen.getByText("Finish This Task"));
     expect(onFinish).toHaveBeenCalledTimes(1);
   });
 
@@ -100,28 +100,28 @@ describe("StartScreen: one tap lands on something workable", () => {
 });
 
 describe("StartScreen: the ways out are subordinate", () => {
-  it("Make this smaller simplifies the action, and stops rather than looping", () => {
+  it("Make This Smaller simplifies the action, and stops rather than looping", () => {
     render(<StartScreen target={target} action={grounded} onDraftChange={() => {}} onPrimary={noop}
       onBack={() => {}} onInTheWay={() => {}} />);
-    fireEvent.click(screen.getByText("Make this smaller"));
+    fireEvent.click(screen.getByText("Make This Smaller"));
     // The named hole becomes the whole ask, and the task is untouched.
     expect(screen.getByText("One Detail First")).toBeInTheDocument();
-    expect(screen.getByText("Send team practice details")).toBeInTheDocument();
+    expect(screen.getByText("Send Team Practice Details")).toBeInTheDocument();
     // It does not loop forever into ever tinier instructions.
     let guard = 0;
-    while (screen.queryByText("Make this smaller") && guard < 6) {
-      fireEvent.click(screen.getByText("Make this smaller"));
+    while (screen.queryByText("Make This Smaller") && guard < 6) {
+      fireEvent.click(screen.getByText("Make This Smaller"));
       guard += 1;
     }
     expect(guard).toBeLessThan(6);
-    expect(screen.queryByText("Make this smaller")).toBeNull();
+    expect(screen.queryByText("Make This Smaller")).toBeNull();
   });
 
   it("Something's in the way offers four answers, not a questionnaire", () => {
     const onInTheWay = vi.fn();
     render(<StartScreen target={target} action={grounded} onDraftChange={() => {}} onPrimary={noop}
       onBack={() => {}} onInTheWay={onInTheWay} />);
-    fireEvent.click(screen.getByText("Something’s in the way"));
+    fireEvent.click(screen.getByText("Something’s in the Way"));
     for (const o of ["Too Big", "Missing Information", "Different Task", "Stop Here"]) {
       expect(screen.getByText(o)).toBeInTheDocument();
     }

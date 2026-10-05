@@ -11,9 +11,10 @@ import PageHeader from "../shared/PageHeader";
 import ListFloor from "../shared/ListFloor";
 import SkeletonRows from "../shared/SkeletonRows";
 import { rowDoor } from "../shared/rowDoor";
-import { whenLine } from "../hub/format";
 import { lineFor, type CommandFailure, type RpcClient } from "../substrate/commands/errors";
-import { ACCOUNTS_TITLE, DRAFTS_TITLE, DRAFT_BADGE, EMPTY_DRAFTS, EMPTY_SENT, FAILED_BADGE, NO_SUBJECT, RETRY, SENDING_BADGE, SENT_BADGE, SENT_FOLDER, THIS_DEVICE, UNKNOWN_BADGE } from "./copy";
+import { ACCOUNTS_TITLE, DRAFTS_TITLE, EMPTY_DRAFTS, FAILED_BADGE, NO_SUBJECT, RETRY, SENDING_BADGE, SENT_BADGE, SENT_FOLDER, THIS_DEVICE, UNKNOWN_BADGE } from "./copy";
+import EmailFacts from "./EmailFacts";
+import { whenFacts, type EmailFact } from "./format";
 import EmptyState from "./EmptyState";
 import { listDrafts, outcomeOf, unsavedLocal, type DraftRow, type LocalDraft } from "./drafts";
 
@@ -41,11 +42,17 @@ export default function DraftsScreen({ client, userId, offline, onBack, onCompos
   useEffect(() => { void load();
   }, [client, reloadKey]);
 
-  const badge = (d: DraftRow): string => {
+  // 2026-10-05: ONE facts line per row, the state first and in its key colour, the time as small caps, the recipients
+  // last (the free text, so it is the one that ellipsizes). It was three greys in two stacked lines, a time with a
+  // middle dot baked into its string, and "(No Recipient)" and a bare "Draft" saying nothing the section head does not.
+  // Sent is green (done); Not Sent and Unknown are amber (they need you); Sending is amber too (not done yet). A draft
+  // in the Drafts section needs no state word: the head says it.
+  const stateFact = (d: DraftRow): EmailFact | null => {
     const o = outcomeOf(d);
-    return o === "sent" ? SENT_BADGE : o === "unknown" ? UNKNOWN_BADGE : o === "failed" ? FAILED_BADGE : o === "sending" ? SENDING_BADGE : DRAFT_BADGE;
+    return o === "sent" ? { text: SENT_BADGE, tone: "good" } : o === "unknown" ? { text: UNKNOWN_BADGE, tone: "warn" } : o === "failed" ? { text: FAILED_BADGE, tone: "warn" } : o === "sending" ? { text: SENDING_BADGE, tone: "warn" } : null;
   };
-  const who = (to: readonly string[]) => to.length === 0 ? "(No Recipient)" : to.length === 1 ? to[0]! : `${to[0]} and ${to.length - 1} More`;
+  const whoFact = (to: readonly string[]): EmailFact[] => (to.length === 0 ? [] : [{ text: to.length === 1 ? to[0]! : `${to[0]} and ${to.length - 1} More` }]);
+  const lineOf = (state: EmailFact | null, iso: string, to: readonly string[]): EmailFact[] => [...(state ? [state] : []), ...whenFacts(iso), ...whoFact(to)];
   const drafts = lists?.drafts ?? [];
   const sent = lists?.sent ?? [];
   const nothing = lists && drafts.length === 0 && local.length === 0 && sent.length === 0;
@@ -69,8 +76,7 @@ export default function DraftsScreen({ client, userId, offline, onBack, onCompos
               <div className="row" key={l.key} {...rowDoor(() => onOpenLocal(l))}>
                 <div className="row-grow">
                   <div className="conn-name truncate">{l.fields.subject.trim() || NO_SUBJECT}</div>
-                  <div className="facts"><span className="fact">{THIS_DEVICE}</span><span className="fact">{whenLine(l.saved_at)}</span></div>
-                  <div className="facts"><span className="fact">{who(l.fields.to_addresses)}</span></div>
+                  <EmailFacts wrap facts={lineOf({ text: THIS_DEVICE, tone: "warn" }, l.saved_at, l.fields.to_addresses)} />
                 </div>
               </div>
             ))}
@@ -78,8 +84,7 @@ export default function DraftsScreen({ client, userId, offline, onBack, onCompos
               <div className="row" key={d.id} {...rowDoor(() => onOpenDraft(d))}>
                 <div className="row-grow">
                   <div className="conn-name truncate">{d.subject.trim() || NO_SUBJECT}</div>
-                  <div className="facts"><span className={"fact" + (d.send_state === "failed" ? " warn" : "")}>{badge(d)}</span><span className="fact">{whenLine(d.saved_at)}</span></div>
-                  <div className="facts"><span className="fact">{who(d.to_addresses)}</span></div>
+                  <EmailFacts wrap facts={lineOf(stateFact(d), d.saved_at, d.to_addresses)} />
                 </div>
               </div>
             ))}
@@ -94,15 +99,13 @@ export default function DraftsScreen({ client, userId, offline, onBack, onCompos
               <div className="row" key={d.id} {...rowDoor(() => onOpenSent(d))}>
                 <div className="row-grow">
                   <div className="conn-name truncate">{d.subject.trim() || NO_SUBJECT}</div>
-                  <div className="facts"><span className={"fact" + (outcomeOf(d) === "unknown" ? " warn" : "")}>{badge(d)}</span><span className="fact">{whenLine(d.updated_at)}</span></div>
-                  <div className="facts"><span className="fact">{who(d.to_addresses)}</span></div>
+                  <EmailFacts wrap facts={lineOf(stateFact(d), d.updated_at, d.to_addresses)} />
                 </div>
               </div>
             ))}
           </div>
         </div>
       )}
-      {lists && sent.length === 0 && (drafts.length > 0 || local.length > 0) && <div className="email-note quiet"><span>{EMPTY_SENT.title}</span></div>}
       {lists && !nothing && <div className="pad-x"><ListFloor /></div>}
       <div className="screen-foot" />
     </div>

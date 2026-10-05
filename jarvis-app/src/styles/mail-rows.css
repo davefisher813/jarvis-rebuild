@@ -25,6 +25,11 @@
 .mface { width: 30px; height: 30px; border-radius: var(--r-circle); flex-shrink: 0;
   display: flex; align-items: center; justify-content: center;
   font-size: var(--t-caption); font-weight: var(--w-bold); }
+/* ONE NEUTRAL FACE FOR EVERY SENDER (round 3 review: "pink-red, amber and green avatars mean nothing, and on a screen where amber is
+   due, red is late and green is done they read as states"). The sender's hue slot still rides the class (rowAnatomy.ts keeps one
+   stable identity per sender for whoever wants it), but the mark itself is the warm raised fill with the primary ink: colour is for
+   meaning, and an initial has none. Specificity beats .cat-bg-* whatever order the sheets load in. */
+.mface.mface[class*="cat-bg-"] { background: var(--press-5); color: var(--tx-1); }
 /* A machine's mark: the 3px rail, quiet by default, warn when the sender
    stated a deadline. Never lit for unreadness (8A). */
 .mrail { width: 3px; height: 26px; border-radius: var(--r-xxs); background: var(--tx-4); }
@@ -49,17 +54,24 @@
 .mwhen { margin-left: auto; flex: 0 0 auto; font-size: var(--t-eyebrow); font-weight: var(--w-semi);
   letter-spacing: var(--track-caps); text-transform: uppercase; color: var(--tx-3);
   font-variant-numeric: tabular-nums; }
-.mdue { margin-left: auto; flex: 0 0 auto; font-size: var(--t-micro); font-weight: var(--w-bold);
-  padding: var(--s-0h) var(--s-2); border-radius: var(--r-pill); background: var(--warn-tint); color: var(--warn); white-space: nowrap; }
-/* byRank >= 900 ("no rush"): a deadline that is not pressing is quiet. */
-.mdue.soft { background: var(--press-3); color: var(--tx-3); }
+/* THE DEADLINE IS THE TIME'S OWN SLOT, DRAWN AS TEXT (Dave 2026-10-05, locked: no pill inside a row; a due day is a
+   coloured fact). Same letterform as .mwhen, so the right edge of three rows is one kind of element whether a row
+   carries a time or a deadline; the colour is the only difference, amber for a deadline that is pressing. */
+.mdue { margin-left: auto; flex: 0 0 auto; font-size: var(--t-eyebrow); font-weight: var(--w-semi);
+  letter-spacing: var(--track-caps); text-transform: uppercase; font-variant-numeric: tabular-nums;
+  background: none; padding: 0; color: var(--warn); white-space: nowrap; }
+/* byRank >= 900 ("no rush"): a deadline that is not pressing is a neutral date. */
+.mdue.soft { color: var(--tx-3); }
 /* EM2: the subject or the gist. Quiet when read, the page's ink when not. */
 /* EM4 says the subject MAY WRAP TO TWO; this line ellipsized at one (the
    audit read "Security advisories flagged in two" as a 17% cut on every
    mail row at 390). Two lines, clamped, like the headline (2026-09-27). */
 .mline2 { font-size: var(--t-sub); color: var(--tx-3); margin-top: 1px;
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; white-space: normal; }
-.mline2.strong { color: var(--tx-1); font-weight: var(--w-semi); }
+/* A ROW THAT EARNED ITS BOLD BOLDS THE SENDER, NOT THE SUBJECT (2026-10-05, Dave: "sender and subject are both bold
+   white, so no hierarchy"). The subject is the row's subtext: 14px regular. Unread says itself in the sender's
+   weight and in the subject's ink, white where a read row's is grey. */
+.mline2.strong { color: var(--tx-1); font-weight: var(--w-sub); }
 /* The thread's message count after the subject: a number with no state, so
    white (§AM F1), behind a separator its own span draws (F3). */
 .mline2 b { font-weight: var(--w-semi); color: var(--tx-1); }

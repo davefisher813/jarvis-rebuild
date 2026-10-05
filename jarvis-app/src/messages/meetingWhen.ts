@@ -67,7 +67,9 @@ export interface MeetingFacts {
   zoneLabel: string;
   /** The time in the reader's zone, only when the sender's zone differs. */
   yours: string | null;
-  /** "1h · Default" when the length is the app's, the stated length when it is theirs. */
+  /** The reader's day for that time, only when it is not the sender's day. Its own fact, never glued to `yours` with a dot (2026-10-05). */
+  yoursDay: string | null;
+  /** "About 1h" when the length is the app's own, the stated length when it is theirs. No dot and no "Default": the card draws it as a white length fact (2026-10-05). */
   length: string | null;
 }
 
@@ -81,20 +83,24 @@ export function meetingFacts(c: MeetingCandidate, today = todayISO(), zone = dev
   }
   const at = c.date && c.start ? instantAt(c.date, c.start, c.timeZone ?? zone) : Date.now();
   const stated = c.timeZone && c.timeZone !== zone;
-  const zoneLabel = zoneShortName(c.timeZone ?? zone, at) + (c.timeZone ? "" : " · Your Time");
+  // 2026-10-05 (the catalog gate): these strings render into a .facts line, and
+  // a middle dot baked into a fact is the CSS's job (R6), so none is built here.
+  const zoneLabel = zoneShortName(c.timeZone ?? zone, at) + (c.timeZone ? "" : " Your Time");
   let yours: string | null = null;
+  let yoursDay: string | null = null;
   if (stated && c.date && c.start) {
     const conv = convertWall(c.date, c.start, c.timeZone!, zone);
     if (conv) {
       const f = fmtTime(conv.time);
-      yours = f.time + " " + f.ap + " Your Time" + (conv.date !== c.date ? " · " + dayPhrase(conv.date, today) : "");
+      yours = f.time + " " + f.ap + " Your Time";
+      if (conv.date !== c.date) yoursDay = dayPhrase(conv.date, today);
     }
   }
   let length: string | null = null;
   if (c.start && c.end) {
     const l = lengthLabel(c.start, c.end);
     // The app's own length is labelled as the app's, never as the sender's.
-    if (l) length = c.durationSource === "default" ? l + " \u00b7 Default" : l;
+    if (l) length = c.durationSource === "default" ? "About " + l : l;
   }
-  return { day, time, zoneLabel, yours, length };
+  return { day, time, zoneLabel, yours, yoursDay, length };
 }

@@ -58,8 +58,8 @@ describe("AccountPage Redo Setup (armed two-tap)", () => {
   it("one tap only arms: it says so, explains itself, and saves nothing", () => {
     renderPage();
     fireEvent.click(screen.getByText("Redo Setup"));
-    expect(screen.getByText("Tap again to redo setup")).toBeInTheDocument();
-    expect(screen.getByText(/Your data stays/)).toBeInTheDocument();
+    expect(screen.getByText("Tap Again to Redo Setup")).toBeInTheDocument();
+    expect(screen.getByText(/Your Data Stays/)).toBeInTheDocument();
     expect(profileSpy!.save).not.toHaveBeenCalled();
   });
 
@@ -67,10 +67,10 @@ describe("AccountPage Redo Setup (armed two-tap)", () => {
     vi.useFakeTimers();
     renderPage();
     fireEvent.click(screen.getByText("Redo Setup"));
-    expect(screen.getByText("Tap again to redo setup")).toBeInTheDocument();
+    expect(screen.getByText("Tap Again to Redo Setup")).toBeInTheDocument();
     act(() => { vi.advanceTimersByTime(4100); });
     expect(screen.getByText("Redo Setup")).toBeInTheDocument();
-    expect(screen.queryByText("Tap again to redo setup")).not.toBeInTheDocument();
+    expect(screen.queryByText("Tap Again to Redo Setup")).not.toBeInTheDocument();
     expect(profileSpy!.save).not.toHaveBeenCalled();
   });
 });
@@ -138,10 +138,24 @@ describe("AccountPage Delete Account (S3-Q18)", () => {
 // Dave's pick, 2026-09-26: the avatar keeps its red disc, and it is a tap
 // that opens the app's one action sheet to change the picture.
 describe("AccountPage avatar (a tap that changes the photo)", () => {
-  it("the red disc is a labelled button, and it opens the photo sheet", () => {
+  it("with no name and no photo the disc is a quiet neutral one wearing a camera, never a red question mark (2026-10-05)", () => {
+    const { container } = render(
+      <AuthProvider><NotesProvider userId="u-acct-empty"><AccountPage onBack={() => {}} onEditProfile={() => {}} /></NotesProvider></AuthProvider>,
+    );
+    const btn = screen.getByRole("button", { name: "Add profile photo" });
+    expect(btn.querySelector(".av.av-72.av-empty")).not.toBeNull();
+    expect(btn.querySelector(".av-accent"), "no brand-red disc until there is a name or a photo").toBeNull();
+    expect(btn.textContent, "no placeholder glyph").not.toContain("?");
+    expect(btn.querySelector("svg")).not.toBeNull();
+    // The one thing that fills it is a text action in the tap red, not a capsule inside the card.
+    const add = screen.getByRole("button", { name: "Add Your Name" });
+    expect(add.className).not.toMatch(/quiet-action|pill-act|row-act|btn-sm/);
+    expect(container.querySelector(".account-name"), "no \"Your Name\" placeholder text").toBeNull();
+  });
+
+  it("the disc is a labelled button, and it opens the photo sheet", () => {
     renderPage();
     const btn = screen.getByRole("button", { name: "Add profile photo" });
-    expect(btn.querySelector(".av.av-72.av-accent")).not.toBeNull();
     fireEvent.click(btn);
     expect(screen.getByRole("button", { name: "Choose Photo" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Cancel" })).toBeInTheDocument();
@@ -188,5 +202,26 @@ describe("AccountPage Change Password row", () => {
     expect(screen.getByLabelText("Current password")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
     expect(screen.queryByLabelText("Current password")).not.toBeInTheDocument();
+  });
+});
+
+// THE VISUAL CATALOG ON ACCOUNT (Dave 2026-10-05, "I am sick of this"). On a
+// build with a backend the page draws Status, Change Password and Delete
+// Account too, so it is read here, where that flag is on.
+describe("AccountPage follows the catalog", () => {
+  it("an active account is on track, so its Status value is the key's green fact", () => {
+    renderPage();
+    const status = [...document.querySelectorAll(".row")].find((r) => r.querySelector(".conn-name")?.textContent === "Status")!;
+    const value = status.querySelector(".row-value .fact")!;
+    expect(value.textContent).toBe("Active");
+    expect(value).toHaveClass("good");
+  });
+
+  it("the plan line under the name is Title Case, and no grey line on the page carries a typed dot", async () => {
+    const { container } = renderPage();
+    await waitFor(() => expect(container.querySelector(".account-sub")!.textContent).toBe("Personal Plan"));
+    for (const el of container.querySelectorAll(".conn-meta, .fact, .facts, .row-value, .account-sub")) {
+      expect(el.textContent, el.className).not.toContain("·");
+    }
   });
 });

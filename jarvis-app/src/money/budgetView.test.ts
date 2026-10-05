@@ -42,6 +42,18 @@ describe("the monthly budget form", () => {
   });
 });
 
+describe("a row named Uncategorized in the form", () => {
+  it("stays as an empty stub while it holds a typed limit, and is hidden when it holds none", () => {
+    const month = "2026-09";
+    const withLimit = [newRow("Uncategorized", "50")];
+    const stub = displayRows(withLimit, monthActuals(month, withLimit, [], [])).filter((r) => r.key);
+    expect(stub).toHaveLength(1);
+    expect([stub[0]!.limit, stub[0]!.spent]).toEqual([null, 0]);
+    const none = [newRow("Uncategorized")];
+    expect(displayRows(none, monthActuals(month, none, [], [])).filter((r) => r.key)).toHaveLength(0);
+  });
+});
+
 describe("what the month shows against the limits", () => {
   const month = "2026-09";
   const rows = [newRow("Groceries", "100"), newRow("Dining", "50"), newRow("Fun")];

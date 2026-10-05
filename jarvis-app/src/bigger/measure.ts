@@ -9,7 +9,7 @@ import type { MetricLog } from "../gym/metrics";
 import type { MetricMeasure } from "../gym/metricGoals";
 import { metricMeasureState } from "../gym/metricGoals";
 import { daysBetween } from "../upnext/upnext";
-import { lineCase } from "../shared/casing";
+import { lineCase, capAfterNumber } from "../shared/casing";
 import { clearsDoneAutomatically } from "./doneClearing";
 import type { PaceTone } from "./progress";
 
@@ -188,9 +188,10 @@ export function measureState(m: Measure | undefined, ctx: MeasureContext): Measu
     return {
       done, target, met: done >= target,
       pct: Math.round((done / target) * 100),
-      // "0 of 1 Projects Done" (Dave's pass-off, 2026-09-26): the whole line
-      // is Title Case, the last word included.
-      line: lineCase(`${done} of ${target} projects done`),
+      // "0 of 1 Done" (2026-10-05, the perfect bar). "0 of 1 Projects Done" was wrong for one and, for any count, left the word
+      // "Done" alone on a second line of a narrow card; "0 of 1 Project Done" read no better. The noun is already on the line
+      // under it ("1 Linked Project") and on the page ("Projects"), so the one grey says only the count, as every other measure does.
+      line: lineCase(`${done} of ${target} done`),
     };
   }
 
@@ -219,7 +220,7 @@ export function measureState(m: Measure | undefined, ctx: MeasureContext): Measu
       if (age < COMMIT_DAYS) {
         if (done > 0) return lineCase(`${done} done already`);
       } else {
-        return lineCase(`${target - done} to go`);
+        return capAfterNumber(lineCase(`${target - done} to go`)); // "11 To Go" (2026-10-05)
       }
     }
     return lineCase(`${done} of ${target} done`);

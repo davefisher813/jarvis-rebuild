@@ -107,7 +107,7 @@ describe("TodaySuggestions routine candidate", () => {
     fireEvent.click(screen.getByText(/^Noticed:/));
     // The offer names the habit; the count behind it is the card's sub, not a
     // third run glued onto the title with a middot (§AM F2/F3).
-    await waitFor(() => expect(screen.getByText(/^Gym around 6 AM/)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/^Gym Around 6 AM/)).toBeInTheDocument());
     // Quiet lifts the figure into its own span, so read the whole sub line.
     expect(screen.getByText(/Times This Month/).parentElement?.textContent).toBe("3 Times This Month");
     fireEvent.click(screen.getByText("Add to Routine"));
@@ -163,13 +163,35 @@ describe("TodaySuggestions being-known moments", () => {
     render(<NotesProvider userId="b2"><TodaySuggestions ai={new AIService({ available: false })} /></NotesProvider>);
     await waitFor(() => expect(screen.getByText(/^Noticed:/)).toBeInTheDocument());
     fireEvent.click(screen.getByText(/^Noticed:/));
-    await waitFor(() => expect(screen.getByText(/Your tasks get done between/)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/Your Tasks Get Done Between/)).toBeInTheDocument());
     // The Notice law's sub line carries the receipt, so the claim is checkable
     // before the user ever taps.
     // The quiet line wraps the figure in its own bright span (Law 3E), so the
     // match reads the composed line rather than one text node.
-    expect(screen.getByText((_, el) => el?.className === "conn-meta" && /14 Finishes There/.test(el.textContent ?? ""))).toBeInTheDocument();
+    // All 14 finishes sit in the band, so the figure is said once (round 2: "14 Out of Your Last 14" was one number twice).
+    expect(screen.getByText((_, el) => el?.className === "conn-meta" && /14 Finishes in That Window/.test(el.textContent ?? ""))).toBeInTheDocument();
     expect(screen.getByText("Remember This")).toBeInTheDocument();
+  });
+
+  // THE CATALOG, ON WHAT THE CARD DRAWS (Dave 2026-10-05, the review): the claim is a line the app writes, so it is Title Case
+  // ("Your tasks get done between 7 AM and 10 AM" sat over a Title Case receipt), and a time is never split from its meridiem
+  // ("7 AM and 10 / AM" left a lone AM on its own line).
+  it("draws the claim in Title Case, with every time bound to its AM or PM", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    completions(14, 10);
+    render(<NotesProvider userId="b2-case"><TodaySuggestions ai={new AIService({ available: false })} /></NotesProvider>);
+    await waitFor(() => expect(screen.getByText(/^Noticed:/)).toBeInTheDocument());
+    // The whisper wears the same casing as the card it folds from.
+    expect(screen.getByText(/^Noticed:/).textContent).toMatch(/^Noticed: Your Tasks Get Done Between \d+\u00a0(AM|PM) and \d+\u00a0(AM|PM)$/);
+    fireEvent.click(screen.getByText(/^Noticed:/));
+    const title = await waitFor(() => {
+      const t = document.querySelector(".notice-card .conn-name");
+      expect(t).not.toBeNull();
+      return t!.textContent ?? "";
+    });
+    expect(title).toMatch(/^Your Tasks Get Done Between \d+\u00a0(AM|PM) and \d+\u00a0(AM|PM)$/);
+    // No time in the line is left with a plain space before its meridiem.
+    expect(title).not.toMatch(/\d (AM|PM)/);
   });
 
   it("Remember This clears the moment", async () => {
@@ -180,7 +202,7 @@ describe("TodaySuggestions being-known moments", () => {
     fireEvent.click(screen.getByText(/^Noticed:/));
     await waitFor(() => expect(screen.getByText("Remember This")).toBeInTheDocument());
     fireEvent.click(screen.getByText("Remember This"));
-    await waitFor(() => expect(screen.queryByText(/Your tasks get done between/)).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByText(/Your Tasks Get Done Between/)).not.toBeInTheDocument());
   });
 });
 
@@ -225,39 +247,53 @@ describe("TodaySuggestions the whole day's moments (S4-Q21)", () => {
     await waitFor(() => expect(screen.getByText(/^Noticed:/)).toBeInTheDocument());
     // One row only: the second moment gets no whisper, no card, no trace.
     expect(screen.getAllByText(/^Noticed:/)).toHaveLength(1);
-    expect(screen.queryByText(/You train between/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/You Train Between/)).not.toBeInTheDocument();
   });
 
-  it("What JARVIS Knows renders both, not just whichever one won the row", async () => {
+  // ROUND 2 (2026-10-05): "three stacked suggestion cards push the real screen off the first view". The pass still chooses the whole
+  // set and every card is still reachable, but one is shown at a time, the head says where it is in the queue, and answering it
+  // brings the next up.
+  it("What JARVIS Knows shows one card at a time with its place in the queue, and the other waits behind it", async () => {
     seedTwoMoments();
-    render(<NotesProvider userId="b-brain"><TodaySuggestions ai={new AIService({ available: false })} always /></NotesProvider>);
-    await waitFor(() => expect(screen.getByText(/Your tasks get done between/)).toBeInTheDocument());
-    // The second moment is not a whisper here -- What JARVIS Knows opens
-    // every card it holds, immediately.
-    expect(screen.getByText(/You train between/)).toBeInTheDocument();
-    expect(screen.getAllByText("Remember This")).toHaveLength(2);
+    const { container } = render(<NotesProvider userId="b-brain"><TodaySuggestions ai={new AIService({ available: false })} always /></NotesProvider>);
+    await waitFor(() => expect(screen.getByText(/Your Tasks Get Done Between/)).toBeInTheDocument());
+    // The second moment is not a whisper and not on screen: it is next in the queue.
+    expect(screen.queryByText(/You Train Between/)).not.toBeInTheDocument();
+    expect(screen.getAllByText("Remember This")).toHaveLength(1);
+    expect(container.querySelector(".sh2 .t")!.textContent).toBe("Worth Remembering");
+    expect(container.querySelector(".sh2 .n")!.textContent).toBe("1 of 2");
   });
 
-  it("dismissing the extra moment removes only that one", async () => {
+  it("dismissing the shown moment brings the next one up, and the queue count goes", async () => {
     seedTwoMoments();
-    render(<NotesProvider userId="b-dismiss"><TodaySuggestions ai={new AIService({ available: false })} always /></NotesProvider>);
-    await waitFor(() => expect(screen.getByText(/You train between/)).toBeInTheDocument());
-    // The primary row renders first, so its own Dismiss is first in the DOM;
-    // the extra card's is last.
-    const dismissButtons = screen.getAllByLabelText("Dismiss");
-    fireEvent.click(dismissButtons[dismissButtons.length - 1]!);
-    await waitFor(() => expect(screen.queryByText(/You train between/)).not.toBeInTheDocument());
-    expect(screen.getByText(/Your tasks get done between/)).toBeInTheDocument();
+    const { container } = render(<NotesProvider userId="b-dismiss"><TodaySuggestions ai={new AIService({ available: false })} always /></NotesProvider>);
+    await waitFor(() => expect(screen.getByText(/Your Tasks Get Done Between/)).toBeInTheDocument());
+    fireEvent.click(screen.getByLabelText("Dismiss"));
+    await waitFor(() => expect(screen.getByText(/You Train Between/)).toBeInTheDocument());
+    expect(screen.queryByText(/Your Tasks Get Done Between/)).not.toBeInTheDocument();
+    // One left: no queue to count.
+    expect(container.querySelector(".sh2")).toBeNull();
   });
 
-  it("accepting the extra moment writes the strand and clears just that card", async () => {
+  it("accepting the shown moment writes the strand and brings the next one up", async () => {
     seedTwoMoments();
     render(<NotesProvider userId="b-accept"><TodaySuggestions ai={new AIService({ available: false })} always /></NotesProvider>);
-    await waitFor(() => expect(screen.getByText(/You train between/)).toBeInTheDocument());
-    const remember = screen.getAllByText("Remember This");
-    fireEvent.click(remember[remember.length - 1]!);
-    await waitFor(() => expect(screen.queryByText(/You train between/)).not.toBeInTheDocument());
-    expect(screen.getByText(/Your tasks get done between/)).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText(/Your Tasks Get Done Between/)).toBeInTheDocument());
+    fireEvent.click(screen.getByText("Remember This"));
+    await waitFor(() => expect(screen.getByText(/You Train Between/)).toBeInTheDocument());
+    expect(screen.queryByText(/Your Tasks Get Done Between/)).not.toBeInTheDocument();
+  });
+
+  // THE CARD'S LAYOUT (round 2): the words get the whole row, and the capsule and the Dismiss share the line under them.
+  it("the stacked offer keeps its Dismiss on the capsule's line, so the words run the card's full width", async () => {
+    seedTwoMoments();
+    const { container } = render(<NotesProvider userId="b-layout"><TodaySuggestions ai={new AIService({ available: false })} always /></NotesProvider>);
+    await waitFor(() => expect(screen.getByText(/Your Tasks Get Done Between/)).toBeInTheDocument());
+    const stack = container.querySelector(".notice-stack")!;
+    expect(stack.querySelector(".pill-act")!.textContent).toBe("Remember This");
+    expect(stack.querySelector(".notice-x")).not.toBeNull();
+    // Not in the title row, where its 44px column was the dead space beside a three-line title.
+    expect(container.querySelector(".notice-card > .row > .notice-x")).toBeNull();
   });
 });
 

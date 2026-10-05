@@ -17,10 +17,15 @@ export default function HistoryList({ history }: { history: HistoryEntry[] | und
         <div className="row xs-row" key={l.key}>
           <div className="row-grow">
             <div className="conn-name">{lineCase(l.what)}</div>
-            <div className="facts">
-              {l.day && <span className="fact date">{fmtDay(l.day)}</span>}
-              {l.changes.map((c) => <span className="fact" key={c}>{lineCase(c)}</span>)}
-            </div>
+            {/* ONE GREY, AND NOTHING CLIPPED (2026-10-05, visual catalog gate,
+                R1, R5 and the facts-never-clip ruling). Each changed field was
+                its own grey fact on a nowrap .facts line, so a correction of
+                two fields was two greys and the second was cut off. The day is
+                the small-caps date on its own line and each change is ONE white
+                fact on a line of its own (no grey at all, nothing clipped, and
+                no separator left hanging at the end of a wrapped line). */}
+            {l.day && <div className="conn-meta"><span className="fact date">{fmtDay(l.day)}</span></div>}
+            {l.changes.map((c) => <div className="conn-meta" key={c}><span className="fact"><b>{lineCase(c)}</b></span></div>)}
           </div>
         </div>
       ))}

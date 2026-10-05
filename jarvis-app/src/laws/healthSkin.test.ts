@@ -214,13 +214,14 @@ describe("HEALTH law 3: the light activity ramp equals the dark one", () => {
     return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
   };
   it("a word in a ramp hue clears 4.5:1 on its own tint and on the raised surface, in both themes", () => {
-    for (const [theme, card, raised] of [["dark", "#1c1c1e", "#2b2b2c"], ["light", "#F5F6F8", "#F0F1F4"]] as const) {
+    for (const [theme, card, raised] of [["dark", "#201C19", "#2C2723"], ["light", "#F3EEE6", "#ECE5DA"]] as const) {
       const t = ramp(block('[data-theme="' + theme + '"] {'));
       for (const hue of RAMP) {
         const ink = t[`${hue}-ink`];
         expect(ink, `${theme} --hl-${hue}-ink is missing`).toMatch(/^#[0-9A-Fa-f]{6}$/);
         const alpha = Number((t[`${hue}-tint`] ?? "").match(/([\d.]+)\)$/)?.[1] ?? "0.16");
-        // AMENDED 2026-09-29: light raised is the approved neutral #F0F1F4, and
+        // AMENDED 2026-10-05 (Dave, the warm neutrals): the grounds are the warm
+        // card and raised surfaces. AMENDED 2026-09-29: light raised was #F0F1F4, and
         // a tint written as an opaque hex (light lime, #E7F1DC) is measured as is.
         const tintHex = /^#[0-9A-Fa-f]{6}$/.test(t[`${hue}-tint`] ?? "") ? t[`${hue}-tint`]! : over(t[hue]!, alpha, card);
         const onTint = ratio(ink!, tintHex);
@@ -350,10 +351,16 @@ describe("HEALTH law 6: every browsing row wears the one anatomy", () => {
     expect(bad).toEqual([]);
   });
 
-  it("a capsule still does the job a capsule is for", () => {
-    // The Exercises page's classification chips: tappable, and a real button.
-    expect(read(join(SRC, "gym/LibraryPage.tsx"))).toMatch(/className=\{"ex-chip"/);
-    expect(RULED, "and they are drawn").toMatch(/\.ruled \.ex-chip \{/);
+  it("the classification marks are facts, and there is no capsule left on the row", () => {
+    // AMENDED (Dave 2026-10-05, locked: clean rows, no pills inside a row; subtextLaw already required the .ex-chip
+    // rule gone). The Exercises page's classification marks used to be tappable `.ex-chip` capsules. They are `.fact`
+    // spans now and the row itself is the door: a tap opens the exercise, the long-press menu has Edit Details (which
+    // opens the classification sheet), and an exercise with no muscles shows the one `No Muscles Yet` fact.
+    const lib = read(join(SRC, "gym/LibraryPage.tsx"));
+    expect(lib, "the marks are facts").toMatch(/className=\{"fact" \+ chipTone\(ch\)\}/);
+    expect(lib, "no capsule class is left on the page").not.toMatch(/ex-chip/);
+    expect(RULED, "and the capsule rule is gone from the ruled sheet").not.toMatch(/\.ruled \.ex-chip \{/);
+    expect(lib, "the classification sheet is still reachable, from the row's menu").toMatch(/label: "Edit Details", onClick: \(\) => setClassing/);
   });
 });
 

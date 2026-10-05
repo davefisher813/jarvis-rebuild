@@ -28,10 +28,14 @@ describe("BrainDocPage", () => {
       </NotesProvider>,
     );
     expect(screen.getAllByText("How You Write").length).toBeGreaterThan(0);
+    // A page with nothing written is a crafted empty state with ONE way in (Dave 2026-10-05: "he opens the app and finds
+    // nothing"); Start Writing opens the editor card and its caret.
+    expect(await screen.findByText("Teach JARVIS Your Voice")).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Start Writing"));
     // The writing system (wave 3c): the shared editor on the document
-    // level; its cue is the topic's placeholder, its name the topic's title.
+    // level; its cue is the topic's placeholder (Title Case, no typed dots), its name the topic's title.
     const pm = await screen.findByLabelText("How You Write");
-    expect(pm.querySelector("p")).toHaveAttribute("data-placeholder", expect.stringMatching(/Tone · style/i));
+    expect(pm.querySelector("p")).toHaveAttribute("data-placeholder", "Tone, Style, and Words You Use and Avoid");
     // C-16 (Astra, 2026-09-12): no Save button; the canvas saves on blur.
     const spy = vi.spyOn(BrainDocService.prototype, "save");
     try {
@@ -70,10 +74,62 @@ describe("BrainDocPage load failure (BRAIN-F-12)", () => {
       // The next read works, and the page is a page again.
       fireEvent.click(screen.getByText("Try Again"));
       await waitFor(() => expect(screen.queryByText("Try Again")).not.toBeInTheDocument());
+      // Read, and empty: the page's own empty state, and the editor opens on Start Writing.
+      fireEvent.click(await screen.findByText("Start Writing"));
       expect(await screen.findByLabelText("How You Write")).toHaveAttribute("contenteditable", "true");
     } finally {
       spy.mockRestore();
       stop();
     }
+  });
+});
+
+// EVERY BRAIN DOC OPENS ON SOMETHING (Dave 2026-10-05, the review: Life Philosophy and How You Write were blank pages from the
+// title to the dock, and the subtitle was a lowercase fragment with typed dots). Each empty doc is the app's empty state: its
+// glyph in the Brain's own tone, a Title Case title of its OWN, one line, the one capsule that fills it. No subtitle fragment, no
+// typed dot. ROUND 2 (2026-10-05): the three pages no longer share one generic title, and the glyph is never brand red (the pen was
+// a coral that read as a button).
+describe("BrainDocPage: an empty doc is crafted, never blank (2026-10-05)", () => {
+  for (const [topic, title, emptyTitle] of [
+    ["philosophy", "Life Philosophy", "Your Philosophy Starts Here"],
+    ["writing", "How You Write", "Teach JARVIS Your Voice"],
+    ["values", "Values", "Say What Matters"],
+  ] as const) {
+    it(`${title}: a purple glyph, its own title, one line and Start Writing`, async () => {
+      const { container } = render(
+        <NotesProvider userId={"u-empty-" + topic}>
+          <BrainDocPage topic={topic} onBack={() => {}} />
+        </NotesProvider>,
+      );
+      const empty = await waitFor(() => {
+        const e = container.querySelector(".empty-state");
+        expect(e).not.toBeNull();
+        return e!;
+      });
+      expect(empty.querySelector(".empty-icon")!.className).toContain("cat-fg-purple");
+      expect(empty.querySelector(".empty-icon")!.className).not.toMatch(/cat-fg-(red|pink|coral|rose)/);
+      expect(empty.querySelector(".empty-icon svg")).not.toBeNull();
+      expect(empty.querySelector(".empty-title")!.textContent).toBe(emptyTitle);
+      const sub = empty.querySelector(".empty-sub")!.textContent!;
+      expect(sub).not.toMatch(/\u00b7/);
+      expect(sub).not.toMatch(/\.\s+[A-Z]/);
+      // Title Case: every word of the line starts with a capital or is a small joining word.
+      expect(sub.split(" ").every((w) => /^[A-Z0-9]/.test(w) || ["a", "an", "and", "of", "in", "on", "to", "the", "or"].includes(w))).toBe(true);
+      expect(empty.querySelector("button")!.textContent).toBe("Start Writing");
+      // The page carries no grey subtitle fragment under its title.
+      expect(container.querySelector(".pagehead-sub, .page-sub")).toBeNull();
+      expect(container.textContent).not.toMatch(/Worldview \u00b7|Tone \u00b7|What matters \u00b7/);
+    });
+  }
+
+  it("a page with nothing else on it centres its empty state in the room left; Values keeps its Hard Lines in view", async () => {
+    const alone = render(<NotesProvider userId="u-fill-1"><BrainDocPage topic="philosophy" onBack={() => {}} /></NotesProvider>);
+    await waitFor(() => expect(alone.container.querySelector(".empty-state")).not.toBeNull());
+    expect(alone.container.querySelector(".doc-body > .empty-state.empty-fill")).not.toBeNull();
+    alone.unmount();
+    const values = render(<NotesProvider userId="u-fill-2"><BrainDocPage topic="values" onBack={() => {}} /></NotesProvider>);
+    await waitFor(() => expect(values.container.querySelector(".empty-state")).not.toBeNull());
+    expect(values.container.querySelector(".empty-state.empty-fill")).toBeNull();
+    expect(values.container.querySelector(".empty-state.empty-compact")).not.toBeNull();
   });
 });

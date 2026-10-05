@@ -89,14 +89,14 @@ describe("fetchAdminAiAllowed", () => {
 });
 
 describe("Settings > AI Control on a blocked account", () => {
-  it("shows Turned off by admin, and the user cannot turn it on or change a level", async () => {
+  it("shows Turned Off by Admin, and the user cannot turn it on or change a level", async () => {
     const save = vi.spyOn(ProfileService.prototype, "save").mockResolvedValue({} as never);
     const toasts: string[] = [];
     const stop = subscribeToast((t) => { if (t) toasts.push(t.message); });
     setAdminAiBlocked(true);
     render(<NotesProvider userId="u1"><AIControlPage onBack={() => {}} /></NotesProvider>);
 
-    expect(screen.getByText("Turned off by admin")).toBeInTheDocument();
+    expect(screen.getByText("Turned Off by Admin")).toBeInTheDocument();
     const sw = screen.getByRole("switch", { name: "AI on or off" });
     expect(sw.getAttribute("aria-checked")).toBe("false");
     expect(sw.getAttribute("aria-disabled")).toBe("true");
@@ -104,7 +104,7 @@ describe("Settings > AI Control on a blocked account", () => {
     fireEvent.click(sw);
     fireEvent.click(sw.closest(".row")!);
     fireEvent.click(screen.getByText("Everything").closest(".row")!);
-    await waitFor(() => expect(toasts).toContain("Turned off by admin"));
+    await waitFor(() => expect(toasts).toContain("Turned Off by Admin"));
 
     expect(save).not.toHaveBeenCalled();
     expect(getAIControl().level).toBe("off");
@@ -116,9 +116,9 @@ describe("Settings > AI Control on a blocked account", () => {
     vi.spyOn(ProfileService.prototype, "save").mockResolvedValue({} as never);
     setAdminAiBlocked(true);
     render(<NotesProvider userId="u1"><AIControlPage onBack={() => {}} /></NotesProvider>);
-    expect(screen.getByText("Turned off by admin")).toBeInTheDocument();
+    expect(screen.getByText("Turned Off by Admin")).toBeInTheDocument();
     act(() => setAdminAiBlocked(false));
-    await waitFor(() => expect(screen.queryByText("Turned off by admin")).toBeNull());
+    await waitFor(() => expect(screen.queryByText("Turned Off by Admin")).toBeNull());
     expect(screen.getByRole("switch", { name: "AI on or off" }).getAttribute("aria-disabled")).toBeNull();
   });
 });

@@ -1,7 +1,11 @@
 import type { Progress } from "./progress";
 import { Bar, Nums } from "./GoalRowRuled";
 import { FolderOpenGlyph, GoalMark } from "../shared/glyphs";
-import { useLongPress } from "../shared/useLongPress";
+import { useRowMenu } from "../shared/useRowMenu";
+import { useSwipe } from "../shared/useSwipe";
+import type { RowAction } from "../shared/RowActionSheet";
+import RowCtxAction from "../shared/RowCtxAction";
+import { Check, Forward } from "../shared/icons";
 import { titleCase } from "../shared/casing";
 
 // THE PROJECT ROW IS THE GOAL ROW (Dave 2026-09-13: "Let's make the format of
@@ -11,8 +15,9 @@ import { titleCase } from "../shared/casing";
 //
 //   glyph    the folder, in the project's area colour, where the goal row
 //            carries its target
-//   line 1   the title, and Close at its right edge when the work is all
-//            done and the project is waiting to be closed
+//   line 1   the title (Close is not a pill on it: Dave 2026-10-05, "Clean
+//            rows, no pills anywhere". A project whose work is all done shows
+//            Close as one quiet word on the row, and it is also the swipe)
 //   line 2   what moves it next: a NEXT label (orange, Dave: "next should be
 //            yellow or orange") and the action in full ink; with no next
 //            move, the goal it is filed to
@@ -23,6 +28,11 @@ import { titleCase } from "../shared/casing";
 // The pie is gone from the ring slot: the bar says the same number, and one
 // meter per row is the goal row's rule.
 
+// THE ROW'S GESTURES (Dave 2026-10-05, locked; ROW-ACTIONS-SPEC). Tap opens the project (its page holds every action).
+// Swipe left is the row's one quickest verb: Close when the work is all done and the project is waiting to be closed,
+// otherwise Move to Goal; with both, Close leads and Move follows. Swipe right completes, which for a project is Close.
+// Long press is the menu with the same lines. Once its moment has come (every task done) Close shows on the row as one
+// quiet word, the same action as the swipe. The tap that ends a hold never also opens the project.
 export default function ProjectRowRuled({ title, glyphTone, next = null, goal = null, meter, hold = null, status, bar, onOpen, onClose, onHold }: {
   title: string;
   /** A cat-fg-* class: the project's area colour. */
@@ -42,42 +52,78 @@ export default function ProjectRowRuled({ title, glyphTone, next = null, goal = 
   onOpen?: () => void;
   /** Present only when every task is done and the project is still open. */
   onClose?: () => void;
-  /** MOVE TO GOAL (Dave 2026-09-13, "do the suggestions as well"): hold the
-   *  row to refile the project without opening its sheet. The tap that ends
-   *  the hold never also opens the project. */
+  /** MOVE TO GOAL (Dave 2026-09-13, "do the suggestions as well"): refile the
+   *  project without opening its sheet. It is the swipe, and a line in the
+   *  long-press menu. */
   onHold?: () => void;
 }) {
-  const press = useLongPress({ onLongPress: () => onHold?.(), enabled: !!onHold });
+  const shown = titleCase(title);
+  const tray: { label: string; icon: "check" | "forward"; run: () => void }[] = [
+    ...(onClose ? [{ label: "Close", icon: "check" as const, run: onClose }] : []),
+    ...(onHold ? [{ label: "Move", icon: "forward" as const, run: onHold }] : []),
+  ];
+  const menuActions: RowAction[] = [
+    ...(onClose ? [{ label: "Close It", onPick: onClose }] : []),
+    ...(onHold ? [{ label: "Move to Goal", onPick: onHold }] : []),
+  ];
+  const rowMenu = useRowMenu({ title: shown, actions: menuActions, swipeEnabled: tray.length > 0 });
+  const swipe = useSwipe({
+    revealW: tray.length * 88,
+    rightW: onClose ? 88 : 0,
+    ...(onClose ? { onRightCommit: onClose } : {}),
+    enabled: tray.length > 0,
+    onLongPress: rowMenu.onLongPress,
+  });
+  const { handlers, sheet } = rowMenu.bind(swipe);
   return (
-    <div {...(onHold ? press : {})} className="task-row p2 goal-row-ruled proj-row-ruled" role={onOpen ? "button" : undefined} tabIndex={onOpen ? 0 : undefined} onClick={onOpen}>
-      <div className="task-check-tap"><span className={"gm-slot " + glyphTone}><FolderOpenGlyph /></span></div>
-      <div className="task-title">
-        <div className="proj-line1">
-          {/* His own titles, SHOWN in Title Case (Dave's pass-off,
-              2026-09-26); the record keeps what he typed. */}
-          <span className="task-name">{titleCase(title)}</span>
-          {onClose && (
-            <button className="pill-act proj-close" onClick={(e) => { e.stopPropagation(); onClose(); }}>Close</button>
-          )}
+    <div className="task-swipe">
+      {onClose && (
+        <div className="task-done-rail" aria-hidden="true">
+          <Check className="ic" />
+          <span className="swipe-label">Close</span>
         </div>
-        {(next || goal) && (
-          <div className="r-k goal-sub">
-            {next
-              ? <span className="r-next-in"><span className="r-next-k">Next</span><span className="r-next-v">{titleCase(next)}</span></span>
-              : goal && <span className={"r-goal r-is-goal " + goal.hue}><GoalMark /><span className="r-goal-t">{titleCase(goal.title)}</span></span>}
+      )}
+      {tray.map((b, i) => (
+        <button key={b.label} className={i === 0 ? "task-verb" : "task-verb task-verb-2"} aria-label={b.label + " " + shown}
+          onClick={() => swipe.closeThen(b.run)}>
+          {b.icon === "check" ? <Check className="ic" /> : <Forward className="ic" />}
+          <span className="swipe-label">{b.label}</span>
+        </button>
+      ))}
+      <div
+        {...handlers}
+        className={"task-row p2 goal-row-ruled proj-row-ruled" + (swipe.dragging ? " swiping" : "")}
+        style={swipe.dx ? { transform: `translateX(${swipe.dx}px)` } : undefined}
+        role={onOpen ? "button" : undefined} tabIndex={onOpen ? 0 : undefined}
+        onClick={() => { if (swipe.open || swipe.dx) { swipe.closeThen(); return; } onOpen?.(); }}>
+        <div className="task-check-tap"><span className={"gm-slot " + glyphTone}><FolderOpenGlyph /></span></div>
+        <div className="task-title">
+          <div className="proj-line1">
+            {/* His own titles, SHOWN in Title Case (Dave's pass-off,
+                2026-09-26); the record keeps what he typed. */}
+            <span className="task-name">{shown}</span>
           </div>
-        )}
-        {/* No count, no hold and no status: no line at all, not an empty
-            one holding its margin under the title. */}
-        {(hold || meter || status) && (
-          <div className="goal-meter">
-            <span className={"r-goal" + (hold ? " r-stalled" : "")}><Nums text={hold ?? meter} /></span>
-            {status && <span className={"gstat gstat-" + status.tone}>{status.text}</span>}
-          </div>
-        )}
-        {bar && <Bar p={bar} />}
+          {(next || goal) && (
+            <div className="r-k goal-sub">
+              {next
+                ? <span className="r-next-in"><span className="r-next-k">Next</span><span className="r-next-v">{titleCase(next)}</span></span>
+                : goal && <span className={"r-goal r-is-goal " + goal.hue}><GoalMark /><span className="r-goal-t">{titleCase(goal.title)}</span></span>}
+            </div>
+          )}
+          {/* No count, no hold and no status: no line at all, not an empty
+              one holding its margin under the title. */}
+          {(hold || meter || status) && (
+            <div className="goal-meter">
+              <span className={"r-goal" + (hold ? " r-stalled" : "")}><Nums text={hold ?? meter} /></span>
+              {status && <span className={"gstat gstat-" + status.tone}>{status.text}</span>}
+            </div>
+          )}
+          {bar && <Bar p={bar} />}
+        </div>
+        {onClose && <RowCtxAction when label="Close" ariaLabel={"Close " + shown} onAct={onClose} />}
+        {!onClose && onOpen && <div className="chev" />}
       </div>
-      {onOpen && <div className="chev" />}
+      {sheet}
     </div>
   );
 }

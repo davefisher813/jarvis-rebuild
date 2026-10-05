@@ -1,8 +1,10 @@
 import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { useSwipe } from "../shared/useSwipe";
-import { useLongPress } from "../shared/useLongPress";
-import { haptics } from "../shared/haptics";
+import { useRowMenu } from "../shared/useRowMenu";
+import RowActionSheet from "../shared/RowActionSheet";
+import RowCtxAction from "../shared/RowCtxAction";
 import { Quiet } from "./quiet";
+import { usePeekOnce } from "./usePeekOnce";
 import { X } from "../shared/icons";
 
 // THE NOTICE LAW (A1, 2026-08-20), extended by FORM FOLLOWS DECISION
@@ -30,6 +32,16 @@ import { X } from "../shared/icons";
 //
 // Subs render through the quiet line: words whisper, data pops, heat only
 // where the producer says so.
+//
+// A ROW HAS NO CAPSULE (Dave 2026-10-05, locked: "Clean rows, no pills
+// anywhere"). In the row form the verb is a gesture, never a button drawn on
+// the row: swipe left shows it (first in the tray, with the alt, Dismiss and
+// Delete beside it), a tap opens the row's door (onOpen) or, when the row has
+// no door of its own, a sheet holding every action it has, and a row whose
+// moment has come (`due`) quietly shows that one verb as text in the key
+// colour. The CARD form is the settled notice pattern (a notice with its own
+// words and its own action: permission asks, banners, the Email review card)
+// and keeps its capsule.
 
 // THE DEFAULT TONE IS NOT RED (Dave 2026-08-29, the notice audit, Wave 3).
 //
@@ -65,6 +77,9 @@ export default function NoticeCard({
   dismissButton = false,
   onDelete,
   onOpen,
+  due = false,
+  offer = false,
+  asRow = false,
   foot,
   form = "card",
   uniform = true,
@@ -77,6 +92,7 @@ export default function NoticeCard({
   anchor,
   automation,
   onTune,
+  tuneChoices = ["more", "less", "never"],
 }: {
   icon: ReactNode;
   // UP-CORE-14 (2026-09-05): which producer made this card ("gap-fill",
@@ -86,6 +102,11 @@ export default function NoticeCard({
   // no services.
   automation?: string;
   onTune?: (choice: "more" | "less" | "never") => void;
+  // The choices the hold offers. A producer that nothing can show MORE of
+  // offers only Less and Never (2026-10-04: the
+  // Learned Day card wrote a "more" rule that no reader lifted anything for,
+  // a menu option that stored a rule and a success toast and did nothing).
+  tuneChoices?: ReadonlyArray<"more" | "less" | "never">;
   // A cat-fg-* class. Color is the notice's category, never decoration.
   tone?: string;
   title: ReactNode;
@@ -114,6 +135,21 @@ export default function NoticeCard({
   // "make it go away" and found the email still sitting in his inbox.
   onDelete?: () => void;
   onOpen?: () => void;
+  /** ITS MOMENT HAS COME (2026-10-05, ROW-ACTIONS-SPEC section 3): a bill due today or late, a reminder that is up. A
+   *  row form with a verb quietly shows it as text on the row, the same action as the swipe. Future items pass nothing. */
+  due?: boolean;
+  /** THE NOTICE IS ITSELF THE QUESTION (2026-10-05): a permission ask, a claim it wants accepted, an offer whose words
+   *  carry the decision. These are the settled notice and promo cards, which keep their capsule even in a stream's row
+   *  form (Dave's lock: "notice and promo cards with their own words" are exempt). A notice that is about a THING (a
+   *  project, a bill, a place you were) is a row, and a row has no capsule. */
+  offer?: boolean;
+  /** THE CARD'S ANATOMY, DRAWN AS A ROW OF A LIST (2026-10-05, Dave's Ready to Send rows: "Clean rows, no pills anywhere").
+   *  A mail notice keeps the stacked card form (sender over its one grey line, a foot of chips and a draft under it) but
+   *  is a ROW of the band's grouped card, so it wears none of a card's capsule: its verb is the swipe (first in the tray),
+   *  the long-press menu, and, once its moment has come (`due`), the one quiet word on the row. The tap opens the row's
+   *  door (`onOpen`), or runs its one verb, or opens the sheet when it has several. An OFFER ignores this: it is the
+   *  question and its capsule is the answer. */
+  asRow?: boolean;
   // Extra rows below the main line, inside the same card (the email stack).
   foot?: ReactNode;
   form?: "card" | "row";
@@ -274,12 +310,35 @@ export default function NoticeCard({
   // Both forms keep alt on the swipe reveal.
   const altOnReveal = alt;
   const revealDismiss = !!onDismiss && !dismissButton;
-  const acts = (altOnReveal ? 1 : 0) + (revealDismiss ? 1 : 0) + (onDelete ? 1 : 0);
-  const swipe = useSwipe({ revealW: acts * 88, enabled: acts > 0 });
+  // THE ROW'S VERB IS THE FIRST BUTTON IN ITS TRAY (2026-10-05): the row form, and a card drawn as a row (`asRow`);
+  // any other card form draws its verb as a capsule.
+  const verbRow = (form === "row" || asRow) && !offer;
+  const rowAction = verbRow ? action : undefined;
+  const acts = (rowAction ? 1 : 0) + (altOnReveal ? 1 : 0) + (revealDismiss ? 1 : 0) + (onDelete ? 1 : 0);
+  // THE ROW'S VERBS, and its sheet for a row with no destination of its own: with two or more verbs a tap opens a sheet
+  // holding every action the row has (the verbs, then Dismiss and Delete); with one, the tap just does it.
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const verbs = verbRow ? [...(action ? [action] : []), ...(alt ? [alt] : [])] : [];
+  const sheetActions = [
+    ...verbs.map((v) => ({ label: v.label, onPick: v.onClick })),
+    ...(onDismiss ? [{ label: "Dismiss", onPick: onDismiss }] : []),
+    ...(onDelete ? [{ label: "Delete", onPick: onDelete, destructive: true }] : []),
+  ];
   // UP-CORE-14: the hold that opens the tuning sheet. Only on a card that
   // names its producer, so an ordinary notice keeps every gesture it had.
   const [tuneOpen, setTuneOpen] = useState(false);
-  const hold = useLongPress({ onLongPress: () => { haptics.selection(); setTuneOpen(true); }, enabled: !!onTune && !!automation });
+  // THE HOLD IS THE ROW'S CONTEXT MENU (Dave 2026-10-05): the sheet's own lines (the verbs, Dismiss, Delete), listed. A card
+  // that names its producer keeps its older answer, the tuning sheet, because that is what holding it has always meant there.
+  const tunes = !!onTune && !!automation;
+  const rowMenu = useRowMenu({
+    title: typeof title === "string" ? title : "",
+    actions: sheetActions,
+    swipeEnabled: acts > 0,
+    ...(tunes ? { onOpen: () => setTuneOpen(true) } : {}),
+  });
+  const swipe = useSwipe({ revealW: acts * 88, enabled: acts > 0, onLongPress: rowMenu.onLongPress });
+  const { handlers: cardHandlers, sheet: menuSheet } = rowMenu.bind(swipe);
+  usePeekOnce(swipe.peek, acts > 0);
 
   // A STRING SUB IS ONE RUN; A LINE OF FACTS IS A <Facts> NODE (§AM,
   // 2026-09-26). This briefly split a dotted string sub into plain .fact
@@ -299,6 +358,21 @@ export default function NoticeCard({
     </button>
   ) : null;
   const twoVerbs = !!alt && effForm === "card" && form === "row";
+  // THE ROW'S DOOR. A foot opens the row into its card (the one place the rest of it lives); a row with its own
+  // destination goes there; a row with only verbs runs its one verb, or opens the sheet when it has several.
+  const rowDoor = offer ? !!(foot || alt || onOpen) : !!(foot || onOpen || verbs.length);
+  const rowTap = () => {
+    if (offer) { if (foot || alt) setExpanded(true); else if (onOpen) onOpen(); return; }
+    if (foot) { setExpanded(true); return; }
+    if (onOpen) { onOpen(); return; }
+    if (verbs.length === 1) { verbs[0]!.onClick(); return; }
+    if (verbs.length > 1) setSheetOpen(true);
+  };
+  // THE DOOR OF A CARD (the card form's row). A real card opens `onOpen`; a card drawn as a row (`asRow`) opens its
+  // destination too, else runs its one verb, else opens the sheet that holds several, exactly as the row form's tap does.
+  const cardDoor: (() => void) | undefined = asRow && !offer
+    ? (onOpen ?? (verbs.length === 1 ? verbs[0]!.onClick : verbs.length > 1 ? () => setSheetOpen(true) : undefined))
+    : onOpen;
   const inner =
     effForm === "row" ? (
       <div
@@ -309,31 +383,36 @@ export default function NoticeCard({
         // monthly report card) announced itself as a button to a screen
         // reader and took focus in the tab order for a tap that did nothing.
         // The card form just below already gates the same way; this matches it.
-        role={(foot || alt || onOpen) ? "button" : undefined}
-        tabIndex={(foot || alt || onOpen) ? 0 : undefined}
-        onClick={() => { if (foot || alt) setExpanded(true); else if (onOpen) onOpen(); }}
+        role={rowDoor ? "button" : undefined}
+        tabIndex={rowDoor ? 0 : undefined}
+        onClick={rowTap}
       >
         <div className={"row-glyph notice-disc " + (tone ?? DEFAULT_TONE).replace("cat-fg-", "cat-bg-")}>{icon}</div>
         <div className="row-grow vrow-line">
           <span className="conn-name vrow-fact" ref={(el) => { factRef.current = el; }}>{title}</span>
           {subNode && !subDropped && <span className="conn-meta vrow-sub" ref={(el) => { subRef.current = el; }}>{subNode}</span>}
         </div>
-        {action ? (
+        {/* NO CAPSULE ON A ROW (Dave 2026-10-05). Its verb is the swipe, the tap
+            and, once its moment has come, this one quiet word. An OFFER is the
+            exception: it is the question, and its capsule is the answer. */}
+        {offer && action ? (
           <button className={"pill-act" + (action.go ? " pill-go" : "")} onClick={(e) => { e.stopPropagation(); action.onClick(); }}>
             {action.label}
           </button>
-        ) : (
+        ) : due && action ? (
+          <RowCtxAction when label={action.label} onAct={action.onClick} />
+        ) : rowDoor || offer ? (
           <div className="chev" />
-        )}
+        ) : null}
         {xButton}
       </div>
     ) : (
       <>
         <div
           className="row"
-          role={onOpen ? "button" : undefined}
-          tabIndex={onOpen ? 0 : undefined}
-          onClick={onOpen}
+          role={cardDoor ? "button" : undefined}
+          tabIndex={cardDoor ? 0 : undefined}
+          onClick={cardDoor}
         >
           <div className={"row-glyph notice-disc " + (tone ?? DEFAULT_TONE).replace("cat-fg-", "cat-bg-")}>{icon}</div>
           <div className="row-grow">
@@ -344,23 +423,30 @@ export default function NoticeCard({
           </div>
           {/* An expanded row with two verbs carries neither in the trailing
               slot: both go on the verbs line below, together. See there. */}
-          {action && !stack && !twoVerbs ? (
+          {action && !stack && !twoVerbs && !verbRow ? (
             <button
               className={"pill-act" + (action.go ? " pill-go" : "")}
               onClick={(e) => { e.stopPropagation(); action.onClick(); }}
             >
               {action.label}
             </button>
-          ) : onOpen && !twoVerbs && !xButton ? (
+          ) : verbRow && due && action ? (
+            <RowCtxAction when label={action.label} onAct={action.onClick} />
+          ) : cardDoor && !twoVerbs && !xButton && !(stack && action) ? (
             <div className="chev" />
           ) : null}
-          {xButton}
+          {/* A STACKED OFFER'S DISMISS LIVES WITH ITS ANSWER (round 2 review: the X took a 44px column of its own, so the
+              words ended 100px short of the card's edge and the title wrapped to three lines). The words get the whole
+              row; the capsule and the X share the line under them, still siblings, so neither can sit under the other. */}
+          {stack && action ? null : xButton}
         </div>
         {action && stack && (
           <div className="notice-stack">
+            <div className="row-glyph" aria-hidden="true" />
             <button className="pill-act" onClick={(e) => { e.stopPropagation(); action.onClick(); }}>
               {action.label}
             </button>
+            {xButton}
           </div>
         )}
         {twoVerbs && alt && (
@@ -401,6 +487,8 @@ export default function NoticeCard({
   // notice can carry all three), and a fixed "beside-dismiss"-style class
   // per pair does not scale past two.
   let slot = 0;
+  // A row's own verb is the quickest, so it takes the edge and the rest follow it in.
+  if (rowAction) slot++;
   const deleteRight = onDelete ? slot++ * 88 : 0;
   const dismissRight = revealDismiss ? slot++ * 88 : 0;
   const altRight = altOnReveal ? slot++ * 88 : 0;
@@ -411,6 +499,15 @@ export default function NoticeCard({
           opens the rail around it, so a keyboard or switch user is never
           pressing a control parked underneath the card. */}
       <div className="notice-swipe" onFocus={swipe.revealFocus}>
+        {rowAction && (
+          <button
+            className="notice-alt"
+            data-reveal
+            onClick={() => swipe.closeThen(rowAction.onClick)}
+          >
+            {rowAction.label}
+          </button>
+        )}
         {altOnReveal && (
           <button
             className="notice-alt"
@@ -455,6 +552,7 @@ export default function NoticeCard({
             + (uniform && (effForm === "card" || effForm === "row") ? " notice-card-uniform" : "")
             + (stack ? " notice-card-stack" : "")
             + (wrap ? " notice-card-wrap" : "")
+            + (asRow && !offer && effForm === "card" ? " notice-card-asrow" : "")
             /* A UNIFORM CARD IS TWO LINES TALL, and how it spends them is
                its own business. With a sub, that is one line each. WITHOUT
                one, the title takes both, which costs nothing: the card is
@@ -470,8 +568,7 @@ export default function NoticeCard({
             + (uniform && (effForm === "card" || effForm === "row") && !(subNode && !subDropped) ? " notice-card-solo" : "")
             + (swipe.dragging ? " swiping" : "")}
           style={{ transform: swipe.dx ? `translateX(${swipe.dx}px)` : undefined }}
-          {...swipe.handlers}
-          {...(onTune ? hold : {})}
+          {...cardHandlers}
         >
           {inner}
         </div>
@@ -481,13 +578,17 @@ export default function NoticeCard({
             visible, deletable rule in What JARVIS Learned. The sheet is
             three rows and nothing else, because there are exactly three
             things to say to a producer. */}
+        {sheetOpen && (
+          <RowActionSheet title={typeof title === "string" ? title : undefined} actions={sheetActions} onCancel={() => setSheetOpen(false)} />
+        )}
+        {menuSheet}
         {tuneOpen && onTune && (
           <>
             <div className="block-menu-scrim" onClick={() => setTuneOpen(false)} />
             <div className="block-menu notice-tune">
-              <button className="block-menu-item" onClick={() => { setTuneOpen(false); onTune("more"); }}>More Like This</button>
-              <button className="block-menu-item" onClick={() => { setTuneOpen(false); onTune("less"); }}>Less of This</button>
-              <button className="block-menu-item danger" onClick={() => { setTuneOpen(false); onTune("never"); }}>Never</button>
+              {tuneChoices.includes("more") && <button className="block-menu-item" onClick={() => { setTuneOpen(false); onTune("more"); }}>More Like This</button>}
+              {tuneChoices.includes("less") && <button className="block-menu-item" onClick={() => { setTuneOpen(false); onTune("less"); }}>Less of This</button>}
+              {tuneChoices.includes("never") && <button className="block-menu-item danger" onClick={() => { setTuneOpen(false); onTune("never"); }}>Never</button>}
             </div>
           </>
         )}

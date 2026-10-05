@@ -43,7 +43,7 @@ export default function RefillRunwayScreen({
           <>
             <div className="facts">
               {state.filledAt !== undefined && <span className="fact date">Filled {shortDateFromMs(state.filledAt)}</span>}
-              <span className="fact"><b>{state.taken}</b> of <b>{state.dosesInFill}</b> taken</span>
+              <span className="fact"><b>{state.taken}</b> of <b>{state.dosesInFill}</b> Taken</span>
             </div>
             <div className="stat-row stat-row-gap stat-hblue">
               {/* Each tile is amber only when ITS OWN number is near its own

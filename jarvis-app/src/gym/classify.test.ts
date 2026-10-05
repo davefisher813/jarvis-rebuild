@@ -241,4 +241,29 @@ describe("classConflicts and mergeClass", () => {
     expect(got.equipment).toBe("smith");
     expect(got.primary).toEqual(["shoulders"]);
   });
+
+  // THE EXECUTION CONFLICT IS GRIP, STANCE, ANGLE AND VARIATION (2026-10-04).
+  // valueLine("execution") writes all four into the line the review shows, so
+  // a disagreement that is only a grip is offered as a choice; mergeClass only
+  // filled blanks from them, so picking the folded side did nothing.
+  it("resolving Execution the folded way takes its grip, stance, angle and variation", () => {
+    const k = c({ primary: ["back"], grip: "Overhand", stance: "Shoulder Width", angle: "Flat" });
+    const f = c({ primary: ["back"], grip: "Neutral", variation: "Pause" });
+    expect(classConflicts(k, f).map((x) => x.field)).toEqual(["execution"]);
+    const got = mergeClass(k, f, ["execution"]);
+    expect(got.grip).toBe("Neutral");
+    expect(got.variation).toBe("Pause");
+    // Where the folded side said nothing, the survivor's answer is not erased.
+    expect(got.stance).toBe("Shoulder Width");
+    expect(got.angle).toBe("Flat");
+  });
+
+  it("leaves the survivor's grip alone when Execution is resolved its own way", () => {
+    const k = c({ primary: ["back"], grip: "Overhand" });
+    const f = c({ primary: ["back"], grip: "Neutral", variation: "Pause" });
+    const got = mergeClass(k, f, []);
+    expect(got.grip).toBe("Overhand");
+    // A blank on the survivor is still filled, as before.
+    expect(got.variation).toBe("Pause");
+  });
 });

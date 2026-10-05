@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { Tag, CalendarDays, ListChecks, ListTodo, Plus, X, FolderKanban, User, Target, Link2 as LinkIcon } from "../../shared/icons";
+import { Tag, CalendarDays, ListChecks, ListTodo, FolderKanban, User, Target, Link2 as LinkIcon } from "../../shared/icons";
 import { catColor } from "../../shared/categories";
 import { Head, Card } from "../../settings/kit";
 import { pressable } from "../../shared/pressable";
+import SwipeDelete from "../../shared/SwipeDelete";
 
 // HMN-F-18 (2026-09-05): `gone` is set by the flow when the thing this link
 // points at no longer exists. The link stays (the note recorded a real
@@ -64,7 +65,9 @@ export default function Connections({
       </div>
       <div className="nav-large">Connections</div>
 
-      <Head label="Linked To" />
+      {/* THE ADD IS THE HEAD'S (Dave 2026-10-05, locked): Add Link was a row at the foot of the card. A link comes off by
+          its swipe, not by an X on the row. */}
+      <Head label="Linked To" action={onAddLink ? { label: "Add Link", onClick: onAddLink } : undefined} />
       <Card>
         <div
           className="row"
@@ -108,10 +111,9 @@ export default function Connections({
           // HMN-F-18: a link whose target was deleted is not openable, and it
           // says which one that is rather than eating the tap.
           const canOpen = !c.gone && !!(onOpen && c.targetId && (c.kind === "task" || c.kind === "project" || c.kind === "event" || c.kind === "goal" || c.kind === "person"));
-          return (
+          const row = (
             <div
               className={"row" + (c.gone ? " conn-gone" : "")}
-              key={c.id}
               role={canOpen ? "button" : undefined}
               tabIndex={canOpen ? 0 : undefined}
               onClick={canOpen ? () => onOpen!(c.kind, c.targetId!) : undefined}
@@ -120,17 +122,12 @@ export default function Connections({
               <div className="conn-name">{c.label}</div>
               {c.gone && <span className="conn-meta">Gone</span>}
               {canOpen && <div className="chev"></div>}
-              <button className="conn-remove" aria-label="Remove link" onClick={(e) => { e.stopPropagation(); onRemove?.(c.id); }}>
-                <X className="ic" />
-              </button>
             </div>
           );
+          return onRemove
+            ? <SwipeDelete key={c.id} label={"Link " + c.label} onDelete={() => onRemove(c.id)}>{row}</SwipeDelete>
+            : <div key={c.id}>{row}</div>;
         })}
-        <div className="row" {...pressable(() => onAddLink?.())}>
-          <div className="proj-icon cat-bg-green"><Plus className="ic" /></div>
-          <div className="conn-name">Add Link</div>
-          <div className="chev"></div>
-        </div>
       </Card>
 
       <Head label="Actions" />

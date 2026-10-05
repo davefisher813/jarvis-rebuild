@@ -42,7 +42,7 @@ export default function AssignMusclesSheet({ untagged, current, onSave, onClose 
         const at = picked.indexOf(m);
         return (
           <div key={m} {...pressable(() => onPick(m))} className={"chip" + (at >= 0 ? " active" : "")} aria-pressed={at >= 0}>
-            {MUSCLE_LABEL[m]}{at === 0 ? " · Primary" : ""}
+            {MUSCLE_LABEL[m]}{at === 0 ? ", Primary" : ""}
           </div>
         );
       })}
@@ -56,7 +56,7 @@ export default function AssignMusclesSheet({ untagged, current, onSave, onClose 
         <div className="pad-x sheet-form">
           <div className="facts">
             <span className={"fact " + (assigned < untagged.length ? "amber" : "lime")}>{lineCase(`${assigned} of ${untagged.length} assigned`)}</span>
-            <span className="fact">The first muscle counts a set whole, the rest half</span>
+            <span className="fact">The First Muscle Counts a Set Whole, the Rest Half</span>
           </div>
           <div className="field">
             <div className="input-label">Same Muscles for Every Exercise Below</div>
@@ -67,7 +67,7 @@ export default function AssignMusclesSheet({ untagged, current, onSave, onClose 
             <div className="field" key={keyOf(u)}>
               <div className="row">
                 <div className="row-grow"><div className="conn-name">{u.name}</div></div>
-                <div className="facts"><span className="fact lime">{`${u.sets} ${u.sets === 1 ? "set" : "sets"}`}</span></div>
+                <div className="facts"><span className="fact lime">{`${u.sets} ${u.sets === 1 ? "Set" : "Sets"}`}</span></div>
               </div>
               {chips(draft[keyOf(u)] ?? [], (m) => toggle(keyOf(u), m), `Muscles for ${u.name}`)}
             </div>

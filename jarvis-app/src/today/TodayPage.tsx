@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { DollarSign, RotateCcw } from "../shared/icons";
+import { Camera, DollarSign, RotateCcw } from "../shared/icons";
 import NoticeCard from "./NoticeCard";
 import { rowDoor, own } from "../shared/rowDoor";
 import { rankStream, DEALT, WAITING, NEW, AMBIENT } from "./stream";
@@ -21,11 +21,16 @@ import { Burst, useBurst } from "../shared/Burst";
 import type { BurstSize } from "../shared/completion";
 import { eveningFacts, todayPlanLine, EVENING_TASKS_NOTE, type EveningStats, type TodayPlan, type WeekRecap } from "./evening";
 import { Facts } from "../messages/factsLine";
-import MoveHeadliner from "./MoveHeadliner";
+import MoveHeadliner, { SwipeShell } from "./MoveHeadliner";
+import { TodayPeek } from "./usePeekOnce";
+import SwipeTip from "../shared/SwipeTip";
+import RowCtxAction from "../shared/RowCtxAction";
+import RowActionSheet from "../shared/RowActionSheet";
+import HeadMore from "../shared/HeadMore";
 
-import { lineCase } from "../shared/casing";
+import { lineCase, titleCase } from "../shared/casing";
 import { MorningWeatherLine, WeatherOfferRow } from "../weather/WeatherLine";
-import { CheckCircleGlyph, GiftGlyph, SunriseGlyph, SweepGlyph, ParentLineGlyph, BullseyeGlyph } from "../shared/glyphs";
+import { CheckCircleGlyph, GiftGlyph, SunriseGlyph, SweepGlyph, ParentLineGlyph } from "../shared/glyphs";
 import StepCount, { stepsOf } from "../shared/StepCount";
 import type { ParentLine } from "../life/parent";
 import { originLabel } from "../tasks/origin";
@@ -49,7 +54,7 @@ function StreamMember(props: { weight: number; anchor?: boolean; children: React
 }
 
 // THE RULED ROW (2026-09-01, "Where Urgency Sits" + the Focus contract §4.1).
-//   [ ring 24, neutral ][ name 16/500 / kicker: category bar · goal · chip ][ Start ]
+//   [ ring 24, neutral ][ name 16/500 / kicker: category bar · goal · chip ]
 // Three things changed from the row this replaced, and each one is a Dave
 // ruling, not taste:
 //   1. The ring is never category-coloured. It is the completion control
@@ -58,9 +63,8 @@ function StreamMember(props: { weight: number; anchor?: boolean; children: React
 //      category as the bar's colour. A task with no goal says so quietly
 //      and stays adoptable, instead of hiding it.
 //   3. The urgency chip moved OFF the trailing slot onto the kicker line,
-//      and it says the distance ("2 DAYS LATE"), not the state. Start is
-//      alone in the trailing slot now, so the name gets its width back and
-//      stops truncating; nothing due tomorrow or later gets a chip at all.
+//      and it says the distance ("2 DAYS LATE"), not the state. Nothing due
+//      tomorrow or later gets a chip at all.
 // `u` is still accepted and still decides whether the row is urgent at all
 // (the flow passes null in the evening to keep the recap calm), but the
 // chip's WORDS come from distanceFor.
@@ -68,7 +72,14 @@ function StreamMember(props: { weight: number; anchor?: boolean; children: React
 // Clearing the last task of a six-month project used to burst exactly like
 // ticking "buy milk"; the flow can answer that before the tick, from the
 // projects and tasks it already holds, so the answer arrives with the row.
-function TaskRow({ t, u, sub, parent, today, burstSize = "small", onToggle, onOpen, onStart }: { t: TaskItem; u: { kind: UrgencyKind; label: string } | null; sub?: string | null; parent?: ParentLine | null; today?: string; burstSize?: BurstSize; onToggle?: () => void; onOpen?: () => void; onStart?: () => void }) {
+//
+// NO CAPSULE ON THE ROW (Dave 2026-10-05, locked). The Start pill this row
+// once could carry is gone (nothing passed it, so it was dead code too). The
+// row's verbs are its gestures: swipe left is Done, swipe right is Done (the
+// same tick, with its burst and its Undo), a tap opens the task, and a task
+// that is LATE quietly shows Done as text on the row. The title is shown in
+// Title Case whatever case it was typed in; the record keeps what he typed.
+function TaskRow({ t, u, parent, today, burstSize = "small", onToggle, onOpen }: { t: TaskItem; u: { kind: UrgencyKind; label: string } | null; parent?: ParentLine | null; today?: string; burstSize?: BurstSize; onToggle?: () => void; onOpen?: () => void }) {
   const [bursting, fireBurst] = useBurst();
   const [localDone, setLocalDone] = useState(false);
   const pending = useRef(false);
@@ -89,70 +100,63 @@ function TaskRow({ t, u, sub, parent, today, burstSize = "small", onToggle, onOp
   // Tasks page needed the same slot and section 0 allows exactly one version
   // of it. Today's own answer is unchanged.
   const steps = stepsOf(t.data);
-  // SAY IT ONCE. The reason line the dealt card owes (reasonFor) leads with
-  // the due distance: "Due today", "Waiting 2 days". The kicker chip now says
-  // exactly that, so when a chip renders, the reason's due-part is dropped
-  // and only what the chip does NOT say survives ("your focus peak"). A
-  // reason with nothing left after that renders no line at all.
-  const reason = (() => {
-    if (!sub) return null;
-    if (!dist) return sub;
-    const kept = sub.split(" \u00b7 ").filter((part) => !/^(due today|waiting )/i.test(part));
-    return kept.length ? kept.join(" \u00b7 ") : null;
-  })();
+  // THE REASON LINE IS GONE (2026-10-05, the catalog hard gate). This took a
+  // `sub` string, the dealt card's reasonFor line joined with a typed middle dot,
+  // and split it back apart on that dot to drop the half the chip already says.
+  // Nothing passes `sub` (the dealt card is Your Move's row, MoveHeadliner), so it
+  // was dead code carrying exactly the pattern R6 bans: a data builder's dotted
+  // string cut up and printed inside a .r-k line. If a reason ever returns it
+  // arrives as separate facts, never a string to split.
+  const name = titleCase(t.data.text);
+  const canTick = !!onToggle && !done;
+  const late = dist?.kind === "late" && !done;
   return (
-    // THE WHOLE ROW IS THE DOOR (Dave 2026-09-15: "I want all rows
-    // clickable. How is the first thing that renders on the app not
-    // clickable?"). Only the title used to open the task; the ring's gutter,
-    // the kicker's padding and the space around Start were dead. The row
-    // takes the tap now, and the ring and Start keep their own verbs.
+    <div className="pad-x">
+    <SwipeShell
+      menuTitle={name}
+      actions={canTick ? [{ label: "Done", run: tap }] : []}
+      {...(canTick ? { onRight: tap } : {})}
+    >
+    {/* THE WHOLE ROW IS THE DOOR (Dave 2026-09-15: "I want all rows
+        clickable. How is the first thing that renders on the app not
+        clickable?"). Only the title used to open the task; the ring's gutter,
+        the kicker's padding and the space around the count were dead. The row
+        takes the tap now, and the ring keeps its own verb. */}
     <div className={"task-row" + (localDone ? " just-done" : "")} {...(onOpen ? rowDoor(onOpen) : {})}>
       <div className="task-check-tap" role="checkbox" aria-checked={done} aria-label={done ? "Mark not done" : "Mark done"} onClick={own(tap)}>
         <div className={"task-check" + (done ? " done" : "")} />
         <Burst show={bursting} size={burstSize} />
       </div>
       <div className="task-title">
-        <span className="task-name">{t.data.text}</span>
+        <span className="task-name">{name}</span>
         {/* THE SECOND LINE ANSWERS THE PAGE'S QUESTION (Dave 2026-09-01,
             "Together" catalog, on the row he hated). Bar first, so the
             category mark sits at one x on every row. Chip next, so it sits
             at one x whenever it appears. Words last, taking what is left:
-            on Today the question is WHY THIS, NOW, so the dealt card's
-            reason ("Your focus peak") rides here, folded up from the caps
-            eyebrow it used to be; a row with no reason says where it lives
+            a row with no reason says where it lives
             (The Row and Health, 2026-09-02): the parent's own glyph in its
             category colour, then the parent's full name. The vertical bar is
             gone; the glyph carries the colour now. Two lines, always. */}
         <div className="r-k">
           {dist && !done && <span className={"uchip " + (dist.kind === "late" ? "u-late" : "u-today")}>{dist.label}</span>}
-          {reason
-            ? <span className="r-goal r-why">{reason.charAt(0).toUpperCase() + reason.slice(1)}</span>
-            : parent
-              ? <ParentLineGlyph p={parent} />
-              : originLabel(t.data)
-                ? <span className="r-goal r-cat">{originLabel(t.data)}</span>
-                : null}
+          {parent
+            ? <ParentLineGlyph p={parent} />
+            : originLabel(t.data)
+              ? <span className="r-goal r-cat">{originLabel(t.data)}</span>
+              : null}
         </div>
       </div>
-      {/* THE RIGHT SLOT SAYS THE CHECKLIST IS THERE (TRACE-02, 2026-09-07).
-          Dave: "there is no trace of events or steps (for tasks) anywhere in
-          the app." A task can carry a checklist and it rendered in exactly
-          two places in the whole app: the sheet you typed it into, and a
-          search why-line. Close the sheet and the row was byte-identical to
-          a task with nothing on it.
-          Contract 4.1 rules this slot as holding exactly ONE of an action
-          pill, a duration, or a step count, and the count is "used only where
-          no action applies" -- which is every Today task row but the dealt
-          one, whose Start pill owns the slot. So Start still wins, and the
-          count fills a slot that was empty rather than crowding one that was
-          not (lint rule 7, right-slot arity: never two children).
-          Omitted entirely when the task has no checklist: no zeros, no
-          placeholder (4.11). */}
-      {onStart && !done ? (
-        <button className="pill-act" onClick={(e) => { e.stopPropagation(); onStart(); }}>Start</button>
+      {/* THE RIGHT SLOT HOLDS ONE THING (contract 4.1, lint rule 7): the
+          row's one quiet verb once it is late, else the checklist count
+          (TRACE-02, 2026-09-07), else nothing. No zeros, no placeholder
+          (4.11). */}
+      {late && canTick ? (
+        <RowCtxAction when label="Done" onAct={tap} />
       ) : steps.total > 0 ? (
         <StepCount {...steps} />
       ) : null}
+    </div>
+    </SwipeShell>
     </div>
   );
 }
@@ -174,7 +178,7 @@ function SchedRow({ ev, onOpen }: { ev: EventItem; onOpen?: () => void }) {
   const t = fmtTime(ev.data.start);
   return (
     <div
-      className="sched-row"
+      className="sched-row sched-row-bare"
       // Every other event row on this page opens on tap (DayRow's onOpen).
       // The Tomorrow row never got that wiring, so it was the one event on
       // the page you could look at but not touch (Dave 2026-09-04: "I can't
@@ -183,13 +187,14 @@ function SchedRow({ ev, onOpen }: { ev: EventItem; onOpen?: () => void }) {
       tabIndex={onOpen ? 0 : undefined}
       onClick={onOpen}
     >
-      {/* Same category bar as every other event row (Dave 2026-08-19): the
-          Tomorrow rows are a separate component and would have been the one
-          place the signal went missing. */}
-      <span className={"sched-bar cat-bg-" + catColor(ev.data.category)} />
+      {/* THE AREA IS A DOT, ONCE (Dave 2026-10-05, D4: "area colour only on a dot"). These rows wore Dave's category bar
+          (2026-08-19) AND the dot on the line under the title, the one colour drawn twice. The dot carries the name, so it
+          stays and the bar goes. */}
       <div className="sched-time">{t.time}<span className="ampm">{t.ap}</span></div>
       <div className="sched-body">
-        <div className="sched-title">{ev.data.title}</div>
+        {/* THE TITLE WRAPS TO TWO LINES BEFORE IT ENDS (Dave 2026-09-26, 2026-09-27): its own span is what the ruled row
+            clamps, as DayRow's does. A bare text node in the flex title was cut at the card's edge mid-letter. */}
+        <div className="sched-title"><span className="sched-t">{titleCase(ev.data.title)}</span></div>
         {/* An event with no area rendered a dot and nothing after it (Dave's
             2026-09-04 screenshot: the call landed from an email with no
             area, so the second line was one grey dot). It then said "No
@@ -274,6 +279,8 @@ export default function TodayPage({
   onSeeAllMail,
   mailHead,
   mailEmpty,
+  onClearMail,
+  onClearPlan,
   billLine,
   onPayBill,
   onOpenBill,
@@ -317,6 +324,11 @@ export default function TodayPage({
   onSeeAllMail?: () => void;
   // The band and its head appear together or not at all.
   mailEmpty?: boolean;
+  /** Clear All, the band's one bulk action, drawn as the second capsule on its head (Dave 2026-10-05, locked: section-level
+   *  actions live in the section head). Absent when the band has fewer than two notices. */
+  onClearMail?: () => void;
+  /** Clear This Plan, the standing draft's decline, which lives in the day head's overflow (Dave 2026-10-05, locked). */
+  onClearPlan?: () => void;
   billLine?: BillLine; // bills due within 3 days, from billsLine (2026-08-09)
   onPayBill?: () => void; // marks the SOONEST due bill paid, with undo
   onOpenBill?: () => void; // the bill card's body: the bill, or the list of them
@@ -332,9 +344,9 @@ export default function TodayPage({
   onToggleTask?: (id: string) => void;
   onOpenTask?: (id: string) => void;
   // TODAY-F-18 (2026-09-05): this defaulted to "DF", one account's initials,
-  // on a screen built for anybody. It is never reached (the flow always
-  // passes real initials), and the day it is, an empty circle beats someone
-  // else's name.
+  // on a screen built for anybody. The flow passes the real initials, or ""
+  // when the profile has no name (2026-10-05): "" draws Account's neutral
+  // glyph disc, never somebody else's letters and never invented ones.
   avatar?: string;
   onSeeAllSchedule: () => void;
   /** The New Event pill on the day card's head (item 8, 2026-10-01). */
@@ -482,7 +494,9 @@ export default function TodayPage({
   // AMENDED 2026-09-26 (§AM): each tile wears the key's colour for what it
   // counts, and nothing else. Due is amber (needs you soon). Late is red at
   // any count: the key has no threshold, so one late task is as late as
-  // three. Goals are green (done, moved). Events stay quiet.
+  // three. Events stay quiet, and so do goals (AMENDED 2026-10-05: the goal
+  // tile counts the tasks that move a goal today, a count with no state, so
+  // its number is white; green means done and nothing here is done).
   const parts = (
     <div className="stat-tiles">
       {summary.events > 0 && (
@@ -509,7 +523,7 @@ export default function TodayPage({
       )}
       {/* PICK 5 (Dave 2026-08-22) survives as the goal tile: it counts what
           moves something he said he wants, and lands on the Bigger Picture.
-          Green, because moving a goal is the completion colour's job. Absent
+          Neutral since 2026-10-05 (it was green, and green means done). Absent
           on a day that moves nothing, which is a fact, not a scolding. */}
       {summary.moves > 0 && onGoBigger && (
         <span className="stat-tile st-goal" role="button" tabIndex={0} onClick={() => onGoBigger()}>
@@ -531,36 +545,56 @@ export default function TodayPage({
   // Birthdays (ride-along 2026-08-03, previewed and approved): shown ONLY on
   // the day itself, above Up Next. People-pink because this is people data;
   // never red. The year is untrusted (contact imports), so no age is claimed.
+  const [birthdaySheet, setBirthdaySheet] = useState<string | null>(null);
   const birthdaySection = birthdays && birthdays.length > 0 && (
     <>
       <div className="sh2 sh2-quiet"><span className="t">{birthdays.length === 1 ? "Birthday" : "Birthdays"}</span></div>
-      <div>
-        <div>
-          {birthdays.map((b) => (
-            // ROW-TAP (Dave 2026-09-15: "I want all rows clickable"): the
-            // row opens the person, or failing that drafts the text (a
-            // sheet, never a send).
-            <div className="row" key={b.id} {...(onOpenPerson ? rowDoor(() => onOpenPerson(b.id)) : b.phone && onTextPerson ? rowDoor(() => onTextPerson(b.id)) : {})}>
-              <div className="av av-32 cat-bg-pink">{b.name.trim().split(/\s+/).map((w) => w[0]).slice(0, 2).join("").toUpperCase()}</div>
-              <div className="row-grow">
-                <div className="conn-name truncate">{b.name}</div>
-                {/* A sub under a title is never caps (see InsightsFlow). */}
-                <div className="conn-meta">Turns a Year Older Today</div>
+      <div className="heads-up-stream stream-grouped">
+        <div className="card stream-card">
+          {birthdays.map((b) => {
+            // NO PILLS ON THE ROW (Dave 2026-10-05, locked). UP-CORE-03 (2026-09-05): the row said the fact and
+            // offered nothing, so remembering was still entirely on him. Text opens Messages Drafting with the
+            // message already written; Call opens the Call Prep card. Both hide with no number. They are the
+            // swipe now (Text first, Call beside it), and a birthday is on the row only on the day itself, so Text
+            // is also the one quiet word on it. The tap opens the person, or failing that the row's sheet.
+            const text = b.phone && onTextPerson ? () => onTextPerson(b.id) : undefined;
+            const call = b.phone && onCallPerson ? () => onCallPerson(b.id) : undefined;
+            const verbs = [...(text ? [{ label: "Text", run: text }] : []), ...(call ? [{ label: "Call", run: call }] : [])];
+            const door = onOpenPerson ? () => onOpenPerson(b.id) : verbs.length === 1 ? verbs[0]!.run : verbs.length > 1 ? () => setBirthdaySheet(b.id) : undefined;
+            const name = titleCase(b.name);
+            return (
+              <div className="pad-x" key={b.id}>
+                <SwipeShell actions={verbs} menuTitle={name}>
+                  {/* ROW-TAP (Dave 2026-09-15: "I want all rows clickable"). */}
+                  <div className="row" {...(door ? rowDoor(door) : {})}>
+                    <div className="av av-32 cat-bg-pink">{b.name.trim().split(/\s+/).map((w) => w[0]).slice(0, 2).join("").toUpperCase()}</div>
+                    <div className="row-grow">
+                      <div className="conn-name truncate">{name}</div>
+                      {/* A sub under a title is never caps (see InsightsFlow). */}
+                      <div className="conn-meta">Turns a Year Older Today</div>
+                    </div>
+                    {text && <RowCtxAction when label="Text" onAct={text} />}
+                  </div>
+                </SwipeShell>
               </div>
-              {/* UP-CORE-03 (2026-09-05): the row said the fact and offered
-                  nothing, so remembering was still entirely on him. Text
-                  opens Messages Drafting with the message already written;
-                  Call opens the Call Prep card. No phone, no pills. */}
-              {b.phone && onTextPerson && (
-                <button type="button" className="pill-act" onClick={own(() => onTextPerson(b.id))}>Text</button>
-              )}
-              {b.phone && onCallPerson && (
-                <button type="button" className="pill-act" onClick={own(() => onCallPerson(b.id))}>Call</button>
-              )}
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
+      {birthdaySheet && (() => {
+        const b = birthdays.find((x) => x.id === birthdaySheet);
+        if (!b) return null;
+        return (
+          <RowActionSheet
+            title={titleCase(b.name)}
+            actions={[
+              ...(b.phone && onTextPerson ? [{ label: "Text", onPick: () => onTextPerson(b.id) }] : []),
+              ...(b.phone && onCallPerson ? [{ label: "Call", onPick: () => onCallPerson(b.id) }] : []),
+            ]}
+            onCancel={() => setBirthdaySheet(null)}
+          />
+        );
+      })()}
     </>
   );
 
@@ -602,7 +636,7 @@ export default function TodayPage({
   const fifteenIsDealt = !!fifteen && fifteen.taskId === upNextTop?.id;
   const headliner = fifteen ? (
     <MoveHeadliner
-      title={fifteen.text}
+      title={titleCase(fifteen.text)}
       facts={{
         // THE SAME CHIP THE TASK ROWS WEAR (Dave 2026-09-16: "'today' should
         // be a chip"). distanceFor is the app's one chip producer, so the
@@ -624,7 +658,7 @@ export default function TodayPage({
     />
   ) : upNextTop ? (
     <MoveHeadliner
-      title={upNextTop.data.text}
+      title={titleCase(upNextTop.data.text)}
       facts={{
         urgency: distanceFor(upNextTop.data, today),
         category: moveCategory ?? null,
@@ -637,40 +671,15 @@ export default function TodayPage({
       onOpen={() => onOpenTask?.(upNextTop.id)}
     />
   ) : null;
-  // FOCUS BELONGS TO YOUR MOVE (Dave 2026-09-11: "The focus button should be
-  // all the way up top under your move and replace that small grey subtext
-  // that renders the up next page").
-  //
-  // Those two were always the same door -- TodayPage passed `onUpNext` to
-  // YourDay as `onFocus`, and this receipt called `onUpNext` too -- so the
-  // page carried one destination twice: once as a filled red button floating
-  // at the bottom between two other buttons, and once as a grey caps line
-  // here, which is where a person is actually standing when they want the
-  // next thing. One control now, in the place the question gets asked, and it
-  // still says how many are waiting because that is the fact that makes it
-  // worth tapping.
-  const waitingReceipt = upNextTop && onUpNext ? (
-    // ...and it is the app's own centred pill (Dave 2026-09-11: "Focus should
-    // be centered on the page and styled just like clear all and add to
-    // calendar buttons"). Those two are .row-act in a centring wrapper, which
-    // is what a standalone action under a card looks like in this app; a
-    // full-width left-aligned row with a chevron was a LIST row pretending to
-    // be a button.
-    //
-    // JUST THE WORD (Dave 2026-10-03: "Get rid of 13 waiting and just have a
-    // red Focus button"). The pill once carried the deck's count as a chip
-    // ("Focus 23", then "Focus | 23 Waiting"); it read as a second control
-    // sitting inside the first, and under Start Now it made two loud things.
-    // The button is its verb now and nothing else. The Focus screen is where
-    // the deck is counted.
-    // row-tap: centring wrapper whose only content is the Focus button itself
-    <div key="waiting" className="notice-clear-row focus-row">
-      <button className="row-act" onClick={onUpNext}>
-        <BullseyeGlyph />
-        <span className="fc-t">Focus</span>
-      </button>
-    </div>
-  ) : null;
+  // FOCUS BELONGS TO YOUR MOVE'S HEAD (Dave 2026-09-11: "The focus button should be all the way up top under your move
+  // and replace that small grey subtext that renders the up next page"; Dave 2026-10-03: "just have a red Focus button";
+  // Dave 2026-10-05, locked: a section-level action is a capsule in the section head, never a pill hung under its card).
+  // It was a centred .row-act under the Your Move card, which is the shape a standalone action took before the head
+  // took them all. It is the same door the dealt row's receipt opened: one control, in the place the question is asked,
+  // saying only its verb. The Focus screen is where the deck is counted.
+  const focusCapsule = upNextTop && onUpNext
+    ? <button className="see-all pill-action" onClick={onUpNext}>Focus</button>
+    : null;
 
   // THE RECAP IS NOT A WALL (Dave's screenshot 2026-08-26: fifteen bare rows
   // filling two screens at 10:35 PM). Evening shows the top of what is still
@@ -697,8 +706,8 @@ export default function TodayPage({
           really does count only what is due today. */}
       <div className="sh2 sh2-quiet"><span className="t">{evening ? "Still Open" : "Today’s Tasks"}</span>
         {foldedTasks <= 0 && <button className="see-all pill-action" onClick={openDoor}>See All</button>}</div>
-      <div>
-        <div>
+      <div className="heads-up-stream stream-grouped">
+        <div className="card stream-card">
           {shownTasks.map((t) => (
             <TaskRow key={t.id} t={t} u={evening ? null : urgencyFor(t.data, today)} parent={parentOf?.(t)} today={today} burstSize={burstSizeOf?.(t) ?? "small"} onToggle={() => onToggleTask?.(t.id)} onOpen={() => onOpenTask?.(t.id)} />
           ))}
@@ -714,11 +723,15 @@ export default function TodayPage({
     </>
   );
 
+  // PLAN TOMORROW IS ONE CAPSULE IN ONE PLACE (Dave 2026-10-05, locked; Alfred R6: it wore two styles, a dark one on
+  // the Tonight card and a red one here). It is a section-level action, so it lives on Tomorrow's head and nowhere
+  // else, whether tomorrow holds anything or not. An empty Tomorrow is its head and the capsule, with no plate behind
+  // it (rule 12: an action never sits alone in a box).
+  const planTomorrowCapsule = onPlanTomorrow
+    ? <button className="see-all pill-action" onClick={onPlanTomorrow}>Plan Tomorrow</button>
+    : null;
   const tomorrowEmpty = tomorrowEvents.length === 0 && tomorrowTasks.length === 0 && onPlanTomorrow && (
-    <>
-      <div className="sh2 sh2-quiet"><span className="t">Tomorrow</span><span className="n">{tomorrowDate}</span></div>
-      <div className="pad-x"><button className="row row-act" onClick={onPlanTomorrow}>Plan Tomorrow</button></div>
-    </>
+    <div className="sh2 sh2-quiet"><span className="t">Tomorrow</span><span className="n">{tomorrowDate}</span>{planTomorrowCapsule}</div>
   );
 
   const tomorrowSection = (tomorrowEvents.length > 0 || tomorrowTasks.length > 0) && (
@@ -726,25 +739,27 @@ export default function TodayPage({
       {/* The date was styled as a tappable action but only opened Schedule,
           which the head already offers elsewhere. It reads as the fact it is
           now, and the action is the one that helps: set tomorrow up. */}
-      <div className="sh2 sh2-quiet"><span className="t">Tomorrow</span><span className="n">{tomorrowDate}</span>
-        {onPlanTomorrow && <button className="see-all pill-action" onClick={onPlanTomorrow}>Plan It</button>}</div>
-      <div>
-        <div>
+      <div className="sh2 sh2-quiet"><span className="t">Tomorrow</span><span className="n">{tomorrowDate}</span>{planTomorrowCapsule}</div>
+      {/* ONE CARD, LIKE EVERY OTHER BAND (Dave 2026-10-05, the review: the hairlines under these rows ran to the screen's
+          edge because the rows sat on the page, outside any card). In the card a hairline ends at the card's edge, the same
+          place Your Move's and Reminders' do, in both themes. */}
+      <div className="pad-x">
+        <div className="card">
           {tomorrowEvents.map((ev) => (
             <SchedRow ev={ev} key={ev.id} onOpen={onOpenEvent ? () => onOpenEvent(ev.id) : undefined} />
           ))}
           {/* Weeklies/monthlies surface on their day only; the day before gets
               this one quiet heads-up row (roadmap v2 dailies weaving). */}
           {tomorrowTasks.map((t) => (
-            <div className="sched-row" key={t.id} {...(onOpenTask ? rowDoor(() => onOpenTask(t.id)) : {})}>
+            <div className="sched-row sched-row-bare" key={t.id} {...(onOpenTask ? rowDoor(() => onOpenTask(t.id)) : {})}>
               <div className="sched-time" />
               <div className="sched-body">
-                <div className="sched-title">{t.data.text}</div>
+                <div className="sched-title"><span className="sched-t">{titleCase(t.data.text)}</span></div>
                 {catName(t.data.category) && (
                   <div className="sched-cat"><span className={"cat-dot cat-bg-" + catColor(t.data.category)} />{catName(t.data.category)}</div>
                 )}
               </div>
-              <span className="pill pill-subdued">{t.data.recurrence}</span>
+              <span className="pill pill-subdued">{titleCase(t.data.recurrence ?? "")}</span>
             </div>
           ))}
         </div>
@@ -785,8 +800,10 @@ export default function TodayPage({
         // A bill card with no button is the same dead end the old email line
         // was: it tells him he owes money and stops. One tap marks it paid.
         action={onPayBill ? { label: "Paid", onClick: onPayBill } : undefined}
-        // ROW-TAP (Dave 2026-09-15): the body opens the bill; paying stays
-        // on the pill.
+        // ROW-TAP (Dave 2026-09-15): the body opens the bill; paying is the
+        // swipe, and once the bill is due today or late it is also the one
+        // quiet word on the row (Dave 2026-10-05: no pill on a row).
+        due={!!billLine.due?.now}
         onOpen={onOpenBill}
       />
     ) : null,
@@ -816,13 +833,17 @@ export default function TodayPage({
   ].filter(Boolean);
 
   return (
+    <TodayPeek.Provider value={true}>
     <div className="screen ruled">
       <div className={"pagebar today-pagebar" + (condensed ? " on" : "") + (scrolled ? " solid" : "")}>
       <div className="today-bar pagebar-row">
         <button className="today-av" aria-label="Account" onClick={onProfile}>
           {/* His photo, when he has set one on Account (Dave's pick,
               2026-09-26), inside the same red disc; his initials otherwise. */}
-          <div className="av av-32 av-accent">{avatarPhoto ? <img className="av-photo" src={avatarPhoto} alt="" /> : avatar}</div>
+          {/* NO NAME IS NOT "JV" (2026-10-05, Dave "he opens the app and finds nothing"): the bar invented someone's initials
+              for an account with no name, while Account says so honestly. With no photo and no name this is Account's own
+              quiet neutral disc and glyph (`av-empty`, the same Camera); initials only when a name exists. */}
+          <div className={"av av-32 " + (avatarPhoto || avatar ? "av-accent" : "av-empty")}>{avatarPhoto ? <img className="av-photo" src={avatarPhoto} alt="" /> : avatar || <Camera className="ic" aria-hidden="true" />}</div>
         </button>
         <div className="today-brand"><span className="j">J</span>ARVIS</div>
         {onSearch ? (
@@ -863,6 +884,10 @@ export default function TodayPage({
       </div>
       <div ref={condProbe} />
 
+      {/* TEACHING THE SWIPE (Dave 2026-10-05, locked). One line at the top of the list on first run; gone for good after
+          the first swipe or the first dismiss. It shows only when there is a row to swipe. Nothing permanent anywhere. */}
+      {(headliner || notices.length > 0 || reminders || (evening && tasks.length > 0)) && <SwipeTip />}
+
       {/* HOW TODAY WENT (Dave, on the list since 2026-09-07: "'How did I do
           today' never re-evaluated"; built 2026-09-09).
           The plan he commits every morning was written to storage, scored at
@@ -887,7 +912,7 @@ export default function TodayPage({
             {plan.picks.map((p) => (
               <div className="row" key={p.id}>
                 <div className={"task-check" + (p.done ? " done" : "")} aria-hidden="true" />
-                <div className="row-grow"><div className={"conn-name" + (p.done ? " pick-done" : "")}>{p.text}</div></div>
+                <div className="row-grow"><div className={"conn-name" + (p.done ? " pick-done" : "")}>{titleCase(p.text)}</div></div>
               </div>
             ))}
           </div></div>
@@ -946,6 +971,7 @@ export default function TodayPage({
                   {streamOpen ? "Less" : "See All"}
                 </button>
               )}
+              {focusCapsule}
             </div>
             <div className="heads-up-stream stream-grouped">
               {/* ONE CARD, THREE ROWS (Dave 2026-08-26: bare rows "don't
@@ -973,7 +999,6 @@ export default function TodayPage({
                     : r))}
                 </div>
               )}
-              {waitingReceipt}
               {ranked.receipts}
             </div>
           </>
@@ -1001,12 +1026,22 @@ export default function TodayPage({
           {/* C-26 (Astra, 2026-09-12): the band is named for what it wants
               from him, not for the app it came out of. Open Inbox stays, and
               the rows under it are untouched. */}
-          <span className="t">{mailHead?.title ?? "Ready to Send"}</span>
-          {onSeeAllMail && <button className="see-all pill-action" onClick={onSeeAllMail}>{mailHead?.action ?? "Open Inbox"}</button>}
+          {/* The band holds mail, a calendar suggestion and a task born from a thread, so its fallback name says where they came from, not that
+              they are sendable (round 3 review: "a head describes what is under it"). */}
+          <span className="t">{mailHead?.title ?? "From Your Inbox"}</span>
+          {/* CLEAR ALL RIDES THE HEAD (Dave 2026-10-05, locked). When the band also has its door out (Open Inbox, which shows
+              only when no receipt line below already opens the inbox), that door waits behind the head's More button: both
+              capsules beside "Ready to Send" measured 116px for a title that needs 134, and a title cut to "Ready to S..."
+              is the truncation the review bans. One capsule and an overflow never crowd it. */}
+          {onClearMail && <button className="see-all pill-action" onClick={onClearMail}>Clear All</button>}
+          {!onClearMail && onSeeAllMail && <button className="see-all pill-action" onClick={onSeeAllMail}>{mailHead?.action ?? "Open Inbox"}</button>}
+          {onClearMail && onSeeAllMail && (
+            <HeadMore label="Email Actions" actions={[{ label: mailHead?.action ?? "Open Inbox", onPick: onSeeAllMail }]} />
+          )}
         </div>
       )}
       {/* stream-grouped: the mail rows ride inside one card (MailNotices
-          wraps them); the Clear All row and the receipt sit under it. */}
+          wraps them); the receipt sits under it. */}
       {mail && <div className="heads-up-stream stream-grouped">{mail}</div>}
 
       {reminders}
@@ -1024,8 +1059,9 @@ export default function TodayPage({
         onNewEvent={onNewEvent}
         onPlanDay={onPlanDay}
         onPlanTomorrow={onPlanTomorrow}
-        tomorrowShown={!!tomorrowSection}
+        tomorrowShown={!!(tomorrowSection || tomorrowEmpty)}
         onRunningLate={onRunningLate}
+        onClearPlan={onClearPlan}
         onFocus={evening ? undefined : onUpNext}
         onOpenEvent={onOpenEvent}
         onEditRoutine={onEditRoutine}
@@ -1084,5 +1120,6 @@ export default function TodayPage({
 
       <div className="screen-foot" />
     </div>
+    </TodayPeek.Provider>
   );
 }

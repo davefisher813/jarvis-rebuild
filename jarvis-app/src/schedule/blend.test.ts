@@ -65,6 +65,20 @@ describe("the offer", () => {
     expect(f!.why).toMatch(/while you move/i);
   });
 
+  // ROUND-1 REVIEW (2026-10-05): "You Can Do This While You / Move" wrapped to three lines with an orphan word and "Same as This
+  // Block" claimed a block match the rule does not make (it is the same AREA). Every reason fits one line of the offer's column.
+  it("every reason is short enough for one line and says what it matches", () => {
+    const whys = [
+      fitScore({ title: "Drive to Rochester", category: "" }, T("1", "Call Mike"), {})!.why,
+      fitScore({ title: "Dentist appointment", category: "" }, T("2", "Call Mike"), {})!.why,
+      fitScore({ title: "Gym", category: "" }, T("3", "Call Mike"), {})!.why,
+      fitScore({ title: "Lunch", category: "work" }, T("4", "Groceries", "work"), {})!.why,
+      fitScore({ title: "Deep Work", category: "" }, T("5", "Draft the sponsor email"), {})!.why,
+    ];
+    expect(whys).toEqual(["While You Move", "Fits the Wait", "Hands Free", "Same Area", "Real Work, Real Block"]);
+    for (const w of whys) expect(w.length, w).toBeLessThanOrEqual(21);
+  });
+
   it("never ranks a blocked task, however well it scores otherwise", () => {
     const m = { [memKey("moving", "work")]: 9 };
     const out = suggestFor({ title: "Commute", category: "work" }, [T("1", "Write the deck", "work")], m);

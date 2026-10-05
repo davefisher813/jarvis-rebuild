@@ -11,7 +11,12 @@
    =========================================================================== */
 .doc-write { padding: var(--s-3) 20px var(--s-8); }
 .doc-write > * + * { margin-top: var(--s-2h); }
-.doc-write .doc-title { font-size: var(--t-title); font-weight: var(--w-bold); letter-spacing: -0.02em; line-height: 1.15; color: var(--tx-1); }
+/* THE NOTE'S TITLE IS THE LARGE TITLE (2026-10-05, the review: "Coach Onboarding Plan" at 26 sat one rung over the 26 of its own headings, so only position told them
+   apart). It takes the page-title scale, and breaks evenly so a long one never leaves a word alone on its second line. */
+.doc-write .doc-title { font-size: var(--t-h1); font-weight: var(--w-bold); letter-spacing: -0.02em; line-height: 1.15; color: var(--tx-1); text-wrap: balance; }
+/* ... AND THE HEADINGS IN ITS BODY STEP DOWN FROM IT (the same review: 26 against the title's 26 read as one rung). A body heading one is 24, so
+   the title (34), a heading (24), its sub-heading (20) and the text (17) are four clear steps. */
+.doc-write .doc-pm h1 { font-size: calc(24px * var(--type-scale)); }
 .doc-write .doc-eyebrow { display: flex; align-items: center; gap: var(--s-2); }
 .doc-write .doc-eyebrow .eyebrow { font-size: var(--t-eyebrow); letter-spacing: var(--track-eyebrow); text-transform: uppercase; font-weight: var(--w-semi); }
 
@@ -26,13 +31,15 @@
 .doc-pm h2 { font-size: var(--t-h2); font-weight: var(--w-semi); letter-spacing: -0.01em; line-height: 1.25; margin-top: var(--s-4); }
 .doc-pm h3 { font-size: var(--t-h3); font-weight: var(--w-semi); line-height: 1.3; margin-top: var(--s-3); }
 .doc-pm h1:first-child, .doc-pm h2:first-child, .doc-pm h3:first-child { margin-top: 0; }
-.doc-pm ul, .doc-pm ol { padding-left: var(--s-7); margin: 0; }
+/* ONE TEXT EDGE FOR EVERY LIST (2026-10-05, the round 2 review: bullet text began at 44 and checklist text at 64, so two list types in one note stepped in by
+   different amounts). 28 here, and the checklist below lands its text on the same x. */
+.doc-pm ul, .doc-pm ol { padding-left: var(--s-6h); margin: 0; }
 .doc-pm li { margin: 0; }
 .doc-pm li + li { margin-top: var(--s-1h); }
 .doc-pm li > ul, .doc-pm li > ol { margin-top: var(--s-1h); }
 .doc-pm ul[data-type="taskList"] { list-style: none; padding-left: 0; }
-.doc-pm ul[data-type="taskList"] > li { display: flex; align-items: flex-start; gap: var(--s-2h); min-height: 44px; }
-.doc-pm ul[data-type="taskList"] > li > label { flex-shrink: 0; display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; margin-left: -10px; cursor: pointer; }
+.doc-pm ul[data-type="taskList"] > li { display: flex; align-items: flex-start; gap: 0; min-height: 44px; }
+.doc-pm ul[data-type="taskList"] > li > label { flex-shrink: 0; display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; margin-left: -11px; margin-right: -5px; cursor: pointer; }
 .doc-pm ul[data-type="taskList"] > li > label input { appearance: none; -webkit-appearance: none; width: 22px; height: 22px; margin: 0; border-radius: var(--r-circle); border: 1.5px solid var(--tx-4); background: transparent; display: grid; place-items: center; }
 /* A ticked line is done, and done is green (§AM): the same fill as every
    other done check in the app, not the red that means tap me. */
@@ -72,7 +79,7 @@
    flow so it can never own the caret, the same lesson uniformity.css
    records for the old blocks. */
 .doc-pm p.is-editor-empty:first-child { position: relative; }
-.doc-pm p.is-editor-empty:first-child::before { content: attr(data-placeholder); color: var(--tx-2); pointer-events: none; position: absolute; left: 0; top: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.doc-pm p.is-editor-empty:first-child::before { content: attr(data-placeholder); color: var(--tx-2); pointer-events: none; position: absolute; left: 0; right: 0; top: 0; white-space: normal; }
 .doc-pm .ProseMirror-gapcursor::after { border-top: 1px solid var(--tx-1); }
 
 /* The save line: one fact, never a spinner, never before the write returns. */
@@ -199,8 +206,11 @@ body.writing .screen-editor { padding-bottom: max(140px, var(--doc-kbar-clear, 0
    its heading hidden by a class the plugin puts on its blocks. Interface
    state only; an export sees every word. */
 .doc-pm h1, .doc-pm h2, .doc-pm h3 { position: relative; }
-.doc-pm .doc-fold { position: absolute; left: -22px; top: 50%; transform: translateY(-50%); width: 24px; height: 24px; border: 0; background: transparent; padding: 0; cursor: pointer; }
-.doc-pm .doc-fold::before { content: ""; display: block; width: 8px; height: 8px; margin: 0 auto; border-right: 1.5px solid var(--tx-4); border-bottom: 1.5px solid var(--tx-4); transform: rotate(45deg) translate(-2px, -2px); transition: transform var(--dur-fast) var(--ease-out); }
+/* THE FOLD CHEVRON SITS AT THE RIGHT OF ITS HEADING, INSIDE THE GUTTER (2026-10-05, the round 2 review: it hung at x=4, in the margin, almost touching the
+   screen edge). The disclosure column is the right edge, the same place every list row keeps its chevron, and a heading leaves room for it. */
+.doc-pm h1, .doc-pm h2, .doc-pm h3 { padding-right: var(--s-10); }
+.doc-pm .doc-fold { position: absolute; right: 0; top: 50%; transform: translateY(-50%); width: 44px; height: 44px; border: 0; background: transparent; padding: 0; cursor: pointer; }
+.doc-pm .doc-fold::before { content: ""; display: block; width: 8px; height: 8px; margin: 0 auto; border-right: 1.5px solid var(--tx-3); border-bottom: 1.5px solid var(--tx-3); transform: rotate(45deg) translate(-2px, -2px); transition: transform var(--dur-fast) var(--ease-out); }
 .doc-pm .doc-fold.closed::before { transform: rotate(-45deg) translate(-1px, 1px); }
 .doc-pm .doc-folded { display: none; }
 .doc-pm .doc-heading-closed::after { content: " …"; color: var(--tx-2); font-weight: var(--w-regular); }
@@ -222,9 +232,6 @@ body.writing .screen-editor { padding-bottom: max(140px, var(--doc-kbar-clear, 0
 .doc-outline .row { min-height: 44px; }
 .doc-outline .lv-2 .conn-name { padding-left: var(--s-4); }
 .doc-outline .lv-3 .conn-name { padding-left: var(--s-8); }
-
-/* QUICK APPEND (wave 3): the third swipe slot on a note row, in the tint. */
-.task-snooze.note-append { right: 176px; background: var(--tint); color: #fff; }
 
 /* THE EDITOR ON THE OTHER SURFACES (wave 3c): the compose body wears the
    mail field's box; a sheet's notes field and the workout note sit in their

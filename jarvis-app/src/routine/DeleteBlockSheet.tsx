@@ -1,5 +1,6 @@
 import { createPortal } from "react-dom";
 import { fmtTime } from "../schedule/calendar";
+import { lineCase } from "../shared/casing";
 import type { ProtectedBlock } from "./types";
 
 // DELETE BLOCK, THE CONFIRM (Dave 2026-10-01).
@@ -30,15 +31,19 @@ export function daysLine(days: number[]): string {
   return s.map((d) => DOW_ABBR[d]).join(" ");
 }
 
-/** What the sheet says, computed from the block itself so it cannot disagree with it. */
-export function blockDeleteLines(block: ProtectedBlock): { when: string; goes: string[] } {
+/** What the sheet says, computed from the block itself so it cannot disagree with it.
+ *
+ *  2026-10-05 (the catalog gate): `when` was one string, "Mon Wed \u00b7 9:00 AM to
+ *  10:00 AM", drawn inside one .fact, so the separator was baked into a fact (R6)
+ *  and the days and the clock shared one grey (R1). It is `days` and `time` now,
+ *  two facts the stylesheet separates. The first "What Goes" line repeated the
+ *  block's own days and clock, which the card above it already shows, so it is
+ *  gone; the lines left are Title Case like every other line the app writes. */
+export function blockDeleteLines(block: ProtectedBlock): { days: string; time: string; goes: string[] } {
   const exceptions = Object.keys(block.exceptions ?? {}).length;
-  const goes = [
-    `The block, ${daysLine(block.days)} ${clock(block.startMin)} to ${clock(block.endMin)}`,
-    "It leaves every day it repeats on",
-  ];
-  if (exceptions > 0) goes.push(`${exceptions} one-day ${exceptions === 1 ? "change" : "changes"} made to it`);
-  return { when: `${daysLine(block.days)} · ${clock(block.startMin)} to ${clock(block.endMin)}`, goes };
+  const goes = [lineCase("It leaves every day it repeats on")];
+  if (exceptions > 0) goes.push(lineCase(`${exceptions} one-day ${exceptions === 1 ? "change" : "changes"} made to it`));
+  return { days: daysLine(block.days), time: `${clock(block.startMin)} to ${clock(block.endMin)}`, goes };
 }
 
 export default function DeleteBlockSheet({ block, pending = false, onDelete, onCancel }: {
@@ -47,7 +52,7 @@ export default function DeleteBlockSheet({ block, pending = false, onDelete, onC
   onDelete: () => void;
   onCancel: () => void;
 }) {
-  const { when, goes } = blockDeleteLines(block);
+  const { days, time, goes } = blockDeleteLines(block);
   return createPortal(
     <div className="sheet-scrim" onClick={pending ? () => undefined : onCancel}>
       <div className="card" role="dialog" aria-label={`Delete ${block.label}`} onClick={(e) => e.stopPropagation()}>
@@ -56,7 +61,7 @@ export default function DeleteBlockSheet({ block, pending = false, onDelete, onC
         <div className="pad-x"><div className="card pad">
           {/* The name wraps: clipping it is how two blocks look the same. */}
           <div className="dup-name">{block.label}</div>
-          <div className="facts"><span className="fact">{when}</span></div>
+          <div className="facts"><span className="fact date">{days}</span><span className="fact date">{time}</span></div>
         </div></div>
 
         <div className="grp xs-grp"><div className="eyebrow">What Goes</div></div>

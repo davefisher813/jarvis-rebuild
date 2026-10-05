@@ -1,4 +1,3 @@
-import { useLayoutEffect } from "react";
 import { ChevronLeft } from "../shared/icons";
 import { useNavOrigin } from "./navOrigin";
 
@@ -24,34 +23,18 @@ import { useNavOrigin } from "./navOrigin";
 //
 // It sits above the tab bar rather than in a nav bar, because there is no nav
 // bar it could sit in that every one of these surfaces has.
-// ABOVE THE CAPTURE BAR, MEASURED (2026-09-26, the post-code audit). A fixed
-// 132px sat the pill 3px into the capture bar at 390x844 and deeper at type
-// scale 1.4, so "< Life" covered the bar's left end on any screen with
-// nothing to scroll. The dock is static chrome, so the shell reads its top
-// and publishes --return-clear (the dock's height from the bottom plus a
-// gap); the stylesheet keeps 132px as the fallback for a screen without one.
-function useDockClear(on: boolean) {
-  useLayoutEffect(() => {
-    if (!on) return;
-    const root = document.documentElement;
-    const measure = () => {
-      const dock = document.querySelector<HTMLElement>(".voice-dock");
-      if (!dock) { root.style.removeProperty("--return-clear"); return; }
-      const top = dock.getBoundingClientRect().top;
-      root.style.setProperty("--return-clear", `${Math.max(0, Math.round(window.innerHeight - top) + 8)}px`);
-    };
-    measure();
-    const dock = document.querySelector<HTMLElement>(".voice-dock");
-    const ro = typeof ResizeObserver !== "undefined" && dock ? new ResizeObserver(measure) : null;
-    ro?.observe(dock!);
-    window.addEventListener("resize", measure);
-    return () => { ro?.disconnect(); window.removeEventListener("resize", measure); root.style.removeProperty("--return-clear"); };
-  }, [on]);
-}
-
+// IT TAKES ITS OWN ROOM (Dave 2026-10-05, "everything should look PERFECT"; decision D6: floating chrome never covers
+// content). It used to be position: fixed over the foot of the scroll box, with the shell measuring the dock to sit above
+// it (--return-clear) and padding the scroll box so the LAST row could scroll clear (--return-pad). That kept the pill off
+// the last row and nowhere else: at rest, with the page at its top, it sat on whatever row happened to be there, so
+// "Clean Out" read "ean Out", the foot of the Health goal card was hidden, and "SUN 11" lost its left edge. A pill that
+// floats over a scroller covers something on every screen that has a row at that height, which is all of them.
+//
+// It is a row of the shell's own column now, between the scroll box and the capture bar (the toast, when there is one,
+// sits above it, so the pill is out of the toast's way by order). The scroll box is exactly as much shorter as the pill
+// is tall while a jump is live, and not one pixel otherwise. Nothing measures, nothing publishes, and nothing is under it.
 export default function ReturnPill() {
   const nav = useNavOrigin();
-  useDockClear(!!nav.origin && !nav.claimed);
   if (!nav.origin || nav.claimed) return null;
   return (
     <button type="button" className="return-pill" onClick={() => nav.back()}>

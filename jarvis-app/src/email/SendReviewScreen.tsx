@@ -14,6 +14,7 @@ import {
   REVIEW_TITLE, SENDING_LINE, SEND_THIS, SUBJECT_LABEL, TO_LABEL, COMPOSE_TITLE,
 } from "./copy";
 import { sizeLine } from "./format";
+import EmailFacts from "./EmailFacts";
 import { reviewExpired, type Review } from "./drafts";
 
 export default function SendReviewScreen({ review, offline, now, sending, failure, onEdit, onSend, onReviewAgain }: {
@@ -49,14 +50,15 @@ export default function SendReviewScreen({ review, offline, now, sending, failur
           {e.attachments.length > 0 && (
             <div className="email-review-attachments">
               <div className="eyebrow email-eyebrow">{ATTACHMENTS_LABEL}</div>
-              {e.attachments.map((a) => <div className="facts" key={a.storage_id}><span className="fact">{a.filename}</span><span className="fact">{sizeLine(a.size_bytes)}</span></div>)}
+              {/* 2026-10-05: the file's name is the title and its size the one fact, in white: two greys side by side were the old line. */}
+              {e.attachments.map((a) => <div key={a.storage_id}><div className="conn-name truncate">{a.filename}</div><EmailFacts facts={[{ text: sizeLine(a.size_bytes), strong: true }]} /></div>)}
             </div>
           )}
         </div>
       </div>
       <div className="email-note quiet"><span>{APPROVAL_SCOPE}</span></div>
-      {expired && <div className="email-note quiet email-warn"><span>{REVIEW_EXPIRED}</span></div>}
-      {failure && <div className="email-note quiet email-warn"><span>{lineFor(failure)}</span></div>}
+      {expired && <div className="email-note"><span>{REVIEW_EXPIRED}</span></div>}
+      {failure && <div className="pad-x"><div className="input-error" role="alert">{lineFor(failure)}</div></div>}
       {offline && <div className="email-note quiet"><span>{OFFLINE_SEND}</span></div>}
       <div className="email-sheet-acts email-compose-acts">
         <button className="btn btn-primary" onClick={again ? onReviewAgain : onSend} disabled={offline || (!again && sending)}>{again ? REVIEW_AGAIN : sending ? SENDING_LINE : SEND_THIS}</button>

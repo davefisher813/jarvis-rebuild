@@ -610,7 +610,12 @@ export function mergeClass(
   assign("type", "type");
   assign("execution", "execution");
   assign("measure", "measure");
-  for (const k of ["grip", "stance", "angle", "variation", "gym", "machineName", "machineId"] as const) {
+  // Grip, stance, angle and variation ARE the Execution conflict (valueLine
+  // writes them into that line), so resolving it the other way takes them too
+  // (2026-10-04). They used to only fill blanks, so picking the folded side of
+  // a grip-only disagreement in the review changed nothing.
+  for (const k of ["grip", "stance", "angle", "variation"] as const) assign(k, "execution");
+  for (const k of ["gym", "machineName", "machineId"] as const) {
     if (out[k] == null && fold[k] != null) out[k] = fold[k];
   }
   return out;

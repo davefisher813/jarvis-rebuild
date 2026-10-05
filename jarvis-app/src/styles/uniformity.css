@@ -57,24 +57,18 @@
 
 /* G8.  Voice affordance bar (added v1.3). Placement on Today is PROVISIONAL
    pending Dave (open item G2, RULE 17). Tokens only; no new token. */
-.voice-bar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-1) var(--s-3);
-  padding: var(--s-2) var(--s-3) var(--s-2) var(--s-2);
+/* THE DOCK IS ONE LINE: THE JARVIS DISC, THEN WHAT TO DO (2026-10-05, Dave: "everything should look PERFECT"). It was a
+   wrapping row holding the disc, the word JARVIS and a right-aligned lowercase "Add anything", which at 390 left the name
+   top-left and the hint dropped to a second line at the bottom right: a 72px pill that read as a misplaced caption. The
+   disc is the name (the wordmark rides Today's top bar), so the row is the disc and one placeholder-style line, Title
+   Case, left aligned and centred on the disc. It never wraps: at Dynamic Type 1.4 the line still fits the 170px it has,
+   and 56px is the whole bar, the same height as the two round buttons beside it. */
+.voice-bar { display: flex; flex-wrap: nowrap; align-items: center; gap: var(--s-3); min-height: 56px;
+  padding: var(--s-2) var(--s-4) var(--s-2) var(--s-2);
   background: var(--surface-3); border-radius: var(--r-pill); }
-.voice-mic { width: 36px; height: 36px; border-radius: var(--r-circle); background: var(--accent-fill);
+.voice-mic { width: 40px; height: 40px; border-radius: var(--r-circle); background: var(--accent-fill);
   color: #fff; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.voice-name { font-size: var(--t-h3); font-weight: var(--w-bold); color: var(--tx-1); flex-shrink: 0; }
-/* THE HINT TAKES A SECOND LINE RATHER THAN LOSING HALF ITS WORDS (2026-09-21,
-   Dynamic Type at 1.4). It had no min-width and no nowrap, so it wrapped to
-   two lines AND painted past the pill's right edge, across the wordmark, on
-   the one piece of chrome that is on every tab.
-   An ellipsis was tried first and was worse, measurably: the auditor read
-   "Add anything" losing 48 percent on ten screens, which is a two-word
-   sentence shipping as "Add ...". The pill wraps instead. Neither the mark
-   nor the hint gives up a character; the bar is a row taller at 1.4 and
-   IDENTICAL at --type-scale 1, where both fit on one line and nothing
-   wraps at all. The row gap is --s-1 so the wrapped line sits tight. */
-.voice-hint { font-size: var(--t-meta); color: var(--tx-3); margin-left: auto;
-  min-width: 0; white-space: nowrap; }
+.voice-hint { font-size: var(--t-body); color: var(--tx-3); min-width: 0; white-space: nowrap; }
 
 /* DEFERRED (intentionally not added):
    G4 modal/sheet backdrop scrim needs a --scrim token (none exists). RULE 14
@@ -247,7 +241,8 @@ body:has(.sheet-scrim) .voice-bar, body:has(.sheet-scrim) .tab-bar, body.sheet-o
 .block-menu-btn { flex-shrink:0; background:0; border:0; color:var(--tx-2); padding:var(--s-1h); min-width:var(--tap-min); min-height:var(--tap-min); display:flex; align-items:center; justify-content:center; }
 .block-menu-btn .ic { width:18px; height:18px; }
 .block-menu-scrim { position:fixed; inset:0; z-index:40; }
-.block-menu { position:absolute; right:0; top:var(--s-7); z-index:50; background:var(--surface-3); border-radius:var(--r-md); padding:var(--s-1); min-width:160px; box-shadow:var(--shadow-card); }
+.block-menu { position:absolute; right:0; top:var(--s-7); z-index:50; background:var(--surface-3); border-radius:var(--r-md); padding:var(--s-1); min-width:160px; box-shadow:var(--shadow-float); }
+[data-theme="light"] .block-menu { background:var(--chrome-bg); }
 /* UP-CORE-14 (2026-09-05): the same menu, over a notice rather than a block.
    It hangs from the card's own bottom edge, inside the pad the notice
    already sits in, so it never leaves the column the card is in. */
@@ -314,7 +309,7 @@ body:has(.sheet-scrim) .voice-bar, body:has(.sheet-scrim) .tab-bar, body.sheet-o
 .albumart { position:relative; width:52px; height:52px; border-radius:var(--r-md); overflow:hidden; flex-shrink:0; display:flex; align-items:center; justify-content:center; color:#fff;
   background-image: linear-gradient(150deg, rgba(255,255,255,0.22), rgba(0,0,0,0.30)); }
 .albumart .ic { width:22px; height:22px; }
-.albumart-lg { width:236px; height:236px; border-radius:var(--r-lg); margin:0 auto; box-shadow:0 12px 32px rgba(0,0,0,0.35); }
+.albumart-lg { width:236px; height:236px; border-radius:var(--r-lg); margin:0 auto; box-shadow:var(--shadow-float); }
 .albumart-lg .ic { width:52px; height:52px; }
 .albumart-lg::after { content:''; position:absolute; inset:0; background:linear-gradient(0deg, rgba(0,0,0,0.45), transparent 48%); }
 .albumart-title { position:absolute; left:var(--s-3h); right:var(--s-3h); bottom:var(--s-3); z-index:1; text-align:left; font-size:var(--t-h1); font-weight:var(--w-bold); color:#fff; line-height:var(--lh-snug); letter-spacing:-0.02em; }

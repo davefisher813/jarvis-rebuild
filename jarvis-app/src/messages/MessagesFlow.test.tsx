@@ -195,7 +195,22 @@ describe("MessagesFlow (threads)", () => {
     // switch says in one.
     expect(screen.queryByText("1 Thread Needs You")).toBeNull();
     // E-02 (2026-09-12): the Sweep is the head's own capsule now, not a card.
-    expect(screen.getByText(/^Sweep \u00b7 About/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Sweep, About \d+ Min$/ })).toBeInTheDocument();
+    // THE REVIEW (Dave 2026-10-05): the capsule is the verb alone, the estimate is a sky fact span beside it (no dot
+    // typed into a label), the floor is Title Case, the views are a quiet tab row, the tool tiles wear a colour each
+    // and The Rest is a door (a chevron, its count plain text), not an inert box with a pill.
+    const sweep = screen.getByRole("button", { name: /^Sweep, About \d+ Min$/ });
+    expect(sweep.textContent).toBe("Sweep");
+    expect(sweep.closest(".sh2")!.querySelector(".n.fact.est")!.textContent).toMatch(/^About \d+ Min$/);
+    expect(screen.getByText("That\u2019s Every One That Needs You.")).toBeInTheDocument();
+    expect(document.querySelector(".msg-chips.msg-views")).not.toBeNull();
+    const restRow = screen.getByText("The Rest").closest(".row")!;
+    expect(restRow.querySelector(".pill")).toBeNull();
+    expect(restRow.querySelector(".chev")).not.toBeNull();
+    expect(restRow.querySelector(".fact b")!.textContent).toBe("1");
+    const tiles = Array.from(document.querySelectorAll(".row-ico")).map((t) => t.className);
+    expect(tiles.length).toBeGreaterThan(0);
+    for (const c of tiles) expect(c, "a Tools tile is never the flat graphite").not.toContain("graphite");
     expect(screen.getByText(/Ridgeley needs the waiver by Friday/)).toBeInTheDocument();
     // THE FOLD: everything that does not need him is one line, not a section.
     // SPEC MOVED (V2 anatomy, 2026-08-15): the count is a pill beside the line.
@@ -219,7 +234,8 @@ describe("MessagesFlow (threads)", () => {
     // It is now one grey line that counts SENDERS as machines and carries
     // the single action that ends the lot.
     expect(screen.getByText(/1 Machine Wrote/)).toBeInTheDocument();
-    expect(screen.getByText("Sweep")).toBeInTheDocument();
+    // Two Sweep capsules now (the Needs You head and the Noise head): the Noise one is the plain verb.
+    expect(screen.getByRole("button", { name: "Sweep" })).toBeInTheDocument();
     expect(screen.queryByText(/DoorDash promo/)).toBeNull();
   });
 
@@ -290,7 +306,7 @@ describe("MessagesFlow (threads)", () => {
     // SPEC MOVED (8A castes, 2026-08-25): the fold's bulk noise action is
     // "Sweep" and rides on the machines line. "Archive All" survives, but
     // only on a collapsed single-sender group inside the unfolded noise.
-    fireEvent.click(await screen.findByText("Sweep"));
+    fireEvent.click(await screen.findByRole("button", { name: "Sweep" }));
     await waitFor(() => expect(archived).toEqual(["t2"]));
     expect(screen.getByText("1 Conversation Archived")).toBeInTheDocument();
     expect(screen.queryByText("Noise")).toBeNull();
@@ -305,7 +321,7 @@ describe("MessagesFlow (threads)", () => {
     fireEvent.click(await screen.findByText("Ridgeley"));
     expect(await screen.findByText("Need the waiver by Friday")).toBeInTheDocument();
     expect(screen.getByText("Haven't seen it yet")).toBeInTheDocument();
-    expect(screen.getByText("2 messages")).toBeInTheDocument();
+    expect(screen.getByText("2 Messages")).toBeInTheDocument();
     await waitFor(() => expect(readCleared).toBe("t1"));
   });
 
@@ -500,7 +516,7 @@ describe("MessagesFlow (threads)", () => {
     expect(permanentDeleteCalled).toBe(false);
     expect(threadTrash).toBe(0);
     // The receipt says what Gmail confirmed and what it keeps.
-    expect(await screen.findByText(/1 conversation moved to Trash\. Gmail keeps them for 30 days\./)).toBeInTheDocument();
+    expect(await screen.findByText(/1 Conversation Moved to Trash \u00b7 Gmail Keeps Them for 30 Days/)).toBeInTheDocument();
     expect(screen.queryByText("Ridgeley")).toBeNull(); // gone from the list too
   });
 
@@ -540,7 +556,7 @@ describe("MessagesFlow (threads)", () => {
     // SPEC MOVED (V2 anatomy, 2026-08-15): fold count now rides as a pill.
     fireEvent.click(await screen.findByText("The Rest"));
     // SPEC MOVED (8A castes, 2026-08-25): "Archive All" is now "Sweep".
-    fireEvent.click(await screen.findByText("Sweep"));
+    fireEvent.click(await screen.findByRole("button", { name: "Sweep" }));
     // SPEC MOVED (short copy, 2026-08-15). E-09 (2026-09-12): the offer is a
     // NoticeCard, the question is its title and the count is a fact.
     expect(await screen.findByText("File No as Noise?")).toBeInTheDocument();
@@ -573,6 +589,10 @@ describe("MessagesFlow (threads)", () => {
     await waitFor(() => expect(screen.queryByText("Ridgeley")).toBeNull());
     expect(screen.getByText("DoorDash")).toBeInTheDocument(); // only that thread
     fireEvent.click(screen.getByText("Standing Rules"));
+    // Clean rows (Dave 2026-10-05): the muted thread's row is a door; Unmute is in its sheet, not a quiet button on the row.
+    const muted = (await screen.findByText("Muted Threads")).closest("div")!.nextElementSibling!.querySelector(".row") as HTMLElement;
+    expect(muted.querySelector(".quiet-action, .pill-act")).toBeNull();
+    fireEvent.click(muted);
     fireEvent.click(await screen.findByText("Unmute"));
     fireEvent.click(screen.getByText("Email"));
     expect(await screen.findByText("Ridgeley")).toBeInTheDocument();
@@ -618,6 +638,15 @@ describe("MessagesFlow (threads)", () => {
     expect(calm[0]!.textContent).not.toMatch(/still sending/i);
   });
 
+  it("the compose door is the head's one capsule (the shared HeadAdd beside the title), not a 32px circle in the bar", async () => {
+    const { container } = render(wrap(<MessagesFlow ai={noAI} configured />));
+    fireEvent.click(await screen.findByText("Connect Google"));
+    const add = await screen.findByLabelText("New Message");
+    expect(add).toHaveClass("hdr-add");
+    expect(add.closest(".pagehead-acts")).not.toBeNull();
+    expect(container.querySelector(".pagebar-acts .barbtn")).toBeNull();
+  });
+
   it("composes and sends", async () => {
     render(wrap(<MessagesFlow ai={noAI} configured />));
     fireEvent.click(await screen.findByText("Connect Google"));
@@ -627,7 +656,7 @@ describe("MessagesFlow (threads)", () => {
     // Undo send (2026-08-20): nothing leaves during the hold. That IS the
     // feature, so the test asserts the hold exists and then releases it,
     // rather than asserting the old fire-and-pray behaviour.
-    await waitFor(() => expect(screen.getByText("Nothing has left yet")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("Nothing Has Left Yet")).toBeInTheDocument());
     fireEvent.click(screen.getByText("Send Now"));
     await waitFor(() => expect(screen.getByText("Sent")).toBeInTheDocument());
   });
@@ -652,7 +681,7 @@ describe("MessagesFlow (threads)", () => {
     // E-02 (2026-09-12): the switch tab and the section head both say
     // Needs You, and the Sweep is the head's own capsule.
     expect(await screen.findByRole("tab", { name: /Needs You/ })).toBeInTheDocument();
-    expect(screen.getByText(/^Sweep \u00b7 About/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Sweep, About \d+ Min$/ })).toBeInTheDocument();
     expect(screen.queryByText("Connect Your Email")).not.toBeInTheDocument();
   });
 
@@ -882,6 +911,24 @@ describe("MessagesFlow (threads)", () => {
     expect(clearedToday(todayISO())).toBe(0);
   });
 
+  // THE CLOCK LAW (Dave 2026-10-05): a row's time is 12-hour with AM or PM in a 24-hour region too.
+  it("a mail row's time says AM or PM even where the phone's region is 24-hour", async () => {
+    const orig = Date.prototype.toLocaleTimeString;
+    Date.prototype.toLocaleTimeString = function (loc?: string | string[], o?: Intl.DateTimeFormatOptions) { return orig.call(this, Array.isArray(loc) && loc.length === 0 ? "en-GB" : loc, o); };
+    try {
+      const fresh: GmailThreadMeta[] = [{ id: "tc1", messages: [msg("mc1", "Ridgeley <t@x.com>", "Waiver", "Need the waiver", ["INBOX", "UNREAD"], Date.now() - 1000)] }];
+      const ai = aiReturning(JSON.stringify([{ id: "tc1", bucket: "needs_you", gist: "Ridgeley needs the waiver." }]));
+      render(wrap(<MessagesFlow ai={ai} configured />, makeApi({ listThreads: async () => fresh })));
+      fireEvent.click(await screen.findByText("Connect Google"));
+      const when = await waitFor(() => {
+        const w = document.querySelector(".mwhen");
+        expect(w).not.toBeNull();
+        return w!;
+      });
+      expect(when.textContent).toMatch(/^\d{1,2}:\d{2}\s?(AM|PM)$/);
+    } finally { Date.prototype.toLocaleTimeString = orig; }
+  });
+
   // EMAIL-F-26 (2026-09-05): "Drain minutes field snaps to 5 the moment it is
   // cleared." Every keystroke was clamped and clampMinutes(NaN) is 5, so
   // backspacing the 5 put a 5 straight back, and typing 15 gave 51.
@@ -892,6 +939,11 @@ describe("MessagesFlow (threads)", () => {
     ]));
     render(wrap(<MessagesFlow ai={ai} configured />));
     fireEvent.click(await screen.findByText("Connect Google"));
+    // THE CATALOG (Dave 2026-10-05): the Tools rows' meta lines are Title Case, like their demo twin.
+    const drainRow = (await screen.findByText("Only a Few Minutes?")).closest(".row")!;
+    expect(drainRow.querySelector(".conn-meta")!.textContent).toBe("A Timed Drain That Stops Itself");
+    // Off, the Windows row has nothing to say: "Open Email on a Schedule" restated its title.
+    expect(screen.getByText("Email Windows").closest(".row")!.querySelector(".conn-meta")).toBeNull();
     fireEvent.click(await screen.findByText("Only a Few Minutes?"));
     const box = await screen.findByLabelText("Minutes");
     expect((box as HTMLInputElement).value).toBe("5");
@@ -925,12 +977,12 @@ describe("MessagesFlow (threads)", () => {
     ]));
     render(wrap(<MessagesFlow ai={ai} configured />, makeApi({ searchThreads: async () => [sent] })));
     fireEvent.click(await screen.findByText("Connect Google"));
-    // The one waiting row, with its More control on the row itself. (The
-    // swipe reveal behind the row carries the same word, hidden until it is
-    // swiped, which is exactly the control a mouse cannot reach.)
-    const onRow = (await screen.findAllByText("More")).find((el) => el.className.includes("pill-act"));
-    expect(onRow).toBeDefined();
-    fireEvent.click(onRow!);
+    // The one waiting row. Clean rows (Dave 2026-10-05): no More pill on it; the row is the door, and tapping it opens the
+    // sheet that holds the primary ask and every other move.
+    const subject = await screen.findByText(/The waiver/);
+    const row = subject.closest(".row") as HTMLElement;
+    expect(row.querySelector(".pill-act, .btn-sm, .quiet-action")).toBeNull();
+    fireEvent.click(row);
     expect(await screen.findByText("More Moves")).toBeInTheDocument();
     // The sheet is the whole point: the alternates are in it, tappable.
     const sheet = document.querySelector(".sheet-scrim");
@@ -976,6 +1028,10 @@ describe("MessagesFlow (threads)", () => {
       // The deck lives in the Waiting On section, so that is where it opens.
       const waitingTab = screen.queryByRole("tab", { name: /Waiting On/ });
       if (waitingTab) fireEvent.click(waitingTab);
+      // THE NUMBER RULE (Dave 2026-10-05): the entry row's age reads "Oldest 12 Days", the word
+      // behind the number capitalized wherever the number sits in the phrase.
+      const entry = (await screen.findByText("One at a Time")).closest(".row")!;
+      expect(entry.querySelector(".fact")!.textContent).toMatch(/^Oldest 1[12] Days$/);
       fireEvent.click(await screen.findByText("One at a Time"));
 
       // Rob's card, the longer wait: the open is a fact, in small caps.
@@ -1065,13 +1121,13 @@ describe("MessagesFlow (threads)", () => {
     // floor says what it is showing and offers the next page instead of
     // "That's everything."
     await screen.findByText("Load More");
-    expect(screen.getByText("Showing what's loaded so far.")).toBeInTheDocument();
+    expect(screen.getByText("Showing What\u2019s Loaded So Far.")).toBeInTheDocument();
     const listedBefore = box.counters.list;
     const readBefore = box.counters.metadata;
     fireEvent.click(screen.getByText("Load More"));
     // The next page only: one list from the cursor, fifteen new thread reads,
     // and the thirty already on screen are not read again.
-    await screen.findByText("That's everything.");
+    await screen.findByText("That\u2019s Everything.");
     expect(box.counters.list - listedBefore).toBe(1);
     expect(box.counters.metadata - readBefore).toBe(15);
     expect(screen.queryByText("Load More")).toBeNull();
@@ -1268,7 +1324,7 @@ describe("MessagesFlow (threads)", () => {
     fireEvent.click(await screen.findByLabelText("New Message"));
     fireEvent.change(screen.getByPlaceholderText("To"), { target: { value: "a@b.com" } });
     fireEvent.click(screen.getByText("Send"));
-    await waitFor(() => expect(screen.getByText("Nothing has left yet")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("Nothing Has Left Yet")).toBeInTheDocument());
     fireEvent.click(screen.getByText("Send Now"));
     // humanError only surfaces sentences it recognizes (rate limits, expired
     // auth, and so on); a plain network error falls back to the call site's
@@ -1289,13 +1345,13 @@ describe("MessagesFlow (threads)", () => {
     fireEvent.change(screen.getByPlaceholderText("To"), { target: { value: "a@b.com" } });
     fireEvent.change(screen.getByPlaceholderText("Subject"), { target: { value: "Hi there" } });
     fireEvent.click(screen.getByText("Send"));
-    await waitFor(() => expect(screen.getByText("Nothing has left yet")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("Nothing Has Left Yet")).toBeInTheDocument());
     fireEvent.click(screen.getByText("Undo"));
     // Back in the composer, with what he was writing intact -- not a blank
     // draft -- and the message never went out.
     expect(((await screen.findByPlaceholderText("To")) as HTMLInputElement).value).toBe("a@b.com");
     expect(((await screen.findByPlaceholderText("Subject")) as HTMLInputElement).value).toBe("Hi there");
-    expect(screen.queryByText("Nothing has left yet")).not.toBeInTheDocument();
+    expect(screen.queryByText("Nothing Has Left Yet")).not.toBeInTheDocument();
     expect(sent).toBe(false);
   });
 
@@ -1306,14 +1362,14 @@ describe("MessagesFlow (threads)", () => {
     fireEvent.click(await screen.findByLabelText("New Message"));
     fireEvent.change(screen.getByPlaceholderText("To"), { target: { value: "a@b.com" } });
     fireEvent.click(screen.getByText("Send"));
-    await waitFor(() => expect(screen.getByText("Nothing has left yet")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("Nothing Has Left Yet")).toBeInTheDocument());
     expect(loadOutbox()).toHaveLength(1);
     unmount();
     // Still held in storage, not lost with the component.
     expect(loadOutbox()[0]!.state).toBe("held");
     render(wrap(<MessagesFlow ai={noAI} configured />, api));
     fireEvent.click(await screen.findByText("Connect Google"));
-    await waitFor(() => expect(screen.getByText("Nothing has left yet")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("Nothing Has Left Yet")).toBeInTheDocument());
   });
 
   // EMAIL-F-07 (2026-09-05): "Archive These archives in Gmail, then the rows
@@ -1372,7 +1428,7 @@ describe("MessagesFlow (threads)", () => {
     // The title says "Interrupted"; the line under it no longer repeats it
     // behind a typed dot (outbox.ts INTERRUPTED_LINE, §AM R6).
     expect(screen.getByText("Check Sent, then Retry")).toBeInTheDocument();
-    expect(screen.queryByText("On its way")).toBeNull();
+    expect(screen.queryByText("On Its Way")).toBeNull();
     expect(screen.getByText("Retry")).toBeInTheDocument();
     expect(screen.getByText("Edit")).toBeInTheDocument();
     // Nothing resent on its own: that is his call after checking Sent.
@@ -1473,15 +1529,17 @@ describe("MessagesFlow (threads)", () => {
     await act(async () => { body.querySelector("p")!.textContent = "Here's the waiver."; });
     await waitFor(() => expect(body.textContent).toContain("Here's the waiver."));
 
-    fireEvent.click(await screen.findByText("Attach It"));
+    // Clean rows (Dave 2026-10-05): the offer row is the door; there is no Attach It pill on it.
+    expect(screen.queryByText("Attach It")).not.toBeInTheDocument();
+    fireEvent.click(await screen.findByText("You Have That File"));
     await waitFor(() => expect(screen.getByText("Ridgeline Waiver 2026.txt")).toBeInTheDocument());
     // Taken, not just named: the offer card is gone and nothing was typed
     // into the message body to stand in for a real attachment.
-    expect(screen.queryByText("Attach It")).not.toBeInTheDocument();
+    expect(screen.queryByText("You Have That File")).not.toBeInTheDocument();
     expect(screen.getByLabelText("Message").textContent).toBe("Here's the waiver.");
 
     fireEvent.click(screen.getByText("Send"));
-    await waitFor(() => expect(screen.getByText("Nothing has left yet")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("Nothing Has Left Yet")).toBeInTheDocument());
     const item = loadOutbox()[0]!;
     expect(item.attachment?.filename).toBe("Ridgeline Waiver 2026.txt");
     expect(item.attachment?.mimeType).toBe("text/plain");

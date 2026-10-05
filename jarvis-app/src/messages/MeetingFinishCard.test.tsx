@@ -76,8 +76,9 @@ describe("MeetingFinishCard: the offer, above the messages", () => {
     expect(screen.getByText(/Tomorrow/)).toBeInTheDocument();
     expect(screen.getByText("3:00 PM")).toBeInTheDocument();
     expect(screen.getByText(/EDT/)).toBeInTheDocument();
-    // Never presented as the sender's own length.
-    expect(screen.getByText("1h \u00b7 Default")).toBeInTheDocument();
+    // Never presented as the sender's own length: the app's length says About
+    // (2026-10-05: the dot and the word Default left, R6).
+    expect(screen.getByText("About 1h")).toBeInTheDocument();
     await waitFor(() => expect(svc.listEvents()).resolves.toHaveLength(0));
   });
 
@@ -92,7 +93,7 @@ describe("MeetingFinishCard: the offer, above the messages", () => {
     expect(evs[0]!.data).toMatchObject({ title: "Practice", date: "2026-09-22", start: "15:00", end: "16:00" });
     expect(screen.queryByRole("button", { name: "Add to Calendar" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Undo" })).toBeInTheDocument();
-    expect(notices[0]!.message).toContain("On Your Calendar");
+    expect(notices[0]!.message).toMatch(/^Scheduled /);
     expect(notices[0]!.undo?.label).toBe("Undo");
   });
 
@@ -299,5 +300,78 @@ describe("MeetingFinishCard: reading is not writing", () => {
     expect(create).not.toHaveBeenCalled();
     expect(del).not.toHaveBeenCalled();
     expect(move).not.toHaveBeenCalled();
+  });
+});
+
+// THE CATALOG, CHECKED ON WHAT THE CARD DRAWS (Dave 2026-10-05: "I am sick of
+// this"). meetingFacts() is a data builder whose strings render into a .facts
+// line, so it once returned "1h \u00b7 Default", "EDT \u00b7 Your Time" and
+// "1:00 PM Your Time \u00b7 Tomorrow" with the separator baked in (R6), and drew
+// the time, the length and the zone as three plain greys on one row (R1).
+describe("MeetingFinishCard: the facts line follows the catalog (2026-10-05)", () => {
+  const TONES = [".date", ".warn", ".good", ".red", ".est", ".st"];
+  const greys = (row: Element) =>
+    Array.from(row.querySelectorAll(".fact")).filter((f) => !TONES.some((t) => f.matches(t)) && !f.querySelector("b"));
+  const lines = (c: HTMLElement) => Array.from(c.querySelectorAll(".facts"));
+
+  const cases: Array<[string, string]> = [
+    ["a whole answer", "See you Tuesday at 3 PM"],
+    ["a sender's zone with a day change", "See you Tuesday at 10 PM PT"],
+    ["a missing AM or PM", "Tuesday at 3"],
+    ["a day part with no time", "Thursday morning works"],
+    ["no day at all", "Does 3 PM work for you"],
+  ];
+  for (const [name, quote] of cases) {
+    it(name + ": no fact carries a middle dot, and at most one is plain grey", () => {
+      const { svc } = setup();
+      const { container } = renderCard(svc, [cand("m1", quote)]);
+      const rows = lines(container);
+      expect(rows.length).toBeGreaterThan(0);
+      for (const row of rows) {
+        for (const f of Array.from(row.querySelectorAll(".fact"))) expect(f.textContent).not.toMatch(/[\u00b7]/);
+        expect(greys(row).map((f) => f.textContent), "one grey per row (R1)").toHaveLength(Math.min(1, greys(row).length));
+      }
+    });
+  }
+
+  it("the time is a small-caps date fact, and the app's own length is a white About fact, not a grey", () => {
+    const { svc } = setup();
+    const { container } = renderCard(svc, [cand("m1", "See you Tuesday at 3 PM")]);
+    expect(container.querySelector(".fact.date")?.textContent).toBe("Tomorrow");
+    expect(Array.from(container.querySelectorAll(".fact.date")).map((f) => f.textContent)).toContain("3:00 PM");
+    const length = Array.from(container.querySelectorAll(".fact")).find((f) => f.textContent === "About 1h")!;
+    expect(length.querySelector("b")).not.toBeNull();
+    expect(Array.from(container.querySelectorAll(".fact")).find((f) => /EDT/.test(f.textContent ?? ""))!.textContent).toBe("EDT Your Time");
+  });
+
+  it("a day change in the reader's zone is its own date fact, not glued to the time with a dot", () => {
+    const { svc } = setup();
+    const { container } = renderCard(svc, [cand("m1", "See you Tuesday at 10 PM PT")]);
+    const facts = Array.from(container.querySelectorAll(".fact")).map((f) => f.textContent);
+    expect(facts).toContain("1:00 AM Your Time");
+    expect(facts).toContain("Wednesday");
+  });
+
+  it("a missing hour asks as one question, and a day part is a date fact beside a Time? ask", () => {
+    const { svc } = setup();
+    const a = renderCard(svc, [cand("m1", "Tuesday at 3")]);
+    expect(a.container.querySelector(".fact.warn")?.textContent).toBe("3 AM or PM?");
+    a.unmount();
+    const b = renderCard(svc, [cand("m1", "Thursday morning works")]);
+    expect(Array.from(b.container.querySelectorAll(".fact.date")).map((f) => f.textContent)).toContain("Morning");
+    expect(b.container.querySelector(".fact.warn")?.textContent).toBe("Time?");
+  });
+
+  it("a filed appointment keeps one grey: the length is white ink, the time small caps", async () => {
+    const { svc } = setup();
+    const c = cand("m1", "See you Tuesday at 3 PM");
+    await addEmailMeetingOnce({ scheduleSvc: svc, candidate: c, threadId: "t1", account: ME, zone: NY });
+    resetEmailScheduleState();
+    const { container } = renderCard(svc, [c]);
+    await screen.findByText("On Your Calendar");
+    const row = container.querySelector(".facts")!;
+    expect(row.querySelector(".fact.good")?.textContent).toBe("On Your Calendar");
+    expect(greys(row)).toHaveLength(1);
+    expect(row.textContent).not.toMatch(/\u00b7/);
   });
 });

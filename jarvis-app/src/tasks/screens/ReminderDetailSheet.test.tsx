@@ -15,7 +15,7 @@ const noop = () => {};
 const base = { today: TUE, now: "09:30", onClose: noop, onComplete: noop, onSnooze: noop, onEdit: noop, onPause: noop, onSkip: noop, onKeepSchedule: noop, onDelete: noop };
 
 describe("ReminderDetailSheet", () => {
-  it("reads When, Repeat, Follow-up and Opens, leads with the linked verb, and never completes on open", () => {
+  it("reads When, Repeat, Follow-Up and Opens, leads with the linked verb, and never completes on open", () => {
     const onOpenLinked = vi.fn(); const onComplete = vi.fn();
     const link = { type: "task" as const, id: "t1", label: "Bridge Priorities" };
     render(<ReminderDetailSheet {...base} item={item({ time: "09:00", days: [1, 2, 3, 4, 5], linkedItem: link })} onOpenLinked={onOpenLinked} onComplete={onComplete} />);
@@ -88,5 +88,17 @@ describe("ReminderDetailSheet", () => {
     render(<ReminderDetailSheet {...base} item={item({ time: "07:00", lastDone: TUE })} />);
     expect(stateFact("Done Today").className).toBe("fact good");
     expect(document.querySelector(".fact.when")).toBeNull();
+  });
+
+  // A ROW WITH NOTHING TO SAY SHOWS NOTHING (catalog rule 2, 2026-10-05): "Opens: This Reminder" named the thing the sheet
+  // is already in. The row shows only when the reminder opens something else.
+  it("shows no Opens row when the reminder links to nothing, and one when it does", () => {
+    const plain = render(<ReminderDetailSheet {...base} item={item({ time: "21:00", onMiss: "let_go" })} />);
+    expect(screen.queryByText("Opens")).toBeNull();
+    expect(screen.queryByText("This Reminder")).toBeNull();
+    expect(screen.getByText("Follow-Up")).toBeInTheDocument();
+    plain.unmount();
+    render(<ReminderDetailSheet {...base} item={item({ time: "09:00", linkedItem: { type: "task" as const, id: "t1", label: "Bridge Priorities" } })} />);
+    expect(screen.getByText("Opens")).toBeInTheDocument();
   });
 });

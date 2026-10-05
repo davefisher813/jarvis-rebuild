@@ -36,7 +36,7 @@ const base = {
 describe("LibraryPage: every editor opens over the page, not below it", () => {
   it("portals the classification editor out of the scrolling list", () => {
     const { container } = render(<LibraryPage {...base} rows={many} />);
-    fireEvent.click(screen.getAllByRole("button", { name: "Assign Muscles" })[0]!);
+    fireEvent.click(screen.getAllByRole("button", { name: /^Assign Muscles/ })[0]!);
     expect(document.body.querySelector(".sheet-scrim")).not.toBeNull();
     // The thing that was broken: it must NOT be a child of the page, because
     // a child of the page is a child of the scroller.
@@ -82,7 +82,7 @@ describe("LibraryPage: the classification editor", () => {
   it("cycles a muscle through primary, secondary and off in one control", () => {
     const onSetClass = vi.fn();
     render(<LibraryPage {...base} rows={[row()]} onSetClass={onSetClass} />);
-    fireEvent.click(screen.getByRole("button", { name: "Assign Muscles" }));
+    fireEvent.click(screen.getByRole("button", { name: /^Assign Muscles/ }));
     fireEvent.click(screen.getByRole("button", { name: /^Chest/ }));
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
     expect(onSetClass).toHaveBeenCalledWith(
@@ -95,7 +95,7 @@ describe("LibraryPage: the classification editor", () => {
   it("makes a second tap secondary rather than replacing the primary", () => {
     const onSetClass = vi.fn();
     render(<LibraryPage {...base} rows={[row()]} onSetClass={onSetClass} />);
-    fireEvent.click(screen.getByRole("button", { name: "Assign Muscles" }));
+    fireEvent.click(screen.getByRole("button", { name: /^Assign Muscles/ }));
     fireEvent.click(screen.getByRole("button", { name: /^Chest/ }));
     fireEvent.click(screen.getByRole("button", { name: /^Triceps/ }));
     fireEvent.click(screen.getByRole("button", { name: /^Triceps/ }));
@@ -106,13 +106,15 @@ describe("LibraryPage: the classification editor", () => {
 
   it("asks about scope only when it is correcting an assignment that exists", () => {
     const { rerender } = render(<LibraryPage {...base} rows={[row()]} />);
-    fireEvent.click(screen.getByRole("button", { name: "Assign Muscles" }));
+    fireEvent.click(screen.getByRole("button", { name: /^Assign Muscles/ }));
     // A first answer has one sensible scope, so it is not a question.
     expect(screen.queryByText("Applies To")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
 
     rerender(<LibraryPage {...base} store={{ bench: { ...EMPTY_CLASS, primary: ["back"] } }} rows={[row()]} />);
-    fireEvent.click(screen.getByRole("button", { name: "Back, edit" }));
+    // The muscle is a fact now (Dave 2026-10-05, locked: no pill in a row); the details sheet is in the row's menu.
+    fireEvent.click(screen.getByRole("button", { name: "More for Bench Press" }));
+    fireEvent.click(screen.getByRole("button", { name: "Edit Details" }));
     expect(screen.getByText("Applies To")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Existing and Future" })).toBeInTheDocument();
   });
@@ -120,7 +122,8 @@ describe("LibraryPage: the classification editor", () => {
   it("stamps the window when the correction is for future records only", () => {
     const onSetClass = vi.fn();
     render(<LibraryPage {...base} store={{ bench: { ...EMPTY_CLASS, primary: ["back"] } }} rows={[row()]} onSetClass={onSetClass} />);
-    fireEvent.click(screen.getByRole("button", { name: "Back, edit" }));
+    fireEvent.click(screen.getByRole("button", { name: "More for Bench Press" }));
+    fireEvent.click(screen.getByRole("button", { name: "Edit Details" }));
     fireEvent.click(screen.getByRole("button", { name: "Future Records" }));
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
     const [, next, scope] = onSetClass.mock.calls[0]!;
@@ -131,7 +134,7 @@ describe("LibraryPage: the classification editor", () => {
 
   it("holds movement, type, execution and the machine's identity behind More Details", () => {
     render(<LibraryPage {...base} rows={[row()]} />);
-    fireEvent.click(screen.getByRole("button", { name: "Assign Muscles" }));
+    fireEvent.click(screen.getByRole("button", { name: /^Assign Muscles/ }));
     expect(screen.queryByText("Movement Pattern")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "More Details" }));
     expect(screen.getByText("Movement Pattern")).toBeInTheDocument();
@@ -143,7 +146,7 @@ describe("LibraryPage: the classification editor", () => {
   it("writes equipment, movement, type and identity together", () => {
     const onSetClass = vi.fn();
     render(<LibraryPage {...base} rows={[row()]} onSetClass={onSetClass} />);
-    fireEvent.click(screen.getByRole("button", { name: "Assign Muscles" }));
+    fireEvent.click(screen.getByRole("button", { name: /^Assign Muscles/ }));
     fireEvent.click(screen.getByRole("button", { name: "Equipment Smith Machine" }));
     fireEvent.click(screen.getByRole("button", { name: "More Details" }));
     fireEvent.click(screen.getByRole("button", { name: "Movement Push Forward" }));
@@ -156,7 +159,7 @@ describe("LibraryPage: the classification editor", () => {
 
   it("says a declared measurement never rewrites what is already recorded", () => {
     render(<LibraryPage {...base} rows={[row()]} />);
-    fireEvent.click(screen.getByRole("button", { name: "Assign Muscles" }));
+    fireEvent.click(screen.getByRole("button", { name: /^Assign Muscles/ }));
     expect(screen.getByText("Sessions already logged keep the numbers and units they were recorded with")).toBeInTheDocument();
   });
 });

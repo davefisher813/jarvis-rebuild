@@ -433,15 +433,16 @@ export default function ClassifySheet({
                 {/* The row flips the draft the same way its pill does; nothing is
                     written until Save (Dave 2026-09-15: "I want all rows clickable").
                     No ARCHIVE eyebrow over an Archive button (2026-09-26). */}
+                {/* A STATE, SO A SWITCH (Dave 2026-10-05, locked: no pill in a row). Archive and Restore were one
+                    capsule that flipped its own word; the switch says which side the exercise is on. */}
                 <div className="row xs-row" onClick={toggleArchived}>
                   <Tile tone="graphite"><Archive className="ic" /></Tile>
                   <div className="row-grow">
-                    <div className="conn-name">{c.archived ? "Archived" : "Active"}</div>
+                    <div className="conn-name">Archived</div>
                     <div className="conn-meta">Keeps Every Record</div>
                   </div>
-                  <button type="button" className="pill-act" onClick={own(toggleArchived)}>
-                    {c.archived ? "Restore" : "Archive"}
-                  </button>
+                  <div className={"switch" + (c.archived ? "" : " off")} role="switch" aria-checked={!!c.archived} aria-label="Archived" tabIndex={0}
+                    onClick={own(toggleArchived)} />
                 </div>
               </div></div>
             </>

@@ -236,7 +236,7 @@ describe("Email Sections page: the write is the truth", () => {
     type(nameBox(), "Team");
     type(textBox(), "marco");
     press("Save Section");
-    expect(await screen.findByText("Saved on This Phone · Will Sync")).toBeInTheDocument();
+    expect(await screen.findByText("Saved on this phone and will sync")).toBeInTheDocument();
   });
 });
 

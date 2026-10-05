@@ -11,6 +11,8 @@ import { pressable } from "../shared/pressable";
 import { COMMAND_LINES } from "../substrate/commands/errors";
 import { conflictsWith, REPLACE_LINE } from "./copy";
 import type { Conflict, DependencyRef } from "./hubClient";
+import HubFacts, { type HubFact, type HubFactInput } from "./HubFacts";
+import { titleCase } from "../shared/casing";
 
 export interface DecisionDraft {
   title: string;
@@ -25,13 +27,25 @@ export interface DecisionDraft {
 
 export interface DependencyOption { id: string; label: string; kindLabel: string }
 
+// 2026-10-05 (catalog gate, R1, R6 and the casing rule): a constraint on the
+// conflict card was "trip_budget_usd · 2400", a raw key and a value joined by
+// a baked dot inside a sentence class. The key is the line's one grey, in
+// Title Case, and the value is its own white fact (a number with no state).
+// A side with no value says nothing (the old "None" was a placeholder).
+export const constraintFacts = (key: string, value: string | null | undefined): HubFactInput[] => [
+  { text: titleCase(key.replace(/_/g, " ")) },
+  value ? { text: value, strong: true } : null,
+].filter((f): f is HubFact => !!f);
+
 export const emptyDraft = (): DecisionDraft => ({ title: "", statement: "", rationale: "", alternatives: "", constraintKey: "", constraintValue: "", dependencies: [] });
 
-export default function DecisionSheet({ mode, initial, projectTitle, sourceLine, options, conflicts, busy = false, onSave, onReplace, onDismiss, onCancel }: {
+export default function DecisionSheet({ mode, initial, projectTitle, sourceLine, sourceWhen, options, conflicts, busy = false, onSave, onReplace, onDismiss, onCancel }: {
   mode: "save" | "replace";
   initial: Partial<DecisionDraft>;
   projectTitle: string;
   sourceLine: string;
+  /** The moment the source was written, as date facts under the source line. */
+  sourceWhen?: HubFact[];
   options: DependencyOption[];
   /** Named by the server when the last save conflicted. */
   conflicts: Conflict[];
@@ -89,24 +103,25 @@ export default function DecisionSheet({ mode, initial, projectTitle, sourceLine,
         </Group>
       )}
       <Group label="Source">
-        <div className="row"><div className="conn-name">{sourceLine}</div></div>
+        <div className="row"><div className="row-grow"><div className="conn-name">{sourceLine}</div><HubFacts facts={sourceWhen ?? []} /></div></div>
       </Group>
       {first && (
-        <Group label={conflictsWith(first.title)}>
+        <Group label={conflictsWith(titleCase(first.title))}>
           <div className="row"><div className="row-grow hub-compare">
-            <div><div className="eyebrow">Saved</div><div className="hub-text hub-text-strong">{first.statement}</div><div className="hub-text">{first.key} · {first.theirs ?? "None"}</div></div>
-            <div><div className="eyebrow">This One</div><div className="hub-text hub-text-strong">{d.statement}</div><div className="hub-text">{first.key} · {first.mine ?? "None"}</div></div>
+            <div><div className="eyebrow">Saved</div><div className="hub-text hub-text-strong">{first.statement}</div><HubFacts facts={constraintFacts(first.key, first.theirs)} /></div>
+            <div><div className="eyebrow">This One</div><div className="hub-text hub-text-strong">{d.statement}</div><HubFacts facts={constraintFacts(first.key, first.mine)} /></div>
           </div></div>
-          {/* row-tap: the row IS the button; it fills the row */}
-          <div {...pressable(() => { if (!incomplete && !busy) onReplace(d, first.item_id); })} className="row row-act">Replace {first.title} With This</div>
+          {/* The conflict card has its own words (both sides, side by side) and its one answer, so the answer is the card's own
+              action row, the settled notice-card home (Dave 2026-10-05). */}
+          <div className="notice-actions">
+            {/* row-tap: the row IS the button; it fills the row */}
+            <div {...pressable(() => { if (!incomplete && !busy) onReplace(d, first.item_id); })} className="row row-act">Replace {titleCase(first.title)} With This</div>
+          </div>
         </Group>
       )}
       {tried && incomplete && <ErrorLine text={COMMAND_LINES.MISSING_DETAILS} />}
-      {onDismiss && (
-        <Group>
-          <button className="row row-act hub-danger" onClick={onDismiss}>Dismiss Suggestion</button>
-        </Group>
-      )}
+      {/* AN ACTION NEVER SITS ALONE IN A BOX (Dave 2026-10-05, rule 12): the dismissal stands by itself, not in a plate. */}
+      {onDismiss && <div className="notice-clear-row"><button className="row-act hub-danger" onClick={onDismiss}>Dismiss Suggestion</button></div>}
       <Note>Dependencies Are Records You Pick · A Changed One Suggests a Review, Never a Rewrite</Note>
     </FormSheet>
   );

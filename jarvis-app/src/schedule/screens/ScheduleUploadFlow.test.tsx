@@ -9,6 +9,9 @@ import type { AIService } from "../../ai/AIService";
 import { subscribeToast, resetToasts } from "../../shared/toast";
 import type { ToastState } from "../../shared/toast";
 
+// The photo path draws the thumbnail card; the encoder needs a canvas the test environment lacks.
+vi.mock("../../shared/imageEncode", () => ({ encodeImageForVision: async () => ({ data: "AAAA", mediaType: "image/png" }) }));
+
 const CATS = [{ id: "c1", name: "Sports", color: "blue" as const }];
 
 // The model's answer, as the parser receives it.
@@ -114,5 +117,168 @@ describe("Schedule upload: the review row shows every fact it read", () => {
     const facts = Array.from(row.querySelectorAll(".conn-meta > .fact"));
     expect(facts.map((f) => f.className)).toEqual(["fact date", "fact date"]);
     expect(facts[1]!.textContent).toMatch(/5:00.*6:30/);
+  });
+});
+
+// THE FIX SHEET'S OTHER ANSWERS ARE WRITTEN (2026-10-04). applyFix copied
+// eight columns and dropped the rest, so a repeating row fixed with "Until 30
+// Nov" imported as an endless series, and the Link, Notes, Every 2 Weeks and
+// Training door the sheet drew were accepted and thrown away.
+describe("Schedule upload: what the fix sheet sets reaches the calendar", () => {
+  async function fixRow(svc: ScheduleService) {
+    render(
+      <ScheduleUploadFlow ai={fakeAI(reply([
+        { title: "Practice", month: 9, day: 13, year: 2026, start: "17:00", end: "18:30", location: "" },
+      ]))} svc={svc} categories={CATS} existingEvents={[]} onDone={vi.fn()} onCancel={() => {}} />,
+    );
+    fireEvent.change(screen.getByPlaceholderText(/Paste the Schedule/), { target: { value: "anything" } });
+    fireEvent.click(screen.getByText("Read the Pasted Text"));
+    await screen.findByText("Review the Schedule");
+  }
+
+  it("a repeating row keeps its end, cadence, link, notes and training door", async () => {
+    const svc = new ScheduleService(new Store(new InMemoryAdapter()), "u-upload-fix-1");
+    await fixRow(svc);
+    fireEvent.click(screen.getByText("Once")); // Repeats weekly
+    fireEvent.click(screen.getByLabelText("Fix Practice"));
+    // Apply To means nothing on a staged row, so it is not offered.
+    expect(screen.queryByLabelText("Apply to")).toBeNull();
+    fireEvent.click(screen.getByLabelText("Until"));
+    fireEvent.click(screen.getByRole("menuitemradio", { name: "Pick a Date" }));
+    fireEvent.change(screen.getByLabelText("Until date"), { target: { value: "2026-11-30" } });
+    fireEvent.click(screen.getByLabelText("Every"));
+    fireEvent.click(screen.getByRole("menuitemradio", { name: "2 Weeks" }));
+    fireEvent.change(screen.getByLabelText("Meeting Link"), { target: { value: "https://zoom.example/j/1" } });
+    fireEvent.change(screen.getByLabelText("Meeting Notes"), { target: { value: "Bring cleats" } });
+    fireEvent.click(screen.getByLabelText("Training door"));
+    fireEvent.click(screen.getByText("Save"));
+    fireEvent.click(await screen.findByText("Add 1 to Calendar"));
+    await waitFor(async () => expect(await svc.listEvents()).toHaveLength(1));
+    const [ev] = await svc.listEvents();
+    expect(ev!.data).toMatchObject({
+      recurrence: "weekly", until: "2026-11-30", interval: 2,
+      url: "https://zoom.example/j/1", notes: "Bring cleats", gym: true,
+    });
+  });
+
+  it("travel and buffer set beside a place are written", async () => {
+    const svc = new ScheduleService(new Store(new InMemoryAdapter()), "u-upload-fix-2");
+    await fixRow(svc);
+    fireEvent.click(screen.getByLabelText("Fix Practice"));
+    fireEvent.change(screen.getByLabelText("Location"), { target: { value: "Rink 2" } });
+    fireEvent.click(screen.getByLabelText("Travel"));
+    fireEvent.click(screen.getByRole("menuitemradio", { name: "20 Min" }));
+    fireEvent.click(screen.getByLabelText("Buffer"));
+    fireEvent.click(screen.getByRole("menuitemradio", { name: "10 Min" }));
+    fireEvent.click(screen.getByText("Save"));
+    fireEvent.click(await screen.findByText("Add 1 to Calendar"));
+    await waitFor(async () => expect(await svc.listEvents()).toHaveLength(1));
+    expect((await svc.listEvents())[0]!.data).toMatchObject({ location: "Rink 2", travelMin: 20, bufferMin: 10 });
+  });
+
+  it("an update to a matched 2 Weeks series keeps its cadence, and Undo puts the whole event back", async () => {
+    const svc = new ScheduleService(new Store(new InMemoryAdapter()), "u-upload-fix-3");
+    const id = (await svc.createEvent("Practice", { date: "2026-09-13", start: "17:00", end: "18:00", recurrence: "weekly", interval: 2, url: "https://old.example", category: "c1" }))!;
+    const existing = await svc.listEvents();
+    const onDone = vi.fn();
+    render(
+      <ScheduleUploadFlow ai={fakeAI(reply([
+        { title: "Practice", month: 9, day: 13, year: 2026, start: "17:00", end: "18:30", location: "" },
+      ]))} svc={svc} categories={CATS} existingEvents={existing} onDone={onDone} onCancel={() => {}} />,
+    );
+    fireEvent.change(screen.getByPlaceholderText(/Paste the Schedule/), { target: { value: "anything" } });
+    fireEvent.click(screen.getByText("Read the Pasted Text"));
+    await screen.findByText("Review the Schedule");
+    fireEvent.click(screen.getByText("Once")); // Repeats weekly
+    // Opening the fix sheet and changing something else must not reset it.
+    fireEvent.click(screen.getByLabelText("Fix Practice"));
+    expect(screen.getByLabelText("Every").textContent).toContain("2 Weeks");
+    fireEvent.click(screen.getByLabelText("Until"));
+    fireEvent.click(screen.getByRole("menuitemradio", { name: "Pick a Date" }));
+    fireEvent.change(screen.getByLabelText("Until date"), { target: { value: "2026-11-30" } });
+    fireEvent.change(screen.getByLabelText("Meeting Link"), { target: { value: "https://new.example" } });
+    fireEvent.click(screen.getByText("Save"));
+    fireEvent.click(await screen.findByText("Add 1 to Calendar"));
+    await waitFor(() => expect(onDone).toHaveBeenCalled());
+    const after = (await svc.event(id))!;
+    expect(after).toMatchObject({ interval: 2, end: "18:30", until: "2026-11-30", url: "https://new.example" });
+    await onDone.mock.calls[0]![0].undo();
+    const back = (await svc.event(id))!;
+    expect(back.end).toBe("18:00");
+    expect(back.interval).toBe(2);
+    expect(back.url).toBe("https://old.example");
+    expect(back.until).toBeUndefined();
+  });
+  // 2026-10-05: the other tap order. Fix and Save while the row is Once (the
+  // sheet hands back no interval), then Repeats: the seeded 2 Weeks survives.
+  it("a matched 2 Weeks series keeps its cadence when it is fixed before Repeats is tapped", async () => {
+    const svc = new ScheduleService(new Store(new InMemoryAdapter()), "u-upload-fix-3b");
+    const id = (await svc.createEvent("Practice", { date: "2026-09-13", start: "17:00", end: "18:00", recurrence: "weekly", interval: 2, category: "c1" }))!;
+    const existing = await svc.listEvents();
+    const onDone = vi.fn();
+    render(
+      <ScheduleUploadFlow ai={fakeAI(reply([
+        { title: "Practice", month: 9, day: 13, year: 2026, start: "17:00", end: "18:00", location: "" },
+      ]))} svc={svc} categories={CATS} existingEvents={existing} onDone={onDone} onCancel={() => {}} />,
+    );
+    fireEvent.change(screen.getByPlaceholderText(/Paste the Schedule/), { target: { value: "anything" } });
+    fireEvent.click(screen.getByText("Read the Pasted Text"));
+    await screen.findByText("Review the Schedule");
+    fireEvent.click(screen.getByLabelText("Fix Practice"));
+    fireEvent.change(screen.getByLabelText("Location"), { target: { value: "Rink 2" } });
+    fireEvent.click(screen.getByText("Save"));
+    fireEvent.click(await screen.findByText("Once")); // Repeats weekly, after the fix
+    fireEvent.click(await screen.findByText("Add 1 to Calendar"));
+    await waitFor(() => expect(onDone).toHaveBeenCalled());
+    expect(await svc.event(id)).toMatchObject({ recurrence: "weekly", interval: 2, location: "Rink 2" });
+  });
+  it("an update to a matched event writes the trip and the training door the sheet set", async () => {
+    const svc = new ScheduleService(new Store(new InMemoryAdapter()), "u-upload-fix-4");
+    const id = (await svc.createEvent("Practice", { date: "2026-09-13", start: "17:00", end: "18:00", category: "c1" }))!;
+    const existing = await svc.listEvents();
+    const onDone = vi.fn();
+    render(
+      <ScheduleUploadFlow ai={fakeAI(reply([
+        { title: "Practice", month: 9, day: 13, year: 2026, start: "17:00", end: "18:30", location: "" },
+      ]))} svc={svc} categories={CATS} existingEvents={existing} onDone={onDone} onCancel={() => {}} />,
+    );
+    fireEvent.change(screen.getByPlaceholderText(/Paste the Schedule/), { target: { value: "anything" } });
+    fireEvent.click(screen.getByText("Read the Pasted Text"));
+    await screen.findByText("Review the Schedule");
+    fireEvent.click(screen.getByLabelText("Fix Practice"));
+    fireEvent.change(screen.getByLabelText("Location"), { target: { value: "Rink 2" } });
+    fireEvent.click(screen.getByLabelText("Travel"));
+    fireEvent.click(screen.getByRole("menuitemradio", { name: "20 Min" }));
+    fireEvent.click(screen.getByLabelText("Training door"));
+    fireEvent.click(screen.getByText("Save"));
+    fireEvent.click(await screen.findByText("Add 1 to Calendar"));
+    await waitFor(() => expect(onDone).toHaveBeenCalled());
+    expect(await svc.event(id)).toMatchObject({ location: "Rink 2", travelMin: 20, gym: true });
+  });
+});
+
+// THE NUMBER RULE (Dave 2026-10-05, "Earlier 2 blocks"): the thumbnail card's count is a title,
+// and the word behind the number is capitalized, singular and plural.
+describe("Schedule upload: the photo card follows the number rule (2026-10-05)", () => {
+  const readPhoto = async (events: Record<string, unknown>[], uid: string) => {
+    const svc = new ScheduleService(new Store(new InMemoryAdapter()), uid);
+    render(
+      <ScheduleUploadFlow ai={fakeAI(reply(events))} svc={svc} categories={CATS} existingEvents={[]} onDone={() => {}} onCancel={() => {}} />,
+    );
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    fireEvent.change(input, { target: { files: [new File(["x"], "s.png", { type: "image/png" })] } });
+    await screen.findByText("Review the Schedule");
+    return document.body;
+  };
+  const ev = (title: string, day: number) => ({ title, month: 9, day, year: 2026, start: "17:00", end: "18:00", location: "" });
+
+  it("says '2 Events Found' for two and '1 Event Found' for one", async () => {
+    const two = await readPhoto([ev("A", 12), ev("B", 13)], "u-upload-count-2");
+    expect(two.querySelector(".upload-thumb")!.parentElement!.querySelector(".conn-name")!.textContent).toBe("2 Events Found");
+  });
+
+  it("singular", async () => {
+    const one = await readPhoto([ev("A", 12)], "u-upload-count-1");
+    expect(one.querySelector(".upload-thumb")!.parentElement!.querySelector(".conn-name")!.textContent).toBe("1 Event Found");
   });
 });

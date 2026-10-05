@@ -132,7 +132,7 @@ describe("SetStrip: the chip's editor", () => {
     const onChange = vi.fn();
     render(<SetStrip kind="weight_reps" unit="lb" entries={entries} onChange={onChange} />);
     fireEvent.click(screen.getByLabelText("Set 1, 185 lb × 5, tap to edit"));
-    fireEvent.click(screen.getByText("Duplicate This Set"));
+    fireEvent.click(screen.getByRole("button", { name: "Duplicate" }));
     expect(onChange).toHaveBeenCalledTimes(1);
     expect(onChange.mock.calls[0]![0]).toHaveLength(3);
   });

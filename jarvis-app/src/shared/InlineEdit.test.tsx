@@ -3,6 +3,7 @@ import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import InlineEdit from "./InlineEdit";
+import { titleCase } from "./casing";
 
 describe("InlineEdit", () => {
   it("syncs the DOM to a new value when nobody is in the field", () => {
@@ -125,5 +126,44 @@ describe("InlineEdit flushes pending text", () => {
     hide();
     unmount();
     expect(onSave).not.toHaveBeenCalled();
+  });
+});
+
+// DISPLAY TRANSFORM (Dave 2026-10-05: typed titles are shown in Title Case and
+// stored as typed). The field reads cased when nobody is in it, is edited as
+// typed, and what is saved is what was typed.
+describe("InlineEdit display transform", () => {
+  it("draws the value through the transform at rest, read-only or editable", () => {
+    const ro = render(<InlineEdit value="pick the new gym" display={titleCase} />);
+    expect(ro.container.textContent).toBe("Pick the New Gym");
+    const ed = render(<InlineEdit value="pick the new gym" display={titleCase} onSave={() => {}} />);
+    expect(ed.container.querySelector("[contenteditable]")!.textContent).toBe("Pick the New Gym");
+  });
+
+  it("swaps the typed text in on focus, saves what was typed, and goes back to the display form on blur", () => {
+    const onSave = vi.fn();
+    const { container } = render(<InlineEdit value="pick the new gym" display={titleCase} onSave={onSave} />);
+    const el = container.querySelector("[contenteditable]") as HTMLElement;
+    fireEvent.focus(el);
+    expect(el.textContent, "edited as typed").toBe("pick the new gym");
+    el.textContent = "pick the new gym today";
+    fireEvent.blur(el);
+    expect(onSave, "stored as typed").toHaveBeenCalledWith("pick the new gym today");
+    expect(el.textContent, "shown cased again").toBe("Pick the New Gym Today");
+  });
+
+  it("an editor opened with focus starts on the typed text, not the display form", () => {
+    const { container } = render(<InlineEdit value="pick the new gym" display={titleCase} onSave={() => {}} focused />);
+    expect(container.querySelector("[contenteditable]")!.textContent).toBe("pick the new gym");
+  });
+
+  it("an empty value stays empty (the placeholder slot is not a title)", () => {
+    const { container } = render(<InlineEdit value="" display={titleCase} onSave={() => {}} placeholder="Title" />);
+    expect(container.querySelector("[contenteditable]")!.textContent).toBe("");
+  });
+
+  it("without a transform nothing changes", () => {
+    const { container } = render(<InlineEdit value="pick the new gym" onSave={() => {}} />);
+    expect(container.querySelector("[contenteditable]")!.textContent).toBe("pick the new gym");
   });
 });

@@ -62,7 +62,7 @@ export default function AllDataPage({ view, onView, records, filter, onFilter, t
   const quietLine = (r: DataRecord) => {
     const detail = r.detail && !r.sets ? r.detail : null;
     if (r.source !== "Imported") return detail;
-    return detail ? `${detail}, imported` : "Imported";
+    return detail ? `${detail}, Imported` : "Imported";
   };
   const deletable = (r: DataRecord) => r.open.kind !== "workout" && r.open.kind !== "metric" && !("pending" in r.open && r.open.pending);
   // The row whose options are open. One at a time; the sheet is the app's own.
@@ -84,7 +84,7 @@ export default function AllDataPage({ view, onView, records, filter, onFilter, t
             </div>
           ))}
           {filter.date && (
-            <div {...pressable(() => onFilter({ ...filter, date: null }))} className="chip active" aria-pressed>{`${monthDay(filter.date)} · Clear`}</div>
+            <div {...pressable(() => onFilter({ ...filter, date: null }))} className="chip active" aria-pressed>{`Clear ${monthDay(filter.date)}`}</div>
           )}
         </div>
       </div>
@@ -101,6 +101,12 @@ export default function AllDataPage({ view, onView, records, filter, onFilter, t
 
           The period filter above stays chips. Four fixed options on one line
           is a real segmented selection, which rule 2 says to keep distinct. */}
+      {/* Export Data is the section's own action, so it is the head's capsule (Dave 2026-10-05, locked: never a button row at
+          the foot of the page). It exports what the filters above leave showing. */}
+      <div className="sh2 sh2-quiet">
+        <span className="t">Records</span><span className="n">{rows.length}</span>
+        <button type="button" className="see-all pill-action" onClick={onExport}>Export Data</button>
+      </div>
       <div className="pad-x"><div className="card list-card-ruled">
         <div {...pressable(() => setPickKind(true))} className="row" aria-label="Filter by kind of record">
           <div className="row-grow"><div className="conn-name">{filter.category === "all" ? "All Entries" : CATEGORY_LABEL[filter.category]}</div></div>
@@ -197,9 +203,6 @@ export default function AllDataPage({ view, onView, records, filter, onFilter, t
           </div></div>
         </div>
       ))}
-      <div className="pad-x h-foot-acts">
-        <button type="button" className="btn btn-secondary" onClick={onExport}>Export Data</button>
-      </div>
       <div className="screen-foot" />
       {menuFor && (
         <ActionSheet

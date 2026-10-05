@@ -86,9 +86,8 @@ export default function LightsOutScreen({ last, onLog, onEditTime, onLogSleep, r
                     budget or a pairing. */}
                 <div className="facts"><span className="fact date">{clockOf(last.data.at)}</span></div>
               </div>
-              {canEdit && !editing && (
-                <button type="button" className="pill-act pill-quiet" onClick={(ev) => { ev.stopPropagation(); setEditing(true); }}>Edit Time</button>
-              )}
+              {/* CLEAN ROW (Dave 2026-10-05): the Edit Time capsule is gone; the row's own tap edits the time, as it always did. */}
+              {canEdit && !editing && <div className="chev" />}
               {canEdit && editing && (
                 <input className="input set-field" type="time" aria-label="Bedtime time" defaultValue={timeValue} autoFocus
                   onChange={(e) => commitTime(e.target.value)} onBlur={() => setEditing(false)} />

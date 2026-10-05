@@ -47,7 +47,7 @@ describe("a goal's bar is its outcome, never its paperwork", () => {
   it("still draws a project's bar from its real task count", () => {
     const fn = PAGE.slice(PAGE.indexOf("const projCard ="), PAGE.indexOf("/** A GOAL'S BAR"));
     expect(fn).toMatch(/progress=\{progress\}/);
-    expect(fn, "and says the count in words beside it").toMatch(/\$\{progress\.done\} of \$\{progress\.total\} tasks/);
+    expect(fn, "and says the count in words beside it").toMatch(/\$\{progress\.done\} of \$\{progress\.total\} \$\{progress\.total === 1 \? "task" : "tasks"\}/);
   });
 
   // "Do not add a percentage beside a count that already communicates
@@ -120,12 +120,31 @@ describe("the card is square, and the shelf runs sideways", () => {
   // what to do next, and it was one line with an ellipsis: six of nine real
   // projects read "Next: Go to Bradfor...". It wraps now.
   it("lets the next action wrap instead of cutting it mid-word", () => {
-    expect(CSS).toMatch(/\.ruled \.bp-card-lead \{[^{}]*-webkit-line-clamp: 2;/);
+    // AMENDED 2026-10-05 (the perfect bar): three lines, since two still cut "Next: Swap Testimonial..." mid-word.
+    expect(CSS).toMatch(/\.ruled \.bp-card-lead \{[^{}]*-webkit-line-clamp: 3;/);
     // Every rule that names the lead, the shared one with the count included
     // (the old slice ran to .bp-card-n, which comes FIRST, so it was empty).
     const lead = (CSS.match(/[^{}]*\.bp-card-lead\b[^{}]*\{[^}]*\}/g) ?? []).join("\n");
     expect(lead, "the lead's rules are found").toMatch(/line-clamp/);
     expect(lead, "nothing may pin it back to one line").not.toMatch(/white-space: nowrap/);
+  });
+
+  // THE SCRIM NEVER REACHES THE TITLE (2026-10-05, the perfect bar). Every direct child of the card is z-index 1 and the
+  // foot comes after the title, so the foot's whole stack, its fade included, painted over the title: a third title line
+  // ("Website", "Cookout", "Runway") was dimmed and greyed. The foot sits at 0, the title keeps 1.
+  it("the footer's stack paints under the title, so a third title line is never washed out", () => {
+    const foot = /\.ruled \.bp-card-foot \{[^{}]*\}/.exec(CSS)?.[0] ?? "";
+    expect(foot, "the foot rule exists").not.toBe("");
+    expect(foot, "the foot is below the title's z-index 1").toMatch(/z-index: 0;/);
+    expect(CSS).toMatch(/\.ruled \.bp-card > \* \{ position: relative; z-index: 1; \}/);
+    expect(CSS.indexOf(".ruled .bp-card-foot {"), "and is declared after the blanket z-index 1 so it wins")
+      .toBeGreaterThan(CSS.indexOf(".ruled .bp-card > * {"));
+  });
+
+  // A SHELF OF ONE OR TWO FILLS ITS GUTTERS (2026-10-05): no 18px or 190px of dead space after the cards.
+  it("a shelf with one or two cards splits the row between them; three or more keep the 160px tile", () => {
+    expect(CSS).toMatch(/\.ruled \.bp-grid > \.bp-card:only-child,\s*\.ruled \.bp-grid > \.bp-card:first-child:nth-last-child\(2\),\s*\.ruled \.bp-grid > \.bp-card:nth-child\(2\):last-child \{[^}]*flex: 1 1 0;[^}]*max-width: none;/);
+    expect(CSS, "the base tile stays 160 scaled so a third card peeks").toMatch(/\.ruled \.bp-card \{[\s\S]{0,1500}?width: calc\(160px \* var\(--type-scale\)\); max-width: 76%;/);
   });
 
   // THE FOOTER FADE (Dave's pick, 2026-09-26, question "bp-foot"). White

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useOptionalSchedule } from "../data/NotesProvider";
 import { addDays, occursOn } from "../schedule/calendar";
 import { Mail, Clock, CalendarClock, CornerUpLeft, CalendarCheck, BellRing, PenLine, CalendarPlus, ShieldAlert, Share, Send, Wallet, Copy, CircleSlash, FileText } from "../shared/icons";
@@ -93,20 +93,24 @@ export interface MailDraft { text: string; sending: boolean }
 // in the key's colour. One colour per line (K.3), the same rule the shared
 // facts line keeps: the first toned fact keeps its tone, a date rides past.
 //
-// THE WRAPPING FORM (2026-09-27, the audit leftover: the deadline card's
-// line is 181px beside its glyph and its Add Task capsule at 390, so "From
-// App Store Team" could never show whole next to a day fact, and this
-// line's job is to show every fact). With `wrap`, the spans go straight
-// into the card's own .conn-meta, which is the settled wrapping pattern: it
-// wraps, unclamped (.notice-card-wrap), with the stylesheet's dot at the end
-// of each fact, so "Likely Today" sits on one line and the sender on the
-// next. The tones are the same either way.
-function NoticeFacts({ facts, wrap = false }: { facts: NoticeFact[]; wrap?: boolean }) {
+// THE WRAPPING FORM (2026-09-27, the audit leftover: "From App Store Team"
+// could never show whole next to a day fact, and this line's job is to show
+// every fact). With `wrap`, the spans go straight into the card's own
+// .conn-meta, which is the settled wrapping pattern: it wraps (.notice-card-wrap,
+// two lines at most) and the stylesheet draws each separator as the LEADING dot
+// of the fact after it, clipped away when that fact starts a line, so a wrapped
+// line never ends in a dot pointing at nothing (2026-10-05). The tones are the
+// same either way.
+function NoticeFacts({ facts, wrap = false, dueDay = false }: { facts: NoticeFact[]; wrap?: boolean; dueDay?: boolean }) {
   const list = facts.filter((f) => f.text.trim() || f.num);
   if (list.length === 0) return null;
   let toned = false;
   const spans = list.map((f, i) => {
-    const tone = f.tone === "date" ? "date" : f.tone && !toned ? f.tone : undefined;
+    // A BILL'S DAY IS ITS DUE DATE, AND A DUE DATE IS AMBER (the lead's D4, 2026-10-05: "due amber ... a date that is the due
+    // date"; the review: "SUNDAY" drawn as a grey small cap on a bill due Sunday). dayTone gives a day more than a day off the
+    // neutral small-caps date, which is right for an event's day and wrong for the day a bill is DUE; late stays red.
+    const kind = f.tone === "date" && dueDay ? "warn" : f.tone;
+    const tone = kind === "date" ? "date" : kind && !toned ? kind : undefined;
     if (tone && tone !== "date") toned = true;
     return (
       <span key={i} className={"fact" + (tone ? " " + tone : "")}>
@@ -122,6 +126,12 @@ function NoticeFacts({ facts, wrap = false }: { facts: NoticeFact[]; wrap?: bool
   );
 }
 
+// A NOTICE WHOSE MOMENT HAS COME (ROW-ACTIONS-SPEC section 3, Dave 2026-10-05): the one that is LATE, whose fact wears the
+// key's red. It quietly shows its one verb as text on the row, the same verb as the swipe. Everything else stays clean: a
+// reply to someone, a deadline today (amber: its verb is the swipe, and a word on the row would take 70px of a 240px column
+// and wrap "Complete Your Enrollment"), a bill next week, an event on Wednesday.
+const isDue = (n: MailNotice): boolean => !!n.facts?.some((f) => f.tone === "red");
+
 export default function MailNotices({
   today,
   nowHHMM,
@@ -131,6 +141,7 @@ export default function MailNotices({
   onOpenEmail,
   onEmptyChange,
   onResidualChange,
+  onClearAllChange,
   onDraft,
   onSend,
   onTakeMeeting,
@@ -159,6 +170,11 @@ export default function MailNotices({
   // the band had anything in it. The head cannot see this component's state,
   // so it is reported, in the same shape as onEmptyChange.
   onResidualChange?: (has: boolean) => void;
+  // CLEAR ALL IS THE HEAD'S (Dave 2026-10-05, locked: section-level actions live in the section head, never under a
+  // card). The head is Today's, so the band reports the one action it has: a stable function that clears every notice
+  // shown, or null when there is nothing to clear in bulk (from two up; at one it would only repeat the card's own
+  // dismiss). Same shape as onEmptyChange.
+  onClearAllChange?: (clear: (() => void) | null) => void;
   // U1/U3: draft a reply or a nudge for this notice. Empty string means the
   // model gave us nothing usable, and the card says so rather than offering
   // a blank message to send over his name.
@@ -265,6 +281,28 @@ export default function MailNotices({
   const isEmpty = notices.length === 0 && !residual;
   useEffect(() => { onEmptyChange?.(isEmpty); }, [isEmpty, onEmptyChange]);
   useEffect(() => { onResidualChange?.(!!residual); }, [residual, onResidualChange]);
+  // The bulk clear reads what is on screen at the moment it is tapped, through a ref, so the function the head holds
+  // never changes and never needs re-reporting while the notices come and go.
+  const clearRef = useRef<() => void>(() => {});
+  clearRef.current = () => {
+    haptics.selection();
+    const was = hidden;
+    const keys = notices.map((n) => n.key);
+    setHidden(setDismissed([...was, ...keys], today));
+    showToast({
+      message: keys.length + " Cleared", // 2026-10-05: the word after a number is Title Case too ("45 Min").
+      actionLabel: "Undo",
+      // The list AS IT WAS, written back in one go. Removing the keys one at a time would be the same thing said less
+      // safely, and would drift if a dismiss landed in between.
+      onAction: () => setHidden(setDismissed(was, today)),
+    });
+  };
+  const clearAll = useCallback(() => clearRef.current(), []);
+  const canClearAll = notices.length > 1;
+  useEffect(() => {
+    onClearAllChange?.(canClearAll ? clearAll : null);
+    return () => onClearAllChange?.(null);
+  }, [canClearAll, clearAll, onClearAllChange]);
   const choices = snoozeChoices(nowHHMM);
 
   const canWrite = !!onDraft && !!onSend;
@@ -500,18 +538,24 @@ export default function MailNotices({
                one-line contract was written for. */
             form="card"
             // Stacked (Dave 2026-08-25): sender over subject, never fused
-            // onto one line. Uniform (Dave 2026-09-01): one line each, so
-            // every row in the card is the same shape. A sender longer
-            // than the line ellipses and the tap opens the thread.
-            // ...except the card that carries FACTS (2026-09-27): a deadline
-            // card's line has to show every fact, so it wraps instead of
-            // ellipsing, and it is not uniform so the latch never drops it.
-            uniform={!n.facts}
-            wrap={!!n.facts}
+            // onto one line.
+            //
+            // A ROW OF THE BAND, NOT A CARD WITH A BUTTON (Dave 2026-10-05, locked: "Clean rows, no pills anywhere"; the
+            // review: three capsules took 90px of a 326px row, so "Dental Cleaning" became "Dental Clea..." and "Looks
+            // Like Wednesday" became "Looks Like Wedne..."). The verb is the swipe, the long press and, once its moment
+            // has come, one quiet word (`due`); the tap opens the thread. With no capsule the words get the width, and
+            // the grey line WRAPS (two lines, then it ends) instead of cutting what it says: Dave 2026-09-26, "let
+            // titles wrap before they truncate", and the 2026-09-27 audit leftover for the facts, now every notice's.
+            asRow
+            uniform={false}
+            wrap
+            // ...and while its verb is working, the row says so in the same quiet word (Writing, Booking), since
+            // the capsule that used to carry the busy label is gone.
+            due={isDue(n) || loading}
             icon={n.notification ? ACTION_ICON[n.notification.kind] : ICON[n.kind]}
             tone={n.tone}
             title={n.title}
-            sub={draft ? undefined : n.facts ? <NoticeFacts facts={n.facts} wrap /> : n.sub}
+            sub={draft ? undefined : n.facts ? <NoticeFacts facts={n.facts} wrap dueDay={n.act?.verb === "bill"} /> : lineCase(n.sub)}
             // ONE-WORD VERBS (ruled 2026-09-01, "the email row": one fixed
             // action column, one-word verbs, so the column aligns with or
             // without a chip). "Draft It" is "Draft"; Reply stays Reply.
@@ -557,7 +601,8 @@ export default function MailNotices({
                         e.stopPropagation();
                         const url = fallbacks[n.key]!;
                         void copyPromised(url).then(
-                          () => showToast({ message: "Link copied" }),
+                          // 2026-10-05: Title Case, like every other line the app writes ("Link copied" was the one lowercase toast here).
+                          () => showToast({ message: "Link Copied" }),
                           () => showToast({ message: "Couldn't Copy · Nothing on Your Clipboard" }),
                         );
                       }}
@@ -594,11 +639,12 @@ export default function MailNotices({
                       <button className="pill-act" disabled={draft.sending} onClick={() => void send(n, draft.text)}>
                         {draft.sending ? "Sending…" : "Send"}
                       </button>
-                      <button className="plan-drop" disabled={draft.sending} onClick={() => setDrafts((d) => { const x = { ...d }; delete x[n.key]; return x; })}>
+                      {/* 2026-10-05: the two quiet verbs are capsules, the Capsule (section AL), not bare tap-red words beside the Send capsule. */}
+                      <button className="quiet-action" disabled={draft.sending} onClick={() => setDrafts((d) => { const x = { ...d }; delete x[n.key]; return x; })}>
                         Discard
                       </button>
                       {onOpenThread && (
-                        <button className="plan-drop" disabled={draft.sending} onClick={() => onOpenThread(n.threadId)}>Open It</button>
+                        <button className="quiet-action" disabled={draft.sending} onClick={() => onOpenThread(n.threadId)}>Open It</button>
                       )}
                     </div>
                   </div>
@@ -610,40 +656,10 @@ export default function MailNotices({
       })}
       </div>}
 
-      {/* CLEAR THEM ALL (Dave 2026-08-24), moved under the cards it clears
-          (Dave 2026-08-26, from a screenshot: "Clear all should be under
-          the email tabs not above it"). It used to sit between the EMAIL
-          head and the first card -- an escape hatch offered before you had
-          seen a single thing it was offering to clear. Every card already
-          has its own dismiss; this is the stream at once, for the morning
-          where none of it is going to happen, and it now reads the way any
-          bulk action does: see the list, then act on the list.
-
-          Only from two up. At one notice this is a second control that does
-          exactly what the dismiss on the card already does. Above the
-          residual line on purpose: residual is a fact about threads NOT
-          shown here, which this button does not touch. */}
-      {notices.length > 1 && (
-        <div className="notice-clear-row">
-          <button
-            className="row-act"
-            onClick={() => {
-              haptics.selection();
-              const was = hidden;
-              const keys = notices.map((n) => n.key);
-              setHidden(setDismissed([...was, ...keys], today));
-              showToast({
-                message: keys.length + " cleared",
-                actionLabel: "Undo",
-                // The list AS IT WAS, written back in one go. Removing the
-                // keys one at a time would be the same thing said less
-                // safely, and would drift if a dismiss landed in between.
-                onAction: () => setHidden(setDismissed(was, today)),
-              });
-            }}
-          >Clear All</button>
-        </div>
-      )}
+      {/* CLEAR ALL IS ON THE BAND'S HEAD (Dave 2026-10-05, locked). It hung under this card (Dave 2026-08-26), which put a
+          section-level action inside the section's body; the head is where the other one lives (Open Inbox), and the
+          band reports the function up (onClearAllChange). Above the residual line it never was a fact about: residual
+          is the threads NOT shown here, which Clear All does not touch. */}
 
       {/* The rest of the inbox is a receipt: it reports, it does not ask.
           §AM (2026-09-26): it said "· Nothing urgent" after the count, a dot

@@ -1,18 +1,20 @@
 import { useState } from "react";
 import type { Person } from "../types";
-import { personInitials, avatarClass } from "../types";
+import { personInitials, softAvatarClass } from "../types";
 import { phonesOf, emailsOf, phoneText } from "../contactMethods";
 import InlineEdit from "../../shared/InlineEdit";
+import RowActionSheet from "../../shared/RowActionSheet";
+import RowCtxAction from "../../shared/RowCtxAction";
 import { catColor } from "../../shared/categories";
 import { RowGlyph } from "../../shared/anatomy";
 import { pressable } from "../../shared/pressable";
+import { lineCase, titleCase } from "../../shared/casing";
 import { shortDate } from "../../shared/dateFormat";
 import { todayISO } from "../../tasks/grouping";
 import { addDays } from "../../schedule/calendar";
+import { MessageSquare } from "../../shared/icons";
+import PageHeader, { BarAction } from "../../shared/PageHeader";
 
-const BACK = (
-  <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
-);
 const EDIT = (
   <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4Z" /></svg>
 );
@@ -25,6 +27,32 @@ function dueTone(due: string, today: string): "red" | "warn" | "date" {
   if (due < today) return "red";
   if (due <= addDays(today, 1)) return "warn";
   return "date";
+}
+
+// ONE WORD FOR THE DAY, ON EVERY ROW (Dave 2026-10-05, the review: a task said "Oct 5" in amber and an event said "OCT 5" in
+// grey for the same day, with no "Today" anywhere). Today and tomorrow are said as words; any other day is the short date.
+function whenText(iso: string, today: string): string {
+  if (iso === today) return "Today";
+  if (iso === addDays(today, 1)) return "Tomorrow";
+  return shortDate(iso);
+}
+
+// A ROW ON A PERSON'S OWN PAGE DOES NOT SAY THEIR NAME AGAIN (Dave 2026-10-05, the review: "Board Call · Rob Calder" on
+// Rob's page). A name tacked on at either end, behind a dot or a dash, is dropped; one that is part of the sentence
+// ("Reply to Nadia re: Invoice") stays, because without it the words stop making sense. A separator typed inside what is left
+// becomes a comma: the dot is the stylesheet's to draw, never a character in a title.
+// The long dashes a sender types as a separator are built from their code points, so no dash is spelled out in this file (the
+// em dash law reads source text); the class is what the old inline escapes said.
+const SEP = "[\\u00b7\\u2022|:" + String.fromCharCode(0x2013, 0x2014) + "-]";
+function titleOnPage(title: string, name: string): string {
+  const esc = name.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  let t = title;
+  if (esc) {
+    t = t.replace(new RegExp("\\s*" + SEP + "\\s*" + esc + "\\s*$", "i"), "");
+    t = t.replace(new RegExp("^\\s*" + esc + "\\s*" + SEP + "\\s*", "i"), "");
+  }
+  t = t.replace(/\s*[\u00b7\u2022]\s*/g, ", ").trim();
+  return t || title;
 }
 
 // TAP A FACT TO CHANGE IT (Dave 2026-09-16: "Why can't I edit anything?").
@@ -55,6 +83,7 @@ export default function PersonDetail({
   onAddPoint,
   onTogglePoint,
   onBack,
+  backLabel = "Contacts",
   linkedNotes = [],
   goals = [],
   onOpenGoal,
@@ -85,6 +114,8 @@ export default function PersonDetail({
   onAddPoint?: (text: string) => void;
   onTogglePoint?: (id: string) => void;
   onBack: () => void;
+  /** What the back control says: where it goes (Contacts, by default), like every other Brain page's labelled back. */
+  backLabel?: string;
   linkedNotes?: { id: string; title: string; category: string }[];
   /** Goals reached through the projects this person is on, each saying which
    *  project carried them here. Resolved by the caller like everything else
@@ -155,6 +186,10 @@ export default function PersonDetail({
   const points = person.data.talkingPoints ?? [];
   const openPoints = points.filter((pt) => !pt.discussed);
   const [adding, setAdding] = useState(false);
+  // The row whose sheet is open: a promise (Add Task) or an open item (Open, Message About It).
+  const [sheet, setSheet] = useState<
+    { kind: "promise"; p: { threadId: string; text: string; due?: string } } | { kind: "item"; m: import("../mentions").MentionItem } | null
+  >(null);
   // True when the relationship is just an area's name said again.
   const areaEchoes = !!relationship
     && categoryColors.some((c) => c.name.trim().toLowerCase() === relationship.trim().toLowerCase());
@@ -162,59 +197,68 @@ export default function PersonDetail({
   const emails = emailsOf(person.data);
   const phone = phones[0]?.value;
   const email = emails[0]?.value;
-  const hasAttrs = relationship || birthday || flagged || register || categoryNames.length > 0 || !!lastTalked || trustedAdult;
+  // THE RELATIONSHIP IS SAID ONCE (Dave 2026-10-05, the review: "Attorney" under the name and again as About > Relationship).
+  // The hero carries it; About is for what the hero does not say.
+  const hasAttrs = birthday || flagged || register || categoryNames.length > 0 || !!lastTalked || trustedAdult;
   // How JARVIS writes to them, stated in the card because it drives every
   // draft. Flagged wins over register, same precedence the drafting stack uses.
   const writeStyle = flagged
-    ? "With care, always professional"
-    : register === "friend" ? "Like a close friend"
+    ? "With Care, Always Professional"
+    : register === "friend" ? "Like a Close Friend"
     : register === "casual" ? "Casual"
     : register === "professional" ? "Professional"
     : undefined;
   return (
     <div className="screen ruled proj-ruled person-ruled">
-      <div className="nav-bar">
-        <button className="nav-back" aria-label="Back" onClick={onBack}></button>
-        <button className="nav-action" aria-label="Edit" onClick={onEdit}>{EDIT}</button>
-      </div>
-      <div className="person-hero">
-        <div className={"av av-72 " + avatarClass(color)}>{personInitials(name)}</div>
-        <div className="person-name">{name}</div>
-        {/* C-59: the label facts. The relationship WAS the one coloured
-            fact, in sky, until that class went with the blue subtext; it had
-            been drawing plain grey ever since. It keeps the plain grey on
-            purpose now: every area beside it carries a dot, which is a mark
-            under §AK, so the relationship is the line's one grey. */}
-        {(relationship || categoryColors.length > 0) && (
-          <div className="facts person-facts">
-            {/* NOT THE SAME WORD TWICE (Dave 2026-09-16, photographed:
-                "Family · Family"). The handoff bans duplicated relationship
-                labels, and this is how one appears: "Family" typed as the
-                relationship next to the Family area chip. The area already
-                says it, in colour, so the relationship chip stands down
-                rather than repeating it. */}
-            {relationship && !areaEchoes && <span className="fact">{relationship}</span>}
-            {/* A ROLE PER AREA (People handoff, 2026-09-16). Where a role
-                is set, the area says what they are IN it: "Family", then
-                "Mother". Both under the one dot, because they are one fact.
-                An area with no role reads as it always did. Text, never
-                colour alone: the area's dot is the colour and the words
-                carry the meaning.
-                The dot between area and role is the stylesheet's separator
-                (.fact + .fact), never one baked into the words (§AM, R6).
-                The pair sits in one plain span so the category's own gap
-                does not widen the space ahead of it. */}
-            {categoryColors.map((c) => (
-              <span className="fact cat" key={c.name}>
-                <span className={"cd cat-bg-" + catColor(c.color)} />
-                {c.role
-                  ? <span><span className="fact">{c.name}</span><span className="fact">{c.role}</span></span>
-                  : c.name}
-              </span>
-            ))}
+      {/* THE SAME BAR AS EVERY OTHER BRAIN PAGE (the round 2 review: a label-less chevron and a bare pencil, and once the name
+          scrolled away the bar said nothing about whose page it was, where Decisions' bar says "Decision"). A labelled back, the
+          pencil in the round bar button, and the name as the bar's centred title the moment the hero's name leaves the screen. */}
+      <PageHeader
+        title={name}
+        back={backLabel}
+        onBack={onBack}
+        actions={<BarAction label="Edit" onClick={onEdit}>{EDIT}</BarAction>}
+        hero={
+          <div className="person-hero">
+            <div className={"av av-72 " + softAvatarClass(color, name)}><span>{personInitials(name)}</span></div>
+            <div className="person-name">{name}</div>
+            {/* C-59: the label facts. The relationship WAS the one coloured
+                fact, in sky, until that class went with the blue subtext; it had
+                been drawing plain grey ever since. It keeps the plain grey on
+                purpose now: every area beside it carries a dot, which is a mark
+                under §AK, so the relationship is the line's one grey. */}
+            {(relationship || categoryColors.length > 0) && (
+              <div className="facts person-facts">
+                {/* NOT THE SAME WORD TWICE (Dave 2026-09-16, photographed:
+                    "Family · Family"). The handoff bans duplicated relationship
+                    labels, and this is how one appears: "Family" typed as the
+                    relationship next to the Family area chip. The area already
+                    says it, in colour, so the relationship chip stands down
+                    rather than repeating it. */}
+                {relationship && !areaEchoes && <span className="fact">{lineCase(relationship)}</span>}
+                {/* A ROLE PER AREA (People handoff, 2026-09-16). Where a role
+                    is set, the area says what they are IN it: "Family", then
+                    "Mother". Both under the one dot, because they are one fact.
+                    An area with no role reads as it always did. Text, never
+                    colour alone: the area's dot is the colour and the words
+                    carry the meaning.
+                    The dot between area and role is the stylesheet's separator
+                    (.fact + .fact), never one baked into the words (§AM, R6).
+                    The pair sits in one plain span so the category's own gap
+                    does not widen the space ahead of it. */}
+                {categoryColors.map((c) => (
+                  <span className="fact cat" key={c.name}>
+                    <span className={"cd cat-bg-" + catColor(c.color)} />
+                    {c.role
+                      ? <span><span className="fact">{c.name}</span><span className="fact">{c.role}</span></span>
+                      : c.name}
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
-        )}
-      </div>
+        }
+      />
       {/* Reach them (2026-08-10): the email and phone this card has stored
           since the person pass, finally shown, and tappable so the card is a
           launchpad, not a filing cabinet. */}
@@ -286,12 +330,27 @@ export default function PersonDetail({
           Discussed ones are kept rather than deleted, so the answer to "did I
           bring that up?" is on the card and the tick can be undone. */}
       {onAddPoint && (
+        // THE ADD IS ON THE HEAD (Dave 2026-10-05, locked): a section-level action lives in the section head, never inside the
+        // card or at the foot of the list. With nothing to list and nothing being typed there is no card at all (rule 12).
         <div className="sh2 sh2-quiet">
           <span className="t">Next Time We Talk</span>
           {openPoints.length > 0 && <span className="n">{openPoints.length}</span>}
+          {/* "Add Topic": the bare "Add" did not say what it added (Dave 2026-10-05, the review). The head's title is the longer
+              word, so the capsule is two short words, not "Add Something". */}
+          {!adding && <button className="see-all pill-action" aria-label="Add Something to Talk About" onClick={() => setAdding(true)}>Add Topic</button>}
         </div>
       )}
-      {onAddPoint && (
+      {/* CRAFTED, NOT BLANK (Dave 2026-10-05, D9): a person with nothing saved is a glyph, a title and one warm line, and the head's
+          Add Topic is the ONE capsule that fills it (the round 2 review: a second filled "Save a Topic" under it did exactly the
+          same thing, two doors to one verb, 200px apart). */}
+      {onAddPoint && points.length === 0 && !adding && (
+        <div className="empty-state empty-compact">
+          <div className="empty-icon cat-fg-teal"><MessageSquare className="ic" /></div>
+          <div className="empty-title">Nothing to Bring Up Yet</div>
+          <div className="empty-sub">Topics You Save Here Wait for Your Next Conversation</div>
+        </div>
+      )}
+      {onAddPoint && (points.length > 0 || adding) && (
         <div className="pad-x"><div className="card list-card-ruled">
           {points.map((pt) => (
             // The row IS the door: a talking point has no detail to open, so
@@ -304,33 +363,30 @@ export default function PersonDetail({
                 onClick={(ev) => { ev.stopPropagation(); onTogglePoint?.(pt.id); }}>
                 <div className={"task-check" + (pt.discussed ? " on" : "")} />
               </div>
-              <div className="row-grow"><div className="conn-name">{pt.text}</div></div>
+              <div className="row-grow"><div className="conn-name">{titleCase(pt.text)}</div></div>
             </div>
           ))}
-          {adding ? (
+          {adding && (
             <div className="row">
               <div className="row-grow">
                 <InlineEdit className="conn-name" value="" focused placeholder="Bring This Up"
                   onSave={(v) => { setAdding(false); const t = v.trim(); if (t) onAddPoint(t); }} />
               </div>
             </div>
-          ) : (
-            <button className="row-create" onClick={() => setAdding(true)}>Add Something</button>
           )}
         </div></div>
       )}
       {hasAttrs && <div className="sh2 sh2-quiet"><span className="t">About</span></div>}
       {hasAttrs && (
         <div className="pad-x"><div className="card list-card-ruled">
-          <KV label="Relationship" value={relationship} onEdit={onEdit} />
           <KV label="Birthday" value={birthday} onEdit={onEdit} />
-          <KV label="JARVIS writes" value={writeStyle} onEdit={onEdit} />
+          <KV label="JARVIS Writes" value={writeStyle} onEdit={onEdit} />
           <KV label="Areas" value={categoryNames.length > 0 ? categoryNames.join(", ") : undefined} onEdit={onEdit} />
           {/* UP-ATH-07: the one person Say It to Someone reaches. It sat
               under the name as a second grey beside the relationship (§AK),
               so it is a fact of its own here. No tap: the person sheet does
               not set it. */}
-          {trustedAdult && <KV label="Say It to Someone" value="Trusted adult" />}
+          {trustedAdult && <KV label="Say It to Someone" value="Trusted Adult" />}
           {lastTalked && (
             // Row tap (Dave 2026-09-15, "I want all rows clickable"): a quiet
             // contact's row drafts the check in, as its pill does. It opens a
@@ -338,11 +394,8 @@ export default function PersonDetail({
             <div className="row" {...(quiet && onCheckIn && !checkingIn ? pressable(onCheckIn) : {})}>
               <div className="row-grow"><div className="conn-name">Last Talked</div></div>
               <span className="kv-val">{quiet ? <span className="fact warn">{lastTalked}</span> : lastTalked}</span>
-              {quiet && onCheckIn && (
-                <button className="pill-act" disabled={checkingIn} onClick={(ev) => { ev.stopPropagation(); onCheckIn(); }}>
-                  {checkingIn ? "Drafting" : "Check In"}
-                </button>
-              )}
+              {/* Its moment has come (they have gone quiet): the one action, as text in the key colour, never a capsule. */}
+              <RowCtxAction when={quiet && !!onCheckIn} label={checkingIn ? "Drafting" : "Check In"} onAct={() => { if (!checkingIn) onCheckIn?.(); }} />
             </div>
           )}
         </div></div>
@@ -371,21 +424,23 @@ export default function PersonDetail({
             {promises.map((p) => (
               // Row tap (Dave 2026-09-15): a promise has no task yet, so the row
               // does its pill's verb, Add Task.
-              <div className="row" key={"promise:" + p.threadId} {...(onAddTask ? pressable(() => onAddTask(p)) : {})}>
+              <div className="row" key={"promise:" + p.threadId} {...(onAddTask ? pressable(() => setSheet({ kind: "promise", p })) : {})}>
                 <div className="row-grow">
                   <div className="conn-name">{p.text}</div>
-                  <div className="facts"><span className="fact">You promised</span>{p.due && <span className={"fact " + dueTone(p.due, todayISO())}>{shortDate(p.due)}</span>}</div>
+                  <div className="facts"><span className="fact">You Promised</span>{p.due && <span className={"fact " + dueTone(p.due, todayISO())}>{whenText(p.due, todayISO())}</span>}</div>
                 </div>
-                {onAddTask && <button type="button" className="pill-act" onClick={(ev) => { ev.stopPropagation(); onAddTask(p); }}>Add Task</button>}
+                {/* Overdue: the promise's moment has come, so its one action shows on the row as text. Tap opens its sheet. */}
+                <RowCtxAction when={!!onAddTask && !!p.due && p.due < todayISO()} label="Add Task" onAct={() => onAddTask?.(p)} ariaLabel={"Add Task " + p.text} />
+                {onAddTask && <div className="chev" />}
               </div>
             ))}
             {openWith.map((m) => (
               <div className="task-row p2 notif-row" key={m.kind + m.id}
-                role={onOpenItem ? "button" : undefined} tabIndex={onOpenItem ? 0 : undefined}
-                onClick={onOpenItem ? () => onOpenItem(m.kind, m.id) : undefined}>
+                role={onOpenItem || onMessageAbout ? "button" : undefined} tabIndex={onOpenItem || onMessageAbout ? 0 : undefined}
+                onClick={onMessageAbout ? () => setSheet({ kind: "item", m }) : onOpenItem ? () => onOpenItem(m.kind, m.id) : undefined}>
                 <div className="task-check-tap"><RowGlyph kind={m.kind} /></div>
                 <div className="task-title">
-                  <span className="task-name">{m.title}</span>
+                  <span className="task-name">{titleCase(titleOnPage(m.title, name))}</span>
                   {/* A task's due date wears the reminder and project window
                       (§AM, R8), an event's date is a neutral small-caps date,
                       and a reminder's own words ("Reminds at 2:00PM") are the
@@ -394,14 +449,13 @@ export default function PersonDetail({
                     <div className="facts">
                       {m.reminder
                         ? <span className="fact">{m.sub}</span>
-                        : <span className={"fact " + (m.kind === "task" ? dueTone(m.sub, todayISO()) : "date")}>{shortDate(m.sub)}</span>}
+                        : <span className={"fact " + dueTone(m.sub, todayISO())}>{whenText(m.sub, todayISO())}</span>}
                     </div>
                   )}
                 </div>
-                {onMessageAbout && (
-                  <button className="pill-act" onClick={(e) => { e.stopPropagation(); onMessageAbout(m); }}>Message</button>
-                )}
-                {onOpenItem && !onMessageAbout && <div className="chev"></div>}
+                {/* Clean rows (Dave 2026-10-05): no Message capsule. With a number to text, the row's tap opens its sheet
+                    (Open, Message About It); without one, the tap just opens the item. */}
+                {(onOpenItem || onMessageAbout) && <div className="chev"></div>}
               </div>
             ))}
           </div></div>
@@ -482,6 +536,19 @@ export default function PersonDetail({
         </>
       )}
       <div className="screen-foot" />
+      {sheet?.kind === "promise" && onAddTask && (
+        <RowActionSheet title={sheet.p.text} actions={[{ label: "Add Task", onPick: () => onAddTask(sheet.p) }]} onCancel={() => setSheet(null)} />
+      )}
+      {sheet?.kind === "item" && (
+        <RowActionSheet
+          title={sheet.m.title}
+          actions={[
+            ...(onOpenItem ? [{ label: "Open " + (sheet.m.kind === "task" ? "Task" : "Event"), onPick: () => onOpenItem(sheet.m.kind, sheet.m.id) }] : []),
+            ...(onMessageAbout ? [{ label: "Message About This", onPick: () => onMessageAbout(sheet.m) }] : []),
+          ]}
+          onCancel={() => setSheet(null)}
+        />
+      )}
     </div>
   );
 }

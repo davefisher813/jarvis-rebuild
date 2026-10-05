@@ -78,7 +78,7 @@ export const COLOR_GROUPS: { label: string; slots: ColorSlot[] }[] = [
 // saving the editor makes it explicit.
 export type CategoryKind = "org" | "people" | "money" | "health" | "plain";
 export const KIND_LABEL: Record<CategoryKind, string> = {
-  org: "Org",
+  org: "Organization",
   people: "People",
   money: "Money",
   health: "Health",

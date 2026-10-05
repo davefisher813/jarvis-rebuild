@@ -15,6 +15,7 @@ import type { TasksService } from "../tasks/TasksService";
 import type { ScheduleService } from "../schedule/ScheduleService";
 import type { WaitingService } from "../substrate/waiting/WaitingService";
 import { emailTodayRows, reviewCount, type EmailFocus, type TodayEmailRow } from "../email/waiting";
+import EmailFacts from "../email/EmailFacts";
 
 export default function EmailToday({ client, tasks, schedule, waiting, today, excludeIds = [], refreshKey = 0, onOpenEmail, onOpenEntity, onEmptyChange }: {
   client: RpcClient | null;
@@ -54,16 +55,19 @@ export default function EmailToday({ client, tasks, schedule, waiting, today, ex
     else onOpenEntity(r.kind, r.id);
   };
   const Icon = (k: TodayEmailRow["kind"]) => k === "review" ? Mail : k === "task" ? CheckSquare : k === "event" ? Calendar : Hourglass;
+  // A TYPE ICON CARRIES ITS TYPE'S COLOUR (Dave 2026-10-05: the envelope and the check were flat black in light).
+  // The tones are the ones the sheets already use for these types: Email teal, Task red, Event sky, Waiting purple.
+  const Tone = (k: TodayEmailRow["kind"]) => k === "review" ? "teal" : k === "task" ? "red" : k === "event" ? "sky" : "purple";
   return (
     <div className="card list-card-ruled email-today-band" data-email-today={rows.length}>
       {rows.map((r) => {
         const I = Icon(r.kind);
         return (
           <div className="row" key={r.kind + ":" + r.id} {...rowDoor(() => open(r))} data-email-row={r.kind}>
-            <I className="email-today-ic" />
+            <I className={"email-today-ic cat-fg-" + Tone(r.kind)} />
             <div className="row-grow">
               <div className="conn-name truncate">{r.title}</div>
-              <div className="facts"><span className="fact">{r.line}</span></div>
+              <EmailFacts facts={r.facts} />
             </div>
             <div className="chev"></div>
           </div>

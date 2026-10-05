@@ -57,42 +57,46 @@ describe("LibraryPage: the row's anatomy", () => {
     expect(when).not.toHaveClass("lime");
   });
 
-  it("offers Assign Muscles in amber, and only while there is no primary", () => {
-    const { rerender } = render(<LibraryPage {...base} rows={[row()]} />);
-    expect(screen.getByRole("button", { name: "Assign Muscles" })).toHaveClass("ex-chip", "amber");
-    rerender(<LibraryPage {...base} store={{ bench: { ...EMPTY_CLASS, primary: ["chest"] } }} rows={[row()]} />);
-    expect(screen.queryByRole("button", { name: "Assign Muscles" })).toBeNull();
-    // AMENDED 2026-09-16 (Dave: "too much of the same color"). A muscle is
-    // what the lift TRAINS and takes the lime this app spends on work done;
-    // cyan goes back to meaning one thing on this row, which is when it last
-    // happened.
-    expect(screen.getByRole("button", { name: "Chest, edit" })).toHaveClass("ex-chip", "lime");
+  it("says muscles are missing as an amber state, offers Assign Muscles on the swipe, and only while there is no primary", () => {
+    const { rerender, container } = render(<LibraryPage {...base} rows={[row()]} />);
+    // CLEAN ROW (Dave 2026-10-05, locked): the amber chip is a state fact now, and the action it was is the swipe's quick
+    // verb. No pill, and no action text, on a row whose library is unclassified (every row would carry one).
+    expect(screen.getByText("No Muscles Yet")).toHaveClass("fact", "warn");
+    expect(container.querySelector(".ex-row .pill-act, .ex-row .ex-chip, .ex-row .row-ctx")).toBeNull();
+    expect(screen.getByRole("button", { name: "Assign Muscles Bench Press" })).toHaveClass("task-verb");
+    rerender(<LibraryPage {...base} onToggleFavorite={() => {}} store={{ bench: { ...EMPTY_CLASS, primary: ["chest"] } }} rows={[row()]} />);
+    expect(screen.queryByText("No Muscles Yet")).toBeNull();
+    expect(screen.queryByRole("button", { name: /^Assign Muscles/ })).toBeNull();
+    // Once assigned, the quick verb is Favorite, and the muscle is a lime fact (AMENDED 2026-09-16, Dave: "too much of the
+    // same color": a muscle is what the lift TRAINS and takes the lime this app spends on work done).
+    expect(screen.getByRole("button", { name: "Favorite Bench Press" })).toHaveClass("task-verb");
+    expect(screen.getByText("Chest")).toHaveClass("fact", "lime");
   });
 
   it("marks a secondary muscle differently from a primary one", () => {
     render(<LibraryPage {...base} store={{ bench: { ...EMPTY_CLASS, primary: ["chest"], secondary: ["triceps"] } }} rows={[row()]} />);
     // Same hue, half the weight -- which is exactly what a secondary counts
     // for in this app's own convention.
-    expect(screen.getByRole("button", { name: "Chest, edit" })).toHaveClass("lime");
-    expect(screen.getByRole("button", { name: "Triceps, edit" })).toHaveClass("lime", "sec");
+    expect(screen.getByText("Chest")).toHaveClass("fact", "lime");
+    expect(screen.getByText("Triceps")).toHaveClass("fact", "lime", "sec");
   });
 
-  // ONE MEANING PER HUE, so a row of chips reads by colour before it reads by
+  // ONE MEANING PER HUE, so a row of facts reads by colour before it reads by
   // word. Cyan was saying three unrelated things at once.
   it("gives each axis its own colour", () => {
     render(<LibraryPage {...base} store={{ bench: { ...EMPTY_CLASS, primary: ["chest"], equipment: "barbell", movement: "push_h" } }} rows={[row()]} />);
-    expect(screen.getByRole("button", { name: "Chest, edit" })).toHaveClass("lime");
-    expect(screen.getByRole("button", { name: "Barbell, edit" })).toHaveClass("violet");
-    const move = screen.getByRole("button", { name: "Push Forward, edit" });
-    expect(move.className.trim(), "the least load-bearing axis stays quiet").toBe("ex-chip");
+    expect(screen.getByText("Chest")).toHaveClass("lime");
+    expect(screen.getByText("Barbell")).toHaveClass("violet");
+    const move = screen.getByText("Push Forward");
+    expect(move.className.trim(), "the least load-bearing axis stays quiet").toBe("fact");
   });
 
-  it("opens the exercise from its name and the editor from a chip", () => {
+  it("opens the exercise from its name and the editor from the row's one contextual action", () => {
     const onOpen = vi.fn();
     render(<LibraryPage {...base} rows={[row()]} onOpen={onOpen} />);
     fireEvent.click(screen.getByText("Bench Press"));
     expect(onOpen).toHaveBeenCalledWith(expect.objectContaining({ key: "bench" }));
-    fireEvent.click(screen.getByRole("button", { name: "Assign Muscles" }));
+    fireEvent.click(screen.getByRole("button", { name: /^Assign Muscles/ }));
     // The sheet lands on the muscle question, over the page.
     //
     // 2026-09-16: this used to look for a "Muscles Worked" title the card
@@ -180,7 +184,7 @@ describe("LibraryPage: search, filters and sort", () => {
   it("keeps the search after an edit closes", () => {
     render(<LibraryPage {...base} rows={rows} />);
     fireEvent.change(screen.getByLabelText("Search Exercises"), { target: { value: "bench" } });
-    fireEvent.click(screen.getByRole("button", { name: "Assign Muscles" }));
+    fireEvent.click(screen.getByRole("button", { name: /^Assign Muscles/ }));
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
     expect(screen.getByLabelText("Search Exercises")).toHaveValue("bench");
     expect(screen.queryByText("Back Squat")).toBeNull();
@@ -253,7 +257,7 @@ describe("LibraryPage: a filtered list does not yank a row out from under you", 
     fireEvent.click(screen.getByRole("button", { name: "Missing Muscles 2" }));
     fireEvent.click(screen.getByRole("button", { name: "Hide Filters" }));
     expect(screen.getByText("Bench Press")).toBeInTheDocument();
-    fireEvent.click(screen.getAllByRole("button", { name: "Assign Muscles" })[0]!);
+    fireEvent.click(screen.getAllByRole("button", { name: /^Assign Muscles/ })[0]!);
     fireEvent.click(screen.getByRole("button", { name: /^Chest/ }));
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
     // The store comes back with the write applied, which takes the row out of
@@ -269,7 +273,7 @@ describe("LibraryPage: a filtered list does not yank a row out from under you", 
     fireEvent.click(screen.getByRole("button", { name: "Filters" }));
     fireEvent.click(screen.getByRole("button", { name: "Missing Muscles 2" }));
     fireEvent.click(screen.getByRole("button", { name: "Hide Filters" }));
-    fireEvent.click(screen.getAllByRole("button", { name: "Assign Muscles" })[0]!);
+    fireEvent.click(screen.getAllByRole("button", { name: /^Assign Muscles/ })[0]!);
     fireEvent.click(screen.getByRole("button", { name: /^Chest/ }));
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
     rerender(<LibraryPage {...base} store={{ a: { ...EMPTY_CLASS, primary: ["chest"] } }} rows={rows} />);
@@ -283,7 +287,7 @@ describe("LibraryPage: a filtered list does not yank a row out from under you", 
 
   it("holds nothing when no filter is on, because nothing can drop out", () => {
     const { rerender } = render(<LibraryPage {...base} rows={rows} />);
-    fireEvent.click(screen.getAllByRole("button", { name: "Assign Muscles" })[0]!);
+    fireEvent.click(screen.getAllByRole("button", { name: /^Assign Muscles/ })[0]!);
     fireEvent.click(screen.getByRole("button", { name: /^Chest/ }));
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
     rerender(<LibraryPage {...base} store={{ a: { ...EMPTY_CLASS, primary: ["chest"] } }} rows={rows} />);

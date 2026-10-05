@@ -68,11 +68,15 @@ describe("the Bills list: ledger and legacy rows together", () => {
     expect(names).toEqual(["Internet", "Rent", "ConEdison", "Water"]);
 
     const row = (name: string) => screen.getByText(name).closest(".task-row") as HTMLElement;
-    // overdue: the late chip, which wears the Colour Key's red
-    expect(within(row("Internet")).getByText("3 Days Late")).toHaveClass("uchip", "u-late");
-    expect(within(row("Internet")).getByText("$60")).toBeInTheDocument();
-    // due soon: plain words, the warn chip
-    expect(within(row("ConEdison")).getByText("Due in 3 Days")).toHaveClass("uchip", "u-today");
+    // overdue: the state is text in the Colour Key's red, never a capsule on the row
+    expect(within(row("Internet")).getByText("3 Days Late")).toHaveClass("fact", "red");
+    expect(within(row("Internet")).getByText("3 Days Late")).not.toHaveClass("uchip");
+    // one column, one shape: ConEdison's $84.12 carries cents, so every bill's amount does
+    expect(within(row("Internet")).getByText("$60.00")).toBeInTheDocument();
+    expect(within(row("Water")).getByText("$40.00")).toBeInTheDocument();
+    // due soon: amber text, no fill, and the one date beside it
+    expect(within(row("ConEdison")).getByText("Due in 3 Days")).toHaveClass("fact", "warn");
+    expect(within(row("ConEdison")).getByText("Due in 3 Days")).not.toHaveClass("uchip");
     expect(within(row("ConEdison")).getByText("$84.12")).toBeInTheDocument();
     // no due date: no chip, no date, never late
     expect(within(row("Water")).queryByText(/Late|Due/)).toBeNull();
@@ -192,8 +196,7 @@ describe("Mark paid: the person's own word, confirmed", () => {
     mount("mb-pay", async (l) => { await add(l, { vendor: "Water", amount: 40, dueDate: day(-1) }); });
     await screen.findByText("Water");
     fireEvent.click(screen.getByLabelText("Mark paid"));
-    expect(await screen.findByText("Mark Paid")).toBeInTheDocument();
-    const date = screen.getByLabelText("Paid on") as HTMLInputElement;
+    const date = (await screen.findByLabelText("Paid on")) as HTMLInputElement;
     expect(date.value).toBe(T);
     // nothing is paid until the confirm
     expect((await ledgerRef!.listBills())[0]!.data.paidAt).toBeUndefined();
@@ -209,7 +212,7 @@ describe("Mark paid: the person's own word, confirmed", () => {
     await screen.findByText("Water");
     fireEvent.click(screen.getByLabelText("Mark paid"));
     fireEvent.click(await screen.findByText("Cancel"));
-    await waitFor(() => expect(screen.queryByText("Mark Paid")).toBeNull());
+    await waitFor(() => expect(screen.queryByLabelText("Paid on")).toBeNull());
     expect((await ledgerRef!.listBills())[0]!.data.paidAt).toBeUndefined();
   });
 
@@ -264,15 +267,16 @@ describe("the bill's page", () => {
     expect(screen.getByText("Created")).toBeInTheDocument();
     expect(screen.getByText("Marked Paid")).toBeInTheDocument();
     expect(screen.getByText("Corrected")).toBeInTheDocument();
-    const notes = screen.getAllByText("Notes").find((n) => n.classList.contains("bill-change-k"))!;
-    expect(notes.parentElement).toHaveTextContent("NotesNonetojuly bill");
+    // One white fact per change (2026-10-05, the visual catalog gate): the field, the before and the after.
+    expect(screen.getByText("Notes None to july bill")).toBeInTheDocument();
   });
 
-  it("a bill with no due date shows None for the date, never a made-up one", async () => {
+  it("a bill with no due date shows no date and no Due row at all, never a made-up one or a None placeholder", async () => {
     mount("mb-detail-none", async (l) => { await add(l, { vendor: "Water", amount: 40 }); });
     fireEvent.click(await screen.findByText("Water"));
-    const due = (await screen.findAllByText("Due")).find((n) => n.classList.contains("conn-name"))!;
-    expect(due.parentElement).toHaveTextContent("DueNone");
+    await screen.findByText("Delete Bill");
+    expect(screen.queryAllByText("Due").filter((n) => n.classList.contains("conn-name"))).toHaveLength(0);
+    expect(document.body.textContent).not.toMatch(/DueNone/);
   });
 
   it("editing a bill corrects it and the history shows what changed; a blank due date stays blank", async () => {
@@ -291,7 +295,7 @@ describe("the bill's page", () => {
     // the page behind the sheet shows it
     const to = await screen.findAllByText("$90");
     expect(to.length).toBeGreaterThan(0);
-    expect(screen.getByText("Amount", { selector: ".bill-change-k" })).toBeInTheDocument();
+    expect(screen.getByText(/^Amount \$84\.12 to \$90$/)).toBeInTheDocument();
   });
 
   it("correcting a paid bill's amount asks to confirm it is still paid, and confirming does", async () => {
@@ -411,7 +415,10 @@ describe("a recurring offer, quiet, and nothing is scheduled until Yes", () => {
     expect(screen.getByText("Make It Monthly?")).toBeInTheDocument();
     // asking changed nothing
     expect((await ledgerRef!.listBills()).every((b) => !b.data.recurrence)).toBe(true);
-    fireEvent.click(screen.getByText("Yes"));
+    // THE OFFER IS A ROW WITH NO PILL (Dave 2026-10-05): the tap asks, and Make It Monthly is the answer
+    expect(screen.queryByText("Yes")).toBeNull();
+    fireEvent.click(screen.getByText("Make It Monthly?"));
+    fireEvent.click(await screen.findByText("Make It Monthly"));
     await waitFor(() => expect(screen.queryByText("Make It Monthly?")).toBeNull());
     const monthly = (await ledgerRef!.listBills()).filter((b) => b.data.recurrence === "monthly");
     expect(monthly).toHaveLength(1);

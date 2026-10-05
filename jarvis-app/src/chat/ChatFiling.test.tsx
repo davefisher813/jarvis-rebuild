@@ -179,7 +179,7 @@ describe("chat Log It: long press", () => {
 
   it("keeps the star, the provenance line and the chips on the bubble", async () => {
     await openChat([{ role: "jarvis", text: "Two things today", provenance: { kind: "ai" } }]);
-    expect(screen.getByText("From your data + AI")).toBeInTheDocument();
+    expect(screen.getByText("From Your Data + AI")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Remember this" })).toBeInTheDocument();
   });
 });

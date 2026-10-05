@@ -144,4 +144,24 @@ describe("the whole rule: every line the app writes is Title Case", () => {
     expect(lineCase(once)).toBe(once);
     expect(lineCase("")).toBe("");
   });
+
+  // THE NUMBER RULE, whole (Dave 2026-10-05, "Earlier 2 blocks"): lineCase carries it, so a line that opens with a
+  // number never has a lowercase word behind it, a small word included.
+  it("lineCase capitalizes the word behind a leading number, in every dot segment", () => {
+    expect(lineCase("2 blocks")).toBe("2 Blocks");
+    expect(lineCase("1 block")).toBe("1 Block");
+    expect(lineCase("5 email items")).toBe("5 Email Items");
+    expect(lineCase("$5,000 on Jul 1")).toBe("$5,000 On Jul 1");
+    expect(lineCase("3 tasks due · 2 events")).toBe("3 Tasks Due · 2 Events");
+    expect(lineCase("2 of 5 lifts")).toBe("2 of 5 Lifts");
+    expect(lineCase("Due in 3 days")).toBe("Due in 3 Days");
+  });
+
+  it("an acronym is always capitals, and a small w stays small", () => {
+    expect(titleCase("create ai financial advisor")).toBe("Create AI Financial Advisor");
+    expect(titleCase("get ein number")).toBe("Get EIN Number");
+    expect(lineCase("send the pdf to hr")).toBe("Send the PDF to HR");
+    expect(titleCase("clear up allstate w alfred")).toBe("Clear Up Allstate w Alfred");
+    expect(titleCase("brainstorms best at night")).toBe("Brainstorms Best at Night");
+  });
 });

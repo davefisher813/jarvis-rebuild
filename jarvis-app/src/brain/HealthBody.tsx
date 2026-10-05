@@ -1,4 +1,5 @@
 import { useMemo, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import type { Program, Workout } from "../gym/types";
 import { nextDayFor, SCRATCH_DAY_ID, SCRATCH_DAY_NAME } from "../gym/nextDay";
 import { seedsFromSettings, shownLibraryCount, shownSignature } from "../gym/libraryView";
@@ -7,7 +8,7 @@ import { estimateDay } from "../gym/fit";
 import { readGymSettings, rackFrom } from "../gym/settings";
 import ActionSheet from "../gym/ActionSheet";
 import { BarbellGlyph, MoonGlyph, ClockGlyph, PulseGlyph } from "../shared/glyphs";
-import { Plus, Timer, FileText } from "../shared/icons";
+import { Timer } from "../shared/icons";
 import { lineCase } from "../shared/casing";
 import { spanLabel } from "../shared/duration";
 import { fmtTime } from "../schedule/calendar";
@@ -24,9 +25,17 @@ export interface LiveHero { dayName: string; nextExercise: string | null; setNo:
 // week, in view."). The order is the design's: the week as one card (the
 // range, the workout count, seven bars for seven real dates, working sets,
 // training time, sleep over logged nights), the next workout as a compact
-// card with Start, Adjust Time and Change Workout (Resume, and no Start,
-// while a session is open), up to three findings under Your Progress with
-// View Insights, then All Data and Log Something. Every number on the week
+// card with Start (Resume, and no Start, while a session is open), up to
+// three findings under Your Progress, then the Insights and All Data doors.
+//
+// CLEAN ROWS, NO PILLS (Dave 2026-10-05, locked). The next workout is a ROW:
+// tap it and its sheet holds every action, Start first and filled, then
+// Adjust Time and Change Workout beneath it. Start Workout stays on the card
+// as this screen's one filled primary. Log Something is the Your Progress
+// head's own capsule (a section-level action lives in the head); Insights and
+// All Data are door rows like Exercises and Program; Customize is a door in
+// the first card. Add Task, Add Event and Add Project are their sections'
+// heads (CategoryDetail). Every number on the week
 // card opens the records behind it; a bar opens that day. Every value is
 // one of insights/analytics.ts's, the same functions Insights and the
 // record browser read, so the page cannot disagree with them.
@@ -41,12 +50,6 @@ const CHEV = <div className="chev" />;
 
 // S5-Q29 (2026-09-04): the one-tap loggers, now the rows of Log Something.
 export type HealthLoggerKey = "lightsOut" | "tookIt" | "callIt" | "pointAtIt" | "meal" | "checkin";
-export interface HealthLoggerRow {
-  key: HealthLoggerKey;
-  label: string;
-  sub: string;
-  value: string | null;
-}
 /** One row of the Log Something sheet: a label and what tapping it does. */
 export interface LogAction { label: string; onPick: () => void }
 
@@ -58,8 +61,8 @@ export type RecordsOpen =
 
 export default function HealthBody({
   program, libraryPrograms, workouts, overview, today, isEvening, gymEvent, findings,
-  live = null, onResume, onStart, onAdjustTime, onOpenGym, onOpenRecords, onOpenFinding, onOpenInsights, onOpenAllData,
-  logActions, onOpenSettings, sections, more, adds, view, onView, onOpenExercises, onOpenHistory,
+  live = null, onResume, onStart, onAdjustTime, onOpenGym, onOpenRecords, onOpenFinding,
+  logActions, onOpenSettings, sections, more, view, onView, onOpenExercises, onOpenHistory,
 }: {
   program: Program | null;
   /** Every program, archived ones too: what the Exercises page builds from.
@@ -88,26 +91,27 @@ export default function HealthBody({
   onOpenHistory?: () => void;
   onOpenRecords: (o: RecordsOpen) => void;
   onOpenFinding: (f: Finding) => void;
-  onOpenInsights: () => void;
-  onOpenAllData: () => void;
   /** The rows of Log Something, built by the caller from what he tracks. */
   logActions: LogAction[];
   onOpenSettings?: () => void;
   /** Projects, Training Goals, Coming Up and Up Next, handed in once. */
   sections?: ReactNode;
   more?: ReactNode;
-  adds?: ReactNode;
   view: HealthView;
   onView: (v: HealthView) => void;
 }) {
   const [logOpen, setLogOpen] = useState(false);
   const [changeOpen, setChangeOpen] = useState(false);
+  const [nextOpen, setNextOpen] = useState(false);
   const dow = todayDow();
   const next = nextDayFor(program, workouts, dow);
   const est = next ? estimateDay(next.day, workouts, rackFrom(readGymSettings())).min : 0;
   const when = gymEvent
-    ? `${isEvening ? "Tonight" : "Today"} ${fmtTime(gymEvent.start).time} ${fmtTime(gymEvent.start).ap}`
+    ? `${isEvening ? "Tonight" : "Today"} ${fmtTime(gymEvent.start).time}\u00a0${fmtTime(gymEvent.start).ap}`
     : next?.when === "today" ? "Today" : next?.when === "tomorrow" ? "Tomorrow" : next?.when ? next.when : null;
+  // TODAY AND TOMORROW ARE DUE, SO AMBER; a later day is a neutral date in small caps (R8, D4; the round-2 review: "Health . TODAY"
+  // drawn grey on the Next Workout card while the same word was amber on a task row). The time is never split from AM or PM.
+  const whenTone = when && /^(Today|Tonight|Tomorrow)\b/.test(when) ? "warn" : "date";
   const days = (program?.data.weeks ?? []).flatMap((w) => w.days);
   // The count beside the Exercises door is the number of rows the Exercises
   // page lists when it opens (gym/libraryView.shownLibraryCount, the same
@@ -144,7 +148,7 @@ export default function HealthBody({
           <span className="fact date">{range}</span>
         </div>
         <div className="h-week-main">
-          <button type="button" className="h-week-count" aria-label={`${overview.workouts} workouts, open the workouts`} onClick={() => onOpenRecords({ kind: "workouts" })}>
+          <button type="button" className={"h-week-count" + (overview.workouts === 0 ? " zero" : "")} aria-label={`${overview.workouts} workouts, open the workouts`} onClick={() => onOpenRecords({ kind: "workouts" })}>
             {/* TITLE CASE, LIKE EVERY OTHER LABEL ON THIS CARD (Dave
                 2026-09-17: "workouts doesn't follow title case rules").
                 Working Sets and Training Time sit two rows below in the same
@@ -164,7 +168,7 @@ export default function HealthBody({
           </div>
         </div>
         <div className="h-stats">
-          <button type="button" className="h-stat lime" onClick={() => onOpenRecords({ kind: "sets" })}>
+          <button type="button" className={"h-stat" + (overview.workingSets > 0 ? " lime" : "")} onClick={() => onOpenRecords({ kind: "sets" })}>
             <b>{overview.workingSets}</b><span>Working Sets</span>
           </button>
           <button type="button" className="h-stat" onClick={() => onOpenRecords({ kind: "workouts" })}>
@@ -215,7 +219,7 @@ export default function HealthBody({
           "Your Health" head. That was declined: on a phone it lands about
           600px down past two cards, which is the burying the 09-14 note was
           written against. Position is his; the row treatment is the mockup's. */}
-      {(onOpenExercises || onOpenHistory) && (
+      {(onOpenExercises || onOpenHistory || onOpenSettings) && (
         <div className="pad-x"><div className="card list-card-ruled h-doors">
           {onOpenExercises && (
             <button type="button" className="h-door" onClick={onOpenExercises}>
@@ -236,6 +240,12 @@ export default function HealthBody({
               {CHEV}
             </button>
           )}
+          {onOpenSettings && (
+            <button type="button" className="h-door" onClick={onOpenSettings}>
+              <span className="h-door-k">Customize</span>
+              {CHEV}
+            </button>
+          )}
         </div></div>
       )}
 
@@ -243,18 +253,6 @@ export default function HealthBody({
       <div className="pad-x h-hero-wrap"><div className="card list-card-ruled h-hero-card">
         <div className="h-hero-head">
           <span className="h-eyebrow">{live ? "Session Open" : "Next Workout"}</span>
-          {/* NOT A GREY PILL (polish pass 2026-09-16, rule 2: "Remove isolated
-              grey pill buttons... Replace each according to meaning"). This one
-              only ever navigated, and a .pill-act is the app's word for a verb
-              that acts on the row it sits in. It is the head's own text action
-              now -- the same .see-all every section head in the app uses -- and
-              it says WHICH program it opens rather than the word "Program",
-              which the door below already says. */}
-          {program && (
-            <button type="button" className="see-all" onClick={onOpenGym}>
-              {program.data.name}
-            </button>
-          )}
         </div>
         {live ? (
           <>
@@ -275,13 +273,18 @@ export default function HealthBody({
           </>
         ) : next ? (
           <>
-            <div {...pressable(onOpenGym)} className="h-hero">
+            <div {...pressable(() => setNextOpen(true))} className="h-hero">
               <span className="h-hero-ico"><BarbellGlyph /></span>
               <div className="h-hero-b">
                 <div className="h-hero-t">{next.day.name}</div>
                 <div className="facts h-hero-facts">
-                  {when && <span className="fact date">{when}</span>}
-                  <span className="fact lime">{lineCase(`${next.day.exercises.length} ${next.day.exercises.length === 1 ? "exercise" : "exercises"}`)}</span>
+                  {when && <span className={"fact " + whenTone}>{when}</span>}
+                  {/* A PLAIN COUNT IS WHITE, NEVER LIME (the ship-blocker review): lime is
+                      "what is logged" in the Colour Key, and an exercise count on a
+                      workout that has not started logs nothing. It read lime in dark
+                      and neutral grey in light; a measured number with no state is
+                      the one white, the same in both themes (§AM). */}
+                  <span className="fact"><b>{lineCase(`${next.day.exercises.length} ${next.day.exercises.length === 1 ? "exercise" : "exercises"}`)}</b></span>
                   {/* The sky ink already says estimate, so no "About"
                       (2026-09-26): with it, the line cut the number away
                       at type scale 1.4 ("Abo..."). */}
@@ -293,10 +296,6 @@ export default function HealthBody({
             <div className="h-hero-cta">
               <button type="button" className="btn btn-primary btn-block" onClick={() => onStart(next.day.id)}>Start Workout</button>
             </div>
-            <div className="h-next-acts">
-              {est > 0 && <button type="button" className="pill-act pill-quiet" onClick={() => onAdjustTime(next.day.id)}>Adjust Time</button>}
-              <button type="button" className="pill-act pill-quiet" onClick={() => setChangeOpen(true)}>Change Workout</button>
-            </div>
           </>
         ) : (
           <div {...pressable(onOpenGym)} className="h-hero">
@@ -307,18 +306,17 @@ export default function HealthBody({
         )}
       </div></div>
 
-      {/* YOUR PROGRESS: up to three findings, each a door to its records. */}
-      {/* .see-all alone, not .see-all.pill-action: the capsule made a section
-          link look like a control (polish rule 2). The head action is red text
-          on the head's own baseline, which is what it is everywhere else. */}
+      {/* YOUR PROGRESS: up to three findings, each a door to its records. Log Something is the section's own action, so it
+          is the head's capsule (Dave 2026-10-05, locked: a section-level action lives in the head, never in a card). */}
       <div className="sh2 sh2-quiet"><span className="t">Your Progress</span>
-        <button className="see-all" onClick={onOpenInsights}>View Insights</button></div>
+        <button type="button" className="see-all pill-action" onClick={() => setLogOpen(true)}>Log Something</button></div>
       <div className="pad-x"><div className="card list-card-ruled">
         {findings.length === 0 ? (
           /* An empty state, not a placeholder row (Colour Key, 2026-09-26): a
              row with nothing to say shows nothing. Its door is Log Something,
-             directly under this card, so it carries no second one. */
+             in the head above it, so it carries no second one. */
           <div className="empty-state empty-compact">
+            <div className="empty-icon cat-fg-green"><PulseGlyph /></div>
             <div className="empty-title">Nothing to Read Yet</div>
             <div className="empty-sub">A logged workout or a night of sleep is enough to start</div>
           </div>
@@ -348,21 +346,38 @@ export default function HealthBody({
         ))}
       </div></div>
 
-      {/* DATA ACCESS: the records, and a log, without hunting for either. */}
-      <div className="pad-x h-foot-acts">
-        <button type="button" className="btn btn-secondary" onClick={onOpenAllData}><FileText className="ic" />All Data</button>
-        <button type="button" className="btn btn-secondary" onClick={() => setLogOpen(true)}><Plus className="ic" />Log Something</button>
-      </div>
-      {onOpenSettings && (
-        <div className="pad-x h-foot-acts"><button type="button" className="btn btn-tertiary" onClick={onOpenSettings}>Customize</button></div>
-      )}
+      {/* (Insights and All Data are the segmented control at the top of this page; they were also two door rows here, one screen
+          down, which said the same two things twice. Dave 2026-10-05, the round-2 review: redundant navigation.) */}
 
       {sections}
       {more}
-      {adds}
 
       {logOpen && (
         <ActionSheet title="Log Something" actions={logActions.map((a) => ({ label: a.label, onClick: a.onPick }))} onClose={() => setLogOpen(false)} />
+      )}
+      {nextOpen && next && createPortal(
+        <div className="sheet-scrim" onClick={() => setNextOpen(false)}>
+          <div className="card" onClick={(e) => e.stopPropagation()}>
+            <div className="sheet-handle" />
+            <div className="grp"><div className="eyebrow">Next Workout</div></div>
+            <div className="pad-x sheet-form">
+              <div className="strand-head">{next.day.name}</div>
+              <div className="facts">
+                {when && <span className={"fact " + whenTone}>{when}</span>}
+                <span className="fact"><b>{lineCase(`${next.day.exercises.length} ${next.day.exercises.length === 1 ? "exercise" : "exercises"}`)}</b></span>
+                {est > 0 && <span className="fact est">{spanLabel(est)}</span>}
+              </div>
+            </div>
+            <div className="pad-x sheet-actions">
+              <button type="button" className="btn btn-primary btn-block" onClick={() => { setNextOpen(false); onStart(next.day.id); }}>Start Workout</button>
+              {est > 0 && <button type="button" className="btn btn-secondary btn-block" onClick={() => { setNextOpen(false); onAdjustTime(next.day.id); }}>Adjust Time</button>}
+              <button type="button" className="btn btn-secondary btn-block" onClick={() => { setNextOpen(false); setChangeOpen(true); }}>Change Workout</button>
+              <button type="button" className="btn btn-secondary btn-block" onClick={() => { setNextOpen(false); onOpenGym(); }}>Open Program</button>
+              <button type="button" className="btn btn-tertiary btn-block" onClick={() => setNextOpen(false)}>Cancel</button>
+            </div>
+          </div>
+        </div>,
+        document.body,
       )}
       {changeOpen && (
         <ActionSheet

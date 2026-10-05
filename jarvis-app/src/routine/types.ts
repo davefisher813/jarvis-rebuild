@@ -25,6 +25,11 @@ export type BlockKind = "meal" | "gym" | "hobby" | "family" | "focus" | "errand"
 //              and ears and takes your hands; the gym frees your ears. The
 //              planner still routes around it, but the blend engine may offer
 //              work that fits the free channels.
+//              2026-10-04: that offer is not built for a routine block (blend.ts
+//              ranks calendar EVENTS by their title, and a block holds no
+//              tasks). What a blend does today: the planner and the conflict
+//              check treat it as busy, the row names what stays free, and the
+//              AI is told which channels are free (routineToText).
 //
 // The mode was HARDCODED to the kind before this (only "focus" held tasks),
 // which is wrong for thousands of users who are not Dave. It is now a per
@@ -34,8 +39,8 @@ export type BlockMode = "holds" | "protects" | "blends";
 
 // What a blend block leaves free. This is not decoration: it is the whole
 // difference between "phone call while driving" (fine) and "write the email
-// while driving" (not fine). blend.ts already reasons in mouth-vs-hands
-// terms; this is how a routine block tells it which.
+// while driving" (not fine). 2026-10-05: today this feeds the row text
+// (blendNote) and the AI context (routineToText); blend.ts does not read it.
 export type FreeChannel = "mouth" | "hands" | "ears";
 export const FREE_CHANNELS: FreeChannel[] = ["mouth", "hands", "ears"];
 
@@ -232,6 +237,17 @@ export function freeOf(x: { kind?: string; free?: string[]; label?: string }): F
   return ["mouth", "ears"];
 }
 
+// WHAT THE FREE CHANNELS SAY ABOUT THE BLOCK (2026-10-04), under the chips that
+// pick them. This was one fixed line, "A call fits · Typing does not", whatever
+// was chosen: a gym with only ears free read as taking a call, and hands picked
+// free still read as no typing. A call needs the mouth AND the ears.
+export function blendNote(free: FreeChannel[]): string {
+  const mouth = free.includes("mouth");
+  const ears = free.includes("ears");
+  const first = mouth && ears ? "A call fits" : ears ? "Listening fits" : mouth ? "Talking fits" : "A call does not fit";
+  return first + " · " + (free.includes("hands") ? "Typing fits" : "Typing does not");
+}
+
 export const MODE_LABEL: Record<BlockMode, string> = {
   holds: "Holds Tasks",
   protects: "Protected",
@@ -256,14 +272,20 @@ export function splitProtectedRanges(ranges: ProtectedRange[]): {
 } {
   const bucket = (x: ProtectedRange) => modeOf(x);
   const focus = ranges.filter((x) => bucket(x) === "holds").map((x) => ({ s: x.s, e: x.e, label: x.label }));
-  // A blend block is a WALL for ordinary placement (you really are driving),
-  // and an opening for the blend engine only. Both facts are true at once,
-  // which is why it rides in hard AND is returned separately.
+  // A blend block is a WALL for ordinary placement (you really are driving):
+  // hard, or soft when its Kept Clear switch is on (below). 2026-10-05: the
+  // `blend` list is returned separately for a future blend-engine consumer;
+  // nothing reads it yet.
+  // 2026-10-04: unless its Kept Clear When Possible switch is on. That switch
+  // is on every block's sheet, and a flexible blend went to hard regardless,
+  // so the planner and the conflict check ignored it while the capacity count
+  // (planLoad) already read it as open time.
   const blends = ranges.filter((x) => bucket(x) === "blends");
   const prot = ranges.filter((x) => bucket(x) === "protects");
+  const walls = [...prot, ...blends];
   return {
-    hard: [...prot.filter((x) => !x.soft), ...blends].map((x) => ({ s: x.s, e: x.e, label: x.label })),
-    soft: prot.filter((x) => x.soft).map((x) => ({ s: x.s, e: x.e, label: x.label })),
+    hard: walls.filter((x) => !x.soft).map((x) => ({ s: x.s, e: x.e, label: x.label })),
+    soft: walls.filter((x) => x.soft).map((x) => ({ s: x.s, e: x.e, label: x.label })),
     focus,
     blend: blends.map((x) => ({ s: x.s, e: x.e, label: x.label, free: freeOf(x) })),
   };
@@ -374,7 +396,10 @@ export function routineToText(r: RoutineData): string {
     // the AI could not tell a commute from a meal. The presets carry their
     // kind exactly so the AI knows what the time IS (RoutineFlow.tsx:41-45),
     // and the mode says what the block does with that time.
-    if (b.kind) bits.push(`(${b.kind}, ${MODE_LABEL[modeOf(b)]})`);
+    // 2026-10-04: and, for Can Blend, the channels it leaves free. They were
+    // stored and shown on the block's row and never reached the AI, so "a call
+    // fits, typing does not" was a sentence nothing could act on.
+    if (b.kind) bits.push(`(${b.kind}, ${MODE_LABEL[modeOf(b)]}${modeOf(b) === "blends" ? ", " + freeOf(b).join(" and ") + " free" : ""})`);
     if (b.location?.trim()) bits.push(`at ${b.location.trim()}`);
     if (b.soft) bits.push("flexible");
     parts.push(bits.join(", "));

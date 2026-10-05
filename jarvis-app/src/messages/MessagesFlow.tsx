@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState, Suspense, useMemo } from "react";
 import { lazyWithRecovery } from "../shell/chunkRecovery";
-import PageHeader, { BarAction } from "../shared/PageHeader";
-import { Mail, Plus, Archive, Trash2, Brain, CornerUpLeft, Forward, Send, Tag, Clock, MessageSquare, Volume2, Hourglass, ListChecks, CalendarClock, FolderKanban } from "../shared/icons";
+import PageHeader from "../shared/PageHeader";
+import { HeadAdd } from "../shared/LifeHeader";
+import { Mail, Archive, Trash2, Brain, CornerUpLeft, Forward, Send, Tag, Clock, MessageSquare, Volume2, Hourglass, ListChecks, CalendarClock, FolderKanban } from "../shared/icons";
 import { leadFor, faceSlot } from "./rowAnatomy";
 import { Facts, ruleStateFact, dayTone, type FactTone } from "./factsLine";
 import { useEmailFiling } from "./useEmailFiling";
@@ -13,6 +14,7 @@ import { loadOverrides, saveOverride, clearOverride, applyOverrides, type Thread
 import type { TaskItem } from "../tasks/TasksService";
 import { attemptWrite } from "../shared/guard";
 import RowActionSheet from "../shared/RowActionSheet";
+import RowCtxAction from "../shared/RowCtxAction";
 import WhoIsThisSheet from "../ai/WhoIsThisSheet";
 import { UNDO_MS, VOICE_SAMPLE_CAP, filedContactToastText, type BrainMemoryRow } from "../ai/brainMemory";
 import SkeletonRows from "../shared/SkeletonRows";
@@ -38,7 +40,7 @@ import DeckFlow from "./DeckFlow";
 import MailSwipe from "./MailSwipe";
 import LetGoSwipe from "./LetGoSwipe";
 import { loadMuted, mute, unmute, dropMuted } from "./mute";
-import { parseUnsub, unsubLabel, unsubLine, UNSUB_SUBJECT, UNSUB_BODY, type Unsub } from "./unsubscribe";
+import { parseUnsub, unsubLabel, unsubLine, type Unsub } from "./unsubscribe";
 import { requestUnsubscribe } from "./unsubscribeAction";
 import { openExternal } from "./openExternal";
 import { briefFor, isCurrentBrief, loadBriefs, type Brief } from "./brief";
@@ -100,7 +102,7 @@ import { heldBy, heldLine, type HardLine } from "../brain/hardLines";
 import Dictate from "../shared/Dictate";
 import DocEditor, { type DocEditorHandle, type Doc } from "../shared/DocEditor";
 import { textToParagraphs, docToPlainText } from "../notes/markdown";
-import { Head, Card } from "../settings/kit";
+import { Head, Card, Switch } from "../settings/kit";
 import { WRITE_FAILED_MESSAGE } from "../shared/guard";
 
 // EMAIL-F-18 (2026-09-05): one page of the inbox. Load More asks for one
@@ -284,7 +286,7 @@ function fmtWhen(ms: number): string {
   const d = new Date(ms);
   const now = new Date();
   if (d.toDateString() === now.toDateString()) {
-    return d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+    return d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
   }
   return shortDateFromMs(ms);
 }
@@ -710,6 +712,18 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   // rebuilt from the task list, Waiting On, the swept promises and the
   // chases every time it opens, so finishing a task anywhere clears it here.
   const [ledger, setLedger] = useState<Ledger | null>(null);
+  // The ledger row whose sheet is open (Dave 2026-10-05: tap a row, its sheet holds every action).
+  const [ledgerRow, setLedgerRow] = useState<LedgerRow | null>(null);
+  // The Standing Rules row whose sheet is open: the sender it governs.
+  const [ruleSheet, setRuleSheet] = useState<string | null>(null);
+  // The muted thread whose sheet is open.
+  const [mutedSheet, setMutedSheet] = useState<string | null>(null);
+  // The compose screen's attachment sheet.
+  const [attachSheet, setAttachSheet] = useState(false);
+  // The thread page's offer row (a bill or an event read off the mail): its sheet.
+  const [offerSheet, setOfferSheet] = useState(false);
+  // Read It to Me, while the voice is going: its sheet.
+  const [readSheet, setReadSheet] = useState(false);
   const [nudging, setNudging] = useState<string | null>(null);
   const [acctFilter, setAcctFilter] = useState<string | null>(null);
   const [drafts, setDrafts] = useState<DraftRow[]>([]);
@@ -986,7 +1000,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     // EMAIL-F-12 (2026-09-05): keyed on the one field this reads (g.apis,
     // which changes only when a token or the account list does), not on the
     // whole session object, so a shell re-render cannot re-run the inbox load.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [g.apis, runTriage, userId]);
 
   // THE CACHE FOLLOWS THE LIST (2026-09-16). Archive, trash and Close It Out
@@ -1051,10 +1065,10 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
       setLoading(false);
     }
   })();
-  const mailFloor = () => (atEnd ? <ListFloor /> : (
+  const mailFloor = () => (atEnd ? <ListFloor>That&rsquo;s Everything.</ListFloor> : (
     <ListFloor>
       <>
-        <div>Showing what's loaded so far.</div>
+        <div>Showing What&rsquo;s Loaded So Far.</div>
         <button className="quiet-action" disabled={loading} onClick={loadMore}>{loading ? "Loading..." : "Load More"}</button>
       </>
     </ListFloor>
@@ -1570,7 +1584,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     jumped.current = key;
     void openThread(openThreadId);
     onThreadConsumed?.();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [openThreadId, threadNonce, rows]);
 
   // "Finish It" lands HERE, in the draft, with the unsent words loaded
@@ -1584,7 +1598,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     jumpedDraft.current = key;
     void openDraft(openDraftId);
     onDraftConsumed?.();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [openDraftId, draftNonce]);
 
   // UP-MIND-22 (2026-09-05): Chat wrote a message and asked for the
@@ -1604,7 +1618,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     setThread(null);
     beginCompose({ to: d.to, subject: d.subject, body: d.body });
     setView("compose");
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [composeNonce]);
 
   // UP-MIND-11 (2026-09-05): THE LEDGER, built. Every half of "what did I
@@ -1637,7 +1651,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
       promises: liveSweep(loadSweep(), loadPromised()),
     }));
     setView("ledger");
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [rows, waiting, tasks, personIdFor, nudgeCounts]);
 
   // THE HOME SNAPSHOT (Dave 2026-08-20). Today must render instantly, so it
@@ -1889,7 +1903,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
       setTriage(next);
     })();
     return () => { live = false; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [ai.available, triaged, rows, triage]);
 
   // UP-MIND-12: land on the sentence, not on the thread. Runs once per open
@@ -1934,7 +1948,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     } finally {
       if (seq === searchSeq.current) setSearching(false);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [g, search, searchPeople, acctFilter]);
 
   // A sender row's door (Dave 2026-09-15: "I want all rows clickable"). A
@@ -1955,7 +1969,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     if (q.length < MIN_CHARS) return;
     const t = setTimeout(() => { void runSearch(q); }, DEBOUNCE_MS);
     return () => clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [search, searchPeople]);
 
   // Who a search can be about: Contacts with an address, then the senders
@@ -2487,23 +2501,22 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     // claimed the REQUEST was made whether or not it was (2026-08-25): the
     // send failure went into an empty catch and window.open's null was never
     // read. Both are now the thing the receipt is about.
-    let sent: boolean;
-    if (u.kind === "mailto") {
-      const api = apiFor(accountOfThread(t.id));
-      if (!api) return;
-      const raw = encodeEmail({ to: u.target, subject: u.subject || UNSUB_SUBJECT, body: UNSUB_BODY });
-      const { ok } = await settleAll([raw], () => api.sendMessage(raw));
-      sent = ok.length > 0;
-    } else {
-      sent = !!window.open(u.target, "_blank", "noopener,noreferrer");
-    }
+    // 2026-10-04: and this was a hand-rolled copy of requestUnsub, so it had
+    // drifted from it twice. Its window.open carried "noopener", which makes
+    // window.open return null, so an opened page read as a blocked tab; and it
+    // never wrote the record, so a sender asked from the thread was not under
+    // Asked to Stop and was offered to the sweep again. It asks through the
+    // shared path now, called before any await so an http link still opens
+    // inside the tap.
+    const sent = await requestUnsub(u, accountOfThread(t.id), m.fromEmail);
     if (!sent) {
       say(u.kind === "mailto" ? "Couldn't Send It · Nothing Was Asked" : "Your Browser Blocked That Tab · Nothing Was Asked");
       return;
     }
-    emit({ type: "action", props: { name: "email.unsubscribe", kind: u.kind } });
     setView("list");
-    say(unsubLine(m.from));
+    // A page opened is not an ask sent (unsubscribeAction.ts records it as
+    // opened), so only a mailto says "Asked".
+    say(u.kind === "mailto" ? unsubLine(m.from) : "Opened Unsubscribe Page · Finish It There");
   };
 
   // N9: one sender's unsubscribe, without opening their mail. Same two forms
@@ -2592,10 +2605,13 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     if (rows.length === 0) return;
     const names: Record<string, string> = {};
     for (const r of rows) if (r.fromEmail) names[r.fromEmail.toLowerCase()] = r.from;
-    const cands = sweepCandidates(loadTossed(), askedSenders(loadUnsubs()), names, Object.keys(unsubbable));
+    // 2026-10-05: reads the unsubs STATE, not storage, and reruns on it. The
+    // thread's Unsubscribe writes the record through setUnsubs and changes
+    // neither rows nor unsubbable, so a sender just asked stayed in the card
+    // and Yes asked them a second time.
+    const cands = sweepCandidates(loadTossed(), askedSenders(unsubs), names, Object.keys(unsubbable));
     setSweep(cands);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rows, unsubbable]);
+  }, [rows, unsubbable, unsubs]);
 
   // Archive from the list. Same effect as the detail-view archive, without
   // making him open something he already knows he is done with.
@@ -2953,7 +2969,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     if (allowed.length === 0) return;
     autoRan.current = true;
     void archiveAllNoise(allowed, false);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [triaged, autoNoise, rows, triage, rules, knownSenders, hardLines]);
 
   // N15: only ever something he ALREADY has. Nothing is generated, nothing is
@@ -3330,12 +3346,15 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
       if (w && r.decision) { void runAction(w, r.decision.primary); return; }
       openRow(r);
     };
-    const section = (title: string, rows2: LedgerRow[]) => rows2.length === 0 ? null : (
+    // 2026-10-05 (Dave, locked: clean rows, no pills): a ledger row is a door. Tap opens its sheet, which holds the prepared
+    // action (the primary), its other moves and the thread itself; no capsule sits on the row. A row whose moment has come
+    // (a Late one) quietly shows the same primary action as text, never a capsule.
+    const section = (title: string, rows2: LedgerRow[], late = false) => rows2.length === 0 ? null : (
       <div key={title}>
         <div className="sh2 sh2-quiet"><span className="t">{title}</span><span className="n">{rows2.length}</span></div>
         <div className="pad-x"><div className="card list-card-ruled">
           {rows2.map((r) => (
-            <div className="row" key={title + ":" + r.key} {...rowDoor(() => openRow(r))}>
+            <div className="row" key={title + ":" + r.key} {...rowDoor(() => setLedgerRow(r))}>
               <div className="row-grow">
                 <div className="conn-name truncate">{r.who || r.what}</div>
                 {/* The row's age and the subject are two facts, and .facts
@@ -3350,16 +3369,21 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                   r.who ? { text: r.what } : null,
                 ]} />
               </div>
-              <button className="btn-sm" onClick={(e) => { e.stopPropagation(); act(r); }}>{r.action}</button>
-              {r.decision && r.decision.alternates.length > 0 && (() => {
-                const w = waiting.find((x) => x.threadId === r.threadId);
-                return w ? <button className="pill-act" onClick={(e) => { e.stopPropagation(); setMore({ row: w, d: r.decision! }); }}>More</button> : null;
-              })()}
+              <RowCtxAction when={late} label={r.action} onAct={() => act(r)} ariaLabel={r.action + " " + (r.who || r.what)} />
+              <div className="chev" />
             </div>
           ))}
         </div></div>
       </div>
     );
+    const ledgerSheetActions = (r: LedgerRow) => {
+      const w = waiting.find((x) => x.threadId === r.threadId);
+      return [
+        { label: r.action, onPick: () => act(r) },
+        ...(w && r.decision && r.decision.alternates.length > 0 ? [{ label: "More Moves", onPick: () => setMore({ row: w, d: r.decision! }) }] : []),
+        ...(r.threadId ? [{ label: "Open the Thread", onPick: () => openRow(r) }] : []),
+      ];
+    };
     return (
       <div className={"screen ruled " + pushCls} key="ledger">
         <div className="nav-bar">
@@ -3376,10 +3400,20 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
           <>
             {section("You Owe", l.youOwe)}
             {section("They Owe You", l.theyOweYou)}
-            {section("Late", l.late)}
+            {section("Late", l.late, true)}
             {/* Every list says when it is showing everything. */}
             <ListFloor>{ledgerFloor(l)}</ListFloor>
           </>
+        )}
+        {ledgerRow && <RowActionSheet title={ledgerRow.who || ledgerRow.what} actions={ledgerSheetActions(ledgerRow)} onCancel={() => setLedgerRow(null)} />}
+        {more && (
+          <MailMoreSheet
+            who={displayName(more.row.to)}
+            days={more.row.waitingDays}
+            decision={more.d}
+            onPick={(a) => void runAction(more.row, a)}
+            onClose={() => setMore(null)}
+          />
         )}
       </div>
     );
@@ -3414,8 +3448,8 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
             <div className="empty-title">Checking Your Inbox</div>
             <div className="empty-sub">
               {scan.status === "running" || scan.status === "idle"
-                ? (scan.loaded > 0 ? scan.loaded + " found so far" : "Reading every page")
-                : scan.status === "failed" ? "Stopped early " + "\u00b7 " + scan.loaded + " found" : "Paused " + "\u00b7 " + scan.loaded + " found"}
+                ? (scan.loaded > 0 ? lineCase(scan.loaded + " found so far") : "Reading every page")
+                : scan.status === "failed" ? "Stopped early " + "\u00b7 " + scan.loaded + " Found" : "Paused " + "\u00b7 " + scan.loaded + " Found"}
             </div>
             {scan.status === "running" || scan.status === "idle" ? (
               <button className="quiet-action" onClick={() => scanCtl.current?.abort()}>Stop</button>
@@ -3449,8 +3483,8 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                     <div className="conn-name">{p.name}</div>
                     {/* The safety line is on the ROW that is unsafe, not in a
                         legend somewhere. It is the reason not to tick it. */}
-                    {p.needsYou && <div className="conn-meta purge-warn">Some of these needed you</div>}
-                    {!p.needsYou && p.unknown && <div className="conn-meta purge-warn">Not checked yet</div>}
+                    {p.needsYou && <div className="conn-meta purge-warn">Some of These Needed You</div>}
+                    {!p.needsYou && p.unknown && <div className="conn-meta purge-warn">Not Checked Yet</div>}
                   </div>
                   <span className="purge-count">{p.count}</span>
                 </div>
@@ -3527,7 +3561,9 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
             const mailAccts = g.accounts.filter((a) => a.mail);
             return (
             // A rule row opens the rule: the sender's mail it governs.
-            <div className={"row rule-row" + (rule.enabled ? "" : " rule-off")} key={sender} {...rowDoor(() => showFrom([sender]))}>
+            // 2026-10-05 (Dave, locked: clean rows, no pills): tap opens the rule's sheet (turn it off or on, see the mail it
+            // governs, remove it). Its scope chips are a choice, not a command, so they stay on the row.
+            <div className={"row rule-row" + (rule.enabled ? "" : " rule-off")} key={sender} {...rowDoor(() => setRuleSheet(sender))}>
               <div className="row-grow">
                 <div className="line-between">
                   {/* The rule's storage key is an address. The row underneath
@@ -3542,10 +3578,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                     there is more than one inbox to choose between. */}
                 <Facts facts={[ruleStateFact(rule.enabled)]} />
               </div>
-              <div className="rule-acts">
-                <button className="pill-act" onClick={(e) => { e.stopPropagation(); setRules(setRuleEnabled(sender, !rule.enabled)); mirrorMail(); }}>{rule.enabled ? "Turn Off" : "Turn On"}</button>
-                <button className="quiet-action" onClick={(e) => { e.stopPropagation(); setRules(clearRule(sender)); mirrorMail(); }}>Undo</button>
-              </div>
+              <div className="chev" />
               {/* The chips take a full line under the row so no account
                   label is ever clipped behind the controls. */}
               {mailAccts.length > 1 && (
@@ -3588,8 +3621,8 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                         s2 ? { text: "Still Sending", tone: "warn" } : null,
                       ]} />
                     </div>
-                    {s2 && canBlock(s2) && (
-                      <button className="pill-act" onClick={(e) => { e.stopPropagation(); void (async () => {
+                    {/* Its moment has come (they kept sending after being asked to stop): the one action, as text. */}
+                    <RowCtxAction when={!!s2 && canBlock(s2)} label="Block" onAct={() => { void (async () => {
                         // The app doing what the sender would not: file them
                         // to noise from now on, and archive what is here.
                         setRules(saveRule(r.sender, "noise"));
@@ -3598,8 +3631,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                         if (ok.length) setRows((rs) => rs.filter((x) => !ok.some((o) => o.id === x.id)));
                         say(settleLine(ok.length, failed.length, ARCHIVE_WORDS));
                         mirrorMail();
-                      })(); }}>Block</button>
-                    )}
+                      })(); }} ariaLabel={"Block " + nameFor(names, r.sender, prettyHandle(r.sender.split("@")[0] ?? "") ?? r.sender)} />
                   </div>
                 );
               })}
@@ -3622,9 +3654,9 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                   <div className="conn-name">{putBackLine(closedBatch)}</div>
                   {/* One fact (§AM R1): "archived" in the name above already
                       says it is still in Gmail. */}
-                  <div className="conn-meta">Can go back for a week</div>
+                  <div className="conn-meta">{closeBusy ? "Putting Back…" : "Can Go Back for a Week"}</div>
                 </div>
-                <button className="pill-act" disabled={closeBusy} onClick={(e) => { e.stopPropagation(); void putBack(); }}>{closeBusy ? "Putting Back…" : "Put It Back"}</button>
+                <div className="chev" />
               </div>
             </Card>
           </>
@@ -3634,14 +3666,8 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
             lives OFF until he turns it on. */}
         <Head label="Heads-Down Auto-Reply" />
         <Card>
-          {/* row-tap: turning on the one feature that sends mail without a tap stays on its own Turn On pill, never a stray row tap */}
-          <div className="row">
-            <div className="row-grow">
-              <div className="conn-name">{autoReplyOn ? "On During Focus Blocks" : "Off"}</div>
-              <div className="conn-meta">{AUTO_REPLY_EXPLAINER}</div>
-            </div>
-            <button className="pill-act" onClick={(e) => { e.stopPropagation(); flipAutoReply(); }}>{autoReplyOn ? "Turn Off" : "Turn On"}</button>
-          </div>
+          {/* A switch is state, not a command (Dave 2026-10-05): the row flips it and no pill sits on the row. */}
+          <Switch label="Auto-Reply During Focus Blocks" meta={AUTO_REPLY_EXPLAINER} on={autoReplyOn} onToggle={flipAutoReply} />
           {vips.length === 0 && (
             <div className="row"><div className="row-grow">
               <div className="conn-meta">Nobody is a VIP yet, so nothing would send. Mark someone from their thread.</div>
@@ -3658,9 +3684,9 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
             const r = rows.find((x) => x.id === id);
             return (
               // An email row opens its thread; Unmute stays on its button.
-              <div className="row" key={id} {...rowDoor(() => void openThread(id))}>
+              <div className="row" key={id} {...rowDoor(() => setMutedSheet(id))}>
                 <div className="row-grow"><div className="conn-name truncate">{r ? r.subject : "A thread"}</div></div>
-                <button className="quiet-action" onClick={(e) => { e.stopPropagation(); setMuted(unmute(id)); mirrorMail(); }}>Unmute</button>
+                <div className="chev" />
               </div>
             );
           })}
@@ -3674,6 +3700,27 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
               say("Auto-Clear Off · Noise Stays");
             }}>Stop Clearing Noise Automatically</button>
           </div>
+        )}
+        {ruleSheet && rules[ruleSheet] && (
+          <RowActionSheet
+            title={nameFor(names, ruleSheet, prettyHandle(ruleSheet.split("@")[0] ?? "") ?? ruleSheet)}
+            actions={[
+              { label: rules[ruleSheet]!.enabled ? "Turn Off This Rule" : "Turn On This Rule", onPick: () => { setRules(setRuleEnabled(ruleSheet, !rules[ruleSheet]!.enabled)); mirrorMail(); } },
+              { label: "Show Their Mail", onPick: () => showFrom([ruleSheet]) },
+              { label: "Remove This Rule", destructive: true, onPick: () => { setRules(clearRule(ruleSheet)); mirrorMail(); } },
+            ]}
+            onCancel={() => setRuleSheet(null)}
+          />
+        )}
+        {mutedSheet && (
+          <RowActionSheet
+            title={rows.find((x) => x.id === mutedSheet)?.subject ?? "A Thread"}
+            actions={[
+              { label: "Unmute", onPick: () => { setMuted(unmute(mutedSheet)); mirrorMail(); } },
+              { label: "Open the Thread", onPick: () => void openThread(mutedSheet) },
+            ]}
+            onCancel={() => setMutedSheet(null)}
+          />
         )}
       </div>
     );
@@ -3739,9 +3786,9 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                   <div className="conn-name truncate">{displayName(r.from)}</div>
                   {/* VIP is the mail row's own star, a MARK, so the subject
                       is the line's one grey (§AM R1). */}
-                  <div className="conn-meta truncate"><span className="mstar" role="img" aria-label="VIP">{"\u2605"}</span> {r.subject}</div>
+                  <div className="conn-meta truncate"><span className="mstar" role="img" aria-label="VIP">{"\u2605"}</span> <span data-sentence>{r.subject}</span></div>
                 </div>
-                <span className="pill-act">Open It</span>
+                <div className="chev" />
               </div>
             ))}
           </div></div>
@@ -3790,7 +3837,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
         {/* Catalog V3.1: the empty state carries its action. Directions to a
             button somewhere else are illegal; the button is here. */}
         <div className="pad-x"><div className="card list-card-ruled"><div className="empty-state">
-          <div className="empty-icon"><Mail className="ic" /></div>
+          <div className="empty-icon"><Mail className="ic cat-fg-teal" /></div>
           <div className="empty-title">Connect Your Email</div>
         </div></div></div>
         <div className="pad-x conn-action">
@@ -3857,15 +3904,20 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
           </div>
         </div>
         {showSchedule && (
-          <div className="pad-x"><div className="card">
+          <div className="pad-x"><div className="card list-card-ruled">
+            {/* Clean rows (Dave 2026-10-05): each send time is a row, and the row is the door; no capsule sits in the card. */}
             {sendSlots(Date.now()).map((slot) => (
-              <button
+              <div
                 key={slot.label}
-                className="pill-act"
-                onClick={() => { setShowSchedule(false); send(slot.at); }}
+                className="row"
+                {...rowDoor(() => { setShowSchedule(false); send(slot.at); })}
               >
-                {slot.label} · {whenLabel(slot.at)}
-              </button>
+                <div className="row-grow">
+                  <div className="conn-name">{slot.label}</div>
+                  <Facts facts={[{ text: whenLabel(slot.at), tone: "date" }]} />
+                </div>
+                <div className="chev" />
+              </div>
             ))}
           </div></div>
         )}
@@ -3939,20 +3991,19 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
             <div className="card"><div className="row" {...rowDoor(() => void attachHinted())}>
               <div className="row-grow">
                 <div className="conn-name">You Have That File</div>
-                <div className="conn-meta">{suggestLine(attachHint)}</div>
+                <div className="conn-meta">{attachingHint ? "Attaching…" : suggestLine(attachHint)}</div>
               </div>
-              <button className="pill-act" disabled={attachingHint} onClick={(e) => { e.stopPropagation(); void attachHinted(); }}>{attachingHint ? "Attaching…" : "Attach It"}</button>
+              <div className="chev" />
             </div></div>
           )}
           {draft.attachment && (
-            // Row tap opens the file; Remove stays on its button
-            // (Dave 2026-09-15: "I want all rows clickable").
-            <div className="card"><div className="row" {...rowDoor(openDraftAttachment)}>
+            // Row tap opens its sheet (Open, Remove): no pill on the row (Dave 2026-10-05, locked).
+            <div className="card"><div className="row" {...rowDoor(() => setAttachSheet(true))}>
               <div className="row-grow">
                 <div className="conn-name">Attached</div>
                 <div className="conn-meta">{draft.attachment.filename}</div>
               </div>
-              <button className="pill-act" onClick={(e) => { e.stopPropagation(); setDraft((d) => ({ ...d, attachment: undefined })); }}>Remove</button>
+              <div className="chev" />
             </div></div>
           )}
 
@@ -3976,6 +4027,16 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
           )}
           {error && <div className="conn-error">{error}</div>}
         </div>
+        {attachSheet && draft.attachment && (
+          <RowActionSheet
+            title={draft.attachment.filename}
+            actions={[
+              { label: "Open Attachment", onPick: openDraftAttachment },
+              { label: "Remove Attachment", destructive: true, onPick: () => setDraft((d) => ({ ...d, attachment: undefined })) },
+            ]}
+            onCancel={() => setAttachSheet(false)}
+          />
+        )}
       </div>
     );
   }
@@ -4023,8 +4084,8 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
         </div>
         <div className="pad-x">
           <div className="msg-detail-head">
-            <div className="msg-detail-subj">{thread.subject}</div>
-            <div className="conn-meta">{thread.messages.length === 1 ? lastMsg(thread).from : thread.messages.length + " messages"}</div>
+            <div className="msg-detail-subj" data-sentence>{thread.subject}</div>
+            <div className="conn-meta">{thread.messages.length === 1 ? lastMsg(thread).from : thread.messages.length + " Messages"}</div>
           </div>
           {(() => {
             // Brain Manual v1 "Who Is This?" (2026-09-27): inline in the
@@ -4209,7 +4270,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                           <div className={"task-check" + (t.data.done ? " on" : "")} />
                         </div>
                       ) : (
-                        <span className="row-ico cat-bg-graphite" aria-hidden="true"><ListChecks className="ic" /></span>
+                        <span className="row-ico cat-bg-red" aria-hidden="true"><ListChecks className="ic" /></span>
                       )}
                       <div className="row-grow">
                         <div className="conn-name">{t.data.text}</div>
@@ -4229,7 +4290,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                   ))}
                   {link && (
                     <div className="row">
-                      <span className="row-ico cat-bg-graphite" aria-hidden="true"><FolderKanban className="ic" /></span>
+                      <span className="row-ico cat-bg-indigo" aria-hidden="true"><FolderKanban className="ic" /></span>
                       <div className="row-grow">
                         <div className="conn-name">{link.label}</div>
                         <Facts facts={[{ text: link.type === "project" ? "Project" : link.type === "goal" ? "Goal" : "Organization" }]} />
@@ -4506,15 +4567,28 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
             // bill read off the subject has no file, so its row does the Add
             // (Dave 2026-09-15: "I want all rows clickable").
             const file = m.attachments.find((a) => a.filename === offer.filename);
-            const openIt = () => (file ? void openAttachment(m.id, file.attachmentId, file.filename, file.mime) : void addIt());
+            // 2026-10-05 (Dave, locked: clean rows, no pills): with a file to open, the row's sheet holds the offer's own
+            // action first and the file beneath it; with none, the row's tap IS the action.
+            const openIt = () => (file ? setOfferSheet(true) : void addIt());
             return (
               <div className="pad-x"><div className="card"><div className="row" {...rowDoor(openIt)}>
                 <div className="row-grow">
                   <div className="conn-name">{offer.title}</div>
-                  <div className="conn-meta">{offer.sub}</div>
+                  <div className="conn-meta">{attachBusy ? "Adding…" : offer.sub}</div>
                 </div>
-                <button className="pill-act" disabled={attachBusy} onClick={(e) => { e.stopPropagation(); void addIt(); }}>{attachBusy ? "Adding…" : offer.action}</button>
-              </div></div></div>
+                <div className="chev" />
+              </div>
+              {offerSheet && file && (
+                <RowActionSheet
+                  title={offer.title}
+                  actions={[
+                    { label: offer.action, onPick: () => void addIt() },
+                    { label: "Open the File", onPick: () => void openAttachment(m.id, file.attachmentId, file.filename, file.mime) },
+                  ]}
+                  onCancel={() => setOfferSheet(false)}
+                />
+              )}
+              </div></div>
             );
           })()}
 
@@ -4677,7 +4751,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
             : <span className="mwhen">{fmtWhen(r.dateMs)}</span>}
         </div>
         <div className={"mline2" + (strong ? " strong" : "")}>
-          {gist ?? r.subject}{!gist && r.count > 1 && <><span className="sched-sep">{"\u00b7"}</span><b>{r.count}</b></>}
+          {gist ?? <span data-sentence>{r.subject}</span>}{!gist && r.count > 1 && <><span className="sched-sep">{"\u00b7"}</span><b>{r.count}</b></>}
           {g.accounts.length > 1 && r.account && <span className="macct">{acctLabel(r.account)}</span>}
         </div>
       </div>
@@ -4688,7 +4762,9 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
 
   return (
     <div className={"screen ruled " + pushCls} key="list">
-      <PageHeader title="Email" actions={<BarAction label="New Message" onClick={startCompose}><Plus className="ic" /></BarAction>} />
+      {/* THE COMPOSE DOOR IS THE HEAD'S ONE CAPSULE, NOT A 32px CIRCLE IN THE BAR (Dave 2026-10-05): the same HeadAdd every
+          Life page and Notes draw, beside the large title where their options control sits. Its accessible name stays "New Message". */}
+      <PageHeader title="Email" headActions={<HeadAdd label="New Message" onClick={startCompose} />} />
       {/* The hold(s). It is the whole point of undo-send that this is loud,
           reachable, and honest about what is happening: a held or scheduled
           message has NOT gone yet, and Undo puts him back in the composer
@@ -4766,6 +4842,9 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
         )}
       </div>}
       {said !== null && (
+        <div>
+        {/* The clear is on the section head, never at the foot of the card (Dave 2026-10-05, locked). */}
+        <div className="sh2 sh2-quiet"><span className="t">What You Said</span><button className="see-all pill-action" onClick={() => setSaid(null)}>Clear</button></div>
         <div className="pad-x"><div className="card">
           {said.length === 0 ? (
             <div className="row"><div className="row-grow"><div className="conn-meta">{saidEmpty("")}</div></div></div>
@@ -4780,8 +4859,8 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
               <div className="chev" />
             </div>
           ))}
-          <button className="row-act" onClick={() => setSaid(null)}>Clear</button>
         </div></div>
+        </div>
       )}
       {g.accounts.length > 1 && (!forYou || acctFilter !== null) && (
         <div className="pad-x msg-chips">
@@ -4793,7 +4872,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
           ))}
         </div>
       )}
-      <div className="pad-x msg-chips">
+      <div className="pad-x msg-chips msg-views">
         {ai.available && (
           <button className={"chip" + (filter === "triage" ? " on" : "")} onClick={() => setFilter("triage")}>For You</button>
         )}
@@ -4813,7 +4892,24 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
         // Only what is on screen: a fold that is shut, or a section filter
         // that hides a row, hides it from Select All Shown too. (Clean Out is
         // the whole-inbox tool; this is the list in front of you.)
-        const shown = forYou && showTriage ? [...needsYou, ...worthKnowing, ...noise] : listRows;
+        // 2026-10-04: and the outcome switch hides it too. Needs You is drawn
+        // only while its outcome is the one showing, so with Waiting On or
+        // Nothing Owed up, Select All Shown picked rows nobody could see and
+        // Archive N moved them. The same test the list is drawn by.
+        const needsDrawn = outcomeShown(outcome, needsYou, waiting, decideFor) === "needs";
+        // 2026-10-05: and Worth Knowing and Noise are drawn only behind the
+        // fold (restOpen), the machines line (noiseOpen) and, for a sender
+        // with 3+ rows, the group (noiseGroups). Select opens the fold but
+        // not the others, so Select All Shown picked Noise nobody could see
+        // and Archive N moved it. Same gates as the list below.
+        const noiseDrawn = (() => {
+          if (!restOpen || !noiseOpen) return [];
+          const { groups, loose } = collapseNoise(noise);
+          return [...groups.flatMap((g) => (noiseGroups[g.key] ? g.rows : [])), ...loose];
+        })();
+        const shown = forYou && showTriage
+          ? [...(needsDrawn ? needsYou : []), ...(restOpen ? worthKnowing : []), ...noiseDrawn]
+          : listRows;
         const mine = shown.filter((r) => picked.has(rowKey(r)));
         return (
           <div className="pad-x mail-select-bar">
@@ -4901,7 +4997,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
           <SkeletonRows />
         ) : drafts.length === 0 ? (
           <div className="pad-x"><div className="card"><div className="empty-state">
-            <div className="empty-icon"><Mail className="ic" /></div>
+            <div className="empty-icon"><Mail className="ic cat-fg-teal" /></div>
             <div className="empty-title">No Drafts</div>
             {/* B14: the empty state carries its action (the app's own law). */}
             <button className="btn btn-secondary" onClick={startCompose}>New Email</button>
@@ -4917,7 +5013,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                   <div className="conn-name">{draftTo(d.to)}</div>
                   {/* §AK R1: a draft with no subject has no line, never a
                       "(no subject)" placeholder. */}
-                  {d.subject.trim() !== "" && <div className="conn-meta">{d.subject}</div>}
+                  {d.subject.trim() !== "" && <div className="conn-meta" data-sentence>{d.subject}</div>}
                 </div>
               </div>
             ))}
@@ -4935,7 +5031,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
         // refusing is not "couldn't reach your mail", and this card used to
         // claim it was whenever the account that DID answer was empty.
         <div className="pad-x"><div className="card"><div className="empty-state">
-          <div className="empty-icon"><Mail className="ic" /></div>
+          <div className="empty-icon"><Mail className="ic cat-fg-teal" /></div>
           <div className="empty-title">Couldn’t Reach Your Mail</div>
           <div className="empty-sub">Nothing Lost · Nothing Here Was Changed</div>
           <div className="conn-action">
@@ -4947,7 +5043,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
         // The two calm states. Neither one ever shows unsorted mail.
         triageState === "failed" ? (
           <div className="pad-x"><div className="card"><div className="empty-state">
-            <div className="empty-icon"><Mail className="ic" /></div>
+            <div className="empty-icon"><Mail className="ic cat-fg-teal" /></div>
             <div className="empty-title">Couldn’t Sort Your Mail</div>
             <div className="empty-sub">Nothing Lost · All Still Here</div>
             {triageWhy && <div className="msg-guard">{triageWhy}</div>}
@@ -4961,7 +5057,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
           </div></div></div>
         ) : (
           <div className="pad-x"><div className="card"><div className="empty-state">
-            <div className="empty-icon"><Mail className="ic" /></div>
+            <div className="empty-icon"><Mail className="ic cat-fg-teal" /></div>
             <div className="empty-title">Reading Your Inbox</div>
             {/* E13: the wait was open-ended, which is the part that made it
                 feel long. The number is real: `total` is how many threads
@@ -4986,7 +5082,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
         // Search results, the All chip, or triage unavailable: honest threaded list.
         listRows.length === 0 ? (
           <div className="pad-x"><div className="card"><div className="empty-state">
-            <div className="empty-icon"><Mail className="ic" /></div>
+            <div className="empty-icon"><Mail className="ic cat-fg-teal" /></div>
             {/* EMAIL-F-18 (2026-09-05): "Inbox Empty" off a page of 30 was a
                 claim about Gmail this screen had no way to make. It waits
                 for an account to answer short before making it. */}
@@ -5023,7 +5119,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
             {/* EMAIL-F-18: search results are their own complete answer, so
                 they keep the plain floor; the inbox gets the honest one. */}
             {results !== null
-              ? <ListFloor>{"That\u2019s everything" + (g.accounts.length > 1 ? " in " + (acctFilter ? acctLabel(acctFilter) : "all accounts") : "") + "."}</ListFloor>
+              ? <ListFloor>{"That\u2019s Everything" + (g.accounts.length > 1 ? " in " + (acctFilter ? acctLabel(acctFilter) : "All Accounts") : "") + "."}</ListFloor>
               : mailFloor()}
           </>
         )
@@ -5031,7 +5127,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
         <>
           {rows.length === 0 && (
             <div className="pad-x"><div className="card"><div className="empty-state">
-              <div className="empty-icon"><Mail className="ic" /></div>
+              <div className="empty-icon"><Mail className="ic cat-fg-teal" /></div>
               {/* EMAIL-F-18: quiet is a fact about the inbox; this screen
                   only knows it once an account has answered short. */}
               <div className="empty-title">{atEnd ? "Inbox Is Quiet" : "Nothing More Loaded"}</div>
@@ -5061,12 +5157,11 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
               // note, not a second grey under the title, so it sits under the
               // card as the group-footer note, still stated in full.
               <>
-              <div className="pad-x"><div className="card"><div className="row" {...rowDoor(() => setAmnestyOpen((v) => !v))}>
-                <div className="row-grow">
-                  <div className="conn-name">{amnestyLine(set)}</div>
-                  <div className="conn-meta">{closeWho(set)}</div>
-                </div>
-                <button className="pill-act" onClick={(e) => { e.stopPropagation(); void (async () => {
+              {/* THE ACTION IS ON THE HEAD (Dave 2026-10-05, locked: a section-level action lives in the section head, never
+                  inside a card). The card below is the list the row opens; the capsule beside the title closes it. */}
+              <div className="sh2 sh2-quiet">
+                <span className="t">Old Mail</span>
+                <button className="see-all pill-action" onClick={() => { void (async () => {
                   const ids = set.ids;
                   const kept = rows.filter((r) => ids.includes(r.id));
                   setRows((rs) => rs.filter((r) => !ids.includes(r.id)));
@@ -5109,10 +5204,17 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                   setClosedBatch(loadClosedBatch());
                 })(); }}>Close It Out</button>
               </div>
+              <div className="pad-x"><div className="card"><div className="row" {...rowDoor(() => setAmnestyOpen((v) => !v))}>
+                <div className="row-grow">
+                  <div className="conn-name">{amnestyLine(set)}</div>
+                  <div className="conn-meta">{closeWho(set)}</div>
+                </div>
+                <div className="chev" />
+              </div>
               {amnestyOpen && rows.filter((r) => set.ids.includes(r.id)).map((r) => (
                 <div className="row" key={r.id} {...pressable(() => void openThread(r.id))}>
                   <div className="row-grow">
-                    <div className="conn-name truncate">{r.subject}</div>
+                    <div className="conn-name truncate" data-sentence>{r.subject}</div>
                     <div className="conn-meta truncate">{displayName(r.from)}</div>
                   </div>
                   <div className="chev" />
@@ -5203,9 +5305,10 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                   is the shape every other head with an action wears. */}
               <div className="sh2 sh2-quiet">
                 <span className="t">Needs You</span>
-                <button className="see-all pill-action" onClick={() => { setDeckRows(needsYou); setView("deck"); }}>
-                  {"Sweep \u00b7 " + sweepEstimate(needsYou.length)}
-                </button>
+                {/* The estimate is a fact beside the capsule, and the capsule is the verb alone (Dave 2026-10-05: no dot typed
+                    into a capsule label). The aria-label keeps the whole promise for a screen reader. */}
+                <span className="n fact est">{sweepEstimate(needsYou.length)}</span>
+                <button className="see-all pill-action" aria-label={"Sweep, " + sweepEstimate(needsYou.length)} onClick={() => { setDeckRows(needsYou); setView("deck"); }}>Sweep</button>
               </div>
               <div className="pad-x"><div className="card list-card-ruled">
                 {needsYou.map((r) => threadRow(r, effTriage[r.id]?.gist, false, true))}
@@ -5221,11 +5324,11 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                   it is showing and offers the next page, the same honesty
                   the All list's floor already keeps (EMAIL-F-18). */}
               {atEnd ? (
-                <ListFloor>That&rsquo;s every one that needs you.</ListFloor>
+                <ListFloor>That&rsquo;s Every One That Needs You.</ListFloor>
               ) : (
                 <ListFloor>
                   <>
-                    <div>That&rsquo;s every one loaded so far.</div>
+                    <div>That&rsquo;s Every One Loaded So Far.</div>
                     <button className="quiet-action" disabled={loading} onClick={loadMore}>{loading ? "Loading..." : "Load More"}</button>
                   </>
                 </ListFloor>
@@ -5312,7 +5415,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                         { text: w.waitingDays === 1 ? "1 Day" : lineCase(w.waitingDays + " days"), tone: waitTone },
                         { text: nameFor(names, w.toEmail, w.to) },
                       ]} />
-                      <div className="wait-card-subj">{w.subject}</div>
+                      <div className="wait-card-subj" data-sentence>{w.subject}</div>
                       {/* A neutral date is small caps (R8). "No reply" went:
                           the whole deck is threads with no reply. */}
                       {opened && <Facts facts={[{ text: "Opened " + shortDate(opened), tone: "date" }]} />}
@@ -5342,8 +5445,14 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                   {band.rows.map(({ w, d }) => (
                     <LetGoSwipe
                       key={w.threadId}
+                      label={displayName(w.to)}
                       onMore={d.alternates.length ? () => setMore({ row: w, d }) : undefined}
                       onLetGo={() => dropRow(w.threadId)}
+                      menu={[
+                        { label: d.primary.label, onPick: () => void startNudge(w) },
+                        ...d.alternates.map((a) => ({ label: a.label, onPick: () => void runAction(w, a) })),
+                        { label: "Let Go", onPick: () => dropRow(w.threadId) },
+                      ]}
                     >
                     {/* E-17 (2026-09-12): the two lists stay disjoint sources
                         (section 0), but a thread that is in BOTH says so here
@@ -5352,7 +5461,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                         this thread is waiting FOR, as a fact, from the same
                         askKindOf that picked the verb. */}
                     {(() => { const also = needsYou.some((r) => r.id === w.threadId); return (
-                    <div className="row" {...pressable(() => (also ? void openThread(w.threadId) : void startNudge(w)))}>
+                    <div className="row" {...pressable(() => (also ? void openThread(w.threadId) : d.alternates.length > 0 ? setMore({ row: w, d }) : void startNudge(w)))}>
                       <span className={railClass(false, railToneForWaiting(d.tone))}></span>
                       <div className="row-grow">
                         <div className="msg-line">
@@ -5383,9 +5492,9 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                           way to reach them ever. The swipe still works; this
                           is the same sheet, on a control that can be
                           tapped, clicked and tabbed to. */}
-                      {d.alternates.length > 0 && (
-                        <button className="pill-act" onClick={(e) => { e.stopPropagation(); setMore({ row: w, d }); }}>More</button>
-                      )}
+                      {/* 2026-10-05 (Dave, locked: clean rows, no pills): the More pill is gone. A row with other moves
+                          opens its sheet on tap (the primary first, the rest beneath), and the swipe still reveals More
+                          and Let Go. A row with only its one ask just does it. */}
                     </div>
                     ); })()}
                     </LetGoSwipe>
@@ -5408,10 +5517,11 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                     {unowed.map(({ w, d }) => (
                       <LetGoSwipe
                         key={w.threadId}
+                        label={displayName(w.to)}
                         onMore={d.alternates.length ? () => setMore({ row: w, d }) : undefined}
                         onLetGo={() => dropRow(w.threadId)}
                       >
-                      <div className="row" {...pressable(() => dropRow(w.threadId))}>
+                      <div className="row" {...pressable(() => (d.alternates.length > 0 ? setMore({ row: w, d }) : dropRow(w.threadId)))}>
                         <span className="msg-rail"></span>
                         <div className="row-grow">
                           <div className="msg-line">
@@ -5421,12 +5531,8 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                               way a mail header reads. */}
                           <div className="conn-meta msg-gist">{nameFor(names, w.toEmail, w.to) + (w.subject ? ": " + w.subject : "")}</div>
                         </div>
-                        {/* EMAIL-F-22: same reach here. Always Quiet This
-                            Sender and Add as Task were swipe-only too, on the
-                            rows whose only tap was Let It Go. */}
-                        {d.alternates.length > 0 && (
-                          <button className="pill-act" onClick={(e) => { e.stopPropagation(); setMore({ row: w, d }); }}>More</button>
-                        )}
+                        {/* EMAIL-F-22: same reach here, by the row's own sheet now (Always Quiet This Sender and Add as Task
+                            were swipe-only), not by a pill on the row. */}
                       </div>
                       </LetGoSwipe>
                     ))}
@@ -5461,7 +5567,8 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                         every inbox says nothing, and the count is the pill. */}
                   </div>
                   {/* V2 anatomy: the count is a pill, never buried in the line. */}
-                  <span className="pill pill-subdued">{restCount}</span>
+                  <span className="fact"><b>{restCount}</b></span>
+                  <div className="chev" />
                 </div>
               </div>
               {/* The guard line: proof that folding is safe, derived or absent. */}
@@ -5482,7 +5589,11 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
               <>
                 {/* No count on this head: the machines line under it
                     already says how many, and one number twice is noise. */}
-                <div className="sh2 sh2-quiet"><span className="t">Noise</span></div>
+                <div className="sh2 sh2-quiet">
+                  <span className="t">Noise</span>
+                  {/* The one action that ends the lot is on the head (Dave 2026-10-05, locked), not a pill inside the card. */}
+                  <button className="see-all pill-action" onClick={() => void archiveAllNoise(noise)}>Sweep</button>
+                </div>
                 <div className="pad-x">
                   <div className="card list-card-ruled">
                     {/* 8A: ONE GREY LINE FOR ALL OF THEM. This was a
@@ -5496,9 +5607,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                       <span className="msg-machines-text">
                         {lineCase(noise.length === 1 ? "1 machine wrote" : noise.length + " machines wrote")}
                       </span>
-                      <button className="pill-act msg-machines-sweep" onClick={(e) => { e.stopPropagation(); void archiveAllNoise(noise); }}>
-                        Sweep
-                      </button>
+                      <div className="chev" />
                     </div>
                     {/* N5 (2026-08-20): a sender who writes six times a
                         week about things he will never act on is not six
@@ -5516,7 +5625,9 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                                   <div className="conn-name">{g.from}</div>
                                   <div className="conn-meta msg-gist">{collapseLine(g)}</div>
                                 </div>
-                                <button className="pill-act" onClick={(e) => { e.stopPropagation(); void archiveAllNoise(g.rows); }}>Archive All</button>
+                                {/* Open the group and its one action surfaces, as text: a pill never sits on the row. */}
+                                <RowCtxAction when={!!noiseGroups[g.key]} label="Archive All" onAct={() => void archiveAllNoise(g.rows)} ariaLabel={"Archive All From " + g.from} />
+                                <div className="chev" />
                               </div>
                               {noiseGroups[g.key] && g.rows.map((r) => threadRow(r, effTriage[r.id]?.gist, true))}
                             </div>
@@ -5700,7 +5811,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                   came from until the inbox has been read to the bottom. */}
               {visibleRows.length > 0 && (
                 <div className="row" {...pressable(() => { setPurgePicks(null); void runScan(); setView("purge"); })}>
-                  <span className="row-ico cat-bg-graphite" aria-hidden="true"><Archive className="ic" /></span>
+                  <span className="row-ico cat-bg-teal" aria-hidden="true"><Archive className="ic" /></span>
                   <div className="row-grow">
                     <div className="conn-name">Clean Out</div>
                     {/* E-29: counted over visibleRows and names its
@@ -5720,10 +5831,11 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                   always opened, under the card. */}
               {sweepReady && (
                 <div className="row" {...pressable(() => setDrainOpen((v) => !v))} aria-expanded={drainOpen}>
-                  <span className="row-ico cat-bg-graphite" aria-hidden="true"><Clock className="ic" /></span>
+                  <span className="row-ico cat-bg-orange" aria-hidden="true"><Clock className="ic" /></span>
                   <div className="row-grow">
                     <div className="conn-name">Only a Few Minutes?</div>
-                    <div className="conn-meta">A timed drain that stops itself</div>
+                    {/* 2026-10-05 (the catalog gate): Title Case, like every meta line. */}
+                    <div className="conn-meta">A Timed Drain That Stops Itself</div>
                   </div>
                   <div className="chev" />
                 </div>
@@ -5734,7 +5846,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                   built when you tap. */}
               {owed.length + mine > 0 && (
                 <div className="row" {...pressable(() => void openLedger())}>
-                  <span className="row-ico cat-bg-graphite" aria-hidden="true"><Hourglass className="ic" /></span>
+                  <span className="row-ico cat-bg-purple" aria-hidden="true"><Hourglass className="ic" /></span>
                   <div className="row-grow">
                     <div className="conn-name">Still Open</div>
                     {/* Two counts, two facts (§AM R5, R6): what he owes
@@ -5751,7 +5863,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
               {/* One at a Time, when there is a real run of them to walk. */}
               {owed.length >= 2 && (
                 <div className="row" {...pressable(() => setWaitDeck(0))}>
-                  <span className="row-ico cat-bg-graphite" aria-hidden="true"><MessageSquare className="ic" /></span>
+                  <span className="row-ico cat-bg-teal" aria-hidden="true"><MessageSquare className="ic" /></span>
                   <div className="row-grow">
                     <div className="conn-name">One at a Time</div>
                     {/* The oldest wait wears the nudge ladder's heat (§AM
@@ -5760,7 +5872,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                         the count, grey, is the fact that gives way
                         (2026-09-26). */}
                     <Facts facts={[
-                      { text: "Oldest " + oldest + (oldest === 1 ? " day" : " days"), tone: oldestTone },
+                      { text: lineCase("Oldest " + oldest + (oldest === 1 ? " day" : " days")), tone: oldestTone },
                       { text: lineCase(owed.length + " waiting on answers") },
                     ]} />
                   </div>
@@ -5773,9 +5885,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                   row performs rather than navigates and a chevron would lie
                   about that. EMAIL-F-25: the pill follows the voice. */}
               {sweepReady && canSpeak() && (() => {
-                // E-22: the row itself is Play/Pause; Next and Stop sit
-                // beside it while the voice is going or paused. Pills, not
-                // a chevron: this row performs, it never navigates.
+                // E-22: the row plays; while the voice is going its sheet holds Pause or Resume, Next and Stop.
                 const play = () => {
                   if (speaking === "paused") { setSpeaking(resumeSpeaking() ? "playing" : "idle"); return; }
                   const notices = mailNotices(loadMailSnapshot(), todayISO(), new Date(), 3, [], [], nudgeCounts);
@@ -5783,23 +5893,32 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                   setSpeaking(ok ? "playing" : "idle");
                 };
                 const pause = () => { pauseSpeaking(); setSpeaking("paused"); };
+                const stop = () => { stopSpeaking(); setSpeaking("idle"); };
+                // Clean rows (Dave 2026-10-05, locked): no Play, Next or Stop capsule on the row. Idle, the tap plays. While
+                // the voice is going, the tap opens the row's sheet (Pause or Resume, Next, Stop) and the quickest of them,
+                // Stop, shows on the row as text for as long as it is wanted.
                 return (
-                  <div className={"row" + (speaking !== "idle" ? " mail-read-live" : "")} {...pressable(() => (speaking === "playing" ? pause() : play()))}>
-                    <span className="row-ico cat-bg-graphite" aria-hidden="true"><Volume2 className="ic" /></span>
-                    <div className="row-grow">
-                      <div className="conn-name">Read It to Me</div>
-                      <div className="conn-meta">Senders and gists, never the message</div>
+                  <>
+                    <div className="row" {...pressable(() => (speaking === "idle" ? play() : setReadSheet(true)))}>
+                      <span className="row-ico cat-bg-purple" aria-hidden="true"><Volume2 className="ic" /></span>
+                      <div className="row-grow">
+                        <div className="conn-name">Read It to Me</div>
+                        <div className="conn-meta">{speaking === "idle" ? "Gists, Never the Message" : speaking === "playing" ? "Playing" : "Paused"}</div>
+                      </div>
+                      <RowCtxAction when={speaking !== "idle"} label="Stop" onAct={stop} ariaLabel="Stop Reading" />
                     </div>
-                    <div className="mail-read-acts">
-                      {speaking !== "idle" && (
-                        <button className="pill-act" onClick={(e) => { e.stopPropagation(); setSpeaking(nextSentence() ? "playing" : "idle"); }}>Next</button>
-                      )}
-                      {speaking !== "idle" && (
-                        <button className="pill-act" onClick={(e) => { e.stopPropagation(); stopSpeaking(); setSpeaking("idle"); }}>Stop</button>
-                      )}
-                      <span className="pill-act">{speaking === "playing" ? "Pause" : "Play"}</span>
-                    </div>
-                  </div>
+                    {readSheet && speaking !== "idle" && (
+                      <RowActionSheet
+                        title="Read It to Me"
+                        actions={[
+                          speaking === "playing" ? { label: "Pause", onPick: pause } : { label: "Resume", onPick: play },
+                          { label: "Next", onPick: () => setSpeaking(nextSentence() ? "playing" : "idle") },
+                          { label: "Stop", destructive: true, onPick: stop },
+                        ]}
+                        onCancel={() => setReadSheet(false)}
+                      />
+                    )}
+                  </>
                 );
               })()}
               {/* Standing Rules is what you built; it was a foot link and is
@@ -5807,7 +5926,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                   B, because a foot with one link left in it is not a foot). */}
               {showRules && (
                 <div className="row" {...pressable(() => setView("rules"))}>
-                  <span className="row-ico cat-bg-graphite" aria-hidden="true"><ListChecks className="ic" /></span>
+                  <span className="row-ico cat-bg-teal" aria-hidden="true"><ListChecks className="ic" /></span>
                   <div className="row-grow">
                     <div className="conn-name">Standing Rules</div>
                     {/* One count, one grey (§AM R1, R6): the filed senders
@@ -5825,14 +5944,15 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                   with every window on screen. E-38 moved it here from the
                   top of the page. */}
               <div className="row" {...pressable(() => setEditWindows(true))}>
-                <span className="row-ico cat-bg-graphite" aria-hidden="true"><CalendarClock className="ic" /></span>
+                <span className="row-ico cat-bg-sky" aria-hidden="true"><CalendarClock className="ic" /></span>
                 <div className="row-grow">
                   <div className="conn-name">Email Windows</div>
                   {/* On is a state, so it is green; when the next open or
                       close follows, it is the line's one grey (§AM R1, R6). */}
+                  {/* Off, it has nothing to say: "Open Email on a Schedule" restated the title (Dave 2026-10-05). */}
                   {windows.on
                     ? <Facts facts={[{ text: "On", tone: "good" }, { text: windowStatusLine(windows, new Date()) }]} />
-                    : <div className="conn-meta">Open email on a schedule</div>}
+                    : null}
                 </div>
                 <div className="chev" />
               </div>
@@ -5982,7 +6102,7 @@ function SendHold({
             <div className="row-glyph cat-fg-blue"><Send className="ic" /></div>
             <div className="row-grow">
               <div className="conn-name">Sending</div>
-              <div className="conn-meta">On its way</div>
+              <div className="conn-meta">On Its Way</div>
             </div>
           </div>
         </div>
@@ -6000,7 +6120,7 @@ function SendHold({
           <div className="row-glyph cat-fg-blue"><Send className="ic" /></div>
           <div className="row-grow">
             <div className="conn-name">{holdLine(item, now)}</div>
-            <div className="conn-meta">Nothing has left yet</div>
+            <div className="conn-meta">Nothing Has Left Yet</div>
           </div>
           <button className="pill-act" onClick={(e) => { e.stopPropagation(); onUndo(); }}>Undo</button>
         </div>

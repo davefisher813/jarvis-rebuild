@@ -5,6 +5,8 @@ import { JARVIS_VOICE } from "../../ai/voice";
 import { SEASON_EXTRACT_PROMPT, parseSeasonExtract, type SeasonFeedDraft } from "../seasonFeed";
 import { showToast } from "../../shared/toast";
 import { encodeImageForVision } from "../../shared/imageEncode";
+import { weekdayShortDate } from "../../shared/dateFormat";
+import { fmtRange } from "../../schedule/calendar";
 
 // THE SEASON FEED (Part 8, rank #3). Photo/screenshot or pasted text of a
 // team's practice schedule -> the model extracts -> every row is reviewed
@@ -57,7 +59,8 @@ export default function SeasonFeedScreen({ ai, onCommit, onBack }: {
           <div className="nav-title truncate">{draft.org}</div>
         </div>
         <div className="pad-x"><div className="card pad">
-          <div className="conn-name">What I Read · Fix Anything Later</div>
+          <div className="conn-name">What I Read</div>
+          <div className="bp-sub">Fix Anything Later</div>
         </div></div>
         <div className="pad-x"><div className="card list-card-ruled">
           {draft.events.map((e, i) => (
@@ -66,9 +69,14 @@ export default function SeasonFeedScreen({ ai, onCommit, onBack }: {
                 <div className="conn-name truncate">{e.title}</div>
                 {/* A neutral date and a neutral time, each small caps (§AM
                     F5), with the dot between them drawn by CSS (F3). */}
+                {/* 2026-10-05 (the catalog gate): the extractor's own strings
+                    ("2026-09-04", "15:30") were drawn as they came, an ISO date
+                    and a 24-hour clock. A date is said the way a person says it
+                    ("Fri, Sep 4") and a time is 12-hour with AM or PM, through
+                    the same two formatters the Schedule upload review uses. */}
                 <div className="facts">
-                  <span className="fact date">{e.date}</span>
-                  <span className="fact date">{e.start}{e.end ? " to " + e.end : ""}</span>
+                  <span className="fact date">{weekdayShortDate(e.date)}</span>
+                  <span className="fact date">{fmtRange(e.start, e.end)}</span>
                 </div>
               </div>
             </div>

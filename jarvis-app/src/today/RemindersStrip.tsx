@@ -1,12 +1,23 @@
-import { Check, Plus, CalendarPlus, Trash2 } from "../shared/icons";
+import { Check, Clock, Plus, Trash2 } from "../shared/icons";
 import { Burst } from "../shared/Burst";
 import React, { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useSwipe } from "../shared/useSwipe";
+import { useRowMenu } from "../shared/useRowMenu";
+import { noteSwiped } from "../shared/swipeTeach";
+import RowCtxAction from "../shared/RowCtxAction";
+import { usePeekOnce } from "./usePeekOnce";
 import type { ReminderView } from "../tasks/reminders";
 import { fmtTime } from "../schedule/calendar";
 import { catColor, catName } from "../shared/categories";
 import { titleCase } from "../shared/casing";
+import HeadMore from "../shared/HeadMore";
+
+/** How close a reminder is when its moment has come: inside this many minutes of the clock. */
+const DUE_NOW_MIN = 10;
+const toMin = (hhmm: string): number => { const p = hhmm.split(":"); return Number(p[0] ?? 0) * 60 + Number(p[1] ?? 0); };
+const dueNow = (r: ReminderView, now: string | undefined): boolean =>
+  !!now && !r.unscheduled && !r.done && r.time !== "" && toMin(r.time) - toMin(now) <= DUE_NOW_MIN;
 
 /** The area's name, when it has one to give. */
 const area = (r: { category: string }) => (r.category ? catName(r.category) : "");
@@ -31,22 +42,35 @@ const area = (r: { category: string }) => (r.category ? catName(r.category) : ""
 // same one a task and a bill answer to: the whole row is the target, which
 // is what a thumb on a moving bus actually hits. Extracted from the map so
 // the row can own a hook; a reminder already ticked has nothing to take.
-function ReminderRow({ r, bursting, onTickRow, onDeleteRow, children }: {
+function ReminderRow({ r, bursting, onTickRow, onSnoozeRow, onDeleteRow, children }: {
   r: ReminderView;
   bursting: boolean;
   onTickRow: () => void;
+  onSnoozeRow?: () => void;
   onDeleteRow?: () => void;
   children: React.ReactNode;
 }) {
   const completable = !r.done;
-  // DELETE IS ON THE SWIPE (Dave 2026-09-20: "should be able to delete
-  // always"). The comment here used to read "No left reveal on this strip: a
-  // reminder's other actions are its own pill and its sheet", which was true
-  // and was the problem: a reminder added by mistake could be ticked from the
-  // row and removed from nowhere, on the one screen he actually reads. Left is
-  // the delete side on Tasks, Notes, Mail and the gym set; this strip was
-  // answering to exactly one gesture out of the two every other list offers.
-  const swipe = useSwipe({ revealW: onDeleteRow ? 88 : 0, rightW: completable ? 88 : 0, ...(completable ? { onRightCommit: onTickRow } : {}) });
+  // THE TRAY (Dave 2026-10-05, locked: swipe left is the row's ONE quickest verb, and for a reminder that is Snooze;
+  // Delete stays behind the reveal as the second button, never the only one). A done reminder has nothing to push
+  // later, so it keeps only Delete. DELETE IS ON THE SWIPE (Dave 2026-09-20: "should be able to delete always"): a
+  // reminder added by mistake could be ticked from the row and removed from nowhere, on the one screen he actually
+  // reads. Left is the delete side on Tasks, Notes, Mail and the gym set.
+  const snoozable = !!onSnoozeRow && completable;
+  // THE HOLD IS THE CONTEXT MENU (Dave 2026-10-05): the swipe's verbs, Done, and Delete last.
+  const rowMenu = useRowMenu({ title: titleCase(r.text), actions: [
+    ...(snoozable ? [{ label: "Snooze", onPick: onSnoozeRow }] : []),
+    ...(completable ? [{ label: "Done", onPick: onTickRow }] : []),
+    ...(onDeleteRow ? [{ label: "Delete", destructive: true, onPick: onDeleteRow }] : []),
+  ] });
+  const swipe = useSwipe({
+    revealW: (snoozable ? 88 : 0) + (onDeleteRow ? 88 : 0),
+    rightW: completable ? 88 : 0,
+    ...(completable ? { onRightCommit: () => { noteSwiped(); onTickRow(); } } : {}),
+    onLongPress: rowMenu.onLongPress,
+  });
+  const { handlers, sheet } = rowMenu.bind(swipe);
+  usePeekOnce(swipe.peek, snoozable || !!onDeleteRow);
   return (
     <div className="task-swipe">
       {completable && (
@@ -55,8 +79,14 @@ function ReminderRow({ r, bursting, onTickRow, onDeleteRow, children }: {
           <span className="swipe-label">Done</span>
         </div>
       )}
+      {snoozable && (
+        <button className="task-snooze task-snooze-solo" onClick={() => swipe.closeThen(onSnoozeRow)} aria-label={"Snooze " + r.text}>
+          <Clock className="ic" />
+          <span className="swipe-label">Snooze</span>
+        </button>
+      )}
       {onDeleteRow && (
-        <button className="task-del" onClick={() => swipe.closeThen(onDeleteRow)} aria-label={"Delete " + r.text}>
+        <button className="task-del" style={snoozable ? { right: 88 } : undefined} onClick={() => swipe.closeThen(onDeleteRow)} aria-label={"Delete " + r.text}>
           <Trash2 className="ic" />
           <span className="swipe-label">Delete</span>
         </button>
@@ -64,10 +94,11 @@ function ReminderRow({ r, bursting, onTickRow, onDeleteRow, children }: {
       <div
         className={"rem-row" + (r.done ? " done" : "") + (r.missed && !r.letGo ? " missed" : "") + (r.letGo ? " let-go" : "") + (swipe.dragging ? " swiping" : "")}
         style={swipe.dx ? { transform: `translateX(${swipe.dx}px)` } : undefined}
-        {...swipe.handlers}
+        {...handlers}
       >
         {children}
       </div>
+      {sheet}
     </div>
   );
 }
@@ -78,11 +109,12 @@ function ReminderRow({ r, bursting, onTickRow, onDeleteRow, children }: {
 // caller's tick offers Undo in its toast, so a wrong tap is one tap back.
 // The times are not red here: the sheet's own title says missed, once, and
 // the key's red on a sheet's grouped grey does not clear AA (§AM, 2026-09-26).
-// ASK AGAIN rides each row as its one capsule (the lead, 2026-09-26: the
+// ASK AGAIN rides each row as its one quiet word (the lead, 2026-09-26: the
 // Heads Up missed cards go, and this sheet is the one place a missed
-// reminder appears on Today). "If You Miss It" promises the verb (§Q.8), so
-// it has to survive the cards: a tap pushes the reminder 15 real minutes out,
-// and it leaves the missed list because it is no longer missed.
+// reminder appears on Today; Dave 2026-10-05: a row has no capsule, and a
+// missed reminder's moment has come). "If You Miss It" promises the verb
+// (§Q.8), so it has to survive the cards: a tap pushes the reminder 15 real
+// minutes out, and it leaves the missed list because it is no longer missed.
 function MissedSheet({ missed, onTick, onAskAgain, onClose }: {
   missed: ReminderView[];
   onTick: (id: string) => void;
@@ -120,9 +152,9 @@ function MissedSheet({ missed, onTick, onAskAgain, onClose }: {
                     </div>
                   )}
                 </div>
-                {onAskAgain && (
-                  <button type="button" className="pill-act" onClick={(e) => { e.stopPropagation(); onAskAgain(r.id); }}>Ask Again</button>
-                )}
+                {/* A missed reminder's moment has come, so its verb is the one quiet word on the row (Dave 2026-10-05: no
+                    pill on a row). It is the same verb the swipe would hold: ask again in fifteen. */}
+                {onAskAgain && <RowCtxAction when label="Ask Again" onAct={() => onAskAgain(r.id)} />}
               </div>
             ))}
           </div></div>
@@ -146,6 +178,7 @@ export default function RemindersStrip({
   onDelete,
   onAddAllToCalendar,
   onSeeAll,
+  now,
 }: {
   /** THE NEXT THREE (Dave's pass-off, 2026-09-26): what is still ahead of
    *  the clock, soonest first, and no more than three (stripPick). */
@@ -166,6 +199,9 @@ export default function RemindersStrip({
   /** Swipe left, Delete. Undo is the caller's, in the toast. */
   onDelete?: (id: string) => void;
   onAddAllToCalendar?: () => void;
+  /** The clock as HH:MM. A reminder inside DUE_NOW_MIN of it has its moment: Snooze shows on the row. Absent, no row
+   *  claims one (a harness with no clock draws a clean strip). */
+  now?: string;
 }) {
   const [burstId, setBurstId] = useState<string | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -185,10 +221,9 @@ export default function RemindersStrip({
 
   return (
     <>
-      {/* I3 (2026-08-24): quiet, like every other head on Today. Now is the
-          only section on that page allowed the accent. This strip renders its
-          own head rather than taking TodayPage's, which is exactly how it
-          survived the first sweep. */}
+      {/* I3 (2026-08-24): quiet, like every other head on Today (2026-10-05: Now too, since brand red is for what you
+          can tap). This strip renders its own head rather than taking TodayPage's, which is exactly how it survived the
+          first sweep. */}
       <div className="sh2 sh2-quiet">
         <span className="t">Reminders</span>
         {/* One Add, never two. An empty strip shows the LABELLED in-list create
@@ -197,11 +232,19 @@ export default function RemindersStrip({
             job, six pixels apart. */}
         {onAdd && hasRows && <button className="see-all pill-action" onClick={onAdd}>Add</button>}
         {onSeeAll && <button className="see-all pill-action" onClick={onSeeAll}>See All</button>}
+        {/* ADD ALL TO CALENDAR IS THE HEAD'S OVERFLOW (Dave 2026-10-05, D1 and D2). It hung as a centred pill under the
+            card (Dave 2026-09-11: "render exactly the same as the clear all button above it, not inside the container"),
+            which was the right answer before section actions had a home. They have one now: a head holds two capsules and
+            the rest sit behind one More button, so it is neither a third capsule nor a pill under the card. */}
+        {hasRows && onAddAllToCalendar && items.length > 0 && (
+          <HeadMore label="Reminder Actions" actions={[{ label: "Add All to Calendar", onPick: onAddAllToCalendar }]} />
+        )}
       </div>
-      <div className="pad-x"><div className="card">
+      {hasRows && <div className="pad-x"><div className="card">
         {items.map((r) => (
           <ReminderRow key={r.id} r={r} bursting={burstId === r.id}
             onTickRow={() => { if (!r.done) celebrate(r.id); onTick?.(r.id, !r.done); }}
+            {...(onSnooze ? { onSnoozeRow: () => onSnooze(r.id) } : {})}
             {...(onDelete ? { onDeleteRow: () => onDelete(r.id) } : {})}>
             <div
               className={"cb" + (r.done ? " on" : "") + (burstId === r.id ? " just-checked" : "")}
@@ -253,15 +296,13 @@ export default function RemindersStrip({
                 </div>
               )}
             </div>
-            {/* Snooze only exists while it still matters: once it is done,
-                pushing it later is nonsense. */}
-            {/* TODAY-F-04 (2026-09-05): one label, and it says the size of
-                the push. "Snooze" then "+10 again" described a stack of ten
-                minute pushes onto the reminder's original time; a snooze is
-                ten minutes from now, whether it is the first or the third. */}
-            {!r.done && onSnooze && (
-              <button className="pill-act" onClick={() => onSnooze(r.id)}>Adjust</button>
-            )}
+            {/* NO CAPSULE ON THE ROW (Dave 2026-10-05, locked). Snooze, which was a pill that said Adjust, is the swipe,
+                and a reminder whose moment has come (due in the next few minutes) also shows it as one quiet word.
+                Future reminders stay clean. Snooze only exists while it still matters: once it is done, pushing it
+                later is nonsense.
+                TODAY-F-04 (2026-09-05): one label, and it says the size of the push. A snooze is ten minutes from now,
+                whether it is the first or the third. */}
+            <RowCtxAction when={!r.done && !!onSnooze && dueNow(r, now)} label="Snooze" onAct={() => onSnooze?.(r.id)} />
           </ReminderRow>
         ))}
         {/* ONE RED ROW FOR THE MISSED (Dave's pass-off, 2026-09-26). The
@@ -284,24 +325,15 @@ export default function RemindersStrip({
             <div className="chev" />
           </div>
         )}
-        {!hasRows && onAdd && (
-          <button className="row row-act" onClick={onAdd}>
-            <Plus className="ic" />Add a Reminder
-          </button>
-        )}
-      </div></div>
-      {/* OUTSIDE THE CARD, LIKE CLEAR ALL (Dave 2026-09-11: "the add all to
-          calendar button should render exactly the same as the clear all
-          button above it. Not inside the container").
-          It was a trailing in-list row, which put a full-width control inside
-          a card of reminders -- so it read as a third reminder rather than as
-          the thing you do WITH the reminders. Clear All two sections up is the
-          same shape of action and it hangs under its card; this one hangs the
-          same way, same row, same pill. */}
-      {items.length > 0 && onAddAllToCalendar && (
+      </div></div>}
+      {/* AN ACTION NEVER SITS IN A BOX (Dave 2026-10-05, the grey rectangle
+          around Add a Reminder). With no reminders there is no card at all:
+          the labelled create is the same pill as Add All to Calendar and
+          New Event, standing alone under the head. */}
+      {!hasRows && onAdd && (
         <div className="notice-clear-row">
-          <button className="row-act" onClick={onAddAllToCalendar}>
-            <CalendarPlus className="ic" />Add All to Calendar
+          <button className="row-act" onClick={onAdd}>
+            <Plus className="ic" />Add a Reminder
           </button>
         </div>
       )}

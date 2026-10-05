@@ -216,3 +216,27 @@ describe("Add to Schedule lands in the next free slot (P0 #2)", () => {
     expect(created).toEqual([]);
   });
 });
+
+// A block's This Day exception, read by date (2026-10-04). scheduleTask built
+// its day from the dow-only protectedRangesFor, so Skip Today on Breakfast
+// still stepped the task around it, and a retimed Breakfast was still avoided
+// at its old time and run straight across at its new one.
+describe("Add to Schedule reads the routine by date (a block's This Day exception)", () => {
+  const today = "2026-10-02";
+  const now = new Date(2026, 9, 2, 8, 0, 0);
+  const rule = { id: "bf", label: "Breakfast", startMin: 9 * 60 + 30, endMin: 10 * 60, days: [0, 1, 2, 3, 4, 5, 6], kind: "meal" as const };
+  const routineWith = (exceptions: Record<string, { skip?: boolean; startMin?: number; endMin?: number }>): RoutineData =>
+    ({ ...DEFAULT_ROUTINE, wakeMin: 7 * 60, protectedBlocks: [{ ...rule, exceptions }] });
+
+  it("a skipped Breakfast no longer pushes the task off 9:30", async () => {
+    const { tasks, schedule } = writers(null);
+    const res = await scheduleTask("t1", today, tasks, schedule, now, { routine: routineWith({ [today]: { skip: true } }) });
+    expect(res.start).toBe("09:00");
+  });
+
+  it("a Breakfast retimed to 9:00 to 11:00 is stepped around at its new time", async () => {
+    const { tasks, schedule } = writers(null);
+    const res = await scheduleTask("t1", today, tasks, schedule, now, { routine: routineWith({ [today]: { startMin: 9 * 60, endMin: 11 * 60 } }) });
+    expect(res.start).toBe("11:00");
+  });
+});

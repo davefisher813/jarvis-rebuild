@@ -2,7 +2,6 @@ import { useState } from "react";
 import type { MedDefEntry } from "../types";
 import type { DoseRow } from "../meds";
 import { pressable } from "../../shared/pressable";
-import RowActionSheet from "../../shared/RowActionSheet";
 import MedRows from "./MedRows";
 import DoseTimeline from "./DoseTimeline";
 import MedSheet from "./MedSheet";
@@ -35,7 +34,7 @@ export default function MedicationScreen({
   onOpenTrack: (key: string) => void;
   onBack: () => void;
 }) {
-  const [sheet, setSheet] = useState<{ kind: "add" } | { kind: "edit"; med: MedDefEntry } | { kind: "hold"; med: MedDefEntry } | null>(null);
+  const [sheet, setSheet] = useState<{ kind: "add" } | { kind: "edit"; med: MedDefEntry } | null>(null);
   const chev = <div className="chev" />;
   return (
     <div className="screen ruled health-ruled">
@@ -47,7 +46,8 @@ export default function MedicationScreen({
       <div className="sh2 sh2-quiet"><span className="t">Today</span></div>
       <div className="pad-x">
         {meds.length > 0 ? (
-          <MedRows meds={meds} doses={doses} now={now} onTook={onTook} onHold={(med) => setSheet({ kind: "hold", med })} />
+          <MedRows meds={meds} doses={doses} now={now} onTook={onTook}
+            onEdit={(med) => setSheet({ kind: "edit", med })} onRemove={(med) => onRemoveMed(med.id)} />
         ) : (
           <div className="card list-card-ruled">
             <div {...pressable(onLogDose)} className="task-row p2">
@@ -89,16 +89,6 @@ export default function MedicationScreen({
       {sheet?.kind === "add" && <MedSheet onSave={(name, amount) => { setSheet(null); onAddMed(name, amount); }} onCancel={() => setSheet(null)} />}
       {sheet?.kind === "edit" && (
         <MedSheet initial={{ name: sheet.med.data.name, amount: sheet.med.data.amount }} onSave={(name, amount) => { const id = sheet.med.id; setSheet(null); onEditMed(id, name, amount); }} onCancel={() => setSheet(null)} />
-      )}
-      {sheet?.kind === "hold" && (
-        <RowActionSheet
-          title={sheet.med.data.name}
-          actions={[
-            { label: "Edit", onPick: () => setSheet({ kind: "edit", med: sheet.med }) },
-            { label: "Remove", destructive: true, onPick: () => { const id = sheet.med.id; setSheet(null); onRemoveMed(id); } },
-          ]}
-          onCancel={() => setSheet(null)}
-        />
       )}
     </div>
   );

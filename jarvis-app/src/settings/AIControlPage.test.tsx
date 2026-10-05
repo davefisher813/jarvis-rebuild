@@ -95,7 +95,7 @@ describe("AIControlPage spending limit", () => {
   it("shows the real remaining balance and when it started", async () => {
     stubApi();
     mount();
-    expect(await screen.findByText("$4.22 remaining of $5")).toBeInTheDocument();
+    expect(await screen.findByText("$4.22 Remaining of $5")).toBeInTheDocument();
     expect(screen.getByText(/^Since /)).toBeInTheDocument();
   });
 
@@ -109,7 +109,7 @@ describe("AIControlPage spending limit", () => {
   it("names pending holds when there are any", async () => {
     stubApi({ ...BUDGET, heldMicrousd: 120_001 });
     mount();
-    expect(await screen.findByText("$0.13 held")).toBeInTheDocument();
+    expect(await screen.findByText("$0.13 Held")).toBeInTheDocument();
   });
 
   it("Save is inert until the field differs, and typing writes nothing", async () => {
@@ -131,7 +131,7 @@ describe("AIControlPage spending limit", () => {
     const field = await screen.findByLabelText("Limit in dollars");
     fireEvent.change(field, { target: { value: "8.50" } });
     fireEvent.click(screen.getByText("Save Limit").closest(".row")!);
-    await waitFor(() => expect(screen.getByText("$7.72 remaining of $8.50")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("$7.72 Remaining of $8.50")).toBeInTheDocument());
     expect(patches).toEqual([{ limitMicrousd: 8_500_000, expectedVersion: 3 }]);
     expect((field as HTMLInputElement).value).toBe("8.50");
   });
@@ -147,7 +147,7 @@ describe("AIControlPage spending limit", () => {
     fireEvent.click(screen.getByText("Save Limit").closest(".row")!);
     await waitFor(() => expect(seen.length).toBeGreaterThan(0));
     expect(field.value).toBe("5");
-    expect(screen.getByText("$4.22 remaining of $5")).toBeInTheDocument();
+    expect(screen.getByText("$4.22 Remaining of $5")).toBeInTheDocument();
     stop();
   });
 

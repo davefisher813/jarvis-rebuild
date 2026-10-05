@@ -10,10 +10,12 @@ import PageHeader from "../shared/PageHeader";
 import { lineFor, type CommandFailure } from "../substrate/commands/errors";
 import { openExternal } from "../messages/openExternal";
 import {
-  CHECK_AGAIN, CHECK_GMAIL, EMAIL_TITLE, NOT_SENT_TITLE, OPEN_GMAIL_EXACT, OPEN_GMAIL_GENERIC, RECIPIENTS_LABEL, RESEND_SHUT, REVIEW_AGAIN, SENDING_LINE, SENT_FROM, SENT_LINE, SENT_TITLE,
+  CHECK_AGAIN, EMAIL_TITLE, NOT_SENT_TITLE, OPEN_GMAIL_EXACT, OPEN_GMAIL_GENERIC, RECIPIENTS_LABEL, RESEND_SHUT, REVIEW_AGAIN, SENDING_LINE, SENT_FROM, SENT_LINE, SENT_TITLE,
   UNKNOWN_TITLE, UNKNOWN_WHY, VIEW_RECEIPT_LONG, NO_SUBJECT,
 } from "./copy";
 import { gmailLink } from "./emailClient";
+import EmailFacts from "./EmailFacts";
+import { dotFacts } from "./format";
 import { outcomeOf, type DraftRow } from "./drafts";
 
 export default function SendOutcomeScreen({ draft, offline, checking, checkLine, onBack, onReviewAgain, onCheckAgain, onReceipt }: {
@@ -42,10 +44,12 @@ export default function SendOutcomeScreen({ draft, offline, checking, checkLine,
           <dt>{SENT_FROM}</dt><dd>{draft.account}</dd>
           <dt>{RECIPIENTS_LABEL}</dt><dd>{recipients.join(", ")}</dd>
         </dl>
-        {outcome === "sent" && <div className="email-card-detail">{SENT_LINE}</div>}
-        {outcome === "failed" && why && <div className="email-card-detail">{why}</div>}
-        {outcome === "unknown" && <><div className="email-card-detail">{UNKNOWN_WHY}</div><div className="email-card-detail">{CHECK_GMAIL}</div></>}
-        {outcome === "sending" && <div className="email-card-detail">{SENDING_LINE}</div>}
+        {/* 2026-10-05: one line, as facts, per outcome. Sent is green with its caveat in the one grey; Unknown is amber; a
+            failure is a red error line. "Sending" and "Check Gmail Before Trying Again" are gone: the first repeated the
+            page title, the second was an instruction under a Check Again button that says it. */}
+        {outcome === "sent" && <EmailFacts wrap facts={dotFacts(SENT_LINE, "good")} />}
+        {outcome === "failed" && why && <div className="input-error" role="alert">{why}</div>}
+        {outcome === "unknown" && <EmailFacts wrap facts={dotFacts(UNKNOWN_WHY, "warn")} />}
       </div></div>
       {checkLine && <div className="email-note quiet"><span>{typeof checkLine === "string" ? checkLine : lineFor(checkLine)}</span></div>}
       <div className="email-sheet-acts email-compose-acts">

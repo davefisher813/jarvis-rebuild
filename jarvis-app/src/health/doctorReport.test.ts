@@ -118,3 +118,18 @@ describe("buildDoctorReport: check-ins", () => {
     expect(r.rows.map((x) => [x.kind, x.label])).toEqual([["checkin", "Check In · Energy High, Mood Good"]]);
   });
 });
+
+// THE CLOCK LAW (Dave 2026-10-05): the exported log's clock is 12-hour with AM or PM
+// whatever the phone's region says; a doctor reads this on paper.
+describe("doctorReportText: the clock", () => {
+  it("says AM or PM on every row, even where the phone's region is 24-hour", () => {
+    const orig = Date.prototype.toLocaleTimeString;
+    Date.prototype.toLocaleTimeString = function (loc?: string | string[], o?: Intl.DateTimeFormatOptions) { return orig.call(this, Array.isArray(loc) && loc.length === 0 ? "en-GB" : loc, o); };
+    try {
+      const now = new Date("2026-09-06T18:00:00").getTime();
+      const tookIt: TookItEntry[] = [{ id: "t1", data: { category: "medication", at: new Date("2026-09-05T14:05:00").getTime() } }];
+      const text = doctorReportText(buildDoctorReport({ tookIt, ateBefore: [], lightsOut: [], callIt: [] }, 6, now));
+      expect(text).toMatch(/2026-09-05\s+2:05\s?PM\s+Dose Logged/);
+    } finally { Date.prototype.toLocaleTimeString = orig; }
+  });
+});

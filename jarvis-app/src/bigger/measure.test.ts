@@ -84,6 +84,13 @@ describe("measureState: projects", () => {
     const c = ctx({ projects: [proj("p1", { status: "done" }), proj("p2")] });
     expect(measureState({ kind: "projects" }, c)).toMatchObject({ done: 1, target: 2, met: false });
   });
+  // NO NOUN, NO ORPHAN (2026-10-05, the perfect bar: "0 of 1 Projects Done" on the Goals card, and "0 of 1 Project Done" reads wrong
+  // too): the line is the count alone, as every other measure writes it, and the noun is the "1 Linked Project" under it.
+  it("writes '0 of 1 Done' and '1 of 2 Done', never a plural that disagrees or an orphaned Done", () => {
+    expect(measureState({ kind: "projects" }, ctx({ projects: [proj("p1")] }))!.line).toBe("0 of 1 Done");
+    expect(measureState({ kind: "projects" }, ctx({ projects: [proj("p1", { status: "done" }), proj("p2")] }))!.line).toBe("1 of 2 Done");
+    expect(measureState({ kind: "projects" }, ctx({ projects: [proj("p1")] }))!.line).not.toMatch(/Project/);
+  });
   // §AK (2026-09-26): no division by zero, and no placeholder line either.
   it("says nothing rather than dividing by zero", () => {
     expect(measureState({ kind: "projects" }, ctx())).toMatchObject({ done: 0, target: 0, pct: 0, met: false, line: "" });
@@ -238,7 +245,7 @@ describe("to-date for new goals, to-go for committed ones (Life View pick 8)", (
   it("an established measure pulls with what is left", () => {
     const since = new Date(NOW - 40 * DAY).toISOString().slice(0, 10);
     const c = ctx({ reach, samples: [{ id: "x", t: NOW - DAY }] });
-    expect(measureState({ kind: "count", target: 12, since }, c)!.line).toBe("11 to Go");
+    expect(measureState({ kind: "count", target: 12, since }, c)!.line).toBe("11 To Go");
   });
   it("a young measure with nothing banked stays neutral, never a zero brag", () => {
     const since = new Date(NOW - 5 * DAY).toISOString().slice(0, 10);

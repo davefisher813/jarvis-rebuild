@@ -23,7 +23,7 @@ describe("tracker money and dates", () => {
     expect(fmtCents(10500)).toBe("$105.00");
     expect(fmtCents(12669)).toBe("$126.69");
     expect(fmtCents(2651241)).toBe("$26,512.41");
-    expect(fmtCents(-4500)).toBe("-$45.00");
+    expect(fmtCents(-4500)).toBe("\u2212$45.00");
     expect(fmtCents(0)).toBe("$0.00");
   });
 
@@ -101,10 +101,33 @@ describe("subscriptions cost the same month either way they bill", () => {
 
 describe("category colours", () => {
   it("a named category keeps its colour, and an unknown one keeps its own", () => {
-    expect(categoryColor("Restaurants")).toBe("#ff4d5e");
+    expect(categoryColor("Restaurants")).toBe("#4da3ff");
     expect(categoryColor("Overdraft")).toBe("#ff3b30");
     // Stable between renders: the same name is the same colour every time.
     expect(categoryColor("Dog Grooming", 2)).toBe(categoryColor("Dog Grooming", 2));
+  });
+
+  // ROUND 2 (2026-10-05): "Spending by Category is an 11-colour rainbow with near-duplicate hues", two reds beside the brand red
+  // and three of amber, orange and yellow. Those hues are the Colour Key's (late, due soon), so a category never wears one:
+  // Overdraft is the one red, and every other named category and every fallback sits clear of red, orange, amber and yellow.
+  it("no category but Overdraft wears the key's red, orange, amber or yellow, and no two named ones share a colour", () => {
+    const hue = (hex: string) => {
+      const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255) as [number, number, number];
+      const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn;
+      if (d < 0.08) return -1; // a grey has no hue
+      const h = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4;
+      return (h * 60 + 360) % 360;
+    };
+    const warm = (h: number) => h >= 0 && (h <= 70 || h >= 345);
+    const named = ["Restaurants", "Fast Food", "Supermarkets and Groceries", "Food and Beverage Store", "Golf", "Sporting Goods",
+      "Digital Purchase", "Subscription", "Service", "Charities and Non-Profits", "Overdraft", "Other"];
+    for (const n of named) {
+      if (n === "Overdraft") { expect(warm(hue(categoryColor(n)))).toBe(true); continue; }
+      expect(warm(hue(categoryColor(n))), n + " is warm: " + categoryColor(n)).toBe(false);
+    }
+    expect(new Set(named.map((n) => categoryColor(n))).size).toBe(named.length);
+    // An unknown category's stable fallback is clear of the key's warm hues too.
+    for (let i = 0; i < 40; i++) expect(warm(hue(categoryColor("Unlisted " + i, i)))).toBe(false);
   });
 
   it("Other is always offered, so a new transaction has somewhere to go", () => {

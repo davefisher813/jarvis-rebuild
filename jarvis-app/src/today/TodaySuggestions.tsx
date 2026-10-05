@@ -24,7 +24,7 @@ import { aiFailure, type AIFailure } from "../ai/failureLine";
 import { rankOpen } from "../upnext/upnext";
 import { Lightbulb } from "../shared/icons";
 import NoticeCard from "./NoticeCard";
-import { lineCase } from "../shared/casing";
+import { lineCase, bindMeridiem } from "../shared/casing";
 
 // Proactive nudges on Today, made actionable and polite:
 // - one AI call per day (cached on device), so no burn on every open
@@ -33,6 +33,11 @@ import { lineCase } from "../shared/casing";
 // - dismissals persist for the day (an assistant that re-nags gets deleted)
 type DayCache = { items: Suggestion[]; dismissed: number[]; acted: number[] };
 const KEY = (d: string) => "jarvis.suggestions." + d;
+
+// A NOTICE IS A LINE THE APP WRITES, SO IT IS TITLE CASE (Dave 2026-10-05, the review: "Your tasks get done between 7 AM
+// and 10 AM" over a Title Case receipt on one card), and a time in it never splits from its AM or PM. The words are
+// derived and stored as the strand's own sentence (brain/derive.ts), so the casing is done where they are drawn.
+const noticeText = (t: string) => bindMeridiem(lineCase(t));
 
 function readCache(d: string): DayCache | null {
   try { return JSON.parse(localStorage.getItem(KEY(d)) || "null") as DayCache | null; } catch { return null; }
@@ -283,7 +288,13 @@ export default function TodaySuggestions({ ai, always = false }: { ai: AIService
 
   const dismissThis = () => {
     haptics.selection();
-    if (pattern) { dismissPattern(pattern.id, today); setPattern(null); emit({ type: "suggestion.dismissed", props: { kind: "pattern" } }); }
+    if (pattern) {
+      dismissPattern(pattern.id, today); setPattern(null); emit({ type: "suggestion.dismissed", props: { kind: "pattern" } });
+      // A moment that won the first row is also in the day's set, and a set that still held it would deal the same card again as
+      // the next one in the queue, so waving it off has to take it out of the set too.
+      const gone = pattern.moment?.derivation;
+      if (gone) setMoments((cur) => cur.filter((x) => x.derivation !== gone));
+    }
     else if (aiPick) dismiss(aiPick.i);
   };
 
@@ -433,15 +444,18 @@ export default function TodaySuggestions({ ai, always = false }: { ai: AIService
     primary = !open ? (
       <div className="pad-x">
         <button className="receipt-line" onClick={() => setOpen(true)}>
-          <span className="rl-t">Noticed: {pattern.text}</span>
+          <span className="rl-t">Noticed: {noticeText(pattern.text)}</span>
           <span className="chev" />
         </button>
       </div>
     ) : (
       <NoticeCard
+        // AN OFFER KEEPS ITS CAPSULE (Dave 2026-10-05, locked): this card asks him to accept a claim, and its words
+        // carry the decision, so it is the settled notice card, not a row.
+        offer
         icon={<Lightbulb className="ic" />}
         tone="cat-fg-yellow"
-        title={pattern.text}
+        title={noticeText(pattern.text)}
         sub={pattern.sub}
         /* THE EVIDENCE IS NOT OPTIONAL ON AN OFFER (2026-09-07). See the note
            on the moment cards below: this card asks him to accept a claim, so
@@ -461,15 +475,16 @@ export default function TodaySuggestions({ ai, always = false }: { ai: AIService
     primary = !open ? (
       <div className="pad-x">
         <button className="receipt-line" onClick={() => setOpen(true)}>
-          <span className="rl-t">Noticed: {aiPick.s.text}</span>
+          <span className="rl-t">Noticed: {noticeText(aiPick.s.text)}</span>
           <span className="chev" />
         </button>
       </div>
     ) : (
       <NoticeCard
+        offer
         icon={<Lightbulb className="ic" />}
         tone="cat-fg-yellow"
-        title={aiPick.s.text}
+        title={noticeText(aiPick.s.text)}
         action={aiPick.s.task ? { label: "Add", onClick: () => void addToToday(aiPick.i, aiPick.s.task!) } : undefined}
         // ROW-TAP (Dave 2026-09-15): nothing to open; the body folds the card
         // back to its whisper, the same way it opened.
@@ -520,16 +535,29 @@ export default function TodaySuggestions({ ai, always = false }: { ai: AIService
   // above is that one row, wherever it renders; these are whatever else the
   // nightly pass picked, always full cards (never whispered), since this
   // list only ever exists on the page that already opened everything.
+  //
+  // ONE CARD AT A TIME (the round 2 review, 2026-10-05: "three stacked suggestion cards push the real screen off the first
+  // view": the title, the filters and the Readiness list were under the dock, and three buttons said the same thing).
+  // The pass still chose the whole set and every card is still reachable: the first is shown, the head says where it is in
+  // the queue ("1 of 3"), and answering it (accepting or dismissing) brings the next up. An offer already on screen is the
+  // first of the queue and the moments wait behind it.
+  const offerShown = !!(pattern || aiPick);
+  const queue = (offerShown ? 1 : 0) + extraMoments.length;
+  const shownMoments = offerShown ? [] : extraMoments.slice(0, 1);
   return (
     <>
+      {queue > 1 && (
+        <div className="sh2 sh2-quiet"><span className="t">Worth Remembering</span><span className="n">{"1 of " + queue}</span></div>
+      )}
       {primary}
-      {extraMoments.map((m) => (
+      {shownMoments.map((m) => (
         // row-tap: claim card with no page behind it; accepting is a lasting write that stays on the pill
         <NoticeCard
           key={m.derivation}
+          offer
           icon={<Lightbulb className="ic" />}
           tone="cat-fg-yellow"
-          title={m.title}
+          title={noticeText(m.title)}
           sub={m.sub}
           /* THE EVIDENCE IS NOT OPTIONAL ON AN OFFER (2026-09-07).
              Measured at 390x844: "Remember This" is 139px of a 326px row, so a

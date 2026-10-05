@@ -1,6 +1,7 @@
 import type { ThirdPracticeOffer } from "../thirdPractice";
 import { pressable } from "../../shared/pressable";
 import { weekdayShortDate } from "../../shared/dateFormat";
+import RowShell from "../../brain/RowShell";
 
 // THE THIRD PRACTICE (Part 2, rank #1). One day, more than one sport
 // commitment across different orgs. Stated once, as a fact, with an offer.
@@ -28,21 +29,22 @@ export default function ThirdPracticeScreen({ offers, onProtectGap, onBack }: {
           <div className="empty-sub">A day that does shows up here, once</div>
         </div>
       ) : (
-        <div className="pad-x"><div className="card list-card-ruled">
+        <div className="pad-x"><div className="card list-card-ruled shell-rows">
           {offers.map((o, i) => (
-            // Row tap (Dave 2026-09-15): the offer row takes its offer, Protect a Gap.
-            <div className="row" key={i} {...pressable(() => onProtectGap(o))}>
-              <div className="row-grow">
-                <div className="conn-name">{weekdayShortDate(o.fact.date)}</div>
-                {/* The teams are one list, so one grey run joined by commas:
-                    a dot baked into the string is a separator only CSS may
-                    draw (§AM F3). */}
-                <div className="bp-sub">{o.fact.orgs.join(", ")}</div>
+            // CLEAN ROWS (Dave 2026-10-05, locked): the offer IS the row. Its tap takes the offer, Protect a Gap (as it
+            // always did) and so does its swipe-left; the capsule that repeated it is gone.
+            <RowShell key={i} verb={{ label: "Protect a Gap", run: () => onProtectGap(o) }}>
+              <div className="row" {...pressable(() => onProtectGap(o))}>
+                <div className="row-grow">
+                  <div className="conn-name">{weekdayShortDate(o.fact.date)}</div>
+                  {/* The teams are one list, so one grey run joined by commas:
+                      a dot baked into the string is a separator only CSS may
+                      draw (§AM F3). */}
+                  <div className="bp-sub">{o.fact.orgs.join(", ")}</div>
+                </div>
+                <div className="chev" />
               </div>
-              {/* The offer is the row's capsule (§AL). Its red label means
-                  "tap" (§AM), not a warning; the fact itself stays uncoloured. */}
-              <button type="button" className="pill-act" onClick={(ev) => { ev.stopPropagation(); onProtectGap(o); }}>Protect a Gap</button>
-            </div>
+            </RowShell>
           ))}
         </div></div>
       )}

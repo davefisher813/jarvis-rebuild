@@ -25,7 +25,9 @@ import { DUR_CHOICES, durLabel } from "../durations";
 import { tapField } from "../../shared/FormSheet";
 import { onPressKey } from "../../shared/pressable";
 import { spanLabel } from "../../shared/duration";
-import { lineCase } from "../../shared/casing";
+import { lineCase, titleCase } from "../../shared/casing";
+import RowCtxAction from "../../shared/RowCtxAction";
+import { showToast } from "../../shared/toast";
 
 const BUFFER = 10;
 const DEFAULT_DUR = 45;
@@ -95,7 +97,8 @@ const sittingOf = (id: string): number | undefined => {
 //   - TWO FOOTER BUTTONS, always. The primary and Cancel.
 // The reason fragments this sheet shows for a pick: the planner's list,
 // minus the two rungs the sheet already states elsewhere on the same row.
-const sheetWhy = (why: string[] | undefined): string[] => (why ?? []).filter((w) => !/^(Moves |Due today$|Overdue$)/.test(w));
+// The group head already says Due or Overdue (planner fragments are Title Case, so the match is case-blind).
+const sheetWhy = (why: string[] | undefined): string[] => (why ?? []).filter((w) => !/^(Moves |Due Today$|Overdue$)/i.test(w));
 
 export default function PlanDaySheet({
   events,
@@ -375,7 +378,7 @@ export default function PlanDaySheet({
     // B5 (2026-09-04): this fires on mount, never a tap -- the definition of
     // a background call at "On Request".
     void runAI(picks, true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [picks]);
 
   // Tapping a row picks or unpicks it. NO silent cap: the fit line and the
@@ -581,9 +584,16 @@ export default function PlanDaySheet({
     <div className="sheet-scrim" onClick={onClose}>
       <div className="card" onClick={(e) => e.stopPropagation()}>
         <div className="sheet-handle" />
-        <div className="grp"><div className="eyebrow">{target === "tomorrow" ? "Plan Tomorrow" : "Plan My Day"}</div></div>
+        <div className="grp">
+          <div className="eyebrow">{target === "tomorrow" ? "Plan Tomorrow" : "Plan My Day"}</div>
+          {/* The sheet's one section-level action rides its head (D2): it was a
+              note-fix orphaned on a second line under the chips. */}
+          {!routineConfigured && onEditRoutine && (
+            <button type="button" className="see-all pill-action" onClick={() => onEditRoutine()}>Set Your Routine</button>
+          )}
+        </div>
         <div className="pad-x sheet-form">
-          <div className="p3-q">What fits {dayLabel.toLowerCase() === "today" ? "today" : dayLabel}?</div>
+          <div className="p3-q">{lineCase(`What Fits ${dayLabel}?`)}</div>
           {/* Every chip on this row is a CONTROL. The old row mixed working
               chips with statements dressed as chips, which is where "buttons
               don't work" started being true. */}
@@ -605,9 +615,6 @@ export default function PlanDaySheet({
               {doneBy && <button type="button" className="plan-drop" onClick={() => { setDoneBy(""); setDoneByOpen(false); }}>Clear</button>}
             </div>
           )}
-          {!routineConfigured && onEditRoutine && (
-            <div className="plan-sub"><button type="button" className="note-fix" onClick={() => onEditRoutine()}>Set Your Routine</button></div>
-          )}
 
           {/* R4: planning "today" at 10:54 PM is planning a dead day, and the
               sheet used to ask cheerfully anyway. */}
@@ -620,7 +627,8 @@ export default function PlanDaySheet({
               <div className="row-stack">
                 <div className="conn-name">{clock.title}</div>
               </div>
-              <button type="button" className="pill-act" onClick={(e) => { e.stopPropagation(); hide("clock"); onTarget("tomorrow"); }}>Plan Tomorrow</button>
+              {/* NO PILL ON A ROW (Dave 2026-10-05): the row's one verb is one quiet word, the same as its tap. */}
+              <RowCtxAction when label="Plan Tomorrow" onAct={() => { hide("clock"); onTarget("tomorrow"); }} />
             </div></div>
           )}
 
@@ -660,8 +668,8 @@ export default function PlanDaySheet({
               </span>
             )}
             <span className="fact">
-              <b>{hhmm(load.openMin)}</b> open
-              {alreadyPlanned.length > 0 && <>, <b>{alreadyPlanned.length}</b> already planned</>}
+              <b>{hhmm(load.openMin)}</b> Open
+              {alreadyPlanned.length > 0 && <>, <b>{alreadyPlanned.length}</b> Already Planned</>}
             </span>
           </div>
 
@@ -675,9 +683,7 @@ export default function PlanDaySheet({
                 <div className="conn-name">{dropLine(overflow.length)}</div>
                 <div className="conn-meta">You&rsquo;re {hhmm(load.overMin)} Over What&rsquo;s Open</div>
               </div>
-              <button type="button" className="pill-act" onClick={(e) => { e.stopPropagation(); dropOverflow(); }}>
-                {overflow.length === 1 ? "Drop It" : `Drop ${overflow.length}`}
-              </button>
+              <RowCtxAction when label={overflow.length === 1 ? "Drop It" : `Drop ${overflow.length}`} onAct={dropOverflow} />
             </div></div>
           )}
 
@@ -736,8 +742,13 @@ export default function PlanDaySheet({
                       <span className="urgency urgency-muted">{label(fromMin(b.s))}–{label(fromMin(b.e))}</span>
                     </div>
                   ))}
+                  {/* A DOOR ROW, NOT A BUTTON AT THE FOOT OF A LIST (Dave 2026-10-05, locked): the way out to the routine is a
+                      row with a chevron, the way every sheet's "Edit Full Details" is. */}
                   {onEditRoutine && (
-                    <button type="button" className="row-act" onClick={() => onEditRoutine()}>Edit Routine</button>
+                    <div className="row" {...rowDoor(() => onEditRoutine())}>
+                      <div className="row-grow"><div className="conn-name">Edit Routine</div></div>
+                      <div className="chev" />
+                    </div>
                   )}
                 </>
               )}
@@ -792,13 +803,13 @@ export default function PlanDaySheet({
                           <div className="p3-num">{on ? i + 1 : ""}</div>
                           <span className={"cat-dot cat-bg-" + catColor(t.category)} />
                           <div className="row-grow">
-                            <div className="p3-name truncate">{t.text}</div>
+                            <div className="p3-name truncate">{titleCase(t.text)}</div>
                             {/* PICK 31 applies here too: a goal whose whole
                                 name is already in the task title costs a
                                 line and says nothing. Same helper the Now
                                 card uses, so the two cannot disagree about
                                 when lineage is worth printing. */}
-                            {movesLine(t.goal, t.text) && <div className="bp-sub truncate">{movesLine(t.goal, t.text)}</div>}
+                            {movesLine(t.goal, t.text) && <div className="bp-sub">{movesLine(t.goal, t.text)}</div>}
                             {/* C-31: one reason fragment per pick, the
                                 planner's own, deterministic. Quiet facts.
                                 The goal line above already says what it
@@ -918,11 +929,14 @@ export default function PlanDaySheet({
               <input
                 className="input input-compact"
                 placeholder="Add Something to This Day"
+                enterKeyHint="done"
                 value={adding}
                 onChange={(e) => setAdding(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter") void addTask(); }}
               />
-              <button type="button" className="pill-act" disabled={!adding.trim()} onClick={() => void addTask()}>Add</button>
+              {/* THE MOMENT HAS COME (Dave 2026-10-05, locked: no pill on a row, an action appears exactly when it is wanted):
+                  with nothing typed the field says nothing; once there is text, Add is one quiet word beside it. Enter adds too. */}
+              <RowCtxAction when={!!adding.trim()} label="Add" onAct={() => void addTask()} />
             </div>
           )}
           {leanedOn.length > 0 && !aiBusy && (
@@ -945,7 +959,16 @@ export default function PlanDaySheet({
               disabled={allTasks.length === 0}
               onClick={() => {
                 const chosen = autoSelect(allTasks, open, durFor, seedCap);
-                if (chosen.length === 0) return;
+                if (chosen.length === 0) {
+                  // 2026-10-04: this returned and said nothing, a tap that
+                  // looked like it did nothing. autoSelect finds nothing only
+                  // when there is nothing to pick from or the day's cap leaves
+                  // no room for a pick, so the toast says which.
+                  // 2026-10-05: the sheet's own day word. The Schedule tab
+                  // passes no `target`, so it defaulted to Today there.
+                  showToast({ message: allTasks.length === 0 ? "Nothing to Plan Yet" : `No Room Left ${dayLabel}` });
+                  return;
+                }
                 setPicks(chosen);
                 setOverrides({});
                 if (cap?.n != null && chosen.length === cap.n) setUsedUsual(true);

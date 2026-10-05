@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { MoreHorizontal, FileText, Image, Check, Plus, X, Trash2, Archive, Tag, Link2, ListChecks, Copy, Share, Search, AlignLeft, ArrowUp, ArrowDown, Clock, Brain } from "../../shared/icons";
+import { MoreHorizontal, FileText, Image, Check, Plus, X, Trash2, Archive, Tag, Link2, ListChecks, Copy, Share, Search, AlignLeft, ArrowUp, ArrowDown, Clock, Brain, CalendarDays } from "../../shared/icons";
 import type { FoundCandidate, NoteVersion } from "../types";
 import { catColor } from "../../shared/categories";
 import InlineEdit from "../../shared/InlineEdit";
+import { titleCase } from "../../shared/casing";
 import DocEditor, { type DocEditorHandle } from "../../shared/DocEditor";
 import type { Doc } from "../docModel";
 import { docWordCount } from "../docModel";
@@ -376,7 +377,7 @@ export default function NoteEditor({
     const text = kind === "markdown" ? docToMarkdown(doc, { title }) : docToPlainText(doc, { title, includeTitle: kind !== "body" });
     try {
       await copyText(text);
-      showToast({ message: kind === "body" ? "Body copied" : kind === "markdown" ? "Copied as Markdown" : "Note copied" });
+      showToast({ message: kind === "body" ? "Body Copied" : kind === "markdown" ? "Copied as Markdown" : "Note Copied" });
     } catch {
       setFallback(text);
     }
@@ -416,7 +417,7 @@ export default function NoteEditor({
     const doc = editorRef.current?.sectionDoc();
     if (!doc) return;
     const text = docToPlainText(doc, { includeTitle: false });
-    try { await copyText(text); showToast({ message: "Section copied" }); } catch { setFallback(text); }
+    try { await copyText(text); showToast({ message: "Section Copied" }); } catch { setFallback(text); }
   };
 
   const saveLine =
@@ -496,7 +497,7 @@ export default function NoteEditor({
             <span className="eyebrow">{note.eyebrow}</span>
           </div>
         )}
-        <InlineEdit tag="div" className="doc-title" value={note.title} placeholder="Title" onSave={onEditTitle} />
+        <InlineEdit tag="div" className="doc-title" value={note.title} display={titleCase} placeholder="Title" onSave={onEditTitle} />
         {findOpen && <FindBar editor={editorRef.current} onClose={() => setFindOpen(false)} />}
         <DocEditor
           ref={editorRef}
@@ -517,7 +518,15 @@ export default function NoteEditor({
           <div className="facts note-tags"><span className="fact">{(tags ?? []).map((t) => "#" + t).join(" ")}</span></div>
         )}
         <Provenance source={note.source} {...(note.source && openSourceFor ? { onOpen: openSourceFor(note.source) } : {})} />
-        <HyperfocusLine guard={guard} />
+        {/* A LINE WITH NO MARK READ AS A STUCK TEMPLATE (2026-10-05, the review: the same grey line under every note, with no icon and nothing
+            to say what it was). It is the next event on today's calendar, so it wears the Event glyph in the Event's sky and its words in
+            the primary ink; the warn amber still takes over inside the window. Nothing about when it shows changes. */}
+        {guard && (
+          <div className="note-guard">
+            <CalendarDays className="ic cat-fg-sky" aria-hidden="true" />
+            <HyperfocusLine guard={guard} />
+          </div>
+        )}
 
         {(connections && connections.length > 0) || onAddLink ? (
           <div className="note-conns">
@@ -567,9 +576,10 @@ export default function NoteEditor({
           <div className="sh2 sh2-quiet"><span className="t">JARVIS Found</span><span className="n">{foundLive.length}</span></div>
           <div className="pad-x"><div className="card list-card-ruled">
             {foundLive.map(({ c, i }) => (
-              // Row tap (Dave 2026-09-15): nothing exists to open until it is
-              // added or linked, so the row does its pill's verb.
-              <div className="row" key={c.kind + ":" + i} {...(foundVerb(c.kind, i) ? pressable(foundVerb(c.kind, i)!) : {})}>
+              // CLEAN ROW (Dave 2026-10-05, locked: no pill in a row). Nothing exists to open until it is added or
+              // linked, so the row's tap does that one verb, and a glyph at its edge says which.
+              <div className="row" key={c.kind + ":" + i} aria-label={((c.kind === "task" || c.kind === "decision") ? "Add " : "Link ") + c.text}
+                {...(foundVerb(c.kind, i) ? pressable(foundVerb(c.kind, i)!) : {})}>
                 <div className={"proj-icon " + connIcon(c.kind === "decision" ? "decision" : c.kind).cls}>{connIcon(c.kind === "decision" ? "decision" : c.kind).node}</div>
                 <div className="row-grow">
                   <div className="conn-name">{c.text}</div>
@@ -579,8 +589,8 @@ export default function NoteEditor({
                   </div>
                 </div>
                 {(c.kind === "task" || c.kind === "decision")
-                  ? (onFoundAdd && <button type="button" className="pill-act" onClick={(ev) => { ev.stopPropagation(); onFoundAdd(i); }}>Add</button>)
-                  : (onFoundLink && <button type="button" className="pill-act" onClick={(ev) => { ev.stopPropagation(); onFoundLink(i); }}>Link</button>)}
+                  ? (onFoundAdd && <Plus className="ic row-verb-ic" aria-hidden="true" />)
+                  : (onFoundLink && <Link2 className="ic row-verb-ic" aria-hidden="true" />)}
               </div>
             ))}
           </div></div>
@@ -665,7 +675,7 @@ export default function NoteEditor({
           stale={aiStale}
           onApply={() => { if (aiRun.result !== null) editorRef.current?.replaceRange(aiRun.from, aiRun.to, parseMarkdown(aiRun.result)); setAiRun(null); showToast({ message: "Applied · Undo Is on the Bar" }); }}
           onInsert={() => { if (aiRun.result !== null) editorRef.current?.insertAtCaret(parseMarkdown(aiRun.result)); setAiRun(null); }}
-          onCopy={() => { if (aiRun.result !== null) void copyText(aiRun.result).then(() => showToast({ message: "Result copied" })).catch(() => setFallback(aiRun.result)); }}
+          onCopy={() => { if (aiRun.result !== null) void copyText(aiRun.result).then(() => showToast({ message: "Result Copied" })).catch(() => setFallback(aiRun.result)); }}
           onRetry={() => void runAI(aiRun.action, { from: aiRun.from, to: aiRun.to, text: aiRun.text })}
           onClose={() => setAiRun(null)}
         />

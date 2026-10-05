@@ -64,8 +64,8 @@ import { contextToText } from "../ai/context";
 import FilingSheet from "../ai/FilingSheet";
 import type { TaskItem } from "../tasks/TasksService";
 import { repeatRows } from "./repeats";
-import { overlapsOn, overlapLine, copyDay, durationOf, type Overlap } from "./dayEdit";
-import { lineCase } from "../shared/casing";
+import { overlapsOn, overlapLine, copyDay, carriedFields, durationOf, type Overlap } from "./dayEdit";
+import { lineCase, titleCase } from "../shared/casing";
 import { useFreshLists } from "../data/useFreshLists";
 import { recordSpot } from "../restore/whereYouWere";
 import { ENTITY_EVENT } from "./types";
@@ -495,17 +495,12 @@ export default function ScheduleFlow({ onEditRoutine, openId, openNonce, onOpenC
     setTuning(null);
   };
 
+  // ONE FILLED PRIMARY UNDER THE DAY (round-1 review, 2026-10-05; Dave's decision D2): Accept the Day is the proposal's own
+  // question, in its own words, so it may stand under the card. Not Today was its second capsule; it is a line in the day
+  // head's overflow now (SchedulePage's onDismissProposal), so nothing but the question hangs under the card.
   const proposalFooter = standingDraft && liveDraftBlocks.length > 0 ? (
     <div className="day-foot">
       <button className="btn btn-primary btn-sm" onClick={() => void acceptProposal()}>Accept the Day</button>
-      {/* SCHEDULE AUDIT 2026-08-29: bare .btn-sm is press-3 with
-          `color: var(--tint)` -- red TEXT -- and this one sits directly
-          beside the red-filled Accept. Two reds of equal weight arguing
-          about which one you meant, the same bug Just This One had on
-          Tasks. btn-secondary is the identical pill with neutral text; the
-          .btn-sm:not(.btn-secondary) guard in components.css exists
-          precisely so this class combination keeps the small sizing. */}
-        <button className="btn btn-sm btn-secondary" onClick={dismissProposal}>Not Today</button>
     </div>
   ) : null;
 
@@ -549,6 +544,8 @@ export default function ScheduleFlow({ onEditRoutine, openId, openNonce, onOpenC
     onAccept: (id: string) => void acceptOne(id),
     // The same door a nested proposed task opens (item 5, 2026-10-01).
     onOpen: (id: string) => void onOpenTask(id),
+    // TICK IT OFF FROM THE DAY (Dave 2026-10-05, locked: swipe right completes): the ring and the right swipe on a proposed block.
+    onComplete: (id: string) => void onToggleTask(id),
   } : undefined;
 
   const onAIPlan = ai.available
@@ -671,7 +668,7 @@ export default function ScheduleFlow({ onEditRoutine, openId, openNonce, onOpenC
       onOpenConsumed?.();
     })();
     return () => { on = false; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [openId, openNonce]);
 
   // SCHED-F-09 (2026-09-05): Undo puts the WHOLE event back, under its own
@@ -931,7 +928,11 @@ export default function ScheduleFlow({ onEditRoutine, openId, openNonce, onOpenC
     // hold a task at all. The tuck used to appear under a weekly commute,
     // attach on every week's copy, and be wiped by the next save.
     const open = dayEvents.filter((e) => holdsTasks(e) && (e.data.taskIds ?? []).length === 0);
-    const byEvent = bestPerBlock(open, attachableTasks, blendMem);
+    // A TASK THE PROPOSED DAY ALREADY PLACES IS NOT OFFERED AGAIN (round-1 review, 2026-10-05): "Reply to Nadia Re: Invoice"
+    // sat under Deep Work as a suggestion and, in the same list, as its own Proposed row at 6:30 PM. One task, one place
+    // on the day; the offer is for work the day has not spoken for.
+    const planned = new Set(liveDraftBlocks.map((b) => b.taskId));
+    const byEvent = bestPerBlock(open, attachableTasks.filter((t) => !planned.has(t.id)), blendMem);
     for (const e of open) {
       const fit = byEvent[e.id];
       if (!fit) continue;
@@ -962,7 +963,7 @@ export default function ScheduleFlow({ onEditRoutine, openId, openNonce, onOpenC
     });
     // One question at a time: the next candidate (if any) waits half a minute.
     setTimeout(() => { followUpBusy.current = false; }, 30000);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [loading, selected, allEvents, taskItems]);
 
   // --- Roadmap v2 Anytime row ---
@@ -1067,9 +1068,10 @@ export default function ScheduleFlow({ onEditRoutine, openId, openNonce, onOpenC
     setTaskSheet(null);
     await reloadTasks();
   };
-  const onDeleteTask = async () => {
-    if (!taskSheet) return;
-    const id = taskSheet.id;
+  // From the task's sheet (its own id) or from a swipe on an Anytime row (the id it was swiped on).
+  const onDeleteTask = async (rowId?: string) => {
+    const id = rowId ?? taskSheet?.id;
+    if (!id) return;
     const t = await tasksSvc.task(id);
     setTaskSheet(null);
     const ok = await attemptWrite(() => tasksSvc.deleteTask(id));
@@ -1602,7 +1604,7 @@ export default function ScheduleFlow({ onEditRoutine, openId, openNonce, onOpenC
     const made: string[] = [];
     const ok = await attemptWrite(async () => {
       for (const c of copies) {
-        const id = await svc.createEvent(c.title, { date: c.date, start: c.start, end: c.end, category: c.category || undefined, location: c.location });
+        const id = await svc.createEvent(c.title, { date: c.date, start: c.start, end: c.end, category: c.category || undefined, location: c.location, ...carriedFields(c) });
         if (id) made.push(id);
       }
     });
@@ -1647,6 +1649,8 @@ export default function ScheduleFlow({ onEditRoutine, openId, openNonce, onOpenC
           linkedNotes={linked}
           onOpenNote={onNavigate ? (id) => onNavigate("note", id) : undefined}
           openSourceFor={openSourceFor}
+          onDuplicate={() => { const id = detail.id; setDetail(null); void duplicateEvent(id); }}
+          onDelete={() => { const id = detail.id; setDetail(null); void onDeleteEventRow(id); }}
         />
       );
     }
@@ -1660,6 +1664,7 @@ export default function ScheduleFlow({ onEditRoutine, openId, openNonce, onOpenC
         onNotes={onNavigate ? (e) => void openEventNote(e) : undefined}
         proposed={standingProposal}
         dayFooter={proposalFooter}
+        {...(standingDraft && liveDraftBlocks.length > 0 ? { onDismissProposal: dismissProposal } : {})}
         year={view.y}
         month={view.m}
         selected={selected}
@@ -1715,6 +1720,7 @@ export default function ScheduleFlow({ onEditRoutine, openId, openNonce, onOpenC
         parentOf={(t) => parentForTask(parentIdx, t)}
         onToggleTask={onToggleTask}
         onScheduleTask={onScheduleTask}
+        onDeleteTask={(id) => void onDeleteTask(id)}
         onOpenTask={(id) => void onOpenTask(id)}
         attachMap={attachMap}
         firstMoveMap={firstMoveMap}
@@ -1756,13 +1762,13 @@ export default function ScheduleFlow({ onEditRoutine, openId, openNonce, onOpenC
             <div className="grp"><div className="eyebrow">Put a Task in This Block</div></div>
             <div className="pad-x sheet-form">
               {anytimeItems.length === 0 ? (
-                <div className="empty-state"><div className="t-body">Nothing waiting to be scheduled</div></div>
+                <div className="empty-state"><div className="t-body">Nothing Waiting to Be Scheduled</div></div>
               ) : (
                 <div className="p3-list">
                   {anytimeItems.slice(0, 12).map((t) => (
                     <div className="p3-row" key={t.id} role="button" tabIndex={0} onClick={() => void fillWith(t.id)}>
                       <span className={"cat-dot cat-bg-" + catColor(t.data.category)} />
-                      <div className="row-grow"><div className="p3-name truncate">{t.data.text}</div></div>
+                      <div className="row-grow"><div className="p3-name truncate">{titleCase(t.data.text)}</div></div>
                     </div>
                   ))}
                 </div>
@@ -1918,11 +1924,11 @@ export default function ScheduleFlow({ onEditRoutine, openId, openNonce, onOpenC
       {guard && (
         <div className="ag-scrim" onClick={() => setGuard(null)}>
           <div className="ag-card" onClick={(e) => e.stopPropagation()}>
-            <div className="ag-title">That&rsquo;s four anchors</div>
+            <div className="ag-title">That&rsquo;s Four Anchors</div>
             <div className="ag-body">A lighter day tends to stick. Want to keep this one in Anytime instead?</div>
             <div className="ag-acts">
               <button className="btn btn-primary btn-block" onClick={async () => { const g = guard; setGuard(null); if (g) await onUnschedule(g.id); }}>Keep in Anytime</button>
-              <button className="btn btn-tertiary btn-block" onClick={() => setGuard(null)}>Leave it scheduled</button>
+              <button className="btn btn-tertiary btn-block" onClick={() => setGuard(null)}>Leave It Scheduled</button>
             </div>
           </div>
         </div>

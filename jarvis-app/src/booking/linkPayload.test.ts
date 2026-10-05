@@ -40,9 +40,16 @@ describe("ruleRows", () => {
 });
 
 describe("the words the database uses", () => {
-  it("translates every visibility and every who, with nothing left over", () => {
-    expect(VISIBILITY_ROW).toEqual({ public: "public", link: "link_only", named: "named_contacts" });
-    expect(WHO_ROW).toEqual({ anyone: "open_link", approved: "approved_contacts", connections: "org_internal" });
+  // 2026-10-04: the grid serves link_only and open_link and nothing else. The
+  // old words still arrive from a phone running an older build, and none of
+  // them may write a row that closes the link (named_contacts answers 404 to
+  // everyone) or promises a gate the server never checks.
+  it("every word, old or new, lands on the row the server really honours", () => {
+    expect(VISIBILITY_ROW).toEqual({ link: "link_only", public: "link_only", named: "link_only" });
+    expect(WHO_ROW).toEqual({ anyone: "open_link", approved: "open_link", connections: "open_link" });
+    expect(Object.values(VISIBILITY_ROW)).not.toContain("named_contacts");
+    expect(Object.values(WHO_ROW)).not.toContain("approved_contacts");
+    expect(Object.values(WHO_ROW)).not.toContain("org_internal");
   });
 });
 

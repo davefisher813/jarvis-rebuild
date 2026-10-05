@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, within } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import TodayPage from "./TodayPage";
 import type { EventItem } from "../schedule/types";
@@ -78,7 +78,7 @@ describe("TodayPage", () => {
     // the fold now, not to navigation).
     const { container } = render(
       <TodayPage {...base} upNext={[tk("over", "2026-05-18")]}
-        upNextReason="Waiting 2 days" onUpNext={() => {}} />,
+        upNextReason="Waiting 2 days" onUpNext={() => {}} onStartTask={() => {}} />,
     );
     expect(screen.getByText("Your Move")).toBeInTheDocument();
     expect(screen.queryByText("Up Next")).toBeNull(); // the section is gone, not renamed twice
@@ -86,21 +86,30 @@ describe("TodayPage", () => {
     // C-24's promotion is repealed (Dave 2026-09-16: "make the dealt task a
     // normal row in the stream"). It is the notice row's own markup now:
     // title, a facts sub, and ONE control in the stream's action column.
-    expect(container.querySelector(".hl-title")).toHaveTextContent("over");
+    expect(container.querySelector(".hl-title")).toHaveTextContent("Over");
     expect(container.querySelectorAll(".hl .facts .fact").length).toBeGreaterThan(0);
-    // The urgency is the app's own chip, saying the distance in distanceFor's
-    // words (Dave 2026-09-16: "'today' should be a chip").
-    expect(container.querySelector(".hl .uchip.u-late")).toHaveTextContent("2 DAYS LATE");
-    // One control in the column, and it is the verb.
-    expect(container.querySelectorAll(".hl .pill-act").length).toBeLessThanOrEqual(1);
+    // THE DISTANCE IS A FACT, NOT A CHIP (Dave 2026-10-05, the review: a filled chip drawn inside the Your Move row repeats its
+    // own head). distanceFor still says it ("2 Days Late"), in Title Case and the key's red, as a .fact span.
+    expect(container.querySelector(".hl .uchip"), "no chip inside the row").toBeNull();
+    expect(container.querySelector(".hl .fact.red")).toHaveTextContent("2 Days Late");
+    // NO CAPSULE ON THE ROW (Dave 2026-10-05, locked): the verb is the swipe, and this one is late, so it is also the
+    // one quiet word on the row.
+    expect(container.querySelectorAll(".hl .pill-act").length).toBe(0);
+    expect(container.querySelectorAll(".hl .row-ctx").length).toBe(1);
     // FOCUS REPLACED THE RECEIPT (Dave 2026-09-11: "The focus button should
     // be all the way up top under your move and replace that small grey
     // subtext that renders the up next page"). Both called onUpNext, so the
     // page was carrying one destination twice. Since 2026-10-03 (Dave: "just have a
     // red Focus button") the pill is the word alone, with no count.
-    expect(screen.getByText("Focus")).toBeInTheDocument();
-    expect(document.querySelector(".focus-row .fc-n"), "Focus carries no count (Dave 2026-10-03)").toBeNull();
-    expect(document.querySelector(".focus-row .row-act")).toHaveTextContent(/^Focus$/);
+    // FOCUS IS A CAPSULE IN YOUR MOVE'S HEAD (Dave 2026-10-05, locked: a section-level action lives in the section head, never
+    // a pill hung under its card), the word alone.
+    const focus = screen.getByText("Focus");
+    expect(focus.closest(".sh2"), "Focus is on the head").not.toBeNull();
+    expect(focus.closest(".sh2")!.querySelector(".t")).toHaveTextContent("Your Move");
+    expect(focus).toHaveClass("see-all", "pill-action");
+    expect(focus.textContent).toBe("Focus");
+    expect(document.querySelector(".focus-row"), "no centred pill under the card").toBeNull();
+    expect(document.querySelector(".notice-clear-row"), "nothing hangs under the card").toBeNull();
     // C-24: one headliner, and no task row left in the stream at all.
     expect(container.querySelectorAll(".hl-title").length).toBe(1);
     expect(container.querySelectorAll(".heads-up-stream .task-row").length).toBe(0);
@@ -122,24 +131,25 @@ describe("TodayPage", () => {
         moveReason="Fits before Deep Work" onUpNext={() => {}} />,
     );
     const facts = container.querySelector(".hl .facts")!;
-    expect(facts.querySelector(".uchip.u-today")).toHaveTextContent("TODAY");
+    // Due today is the key's amber fact, in words ("Due Today"), not a chip (Dave 2026-10-05).
+    expect(facts.querySelector(".uchip"), "no chip in the row").toBeNull();
+    expect(facts.querySelector(".fact.warn")).toHaveTextContent("Due Today");
     expect(facts).toHaveTextContent("Fits before Deep Work");
     // The two it yields to them, rather than printing all four unreadably.
     expect(facts).not.toHaveTextContent("Personal");
     expect(facts).not.toHaveTextContent("20 Min");
     expect(facts.querySelectorAll(".fact").length).toBe(2);
-    // NOTHING ON THIS LINE IS COLOURED (Dave 2026-09-21: "get rid of the blue
-    // subtext"). The placement used to wear .fact.sky, the last sky fact in
-    // the app; the chip carries the only tint on the row now, and it is not a
-    // fact.
-    expect(facts.querySelectorAll(".fact.warn, .fact.good, .fact.sky, .fact.purp, .fact.red").length).toBe(0);
+    // THE PLACEMENT IS NOT COLOURED (Dave 2026-09-21: "get rid of the blue subtext"). It used to wear .fact.sky, the last sky
+    // fact in the app. The line's one coloured fact is the distance (K.3), so exactly one tone is on it.
+    expect(facts.querySelectorAll(".fact.good, .fact.sky, .fact.purp, .fact.red").length).toBe(0);
+    expect(facts.querySelectorAll(".fact.warn").length).toBe(1);
     // BOTH FALLBACKS. Nothing due tomorrow or later gets a chip at all
     // (distanceFor's own rule, which is what keeps the chip loud), so the
     // area takes the first slot; with no placement the length takes the
     // second, which is the "TODAY / 45 min" pair Dave photographed.
     rerender(<TodayPage {...base} upNext={[tk("nodate", null)]}
       moveCategory={{ name: "Personal", slot: "teal" }} moveEstimate="20 Min" onUpNext={() => {}} />);
-    expect(container.querySelector(".hl .uchip")).toBeNull();
+    expect(container.querySelector(".hl .fact.warn, .hl .fact.red")).toBeNull();
     expect(container.querySelector(".hl .fact.cat .cd.cat-bg-teal")).toBeTruthy();
     expect(container.querySelector(".hl .facts")).toHaveTextContent("20 Min");
     // §AM (2026-09-26): the length is an estimate the app worked out, so it
@@ -155,12 +165,17 @@ describe("TodayPage", () => {
       <TodayPage {...base} upNext={[tk("due", "2026-05-20")]} onUpNext={() => {}} fifteen={running}
         onFifteenDone={() => {}} onFifteenStop={() => {}} onFifteenAgain={() => {}} />,
     );
-    expect(container.querySelector(".hl .fact.warn")).toBeNull();
+    // While it runs the clock is plain, a grey fact; the distance (Due Today, amber) is the line's one tone.
+    const clock = () => [...container.querySelectorAll(".hl .fact")].find((f) => /Left|Up/.test(f.textContent ?? ""))!;
+    expect(clock()).toHaveTextContent("14:32 Left");
+    expect(clock()).not.toHaveClass("warn");
     rerender(
       <TodayPage {...base} upNext={[tk("due", "2026-05-20")]} onUpNext={() => {}} fifteen={{ ...running, over: true, line: "15 Min Up" }}
         onFifteenDone={() => {}} onFifteenStop={() => {}} onFifteenAgain={() => {}} />,
     );
+    // Up, the block's own clock is the amber fact, and the distance stands aside so the line spends ONE tone (K.3).
     expect(container.querySelector(".hl .fact.warn")).toHaveTextContent("15 Min Up");
+    expect(container.querySelectorAll(".hl .fact.warn, .hl .fact.red")).toHaveLength(1);
   });
 
   // §AM (2026-09-26): one bill is two facts with the dot drawn by the
@@ -216,15 +231,15 @@ describe("TodayPage", () => {
     expect(screen.getByText("Day Is Sliding")).toBeInTheDocument();
     expect(screen.getByText("Fresh Offer")).toBeInTheDocument();
     expect(screen.queryByText("Old Thread")).toBeNull();
-    expect(container.querySelector(".hl-title")).toHaveTextContent("over");
+    expect(container.querySelector(".hl-title")).toHaveTextContent("Over");
     fireEvent.click(screen.getByText("See All"));
     expect(streamRows()).toBe(4);
     expect(screen.getByText("Old Thread")).toBeInTheDocument();
-    expect(container.querySelector(".hl-title")).toHaveTextContent("over");
+    expect(container.querySelector(".hl-title")).toHaveTextContent("Over");
     fireEvent.click(screen.getByText("Less"));
     expect(streamRows()).toBe(3);
     // The headliner is outside the fold in both states.
-    expect(container.querySelector(".hl-title")).toHaveTextContent("over");
+    expect(container.querySelector(".hl-title")).toHaveTextContent("Over");
   });
 
   it("rows down a pinned card too: one grammar, no exceptions in the stream", () => {
@@ -299,16 +314,23 @@ describe("TodayPage", () => {
   // UP-CORE-03 (2026-09-05): the birthday row stated the fact and offered
   // nothing. Both pills open a surface that needs a number, so both are
   // hidden without one.
-  it("offers Text and Call on a birthday row, and neither without a number", () => {
+  it("offers Text and Call on a birthday row as gestures, and neither without a number", () => {
+    // NO PILLS ON THE ROW (Dave 2026-10-05, locked): Text is the swipe's first verb and, because the birthday is
+    // today, also the one quiet word on the row; Call is the swipe's second.
     const onText = vi.fn();
     const onCall = vi.fn();
-    const { rerender } = render(
+    const { rerender, container } = render(
       <TodayPage {...base} birthdays={[{ id: "p1", name: "Marco Diaz", phone: "+15551234567" }]}
         onTextPerson={onText} onCallPerson={onCall} />,
     );
-    fireEvent.click(screen.getByText("Text"));
+    expect(container.querySelector(".av.cat-bg-pink")!.closest(".row")!.querySelectorAll(".pill-act").length, "no capsule on the birthday row").toBe(0);
+    fireEvent.click(container.querySelector(".row-ctx") as HTMLElement);
     expect(onText).toHaveBeenCalledWith("p1");
-    fireEvent.click(screen.getByText("Call"));
+    onText.mockClear();
+    // And the same verb is the first button in the swipe tray.
+    fireEvent.click(screen.getAllByRole("button", { name: "Text" })[0]!);
+    expect(onText).toHaveBeenCalledWith("p1");
+    fireEvent.click(screen.getByRole("button", { name: "Call" }));
     expect(onCall).toHaveBeenCalledWith("p1");
     rerender(
       <TodayPage {...base} birthdays={[{ id: "p2", name: "Ada Lovelace" }]}
@@ -316,6 +338,21 @@ describe("TodayPage", () => {
     );
     expect(screen.queryByText("Text")).toBeNull();
     expect(screen.queryByText("Call")).toBeNull();
+  });
+
+  it("a birthday row with two verbs and no person to open taps into a sheet holding both", () => {
+    const onText = vi.fn();
+    render(
+      <TodayPage {...base} birthdays={[{ id: "p1", name: "marco diaz", phone: "+15551234567" }]}
+        onTextPerson={onText} onCallPerson={() => {}} />,
+    );
+    // Title Case, whatever the contact was typed as.
+    fireEvent.click(screen.getByText("Marco Diaz"));
+    const sheet = document.querySelector(".action-sheet")!;
+    expect(sheet.textContent).toContain("Text");
+    expect(sheet.textContent).toContain("Call");
+    fireEvent.click(within(sheet as HTMLElement).getByText("Text"));
+    expect(onText).toHaveBeenCalledWith("p1");
   });
 
   it("shows the Focus button paired with Plan My Day (daytime only)", () => {
@@ -398,13 +435,13 @@ describe("TodayPage", () => {
   it("a tap on tomorrow's event opens it, same as any other event row (Dave 2026-09-04: \"can't click on the call... to edit it\")", () => {
     const opened: string[] = [];
     render(<TodayPage {...base} onOpenEvent={(id) => opened.push(id)} />);
-    fireEvent.click(screen.getByText("t1"));
+    fireEvent.click(screen.getByText("T1"));
     expect(opened).toEqual(["t1"]);
   });
 
   it("tomorrow's row is not a tap target when there is nothing to open it into", () => {
     render(<TodayPage {...base} />);
-    expect(screen.getByText("t1").closest(".sched-row")).not.toHaveAttribute("role", "button");
+    expect(screen.getByText("T1").closest(".sched-row")).not.toHaveAttribute("role", "button");
   });
 
   // SPEC MOVED (§AK, 2026-09-22): "No category" was a line announcing an
@@ -414,12 +451,12 @@ describe("TodayPage", () => {
     // An event added from an email invite lands with category "" (ScheduleService.createEvent's default).
     const orphan: EventItem = { id: "t2", data: { title: "Phone call", date: "2026-05-21", start: "10:00", category: "" } };
     render(<TodayPage {...base} tomorrowEvents={[orphan]} />);
-    const row = screen.getByText("Phone call").closest(".sched-row")!;
+    const row = screen.getByText("Phone Call").closest(".sched-row")!;
     expect(row.querySelector(".sched-cat")).toBeNull();
     expect(row).not.toHaveTextContent("No category");
     // and a real area still reads as itself
     render(<TodayPage {...base} tomorrowEvents={[ev("t3", "09:00", "money")]} />);
-    expect(screen.getByText("t3").closest(".sched-row")!.querySelector(".sched-cat")).toHaveTextContent("Money");
+    expect(screen.getByText("T3").closest(".sched-row")!.querySelector(".sched-cat")).toHaveTextContent("Money");
   });
 });
 
@@ -429,7 +466,7 @@ describe("a workout in progress", () => {
   // handed in as its own slot and leads the Your Move card, above the dealt
   // task, whatever the stream ranks.
   it("leads the Your Move card above the dealt task, and is never folded", () => {
-    const live = <NoticeCard key="live-gym" icon={<span />} tone="cat-fg-orange" title="Back to Push Day 1" sub="46 min left" action={{ label: "Resume", onClick: () => {} }} />;
+    const live = <NoticeCard key="live-gym" icon={<span />} tone="cat-fg-orange" title="Back to Push Day 1" sub="46 Min Left" action={{ label: "Resume", onClick: () => {} }} />;
     const notices = [
       <NoticeCard key="a" weight={FAILING} icon={<span />} tone="cat-fg-red" title="Sliding A" action={{ label: "Fix", onClick: () => {} }} />,
       <NoticeCard key="b" weight={WAITING} icon={<span />} tone="cat-fg-yellow" title="Waiting B" action={{ label: "Open", onClick: () => {} }} />,
@@ -447,5 +484,33 @@ describe("a workout in progress", () => {
     expect(screen.getByText("See All")).toBeInTheDocument();
     expect(screen.queryByText("Resume D")).toBeNull();
     expect(screen.getByText("Back to Push Day 1")).toBeInTheDocument();
+  });
+});
+
+// NO NAME IS NOT "JV" (2026-10-05, Dave "he opens the app and finds nothing"). The flow fell back to the letters "JV" for an
+// account with no name, while Account says so honestly with a neutral disc. The bar now draws that same disc, and initials
+// only when the profile has a name.
+describe("TodayPage avatar: honest when there is no name", () => {
+  it("draws Account's neutral glyph disc, and no letters, when no initials are passed", () => {
+    const { container } = render(<TodayPage {...base} avatar="" />);
+    const disc = container.querySelector(".today-av .av")!;
+    expect(disc).toHaveClass("av-empty");
+    expect(disc).not.toHaveClass("av-accent");
+    expect(disc.querySelector("svg.ic")).not.toBeNull();
+    expect(disc.textContent).toBe("");
+  });
+
+  it("draws the initials on the brand disc once a name exists", () => {
+    const { container } = render(<TodayPage {...base} avatar="DF" />);
+    const disc = container.querySelector(".today-av .av")!;
+    expect(disc).toHaveClass("av-accent");
+    expect(disc).not.toHaveClass("av-empty");
+    expect(disc).toHaveTextContent("DF");
+    expect(disc.querySelector("svg")).toBeNull();
+  });
+
+  it("never invents the letters JV", () => {
+    const { container } = render(<TodayPage {...base} />);
+    expect(container.querySelector(".today-av")!.textContent).not.toContain("JV");
   });
 });

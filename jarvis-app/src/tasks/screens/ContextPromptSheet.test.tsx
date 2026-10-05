@@ -17,7 +17,7 @@ describe("ContextPromptSheet", () => {
     const onOpenLinked = vi.fn(); const onContinue = vi.fn(); const onSnooze = vi.fn(); const onTurnOff = vi.fn();
     render(<ContextPromptSheet item={item(true)} eyebrow="Opening Jarvis" onOpenLinked={onOpenLinked} onContinue={onContinue} onSnooze={onSnooze} onTurnOff={onTurnOff} />);
     expect(screen.getByText("Opening Jarvis")).toBeInTheDocument();
-    expect(screen.getByText("Do Bridge work before Jarvis")).toBeInTheDocument();
+    expect(screen.getByText("Do Bridge Work Before Jarvis")).toBeInTheDocument();
     fireEvent.click(screen.getByText("Open Task"));
     expect(onOpenLinked).toHaveBeenCalledWith({ type: "task", id: "t1", label: "Bridge Priorities" });
     expect(onContinue).toHaveBeenCalledWith("r1");

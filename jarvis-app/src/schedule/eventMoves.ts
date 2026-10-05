@@ -15,7 +15,7 @@
 // reloads and sheet state stay with the caller, because those legitimately
 // differ per surface.
 
-import { duplicateOf } from "./dayEdit";
+import { carriedFields, duplicateOf } from "./dayEdit";
 import { minToHHMM } from "./calendar";
 import { moveEvent, undoMoveEvent, type MoveOutcome } from "./eventAdjust";
 import type { EventData, EventItem } from "./types";
@@ -83,6 +83,7 @@ export async function duplicateEvent(
   const madeId = await events.createEvent(d.title, {
     date: d.date, start: d.start, end: d.end,
     category: d.category || undefined, location: d.location,
+    ...carriedFields(d),
   });
   return { ok: true, madeId: madeId ?? undefined };
 }

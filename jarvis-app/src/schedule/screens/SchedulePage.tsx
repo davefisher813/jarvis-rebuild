@@ -15,7 +15,7 @@ import DayRow from "./DayRow";
 import LockedRow from "./LockedRow";
 import SkippedBlocks, { type SkippedBlock } from "./SkippedBlocks";
 import AnytimeRow from "./AnytimeRow";
-import ProposedRow, { blockMinutes } from "./ProposedRow";
+import ProposedRow, { HeldProposalRow } from "./ProposedRow";
 import { stateForEvent, stateForBlock } from "../stateWord";
 import type { TaskItem } from "../../tasks/TasksService";
 import type { ParentLine } from "../../life/parent";
@@ -28,7 +28,10 @@ const DROP_MINUTES = 60;
 
 // A protected block from Your Routine, rendered on the day it applies.
 import type { WeekRow } from "../weekRows";
-import { lineCase } from "../../shared/casing";
+import { lineCase, titleCase } from "../../shared/casing";
+import RowCtxAction from "../../shared/RowCtxAction";
+import HeadMore from "../../shared/HeadMore";
+import RowActionSheet, { type RowAction } from "../../shared/RowActionSheet";
 import { spanShort, longestStretch, stretchLabel } from "../weekRows";
 import { spanLabel } from "../../shared/duration";
 
@@ -84,7 +87,8 @@ function weekRange(cells: WeekCell[]): string {
   if (cells.length < 7) return "";
   const a = new Date(cells[0]!.date + "T00:00:00"), b = new Date(cells[6]!.date + "T00:00:00");
   const ma = MONTHS[a.getMonth()]!.slice(0, 3), mb = MONTHS[b.getMonth()]!.slice(0, 3);
-  return ma === mb ? `${ma} ${a.getDate()} - ${b.getDate()}` : `${ma} ${a.getDate()} - ${mb} ${b.getDate()}`;
+  // A range reads "Oct 5 to 11", never a hyphen between numbers (round-1 review, 2026-10-05) and never a dash.
+  return ma === mb ? `${ma} ${a.getDate()} to ${b.getDate()}` : `${ma} ${a.getDate()} to ${mb} ${b.getDate()}`;
 }
 
 export default function SchedulePage({
@@ -93,8 +97,8 @@ export default function SchedulePage({
   onPrev, onNext, onSelect, onNew, onOpenEvent, onPickSlot, onGapOffer, onPlanDay, onUpload, onDeleteMany,
   locked = [], now, onEditRoutine, onOpenBlock, onFillBlock, onShift, onMoveTo, onSetEnd, onSkipToday, onPushTomorrow, onRunningLate, openSourceFor, notedEvents, onNotes,
   onShiftBlock, onRetimeBlock, onResizeBlock, onDeleteBlock, onDeleteEvent,
-  proposed, dayFooter,
-  anytimeItems = [], onToggleTask, onScheduleTask, onOpenTask, parentOf, attachMap = {}, firstMoveMap = {}, blendMap = {},
+  proposed, dayFooter, onDismissProposal,
+  anytimeItems = [], onToggleTask, onScheduleTask, onDeleteTask, onOpenTask, parentOf, attachMap = {}, firstMoveMap = {}, blendMap = {},
   windowStartMin, windowEndMin, skippedBlocks = [], onBackToNormal,
 }: {
   year: number; month: number; selected: string; todayDate: string;
@@ -158,6 +162,9 @@ export default function SchedulePage({
   // The standing proposal for THIS date, drawn among the real rows.
   proposed?: import("../../today/YourDay").ProposedDay;
   dayFooter?: import("react").ReactNode;
+  // NOT TODAY, FROM THE HEAD (round-1 review, 2026-10-05; Dave's decision D2): the proposal's second answer is a line in the
+  // day head's overflow, so only its own question (Accept the Day, dayFooter) stands under the card.
+  onDismissProposal?: () => void;
   // Drop a task straight into a holding block (2026-08-21).
   onFillBlock?: (startMin: number, endMin: number) => void;
   onShift?: (id: string, mins: number) => void;
@@ -182,6 +189,8 @@ export default function SchedulePage({
   /** Swipe left, Delete. The flow owns the write and the Undo toast. */
   onDeleteEvent?: (id: string) => void;
   anytimeItems?: TaskItem[]; onToggleTask?: (id: string) => void; onScheduleTask?: (id: string, startHHMM?: string) => void;
+  /** Swipe left on an Anytime row, Delete. The flow owns the write and the Undo toast. */
+  onDeleteTask?: (id: string) => void;
   /** Open an Anytime task in the TaskSheet (the whole row is the door). */
   onOpenTask?: (id: string) => void;
   // The goal an Anytime task moves, by its short name (the ruled row).
@@ -230,7 +239,9 @@ export default function SchedulePage({
     [...locked.filter((l) => !isFocusRange(l)).map((l) => ({ s: l.s, e: l.e })), ...proposedBusy],
   );
   const navLabel = mode === "month" ? null : mode === "week" ? weekRange(weekCells) : fullDay(selected);
-  const [lateOpen, setLateOpen] = useState(false);
+  // RUNNING LATE? IS A LINE IN THE DAY HEAD'S OVERFLOW (round-1 review, 2026-10-05; Dave's decision D2). It was a capsule
+  // inside the card on the Now rule. The lines are the same three pushes; they open as a sheet over the page.
+  const [lateSheet, setLateSheet] = useState(false);
   // The morning folds shut on every visit: the point of the fold is that
   // the page opens on what is next, and a remembered "open" would undo it.
   const [earlierOpen, setEarlierOpen] = useState(false);
@@ -453,11 +464,17 @@ export default function SchedulePage({
     windowEndMin ?? 21 * 60,
   );
   const blockCount = entries.filter((en) => en.kind === "event" || en.kind === "locked").length;
+  // N7: most days are a variation on a day you already had. Offered on a day with no events of its own, in the head.
+  const showCopy = mode === "day" && !!onCopyDay && n === 0 && !loading && !loadFailed;
   const countLine: React.ReactNode[] = [];
   if (openMin > 0) countLine.push(<span key="o"><b>{gapLabel(openMin)}</b> Open</span>);
   else if (blockCount > 0) countLine.push(<span key="f">No Open Time</span>);
   if (proposedBusy.length > 0) countLine.push(<span key="p"><b>{proposedBusy.length}</b> Proposed</span>);
-  if (countLine.length === 0) countLine.push(<span key="n">Nothing scheduled</span>);
+  if (countLine.length === 0) countLine.push(<span key="n">Nothing Scheduled</span>);
+  const headActions: RowAction[] = [
+    ...(hasFuture && onRunningLate ? [{ label: "Running Late", onPick: () => setLateSheet(true) }] : []),
+    ...(onDismissProposal && proposedBusy.length > 0 ? [{ label: "Not Today", onPick: onDismissProposal }] : []),
+  ];
   // The list as it renders: the fold, what it holds when it is open, the
   // rule, then the day ahead. Off today (a past or future date) nothing is
   // "earlier" and nothing is "now", so the list is the entries themselves.
@@ -553,7 +570,7 @@ export default function SchedulePage({
               <div className="row" {...pressable(() => onOpenEvent?.(r.id))} key={r.id}>
                 <span className={"sched-bar cat-bg-" + catColor(r.category)} />
                 <div className="row-grow">
-                  <div className="conn-name">{r.title}</div>
+                  <div className="conn-name">{titleCase(r.title)}</div>
                   {/* ONE GREY, DOTS FROM CSS (§AK, §AM F3/F5, 2026-09-26).
                       The cadence is the line's one grey; an end date is a
                       neutral date, so small caps; the skip count is a number
@@ -561,10 +578,13 @@ export default function SchedulePage({
                       in the No End pill, not again in words beside it.
                       The short facts lead and the cadence, free text, goes
                       last (2026-09-26): first, a long cadence cut the end
-                      date mid-word and squeezed the skip count to nothing. */}
+                      date mid-word and squeezed the skip count to nothing.
+                      2026-10-05 (the catalog gate): "2 skipped" was the one
+                      lowercase word behind a number on this line; it reads
+                      "2 Skipped" (the number rule). */}
                   <div className="facts">
                     {!r.endless && <span className="fact date">{r.ends}</span>}
-                    {r.skipped > 0 && <span className="fact"><b>{r.skipped} skipped</b></span>}
+                    {r.skipped > 0 && <span className="fact"><b>{r.skipped} Skipped</b></span>}
                     <span className="fact">{r.cadence}</span>
                   </div>
                 </div>
@@ -596,10 +616,11 @@ export default function SchedulePage({
           ? [tickWin.windowS, ...(tickWin.windowS < 12 * 60 && tickWin.windowE > 12 * 60 ? [12 * 60] : []), tickWin.windowE]
               .map((m) => ({ m, pct: ((m - tickWin.windowS) / Math.max(1, tickWin.windowE - tickWin.windowS)) * 100 }))
           : [];
-        const tickLabel = (m: number) => { const h = Math.floor(m / 60) % 24; const r = m % 60; if (h === 12 && r === 0) return "noon"; return `${h % 12 || 12}${r ? ":" + String(r).padStart(2, "0") : ""} ${h >= 12 ? "PM" : "AM"}`; };
+        // 2026-10-05 (the catalog gate): the week axis says Noon with a capital, like every label the app writes.
+        const tickLabel = (m: number) => { const h = Math.floor(m / 60) % 24; const r = m % 60; if (h === 12 && r === 0) return "Noon"; return `${h % 12 || 12}${r ? ":" + String(r).padStart(2, "0") : ""} ${h >= 12 ? "PM" : "AM"}`; };
         return (<>
         <div className="sh2 sh2-quiet wk-head"><span className="t">{weekWord(weekCells, todayDate)}</span>
-          <span className="n">{ahead.length === 0 ? "Over" : totalOpen > 0 ? `${spanShort(totalOpen)} open` : "Full"}</span></div>
+          <span className="n">{ahead.length === 0 ? "Over" : totalOpen > 0 ? `${spanShort(totalOpen)} Open` : "Full"}</span></div>
         <div className="pad-x"><div className="card list-card-ruled week-rows">
           {weekRows.map((r) => {
             const isToday = r.date === todayDate;
@@ -621,9 +642,9 @@ export default function SchedulePage({
                   </div>
                 </div>
                 {past
-                  ? <span className="wk-open">{r.count > 0 ? <><b>{r.count}</b> {r.count === 1 ? "block" : "blocks"}</> : ""}</span>
+                  ? <span className="wk-open">{r.count > 0 ? <><b>{r.count}</b> {r.count === 1 ? "Block" : "Blocks"}</> : ""}</span>
                   : r.openMin > 0
-                    ? <span className="wk-open"><b>{spanShort(r.openMin)}</b> open</span>
+                    ? <span className="wk-open wk-open-stack"><b>{spanShort(r.openMin)}</b> <span>Open</span></span> /* 2026-10-05: "3h Open", "2 Blocks": the word behind a number is capitalized (Dave's number rule, "Earlier 2 blocks"). Stacked (round 1): the number over its word keeps the open column narrow, so the bar beside it is long enough to read and the clock under the card can be measured against it. */
                     : <span className="wk-open wk-full">Full</span>}
               </div>
             );
@@ -633,7 +654,7 @@ export default function SchedulePage({
           <div className="wk-ticks" aria-hidden="true">{ticks.map((t, i) => <span key={i} style={{ left: t.pct + "%" }} className={i === 0 ? "first" : i === ticks.length - 1 ? "last" : undefined}>{tickLabel(t.m)}</span>)}</div>
         )}
         {best && (
-          <div className="wk-note">Longest open stretch <b>{WK[best.row.dow]} {stretchLabel(best.s, best.e)}</b></div>
+          <div className="wk-note">Longest Open Stretch <b>{WK[best.row.dow]} {stretchLabel(best.s, best.e)}</b></div>
         )}
         </>);
       })()}
@@ -657,11 +678,29 @@ export default function SchedulePage({
           day's word on the left, the fact on the right, Plan My Day past it. */}
       <div className="sh2 sh2-quiet wk-head sc-dayhead">
         <span className="t">{dayWord(selected, todayDate)}</span>
+        {/* THE COUNT NEVER SHARES THE HEAD'S LINE WITH ITS CAPSULES (round-1 review, 2026-10-05: "3h Open · 5 Prop..." read as a typo
+            because Plan My Day took the room). It is the head's second line, whole, and the capsule cluster keeps the first. */}
         <span className="n sc-fact">
           {countLine.map((c, i) => <React.Fragment key={i}>{i > 0 && <span className="sched-sep">{"\u00b7"}</span>}{c}</React.Fragment>)}
         </span>
-        {onPlanDay && <button className="see-all pill-action" onClick={onPlanDay}>Plan My Day</button>}
+        {/* SECTION ACTIONS LIVE IN THE HEAD (Dave 2026-10-05, locked), AT MOST TWO CAPSULES (decision D1). Copy Yesterday is the
+            second capsule on a day with nothing of its own, beside Plan My Day; Running Late and Not Today are one overflow button
+            (shared/HeadMore), so the head never grows a third capsule and never wraps its buttons. */}
+        {showCopy
+          ? <span className="sec-left">
+              <button className="see-all pill-action" onClick={onCopyDay}>Copy Yesterday</button>
+              {onPlanDay && <button className="see-all pill-action" onClick={onPlanDay}>Plan My Day</button>}
+            </span>
+          : onPlanDay && <button className="see-all pill-action" onClick={onPlanDay}>Plan My Day</button>}
+        <HeadMore label={"More for " + dayWord(selected, todayDate)} actions={headActions} />
       </div>
+      {lateSheet && onRunningLate && (
+        <RowActionSheet
+          title="Running Late?"
+          actions={LATE_CHOICES.map((m) => ({ label: "Push Back " + spanLabel(m), onPick: () => { setLateSheet(false); onRunningLate(m); } }))}
+          onCancel={() => setLateSheet(false)}
+        />
+      )}
       {/* N5: the day says when it does not fit, WHERE it does not fit, and
           offers the fix in the same breath. Before this the overlap was
           something you discovered by being late to the second thing.
@@ -680,7 +719,9 @@ export default function SchedulePage({
             <div className="conn-name">Two Things Collide</div>
             <div className="conn-meta">{overlap.line}</div>
           </div>
-          <button className="pill-act" onClick={(e) => { e.stopPropagation(); onFixOverlap(); }}>Fix It</button>
+          {/* THE ROW'S MOMENT HAS COME (Dave 2026-10-05, locked): a clash is a row asking to be dealt with, so its one
+              action is one quiet word on the row (RowCtxAction), never a capsule; the whole row opens the same sheet. */}
+          <RowCtxAction when label="Fix It" onAct={onFixOverlap} />
         </div></div></div>
       )}
       {mode === "day" && onFixOverlap && clashCount >= 2 && (
@@ -690,7 +731,7 @@ export default function SchedulePage({
                 (§AM). This was a "!" in the open-slot plus's class, which
                 also drew that class's generated "+" ahead of it, in the tap
                 red. */}
-            <AlertTriangle className="ic urgency-warn" aria-hidden="true" /> {clashCount} clashes today
+            <AlertTriangle className="ic urgency-warn" aria-hidden="true" /> {clashCount} Clashes Today
             <span className="sched-fix">Fix</span>
           </button>
         </div>
@@ -701,7 +742,7 @@ export default function SchedulePage({
         <SkeletonRows />
       ) : loadFailed ? (
         <div className="empty-state">
-          <div className="t-body">Couldn't load this day</div>
+          <div className="t-body">Couldn't Load This Day</div>
           <button className="btn btn-secondary" onClick={onRetryLoad}>Try Again</button>
         </div>
       ) : entries.every((en) => en.kind === "gap") ? (
@@ -711,18 +752,11 @@ export default function SchedulePage({
         // showing two fills.
         <>
           <div className="empty-state">
-            <div className="t-body">No events</div>
+            <div className="t-body">No Events</div>
             <button className="btn btn-secondary" onClick={onNew}>New Event</button>
-            {/* N7: most days are a variation on a day you already had. It
-                only ever rendered on an empty day, so this is where it
-                belongs; in the head it was a third button on a row that
-                already had two. */}
-            {mode === "day" && onCopyDay && n === 0 && (
-              <button className="row-act" onClick={onCopyDay}>Copy Yesterday</button>
-            )}
           </div>
           {mode === "day" && (
-            <AnytimeRow items={anytimeItems} onToggle={onToggleTask} onSchedule={onScheduleTask} onOpen={onOpenTask} onDragStart={beginDrag} parentOf={parentOf} />
+            <AnytimeRow items={anytimeItems} onToggle={onToggleTask} onSchedule={onScheduleTask} {...(onDeleteTask ? { onDelete: onDeleteTask } : {})} onOpen={onOpenTask} onDragStart={beginDrag} parentOf={parentOf} today={todayDate} />
           )}
         </>
       ) : (
@@ -744,7 +778,7 @@ export default function SchedulePage({
                 aria-expanded={earlierOpen}
                 onClick={() => setEarlierOpen((v) => !v)}
               >
-                Earlier<span className="n">{en.n} {en.n === 1 ? "block" : "blocks"}</span>
+                Earlier<span className="n">{en.n} {en.n === 1 ? "Block" : "Blocks"}</span>
                 <span className={"chev chev-down" + (earlierOpen ? " chev-open" : "")} />
               </button>
             ) : en.kind === "now" ? (
@@ -752,32 +786,10 @@ export default function SchedulePage({
                 <div className="sched-now">
                   <span className="w">Now</span>
                   {/* C-28: LIVE, on the rule alone. */}
-                  <span className="fact st red">Live</span>
+                  <span className="fact st warn">Live</span>
                   <span className="l" />
-                  {/* RUNNING LATE? LIVES ON THE RULE (A Cleaner Top): it is
-                      an action about this minute, so it belongs on the line
-                      that marks this minute, not in the page head. */}
-                  {hasFuture && onRunningLate && (
-                    <button
-                      type="button"
-                      className={"sched-late" + (lateOpen ? " on" : "")}
-                      aria-expanded={lateOpen}
-                      onClick={() => setLateOpen((v) => !v)}
-                    >Running Late?</button>
-                  )}
                   <span className="t">{fmtTime(now!).time} {fmtTime(now!).ap}</span>
                 </div>
-                {lateOpen && onRunningLate && (
-                  <div className="pad-x late-chips">
-                    <div className="segmented">
-                      {LATE_CHOICES.map((m) => (
-                        <button className="seg" key={m} onClick={() => { setLateOpen(false); onRunningLate(m); }}>
-                          {spanLabel(m)}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
               </React.Fragment>
             ) : en.kind === "gap" ? (
               <button
@@ -803,16 +815,19 @@ export default function SchedulePage({
                     it now looks different in kind. The window it covers moves
                     into the title, so the second line has nothing left to say
                     and goes away with the instruction. */}
+                {/* Wordless on purpose (2026-09-22): the glyph paints from
+                    CSS (.sched-open-plus::before), so it reads to the
+                    one-grey auditor as the mark ahead of the words that
+                    it visually always was, not as a fourth run of text.
+                    aria-hidden since an empty span has nothing to read
+                    and the slot's own words already say what it is.
+                    ROUND 1 (2026-10-05): it leads the row now, in the same
+                    lead slot the star and the check take, so the time and the
+                    words behind it start where every other row's do. */}
+                <span className="sched-open-plus" aria-hidden="true" />
                 <div className="sched-time">{fmtTime(en.start).time}<span className="ampm">{fmtTime(en.start).ap}</span></div>
                 <div className="sched-body">
                   <div className="sched-title sched-gap-title">
-                    {/* Wordless on purpose (2026-09-22): the glyph paints from
-                        CSS (.sched-open-plus::before), so it reads to the
-                        one-grey auditor as the mark ahead of the words that
-                        it visually always was, not as a fourth run of text.
-                        aria-hidden since an empty span has nothing to read
-                        and the slot's own words already say what it is. */}
-                    <span className="sched-open-plus" aria-hidden="true" />
                     {gapLabel(toMin(en.end) - toMin(en.start))} Open
                     <span className="sched-gap-win">Until {fmtTime(en.end).time} {fmtTime(en.end).ap}</span>
                   </div>
@@ -829,6 +844,7 @@ export default function SchedulePage({
                 onDrop={() => proposed!.onDrop(en.b.taskId)}
                 {...(proposed!.onAccept ? { onAccept: () => proposed!.onAccept!(en.b.taskId) } : {})}
                 {...(proposed!.onOpen ? { onOpen: () => proposed!.onOpen!(en.b.taskId) } : {})}
+                {...(proposed!.onComplete ? { onComplete: () => proposed!.onComplete!(en.b.taskId) } : {})}
               />
             ) : en.kind === "locked" ? (() => {
               const heldProps = heldPropBy.get(en.l.label + "@" + en.l.s) ?? [];
@@ -856,28 +872,13 @@ export default function SchedulePage({
                         Today, with its own Accept. The hollow dot is the
                         "not real yet" the proposed row wears everywhere. */}
                     {heldProps.map((b) => (
-                      <div
-                        className="block-held block-held-prop"
+                      <HeldProposalRow
                         key={"p" + b.taskId}
-                        {...pressable(() => openProposed(b.taskId))}
-                        /* the pointer path keeps its own stopPropagation, as
-                           the held block above it does: this row sits inside
-                           the routine row. */
-                        onClick={(ev) => { ev.stopPropagation(); openProposed(b.taskId); }}
-                      >
-                        <span className={"cat-dot-hollow cat-bd-" + catColor(b.category)} />
-                        <span className="block-held-t truncate">{b.text}</span>
-                        <span className="facts block-held-facts">
-                          <span className="fact st gray">Proposed</span>
-                          {/* A length that cannot be tapped is a number with
-                              no state: white, not a second grey beside the
-                              block's own kicker (§AK, §AM). */}
-                          <span className="fact"><b>{blockMinutes(b)}m</b></span>
-                        </span>
-                        {proposed?.onAccept && (
-                          <button type="button" className="pill-act" onClick={(ev) => { ev.stopPropagation(); proposed.onAccept?.(b.taskId); }}>Accept</button>
-                        )}
-                      </div>
+                        block={b}
+                        onOpen={() => openProposed(b.taskId)}
+                        {...(proposed?.onAccept ? { onAccept: () => proposed.onAccept!(b.taskId) } : {})}
+                        onDrop={() => proposed!.onDrop(b.taskId)}
+                      />
                     ))}
                   </div>
                 )}
@@ -917,25 +918,18 @@ export default function SchedulePage({
                     picker, and no confirmation, which is the entire point of
                     "just make it very easy to do things like that". */}
                 {blendMap[en.e.id] && (
-                  <div className="blend-tuck" {...pressable(() => blendMap[en.e.id]!.onAdd())}>
+                  <div className="blend-tuck" aria-label={"Add " + titleCase(blendMap[en.e.id]!.text) + " to " + titleCase(en.e.data.title)} {...pressable(() => blendMap[en.e.id]!.onAdd())}>
+                    {/* The plus is the offer's lead mark in the same slot as a row's star, in the tap red, and the whole row
+                        is the tap (round-1 review, 2026-10-05: the dashed circle read as a button of its own). */}
                     <span className="blend-plus" aria-hidden>+</span>
                     <div className="row-grow">
-                      <div className="blend-text truncate">{blendMap[en.e.id]!.text}</div>
+                      <div className="blend-text">{titleCase(blendMap[en.e.id]!.text)}</div>
                       <div className="blend-why">{blendMap[en.e.id]!.why}</div>
                     </div>
                   </div>
                 )}
               </div>
             ),
-          )}
-          {/* N7: most days are a variation on a day you already had. It only
-              ever offered itself on a day with no events of its own, so it
-              is the last row of that day rather than a third button in the
-              head (A Cleaner Top, 2026-09-02). A day with events never sees
-              it; the empty state carries its own copy for the day that has
-              no rows at all. */}
-          {mode === "day" && onCopyDay && n === 0 && (
-            <button className="row-act sched-copy" onClick={onCopyDay}>Copy Yesterday</button>
           )}
         </div>
         </div></div>
@@ -946,7 +940,7 @@ export default function SchedulePage({
             Anytime live? A section below the timeline"). It sat above,
             which put the unplaced work in front of the day it was not in. */}
         {mode === "day" && (
-          <AnytimeRow items={anytimeItems} onToggle={onToggleTask} onSchedule={onScheduleTask} onOpen={onOpenTask} onDragStart={beginDrag} parentOf={parentOf} />
+          <AnytimeRow items={anytimeItems} onToggle={onToggleTask} onSchedule={onScheduleTask} {...(onDeleteTask ? { onDelete: onDeleteTask } : {})} onOpen={onOpenTask} onDragStart={beginDrag} parentOf={parentOf} today={todayDate} />
         )}
         {/* The trailing "Open ..." list is retired in EVERY mode now (B4,
             2026-08-23). It survived for week and month on the reasoning that

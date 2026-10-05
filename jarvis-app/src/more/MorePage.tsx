@@ -28,6 +28,17 @@ export type MoreRoute = "settings" | "profile" | "appearance" | "categories" | "
 // Library form exactly. One flat headerless list, every glyph the brand red
 // in the FILLED state (drawn filled, never auto-filled strokes). Settings is
 // the trailing system cluster, separated by the one legal unlabeled gap.
+// A DESTINATION'S GLYPH WEARS ITS TYPE'S COLOUR (Dave 2026-10-05, D5: the More list was every glyph the same flat brand red,
+// which says "tap me" eight times and "this is Email" never). The tones are the ones the sheets and tiles already draw for
+// these types: Email teal, Task red, Event sky, Waiting purple, Money green, Notes yellow; Chat is JARVIS's own and keeps the
+// brand red it has always worn; Settings is chrome and takes the neutral. The glyph is still the filled drawing, and the
+// light and dark inks come from .cat-fg-* (--cat-ic-* in light, --cat-dtx-* in dark), never the text ink.
+const TONE: Record<string, string> = {
+  today: "cat-fg-orange", life: "cat-fg-red", schedule: "cat-fg-sky", brain: "cat-fg-purple", notes: "cat-fg-yellow",
+  messages: "cat-fg-teal", notifications: "cat-fg-orange", money: "cat-fg-green", chat: "lib-ico-brand", settings: "cat-fg-graphite",
+};
+const toneOf = (key: string) => TONE[key] ?? "cat-fg-graphite";
+
 export default function MorePage({ extras, onOpenExtra, onNavigate }: {
   extras: Destination[]; onOpenExtra: (key: string) => void; onNavigate: (route: MoreRoute) => void;
 }) {
@@ -43,7 +54,7 @@ export default function MorePage({ extras, onOpenExtra, onNavigate }: {
       <div className="pad-x"><div className="card list-card-ruled nav-card">
         {extras.map((d) => (
           <div className="lib-row" role="button" tabIndex={0} key={d.key} onClick={() => onOpenExtra(d.key)}>
-            <div className="lib-ico lib-ico-brand">{filledIcon(d.key)}</div>
+            <div className={"lib-ico " + toneOf(d.key)}>{filledIcon(d.key)}</div>
             <div className="lib-name">{d.label}</div>
             <Chev />
           </div>
@@ -52,7 +63,7 @@ export default function MorePage({ extras, onOpenExtra, onNavigate }: {
 
       <div className="pad-x nav-card-gap"><div className="card list-card-ruled nav-card">
         <div className="lib-row" role="button" tabIndex={0} onClick={() => onNavigate("settings")}>
-          <div className="lib-ico lib-ico-brand">{filledIcon("settings")}</div>
+          <div className={"lib-ico " + toneOf("settings")}>{filledIcon("settings")}</div>
           <div className="lib-name">Settings</div>
           <Chev />
         </div>

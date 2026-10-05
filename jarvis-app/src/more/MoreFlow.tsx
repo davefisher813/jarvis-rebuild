@@ -72,7 +72,7 @@ export default function MoreFlow({
 
   useEffect(() => {
     if (openRoute) { setRoute(openRoute); onRouteConsumed?.(); }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [openRoute]);
 
   // Stack depth per route, so navigation animates as an iOS push going deeper

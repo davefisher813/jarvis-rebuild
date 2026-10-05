@@ -1,6 +1,7 @@
 import { useRef, type ReactNode } from "react";
 import { Plus, Search, SlidersHorizontal, X } from "./icons";
 import HeadMenu from "./HeadMenu";
+import { capAfterNumber } from "./casing";
 
 // ONE HEADER, FIVE PAGES (Dave 2026-09-17, the Unified Headers handoff:
 // "unify the headers of Tasks, Reminders, Notes, Projects and Goals using the
@@ -82,6 +83,18 @@ export function OptionsButton({ onClick, label = "Options" }: { onClick: () => v
   );
 }
 
+/** THE ONE HEADER ADD (Dave 2026-10-05, "everything should look PERFECT": Email drew a 32px circle in the bar above its title while
+ *  Notes, Tasks, Reminders, Projects and Goals draw this capsule). One component so the page's door is the same shape, the same
+ *  44px-plus reach and the same word on every page; the accessible name says the type ("New Message", "New Note"). */
+export function HeadAdd({ label, onClick }: { label: string; onClick: () => void }) {
+  return (
+    <button type="button" className="hdr-add" aria-label={label} onClick={onClick}>
+      <Plus className="ic" />
+      <span>Add</span>
+    </button>
+  );
+}
+
 export default function LifeHeader({
   query, onQuery, placeholder,
   addLabel, onAdd,
@@ -157,10 +170,7 @@ export default function LifeHeader({
             primary red action"). The red is the glyph and nothing else, so
             the page's real primary -- Start Now on Tasks -- stays the one
             red block on the screen. */}
-        <button type="button" className="hdr-add" aria-label={addLabel} onClick={onAdd}>
-          <Plus className="ic" />
-          <span>Add</span>
-        </button>
+        <HeadAdd label={addLabel} onClick={onAdd} />
       </div>
       {/* ONE LINE ACROSS (Dave 2026-09-18, on a header wearing two rows:
           "All of these chips that are on the second row should be on the
@@ -199,7 +209,9 @@ export default function LifeHeader({
         <div className="hdr-scope">
           {/* A count and where it looked, as facts. Never "no results": the
               records are not missing, the scope is narrow. */}
-          <span className="hdr-scope-n">{`${scope.count} ${scope.count === 1 ? "result" : "results"} in ${scope.where}`}</span>
+          {/* The word after the number is capitalised, as everywhere (Dave
+              2026-10-05: "2 Results", never "2 results"). */}
+          <span className="hdr-scope-n">{capAfterNumber(`${scope.count} ${scope.count === 1 ? "result" : "results"} in ${scope.where}`)}</span>
           {scope.onAll && scope.allLabel && (
             <button type="button" className="hdr-scope-all" onClick={scope.onAll}>{scope.allLabel}</button>
           )}

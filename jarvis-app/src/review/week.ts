@@ -29,7 +29,7 @@ import { formatMoney } from "../money/types";
 // between Learned and Next. Every fact is Title Case through lineCase().
 //
 // Percent is allowed inside this card only where C-65 allows it in a
-// report: an area line may say "26% vs Usual 35%" beside its hours. Every
+// report: an area line may say "26% Vs Usual 35%" beside its hours. Every
 // other number here is a count.
 
 export type LineKey = "Worked" | "Slipped" | "Changed" | "Learned" | "Money" | "Mail" | "People" | "Health" | "Decided" | "Next";
@@ -40,9 +40,9 @@ export type FactTone = "good" | "warn" | "red" | "cat" | undefined;
 // same words joined, for the key and the tests.
 export type { FactPart };
 export interface WeekFact { text: string; parts?: FactPart[]; tone?: FactTone; color?: string }
-// A line's key word takes a colour only when the word is a meaning (§AM):
-// Worked is done (green), Slipped and Next ask something of him soon
-// (amber), and Changed and Learned are "quiet", the caps grey.
+// EVERY LINE'S KEY WORD IS THE SAME GREY CAPS (the round 2 review: "two of the three labels were amber, but amber means due, and 12
+// pushed tasks is not due"). Colour lives on the VALUE that has a state: plans landed are green, tasks pushed and the area still
+// owed hours are amber; the word that names the line stays quiet.
 export interface WeekLine { key: LineKey; tone: "good" | "warn" | "quiet"; facts: WeekFact[] }
 export interface WeekSegment { id: string; name: string; color: string; minutes: number; pct: number }
 
@@ -150,7 +150,7 @@ export function buildWeek(inp: WeekInputs): WeekReport {
   const worked: WeekFact[] = [];
   if (picked > 0) worked.push({ text: lineCase(`${landed} of ${picked} plans landed`), tone: "good" });
   if (focusDays > 0) worked.push({ text: lineCase(`Focus held ${focusDays} ${plural(focusDays, "day", "days")}`), tone: worked.length ? undefined : "good" });
-  if (worked.length) lines.push({ key: "Worked", tone: "good", facts: worked });
+  if (worked.length) lines.push({ key: "Worked", tone: "quiet", facts: worked });
 
   const slipTop = Object.entries(seal.pushedByCategory).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0];
   if (slipTop && slipTop[1] > 0) {
@@ -161,7 +161,7 @@ export function buildWeek(inp: WeekInputs): WeekReport {
     const slipped: WeekFact[] = [];
     if (cat) slipped.push({ text: cat.name, tone: "cat", color: cat.color });
     slipped.push({ text: lineCase(`${slipTop[1]} ${plural(slipTop[1], "task", "tasks")} pushed`), tone: "warn" });
-    lines.push({ key: "Slipped", tone: "warn", facts: slipped });
+    lines.push({ key: "Slipped", tone: "quiet", facts: slipped });
   }
 
   const overrides = rows.filter((r) => r.type === "schedule.override").length;
@@ -221,7 +221,7 @@ export function buildWeek(inp: WeekInputs): WeekReport {
   if (d && (d.made > 0 || d.revisited > 0)) {
     const facts: WeekFact[] = [];
     if (d.worked > 0) facts.push({ text: lineCase(`${d.worked} worked`), tone: "good" });
-    if (d.made > 0) facts.push(plain(lineCase(`${d.made} made`)));
+    if (d.made > 0) facts.push(plain(lineCase(`${d.made} ${plural(d.made, "decision", "decisions")} made`)));
     if (d.revisited > 0 && d.made === 0) facts.push(plain(lineCase(`${d.revisited} revisited`)));
     lines.push({ key: "Decided", tone: "quiet", facts });
   }
@@ -239,10 +239,12 @@ export function buildWeek(inp: WeekInputs): WeekReport {
     next = { id: least, name: cat.name, color: cat.color };
     // The area is a dot and its name (a mark, §AK); the amount is its own
     // fact, so the dot between them is drawn by CSS (F3). A zero reads
-    // "None of 3h 30m" (the lead, 2026-09-26), never "0 Min of".
+    // "Planned 0 of 3h 30m" (Dave 2026-10-05, the review: "None of 2h 15m" was unreadable as a sentence, and the round 2 review: "Got
+    // 0 of 2h 15m" did not say what was got), never "0 Min of". The verb leads, because the number rule makes the word behind a
+    // leading figure a capital and a figure-first line cannot say "0 of 3h 30m Planned".
     const had = minutesOf(least);
     nextFacts.push({ text: cat.name, tone: "cat", color: cat.color });
-    nextFacts.push({ text: `${had === 0 ? "None" : hoursLabel(had)} of ${hoursLabel(scheduled)}` });
+    nextFacts.push({ text: `Planned ${had === 0 ? "0" : hoursLabel(had)} of ${hoursLabel(scheduled)}` });
     if (inp.prevRows) {
       const prevDays = weekDays(days[0]!, 8).slice(0, 7);
       const prevSeal = computeSeal(month, { rows: inp.prevRows, workouts: [], goals: inp.goals, sealedAt: Date.now(), events: inp.events, days: prevDays });
@@ -254,7 +256,7 @@ export function buildWeek(inp: WeekInputs): WeekReport {
     }
   }
   // Next is amber (§AM: next is "needs you soon"); red is only for late.
-  if (nextFacts.length) lines.push({ key: "Next", tone: "warn", facts: nextFacts });
+  if (nextFacts.length) lines.push({ key: "Next", tone: "quiet", facts: nextFacts });
 
   return { days, seal, tiles, stack, lines, next, offer: !!next && !inp.alreadyOffered };
 }

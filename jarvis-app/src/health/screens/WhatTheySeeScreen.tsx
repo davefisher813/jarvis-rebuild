@@ -1,7 +1,14 @@
 import type { ConsentGrant, LightsOutEntry, AteBeforeEntry, TookItEntry, CallItEntry, PointAtItEntry } from "../types";
 import { HEALTH_CATEGORIES, HEALTH_CATEGORY_LABEL, sharedView } from "../shareLine";
 import { ateBeforeMarks, tookItTimeline, callItHistory } from "../timelines";
-import { shortDate, weekdayShortDate } from "../../shared/dateFormat";
+import { shortDate, shortDateFromMs, weekdayShortDate } from "../../shared/dateFormat";
+import { clockOf } from "../meds";
+import { lineCase } from "../../shared/casing";
+
+// 2026-10-05 (the catalog gate): a moment is "Oct 5, 2:15 PM", 12-hour with AM or
+// PM. toLocaleString() followed the phone's region (a 24-hour clock, seconds, a
+// numeric date) and drew "10/5/2026, 14:15:00" as a row title.
+const when = (at: number): string => shortDateFromMs(at) + ", " + clockOf(at);
 
 // WHAT THEY SEE (Part 7). Not a summary of the parent's view. THE SAME
 // FUNCTION (sharedView, from shareLine.ts) that a real parent-facing screen
@@ -53,7 +60,7 @@ export default function WhatTheySeeScreen({
               <div className="pad-x"><div className="card list-card-ruled">
                 {visibleSleep.length === 0 ? <div className="row"><div className="row-grow"><div className="conn-name">Nothing Logged Yet</div></div></div> :
                   visibleSleep.map((e) => (
-                    <div className="row" key={e.id}><div className="row-grow"><div className="conn-name">{new Date(e.data.at).toLocaleString()}</div></div></div>
+                    <div className="row" key={e.id}><div className="row-grow"><div className="conn-name">{when(e.data.at)}</div></div></div>
                   ))}
               </div></div>
             </>
@@ -78,7 +85,7 @@ export default function WhatTheySeeScreen({
               <div className="pad-x"><div className="card list-card-ruled">
                 {visibleMed.length === 0 ? <div className="row"><div className="row-grow"><div className="conn-name">Nothing Logged Yet</div></div></div> :
                   visibleMed.map((m, i) => (
-                    <div className="row" key={i}><div className="row-grow"><div className="conn-name">{new Date(m.at).toLocaleString()}</div></div></div>
+                    <div className="row" key={i}><div className="row-grow"><div className="conn-name">{when(m.at)}</div></div></div>
                   ))}
               </div></div>
             </>
@@ -89,7 +96,7 @@ export default function WhatTheySeeScreen({
               <div className="pad-x"><div className="card list-card-ruled">
                 {visibleLoad.length === 0 ? <div className="row"><div className="row-grow"><div className="conn-name">Nothing Logged Yet</div></div></div> :
                   visibleLoad.map((p, i) => (
-                    <div className="row" key={i}><div className="row-grow"><div className="conn-name">{new Date(p.at).toLocaleDateString()}</div></div><span className="pill">{p.rpe}/10</span></div>
+                    <div className="row" key={i}><div className="row-grow"><div className="conn-name">{shortDateFromMs(p.at)}</div></div><span className="pill">{p.rpe}/10</span></div>
                   ))}
               </div></div>
             </>
@@ -100,7 +107,7 @@ export default function WhatTheySeeScreen({
               <div className="pad-x"><div className="card list-card-ruled">
                 {visibleBody.length === 0 ? <div className="row"><div className="row-grow"><div className="conn-name">Nothing Logged Yet</div></div></div> :
                   visibleBody.map((e) => (
-                    <div className="row" key={e.id}><div className="row-grow"><div className="conn-name">{new Date(e.data.at).toLocaleDateString()}</div><div className="bp-sub">{e.data.side}</div></div></div>
+                    <div className="row" key={e.id}><div className="row-grow"><div className="conn-name">{shortDateFromMs(e.data.at)}</div><div className="bp-sub">{lineCase(e.data.side)}</div></div></div>
                   ))}
               </div></div>
             </>

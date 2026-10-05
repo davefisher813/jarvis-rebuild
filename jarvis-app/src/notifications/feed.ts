@@ -73,16 +73,22 @@ export function buildFeed(input: FeedInput, today: string, nowHHMM?: string, dis
   }
   for (const t of input.tasks) {
     if (t.data.done || !t.data.due) continue;
-    if (t.data.due === today) out.push({ id: "dt-" + t.id, kind: "due_today", title: t.data.text, sub: "Due today", when: "", entity: "task", entityId: t.id });
+    if (t.data.due === today) out.push({ id: "dt-" + t.id, kind: "due_today", title: t.data.text, sub: "Due Today", when: "", entity: "task", entityId: t.id });
   }
+  // AN EVENT SAYS ITS TIME AND NOTHING ELSE (2026-10-05, the catalog hard
+  // gate). Its row was the start time in a chip and then a grey "Today" under
+  // the title: every event in this feed is today's, so the word repeated the
+  // section and the chip, a line with nothing to say. A row with nothing to
+  // say shows nothing. The other subs are Title Case like every line the app
+  // writes ("Due Today", "Goal at Risk").
   input.events
     .filter((e) => e.data.date === today)
     // Still ahead of him, or still running. An event with no end time counts
     // as over once it has started: a point in time cannot still be upcoming.
     .filter((e) => !nowHHMM || (e.data.end ?? e.data.start) > nowHHMM)
     .sort((a, b) => a.data.start.localeCompare(b.data.start))
-    .forEach((e) => out.push({ id: "ev-" + e.id, kind: "event", title: e.data.title, sub: "Today", when: e.data.start, entity: "event", entityId: e.id }));
-  for (const g of input.goals) if (g.data.state === "at_risk") out.push({ id: "gr-" + g.id, kind: "goal_risk", title: g.data.title, sub: "Goal at risk", when: "", entity: "goal", entityId: g.id });
+    .forEach((e) => out.push({ id: "ev-" + e.id, kind: "event", title: e.data.title, sub: "", when: e.data.start, entity: "event", entityId: e.id }));
+  for (const g of input.goals) if (g.data.state === "at_risk") out.push({ id: "gr-" + g.id, kind: "goal_risk", title: g.data.title, sub: "Goal at Risk", when: "", entity: "goal", entityId: g.id });
   return out.filter((n) => !gone.has(n.id));
 }
 

@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import { readFileSync, readdirSync } from "node:fs";
@@ -10,11 +10,12 @@ import { AuthProvider } from "../auth/AuthProvider";
 import TrainingPage, { rackHint } from "./TrainingPage";
 import AccountPage from "./AccountPage";
 import AboutPage from "./AboutPage";
-import NotificationsPage from "./NotificationsPage";
+import NotificationsPage, { webNote } from "./NotificationsPage";
+import { Capacitor } from "@capacitor/core";
+import * as webPush from "../shared/webPush";
 import BrainSettingsPage from "./BrainSettingsPage";
 import { Switch } from "./kit";
 import { notEnoughDaysLine } from "../brain/insightCopy";
-import { footFor } from "../shared/webPush";
 import { readGymSettings, writeGymSettings } from "../gym/settings";
 
 // SETTINGS COPY READS THE SAME TO EVERY READER (evening audit, 2026-09-29).
@@ -54,8 +55,9 @@ function expectOneNode(el: Element | null, words: string) {
 
 describe("item 4: Training hint", () => {
   it("rackHint keeps its space in both units", () => {
-    expect(rackHint("lb")).toBe("In lb. A lift logged in the other unit is converted, both ways.");
-    expect(rackHint("kg")).toBe("In kg. A lift logged in the other unit is converted, both ways.");
+    // 2026-10-05: no unit prefix and no dot typed in the line; the Rack Unit row above already says the unit.
+    expect(rackHint("lb")).toBe("A lift logged in the other unit is converted both ways");
+    expect(rackHint("kg")).toBe("A lift logged in the other unit is converted both ways");
   });
 
   it("renders as one text node, in a block, for lb and for kg", () => {
@@ -79,7 +81,7 @@ describe("item 7: Account, About, Brain", () => {
       <AuthProvider><NotesProvider userId="u-copy"><AccountPage onBack={() => {}} /></NotesProvider></AuthProvider>,
     );
     await waitFor(() => expect(container.querySelector(".account-sub")).not.toBeNull());
-    expectOneNode(container.querySelector(".account-sub"), "Personal plan");
+    expectOneNode(container.querySelector(".account-sub"), "Personal Plan");
   });
 
   it("About: the build label is one node and a real space stands between it and the date", () => {
@@ -97,39 +99,43 @@ describe("item 7: Account, About, Brain", () => {
     expect(perNode(fact!)).toMatch(/^Build \S+$/);
   });
 
-  it("Brain: the danger-zone foot is the whole sentence in one node", () => {
+  it("Brain: each danger-zone note is the whole sentence in one node", () => {
     const { container } = render(<NotesProvider userId="u-brain"><BrainSettingsPage onBack={() => {}} /></NotesProvider>);
-    expectOneNode(
-      container.querySelector(".input-hint"),
-      "Decisions, Principles, Values, Writing Samples and Facts Are Deleted. Contacts Stay, but Their Roles Go Back to Unsorted.",
-    );
+    const notes = [...container.querySelectorAll(".input-hint")];
+    expectOneNode(notes[0]!, "Decisions, principles, values, writing samples and facts are deleted");
+    expectOneNode(notes[1]!, "Contacts stay, but their roles go back to Unsorted");
   });
 });
 
 describe("item 5: Notifications foot and switch names", () => {
-  it("the foot for a browser that is not on the Home Screen is the whole instruction", async () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it("the note for a browser that is not on the Home Screen is the whole instruction, in one node, and says only the steps", async () => {
     // The copy itself is whole in source.
-    expect(footFor("not-standalone")).toMatch(/then open it from there$/);
+    expect(webNote("not-standalone")).toMatch(/then open JARVIS from there$/);
+    expect(webNote("not-standalone").length).toBeLessThan(100);
+    vi.spyOn(Capacitor, "isNativePlatform").mockReturnValue(false);
+    vi.spyOn(webPush, "currentStatus").mockResolvedValue("not-standalone");
     const { container } = render(<NotesProvider userId="u-n"><NotificationsPage onBack={() => {}} /></NotesProvider>);
-    const all = ["no-sw", "not-standalone", "no-push", "denied", "no-key", "off", "on"].map((s) => footFor(s as Parameters<typeof footFor>[0]));
-    await waitFor(() => expect(all).toContain(container.querySelector(".input-hint")!.textContent));
+    await waitFor(() => expect(container.querySelector(".input-hint")).not.toBeNull());
     const foot = container.querySelector(".input-hint")!;
-    // Whatever state this browser is in, its foot is one whole node.
+    expect(foot.textContent).toBe(webNote("not-standalone"));
+    // Whatever state this browser is in, its note is one whole node.
     expectOneNode(foot, foot.textContent!);
   });
 
   it("a switch row is named once: the switch, described by its meta, and the row is not a second button", async () => {
     const { container } = render(<NotesProvider userId="u-n2"><NotificationsPage onBack={() => {}} /></NotesProvider>);
-    const sw = await screen.findByRole("switch", { name: "Overdue and due tasks" });
+    const sw = await screen.findByRole("switch", { name: "Overdue and Due Tasks" });
     // Exactly one control carries that name.
-    expect(screen.getAllByRole("switch", { name: "Overdue and due tasks" })).toHaveLength(1);
-    expect(screen.queryAllByRole("button", { name: /Overdue and due tasks/ })).toHaveLength(0);
+    expect(screen.getAllByRole("switch", { name: "Overdue and Due Tasks" })).toHaveLength(1);
+    expect(screen.queryAllByRole("button", { name: /Overdue and Due Tasks/ })).toHaveLength(0);
     const row = sw.closest(".set-row")!;
     expect(row.getAttribute("role")).toBeNull();
     expect(row.getAttribute("tabindex")).toBeNull();
     // The description is the row's own meta line, by id, not a copy of it.
     const described = sw.getAttribute("aria-describedby")!;
-    expect(container.ownerDocument.getElementById(described)!.textContent).toBe("On the Notifications tab, not a lock-screen alert");
+    expect(container.ownerDocument.getElementById(described)!.textContent).toBe("On the Notifications Tab Only");
     // No accessible name in the whole page says the same words twice.
     for (const s of screen.getAllByRole("switch")) {
       const name = s.getAttribute("aria-label")!;
@@ -258,10 +264,10 @@ describe("Settings copy is never clamped or cut by the stylesheet", () => {
 // as cut mid-word ("...from ther", "...a quiet month l"). Both are whole in source, so they
 // are kept under 100 so no reader can clip them (2026-09-30).
 describe("the two lines a 100-character reader used to clip", () => {
-  it("every blocked-state Home Screen foot fits in 100 characters", () => {
+  it("every note under the Alerts row fits in 100 characters", () => {
     // off and on carry the all-or-nothing sentence as well, by design, and are not in this batch.
     for (const s of ["no-sw", "not-standalone", "no-push", "denied", "no-key"] as const) {
-      expect(footFor(s).length, s).toBeLessThan(100);
+      expect(webNote(s).length, s).toBeLessThan(100);
     }
   });
   it("the Learning Lab consolidation line fits in 100 characters", async () => {

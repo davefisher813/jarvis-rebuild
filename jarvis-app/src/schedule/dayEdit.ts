@@ -48,6 +48,28 @@ export function duplicateOf(e: EventData, date = e.date): EventData {
   return copy;
 }
 
+// WHAT A COPY KEEPS THAT createEvent TAKES (2026-10-04). Duplicate, Copy
+// Yesterday and the one-occurrence copy a repeating move or push leaves each
+// listed a few fields by hand and toasted success, so the copy of a meeting
+// lost its Join link, notes, travel time and project, and of a door block its
+// door. These are the fields that make a copy the same thing. Not carried, on
+// purpose: clientId and bookingId (unique keys a second row would collide
+// on), gcalHash and emailIds (an import's own bookkeeping), trained (the
+// receipts of the day that earned them), moved and source (how the original
+// came to be, not the copy), and attendees (a copy of a Google meeting must not
+// carry its guest list into a second event that could re-invite them; copy the
+// guests by hand if the copy is meant to have them).
+export function carriedFields(e: EventData): { gym?: true; url?: string; notes?: string; travelMin?: number; bufferMin?: number; projectId?: string } {
+  return {
+    ...(e.gym ? { gym: true as const } : {}),
+    ...(e.url ? { url: e.url } : {}),
+    ...(e.notes ? { notes: e.notes } : {}),
+    ...(typeof e.travelMin === "number" ? { travelMin: e.travelMin } : {}),
+    ...(typeof e.bufferMin === "number" ? { bufferMin: e.bufferMin } : {}),
+    ...(e.projectId ? { projectId: e.projectId } : {}),
+  };
+}
+
 // N7: copy a day. Only the one-offs travel: a repeating thing already appears
 // on the target day by itself, and copying it would double it.
 export function copyDay(items: EventItem[], from: string, to: string): EventData[] {

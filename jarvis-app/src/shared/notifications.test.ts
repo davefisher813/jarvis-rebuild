@@ -12,6 +12,29 @@ describe("buildCheckinNotifications", () => {
     expect(n[1]).toMatchObject({ id: EVENING_ID, hour: 20, minute: 0 });
   });
 
+  // The evening alert asked "How did today feel?" and promised "One Tap ·
+  // Better Plans" (2026-10-04), but nothing on Today takes a mood answer since
+  // the evening card was deleted, so the promised tap recorded nothing.
+  it("the evening alert promises only what the tap lands on: Today's Still Open", () => {
+    const evening = buildCheckinNotifications(r({ sleepMin: 22 * 60 }), "07:00").find((x) => x.id === EVENING_ID)!;
+    expect(evening.title).toBe("Ready to wrap up the day?");
+    expect(evening.body).toBe("Still Open has what's left");
+    expect(`${evening.title} ${evening.body}`).not.toMatch(/feel|one tap|better plans/i);
+  });
+
+  // 2026-10-05: the body names Today's Still Open section, which Today shows
+  // only from max(18:00, work end). Ringing at 20:30 for a 21:00 work end sent
+  // the person to a section that was not there yet.
+  it("the evening alert never rings before Today turns evening (work end)", () => {
+    const n = buildCheckinNotifications(r({ workEndMin: 21 * 60, sleepMin: 22 * 60 + 30 }), "07:00");
+    expect(n.find((x) => x.id === EVENING_ID)).toMatchObject({ hour: 21, minute: 0 });
+  });
+
+  it("drops the evening alert when work runs to bedtime or later", () => {
+    const n = buildCheckinNotifications(r({ workEndMin: 22 * 60 + 30, sleepMin: 22 * 60 + 30 }), "07:00");
+    expect(n.find((x) => x.id === EVENING_ID)).toBeUndefined();
+  });
+
   it("falls back to wake + 15 without a brief time", () => {
     const n = buildCheckinNotifications(r({ wakeMin: 6 * 60 + 30 }));
     expect(n[0]).toMatchObject({ hour: 6, minute: 45 });
@@ -98,7 +121,7 @@ describe("buildEventReminders", () => {
       [{ date: "2026-08-09", start: "09:20", title: "Practice", location: "Rink 2", leaveMin: 25 }],
       NOW,
     );
-    const leave = rs.find((r) => r.body === "Leave now for Rink 2")!;
+    const leave = rs.find((r) => r.body === "Leave Now for Rink 2")!;
     expect(leave.at).toEqual(new Date("2026-08-09T08:55:00"));
     // A leave lead equal to a ladder rung leaves ONE alert at that minute,
     // the one that says what to do.
@@ -108,12 +131,12 @@ describe("buildEventReminders", () => {
     );
     const at850 = collide.filter((r) => r.at.getTime() === new Date("2026-08-09T08:50:00").getTime());
     expect(at850).toHaveLength(1);
-    expect(at850[0]!.body).toBe("Leave now for Rink 2");
+    expect(at850[0]!.body).toBe("Leave Now for Rink 2");
   });
 
   it("says nothing about leaving for an event with no travel time", () => {
     const rs = buildEventReminders([{ date: "2026-08-09", start: "09:20", title: "Call" }], NOW);
-    expect(rs.some((r) => r.body.startsWith("Leave now"))).toBe(false);
+    expect(rs.some((r) => r.body.startsWith("Leave Now"))).toBe(false);
   });
 
   it("skips rungs that have already passed rather than stacking them", () => {
@@ -254,7 +277,7 @@ describe("buildTaskReminderNotifications", () => {
     ]);
     expect(out[0]!.title).toBe("Take meds");
     expect(out[0]!.body).toBe("Reminder");
-    expect(out[1]!.body).toBe("Asking again");
+    expect(out[1]!.body).toBe("Asking Again");
     expect(out[0]!.id).toBe(TASK_REMINDER_BASE);
   });
 
@@ -396,7 +419,7 @@ describe("a banner knows which item it is about (UP-PLAT-01)", () => {
       NOW,
       1,
     );
-    expect(out).toHaveLength(2); // the ping and its "Asking again"
+    expect(out).toHaveLength(2); // the ping and its "Asking Again"
     expect(out.map((o) => o.taskId)).toEqual(["t1", "t1"]);
   });
 });
@@ -532,7 +555,7 @@ describe("buildTaskReminderNotifications, the rebuilt fields", () => {
       new Date("2026-08-09T21:10:00"),
       new Date("2026-08-09T21:20:00"),
     ]);
-    expect(out.filter((n) => n.body === "Asking again")).toHaveLength(2);
+    expect(out.filter((n) => n.body === "Asking Again")).toHaveLength(2);
   });
   it("an explicit null follow-up is none, whatever onMiss says", () => {
     const out = buildTaskReminderNotifications([rem("r1", "Meds", { time: "21:00", onMiss: "nag", followUp: null })], TODAY, NOW, 1);
@@ -561,7 +584,7 @@ describe("buildTaskReminderNotifications, the settings", () => {
   it("a private reminder's banner carries no words of its own", () => {
     const out = buildTaskReminderNotifications([{ id: "r1", text: "Take the blue pill", reminder: { time: "21:00", onMiss: "let_go" }, sensitive: true }], TODAY, NOW, 1);
     expect(out[0]!.title).toBe("Health Reminder");
-    expect(out[0]!.body).toBe("Open JARVIS to see it");
+    expect(out[0]!.body).toBe("Open JARVIS to See It");
     expect(JSON.stringify(out)).not.toContain("blue pill");
   });
 });

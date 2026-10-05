@@ -85,8 +85,8 @@ describe("GymFlow: Delete Exercise on a hand-made exercise nobody used", () => {
     // Nothing is written by asking.
     expect(JSON.stringify(readGymSettings())).toBe(before);
     const sheet = await screen.findByRole("dialog", { name: "Delete Test Press" });
-    expect(within(sheet).getByText("It leaves your Exercises list")).toBeInTheDocument();
-    expect(within(sheet).getByText("It also clears its muscles and details, its favorite mark and its old names")).toBeInTheDocument();
+    expect(within(sheet).getByText("It Leaves Your Exercises List")).toBeInTheDocument();
+    expect(within(sheet).getByText("It Also Clears Its Muscles and Details, Its Favorite Mark and Its Old Names")).toBeInTheDocument();
 
     await act(async () => { fireEvent.click(within(sheet).getByRole("button", { name: "Delete Exercise" })); });
     await waitFor(() => expect(rowNamed("Test Press")).toBeNull());
@@ -130,7 +130,7 @@ describe("GymFlow: Delete Exercise on one that is only in programs", () => {
     await openMenu("Curl");
     fireEvent.click(screen.getByRole("button", { name: "Delete Exercise" }));
     const sheet = await screen.findByRole("dialog", { name: "Delete Curl" });
-    expect(within(sheet).getByText("Used in 1 program day")).toBeInTheDocument();
+    expect(within(sheet).getByText("Used in 1 Program Day")).toBeInTheDocument();
     await act(async () => { fireEvent.click(within(sheet).getByRole("button", { name: "Delete Exercise" })); });
     await waitFor(() => expect(rowNamed("Curl")).toBeNull());
     const after = await gym.listPrograms(true);
@@ -152,8 +152,8 @@ describe("GymFlow: Delete Exercise with logged history", () => {
     await openMenu("Bench Press");
     fireEvent.click(screen.getByRole("button", { name: "Delete Exercise" }));
     const sheet = await screen.findByRole("dialog", { name: "Delete Bench Press" });
-    expect(within(sheet).getByText("2 sessions, 6 sets")).toBeInTheDocument();
-    expect(within(sheet).getByText("1 Session left empty is removed")).toBeInTheDocument();
+    expect(within(sheet).getByText("2 Sessions, 6 Sets")).toBeInTheDocument();
+    expect(within(sheet).getByText("1 Session Left Empty Is Removed")).toBeInTheDocument();
     expect(within(sheet).getByRole("button", { name: "Archive Instead" })).toBeInTheDocument();
 
     await act(async () => { fireEvent.click(within(sheet).getByRole("button", { name: "Delete Exercise and Its History" })); });
@@ -187,7 +187,7 @@ describe("GymFlow: Delete Exercise with logged history", () => {
     await act(async () => { fireEvent.click(within(sheet).getByRole("button", { name: "Delete Exercise and Its History" })); });
     // The list has not lost it, no success is claimed, and the sheet says what landed.
     expect(await screen.findByText("Not Everything Saved")).toBeInTheDocument();
-    expect(screen.getByText("2 of 3 saved, Delete Exercise finishes the rest")).toBeInTheDocument();
+    expect(screen.getByText("2 of 3 Saved, Delete Exercise Finishes the Rest")).toBeInTheDocument();
     expect(toastWith(/Bench Press deleted/)).toBeUndefined();
     expect(readGymSettings().classByKey ?? {}).not.toHaveProperty("ek-bench");
 

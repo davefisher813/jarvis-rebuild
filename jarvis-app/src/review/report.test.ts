@@ -56,6 +56,8 @@ describe("the hero", () => {
     expect(r.hero.label).toBe("Things Moved");
     expect(r.hero.wins.map((w) => w.name)).toEqual(["Half Marathon", "Garage", "Put Away"]);
     expect(r.hero.wins[2]!.value).toBe("$1,200");
+    // A done project is a done thing: its word is Done, so the green tile and the word agree (never "Closed" on green).
+    expect(r.hero.wins.map((w) => w.value)).toEqual(["Achieved", "Done", "$1,200"]);
   });
 
   it("a month with no crossings leads with what got done, which is also true", () => {
@@ -70,7 +72,8 @@ describe("the hero", () => {
       seal: emptySeal("2026-08", { done: 41 }),
       prev: emptySeal("2026-07", { done: 30 }),
     }));
-    expect(withPrev.hero.anchor).toBe("July: 30");
+    // last month as a plain fact, its count white; never a pill with a typed colon (Dave 2026-10-05, the review)
+    expect(withPrev.hero.anchor).toBe("30 In July");
     expect(buildReport(inputs({ seal: emptySeal("2026-08", { done: 41 }) })).hero.anchor).toBeNull();
   });
 
@@ -81,23 +84,46 @@ describe("the hero", () => {
 });
 
 describe("tiles and deltas", () => {
-  it("zero tiles never render; down-deltas are muted facts, not red ones", () => {
+  it("zero tiles never render; down-deltas are muted facts that say what they are against", () => {
     const r = buildReport(inputs({
       seal: emptySeal("2026-08", { done: 84, sessions: 14, daysIn: 26, deposits: 9 }),
       prev: emptySeal("2026-07", { done: 72, sessions: 16, daysIn: 26, deposits: 11 }),
     }));
-    expect(r.tiles.map((t) => t.label)).toEqual(["Done", "Sessions", "Days In", "Deposits"]);
-    expect(r.tiles[0]!.delta).toEqual({ text: "+12 vs July", up: true });
-    expect(r.tiles[1]!.delta).toEqual({ text: "−2", up: false });
-    expect(r.tiles[2]!.delta).toEqual({ text: "Same", up: false });
+    // The hero already leads with the done count here (no crossings), so a Done tile would say the same number twice.
+    expect(r.hero.label).toBe("Things Done");
+    expect(r.tiles.map((t) => t.label)).toEqual(["Sessions", "Days Checked In", "Deposits"]);
+    // "-2" with nothing beside it was a number nobody could read; it names the month it is against.
+    expect(r.tiles[0]!.delta).toEqual({ text: "−2 Vs July", up: false });
+    // No change says nothing: a row with nothing to say shows nothing, so "Same" is not drawn.
+    expect(r.tiles[1]!.delta).toBeNull();
     const thin = buildReport(inputs({ seal: emptySeal("2026-08", { done: 3 }) }));
-    expect(thin.tiles.map((t) => t.label)).toEqual(["Done"]);
-    expect(thin.tiles[0]!.delta).toBeNull();
+    expect(thin.tiles).toEqual([]);
   });
 
-  it("deltaOf never invents a comparison", () => {
+  it("when the hero leads with crossings, the Done tile is drawn, with its rise against last month", () => {
+    const r = buildReport(inputs({
+      seal: emptySeal("2026-08", { done: 84 }),
+      prev: emptySeal("2026-07", { done: 72 }),
+      goals: [goal("Half Marathon", { achievedOn: "2026-08-14", state: "achieved" })],
+    }));
+    expect(r.tiles.map((t) => t.label)).toEqual(["Done"]);
+    expect(r.tiles[0]!.delta).toEqual({ text: "+12 Vs July", up: true });
+  });
+
+  it("a month still being lived compares nothing (a number in progress is only going to shrink the page's mood)", () => {
+    const r = buildReport(inputs({
+      seal: emptySeal("2026-08", { sessions: 3 }),
+      prev: emptySeal("2026-07", { sessions: 16 }),
+      stillOpen: true,
+    }));
+    expect(r.tiles[0]!.delta).toBeNull();
+  });
+
+  it("deltaOf never invents a comparison, and says nothing when nothing changed", () => {
     expect(deltaOf(5, null, "July")).toBeNull();
-    expect(deltaOf(5, 5, "July")).toEqual({ text: "Same", up: false });
+    expect(deltaOf(5, 5, "July")).toBeNull();
+    expect(deltaOf(4, 6, "July")).toEqual({ text: "−2 Vs July", up: false });
+    expect(deltaOf(4, 6, null)).toEqual({ text: "−2", up: false });
   });
 });
 
@@ -108,7 +134,7 @@ describe("worth a look", () => {
       openTaskText: (id) => (id === "a" ? "Update insurance docs" : null),
     }));
     const carried = r.worth.find((w) => w.id === "carried")!;
-    expect(carried.title).toBe("1 Followed You All Month");
+    expect(carried.title).toBe("1 Task Followed You All Month");
     expect(carried.carried).toEqual([{ id: "a", text: "Update insurance docs", n: 7 }]);
   });
 
@@ -123,7 +149,7 @@ describe("worth a look", () => {
     // line's one grey with its count white (§AK, §AM; 2026-09-26).
     expect(quiet.sub).toEqual([
       { text: "2 This Month", tone: "warn" },
-      { text: "11 in July", parts: [{ b: "11" }, " in July"] },
+      { text: "11 In July", parts: [{ b: "11" }, " In July"] },
     ]);
     // No prior month, no quiet card: absence of evidence stays silent.
     const noPrev = buildReport(inputs({ seal: emptySeal("2026-08", { byCategory: { home: 2 } }) }));
@@ -156,7 +182,8 @@ describe("patterns", () => {
     const r = buildReport(inputs({ seal: strong }));
     const p = r.patterns.find((x) => x.id === "picks")!;
     expect(p.title).toBe("First Picks Finish");
-    expect(p.sub![0]!.text).toBe("Firsts 78%, Later Picks 20%");
+    expect(p.sub![0]!.text).toBe("Firsts 78%");
+    expect(p.sub![1]!.text).toBe("Later Picks 20%");
     // Thin months stay silent.
     const thin = buildReport(inputs({ seal: emptySeal("2026-08", { byPick: [{ n: 1, picked: 3, done: 3 }] }) }));
     expect(thin.patterns.find((x) => x.id === "picks")).toBeUndefined();
@@ -173,11 +200,29 @@ describe("patterns", () => {
     expect(j.off).toBeCloseTo(2, 1);
   });
 
-  it("the slip row reuses the seal's shared leader and wears a warn chip", () => {
+  // NO PILL IN A ROW (Dave 2026-10-05, locked): the count is the row's one fact, in the one grey with its number white. Nothing
+  // here is due, so there is no amber either.
+  it("the slip row reuses the seal's shared leader; its count is a plain fact, never a chip", () => {
     const r = buildReport(inputs({ seal: emptySeal("2026-08", { slip: { category: "work", n: 11 } }) }));
     const s = r.patterns.find((x) => x.id === "slip")!;
     expect(s.title).toBe("Work Slips Most");
-    expect(s.chip).toEqual({ text: "11 Pushes", tone: "warn" });
+    expect(s.sub).toEqual([{ text: "11 Pushes", parts: [{ b: "11" }, " Pushes"] }]);
+    expect("chip" in s).toBe(false);
+  });
+
+  it("no pattern row carries a chip: a rise is the line's one green fact", () => {
+    const done = {
+      "2026-08-03": 4, "2026-08-05": 5, "2026-08-07": 4,
+      "2026-08-04": 2, "2026-08-06": 2, "2026-08-08": 2,
+    };
+    const r = buildReport(inputs({
+      seal: emptySeal("2026-08", { doneByDay: done, slip: { category: "work", n: 11 } }),
+      workouts: [workout("2026-08-03"), workout("2026-08-05"), workout("2026-08-07")],
+    }));
+    const train = r.patterns.find((x) => x.id === "train")!;
+    expect(train.sub!.map((f) => f.text)).toEqual(["4.3 Train", "2.0 Other", "+117%"]);
+    expect(train.sub![2]!.tone).toBe("good");
+    for (const row of r.patterns) expect("chip" in row).toBe(false);
   });
 });
 
@@ -185,7 +230,8 @@ describe("the close", () => {
   it("learned shows its retractions, which is the anti-horoscope device", () => {
     const r = buildReport(inputs({ seal: emptySeal("2026-08", { strands: { created: 4, corrected: 1, deleted: 0 } }) }));
     expect(r.learned!.title).toBe("Learned 4 Things About You");
-    expect(r.learned!.sub![0]!.text).toBe("You Fixed 1, It Is Gone");
+    expect(r.learned!.sub![0]!.text).toBe("You Fixed 1");
+    expect(r.learned!.sub![1]!.text).toBe("Gone for Good");
   });
 
   it("the closer appears once, only on evidence, and never when already capped", () => {
@@ -239,7 +285,7 @@ describe("the life cards", () => {
     expect(m.exit.kind).toBe("email");
     // A gentle wait is not said; the drafts fact is then the green.
     const calm = buildReport(inputs({ seal: emptySeal("2026-08", { mail: { handled: 4, waitDays: 3 }, deck: { sent: 2, asWritten: 2 } }) }));
-    expect(calm.life.find((c) => c.id === "mail")!.facts).toEqual([{ text: "2 of 2 Drafts Sent Unedited", tone: "good" }]);
+    expect(calm.life.find((c) => c.id === "mail")!.facts).toEqual([{ text: "2 of 2 Drafts Unedited", tone: "good" }]);
     // Firm is red.
     expect(waitFact(21)).toEqual({ text: "Waiting 21 Days on a Reply", tone: "red" });
     expect(waitFact(6)).toBeNull();
@@ -279,5 +325,29 @@ describe("the life cards", () => {
     expect(r.life.map((c) => c.id)).toEqual(["money", "mail", "people", "health", "decisions"]);
     for (const c of r.life) expect(c.exit.label).toMatch(/^(Open |Check In)/);
     expect(r.closer).toBeNull();
+  });
+});
+
+// THE GREEN RISE IS NEVER CUT (the ship-blocker review, 2026-10-05: "4.0 Train Days . 2.0 Other Days . +10..."). The long form
+// took the whole line at 390px, so the rise ended in an ellipsis. The row's title already says "Days"; the facts are short, and the
+// stylesheet gives a report line's keyed fact its width before any grey one gives way.
+describe("the Train Days Win pattern row", () => {
+  it("reads short enough that the rise fits, and the stylesheet never cuts a keyed fact", async () => {
+    const done = { "2026-08-03": 4, "2026-08-05": 5, "2026-08-07": 4, "2026-08-04": 2, "2026-08-06": 2, "2026-08-08": 2 };
+    const r = buildReport(inputs({
+      seal: emptySeal("2026-08", { doneByDay: done }),
+      workouts: [workout("2026-08-03"), workout("2026-08-05"), workout("2026-08-07")],
+    }));
+    const train = r.patterns.find((x) => x.id === "train")!;
+    const line = train.sub!.map((f) => f.text).join(" ");
+    expect(line).not.toMatch(/Days/);
+    expect(line.length).toBeLessThanOrEqual(28);
+    expect(train.sub![2]).toEqual({ text: "+117%", tone: "good" });
+    const { readFileSync } = await import("node:fs");
+    const { join } = await import("node:path");
+    const css = readFileSync(join(__dirname, "../styles/components.css"), "utf8");
+    // Two classes on the line, so the ladder's .facts > .fact:last-child (the same weight, later in the sheet) cannot undo it.
+    expect(css).toMatch(/\.facts\.rep-facts > \.fact:last-child \{ overflow: visible; white-space: normal; text-overflow: clip; \}/);
+    expect(css).toMatch(/\.facts\.rep-facts > \.fact\.good[^{]*\{ flex-shrink: 0;/);
   });
 });

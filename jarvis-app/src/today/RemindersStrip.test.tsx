@@ -3,6 +3,7 @@ import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import RemindersStrip from "./RemindersStrip";
+import { loneActionBoxes } from "../laws/catalogCheck";
 import type { ReminderView } from "../tasks/reminders";
 
 const view = (id: string, time: string, over: Partial<ReminderView> = {}): ReminderView => ({
@@ -30,7 +31,7 @@ describe("RemindersStrip: the next three and one Missed row", () => {
     expect(screen.queryByText("Vitamin D")).toBeNull();
   });
 
-  it("the Missed row opens the sheet; one tap ticks a reminder; Ask Again is its one capsule", () => {
+  it("the Missed row opens the sheet; one tap ticks a reminder; Ask Again is its one quiet word, not a capsule", () => {
     const onTickMissed = vi.fn();
     const onAskAgain = vi.fn();
     const { container } = render(<RemindersStrip items={next} missed={missed} onTickMissed={onTickMissed} onAskAgainMissed={onAskAgain} />);
@@ -38,6 +39,8 @@ describe("RemindersStrip: the next three and one Missed row", () => {
     expect(screen.getByText("Missed Reminders")).toBeInTheDocument();
     const rows = document.querySelectorAll(".sheet-scrim .rem-tick-row");
     expect(rows).toHaveLength(2);
+    expect(document.querySelectorAll(".sheet-scrim .pill-act"), "no capsule on a row").toHaveLength(0);
+    expect(document.querySelectorAll(".sheet-scrim .row-ctx")).toHaveLength(2);
     expect(screen.getAllByRole("button", { name: "Ask Again" })).toHaveLength(2);
     fireEvent.click(screen.getAllByRole("button", { name: "Ask Again" })[0]!);
     expect(onAskAgain).toHaveBeenCalledWith("vitamin-d");
@@ -59,5 +62,26 @@ describe("RemindersStrip: the next three and one Missed row", () => {
   it("with nothing missed there is no count row", () => {
     const { container } = render(<RemindersStrip items={next} missed={[]} />);
     expect(container.querySelector(".rem-missed-row")).toBeNull();
+  });
+});
+
+// AN ACTION NEVER SITS ALONE IN A BOX (Dave 2026-10-05: "The button should stand on its own, no box around it").
+describe("RemindersStrip: with no reminders, Add a Reminder is a capsule on its own", () => {
+  it("draws no card at all, and the capsule is the same one as Add All to Calendar", () => {
+    const onAdd = vi.fn();
+    const { container } = render(<RemindersStrip items={[]} missed={[]} onAdd={onAdd} />);
+    expect(container.querySelector(".card")).toBeNull();
+    const btn = screen.getByText("Add a Reminder").closest("button")!;
+    expect(btn).toHaveClass("row-act");
+    expect(btn.parentElement).toHaveClass("notice-clear-row");
+    expect(loneActionBoxes(container)).toEqual([]);
+    fireEvent.click(btn);
+    expect(onAdd).toHaveBeenCalledTimes(1);
+  });
+
+  it("with reminders the card is back and the head carries Add", () => {
+    const { container } = render(<RemindersStrip items={[view("take-meds", "08:00")]} missed={[]} onAdd={() => {}} />);
+    expect(container.querySelector(".card")).not.toBeNull();
+    expect(screen.queryByText("Add a Reminder")).toBeNull();
   });
 });

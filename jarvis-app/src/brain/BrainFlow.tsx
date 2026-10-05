@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import BrainPage, { type BrainCategory } from "./BrainPage";
+import type { TopMemo } from "./BrainTop";
 import { useCategories } from "../data/NotesProvider";
 import { useFreshLists } from "../data/useFreshLists";
 import { ENTITY_CATEGORY } from "../categories/types";
@@ -16,6 +17,7 @@ import StrandsPage from "./strands/StrandsPage";
 // nothing already saved goes invisible, and no screen looks new).
 import TriageScreen from "./manual/TriageScreen";
 import { usePushDepth } from "../shared/pushNav";
+import { useNavOrigin } from "../shell/navOrigin";
 import { effectiveKind } from "../categories/kinds";
 
 const DOC_TOPIC: Record<string, string> = {
@@ -48,6 +50,8 @@ export default function BrainFlow({ openKey, openNonce, onKeyConsumed, routineBl
   /** Push D: open the health area with this log (a ShortcutKey) already open. */
   healthLogKey?: string; healthLogNonce?: number; onHealthLogConsumed?: () => void } = {}) {
   const cats = useCategories();
+  // The hub's last read, kept here because the hub itself is unmounted while a page is open over it.
+  const topMemo = useRef<TopMemo>({}).current;
   const [categories, setCategories] = useState<BrainCategory[]>([]);
   const [open, setOpen] = useState<{ key: string; name: string } | null>(
     openKey ? { key: openKey, name: "" } : null,
@@ -76,8 +80,9 @@ export default function BrainFlow({ openKey, openNonce, onKeyConsumed, routineBl
     if (!openKey) return;
     setOpen({ key: openKey, name: "" });
     setPersonId(undefined);
+    markJumped();
     onKeyConsumed?.();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [openKey, openNonce]);
 
   // Whether the category list has ARRIVED, which is not the same question as
@@ -136,11 +141,30 @@ export default function BrainFlow({ openKey, openNonce, onKeyConsumed, routineBl
   useEffect(() => {
     if (!healthLogKey || !catsLoaded) return;
     const cat = categories.find((c) => c.kind === "health");
-    if (cat) setOpen({ key: cat.id, name: cat.name });
+    if (cat) { setOpen({ key: cat.id, name: cat.name }); markJumped(); }
     else onHealthLogConsumed?.();
   }, [healthLogKey, healthLogNonce, catsLoaded, categories, onHealthLogConsumed]);
 
   const pushCls = usePushDepth(open ? 1 : 0);
+
+  // THE WAY HOME FROM A PAGE A JUMP OPENED (Alfred 2026-10-04: a floating "< Life" over Your Routine on the hub).
+  // Life > Areas > Health, a search hit, a notice's Open: each is a cross-tab jump, and the shell keeps where it came
+  // from (shell/navOrigin) and draws a return pill above the dock for as long as that page is open. That is the design,
+  // and it is right ON the page the jump opened. The fault was after it: the page's own back closes to the hub and the
+  // origin stayed live, so the pill floated over the hub's last row with no page left for it to be the way home from.
+  // The root fix is that a page the jump opened RELEASES the origin when it closes to the hub (nav.clear), rather than
+  // hiding it while this flow is mounted. A page opened by a tap inside the hub never marks itself jumped, so it can
+  // never end an origin it did not open.
+  const nav = useNavOrigin();
+  const jumpedRef = useRef(false);
+  const markJumped = () => { jumpedRef.current = true; };
+  const { clear: clearOrigin } = nav;
+  const closeToHub = () => {
+    setOpen(null);
+    if (!jumpedRef.current) return;
+    jumpedRef.current = false;
+    clearOrigin();
+  };
 
   const detail = (() => {
     if (!open) return null;
@@ -152,7 +176,7 @@ export default function BrainFlow({ openKey, openNonce, onKeyConsumed, routineBl
           onOpenConsumed={() => { setTopFact(null); onFactConsumed?.(); }}
           initialFilter={knowsFilter}
           focusReadinessKey={knowsFocusKey}
-          onBack={() => { setKnowsFilter(undefined); setKnowsFocusKey(undefined); setOpen(null); }}
+          onBack={() => { setKnowsFilter(undefined); setKnowsFocusKey(undefined); closeToHub(); }}
         />
       );
     }
@@ -160,33 +184,33 @@ export default function BrainFlow({ openKey, openNonce, onKeyConsumed, routineBl
       // The report's cards exit to the places they count (2026-09-26, the
       // pass-off): a person, a category, Money, Email. Same doors the rest
       // of Brain already hands its pages.
-      return <InsightsFlow onBack={() => setOpen(null)} onOpenTask={onOpenEntity ? (id) => onOpenEntity("task", id) : undefined}
+      return <InsightsFlow onBack={() => closeToHub()} onOpenTask={onOpenEntity ? (id) => onOpenEntity("task", id) : undefined}
         onOpenEntity={onOpenEntity} onOpenMoney={onOpenMoney} onOpenEmail={onOpenEntity ? () => onOpenEntity("email", "") : undefined} />;
     }
     if (open.key === "routine") {
-      return <RoutineFlow onBack={() => setOpen(null)} focusId={routineBlockId} onFocusConsumed={onRoutineBlockConsumed} />;
+      return <RoutineFlow onBack={() => closeToHub()} focusId={routineBlockId} onFocusConsumed={onRoutineBlockConsumed} />;
     }
     if (open.key === "aihub") {
       // THE AI HUB (docs/jarvis-unified, slice 04). Its Email door is the
       // shell's own email entity route; its records open their owning module.
-      return <HubFlow onBack={() => setOpen(null)} onOpenEntity={onOpenEntity} onOpenEmail={onOpenEntity ? () => onOpenEntity("email", "") : undefined} />;
+      return <HubFlow onBack={() => closeToHub()} onOpenEntity={onOpenEntity} onOpenEmail={onOpenEntity ? () => onOpenEntity("email", "") : undefined} />;
     }
     if (open.key === "decisions") {
       return <DecisionsFlow openId={decisionOpenId} openNonce={decisionNonce} onOpenConsumed={onDecisionConsumed}
-        onOpenSource={onOpenEntity} onBack={() => setOpen(null)} />;
+        onOpenSource={onOpenEntity} onBack={() => closeToHub()} />;
     }
     if (open.key === "contacts") {
       // BRAIN-F-04: an explicit tap (personId, set by a person row on an area
       // page) wins over a link, which is spent the moment PeopleFlow opens it.
       return <PeopleFlow openId={personId ?? personOpenId} openNonce={personNonce} onOpenConsumed={onPersonConsumed} onOpenNote={onOpenNote} onOpenItem={onOpenEntity}
-        onOpenTriage={() => setOpen({ key: "triage", name: "Sort Your Contacts" })} onBack={() => { setPersonId(undefined); setOpen(null); }} />;
+        onOpenTriage={() => setOpen({ key: "triage", name: "Sort Your Contacts" })} onBack={() => { setPersonId(undefined); closeToHub(); }} />;
     }
     if (open.key === "triage") {
       return <TriageScreen onBack={() => setOpen({ key: "contacts", name: "Contacts" })} />;
     }
     const topic = DOC_TOPIC[open.key];
     if (topic) {
-      return <BrainDocPage topic={topic} onBack={() => setOpen(null)} />;
+      return <BrainDocPage topic={topic} onBack={() => closeToHub()} />;
     }
     const cat = categories.find((c) => c.id === open.key);
     if (cat) {
@@ -195,7 +219,7 @@ export default function BrainFlow({ openKey, openNonce, onKeyConsumed, routineBl
       return (
         <CategoryDetail
           categoryId={cat.id}
-          onBack={() => setOpen(null)}
+          onBack={() => closeToHub()}
           onOpenNote={onOpenNote}
           onOpenProject={onOpenProject}
           onOpenPerson={(id) => { setPersonId(id); setOpen({ key: "contacts", name: "Contacts" }); }}
@@ -227,6 +251,7 @@ export default function BrainFlow({ openKey, openNonce, onKeyConsumed, routineBl
         onOpenFact={(id) => { setTopFact((t) => ({ id, nonce: (t?.nonce ?? 0) + 1 })); setOpen({ key: "knows", name: "What JARVIS Knows" }); }}
         onOpenWatching={(key) => { setKnowsFilter("watching"); setKnowsFocusKey(key); setOpen({ key: "knows", name: "What JARVIS Knows" }); }}
         categories={categories}
+        memo={topMemo}
       />
     </div>
   );

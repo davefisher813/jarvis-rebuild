@@ -186,6 +186,6 @@ export function paydayLine(
   const when = dayPhrase(payday, today);
   return {
     title: lineCase(`Between now and ${when === "Today" ? "payday (today)" : when}`),
-    sub: lineCase(`${formatMoney(p.amount)} in, ${formatMoney(out)} of bills out`),
+    sub: lineCase(`${formatMoney(p.amount)} coming in, ${formatMoney(out)} of bills out`),
   };
 }

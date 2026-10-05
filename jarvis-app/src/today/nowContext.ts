@@ -6,7 +6,7 @@
 import type { EventItem } from "../schedule/types";
 import type { LockedRange } from "./YourDay";
 import { leaveByOf } from "../schedule/leaveBy";
-import { lineCase } from "../shared/casing";
+import { lineCase, titleCase } from "../shared/casing";
 import { minutesLabel, spanLabel } from "../shared/duration";
 
 export interface NowContext {
@@ -70,7 +70,7 @@ export function nowContext(events: EventItem[], locked: LockedRange[], nowHHMM: 
   // slot is next: the thing you have to drive to may be the second event of
   // the afternoon, and the leaving is what has to be said out loud.
   const nextLeave = events
-    .map((ev) => ({ at: leaveByOf(ev.data), title: ev.data.title }))
+    .map((ev) => ({ at: leaveByOf(ev.data), title: titleCase(ev.data.title) }))
     .filter((x): x is { at: string; title: string } => !!x.at && toMin(x.at) > now)
     .sort((a, b) => toMin(a.at) - toMin(b.at))[0] ?? null;
   type Slot = { s: number; e: number; title: string };
@@ -78,7 +78,9 @@ export function nowContext(events: EventItem[], locked: LockedRange[], nowHHMM: 
     ...events.map((ev) => ({
       s: toMin(ev.data.start),
       e: ev.data.end ? toMin(ev.data.end) : toMin(ev.data.start) + 60,
-      title: ev.data.title,
+      // HIS TYPED TITLE IN THE APP'S TITLE CASE, like every row that shows it (2026-10-05, the review: "In: Call With Nadia" on
+      // Now beside "Call with Nadia" on the day). The record keeps what he typed.
+      title: titleCase(ev.data.title),
     })),
     ...locked.map((l) => ({ s: l.s, e: l.e, title: l.label })),
   ].sort((a, b) => a.s - b.s);
@@ -97,7 +99,7 @@ export function nowContext(events: EventItem[], locked: LockedRange[], nowHHMM: 
 
   const next = slots.find((s) => s.s > now);
   if (!next) {
-    return { head: "Clear From Here", tail: null, gapMin: null, nextStart: null, nextTitle: null, nextLeave };
+    return { head: "Clear from Here", tail: null, gapMin: null, nextStart: null, nextTitle: null, nextLeave };
   }
   const gap = next.s - now;
   // UP-CORE-07: when the next thing has to be travelled to, the free window
@@ -233,9 +235,13 @@ export function hyperfocusGuard(events: EventItem[], nowHHMM: string): GuardLine
   const next = events
     .map((ev) => {
       const leave = leaveByOf(ev.data);
+      // THE TITLE IS SHOWN THE WAY EVERY ROW SHOWS IT (2026-10-05, the review: Focus said "Call With Nadia at 10 AM" while the
+      // Schedule row said "Call with Nadia"): his typed title in Title Case, which keeps a small word small. The record keeps
+      // what he typed.
+      const shown = titleCase(ev.data.title);
       return leave
-        ? { s: toMin(leave), title: ev.data.title, leaving: true }
-        : { s: toMin(ev.data.start), title: ev.data.title, leaving: false };
+        ? { s: toMin(leave), title: shown, leaving: true }
+        : { s: toMin(ev.data.start), title: shown, leaving: false };
     })
     .filter((x) => x.s > now)
     .sort((a, b) => a.s - b.s)[0];

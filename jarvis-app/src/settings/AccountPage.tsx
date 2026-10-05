@@ -10,6 +10,7 @@ import { showToast } from "../shared/toast";
 import RowActionSheet from "../shared/RowActionSheet";
 import { avatarFromFile, announceAvatar } from "../profile/avatarPhoto";
 import ChangePasswordSheet from "./ChangePasswordSheet";
+import { Camera } from "../shared/icons";
 
 export default function AccountPage({ onBack, onEditProfile, onSignOut }: { onBack: () => void; onEditProfile?: () => void; onSignOut?: () => void }) {
   const svc = useProfile();
@@ -93,7 +94,11 @@ export default function AccountPage({ onBack, onEditProfile, onSignOut }: { onBa
     if (!(await savePhoto(""))) return;
     showToast({ message: "Photo Removed", actionLabel: "Undo", onAction: () => { void savePhoto(was); } });
   };
-  const initial = (p?.name?.trim()?.[0] ?? "?").toUpperCase();
+  // NO NAME YET IS NOT A "?" (2026-10-05, Dave "he opens the app and finds nothing": a solid red disc with a white question mark
+  // over "Your Name" read as an unfinished template). With no photo and no name the disc is a quiet neutral one wearing a camera
+  // (it is still the tap that opens the photo sheet), and the name line is the one action that fills it.
+  const named = !!p?.name?.trim();
+  const initial = (p?.name?.trim()?.[0] ?? "").toUpperCase();
   const tmpl = p?.template ? p.template[0]!.toUpperCase() + p.template.slice(1) : "Personal";
   return (
     <div className="screen ruled">
@@ -101,15 +106,19 @@ export default function AccountPage({ onBack, onEditProfile, onSignOut }: { onBa
       <div className="pad-x"><div className="card list-card-ruled set-card account-hero">
         <button type="button" className="account-av" aria-haspopup="dialog"
           aria-label={photo ? "Change profile photo" : "Add profile photo"} onClick={() => setPhotoSheet(true)}>
-          <div className="av av-72 av-accent">{photo ? <img className="av-photo" src={photo} alt="" /> : initial}</div>
+          <div className={"av av-72 " + (photo || named ? "av-accent" : "av-empty")}>{photo ? <img className="av-photo" src={photo} alt="" /> : named ? initial : <Camera className="ic" aria-hidden="true" />}</div>
         </button>
         <input ref={fileRef} type="file" accept="image/*" hidden aria-label="Profile photo"
           onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; void onFile(f); }} />
-        <div className="account-name">{p?.name || "Your name"}</div>
-        <div className="account-sub">{`${tmpl} plan`}</div>
+        {named
+          ? <div className="account-name">{p?.name}</div>
+          : onEditProfile && <button type="button" className="account-set-name" onClick={onEditProfile}>Add Your Name</button>}
+        {/* CATALOG PASS (2026-10-05, Dave "I am sick of this"): Title Case on
+            every grey line the app writes, so "Personal plan" is "Personal Plan". */}
+        <div className="account-sub">{`${tmpl} Plan`}</div>
       </div></div>
-      <Head label="Account" />
-      <Card>
+      {/* No "Account" head here (2026-10-05): it repeated the page title directly above it. */}
+      <div className="set-gap"><Card>
         {onEditProfile && <Row label="Edit Profile" onClick={onEditProfile} chev />}
         {backendConfigured && <Row label="Change Password" onClick={() => setPasswordSheet(true)} chev />}
         <Row label="Template" value={tmpl} />
@@ -118,8 +127,14 @@ export default function AccountPage({ onBack, onEditProfile, onSignOut }: { onBa
             the no-backend local/demo build (App.tsx), where there is no
             account to be active, so the honest value follows the same signal
             BackupPage uses. */}
-        <Row label="Status" value={backendConfigured ? "Active" : "Local"} />
-        <Row label={redoArmed ? "Tap again to redo setup" : "Redo Setup"} meta={redoArmed ? "Your data stays" : undefined} chev
+        {/* 2026-10-05: an account that is active is on track, so the key draws
+            it green (the way Backup draws sync On); Local is a plain fact. */}
+        <Row label="Status" value={backendConfigured ? <span className="fact good">Active</span> : "Local"} />
+        {/* THE ARMED STEP LOOKS ARMED, AND THE ROW NEVER CHANGES HEIGHT (2026-10-05, the round 2 review: this row reserved a second line it
+            was not drawing, so it stood 67px among 48px siblings with its title floating mid-row). The reassurance is now the row's
+            own grey line, there before the first tap and after it, so nothing grows when the row arms; the title takes the confirm amber. */}
+        <Row label={redoArmed ? "Tap Again to Redo Setup" : "Redo Setup"} meta="Your Data Stays" chev
+          className={redoArmed ? "set-armed" : undefined}
           onClick={async () => {
             if (!redoArmed) { setRedoArmed(true); return; }
             // SHELL-F-14 (2026-09-05): this write had no catch, so a failed
@@ -129,11 +144,11 @@ export default function AccountPage({ onBack, onEditProfile, onSignOut }: { onBa
             if (!ok) return;
             window.location.reload();
           }} />
-      </Card>
+      </Card></div>
       {onSignOut && (
         <div className="set-gap"><Card>
           <DangerRow
-            label={signOutArmed ? "Tap Again to Sign Out" : "Sign Out"}
+            label={signOutArmed ? "Tap Again to Sign Out" : "Sign Out"} armed={signOutArmed}
             onClick={() => { if (!signOutArmed) { setSignOutArmed(true); return; } onSignOut(); }}
           />
         </Card></div>
@@ -142,12 +157,12 @@ export default function AccountPage({ onBack, onEditProfile, onSignOut }: { onBa
         <div className="set-gap">
           <Card>
             <DangerRow
-              label={deleteBusy ? "Deleting..." : deleteArmed ? "Tap Again to Delete Account" : "Delete Account"}
+              label={deleteBusy ? "Deleting..." : deleteArmed ? "Tap Again to Delete Account" : "Delete Account"} armed={deleteArmed}
               onClick={() => void runDelete()}
               disabled={deleteBusy}
             />
           </Card>
-          {deleteArmed && <Foot><span className="slip-warn">Permanent · Every note, task and event is erased</span></Foot>}
+          {deleteArmed && <Foot><span className="slip-warn">Permanent, and every note, task and event is erased</span></Foot>}
           {deleteError && <Foot><span className="slip-warn">{deleteError}</span></Foot>}
         </div>
       )}

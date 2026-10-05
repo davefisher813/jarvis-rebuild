@@ -87,7 +87,7 @@ describe("the banner carries its buttons and its item (UP-PLAT-01)", () => {
   const NOW2 = new Date("2026-08-09T08:00:00").getTime();
 
   // THE REMINDERS REBUILD (push C): a reminder banner carries the reminder's
-  // own three actions (Open, Done, Snooze 15m), not the task pair.
+  // own three actions (Open, Done, Snooze 15 Min), not the task pair.
   it("a task reminder is scheduled with the reminder action type and the task id", async () => {
     checkPermissions.mockResolvedValue({ display: "granted" });
     await ensureTaskReminders([{ id: "t7", text: "Meds", reminder: { time: "21:00" } }], "2026-08-09", NOW2);
@@ -121,6 +121,19 @@ describe("the banner carries its buttons and its item (UP-PLAT-01)", () => {
     // source string.
     expect(task?.actions.map((a) => a.title)).toEqual(["Done", "Tomorrow"]);
     expect(arg.types.find((t) => t.id === EVENT_ACTION_TYPE)?.actions[0]?.title).toBe("Open");
+  });
+
+  // THE CATALOG HARD GATE (Dave 2026-10-05): a lock-screen button is a line the
+  // app writes. The reminder's own snooze said "Snooze 15m", the fused minute
+  // every duration is spelled out of ("15 Min", shared/duration.ts).
+  it("every lock-screen button is Title Case and spells its minutes", () => {
+    const arg = registerActionTypes.mock.calls[0]![0] as { types: { id: string; actions: { id: string; title: string }[] }[] };
+    const titles = arg.types.flatMap((t) => t.actions.map((a) => a.title));
+    expect(titles).toContain("Snooze 15 Min");
+    for (const title of titles) {
+      expect(title, title).not.toMatch(/\b\d+m\b/);
+      expect(title.split(" ").every((w) => /^[A-Z0-9]/.test(w) || ["to", "of", "in", "for", "the", "a"].includes(w)), title).toBe(true);
+    }
   });
 
   it("a check-in carries no action type: there is nothing on it to tick", async () => {

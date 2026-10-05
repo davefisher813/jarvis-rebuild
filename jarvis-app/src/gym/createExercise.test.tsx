@@ -144,11 +144,14 @@ describe("the Exercises page can make one", () => {
     cleanup();
   });
 
-  // "The add exercise option should be at the top of the page not the bottom."
-  it("leads the list rather than following thirty-two rows of it", () => {
+  // "The add exercise option should be at the top of the page not the bottom." AMENDED 2026-10-05 (Dave, locked): it is the
+  // head's capsule, above the list and never a row inside the card.
+  it("is the list head's capsule, not a row inside the card", () => {
     const { container } = render(<LibraryPage {...base} rows={[row(), row({ key: "k2", name: "Squat" })]} onCreate={() => {}} />);
-    const card = container.querySelector(".list-card-ruled")!;
-    expect(card.firstElementChild, "Add Exercise is not the first thing in the list").toHaveClass("row-create");
+    const add = screen.getByRole("button", { name: "Add Exercise" });
+    expect(add.closest(".sh2"), "Add Exercise lives in the head").not.toBeNull();
+    expect(add.closest(".card")).toBeNull();
+    expect(container.querySelector(".list-card-ruled .row-create")).toBeNull();
     cleanup();
   });
 });

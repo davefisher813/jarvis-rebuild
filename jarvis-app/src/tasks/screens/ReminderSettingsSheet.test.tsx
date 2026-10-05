@@ -21,6 +21,16 @@ describe("ReminderSettingsSheet", () => {
     expect(onSave).toHaveBeenCalledWith({ quietHours: true, quietFrom: "22:00", quietTo: "08:00", defaultFollowUp: true, privateAlerts: true }, "07:00");
     expect(window.localStorage.getItem("jarvis.reminders.morning.v1")).toBe("07:00");
   });
+  // 2026-10-04: the note said follow-ups "wait until quiet hours end" and that
+  // in-app prompts wait too. A follow-up inside the window is skipped, never
+  // deferred, and no in-app prompt reads the setting.
+  it("the Quiet Hours note says a follow-up in the window is skipped, and promises nothing about prompts or waiting", () => {
+    render(<ReminderSettingsSheet initial={DEFAULT_REMINDER_PREFS} native={true} permission="granted" onSave={() => {}} onCancel={() => {}} />);
+    expect(screen.getByText(/Follow-Up That Would Land in Quiet Hours Is Skipped/)).toBeInTheDocument();
+    expect(screen.getByText(/A Reminder's Own Alert Still Rings/)).toBeInTheDocument();
+    expect(screen.queryByText(/in-app prompts/i)).toBeNull();
+    expect(screen.queryByText(/wait/i)).toBeNull();
+  });
   it("on the web there is no test row and the note says why; on the phone the row sends", () => {
     const onTest = vi.fn();
     const r = render(<ReminderSettingsSheet initial={DEFAULT_REMINDER_PREFS} native={false} permission="unsupported" onSave={() => {}} onTest={onTest} onCancel={() => {}} />);

@@ -75,10 +75,10 @@ describe("planDelete: three situations, counted from the records", () => {
     const plan = planDelete({ row: row("Face Pull", "ek-face"), workouts, programs });
     expect(plan.tier).toBe("programs");
     expect(plan.programDays).toBe(1);
-    expect(programLine(plan)).toBe("Used in 1 program day");
+    expect(programLine(plan)).toBe("Used in 1 Program Day");
     const bench = planDelete({ row: row("Bench Press", "ek-bench"), workouts, programs });
     expect(bench.programDays).toBe(2); // p1 day 0 and the archived p0 day 0
-    expect(programLine(bench)).toBe("Used in 2 program days");
+    expect(programLine(bench)).toBe("Used in 2 Program Days");
   });
 
   it("one with logged history is 'history', with sessions, sets and the sessions it would empty", () => {
@@ -87,12 +87,12 @@ describe("planDelete: three situations, counted from the records", () => {
     expect(plan.sessions).toBe(2);
     expect(plan.sets).toBe(7);
     expect(plan.emptied).toBe(1);
-    expect(historyLine(plan)).toBe("2 sessions, 7 sets");
+    expect(historyLine(plan)).toBe("2 Sessions, 7 Sets");
   });
 
   it("says 1 session, 1 set in the singular", () => {
     const plan = planDelete({ row: row("Curl", "ek-curl"), workouts: [workout("w", "2026-09-01", [wex("Curl", "ek-curl", 1)])], programs: [] });
-    expect(historyLine(plan)).toBe("1 session, 1 set");
+    expect(historyLine(plan)).toBe("1 Session, 1 Set");
   });
 
   it("skipped sets are not counted as sets", () => {
@@ -114,23 +114,33 @@ describe("the sheet's words come from the plan", () => {
   it("unused: only the list, and the saved details that exist", () => {
     const settings = { ...DEFAULT_GYM_SETTINGS, favoriteKeys: ["ek-test"], aliases: { "ek-test": ["Old"] } };
     const plan = planDelete({ row: row("Test Press", "ek-test"), workouts, programs, settings });
-    expect(goesLines(plan)).toEqual(["It leaves your Exercises list", "It also clears its favorite mark and its old names"]);
+    expect(goesLines(plan)).toEqual(["It Leaves Your Exercises List", "It Also Clears Its Favorite Mark and Its Old Names"]);
   });
 
   it("history: names the sessions and the emptied ones, and the program days", () => {
     const plan = planDelete({ row: row("Bench Press", "ek-bench"), workouts, programs });
     expect(goesLines(plan)).toEqual([
-      "It leaves your Exercises list",
-      "It comes out of 2 program days",
-      "It comes out of 2 sessions in your history",
-      "1 Session left empty is removed",
+      "It Leaves Your Exercises List",
+      "It Comes Out of 2 Program Days",
+      "It Comes Out of 2 Sessions in Your History",
+      "1 Session Left Empty Is Removed",
     ]);
+  });
+
+  // THE NUMBER RULE (Dave 2026-10-05): the word behind EVERY number is capitalized
+  // ("5 Sessions, 14 Sets"), not only the one behind a number that opens the line.
+  it("no line says a lowercase word behind a number, anywhere in it", () => {
+    const goals = [({ id: "g", data: { title: "g", measure: { kind: "training", per: "week", times: 2, exercise: "Bench Press", exerciseKey: "ek-bench" } } }) as unknown as Goal];
+    const plan = planDelete({ row: row("Bench Press", "ek-bench"), workouts, programs, goals });
+    const lines = [historyLine(plan), programLine(plan), staysLine(plan), ...goesLines(plan)].filter((l): l is string => !!l);
+    expect(lines.length).toBeGreaterThan(3);
+    for (const l of lines) expect(l, l).not.toMatch(/\d\s+[a-z]/);
   });
 
   it("a single session reads in the singular", () => {
     const plan = planDelete({ row: row("Curl", "ek-curl"), workouts: [workout("w", "2026-09-01", [wex("Curl", "ek-curl", 1)])], programs: [] });
-    expect(goesLines(plan)).toContain("It comes out of 1 session in your history");
-    expect(goesLines(plan)).toContain("1 Session left empty is removed");
+    expect(goesLines(plan)).toContain("It Comes Out of 1 Session in Your History");
+    expect(goesLines(plan)).toContain("1 Session Left Empty Is Removed");
   });
 
   it("goals on the exercise are named as staying", () => {
@@ -143,7 +153,7 @@ describe("the sheet's words come from the plan", () => {
     ];
     expect(goalsOnExercise(goals, { name: "Bench Press", exerciseKey: "ek-bench" })).toHaveLength(2);
     const plan = planDelete({ row: row("Bench Press", "ek-bench"), workouts, programs, goals });
-    expect(staysLine(plan)).toBe("2 Goals on it stay as they are");
+    expect(staysLine(plan)).toBe("2 Goals on It Stay as They Are");
   });
 });
 

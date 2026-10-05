@@ -5,7 +5,7 @@ import { suggestStopPoint } from "../startStore";
 import { createPortal } from "react-dom";
 import { pressable } from "../../shared/pressable";
 import { useLeaveVia } from "../../shell/navOrigin";
-import { lineCase } from "../../shared/casing";
+import { lineCase, titleCase } from "../../shared/casing";
 import { progressLabel } from "../../encourage/messages";
 
 // THE WORKING SURFACE (Start Now, 2026-09-16).
@@ -170,6 +170,14 @@ export default function StartScreen({
   const atRest = !!ack?.allDone && !reopened;
   const hasStep = !!shown.step;
   const pct = progress && progress.total > 0 ? Math.round((progress.done / progress.total) * 100) : 0;
+  const worked = lastWorked ? workedFacts(lastWorked) : null;
+  // What the app READ is shown once. A source that says the screen's own title
+  // (a project's next task reads "Jarvis V1" under the title "Jarvis V1") or
+  // the move already drawn in its own block (a linked record's label) is a
+  // line that repeats, and a row with nothing new to say shows nothing.
+  const said = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
+  const sources = shown.sources.filter((src) =>
+    !said(src.label, target.title) && !(shown.prompt === undefined && said(src.label, shown.ready)));
 
   return (
     <div className="screen ruled start-ruled">
@@ -185,18 +193,31 @@ export default function StartScreen({
             {tags.map((t) => <span className="chip" key={t}>{t}</span>)}
           </div>
         )}
-        <div className="start-title">{target.title}</div>
+        <div className="start-title">{titleCase(target.title)}</div>
       </div>
 
+      {/* THE HEADER IS ONE SUBTEXT BLOCK, NOT TWO GREYS (Dave 2026-10-05, the
+          stacked thin grey lines on the Email card, "I am sick of this").
+          The count was --tx-2 in its own class and the last-worked line was
+          --tx-3 in another, two greys one under the other beneath the title.
+          Now the count is a number that must stand out, so it is white (the
+          key's --tx-1, the facts line's own <b>), and the last-worked line is
+          a facts line: its day is small caps, his note is the one grey, and
+          the stylesheet draws the dot between them. */}
       {progress && progress.total > 0 && (
         <div className="pad-x"><div className="fb-progress">
           {/* One labelled quantity: this task's own steps. The fill is the
               same number the words say, never a score. */}
           <div className="fb-track" aria-hidden="true"><div className="fb-fill" style={{ "--p": pct } as CSSProperties} /></div>
-          <div className="fb-count">{progressLabel(progress.done, progress.total)}</div>
+          <div className="facts fb-count"><span className="fact"><b>{progressLabel(progress.done, progress.total)}</b></span></div>
         </div></div>
       )}
-      {lastWorked && <div className="pad-x"><div className="start-last">{lastWorked}</div></div>}
+      {worked && (
+        <div className="pad-x"><div className="facts">
+          <span className="fact date">{worked.when}</span>
+          {worked.note && <span className="fact">{worked.note}</span>}
+        </div></div>
+      )}
 
       {/* A live region that is always present, so a new acknowledgment is
           announced once, politely, and nothing else on the screen is. */}
@@ -232,9 +253,9 @@ export default function StartScreen({
             statement, so it is one fact: the sources join into a phrase
             ("Source: Saturday Tournament, to Marco"), and the amber holes
             stay facts of their own. */}
-        {(shown.sources.length > 0 || shown.missing.length > 0) && (
+        {(sources.length > 0 || shown.missing.length > 0) && (
           <div className="facts">
-            {shown.sources.length > 0 && <span className="fact">{sourcePhrase(shown.sources)}</span>}
+            {sources.length > 0 && <span className="fact">{sourcePhrase(sources)}</span>}
             {shown.missing.map((m, i) => <span className="fact warn" key={"m" + i}>{m}</span>)}
           </div>
         )}
@@ -247,7 +268,7 @@ export default function StartScreen({
             {/* The question is the label, and it stays put while he types.
                 It is deliberately NOT repeated as a placeholder: the same
                 sentence twice reads as two asks. */}
-            <div className="start-label">{shown.prompt}</div>
+            <div className="start-move">{shown.prompt}</div>
             <textarea
               ref={boxRef}
               className="msg-textarea start-box"
@@ -272,30 +293,35 @@ export default function StartScreen({
             {busy ? "Saving…" : shown.verb}
           </button>
         </div>
-
-        {/* The honest line: what this button does NOT do. Fragments, because
-            a paragraph of reassurance is how a screen stops being read. */}
-        <div className="start-truth">{truthOf(shown)}</div>
-        {receipt && <div className="conn-status">{receipt}</div>}
       </div></div>
+      {/* The honest line: what this button does NOT do. Fragments, because
+          a paragraph of reassurance is how a screen stops being read.
+          2026-10-05 (the one-grey law, Dave "I am sick of this"): it sat in
+          the card under the facts line and, once something was saved, under
+          the receipt too, so the card held up to three grey lines and two of
+          them said "The Task Stays Open". A note under a card goes BELOW the
+          card as the field-note line (the group-footer pattern), and the
+          receipt takes its place: the line that says what just happened
+          replaces the line that said what would. */}
+      <div className="pad-x"><div className="input-hint">{receipt || truthOf(shown)}</div></div>
       </>)}
 
       {/* Subordinate on purpose: one dominant action per surface, and these
           are the ways out of it rather than competitors to it. */}
-      <div className="pad-x start-support">
+      <div className="pad-x start-support fb-support">
         {smaller && !(hasStep && onSmallerStep) && (
           <button className="quiet-action" onClick={() => { setShown(smaller); setShrinks((n) => n + 1); }}>
-            Make this smaller
+            Make This Smaller
           </button>
         )}
         {hasStep && onSmallerStep && !atRest && (
-          <button className="quiet-action" onClick={() => openEditor("smaller")}>Make this smaller</button>
+          <button className="quiet-action" onClick={() => openEditor("smaller")}>Make This Smaller</button>
         )}
         {hasStep && onEditStep && !atRest && (
           <button className="quiet-action" onClick={() => openEditor("edit")}>Edit This Move</button>
         )}
         {onWorked && <button className="quiet-action" onClick={() => openEditor("worked")}>Worked on It</button>}
-        <button className="quiet-action" onClick={() => setAsk(true)}>Something’s in the way</button>
+        <button className="quiet-action" onClick={() => setAsk(true)}>Something’s in the Way</button>
         {onDoneForNow && <button className="quiet-action" onClick={() => onDoneForNow(suggestStopPoint(text))}>Done for Now</button>}
       </div>
 
@@ -330,7 +356,7 @@ export default function StartScreen({
               <div className="conn-name">Put It on the Day</div>
               <div className="conn-meta">{timerLabel ?? "Books a Block You Can Stop"}</div>
             </div>
-            <span className="pill-act">Start It</span>
+            <div className="chev" />
           </div>
         )}
         {onFinish && (
@@ -339,12 +365,14 @@ export default function StartScreen({
               <div className="conn-name">Finish This Task</div>
               <div className="conn-meta">Ticks the Task Itself, Separate from Saving</div>
             </div>
-            <span className="pill-act">Finish</span>
+            <div className="chev" />
           </div>
         )}
       </div></div>
 
-      {writes && <div className="list-floor">Saved on this device {"·"} Nothing leaves here</div>}
+      {/* Title Case on every line the app writes (2026-10-05): this footer was
+          "Saved on this device · Nothing leaves here". */}
+      {writes && <div className="list-floor">Saved on This Device {"·"} Nothing Leaves Here</div>}
       <div className="screen-foot" />
 
       {ask && (
@@ -355,6 +383,18 @@ export default function StartScreen({
       )}
     </div>
   );
+}
+
+/** The last-worked line as the two facts it is: the day, then his note when
+ *  there is one. TasksFlow builds it as "Last Worked on Today · note" with the
+ *  dot typed in; the dot belongs to the stylesheet (R6), so the line is cut
+ *  back into facts here, at the first dot only, because the note is his own
+ *  words and may hold dots of its own. */
+function workedFacts(line: string): { when: string; note?: string } {
+  const at = line.indexOf(" \u00b7 ");
+  if (at < 0) return { when: line };
+  const note = line.slice(at + 3).trim();
+  return note ? { when: line.slice(0, at), note } : { when: line.slice(0, at) };
 }
 
 /** What was read, as one phrase: the sources after a comma, cased as one

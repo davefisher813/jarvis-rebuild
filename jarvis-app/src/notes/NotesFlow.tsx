@@ -19,6 +19,7 @@ import { usePushDepth } from "../shared/pushNav";
 import Connections from "./screens/Connections";
 import LinkPicker from "./screens/LinkPicker";
 import { showToast } from "../shared/toast";
+import { lineCase } from "../shared/casing";
 import { fileMemory, showFilingConfirm } from "../ai/filingIntake";
 import type { BrainMemoryCategory } from "../ai/brainMemory";
 import { usePickFile, PICK_ANY, PICK_IMAGE } from "../shared/usePickFile";
@@ -219,7 +220,7 @@ export default function NotesFlow({
     const taskId = made.id;
     if (!ok || !taskId) return;
     showToast({
-      message: "Task made from the passage",
+      message: "Task Made from the Passage",
       actionLabel: "Undo",
       onAction: () => void enqueue(async () => {
         await attemptWrite(async () => {
@@ -240,7 +241,7 @@ export default function NotesFlow({
     const ok = await attemptWrite(() => svc.restoreVersion(currentId, at));
     if (!ok) return;
     await loadCurrent(currentId);
-    showToast({ message: "Version restored" });
+    showToast({ message: "Version Restored" });
   });
   const [linkedFrom, setLinkedFrom] = useState<{ id: string; title: string }[]>([]);
   const [related, setRelated] = useState<{ id: string; title: string; shared: number }[]>([]);
@@ -464,7 +465,18 @@ export default function NotesFlow({
     if (failed) showToast({ message: "Couldn't Load · Check Your Connection" });
   }, [schedSvc, tasksSvc, projSvc, goalSvc, peopleSvc]);
 
-  const openNote = async (id: string) => {
+  // Resolves true when the editor opened, false when the id is not a note this
+  // screen can load. The jump claim below needs the answer (2026-10-05).
+  const openNote = async (id: string): Promise<boolean> => {
+    // NEVER AN EMPTY EDITOR (2026-10-04). An id that is not a note this screen
+    // can load (an exploration a receipt pointed at, a note deleted since the
+    // link was made) used to switch to the editor with nothing in it, tab bar
+    // hidden and no Back drawn, so the person was stranded. Say so and stay.
+    // This runs before the flush and the resets below (2026-10-05): a failed
+    // open from a dangling chip leaves the current note open, and resetting
+    // passLenRef there made its next save skip the PASS_DELTA check and fire
+    // an unneeded JARVIS Find call.
+    if (!(await svc.note(id))) { showToast({ message: "Couldn't Open That Note" }); return false; }
     await flushDoc();
     setSaveState("idle");
     passLenRef.current = -1;
@@ -482,6 +494,7 @@ export default function NotesFlow({
     openCurrentId(id);
     await loadCurrent(id);
     setScreen("editor");
+    return true;
   };
 
   // When arriving from another screen (e.g. a project's Linked Notes), open that
@@ -506,10 +519,15 @@ export default function NotesFlow({
   }, [backToOrigin, screen, claim]);
   useEffect(() => {
     if (!openId) return;
-    setOpenedByJump(true);
-    void openNote(openId);
+    // The claim is set only once the note is open (2026-10-05). A jump whose
+    // id would not load stays on the list with nav.origin still set; claiming
+    // up front left the flag true there, so the next note opened from the list
+    // wore a Back to the origin page instead of the Notes list. The editor's
+    // own onOpenNote / onOpenConnection paths do not touch the flag, so a
+    // jumped note keeps its claim while the person walks its links.
+    void openNote(openId).then((ok) => { if (ok) setOpenedByJump(true); });
     onOpenConsumed?.();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [openId, openNonce]);
 
   const pickTemplate = async (key: TemplateKey) => {
@@ -567,7 +585,7 @@ export default function NotesFlow({
       if (!ok) { void fileStore.remove([stored.path]); return false; }
       return true;
     } catch (e) {
-      showToast({ message: e instanceof Error && e.message ? e.message : "Couldn't upload that file." });
+      showToast({ message: lineCase(e instanceof Error && e.message ? e.message : "Couldn't upload that file.") });
       return false;
     } finally {
       setUploading(false);
@@ -579,7 +597,7 @@ export default function NotesFlow({
       // Into the open note.
       const ok = await attachFile(noteId, file, type);
       await enqueue(() => loadCurrent(noteId));
-      if (ok) showToast({ message: type === "photo" ? "Photo added" : "File added" });
+      if (ok) showToast({ message: type === "photo" ? "Photo Added" : "File Added" });
       return;
     }
     // From the list: a new note, titled after the file, opened on the file.
@@ -726,7 +744,7 @@ export default function NotesFlow({
       const taskId: string = id;
       await attemptWrite(() => svc.markFoundAdded(noteId, index));
       await loadCurrent(noteId);
-      showToast({ message: "Task added", actionLabel: "Undo", onAction: () => void (async () => { await attemptWrite(() => tasksSvc.deleteTask(taskId)); await attemptWrite(() => svc.markFoundAdded(noteId, index, false)); await loadCurrent(noteId); })() });
+      showToast({ message: "Task Added", actionLabel: "Undo", onAction: () => void (async () => { await attemptWrite(() => tasksSvc.deleteTask(taskId)); await attemptWrite(() => svc.markFoundAdded(noteId, index, false)); await loadCurrent(noteId); })() });
     } else if (c.kind === "decision" && decisionsSvc) {
       let id: string | null = null;
       const ok = await attemptWrite(async () => { id = await decisionsSvc.create({ decision: c.text, source: { kind: "note", entityId: noteId, at: new Date().toISOString() } }); });
@@ -734,7 +752,7 @@ export default function NotesFlow({
       const decId: string = id;
       await attemptWrite(() => svc.markFoundAdded(noteId, index));
       await loadCurrent(noteId);
-      showToast({ message: "Decision saved", actionLabel: "Undo", onAction: () => void (async () => { await attemptWrite(() => decisionsSvc.remove(decId)); await attemptWrite(() => svc.markFoundAdded(noteId, index, false)); await loadCurrent(noteId); })() });
+      showToast({ message: "Decision Saved", actionLabel: "Undo", onAction: () => void (async () => { await attemptWrite(() => decisionsSvc.remove(decId)); await attemptWrite(() => svc.markFoundAdded(noteId, index, false)); await loadCurrent(noteId); })() });
     }
   };
   const foundLink = async (index: number) => {
@@ -778,7 +796,7 @@ export default function NotesFlow({
       setScreen("list");
       showToast({ message: "Archived", actionLabel: "Undo", onAction: () => void (async () => { await attemptWrite(() => svc.setArchived(id, false)); await loadList(); })() });
     } else {
-      showToast({ message: "Back in your notes" });
+      showToast({ message: "Back in Your Notes" });
     }
   };
   const saveTags = async (tags: string[]) => {
@@ -802,7 +820,7 @@ export default function NotesFlow({
     if (!ok) return;
     const sweep = block.path ? sweepPathAfter(block.path) : null;
     showToast({
-      message: block.type === "photo" ? "Photo removed" : "File removed",
+      message: block.type === "photo" ? "Photo Removed" : "File Removed",
       actionLabel: "Undo",
       onAction: () => void enqueue(async () => {
         sweep?.cancel();
@@ -831,7 +849,7 @@ export default function NotesFlow({
     const n = gone;
     for (const id of ids) clearDraft(id);
     showToast({
-      message: n === 1 ? "Note deleted" : n + " notes deleted",
+      message: n === 1 ? "Note Deleted" : lineCase(n + " notes deleted"),
       actionLabel: "Undo",
       onAction: async () => {
         await attemptWrite(async () => { for (const id of ids) await svc.untrashNote(id); });
@@ -839,11 +857,23 @@ export default function NotesFlow({
       },
     });
   };
+  // THE SWIPE'S QUICKEST VERB (Dave 2026-10-05, locked): archive a note from the list, or bring it back from the Archived
+  // view, with the same Undo the editor's Archive has.
+  const archiveFromList = async (id: string, archived: boolean) => {
+    const ok = await attemptWrite(() => svc.setArchived(id, archived));
+    if (!ok) return;
+    await loadList();
+    if (archived) {
+      showToast({ message: "Archived", actionLabel: "Undo", onAction: () => void (async () => { await attemptWrite(() => svc.setArchived(id, false)); await loadList(); })() });
+    } else {
+      showToast({ message: "Back in Your Notes" });
+    }
+  };
   const restoreNote = async (id: string) => {
     const ok = await attemptWrite(() => svc.untrashNote(id));
     if (!ok) return;
     await loadList();
-    showToast({ message: "Back in your notes" });
+    showToast({ message: "Back in Your Notes" });
   };
   const deleteForever = async (id: string) => {
     const ok = await attemptWrite(() => svc.deleteNote(id));
@@ -851,6 +881,23 @@ export default function NotesFlow({
     void fileStore?.removeAll(id);
     await loadList();
     showToast({ message: "Deleted for good" });
+  };
+  // 2026-10-04: select mode's Delete inside Recently Deleted. It used to run
+  // trashNote on notes that were already trashed: nothing was deleted, the
+  // 30-day clock restarted, the toast said "deleted" and its Undo put the
+  // notes back in Notes. This is deleteForever for each ticked note. The
+  // count is what actually went: a write that fails partway keeps the ones
+  // already gone out of the list and says only "Couldn't Save", never a
+  // success it did not earn. No Undo, because there is nothing to undo to.
+  const deleteManyForever = async (ids: string[]) => {
+    if (ids.length === 0) return;
+    const gone: string[] = [];
+    const ok = await attemptWrite(async () => { for (const id of ids) { await svc.deleteNote(id); gone.push(id); } });
+    for (const id of gone) void fileStore?.removeAll(id);
+    await loadList();
+    if (!ok || gone.length === 0) return;
+    if (gone.length === 1) showToast({ message: "Deleted for Good" });
+    else showToast({ message: `${gone.length} Notes Deleted for Good` });
   };
 
   if (screen === "list") {
@@ -863,9 +910,11 @@ export default function NotesFlow({
         onAddFile={fileStore ? () => pickInto(null, "file") : undefined}
         uploading={uploading}
         onDeleteMany={onDeleteManyNotes}
+        onDeleteManyForever={(ids) => void deleteManyForever(ids)}
         onDelete={(id) => void onDeleteManyNotes([id])}
         onFile={(id) => setFiling(id)}
         onAppend={(id) => setAppending(id)}
+        onArchive={(id, archived) => void archiveFromList(id, archived)}
         onRestore={(id) => void restoreNote(id)}
         onDeleteForever={(id) => void deleteForever(id)}
       />
@@ -1017,7 +1066,7 @@ export default function NotesFlow({
             await loadList();
             setScreen("list");
             showToast({
-              message: "Note deleted",
+              message: "Note Deleted",
               actionLabel: "Undo",
               onAction: async () => {
                 await attemptWrite(() => svc.untrashNote(deletedId));

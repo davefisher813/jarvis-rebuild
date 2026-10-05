@@ -39,9 +39,14 @@ describe("a message about the thing that is still open (BRAIN-F-24)", () => {
     render(<NotesProvider userId="msg-f24"><Seeded /></NotesProvider>);
     fireEvent.click(await screen.findByText("Marco Vidal"));
     await screen.findByText("Still Open");
-    expect(screen.getByText("Send Marco Vidal the roster")).toBeInTheDocument();
+    // A title is shown in Title Case (stored as typed); a name joined to it by a separator is dropped on the person's own page,
+    // but one in the middle of a sentence stays, because without it the words stop making sense.
+    expect(screen.getByText("Send Marco Vidal the Roster")).toBeInTheDocument();
 
-    fireEvent.click(screen.getByText("Message"));
+    // Clean rows (Dave 2026-10-05): no Message pill on the row; the row's sheet holds it.
+    expect(document.querySelector(".notif-row .pill-act")).toBeNull();
+    fireEvent.click(screen.getByText("Send Marco Vidal the Roster"));
+    fireEvent.click(await screen.findByText("Message About This"));
     await waitFor(() => expect(prompts.length).toBeGreaterThan(0));
     const system = prompts[prompts.length - 1]!;
     expect(system).toContain('What the message needs to say: the open task "Send Marco Vidal the roster", due 2026-09-09');

@@ -20,7 +20,9 @@ describe("note Connections", () => {
       />,
     );
     expect(screen.getByText("Kickoff")).toBeTruthy();
-    fireEvent.click(screen.getByLabelText("Remove link"));
+    // CLEAN ROW (Dave 2026-10-05, locked): the X on the row is gone; a link comes off by its swipe's one tray button.
+    expect(document.querySelector(".conn-remove")).toBeNull();
+    fireEvent.click(screen.getByLabelText("Delete Link Kickoff"));
     expect(onRemove).toHaveBeenCalledWith("c1");
   });
   // HMN-F-17 (2026-09-05): a note is born unfiled and its category is "", so
@@ -48,7 +50,11 @@ describe("note Connections", () => {
   it("opens the link picker via Add link", () => {
     const onAddLink = vi.fn();
     render(<Connections onAddLink={onAddLink} />);
-    fireEvent.click(screen.getByText("Add Link"));
+    const add = screen.getByText("Add Link");
+    // THE ADD IS THE HEAD'S (Dave 2026-10-05, locked): never a row at the foot of the card.
+    expect(add.closest(".sh2")).not.toBeNull();
+    expect(add.closest(".card")).toBeNull();
+    fireEvent.click(add);
     expect(onAddLink).toHaveBeenCalled();
   });
 });

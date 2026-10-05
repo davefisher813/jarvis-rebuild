@@ -115,10 +115,10 @@ describe("Schedule: Plan My Day does not offer what is already booked", () => {
     });
     await screen.findAllByText("Schedule");
     // Not in the Anytime strip behind the sheet either: Drop would book twice.
-    expect(await screen.findByText("Fresh thing")).toBeInTheDocument();
+    expect(await screen.findByText("Fresh Thing")).toBeInTheDocument();
     expect(screen.queryByText("Already booked thing")).not.toBeInTheDocument();
     fireEvent.click(await screen.findByText("Plan My Day"));
-    expect((await screen.findAllByText("Fresh thing")).length).toBeGreaterThan(1);
+    expect((await screen.findAllByText("Fresh Thing")).length).toBeGreaterThan(1);
     expect(screen.queryByText("Already booked thing")).not.toBeInTheDocument();
   });
 });

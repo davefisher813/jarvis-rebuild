@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useProfile } from "../data/NotesProvider";
 import LargeTitleNav from "../shared/LargeTitleNav";
-import { updateHealthSettings } from "../health/settings";
+import { readHealthSettings, updateHealthSettings } from "../health/settings";
 import { Capacitor } from "@capacitor/core";
 import { requestNotificationPermission, notificationPermissionState, sendTestReminder, TEST_REMINDER_DELAY_S, type NotifyPermission } from "../shared/notifications";
 import { Head, Card, Switch, Foot, Menu, Row } from "./kit";
@@ -10,15 +10,66 @@ import { fmtTime } from "../schedule/calendar";
 import { showToast } from "../shared/toast";
 import { attemptWrite } from "../shared/guard";
 import { useAccessToken } from "../data/NotesProvider";
-import { currentStatus, enableWebPush, disableWebPush, sendTestAlert, resubscribeIfNeeded, footFor, reasonFor, switchLocked, type WebPushStatus } from "../shared/webPush";
+import { currentStatus, enableWebPush, disableWebPush, sendTestAlert, resubscribeIfNeeded, reasonFor, switchLocked, type WebPushStatus } from "../shared/webPush";
 
-type Prefs = { overdue: boolean; events: boolean; goals: boolean; checkins: boolean; rest: boolean };
-const DEFAULT: Prefs = { overdue: true, events: true, goals: true, checkins: true, rest: true };
+// WHY THE SWITCH IS LOCKED, AS A META LINE (2026-10-05, Dave "I am sick of
+// this"). shared/webPush.reasonFor is written for a toast: sentences, and for
+// "denied" a middle dot baked into the string. Drawn straight into the row's
+// grey line it broke §AM F3 (the separator is the stylesheet's, never a typed
+// character) and the casing rule (every grey line is Title Case). The toast
+// keeps reasonFor; the row says the same thing in one short Title Case fragment.
+const WEB_META: Partial<Record<WebPushStatus, string>> = {
+  "no-sw": "Not Supported in This Browser",
+  "not-standalone": "Needs the Home Screen App",
+  "no-push": "Needs iOS 16.4 or Newer, from the Home Screen",
+  "denied": "Blocked in Phone or Browser Settings",
+  "no-key": "The Server Has No Push Key Yet",
+};
+const webMeta = (status: WebPushStatus): string | undefined => WEB_META[status];
+
+// THE NOTE UNDER THE ALERTS ROW SAYS ONLY WHAT THE ROW DOES NOT (2026-10-05, the round 2 review: "Add JARVIS to Your Home
+// Screen First" on the row and the same instruction in full, in italics, an inch below it, on the first card of the page).
+// Where the switch is locked the row's grey line already names the state, so the note carries the one thing the row has no
+// room for (the steps, or the way out) and nothing for a state the row has said whole. The three states that have a working
+// switch (off, on) keep their sentence, because the row has nothing to say there; each is one sentence with no typed dot.
+// An empty string draws no note at all.
+export function webNote(status: WebPushStatus | null): string {
+  if (status === null) return "";
+  if (status === "off") return "Turn on Alerts on This Phone and iOS will ask to allow notifications, and it is all alerts or none, since the switches below only shape the Notifications screen inside the app";
+  if (status === "on") return "Alerts arrive on this phone, all alerts or none, and the switches below only shape the Notifications screen inside the app";
+  if (status === "not-standalone") return "Tap Share, then Add to Home Screen, then open JARVIS from there";
+  if (status === "denied") return "Turn them on under Notifications, JARVIS in iOS Settings";
+  return "";
+}
+
+type Prefs = { overdue: boolean; events: boolean; goals: boolean; checkins: boolean };
+const DEFAULT: Prefs = { overdue: true, events: true, goals: true, checkins: true };
 
 export default function NotificationsPage({ onBack }: { onBack: () => void }) {
   const svc = useProfile();
   const [prefs, setPrefs] = useState<Prefs>(DEFAULT);
-  useEffect(() => { void svc.get().then((p) => setPrefs({ ...DEFAULT, ...(p?.notify ?? {}) })); }, [svc]);
+  // THE REST SWITCH HAS ONE HOME (2026-10-05). It used to read and write
+  // profile.notify.rest, which nothing but this page read, while the rest buzz
+  // is gated by health settings restNotify (GymFlow). Health Settings changes
+  // only the latter, so the two switches for the one alert could disagree. It
+  // now shows and flips restNotify itself, re-read on mount and whenever the
+  // app returns to the foreground, and the profile no longer carries a copy: a
+  // stored `rest` is dropped on read so the next save clears it.
+  const [restNotify, setRestNotify] = useState(() => readHealthSettings().restNotify);
+  useEffect(() => {
+    const reread = () => setRestNotify(readHealthSettings().restNotify);
+    reread();
+    const onVisible = () => { if (document.visibilityState === "visible") reread(); };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, []);
+  useEffect(() => {
+    void svc.get().then((p) => {
+      const { rest: _legacyRest, ...stored } = (p?.notify ?? {}) as Record<string, unknown>;
+      void _legacyRest;
+      setPrefs({ ...DEFAULT, ...stored });
+    });
+  }, [svc]);
   // SHARED-F-02 (2026-09-05): the seam has always reported denial truthfully
   // and this page threw the answer away (`void requestNotificationPermission()`),
   // then printed "Check-ins and event reminders arrive on this phone" whatever
@@ -49,6 +100,20 @@ export default function NotificationsPage({ onBack }: { onBack: () => void }) {
   };
   const native = Capacitor.isNativePlatform();
   const denied = perm === "denied";
+  // 2026-10-04: the permission was read on open and after each ask here, so a
+  // person who went to iOS Settings, allowed notifications and came back to
+  // this still-mounted page found the switches locked and the foot saying
+  // "off" until they left and reopened it. The app coming back to the
+  // foreground is the same signal the shell re-arms reminders on.
+  useEffect(() => {
+    if (!native) return;
+    const onVisible = () => { if (document.visibilityState === "visible") readPerm(); };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [native, readPerm]);
+  // A locked switch answers a tap with the reason (kit.tsx Switch: a locked
+  // switch with no onLocked sat there dead, audit 2026-09-29).
+  const sayDenied = () => showToast({ message: "Notifications Are Off for JARVIS in iOS Settings · Turn Them on There" });
   // WEB PUSH (2026-09-20, Dave's go through Clemenza). The web half of this
   // page: one master switch behind a real tap, gated on a Home Screen launch
   // and iOS 16.4, with a sentence for every state, and a test row. It is all
@@ -111,57 +176,65 @@ export default function NotificationsPage({ onBack }: { onBack: () => void }) {
           <Card>
             {/* A locked switch says why, on the row and again on a tap (audit
                 2026-09-29: it stayed off and nothing said so). */}
-            <Switch label="Alerts on this phone" meta={web === null ? "Checking" : reasonFor(web) || undefined} on={web === "on"} locked={web === null || webBusy || switchLocked(web)} onToggle={toggleWeb} ariaLabel="Alerts on this phone"
+            <Switch label="Alerts on This Phone" meta={web === null ? "Checking" : webMeta(web)} on={web === "on"} locked={web === null || webBusy || switchLocked(web)} onToggle={toggleWeb} ariaLabel="Alerts on This Phone"
               onLocked={() => { if (web !== null && switchLocked(web)) showToast({ message: reasonFor(web) }); }} />
-            {web === "on" && <Row label={webTesting ? "Sending" : "Send a Test Alert"} meta="Arrives in a few seconds" onClick={() => void sendWebTest()} disabled={webTesting} chev />}
+            {web === "on" && <Row label={webTesting ? "Sending" : "Send a Test Alert"} meta="Arrives in a Few Seconds" onClick={() => void sendWebTest()} disabled={webTesting} chev />}
           </Card>
+          {webNote(web) && <Foot>{webNote(web)}</Foot>}
         </>
       )}
       <Head label="Tell Me About" />
       <Card>
-        {/* Denied at the OS level: the switches are shown, and locked. They
-            are not lying about their own state (the preference really is on
-            or off, and it still filters the in-app Notifications screen), but
-            flipping one cannot make a single alert arrive, and a control that
-            answers a tap with nothing at all is worse than one that says why.
-            The foot below carries the why. */}
-        <Switch label="Overdue and due tasks" meta="On the Notifications tab, not a lock-screen alert" on={prefs.overdue} locked={denied} onToggle={() => set({ overdue: !prefs.overdue })} />
-        <Switch label="Today's events" meta="A lock-screen alert 15 minutes before, and its own row on the Notifications tab" on={prefs.events} locked={denied} onToggle={() => set({ events: !prefs.events })} />
-        <Switch label="Daily check-ins" meta="Two lock-screen prompts, morning and night" on={prefs.checkins} locked={denied} onToggle={() => set({ checkins: !prefs.checkins })} />
-        <Switch label="Goal and life-area nudges" meta="On the Notifications tab when a goal falls behind" on={prefs.goals} locked={denied} onToggle={() => set({ goals: !prefs.goals })} />
+        {/* Denied at the OS level, only the two lock-screen switches are locked
+            (2026-10-04). Overdue, today's events and goal nudges each still
+            filter the in-app Notifications screen with the OS refusing, so a
+            lock on them took away a working control. Daily check-ins and the
+            rest timer exist only as lock-screen alerts, and only the phone
+            app schedules those: the web build has nothing for them to do, so
+            it does not show them. A locked tap says why. */}
+        <Switch label="Overdue and Due Tasks" meta="On the Notifications Tab Only" on={prefs.overdue} onToggle={() => set({ overdue: !prefs.overdue })} />
+        <Switch label="Today's Events" meta="Lock-Screen Alert 15 Min Before" on={prefs.events} onToggle={() => set({ events: !prefs.events })} />
+        {native && <Switch label="Daily Check-Ins" meta="Morning and Night Prompts" on={prefs.checkins} locked={denied} onLocked={sayDenied} onToggle={() => set({ checkins: !prefs.checkins })} />}
+        <Switch label="Goal and Life-Area Nudges" meta="When a Goal Falls Behind" on={prefs.goals} onToggle={() => set({ goals: !prefs.goals })} />
         {/* UP-ATH-03 (2026-09-06): the rest timer's buzz between sets. The
             only alert on this page the athlete asked for by starting the
             thing that schedules it, which is why it is last and why it is
             on by default. */}
-        <Switch label="Rest timer" meta="A buzz on the lock screen when the rest is over" on={prefs.rest} locked={denied} onToggle={() => { updateHealthSettings({ restNotify: !prefs.rest }); void set({ rest: !prefs.rest }); }} />
+        {native && <Switch label="Rest Timer" meta="A Buzz When the Rest Is Over" on={restNotify} locked={denied} onLocked={sayDenied} onToggle={() => { const next = !restNotify; updateHealthSettings({ restNotify: next }); setRestNotify(next); if (next) void requestNotificationPermission().then(() => readPerm()); }} />}
       </Card>
       {/* A4 (audit 2026-08-21, catalog Q8: never promise what the platform
-          cannot do). A page called Notifications with four switches on it
+          cannot do). A page called Notifications with switches on it
           reads as phone alerts. On the web these switches only decide what
           appears on the Notifications screen inside the app, because the
           notification seam is a deliberate no-op off native: a PWA that asks
           for permission it will not use well has spent that permission for
           nothing. Say so once, plainly, instead of letting him find out by
-          waiting for a buzz that was never coming. */}
+          waiting for a buzz that was never coming. (2026-10-04: the two
+          switches that were only ever lock-screen alerts, Daily check-ins and
+          Rest timer, are not drawn on the web at all, so the foot's claim
+          holds for every switch the web shows.) */}
       <Head label="Reminders" />
       <Card>
-        <Menu label="Morning" meta="What Tomorrow Morning means" value={morning} word={morningWord(morning)} ariaLabel="Morning time"
+        {/* THE TITLE SAYS WHAT IT IS, AND THE ROW HAS NO SECOND LINE (2026-10-05, the round 2 review: "Morning" over "For Tomorrow Morning" said the same
+            two words twice). The name is the whole of it. */}
+        <Menu label="Tomorrow Morning" value={morning} word={morningWord(morning)} ariaLabel="Morning time"
           options={["06:00", "06:30", "07:00", "07:30", "08:00", "08:30", "09:00", "09:30", "10:00"].map((v) => ({ value: v, label: morningWord(v) }))}
           onPick={(v) => { setMorning(v); setMorningTime(v); }} />
-        {native && <Row label={testing ? "Sending" : "Send a Test Reminder"} meta={denied ? "Off in iOS Settings" : `Arrives in ${TEST_REMINDER_DELAY_S} seconds`} onClick={() => void sendTest()} disabled={denied || testing} chev />}
+        {native && <Row label={testing ? "Sending" : "Send a Test Reminder"} meta={denied ? "Off in iOS Settings" : `Arrives in ${TEST_REMINDER_DELAY_S} Seconds`} onClick={() => void sendTest()} disabled={denied || testing} chev />}
       </Card>
-      <Foot>
-        {!native
-          ? (web === null ? "Checking whether this phone can get alerts" : footFor(web))
-          : denied
-            ? "Notifications are off for JARVIS in iOS Settings · Turn them on there and nothing here has to change"
+      {/* On the web the note under the Alerts row (webNote) already says everything, so there is no second foot here. */}
+      {native && (
+        <Foot>
+          {denied
+            ? "Notifications are off for JARVIS in iOS Settings, so check-ins, the rest timer and event alerts wait until you turn them on there"
             : perm === "prompt"
               // Asked for the first time by turning a switch on, which is what
               // S1-03 moved here. Saying so beats promising alerts that are
               // one unanswered dialog away from never coming.
               ? "Turn one on and iOS will ask to allow notifications."
               : "Check-ins and event reminders arrive on this phone."}
-      </Foot>
+        </Foot>
+      )}
       <div className="screen-foot" />
     </div>
   );

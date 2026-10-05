@@ -50,8 +50,13 @@ export default function MailMoreSheet({
           {/* The age first: it is short and never the one that gives way. */}
           <Facts facts={[
             { text: lineCase(days + (days === 1 ? " day" : " days")), tone: heat },
-            { text: decision.note },
+            { text: lineCase(decision.note) },
           ]} />
+        </div>
+        {/* THE ROW'S SHEET (Dave 2026-10-05, locked): tap a row and its sheet holds every move, the primary prominent
+            and the quieter ones beneath. The primary is the row's own ask; it stands first, the one filled button. */}
+        <div className="pad-x sheet-actions">
+          <button className="btn btn-primary btn-block" onClick={() => onPick(decision.primary)}>{decision.primary.label}</button>
         </div>
         <div className="sheet-form">
           <div className="list-flat">
@@ -66,7 +71,7 @@ export default function MailMoreSheet({
               >
                 <div className="row-grow">
                   <div className="conn-name">{a.label}</div>
-                  <div className="conn-meta">{promises(a)}</div>
+                  <div className="conn-meta">{lineCase(promises(a))}</div>
                 </div>
               </div>
             ))}

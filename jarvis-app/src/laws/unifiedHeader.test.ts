@@ -58,18 +58,21 @@ describe("all five pages spend the one header", () => {
     }
     const hdr = read("shared/LifeHeader.tsx");
     expect(hdr, "the visible word is the same on all five").toContain("<span>Add</span>");
-    expect(hdr).toContain("aria-label={addLabel}");
+    expect(hdr, "the accessible name rides HeadAdd, which LifeHeader draws with addLabel").toContain("aria-label={label}");
+    expect(hdr).toContain("<HeadAdd label={addLabel}");
   });
 });
 
 describe("what the handoff forbids", () => {
   // "No giant red creation banners across every page."
-  it("Add is a dark surface with a red glyph, never a second oversized primary", () => {
+  it("Add is the capsule recipe with a red glyph, never a second oversized primary", () => {
     const hdr = read("shared/LifeHeader.tsx");
     expect(hdr, "Add is not a .btn-primary").not.toMatch(/hdr-add[^>]*btn-primary/);
     const css = read("styles/components.css");
     const add = css.slice(css.indexOf(".hdr-add {"), css.indexOf(".hdr-add .ic"));
-    expect(add, "its ground is a surface, not the accent fill").toContain("background: var(--surface-2)");
+    expect(add, "its ground is the capsule fill, not the accent fill (2026-10-05, D3: one recipe in both themes)").toContain("background-color: var(--capsule-fill)");
+    expect(add, "its label is the tint").toContain("color: var(--tint)");
+    expect(read("styles/ruled.css"), "no light-only recipe for Add").not.toMatch(/\[data-theme="light"\] \.hdr-add \{/);
     // --tint, not --accent: the brand red is banned as glyph ink by the
     // contrast law, and --accent-tx is white in dark theme.
     expect(css).toContain(".hdr-add .ic { width: 20px; height: 20px; color: var(--tint); }");
@@ -110,7 +113,9 @@ describe("what the handoff forbids", () => {
     expect(notes, "Area and Tag are the cuts on the control line, in that order")
       .toMatch(/drops=\{[\s\S]*?ariaLabel="Area"[\s\S]*?ariaLabel="Tag"[\s\S]*?\)\}/);
     expect(notes, "the area is its own axis, not a view").not.toMatch(/\{ kind: "area"; id: string \}/);
-    expect(notes).toContain("const filtered = area ? inView.filter((n) => n.category === area) : inView;");
+    // AMENDED 2026-10-04: a search now runs inside the chosen view or tag, so the area cut is the LAST
+    // cut, applied to what the view and the search left (it was applied to the view before the search).
+    expect(notes).toContain("const shown = area ? searched.filter((n) => n.category === area) : searched;");
     expect(notes, "and the capsule states which area, so no second line has to")
       .toMatch(/value=\{area \?\? "all"\}/);
   });

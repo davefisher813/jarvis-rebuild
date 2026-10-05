@@ -1,3 +1,4 @@
+import { lineCase } from "../../shared/casing";
 import { useState } from "react";
 import { useBrainMemory } from "../../data/NotesProvider";
 import { attemptWrite } from "../../shared/guard";
@@ -105,9 +106,11 @@ export default function MemorySheet({
     onChanged();
   };
 
-  const eyebrow = isDecision
-    ? `Decision · ${decisionStateLabel(row)}`
-    : categoryLabel(row.data.category);
+  // 2026-10-05 (the catalog gate): the kicker was one string with a middle dot baked in
+  // ("Decision · Active") drawn inside ONE .fact (R6). Each is its own fact now and the
+  // stylesheet draws the dot.
+  const eyebrow = isDecision ? "Decision" : categoryLabel(row.data.category);
+  const stateFact = isDecision ? decisionStateLabel(row) : null;
 
   return (
     <div className="sheet-scrim" onClick={onClose}>
@@ -159,14 +162,19 @@ export default function MemorySheet({
           <>
             <div className="grp"><div className="eyebrow"><span>
               <span className="fact">{eyebrow}</span>
+              {stateFact && <span className="fact">{stateFact}</span>}
               <span className="fact">Filed From {filedFromLabel(row.data.source)}</span>
             </span></div></div>
             <div className="pad-x sheet-form">
-              <div className="strand-head">{row.data.text}</div>
+              <div className="strand-head">{lineCase(row.data.text)}</div>
               {row.data.why && <div className="conn-meta">Why: {row.data.why}</div>}
-              {row.data.date && <div className="conn-meta">{formatFiledDate(row.data.date)}</div>}
-              {row.data.wordCount != null && row.data.category === "voice" && (
-                <div className="conn-meta">{row.data.wordCount} Words</div>
+              {/* The day filed is a neutral date, small caps (R8), and a voice sample's length
+                  is a number with no state, white: one facts line, not two more greys. */}
+              {((row.data.date && formatFiledDate(row.data.date)) || (row.data.wordCount != null && row.data.category === "voice")) && (
+                <div className="facts">
+                  {row.data.date && <span className="fact date">{formatFiledDate(row.data.date)}</span>}
+                  {row.data.wordCount != null && row.data.category === "voice" && <span className="fact"><b>{row.data.wordCount} Words</b></span>}
+                </div>
               )}
               {row.data.supersededBy && (
                 <div className="conn-meta">Replaced by a Newer Call</div>

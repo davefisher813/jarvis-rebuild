@@ -5,27 +5,35 @@ import "@testing-library/jest-dom";
 import MailMoreSheet from "./MailMoreSheet";
 import LetGoSwipe from "./LetGoSwipe";
 import { decide, promises } from "./mailAction";
+import { lineCase } from "../shared/casing";
 
 describe("More Moves sheet", () => {
   const d = decide("Invoice", "", 53, 0, { hasPhone: true, altContact: "Marcus" });
 
-  it("lists every alternate, and never repeats the row's own button", () => {
-    render(<MailMoreSheet who="Wei Chen" days={53} decision={d} onPick={() => {}} onClose={() => {}} />);
+  it("is the row's sheet: the primary ask once and prominent, then every alternate beneath, never repeated", () => {
+    const onPick = vi.fn();
+    render(<MailMoreSheet who="Wei Chen" days={53} decision={d} onPick={onPick} onClose={() => {}} />);
     for (const a of d.alternates) expect(screen.getByText(a.label)).toBeInTheDocument();
-    expect(screen.queryByText(d.primary.label)).not.toBeInTheDocument();
+    // The primary is the one filled button, once; it is not among the quieter rows.
+    const primary = screen.getAllByText(d.primary.label);
+    expect(primary).toHaveLength(1);
+    expect(primary[0]).toHaveClass("btn-primary");
+    expect(document.querySelectorAll(".list-flat .row .conn-name").length).toBe(d.alternates.length);
+    fireEvent.click(primary[0]!);
+    expect(onPick).toHaveBeenCalledWith(d.primary);
   });
 
   it("every row says what the tap does", () => {
     render(<MailMoreSheet who="Wei Chen" days={53} decision={d} onPick={() => {}} onClose={() => {}} />);
     for (const a of d.alternates) {
       const name = screen.getByText(a.label);
-      expect(name.parentElement?.textContent).toContain(promises(a));
+      expect(name.parentElement?.textContent).toContain(lineCase(promises(a)));
     }
   });
 
   it("the reason is said once by the sheet, not down every row", () => {
     render(<MailMoreSheet who="Wei Chen" days={53} decision={d} onPick={() => {}} onClose={() => {}} />);
-    expect(document.body.textContent!.split(d.note).length - 1).toBe(1);
+    expect(document.body.textContent!.split(lineCase(d.note)).length - 1).toBe(1);
   });
 
   it("picking one hands back the action itself, not a label to re-parse", () => {
@@ -49,7 +57,7 @@ describe("More Moves sheet", () => {
     const facts = [...head().querySelectorAll(".facts .fact")];
     expect(facts[0]).toBe(age);
     expect(facts[1]!.className).toBe("fact");
-    expect(facts[1]!.textContent).toBe(d.note);
+    expect(facts[1]!.textContent).toBe(lineCase(d.note));
     expect(screen.queryByText("Invoice")).toBeNull();
     expect(head().textContent).not.toContain("\u00b7");
   });

@@ -5,7 +5,7 @@
 // guess: a fuzzy title match below the floor is a null, not a shrug.
 
 import type { ChatProvenance } from "./types";
-import { capAfterNumber } from "../shared/casing";
+import { capAfterNumber, lineCase } from "../shared/casing";
 import { shortDate } from "../shared/dateFormat";
 import { namePatterns, openWith } from "../people/mentions";
 import { birthdayLabel } from "../people/birthdays";
@@ -307,7 +307,7 @@ export async function answerQuestion(
     const evs = snap.events.filter((e) => e.date === snap.today);
     const due = snap.tasks.filter((t) => !t.done && t.due === snap.today);
     return {
-      text: capAfterNumber(`${evs.length} ${evs.length === 1 ? "event" : "events"} · ${due.length} ${due.length === 1 ? "task" : "tasks"} due`),
+      text: lineCase(`${evs.length} ${evs.length === 1 ? "event" : "events"} · ${due.length} ${due.length === 1 ? "task" : "tasks"} due`),
       provenance: { kind: "records" },
     };
   }
@@ -320,7 +320,7 @@ export async function answerQuestion(
     const evs = snap.events.filter((e) => e.date === tmr);
     const due = snap.tasks.filter((t) => !t.done && t.due === tmr);
     return {
-      text: capAfterNumber(`${evs.length} ${evs.length === 1 ? "event" : "events"} · ${due.length} ${due.length === 1 ? "task" : "tasks"} due`),
+      text: lineCase(`${evs.length} ${evs.length === 1 ? "event" : "events"} · ${due.length} ${due.length === 1 ? "task" : "tasks"} due`),
       provenance: { kind: "records", refs: evs.slice(0, 4).map((e) => ({ kind: "event", id: e.id, label: e.title })) },
     };
   }

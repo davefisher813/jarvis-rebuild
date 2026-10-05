@@ -6,6 +6,8 @@ import { useState } from "react";
 import { FormSheet, Group, FieldRow, TextRow, Note, ErrorLine } from "../shared/FormSheet";
 import { COMMAND_LINES } from "../substrate/commands/errors";
 import { EXPORT_DISCLOSURE } from "../substrate/context/exportImport";
+import HubFacts from "./HubFacts";
+import { IMPORT_LANDS } from "./copy";
 
 export function AddAssistantSheet({ onSave, onCancel, busy = false }: { onSave: (name: string) => void; onCancel: () => void; busy?: boolean }) {
   const [name, setName] = useState("");
@@ -47,7 +49,7 @@ export function ImportSheet({ projectTitle, onSave, onCancel, busy = false, erro
     <FormSheet title="Paste a Conversation" onCancel={onCancel} saveLabel={busy ? "Importing…" : "Import"} saveDisabled={empty || busy}
       onSave={() => { if (!empty && !busy) onSave(text); }}>
       <Group label="Into">
-        <div className="row"><div className="row-grow"><div className="conn-name">{projectTitle}</div><div className="conn-meta">Everything Lands in Mentioned · Nothing Is Decided by Pasting</div></div></div>
+        <div className="row"><div className="row-grow"><div className="conn-name">{projectTitle}</div><HubFacts facts={[{ text: IMPORT_LANDS }]} /></div></div>
       </Group>
       <Group label="The Words">
         <TextRow value={text} onChange={setText} placeholder="A JARVIS Context Response or the Conversation Itself" ariaLabel="Pasted conversation" rows={8} />

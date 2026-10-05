@@ -24,8 +24,8 @@ describe("EventSheet", () => {
     render(<EventSheet mode="new" initial={{ date: "2026-05-24" }} categories={CATS} onSave={onSave} onCancel={() => {}} />);
     fireEvent.click(screen.getByText("Save"));
     expect(onSave).not.toHaveBeenCalled();
-    expect(screen.getByText("Needs title · Date · Start")).toBeInTheDocument();
-    fireEvent.change(screen.getByPlaceholderText(/happening/), { target: { value: "Standup" } });
+    expect(screen.getByText("Needs Title · Date · Start")).toBeInTheDocument();
+    fireEvent.change(screen.getByPlaceholderText(/happening/i), { target: { value: "Standup" } });
     fireEvent.click(screen.getByText("Save"));
     expect(onSave).toHaveBeenCalledWith({ title: "Standup", date: "2026-05-24", start: "09:00", end: "10:00", category: "c1", location: "", recurrence: "none", until: "", taskIds: [], gym: false });
   });
@@ -40,7 +40,7 @@ describe("EventSheet", () => {
     fireEvent.click(area);
     fireEvent.click(screen.getByRole("menuitemradio", { name: /Friends/ }));
     expect(area.querySelector(".cat-dot.cat-bg-teal")).toBeTruthy();
-    fireEvent.change(screen.getByPlaceholderText(/happening/), { target: { value: "Lunch" } });
+    fireEvent.change(screen.getByPlaceholderText(/happening/i), { target: { value: "Lunch" } });
     fireEvent.click(screen.getByText("Save"));
     expect(onSave).toHaveBeenCalledWith({ title: "Lunch", date: "2026-05-24", start: "09:00", end: "10:00", category: "c2", location: "", recurrence: "none", until: "", taskIds: [], gym: false });
   });
@@ -50,7 +50,7 @@ describe("EventSheet", () => {
   it("a fast double-tap on Save only fires once, and the button says so", () => {
     const onSave = vi.fn();
     render(<EventSheet mode="new" initial={{ date: "2026-05-24" }} categories={CATS} onSave={onSave} onCancel={() => {}} />);
-    fireEvent.change(screen.getByPlaceholderText(/happening/), { target: { value: "Standup" } });
+    fireEvent.change(screen.getByPlaceholderText(/happening/i), { target: { value: "Standup" } });
     const save = screen.getByText("Save");
     fireEvent.click(save);
     expect(save).toHaveTextContent("Saving");
@@ -91,38 +91,68 @@ describe("EventSheet move chips", () => {
 
   it("shifts start and end together, so the duration is untouched", () => {
     const onSave = openEdit({ date: "2026-05-26", start: "10:00", end: "11:30" });
-    fireEvent.click(screen.getByText("+30m"));
+    fireEvent.click(screen.getByText("+30 Min"));
     fireEvent.click(screen.getByText("Save"));
     expect(onSave.mock.calls[0]![0]).toMatchObject({ start: "10:30", end: "12:00" });
   });
 
   it("moves earlier too, which the swipe action never could", () => {
     const onSave = openEdit({ date: "2026-05-26", start: "10:00", end: "11:00" });
-    fireEvent.click(screen.getByText("-15m"));
+    fireEvent.click(screen.getByText("\u221215 Min"));
     fireEvent.click(screen.getByText("Save"));
     expect(onSave.mock.calls[0]![0]).toMatchObject({ start: "09:45", end: "10:45" });
   });
 
   it("stacks taps, so a bigger move is repeated taps and not a time picker", () => {
     const onSave = openEdit({ date: "2026-05-26", start: "10:00", end: "11:00" });
-    fireEvent.click(screen.getByText("+30m"));
-    fireEvent.click(screen.getByText("+30m"));
-    fireEvent.click(screen.getByText("+15m"));
+    fireEvent.click(screen.getByText("+30 Min"));
+    fireEvent.click(screen.getByText("+30 Min"));
+    fireEvent.click(screen.getByText("+15 Min"));
     fireEvent.click(screen.getByText("Save"));
     expect(onSave.mock.calls[0]![0]).toMatchObject({ start: "11:15", end: "12:15" });
   });
 
-  it("Tomorrow moves the day and leaves the time alone", () => {
-    const onSave = openEdit({ date: "2026-05-26", start: "10:00", end: "11:00" });
-    fireEvent.click(screen.getByText("Tomorrow"));
-    fireEvent.click(screen.getByText("Save"));
-    expect(onSave.mock.calls[0]![0]).toMatchObject({ date: "2026-05-27", start: "10:00", end: "11:00" });
+  // TOMORROW IS A MOVE OF THE DAY, SO IT LIVES ON THE DATE ROW (2026-10-05 review: it sat among the minute nudges, wrapping
+  // 3 + 2 with them), as the row's one quiet text action, and only while the event is on today.
+  it("Tomorrow moves the day and leaves the time alone, from the Date row", () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-05-26T09:00:00"));
+    try {
+      const onSave = openEdit({ date: "2026-05-26", start: "10:00", end: "11:00" });
+      const tomorrow = screen.getByText("Tomorrow");
+      expect(tomorrow.closest(".xs-row")!.querySelector(".conn-name")!.textContent).toBe("Date");
+      expect(tomorrow.closest(".xs-nudge")).toBeNull();
+      fireEvent.click(tomorrow);
+      fireEvent.click(screen.getByText("Save"));
+      expect(onSave.mock.calls[0]![0]).toMatchObject({ date: "2026-05-27", start: "10:00", end: "11:00" });
+    } finally { vi.useRealTimers(); }
+  });
+
+  it("offers Tomorrow only while the event is on today", () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-05-26T09:00:00"));
+    try {
+      openEdit({ date: "2026-05-30", start: "10:00", end: "11:00" });
+      expect(screen.queryByText("Tomorrow")).not.toBeInTheDocument();
+    } finally { vi.useRealTimers(); }
+  });
+
+  // THE NUDGES ARE ONE STRIP OF FOUR EQUAL SEGMENTS, TITLE CASE, WITH A REAL MINUS (2026-10-05 review: "-30m" in lowercase
+  // units, five chips wrapping 3 + 2).
+  it("draws four equal segments in one strip, Title Case, with the real minus sign", () => {
+    openEdit({ date: "2026-05-26", start: "10:00", end: "11:00" });
+    const strip = document.querySelector(".xs-nudge")!;
+    expect(strip.className).toContain("segmented");
+    const labels = Array.from(strip.querySelectorAll(".seg")).map((e) => e.textContent);
+    expect(labels).toEqual(["\u221230 Min", "\u221215 Min", "+15 Min", "+30 Min"]);
+    expect(strip.querySelectorAll(".chip").length).toBe(0);
+    expect(strip.textContent).not.toMatch(/\dm\b/);
   });
 
   it("refuses a move that would run past midnight instead of clamping it", () => {
     openEdit({ date: "2026-05-26", start: "23:30", end: "23:55" });
-    const plus30 = screen.getByText("+30m");
-    expect(plus30.className).toContain("chip-off");
+    const plus30 = screen.getByText("+30 Min");
+    expect(plus30.className).toContain("seg-off");
     fireEvent.click(plus30);
     // Silently resizing the event to fit the day would be the wrong fix.
     expect(screen.getByDisplayValue("23:30")).toBeInTheDocument();
@@ -131,13 +161,13 @@ describe("EventSheet move chips", () => {
 
   it("refuses a move back past midnight, and only the chip that would cross it", () => {
     openEdit({ date: "2026-05-26", start: "00:20", end: "01:00" });
-    expect(screen.getByText("-30m").className).toContain("chip-off"); // 00:20 - 30 is yesterday
-    expect(screen.getByText("-15m").className).not.toContain("chip-off"); // 00:05 is fine
+    expect(screen.getByText("\u221230 Min").className).toContain("seg-off"); // 00:20 - 30 is yesterday
+    expect(screen.getByText("\u221215 Min").className).not.toContain("seg-off"); // 00:05 is fine
   });
 
   it("moves an event with no end time set, leaving it without one", () => {
     const onSave = openEdit({ date: "2026-05-26", start: "10:00", end: "" });
-    fireEvent.click(screen.getByText("+15m"));
+    fireEvent.click(screen.getByText("+15 Min"));
     fireEvent.click(screen.getByText("Save"));
     expect(onSave.mock.calls[0]![0]).toMatchObject({ start: "10:15", end: "" });
   });
@@ -145,7 +175,7 @@ describe("EventSheet move chips", () => {
   it("offers no Tomorrow chip before a date exists", () => {
     render(<EventSheet mode="new" initial={{ date: "" }} categories={CATS} onSave={() => {}} onCancel={() => {}} />);
     expect(screen.queryByText("Tomorrow")).not.toBeInTheDocument();
-    expect(screen.getByText("+15m")).toBeInTheDocument();
+    expect(screen.getByText("+15 Min")).toBeInTheDocument();
   });
 });
 
@@ -195,7 +225,7 @@ describe("EventSheet: Leave By", () => {
     fireEvent.click(screen.getByLabelText("Buffer"));
     fireEvent.click(screen.getByRole("menuitemradio", { name: "10 Min" }));
     expect((screen.getByLabelText("Leave by") as HTMLInputElement).value).toBe("15:10");
-    fireEvent.change(screen.getByPlaceholderText(/happening/), { target: { value: "Practice" } });
+    fireEvent.change(screen.getByPlaceholderText(/happening/i), { target: { value: "Practice" } });
     fireEvent.click(screen.getByText("Save"));
     expect(onSave.mock.calls[0]![0]).toMatchObject({ travelMin: 20, bufferMin: 10, location: "Rink 2" });
   });
@@ -221,7 +251,7 @@ describe("EventSheet: Leave By", () => {
     expect(screen.getByRole("button", { name: "Use Last Time's 25 Min" })).toBeInTheDocument();
     fireEvent.click(screen.getByLabelText("Travel"));
     fireEvent.click(screen.getByRole("menuitemradio", { name: "Forget This Place" }));
-    fireEvent.change(screen.getByPlaceholderText(/happening/), { target: { value: "Practice" } });
+    fireEvent.change(screen.getByPlaceholderText(/happening/i), { target: { value: "Practice" } });
     fireEvent.click(screen.getByText("Save"));
     expect(onSave.mock.calls[0]![0].forgetTravel).toBe(true);
     expect(onSave.mock.calls[0]![0].travelMin).toBeUndefined();
@@ -239,7 +269,7 @@ describe("EventSheet: last time's travel is one tap", () => {
     expect(screen.getByLabelText("Travel").textContent).toContain("25 Min");
     // Filled, so the offer has done its job and goes.
     expect(screen.queryByRole("button", { name: "Use Last Time's 25 Min" })).toBeNull();
-    fireEvent.change(screen.getByPlaceholderText(/happening/), { target: { value: "Practice" } });
+    fireEvent.change(screen.getByPlaceholderText(/happening/i), { target: { value: "Practice" } });
     fireEvent.click(screen.getByText("Save"));
     expect(onSave.mock.calls[0]![0].travelMin).toBe(25);
   });
@@ -252,7 +282,7 @@ describe("EventSheet: the meeting itself", () => {
     render(<EventSheet mode="new" initial={{ date: "2026-05-24" }} categories={CATS} onSave={onSave} onCancel={() => {}} />);
     fireEvent.change(screen.getByLabelText("Meeting Link"), { target: { value: "https://zoom.us/j/1" } });
     fireEvent.change(screen.getByLabelText("Meeting Notes"), { target: { value: "Q3 numbers" } });
-    fireEvent.change(screen.getByPlaceholderText(/happening/), { target: { value: "Board sync" } });
+    fireEvent.change(screen.getByPlaceholderText(/happening/i), { target: { value: "Board sync" } });
     fireEvent.click(screen.getByText("Save"));
     expect(onSave.mock.calls[0]![0]).toMatchObject({ url: "https://zoom.us/j/1", notes: "Q3 numbers" });
   });
@@ -300,7 +330,7 @@ describe("EventSheet: weekly on chosen days", () => {
     fireEvent.click(screen.getByLabelText("Monday"));
     fireEvent.click(screen.getByLabelText("Every"));
     fireEvent.click(screen.getByRole("menuitemradio", { name: "2 Weeks" }));
-    fireEvent.change(screen.getByPlaceholderText(/happening/), { target: { value: "Bio" } });
+    fireEvent.change(screen.getByPlaceholderText(/happening/i), { target: { value: "Bio" } });
     fireEvent.click(screen.getByText("Save"));
     expect(onSave.mock.calls[0]![0]).toMatchObject({ recurrence: "weekly", days: [1], interval: 2 });
   });
@@ -314,7 +344,7 @@ describe("EventSheet: the meeting notes are a paragraph", () => {
     render(<EventSheet mode="new" initial={{ date: "2026-05-20", start: "09:00" }} categories={CATS} onSave={onSave} onCancel={() => {}} />);
     const notes = screen.getByLabelText("Meeting Notes");
     expect(notes.tagName).toBe("TEXTAREA");
-    fireEvent.change(screen.getByPlaceholderText(/happening/), { target: { value: "Bridge Foundation Zoom" } });
+    fireEvent.change(screen.getByPlaceholderText(/happening/i), { target: { value: "Bridge Foundation Zoom" } });
     fireEvent.change(screen.getByLabelText("Meeting Link"), { target: { value: "https://zoom.us/j/123" } });
     fireEvent.change(notes, { target: { value: "Dial in early.\nPasscode 4821." } });
     fireEvent.click(screen.getByText("Save"));
@@ -322,5 +352,33 @@ describe("EventSheet: the meeting notes are a paragraph", () => {
       url: "https://zoom.us/j/123",
       notes: "Dial in early.\nPasscode 4821.",
     });
+  });
+});
+
+// THE SHEET'S ACTIONS ARE ACTIONS (the review, 2026-10-05): Duplicate and Move to Anytime act in place, so they draw no chevron
+// (a chevron says "opens something"), and an empty pick draws no word None.
+describe("EventSheet: actions, and empty picks", () => {
+  const open = () => render(
+    <EventSheet mode="edit" initial={{ title: "Client Call", category: "c1", date: "2026-05-26", start: "10:00" }} categories={CATS}
+      onSave={() => {}} onCancel={() => {}} onMoveToAnytime={() => {}} onDuplicate={() => {}} onLogDecision={() => {}} onDelete={() => {}} />,
+  );
+  const rowOf = (label: string) => screen.getByText(label).closest(".row")!;
+
+  it("Duplicate and Move to Anytime carry no chevron, Log the Decision (which opens a sheet) keeps its own", () => {
+    open();
+    expect(rowOf("Duplicate").querySelector(".chev")).toBeNull();
+    expect(rowOf("Move to Anytime").querySelector(".chev")).toBeNull();
+    expect(rowOf("Log the Decision").querySelector(".chev")).not.toBeNull();
+  });
+
+  it("an empty repeat draws no word None beside its label, and a chosen one is drawn as it was", () => {
+    const { unmount } = open();
+    expect(screen.getByRole("button", { name: "Repeat" }).classList.contains("dd-none")).toBe(true);
+    unmount();
+    render(<EventSheet mode="edit" initial={{ title: "Client Call", category: "c1", date: "2026-05-26", start: "10:00", recurrence: "weekly" }}
+      categories={CATS} onSave={() => {}} onCancel={() => {}} />);
+    const rep = screen.getByRole("button", { name: "Repeat" });
+    expect(rep.classList.contains("dd-none")).toBe(false);
+    expect(rep.textContent).toBe("Weekly");
   });
 });

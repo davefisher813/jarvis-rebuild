@@ -29,7 +29,7 @@ import { WRITE_FAILED_MESSAGE } from "../shared/guard";
 import type { TaskItem } from "../tasks/TasksService";
 import { repetitionsLine } from "../tasks/automaticity";
 import { effectiveKind } from "../categories/kinds";
-import { weekReceipt, afterHoursLine, type WeekEvent } from "../categories/receipts";
+import { weekReceipt, afterHoursLine, uniqueCompletions, type WeekEvent } from "../categories/receipts";
 import { categoryRecord, type RecordEntry } from "../categories/record";
 import { DayDivide } from "../shared/anatomy";
 import { Plus } from "../shared/icons";
@@ -69,7 +69,6 @@ import MedicationScreen from "../health/screens/MedicationScreen";
 import MealScreen from "../health/screens/MealScreen";
 // 2026-09-14: the reference's check-in.
 import CheckInScreen from "../health/screens/CheckInScreen";
-import { checkInLine } from "../health/checkin";
 import { doseRows, doseToast } from "../health/meds";
 import type { LightsOutEntry, TookItEntry, CallItEntry, PointAtItEntry, MedDefEntry, MealEntry, CheckInEntry } from "../health/types";
 import { stillThere, stillThereSummary, stillThereMessage } from "../health/timelines";
@@ -85,7 +84,7 @@ import type { SessionStartCandidate } from "../health/medWindow";
 import type { EventItem } from "../schedule/types";
 import type { TemplateKey } from "../categories/defaults";
 import { localDayParts } from "../events/serverSink";
-import type { HealthLoggerKey, HealthLoggerRow, LogAction, RecordsOpen } from "./HealthBody";
+import type { HealthLoggerKey, LogAction, RecordsOpen } from "./HealthBody";
 import { periodFor, periodOverview, muscleBreakdown } from "../insights/analytics";
 import { findings, type Finding, type LiftId } from "../insights/findings";
 import type { HealthView } from "../insights/HealthNav";
@@ -94,6 +93,10 @@ import { lineCase, titleCase } from "../shared/casing";
 import { ProjectPie } from "../shared/glyphs";
 import GoalRowRuled from "../bigger/GoalRowRuled";
 import { TaskRow } from "../tasks/screens/TasksPage";
+import RowCtxAction from "../shared/RowCtxAction";
+import RowActionSheet from "../shared/RowActionSheet";
+import { catIcon } from "../categories/icons";
+import RowShell from "./RowShell";
 import { trainingSummary, agoPhrase } from "../gym/summary";
 import type { Workout } from "../gym/types";
 import { buildGoalIndex, liveGoals, reachOf, reachLine, sheetGoals } from "../bigger/reach";
@@ -110,7 +113,6 @@ import type { MetricDef, MetricLog } from "../gym/metrics";
 import { newMetricDefData, activeMetrics, pulsePlan, logOn } from "../gym/metrics";
 import { readLive, isStillActive, readPending as readGymPending } from "../gym/liveSession";
 import { readPending as readHealthPending } from "../health/offlineQueue";
-import { chronologicalLog, type LogOpen } from "../health/log";
 import { InsightCard } from "./InsightEvidence";
 import { explainEvidence } from "./explainInsight";
 import { readHealthSettings } from "../health/settings";
@@ -168,7 +170,7 @@ function groupByDay(recent: RecordEntry[]): { day: string; rows: RecordEntry[] }
 }
 const NOTES_CAP = 4;
 
-type SheetState = { kind: "closed" } | { kind: "task" } | { kind: "project"; goalId?: string } | { kind: "goal" } | { kind: "event" } | { kind: "edit" };
+type SheetState = { kind: "closed" } | { kind: "task" } | { kind: "project"; goalId?: string } | { kind: "goal" } | { kind: "event" } | { kind: "edit" } | { kind: "add" };
 
 
 // The category page (2026-08-03), replacing the read-only archive. Pages are
@@ -293,7 +295,7 @@ export default function CategoryDetail({
     if (!autoOpenGym) return;
     setGymOpen(true);
     onGymConsumed?.();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [autoOpenGym, gymNonce]);
   // The Health hero's Start names the day; the gym walks into it (2026-09-02).
   const [gymStartDay, setGymStartDay] = useState<string | null>(null);
@@ -1140,13 +1142,10 @@ export default function CategoryDetail({
   // always says what tapping it does, with the last log appended when there is
   // one. Nothing about the stored records or their keys changes: this is the
   // label, and the label is the whole complaint.
-  // ONE GRID, SO THE VALUE IS THE TILE'S OWN (Dave 2026-09-10: "Daily logs
-  // should be combined with metrics in the most efficient way possible"). A
-  // logger is a tile now, the same three slots a metric tile has, so its last
-  // log becomes the tile's VALUE ("Today", "7/10") and the explanation stays
-  // on the meta line where it belongs. Medication is gone from this list: it
-  // is a page of its own ("medication related stuff should all be its own
-  // page") and a door, not a one-tap log.
+  // (2026-10-04: the logger tiles this paragraph described are gone, see THE
+  // SHORTCUTS below. Medication stays a page of its own, "medication related
+  // stuff should all be its own page" (Dave 2026-09-10), a door and not a
+  // one-tap log; whenLogged now feeds only that door's last-dose line.)
   const whenLogged = (at: number | undefined) => {
     if (at == null) return null;
     const p = agoPhrase(localDayParts(at).day, today);
@@ -1160,22 +1159,13 @@ export default function CategoryDetail({
   // session is a thing you open, so they moved into the gym: the receipt, and
   // any logged session reopened from Recent or History. His own metrics
   // (sleep, bodyweight, protein) are his to place and stay where he put them.
-  // THE SHORTCUTS HE PICKED (H-14, Health Push C, 2026-09-12): the tiles
-  // under Daily Log come from Health Settings. Bedtime alone by default;
-  // Session Effort and Discomfort only when he asked for them on the home
-  // page (Dave 2026-09-10 moved them onto the session; the choice is his).
+  // THE SHORTCUTS (2026-10-04): the Daily Log tiles these once built were
+  // replaced by the rows of Log Something (the approved design of 2026-09-14,
+  // every logger always listed), and the array that mapped the Bedtime, Meal,
+  // Check In, Session Effort and Discomfort chips to them was built and never
+  // rendered, so those chips changed nothing. Health Settings now offers only
+  // the chip that still does: Water, which adds its row below.
   const hs = kind === "health" ? readHealthSettings() : null;
-  const lastCall = callIt[callIt.length - 1];
-  const lastCheckIn = checkins[checkins.length - 1];
-  const healthLoggers: HealthLoggerRow[] = kind !== "health" || !hs ? [] : [
-    // The tile keeps the name Bedtime: his Sleep metric is its own tile, and
-    // two tiles called Sleep would be the fork the hue law exists to stop.
-    ...(hs.shortcuts.includes("bedtime") ? [{ key: "lightsOut" as const, label: "Bedtime", sub: "When the Night Ended", value: whenLogged(lightsOut[lightsOut.length - 1]?.data.at) }] : []),
-    ...(hs.shortcuts.includes("meal") ? [{ key: "meal" as const, label: "Meal", sub: "What You Ate", value: whenLogged(meals[meals.length - 1]?.data.at) }] : []),
-    ...(hs.shortcuts.includes("checkin") ? [{ key: "checkin" as const, label: "Check In", sub: "Energy and Mood", value: lastCheckIn && localDayParts(lastCheckIn.data.at).day === today ? (checkInLine(lastCheckIn.data) ? "Today" : "Today") : whenLogged(lastCheckIn?.data.at) }] : []),
-    ...(hs.shortcuts.includes("effort") ? [{ key: "callIt" as const, label: "Session Effort", sub: "How Hard It Was, 0 to 10", value: lastCall ? `${lastCall.data.rpe}/10` : null }] : []),
-    ...(hs.shortcuts.includes("discomfort") ? [{ key: "pointAtIt" as const, label: "Discomfort", sub: "Where It Hurts", value: whenLogged(pointAtIt[pointAtIt.length - 1]?.data.at) }] : []),
-  ];
   const waterDef = hs?.shortcuts.includes("water") ? metricDefs.find((d) => d.data.presetKey === "water" && !d.data.hidden) ?? null : null;
   const waterToday = waterDef ? (logOn(metricLogs, waterDef.id, today)?.data.value ?? 0) : 0;
   // With the shortcut on and no metric yet (the reference's default set),
@@ -1196,16 +1186,11 @@ export default function CategoryDetail({
     const logged = liveSession.exercises.reduce((n, e) => n + e.sets.filter((s) => !s.skipped).length, 0);
     return { dayName: liveSession.dayName, nextExercise: ex?.name ?? null, setNo: Math.min(working + 1, Math.max(planned, working + 1)), setTotal: planned, logged };
   })() : null;
-  // H-48: today's log, from the same records the tiles read.
-  const healthLog = kind === "health" ? chronologicalLog({ day: today, lightsOut, tookIt, callIt, pointAtIt, workouts, metricDefs, metricLogs, medDefs, meals, checkins }) : [];
   // H-53: what is still waiting to sync, health logs and workouts alike.
+  // (H-48's chronological "today's log" and its row-to-screen router were
+  // computed here and read by nothing once the page became the week, the next
+  // workout and the findings; removed 2026-10-04 with health/log.ts.)
   const pendingCount = kind === "health" ? readHealthPending().length + readGymPending().length : 0;
-  const openLog = (o: LogOpen) => {
-    if (o.kind === "workout") setGymOpen(true);
-    else if (o.kind === "metric") { const def = metricDefs.find((d) => d.id === o.defId); if (def) setMetricSheet({ kind: "log", def }); }
-    else if (o.kind === "tookIt") setMedPage(true);
-    else setHealthScreen(o.kind);
-  };
   // The Medication door says when the last dose was, and nothing else
   // (Dave 2026-09-13: no grey sentence under a door).
   const medSub = whenLogged(tookIt[tookIt.length - 1]?.data.at);
@@ -1480,6 +1465,13 @@ export default function CategoryDetail({
   // copy that drifts. Nothing here is gated on the area's kind or on the
   // section already holding something: every one stands, every one ends in its
   // own create row, and the count chip is the only thing that hides.
+  // A WHOLLY EMPTY AREA IS ONE CRAFTED STATE, NOT A COLUMN OF BARE HEADS (Dave 2026-10-05, the perfect bar; the round-2 review:
+  // Personal was four section heads and four identical Add capsules over 400px of blank page). A glyph in the area's own
+  // colour, a title, one warm line and the one capsule, which opens the four things an area holds (so every door Dave's
+  // 2026-09-09 ruling asked for is still one tap away). The moment the area holds anything, all four sections stand as before.
+  const areaEmpty = kind !== "health" && kind !== "people" && projects.length === 0 && goalsHere.length === 0 && upcoming.length === 0
+    && open.length === 0 && notes.length === 0 && catPeople.length === 0 && rec.recent.length === 0 && repeats.length === 0
+    && !learnedDay;
   const areaSections = (
     <>
       {/* EVERY AREA PAGE SHOWS ALL FOUR, AND EVERY ONE HAS AN ADD (Dave
@@ -1496,20 +1488,25 @@ export default function CategoryDetail({
               in the area's colour, the state and what it moves on the
               second line, the next action under it, the week's count as a
               chip. A project with no open task says Stalled out loud. */}
-          {/* ON A HEALTH PAGE AN EMPTY SECTION IS NOT DRAWN (Dave 2026-09-13:
-              "add goals add projects add this add that that should be at the
-              very very bottom shouldn't take up a lot of space"). Every other
-              area keeps the 09-09 ruling: all four stand, each with its Add.
-              Health's creates are one compact row at the foot (healthAdds). */}
-          {(kind !== "health" || projects.length > 0) && (<>
-          <div className="sh2 sh2-quiet"><span className="t">Projects</span>{projects.length > 0 && <span className="n">{projects.length}</span>}</div>
+          {/* HEALTH, WHERE AN EMPTY SECTION USED TO BE HIDDEN (Dave 2026-09-13: "add goals add projects add this add that that
+              should be at the very very bottom shouldn't take up a lot of space"). The creates were one compact row of
+              three capsules at the foot. They are the sections' own heads now (Dave 2026-10-05), so a section with nothing
+              in it is a head and its capsule and takes one line, which is what he asked it to cost. */}
+          {/* THE SECTION'S ACTION IS IN ITS HEAD (Dave 2026-10-05, locked: Add lives in the section head, never in a card and
+              never at the foot of a list). Every section stands on every area page, health included, and with nothing in it
+              the head and its capsule are the whole of it: a card holding nothing but an action is not drawn (rule 12). */}
+          <div className="sh2 sh2-quiet">
+            <span className="t">Projects</span>{projects.length > 0 && <span className="n">{projects.length}</span>}
+            <button type="button" className="see-all pill-action" onClick={() => setSheet({ kind: "project" })}>Add Project</button>
+          </div>
+          {projects.length > 0 && (<>
           <div className="pad-x"><div className="card list-card-ruled">
             {projects.map((p) => {
               const next = nextActionOf(allTasks, p.id);
               const projTasks = allTasks.filter((t) => t.data.projectId === p.id);
               const taskIds = new Set(projTasks.map((t) => t.id));
               const weekAgoMs = nowMs - 7 * 86400000;
-              const doneWeek = completionSamples().filter((s) => s.t >= weekAgoMs && s.id && taskIds.has(s.id)).length;
+              const doneWeek = uniqueCompletions(completionSamples()).filter((s) => s.t >= weekAgoMs && s.id && taskIds.has(s.id)).length;
               const doneAll = projTasks.filter((t) => t.data.done).length;
               const pct = projTasks.length > 0 ? Math.round((doneAll / projTasks.length) * 100) : null;
               const overdue = projTasks.filter((t) => !t.data.done && !!t.data.due && t.data.due < today).length;
@@ -1553,7 +1550,7 @@ export default function CategoryDetail({
               const nextTone = nextDue ? dayTone(nextDue, today) : null;
               return (
                 <div {...pressable(() => onOpenProject?.(p.id))} className="task-row p2 proj-row-ruled" key={p.id}>
-                  <div className="task-check-tap"><span className={"pp-slot cat-fg-" + cat.data.color}><ProjectPie pct={pct} /></span></div>
+                  <div className="task-check-tap"><span className="pp-slot"><ProjectPie pct={pct} /></span></div>
                   <div className="task-title">
                     <span className="task-name">{titleCase(p.data.title)}</span>
                     {next && (
@@ -1563,9 +1560,12 @@ export default function CategoryDetail({
                     )}
                     {(doneWeek > 0 || overdue > 0 || (nextDue && nextTone !== "red") || stalled || line) && (
                       <div className="r-k">
-                        {doneWeek > 0 && <span className="uchip u-done">{`${doneWeek} Done`}</span>}
-                        {overdue > 0 && <span className="uchip u-late">{`${overdue} Late`}</span>}
-                        {nextDue && nextTone === "warn" && <span className="uchip u-today">{nextDue === today ? "Today" : "Tomorrow"}</span>}
+                        {/* TEXT IN THE KEY, NEVER A FILL (Dave 2026-10-05, D10: no filled chip inside a row). Done is the key's
+                            green, late its red, today or tomorrow its amber, and a later day a neutral small-caps date; all four
+                            are plain facts in the row's own line, the same as the Tasks list draws them. */}
+                        {doneWeek > 0 && <span className="r-goal fact good">{`${doneWeek} Done`}</span>}
+                        {overdue > 0 && <span className="r-goal fact red">{`${overdue} Late`}</span>}
+                        {nextDue && nextTone === "warn" && <span className="r-goal fact warn">{nextDue === today ? "Today" : "Tomorrow"}</span>}
                         {nextDue && nextTone === "date" && <span className="fact date">{dayPhrase(nextDue, today).replace(/ /g, "\u00a0")}</span>}
                         {stalled && <span className="r-goal r-stalled">Stalled</span>}
                         {line && <span className="r-goal r-cat">{line}</span>}
@@ -1576,7 +1576,6 @@ export default function CategoryDetail({
                 </div>
               );
             })}
-            {kind !== "health" && <button className="row-create" onClick={() => setSheet({ kind: "project" })}>Add Project</button>}
           </div></div>
           </>)}
 
@@ -1615,22 +1614,19 @@ export default function CategoryDetail({
           door to the same sheets. Every other category still gets its Add
           Goal row; only health's redundant doors are gone. */}
       {(kind !== "health" || goalsHere.length > 0) && (<>
-      <div className="sh2 sh2-quiet"><span className="t">{kind === "health" ? "Training Goals" : "Goals Here"}</span>{goalsHere.length > 0 && <span className="n">{goalsHere.length}</span>}</div>
+      <div className="sh2 sh2-quiet">
+        <span className="t">{kind === "health" ? "Training Goals" : "Goals Here"}</span>{goalsHere.length > 0 && <span className="n">{goalsHere.length}</span>}
+        {kind !== "health" && <button type="button" className="see-all pill-action" onClick={() => setSheet({ kind: "goal" })}>Add Goal</button>}
+      </div>
       {/* B3-5 (2026-09-04): the project rows above open; these had no
           onOpen at all, so GoalRowRuled (gated on that prop) never
           rendered a role, a handler or the chevron. */}
-      <div className="pad-x"><div className="card list-card-ruled">
+      {goalsHere.length > 0 && <div className="pad-x"><div className="card list-card-ruled">
         {goalsHere.map((g) => (
           <GoalRowRuled key={g.id} title={g.title} tone={g.tone} body={g.line} status={g.status} bar={g.bar} kind={g.kind}
-            onOpen={onOpenGoal ? () => onOpenGoal(g.id) : undefined}
-            // The empty goal's one move (Dave's pass-off, 2026-09-26): the
-            // same ProjectSheet the Add Project row opens, born under it.
-            onAddProject={kind !== "health" ? () => setSheet({ kind: "project", goalId: g.id }) : undefined} />
+            onOpen={onOpenGoal ? () => onOpenGoal(g.id) : undefined} />
         ))}
-        {kind !== "health" && (
-          <button className="row-create" onClick={() => setSheet({ kind: "goal" })}>Add Goal</button>
-        )}
-      </div></div>
+      </div></div>}
       </>)}
 
       {/* WHAT IS ON THE CALENDAR FOR THIS PART OF LIFE (Dave 2026-09-09:
@@ -1658,22 +1654,29 @@ export default function CategoryDetail({
           not, so the create row was never an only child and the slab stayed.
           The wrapper renders only when it has rows now, so all four sections
           are the same shape empty and the same shape full. */}
-      {(kind !== "health" || upcoming.length > 0) && (<>
-      <div className="sh2 sh2-quiet"><span className="t">Coming Up</span>{upcoming.length > 0 && <span className="n">{upcoming.length}</span>}</div>
-      <div className="pad-x"><div className={"card list-card-ruled" + (upcoming.length > 0 ? " sched-card" : "")}>{upcoming.length > 0 && <div className="sched-list">
+      <>
+      <div className="sh2 sh2-quiet">
+        <span className="t">Coming Up</span>{upcoming.length > 0 && <span className="n">{upcoming.length}</span>}
+        <button type="button" className="see-all pill-action" onClick={() => setSheet({ kind: "event" })}>Add Event</button>
+      </div>
+      {upcoming.length > 0 && <div className="pad-x"><div className="card list-card-ruled sched-card sched-coming"><div className="sched-list">
         {upcoming.map((e) => {
           const when = dayPhrase(e.date, today);
+          const whenTone = dayTone(e.date, today);
           const t = e.start ? fmtTime(e.start) : null;
           return (
             // Row tap (Dave 2026-09-15, "I want all rows clickable"): the gym
             // block's row starts the session, as its Start pill does.
-            <div className="sched-row" key={e.id} {...(gymDoor?.id === e.id ? pressable(startGymFromBlock) : {})}>
-              <div className="sched-time">{t ? <>{t.time}<span className="ampm">{t.ap}</span></> : <span className="ampm">All day</span>}</div>
+            <div className="sched-row sched-row-bare" key={e.id} {...(gymDoor?.id === e.id ? pressable(startGymFromBlock) : {})}>
+              <div className="sched-time">{t ? <>{t.time}<span className="ampm">{t.ap}</span></> : <span className="ampm">All Day</span>}</div>
               <div className="sched-body">
-                <div className="sched-title">{e.title}</div>
-                {/* The day is a neutral date, so small caps (§AM F5): the
-                    area's name is the line's one grey. */}
-                <div className="sched-cat"><span className={"cat-dot cat-bg-" + cat.data.color} />{cat.data.name}<span className="sched-sep">{"\u00b7"}</span><span className="fact date">{when}</span></div>
+                {/* THE TITLE IS THE ROW'S .sched-t, SO IT TAKES THE TWO-LINE WRAP AND ENDS IN AN ELLIPSIS, NEVER A CUT LETTER (Dave
+                    2026-09-26; the round-2 review: "Fall Clinic Walkthrou"). The bare div had no clamp to take. */}
+                <div className="sched-title"><span className="sched-t">{titleCase(e.title)}</span></div>
+                {/* The area is the line's one grey. The day wears the key where it has a meaning: today and tomorrow are due, so
+                    amber; a day behind us is late, red; a later one is a neutral date, small caps (§AM F5, R8). Each is a .fact, so the
+                    dot between them is the facts line's own (.fact + .fact::before), never a typed middle dot. */}
+                <div className="sched-cat"><span className="fact"><span className={"cat-dot cat-bg-" + cat.data.color} />{cat.data.name}</span>{whenTone === "date" ? <span className="fact date">{when}</span> : <span className={"fact " + whenTone}>{when}</span>}</div>
               </div>
               {/* THE GYM BLOCK IS NOT A NOTICE, IT IS A DOOR (Dave 2026-09-10,
                   on making the health page read as training). Today's gym
@@ -1683,23 +1686,24 @@ export default function CategoryDetail({
                   starts the session, carrying the block's own event id so
                   finishing stamps the block, which is the whole reason
                   gymDoor exists (B5). */}
-              {gymDoor?.id === e.id && (
-                <button className="pill-act" onClick={(ev) => { ev.stopPropagation(); startGymFromBlock(); }}>Start</button>
-              )}
+              {/* CLEAN ROW (Dave 2026-10-05): the capsule is gone. Today's block has come, so its one action is the quiet word
+                  on the row, and the row's own tap starts it as it always did. */}
+              <RowCtxAction when={gymDoor?.id === e.id} label="Start" ariaLabel={"Start " + e.title} onAct={startGymFromBlock} />
             </div>
           );
         })}
-      </div>}
-      {kind !== "health" && <button className="row-create" onClick={() => setSheet({ kind: "event" })}>Add Event</button>}
-      </div></div>
-      </>)}
+      </div></div></div>}
+      </>
 
-      {(kind !== "health" || open.length > 0) && (<>
-      <div className="sh2 sh2-quiet" ref={upNextRef}><span className="t">Up Next</span>{open.length > 0 && <span className="n">{open.length}</span>}</div>
+      <>
+      <div className="sh2 sh2-quiet" ref={upNextRef}>
+        <span className="t">Up Next</span>{open.length > 0 && <span className="n">{open.length}</span>}
+        <button type="button" className="see-all pill-action" onClick={() => setSheet({ kind: "task" })}>Add Task</button>
+      </div>
       {/* THE SAME ROW AS EVERYWHERE (Dave 2026-09-02, on the Health page:
           "should render as a task there like it does everywhere else. It
           should have the same clearing ability as well"). */}
-      <div className="pad-x"><div className="card list-card-ruled">
+      {open.length > 0 && <div className="pad-x"><div className="card list-card-ruled">
         {open.map((t) => {
           // THE INVARIANT (the reminders rebuild): an unscheduled reminder
           // prints no clock, here as everywhere.
@@ -1718,7 +1722,8 @@ export default function CategoryDetail({
               item={displayItem}
               today={today}
               kicker={t.data.reminder && rem ? `${fmtTime(rem).time} ${fmtTime(rem).ap}` : null}
-              parent={parentForTask(parentIdx, t)}
+              parent={(() => { const par = parentForTask(parentIdx, t); return par && par.kind !== "category" ? par : null; })()}
+              inArea={categoryId}
               onToggle={(id) => void toggle(id)}
               onOpen={onOpenTask}
               onDelete={(id) => void deleteTask(id)}
@@ -1727,9 +1732,8 @@ export default function CategoryDetail({
             />
           );
         })}
-        {kind !== "health" && <button className="row-create" onClick={() => setSheet({ kind: "task" })}>Add Task</button>}
-      </div></div>
-      </>)}
+      </div></div>}
+      </>
     </>
   );
   // THE CREATES, AT THE FOOT (Dave 2026-09-13). One compact row of three
@@ -1804,14 +1808,6 @@ export default function CategoryDetail({
     ...activeMetrics(metricDefs).filter((d) => !(water && d.data.presetKey === "water")).map((d) => ({ label: d.data.name, onPick: () => setMetricSheet({ kind: "log", def: d }) })),
     { label: "Add a Metric", onPick: () => setMetricSheet({ kind: "add" }) },
   ];
-  const healthAdds = (
-    <div className="pad-x h-adds">
-      <button type="button" className="h-add" aria-label="Add Task" onClick={() => setSheet({ kind: "task" })}><Plus className="ic" />Task</button>
-      <button type="button" className="h-add" aria-label="Add Event" onClick={() => setSheet({ kind: "event" })}><Plus className="ic" />Event</button>
-      <button type="button" className="h-add" aria-label="Add Project" onClick={() => setSheet({ kind: "project" })}><Plus className="ic" />Project</button>
-    </div>
-  );
-
   // THE INSIGHT CARDS (2026-09-14): they render on the Insights page now,
   // the landing page keeps its three findings. Same cards, same evidence.
   const insightCards: ReactNode = hasInsights ? (
@@ -1927,7 +1923,7 @@ export default function CategoryDetail({
                         </div>
                       ))}
                     </div>
-                    <div className="ins-acts">
+                    <div className="ins-acts notice-actions">
                       <button type="button" className="pill-act pill-quiet" onClick={() => { setGymLibrary(true); setGymOpen(true); }}>Open Exercises</button>
                     </div>
                   </InsightCard>
@@ -2004,7 +2000,7 @@ export default function CategoryDetail({
                     {repeats.map((t) => (
                       <div className="task-row p2" key={t.id}>
                         <div className="task-title">
-                          <span className="task-name">{t.data.text}</span>
+                          <span className="task-name">{titleCase(t.data.text)}</span>
                           <div className="r-k"><span className="r-goal r-cat">{repetitionsLine(t.data.doneCount)}</span></div>
                         </div>
                       </div>
@@ -2026,9 +2022,9 @@ export default function CategoryDetail({
                       card per day made two ticks cost half a screen. */}
                   <div className="pad-x"><div className="card list-card-ruled">
                     {shownGroups.flatMap((g) => g.rows.map((r) => (
-                      <div className="task-row p2" key={r.key}>
+                      <div className="task-row p2 completed" key={r.key}>
                         <div className="task-check-tap"><div className="task-check done" /></div>
-                        <div className="task-title"><span className="task-name">{r.text}</span></div>
+                        <div className="task-title"><span className="task-name">{titleCase(r.text)}</span></div>
                         <span className="h-when">{g.day}</span>
                       </div>
                     )))}
@@ -2041,7 +2037,7 @@ export default function CategoryDetail({
                   <div className="pad-x"><div className="card list-card-ruled">
                     {notes.map((n) => (
                       <div {...pressable(() => onOpenNote?.(n.id))} className="task-row p2" key={n.id}>
-                        <div className="task-title"><span className="task-name">{n.title}</span></div>
+                        <div className="task-title"><span className="task-name">{titleCase(n.title)}</span></div>
                         {CHEV}
                       </div>
                     ))}
@@ -2093,7 +2089,8 @@ export default function CategoryDetail({
             <div className="row-grow"><div className="conn-name">Paused for Now</div></div>
             {/* BRAIN-F-12 (2026-09-05): Wake Up did nothing and said nothing
                 when the write failed; the banner just stayed. */}
-            <button className="btn-sm" onClick={(ev) => { ev.stopPropagation(); void wakeUp(); }}>Wake Up</button>
+            {/* Clean rows (Dave 2026-10-05): no capsule; the banner is asking now, so its one action is the quiet word. */}
+            <RowCtxAction when label="Wake Up" onAct={() => void wakeUp()} />
           </div>
         </div></div>
       )}
@@ -2149,8 +2146,6 @@ export default function CategoryDetail({
           onOpenGym={() => setGymOpen(true)}
           onOpenRecords={openRecords}
           onOpenFinding={openFinding}
-          onOpenInsights={() => setHealthView("insights")}
-          onOpenAllData={() => setHealthView("data")}
           // THE THREE DOORS (Cowork 2026-09-14, Dave: "Exercises must open the
           // complete library in one tap"). Exercises is the library page,
           // History opens on its sessions segment.
@@ -2163,7 +2158,6 @@ export default function CategoryDetail({
           // the health page cannot show two of any of them (Dave 2026-09-10).
           sections={areaSections}
           more={healthMore}
-          adds={healthAdds}
           view={healthView}
           onView={setHealthView}
         />
@@ -2232,6 +2226,9 @@ export default function CategoryDetail({
             uniform={false}
             onOpen={() => upNextRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}
             automation="learned-day"
+            // Less and Never only (2026-10-04): the card is not in Today's
+            // stream, so no reader ever lifted it for a "more" rule.
+            tuneChoices={["less", "never"]}
             onTune={(choice) => void tune("learned-day", choice, `${DOW_PLURAL[learnedDay.dow]} Get the Most Done`)}
           />
         </div></div>
@@ -2246,9 +2243,9 @@ export default function CategoryDetail({
                 <DayDivide label={g.day} />
                 <div className="card list-card-ruled">
                   {g.rows.map((r) => (
-                    <div className="task-row p2" key={r.key}>
+                    <div className="task-row p2 completed" key={r.key}>
                       <div className="task-check-tap"><div className="task-check done" /></div>
-                      <div className="task-title"><span className="task-name">{r.text}</span></div>
+                      <div className="task-title"><span className="task-name">{titleCase(r.text)}</span></div>
                     </div>
                   ))}
                 </div>
@@ -2268,7 +2265,7 @@ export default function CategoryDetail({
             {repeats.map((t) => (
               <div className="task-row p2" key={t.id}>
                 <div className="task-title">
-                  <span className="task-name">{t.data.text}</span>
+                  <span className="task-name">{titleCase(t.data.text)}</span>
                   <div className="r-k"><span className="r-goal r-cat">{repetitionsLine(t.data.doneCount)}</span></div>
                 </div>
               </div>
@@ -2286,16 +2283,22 @@ export default function CategoryDetail({
               (derived from Gmail when connected, silent when not). Orgs get
               the same section when they have tagged people (clients, a team);
               on an org it stays hidden while empty instead of nagging. */}
-          <div className="sh2 sh2-quiet"><span className="t">{isOrg ? "People" : "Your People"}</span>{catPeople.length > 0 && <span className="n">{catPeople.length}</span>}</div>
-          <div className="pad-x"><div className="card list-card-ruled">
-            {catPeople.length === 0 && (
-              <div className="task-row p2">
-                <div className="task-title">
-                  <span className="task-name">No People Here Yet</span>
-                  <div className="r-k"><span className="r-goal r-cat">{`Open someone in Contacts and tag them ${cat.data.name}`}</span></div>
-                </div>
-              </div>
-            )}
+          {/* Open Contacts is a door out of the section, and the head's one action is a capsule on every page (Dave 2026-10-05,
+              D1/D9: one action style in section heads; the review: it was bare red text beside two capsules on Family). */}
+          <div className="sh2 sh2-quiet">
+            <span className="t">{isOrg ? "People" : "Your People"}</span>{catPeople.length > 0 && <span className="n">{catPeople.length}</span>}
+            {onOpenContacts && <button type="button" className="see-all pill-action" onClick={onOpenContacts}>Open Contacts</button>}
+          </div>
+          {/* NO PEOPLE IS THE APP'S ONE EMPTY STATE (D9): a glyph, a title and one warm line that wraps instead of ending in an
+              ellipsis (it used to be a left-aligned row whose line was cut to "tag them F..."). The capsule is the head's. */}
+          {catPeople.length === 0 && (
+            <div className="pad-x"><div className="empty-state empty-compact">
+              <div className={"empty-icon cat-fg-" + cat.data.color}>{catIcon("users")}</div>
+              <div className="empty-title">No People Here Yet</div>
+              <div className="empty-sub">{titleCase(`tag someone in contacts as ${cat.data.name}`)}</div>
+            </div></div>
+          )}
+          {catPeople.length > 0 && <div className="pad-x"><div className="card list-card-ruled shell-rows">
             {catPeople.map((p) => {
               const bday = bdayById.get(p.id);
               const last = contact[p.id];
@@ -2340,7 +2343,10 @@ export default function CategoryDetail({
                 : null;
               const nudgeable = !!p.data.email && (quiet || !!wrow);
               return (
-                <div {...pressable(() => onOpenPerson?.(p.id))} className="task-row p2 person-row-ruled" key={p.id}>
+                // A reply owed, or a line gone quiet, is a row whose moment has come: Nudge is its swipe-left AND the one
+                // quiet word on it (Dave 2026-10-05, locked), never a capsule; the tap opens the person.
+                <RowShell key={p.id} verb={nudgeable ? { label: "Nudge", run: () => void nudge(p) } : undefined}>
+                <div {...pressable(() => onOpenPerson?.(p.id))} className="task-row p2 person-row-ruled">
                   <div className="task-check-tap"><div className={"av " + avatarClass(p.data.color)}>{personInitials(p.data.name)}</div></div>
                   <div className="task-title">
                     <span className="task-name">{p.data.name}</span>
@@ -2353,25 +2359,25 @@ export default function CategoryDetail({
                       </div>
                     )}
                   </div>
-                  {nudgeable ? (
-                    <button className="pill-act" disabled={nudging === p.id}
-                      onClick={(e) => { e.stopPropagation(); void nudge(p); }}>
-                      {nudging === p.id ? "Drafting" : "Nudge"}
-                    </button>
-                  ) : CHEV}
+                  {nudgeable
+                    ? <RowCtxAction when label={nudging === p.id ? "Drafting" : "Nudge"} ariaLabel={"Nudge " + p.data.name} onAct={() => { if (nudging !== p.id) void nudge(p); }} />
+                    : CHEV}
                 </div>
+                </RowShell>
               );
             })}
-            {onOpenContacts && (
-              <button className="row row-act" onClick={onOpenContacts}>Open Contacts</button>
-            )}
-          </div></div>
+          </div></div>}
         </>
       )}
 
-
-
-      {areaSections}
+      {areaEmpty ? (
+        <div className="pad-x"><div className="empty-state empty-compact">
+          <div className={"empty-icon cat-fg-" + cat.data.color}>{catIcon(cat.data.icon)}</div>
+          <div className="empty-title">{titleCase(`nothing in ${cat.data.name} yet`)}</div>
+          <div className="empty-sub">{titleCase("add a task, an event, a project or a goal and it lands here")}</div>
+          <button type="button" className="pill-act" onClick={() => setSheet({ kind: "add" })}>Add</button>
+        </div></div>
+      ) : areaSections}
 
       {notes.length > 0 && (
         <>
@@ -2379,7 +2385,7 @@ export default function CategoryDetail({
           <div className="pad-x"><div className="card list-card-ruled">
             {notes.map((n) => (
               <div {...pressable(() => onOpenNote?.(n.id))} className="task-row p2 note-row" key={n.id}>
-                <div className="task-title"><span className="task-name">{n.title}</span></div>
+                <div className="task-title"><span className="task-name">{titleCase(n.title)}</span></div>
                 {CHEV}
               </div>
             ))}
@@ -2395,6 +2401,14 @@ export default function CategoryDetail({
           categories and events and no projects, so the area page was the one
           door where a new task could not be filed to the project it belongs
           to, and the derived Goal row had nothing to derive from. */}
+ {sheet.kind === "add" && (
+        <RowActionSheet title={"Add to " + cat.data.name} onCancel={() => setSheet({ kind: "closed" })} actions={[
+          { label: "Add Task", onPick: () => setSheet({ kind: "task" }) },
+          { label: "Add Event", onPick: () => setSheet({ kind: "event" }) },
+          { label: "Add Project", onPick: () => setSheet({ kind: "project" }) },
+          { label: "Add Goal", onPick: () => setSheet({ kind: "goal" }) },
+        ]} />
+      )}
       {sheet.kind === "task" && (
         <TaskSheet mode="new" categories={sheetCats} events={sheetEvents(allEvents, today)}
           projects={sheetProjects(projects, goals)}

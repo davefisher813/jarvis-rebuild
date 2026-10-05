@@ -5,7 +5,10 @@ import { createPortal } from "react-dom";
 import type { Receipt } from "./prs";
 import type { Workout } from "./types";
 import { doneCount } from "./history";
-import { own } from "../shared/rowDoor";
+import { pressable } from "../shared/pressable";
+import { Check } from "../shared/icons";
+
+const CHEV = <div className="chev" />;
 
 // The finish moment. Volume is the star when it exists: a real number that
 // feels enormous, and a beginner racks it up on day one, so the reward works
@@ -46,7 +49,7 @@ export default function ReceiptSheet({ dayName, receipt, workouts, onDone, onKee
     { num: String(receipt.minutes), label: receipt.minutes === 1 ? "Minute" : "Minutes" },
     { num: String(receipt.exercises), label: receipt.exercises === 1 ? "Exercise" : "Exercises" },
   ];
-  if (receipt.volumeUnit) tiles.push({ num: receipt.volume.toLocaleString(), label: `${receipt.volumeUnit} moved` });
+  if (receipt.volumeUnit) tiles.push({ num: receipt.volume.toLocaleString(), label: lineCase(`${receipt.volumeUnit} moved`) });
   if (receipt.otherSets > 0) tiles.push({ num: String(receipt.otherSets), label: receipt.otherSets === 1 ? "Set" : "Sets" });
   if (receipt.prs.length && celebrations) tiles.push({ num: String(receipt.prs.length), label: receipt.prs.length === 1 ? "PR" : "PRs" });
 
@@ -84,7 +87,7 @@ export default function ReceiptSheet({ dayName, receipt, workouts, onDone, onKee
                         <div className="conn-name truncate">{name}</div>
                         {/* Row meta is quiet sentence case (gym reformat
                             2026-08-31); eyebrows are kickers. */}
-                        <div className="conn-meta">{n > 1 ? `Done ${n} times` : "Done"}</div>
+                        <div className="conn-meta">{n > 1 ? lineCase(`Done ${n} times`) : "Done"}</div>
                       </div>
                     </div>
                   );
@@ -106,18 +109,18 @@ export default function ReceiptSheet({ dayName, receipt, workouts, onDone, onKee
                   const close = () => { setClosed((c) => [...c, g.id]); onAchieveGoal?.(g.id); };
                   const canClose = !!onAchieveGoal && !done;
                   return (
-                    // row-tap: no goal page is reachable from inside the finish, and closing a goal stays on Mark Done, which the note below rules is the receipt for taking it
-                    <div className="row" key={g.id}>
+                    // CLEAN ROW (Dave 2026-10-05, locked: no pill in a row). The close-out is the row's tap, and the check
+                    // at its edge says so; once taken, the quiet Done state replaces it. No goal page is reachable from
+                    // inside the finish, and closing a goal stays here, which is the receipt for taking it.
+                    <div className="row" key={g.id} {...(canClose ? { ...pressable(close), "aria-label": "Mark Done: " + g.title } : {})}>
                       <div className="row-grow">
                         <div className="conn-name truncate">{g.title}</div>
                         <div className="conn-meta">{g.line}</div>
                       </div>
-                      {/* THE CLOSE-OUT IS HIS (Dave 2026-09-09). The goal used
-                          to be written achieved before this sheet even opened.
-                          Now the row says he hit the number and offers the
-                          close; the pill is the receipt for taking it. */}
+                      {/* THE CLOSE-OUT IS HIS (Dave 2026-09-09). The goal used to be written achieved before this sheet
+                          even opened. Now the row says he hit the number and offers the close. */}
                       {canClose
-                        ? <button className="pill-act" onClick={own(close)}>Mark Done</button>
+                        ? <Check className="ic row-verb-ic" aria-hidden="true" />
                         : <span className="pill pill-good">{done ? "Done" : "Goal"}</span>}
                     </div>
                   );
@@ -129,11 +132,20 @@ export default function ReceiptSheet({ dayName, receipt, workouts, onDone, onKee
             <>
               <div className="grp"><div className="eyebrow">How It Went</div></div>
               <div className="card">
+                {/* Both close the receipt, which commits the session, so both carry
+                    the note typed below (2026-10-04): onDone() with no argument
+                    saved the workout without it and the typing was silently lost. */}
                 {onRateSession && (
-                  <button className="row row-act" onClick={() => { onDone(); onRateSession(); }}>Rate It, 1 to 10</button>
+                  <div className="row" {...pressable(() => { onDone(note); onRateSession(); })}>
+                    <div className="row-grow"><div className="conn-name">Rate It, 1 to 10</div></div>
+                    {CHEV}
+                  </div>
                 )}
                 {onLogSoreSpot && (
-                  <button className="row row-act" onClick={() => { onDone(); onLogSoreSpot(); }}>Something Hurts</button>
+                  <div className="row" {...pressable(() => { onDone(note); onLogSoreSpot(); })}>
+                    <div className="row-grow"><div className="conn-name">Something Hurts</div></div>
+                    {CHEV}
+                  </div>
                 )}
               </div>
             </>

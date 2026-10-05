@@ -75,7 +75,7 @@ export default function TriageScreen({ onBack }: { onBack: () => void }) {
       setPicked(brainRolesOf(current));
       setNote(typeof current.data.roleNote === "string" ? current.data.roleNote : "");
     }
-  }, [current?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [current?.id]);  
 
   const remaining = order.length - Math.min(idx, order.length);
 
@@ -164,29 +164,24 @@ export default function TriageScreen({ onBack }: { onBack: () => void }) {
               <div className="eyebrow">Possible Duplicate</div>
               <div className="conn-meta">Same Person Twice? Keep One.</div>
               {[current, ...dups.slice(0, 1)].map((p) => {
-                // The row and its pill both only ASK: nothing merges until
-                // the confirm, so a stray tap while scrolling deletes nobody.
+                // CLEAN ROWS (Dave 2026-10-05, locked): the row ASKS and nothing else. The pill that said Keep This One is
+                // the row itself now (it was already the row's tap): nothing merges until the confirm, so a stray tap while
+                // scrolling deletes nobody.
                 const keep = () => {
                   const other = p.id === current.id ? dups[0]! : current;
                   setConfirming({ survivor: p, loser: other });
                 };
                 return (
-                <div {...pressable(keep)} className="offer-row" key={p.id}>
+                <div {...pressable(keep, { disabled: busy })} className="offer-row" key={p.id} aria-label={"Keep " + p.data.name}>
                   <div className={"av av-32 " + avatarClass(p.data.color)}>{personInitials(p.data.name)}</div>
                   <div className="row-grow">
                     <div className="conn-name truncate">{p.data.name}</div>
                     <div className="facts"><span className="fact">{personSourceLabel(triageSource(p))}</span></div>
                   </div>
-                  <button className="pill-act" disabled={busy} onClick={(e) => { e.stopPropagation(); keep(); }}>
-                    Keep This One
-                  </button>
+                  <div className="chev" />
                 </div>
                 );
               })}
-              <button className="quiet-action"
-                onClick={() => setNotDups((s) => new Set(s).add(current.id))}>
-                Not Duplicates · Sort Anyway
-              </button>
             </div></div>
           ) : (
             <div className="pad-x"><div className="card list-card-ruled pad">
@@ -218,6 +213,13 @@ export default function TriageScreen({ onBack }: { onBack: () => void }) {
             </div></div>
           )}
 
+          {dups.length > 0 && (
+            <div className="pad-x sheet-actions">
+              <button type="button" className="btn btn-secondary btn-block" onClick={() => setNotDups((s) => new Set(s).add(current.id))}>
+                Not Duplicates, Sort Anyway
+              </button>
+            </div>
+          )}
           {dups.length === 0 && (
             <div className="pad-x sheet-actions">
               <button className="btn btn-primary btn-block" disabled={busy}

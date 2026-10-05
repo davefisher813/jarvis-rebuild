@@ -66,6 +66,6 @@ export function welcomeBack(
     gone: agedOut > 0
       ? lineCase(`${agedOut === 1 ? "One thing" : agedOut + " things"} aged out on their own`)
       : null,
-    ask: "Start With One?",
+    ask: "Start with One?", // "with" is a small word mid-line (2026-10-05)
   };
 }

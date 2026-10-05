@@ -109,6 +109,13 @@ export function taskDone(rows: WindowRow[]): WindowRow[] {
   return rows.filter((r) => r.type === "task.completed" && r.kind !== "workout");
 }
 
+/** "12 Finishes There, Out of Your Last 16" when the band holds some of the evidence; when it holds ALL of it the second
+ *  figure only repeats the first ("42 Out of Your Last 42"), so the line says the one thing: "42 Finishes in That Window"
+ *  (round 2 review: the same number twice reads like a template, not a voice). */
+function ofLast(count: number, total: number, noun: string, allNoun: string): string {
+  return lineCase(count >= total ? `${count} ${allNoun}` : `${count} ${noun} there, out of your last ${total}`);
+}
+
 export function deriveCompletionWindow(rows: WindowRow[]): Derived | null {
   // Tasks only (see taskDone): a month of gym evenings must not become
   // "your tasks get done at 6 PM".
@@ -126,7 +133,7 @@ export function deriveCompletionWindow(rows: WindowRow[]): Derived | null {
     // Worded so the leading count is followed by a noun, not a joining word:
     // "12 Finishes there" is the casing law's intended shape, where
     // "12 Of your last 16" is what it does to a sentence built the other way.
-    sub: lineCase(`${bestCount} finishes there, out of your last ${done.length}`),
+    sub: ofLast(bestCount, done.length, "finishes", "finishes in that window"),
     strandText: `Gets things done between ${from} and ${to} ${partOfDay(best)}`,
     evidence: days.slice(0, 6).map((day) => ({ day, a: best })),
   };
@@ -225,7 +232,9 @@ export function deriveSlipCategory(rows: WindowRow[]): Derived | null {
     derivation: "slip_category",
     category: "work_style",
     title: `${name} tasks are the ones that slip`,
-    sub: lineCase(`Pushed ${n} times in 30 days, the most of any category`),
+    // "In 30 days" read as a count running forward ("in 5 days"), so the Quiet line lit the 30 amber on a number that is
+    // only the window's length (round 2 review). The window is said the way a person says it, with no day count to light.
+    sub: lineCase(`Pushed ${n} times this month, the most of any category`),
     strandText: `${name} tasks tend to slip and need extra room`,
     evidence: days.slice(0, 6).map((day) => ({ day, a: 1 })),
   };
@@ -343,7 +352,7 @@ export function deriveTrainingWindow(rows: WindowRow[]): Derived | null {
     derivation: "training_window",
     category: "routine",
     title: `You train between ${from} and ${to}`,
-    sub: lineCase(`${bestCount} sessions there, out of your last ${done.length}`),
+    sub: ofLast(bestCount, done.length, "sessions", "sessions in that window"),
     strandText: `Trains between ${from} and ${to} ${partOfDay(best)}`,
     evidence: days.slice(0, 6).map((day) => ({ day, a: best })),
   };

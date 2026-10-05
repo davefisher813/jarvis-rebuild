@@ -71,10 +71,11 @@ describe("Today's Email rows (12, E15, T1)", () => {
     });
     // Overdue first by date; then today's, the dated ones before the timed one, each by its key.
     expect(rows.map((r) => `${r.kind}:${r.id}`)).toEqual(["review:review", "task:t-over", "waiting:w-over", "task:t-today", "waiting:w-today", "event:e-today"]);
-    expect(rows[1]!.line).toBe("Task · Was Due Oct 1");
-    expect(rows[3]!.line).toBe("Task · Due Today");
-    expect(rows[4]!.line).toBe("Waiting On Coach Miller · Follow Up Today");
-    expect(rows[5]!.line).toBe("Schedule · 10:00 to 10:15");
+    expect(rows[1]!.facts).toEqual([{ text: "Was Due Oct 1", tone: "red" }]);
+    expect(rows[3]!.facts).toEqual([{ text: "Due Today", tone: "warn" }]);
+    // The toned fact leads and the free-text name is last: a facts line ellipsizes only its last fact.
+    expect(rows[4]!.facts).toEqual([{ text: "Follow Up Today", tone: "warn" }, { text: "Waiting On Coach Miller" }]);
+    expect(rows[5]!.facts).toEqual([{ text: "10:00 AM to 10:15 AM", tone: "date" }]);
   });
   it("five at most including the count: 0, 1, 3, 5 and 8 eligible items", () => {
     const many = (n: number) => Array.from({ length: n }, (_, i) => task(`t${i}`, TODAY));
@@ -93,6 +94,6 @@ describe("Today's Email rows (12, E15, T1)", () => {
   });
   it("no proposed title ever rides along: the only Email words are the count's", () => {
     const rows = emailTodayRows({ count: 3, tasks: [], events: [], waiting: [], today: TODAY });
-    expect(rows[0]).toMatchObject({ kind: "review", id: "review", title: "3 Email Items to Review", line: "Open Email to Review" });
+    expect(rows[0]).toMatchObject({ kind: "review", id: "review", title: "3 Email Items to Review", facts: [] });
   });
 });

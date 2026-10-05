@@ -59,9 +59,10 @@ describe("buildWeek", () => {
     expect(changedLine.tone).toBe("quiet");
     expect(changedLine.facts[0]?.tone).toBeUndefined();
     // The area is a dot and its name, the amount its own fact (§AM F3).
-    expect(byKey.Next).toEqual(["Bridge", "3h of 17h"]);
-    // Next is amber: "needs you soon" in the key, never the red of late.
-    expect(w.lines.find((l) => l.key === "Next")!.tone).toBe("warn");
+    // "Planned 3h of 17h": "3h of 17h" alone was unreadable, and "Got" did not say what was got (Dave 2026-10-05, the review; round 2).
+    expect(byKey.Next).toEqual(["Bridge", "Planned 3h of 17h"]);
+    // Every line's KEY WORD is the same quiet grey (round 2 review: amber labels on lines that are not due); the colour lives on the value.
+    expect(w.lines.every((l) => l.tone === "quiet")).toBe(true);
     for (const l of w.lines) expect(["good", "warn", "quiet"]).toContain(l.tone);
     expect(w.next?.name).toBe("Bridge");
     expect(w.offer).toBe(true);
@@ -89,14 +90,14 @@ describe("buildWeek", () => {
 
   it("C-65: the vs-usual fact appears only in a report line, only when the share moved", () => {
     // "vs" is a small word (the lead, 2026-09-26); the rest is Title Case.
-    expect(vsUsual(26, 35)).toBe("26% vs Usual 35%");
+    expect(vsUsual(26, 35)).toBe("26% Vs Usual 35%");
     expect(vsUsual(33, 35)).toBeNull();
     expect(vsUsual(26, null)).toBeNull();
     const prevRows: WindowRow[] = [];
     const events = [ev("e1", "2026-09-08", "09:00", "12:00", "bridge"), ev("e2", "2026-09-09", "09:00", "17:00", "tucci"), ev("p1", "2026-09-02", "09:00", "17:00", "bridge"), ev("p2", "2026-09-03", "09:00", "11:00", "tucci")];
     const w = buildWeek({ today: TODAY, rows: [], prevRows, events, workouts: [], goals: [goal({ tags: ["bridge"] })], projects: [], categories: CATS });
     const next = w.lines.find((l) => l.key === "Next")!;
-    expect(next.facts[2]?.text).toBe("27% vs Usual 80%");
+    expect(next.facts[2]?.text).toBe("27% Vs Usual 80%");
     expect(next.facts[2]?.tone).toBe("warn");
   });
 
@@ -110,10 +111,10 @@ describe("buildWeek", () => {
 });
 
 describe("the life lines (2026-09-26)", () => {
-  it("a zero week reads None of, never 0 Min of", () => {
+  it("a zero week reads Planned 0 of the hours, never 0 Min of and never None of", () => {
     const events = [ev("e2", "2026-09-09", "09:00", "17:00", "tucci"), ev("e3", "2026-09-10", "09:00", "15:00", "tucci")];
     const w = buildWeek({ today: TODAY, rows: [], events, workouts: [], goals: [goal({ tags: ["bridge"] })], projects: [], categories: CATS });
-    expect(w.lines.find((l) => l.key === "Next")!.facts.map((f) => f.text)).toEqual(["Bridge", "None of 14h"]);
+    expect(w.lines.find((l) => l.key === "Next")!.facts.map((f) => f.text)).toEqual(["Bridge", "Planned 0 of 14h"]);
   });
 
   it("carries the report's cards at week scale, each silent at zero, between Learned and Next", () => {
@@ -131,7 +132,7 @@ describe("the life lines (2026-09-26)", () => {
     expect(byKey.Mail![0]).toEqual({ text: "Waiting 9 Days on a Reply", tone: "warn" });
     expect(byKey.Mail![1]!.text).toBe("2 Handled");
     expect(byKey.People).toEqual([{ text: "1 Reached", parts: [{ b: "1" }, " Reached"] }]);
-    expect(byKey.Decided).toEqual([{ text: "1 Made", parts: [{ b: "1" }, " Made"] }]);
+    expect(byKey.Decided).toEqual([{ text: "1 Decision Made", parts: [{ b: "1" }, " Decision Made"] }]);
     // Without the sources the card has the lines it always had.
     const bare = buildWeek({ today: TODAY, rows: [row("strand.created", "2026-09-11")], events: [], workouts: [], goals: [], projects: [], categories: CATS });
     expect(bare.lines.map((l) => l.key)).toEqual(["Learned"]);

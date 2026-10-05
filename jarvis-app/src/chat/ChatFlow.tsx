@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { refileWith, type Undo } from "./refile";
 import PageHeader, { BarAction } from "../shared/PageHeader";
+import { Sparkles } from "../shared/icons";
 import { useChat, useTasks, useSchedule, useNotes, useCategories, useOptionalStrands, useOptionalDecisions, usePeople, useOptionalFiles, useFileStore, useOptionalGym, useOptionalBrainMemory } from "../data/NotesProvider";
 import { useOptionalGoogle } from "../connections/google/GoogleSession";
 import { lastContactFor } from "../people/lastContact";
@@ -164,7 +165,7 @@ export default function ChatFlow({ onOpen, onCompose, askPersonId, askNonce, onA
       .catch(() => "")
       .then((v) => { if (live) setTextVoice(v); });
     return () => { live = false; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [textTo?.person.id]);
   // The email draft, shown in the bubble with an Open button. Never sent
   // from here, and never sent by anything this path touches.
@@ -372,8 +373,13 @@ export default function ChatFlow({ onOpen, onCompose, askPersonId, askNonce, onA
       showToast({
         message: "Task deleted",
         actionLabel: "Undo",
+        // 2026-10-04: Undo wrote a bare text, category and due copy under a
+        // NEW id, so a recurring task, its steps, notes and links did not come
+        // back and anything holding the old id stopped opening it.
+        // recreateFrom(snapshot, id) restores the whole record under its own
+        // id.
         onAction: async () => {
-          if (snapshotTask) await attemptWrite(() => tasksSvc.createTask(snapshotTask.text, { category: snapshotTask.category, due: snapshotTask.due ?? null }));
+          if (snapshotTask) await attemptWrite(() => tasksSvc.recreateFrom(snapshotTask, target.id));
         },
       });
     }
@@ -415,7 +421,7 @@ export default function ChatFlow({ onOpen, onCompose, askPersonId, askNonce, onA
       // same rule the starter chips follow.
       setDraft(`What did I tell ${p.data.name} about `);
     })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [askPersonId, askNonce]);
 
   const send = async () => {
@@ -655,7 +661,11 @@ export default function ChatFlow({ onOpen, onCompose, askPersonId, askNonce, onA
   // Audit 2026-09-11 item 7 (fixed 2026-09-13, chat/refile.ts): every
   // delivery hands back the way to take itself back, so a refile can move
   // the file rather than copy it.
-  const [lastUndo, setLastUndo] = useState<Undo | null>(null);
+  // 2026-10-05: stored WITH the file it undoes. A delivery that threw, or a
+  // pick made mid-attach, left the previous file's Undo in state while
+  // lastFile moved on, so Move to on the new file deleted the old file's
+  // filing silently. refile only uses an Undo whose file is lastFile.
+  const [lastUndo, setLastUndo] = useState<{ file: File; undo: Undo } | null>(null);
 
   const fileToMoney = async (file: File, why: string): Promise<Undo | null> => {
     if (!filesSvc || !fileStore) { await say("jarvis", "Files need a signed-in account", { kind: "records" }); return null; }
@@ -673,17 +683,23 @@ export default function ChatFlow({ onOpen, onCompose, askPersonId, askNonce, onA
       kind: "action",
       refs: [{ kind: "file", id: rowId, label: file.name }],
     });
-    const remove: Undo = async () => {
+    // 2026-10-04: the result of the delete was thrown away, so a delete that
+    // failed (attemptWrite had already said so) was followed at once by
+    // "Receipt removed", which replaced the failure and was not true. The
+    // stored file went too, leaving a receipt row pointing at nothing. Both
+    // now wait on the row actually being gone.
+    const takeBack = async (): Promise<boolean> => {
       const row = await filesSvc.get(rowId);
-      await attemptWrite(() => filesSvc.remove(rowId));
-      if (row?.data.path) void fileStore.remove([row.data.path]);
+      const gone = await attemptWrite(() => filesSvc.remove(rowId));
+      if (gone && row?.data.path) void fileStore.remove([row.data.path]);
+      return gone;
     };
+    const remove: Undo = async () => { await takeBack(); };
     showToast({
       message: "Filed to Money",
       actionLabel: "Undo",
       onAction: async () => {
-        await remove();
-        showToast({ message: "Receipt removed" });
+        if (await takeBack()) showToast({ message: "Receipt removed" });
       },
     });
     return remove;
@@ -708,16 +724,19 @@ export default function ChatFlow({ onOpen, onCompose, askPersonId, askNonce, onA
       kind: "action",
       refs: [{ kind: "note", id: noteId, label: fileStem(file.name) }],
     });
-    const remove: Undo = async () => {
-      await attemptWrite(() => notes.deleteNote(noteId));
-      void fileStore.removeAll(noteId);
+    // 2026-10-04: same as the receipt above: "Note removed" and the attached
+    // files going are earned by the note being gone, not by the tap.
+    const takeBack = async (): Promise<boolean> => {
+      const gone = await attemptWrite(() => notes.deleteNote(noteId));
+      if (gone) void fileStore.removeAll(noteId);
+      return gone;
     };
+    const remove: Undo = async () => { await takeBack(); };
     showToast({
       message: "Saved to Notes",
       actionLabel: "Undo",
       onAction: async () => {
-        await remove();
-        showToast({ message: "Note removed" });
+        if (await takeBack()) showToast({ message: "Note removed" });
       },
     });
     return remove;
@@ -746,7 +765,12 @@ export default function ChatFlow({ onOpen, onCompose, askPersonId, askNonce, onA
       await say("user", said ? `${said} · ${file.name}` : file.name);
       const decided = routeFile({ name: file.name, mime: file.type, text: said });
       const to = decided?.to ?? await askWhere(file, said);
-      setLastUndo(await deliver(file, to, decided?.why ?? "Read from the file itself"));
+      // 2026-10-04: an Undo is a function, and setState given a function
+      // CALLS it as an updater, so every receipt and note filed here was
+      // taken straight back the moment it was filed. Held inside an object
+      // with its file, it is stored (and never handed to setState bare).
+      const undo = await deliver(file, to, decided?.why ?? "Read from the file itself");
+      setLastUndo(undo ? { file, undo } : null);
     } catch (e) {
       // Never a silent failure: the bytes did not land and the thread says so.
       await say("jarvis", e instanceof Error && e.message ? e.message : "Couldn't save that file", { kind: "records" });
@@ -768,7 +792,9 @@ export default function ChatFlow({ onOpen, onCompose, askPersonId, askNonce, onA
     try {
       // The new place first, then the old filing comes back; a delivery
       // that fails leaves the file where it was.
-      setLastUndo(await refileWith(() => deliver(lastFile, to, "You moved it here"), lastUndo));
+      const prev = lastUndo && lastUndo.file === lastFile ? lastUndo.undo : null;
+      const undo = await refileWith(() => deliver(lastFile, to, "You moved it here"), prev);
+      setLastUndo(undo ? { file: lastFile, undo } : null);
     } catch (e) {
       await say("jarvis", e instanceof Error && e.message ? e.message : "Couldn't save that file", { kind: "records" });
     } finally {
@@ -776,7 +802,10 @@ export default function ChatFlow({ onOpen, onCompose, askPersonId, askNonce, onA
     }
   };
 
-  const picker = usePickFile((f) => { setLastFile(f); void onPickedFile(f); });
+  // 2026-10-05: a pick while one is still being filed is dropped here, before
+  // lastFile moves: onPickedFile used to return early AFTER setLastFile, so
+  // the chips offered Move to for a file that was never delivered.
+  const picker = usePickFile((f) => { if (attaching) return; setLastFile(f); void onPickedFile(f); });
 
   // UP-MIND-02 (2026-09-05): every record an answer used has been stored on
   // the bubble since Chat shipped (types.ts ChatProvenance.refs) and nothing
@@ -787,14 +816,18 @@ export default function ChatFlow({ onOpen, onCompose, askPersonId, askNonce, onA
   const provLine = (m: ChatMessage): string | null => {
     const p = m.data.provenance;
     if (!p) return null;
-    if (p.kind === "ai") return "From your data + AI";
+    // One grey per row (Alfred 2026-10-04, "From your records" as a second grey line): the answer is the content. A
+    // records answer says nothing the bubble does not already, so it draws no line. Only an AI answer carries meaning
+    // (it may be wrong), so only it keeps one, and the star leads it.
+    if (p.kind === "ai") return "From Your Data + AI";
     // SHELL-F-26 (2026-09-05): this said "Done · Undo on the toast" under
     // every stored action bubble, including yesterday's, and a toast lives
     // five seconds. The Undo is real (S4-Q23 wired it) but it is on the
     // toast, not on the bubble, so the bubble stops promising it.
-    if (p.kind === "action") return "Done";
-    if (p.refs && p.refs.length > 0) return "From your records";
-    return "From your records";
+    // A receipt that already opens with the word ("Done: Call the Plumber") says it once; the green line is for the receipts
+    // that do not ("Saved Marco to the Gym"), where it is the done state and not a repeat.
+    if (p.kind === "action") return /^done\b/i.test(m.data.text.trim()) ? null : "Done";
+    return null;
   };
 
   return (
@@ -808,19 +841,24 @@ export default function ChatFlow({ onOpen, onCompose, askPersonId, askNonce, onA
             nothing here promises a capability it does not have. They fill
             the field rather than sending, because a chip that fires
             immediately is a button that lies about being a suggestion. */}
+        {/* THE FIRST SCREEN IS CRAFTED, NOT BLANK (the review, 2026-10-05, D9): a glyph, a title, one warm line and the
+            moves, stacked as full-width rows so none runs off the edge, anchored above the composer where the thumb is.
+            It is the app's own empty state, and its starters are its action. */}
         {msgs.length === 0 && (
-          <div className="chat-starters">
-            <div className="sh2 sh2-quiet chat-starter-head"><span className="t">Try</span></div>
-            <div className="chip-row">
+          <div className="empty-state empty-compact chat-empty">
+            <div className="empty-icon cat-fg-purple"><Sparkles className="ic" /></div>
+            <div className="empty-title">Ask JARVIS Anything</div>
+            <div className="empty-sub">Ask About Your Day, Change a Task or Paste Something to File</div>
+            <div className="chat-starter-list">
               {[
-                { label: "What's on today?", fill: "What's on today?" },
-                { label: "What's next?", fill: "What's next?" },
+                { label: "What's on Today?", fill: "What's on today?" },
+                { label: "What's Next?", fill: "What's next?" },
                 // These two teach the grammar rather than firing it: the chip
                 // leaves the cursor exactly where the missing word goes.
                 { label: "Complete…", fill: "Complete " },
-                { label: "Move… to tomorrow", fill: "Move " },
+                { label: "Move… to Tomorrow", fill: "Move " },
               ].map((c) => (
-                <div className="chip" role="button" tabIndex={0} key={c.label} onClick={() => setDraft(c.fill)}>{c.label}</div>
+                <button type="button" className="chip chat-starter" key={c.label} onClick={() => setDraft(c.fill)}>{c.label}</button>
               ))}
             </div>
           </div>
@@ -900,14 +938,14 @@ export default function ChatFlow({ onOpen, onCompose, askPersonId, askNonce, onA
             Notes already use. */}
         {picker.input}
         <button
-          className="convo-send"
+          className="convo-send chat-attach"
           aria-label="Attach a File"
           onClick={() => picker.open(PICK_ANY)}
           disabled={attaching || busy}
         >{CLIP}</button>
         <input
           className="input"
-          placeholder="Ask · tell · paste"
+          placeholder="Ask, Tell or Paste"
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter") void send(); }}
@@ -916,7 +954,7 @@ export default function ChatFlow({ onOpen, onCompose, askPersonId, askNonce, onA
             inert. send() has always returned early on blank text, but the
             button gave no sign of it: a dead-tap detector pressed it and the
             DOM did not move in 1.1 seconds, which is a control that lies. */}
-        <button className="convo-send" aria-label="Send" onClick={() => void send()} disabled={busy || draft.trim() === ""}>{SEND}</button>
+        <button className="convo-send chat-send" aria-label="Send" onClick={() => void send()} disabled={busy || draft.trim() === ""}>{SEND}</button>
       </div>
       {/* UP-PLAT-08: the two distillation flows the app already has, handed
           the file the person attached. Nothing is written until they have

@@ -972,17 +972,7 @@ describe("LAW: one filled red per screen", () => {
       // per action, so only a producer that asks for the fill gets it, and
       // the law still catches any PANEL that tries to wear it.
       ".ruled .card .pill-act.pill-go",
-      // The Tasks list's door to Focus (Dave 2026-09-18: "that focus button
-      // should be Jarvis red"), which is the same ruling he gave Today's
-      // Start pill two days earlier. It replaced Pick One, a full-width red
-      // FILL: the claim on the screen has not grown, it has shrunk to the
-      // size of a control, and it is still the one thing on the page that
-      // starts work rather than filtering it. The tinted version it shipped
-      // as read, on the dark theme, as dark red words inside a dark red
-      // capsule. The page's other primary is the empty state's New Task,
-      // which is gated on counts.all === 0 while this is gated on
-      // counts.all > 0, so the two can never paint at once.
-      ".hdr-controls .tasks-focus",
+      // (The Tasks list's door to Focus left this list on 2026-10-05: it is a quiet capsule in the head now, no longer a fill.)
       ".bench-act.prim", ".chip.chip-on",
       // Small round controls whose whole body is the control.
       ".ob-check-row", ".convo-send", ".voice-mic", ".voice-orb",
@@ -1484,15 +1474,21 @@ describe("LAW: one filled red per screen", () => {
     expect(bad).toEqual([]);
   });
 
-  // V4: nav glyphs are the FILLED brand-red state, drawn as filled shapes.
-  // More and Brain nav rows must use lib-ico-brand + the filledIcon set;
-  // auto-filling stroke icons is the compass-blob bug and stays banned.
-  it("nav lists wear the filled brand glyph state", () => {
-    for (const f of ["more/MorePage.tsx", "brain/BrainPage.tsx", "more/SettingsPage.tsx"]) {
+  // V4: nav glyphs are drawn as filled shapes. AMENDED 2026-10-05 (Dave: "a type icon carries its type's colour",
+  // never every icon the same brand red, D5): each destination wears its OWN tone through .cat-fg-*, and only JARVIS
+  // itself (Chat) keeps the brand red (lib-ico-brand). More and Settings use the filledIcon set; Brain's rows carry a
+  // per-row colour; auto-filling stroke icons is the compass-blob bug and stays banned.
+  it("nav lists wear the filled glyph in each destination's own tone", () => {
+    for (const f of ["more/MorePage.tsx", "more/SettingsPage.tsx"]) {
       const src = read(join(SRC, f));
-      expect(src, f).toContain("lib-ico-brand");
+      expect(src, f).toMatch(/cat-fg-[a-z]+/);
       expect(src, f).toMatch(/filled(Settings)?Icon\(/);
     }
+    const more = read(join(SRC, "more/MorePage.tsx"));
+    // Not one flat red: at least four different tones are named, and brand red is Chat's alone.
+    expect(new Set(more.match(/cat-fg-[a-z]+/g)).size, "more/MorePage.tsx: per-destination tones").toBeGreaterThanOrEqual(4);
+    expect(more.match(/lib-ico-brand/g)?.length ?? 0, "more/MorePage.tsx: brand red is for JARVIS (Chat) only").toBe(1);
+    expect(read(join(SRC, "brain/BrainPage.tsx")), "brain/BrainPage.tsx: each row draws its own colour").toMatch(/"lib-ico " \+ r\.color/);
     const filled = read(join(SRC, "shared/filledIcons.tsx"));
     // Quality law (Dave: "make sure all red icons are improved"): the filled
     // set comes from the professionally drawn Phosphor FILL weight; a return
@@ -1799,8 +1795,12 @@ describe("LAW: stored shapes are versioned", () => {
       const la = lum(a), lb = lum(b);
       return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
     };
-    // page, white card, and the strict constant the palette sweep judges by
-    for (const ground of ["#F3F4F9", "#FFFFFF", "#F5F6F8", "#FAFAFB", "#F1F2F7", "#F2F2F7"]) {
+    // page, white card, and the strict constant the palette sweep judges by.
+    // The warm cream page, card and chrome joined 2026-10-05 (Dave); the warm
+    // raised grey (#ECE5DA) is not a ground for this pair, because light
+    // paints its glyph red as the action red (#D12416, 4.22:1 there), never
+    // the brand literal.
+    for (const ground of ["#F3F4F9", "#FFFFFF", "#F5F6F8", "#FAFAFB", "#F1F2F7", "#F2F2F7", "#FAF6F0", "#F3EEE6", "#FFFDFA"]) {
       expect(ratio("#FF2B3C", ground), "glyph red on " + ground).toBeGreaterThanOrEqual(3);
     }
   });
@@ -2064,6 +2064,7 @@ describe("LAW: every module is reachable, or is listed as not", () => {
     // AMENDED 2026-09-26 (round 3): the one definition of red that the
     // Colour Key, F-04 and L1 read. Laws only; the app never imports it.
     "reds.ts",                             // the laws' shared reds, read by colourKey, browserWalk and laws tests
+    "catalogSetup.ts",                     // vitest setupFile: runs the visual-catalog DOM checks after every jsdom test (vitest.config.ts)
     "sentenceCase.ts",                     // the casing law's sentence-case roster (Batch 1 casing, 2026-09-26), read by laws.test.ts
     // A serverless route is an entry point: Vercel reaches api/book.ts by
     // URL, exactly the way the browser reaches main.tsx, and nothing imports
@@ -3177,8 +3178,11 @@ describe("LAW 5: one door per destination, per screen", () => {
     // Tomorrow section to head.
     expect(yourDay, "YourDay accepts tomorrowShown").toMatch(/tomorrowShown\?: boolean/);
     expect(yourDay, "and uses it to stand down").toMatch(/onPlanTomorrow && !tomorrowShown/);
-    expect(page, "TodayPage supplies it from the section it actually renders")
-      .toMatch(/tomorrowShown=\{!!tomorrowSection\}/);
+    // AMENDED (Dave 2026-10-05, locked: a section's action lives in its head). An EMPTY Tomorrow is now its own head
+    // carrying the one Plan Tomorrow capsule, so the prop is true for a Tomorrow with content or an empty one with
+    // its head; YourDay still stands down in both, and the capsule is still in exactly one place.
+    expect(page, "TodayPage supplies it from the head it actually renders, full or empty")
+      .toMatch(/tomorrowShown=\{!!\(tomorrowSection \|\| tomorrowEmpty\)\}/);
 
     // Open Inbox: the band's foot receipt owns it when there is a residual.
     expect(mail, "MailNotices reports whether it drew a residual").toMatch(/onResidualChange/);
@@ -3249,9 +3253,12 @@ describe("LAW 6: Pick One picks, urgency survives Start, timed beats untimed, mo
     expect(page, "the chip comes from the distance ladder, gated only by the Today mute")
       .toMatch(/const chip = dist && !t\.done && !\(muteToday && dist\.kind === "today"\) \? dist : null;/);
     expect(page, "the chip renders on the second line, never in the trailing slot")
-      .toMatch(/\{chip && <span className=\{"uchip " \+ \(chip\.kind === "late" \? "u-late" : "u-today"\)\}>\{chip\.label\}<\/span>\}/);
+      .toMatch(/\{chip && <span className=\{"r-goal fact " \+ \(chip\.kind === "late" \? "red" : "warn"\)\}>\{lineCase\(chip\.label\.toLowerCase\(\)\)\}<\/span>\}/);
+    // AMENDED (Dave 2026-10-05, locked: no pill on a row). There is no Start pill to wait on any more, so the
+    // fallback shows only for a caller that passes no Start (`!onStart`), still narrowed to "soon", so it can
+    // never double up with the chip above or sit beside the row's quiet verb.
     expect(page, "the trailing fallback cannot double up with the chip")
-      .toMatch(/: u && u\.kind === "soon" && <span className=\{"urgency " \+ URGENCY_CLASS\[u\.kind\]\}/);
+      .toMatch(/!onStart && u && u\.kind === "soon" && <span className=\{"urgency " \+ URGENCY_CLASS\[u\.kind\]\}/);
   });
 
   // FINDING #3. partition() sorted by date only. Every row in "Today" shares
@@ -3390,14 +3397,16 @@ describe("LAW 7: one question gets one row, and a colour never speaks for a cate
     const src = page();
     expect(src, "the pair is gone").not.toMatch(/cta-pair|onOverwhelmed/);
     expect(src, "and the slab is gone with it").not.toMatch(/btn btn-primary btn-lg btn-block/);
-    expect(src, "the door sits on the control line").toMatch(/className="tasks-focus"/);
+    expect(src, "the door sits in the head").toMatch(/className="tasks-focus"/);
     expect(src, "and it is the only thing that opens Focus from here")
       .toBe(src.replace(/onPickOne/g, "onPickOne"));
     expect(src.match(/onClick=\{onPickOne\}/g)?.length, "one door").toBe(1);
     // And the card that stands in front of it carries exactly one primary.
     const card = read(join(SRC, "tasks/screens/StartCard.tsx"));
     expect(card.match(/btn-primary/g)?.length, "one primary on the card").toBe(1);
-    expect(card, "which names what it picked").toMatch(/\{pick\.task\.data\.text\}/);
+    // AMENDED: the name is drawn through titleCase now (the catalog's casing rule, Dave 2026-10-05), still the
+    // picked task's own text and still printed on the card.
+    expect(card, "which names what it picked").toMatch(/\{titleCase\(pick\.task\.data\.text\)\}/);
     expect(card, "and says what is ready on it").toMatch(/action\.ready/);
     // IT SAYS WHY ON ITS FACE (2026-09-18). It used to be asked, through a
     // Why This link into a sheet -- two taps for one line, and the line was
@@ -3548,28 +3557,28 @@ describe("LAW 8: a proposal proves itself before it renders, and Accept never de
   // own, where the draft is the whole screen and walking away is less
   // obvious; the law still holds it to the neutral variant there.
   it("wherever Not Today is still offered, it is never accent text beside the red Accept fill", () => {
-    const OFFERS = ["schedule/ScheduleFlow.tsx"];
-    for (const f of OFFERS) {
-      const src = read(join(SRC, f));
-      const notToday = [...src.matchAll(/className="([^"]*)"[^>]*>Not Today</g)].map((m) => m[1]!);
-      expect(notToday.length, f + " still offers Not Today").toBeGreaterThan(0);
-      for (const cls of notToday) {
-        expect(cls, f + ": bare .btn-sm is red text; the neutral variant is required beside a fill")
-          .toMatch(/btn-secondary/);
-      }
-    }
+    // ROUND 1 (2026-10-05, Dave's decision D2): Schedule's Not Today left the pair under the day card. Accept the Day is the one
+    // filled primary there; Not Today is a line in the day head's overflow (SchedulePage's onDismissProposal), so no capsule
+    // of any colour stands beside the red Accept fill.
+    const flow = read(join(SRC, "schedule/ScheduleFlow.tsx"));
+    expect(flow, "Accept the Day is the one button under the card").toMatch(/<div className="day-foot">\s*<button className="btn btn-primary btn-sm" onClick=\{\(\) => void acceptProposal\(\)\}>Accept the Day<\/button>\s*<\/div>/);
+    expect(flow, "and Not Today is no longer drawn there").not.toMatch(/>Not Today</);
+    expect(flow, "the flow hands the dismissal to the head").toMatch(/onDismissProposal: dismissProposal/);
+    const pageSrc = read(join(SRC, "schedule/screens/SchedulePage.tsx"));
+    expect(pageSrc, "the head's overflow carries Not Today").toMatch(/label: "Not Today", onPick: onDismissProposal/);
     // Today has no draft FOOT at all any more (Dave 2026-09-11: "Accept the
     // day and plan my day should be next to each other where plan my day
     // currently is"). Accept is handed to YourDay as its `primary` and rides
-    // Plan My Day's row; Not Today is the quiet .receipt-line under them,
-    // because clearing a draft has to stay reachable -- Plan My Day stands
-    // its AI refine down while one is standing.
+    // Plan My Day's row; Clear This Plan (once Not Today) is the last item behind the day head's overflow (Dave
+    // 2026-10-05, locked: section-level actions live in the section head), because clearing a draft has to stay
+    // reachable -- Plan My Day stands its AI refine down while one is standing.
     const today = read(join(SRC, "today/TodayFlow.tsx"));
     expect(today, "the floating draft foot is gone").not.toContain('<div className="day-foot">');
     expect(today, "Accept rides the plan row as one .plan-cta")
       .toMatch(/const draftPrimary = draftStanding \? \(\s*\n\s*<button className="plan-cta plan-cta-block"/);
-    expect(today, "and Not Today is the quiet receipt line, never a second pill")
-      .toMatch(/<button className="receipt-line" onClick=\{dismissDraft\}>/);
+    expect(today, "and Clear This Plan is the day head's overflow, never a loose line or a second pill")
+      .toMatch(/onClearPlan=\{draftStanding \? dismissDraft : undefined\}/);
+    expect(today, "no loose receipt line under the Anytime fold").not.toMatch(/<button className="receipt-line" onClick=\{dismissDraft\}>/);
     expect(today, "no btn-shaped Not Today on Today").not.toMatch(/className="btn[^"]*"[^>]*>Not Today</);
   });
 
@@ -3862,7 +3871,10 @@ describe("LAW 11: cards show their work, tags earn their shape, and no screen is
     // AMENDED 2026-09-01 (the ruled row): the chip is .uchip, the same one
     // Today's dealt row wears, tinted from its own colour (warn for today,
     // the system red for late). The mute rule is unchanged.
-    expect(page, "chip class on the row tag").toMatch(/"uchip " \+ \(chip\.kind === "late" \? "u-late" : "u-today"\)/);
+    // AMENDED 2026-10-05 (Dave, D10: no filled chip or capsule inside a list row): the distance is the key's amber or red as
+    // plain text, a .fact, never a filled .uchip. The mute rule below is unchanged.
+    expect(page, "distance class on the row tag").toMatch(/"r-goal fact " \+ \(chip\.kind === "late" \? "red" : "warn"\)/);
+    expect(page, "and no filled chip on the task row").not.toMatch(/"uchip " \+ \(chip\.kind/);
     expect(page, "TODAY muted where redundant, LATE untouched")
       .toMatch(/!\(muteToday && dist\.kind === "today"\)/);
     expect(page, "the mute is the today filter, nothing else")
@@ -3875,7 +3887,8 @@ describe("LAW 11: cards show their work, tags earn their shape, and no screen is
     // in light), so the late word sat on the tap red. The wash is mixed from
     // the system red now, the mix the shared red urgency chip uses; the
     // today chip's pin and every check above are unchanged.
-    expect(CSS).toMatch(/\.ruled \.uchip\.u-late  \{ color: var\(--sys-red\); background: color-mix\(in srgb, var\(--sys-red\) 14%, transparent\); \}/);
+    // AMENDED 2026-10-05 (Dave, the warm neutrals): the wash is the --late-wash token, 14% in light and 8% in dark.
+    expect(CSS).toMatch(/\.ruled \.uchip\.u-late  \{ color: var\(--sys-red\); background: color-mix\(in srgb, var\(--sys-red\) var\(--late-wash\), transparent\); \}/);
   });
 
   // FINDING 3, FOUR CHAPTERS. Read the history before changing this.
@@ -3905,24 +3918,24 @@ describe("LAW 11: cards show their work, tags earn their shape, and no screen is
   // Templates and Brain's "Your Areas", which re-stated the accent) slid
   // straight past the law. The scan now flags any .sh2 that does not carry
   // sh2-quiet, whatever else rides in the className.
-  it("every section head is quiet except Today's Now; red text is for verbs", () => {
+  it("every section head is quiet, Today's Now too; red text is for verbs", () => {
     const offenders: string[] = [];
     for (const f of COMPONENTS) {
-      if (rel(f) === "today/YourDay.tsx") continue;
       // AMENDED 2026-09-26 (Dave's pick): the C-38 exemption for the Brain
       // hub's Shaping JARVIS Now and Needs You ("not quiet, they are the
       // page's live top", 2026-09-12) is repealed. They are quiet like every
-      // other head, so BrainTop.tsx is scanned like any other file and
-      // Today's Now is the only red head left.
+      // other head, so BrainTop.tsx is scanned like any other file.
+      // AMENDED 2026-10-05 (the round-1 review, D4: brand red only on what you can tap): Today's Now was the one sanctioned
+      // red head ("the only section about this minute"). It is not tappable, so it is neutral like the rest, and YourDay is
+      // scanned like any other file.
       read(f).split("\n").forEach((line, i) => {
         const m = line.match(/className="([^"]*\bsh2\b[^"]*)"/);
         if (m && !m[1]!.includes("sh2-quiet")) offenders.push(rel(f) + ":" + (i + 1));
       });
     }
-    expect(offenders, "a head outside YourDay must carry sh2-quiet").toEqual([]);
-    // The one sanctioned loud head still exists, so this cannot pass by
-    // everything having gone quiet.
-    expect(read(join(SRC, "today/YourDay.tsx"))).toMatch(/className="sh2"/);
+    expect(offenders, "every head must carry sh2-quiet").toEqual([]);
+    // The day's head exists and is quiet, so this cannot pass by the file having lost it.
+    expect(read(join(SRC, "today/YourDay.tsx"))).toMatch(/className="sh2 sh2-quiet"/);
     // And the variant that hid two red heads from the old scan is retired.
     expect(CSS, "sh2-caps must not come back as an accent restatement")
       .not.toMatch(/\.sh2\.sh2-caps \.t \{ color: var\(--accent-chrome\)/);
@@ -3931,17 +3944,20 @@ describe("LAW 11: cards show their work, tags earn their shape, and no screen is
   // The other half of the reversal: the large page title wears the same
   // energy line the condensed pagebar wears, so the two read as one element
   // rather than as two headers trading places on scroll.
-  it("the signature stroke wears the condensed bar's exact energy line", () => {
+  it("the signature stroke is the energy line, leaves with the large title and keeps a gap under it", () => {
     const line = /linear-gradient\(90deg, #FA233B, #FB5C74 55%, rgba\(251,92,116,0\)\)/;
     const stroke = /\.pagehead-title::after \{[^}]*\}/.exec(CSS)?.[0] ?? "";
     expect(stroke, "the stroke exists").not.toBe("");
-    expect(stroke, "same gradient as .pagebar.on::after, not a lookalike").toMatch(line);
+    expect(stroke, "the energy-line gradient").toMatch(line);
     expect(stroke, "same 2px weight").toMatch(/height: 2px/);
     expect(stroke, "same 64px run").toMatch(/width: 64px/);
     // Both must stay identical: if one is ever retuned, the other has to move
     // with it or the condense animation stops reading as one object.
-    const bar = /\.pagebar\.on::after \{[^}]*\}/.exec(CSS)?.[0] ?? "";
-    expect(bar, "the bar still wears it too").toMatch(line);
+    // AMENDED 2026-10-05 (the perfect bar): the condensed bar no longer wears the stroke (it read as an orphaned underline
+    // pinned over the scrolled content); the stroke leaves with the large title, and keeps a gap under it so it never
+    // touches the chip row below.
+    expect(CSS, "the condensed bar wears no stroke").not.toMatch(/\.pagebar\.on::after \{/);
+    expect(stroke, "and a gap under the stroke, so it never touches the row below").toMatch(/margin-bottom: var\(--s-3\)/);
   });
 
   // FINDING 4. Every new note was born wearing defaultCatId -- whatever
@@ -3998,13 +4014,24 @@ describe("LAW 11: cards show their work, tags earn their shape, and no screen is
     const flow = read(join(SRC, "messages/MessagesFlow.tsx"));
     const head = flow.indexOf('<span className="t">Needs You</span>');
     expect(head, "Needs You has a head").toBeGreaterThan(-1);
-    expect(flow.slice(head, head + 400), "the Sweep is its head action, with its estimate")
-      .toMatch(/see-all pill-action[\s\S]*"Sweep \\u00b7 " \+ sweepEstimate\(needsYou\.length\)/);
+    // AMENDED (Dave 2026-10-05, the review: no dot typed into a capsule label): the capsule is the verb alone and the
+    // estimate is a sky fact span beside it in the same head.
+    const headSrc = flow.slice(head, head + 1200);
+    expect(headSrc, "the Sweep is its head action, with its estimate as a fact beside it")
+      .toMatch(/className="n fact est">\{sweepEstimate\(needsYou\.length\)\}<\/span>[\s\S]*see-all pill-action[\s\S]*>Sweep<\/button>/);
+    expect(headSrc, "and no dot is typed into the label").not.toMatch(/"Sweep \\u00b7/);
     const rimIdx = flow.indexOf('<div className="conn-name">Read It to Me</div>');
     expect(rimIdx, "Read It to Me is a Tools row").toBeGreaterThan(-1);
-    const rim = flow.slice(rimIdx, rimIdx + 400);
-    expect(rim, "a row that performs carries a control, not a chevron").toMatch(/pill-act/);
-    expect(rim).not.toMatch(/className="chev"/);
+    // AMENDED (Dave 2026-10-05, locked: clean rows, no pill on a row). A row that performs used to carry a Play,
+    // Next and Stop capsule where its neighbours carry a chevron. It carries NO capsule now: the tap plays (idle) or
+    // opens the row's sheet (Pause or Resume, Next, Stop) while the voice is going, and the quickest of them, Stop,
+    // shows on the row as one quiet RowCtxAction for as long as it is wanted. Still a row that performs, so still no
+    // chevron: its control is the quiet verb and its sheet.
+    const rim = flow.slice(rimIdx - 400, rimIdx + 1500);
+    expect(rim, "the quiet Stop shows only while the voice is going").toMatch(/<RowCtxAction when=\{speaking !== "idle"\} label="Stop"/);
+    expect(rim, "and the sheet holds Pause or Resume, Next and Stop").toMatch(/<RowActionSheet[\s\S]*?"Pause"[\s\S]*?"Next"[\s\S]*?"Stop"/);
+    expect(rim, "no capsule on the row").not.toMatch(/pill-act|row-act|btn-sm/);
+    expect(rim, "and a row that performs carries no chevron").not.toMatch(/className="chev"/);
   });
 
   it("the sweep estimate itself leads with a capital", async () => {
@@ -4310,12 +4337,17 @@ describe("LAW 15: the gym speaks one grammar", () => {
   // creates a whole program and a row that creates a week. They are one head
   // action now (the test below this one), so the roster shrinks to the creates
   // that are still creates in a list. The affordance itself has not moved.
-  it("every in-list create on the program page is the one row-create affordance", () => {
+  // AMENDED 2026-10-05 (Dave, locked: "Section-level actions (Add Day, Add Week, Add Exercise) live in the section
+  // head, never inside a card"). SUPERSEDED the .row-create affordance for these three: the one affordance they wear
+  // is the section head's `see-all pill-action` capsule now, on the head of the list they add to. The law keeps its
+  // job (every create wears the SAME affordance) and gains the ruling's half: none of them is a row in a list.
+  it("every create on the program page is the one head capsule", () => {
     const src = read(join(SRC, "gym", "GymFlow.tsx"));
     for (const label of ["Add Day", "Add Week", "Add Exercise"]) {
       // Same line: the arrow handler's => sits between the class and the
       // label, so the gap crosses anything but a newline.
-      expect(src).toMatch(new RegExp('className="row-create"[^\\n]*>' + label.replace(/ /g, "\\s+"))); // eslint-disable-line
+      expect(src).toMatch(new RegExp('className="see-all pill-action"[^\\n]*>' + label.replace(/ /g, "\\s+"))); // eslint-disable-line
+      expect(src, label + " is a row in a list again").not.toMatch(new RegExp('className="row-create"[^\\n]*>' + label.replace(/ /g, "\\s+"))); // eslint-disable-line
     }
     // The retired dresses stay retired.
     expect(src).not.toMatch(/onClick=\{\(\) => setUploadOpen\(true\)\}>\s*<div className="row-grow"/);
@@ -4703,8 +4735,16 @@ describe("LAW 17: the Schedule head is two rows, the day starts at Now, and the 
     expect(src, "Plan My Day is the head action pill").toMatch(/<button className="see-all pill-action" onClick=\{onPlanDay\}>Plan My Day<\/button>/);
     expect(src, "the schedule head spends no accent fill").not.toMatch(/plan-cta/);
     expect(src, "the button row is gone").not.toMatch(/plan-head-acts/);
-    expect(src, "Running Late? rides the Now rule").toMatch(/className=\{"sched-late"[^}]*\}[\s\S]{0,220}Running Late\?/);
-    expect(src, "Copy Yesterday lives in the empty state").toMatch(/empty-state[\s\S]{0,600}Copy Yesterday/);
+    // AMENDED (Dave 2026-10-05, decision D2): Running Late? left the Now rule, where it was a capsule inside the card. It is a
+    // line in the day head's one overflow button (shared/HeadMore), opening the three pushes as a sheet.
+    expect(src, "Running Late is a line in the day head's overflow, not a capsule in the card")
+      .toMatch(/label: "Running Late", onPick: \(\) => setLateSheet\(true\)/);
+    expect(src, "and the capsule on the Now rule is gone").not.toMatch(/className=\{"sched-late"/);
+    // AMENDED (Dave 2026-10-05, locked: section-level actions live in the section head, never inside a card). Copy
+    // Yesterday left the empty state's card; it is the head's second capsule beside Plan My Day, on a day with nothing.
+    expect(src, "Copy Yesterday is the section head's second capsule")
+      .toMatch(/className="sec-left">\s*<button className="see-all pill-action" onClick=\{onCopyDay\}>Copy Yesterday<\/button>/);
+    expect(src, "and it is never a row-act in a card").not.toMatch(/className="row-act[^"]*"[^>]*onClick=\{onCopyDay\}/);
   });
 
   // PICK 2: "Everything behind you folds to one line, and the day starts at
@@ -4717,7 +4757,7 @@ describe("LAW 17: the Schedule head is two rows, the day starts at Now, and the 
     expect(src, "past gaps are dropped, past events are kept")
       .toMatch(/const pastShown = pastEntries\.filter\(\(en\) => en\.kind !== "gap"\);/);
     expect(src, "the fold names what it holds, and claims nothing about how it went")
-      .toMatch(/Earlier<span className="n">\{en\.n\} \{en\.n === 1 \? "block" : "blocks"\}<\/span>/);
+      .toMatch(/Earlier<span className="n">\{en\.n\} \{en\.n === 1 \? "Block" : "Blocks"\}<\/span>/);
     expect(src, "the fold is shut on arrival").toMatch(/const \[earlierOpen, setEarlierOpen\] = useState\(false\)/);
     // Only on today: on another date nothing is behind you and nothing is now.
     expect(src, "the fold is a today-only shape, on every mode that draws the day")
@@ -4734,12 +4774,12 @@ describe("LAW 17: the Schedule head is two rows, the day starts at Now, and the 
     // edge. What this law is about is that the rule is a HAIRLINE IN THE
     // SYSTEM RED and never a fill, and that is what it still checks, to the
     // pixel and to the token. How much room the hairline asks for is layout.
-    expect(CSS, "the rule paints a 1px line in the system red")
-      .toMatch(/\.ruled \.sched-now \.l \{[^}]*height: 1px; background: var\(--sys-red\)/);
+    // ROUND 3 (2026-10-05, decision D4): the hairline is the key's amber, not red. Red is for late and for taps.
+    expect(CSS, "the rule paints a 1px line in the amber, never a red")
+      .toMatch(/\.ruled \.sched-now \.l \{[^}]*height: 1px; background: var\(--warn\)/);
     expect(CSS, "and it keeps a floor, so it stays a rule and not a dash")
       .toMatch(/\.ruled \.sched-now \.l \{[^}]*min-width: 24px/);
-    expect(CSS, "and Running Late? beside it stays neutral")
-      .toMatch(/\.ruled \.sched-late \{[^}]*background: var\(--press-3\); color: var\(--tx-1\)/);
+    expect(CSS, "and the capsule that rode it (Running Late?) is retired with its rules").not.toMatch(/\.sched-late\b/);
   });
 
   // PICK 3: "In the one grey meta line", with his note: "I would like the
@@ -5214,7 +5254,11 @@ describe("LAW: the headliner offers no button that only rearranges the app", () 
     // renders only when the flow handed over something for it to do.
     expect(head, "the primary verb renders only when it can be honoured").toMatch(/\{primary && \(/);
     expect(head, "Start Now is that verb until a block runs (Dave 2026-09-17: the countdown moved to Focus)").toContain('{ label: "Start Now", run: onStart }');
-    expect(head, "Tomorrow renders only when it can be honoured").toMatch(/\{onTomorrow && </);
+    // AMENDED (Dave 2026-10-05, locked row model: the verbs are the swipe tray, not buttons on the card). The card's
+    // verbs are TrayAction entries now, each added to the tray only when its seam was handed over, so a caller that
+    // cannot honour one still shows no verb rather than a dead one.
+    expect(head, "the primary verb is in the tray only when it can be honoured").toMatch(/\.\.\.\(primary \? \[primary\] : \[\]\)/);
+    expect(head, "Tomorrow is in the tray only when it can be honoured").toMatch(/onTomorrow \? \[\{ label: "Tomorrow", run: onTomorrow \}\]/);
   });
 
   // AND START FINISHES THE JOB (Dave 2026-09-16, the same complaint). A
@@ -5226,7 +5270,10 @@ describe("LAW: the headliner offers no button that only rearranges the app", () 
     const flow = read(join(SRC, "today/TodayFlow.tsx"));
     expect(flow, "starting a fifteen must record a live block").toMatch(/writeFifteen\(/);
     const head = read(join(SRC, "today/MoveHeadliner.tsx"));
-    for (const verb of ["\"Done\"", ">Another 15<", ">Stop<"]) {
+    // AMENDED (Dave 2026-10-05, locked row model): the running block's verbs are the tray's labels, not button
+    // children. Wrap Up replaced the old Done pill (the task is already started, so the only thing left to say about it
+    // is that it is finished); Another 15 and Stop are the alt, one at a time.
+    for (const verb of ["\"Wrap Up\"", "label: \"Another 15\"", "label: \"Stop\""]) {
       expect(head, "the running block offers " + verb).toContain(verb);
     }
     // The countdown is read off the clock, never counted up by ticks: a
@@ -5573,7 +5620,9 @@ describe("swipe reveals are hidden at rest (2026-09-06)", () => {
     // "swipe-row" is shared/SwipeDelete's mover (Dave 2026-09-10, the gym
     // swipe): without it here the scan reads straight past the moving element
     // and reports the row's own contents as an unhidden reveal.
-    ["task-swipe", ["task-row", "set-chip", "swipe-shell", "rem-row", "swipe-row"]],
+    // "rem-card" is the Reminders page's mover (Dave 2026-10-05, locked row model: the page's rows swipe like a task
+    // row's): it translates inside .task-swipe, so the scan reads the reveals before it and not the row's own contents.
+    ["task-swipe", ["task-row", "set-chip", "swipe-shell", "rem-row", "swipe-row", "rem-card"]],
     ["notice-swipe", ["notice-card"]],
     ["sched-strip", ["sched-row"]],
   ];
@@ -5907,7 +5956,7 @@ describe("a sheet's Cancel and Save stay where a thumb can reach them (2026-09-0
     expect(nameW, "the approved page's weight is what the token holds").toBe(700);
     // And the ink ramp it cannot lean on instead is still two-tier, so this
     // law is the only thing holding the hierarchy up.
-    expect(ds).toMatch(/--tx-2: #D2D2D6; --tx-3: #D2D2D6;/);
+    expect(ds).toMatch(/--tx-2: #D6D0CA; --tx-3: #D6D0CA;/);
   });
 
   it("the bar itself still meets the tap minimum", () => {
@@ -6111,8 +6160,10 @@ describe("DEFECT 6 (2026-09-06): four kinds of fact on that line, four treatment
 
   it("no two of them resolve to the same ink and the same weight", () => {
     const facts: Record<string, { color: string | null; weight: string }> = {
-      "the name of a thing it moves": inkOf(".ruled .r-goal.r-parent .r-goal-t"),
-      "the category it merely lives in": inkOf(".ruled .r-goal.r-parent.r-parent-plain .r-goal-t"),
+      // AMENDED 2026-10-05 (R1, the perfect bar): where it lives is ONE grey at regular weight whether the parent moves the
+      // task (a project, a goal) or merely holds it (a category); the glyph before it is the distinction, so the two kinds of
+      // parent are one entry here. A second bold "title" under the title was the defect.
+      "where it lives": inkOf(".ruled .r-goal.r-parent .r-goal-t"),
       "a person": inkOf(".ruled .r-goal.r-person"),
       "a number inside meta text": inkOf(".ruled .task-row .r-goal b"),
       "a recurrence": inkOf(".ruled .r-goal.r-rec"),
@@ -6260,10 +6311,12 @@ describe("a create alone in a card paints no card (2026-09-06)", () => {
       // as background-COLOR -- the shorthand reset the clip, and --press-3 was
       // the translucent fill §AL replaced.
       .toMatch(/background-color:\s*var\(--capsule-fill\)/);
-    // And the Checklist group still renders that shared class, not a dress
-    // of its own.
+    // And the Checklist group still renders a shared class, not a dress of its
+    // own. AMENDED (Dave 2026-10-05, locked: a section's action is its head's
+    // capsule, never a trailing row in the card): the sheet's Add Item is the
+    // group label row's `see-all pill-action`, the one head capsule.
     expect(read(join(SRC, "tasks/screens/TaskSheet.tsx")))
-      .toMatch(/className="row row-act"[^\n]*>Add Item</);
+      .toMatch(/className="see-all pill-action"[^\n]*>Add Item</);
   });
 });
 
@@ -6979,10 +7032,12 @@ describe("a task underway shows its count, not Start, and the slot stays one chi
     expect(hasUnfinishedSteps(stepsOf({} as TaskData))).toBe(false);
   });
 
-  it("the precedence is caller's pill, then the count, then Start, then the date", () => {
-    // A caller-supplied pill (Do It, Drop) is that surface's standing action
-    // and still wins; only the generic Start gives way.
-    const order = ["action.onClick", "hasUnfinishedSteps(steps)", "onStart(item.id)", "URGENCY_CLASS"];
+  it("the precedence is the quiet verb, then the count, then the date", () => {
+    // AMENDED (Dave 2026-10-05, locked: clean rows, no pills). Start and a caller's Do It / Drop pill left the row;
+    // they are the swipe, the sheet and the long-press menu. What the slot holds now, in order of claim: the row's one
+    // quiet verb once its moment has come (RowCtxAction, text only, the same verb as the swipe), then the count of a
+    // task already underway, then, for a caller with no Start, the urgency label. The count still beats the date.
+    const order = ["RowCtxAction", "hasUnfinishedSteps(steps)", "URGENCY_CLASS"];
     let last = -1;
     for (const mark of order) {
       const at = slot.indexOf(mark);
@@ -6992,14 +7047,17 @@ describe("a task underway shows its count, not Start, and the slot stays one chi
     }
     // A done row says nothing in this slot, the count included.
     expect(slot).toMatch(/!shownDone && hasUnfinishedSteps\(steps\)/);
+    // And no pill came back: nothing in the slot is a capsule.
+    expect(slot, "no capsule in the right slot").not.toMatch(/pill-act|row-act|btn-sm|onStart\(item\.id\)|action\.onClick/);
   });
 
-  it("every arm of the chain renders exactly one element", () => {
-    // Lint rule 7, right-slot arity: fail if a task row's right slot has more
-    // than one child. Four arms, four elements, no wrapper and no list.
-    const opens = slot.match(/<[A-Za-z]/g) ?? [];
-    expect(opens.length, "one element per arm").toBe(4);
-    expect(slot, "no fragment smuggling a second child in").not.toMatch(/<>|<React\.Fragment/);
+  it("the slot is the quiet verb and exactly one of the count or the date", () => {
+    // Lint rule 7, right-slot arity, restated for the new slot. Three elements, one fragment: the quiet verb
+    // (RowCtxAction), then ONE arm of the chain (the StepCount, or the urgency span). No wrapper, no list.
+    const opens = slot.match(/<[A-Za-z]+/g) ?? [];
+    expect(opens, "RowCtxAction, StepCount and the urgency span, one per arm").toEqual(["<RowCtxAction", "<StepCount", "<span"]);
+    expect(slot.match(/<>/g)?.length ?? 0, "one fragment: the verb and the one thing after it").toBe(1);
+    expect(slot, "no keyed fragment smuggling more in").not.toMatch(/<React\.Fragment/);
     expect(slot, "and nothing mapped into it").not.toMatch(/\.map\(/);
   });
 
@@ -7056,7 +7114,8 @@ describe("an offer card never clips the claim or its receipt (2026-09-07)", () =
     // 2026-09-12: the same arity holds for an expanded row with two verbs
     // (twoVerbs): both move to the verbs line and the slot goes empty, so
     // the guard on the slot carries that clause too.
-    expect(CARD).toMatch(/action && !stack && !twoVerbs \?/);
+    // AMENDED 2026-10-05 (the Ready to Send rows): a card drawn as a row (`asRow`, verbRow) draws no capsule at all.
+    expect(CARD).toMatch(/action && !stack && !twoVerbs && !verbRow \?/);
     expect(CARD).toMatch(/action && stack &&/);
     expect(CARD, "the verbs line carries the primary only when the slot does not").toMatch(/twoVerbs && alt &&[\s\S]{0,1600}action && !stack &&/);
   });
@@ -7098,7 +7157,9 @@ describe("an offer card never clips the claim or its receipt (2026-09-07)", () =
 // `content` string), so words cannot hide behind a separator's selector.
 describe("LAW: the structure ink never colours text (2026-09-14)", () => {
   it("no stylesheet rule sets color to --tx-4, apart from the glyph separators", () => {
-    const GLYPHS = new Set([".r-cue::before", ".fact + .fact::before", ".conn-meta:not(.facts) > .fact:not(:last-child)::after"]);
+    // 2026-10-05 (D7): the wrapped facts line's separator is the LEADING dot of the fact after it (clipped at a line start), so
+    // its glyph rule moved from the trailing ::after to ::before.
+    const GLYPHS = new Set([".r-cue::before", ".fact + .fact::before", ".conn-meta:not(.facts) > .fact + .fact::before"]);
     const bad: string[] = [];
     for (const f of ["jarvis-design-system.css", "uniformity.css", "components.css", "ruled.css", "mail-rows.css", "editor.css"]) {
       const css = read(SRC + "/styles/" + f).replace(/\/\*[\s\S]*?\*\//g, "");
@@ -7119,10 +7180,10 @@ describe("LAW: the structure ink never colours text (2026-09-14)", () => {
     const dark = blockOf("dark");
     const light = blockOf("light");
     for (const [name, block] of [["dark", dark], ["light", light]] as const) {
-      // AMENDED 2026-09-29 (Dave, the approved light palette): light keeps three
-      // text tiers (#111318, #363A43, #515661); dark keeps one secondary value.
+      // AMENDED 2026-10-05 (Dave, the warm neutrals): light keeps three text
+      // tiers (#1F1A16, #4A423A, #5E554C); dark keeps one secondary value.
       if (name === "dark") expect(pick(block, "--tx-2"), name + " secondary is one value").toBe(pick(block, "--tx-3"));
-      else expect(pick(block, "--tx-3"), "light quiet labels are #515661").toBe("#515661");
+      else expect(pick(block, "--tx-3"), "light quiet labels are #5E554C").toBe("#5E554C");
       expect(pick(block, "--tx-4"), name + " structure is a solid grey").toMatch(/^#[0-9A-Fa-f]{6}$/);
     }
   });

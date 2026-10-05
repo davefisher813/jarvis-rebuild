@@ -1,4 +1,4 @@
-import { Home, ListChecks, Calendar, Brain, FileText, MessageSquare, Bell, Wallet, Sparkles, type LucideIcon } from "../shared/icons";
+import { Home, ListChecks, Calendar, Brain, FileText, Mail, MessageSquare, Bell, Wallet, type LucideIcon } from "../shared/icons";
 
 // Every page that can live in the bottom tab bar. Whatever the user does not put
 // in the bar falls into More. "More" itself is always the fixed last tab and is
@@ -36,13 +36,15 @@ export const DESTINATIONS: Destination[] = [
   { key: "schedule", label: "Schedule", Icon: Calendar },
   { key: "brain", label: "Brain", Icon: Brain },
   { key: "notes", label: "Notes", Icon: FileText },
-  { key: "messages", label: "Email", Icon: MessageSquare },
+  // Email is the envelope it wears on every other screen, and Chat is a speech bubble, so the dock's own four-point sparkle (Add
+  // Anything) means one thing (2026-10-05, the round 2 review: Email drew a chat bubble and Chat drew the sparkle).
+  { key: "messages", label: "Email", Icon: Mail },
   // Thirteen characters, and it would have wrapped exactly the way Bigger
   // Picture did the moment anyone put it in the bar. Found by the law rather
   // than by a screenshot, which is the point of writing the law.
   { key: "notifications", label: "Notifications", tabLabel: "Alerts", Icon: Bell },
   { key: "money", label: "Money", Icon: Wallet },
-  { key: "chat", label: "Chat", Icon: Sparkles },
+  { key: "chat", label: "Chat", Icon: MessageSquare },
 ];
 
 export const DEFAULT_TABS = ["today", "life", "schedule", "brain"];

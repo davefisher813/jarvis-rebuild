@@ -21,7 +21,10 @@ import { daysBetween } from "../upnext/upnext";
 // `date` is CAPS, not a colour, so it never counts toward K.3's one colour:
 // a line may carry a red and a date together.
 export type FactTone = "warn" | "good" | "red" | "est" | "date";
-export interface Fact { text: string; tone?: FactTone }
+/** `strong` is the white `<b>` primitive (R3: a number with no state that must
+ *  stand out, and a length that cannot be tapped, settled 2026-09-26). It is
+ *  ink, not a colour, so it never spends the line's one tone (2026-10-05). */
+export interface Fact { text: string; tone?: FactTone; strong?: boolean }
 
 /** One .facts line. Nullish or false entries are skipped so a caller can
  *  write `[a, cond && b]` without a filter of its own. */
@@ -34,6 +37,7 @@ export function Facts({ facts, className = "" }: { facts: (Fact | null | undefin
       {list.map((f, i) => {
         // A neutral date is caps, not a colour: it rides past the counter.
         if (f.tone === "date") return <span key={i} className="fact date">{f.text}</span>;
+        if (f.strong) return <span key={i} className="fact"><b>{f.text}</b></span>;
         // K.3: one coloured fact per line. The first keeps its colour.
         const tone = f.tone && !toned ? f.tone : undefined;
         if (tone) toned = true;

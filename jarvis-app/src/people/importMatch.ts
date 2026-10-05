@@ -1,7 +1,7 @@
 import type { ImportedContact } from "./importContacts";
 import type { ContactMethod, Person, PersonData } from "./types";
 import { phonesOf, emailsOf, normPhone, normEmail, withPhones, withEmails, matchKeys } from "./contactMethods";
-import { lineCase } from "../shared/casing";
+import { lineCase, capAfterNumber } from "../shared/casing";
 
 // WHO IS THIS, AND HAVE I GOT THEM ALREADY (People handoff, 2026-09-16).
 //
@@ -209,12 +209,12 @@ export function planFacts(plan: MatchPlan, answered: number): PlanFact[] {
   const waiting = plan.review.length - answered;
   const work: string[] = [];
   if (plan.create.length) work.push(lineCase(`${plan.create.length} new`));
-  if (plan.update.length) work.push(lineCase(`${plan.update.length} to update`));
+  if (plan.update.length) work.push(capAfterNumber(lineCase(`${plan.update.length} to update`))); // "1 To Update": the word behind a leading number is capitalised, small or not (2026-10-05)
   const out: PlanFact[] = [];
   if (work.length) out.push({ text: work.join(", ") });
-  if (waiting > 0) out.push({ text: lineCase(`${waiting} to check`), tone: "warn" });
+  if (waiting > 0) out.push({ text: capAfterNumber(lineCase(`${waiting} to check`)), tone: "warn" });
   if (plan.unchanged) out.push({ text: lineCase(`${plan.unchanged} already current`), tone: "good" });
-  return out.length ? out : [{ text: "Nothing to change" }];
+  return out.length ? out : [{ text: "Nothing to Change" }];
 }
 
 /** After applying. Plain counts of what actually happened, never a claim
@@ -224,7 +224,7 @@ export function summaryLine(added: number, updated: number, unchanged: number): 
   if (added) parts.push(`${added} added`);
   if (updated) parts.push(`${updated} updated`);
   if (unchanged) parts.push(`${unchanged} already current`);
-  return parts.length ? lineCase(parts.join(" · ")) : "Nothing changed";
+  return parts.length ? lineCase(parts.join(" · ")) : "Nothing Changed";
 }
 
 /** One line of evidence for telling two same-name people apart: what this

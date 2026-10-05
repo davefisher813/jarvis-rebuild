@@ -193,6 +193,12 @@ casing"; "Make sure all cases are addressed (ex: 45 min v 45 Min)"):
   - "Saves About 8 Min · Never Your Main Lift"
   - "Sep 14 · Food and Beverage Store"
   - "2 of 5 Lifts", "45 Min" (never "45 min"), "310 of 325 Lb"
+  - The number rule, explicit (Dave 2026-10-05, caught live as "Earlier 2
+    blocks"): in any phrase that opens with a number, the word behind it is
+    capitalized, in singular and plural: "2 Blocks", "1 Block", "5 Email
+    Items". A count in its own span is its own phrase. Checked on the rendered
+    DOM by every jsdom test (`src/laws/catalogSetup.ts`) and by the tap sweep,
+    because a source scan cannot see a count built in JSX.
 - Sentence case stays only where the app is talking in sentences:
   chat, notes' bodies, onboarding and check-in prompts, and a field note
   that is a full sentence.

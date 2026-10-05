@@ -67,9 +67,14 @@ describe("a create under a row clears it (2026-10-01)", () => {
     expect(bad).toEqual([]);
   });
 
-  it("the sheet's Add a Note and Add Item still use the shared create", () => {
+  it("the sheet's Add a Note and Add Item use the shared head capsule", () => {
+    // AMENDED (Dave 2026-10-05, locked: section-level actions live in the section head, never in a card). The sheet's
+    // creates were trailing `.row.row-act` rows under the Checklist and the Notes; they are the group label row's
+    // `see-all pill-action` capsule now, the same one New Event and Schedule are. The pill-shaped create is still a
+    // capsule and still the shared class; what changed is only where it sits.
     const t = read("src/tasks/screens/TaskSheet.tsx");
-    expect(t).toMatch(/className="row row-act"[^\n]*>Add a Note</);
-    expect(t).toMatch(/className="row row-act"[^\n]*>Add Item</);
+    expect(t).toMatch(/className="see-all pill-action"[^\n]*>Add a Note</);
+    expect(t).toMatch(/className="see-all pill-action"[^\n]*>Add Item</);
+    expect(t, "and no trailing create row is left under a group").not.toMatch(/className="row row-act"[^\n]*>Add (a Note|Item)</);
   });
 });

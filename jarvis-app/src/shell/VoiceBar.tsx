@@ -12,15 +12,14 @@ export default function VoiceBar({ onTap, onSearch, onWhatNow }: { onTap?: () =>
     <div className="pad-x voice-dock">
       <button className="voice-bar" onClick={onTap} aria-label="Quick capture">
         <div className="voice-mic"><Sparkles className="ic" /></div>
-        <div className="voice-name">JARVIS</div>
-        <div className="voice-hint">Add anything</div>
+        <div className="voice-hint">Add Anything</div>
       </button>
       {/* WHAT NOW (button round, kept after the research). This bar is the one
           piece of chrome on every tab, which is the entire reason the button
           belongs here: being stuck is not a thing that happens on the Today
           screen, it happens wherever you are. One tap, one thing, no list. */}
       {onWhatNow && (
-        <button className="voice-search voice-now" onClick={onWhatNow} aria-label="What should I do now">
+        <button className="voice-search" onClick={onWhatNow} aria-label="What should I do now">
           <Zap className="ic" />
         </button>
       )}

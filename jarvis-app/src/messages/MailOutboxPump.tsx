@@ -20,7 +20,10 @@ export default function MailOutboxPump({ ai }: { ai: AIService }) {
   // C-56: the rules store the draft-edit learning writes to.
   const rules = useOptionalRules();
   // Open tracking is a setting (2026-08-09), read the same way MessagesFlow
-  // reads it: missing provider or profile means the default (on).
+  // reads it: missing provider or profile means the default (on). This copy
+  // is only the fallback now: the send itself reads the profile at send time
+  // (2026-10-04), because the pump outlives the Connections switch and a
+  // value read once per session kept the pixel on after he turned it off.
   const [trackOpens, setTrackOpens] = useState(true);
   useEffect(() => {
     let on = true;
@@ -37,9 +40,10 @@ export default function MailOutboxPump({ ai }: { ai: AIService }) {
     ai,
     tasks,
     trackOpens,
+    readTrackOpens: profileSvc ? async () => (await profileSvc.get())?.trackOpens !== false : undefined,
     authToken: session?.access_token,
     rules,
-  }), [g.api, ai, tasks, trackOpens, session, rules]);
+  }), [g.api, ai, tasks, trackOpens, profileSvc, session, rules]);
 
   // EMAIL-F-05: once per process, before the first tick, anything left
   // marked "sending" by a process that died is surfaced as interrupted.

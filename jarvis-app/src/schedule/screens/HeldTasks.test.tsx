@@ -2,6 +2,7 @@
 import { describe, it, expect } from "vitest";
 import { render, fireEvent } from "@testing-library/react";
 import HeldTasks, { COLLAPSE_OVER } from "./HeldTasks";
+import { numberCaseViolations } from "../../laws/catalogCheck";
 
 // Dave 2026-08-25: "any tasks within events in the schedule should be able to
 // compress", and his pick was collapse OVER THREE. The threshold is the whole
@@ -27,7 +28,7 @@ describe("HeldTasks", () => {
   it("collapses over three, and says how many are hidden", () => {
     const { container } = render(<HeldTasks count={5}>{rows(5)}</HeldTasks>);
     expect(container.querySelectorAll(".block-held")).toHaveLength(0);
-    expect(container.querySelector(".held-toggle")!.textContent).toContain("5 tasks");
+    expect(container.querySelector(".held-toggle")!.textContent).toContain("5 Tasks");
   });
 
   it("opens and closes", () => {
@@ -58,6 +59,13 @@ describe("HeldTasks", () => {
 
   it("says task or tasks correctly", () => {
     const { container } = render(<HeldTasks count={COLLAPSE_OVER + 1} label="event">{rows(4)}</HeldTasks>);
-    expect(container.querySelector(".held-toggle")!.textContent).toContain("4 events");
+    expect(container.querySelector(".held-toggle")!.textContent).toContain("4 Events");
+  });
+
+  // THE NUMBER RULE (Dave 2026-10-05): the word behind the count is capitalized, singular and plural.
+  it("the collapsed line follows the number rule", () => {
+    const { container } = render(<HeldTasks count={5}>{rows(5)}</HeldTasks>);
+    expect(container.querySelector(".held-toggle")!.textContent).toBe("5 Tasks");
+    expect(numberCaseViolations(container)).toEqual([]);
   });
 });

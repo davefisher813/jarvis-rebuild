@@ -9,8 +9,10 @@ import { catName } from "../../shared/categories";
 import { todayISO } from "../grouping";
 import { nowHHMM } from "../../today/todayData";
 import { attemptWrite } from "../../shared/guard";
+import { armTaskReminders } from "../armReminders";
 import { showToast } from "../../shared/toast";
 import { fmtTime } from "../../schedule/calendar";
+import { titleCase } from "../../shared/casing";
 import { notificationPermissionState, sendTestReminder, TEST_REMINDER_DELAY_S, type NotifyPermission } from "../../shared/notifications";
 import { remindersToIcs, saveIcsFile } from "../ics";
 import { displayTitle } from "../../notes/docModel";
@@ -201,7 +203,14 @@ export default function RemindersFlow({ chrome, onOpenEntity, openId, onOpened, 
     setSettingsOpen(false);
     const next = { overdue: true, events: true, goals: true, ...(notify ?? {}), ...p };
     const ok = await attemptWrite(() => profile.save({ notify: next }));
-    if (ok) { setNotify(next); showToast({ message: "Reminder Settings Saved" }); }
+    if (ok) {
+      setNotify(next);
+      showToast({ message: "Reminder Settings Saved" });
+      // 2026-10-04: queued banners were built under the old settings and
+      // nothing re-armed them until the next foreground; this puts the flip
+      // on the phone now. Native only, a no-op everywhere else.
+      void armTaskReminders({ tasks, profile, categories: categoriesSvc }, today);
+    }
   };
   const sendTest = async () => {
     if (testing) return;
@@ -229,6 +238,7 @@ export default function RemindersFlow({ chrome, onOpenEntity, openId, onOpened, 
         searchOpen={searchOpen}
         onSearchToggle={() => { setSearchOpen((v) => !v); setQuery(""); }}
         today={today}
+        now={now}
         onNew={() => setSheet({ mode: "new" })}
         onSettings={() => setSettingsOpen(true)}
         onOpen={setDetailId}
@@ -237,6 +247,7 @@ export default function RemindersFlow({ chrome, onOpenEntity, openId, onOpened, 
         onOpenLinked={onOpenEntity ? openLinked : undefined}
         onResume={(id) => void pause(id, false)}
         onRestore={(id, date) => void restore(id, date)}
+        onDelete={setConfirmDelete}
       />
       )}
       {detail && (
@@ -257,7 +268,7 @@ export default function RemindersFlow({ chrome, onOpenEntity, openId, onOpened, 
         />
       )}
       {snoozing && (
-        <SnoozeSheet title={snoozing.data.text} fromDate={snoozeFrom} today={today}
+        <SnoozeSheet title={titleCase(snoozing.data.text)} fromDate={snoozeFrom} today={today}
           onPick={(toDate, time) => void move(snoozing.id, snoozeFrom, toDate, time)} onCancel={() => setSnoozeId(null)} />
       )}
       {sheet && (
@@ -279,7 +290,10 @@ export default function RemindersFlow({ chrome, onOpenEntity, openId, onOpened, 
           onSave={(p) => void saveSettings(p)} onTest={() => void sendTest()} onCancel={() => setSettingsOpen(false)} />
       )}
       {confirmDelete && (
-        <RowActionSheet title="Delete this reminder? What it links to stays." onCancel={() => setConfirmDelete(null)}
+        // A sheet's title is an 11px caps label, never two sentences (the
+        // 2026-09-26 caps ruling): "Delete this reminder? What it links to
+        // stays." is one Title Case phrase now (2026-10-05).
+        <RowActionSheet title="Delete This Reminder, Not What It Links to" onCancel={() => setConfirmDelete(null)}
           actions={[{ label: "Delete Reminder", destructive: true, onPick: () => void remove(confirmDelete) }]} />
       )}
     </>

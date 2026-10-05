@@ -118,7 +118,8 @@ describe("the day that only fits because it is compressed", () => {
     expect(card!.className, "and it is still").toContain("ticker-still");
     const toggle = container.querySelector(".held-toggle");
     expect(toggle, "the visible day keeps its toggle").toBeTruthy();
-    expect(toggle!.textContent).toContain("5 tasks");
+    // "5 Tasks": the word behind a leading number is capitalised (the catalog hard gate, 2026-10-05).
+    expect(toggle!.textContent).toContain("5 Tasks");
     // And the word is accurate now: every one of the five IS a task. It used
     // to count committed events too, which is how a job interview came to be
     // described as one of "5 tasks".

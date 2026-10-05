@@ -28,14 +28,14 @@ describe("PersonDetail reach and facts", () => {
 
   it("shows how JARVIS writes to them and their categories", () => {
     render(<PersonDetail person={MOM} onEdit={() => {}} onBack={() => {}} categoryNames={["Family"]} />);
-    expect(screen.getByText("Like a close friend")).toBeInTheDocument();
+    expect(screen.getByText("Like a Close Friend")).toBeInTheDocument();
     expect(screen.getByText("Family")).toBeInTheDocument();
   });
 
   it("flagged wins over register, same precedence as drafting", () => {
     const flagged: Person = { id: "p2", data: { ...MOM.data, flagged: true } };
     render(<PersonDetail person={flagged} onEdit={() => {}} onBack={() => {}} />);
-    expect(screen.getByText("With care, always professional")).toBeInTheDocument();
+    expect(screen.getByText("With Care, Always Professional")).toBeInTheDocument();
   });
 
   it("no email or phone means no reach card, not empty launchers", () => {
@@ -74,9 +74,11 @@ describe("PersonDetail: Last Talked and the check-in draft (S6-Q40)", () => {
     expect(onCheckIn).toHaveBeenCalledTimes(1);
   });
 
-  it("reads Drafting and stays disabled while a draft is in flight", () => {
-    render(<PersonDetail person={MOM} onEdit={() => {}} onBack={() => {}} lastTalked="2 Months ago" quiet onCheckIn={() => {}} checkingIn />);
-    expect(screen.getByText("Drafting")).toBeDisabled();
+  it("reads Drafting while a draft is in flight, and a second tap starts nothing", () => {
+    const onCheckIn = vi.fn();
+    render(<PersonDetail person={MOM} onEdit={() => {}} onBack={() => {}} lastTalked="2 Months ago" quiet onCheckIn={onCheckIn} checkingIn />);
+    fireEvent.click(screen.getByText("Drafting"));
+    expect(onCheckIn).not.toHaveBeenCalled();
   });
 
   it("a lastTalked row appears even with no other fact, so About isn't gated shut", () => {
@@ -90,21 +92,21 @@ describe("PersonDetail: Last Talked and the check-in draft (S6-Q40)", () => {
   // person, resolved by the caller like everything else on this card.
   it("says Trusted adult on the person Say It to Someone reaches, and on nobody else", () => {
     render(<PersonDetail person={MOM} onEdit={() => {}} onBack={() => {}} trustedAdult />);
-    expect(screen.getByText("Trusted adult")).toBeInTheDocument();
+    expect(screen.getByText("Trusted Adult")).toBeInTheDocument();
     // Its own row in About, not a second grey under the name (§AK).
-    expect(screen.getByText("Trusted adult").closest(".row")).toHaveTextContent(/^Say It to SomeoneTrusted adult$/);
+    expect(screen.getByText("Trusted Adult").closest(".row")).toHaveTextContent(/^Say It to SomeoneTrusted Adult$/);
   });
 
   it("opens About for it even on a person with nothing else to say", () => {
     const bare: Person = { id: "p5", data: { name: "Coach Dee", group: "contacts" } };
     render(<PersonDetail person={bare} onEdit={() => {}} onBack={() => {}} trustedAdult />);
     expect(screen.getByText("About")).toBeInTheDocument();
-    expect(screen.getByText("Trusted adult")).toBeInTheDocument();
+    expect(screen.getByText("Trusted Adult")).toBeInTheDocument();
   });
 
   it("says nothing about it on an ordinary person", () => {
     render(<PersonDetail person={MOM} onEdit={() => {}} onBack={() => {}} />);
-    expect(screen.queryByText("Trusted adult")).not.toBeInTheDocument();
+    expect(screen.queryByText("Trusted Adult")).not.toBeInTheDocument();
   });
 });
 
@@ -181,7 +183,7 @@ describe("next time we talk", () => {
   it("offers a way to add one even when there are none yet", () => {
     render(<PersonDetail person={withPoints()} onEdit={() => {}} onBack={() => {}} onAddPoint={() => {}} />);
     expect(screen.getByText("Next Time We Talk")).toBeInTheDocument();
-    expect(screen.getByText("Add Something")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Add Something to Talk About" })).toBeInTheDocument();
   });
 
   it("counts only the ones still to raise", () => {
@@ -192,8 +194,8 @@ describe("next time we talk", () => {
       ])} />);
     // Both are shown -- a discussed one is kept, not deleted, so "did I bring
     // that up?" is answerable -- and the count is of what is left.
-    expect(screen.getByText("Ask about the layout")).toBeInTheDocument();
-    expect(screen.getByText("Thank him for the ride")).toBeInTheDocument();
+    expect(screen.getByText("Ask About the Layout")).toBeInTheDocument();
+    expect(screen.getByText("Thank Him for the Ride")).toBeInTheDocument();
     expect(screen.getByText("1")).toBeInTheDocument();
   });
 
@@ -206,7 +208,7 @@ describe("next time we talk", () => {
     expect(toggled).toEqual(["a"]);
     // The row is the door: a talking point has nothing else to open, so a tap
     // on the words means the same thing as a tap on the ring.
-    fireEvent.click(screen.getByText("Ask about the layout"));
+    fireEvent.click(screen.getByText("Ask About the Layout"));
     expect(toggled).toEqual(["a", "a"]);
   });
 
@@ -285,9 +287,19 @@ describe("editing from the card", () => {
   it("opens the editor from any fact row", () => {
     const edits: number[] = [];
     render(<PersonDetail person={mom} onEdit={() => edits.push(1)} onBack={() => {}} categoryNames={["Family"]} />);
-    fireEvent.click(screen.getByText("Relationship"));
+    // The relationship is said once, in the hero; About holds what the hero does not (Dave 2026-10-05, the review: "Attorney"
+    // under the name and again as About > Relationship).
+    expect(screen.queryByText("Relationship")).not.toBeInTheDocument();
     fireEvent.click(screen.getByText("Birthday"));
+    fireEvent.click(screen.getByText("Areas"));
     expect(edits).toHaveLength(2);
+  });
+
+  it("the relationship is said once: in the hero, never again as an About row", () => {
+    const { container } = render(<PersonDetail person={mom} onEdit={() => {}} onBack={() => {}} />);
+    expect(container.querySelector(".person-facts")!.textContent).toBe("Family");
+    expect(container.textContent!.match(/Family/g)).toHaveLength(1);
+    expect(screen.queryByText("Relationship")).not.toBeInTheDocument();
   });
 
   // NOT THE SAME WORD TWICE (photographed: "Family · Family"). The handoff
@@ -335,7 +347,7 @@ describe("PersonDetail: a promise's deadline takes the key", () => {
     const factsOf = (text: string) => screen.getByText(text).closest(".row")!.querySelector(".facts")!;
     for (const t of ["Send the lease", "Pay the deposit", "Book the table", "Return the ladder", "Plan the trip", "Call the plumber"]) {
       const words = factsOf(t).querySelector(".fact")!;
-      expect(words.textContent).toBe("You promised");
+      expect(words.textContent).toBe("You Promised");
       expect(words.className, t).toBe("fact");
     }
     expect(factsOf("Send the lease").querySelectorAll(".fact")[1]!.className).toBe("fact red");
@@ -357,5 +369,60 @@ describe("PersonDetail: a decision's date is a neutral date", () => {
     const date = facts.querySelectorAll(".fact");
     expect(date).toHaveLength(1);
     expect(date[0]!.className).toBe("fact date");
+  });
+});
+
+// THE ROUND 2 REVIEW (2026-10-05): the contact's bar was a label-less chevron and a bare pencil, and once the name scrolled away it
+// said nothing about whose page it was, where Decisions' bar says "Decision". And every contact was the same grey disc.
+import { personInitials, softAvatarClass } from "./types";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
+describe("PersonDetail wears the same bar as every other Brain page (round 2)", () => {
+  it("a labelled back, the pencil in the round bar button, and the name as the bar's own title", () => {
+    const onBack = vi.fn();
+    const onEdit = vi.fn();
+    const { container } = render(<PersonDetail person={MOM} onEdit={onEdit} onBack={onBack} />);
+    const back = container.querySelector(".pagebar .nav-back")!;
+    expect(back.textContent).toBe("Contacts");
+    fireEvent.click(back);
+    expect(onBack).toHaveBeenCalled();
+    // The title the bar condenses into once the hero's name is gone, so the bar always says whose page it is.
+    expect(container.querySelector(".pagebar .pagebar-title")!.textContent).toBe("Mom");
+    const edit = container.querySelector(".pagebar .barbtn")!;
+    expect(edit.getAttribute("aria-label")).toBe("Edit");
+    fireEvent.click(edit);
+    expect(onEdit).toHaveBeenCalled();
+    // No hand-rolled bar left behind.
+    expect(container.querySelector(".nav-bar")).toBeNull();
+  });
+
+  it("the back label is where it goes, and a caller can say otherwise", () => {
+    const { container } = render(<PersonDetail person={MOM} onEdit={() => {}} onBack={() => {}} backLabel="Family" />);
+    expect(container.querySelector(".pagebar .nav-back")!.textContent).toBe("Family");
+  });
+});
+
+describe("a person with no chosen colour still wears their own (round 2)", () => {
+  it("the name picks a stable hue from the palette, never the brand red; a chosen colour wins; no name is the warm neutral", () => {
+    const a = softAvatarClass(undefined, "Marcus Delaney");
+    expect(a).toBe(softAvatarClass("red", "Marcus Delaney"));
+    expect(a).toMatch(/^av-soft cat-fg-/);
+    expect(a).not.toContain("cat-fg-red");
+    expect(softAvatarClass("teal", "Marcus Delaney")).toBe("av-soft cat-fg-teal");
+    expect(softAvatarClass(undefined)).toBe("av-soft av-neutral");
+    expect(personInitials("Marcus Delaney")).toBe("MD");
+  });
+
+  it("the hero's avatar carries it", () => {
+    const { container } = render(<PersonDetail person={{ id: "p9", data: { name: "Sam Okafor", group: "contacts" } }} onEdit={() => {}} onBack={() => {}} />);
+    expect(container.querySelector(".person-hero .av")!.className).toMatch(/cat-fg-/);
+    expect(container.querySelector(".person-hero .av")!.className).not.toContain("av-neutral");
+  });
+
+  it("the contact rows' avatar starts at the card's own inset, and its hairline at the name's edge", () => {
+    const css = readFileSync(join(process.cwd(), "src/styles/ruled.css"), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
+    expect(css).toMatch(/\.ruled \.person-row-ruled \.task-check-tap \{ width: 30px;/);
+    expect(css).toMatch(/\.person-row-ruled \+ \.task-row\.person-row-ruled::before \{ left: calc\(var\(--s-4\) \+ 30px/);
   });
 });

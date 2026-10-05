@@ -1,11 +1,13 @@
 // @vitest-environment jsdom
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { useEffect, useState } from "react";
 import { render, screen, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import { NotesProvider, useCategories, useSchedule, useTasks } from "../data/NotesProvider";
 import { todayISO } from "../tasks/grouping";
 import ReportFlow from "./ReportPage";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 
 // BRAIN-F-16 (2026-09-05): item 13 wired the calendar into the BOUNDARY seal
 // (AppShell hands sealPreviousMonthIfDue the schedule) but not into the live
@@ -55,7 +57,7 @@ import type { MonthReport } from "./report";
 const HOURS_REPORT: MonthReport = {
   month: "2026-08", monthName: "August",
   hero: { big: "3", label: "Things Moved", anchor: null, wins: [] },
-  tiles: [{ num: "84", label: "Done", tint: "good", delta: { text: "+12 vs July", up: true } }],
+  tiles: [{ num: "84", label: "Done", tint: "good", delta: { text: "+12 Vs July", up: true } }],
   hours: { label: "3 PM to 6 PM", byHour: Array.from({ length: 24 }, (_, h) => (h >= 15 && h < 18 ? 9 : 1)), bandStart: 15 },
   went: null, time: null, worth: [], patterns: [], life: [], learned: null, did: null, closer: null,
   sealed: { title: "August Sealed", sub: "September Compares to This" },
@@ -69,8 +71,87 @@ describe("Your Hours in the monthly report", () => {
     const sheet = document.querySelector(".sheet-scrim")!;
     expect(sheet, "the tap does something").toBeTruthy();
     expect(sheet.textContent).toContain("Your Hours: 3 PM to 6 PM");
-    expect(sheet.textContent).toContain("84 Finishes This Month");
+    // The receipts are the three busiest hours, as rows in the app's own words: what the bars are made of, not one loud sentence
+    // in a box (Dave 2026-10-05, the review).
+    expect([...sheet.querySelectorAll(".rep-receipts .rep-receipt-line")].map((e) => e.textContent)).toEqual(["3 PM: 9 Finishes", "4 PM: 9 Finishes", "5 PM: 9 Finishes"]);
+    // They are evidence in the primary ink, not a grey sub line: the receipt line is its own class, never .conn-meta.
+    expect(sheet.querySelector(".rep-receipts .conn-meta")).toBeNull();
+    expect(sheet.textContent).toContain("4 PM: 9 Finishes");
+    expect(sheet.textContent).toContain("5 PM: 9 Finishes");
+    expect(sheet.textContent).not.toContain("This Month; the");
     fireEvent.click(screen.getByText("Done", { selector: ".sheet-scrim button" }));
     expect(document.querySelector(".sheet-scrim")).toBeNull();
+  });
+});
+
+// CLEAN ROWS, NO PILLS (Dave 2026-10-05, locked; ROW-ACTIONS-SPEC sections 1 and 2). Do One, Drop One and every life
+// card's door (Open Money, Check In) were capsules in a strip under their rows. A row is a door now: tap it and its
+// sheet holds the verb filled with the quieter one beneath it; the first verb is also the row's swipe-left.
+describe("the report's rows wear the row-action model (2026-10-05)", () => {
+  const REPORT: MonthReport = {
+    ...HOURS_REPORT, hours: null,
+    worth: [{ id: "carried", title: "2 Tasks Followed You All Month", sub: null, carried: [{ id: "t1", text: "File Taxes", n: 4 }, { id: "t2", text: "Call Mom", n: 3 }], receipts: ["File Taxes, 4 Pushes", "Call Mom, 3 Pushes"] }],
+    life: [{ id: "money", title: "Bills Paid on Time", facts: [{ text: "12 Paid" }], exit: { label: "Open Money", kind: "money" }, receipts: ["Rent, Paid Oct 1"] }],
+  };
+
+  it("draws no capsule anywhere in a card, and the swipe-left carries the sheet's first verb", () => {
+    const { container } = render(<ReportScreen report={REPORT} capped={false} onCap={() => {}} onBack={() => {}} onOpenTask={() => {}} onDropTask={() => {}} onExit={() => {}} />);
+    // The One Change card is absent here; every other capsule would be in a row or a card.
+    expect(container.querySelector(".card .pill-act, .card .row-act, .card .btn-sm, .card .quiet-action")).toBeNull();
+    expect(container.querySelector(".rep-btnrow")).toBeNull();
+    expect([...container.querySelectorAll(".notice-alt")].map((b) => b.textContent)).toEqual(["Do One", "Open Money"]);
+  });
+
+  it("a tap opens the sheet: the receipts, Do One filled, Drop One beneath it, and each does its job", () => {
+    const onOpenTask = vi.fn();
+    const onDropTask = vi.fn();
+    render(<ReportScreen report={REPORT} capped={false} onCap={() => {}} onBack={() => {}} onOpenTask={onOpenTask} onDropTask={onDropTask} />);
+    fireEvent.click(screen.getByText("2 Tasks Followed You All Month"));
+    const sheet = document.querySelector(".sheet-scrim")!;
+    expect(sheet.textContent).toContain("File Taxes, 4 Pushes");
+    expect(sheet.querySelector(".btn-primary")!.textContent).toBe("Do One");
+    fireEvent.click(sheet.querySelector(".btn-danger-text")!);
+    expect(onDropTask).toHaveBeenCalledWith({ id: "t1", text: "File Taxes", n: 4 });
+    expect(document.querySelector(".sheet-scrim")).toBeNull();
+    fireEvent.click(screen.getByText("2 Tasks Followed You All Month"));
+    fireEvent.click(document.querySelector(".sheet-scrim .btn-primary")!);
+    expect(onOpenTask).toHaveBeenCalledWith("t1");
+  });
+
+  it("a life card whose door is not wired has no verb, not one that does nothing", () => {
+    const { container } = render(<ReportScreen report={REPORT} capped={false} onCap={() => {}} onBack={() => {}} />);
+    expect(container.querySelector(".notice-alt")).toBeNull();
+    fireEvent.click(screen.getByText("Bills Paid on Time"));
+    expect(document.querySelector(".sheet-scrim .btn-primary")).toBeNull();
+  });
+});
+
+// THE ROUND 2 REVIEW (2026-10-05). October's The Month was one full-width tile ("1/31 Days Checked In") where September has a 2 by 2,
+// and the one card that opens something (Your Hours) gave no sign it was a door.
+describe("the report's grid is never one cell, and its one door-card shows a chevron (round 2)", () => {
+  const tile = (num: string, label: string, delta: { text: string; up: boolean } | null = null) => ({ num, label, tint: "plain" as const, delta });
+
+  it("a lone tile joins the hero as a fact, with its figure white, and no grid is drawn", () => {
+    const report: MonthReport = { ...HOURS_REPORT, hours: null, tiles: [tile("1/31", "Days Checked In")] };
+    const { container } = render(<ReportScreen report={report} capped={false} onCap={() => {}} onBack={() => {}} stillOpen />);
+    expect(container.querySelector(".rep-grid")).toBeNull();
+    const fact = container.querySelector(".rep-hero .facts .fact")!;
+    expect(fact.textContent).toBe("1/31 Days Checked In");
+    expect(fact.querySelectorAll("b").length).toBeGreaterThan(0);
+    // With nothing else to say under it, the section head is not drawn over an empty section either.
+    expect(screen.queryByText("The Month", { selector: ".sh2 .t" })).toBeNull();
+  });
+
+  it("with two or more tiles the grid stays, and a tile wears the card radius", () => {
+    const report: MonthReport = { ...HOURS_REPORT, hours: null, tiles: [tile("84", "Done"), tile("9", "Sessions")] };
+    const { container } = render(<ReportScreen report={report} capped={false} onCap={() => {}} onBack={() => {}} />);
+    expect(container.querySelectorAll(".rep-grid .stat-tile")).toHaveLength(2);
+    const css = readFileSync(join(process.cwd(), "src/styles/components.css"), "utf8");
+    expect(css).toMatch(/\.rep-grid \.stat-tile \{ border-radius: var\(--r-card\)/);
+  });
+
+  it("Your Hours, the card that opens a sheet, carries a chevron", () => {
+    const { container } = render(<ReportScreen report={HOURS_REPORT} capped={false} onCap={() => {}} onBack={() => {}} />);
+    expect(container.querySelector(".rep-split .chev")).not.toBeNull();
   });
 });

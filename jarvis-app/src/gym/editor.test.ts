@@ -32,7 +32,7 @@ describe("D1: the exercise sheet has one editor", () => {
   });
 
   it("the Customize row says whether the plan is uniform", () => {
-    expect(sheet).toMatch(/isUniformStrip\(kind, sets\) \? "Uniform" : "Varies by set"/);
+    expect(sheet).toMatch(/isUniformStrip\(kind, sets\) \? "Uniform" : "Varies by Set"/);
   });
 });
 

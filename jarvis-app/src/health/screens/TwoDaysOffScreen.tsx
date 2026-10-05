@@ -1,4 +1,5 @@
 import type { RestDayOffer } from "../twoDaysOff";
+import { weekdayLongDate } from "../../shared/dateFormat";
 
 // TWO DAYS OFF (Part 2). Offers to place a real rest day when the coming
 // week has none. A real calendar block, never advice with nothing behind it.
@@ -21,7 +22,8 @@ export default function TwoDaysOffScreen({ offer, onPlaceRestDay, onBack }: {
 
       {offer.needed && offer.suggestedDate && (
         <div className="pad-x"><div className="card pad">
-          <div className="conn-name">{offer.suggestedDate} Is Still Open</div>
+          {/* 2026-10-05 (the catalog gate): "Sunday, Aug 30 Is Still Open", not the ISO string. */}
+          <div className="conn-name">{weekdayLongDate(offer.suggestedDate)} Is Still Open</div>
           <button className="btn btn-primary btn-block" onClick={() => onPlaceRestDay(offer.suggestedDate!)}>Place a Rest Block There</button>
         </div></div>
       )}

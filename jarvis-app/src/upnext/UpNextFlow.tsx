@@ -1,3 +1,4 @@
+import { titleCase } from "../shared/casing";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTasks, useRoutine } from "../data/NotesProvider";
 import { HyperfocusLine, useHyperfocusGuard } from "../today/useHyperfocusGuard";
@@ -160,13 +161,14 @@ export default function UpNextFlow({ onClose, onStartNow, onFifteen, fifteen, on
     areaName: catName(current.data.category),
     areaSlot: catColor(current.data.category),
     reasons: reasonFacts(current, today, inPeak),
-    text: current.data.text,
+    // Title Case whatever he typed (Dave 2026-10-05); the record keeps his spelling.
+    text: titleCase(current.data.text),
   } : null;
 
   const finale = winsOver ? {
-    title: winsDone > 0 ? `${winsDone} Down.` : "The deck's still here.",
+    title: winsDone > 0 ? `${winsDone} Down` : "The Deck's Still Here",
     sub: winsDone >= winsTotal && winsDeck.length > 0
-      ? "A clean sweep."
+      ? "A Clean Sweep"
       : winsDone > 0
         ? "Ride the momentum or rest"
         : "No pressure",

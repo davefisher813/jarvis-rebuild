@@ -34,7 +34,7 @@ const snap = (over: Partial<AnswerSnapshot> = {}): AnswerSnapshot => ({
 describe("chat deterministic Q&A", () => {
   it("answers what's today with counts from records", async () => {
     const a = await answerQuestion("What's today?", snap());
-    expect(a?.text).toBe("2 Events · 1 Task due");
+    expect(a?.text).toBe("2 Events · 1 Task Due");
     expect(a?.provenance.kind).toBe("records");
   });
 
@@ -177,9 +177,9 @@ describe("ChatService", () => {
   it("appends and lists in time order with provenance intact", async () => {
     const s = rig();
     await s.append({ role: "user", text: "hi" });
-    await s.append({ role: "jarvis", text: "2 Events · 1 Task due", provenance: { kind: "records" } });
+    await s.append({ role: "jarvis", text: "2 Events · 1 Task Due", provenance: { kind: "records" } });
     const msgs = await s.list();
-    expect(msgs.map((m) => m.data.text)).toEqual(["hi", "2 Events · 1 Task due"]);
+    expect(msgs.map((m) => m.data.text)).toEqual(["hi", "2 Events · 1 Task Due"]);
     expect(msgs[1]?.data.provenance?.kind).toBe("records");
   });
 
@@ -330,7 +330,7 @@ describe("chat follow-ups", () => {
       events: [{ id: "e9", title: "Dentist", date: "2026-08-16", start: "14:30" }],
       tasks: [],
     })))!;
-    expect(a.text).toBe("1 Event · 0 Tasks due");
+    expect(a.text).toBe("1 Event · 0 Tasks Due");
     expect(a.provenance.refs?.[0]?.id).toBe("e9");
   });
 

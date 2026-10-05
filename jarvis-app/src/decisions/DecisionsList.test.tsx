@@ -13,6 +13,8 @@ import { setCategoryRegistry } from "../shared/categories";
 import DecisionsFlow from "./DecisionsFlow";
 import { todayISO } from "../schedule/calendar";
 import { shortDate } from "../shared/dateFormat";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 
 setCategoryRegistry([{ id: "cat-home", name: "Home", color: "orange" }]);
 afterAll(() => setCategoryRegistry([]));
@@ -72,12 +74,17 @@ describe("Decision list anatomy", () => {
       expect(f.className).toContain("fact cat");
       expect(f.querySelector(".cd")).not.toBeNull();
     }
-    // The date is the shared small-caps primitive, not a class of its own.
-    const date = row.querySelector(".facts > .fact:last-child")!;
-    expect(date.className).toBe("fact date");
+    // ONE facts line per row (the round 2 review: the row stacked title, reason, a home and a day into six lines). The short toned
+    // facts lead (the day), the long free-text home comes last, so only it can ever give way to an ellipsis; the date is the shared
+    // small-caps primitive, not a class of its own.
+    const factLines = Array.from(row.querySelectorAll(".facts"));
+    expect(factLines).toHaveLength(1);
+    const kids = Array.from(factLines[0]!.children);
+    expect(kids[0]!.className).toMatch(/^fact (date|warn|red)$/);
+    expect(kids[kids.length - 1]!.className).toContain("fact-link");
     expect(container.querySelector(".dec-when")).toBeNull();
     // Long decision sentences wrap (two-line clamp) rather than truncating.
-    const name = Array.from(container.querySelectorAll(".dec-name")).find((n) => n.textContent!.includes("Student template ships"));
+    const name = Array.from(container.querySelectorAll(".dec-name")).find((n) => n.textContent!.includes("Student Template Ships"));
     expect(name).toBeInTheDocument();
   });
 
@@ -85,7 +92,7 @@ describe("Decision list anatomy", () => {
     const { container } = render(
       <NotesProvider userId="u-dec-list-key"><Seeded><DecisionsFlow onBack={() => {}} /></Seeded></NotesProvider>,
     );
-    await waitFor(() => expect(screen.getByText("Keep Fridays for writing")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("Keep Fridays for Writing")).toBeInTheDocument());
     // The outcome takes the Colour Key: didn't is missed, worked is done.
     expect(screen.getByText("Didn't").className).toBe("fact red");
     expect(screen.getByText("Worked").className).toBe("fact good");
@@ -97,7 +104,7 @@ describe("Decision list anatomy", () => {
     const rows = Array.from(container.querySelectorAll(".dec-row"));
     const bare = rows.find((r) => r.textContent!.includes("Keep Fridays"))!;
     expect(bare.querySelector(".conn-meta")).toBeNull();
-    const reasoned = rows.find((r) => r.textContent!.includes("Student template"))!;
+    const reasoned = rows.find((r) => r.textContent!.includes("Student Template"))!;
     expect(reasoned.querySelector(".conn-meta")!.textContent).toBe("Because Northlake gives 60 warm leads on day one");
     // ADDED 2026-09-26 (audit leftovers): the reason is the row's point and
     // it wraps rather than clipping to one line. It lost a third to a half
@@ -132,17 +139,17 @@ describe("the decision row's date", () => {
     const { container } = render(
       <NotesProvider userId="u-dec-revisit"><SeededRevisits><DecisionsFlow onBack={() => {}} /></SeededRevisits></NotesProvider>,
     );
-    await waitFor(() => expect(screen.getByText("No revisit on this one")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("No Revisit on This One")).toBeInTheDocument());
     const dateOf = (name: string) => Array.from(container.querySelectorAll(".dec-row"))
       .find((r) => r.textContent!.includes(name))!.querySelector(".facts > .fact:last-child")!;
-    expect(dateOf("Revisit the gym plan").className).toBe("fact warn");
-    expect(dateOf("Revisit the gym plan").textContent).toBe("Revisit " + shortDate(dayFromToday(0)));
-    expect(dateOf("Revisit the reading list").className).toBe("fact warn");
-    expect(dateOf("Revisit the move").className).toBe("fact date");
-    expect(dateOf("Revisit the move").textContent).toBe("Revisit " + shortDate(dayFromToday(5)));
+    expect(dateOf("Revisit the Gym Plan").className).toBe("fact warn");
+    expect(dateOf("Revisit the Gym Plan").textContent).toBe("Revisit " + shortDate(dayFromToday(0)));
+    expect(dateOf("Revisit the Reading List").className).toBe("fact warn");
+    expect(dateOf("Revisit the Move").className).toBe("fact date");
+    expect(dateOf("Revisit the Move").textContent).toBe("Revisit " + shortDate(dayFromToday(5)));
     // The recorded-on day is always the neutral date.
-    expect(dateOf("No revisit on this one").className).toBe("fact date");
-    expect(dateOf("No revisit on this one").textContent).toBe(shortDate(todayISO()));
+    expect(dateOf("No Revisit on This One").className).toBe("fact date");
+    expect(dateOf("No Revisit on This One").textContent).toBe(shortDate(todayISO()));
   });
 });
 
@@ -178,21 +185,26 @@ describe("the record's Attached To card", () => {
     const { container } = render(
       <NotesProvider userId="u-dec-homes"><SeededHomes><DecisionsFlow onBack={() => {}} /></SeededHomes></NotesProvider>,
     );
-    await waitFor(() => expect(screen.getByText("Ship the student template first")).toBeInTheDocument());
-    fireEvent.click(screen.getByText("Ship the student template first").closest(".dec-row")!);
+    await waitFor(() => expect(screen.getByText("Ship the Student Template First")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("Ship the Student Template First").closest(".dec-row")!);
     await waitFor(() => expect(screen.getByText("Attached To")).toBeInTheDocument());
     const card = screen.getByText("Attached To").closest(".sh2")!.nextElementSibling!;
-    const facts = Array.from(card.querySelectorAll(".facts > .fact"));
-    expect(facts.map((f) => f.textContent)).toEqual(["Rebuild Bridge App", "Sam, Get Fit"]);
-    // The area home: the category fact, its own area on the dot, the name in .cat-t.
+    // EVERY HOME IS A ROW OF ITS OWN (Dave 2026-10-05, the review: "Rebuild Calder..." clipped beside 200px of empty card):
+    // its name as the title, what it IS as the one grey, the area's dot on a home that sits in an area.
+    const rows = Array.from(card.querySelectorAll(".row"));
+    expect(rows.map((r) => r.querySelector(".conn-name")!.textContent)).toEqual(["Rebuild Bridge App", "Sam", "Get Fit"]);
+    const facts = rows.map((r) => r.querySelector(".facts > .fact")!);
+    expect(facts.map((f) => f.textContent)).toEqual(["Project", "Person", "Goal"]);
+    // The area home: the category fact, its own area on the dot.
     const area = facts[0]!;
-    expect(area.className).toBe("fact cat fact-link");
+    expect(area.className).toBe("fact cat");
     await waitFor(() => expect(area.querySelector(".cd")!.className).toMatch(/\bcat-bg-orange\b/));
-    expect(area.querySelector(".cat-t")!.textContent).toBe("Rebuild Bridge App");
-    // Every other home: ONE plain fact, no dot, no invented grey mark.
-    const plain = facts[1]!;
-    expect(plain.className).toBe("fact");
-    expect(plain.querySelector(".cd")).toBeNull();
+    // Every other home: a plain fact, no dot, no invented grey mark, and no row is clipped by a fixed width.
+    for (const f of [facts[1]!, facts[2]!]) {
+      expect(f.className).toBe("fact");
+      expect(f.querySelector(".cd")).toBeNull();
+    }
+    expect(card.querySelector(".chip, .fact-link, .truncate")).toBeNull();
     expect(container.querySelector(".cat-bg-graphite")).toBeNull();
   });
 });
@@ -206,10 +218,218 @@ describe("the empty state", () => {
   it("offers the payoff in one short line, not two sentences", async () => {
     render(<NotesProvider userId="u-dec-empty"><DecisionsFlow onBack={() => {}} /></NotesProvider>);
     await waitFor(() => expect(screen.getByText("Worth Remembering")).toBeInTheDocument());
-    const sub = screen.getByText(/reason is still here/);
-    expect(sub.textContent).toBe("The reason is still here in six weeks");
+    const sub = screen.getByText(/Reason Is Still Here/);
+    expect(sub.textContent).toBe("The Reason Is Still Here in Six Weeks");
     expect(sub.textContent!.trim().split(/\s+/).length, "one line's worth").toBeLessThanOrEqual(9);
     expect(sub.textContent, "one sentence, so no full stop mid-line").not.toMatch(/\.\s/);
     expect(screen.getByText("Record a Decision")).toBeInTheDocument();
+  });
+});
+
+// CLEAN ROWS AND CARDS (Dave 2026-10-05, locked). A decision row is a door with a swipe-left Delete behind it; the record page
+// holds no capsule in a card: the outcome is a segmented choice, and Change It, Make It a Rule and Delete live in its More menu.
+describe("Decisions: clean rows, one menu", () => {
+  const noCaps = (root: Element) => root.querySelector(".card .pill-act, .card .row-act, .card .btn-sm, .card .quiet-action");
+
+  it("every list row is a swipe row with Delete behind it, and no capsule sits in the list card", async () => {
+    const { container } = render(
+      <NotesProvider userId="u-dec-clean-list"><Seeded><DecisionsFlow onBack={() => {}} /></Seeded></NotesProvider>,
+    );
+    await waitFor(() => expect(screen.getByText("Keep Fridays for Writing")).toBeInTheDocument());
+    const rows = Array.from(container.querySelectorAll(".dec-row"));
+    expect(rows).toHaveLength(2);
+    for (const r of rows) {
+      expect(r.closest(".task-swipe")?.querySelector(".task-del"), r.textContent ?? "").not.toBeNull();
+    }
+    expect(noCaps(container)).toBeNull();
+  });
+
+  it("the record page: the outcome is a segmented choice, no card holds a capsule, and the actions are in More", async () => {
+    const { container } = render(
+      <NotesProvider userId="u-dec-clean-record"><Seeded><DecisionsFlow onBack={() => {}} /></Seeded></NotesProvider>,
+    );
+    await waitFor(() => expect(screen.getByText("Keep Fridays for Writing")).toBeInTheDocument());
+    fireEvent.click(Array.from(container.querySelectorAll(".dec-name")).find((n) => n.textContent!.includes("Keep Fridays"))!);
+    const seg = await waitFor(() => { const e = container.querySelector(".segmented[aria-label='Outcome']"); expect(e).not.toBeNull(); return e!; });
+    expect(Array.from(seg.querySelectorAll("button.seg")).map((b) => b.textContent)).toEqual(["Worked", "Mixed", "Didn't"]);
+    expect(seg.querySelector("[aria-pressed=true]")?.textContent).toBe("Worked");
+    expect(noCaps(container)).toBeNull();
+    // The record's own actions are in its menu, not in rows at the foot of a card.
+    expect(screen.queryByText("Change It")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "More" }));
+    expect(await screen.findByRole("button", { name: "Change It" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Delete Decision" })).toHaveClass("destructive");
+  });
+
+  it("a call that did not work surfaces Change It on its outcome row, as text; one that worked shows nothing", async () => {
+    const { container } = render(
+      <NotesProvider userId="u-dec-ctx"><Seeded><DecisionsFlow onBack={() => {}} /></Seeded></NotesProvider>,
+    );
+    await waitFor(() => expect(screen.getByText("Keep Fridays for Writing")).toBeInTheDocument());
+    fireEvent.click(Array.from(container.querySelectorAll(".dec-name")).find((n) => n.textContent!.includes("Student Template"))!);
+    // The marked line under the control: the day it was marked, and the call's one action as text, never a capsule.
+    const ctx = await waitFor(() => { const c = container.querySelector(".dec-marked .row-ctx"); expect(c).not.toBeNull(); return c!; });
+    expect(ctx.textContent).toBe("Change It");
+    expect(ctx.className).toBe("row-ctx");
+    expect(container.querySelector(".dec-marked .fact.date")!.textContent).toMatch(/^Marked /);
+  });
+});
+
+// THE CATALOG, HELD ON THE RECORD PAGE (Dave 2026-10-05, the hard gate). Rendered through the real flow and read from the DOM.
+// Drift this pins: the headline wore whatever case it was typed in; the Revisit row put a chip at its edge with "No Date" in it;
+// Ruled Out drew chips in a card; the outcome card opened with a "Mark Outcome" row that said the head again; "Still good" was
+// sentence case.
+function OneRecord({ children, extra }: { children: ReactNode; extra: Parameters<ReturnType<typeof useDecisions>["create"]>[0] }) {
+  const svc = useDecisions();
+  const [ready, setReady] = useState(false);
+  useEffect(() => { void (async () => { await svc.create(extra); setReady(true); })(); }, [svc, extra]);
+  return ready ? <>{children}</> : null;
+}
+const openRecord = async (container: HTMLElement, text: string) => {
+  await waitFor(() => expect(container.querySelector(".dec-name")).not.toBeNull());
+  fireEvent.click(Array.from(container.querySelectorAll(".dec-name")).find((n) => n.textContent!.includes(text))!);
+  await waitFor(() => expect(container.querySelector(".dec-main")).not.toBeNull());
+};
+
+describe("Decisions record page follows the catalog", () => {
+  const base = { decision: "build a six-month runway before the hire", why: "cash is the constraint", ruledOut: ["wait a month", "hire two"] };
+
+  it("shows the headline in Title Case at rest and as typed while it is edited", async () => {
+    const { container } = render(<NotesProvider userId="u-dec-cat-head"><OneRecord extra={base}><DecisionsFlow onBack={() => {}} /></OneRecord></NotesProvider>);
+    await openRecord(container, "Build a Six-Month Runway");
+    const head = container.querySelector(".dec-main") as HTMLElement;
+    expect(head.textContent).toBe("Build a Six-Month Runway Before the Hire");
+    fireEvent.focus(head);
+    expect(head.textContent, "edited as typed").toBe("build a six-month runway before the hire");
+    head.textContent = "build a six-month runway before the hire, please";
+    fireEvent.blur(head);
+    await waitFor(() => expect(container.querySelector(".dec-main")!.textContent).toBe("Build a Six-Month Runway Before the Hire, Please"));
+  });
+
+  it("Ruled Out is rows in Title Case, never chips, with Remove only while editing", async () => {
+    const { container } = render(<NotesProvider userId="u-dec-cat-ruled"><OneRecord extra={base}><DecisionsFlow onBack={() => {}} /></OneRecord></NotesProvider>);
+    await openRecord(container, "Build a Six-Month Runway");
+    const head = screen.getByText("Ruled Out").closest(".sh2")!;
+    const card = head.nextElementSibling!;
+    expect(card.querySelector(".chip")).toBeNull();
+    expect(Array.from(card.querySelectorAll(".row .conn-name")).map((n) => n.textContent)).toEqual(["Wait a Month", "Hire Two"]);
+    expect(card.querySelector(".row-ctx"), "no verb while reading").toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Edit" }));
+    expect(card.querySelectorAll(".row-ctx")).toHaveLength(2);
+    expect(card.querySelector(".chip")).toBeNull();
+  });
+
+  it("the Revisit row has no chip and no placeholder: a date is a keyed fact, no date is nothing", async () => {
+    const dated = render(<NotesProvider userId="u-dec-cat-rev1"><OneRecord extra={{ ...base, revisitOn: "2099-03-04" }}><DecisionsFlow onBack={() => {}} /></OneRecord></NotesProvider>);
+    await openRecord(dated.container, "Build a Six-Month Runway");
+    const row = screen.getByText("Shows on Today").closest(".row")!;
+    expect(row.querySelector(".chip")).toBeNull();
+    const fact = row.querySelector(".facts .fact")!;
+    expect(fact.textContent).toBe("Mar 4");
+    expect(fact.className, "a later revisit is a neutral small-caps date").toContain("date");
+    expect(row.textContent).not.toContain("·");
+    dated.unmount();
+
+    const none = render(<NotesProvider userId="u-dec-cat-rev2"><OneRecord extra={base}><DecisionsFlow onBack={() => {}} /></OneRecord></NotesProvider>);
+    await openRecord(none.container, "Build a Six-Month Runway");
+    fireEvent.click(screen.getByRole("button", { name: "Edit" }));
+    const bare = screen.getByText("Shows on Today").closest(".row")!;
+    expect(bare.querySelector(".chip")).toBeNull();
+    expect(bare.querySelector(".facts"), "nothing to say, nothing drawn").toBeNull();
+    expect(screen.queryByText("No Date")).toBeNull();
+  });
+
+  it("an overdue revisit takes the key (a due date is never grey)", async () => {
+    const { container } = render(<NotesProvider userId="u-dec-cat-late"><OneRecord extra={{ ...base, revisitOn: "2020-01-02" }}><DecisionsFlow onBack={() => {}} /></OneRecord></NotesProvider>);
+    await openRecord(container, "Build a Six-Month Runway");
+    const fact = screen.getByText("Shows on Today").closest(".row")!.querySelector(".facts .fact")!;
+    expect(fact.className).toContain("red");
+  });
+
+  it("the outcome card opens on the three words, not on a row that says the head again", async () => {
+    const { container } = render(<NotesProvider userId="u-dec-cat-out"><OneRecord extra={base}><DecisionsFlow onBack={() => {}} /></OneRecord></NotesProvider>);
+    await openRecord(container, "Build a Six-Month Runway");
+    expect(screen.queryByText("Mark Outcome")).toBeNull();
+    // The control stands on its own: no card round it, no track-inside-a-card, no title row that repeats the word it shows (Dave
+    // 2026-10-05, the review: three nested containers).
+    const block = screen.getByText("Outcome", { selector: ".sh2 .t" }).closest(".sh2")!.nextElementSibling!;
+    expect(block.querySelector(".segmented")).not.toBeNull();
+    expect(block.classList.contains("card")).toBe(false);
+    expect(block.querySelector(".card, .row, .conn-name")).toBeNull();
+    expect(block.querySelector(".dec-marked")).toBeNull(); // nothing marked yet, so nothing to caption
+  });
+
+  // THE ROUND 2 REVIEW (2026-10-05): the biggest type on the page said the generic word "Decision" while the real call sat in a
+  // smaller card under a DECIDED label, and the outcome strip had nothing to say what it was for.
+  it("the call is the large title, with its day as the caption, and the bar keeps the small word", async () => {
+    const { container } = render(<NotesProvider userId="u-dec-r2-hero"><OneRecord extra={base}><DecisionsFlow onBack={() => {}} /></OneRecord></NotesProvider>);
+    await openRecord(container, "Build a Six-Month Runway");
+    const hero = container.querySelector(".pagehead .pagehead-title.dec-hero")!;
+    expect(hero.textContent).toBe("Build a Six-Month Runway Before the Hire");
+    // Not the generic word in the big slot, and no second Decided card repeating the call.
+    expect(container.querySelector(".pagehead-title:not(.dec-hero)")).toBeNull();
+    expect(screen.queryByText("Decided", { selector: ".sh2 .t" })).toBeNull();
+    expect(container.querySelector(".pagebar-title")!.textContent).toBe("Decision");
+    expect(container.querySelector(".pagehead .dec-recorded .fact.date")!.textContent).toMatch(/^Recorded /);
+  });
+
+  it("an outcome nobody has picked asks its question, and the question goes once one is", async () => {
+    const { container } = render(<NotesProvider userId="u-dec-r2-ask"><OneRecord extra={base}><DecisionsFlow onBack={() => {}} /></OneRecord></NotesProvider>);
+    await openRecord(container, "Build a Six-Month Runway");
+    expect(screen.getByText("How Did It Turn Out?")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Worked" }));
+    await waitFor(() => expect(screen.queryByText("How Did It Turn Out?")).toBeNull());
+  });
+
+  it("the notes field invites in two plain words, not a sentence", async () => {
+    const { container } = render(<NotesProvider userId="u-dec-r2-notes"><OneRecord extra={base}><DecisionsFlow onBack={() => {}} /></OneRecord></NotesProvider>);
+    await openRecord(container, "Build a Six-Month Runway");
+    expect(container.querySelector(".dec-notes")!.innerHTML).toContain("Add Notes");
+    expect(container.innerHTML).not.toContain("Longer Thinking");
+  });
+
+  it("an empty reason invites in Title Case and states nothing", async () => {
+    const { container } = render(<NotesProvider userId="u-dec-cat-why"><OneRecord extra={{ decision: "keep fridays for writing" }}><DecisionsFlow onBack={() => {}} /></OneRecord></NotesProvider>);
+    await openRecord(container, "Keep Fridays for Writing");
+    const why = container.querySelector(".dec-why") as HTMLElement;
+    expect(why.getAttribute("data-placeholder")).toBe("Why You Chose It");
+  });
+
+  it("a held list row offers Open as well as Delete (the long press is the menu)", async () => {
+    const { container } = render(<NotesProvider userId="u-dec-cat-menu"><OneRecord extra={base}><DecisionsFlow onBack={() => {}} /></OneRecord></NotesProvider>);
+    await waitFor(() => expect(container.querySelector(".dec-row")).not.toBeNull());
+    fireEvent.contextMenu(container.querySelector(".swipe-row")!);
+    expect(await screen.findByRole("button", { name: "Open" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Delete" })).toHaveClass("destructive");
+  });
+});
+
+// ONE SEPARATOR PER JOIN, AND A HOME READS WHOLE (the ship-blocker review, 2026-10-05: "Revisit Oct 5 · (dot) Rebuild Calder A...").
+// jsdom does not load the stylesheet, so the rule is pinned where it lives: the home fact draws no middle dot of its own (its
+// area dot is the separator), the line wraps instead of clipping, and the name has no ellipsis in the row.
+describe("Decision row facts: one separator per join", () => {
+  const css = readFileSync(join(__dirname, "../styles/components.css"), "utf8");
+  const rule = (sel: string) => {
+    const i = css.indexOf(sel + " {");
+    expect(i, sel).toBeGreaterThan(-1);
+    return css.slice(i, css.indexOf("}", i));
+  };
+  it("draws no middle dot before a home, and lets the facts line and the name wrap", () => {
+    expect(rule(".dec-row .facts > .fact.fact-link::before")).toMatch(/content:\s*none/);
+    expect(rule(".dec-row .facts")).toMatch(/flex-wrap:\s*wrap/);
+    const link = rule(".dec-row .facts > .fact.fact-link");
+    expect(link).toMatch(/white-space:\s*normal/);
+    expect(link).toMatch(/text-overflow:\s*clip/);
+    expect(rule(".dec-row .facts > .fact.fact-link .cat-t")).toMatch(/white-space:\s*normal/);
+  });
+  it("types no separator into the home's words and keeps the area dot as the home's first child", async () => {
+    const { container } = render(
+      <NotesProvider userId="u-dec-sep"><Seeded><DecisionsFlow onBack={() => {}} /></Seeded></NotesProvider>,
+    );
+    await waitFor(() => expect(screen.getByText("Rebuild Bridge App")).toBeInTheDocument());
+    for (const f of Array.from(container.querySelectorAll(".dec-row .facts .fact"))) expect(f.textContent).not.toContain("·");
+    const link = screen.getByText("Rebuild Bridge App").closest(".fact-link")!;
+    expect(link.firstElementChild!.className).toMatch(/\bcd\b/);
+    expect(link.querySelector(".cat-t")!.textContent).toBe("Rebuild Bridge App");
   });
 });

@@ -49,7 +49,7 @@ import { scheduleTask, breakDownTask, undoBreakdown, splitLine, type BreakdownRe
 import { emit } from "../events";
 import { chainQuietToday, dismissChain, nextBest, chainReason } from "./momentum";
 import { touchActivity, recordSpot } from "../restore/whereYouWere";
-import { lineCase } from "../shared/casing";
+import { lineCase, titleCase } from "../shared/casing";
 import { loadOverwhelmed, setOverwhelmed as setOverwhelmedFlag, subscribeOverwhelmed, theOneThing } from "./overwhelmed";
 import NoticeCard from "../today/NoticeCard";
 import { TargetGlyph } from "../shared/glyphs";
@@ -145,7 +145,7 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, startId, 
       .catch(() => "")
       .then((v) => { if (live) setMsgVoice(v); });
     return () => { live = false; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [personSheet?.kind, personSheet?.personId]);
   // UP-CORE-12 (2026-09-05): the syllabus door. A photographed syllabus is a
   // semester of work in one page, and the app could read a schedule photo and
@@ -407,18 +407,23 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, startId, 
       // Delayed rewards are the ones ADHD discounts hardest, so finishing the
       // project is one tap from HERE rather than four taps through a form.
       showToast({
-        message: lineCase(advanced.moved.projectTitle + " · " + advanced.moved.line),
+        message: lineCase(titleCase(advanced.moved.projectTitle) + " · " + advanced.moved.line),
         actionLabel: "Finish It",
         onAction: async () => {
           const proj = projects.find((x) => x.id === advanced.projectId);
           if (!proj) return;
-          await attemptWrite(() => projectsSvc.update(proj.id, { ...proj.data, status: "done" }));
+          // 2026-10-04: the celebration was unconditional, so a failed write
+          // ("Couldn't Save") was overwritten by it, and so was update()
+          // answering false for a project deleted elsewhere in the toast's
+          // five seconds. Only a write that landed celebrates.
+          const ok = await attemptWrite(async () => { if (!(await projectsSvc.update(proj.id, { ...proj.data, status: "done" }))) throw new Error("project missing"); });
           await reload();
-          showToast({ message: lineCase(celebrationLine("project", proj.id) + " · " + proj.data.title) });
+          if (!ok) return;
+          showToast({ message: lineCase(celebrationLine("project", proj.id) + " · " + titleCase(proj.data.title)) });
         },
       });
     } else if (advanced) {
-      showToast({ message: lineCase(advanced.moved.projectTitle + " · " + advanced.moved.line), actionLabel: "Undo", onAction: undoTick });
+      showToast({ message: lineCase(titleCase(advanced.moved.projectTitle) + " · " + advanced.moved.line), actionLabel: "Undo", onAction: undoTick });
     } else if (before && !before.done) {
       showToast({ message: "Task Completed", actionLabel: "Undo", onAction: undoTick });
     }
@@ -433,18 +438,24 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, startId, 
     return c && !isFirstStepDismissed(c.id, today) ? c : null;
   })();
 
-  const fsAsk = async () => {
-    if (!fsCandidate || fsBusy) return;
+  // THE TASK A DRAFTED STEP IS FOR. Usually the one that keeps sliding (fsCandidate),
+  // but First Step is also a line in every task's sheet and long-press menu (Dave
+  // 2026-10-05: the pill left the rows), so any task can be asked about.
+  const fsTask = fsStep ? allItems.find((t) => t.id === fsStep.taskId) ?? null : null;
+
+  const fsAsk = async (id?: string) => {
+    const target = id ? allItems.find((t) => t.id === id) ?? null : fsCandidate;
+    if (!target || fsBusy) return;
     setFsBusy(true);
     try {
       // Phase 3: the step is drafted with JARVIS's voice and what the app
       // knows about this person, not from the task text alone. Context
       // failure must not block the offer, a generic step beats no step.
       const identity = await gatherContext().then(identityToText).catch(() => "");
-      const p = firstStepPrompt(fsCandidate.data.text, "task", identity);
+      const p = firstStepPrompt(target.data.text, "task", identity);
       const step = parseFirstStep(await ai.complete([{ role: "user", content: p.user }], p.system));
       if (!step) throw new Error("empty");
-      setFsStep({ taskId: fsCandidate.id, step });
+      setFsStep({ taskId: target.id, step });
     } catch {
       showToast({ message: "Couldn't Reach JARVIS \u00b7 Try Again" });
     } finally {
@@ -453,17 +464,17 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, startId, 
   };
 
   const fsAccept = async () => {
-    if (!fsStep || !fsCandidate || fsStep.taskId !== fsCandidate.id) return;
+    if (!fsStep || !fsTask) return;
     const ok = await attemptWrite(async () => {
       // LIFE-F-24 (2026-09-05): the drafted step inherited the area but not
       // the project, so a first step for a stalled project task landed on
       // Today filed nowhere: the project page never showed it and the project
       // still read stalled, which is the state this offer exists to leave.
-      await svc.createTask(fsStep.step, { category: fsCandidate.data.category || undefined, projectId: fsCandidate.data.projectId, due: today });
-      await svc.setAside([fsCandidate.id]);
+      await svc.createTask(titleCase(fsStep.step), { category: fsTask.data.category || undefined, projectId: fsTask.data.projectId, due: today });
+      await svc.setAside([fsTask.id]);
     });
     if (!ok) return;
-    dismissFirstStep(fsCandidate.id, today);
+    dismissFirstStep(fsTask.id, today);
     setFsStep(null);
     setFsHidden(true);
     emit({ type: "suggestion.accepted", props: { kind: "first_step" } });
@@ -472,7 +483,7 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, startId, 
   };
 
   const fsDismiss = () => {
-    if (fsCandidate) dismissFirstStep(fsCandidate.id, today);
+    if (fsTask) dismissFirstStep(fsTask.id, today);
     setFsStep(null);
     setFsHidden(true);
     emit({ type: "suggestion.dismissed", props: { kind: "first_step" } });
@@ -527,7 +538,7 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, startId, 
     if (!openId) return;
     openEdit(openId);
     onOpenConsumed?.();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [openId, openNonce]);
   useEffect(() => {
     if (!startId) return;
@@ -541,17 +552,17 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, startId, 
     if (!openFilter || !(FILTERS as string[]).includes(openFilter)) return;
     setFilter(openFilter as TaskFilter);
     onFilterApplied?.();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [openFilter, filterNonce]);
 
   const onSave = async (draft: TaskDraft) => {
     const rec = (draft.repeat || "") as "" | Recurrence;
     let saved = true;
     if (sheet?.mode === "new") {
-      saved = await attemptWrite(() => svc.createTask(draft.text, { category: draft.category || undefined, extraCategories: draft.extraCategories, due: draft.due || null, recurrence: rec || undefined, projectId: draft.projectId, goalId: draft.goalId, eventId: draft.eventId, plan: draft.plan, steps: draft.steps, notes: draft.notes, estimateMin: draft.estimateMin, personId: draft.personId }));
+      saved = await attemptWrite(() => svc.createTask(titleCase(draft.text), { category: draft.category || undefined, extraCategories: draft.extraCategories, due: draft.due || null, recurrence: rec || undefined, projectId: draft.projectId, goalId: draft.goalId, eventId: draft.eventId, plan: draft.plan, steps: draft.steps, notes: draft.notes, estimateMin: draft.estimateMin, personId: draft.personId }));
     } else if (sheet?.mode === "edit") {
       saved = await attemptWrite(async () => {
-        await svc.editText(sheet.id, draft.text);
+        await svc.editText(sheet.id, titleCase(draft.text));
         await svc.setCategories(sheet.id, [draft.category, ...(draft.extraCategories ?? [])].filter(Boolean));
         await svc.setDue(sheet.id, draft.due || null);
         await svc.setProject(sheet.id, draft.projectId ?? null);
@@ -674,7 +685,7 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, startId, 
     await reload();
     if (!ok) return;
     const name = projects.find((p) => p.id === projectId)?.data.title ?? "the project";
-    showToast({ message: lineCase((ids.length === 1 ? "Task moved to " : ids.length + " tasks moved to ") + name) });
+    showToast({ message: lineCase((ids.length === 1 ? "Task moved to " : ids.length + " tasks moved to ") + titleCase(name)) });
   };
 
   // Recreate a just-deleted task if the user taps Undo, under its old id
@@ -817,7 +828,7 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, startId, 
       date: today, start, end: addMinutes(start, FIFTEEN),
       category: category || undefined, sourceTaskId: id,
     }));
-    if (ok) { haptics.selection(); showToast({ message: lineCase(`Fifteen minutes on ${text}`) }); }
+    if (ok) { haptics.selection(); showToast({ message: lineCase(`Fifteen minutes on ${titleCase(text)}`) }); }
   };
 
   /** The one primary on the working surface. Each branch writes exactly the
@@ -1086,19 +1097,22 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, startId, 
     // second half truncated to "Pushed 8 ti..." anyway. The count moves into
     // the task's own sheet, under Due, where someone who wants the history
     // can find it while they are actually changing the date.
-    ? { id: fsCandidate.id, tag: SLIDING_TAG, line: null, action: { label: fsBusy ? "Thinking..." : "First Step", onClick: () => void fsAsk() } }
+    //
+    // NO PILL ON THE ROW (Dave 2026-10-05): its First Step moved to the row's
+    // sheet and long-press menu, and its swipe-left is Move.
+    ? { id: fsCandidate.id, tag: SLIDING_TAG, line: null }
     : null;
-  const fsNotice = fsOn && fsCandidate && fsStep && fsStep.taskId === fsCandidate.id ? (
+  const fsNotice = fsStep && fsTask ? (
     <NoticeCard
       form="card"
       icon={<TargetGlyph />}
       tone="cat-fg-orange"
-      title={fsStep.step}
-      sub={lineCase("First step for: " + fsCandidate.data.text)}
+      title={titleCase(fsStep.step)}
+      sub={lineCase("First step for: " + titleCase(fsTask.data.text))}
       action={{ label: "Add", onClick: () => void fsAccept() }}
       // THE WHOLE ROW IS THE DOOR (Dave 2026-09-15: "I want all rows
       // clickable"): the drafted step is for this task, so the row opens it.
-      onOpen={() => void openEdit(fsCandidate.id)}
+      onOpen={() => void openEdit(fsTask.id)}
       onDismiss={fsDismiss}
     />
   ) : null;
@@ -1242,10 +1256,12 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, startId, 
         // free with the row still on screen showing the old text if the
         // write fails.
         onRenameTask={(id, text) => void (async () => {
-          const ok = await attemptWrite(() => svc.editText(id, text));
+          // The write door casing (Dave 2026-10-05): a renamed title is stored in Title Case.
+          const ok = await attemptWrite(() => svc.editText(id, titleCase(text)));
           if (ok) await reload();
         })()}
         onStartTask={(id) => void onStartTask(id)}
+        onFirstStepTask={ai.available ? (id) => void fsAsk(id) : undefined}
         goalOf={(t) => goalTitleForTask(goalIdx, t)}
         parentOf={(t) => parentForTask(parentIdx, t)}
         // SHARED-F-16 (2026-09-05): the escalating burst finally reaches a
@@ -1263,8 +1279,8 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, startId, 
           taskId: momentum.task.id,
           el: (
             // MomentumRow IS the suggested task's own row (2026-09-16): the
-            // check, the swipe and the open it always had elsewhere, plus
-            // the one pill every other row's trailing slot carries.
+            // check, the swipe and the open it always had elsewhere. Its
+            // swipe-left is Start (the pill it wore is gone, 2026-10-05).
             <MomentumRow
               task={momentum.task}
               reason={chainReason(momentum.task, momentum.afterCategory)}
@@ -1315,6 +1331,13 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, startId, 
             return t ? slidingLine(t, today) : null;
           })()}
           onSchedule={sheet.mode === "edit" ? onScheduleTask : undefined}
+          // THE SHEET HOLDS EVERY ACTION (Dave 2026-10-05): the same verbs the row's
+          // swipe and long-press menu run. Each closes the sheet first, as Add to
+          // Schedule does, and acts on the stored task.
+          onStart={sheet.mode === "edit" ? () => { const id = sheet.id; setSheet(null); void onStartTask(id); } : undefined}
+          startWord={sheet.mode === "edit" ? startLabelFor(sheet.id) : undefined}
+          onFirstStep={sheet.mode === "edit" && ai.available ? () => { const id = sheet.id; setSheet(null); void fsAsk(id); } : undefined}
+          onMove={sheet.mode === "edit" ? () => { const id = sheet.id; setSheet(null); void onSnooze(id); } : undefined}
           onBreakDown={sheet.mode === "edit" && ai.available ? (t) => void breakDown(t) : undefined}
           onLogDecision={sheet.mode === "edit" && brain ? () => {
             const t = allItems.find((x) => x.id === sheet.id);
@@ -1347,9 +1370,9 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, startId, 
             let noteId: string | null = null;
             await attemptWrite(async () => {
               noteId = await notesSvc.createNote(
-                s.initial.text,
+                titleCase(s.initial.text),
                 s.initial.category,
-                [{ id: "task-" + s.id, kind: "task", label: s.initial.text, targetId: s.id }],
+                [{ id: "task-" + s.id, kind: "task", label: titleCase(s.initial.text), targetId: s.id }],
               );
             });
             if (noteId) onOpenNote(noteId);

@@ -196,7 +196,7 @@ function peopleRow(rows: WindowRow[], people: DerivePerson[]): Built {
   }
   return {
     key: "people_rhythm", label: "The Person You Email Most",
-    have, need: MIN_PERSON_HANDLED, unit: "emails with one person", detail, speaks: spoken ? "people_rhythm" : null,
+    have, need: MIN_PERSON_HANDLED, unit: "emails", detail, speaks: spoken ? "people_rhythm" : null,
   };
 }
 
@@ -214,7 +214,7 @@ function quietRow(people: DerivePerson[], nowMs: number): Built {
       : "Needs somebody you labelled, and a last contact JARVIS knows";
   return {
     key: "gone_quiet", label: "Who Has Gone Quiet",
-    have: candidates.length, need: 1, unit: "labelled people with a known last contact",
+    have: candidates.length, need: 1, unit: "labeled people",
     detail, speaks: spoken ? "gone_quiet" : null,
   };
 }

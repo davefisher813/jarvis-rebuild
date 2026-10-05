@@ -45,9 +45,32 @@ export interface NavOriginValue {
   claim: () => () => void;
   /** True while some mounted page is claiming it. */
   claimed: boolean;
+  /** RELEASE the origin without going anywhere. For the page a jump opened,
+   *  the moment it closes to its own root: the origin was "the way home from
+   *  that page", and once the page is gone there is nothing for the shell's
+   *  return pill to be the way home from (Alfred 2026-10-04, a stray "< Life"
+   *  over Your Routine). Stable across renders. Idempotent. A claim only HIDES
+   *  the origin while a page is mounted and leaves it live behind; this ends
+   *  it, so it is the one to use when the page is closing for good. */
+  clear: () => void;
 }
 
-const Ctx = createContext<NavOriginValue>({ origin: null, back: () => false, claim: () => () => {}, claimed: false });
+/**
+ * THE SCREEN YOU ACTUALLY CAME FROM (the ship-blocker review, 2026-10-05: a
+ * project or goal opened from the Life tab wore a "Brain" return pill).
+ *
+ * An area's own page is the Brain tab's screen (BrainFlow draws it), but when
+ * the person reached it from the Life tab's Areas lens the shell lights Life
+ * in the tab bar and Life is where they believe they are. A jump made from
+ * that page must carry the Life origin, not the Brain one: the pill names the
+ * screen they came from, and going back lands on the tab they were using.
+ * `areaFromLife` is the shell's own flag for exactly that case.
+ */
+export function originPlace(active: string, areaFromLife: boolean): string {
+  return active === "brain" && areaFromLife ? "life" : active;
+}
+
+const Ctx = createContext<NavOriginValue>({ origin: null, back: () => false, claim: () => () => {}, claimed: false, clear: () => {} });
 
 export function NavOriginProvider({ value, children }: { value: NavOriginValue; children: ReactNode }) {
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

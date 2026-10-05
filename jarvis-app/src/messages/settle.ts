@@ -26,6 +26,8 @@
 //   3. It returns the items, not counts, so the caller can put the failed rows
 //      back exactly where they were.
 
+import { capAfterNumber } from "../shared/casing";
+
 export interface Settled<T> {
   ok: T[];
   failed: T[];
@@ -77,9 +79,11 @@ export function settleLine(okN: number, failedN: number, w: SettleWords): string
   // Both verb forms are passed rather than derived. A first cut built the
   // present tense by stripping "ed" off the past, which turns "archived" into
   // "archiv". English does not deserve a regex.
+  // The number rule (Dave 2026-10-05): the word behind a leading number is a
+  // capital, in every dot segment ("2 Conversations archived · 1 Still in ...").
   if (okN === 0) return "Couldn't " + w.doing + " " + (failedN === 1 ? "it" : "those") + " · " + capitalize(w.stuck);
-  if (failedN === 0) return noun(okN) + " " + w.did;
-  return noun(okN) + " " + w.did + " · " + failedN + " " + w.stuck;
+  if (failedN === 0) return capAfterNumber(noun(okN) + " " + w.did);
+  return capAfterNumber(noun(okN) + " " + w.did + " · " + failedN + " " + w.stuck);
 }
 
 const capitalize = (s: string): string => s.charAt(0).toUpperCase() + s.slice(1);

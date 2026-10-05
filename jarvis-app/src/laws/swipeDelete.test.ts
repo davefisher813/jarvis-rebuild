@@ -40,7 +40,6 @@ const EXEMPT: Record<string, string> = {
   // Delete here would have to delete the thing being reported on, which is not
   // what a notification screen is for, and the row already opens that thing.
   // Dismiss is the honest verb and this row has it, plus a long-press sheet.
-  NudgeRow: "a nudge is a view of a task or event, not a record; Dismiss is its exit",
   // The file says it: "a suggestion is deferred, never deleted". Not Now is
   // the whole vocabulary this row is allowed.
   MomentumRow: "a suggestion is deferred, never deleted (Not Now is the verb)",
@@ -48,9 +47,19 @@ const EXEMPT: Record<string, string> = {
   // tracking it. A second destructive verb beside it would be two names for
   // one act. The mail row proper (MailSwipe) carries a real Delete.
   LetGoSwipe: "Let Go is this row's delete: it stops the waiting-on tracking",
-  // The headliner is the move currently being made, not a record. Stop ends
-  // the move; the task it is about is deletable on every list that shows it.
-  MoveHeadliner: "a move in progress, not a record; Stop ends it",
+  // THE TODAY ROW SHELL (Dave 2026-10-05, locked row model). NudgeRow and
+  // MoveHeadliner stopped calling useSwipe themselves: every Today row (the
+  // dealt move, a nudge, a suggestion, an overdue task) now rides SwipeShell,
+  // which takes its verbs from the caller. A nudge is a view of a task or an
+  // event, and the headliner is the move being made; neither is a record, and
+  // the thing each is about is deletable on its own sheet and on every list
+  // that shows it.
+  SwipeShell: "the Today row shell: verbs are Start, Wrap Up, Snooze, Done, Add, Text; delete lives on the row's own sheet",
+  // A project's Delete lives behind its page and its confirm, because deleting
+  // a project orphans its tasks; a swipe is too light a gesture for that.
+  ProjectRowRuled: "a project's Delete lives behind its page and its confirm (deleting orphans its tasks); the swipe is Close and Move",
+  // A proposal is a suggestion the planner made, not yet a record.
+  ProposedRow: "a proposal is not a record yet; Move to Anytime is its exit and Book It its verb",
   // NoticeCard is NOT here: it renders .notice-delete when its producer passes
   // onDelete, so it satisfies the law on its own terms. Its guaranteed exit is
   // Dismiss either way, held by its own law in laws.test.ts.
@@ -87,7 +96,9 @@ function swipeRows(): Row[] {
   for (const f of walk(SRC)) {
     const rel = relative(SRC, f).replace(/\\/g, "/");
     if (rel === "shared/useSwipe.ts" || rel.startsWith("bench/") || rel.startsWith("laws/")) continue;
-    const src = readFileSync(f, "utf8");
+    // COMMENTS ARE NOT CALLS (2026-10-05). shared/useRowMenu.tsx documents how a row composes it with `useSwipe({ ... })`
+    // in its header, and read as raw text that is a swipe row with no Delete. Only a call in code is a swipe surface.
+    const src = readFileSync(f, "utf8").replace(/\/\*[\s\S]*?\*\//g, (c) => c.replace(/[^\n]/g, " ")).replace(/^(\s*)\/\/.*$/gm, (_m, ws) => ws);
     for (const m of src.matchAll(/useSwipe\(/g)) {
       const at = m.index!;
       rows.push({ file: rel, owner: ownerOf(src, at), body: bodyAfter(src, at) });

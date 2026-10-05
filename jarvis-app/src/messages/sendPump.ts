@@ -50,6 +50,12 @@ export interface SendDeps {
   tasks: Pick<TasksService, "createTask"> | null;
   /** The open-tracking setting (profile.trackOpens, default on). */
   trackOpens: boolean;
+  /** The setting read AT SEND TIME (2026-10-04). The pump is mounted once for
+   *  the session, so the boolean above is whatever the profile said when the
+   *  pump last rebuilt, and a switch turned off on Connections kept the pixel
+   *  riding until the next token rotation. When this is given it wins; a read
+   *  that throws falls back to the boolean. */
+  readTrackOpens?: () => Promise<boolean>;
   /** The Supabase token registerTrack posts with; undefined outside a session. */
   authToken?: string;
   /** C-56: where a classified draft edit is recorded; absent means no learning. */
@@ -73,6 +79,11 @@ export function subscribeSent(fn: SentSub): () => void {
 // running (a double send is worse than a slow one).
 const inFlight = new Set<string>();
 
+async function trackingOn(deps: SendDeps): Promise<boolean> {
+  if (!deps.readTrackOpens) return deps.trackOpens;
+  try { return await deps.readTrackOpens(); } catch { return deps.trackOpens; }
+}
+
 export async function processOutboxSend(item: OutboxItem, deps: SendDeps): Promise<void> {
   const api = deps.apiFor(item.account);
   if (!api) {
@@ -86,14 +97,15 @@ export async function processOutboxSend(item: OutboxItem, deps: SendDeps): Promi
     return;
   }
   try {
+    const track = await trackingOn(deps);
     const raw = encodeEmail({
       to: item.to, cc: item.cc, subject: item.subject, body: item.body, inReplyTo: item.inReplyTo,
       attachment: item.attachment,
       ...(item.html ? { html: item.html } : {}),
-      ...(deps.trackOpens ? { pixelUrl: pixelUrlFor(item.trackId ?? newTrackId()) } : {}),
+      ...(track ? { pixelUrl: pixelUrlFor(item.trackId ?? newTrackId()) } : {}),
     });
     const sent = await api.sendMessage(raw, item.threadId);
-    if (deps.trackOpens && item.trackId) {
+    if (track && item.trackId) {
       saveTrack(item.trackId, { threadId: sent.threadId || item.threadId || sent.id, sentAt: Date.now() });
       void registerTrack(item.trackId, deps.authToken);
     }

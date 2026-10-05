@@ -3,8 +3,9 @@ import PageHeader, { BarAction, BarText } from "../../shared/PageHeader";
 import LifeHeader, { OptionsButton, type HeaderView } from "../../shared/LifeHeader";
 import HeadMenu from "../../shared/HeadMenu";
 import OptionsSheet, { type OptionRow } from "../../shared/OptionsSheet";
-import RowActionSheet from "../../shared/RowActionSheet";
-import { Check, FileText, Paperclip, PenLine, Search, Tag, Trash2, Plus } from "../../shared/icons";
+import RowActionSheet, { type RowAction } from "../../shared/RowActionSheet";
+import { useRowMenu } from "../../shared/useRowMenu";
+import { Archive, Check, FileText, RotateCcw, Trash2 } from "../../shared/icons";
 import { useSwipe, type SwipeState } from "../../shared/useSwipe";
 import { useSelection } from "../../shared/useSelection";
 import SelectBar from "../../shared/SelectBar";
@@ -13,7 +14,7 @@ import { ParentLineGlyph } from "../../shared/glyphs";
 import { todayISO } from "../../tasks/grouping";
 import { monthDay } from "../../money/bills";
 import { pressable } from "../../shared/pressable";
-import EntityStar from "../../shared/EntityStar";
+import EntityStar, { useRemember } from "../../shared/EntityStar";
 import { titleCase } from "../../shared/casing";
 
 // NOTES, PORTED (Notes and Money catalog, 2026-09-02). The library rows of
@@ -72,41 +73,52 @@ const VIEWS: HeaderView[] = [
 ];
 const sameFilter = (a: Filter, b: Filter) => JSON.stringify(a) === JSON.stringify(b);
 
-// THE SWIPE ON A NOTE (Dave 2026-09-02:
-
-// THE SWIPE ON A NOTE (Dave 2026-09-02: "Notes should be able to swipe and
-// take action (delete and whatever else you think is appropriate)"). The
-// task row's own shell: two slots slide in from the right, File (the area
-// picker, since every note on the list said Not Filed) and Delete (with
-// Undo, the flow's own). Off in select mode, where a half-swiped row under
-// a selection is two gestures fighting.
-type RowDrag = { dragging: boolean; style?: React.CSSProperties; handlers?: SwipeState["handlers"] };
-function NoteSwipeRow({ enabled, label, onFile, onAppend, onDelete, forever = false, children }: {
-  /** The note's own name, so the rail says WHICH note it would delete. */
-  enabled: boolean; label: string; onFile?: () => void; onAppend?: () => void; onDelete?: () => void; forever?: boolean; children: (drag: RowDrag) => ReactNode;
+// THE SWIPE ON A NOTE (Dave 2026-10-05, locked; docs/jarvis-unified/ROW-ACTIONS-SPEC.md). A note is a clean row:
+//
+//   tap          opens the note (a deleted note opens its menu instead, since there is no note to open)
+//   swipe left   the row's ONE quickest verb (Archive; Unarchive in the Archived view; Restore in Recently Deleted),
+//                then Delete (Delete Forever in Recently Deleted) behind it, never the only way
+//   swipe right  nothing: a note has nothing to complete, so it opts out
+//   long press   the context menu, every action again: Add a Line, File Under an Area, the verb, Delete
+//
+// There is no pill on the row. The gesture math is shared/useSwipe's and the held-row menu is shared/useRowMenu's.
+type RowDrag = {
+  dragging: boolean; style?: React.CSSProperties; handlers: React.HTMLAttributes<HTMLElement>;
+  /** The tray is showing (or the row is mid-drag): a tap closes it instead of opening the note. */
+  open: boolean; close: () => void;
+  /** Opens the context menu, for a row whose tap has no note to open. */
+  openMenu: () => void;
+};
+interface NoteVerb { label: string; icon: ReactNode; run: () => void }
+function NoteSwipeRow({ enabled, label, verb, onDelete, forever = false, holdActions, children }: {
+  /** The note's own name, so the tray says WHICH note it acts on. */
+  enabled: boolean; label: string;
+  verb?: NoteVerb; onDelete?: () => void; forever?: boolean;
+  /** The long-press menu: every action again. */
+  holdActions: RowAction[];
+  children: (drag: RowDrag) => ReactNode;
 }) {
-  const swipe = useSwipe({ revealW: 88 * (1 + (onFile ? 1 : 0) + (onAppend ? 1 : 0)), enabled });
+  const slots = (verb ? 1 : 0) + (onDelete ? 1 : 0);
+  const rowMenu = useRowMenu({ title: label, actions: holdActions, enabled, swipeEnabled: enabled && slots > 0 });
+  const swipe = useSwipe({ revealW: slots * 88, enabled: enabled && slots > 0, onLongPress: rowMenu.onLongPress });
+  const { handlers, sheet } = rowMenu.bind(swipe);
   return (
     <div className="task-swipe">
-      {/* QUICK APPEND (the writing system, wave 3): a line onto a note
-          without opening it, from the same swipe File and Delete live on. */}
-      {onAppend && (
-        <button className="task-snooze note-append" onClick={() => swipe.closeThen(onAppend)} aria-label="Add to this note">
-          <Plus className="ic" />
-          <span className="swipe-label">Add</span>
+      {verb && (
+        <button className="task-verb" onClick={() => swipe.closeThen(verb.run)} aria-label={verb.label + " " + label}>
+          {verb.icon}
+          <span className="swipe-label">{verb.label}</span>
         </button>
       )}
-      {onFile && (
-        <button className="task-snooze" onClick={() => swipe.closeThen(onFile)} aria-label="File under an area">
-          <Tag className="ic" />
-          <span className="swipe-label">File</span>
+      {onDelete && (
+        <button className="task-del" onClick={() => swipe.closeThen(onDelete)} aria-label={(forever ? "Delete forever: " : "Delete ") + label}>
+          <Trash2 className="ic" />
+          <span className="swipe-label">{forever ? "Forever" : "Delete"}</span>
         </button>
       )}
-      <button className="task-del" onClick={() => swipe.closeThen(onDelete)} aria-label={(forever ? "Delete forever: " : "Delete ") + label}>
-        <Trash2 className="ic" />
-        <span className="swipe-label">{forever ? "Forever" : "Delete"}</span>
-      </button>
-      {children({ dragging: swipe.dragging, style: swipe.dx ? { transform: `translateX(${swipe.dx}px)` } : undefined, handlers: swipe.handlers })}
+      {children({ dragging: swipe.dragging, style: swipe.dx ? { transform: `translateX(${swipe.dx}px)` } : undefined, handlers,
+        open: swipe.open || swipe.dx !== 0, close: () => swipe.closeThen(), openMenu: rowMenu.open })}
+      {sheet}
     </div>
   );
 }
@@ -146,6 +158,11 @@ export function editedLabel(edited: number, now: Date = new Date()): string {
   return then.getFullYear() === now.getFullYear() ? md : `${md}, ${then.getFullYear()}`;
 }
 
+/** Hands a note row its Remember toggle. `row` is a render function, not a component, so the hook lives here: one per note. */
+function RememberGate({ id, title, children }: { id: string; title: string; children: (remember: ReturnType<typeof useRemember>) => ReactNode }) {
+  return <>{children(useRemember("note", id, title))}</>;
+}
+
 // Notes is a tab-level surface: there is deliberately no back button on the
 // list (audit 2026-08-10 removed a dead onBack prop no parent ever passed).
 export default function NotesList({
@@ -155,8 +172,10 @@ export default function NotesList({
   onAddFile,
   uploading = false,
   onDeleteMany,
+  onDeleteManyForever,
   onFile,
   onAppend,
+  onArchive,
   onRestore,
   onDeleteForever,
   onDelete,
@@ -169,9 +188,14 @@ export default function NotesList({
   onAddFile?: () => void;
   uploading?: boolean;
   onDeleteMany?: (ids: string[]) => void;
-  // The swipe's two moves (2026-09-02): file under an area, delete one.
+  // Select mode's Delete inside Recently Deleted: the same permanent delete
+  // the row's Forever swipe runs, for the ticked notes.
+  onDeleteManyForever?: (ids: string[]) => void;
+  // The long-press menu's moves: file under an area, delete one.
   onFile?: (id: string) => void;
   onAppend?: (id: string) => void;
+  /** Swipe left's quickest verb: archive a note, or bring it back from the Archived view. */
+  onArchive?: (id: string, archived: boolean) => void;
   onRestore?: (id: string) => void;
   onDeleteForever?: (id: string) => void;
   onDelete?: (id: string) => void;
@@ -196,8 +220,9 @@ export default function NotesList({
   const ordered = [...notes].sort((a, b) => b.edited - a.edited);
   // C-18: archived notes leave every list except the Archived filter and
   // search; the other chips narrow the live notes.
-  // Recently Deleted is its own room: nothing there shows anywhere else,
-  // and search does not reach it.
+  // Recently Deleted is its own room: nothing there shows in any other view,
+  // and a search from All does not reach it. Searching inside the Recently
+  // Deleted view does (see pool below). Reworded 2026-10-05.
   const kept = ordered.filter((n) => !n.deleted);
   const deletedCount = ordered.length - kept.length;
   const live = kept.filter((n) => !n.archived);
@@ -214,14 +239,25 @@ export default function NotesList({
     : filter.kind === "unfiled" ? live.filter((n) => !n.category)
     : filter.kind === "tag" ? live.filter((n) => (n.tags ?? []).includes(filter.tag))
     : live;
-  // The two cuts compose, in the order they are chosen: the view says which
-  // notes are in play, the area says which of those are this one's.
-  const filtered = area ? inView.filter((n) => n.category === area) : inView;
+  // The cuts compose, in the order they are chosen: the view (or tag) says
+  // which notes are in play, the area says which of those are this one's.
+  // 2026-10-04: a search runs INSIDE them. It used to start from every kept
+  // note whatever the View and Tag menus said, so those two menus did
+  // nothing the moment the box had text, and the scope line named a view it
+  // had not searched. With no cut chosen (All) it still reaches the archive
+  // (S6-Q37), because that is what All plus a search has always meant; any
+  // chosen view or tag is the whole pool, Recently Deleted included.
+  const pool = query && filter.kind === "all" ? kept : inView;
   // S6-Q37: title OR body, same two-part rule search.ts's noteHas uses.
-  // Search reaches the archive too.
-  const searched = query ? kept.filter((n) => n.title.toLowerCase().includes(query) || n.body.toLowerCase().includes(query)) : filtered;
-  // A search is still cut by the area, which is what the scope line says.
-  const shown = query && area ? searched.filter((n) => n.category === area) : searched;
+  const searched = query ? pool.filter((n) => n.title.toLowerCase().includes(query) || n.body.toLowerCase().includes(query)) : pool;
+  const shown = area ? searched.filter((n) => n.category === area) : searched;
+  const viewWord = filter.kind === "tag" ? "#" + filter.tag
+    : filter.kind === "archived" ? "Archived"
+    : filter.kind === "deleted" ? "Recently Deleted"
+    : VIEWS.find((v) => v.key === filter.kind)?.label ?? "All";
+  // Recently Deleted's bulk Delete is the one that cannot be undone (below).
+  const inDeleted = filter.kind === "deleted";
+  const [confirmForever, setConfirmForever] = useState<string[] | null>(null);
   // The SEARCHED list, not the whole one. Select All while a search is
   // narrowing the page must mean the notes on screen: deleting the ones
   // hidden behind a query would be the worst possible version of this.
@@ -260,7 +296,7 @@ export default function NotesList({
 
   // `group` is the head the row sits under, so the row can tell when the
   // head already said its day.
-  const row = (n: NoteListItem, group: string) => {
+  const row = (n: NoteListItem, group: string, remember: ReturnType<typeof useRemember>) => {
     const picked = sel.isSelected(n.id);
     // An unfiled note wears yellow (Dave 2026-08-29: "default should be
     // yellow"), a legal-pad colour that says "a note", deliberately not any
@@ -279,14 +315,23 @@ export default function NotesList({
     const body = (drag: RowDrag) => (
       <div
         className={"task-row p2 note-row" + (drag.dragging ? " swiping" : "")}
-        {...pressable(() => (sel.active ? sel.toggle(n.id) : n.deleted ? onRestore?.(n.id) : onOpen?.(n.id)))}
+        {...pressable(() => {
+          if (sel.active) { sel.toggle(n.id); return; }
+          // A row whose tray is showing closes it instead of opening the note.
+          if (drag.open) { drag.close(); return; }
+          // A deleted note has no note to open: its tap is its menu (Restore, Delete Forever).
+          if (n.deleted) { drag.openMenu(); return; }
+          onOpen?.(n.id);
+        })}
         style={drag.style}
-        {...(drag.handlers ?? {})}>
+        {...drag.handlers}>
         {/* The selection box takes the leading column: on a row with a glyph
             it is the glyph's column, on the line row it is the check column
             every task row keeps for exactly this. */}
         {/* C-50: the Remember star leads the row. */}
-        {!sel.active && <EntityStar entityType="note" entityId={n.id} title={n.title} />}
+        {/* THE STAR HANGS IN THE GUTTER ONLY WHILE THE NOTE IS REMEMBERED (2026-10-05, the review: an empty star on every row sat 6px from
+            the card's edge, thin and low in contrast, and took a column of its own). Remembering it is the long press, as on a task row. */}
+        {!sel.active && <EntityStar entityType="note" entityId={n.id} title={n.title} quiet />}
         {sel.active ? (
           <div className="task-check-tap">
             <button
@@ -323,24 +368,39 @@ export default function NotesList({
           )}
           {NOTES_ROW === "first" && n.first && <div className="note-first">{n.first}</div>}
         </div>
-        {!sel.active && n.deleted && onRestore && <span className="pill-act">Restore</span>}
         {!sel.active && !n.deleted && <div className="chev"></div>}
       </div>
     );
-    // A deleted row's swipe is Delete Forever alone; the other doors are
-    // for a note that is still here.
+    // THE MENU, EVERY ACTION AGAIN (the long press; never the only way to anything essential). A deleted note's menu is
+    // its whole detail: Restore, then Delete Forever.
     if (n.deleted) {
-      return onDeleteForever ? (
-        <NoteSwipeRow key={n.id} enabled={!sel.active} label={n.title} onDelete={() => onDeleteForever(n.id)} forever>
+      const menu: RowAction[] = [
+        ...(onRestore ? [{ label: "Restore", onPick: () => onRestore(n.id) }] : []),
+        ...(onDeleteForever ? [{ label: "Delete Forever", destructive: true, onPick: () => onDeleteForever(n.id) }] : []),
+      ];
+      return menu.length ? (
+        <NoteSwipeRow key={n.id} enabled={!sel.active} label={n.title}
+          verb={onRestore ? { label: "Restore", icon: <RotateCcw className="ic" />, run: () => onRestore(n.id) } : undefined}
+          onDelete={onDeleteForever ? () => onDeleteForever(n.id) : undefined} forever holdActions={menu}>
           {body}
         </NoteSwipeRow>
-      ) : <Fragment key={n.id}>{body({ dragging: false })}</Fragment>;
+      ) : <Fragment key={n.id}>{body({ dragging: false, handlers: {}, open: false, close: () => {}, openMenu: () => {} })}</Fragment>;
     }
-    return onDelete ? (
-      <NoteSwipeRow key={n.id} enabled={!sel.active} label={n.title} onFile={onFile ? () => onFile(n.id) : undefined} onAppend={onAppend ? () => onAppend(n.id) : undefined} onDelete={() => onDelete(n.id)}>
+    const unarchive = !!n.archived;
+    const menu: RowAction[] = [
+      ...(remember && !sel.active ? [{ label: remember.on ? "Forget" : "Remember", onPick: () => void remember.run() }] : []),
+      ...(onAppend ? [{ label: "Add a Line", onPick: () => onAppend(n.id) }] : []),
+      ...(onFile ? [{ label: "File Under an Area", onPick: () => onFile(n.id) }] : []),
+      ...(onArchive ? [{ label: unarchive ? "Unarchive" : "Archive", onPick: () => onArchive(n.id, !unarchive) }] : []),
+      ...(onDelete ? [{ label: "Delete", destructive: true, onPick: () => onDelete(n.id) }] : []),
+    ];
+    return menu.length ? (
+      <NoteSwipeRow key={n.id} enabled={!sel.active} label={n.title}
+        verb={onArchive ? { label: unarchive ? "Unarchive" : "Archive", icon: <Archive className="ic" />, run: () => onArchive(n.id, !unarchive) } : undefined}
+        onDelete={onDelete ? () => onDelete(n.id) : undefined} holdActions={menu}>
         {body}
       </NoteSwipeRow>
-    ) : <Fragment key={n.id}>{body({ dragging: false })}</Fragment>;
+    ) : <Fragment key={n.id}>{body({ dragging: false, handlers: {}, open: false, close: () => {}, openMenu: () => {} })}</Fragment>;
   };
 
   return (
@@ -374,8 +434,14 @@ export default function NotesList({
           onView={(k) => setFilter({ kind: k } as Filter)}
           scope={q.trim() ? {
             count: shown.length,
-            where: `${VIEWS.find((v) => v.key === filter.kind)?.label ?? "All"} notes${area ? ` in ${catName(area) || "this area"}` : ""}`,
-            ...(filter.kind !== "all" || area ? { onAll: () => { setFilter({ kind: "all" }); setArea(null); }, allLabel: "Search all notes" } : {}),
+            // The view or tag the search ran inside, said as it is (Archived,
+            // Recently Deleted and a tag used to print "All"), and the one
+            // button that widens it to the whole library.
+            // Title Case like every other page's scope words and widen button
+            // (Tasks "Today Tasks" / "Search All Tasks", Reminders "Search All
+            // Areas"); it read "All notes" and "Search all notes" (2026-10-05).
+            where: `${viewWord} Notes${area ? ` in ${catName(area) || "This Area"}` : ""}`,
+            ...(filter.kind !== "all" || area ? { onAll: () => { setFilter({ kind: "all" }); setArea(null); }, allLabel: "Search All Notes" } : {}),
           } : undefined}
           // AREA AND TAG, STACKED (Dave 2026-09-17: "Make multiple dropdown
           // chips like areas in the most logical way possible. Stack
@@ -435,7 +501,7 @@ export default function NotesList({
           ) : (
             <div className="sh2 sh2-quiet"><span className="t">{g.head}</span><span className="n">{g.items.length}</span></div>
           )}
-          <div className="pad-x"><div className="card list-card-ruled">{g.items.map((n) => row(n, g.key))}</div></div>
+          <div className="pad-x"><div className="card list-card-ruled">{g.items.map((n) => <RememberGate key={n.id} id={n.id} title={n.title}>{(remember) => row(n, g.key, remember)}</RememberGate>)}</div></div>
         </Fragment>
       ))}
       {query && shown.length === 0 && (
@@ -449,7 +515,10 @@ export default function NotesList({
           this same sheet rather than a second sheet on top of it. */}
       {optsOpen && (
         <OptionsSheet title="Notes Options" rows={([
-          ...(onDeleteMany && shown.length > 0 ? [{
+          // Recently Deleted offers it only where there is a Delete Forever
+          // to run: the bulk Delete there used to re-delete notes that were
+          // already deleted, report success, and Undo put them back in Notes.
+          ...(onDeleteMany && shown.length > 0 && (!inDeleted || onDeleteManyForever) ? [{
             key: "select", label: "Select Notes",
             onClick: () => { setOptsOpen(false); sel.enter(); },
           }] : []),
@@ -467,7 +536,29 @@ export default function NotesList({
         />
       )}
       {onDeleteMany && (
-        <SelectBar sel={sel} noun="Note" onDelete={() => { onDeleteMany(sel.selected); sel.exit(); }} />
+        <SelectBar sel={sel} noun="Note" forever={inDeleted && !!onDeleteManyForever}
+          onDelete={() => {
+            // These notes are already in the trash, so Delete here is the
+            // permanent one: it says Forever on the bar and asks first,
+            // because Undo cannot bring them back.
+            if (inDeleted && onDeleteManyForever) { setConfirmForever(sel.selected); return; }
+            onDeleteMany(sel.selected); sel.exit();
+          }} />
+      )}
+      {confirmForever && onDeleteManyForever && (
+        <RowActionSheet
+          // A sheet's title is an 11px caps label, never a sentence (the
+          // 2026-09-26 caps ruling): it was two sentences, "Delete this note
+          // for good? It cannot be brought back." Title Case, one short line,
+          // and "No Undo" is the catalog's own word for it, joined with a comma so the label is one phrase (2026-10-05).
+          title={confirmForever.length === 1 ? "Delete This Note for Good, No Undo" : `Delete ${confirmForever.length} Notes for Good, No Undo`}
+          actions={[{
+            label: confirmForever.length === 1 ? "Delete Note Forever" : `Delete ${confirmForever.length} Notes Forever`,
+            destructive: true,
+            onPick: () => { onDeleteManyForever(confirmForever); sel.exit(); },
+          }]}
+          onCancel={() => setConfirmForever(null)}
+        />
       )}
       <div className="screen-foot" />
     </div>

@@ -105,7 +105,7 @@ describe("E1 · the return", () => {
     expect(w.days).toBe(19);
     expect(w.title).toBe("Welcome Back");
     expect(w.gone).toBe("6 Things Aged Out on Their Own");
-    expect(w.ask).toBe("Start With One?");
+    expect(w.ask).toBe("Start with One?");
     expect([w.title, w.gone, w.ask].join(" ")).not.toMatch(/overdue|behind|missed/i);
   });
 
@@ -123,7 +123,7 @@ describe("E1 · the return", () => {
   it("says nothing about what aged out when nothing did", () => {
     const w = welcomeBack("2026-08-01", "2026-08-20", 0)!;
     expect(w.gone).toBeNull();
-    expect(w.ask).toBe("Start With One?");
+    expect(w.ask).toBe("Start with One?");
   });
 
   it("triggers only past the away threshold", () => {

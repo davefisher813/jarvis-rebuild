@@ -37,7 +37,7 @@ describe("stateForStrand (C-40, C-47)", () => {
 
   it("every word it can say is in the closed vocabulary, and never stored", () => {
     for (const w of Object.values(STRAND_STATE_LABEL)) expect(STATE_WORDS).toContain(w.toUpperCase());
-    for (const w of ["Known", "Close", "Waiting"] as const) {
+    for (const w of ["Known", "Almost There", "Waiting"] as const) {
       // The readiness word is a display word, not a state word: only Known
       // is in the closed set, and the other two never render as .fact.st in
       // a colour that claims a state.
@@ -69,8 +69,8 @@ describe("bucketFor (the filter chips)", () => {
 describe("readinessWord (C-39)", () => {
   it("maps five states onto three words", () => {
     expect(readinessWord("known")).toBe("Known");
-    expect(readinessWord("ready")).toBe("Close");
-    expect(readinessWord("close")).toBe("Close");
+    expect(readinessWord("ready")).toBe("Almost There");
+    expect(readinessWord("close")).toBe("Almost There");
     expect(readinessWord("waiting")).toBe("Waiting");
     expect(readinessWord("muted")).toBe("Waiting");
   });

@@ -29,6 +29,7 @@ function Seeded() {
       await tasks.createTask("Order jerseys", { category: bridge });
       await projects.create({ title: "Spring Fundraiser", category: bridge, status: "active" });
       await goals.create({ title: "Raise $10k", state: "on_track", tags: [bridge] });
+      await tasks.createTask("Book a checkup", { category: health });
       await tasks.createTask("Log a lift", { category: budget }); // never counted: money is excluded whole
 
       setReady(true);
@@ -44,12 +45,14 @@ describe("AreasTab", () => {
     const row = screen.getByText("Bridge").closest(".area-card") as HTMLElement;
     expect(row).toBeTruthy();
     // One fact per count, the dot between them drawn by the stylesheet (§AM
-    // F3), so no string carries one. Each count is a white number, whole.
+    // F3), so no string carries one. Each count is the row's subtext, whole.
     // The line shows every count, so it is the wrapping .conn-meta, never
     // the one-line .facts that cut "2 Projects" to "2 ..." (2026-09-26).
     const facts = Array.from(row.querySelectorAll(".conn-meta > .fact")).map((f) => f.textContent);
     expect(facts).toEqual(["2 Tasks", "1 Goal", "1 Project"]);
-    expect(row.querySelectorAll(".conn-meta > .fact > b")).toHaveLength(3);
+    // Regular weight, the one grey: no bold inside the counts (the round-2 review, "as loud as the title"). The title stays the
+    // only bold run on the card.
+    expect(row.querySelectorAll(".conn-meta b, .conn-meta strong")).toHaveLength(0);
     expect(row.querySelector(".facts")).toBeNull();
     expect(row.querySelector(".conn-meta")?.textContent).not.toContain("·");
     // Money-kind is excluded outright, its task included (BrainPage's rule,
@@ -57,24 +60,28 @@ describe("AreasTab", () => {
     expect(screen.queryByText("Budget")).not.toBeInTheDocument();
   });
 
-  // OPTION B FINAL (Dave 2026-09-16, from the rendered comparison): five
-  // named sections on one wrapping line with the count beside the title,
-  // replacing the four labelled tiles in a 2x2 grid.
-  it("renders Health as the five-section mini-app card, not a standard row", async () => {
+  // AMENDED 2026-10-05 (Dave, locked: "Clean rows, no pills anywhere"). Health
+  // was a mini-app card with five section chips (Track, Train, Reports, Meds,
+  // Privacy) inside it: pills in a card. It is the same plain card every area
+  // is, first in the list, with its own counts; the five sections are the
+  // doors on its own page.
+  it("renders Health first, as a plain area card with its own counts and no section chips", async () => {
     render(<NotesProvider userId="areas-2"><Seeded /></NotesProvider>);
     await screen.findByText("Bridge", {}, { timeout: 3000 });
     const healthRow = screen.getByText("Health").closest(".area-card-health") as HTMLElement;
     expect(healthRow).toBeTruthy();
-    // Hardcoded, per the handoff -- no query backs these, they're a preview.
-    ["Track", "Train", "Reports", "Meds", "Privacy"].forEach((label) => expect(screen.getByText(label)).toBeInTheDocument());
-    expect(screen.getByText("5 Sections")).toBeInTheDocument();
-    // Its second line is the section count, never the task/goal/project facts.
-    expect(healthRow.querySelector(".area-sub")?.textContent).toBe("5 Sections");
+    expect(healthRow.classList.contains("area-card")).toBe(true);
+    ["Track", "Train", "Reports", "Meds", "Privacy"].forEach((label) => expect(screen.queryByText(label)).toBeNull());
+    expect(screen.queryByText("5 Sections")).toBeNull();
+    expect(healthRow.querySelector(".health-chip, .health-sections")).toBeNull();
+    // It draws what every area draws: one fact per count.
+    expect([...healthRow.querySelectorAll(".conn-meta > .fact")].map((f) => f.textContent)).toEqual(["1 Task"]);
+    // First in the list, ahead of the other areas.
+    const names = [...document.querySelectorAll(".area-card .area-name")].map((n) => n.textContent);
+    expect(names[0]).toBe("Health");
   });
 
-  // THE SECTIONS ARE LABELS, NOT BUTTONS. The whole card is the one tap
-  // target, so five section names must not arrive as five controls -- which
-  // is the exact shape of dead button this app spent a day removing.
+  // The whole card is the one tap target; the card holds no control of its own.
   it("offers no control of its own: the card is the door", async () => {
     render(<NotesProvider userId="areas-5"><Seeded /></NotesProvider>);
     await screen.findByText("Bridge", {}, { timeout: 3000 });
@@ -121,5 +128,24 @@ describe("AreasTab", () => {
     render(<NotesProvider userId="areas-4"><Empty /></NotesProvider>);
     const row = (await screen.findByText("Personal", {}, { timeout: 3000 })).closest(".area-card") as HTMLElement;
     expect(row.querySelector(".conn-meta")).toBeNull();
+  });
+
+  // THE ADD IS THE HEAD'S (Dave 2026-10-05, locked; the perfect bar: the Areas head held a bare count and the page offered
+  // no way to make an area).
+  it("the Areas head carries one Add Area capsule, which makes an area through the same sheet Settings uses", async () => {
+    render(<NotesProvider userId="areas-add"><Seeded /></NotesProvider>);
+    await screen.findByText("Bridge", {}, { timeout: 3000 });
+    const head = document.querySelector(".sh2")!;
+    expect(head.querySelector(".t")!.textContent).toBe("Areas");
+    expect(head.querySelector(".n"), "the bare count is gone").toBeNull();
+    const add = head.querySelector("button.see-all.pill-action") as HTMLButtonElement;
+    expect(add.textContent).toBe("Add Area");
+    expect(document.querySelectorAll(".sh2 button").length, "one capsule, not two").toBe(1);
+    fireEvent.click(add);
+    expect(await screen.findByText("New Area")).toBeInTheDocument();
+    fireEvent.change(screen.getByPlaceholderText(/name/i), { target: { value: "Garden" } });
+    fireEvent.click(screen.getByText("Save"));
+    expect(await screen.findByText("Garden", {}, { timeout: 3000 })).toBeInTheDocument();
+    expect(screen.queryByText("New Area")).toBeNull();
   });
 });

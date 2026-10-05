@@ -36,7 +36,7 @@ import { distanceFor, type Distance } from "../tasks/grouping";
 import { AUTOMATION_LABEL, tuningAllows, tuningScope, tuningWeight, tuningsFrom, type TuningChoice } from "../rules/tuning";
 import { leadFor } from "../schedule/leaveBy";
 import { EventWeatherLine } from "../weather/WeatherLine";
-import { lineCase } from "../shared/casing";
+import { lineCase, titleCase } from "../shared/casing";
 import { movedBy, burstSize, celebrationLine, type Moved } from "../shared/completion";
 import { birthdaysOn, upcomingBirthdays, type BirthdayHit } from "../people/birthdays";
 import type { Person } from "../people/types";
@@ -59,7 +59,8 @@ import { shiftFutureEvents, shiftPlan, restoreShift } from "../schedule/runningL
 import { useConflictGuard } from "../schedule/useConflictGuard";
 import { bookedTaskIds } from "../schedule/planDedupe";
 import { shiftNewConflicts, nextFreeSlot as nextFreeTime } from "../schedule/conflicts";
-import { ensureCheckinNotifications, cancelCheckinNotifications, ensureEventReminders, ensureTaskReminders } from "../shared/notifications";
+import { ensureCheckinNotifications, cancelCheckinNotifications, ensureEventReminders } from "../shared/notifications";
+import { armTaskReminders } from "../tasks/armReminders";
 import { badgeCount, setAppBadge } from "../shared/badge";
 import { isEvening, eveningStats, weekRecap, todayPlan } from "./evening";
 import { pendingPicks } from "../events/planOutcome";
@@ -117,11 +118,14 @@ import { requestUnsubscribe } from "../messages/unsubscribeAction";
 import { evidenceFromThread } from "../messages/notificationScan";
 import { addEmailMeetingOnce } from "../messages/emailSchedule";
 import { showToast } from "../shared/toast";
+import { noteScreenChange } from "../shared/screenChange";
 import { attemptWrite } from "../shared/guard";
 import RemindersStrip from "./RemindersStrip";
 import RemindersFlow from "../tasks/screens/RemindersFlow";
 import SnoozeSheet from "../tasks/screens/SnoozeSheet";
 import RowActionSheet from "../shared/RowActionSheet";
+import RowCtxAction from "../shared/RowCtxAction";
+import { SwipeShell } from "./MoveHeadliner";
 import type { LinkCandidate } from "../tasks/screens/LinkedItemSheet";
 import { displayTitle } from "../notes/docModel";
 import type { LinkedItem, ContextTriggerConfig } from "../notes/types";
@@ -152,6 +156,10 @@ const BIRTHDAY_ABOUT = "a short happy-birthday message";
 // "HH:MM" as minutes. calendar.ts keeps its own copy private, and this file
 // needs the one comparison (UP-CORE-08's "which event am I inside").
 const minsOf = (hhmm: string): number => Number(hhmm.slice(0, 2)) * 60 + Number(hhmm.slice(3, 5));
+// projectsSvc.update answers false for a row that is gone (a stale id); that
+// is a failed save to the person tapping, so it throws into attemptWrite
+// (BiggerPictureFlow's mustUpdate, LIFE-F-17).
+const mustUpdateProject = async (p: Promise<boolean>) => { if (!(await p)) throw new Error("project missing"); };
 // Calendar days forward, stepped with setDate so a clocks-change day counts
 // as one day (the timezone law; same helper shape as schedule/calendar).
 const addDaysISO = (iso: string, n: number): string => {
@@ -290,9 +298,11 @@ export default function TodayFlow({
   onEditRoutine?: (blockId?: string) => void;
   // Where You Were (addendum item 6): navigate back to a recorded spot.
   onRestoreSpot?: (kind: "note" | "task" | "event" | "gym", id: string) => void;
-  // UP-CORE-08 (2026-09-05): open a note, for the meeting page the Now card
-  // makes. The shell's own navigateToNote; absent means the pill is not
-  // offered rather than tapping into nothing.
+  // UP-CORE-08 (2026-09-05): open a note from the event page's Notes rows
+  // (the Now card's Notes pill left on 2026-09-17; comment corrected
+  // 2026-10-05). The shell's own navigateToNote; absent means the Notes
+  // section is not offered (linkedNotes is passed empty) rather than rows that
+  // tap into nothing.
   onOpenNote?: (id: string) => void;
   // UP-CORE-18 (2026-09-05): open a project, for the near-deadline card.
   // Absent means the card is not offered rather than tapping into nothing.
@@ -379,6 +389,11 @@ export default function TodayFlow({
   // what is left there. When it is showing, the head's Open Inbox is a
   // second door to the same room, so the head stands down.
   const [mailResidual, setMailResidual] = useState(false);
+  // CLEAR ALL LIVES ON THE BAND'S HEAD (Dave 2026-10-05, locked). The band owns what it has hidden, so it reports the
+  // one function up (null when there is nothing to clear in bulk) and the page draws it as the head's capsule. A function
+  // in state has to be wrapped, or React would call it as an updater.
+  const [mailClear, setMailClear] = useState<(() => void) | null>(null);
+  const onMailClearChange = useCallback((fn: (() => void) | null) => setMailClear(() => fn), []);
   const reflowGuard = useRef(0);
   // Double-tap guard for the per-block Accept, same shape as the Schedule
   // tab's. A plain object would be new on every render and guard nothing.
@@ -538,7 +553,7 @@ export default function TodayFlow({
       } catch { /* next open tries again; nothing was lost by waiting */ }
     })();
     // Once, at open: the sweep is a first-open-of-the-day event by definition.
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);  
 
   // Revisit Day (Decision Record, Screen 07): appears once, on the date set,
   // above the day. At most one per day, oldest first. Days that passed
@@ -605,19 +620,13 @@ export default function TodayFlow({
       .catch(() => "")
       .then((v) => { if (live) setMsgVoice(v); });
     return () => { live = false; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [msgPerson?.id]);
   const [callPerson, setCallPerson] = useState<string | null>(null);
   const [peopleTick, setPeopleTick] = useState(0);
   // A dismissal lives in storage, so a bump is what tells the render to go
   // read it again (the same pattern the sweep and goal cards use).
   const [birthdayDismissTick, setBirthdayDismissTick] = useState(0);
-  // UP-CORE-08 (2026-09-05): which of today's events already have a note, in
-  // ONE read (eventsWithNotes scans the note list once), plus the door that
-  // makes one titled and linked the first time and opens it every time
-  // after. Same function the Schedule tab's row glyph calls.
-  const [notedEvents, setNotedEvents] = useState<ReadonlySet<string>>(new Set());
-  const [noteTick, setNoteTick] = useState(0);
   // UP-CORE-14 (2026-09-05): what he has told the automations. Read once
   // with the rules list; every producer below asks before it speaks, and
   // every answer is a row in What JARVIS Learned that deleting reverts.
@@ -655,11 +664,6 @@ export default function TodayFlow({
     automation: name,
     onTune: (choice: TuningChoice) => void tune(name, choice, evidence),
   });
-  useEffect(() => {
-    let on = true;
-    notesSvc.eventsWithNotes(todayEvents.map((e) => e.id)).then((set) => { if (on) setNotedEvents(set); }).catch(() => {});
-    return () => { on = false; };
-  }, [notesSvc, todayEvents, noteTick]);
   // UP-CORE-09 (2026-09-05): the Momentum Chain's slot, on the tab where
   // ticks actually happen. Holds the task offered after the last completion;
   // the next tick replaces it and Not Now empties it for the day.
@@ -744,16 +748,12 @@ export default function TodayFlow({
   // talked", so the read that fed it runs again.
   const reloadPeople = async () => { setPeopleTick((n) => n + 1); };
 
-  const openEventNote = async (e: EventItem) => {
-    const existing = await notesSvc.notesLinkedTo(e.id);
-    if (existing[0]) { onOpenNote?.(existing[0].id); return; }
-    let noteId: string | null = null;
-    const ok = await attemptWrite(async () => {
-      noteId = await notesSvc.createForEvent({ id: e.id, title: e.data.title, date: today, category: e.data.category });
-    });
-    setNoteTick((n) => n + 1);
-    if (ok && noteId) onOpenNote?.(noteId);
-  };
+  // 2026-10-04: the UP-CORE-08 notes door lived on the Now card's pill, and
+  // the 2026-09-17 pass off Dave's phone list took that pill out ("its Notes
+  // pill is gone", commit 88ab1261). Its notedEvents scan, noteTick and
+  // openEventNote stayed behind, read by nothing, and ran a notes read on
+  // every events change. They are gone; the door is not coming back here, and
+  // onOpenNote is now the event page's.
 
   // TODAY-F-14 (2026-09-05): a rejection anywhere in here used to be dropped
   // (the effect below never caught it) and setLoading(false) was the last
@@ -881,8 +881,14 @@ export default function TodayFlow({
         onAction: async () => {
           const proj = projList.find((p) => p.id === advanced.projectId);
           if (!proj) return;
-          await attemptWrite(() => projectsSvc.update(proj.id, { ...proj.data, status: "done" }));
+          // 2026-10-04: the celebration was unconditional, so a write that
+          // failed ("Couldn't Save") was overwritten by "project finished",
+          // and so was update() answering false for a project deleted on
+          // another device inside the toast's five seconds. Both are a
+          // failed save now, and only a write that landed celebrates.
+          const ok = await attemptWrite(() => mustUpdateProject(projectsSvc.update(proj.id, { ...proj.data, status: "done" })));
           await reload();
+          if (!ok) return;
           showToast({ message: celebrationLine("project", proj.id) + " · " + proj.data.title });
         },
       });
@@ -947,6 +953,9 @@ export default function TodayFlow({
   // REMINDERS HOME (the reminders rebuild push B, 2026-09-15): a screen
   // pushed from the strip's See All, the way the event page is; not a route.
   const [remHome, setRemHome] = useState(false);
+  // Focus and the Reminders page are screens of their own on top of Today: a receipt from the screen underneath goes when
+  // either opens or closes (2026-10-05, see shared/screenChange.ts).
+  useEffect(() => { noteScreenChange(); }, [upNextOpen, remHome]);
   const [remOpenId, setRemOpenId] = useState<string | null>(null);
   // BUG (Dave 2026-09-16, "I can't click on them on the Today page to edit
   // them"): RemindersFlow (pageless) was mounted on `remOpenId && (...)`, the
@@ -1173,7 +1182,7 @@ export default function TodayFlow({
     if (!ok) return;
     setRoutineData(after);
     showToast({
-      message: (removed?.label ?? "Block") + " deleted",
+      message: (removed?.label ?? "Block") + " Deleted", // Title Case after the name too (2026-10-05)
       actionLabel: "Undo",
       onAction: async () => { if (await attemptWrite(() => routine.save(before))) setRoutineData(before); },
     });
@@ -1360,7 +1369,7 @@ export default function TodayFlow({
     if (!(await attemptWrite(() => routine.save(after)))) return;
     setRoutineData(after);
     showToast({
-      message: (removed?.label ?? "Block") + " deleted",
+      message: (removed?.label ?? "Block") + " Deleted", // Title Case after the name too (2026-10-05)
       actionLabel: "Undo",
       onAction: async () => { if (await attemptWrite(() => routine.save(before))) setRoutineData(before); },
     });
@@ -1384,7 +1393,7 @@ export default function TodayFlow({
     if (cancelled) return;
     setSheet(null);
     await reload();
-    if (ok) showToast({ message: landed ? "Added to schedule" : "Couldn't find that task" });
+    if (ok) showToast({ message: landed ? "Added to Schedule" : "Couldn't Find That Task" }); // Title Case, as the Tasks tab says it (2026-10-05)
   };
 
 
@@ -1721,14 +1730,16 @@ export default function TodayFlow({
   // events, which sweeps in every calendar item whether the user wants a
   // buzz for it or not): setting a reminder is itself the opt-in.
   useEffect(() => {
-    const inputs = taskItems
-      .filter((t) => !!t.data.reminder)
-      .map((t) => ({ id: t.id, text: t.data.text, reminder: t.data.reminder! }));
     // TODAY-F-15 (2026-09-05): the seam expands a week now, not two days, so
     // a weekend away no longer runs the arming out. AppShell re-arms on every
     // foreground as well, so this is no longer the only thing that ever does.
-    void ensureTaskReminders(inputs, today);
-  }, [taskItems, today]);
+    // 2026-10-04: through the same builder AppShell uses (armTaskReminders),
+    // with the settings read fresh. This call used to carry neither Hide
+    // Sensitive Details nor Quiet Hours, and it fires on every reload, so it
+    // undid both whenever Today was mounted. taskItems is the trigger only:
+    // the list is read inside, so the empty first-mount list arms nothing.
+    void armTaskReminders({ tasks, profile, categories: cats }, today);
+  }, [taskItems, today, tasks, profile, cats]);
 
   // Running Late lands on Today too (2026-08-09): the plan lives here, so the
   // one-tap recovery for falling behind has to live here. Same shared shift
@@ -1864,7 +1875,7 @@ export default function TodayFlow({
   const closeProject = async (id: string) => {
     const proj = projList.find((p) => p.id === id);
     if (!proj) return;
-    const ok = await attemptWrite(() => projectsSvc.update(id, { ...proj.data, status: "done" }));
+    const ok = await attemptWrite(() => mustUpdateProject(projectsSvc.update(id, { ...proj.data, status: "done" })));
     await reload();
     if (ok) showToast({ message: celebrationLine("project", id) + " · " + proj.data.title });
   };
@@ -2061,7 +2072,7 @@ export default function TodayFlow({
     setDayDraft(d);
     // Once per day-open; candidate churn intra-day must not redraft an
     // undecided card out from under the user.
-  }, [loading]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [loading]);  
 
   // Overnight redraft: evening prepares tomorrow, so the next open is instant.
   useEffect(() => {
@@ -2081,7 +2092,7 @@ export default function TodayFlow({
       maxBlocks: sizing.maxBlocks,
       estimateFor: (c) => estimates[c] ?? 45,
     }));
-  }, [loading, evening]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [loading, evening]);  
 
   // B12 (2026-08-23): FIRES EXACTLY ONCE, same as the Schedule tab's copy.
   //
@@ -2202,7 +2213,7 @@ export default function TodayFlow({
     writeDraft(next);
     setDayDraft(next);
     showToast({
-      message: "Plan cleared",
+      message: "Plan Cleared", // Title Case (2026-10-05)
       actionLabel: "Undo",
       onAction: () => {
         writeDraft(was);
@@ -2265,7 +2276,7 @@ export default function TodayFlow({
         },
       });
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [dayDraft, todayEvents, taskItems, nowMin]);
 
   useEffect(() => {
@@ -2275,11 +2286,23 @@ export default function TodayFlow({
     if (t - reflowGuard.current < 5 * 60_000) return;
     reflowGuard.current = t;
     void runReflow();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [loading, evening, slippedCount, dayDraft]);
 
   // Hook order is unconditional: this must sit ABOVE the loading return.
   const [remSheet, setRemSheet] = useState<{ mode: "new" } | { mode: "edit"; id: string; text: string; reminder: ReminderInfo; due?: string | null; category?: string } | null>(null);
+  // 2026-10-04: Reminder Settings' Default Follow-up. The Reminders page
+  // passes it to its New sheet; this second ReminderSheet (the strip's Add)
+  // passed nothing, so a reminder made from Today ignored the switch. It is
+  // read again whenever Reminders Home closes, because that is the one place
+  // the switch is flipped and Today stays mounted underneath it.
+  const [defaultFollowUp, setDefaultFollowUp] = useState(false);
+  useEffect(() => {
+    if (remHome) return;
+    let on = true;
+    profile.get().then((p) => { if (on) setDefaultFollowUp(!!p?.notify?.defaultFollowUp); }).catch(() => {});
+    return () => { on = false; };
+  }, [profile, remHome]);
 
   // EVERY HOOK SITS ABOVE THE EARLY RETURN. React counts hooks by call order,
   // so one declared below `if (loading) return` runs on some renders and not
@@ -2497,7 +2520,12 @@ export default function TodayFlow({
           steps={taskItems.filter((t) => t.data.eventId === eventDetail).map((t) => ({ id: t.id, text: t.data.text, done: !!t.data.done }))}
           onToggleStep={(id) => void onToggleTask(id)}
           onAddStep={(text) => void addEventStep(eventDetail, ev, text)}
-          linkedNotes={eventDetailNotes}
+          // 2026-10-04: the Notes rows drew a chevron here and did nothing,
+          // because no door was passed (the same page on Schedule opens
+          // them). They open through the shell's own note door, and with no
+          // door in hand the section is not offered at all.
+          linkedNotes={onOpenNote ? eventDetailNotes : []}
+          onOpenNote={onOpenNote}
           openSourceFor={openSourceFor}
         />
       );
@@ -2638,7 +2666,9 @@ export default function TodayFlow({
                   pick up the phone for. */}
               {liveFacts(liveNow, liveNow.left ?? liveNow.elapsed, liveNow.progress, "conn-meta facts")}
             </div>
-            <button className="pill-act pill-go" onClick={own(() => onRestoreSpot?.("gym", gymCatId ?? ""))}>Resume</button>
+            {/* A WORKOUT IN PROGRESS HAS ITS MOMENT, so its verb is the one quiet word on the row, not a capsule (Dave
+                2026-10-05, locked). The row's tap does the same thing. */}
+            <RowCtxAction when label="Resume" onAct={() => onRestoreSpot?.("gym", gymCatId ?? "")} />
           </div>
         ) : nowCtx.gapMin !== null && nowCtx.nextStart ? (
           // THE RAIL (Dave's pick C, 2026-08-22, replacing the green ring:
@@ -2718,7 +2748,9 @@ export default function TodayFlow({
               {/* SCHEDULE SOMETHING HERE (item 7, 2026-10-01): the open window's
                   tap offers the tasks that fit, with Focus one option in the
                   sheet. The pill used to say Focus and go straight there. */}
-              <button className="pill-act" onClick={own(() => setGapSheetOpen(true))}>Fill It</button>
+              {/* NO FILL IT CAPSULE (Dave 2026-10-05, locked: a row has no pill). The row is the door; the sheet it
+                  opens offers the tasks that fit. */}
+              <div className="chev" />
             </div>
           )}
           </>
@@ -2778,8 +2810,10 @@ export default function TodayFlow({
                 different thing to do is the block arguing with itself. Join
                 and Notes stay, because those act on the block he is in. With
                 neither, the row states the fact and stops. */}
+            {/* Inside a meeting that has a link, Joining is the moment, so it is the one quiet word on the row (Dave
+                2026-10-05: no capsule on a row). */}
             {insideEvent?.data.url ? (
-              <a className="pill-act" href={insideEvent.data.url} target="_blank" rel="noreferrer" onClick={own()}>Join</a>
+              <RowCtxAction when label="Join" onAct={() => { window.open(insideEvent.data.url, "_blank", "noopener,noreferrer"); }} />
             ) : null}
           </div>
         )}
@@ -2790,33 +2824,37 @@ export default function TodayFlow({
         {prep && (
           // ROW-TAP (Dave 2026-09-15: "I want all rows clickable"): the row
           // is about the person you are about to meet, so it opens them.
+          // NO CHIPS ON THE ROW (Dave 2026-10-05, locked): What's Open and What Did You Say are the swipe's two verbs.
+          <SwipeShell actions={[
+            ...(prep.open.length > 0 && onOpenPerson ? [{ label: "What's Open", run: () => void onOpenPerson(prep.person.id) }] : []),
+            ...(onAskSaid ? [{ label: "What Did You Say", run: () => void onAskSaid(prep.person.id) }] : []),
+          ]}>
           <div className="row" {...rowDoor(() => void (onOpenPerson ?? onAskSaid)?.(prep.person.id))}>
-            <RowIcon kind="event" />
+            {/* A PERSON, NOT AN EVENT (Dave 2026-10-05, the review: "a person avatar or initials tile instead of the event
+                icon"). The row is about the person he is about to meet, so it wears the person's tile, the same one the
+                People rows wear. */}
+            <RowIcon kind="person" />
             <div className="row-stack">
               {/* THE NAME IS THE TITLE; THE FACTS GO UNDER IT (§AK, §AM,
                   2026-09-26). meetingPrep used to join the name, the count
                   and the last mail with typed dots, so the facts truncated
                   with the title and wore its ink. It hands over the parts
                   now: the count is white (a count with no state), "with
-                  them" is the line's one grey, and the last mail is a
+                  them" is the line's one grey (Title Case, like every line the app writes), and the last mail is a
                   neutral date, so it is small caps. Its words were read on
                   meetingPrep's own clock, so nothing here reads a second. */}
               <div className="conn-name truncate">{prep.person.name}</div>
               {(prep.open.length > 0 || prep.lastMail) ? (
                 <div className="conn-meta facts">
-                  {prep.open.length > 0 && <span className="fact"><b>{lineCase(`${prep.open.length} open`)}</b> with them</span>}
+                  {prep.open.length > 0 && <span className="fact"><b>{prep.open.length}</b> {prep.open.length === 1 ? "Open Item" : "Open Items"} With Them</span>}
                   {prep.lastMail ? <span className="fact date">{prep.lastMail}</span> : null}
                 </div>
               ) : null}
-              {/* row-tap: chip strip inside the prep row, not a row of its own */}
-              <div className="row mail-chips">
-                {prep.open.length > 0 && (
-                  <button className="chip" onClick={own(() => void onOpenPerson?.(prep.person.id))}>What's Open</button>
-                )}
-                <button className="chip" onClick={own(() => void onAskSaid?.(prep.person.id))}>What Did You Say</button>
-              </div>
             </div>
+            {/* The row opens the person, like the Now row above it opens its event: both rows of the card carry the one chevron. */}
+            <div className="chev" />
           </div>
+          </SwipeShell>
         )}
       </div></div>
     </>
@@ -2878,7 +2916,7 @@ export default function TodayFlow({
       setTuning(null);
       await reload();
       showToast({
-        message: "Booked " + fmtTime(b.start).time + fmtTime(b.start).ap,
+        message: "Booked " + fmtTime(b.start).time + " " + fmtTime(b.start).ap, // "3:00 PM", the one clock shape: it ran the AM/PM into the digits (2026-10-05)
         actionLabel: "Undo",
         onAction: async () => {
           await attemptWrite(async () => { for (const id of ids) await schedule.deleteEvent(id); });
@@ -2908,41 +2946,28 @@ export default function TodayFlow({
             <span className="rl-t">{lineCase(`${dayDraft.anytime.length} More in Anytime`)}</span>
             <div className={"chev chev-down" + (draftMoreOpen ? " chev-open" : "")} />
           </button>
-          {draftMoreOpen && dayDraft.anytime.map((a) => (
-            // ROW-TAP (Dave 2026-09-15): the row is a task; it opens the task.
-            <div className="row" key={a.id} {...rowDoor(() => void onOpenTask(a.id))}>
-              <RowIcon kind="task" />
-              <div className="row-grow"><div className="conn-name truncate">{a.text}</div></div>
-              <button className="pill-act" onClick={own(() => applyEdit({ add: a.id }))}>Add</button>
-            </div>
-          ))}
+          {draftMoreOpen && (
+            // NO PILL ON THE ROW (Dave 2026-10-05, locked): Add is the swipe, and the row is a task, so its tap opens
+            // the task (ROW-TAP, Dave 2026-09-15).
+            <div className="pad-x"><div className="card">
+              {dayDraft.anytime.map((a) => (
+                <SwipeShell key={a.id} actions={[{ label: "Add", run: () => applyEdit({ add: a.id }) }]}>
+                  <div className="row" {...rowDoor(() => void onOpenTask(a.id))}>
+                    <RowIcon kind="task" />
+                    <div className="row-grow"><div className="conn-name truncate">{titleCase(a.text)}</div></div>
+                  </div>
+                </SwipeShell>
+              ))}
+            </div></div>
+          )}
         </>
       )}
-      {/* FOUR FLOATING BUTTONS BECAME ONE ROW (Dave 2026-09-10 and 09-11).
-          The bottom of Today had accumulated Focus, Plan My Day, Accept the
-          Day and Not Today, on two different grids, none of them the page's
-          own column. Focus went to Your Move as a centred pill; Accept moved
-          UP into Plan My Day's row (draftPrimary below, YourDay's `primary`
-          slot) so the two decisions about the day sit side by side instead of
-          two sections apart. This is the quiet decline under them: clearing a
-          draft has to stay reachable, because Plan My Day stands its AI
-          refine down while a draft is standing, on purpose ("the card already
-          showed him a plan; re-plan must not silently renumber it"). Same
-          .receipt-line every quiet secondary in this app wears. */}
-      {/* IT SAYS WHAT IT DECLINES (Dave 2026-09-19, on the homepage: two
-          grey lines at the foot of the day, the second of them two words
-          that name no object). "Not Today" answers a question the page
-          stopped asking three sections ago; what the tap actually does is
-          clear the plan standing above it. */}
-      {/* Slice 09 QA (2026-10-04): this line's tap area reaches 14px past its paint (.receipt-line::after), and it
-          sat flush under "N More in Anytime", so it answered the taps meant for the line above and for the last
-          Anytime row's Add. The wrapper's gap keeps the two areas apart; the button stays the exact quiet line
-          LAW 8 holds. */}
-      <div className="draft-clear">
-        <button className="receipt-line" onClick={dismissDraft}>
-          <span className="rl-t">Clear This Plan</span>
-        </button>
-      </div>
+      {/* CLEAR THIS PLAN IS ON THE DAY'S HEAD (Dave 2026-10-05, locked: section-level actions live in the section head).
+          FOUR FLOATING BUTTONS BECAME ONE ROW (Dave 2026-09-10 and 09-11) and the last of them, the quiet decline, was a
+          grey receipt line under the Anytime fold that read as a caption, not a control. Clearing a draft still has to stay
+          reachable, because Plan My Day stands its AI refine down while a draft is standing, on purpose ("the card already
+          showed him a plan; re-plan must not silently renumber it"): it is the last item behind the day head's overflow,
+          in the destructive ink, and says what it declines (Dave 2026-09-19: "Not Today" named no object). */}
     </>
   ) : null;
 
@@ -2953,18 +2978,9 @@ export default function TodayFlow({
     <button className="plan-cta plan-cta-block" onClick={() => void acceptDraft()}>Accept the Day</button>
   ) : null;
 
-  // C-29 (Astra, 2026-09-12): once the day is accepted, the draft's own
-  // receipt says so, where the Accept and Not Today used to sit. A quiet
-  // line, not a control: the blocks are real events in the list above it
-  // now, and there is nothing left to decide. No new lifecycle field:
-  // `accepted` has been on the draft since the Day Loop shipped.
-  const draftReceipt = !evening && dayDraft?.accepted && !dayDraft.dismissed && planEvs.length > 0 ? (
-    <div className="receipt-line" aria-label={`Accepted, ${planEvs.length} ${planEvs.length === 1 ? "block" : "blocks"} planned`}>
-      {/* One phrase, no typed dot (§AM F3, 2026-09-26): the count leads,
-          the way every other receipt here reads. */}
-      <span className="rl-t">{lineCase(`${planEvs.length} ${planEvs.length === 1 ? "block" : "blocks"} accepted`)}</span>
-    </div>
-  ) : null;
+  // C-29 (Astra, 2026-09-12) put a "5 Blocks Accepted" receipt line here once the day was accepted. Removed 2026-10-05 (the
+  // review: a loose grey line with no container repeating the "Day Planned" toast at the same moment, reading as leftover
+  // state). The accepted blocks are real events in the list above, which is the confirmation that stays.
 
   // Slippage stated out loud below Everything; automatic (receipted) at it.
   // TODAY-F-19 (2026-09-05): keyed, like every sibling in the notice stream.
@@ -2980,6 +2996,7 @@ export default function TodayFlow({
       tone="cat-fg-orange"
       title={slippedCount === 1 ? "1 Block Slipped" : `${slippedCount} Blocks Slipped`}
       sub="The Plan Is Behind the Clock"
+      offer
       action={{ label: "Re-Flow", onClick: () => void runReflow() }}
       // ROW-TAP (Dave 2026-09-15: "I want all rows clickable"): the card is
       // about the day's plan, so its body opens the Schedule that holds it.
@@ -2999,7 +3016,7 @@ export default function TodayFlow({
       weight={FAILING}
       icon={SWEEP_ICO}
       tone="cat-fg-orange"
-      title={overflowOffer.title}
+      title={titleCase(overflowOffer.title)}
       sub="No Room Left Today"
       // ROW-TAP (Dave 2026-09-15): the body opens the event that has no room.
       onOpen={() => onOpenEvent(overflowOffer.eventId)}
@@ -3126,7 +3143,7 @@ export default function TodayFlow({
           weight={tuningWeight(tunings, "live-gym", LIVE)}
           icon={<BarbellGlyph />}
           tone="cat-fg-orange"
-          title={card.fresh ? `${card.dayName} is ready` : `Back to ${card.dayName}`}
+          title={card.fresh ? `${card.dayName} Is Ready` : `Back to ${card.dayName}`}
           sub={liveFacts(card, card.left ?? card.elapsed, (card.left ?? card.elapsed) ? null : card.progress)}
           action={{ label: card.fresh ? "Start" : "Resume", go: true, onClick: () => onRestoreSpot?.("gym", gymCatId ?? "") }}
           // ROW-TAP (Dave 2026-09-15: "I want all rows clickable"): the body
@@ -3145,7 +3162,10 @@ export default function TodayFlow({
     // null and says nothing), and the one thing to start with.
     back ? (
       <button key="back" data-receipt className="receipt-line" onClick={() => setUpNextOpen(true)}>
-        <span className="rl-t">{back.title}. {back.gone ? back.gone + ". " : ""}{back.ask}</span>
+        {/* ONE PHRASE, NOT THREE SENTENCES (2026-10-05, the catalog hard gate).
+            The parts were joined with ". " and a capital, so the rendered line carried a sentence boundary the
+            short-copy rule bans in any drawn string. A comma joins them. */}
+        <span className="rl-t">{[back.title, back.gone, back.ask].filter(Boolean).join(", ")}</span>
         <span className="chev" />
       </button>
     ) : null,
@@ -3155,17 +3175,27 @@ export default function TodayFlow({
         weight={WAITING}
         icon={FORK_ICO}
         tone="cat-fg-purple"
-        title={revisit.data.decision}
+        title={titleCase(revisit.data.decision)}
         sub="You Wanted to Revisit This Today"
         action={{ label: "Keep", onClick: () => void stillGood(revisit) }}
         alt={{ label: "Change It", onClick: () => setRevisitSheet(true) }}
         // ROW-TAP (Dave 2026-09-15): the body opens the decision's sheet.
         onOpen={() => setRevisitSheet(true)}
+        // THE OUTCOME IS ONE QUESTION AND ONE SEGMENTED CONTROL, ON THE TEXT EDGE (round 3, 2026-10-05, the review's P0: three
+        // loose capsules started at the card's own border, with no question over them and a ragged right side). The row is
+        // the notice's own second line: an empty glyph in front puts it on the title's edge (the same spacer .hl-verbs uses),
+        // the question says what is being asked, and Worked, Mixed and Didn't split the width equally inside the card's padding.
         foot={(
-          <div className="dec-outcome-acts notice-foot-acts">
-            {(["worked", "mixed", "didnt"] as OutcomeWord[]).map((w) => (
-              <button type="button" key={w} className="pill-act" onClick={() => void markRevisitOutcome(revisit, w)}>{OUTCOME_LABEL[w]}</button>
-            ))}
+          <div className="row hl-verbs notice-foot-acts">
+            <div className="row-glyph" aria-hidden="true" />
+            <div className="hl-acts notice-foot-ask">
+              <div className="conn-meta">How Did It Go?</div>
+              <div className="segmented" role="group" aria-label="How did it go">
+                {(["worked", "mixed", "didnt"] as OutcomeWord[]).map((w) => (
+                  <button type="button" key={w} className="seg" onClick={() => void markRevisitOutcome(revisit, w)}>{OUTCOME_LABEL[w]}</button>
+                ))}
+              </div>
+            </div>
           </div>
         )}
       />
@@ -3173,6 +3203,7 @@ export default function TodayFlow({
     sweepReceipt && sweepReceipt.failed ? (
       <NoticeCard
         key="sweepfail"
+        offer
         weight={FAILING}
         icon={SWEEP_ICO}
         tone="cat-fg-red"
@@ -3269,8 +3300,10 @@ export default function TodayFlow({
         weight={FAILING}
         icon={SWEEP_ICO}
         tone="cat-fg-orange"
-        title={sweepCand.text}
-        sub={`Slid ${sweepCand.slips}d`}
+        title={titleCase(sweepCand.text)}
+        // ONE TONE FOR THE WHOLE LINE (Dave 2026-10-05, Alfred R1: "Slid" was a dim grey word beside a red figure): a task
+        // that keeps sliding is late, and that is red, words and figure alike.
+        sub={<Facts facts={[{ text: `Slid ${sweepCand.slips}d`, tone: "red" }]} />}
         // 2026-09-15: THE DIAGNOSIS CARRIES ITS OWN REMEDY (Dave: "if they're
         // not going to give real, real value, then we have to adjust them or
         // get rid of some of them").
@@ -3322,7 +3355,7 @@ export default function TodayFlow({
         weight={RESUME}
         icon={DOC_ICO}
         tone="cat-fg-yellow"
-        title={spot.label}
+        title={titleCase(spot.label)}
         sub={spotAgo(spot)}
         action={{ label: "Resume", onClick: () => { clearSpot(); setSpot(null); onRestoreSpot?.(spot.kind, spot.id); } }}
         // ROW-TAP (Dave 2026-09-15): the body opens the bookmarked thing too.
@@ -3350,8 +3383,10 @@ export default function TodayFlow({
         weight={tuningWeight(tunings, "close-offer", NEW)}
         icon={WIN_ICO}
         tone="cat-fg-green"
-        title={finishedProject.project.data.title}
-        sub={lineCase(`All ${finishedProject.progress?.total ?? 0} done`)}
+        title={titleCase(finishedProject.project.data.title)}
+        // DONE IS GREEN (the Colour Key; Dave 2026-10-05, Alfred R1: "All 7 Done" was a dim grey line). The fact the row
+        // exists to say takes the key's colour for what it means.
+        sub={<Facts facts={[{ text: lineCase(`All ${finishedProject.progress?.total ?? 0} done`), tone: "good" }]} />}
         // 2026-09-17 (Dave): every task done is a question, not a verdict.
         // Wrap Up asks: add more tasks, or finish the project.
         action={{ label: "Wrap Up", onClick: () => setWrapUp(finishedProject.project.id) }}
@@ -3377,7 +3412,7 @@ export default function TodayFlow({
         weight={tuningWeight(tunings, "project-due", WAITING)}
         icon={<FolderOpenGlyph />}
         tone="cat-fg-indigo"
-        title={dueProject.project.data.title}
+        title={titleCase(dueProject.project.data.title)}
         // §AM (2026-09-26): two facts, the dot drawn by the stylesheet, and
         // the date in its meaning's colour (past red, due amber, a rate sky,
         // a date further off small caps). Built by the one facts helper, so
@@ -3406,7 +3441,7 @@ export default function TodayFlow({
         weight={tuningWeight(tunings, "momentum", NEW)}
         icon={<CheckCircleGlyph />}
         tone="cat-fg-blue"
-        title={momentum.task.data.text}
+        title={titleCase(momentum.task.data.text)}
         sub={momentumFacts(momentum)}
         action={{ label: "Start Now", onClick: () => { const t = momentum.task; setMomentum(null); if (onStartNow) onStartNow(t.id); else void startFifteen(t); } }}
         // ROW-TAP (Dave 2026-09-15: "I want all rows clickable"): the body
@@ -3428,7 +3463,7 @@ export default function TodayFlow({
         weight={tuningWeight(tunings, "birthday", RESUME)}
         icon={<GiftGlyph />}
         tone="cat-fg-pink"
-        title={tomorrowBirthday.name}
+        title={titleCase(tomorrowBirthday.name)}
         sub="Birthday Tomorrow"
         action={tomorrowBirthday.phone
           ? { label: "Text", onClick: () => setMsgPerson({ id: tomorrowBirthday.id, about: BIRTHDAY_ABOUT }) }
@@ -3461,7 +3496,7 @@ export default function TodayFlow({
            reflective purple stays where reflection lives (revisit, monthly
            report); this card is about a GOAL, so it wears the goal's color. */
         tone={goalTone(untouched.data.tags)}
-        title={untouched.data.title}
+        title={titleCase(untouched.data.title)}
         // §AK, §AM (2026-09-26): two facts, the dot drawn by the
         // stylesheet. The open count is a count with no state, so it is white;
         // the reason is the line's one grey. "Pick a project to move it" came
@@ -3506,11 +3541,14 @@ export default function TodayFlow({
   // toast says so and offers the way back, the same as every other row that
   // leaves a screen on a tap (undoLaw).
   const onTickReminder = async (id: string, done: boolean) => {
+    // THE TOAST NAMES WHAT IT DID (Dave 2026-10-05, the review: "Marked Done" with no item name): the reminder and its new
+    // state, "Night Meds Done". Read before the write, because the tick takes the row off the strip.
+    const ticked = [...reminders, ...remPick.missed].find((r) => r.id === id);
     const ok = await attemptWrite(() => (done ? tasks.tickReminder(id, today) : tasks.untickReminder(id)));
     await reload();
     if (!ok || !done) return;
     showToast({
-      message: "Marked Done",
+      message: ticked ? titleCase(ticked.text) + " Done" : "Marked Done",
       actionLabel: "Undo",
       onAction: async () => {
         await attemptWrite(() => tasks.untickReminder(id));
@@ -3599,8 +3637,14 @@ export default function TodayFlow({
   // seam events already use for editing an event's time does the work.
   const onAskAgainReminder = async (id: string) => {
     const to = snoozeTime(nhm, 15);
-    await attemptWrite(() => tasks.snoozeReminder(id, to, today));
+    // 2026-10-04: the toast was unconditional. A write that threw had its
+    // "Couldn't Save" replaced by "Asking Again at 9:15", and snoozeReminder
+    // answering false (the reminder was deleted elsewhere) counted as a
+    // success too, so the person was told it would ask again when nothing
+    // had moved. Only a write that landed says so.
+    const ok = await attemptWrite(async () => { if (!(await tasks.snoozeReminder(id, to, today))) throw new Error("reminder missing"); });
     await reload();
+    if (!ok) return;
     showToast({ message: "Asking Again at " + fmtTime(to).time + " " + fmtTime(to).ap });
   };
   // The Ask Again verb the missed cards carried ("If You Miss It" promises
@@ -3883,7 +3927,7 @@ export default function TodayFlow({
       // The calendar import or the email's own offer may already hold this
       // appointment: say so instead of writing it twice (audit #3).
       const have = await schedule.findTwin(a.title, a.date, a.start!, true).catch(() => null);
-      if (have) return { receipt: lineCase(`Already on your schedule · ${when} ${fmtTime(a.start!).time} ${fmtTime(a.start!).ap}`) };
+      if (have) return { receipt: lineCase(`Already Scheduled, ${when} ${fmtTime(a.start!).time} ${fmtTime(a.start!).ap}`) };
       const ok = await attemptWrite(async () => {
         made = await schedule.createEvent(a.title, {
           date: a.date, start: a.start!, end: endOfAct(a.start!, a.durationMin ?? 60), source: src,
@@ -3893,7 +3937,8 @@ export default function TodayFlow({
       if (!ok || !id) return null;
       await reload();
       return {
-        receipt: lineCase(`On your schedule · ${when} ${fmtTime(a.start!).time} ${fmtTime(a.start!).ap}`),
+        // ONE SHORT LINE (2026-10-05 review: "On Your Schedule · Wednesday 2:00 PM" wrapped with the time alone on line 2).
+        receipt: lineCase(`Scheduled ${when}, ${fmtTime(a.start!).time} ${fmtTime(a.start!).ap}`),
         undo: async () => { await attemptWrite(() => schedule.deleteEvent(id)); await reload(); },
       };
     }
@@ -4088,7 +4133,7 @@ export default function TodayFlow({
     if (!ok) return;
     const when = fmtTime(start);
     showToast({
-      message: `Tomorrow at ${when.time}${when.ap}`,
+      message: `Tomorrow at ${when.time} ${when.ap}`, // "9:00 AM", not "9:00AM" (2026-10-05)
       actionLabel: "Undo",
       onAction: async () => {
         await attemptWrite(async () => {
@@ -4154,7 +4199,7 @@ export default function TodayFlow({
       // written against. Purple is the app's reflective tone and this is the
       // reflective object.
       tone="cat-fg-purple"
-      title={`Your ${monthTitle(reportMonth)} is ready`}
+      title={`Your ${monthTitle(reportMonth)} Is Ready`}
       sub="Two Minutes"
       action={{ label: "Read", onClick: () => setReportOpen(true) }}
       // ROW-TAP (Dave 2026-09-15): the body opens the report.
@@ -4170,12 +4215,15 @@ export default function TodayFlow({
   const notices = [reportNotice, ...alertCards, reflowSection, overflowSection].filter(Boolean);
 
   const daypart = evening ? "evening" as const : now.getHours() < 12 ? "morning" as const : null;
-  const initials = name.trim().split(/\s+/).map((w) => w[0]).slice(0, 2).join("").toUpperCase() || "JV";
+  // No name, no initials (2026-10-05): this fell back to "JV", letters nobody chose, while Account says "Add Your Name". ""
+  // is the honest answer and TodayPage draws Account's neutral disc for it.
+  const initials = name.trim().split(/\s+/).map((w) => w[0] ?? "").slice(0, 2).join("").toUpperCase();
   const remSheetNode = remSheet && (
       <ReminderSheet
         mode={remSheet.mode}
         initial={remSheet.mode === "edit" ? { text: remSheet.text, reminder: remSheet.reminder, due: remSheet.due, category: remSheet.category } : undefined}
         categories={categories.map((c) => ({ id: c.id, name: c.name, color: c.color as string }))}
+        defaultFollowUp={defaultFollowUp}
         onSave={(text, r, extra) => void onSaveReminder(text, r, extra)}
         onOpenLinked={onOpenEntity ? openLinked : undefined}
         linkCandidates={linkCandidates}
@@ -4294,6 +4342,7 @@ export default function TodayFlow({
       onPlanDay={() => void openPlan("today")}
       onPlanTomorrow={evening ? () => void openPlan("tomorrow") : undefined}
       onRunningLate={onRunningLate}
+      onClearPlan={draftStanding ? dismissDraft : undefined}
       onUpNext={() => setUpNextOpen(true)}
       upNext={upNextRows}
       upNextReason={upNextAll[0] ? reasonFor(upNextAll[0], today, inPeakNow) : null}
@@ -4315,6 +4364,7 @@ export default function TodayFlow({
       onStartTask={onStartNow}
       onSeeAllMail={!mailEmpty && !mailResidual && onGoEmail ? () => onGoEmail() : undefined}
       mailEmpty={mailEmpty}
+      onClearMail={mailClear ?? undefined}
       mailHead={unifiedEmail ? { title: EMAIL_BAND_TITLE, action: OPEN_EMAIL } : undefined}
       mail={unifiedEmail ? (
         <EmailToday key="mail" client={supabase} tasks={tasks} schedule={schedule} waiting={waitingSvc} today={today} excludeIds={upNextRows.map((r) => r.id)}
@@ -4337,6 +4387,7 @@ export default function TodayFlow({
           onOpenEmail={onGoEmail ? () => onGoEmail() : undefined}
           onEmptyChange={setMailEmpty}
           onResidualChange={setMailResidual}
+          onClearAllChange={onMailClearChange}
         />
       )}
       billLine={billsLine(taskItems, today, ledgerBills) ?? undefined}
@@ -4382,7 +4433,7 @@ export default function TodayFlow({
       nowCard={nowSection}
       liveGym={liveGymHead}
       proposedDay={proposedDay}
-      dayFooter={draftFooter ?? draftReceipt}
+      dayFooter={draftFooter}
       dayPrimary={draftPrimary}
       reminders={<>
         <RemindersStrip
@@ -4392,6 +4443,7 @@ export default function TodayFlow({
           onTickMissed={(id) => void onTickReminder(id, true)}
           onAskAgainMissed={(id) => void onAskAgainReminder(id)}
           onSnooze={(id) => void onSnoozeReminder(id)}
+          now={nhm}
           onAdd={() => setRemSheet({ mode: "new" })}
           onOpen={openReminder}
           onDelete={(id) => void onDeleteReminder(id)}

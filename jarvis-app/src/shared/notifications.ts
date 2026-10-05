@@ -82,10 +82,12 @@ export const EVENT_REMINDER_SPAN = 120;
 export const TASK_REMINDER_SPAN = 60;
 
 // The two daily check-in nudges, derived from the routine:
-// - morning ONE-thing ask at the brief time (or 15 min after wake), matching
-//   CheckIn's before-noon window
-// - evening mood ask two hours before bed, never before 6 PM, matching
-//   CheckIn's after-6 window; skipped entirely for schedules it cannot fit
+// - morning nudge at the brief time (or 15 min after wake), clamped to before
+//   noon
+// - evening wrap-up nudge two hours before bed, never before 6 PM and never
+//   before work ends (when Today turns evening and shows Still Open); skipped
+//   entirely for schedules it cannot fit
+// (Reworded 2026-10-05: the CheckIn screen and the mood ask are gone.)
 export function buildCheckinNotifications(routine: RoutineData, briefTime?: string): CheckinNotification[] {
   const out: CheckinNotification[] = [];
 
@@ -128,12 +130,21 @@ export function buildCheckinNotifications(routine: RoutineData, briefTime?: stri
   // math turned "bed at 1 AM" into a negative offset and the eveningMin <
   // sleepMin guard silently dropped the evening check-in for every night owl.
   const sleepAdj = routine.sleepMin <= routine.wakeMin ? routine.sleepMin + 24 * 60 : routine.sleepMin;
-  const eveningMin = Math.max(18 * 60, sleepAdj - 120);
+  // Floored at work end too (2026-10-05): the body names Today's Still Open
+  // section, which Today shows only once isEvening() is true, that is from
+  // max(18:00, workEndMin). Ringing earlier promised a section that was not
+  // there yet. If work runs past bedtime the guard below drops the alert.
+  const eveningMin = Math.max(18 * 60, sleepAdj - 120, routine.workEndMin);
   if (eveningMin < sleepAdj && eveningMin < 24 * 60) {
     out.push({
       id: EVENING_ID,
-      title: "How did today feel?",
-      body: "One Tap · Better Plans",
+      // 2026-10-04: this asked "How did today feel?" and promised a one-tap
+      // answer that would make plans better. Today has had no mood answer
+      // since the evening card was deleted (2026-09-09), so the tap landed on
+      // a question nothing could take. It says what the tap now lands on: the
+      // evening Today, whose Still Open lists what is left.
+      title: "Ready to wrap up the day?",
+      body: "Still Open has what's left",
       hour: Math.floor(eveningMin / 60),
       minute: eveningMin % 60,
     });
@@ -239,7 +250,7 @@ export async function scheduleRestOver(at: number, body: string, nowMs: number =
       const perm = await LocalNotifications.checkPermissions();
       if (perm.display !== "granted") return;
       await LocalNotifications.schedule({
-        notifications: [{ id: REST_OVER_ID, title: "Rest over", body, schedule: { at: new Date(at), allowWhileIdle: true } }],
+        notifications: [{ id: REST_OVER_ID, title: "Rest Over", body, schedule: { at: new Date(at), allowWhileIdle: true } }],
       });
     } catch {
       /* notifications are a bonus, never a crash */
@@ -315,7 +326,7 @@ export function registerNotificationActions(): Promise<void> {
             actions: [
               { id: ACTION_OPEN, title: "Open", foreground: true },
               { id: ACTION_DONE, title: "Done" },
-              { id: ACTION_SNOOZE, title: "Snooze 15m" },
+              { id: ACTION_SNOOZE, title: "Snooze 15 Min" },
             ],
           },
         ],
@@ -486,7 +497,7 @@ export function buildEventReminders(
         out.push({
           id: 0,
           title: e.title.trim(),
-          body: e.location ? `Leave now for ${e.location}` : "Leave now",
+          body: e.location ? `Leave Now for ${e.location}` : "Leave Now",
           at,
           lead: leaveLead,
           leave: true,
@@ -630,7 +641,7 @@ export interface ReminderNotifyOptions {
   quietTo?: string;
 }
 export const PRIVATE_TITLE = "Health Reminder";
-export const PRIVATE_BODY = "Open JARVIS to see it";
+export const PRIVATE_BODY = "Open JARVIS to See It"; // Title Case, a banner the app writes (2026-10-05)
 export function buildTaskReminderNotifications(
   reminders: TaskReminderInput[],
   today: string,
@@ -674,7 +685,7 @@ export function buildTaskReminderNotifications(
           if (fu.stopAt && (again.getHours() * 60 + again.getMinutes()) > (Number(fu.stopAt.slice(0, 2)) * 60 + Number(fu.stopAt.slice(3, 5)))) break;
           const clock = String(again.getHours()).padStart(2, "0") + ":" + String(again.getMinutes()).padStart(2, "0");
           if (opts.quietFrom && opts.quietTo && inQuietHours(clock, opts.quietFrom, opts.quietTo)) continue;
-          if (again.getTime() > nowMs) out.push({ title, body: r.sensitive ? PRIVATE_BODY : "Asking again", at: again, taskId: r.id });
+          if (again.getTime() > nowMs) out.push({ title, body: r.sensitive ? PRIVATE_BODY : "Asking Again", at: again, taskId: r.id });
         }
       }
     }
@@ -796,7 +807,7 @@ export async function sendTestReminder(): Promise<"sent" | "denied" | "unsupport
       notifications: [{
         id: TEST_REMINDER_ID,
         title: "Test Reminder",
-        body: "This is how a reminder arrives",
+        body: "This Is How a Reminder Arrives",
         schedule: { at: new Date(Date.now() + TEST_REMINDER_DELAY_S * 1000), allowWhileIdle: true },
         actionTypeId: REMINDER_ACTION_TYPE,
       }],

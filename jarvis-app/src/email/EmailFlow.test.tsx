@@ -123,7 +123,13 @@ describe("M1: the inbox", () => {
     expect(r.posts.filter((p) => p.path.endsWith("/api/email/sync")).map((p) => p.body.email).sort()).toEqual([DAVE, WORK]);
     expect(r.calls.filter((c) => c.fn === "email_inbox").length).toBe(1);
     expect(screen.getByText("That's everything.")).toBeInTheDocument();
-    expect(screen.getByText(/^Updated Today/)).toHaveTextContent("2 Accounts");
+    expect(document.querySelector(".email-fresh")).toHaveTextContent(/^Updated Today.*2 Accounts$/);
+    // 2026-10-05: three facts and no middle dot in a string: the day is the line's one grey, the clock is small caps, the count a white number.
+    const fresh = [...document.querySelectorAll(".email-fresh .facts > .fact")];
+    expect(fresh.map((f) => f.textContent)).toEqual(["Updated Today", expect.stringMatching(/^\d{1,2}:\d{2} (AM|PM)$/), "2 Accounts"]);
+    expect(fresh[1]).toHaveClass("date");
+    expect(fresh[2]!.querySelector("b")).toHaveTextContent("2 Accounts");
+    expect(document.querySelector(".email-fresh")!.textContent).not.toMatch(/\u00B7/);
   });
 
   it("pages thirty at a time, Load More continues after the last row and appends in order", async () => {
@@ -281,7 +287,8 @@ describe("M8: search", () => {
     await waitFor(() => expect(subjects().length).toBe(4));
     fireEvent.click(screen.getByRole("button", { name: "Search" }));
     fireEvent.change(screen.getByPlaceholderText("Search Mail"), { target: { value: "Subject m3" } });
-    await waitFor(() => expect(document.querySelector(".email-cover")).toHaveTextContent(/^Gmail · 1 Account Covered · Didn't Answer · work@example.test · 1 Message$/));
+    await waitFor(() => expect(document.querySelector(".email-cover")).toHaveTextContent(/^Gmail1 Account CoveredDidn't Answer: work@example.test1 Message$/));
+    expect([...document.querySelectorAll(".email-cover .fact")].map((f) => f.textContent)).toEqual(["Gmail", "1 Account Covered", "Didn't Answer: work@example.test", "1 Message"]);
     expect(r.calls.find((c) => c.fn === "email_search_cached")!.args).toMatchObject({ p_q: "Subject m3", p_accounts: null });
     expect(r.posts.find((p) => p.path.endsWith("/api/email/search"))!.body).toEqual({ q: "Subject m3" });
     fireEvent.click(screen.getAllByRole("button").find((b) => b.className.includes("mrow"))!);
@@ -296,7 +303,7 @@ describe("M8: search", () => {
     await waitFor(() => expect(subjects().length).toBe(4));
     fireEvent.click(screen.getByRole("button", { name: "Search" }));
     fireEvent.change(screen.getByPlaceholderText("Search Mail"), { target: { value: "Coach" } });
-    await waitFor(() => expect(document.querySelector(".email-cover")).toHaveTextContent(/^Saved Mail · 4 Messages Searched · Couldn't Reach JARVIS/));
+    await waitFor(() => expect(document.querySelector(".email-cover")).toHaveTextContent(/^Saved Mail4 Messages SearchedCouldn't Reach JARVIS/));
     expect(subjects()).toEqual(["m2"]);
     expect(screen.queryByText(EMPTY_SEARCH.title)).toBeNull();
     fireEvent.change(screen.getByPlaceholderText("Search Mail"), { target: { value: "zzz-nothing" } });
@@ -342,8 +349,8 @@ describe("E21, E22, E28: accounts and states", () => {
     const r = rig({ accounts: [accounts[0]!, account({ id: "acct-work", address: WORK, state: "disconnected", cached: 1 })] });
     mount(r);
     await waitFor(() => expect(subjects()).toEqual(["m3", "m1", "m0"]));
-    expect(screen.getByText(/^Updated Today/)).toHaveTextContent("1 Account");
-    fireEvent.click(screen.getByText(/^Updated Today/));
+    expect(document.querySelector(".email-fresh")).toHaveTextContent(/^Updated Today.*1 Account$/);
+    fireEvent.click(document.querySelector(".email-fresh") as HTMLElement);
     await waitFor(() => expect(screen.getAllByText("Accounts").length).toBeGreaterThan(0));
     expect(screen.getByText(STATE_WORD.disconnected)).toBeInTheDocument();
     expect(screen.getByText(RETENTION_NOTE)).toBeInTheDocument();

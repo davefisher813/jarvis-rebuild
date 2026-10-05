@@ -19,10 +19,10 @@ import { nodePlainText } from "./docModel";
 export type ExportFormat = "pdf" | "docx" | "md" | "txt";
 
 export const EXPORT_FORMATS: { key: ExportFormat; label: string; desc: string; ext: string; mime: string }[] = [
-  { key: "pdf", label: "PDF", desc: "Read or print", ext: "pdf", mime: "application/pdf" },
+  { key: "pdf", label: "PDF", desc: "Read or Print", ext: "pdf", mime: "application/pdf" },
   { key: "docx", label: "Word .docx", desc: "Edit in Word or Google Docs", ext: "docx", mime: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" },
-  { key: "md", label: "Markdown .md", desc: "Use in Claude or another notes app", ext: "md", mime: "text/markdown;charset=utf-8" },
-  { key: "txt", label: "Text .txt", desc: "Simple text that opens almost anywhere", ext: "txt", mime: "text/plain;charset=utf-8" },
+  { key: "md", label: "Markdown .md", desc: "Use in Claude or Another Notes App", ext: "md", mime: "text/markdown;charset=utf-8" },
+  { key: "txt", label: "Text .txt", desc: "Simple Text That Opens Almost Anywhere", ext: "txt", mime: "text/plain;charset=utf-8" },
 ];
 
 export function formatInfo(key: ExportFormat) {

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { titleCase } from "../shared/casing";
 import type { GoalData } from "./types";
 import type { Category } from "../categories/types";
 import type { Measure, Cadence } from "../bigger/measure";
@@ -42,7 +43,8 @@ export default function GoalSheet({ mode, initial, categories = [], onSave, onDe
   // "Saving" for good with the draft trapped behind Cancel.
   onSave: (d: GoalData) => void | Promise<boolean | void>; onDelete?: () => void; onCancel: () => void;
 }) {
-  const [title, setTitle] = useState(initial?.title ?? "");
+  // Shown in Title Case and saved in Title Case (Dave 2026-10-05).
+  const [title, setTitle] = useState(initial?.title ? titleCase(initial.title) : "");
   // Money v1: an optional dollar target turns this into a savings goal.
   // Progress stays DERIVED (from logged entries), so this is a target, not a
   // self-reported status; it earns its field.
@@ -100,7 +102,7 @@ export default function GoalSheet({ mode, initial, categories = [], onSave, onDe
     if (saving) return;
     setSaving(true);
     const r = onSave({
-      title: title.trim(),
+      title: titleCase(title.trim()),
       state: initial?.state ?? "on_track",
       ...(initial?.areaId ? { areaId: initial.areaId } : {}),
       ...(initial?.saved ? { saved: initial.saved } : {}),

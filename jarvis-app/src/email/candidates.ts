@@ -21,6 +21,8 @@ import { ACCOUNT_PREFIX } from "../messages/mailCache";
 import { mailAccountKey } from "../messages/mailIdentity";
 import { dayLabel, timeOf } from "../hub/format";
 import type { InboxRow, MessageDetail } from "./emailClient";
+import type { EmailFact } from "./format";
+import { localDate, windowTone } from "./waiting";
 
 export interface Candidate {
   id: string;
@@ -136,33 +138,60 @@ export const isStale = (c: Pick<Candidate, "status" | "source_hash" | "message_s
 
 export const PRIMARY: Record<CaptureKind, string> = { bill: "Save Bill", receipt: "Save Receipt", task: "Add Task", event: "Add to Schedule", waiting: "Track This" };
 export const BADGE: Record<CaptureKind, string> = { bill: "Money", receipt: "Money", task: "Tasks", event: "Schedule", waiting: "Waiting On" };
-export const CARD_TITLE: Record<CaptureKind, string> = { bill: "Save Bill to Money", receipt: "Save Receipt to Money", task: "Add to Tasks", event: "Add to Schedule", waiting: "Track What You're Waiting For" };
+// 2026-10-05: CARD_TITLE ("Save Bill to Money") is gone. Under the card's badge ("Money") and over its button
+// ("Save Bill") it was a third thin grey line saying what the card already says twice, stacked on the facts line:
+// the exact pair Dave photographed on the Email card. The badge names where it lands, the button names the effect.
 export const KIND_WORD: Record<CaptureKind, string> = { bill: "Bill", receipt: "Receipt", task: "Task", event: "Event", waiting: "Waiting" };
 
-const money = (a: { minor_units: number; currency: string }): string => (a.minor_units > 0 && /^[A-Z]{3}$/.test(a.currency) ? moneyWords(a.minor_units, a.currency) : a.minor_units > 0 ? `${(a.minor_units / 100).toFixed(2)} · Currency Needed` : "Amount Needed");
+/** The headline amount, and what it still needs: a number with no currency reads as the number and asks for the currency as a need, never as a dotted string in the headline. */
+const money = (a: { minor_units: number; currency: string }): { text: string; needs: string[] } =>
+  a.minor_units > 0 && /^[A-Z]{3}$/.test(a.currency) ? { text: moneyWords(a.minor_units, a.currency), needs: [] }
+    : a.minor_units > 0 ? { text: (a.minor_units / 100).toFixed(2), needs: ["Currency"] }
+      : { text: "Amount Needed", needs: [] };
 
-/** The two lines under the badge: the value the card is about, and the facts around it. */
-export function cardLines(c: Pick<Candidate, "payload">, now: Date = new Date()): { value: string; detail: string } {
+/**
+ * The facts line of a card, in the catalog's order (2026-10-05): the one amber fact leads when something is
+ * still needed, then the short dated facts, then the long free text last (a facts line ellipsizes only its last
+ * fact). At most one coloured fact on the line: when a Needs fact is present, a window colour steps down to a
+ * neutral date. Nothing missing means no Needs fact; nothing to say means no fact at all.
+ */
+function line(needs: readonly string[], lead: readonly EmailFact[], tail: readonly EmailFact[]): EmailFact[] {
+  const need: EmailFact[] = needs.length ? [{ text: `Needs ${needs.join(", ")}`, tone: "warn" }] : [];
+  const calm = need.length ? lead.map((f): EmailFact => (f.tone ? { ...f, tone: "date" } : f)) : lead;
+  return [...need, ...calm, ...tail];
+}
+
+/** The headline under the badge, and the facts around it. The facts are separate spans (the catalog), never one string joined by a middle dot. */
+export function cardLines(c: Pick<Candidate, "payload">, now: Date = new Date()): { value: string; facts: EmailFact[] } {
   const p = c.payload;
+  const today = localDate(now.toISOString());
+  const dueFact = (d: string | null | undefined): EmailFact[] => (d ? [{ text: `Due ${monthDay(d)}`, tone: windowTone(d, today) }] : []);
   switch (p.kind) {
-    case "bill": return { value: money(p.amount), detail: `${p.due_date ? "Due " + monthDay(p.due_date) : p.no_due_date_confirmed ? "No Due Date" : "Due Date Needed"} · ${p.issuer || "Issuer Needed"}` };
-    case "receipt": return { value: money(p.amount), detail: `${p.merchant || "Merchant Needed"} · ${p.transaction_type === "refund" ? "Refunded" : "Paid"} ${monthDay(p.purchase_date)}` };
-    case "task": return { value: p.title || "Title Needed", detail: p.due_date ? `Due ${monthDay(p.due_date)}` : "No Deadline" };
+    case "bill": {
+      const m = money(p.amount);
+      return { value: m.text, facts: line([...m.needs, ...(!p.due_date && !p.no_due_date_confirmed ? ["Due Date"] : []), ...(!p.issuer ? ["Issuer"] : [])], dueFact(p.due_date), p.issuer ? [{ text: p.issuer }] : []) };
+    }
+    case "receipt": {
+      const m = money(p.amount);
+      const refund = p.transaction_type === "refund";
+      return { value: m.text, facts: line([...m.needs, ...(!p.purchase_date ? ["Purchase Date"] : []), ...(!p.merchant ? ["Merchant"] : [])], p.purchase_date ? [{ text: `${refund ? "Refunded" : "Paid"} ${monthDay(p.purchase_date)}`, tone: refund ? "date" : "good" }] : [], p.merchant ? [{ text: p.merchant }] : []) };
+    }
+    case "task": return { value: p.title || "Title Needed", facts: line([], dueFact(p.due_date), []) };
     case "event": {
       const t = p.time;
-      if (t.all_day) return { value: p.title || "Title Needed", detail: `${monthDay(t.start_date)} · All Day` };
+      const value = p.title || "Title Needed";
+      if (t.all_day) return { value, facts: line([], [{ text: monthDay(t.start_date), tone: "date" }], [{ text: "All Day" }]) };
       const zone = t.timezone || undefined;
-      let when = "";
       try {
         const d = new Date(t.start_at);
         const e = new Date(t.end_at);
-        const day = dayLabel(t.start_at, now);
         const fmt = (x: Date) => x.toLocaleTimeString([], { hour: "numeric", minute: "2-digit", ...(zone ? { timeZone: zone } : {}) });
-        when = `${day} · ${fmt(d)} to ${fmt(e)}${zone ? " " + shortZone(zone) : " · Zone Needed"}`;
-      } catch { when = `${dayLabel(t.start_at, now)} · ${timeOf(t.start_at)}`; }
-      return { value: p.title || "Title Needed", detail: when };
+        return { value, facts: line(zone ? [] : ["Zone"], [{ text: dayLabel(t.start_at, now), tone: "date" }, { text: `${fmt(d)} to ${fmt(e)}`, tone: "date" }], zone ? [{ text: shortZone(zone) }] : []) };
+      } catch {
+        return { value, facts: line([], [{ text: dayLabel(t.start_at, now), tone: "date" }, { text: timeOf(t.start_at), tone: "date" }], []) };
+      }
     }
-    case "waiting": return { value: p.title || "Title Needed", detail: `From ${p.counterparty_display || "Someone"}${p.follow_up_on ? " · Follow Up " + monthDay(p.follow_up_on) : ""}` };
+    case "waiting": return { value: p.title || "Title Needed", facts: line(p.counterparty_display ? [] : ["From"], p.follow_up_on ? [{ text: `Follow Up ${monthDay(p.follow_up_on)}`, tone: windowTone(p.follow_up_on, today) }] : [], p.counterparty_display ? [{ text: `From ${p.counterparty_display}` }] : []) };
   }
 }
 

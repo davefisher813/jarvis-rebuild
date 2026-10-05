@@ -7,6 +7,13 @@
 
 :root {
   --f: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif;
+  /* THE DISPLAY FACE (Dave 2026-10-05, the craft playbook: "a rounded display
+     face for page titles, greetings and hero numbers"). SF Pro Rounded where
+     the device ships it (ui-rounded on iOS and macOS Safari), the plain
+     system face everywhere else, so nothing ever falls to a serif. Body text
+     keeps --f. The weight and size of every line that wears this are the Type
+     Law's, not this token's. */
+  --f-display: ui-rounded, "SF Pro Rounded", -apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, sans-serif;
 
   /* TEXT SIZE (UP-PLAT-09, 2026-09-06).
      Every font-size in this app is a multiple of this. 1 is the shipped
@@ -16,6 +23,8 @@
      writes it: past 1.4 the tab bar loses its labels, which is a worse
      answer than "as big as this app goes". */
   --type-scale: 1;
+  /* The top bar's own ground: the page's warm colour, opaque, in both themes (D6: nothing reads through the bar). */
+  --bar-solid: var(--bg);
 
   /* TYPE SCALE (7-tier) */
   --t-display: calc(56px * var(--type-scale));  /* hero numbers only */
@@ -117,20 +126,36 @@
   --track-display: -0.02em; --track-h1: -0.015em; --track-h2: -0.01em;
   --track-default: 0; --track-eyebrow: 0.06em; --track-caps: 0.04em;
 
-  /* SPACING (screen edge = s-5 = 18px) */
+  /* SPACING, THE 8PT GRID WITH GENEROUS AIR (Dave 2026-10-05, the craft
+     playbook: screen margin 20, card padding 20, section gap 32).
+     The big steps are 8, 12, 20, 24, 32, 40, 48. --s-4 is the one that
+     moved: it was 16 and it is the value ~180 rules use as the screen edge
+     AND as a card's inset, so moving the TOKEN keeps every head, card and row
+     aligned with every other (moving call sites one at a time is how a 4px
+     misalignment gets in). --s-5 is the same edge under its older name, and
+     --s-6 and --s-7 are both 24, the gap between groups.
+     The three semantic names below are what new code should read. */
   --s-0h: 2px; --s-1: 4px; --s-1h: 6px; --s-2: 8px; --s-2h: 10px;
-  --s-3: 12px; --s-3h: 14px; --s-4: 16px; --s-5: 18px; --s-6: 20px;
-  --s-6h: 22px; --s-7: 24px; --s-8: 32px; --s-9: 40px; --s-10: 48px;
+  --s-3: 12px; --s-3h: 14px; --s-4: 20px; --s-5: 20px; --s-6: 24px;
+  --s-6h: 28px; --s-7: 24px; --s-8: 32px; --s-9: 40px; --s-10: 48px;
+  --screen-x: var(--s-4);    /* the screen margin, 20 */
+  --card-pad: var(--s-4);    /* a card's inset, 20 */
+  --section-gap: var(--s-8); /* between sections, 32 */
   /* Trailing room at the end of a screen. The capture bar and tab bar are
      static siblings of the scroll area, NOT overlays, so a screen does not
      need to reserve their height. Measured 2026-08-02: at 120px every screen
      carried 120px of dead scroll below its last row. */
   --s-safe-b: 24px;
 
-  /* RADIUS */
-  --r-xxs: 2px; --r-xs: 4px; --r-sm: 8px; --r-md: 14px;
-  --r-lg: 18px;  /* canonical card */
-  --r-xl: 22px;  /* featured card / sheet */
+  /* RADIUS, ONE LANGUAGE (Dave 2026-10-05): cards and sheets 24, fields and
+     chips and menus 16, pill buttons fully round. The older names map onto it
+     so no call site moves: --r-md is the field radius, --r-lg and --r-xl are
+     the card radius. A card INSIDE a card takes --r-inner (16), the outer 24
+     less the 8 of gutter it sits in, so the two curves stay concentric. */
+  --r-xxs: 2px; --r-xs: 4px; --r-sm: 8px; --r-md: 16px;
+  --r-lg: 24px;  /* canonical card */
+  --r-xl: 24px;  /* featured card / sheet */
+  --r-card: 24px; --r-field: 16px; --r-inner: 16px;
   --r-pill: 999px; --r-circle: 50%;
 
   --tap-min: 44px;
@@ -143,6 +168,16 @@
   --dur-fast: 120ms; --dur-normal: 200ms; --dur-slow: 320ms;
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-in: cubic-bezier(0.4, 0, 1, 1);
+  /* PRESS FEEDBACK (Dave 2026-10-05, the craft playbook). A capsule or a
+     tappable row gives under the finger: scale .97 on a springy curve over
+     100 to 200 ms, released on the same curve. Entries (a sheet, a menu) are
+     200 to 300 ms ease-out. Every use sits inside prefers-reduced-motion:
+     no-preference, so under Reduce Motion there is no transform and no
+     bounce at all. */
+  --press-scale: 0.97;
+  --ease-press: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --dur-press: 160ms;
+  --dur-enter: 260ms;
 
   /* Category colors are the neutral palette slots (--cat-red/sky/.../graphite),
      defined with the slot classes in components.css. */
@@ -248,19 +283,31 @@
   --warn-on-sheet: var(--warn);
   --sel-bg: var(--tx-1);
   --sel-fg: var(--bg);
-  --scrim: rgba(0,0,0,0.40); /* modal/sheet backdrop, theme-invariant (resolves uniformity G4) */
+  --scrim: rgba(24,16,8,0.42); /* modal/sheet backdrop, theme-invariant (resolves uniformity G4); a warm near-black, never pure black (2026-10-05) */
 }
 
 /* ---------- DARK THEME (Apple Music dark: black page, iOS elevated grays) ---------- */
 [data-theme="dark"] {
-  --bg: #000000;
+  /* WARM CHARCOAL (Dave 2026-10-05, locked: "warm charcoal about #1C1917,
+     never pure black"). The page was OLED black and the surfaces iOS's cool
+     greys; every neutral now carries a little brown so the brand red reads
+     as a signature on a warm ground instead of a siren on a void. */
+  --bg: #1C1917;
   /* iOS dark system grouped surfaces, exactly: secondarySystemGroupedBackground
      #1C1C1E, tertiary #2C2C2E, and #3A3A3C for the raised chip/control layer.
      The old JARVIS surfaces carried a violet cast (#17171E); Apple Music's
      carry none (Dave, 2026-08-21: the exact Apple Music system). */
-  --surface-1: #1C1C1E; --surface-2: #2C2C2E; --surface-3: #3A3A3C;
-  --card-bd: rgba(255,255,255,0.12); --divider: rgba(255,255,255,0.06);
-  --press-1: rgba(255,255,255,0.04); --press-3: rgba(255,255,255,0.06); --press-5: rgba(255,255,255,0.14);
+  /* THE WARM STEPS (2026-10-05). Page #1C1917, card #201C19, sheet and field
+     #2C2723, raised #36312D (one step under the brief's #3B3632: the late red on a sheet's grouped card reads 4.56:1 here and 4.42 on #38332F). The card is under the brief's #26221F on
+     purpose: the brand red is fixed and --tint as words must clear 4.5:1 on a
+     card (browserWalk holds it), which caps a card's luminance. #201C19 reads
+     4.56:1; #26221F reads 4.25 and fails. The hairline below does the lifting
+     the last few points of tint would have done, and the card carries NO sheen:
+     a 2.5% white wash across its top took the red words there to 4.41. */
+  --surface-1: #201C19; --surface-2: #2C2723; --surface-3: #36312D;
+  /* Hairline borders: warm white at 8% (Dave 2026-10-05). */
+  --card-bd: rgba(255,240,225,0.08); --divider: rgba(255,240,225,0.07);
+  --press-1: rgba(255,244,232,0.04); --press-3: rgba(255,244,232,0.06); --press-5: rgba(255,244,232,0.14);
   /* THE CAPSULE FILL IS OPAQUE IN DARK, AND THAT IS THE WHOLE POINT
      (measured 2026-09-22, every ground a pill actually sits on).
 
@@ -271,14 +318,15 @@
      passes in one place and fails in another, which is why this control has
      been re-litigated three times: each pass measured it somewhere different.
 
-     An opaque fill takes the ground out of the question. #17171A reads 4.82
-     against --tint NO MATTER what is behind it, and it stays visible as a
-     shape on all of them (it lifts off the black page, sinks into a raised
-     card). A 32% black sink also passed on contrast and was rejected here for
+     An opaque fill takes the ground out of the question. #141110 reads 5.07
+     against --tint NO MATTER what is behind it (it was #17171A, 4.82, on the
+     black page; the warm charcoal page of 2026-10-05 needed a sink one step
+     deeper to keep a visible edge), and it stays visible as a shape on all
+     of them (it sinks 1.07:1 into the page and 1.19 into a card). A 32% black sink also passed on contrast and was rejected here for
      a reason worth writing down: on the pure-black page it composites to
      black-on-black and the capsule disappears, which breaks §X -- a button is
      a shape, never bare words. */
-  --capsule-fill: #17171A;
+  --capsule-fill: #141110;
   /* iOS label ramp (approved 2026-08-18): titles pure white, secondary at
      the system 60% (EBEBF5 like UIKit's secondaryLabel), tertiary at 30%.
      The old 0.76 white meta sat too close to titles and killed hierarchy;
@@ -297,7 +345,7 @@
      the structure grey clears the 3:1 non-text bar on all four (3.05:1 on
      surface-3), which is why it is #84848A and not the ruling's #7C7C82,
      which measured 2.74:1 there. */
-  --tx-1: #FFFFFF; --tx-2: #D2D2D6; --tx-3: #D2D2D6; --tx-4: #84848A;
+  --tx-1: #F7F1EA; --tx-2: #D6D0CA; --tx-3: #D6D0CA; --tx-4: #948B84;
   /* BROWSER-F-09 (2026-09-05), option B. --tx-4 was carrying two meanings at
      once: "this is finished or out of range" and "this is quiet metadata". The
      first is a deliberate dimming and 30 percent is right for it. The second is
@@ -309,9 +357,9 @@
      keeps the past-state job it was tuned for. 0.55 is the lowest alpha that
      clears 4.5:1 on all three dark grounds these land on (5.44 on the page,
      5.22 on a card, 4.68 on a sheet); 0.50 fails the sheet at 4.14. */
-  --tx-quiet: rgba(235,235,245,0.55);
+  --tx-quiet: rgba(247,241,234,0.62);
   /* iOS system colors, DARK variants, exactly as the HIG defines them. */
-  --sys-gray: #8E8E93;   /* iOS systemGray, identical in both themes */
+  --sys-gray: #9A928B;   /* the warm twin of iOS systemGray (2026-10-05) */
   /* THE IDLE TAB LABEL, its own token so the tab bar can be readable in
      daylight without --sys-gray having to stop meaning systemGray. On dark
      it IS systemGray, which measures fine on the nav ground. */
@@ -402,18 +450,32 @@
   --accent-chip: transparent;
   --accent-chip-bd: #FF2B3C;
   --accent-chip-tx: #FF2B3C;
-  --red-tint: rgba(255,43,60,0.16); --warn-tint: rgba(255,159,10,0.14); --good-tint: rgba(48,209,88,0.16);
+  /* THE LATE WASH (2026-10-05). The late-red word on a wash of itself: 14% over a warm card reads 4.23:1 in dark, 8% reads 4.57. */
+  --late-wash: 8%;
+  /* The red wash is 10% in dark (it was 16): red words on it cleared 4.5:1 on the old black page and read 4.25 on the warm card. 10% reads 4.53 there. */
+  --red-tint: rgba(255,43,60,0.10); --warn-tint: rgba(255,159,10,0.14); --good-tint: rgba(48,209,88,0.16);
   /* D9/D12 (Training Catalog V2, HEALTH_PREVIEW_SPEC): blue = performance
      data (charts, trends), yellow = a goal in flight. Same 13-16% wash the
      three tints above already use -- no new opacity convention. */
   --blue-tint: rgba(10,132,255,0.16); --yellow-tint: rgba(255,214,10,0.16);
-  --glass-bg: rgba(28,28,30,0.55);
-  /* rim raised 0.14 -> 0.20 so glass edges catch light on OLED (RDB, Dave 2026-07-29) */
-  --rim-card: rgba(255,255,255,0.20); --rim-bottom: rgba(0,0,0,0.55);
-  --nav-bg: rgba(0,0,0,0.65);
-  --skel: rgba(255,255,255,0.06); --skel-shim: rgba(255,255,255,0.12);
-  --shadow-card: 0 6px 22px rgba(0,0,0,0.55);
-  --shadow-float: 0 6px 22px rgba(0,0,0,0.55);
+  --glass-bg: rgba(32,28,25,0.92);
+  --card-sheen: transparent;
+  /* The hairline highlight a warm glass edge catches (2026-10-05): warm white,
+     faint, and no hard black underside. */
+  --rim-card: rgba(255,240,225,0.14); --rim-bottom: rgba(0,0,0,0);
+  /* THE CHROME MATERIAL: tab bar, top bars, sheets. A warm charcoal at 72%
+     over a 22px blur, so the page tints it and it stays one warm family. */
+  --nav-bg: rgba(28,25,23,0.78);
+  --chrome-bg: #26211E;
+  --chrome-hairline: rgba(255,240,225,0.10);
+  --skel: rgba(255,244,232,0.06); --skel-shim: rgba(255,244,232,0.12);
+  /* ONE SHADOW RECIPE (2026-10-05): blur 24, y 8, a warm near-black at 36%
+     in dark (8% brown is invisible on charcoal, so the alpha rises with the
+     ground and the recipe stays one shape). Floating cards, sheets, toasts,
+     menus only. A card at rest has no shadow: spacing and surface tint
+     separate it. */
+  --shadow-card: none;
+  --shadow-float: 0 8px 24px rgba(12,8,4,0.36);
   color-scheme: dark;
 }
 
@@ -427,19 +489,12 @@
    selection steel softened off pure black. The measured text ramp from the
    contrast audit is untouched. */
 [data-theme="light"] {
-  /* TYPE SCALE, LIGHT ONLY (Dave's approved palette pass, 2026-09-29): the
-     sizes take the approved scale (page title 32, body 16, supporting 15, task
-     and note names 17). Dark keeps its own.
-     THE WEIGHTS ARE NOT HERE ANY MORE (Dave, 2026-10-04: "the only difference
-     between light mode and dark mode is the colors. Same weights, same layout,
-     same everything"). This block used to step every weight down one notch, so
-     a name that is 700 in dark was 600 in light and a title on a notice row was
-     400. Light now reads the one weight ramp in :root, and the Type Law holds
-     it: no weight token is set under [data-theme="light"]. */
-  --t-h1: calc(32px * var(--type-scale));
-  --t-body: calc(16px * var(--type-scale));
-  --t-meta: calc(15px * var(--type-scale));
-  --t-name: calc(17px * var(--type-scale));
+  /* NO TYPE SCALE HERE (Dave, 2026-10-04: "the only difference between light mode and dark mode is the colors. Same
+     weights, same layout, same everything"; applied 2026-10-05, the perfect bar). This block used to size the page title
+     at 32, body 16, supporting 15 and names 17 against dark's 34, 15, 14 and 16, so the same words ran wider in light:
+     "Create Calder Invoice" ended 12px further right, "Quick Wins" wrapped in the segmented control, and the tab strip
+     clipped a different tab. Light now reads the one size ramp in :root, the way it reads the one weight ramp, and the
+     Type Law and catalogStyles hold it: no size or weight token is set under [data-theme="light"]. */
   /* LIGHT MODE, LOCKED (Dave 2026-09-27, catalog §AQ). Canvas stays the
      Daylight page (his pick from a side-by-side with pure white). The label
      ramp is black-based, as picked: title 100%, secondary 60% (5.5-5.7:1 on
@@ -470,24 +525,37 @@
      sheets, modals and the JARVIS dock are pure #FFFFFF, and the card carries a
      hairline edge. Cards stay #F5F6F8: a fainter #FAFAFB was tried and judged
      too close to the white page (1.04:1 against 1.08:1). */
-  --bg: #FFFFFF;
-  --surface-1: #F5F6F8; --surface-2: #F5F6F8; --surface-3: #F0F1F4;
-  --ctl-outline: #737985;
-  --focus-ring: #111318;
+  /* THE WARM FLIP (Dave 2026-10-05, locked): "cream about #FAF6F0 for
+     light-mode backgrounds". The page is cream, never stark white as the
+     dominant field; cards step DOWN to #F3EEE6 so they read as cards on it
+     (the card is the darkest a card can be: the action red as words is 4.57:1
+     on it and the law floor is 4.5); a raised or secondary surface is #ECE5DA;
+     chrome (tab bar, top bars, sheets, modals) is the warm near-white #FFFDFA,
+     which is --chrome-bg. Everything below this line this block set before is
+     history; the values here are the ones that ship. */
+  --bg: #FAF6F0;
+  --surface-1: #F3EEE6; --surface-2: #F3EEE6; --surface-3: #ECE5DA;
+  --chrome-bg: #FFFDFA;
+  --chrome-hairline: rgba(80,55,30,0.08);
+  --ctl-outline: #7A7068;
+  --focus-ring: #1F1A16;
   /* The hairline serves INPUTS; cards drop their border entirely (border
      plus shadow was the mud) and let elevation do the separating. */
-  --card-bd: rgba(20,20,30,0.07); --divider: #E1E4E9;
+  --card-bd: rgba(80,55,30,0.08); --divider: #E6DED2;
   /* 6% dark-on-white was an anemic capsule. 8% is the lowest fill where a
      button unmistakably has a body on both the page and a card, and the
      red label still clears 4.5:1 on it (CC051B on #EBEBEE: 4.9:1). */
-  --press-1: rgba(20,20,30,0.05); --press-3: rgba(20,20,30,0.08); --press-5: rgba(20,20,30,0.13);
+  --press-1: rgba(80,55,30,0.05); --press-3: rgba(80,55,30,0.08); --press-5: rgba(80,55,30,0.13);
+  /* THE OFF TRACK OF A SWITCH (2026-10-05, the review: "almost invisible in light"). --press-5 over the warm card read as a pale beige pill
+     with a white knob; this is a visibly darker warm grey, so the control's edge is there before the knob moves. Dark keeps --press-5. */
+  --switch-off: #C9BFB1;
   /* Light keeps the alpha, because here it never fails: measured with
      --on-light-red, --press-3 reads 5.67 on a card and 5.08 on the palest
      ground in the theme, and it is also the most VISIBLE of the candidates
      (an opaque near-white capsule all but vanishes on a white card). Dark
      needed an opaque fill; light does not, and pretending both themes have
      the same problem is what produced the wrong answer twice. */
-  --capsule-fill: #F0F1F4;
+  --capsule-fill: #F2EDE4;
   /* --tx-3 at 0.72 (Daylight, 2026-08-22). The Apple-exact 0.60 measured
      3.4:1 on Dave's phone and he named it: "hard to read." 0.72 is the
      smallest alpha that clears 4.5:1 on BOTH grounds subs actually live on
@@ -501,7 +569,7 @@
      grey clears the 3:1 non-text bar on all three (3.07:1 on surface-3),
      which is why it is #8A8A90 and not the harness's HIG twin #8E8E93,
      which measured 2.92:1 there. */
-  --tx-1: #111318; --tx-2: #363A43; --tx-3: #515661; --tx-4: #515661;
+  --tx-1: #1F1A16; --tx-2: #4A423A; --tx-3: #5E554C; --tx-4: #7A7068;
   /* BROWSER-F-09 (2026-09-05). Light's 30 percent is 30 percent of a mid-grey,
      not of black, so quiet metadata measured 1.7:1 and read as blank space:
      611 hits on white and 381 on the page. 0.72 is the alpha the --tx-3 note
@@ -512,9 +580,9 @@
   /* 0.72 measured 4.17:1 on a raised grey row (2026-09-22) -- under the bar
      the ink ruling holds the secondary to. 0.80 reads 5.07 there and 5.97 on
      a white card. */
-  --tx-quiet: #515661;
+  --tx-quiet: #5E554C;
   /* iOS system colors, LIGHT variants, exactly as the HIG defines them. */
-  --sys-gray: #707070;
+  --sys-gray: #6B6158;
   /* AND THE ONE PLACE systemGray IS NOT READABLE (visual audit 2026-09-20:
      99 findings, every one of them a tab label). #8E8E93 on the light nav
      ground measures 3.1:1 against a 4.5 bar, on the one control that is on
@@ -603,7 +671,7 @@
      6.25/5.14/4.92). The raised row is the ground that settled the first
      three: they cleared white and the tint and missed it, and the law found
      that before a screenshot did. */
-  --hl-lime-ink: #4E7402; --hl-cyan-ink: #006F84; --hl-pink-ink: #B8003C;
+  --hl-lime-ink: #4A6E02; --hl-cyan-ink: #006F84; --hl-pink-ink: #B8003C;
   --hl-amber-ink: #995300; --hl-violet-ink: #7E22CE; --hl-blue-ink: #0A5DC2;
   --good-fill: #26A153; --warn-fill: #FF8D0A;
   --yellow: #FAC800; --teal: #27CEC8; --mint: #00C7BE; --pink: #FF6682;
@@ -637,7 +705,11 @@
   --tint: #D12416;
   --accent-tx: #D12416;
   --danger-tx: #D12416;
-  --danger-tx-raised: var(--danger-tx);
+  /* DESTRUCTIVE WORDS ON A RAISED GREY, LIGHT (2026-10-05, the warm neutrals). A sheet's grouped card is
+     the raised grey #ECE5DA, where the action red as words reads 4.22:1 ("Delete Bill", "Delete Task").
+     Destructive words take one step deeper, #C8210F, 4.56:1 there. The action red itself, --tint and
+     --accent-glyph, is not touched. */
+  --danger-tx-raised: #C8210F;
   --accent-chip: transparent;
   --accent-chip-bd: #D12416;
   --accent-chip-tx: #D12416;
@@ -646,21 +718,26 @@
      visible body under the lighter ink above. The red wash follows the
      unified light red (2026-09-28, Dave): same 12% strength, #E42C18 hue. */
   --red-tint: rgba(209,36,22,0.12); --warn-tint: #FFF0DB; --good-tint: #E5F3EA;
+  --late-wash: 14%;
   --blue-tint: rgba(10,116,255,0.16); --yellow-tint: rgba(250,200,0,0.18);
-  --glass-bg: rgba(255,255,255,0.78);
-  --rim-card: rgba(255,255,255,0.9); --rim-bottom: rgba(0,0,0,0.04);
-  --nav-bg: #FFFFFF;
-  --skel: rgba(0,0,0,0.06); --skel-shim: rgba(0,0,0,0.12);
+  --glass-bg: rgba(255,253,250,0.78);
+  --card-sheen: transparent;
+  --rim-card: rgba(255,253,250,0.9); --rim-bottom: rgba(80,55,30,0.04);
+  /* The chrome material: warm near-white at 90% over a blur, so a cream page
+     tints it a breath and the hairline above carries the edge. */
+  --nav-bg: rgba(255,253,250,0.90);
+  --skel: rgba(80,55,30,0.06); --skel-shim: rgba(80,55,30,0.12);
   /* Two-layer elevation: a tight contact shadow that draws the card's edge,
      and a soft ambient that lifts it. The old single 24px blur at 10% read
      as smudge, not height. */
-  --shadow-card: 0 0 1px rgba(17,18,26,0.16), 0 1px 2px rgba(17,18,26,0.06), 0 6px 16px rgba(17,18,26,0.05);
-  --shadow-float: 0 2px 6px rgba(17,18,26,0.09), 0 16px 36px rgba(17,18,26,0.13);
+  --shadow-card: none;
+  /* ONE SHADOW RECIPE (2026-10-05): warm brown at 8%, blur 24, y 8. */
+  --shadow-float: 0 8px 24px rgba(92,64,38,0.08);
   /* Selection steel, softened: pure black selection pills read as tar on
      the light page. Near-black keeps the 2026-08-02 doctrine (picked is
      neutral, never red) without the harshness. */
-  --sel-bg: #222227;
-  --sel-fg: #FFFFFF;
+  --sel-bg: #2A231D;
+  --sel-fg: #FFFDFA;
   color-scheme: light;
 }
 
@@ -696,8 +773,8 @@ html, body {
   min-height: 100dvh;
 }
 /* Force page background per theme so it can never fall back to the wrong theme */
-html[data-theme="dark"], html[data-theme="dark"] body { background-color: #000000 !important; }
-html[data-theme="light"], html[data-theme="light"] body { background-color: #FFFFFF !important; }
+html[data-theme="dark"], html[data-theme="dark"] body { background-color: var(--bg) !important; }
+html[data-theme="light"], html[data-theme="light"] body { background-color: var(--bg) !important; }
 
 /* TYPOGRAPHY ROLES */
 .t-h1 { font-size: var(--t-h1); font-weight: var(--w-semi); letter-spacing: var(--track-h1); line-height: var(--lh-snug); }
@@ -705,10 +782,10 @@ html[data-theme="light"], html[data-theme="light"] body { background-color: #FFF
 .t-h3 { font-size: var(--t-h3); font-weight: var(--w-medium); line-height: var(--lh-default); }
 .t-body { font-size: var(--t-body); font-weight: var(--w-normal); line-height: var(--lh-relaxed); }
 .t-meta { font-size: var(--t-meta); font-weight: var(--w-normal); color: var(--tx-3); }
-/* 2026-09-28 (readable words red follow-up): Dave approved the thicker
-   subtext for the light theme only. 500 still read thin on his phone, so
-   the 600 weight rides the light theme and dark keeps 400. */
-[data-theme="light"] .t-meta { font-weight: var(--w-normal); } /* 2026-09-29: supporting text is 15/21 at 400 in the approved scale */
+/* 2026-10-05 (visual catalog gate): the light-only weight rule that stood
+   here restated the regular weight the line above already gives it, so it did
+   nothing today and was one edit from making the two themes differ in weight.
+   Removed; a weight is never set per theme (Dave 2026-10-04). */
 .eyebrow { font-size: var(--t-eyebrow); font-weight: var(--w-semi); text-transform: uppercase; letter-spacing: var(--track-eyebrow); color: var(--tx-3); }
 /* TASKS AUDIT 2026-08-29: an urgency tag riding beside the category on the
    same line, instead of fighting Start for the trailing slot. Its own font
@@ -725,23 +802,34 @@ html[data-theme="light"], html[data-theme="light"] body { background-color: #FFF
    enters the row. */
 .urgency-chip { padding: var(--s-0h) 6.5px; border-radius: var(--r-pill); }
 .urgency-chip.urgency-warn { background: color-mix(in srgb, var(--warn-fill) 14%, transparent); }
-.urgency-chip.urgency-red { background: color-mix(in srgb, var(--sys-red) 14%, transparent); }
+.urgency-chip.urgency-red { background: color-mix(in srgb, var(--sys-red) var(--late-wash), transparent); }
 
-/* CARD. Dark = frosted glass. Light = solid white. Both pop with elevation. */
+/* CARD. Dark = warm frosted glass. Light = solid warm tint. A card at rest
+   has NO shadow (Dave 2026-10-05, the one-shadow recipe): it separates from
+   the page by surface tint and a warm hairline, and the one soft shadow
+   (--shadow-float) is kept for what floats: sheets, menus, toasts, a card
+   being pressed. The radius is the one card radius, 24. */
 .card {
-  background: linear-gradient(180deg, var(--press-3), rgba(255,255,255,0) 35%), var(--glass-bg);
+  background: linear-gradient(180deg, var(--card-sheen), transparent 35%), var(--glass-bg);
   -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat)); backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
-  border-radius: var(--r-xl); overflow: hidden;
-  box-shadow: inset 0 0.5px 0 var(--rim-card), inset 0 -0.5px 0 var(--rim-bottom), 0 8px 24px rgba(0,0,0,0.55);
+  border-radius: var(--r-card); overflow: hidden;
+  border: 0.5px solid var(--card-bd);
+  box-shadow: inset 0 0.5px 0 var(--rim-card);
 }
 [data-theme="light"] .card {
-  background: #F5F6F8;
+  background: var(--surface-1);
   -webkit-backdrop-filter: none; backdrop-filter: none;
-  /* Elevation only. Border + shadow together was the mud: the hairline drew
-     a gray outline through the shadow's softest part. */
   box-shadow: var(--shadow-card);
-  border: 0;
 }
+/* A card inside a card is a row: the outer card's hairline is the only edge. */
+.card .card { border: 0; }
+/* A CAPSULE MUST READ AS A SHAPE ON THE GROUND IT SITS ON (§X, 2026-10-05). In light the one capsule fill
+   (#F2EDE4, the darkest the action red clears 4.5:1 on) is a step darker than the cream page and so reads there, but it is
+   the card's own colour and vanished on a card. A card re-binds the token to the warm near-white, so the capsule is a
+   lifted chip (red on it 5.2:1); the sheet itself is that near-white, so it re-binds back to the page capsule. The
+   capsules themselves still read var(--capsule-fill) and nothing else changes. */
+[data-theme="light"] .card { --capsule-fill: var(--chrome-bg); }
+[data-theme="light"] .sheet-scrim > .card { --capsule-fill: #F2EDE4; }
 .card.pad { padding: var(--s-4); }
 
 /* CHEVRON (navigation rows only) */
@@ -778,8 +866,12 @@ html[data-theme="light"], html[data-theme="light"] body { background-color: #FFF
 .btn-icon { width: 44px; height: 44px; padding: 0; border-radius: var(--r-pill); background: var(--press-3); color: var(--tx-1); }
 
 /* INPUTS */
-.input { width: 100%; min-height: 44px; padding: var(--s-2) var(--s-3); background: var(--surface-2); border: 0.5px solid var(--card-bd); border-radius: var(--r-md); font-size: var(--t-h3); color: var(--tx-1); font-family: var(--f); outline: none; }
-.input::placeholder { color: var(--tx-2); }
+.input { width: 100%; min-height: 44px; padding: var(--s-2) var(--s-3); background: var(--surface-2); border: 0.5px solid var(--card-bd); border-radius: var(--r-field); font-size: var(--t-h3); color: var(--tx-1); font-family: var(--f); outline: none; }
+/* A PLACEHOLDER IS A HINT, NOT A VALUE (Dave 2026-10-05, the review: "as bright as typed text, so it reads as content", on the
+   Smart Paste field and the search bar). --tx-2 and --tx-3 are one hex, a step below the typed ink but only just, so a
+   focused field with a hint in it read as already filled. --tx-quiet is the catalog's one quieter ink (dark 62% cream,
+   light the secondary grey), and it clears 4.5:1 on the field in both. */
+.input::placeholder { color: var(--tx-quiet); }
 .input:focus, .input.focused { border-color: var(--tint); border-width: 2px; padding: 0 calc(var(--s-3) - 1px); }
 .input.error { border-color: var(--sys-red); border-width: 2px; padding: 0 calc(var(--s-3) - 1px); }
 .input.disabled { background: var(--press-1); color: var(--tx-2); pointer-events: none; }
@@ -794,14 +886,14 @@ html[data-theme="light"], html[data-theme="light"] body { background-color: #FFF
 
 /* SWITCH */
 .switch { width: 51px; height: 31px; background: var(--good-fill); border-radius: var(--r-pill); position: relative; flex-shrink: 0; cursor: pointer; }
-.switch.off { background: var(--press-5); }
-.switch::after { content: ''; position: absolute; top: 2px; left: 2px; width: 27px; height: 27px; background: #fff; border-radius: var(--r-circle); box-shadow: 0 2px 4px rgba(0,0,0,0.15); transition: transform var(--dur-normal); }
+.switch.off { background: var(--switch-off, var(--press-5)); }
+.switch::after { content: ''; position: absolute; top: 2px; left: 2px; width: 27px; height: 27px; background: #fff; border-radius: var(--r-circle); box-shadow: 0 0 0 0.5px var(--card-bd); transition: transform var(--dur-normal); }
 .switch:not(.off)::after { transform: translateX(20px); }
 
 /* SLIDER */
 .slider-track { height: 4px; background: var(--press-5); border-radius: var(--r-pill); position: relative; }
 .slider-fill { position: absolute; left: 0; top: 0; height: 100%; background: var(--tint); border-radius: var(--r-pill); }
-.slider-thumb { position: absolute; top: 50%; transform: translate(-50%,-50%); width: 28px; height: 28px; background: #fff; border-radius: var(--r-circle); box-shadow: 0 2px 8px rgba(0,0,0,0.20); }
+.slider-thumb { position: absolute; top: 50%; transform: translate(-50%,-50%); width: 28px; height: 28px; background: #fff; border-radius: var(--r-circle); box-shadow: 0 0 0 0.5px var(--card-bd); }
 
 /* STEPPER */
 /* A DEAD CONTROL MUST LOOK DEAD (2026-08-24).
@@ -869,10 +961,10 @@ button:disabled, .btn:disabled { opacity: 0.38; cursor: default; }
 .cb.on { background: var(--sel-bg); border-color: var(--sel-bg); color: var(--sel-fg); font-size: var(--t-meta); font-weight: var(--w-semi); }
 
 /* SEARCH / CHIPS */
-.search-bar { display: flex; align-items: center; gap: var(--s-2); background: var(--press-3); border: 2px solid transparent; border-radius: var(--r-md); padding: var(--s-1h) var(--s-3); min-height: var(--tap-min); }
+.search-bar { display: flex; align-items: center; gap: var(--s-2); background: var(--press-3); border: 2px solid transparent; border-radius: var(--r-field); padding: var(--s-1h) var(--s-3); min-height: var(--tap-min); }
 .search-bar:focus-within { border-color: var(--accent); }
 .search-bar input { background: transparent; border: 0; outline: none; flex: 1; font-size: var(--t-h3); color: var(--tx-1); font-family: var(--f); }
-.search-bar input::placeholder { color: var(--tx-2); }
+.search-bar input::placeholder { color: var(--tx-quiet); }
 .chip { background: var(--press-3); color: var(--tx-2); min-height: 28px; padding: 0 var(--s-3); border-radius: var(--r-pill); font-size: var(--t-meta); font-weight: var(--w-medium); display: inline-flex; align-items: center; gap: var(--s-1); }
 .chip.active, .chip.on { background: var(--sel-bg); color: var(--sel-fg); }
 
@@ -1024,7 +1116,8 @@ button:disabled, .btn:disabled { opacity: 0.38; cursor: default; }
 /* STATES */
 .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: var(--s-3); min-height: 65vh; padding: var(--s-6) var(--s-5); }
 .empty-icon { width: 56px; height: 56px; border-radius: var(--r-lg); background: var(--press-3); }
-.empty-title { font-size: var(--t-h3); font-weight: var(--w-semi); color: var(--tx-2); }
+/* THE TITLE LEADS (2026-10-05, the round 2 review: title and line shared one grey, so the title was told apart by weight alone): ink, with the one grey under it. */
+.empty-title { font-size: var(--t-h3); font-weight: var(--w-semi); color: var(--tx-1); }
 .empty-state .btn { margin-top: var(--s-2); }
 
 .skel-row { padding: var(--s-3h) var(--s-4); display: flex; gap: var(--s-3); align-items: center; }
@@ -1044,12 +1137,12 @@ button:disabled, .btn:disabled { opacity: 0.38; cursor: default; }
 .progress-fill { height: 100%; background: var(--tint); border-radius: var(--r-xxs); transition: width var(--dur-slow) var(--ease-out); }
 
 /* TOAST */
-.toast { padding: var(--s-3) var(--s-4); background: var(--surface-3); border-radius: var(--r-md); box-shadow: 0 4px 12px rgba(0,0,0,0.16); font-size: var(--t-body); display: flex; align-items: center; gap: var(--s-2); }
+.toast { padding: var(--s-3) var(--s-4); background: var(--surface-3); border-radius: var(--r-md); box-shadow: var(--shadow-float); font-size: var(--t-body); display: flex; align-items: center; gap: var(--s-2); }
 .toast.success { color: var(--good); } .toast.error { color: var(--red); } .toast.warning { color: var(--warn); } .toast.info { color: var(--blue); }
 .toast .dot { width: 8px; height: 8px; border-radius: var(--r-circle); background: currentColor; flex-shrink: 0; }
 
 /* MODAL / SHEET / ACTION SHEET */
-.modal { background: var(--surface-2); border-radius: var(--r-xl); padding: var(--s-5); box-shadow: 0 8px 24px rgba(0,0,0,0.20); }
+.modal { background: var(--surface-2); border-radius: var(--r-xl); padding: var(--s-5); box-shadow: var(--shadow-float); }
 .modal-title { font-size: var(--t-h3); font-weight: var(--w-semi); margin-bottom: var(--s-2); text-align: center; }
 .modal-actions { display: flex; gap: var(--s-2); }
 .modal-actions .btn { flex: 1; min-height: 44px; }
@@ -1135,23 +1228,78 @@ button:disabled, .btn:disabled { opacity: 0.38; cursor: default; }
    more contrast asks the OS once and every screen answers. */
 @media (prefers-contrast: more) {
   :root, :root[data-theme="light"] {
-    --tx-2: #26262B;
-    --tx-3: #26262B;
-    --tx-4: #6E6E73;
-    --sys-gray: #6D6D72;
+    --tx-2: #2B241E;
+    --tx-3: #2B241E;
+    --tx-4: #6B6158;
+    --sys-gray: #665C53;
   }
   :root[data-theme="dark"] {
-    --tx-2: #E6E6EA;
-    --tx-3: #E6E6EA;
-    --tx-4: #9A9AA0;
-    --sys-gray: #A2A2A8;
+    --tx-2: #EDE7E0;
+    --tx-3: #EDE7E0;
+    --tx-4: #A39A92;
+    --sys-gray: #A9A199;
   }
 }
 @media (prefers-contrast: more) and (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --tx-2: #E6E6EA;
-    --tx-3: #E6E6EA;
-    --tx-4: #9A9AA0;
-    --sys-gray: #A2A2A8;
+    --tx-2: #EDE7E0;
+    --tx-3: #EDE7E0;
+    --tx-4: #A39A92;
+    --sys-gray: #A9A199;
   }
+}
+
+/* ============================================================
+   CRAFT (Dave 2026-10-05, locked: "the most aesthetically pleasing app
+   ever"; the research playbook, qa/findings/2026-10-05-design). Three things
+   every screen inherits and no screen restates: the display face, the press
+   feedback, and tabular figures. The palette, radius, spacing, shadow and
+   motion TOKENS are at the top of this file; this is the part that applies
+   them. It sits last so it wins ties with the rules above it, and it uses
+   the individual transform properties (scale, translate) so a swipe's inline
+   transform on the same element is never overwritten.
+   ============================================================ */
+
+/* THE DISPLAY FACE. Page titles, the greeting and hero numbers. The Type Law
+   still owns every size and weight; this only chooses the letterforms. */
+.pagehead-title, .today-title, .signin-title, .nav-large, .ob-title, .payoff-title, .p3-q,
+.person-name, .money-hero-total, .mail-door-when, .sweep-finish-done, .mode-n, .stat-num, .hero-num,
+.rep-big, .t-h1, .t-display, .sheet-title { font-family: var(--f-display); }
+
+/* TABULAR FIGURES on every time, amount and count, so a column of them lines
+   up and a ticking number does not jitter. */
+.sched-time, .rem-time, .ampm, .money-amt, .money-hero-total, .stat-num, .hero-num, .mode-n, .rep-big,
+.count-pill, .sh2 .n, .facts, .fact, .urgency, .cal-cell, .row-value, .stepper .val,
+.nav-count, .progress-count { font-variant-numeric: tabular-nums; }
+
+/* PRESS FEEDBACK. A capsule or a tappable row gives under the finger: scale
+   .97 on a springy curve, and springs back on the same one. The transition is
+   declared on the resting state so the release animates as well as the press.
+   Nothing here runs under Reduce Motion (the phone's or the app's own). */
+@media (prefers-reduced-motion: no-preference) {
+  html:not([data-motion="reduce"]) :is(.pill-act, .row-act, .btn, .btn-sm, .btn-icon, .see-all, .chip, .tab-bar .tab, .nav-action, .nav-back) {
+    transition: scale var(--dur-press) var(--ease-press), color var(--dur-fast) var(--ease-out),
+      background-color var(--dur-fast) var(--ease-out), opacity var(--dur-fast) var(--ease-out);
+  }
+  html:not([data-motion="reduce"]) :is(.cb, .task-check, .radio, .switch) {
+    transition: scale var(--dur-press) var(--ease-press), background-color var(--dur-fast) var(--ease-out),
+      border-color var(--dur-fast) var(--ease-out);
+  }
+  html:not([data-motion="reduce"]) :is(.pill-act, .row-act, .btn, .btn-sm, .btn-icon, .see-all, .chip, .tab-bar .tab):active {
+    scale: var(--press-scale);
+  }
+  /* A checkbox is 22px, so the same 3 percent would be a rounding error. */
+  html:not([data-motion="reduce"]) :is(.cb, .task-check, .radio, .switch):active { scale: 0.88; }
+  /* A tappable row or card is wide: 3 percent of 350px is ten pixels of
+     shrink, so a row takes a third of that, and a card lifts onto the one
+     shadow as it gives. :has() keeps a press on a control INSIDE the row from
+     squeezing the whole row. */
+  html:not([data-motion="reduce"]) :is(.task-row, .row, .conn-row, .msg-row, .sched-row, .lib-row, .rem-row, .stream-card, .lifemap-row)[role="button"] {
+    transition: scale var(--dur-press) var(--ease-press), background-color var(--dur-fast) var(--ease-out);
+  }
+  html:not([data-motion="reduce"]) :is(.task-row, .row, .conn-row, .msg-row, .sched-row, .lib-row, .rem-row, .stream-card, .lifemap-row)[role="button"]:active:not(:has(:is(button, .cb, .task-check-tap, a):active)) {
+    scale: 0.985;
+  }
+  html:not([data-motion="reduce"]) .card[role="button"] { transition: scale var(--dur-press) var(--ease-press), box-shadow var(--dur-normal) var(--ease-out); }
+  html:not([data-motion="reduce"]) .card[role="button"]:active { scale: 0.985; box-shadow: var(--shadow-float); }
 }

@@ -13,6 +13,7 @@ import { GoogleSessionProvider } from "../connections/google/GoogleSession";
 import { makeFakeGoogleApi } from "../connections/google/fakeApi";
 import { ScheduleService } from "../schedule/ScheduleService";
 import { setCategoryRegistry } from "../shared/categories";
+import { titleCase } from "../shared/casing";
 import { heldBy } from "../brain/hardLines";
 import { todayISO } from "../schedule/calendar";
 import type { AIService } from "../ai/AIService";
@@ -141,7 +142,11 @@ describe("TodayFlow: the Momentum Chain (UP-CORE-09)", () => {
   // length; the dealt row (MoveHeadliner) carries a Done rail instead.
   const findChain = () => [...document.querySelectorAll(".notice-swipe")]
     .find((s) => s.querySelector(".notice-dismiss") && s.querySelector(".fact.est"));
-  it("offers the next best thing after a tick, and Not Now takes it back", async () => {
+  // AMENDED (Dave 2026-10-05, locked: clean rows, no pills; swipe left is the quick verb). The suggestion is a row
+  // whose verbs are its swipe tray, in the order the finger meets them: Start Now at the edge, Dismiss one slot in
+  // (it counts toward the two that quiet the chain for the day, so it is this row's "Not Now"). No capsule is drawn
+  // on the row; a tap opens the task. The title is Title Case (the catalog), so the fixtures wait on "Book the Field".
+  it("offers the next best thing after a tick, and Dismiss (the tray's second verb) takes it back", async () => {
     const { useTasks } = await import("../data/NotesProvider");
     const { notifyFreshLists } = await import("../data/store");
     const { ENTITY_TASK } = await import("../notes/types");
@@ -162,7 +167,7 @@ describe("TodayFlow: the Momentum Chain (UP-CORE-09)", () => {
     notifyFreshLists(ENTITY_TASK);
     // The TV guide loops the day in copies (Dave 2026-09-27), so a title can
     // be on screen more than once; one is enough.
-    await waitFor(() => expect(screen.getAllByText("Book the field").length).toBeGreaterThan(0));
+    await waitFor(() => expect(screen.getAllByText("Book the Field").length).toBeGreaterThan(0));
 
     // Tick the dealt task; the chain fills the slot it left. The chain is the
     // notice with a Dismiss rail; the dealt row above it has none.
@@ -172,7 +177,13 @@ describe("TodayFlow: the Momentum Chain (UP-CORE-09)", () => {
       expect(hit).toBeTruthy();
       return hit!;
     });
-    expect(["Email the coach", "Book the field"]).toContain(chain.querySelector(".conn-name")?.textContent);
+    expect(["Email the Coach", "Book the Field"]).toContain(chain.querySelector(".conn-name")?.textContent);
+    // THE ROW'S VERBS ARE THE TRAY: Start Now first, at the edge; Dismiss second, one slot in. Nothing is a capsule.
+    const tray = [...chain.querySelectorAll<HTMLElement>("[data-reveal]")];
+    expect(tray.map((b) => b.textContent)).toEqual(["Start Now", "Dismiss"]);
+    expect(tray[0]!.style.right, "the first verb sits at the edge").toBe("");
+    expect(tray[1]!.style.right, "the second sits one slot in").toBe("88px");
+    expect(chain.querySelector(".pill-act, .row-act, .btn-sm, .quiet-action"), "no pill on the suggestion row").toBeNull();
     // "Keep going" came off the card (2026-09-26) as a second grey that said
     // nothing the slot does not.
     expect(screen.queryByText(/Keep going/)).toBeNull();
@@ -231,7 +242,7 @@ describe("TodayFlow: the Momentum Chain (UP-CORE-09)", () => {
       expect(hit).toBeTruthy();
       return hit!;
     });
-    expect(titles).toContain(chain.querySelector(".conn-name")?.textContent);
+    expect(titles.map((t) => titleCase(t))).toContain(chain.querySelector(".conn-name")?.textContent);
     const line = chain.querySelector(".facts")!;
     expect([...line.children].map((f) => [f.className, f.textContent])).toEqual([
       ["fact est", "15 Min"],
@@ -263,7 +274,7 @@ describe("TodayFlow: the Momentum Chain (UP-CORE-09)", () => {
     await svc!.createTask(titles[0]!, { category: "c1", due: today });
     await svc!.createTask(titles[1]!, { category: "c2", due: today });
     notifyFreshLists(ENTITY_TASK);
-    await waitFor(() => expect(screen.getAllByText("Book the field").length).toBeGreaterThan(0));
+    await waitFor(() => expect(screen.getAllByText("Book the Field").length).toBeGreaterThan(0));
 
     fireEvent.click(screen.getAllByLabelText("Mark done")[0]!);
     const due = await waitFor(() => {
@@ -272,7 +283,7 @@ describe("TodayFlow: the Momentum Chain (UP-CORE-09)", () => {
       return hit!;
     });
     const chain = due.closest(".notice-swipe")!;
-    expect(titles).toContain(chain.querySelector(".conn-name")?.textContent);
+    expect(titles.map((t) => titleCase(t))).toContain(chain.querySelector(".conn-name")?.textContent);
     expect(chain.textContent).not.toMatch(/Same (category|Area)/);
     expect(chain.querySelector(".uchip")).toBeNull();
   });
@@ -302,7 +313,7 @@ describe("TodayFlow: the Momentum Chain (UP-CORE-09)", () => {
     await svc!.createTask(titles[0]!, { category: "c1", due: yesterday });
     await svc!.createTask(titles[1]!, { category: "c2", due: yesterday });
     notifyFreshLists(ENTITY_TASK);
-    await waitFor(() => expect(screen.getAllByText("Book the field").length).toBeGreaterThan(0));
+    await waitFor(() => expect(screen.getAllByText("Book the Field").length).toBeGreaterThan(0));
 
     fireEvent.click(screen.getAllByLabelText("Mark done")[0]!);
     const late = await waitFor(() => {
@@ -311,7 +322,7 @@ describe("TodayFlow: the Momentum Chain (UP-CORE-09)", () => {
       return hit!;
     });
     const chain = late.closest(".notice-swipe")!;
-    expect(titles).toContain(chain.querySelector(".conn-name")?.textContent);
+    expect(titles.map((t) => titleCase(t))).toContain(chain.querySelector(".conn-name")?.textContent);
     expect(chain.textContent).not.toMatch(/overdue/i);
   });
 });
@@ -390,7 +401,7 @@ describe("TodayFlow: the birthday card's Text door gathers a real voice (UP-MIND
     draftProps.length = 0;
     render(<NotesProvider userId="today-birthday-voice"><SeededBirthday /></NotesProvider>);
     await waitFor(() => expect(screen.getByText("Priya Shah")).toBeInTheDocument());
-    fireEvent.click(screen.getByRole("button", { name: "Text" }));
+    fireEvent.click(screen.getAllByRole("button", { name: "Text" })[0]!);
     await waitFor(() => expect(draftProps.length).toBeGreaterThan(0));
     // BEFORE the fix this prop was simply never passed. AFTER, it resolves
     // to at least the identity line every real context carries.
@@ -404,6 +415,17 @@ describe("TodayFlow: the birthday card's Text door gathers a real voice (UP-MIND
 // the same call never picked up either option, so a plan built from Today
 // reasoned from routine hours and energy alone - the model could never cite
 // a fact or a pattern the way a Schedule-built plan already can.
+// CLEAR THIS PLAN IS BEHIND THE DAY HEAD'S MORE BUTTON (Dave 2026-10-05, locked): a day-level action sits in the section head's
+// overflow, last and destructive, not as a loose grey line under the Anytime fold. Open the sheet, read or tap it, and close.
+const openDayActions = () => fireEvent.click(screen.getByLabelText("Day Actions"));
+const clearThisPlan = () => { openDayActions(); fireEvent.click(screen.getByRole("button", { name: "Clear This Plan" })); };
+const hasClearThisPlan = () => {
+  openDayActions();
+  const has = !!screen.queryByRole("button", { name: "Clear This Plan" });
+  fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+  return has;
+};
+
 describe("TodayFlow: Plan My Day carries the same brain Schedule's does (UP-MIND-23 class)", () => {
   function SeededPlanTask() {
     const tasks = useTasks();
@@ -441,7 +463,7 @@ describe("TodayFlow: Plan My Day carries the same brain Schedule's does (UP-MIND
   it("passes a real profile and a strands array, not the options Schedule alone used to get", async () => {
     aiPlanOpts.length = 0;
     render(<NotesProvider userId="today-planday-brain"><SeededPlanTask /></NotesProvider>);
-    await waitFor(() => expect(screen.getByText("Draft the proposal")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("Draft the Proposal")).toBeInTheDocument());
     // THE DAY LOOP (item 14) drafts today the instant loading finishes,
     // which has already happened by the line above -- so a standing draft
     // for today exists before this test ever opens the sheet. PlanDaySheet
@@ -453,7 +475,7 @@ describe("TodayFlow: Plan My Day carries the same brain Schedule's does (UP-MIND
     // AI-refine path this test means to prove; opening the sheet against a
     // live draft proves nothing here, because the refine is SUPPOSED to
     // stand down in that case.
-    fireEvent.click(screen.getByRole("button", { name: "Clear This Plan" }));
+    clearThisPlan();
     fireEvent.click(screen.getByRole("button", { name: /Plan My Day/ }));
     await waitFor(() => expect(aiPlanOpts.length).toBeGreaterThan(0));
     const opts = aiPlanOpts[0]!;
@@ -470,15 +492,15 @@ describe("TodayFlow: Plan My Day carries the same brain Schedule's does (UP-MIND
   it("Clear This Plan says so with an Undo that brings the same plan back", async () => {
     showToast.mockClear();
     render(<NotesProvider userId="today-clear-plan-undo"><SeededPlanTask /></NotesProvider>);
-    await waitFor(() => expect(screen.getByText("Draft the proposal")).toBeInTheDocument());
-    fireEvent.click(screen.getByRole("button", { name: "Clear This Plan" }));
-    expect(screen.queryByRole("button", { name: "Clear This Plan" }), "the plan is cleared").toBeNull();
+    await waitFor(() => expect(screen.getByText("Draft the Proposal")).toBeInTheDocument());
+    clearThisPlan();
+    expect(hasClearThisPlan(), "the plan is cleared").toBe(false);
     const cleared = showToast.mock.calls.map((c) => c[0] as { message: string; actionLabel?: string; onAction?: () => void })
-      .find((t) => t.message === "Plan cleared");
+      .find((t) => t.message === "Plan Cleared");
     expect(cleared, "clearing the plan says so").toBeTruthy();
     expect(cleared!.actionLabel).toBe("Undo");
     await act(async () => { cleared!.onAction!(); });
-    expect(screen.getByRole("button", { name: "Clear This Plan" }), "Undo restores the standing plan").toBeInTheDocument();
+    expect(hasClearThisPlan(), "Undo restores the standing plan").toBe(true);
   });
 });
 
@@ -578,8 +600,8 @@ describe("TodayFlow: a task's notes survive being edited from home", () => {
     }))!;
     notifyFreshLists(ENTITY_TASK);
 
-    await waitFor(() => expect(screen.getByText("Call the referee assignor")).toBeInTheDocument());
-    fireEvent.click(screen.getByText("Call the referee assignor"));
+    await waitFor(() => expect(screen.getByText("Call the Referee Assignor")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("Call the Referee Assignor"));
     await screen.findByText("Edit Task");
 
     // What is stored is what the box shows.

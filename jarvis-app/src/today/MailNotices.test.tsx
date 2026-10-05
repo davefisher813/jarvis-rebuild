@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-import { describe, it, expect, beforeEach } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { describe, it, expect, beforeEach, vi } from "vitest";
+import { render, screen, fireEvent, act } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import MailNotices from "./MailNotices";
 import { saveMailSnapshot, type MailSnapshot } from "../messages/home";
@@ -31,49 +31,67 @@ const thread = (id: string, from: string, subject: string) => ({
 describe("MailNotices: Clear All", () => {
   beforeEach(() => localStorage.clear());
 
-  // Dave 2026-08-26, from a screenshot: "Clear all should be under the email
-  // tabs not above it." It used to sit between the EMAIL head and the first
-  // card -- an escape hatch for a pile you have not looked at yet, offered
-  // before you have seen a single card in it. It now sits after the cards it
-  // actually clears, the same place a bulk action sits under any list.
-  it("renders under the cards, not above them", () => {
-    saveMailSnapshot(snap({
-      needsYou: 2,
-      threads: [thread("t1", "Nadia Brandt", "invoice attached"), thread("t2", "Rob Ellis", "the deck for Friday")],
-    }));
+  // CLEAR ALL IS THE BAND HEAD'S (Dave 2026-10-05, locked: a section-level action lives in the section head, never under a card;
+  // it hung under the card since Dave 2026-08-26). The band owns what it has hidden, so it REPORTS the one function to the page
+  // (onClearAllChange), which draws it as the head's capsule: a function from two notices up, and null below that.
+  const twoThreads = () => saveMailSnapshot(snap({
+    needsYou: 2,
+    threads: [thread("t1", "Nadia Brandt", "invoice attached"), thread("t2", "Rob Ellis", "the deck for Friday")],
+  }));
+
+  it("hands Clear All to the head from two notices up, and draws nothing under the card", () => {
+    twoThreads();
+    const reports: Array<(() => void) | null> = [];
     const { container } = render(
-      <MailNotices today={TODAY} nowHHMM="09:00" onAddTask={async () => true} />,
+      <MailNotices today={TODAY} nowHHMM="09:00" onAddTask={async () => true} onClearAllChange={(f) => reports.push(f)} />,
     );
-    // ONE CARD (2026-09-01): the rows ride inside one .stream-card; Clear
-    // All sits under that card, the last thing in the band.
+    expect(typeof reports.at(-1)).toBe("function");
+    // ONE CARD (2026-09-01): the rows ride inside one .stream-card, and nothing else is in the band: no clear row, no button.
     const kids = [...container.children];
-    const clearIdx = kids.findIndex((el) => el.classList.contains("notice-clear-row"));
-    const cardIdx = kids.findIndex((el) => el.classList.contains("stream-card"));
-    expect(clearIdx).toBeGreaterThan(-1);
-    expect(cardIdx).toBeGreaterThan(-1);
-    expect(kids[cardIdx]!.querySelectorAll(".pad-x")).toHaveLength(2);
-    expect(cardIdx).toBeLessThan(clearIdx);
+    expect(kids.some((el) => el.classList.contains("notice-clear-row")), "no Clear All row under the card").toBe(false);
+    expect(screen.queryByText("Clear All"), "the word is the head's, not the band's").toBeNull();
+    expect(kids[0]!.classList.contains("stream-card")).toBe(true);
+    expect(kids[0]!.querySelectorAll(".pad-x")).toHaveLength(2);
   });
 
-  it("[edge] stays hidden at one notice, same as before the move", () => {
+  it("[edge] reports nothing to clear at one notice, same as before the move", () => {
     saveMailSnapshot(snap({ needsYou: 1, threads: [thread("t1", "Nadia Brandt", "invoice attached")] }));
-    render(<MailNotices today={TODAY} nowHHMM="09:00" onAddTask={async () => true} />);
+    const reports: Array<(() => void) | null> = [];
+    render(<MailNotices today={TODAY} nowHHMM="09:00" onAddTask={async () => true} onClearAllChange={(f) => reports.push(f)} />);
+    expect(reports.at(-1)).toBeNull();
     expect(screen.queryByText("Clear All")).toBeNull();
   });
 
-  it("still clears every shown card on tap", () => {
+  it("still clears every shown card when the head calls it", () => {
+    twoThreads();
+    let clear: (() => void) | null = null;
+    const { container } = render(
+      <MailNotices today={TODAY} nowHHMM="09:00" onAddTask={async () => true} onClearAllChange={(f) => { clear = f; }} />,
+    );
+    expect(container.querySelectorAll(".pad-x")).toHaveLength(2);
+    act(() => { clear!(); });
+    // The toast itself renders from a separate host not mounted in this
+    // isolated test; what belongs to THIS component is that both cards go.
+    expect(container.querySelectorAll(".pad-x")).toHaveLength(0);
+  });
+
+  // 2026-10-05, Dave's visual catalog gate: every word the app writes is Title Case, the word after a number too
+  // ("45 Min"). This toast said "2 cleared", the one lowercase line the band wrote.
+  it("says how many it cleared in Title Case, with an Undo", () => {
+    hideToast();
+    let toast: ToastState | null = null;
+    const unsub = subscribeToast((t) => { if (t) toast = t; });
     saveMailSnapshot(snap({
       needsYou: 2,
       threads: [thread("t1", "Nadia Brandt", "invoice attached"), thread("t2", "Rob Ellis", "the deck for Friday")],
     }));
-    const { container } = render(
-      <MailNotices today={TODAY} nowHHMM="09:00" onAddTask={async () => true} />,
-    );
-    expect(container.querySelectorAll(".pad-x")).toHaveLength(2);
-    fireEvent.click(screen.getByText("Clear All"));
-    // The toast itself renders from a separate host not mounted in this
-    // isolated test; what belongs to THIS component is that both cards go.
-    expect(container.querySelectorAll(".pad-x")).toHaveLength(0);
+    let clear: (() => void) | null = null;
+    render(<MailNotices today={TODAY} nowHHMM="09:00" onAddTask={async () => true} onClearAllChange={(f) => { clear = f; }} />);
+    act(() => { clear!(); });
+    expect(toast!.message).toBe("2 Cleared");
+    expect(toast!.message).toMatch(/^\d+ [A-Z]/);
+    expect(toast!.actionLabel).toBe("Undo");
+    unsub();
   });
 });
 
@@ -178,6 +196,21 @@ describe("MailNotices: a chip holds the send", () => {
     unsub();
   });
 
+  // 2026-10-05, Dave's visual catalog gate (the Capsule, section AL): every tappable control that is not the screen's one
+  // filled primary is a capsule, never bare words. Send was a capsule; Discard and Open It beside it were bare red words.
+  it("the draft's quiet verbs are capsules beside Send, not bare words", async () => {
+    saveMailSnapshot(snap({ needsYou: 1, threads: [thread("t1", "Nadia Brandt", "invoice attached")] }));
+    render(<MailNotices today={TODAY} nowHHMM="09:00" onAddTask={async () => true} onDraft={async () => "Yes"} onSend={(async () => null) as never} onOpenThread={() => {}} />);
+    fireEvent.click(screen.getByText("Write Back"));
+    await screen.findByText("Discard");
+    expect(screen.getByText("Send")).toHaveClass("pill-act");
+    for (const word of ["Discard", "Open It"]) {
+      const b = screen.getByText(word);
+      expect(b, word).toHaveClass("quiet-action");
+      expect(b, word).not.toHaveClass("plan-drop");
+    }
+  });
+
   it("a send that never made the queue says so and keeps the words", async () => {
     let toast: ToastState | null = null;
     const unsub = subscribeToast((t) => { if (t) toast = t; });
@@ -234,5 +267,81 @@ describe("MailNotices: the line wears the key", () => {
     const age = container.querySelector(".stream-card .conn-meta > .fact")!;
     expect(age.textContent).toBe("3 Days");
     expect(age.classList.contains("red")).toBe(true);
+  });
+});
+
+// A NOTICE IS A ROW OF THE BAND, NOT A CARD WITH A BUTTON (Dave 2026-10-05, locked: "Clean rows, no pills anywhere"; the review's
+// P0: Add Bill, Add Task and Reply were three capsules inside one card, each taking 90px of a 326px row so the titles
+// truncated to "Dental Clea..." and the grey lines to "Looks Like Wedne..."). The verb is the swipe's first button, the long
+// press and, once it is LATE, one quiet word on the row; the tap opens the thread; the words get the width.
+describe("MailNotices: the rows wear no capsule", () => {
+  beforeEach(() => localStorage.clear());
+
+  it("draws a row with its disc, its words and a chevron, and no pill, row action or button on it", () => {
+    saveMailSnapshot(snap({
+      needsYou: 2,
+      threads: [thread("t1", "Nadia Brandt", "invoice attached"), thread("t2", "Rob Ellis", "the deck for Friday")],
+    }));
+    const { container } = render(<MailNotices today={TODAY} nowHHMM="09:00" onAddTask={async () => true} onOpenThread={() => {}} />);
+    const rows = [...container.querySelectorAll(".stream-card .notice-card")];
+    expect(rows).toHaveLength(2);
+    for (const r of rows) {
+      expect(r, "a card drawn as a row").toHaveClass("notice-card-asrow");
+      expect(r.querySelector(".pill-act, .row-act, .btn-sm, .quiet-action"), "no capsule on the row").toBeNull();
+      expect(r.querySelector(".notice-disc"), "its type disc").not.toBeNull();
+      expect(r.querySelector(".chev"), "the row is a door").not.toBeNull();
+      expect(r.querySelector(".row-ctx"), "not late, so no word on the row").toBeNull();
+    }
+  });
+
+  it("keeps the verb on the swipe tray, first, and the tap opens the thread", () => {
+    saveMailSnapshot(snap({ needsYou: 1, threads: [thread("t1", "Nadia Brandt", "invoice attached")] }));
+    const onOpenThread = vi.fn();
+    const { container } = render(<MailNotices today={TODAY} nowHHMM="09:00" onAddTask={async () => true} onOpenThread={onOpenThread} />);
+    const tray = [...container.querySelectorAll(".notice-swipe > button")].map((b) => b.textContent);
+    expect(tray[0], "the row's verb leads its tray").toBe("Reply");
+    fireEvent.click(container.querySelector(".notice-card .row")!);
+    expect(onOpenThread).toHaveBeenCalledWith("t1");
+  });
+
+  it("a LATE notice shows its one verb as a quiet word on the row, the same verb as the swipe", () => {
+    countNudge("w1");
+    countNudge("w1");
+    saveMailSnapshot(snap({ waiting: [{ threadId: "w1", to: "Rob", subject: "The deck", days: 3 }] }));
+    const { container } = render(<MailNotices today={TODAY} nowHHMM="09:00" onAddTask={async () => true} />);
+    const ctx = container.querySelector(".notice-card .row-ctx")!;
+    expect(ctx).not.toBeNull();
+    expect(ctx).not.toHaveClass("pill-act");
+    expect(ctx.textContent).toBe(container.querySelector(".notice-swipe > button")!.textContent);
+    expect(container.querySelectorAll(".notice-card .pill-act, .notice-card .row-act").length).toBe(0);
+  });
+
+  it("a bill's day is its DUE date, so it wears the key's amber even when it is days off, not a grey small cap", () => {
+    saveMailSnapshot(snap({
+      needsYou: 1,
+      threads: [{ ...thread("t1", "Northlake Power", "your bill"), act: { kind: "bill", title: "Power", date: "2026-08-26", amount: 12 } }],
+    }));
+    const { container } = render(<MailNotices today={TODAY} nowHHMM="09:00" onAddTask={async () => true} />);
+    const day = container.querySelector(".stream-card .conn-meta > .fact")!;
+    expect(day).toHaveClass("warn");
+    expect(day).not.toHaveClass("date");
+    expect(day.textContent).toMatch(/^[A-Z][a-z]+$/); // a day of the week in Title Case, not caps
+  });
+
+  it("writes its grey line in Title Case and never bakes a dot into a fact", () => {
+    saveMailSnapshot(snap({
+      needsYou: 2,
+      threads: [
+        thread("t1", "Nadia Brandt", "signature needed before monday"),
+        { ...thread("t2", "Northlake Power", "your bill"), act: { kind: "bill", title: "Power", date: "2026-08-21", amount: 12 } },
+      ],
+    }));
+    const { container } = render(<MailNotices today={TODAY} nowHHMM="09:00" onAddTask={async () => true} />);
+    const metas = [...container.querySelectorAll(".stream-card .conn-meta")];
+    const gist = metas.find((m) => /Signature/i.test(m.textContent ?? ""))!;
+    expect(gist.textContent).toBe("Wants Signature Needed Before Monday");
+    for (const f of container.querySelectorAll(".stream-card .fact")) expect(f.textContent, "a fact has no typed dot").not.toContain("·");
+    // The facts are the wrapping form: spans straight in the card's own .conn-meta, so the stylesheet can lead each separator.
+    expect(container.querySelector(".notice-card-wrap .conn-meta > .fact")).not.toBeNull();
   });
 });

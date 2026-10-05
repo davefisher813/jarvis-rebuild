@@ -244,13 +244,13 @@ describe("the summary line", () => {
 
   it("says so, and points at the requests, when part of the conversation was not read", () => {
     const r = evaluateCoverage(FOUR, "Tuesday works, four players, yes you can publish", []);
-    expect(coverageSummary(r, false)).toEqual({ label: "Answered 3 of 4 Found · Review Requests", incomplete: true });
+    expect(coverageSummary(r, false)).toEqual({ label: "Answered 3 of 4 Found", incomplete: true });
   });
 
   it("a complete read that found nothing shows nothing; a partial one that found nothing still says it", () => {
     const none = evaluateCoverage([], "anything", []);
     expect(coverageSummary(none, true)).toBeNull();
-    expect(coverageSummary(none, false)).toEqual({ label: "Answered 0 of 0 Found · Review Requests", incomplete: true });
+    expect(coverageSummary(none, false)).toEqual({ label: "Answered 0 of 0 Found", incomplete: true });
   });
 
   it("coverageKey is the requirement's own stable id", () => {

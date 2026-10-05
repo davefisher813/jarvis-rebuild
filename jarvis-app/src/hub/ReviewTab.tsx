@@ -9,7 +9,9 @@ import { useMemo, useState } from "react";
 import { pressable } from "../shared/pressable";
 import { showToast } from "../shared/toast";
 import { COMMAND_LINES } from "../substrate/commands/errors";
-import { facts, whenLine } from "./format";
+import { whenFacts } from "./format";
+import { lineCase, titleCase } from "../shared/casing";
+import HubFacts, { type HubFact } from "./HubFacts";
 import {
   DISMISS_SUGGESTION, EDIT_DETAILS, EMPTY_REVIEW, ENTERED_BY_YOU, EXPLORATION, KEEP_AS_NOTE, MOVE_TO_DECIDED, MOVE_TO_MENTIONED, NEEDS_REVIEW, NOT_SAVED_YET,
   PASTE_CONVERSATION, PICK_PROJECT_FIRST, REVIEW_HEAD, SAVE_DECISION, emailItemsLine,
@@ -106,10 +108,15 @@ export default function ReviewTab({ client, overview, projectId, onPickProject, 
     rationale: text(p, "rationale"),
     alternatives: Array.isArray(p.payload?.alternatives) ? (p.payload!.alternatives as unknown[]).filter((a): a is string => typeof a === "string").join("\n") : "",
   });
-  const sourceOf = (p: HubProposal | null): string => {
-    if (!p) return ENTERED_BY_YOU;
+  // 2026-10-05 (catalog gate, R1 and R6): who suggested it and how much it
+  // rests on are ONE grey fact ("Suggested by Claude, 2 Evidence Links"); the
+  // moment is two small-caps date facts. It used to be one string with two
+  // middle dots baked in, drawn inside a single .fact.
+  const sourceOf = (p: HubProposal | null): { line: string; when: HubFact[] } => {
+    if (!p) return { line: ENTERED_BY_YOU, when: [] };
     const who = p.agent_name ?? (p.created_by === "import" ? "Pasted Conversation" : "You");
-    return facts(`Suggested by ${who}`, p.evidence_refs.length ? (p.evidence_refs.length === 1 ? "1 Evidence Link" : `${p.evidence_refs.length} Evidence Links`) : null, whenLine(p.created_at));
+    const n = p.evidence_refs.length;
+    return { line: `Suggested by ${who}` + (n ? `, ${n === 1 ? "1 Evidence Link" : `${n} Evidence Links`}` : ""), when: whenFacts(p.created_at) };
   };
 
   const empty = inSegment.length === 0 && (segment === "decided" ? decided.length === 0 : notes.length === 0);
@@ -117,7 +124,7 @@ export default function ReviewTab({ client, overview, projectId, onPickProject, 
 
   return (
     <>
-      <div className="hub-head">{REVIEW_HEAD}</div>
+      <div className="sh2 sh2-quiet"><span className="t">{REVIEW_HEAD}</span></div>
       {overview.projects.length > 0 && (
         <div className="chip-row" role="tablist" aria-label="Project">
           {overview.projects.map((p) => (
@@ -133,6 +140,13 @@ export default function ReviewTab({ client, overview, projectId, onPickProject, 
         </div>
       </div>
 
+      {/* Paste or Import a Conversation is this tab's own action, so it stands under the choosers as the one capsule (Dave
+          2026-10-05, locked: never a row at the foot of a card, and never a box round a lone action, rule 12). A head
+          could not hold it: the title is "Save What We Decided" and the capsule is as long again, so it took the title's
+          place with an ellipsis. */}
+      {!empty && <div className="notice-clear-row"><button className="row-act hub-quiet" onClick={() => { if (projectId) onImport(projectId); else showToast({ message: PICK_PROJECT_FIRST }); }}>{PASTE_CONVERSATION}</button></div>}
+
+      {/* An empty tab is its own words and its one primary (the same action, so the capsule above stands down). */}
       {empty && (
         <div className="empty-state">
           <div className="empty-title">{EMPTY_REVIEW.title}</div>
@@ -143,11 +157,11 @@ export default function ReviewTab({ client, overview, projectId, onPickProject, 
 
       {inSegment.map((p) => (
         <div className="pad-x" key={p.id}><div className="card pad hub-card">
-          <span className={"hub-cap " + (segment === "decided" ? "hub-cap-review" : "hub-cap-waiting")}>{segment === "decided" ? NOT_SAVED_YET : EXPLORATION}</span>
-          <div className="conn-name">{text(p, "statement") || "Untitled Suggestion"}</div>
+          <span className={"hub-cap" + (segment === "decided" ? " hub-cap-waiting" : "")}>{segment === "decided" ? NOT_SAVED_YET : EXPLORATION}</span>
+          <div className="conn-name">{titleCase(text(p, "statement") || "Untitled Suggestion")}</div>
           {text(p, "rationale") && <div className="hub-text">{text(p, "rationale")}</div>}
-          <div className="facts"><span className="fact">{sourceOf(p)}</span></div>
-          <div className="hub-pills">
+          <HubFacts facts={[{ text: sourceOf(p).line }, ...sourceOf(p).when]} />
+          <div className="hub-pills notice-actions">
             {segment === "decided" ? (
               <>
                 <button className="pill-act" disabled={busy === p.id} onClick={() => { if (guard()) setSheet({ proposal: p, conflicts: [] }); }}>{SAVE_DECISION}</button>
@@ -173,7 +187,7 @@ export default function ReviewTab({ client, overview, projectId, onPickProject, 
               <div {...pressable(() => onOpenDecision(d.item_id))} className="row" key={d.item_id}>
                 <div className="row-grow">
                   <div className="conn-name">{d.title}</div>
-                  <div className="conn-meta">{facts(d.statement, `Version ${d.version}`, whenLine(d.committed_at))}</div>
+                  <HubFacts facts={[d.version > 1 && { text: `Version ${d.version}`, strong: true }, ...whenFacts(d.committed_at), { text: lineCase(d.statement) }]} />
                 </div>
                 {d.needs_review && <span className="hub-cap hub-cap-waiting">{NEEDS_REVIEW}</span>}
                 <Chev />
@@ -191,7 +205,7 @@ export default function ReviewTab({ client, overview, projectId, onPickProject, 
               <div className="row" key={n.id}>
                 <div className="row-grow">
                   <div className="conn-name">{n.text}</div>
-                  <div className="conn-meta">{facts("Exploration", n.created_at ? whenLine(n.created_at) : null)}</div>
+                  <HubFacts facts={[{ text: "Exploration" }, ...(n.created_at ? whenFacts(n.created_at) : [])]} />
                 </div>
               </div>
             ))}
@@ -199,18 +213,17 @@ export default function ReviewTab({ client, overview, projectId, onPickProject, 
         </>
       )}
 
-      <div className="pad-x"><div className="card list-card-ruled">
-        {emailLine && onOpenEmail && (
+      {emailLine && onOpenEmail && (
+        <div className="pad-x"><div className="card list-card-ruled">
           <div {...pressable(onOpenEmail)} className="row">
-            <div className="row-grow"><div className="conn-name">{emailLine}</div><div className="conn-meta">Review Email Suggestions Inside Email</div></div>
+            <div className="row-grow"><div className="conn-name">{emailLine}</div></div>
             <Chev />
           </div>
-        )}
-        <button className={"row row-act" + (empty ? " hub-quiet" : "")} onClick={() => { if (projectId) onImport(projectId); else showToast({ message: PICK_PROJECT_FIRST }); }}>{PASTE_CONVERSATION}</button>
-      </div></div>
+        </div></div>
+      )}
 
       {sheet && project && (
-        <DecisionSheet mode="save" initial={sheet.proposal ? draftOf(sheet.proposal) : {}} projectTitle={project.title} sourceLine={sourceOf(sheet.proposal)}
+        <DecisionSheet mode="save" initial={sheet.proposal ? draftOf(sheet.proposal) : {}} projectTitle={project.title} sourceLine={sourceOf(sheet.proposal).line} sourceWhen={sourceOf(sheet.proposal).when}
           options={options} conflicts={sheet.conflicts} busy={busy === "save"}
           onSave={(d) => void save(d)} onReplace={(d, itemId) => void save(d, itemId)}
           onDismiss={sheet.proposal ? () => void dismiss(sheet.proposal!) : undefined}

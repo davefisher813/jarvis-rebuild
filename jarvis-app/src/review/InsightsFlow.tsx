@@ -9,14 +9,13 @@ import { showToast } from "../shared/toast";
 import { filledIcon } from "../shared/filledIcons";
 import type { Goal } from "../life/types";
 import type { Project } from "../projects/types";
-import { completionSamples } from "../events/completions";
+import { taskDone } from "../brain/derive";
 import { todayISO } from "../tasks/grouping";
 import { monthName, movedIn } from "./report";
 import ReportFlow, { oldestWaitDays } from "./ReportPage";
 import { peopleForDerivation } from "../brain/peopleFacts";
 import type { MonthSeal } from "./seal";
 import { lineCase } from "../shared/casing";
-import { Nums } from "../bigger/GoalRowRuled";
 import { CheckCircleGlyph, SunriseGlyph } from "../shared/glyphs";
 import { usePushDepth } from "../shared/pushNav";
 import PageHeader from "../shared/PageHeader";
@@ -113,11 +112,15 @@ export default function InsightsFlow({ onBack, onOpenTask, onOpenEntity, onOpenM
     setProjects(pj);
     setSeals(sl);
     void loadWeek(gl, pj);
-    // The This Month card's one number: seen completions this month. Still a
-    // local read (Still Open says so), but now off the same unified log the
-    // category page counts from (2026-08-29), not the smaller sample array.
-    const monthStart = new Date(today.slice(0, 7) + "-01T00:00:00").getTime();
-    setLiveDone(completionSamples().filter((s) => s.t >= monthStart).length);
+    // The This Month card's one number, off the SAME window read and the same fold the So Far page counts from (Dave
+    // 2026-10-05, the review: the row said 1365 Done, one tap later the page said 462). It used to count the device's
+    // whole completion log, workouts included; the page counts task completions in the window, so this does too.
+    void (async () => {
+      try {
+        const rows = await readWindow(supabase as unknown as WindowClient | null, Date.now(), 35);
+        setLiveDone(taskDone(rows.filter((r) => r.day.startsWith(today.slice(0, 7)))).length);
+      } catch { setLiveDone(null); }
+    })();
   }, [goalsSvc, projectsSvc, sealSvc, today, loadWeek]);
   useEffect(() => { void reload(); }, [reload]);
 
@@ -161,6 +164,8 @@ export default function InsightsFlow({ onBack, onOpenTask, onOpenEntity, onOpenM
     return out;
   }, [story]);
 
+  const storyGoals = story.filter((x) => x.kind === "goal").length;
+  const storyProjects = story.length - storyGoals;
   const exits = { onOpenEntity, onOpenMoney, onOpenEmail };
   if (screen?.kind === "live") return <div className={pushCls} key="d-live"><ReportFlow live onBack={() => { setScreen(null); void reload(); }} onOpenTask={onOpenTask} {...exits} /></div>;
   if (screen?.kind === "month") return <div className={pushCls} key={"d-" + screen.month}><ReportFlow month={screen.month} onBack={() => { setScreen(null); void reload(); }} onOpenTask={onOpenTask} {...exits} /></div>;
@@ -178,7 +183,9 @@ export default function InsightsFlow({ onBack, onOpenTask, onOpenEntity, onOpenM
         ) : (
           storyGroups.map((g) => (
             <div key={g.month}>
-              <div className="day-divide">{g.month}</div>
+              {/* The standard section head, inside the page's gutter (Dave 2026-10-05, the review: the caps month hung
+                  outside the 20px margin and sat 4px off its card). */}
+              <div className="sh2 sh2-quiet"><span className="t">{g.month}</span></div>
               <div className="pad-x"><div className="card list-card-ruled">
                 {g.items.map((it) => (
                   <div className="row" key={it.kind + it.name + it.d}>
@@ -187,7 +194,8 @@ export default function InsightsFlow({ onBack, onOpenTask, onOpenEntity, onOpenM
                       <div className="conn-name truncate">{it.name}</div>
                       <div className="facts">
                         <span className="fact">{it.kind === "goal" ? "Achieved" : "Closed"}</span>
-                        <span className="fact date">{it.d.slice(8, 10).replace(/^0/, "")} {monthName(it.d.slice(0, 7)).slice(0, 3)}</span>
+                        {/* Month first, like every date in the app ("Sep 20", never "20 SEP"). */}
+                        <span className="fact date">{monthName(it.d.slice(0, 7)).slice(0, 3)} {it.d.slice(8, 10).replace(/^0/, "")}</span>
                       </div>
                     </div>
                   </div>
@@ -196,6 +204,7 @@ export default function InsightsFlow({ onBack, onOpenTask, onOpenEntity, onOpenM
             </div>
           ))
         )}
+        {story.length > 0 && <div className="pad-x"><div className="input-hint">Everything You Achieve Lands Here, Dated, Forever</div></div>}
         <div className="screen-foot" />
       </div>
       </div>
@@ -219,7 +228,9 @@ export default function InsightsFlow({ onBack, onOpenTask, onOpenEntity, onOpenM
               <div className="tiles">
                 <div className="itile itile-good"><b>{week.tiles.done}</b><span>done</span></div>
                 <div className="itile itile-plain"><b>{week.tiles.moved}</b><span>goals moved</span></div>
-                <div className="itile itile-plain"><b>{week.tiles.flexible}</b><span>flexible</span></div>
+                {/* A duration is the key's sky, and it is one line: the larger unit leads at the tile's number size and the
+                    smaller rides beside it, so "37h 45m" is never two lines in a tile its neighbours fill with one. */}
+                <div className="itile itile-sky"><b>{week.tiles.flexible.split(" ").map((p, i) => (i === 0 ? p : <small key={i}>{p}</small>))}</b><span>flexible</span></div>
               </div>
               {week.stack && (
                 <>
@@ -254,11 +265,16 @@ export default function InsightsFlow({ onBack, onOpenTask, onOpenEntity, onOpenM
                   label, flex 1, wrapping at type scale 1.4. The "quiet
                   dismiss" intent (components.css) keeps Today's Check In and
                   the Tasks nudge; it is retired for this card only. */}
-              {week.offer && !offered && rulesSvc && (
-                <div className="rep-one-acts week-acts">
-                  <button type="button" className="btn btn-primary" onClick={() => void moveTwoBlocks()}>Move Two Blocks</button>
-                  <button type="button" className="btn" onClick={noThanks}>No Thanks</button>
-                </div>
+              {week.offer && !offered && rulesSvc && week.next && (
+                <>
+                  {/* WHAT THE BUTTON DOES, IN WORDS (Dave 2026-10-05, the review: "Move Two Blocks without saying which
+                      blocks or why"). One sentence under the lines it comes from. */}
+                  <div className="input-hint week-why">{lineCase(`Two focus blocks go to ${week.next.name} next week, where this week had the fewest hours`)}</div>
+                  <div className="rep-one-acts week-acts promo-actions">
+                    <button type="button" className="btn btn-primary" onClick={() => void moveTwoBlocks()}>Move Two Blocks</button>
+                    <button type="button" className="btn btn-tertiary" onClick={noThanks}>No Thanks</button>
+                  </div>
+                </>
               )}
             </div></div>
           </>
@@ -268,6 +284,10 @@ export default function InsightsFlow({ onBack, onOpenTask, onOpenEntity, onOpenM
         <div className="sh2 sh2-quiet"><span className="t">This Month</span></div>
         <div className="pad-x"><div className="card list-card-ruled">
           <div {...pressable(() => setScreen({ kind: "live" }))} className="row">
+            {/* ONE ROW RECIPE ON THIS PAGE (the round 2 review: This Month had no glyph and its text at 41, while Your Months and The
+                Ledger had one and started at 83). Every row leads with its bare glyph in its subject's tone: the month's purple (the
+                Brain's own, as Insights wears it on the Brain), the ledger's done green. */}
+            <div className="row-glyph cat-fg-purple">{filledIcon("month")}</div>
             <div className="row-grow">
               <div className="conn-name">{`${monthName(monthKey)}, So Far`}</div>
               {/* THE SUB IS NOT A KICKER (Dave 2026-09-03, pic 5: "too much
@@ -284,7 +304,7 @@ export default function InsightsFlow({ onBack, onOpenTask, onOpenEntity, onOpenM
                   below wear. Done is the green fact, "Still open" the one grey,
                   and the dot between them is drawn by CSS, not typed. */}
               <div className="facts">
-                {liveDone != null && <span className="fact good">{lineCase(`${liveDone} Done`)}</span>}
+                {liveDone != null && <span className="fact good">{lineCase(`${liveDone.toLocaleString("en-US")} Done`)}</span>}
                 <span className="fact">Still Open</span>
               </div>
             </div>
@@ -303,12 +323,13 @@ export default function InsightsFlow({ onBack, onOpenTask, onOpenEntity, onOpenM
               // the one coloured fact (green, done) and moved is the one
               // grey, its count a white number with no state.
               <div {...pressable(() => setScreen({ kind: "month", month: s.data.month }))} className="row" key={s.id}>
-                <div className="lib-ico lib-disc strand-disc">{filledIcon("month")}</div>
+                <div className="row-glyph cat-fg-purple">{filledIcon("month")}</div>
                 <div className="row-grow">
                   <div className="conn-name">{`${monthName(s.data.month)} ${s.data.month.slice(0, 4)}`}</div>
                   <div className="facts">
-                    <span className="fact"><b>{moved}</b> Moved</span>
-                    <span className="fact good">{lineCase(`${s.data.done} Done`)}</span>
+                    {/* Goals Moved, the same words and the same count the week's tile says (a goal achieved or a project closed). */}
+                    <span className="fact"><b>{moved}</b> {moved === 1 ? "Goal" : "Goals"} Moved</span>
+                    <span className="fact good">{lineCase(`${s.data.done.toLocaleString("en-US")} Done`)}</span>
                   </div>
                 </div>
                 {CHEV}
@@ -333,7 +354,15 @@ export default function InsightsFlow({ onBack, onOpenTask, onOpenEntity, onOpenM
               {/* A row with nothing to say shows nothing (§AK): before the
                   first crossing the ledger has no line, and the page it
                   opens says what will land there. */}
-              {story.length > 0 && <div className="r-k"><span className="r-goal r-cat"><Nums text={lineCase(`${story.length} ${story.length === 1 ? "crossing" : "crossings"} and counting`)} /></span></div>}
+              {story.length > 0 && (
+                // What it holds, said once: "2 Goals Achieved, 1 Project Closed" (one grey; Dave 2026-10-05, the review: "2
+                // Crossings and Counting" did not say what the row holds).
+                // Two facts, the dot between them the stylesheet's (the round 2 review: a comma typed inside one run).
+                <div className="facts">
+                  {storyGoals > 0 && <span className="fact">{lineCase(`${storyGoals} ${storyGoals === 1 ? "goal" : "goals"} achieved`)}</span>}
+                  {storyProjects > 0 && <span className="fact">{lineCase(`${storyProjects} ${storyProjects === 1 ? "project" : "projects"} closed`)}</span>}
+                </div>
+              )}
             </div>
             {CHEV}
           </div>

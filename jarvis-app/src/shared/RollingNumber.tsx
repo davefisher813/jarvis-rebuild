@@ -33,5 +33,6 @@ export default function RollingNumber({ value }: { value: number }) {
     return () => cancelAnimationFrame(rafRef.current);
   }, [value]);
 
-  return <span>{shown}</span>;
+  // A count past 999 carries its thousands separator ("1,365", never "1365": Dave 2026-10-05, the review).
+  return <span>{shown.toLocaleString("en-US")}</span>;
 }

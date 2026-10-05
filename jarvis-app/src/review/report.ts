@@ -46,7 +46,7 @@ export interface ReportSegment { id: string; name: string; color: string; n: num
 // with no target between them: the report says where the hours went and what
 // had none, and never which of those is the right answer.
 export interface TimeRow { id: string; name: string; color: string; label: string; pct: number;
-  // C-65 (Astra, 2026-09-12): "26% vs Usual 35%", beside the hours, only
+  // C-65 (Astra, 2026-09-12): "26% Vs Usual 35%", beside the hours, only
   // inside a report and only when the share moved against last month.
   vs?: string;
 }
@@ -69,7 +69,8 @@ export interface ReportFact { text: string; tone?: "good" | "warn" | "red"; part
 /** A fact's words with every count split out as a part of its own, so the
  *  page can draw the counts white and leave the words grey. */
 export function boldCounts(text: string): FactPart[] {
-  return text.split(/(\d[\d,.]*)/).filter((s) => s.length > 0).map((s) => (/^\d[\d,.]*$/.test(s) ? { b: s } : s));
+  // A percent belongs to its number ("78%" is one white count, never "78" and a stranded "%").
+  return text.split(/(\d[\d,.]*%?)/).filter((s) => s.length > 0).map((s) => (/^\d[\d,.]*%?$/.test(s) ? { b: s } : s));
 }
 /** A grey fact whose counts are white. */
 const plain = (text: string): ReportFact => ({ text, parts: boldCounts(text) });
@@ -84,11 +85,12 @@ export interface WorthCard {
   carried?: CarriedTask[];
   receipts: string[];
 }
+// A pattern is a title and its one facts line. It never carries a pill: a count or a rate is a fact on the line under the
+// title (Dave 2026-10-05, locked: no pills inside a row), and a rise is the line's one green fact.
 export interface PatternRow {
   id: string;
   title: string;
   sub: ReportFact[] | null;
-  chip: { text: string; tone: "good" | "warn" } | null;
   receipts: string[];
 }
 // THE LIFE CARDS (2026-09-26). Money, Mail, People, Health and Decisions,
@@ -124,8 +126,8 @@ export interface MonthReport {
   /** The life cards, in a fixed order; absent on a seal without the
    *  numbers, and silent below each card's floor. */
   life: LifeCard[];
-  learned: { title: string; sub: ReportFact[] | null } | null;
-  did: { title: string; sub: ReportFact[] | null } | null;
+  learned: { title: string; sub: ReportFact[] | null; receipts: string[] } | null;
+  did: { title: string; sub: ReportFact[] | null; receipts: string[] } | null;
   closer: ReportCloser | null;
   sealed: { title: string; sub: string };
 }
@@ -148,6 +150,9 @@ export interface ReportInputs {
    *  without it the card still renders and its exit is the health page by
    *  kind alone. */
   healthCategoryId?: string | null;
+  /** The month is still being lived (the So Far page). A comparison of a month in progress with a whole one is a
+   *  number that is only going to shrink the page's mood ("-77 Vs September" on the 5th), so no tile carries a delta. */
+  stillOpen?: boolean;
 }
 
 const MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
@@ -172,13 +177,15 @@ function daysInMonth(month: string): number {
 const MINUS = "−";
 const plural = (n: number, one: string, many: string) => (n === 1 ? one : many);
 
-/** A delta chip. Up wears good; down is a muted fact, never a red one. */
+/** A tile's delta. Up wears good; down is a muted fact, never a red one; and it always says what it is against, because
+ *  "-25" with nothing beside it is a number nobody can read (Dave 2026-10-05, the review). No change says nothing: a row
+ *  with nothing to say shows nothing, so "Same" is not drawn. */
 export function deltaOf(now: number, prev: number | null, vs: string | null): { text: string; up: boolean } | null {
   if (prev == null) return null;
   const d = now - prev;
-  if (d === 0) return { text: "Same", up: false };
-  if (d > 0) return { text: vs ? `+${d} vs ${vs}` : `+${d}`, up: true };
-  return { text: `${MINUS}${Math.abs(d)}`, up: false };
+  if (d === 0) return null;
+  if (d > 0) return { text: vs ? lineCase(`+${d} vs ${vs}`) : `+${d}`, up: true };
+  return { text: vs ? lineCase(`${MINUS}${Math.abs(d)} vs ${vs}`) : `${MINUS}${Math.abs(d)}`, up: false };
 }
 
 /** Goals achieved and projects closed inside the month, by their stamps. */
@@ -285,7 +292,7 @@ export function lifeCards(seal: MonthSealData, name: string, people: { id: strin
     const facts: ReportFact[] = [];
     if (wait) facts.push(wait);
     if (seal.deck.sent > 0) {
-      const drafts = lineCase(`${seal.deck.asWritten} of ${seal.deck.sent} drafts sent unedited`);
+      const drafts = lineCase(`${seal.deck.asWritten} of ${seal.deck.sent} drafts unedited`);
       // As written is done, so it is green: unless the wait already spent
       // the line's one colour, in which case it is the line's grey.
       facts.push(wait ? plain(drafts) : { text: drafts, tone: "good" });
@@ -375,7 +382,10 @@ export function buildReport(inp: ReportInputs): MonthReport {
   const moved = movedIn(month, inp.goals, inp.projects);
   const wins: ReportWin[] = moved.slice(0, 3).map((m) => ({
     name: m.name,
-    value: m.kind === "goal" ? "Achieved ✓" : "Closed ✓",
+    // The tile is already green, so the word is all it says (a typed check is a glyph in a string: Dave 2026-10-05).
+    // A project's closedOn is only ever written when its status becomes done (ProjectsService), so a closed project IS a done one and
+    // wears the done green. Its word says so: "Closed" read as cut or shelved on a green tile (round 3 review).
+    value: m.kind === "goal" ? "Achieved" : "Done",
   }));
   if (seal.saved > 0 && wins.length < 4) {
     wins.push({ name: "Put Away", value: `$${seal.saved.toLocaleString()}` });
@@ -386,22 +396,25 @@ export function buildReport(inp: ReportInputs): MonthReport {
     ? {
         big: String(movedCount),
         label: movedCount === 1 ? "Thing Moved" : "Things Moved",
-        anchor: prev && prevMoved != null ? `${prevName}: ${prevMoved}` : null,
+        anchor: prev && prevMoved != null ? lineCase(`${prevMoved} in ${prevName}`) : null,
         wins,
       }
     : {
         big: String(seal.done),
         label: seal.done === 1 ? "Thing Done" : "Things Done",
-        anchor: prev ? `${prevName}: ${prev.done}` : null,
+        anchor: prev ? lineCase(`${prev.done} in ${prevName}`) : null,
         wins: [],
       };
 
-  // TILES. Zeros never render; deltas only against a real predecessor.
+  // TILES. Zeros never render; deltas only against a real predecessor, and never on a month still being lived. When the
+  // hero already leads with the done count, a Done tile would say the same number twice, so it is not drawn.
+  const vsName = inp.stillOpen ? null : prevName;
+  const dl = (now: number, was: number | null | undefined) => (inp.stillOpen ? null : deltaOf(now, was ?? null, vsName));
   const tiles: ReportTile[] = [];
-  if (seal.done > 0) tiles.push({ num: String(seal.done), label: "Done", tint: "good", delta: deltaOf(seal.done, prev?.done ?? null, prevName) });
-  if (seal.sessions > 0) tiles.push({ num: String(seal.sessions), label: seal.sessions === 1 ? "Session" : "Sessions", tint: "plain", delta: deltaOf(seal.sessions, prev?.sessions ?? null, null) });
-  if (seal.daysIn > 0) tiles.push({ num: `${seal.daysIn}/${daysInMonth(month)}`, label: "Days In", tint: "plain", delta: deltaOf(seal.daysIn, prev?.daysIn ?? null, null) });
-  if (seal.deposits > 0) tiles.push({ num: String(seal.deposits), label: seal.deposits === 1 ? "Deposit" : "Deposits", tint: "plain", delta: deltaOf(seal.deposits, prev?.deposits ?? null, null) });
+  if (seal.done > 0 && movedCount > 0) tiles.push({ num: String(seal.done), label: "Done", tint: "good", delta: dl(seal.done, prev?.done) });
+  if (seal.sessions > 0) tiles.push({ num: String(seal.sessions), label: seal.sessions === 1 ? "Session" : "Sessions", tint: "plain", delta: dl(seal.sessions, prev?.sessions) });
+  if (seal.daysIn > 0) tiles.push({ num: `${seal.daysIn}/${daysInMonth(month)}`, label: "Days Checked In", tint: "plain", delta: dl(seal.daysIn, prev?.daysIn) });
+  if (seal.deposits > 0) tiles.push({ num: String(seal.deposits), label: seal.deposits === 1 ? "Deposit" : "Deposits", tint: "plain", delta: dl(seal.deposits, prev?.deposits) });
 
   const hours = seal.bandStart != null
     ? { label: `${hour12(seal.bandStart)} to ${hour12(seal.bandStart + 3)}`, byHour: seal.byHour, bandStart: seal.bandStart }
@@ -455,10 +468,10 @@ export function buildReport(inp: ReportInputs): MonthReport {
   if (carried.length > 0) {
     worth.push({
       id: "carried",
-      title: lineCase(`${carried.length} Followed You All Month`),
+      title: lineCase(`${carried.length} ${plural(carried.length, "task", "tasks")} followed you all month`),
       sub: null,
       carried,
-      receipts: carried.map((c) => lineCase(`${c.text} · ${c.n} Pushes`)),
+      receipts: carried.map((c) => lineCase(`${c.text}, ${c.n} Pushes`)),
     });
   }
   if (prev) {
@@ -485,11 +498,16 @@ export function buildReport(inp: ReportInputs): MonthReport {
   // path is elsewhere.
   const still = stillTrueGoals(seal, prev, inp.goals);
   if (still.length > 0) {
+    // The question sits on the goal's own row as its facts (Dave 2026-10-05, the review: an italic line under the card
+    // saying "Nothing Finished and Nothing Scheduled This Month" read as a verdict on the whole page, and the title
+    // "...: Still True?" left "True?" alone on a line). The goal is the title; the question is the amber fact; last
+    // month's count is the line's one grey.
     worth.push({
       id: "stillTrue",
-      title: still.length === 1 ? lineCase(`${still[0]!.title}: still true?`) : lineCase(`${still.length} Goals Went Still`),
-      sub: null,
-      foot: "Nothing Finished and Nothing Scheduled This Month",
+      title: still.length === 1 ? lineCase(still[0]!.title) : lineCase(`${still.length} Goals Went Still`),
+      sub: still.length === 1
+        ? [{ text: "Still True?", tone: "warn" }, plain(lineCase(`${still[0]!.wasDone} finished in ${prevName}`))]
+        : [{ text: "Still True?", tone: "warn" }],
       receipts: [
         ...still.map((g) => lineCase(`${g.title}: ${g.wasDone} finished in ${prevName}, none in ${name}`)),
         "A Month Off a Goal Is Not the Same as Dropping It",
@@ -516,8 +534,8 @@ export function buildReport(inp: ReportInputs): MonthReport {
     patterns.push({
       id: "picks",
       title: "First Picks Finish",
-      sub: [plain(lineCase(`Firsts ${Math.round(picks.firstRate * 100)}%, later picks ${Math.round(picks.lateRate * 100)}%`))],
-      chip: null,
+      // Two facts, the dot between them drawn by the stylesheet (a typed comma is a punctuation mark in a string: round 3 review).
+      sub: [plain(lineCase(`Firsts ${Math.round(picks.firstRate * 100)}%`)), plain(lineCase(`Later picks ${Math.round(picks.lateRate * 100)}%`))],
       receipts: [
         lineCase(`${picks.firstDone} of ${picks.firstPicked} first picks done that day`),
         lineCase(`${picks.latePicked} picks landed fourth or later`),
@@ -534,7 +552,6 @@ export function buildReport(inp: ReportInputs): MonthReport {
       id: "overrun",
       title: lineCase(`${overrun.cat!.name} runs ${hoursLabel(mins)} ${overrun.avg > 0 ? "over" : "under"}`),
       sub: [plain(lineCase(`Across ${overrun.n} Corrections`))],
-      chip: null,
       receipts: ["Plan Lengths Already Learn from This; New Blocks Pre-Fill from Your History"],
     });
   }
@@ -544,8 +561,11 @@ export function buildReport(inp: ReportInputs): MonthReport {
     patterns.push({
       id: "train",
       title: "Train Days Win",
-      sub: [plain(lineCase(`${join.on.toFixed(1)} done vs ${join.off.toFixed(1)}`))],
-      chip: { text: `+${pct}%`, tone: "good" },
+      // The rise is the line's one green fact, drawn beside the two rates (no pill: Dave 2026-10-05, locked).
+      // Each rate names its days, so no "vs" is needed and none can differ in casing from the tiles' "Vs". The title already says
+      // "Days", so the facts do not: "4.0 Train Days" beside "2.0 Other Days" took the whole line at 390px and the green rise,
+      // the point of the row, ended in an ellipsis ("+10...", the ship-blocker review 2026-10-05). The rise is never cut.
+      sub: [plain(lineCase(`${join.on.toFixed(1)} train`)), plain(lineCase(`${join.off.toFixed(1)} other`)), { text: `+${pct}%`, tone: "good" }],
       receipts: ["A Pattern in Your Data, Not a Cause"],
     });
   }
@@ -561,8 +581,7 @@ export function buildReport(inp: ReportInputs): MonthReport {
       id: "mirror-taken",
       title: KIND_TAKEN[taken.kind] ?? "You Take the Suggestions",
       sub: [plain(lineCase(`${taken.acc} of ${taken.total} accepted`))],
-      chip: null,
-      receipts: [lineCase(`${taken.acc} accepted · ${taken.dis} dismissed`)],
+      receipts: [lineCase(`${taken.acc} accepted, ${taken.dis} dismissed`)],
     });
   }
   if (skipped) {
@@ -570,7 +589,6 @@ export function buildReport(inp: ReportInputs): MonthReport {
       id: "mirror-skipped",
       title: KIND_SKIP[skipped.kind] ?? "Some Suggestions Get Skipped",
       sub: [plain(lineCase(`${skipped.acc} of ${skipped.total} taken`))],
-      chip: null,
       receipts: [lineCase(`${skipped.dis} dismissed this month`)],
     });
   }
@@ -580,8 +598,8 @@ export function buildReport(inp: ReportInputs): MonthReport {
       patterns.push({
         id: "slip",
         title: lineCase(`${cat.name} slips most`),
-        sub: null,
-        chip: { text: lineCase(`${seal.slip.n} Pushes`), tone: "warn" },
+        // The count is the row's one fact, in the one grey with its number white. Nothing here is due, so no amber.
+        sub: [plain(lineCase(`${seal.slip.n} Pushes`))],
         receipts: [lineCase(`${seal.slip.n} Pushes in ${name}, the most of any category`), "A Fact About Tasks, Never a Verdict"],
       });
     }
@@ -597,7 +615,12 @@ export function buildReport(inp: ReportInputs): MonthReport {
   const learned = seal.strands.created > 0
     ? {
         title: lineCase(`Learned ${seal.strands.created} ${plural(seal.strands.created, "thing", "things")} about you`),
-        sub: fixes > 0 ? [plain(lineCase(`You fixed ${fixes}, ${fixes === 1 ? "it is" : "they are"} gone`))] : null,
+        sub: fixes > 0 ? [plain(lineCase(`You fixed ${fixes}`)), plain("Gone for Good")] : null,
+        // A row that is drawn as a door opens something (Dave 2026-10-05, the review: these two read as rows and did nothing).
+        receipts: [
+          lineCase(`${seal.strands.created} ${plural(seal.strands.created, "thing", "things")} learned in ${name}`),
+          ...(fixes > 0 ? [lineCase(`${fixes} corrected or deleted by you, and gone for good`)] : []),
+        ],
       }
     : null;
   const didCount = seal.remindersTicked + seal.deck.sent;
@@ -605,9 +628,16 @@ export function buildReport(inp: ReportInputs): MonthReport {
   if (seal.remindersTicked > 0) didParts.push(plain(lineCase(`${seal.remindersTicked} ${plural(seal.remindersTicked, "reminder", "reminders")}`)));
   // As written is done, so the drafts fact is green (§AM); the reminders
   // count stays the line's one grey with its number white.
-  if (seal.deck.sent > 0) didParts.push({ text: lineCase(`${seal.deck.asWritten} of ${seal.deck.sent} drafts sent unedited`), tone: "good" });
+  if (seal.deck.sent > 0) didParts.push({ text: lineCase(`${seal.deck.asWritten} of ${seal.deck.sent} drafts unedited`), tone: "good" });
   const did = didCount > 0
-    ? { title: lineCase(`Kept ${didCount} ${plural(didCount, "thing", "things")} moving`), sub: didParts.length ? didParts : null }
+    ? {
+        title: lineCase(`Kept ${didCount} ${plural(didCount, "thing", "things")} moving`),
+        sub: didParts.length ? didParts : null,
+        receipts: [
+          ...(seal.remindersTicked > 0 ? [lineCase(`${seal.remindersTicked} ${plural(seal.remindersTicked, "reminder", "reminders")} ticked off in ${name}`)] : []),
+          ...(seal.deck.sent > 0 ? [lineCase(`${seal.deck.asWritten} of ${seal.deck.sent} drafts went out as written`)] : []),
+        ],
+      }
     : null;
 
   // THE ONE CHANGE. Exactly one, and only when the evidence carries it.

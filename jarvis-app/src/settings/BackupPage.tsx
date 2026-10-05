@@ -30,7 +30,7 @@ export default function BackupPage({ onBack }: { onBack: () => void }) {
     setBusy(false);
     if (r.kind === "cancelled") { setStatus(""); return; }
     if (r.kind === "failed") { setStatus("Export Failed · Try Again"); return; }
-    setStatus(`Exported ${r.count} ${r.count === 1 ? "item" : "items"}.`);
+    setStatus(`Exported ${r.count} ${r.count === 1 ? "Item" : "Items"}`);
     setLastExport(r.stamp);
   };
 
@@ -53,9 +53,9 @@ export default function BackupPage({ onBack }: { onBack: () => void }) {
     try {
       const text = await file.text();
       const bundle = JSON.parse(text) as { exportedAt?: string; items?: unknown[] };
-      const when = typeof bundle.exportedAt === "string" ? bundle.exportedAt.slice(0, 10) : "unknown date";
+      const when = typeof bundle.exportedAt === "string" ? bundle.exportedAt.slice(0, 10) : "Unknown Date";
       const count = Array.isArray(bundle.items) ? bundle.items.length : 0;
-      setPending({ bundle, label: `Backup from ${when}, ${count} ${count === 1 ? "item" : "items"}.` });
+      setPending({ bundle, label: `Backup from ${when}, ${count} ${count === 1 ? "Item" : "Items"}` });
       setStatus("");
     } catch {
       setStatus("Could Not Read That File.");
@@ -91,12 +91,16 @@ export default function BackupPage({ onBack }: { onBack: () => void }) {
       <Card>
         {/* §AM F5 (2026-09-26): the stamp is a neutral date on a row, so it
             is small caps; the fallback is one fact, with no dot typed in. */}
-        <Row label="Export All Data" meta={lastExport ? <span className="fact date">{`Last exported ${lastExport}`}</span> : "Everything in one JSON file"} onClick={onExport} disabled={busy} chev />
-        <Row label="Import from File" meta="Adds from a backup file" onClick={onPickFile} disabled={busy} chev />
+        <Row label="Export All Data" meta={lastExport ? <span className="fact date">{`Last Exported ${lastExport}`}</span> : "Everything in One JSON File"} onClick={onExport} disabled={busy} chev />
+        {/* CATALOG PASS (2026-10-05, Dave "I am sick of this"): "Adds from a backup
+            file" under Import from File and "Sends what is waiting" under Retry
+            Now only said what the row's own name says, so they are gone; every
+            grey line left is Title Case. */}
+        <Row label="Import from File" onClick={onPickFile} disabled={busy} chev />
       </Card>
       {pending && (
         <div className="set-gap"><Card>
-          <Row label={pending.label} meta="Identical items skipped" />
+          <Row label={pending.label} meta="Identical Items Skipped" />
           <Row label={busy ? "Importing..." : "Import"} onClick={() => void runImport()} disabled={busy} className="set-act" />
           <Row label="Cancel" onClick={() => setPending(null)} disabled={busy} className="set-quiet" />
         </Card></div>
@@ -130,7 +134,6 @@ export default function BackupPage({ onBack }: { onBack: () => void }) {
         {sync && sync.queued > 0 && (
           <Row
             label={retrying ? "Sending..." : "Retry Now"}
-            meta="Sends what is waiting"
             disabled={retrying}
             className="set-act"
             onClick={() => void onRetry()}
@@ -138,17 +141,17 @@ export default function BackupPage({ onBack }: { onBack: () => void }) {
         )}
         <Row
           label={backendConfigured ? "Data Lives in Your Account" : "Data Lives on This Device"}
-          meta="Export keeps your own copy"
+          meta="Export Keeps Your Own Copy"
         />
-        <Row label="Import Adds, Never Removes" meta="Duplicates skipped, nothing overwritten" />
+        <Row label="Import Adds, Never Removes" meta="Duplicates Skipped, Nothing Overwritten" />
         {/* PLUMB-F-12 (2026-09-05): a restore used to bring every record back
             with its links pointing at ids from the old account, and the
             receipt said nothing about it. Links survive now, so the row says
             so, and it says the one thing that still does not travel: the
             bundle is JSON, so a photo or receipt's bytes stay in the storage
             of the account they were uploaded to. */}
-        <Row label="Links Come Back with the Records" meta="Photos and files stay in the old account" />
-        <Row label="Sync Follows Your Account" meta="Turns on with a synced sign-in" />
+        <Row label="Links Come Back with the Records" meta="Photos and Files Stay in the Old Account" />
+        <Row label="Sync Follows Your Account" meta="Turns on with a Synced Sign-In" />
       </Card>
       <input ref={fileRef} className="visually-hidden-input" type="file" accept="application/json,.json" onChange={onFile} />
       <div className="screen-foot" />

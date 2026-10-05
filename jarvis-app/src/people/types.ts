@@ -143,6 +143,18 @@ export const AVATAR_COLORS: ColorSlot[] = COLOR_SLOTS;
 export function avatarClass(color?: ColorSlot): string {
   return !color || color === "red" ? "av-accent" : "cat-bg-" + color;
 }
+// A PERSON'S AVATAR IS A SOFT TINT OF THEIR OWN COLOUR (Dave 2026-10-05, the review: "every contact avatar is the same
+// brand-red disc, so red has nothing left to mean"). Brand red is the tap colour; a person is not a tap. A chosen colour
+// washes the disc and the initials stay in the ink; no colour chosen (the default, "red", which no swatch draws) is the
+// warm neutral. avatarClass above stays the SOLID slot class: the colour picker's swatches are the colour itself.
+//
+// A PERSON WITH NO CHOSEN COLOUR STILL WEARS THEIR OWN (the round 2 review: every contact was the same grey disc, near-invisible on
+// a card). The name picks a stable hue from the avatar palette (slotForName, never red), the way the search results have always
+// coloured the same person; a colour he chose always wins. Without a name the warm neutral is what is left.
+export function softAvatarClass(color?: ColorSlot, name?: string): string {
+  if (color && color !== "red") return "av-soft cat-fg-" + color;
+  return name?.trim() ? "av-soft cat-fg-" + slotForName(name) : "av-soft av-neutral";
+}
 const AVATAR_SLOTS: ColorSlot[] = COLOR_SLOTS.filter((s) => s !== "red");
 export function slotForName(name: string): ColorSlot {
   let h = 0;

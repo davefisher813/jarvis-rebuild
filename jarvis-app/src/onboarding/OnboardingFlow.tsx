@@ -24,6 +24,7 @@ import { runSentSweep } from "../messages/sweepRun";
 import { loadMailSnapshot, type MailSnapshot } from "../messages/home";
 import { foundLine, foundRows, openCount, FOUND_CLEAN, FOUND_UNKNOWN } from "./found";
 import { pressable } from "../shared/pressable";
+import { Plus } from "../shared/icons";
 
 const ic = (d: string) => (
   <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" dangerouslySetInnerHTML={{ __html: d }} />
@@ -550,6 +551,9 @@ export default function OnboardingFlow({ onFinish }: { onFinish: () => void }) {
   } else if (step.kind === "categories") {
     control = (
       <>
+        {/* THE ADD IS THE HEAD'S (Dave 2026-10-05, locked): Add Area was a capsule row at the foot of the card, and the
+            card is only its rows. */}
+        <div className="sh2 sh2-quiet"><span className="t">Your Areas</span><button className="see-all pill-action" onClick={addSeed}>Add Area</button></div>
         <div className="pad-x"><div className="card">
           {seeds.map((s, i) => (
             // Row tap (Dave 2026-09-15, "I want all rows clickable"): the row
@@ -560,7 +564,6 @@ export default function OnboardingFlow({ onFinish }: { onFinish: () => void }) {
               <button className="ob-x" aria-label={"Remove " + s.name} onClick={(ev) => { ev.stopPropagation(); removeSeed(i); }}>{X}</button>
             </div>
           ))}
-          <button className="row row-act" onClick={addSeed}>Add Area</button>
         </div></div>
         <div className="convo-foot"><button className="btn btn-primary btn-block" onClick={() => setIdx(idx + 1)}>Continue</button></div>
       </>
@@ -645,13 +648,15 @@ export default function OnboardingFlow({ onFinish }: { onFinish: () => void }) {
           )}
           {found === "ready" && n > 0 && rows.map((r) => (
             // Row tap (Dave 2026-09-15): the found row does its one verb, Add Task.
-            <div className="row" key={r.key} {...pressable(() => void addFound(r.taskText, r.due))}>
+            // CLEAN ROW (Dave 2026-10-05, locked): the Add Task capsule is gone from the row; the row is the door and
+            // says so with the add glyph, which is not a control of its own.
+            <div className="row" key={r.key} aria-label={"Add Task: " + r.title} {...pressable(() => void addFound(r.taskText, r.due))}>
               <div className="row-grow">
                 <div className="conn-name truncate">{r.title}</div>
                 {/* The sender's own sentence, quoted, never a rewrite. */}
                 <div className="conn-meta">{r.sentence}</div>
               </div>
-              <button className="btn-sm" onClick={(ev) => { ev.stopPropagation(); void addFound(r.taskText, r.due); }}>Add Task</button>
+              <Plus className="ic row-verb-ic" aria-hidden="true" />
             </div>
           ))}
         </div></div>

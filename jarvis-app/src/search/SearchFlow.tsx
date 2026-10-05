@@ -3,6 +3,8 @@ import { useTasks, useSchedule, useNotes, usePeople, useProjects, useMoney, useG
 import { runSearch, totalHits, buildSuggestionIndex, suggest, type SearchInput } from "./search";
 import { personInitials, slotForName } from "../people/types";
 import { RowIcon } from "../shared/anatomy";
+import { titleCase } from "../shared/casing";
+import { fmtTime } from "../schedule/calendar";
 
 // UP-CORE-04 (2026-09-05): the matched line, under the title, so a hit whose
 // title does not contain the query says why it is here instead of looking
@@ -98,7 +100,7 @@ export default function SearchFlow({ onClose, onOpen }: { onClose: () => void; o
   return (
     <div className="search-overlay ruled">
       <div className="search-top">
-        <div className="search-bar">{MAG}<input value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={submit} enterKeyHint="search" placeholder="Search Everything" autoFocus /></div>
+        <div className="search-bar">{MAG}<input value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={submit} enterKeyHint="search" placeholder="Tasks, People, Notes" autoFocus /></div>
         <button className="search-cancel" data-layer-close onClick={close}>Cancel</button>
       </div>
 
@@ -132,7 +134,9 @@ export default function SearchFlow({ onClose, onOpen }: { onClose: () => void; o
             </div></div>
           </>
         )}
-        {empty && recents.length === 0 && <div className="empty-state"><div className="empty-icon">{MAG}</div><div className="empty-title">Search Everything</div></div>}
+        {/* THE EMPTY STATE TELLS YOU WHAT TO TRY (Dave 2026-10-05, the review: it repeated the field's own words, "Search Everything"
+            under "Search Everything", and said nothing else). The field names what is searchable; this says what to type. */}
+        {empty && recents.length === 0 && <div className="empty-state"><div className="empty-icon">{MAG}</div><div className="empty-title">Find Anything</div><div className="empty-sub">Try a Name, a Task, or a Note</div></div>}
         {none && <div className="empty-state"><div className="empty-icon">{MAG}</div><div className="empty-title">No matches for &ldquo;{q.trim()}&rdquo;</div></div>}
 
         {results && !empty && results.events.length > 0 && (
@@ -140,7 +144,7 @@ export default function SearchFlow({ onClose, onOpen }: { onClose: () => void; o
             <div className="sh2 sh2-quiet"><span className="t">Schedule</span></div>
             <div className="pad-x"><div className="card list-card-ruled">
               {results.events.map((e) => (
-                <div className="row" role="button" tabIndex={0} key={e.id} onClick={() => open("event", e.id)}><RowIcon kind="event" /><div className="row-grow"><div className="conn-name">{e.title}</div><Why why={e.why} /></div><span className="urgency urgency-muted">{e.start}</span></div>
+                <div className="row" role="button" tabIndex={0} key={e.id} onClick={() => open("event", e.id)}><RowIcon kind="event" /><div className="row-grow"><div className="conn-name">{titleCase(e.title)}</div><Why why={e.why} /></div><span className="urgency urgency-muted">{fmtTime(e.start).time} {fmtTime(e.start).ap}</span></div>
               ))}
             </div></div>
           </>
@@ -151,7 +155,7 @@ export default function SearchFlow({ onClose, onOpen }: { onClose: () => void; o
             <div className="sh2 sh2-quiet"><span className="t">Tasks</span></div>
             <div className="pad-x"><div className="card list-card-ruled">
               {results.tasks.map((t) => (
-                <div className="row" role="button" tabIndex={0} key={t.id} onClick={() => open("task", t.id)}><RowIcon kind="task" /><div className="row-grow"><div className="conn-name">{t.text}</div><Why why={t.why} /></div><div className="chev"></div></div>
+                <div className="row" role="button" tabIndex={0} key={t.id} onClick={() => open("task", t.id)}><RowIcon kind="task" /><div className="row-grow"><div className="conn-name">{titleCase(t.text)}</div><Why why={t.why} /></div><div className="chev"></div></div>
               ))}
             </div></div>
           </>
@@ -173,7 +177,7 @@ export default function SearchFlow({ onClose, onOpen }: { onClose: () => void; o
             <div className="sh2 sh2-quiet"><span className="t">Notes</span></div>
             <div className="pad-x"><div className="card list-card-ruled">
               {results.notes.map((n) => (
-                <div className="row" role="button" tabIndex={0} key={n.id} onClick={() => open("note", n.id)}><RowIcon kind="note" /><div className="row-grow"><div className="conn-name">{n.title}</div><Why why={n.why} /></div><div className="chev"></div></div>
+                <div className="row" role="button" tabIndex={0} key={n.id} onClick={() => open("note", n.id)}><RowIcon kind="note" /><div className="row-grow"><div className="conn-name">{titleCase(n.title)}</div><Why why={n.why} /></div><div className="chev"></div></div>
               ))}
             </div></div>
           </>
@@ -183,7 +187,7 @@ export default function SearchFlow({ onClose, onOpen }: { onClose: () => void; o
             <div className="sh2 sh2-quiet"><span className="t">Projects</span></div>
             <div className="pad-x"><div className="card list-card-ruled">
               {results.projects.map((p) => (
-                <div className="row" role="button" tabIndex={0} key={p.id} onClick={() => open("project", p.id)}><RowIcon kind="project" /><div className="row-grow"><div className="conn-name">{p.title}</div></div><div className="chev"></div></div>
+                <div className="row" role="button" tabIndex={0} key={p.id} onClick={() => open("project", p.id)}><RowIcon kind="project" /><div className="row-grow"><div className="conn-name">{titleCase(p.title)}</div></div><div className="chev"></div></div>
               ))}
             </div></div>
           </>
@@ -194,7 +198,7 @@ export default function SearchFlow({ onClose, onOpen }: { onClose: () => void; o
             <div className="sh2 sh2-quiet"><span className="t">Goals</span></div>
             <div className="pad-x"><div className="card list-card-ruled">
               {results.goals.map((g) => (
-                <div className="row" role="button" tabIndex={0} key={g.id} onClick={() => open("goal", g.id)}><RowIcon kind="goal" /><div className="row-grow"><div className="conn-name">{g.title}</div></div><div className="chev"></div></div>
+                <div className="row" role="button" tabIndex={0} key={g.id} onClick={() => open("goal", g.id)}><RowIcon kind="goal" /><div className="row-grow"><div className="conn-name">{titleCase(g.title)}</div></div><div className="chev"></div></div>
               ))}
             </div></div>
           </>

@@ -241,18 +241,24 @@ export default function MeetingFinishCard({
       o.kind === "cancelled_filed" && { text: "Cancelled", tone: "red" },
       o.kind === "filed" && { text: "On Your Calendar", tone: "good" },
       f.day ? { text: f.day, tone: "date" } : asking === "date" && { text: "Day?", tone: "warn" },
+      // 2026-10-05 (the catalog gate): a time is a neutral time, so small caps
+      // (R8), and no fact carries a middle dot of its own (R6). "3 AM or PM?"
+      // is one question; a day part and its missing time are two facts.
       f.time
-        ? { text: f.time }
-        : o.kind === "ask" && o.hour ? { text: hourWord(o.hour.hour, o.hour.minute) + " · AM or PM?", tone: "warn" }
-        : c.dayPart ? { text: titleCase(c.dayPart) + " · Time?", tone: "warn" }
+        ? { text: f.time, tone: "date" }
+        : o.kind === "ask" && o.hour ? { text: hourWord(o.hour.hour, o.hour.minute) + " AM or PM?", tone: "warn" }
+        : c.dayPart ? { text: titleCase(c.dayPart), tone: "date" }
         : o.kind === "ask" && { text: "Time?", tone: "warn" },
+      !f.time && !(o.kind === "ask" && o.hour) && !!c.dayPart && { text: "Time?", tone: "warn" },
       // The length comes BEFORE the zone: on one line the last fact gives way,
-      // and "1h · Default" is the honesty (the length is the app's, not the
+      // and "About 1h" is the honesty (the length is the app's, not the
       // sender's), so it must not be the fact that gets cut. Found by rendering
-      // the card at 390px.
-      o.kind !== "cancelled_filed" && !!f.length && { text: f.length },
+      // the card at 390px. A length is white ink (a number with no state), so
+      // it is never a second grey beside the zone.
+      o.kind !== "cancelled_filed" && !!f.length && { text: f.length, strong: true },
       o.kind !== "cancelled_filed" && !!c.start && { text: f.zoneLabel },
-      o.kind !== "cancelled_filed" && !!f.yours && { text: f.yours },
+      o.kind !== "cancelled_filed" && !!f.yours && { text: f.yours, tone: "date" },
+      o.kind !== "cancelled_filed" && !!f.yoursDay && { text: f.yoursDay, tone: "date" },
       o.kind === "cancelled_filed" && { text: "Still on Your Calendar" },
       asking === "timezone" && { text: "Time Zone?", tone: "warn" },
     ];

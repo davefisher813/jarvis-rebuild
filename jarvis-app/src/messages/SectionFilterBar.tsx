@@ -38,7 +38,7 @@ export function SectionNoMatch({ atEnd, busy, onLoadMore, onShowAll }: {
 }) {
   return (
     <div className="pad-x"><div className="card"><div className="empty-state">
-      <div className="empty-icon"><Mail className="ic" /></div>
+      <div className="empty-icon"><Mail className="ic cat-fg-teal" /></div>
       <div className="empty-title">{atEnd ? "No Matches" : "No Matches in Loaded Mail"}</div>
       {!atEnd && <button className="quiet-action" disabled={busy} aria-busy={busy} onClick={onLoadMore}>Load More</button>}
       <button className="quiet-action" onClick={onShowAll}>Show All Mail</button>

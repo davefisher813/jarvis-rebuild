@@ -142,7 +142,7 @@ export interface BillLine {
   amount?: string;
   /** One bill: when it is due, and the key's tone for that day. "red" is a
    *  ledger bill past its explicit due date (the Colour Key's late). */
-  due?: { text: string; tone: "warn" | "date" | "red" };
+  due?: { text: string; tone: "warn" | "date" | "red"; /** Its moment has come: due today, or already late. The row surfaces Paid. */ now?: boolean };
 }
 
 // LEDGER BILLS ON THIS CARD (Money ledger, lane B). A ledger bill is not a
@@ -214,8 +214,8 @@ export function billsLine(tasks: TaskItem[], today: string, ledger: Bill[] = [])
       title: b.name,
       ...(b.amount ? { amount: b.amount } : {}),
       due: b.late > 0
-        ? { text: lineCase(b.late === 1 ? "1 day late" : `${b.late} days late`), tone: "red" }
-        : { text: lineCase(`Due ${when(b.iso)}`), tone: b.iso === today || b.iso === tomorrowISO(today) ? "warn" : "date" },
+        ? { text: lineCase(b.late === 1 ? "1 day late" : `${b.late} days late`), tone: "red", now: true }
+        : { text: lineCase(`Due ${when(b.iso)}`), tone: b.iso === today || b.iso === tomorrowISO(today) ? "warn" : "date", ...(b.iso === today ? { now: true } : {}) },
     };
   }
   const late = due.filter((b) => b.late > 0).length;

@@ -246,7 +246,7 @@ describe("routineToText", () => {
     // BRAIN-F-20 (2026-09-05): this used to assert the thin line, which was
     // the bug: kind and mode were added after the renderer, so the AI got a
     // label and a time and could not tell a commute from a meal.
-    expect(text).toContain("Gym Mon Wed Fri 6 AM to 7 AM, (gym, Can Blend), at Cortland YMCA");
+    expect(text).toContain("Gym Mon Wed Fri 6 AM to 7 AM, (gym, Can Blend, ears free), at Cortland YMCA");
     expect(text).toContain("Dinner every day 6:30 PM to 7:30 PM, (meal, Protected), flexible");
   });
 
@@ -381,5 +381,49 @@ describe("routineToText carries what a block IS (BRAIN-F-20)", () => {
     });
     expect(text).toContain("Dinner every day 6 PM to 7 PM");
     expect(text).not.toContain("(");
+  });
+});
+
+// CAN BLEND SAYS WHAT IT DOES (2026-10-04). It is busy time to the planner and
+// the conflict check, its row names the channels it leaves free, and now the AI
+// is told them too; nothing offers a task into a routine block, so the sheet's
+// words stop at what the chips mean. And the Kept Clear When Possible switch,
+// on every block's sheet, reaches a blend like it reaches Protected.
+describe("Can Blend: the free channels and the flexible switch", () => {
+  it("the AI is told which channels a blend leaves free, and a protected block says nothing of them", () => {
+    const text = routineToText({
+      ...DEFAULT_ROUTINE,
+      protectedBlocks: [
+        { id: "1", label: "Drive", startMin: 360, endMin: 420, days: [1], kind: "commute" },
+        { id: "2", label: "Row", startMin: 480, endMin: 540, days: [1], kind: "gym", mode: "blends", free: ["hands", "ears"] },
+        { id: "3", label: "Dinner", startMin: 1110, endMin: 1170, days: [1], kind: "meal" },
+      ],
+    });
+    expect(text).toContain("(commute, Can Blend, mouth and ears free)");
+    expect(text).toContain("(gym, Can Blend, hands and ears free)");
+    expect(text).toContain("(meal, Protected)");
+    expect(text).not.toContain("Protected, ");
+  });
+
+  it("a flexible blend is routed through like a flexible protected block, and a firm one stays a wall", async () => {
+    const { splitProtectedRanges } = await import("./types");
+    const out = splitProtectedRanges([
+      { s: 270, e: 315, label: "Drive", kind: "commute", soft: true },
+      { s: 360, e: 420, label: "Gym", kind: "gym" },
+      { s: 720, e: 780, label: "Lunch", kind: "meal", soft: true },
+    ]);
+    expect(out.hard.map((h) => h.label)).toEqual(["Gym"]);
+    expect(out.soft.map((h) => h.label).sort()).toEqual(["Drive", "Lunch"]);
+    // It is still a blend for the engine that reads blends.
+    expect(out.blend.map((b) => b.label)).toEqual(["Drive", "Gym"]);
+  });
+
+  it("the sheet's note follows the channels picked, not one fixed line", async () => {
+    const { blendNote } = await import("./types");
+    expect(blendNote(["mouth", "ears"])).toBe("A call fits · Typing does not");
+    expect(blendNote(["ears"])).toBe("Listening fits · Typing does not");
+    expect(blendNote(["mouth"])).toBe("Talking fits · Typing does not");
+    expect(blendNote(["hands"])).toBe("A call does not fit · Typing fits");
+    expect(blendNote(["mouth", "hands", "ears"])).toBe("A call fits · Typing fits");
   });
 });

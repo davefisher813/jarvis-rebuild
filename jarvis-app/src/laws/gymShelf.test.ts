@@ -203,12 +203,18 @@ describe("a swiped row is the width of the list it is in", () => {
 // "Your lifts subtext should be a chip." It was a clause under the name
 // explaining what the door leads to, which is what the door is for, and it
 // made this row two lines tall while All Programs beside it was one.
-describe("the shelf's count is a chip on the row", () => {
+//
+// AMENDED (Dave 2026-10-05, locked: clean rows, no pills in a row; subtextLaw
+// retired .ex-chip). The count is still ONE short fact in the trailing slot and
+// never a second line, but it is a `.fact` now, not a capsule: a row's count is
+// a fact, and a capsule on a row is a command.
+describe("the shelf's count is a fact on the row", () => {
   it("puts the exercise count in the trailing slot, not on a second line", () => {
     const lifts = GYM_FLOW.slice(GYM_FLOW.indexOf("function LiftsRow"), GYM_FLOW.indexOf("function DayRow"));
     // AMENDED 2026-09-26 (Batch 1 casing): the count is cased by lineCase,
     // the whole rule's formatter, not the old number-lead helper.
-    expect(lifts, "the count is a capsule").toMatch(/<span className="ex-chip">\{lineCase\(count/);
+    expect(lifts, "the count is a fact in the trailing slot").toMatch(/className="row-value"><span className="fact"><b>\{lineCase\(count/);
+    expect(lifts, "and it is not a capsule").not.toMatch(/ex-chip|pill-act|row-act/);
     expect(lifts, "and there is no facts line left under the name").not.toMatch(/className="facts"/);
   });
 });

@@ -1,11 +1,11 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import LargeTitleNav from "../shared/LargeTitleNav";
 import { useBrainMemory, usePeople } from "../data/NotesProvider";
 import { attemptWrite } from "../shared/guard";
-import { showToast } from "../shared/toast";
+import { showToast, hideToast } from "../shared/toast";
 import { saveTextFile } from "../shared/saveTextFile";
 import { writeTriageCursor } from "../brain/manual/triage";
-import { Head, Card, Row, DangerRow, Foot } from "./kit";
+import { Head, Card, Row, Foot } from "./kit";
 
 /**
  * Settings → Brain (Brain Manual v1). Export hands every brain_memory row
@@ -18,6 +18,14 @@ export default function BrainSettingsPage({ onBack }: { onBack: () => void }) {
   const peopleSvc = usePeople();
   const [armed, setArmed] = useState(false);
   const [busy, setBusy] = useState(false);
+  // The armed step relaxes by itself after four seconds, like every other two-tap in Settings, so a half-finished erase
+  // never waits for a stray tap. Arming also clears a stale receipt ("Brain Exported") off the screen, so the confirm is
+  // the only thing talking.
+  useEffect(() => {
+    if (!armed) return;
+    const id = setTimeout(() => setArmed(false), 4000);
+    return () => clearTimeout(id);
+  }, [armed]);
 
   const doExport = async () => {
     if (busy) return;
@@ -30,7 +38,7 @@ export default function BrainSettingsPage({ onBack }: { onBack: () => void }) {
         `jarvis-brain-${day}.json`,
         { title: "My Brain Export", mime: "application/json;charset=utf-8" },
       );
-      if (sent) showToast({ message: "Brain Exported ✓" });
+      if (sent) showToast({ message: "Brain Exported" });
     });
     setBusy(false);
     if (!ok) return;
@@ -70,7 +78,7 @@ export default function BrainSettingsPage({ onBack }: { onBack: () => void }) {
     setArmed(false);
     if (!ok) return;
     if (left > 0) { showToast({ message: `Erase Stopped Short · ${left} Left · Erase Again to Finish` }); return; }
-    showToast({ message: "Brain Erased ✓" });
+    showToast({ message: "Brain Erased" });
   };
 
   return (
@@ -83,16 +91,16 @@ export default function BrainSettingsPage({ onBack }: { onBack: () => void }) {
           onClick={() => void doExport()} />
       </Card>
 
-      <Head label="Danger Zone" />
-      <Card>
-        {/* The tap-again confirm, same as AdvancedPage's destructive rows:
-            the first tap arms, the second erases. The copy says exactly what
-            goes and what stays. */}
-        {armed
-          ? <DangerRow label="Tap Again to Confirm the Erase" onClick={() => void doErase()} disabled={busy} />
-          : <DangerRow label="Erase Brain Data" onClick={() => setArmed(true)} disabled={busy} />}
-      </Card>
-      <Foot>Decisions, Principles, Values, Writing Samples and Facts Are Deleted. Contacts Stay, but Their Roles Go Back to Unsorted.</Foot>
+      {/* THE ACTION IS THE HEAD'S (Dave 2026-10-05, locked: an action never sits alone in a box). The card that held only Erase
+          Brain Data is gone; the head carries the one capsule in the system red, the tap-again confirm after it is solid red with a
+          Cancel beside it, and the notes below say exactly what goes and what stays. */}
+      <Head label="Danger Zone"
+        actions={armed
+          ? [{ label: "Cancel", onClick: () => setArmed(false), disabled: busy }, { label: "Erase Now", tone: "armed", onClick: () => void doErase(), disabled: busy }]
+          : [{ label: "Erase Brain Data", tone: "danger", onClick: () => { hideToast(); setArmed(true); }, disabled: busy }]} />
+      {/* Two plain notes, sentence case (field notes), no dot typed between them. */}
+      <Foot>Decisions, principles, values, writing samples and facts are deleted</Foot>
+      <Foot>Contacts stay, but their roles go back to Unsorted</Foot>
     </div>
   );
 }

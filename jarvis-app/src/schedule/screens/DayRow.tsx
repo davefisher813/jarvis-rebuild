@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import EntityStar from "../../shared/EntityStar";
+import EntityStar, { useRemember } from "../../shared/EntityStar";
 import type { EventItem } from "../types";
 import { useSwipe } from "../../shared/useSwipe";
 import { SCHED_ACT_W } from "./schedRail";
@@ -14,7 +14,10 @@ import Provenance from "../../shared/ProvenanceLine";
 import { leaveByOf } from "../leaveBy";
 import { rowSource, type Source } from "../../shared/provenance";
 import { toneFor, type StateWord } from "../stateWord";
-import { lineCase } from "../../shared/casing";
+import { lineCase, titleCase } from "../../shared/casing";
+import RowCtxAction from "../../shared/RowCtxAction";
+import type { RowAction } from "../../shared/RowActionSheet";
+import { useRowMenu } from "../../shared/useRowMenu";
 import { minutesLabel } from "../../shared/duration";
 import RetimeSheet from "./RetimeSheet";
 
@@ -24,13 +27,12 @@ import RetimeSheet from "./RetimeSheet";
 // the next upcoming event carries a time-as-distance label, and past events
 // dim. Tap always opens the editor.
 //
-// The chevron (Dave 2026-08-07, "it's something you don't wanna tap on because
-// it's a headache") exists because the swipe alone had two problems. It was
-// invisible: nothing on screen said the actions were there, so the fast path
-// only helped someone who already knew about it. And it was bound to
-// onTouchStart/Move/End only, which meant +15 min and Tomorrow were literally
-// unreachable with a mouse or a keyboard, on a row whose every other action
-// was not. The chevron is the same reveal, announced and operable by anyone.
+// THE CHEVRON IS GONE (Dave 2026-10-05, locked: "Never use a permanent visual affordance ... the peek and the tip teach it, then
+// the UI stays clean"). It was added on 2026-08-07 ("it's something you don't wanna tap on because it's a headache") because
+// the swipe was invisible and, bound to touch events only, unreachable with a mouse or a keyboard. The second half still
+// matters and is kept: the same actions are the long-press menu, a hold or a right click (or the context-menu key), through
+// shared/RowActionSheet. The row's quick action by swipe is unchanged; a gym block's is Start (or Resume), which used to be
+// a capsule inside the row.
 
 export interface GymDoorView {
   /** Real minutes stamped for this date -- the block already earned its
@@ -140,7 +142,13 @@ export default function DayRow({
   // entirely, which is exactly why they felt welded to the calendar. What is
   // dangerous is moving a SERIES by accident, and the flow handles that by
   // moving one day only and saying so in the toast.
-  const swipeable = !selecting && !isPast && (onShift || onPushTomorrow || onSkipToday || onDelete);
+  // THE TRAINING DOOR'S VERB (Dave 2026-10-05): Start or Resume was a capsule inside the row. It is the swipe-left's first
+  // button on a gym block that has not been trained, the first line of the menu, and, while this is the next block, the
+  // row's one quiet word (RowCtxAction). A trained block has nothing to start.
+  const gymVerb = gymDoor && gymDoor.trainedMin == null && !selecting
+    ? gymDoor.onResume ? { label: "Resume", run: gymDoor.onResume } : gymDoor.onStart ? { label: "Start", run: gymDoor.onStart } : null
+    : null;
+  const swipeable = !selecting && !isPast && (onShift || onPushTomorrow || onSkipToday || onDelete || gymVerb);
   // THE RAIL IS AS WIDE AS THE BUTTONS IN IT, and it was not (swipe audit,
   // 2026-09-20). .sched-act is a fixed 88 and .sched-strip clips, so a hard
   // revealW that disagrees with the button count hides whatever does not fit.
@@ -149,8 +157,25 @@ export default function DayRow({
   // and +15m was cut in half. Dave's screenshot of 2026-09-20 shows exactly
   // that: a clipped "15m", "+1h", "Tomorrow", and no way to reach the first.
   // Counting the rendered actions means the rail can never lie again.
-  const acts = [!!onShift, rep ? !!onSkipToday : !!onPushTomorrow, !!onDelete].filter(Boolean).length;
-  const { dx, open, dragging, handlers, closeThen, toggle } = useSwipe({ revealW: acts * SCHED_ACT_W, enabled: !!swipeable });
+  const acts = [!!gymVerb || !!onShift, rep ? !!onSkipToday : !!onPushTomorrow, !!onDelete].filter(Boolean).length;
+  const title = titleCase(e.data.title);
+  // REMEMBER IS A LINE IN THE MENU, AND A STAR ONLY WHILE IT IS TRUE (2026-10-05, the perfect bar, as on every task row): an
+  // empty outline star on every event is a control nobody asked for. The lead slot keeps its room (ruled.css), so titles stay
+  // on one left edge whether or not a star is drawn.
+  const remember = useRemember("event", e.id, title);
+  const menuActions: RowAction[] = [
+    ...(gymVerb ? [{ label: gymVerb.label + (gymDoor?.dayName ? " " + titleCase(gymDoor.dayName) : ""), onPick: gymVerb.run }] : []),
+    ...(swipeable && onShift ? [{ label: "+15 Min", onPick: () => onShift(15) }] : []),
+    ...(swipeable && rep && onSkipToday ? [{ label: "Skip Today", onPick: onSkipToday }] : []),
+    ...(swipeable && !rep && onPushTomorrow ? [{ label: "Move to Tomorrow", onPick: onPushTomorrow }] : []),
+    ...(onNotes && !selecting ? [{ label: hasNote ? "Open Notes" : "Add Notes", onPick: onNotes }] : []),
+    ...(remember && !selecting ? [{ label: remember.on ? "Forget" : "Remember", onPick: () => void remember.run() }] : []),
+    ...(swipeable && onDelete ? [{ label: "Delete", destructive: true, onPick: onDelete }] : []),
+  ];
+  const rowMenu = useRowMenu({ title, actions: menuActions, enabled: !selecting, swipeEnabled: !!swipeable });
+  const swipe = useSwipe({ revealW: acts * SCHED_ACT_W, enabled: !!swipeable, onLongPress: rowMenu.onLongPress });
+  const { dx, open, dragging, closeThen } = swipe;
+  const { handlers: rowHandlers, sheet } = rowMenu.bind(swipe);
   const [picking, setPicking] = useState(false);
   const [sizing, setSizing] = useState(false);
   const durs = useRef<HTMLDivElement>(null);
@@ -207,7 +232,9 @@ export default function DayRow({
               still there. -15m in particular was never reachable by swipe at
               all (see the rail note above), so retiring it costs nothing that
               was working. */}
-          {onShift && <button className="sched-act" tabIndex={open ? 0 : -1} onClick={() => closeThen(() => onShift(15))}>+15m</button>}
+          {gymVerb
+            ? <button className="sched-act" data-verb tabIndex={open ? 0 : -1} aria-label={gymVerb.label + " " + (gymDoor?.dayName ? titleCase(gymDoor.dayName) : "Training")} onClick={() => closeThen(gymVerb.run)}>{gymVerb.label}</button>
+            : onShift && <button className="sched-act" tabIndex={open ? 0 : -1} onClick={() => closeThen(() => onShift(15))}>+15m</button>}
           {rep
             ? onSkipToday && <button className="sched-act sched-act-quiet" tabIndex={open ? 0 : -1} onClick={() => closeThen(onSkipToday)}>Skip Today</button>
             : onPushTomorrow && <button className="sched-act sched-act-quiet" tabIndex={open ? 0 : -1} onClick={() => closeThen(onPushTomorrow)}>Tomorrow</button>}
@@ -222,20 +249,20 @@ export default function DayRow({
         role="button"
         tabIndex={0}
         onClick={() => (selecting ? onPick?.() : open ? closeThen() : onOpen?.())}
-        {...handlers}
+        {...rowHandlers}
       >
         {/* THE CATEGORY BAR (Dave 2026-08-19, "doesn't show which category
             things are tied to"): the dot on the third line was there but read
             as absent. This is the same fact at a glance, no reading. */}
         <span className={"sched-bar cat-bg-" + catColor(e.data.category)} />
         {/* C-50 (Astra, 2026-09-12): the Remember star leads the row. */}
-        {!selecting && <EntityStar entityType="event" entityId={e.id} title={e.data.title} />}
+        {!selecting && <EntityStar entityType="event" entityId={e.id} title={e.data.title} quiet />}
         {selecting && (
           <button
             type="button"
             className={"sel-box sched-sel" + (picked ? " on" : "")}
             role="checkbox" aria-checked={picked}
-            aria-label={(picked ? "Deselect " : "Select ") + e.data.title}
+            aria-label={(picked ? "Deselect " : "Select ") + title}
             onClick={(ev) => { ev.stopPropagation(); onPick?.(); }}
           >{picked && <CheckGlyph className="ic" />}</button>
         )}
@@ -253,7 +280,7 @@ export default function DayRow({
         )}
         <div className="sched-body">
           <div className="sched-title">
-            <span className="sched-t">{e.data.title}</span>
+            <span className="sched-t">{title}</span>
             {conflict && (onFixOverlap && !selecting ? (
               <button
                 type="button"
@@ -281,11 +308,15 @@ export default function DayRow({
                 onClick={(ev) => ev.stopPropagation()}
               >Join</a>
             )}
-            {onNotes && !selecting && (
+            {/* THE GLYPH IS A FACT, NOT A PERMANENT INVITATION (round 3, 2026-10-05; Dave, locked: no permanent affordance). It
+                drew on every row, hollow and identical with or without a note, and took 21px from every title beside it. It is drawn
+                only when a note exists, in the note's own tone, and opens it; writing the first one is a line in the long-press
+                menu (Add Notes), the same door the glyph used to be. */}
+            {onNotes && hasNote && !selecting && (
               <button
                 type="button"
-                className={"sched-notes" + (hasNote ? " on" : "")}
-                aria-label={hasNote ? "Open Notes" : "Add Notes"}
+                className="sched-notes on"
+                aria-label="Open Notes"
                 onClick={(ev) => { ev.stopPropagation(); onNotes(); }}
               ><FileText className="ic" /></button>
             )}
@@ -352,9 +383,10 @@ export default function DayRow({
                     onClick={(ev) => { ev.stopPropagation(); setSizing(!sizing); }}
                   >{durLabel(mins)}</button>
                 ) : (
-                  /* A length that cannot be tapped is a number with no
-                     state: white <b>, not small caps ("30M" read as months). */
-                  <b>{durLabel(mins)}</b>
+                  /* A length that cannot be tapped is still the length, so it wears the same ink as the one that can
+                     (round-1 review, 2026-10-05, decision D4: a duration is the key's estimate sky, never white in one
+                     state and red in another). Not small caps: "30M" read as months. */
+                  <span className="fact est">{durLabel(mins)}</span>
                 )}
               </span>
             )}
@@ -447,7 +479,7 @@ export default function DayRow({
                 </div>
               ) : (
                 <>
-                  {gymDoor.dayName && <div className="sched-gym-name">{gymDoor.dayName}</div>}
+                  {gymDoor.dayName && <div className="sched-gym-name">{titleCase(gymDoor.dayName)}</div>}
                   {/* THREE FACTS, THREE INKS (§AM, 2026-09-26). They were one
                       string joined with typed middots, so all three sat in
                       one grey run. The count is a number with no state, so
@@ -467,31 +499,14 @@ export default function DayRow({
                       )}
                     </div>
                   )}
-                  {gymDoor.onResume ? (
-                    <button type="button" className="pill-act sched-gym-start" onClick={gymDoor.onResume}>
-                      {gymDoor.dayName ? `Resume ${gymDoor.dayName}` : "Resume"}
-                    </button>
-                  ) : gymDoor.onStart && (
-                    <button type="button" className="pill-act sched-gym-start" onClick={gymDoor.onStart}>
-                      {gymDoor.dayName ? `Start ${gymDoor.dayName}` : "Start Training"}
-                    </button>
-                  )}
                 </>
               )}
             </div>
           )}
         </div>
-        {swipeable && (
-          <button
-            type="button"
-            className={"sched-grip" + (open ? " open" : "")}
-            aria-label={open ? "Hide quick actions" : "Quick actions"}
-            aria-expanded={open}
-            onClick={(ev) => { ev.stopPropagation(); toggle(); }}
-          >
-            <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
-          </button>
-        )}
+        {/* THE ROW'S MOMENT (Dave 2026-10-05): the next block is a training block that has not been started, so its one
+            verb surfaces as one quiet word; every other row stays clean. Same verb as the swipe. */}
+        <RowCtxAction when={!!gymVerb && isNext && !isPast} label={gymVerb?.label ?? ""} ariaLabel={gymVerb ? gymVerb.label + " " + (gymDoor?.dayName ? titleCase(gymDoor.dayName) : "Training") : undefined} onAct={() => gymVerb?.run()} />
       </div>
       </div>
       {/* TAP THE UNTIL (B5): the same move for the other half of the block.
@@ -542,6 +557,7 @@ export default function DayRow({
           sheet is portalled, holds a draft (start by the native input and
           the nudge chips, length by the shared chips) and commits once, on
           Move, as one move with one Undo. See RetimeSheet. */}
+      {sheet}
       {picking && onMoveTo && (
         <RetimeSheet
           title={e.data.title}

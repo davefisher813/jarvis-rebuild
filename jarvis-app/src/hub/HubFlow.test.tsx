@@ -11,7 +11,7 @@ import "@testing-library/jest-dom";
 import HubFlow, { OFFLINE_LINE } from "./HubFlow";
 import { NotesProvider } from "../data/NotesProvider";
 import type { HubOverview, RpcClient } from "./hubClient";
-import { setAdminAiBlocked } from "../ai/levelStore";
+import { setAdminAiBlocked, setAIControl } from "../ai/levelStore";
 import { subscribeToast, resetToasts } from "../shared/toast";
 import type { ReceiptDetail as Detail, FeedRow } from "../substrate/commands/receipts";
 
@@ -84,7 +84,7 @@ function rig(over: Partial<Record<string, Fn>> = {}, ov: HubOverview = overview)
 const toasts: string[] = [];
 let stopToasts = () => {};
 beforeEach(() => { toasts.length = 0; stopToasts = subscribeToast((t) => { if (t) toasts.push(t.message); }); });
-afterEach(() => { stopToasts(); resetToasts(); setAdminAiBlocked(false); cleanup(); vi.restoreAllMocks(); });
+afterEach(() => { stopToasts(); resetToasts(); setAdminAiBlocked(false); setAIControl(undefined); cleanup(); vi.restoreAllMocks(); });
 
 const sheetSave = () => document.querySelector<HTMLButtonElement>(".sheet-bar-save")!;
 const tab = (name: string) => fireEvent.click(screen.getByRole("tab", { name }));
@@ -97,7 +97,9 @@ describe("H1 Agents", () => {
     expect(screen.getAllByRole("tab").map((t) => t.textContent)).toEqual(["Agents", "Review", "Activity"]);
     expect(screen.getByText("Your Context · Your Call")).toBeInTheDocument();
     expect(screen.getByRole("switch", { name: "AI on or off" })).toBeInTheDocument();
-    expect(screen.getByText("Help Me · Summer Travel · 1 Share Open")).toBeInTheDocument();
+    // 2026-10-05 (catalog gate): the row's one grey is what the assistant may do; the project and the open
+    // shares are on its detail page, not a second and third grey here.
+    expect(screen.getByText("Help Me")).toBeInTheDocument();
     expect(screen.getByText("Connected")).toBeInTheDocument();
     expect(calls.map((c) => c.fn).slice(0, 2)).toEqual(["decision_dependencies_check", "hub_overview"]);
     fireEvent.click(screen.getByText("Add Assistant"));
@@ -132,7 +134,9 @@ describe("H4 Agent detail and H5 preview", () => {
     render(<HubFlow onBack={() => {}} client={client} />);
     fireEvent.click(await screen.findByText("Claude"));
     expect(await screen.findByText("Read Only")).toBeInTheDocument();
-    expect(screen.getAllByText("Saves and Sends Still Need Your Tap").length).toBeGreaterThanOrEqual(3);
+    // Each mode is ONE grey line; the sentence every mode ends on is said once, under the group (2026-10-05).
+    expect(screen.getByText("Reads Only What You Share, No Suggestions, No Drafts")).toBeInTheDocument();
+    expect(screen.getAllByText("Saves and Sends Still Need Your Tap")).toHaveLength(1);
     fireEvent.click(screen.getByRole("radio", { name: /Read Only/ }));
     await waitFor(() => expect(calls.find((c) => c.fn === "connection_set_mode")?.args).toEqual({ p_connection: "c1", p_expected_revision: 3, p_mode: "read_only" }));
     expect(calls.some((c) => c.fn === "scope_grant_create")).toBe(false);
@@ -152,7 +156,7 @@ describe("H4 Agent detail and H5 preview", () => {
     expect(await screen.findByText("3 Records")).toBeInTheDocument();
     expect(calls.find((c) => c.fn === "job_open")?.args).toEqual({ p_agent: "c1", p_project: "p1", p_purpose: "Help with Summer Travel" });
     expect(calls.find((c) => c.fn === "context_preview")?.args).toMatchObject({ p_job: "j1" });
-    expect(screen.getByText("status, title")).toBeInTheDocument();
+    expect(screen.getByText("Status, Title")).toBeInTheDocument();
     expect(screen.getByText("Cancel Shares Nothing")).toBeInTheDocument();
     expect(calls.some((c) => c.fn === "scope_grant_create")).toBe(false);
     fireEvent.click(screen.getByRole("button", { name: "Share Once · 15 Minutes" }));
@@ -273,8 +277,10 @@ describe("H2 Review", () => {
     fireEvent.change(screen.getByLabelText("Constraint value"), { target: { value: "3000" } });
     fireEvent.click(sheetSave());
     expect(await screen.findByText("Conflicts With Trip Budget")).toBeInTheDocument();
-    expect(screen.getByText("trip_budget_usd · 2400")).toBeInTheDocument();
-    expect(screen.getByText("trip_budget_usd · 3000")).toBeInTheDocument();
+    // The key is the line's one grey in Title Case; each side's value is its own white fact (2026-10-05).
+    expect(screen.getAllByText("Trip Budget Usd")).toHaveLength(2);
+    expect(screen.getByText("2400")).toBeInTheDocument();
+    expect(screen.getByText("3000")).toBeInTheDocument();
     fireEvent.click(screen.getByText("Replace Trip Budget With This"));
     await waitFor(() => expect(calls.filter((c) => c.fn === "decision_save")).toHaveLength(2));
     expect(calls.filter((c) => c.fn === "decision_save")[1]?.args).toMatchObject({ p_replace_item: "d1", p_constraints: [{ key: "trip_budget_usd", value: "3000" }] });
@@ -322,8 +328,8 @@ describe("H6 Decision detail", () => {
     await screen.findByText("Claude");
     tab("Review");
     fireEvent.click(screen.getByText("Trip Budget"));
-    expect(await screen.findByText("Active · Version 1")).toBeInTheDocument();
-    expect(screen.getByText("trip_budget_usd")).toBeInTheDocument();
+    expect(await screen.findByText("Active, Version 1")).toBeInTheDocument();
+    expect(screen.getByText("Trip Budget Usd")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Replace With a New Decision" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Withdraw Decision" }));
     fireEvent.change(screen.getByLabelText("Reason for withdrawing"), { target: { value: "Plans changed" } });
@@ -345,7 +351,7 @@ describe("H3 Activity and H7 receipt", () => {
     expect(screen.queryByText("Saved $142.30 Bill to Money")).not.toBeInTheDocument();
     tab("All");
     fireEvent.click(screen.getByText("Saved $142.30 Bill to Money"));
-    expect(await screen.findByText("Suggested by a Rule · Approved by You")).toBeInTheDocument();
+    expect(await screen.findByText("Suggested by a Rule, Approved by You")).toBeInTheDocument();
     expect(screen.getByText("Amount due $142.30 by Oct 15")).toBeInTheDocument();
     const page = within(document.body);
     fireEvent.click(page.getByRole("button", { name: "Undo" }));
@@ -411,5 +417,190 @@ describe("the states every screen inherits", () => {
   it("no client at all is an honest unavailable, not a blank", async () => {
     render(<HubFlow onBack={() => {}} client={null} />);
     expect(await screen.findByText("Couldn't Reach JARVIS · Try Again")).toBeInTheDocument();
+  });
+});
+
+// OPEN IT, FROM A RECEIPT (2026-10-04, the dead-button sweep). A bill or receipt
+// capture hands the shell "money", which had no branch (pinned in
+// shell/hubOpenIt.test.tsx). A Kept as Note receipt pointed at the Notes tab,
+// which cannot load an exploration and drew an empty editor: the Hub opens it
+// itself, in Review > Mentioned under its project.
+describe("H7 Open It", () => {
+  const keptDetail: Detail = {
+    ...detail, action_id: "act7", kind: "exploration_keep", verb: "Kept as Note · Explore a second summer team", destination_id: "n7", undoable: false,
+    receipts: [{ ...detail.receipts[0]!, receipt_id: "r7", exact_verb: "Kept as Note · Explore a second summer team", after_ref: "n7", diff: [], evidence_refs: [] }], evidence: [],
+  };
+  const keptFeed: FeedRow[] = [{ ...feed[0]!, receipt_id: "r7", action_id: "act7", exact_verb: "Kept as Note · Explore a second summer team", kind: "exploration_keep", destination_id: "n7", undoable: false }];
+  const noteOverview: HubOverview = {
+    ...overview,
+    projects: [...overview.projects, { id: "p2", title: "Fall Camp", status: "active" }],
+    exploration_notes: [{ id: "n7", text: "Explore a second summer team", project_id: "p2", created_at: NOW }],
+  };
+  const openKept = async (ov: HubOverview) => {
+    const onOpenEntity = vi.fn();
+    const { client } = rig({ activity_feed: () => ({ rows: keptFeed, email_review_count: 0, scope: "global" }), receipt_detail: () => keptDetail }, ov);
+    render(<HubFlow onBack={() => {}} client={client} onOpenEntity={onOpenEntity} />);
+    await screen.findByText("Claude");
+    tab("Activity");
+    fireEvent.click(await screen.findByText("Kept as Note · Explore a second summer team"));
+    fireEvent.click(await screen.findByRole("button", { name: "Open It" }));
+    return { onOpenEntity };
+  };
+
+  it("a Kept as Note receipt opens Review > Mentioned on the note's own project, and never calls the shell", async () => {
+    const { onOpenEntity } = await openKept(noteOverview);
+    expect(await screen.findByText("Save What We Decided")).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Mentioned" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("tab", { name: "Fall Camp" })).toHaveAttribute("aria-selected", "true");
+    // Shown in Title Case (2026-10-05, his typed titles are re-cased on display only; line 299 holds that the stored text is unchanged).
+    expect(screen.getByText("Explore a Second Summer Team", { selector: ".conn-name" })).toBeInTheDocument();
+    expect(onOpenEntity).not.toHaveBeenCalled();
+  });
+
+  it("a kept note that is no longer there says so and stays on the receipt", async () => {
+    const { onOpenEntity } = await openKept({ ...noteOverview, exploration_notes: [] });
+    await waitFor(() => expect(toasts).toContain("Couldn't Open That Note"));
+    expect(screen.getByRole("button", { name: "Open It" })).toBeInTheDocument();
+    expect(onOpenEntity).not.toHaveBeenCalled();
+  });
+
+  it("a Bill capture hands the shell the Money destination and the item's id", async () => {
+    const onOpenEntity = vi.fn();
+    const { client } = rig();
+    render(<HubFlow onBack={() => {}} client={client} onOpenEntity={onOpenEntity} />);
+    await screen.findByText("Claude");
+    tab("Activity");
+    fireEvent.click(await screen.findByText("Saved $142.30 Bill to Money"));
+    fireEvent.click(await screen.findByRole("button", { name: "Open It" }));
+    expect(onOpenEntity).toHaveBeenCalledWith("money", "item1");
+  });
+});
+
+// PREVIEW SHARED CONTEXT IS DIMMED, NOT DEAD (2026-10-04). The row was natively
+// disabled while its onClick opened with the "Pick a Project First" toast,
+// which a disabled button never fires: a new assistant (no project yet) showed
+// a grey row that did nothing and said nothing. It stays tappable and says why.
+describe("H4 Preview Shared Context when it cannot run yet", () => {
+  const noProject: HubOverview = { ...overview, connections: [{ ...overview.connections[0]!, project_id: null, project_title: null, open_grants: 0, grants: [] }] };
+  const openAgent = async (ov: HubOverview) => {
+    const r = rig({}, ov);
+    render(<HubFlow onBack={() => {}} client={r.client} />);
+    fireEvent.click(await screen.findByText("Claude"));
+    return { ...r, row: await screen.findByRole("button", { name: "Preview Shared Context" }) };
+  };
+
+  it("a new assistant with no project: the tap says Pick a Project First and opens nothing", async () => {
+    const { row, calls } = await openAgent(noProject);
+    expect(row).not.toBeDisabled();
+    expect(row).toHaveAttribute("aria-disabled", "true");
+    fireEvent.click(row);
+    expect(toasts).toContain("Pick a Project First");
+    expect(calls.some((c) => c.fn === "job_open")).toBe(false);
+  });
+
+  it("with the person's own AI level off it says so, and says how to fix it", async () => {
+    setAIControl({ level: "off" });
+    const { row, calls } = await openAgent(overview);
+    fireEvent.click(row);
+    expect(toasts).toContain("AI Is Off · Turn It On to Preview");
+    expect(calls.some((c) => c.fn === "job_open")).toBe(false);
+  });
+
+  // 2026-10-05: an admin block cannot be undone from here, so the toast must
+  // not say "Turn It On"; it names the admin, like the AI switch does.
+  it("with AI off by the admin it names the admin instead of telling the person to turn it on", async () => {
+    setAdminAiBlocked(true);
+    const { row, calls } = await openAgent(overview);
+    fireEvent.click(row);
+    expect(toasts).toContain("Turned Off by Admin");
+    expect(toasts).not.toContain("AI Is Off · Turn It On to Preview");
+    expect(calls.some((c) => c.fn === "job_open")).toBe(false);
+  });
+
+  it("offline it says so", async () => {
+    Object.defineProperty(window.navigator, "onLine", { value: false, configurable: true });
+    try {
+      const { row } = await openAgent(overview);
+      fireEvent.click(row);
+      expect(toasts).toContain("Offline · Connect to Preview");
+    } finally {
+      Object.defineProperty(window.navigator, "onLine", { value: true, configurable: true });
+    }
+  });
+
+  it("when nothing is in the way it is a live row with no dim", async () => {
+    const { row } = await openAgent(overview);
+    expect(row).not.toHaveAttribute("aria-disabled");
+    expect(row.className).not.toContain("dim");
+  });
+});
+
+// EXPORT SHARED CONTEXT, WHEN NOBODY TOOK THE EXPORT (2026-10-04). It said
+// "Export Ready · Copy It From the Activity Receipt" when the share sheet and the
+// clipboard had both refused, pointing at a receipt that never holds the package:
+// the disclosure was written and the words were gone. It now says it could not,
+// and keeps the words on screen.
+describe("H5 an export that neither the share sheet nor the clipboard took", () => {
+  const issued = { package_id: "pk1", job_id: "j1", project_id: "p1", purpose: "Export Summer Travel", manifest: [], data: { note: "the package" }, expires_at: "2026-10-04T12:15:00Z", package_hash: "f".repeat(64) };
+  const setNav = (name: "share" | "clipboard", value: unknown) => Object.defineProperty(window.navigator, name, { value, configurable: true });
+  afterEach(() => { setNav("share", undefined); setNav("clipboard", undefined); });
+
+  async function runExport() {
+    const { client } = rig({ context_issue: () => issued });
+    render(<HubFlow onBack={() => {}} client={client} />);
+    await screen.findByText("Claude");
+    tab("Review");
+    fireEvent.click(screen.getByRole("button", { name: "Paste or Import a Conversation" }));
+    expect(await screen.findByText("3 Records")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Export Shared Context" }));
+  }
+
+  it("says it could not share, never Export Ready, and keeps the words to copy by hand", async () => {
+    setNav("share", async () => { throw new Error("NotAllowedError"); });
+    setNav("clipboard", undefined);
+    await runExport();
+    const box = await screen.findByLabelText("The export, ready to copy");
+    expect((box as HTMLTextAreaElement).value).toContain("the package");
+    expect(toasts).toContain("Couldn't Share · Your Export Is Below");
+    expect(toasts.join("|")).not.toContain("Export Ready");
+    expect(document.body.textContent).not.toContain("Activity Receipt");
+  });
+
+  it("Copy Export is a fresh tap: it copies, says so only then, and puts the words away", async () => {
+    setNav("share", undefined);
+    setNav("clipboard", undefined);
+    await runExport();
+    const box = await screen.findByLabelText("The export, ready to copy");
+    const text = (box as HTMLTextAreaElement).value;
+    // Still no clipboard: the tap fails honestly and the words stay.
+    fireEvent.click(screen.getByRole("button", { name: "Copy Export" }));
+    await waitFor(() => expect(toasts).toContain("Couldn't Copy · Select the Text Below"));
+    expect(screen.getByLabelText("The export, ready to copy")).toBeInTheDocument();
+    // The clipboard is there on a later tap.
+    const written: string[] = [];
+    setNav("clipboard", { writeText: async (t: string) => { written.push(t); } });
+    fireEvent.click(screen.getByRole("button", { name: "Copy Export" }));
+    await waitFor(() => expect(toasts).toContain("Copied · Paste It Into Your Assistant"));
+    expect(written).toEqual([text]);
+    expect(screen.queryByLabelText("The export, ready to copy")).toBeNull();
+  });
+
+  it("a refused share sheet falls to the clipboard and says Copied, with nothing left on screen", async () => {
+    const written: string[] = [];
+    setNav("share", async () => { throw new Error("NotAllowedError"); });
+    setNav("clipboard", { writeText: async (t: string) => { written.push(t); } });
+    await runExport();
+    await waitFor(() => expect(toasts).toContain("Copied · Paste It Into Your Assistant"));
+    expect(written).toHaveLength(1);
+    expect(screen.queryByLabelText("The export, ready to copy")).toBeNull();
+  });
+
+  it("a share that went through says Shared", async () => {
+    const share = vi.fn(async () => {});
+    setNav("share", share);
+    await runExport();
+    await waitFor(() => expect(toasts).toContain("Shared"));
+    expect(share).toHaveBeenCalledTimes(1);
+    expect(screen.queryByLabelText("The export, ready to copy")).toBeNull();
   });
 });

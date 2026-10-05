@@ -43,7 +43,7 @@ describe("MoneyService", () => {
   it("shows cents only when the number carries them", () => {
     expect(formatMoney(49.99)).toBe("$49.99");
     expect(formatMoney(12.5)).toBe("$12.50");
-    expect(formatMoney(-49.99)).toBe("-$49.99");
+    expect(formatMoney(-49.99)).toBe("\u2212$49.99");
     // A whole number never grows a ".00" it never had.
     expect(formatMoney(50)).toBe("$50");
     expect(formatMoney(0)).toBe("$0");

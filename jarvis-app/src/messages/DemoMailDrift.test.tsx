@@ -74,7 +74,7 @@ describe("DemoMail vs the real Email flow: the anatomy stays one thing", () => {
     ]));
     const { unmount } = render(wrap(<MessagesFlow ai={ai} configured />));
     fireEvent.click(await screen.findByText("Connect Google"));
-    await screen.findByText(/^Sweep \u00b7 About/);
+    await screen.findByRole("button", { name: /^Sweep, About \d+ Min$/ });
     await screen.findByRole("tab", { name: /Waiting On/ });
 
     expect(document.querySelector(".pagehead-title")).toHaveTextContent("Email");
@@ -84,7 +84,7 @@ describe("DemoMail vs the real Email flow: the anatomy stays one thing", () => {
     expect(screen.getByText("For You")).toBeInTheDocument();
     expect(screen.getByText("All")).toBeInTheDocument();
     expect(screen.getByText(/^Drafts/)).toBeInTheDocument();
-    expect(screen.getByText(/^Sweep \u00b7 About/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Sweep, About \d+ Min$/ })).toBeInTheDocument();
     expect(screen.getByText("Clean Out")).toBeInTheDocument();
     expect(tabLabels()).toEqual(["Needs You", "Waiting On"]);
     expect(screen.getByText("The Rest")).toBeInTheDocument();
@@ -95,7 +95,7 @@ describe("DemoMail vs the real Email flow: the anatomy stays one thing", () => {
     // The demo fixture, through the SAME component's demoMail branch --
     // never a second, hand-copied shell.
     render(wrap(<MessagesFlow ai={noAI} configured={false} demoMail />));
-    await screen.findByText(/^Sweep \u00b7 About/);
+    await screen.findByRole("button", { name: /^Sweep, About \d+ Min$/ });
 
     expect(document.querySelector(".pagehead-title")).toHaveTextContent("Email");
     expect(screen.queryByPlaceholderText("Search All Mail")).toBeNull();

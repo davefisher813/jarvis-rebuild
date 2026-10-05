@@ -1,5 +1,6 @@
 import { Archive, Trash2, Clock } from "../shared/icons";
 import { useSwipe } from "../shared/useSwipe";
+import { useRowMenu } from "../shared/useRowMenu";
 
 // Swipe a mail row: Archive, or Delete.
 //
@@ -37,7 +38,14 @@ export default function MailSwipe({
   label: string;
   children: React.ReactNode;
 }) {
-  const swipe = useSwipe({ revealW: onLater ? 264 : 176 });
+  // THE HOLD IS THE CONTEXT MENU (Dave 2026-10-05): the rail's own actions as a list, Delete last.
+  const rowMenu = useRowMenu({ title: label, actions: [
+    ...(onLater ? [{ label: "Later", onPick: onLater }] : []),
+    { label: "Archive", onPick: onArchive },
+    { label: "Delete", destructive: true, onPick: onDelete },
+  ] });
+  const swipe = useSwipe({ revealW: onLater ? 264 : 176, onLongPress: rowMenu.onLongPress });
+  const { handlers, sheet } = rowMenu.bind(swipe);
 
   return (
     <div className="task-swipe">
@@ -64,10 +72,11 @@ export default function MailSwipe({
         // that measured .row instead of the block that contains it.
         className={"task-row swipe-shell" + (swipe.dragging ? " swiping" : "")}
         style={{ transform: swipe.dx ? `translateX(${swipe.dx}px)` : undefined }}
-        {...swipe.handlers}
+        {...handlers}
       >
         {children}
       </div>
+      {sheet}
     </div>
   );
 }

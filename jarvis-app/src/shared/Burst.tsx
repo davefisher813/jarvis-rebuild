@@ -1,6 +1,7 @@
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import type { BurstSize } from "./completion";
 import { useFeedback } from "../encourage/FeedbackProvider";
+import { currentCelebrationForm } from "../encourage/effects";
 
 // The completion micro-burst: 8 good-green dots radiating from the checkbox
 // for 420ms (RDB, Dave 2026-07-29). Render <Burst show={bursting} /> inside a
@@ -11,11 +12,26 @@ import { useFeedback } from "../encourage/FeedbackProvider";
 // Expressive only (Feedback Style): the default, Gentle, answers a tick with
 // the checkmark and one short pulse instead, and Off or Quiet Today with
 // neither. See styles/components.css, html[data-celebrate].
+//
+// THE BURST VARIES (Dave 2026-10-05). It is one of three forms, chosen once
+// per completion by encourage/effects (data-cv on the root) so the same one
+// does not play every time: the dots, a ring that opens round the box while
+// its checkmark draws itself on, and a spark of diamonds that lifts the row.
+// The tick and the lift are the stylesheet's (they act on the row, which this
+// span sits inside); this component only names the form. Each is under a
+// second, and each is gone under Reduced Motion because a reduced person gets
+// no Burst at all (eff.burst is false), and the stylesheet gates them again.
+// The dots are the base look (.burst itself); the other two are modifiers.
+const FORMS = ["", " burst-ring", " burst-spark"] as const;
+
 export function Burst({ show, size = "small" }: { show: boolean; size?: BurstSize }) {
   const { eff } = useFeedback();
+  // Read when the burst starts, not on every render, so it cannot change form
+  // halfway through its own half second.
+  const form = useMemo(() => (show ? currentCelebrationForm() : 0), [show]);
   if (!show || !eff.burst) return null;
   return (
-    <span className={"burst" + (size === "big" ? " burst-big" : "")} aria-hidden="true">
+    <span className={"burst" + (size === "big" ? " burst-big" : "") + FORMS[form]} aria-hidden="true">
       <i /><i /><i /><i /><i /><i /><i /><i />
     </span>
   );

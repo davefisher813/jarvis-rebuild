@@ -19,10 +19,14 @@ function statLine(n: number, singular: string, plural: string): string | null {
   return lineCase(`${n} ${n === 1 ? singular : plural}`);
 }
 
-export default function AreaItemStandard({ area, counts, onOpen }: {
+export default function AreaItemStandard({ area, counts, onOpen, health = false }: {
   area: AreaSummary;
   counts: AreaCounts;
   onOpen: () => void;
+  /** Health is an area like the rest (Dave 2026-10-05, "Clean rows, no pills anywhere"): its five sections (Track, Train,
+   *  Reports, Meds, Privacy) were a row of capsules inside this card, and they are the doors on its own page now. It
+   *  keeps its place at the head of the list and its class, and draws exactly what every area draws. */
+  health?: boolean;
 }) {
   const stats = [
     statLine(counts.taskCount, "task", "tasks"),
@@ -31,19 +35,23 @@ export default function AreaItemStandard({ area, counts, onOpen }: {
   ].filter((s): s is string => s !== null);
 
   return (
-    <div className="card area-card" {...pressable(onOpen)}>
+    <div className={"card area-card" + (health ? " area-card-health" : "")} {...pressable(onOpen)}>
       <div className={"area-tile cat-bg-" + area.color}>{catIcon(area.icon)}</div>
       <div className="area-stack">
         <div className="area-name">{area.name}</div>
         {/* Each count is its own fact, so the dot between them is drawn by
-            .facts and never sits in the string. A count with no state is a
-            white number (§AM), the whole count, so the line spends no grey.
+            .facts and never sits in the string. The counts are the row's
+            subtext: 14px, regular, the one grey, under a title that is bold
+            (Dave 2026-10-05, the round-2 review: the counts were bold and
+            near-white, as loud as the area's name, so the title and its line
+            differed only by size). A count with no state of its own is not
+            emphasis; the area leads.
             The line's job is to show every count, so it is the wrapping,
             unclamped meta line, not the one-line .facts (2026-09-26): there,
             "2 Projects" was cut to "2 ..." at type scale 1.4. */}
         {stats.length > 0 && (
           <div className="conn-meta">
-            {stats.map((s) => <span className="fact" key={s}><b>{s}</b></span>)}
+            {stats.map((s) => <span className="fact" key={s}>{s}</span>)}
           </div>
         )}
       </div>

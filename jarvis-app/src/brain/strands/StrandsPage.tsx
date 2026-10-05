@@ -22,6 +22,10 @@ import { watchingCount } from "../readiness";
 import RowStar from "../../shared/RowStar";
 import { lineCase } from "../../shared/casing";
 import { spanLabel } from "../../shared/duration";
+import RowShell from "../RowShell";
+import RowSheet from "../RowSheet";
+import RowCtxAction from "../../shared/RowCtxAction";
+import { Sparkles } from "../../shared/icons";
 
 // C-40: the filter chips. Choosers, so filled chips. Watching is not a
 // strand bucket: it lists the readiness rows past CLOSE_SHARE of their gate.
@@ -125,7 +129,7 @@ export default function StrandsPage({ onBack, openId: initialOpenId, openNonce, 
     if (!initialOpenId) return;
     setOpenId(initialOpenId);
     onOpenConsumed?.();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [initialOpenId, openNonce]);
   const open = openId ? strands.find((s) => s.id === openId) ?? null : null;
   const [adding, setAdding] = useState(false);
@@ -311,7 +315,14 @@ export default function StrandsPage({ onBack, openId: initialOpenId, openNonce, 
 
   const closeForm = () => { setAdding(false); setEditing(false); setOpenId(null); };
   const readyRow = readyKey ? read.rows.find((r) => r.key === readyKey) ?? null : null;
+  // Landing from a Needs You tap on the Watching list: the Readiness panel (which scrolled to the named row) is the All
+  // view's, so under Watching the row it named is found in this list once the read has come back.
+  useEffect(() => {
+    if (!focusReadinessKey || filter !== "watching" || !read.loaded) return;
+    document.getElementById("rdy-" + focusReadinessKey)?.scrollIntoView({ block: "center" });
+  }, [focusReadinessKey, filter, read.loaded]);
 
+  const startAdd = () => { setAdding(true); setText(""); setCat("work_style"); setRule(false); setKind(null); setChannel(null); };
   const tellAbout = (key: string) => {
     setAdding(true); setText(""); setCat(categoryForReadiness(key)); setRule(false); setKind(null); setChannel(null);
   };
@@ -330,24 +341,31 @@ export default function StrandsPage({ onBack, openId: initialOpenId, openNonce, 
           offer about a different fact, which read as the tap opening the
           wrong thing). The offer steps aside when the page was opened on a
           readiness row; it is back on the next plain visit. */}
-      {!focusReadinessKey && <TodaySuggestions ai={ai} always />}
+      {!focusReadinessKey && <div className="strand-notices"><TodaySuggestions ai={ai} always /></div>}
 
       {/* WHY IS THIS LIST NOT GROWING (Dave 2026-09-06: "i dont see any trace
           of jarvis learning anything"). Above the facts, below the offers,
           because it is the answer to the question this screen makes him ask.
           It reports; it proposes nothing and writes nothing. */}
       {/* C-40: the choosers. Filled chips, because these filter. */}
-      <div className="chip-row chip-wrap-row strand-filters">
+      <div className="chip-row strand-filters">
         {FILTERS.map((f) => (
           <button key={f.key} type="button" className={"chip" + (filter === f.key ? " active" : "")} aria-pressed={filter === f.key} onClick={() => setFilter(f.key)}>{f.label}</button>
         ))}
       </div>
 
-      <ReadinessPanel read={read} today={today} focusKey={focusReadinessKey} onTell={tellAbout} onOpen={setReadyKey} />
+      {/* THE FILTER IS HONOURED (Dave 2026-10-05, the review: "Watching selected and the Readiness list still shows all
+          eight rows, and the word Watching three times"). Readiness is the unfiltered survey of every detector, so it is the
+          All view's. Under Watching the close detectors are their own list below, which is what the chip says; under Known,
+          Learned and Needs Confirmation the page lists facts, not detectors. */}
+      {filter === "all" && <ReadinessPanel read={read} today={today} focusKey={focusReadinessKey} onTell={tellAbout} onOpen={setReadyKey} />}
 
       {filter === "watching" && (
         <>
-          <div className="sh2 sh2-quiet"><span className="t">Watching</span><span className="n">{watching.length}</span></div>
+          <div className="sh2 sh2-quiet">
+            <span className="t">Watching</span><span className="n">{watching.length}</span>
+            <button type="button" className="see-all pill-action" onClick={startAdd}>Add One Thing</button>
+          </div>
           {/* THE TWIN OF THE ONE FIXED YESTERDAY, and it was missed because the
               empty-state scan keyed on .empty-title and this had none: two
               sentences of raw JSX text, invisible to the short-copy law, and
@@ -362,30 +380,39 @@ export default function StrandsPage({ onBack, openId: initialOpenId, openNonce, 
             </div>
           )}
           {watching.length > 0 && (
-            <div className="pad-x"><div className="card list-card-ruled">
+            <div className="pad-x"><div className="card list-card-ruled shell-rows">
               {watching.map((r) => (
                 // Row tap (Dave 2026-09-15): a watched detector is not a fact
                 // yet. The row opens its readiness detail (audit 2026-09-29:
-                // it used to open the Add One Thing form); the pill is the
-                // one-tap way to Tell JARVIS.
-                <div {...pressable(() => setReadyKey(r.key))} className={"row strand-row" + (r.key === focusReadinessKey ? " rdy-row-focus" : "")} key={r.key}>
-                  <div className="row-grow">
-                    <div className="conn-name">{r.label}</div>
-                    <div className="facts">
-                      <span className="fact st warn">Watching</span>
-                      <span className="fact">{watchingCount(r)}</span>
+                // it used to open the Add One Thing form), and Tell JARVIS is
+                // in that sheet and is the row's swipe (clean rows, Dave
+                // 2026-10-05: no capsule on a row).
+                <RowShell key={r.key} verb={{ label: "Tell JARVIS", run: () => tellAbout(r.key) }}>
+                  {/* The head already says Watching, and the chip said it first, so the row says only the count: the word on every
+                      row was the third time on one screen (Dave 2026-10-05, the review). */}
+                  <div {...pressable(() => setReadyKey(r.key))} id={"rdy-" + r.key} className={"row strand-row" + (r.key === focusReadinessKey ? " rdy-row-focus" : "")}>
+                    <div className="row-grow">
+                      <div className="conn-name">{r.label}</div>
+                      <div className="facts"><span className="fact">{watchingCount(r)}</span></div>
                     </div>
+                    <div className="chev" />
                   </div>
-                  <button type="button" className="pill-act" onClick={(ev) => { ev.stopPropagation(); tellAbout(r.key); }}>Tell JARVIS</button>
-                </div>
+                </RowShell>
               ))}
             </div></div>
           )}
         </>
       )}
 
-      {filter !== "watching" && visible.length > 0 && (
-        <div className="sh2 sh2-quiet"><span className="t">What It Knows</span><span className="n">{visible.length}</span></div>
+      {/* THE SECTION'S ACTION IS IN ITS HEAD (Dave 2026-10-05, locked: Add lives in the section head, never in a card and
+          never at the foot of a list). The head always stands, so with nothing in the section it and its capsule are the
+          whole of it (rule 12); the Watching head carries the same capsule, so Add One Thing is on every filter. */}
+      {filter !== "watching" && (
+        <div className="sh2 sh2-quiet">
+          <span className="t">What It Knows</span>
+          {visible.length > 0 && <span className="n">{visible.length}</span>}
+          <button type="button" className="see-all pill-action" onClick={startAdd}>Add One Thing</button>
+        </div>
       )}
 
       {/* RAW JSX TEXT IS INVISIBLE TO THE SHORT-COPY LAW (states sweep,
@@ -397,10 +424,15 @@ export default function StrandsPage({ onBack, openId: initialOpenId, openNonce, 
           notice." It also pointed at a control -- "add one thing below" --
           that is already on screen and says so itself.
           Title and sub, as fragments, like every other empty state. */}
+      {/* CRAFTED, AND TRUE BESIDE THE NOTICES ABOVE IT (Dave 2026-10-05, the review: three cards saying what JARVIS noticed
+          over "Nothing Noticed Yet"). The notices are offers, not yet facts, so what is empty is what has been KEPT: the
+          title says so, and the line holds with or without a notice above it. A glyph in the Brain's own purple, and the
+          one capsule that fills it is the head's Add One Thing. */}
       {strands.length === 0 && filter !== "watching" && (
-        <div className="empty-state">
-          <div className="empty-title">Nothing Noticed Yet</div>
-          <div className="empty-sub">What JARVIS watches you do lands here, and so does anything you tell it</div>
+        <div className="empty-state empty-compact">
+          <div className="empty-icon cat-fg-purple"><Sparkles className="ic" /></div>
+          <div className="empty-title">Nothing Remembered Yet</div>
+          <div className="empty-sub">What JARVIS notices, and anything you tell it, lands here once it is kept</div>
         </div>
       )}
       {strands.length > 0 && filter !== "all" && filter !== "watching" && visible.length === 0 && (
@@ -429,31 +461,34 @@ export default function StrandsPage({ onBack, openId: initialOpenId, openNonce, 
           hub's (BrainTop), which dropped its Used By list for the category
           on 2026-09-26 (Dave, the pass-off) so the two read as one. */}
       {visible.length > 0 && (
-        <div className="pad-x"><div className="card list-card-ruled">
+        <div className="pad-x"><div className="card list-card-ruled shell-rows">
           {visible.map((s) => {
             const st = stateForStrand(s, today);
             const rr = s.data.source === "watched" || s.data.source === "uploaded" ? readinessFor(s) : undefined;
             const conf = rr ? confidenceWord(rr.have, rr.need) : null;
             const fading = st === "FADING";
+            const words = lineCase(s.data.text);
             return (
-              <div {...pressable(openRow(s))}
-                className={"row strand-row" + (s.data.status === "paused" ? " paused" : "")}
-                key={s.id}
-              >
-                <RowStar on={!!s.data.link} />
-                <div className="row-grow">
-                  <div className="conn-name">{s.data.text}</div>
-                  <div className="facts">
-                    {st && <span className={"fact st " + toneForStrandState(st)}>{STRAND_STATE_LABEL[st]}</span>}
-                    {s.data.strength === "rule" && <span className="fact st">Rule</span>}
-                    {conf === "High" && <span className="fact good">High</span>}
-                    <span className="fact">{s.data.status === "paused" ? `Paused, ${STRAND_CATEGORY_LABEL[s.data.category]}` : STRAND_CATEGORY_LABEL[s.data.category]}</span>
+              // A fading fact is the one whose moment has come: Still True is its swipe-left AND the one quiet word on
+              // the row, the same verb in both (Dave 2026-10-05). Every other fact has no quick verb and never gets an
+              // invented one; its sheet holds all of them.
+              <RowShell key={s.id} verb={fading ? { label: "Still True", run: () => void confirmRow(s) } : undefined}>
+                <div {...pressable(openRow(s))} className={"row strand-row" + (s.data.status === "paused" ? " paused" : "")}>
+                  <RowStar on={!!s.data.link} />
+                  <div className="row-grow">
+                    <div className="conn-name">{words}</div>
+                    <div className="facts">
+                      {st && <span className={"fact st " + toneForStrandState(st)}>{STRAND_STATE_LABEL[st]}</span>}
+                      {s.data.strength === "rule" && <span className="fact st">Rule</span>}
+                      {conf === "High" && <span className="fact good">High</span>}
+                      <span className="fact">{s.data.status === "paused" ? `Paused, ${STRAND_CATEGORY_LABEL[s.data.category]}` : STRAND_CATEGORY_LABEL[s.data.category]}</span>
+                    </div>
                   </div>
+                  {fading
+                    ? <RowCtxAction when label="Still True" ariaLabel={"Still True, " + words} onAct={() => void confirmRow(s)} />
+                    : <div className="chev" />}
                 </div>
-                {fading
-                  ? <button type="button" className="pill-act" onClick={(ev) => { ev.stopPropagation(); void confirmRow(s); }}>Still True</button>
-                  : <div className="chev" />}
-              </div>
+              </RowShell>
             );
           })}
         </div></div>
@@ -461,54 +496,46 @@ export default function StrandsPage({ onBack, openId: initialOpenId, openNonce, 
 
       {/* Brain Manual v1: facts filed from a note or the + menu. */}
       <FiledRows categories={["fact"]} rowClass="row strand-row" />
-      <div className="pad-x">
-        <button className="row row-act" onClick={() => { setAdding(true); setText(""); setCat("work_style"); setRule(false); setKind(null); setChannel(null); }}>Add One Thing</button>
-      </div>
       <div className="screen-foot" />
 
       {open && !editing && (
-        <div className="sheet-scrim" onClick={() => setOpenId(null)}>
-          <div className="card" onClick={(e) => e.stopPropagation()}>
-            <div className="sheet-handle" />
-            {/* The separators are drawn by CSS (.fact + .fact, §AM F3), never
-                typed into the words. The facts sit in one inline run so the
-                eyebrow's flex gap does not stand beside each drawn dot. */}
-            <div className="grp"><div className="eyebrow"><span>
-              <span className="fact">{STRAND_CATEGORY_LABEL[open.data.category]}</span>
-              <span className="fact">{SOURCE_LABEL[open.data.source]}</span>
-              {open.data.strength === "rule" && <span className="fact">Rule</span>}
-            </span></div></div>
-            <div className="pad-x sheet-form">
-              <div className="strand-head">{open.data.text}</div>
-              <div className="conn-meta">{`Confirmed ${monthDay(open.data.lastConfirmed)}`}</div>
-              {/* A receipt is what happened and the day it did: one grey for
-                  the what, and the day in small caps (§AM F5), so the pair
-                  is not two of the same grey side by side. */}
-              {(open.data.evidence ?? []).map((e, i) => (
-                <div className="strand-receipt" key={i}>
-                  <div className="r-what conn-meta">{receiptLine(open.data.derivation, e)}</div>
-                  <span className="fact date">{monthDay(e.day)}</span>
-                </div>
-              ))}
-              {/* C-43: where this fact is read, from the static map. ONE
-                  FACT, ONE RUN (§AK, 2026-09-21): a list in one fact, the
-                  same words and the same shape the row wears on the Brain
-                  hub, not a plain grey per surface. */}
-              <div className="strand-used">
-                <div className="input-label">Used By</div>
-                <div className="facts"><span className="fact">{usedBy(open.data.category).join(", ")}</span></div>
-              </div>
+        // ONE SHEET FOR A ROW (brain/RowSheet): the fact's own words and receipts in the middle, every answer beneath, Still
+        // True first and filled because it is the affirmative one and the other three are ways of taking something back.
+        // An answer does its own closing here (Edit keeps the row open to edit it), so the sheet does not close first.
+        <RowSheet
+          closeOnPick={false}
+          onClose={() => setOpenId(null)}
+          /* The separators are drawn by CSS (.fact + .fact, §AM F3), never typed into the words. The facts sit in one
+             inline run so the eyebrow's flex gap does not stand beside each drawn dot. */
+          eyebrow={<span>
+            <span className="fact">{STRAND_CATEGORY_LABEL[open.data.category]}</span>
+            <span className="fact">{SOURCE_LABEL[open.data.source]}</span>
+            {open.data.strength === "rule" && <span className="fact">Rule</span>}
+          </span>}
+          text={lineCase(open.data.text)}
+          answers={[
+            { label: "Still True", onPick: () => void doConfirm(open) },
+            { label: "Edit", onPick: () => { setEditing(true); setText(open.data.text); } },
+            { label: open.data.status === "active" ? "Pause" : "Resume", onPick: () => void doPause(open) },
+            { label: "Delete", destructive: true, onPick: () => void doDelete(open) },
+          ]}
+        >
+          <div className="conn-meta">{`Confirmed ${monthDay(open.data.lastConfirmed)}`}</div>
+          {/* A receipt is what happened and the day it did: one grey for the what, and the day in small caps (§AM F5), so
+              the pair is not two of the same grey side by side. */}
+          {(open.data.evidence ?? []).map((e, i) => (
+            <div className="strand-receipt" key={i}>
+              <div className="r-what conn-meta">{receiptLine(open.data.derivation, e)}</div>
+              <span className="fact date">{monthDay(e.day)}</span>
             </div>
-            <div className="pad-x sheet-actions">
-              {/* First, and above Edit, because it is the affirmative one and
-                  the other three are all ways of taking something back. */}
-              <button className="btn btn-secondary btn-block" onClick={() => void doConfirm(open)}>Still True</button>
-              <button className="btn btn-secondary btn-block" onClick={() => { setEditing(true); setText(open.data.text); }}>Edit</button>
-              <button className="btn btn-secondary btn-block" onClick={() => void doPause(open)}>{open.data.status === "active" ? "Pause" : "Resume"}</button>
-              <button className="btn btn-secondary btn-block btn-danger-text" onClick={() => void doDelete(open)}>Delete</button>
-            </div>
+          ))}
+          {/* C-43: where this fact is read, from the static map. ONE FACT, ONE RUN (§AK, 2026-09-21): a list in one fact,
+              the same words and the same shape the row wears on the Brain hub, not a plain grey per surface. */}
+          <div className="strand-used">
+            <div className="input-label">Used By</div>
+            <div className="facts"><span className="fact">{usedBy(open.data.category).join(", ")}</span></div>
           </div>
-        </div>
+        </RowSheet>
       )}
 
       {readyRow && (

@@ -187,7 +187,7 @@ export function findings(inp: FindingsInput): Finding[] {
       title: "Working Sets",
       value: String(overview.workingSets),
       context: prev.workouts > 0
-        ? [`${sign(diff)} on the ${overview.period.days} before`]
+        ? [lineCase(`${sign(diff)} on the ${overview.period.days} before`)]
         : [lineCase(`${overview.workouts} ${overview.workouts === 1 ? "workout" : "workouts"}`)],
       open: { kind: "sets" },
     });

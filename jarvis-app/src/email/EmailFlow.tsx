@@ -42,8 +42,6 @@ import { fetchReadiness, notReadyLine, readinessFrom, type Readiness } from "../
 import type { CaptureKind, CapturePayload } from "../substrate/contracts";
 import type { Category } from "../categories/types";
 import type { Bill, Receipt } from "../money/ledger/types";
-import { moneyWords } from "../money/ledger/emailBill";
-import { monthDay } from "../money/bills";
 import ReceiptDetail from "../hub/ReceiptDetail";
 import {
   ALL_CHIP, ARCHIVED, AREAS_LABEL, CAPTURE_KIND, CAPTURE_TITLE, EMAIL_TITLE, EMPTY_ACCOUNTS, EMPTY_FILTER, EMPTY_INBOX, EMPTY_WAITING, FIND_DETAILS, HIDE_DISMISSED, MESSAGE_TITLE, NOT_NOW,
@@ -58,7 +56,8 @@ import {
 } from "./emailClient";
 import { forgetMessage, loadSnapshot, saveSnapshot } from "./deviceCache";
 import { categoryOf, countsByCategory, fileUnder, loadRules, loadTags, notNow, remember, rowsUnderRule, ruleKeptLine, type RulesStore, type SuggestionDue, type Tags } from "./categories";
-import { accountLabels, dayGroups, freshnessLine, senderOf } from "./format";
+import { accountLabels, dayGroups, freshnessFacts, senderOf } from "./format";
+import EmailFacts from "./EmailFacts";
 import { usePull } from "./usePull";
 import InboxList from "./InboxList";
 import MessageScreen, { type LeftInbox } from "./MessageScreen";
@@ -76,7 +75,7 @@ import { WaitingService } from "../substrate/waiting/WaitingService";
 import type { WaitingItem } from "../substrate/waiting/types";
 import { replySubject } from "../connections/google/map";
 import EmptyState from "./EmptyState";
-import CandidateCards, { type Conflict } from "./CandidateCards";
+import CandidateCards from "./CandidateCards";
 import CaptureSheet from "./CaptureSheet";
 import {
   candidatesFor, contextFor, isProvisional, isToReview, proposeCandidate, proposeExtracted, readWithRules, readerZone, readingKey, readingsOf, rememberReading, textOf,
@@ -307,18 +306,15 @@ export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModul
   const ready = useCallback((kind: CaptureKind) => readiness.kinds[kind].state === "ready", [readiness]);
   const readyLine = useCallback((kind: CaptureKind) => { const k = readiness.kinds[kind]; return k.state === "ready" ? "" : k.reason || notReadyLine(kind); }, [readiness]);
 
-  const conflictOf = useCallback((c: Candidate): Conflict | null => {
-    if (c.saved_sibling) return null;
+  // 2026-10-05: a boolean. The saved record that matches is the SAME vendor, amount and date as the card by construction, so showing
+  // it again under the card (vendor, amount, date, joined by middle dots) was a second grey line repeating the card above it.
+  // The card says "This May Already Be Saved" in amber, once, and asks.
+  const conflictOf = useCallback((c: Candidate): boolean => {
+    if (c.saved_sibling) return false;
     const p = c.payload;
-    if (p.kind === "bill") {
-      const hit = bills.find((b) => b.data.vendor.trim().toLowerCase() === p.issuer.trim().toLowerCase() && b.data.amountCents === p.amount.minor_units && (b.data.dueDate ?? null) === p.due_date);
-      return hit ? { line: `${hit.data.vendor} · ${moneyWords(hit.data.amountCents, hit.data.currency)}${hit.data.dueDate ? " · Due " + monthDay(hit.data.dueDate) : ""}` } : null;
-    }
-    if (p.kind === "receipt") {
-      const hit = receipts.find((r) => r.data.vendor.trim().toLowerCase() === p.merchant.trim().toLowerCase() && r.data.amountCents === p.amount.minor_units && r.data.transactionDate === p.purchase_date);
-      return hit ? { line: `${hit.data.vendor} · ${moneyWords(hit.data.amountCents, hit.data.currency)} · ${monthDay(hit.data.transactionDate)}` } : null;
-    }
-    return null;
+    if (p.kind === "bill") return bills.some((b) => b.data.vendor.trim().toLowerCase() === p.issuer.trim().toLowerCase() && b.data.amountCents === p.amount.minor_units && (b.data.dueDate ?? null) === p.due_date);
+    if (p.kind === "receipt") return receipts.some((r) => r.data.vendor.trim().toLowerCase() === p.merchant.trim().toLowerCase() && r.data.amountCents === p.amount.minor_units && r.data.transactionDate === p.purchase_date);
+    return false;
   }, [bills, receipts]);
 
   // A stale card: read the message again with the rules and open the refreshed card.
@@ -741,7 +737,7 @@ export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModul
     </div>;
   }
 
-  const fresh = freshnessLine(accounts, now);
+  const fresh = freshnessFacts(accounts, now);
   return (
     <div className={"screen ruled " + pushCls} {...handlers} data-extractor={EXTRACTOR_VERSION}>
       <PageHeader title={EMAIL_TITLE} actions={<>
@@ -752,7 +748,8 @@ export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModul
         {client && <BarAction label={SEARCH_LABEL} onClick={() => setScreen({ kind: "search" })}><Search className="ic" /></BarAction>}
         {client && <BarAction label={REFRESH_LABEL} onClick={() => void load("refresh")}><RotateCcw className="ic" /></BarAction>}
       </>}>
-        {fresh && <button className="email-fresh" onClick={() => setScreen({ kind: "accounts" })}>{refreshing ? REFRESHING : fresh}</button>}
+        {/* 2026-10-05: the freshness line is facts (Updated Today, the time in small caps, the count in white), not one string joined by middle dots. */}
+        {fresh.length > 0 && <button className="email-fresh" onClick={() => setScreen({ kind: "accounts" })}>{refreshing ? <EmailFacts facts={[{ text: REFRESHING }]} /> : <EmailFacts facts={fresh} />}</button>}
         <div className="pad-x">
           <div className="segmented" role="tablist" aria-label={EMAIL_TITLE}>
             {SEGMENTS.map((s) => (
@@ -794,7 +791,7 @@ export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModul
         <EmptyState copy={EMPTY_WAITING} onAction={() => setSegment("inbox")} />
       ))}
       {client && segment === "inbox" && reviewOnly && (
-        <div className="email-note"><span>{REVIEW_FILTER} · {loadedToReview}{reviewTotal !== null && reviewTotal > loadedToReview ? ` · ${moreInOlderMail(reviewTotal - loadedToReview)}` : ""}</span><button className="quiet-action" onClick={() => setReviewOnly(false)}>{SHOW_ALL_ROWS}</button></div>
+        <div className="email-note quiet"><span>{REVIEW_FILTER} · {loadedToReview}{reviewTotal !== null && reviewTotal > loadedToReview ? ` · ${moreInOlderMail(reviewTotal - loadedToReview)}` : ""}</span><button className="quiet-action" onClick={() => setReviewOnly(false)}>{SHOW_ALL_ROWS}</button></div>
       )}
 
       {client && segment === "inbox" && !pending && !error && accounts.length === 0 && (

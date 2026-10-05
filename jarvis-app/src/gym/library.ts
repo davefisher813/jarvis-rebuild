@@ -1,5 +1,5 @@
 import type { Exercise, MeasureKind, Program, SetEntry, Workout } from "./types";
-import type { CreatedLift } from "./settings";
+import type { CreatedLift, CreatedPlan } from "./settings";
 import { entryFrom } from "./strip";
 
 // THE EXERCISE LIBRARY (catalog §3.5). Every exercise name ever used, offered
@@ -40,6 +40,9 @@ export interface LibraryEntry {
   /** The most recent real target, carried forward so picking "40 Yard Dash"
    *  pre-fills as its own last numbers rather than a blank strip. */
   lastSets: SetEntry[];
+  /** Only on a created seed (withCreated): what its sheet planned, for the
+   *  picker to pre-fill. A real sighting carries lastSets instead. */
+  plan?: CreatedPlan;
 }
 
 /** UP-ATH-21 (2026-09-06): exported, so Your Lifts asks the same question
@@ -138,11 +141,29 @@ export function withCreated(library: LibraryEntry[], created: CreatedLift[]): Li
       // sighting would have carried it in.
       ...(c.equipment ? { equipment: c.equipment } : {}),
       ...(c.counted ? { counted: c.counted } : {}),
+      ...(c.plan ? { plan: c.plan } : {}),
       lastUsed: 0, lastSets: [],
     });
   }
   if (extra.length === 0) return library;
   return [...library, ...extra].sort((a, b) => b.lastUsed - a.lastUsed || a.name.localeCompare(b.name));
+}
+
+/** WHAT A SHEET PLANNED, FOR THE SEED (2026-10-04). The session-side fields of
+ *  an exercise draft (the strip, the rest, the ramp, the filler flag, the note
+ *  and the clock), or null when it set none. Identity, measure and equipment
+ *  already have their own fields on the seed. */
+export function planOf(d: Partial<Pick<Exercise, "sets" | "timeUnit" | "restSec" | "ramp" | "filler" | "note" | "cond">>): CreatedPlan | null {
+  const plan: CreatedPlan = {
+    ...(d.sets && d.sets.length > 0 ? { sets: d.sets } : {}),
+    ...(d.timeUnit ? { timeUnit: d.timeUnit } : {}),
+    ...(d.restSec ? { restSec: d.restSec } : {}),
+    ...(d.ramp ? { ramp: true as const } : {}),
+    ...(d.filler ? { filler: true as const } : {}),
+    ...(d.note ? { note: d.note } : {}),
+    ...(d.cond ? { cond: d.cond } : {}),
+  };
+  return Object.keys(plan).length > 0 ? plan : null;
 }
 
 /** THE LIBRARY AS THE EXERCISES PAGE SHOWS IT, in one place (2026-10-01). The

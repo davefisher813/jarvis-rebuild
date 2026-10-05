@@ -10,7 +10,7 @@ describe("CategorySheet", () => {
     render(<CategorySheet mode="new" onSave={onSave} onCancel={() => {}} />);
     fireEvent.click(screen.getByText("Save"));
     expect(onSave).not.toHaveBeenCalled();
-    expect(screen.getByText("Add a category name.")).toBeInTheDocument();
+    expect(screen.getByText("Add an area name.")).toBeInTheDocument();
   });
 
   it("saves the chosen name, color and icon", () => {
@@ -45,7 +45,7 @@ describe("CategorySheet", () => {
     expect((screen.getByPlaceholderText("Area Name") as HTMLInputElement).value).toBe("Work");
     // Armed two-tap (2026-08-09): the first tap only arms, because this
     // delete orphans everything tagged with the category.
-    fireEvent.click(screen.getByText("Delete Category"));
+    fireEvent.click(screen.getByText("Delete Area"));
     expect(onDelete).not.toHaveBeenCalled();
     fireEvent.click(screen.getByText("Tap Again to Delete"));
     expect(onDelete).toHaveBeenCalled();

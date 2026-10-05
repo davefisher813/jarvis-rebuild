@@ -57,8 +57,7 @@ describe("a length worth reviewing says so where it is read", () => {
     expect(flow).not.toMatch(/se-chip-budget">\{mins\}/);
   });
 
-  it("and so does the Health log's own row", () => {
-    expect(readFileSync(join(__dirname, "..", "health", "log.ts"), "utf8"))
-      .toMatch(/d\.flagged \? " · Worth Reviewing" : ""/);
-  });
+  // The Health log's own row (health/log.ts) was asserted here until that file
+  // was deleted as unreachable (2026-10-04): nothing imported it, so no row of
+  // it was ever drawn.
 });

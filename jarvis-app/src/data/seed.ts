@@ -102,15 +102,15 @@ export async function seedDemoData(
     // Standup is daily; the gym runs weekly and ENDS, which is the half of
     // repeating that nothing anywhere was showing.
     await schedule.createEvent("Morning Standup", { date: today, start: "08:30", category: cat("Work"), recurrence: "daily" });
-    await schedule.createEvent("Call With Nadia", { date: today, start: "10:00", category: cat("Work"), location: "Zoom" });
+    await schedule.createEvent("Call with Nadia", { date: today, start: "10:00", category: cat("Work"), location: "Zoom" });
     // Deep Work and the drive exist so BLENDING has something to demonstrate:
     // a drive is a block you sit through, and a call rides along with it.
     await schedule.createEvent("Deep Work", { date: today, start: "13:00", end: "14:30", category: cat("Work") });
     await schedule.createEvent("Drive to Ridgeline", { date: today, start: "14:45", end: "15:30", category: cat("Family") });
     await schedule.createEvent("Fall Clinic Walkthrough", { date: today, start: "15:30", category: cat("Family"), location: "Ridgeline Fields" });
     await schedule.createEvent("Gym Session", { date: today, start: "17:30", category: cat("Health"), recurrence: "weekly", until: addDays(today, 56) });
-    await schedule.createEvent("Board Call · Rob Calder", { date: addDays(today, 1), start: "09:00", category: cat("Family") });
-    await schedule.createEvent("Sponsor Pitch · Summit Gear", { date: addDays(today, 1), start: "14:00", category: cat("Work") });
+    await schedule.createEvent("Board Call with Rob Calder", { date: addDays(today, 1), start: "09:00", category: cat("Family") });
+    await schedule.createEvent("Sponsor Pitch for Summit Gear", { date: addDays(today, 1), start: "14:00", category: cat("Work") });
     await schedule.createEvent("Coach Onboarding Demo", { date: addDays(today, 2), start: "11:00", category: cat("Work") });
     await schedule.createEvent("Harper v Northline Prep", { date: addDays(today, 2), start: "16:00", category: cat("Money"), location: "Delaney Office" });
     await schedule.createEvent("Budget Review", { date: addDays(today, 3), start: "11:00", category: cat("Money") });

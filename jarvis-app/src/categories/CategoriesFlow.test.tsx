@@ -51,8 +51,8 @@ describe("CategoriesFlow", () => {
         await waitFor(() => expect(screen.getByText(n)).toBeInTheDocument());
       }
       fireEvent.click(screen.getByText("Beta"));
-      await waitFor(() => expect(screen.getByText("Delete Category")).toBeInTheDocument());
-      fireEvent.click(screen.getByText("Delete Category"));
+      await waitFor(() => expect(screen.getByText("Delete Area")).toBeInTheDocument());
+      fireEvent.click(screen.getByText("Delete Area"));
       fireEvent.click(screen.getByText("Tap Again to Delete"));
       await waitFor(() => expect(screen.queryByText("Edit Area")).not.toBeInTheDocument());
       await waitFor(() => expect(screen.queryByText("Beta")).not.toBeInTheDocument());

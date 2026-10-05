@@ -47,6 +47,6 @@ describe("Speak", () => {
   // It is a pointer at the system keyboard, so it must not claim to be
   // listening: nothing here records, transcribes, or sends.
   it("promises only what it does", () => {
-    expect(DICTATION_HINT).toBe("Tap the mic on your keyboard to talk");
+    expect(DICTATION_HINT).toBe("Tap the Mic on Your Keyboard to Talk");
   });
 });

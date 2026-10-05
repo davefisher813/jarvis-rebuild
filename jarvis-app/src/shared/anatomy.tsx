@@ -25,7 +25,9 @@ import type { ReactNode } from "react";
 export type RowKind = "task" | "event" | "note" | "money" | "person" | "project" | "goal" | "gym" | "insight" | "mail" | "decision";
 
 const TILE: Record<RowKind, string> = {
-  task: "nav-tile-blue",
+  // TASK IS RED everywhere a type mark is drawn (2026-10-05, D5: the sheets' own Tile for a task is red, and the Still Open rows on a
+  // person's page drew it blue beside them).
+  task: "nav-tile-red",
   event: "nav-tile-sky",
   note: "nav-tile-yellow",
   money: "nav-tile-green",
@@ -65,7 +67,7 @@ export function RowIcon({ kind }: { kind: RowKind }) {
 // colored glyph, no tile behind it. Same color system, more air. List
 // surfaces use this; the tile survives on stat-adjacent and banner surfaces.
 const FG: Record<RowKind, string> = {
-  task: "cat-fg-blue",
+  task: "cat-fg-red",
   event: "cat-fg-sky",
   note: "cat-fg-yellow",
   money: "cat-fg-green",

@@ -61,8 +61,7 @@ describe("MoneyFlow", () => {
     // Mark paid asks first ("I paid this", dated today), then the dated
     // receipt appears.
     fireEvent.click(screen.getByLabelText("Mark paid"));
-    expect(await screen.findByText("Mark Paid")).toBeInTheDocument();
-    fireEvent.click(screen.getByText("I Paid This"));
+    fireEvent.click(await screen.findByText("I Paid This"));
     // UP-CORE-13 (2026-09-05): scoped to the ROW's own line. The page grew a
     // "Paid This Month" head, which is a different claim about the same word
     // and used to make this query ambiguous.
@@ -331,7 +330,8 @@ describe("Set Aside envelopes live on the profile (HMN-F-12)", () => {
     fireEvent.click(screen.getByText("Set Money Aside"));
     fireEvent.change(screen.getByPlaceholderText("What For"), { target: { value: "Groceries" } });
     fireEvent.change(screen.getAllByPlaceholderText("0")[0]!, { target: { value: "300" } });
-    fireEvent.click(screen.getByText("Add"));
+    // The set-aside is one sheet (Dave 2026-10-05: no form in a card); Save is its bar's.
+    fireEvent.click(screen.getByText("Save"));
 
     await waitFor(async () => {
       expect((await profRef!.get())!.envelopes).toEqual([{ id: expect.any(String), name: "Groceries", amount: 300 }]);
@@ -393,7 +393,7 @@ describe("a Credit account is a debt, typed as a plain number (HMN-F-13)", () =>
 
     await waitFor(() => expect(screen.getByText("Total Balance")).toBeInTheDocument());
     // No minus was typed anywhere, and the total went down by the debt.
-    expect(screen.getAllByText("-$2,000").length).toBeGreaterThanOrEqual(2);
+    expect(screen.getAllByText("\u2212$2,000").length).toBeGreaterThanOrEqual(2);
     expect(screen.queryByText("$2,000")).not.toBeInTheDocument();
   });
 });
@@ -422,7 +422,7 @@ function Grab({ into, seedFile }: { into: { current?: Handles }; seedFile?: bool
 }
 
 async function typeReceipt(vendor: string, amount: string) {
-  fireEvent.click(await screen.findByLabelText("Add a Receipt"));
+  fireEvent.click(await screen.findByRole("button", { name: "Add Receipt" }));
   expect(await screen.findByText("New Receipt")).toBeInTheDocument();
   fireEvent.change(screen.getByLabelText("Vendor"), { target: { value: vendor } });
   fireEvent.change(screen.getByLabelText("Amount"), { target: { value: amount } });
@@ -436,7 +436,7 @@ describe("Typing a receipt is the shortest way in", () => {
     listenToasts();
     const h: { current?: Handles } = {};
     render(<NotesProvider userId="rc-type"><Grab into={h} /></NotesProvider>);
-    fireEvent.click(await screen.findByLabelText("Add a Receipt"));
+    fireEvent.click(await screen.findByRole("button", { name: "Add Receipt" }));
     await screen.findByText("New Receipt");
     // The date opens on today and is editable; nothing else is required.
     expect((screen.getByLabelText("Date") as HTMLInputElement).value).toBe(todayISO());
@@ -468,7 +468,7 @@ describe("Typing a receipt is the shortest way in", () => {
   it("a receipt with no vendor or amount does not save, and says what is missing", async () => {
     const h: { current?: Handles } = {};
     render(<NotesProvider userId="rc-bad"><Grab into={h} /></NotesProvider>);
-    fireEvent.click(await screen.findByLabelText("Add a Receipt"));
+    fireEvent.click(await screen.findByRole("button", { name: "Add Receipt" }));
     await screen.findByText("New Receipt");
     fireEvent.click(screen.getByText("Save"));
     expect(await screen.findByText("A vendor and an amount")).toBeInTheDocument();
@@ -480,7 +480,7 @@ describe("Typing a receipt is the shortest way in", () => {
     render(<NotesProvider userId="rc-cat"><Grab into={h} /></NotesProvider>);
     await waitFor(() => expect(h.current).toBeTruthy());
     await h.current!.ledger.addReceipt({ vendor: "Stop & Shop", amount: "10", transactionDate: "2026-09-01", category: "Groceries" }, "manual", todayISO());
-    fireEvent.click(await screen.findByLabelText("Add a Receipt"));
+    fireEvent.click(await screen.findByRole("button", { name: "Add Receipt" }));
     await screen.findByText("New Receipt");
     fireEvent.change(screen.getByLabelText("Vendor"), { target: { value: "Stop and Shop" } });
     // "Stop and Shop" is not the same normalised vendor as "Stop & Shop": no guess
@@ -510,7 +510,7 @@ describe("Take a Photo and Attach a File open the picker inside the tap", () => 
     vi.spyOn(MemoryFileStore.prototype, "upload").mockResolvedValue({ path: "u/lunch.png", name: "lunch.png", mime: "image/png", bytes: 1 });
     const h: { current?: Handles } = {};
     render(<NotesProvider userId="rc-attach"><Grab into={h} /></NotesProvider>);
-    fireEvent.click(await screen.findByLabelText("Add a Receipt"));
+    fireEvent.click(await screen.findByRole("button", { name: "Add Receipt" }));
     await screen.findByText("New Receipt");
     expect(clicks, "nothing opens until a row is tapped").toHaveLength(0);
 
@@ -553,7 +553,7 @@ describe("Take a Photo and Attach a File open the picker inside the tap", () => 
     render(<NotesProvider userId="rc-dup-photo"><Grab into={h} /></NotesProvider>);
     await waitFor(() => expect(h.current).toBeTruthy());
     await h.current!.ledger.addReceipt({ vendor: "Corner Cafe", amount: "12.50", transactionDate: todayISO() }, "manual", todayISO());
-    fireEvent.click(await screen.findByLabelText("Add a Receipt"));
+    fireEvent.click(await screen.findByRole("button", { name: "Add Receipt" }));
     await screen.findByText("New Receipt");
     fireEvent.click(screen.getByText("Attach a File"));
     fireEvent.change(clicks[0]!, { target: { files: [new File(["x"], "again.png", { type: "image/png" })] } });
@@ -571,7 +571,7 @@ describe("Take a Photo and Attach a File open the picker inside the tap", () => 
     vi.spyOn(HTMLInputElement.prototype, "click").mockImplementation(function (this: HTMLInputElement) { clicks.push(this); });
     const h: { current?: Handles } = {};
     render(<NotesProvider userId="rc-cancel"><Grab into={h} /></NotesProvider>);
-    fireEvent.click(await screen.findByLabelText("Add a Receipt"));
+    fireEvent.click(await screen.findByRole("button", { name: "Add Receipt" }));
     await screen.findByText("New Receipt");
     fireEvent.click(screen.getByText("Cancel"));
     expect(screen.queryByText("New Receipt")).toBeNull();
@@ -590,7 +590,7 @@ describe("Read It proposes a receipt; the person confirms", () => {
     const h: { current?: Handles } = {};
     render(<NotesProvider userId="receipt-read"><Grab into={h} seedFile /></NotesProvider>);
 
-    const readIt = await screen.findByLabelText("Read corner-store.png");
+    const readIt = await screen.findByLabelText("Read It corner-store.png");
     await waitFor(() => {
       if (!screen.queryByText("New Receipt")) fireEvent.click(readIt);
       expect(screen.getByText("New Receipt")).toBeInTheDocument();
@@ -608,7 +608,7 @@ describe("Read It proposes a receipt; the person confirms", () => {
     const file = (await h.current!.files.list("money"))[0]!;
     expect(r!.data).toMatchObject({ vendor: "Corner Store", amountCents: 4275, transactionDate: "2026-09-03", attachmentFileId: file.id });
     // The file now belongs to the record: it is no longer listed twice.
-    await waitFor(() => expect(screen.queryByLabelText("Read corner-store.png")).toBeNull());
+    await waitFor(() => expect(screen.queryByLabelText("Read It corner-store.png")).toBeNull());
     expect(await h.current!.ledger.listBills()).toEqual([]);
   });
 
@@ -620,7 +620,7 @@ describe("Read It proposes a receipt; the person confirms", () => {
     vi.stubGlobal("fetch", vi.fn(async () => ({ blob: async () => new Blob(["x"], { type: "image/png" }) })));
     const h: { current?: Handles } = {};
     render(<NotesProvider userId="receipt-read-miss"><Grab into={h} seedFile /></NotesProvider>);
-    const readIt = await screen.findByLabelText("Read corner-store.png");
+    const readIt = await screen.findByLabelText("Read It corner-store.png");
     await waitFor(() => {
       // The URL resolves a beat after the row; Read It waits for it.
       if (!toasts.some((t) => t.startsWith("Couldn't Read That"))) fireEvent.click(readIt);
@@ -635,11 +635,11 @@ describe("Read It proposes a receipt; the person confirms", () => {
     const h: { current?: Handles } = {};
     render(<NotesProvider userId="receipt-ai-off"><Grab into={h} seedFile /></NotesProvider>);
     await screen.findByText("corner-store.png");
-    expect(screen.queryByLabelText("Read corner-store.png")).toBeNull();
+    expect(screen.queryByLabelText("Read It corner-store.png")).toBeNull();
     // Typing still works, and an attached photo offers no read.
     await typeReceipt("Cafe", "5");
     await waitFor(async () => expect(await h.current!.ledger.listReceipts()).toHaveLength(1));
-    fireEvent.click(await screen.findByLabelText("Add a Receipt"));
+    fireEvent.click(await screen.findByRole("button", { name: "Add Receipt" }));
     await screen.findByText("New Receipt");
     expect(screen.queryByText("Read It")).toBeNull();
   });

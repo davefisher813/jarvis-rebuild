@@ -31,7 +31,7 @@ describe("BlockSheet", () => {
     for (const name of ["Mon", "Wed", "Fri"]) fireEvent.click(screen.getByRole("button", { name }));
     fireEvent.click(screen.getByText("Save"));
     expect(onSave).not.toHaveBeenCalled();
-    expect(screen.getByText("Needs a name · At least one day")).toBeInTheDocument();
+    expect(screen.getByText("Needs a Name · At Least One Day")).toBeInTheDocument();
   });
 
   it("Move shifts start and end together, same as EventSheet's chips", () => {

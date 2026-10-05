@@ -1,5 +1,6 @@
 import type { StartAction } from "../startAction";
 import type { TopPick } from "../startPick";
+import { titleCase } from "../../shared/casing";
 
 // A PLACE TO BEGIN (Start Now, 2026-09-16; cut down 2026-09-18).
 //
@@ -45,7 +46,7 @@ export default function StartCard({ pick, action, reason, onStart }: StartCardPr
       <div className="card start-top">
         <div className="row-grow">
           <div className="eyebrow">A Place to Begin</div>
-          <div className="start-top-name">{pick.task.data.text}</div>
+          <div className="start-top-name">{titleCase(pick.task.data.text)}</div>
           <div className="facts">
             {why && <span className={reasonClass(why)}>{why}</span>}
             {action.ready && <span className="fact">{action.ready}</span>}

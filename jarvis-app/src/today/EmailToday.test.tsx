@@ -91,8 +91,72 @@ describe("Email on Today", () => {
     const opened: unknown[] = [];
     render(<EmailToday client={null} tasks={w.tasks} schedule={w.schedule} waiting={w.waiting} today={TODAY} onOpenEmail={(f) => opened.push(f)} onOpenEntity={() => {}} />);
     await waitFor(() => expect(rows()).toEqual(["waiting:Peña's Transcript"]));
-    expect(screen.getByText("Waiting On Coach Miller · Follow Up Was Oct 2")).toBeInTheDocument();
+    expect(screen.getByText("Waiting On Coach Miller")).toBeInTheDocument();
+    expect(screen.getByText("Follow Up Was Oct 2")).toHaveClass("fact", "red");
     fireEvent.click(document.querySelector("[data-email-row='waiting']") as HTMLElement);
     expect(opened).toEqual([{ kind: "waiting", id }]);
+  });
+});
+
+// THE CATALOG, ON THIS BAND (Dave 2026-10-05: a thin grey subtext was back on the Email card, "Open Email to
+// Review" under "5 Email Items to Review" and "Task · Due Today"). The rules it broke: a row with nothing to say
+// shows nothing; a fact with a meaning wears its key colour (due amber, late red); the separator is drawn by CSS,
+// never a middle dot baked into a string (R6); a clock time is 12-hour with AM/PM; at most one grey run per row.
+describe("Email on Today follows the visual catalog", () => {
+  async function band() {
+    const w = await world();
+    await w.task("Interview with Reynolds & Rowella", TODAY);
+    await w.task("Review the transcript", "2026-10-01");
+    await w.event("Quick Call About the Deposit", TODAY, "10:00");
+    await w.waiting.create({ title: "Peña's Transcript", waitingFor: "it", counterpartyDisplay: "Coach Miller", status: "open", startedAt: "2026-10-01T10:00:00Z", followUpOn: TODAY });
+    render(<EmailToday client={client(5)} tasks={w.tasks} schedule={w.schedule} waiting={w.waiting} today={TODAY} onOpenEmail={() => {}} onOpenEntity={() => {}} />);
+    await waitFor(() => expect(document.querySelectorAll("[data-email-row]").length).toBe(5));
+    return document.querySelector(".email-today-band") as HTMLElement;
+  }
+
+  it("the review row has a title and no subtext line", async () => {
+    const root = await band();
+    const row = root.querySelector('[data-email-row="review"]')!;
+    expect(row.querySelector(".facts")).toBeNull();
+    expect(row.textContent).not.toMatch(/Open Email to Review/);
+  });
+
+  it("no fact carries a baked-in middle dot, and no row says 'Task' or 'Schedule' for what its icon already says", async () => {
+    const root = await band();
+    for (const f of root.querySelectorAll(".fact")) expect(f.textContent).not.toMatch(/[·•]/);
+    expect(root.textContent).not.toMatch(/\bTask\b|\bSchedule\b/);
+  });
+
+  it("due is amber, late is red, a time is neutral small caps in 12-hour form, and the row's grey appears at most once", async () => {
+    const root = await band();
+    const byText = (t: string) => [...root.querySelectorAll(".fact")].find((f) => f.textContent === t) as HTMLElement;
+    expect(byText("Due Today")).toHaveClass("warn");
+    expect(byText("Was Due Oct 1")).toHaveClass("red");
+    expect(byText("Follow Up Today")).toHaveClass("warn");
+    expect(byText("10:00 AM to 10:15 AM")).toHaveClass("date");
+    for (const row of root.querySelectorAll("[data-email-row]")) {
+      const grey = [...row.querySelectorAll(".fact")].filter((f) => !f.classList.contains("warn") && !f.classList.contains("red") && !f.classList.contains("date"));
+      expect(grey.length).toBeLessThanOrEqual(1);
+    }
+  });
+
+  // A facts line ellipsizes only its LAST fact. The waiting row led with the long free-text name and ended on the amber
+  // "Follow Up Today", so a long counterparty pushed the colour off the row before it shortened itself.
+  it("the toned fact leads and the free-text name is last, so a long name gives way before the colour does", async () => {
+    const root = await band();
+    const waiting = root.querySelector('[data-email-row="waiting"]')!;
+    const facts = [...waiting.querySelectorAll(".fact")];
+    expect(facts.map((f) => f.textContent)).toEqual(["Follow Up Today", "Waiting On Coach Miller"]);
+    expect(facts[0]).toHaveClass("warn");
+    expect(facts.at(-1)).not.toHaveClass("warn");
+    expect(facts.at(-1)).not.toHaveClass("red");
+  });
+
+  it("a row with a fact is one facts line, and the review row, which has none, draws no line at all", async () => {
+    const root = await band();
+    for (const row of root.querySelectorAll("[data-email-row]")) {
+      const lines = row.querySelectorAll(".facts").length;
+      expect(lines).toBe(row.getAttribute("data-email-row") === "review" ? 0 : 1);
+    }
   });
 });

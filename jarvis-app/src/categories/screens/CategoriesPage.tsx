@@ -1,7 +1,10 @@
+import { useState } from "react";
 import type { Category } from "../types";
 import { catIcon } from "../icons";
 import LargeTitleNav from "../../shared/LargeTitleNav";
 import ReorderList from "../../shared/ReorderList";
+import { titleCase } from "../../shared/casing";
+import { Head } from "../../settings/kit";
 
 const BACK = (
   <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
@@ -9,10 +12,6 @@ const BACK = (
 const CHEV = (
   <div className="chev" />
 );
-const PLUS = (
-  <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
-);
-
 export default function CategoriesPage({
   categories,
   onEdit,
@@ -33,50 +32,55 @@ export default function CategoriesPage({
   // an id this page no longer has (the just-deleted area) renders nothing
   // rather than taking the whole More tab down with it.
   const byId = (id: string) => categories.find((c) => c.id === id);
+  const [reordering, setReordering] = useState(false);
   return (
     <div className="screen ruled">
       <LargeTitleNav title="Areas" back="Settings" onBack={onBack} />
-      <div className="sh2 sh2-quiet"><span className="t">Your Areas</span><span className="n">{categories.length}</span></div>
+      {/* THE ADD IS ON THE HEAD (Dave 2026-10-05, locked: a section-level action lives in the section head, never in a card
+          or at the foot of a list). The grey card that held only Add Area is gone (rule 12). */}
+      {/* REORDER IS A MODE, NOT A PERMANENT GRIP (Dave 2026-10-05, locked: no grip dots or always-visible hints; the round 2 review: a chevron and a
+          grip on every row). Two capsules in the head at most (D1): Reorder turns the grips on and, as Done, off again, and while they are on the
+          chevron steps aside, so a row never carries two trailing glyphs. */}
+      <Head label="Your Areas" count={categories.length}
+        actions={[
+          ...(onReorder && categories.length > 1 ? [{ label: reordering ? "Done" : "Reorder", onClick: () => setReordering(!reordering) }] : []),
+          { label: "Add Area", onClick: onAdd },
+        ]} />
       <div className="pad-x">
         {onReorder && categories.length > 1 ? (
           <ReorderList
             ids={categories.map((c) => c.id)}
             onReorder={onReorder}
+            handles={reordering}
             renderRow={(id) => {
               const c = byId(id);
               if (!c) return null;
               return (
                 <>
-                  <div className={"sec-ico cat-bg-" + c.data.color}>{catIcon(c.data.icon)}</div>
-                  {/* .row-grow row-press, not bare row-grow (2026-09-22): the
-                      SAME bug the program day rows had. The wrapper is the
-                      only thing bound to the tap, sized by its own content,
-                      so it measured 226x21 inside a much taller row -- the
-                      row's own top and bottom padding did nothing. .row-press
-                      already exists for exactly this and takes the row's
-                      padding with it via :has(); reusing it here rather than
-                      re-deriving the same fix a second time. */}
+                  {/* THE TILE LIVES INSIDE THE PRESS WRAPPER (2026-10-05, the review: "jammed against the card's left edge"). A row that
+                      holds a .row-press gives it ALL the row's padding (the :has rule at components.css), so a tile outside it sat at
+                      0px from the card's rounded border. Inside, it is 20px from the edge and 12px from the name, the same as every
+                      other row, and the whole row (tile, name, chevron) is the tap to open Edit Area. */}
                   <div className="row-grow row-press" role="button" tabIndex={0} onClick={() => onEdit(c.id)}>
-                    <div className="conn-name">{c.data.name}</div>
+                    <div className={"sec-ico cat-bg-" + c.data.color}>{catIcon(c.data.icon)}</div>
+                    <div className="row-grow"><div className="conn-name">{titleCase(c.data.name)}</div></div>
+                    {!reordering && CHEV}
                   </div>
                 </>
               );
             }}
           />
-        ) : (
+        ) : categories.length > 0 && (
         <div className="card list-card-ruled">
           {categories.map((c) => (
             <div className="row" role="button" tabIndex={0} key={c.id} onClick={() => onEdit(c.id)}>
               <div className={"sec-ico cat-bg-" + c.data.color}>{catIcon(c.data.icon)}</div>
-              <div className="row-grow"><div className="conn-name">{c.data.name}</div></div>
+              <div className="row-grow"><div className="conn-name">{titleCase(c.data.name)}</div></div>
               {CHEV}
             </div>
           ))}
         </div>
         )}
-        <div className="card list-card-ruled conn-action">
-          <button className="row row-act" onClick={onAdd}>Add Area</button>
-        </div>
       </div>
     </div>
   );

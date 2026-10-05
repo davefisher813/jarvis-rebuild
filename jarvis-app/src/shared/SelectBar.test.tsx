@@ -30,9 +30,9 @@ function withHost() {
 }
 
 function Harness({
-  ids, onDelete, extraLabel, onExtra, projects, onMoveToProject,
+  ids, onDelete, extraLabel, onExtra, projects, onMoveToProject, forever,
 }: {
-  ids: string[]; onDelete: () => void;
+  ids: string[]; onDelete: () => void; forever?: boolean;
   extraLabel?: string; onExtra?: () => void;
   projects?: { id: string; title: string }[];
   onMoveToProject?: (ids: string[], projectId: string) => void;
@@ -47,7 +47,7 @@ function Harness({
         <button key={id} onClick={() => sel.toggle(id)}>{"row-" + id}</button>
       ))}
       <SelectBar
-        sel={sel} onDelete={onDelete} noun="task"
+        sel={sel} onDelete={onDelete} noun="task" forever={!!forever}
         {...(extraLabel && onExtra ? { extraLabel, onExtra } : {})}
         {...(projects && onMoveToProject ? { projects, onMoveToProject } : {})}
       />
@@ -92,6 +92,19 @@ describe("SelectBar", () => {
     // Two picked: plural.
     fireEvent.click(screen.getByText("row-b"));
     expect(screen.getByRole("button", { name: "Delete 2 tasks" })).toBeInTheDocument();
+  });
+
+  // Label in Name (2026-10-05): the Forever button draws "Delete 2 Forever", so
+  // its accessible name must contain exactly that, or a Voice Control user
+  // saying what they read finds no control.
+  it("the Forever delete's accessible name contains its visible text", () => {
+    render(<Harness ids={["a", "b"]} onDelete={() => {}} forever />);
+    fireEvent.click(screen.getByText("Enter"));
+    fireEvent.click(screen.getByText("row-a"));
+    fireEvent.click(screen.getByText("row-b"));
+    const del = document.querySelector(".select-del") as HTMLElement;
+    expect(del).toHaveTextContent("Delete 2 Forever");
+    expect(screen.getByRole("button", { name: /Delete 2 Forever/ })).toBe(del);
   });
 
   it("Select All takes only what is visible, and toggles back to Select None", () => {

@@ -21,14 +21,14 @@ import { dismissSplash } from "../shared/splash";
 import SkeletonScreen from "../shared/SkeletonScreen";
 import { DEFAULT_TABS, DESTINATIONS, MAX_TABS, extrasFor, migrateTabs } from "./destinations";
 import type { MoreRoute } from "../more/MorePage";
-import { NavOriginProvider, type NavOrigin } from "./navOrigin";
+import { NavOriginProvider, originPlace, type NavOrigin } from "./navOrigin";
 import ReturnPill from "./ReturnPill";
 import { useTasks, useSchedule, useCategories, useProfile, useAreas, useGoals, useProjects, useMoney, usePeople, useDecisions, useOptionalSeal, useOptionalLedger, useGym, useSettings } from "../data/NotesProvider";
 import { useAuth, useOptionalSession } from "../auth/AuthProvider";
 import { useAdminAiGate } from "../ai/useAdminAiGate";
-import { onNotificationTap, ensureTaskReminders, registerNotificationActions, ACTION_DONE, ACTION_TOMORROW, ACTION_SNOOZE, BANNER_SNOOZE_MIN } from "../shared/notifications";
+import { onNotificationTap, registerNotificationActions, ACTION_DONE, ACTION_TOMORROW, ACTION_SNOOZE, BANNER_SNOOZE_MIN } from "../shared/notifications";
 import { nowHHMM } from "../today/todayData";
-import { effectiveKind } from "../categories/kinds";
+import { armTaskReminders } from "../tasks/armReminders";
 import type { LifeSegment } from "../life/LifeSegments";
 import { addDays } from "../schedule/calendar";
 import { isDone as isReminderDone, snoozeTime } from "../tasks/reminders";
@@ -72,6 +72,7 @@ import { ENTITY_CATEGORY } from "../categories/types";
 import { todayISO } from "../tasks/grouping";
 import { setOverwhelmed } from "../tasks/overwhelmed";
 import { showToast } from "../shared/toast";
+import { noteScreenChange } from "../shared/screenChange";
 import { useOneShot } from "./intents";
 import { useSessionOpen } from "../gym/sessionChrome";
 import { attemptWrite } from "../shared/guard";
@@ -107,6 +108,11 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
 
   const [tabKeys, setTabKeys] = useState<string[]>(DEFAULT_TABS);
   const [active, setActive] = useState<string>("today");
+  // AN AREA OPENED FROM LIFE IS LIFE'S PAGE (Dave 2026-10-05, the round-2 review: on Health, Work or Family reached from Life's
+  // Areas list the bar lit More and left Life grey). The page itself is Brain's CategoryDetail, so `active` is "brain", which is
+  // no tab; this remembers that Life opened it so the bar keeps Life lit, and forgets it the moment the shell leaves Brain.
+  const [areaFromLife, setAreaFromLife] = useState(false);
+  useEffect(() => { if (active !== "brain") setAreaFromLife(false); }, [active]);
   // TAPPING THE TAB YOU ARE ON GOES BACK TO ITS ROOT (2026-09-29 click-through
   // audit: "five taps on Brain did not navigate"). The Health area is a screen
   // INSIDE the Brain tab (Life > Areas > Health jumps to it), so from Health
@@ -142,6 +148,9 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
     setClaims((n) => n + 1);
     return () => setClaims((n) => n - 1);
   }, []);
+  // The page a jump opened has closed to its own root: end the origin so the
+  // return pill is not left with nothing to be the way home from. Stable.
+  const clearOrigin = useCallback(() => setOrigin(null), []);
   const navBack = (): boolean => {
     const o = origin;
     if (!o) return false;
@@ -276,7 +285,11 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
     else if (kind === "file") { setActive("money"); }
     // MONEY LEDGER: a bill opens its own page in Money (the id rides the same
     // one-shot an account does); no id is the Money tab itself.
-    else if (kind === "bill") { if (targetId) accountIntent.fire(targetId); setActive("money"); }
+    // "money" is what the AI Hub's Open It sends for a captured bill or receipt
+    // (hub/hubClient destinationKindOf), and it had no branch, so the tap set a
+    // Back pill and opened nothing (2026-10-04). A bill's id opens its page; a
+    // receipt's lands on the Money tab, where Receipts live.
+    else if (kind === "bill" || kind === "money") { if (targetId) accountIntent.fire(targetId); setActive("money"); }
     // LIFE_AREAS_TAB_HANDOFF (2026-09-16): the Areas tab opens a category's
     // own page the same way a search hit always has (SHELL-F-21) -- this was
     // missing from the shared function itself, so wiring the Areas tab to
@@ -304,6 +317,9 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
 
   const [captureOpen, setCaptureOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  // A TOAST BELONGS TO ITS SCREEN (2026-10-05). A receipt about the last screen's action does not ride along into the
+  // next one: the tab, Search and Quick Capture each count as a screen. See shared/screenChange.ts and dismissForNavigation (shared/toast.ts).
+  useEffect(() => { noteScreenChange(); }, [active, searchOpen, captureOpen]);
 
   // FIRST TAP, FIRST FETCH (audit 2026-09-29). Quick Capture and Search are
   // lazy chunks reached from the always-visible dock, so the first tap was
@@ -540,26 +556,18 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
   // the shell is up, again whenever the app comes back to the foreground,
   // and again when the day rolls over. Same queue as every other scheduler
   // call (SHARED-F-06), so it cannot interleave with Today's own.
+  // 2026-10-04: the arguments come from armTaskReminders (tasks/armReminders),
+  // the same builder Today and the Reminder Settings save use, so whichever
+  // of them runs last arms with the person's Hide Sensitive Details and Quiet
+  // Hours instead of undoing them.
   useEffect(() => {
     if (!ready) return;
-    const arm = () => void (async () => {
-      try {
-        const [all, prof, cats] = await Promise.all([tasks.listTasks(), profile.get(), categories.list()]);
-        const notify = prof?.notify;
-        const health = new Set(cats.filter((c) => effectiveKind(c.data) === "health").map((c) => c.id));
-        await ensureTaskReminders(
-          all.filter((t) => !!t.data.reminder).map((t) => ({ id: t.id, text: t.data.text, reminder: t.data.reminder!, sensitive: !!notify?.privateAlerts && !!t.data.category && health.has(t.data.category) })),
-          todayISO(),
-          Date.now(),
-          notify?.quietHours ? { quietFrom: notify.quietFrom ?? "21:00", quietTo: notify.quietTo ?? "08:00" } : {},
-        );
-      } catch { /* the next foreground tries again; nothing was lost */ }
-    })();
+    const arm = () => void armTaskReminders({ tasks, profile, categories }, todayISO());
     arm();
     const onVisible = () => { if (document.visibilityState === "visible") arm(); };
     document.addEventListener("visibilitychange", onVisible);
     return () => document.removeEventListener("visibilitychange", onVisible);
-  }, [ready, tasks, dayKey]);
+  }, [ready, tasks, profile, categories, dayKey]);
 
   // SHELL-F-14 (2026-09-05): these two predate the attemptWrite convention
   // every other user-initiated write in the app goes through. The tab bar
@@ -644,10 +652,10 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
   if (!ready) return <div className="app-shell"><div className="app-scroll" /></div>;
 
   // The place a jump would return TO is the place you are standing in now.
-  placeRef.current = { key: active, seg: lifeSegment };
+  placeRef.current = { key: originPlace(active, areaFromLife), seg: lifeSegment };
 
   return (
-    <NavOriginProvider value={{ origin, back: navBack, claim, claimed: claims > 0 }}>
+    <NavOriginProvider value={{ origin, back: navBack, claim, claimed: claims > 0, clear: clearOrigin }}>
     <GoogleSessionProvider>
     <GoogleAutoImport />
     {/* TRACK 3 (2026-09-19): a stranger books an hour through the public link
@@ -706,15 +714,15 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
              for what is open, and Chat for what you told them. */
           onOpenPerson={(personId) => void navigateToEntity("person", personId)}
           onAskSaid={(personId) => jump(() => { chatAskIntent.fire(personId); setActive("chat"); })} onGoBigger={(goalId?: string) => jump(() => { if (goalId) goalIntent.fire(goalId); else goalIntent.clear(); goLife("goals"); })} />}
-        {active === "life" && <LifeFlow segment={lifeSegment} segmentNav={lifeNav} taskOpenId={taskIntent.value} taskNonce={taskIntent.nonce} onTaskOpened={taskIntent.clear} startOpenId={startIntent.value} startNonce={startIntent.nonce} onStartConsumed={startIntent.clear} taskFilter={taskFilterIntent.value} filterNonce={taskFilterIntent.nonce} onFilterApplied={taskFilterIntent.clear} projectOpenId={projectIntent.value} projectNonce={projectIntent.nonce} onProjectOpened={projectIntent.clear} goalOpenId={goalIntent.value} goalNonce={goalIntent.nonce} onGoalOpened={goalIntent.clear} onOpenNote={navigateToNote} onWhatNow={openFocus} onOpenDecision={(id) => void navigateToEntity("decision", id)} onGoEmail={(threadId) => jump(() => { mailIntent.fire(threadId); setActive("messages"); })} onOpenEntity={(kind, id) => void navigateToEntity(kind, id)} onOpenCategory={(id) => void navigateToEntity("category", id)} />}
+        {active === "life" && <LifeFlow segment={lifeSegment} segmentNav={lifeNav} taskOpenId={taskIntent.value} taskNonce={taskIntent.nonce} onTaskOpened={taskIntent.clear} startOpenId={startIntent.value} startNonce={startIntent.nonce} onStartConsumed={startIntent.clear} taskFilter={taskFilterIntent.value} filterNonce={taskFilterIntent.nonce} onFilterApplied={taskFilterIntent.clear} projectOpenId={projectIntent.value} projectNonce={projectIntent.nonce} onProjectOpened={projectIntent.clear} goalOpenId={goalIntent.value} goalNonce={goalIntent.nonce} onGoalOpened={goalIntent.clear} onOpenNote={navigateToNote} onWhatNow={openFocus} onOpenDecision={(id) => void navigateToEntity("decision", id)} onGoEmail={(threadId) => jump(() => { mailIntent.fire(threadId); setActive("messages"); })} onOpenEntity={(kind, id) => void navigateToEntity(kind, id)} onOpenCategory={(id) => { setAreaFromLife(true); void navigateToEntity("category", id); }} />}
         {active === "schedule" && <ScheduleFlow onEditRoutine={goToRoutine} openId={eventIntent.value} openNonce={eventIntent.nonce} onOpenConsumed={eventIntent.clear} onNavigate={(kind, id) => void navigateToEntity(kind, id)} onFocus={openFocus} />}
         {active === "brain" && <BrainFlow openKey={brainIntent.value} openNonce={brainIntent.nonce} onKeyConsumed={brainIntent.clear} routineBlockId={routineBlockIntent.value} onRoutineBlockConsumed={routineBlockIntent.clear} personOpenId={personIntent.value} personNonce={personIntent.nonce} onPersonConsumed={personIntent.clear} decisionOpenId={decisionIntent.value} decisionNonce={decisionIntent.nonce} onDecisionConsumed={decisionIntent.clear} factOpenId={factIntent.value} factNonce={factIntent.nonce} onFactConsumed={factIntent.clear} onOpenNote={navigateToNote} onOpenProject={(id) => void navigateToEntity("project", id)} onOpenEntity={(kind, id) => void navigateToEntity(kind, id)} onOpenMoney={() => jump(() => setActive("money"))} autoOpenGym={gymIntent.value === true} gymNonce={gymIntent.nonce} onGymConsumed={gymIntent.clear} healthLogKey={healthLogIntent.value} healthLogNonce={healthLogIntent.nonce} onHealthLogConsumed={healthLogIntent.clear} />}
         {active === "notes" && <NotesFlow seed={seedDemo} onChrome={(c) => setNotesChrome(c.tabBar)} onNavigate={navigateToEntity} openId={noteIntent.value} openNonce={noteIntent.nonce} onOpenConsumed={noteIntent.clear} />}
 
         {active === "messages" && flagOn("email_intake_v1") && <EmailFlow openId={mailIntent.value} openNonce={mailIntent.nonce} onOpenConsumed={mailIntent.clear} focus={emailFocusIntent.value} focusNonce={emailFocusIntent.nonce} onFocusConsumed={emailFocusIntent.clear} onOpenConnections={() => jump(() => { setMoreRoute("connections"); setActive("more"); })} onOpenEntity={(kind, id) => void navigateToEntity(kind, id)} onOpenModule={(m) => jump(() => { if (m === "Money") setActive("money"); else if (m === "Tasks") goLife("tasks"); else if (m === "Schedule") setActive("schedule"); })} />}
         {active === "messages" && !flagOn("email_intake_v1") && <MessagesFlow ai={ai} demoMail={seedDemo} openThreadId={mailIntent.value} threadNonce={mailIntent.nonce} onThreadConsumed={mailIntent.clear} openDraftId={draftIntent.value} draftNonce={draftIntent.nonce} onDraftConsumed={draftIntent.clear} composeNonce={composeIntent.nonce} onComposeConsumed={composeIntent.clear} onOpenConnections={() => jump(() => { setMoreRoute("connections"); setActive("more"); })} onOpenTask={(id) => void navigateToEntity("task", id)} />}
-        {active === "notifications" && <NotificationsFlow onOpen={(kind, id) => void navigateToEntity(kind, id)} />}
-        {active === "money" && <MoneyFlow onOpenTask={(id) => void navigateToEntity("task", id)} onOpenEntity={(k, id) => void navigateToEntity(k, id)} openAccountId={accountIntent.value} openNonce={accountIntent.nonce} onOpenConsumed={accountIntent.clear} />}
+        {active === "notifications" && <NotificationsFlow onOpen={(kind, id) => void navigateToEntity(kind, id)} onBack={() => setActive("more")} />}
+        {active === "money" && <MoneyFlow onBack={() => setActive("more")} inTabBar={tabKeys.includes("money")} onOpenTask={(id) => void navigateToEntity("task", id)} onOpenEntity={(k, id) => void navigateToEntity(k, id)} openAccountId={accountIntent.value} openNonce={accountIntent.nonce} onOpenConsumed={accountIntent.clear} />}
         {active === "chat" && <ChatFlow
           askPersonId={chatAskIntent.value}
           askNonce={chatAskIntent.nonce}
@@ -762,7 +770,7 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
           {/* BROWSER-F-12 moved VoiceBar out to showCapture above, so Chat's
               own composer is the only field on that screen. The tab bar is not
               the dock and stays either way. */}
-          <TabBar tabKeys={tabKeys} active={active} onTab={(k) => {
+          <TabBar tabKeys={tabKeys} active={active === "brain" && areaFromLife && tabKeys.includes("life") ? "life" : active} onTab={(k) => {
             // A tab tap is a fresh visit: anything still pending is cancelled
             // here. Each intent also clears itself the moment its own screen
             // consumes it (shell/intents.ts), so this is the belt, not the

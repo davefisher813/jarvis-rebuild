@@ -1,11 +1,11 @@
 import React, { useEffect, useRef, useState } from "react";
-import EntityStar from "../../shared/EntityStar";
+import EntityStar, { useRemember } from "../../shared/EntityStar";
 import PageHeader, { BarAction, BarText } from "../../shared/PageHeader";
 import LifeHeader, { OptionsButton, type HeaderView } from "../../shared/LifeHeader";
 import OptionsSheet, { type OptionRow } from "../../shared/OptionsSheet";
 import { useSelection } from "../../shared/useSelection";
 import SelectBar from "../../shared/SelectBar";
-import { Plus, Trash2, Clock, ListChecks, Check, Camera, Zap } from "../../shared/icons";
+import { Trash2, Clock, ListChecks, Check, Zap, Forward } from "../../shared/icons";
 import SkeletonRows from "../../shared/SkeletonRows";
 import { Burst } from "../../shared/Burst";
 import type { BurstSize } from "../../shared/completion";
@@ -16,6 +16,9 @@ import { categoriesOf } from "../categories";
 import { catColor, catName } from "../../shared/categories";
 import type { SheetCategory, SheetProject } from "./TaskSheet";
 import { useSwipe } from "../../shared/useSwipe";
+import type { RowAction } from "../../shared/RowActionSheet";
+import RowCtxAction from "../../shared/RowCtxAction";
+import { taskVerb, isStartVerb, type TaskVerb } from "../rowVerb";
 import Provenance from "../../shared/ProvenanceLine";
 import { rowSource, type Source, type SourceType } from "../../shared/provenance";
 import { lineCase, titleCase } from "../../shared/casing";
@@ -24,8 +27,7 @@ import { durLabel } from "../../schedule/durations";
 import { OVERWHELM_ENTER, OVERWHELM_EXIT } from "../overwhelmed";
 import InlineEdit from "../../shared/InlineEdit";
 import HeadMenu from "../../shared/HeadMenu";
-import { useLongPress } from "../../shared/useLongPress";
-import { haptics } from "../../shared/haptics";
+import { useRowMenu } from "../../shared/useRowMenu";
 import { ParentLineGlyph, EnvelopeGlyph } from "../../shared/glyphs";
 import StepCount, { stepsOf, hasUnfinishedSteps } from "../../shared/StepCount";
 import { Nums } from "../../bigger/GoalRowRuled";
@@ -76,14 +78,14 @@ function groupItems(items: TaskItem[], by: GroupBy, goalOf: ((t: TaskItem) => st
     const t = it.data;
     if (by === "category") {
       const id = categoriesOf(t)[0] ?? "";
-      put(id || "none", catName(id) || "No category", it, id ? catColor(id) : undefined);
+      put(id || "none", catName(id) || "No Category", it, id ? catColor(id) : undefined);
     } else if (by === "goal") {
       const g = goalOf?.(it) ?? null;
-      put(g ? "g:" + g : "none", g ?? "No goal", it);
+      put(g ? "g:" + g : "none", g ? titleCase(g) : "No Goal", it);
     } else {
       const d = t.done ? null : distanceFor(t, today);
       const key = d ? d.kind : t.due ? "later" : "undated";
-      put(key, { today: "Today", late: "Overdue", later: "Later", undated: "No date" }[key] ?? key, it);
+      put(key, { today: "Today", late: "Overdue", later: "Later", undated: "No Date" }[key] ?? key, it);
     }
   }
   const rank = (k: string) => by === "due" ? ["late", "today", "later", "undated"].indexOf(k) : k === "none" ? 1 : 0;
@@ -127,8 +129,8 @@ function emptySub(filter: TaskFilter, counts: Record<TaskFilter, number>): strin
 // area alone. The first NAMED area leads, so a primary deleted out from
 // under a task does not blank the line while a second area still has a name.
 const NO_PARENTS: ParentIndex = { projects: new Map(), events: new Map() };
-function areaLine(item: TaskItem): ParentLine | null {
-  const first = categoriesOf(item.data).find((id) => catName(id));
+function areaLine(item: TaskItem, except?: string): ParentLine | null {
+  const first = categoriesOf(item.data).find((id) => id !== except && catName(id));
   return first ? parentForTask(NO_PARENTS, { ...item, data: { ...item.data, category: first } }) : null;
 }
 
@@ -153,13 +155,17 @@ export function TaskRow({
   onPick,
   muteToday = false,
   parent: callerParent = null,
+  inArea,
   kicker = null,
   kickerTone = null,
   tag = null,
   action = null,
+  lowPriority = false,
+  onFirstStep,
   burstSize = "small",
   openSourceFor,
   person = null,
+  dueFact = false,
 }: {
   item: TaskItem;
   today: string;
@@ -191,6 +197,10 @@ export function TaskRow({
   // every row keeps two lines and a fact. Derived by the flow from one
   // goal index, the same one Today reads, so the two pages cannot disagree.
   parent?: ParentLine | null;
+  // THE PAGE'S OWN AREA SAYS NOTHING (2026-10-05, the round-2 review: "Book PG 17U Travel" over "Family" on the Family
+  // page, a line that repeats its screen's name). A row listed on an area's page leaves that area off its second line when it
+  // has no project or event of its own; another area it also carries is new information and still shows.
+  inArea?: string;
   // A caller's own second line (a reminder's time on the Health page),
   // in place of the parent or category words. Unless it is stalled it is
   // drawn as a neutral time, in small caps.
@@ -202,9 +212,18 @@ export function TaskRow({
    *  the app CONCLUDED; the kicker under it is the count it concluded from.
    *  Two kinds of fact, so two weights: the chip leads, the count follows. */
   tag?: string | null;
-  // A caller's own trailing pill in place of Start (First Step on the
-  // task that keeps sliding). One pill per row, always.
+  // A caller's own verb in place of the state-derived one (Drop on the Health
+  // page's Up Next). It is the swipe-left, the tray's first button and, once the
+  // row is overdue, the one quiet word on the row: never a pill (Dave
+  // 2026-10-05, "Clean rows, no pills anywhere").
   action?: { label: string; onClick: () => void } | null;
+  /** LOW PRIORITY OR PARKED (the task that keeps sliding): its quickest verb is
+   *  Move, and the First Step it used to wear as a pill is in its sheet and its
+   *  menu. */
+  lowPriority?: boolean;
+  /** First Step, for the row's menu. The sheet holds it too. Absent when the flow
+   *  has no AI to draft one. */
+  onFirstStep?: (id: string) => void;
   // SHARED-F-16 (2026-09-05): how loud this row's tick should be. Ticking the
   // last task of a six-month project used to burst exactly like ticking "buy
   // milk", because the flow only learned what the tick moved AFTER the row
@@ -217,6 +236,11 @@ export function TaskRow({
   // UP-CORE-17 (2026-09-05): who this task is about, when it names someone.
   // Tapping opens the Call Prep card, the app's one person card by law.
   person?: { name: string; onOpen?: () => void } | null;
+  /** THE DUE DAY IS A FACT ON THE ROW'S OWN LINE, WORDED "DUE" (2026-10-05, round 2: Money's Also Tagged drew "Today" under the
+   *  title but "WED" in grey caps at the right edge, and Notifications said "Due Today" for the same task). A caller whose list
+   *  is not already sectioned by day opts in: today and tomorrow are the key's amber, a later day is a small-caps date, a late
+   *  one stays red, and nothing is reserved at the row's right edge, so the title takes the full width. */
+  dueFact?: boolean;
 }) {
   const t = item.data;
   // WHERE IT LIVES, EVEN WHEN THE CALLER DID NOT SAY (§AM, 2026-09-26). A
@@ -225,8 +249,17 @@ export function TaskRow({
   // dot to mark it as an area. The row now draws the area the way every
   // other row does, its dot ahead of its name, through the same parentForTask
   // the flows use.
-  const parent = callerParent ?? areaLine(item);
-  const u = urgencyFor(t, today);
+  const parent = callerParent ?? areaLine(item, inArea);
+  // With `dueFact` the day is a fact on the row's own line (below), so the trailing urgency fallback is not drawn: `u` is
+  // the fallback's alone, and `soon` is what the fact says.
+  const soon = urgencyFor(t, today);
+  const u = dueFact ? null : soon;
+  const soonFact: string | null = (() => {
+    if (!dueFact || t.done || !t.due || !soon || soon.kind !== "soon") return null;
+    const d = new Date(today + "T00:00:00");
+    d.setDate(d.getDate() + 1);
+    return todayISO(d) === t.due ? "tomorrow" : soon.label;
+  })();
   const prov = rowSource(t.source, t.moved);
   // ONE WHERE-IT-CAME-FROM PER ROW (§AK, 2026-09-26). When nothing ahead of
   // it claims the second line's slot, the origin mark draws the envelope and
@@ -247,7 +280,9 @@ export function TaskRow({
   // The distance chip: TODAY, 2 DAYS LATE, 3 WEEKS LATE, OVER A MONTH.
   // Same ladder as Today's dealt row (distanceFor). Muted on the Today
   // filter, where every row would say the same word.
-  const dist = distanceFor(t, today);
+  // A due-worded row says "Due Today" where a sectioned list says "Today" (the same word Notifications and the bills use).
+  const distance = distanceFor(t, today);
+  const dist = distance && dueFact && distance.kind === "today" ? { ...distance, label: "DUE TODAY" } : distance;
   const chip = dist && !t.done && !(muteToday && dist.kind === "today") ? dist : null;
   // TRACE-02b (2026-09-07): the checklist rollup, display only, counted by
   // the one shared piece Today's rows already use.
@@ -282,11 +317,55 @@ export function TaskRow({
   // the ones the checkbox already had. An open row is closing, not
   // completing; a done row has nothing to complete.
   const completable = !t.done && !!onToggle && !selecting;
-  const { dx, dragging, handlers, open: swipeOpen, closeThen } = useSwipe({
-    revealW: snoozable ? 176 : 88,
+
+  // THE ROW'S ONE VERB (Dave 2026-10-05, locked; rowVerb.ts). No pill: the
+  // verb is the swipe-left, the tray's first button, the long-press menu's
+  // first line and, once the row is overdue, the one quiet word on the row.
+  // A caller's own `action` replaces the one the state would pick.
+  const startState = startLabel?.(item.id);
+  const derived: TaskVerb | null = selecting ? null : taskVerb(t, { canStart: !!onStart, canMove: snoozable, canDone: completable, startLabel: startState, lowPriority });
+  const verb: string | null = selecting || t.done ? null : action ? action.label : derived;
+  const runVerb = () => {
+    if (action) { action.onClick(); return; }
+    if (derived === "Start" || derived === "Unblock") onStart?.(item.id);
+    else if (derived === "Move") onSnooze?.(item.id);
+    else tapCheck();
+  };
+  // The tray, from the edge: the verb, then Tomorrow (unless the verb IS the move), then Delete.
+  const showTomorrow = snoozable && derived !== "Move";
+  const slots = (verb ? 1 : 0) + (showTomorrow ? 1 : 0) + 1;
+  // Rename is a mode the row enters deliberately: it is a line in the long-press
+  // menu now, not a gesture of its own. .renaming lifts the row while it is open
+  // so the mode is visible rather than silent.
+  const [renaming, setRenaming] = useState(false);
+  // THE LONG PRESS IS THE CONTEXT MENU (Dave 2026-10-05): every action again, for
+  // the person who knows to hold, and never the only way to anything essential.
+  // shared/useRowMenu owns the sheet; useSwipe's hold opens it instead of the tray.
+  const title = titleCase(t.text);
+  // REMEMBER IS A LINE IN THE MENU, AND A STAR ONLY WHILE IT IS TRUE (2026-10-05, the perfect bar): an empty outline star on every
+  // row spent a column of the row's width (about 100px with the ring) and 44px of tap area it did not have, so titles wrapped to an
+  // orphan word. The filled star still marks a remembered task, in the gutter; the long press offers Remember and Forget.
+  const remember = useRemember("task", item.id, title);
+  const menuActions: RowAction[] = [
+    ...(verb ? [{ label: verb, onPick: runVerb }] : []),
+    ...(onStart && !t.done && !t.bill && !(derived && isStartVerb(derived)) && !action ? [{ label: startState === "Unblock" ? "Unblock" : "Start", onPick: () => onStart(item.id) }] : []),
+    ...(onFirstStep && !t.done && !t.bill ? [{ label: "First Step", onPick: () => onFirstStep(item.id) }] : []),
+    ...(completable && verb !== "Done" && verb !== "Wrap Up" && verb !== "Mark Paid" ? [{ label: t.bill ? "Mark Paid" : "Done", onPick: tapCheck }] : []),
+    ...(t.done && onToggle && !selecting ? [{ label: "Mark Not Done", onPick: () => onToggle(item.id) }] : []),
+    ...(showTomorrow ? [{ label: "Move to Tomorrow", onPick: () => onSnooze?.(item.id) }] : []),
+    ...(onRename && !t.done ? [{ label: "Rename", onPick: () => setRenaming(true) }] : []),
+    ...(remember && !selecting ? [{ label: remember.on ? "Forget" : "Remember", onPick: () => void remember.run() }] : []),
+    ...(onDelete ? [{ label: "Delete", destructive: true, onPick: () => onDelete(item.id) }] : []),
+  ];
+  const rowMenu = useRowMenu({ title, actions: menuActions, enabled: !selecting && !renaming });
+  const swipe = useSwipe({
+    revealW: slots * 88,
     rightW: completable ? 88 : 0,
     ...(completable ? { onRightCommit: tapCheck } : {}),
+    onLongPress: rowMenu.onLongPress,
   });
+  const { dx, dragging, open: swipeOpen, closeThen } = swipe;
+  const { handlers: rowHandlers, sheet: menuSheet } = rowMenu.bind(swipe);
 
   useEffect(() => {
     if (t.done && !prevDone.current) {
@@ -298,14 +377,7 @@ export function TaskRow({
     prevDone.current = t.done;
   }, [t.done]);
 
-  // Rename is a mode the row enters deliberately, not something a tap can
-  // fall into. .renaming lifts the row while it is open so the gesture is
-  // visible rather than silent.
-  const [renaming, setRenaming] = useState(false);
-  const hold = useLongPress({
-    onLongPress: () => { haptics.selection(); setRenaming(true); },
-    enabled: !!onRename && !t.done && !selecting,
-  });
+  const verbIcon = derived === "Start" || derived === "Unblock" ? <Zap className="ic" /> : derived === "Move" ? <Forward className="ic" /> : <Check className="ic" />;
 
   return (
     <div className="task-swipe">
@@ -316,34 +388,35 @@ export function TaskRow({
           <span className="swipe-label">Done</span>
         </div>
       )}
-      {snoozable && (
-        <button className="task-snooze" onClick={() => onSnooze?.(item.id)} aria-label="Move to tomorrow">
+      {/* THE TRAY, FROM THE EDGE (Dave 2026-10-05): the row's one verb, then
+          Tomorrow, then Delete. B13 (2026-08-23): every button says its name; the
+          reveal is 88px a button. Each one names the record, as the Delete always
+          has (VoiceOver sweep, 2026-09-21). */}
+      {verb && (
+        <button className="task-verb" onClick={() => closeThen(runVerb)} aria-label={verb + " " + title}>
+          {verbIcon}
+          <span className="swipe-label">{verb}</span>
+        </button>
+      )}
+      {showTomorrow && (
+        <button className="task-snooze" style={verb ? undefined : { right: 0 }} onClick={() => onSnooze?.(item.id)} aria-label="Move to tomorrow">
           <Clock className="ic" />
           <span className="swipe-label">Tomorrow</span>
         </button>
       )}
-      {/* B13 (2026-08-23): a clock and a trash can, side by side, in two
-          coloured slots, with nothing saying which is which. Both say their
-          names now. Reveal width is unchanged: the labels fit 88px. */}
-          {/* NAME THE RECORD, which this app's own convention does in twelve
-              places and missed in five (VoiceOver sweep, 2026-09-21). On the
-              web build the swipe rail's buttons are siblings of the row, so a
-              screen reader reaching one hears "Delete task" with nothing
-              saying which. SwipeDelete, the reminder row and the bill row all
-              pass the record's name already. */}
-      <button className="task-del" onClick={() => onDelete?.(item.id)} aria-label={"Delete " + t.text}>
+      <button className="task-del" style={slots > 1 ? { right: (slots - 1) * 88 } : undefined} onClick={() => onDelete?.(item.id)} aria-label={"Delete " + title}>
         <Trash2 className="ic" />
         <span className="swipe-label">Delete</span>
       </button>
       <div
         className={"task-row" + (renaming ? " renaming" : "") + (t.done ? " completed" : "") + (burst ? " just-done" : "") + (dragging ? " swiping" : "")}
         style={{ transform: dx ? `translateX(${dx}px)` : undefined }}
-        {...handlers}
+        {...rowHandlers}
         // THE WHOLE ROW IS THE DOOR (Dave 2026-09-15: "I want all rows
-        // clickable"). The title used to be the only door, so the gap past
-        // the words and the space around Start were dead. The ring, the star,
-        // the person and the pill each stop their own tap. A tap on a row
-        // whose Delete is showing closes it instead of opening the task.
+        // clickable"; 2026-10-05: it opens the task's sheet, which holds every
+        // action). The ring, the star and the person each stop their own tap.
+        // A tap on a row whose tray is showing closes it instead of opening
+        // the task.
         role="button"
         tabIndex={0}
         onClick={() => {
@@ -357,7 +430,7 @@ export function TaskRow({
         }}
       >
         {/* C-50 (Astra, 2026-09-12): the Remember star leads the row. */}
-        {!selecting && <EntityStar entityType="task" entityId={item.id} title={t.text} />}
+        {!selecting && <EntityStar entityType="task" entityId={item.id} title={title} quiet />}
         {/* SELECT MODE TAKES THE CHECK COLUMN (2026-08-24). The row already
             has a circle in front of it that means "tick this off", and a
             second circle beside it meaning "pick this one" would be two
@@ -371,7 +444,7 @@ export function TaskRow({
             className={"sel-box" + (picked ? " on" : "")}
             role="checkbox"
             aria-checked={picked}
-            aria-label={picked ? "Deselect " + t.text : "Select " + t.text}
+            aria-label={picked ? "Deselect " + title : "Select " + title}
             onClick={(e) => { e.stopPropagation(); onPick?.(item.id); }}
           >
             {picked && <Check className="ic" />}
@@ -393,27 +466,26 @@ export function TaskRow({
           </div>
         )}
         <div className="task-title">
-          {/* THE TAP OPENS. RENAME IS THE LONG PRESS (Dave 2026-08-24: "when
-              I tap to edit a task it now edits the text instead... it's WAY
-              more important that I can easily click and edit the tasks").
-              The title IS the row to anyone using it, so its tap opens;
-              rename lives on the press-and-hold and edits where it stands.
-              Held rows say so with .renaming. */}
+          {/* THE TAP OPENS THE SHEET. RENAME IS A LINE IN THE LONG-PRESS MENU
+              (Dave 2026-08-24: "it's WAY more important that I can easily click
+              and edit the tasks"; 2026-10-05: the long press is the menu). The
+              title is SHOWN in Title Case, whatever was typed. */}
           {renaming && onRename && !t.done ? (
             <div onClick={(ev) => ev.stopPropagation()}>
               <InlineEdit
                 className="task-name"
                 value={t.text}
+                display={titleCase}
                 focused
                 onSave={(v) => {
                   setRenaming(false);
                   const next = v.trim();
-                  if (next && next !== t.text) onRename(item.id, next);
+                  if (next && next !== t.text && next !== title) onRename(item.id, titleCase(next));
                 }}
               />
             </div>
           ) : (
-            <span className="task-name" {...(onRename && !t.done && !selecting ? hold : {})}>{t.text}</span>
+            <span className="task-name">{title}</span>
           )}
           {/* THE RULED ROW'S SECOND LINE (Dave 2026-09-01, "Together" catalog;
               The Row and Health, 2026-09-02). Chip first, so it sits at one
@@ -449,11 +521,19 @@ export function TaskRow({
               line box (ruled.css), so a fact that no longer fits leaves the
               line whole instead of taking a row of its own. */}
           <div className="r-k r-k-one">
-            {chip && <span className={"uchip " + (chip.kind === "late" ? "u-late" : "u-today")}>{chip.label}</span>}
+            {/* THE DISTANCE IS TEXT ON EVERY TASK ROW (Dave 2026-10-05, D10: no filled chip or capsule inside a list row).
+                Today is the key's amber and a late one the key's red, in the row's own type with no fill, so the same word
+                reads the same on the Tasks list, an area page and Money's Also Tagged. */}
+            {chip && <span className={"r-goal fact " + (chip.kind === "late" ? "red" : "warn")}>{lineCase(chip.label.toLowerCase())}</span>}
+            {soonFact && (
+              soonFact === "tomorrow"
+                ? <span className="r-goal fact warn">Due Tomorrow</span>
+                : <span className="fact date">{"Due " + titleCase(soonFact.toLowerCase())}</span>
+            )}
             {/* E-31 (2026-09-12): a day he named in his own reply that the
                 catcher could not resolve. A proposal in the chip's slot, in
                 quiet ink, never a deadline; a real due date replaces it. */}
-            {!chip && !t.done && t.proposedDate && <span className="uchip u-proposed">{t.proposedDate} (proposed)</span>}
+            {!chip && !t.done && t.proposedDate && <span className="uchip u-proposed">{lineCase(`${t.proposedDate} (proposed)`)}</span>}
             {(kicker || tag)
               ? <>
                   {tag && <span className="slide-tag">{tag}</span>}
@@ -506,7 +586,7 @@ export function TaskRow({
             {/* UP-CORE-02 (2026-09-05): how long he said this one takes,
                 where he is deciding what to pick up. A fact, only when set. */}
             {t.estimateMin ? <span className="r-goal r-est"><Nums text={durLabel(t.estimateMin)} /></span> : null}
-            {t.recurrence && <span className="r-goal r-rec">{t.recurrence}</span>}
+            {t.recurrence && <span className="r-goal r-rec">{lineCase(t.recurrence)}</span>}
             {/* Provenance Line (addendum item 8): auto-created rows say where
                 they came from; hand-made rows render nothing here. */}
             {/* SHARED-F-17 (2026-09-05): "From an email · Aug 12" was a plain
@@ -534,51 +614,24 @@ export function TaskRow({
             {!provRepeatsOrigin && <Provenance compact source={prov} {...(prov && openSourceFor ? { onOpen: openSourceFor(prov) } : {})} />}
           </div>
         </div>
-        {/* The urgency label steps aside for Start, exactly as it does on
-            Today: knowing a thing is due is worth less than a way to begin
-            it, and two pills on one row is the clutter that made the audit
-            flag this list in the first place. */}
-        {/* The urgency fallback below only fires for a caller that mounts
-            Row with no onStart. It is guarded against u.kind !== "soon" so
-            it can never double up with the tag row-tags now renders above:
-            the two were written to divide the same information, not repeat
-            it. */}
-        {/* A TASK UNDERWAY SAYS WHERE HE IS, NOT "BEGIN" (TRACE-02b, ruled
-            2026-09-07 on "whatever makes the most sense").
-
-            Dave: "there is no trace of events or steps (for tasks) anywhere
-            in the app." TRACE-02 gave the count to Today the day before and
-            this row, the one he actually lives on, still answered Start on
-            every open task: onStart is passed unconditionally below (line
-            740), so a task carrying a five item checklist was byte-identical
-            to a task carrying nothing.
-
-            Contract 4.1 holds this slot to exactly one thing and says the
-            count is used only where no action applies. It applies here:
-            "2 of 5" is a task already begun, and Start offers to begin it.
-            The move he wants on a row like that is to open it and tick the
-            next item, which is the row tap, unchanged, and a better move
-            than Start's fifteen minute timer anyway.
-
-            A caller's own pill still wins (Do It, Drop): those are that
-            surface's standing action, not the generic Start. A fully ticked
-            list is not underway, so Start comes back (hasUnfinishedSteps
-            carries the reasoning, and the sheet makes the same turn with its
-            Close Task offer). Still exactly one child either way, which is
-            lint rule 7. */}
-        {selecting ? null : action && !shownDone
-          ? <button className="pill-act" onClick={(e) => { e.stopPropagation(); action.onClick(); }}>{action.label}</button>
-          : !shownDone && hasUnfinishedSteps(steps)
-          ? <StepCount {...steps} />
-          : onStart && !shownDone
-          // START NOW (2026-09-16): the pill says what the tap will actually
-          // do. A task the user marked blocked reads Unblock, and one with
-          // work already saved reads Resume, both from the same resolver the
-          // working surface uses, so a row can never promise a start it is
-          // about to call something else.
-          ? <button className="pill-act" onClick={(e) => { e.stopPropagation(); onStart(item.id); }}>{startLabel?.(item.id) ?? "Start"}</button>
-          : u && u.kind === "soon" && <span className={"urgency " + URGENCY_CLASS[u.kind]}>{u.label}</span>}
+        {/* NO PILL ON A ROW (Dave 2026-10-05). The slot holds, in order of
+            claim: the row's verb as one quiet word once its moment has come (it
+            is overdue; the same verb as the swipe), then the count of a task
+            already underway ("2 of 5": information, not an action; a fully
+            ticked list is not underway, hasUnfinishedSteps carries the
+            reasoning), then, for a caller with no Start, the urgency label
+            (never beside a verb: it is the same fact the chip above says). Done
+            is the check on the left, so it is never surfaced as words. */}
+        {selecting ? null : (
+          <>
+            <RowCtxAction when={!!verb && verb !== "Done" && !shownDone && dist?.kind === "late"} label={verb ?? ""} ariaLabel={verb + " " + title} onAct={runVerb} />
+            {!shownDone && hasUnfinishedSteps(steps)
+              ? <StepCount {...steps} />
+              : !onStart && u && u.kind === "soon" && <span className={"urgency " + URGENCY_CLASS[u.kind]}>{u.label}</span>}
+          </>
+        )}
       </div>
+      {menuSheet}
     </div>
   );
 }
@@ -589,14 +642,12 @@ export function TaskRow({
 // even clear it when it's like this or swipe").
 //
 // The old row was bespoke markup carrying two always-visible pills wedged
-// into one trailing slot, a shape no other row here uses, and
-// `flex-wrap: wrap` let the pair drop onto their own line and drift right
-// once the label was too long to sit beside them -- which is exactly the
-// photo. The suggestion names a REAL task, the same one Not Now already
-// acted on, so it gets that task's own row: the check, the swipe, the open.
-// One pill (Start) leads, the way every other row's does; Not Now moves
-// behind the swipe every other dismiss action in the app already lives
-// behind, which is also the "or swipe" he asked for.
+// into one trailing slot, a shape no other row here uses. The suggestion
+// names a REAL task, the same one Not Now already acted on, so it gets that
+// task's own row: the check, the swipe, the open. Dave 2026-10-05 ("Clean
+// rows, no pills anywhere"): the last pill is gone too. Start and Not Now
+// are the swipe-left tray, the whole row's tap starts it, and swipe right
+// completes it.
 export function MomentumRow({
   task, reason, today = todayISO(), onOpen, onToggle, onStart, onNotNow,
 }: {
@@ -615,12 +666,43 @@ export function MomentumRow({
    *  the offer. Reused as-is; a suggestion is deferred, never deleted. */
   onNotNow: () => void;
 }) {
-  const { dx, dragging, handlers, open: swipeOpen, closeThen } = useSwipe({ revealW: 88 });
+  // THE SUGGESTION IS A READY TASK (Dave 2026-10-05): swipe left is Start, the
+  // quickest verb, with Not Now beside it; swipe right completes. The Start pill
+  // that sat on this row is gone, and so is the second reading of it: the tap
+  // starts it too.
+  const title = titleCase(task.data.text);
+  // THE LONG PRESS IS THE CONTEXT MENU (Dave 2026-10-05): the same three lines the tray and the right swipe hold.
+  const rowMenu = useRowMenu({ title, actions: [
+    { label: "Start", onPick: () => onStart(task.id) },
+    { label: "Done", onPick: () => onToggle(task.id) },
+    { label: "Not Now", onPick: onNotNow },
+  ] });
+  const swipe = useSwipe({
+    revealW: 176,
+    rightW: 88,
+    onRightCommit: () => onToggle(task.id),
+    onLongPress: rowMenu.onLongPress,
+  });
+  const { dx, dragging, open: swipeOpen, closeThen } = swipe;
+  const { handlers, sheet: menuSheet } = rowMenu.bind(swipe);
   const due = distanceFor(task.data, today);
   const sameArea = !!reason && /^same (category|area)/i.test(reason);
   return (
     <div className="task-swipe">
-      <button className="task-snooze" onClick={() => closeThen(onNotNow)} aria-label="Not now">
+      {/* THE LEADING RAIL, seen only while the finger is moving right. */}
+      <div className="task-done-rail" aria-hidden="true">
+        <Check className="ic" />
+        <span className="swipe-label">Done</span>
+      </div>
+      <button className="task-verb" onClick={() => closeThen(() => onStart(task.id))} aria-label={"Start " + title}>
+        <Zap className="ic" />
+        <span className="swipe-label">Start</span>
+      </button>
+      {/* 2026-10-04: the OUTER slot, as the nudge row's Dismiss. With Start
+          beside it the reveal is two buttons wide, so the stylesheet steps this
+          one in to the second slot (.task-verb ~ .task-snooze-solo): it is
+          never under the row. */}
+      <button className="task-snooze task-snooze-solo" onClick={() => closeThen(onNotNow)} aria-label="Not now">
         <Clock className="ic" />
         <span className="swipe-label">Not Now</span>
       </button>
@@ -632,11 +714,10 @@ export function MomentumRow({
         tabIndex={0}
         // THE WHOLE ROW STARTS IT (Dave's pass-off, 2026-09-26: "make it
         // real"). A suggestion is an offer to keep going, so the row does
-        // what its pill does: it starts the task, the same door as Start.
-        // The task's own row is not on the list below while this one shows
-        // (TasksPage hides it), so the suggestion is the one place it lives;
-        // opening its sheet is the swipe's Not Now away, on its real row.
-        aria-label={"Start " + titleCase(task.data.text)}
+        // what its swipe-left does: it starts the task. The task's own row
+        // is not on the list below while this one shows (TasksPage hides
+        // it), so the suggestion is the one place it lives.
+        aria-label={"Start " + title}
         onClick={() => { if (swipeOpen || dx) { closeThen(); return; } onStart(task.id); }}
         onKeyDown={(e) => {
           if (e.target !== e.currentTarget || (e.key !== "Enter" && e.key !== " ")) return;
@@ -644,9 +725,9 @@ export function MomentumRow({
           onStart(task.id);
         }}
       >
-        {/* The Remember star leads this row as it leads every TaskRow
-            (C-50), so the check and the title sit in the list's columns. */}
-        <EntityStar entityType="task" entityId={task.id} title={task.data.text} />
+        {/* The Remember star marks this row only while it is remembered, in the gutter, as it does on every TaskRow (C-50;
+            2026-10-05), so the check and the title sit in the list's columns either way. */}
+        <EntityStar entityType="task" entityId={task.id} title={task.data.text} quiet />
         <div
           className="task-check-tap"
           onClick={(e) => { e.stopPropagation(); onToggle(task.id); }}
@@ -657,7 +738,7 @@ export function MomentumRow({
           <div className="task-check" />
         </div>
         <div className="task-title">
-          <span className="task-name">{titleCase(task.data.text)}</span>
+          <span className="task-name">{title}</span>
           <div className="r-k r-k-one">
             {/* DUE AND LATE WEAR THE KEY (§AM, 2026-09-26). The reason
                 said "due today" or "overdue" in the line's plain grey, a
@@ -665,7 +746,7 @@ export function MomentumRow({
                 every task row wears (TODAY amber, N DAYS LATE red), read off
                 the task itself, and the reason keeps only the fact with no
                 meaning of its own, the shared area, as the line's one grey. */}
-            {due && <span className={"uchip " + (due.kind === "late" ? "u-late" : "u-today")}>{due.label}</span>}
+            {due && <span className={"r-goal fact " + (due.kind === "late" ? "red" : "warn")}>{lineCase(due.label.toLowerCase())}</span>}
             {/* THE VERDICT AS A CHIP, the same vocabulary the stalled row's
                 "Keeps Sliding" already uses: the app concluded this, the
                 reason line under it is the count it concluded from. */}
@@ -673,8 +754,8 @@ export function MomentumRow({
             {sameArea && <span className="r-goal r-cat">Same Area</span>}
           </div>
         </div>
-        <button className="pill-act" onClick={(e) => { e.stopPropagation(); onStart(task.id); }}>Start</button>
       </div>
+      {menuSheet}
     </div>
   );
 }
@@ -691,6 +772,7 @@ export default function TasksPage({
   onDeleteTask,
   onSnoozeTask,
   onStartTask,
+  onFirstStepTask,
   startLabel,
   startCard,
   onNew,
@@ -733,6 +815,8 @@ export default function TasksPage({
   onDeleteTask?: (id: string) => void;
   onSnoozeTask?: (id: string) => void;
   onStartTask?: (id: string) => void;
+  /** First Step, for a row's long-press menu (the sheet holds it too). Absent without AI. */
+  onFirstStepTask?: (id: string) => void;
   startLabel?: (id: string) => "Start" | "Resume" | "Unblock";
   /** A Place to Begin, built by the flow that has the services. */
   startCard?: React.ReactNode;
@@ -758,7 +842,7 @@ export default function TasksPage({
   // ink where the parent would be, First Step in place of Start, and the
   // check, swipe and open it always had. Nothing to dismiss; the row costs
   // no space the task was not already taking.
-  stalled?: { id: string; tag: string; line: string | null; action: { label: string; onClick: () => void } } | null;
+  stalled?: { id: string; tag: string; line: string | null } | null;
   // Momentum Chain: a suggestion element pinned under the row it follows.
   // `taskId` is the task the suggestion names; while the suggestion shows,
   // that task's own row is left out of the list (Dave's pass-off,
@@ -866,8 +950,9 @@ export default function TasksPage({
     <TaskRow
       item={stalledItem} today={today} onToggle={onToggle} onOpen={onOpenTask}
       onDelete={onDeleteTask} onSnooze={onSnoozeTask} onRename={onRenameTask}
+      onFirstStep={onFirstStepTask}
       muteToday={filter === "today"}
-      tag={stalled.tag} kicker={stalled.line} kickerTone="stalled" action={stalled.action}
+      tag={stalled.tag} kicker={stalled.line} kickerTone="stalled" lowPriority
     />
   ) : null;
   return (
@@ -884,7 +969,18 @@ export default function TasksPage({
         // a Syllabus, Area and Group were two glyphs in the bar and three
         // capsules on a line; they are one control now, beside the title,
         // the same control on all five pages.
-        headActions={sel.active ? undefined : <OptionsButton onClick={() => setOptsOpen(true)} label="Tasks Options" />}
+        // FOCUS LIVES IN THE HEAD, NOT AMONG THE CUTS (Dave 2026-10-05: no red slab among the chips). A quiet capsule in the key
+        // colour beside the options control: the head holds two controls, Add and Focus, and Focus is an action, not a filter.
+        headActions={sel.active ? undefined : (
+          <>
+            {onPickOne && counts.all > 0 && !overwhelmed && (
+              <button type="button" className="tasks-focus" onClick={onPickOne}>
+                <Zap className="ic" />Focus
+              </button>
+            )}
+            <OptionsButton onClick={() => setOptsOpen(true)} label="Tasks Options" />
+          </>
+        )}
       >
         {/* ONE HEADER, FIVE PAGES (Dave 2026-09-17). The tabs, then search
             and a compact Add on one row, then one scrolling row of views.
@@ -932,18 +1028,6 @@ export default function TasksPage({
                 options={(Object.keys(GROUP_LABEL) as GroupBy[]).map((g) => ({ value: g, label: GROUP_LABEL[g] }))}
                 onPick={(g) => setGroup(g as GroupBy)}
               />
-              {/* THE DOOR TO FOCUS (Dave 2026-09-18: "that massive pick one
-                  chip looks terrible... combine focus and pick one and roll
-                  it all under focus"). It was a full-width red slab under
-                  the header that named nothing. Focus is where the proposal
-                  lives, so what is left here is the door: one control, the
-                  height of the cuts beside it, wearing the bolt the capture
-                  bar already uses for the same screen. */}
-              {onPickOne && counts.all > 0 && !overwhelmed && (
-                <button type="button" className="tasks-focus" onClick={onPickOne}>
-                  <Zap className="ic" />Focus
-                </button>
-              )}
             </>
           )}
         >
@@ -1071,6 +1155,7 @@ export default function TasksPage({
                     <TaskRow
                       item={it} today={today} onToggle={onToggle} onOpen={onOpenTask}
                       onDelete={onDeleteTask} onSnooze={onSnoozeTask} onStart={onStartTask} startLabel={startLabel} onRename={onRenameTask}
+                      onFirstStep={onFirstStepTask}
                       selecting={sel.active} picked={sel.isSelected(it.id)}
                       onPick={sel.toggle} muteToday={filter === "today"}
                       parent={parentOf?.(it) ?? null}
@@ -1086,28 +1171,11 @@ export default function TasksPage({
               </div>
             </React.Fragment>
           ))}
-          {/* B8 (2026-08-23): EVERY LIST ENDS WITH THE WAY TO GROW IT.
-              The "+" in the nav bar is the only way to add a task from this
-              screen, which means the answer to "I just thought of one more"
-              is at the far top of a list you have scrolled to the bottom of.
-              One row costs less than that hunt.
-
-              NEUTRAL, never a fill: .row-act is what components.css calls
-              "the ONE sanctioned bare-text action", and it is exactly why
-              this can coexist with the one-red law that the old comment above
-              cited as the reason not to have it at all.
-
-              Not shown on the done list, where "add a completed task" is not
-              a thing anyone wants, and not shown while the overwhelmed view
-              is deliberately collapsing the page to one thing. */}
-          {onNew && filter !== "done" && !overwhelmed && shown.length > 0 && (
-            // .row-act centres itself with `margin: auto`, which works in the
-            // flex-column CARD its other 26 call sites live in and does
-            // nothing in a plain block parent like this full-bleed list. The
-            // walk caught it hanging off the left edge. One flex wrapper
-            // rather than touching a class 26 places depend on.
-            <div className="list-foot"><button className="row-act" onClick={onNew}>Add a Task</button></div>
-          )}
+          {/* THE ADD IS ON THE HEAD, NOT AT THE FOOT (Dave 2026-10-05, locked: a
+              section-level action lives in the section head, never at the foot
+              of a list). The header's compact New Task is the one door; B8's
+              "every list ends with the way to grow it" row, and the lone
+              capsule it left under the last card, are gone. */}
         </div>
       )}
       {/* This page had no foot spacer at all, so its last row sat under the

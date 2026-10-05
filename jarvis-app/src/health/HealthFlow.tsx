@@ -431,6 +431,7 @@ export default function HealthFlow({
       return (
         <MedWindowScreen
           days={medWindowDays(tookIt, ateBefore, sessionStarts, lightsOut)}
+          hasFood={ateBefore.some((a) => a.data.ate)}
           onOpenDoctorReport={() => setScreen("doctorReport")}
           onBack={onExit}
         />
@@ -447,6 +448,7 @@ export default function HealthFlow({
           onCustom={setReportCustom}
           kinds={reportKinds}
           onToggleKind={(k) => setReportKinds((ks) => (ks.includes(k) ? ks.filter((x) => x !== k) : [...ks, k]))}
+          hasAteBefore={ateBefore.length > 0}
           hasMeals={meals.length > 0}
           hasCheckins={checkins.length > 0}
           // HMN-F-22 (2026-09-05): Export This Log used to toast the
@@ -491,7 +493,7 @@ export default function HealthFlow({
           onAddWindDown={() => {
             const offer = nightBeforeOffer(nightBeforeCommitments, Date.now());
             if (!offer) return;
-            const line = "Wind Down at " + new Date(offer.windDownAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+            const line = "Wind Down at " + new Date(offer.windDownAt).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
             take(onOffer, { kind: "windDown", at: offer.windDownAt, line }, OFFER_RECEIPT.windDown);
           }}
           onBack={onExit}
@@ -640,7 +642,10 @@ export default function HealthFlow({
       return (
         <HandoffScreen
           items={handoffItems(state, lockerDocs, today)}
-          onOpenSeasonFeed={() => setScreen("seasonFeed")}
+          // 2026-10-04: the door needs both seams the Season Feed uses, the
+          // reader (ai) and the write (onCommitSeasonFeed). Without them it
+          // opened a screen that could not do its job, so it is not drawn.
+          onOpenSeasonFeed={ai && onCommitSeasonFeed ? () => setScreen("seasonFeed") : undefined}
           onOpenLocker={() => setScreen("locker")}
           onBack={onExit}
         />

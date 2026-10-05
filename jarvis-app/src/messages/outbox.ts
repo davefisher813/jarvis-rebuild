@@ -199,9 +199,11 @@ export function holdLine(item: OutboxItem, nowMs: number): string {
   return s <= 0 ? "Sending" : `Sending in ${s}`;
 }
 
+// 2026-10-05 (the catalog gate): the clock is pinned 12-hour with AM or PM, not
+// the device's locale (a 24-hour region drew "14:05").
 export function whenLabel(ms: number, now = new Date()): string {
   const d = new Date(ms);
-  const time = d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  const time = d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
   const sameDay = d.toDateString() === now.toDateString();
   if (sameDay) return time;
   const tmr = new Date(now.getTime() + 86400e3);

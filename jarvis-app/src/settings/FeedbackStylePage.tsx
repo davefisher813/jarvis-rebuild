@@ -4,6 +4,7 @@ import type { Celebration, Encouragement, FeedbackPrefs, MotionPref } from "../e
 import { useSettings } from "../data/NotesProvider";
 import { SETTING_FEEDBACK } from "../data/SettingsService";
 import LargeTitleNav from "../shared/LargeTitleNav";
+import RowCtxAction from "../shared/RowCtxAction";
 import { Head, Card, Menu, Row, Switch, Foot } from "./kit";
 
 // FEEDBACK STYLE (ADHD Reward Design Brief, Dave-approved 2026-10-04).
@@ -13,6 +14,14 @@ import { Head, Card, Menu, Row, Switch, Foot } from "./kit";
 // here is independent of the others, and none of them can switch off the
 // plain sentence that says what just changed, because that sentence is not a
 // celebration, it is the state.
+//
+// THE CATALOG PASS (2026-10-05, Dave "I am sick of this"). A grey line under a
+// row name is Title Case like every other sub line, and says something the
+// row does not already say: "Plays the tone once" under Hear It and "Off by
+// default" under Haptics (the note below says both start off) were dropped.
+// Hear It is a tap with nothing to show it, so it wears the word Play in the key colour. The
+// notes under a card are field notes: one sentence, or fragments joined by a
+// dot, never two sentences ("Off keeps..." after a full stop).
 //
 // Persisted per account like Appearance (the provider applies it to this
 // session at once, the mirror keeps it offline, the account write makes the
@@ -54,24 +63,29 @@ export default function FeedbackStylePage({ onBack }: { onBack: () => void }) {
         <Menu label="Celebration" value={prefs.celebration} options={CELEBRATION}
           onPick={(v) => save({ celebration: v as Celebration })} />
       </Card>
-      <Foot>Gentle is a checkmark and one short pulse. Off keeps only the plain line saying what changed.</Foot>
+      <Foot>Gentle is a checkmark and one short pulse, and Off keeps only the plain line saying what changed</Foot>
 
       <Head label="Motion" />
       <Card>
         <Menu label="Motion" value={prefs.motion} options={MOTION}
           onPick={(v) => save({ motion: v as MotionPref })} />
       </Card>
-      <Foot>Follow System uses your phone&rsquo;s Reduce Motion setting. Reduced removes every pulse and burst.</Foot>
+      <Foot>{"Follow System uses your phone\u2019s Reduce Motion, and Reduced removes every pulse"}</Foot>
 
       <Head label="Sound and Touch" />
       <Card>
-        <Switch label="Completion Sound" meta="One short quiet tone" on={prefs.sound}
+        <Switch label="Completion Sound" meta="One Short Quiet Tone" on={prefs.sound}
           onToggle={() => save({ sound: !prefs.sound })} />
-        <Row label="Hear It" meta="Plays the tone once" onClick={() => { previewTone(); }} />
-        <Switch label="Haptics" meta="Off by default" on={prefs.haptics}
+        {/* THE WORD, NOT A GLYPH (2026-10-05, the review: a lone red speaker, outline in one theme and filled in the other, read as a
+            status light). "Play" in the key colour is the row's one verb, the same text action a row's moment shows (RowCtxAction); the
+            row is plain because the control inside it is the real target. */}
+        <Row label="Hear It" plain onClick={() => { previewTone(); }}>
+          <RowCtxAction when label="Play" ariaLabel="Hear It" onAct={() => { previewTone(); }} />
+        </Row>
+        <Switch label="Haptics" on={prefs.haptics}
           onToggle={() => save({ haptics: !prefs.haptics })} />
       </Card>
-      <Foot>Both start off. Neither is ever the only way you find out something was saved.</Foot>
+      <Foot>Both start off, and neither is ever the only way you find out something was saved</Foot>
 
       <Head label="Words" />
       <Card>
@@ -79,17 +93,15 @@ export default function FeedbackStylePage({ onBack }: { onBack: () => void }) {
           onPick={(v) => save({ encouragement: v as Encouragement })} />
       </Card>
 
-      <Head label="Sharing" />
-      <Card>
-        <Row label="Accountability" value="Private" meta="Nothing about your tasks is shared" plain />
-      </Card>
-
       <Head label="Today" />
       <Card>
-        <Switch label="Quiet Today" meta="No pulse, sound or tap until midnight" on={quiet}
+        <Switch label="Quiet Today" meta="No Pulse, Sound or Tap Until Midnight" on={quiet}
           onToggle={() => setQuiet(!quiet)} />
       </Card>
       <Foot>Reminders and your progress stay exactly as they are.</Foot>
+      {/* ONE FACT, A NOTE (2026-10-05, the round 2 review: a card in the settings style with a bold title and no control read as a setting that did
+          nothing). Nothing is shared, so there is nothing to choose; it is said once, at the foot, as the field note it is. */}
+      <Foot>Nothing about your tasks is shared with anyone</Foot>
       <div className="screen-foot" />
     </div>
   );

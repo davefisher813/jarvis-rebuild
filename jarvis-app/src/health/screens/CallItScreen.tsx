@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { CallItPoint } from "../timelines";
+import { shortDateFromMs } from "../../shared/dateFormat";
 
 const BLOCKS = Array.from({ length: 10 }, (_, i) => i + 1);
 
@@ -63,7 +64,7 @@ export default function CallItScreen({ durationMin, history, onLog, onBack }: {
             {/* Health Push D (H-45): the two ends named, and a way out that
                 logs nothing. Skip is quiet because it is not the move. */}
             <div className="rpe-ends" aria-hidden="true"><span>Easy</span><span>All Out</span></div>
-            <div className="rpe-foot"><button type="button" className="pill-act pill-quiet" onClick={onBack}>Skip</button></div>
+            <div className="rpe-foot"><button type="button" className="btn btn-tertiary" onClick={onBack}>Skip</button></div>
           </>
         )}
       </div>
@@ -74,7 +75,7 @@ export default function CallItScreen({ durationMin, history, onLog, onBack }: {
           <div className="pad-x"><div className="card list-card-ruled">
             {recent.map((p, i) => (
               <div className="row" key={i}>
-                <div className="row-grow"><div className="conn-name">{new Date(p.at).toLocaleDateString()}</div></div>
+                <div className="row-grow"><div className="conn-name">{shortDateFromMs(p.at)}</div></div>
                 <span className="pill">{p.rpe}/10</span>
               </div>
             ))}

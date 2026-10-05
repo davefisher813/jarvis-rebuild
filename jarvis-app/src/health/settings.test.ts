@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { readHealthSettings, writeHealthSettings, updateHealthSettings, DEFAULT_HEALTH_SETTINGS } from "./settings";
+import { readHealthSettings, writeHealthSettings, updateHealthSettings, DEFAULT_HEALTH_SETTINGS, PROGRESSION_MODES, SHORTCUTS, WORKING_SHORTCUTS } from "./settings";
 import type { Storage2 } from "../gym/liveSession";
 
 // Health Push C, H-40 (2026-09-12), and the band Dave would not have hard
@@ -56,5 +56,28 @@ describe("progression", () => {
     expect(readHealthSettings(s).progression).toBe("manual");
     s.write("jarvis.health.settings.v1", JSON.stringify({ progression: "magic" }));
     expect(readHealthSettings(s).progression).toBe("assisted");
+  });
+});
+
+// 2026-10-04 (audit): Program did what Manual does, so it left the menu. A
+// record that stored it keeps working, as the mode it always behaved as.
+describe("progression, the mode that went", () => {
+  it("offers two modes, and a stored Program reads as Manual", () => {
+    expect(PROGRESSION_MODES).toEqual(["assisted", "manual"]);
+    const s = mem();
+    s.write("jarvis.health.settings.v1", JSON.stringify({ progression: "program", seeded: 2 }));
+    expect(readHealthSettings(s).progression).toBe("manual");
+  });
+});
+
+// 2026-10-04 (audit): the chips Health Settings offers are the shortcuts that
+// still change something. Every key stays valid in a stored list.
+describe("shortcuts a chip can change", () => {
+  it("are a subset of the keys, and a stored list keeps the keys no chip is offered for", () => {
+    expect(WORKING_SHORTCUTS).toEqual(["water"]);
+    expect(SHORTCUTS.map((x) => x.key)).toEqual(expect.arrayContaining(WORKING_SHORTCUTS));
+    const s = mem();
+    updateHealthSettings({ shortcuts: ["medication", "effort", "discomfort"] }, s);
+    expect(readHealthSettings(s).shortcuts).toEqual(["medication", "effort", "discomfort"]);
   });
 });

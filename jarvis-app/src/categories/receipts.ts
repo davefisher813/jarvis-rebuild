@@ -22,6 +22,28 @@ export function weekStartISO(todayIso: string): string {
   return addDays(todayIso, -shift);
 }
 
+// ONE TASK, ONE COMPLETION A DAY (Dave 2026-10-05, the perfect bar; the round-2 review: "180 done next to a 5-row list" and
+// the same two rows listed twice). A tick, an un-tick and a tick again stamps a sample EACH time it lands (the log is
+// append-only and an un-tick takes nothing back), so every number and list drawn from the raw samples inflated with each
+// toggle. A completion is a task on a day: the same task ticked twice in one local day is one completion. Samples with no
+// task id (older ones) cannot be matched, so each stands for itself.
+function localDay(ms: number): string {
+  const d = new Date(ms);
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+
+export function uniqueCompletions(samples: CompletionSample[]): CompletionSample[] {
+  const seen = new Set<string>();
+  return samples.filter((s) => {
+    if (!s.id) return true;
+    const key = s.id + "@" + localDay(s.t);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
 function toMin(hhmm: string): number {
   const [h, m] = hhmm.split(":").map(Number);
   return (h ?? 0) * 60 + (m ?? 0);
@@ -42,7 +64,7 @@ export function weekReceipt(
 ): WeekReceipt {
   const start = weekStartISO(todayIso);
   const startMs = new Date(start + "T00:00:00").getTime();
-  const done = samples.filter((s) => s.cat === categoryId && s.t >= startMs).length;
+  const done = uniqueCompletions(samples).filter((s) => s.cat === categoryId && s.t >= startMs).length;
   const weekEvents = events.filter((e) => e.category === categoryId && e.date >= start && e.date <= todayIso);
   const afterHours = work
     ? weekEvents.filter((e) => toMin(e.start) < work.startMin || toMin(e.start) >= work.endMin).length

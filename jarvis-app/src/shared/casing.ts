@@ -161,16 +161,36 @@ function ownSpelling(w: string): boolean {
   return /[A-Z]/.test(w.slice(1).replace(/[^A-Za-z]/g, ""));
 }
 
+// Words that are always written in capitals, whatever case they were typed in (Dave 2026-10-05: "Create Ai Financial
+// Advisor" must read "AI"). Only words that cannot be anything else: no IT, OK, US or PR, which are also words.
+const ACRONYMS = new Set([
+  "ai", "api", "asap", "ceo", "cfo", "coo", "crm", "diy", "eod", "eta", "faq", "fyi", "gps", "hr", "hvac", "ein", "irs",
+  "kpi", "llc", "pdf", "pto", "qa", "roi", "seo", "sms", "ssn", "tv", "ui", "url", "ux", "vip", "vp",
+]);
+
 function capWord(w: string): string {
   if (ownSpelling(w)) return w;
-  return w.split("-").map(capFirst).join("-");
+  return w
+    .split("-")
+    .map((h) => {
+      const core = h.replace(/[^A-Za-z]/g, "").toLowerCase();
+      return ACRONYMS.has(core) ? h.replace(/[A-Za-z]+/, (m) => m.toUpperCase()) : capFirst(h);
+    })
+    .join("-");
 }
 
 // Short forms that read as small words in a typed title: "w/" (with), "vs",
 // "via" (2026-09-26, the pass-off).
-const SMALL_FORMS = new Set(["w/", "vs", "vs.", "via"]);
+const SMALL_FORMS = new Set(["w/", "w", "vs", "vs.", "via"]);
 
 export function lineCase(text: string): string {
+  return capAfterNumber(lineCaseWords(text));
+}
+
+// lineCase's per-word pass. The number rule (capAfterNumber) runs on top of it,
+// so a small word right behind a leading number is capitalized like any other
+// ("$5,000 On Jul 1", "88 At the Peak"; Dave 2026-10-05, "2 Blocks").
+function lineCaseWords(text: string): string {
   return text
     .split("\u00b7")
     .map((seg) => {
@@ -189,4 +209,11 @@ export function lineCase(text: string): string {
       return (pre ?? "") + out.join(" ") + (post ?? "");
     })
     .join("\u00b7");
+}
+
+// A TIME IS NEVER SPLIT FROM ITS AM OR PM (Dave 2026-10-05, the review: "7 AM and 10 / AM" left a lone AM on its own
+// line). A non-breaking space between the number and its meridiem keeps the pair together wherever a title wraps. It
+// runs AFTER lineCase, which rejoins words with a plain space.
+export function bindMeridiem(text: string): string {
+  return text.replace(/(\d) (AM|PM)\b/g, "$1\u00a0$2");
 }

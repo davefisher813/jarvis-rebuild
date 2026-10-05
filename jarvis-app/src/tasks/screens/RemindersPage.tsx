@@ -9,7 +9,12 @@ import HeadMenu from "../../shared/HeadMenu";
 import OptionsSheet from "../../shared/OptionsSheet";
 import { rowDoor } from "../../shared/rowDoor";
 import { Burst } from "../../shared/Burst";
-import { Check, Search, Plus, Gauge } from "../../shared/icons";
+import { Check, Clock, Trash2, Forward } from "../../shared/icons";
+import { useSwipe } from "../../shared/useSwipe";
+import { useRowMenu } from "../../shared/useRowMenu";
+import type { RowAction } from "../../shared/RowActionSheet";
+import RowCtxAction from "../../shared/RowCtxAction";
+import { titleCase } from "../../shared/casing";
 import { fmtTime } from "../../schedule/calendar";
 import { dayTone } from "../../messages/factsLine";
 
@@ -41,10 +46,9 @@ import { dayTone } from "../../messages/factsLine";
 // occurrences in plain grey, then the body (the title on one line, ellipsis,
 // over one facts line that never wraps), then one action in the trailing
 // slot. The facts are the area in its colour via a single dot with its name
-// left plain grey, then a filled amber "Today" chip when due today (the one
-// amber signal on the row now that the time is grey again, and the one
-// filled chip the facts line allows, Dave 2026-09-15 v3), then the rhythm
-// plain.
+// left plain grey, then the rhythm plain. (The filled amber "Today" chip of the
+// 2026-09-15 v3 row is gone, 2026-10-05: no pill in a row, and the section head
+// already says Today.)
 //
 // No icon tile beside the checkbox: two shapes for one fact was the exact
 // "two circles" problem the row rules elsewhere in the app already ban (Dave
@@ -73,9 +77,88 @@ const EMPTY_TITLE: Record<PageTab, string> = {
   done: "Nothing Completed Yet",
 };
 
+/** How close a reminder is when its moment has come: inside this many minutes of the clock (the Today strip's own window). */
+const DUE_NOW_MIN = 10;
+const toMin = (hhmm: string): number => { const p = hhmm.split(":"); return Number(p[0] ?? 0) * 60 + Number(p[1] ?? 0); };
+
+// THE REMINDER ROW'S GESTURES (Dave 2026-10-05, locked; ROW-ACTIONS-SPEC). The row has no capsule. Tap opens the
+// reminder's sheet (every action: its primary, Snooze, Edit, Pause, Skip). Swipe left is the row's one quickest verb
+// for the state it is in (Snooze for an open timed reminder, Reopen, Resume, Restore, or the linked record's own
+// verb), with Delete beside it when the flow can delete. Swipe right completes an open one. Long press is the menu.
+// Once its moment has come (due within ten minutes, or already late) an open timed row shows Snooze on itself as one
+// quiet word: the same action as the swipe.
+interface RemVerb { label: string; icon: "clock" | "check" | "forward"; run: () => void }
+
+function RemSwipe({ title, verb, canComplete, onComplete, onDelete, extra, onOpen, className, children }: {
+  title: string;
+  verb: RemVerb | null;
+  canComplete: boolean;
+  onComplete: () => void;
+  onDelete?: () => void;
+  /** More lines for the long-press menu, after the verb. */
+  extra: RowAction[];
+  onOpen: () => void;
+  className: string;
+  children: ReactNode;
+}) {
+  const slots = (verb ? 1 : 0) + (onDelete ? 1 : 0);
+  const actions: RowAction[] = [
+    ...(verb ? [{ label: verb.label, onPick: verb.run }] : []),
+    ...extra,
+    ...(onDelete ? [{ label: "Delete", destructive: true, onPick: onDelete }] : []),
+  ];
+  const rowMenu = useRowMenu({ title, actions });
+  const swipe = useSwipe({
+    revealW: slots * 88,
+    rightW: canComplete ? 88 : 0,
+    ...(canComplete ? { onRightCommit: onComplete } : {}),
+    onLongPress: rowMenu.onLongPress,
+  });
+  const { handlers, sheet } = rowMenu.bind(swipe);
+  const snooze = verb?.icon === "clock";
+  const VerbIcon = verb?.icon === "check" ? Check : verb?.icon === "forward" ? Forward : Clock;
+  return (
+    <div className="task-swipe">
+      {canComplete && (
+        <div className="task-done-rail" aria-hidden="true">
+          <Check className="ic" />
+          <span className="swipe-label">Done</span>
+        </div>
+      )}
+      {verb && (snooze
+        ? (
+          <button className="task-snooze task-snooze-solo" onClick={() => swipe.closeThen(verb.run)} aria-label={verb.label + " " + title}>
+            <VerbIcon className="ic" />
+            <span className="swipe-label">{verb.label}</span>
+          </button>
+        ) : (
+          <button className="task-verb" onClick={() => swipe.closeThen(verb.run)} aria-label={verb.label + " " + title}>
+            <VerbIcon className="ic" />
+            <span className="swipe-label">{verb.label}</span>
+          </button>
+        ))}
+      {onDelete && (
+        <button className="task-del" style={verb ? { right: 88 } : undefined} onClick={() => swipe.closeThen(onDelete)} aria-label={"Delete " + title}>
+          <Trash2 className="ic" />
+          <span className="swipe-label">Delete</span>
+        </button>
+      )}
+      <div
+        className={className + (swipe.dragging ? " swiping" : "")}
+        style={swipe.dx ? { transform: `translateX(${swipe.dx}px)` } : undefined}
+        {...handlers}
+        {...rowDoor(() => { if (swipe.open || swipe.dx) { swipe.closeThen(); return; } onOpen(); })}
+      >
+        {children}
+      </div>
+      {sheet}
+    </div>
+  );
+}
+
 export default function RemindersPage({
-  chrome, sections, tab, onTab, query, onQuery, searchOpen, onSearchToggle, today,
-  onNew, onSettings, onOpen, onTick, onSnooze, onOpenLinked, onResume, onRestore,
+  chrome, sections, tab, onTab, query, onQuery, searchOpen, onSearchToggle, today, now,
+  onNew, onSettings, onOpen, onTick, onSnooze, onOpenLinked, onResume, onRestore, onDelete,
 }: {
   chrome: PageChrome;
   sections: PageSection[];
@@ -86,6 +169,8 @@ export default function RemindersPage({
   searchOpen: boolean;
   onSearchToggle: () => void;
   today: string;
+  /** The clock as HH:MM. A reminder inside ten minutes of it, or already late, has its moment: Snooze shows on its row. Absent, no row claims one. */
+  now?: string;
   onNew: () => void;
   onSettings: () => void;
   onOpen: (id: string) => void;
@@ -94,6 +179,8 @@ export default function RemindersPage({
   onOpenLinked?: (link: LinkedItem) => void;
   onResume: (id: string) => void;
   onRestore: (id: string, date: string) => void;
+  /** Swipe-left Delete and the long-press menu's. The flow confirms and offers Undo. */
+  onDelete?: (id: string) => void;
 }) {
   const [optsOpen, setOptsOpen] = useState(false);
   /** THE AREA CUT (Dave 2026-09-17: "Put it back and make it fit. That needs
@@ -124,7 +211,7 @@ export default function RemindersPage({
     </div>
   );
 
-  const card = (it: PageRow) => {
+  const card = (it: PageRow, sectionLabel: string) => {
     const r = it.reminder;
     const link = r.linkedItem;
     const area = it.category ? catName(it.category) : "";
@@ -143,7 +230,12 @@ export default function RemindersPage({
     // carry a bare clock reading on their own -- still run the full
     // whenWords() phrase through the facts line.
     const hasGutter = it.state === "open" && timed && !!it.time;
+    // THE SECTION ALREADY SAYS TODAY (Dave 2026-10-05, the perfect bar: an amber "Today" chip sat on every row under
+    // "Later Today", repeating the head, the view and the clock beside it). On Now and Later Today the day is implied and
+    // the row draws nothing for it; on any other section (a search over every day) a row due today names the day as the
+    // plain amber date fact, never a chip.
     const dueToday = hasGutter && it.date === today;
+    const dayImplied = dueToday && (sectionLabel === "Now" || sectionLabel === "Later Today");
     const when = whenWords(r, it.date, it.time, today, area);
     // An open occurrence's date wears the reminder window, the one helper
     // every screen shares (§AM, R8): a day behind us is late (red), today or
@@ -159,27 +251,38 @@ export default function RemindersPage({
     // row leads with SKIPPED as a state word rather than baking "Skipped"
     // into the phrase, so the rhythm is the row's one grey.
     const pastClock = (it.state === "done" || it.state === "skipped") && !!it.date && !!it.time ? fmtTime(it.time!) : null;
-    // ONE RIGHT-SLOT ACTION, whatever the state (Dave 2026-09-15, v3: the row
-    // stacked to three lines because the pill took a line of its own under
-    // the body). Open rows answer with the linked verb when there is one and
-    // Snooze otherwise; the other states answer with their one verb. Whatever
-    // this slot displaces is still one tap away in the detail sheet.
-    const act: { label: string; quiet?: boolean; onClick: () => void } | null =
+    // THE ROW'S ONE VERB, WHATEVER THE STATE (Dave 2026-10-05: no capsule on a row). It is the swipe-left and the first
+    // line of the long-press menu: an open timed reminder answers Snooze (or, with nothing to push, the linked record's
+    // own verb), a done one Reopen, a paused one Resume, a skipped one Restore. The detail sheet holds every one of them
+    // and the primary besides.
+    const verb: RemVerb | null =
       it.state === "open"
-        ? link && onOpenLinked
-          ? { label: actionLabelFor(link), onClick: () => onOpenLinked(link) }
-          : timed ? { label: "Snooze", onClick: () => onSnooze(it.id) } : null
-        : it.state === "done" ? { label: "Reopen", quiet: true, onClick: () => onTick(it.id, false) }
-        : it.state === "paused" ? { label: "Resume", onClick: () => onResume(it.id) }
-        : it.state === "skipped" && it.skippedDate ? { label: "Restore", onClick: () => onRestore(it.id, it.skippedDate!) }
+        ? timed ? { label: "Snooze", icon: "clock", run: () => onSnooze(it.id) }
+          : link && onOpenLinked ? { label: actionLabelFor(link), icon: "forward", run: () => onOpenLinked(link) } : null
+        : it.state === "done" ? { label: "Reopen", icon: "check", run: () => onTick(it.id, false) }
+        : it.state === "paused" ? { label: "Resume", icon: "forward", run: () => onResume(it.id) }
+        : it.state === "skipped" && it.skippedDate ? { label: "Restore", icon: "forward", run: () => onRestore(it.id, it.skippedDate!) }
         : null;
+    // ITS MOMENT HAS COME: an open timed reminder inside ten minutes of the clock, or one whose day is behind us. It
+    // quietly shows Snooze on the row itself, the same action as the swipe. A future one stays clean.
+    const momentCame = it.state === "open" && timed && !!now && !!it.date && !!it.time
+      && (it.date < today || (it.date === today && toMin(it.time) - toMin(now) <= DUE_NOW_MIN));
+    const title = titleCase(it.text);
+    const extra: RowAction[] = [
+      ...(it.state === "open" ? [{ label: "Done", onPick: () => { celebrate(it.id); onTick(it.id, true); } }] : []),
+      ...(it.state === "open" && link && onOpenLinked && timed ? [{ label: actionLabelFor(link), onPick: () => onOpenLinked(link) }] : []),
+      { label: "Details", onPick: () => onOpen(it.id) },
+    ];
     return (
-      <div key={it.id + (it.skippedDate ?? "")} className={"rem-card" + (it.state === "done" ? " done" : "")} {...rowDoor(() => onOpen(it.id))}>
+      <RemSwipe key={it.id + (it.skippedDate ?? "")} title={title} verb={verb}
+        canComplete={it.state === "open"} onComplete={() => { celebrate(it.id); onTick(it.id, true); }}
+        onDelete={onDelete ? () => onDelete(it.id) : undefined} extra={extra}
+        onOpen={() => onOpen(it.id)} className={"rem-card" + (it.state === "done" ? " done" : "")}>
         <div className="rem-card-top">
           {it.state === "open" ? ring(it) : <span className="rem-card-cb-space" aria-hidden="true" />}
           {hasGutter && <div className="rem-time-gutter">{fmtTime(it.time!).time}<span className="ampm">{fmtTime(it.time!).ap}</span></div>}
           <div className="rem-card-body">
-            <div className="rem-card-title">{it.text}</div>
+            <div className="rem-card-title">{title}</div>
             <div className="facts">
               {/* A gutter row's clock already lives in its own column, so
                   this fact says only the DATE (nothing at all for today's,
@@ -190,7 +293,7 @@ export default function RemindersPage({
                   out, and keeps the full whenWords() phrase it always has. */}
               {it.state === "skipped" && <span className="fact st gray">Skipped</span>}
               {hasGutter
-                ? (!dueToday && <span className={"fact " + tone}>{dateWordFor(it.date!, today)}</span>)
+                ? (!dayImplied && <span className={"fact " + tone}>{dateWordFor(it.date!, today)}</span>)
                 : pastClock
                   ? <><span className="fact date">{dateWordFor(it.date!, today)}</span><span className="fact date">{pastClock.time} {pastClock.ap}</span></>
                   : <span className={"fact " + tone}>{when}</span>}
@@ -199,31 +302,18 @@ export default function RemindersPage({
                   dot beside it, so a clipped name still says which area this
                   is; a clipped urgency chip would not say anything. */}
               {area && <span className="fact cat"><span className={"cd cat-bg-" + catColor(it.category)} /><span className="cat-t">{area}</span></span>}
-              {/* The urgency chip is the app's own .uchip (LAW 11 finding 2,
-                  the one Tasks already wears): a tint of the tag's colour with
-                  the colour on the words, never a new chip and never a solid
-                  fill. It rides INSIDE a plain .fact so the line's own "·"
-                  separator renders on the grey wrapper, outside the tint,
-                  instead of inside the chip with it. */}
-              {dueToday && <span className="fact"><span className="uchip u-today">Today</span></span>}
               {/* The rhythm is the first thing to go when the row already
                   carries a clock: on this view it was the fact that
                   overflowed, and "Every Day" is what the detail sheet and
                   the Routines view are for. Rows without a gutter (no bare
                   clock reading to begin with) keep it, where it is the
-                  line's most useful word. This used to check dueToday alone,
-                  so a FUTURE gutter row (Dave 2026-09-16: "Transfer funds
-                  for bills," Money, Every Month, Sep 19) still tried to
-                  carry rhythm beside a date and a category and squeezed the
-                  category's name down to nothing -- the one fact that must
-                  never be the one that gives way, since it says whose
-                  reminder this is. */}
+                  line's most useful word. */}
               {timed && rule.kind !== "once" && !hasGutter && <span className="fact">{describeRepeat(rule)}</span>}
             </div>
           </div>
-          {act && <button type="button" className={"pill-act" + (act.quiet ? " pill-quiet" : "")} onClick={act.onClick}>{act.label}</button>}
+          <RowCtxAction when={momentCame && !!verb} label={verb?.label ?? ""} ariaLabel={verb ? verb.label + " " + title : undefined} onAct={() => verb?.run()} />
         </div>
-      </div>
+      </RemSwipe>
     );
   };
 
@@ -255,10 +345,17 @@ export default function RemindersPage({
       views={views}
       view={tab}
       onView={(k) => onTab(k as PageTab)}
+      // 2026-10-04: a search is one list over EVERY reminder, whatever view
+      // is open (pageSections, "a search is one section over titles and
+      // areas, whatever the view"), and it already includes the done ones.
+      // The line named the open view ("Today Reminders") and offered "Search
+      // Done Too", a button that only switched the view and changed no row.
+      // It says what was searched, and the Area cut, which does narrow it,
+      // with the one widening there really is: back to every area.
       scope={query.trim() ? {
         count: shownSections.reduce((n, sec) => n + sec.rows.length, 0),
-        where: `${PAGE_TABS.find((t) => t.key === tab)?.label ?? tab} Reminders`,
-        ...(tab !== "done" ? { onAll: () => onTab("done"), allLabel: "Search Done Too" } : {}),
+        where: area ? `All Reminders in ${catName(area) || "This Area"}` : "All Reminders",
+        ...(area ? { onAll: () => setArea(null), allLabel: "Search All Areas" } : {}),
       } : undefined}
       drops={areaIds.length > 0 ? (
         <HeadMenu
@@ -284,11 +381,13 @@ export default function RemindersPage({
             hero={<div className="rem-hero"><div className="eyebrow">{dateWord}</div><div className="pagehead-title">Reminders</div></div>}>{header}</PageHeader>}
 
       {shownSections.length === 0 && (
-        <div className="pad-x"><div className="card list-card-ruled"><div className="empty-state">
+        // NO BOX ROUND A BUTTON (Dave 2026-10-05, rule 12): the empty state keeps its own words, and its one action is the
+        // screen's filled primary, never a grey card holding only "Add a Reminder".
+        <div className="empty-state">
           <div className="empty-title">{query ? "No Matches" : EMPTY_TITLE[tab]}</div>
           {query && <div className="empty-sub">Nothing Matches That</div>}
-          <button className="row row-act" onClick={onNew}><Plus className="ic" />Add a Reminder</button>
-        </div></div></div>
+          <button className="btn btn-primary" onClick={onNew}>Add a Reminder</button>
+        </div>
       )}
       {shownSections.map((s) => (
         <div key={s.label}>
@@ -305,7 +404,7 @@ export default function RemindersPage({
               looser than the three beside it. */}
           <div className="pad-x">
             <div className="card list-card-ruled">
-              {s.rows.map((it) => card(it))}
+              {s.rows.map((it) => card(it, s.label))}
             </div>
           </div>
         </div>

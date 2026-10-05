@@ -43,19 +43,53 @@ export function sizeLine(bytes: number): string {
 }
 
 /**
+ * A FACT, AS THE CATALOG DRAWS IT (2026-10-05, Dave's visual-catalog gate).
+ * Every line of grey under a title on this tab is a list of these, drawn by
+ * EmailFacts as separate .fact spans; the separator is the stylesheet's, so no
+ * string here ever carries a middle dot. `tone` is the Colour Key: warn (due,
+ * needs you), red (late), good (done, paid), date (a neutral date or time, small
+ * caps); no tone is the row's one grey. `strong` is a number with no state, white.
+ * `cat` is a category slot: a dot before the words, never a colour on them.
+ */
+export interface EmailFact { text: string; tone?: "warn" | "red" | "good" | "date"; strong?: boolean; cat?: string }
+
+/** A day and a time as two neutral facts: Today, 9:12 AM. Replaces hub's whenLine here, which bakes a dot into one string. */
+export function whenFacts(iso: string, now: Date = new Date()): EmailFact[] {
+  const day = dayLabel(iso, now);
+  const time = timeOf(iso);
+  return [...(day ? [{ text: day, tone: "date" as const }] : []), ...(time ? [{ text: time, tone: "date" as const }] : [])];
+}
+
+/** The same day and time as one value in a key/value table: Today 9:12 AM. */
+export function whenWords(iso: string, now: Date = new Date()): string {
+  return whenFacts(iso, now).map((f) => f.text).join(" ");
+}
+
+/** "Updated Today" in the row's one grey, then the time as small caps. */
+export function updatedFacts(iso: string, now: Date = new Date()): EmailFact[] {
+  const day = dayLabel(iso, now);
+  const time = timeOf(iso);
+  return [{ text: day ? `Updated ${day}` : "Updated" }, ...(time ? [{ text: time, tone: "date" as const }] : [])];
+}
+
+/**
  * Honest freshness (E21): the oldest successful sync among the accounts that
  * are still connected, because the inbox is only as fresh as its stalest
- * mailbox. "Updated Today · 9:12 AM · 2 Accounts"; "Not Synced Yet" before
- * the first good sync.
+ * mailbox. Updated Today, 9:12 AM, 2 Accounts as three facts; Not Synced Yet
+ * before the first good sync. Empty with no live account.
  */
-export function freshnessLine(accounts: readonly EmailAccount[], now: Date = new Date()): string {
+export function freshnessFacts(accounts: readonly EmailAccount[], now: Date = new Date()): EmailFact[] {
   const live = accounts.filter((a) => a.state !== "disconnected");
-  if (live.length === 0) return "";
+  if (live.length === 0) return [];
   const synced = live.filter((a) => a.last_sync_at).map((a) => a.last_sync_at!).sort();
-  const n = accountsWord(live.length);
-  if (synced.length === 0) return `${NOT_SYNCED} · ${n}`;
-  const oldest = synced[0]!;
-  return `Updated ${dayLabel(oldest, now)} · ${timeOf(oldest)} · ${n}`;
+  const n: EmailFact = { text: accountsWord(live.length), strong: true };
+  if (synced.length === 0) return [{ text: NOT_SYNCED }, n];
+  return [...updatedFacts(synced[0]!, now), n];
+}
+
+/** A copy line written as fragments joined by a middle dot, drawn as facts instead: the first wears `tone`, the rest are the one grey. For the few copy constants that render inside a facts line. */
+export function dotFacts(line: string, tone?: EmailFact["tone"]): EmailFact[] {
+  return line.split(" \u00B7 ").map((t) => t.trim()).filter(Boolean).map((text, i) => (i === 0 && tone ? { text, tone } : { text }));
 }
 
 /** Whether the sender's HTML would fetch a picture from the network (13: nothing is fetched until the person asks). */

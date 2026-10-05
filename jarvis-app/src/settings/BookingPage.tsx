@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
 import LargeTitleNav from "../shared/LargeTitleNav";
-import { Head, Card, Switch, Menu, Foot, DangerRow } from "./kit";
+import { Head, Card, Switch, Foot, DangerRow } from "./kit";
 import { pressable } from "../shared/pressable";
 import { lineCase } from "../shared/casing";
 import {
-  readBookingSettings, updateBookingSettings, DURATIONS, WHO_LABEL, VISIBILITY_LABEL,
-  type BookingSettings, type BookingWho, type BookingVisibility, type BookingDuration,
+  readBookingSettings, updateBookingSettings, DURATIONS,
+  type BookingSettings, type BookingDuration,
 } from "../booking/settings";
 import { readLink, saveLink, removeLink, linkUrl, type LinkFace } from "../booking/link";
 import { readBookings, cancelBooking, importBookings } from "../booking/importBookings";
@@ -16,16 +16,20 @@ import DayOffSheet from "../booking/DayOffSheet";
 import { readDaysOff, saveDaysOff, dayOffLabel } from "../booking/daysOff";
 import { useOptionalSchedule } from "../data/NotesProvider";
 import { showToast } from "../shared/toast";
+import { copyText } from "../shared/shareText";
+import { Link2, CalendarDays } from "../shared/icons";
 
 // YOUR TIMES (Track 3, 2026-09-14; the preview's Booking Settings screen:
 // "One screen. Day toggles and a duration list, no wizard"). Available or
-// not, the days, the slot length, who can book and how the link is found.
+// not, the days and the slot length. Who can book is not a choice any more
+// (2026-10-05): the screen shows the one answer, anyone with the link.
 //
 // The link and the bookings on it are the SERVER's (Track 3, 2026-09-19), so
 // the screen asks for both rather than deciding either. What was once an
 // honest note about a server that did not exist is now a published address and
 // the list of people who have used it.
-const DAYS = ["M", "T", "W", "T", "F", "S", "S"];
+// TWO LETTERS, SO NO TWO DAYS READ ALIKE (2026-10-05, the round 2 review: a lone T and a lone S were each two different days).
+const DAYS = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"];
 const DAY_FULL = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
 /** The day and time of a booking, on this device's clock, because that is the
@@ -35,7 +39,9 @@ const DAY_FULL = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Satur
 function When({ b }: { b: BookingFace }) {
   const d = new Date(b.startMs);
   const day = d.toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" });
-  const time = d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  // A clock time is 12-hour with AM or PM whatever the phone's region says
+  // (2026-10-05, the catalog gate: a 24-hour region drew "18:00").
+  const time = d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
   return <><span className="fact date">{day}</span><span className="fact date">{time}</span></>;
 }
 
@@ -45,6 +51,7 @@ function When({ b }: { b: BookingFace }) {
 export default function BookingPage({
   onBack,
   readLinkImpl = readLink,
+  saveLinkImpl = saveLink,
   readBookingsImpl = readBookings,
   cancelImpl = cancelBooking,
   readDaysOffImpl = readDaysOff,
@@ -52,6 +59,7 @@ export default function BookingPage({
 }: {
   onBack: () => void;
   readLinkImpl?: typeof readLink;
+  saveLinkImpl?: typeof saveLink;
   readBookingsImpl?: typeof readBookings;
   cancelImpl?: typeof cancelBooking;
   readDaysOffImpl?: typeof readDaysOff;
@@ -136,10 +144,17 @@ export default function BookingPage({
     if (busy) return;
     setBusy(true);
     try {
-      const made = await saveLink(s);
+      const made = await saveLinkImpl(s);
       setLink(made);
       setDirty(false);
-      showToast({ message: made ? "Your Link Is Live" : "Saved on This Device" });
+      // Live means somebody can book on it. A link with no hours open is an
+      // address that offers nothing, and a link the server wrote as
+      // named_contacts answers 404 to everyone; neither is "live" (2026-10-04).
+      showToast({
+        message: !made ? "Saved on This Device"
+          : made.visibility === "named_contacts" ? "Saved · The Link Is Closed to Everyone"
+          : made.days > 0 ? "Your Link Is Live" : "Saved · No Hours Are Open Yet",
+      });
     } catch {
       showToast({ message: "Couldn't Reach the Booking Server \u00b7 Try Again" });
     } finally { setBusy(false); }
@@ -158,15 +173,30 @@ export default function BookingPage({
       showToast({ message: "Couldn't Reach the Booking Server \u00b7 Try Again" });
     } finally { setBusy(false); }
   };
+  // COPY, AND SAY SO ONLY IF IT WORKED (2026-10-04). `navigator.clipboard?.`
+  // short-circuited the whole chain where there is no clipboard, so the tap
+  // closed a sheet and did nothing, with no toast and no way to get the text.
+  // copyText throws there and when a write is refused; the failure shows the
+  // text itself so it can be read off.
+  const copyOrShow = (text: string, done: string) => {
+    copyText(text).then(
+      () => showToast({ message: done }),
+      () => showToast({ message: `Couldn't Copy \u00b7 ${text}` }),
+    );
+  };
   const toggleDay = (d: number) => set({ days: s.days.includes(d) ? s.days.filter((x) => x !== d) : [...s.days, d].sort((a, b) => a - b) });
   return (
     <div className="screen ruled">
       <LargeTitleNav title="Booking" back="Settings" onBack={onBack} />
       <Head label="Your Times" />
       <Card>
-        <Switch label="Available for Booking" meta={s.available ? lineCase(`${s.days.length} ${s.days.length === 1 ? "day" : "days"} a week`) : "Nobody can book you"} on={s.available} onToggle={() => set({ available: !s.available })} />
+        <Switch label="Available for Booking" meta={s.available ? lineCase(`${s.days.length} ${s.days.length === 1 ? "day" : "days"} a week`) : "Nobody Can Book You"} on={s.available} onToggle={() => set({ available: !s.available })} />
         <div className="row set-row">
-          <div className="chip-row" role="group" aria-label="Days you take bookings">
+          {/* SEVEN EQUAL COLUMNS, NOT A SCROLLING STRIP (2026-10-05): the strip clipped and faded its seventh chip, so Saturday
+              and Sunday, both off, drew as two different states. A grid shows all seven whole, every one the same off style.
+              WITH AVAILABLE OFF THE GROUP IS WASHED (the round 2 review: "Nobody Can Book You" over five fully lit days). Still a tap
+              away, so a person can set the week before turning it on, but it no longer reads as live. */}
+          <div className={"set-grid set-grid-days" + (s.available ? "" : " set-grid-off")} role="group" aria-label="Days you take bookings">
             {DAYS.map((d, i) => (
               <div key={i} {...pressable(() => toggleDay(i))} className={"chip" + (s.days.includes(i) ? " active" : "")} aria-pressed={s.days.includes(i)} aria-label={DAY_FULL[i]}>{d}</div>
             ))}
@@ -176,58 +206,49 @@ export default function BookingPage({
       <Head label="Duration" />
       <Card>
         <div className="row set-row">
-          <div className="chip-row" role="group" aria-label="Slot length">
+          {/* FOUR EQUAL COLUMNS (2026-10-05): the wrapping row left 60 Min alone on a second line. One choice of four is one row. */}
+          <div className={"set-grid set-grid-slots" + (s.available ? "" : " set-grid-off")} role="group" aria-label="Slot length">
             {DURATIONS.map((m) => (
               <div key={m} {...pressable(() => set({ durationMin: m as BookingDuration }))} className={"chip" + (s.durationMin === m ? " active" : "")} aria-pressed={s.durationMin === m}>{lineCase(`${m} min`)}</div>
             ))}
           </div>
         </div>
       </Card>
-      <Head label="Who Can Book" />
-      <Card>
-        <Menu label="Who Can Book" value={s.who} ariaLabel="Who can book" word={WHO_LABEL[s.who]}
-          options={(Object.keys(WHO_LABEL) as BookingWho[]).map((k) => ({ value: k, label: WHO_LABEL[k] }))}
-          onPick={(v) => set({ who: v as BookingWho })} />
-        <Menu label="Visibility" value={s.visibility} ariaLabel="Visibility" word={VISIBILITY_LABEL[s.visibility]}
-          options={(Object.keys(VISIBILITY_LABEL) as BookingVisibility[]).map((k) => ({ value: k, label: VISIBILITY_LABEL[k] }))}
-          onPick={(v) => set({ visibility: v as BookingVisibility })} />
-      </Card>
-      <Head label="Your Link" />
+      {/* THE PUBLISH IS THE HEAD'S (Dave 2026-10-05, locked: an action never sits alone in a box). With no link the section is
+          a crafted empty state (a glyph, its title, one warm line) and the one capsule that fills it is on the head; with a link
+          the card holds the address and Take the Link Down, and the same capsule says what it does now. */}
+      <Head label="Your Link"
+        action={{ label: busy ? "Saving" : link ? (dirty ? "Update the Link" : "Republish") : "Publish My Times", onClick: () => void publish(), disabled: busy }} />
       <Card>
         {link ? (
-          <div className="row set-row" {...pressable(() => {
-            const url = linkUrl(link.slug);
-            navigator.clipboard?.writeText(url).then(
-              () => showToast({ message: "Link Copied" }),
-              () => showToast({ message: url }),
-            );
-          })}>
-            <div className="row-grow">
-              <div className="conn-name">{linkUrl(link.slug)}</div>
-              <div className="conn-meta">{link.days > 0 ? lineCase(`Open ${link.days} ${link.days === 1 ? "day" : "days"} a week, tap to copy`) : "No hours set, nobody can book"}</div>
+          <>
+            <div className="row set-row" {...pressable(() => copyOrShow(linkUrl(link.slug), "Link Copied"))}>
+              <div className="row-grow">
+                <div className="conn-name">{linkUrl(link.slug)}</div>
+                {/* A link an older build published as named_contacts is still
+                    stored that way, and the public page answers 404 to everyone
+                    until it is republished (2026-10-04). */}
+                <div className="conn-meta">{link.visibility === "named_contacts" ? "Closed to Everyone, Republish to Open It" : link.days > 0 ? lineCase(`Open ${link.days} ${link.days === 1 ? "day" : "days"} a week, tap to copy`) : "No Hours Set, Nobody Can Book"}</div>
+              </div>
             </div>
-          </div>
+            <DangerRow label="Take the Link Down" onClick={() => void takeDown()} disabled={busy} />
+          </>
         ) : (
-          <div className="row">
-            <div className="row-grow">
-              <div className="conn-name">No Link Yet</div>
-              <div className="conn-meta">Publish your times to get an address you can give out</div>
-            </div>
+          <div className="empty-state empty-compact">
+            <div className="empty-icon cat-fg-blue"><Link2 className="ic" /></div>
+            <div className="empty-title">No Link Yet</div>
+            <div className="empty-sub">Publish to Get a Link to Share</div>
           </div>
-        )}
-        {/* Not a row: a row in this app is a door, and this is a block
-            holding one button. It takes the card's own padding instead. */}
-        <div className="set-publish">
-          <button type="button" className="btn btn-primary btn-block" onClick={() => void publish()} disabled={busy}>
-            {busy ? "Saving" : link ? (dirty ? "Update the Link" : "Republish") : "Publish My Times"}
-          </button>
-        </div>
-        {link && (
-          <DangerRow label="Take the Link Down" onClick={() => void takeDown()} disabled={busy} />
         )}
       </Card>
-      <Foot>Your times stay on this device. Publishing writes them to the booking server so the address above can offer them; taking the link down clears the hours and never cancels a booking you already have.</Foot>
-      <Head label="Days Off" />
+      {/* ONE ANSWER, SAID AS A NOTE (2026-10-04, then the round 2 review). The server serves the link to anyone who holds it and never reads
+          who may book, so there is nothing to choose, and a card in the settings style with no control in it read as a setting that did
+          nothing. It is a field note under the link it is about. */}
+      <Foot>Anyone with the link can book, and it is not listed anywhere</Foot>
+      <Foot>Your times stay on this device until you publish them to the booking server</Foot>
+      <Foot>Taking the link down never cancels a booking you already have</Foot>
+      {/* THE ADD IS THE HEAD'S (Dave 2026-10-05, locked); the card keeps its own words when there are no days off (an empty state with a title of its own, rule 12). */}
+      <Head label="Days Off" action={{ label: "Add a Day Off", onClick: () => { setDayErr(null); setAddingDay(true); }, disabled: busy }} />
       <Card>
         {daysOff.length > 0 ? daysOff.map((d) => (
           <div className="row" key={d} {...pressable(() => setActingDay(d))}>
@@ -236,43 +257,37 @@ export default function BookingPage({
             </div>
           </div>
         )) : (
-          <div className="row">
-            <div className="row-grow">
-              <div className="conn-name">No Days Off</div>
-              <div className="conn-meta">Your hours run every week you set them</div>
-            </div>
+          <div className="empty-state empty-compact">
+            <div className="empty-icon cat-fg-sky"><CalendarDays className="ic" /></div>
+            <div className="empty-title">No Days Off</div>
+            <div className="empty-sub">Block a Day and Nobody Can Book It</div>
           </div>
         )}
-        <div className="set-publish">
-          <button type="button" className="btn btn-block" onClick={() => { setDayErr(null); setAddingDay(true); }} disabled={busy}>Add a Day Off</button>
-        </div>
       </Card>
-      <Foot>A day off beats your hours for that day, and it never touches a booking you already have.</Foot>
+      <Foot>A day off beats your hours for that day, and it never touches a booking you already have</Foot>
       {link && (
         <>
           <Head label="Booked So Far" />
-          <Card>
-            {booked && booked.length > 0 ? booked.map((b) => {
-              const m = mapBooking(b);
-              if (!m) return null;
-              return (
-                <div className="row" key={b.id} {...pressable(() => setActing(b))}>
-                  <div className="row-grow">
-                    <div className="conn-name">{m.title}</div>
-                    <div className="conn-meta"><When b={b} /></div>
+          {/* A list with nothing in it draws no card (2026-10-05, rule 2: "Nobody Yet" in a box was a placeholder row). The note
+              says it once; a list that could not be asked says that instead. */}
+          {booked === null && <Card><div className="row"><div className="row-grow"><div className="conn-name">Could Not Reach the Booking Server</div></div></div></Card>}
+          {booked && booked.length > 0 && (
+            <Card>
+              {booked.map((b) => {
+                const m = mapBooking(b);
+                if (!m) return null;
+                return (
+                  <div className="row" key={b.id} {...pressable(() => setActing(b))}>
+                    <div className="row-grow">
+                      <div className="conn-name">{m.title}</div>
+                      <div className="conn-meta"><When b={b} /></div>
+                    </div>
                   </div>
-                </div>
-              );
-            }) : (
-              <div className="row">
-                <div className="row-grow">
-                  <div className="conn-name">Nobody Yet</div>
-                  <div className="conn-meta">{booked === null ? "Could not reach the booking server" : "Every booking also lands on your schedule"}</div>
-                </div>
-              </div>
-            )}
-          </Card>
-          <Foot>These are on your schedule too, so you do not have to come back here to find them.</Foot>
+                );
+              })}
+            </Card>
+          )}
+          <Foot>{booked && booked.length === 0 ? "Nobody has booked yet, and new bookings land on your schedule too" : "These are on your schedule too, so you do not have to come back here to find them"}</Foot>
         </>
       )}
       <div className="screen-foot" />
@@ -285,10 +300,7 @@ export default function BookingPage({
               onPick: () => {
                 const email = acting.guestEmail;
                 setActing(null);
-                navigator.clipboard?.writeText(email).then(
-                  () => showToast({ message: "Email Copied" }),
-                  () => showToast({ message: email }),
-                );
+                copyOrShow(email, "Email Copied");
               },
             }] : []),
             {

@@ -40,7 +40,7 @@ describe("the export sheet", () => {
     expect(name).toBe("Convo with Berto.pdf");
     expect((blob as Blob).type).toBe("application/pdf");
     await waitFor(() => expect(onClose).toHaveBeenCalled());
-    expect(seen).toContain("Convo with Berto.pdf shared");
+    expect(seen).toContain("Convo with Berto.pdf Shared");
     expect(localStorage.getItem("jarvis.notes.export.v1")).toBe("pdf");
     stop();
   }, 20000);
@@ -112,5 +112,20 @@ describe("the export sheet", () => {
     fireEvent.click(screen.getByText("More Options"));
     fireEvent.click(screen.getByLabelText("Include the title"));
     await waitFor(() => expect(screen.queryByText(/Convo with Berto/, { selector: "pre" })).toBeNull());
+  });
+});
+
+// THE CATALOG HARD GATE (Dave 2026-10-05): the grey line under each format is a
+// sub line, so it is a Title Case fragment, never a sentence.
+describe("the export sheet: the line under each format", () => {
+  it("is Title Case", () => {
+    mount();
+    const SMALL = new Set(["a", "an", "and", "at", "by", "for", "from", "in", "of", "on", "or", "the", "to", "with"]);
+    const subs = [...document.querySelectorAll(".exp-format .exp-d")].map((e) => e.textContent!);
+    expect(subs).toEqual(["Read or Print", "Edit in Word or Google Docs", "Use in Claude or Another Notes App", "Simple Text That Opens Almost Anywhere"]);
+    for (const s of subs) {
+      const words = s.split(/\s+/);
+      words.forEach((w, i) => { if (/^[a-z]/.test(w)) expect(i > 0 && i < words.length - 1 && SMALL.has(w), s).toBe(true); });
+    }
   });
 });

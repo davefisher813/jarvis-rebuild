@@ -10,7 +10,6 @@ import { monthDay } from "../money/bills";
 import { pressable } from "../shared/pressable";
 import { lineCase } from "../shared/casing";
 import { PickSheet } from "../gym/ActionSheet";
-import { FileText } from "../shared/icons";
 import HealthNav, { type HealthView } from "./HealthNav";
 import { periodFor, periodOverview, muscleBreakdown, liftTable, hoursLabel, weekdayShort, inPeriod, type RangeKey, type Period } from "./analytics";
 import { comparableGain, type LiftId, type RepGain } from "./findings";
@@ -265,7 +264,7 @@ export default function InsightsPage({
       {overview.sleep.nights === 0 ? null : (
         <>
           <div className="ins-big">{hoursLabel(overview.sleep.avgHours!)}</div>
-          <div className="facts"><span className="fact">{`Average across ${overview.sleep.nights} logged ${overview.sleep.nights === 1 ? "night" : "nights"} of ${period.days}`}</span></div>
+          <div className="facts"><span className="fact">{lineCase(`Average across ${overview.sleep.nights} logged ${overview.sleep.nights === 1 ? "night" : "nights"} of ${period.days}`)}</span></div>
           {period.days <= 31 && (
             <div className="ins-nights" role="img" aria-label={`${overview.sleep.nights} of ${period.days} nights logged`}>
               {overview.sleep.byDay.map((d) => (
@@ -338,10 +337,11 @@ const musclesCard = breakdown.total === 0 ? null : (
         <summary>How Sets Are Counted</summary>
         {/* One fact per line (§AK): each line was a rule and its gloss as
             two plain greys, so the gloss joins the rule it glosses. */}
-        <div className="facts"><span className="fact">First muscle whole, the rest half, by the app's convention</span></div>
-        <div className="facts"><span className="fact">Working sets only, warm-ups not counted</span></div>
+        <div className="facts"><span className="fact">First Muscle Whole, the Rest Half, by the App's Convention</span></div>
+        <div className="facts"><span className="fact">Working Sets Only, Warm-Ups Not Counted</span></div>
       </details>
-      <div className="ins-acts">
+      {/* The card has its own words and its own answers, so its action row is the settled notice-card home (Dave 2026-10-05). */}
+      <div className="ins-acts notice-actions">
         {breakdown.unassigned > 0 && <button type="button" className="pill-act" onClick={() => onAssignMuscles(breakdown.untagged)}>Assign Muscles</button>}
         <button type="button" className="see-all" onClick={() => onOpenAllData("sets", period)}>View Sets</button>
       </div>
@@ -369,7 +369,7 @@ const musclesCard = breakdown.total === 0 ? null : (
         {/* WHY THIS ONE, WHEN NOBODY PICKED IT. The default is the biggest
             comparable change, and a card that chose its own subject has to
             say so or it reads as the only exercise you have. */}
-        {ovIdx == null && <span className="fact">Biggest gain</span>}
+        {ovIdx == null && <span className="fact">Biggest Gain</span>}
         {/* THE ONE CARD THAT IS NOT THE PAGE'S PERIOD (polish: "Trend period
             clearly 'All history'... Do not imply every card follows the same
             date scope"). Every other card on this screen reads the chips at
@@ -381,19 +381,19 @@ const musclesCard = breakdown.total === 0 ? null : (
             grey fact on this line. */}
         <span className="fact date">All History</span>
       </div>
-      <div className="ins-big lime">{`${headline.to.w} ${headline.lift.unit ?? "lb"} × ${headline.reps}`}</div>
+      <div className="ins-big lime">{lineCase(`${headline.to.w} ${headline.lift.unit ?? "lb"} × ${headline.reps}`)}</div>
       <div className="facts">
-        <span className="fact lime">{`${sign(headline.delta)} ${headline.lift.unit ?? "lb"} since ${monthDay(headline.from.date)}`}</span>
+        <span className="fact lime">{lineCase(`${sign(headline.delta)} ${headline.lift.unit ?? "lb"} since ${monthDay(headline.from.date)}`)}</span>
         {/* A count with no state is white (§AM, 2026-09-26), so "Biggest
             gain" above stays the card's one grey. */}
-        <span className="fact"><b>{`${headline.sessions} comparable sessions`}</b></span>
+        <span className="fact"><b>{lineCase(`${headline.sessions} comparable sessions`)}</b></span>
       </div>
       {chart(series, headline.lift.unit ?? "lb")}
       <details className="ins-table">
         <summary>As a List</summary>
         <table>
           <thead><tr><th>Date</th><th>{lineCase(`Best at ${headline.reps} reps`)}</th></tr></thead>
-          <tbody>{series.map((p) => <tr key={p.workoutId}><td>{monthDay(p.date)}</td><td>{`${p.w} ${headline.lift.unit ?? "lb"}`}</td></tr>)}</tbody>
+          <tbody>{series.map((p) => <tr key={p.workoutId}><td>{monthDay(p.date)}</td><td>{lineCase(`${p.w} ${headline.lift.unit ?? "lb"}`)}</td></tr>)}</tbody>
         </table>
       </details>
       {/* THE BASIS IS KEPT, NOT PRINTED (2026-09-16, Dave: "this is not a
@@ -404,8 +404,8 @@ const musclesCard = breakdown.total === 0 ? null : (
           once, so it sits behind the question. */}
       <details className="ins-table">
         <summary>What Is Being Compared</summary>
-        <div className="facts"><span className="fact">Same exercise, same equipment, same unit, same rep count</span></div>
-        <div className="facts"><span className="fact">Spans the sessions, not only this period</span></div>
+        <div className="facts"><span className="fact">Same Exercise, Same Equipment, Same Unit, Same Rep Count</span></div>
+        <div className="facts"><span className="fact">Spans the Sessions, Not Only This Period</span></div>
       </details>
       <div className="ins-acts"><button type="button" className="see-all" onClick={() => onOpenLift(headline.lift)}>View Sets</button></div>
     </div></div>
@@ -427,7 +427,7 @@ const musclesCard = breakdown.total === 0 ? null : (
         const n = t.filter((r) => inPeriod(r.date, period)).length;
         return (
           <div className="facts">
-            <span className="fact lime">{`${n} ${n === 1 ? "session" : "sessions"} in the period`}</span>
+            <span className="fact lime">{lineCase(`${n} ${n === 1 ? "session" : "sessions"} in the period`)}</span>
             <span className="fact">{lineCase(`${t.length} recorded in all`)}</span>
           </div>
         );
@@ -482,7 +482,7 @@ const musclesCard = breakdown.total === 0 ? null : (
                 <div className="pad-x"><div className="card ins-card">
                   <div className="ins-head"><span className="ins-dot hue-hl-lime" /><span className="ins-t">{lift.name}</span></div>
                   <div className="facts">
-                    <span className="fact lime">{`${inRange.length} ${inRange.length === 1 ? "session" : "sessions"} in the period`}</span>
+                    <span className="fact lime">{lineCase(`${inRange.length} ${inRange.length === 1 ? "session" : "sessions"} in the period`)}</span>
                     <span className="fact">{lineCase(`${table.length} recorded in all`)}</span>
                   </div>
                   {g ? (
@@ -492,7 +492,7 @@ const musclesCard = breakdown.total === 0 ? null : (
                         <span className="fact date">{`${monthDay(g.from.date)} to ${monthDay(g.to.date)}`}</span>
                         {/* A count with no state is white (§AM, 2026-09-26):
                             "recorded in all" above is the card's one grey. */}
-                        <span className="fact"><b>{`${g.sessions} comparable sessions`}</b></span>
+                        <span className="fact"><b>{lineCase(`${g.sessions} comparable sessions`)}</b></span>
                       </div>
                       {chart(pts, lift.unit ?? "lb")}
                     </>
@@ -551,7 +551,7 @@ const musclesCard = breakdown.total === 0 ? null : (
       const days = daysIn(mine.map((l) => l.data.date));
       // A metric with no reading in the period says nothing under its name
       // (§AK: "Not logged" is a placeholder, not a fact).
-      const value = !latest ? "" : def.data.type === "yesno" ? (latest.data.yes ? "Yes" : "No") : `${latest.data.value}${def.data.type === "scale5" ? "/5" : def.data.unit ? " " + def.data.unit : ""}`;
+      const value = !latest ? "" : def.data.type === "yesno" ? (latest.data.yes ? "Yes" : "No") : lineCase(`${latest.data.value}${def.data.type === "scale5" ? "/5" : def.data.unit ? " " + def.data.unit : ""}`);
       const isSleep = def.data.presetKey === "sleep";
       // SAY IT ONCE, AND DO NOT PRINT ARITHMETIC (2026-09-16, Dave's Rest and
       // Readings screenshot: "Not logged · No log in 7 days"). The value
@@ -559,16 +559,16 @@ const musclesCard = breakdown.total === 0 ? null : (
       // And the logged version ran to three clauses, the third of which was
       // the second subtracted from the period -- a number the reader can do
       // and did not ask for.
-      rows.push({ key: def.id, title: def.data.name, logged: false, value, when: latest ? `Latest ${monthDay(latest.data.date)}` : "", context: latest ? `${days} of ${period.days} days` : "", category: isSleep ? "sleep" : def.data.presetKey === "bodyweight" ? "body" : "other" });
+      rows.push({ key: def.id, title: def.data.name, logged: false, value, when: latest ? `Latest ${monthDay(latest.data.date)}` : "", context: latest ? lineCase(`${days} of ${period.days} days`) : "", category: isSleep ? "sleep" : def.data.presetKey === "bodyweight" ? "body" : "other" });
     }
     const effort = logs.callIt.filter((e) => inPeriod(localDay(e.data.at), period));
     if (effort.length) rows.push({ key: "effort", title: "Session Effort", logged: false, value: `${effort[effort.length - 1]!.data.rpe}/10 Latest`, when: "", context: lineCase(`${effort.length} rated ${effort.length === 1 ? "session" : "sessions"} over ${daysIn(effort.map((e) => localDay(e.data.at)))} days`), category: "effort" });
     const sore = logs.pointAtIt.filter((e) => inPeriod(localDay(e.data.at), period));
-    if (sore.length) rows.push({ key: "discomfort", title: "Discomfort", logged: true, when: "", value: `${sore.length} ${sore.length === 1 ? "entry" : "entries"}`, context: [...new Set(sore.map((e) => e.data.region).filter(Boolean))].join(", ") || "Spots on the map", category: "effort" });
+    if (sore.length) rows.push({ key: "discomfort", title: "Discomfort", logged: true, when: "", value: lineCase(`${sore.length} ${sore.length === 1 ? "entry" : "entries"}`), context: [...new Set(sore.map((e) => e.data.region).filter(Boolean))].join(", ") || "Spots on the Map", category: "effort" });
     const meals = logs.meals.filter((e) => inPeriod(localDay(e.data.at), period));
     if (meals.length) rows.push({ key: "meals", title: "Meals", logged: true, when: "", value: lineCase(`${meals.length} logged`), context: lineCase(`${daysIn(meals.map((e) => localDay(e.data.at)))} of ${period.days} days`), category: "nutrition" });
     const doses = logs.tookIt.filter((e) => inPeriod(localDay(e.data.at), period));
-    if (doses.length) rows.push({ key: "doses", title: "Medication", logged: true, when: "", value: `${doses.length} ${doses.length === 1 ? "dose" : "doses"} logged`, context: `${daysIn(doses.map((e) => localDay(e.data.at)))} of ${period.days} days`, category: "medication" });
+    if (doses.length) rows.push({ key: "doses", title: "Medication", logged: true, when: "", value: lineCase(`${doses.length} ${doses.length === 1 ? "dose" : "doses"} logged`), context: lineCase(`${daysIn(doses.map((e) => localDay(e.data.at)))} of ${period.days} days`), category: "medication" });
     const checks = logs.checkins.filter((e) => inPeriod(localDay(e.data.at), period));
     if (checks.length) rows.push({ key: "checkins", title: "Check Ins", logged: true, when: "", value: lineCase(`${checks.length} logged`), context: lineCase(`${daysIn(checks.map((e) => localDay(e.data.at)))} of ${period.days} days`), category: "checkins" });
     return rows;
@@ -628,10 +628,16 @@ const musclesCard = breakdown.total === 0 ? null : (
           {cards}
         </>
       ) : section === "strength" ? strength : rest}
-      <div className="pad-x h-foot-acts">
-        <button type="button" className="btn btn-secondary" onClick={() => onOpenAllData("all", period)}><FileText className="ic" />All Data</button>
-        <button type="button" className="btn btn-secondary" onClick={() => onExport(period)}>Export Data</button>
+      {/* THE RECORDS, AS A SECTION (Dave 2026-10-05, locked: a section-level action lives in the section head, never in a
+          card and never in a button row at the foot). Export Data is the head's capsule; All Data is a door row, the same
+          row as Exercises and Program on the Health page. */}
+      <div className="sh2 sh2-quiet">
+        <span className="t">Your Data</span>
+        <button type="button" className="see-all pill-action" onClick={() => onExport(period)}>Export Data</button>
       </div>
+      <div className="pad-x"><div className="card list-card-ruled h-doors">
+        <button type="button" className="h-door" onClick={() => onOpenAllData("all", period)}><span className="h-door-k">All Data</span><div className="chev" /></button>
+      </div></div>
       <div className="screen-foot" />
     </>
   );

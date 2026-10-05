@@ -9,7 +9,7 @@ import { Facts, evidenceFact, ruleStateFact, dayTone } from "./factsLine";
 
 describe("Facts", () => {
   it("draws each fact as a span in one .facts line and skips the empty ones", () => {
-    const { container } = render(<Facts facts={[{ text: "12 threads" }, null, false, { text: "" }, { text: "Never needed you" }]} />);
+    const { container } = render(<Facts facts={[{ text: "12 Threads" }, null, false, { text: "" }, { text: "Never Needed You" }]} />);
     expect(container.querySelectorAll(".facts")).toHaveLength(1);
     expect(container.querySelectorAll(".fact")).toHaveLength(2);
   });
@@ -30,6 +30,14 @@ describe("Facts", () => {
     const { container } = render(<Facts facts={[{ text: "a", tone: "est" }, { text: "b", tone: "warn" }]} />);
     expect(container.querySelectorAll(".fact.est")).toHaveLength(1);
     expect(container.querySelector(".fact.warn")).toBeNull();
+  });
+
+  it("draws a strong fact as the white <b> primitive, which is ink and never spends the colour (2026-10-05)", () => {
+    const { container } = render(<Facts facts={[{ text: "Late", tone: "red" }, { text: "About 1h", strong: true }, { text: "EDT" }]} />);
+    const strong = container.querySelectorAll(".fact > b");
+    expect(strong).toHaveLength(1);
+    expect(strong[0]).toHaveTextContent("About 1h");
+    expect(container.querySelectorAll(".fact.red")).toHaveLength(1);
   });
 
   it("draws a date as small caps that never spends the colour (caps, not a colour)", () => {

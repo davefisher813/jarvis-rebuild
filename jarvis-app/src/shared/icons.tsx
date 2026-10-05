@@ -1,17 +1,21 @@
 // DUAL-WEIGHT ICONS (Dave 2026-08-22: "on the light version filled in
-// icons look MUCH better. Can we fill those in exclusively on the light
-// version?").
+// icons look MUCH better"; REVISED 2026-10-05, the perfect bar, decision D3:
+// light and dark differ in colour only, so an icon is the same glyph in both).
 //
 // A stroke icon cannot simply be filled -- pouring fill into an outline
 // path is the compass-blob bug, banned by law since 2026-08-18. A filled
 // glyph has to be a DIFFERENT, professionally drawn shape. So every icon
 // ships as a pair: the lucide outline the app already used, and Phosphor's
-// FILL-weight twin. The stylesheet shows exactly one per theme.
+// FILL-weight twin. The stylesheet (components.css, "ONE GLYPH SET IN BOTH
+// THEMES") shows the OUTLINE at rest in both themes and the FILL for the one
+// that is on: the active tab, a pressed toggle, a selected option, the current
+// page. It used to show the fill in light alone, which made Area, Person,
+// Project, Repeat, Vendor and Due different shapes by theme.
 //
-// Why a pair instead of swapping the library outright: dark theme keeps the
-// lucide drawings it already had, pixel for pixel. Only light changes.
-// Call sites are untouched apart from their import line, so an icon cannot
-// be added later that forgets to have a filled state.
+// Why a pair instead of swapping the library outright: the outline drawings
+// the app already had stay pixel for pixel. Call sites are untouched apart
+// from their import line, so an icon cannot be added later that forgets to
+// have a filled state.
 
 import type { ComponentProps, ReactElement } from "react";
 import { AlertTriangle as AlertTriangleOutline, AlignLeft as AlignLeftOutline, Archive as ArchiveOutline, ArrowDown as ArrowDownOutline, ArrowUp as ArrowUpOutline, Bell as BellOutline, BellRing as BellRingOutline, Bold as BoldOutline, Brain as BrainOutline, Calendar as CalendarOutline, CalendarCheck as CalendarCheckOutline, CalendarClock as CalendarClockOutline, CalendarDays as CalendarDaysOutline, CalendarPlus as CalendarPlusOutline, Camera as CameraOutline, Check as CheckOutline, CheckSquare as CheckSquareOutline, ChevronLeft as ChevronLeftOutline, ChevronRight as ChevronRightOutline, CircleSlash as CircleSlashOutline, Clock as ClockOutline, CornerUpLeft as CornerUpLeftOutline, DollarSign as DollarSignOutline, Dumbbell as DumbbellOutline, Ellipsis as EllipsisOutline, FileText as FileTextOutline, Flame as FlameOutline, Gauge as GaugeOutline, Hourglass as HourglassOutline, PersonStanding as PersonStandingOutline, Shuffle as ShuffleOutline, StickyNote as StickyNoteOutline, Timer as TimerOutline, FolderKanban as FolderKanbanOutline, Forward as ForwardOutline, Heading as HeadingOutline, Heading1 as Heading1Outline, Highlighter as HighlighterOutline, Home as HomeOutline, Image as ImageOutline, Info as InfoOutline, Italic as ItalicOutline, Lightbulb as LightbulbOutline, Link2 as Link2Outline, List as ListOutline, ListChecks as ListChecksOutline, ListOrdered as ListOrderedOutline, ListTodo as ListTodoOutline, Mail as MailOutline, MessageSquare as MessageSquareOutline, MoreHorizontal as MoreHorizontalOutline, Paperclip as PaperclipOutline, PenLine as PenLineOutline, Pilcrow as PilcrowOutline, Plus as PlusOutline, Redo2 as Redo2Outline, RotateCcw as RotateCcwOutline, Search as SearchOutline, SlidersHorizontal as SlidersHorizontalOutline, Send as SendOutline, ShieldAlert as ShieldAlertOutline, Sparkles as SparklesOutline, Strikethrough as StrikethroughOutline, Table as TableOutline, Tag as TagOutline, Target as TargetOutline, Trash2 as Trash2Outline, Type as TypeOutline, Undo2 as Undo2Outline, User as UserOutline, Volume2 as Volume2Outline, Wallet as WalletOutline, X as XOutline, Zap as ZapOutline, Quote as QuoteOutline, Code as CodeOutline, Minus as MinusOutline, IndentIncrease as IndentIncreaseOutline, IndentDecrease as IndentDecreaseOutline, Eraser as EraserOutline, Copy as CopyOutline, Share as ShareOutline } from "lucide-react";

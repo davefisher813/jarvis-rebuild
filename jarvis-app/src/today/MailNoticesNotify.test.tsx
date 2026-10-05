@@ -131,9 +131,12 @@ describe("MailNotices: the tap", () => {
     let release!: (r: MailActionResult) => void;
     const onNotificationAction = vi.fn(() => new Promise<MailActionResult>((r) => { release = r; }));
     render(<MailNotices today={TODAY} nowHHMM="09:00" onAddTask={async () => true} onNotificationAction={onNotificationAction} />);
+    // The verb is a row's swipe tray button now (Dave 2026-10-05: no capsule on a row). While it works the tray's label
+    // is the busy one, and the row says so too, in the same quiet word.
     fireEvent.click(screen.getByText("Track"));
-    expect(await screen.findByText("Opening…")).toBeInTheDocument();
-    fireEvent.click(screen.getByText("Opening…"));
+    expect((await screen.findAllByText("Opening…")).length).toBeGreaterThan(0);
+    // The word on the row is the row's one control while it works: a second tap is not a second action.
+    for (const b of screen.getAllByText("Opening…")) fireEvent.click(b);
     expect(onNotificationAction).toHaveBeenCalledTimes(1);
     release(done({ message: "Opened tracking." }));
     await flush();
@@ -171,7 +174,7 @@ describe("MailNotices: the tap", () => {
     expect(toasts.at(-1)!.message).toBe("Couldn't Take It Back");
   });
 
-  it("a page that would not open offers the exact link to copy, and says Link copied only after it was", async () => {
+  it("a page that would not open offers the exact link to copy, and says Link Copied only after it was", async () => {
     const writeText = vi.fn(async () => {});
     Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
     saveMailSnapshot(snap({ actionable: [note("1", act1("sign", URLS.sign))] }));
@@ -181,10 +184,10 @@ describe("MailNotices: the tap", () => {
     fireEvent.click(await screen.findByText("Copy Link"));
     await waitFor(() => expect(writeText).toHaveBeenCalledWith(URLS.sign));
     await flush();
-    expect(toasts.at(-1)!.message).toBe("Link copied");
+    expect(toasts.at(-1)!.message).toBe("Link Copied");
   });
 
-  it("a link copy the clipboard refused does not say Link copied", async () => {
+  it("a link copy the clipboard refused does not say Link Copied", async () => {
     Object.defineProperty(navigator, "clipboard", { value: { writeText: async () => { throw new Error("NotAllowed"); } }, configurable: true });
     saveMailSnapshot(snap({ actionable: [note("1", act1("sign", URLS.sign))] }));
     render(<MailNotices today={TODAY} nowHHMM="09:00" onAddTask={async () => true}
@@ -192,7 +195,7 @@ describe("MailNotices: the tap", () => {
     fireEvent.click(screen.getByText("Sign"));
     fireEvent.click(await screen.findByText("Copy Link"));
     await flush();
-    expect(toasts.every((t) => t.message !== "Link copied")).toBe(true);
+    expect(toasts.every((t) => t.message !== "Link Copied")).toBe(true);
   });
 
   it("with no handler wired, the tap opens the thread", () => {

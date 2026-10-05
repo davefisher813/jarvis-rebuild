@@ -5,7 +5,7 @@ import { madeBy } from "../shared/provenance";
 import { cyrb53, stableId } from "./briefSource";
 import type { IcsEvent } from "./ics";
 import type { AddMeetingResult, MeetingCandidate, MeetingMissing } from "./mailContracts";
-import { inReadersZone, whenLine } from "./meetingWhen";
+import { inReadersZone, whenParts } from "./meetingWhen";
 import { deviceZone } from "./zoneTime";
 import { todayISO } from "../schedule/calendar";
 import { findTwin } from "../schedule/eventTwins";
@@ -170,7 +170,10 @@ async function run(args: AddEmailMeetingArgs, cid: string): Promise<AddMeetingRe
   try { landed = await svc.event(eventId); } catch { landed = null; }
   if (!landed) return { status: "failed", message: "Couldn't Confirm It · Check Your Calendar" };
 
-  const message = "On Your Calendar · " + whenLine({ date: slot.date, start: slot.start, end: slot.end }, todayISO());
+  // ONE SHORT LINE (Dave 2026-10-05 review: the receipt toast wrapped with the time alone on line 2). The same words
+  // Today's own scheduling receipt says, and no middle dot typed into it.
+  const when = whenParts({ date: slot.date, start: slot.start }, todayISO());
+  const message = "Scheduled " + when.day + ", " + when.time;
   if (!looked) return { status: "added", eventId, message };
 
   let undoing: Promise<boolean> | null = null;

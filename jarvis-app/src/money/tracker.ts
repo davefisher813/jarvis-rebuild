@@ -103,7 +103,8 @@ export const EMPTY_TRACKER: TrackerData = { accounts: [], txs: [], budgets: [], 
  */
 export function fmtCents(cents: number): string {
   const n = Number.isFinite(cents) ? cents : 0;
-  const sign = n < 0 ? "-" : "";
+  // A true minus (U+2212), never a hyphen: the round-2 review caught "-$1,145.68" drawn as a dash.
+  const sign = n < 0 ? "\u2212" : "";
   return sign + "$" + (Math.abs(n) / 100).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
@@ -123,6 +124,13 @@ export function fmtDay(iso: string): string {
 }
 
 /** "2026-09" to "September 2026", the month's own full name. */
+/** A stored account name ("BUSINESS CHECKING ...3305") read apart: what it is called, and its last digits when it ends in
+ *  a masked number. Display only: the stored name is what transactions are matched on and never changes. */
+export function accountParts(name: string): { label: string; mask: string | null } {
+  const m = /^(.*?)\s*(?:\.{2,}|\u2026)\s*(\d{2,6})\s*$/.exec(name.trim());
+  return m && m[1]!.trim() ? { label: m[1]!.trim(), mask: m[2]! } : { label: name.trim(), mask: null };
+}
+
 export function monthLabel(ym: string): string {
   const [y, m] = ym.split("-").map(Number);
   if (!y || !m) return ym;
@@ -193,29 +201,30 @@ export function monthlySubTotal(subs: TrackerSub[]): number {
 // ---------------------------------------------------------------------------
 
 // VIBRANT, SATURATED, AND HIS CHOICE (PASSOFF: "owner's explicit
-// preference"). These are spending categories a bank named, not the app's
-// own Areas, so they do not draw from the category colour slots: a bar chart
-// needs neighbouring bars to be told apart at a glance, which is a different
-// job from tinting a row by which part of a life it belongs to.
+// preference"), WITHOUT THE COLLISIONS (2026-10-05, round 2: eleven bars in eleven colours, two of them reds beside the brand
+// red and three of them amber, orange and yellow, so a bar read as "late" or "due" it was not). These are spending categories
+// a bank named, not the app's own Areas, so they do not draw from the category colour slots: a bar chart needs neighbouring
+// bars to be told apart at a glance, which is a different job from tinting a row by which part of a life it belongs to.
 //
-// Every value is a hue, never a verdict. Overdraft is red because a fee is
-// the one category that IS bad news, and that is the only red here.
+// The reds, oranges, ambers and yellows are the Colour Key's (late, due soon), so they are not spent on a category: the one
+// red here is Overdraft, because a fee is the one category that IS bad news. Every other value is a cool or a pink hue, each
+// a clear step from its neighbours (blue, indigo, purple, orchid, magenta, teal, mint, green, lime, graphite).
 const CATEGORY_COLORS: Record<string, string> = {
-  "Restaurants": "#ff4d5e",
-  "Fast Food": "#ff8a3d",
+  "Restaurants": "#4da3ff",
+  "Fast Food": "#7d7aff",
   "Supermarkets and Groceries": "#35c759",
   "Food and Beverage Store": "#a06bff",
   "Golf": "#30c9c9",
-  "Sporting Goods": "#4da3ff",
+  "Sporting Goods": "#b4dd3c",
   "Digital Purchase": "#ff4dd2",
-  "Subscription": "#ffd60a",
+  "Subscription": "#e0a3ff",
   "Service": "#8e8e93",
-  "Charities and Non-Profits": "#ff9f0a",
+  "Charities and Non-Profits": "#5fe0b0",
   "Overdraft": "#ff3b30",
   "Income": "#34e07a",
   "Other": "#6e6e73",
 };
-const FALLBACK = ["#ff4d5e", "#ff8a3d", "#ffd60a", "#35c759", "#30c9c9", "#4da3ff", "#a06bff", "#ff4dd2"];
+const FALLBACK = ["#4da3ff", "#7d7aff", "#a06bff", "#ff4dd2", "#30c9c9", "#5fe0b0", "#35c759", "#b4dd3c"];
 
 /** A category's colour. Named ones keep theirs; anything new gets a stable
  *  one from its own letters, so it does not change between renders. */

@@ -1,6 +1,6 @@
 import { useCallback, useRef } from "react";
 import type { EventItem } from "./types";
-import { protectedRangesFor, type RoutineData } from "../routine/types";
+import { protectedRangesOn, type RoutineData } from "../routine/types";
 import { dayItemsFor, conflictLine, findConflicts, moveNote, type DayItem } from "./conflicts";
 import { withConflictCheck, checkBatch, type CheckResult } from "./withConflictCheck";
 import { useConflictAsk } from "./screens/ConflictSheet";
@@ -30,8 +30,12 @@ export function useConflictGuard(events: EventItem[], routine: RoutineData) {
   eventsRef.current = events;
   routineRef.current = routine;
 
+  // protectedRangesOn, not the dow-only protectedRangesFor (2026-10-04): a
+  // block's This Day exception (skipped, or retimed) must move the conflict
+  // with it, or a skipped Breakfast still blocks and a shifted one conflicts
+  // at the time it left.
   const itemsFor = useCallback((date: string, withEvents?: EventItem[]): DayItem[] =>
-    dayItemsFor(withEvents ?? eventsRef.current, date, protectedRangesFor(routineRef.current, dowOf(date))), []);
+    dayItemsFor(withEvents ?? eventsRef.current, date, protectedRangesOn(routineRef.current, date)), []);
 
   /** Ask before a single write. Resolves "cancelled" without calling commit when backed out of. */
   const guard = useCallback(<T,>(

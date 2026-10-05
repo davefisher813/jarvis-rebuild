@@ -29,6 +29,13 @@ describe("Now Context (item 10)", () => {
     expect(ctx.gapMin).toBeNull();
   });
 
+  // HIS TYPED TITLE IS SHOWN IN THE APP'S TITLE CASE (2026-10-05, the review: Now said "In: Call With Nadia" beside the day's
+  // "Call with Nadia"). A small word stays small; the record keeps what he typed.
+  it("shows an event's title the way every row shows it, inside it and as the next thing", () => {
+    expect(nowContext([ev("Call With Nadia", "10:00", "10:30")], [], "10:10").head).toBe("In: Call with Nadia");
+    expect(nowContext([ev("call with nadia", "18:00", "19:00")], [], "15:20").nextTitle).toBe("Call with Nadia");
+  });
+
   it("protected routine blocks count as commitments", () => {
     const ctx = nowContext([], [{ s: 17 * 60, e: 18 * 60, label: "Dinner" }], "16:00");
     expect(ctx.head).toBe("Free until 5 PM");
@@ -38,7 +45,7 @@ describe("Now Context (item 10)", () => {
 
   it("an empty rest-of-day is a clear fact, not a guess", () => {
     const ctx = nowContext([ev("Morning", "08:00", "09:00")], [], "20:00");
-    expect(ctx.head).toBe("Clear From Here");
+    expect(ctx.head).toBe("Clear from Here");
     expect(ctx.tail).toBeNull();
     expect(ctx.gapMin).toBeNull();
   });
@@ -170,5 +177,15 @@ describe("Hyperfocus Guard (item 12)", () => {
 
   it("nothing coming renders nothing", () => {
     expect(hyperfocusGuard([ev("Done", "08:00")], "20:00")).toBeNull();
+  });
+
+  // THE TITLE IS SHOWN THE WAY EVERY ROW SHOWS IT (2026-10-05, the review): the Focus screen said "Call With Nadia at 10 AM"
+  // while the Schedule row for the same event said "Call with Nadia". His typed title goes through the same Title Case, which
+  // keeps a small word small; the record keeps what he typed.
+  it("shows the event's title in the app's Title Case, so Focus and Schedule say the same words", () => {
+    const g = hyperfocusGuard([ev("Call With Nadia", "10:00")], "09:00")!;
+    expect(g.title).toBe("Call with Nadia");
+    expect(g.text).toBe("Call with Nadia at 10 AM");
+    expect(hyperfocusGuard([ev("call with nadia", "10:00")], "09:55")!.text).toBe("Call with Nadia in 5 Min");
   });
 });

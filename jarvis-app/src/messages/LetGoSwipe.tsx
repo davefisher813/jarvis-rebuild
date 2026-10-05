@@ -1,5 +1,7 @@
 import { CircleSlash, Ellipsis } from "../shared/icons";
 import { useSwipe } from "../shared/useSwipe";
+import { useRowMenu } from "../shared/useRowMenu";
+import type { RowAction } from "../shared/RowActionSheet";
 
 // Swipe a Waiting On row: More Moves, or Let It Go.
 //
@@ -25,13 +27,26 @@ import { useSwipe } from "../shared/useSwipe";
 export default function LetGoSwipe({
   onMore,
   onLetGo,
+  label,
+  menu,
   children,
 }: {
   onMore?: () => void;
   onLetGo: () => void;
+  /** Who the thread is with, so the held row's menu says which one it is about. */
+  label?: string;
+  /** The held row's menu when it lists more than the rail does: the row's own ask and every alternate (what the More sheet
+   *  holds), then Let Go. Absent, it is More Moves and Let Go. */
+  menu?: RowAction[];
   children: React.ReactNode;
 }) {
-  const swipe = useSwipe({ revealW: onMore ? 176 : 88 });
+  // THE HOLD IS THE CONTEXT MENU (Dave 2026-10-05): More Moves, then Let Go, the rail's own two.
+  const rowMenu = useRowMenu({ title: label ?? "", actions: menu ?? [
+    ...(onMore ? [{ label: "More Moves", onPick: onMore }] : []),
+    { label: "Let Go", onPick: onLetGo },
+  ] });
+  const swipe = useSwipe({ revealW: onMore ? 176 : 88, onLongPress: rowMenu.onLongPress });
+  const { handlers, sheet } = rowMenu.bind(swipe);
 
   return (
     <div className="task-swipe">
@@ -50,10 +65,11 @@ export default function LetGoSwipe({
         // "a shell adds no padding to the row it carries").
         className={"task-row swipe-shell" + (swipe.dragging ? " swiping" : "")}
         style={{ transform: swipe.dx ? `translateX(${swipe.dx}px)` : undefined }}
-        {...swipe.handlers}
+        {...handlers}
       >
         {children}
       </div>
+      {sheet}
     </div>
   );
 }

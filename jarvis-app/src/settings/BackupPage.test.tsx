@@ -25,8 +25,8 @@ describe("BackupPage export", () => {
     render(<NotesProvider userId="u1"><BackupPage onBack={() => {}} /></NotesProvider>);
     fireEvent.click(screen.getByText("Export All Data"));
     await waitFor(() => expect(saveBackupFile).toHaveBeenCalledTimes(1));
-    await screen.findByText(/^Exported \d+ items?\.$/);
-    await screen.findByText(/Last exported \d{4}-\d{2}-\d{2}/);
+    await screen.findByText(/^Exported \d+ Items?$/);
+    await screen.findByText(/Last Exported \d{4}-\d{2}-\d{2}/);
   });
 
   // S3-Q16: the old code called URL.createObjectURL + an anchor click
@@ -48,7 +48,7 @@ describe("BackupPage export", () => {
     // Casing sweep 3 (2026-09-27): Title Case by the whole rule (§H2); durations through shared/duration ("45 Min", "About 1 Min").
     expect(screen.queryByText("Export Failed · Try Again")).not.toBeInTheDocument();
     expect(screen.queryByText(/^Exported /)).not.toBeInTheDocument();
-    expect(screen.queryByText(/Last exported/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Last Exported/)).not.toBeInTheDocument();
   });
 
   it("a failed save shows the honest failure message, not a false success", async () => {
@@ -56,7 +56,7 @@ describe("BackupPage export", () => {
     render(<NotesProvider userId="u1"><BackupPage onBack={() => {}} /></NotesProvider>);
     fireEvent.click(screen.getByText("Export All Data"));
     await screen.findByText("Export Failed · Try Again");
-    expect(screen.queryByText(/Last exported/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Last Exported/)).not.toBeInTheDocument();
   });
 });
 

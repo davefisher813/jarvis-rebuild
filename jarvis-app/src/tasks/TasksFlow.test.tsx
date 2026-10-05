@@ -97,13 +97,14 @@ function SeededForNote() {
 describe("TasksFlow add a note (BROWSER-F-01)", () => {
   it("Add a Note opens the note it just made", async () => {
     render(<NotesProvider userId="note-life-b01"><SeededForNote /></NotesProvider>);
-    await waitFor(() => expect(rowNamed("Create Calder invoice")).toBeInTheDocument());
-    fireEvent.click(rowNamed("Create Calder invoice"));
+    await waitFor(() => expect(rowNamed("Create Calder Invoice")).toBeInTheDocument());
+    fireEvent.click(rowNamed("Create Calder Invoice"));
     await waitFor(() => expect(screen.getByText("Add a Note")).toBeInTheDocument());
     fireEvent.click(screen.getByText("Add a Note"));
     await waitFor(() => expect(opened.length).toBe(1));
     const made = await notesSvc!.note(opened[0]!);
-    expect(made?.title).toBe("Create Calder invoice");
+    // Shown and made in Title Case (Dave 2026-10-05), though the task was typed in lower case.
+    expect(made?.title).toBe("Create Calder Invoice");
   });
 });
 
@@ -141,7 +142,7 @@ function SeededAreas() {
 describe("TasksFlow area filter (LIFE-F-11)", () => {
   it("Clear Completed counts and deletes only the area on screen", async () => {
     render(<NotesProvider userId="area-life-11"><SeededAreas /></NotesProvider>);
-    await waitFor(() => expect(screen.getByText("Work done one")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("Work Done One")).toBeInTheDocument());
     expect(screen.getByRole("button", { name: "Clear 5 Completed" })).toBeInTheDocument();
     // AMENDED 2026-09-17 (Unified Headers): Area moved from a capsule under
     // the head into the options sheet, the one place all five pages keep
@@ -221,8 +222,8 @@ describe("TasksFlow: the task's Text door hands the sheet a real voice (UP-MIND-
   it("gathers How You Write before the sheet opens, same as every other door", async () => {
     draftProps.length = 0;
     render(<NotesProvider userId="text-voice-tasks"><SeededTextPerson /></NotesProvider>);
-    await waitFor(() => expect(rowNamed("Confirm the venue")).toBeInTheDocument());
-    fireEvent.click(rowNamed("Confirm the venue"));
+    await waitFor(() => expect(rowNamed("Confirm the Venue")).toBeInTheDocument());
+    fireEvent.click(rowNamed("Confirm the Venue"));
     fireEvent.click(await screen.findByText("Text Nadia Brandt"));
     await waitFor(() => expect(draftProps.length).toBeGreaterThan(0));
     // BEFORE the fix, MessageDraftSheet was never even passed a voice prop
@@ -287,7 +288,7 @@ describe("A Place to Begin picks out of the view you are looking at", () => {
     await waitFor(() => expect(screen.getByLabelText("View")).toBeInTheDocument(), { timeout: 4000 });
     // Upcoming holds two, six and nine days out. The nearer one leads.
     pickView(/Upcoming/);
-    await waitFor(() => expect(cardName()).toContain("Book the Bridge venue"), { timeout: 4000 });
+    await waitFor(() => expect(cardName()).toContain("Book the Bridge Venue"), { timeout: 4000 });
     expect(cardName(), "the card is about the list it is sitting on").not.toContain("jarvis");
     void twoSvc;
   });
@@ -300,7 +301,7 @@ describe("A Place to Begin picks out of the view you are looking at", () => {
     // The views are one menu as of 2026-09-18, so From Email is back beside
     // the rest instead of living in the options sheet.
     pickView(/From Email/);
-    await waitFor(() => expect(cardName()).toContain("Get back to Google"), { timeout: 4000 });
+    await waitFor(() => expect(cardName()).toContain("Get Back to Google"), { timeout: 4000 });
     expect(cardName(), "setting up Jarvis has nothing to do with emails").not.toContain("jarvis");
   });
 
@@ -322,7 +323,7 @@ describe("A Place to Begin picks out of the view you are looking at", () => {
     await waitFor(() => expect(screen.getByLabelText("View")).toBeInTheDocument(), { timeout: 4000 });
     // Today holds exactly one (the email task partitions out of it).
     pickView(/^Today/);
-    await waitFor(() => expect(screen.getAllByText("Set up everything on jarvis").length).toBeGreaterThan(0), { timeout: 4000 });
+    await waitFor(() => expect(screen.getAllByText("Set Up Everything on Jarvis").length).toBeGreaterThan(0), { timeout: 4000 });
     expect(screen.queryByText("A Place to Begin")).toBeNull();
   });
 });
@@ -349,5 +350,41 @@ describe("TasksFlow: a task's source line opens what it names", () => {
     fireEvent.click(await screen.findByText("From a task", undefined, { timeout: 4000 }));
     expect(spy).toHaveBeenCalledWith("task", "task-origin-1");
     expect(onEmail).not.toHaveBeenCalled();
+  });
+});
+
+// THE ROW'S SHEET HOLDS EVERY ACTION (Dave 2026-10-05, locked: "Tap a row, detail bottom sheet with all actions"). The
+// pills left the rows; a tap on one opens its task's sheet, whose first lines are the primary (Start) and the quieter
+// verbs (Move to Tomorrow, Mark Done), the same ones the swipe runs. Rendered through the real flow and its services.
+let moveRef: { svc: TasksService; id: string } | null = null;
+function SeededForSheet() {
+  const tasks = useTasks();
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    (async () => {
+      const id = await tasks.createTask("renew the passport", { due: todayISO() });
+      moveRef = { svc: tasks, id: id! };
+      setReady(true);
+    })();
+  }, [tasks]);
+  return ready ? <TasksFlow /> : null;
+}
+
+describe("TasksFlow: a tap opens the sheet that holds the row's actions", () => {
+  it("shows Start, Move to Tomorrow and Mark Done, in Title Case, and Move re-dates the stored task", async () => {
+    render(<NotesProvider userId="sheet-actions-1"><SeededForSheet /></NotesProvider>);
+    await waitFor(() => expect(rowNamed("Renew the Passport")).toBeInTheDocument());
+    // No capsule on the list's row.
+    expect(document.querySelectorAll(".task-row .pill-act")).toHaveLength(0);
+    fireEvent.click(rowNamed("Renew the Passport"));
+    await waitFor(() => expect(screen.getByText("Edit Task")).toBeInTheDocument());
+    const lines = [...document.querySelectorAll(".xs-do .conn-name")].map((n) => n.textContent);
+    expect(lines).toEqual(["Start", "Move to Tomorrow", "Mark Done"]);
+    // The sheet shows his title in Title Case and the Due value is amber (due today).
+    expect(screen.getByLabelText("Task")).toHaveValue("Renew the Passport");
+    expect(screen.getByLabelText("Due").closest(".row")).toHaveClass("xs-due-warn");
+    fireEvent.click(screen.getByText("Move to Tomorrow"));
+    await waitFor(async () => { expect((await moveRef!.svc.task(moveRef!.id))?.due).toBe(localTomorrow()); });
+    await waitFor(() => expect(screen.queryByText("Edit Task")).not.toBeInTheDocument());
   });
 });

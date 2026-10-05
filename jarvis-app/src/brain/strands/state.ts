@@ -60,16 +60,20 @@ export function bucketFor(s: Strand, today: string): StrandBucket {
 // muted folds into Waiting because from this panel's distance a detector that
 // stopped offering and one that has not started look the same, and the Lab is
 // where the difference is spelled out.
-export type ReadinessWord = "Known" | "Close" | "Waiting";
+//
+// "CLOSE" WAS A BUTTON'S NAME (the round 2 review, 2026-10-05: an amber CLOSE before "42 Completions" read as a tappable dismiss
+// beside Done, and contradicted "Ready to Accept" on the sheet under it). It is not tappable, so it says where the detector
+// stands: Almost There.
+export type ReadinessWord = "Known" | "Almost There" | "Waiting";
 
 export function readinessWord(state: ReadinessState): ReadinessWord {
   if (state === "known") return "Known";
-  if (state === "ready" || state === "close") return "Close";
+  if (state === "ready" || state === "close") return "Almost There";
   return "Waiting";
 }
 
 export function toneForReadinessWord(w: ReadinessWord): "good" | "warn" | "gray" {
-  return w === "Known" ? "good" : w === "Close" ? "warn" : "gray";
+  return w === "Known" ? "good" : w === "Almost There" ? "warn" : "gray";
 }
 
 // A readiness row that is WATCHING: past CLOSE_SHARE of its gate (close), or

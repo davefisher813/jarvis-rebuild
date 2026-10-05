@@ -2,6 +2,9 @@ import { useState } from "react";
 import { LOCKER_DOC_KINDS, LOCKER_DOC_LABEL, currentDocs, expiringDocs } from "../locker";
 import type { LockerDocEntry, LockerDocKind } from "../types";
 import { pressable } from "../../shared/pressable";
+import { shortDate } from "../../shared/dateFormat";
+import RowShell from "../../brain/RowShell";
+import RowSheet from "../../brain/RowSheet";
 
 // THE LOCKER (Part 8). Document storage with expiry tracking. Zero medical
 // judgment, just storage: this screen never reads or shows what a document
@@ -17,6 +20,7 @@ export default function LockerScreen({
 }) {
   const [addingKind, setAddingKind] = useState<LockerDocKind | null>(null);
   const [expiresAt, setExpiresAt] = useState("");
+  const [onFile, setOnFile] = useState<LockerDocEntry | null>(null);
   const present = currentDocs(docs);
   const expiring = expiringDocs(docs, today);
   // Row tap (Dave 2026-09-15, "I want all rows clickable"): a document on
@@ -56,28 +60,39 @@ export default function LockerScreen({
       )}
 
       <div className="sh2 sh2-quiet"><span className="t">On File</span></div>
-      <div className="pad-x"><div className="card list-card-ruled">
+      <div className="pad-x"><div className="card list-card-ruled shell-rows">
         {present.length === 0 ? (
-          <div className="row"><div className="row-grow"><div className="conn-name">Nothing on File Yet</div></div></div>
+          <RowShell><div className="row"><div className="row-grow"><div className="conn-name">Nothing on File Yet</div></div></div></RowShell>
         ) : (
           present.map((d) => (
-            <div className="row" key={d.id} {...pressable(() => openDoc(d.data.kind, d.data.expiresAt))}>
-              <div className="row-grow">
-                <div className="conn-name">{LOCKER_DOC_LABEL[d.data.kind]}</div>
-                {/* The date itself is neutral, small caps (§AM F5). What it
-                    means, lapsed or days left, is stated once, in its key
-                    colour, on the Worth a Look row above. */}
-                {d.data.expiresAt && <div className="facts"><span className="fact date">Expires {d.data.expiresAt}</span></div>}
+            // CLEAN ROWS (Dave 2026-10-05, locked): Remove is the swipe-left and an answer on the sheet a tap opens, not a
+            // button on the row. HMN-F-22 (2026-09-05): a document still in the pending queue carries a placeholder id,
+            // so Remove on it deleted nothing while looking like it had. It comes back the moment the write lands.
+            <RowShell key={d.id} verb={d.pending ? undefined : { label: "Remove", run: () => onRemove(d.id), destructive: true }}>
+              <div className="row" {...pressable(() => setOnFile(d))}>
+                <div className="row-grow">
+                  <div className="conn-name">{LOCKER_DOC_LABEL[d.data.kind]}</div>
+                  {/* The date itself is neutral, small caps (§AM F5). What it
+                      means, lapsed or days left, is stated once, in its key
+                      colour, on the Worth a Look row above. */}
+                  {/* 2026-10-05 (the catalog gate): the day is said in words ("Oct 10"), not as the ISO string the log is keyed by. */}
+                  {d.data.expiresAt && <div className="facts"><span className="fact date">Expires {shortDate(d.data.expiresAt)}</span></div>}
+                </div>
+                <div className="chev" />
               </div>
-              {/* HMN-F-22 (2026-09-05): a document still in the pending
-                  queue carries a placeholder id, so Remove on it deleted
-                  nothing while looking like it had. It comes back the moment
-                  the write lands and the row has a real id. */}
-              {!d.pending && <button className="btn btn-tertiary btn-sm" onClick={(ev) => { ev.stopPropagation(); onRemove(d.id); }}>Remove</button>}
-            </div>
+            </RowShell>
           ))
         )}
       </div></div>
+      {onFile && (
+        <RowSheet eyebrow="On File" text={LOCKER_DOC_LABEL[onFile.data.kind]}
+          facts={onFile.data.expiresAt ? <span className="fact date">Expires {shortDate(onFile.data.expiresAt)}</span> : undefined}
+          answers={[
+            { label: "Change the Date", onPick: () => openDoc(onFile.data.kind, onFile.data.expiresAt) },
+            ...(onFile.pending ? [] : [{ label: "Remove", destructive: true, onPick: () => onRemove(onFile.id) }]),
+          ]}
+          onClose={() => setOnFile(null)} />
+      )}
 
       {missing.length > 0 && (
         <>

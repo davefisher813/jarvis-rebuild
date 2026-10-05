@@ -3,8 +3,9 @@ import { useOptionalLedger } from "../../data/NotesProvider";
 import { attemptWrite } from "../../shared/guard";
 import { showToast } from "../../shared/toast";
 import { lineCase } from "../../shared/casing";
-import { pressable } from "../../shared/pressable";
 import RowActionSheet from "../../shared/RowActionSheet";
+import { Check, X } from "../../shared/icons";
+import MoneyRow from "../MoneyRow";
 import type { MatchProposal } from "../ledger/reconcile";
 import type { Bill, Receipt } from "../ledger/types";
 import { fmtDay, type TrackerTx, ENTITY_MONEY_TX } from "../tracker";
@@ -29,13 +30,20 @@ interface Loaded {
 
 const EMPTY: Loaded = { receiptProposals: [], billProposals: [], receipts: [], bills: [], txs: [] };
 
-function Side({ label, name, amount, day }: { label: string; name: string; amount: string; day: string }) {
+// NO GREY AT ALL (2026-10-05, Dave's visual catalog gate, R1 and R5). Each side
+// was a label, an amount, a day and a name: two greys a line, four a row, and
+// the name said the vendor the headline already says (a proposal only exists
+// when the two vendors are the same after normalising, so the name can add
+// nothing but its spelling). Now the label and the amount are the white facts
+// (a number with no state) and the day the small-caps date: the headline above
+// is the row's title and carries the words, so the line carries only what it
+// does not.
+function Side({ label, amount, day }: { label: string; amount: string; day: string }) {
   return (
     <div className="facts">
-      <span className="fact">{label}</span>
+      <span className="fact"><b>{label}</b></span>
       <span className="fact"><b>{amount}</b></span>
       <span className="fact date">{fmtDay(day)}</span>
-      <span className="fact">{lineCase(name)}</span>
     </div>
   );
 }
@@ -99,19 +107,21 @@ export default function MatchesCard({ onChanged }: { onChanged?: () => void }) {
       <div className="sh2 sh2-quiet"><span className="t">Matches</span><span className="n">{views.length}</span></div>
       <div className="pad-x"><div className="card list-card-ruled">
         {views.map((v) => (
-          // The row is a door to the same two choices its buttons make, so a
-          // tap anywhere on it asks rather than guesses.
-          <div className="task-row p2 match-row" key={v.key} {...pressable(() => setMenu(v))}>
+          // A PROPOSAL'S ROW IS CLEAN (Dave 2026-10-05, locked: no pill on a row). The tap asks (the sheet below holds
+          // both answers), the swipe left is Link with Not a Match beside it, and the swipe right links too, because
+          // linking is how a proposal is finished. Nothing links on its own, and Link has its Undo.
+          <MoneyRow key={v.key} name={lineCase(v.headline)} className="match-row"
+            verb={{ label: "Link", icon: <Check className="ic" />, run: () => void link(v) }}
+            verb2={{ label: "Not a Match", icon: <X className="ic" />, run: () => notAMatch(v) }}
+            complete={{ label: "Link", run: () => void link(v) }}
+            menu={[]}
+            onOpen={() => setMenu(v)}>
             <div className="task-title">
               <span className="task-name">{lineCase(v.headline)}</span>
-              <Side {...v.record} />
-              <Side {...v.payment} />
+              <Side label={v.record.label} amount={v.record.amount} day={v.record.day} />
+              <Side label={v.payment.label} amount={v.payment.amount} day={v.payment.day} />
             </div>
-            <div className="match-acts">
-              <button className="pill-act" disabled={busy !== null} onClick={(e) => { e.stopPropagation(); void link(v); }}>Link</button>
-              <button className="quiet-action" onClick={(e) => { e.stopPropagation(); notAMatch(v); }}>Not a Match</button>
-            </div>
-          </div>
+          </MoneyRow>
         ))}
       </div></div>
       {menu && (

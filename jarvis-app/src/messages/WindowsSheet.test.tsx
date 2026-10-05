@@ -15,6 +15,8 @@ describe("the windows editor", () => {
     expect(screen.getByText("9 AM · 45 Min")).toBeInTheDocument();
     expect(screen.getByText("1 PM · 45 Min")).toBeInTheDocument();
     expect(screen.getByText("5 PM · 45 Min")).toBeInTheDocument();
+    // THE CATALOG (Dave 2026-10-05): the sheet's question is Title Case.
+    expect(screen.getByText("Email Opens Only in These Windows")).toBeInTheDocument();
     // The length chips live in the editor, one window at a time.
     expect(screen.queryByLabelText("Window 1: 90 minutes")).not.toBeInTheDocument();
     fireEvent.click(screen.getByLabelText("Edit window 1"));
@@ -107,18 +109,20 @@ describe("the windows editor", () => {
     // AMENDED 2026-09-18 (the type law): a setting row's second line states
     // its VALUE. The explanation of what the switch does came off it.
     expect(screen.getByText("Off")).toBeInTheDocument();
-    fireEvent.click(screen.getByText("Turn On"));
+    // A switch, not a pill (Dave 2026-10-05): state is not a command.
+    expect(screen.queryByText("Turn On")).toBeNull();
+    fireEvent.click(screen.getByRole("switch", { name: "Same on Every Device" }));
     expect(screen.getByText("On")).toBeInTheDocument();
     fireEvent.click(screen.getByText("Save"));
     expect(onSave.mock.calls[0]![1]).toBe(true);
   });
   // Dave 2026-09-15: "I want all rows clickable".
-  it("tapping the Same on Every Device row flips it, and its pill flips it once", () => {
+  it("tapping the Same on Every Device row flips it, and its switch flips it once", () => {
     const onSave = vi.fn();
     render(<WindowsSheet initial={DEFAULT_WINDOWS} onSave={onSave} onClose={() => {}} />);
     fireEvent.click(screen.getByText("Same on Every Device"));
     expect(screen.getByText("On")).toBeInTheDocument();
-    fireEvent.click(screen.getByText("Turn Off"));
+    fireEvent.click(screen.getByRole("switch", { name: "Same on Every Device" }));
     expect(screen.getByText("Off")).toBeInTheDocument();
   });
 });

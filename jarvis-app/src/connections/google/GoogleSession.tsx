@@ -44,7 +44,9 @@ export interface GoogleAccount {
   email: string; mail: boolean; cal: boolean;
   /** Linked to Google Drive (Dave 2026-09-29). Off until he turns it on; absent
    *  on every account from before, which reads as off. The link is a
-   *  preference: the Drive scope itself is granted with the account's sign-in. */
+   *  preference: the Drive scope itself is granted with the account's sign-in.
+   *  No screen sets it since 2026-10-04 (the chip stored a flag nothing read);
+   *  it stays in the type so a profile that holds it still reads. */
   drive?: boolean;
   /** The scope string this account actually authorized under. Absent on
    *  accounts from before 2026-08-26, which authorized as readonly. */

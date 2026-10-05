@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from "react";
-import BrainTop from "./BrainTop";
+import BrainTop, { type TopMemo } from "./BrainTop";
 import type { CategoryKind } from "../categories/types";
 import PageHeader from "../shared/PageHeader";
 import { filledIcon } from "../shared/filledIcons";
@@ -17,27 +17,35 @@ const Chev = () => (
 interface BrainRow { key: string; name: string; icon: ReactNode; color: string; status?: string }
 // CATALOG V4 (Dave 2026-08-18, "the brain has way too many sections"): the
 // three labeled sections collapsed into ONE flat headerless nav list, glyphs
-// filled brand red (Apple Music Library form). ONE people row survives from
+// filled (Apple Music Library form). ONE people row survives from
 // 2026-08-03 (Inner Circle / Adversarial stay cut).
+//
+// FOUR TONES, EACH WITH A MEANING (the round 2 review, 2026-10-05: "eight hues for eight destinations is a rainbow with
+// no meaning", and Insights wore Event's sky). Purple is the Brain's own memory (what JARVIS knows, the insights and
+// decisions it keeps, the documents that teach it), teal is the people (the same teal a person wears everywhere), sky is
+// the day's shape (Your Routine is the schedule's own: its protected blocks are what the Schedule tab draws, so it wears
+// the schedule's tone) and indigo is the AI Hub, a place that is set up. NO ROW IS A FLAT GREY GLYPH (the ship-blocker
+// review, 2026-10-05: "Your Routine is the only grey glyph in Explore"): a type or a place icon wears its tone through
+// .cat-fg-*, with the light twin from the glyph set. Colour says whose it is, not which row it is.
 const NAV_ROWS: BrainRow[] = [
   // Brain Layer 2 (item 04): the genome made visible. One row, keeping the
   // hub's one-flat-list law; the strands live on their own page behind it.
-  { key: "knows", name: "What JARVIS Knows", icon: filledIcon("knows"), color: "lib-ico-brand" },
+  { key: "knows", name: "What JARVIS Knows", icon: filledIcon("knows"), color: "cat-fg-purple" },
   // Insights (2026-08-25, the Life View): this month still open, the sealed
   // shelf, and the life layer. The key stays "month" so old deep links and
   // the report's arrival path keep working. One row, same flat-list law.
-  { key: "month", name: "Insights", icon: filledIcon("month"), color: "lib-ico-brand" },
-  { key: "contacts", name: "Contacts", icon: filledIcon("contacts"), color: "lib-ico-brand" },
-  { key: "decisions", name: "Decisions", icon: filledIcon("decisions"), color: "lib-ico-brand" },
+  { key: "month", name: "Insights", icon: filledIcon("month"), color: "cat-fg-purple" },
+  { key: "contacts", name: "Contacts", icon: filledIcon("contacts"), color: "cat-fg-teal" },
+  { key: "decisions", name: "Decisions", icon: filledIcon("decisions"), color: "cat-fg-purple" },
   // THE AI HUB (docs/jarvis-unified, slice 04): assistants, the review of
   // what they suggested, and the receipts. Under Brain, as the spec asks (no
   // seventh tab), and only when the substrate flag is on, so a build whose
   // database has not got migrations 0044 to 0047 shows nothing new.
-  ...(flagOn("substrate_v1") ? [{ key: "aihub", name: "AI Hub", icon: filledIcon("aihub"), color: "lib-ico-brand" } as BrainRow] : []),
-  { key: "philosophy", name: "Life Philosophy", icon: filledIcon("philosophy"), color: "lib-ico-brand" },
-  { key: "writing", name: "How You Write", icon: filledIcon("writing"), color: "lib-ico-brand" },
-  { key: "values", name: "Values", icon: filledIcon("values"), color: "lib-ico-brand" },
-  { key: "routine", name: "Your Routine", icon: filledIcon("routine"), color: "lib-ico-brand" },
+  ...(flagOn("substrate_v1") ? [{ key: "aihub", name: "AI Hub", icon: filledIcon("aihub"), color: "cat-fg-indigo" } as BrainRow] : []),
+  { key: "philosophy", name: "Life Philosophy", icon: filledIcon("philosophy"), color: "cat-fg-purple" },
+  { key: "writing", name: "How You Write", icon: filledIcon("writing"), color: "cat-fg-purple" },
+  { key: "values", name: "Values", icon: filledIcon("values"), color: "cat-fg-purple" },
+  { key: "routine", name: "Your Routine", icon: filledIcon("routine"), color: "cat-fg-sky" },
 ];
 // The Setup section (Onboarding, Backup) was removed 2026-08-03: both rows
 // were Settings wearing a Brain costume, and both dead-ended in "coming soon"
@@ -51,6 +59,7 @@ export default function BrainPage({
   onOpenFact,
   onOpenWatching,
   categories = [],
+  memo,
 }: {
   onOpen: (key: string, name: string) => void;
   // C-38: a strand tapped in the top bands opens its sheet on What JARVIS
@@ -63,22 +72,24 @@ export default function BrainPage({
   // reach this page -- BrainTop's values detector reads their names -- but
   // Brain no longer lists them as a destination.
   categories?: BrainCategory[];
+  /** What the top bands last knew, so the hub comes back with Needs You and Explore already drawn (BrainFlow keeps it). */
+  memo?: TopMemo;
 }) {
   // C-38: how many live bands sit above the nav list. With none, the page is
   // the flat nav list it has been since V4 and Explore has nothing to be
   // apart from; with one or two, Explore is the quiet head over the eight.
-  const [bands, setBands] = useState(0);
+  const [bands, setBands] = useState(memo?.bands ?? 0);
   // Catalog V3.1 library form (approved 2026-08-18, the Apple Music look):
   // ICON LAW (Dave 2026-08-22): in a list, an icon is FILLED, and color says
-  // whose it is. JARVIS's own rows wear the filled brand-red glyph exactly as
-  // before; a category row wears a disc in ITS color with a white glyph --
-  // the same fill language, aimed at his content. Outline glyphs are the
-  // inside-a-card state and no longer appear in nav lists.
+  // whose it is. Brand red is for what can be tapped (Dave 2026-10-05, the
+  // review: "all eight icons are solid brand red, which dilutes the real
+  // action colour"), and a glyph that only names a place is not a tap target,
+  // so it wears one of the tones above through .cat-fg-* (light takes the
+  // 3:1 glyph twin). Outline glyphs are the inside-a-card state and no longer
+  // appear in nav lists.
   const Row = (r: BrainRow) => (
     <div {...pressable(() => onOpen(r.key, r.name))} className="lib-row" key={r.key}>
-      {r.color === "lib-ico-brand"
-        ? <div className="lib-ico lib-ico-brand">{r.icon}</div>
-        : <div className={"lib-ico lib-disc " + r.color}>{r.icon}</div>}
+      <div className={"lib-ico " + r.color}>{r.icon}</div>
       <div className="lib-name">{r.name}</div>
       {r.status && <span className="row-status fg-good">{r.status}</span>}
       <Chev />
@@ -96,6 +107,7 @@ export default function BrainPage({
         onOpenFact={(id) => (onOpenFact ? onOpenFact(id) : onOpen("knows", "What JARVIS Knows"))}
         onOpenWatching={(key) => (onOpenWatching ? onOpenWatching(key) : onOpen("knows", "What JARVIS Knows"))}
         onBands={setBands}
+        memo={memo}
         areas={categories.map((c) => c.name)}
       />
       {bands > 0 && <div className="sh2 sh2-quiet"><span className="t">Explore</span></div>}

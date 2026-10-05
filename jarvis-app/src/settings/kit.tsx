@@ -9,9 +9,27 @@ import { haptics } from "../shared/haptics";
 // glyph tiles below the hub, iOS's own way: the hub says where you are,
 // the page says what you can change.
 
-/** The quiet caps head over a group. */
-export function Head({ label, count }: { label: string; count?: number }) {
-  return <div className="sh2 sh2-quiet"><span className="t">{label}</span>{count !== undefined && <span className="n">{count}</span>}</div>;
+/** A head's capsule. `tone` is for the two cases that are not the plain tap red: "danger" is a destructive action
+ *  (the system red on its tonal fill) and "armed" is that same action after its first tap, solid red with white ink, so a
+ *  confirm step never looks like the step before it (Dave 2026-10-05, the review: "Armed erase changes only the words"). */
+export interface HeadAction { label: string; onClick: () => void; disabled?: boolean; ariaLabel?: string; tone?: "danger" | "armed" }
+
+/** The quiet caps head over a group. A section-level action (Add Section, Add Matcher) is the head's one capsule, never
+ *  a row inside the card below it (Dave 2026-10-05, locked; docs/jarvis-unified/ROW-ACTIONS-SPEC.md section 2). A head
+ *  holds at most TWO capsules (D1); `actions` is for the head that has a Cancel beside its confirm. */
+export function Head({ label, count, action, actions }: {
+  /** A bare count, or a short labelled one ("3 of 5 Tabs"). Either is a stateless number, so it is ink and not grey. */
+  label: string; count?: number | string; action?: HeadAction; actions?: HeadAction[];
+}) {
+  const list = actions ?? (action ? [action] : []);
+  const btn = (a: HeadAction) => (
+    <button key={a.label} type="button" className={"see-all pill-action" + (a.tone ? " pill-" + a.tone : "")} aria-label={a.ariaLabel} disabled={a.disabled} onClick={a.onClick}>{a.label}</button>
+  );
+  return (
+    <div className="sh2 sh2-quiet"><span className="t">{label}</span>{count !== undefined && <span className="n set-n">{count}</span>}
+      {list.length === 1 ? btn(list[0]!) : list.length > 1 ? <span className="sec-left">{list.map(btn)}</span> : null}
+    </div>
+  );
 }
 
 /** The grouped card. */
@@ -20,8 +38,10 @@ export function Card({ children, className = "" }: { children: ReactNode; classN
 }
 
 /** A row: the words at the left, whatever sits at the right. */
-export function Row({ label, meta, metaId, value, onClick, forwardTo, chev = false, children, className = "", disabled = false, plain = false }: {
+export function Row({ label, meta, metaId, value, onClick, forwardTo, chev = false, children, className = "", disabled = false, plain = false, lead }: {
   label: ReactNode; meta?: ReactNode; value?: ReactNode; onClick?: () => void;
+  /** A leading tile (the destination's own glyph on Edit Tabs), so the same thing wears the same mark in every list. */
+  lead?: ReactNode;
   /** An id for the meta line, so a control inside the row can point at it
       (aria-describedby) instead of the row repeating it as its own name. */
   metaId?: string;
@@ -70,6 +90,7 @@ export function Row({ label, meta, metaId, value, onClick, forwardTo, chev = fal
   return (
     <div ref={box} className={"row set-row " + className} role={semantic ? "button" : undefined} tabIndex={semantic ? 0 : undefined} aria-disabled={disabled || undefined}
       data-forwards={forward ? forwardTo : undefined} onClick={tap ?? forward} onKeyDown={key}>
+      {lead}
       <div className="row-grow"><div className="conn-name">{label}</div>{meta && <div className="conn-meta" id={metaId}>{meta}</div>}</div>
       {value !== undefined && <span className="row-value">{value}</span>}
       {children}
@@ -81,8 +102,8 @@ export function Row({ label, meta, metaId, value, onClick, forwardTo, chev = fal
 /** A row with the switch at the right. The whole row flips it (Dave
  *  2026-09-15, "I want all rows clickable"); a locked switch takes no tap
  *  from the row either. */
-export function Switch({ label, meta, on, onToggle, ariaLabel, locked = false, onLocked }: {
-  label: string; meta?: ReactNode; on: boolean; onToggle: () => void; ariaLabel?: string; locked?: boolean;
+export function Switch({ label, meta, on, onToggle, ariaLabel, locked = false, onLocked, lead }: {
+  label: string; meta?: ReactNode; on: boolean; onToggle: () => void; ariaLabel?: string; locked?: boolean; lead?: ReactNode;
   /** A locked switch answers a tap with nothing unless it is given a reason
    *  to say (audit 2026-09-29: Edit Tabs at its cap and Alerts without OS
    *  permission both sat there dead). The caller says why, usually in a toast. */
@@ -90,7 +111,7 @@ export function Switch({ label, meta, on, onToggle, ariaLabel, locked = false, o
 }) {
   const metaId = useId();
   return (
-    <Row label={label} meta={meta} metaId={metaId} plain onClick={locked ? onLocked : onToggle}>
+    <Row label={label} meta={meta} metaId={metaId} plain lead={lead} onClick={locked ? onLocked : onToggle}>
       <div className={"switch" + (on ? "" : " off") + (locked ? " switch-locked" : "")} role="switch" aria-checked={on} aria-disabled={locked || undefined} aria-label={ariaLabel ?? label} aria-describedby={meta ? metaId : undefined} tabIndex={0}
         onClick={(e) => { e.stopPropagation(); if (!locked) { haptics.selection(); onToggle(); } else onLocked?.(); }}
         onKeyDown={(e) => {
@@ -123,9 +144,10 @@ export function Menu({ label, meta, value, options, onPick, ariaLabel, word, off
   );
 }
 
-/** The destructive row, in the system red, centred. */
-export function DangerRow({ label, onClick, disabled = false }: { label: string; onClick: () => void; disabled?: boolean }) {
-  return <button type="button" className="row row-signout set-row" onClick={onClick} disabled={disabled}>{label}</button>;
+/** The destructive row, in the system red, centred. `armed` is the confirm step after the first tap: solid red with white ink,
+ *  so it never looks like the row it was a moment ago. */
+export function DangerRow({ label, onClick, disabled = false, armed = false }: { label: string; onClick: () => void; disabled?: boolean; armed?: boolean }) {
+  return <button type="button" className={"row row-signout set-row" + (armed ? " armed" : "")} onClick={onClick} disabled={disabled}>{label}</button>;
 }
 
 /** The quiet line under a card. */

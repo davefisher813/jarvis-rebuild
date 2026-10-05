@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { webPushStatus, footFor, reasonFor, switchLocked, urlBase64ToUint8Array, resubscribeIfNeeded, enableWebPush, ALL_OR_NOTHING, type WebPushEnv, type WebPushStatus } from "./webPush";
+import { webPushStatus, reasonFor, switchLocked, urlBase64ToUint8Array, resubscribeIfNeeded, enableWebPush, type WebPushEnv, type WebPushStatus } from "./webPush";
 
 vi.mock("@capacitor/core", () => ({ Capacitor: { isNativePlatform: () => false } }));
 
@@ -26,16 +26,6 @@ describe("one state, one sentence", () => {
     });
   }
 
-  it("every non native state has a sentence, and the on and off ones say all or nothing", () => {
-    const all: WebPushStatus[] = ["no-sw", "not-standalone", "no-push", "denied", "no-key", "off", "on"];
-    for (const s of all) expect(footFor(s).length, s).toBeGreaterThan(10);
-    expect(footFor("off")).toContain(ALL_OR_NOTHING);
-    expect(footFor("on")).toContain(ALL_OR_NOTHING);
-    expect(footFor("not-standalone")).toContain("Home Screen");
-    expect(footFor("no-push")).toContain("16.4");
-    expect(footFor("denied")).toContain("Settings");
-  });
-
   // AUDIT 2026-09-29: "Alerts on this phone" stayed off and said nothing.
   // Every state that locks the switch must have a reason to show on its row.
   it("every state that locks the switch has a reason, and the working ones have none", () => {
@@ -45,15 +35,6 @@ describe("one state, one sentence", () => {
     }
     for (const s of ["off", "on", "native"] as WebPushStatus[]) expect(reasonFor(s), s).toBe("");
     expect(reasonFor("denied")).toContain("phone or browser settings");
-  });
-
-  // AUDIT 2026-09-29 read this sentence as "open it from ther". The source has
-  // always been whole (the audit tool clips at 100 characters); pin it so a
-  // real truncation could not land unseen.
-  it("the Home Screen sentence is whole and ends where a sentence ends", () => {
-    expect(footFor("not-standalone")).toMatch(/then open it from there$/);
-    // Kept under 100 characters (2026-09-30) so a 100-character reader cannot clip it.
-    expect(footFor("not-standalone").length).toBeLessThan(100);
   });
 
   it("only off and on can be tapped", () => {

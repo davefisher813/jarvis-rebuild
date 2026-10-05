@@ -1,5 +1,6 @@
 import type { MedWindowDay, MedWindowMarkKind } from "../medWindow";
 import { weekdayShortDate } from "../../shared/dateFormat";
+import { clockOf } from "../meds";
 
 const MARK_LABEL: Record<MedWindowMarkKind, string> = {
   dose: "Dose",
@@ -12,8 +13,12 @@ const MARK_LABEL: Record<MedWindowMarkKind, string> = {
 // analysis, no correlation claim, no arrow drawn between any two marks: this
 // screen renders exactly the facts medWindow.ts hands it, in the order they
 // happened, and nothing that reads a relationship between them.
-export default function MedWindowScreen({ days, onOpenDoctorReport, onBack }: {
+export default function MedWindowScreen({ days, hasFood = true, onOpenDoctorReport, onBack }: {
   days: MedWindowDay[];
+  /** Whether any food mark exists to draw (2026-10-04). Food comes only from
+   *  Ate Before, which the app does not record while it stays dormant, so the
+   *  header named a fact that could never appear. False says three. */
+  hasFood?: boolean;
   onOpenDoctorReport: () => void;
   onBack: () => void;
 }) {
@@ -25,14 +30,19 @@ export default function MedWindowScreen({ days, onOpenDoctorReport, onBack }: {
       </div>
 
       <div className="pad-x"><div className="card pad">
-        <div className="p3-q">Four Facts a Day</div>
-        <div className="bp-sub">Dose, food, session start, lights out. Nothing compared, nothing explained.</div>
+        <div className="p3-q">{hasFood ? "Four Facts a Day" : "Three Facts a Day"}</div>
+        {/* 2026-10-05 (the catalog gate): the list is one grey run in Title
+            Case, and the promise under it is a note below the card (the
+            group-footer pattern). It was one string with a middle dot baked
+            in and the first half in sentence case (R6, §H2). */}
+        <div className="bp-sub">{hasFood ? "Dose, Food, Session Start, Lights Out" : "Dose, Session Start, Lights Out"}</div>
       </div></div>
+      <div className="pad-x"><div className="input-hint">Nothing Compared, Nothing Explained</div></div>
 
       {days.length === 0 ? (
         <div className="empty-state">
           <div className="empty-title">Nothing Logged Yet</div>
-          <div className="empty-sub">A day with any of the four facts shows up here</div>
+          <div className="empty-sub">A day with any of the {hasFood ? "four" : "three"} facts shows up here</div>
         </div>
       ) : (
         days.map((day) => (
@@ -47,7 +57,7 @@ export default function MedWindowScreen({ days, onOpenDoctorReport, onBack }: {
                         comes first so a long label is the fact that gives
                         way. The dot between them is CSS's (F3). */}
                     <div className="facts">
-                      <span className="fact date">{new Date(m.at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</span>
+                      <span className="fact date">{clockOf(m.at)}</span>
                       {m.label !== MARK_LABEL[m.kind] && <span className="fact">{m.label}</span>}
                     </div>
                   </div>

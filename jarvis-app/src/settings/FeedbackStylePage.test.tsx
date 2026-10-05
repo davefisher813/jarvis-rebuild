@@ -25,8 +25,11 @@ describe("FeedbackStylePage", () => {
     expect(screen.getByRole("switch", { name: "Completion Sound" })).toHaveAttribute("aria-checked", "false");
     expect(screen.getByRole("switch", { name: "Haptics" })).toHaveAttribute("aria-checked", "false");
     expect(screen.getByRole("switch", { name: "Quiet Today" })).toHaveAttribute("aria-checked", "false");
-    expect(screen.getByText("Accountability")).toBeInTheDocument();
-    expect(screen.getByText("Private")).toBeInTheDocument();
+    // ACCOUNTABILITY IS A FIELD NOTE, NOT A CARD (round 2 review): a bold-title card with no control read as a setting that does nothing.
+    // The one fact is said once, at the foot, and there is no "Private" beside it.
+    expect(screen.queryByText("Accountability"), "no settings card for a fact").toBeNull();
+    expect(screen.getByText("Nothing about your tasks is shared with anyone")).toHaveClass("input-hint");
+    expect(screen.queryByText("Private")).toBeNull();
   });
 
   it("the sound switch changes only sound", () => {

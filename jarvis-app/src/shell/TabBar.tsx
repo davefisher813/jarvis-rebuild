@@ -1,4 +1,5 @@
 import { MoreHorizontal } from "../shared/icons";
+import { pressable } from "../shared/pressable";
 import { destOf, tabLabelOf } from "./destinations";
 
 // Dynamic tab bar: the chosen destinations plus a fixed More tab. Active is the
@@ -42,9 +43,10 @@ export default function TabBar({
         <div
           className={"tab" + (key === activeKey ? " active" : "")}
           key={key}
-          role="button"
-          tabIndex={0}
-          onClick={() => onTab(key)}
+          // Enter and Space press a tab as a tap does (shared/pressable), and the
+          // current one says so to a screen reader instead of only wearing red.
+          {...pressable(() => onTab(key))}
+          aria-current={key === activeKey ? "page" : undefined}
         >
           <Icon className="ic" />
           {/* The short word, where there is one. See destinations.tsx. */}

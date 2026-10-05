@@ -1,6 +1,7 @@
 import type { NightBeforeOffer } from "../nightBefore";
 
-const fmt = (at: number) => new Date(at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+// 2026-10-05: 12-hour with AM or PM whatever the phone's region says.
+const fmt = (at: number) => new Date(at).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
 
 // THE NIGHT BEFORE (Part 1, top 5). Reads tomorrow's first fixed commitment
 // and offers a real bedtime the evening before. Never states a shortfall:

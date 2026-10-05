@@ -99,7 +99,7 @@ const NO_ACTION_EXISTS: Record<string, string> = {
   "messages/MessagesFlow.tsx · Nothing Is Open": "nothing promised and nothing waited on, which is the good outcome",
   "review/InsightsFlow.tsx · The First Crossing Starts It": "waiting on an achievement, which cannot be tapped into being",
   "review/ReportPage.tsx · No Month Sealed Yet": "the report arrives on the 1st on its own",
-  "search/SearchFlow.tsx · Search Everything": "the search idle state; the field above it IS the action and has focus",
+  "search/SearchFlow.tsx · Find Anything": "the search idle state; the field above it IS the action and has focus",
   "search/SearchFlow.tsx · No matches for &ldquo;": "same field, same focus; changing the words is the move",
   "settings/LearnedRulesPage.tsx · Nothing Learned Yet": "a rule lands by correcting JARVIS twice in normal use; there is no button for it",
   "brain/strands/StrandsPage.tsx · Nothing Under This One": "a filter with no members; the chips that change it are on screen",
@@ -110,10 +110,10 @@ const NO_ACTION_EXISTS: Record<string, string> = {
 // ("a second door is bad; a second door with a false sign on it is worse"),
 // so duplicating these would trade one finding for a worse one.
 const ACTION_ON_SCREEN: Record<string, string> = {
-  "connections/ConnectionsPage.tsx · Google Setup Required": "Connect Google sits three rows below, on this screen",
-  "connections/ConnectionsPage.tsx · No Accounts Yet": "same button, same screen",
+  "connections/ConnectionsPage.tsx · Google Is Not Connected Yet": "Connect Google is the Google Accounts head's capsule, directly above these words, drawn with or without a Google client (the ship-blocker review, 2026-10-05)",
+  "connections/ConnectionsPage.tsx · No Accounts Yet": "Connect Google is the Google Accounts head's capsule, directly above these words (Dave 2026-10-05)",
   "schedule/screens/SchedulePage.tsx · Nothing Repeats Yet": "its own comment: the bar keeps the job, and this door once carried a false sign",
-  "brain/strands/StrandsPage.tsx · Nothing Noticed Yet": "Add One Thing is on this screen, below the list",
+  "brain/strands/StrandsPage.tsx · Nothing Remembered Yet": "Add One Thing is the section head's capsule, directly above these words",
   "schedule/screens/PlanDaySheet.tsx · #1": "the sheet's own add field is below it, and the sub says so only when it exists",
   "messages/MessagesFlow.tsx · Connect Your Email": "the connect action is the very next block, in .conn-action",
   "schedule/ScheduleFlow.tsx · #1": "a sheet whose own bar carries the action",
@@ -123,6 +123,35 @@ const ACTION_ON_SCREEN: Record<string, string> = {
   // door is Log Something in the actions directly under the card; a second
   // one inside would be the duplicate door this roster exists to refuse.
   "brain/HealthBody.tsx · Nothing to Read Yet": "Log Something sits under this card, on this screen",
+  // ADDED (Dave 2026-10-05, locked: a section's action lives in the section head, and a card holding only an action
+  // is not drawn). The empty-day card keeps its own words and loses the Plan My Day capsule that sat inside it; the
+  // capsule is the Today head's, one line above, on this screen. The Email Sections page is the same: Add Section is
+  // the head's capsule right above the empty words.
+  "today/YourDay.tsx · #1": "Plan My Day is the Today head's capsule, directly above the card (Dave 2026-10-05)",
+  "settings/EmailSectionsPage.tsx · No Sections Yet": "Add Section is the head's capsule right above these words (Dave 2026-10-05)",
+  // Booking (round-1 review, 2026-10-05, D9): the two crafted empty states, a glyph, a title and one warm line, each filled by the capsule
+  // on the head directly above it (Publish My Times on Your Link, Add a Day Off on Days Off).
+  "settings/BookingPage.tsx · No Link Yet": "Publish My Times is the Your Link head's capsule, directly above these words (Dave 2026-10-05)",
+  "settings/BookingPage.tsx · No Days Off": "Add a Day Off is the Days Off head's capsule, directly above these words (Dave 2026-10-05)",
+  // Your Routine (round-1 review, 2026-10-05, D9): Protected Time with no block is a glyph, a title and one warm line, filled by the Add capsule
+  // on its head directly above (the head's label is the short word because the title already says what it adds).
+  // The Tracker with no accounts (round-1 review, 2026-10-05, D9): a glyph, a title and one warm line, filled by the Add Account capsule on
+  // the Accounts head directly above it.
+  // Family's Your People with nobody tagged (round-2 review, 2026-10-05, D9): a glyph, a title and one warm line, filled by the Open Contacts
+  // capsule on the Your People head directly above it.
+  "brain/CategoryDetail.tsx · No People Here Yet": "Open Contacts is the Your People head's capsule, directly above these words (Dave 2026-10-05)",
+  // The event page with no prep (round-3 review, 2026-10-05, D9): a glyph in the Task's red, a title and one warm line, filled by the Add Task
+  // capsule on the Prep Tasks head directly above it.
+  "schedule/screens/EventDetailPage.tsx · Nothing to Prep Yet": "Add Task is the Prep Tasks head's capsule, directly above these words (Dave 2026-10-05)",
+  // Contacts (round-2 review, 2026-10-05, D9): the two empty states, a contact's Nothing to Bring Up Yet and the list's No One Here Yet, are each a glyph, a
+  // title and one warm line, filled by the capsule on the head directly above (Add Topic, Add Person); a second filled button repeated the same verb.
+  // Values' Hard Lines with none set (round-2 review, 2026-10-05, D9): a glyph, a title and one warm line, filled by the Add a Line capsule on the
+  // Hard Lines head directly above it, which opens the composer.
+  "brain/docs/BrainDocPage.tsx · No Hard Lines Yet": "Add a Line is the Hard Lines head's capsule, directly above these words (Dave 2026-10-05)",
+  "people/screens/PersonDetail.tsx · Nothing to Bring Up Yet": "Add Topic is the Next Time We Talk head's capsule, directly above these words (Dave 2026-10-05)",
+  "people/screens/PeopleListPage.tsx · No One Here Yet": "Add Person is the Your People head's capsule, directly above these words (Dave 2026-10-05)",
+  "money/screens/TrackerScreen.tsx · No Accounts Yet": "Add Account is the Accounts head's capsule, directly above these words (Dave 2026-10-05)",
+  "routine/RoutineFlow.tsx · Nothing Protected Yet":"Add is the Protected Time head's capsule, directly above these words (Dave 2026-10-05)",
 };
 
 // REAL DEBT. The action exists but lives on ANOTHER screen, so these fail L7

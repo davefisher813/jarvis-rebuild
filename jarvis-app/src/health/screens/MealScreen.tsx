@@ -1,7 +1,10 @@
 import { useState } from "react";
 import type { MealEntry } from "../types";
 import { clockOf } from "../meds";
+import { titleCase } from "../../shared/casing";
 import { pressable } from "../../shared/pressable";
+import RowShell from "../../brain/RowShell";
+import RowSheet from "../../brain/RowSheet";
 
 // MEAL (Health Push D, H-42). One text field, what you ate, in your own
 // words. No calories, no macros, no amount, no grade: the privacy law's
@@ -20,6 +23,7 @@ export default function MealScreen({ today, recent = [], onLog, onUndo, onBack }
   const [text, setText] = useState("");
   const [logged, setLogged] = useState(false);
   const [when, setWhen] = useState("");
+  const [open, setOpen] = useState<(MealEntry & { pending?: boolean }) | null>(null);
   const valid = text.trim().length > 0;
   const submit = () => {
     if (!valid) return;
@@ -63,24 +67,32 @@ export default function MealScreen({ today, recent = [], onLog, onUndo, onBack }
       {rows.length > 0 && (
         <>
           <div className="sh2 sh2-quiet"><span className="t">Today</span></div>
-          <div className="pad-x"><div className="card list-card-ruled">
+          <div className="pad-x"><div className="card list-card-ruled shell-rows">
             {rows.map((m) => (
-              // Row tap (Dave 2026-09-15): a logged meal fills the field above, the
-              // same as a recent meal chip. Undo stays on its own pill.
-              <div className="row" key={m.id} {...pressable(() => { setText(m.data.text); setLogged(false); })}>
-                <div className="row-grow">
-                  <div className="conn-name">{m.data.text}</div>
-                  {/* The meal's time is a neutral time, small caps (§AM F5); amber
-                      in Health means next up or over, not the meal's hue. */}
-                  <div className="facts"><span className="fact date">{clockOf(m.data.at)}</span></div>
+              // CLEAN ROWS (Dave 2026-10-05, locked): Undo is the swipe-left, not a capsule on the row. A tap opens the meal's
+              // sheet: Log Again (it fills the field above, as it always did) and Undo.
+              <RowShell key={m.id} verb={onUndo && !m.pending ? { label: "Undo", run: () => onUndo(m) } : undefined}>
+                <div className="row" {...pressable(() => setOpen(m))}>
+                  <div className="row-grow">
+                    <div className="conn-name">{titleCase(m.data.text)}</div>
+                    {/* The meal's time is a neutral time, small caps (§AM F5); amber
+                        in Health means next up or over, not the meal's hue. */}
+                    <div className="facts"><span className="fact date">{clockOf(m.data.at)}</span></div>
+                  </div>
+                  <div className="chev" />
                 </div>
-                {onUndo && !m.pending && (
-                  <button type="button" className="pill-act pill-quiet" onClick={(ev) => { ev.stopPropagation(); onUndo(m); }} aria-label={"Undo " + m.data.text}>Undo</button>
-                )}
-              </div>
+              </RowShell>
             ))}
           </div></div>
         </>
+      )}
+      {open && (
+        <RowSheet eyebrow="Meal" text={titleCase(open.data.text)} facts={<span className="fact date">{clockOf(open.data.at)}</span>}
+          answers={[
+            { label: "Log Again", onPick: () => { setText(open.data.text); setLogged(false); } },
+            ...(onUndo && !open.pending ? [{ label: "Undo", destructive: true, onPick: () => onUndo(open) }] : []),
+          ]}
+          onClose={() => setOpen(null)} />
       )}
       <div className="screen-foot" />
     </div>

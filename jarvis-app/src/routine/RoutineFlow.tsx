@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from "react";
+import { ShieldCheck } from "@phosphor-icons/react";
 import { useRoutine, useOptionalStrands } from "../data/NotesProvider";
 import type { Strand } from "../brain/strands/types";
-import { lineCase } from "../shared/casing";
-import { DEFAULT_ROUTINE, isOvernight, isWorkOutsideActive, defaultModeFor, freeOf, MODE_LABEL, MODE_HELP, FREE_CHANNELS, type RoutineData, type ProtectedBlock, type BlockKind, type BlockMode, type FreeChannel } from "./types";
+import { lineCase, titleCase } from "../shared/casing";
+import RowCtxAction from "../shared/RowCtxAction";
+import { DEFAULT_ROUTINE, isOvernight, isWorkOutsideActive, defaultModeFor, freeOf, blendNote, MODE_LABEL, MODE_HELP, FREE_CHANNELS, type RoutineData, type ProtectedBlock, type BlockKind, type BlockMode, type FreeChannel } from "./types";
 import { fmtTime } from "../schedule/calendar";
 import { showToast } from "../shared/toast";
 import { attemptWrite } from "../shared/guard";
@@ -142,7 +144,7 @@ export default function RoutineFlow({ onBack, focusId, onFocusConsumed }: { onBa
     // to Routine that does not come from tapping a block (the hub row, a
     // second look at the whole list) opens on the list, not back on Gym.
     onFocusConsumed?.();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [loaded, focusId, blocks]);
   const applyPreset = (p: Preset) => setForm((f) => ({ id: f?.id ?? null, label: p.label, startMin: p.startMin, endMin: p.endMin, days: [...p.days], kind: p.kind, soft: !!p.soft, location: f?.location ?? "", mode: null, free: [] }));
   const toggleDay = (d: number) => setForm((f) => (f ? { ...f, days: f.days.includes(d) ? f.days.filter((x) => x !== d) : [...f.days, d].sort((a, b) => a - b) } : f));
@@ -155,7 +157,10 @@ export default function RoutineFlow({ onBack, focusId, onFocusConsumed }: { onBa
     // Only an EXPLICIT choice is stored. Leaving it alone keeps the block on
     // its kind's default, which is what almost everyone should do.
     ...(f.mode ? { mode: f.mode } : {}),
-    ...(f.mode === "blends" && f.free.length ? { free: f.free } : {}),
+    // 2026-10-05: the EFFECTIVE mode, not the stored one. A Commute or Gym
+    // block is Can Blend by default, so f.mode stays null while the channel
+    // chips are live; testing f.mode dropped every channel choice on save.
+    ...((f.mode ?? defaultModeFor(f.kind, f.label)) === "blends" && f.free.length ? { free: f.free } : {}),
     ...(f.location.trim() ? { location: f.location.trim() } : {}),
   });
   // BRAIN-F-06 (2026-09-05, fork option A). A block used to be edited into
@@ -265,6 +270,8 @@ export default function RoutineFlow({ onBack, focusId, onFocusConsumed }: { onBa
       await routine.save(data);
       savedRef.current = data;
       setDirty(false);
+      // The button's word flips from Save to Saved with nothing else changing; say it (Dave 2026-10-05, the review).
+      showToast({ message: "Routine Saved" });
     } catch {
       showToast({ message: "Couldn't Save · Check Your Connection" });
     }
@@ -284,28 +291,50 @@ export default function RoutineFlow({ onBack, focusId, onFocusConsumed }: { onBa
         actions={<button className="nav-action-text" onClick={() => void save()} disabled={!dirty || !loaded}>{loaded && !dirty ? "Saved" : "Save"}</button>}
       />
 
+      {/* A BUTTON NEVER STANDS ALONE IN A BOX (Dave 2026-10-05, rule 12). The retry sat by itself in a grey plate. The
+          read failing is a thing to say, so the card keeps its own words, as the Schedule's load failure does. */}
       {loadFailed && !loaded && (
         <div className="pad-x"><div className="card list-card-ruled">
-          <button className="row row-act" onClick={() => setAttempt((n) => n + 1)}>Try Again</button>
+          <div className="empty-state">
+            <div className="t-body">Couldn't Load Your Routine</div>
+            <button className="btn btn-secondary" onClick={() => setAttempt((n) => n + 1)}>Try Again</button>
+          </div>
         </div></div>
       )}
 
       <Head label="Active Hours" />
       <Card>
-        <Row label="Wake Up"><input type="time" className="set-field" aria-label="Wake up" value={toHHMM(data.wakeMin)} disabled={!loaded} onChange={(e) => { const v = minutesOf(e.target.value); if (v != null) set({ wakeMin: v }); }} /></Row>
-        <Row label="Sleep"><input type="time" className="set-field" aria-label="Sleep" value={toHHMM(data.sleepMin)} disabled={!loaded} onChange={(e) => { const v = minutesOf(e.target.value); if (v != null) set({ sleepMin: v }); }} /></Row>
+        <Row label="Wake Up"><input type="time" className="set-field set-field-well set-field-time" aria-label="Wake up" value={toHHMM(data.wakeMin)} disabled={!loaded} onChange={(e) => { const v = minutesOf(e.target.value); if (v != null) set({ wakeMin: v }); }} /></Row>
+        <Row label="Sleep"><input type="time" className="set-field set-field-well set-field-time" aria-label="Sleep" value={toHHMM(data.sleepMin)} disabled={!loaded} onChange={(e) => { const v = minutesOf(e.target.value); if (v != null) set({ sleepMin: v }); }} /></Row>
       </Card>
-      {overnight && <Foot>Overnight · JARVIS plans the day</Foot>}
+      {overnight && <Foot>Overnight · JARVIS Plans the Day</Foot>}
 
       <Head label="Work Hours" />
       <Card>
-        <Row label="Work Starts"><input type="time" className="set-field" aria-label="Work starts" value={toHHMM(data.workStartMin)} disabled={!loaded} onChange={(e) => { const v = minutesOf(e.target.value); if (v != null) set({ workStartMin: v }); }} /></Row>
-        <Row label="Work Ends"><input type="time" className="set-field" aria-label="Work ends" value={toHHMM(data.workEndMin)} disabled={!loaded} onChange={(e) => { const v = minutesOf(e.target.value); if (v != null) set({ workEndMin: v }); }} /></Row>
+        <Row label="Work Starts"><input type="time" className="set-field set-field-well set-field-time" aria-label="Work starts" value={toHHMM(data.workStartMin)} disabled={!loaded} onChange={(e) => { const v = minutesOf(e.target.value); if (v != null) set({ workStartMin: v }); }} /></Row>
+        <Row label="Work Ends"><input type="time" className="set-field set-field-well set-field-time" aria-label="Work ends" value={toHHMM(data.workEndMin)} disabled={!loaded} onChange={(e) => { const v = minutesOf(e.target.value); if (v != null) set({ workEndMin: v }); }} /></Row>
       </Card>
-      {workOutside && <Foot>Work hours outside active hours · Fine</Foot>}
+      {workOutside && <Foot>Work Hours Outside Active Hours · Fine</Foot>}
 
-      <Head label="Protected Time" />
-      <Card>
+      {/* THE SECTION'S ACTION IS IN ITS HEAD (Dave 2026-10-05, locked: Add lives in the section head, never in a card and never
+          at the foot of a list). With no blocks yet the head and its capsule are the whole section: a card holding nothing
+          but an action is not drawn (rule 12). */}
+      <div className="sh2 sh2-quiet">
+        <span className="t">Protected Time</span>
+        {/* "Add", not "Add Protected Time": the head already says what it adds, and the long label was crowding the
+            title ("PROTECTED TI..." in light; Dave 2026-10-05, the review). */}
+        <button type="button" className="see-all pill-action" aria-label="Add Protected Time" onClick={openAdd}>Add</button>
+      </div>
+      {/* CRAFTED, SO THE HEAD IS NOT LEFT HOLDING NOTHING (Dave 2026-10-05, D9): with no block yet, a glyph, a title and one
+          warm line say what this holds, and the head's Add is the one capsule that fills it. */}
+      {sortedBlocks.length === 0 && (
+        <div className="empty-state empty-compact">
+          <div className="empty-icon"><ShieldCheck className="ic" weight="regular" /></div>
+          <div className="empty-title">Nothing Protected Yet</div>
+          <div className="empty-sub">Time You Protect Stays Free of Tasks and Plans</div>
+        </div>
+      )}
+      {sortedBlocks.length > 0 && <Card>
         {/* §AM (2026-09-26): the meta line is a facts line, so its separators
             are drawn by the stylesheet, not baked into a string. Flexible is
             the block's state word, not part of its name; the hours and the
@@ -317,7 +346,7 @@ export default function RoutineFlow({ onBack, focusId, onFocusConsumed }: { onBa
         {sortedBlocks.map((b) => (
           <Row
             key={b.id}
-            label={b.label}
+            label={titleCase(b.label)}
             meta={
               <>
                 {b.soft && <span className="fact st gray">Flexible</span>}
@@ -330,8 +359,7 @@ export default function RoutineFlow({ onBack, focusId, onFocusConsumed }: { onBa
             chev
           />
         ))}
-        <button type="button" className="row row-act" onClick={openAdd}>Add Protected Time</button>
-      </Card>
+      </Card>}
 
       {rhythms.length > 0 && (
         <>
@@ -343,13 +371,15 @@ export default function RoutineFlow({ onBack, focusId, onFocusConsumed }: { onBa
               // carries its own Undo.
               <div className="row" key={s.id} {...pressable(() => void updateRoutine(s))}>
                 <div className="row-grow">
-                  <div className="conn-name">{s.data.text}</div>
+                  <div className="conn-name">{titleCase(s.data.text)}</div>
                   {/* Every rhythm here was watched (the list is filtered to
                       source "watched" under the Learned Rhythms head), so the
                       word said nothing; the count is the one grey. */}
                   <div className="facts"><span className="fact">{rhythmFact(s)}</span></div>
                 </div>
-                <button type="button" className="pill-act" onClick={(ev) => { ev.stopPropagation(); void updateRoutine(s); }}>Update Routine</button>
+                {/* NO PILL ON A ROW (Dave 2026-10-05, locked). The row's one verb is the tap; a suggestion is a row waiting on
+                    a decision, so its moment has always come and it says the verb in one quiet word (RowCtxAction). */}
+                <RowCtxAction when label="Update" ariaLabel={"Update Routine from " + titleCase(s.data.text)} onAct={() => void updateRoutine(s)} />
               </div>
             ))}
           </Card>
@@ -359,13 +389,15 @@ export default function RoutineFlow({ onBack, focusId, onFocusConsumed }: { onBa
       <Head label="Weekends" />
       <Card>
         <Switch label="Different on Weekends" on={!!data.weekendDifferent} onToggle={() => set({ weekendDifferent: !data.weekendDifferent })} ariaLabel="Different hours on weekends" />
-        {data.weekendDifferent && (
-          <>
-            <Row label="Weekend Wake"><input type="time" className="set-field" aria-label="Weekend wake" value={toHHMM(data.weekendWakeMin ?? data.wakeMin)} disabled={!loaded} onChange={(e) => { const v = minutesOf(e.target.value); if (v != null) set({ weekendWakeMin: v }); }} /></Row>
-            <Row label="Weekend Sleep"><input type="time" className="set-field" aria-label="Weekend sleep" value={toHHMM(data.weekendSleepMin ?? data.sleepMin)} disabled={!loaded} onChange={(e) => { const v = minutesOf(e.target.value); if (v != null) set({ weekendSleepMin: v }); }} /></Row>
-          </>
-        )}
       </Card>
+      {/* THE TOGGLE IS ITS OWN CARD, AND THE TWO TIMES ARE THEIRS, as Active Hours is (Dave 2026-10-05, the review: a switch row
+          and two time rows in one card, and the screen growing under the thumb with no rhythm). */}
+      {data.weekendDifferent && (
+        <Card>
+          <Row label="Weekend Wake"><input type="time" className="set-field set-field-well set-field-time" aria-label="Weekend wake" value={toHHMM(data.weekendWakeMin ?? data.wakeMin)} disabled={!loaded} onChange={(e) => { const v = minutesOf(e.target.value); if (v != null) set({ weekendWakeMin: v }); }} /></Row>
+          <Row label="Weekend Sleep"><input type="time" className="set-field set-field-well set-field-time" aria-label="Weekend sleep" value={toHHMM(data.weekendSleepMin ?? data.sleepMin)} disabled={!loaded} onChange={(e) => { const v = minutesOf(e.target.value); if (v != null) set({ weekendSleepMin: v }); }} /></Row>
+        </Card>
+      )}
 
       <div className="screen-foot" />
 
@@ -444,7 +476,9 @@ export default function RoutineFlow({ onBack, focusId, onFocusConsumed }: { onBa
                       );
                     })}
                   </Strip>
-                  <Note>A call fits · Typing does not</Note>
+                  {/* Says what the chosen channels mean (2026-10-04), not one
+                      fixed line for every choice. */}
+                  <Note>{blendNote(form.free.length ? form.free : freeOf({ kind: form.kind }))}</Note>
                 </>
               )}
             </Group>
@@ -467,7 +501,7 @@ export default function RoutineFlow({ onBack, focusId, onFocusConsumed }: { onBa
                   onKeyDown={(e) => { if (e.key === " " || e.key === "Enter") { e.preventDefault(); setForm({ ...form, soft: !form.soft }); } }}
                 />
               </div>
-              <Note>Off means never</Note>
+              <Note>Off Means Never</Note>
             </Group>
 
             <Group label="Days">

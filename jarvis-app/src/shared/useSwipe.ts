@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { noteSwiped } from "./swipeTeach";
 
 // THE swipe controller (editing coverage map, universal mechanics). One
 // implementation of the gesture math; every swipeable row configures it and
@@ -71,6 +72,9 @@ export interface SwipeOptions {
   // A row that is not swipeable right now (e.g. schedule rows on other days)
   // keeps its markup and ignores the gesture.
   enabled?: boolean;
+  // A held row opens THIS (the row's context menu, shared/RowActionSheet) instead of toggling the tray (Dave
+  // 2026-10-05: "Long-press: context menu"). The context-menu event (right click, the iOS callout) says the same thing.
+  onLongPress?: () => void;
 }
 
 export interface SwipeState {
@@ -92,9 +96,12 @@ export interface SwipeState {
   // Close the reveal, then run the action (the standard post-action snap).
   closeThen: (fn?: () => void) => void;
   toggle: () => void;
+  // THE ONE-TIME PEEK (Dave 2026-10-05): slide open by the first action's full width (88px), hold a beat, slide shut. The caller
+  // decides whether it runs (shared/swipeTeach.ts shouldPeek); this only moves the row.
+  peek: () => void;
 }
 
-export function useSwipe({ revealW, rightW = 0, onRightCommit, enabled = true }: SwipeOptions): SwipeState {
+export function useSwipe({ revealW, rightW = 0, onRightCommit, enabled = true, onLongPress }: SwipeOptions): SwipeState {
   const [dx, setDx] = useState(0);
   const [open, setOpen] = useState(false);
   const [dragging, setDragging] = useState(false);
@@ -114,7 +121,7 @@ export function useSwipe({ revealW, rightW = 0, onRightCommit, enabled = true }:
   const beginPress = () => {
     if (!enabled) return;
     endPress();
-    press.current = setTimeout(() => { press.current = undefined; if (!decided.current) toggle(); }, LONG_PRESS_MS);
+    press.current = setTimeout(() => { press.current = undefined; if (!decided.current) (onLongPress ?? toggle)(); }, LONG_PRESS_MS);
   };
   // A row can unmount mid-press (a notice dismissed elsewhere, a tab change).
   useEffect(() => endPress, []);
@@ -160,10 +167,12 @@ export function useSwipe({ revealW, rightW = 0, onRightCommit, enabled = true }:
     if (onRightCommit && rightW > 0 && dxRef.current > rightW / 2) {
       moveTo(0);
       setOpen(false);
+      noteSwiped();
       onRightCommit();
       return;
     }
     const nowOpen = dxRef.current < -revealW / 2;
+    if (nowOpen || Math.abs(dxRef.current) > 24) noteSwiped();
     openTo(nowOpen);
   };
 
@@ -173,6 +182,15 @@ export function useSwipe({ revealW, rightW = 0, onRightCommit, enabled = true }:
     if (!enabled || open) return;
     const el = e.target as HTMLElement | null;
     if (el && typeof el.closest === "function" && el.closest("[data-reveal]")) openTo(true);
+  };
+
+  const peek = () => {
+    if (!enabled || open) return;
+    // THE FIRST ACTION, WHOLE (round 3, 2026-10-05: a 40% peek of a two-action tray showed "tart Now", the label clipped by the
+    // well's own edge, and read as a rendering bug). Each action is 88px wide, so the peek travels exactly one of them: the
+    // quickest verb is fully legible and nothing is cut mid-word.
+    moveTo(-Math.min(revealW, 88));
+    setTimeout(() => { if (!decided.current) moveTo(0); }, 900);
   };
 
   return {
@@ -186,10 +204,11 @@ export function useSwipe({ revealW, rightW = 0, onRightCommit, enabled = true }:
       onMouseDown: beginPress,
       onMouseUp: endPress,
       onMouseLeave: endPress,
-      onContextMenu: (e: React.MouseEvent) => { if (!enabled) return; e.preventDefault(); toggle(); },
+      onContextMenu: (e: React.MouseEvent) => { if (!enabled) return; e.preventDefault(); (onLongPress ?? toggle)(); },
     },
     revealFocus,
     closeThen,
     toggle,
+    peek,
   };
 }

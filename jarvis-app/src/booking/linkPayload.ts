@@ -1,4 +1,4 @@
-import type { BookingSettings, BookingVisibility, BookingWho } from "./settings";
+import type { BookingSettings } from "./settings";
 
 // YOUR TIMES, AS ROWS (Track 3, 2026-09-19).
 //
@@ -13,9 +13,10 @@ import type { BookingSettings, BookingVisibility, BookingWho } from "./settings"
 //      Sunday. Off by one here books people on the wrong day of the week,
 //      which is the kind of wrong nobody notices until somebody is standing
 //      in a car park.
-//   2. THE WORDS DIFFER. "link" is `link_only`, "named" is `named_contacts`,
-//      and who may book is a separate row in `booking_permissions` rather
-//      than a column on the link.
+//   2. THE WORDS DIFFER. "link" is `link_only`, and who may book is a
+//      separate row in `booking_permissions` rather than a column on the
+//      link. (The older words "named", "approved" and "connections" are
+//      still accepted and all land on the open rows; see below.)
 //   3. A DAY IS NOT A WINDOW. The screen collects which days, never which
 //      hours, so the hours come from one default stated here rather than
 //      from nowhere.
@@ -30,16 +31,22 @@ export function toSundayFirst(mondayFirst: number): number {
   return (mondayFirst + 1) % 7;
 }
 
-export const VISIBILITY_ROW: Record<BookingVisibility, string> = {
-  public: "public",
+// Keyed by plain strings on purpose (2026-10-04): the screen offers one
+// choice of each now, but a phone running an older build still PUTs the old
+// words, and the server must not write a mode it does not honour. Every one
+// of them lands on the row the grid really serves: no named_contacts (that
+// link answers 404 to everybody) and no approved_contacts or org_internal
+// (api/book.ts never reads booking_permissions).
+export const VISIBILITY_ROW: Record<string, string> = {
   link: "link_only",
-  named: "named_contacts",
+  public: "link_only",
+  named: "link_only",
 };
 
-export const WHO_ROW: Record<BookingWho, string> = {
+export const WHO_ROW: Record<string, string> = {
   anyone: "open_link",
-  approved: "approved_contacts",
-  connections: "org_internal",
+  approved: "open_link",
+  connections: "open_link",
 };
 
 export interface RuleRow { owner_id: string; weekday: number; start_time: string; end_time: string; timezone: string }

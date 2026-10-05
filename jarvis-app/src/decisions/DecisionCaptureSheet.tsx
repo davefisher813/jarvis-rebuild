@@ -3,6 +3,7 @@ import type { DecisionLinkType, DecisionLink } from "./types";
 import { FormSheet, Group, FieldRow, Strip, ErrorLine } from "../shared/FormSheet";
 import { todayISO, addDays } from "../schedule/calendar";
 import { pressable } from "../shared/pressable";
+import { titleCase } from "../shared/casing";
 
 // The capture sheet (Screen 03) and the supersede sheet (Screen 05), one
 // component: a supersede is a capture with Attached To and Ruled Out carried
@@ -83,12 +84,16 @@ export default function DecisionCaptureSheet({
 
   const save = () => {
     if (!decision.trim()) { setErr(true); return; }
+    // An option typed and not yet added with Enter still counts: the placeholder no longer carries an "Enter adds" hint,
+    // so Save is the other way it lands (nothing typed is dropped).
+    const pending = ruleDraft.trim();
+    const closed = pending && !ruledOut.some((r) => r.toLowerCase() === pending.toLowerCase()) ? [...ruledOut, pending] : ruledOut;
     const picked = options.filter((o) => attached.includes(o.id));
     const first = picked[0];
     onSave({
       decision: decision.trim(),
       why: why.trim() || undefined,
-      ruledOut: ruledOut.length ? ruledOut : undefined,
+      ruledOut: closed.length ? closed : undefined,
       linkedType: first?.type,
       linkedId: first?.id,
       linkedLabel: first?.label,
@@ -109,25 +114,25 @@ export default function DecisionCaptureSheet({
           error={err}
         />
       </Group>
-      <ErrorLine text={err ? "Add the decision." : null} />
+      <ErrorLine text={err ? "Add the Decision" : null} />
 
       <Group label="Why">
-        <FieldRow ariaLabel="Why" placeholder="The reason you will forget · One line is enough" value={why} onChange={setWhy} />
+        <FieldRow ariaLabel="Why" placeholder="The Reason You Will Forget" value={why} onChange={setWhy} />
       </Group>
 
       <Group label="Expected">
-        <FieldRow ariaLabel="Expected" placeholder="What This Should Do · One line" value={expected} onChange={setExpected} />
+        <FieldRow ariaLabel="Expected" placeholder="What This Should Do" value={expected} onChange={setExpected} />
       </Group>
 
       <Group label="Ruled Out">
         {ruledOut.length > 0 && (
           <Strip>
             {ruledOut.map((r) => (
-              <div {...pressable(() => setRuledOut(ruledOut.filter((x) => x !== r)))} key={r} className="chip active">{r}</div>
+              <div {...pressable(() => setRuledOut(ruledOut.filter((x) => x !== r)))} key={r} className="chip active">{titleCase(r)}</div>
             ))}
           </Strip>
         )}
-        <FieldRow ariaLabel="Option you closed" placeholder="Option you closed · Enter adds" value={ruleDraft} onChange={setRuleDraft} onEnter={addRule} />
+        <FieldRow ariaLabel="Option you closed" placeholder="Option You Closed" value={ruleDraft} onChange={setRuleDraft} onEnter={addRule} />
       </Group>
 
       <Group label="Revisit">
@@ -150,7 +155,7 @@ export default function DecisionCaptureSheet({
               <div key={o.id} className={"chip" + (attached.includes(o.id) ? " active" : "")} role="checkbox" aria-checked={attached.includes(o.id)} tabIndex={0}
                 onClick={() => toggleAttach(o.id)}
                 onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggleAttach(o.id); } }}>
-                {o.label}
+                {titleCase(o.label)}
               </div>
             ))}
           </Strip>

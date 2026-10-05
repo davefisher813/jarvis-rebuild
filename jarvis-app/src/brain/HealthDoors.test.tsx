@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, within } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import HealthBody from "./HealthBody";
 import { readFileSync } from "node:fs";
@@ -42,7 +42,6 @@ const base = {
   overview: periodOverview(workouts, null, [], periodFor("7d", today)),
   findings: [], logActions: [],
   onStart: () => {}, onAdjustTime: () => {}, onOpenGym: () => {}, onOpenRecords: () => {}, onOpenFinding: () => {},
-  onOpenInsights: () => {}, onOpenAllData: () => {},
   view: "health" as const, onView: () => {},
 };
 
@@ -83,7 +82,9 @@ describe("the Health page's three doors", () => {
   it("shows no doors to nothing when the caller has no gym wiring", () => {
     render(<HealthBody {...base} />);
     expect(screen.queryByText("Exercises")).toBeNull();
-    expect(document.querySelector(".h-doors")).toBeNull();
+    expect(screen.queryByText("Program")).toBeNull();
+    // Insights and All Data are the segmented control at the top, never door rows too (Dave 2026-10-05, round-2 review).
+    expect(document.querySelectorAll(".h-door-k")).toHaveLength(0);
   });
 
   it("sits under the week and above the next workout", () => {
@@ -276,5 +277,99 @@ describe("the Exercises badge is the page's opening list, archived and hidden le
     expect(document.querySelector(".nav-count")?.textContent).toBe("2");
     fireEvent.click(screen.getByRole("button", { name: "Archived" }));
     expect(screen.queryByText("Test Press")).toBeNull();
+  });
+});
+
+
+// CLEAN ROWS, NO PILLS (Dave 2026-10-05, locked; Alfred 2026-10-04: Adjust Time, Change Workout, Log Something, All Data,
+// Customize and View Insights inside the Health cards). The next workout is a row: tap it and its sheet holds every
+// action, Start first and filled. Start Workout stays on the card as the screen's one primary.
+describe("the Health page wears the row-action model (2026-10-05)", () => {
+  const withNext = { ...base, onOpenExercises: () => {}, onOpenHistory: () => {}, onOpenSettings: () => {} };
+
+  it("draws no capsule, and no capsule-shaped button, inside any card on the page", () => {
+    const { container } = render(<HealthBody {...withNext} />);
+    for (const label of ["Adjust Time", "Change Workout", "All Data", "Log Something", "Customize", "View Insights"]) {
+      // Each is a row, a sheet action or a head capsule now; none is a pill or a button sitting in a card.
+      const hits = screen.queryAllByText(label).filter((e) => e.closest(".card"));
+      for (const h of hits) expect(h.closest(".pill-act, .row-act, .btn-sm, .quiet-action, .btn"), label).toBeNull();
+    }
+    expect(container.querySelector(".h-next-acts")).toBeNull();
+    // The one filled primary on the screen is Start Workout.
+    expect([...container.querySelectorAll(".btn-primary")].map((b) => b.textContent)).toEqual(["Start Workout"]);
+  });
+
+  it("the next workout is a row whose sheet holds Start (filled), Adjust Time and Change Workout", () => {
+    const onStart = vi.fn();
+    const onAdjustTime = vi.fn();
+    render(<HealthBody {...withNext} onStart={onStart} onAdjustTime={onAdjustTime} />);
+    expect(screen.queryByText("Adjust Time")).toBeNull();
+    fireEvent.click(document.querySelector(".h-hero")!);
+    const sheet = document.querySelector(".sheet-scrim")!;
+    expect(sheet.querySelector(".btn-primary")!.textContent).toBe("Start Workout");
+    const rest = [...sheet.querySelectorAll(".btn-secondary")].map((b) => b.textContent);
+    expect(rest).toContain("Change Workout");
+    // Adjust Time needs an estimate; this fixture has no logged sets to price, so it is honestly absent rather than dead.
+    fireEvent.click(within(sheet as HTMLElement).getByText("Change Workout"));
+    expect(onStart).not.toHaveBeenCalled();
+    // Change Workout hands over to its own picker, with the other days in it and an empty session.
+    expect(document.querySelector(".sheet-scrim .eyebrow")?.textContent).toBe("Change Workout");
+  });
+
+  it("Log Something is the Your Progress head's capsule and opens its sheet", () => {
+    render(<HealthBody {...withNext} logActions={[{ label: "Bedtime", onPick: () => {} }]} />);
+    const head = screen.getByText("Your Progress").closest(".sh2")!;
+    const btn = within(head as HTMLElement).getByRole("button", { name: "Log Something" });
+    expect(btn).toHaveClass("see-all", "pill-action");
+    fireEvent.click(btn);
+    expect(screen.getByText("Bedtime")).toBeInTheDocument();
+  });
+
+  it("Customize is a door row with a chevron, and Insights and All Data are the segments only", () => {
+    const onOpenSettings = vi.fn();
+    render(<HealthBody {...withNext} onOpenSettings={onOpenSettings} />);
+    const door = [...document.querySelectorAll(".h-door")].find((d) => d.querySelector(".h-door-k")?.textContent === "Customize")!;
+    expect(door.querySelector(".chev")).not.toBeNull();
+    fireEvent.click(door);
+    expect(onOpenSettings).toHaveBeenCalledTimes(1);
+    // The same two words are not door rows as well as the segmented control above (the round-2 review).
+    const doorLabels = [...document.querySelectorAll(".h-door-k")].map((e) => e.textContent);
+    expect(doorLabels).not.toContain("Insights");
+    expect(doorLabels).not.toContain("All Data");
+  });
+});
+
+// A ZERO HAS NO STATE (Dave 2026-10-05, D4; the round-2 review: "0 Workouts" and "0 Working Sets" drawn in large lime, a second
+// green beside the done tick). The state is a class on the number, so the stylesheet can paint a zero white and a real count in
+// the one done green; and the empty Your Progress card is the app's empty state with its glyph.
+describe("the Health week card's numbers wear a state only when they have one", () => {
+  const quiet = { ...base, workouts: [], overview: periodOverview([], null, [], periodFor("7d", today)) };
+
+  it("a week with no workout and no set marks both numbers as zero, so neither is the done green", () => {
+    render(<HealthBody {...quiet} />);
+    expect(document.querySelector(".h-week-count")).toHaveClass("zero");
+    const sets = screen.getByText("Working Sets").closest(".h-stat") as HTMLElement;
+    expect(sets).not.toHaveClass("lime");
+  });
+
+  it("a week with a workout does not mark the count as zero", () => {
+    const busy = { ...base, overview: { ...base.overview, workouts: 2, workingSets: 14 } };
+    render(<HealthBody {...busy} />);
+    expect(document.querySelector(".h-week-count")).not.toHaveClass("zero");
+    expect(screen.getByText("Working Sets").closest(".h-stat")).toHaveClass("lime");
+  });
+
+  it("Your Progress with nothing to read is the one empty state, with its glyph", () => {
+    render(<HealthBody {...quiet} />);
+    const state = screen.getByText("Nothing to Read Yet").closest(".empty-state") as HTMLElement;
+    expect(state.querySelector(".empty-icon")).not.toBeNull();
+  });
+
+  it("the Next Workout card's Today or Tomorrow is amber text and a gym block's time is never split from AM or PM", () => {
+    render(<HealthBody {...base} gymEvent={{ start: "15:30" }} />);
+    const when = document.querySelector(".h-hero-facts .fact.warn, .h-hero-facts .fact.date") as HTMLElement;
+    expect(when).toHaveClass("warn");
+    expect(when).not.toHaveClass("date");
+    expect(when.textContent).toMatch(/^Today 3:30\u00a0PM$/);
   });
 });

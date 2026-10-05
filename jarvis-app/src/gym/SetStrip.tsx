@@ -5,13 +5,14 @@ import { plateFacts, type PlateFacts } from "./ramp";
 import { plateMath, repLabel, type LoadStyle } from "./equipment";
 import { fieldsOf, type SetDraft } from "./nextSet";
 import { lineCase } from "../shared/casing";
+import { useRowMenu } from "../shared/useRowMenu";
 import { setState, setKicker, type SetState } from "./stateWord";
 import { readGymSettings, rackFrom } from "./settings";
 import { duplicateEntry, blankEntry } from "./strip";
 import ReorderList from "../shared/ReorderList";
 import { useSwipe } from "../shared/useSwipe";
 import Stepper from "../shared/Stepper";
-import { Trash2, Check } from "../shared/icons";
+import { Trash2, Check, Forward } from "../shared/icons";
 
 // A SLOW TAP IS NOT A SECOND SET (2026-09-16, Dave: "when you log something,
 // it automatically adds a set. That's not correct."). A 550ms press on a chip
@@ -168,6 +169,13 @@ export default function SetStrip({
 
   return (
     <div className="set-strip">
+      {/* THE ADD IS THE LIST'S LABEL ROW'S (Dave 2026-10-05, locked): Add a Set was a row at the foot of the strip. The
+          group's own label row carries it at the right, the one capsule a sheet group's actions wear. */}
+      {!disabled && canAdd && (
+        <div className="grp"><div className="eyebrow">{entryNoun(kind)}</div>
+          <button type="button" className="see-all pill-action" onClick={add}>{`Add ${entryNoun(kind, false)}`}</button>
+        </div>
+      )}
       <ReorderList
         ids={entries.map((e) => e.id)}
         onReorder={reorder}
@@ -191,6 +199,8 @@ export default function SetStrip({
                 last={lastFor?.(i) ?? null}
                 onToggle={() => (onOpenSet ? onOpenSet(id) : setOpenId(openId === id ? null : id))}
                 onDelete={() => remove(id)}
+                onSkip={() => patch(id, { skipped: !e.skipped, done: false })}
+                onDuplicate={() => duplicate(id)}
               />
               {openId === id && !disabled && !onOpenSet && (
                 <SetChipEditor kind={kind} fields={fields} entry={e} onPatch={(p) => patch(id, p)} moveTracking={moveTracking}
@@ -276,11 +286,6 @@ export default function SetStrip({
           })}
         </div>
       )}
-      {/* The add lands after the plan (live session: after the ghosts), so
-          "Add a Set" reads as extra work past it, never a step before it. */}
-      {!disabled && canAdd && (
-        <button className="row-create set-strip-add" onClick={add}>Add {entryNoun(kind, false)}</button>
-      )}
     </div>
   );
 }
@@ -298,7 +303,7 @@ function chipKicker(entry: SetEntry, state: SetState | null, workNo: number): st
 }
 
 function SetChipRow({
-  index, entry, kind, fx, open, disabled, pr, last, onToggle, onDelete, state, workNo,
+  index, entry, kind, fx, open, disabled, pr, last, onToggle, onDelete, onSkip, onDuplicate, state, workNo,
 }: {
   index: number;
   entry: SetEntry;
@@ -315,8 +320,20 @@ function SetChipRow({
   last?: string | null;
   onToggle: () => void;
   onDelete: () => void;
+  /** Swipe left's quickest verb (Dave 2026-10-05, locked): skip this set, or bring it back. Delete follows it in. */
+  onSkip: () => void;
+  /** The editor's other move, kept for the held row's menu. */
+  onDuplicate: () => void;
 }) {
-  const swipe = useSwipe({ revealW: 88, enabled: !disabled });
+  // THE HOLD IS THE CONTEXT MENU (Dave 2026-10-05): the set's own moves, Delete last (the editor under the chip holds the
+  // same Skip and Duplicate).
+  const rowMenu = useRowMenu({ title: chipKicker(entry, null, workNo), actions: [
+    { label: entry.skipped ? "Unskip" : "Skip", onPick: onSkip },
+    { label: "Duplicate", onPick: onDuplicate },
+    { label: "Delete", destructive: true, onPick: onDelete },
+  ], enabled: !disabled });
+  const swipe = useSwipe({ revealW: 176, enabled: !disabled, onLongPress: rowMenu.onLongPress });
+  const { handlers, sheet } = rowMenu.bind(swipe);
 
   const label = entry.skipped ? "Skipped" : kind === "done" ? (entry.done ? "Done" : "Not Marked Yet") : formatSet(fx, entry);
   // The chip prints the whole rule's casing ("185 Lb × 5"); the aria-label
@@ -326,11 +343,14 @@ function SetChipRow({
 
   return (
     <div className={"task-swipe set-chip-swipe" + (swipe.dx ? " swipe-open" : "")}>
+      <button className="task-verb" aria-label={`${entry.skipped ? "Unskip" : "Skip"} set ${index + 1}`} onClick={() => swipe.closeThen(onSkip)}>
+        <Forward className="ic" /><span className="swipe-label">{entry.skipped ? "Unskip" : "Skip"}</span>
+      </button>
       <button className="task-del" aria-label={`Delete set ${index + 1}`} onClick={() => swipe.closeThen(onDelete)}><Trash2 className="ic" /></button>
       <div
         className={"set-chip" + (entry.skipped ? " set-chip-skipped" : "") + (entry.warmup ? " set-chip-warm" : "") + (entry.drop ? " set-chip-drop" : "") + (swipe.dragging ? " swiping" : "")}
         style={{ transform: swipe.dx ? `translateX(${swipe.dx}px)` : undefined }}
-        {...swipe.handlers}
+        {...handlers}
         role="button"
         tabIndex={0}
         aria-expanded={open}
@@ -353,6 +373,7 @@ function SetChipRow({
         {/* The chip is a door (preview anatomy): say so. */}
         {!disabled && <div className="chev" />}
       </div>
+      {sheet}
     </div>
   );
 }
@@ -385,7 +406,15 @@ function SetChipEditor({ kind, fields, entry, onPatch, moveTracking, plates, tit
 }) {
   return (
     <div className="set-chip-editor">
-      <div className="grp"><div className="eyebrow">Editing {title}</div></div>
+      {/* THE SET'S OWN TWO MOVES ARE ITS LABEL ROW'S (Dave 2026-10-05, locked: no capsule row inside the card). Duplicate and
+          Skip were two capsules under the steppers; the editor's own label carries them at its right, and the set's swipe
+          holds Skip as its quick verb. */}
+      <div className="grp"><div className="eyebrow">Editing {title}</div>
+        <span className="grp-acts">
+          <button type="button" className="see-all pill-action" onClick={onDuplicate}>Duplicate</button>
+          <button type="button" className="see-all pill-action" onClick={() => onPatch({ skipped: !entry.skipped, done: false })}>{entry.skipped ? "Unskip" : "Skip"}</button>
+        </span>
+      </div>
       {/* PLATE MATH READS AS PLATES (Dave 2026-09-10). "45 · 35 · 5 · 2.5"
           over a grey "Per side" is a sentence about plates; a lifter loading a
           bar wants to SEE them. Each number is its own chip, in the ramp's
@@ -439,17 +468,6 @@ function SetChipEditor({ kind, fields, entry, onPatch, moveTracking, plates, tit
           </div>
         </div>
       )}
-      {/* THE SET'S OWN TWO MOVES, AS CAPSULES (2026-09-26, the workout logging
-          pass-off: "Dropdowns everywhere, not organized, not minimalist").
-          They were two full rows of red text under every open set, so an
-          editor that is three steppers tall grew two more lines of the same
-          dress the exercise's own actions wore. One capsule row, the ladder's
-          34, and the door the long press used to be is still a real button
-          Enter and Space reach. */}
-      <div className="row-pair set-chip-acts">
-        <button type="button" className="pill-act pill-quiet" onClick={onDuplicate}>Duplicate This Set</button>
-        <button type="button" className="pill-act pill-quiet" onClick={() => onPatch({ skipped: !entry.skipped, done: false })}>{entry.skipped ? "Unskip This Set" : "Skip This Set"}</button>
-      </div>
     </div>
   );
 }

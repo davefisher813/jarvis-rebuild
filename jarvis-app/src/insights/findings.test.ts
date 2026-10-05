@@ -71,6 +71,17 @@ describe("findings", () => {
     }
   });
 
+  // ALFRED 2026-10-04 (R2): "78 · −9 on the 7 before". The working-sets comparison was the one finding line not cased through
+  // lineCase: the word behind a leading number takes a capital and the line is Title Case like every other.
+  it("the working-sets comparison reads Title Case: the word behind the number is capitalized", () => {
+    const ten = Array.from({ length: 10 }, () => ({ w: 100, r: 5 }));
+    const ws = [w("p", "2026-09-02", ten), w("c", "2026-09-12", [{ w: 135, r: 5 }])];
+    const f = findings({ workouts: ws, sleepDef: null, logs: [], period, muscleMap: new Map(), now: T("2026-09-14", 12) });
+    const sets = f.find((x) => x.id === "sets")!;
+    expect(sets.value).toBe("1");
+    expect(sets.context).toEqual(["-9 On the 7 Before"]);
+  });
+
   it("says nothing it cannot support: no records, no findings", () => {
     expect(findings({ workouts: [], sleepDef: null, logs: [], period, muscleMap: new Map() })).toEqual([]);
   });

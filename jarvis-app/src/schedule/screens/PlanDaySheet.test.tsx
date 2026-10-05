@@ -4,13 +4,14 @@ import { render, screen, fireEvent, act, waitFor } from "@testing-library/react"
 import "@testing-library/jest-dom";
 import PlanDaySheet, { type PlanCandidate, type PlanBlocked } from "./PlanDaySheet";
 import { fmtTime } from "../calendar";
+import { subscribeToast, resetToasts } from "../../shared/toast";
 
 function label(hhmm: string) { const t = fmtTime(hhmm); return `${t.time} ${t.ap}`; }
 
 const TASKS: PlanCandidate[] = [
   { id: "t1", text: "Email vendor", category: "work", suggested: true, overdue: false },
   { id: "t2", text: "Book flights", category: "work", suggested: true, overdue: false },
-  { id: "t3", text: "Return package", category: "home", suggested: false, overdue: false },
+  { id: "t3", text: "Return Package", category: "home", suggested: false, overdue: false },
   { id: "t4", text: "Call dentist", category: "home", suggested: false, overdue: true },
   { id: "t5", text: "File taxes", category: "money", suggested: false, overdue: false },
 ];
@@ -50,7 +51,7 @@ describe("it opens already planned", () => {
 
   it("unpicking everything turns the primary back into Plan It, which replans", () => {
     render(sheet({ tasks: TASKS.slice(0, 1) }));
-    fireEvent.click(screen.getByText("Email vendor"));
+    fireEvent.click(screen.getByText("Email Vendor"));
     const replan = screen.getByText("Plan It");
     expect(replan).toBeEnabled();
     fireEvent.click(replan);
@@ -61,8 +62,8 @@ describe("it opens already planned", () => {
 describe("no silent caps, no dead chips", () => {
   it("picking past the seeded three just works and the fit line follows", () => {
     render(sheet());
-    fireEvent.click(screen.getByText("Call dentist"));
-    fireEvent.click(screen.getByText("File taxes"));
+    fireEvent.click(screen.getByText("Call Dentist"));
+    fireEvent.click(screen.getByText("File Taxes"));
     expect(document.querySelectorAll(".p3-row.on").length).toBe(5);
     expect(document.querySelector(".plan-load")!.textContent).toMatch(/5 Picked/);
   });
@@ -216,7 +217,7 @@ describe("the load line", () => {
     const line = document.querySelector(".plan-load")!;
     expect(line.firstElementChild).toBe(fits);
     expect(line.lastElementChild!.className).toBe("fact");
-    expect(line.lastElementChild!.textContent).toMatch(/open/);
+    expect(line.lastElementChild!.textContent).toMatch(/Open/);
   });
 
   it("over: the picks fact is red, says how far over, and nothing says it fits", () => {
@@ -229,7 +230,7 @@ describe("the load line", () => {
     // The red leads: at type scale 1.4 it was last and ellipsized to nothing.
     const line = document.querySelector(".plan-load")!;
     expect(line.firstElementChild).toBe(over);
-    expect(line.lastElementChild!.textContent).toMatch(/open/);
+    expect(line.lastElementChild!.textContent).toMatch(/Open/);
     // A pick with nowhere to go says "No Room" in its time button's own
     // ink, never a red span inside it: the load line above carries the red.
     const noRoom = screen.getAllByText("No Room");
@@ -240,11 +241,11 @@ describe("the load line", () => {
 
   it("nothing picked: only the open time, never a picked or over fact", () => {
     render(sheet({ tasks: TASKS.slice(0, 1) }));
-    fireEvent.click(screen.getByText("Email vendor"));
+    fireEvent.click(screen.getByText("Email Vendor"));
     const line = document.querySelector(".plan-load")!;
     expect(line.querySelectorAll(".fact").length).toBe(1);
     expect(line.textContent).not.toMatch(/picked|over/);
-    expect(line.textContent).toMatch(/open/);
+    expect(line.textContent).toMatch(/Open/);
   });
 });
 
@@ -273,8 +274,8 @@ describe("seeded from the standing draft", () => {
   it("opens on the draft's picks, in the draft's order, not its own", () => {
     render(sheet({ seed: { ids: ["t5", "t3"], minutes: { t5: 60, t3: 30 } } }));
     // autoSelect would have led with the suggested t1/t2; the draft wins.
-    expect(screen.getByText("File taxes")).toBeInTheDocument();
-    expect(screen.getByText("Return package")).toBeInTheDocument();
+    expect(screen.getByText("File Taxes")).toBeInTheDocument();
+    expect(screen.getByText("Return Package")).toBeInTheDocument();
     const picked = [...document.querySelectorAll(".plan-strip-row, .p3-row.on")].length;
     expect(picked).toBeGreaterThan(0);
   });
@@ -318,7 +319,7 @@ describe("seeded from the standing draft", () => {
 
   it("[edge] an empty seed falls back to planning for itself", () => {
     render(sheet({ seed: { ids: [], minutes: {} } }));
-    expect(screen.getByText("Email vendor")).toBeInTheDocument();
+    expect(screen.getByText("Email Vendor")).toBeInTheDocument();
   });
 });
 
@@ -381,7 +382,7 @@ describe("the commit fires once, and the re-plan uses his cap", () => {
     render(sheet({ chosenCap: 2 }));
     // The seed already respected it.
     expect(document.querySelectorAll(".p3-row.on").length).toBe(2);
-    for (const t of ["Email vendor", "Book flights"]) fireEvent.click(screen.getByText(t));
+    for (const t of ["Email Vendor", "Book Flights"]) fireEvent.click(screen.getByText(t));
     fireEvent.click(screen.getByText("Plan It"));
     expect(document.querySelectorAll(".p3-row.on").length).toBe(2);
   });
@@ -433,5 +434,64 @@ describe("the plan facts line says two separate things", () => {
   it("with no peak known, only the landing fact shows", () => {
     render(sheet({ blocked: FOCUS }));
     expect([...document.querySelectorAll(".plan-facts > .fact")].map((f) => f.textContent)).toEqual(["Picks Go into Deep Work"]);
+  });
+});
+
+// PLAN IT NEVER GOES QUIET (2026-10-04). With nothing picked, Plan It returned
+// when autoSelect found nothing and said nothing: a tap that looked dead. The
+// only way it finds nothing with tasks on the list is a day cap that leaves no
+// room (chosenCap of 0), so the tap says so, and says which day (the sheet's
+// own dayLabel, 2026-10-05: the Schedule tab passes no target).
+describe("Plan It says why when it plans nothing", () => {
+  const toasts = (run: () => void): string[] => {
+    resetToasts();
+    const seen: string[] = [];
+    const stop = subscribeToast((t) => { if (t) seen.push(t.message); });
+    try { run(); } finally { stop(); }
+    return seen;
+  };
+
+  it("a day with no room left for a pick names that, for today", () => {
+    render(sheet({ chosenCap: 0 }));
+    // Nothing was seeded, so the primary is Plan It and it is live.
+    const planIt = screen.getByText("Plan It");
+    expect(planIt).toBeEnabled();
+    expect(toasts(() => fireEvent.click(planIt))).toEqual(["No Room Left Today"]);
+    // And it did not pretend to plan.
+    expect(document.querySelectorAll(".p3-row.on").length).toBe(0);
+  });
+
+  it("names the day the sheet is planning, by its own label", () => {
+    render(sheet({ chosenCap: 0, target: "tomorrow", onTarget: () => {}, dayLabel: "Friday" }));
+    expect(toasts(() => fireEvent.click(screen.getByText("Plan It")))).toEqual(["No Room Left Friday"]);
+  });
+
+  it("on the Schedule tab, which passes no target, a weekday is not called Today", () => {
+    render(sheet({ chosenCap: 0, date: "2026-09-06", dayLabel: "Sunday" }));
+    expect(toasts(() => fireEvent.click(screen.getByText("Plan It")))).toEqual(["No Room Left Sunday"]);
+  });
+
+  it("a day with room still plans on the tap, with no toast", () => {
+    render(sheet({ tasks: TASKS.slice(0, 1) }));
+    fireEvent.click(screen.getByText("Email Vendor"));
+    expect(toasts(() => fireEvent.click(screen.getByText("Plan It")))).toEqual([]);
+    expect(document.querySelectorAll(".p3-row.on").length).toBe(1);
+  });
+});
+
+// THE MOMENT HAS COME (Dave 2026-10-05, locked): the add-a-task field's Add was a pill that sat there disabled. It is one quiet
+// word that exists only once something is typed.
+describe("the add-a-task field: Add appears when there is something to add", () => {
+  it("no Add with an empty field, a text-only Add once typed, and it adds", async () => {
+    const onAddTask = vi.fn(async () => null);
+    render(sheet({ onAddTask: onAddTask as never }));
+    const field = screen.getByPlaceholderText("Add Something to This Day");
+    expect(document.querySelector(".plan-add .row-ctx")).toBeNull();
+    expect(document.querySelectorAll(".plan-add .pill-act").length).toBe(0);
+    fireEvent.change(field, { target: { value: "water the plants" } });
+    const add = document.querySelector(".plan-add .row-ctx")!;
+    expect(add.textContent).toBe("Add");
+    fireEvent.click(add);
+    await waitFor(() => expect(onAddTask).toHaveBeenCalled());
   });
 });

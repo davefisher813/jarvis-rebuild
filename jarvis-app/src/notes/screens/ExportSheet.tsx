@@ -68,7 +68,7 @@ export default function ExportSheet({ doc, title, selection = false, images, att
       const result = await saveFile(file.blob, filename, { title: title || "Note" });
       if (result === false) return;
       writeLastFormat(format);
-      showToast({ message: result === "shared" ? `${filename} shared` : `${filename} downloaded` });
+      showToast({ message: result === "shared" ? `${filename} Shared` : `${filename} Downloaded` });
       onClose();
     } catch (e) {
       setFailed(e instanceof Error && e.message ? e.message : "The export did not leave the app");

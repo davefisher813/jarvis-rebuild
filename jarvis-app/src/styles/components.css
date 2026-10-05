@@ -140,9 +140,17 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
 .cal-cell { aspect-ratio: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--s-0h); border-radius: var(--r-md); font-size: var(--t-meta); font-weight: var(--w-semi); font-feature-settings: 'tnum'; color: var(--tx-1); }
 .cal-cell.out { color: var(--tx-2); }
 .cal-cell.today { color: var(--accent-chrome); font-weight: var(--w-bold); }
-.cal-cell.sel { background: var(--sel-bg); color: var(--sel-fg); }
-.cal-dots { display: flex; gap: var(--s-0h); height: 5px; }
-.cal-dot { width: 5px; height: 5px; border-radius: var(--r-circle); }
+/* THE PICKED DAY IS A DISC SIZED TO THE NUMBER (Alfred 2026-10-04, Schedule > Month: "selected date renders as an
+   oversized white rounded rectangle covering the cell"; Dave 2026-10-05, the perfect bar). The cell is a column
+   wide, so filling it read as a slab, and then as a plate that touched the grid's edge. The fill is a 40px disc
+   drawn behind the numeral and centred on it (the dot slot under the number is 5px and a gap), the same in both themes (--sel-bg and --sel-fg are the only
+   things that change), and the cell itself stays transparent. */
+.cal-cell { position: relative; isolation: isolate; }
+.cal-cell.sel { color: var(--sel-fg); }
+.cal-cell.sel::before { content: ""; position: absolute; z-index: -1; top: calc(50% - (var(--s-0h) + 6px) / 2); left: 50%; width: 40px; height: 40px; transform: translate(-50%, -50%); border-radius: var(--r-circle); background-color: var(--sel-bg); }
+/* 6px dots on a 4px gap (round-1 review, 2026-10-05: at 5px a cluster of three read as one smear). */
+.cal-dots { display: flex; gap: var(--s-1); height: 6px; }
+.cal-dot { width: 6px; height: 6px; border-radius: var(--r-circle); }
 .sched-cat { display: flex; align-items: center; gap: var(--s-1h); font-size: var(--t-meta); color: var(--tx-3); }
 /* One fact and the separator that introduces it, as a single wrapping unit.
    See the note in DayRow.tsx: a run of loose separators and values reads
@@ -195,11 +203,14 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
    button, so it takes the empty space and nothing the title needs. */
 .sched-notes { background: transparent; border: 0; padding: 0; margin-left: var(--s-1h); color: var(--tx-quiet);
   position: relative; display: inline-flex; align-items: center; vertical-align: middle; }
-.sched-notes::after { content: ""; position: absolute; inset: -4px -8px; }
+/* ROUND 3 (2026-10-05): the reach is 44 wide and as tall as the row gives it (the strip clips what hangs past the row, so it
+   never steals the row above). It was 31 by 23. */
+.sched-notes::after { content: ""; position: absolute; inset: calc(-1 * var(--s-3h)) calc(-1 * var(--s-4)); }
 .sched-notes .ic { width: 15px; height: 15px; }
-/* Red is a verb, so the "already has one" state is INK, not colour: the
-   quiet grey brightens to the ordinary secondary text. */
-.sched-notes.on { color: var(--tx-2); }
+/* The glyph is drawn only when a note exists (DayRow), and it says so in the Note's own tone, yellow, the colour a note wears on
+   its tile and in its list (decision D5: the same entity, the same colour, everywhere). Red is a verb, so it is never red. */
+.sched-notes.on { color: var(--cat-yellow); }
+[data-theme="light"] .sched-notes.on { color: var(--cat-ic-yellow); }
 /* UP-CORE-10 (2026-09-05): the meeting link, on the row, as the smallest
    capsule. Under §AL (2026-09-22) a capsule's label is the action red, and
    under §AM brand red means "tap this", which Join is: the capsule fill and
@@ -240,7 +251,15 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
 
 /* Today home hero: slim avatar bar + greeting + day briefing (homepage feel). */
 .today-bar { display: flex; align-items: center; justify-content: flex-end; padding: var(--s-3) var(--s-4) 0; }
-.today-hero { padding: var(--s-1) var(--s-4) var(--s-3); }
+.today-hero { padding: var(--s-3) var(--s-4) var(--s-3); } /* 12 above the date: it sat 5px under the bar (2026-10-05) */
+/* THE WASH ALSO FADES IN FROM THE BAR (2026-10-05, the perfect bar: "a hard edge where the header wash starts"). The bar is
+   the page colour and the hero's daypart glow began at full strength on its first row, so the top of the hero drew a seam
+   straight under the bar in both themes. A short ramp from the page colour sits behind the words and over the glow (z-index -1
+   in the hero's own stacking context) and takes it from nothing at the bar to full a few rows down; the foot of the wash
+   already fades the same way. */
+.today-hero { position: relative; isolation: isolate; }
+.today-hero::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: var(--s-6); z-index: -1; pointer-events: none;
+  background: linear-gradient(180deg, var(--bg), transparent); }
 .today-summary { font-size: var(--t-meta); color: var(--tx-3); margin-top: var(--s-1); }
 
 /* Your Day auto-scroll ticker (catalog 19). CSS-driven loop + pause toggle. */
@@ -699,7 +718,11 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
 .icpick.sel { background: var(--sel-bg); color: var(--sel-fg); }
 .btn-danger .ic { width: 18px; height: 18px; margin-right: var(--s-1h); }
 .input-static { display: flex; align-items: center; color: var(--tx-2); }
-.switch-locked { opacity: 0.4; }
+/* A LOCKED SWITCH IS DIMMED, NOT ERASED (2026-10-05, the round 2 review: 0.4 over the light off track left a pale beige pill with a
+   near-white knob on a cream card). A smaller step, and in light the off track keeps a visibly darker warm grey, so the edge is
+   there before the knob. Dark is unchanged in kind: the same step over its own track. */
+.switch-locked { opacity: 0.6; }
+[data-theme="light"] .switch.off.switch-locked { background: color-mix(in srgb, var(--switch-off) 70%, var(--tx-3)); }
 .row-signout { justify-content: center; width: 100%; background: transparent; border: 0; color: var(--red); font-weight: var(--w-semi); font-size: var(--t-body); }
 /* THE CAPSULE LAW (Dave 2026-08-22: "buttons need to look like buttons not
    text"). A button is a shape, never bare words. The in-card action row now
@@ -714,7 +737,7 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
    Measured: leftGap 0, rightGap 127 in .card; 142/142 in a flex row.
    `display: flex` with `width: fit-content` keeps the pill the width of its
    label and makes the auto margins work. */
-.row-act { justify-content: center; width: fit-content; align-self: center; margin: var(--s-1) auto;
+.row-act { justify-content: center; gap: var(--s-2); width: fit-content; align-self: center; margin: var(--s-1) auto;
   background-color: var(--capsule-fill); border: 0; color: var(--tint); font-weight: var(--w-semi);
   font-size: var(--t-body); height: 40px; padding: 0 var(--s-5); border-radius: var(--r-pill);
   display: flex; align-items: center; position: relative; }
@@ -733,8 +756,6 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
    --s-3 above and below and carries no hairline: the capsule is its own edge. */
 .card > .row:not(.row-act) + .row.row-act { margin-top: var(--s-3); margin-bottom: var(--s-3); }
 .card > .row:not(.row-act) + .row.row-act::before { content: none; }
-/* The tail of a full-bleed list: centres whatever grows the list. */
-.list-foot { display: flex; justify-content: center; padding: var(--s-2) var(--s-4) var(--s-3); }
 .input-multiline { height: auto; min-height: 88px; padding-top: var(--s-2h); resize: none; line-height: var(--lh-relaxed); font-family: inherit; }
 /* A text bar action is 18px of glyph. It needs a hit area like everything
    else does (audit 2026-08-21: "Edit" measured 41x18 against a 24 minimum,
@@ -777,11 +798,23 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
 /* The screen itself: the overlay's own column, so the body can start at the
    top instead of centring one card in a black page. */
 .focus-screen { display: flex; flex-direction: column; }
-.focus-controls { display: flex; align-items: center; gap: var(--s-2); padding-top: var(--s-1); }
+.focus-controls { display: flex; align-items: stretch; gap: var(--s-2); padding-top: var(--s-1); }
 .focus-controls .segmented { flex: 1 1 auto; min-width: 0; }
-.focus-controls .chip-row { flex: 0 0 auto; }
+/* ONE ROW ON THE 20PX COLUMN, BOTH THEMES (2026-10-05, the review: "Quick Wins" wrapped in light, and Music hung 20px in from
+   the right edge). The labels never wrap, so the control is the same height in both themes; and the music chip is the chip
+   row WITHOUT the row's own page padding (it carried the 20px gutter a second time, so the chip stopped short of the card's
+   edge), as tall as the control beside it. */
+.focus-controls .seg { white-space: nowrap; }
+.focus-controls .chip-row { flex: 0 0 auto; padding: 0; overflow: visible; -webkit-mask-image: none; mask-image: none; }
+.focus-controls .chip-row > .chip { display: flex; align-items: center; min-height: 38px; padding-inline: var(--s-3); }
 .focus-run-line { padding: var(--s-2h) var(--s-4) 0; font-size: var(--t-sub); font-weight: var(--w-sub); color: var(--tx-3); }
 .focus-body { flex: 1; display: flex; flex-direction: column; gap: var(--s-2); padding-top: var(--s-3); }
+/* THE CARD STAYS AT THE TOP (Dave 2026-09-18, in FocusScreen.tsx: "it starts at the top now, under the control, where a
+   screen starts"). A 2026-10-05 pass centred it in the open space and so undid his own note; the cards on every other
+   page start under their head, and a thumb finds a card that is always in the same place. What a top card needs is air
+   under the controls, so the page does not feel jammed against its head: 20 of padding on top of the body's own 20 margin is
+   40 (five grid steps) between the controls and the card, where the centred version had 12 and then a hole. */
+.focus-screen .focus-body { justify-content: flex-start; padding-top: var(--s-4); padding-bottom: var(--s-10); }
 .focus-card { padding: var(--s-4); }
 .focus-task {
   font-size: var(--t-h2); font-weight: var(--w-bold);
@@ -789,34 +822,33 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
 }
 .focus-go { margin-top: var(--s-4); }
 .focus-acts { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-2); margin-top: var(--s-2); }
+/* THE FOUR ANSWERS, UNEQUAL ON PURPOSE (Dave 2026-09-18: "three verbs of equal loudness" was the fault). One filled Start
+   Now; under it Done, the answer that closes the loop, takes the room; the 15-minute timer is an icon capsule that hugs its
+   label; and Not This One is the quietest, words only in the tap red. Every control is a real 44px box or taller, so no
+   hit area is borrowed from its neighbour. */
+.focus-acts.skew { grid-template-columns: 1fr auto; }
 .focus-acts.three { grid-template-columns: 1fr 1fr 1fr; padding: 0 var(--s-3) var(--s-3); margin-top: 0; }
 .focus-acts .btn {
   display: inline-flex; align-items: center; justify-content: center; gap: var(--s-1h);
   /* Two capsules of the SAME height: "15 Minutes" wrapped to two lines and
      grew its half of the row taller than Done's. */
   white-space: nowrap; padding-inline: var(--s-2); font-size: calc(15px * var(--type-scale));
+  min-height: var(--tap-min);
 }
+.focus-acts.skew .btn { padding-inline: var(--s-4); }
 .focus-acts .btn .ic { width: 16px; height: 16px; }
 .focus-skip {
-  display: block; width: 100%; background: 0; border: 0; font-family: var(--f);
-  margin-top: var(--s-3); padding: 0;
+  display: flex; align-items: center; justify-content: center; width: 100%; min-height: var(--tap-min); background: 0; border: 0; font-family: var(--f);
+  margin-top: var(--s-1); margin-bottom: calc(-1 * var(--s-2)); padding: 0;
   color: var(--tint); font-size: var(--t-sub); font-weight: var(--w-medium);
 }
 /* "Not This One" is a tap, so it wears the key's tap red (§AM, 2026-09-25);
    it was --tx-quiet, the look of a caption. 4.59:1 on the card. */
 /* What is behind this card, so one card is not the whole screen's evidence. */
-.focus-rest { padding: 0 var(--s-4); font-size: var(--t-sub); font-weight: var(--w-sub); color: var(--tx-3); }
+.focus-rest { padding: 0; text-align: center; font-size: var(--t-sub); font-weight: var(--w-sub); color: var(--tx-3); }
 .focus-live { margin-top: var(--s-3); }
 .focus-live .conn-meta.warn { color: var(--warn); }
 .fresh-faded { color: var(--tx-3); }
-/* Focus + Plan My Day as a pair: Focus keeps the accent (one red action per
-   screen), Plan My Day drops to the quiet fill. */
-/* The pair wraps to two rows when its two labels do not fit one (type scale
-   1.4 at 390px: "Plan Tomorrow" beside "Running Late?" ran 51px past the
-   edge and scrolled the whole screen sideways, 2026-09-26). */
-.plan-cta-pair { display: flex; flex-wrap: wrap; gap: var(--s-2h); }
-.plan-cta-pair .plan-cta { width: auto; flex: 1 1 auto; }
-.plan-cta.plan-cta-ghost { background: var(--press-3); color: var(--tx-1); box-shadow: none; }
 /* Quiet right-slot actions in section headers (Not Now, dismiss): same seat as
    See All, calmer color. The question line sits under the header, outside the
    card (titles never live inside cards). */
@@ -912,6 +944,10 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
 .day-band { font-family: var(--f); font-size: var(--t-eyebrow); font-weight: var(--w-semi);
   letter-spacing: var(--track-eyebrow); text-transform: uppercase; color: var(--tx-2);
   padding: var(--s-4) var(--s-4) var(--s-2); }
+/* THE BAND IS A HEAD LIKE ITS SIBLINGS (round 3 review: "The Whole Day head has no rule line, unlike Your Move, Ready to
+   Send, Reminders and Now"): the same hairline runs from its title to the edge, in the quiet head's own divider ink. */
+.day-band { display: flex; align-items: center; gap: var(--s-2h); }
+.day-band::after { content: ""; flex: 1; border-top: 1px dotted var(--divider); }
 .day-clear { color: var(--tx-3); font-size: var(--t-meta); padding-bottom: var(--s-3); }
 .cat-dot-hollow { width: 10px; height: 10px; border-radius: var(--r-circle);
   flex-shrink: 0; background: transparent; border-width: 1.5px; border-style: dashed; }
@@ -946,13 +982,12 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
    other list wears, so Delete looks like Delete wherever it is reached from.
    It is also last in the rail, so it is the furthest thing from the thumb. */
 .sched-act-danger { background: var(--red); color: #fff; }
+/* THE ROW'S ONE VERB, FIRST IN THE RAIL (Dave 2026-10-05, locked): a proposed block's Book It takes the capsule's ground and
+   ink (the one accent reserved for actions), the way .task-verb does on a task row, so it never reads as the amber defer
+   beside it or the red Delete. */
+.sched-act[data-verb] { background-color: var(--capsule-fill); color: var(--tint); }
+[data-theme="light"] .sched-act[data-verb] { color: var(--on-light-red); }
 .sched-swipe-wrap .sched-row { position: relative; background: var(--bg); transition: transform 0.28s cubic-bezier(0.32,0.72,0,1); touch-action: pan-y; }
-/* Announces the swipe actions, and is the ONLY way to reach them without a
-   touchscreen: the gesture is bound to touch events only. Quiet enough not to
-   compete with the event title, big enough to hit on a phone. */
-.sched-grip { flex-shrink: 0; align-self: center; background: 0; border: 0; padding: 0 var(--s-2); min-width: 44px; min-height: 44px; display: flex; align-items: center; justify-content: center; color: var(--tx-3); }
-.sched-grip .ic { width: 18px; height: 18px; transition: transform var(--dur-fast) var(--ease-out); }
-.sched-grip.open .ic { transform: rotate(180deg); }
 .sched-swipe-wrap .sched-row.swiping { transition: none; }
 /* A swipe row must stay OPAQUE in every state. The shared hover rule paints
    rgba(255,255,255,0.06) over the row, and a translucent row sitting on top
@@ -969,7 +1004,7 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
 .plan-strip { padding: var(--s-2) 0 var(--s-1); }
 .plan-strip-bar { position: relative; height: 22px; border-radius: var(--r-sm); background: var(--press-3); overflow: hidden; }
 .plan-strip-seg { position: absolute; top: 0; bottom: 0; border-radius: var(--r-xs); }
-.strip-event { background: var(--press-6, rgba(255,255,255,0.28)); }
+.strip-event { background: var(--press-6, rgba(255,244,232,0.28)); }
 .strip-protected { background: var(--press-5); }
 .strip-protected.strip-soft { opacity: 0.45; border: 1px dashed var(--tx-3); }
 /* Focus time: an outlined invitation, not a wall; picks render over it.
@@ -986,12 +1021,19 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 .p3-time-btn.placing { color: var(--tint); font-weight: var(--w-semi); }
 .plan-strip-bar.strip-live { outline: 1px dashed var(--tint); cursor: pointer; }
 /* Search on the dock (2026-08-09): same height as the capture bar beside it. */
-.voice-dock { display: flex; gap: var(--s-2); align-items: stretch; }
+.voice-dock { display: flex; gap: var(--s-2); align-items: stretch; position: relative; z-index: 1; }
 .voice-dock .voice-bar { flex: 1; min-width: 0; }
-.voice-search { flex-shrink: 0; width: 52px; border: 0; border-radius: var(--r-card, 16px); background: var(--surface-2); color: var(--tx-2); display: flex; align-items: center; justify-content: center; }
+/* THE DOCK FADES THE PAGE INTO ITSELF (2026-10-05, D6: content fades into the dock with a page-colour gradient). Rows
+   used to be sliced off flat along the bar's top edge, with slivers of a capsule or a duration showing above it. A
+   24px ramp from the page colour to nothing sits just above the bar, behind it and under the toast and the return pill
+   (z-index -1 in the dock's own stacking context, the pill and toast at 2), and takes no touch. */
+.voice-dock::before { content: ""; position: absolute; left: 0; right: 0; bottom: 100%; height: var(--s-6); z-index: -1;
+  background: linear-gradient(to top, var(--bg), transparent); pointer-events: none; }
+/* BOTH ROUND BUTTONS ARE THE SAME OBJECT (2026-10-05, D3/D5). The bolt was --accent-tx (white in dark, a red slab in
+   light) beside a search in --tx-2, so the pair differed from each other and from themselves by theme. Chrome icons are
+   neutral: one size, one ink, one fill, outline glyphs, in both themes. */
+.voice-search { flex-shrink: 0; width: 56px; border: 0; border-radius: var(--r-pill); background: var(--surface-3); color: var(--tx-2); display: flex; align-items: center; justify-content: center; }
 .voice-search .ic { width: 20px; height: 20px; }
-.late-chips { padding-bottom: var(--s-2); }
-.plan-cta.late-armed { background: var(--press-5); }
 .search-top { display: flex; align-items: center; gap: var(--s-3); padding: calc(var(--safe-top) + var(--s-3)) var(--s-4) var(--s-3); }
 .search-top .search-bar { flex: 1; min-width: 0; }
 /* min-width:0 on both, 2026-09-21. At --type-scale 1.4 the input's intrinsic
@@ -1024,7 +1066,7 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 .msg-sends { font-size: var(--t-meta); color: var(--tint); font-weight: var(--w-medium); }
 .empty-sub { font-size: var(--t-sub); font-weight: var(--w-sub); color: var(--tx-3); text-align: center; max-width: 280px; }
 .money-hero { padding: var(--s-5) var(--s-4); }
-.money-hero-label { font-size: var(--t-meta); color: var(--tx-3); font-weight: var(--w-medium); margin-bottom: var(--s-1); }
+.money-hero-label { font-size: var(--t-sub); color: var(--tx-3); font-weight: var(--w-sub); margin-bottom: var(--s-1); }
 .money-hero-total { font-size: var(--t-h1); font-weight: var(--w-bold); color: var(--tx-1); }
 .money-amt { font-size: var(--t-body); font-weight: var(--w-semi); color: var(--tx-1); }
 /* Money v1 bills (2026-08-03). .bill-pay is the pay deep-link (tint text is
@@ -1087,6 +1129,9 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 .chart-fill { height: 100%; border-radius: var(--r-pill); }
 .today-bar { justify-content: space-between; }
 .today-av { background: 0; border: 0; padding: 0; display: flex; align-items: center; width: 36px; height: 36px; justify-content: center; }
+/* The neutral disc of an account with no name (2026-10-05) is Account's own `av-empty` and glyph, in the bar's 32: the glyph is
+   Account's 24 scaled to sit inside the smaller disc with air round it, not touching the edge. */
+.today-av .av-empty .ic { width: var(--s-4); height: var(--s-4); }
 .today-brand { flex: 1; text-align: center; font-size: var(--t-h3); font-weight: var(--w-bold); letter-spacing: -0.02em; color: var(--tx-1); }
 .today-brand .j { color: var(--accent-glyph); }
 .sched-seg { padding: var(--s-1) var(--s-4) var(--s-2); }
@@ -1206,6 +1251,10 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 /* Compact empty state for use inside cards; the base .empty-state is sized
    for full screens (65vh). */
 .empty-state.empty-compact { min-height: 0; padding: var(--s-6) var(--s-5) var(--s-4); }
+/* AN EMPTY STATE UNDER ITS OWN HEAD SITS CLOSE TO IT (the round 2 review: Protected Time's glyph had 32px of air above it and its last
+   line ended 5px from the dock, so the section did not fit above it). The head is the section's title, so the state is its
+   body and the air that belongs above it is a step, not a page's worth. */
+.sh2 + .empty-state.empty-compact { padding-top: var(--s-3); }
 
 /* Time-of-day hero tint: a whisper of warmth in the morning, cool dim in the
    evening. Gradient only; no layout change. Dark theme only: on light
@@ -1247,7 +1296,7 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 @keyframes scrimIn { from { opacity: 0; } to { opacity: 1; } }
 @keyframes sheetIn { from { transform: translateY(100%); } to { transform: translateY(0); } }
 .sheet-scrim { animation: scrimIn var(--dur-normal) var(--ease-out); }
-.sheet-scrim > .card { animation: sheetIn var(--dur-normal) var(--ease-spring); }
+.sheet-scrim > .card { animation: sheetIn var(--dur-enter) var(--ease-out); }
 
 /* Tab switch: instant, like native iOS (RDB, Dave 2026-07-29). No animation
    on tab-to-tab; the crispness IS the polish.
@@ -1258,7 +1307,7 @@ a.row.person-reach { color: inherit; text-decoration: none; }
    transform none, so fixed/sheet descendants are unaffected once settled. */
 @keyframes screenPushIn { from { transform: translateX(100%); } to { transform: none; } }
 @keyframes screenPopSettle { from { transform: translateX(-24%); opacity: 0.55; } to { transform: none; opacity: 1; } }
-.screen-push { animation: screenPushIn 340ms var(--ease-spring) both; box-shadow: -12px 0 28px rgba(0,0,0,0.35); }
+.screen-push { animation: screenPushIn 340ms var(--ease-spring) both; box-shadow: var(--shadow-float); }
 .screen-pop { animation: screenPopSettle 300ms var(--ease-spring) both; }
 
 /* Selection transitions (chips, segmented) */
@@ -1266,8 +1315,8 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 
 /* Tab bar polish: press + active-icon emphasis */
 .tab { transition: color var(--dur-fast) var(--ease-out); }
-.tab .ic { transition: transform var(--dur-fast) var(--ease-out); }
-.tab:active { opacity: 0.55; }
+.tab .ic { transition: transform var(--dur-normal) var(--ease-press); }
+.tab:active { opacity: 0.7; }
 .tab.active .ic { transform: scale(1.08); }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1282,7 +1331,10 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 
 /* Modals/sheets pop off the background in dark: lifted surface + crisp edge
    (card shadow is invisible on a black background, so the surface + border carry it). */
-.sheet-scrim > .card { background: var(--surface-2); border: 0.5px solid var(--card-bd); }
+/* OPAQUE (2026-10-05 review: the Good Morning title ghosted through New Event
+   at 94%): a sheet is a surface, nothing of the page reads through it. */
+.sheet-scrim > .card { background: var(--surface-2); border: 0.5px solid var(--card-bd);
+  box-shadow: inset 0 0.5px 0 var(--rim-card), var(--shadow-float); }
 .modal { border: 0.5px solid var(--card-bd); }
 
 /* Avatar color picker swatches */
@@ -1365,6 +1417,15 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 .msg-chips::-webkit-scrollbar { display: none; }
 .msg-chips > .chip { flex-shrink: 0; white-space: nowrap; max-width: 60vw;
   overflow: hidden; text-overflow: ellipsis; }
+/* THE VIEWS ARE A QUIET TAB ROW, NOT A SECOND PILL CONTROL (Dave 2026-10-05, the Email header: "two stacked tab controls
+   with unequal weight"). For You, All and Drafts (and Select) are text with the ink's underline on the one that is on, each
+   a real 44px box, so the Needs You and Waiting On segment below is the only filled control on the screen. */
+.msg-views { gap: var(--s-5); margin-bottom: 0; padding-bottom: 0; }
+.msg-views > .chip { background-color: transparent; color: var(--tx-3); border-radius: 0; padding: 0;
+  min-height: var(--tap-min); font-size: var(--t-body); font-weight: var(--w-semi); }
+.msg-views > .chip.on, .msg-views > .chip.active { background-color: transparent; color: var(--tx-1); }
+.msg-views > .chip.on::before { content: ""; position: absolute; left: 0; right: 0; bottom: var(--s-1h);
+  height: var(--s-0h); border-radius: var(--r-pill); background: var(--tx-1); }
 .msg-detail-head { padding: var(--s-2) 0 var(--s-3); }
 .msg-detail-subj { font-size: var(--t-h3); font-weight: var(--w-bold); }
 /* The thread summary is the most valuable thing on this screen, and it was the
@@ -1461,9 +1522,13 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 .proj-finish-note { margin-top: var(--s-2); text-align: center; }
 .proj-guess .conn-name { color: var(--tint); }
 .notif-scope { margin-top: var(--s-3); }
-.chat-starters { padding: var(--s-6) 0 0; }
-.chat-starter-head { padding: 0 var(--s-4) var(--s-2); font-size: var(--t-eyebrow); font-weight: var(--w-bold);
-  letter-spacing: var(--track-caps); text-transform: uppercase; color: var(--tx-3); }
+/* THE FIRST SCREEN OF CHAT (the review, 2026-10-05, D9). The app's own empty state, sat on the composer: it takes the free
+   height of the thread and pushes itself to the foot, so the moves are under the thumb and not stranded at the top of a blank
+   page. The starters are full-width tonal rows, so the fourth is never cut at the edge the way a scrolling chip row cut it. */
+.chat-empty { flex: 1 1 auto; min-height: 0; justify-content: flex-end; padding-bottom: var(--s-2); }
+.chat-starter-list { display: flex; flex-direction: column; gap: var(--s-2); width: 100%; margin-top: var(--s-3); }
+.chat-starter-list > .chat-starter { width: 100%; min-height: var(--tap-min); justify-content: flex-start; padding: 0 var(--s-4);
+  border: 0; border-radius: var(--r-md); font-family: var(--f); font-size: var(--t-body); font-weight: var(--w-semi); color: var(--tx-1); text-align: left; }
 
 /* BLENDING (2026-08-21). The offer tucks UNDER the block it belongs to,
    indented to the block's text edge, because the indent is what says "this
@@ -1493,7 +1558,7 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 .blend-row { gap: var(--s-2h); }
 /* Today's day card indents to ITS text edge, which sits further left than
    the Schedule tab's (no time gutter of the same width). */
-.blend-tuck-today { padding-left: 68px; padding-right: var(--s-4); }
+.blend-tuck-today { padding-left: calc(var(--s-4) + 52px); padding-right: var(--s-4); }
 
 /* THE END-OF-DAY CARD. Moved out of the Heads Up stream to the page foot
    2026-08-21: Heads Up is what JARVIS wants acted on NOW, and "how did today
@@ -1529,10 +1594,6 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 .deck-dead-burst { position: relative; height: 40px; }
 .msg-filed { margin-top: var(--s-4); display: flex; flex-direction: column; gap: var(--s-1h); }
 
-/* Multi-account (2026-08-04): the account tag is quiet metadata, never a
-   second subject line; account chips in Connections sit inside the row. */
-.conn-acct-chips { margin: var(--s-1h) 0 0; }
-
 /* RULE-9: Tasks - large completion target + swipe-to-delete. */
 .task-swipe { position: relative; overflow: hidden; }
 .task-del { position: absolute; top: 0; right: 0; bottom: 0; width: 88px; border: 0; background: var(--red);
@@ -1540,6 +1601,24 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 .task-del .ic { width: 22px; height: 22px; }
 .task-snooze { position: absolute; top: 0; right: 88px; bottom: 0; width: 88px; border: 0; background: var(--warn-fill); color: var(--on-fill-dark); display: flex; align-items: center; justify-content: center; }
 .task-snooze .ic { width: 22px; height: 22px; }
+/* 2026-10-04: A ONE-ACTION REVEAL USES THE OUTER SLOT. .task-snooze is the
+   SECOND slot (right:88px, beside a Delete at right:0), so on a row whose
+   only action it is, with an 88px reveal, the row still covers it: a tap on
+   the amber hit the row and the strip beside it held nothing. The same bug
+   messages/LetGoSwipe.tsx documents and fixed with .mail-letgo. The Notifications
+   nudge and the Momentum suggestion are that case; laws/swipeSlot.test.ts
+   holds every other bare .task-snooze to a two-slot roster. */
+.task-snooze.task-snooze-solo { right: 0; }
+/* THE ROW'S ONE VERB, FIRST IN THE TRAY (Dave 2026-10-05, locked: swipe left is the row's quickest action).
+   It takes the edge, so a small swipe uncovers it; Tomorrow and Delete follow it in. A capsule's ground and ink
+   (--capsule-fill, --tint): the one accent reserved for actions, never a fill that could be read as Delete's red. */
+.task-verb { position: absolute; top: 0; right: 0; bottom: 0; width: 88px; border: 0; background-color: var(--capsule-fill); color: var(--tint);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--s-1h); padding: 0 var(--s-1); font-family: var(--f); }
+.task-verb .ic { width: 20px; height: 20px; }
+.task-verb.task-verb-2 { right: 88px; background-color: var(--press-3); color: var(--tx-1); }
+/* A solo snooze that FOLLOWS a verb is the reveal's second slot (the Keep Going row: Start, then Not Now), so it steps in one button. */
+.task-verb ~ .task-snooze.task-snooze-solo { right: 88px; }
+[data-theme="light"] .task-verb { color: var(--on-light-red); }
 /* UP-CORE-15 (2026-09-05): THE LEADING RAIL. A right swipe completes, so the
    rail behind it is the completion colour every tick in this app already
    uses (the green a done check wears), not the brand red: red is the
@@ -1621,9 +1700,17 @@ a.row.person-reach { color: inherit; text-decoration: none; }
    region: the first attempt lifted the toast correctly and left 80px of dead
    black under the last card while it was up. A transform moves the paint and
    costs the layout nothing. */
-.toast-dock { padding: 0 var(--s-3) var(--s-2); transform: translateY(calc(-1 * var(--logbar-clear, 0px))); }
-.toast { display: flex; align-items: center; gap: var(--s-3); background: var(--surface-3); border: 0.5px solid var(--divider); border-radius: var(--r-md); padding: var(--s-2h) var(--s-3); box-shadow: var(--shadow-card); }
-.toast-msg { flex: 1; font-size: var(--t-body); color: var(--tx-1); }
+.toast-dock { position: relative; z-index: 2; padding: 0 var(--s-4) var(--s-2); transform: translateY(calc(-1 * var(--logbar-clear, 0px))); }
+.toast { display: flex; align-items: center; gap: var(--s-3); background: var(--surface-3); border: 0.5px solid var(--divider); border-radius: var(--r-lg); padding: var(--s-3) var(--s-4); box-shadow: var(--shadow-float); }
+/* THE TOAST IS A CARD, NOT A SLAB (2026-10-05, the review: it ran 12px from each edge against the page's 20, in a small radius, 8px off the dock so the two read as one
+   stack): the page's own side gutter (the dock's padding, so it is centred between the same 20s the page uses), the one 24
+   radius, and exactly 8 (one step of the grid) of air above the capture bar and the return pill, which follow it in the
+   shell's column. A long line wraps INSIDE its own column and balances, so two lines read as a pair and never as a word
+   left alone on the second; the action keeps its width and its 44px reach and centres against both lines. */
+/* A toast floats, so in light it is the warm near-white chrome lifted by the one shadow (2026-10-05):
+   its Undo is the action red as words, 5.2:1 here and 4.22 on the raised grey. */
+[data-theme="light"] .toast { background: var(--chrome-bg); }
+.toast-msg { flex: 1; min-width: 0; font-size: var(--t-body); color: var(--tx-1); text-wrap: balance; overflow-wrap: anywhere; }
 .toast-action { background: 0; border: 0; color: var(--tint); font-weight: var(--w-semi); font-size: var(--t-body); padding: var(--s-1) var(--s-2); flex-shrink: 0; }
 
 /* BROWSER-F-10 (2026-09-05). Every red WORD that sits on a sheet grey or the
@@ -1677,6 +1764,9 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 /* Two cards on one scrim (an action sheet and its Cancel) are two objects,
    not one card cut by a hairline: the same gap the grouped card keeps. */
 .sheet-scrim > .card + .card { margin-top: var(--s-2); }
+/* AND THE CANCEL CLEARS THE HOME INDICATOR (Dave 2026-10-05, the Profile Photo sheet: Cancel sat 23px from the glass with its
+   foot cut by the screen edge). The Cancel card keeps the safe-area inset under its button, and never less than a step. */
+.sheet-scrim > .card + .card { padding-bottom: max(var(--s-2), env(safe-area-inset-bottom, 0px)); }
 /* The mid-tier .btn is the one place where taking the red out of the letters
    would also take it out of the button: red-on-press-3 is the only thing that
    separated "Something Else" from the .btn-secondary above it, and white on
@@ -1708,19 +1798,32 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 /* THE REMINDERS PAGE (the reminders rebuild push E, 2026-09-15, Dave's
    interactive preview on the app's own chrome). */
 .rem-hero { display: flex; flex-direction: column; gap: var(--s-0h); }
+/* The date over the title sits on the title's own left edge: .pagehead-title carries the gutter as its padding, so the
+   eyebrow above it takes the same (it drew at x=0 against the screen edge, 2026-10-05). */
+.rem-hero > .eyebrow { padding: 0 var(--s-4); }
 .rem-toolbar { display: flex; gap: var(--s-2); margin: var(--s-3) 0; }
 .rem-toolbar .btn { display: inline-flex; align-items: center; justify-content: center; gap: var(--s-1h); }
 .rem-toolbar .btn-primary { flex: 1; }
 .rem-toolbar .btn .ic { width: 18px; height: 18px; }
 .rem-page .segmented { margin-bottom: var(--s-2); }
+/* ...but not the Life lens strip: it carries its own padding (ruled.css .life-seg), and this margin put the Reminders search row 8px
+   lower than Tasks, Projects and Goals, so the header jumped when the lens changed (2026-10-05, the perfect bar). */
+.rem-page .life-seg .segmented { margin-bottom: 0; }
 .rem-page .sub-bar { padding: 0 var(--s-4) var(--s-2); }
 /* A row inside the section's card, not a card of its own: same padding and
    same hairline the strip and the task list already use, so Reminders sits
    at the density of the three lenses beside it in Life. */
 .rem-card { padding: 8px var(--s-4); cursor: pointer; }
-.rem-card + .rem-card { position: relative; }
-.rem-card + .rem-card::before { content: ""; position: absolute;
+/* THE ROW IS A SWIPE SURFACE (Dave 2026-10-05: swipe left is its one verb, swipe right completes). Each row rides in its own
+   .task-swipe, so the moving element takes the ground, the snap-back and the pan-y the strip's .rem-row has always had, and
+   the hairline between two rows follows the swipe wrappers, not the rows. */
+.task-swipe > .rem-card { position: relative; background: var(--bg); transition: transform 0.28s cubic-bezier(0.32,0.72,0,1); touch-action: pan-y; }
+.task-swipe > .rem-card.swiping { transition: none; }
+.ruled .card .task-swipe > .rem-card { background: transparent; }
+.rem-page .list-card-ruled > .task-swipe + .task-swipe { position: relative; }
+.rem-page .list-card-ruled > .task-swipe + .task-swipe::before { content: ""; position: absolute; z-index: 2; pointer-events: none;
   left: calc(var(--s-4) + 22px + var(--s-2h)); right: 0; top: 0; height: 0.5px; background: var(--divider); }
+.ruled.rem-page .list-card-ruled > .task-swipe + .task-swipe::before { left: calc(var(--s-4) + 22px + var(--s-2h)); } /* beats the task list's own inset */
 .rem-card.done .rem-card-title { color: var(--tx-2); text-decoration: line-through; text-decoration-color: var(--tx-4); }
 /* Row anatomy corrected 2026-09-15, v3: a plain checkbox leads (`.cb`, the
    existing reminder control, never an icon tile beside it: two shapes for
@@ -1759,7 +1862,7 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 .rem-detail .sheet-form { padding-top: var(--s-1); }
 .rem-detail-head { padding: var(--s-2) var(--s-4) var(--s-3); display: flex; flex-direction: column; gap: var(--s-1h); }
 .rem-detail-title { font-size: var(--t-title); font-weight: var(--w-bold); letter-spacing: -0.01em; line-height: 1.2; }
-.rem-detail-acts { display: flex; flex-direction: column; gap: var(--s-2); padding: var(--s-2) var(--s-4); }
+.rem-detail-acts { display: flex; flex-direction: column; gap: var(--s-2); padding: var(--s-4) var(--s-4) var(--s-2); }
 .rem-detail-acts .btn { width: 100%; }
 .rem-detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-2); }
 .rem-more { padding: 0 var(--s-4); }
@@ -1843,7 +1946,6 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 .anytime-open { color: var(--tx-2); }
 .anytime-card { padding: 0; }
 .anytime-row { display: flex; align-items: center; gap: var(--s-2h); padding: var(--s-2h) var(--s-4); }
-.anytime-row + .anytime-row { border-top: 0.5px solid var(--divider); }
 .anytime-row .cat-dot { width: 8px; height: 8px; }
 .anytime-name { flex: 1; min-width: 0; text-align: left; background: transparent; border: 0; padding: 0;
   font-family: inherit; font-size: var(--t-body); font-weight: var(--w-semi); color: var(--tx-1); cursor: pointer;
@@ -1862,22 +1964,29 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 /* === Roadmap v2: Plan My Day, pick your three === */
 .p3-q { font-size: var(--t-h1); font-weight: var(--w-bold); letter-spacing: var(--track-h1); line-height: var(--lh-snug); margin-bottom: var(--s-2); }
 .p3-list { display: flex; flex-direction: column; gap: var(--s-2); margin-top: var(--s-3); }
+/* ONE LEFT EDGE (2026-10-05 review): the sheet's pad-x already sets the gutter,
+   so the group heads and the chip row take none of their own. They sat 20px in
+   from the title and the rows. */
+.p3-list .sh2, .sheet-form > .chip-row { padding-left: 0; padding-right: 0; }
 .p3-row { display: flex; align-items: center; gap: var(--s-3); padding: var(--s-3) var(--s-3h); border-radius: var(--r-lg);
   background: var(--press-3); box-shadow: inset 0 0 0 0.5px var(--divider); cursor: pointer; }
-.p3-row.on { background: var(--press-5); box-shadow: inset 0 0 0 1.5px var(--sel-bg); }
+/* A PICK IS A TINT, NOT AN OUTLINE (2026-10-05 review: five hard 2px near-white
+   or near-black rings made the whole sheet read as selected). The numbered
+   disc already says which; the row only warms and takes a hairline of the key. */
+.p3-row.on { background: color-mix(in srgb, var(--tint) 8%, var(--press-3)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--tint) 40%, transparent); }
 .p3-num { width: 28px; height: 28px; flex: 0 0 28px; border-radius: var(--r-circle); border: 1.5px solid var(--tx-4);
   display: flex; align-items: center; justify-content: center; font-size: var(--t-body); font-weight: var(--w-bold); color: var(--tx-2); }
 .p3-row.on .p3-num { background: var(--sel-bg); border: 0; color: var(--sel-fg); }
 .p3-name { flex: 1; min-width: 0; font-size: var(--t-body); font-weight: var(--w-semi); }
 .p3-time { font-size: var(--t-meta); font-weight: var(--w-medium); color: var(--tx-3); flex-shrink: 0; }
-/* A picked row's time is a button that opens its tuning, so it wears the tap
-   colour for words straight on a sheet (§AM, 2026-09-26). In grey it was a
-   second grey beside the row's reason. */
-.p3-row.on .p3-time-btn:not(.placing) { color: var(--tint-on-sheet); }
-/* Placing, on a picked row, takes the same sheet red: the plain tap red on
-   the picked row's grey read 2.42:1 in dark and 4.03:1 in light. What says
-   "placing" is the underline, not a second red (2026-09-26). */
-.p3-row.on .p3-time-btn.placing { color: var(--tint-on-sheet); text-decoration: underline; text-underline-offset: 3px; }
+/* A picked row's time is a button that opens its tuning. It is a number with no
+   state, so it is the primary ink (§AM; 2026-10-05 review: in tap red it read as
+   a late time in light), and never the row's second grey (2026-09-26). */
+.p3-row.on .p3-time-btn:not(.placing) { color: var(--tx-1); font-weight: var(--w-semi); }
+/* Placing, on a picked row, keeps the same ink: red here read as "late" in light
+   (2026-10-05 review), so a pick's time is a number with no state, white, and
+   what says "placing" is the underline (2026-09-26). */
+.p3-row.on .p3-time-btn.placing { color: var(--tx-1); text-decoration: underline; text-underline-offset: 3px; }
 /* The key's amber on a picked row takes its sheet twin (2026-09-26, the
    lead). The picked grey is 14% white over the sheet, #4A4A4B in dark, and
    the plain amber read 4.31:1 there, under AA at the fact size; the twin
@@ -1887,11 +1996,11 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 .p3-row.on .fact.warn { color: var(--warn-on-sheet); }
 
 /* === Roadmap v2: soft anchor guard === */
-.ag-scrim { position: fixed; inset: 0; z-index: 60; background: rgba(0,0,0,0.55);
+.ag-scrim { position: fixed; inset: 0; z-index: 60; background: var(--scrim);
   display: flex; align-items: center; justify-content: center; padding: var(--s-6); }
 .ag-card { width: 100%; max-width: 320px; background: var(--surface-2); border-radius: var(--r-xl);
   padding: var(--s-6) var(--s-5) var(--s-4); text-align: center;
-  box-shadow: 0 20px 60px rgba(0,0,0,0.6), inset 0 0.5px 0 var(--rim-card); }
+  box-shadow: var(--shadow-float), inset 0 0.5px 0 var(--rim-card); }
 .ag-title { font-size: var(--t-h2); font-weight: var(--w-bold); letter-spacing: var(--track-h2); }
 /* The quiet line under the guard's question takes the fact size (§AM F4,
    2026-09-25), the same as the line under a sheet's question. */
@@ -1902,7 +2011,7 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 .anytime-row { touch-action: pan-y; }
 .anytime-ghost { position: fixed; z-index: 80; transform: translate(-50%, -150%); pointer-events: none;
   padding: var(--s-2) var(--s-3h); border-radius: var(--r-pill); background: var(--red); color: #fff;
-  font-size: var(--t-meta); font-weight: var(--w-semi); box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+  font-size: var(--t-meta); font-weight: var(--w-semi); box-shadow: var(--shadow-float);
   max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .card.drop-target { outline: 2px solid var(--red); outline-offset: -2px; }
 body.jarvis-dragging { overflow: hidden; touch-action: none; -webkit-user-select: none; user-select: none; }
@@ -2210,6 +2319,9 @@ button {
    no horizontal-scroll affordance, and label/category picks must all be
    visible at once). The base .chip-row mask/scroll behavior stays for pages. */
 .chip-wrap-row { flex-wrap: wrap; overflow-x: visible; -webkit-mask-image: none; mask-image: none; margin-bottom: var(--s-2); }
+/* AN OFF PLATE IS STILL A CHIP (the review, dark: the unselected plates were a 6% fill on the card and nearly vanished, so which plates the rack
+   has was hard to read). A settings chip that is off wears a hairline, so its shape reads against the card in both themes. */
+.set-card .chip-wrap-row > .chip:not(.active) { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--tx-4) 55%, transparent); }
 .input-stack { margin-bottom: var(--s-2); }
 .list-search { padding-bottom: var(--s-2); }
 .search-bar .search-ic { width: 18px; height: 18px; opacity: 0.6; flex-shrink: 0; }
@@ -2317,7 +2429,7 @@ button {
    the reveal is the destructive one. Delete goes to Gmail's trash, which is
    recoverable, and the app never permanently deletes. */
 .mail-arch { position: absolute; top: 0; right: 88px; bottom: 0; width: 88px; border: 0;
-  background: var(--surface-3, #2c2c2e); color: var(--tx-1); display: flex; align-items: center; justify-content: center; }
+  background: var(--surface-3, #36312D); color: var(--tx-1); display: flex; align-items: center; justify-content: center; }
 .mail-arch .ic { width: 22px; height: 22px; }
 
 /* Let It Go sits in the OUTER slot (right:0), because that is the slot a
@@ -2327,7 +2439,7 @@ button {
    touches the mail), so neither gets the red fill; the hairline is what
    tells them apart. */
 .mail-letgo { position: absolute; top: 0; right: 0; bottom: 0; width: 88px; border: 0;
-  background: var(--surface-3, #2c2c2e); color: var(--tx-1); display: flex; align-items: center; justify-content: center; }
+  background: var(--surface-3, #36312D); color: var(--tx-1); display: flex; align-items: center; justify-content: center; }
 .mail-letgo .ic { width: 22px; height: 22px; }
 .mail-arch + .mail-letgo { border-left: 0.5px solid var(--card-bd); }
 
@@ -2433,7 +2545,7 @@ button {
   /* --tx-quiet (BROWSER-F-09, 2026-09-05): every one of these is a BUTTON that
      opens the pile it describes ("13 More waiting", "4 More Emails in Your
      Inbox"), and 2.3:1 is not a quiet button, it is a hidden one. */
-  color: var(--tx-quiet); padding: var(--s-1) var(--s-4) 0; white-space: nowrap; overflow: visible;
+  color: var(--tx-quiet); padding: var(--s-1) var(--s-9) 0 var(--s-4); white-space: nowrap; overflow: visible;
   text-overflow: ellipsis; background: none; border: 0; width: 100%; text-align: left;
   position: relative; display: flex; align-items: center; gap: var(--s-2); }
 /* I5 (2026-08-24). Every one of these is a <button> that opens something,
@@ -2444,14 +2556,18 @@ button {
    more" - the Noticed whisper opens a card with a real verb behind it. It
    stays dim; the glyph does the work, not colour. */
 .receipt-line .rl-t { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+/* ONE CHEVRON COLUMN (round 3 review: "the chevron sits past the card edge"). A fold on the page's own ground runs the full
+   width of the screen, and the cards above it are inset by the 20px gutter and carry their chevrons 20px inside that, so
+   the line reserves the same 40px on the right and its chevron lands on the card rows' column. Inside a card or an
+   already-inset block the container supplies the gutter, so only the padding above applies. */
+.pad-x > .receipt-line, .card .receipt-line { padding-right: var(--s-4); }
 .receipt-line .chev { flex-shrink: 0; }
 /* Painted at about 19px, which is a bad target and well under --tap-min. */
 .receipt-line::after { content: ""; position: absolute; inset: -14px 0; }
 /* Two of these lines, or one under a row, would hand each other's taps over: the reach above is 14px past the paint,
    so a neighbour closer than 14px loses its own edge to it. Today's draft tail is the case that stacked them (Dave's
-   audit, 2026-10-04: "18 More in Anytime" answered by "Clear This Plan"): a gap above the clear line, and below the
-   fold line while its rows are open, so each reach ends in empty space. */
-.draft-clear { margin-top: var(--s-4); }
+   audit, 2026-10-04: "18 More in Anytime" answered by "Clear This Plan"; Clear This Plan is on the day's head now, so
+   only the fold remains): a gap below the fold line while its rows are open, so its reach ends in empty space. */
 .receipt-line.draft-fold[aria-expanded="true"] { margin-bottom: var(--s-4); }
 
 /* THE 44px SWEEP (2026-08-24, page-by-page walk).
@@ -2507,6 +2623,9 @@ button {
 .msg-undo { flex-shrink: 0; }
 /* The three sender-level exits, stacked quietly under the thread actions. */
 .msg-quiet-acts { display: flex; flex-direction: column; align-items: flex-start; gap: var(--s-2); margin-top: var(--s-3); }
+/* In a sheet's form the quiet capsules are ONE WRAPPING ROW under the field they belong to, on the field's own column
+   (2026-10-05, Smart Paste: Speak and the two filing doors). */
+.sheet-form > .msg-quiet-acts { flex-direction: row; flex-wrap: wrap; align-items: center; margin-top: var(--s-2); }
 /* The thread's last row sat under the floating voice dock (Dave 2026-08-25,
    second screenshot: Reply and Forward half-covered). The dock is fixed over
    the page, so the page has to end above it. Measured against the dock's own
@@ -2536,8 +2655,6 @@ button {
   font-size: var(--t-sub); color: var(--tx-3); }
 .budget-row > span:last-child { color: var(--tx-1); font-variant-numeric: tabular-nums; }
 .budget-total { color: var(--tx-1); font-weight: var(--w-semi); border-top: 0.5px solid var(--card-bd); margin-top: var(--s-1); padding-top: var(--s-2); }
-.budget-add { display: flex; gap: var(--s-2); align-items: center; }
-.budget-amt { width: 6rem; flex-shrink: 0; }
 
 /* Schedule upload: the photo thumbnail on the review screen, and the dimmed
    title for a row the user chose to skip. */
@@ -2698,6 +2815,13 @@ button {
 .stat-tile.stat-plain .stat-num { color: var(--tx-1); }
 .row-ico { width: 28px; height: 28px; border-radius: var(--r-sm); display: flex; align-items: center; justify-content: center; flex-shrink: 0; color: #fff; }
 .row-ico .ic { width: 15px; height: 15px; }
+/* A TILE'S GLYPH WEARS ITS FILL'S OWN ON-COLOUR (Dave 2026-10-05, the Email Tools tiles: white on the light fills is 1.7 to
+   2.1:1). .row-ico said #fff for every fill, which beat the fills' own on-colour higher up the sheet; the palette's rule is
+   that black clears every light fill and white only the three dark light-theme slots, the same split the .cat-bg-* rules
+   at the top of this file keep. Only the category fills: a form sheet's nav-tile tiles keep the white glyph they draw, and
+   the brand fill keeps its own. */
+.row-ico[class*="cat-bg-"]:not(.cat-bg-brand) { color: var(--on-fill-dark); }
+[data-theme="light"] .row-ico.cat-bg-coral, [data-theme="light"] .row-ico.cat-bg-purple, [data-theme="light"] .row-ico.cat-bg-graphite { color: #FFFFFF; }
 .day-divide { font-size: var(--t-eyebrow); font-weight: var(--w-semi); letter-spacing: 1px; text-transform: uppercase; color: var(--tx-2); padding: var(--s-2h) var(--s-1) var(--s-1); }
 
 /* CHAT BUBBLE ANATOMY (addendum item 24: THE one sanctioned locked-CSS
@@ -2734,6 +2858,11 @@ button {
 .chat-refs { margin-top: var(--s-1h); }
 .chat-inputbar { display: flex; gap: var(--s-2); padding: var(--s-2h) var(--s-4); padding-bottom: calc(var(--s-2h) + var(--s-safe-b)); }
 .chat-inputbar .input { flex: 1; }
+/* THE COMPOSER'S TWO CIRCLES (the review: the attach button was a solid red slab beside a dimmed maroon send, so the loudest
+   control was the one he uses least). Attach is a quiet tonal circle with a neutral glyph; Send is the one red circle, and
+   tonal while there is nothing to send, at full strength and not faded to a muddy maroon. */
+.chat-inputbar .chat-attach { background-color: var(--press-3); color: var(--tx-2); }
+.chat-inputbar .chat-send:disabled { background-color: var(--press-3); color: var(--tx-3); opacity: 1; }
 
 /* === CATALOG V3.1 (approved 2026-08-18, LOCKED-CSS CHANGE FLAGGED) ===
    Dave's four asks, as CSS law. 1 FULL PALETTE: nav-tile-* expands to all 15
@@ -2766,14 +2895,17 @@ button {
 .stepper .val { min-width: 44px; text-align: center; }
 
 /* 3 · cleaner visuals */
-.stat-tile { background-image: linear-gradient(180deg, rgba(255,255,255,0.05), transparent 55%);
-  box-shadow: inset 0 0.5px 0 rgba(255,255,255,0.09); }
+.stat-tile { background-image: linear-gradient(180deg, rgba(255,244,232,0.05), transparent 55%);
+  box-shadow: inset 0 0.5px 0 rgba(255,240,225,0.09); }
 [data-theme="light"] .stat-tile { background-image: none; box-shadow: none; }
 .stat-num { letter-spacing: -0.5px; }
+/* THE WASH FADES INTO THE PAGE, IT DOES NOT END (2026-10-05, the review: "a visible straight line under the stat tiles"). The
+   diagonal glow is still strong at the hero's bottom-left corner, so the box's edge showed as a seam in both themes. A second
+   layer, the page's own colour fading in from clear, sits over it and takes the glow to nothing at the foot. */
 [data-theme="dark"] .today-hero.hero-morning {
-  background: linear-gradient(160deg, rgba(255,31,48,0.13), rgba(255,120,40,0.06) 45%, transparent 80%); }
+  background: linear-gradient(180deg, transparent 30%, var(--bg) 100%), linear-gradient(160deg, rgba(255,31,48,0.13), rgba(255,120,40,0.06) 45%, transparent 80%); }
 [data-theme="dark"] .today-hero.hero-evening {
-  background: linear-gradient(160deg, rgba(94,120,255,0.12), rgba(140,90,255,0.05) 45%, transparent 80%); }
+  background: linear-gradient(180deg, transparent 30%, var(--bg) 100%), linear-gradient(160deg, rgba(94,120,255,0.12), rgba(140,90,255,0.05) 45%, transparent 80%); }
 /* The gradient-and-glow fill that lived here was removed 2026-09-01 (ruled:
    the ring is flat, one colour, no glow; see ruled.css). */
 .row[role="button"]:active, .lib-row:active, .tip-banner .tip-x:active {
@@ -2820,6 +2952,11 @@ button {
 .lib-row .lib-ico { width: 30px; display: flex; justify-content: center; flex-shrink: 0; }
 :where(.lib-ico) { color: var(--accent-glyph); }
 .lib-row .lib-ico .ic { width: 25px; height: 25px; }
+/* THE SETTINGS TILE (2026-10-05, the round 2 review: bare glyphs of mixed weight and optical size on one page, a rounded tile on every sheet). One
+   30px rounded tile per row, washed in the row's own hue (the glyph's colour at 16%), one 20px glyph from the one filled set, so every row is the same
+   size of mark whether its glyph is a bell or a link. 30px wide, so the hairline between rows still starts where it always did. */
+.lib-row .lib-ico.lib-ico-tile { height: 30px; align-items: center; border-radius: var(--r-sm); background: color-mix(in srgb, currentColor 16%, transparent); }
+.lib-row .lib-ico.lib-ico-tile .ic { width: 20px; height: 20px; }
 /* TWO LINES, FOR THE SAME REASON .pagehead-title GOT THEM (2026-09-21, and
    on the same string: BROWSER-F-06 took the big page title off the no-wrap
    law because "What JARVIS Knows" did not fit it. At --type-scale 1.4 the
@@ -2875,7 +3012,9 @@ button {
 .boot-stagger .card > *:nth-child(8) { animation-delay: 210ms; }
 /* Glass chrome: the bar keeps its blur and gains saturation so color under
    it stays alive (solid --nav-bg remains the fallback tint). */
-.tab-bar { -webkit-backdrop-filter: blur(22px) saturate(160%); backdrop-filter: blur(22px) saturate(160%); }
+.tab-bar { -webkit-backdrop-filter: blur(22px) saturate(160%); backdrop-filter: blur(22px) saturate(160%);
+  /* The faint warm material (Dave 2026-10-05): the bar is --nav-bg over a blur, with a hairline highlight on its top edge and no shadow. */
+  border-top-color: var(--chrome-hairline); box-shadow: inset 0 0.5px 0 var(--rim-card); }
 @media (prefers-reduced-motion: reduce) {
   .restore-banner, .tip-banner, .boot-stagger .card > * { animation: none; }
 }
@@ -2904,14 +3043,15 @@ button {
    moves, .on additionally brings the centered title. Tying the material to
    the title left a band as tall as the hero where "Good Evening, Dave" was
    sliding up through the iOS clock with nothing behind it. See useCondensed. */
-.pagebar.on, .pagebar.solid { background: rgba(12,12,14,0.82); -webkit-backdrop-filter: blur(22px) saturate(160%); backdrop-filter: blur(22px) saturate(160%); box-shadow: 0 0.5px 0 var(--divider); }
-[data-theme="light"] .pagebar.on, [data-theme="light"] .pagebar.solid { background: rgba(255,255,255,0.86); }
+.pagebar.on, .pagebar.solid { background-color: var(--bar-solid); -webkit-backdrop-filter: blur(22px) saturate(160%); backdrop-filter: blur(22px) saturate(160%); box-shadow: 0 0.5px 0 var(--divider); }
 .pagebar.on .pagebar-title { opacity: 1; }
 /* The energy line takes the Apple Music icon gradient (red into its lighter
    stop) before fading out. Pure decoration, no text near it, so the light
    stop is safe here and nowhere else. */
-.pagebar.on::after { content: ""; position: absolute; left: var(--s-4); bottom: 0; height: 2px; width: 64px;
-  border-radius: var(--r-xxs); background: linear-gradient(90deg, #FA233B, #FB5C74 55%, rgba(251,92,116,0)); }
+/* NO STROKE ON THE CONDENSED BAR (2026-10-05, the perfect bar). It used to ride the bar's foot ("the mark never actually
+   leaves the screen"), and on the live app it read as an orphaned red underline pinned over whatever scrolled up under
+   it: across the top of the Goals card, beside Email's first row. The signature stroke belongs to the large title and
+   leaves with it (.pagehead-title::after, faded the moment the bar goes solid); the bar's hairline is its whole edge. */
 .pagehead-title { padding: var(--s-1) var(--s-4) 0; font-size: calc(34px * var(--type-scale)); font-weight: var(--w-bold); letter-spacing: -0.03em; }
 /* THE SIGNATURE STROKE (Dave 2026-08-30, approved from rendered previews).
    Reverses part of the previous day's red diet -- see LAW 11 in laws.test.ts
@@ -2930,7 +3070,7 @@ button {
    Decoration only: no text sits on this, which is what makes the light stop
    of the gradient safe here, exactly as the pagebar's comment says of its
    own. */
-.pagehead-title::after { content: ""; display: block; margin-top: var(--s-1h); height: 2px; width: 64px;
+.pagehead-title::after { content: ""; display: block; margin-top: var(--s-1h); margin-bottom: var(--s-3); height: 2px; width: 64px;
   border-radius: var(--r-xxs); background: linear-gradient(90deg, #FA233B, #FB5C74 55%, rgba(251,92,116,0));
   transition: opacity var(--dur-fast) var(--ease-out); }
 /* THE STROKE LEAVES WITH THE FIRST SCROLL (Dave 2026-09-16, the Schedule
@@ -2943,7 +3083,7 @@ button {
    the bar as it condenses, so the mark never actually leaves the screen. */
 .pagebar.solid + .pagehead .pagehead-title::after { opacity: 0; }
 .barbtn { width: 32px; height: 32px; border-radius: var(--r-circle); background: var(--press-3); border: 0;
-  display: flex; align-items: center; justify-content: center; color: var(--accent-tx); flex-shrink: 0; }
+  display: flex; align-items: center; justify-content: center; color: var(--tint); flex-shrink: 0; }
 .barbtn .ic { width: 17px; height: 17px; }
 
 /* Library rows go FULL BLEED: dividers live on the rows themselves (inset to
@@ -2977,6 +3117,9 @@ button {
 .notice-disc { width: 30px; height: 30px; border-radius: var(--r-circle);
   display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .notice-disc .ic { width: 17px; height: 17px; }
+/* ONE TILE SHAPE FOR EVERY NOTICE (round 3 review: a circle in an offer card beside rounded squares in the rows around it).
+   A notice's type icon is the same 30px rounded square wherever its card is drawn. */
+.notice-card .notice-disc { border-radius: var(--r-sm); }
 
 /* Bare colored glyph column (replaces the tile on library surfaces). */
 .row-glyph { width: 30px; display: flex; justify-content: center; flex-shrink: 0; }
@@ -2999,6 +3142,9 @@ button {
   text-transform: uppercase; color: var(--accent-chrome); }
 .sh2::after { content: ""; order: 1; flex: 1; border-top: 1px dotted rgba(250, 35, 59, 0.35); align-self: center; }
 .sh2 .n { order: 2; font-size: var(--t-micro); font-weight: var(--w-bold); color: var(--tx-3); letter-spacing: var(--track-caps); }
+/* A head's own estimate ("About 2 Min" beside the Sweep capsule) is a fact span: sky (an estimate), the line's regular
+   weight, never grey caps (Dave 2026-10-05, D4). The capsule beside it is the verb alone. */
+.sh2 .n.fact.est { color: var(--est-ink); font-size: var(--t-sub); font-weight: var(--w-sub); letter-spacing: normal; text-transform: none; }
 /* I3 (2026-08-24, Dave's screenshot): SIX identical red heads down one
    screen. When every head shouts, none of them does, and the accent stops
    meaning "look here" exactly the way a second filled red does. Same
@@ -3009,7 +3155,9 @@ button {
    into a spine. The dotted rule goes with it: a grey label under a red rule
    is still a red head. */
 .sh2.sh2-quiet .t { color: var(--tx-3); }
-.sh2.sh2-quiet::after { border-top-color: var(--divider); }
+/* THE LEADER IS SEEN IN BOTH THEMES (2026-10-05, the round 2 review: drawn in light, invisible in dark, because --divider is a 7% white over the charcoal).
+   The structure grey at a little under half, so the same dotted hairline reads at the same strength on both grounds. */
+.sh2.sh2-quiet::after { border-top-color: color-mix(in srgb, var(--tx-4) 45%, transparent); }
 /* Today's brand bar rides the same chassis: sticky, glass on condense. */
 .today-pagebar .today-bar { padding-top: 0; height: 44px; width: 100%; }
 .sched-list.drop-target { outline: 2px solid var(--red); outline-offset: -2px; border-radius: var(--r-md); }
@@ -3027,9 +3175,9 @@ button {
    retire from banners; meaning lives in the badge.
    Plus the no-wrap law (titles never wrap, they ellipsize; subs clamp to
    two lines) and the colored hierarchy slots (.fact-*, colored kickers). */
-.promo-card { background: #1C1C1E; border-radius: var(--r-xl); margin: 0 var(--s-4) var(--s-3);
+.promo-card { background: var(--surface-1); border-radius: var(--r-xl); margin: 0 var(--s-4) var(--s-3);
   padding: var(--s-4); position: relative; animation: restoreIn var(--dur-slow) var(--ease-spring); }
-[data-theme="light"] .promo-card { background: #F5F6F8; box-shadow: var(--shadow-card); border: 0.5px solid var(--card-bd); }
+[data-theme="light"] .promo-card { box-shadow: var(--shadow-card); border: 0.5px solid var(--card-bd); }
 .promo-head { display: flex; gap: var(--s-3h); align-items: center; }
 .promo-badge { width: 52px; height: 52px; border-radius: var(--r-circle); display: flex; align-items: center;
   justify-content: center; flex-shrink: 0; color: #fff; }
@@ -3081,7 +3229,7 @@ button {
    truncation problem; it is a title that needs a second line.
    Three fixed rows on one screen, so nothing below them can be pushed off. */
 .ob-screen .card > .row > .row-grow > .conn-name {
-  white-space: normal; overflow: visible; text-overflow: clip; }
+  white-space: normal; overflow: visible; text-overflow: clip; text-wrap: balance; } /* balanced: "Connect Gmail / and Calendar", never one word alone (2026-10-05) */
 /* BROWSER-F-06 (2026-09-05): .pagehead-title is off this list. It is 34px
    bold with -0.03em tracking in a 358px column, which is 15 characters, and
    two of the app's OWN page names are longer: "What JARVIS Knows" rendered as
@@ -3109,17 +3257,18 @@ button {
    that may take a systemic color. Weight carries them over the 60% grey. */
 .fact-warn { color: var(--warn); font-weight: var(--w-semi); }
 .fact-good { color: var(--good); font-weight: var(--w-semi); }
-.fact-red { color: var(--red); font-weight: var(--w-semi); }
-.fact-sky { color: var(--cat-sky, #64D2FF); font-weight: var(--w-semi); }
-.fact-purple { color: var(--cat-purple, #BF5AF2); font-weight: var(--w-semi); }
+/* 2026-10-05 (visual catalog gate, R3): the red, sky and purple slots that
+   stood here had no call site anywhere, and two of them painted WORDS in a
+   category colour with a raw hex fallback, which the Colour Key forbids
+   (sky is an estimate and wears its own ink; purple is not in the key). */
 
 /* DECISION RECORD (brainstorm shipment 1, built 2026-08-18 to Catalog V3.3).
    The record reads as blocks: the decision line big, the reason in the
    second rank, quiet facts in the third. Replaces renders the superseded
    line struck through, tone neutral by law. */
 .dec-main { font-size: var(--t-h2); font-weight: var(--w-semi); color: var(--tx-1); line-height: var(--lh-snug); }
-.dec-why { font-size: var(--t-body); color: var(--tx-2); line-height: var(--lh-relaxed); }
-.dec-old { font-size: var(--t-body); color: var(--tx-3); text-decoration: line-through; }
+.dec-why { font-size: var(--t-body); color: var(--tx-2); line-height: var(--lh-relaxed); text-wrap: balance; }
+.dec-old { font-size: var(--t-body); color: var(--tx-1); text-decoration: line-through; }
 
 /* CATALOG V4 (The Branded Library, Dave 2026-08-18). Flagged block. */
 /* Filled brand glyphs on nav lists: red is the wash, filled is the state. */
@@ -3191,7 +3340,7 @@ button {
    makes it the wordless mark the auditor's own "marked ahead of the words"
    exemption looks for, clearing both runs it leads without spending any
    more colour. */
-.sched-open-plus { font-size: var(--t-h3); line-height: 1; font-weight: var(--w-bold); color: var(--accent-tx); }
+.sched-open-plus { font-size: var(--t-h3); line-height: 1; font-weight: var(--w-bold); color: var(--tint); }
 .sched-open-plus::before { content: "+"; }
 .sched-gap.past { opacity: 0.4; }
 .sched-gap:active { background: var(--press-3); }
@@ -3247,24 +3396,6 @@ button {
    app uses. Dave 2026-09-11: "put 6 more anytime in a more appropriate place
    that follows the formatting and styling rules.") */
 
-/* FOCUS, WHERE THE QUESTION IS ASKED (Dave 2026-09-11: "The focus button
-   should be all the way up top under your move and replace that small grey
-   subtext that renders the up next page"). It replaces a .receipt-line, so it
-   keeps that row's place and padding, but it is a real control rather than a
-   grey caps sentence: the bullseye, the verb in full ink, and the count of
-   what is waiting as a chip on the right. */
-/* FOCUS IS THE CENTRED PILL (Dave 2026-09-11: "Focus should be centered on
-   the page and styled just like clear all and add to calendar buttons"). It
-   IS .row-act in .notice-clear-row now, so the shape comes from the app
-   rather than from a class of its own; this adds only the two things those
-   two buttons do not have -- centring rather than flex-end, the glyph's
-   and sizing. */
-.focus-row { justify-content: center; padding-bottom: var(--s-1); }
-.focus-row .row-act { gap: var(--s-2); }
-.focus-row .row-act .ic { width: 17px; height: 17px; flex-shrink: 0; }
-.focus-row .row-act .fc-t { font-weight: var(--w-semi); }
-/* 2026-10-03 (Dave): no count inside the pill. "Get rid of 13 waiting and just
-   have a red Focus button." The bullseye and the verb are the whole control. */
 
 /* NO TWO CONTROLS IN ONE CORNER (Dave 2026-08-19, from the same screenshot).
    A card with an absolutely-positioned corner dismiss and a one-row body puts
@@ -3360,7 +3491,7 @@ button {
    would run off the screen. */
 .time-pop { position: absolute; left: var(--s-4); top: calc(100% + 6px);
   z-index: 61; background: var(--surface-3); border: 0.5px solid var(--card-bd);
-  border-radius: var(--r-md); padding: var(--s-2); box-shadow: 0 10px 34px rgba(0,0,0,0.6); }
+  border-radius: var(--r-md); padding: var(--s-2); box-shadow: var(--shadow-float); }
 .time-pop.time-pop-up { top: auto; bottom: calc(100% + 6px); }
 .time-pop-input { width: 150px; height: 40px; }
 
@@ -3502,12 +3633,27 @@ button {
    Measured: the head row goes 52 to 58, and three heads cost 18px of page.
    The ::after below still expands the hit past the paint, and now clears 44
    rather than stopping at 42. */
-.sh2 .see-all.pill-action, .plan-head .see-all.pill-action {
-  background: var(--press-3); color: var(--tx-1); border-radius: var(--r-pill);
+.sh2 .see-all.pill-action, .plan-head .see-all.pill-action, .xs-grp .see-all.pill-action, .grp > .see-all.pill-action, .grp-acts > .see-all.pill-action {
+  /* THE CAPSULE RECIPE, NOT A GREY BUTTON WITH A DARK LABEL (2026-10-05, the perfect bar; D3). Head capsules were
+     --press-3 with --tx-1 ink while Focus, Clear All and Add All to Calendar (.row-act) and Add Task, Reply (.notice-alt)
+     were --capsule-fill with the red label, so one screen drew three recipes in light and two in dark. Every capsule is
+     the capsule fill with the tap red as its label, the same pair in both themes (the deep action red in light, which is
+     the one that clears 4.5 on the fill). The one filled primary on a screen is the only red slab. */
+  background-color: var(--capsule-fill); color: var(--tint); border-radius: var(--r-pill);
   padding: var(--s-1h) var(--s-3); font-size: var(--t-meta); letter-spacing: normal;
   min-height: 34px; margin: 0; position: relative;
 }
-.sh2 .see-all.pill-action::after, .plan-head .see-all.pill-action::after { content: ""; position: absolute; inset: -7px 0; }
+[data-theme="light"] .sh2 .see-all.pill-action, [data-theme="light"] .plan-head .see-all.pill-action, [data-theme="light"] .xs-grp .see-all.pill-action, [data-theme="light"] .grp > .see-all.pill-action, [data-theme="light"] .grp-acts > .see-all.pill-action {
+  color: var(--on-light-red);
+}
+.sh2 .see-all.pill-action::after, .plan-head .see-all.pill-action::after, .xs-grp .see-all.pill-action::after, .grp > .see-all.pill-action::after, .grp-acts > .see-all.pill-action::after { content: ""; position: absolute; inset: -7px 0; }
+/* A SHEET GROUP'S LABEL ROW CARRIES ITS ACTION AT THE RIGHT (Dave 2026-10-05, locked; docs/jarvis-unified/ROW-ACTIONS-SPEC.md
+   section 2): the group's one capsule, the same one a section head wears, never a row inside the card below it. */
+.grp:has(> .see-all.pill-action), .grp:has(> .grp-acts) { display: flex; align-items: center; justify-content: space-between; gap: var(--s-2h); }
+.grp-acts { display: inline-flex; align-items: center; gap: var(--s-2); flex-wrap: nowrap; flex-shrink: 0; justify-content: flex-end; }
+.grp:has(> .grp-acts) > .eyebrow, .grp:has(> .see-all.pill-action) > .eyebrow { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* A swipe tray's second button steps in one slot when a verb leads it (the verb takes the edge, then Delete follows it in). */
+.task-swipe > .task-verb + .task-del { right: 88px; }
 /* Small pill: the one small doing-button (Add to Today, Link, Not Now).
    It always has a body; text-only small buttons are the head action's job.
    A small button that is ALSO a primary/danger keeps that fill: the
@@ -3561,10 +3707,13 @@ button {
 /* Detail pages ride a STATIC condensed bar (iOS push-page inline title):
    sticky glass, centered title, hairline. The 25 nav-bar surfaces become
    chassis-consistent without per-file rewrites. */
-.nav-bar { position: sticky; top: 0; z-index: 40; background: rgba(12,12,14,0.82);
+/* THE TOP BAR IS OPAQUE (Dave 2026-10-05, D6: "nothing reads through it"). It was 82% black (cold, not the warm charcoal)
+   in dark and 90% white in light, so a scrolled row's sender, a clipped Focus capsule and a title's red underline all
+   showed through and collided with the centred title. It is the page's own warm colour in both themes with the blur kept
+   for the edge, and the hairline carries the seam. */
+.nav-bar { position: sticky; top: 0; z-index: 40; background-color: var(--bar-solid);
   -webkit-backdrop-filter: blur(22px) saturate(160%); backdrop-filter: blur(22px) saturate(160%);
   border-bottom: 0.5px solid var(--divider); padding-top: calc(var(--s-1) + var(--safe-top, env(safe-area-inset-top, 0px))); }
-[data-theme="light"] .nav-bar { background: rgba(255,255,255,0.86); }
 /* The condensed title is the condensed title, whichever bar is drawing it.
    AMENDED 2026-09-26 (audit leftovers): it was position: absolute, left 0,
    right 0, centred on the whole bar, so at --type-scale 1.4 "Pull Day" ran
@@ -3651,17 +3800,8 @@ button {
    trailing edge. Off dims the name, never hides the row: off is not gone. */
 .rule-row { align-items: flex-start; flex-wrap: wrap; }
 .rule-row .rule-scope { flex-basis: 100%; flex-wrap: wrap; overflow: visible; margin: var(--s-1) 0 0; padding: 0; }
-.rule-acts { display: flex; flex-direction: column; align-items: flex-end; gap: var(--s-1h); flex-shrink: 0; }
 .rule-off .conn-name { color: var(--tx-3); }
 
-/* E-22 (Push D): Read It to Me wears up to three pills (Next, Stop, and the
-   Play/Pause the row itself answers to). Same anatomy as the gym library's
-   row actions, on the plain skin. */
-.mail-read-acts { display: flex; gap: var(--s-1h); align-items: center; flex-shrink: 0; }
-/* While the voice is going the row wraps and the three pills take their own
-   line, right-aligned, instead of crushing the row's name to "Read I…". */
-.row.mail-read-live { flex-wrap: wrap; }
-.mail-read-live .mail-read-acts { flex-basis: 100%; justify-content: flex-end; padding-top: var(--s-0h); }
 /* background-COLOR even here, in the base rule (2026-09-22). It was harmless
    only by accident -- the shorthand resets background-clip, and the clip is
    re-declared a few rules down, so the ordering rescued it. §AL's law does
@@ -3804,8 +3944,8 @@ button {
 .block-row:focus-within .block-menu-btn, .block-row:hover .block-menu-btn { opacity: 1; }
 /* The compose bar rides the bottom of the editor, always in reach. */
 .editor-bar { position: sticky; bottom: 0; padding: var(--s-3) var(--s-4) calc(var(--s-3) + var(--safe-bottom, env(safe-area-inset-bottom, 0px)));
-  background: linear-gradient(180deg, rgba(0,0,0,0), var(--bg) 38%); display: flex; justify-content: center; }
-[data-theme="light"] .editor-bar { background: linear-gradient(180deg, rgba(242,242,247,0), var(--bg) 38%); }
+  background: linear-gradient(180deg, transparent, var(--bg) 38%); display: flex; justify-content: center; }
+[data-theme="light"] .editor-bar { background: linear-gradient(180deg, transparent, var(--bg) 38%); }
 .editor-bar .btn { min-width: 200px; }
 
 /* Decision list styling pass (Dave 2026-08-18): the linked home renders as a
@@ -3824,10 +3964,21 @@ button {
    rides the dot; the words are the line's grey at the line's weight. It
    is drawn as the category fact with its dot and a .cat-t span for the
    name, so the name ellipses inside the flex box instead of the box. */
-.fact.fact-link { max-width: 45%; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--tx-3); }
+.fact.fact-link { max-width: 100%; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--tx-3); }
 .fact.fact-link .cat-t { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* A HOME'S NAME READS WHOLE, AND ITS DOT IS THE ONLY SEPARATOR BEFORE IT (the ship-blocker review, 2026-10-05: "Revisit Oct 5
+   · (dot) Rebuild Calder A...", two separators in a row and the name cut). The area's dot already says where the name starts,
+   so the stylesheet's middle dot is not drawn before a home; the fact before it keeps the same distance by margin. The line
+   wraps, so a name too long for what is left goes to a line of its own under the day, every word showing, and a name that
+   fits stays beside it. */
+.dec-row .facts { flex-wrap: wrap; overflow: visible; row-gap: var(--s-0h); }
+.dec-row .facts > .fact.fact-link { flex: 0 1 auto; align-items: flex-start; white-space: normal; overflow: visible; text-overflow: clip; }
+.dec-row .facts > .fact.fact-link::before { content: none; }
+.dec-row .facts > .fact.fact-link .cat-t { overflow: visible; text-overflow: clip; white-space: normal; }
+.dec-row .facts > .fact.fact-link .cd { margin-top: 0.5em; }
+.dec-row .facts > .fact:has(+ .fact-link) { margin-right: var(--s-2); }
 /* Decisions are sentences; two lines beats an ellipsis (Dave critique fix). */
-.dec-name { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.dec-name { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; text-wrap: balance; }
 /* The writing toolbar: chips row pinned to the bottom of the screen. It
    scrolls sideways rather than clipping when the chip set outgrows a phone. */
 .editor-toolbar { gap: var(--s-2); justify-content: flex-start; overflow-x: auto; scrollbar-width: none; }
@@ -3845,7 +3996,7 @@ button {
 .t-strike { text-decoration: line-through; color: var(--tx-3); }
 .t-hl { background: rgba(255, 214, 10, 0.28); border-radius: var(--r-xs); padding: 0 1px; }
 [data-theme="light"] .t-hl { background: rgba(255, 214, 10, 0.45); }
-.sel-bar { position: fixed; z-index: 60; display: flex; background: var(--surface-3); border: 0.5px solid var(--card-bd); border-radius: var(--r-md); box-shadow: 0 8px 30px rgba(0, 0, 0, 0.55); overflow: hidden; }
+.sel-bar { position: fixed; z-index: 60; display: flex; background: var(--surface-3); border: 0.5px solid var(--card-bd); border-radius: var(--r-md); box-shadow: var(--shadow-float); overflow: hidden; }
 .selbar-btn { display: flex; align-items: center; justify-content: center; width: 48px; height: 44px; background: transparent; border: 0; color: var(--tx-1); }
 .selbar-btn:active { background: var(--surface-2); }
 .selbar-btn .ic { width: 18px; height: 18px; }
@@ -3921,7 +4072,9 @@ button {
 .notice-x { flex-shrink: 0; align-self: center; width: var(--tap-min); height: var(--tap-min); margin-left: var(--s-1);
   display: inline-flex; align-items: center; justify-content: center; padding: 0; border: 0; background: none; color: var(--tx-2); }
 .notice-x .ic { width: 18px; height: 18px; }
-.notice-alt { right: 0; background: var(--accent-chip); color: var(--accent-chip-tx); }
+/* The tray's verb is a capsule's ground and ink (--capsule-fill, --tint): the one accent reserved for actions, never a fill that
+   could be read as Delete's red (Dave 2026-10-05). */
+.notice-alt { right: 0; background-color: var(--capsule-fill); color: var(--tint); }
 /* Trashes the mail itself, not just the card (2026-08-26). Outermost slot,
    same edge Delete sits at on a real inbox row (MailSwipe) -- a swipe
    should feel identical everywhere it fires. Red, because this one is
@@ -3968,16 +4121,27 @@ button {
 /* One icon COLUMN for the whole group: the 30px disc rides centered in the
    same 44px slot the task check-tap owns, so every fact starts at the same
    x whether its row is a task or a notice. */
-.stream-grouped .notice-vrow .notice-disc { margin: 0 var(--s-2); }
+.stream-grouped .notice-vrow .notice-disc, .stream-grouped .notice-card-asrow .notice-disc { margin: 0 var(--s-2); }
+/* ...and the dealt task's check rides the SAME slot the discs below it do (2026-10-05, the review: "title x 97 against 99"):
+   a 30px disc between two 8px margins is a 46px slot, and the check's 44 left the first row's words 2px short of every
+   other row's. Centre to centre and edge to edge, one column. */
+.stream-grouped .hl .task-check-tap { width: calc(30px + 2 * var(--s-2)); }
 /* TASK OR NOTICE, BY SHAPE (Dave 2026-08-26, task-vs-notice catalog: "Option
    1 works"). The dealt task's check is a circle everywhere the app shows
    one; the notice disc was ALSO a circle, so in a stream that mixes both
    there was nothing to read pre-attentively -- the words had to do it.
    Shape splits them at a glance instead. Scoped to .stream-grouped only:
-   mail notices, Fresh Start, and every other notice-disc elsewhere in the
-   app keep their familiar circle. This is the one stream that mixes a task
-   with notices; nowhere else needs the distinction. */
-.stream-grouped .notice-vrow .notice-disc { border-radius: var(--r-sm); }
+   every other notice-disc elsewhere in the app keeps its familiar circle.
+   2026-10-05: the Ready to Send band is a grouped card of rows too, and its
+   mail rows (a card drawn as a row, .notice-card-asrow) wear the same
+   squircle Your Move's rows do, so the two bands one scroll apart share one
+   tile (the review: circles here, rounded squares there). */
+.stream-grouped .notice-vrow .notice-disc, .stream-grouped .notice-card-asrow .notice-disc { border-radius: var(--r-sm); }
+/* AND A ROW THAT HAS OPENED INTO ITS CARD (a tapped notice with a foot, e.g. Student Template Ships First with its decision) keeps the
+   tile: the same 30px rounded square in the same 46px slot, so its title does not slide 16px left of the rows above and below it
+   (round 3 review: "a circle off the icon column"). The empty glyph its verb and outcome lines open with takes the same margin. */
+.stream-grouped .notice-card:not(.notice-card-row) > .row > .notice-disc { margin: 0 var(--s-2); border-radius: var(--r-sm); }
+.stream-grouped .notice-card:not(.notice-card-row) > .row.hl-verbs > .row-glyph { margin: 0 var(--s-2); }
 /* Inset hairlines between rows, to the shared text edge, like every other
    grouped list in the app. Receipts live under the card, quiet as ever. */
 .stream-card > .pad-x { position: relative; }
@@ -4005,7 +4169,7 @@ button {
 /* A notice title gets two lines. Truncating "Complete Your Enrollment" to
    "Complete Your Enr..." throws away the one thing the card exists to say;
    an extra line costs less than a card he has to open to understand. */
-.notice-card .conn-name { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.notice-card .conn-name { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; text-wrap: balance; }
 .notice-card .conn-meta { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 
 /* PLAN MY DAY, rebuilt (catalog U, Dave 2026-08-20: "look at how limited
@@ -4159,7 +4323,7 @@ button {
 .doc-editorial .doc-title {
   font-family: "Newsreader", Georgia, "Times New Roman", serif;
   font-size: var(--t-title);
-  font-weight: 600;
+  font-weight: var(--w-medium);
   line-height: 1.25;
   letter-spacing: -0.01em;
   margin-bottom: var(--s-3);
@@ -4222,7 +4386,9 @@ button {
    X to unlink in place, and a "+" that opens the picker directly -- no
    trip through the Connections screen for the common case.
    ============================================================ */
-.note-conns { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-1h); }
+/* THE FOOTER BREATHES (2026-10-05, the round 2 review: the linked-item caption sat 2px above the Link Something capsule). Eight between lines, ten
+   between neighbours; the caption is the 14 subtext rung and the capsule 32px of paint inside the 44px tap its ::after gives it. */
+.note-conns { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2) var(--s-2h); }
 .doc > .note-conns { margin-top: var(--s-1); }
 .note-conn {
   display: inline-flex; align-items: center; gap: var(--s-1h);
@@ -4231,7 +4397,7 @@ button {
 }
 .note-conn .proj-icon { width: 18px; height: 18px; border-radius: var(--r-circle); flex-shrink: 0; }
 .note-conn .proj-icon .ic { width: 10px; height: 10px; }
-.note-conn-label { font-size: var(--t-caption); font-weight: var(--w-medium); color: var(--tx-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 160px; }
+.note-conn-label { font-size: var(--t-sub); font-weight: var(--w-medium); color: var(--tx-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 160px; }
 .note-conn-x { flex-shrink: 0; width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; background: 0; border: 0; color: var(--tx-2); }
 .note-conn-x .ic { width: 10px; height: 10px; }
 .note-conn-x:active { color: var(--tx-2); }
@@ -4240,12 +4406,13 @@ button {
    dashed grey outline, which §AL retires and which read as a hint rather
    than a thing to press. */
 .note-conn-add {
-  flex-shrink: 0; width: 26px; height: 26px; border-radius: var(--r-circle);
+  position: relative; flex-shrink: 0; width: 32px; height: 32px; border-radius: var(--r-circle);
   border: 0; background-color: var(--capsule-fill); color: var(--tint);
   display: flex; align-items: center; justify-content: center;
 }
 [data-theme="light"] .note-conn-add { color: var(--on-light-red); }
 .note-conn-add .ic { width: 13px; height: 13px; }
+.note-conn-add::after { content: ""; position: absolute; inset: -6px; }
 /* Pressed is a step past the resting fill in both themes: in light the
    capsule fill IS the 8% press, so the 8% press showed no change, and in
    dark it sank below the opaque rest. The 14% / 13% press lifts it. */
@@ -4365,17 +4532,11 @@ button.check-linked:active { opacity: 1; background: var(--press-3); }
 
 /* WHAT NOW. The one thing, large enough to be the only thing on the sheet. */
 .rn-title { font-size: var(--t-h2); font-weight: var(--w-semi); letter-spacing: -0.01em; line-height: var(--lh-snug); }
-/* The bolt sits beside search in the one bar that is on every tab. */
-.voice-now { color: var(--accent-tx); }
-/* GLYPH SWEEP, light (Dave 2026-08-24: "make sure all red icons in light
-   version are Jarvis red"). These two are icon-only controls -- a lightning
-   bolt and a round bar button -- that inherit --accent-tx, the TEXT red.
-   In dark that token is WHITE and these read correctly, so the rule is
-   light-only by construction and dark cannot move. In light the text red
-   (#DA0012) was dragging both down to crimson; a glyph carries no words and
-   answers to 3:1, where the real brand red measures 3.71 on a white card. */
-[data-theme="light"] .voice-now,
-[data-theme="light"] .barbtn { color: var(--accent-glyph); }
+/* A BAR CONTROL IS A TAP, SO IT WEARS THE TAP RED IN BOTH THEMES (2026-10-05, the perfect bar; D4). The round bar button
+   (the plus, the paperclip) and the bar's words (Select, Done) took --accent-tx, which is WHITE in dark and the text red
+   in light, and a light-only rule on top: the same control was cream in one theme and red in the other. Both take --tint
+   now (a glyph and a bar word are tap targets; --tint is the one red that means "press me"). The dock's bolt is not
+   here: it is chrome and wears the same neutral as the search beside it (.voice-search). */
 
 /* WHAT JARVIS KNOWS (Brain Layer 2). The genome made visible: one row per
    strand, its origin in the eyebrow, its receipts in the sheet. A paused
@@ -4420,7 +4581,7 @@ button.check-linked:active { opacity: 1; background: var(--press-3); }
    still the contract whenever a sub is there to fill the other. */
 .notice-card.notice-card-solo .vrow-fact {
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
-  white-space: normal; overflow: hidden; text-overflow: clip; }
+  white-space: normal; overflow: hidden; text-overflow: clip; text-wrap: balance; } /* balanced: no orphan word (2026-10-05) */
 
 /* ============================================================
    LIGHT, THE SECOND SUN (facelift 2026-08-22). Everything here is
@@ -4431,15 +4592,15 @@ button.check-linked:active { opacity: 1; background: var(--press-3); }
    these are their daylight sisters: a warm sunrise breath in the morning,
    a cool indigo one in the evening, both fading before the first card. */
 [data-theme="light"] .today-hero.hero-morning {
-  background: linear-gradient(160deg, rgba(209,36,22,0.14), rgba(255,159,10,0.08) 45%, transparent 80%); }
+  background: linear-gradient(180deg, transparent 30%, var(--bg) 100%), linear-gradient(160deg, rgba(209,36,22,0.14), rgba(255,159,10,0.08) 45%, transparent 80%); }
 [data-theme="light"] .today-hero.hero-evening {
-  background: linear-gradient(160deg, rgba(88,86,214,0.14), rgba(120,90,255,0.07) 45%, transparent 80%); }
+  background: linear-gradient(180deg, transparent 30%, var(--bg) 100%), linear-gradient(160deg, rgba(88,86,214,0.14), rgba(120,90,255,0.07) 45%, transparent 80%); }
 
 /* The floating chrome floats. The capture bar was a gray pill on a gray
    page; it is a white instrument on the desk now, same for its two
    siblings. */
-[data-theme="light"] .voice-bar { background: #FFFFFF; box-shadow: var(--shadow-float); }
-[data-theme="light"] .voice-search { background: #FFFFFF; box-shadow: var(--shadow-float); }
+[data-theme="light"] .voice-bar { background: var(--chrome-bg); box-shadow: var(--shadow-float); }
+[data-theme="light"] .voice-search { background: var(--chrome-bg); box-shadow: var(--shadow-float); }
 
 /* A draft field inside a white card sits on the paper tone, mirroring how
    dark nests lighter-on-dark. */
@@ -4452,13 +4613,31 @@ button.check-linked:active { opacity: 1; background: var(--press-3); }
 [data-theme="light"] .lib-row, [data-theme="light"] .task-row { background: var(--surface-1); }
 
 /* Selection steel, daylight grade: a raised white pill instead of a tar
-   fill. Same neutral doctrine (picked is never red), but the light page
-   selects the iOS way: lift, not ink. */
-[data-theme="light"] .chip.active, [data-theme="light"] .chip.on,
+   fill, for the segmented control's track (a lift inside a recess). A CHIP is
+   not in a track: it is a pill on the page, and a white pill on cream barely
+   differed from the beige ones beside it (the Brain filters, 2026-10-05). A
+   picked chip is the ink pill in both themes (--sel-bg on --sel-fg), the same
+   hierarchy dark has always drawn: the one that is picked is the one that is
+   dark in light and light in dark. */
+/* The ring is INSET, so it follows the pill's own corner and sits wholly inside it. Drawn outside (0 0 0 0.5px) in a strip that
+   scrolls (overflow clips at the track's own curve), the ring's corner was clipped away and what was left read as a thin vertical
+   stroke beside the pill's left edge (the round-2 review, Life's segments in light). */
 [data-theme="light"] .segmented .seg.active {
-  background: #FFFFFF; color: var(--tx-1);
-  box-shadow: 0 1px 3px rgba(17,18,26,0.12), 0 4px 10px rgba(17,18,26,0.08);
+  background: var(--chrome-bg); color: var(--tx-1);
+  box-shadow: inset 0 0 0 0.5px var(--card-bd);
 }
+/* THE PICKED SEGMENT IN DARK IS THE RAISED WARM GREY, NOT A CREAM SLAB (the round 2 review: "the brightest object on the page,
+   louder than the red Start Writing above it"). Light lifts a pill out of its track; dark does the same one step up the warm
+   ladder (--surface-3, #36312D) with the primary ink on it, so the picked word is clear and no object outshines the one primary.
+   A chip is not in a track and keeps the ink pill. */
+[data-theme="dark"] .segmented .seg.active {
+  background: var(--surface-3); color: var(--tx-1);
+  box-shadow: inset 0 0 0 0.5px var(--card-bd);
+}
+/* A SEGMENTED CONTROL WITH NOTHING PICKED STILL LOOKS LIKE THREE BUTTONS (the round 2 review: "one flat strip with three bold
+   words, no divider, reads as a caption"): a hairline round the track and a hairline between the segments, gone the moment one is picked. */
+.segmented:not(:has(.seg.active)) { box-shadow: inset 0 0 0 0.5px var(--tx-4); }
+.segmented:not(:has(.seg.active)) .seg + .seg { border-left: 0.5px solid var(--tx-4); border-radius: 0; }
 
 /* ============================================================
    DAYLIGHT (Dave's pick from the four-option round, 2026-08-22).
@@ -4487,7 +4666,11 @@ button.check-linked:active { opacity: 1; background: var(--press-3); }
    re-letters a 50px button in the sheet red cannot reach a small pill that
    also carries the base class. The 50px base button is not a capsule and
    keeps its own fill in both themes. */
-[data-theme="light"] .btn { background: rgba(209,36,22,0.07); color: var(--on-light-red); }
+/* AMENDED 2026-10-05 (Dave, the warm neutrals): the base button's light fill was a 7% red wash, which
+   read 5.67:1 on a white card and reads 4.12 on the warm one (a red wash can never clear 4.5 for red
+   words on a card that is already at 4.57). It takes the opaque capsule fill, 4.53, the same neutral
+   body every other light capsule has. */
+[data-theme="light"] .btn { background-color: var(--capsule-fill); color: var(--on-light-red); }
 [data-theme="light"] .btn-sm:not(.btn-primary):not(.btn-danger):not(.btn-secondary) {
   background-color: var(--capsule-fill); color: var(--on-light-red);
 }
@@ -4501,7 +4684,7 @@ button.check-linked:active { opacity: 1; background: var(--press-3); }
    The fill said "red action" and the ink said "not an action", in one
    theme only. The capsule rule below now paints both themes from one
    token, and the quiet variants keep their own fill in both. */
-[data-theme="light"] .note-fix { background: rgba(209,36,22,0.07); color: var(--on-light-red); }
+[data-theme="light"] .note-fix { background-color: var(--capsule-fill); color: var(--on-light-red); }
 /* THE ROW ACTION TAKES THE CAPSULE TOO (Dave 2026-09-22, Control Catalog:
    the in-list create rung, capsule).
 
@@ -4521,12 +4704,14 @@ button.check-linked:active { opacity: 1; background: var(--press-3); }
   background-color: var(--capsule-fill); box-shadow: none; color: var(--tint);
 }
 [data-theme="light"] .row-act, [data-theme="light"] .ruled .card .row.row-act {
-  /* 2026-09-28 (Dave): the outlined pill read as unfinished. The light
-     capsule is a solid fill in the unified red with a white label, like
-     the Accept the Day button. */
-  color: #fff;
-  background-color: var(--accent-fill);
-  border: 1px solid var(--accent-fill);
+  /* AMENDED 2026-10-05 (Dave: "Everything should look PERFECT"; decision D3, light and dark are one design in colour
+     only). 2026-09-28 made this a solid red slab with a white label in light while dark drew the same control as the
+     capsule, so Focus, Clear All and Add All to Calendar were two different objects by theme, and light mixed two
+     recipes on one screen (white capsules for Add Bill, red slabs for Clear All). One recipe: the capsule fill and the
+     deep action red as the label, the same pair .pill-act wears in light. Solid red is the screen's one primary. */
+  color: var(--on-light-red);
+  background-color: var(--capsule-fill);
+  border: 0;
 }
 .quiet-action {
   background-color: var(--press-1); box-shadow: none; color: var(--tx-2);
@@ -4589,17 +4774,26 @@ button.check-linked:active { opacity: 1; background: var(--press-3); }
 [data-theme="light"] .btn-danger-text { color: var(--danger-tx); }
 [data-theme="light"] .btn-tertiary { background: transparent; color: var(--tint); }
 [data-theme="light"] .btn-disabled { background: var(--press-1); color: var(--tx-2); }
+/* A DISABLED PRIMARY IS ITS OWN RED, WASHED, WITH THE LABEL AT FULL INK (2026-10-05, the perfect bar). The base
+   `button:disabled` fades the WHOLE button to 38%, so on the dark Quick Capture sheet the brand fill went to a muddy
+   maroon with a grey-brown label (about 2:1) while light, where the fade lands on white, read as a clean wash. The fill
+   is 42% of the action red over whatever the button sits on, in both themes, and the label keeps full white, so a
+   button that cannot be pressed yet reads as intentionally waiting, not dirty. */
+.btn.btn-primary:disabled, .btn.btn-primary[aria-disabled="true"] {
+  opacity: 1; background-color: color-mix(in srgb, var(--accent-fill) 42%, transparent); color: #fff; }
 [data-theme="light"] .btn-icon { background: var(--press-3); color: var(--tx-1); }
-/* 4 · LIGHT WEARS THE FILLED GLYPH (Dave 2026-08-22: "on the light version
-   filled in icons look MUCH better. Can we fill those in exclusively on the
-   light version?"). Every icon ships as a PAIR from shared/icons.tsx -- the
-   lucide outline and Phosphor's fill-weight twin -- because a stroke icon
-   cannot be filled by CSS without becoming the compass blob the 08-18 law
-   banned. The stylesheet picks one. Dark keeps its lucide drawings exactly,
-   so this is light-only by construction, not by discipline. */
+/* 4 · ONE GLYPH SET IN BOTH THEMES: OUTLINE AT REST, FILLED WHEN IT IS THE ACTIVE ONE (Dave 2026-10-05, the perfect bar;
+   decision D3). This block used to be "LIGHT WEARS THE FILLED GLYPH" (Dave 2026-08-22): every icon shipped as a PAIR
+   (shared/icons.tsx, the lucide outline and Phosphor's fill-weight twin) and the stylesheet showed the filled one in
+   light alone, so Area, Person, Project, Repeat, Vendor and Due were different shapes by theme, the dock's bolt was a
+   red slab in light and a white outline in dark, and the Reminder and Bill sheets' tiles changed weight. Light and dark
+   differ in colour only, so the theme switch is gone. The pair is kept, because a stroke icon cannot be filled by CSS
+   without becoming the compass blob the 08-18 law banned: the OUTLINE is the resting glyph everywhere, and the FILL
+   shows for the one thing that is on, in both themes: the active tab, a pressed toggle, a selected option, the current
+   page. A glyph with no fill twin (a control: search, plus, chevron, more) has none to show and stays an outline. */
 .ic-fill { display: none; }
-[data-theme="light"] .ic-out { display: none; }
-[data-theme="light"] .ic-fill { display: inline-block; }
+.tab.active .ic-out, [aria-pressed="true"] > .ic-out, [aria-selected="true"] > .ic-out, [aria-current="page"] > .ic-out { display: none; }
+.tab.active .ic-fill, [aria-pressed="true"] > .ic-fill, [aria-selected="true"] > .ic-fill, [aria-current="page"] > .ic-fill { display: inline-block; }
 
 /* 3 · MAIL GLYPHS JOIN THE FAMILY. The purple envelope was the dark
    theme's mail tone surviving into daylight, where it clashed with
@@ -4668,7 +4862,7 @@ body.selecting .voice-dock { display: none; }
    the ::after carries the tap target so the word keeps its exact paint. */
 .bar-text { position: relative; background: 0; border: 0; padding: 0; margin: 0;
   font-family: var(--f); font-size: var(--t-body); font-weight: var(--w-medium);
-  color: var(--accent-tx); white-space: nowrap; }
+  color: var(--tint); white-space: nowrap; }
 .bar-text.strong { font-weight: var(--w-semi); }
 .bar-text::after { content: ""; position: absolute; inset: -13px -8px; }
 
@@ -4684,7 +4878,17 @@ body.selecting .voice-dock { display: none; }
    Reached only through NoticeCard's `stack`, so no other notice moves. */
 .notice-card-stack .conn-name,
 .notice-card-stack .conn-meta { white-space: normal; display: block; -webkit-line-clamp: none; overflow: visible; text-overflow: clip; }
-.notice-stack { display: flex; padding: 0 var(--s-2) var(--s-2h); }
+/* THE STACKED CAPSULE SITS ON THE TEXT EDGE (round 3 review: "a boxed full-width capsule, inset 8px from the card edges"): an empty
+   glyph in front is the spacer that puts it exactly where the title starts, and the capsule fills the text column. */
+.notice-stack { display: flex; align-items: center; gap: var(--s-3); padding: 0 var(--s-4) var(--s-4); }
+.notice-stack > .row-glyph { flex-shrink: 0; }
+.notice-stack > .pill-act { flex: 1; min-width: 0; }
+/* THE STACKED CAPSULE PAINTS THE FULL 44 (round 2 review: "shorter than a tap and tight to the card edge"). Beside a title
+   the capsule paints 34 inside a 44 hit box, but this one is the card's whole answer on a line of its own, so the paint is
+   the tap: no transparent border to pay back, and the card's own 20px of side and bottom air around it. The Dismiss shares
+   the line and overhangs the card's padding by 8px so its glyph sits on the text column's right edge. */
+.notice-stack > .pill-act { border-top-width: 0; border-bottom-width: 0; margin-block: 0; }
+.notice-stack > .notice-x { margin-left: 0; margin-right: calc(-1 * var(--s-2)); }
 .notice-stack .pill-act { width: 100%; justify-content: center; min-height: var(--tap-min);
   /* The row cap above (11rem) guards a pill BESIDE a title; a stacked pill
      is under the words with the whole card to itself, and the cap only
@@ -4773,8 +4977,12 @@ body.selecting .voice-dock { display: none; }
    wrap card is never uniform (NoticeCard.tsx), so the one-line clamp above
    and the latch that serves it never reach it. */
 .notice-card.notice-card-wrap .conn-meta {
-  white-space: normal; display: block; -webkit-line-clamp: none; overflow: visible; text-overflow: clip;
+  white-space: normal; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; text-overflow: ellipsis;
 }
+/* ...and a wrapping line of FACTS is capped at the same two lines (2026-10-05: a row is a title and one grey run, however
+   it wraps; the review measured rows of two, three and five lines). The facts are inline blocks in a block, so the cap is
+   the height of two lines, not a line clamp. */
+.notice-card.notice-card-wrap .conn-meta:has(> .fact) { display: block; max-height: calc(2 * var(--lh-default) * 1em); }
 
 /* A uniform card with no sub gives the title both of its lines. Same height,
    more words. See the note in NoticeCard.tsx. */
@@ -4964,7 +5172,6 @@ body.selecting .voice-dock { display: none; }
 .msg-machines-icon { color: var(--tx-2); display: flex; flex-shrink: 0; }
 .msg-machines-icon .ic { width: 18px; height: 18px; }
 .msg-machines-text { flex: 1; min-width: 0; font-size: var(--t-meta); color: var(--tx-3); }
-.msg-machines-sweep { flex-shrink: 0; }
 .list-card-ruled > .msg-machines:not(:last-child) { border-bottom: 0.5px solid var(--divider); }
 
 
@@ -5084,7 +5291,6 @@ body.selecting .voice-dock { display: none; }
 .rep-quiet2 { color: var(--tx-2); margin-top: var(--s-1); }
 .rep-big { font-size: calc(64px * var(--type-scale)); font-weight: var(--w-bold); line-height: 1; letter-spacing: -2px; color: var(--tx-1); margin-top: var(--s-1h); }
 .rep-big-label { font-size: var(--t-h2); font-weight: var(--w-semi); color: var(--tx-2); margin-top: var(--s-0h); }
-.rep-anchor { display: inline-block; font-size: var(--t-caption); font-weight: var(--w-bold); color: var(--good); background: var(--good-tint); border-radius: var(--r-pill); padding: var(--s-1) var(--s-2h); margin-left: var(--s-2h); vertical-align: middle; }
 /* AMENDED 2026-09-26 (pass-off): a sentence, so it wears the field note's 14
    italic (.input-hint) in the live-metadata ink BROWSER-F-09 pins, and sets
    only its own distance from the hero; it was an 11px caps sentence, which
@@ -5092,12 +5298,21 @@ body.selecting .voice-dock { display: none; }
 .rep-hint { margin-top: var(--s-3); color: var(--tx-quiet); }
 .rep-title { font-size: var(--t-h3); font-weight: var(--w-semi); color: var(--tx-1); line-height: var(--lh-default); }
 .rep-wins { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-2); margin-top: var(--s-3h); }
-.rep-win { border-radius: var(--r-md); padding: var(--s-3) var(--s-3h); }
-.rep-win-name { font-size: var(--t-sub); font-weight: var(--w-medium); color: var(--tx-3); }
-.rep-win-val { font-size: calc(17px * var(--type-scale)); font-weight: var(--w-bold); margin-top: var(--s-0h); }
+/* A WIN'S VALUE SITS ON THE TILE'S FLOOR (Dave 2026-10-05, the review: "Achieved" and "Closed" landed at different heights
+   because one name wrapped to two lines). The tile is a column, the grid stretches both to the row's height, and the value
+   takes the free space above it, so values share a baseline whatever their names do. */
+.rep-win { border-radius: var(--r-md); padding: var(--s-3) var(--s-3h); display: flex; flex-direction: column; }
+.rep-win-name { font-size: var(--t-sub); font-weight: var(--w-sub); color: var(--tx-3); }
+.rep-win-val { font-size: calc(17px * var(--type-scale)); font-weight: var(--w-bold); margin-top: auto; padding-top: var(--s-0h); }
 .rep-win-good { background: var(--good-tint); } .rep-win-good .rep-win-val { color: var(--good); }
+/* An odd last win or tile takes the whole row instead of leaving a hole beside it (Dave 2026-10-05, the review: "Put Away
+   $1,200 alone with an empty right half"). */
+.rep-wins > .rep-win:last-child:nth-child(odd), .rep-grid > .stat-tile:last-child:nth-child(odd) { grid-column: 1 / -1; }
 .rep-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-2); }
-.rep-grid .stat-tile { border-radius: var(--r-md); padding: var(--s-3h) var(--s-2) var(--s-3); text-align: center; }
+/* A TILE ON THE PAGE WEARS THE CARD RADIUS (the round 2 review: the stat tiles were 16 beside the 24 of Your Hours and Where It Went
+   right under them). They sit on the page, not inside a card, so they are cards. */
+.rep-grid .stat-tile { border-radius: var(--r-card); padding: var(--s-3h) var(--s-2) var(--s-3); text-align: center; }
+.rep-split-end { display: inline-flex; align-items: center; gap: var(--s-2); }
 [data-theme="light"] .rep-grid .stat-tile.stat-plain { background: var(--surface-3); }
 /* The delta is the tile's one quiet fact (§AM F1/F4, 2026-09-25): the fact
    size and weight in the one grey, under the caps label's grey. It was a
@@ -5108,55 +5323,35 @@ body.selecting .voice-dock { display: none; }
 .rep-gap { margin-top: var(--s-2h); }
 .rep-split { display: flex; align-items: baseline; justify-content: space-between; }
 .rep-split b { font-size: var(--t-h3); font-weight: var(--w-bold); color: var(--tx-1); }
-.rep-hours { display: flex; gap: var(--s-1); align-items: flex-end; height: 30px; margin-top: var(--s-2h); }
-.rep-hours i { flex: 1; background: var(--surface-3); border-radius: var(--r-xxs); display: block; transition: height 0.45s var(--ease-out); }
-.rep-hours i.hot { background: var(--accent); }
+/* 56px, not 30 (round 3 review: "tiny bars in a large empty card"): the strip is the card's whole picture, so it gets the height
+   to show a peak from a shoulder. Hour of day is a clock, not a duration, so the ink stays neutral; the busiest three hours are bright. */
+.rep-hours { display: flex; gap: var(--s-1); align-items: flex-end; height: 56px; margin-top: var(--s-3); }
+.rep-hours i { flex: 1; background: var(--press-5); border-radius: var(--r-xxs); display: block; transition: height 0.45s var(--ease-out); }
+/* The band is bright ink, never the action red: a bar on a chart is not a button, and brand red is for what can be tapped
+   (Dave 2026-10-05, the review). */
+.rep-hours i.hot { background: var(--tx-1); }
+.rep-hours-axis { display: grid; grid-template-columns: repeat(4, 1fr); margin-top: var(--s-1h); font-size: var(--t-micro); font-weight: var(--w-semi); letter-spacing: var(--track-caps); text-transform: uppercase; color: var(--tx-3); font-variant-numeric: tabular-nums; }
 .rep-stack { display: flex; height: 14px; border-radius: var(--r-sm); overflow: hidden; margin-top: var(--s-2h); }
 .rep-stack i { display: block; transition: width 0.45s var(--ease-out); }
-.rep-leg { display: flex; flex-wrap: wrap; gap: var(--s-1h); margin-top: var(--s-2h); }
-.rep-leg span { display: inline-flex; align-items: center; gap: var(--s-1h); font-size: var(--t-caption); font-weight: var(--w-semi); color: var(--tx-2); background: var(--surface-2); border-radius: var(--r-pill); padding: var(--s-1) var(--s-2h); }
-.rep-leg i { width: 8px; height: 8px; border-radius: var(--r-circle); display: inline-block; }
-.rep-chip { font-size: var(--t-caption); font-weight: var(--w-bold); border-radius: var(--r-pill); padding: var(--s-1) var(--s-2h); white-space: nowrap; flex-shrink: 0; }
-.rep-chip-good { background: var(--good-tint); color: var(--good); }
-.rep-chip-warn { background: var(--warn-tint); color: var(--warn); }
-.rep-btnrow { display: flex; gap: var(--s-2); padding: var(--s-0h) var(--s-4) var(--s-3h); overflow: hidden; }
-/* THE REPORT'S OWN OVERLAP (2026-09-22, the 834-wide audit: "1 Followed you
-   all month" x "Do One" / "Drop One"). .pill-act reaches 44px with a 9px
-   transparent border pulled back by an equal negative margin (BROWSER-F-03),
-   invisible everywhere it has a row's own generous padding to spend it in.
-   .rep-btnrow's padding-top is --s-0h, 2px, sized for how close the pills sit
-   under the title, not for swallowing a 9px reach, so the invisible top
-   border landed 7px into the "carried" row above and a tap meant for its
-   receipts could open or drop a task instead (confirmed live:
-   getBoundingClientRect gave row bottom 892.875 vs the pill's own border-box
-   top 885.875).
-
-   The fix is `overflow: hidden` on the CONTAINER, not a border/margin change
-   on .pill-act itself. .pill-act also carries `min-height: 34px` under this
-   app's global `box-sizing: border-box` reset, which pins the pill's TOTAL
-   border-box height at 34 no matter how border-top/border-bottom are split.
-   An earlier version of this fix tried `border-top-width: 0; margin-top: 0`
-   on `.rep-btnrow .pill-act`, reasoning that 0/0 cancels the same way the
-   base rule's 9/-9 does -- and the pill's visible TOP edge does stay put,
-   verified live. But shrinking border-top-width without shrinking min-height
-   does not remove those 9px: box-sizing:border-box + min-height:34 forces
-   the browser to make them up elsewhere, and with 0 vertical padding the
-   only place left is the content box, so the capsule's visible BOTTOM edge
-   grows by the same 9px (16px of painted capsule -> 25px, confirmed with
-   before/after screenshots and getBoundingClientRect: bottom moved from
-   910.875 to 919.875). The pill visibly balloons downward and pushes the
-   next row ("Family went quiet") down with it -- not the "paint does not
-   move a pixel" the algebra promised.
-
-   `overflow: hidden` sidesteps this entirely: it never touches .pill-act's
-   border or margin, so there is no min-height interaction and the capsule's
-   painted rect is pixel-identical before and after (verified live). It only
-   clips the portion of the already-invisible hit border that would poke
-   above .rep-btnrow's own box into the row above -- which is exactly the
-   part of the geometry that was the bug. Confirmed live: the AUDIT() overlap
-   finding is gone, elementFromPoint at the pill's own center still resolves
-   to the button (still fully tappable), and all of laws.test.ts,
-   browserWalk.test.ts, itemCard.test.ts and ReportPage.test.tsx still pass. */
+/* THE LEGEND IS A DOT AND ITS WORDS, NOT A CHIP (Dave 2026-10-05, locked: no pills inside a card; the review: boxed in dark,
+   invisible in light). Two columns, the count in white. The same in both themes by construction: there is no fill to differ. */
+.rep-leg { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-2) var(--s-4); margin-top: var(--s-3); }
+.rep-leg span { display: inline-flex; align-items: center; gap: var(--s-2); min-width: 0; font-size: var(--t-sub); font-weight: var(--w-sub); color: var(--tx-3); }
+.rep-leg b { font-weight: var(--w-semi); color: var(--tx-1); font-variant-numeric: tabular-nums; }
+.rep-leg i { width: 8px; height: 8px; border-radius: var(--r-circle); display: inline-block; flex-shrink: 0; }
+/* A report row's facts wrap rather than end in an ellipsis (the review: "14 of 18 Drafts Sent Une..."). */
+/* ...AND IT HAS TO OUTRANK THE ROW LADDER (the ship-blocker review, 2026-10-05: "+10..." on Train Days Win). The ladder's
+   .facts > .fact:last-child (further down this sheet, the same weight) came later and won, so this rule never applied and the
+   green rise of a pattern row still ended in an ellipsis. Two classes on the line out-rank it wherever it sits. A fact that
+   wears the key's colour is a number the row exists to say, so it holds its width and the grey facts before it give way. */
+.facts.rep-facts, .facts.rep-facts > .fact, .facts.rep-facts > .fact:last-child { overflow: visible; white-space: normal; text-overflow: clip; }
+.facts.rep-facts > .fact:last-child { flex-shrink: 1; }
+.facts.rep-facts > .fact.good, .facts.rep-facts > .fact.warn, .facts.rep-facts > .fact.red { flex-shrink: 0; white-space: nowrap; }
+.facts.rep-facts > .fact:nth-last-child(2) { flex-shrink: 1; }
+/* A receipts sheet's lines are evidence: regular weight, a hairline between, never a boxed sentence. The sheet has the room,
+   so no line is clamped. */
+.rep-receipts { margin-top: var(--s-2); }
+.rep-receipts .strand-receipt .rep-receipt-line { display: block; font-size: var(--t-sub); font-weight: var(--w-regular); line-height: 1.35; color: var(--tx-1); }
 .rep-good-glyph { color: var(--good); }
 .rep-one { border: 1px solid var(--accent); }
 .rep-question { font-size: calc(20px * var(--type-scale)); font-weight: var(--w-semi); color: var(--tx-1); margin-top: var(--s-1h); }
@@ -5177,7 +5372,7 @@ body.selecting .voice-dock { display: none; }
    ground out of the question: --tint on #17171A is 4.82 wherever it sits
    (jarvis-design-system.css, the token's own measurement). Light keeps its
    tinted wash, which already clears (5.67 on a card). */
-[data-theme="dark"] .rep-one-acts .btn:not(.btn-primary) { background: var(--capsule-fill); }
+[data-theme="dark"] .rep-one-acts .btn:not(.btn-primary):not(.btn-tertiary) { background: var(--capsule-fill); }
 .rep-one-foot { margin-top: var(--s-2h); }
 @media (prefers-reduced-motion: reduce) {
   .rep-hours i, .rep-stack i { transition: none; }
@@ -5233,13 +5428,13 @@ body.selecting .voice-dock { display: none; }
      #E42C18 is --on-light-red's exact value, the unified light red,
      correct here in BOTH themes because the pill is white in
      both. */
-  background: #fff; color: #D12416; }
+  background: #FFFDFA; color: #D12416; }
 /* The hero's button is the screen's one fill now that its panel is not. */
 .mode-hero .mode-go { background: var(--accent-fill); color: #fff; }
 .mode-go.mode-go-quiet { background: var(--press-5); color: var(--tx-1); }
-[data-theme="light"] .mode-card { background: #F5F6F8; box-shadow: var(--shadow-card); }
-[data-theme="light"] .mode-card.mode-hero { background: #F5F6F8; box-shadow: var(--shadow-card); }
-[data-theme="light"] .mode-go { box-shadow: 0 0 0 0.5px rgba(0,0,0,0.06); }
+[data-theme="light"] .mode-card { background: var(--surface-1); box-shadow: var(--shadow-card); }
+[data-theme="light"] .mode-card.mode-hero { background: var(--surface-1); box-shadow: var(--shadow-card); }
+[data-theme="light"] .mode-go { box-shadow: 0 0 0 0.5px var(--card-bd); }
 
 /* The launcher row: one mode, full width, its count and its reason. */
 .launch-row { display: flex; align-items: center; gap: var(--s-3);
@@ -5250,10 +5445,11 @@ body.selecting .voice-dock { display: none; }
   background: var(--red-tint); color: var(--accent-tx); }
 .launch-ic .ic { width: 20px; height: 20px; }
 .launch-tt { font-size: var(--t-h3); font-weight: var(--w-semi); color: var(--tx-1); }
-[data-theme="light"] .launch-row { background: #F5F6F8; box-shadow: var(--shadow-card); }
+[data-theme="light"] .launch-row { background: var(--surface-1); box-shadow: var(--shadow-card); }
 /* THE WHITE IS WHITE (Dave 2026-10-03): the surfaces that float over the page
    are pure white, not the card tone. Sheets and modals in light only. */
-[data-theme="light"] .sheet-scrim > .card, [data-theme="light"] .modal, [data-theme="light"] .ag-card { background: #FFFFFF; }
+[data-theme="light"] .sheet-scrim > .card { background: var(--chrome-bg); }
+[data-theme="light"] .modal, [data-theme="light"] .ag-card { background: var(--chrome-bg); }
 
 /* THE SET STRIP (gym catalog §3.1). One row per set: tap to edit, hold to
    duplicate, swipe to delete, drag to reorder via the shared ReorderList
@@ -5293,7 +5489,6 @@ body.selecting .voice-dock { display: none; }
 .set-chip.swiping { transition: none; }
 /* Skipped reads as a fact, not a failure: struck text, no red anywhere. */
 .set-chip-skipped .conn-name { color: var(--tx-3); text-decoration: line-through; }
-.set-strip-add { margin-top: 0; }
 /* Ghost chips are the plan, not yet the record: quieter than a filled chip
    and not draggable or swipeable -- there is nothing there to reorder or
    delete until it is logged. */
@@ -5400,11 +5595,9 @@ body.selecting .voice-dock { display: none; }
 .row:has(> .row-press) { padding: 0; }
 .row > .row-press { padding: var(--s-3) var(--s-4); }
 
-/* THE WEEK STRIP (gym catalog §4.1). A week is a row like any other; the
-   back-off tag reuses .pill-subdued (the app's existing neutral pill) on
-   purpose, never .pill-red or an accent fill -- a lighter week is a plan,
-   never a status to feel bad about (L1, "never call it deload"). */
-.week-back-off { margin-left: var(--s-2); }
+/* THE WEEK STRIP (gym catalog §4.1). A week is a row like any other; the back-off tag is an amber FACT on its facts line
+   (2026-10-05, no pill in a row), never an accent fill -- a lighter week is a plan, never a status to feel bad about (L1,
+   "never call it deload"). */
 
 /* HEALTH MODULE (student-athlete health track, catalog 2026-08-27). Three
    new shapes: the Ate Before timeline of dots, the Call It ten-block scale,
@@ -5503,7 +5696,6 @@ body.selecting .voice-dock { display: none; }
 .sched-gym { display: flex; flex-direction: column; align-items: flex-start; gap: var(--s-1); margin-top: var(--s-1); }
 .sched-gym-name { font-size: var(--t-body); font-weight: var(--w-semi); color: var(--tx-1); }
 .sched-gym-line { display: flex; align-items: center; gap: var(--s-2); }
-.sched-gym-start { margin-top: var(--s-0h); }
 
 /* ==========================================================================
    THE PREVIEW IS THE SPEC (2026-09-01, Dave's three editor screenshots:
@@ -5550,9 +5742,9 @@ body.selecting .voice-dock { display: none; }
    stops move just far enough that white clears on the lightest one (4.59)
    and reads 5.45 across the middle. Same hue, same direction, same bloom. */
 .btn-launch { background: linear-gradient(135deg, #E32438, #BE0C25);
-  box-shadow: 0 6px 22px rgba(255, 43, 60, 0.28); }
+  box-shadow: var(--shadow-float); }
 [data-theme="light"] .btn-launch { background: linear-gradient(135deg, #E32438, #BE0C25);
-  box-shadow: 0 6px 18px rgba(218, 0, 18, 0.24); color: #fff; }
+  box-shadow: var(--shadow-float); color: #fff; }
 
 /* Destructive text, bare (preview .btn.danger): red words on nothing. The
    grey pill made Delete read like Cancel's sibling. */
@@ -5592,8 +5784,8 @@ body.selecting .voice-dock { display: none; }
    The reorder row sheds its own padding since .set-chip supplies it (same
    split .task-swipe/.task-row use everywhere else). */
 .set-chip-col { margin-bottom: 0; }
-.set-chip-swipe .task-del { opacity: 0; transition: opacity 0.12s var(--ease-out); }
-.set-chip-swipe.swipe-open .task-del { opacity: 1; }
+.set-chip-swipe .task-del, .set-chip-swipe .task-verb { opacity: 0; transition: opacity 0.12s var(--ease-out); }
+.set-chip-swipe.swipe-open .task-del, .set-chip-swipe.swipe-open .task-verb { opacity: 1; }
 .set-strip .reorder-list .reorder-row { padding: 0; }
 .set-chip-editor { padding: 0 var(--s-4) var(--s-2); border-top: 0.5px solid var(--divider); }
 .sheet-scrim .set-chip-editor { background: var(--surface-3); }
@@ -5663,6 +5855,10 @@ body.selecting .voice-dock { display: none; }
 .dd.dd-value.dd-off { color: var(--tx-3); }
 .dd.dd-value .dd-cv { color: var(--tx-2); opacity: 1; width: 7px; height: 7px; margin-left: var(--s-1); }
 .dd.dd-value .dd-w { max-width: 52vw; }
+/* A ROW WITH NOTHING TO SAY SHOWS NOTHING (R1, the review: Repeat None, Length None, Person None, Project None, Goal None, Event None,
+   seven times down one sheet). An empty pick keeps its chevron, which says it can be chosen, and the word "None" stays for a screen
+   reader and the menu's own first option; it is simply not drawn beside the label. */
+.dd.dd-value.dd-none .dd-w { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .dd.dd-value.dd-open { background: transparent; opacity: 0.6; }
 /* The derived Goal value of 2026-09-09 (a --tx-3 answer with no menu behind
    it) is gone since 2026-09-26: the Goal row is a picker on every screen
@@ -5674,29 +5870,32 @@ body.selecting .voice-dock { display: none; }
    glass panel, 14pt corners, the rim and the shadow the ruled card wears;
    rows 44px with the tick column on the left (iOS's own menu anatomy), a
    category dot where the option is an area, the count quiet on the right.
-   The scrim is invisible: the page stays readable while the menu is up,
-   and any tap outside closes it unchanged. */
+   The scrim is a light dim (a tenth): the page stays readable while the menu
+   is up, and any tap outside closes it unchanged. */
 .hmenu-scrim { position: fixed; inset: 0; z-index: 300; pointer-events: none; }   /* above sheets (200): a sheet's rows open menus too */
 /* The scrim itself takes no touches; its backdrop does, less the cut-outs over
    a sheet's own Cancel / Save / Done (HeadMenu.scrimWithHoles), and the panel. */
-.hmenu-back { position: absolute; inset: 0; pointer-events: auto; }
+.hmenu-back { position: absolute; inset: 0; pointer-events: auto;
+  /* A LIGHT DIM BEHIND THE PANEL (2026-10-05, the perfect bar): with none, the rows under it read straight through beside the panel, messy.
+     Roughly a tenth of the sheet scrim, so the page is still readable while the menu is up. */
+  background-color: color-mix(in srgb, var(--scrim) 25%, transparent); }
 .hmenu-scrim > .hmenu { pointer-events: auto; }
-.hmenu { position: fixed; min-width: 200px; max-width: calc(100vw - 32px); padding: var(--s-1h) 0;
-  border-radius: var(--r-md); background: rgba(44, 44, 46, 0.96);   /* iOS's thick menu material: the list must not read through */
+.hmenu { position: fixed; min-width: 168px; max-width: calc(100vw - 32px); padding: var(--s-1h) 0;
+  border-radius: var(--r-md); background-color: var(--surface-2);   /* a solid warm menu: the list behind it must not read through, not even at 4% (2026-10-05) */
   -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat)); backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
-  box-shadow: inset 0 0.5px 0 var(--rim-card), 0 12px 32px rgba(0, 0, 0, 0.55);
+  box-shadow: inset 0 0.5px 0 var(--rim-card), var(--shadow-float);
   transform-origin: top left; animation: hmenuIn var(--dur-fast) var(--ease-out); }
 .hmenu.hmenu-right { transform-origin: top right; }
 .hmenu.hmenu-up { transform-origin: bottom left; }
 .hmenu.hmenu-up.hmenu-right { transform-origin: bottom right; }
 .hmenu { overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
-[data-theme="light"] .hmenu { background: rgba(255, 255, 255, 0.96); box-shadow: var(--shadow-card), 0 12px 32px rgba(0, 0, 0, 0.14); }
+[data-theme="light"] .hmenu { background-color: var(--chrome-bg); box-shadow: var(--shadow-float); }
 @keyframes hmenuIn { from { opacity: 0; transform: scale(0.92); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .hmenu { animation: none; } }
 .hmenu-item { display: flex; align-items: center; gap: var(--s-2h); width: 100%; min-height: 44px; padding: 0 var(--s-4) 0 var(--s-3);
   border: 0; background: transparent; color: var(--tx-1); font-family: var(--f); font-size: calc(16px * var(--type-scale)); text-align: left;
   cursor: pointer; position: relative; }
-.hmenu-item + .hmenu-item::before { content: ""; position: absolute; left: 42px; right: 0; top: 0; height: 0.5px; background: var(--divider); }
+.hmenu-item + .hmenu-item::before { content: ""; position: absolute; left: 42px; right: var(--s-3); top: 0; height: 0.5px; background: var(--divider); }
 .hmenu-item:active { background: var(--press-3); }
 .hmenu-tick { width: 20px; display: inline-flex; justify-content: center; flex-shrink: 0; color: var(--tx-1); }
 .hmenu-tick .ic { width: 16px; height: 16px; }
@@ -5704,6 +5903,7 @@ body.selecting .voice-dock { display: none; }
 .hmenu-item.on .hmenu-l { font-weight: var(--w-semi); }
 .hmenu-n { color: var(--tx-3); font-size: var(--t-sub); font-variant-numeric: tabular-nums; flex-shrink: 0; }
 .hmenu-item .cat-dot { width: 9px; height: 9px; }
+.hmenu-item .hmenu-dot-ph { visibility: hidden; }
 
 /* ==========================================================================
    THE SHEET BAR (shared/SheetBar; ruled 2026-09-01 "Cancel, title, Save
@@ -5717,6 +5917,9 @@ body.selecting .voice-dock { display: none; }
 .sheet-bar-cancel { color: var(--tx-2); text-align: left; }
 .sheet-bar-save { color: var(--tint); font-weight: var(--w-semi); text-align: right; }
 .sheet-bar-save.dim { opacity: 0.4; }
+/* A row action that cannot run yet but still answers a tap with the reason
+   (AI Hub's Preview Shared Context, 2026-10-04): the same dim, the same rule. */
+.row-act.dim { opacity: 0.4; }
 .sheet-bar-title { flex: 1; min-width: 0; text-align: center; font-size: calc(17px * var(--type-scale)); font-weight: var(--w-semi); color: var(--tx-1);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
@@ -5735,6 +5938,29 @@ body.selecting .voice-dock { display: none; }
 .xs .sheet-form { padding-left: 0; padding-right: 0; padding-top: 0; }
 .xs .grp.xs-grp { display: flex; align-items: center; justify-content: space-between; padding-top: var(--s-5); padding-bottom: var(--s-1h); }
 .xs .grp.xs-grp .eyebrow { font-size: var(--t-caption); font-weight: var(--w-semi); letter-spacing: 0.1em; }
+/* A SHEET GROUP'S LABEL ROW CARRIES ITS SECTION-LEVEL ACTION (Dave 2026-10-05, locked: Add Item on Checklist, Add a Note on
+   More), the one head capsule New Event and Schedule are, at the label's right with the group's count beside it. */
+.xs .grp.xs-grp .xs-grp-acts { display: flex; align-items: center; gap: var(--s-2h); }
+.xs .grp.xs-grp .xs-grp-acts .conn-meta { margin: 0; }
+/* THE SHEET'S PRIMARY ACTION LEADS (Dave 2026-10-05: primary prominent, the quieter ones beneath): first in the group, its tile
+   the action red. It no longer carries a red wash over the whole row (2026-10-05, the perfect bar): the wash read as a row
+   held permanently pressed, a muddy brown band in dark, and the red tile plus the first place already say primary. The words keep
+   the one name treatment (the type law). */
+/* MARK DONE IS GREEN (the colour key): the tile is the done mark, and the checkbox inside it is its own 44px tap box centred on the
+   tile (the tile lets it overflow evenly), so a tap on it answers for itself while the row's door answers for the rest of the row. */
+.xs .xs-do .row-ico { overflow: visible; }
+.xs .xs-do .row-ico .task-check-tap { margin: 0; flex-shrink: 0; }
+/* A NAVIGATION ROW'S CHEVRON SITS AT THE ROW'S TRAILING EDGE whatever the row holds (2026-10-05): "Add to Schedule" and "Log the
+   Decision" have a name that does not grow, so their chevron hugged the text. */
+.xs .row.xs-row > .chev { margin-left: auto; }
+/* An open disclosure's chevron (the If-Then Plan row) points up, the dropdown chevron flipped. */
+.dd.dd-flip .dd-cv { transform: rotate(225deg) translate(-1px, -2px); }
+/* The destructive row is a card of its own with the sheet's section gap above it. */
+.form-sheet .xs-del-card { padding-top: var(--s-6); }
+/* DUE WEARS THE KEY (2026-10-05, Alfred: "Due / Today renders white/gray, must be amber"): today is amber, a day behind us is red.
+   The sheet twins, because the value sits on the sheet's own grey. */
+.xs .xs-due-warn .dd.dd-value { color: var(--warn-on-sheet); }
+.xs .xs-due-red .dd.dd-value { color: var(--sys-red-on-sheet); }
 .xs .sheet-form > .grp.xs-grp:first-child { padding-top: var(--s-1); }
 .xs .card.xs-group { margin-bottom: 0; }
 .xs .row.xs-row { min-height: 48px; padding-top: var(--s-2); padding-bottom: var(--s-2); }
@@ -5869,6 +6095,11 @@ body.selecting .voice-dock { display: none; }
 .form-sheet .xs-field[type="date"], .form-sheet .xs-field[type="time"] { flex: 0 1 auto; width: auto; max-width: 60%; }
 .form-sheet .xs-date { padding-left: calc(var(--s-4) + 28px + var(--s-3)); }
 .form-sheet .xs-date .xs-input { color: var(--tx-2); font-size: calc(15px * var(--type-scale)); }
+/* THE PICKER ROW (shared/PickRow.tsx, 2026-10-05): the value is drawn by the event sheet's own `.xs-pick` classes (below), and the native
+   input lies over the WHOLE row, transparent, so a tap anywhere on it opens the system picker. */
+.pick-row { position: relative; }
+.pick-native { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; border: 0; padding: 0; cursor: pointer; font-size: calc(16px * var(--type-scale)); background: transparent; }
+.pick-native::-webkit-calendar-picker-indicator { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
 .form-sheet .xs-plan { padding: var(--s-1) var(--s-4) var(--s-3) calc(var(--s-4) + 28px + var(--s-3)); }
 .form-sheet .xs-plan .segmented { margin-bottom: var(--s-2); }
 .form-sheet .xs-actions { padding-top: var(--s-5); }
@@ -5891,7 +6122,7 @@ body.selecting .voice-dock { display: none; }
 .form-sheet .row-grow .conn-meta { margin-top: var(--s-0h); }
 /* A chip strip as a row of the group (the event's Move and Length, the
    loose tasks): one step up from the group's ground, wrapping. */
-.form-sheet .row.xs-strip { display: block; padding: var(--s-2) var(--s-3) var(--s-2h); }
+.form-sheet .row.xs-strip { display: block; padding: var(--s-2) var(--s-2) var(--s-2h) var(--s-3); }
 .form-sheet .row.xs-strip .chip-row { margin: 0; flex-wrap: wrap; overflow: visible; padding: 0; }
 .form-sheet .row.xs-strip .chip { background: var(--press-3); }
 /* A note under a group (an overlap, a hint). It is the one field note
@@ -5915,6 +6146,37 @@ body.selecting .voice-dock { display: none; }
 /* The last form sheets onto the kit (2026-09-02): a paragraph row, and
    the visual picks (a colour, an icon, a day) as strips of the group. */
 .form-sheet .xs-textrow { align-items: stretch; }
+/* THE EVENT SHEET'S VALUES, ONE COLUMN (2026-10-05 review: Date, Start and End sat at x 168, 140 and 129 under the raw native
+   control, with its black glyph, while Length and Repeat sat at the right edge). A date or a time is a value we draw, right
+   aligned like every HeadMenu value, with the real input riding over it transparent so a tap still opens the system picker. */
+.xs-pick { position: relative; display: inline-flex; align-items: center; justify-content: flex-end; flex: 0 0 auto; margin-left: auto; min-height: var(--tap-min); }
+.xs-row .row-ctx + .xs-pick { margin-left: var(--s-2); }
+.xs-row > .row-ctx:has(+ .xs-pick) { margin-left: auto; margin-right: calc(var(--s-1) * -1); }
+.xs-date .xs-pick { margin-left: 0; justify-content: flex-start; }
+.xs-pick-v { font-size: var(--t-body); font-weight: var(--w-regular); color: var(--tx-1); white-space: nowrap; }
+.xs-pick-off .xs-pick-v { color: var(--tx-3); }
+.xs-pick-bad .xs-pick-v { color: var(--sys-red-on-sheet); }
+.xs-pick-in { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; font-size: calc(16px * var(--type-scale)); border: 0; padding: 0; background: transparent; cursor: pointer; }
+.xs-pick-in::-webkit-calendar-picker-indicator { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; padding: 0; cursor: pointer; }
+/* The minute nudges: four equal 44px segments in one strip (the old chips wrapped 3 + 2). */
+.xs-nudge { width: 100%; }
+.xs-nudge .seg { flex: 1 1 0; min-width: 0; min-height: var(--tap-min); padding: 0 var(--s-1); white-space: nowrap; cursor: pointer; font-variant-numeric: tabular-nums; font-size: var(--t-caption); font-weight: var(--w-semi); }
+.xs-nudge .seg + .seg { box-shadow: inset 0.5px 0 0 var(--divider); border-radius: 0; }
+.xs-nudge .seg.seg-off { opacity: 0.38; pointer-events: none; }
+/* Suggested places: a labelled strip of chips that wrap whole, never clipped at the card edge. */
+.xs-sug-label { font-size: var(--t-micro); font-weight: var(--w-bold); letter-spacing: var(--track-caps); text-transform: uppercase; color: var(--tx-3); margin-bottom: var(--s-1h); }
+.form-sheet .row.xs-strip .chip-row { -webkit-mask-image: none; mask-image: none; }
+.form-sheet .row.xs-strip .chip-row > .chip { flex-shrink: 1; min-width: 0; max-width: 100%; white-space: normal; text-align: left; padding-top: var(--s-1); padding-bottom: var(--s-1); }
+.xs-sug .chip .ic, .xs-sug .chip svg { width: 14px; height: 14px; flex-shrink: 0; }
+/* A task row's dot sits in the same 28px slot a tile does, so every group in the sheet shares one left edge for its names. */
+.form-sheet .xs-row > .cat-dot { margin-inline: calc((28px - 10px) / 2); }
+/* Notes: the placeholder rides the right edge like every other empty value; once there is text, or focus, the field drops
+   under its label at full width, so a paragraph has room and an empty row is one line, not 72px of nothing. */
+.form-sheet .xs-notes { align-items: center; }
+.form-sheet .xs-notes .xs-textarea { flex: 1 1 0; min-height: 32px; height: 32px; text-align: right; overflow: hidden; }
+.form-sheet .xs-notes .xs-textarea:focus,
+.form-sheet .xs-notes .xs-textarea:not(:placeholder-shown) { flex: 1 0 calc(100% - 28px - var(--s-3)); margin-left: calc(28px + var(--s-3)); min-height: 72px; height: auto; text-align: left; overflow: auto; overscroll-behavior: contain; }
+
 .form-sheet .xs-textarea { height: auto; min-height: 72px; padding: var(--s-1) 0; resize: none; line-height: var(--lh-relaxed); font-family: inherit; }
 .form-sheet .row.xs-strip .pick-fam { margin: 0 0 var(--s-1h); }
 .form-sheet .row.xs-strip .pick-fam + .swatch-pick, .form-sheet .row.xs-strip .pick-fam + .icon-pick { margin-bottom: var(--s-1); }
@@ -5955,9 +6217,9 @@ body.selecting .voice-dock { display: none; }
    values (jarvis-design-system.css), and every label under it inherits
    them. The fill tokens its tag and slider sit on are pinned with them. */
 .cond-face {
-  --tx-1: #FFFFFF; --tx-2: #D2D2D6; --tx-3: #D2D2D6; --tx-4: #84848A;
-  --tx-quiet: rgba(235,235,245,0.55); --press-3: rgba(255,255,255,0.06);
-  position: fixed; inset: 0; z-index: 400; background: #000; color: #fff;
+  --tx-1: #F7F1EA; --tx-2: #D6D0CA; --tx-3: #D6D0CA; --tx-4: #948B84;
+  --tx-quiet: rgba(247,241,234,0.62); --press-3: rgba(255,244,232,0.06);
+  position: fixed; inset: 0; z-index: 400; background: #1C1917; color: #F7F1EA;
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   padding: max(20px, env(safe-area-inset-top)) 20px max(22px, env(safe-area-inset-bottom));
   gap: var(--s-1h); -webkit-user-select: none; user-select: none; touch-action: none;
@@ -5973,7 +6235,7 @@ body.selecting .voice-dock { display: none; }
 .cf-top { position: absolute; top: max(14px, env(safe-area-inset-top)); left: 0; right: 0;
   display: flex; flex-direction: column; align-items: center; gap: var(--s-1); }
 .cf-cancel { position: absolute; left: 14px; top: 0; border: 0; background: none; color: var(--tx-3);
-  font: inherit; font-size: calc(15px * var(--type-scale)); font-weight: 600; padding: var(--s-2) var(--s-1h); cursor: pointer; }
+  font: inherit; font-size: calc(15px * var(--type-scale)); font-weight: var(--w-medium); padding: var(--s-2) var(--s-1h); cursor: pointer; }
 /* The format tag names a format; it means nothing the key colours, so it is
    the neutral tag: its fill and caps set it apart, in the one grey (§AM,
    2026-09-25). Blue is Health's cool-down, and this is not one.
@@ -5986,7 +6248,7 @@ body.selecting .voice-dock { display: none; }
 .cf-ring { position: relative; width: min(78vw, 300px); height: min(78vw, 300px); display: grid; place-items: center;
   margin-top: var(--s-2); cursor: pointer; }
 .cf-ring .cf-svg { position: absolute; inset: 0; width: 100%; height: 100%; transform: rotate(-90deg); }
-.cf-track { fill: none; stroke: rgba(255,255,255,0.12); stroke-width: 8; }
+.cf-track { fill: none; stroke: rgba(255,240,225,0.12); stroke-width: 8; }
 .cf-arc { fill: none; stroke: var(--blue); stroke-width: 8; stroke-linecap: round; transition: stroke-dashoffset 120ms linear; }
 .cond-face.rest .cf-arc { stroke: var(--good-fill); }
 .cond-face.lead .cf-arc { stroke: var(--tx-3); }
@@ -5996,20 +6258,20 @@ body.selecting .voice-dock { display: none; }
 .cf-num.pulse { animation: cf-pulse 260ms ease-out; }
 .cf-lead { font-size: clamp(80px, 30vw, 120px); animation: cf-pulse 300ms ease-out; }
 @keyframes cf-pulse { 0% { transform: scale(1.14); } 100% { transform: scale(1); } }
-.cf-round { font-size: calc(15px * var(--type-scale)); font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--tx-3); margin-top: var(--s-1); }
+.cf-round { font-size: calc(15px * var(--type-scale)); font-weight: var(--w-semi); letter-spacing: 0.06em; text-transform: uppercase; color: var(--tx-3); margin-top: var(--s-1); }
 .cf-last { font-size: var(--t-sub); color: var(--tx-3); font-variant-numeric: tabular-nums; min-height: 18px; }
 
-.cf-roundbtn { margin-top: var(--s-6h); border: 0; border-radius: var(--r-pill); background: #fff; color: #000; font: inherit;
-  font-size: var(--t-h2); font-weight: 700; padding: var(--s-4) 0; width: min(64vw, 240px); cursor: pointer; }
+.cf-roundbtn { margin-top: var(--s-6h); border: 0; border-radius: var(--r-pill); background: #FFFDFA; color: #1C1917; font: inherit;
+  font-size: var(--t-h2); font-weight: var(--w-semi); padding: var(--s-4) 0; width: min(64vw, 240px); cursor: pointer; }
 .cf-roundbtn:active { transform: scale(0.97); }
 
 .cf-slide { position: relative; margin-top: var(--s-3h); width: min(64vw, 240px); height: 50px; border-radius: var(--r-pill);
   background: var(--press-3); display: flex; align-items: center; justify-content: center; overflow: hidden; }
-.cf-slide-t { color: var(--tx-3); font-size: var(--t-caption); font-weight: 600; letter-spacing: 0.02em; padding-left: var(--s-7); }
+.cf-slide-t { color: var(--tx-3); font-size: var(--t-caption); font-weight: var(--w-medium); letter-spacing: 0.02em; padding-left: var(--s-7); }
 .cf-knob { position: absolute; left: 5px; top: 5px; width: 40px; height: 40px; border-radius: var(--r-circle); background: var(--sys-red);
   display: grid; place-items: center; touch-action: none; cursor: grab; transition: transform 180ms ease; }
 .cf-knob.dragging { transition: none; cursor: grabbing; }
-.cf-knob::after { content: ""; width: 12px; height: 12px; background: #fff; border-radius: var(--r-xxs); }
+.cf-knob::after { content: ""; width: 12px; height: 12px; background: #FFFDFA; border-radius: var(--r-xxs); }
 
 /* The corners exist for landscape only. Their type size is held with the
    clock-caps question for Dave, like the format tag's; not moved until he rules. */
@@ -6029,7 +6291,7 @@ body.selecting .voice-dock { display: none; }
     text-transform: uppercase; color: var(--tx-3); }
   .cf-tl { top: 14px; left: 18px; }
   .cf-tr { top: 14px; right: 18px; }
-  .cf-bl { bottom: 14px; left: 18px; color: var(--tx-2); text-transform: none; letter-spacing: 0; font-weight: 600;
+  .cf-bl { bottom: 14px; left: 18px; color: var(--tx-2); text-transform: none; letter-spacing: 0; font-weight: var(--w-medium);
     font-variant-numeric: tabular-nums; }
   .cf-roundbtn { position: absolute; right: 18px; bottom: 12px; margin: 0; width: auto; padding: var(--s-3) var(--s-7); font-size: calc(16px * var(--type-scale)); }
   .cf-slide { position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%); margin: 0; width: 200px; height: 42px; }
@@ -6061,7 +6323,7 @@ body.selecting .voice-dock { display: none; }
 /* GYM-F-10 (2026-09-05): the attempt title row now carries the delete a
    misfired run needs, so it is a row rather than a lone label. */
 .cr-attempt-t { display: flex; align-items: center; justify-content: space-between; gap: var(--s-2);
-  font-size: var(--t-eyebrow); font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--tx-3); margin: var(--s-2) 0 var(--s-0h); }
+  font-size: var(--t-eyebrow); font-weight: var(--w-semi); letter-spacing: 0.08em; text-transform: uppercase; color: var(--tx-3); margin: var(--s-2) 0 var(--s-0h); }
 .cr-del { background: none; border: 0; padding: var(--s-0h); color: var(--tx-2); display: inline-flex; cursor: pointer; }
 .cr-del:active { color: var(--red); }
 .cr-del .ic { width: 16px; height: 16px; }
@@ -6070,7 +6332,7 @@ body.selecting .voice-dock { display: none; }
 .cr-table { width: 100%; border-collapse: collapse; font-size: var(--t-sub); font-variant-numeric: tabular-nums; margin-top: var(--s-1); }
 .cr-table td { padding: var(--s-1h) var(--s-1); border-top: 0.5px solid var(--divider); color: var(--tx-2); }
 .cr-n { color: var(--tx-2); width: 36px; }
-.cr-t { color: var(--tx-1); font-weight: 600; }
+.cr-t { color: var(--tx-1); font-weight: var(--w-medium); }
 .cr-score-l { min-width: 0; }
 .cr-d { text-align: right; color: var(--tx-2); width: 60px; }
 .cr-d.up { color: var(--warn); }
@@ -6084,11 +6346,11 @@ body.selecting .voice-dock { display: none; }
 .cr-score-v { display: inline-flex; align-items: center; gap: var(--s-1h); font-size: var(--t-h2); font-weight: var(--w-bold); color: var(--tx-1);
   font-variant-numeric: tabular-nums; }
 .cr-score-v b { font-weight: var(--w-bold); }
-.cr-plus { font-size: calc(15px * var(--type-scale)); color: var(--tx-3); font-weight: 600; }
+.cr-plus { font-size: calc(15px * var(--type-scale)); color: var(--tx-3); font-weight: var(--w-medium); }
 .cr-extra { width: 56px; border: 0; border-radius: var(--r-sm); background: var(--press-3); color: var(--tx-1); font: inherit;
   font-size: var(--t-h2); font-weight: var(--w-bold); text-align: center; padding: var(--s-1) var(--s-1h); font-variant-numeric: tabular-nums; }
 .cr-extra:focus { outline: 2px solid var(--blue); }
-.cr-extra::placeholder { color: var(--tx-2); font-weight: 600; }
+.cr-extra::placeholder { color: var(--tx-2); font-weight: var(--w-medium); }
 
 /* HOW TODAY WENT (2026-09-09): a pick that got done reads as struck through
    and stepped back, the same treatment a skipped set chip already wears. It
@@ -6105,6 +6367,21 @@ body.selecting .voice-dock { display: none; }
 .ev-title { font-size: var(--t-title); font-weight: var(--w-bold);
   letter-spacing: var(--track-h2); line-height: var(--lh-snug); }
 .ev-url { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* THE EVENT HEADER, ONE LEFT EDGE FOR TEXT (2026-10-05 review: the tile at x 41, the title at x 97 and the date at x 77, with the
+   page-title stroke hanging under the name). The glyph tile leads; the title and the facts share ONE column beside it, so
+   nothing starts at a different x, and the title balances its two lines instead of leaving one word on the second. */
+.ev-head { display: flex; align-items: flex-start; gap: var(--s-3); }
+.ev-text { flex: 1 1 auto; min-width: 0; }
+.ev-title { text-wrap: balance; overflow-wrap: anywhere; }
+.ev-head .row-ico { margin-top: var(--s-0h); }
+/* The facts line breathes under the title: it sat 4px beneath a two-line name (round 3, 2026-10-05). One 8pt step. */
+.ev-title + .facts { margin-top: var(--s-2); }
+.ev-top { padding-top: var(--s-3); }
+/* The Area card sits right under the title card, on the same 8pt step as two cards in a list. */
+.ev-top + .pad-x { padding-top: var(--s-2); }
+.ev-area { display: inline-flex; align-items: center; gap: var(--s-2); }
+.ev-join { margin-top: var(--s-3); }
+.ev-verbs { display: flex; flex-direction: column; gap: var(--s-2); margin-top: var(--s-5); }
 
 /* ==========================================================================
    THE ASTRA PASS (V4.23, Dave's picks 2026-09-12). The primitives every new
@@ -6152,6 +6429,12 @@ body.selecting .voice-dock { display: none; }
 .facts > .fact { min-width: 0; flex-shrink: 0.001; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .facts > .fact:nth-last-child(2) { flex-shrink: 1; }
 .facts > .fact:last-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex-shrink: 1000; }
+/* A FACT IN A SHEET IS NEVER CUT (Dave 2026-10-05, the review: "21 Completio..." and "Enough Evidence, Waiting f..." in the
+   one sheet that exists to say them). A row's one line is an economy, a sheet has the room: the earlier facts hold their
+   width, the last takes what is left and wraps its words under its own dot instead of ending in an ellipsis. */
+.sheet-scrim > .card .facts { overflow: visible; }
+.sheet-scrim > .card .facts > .fact { flex-shrink: 0; max-width: 100%; overflow: visible; text-overflow: clip; white-space: normal; }
+.sheet-scrim > .card .facts > .fact:last-child { flex-shrink: 1; }
 /* AMENDED 2026-09-26 (later the same day, the Money page): a shrink of 1 on
    the earlier facts let flexbox take a fraction of a pixel from the FIRST
    fact on any line that overflowed at all (221.48px of 222), which is enough
@@ -6209,10 +6492,19 @@ body.selecting .voice-dock { display: none; }
    start of the next, so no wrapped line opens on a separator. An area fact
    is already an atomic inline flex and keeps its own display. A meta line
    that is itself the facts line keeps the flex row above. */
-.conn-meta:not(.facts):has(> .fact) { display: block; -webkit-line-clamp: none; overflow: visible; }
+.conn-meta:not(.facts):has(> .fact) { display: block; -webkit-line-clamp: none; overflow: hidden; }
 .conn-meta:not(.facts) > .fact:not(.cat) { display: inline-block; }
-.conn-meta:not(.facts) > .fact + .fact::before { content: none; }
-.conn-meta:not(.facts) > .fact:not(:last-child)::after { content: "\00B7"; color: var(--tx-4); margin: 0 var(--s-1h); }
+/* THE SEPARATOR LEADS THE FACT AFTER IT, AND A FACT THAT STARTS A LINE HAS NONE (Dave 2026-10-05, D7: a stranded trailing
+   dot is a CSS bug). The dot used to be the TRAILING ::after of every fact but the last, so a line that wrapped after
+   "Likely Today" ended in a dot pointing at nothing ("Sunday ·", "Tomorrow ·" in the review). Now each fact owns a
+   separator-wide lead (padding-left, pulled back out by an equal negative margin-left, with the same width kept as
+   margin-right so neighbours do not overlap), and every fact after the first draws its dot in that lead. The block clips
+   (overflow: hidden above), so a fact that opens a line has its lead, and its dot, outside the box: no dot at a line
+   start, one between two facts on a line, with no script and no measuring. */
+.conn-meta:not(.facts) > .fact { position: relative; margin: 0 var(--s-3) 0 calc(-1 * var(--s-3)); padding-left: var(--s-3); }
+.conn-meta:not(.facts) > .fact + .fact::before {
+  content: "\00B7"; position: absolute; left: 0; top: 0; width: var(--s-3); margin: 0; text-align: center; color: var(--tx-4); }
+.conn-meta:not(.facts) > .fact:not(:last-child)::after { content: none; }
 /* A fact that carries meaning takes its intent COLOUR, and only its colour.
    At most one of these per .facts line (K.3, extended by the law in
    laws/astra.test.ts); .fact.st and .fact.cat do not count toward it.
@@ -6255,6 +6547,9 @@ body.selecting .voice-dock { display: none; }
 .fact.date { font-size: var(--t-eyebrow); font-weight: var(--w-semi);
   letter-spacing: var(--track-caps); text-transform: uppercase; color: var(--tx-3);
   font-variant-numeric: tabular-nums; }
+/* A notification's next event is the same small-caps time as the ones after it, in the amber of "next" (2026-10-05, the review:
+   a 14px amber time above 11px grey ones read as two kinds of fact). */
+.notif-facts > .fact.date.warn { color: var(--warn); }
 /* AN ESTIMATE the app worked out is sky, the ink .r-est already wears.
    The estimate has its own ink, --est-ink (Dave's pick, 2026-09-26): in dark
    it IS the sky slot, unchanged; in light it is a darker sky, #006592,
@@ -6347,18 +6642,58 @@ body.selecting .voice-dock { display: none; }
 .plan-facts { padding: var(--s-1) 0 var(--s-2); }
 
 /* THE BRAIN, PUSH D (C-38 to C-43, C-47, C-50; Astra, 2026-09-12). Strand
-   rows on the hub and on What JARVIS Knows: the star leads, a purple disc
-   says JARVIS-made knowledge (G7), a warn disc with a question mark is a
-   detector still watching. The star on a strand row is a marker, not a
-   control, so it does not invite a tap. */
-.strand-disc { background: var(--cat-purple); }
-/* The glyph on an amber disc is dark (2026-09-22): white on #FF9500 is
-   2.06:1 in both themes, the one badge in the app that failed everywhere. */
-.warn-disc { background: var(--warn-fill); color: var(--on-fill-dark); }
-.disc-glyph { font-size: calc(15px * var(--type-scale)); font-weight: var(--w-bold); line-height: 1; }
-.strand-row .lib-disc { flex-shrink: 0; }
+   rows on the hub and on What JARVIS Knows: the star leads, then a BARE tinted glyph (the round 2 review, 2026-10-05: grey
+   discs in Watching beside bare vivid glyphs in Explore were two icon systems on one screen), in the tone of its subject
+   (.cat-fg-*, light takes the 3:1 glyph twin). The star on a strand row is a marker, not a control, so it does not invite
+   a tap. */
+.strand-row > .lib-ico { width: 30px; display: flex; justify-content: center; flex-shrink: 0; }
+.strand-row > .lib-ico .ic { width: 25px; height: 25px; }
+/* ONE DIVIDER INSET FOR THE WHOLE SCREEN: a hub card whose rows lead with a glyph draws its hairline from the text edge, the
+   same place the Explore card draws it (30px glyph and its gap), not under the glyph. Rows that are siblings (Shaping) and
+   rows that wear the swipe shell (Needs You, Watching) each have their own hairline rule. */
+.card.glyph-rows .row.strand-row + .row.strand-row::before { left: calc(var(--s-4) + 30px + var(--s-3h)); }
+.ruled .card.shell-rows.glyph-rows > .pad-x + .pad-x::before { left: calc(var(--s-4) + 30px + var(--s-3h)); }
+/* THE FOLD OF DETECTORS THAT HAVE SEEN NOTHING (round 2 review): one row inside the Readiness card, "5 Still Waiting", in the fold
+   label's own tap red, opening onto the rows it holds. Its hairlines are the card's, drawn on each wrapper because the rows are
+   not siblings of the card's other rows. */
+.ruled .card.shell-rows > .rdy-idle { margin-top: 0; border-top: 0.5px solid var(--divider); }
+.ruled .card.shell-rows > .rdy-idle:first-child { border-top: 0; }
+.card .rdy-idle > summary { padding-left: var(--s-4); padding-right: var(--s-4); }
+.ruled .card.shell-rows .rdy-idle > .pad-x { position: relative; }
+.ruled .card.shell-rows .rdy-idle > .pad-x::before {
+  content: ""; position: absolute; z-index: 2; left: var(--s-4); right: 0; top: 0; height: 0.5px; background: var(--divider); pointer-events: none; }
+/* The glyph in an empty state takes its type's colour (D5, D9); light takes the 3:1 glyph twin, as every tinted glyph does. */
+[data-theme="light"] .empty-icon.cat-fg-purple { color: var(--cat-ic-purple); }
+[data-theme="light"] .empty-icon.cat-fg-sky { color: var(--cat-ic-sky); }
+[data-theme="light"] .empty-icon.cat-fg-teal { color: var(--cat-ic-teal); }
+[data-theme="light"] .empty-icon.cat-fg-orange { color: var(--cat-ic-orange); }
+[data-theme="light"] .empty-icon.cat-fg-indigo { color: var(--cat-ic-indigo); }
+[data-theme="light"] .empty-icon.cat-fg-pink { color: var(--cat-ic-pink); }
+[data-theme="light"] .empty-icon.cat-fg-blue { color: var(--cat-ic-blue); }
+[data-theme="light"] .empty-icon.cat-fg-green { color: var(--cat-ic-green); }
+[data-theme="light"] .empty-icon.cat-fg-mint { color: var(--cat-ic-mint); }
 span.row-star { cursor: default; }
 .strand-filters { padding-top: 0; }
+/* THE FILTER ROW SCROLLS ON PURPOSE, SO IT FADES ON PURPOSE (round 2 review: "hard-cropped at the right edge"). The shared row
+   fades the last 32px; five chips run well past the edge, so this one takes a wider, softer fade and a right inset, and the
+   cut chip reads as "more this way", never as a sliver of an "N". */
+.chip-row.strand-filters { padding-right: var(--s-4); -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 56px), transparent 100%); mask-image: linear-gradient(to right, #000 calc(100% - 56px), transparent 100%); }
+/* THE NOTICES ON WHAT JARVIS KNOWS (Dave 2026-10-05, the review: "jammed against the title rule", "6px apart, off the 8pt
+   grid", "7 AM and 10 / AM"). A stack with air above it and an 8pt gap between its cards; a title balances across its
+   lines so no word or time is left alone; the whisper a card folds to wraps instead of ending in an ellipsis that loses
+   the time. Empty, it takes no room at all. */
+.strand-notices { display: flex; flex-direction: column; gap: var(--s-2); padding-top: var(--s-4); }
+.strand-notices:empty { display: none; }
+.strand-notices .notice-card .conn-name { text-wrap: balance; }
+/* A SOFT DISC, NOT A SOLID ONE (round 2 review: "a flat saturated #FFD60A disc, the loudest object on the screen, louder than
+   the brand-red action"). The notice's own tone as an 18% wash with the glyph in the tone itself (light takes the 3:1 twin),
+   so the bulb says what the card is and the capsule stays the one loud thing. */
+.strand-notices .notice-disc.cat-bg-yellow { background-color: color-mix(in srgb, var(--cat-yellow) 18%, transparent); color: var(--cat-yellow); }
+[data-theme="light"] .strand-notices .notice-disc.cat-bg-yellow { color: var(--cat-ic-yellow); }
+.strand-notices .notice-disc.cat-bg-slate { background-color: color-mix(in srgb, var(--cat-slate) 18%, transparent); color: var(--cat-slate); }
+[data-theme="light"] .strand-notices .notice-disc.cat-bg-slate { color: var(--cat-ic-slate); }
+.strand-notices .receipt-line, .strand-notices .receipt-line .rl-t { white-space: normal; overflow: visible; }
+.strand-notices + .strand-filters { margin-top: var(--s-4); }
 .rdy-receipt { padding-bottom: var(--s-2h); }
 /* The Readiness receipt WRAPS (AMENDED 2026-09-26, round 3). It is not a
    button and it exists only to say where the numbers live, so the place it
@@ -6377,11 +6712,20 @@ span.row-star { cursor: default; }
    2026-09-12). The Remember star as a tap on entity rows, the outcome
    capsules on a record and on the revisit notice. */
 .row > .row-star, .task-row > .row-star, .sched-row > .row-star { margin-right: var(--s-1); }
+/* A TASK ROW'S STAR HANGS IN THE GUTTER (2026-10-05, the perfect bar): it draws only while the task is remembered (the empty one on
+   every row took a column and pushed the title 30px right), so a remembered row wears it in the 20px the row already pads, and
+   the ring and the title keep the same columns on every row. The expander gives it the vertical reach of a 44px tap. */
+.task-row > .row-star { position: absolute; left: var(--s-1); top: 50%; transform: translateY(-50%); margin: 0; }
+.task-row > .row-star::after { content: ""; position: absolute; inset: -14px -2px; }
 .sched-row > .row-star { margin-left: var(--s-2); }
 .chat-prov .row-star { vertical-align: middle; margin-right: var(--s-1); }
 .dec-outcome-acts { display: flex; gap: var(--s-2); flex-wrap: wrap; }
 .dec-outcome-acts .pill-act.on { background-color: var(--sel-bg); color: var(--sel-fg); }
 .notice-foot-acts { padding-top: var(--s-2); }
+/* The outcome row on a notice (Worked, Mixed, Didn't): a question over one segmented control, both on the title's edge,
+   the control filling the text column so its right edge lines up with the chevron column above it. */
+.notice-foot-ask { flex-direction: column; flex-wrap: nowrap; align-items: stretch; gap: var(--s-1); padding-bottom: var(--s-3); padding-right: var(--s-4); }
+.notice-foot-ask .segmented .seg { min-height: var(--tap-min); border: 0; font-family: inherit; padding-inline: var(--s-2); white-space: nowrap; }
 .dec-row .lib-ico { flex-shrink: 0; }
 
 /* LIFE, PUSH F (C-35, C-36, C-37; Astra, 2026-09-12). The dollar ring on
@@ -6418,7 +6762,8 @@ span.row-star { cursor: default; }
    the stacked hours bar (category-coloured segments, 10px, rounded), and
    the week's keyed lines. */
 .tiles { display: flex; gap: var(--s-1h); margin: 0 0 var(--s-2h); }
-.itile { flex: 1; border-radius: var(--r-md); padding: var(--s-2h) var(--s-3); min-width: 0; }
+/* A tile inside a card wears the inner radius, concentric with the card's 24 (2026-10-05). */
+.itile { flex: 1; border-radius: var(--r-inner); padding: var(--s-2h) var(--s-3); min-width: 0; }
 .itile b { display: block; font-size: var(--t-title); font-weight: var(--w-bold); letter-spacing: -0.02em; line-height: 1; font-variant-numeric: tabular-nums; }
 /* THE THREE TILES SHARE ONE WIDTH, NOT ONE LABEL LENGTH (2026-09-22 audit).
    flex:1 gives "done", "goals moved" and "flexible" the same third of the
@@ -6428,8 +6773,10 @@ span.row-star { cursor: default; }
    arbitrary data, so the fix is the one already used for known short app
    copy elsewhere (.voice-hint, 2026-09-21): wrap rather than ellipsize.
    Identical at scale 1, where all three already fit on one line. */
-.itile span { display: block; margin-top: var(--s-1); font-size: var(--t-eyebrow); font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; white-space: normal; overflow: visible; text-overflow: clip; }
-.itile-good { background: color-mix(in srgb, var(--good) 14%, transparent); color: var(--good); }
+.itile span { display: block; margin-top: var(--s-1); font-size: var(--t-eyebrow); font-weight: var(--w-semi); text-transform: uppercase; letter-spacing: 0.04em; white-space: normal; overflow: visible; text-overflow: clip; }
+/* 10%, not 14 (2026-10-05, the warm neutrals): the done green as words on a 14% wash over the warm
+   card read 4.34:1 in light; 10% reads 4.64. */
+.itile-good { background: color-mix(in srgb, var(--good) 10%, transparent); color: var(--good); }
 /* ONLY DONE HAS A COLOUR (§AM, 2026-09-25). Goals moved and flexible hours
    are counts with no state, so they are the tile the key gives a number
    like that: a neutral ground, the number in white, and the caps label in
@@ -6438,6 +6785,12 @@ span.row-star { cursor: default; }
    it is rather than a colour it no longer wears (2026-09-26). */
 .itile-plain { background: var(--press-3); color: var(--tx-1); }
 .itile-plain span { color: var(--tx-3); }
+/* A DURATION IS SKY (§AM, D4): the flexible hours are an amount of time the app worked out. Same neutral ground as the other
+   plain tile; only the number takes the ink. The smaller unit rides beside the larger on one line. */
+.itile-sky { background: var(--press-3); color: var(--est-ink); flex: 1.4; }
+.itile-sky span { color: var(--tx-3); }
+.itile b { white-space: nowrap; }
+.itile b small { font-size: var(--t-sub); font-weight: var(--w-semi); letter-spacing: 0; margin-left: var(--s-0h); }
 .stack { display: flex; height: 10px; border-radius: var(--r-xs); overflow: hidden; margin: var(--s-1h) 0 var(--s-2); background: var(--press-3); }
 .stack > i { display: block; height: 100%; }
 .stack > i.stack-open { background: var(--divider); }
@@ -6455,7 +6808,17 @@ span.row-star { cursor: default; }
 .eq-k { flex: 0 0 64px; font-size: var(--t-eyebrow); font-weight: var(--w-bold); letter-spacing: 0.06em; text-transform: uppercase; }
 .eq-good { color: var(--good); } .eq-warn { color: var(--warn); } .eq-quiet { color: var(--tx-3); }
 .eq .facts { flex: 1; min-width: 0; }
+/* A WEEK LINE SAYS ALL OF ITSELF (the round 2 review made "Got 0 of 2h 15m Planned" say what was got; D8: a fact that carries
+   meaning wraps before it is cut). The line wraps between facts, and the last fact may take a second line instead of an ellipsis. */
+.week-card .eq .facts { flex-wrap: wrap; row-gap: 0; overflow: visible; }
+.week-card .eq .facts > .fact:last-child { overflow: visible; text-overflow: clip; white-space: normal; }
 .week-acts { margin-top: var(--s-2h); align-items: center; }
+/* AIR ROUND THE SENTENCE THE BUTTON COMES FROM (the round 2 review: the Move Two Blocks button started 10px under it, where the gaps above
+   and below elsewhere in the card are 16 to 20): a step above and a full 16 below. */
+.week-why { margin: var(--s-3) 0 var(--s-4); }
+/* The week's lines share one left edge: a line led by an area wears a 7px dot and its gap, so a line with no dot holds the same
+   room for it (Dave 2026-10-05, the review: Money and Health began at 128, 195 Made at 115). */
+.week-card:has(.eq .fact.cat) .eq .facts > .fact:first-child:not(.cat) { padding-left: calc(7px + var(--s-1h)); }
 .rep-vs { margin-left: var(--s-1h); }
 
 /* .why: the Why chip. Red wash, red label, 34px tall. Same anatomy as the
@@ -6549,13 +6912,13 @@ span.row-star { cursor: default; }
 .hdr-search-x::after { content: ""; position: absolute; inset: -11px; }
 .hdr-search-x .ic { width: 18px; height: 18px; }
 
-/* ADD IS NOT A SECOND PRIMARY (handoff rule 1). Dark surface, red glyph,
-   white word: the page's real primary stays the one red block on screen. */
+/* ADD IS NOT A SECOND PRIMARY (handoff rule 1). The capsule recipe in both themes (--capsule-fill, --tint on the glyph and
+   the word; 2026-10-05, D3), so the page's real primary stays the one filled red block on screen. */
 .hdr-add {
   flex: 0 0 auto; min-width: 77px; height: 46px; padding: 0 var(--s-3);
   display: inline-flex; align-items: center; justify-content: center; gap: var(--s-1h);
-  border-radius: var(--r-md); border: 0.5px solid var(--divider); background: var(--surface-2);
-  font-family: var(--f); font-size: var(--t-body); font-weight: var(--w-semi); color: var(--tx-1);
+  border-radius: var(--r-pill); border: 0; background-color: var(--capsule-fill);
+  font-family: var(--f); font-size: var(--t-body); font-weight: var(--w-semi); color: var(--tint);
 }
 /* THE RED IS THE GLYPH AND NOTHING ELSE, AND IT IS --tint.
    The handoff asks for "a red plus", and the two obvious tokens are both
@@ -6622,7 +6985,7 @@ span.row-star { cursor: default; }
   display: flex; align-items: baseline; justify-content: space-between; gap: var(--s-3);
   padding: 0 var(--s-4); margin-top: var(--s-3h);
 }
-.hdr-scope-n { font-size: var(--t-meta); font-weight: var(--w-regular); color: var(--tx-3); }
+.hdr-scope-n { font-size: var(--t-sub); font-weight: var(--w-sub); color: var(--tx-3); }
 .hdr-scope-all {
   flex-shrink: 0; background: none; border: 0; padding: 0;
   font-family: var(--f); font-size: var(--t-meta); font-weight: var(--w-semi); color: var(--tint);
@@ -6673,27 +7036,20 @@ span.row-star { cursor: default; }
    One as well; that is a control on the header line now. */
 .pick-one { padding-top: var(--s-2); padding-bottom: var(--s-1); }
 
-/* FOCUS, ON THE CONTROL LINE (2026-09-18, Dave: "that massive pick one chip
-   looks terrible"). Pick One was a full-width red fill under the header, the
-   only red on the page, and it named nothing: it opened a sheet to find out
-   what it meant. Focus is where the proposal lives now, so this is only the
-   door -- the height of the cuts beside it, in the tinted red, wearing the
-   bolt the capture bar already uses for the same screen. */
-.hdr-controls .tasks-focus {
-  flex: 0 0 auto; margin-left: auto;
-  display: inline-flex; align-items: center; gap: var(--s-1);
-  min-height: 34px; padding: 0 var(--s-3);
+/* FOCUS, IN THE HEAD (2026-10-05, Dave: "never a red slab among the chips"). It was a filled red capsule on the line of
+   cuts (2026-09-18), the one loud thing among filters. Focus is an action, so it sits in the head beside the options control
+   as the same quiet capsule every action is: --capsule-fill under --tint, 44px tall, the bolt the capture bar wears for the
+   same screen. Gated on there being tasks, so it never paints beside the empty state's New Task. */
+.pagehead-acts .tasks-focus {
+  flex: 0 0 auto;
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--s-1);
+  min-height: 44px; padding: 0 var(--s-3);
   border: 0; border-radius: var(--r-pill);
-  /* JARVIS RED, FILLED (Dave 2026-09-18: "that focus button should be Jarvis
-     red"). It was the tinted ground with accent text, which on the dark theme
-     reads as a dark red capsule with dark red words in it. --accent-fill is
-     the one red in the palette that carries WHITE, which is why every primary
-     in the app uses it and why this one does too. */
-  background: var(--accent-fill); color: #FFFFFF;
+  background-color: var(--capsule-fill); color: var(--tint);
   font-family: var(--f); font-size: var(--t-caption);
-  font-weight: var(--w-semi); letter-spacing: -0.01em; cursor: pointer;
+  font-weight: var(--w-bold); letter-spacing: -0.01em; cursor: pointer;
 }
-.hdr-controls .tasks-focus .ic { width: 15px; height: 15px; }
+.pagehead-acts .tasks-focus .ic { width: 16px; height: 16px; color: var(--tint); }
 
 /* THE TRACKER (PASSOFF 2026-09-19, money/screens/TrackerScreen.tsx).
    The handoff shipped its own stylesheet of hard-coded greys; those are
@@ -6739,6 +7095,43 @@ span.row-star { cursor: default; }
 .life-seg .segmented::-webkit-scrollbar { display: none; }
 .mt-tabrow .segmented .seg,
 .life-seg .segmented .seg { flex: 0 0 auto; white-space: nowrap; scroll-snap-align: start; }
+/* THE LIFE STRIP FADES ONLY WHERE IT CONTINUES (2026-10-05): the shared right-edge fade above sat on the strip even when all
+   five lenses fit, dimming "Goals" itself. LifeSegments writes data-more ("r", "l", "lr" or "") from its scroll position. */
+.life-seg .segmented[data-more=""],
+.mt-tabrow .segmented[data-more=""] { -webkit-mask-image: none; mask-image: none; }
+.life-seg .segmented[data-more="l"],
+.mt-tabrow .segmented[data-more="l"] { -webkit-mask-image: linear-gradient(to left, #000 calc(100% - 28px), transparent 100%);
+  mask-image: linear-gradient(to left, #000 calc(100% - 28px), transparent 100%); }
+.life-seg .segmented[data-more="lr"],
+.mt-tabrow .segmented[data-more="lr"] { -webkit-mask-image: linear-gradient(to right, transparent 0, #000 28px, #000 calc(100% - 28px), transparent 100%);
+  mask-image: linear-gradient(to right, transparent 0, #000 28px, #000 calc(100% - 28px), transparent 100%); }
+/* THE TRACKER'S TABS SAY WHEN THEY SCROLL, THE SAME WAY (2026-10-05, the perfect bar: "Dashboard / Transactions / Budgets /
+   Su", the fourth tab cut mid-word in dark). Four labels cannot share 350px, so the strip scrolls, centres the active tab, and
+   fades only the side it continues on, in both themes. The buttons are .seg buttons: the UA ground goes, the active one keeps
+   the system's. */
+.mt-tabrow .segmented .seg { min-height: var(--tap-min); border: 0; font-family: inherit; }
+/* FOUR TABS FIT THE ROW AT REST (the ship-blocker review, 2026-10-05: the fourth label was cut at the edge before the strip was ever touched).
+   4px of padding a side and the spare room shared out, so Overview, Activity, Budgets and Subscriptions are all whole at 350px; the scroll and
+   the fade below remain for a larger text size. Same in both themes. */
+.mt-tabrow .segmented .seg { flex: 1 0 auto; padding-inline: var(--s-1); }
+/* THE TRACKER'S FADE IS LONGER (2026-10-05, round 2: "Su" cut at the edge looked like a rendering bug in dark, where the track is a
+   whisper above the page). Four labels never share the row, so the one that continues takes a 44px ramp instead of 28: the
+   stub of its first letters dissolves into the ground rather than ending in a stub. Same ramp both themes, so only the colour differs. */
+.mt-tabrow .segmented[data-more="r"] { -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 44px), transparent 100%);
+  mask-image: linear-gradient(to right, #000 calc(100% - 44px), transparent 100%); }
+.mt-tabrow .segmented[data-more="l"] { -webkit-mask-image: linear-gradient(to left, #000 calc(100% - 44px), transparent 100%);
+  mask-image: linear-gradient(to left, #000 calc(100% - 44px), transparent 100%); }
+.mt-tabrow .segmented[data-more="lr"] { -webkit-mask-image: linear-gradient(to right, transparent 0, #000 44px, #000 calc(100% - 44px), transparent 100%);
+  mask-image: linear-gradient(to right, transparent 0, #000 44px, #000 calc(100% - 44px), transparent 100%); }
+.mt-tabrow .segmented .seg:not(.active) { background: transparent; }
+/* A NOTICE UNDER THE TITLE HAS ROOM (2026-10-05): the import offer sat on the title's underline with no gap. */
+.mt-notice { margin-top: var(--s-4); margin-bottom: var(--s-3); }
+/* THE MONTH SWITCH: two quiet chevron buttons flanking the month, a tap each (2026-10-05: "Back" and "Next" read as
+   navigation next to the screen's own back link). Neutral ink, no fill, the same in both themes. */
+.mt-step { width: var(--tap-min); height: var(--tap-min); display: inline-flex; align-items: center; justify-content: center;
+  border: 0; border-radius: var(--r-pill); background: transparent; color: var(--tx-2); flex: 0 0 auto; }
+.mt-step:active { background: var(--press-1); }
+.mt-step .ic { width: 20px; height: 20px; }
 
 .mt-monthnav { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); margin-bottom: var(--s-2); }
 .mt-monthname { font-size: var(--t-h3); font-weight: var(--w-semi); color: var(--tx-1); }
@@ -6747,12 +7140,22 @@ span.row-star { cursor: default; }
    the type scale makes a balance wider than half the row ("$26,512.41" ran
    out of its tile at 1.4). */
 .mt-accts { display: grid; grid-template-columns: repeat(auto-fit, minmax(calc(140px * var(--type-scale)), 1fr)); gap: var(--s-2h); }
-.mt-acct { padding: var(--s-3); }
+/* EVEN TILES (2026-10-05, the perfect bar): the grid stretches every tile in a row to the tallest, and each tile reads top
+   down in the same three steps (name, last digits, balance), so the balances across a row sit on one line and a card's
+   available credit is one more line under its own balance, never a different shape. */
+.mt-acct { padding: var(--s-3); display: flex; flex-direction: column; }
 .mt-acct-name { font-size: var(--t-eyebrow); font-weight: var(--w-semi); letter-spacing: var(--track-caps);
-  text-transform: uppercase; color: var(--tx-3); margin-bottom: var(--s-1); }
+  text-transform: uppercase; color: var(--tx-3); }
+/* The last digits, behind two drawn dots (CSS, not a typed mask), quiet and tabular. */
+.mt-acct-mask { font-size: var(--t-eyebrow); font-weight: var(--w-medium); color: var(--tx-3); font-variant-numeric: tabular-nums;
+  margin-top: var(--s-0h); }
+.mt-acct-mask::before { content: "\2022\2022\00a0"; letter-spacing: 0.1em; }
+.mt-acct-foot { padding-top: var(--s-2); }
 .mt-acct-bal { font-size: calc(19px * var(--type-scale)); font-weight: var(--w-bold); color: var(--tx-1);
   font-variant-numeric: tabular-nums; }
-.mt-acct-sub { font-size: var(--t-meta); color: var(--tx-3); margin-top: var(--s-0h); }
+.mt-acct-kick { font-size: var(--t-eyebrow); font-weight: var(--w-semi); letter-spacing: var(--track-caps);
+  text-transform: uppercase; color: var(--tx-3); margin-top: var(--s-2); }
+.mt-acct-avail { font-size: var(--t-meta); font-weight: var(--w-semi); color: var(--tx-1); font-variant-numeric: tabular-nums; }
 
 /* AMENDED 2026-09-26 (pass-off item 16): "-$1,145.68" clipped its last digit
    in the Net tile at 390 (in Dave's own screenshot too). The tiles wrap and
@@ -6816,9 +7219,6 @@ span.row-star { cursor: default; }
 .bk-form { display: flex; flex-direction: column; gap: var(--s-2); }
 .bk-form .input-label { margin-bottom: 0; }
 .bk-form .btn { margin-top: var(--s-2); }
-/* The publish block on Booking settings: one full-width button inside a
-   card, which is not a row and must not pretend to be one. */
-.set-publish { padding: var(--s-3) var(--s-4); }
 
 /* THE WAY HOME (2026-09-22, Dave: "make sure all modals and screens no matter
    where they are get addressed"). Drawn by the shell while a cross-tab jump
@@ -6833,15 +7233,15 @@ span.row-star { cursor: default; }
    capsule 4.82; light keeps its opaque white, because light's capsule fill
    is an alpha and this floats over whatever scrolls under it. */
 .return-pill {
-  position: fixed; left: var(--s-4); z-index: 40;
-  /* Clear of the capture bar, which the shell measures (ReturnPill.tsx sets
-     --return-clear to the dock's height from the screen's bottom edge, safe
-     area included, plus a gap); 132px above the safe area is the fallback
-     for a screen with no dock. AMENDED 2026-09-26 (the post-code audit): the
-     fixed 132px sat 3px into the capture bar at 390x844 and further at type
-     scale 1.4, so the pill covered the bar's left end on every screen with
-     nothing to scroll ("< Life" over the exercise list). */
-  bottom: var(--return-clear, calc(env(safe-area-inset-bottom, 0px) + 132px));
+  /* A ROW OF THE SHELL'S COLUMN, NOT A FLOATER (2026-10-05, D6: floating chrome never covers content). It sat
+     position: fixed over the scroll box and covered whichever row was at that height ("ean Out", the foot of the Health
+     goal card, "SUN 11"). In flow, between the scroll box and the capture bar, the scroll box is shorter by the pill's
+     own height while a jump is live and nothing is ever under it. The toast above it comes first in the column, so the
+     pill is out of its way by order; z-index keeps it over the capture bar's fade. */
+  position: relative; z-index: 2; flex-shrink: 0; align-self: flex-start; margin-left: var(--s-4);
+  /* The capsule is painted 5px inside its 44px box, so with the box flush against the dock the paint stood 5px off it, tighter than
+     the 8pt rhythm anywhere else (round 3 review). 4px of margin makes the clear space 9px, never under 8. */
+  margin-bottom: var(--s-1);
   display: inline-flex; align-items: center; gap: var(--s-0h);
   /* 44px to the finger, 34px to the eye: the box is the HIG minimum and the
      capsule is painted on ::before, 5px in from the top and bottom. */
@@ -6852,10 +7252,9 @@ span.row-star { cursor: default; }
   font-weight: var(--w-semi); letter-spacing: -0.01em; cursor: pointer;
 }
 .return-pill::before { content: ""; position: absolute; inset: 5px 0; z-index: -1; border-radius: var(--r-pill);
-  background-color: var(--capsule-fill); box-shadow: 0 2px 10px rgba(0, 0, 0, 0.45); }
+  background-color: var(--capsule-fill); }
 .return-pill { isolation: isolate; }
 [data-theme="light"] .return-pill { color: var(--on-light-red); }
-[data-theme="light"] .return-pill::before { background-color: #FFFFFF; }
 .return-pill .ic { width: 17px; height: 17px; }
 .return-pill:active { opacity: 0.85; }
 
@@ -6874,9 +7273,6 @@ span.row-star { cursor: default; }
 /* The Up Next rows after the Now row are the plan, read and not tapped:
    no pointer, the dashed edge alone says "not yet". */
 .ruled.health-ruled .set-chip-ghost.se-next { cursor: default; }
-/* The set editor's two moves (planning and history strips) are one capsule
-   row; the row-pair's tall row-gap stays for the 44px hit boxes. */
-.ruled.health-ruled .set-chip-editor .set-chip-acts, .sheet-scrim > .card .set-chip-editor .set-chip-acts { margin: var(--s-2) 0 var(--s-2); }
 /* THE MORE CAPSULE on the strip's head (Dave: "Three dots isn't obvious
    enough but that's the right idea"): a labelled §AL capsule, tap red, in
    the head's trailing slot. .sh2 orders its dotted rule at 1 and everything
@@ -6887,6 +7283,9 @@ span.row-star { cursor: default; }
    be easy and obvious"): the same trailing capsule as More, on the list of
    lifts it groups. */
 .ruled.health-ruled .sh2 .pill-act.se-sup { order: 2; align-self: center; margin-left: auto; }
+/* AND ITS ADD EXERCISE beside it (Dave 2026-10-05, locked: a section's add is its head's capsule); alone, it takes the edge. */
+.ruled.health-ruled .sh2 .pill-act.se-add { order: 2; align-self: center; margin-left: auto; }
+.ruled.health-ruled .sh2 .pill-act.se-sup + .pill-act.se-add { margin-left: var(--s-2); }
 /* THE SUPERSET SWITCHER under the lift's name: one door per member, the one
    on screen filled with the selected ink (the app's own "this one" fill,
    as on the decision outcome chips) and without the door's chevron, since
@@ -6895,9 +7294,6 @@ span.row-star { cursor: default; }
 .ruled.health-ruled .se-turns .se-chip-door.on { background-color: var(--sel-bg); color: var(--sel-fg); cursor: default; }
 .ruled.health-ruled .se-turns .se-chip-door.on::before { display: none; }
 .ruled.health-ruled .se-turns .se-chip-door.on em { color: var(--sel-fg); }
-/* CANCEL WORKOUT at the foot of This Session: the create row's shape in the
-   destructive ink, since it throws the session away. */
-.ruled.health-ruled .row-create.row-create-danger { color: var(--danger-tx); }
 /* THE SUGGESTION LINE inside the Now row: the estimate's ink for the
    number (§AM: an estimate the app worked out is sky), the two verbs as the
    same inline action the Match line is, and the evidence rows under it. */
@@ -6942,6 +7338,15 @@ span.row-star { cursor: default; }
    measures 58 with the capsules inside it, the same as every Today head
    that carries a capsule. */
 .sh2 .sec-left:has(.pill-action) { margin: 0; }
+/* A HEAD WITH MORE CAPSULES THAN ROOM (Dave 2026-10-05: Plan My Day and Plan Tomorrow moved up onto Your Day's head, beside
+   the pause, New Event and Schedule). The cluster is one row when it fits; when it does not it drops under the title as
+   its own right-aligned row rather than shrinking a capsule or running off the screen. The dotted leader still rules the
+   title's line. */
+.sh2:has(> .sec-left .pill-action) { flex-wrap: wrap; row-gap: var(--s-1); }
+.sh2 .sec-left:has(.pill-action) { flex-wrap: wrap; justify-content: flex-end; margin-left: auto; max-width: 100%; row-gap: var(--s-1); }
+/* Three capsules and a control (Your Day: pause, Plan My Day, New Event, Schedule) tighten to fit one row at 390. */
+.sh2 .sec-left:has(.pill-action ~ .pill-action ~ .pill-action) { gap: var(--s-1h); }
+.sh2 .sec-left:has(.pill-action ~ .pill-action ~ .pill-action) .see-all.pill-action { padding-left: var(--s-2h); padding-right: var(--s-2h); }
 
 /* A SWIPE ROW WITHOUT A CHECK STARTS ITS HAIRLINE AT THE TEXT EDGE (§H.2).
    The ruled list insets a swipe row's divider past a task's check box; the
@@ -7044,9 +7449,13 @@ span.row-star { cursor: default; }
 
 /* MONEY LEDGER: BILLS (lane B, 2026-10-03). The bill's own page and the quiet
    recurring offer. Everything here reuses the form-sheet and task-row atoms;
-   only the value column, the history lines and the offer's second pill are new. */
+   only the value column and the history lines are new. */
 .xs .row.xs-row > .bill-val { margin-left: auto; min-width: 0; text-align: right; overflow-wrap: anywhere; }
 .xs .row.xs-row > .bill-val.bill-notes { font-size: var(--t-meta); color: var(--tx-2); }
+/* ONE WEIGHT FOR EVERY VALUE IN THE COLUMN (round 3 review: "$2,200 bold, Rent and Monthly regular"): the amount keeps its
+   money face (tabular digits) but not a heavier rung than the vendor and the repeat beside it. */
+.xs .row.xs-row > .bill-val.money-amt { font-weight: var(--w-regular); }
+.xs .row.xs-row > .bill-val.facts { justify-content: flex-end; margin-top: 0; }
 .xs .row.xs-row > .bill-val.uchip { flex-shrink: 0; }
 .xs .bill-prov { padding-top: var(--s-1); }
 .xs .bill-changes { flex-basis: 100%; display: flex; flex-direction: column; gap: var(--s-0h); margin-top: var(--s-1); font-size: var(--t-meta); color: var(--tx-2); }
@@ -7054,16 +7463,11 @@ span.row-star { cursor: default; }
 .xs .bill-change-k { color: var(--tx-3); }
 .xs .bill-change-v { color: var(--tx-1); font-weight: var(--w-medium); }
 .xs .bill-change-to { color: var(--tx-3); }
-.bill-suggest .pill-act + .pill-act { margin-left: var(--s-2); }
-.bill-suggest .pill-act.pill-quiet { color: var(--tx-2); }
 
 /* MONEY LEDGER: RECEIPTS AND BUDGET */
-/* A match proposal: the words on the left, the two answers stacked on the
-   right so neither is a dead corner (the row itself opens the same two). */
+/* A match proposal: a clean row (Dave 2026-10-05); its two answers are the swipe and the tap's sheet. */
 .match-row { align-items: flex-start; }
 .match-row .task-title { min-width: 0; }
-.match-acts { display: flex; flex-direction: column; align-items: flex-end; gap: var(--s-1); flex: none; }
-.match-acts .quiet-action { white-space: nowrap; }
 
 /* === FEEDBACK STYLE (v1) ===================================================
    Acknowledgment on the working surface and the Gentle effects. Gentle is the
@@ -7084,8 +7488,10 @@ html[data-celebrate="off"] .cb.on.just-checked { animation: none; }
 .fb-track { flex: 1; height: 6px; border-radius: var(--r-pill); background: var(--press-3); overflow: hidden; }
 .fb-fill { height: 100%; width: calc(var(--p, 0) * 1%); border-radius: var(--r-pill); background: var(--good-fill);
   transition: width 260ms var(--ease-out); }
-.fb-count { font-size: var(--t-meta); color: var(--tx-2); font-feature-settings: 'tnum'; white-space: nowrap; }
-.start-last { font-size: var(--t-meta); color: var(--tx-3); padding-bottom: var(--s-2); }
+/* The count is a facts line (2026-10-05): the size, weight and ink come from
+   the facts primitives and its white <b>, so this class is layout only. It
+   used to state --tx-2 and a size of its own, a second grey. */
+.fb-count { flex: none; margin-top: 0; font-feature-settings: 'tnum'; }
 
 /* The acknowledgment is state, not a toast: it stays until the next action,
    sits in the flow, and never covers the button that comes next. */
@@ -7096,6 +7502,12 @@ html[data-celebrate="off"] .cb.on.just-checked { animation: none; }
 .fb-check { width: 18px; height: 18px; flex-shrink: 0; color: var(--good); }
 .fb-ack-line { flex: 1; min-width: 0; font-size: var(--t-body); font-weight: var(--w-medium); line-height: var(--lh-snug); }
 .fb-editor { gap: var(--s-3); }
+/* THE WAYS OUT WRAP (2026-10-05, measured at 390px). Five quiet actions share
+   one flex row that cannot wrap, so with a step on screen the row ran to 713px
+   and "Worked on It", "Something's in the way" and "Done for Now" sat past the
+   screen edge, unreachable. Wrapping keeps every one on screen at a 44px tap
+   height, and the row gap keeps two lines from touching. */
+.fb-support { flex-wrap: wrap; row-gap: var(--s-1); }
 .fb-editor-acts { display: flex; gap: var(--s-2); flex-wrap: wrap; }
 
 html[data-motion="reduce"] .task-row.just-done,
@@ -7111,3 +7523,84 @@ html[data-motion="reduce"] .fb-fill { transition: none; }
   html:not([data-motion="full"]) .fb-fill { transition: none; }
 }
 /* === END FEEDBACK STYLE === */
+
+/* === CELEBRATION FORMS (Dave 2026-10-05, the craft playbook) ================
+   The reward is always certain and only its FORM varies, so the same one does
+   not play every time. encourage/effects chooses one of three per completion
+   and publishes it as html[data-cv]; the Burst (Expressive) reads it as a
+   class, and Gentle reads it here. Every form is under a second, and all of
+   it sits inside no-preference: under Reduce Motion (the phone's, or the
+   Feedback Style setting) there is no transform, no clip and no ring, only
+   the tick in its place.
+   GENTLE   0 the pulse (above)   1 the tick draws itself on   2 a soft ring
+   EXPRESSIVE  0 dots   1 a ring opens and the tick draws on   2 diamonds and a lift */
+@keyframes cvTick { from { clip-path: inset(100% 0 0 0); } to { clip-path: inset(0 0 0 0); } }
+@keyframes cvHalo { 0% { box-shadow: 0 0 0 0 var(--good-tint); } 100% { box-shadow: 0 0 0 9px transparent; } }
+@keyframes cvRing { 0% { transform: scale(0.55); opacity: 0.9; } 100% { transform: scale(2.1); opacity: 0; } }
+@keyframes cvSpark { 0% { transform: rotate(45deg); opacity: 1; } 60% { opacity: 1; }
+  100% { transform: translate(var(--bx), var(--by)) rotate(225deg) scale(0.4); opacity: 0; } }
+@keyframes cvLift { 0% { translate: 0 0; } 30% { translate: 0 -2px; } 100% { translate: 0 0; } }
+.burst-ring i { display: none; }
+.burst-ring::before { content: ""; position: absolute; left: -14px; top: -14px; width: 28px; height: 28px;
+  border-radius: var(--r-md); border: 2px solid var(--good-fill); opacity: 0; }
+.burst-spark i { width: 6px; height: 6px; left: -3px; top: -3px; border-radius: var(--r-xxs); transform: rotate(45deg); background: var(--good-fill); }
+.burst-spark i:nth-child(even) { background: var(--mint); }
+@media (prefers-reduced-motion: no-preference) {
+  html:not([data-motion="reduce"]) .burst-ring::before { animation: cvRing 520ms var(--ease-out) forwards; }
+  html:not([data-motion="reduce"]) .task-row:has(.burst-ring) .task-check.done::before { animation: cvTick 260ms var(--ease-out) 40ms both; }
+  html:not([data-motion="reduce"]) .burst-spark i { animation: cvSpark 520ms var(--ease-out) forwards; }
+  html:not([data-motion="reduce"]) .task-row:has(.burst-spark) { animation: cvLift 460ms var(--ease-out); }
+  html[data-celebrate="gentle"][data-cv="1"]:not([data-motion="reduce"]) .task-row.just-done .task-check { animation: none; }
+  html[data-celebrate="gentle"][data-cv="1"]:not([data-motion="reduce"]) .task-row.just-done .task-check.done::before { animation: cvTick 240ms var(--ease-out); }
+  html[data-celebrate="gentle"][data-cv="2"]:not([data-motion="reduce"]) .task-row.just-done .task-check { animation: cvHalo 360ms var(--ease-out); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .burst-ring::before, .burst-spark i { animation: none; }
+}
+/* === END CELEBRATION FORMS === */
+
+/* THE SWIPE TIP AND THE ROW'S MOMENT (Dave 2026-10-05, locked; ROW-ACTIONS-SPEC.md). The tip is a quiet note, not a
+   control; the contextual action is text only in the key colour, never a capsule. */
+.swipe-tip { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); padding: var(--s-2) var(--s-3); margin-bottom: var(--s-2); border-radius: var(--r-md); background: var(--capsule-fill); }
+.swipe-tip-t { font-size: var(--t-caption); font-weight: var(--w-semi); color: var(--tx-1); }
+.swipe-tip-x { flex: 0 0 44px; width: 44px; height: 44px; margin: calc(var(--s-2) * -1) calc(var(--s-3) * -1) calc(var(--s-2) * -1) 0; display: flex; align-items: center; justify-content: center; border: 0; background: transparent; color: var(--tx-3); }
+.swipe-tip-x .ic { width: 16px; height: 16px; }
+.row-ctx { flex: 0 0 auto; min-width: 44px; min-height: 44px; padding: 0 var(--s-2); border: 0; background: transparent; color: var(--tint); font: inherit; font-size: var(--t-caption); font-weight: var(--w-bold); letter-spacing: -0.01em; }
+
+/* MONEY'S TYPE ICON IN LIGHT (Dave 2026-10-05, rule 13: an icon that says what a row IS carries its type's colour, in both
+   themes). A bill's autopay glyph and a receipt's picture or document glyph are Money's green; dark takes .cat-fg-green as it
+   stands, and light takes the glyph set's twin (--cat-ic-green, held to the 3:1 non-text bar), never the text ink. */
+[data-theme="light"] .gm-slot.cat-fg-green { color: var(--cat-ic-green); }
+
+/* A BILL ROW'S QUIET VERB BESIDE ITS AMOUNT (Dave 2026-10-05, locked: a row whose moment has come shows its one action as text). The
+   row already holds a check, a name with its chip, and the amount, so the verb gives back the room its default padding takes: the
+   44px hit area stays (a 44px minimum width and the row's own height), the paint is the word's own width. */
+.task-row .money-amt + .row-ctx { padding: 0 var(--s-1); min-width: 44px; margin-left: calc(var(--s-2) * -1); }
+/* THE BALANCE CARD'S OWN PADDING (it was clipped at the card's edge: "OURS UNTIL" and "After $330.09"). The ruled list card zeroes the padding
+   of every card, and the card that IS the hero needs it back. */
+.ruled .card.money-hero.list-card-ruled { padding: var(--s-4) var(--s-4) var(--s-3); }
+/* A SWITCH ROW WITH NO META LINE PUTS ITS SWITCH AT THE EDGE (the Google Account sheet's Email and Calendar sat against their labels). With a
+   meta line the row-grow wrapper pushes it; a bare label took only its own width. */
+.xs .row.xs-row > .switch { margin-left: auto; }
+/* THE GLYPH AT A ROW'S EDGE THAT SAYS WHAT ITS TAP DOES (Dave 2026-10-05, locked: no pill in a row): a plus where the tap adds,
+   a link where it links. Not a control of its own; the row is the door. */
+.row-verb-ic { width: 20px; height: 20px; flex-shrink: 0; color: var(--tint); }
+/* A CHIP ROW INSIDE A SETTINGS ROW DRAWS INSIDE THE ROW (2026-10-05, found rendering Booking at 390 wide). The row already pads
+   its own edge, and the chip strip's own side padding added a second one, so the last weekday and the 60 Min slot ran off the
+   card. Inside a settings row the strip takes the row's edge and wraps rather than clipping. */
+.set-card .set-row > .chip-row { padding-left: 0; padding-right: 0; flex-wrap: wrap; overflow: visible; }
+/* A SWIPEABLE ROW INSIDE A REORDERABLE LIST FILLS ITS ROW (2026-10-05, found rendering the gym's Days at 390 wide). The
+   reorder row is a flex row and the swipe wrapper is a shrink-to-fit child of it, so a day's own row came out 184px wide with its
+   facts crowded against the menu. */
+.reorder-list .row.reorder-row > .task-swipe { flex: 1 1 auto; min-width: 0; align-self: stretch; }
+
+/* THE HEAD'S OVERFLOW (shared/HeadMore.tsx): an icon-only capsule, the same height as its neighbours. */
+.head-more { min-width: 44px; padding-inline: var(--s-2h); display: inline-flex; align-items: center; justify-content: center; }
+.head-more .ic { width: 18px; height: 18px; }
+/* The overflow button is an icon: it has no text baseline, so in a head that aligns its children on the baseline (.sh2) it
+   sat 5px above its neighbours' labels (2026-10-05, the Reminders head). It centres on the line like the capsules do. */
+.sh2 > .head-more { align-self: center; }
+/* A ROW WITH NO RAIL DOES NOT RESERVE THE RAIL'S INSET (2026-10-05, Today's Tomorrow rows lost their category bar: the area is
+   a dot, once). Its content starts at the card's own padding, and its hairline with it. */
+.ruled .sched-row.sched-row-bare { padding-left: var(--s-4); }
+.ruled .sched-row.sched-row-bare + .sched-row.sched-row-bare::before { left: var(--s-4); }

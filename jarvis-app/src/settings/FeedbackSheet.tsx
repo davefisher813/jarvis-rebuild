@@ -70,11 +70,12 @@ export default function FeedbackSheet({ token, build, template, onClose }: {
       {crash && (
         <Group label="Attach">
           <SwitchRow tone="red" glyph={<MessageSquare className="ic" />} label="Include the Last Error"
-            meta="The newest crash, with no text you wrote" on={attach} onToggle={() => setAttach((v) => !v)}
+            meta="The Newest Crash, with No Text You Wrote" on={attach} onToggle={() => setAttach((v) => !v)}
             ariaLabel="Include the last error" />
         </Group>
       )}
-      <Note>This goes straight to the person who builds JARVIS. It carries the build number and the kind of device, and nothing else from your account.</Note>
+      {/* One note, fragments joined by a dot (2026-10-05, the catalog gate): it was two sentences. */}
+      <Note>This goes straight to the person who builds JARVIS · It carries the build number and the kind of device, and nothing else from your account</Note>
     </FormSheet>
   );
 }

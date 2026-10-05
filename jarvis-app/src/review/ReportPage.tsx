@@ -1,12 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
-import { createPortal } from "react-dom";
 import { useCategories, useGoals, useProjects, useGym, useTasks, useRules, useOptionalSeal, useSchedule, useOptionalPeople, useOptionalDecisions } from "../data/NotesProvider";
 import type { MonthSeal, MonthSealData } from "./seal";
 import { prevMonthKey, computeSeal } from "./seal";
 import { readWindow, type WindowClient } from "../brain/window";
 import { supabase } from "../auth/supabaseClient";
 import { todayISO } from "../tasks/grouping";
-import { buildReport, type MonthReport, type CarriedTask, type ReportFact, type LifeCard } from "./report";
+import { buildReport, boldCounts, type MonthReport, type CarriedTask, type ReportFact, type LifeCard } from "./report";
 import RollingNumber from "../shared/RollingNumber";
 import { showToast } from "../shared/toast";
 import { attemptWrite } from "../shared/guard";
@@ -16,8 +15,11 @@ import { peopleForDerivation } from "../brain/peopleFacts";
 import { loadWaitingCache, waitingDaysOf } from "../messages/waiting";
 import type { TaskData } from "../notes/types";
 import type { EventItem } from "../schedule/types";
-import { TargetGlyph, CheckCircleGlyph, LockGlyph } from "../shared/glyphs";
+import { TargetGlyph, LockGlyph } from "../shared/glyphs";
+import PageHeader from "../shared/PageHeader";
 import { pressable } from "../shared/pressable";
+import RowShell from "../brain/RowShell";
+import RowSheet from "../brain/RowSheet";
 
 // THE MONTHLY REPORT (2026-08-25, built from the approved v3 preview).
 // Reassurance leads, numbers and color carry it, sentences live behind the
@@ -55,7 +57,9 @@ export function oldestWaitDays(now: number): number {
 /** One facts line: the words grey, a count white, at most one key colour. */
 function Facts({ facts }: { facts: ReportFact[] }) {
   return (
-    <div className="facts">
+    // .rep-facts: a report row is a page of what happened, so its facts wrap onto a second line rather than ending in an
+    // ellipsis (Dave 2026-10-05, the review: "14 of 18 Drafts Sent Une..." was the point of the row).
+    <div className="facts rep-facts">
       {facts.map((f, i) => (
         <span className={"fact" + (f.tone ? " " + f.tone : "")} key={i}>
           {f.parts ? f.parts.map((p, j) => (typeof p === "string" ? p : <b key={j}>{p.b}</b>)) : f.text}
@@ -65,27 +69,35 @@ function Facts({ facts }: { facts: ReportFact[] }) {
   );
 }
 
-function ReceiptsSheet({ title, lines, onDone }: { title: string; lines: string[]; onDone: () => void }) {
-  return createPortal(
-    <div className="sheet-scrim" onClick={onDone}>
-      <div className="card" onClick={(e) => e.stopPropagation()}>
-        <div className="sheet-handle" />
-        <div className="grp"><div className="eyebrow">Receipts</div></div>
-        <div className="pad-x sheet-form">
-          <div className="rep-question">{title}</div>
-          <div className="card rep-gap">
-            {lines.map((l, i) => (
-              <div className="row" key={i}><div className="row-grow"><div className="rep-title">{l}</div></div></div>
-            ))}
-          </div>
-        </div>
-        <div className="pad-x sheet-actions">
-          <button className="btn btn-secondary btn-block" onClick={onDone}>Done</button>
-        </div>
+// WHAT A REPORT ROW OPENS (Dave 2026-10-05, locked: a row is a door, and its sheet holds every action, the primary
+// prominent). The receipts behind the card are the sheet's words; the verb the row used to carry as a capsule under it
+// (Do One, Drop One, Open Money) is the sheet's first answer, filled, with the quieter one beneath it.
+interface ReportAnswer { label: string; onPick: () => void; destructive?: boolean }
+interface OpenReceipts { title: string; lines: string[]; answers?: ReportAnswer[] }
+
+function ReceiptsSheet({ title, lines, answers = [], onDone }: { title: string; lines: string[]; answers?: ReportAnswer[]; onDone: () => void }) {
+  return (
+    <RowSheet portal eyebrow="Receipts" text={title} answers={answers} cancelLabel="Done" onClose={onDone}>
+      {/* The evidence, as lines in the regular weight with a hairline between them: the strand sheet's receipts (Dave
+          2026-10-05, the review: one loud bold sentence in a filled box is not evidence). */}
+      <div className="rep-receipts">
+        {lines.map((l, i) => (
+          <div className="strand-receipt" key={i}><div className="r-what rep-receipt-line">{l}</div></div>
+        ))}
       </div>
-    </div>,
-    document.body,
+    </RowSheet>
   );
+}
+
+const hourName = (h: number) => `${h % 12 || 12} ${h % 24 < 12 ? "AM" : "PM"}`;
+/** The three busiest hours of the day, as the receipts behind "Your Hours": what the bars are made of. */
+function busiestHours(byHour: number[]): string[] {
+  return byHour
+    .map((n, h) => ({ n, h }))
+    .filter((x) => x.n > 0)
+    .sort((a, b) => b.n - a.n || a.h - b.h)
+    .slice(0, 3)
+    .map((x) => lineCase(`${hourName(x.h)}: ${x.n} ${x.n === 1 ? "finish" : "finishes"}`));
 }
 
 export function ReportScreen({ report, capped, onCap, onOpenTask, onDropTask, onBack, stillOpen, canExit, onExit }: {
@@ -102,7 +114,7 @@ export function ReportScreen({ report, capped, onCap, onOpenTask, onDropTask, on
   canExit?: (exit: LifeCard["exit"]) => boolean;
   onExit?: (exit: LifeCard["exit"]) => void;
 }) {
-  const [receipts, setReceipts] = useState<{ title: string; lines: string[] } | null>(null);
+  const [receipts, setReceipts] = useState<OpenReceipts | null>(null);
   // The open animation: bars grow into place once, numbers roll via the
   // shared RollingNumber. One orchestrated moment, then still; reduced
   // motion gets the finished frame (CSS side).
@@ -116,23 +128,33 @@ export function ReportScreen({ report, capped, onCap, onOpenTask, onDropTask, on
   const maxHour = Math.max(1, ...report.hours?.byHour ?? [1]);
   const exitable = (exit: LifeCard["exit"]) => !!onExit && (!canExit || canExit(exit));
   const worthFeet = report.worth.map((w) => w.foot).filter((f): f is string => !!f);
+  const loneTile = report.tiles.length === 1 ? report.tiles[0]! : null;
+  const gridTiles = loneTile ? [] : report.tiles;
 
   return (
     <div className="screen ruled">
-      <div className="nav-bar">
-        <button className="nav-back" aria-label="Back" onClick={onBack}></button>
-        <div className="nav-title">{report.monthName}</div>
-        <button className="nav-action-text" onClick={onBack}>Done</button>
-      </div>
+      {/* ONE WAY OUT, NAMED (Dave 2026-10-05, the review: "an unlabelled red chevron on the left and a red Done on the
+          right, two ways to leave"). The same large-title header every Brain page wears, with the page it returns to. */}
+      <PageHeader title={report.monthName} back="Insights" onBack={onBack} />
 
       {/* HERO: the month's one number, then its named wins. */}
       <div className="pad-x rep-hero">
         <div className="rep-eyebrow">{stillOpen ? "Your Month So Far" : "Your Month"}</div>
         <div className="rep-big"><RollingNumber value={Number(report.hero.big)} /></div>
-        <div className="rep-big-label">
-          {report.hero.label}
-          {report.hero.anchor && <span className="rep-anchor">{report.hero.anchor}</span>}
-        </div>
+        <div className="rep-big-label">{report.hero.label}</div>
+        {/* Last month's number, plainly: a fact with its count white, never a pill with a typed colon (Dave 2026-10-05). */}
+        {/* A LONE TILE IS A FACT OF THE HERO, NOT A GRID WITH ONE CELL (the round 2 review: October's The Month was "1/31 Days Checked
+            In" as one full-width tile where September has a 2 by 2, and it read as a missing grid). With one tile the grid is not
+            drawn: its figure and its words join the hero's own line, and a delta, when it has one, follows as its own fact. */}
+        {(report.hero.anchor || loneTile) && (
+          <Facts facts={[
+            ...(report.hero.anchor ? [{ text: report.hero.anchor, parts: boldCounts(report.hero.anchor) }] : []),
+            ...(loneTile ? [
+              { text: `${loneTile.num} ${loneTile.label}`, parts: boldCounts(`${loneTile.num} ${loneTile.label}`) },
+              ...(loneTile.delta ? [{ text: loneTile.delta.text, tone: loneTile.delta.up ? "good" as const : undefined }] : []),
+            ] : []),
+          ]} />
+        )}
         {report.hero.wins.length > 0 && (
           <div className="rep-wins">
             {/* Every win is done, achieved or paid, so every win is green
@@ -146,30 +168,35 @@ export function ReportScreen({ report, capped, onCap, onOpenTask, onDropTask, on
           </div>
         )}
         {/* A sentence, so a field note at 14 and never a caps line. */}
-        <div className="input-hint rep-hint">Tap anything for its receipts</div>
+        <div className="input-hint rep-hint">Tap Any Card to See Why</div>
       </div>
 
       {/* THE MONTH: tiles with deltas, the hours strip, where it went. */}
-      {(report.tiles.length > 0 || report.hours || report.went || report.time) && (
+      {(gridTiles.length > 0 || report.hours || report.went || report.time) && (
         <div className="sh2 sh2-quiet"><span className="t">The Month</span></div>
       )}
       <div className="pad-x">
-        {report.tiles.length > 0 && (
+        {gridTiles.length > 0 && (
           <div className="rep-grid">
-            {report.tiles.map((t) => (
+            {gridTiles.map((t) => (
               <div className={"stat-tile stat-" + t.tint} key={t.label}>
                 <div className="stat-num">{/^\d+$/.test(t.num) ? <RollingNumber value={Number(t.num)} /> : t.num}</div>
-                {t.delta && <div className={"rep-delta " + (t.delta.up ? "rep-delta-up" : "")}>{t.delta.text}</div>}
+                {/* The label names the number, so it sits under the number; the comparison is the quiet line after it. */}
                 <div className="stat-label">{t.label}</div>
+                {t.delta && <div className={"rep-delta " + (t.delta.up ? "rep-delta-up" : "")}>{t.delta.text}</div>}
               </div>
             ))}
           </div>
         )}
 
         {report.hours && (
-          <div {...pressable(() => setReceipts({ title: `Your Hours: ${report.hours!.label}`, lines: [lineCase(`${report.tiles.find((t) => t.label === "Done")?.num ?? 0} finishes this month; the tallest bars are your band`)] }))} className="card pad rep-gap"
->
-            <div className="rep-split"><span className="rep-eyebrow rep-quiet">Your Hours</span><b>{report.hours.label}</b></div>
+          <div {...pressable(() => setReceipts({ title: `Your Hours: ${report.hours!.label}`, lines: busiestHours(report.hours!.byHour) }))} className="card pad rep-gap">
+            {/* The one card on this page that opens something without a row's chevron: it gets the chevron (the round 2 review: "tappable, and
+                nothing says so"). */}
+            <div className="rep-split"><span className="rep-eyebrow rep-quiet">Your Hours</span><span className="rep-split-end"><b>{report.hours.label}</b><span className="chev" /></span></div>
+            {/* THE BARS ARE A TIME AXIS (Dave 2026-10-05, the review: "no hour labels, and the brand red says peak to
+                nobody"). Four labels under the strip, and the three-hour band in bright ink, never the action red: red is
+                for what can be tapped, and a bar is not a button. */}
             <div className="rep-hours">
               {report.hours.byHour.map((n, h) => (
                 <i
@@ -179,6 +206,7 @@ export function ReportScreen({ report, capped, onCap, onOpenTask, onDropTask, on
                 />
               ))}
             </div>
+            <div className="rep-hours-axis" aria-hidden="true"><span>12 AM</span><span>6 AM</span><span>12 PM</span><span>6 PM</span></div>
           </div>
         )}
 
@@ -202,7 +230,7 @@ export function ReportScreen({ report, capped, onCap, onOpenTask, onDropTask, on
               </div>
               <div className="rep-leg">
                 {report.time.rows.map((r) => (
-                  <span key={r.id || "rest"}><i className={"cat-bg-" + r.color} />{r.name} {r.label}{r.vs && <span className="fact warn rep-vs">{r.vs}</span>}</span>
+                  <span key={r.id || "rest"}><i className={"cat-bg-" + r.color} />{r.name} <b>{r.label}</b>{r.vs && <span className="fact warn rep-vs">{r.vs}</span>}</span>
                 ))}
               </div>
               <div className="rep-split rep-gap"><span className="rep-eyebrow rep-quiet">On the Calendar</span><b>{report.time.total}</b></div>
@@ -228,7 +256,7 @@ export function ReportScreen({ report, capped, onCap, onOpenTask, onDropTask, on
             </div>
             <div className="rep-leg">
               {report.went.map((s) => (
-                <span key={s.id}><i className={"cat-bg-" + s.color} />{s.name} {s.n}</span>
+                <span key={s.id}><i className={"cat-bg-" + s.color} />{s.name} <b>{s.n}</b></span>
               ))}
             </div>
           </div>
@@ -240,25 +268,26 @@ export function ReportScreen({ report, capped, onCap, onOpenTask, onDropTask, on
         <>
           <div className="sh2 sh2-quiet"><span className="t">Worth a Look</span></div>
           <div className="pad-x">
-            <div className="card list-card-ruled">
-              {report.worth.map((w) => (
-                <div key={w.id}>
-                  <div {...pressable(() => setReceipts({ title: w.title, lines: w.receipts }))} className="row">
-                    {w.id === "cut" && <div className="row-glyph rep-good-glyph"><CheckCircleGlyph /></div>}
-                    <div className="row-grow">
-                      <div className="rep-title">{w.title}</div>
-                      {w.sub && <Facts facts={w.sub} />}
+            <div className="card list-card-ruled shell-rows">
+              {report.worth.map((w) => {
+                // The carried card's two verbs: Do One opens the first task, Drop One drops it. Neither is drawn on the row.
+                const first = w.id === "carried" && w.carried && w.carried.length > 0 ? w.carried[0]! : null;
+                const answers: ReportAnswer[] = [
+                  ...(first && onOpenTask ? [{ label: "Do One", onPick: () => onOpenTask(first.id) }] : []),
+                  ...(first && onDropTask ? [{ label: "Drop One", destructive: true, onPick: () => onDropTask(first) }] : []),
+                ];
+                return (
+                  <RowShell key={w.id} verb={answers[0] ? { label: answers[0].label, run: answers[0].onPick } : undefined}>
+                    <div {...pressable(() => setReceipts({ title: w.title, lines: w.receipts, answers }))} className="row">
+                      <div className="row-grow">
+                        <div className="rep-title">{w.title}</div>
+                        {w.sub && <Facts facts={w.sub} />}
+                      </div>
+                      <div className="chev" />
                     </div>
-                    <div className="chev" />
-                  </div>
-                  {w.id === "carried" && w.carried && w.carried.length > 0 && (onOpenTask || onDropTask) && (
-                    <div className="rep-btnrow">
-                      {onOpenTask && <button className="pill-act" onClick={() => onOpenTask(w.carried![0]!.id)}>Do One</button>}
-                      {onDropTask && <button className="pill-act" onClick={() => onDropTask(w.carried![0]!)}>Drop One</button>}
-                    </div>
-                  )}
-                </div>
-              ))}
+                  </RowShell>
+                );
+              })}
             </div>
             {/* A sentence under a card is its field note, never a caps line. */}
             {worthFeet.map((f) => <div className="input-hint" key={f}>{f}</div>)}
@@ -277,7 +306,6 @@ export function ReportScreen({ report, capped, onCap, onOpenTask, onDropTask, on
                   <div className="rep-title">{p.title}</div>
                   {p.sub && <Facts facts={p.sub} />}
                 </div>
-                {p.chip && <span className={"rep-chip rep-chip-" + p.chip.tone}>{p.chip.text}</span>}
                 <div className="chev" />
               </div>
             ))}
@@ -293,23 +321,23 @@ export function ReportScreen({ report, capped, onCap, onOpenTask, onDropTask, on
       {report.life.length > 0 && (
         <>
           <div className="sh2 sh2-quiet"><span className="t">Also in {report.monthName}</span></div>
-          <div className="pad-x"><div className="card list-card-ruled">
-            {report.life.map((c) => (
-              <div key={c.id}>
-                <div {...pressable(() => setReceipts({ title: c.title, lines: c.receipts }))} className="row">
-                  <div className="row-grow">
-                    <div className="rep-title">{c.title}</div>
-                    {c.facts.length > 0 && <Facts facts={c.facts} />}
+          <div className="pad-x"><div className="card list-card-ruled shell-rows">
+            {report.life.map((c) => {
+              // The card's door out (Open Money, Check In, Open Email) is the sheet's primary and the row's swipe-left, not a
+              // capsule under it. A door that is not wired gives the card no verb rather than one that does nothing.
+              const answers: ReportAnswer[] = exitable(c.exit) ? [{ label: c.exit.label, onPick: () => onExit!(c.exit) }] : [];
+              return (
+                <RowShell key={c.id} verb={answers[0] ? { label: answers[0].label, run: answers[0].onPick } : undefined}>
+                  <div {...pressable(() => setReceipts({ title: c.title, lines: c.receipts, answers }))} className="row">
+                    <div className="row-grow">
+                      <div className="rep-title">{c.title}</div>
+                      {c.facts.length > 0 && <Facts facts={c.facts} />}
+                    </div>
+                    <div className="chev" />
                   </div>
-                  <div className="chev" />
-                </div>
-                {exitable(c.exit) && (
-                  <div className="rep-btnrow">
-                    <button className="pill-act" onClick={() => onExit!(c.exit)}>{c.exit.label}</button>
-                  </div>
-                )}
-              </div>
-            ))}
+                </RowShell>
+              );
+            })}
           </div></div>
         </>
       )}
@@ -320,23 +348,16 @@ export function ReportScreen({ report, capped, onCap, onOpenTask, onDropTask, on
       )}
       <div className="pad-x">
         {(report.learned || report.did) && (
-          <div className="card">
-            {report.learned && (
-              <div className="row">
+          <div className="card list-card-ruled">
+            {[report.learned, report.did].map((b, i) => b && (
+              <div {...pressable(() => setReceipts({ title: b.title, lines: b.receipts }))} className="row" key={i}>
                 <div className="row-grow">
-                  <div className="rep-title">{report.learned.title}</div>
-                  {report.learned.sub && <Facts facts={report.learned.sub} />}
+                  <div className="rep-title">{b.title}</div>
+                  {b.sub && <Facts facts={b.sub} />}
                 </div>
+                <div className="chev" />
               </div>
-            )}
-            {report.did && (
-              <div className="row">
-                <div className="row-grow">
-                  <div className="rep-title">{report.did.title}</div>
-                  {report.did.sub && <Facts facts={report.did.sub} />}
-                </div>
-              </div>
-            )}
+            ))}
           </div>
         )}
 
@@ -347,9 +368,9 @@ export function ReportScreen({ report, capped, onCap, onOpenTask, onDropTask, on
             {/* The reason under the question is its quiet sub (§AM F4), not
                 a second title at 17px semibold. */}
             <div className="conn-meta rep-quiet2">{report.closer.sub}</div>
-            <div className="rep-one-acts">
+            <div className="rep-one-acts promo-actions">
               {capped
-                ? <button className="btn btn-block" disabled>Capped ✓</button>
+                ? <button className="btn btn-block" disabled>Capped</button>
                 : (
                   <>
                     <button className="btn btn-primary" onClick={onCap}>Turn It On</button>
@@ -378,7 +399,7 @@ export function ReportScreen({ report, capped, onCap, onOpenTask, onDropTask, on
       </div>
 
       <div className="screen-foot" />
-      {receipts && <ReceiptsSheet title={receipts.title} lines={receipts.lines} onDone={() => setReceipts(null)} />}
+      {receipts && <ReceiptsSheet title={receipts.title} lines={receipts.lines} answers={receipts.answers} onDone={() => setReceipts(null)} />}
     </div>
   );
 }
@@ -481,6 +502,7 @@ export default function ReportFlow({ onBack, onOpenTask, month, live, onOpenEnti
       alreadyCapped: !!capRule,
       people: ppl.map((p) => ({ id: p.id, name: p.data.name })),
       healthCategoryId: cs.find((c) => effectiveKind(c.data) === "health")?.id ?? null,
+      ...(live ? { stillOpen: true } : {}),
     }));
   }, [sealSvc, cats, goalsSvc, projectsSvc, gym, tasksSvc, rules, schedule, peopleSvc, decisionsSvc, month, live]);
   useEffect(() => { void load(); }, [load]);

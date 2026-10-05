@@ -81,26 +81,30 @@ describe("NoticeCard: the delete slot", () => {
 
 // TODAY-F-23 (2026-09-05): every secondary action on Today lived behind a
 // touch-only gesture, so on the web, with a mouse, or with a keyboard,
-// Dismiss and Delete could not be reached at all. Same rail, three more ways
-// in, and useSwipe.toggle (which existed and was wired to nothing) is what
-// they all call.
+// Dismiss and Delete could not be reached at all.
+// AMENDED (Dave 2026-10-05, locked: "Long press: the context menu (RowActionSheet), never the only way to anything"):
+// the hold and the context-menu event used to slide the tray open (the controller's toggle). They open the row's MENU now,
+// listing the same actions as the tray and the sheet, so a mouse or keyboard user still reaches every one of them, and the
+// tray stays where the swipe and focus put it. The assertion is as strong as before: each door must reach Dismiss and Delete.
 import { vi, afterEach } from "vitest";
 import { fireEvent } from "@testing-library/react";
 
 const rail = (container: HTMLElement) => (container.querySelector(".notice-card") as HTMLElement).style.transform;
+const menu = () => Array.from(document.querySelectorAll(".action-sheet button")).map((b) => b.textContent);
 
-describe("NoticeCard: the reveal without a touchscreen", () => {
+describe("NoticeCard: the menu without a touchscreen", () => {
   afterEach(() => vi.useRealTimers());
 
-  it("a right-click (or the iOS callout) opens the same rail", () => {
-    const { container } = render(<NoticeCard {...base} onDismiss={() => {}} />);
+  it("a right-click (or the iOS callout) opens the row's menu, not the tray", () => {
+    const onDismiss = vi.fn();
+    const { container } = render(<NoticeCard {...base} onDismiss={onDismiss} onDelete={() => {}} />);
     const card = container.querySelector(".notice-card")!;
-    expect(rail(container)).toBe("");
     fireEvent.contextMenu(card);
-    expect(rail(container)).toBe("translateX(-88px)");
-    // And closes again, so it is a toggle, not a trap.
-    fireEvent.contextMenu(card);
-    expect(rail(container)).toBe("");
+    expect(menu()).toEqual(["Dismiss", "Delete", "Cancel"]);
+    expect(document.querySelector(".action-sheet .destructive")!.textContent, "Delete is last and destructive").toBe("Delete");
+    expect(rail(container), "the hold does not also slide the tray open").toBe("");
+    fireEvent.click(screen.getByText("Dismiss", { selector: ".action-sheet button" }));
+    expect(onDismiss).toHaveBeenCalledTimes(1);
   });
 
   it("a long press with the mouse opens it; a quick click does not", () => {
@@ -110,10 +114,21 @@ describe("NoticeCard: the reveal without a touchscreen", () => {
     fireEvent.mouseDown(card);
     fireEvent.mouseUp(card);
     act(() => { vi.advanceTimersByTime(600); });
-    expect(rail(container)).toBe("");
+    expect(document.querySelector(".sheet-scrim")).toBeNull();
     fireEvent.mouseDown(card);
     act(() => { vi.advanceTimersByTime(600); });
-    expect(rail(container)).toBe("translateX(-88px)");
+    expect(menu()).toEqual(["Dismiss", "Cancel"]);
+    expect(rail(container)).toBe("");
+  });
+
+  it("a row's verbs lead its menu, in the tray's order, then Dismiss and Delete", () => {
+    vi.useFakeTimers();
+    const { container } = render(
+      <NoticeCard {...base} form="row" action={{ label: "Plan", onClick: () => {} }} alt={{ label: "Later", onClick: () => {} }} onDismiss={() => {}} onDelete={() => {}} />,
+    );
+    fireEvent.touchStart(container.querySelector(".notice-card")!, { touches: [{ clientX: 10, clientY: 10 }] });
+    act(() => { vi.advanceTimersByTime(600); });
+    expect(menu()).toEqual(["Plan", "Later", "Dismiss", "Delete", "Cancel"]);
   });
 
   it("tabbing onto Dismiss opens the rail around it", () => {
@@ -150,6 +165,25 @@ describe("holding an automated card (UP-CORE-14)", () => {
     expect(screen.getByText("Less of This")).toBeInTheDocument();
     fireEvent.click(screen.getByText("Never"));
     expect(onTune).toHaveBeenCalledWith("never");
+    vi.useRealTimers();
+  });
+
+  // 2026-10-04 (audit): the Learned Day card wrote a "more" rule nothing read.
+  // A caller names the choices its producer can honour; the default is all
+  // three, so Today's cards are unchanged.
+  it("offers only the choices a card names, and all three by default", () => {
+    vi.useFakeTimers();
+    const onTune = vi.fn();
+    const { unmount } = render(<NoticeCard icon={<i />} title="Tuesdays" automation="learned-day" onTune={onTune} tuneChoices={["less", "never"]} />);
+    hold(document.querySelector(".notice-card")!);
+    expect(screen.queryByText("More Like This")).toBeNull();
+    expect(screen.getByText("Less of This")).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Never"));
+    expect(onTune).toHaveBeenCalledWith("never");
+    unmount();
+    render(<NoticeCard icon={<i />} title="Keep going" automation="momentum" onTune={onTune} />);
+    hold(document.querySelector(".notice-card")!);
+    expect(screen.getAllByRole("button").map((b) => b.textContent).filter((t) => ["More Like This", "Less of This", "Never"].includes(t ?? ""))).toEqual(["More Like This", "Less of This", "Never"]);
     vi.useRealTimers();
   });
 

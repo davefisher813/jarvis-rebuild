@@ -5,9 +5,10 @@
 // MessagesFlow renders live data and this component never mounts.
 
 import { useEffect, useState } from "react";
-import PageHeader, { BarAction } from "../shared/PageHeader";
+import PageHeader from "../shared/PageHeader";
+import { HeadAdd } from "../shared/LifeHeader";
 import { showToast } from "../shared/toast";
-import { Plus, Archive, Clock, Volume2, CalendarClock } from "../shared/icons";
+import { Mail, Archive, Clock, Volume2, CalendarClock } from "../shared/icons";
 import { leadFor } from "./rowAnatomy";
 import { saveMailSnapshot } from "./home";
 import { decide } from "./mailAction";
@@ -15,6 +16,8 @@ import { nameFor } from "./names";
 import { railClass, railToneForWaiting } from "./rows";
 import { EnvelopeGlyph } from "../shared/glyphs";
 import ListFloor from "../shared/ListFloor";
+import NoticeCard from "../today/NoticeCard";
+import { sweepEstimate } from "./sweep";
 
 interface DemoRow { from: string; sub: string; when: string; unread?: boolean; due?: string }
 interface DemoWait { to: string; sub: string; days: number }
@@ -72,7 +75,34 @@ export default function DemoMail({ onConnect }: { onConnect?: () => void }) {
   // only Send explains itself. Dave sees the page, nothing pretends to mail.
   const [composing, setComposing] = useState(false);
   const [outcome, setOutcome] = useState<"needs" | "waiting">("needs");
+  // 2026-10-04: the three view chips select, like the live page's. They only
+  // toasted before, so the active chip could never move and All and Drafts
+  // could not be reached.
+  const [view, setView] = useState<"triage" | "all" | "drafts">("triage");
   const [draft, setDraft] = useState({ to: "", subject: "", body: "" });
+
+  // EM2 to EM4: the mail row, one anatomy with the live page's. Every row in
+  // Needs You earned its bold (alwaysStrong on the live page). The same rows
+  // are the whole inbox the demo has, so the All view draws them too.
+  const needsRows = () => NEEDS.map((r) => {
+    const lead = leadFor({ from: r.from, fromEmail: r.from.toLowerCase().replace(/\s+/g, "") + "@example.com", by: r.due?.toLowerCase(), displayName: r.from });
+    return (
+    <div className="row mrow" role="button" tabIndex={0} key={r.from} onClick={demoTap}>
+      <span className="mlead">
+        {lead.kind === "rail"
+          ? <span className={"mrail" + (lead.railTone === "warn" ? " due" : "")}></span>
+          : <span className={"mface cat-bg-" + lead.face} aria-hidden="true">{lead.initial}</span>}
+      </span>
+      <div className="ms">
+        <div className="mline1">
+          <span className="mfrom strong">{r.from}</span>
+          {r.due ? <span className="mdue">{r.due}</span> : <span className="mwhen">{r.when}</span>}
+        </div>
+        <div className="mline2 strong">{r.sub}</div>
+      </div>
+    </div>
+    );
+  });
 
   if (composing) {
     return (
@@ -95,16 +125,32 @@ export default function DemoMail({ onConnect }: { onConnect?: () => void }) {
 
   return (
     <div className="screen ruled">
-      <PageHeader title="Email" actions={<BarAction label="New Message" onClick={() => setComposing(true)}><Plus className="ic" /></BarAction>} />
+      <PageHeader title="Email" headActions={<HeadAdd label="New Message" onClick={() => setComposing(true)} />} />
       {/* EM1 (2026-09-12): the first screen opens on the view chips and the
-          outcome switch; search lives on the All view, which the demo does
-          not draw. The demo never shows an anatomy the app does not have. */}
-      <div className="pad-x msg-chips">
-        <button className="chip on" onClick={demoTap}>For You</button>
-        <button className="chip" onClick={demoTap}>All</button>
-        <button className="chip" onClick={demoTap}>Drafts</button>
+          outcome switch. 2026-10-04: the chips select. All is the flat list
+          of the inbox threads the demo has (search is not drawn); Drafts has
+          none, so it is the live page's empty state. The demo never shows an
+          anatomy the app does not have. */}
+      <div className="pad-x msg-chips msg-views">
+        <button className={"chip" + (view === "triage" ? " on" : "")} onClick={() => setView("triage")}>For You</button>
+        <button className={"chip" + (view === "all" ? " on" : "")} onClick={() => setView("all")}>All</button>
+        <button className={"chip" + (view === "drafts" ? " on" : "")} onClick={() => setView("drafts")}>Drafts</button>
       </div>
 
+      {view === "all" && (<>
+      <div><div className="list-flat">{needsRows()}</div></div>
+      <ListFloor>That&rsquo;s Everything.</ListFloor>
+      </>)}
+
+      {view === "drafts" && (
+        <div className="pad-x"><div className="card"><div className="empty-state">
+          <div className="empty-icon"><Mail className="ic cat-fg-teal" /></div>
+          <div className="empty-title">No Drafts</div>
+          <button className="btn btn-secondary" onClick={() => setComposing(true)}>New Email</button>
+        </div></div></div>
+      )}
+
+      {view === "triage" && (<>
       {/* THE OUTCOME SWITCH (ruled 2026-09-01), the same one MessagesFlow
           draws: one section at a time, counts on the labels. The demo never
           shows an anatomy the app does not have. */}
@@ -122,32 +168,14 @@ export default function DemoMail({ onConnect }: { onConnect?: () => void }) {
           shape MessagesFlow draws, in place of the Mission Deck card. */}
       <div className="sh2 sh2-quiet">
         <span className="t">Needs You</span>
-        <button className="see-all pill-action" onClick={demoTap}>Sweep {"\u00b7"} About 2 min</button>
+        {/* The estimate is a fact beside the capsule, and the capsule is the verb alone (Dave 2026-10-05). */}
+        <span className="n fact est">{sweepEstimate(NEEDS.length)}</span>
+        <button className="see-all pill-action" onClick={demoTap} aria-label={"Sweep, " + sweepEstimate(NEEDS.length)}>Sweep</button>
       </div>
-      {/* EM2 to EM4: the mail row, one anatomy with the live page's. Every
-          row in Needs You earned its bold (alwaysStrong on the live page). */}
       <div className="pad-x"><div className="card list-card-ruled">
-        {NEEDS.map((r) => {
-          const lead = leadFor({ from: r.from, fromEmail: r.from.toLowerCase().replace(/\s+/g, "") + "@example.com", by: r.due?.toLowerCase(), displayName: r.from });
-          return (
-          <div className="row mrow" role="button" tabIndex={0} key={r.from} onClick={demoTap}>
-            <span className="mlead">
-              {lead.kind === "rail"
-                ? <span className={"mrail" + (lead.railTone === "warn" ? " due" : "")}></span>
-                : <span className={"mface cat-bg-" + lead.face} aria-hidden="true">{lead.initial}</span>}
-            </span>
-            <div className="ms">
-              <div className="mline1">
-                <span className="mfrom strong">{r.from}</span>
-                {r.due ? <span className="mdue">{r.due}</span> : <span className="mwhen">{r.when}</span>}
-              </div>
-              <div className="mline2 strong">{r.sub}</div>
-            </div>
-          </div>
-          );
-        })}
+        {needsRows()}
       </div></div>
-      <ListFloor>That&rsquo;s every one that needs you.</ListFloor>
+      <ListFloor>That&rsquo;s Every One That Needs You.</ListFloor>
       </>)}
 
       {outcome === "waiting" && (<>
@@ -174,7 +202,7 @@ export default function DemoMail({ onConnect }: { onConnect?: () => void }) {
           );
         })}
       </div></div>
-      <ListFloor />
+      <ListFloor>That&rsquo;s Everything.</ListFloor>
       </>)}
 
       <div className="pad-x msg-fold">
@@ -185,52 +213,69 @@ export default function DemoMail({ onConnect }: { onConnect?: () => void }) {
               {/* No line under it (§AM R1): a line that is the same on every
                   inbox says nothing, and the count is the pill. */}
             </div>
-            <span className="pill pill-subdued">14</span>
+            <span className="fact"><b>14</b></span>
+            <div className="chev" />
           </div>
         </div>
       </div>
 
       {/* TOOLS (EM1 / E-01, 2026-09-12): the drawers under the list, one
           quiet head, the same rows the live page draws. */}
+      {/* 2026-10-05 (the catalog gate): the three meta lines under these rows are
+          Title Case with a capital behind every number, the same words the live
+          page draws ("14 Threads from 6 Senders", "About 2 Min"). */}
       <div className="sh2 sh2-quiet"><span className="t">Tools</span></div>
       <div className="pad-x"><div className="card list-card-ruled">
         <div className="row" role="button" tabIndex={0} onClick={demoTap}>
-          <span className="row-ico cat-bg-graphite" aria-hidden="true"><Archive className="ic" /></span>
+          <span className="row-ico cat-bg-teal" aria-hidden="true"><Archive className="ic" /></span>
           <div className="row-grow">
             <div className="conn-name">Clean Out</div>
-            <div className="conn-meta">14 Threads from 6 senders</div>
+            <div className="conn-meta">14 Threads from 6 Senders</div>
           </div>
           <div className="chev" />
         </div>
         <div className="row" role="button" tabIndex={0} onClick={demoTap}>
-          <span className="row-ico cat-bg-graphite" aria-hidden="true"><Clock className="ic" /></span>
+          <span className="row-ico cat-bg-orange" aria-hidden="true"><Clock className="ic" /></span>
           <div className="row-grow">
             <div className="conn-name">Only a Few Minutes?</div>
-            <div className="conn-meta">A timed drain that stops itself</div>
+            <div className="conn-meta">A Timed Drain That Stops Itself</div>
           </div>
           <div className="chev" />
         </div>
         <div className="row" role="button" tabIndex={0} onClick={demoTap}>
-          <span className="row-ico cat-bg-graphite" aria-hidden="true"><Volume2 className="ic" /></span>
+          <span className="row-ico cat-bg-purple" aria-hidden="true"><Volume2 className="ic" /></span>
           <div className="row-grow">
             <div className="conn-name">Read It to Me</div>
-            <div className="conn-meta">Senders and gists, never the message</div>
+            <div className="conn-meta">Gists, Never the Message</div>
           </div>
-          <span className="pill-act">Play</span>
+          <div className="chev" />
         </div>
         <div className="row" role="button" tabIndex={0} onClick={demoTap}>
-          <span className="row-ico cat-bg-graphite" aria-hidden="true"><CalendarClock className="ic" /></span>
+          <span className="row-ico cat-bg-sky" aria-hidden="true"><CalendarClock className="ic" /></span>
           <div className="row-grow">
+            {/* No line under it: "Open Email on a Schedule" said the title again (Dave 2026-10-05, a row with nothing to say shows nothing). */}
             <div className="conn-name">Email Windows</div>
-            <div className="conn-meta">Open email on a schedule</div>
           </div>
           <div className="chev" />
         </div>
       </div></div>
+      </>)}
 
+      {/* A button with no words is not drawn (Dave 2026-10-05): the offer carries its own headline and its one line,
+          so the demo says why it is the demo before it asks for anything. */}
       {onConnect && (
-        <div className="pad-x conn-action">
-          <button className="btn btn-primary btn-block" onClick={onConnect}>Connect Google</button>
+        <div className="conn-action">
+          <NoticeCard
+            offer
+            stack
+            uniform={false}
+            icon={<Mail className="ic" />}
+            tone="cat-fg-teal"
+            title="Connect Your Inbox"
+            sub="Real Mail Replaces These Samples"
+            action={{ label: "Connect Google", onClick: onConnect }}
+            onOpen={onConnect}
+          />
         </div>
       )}
       <div className="screen-foot" />

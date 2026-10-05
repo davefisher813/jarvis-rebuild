@@ -55,7 +55,6 @@ export default function LaterSheet({ who, today, onPick, onClose }: {
               <div className="row later-day" {...rowDoor(() => openPicker(dayRef.current))}>
                 <div className="row-grow"><div className="conn-name">Pick a Day</div></div>
                 <input ref={dayRef} type="date" className="xs-input" aria-label="Day" min={today} value={day} onClick={(e) => e.stopPropagation()} onChange={(e) => e.target.value && setDay(e.target.value)} />
-                <button type="button" className="pill-act" onClick={(e) => { e.stopPropagation(); onPick({ due: day, when: "day" }); }}>Save</button>
               </div>
             ) : (
               <div className="row" {...rowDoor(() => setPicking(true))}>
@@ -66,6 +65,8 @@ export default function LaterSheet({ who, today, onPick, onClose }: {
           </div>
         </div>
         <div className="pad-x sheet-actions">
+          {/* The commit is the sheet's footer (Dave 2026-10-05, locked: no capsule inside a row), not a pill on the date row. */}
+          {picking && <button className="btn btn-primary btn-block" onClick={() => onPick({ due: day, when: "day" })}>Save</button>}
           <button className="btn btn-tertiary btn-block" onClick={onClose}>Cancel</button>
         </div>
       </div>

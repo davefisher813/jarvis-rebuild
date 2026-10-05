@@ -9,8 +9,8 @@ import type { ReactNode } from "react";
 import {
   Brain, Note, Target, EnvelopeSimple, BellSimple, Wallet, Sparkle, GearSix,
   House, CheckSquare, CalendarBlank, UsersThree, GitFork, Compass, PenNib,
-  Flag, Clock, UserCircle, Palette, Tag, SquaresFour, LinkSimple, Lightbulb,
-  CloudArrowUp, SlidersHorizontal, Info, Circle, CalendarCheck, Barbell, Funnel, Robot, HandHeart } from "@phosphor-icons/react";
+  Flag, Clock, UserCircle, Palette, Tag, SquaresFour, PlugsConnected, Lightbulb,
+  CloudArrowUp, Info, Circle, CalendarCheck, Barbell, Funnel, Robot, CheckCircle, Wrench } from "@phosphor-icons/react";
 
 const P = { weight: "fill" as const, className: "ic" };
 
@@ -48,14 +48,18 @@ export const FILLED_SETTINGS: Record<string, ReactNode> = {
   notifsettings: <BellSimple {...P} />,
   appearance: <Palette {...P} />,
   // Feedback Style (2026-10-04): how the app says a step is done.
-  feedbackstyle: <HandHeart {...P} />,
+  feedbackstyle: <CheckCircle {...P} />,
+  // Booking (2026-10-05): it had no glyph and drew as the fallback disc, a placeholder.
+  booking: <CalendarCheck {...P} />,
   categories: <Tag {...P} />,
   edittabs: <SquaresFour {...P} />,
-  connections: <LinkSimple {...P} />,
+  // Connections (2026-10-05, the round 2 review: the filled link drew as a solid blue rounded square, a "gradient tile" among glyphs): a plug is
+  // a connection and fills as a plug.
+  connections: <PlugsConnected {...P} />,
   aicontrol: <Sparkle {...P} />,
   learned: <Lightbulb {...P} />,
   backup: <CloudArrowUp {...P} />,
-  advanced: <SlidersHorizontal {...P} />,
+  advanced: <Wrench {...P} />,
   about: <Info {...P} />,
   training: <Barbell {...P} />,
   // Email Sections (2026-09-29): the person's own filters over the Email tab.

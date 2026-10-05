@@ -38,16 +38,42 @@ describe("BrainPage", () => {
     expect(screen.queryByText("Family")).not.toBeInTheDocument();
   });
 
-  // SPEC MOVED (Catalog V4, 2026-08-18): nav rows wear the FILLED brand-red
-  // glyph (lib-ico-brand). Since 2026-09-16 that is the only glyph kind this
-  // page ever renders: category discs moved to Life's Areas tab.
-  it("every row is a filled brand-red nav glyph; no category discs", () => {
+  // SPEC MOVED TWICE. Catalog V4 (2026-08-18) made the rows filled glyphs; the review of 2026-10-05 ("all eight icons are solid
+  // brand red, which dilutes the real action colour") gave each destination its OWN tone, because a glyph that only names a
+  // place is not a tap target and brand red is for what can be tapped. Since 2026-09-16 these are the only glyphs the page draws:
+  // category discs moved to Life's Areas tab.
+  it("every row is a filled glyph in a meaningful tone, never the flat brand red or a flat grey; no category discs", () => {
     const { container } = render(<BrainPage onOpen={() => {}} categories={CATS} />);
-    const glyphs = container.querySelectorAll(".lib-ico");
+    const glyphs = [...container.querySelectorAll(".lib-ico")];
     expect(glyphs.length).toBe(8); // the static nav rows only
-    expect(container.querySelectorAll(".lib-ico.lib-ico-brand").length).toBe(8);
+    expect(container.querySelectorAll(".lib-ico.lib-ico-brand").length).toBe(0);
     expect(container.querySelectorAll(".lib-ico.lib-disc").length).toBe(0);
-    expect(container.querySelectorAll('.lib-ico[class*="cat-fg-"]').length).toBe(0);
+    const tones = glyphs.map((g) => [...g.classList].find((c) => c.startsWith("cat-fg-") || c === "lib-ico-neutral"));
+    expect(tones.every((t) => !!t)).toBe(true);
+    // The ship-blocker review (2026-10-05): "Your Routine" was the only flat grey glyph in Explore. No row is neutral.
+    expect(tones).not.toContain("lib-ico-neutral");
+    expect(glyphs.every((g) => !g.classList.contains("lib-ico-neutral"))).toBe(true);
+    // The round 2 review: eight hues for eight destinations was a rainbow with no meaning (and Insights wore Event's sky).
+    // Purple is the Brain's own memory, teal the people, sky the day's shape (Your Routine alone); nothing wears Task's red.
+    expect(new Set(tones).size).toBeLessThanOrEqual(3);
+    expect(tones).not.toContain("cat-fg-red");
+    const toneOf = (name: string) => [...(screen.getByText(name).closest(".lib-row")!.querySelector(".lib-ico")!.classList)].find((c) => c.startsWith("cat-fg-") || c === "lib-ico-neutral");
+    expect(toneOf("Contacts")).toBe("cat-fg-teal");
+    // D5: a decision is purple on every screen.
+    expect(toneOf("Decisions")).toBe("cat-fg-purple");
+    expect(toneOf("What JARVIS Knows")).toBe("cat-fg-purple");
+    // The routine is the schedule's own shape, in the schedule's sky; Insights does not borrow it.
+    expect(toneOf("Your Routine")).toBe("cat-fg-sky");
+    expect(toneOf("Insights")).toBe("cat-fg-purple");
+  });
+
+  // THE SAME TITLE AS EVERY OTHER LIST (Dave 2026-10-05, the review: Explore titles were about 20px beside 17px in Needs You).
+  // A nav row's name is the one .lib-name; the type scale lives in CSS, so the test pins that no row overrides it inline.
+  it("every nav row's name is the shared .lib-name with no inline size", () => {
+    const { container } = render(<BrainPage onOpen={() => {}} categories={CATS} />);
+    const names = [...container.querySelectorAll(".lib-row .lib-name")] as HTMLElement[];
+    expect(names.length).toBe(8);
+    expect(names.every((n) => n.getAttribute("style") === null)).toBe(true);
   });
 
   it("has no dead-end Setup rows (Onboarding/Backup live in Settings)", () => {

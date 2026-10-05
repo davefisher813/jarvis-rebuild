@@ -56,16 +56,17 @@ const seedPair = async (h: Handles) => {
 describe("Tracker transactions: added by hand, no bank", () => {
   it("says Add Manually, never offers a bank connection", async () => {
     mount("tr-copy");
-    await tab("Transactions");
+    await tab("Activity");
     expect(await screen.findByText("Add Manually")).toBeInTheDocument();
-    expect(screen.getByText("Nothing Tracked Yet")).toBeInTheDocument();
+    // No placeholder row under the head: its 0 says it (2026-10-05, the visual catalog gate).
+    expect(screen.queryByText("Nothing Tracked Yet")).toBeNull();
     expect(document.body.textContent).not.toMatch(/connect (a )?bank|link (a )?bank|sync/i);
     expect(screen.queryByText("Add a Transaction")).toBeNull();
   });
 
   it("a new transaction opens on the category its merchant usually gets", async () => {
     const h = mount("tr-cat", async (s) => { await s.tracker.saveTx(null, tx({ date: day(1), category: "Household" })); });
-    await tab("Transactions");
+    await tab("Activity");
     fireEvent.click(await screen.findByText("Add Manually"));
     await screen.findByText("New Transaction");
     fireEvent.change(screen.getByLabelText("Merchant"), { target: { value: "stop & shop" } });
@@ -80,15 +81,15 @@ describe("Tracker transactions: added by hand, no bank", () => {
 
   it("editing a matched transaction keeps its links and appends a history line", async () => {
     const h = mount("tr-edit", async (s) => { await seedPair(s); });
-    await tab("Transactions");
+    await tab("Activity");
     // the row says it is matched
-    const row = (await screen.findByText("Stop & Shop")).closest(".row") as HTMLElement;
+    const row = (await screen.findByText("Stop & Shop")).closest(".task-row") as HTMLElement;
     expect(within(row).getByText("Matched")).toBeInTheDocument();
     fireEvent.click(row);
     await screen.findByText("Edit Transaction");
     // once as the sheet's Match row, once as the line the link wrote in its history
     expect(screen.getAllByText("Matched to a Receipt")).toHaveLength(2);
-    expect(screen.getByText("Unmatch")).toBeInTheDocument();
+    expect(screen.getByText("Unmatch Receipt")).toBeInTheDocument();
     const before = (await h.current!.tracker.load()).txs[0]!.data;
     fireEvent.change(screen.getByLabelText("Amount"), { target: { value: "60.00" } });
     fireEvent.click(screen.getByText("Save"));
@@ -103,12 +104,12 @@ describe("Tracker transactions: added by hand, no bank", () => {
 
   it("the sheet shows the history, and Unmatch frees the receipt with an Undo", async () => {
     const h = mount("tr-unmatch", async (s) => { await seedPair(s); });
-    await tab("Transactions");
-    fireEvent.click((await screen.findByText("Stop & Shop")).closest(".row")!);
+    await tab("Activity");
+    fireEvent.click((await screen.findByText("Stop & Shop")).closest(".task-row")!);
     await screen.findByText("Edit Transaction");
     expect(screen.getByText("History")).toBeInTheDocument();
     expect(screen.getAllByText("Matched to a Receipt").length).toBeGreaterThan(0);
-    fireEvent.click(screen.getByText("Unmatch"));
+    fireEvent.click(screen.getByText("Unmatch Receipt"));
     await waitFor(async () => expect((await h.current!.tracker.load()).txs[0]!.data.matchedReceiptId).toBeUndefined());
     const [r] = await h.current!.ledger.listReceipts();
     expect(r!.data.linkedTransactionId).toBeUndefined();
@@ -120,8 +121,8 @@ describe("Tracker transactions: added by hand, no bank", () => {
 
   it("deleting a matched payment frees its receipt, and Undo puts both back", async () => {
     const h = mount("tr-delete", async (s) => { await seedPair(s); });
-    await tab("Transactions");
-    fireEvent.click((await screen.findByText("Stop & Shop")).closest(".row")!);
+    await tab("Activity");
+    fireEvent.click((await screen.findByText("Stop & Shop")).closest(".task-row")!);
     fireEvent.click(await screen.findByText("Delete Transaction"));
     await waitFor(async () => expect((await h.current!.tracker.load()).txs).toHaveLength(0));
     expect((await h.current!.ledger.listReceipts())[0]!.data.linkedTransactionId).toBeUndefined();
@@ -136,13 +137,13 @@ describe("Tracker transactions: added by hand, no bank", () => {
       await s.tracker.saveTx(null, tx({}));
       await s.ledger.addReceipt({ vendor: "Stop & Shop", amount: "47.12", transactionDate: day(8) }, "manual", TODAY);
     });
-    await tab("Transactions");
+    await tab("Activity");
     expect(await screen.findByText("Matches")).toBeInTheDocument();
     const rowText = await screen.findByText(/Looks Like Your/);
     // above the Transactions head in document order
     const head = screen.getByText("Transactions", { selector: ".sh2 .t" });
     expect(rowText.compareDocumentPosition(head) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    fireEvent.click(screen.getByText("Link"));
+    fireEvent.click(screen.getByRole("button", { name: /^Link / }));
     await waitFor(async () => expect((await h.current!.tracker.load()).txs[0]!.data.matchedReceiptId).toBeTruthy());
     expect(await screen.findByText("Matched")).toBeInTheDocument();
   });
@@ -186,7 +187,7 @@ describe("a new month's budget copies last month's limits (Dave 2026-10-03)", ()
     expect((screen.getByLabelText("Expected income") as HTMLInputElement).value).toBe("");
     // nothing stored for this month until Save
     expect((await h.current!.tracker.load()).budgets.filter((b) => b.data.month === MONTH)).toHaveLength(0);
-    fireEvent.click(screen.getByText("Save"));
+    fireEvent.click(screen.getByText("Save This Month"));
     await waitFor(async () => {
       const saved = (await h.current!.tracker.load()).budgets.find((b) => b.data.month === MONTH);
       expect(saved?.data.allocations).toEqual({ Golf: 20000, Restaurants: 45050 });
@@ -211,7 +212,7 @@ describe("Tracker budget: monthly, on actuals", () => {
     await tab("Budgets");
     fireEvent.change(await screen.findByLabelText("Groceries limit"), { target: { value: "200" } });
     fireEvent.change(screen.getByLabelText("Dining limit"), { target: { value: "75.50" } });
-    fireEvent.click(screen.getByText("Save", { selector: ".pill-act" }));
+    fireEvent.click(screen.getByText("Save This Month"));
     await waitFor(async () => expect((await h.current!.tracker.load()).budgets).toHaveLength(1));
     const b = (await h.current!.tracker.load()).budgets[0]!.data;
     expect(b.allocations).toEqual({ Groceries: 20000, Dining: 7550 });
@@ -228,7 +229,7 @@ describe("Tracker budget: monthly, on actuals", () => {
     fireEvent.click(screen.getByText("Add a Category"));
     fireEvent.change(screen.getByLabelText("New category name"), { target: { value: "Pets" } });
     fireEvent.change(screen.getByLabelText("Pets limit"), { target: { value: "40" } });
-    fireEvent.click(screen.getByText("Save", { selector: ".pill-act" }));
+    fireEvent.click(screen.getByText("Save This Month"));
     await waitFor(async () => expect((await h.current!.tracker.load()).budgets).toHaveLength(1));
     expect((await h.current!.tracker.load()).budgets[0]!.data.allocations).toEqual({ Food: 30000, Pets: 4000 });
   });
@@ -282,5 +283,97 @@ describe("Tracker budget: monthly, on actuals", () => {
     await tab("Budgets");
     await screen.findByText("$60.00 of $100.00");
     expect(document.body.textContent).not.toMatch(/pace|project|forecast|on track|at this rate|will run|weekly|per week/i);
+  });
+});
+
+// SAVE SAYS WHAT IS MISSING (2026-10-04, the dead-button sweep; 2026-10-05, the add is a sheet). Add on a new
+// subscription returned without a word when the name or the amount was empty, so the row looked dead. The head's
+// Add a Subscription opens the sheet, and a Save with something missing says so on the sheet and writes nothing.
+describe("Tracker subscriptions: Save with something missing", () => {
+  const tapSave = () => fireEvent.click(screen.getByText("Save"));
+  const open = async (id: string) => {
+    const h = mount(id);
+    await tab("Subscriptions");
+    fireEvent.click(await screen.findByRole("button", { name: "Add a Subscription" }));
+    await screen.findByText("New Subscription");
+    return h;
+  };
+
+  it("nothing typed: says a name and an amount, and writes nothing", async () => {
+    const h = await open("sub-none");
+    tapSave();
+    expect(await screen.findByText("A name and an amount")).toBeInTheDocument();
+    expect((await h.current!.tracker.load()).subs).toHaveLength(0);
+  });
+
+  it("a name and no amount: the sheet says so and stays open", async () => {
+    const h = await open("sub-name");
+    fireEvent.change(screen.getByLabelText("Subscription name"), { target: { value: "Netflix" } });
+    tapSave();
+    expect(await screen.findByText("A name and an amount")).toBeInTheDocument();
+    expect(screen.getByText("New Subscription")).toBeInTheDocument();
+    expect((await h.current!.tracker.load()).subs).toHaveLength(0);
+  });
+
+  it("an amount and no name: the sheet says so and stays open", async () => {
+    const h = await open("sub-amount");
+    fireEvent.change(screen.getByLabelText("Subscription amount"), { target: { value: "15.99" } });
+    tapSave();
+    expect(await screen.findByText("A name and an amount")).toBeInTheDocument();
+    expect((await h.current!.tracker.load()).subs).toHaveLength(0);
+  });
+
+  it("a complete sheet saves, closes, and complains of nothing", async () => {
+    const h = await open("sub-ok");
+    fireEvent.change(screen.getByLabelText("Subscription name"), { target: { value: "Netflix" } });
+    fireEvent.change(screen.getByLabelText("Subscription amount"), { target: { value: "15.99" } });
+    tapSave();
+    await waitFor(async () => expect((await h.current!.tracker.load()).subs).toHaveLength(1));
+    await waitFor(() => expect(screen.queryByText("New Subscription")).toBeNull());
+    expect(screen.queryByText("A name and an amount")).toBeNull();
+  });
+});
+
+// A BUDGET LIMIT WITH NO NAME IS NOT DROPPED UNDER "BUDGET SAVED" (2026-10-04).
+// A blank row and a name with no limit are left out on purpose; a limit typed
+// against no name is something he entered and used to vanish in silence.
+describe("Tracker budgets: a limit with no name", () => {
+  it("says to name it, puts the cursor on the name, and saves nothing", async () => {
+    const h = mount("bg-unnamed");
+    await tab("Budgets");
+    fireEvent.click(await screen.findByText("Add a Category"));
+    fireEvent.change(screen.getByLabelText("New category limit"), { target: { value: "40" } });
+    fireEvent.click(screen.getByText("Save This Month"));
+    expect(toasts.map((t) => t.message)).toContain("Name That Category First");
+    expect(screen.getByLabelText("New category name")).toHaveFocus();
+    expect((await h.current!.tracker.load()).budgets).toHaveLength(0);
+    expect(toasts.map((t) => t.message)).not.toContain("Budget Saved");
+  });
+
+  // 2026-10-05: Uncategorized is left out of the allocations on purpose, so a
+  // limit typed against that name vanished under "Budget Saved" too.
+  it("a limit on a row named Uncategorized is refused with its own reason, and the cursor lands on the name", async () => {
+    const h = mount("bg-uncat");
+    await tab("Budgets");
+    fireEvent.click(await screen.findByText("Add a Category"));
+    fireEvent.change(screen.getByLabelText("New category limit"), { target: { value: "50" } });
+    fireEvent.change(screen.getByLabelText("New category name"), { target: { value: "uncategorized" } });
+    fireEvent.click(screen.getByText("Save This Month"));
+    expect(toasts.map((t) => t.message)).toContain("Uncategorized Has No Limit");
+    expect(toasts.map((t) => t.message)).not.toContain("Name That Category First");
+    expect(screen.getByLabelText("uncategorized name")).toHaveFocus();
+    expect((await h.current!.tracker.load()).budgets).toHaveLength(0);
+    expect(toasts.map((t) => t.message)).not.toContain("Budget Saved");
+  });
+
+  it("a blank row and a name with no limit are still left out, as before", async () => {
+    const h = mount("bg-blank");
+    await tab("Budgets");
+    fireEvent.click(await screen.findByText("Add a Category"));
+    fireEvent.change(await screen.findByLabelText("Groceries limit"), { target: { value: "200" } });
+    fireEvent.click(screen.getByText("Save This Month"));
+    await waitFor(async () => expect((await h.current!.tracker.load()).budgets).toHaveLength(1));
+    expect((await h.current!.tracker.load()).budgets[0]!.data.allocations).toEqual({ Groceries: 20000 });
+    expect(toasts.map((t) => t.message)).not.toContain("Name That Category First");
   });
 });

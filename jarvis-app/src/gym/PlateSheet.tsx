@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { plateFacts, type RackConfig } from "./ramp";
 import { plateMath, weightStep, weightLabel, type LoadStyle } from "./equipment";
 import Stepper from "../shared/Stepper";
+import { lineCase } from "../shared/casing";
 
 // THE LOAD CALCULATOR (2026-09-14 as "Load the bar"; rebuilt 2026-09-16 after
 // Dave: "the plate calculator has to factor in all of the weight loading
@@ -61,12 +62,15 @@ export default function PlateSheet({ total, unit, rack, style, onClose }: {
           <div className="row">
             <div className="row-grow">
               <div className="conn-name">{`${weightLabel(style)}, ${u}`}</div>
-              {math.hasBar && <div className="conn-meta">{`Includes the ${rack.bar} ${rack.unit ?? "lb"} bar`}</div>}
+              {math.hasBar && <div className="conn-meta">{lineCase(`Includes the ${rack.bar} ${rack.unit ?? "lb"} bar`)}</div>}
             </div>
             <Stepper value={t} step={step} min={0} label="Weight" onChange={setT} />
           </div>
 
-          {/* PLATES: a barbell, a Smith carriage or a plate-loaded machine. */}
+          {/* PLATES: a barbell, a Smith carriage or a plate-loaded machine.
+              2026-10-05 (the catalog gate): every fact and meta line on this
+              sheet is Title Case with a capitalized unit ("45 Lb"); they were
+              sentence case with a lowercase unit (Dave: "45 min v 45 Min"). */}
           {math.offer && (
             <div className="field">
               <div className="input-label">On Each Side</div>
@@ -76,7 +80,7 @@ export default function PlateSheet({ total, unit, rack, style, onClose }: {
                 </div>
               ) : facts && facts.kind === "none" ? (
                 <div className="facts">
-                  <span className="fact amber">{`Not buildable at ${facts.at}`}</span>
+                  <span className="fact amber">{`Not Buildable at ${facts.at}`}</span>
                   {facts.nearest != null && <span className="fact">{`Nearest ${facts.nearest}`}</span>}
                 </div>
               ) : math.hasBar && t < rack.bar ? (
@@ -86,12 +90,12 @@ export default function PlateSheet({ total, unit, rack, style, onClose }: {
                 // and when it is below it, and one branch called both the same
                 // thing, so an impossible number reported as a loaded bar.
                 <div className="facts">
-                  <span className="fact amber">{`The bar alone is ${rack.bar} ${rack.unit ?? "lb"}`}</span>
+                  <span className="fact amber">{lineCase(`The bar alone is ${rack.bar} ${rack.unit ?? "lb"}`)}</span>
                 </div>
               ) : math.hasBar ? (
-                <div className="facts"><span className="fact">Just the bar</span></div>
+                <div className="facts"><span className="fact">Just the Bar</span></div>
               ) : (
-                <div className="facts"><span className="fact">Nothing on it yet</span></div>
+                <div className="facts"><span className="fact">Nothing on It Yet</span></div>
               )}
             </div>
           )}
@@ -101,8 +105,8 @@ export default function PlateSheet({ total, unit, rack, style, onClose }: {
             <div className="field">
               <div className="input-label">Both Hands</div>
               <div className="facts">
-                <span className="fact lime">{`${t * 2} ${u} moved`}</span>
-                <span className="fact">{`2 × ${t} ${u}`}</span>
+                <span className="fact lime">{lineCase(`${t * 2} ${u} moved`)}</span>
+                <span className="fact">{lineCase(`2 × ${t} ${u}`)}</span>
               </div>
             </div>
           )}
@@ -112,11 +116,11 @@ export default function PlateSheet({ total, unit, rack, style, onClose }: {
             <div className="field">
               <div className="input-label">On the Stack</div>
               {notch != null && Math.abs(notch - t) < 1e-9 ? (
-                <div className="facts"><span className="fact">{`A pin at ${t} ${u}`}</span></div>
+                <div className="facts"><span className="fact">{lineCase(`A pin at ${t} ${u}`)}</span></div>
               ) : (
                 <div className="facts">
-                  <span className="fact amber">{`This stack steps in ${step} ${u}`}</span>
-                  {notch != null && <span className="fact">{`Nearest pin ${notch}`}</span>}
+                  <span className="fact amber">{lineCase(`This stack steps in ${step} ${u}`)}</span>
+                  {notch != null && <span className="fact">{lineCase(`Nearest pin ${notch}`)}</span>}
                 </div>
               )}
             </div>

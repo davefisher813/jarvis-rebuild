@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { Store, InMemoryAdapter } from "@core";
 import { ScheduleService } from "./ScheduleService";
-import { commitRetime, undoRetime, nudgeStart } from "./eventMoves";
+import { commitRetime, undoRetime, nudgeStart, duplicateEvent } from "./eventMoves";
 
 const svc = () => new ScheduleService(new Store(new InMemoryAdapter()), "u");
 
@@ -72,5 +72,32 @@ describe("nudgeStart", () => {
   it("counts the block's length: it must still fit before midnight", () => {
     expect(nudgeStart("22:00", 30, 120)).toBeNull();
     expect(nudgeStart("21:00", 30, 120)).toBe("21:30");
+  });
+});
+
+// A COPY KEEPS WHAT MAKES IT THE SAME THING (2026-10-04). Duplicate listed
+// five fields by hand and toasted "Duplicated", so the copy of a meeting had
+// no Join link, notes, travel time or project, and of a door block no door.
+describe("duplicateEvent keeps the meeting, the trip, the project and the door", () => {
+  it("carries gym, url, notes, travel, buffer and project, and still drops the repeat and the keys", async () => {
+    const s = svc();
+    const id = (await s.createEvent("Clinic Review", {
+      date: "2026-10-05", start: "09:00", end: "10:00", location: "Rink 2", recurrence: "weekly", until: "2026-12-01",
+      gym: true, url: "https://zoom.example/j/9", notes: "Bring the chart", travelMin: 25, bufferMin: 10, projectId: "proj-1",
+      clientId: "client-key-1", bookingId: "booking-1",
+    }))!;
+    const all = await s.listEvents();
+    const made = await duplicateEvent(id, all, "2026-10-06", s);
+    expect(made.ok).toBe(true);
+    const copy = (await s.event(made.madeId!))!;
+    expect(copy).toMatchObject({
+      date: "2026-10-06", start: "09:00", end: "10:00", location: "Rink 2",
+      gym: true, url: "https://zoom.example/j/9", notes: "Bring the chart", travelMin: 25, bufferMin: 10, projectId: "proj-1",
+    });
+    // A copy is a one-off with no claim on the original's keys.
+    expect(copy.recurrence).toBeUndefined();
+    expect(copy.until).toBeUndefined();
+    expect(copy.clientId).toBeUndefined();
+    expect(copy.bookingId).toBeUndefined();
   });
 });

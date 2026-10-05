@@ -124,8 +124,16 @@ describe("billsLine", () => {
   it("names one bill with its amount and a human day", () => {
     // Casing sweep 2 (2026-09-27): Title Case by the whole rule (§H2); durations through shared/duration ("45 Min", "1h 30m").
     expect(billsLine([bill("b", "Pay Rent", "2026-08-10", 1850)], T)).toEqual({ title: "Rent", amount: "$1850", due: { text: "Due Tomorrow", tone: "warn" } });
-    expect(billsLine([bill("b", "Pay Rent", T, 1850)], T)).toEqual({ title: "Rent", amount: "$1850", due: { text: "Due Today", tone: "warn" } });
+    expect(billsLine([bill("b", "Pay Rent", T, 1850)], T)).toEqual({ title: "Rent", amount: "$1850", due: { text: "Due Today", tone: "warn", now: true } });
     expect(billsLine([bill("b", "Pay Electric", "2026-08-12", 120)], T)).toEqual({ title: "Electric", amount: "$120", due: { text: "Due Wednesday", tone: "date" } });
+  });
+
+  // ITS MOMENT HAS COME (2026-10-05, ROW-ACTIONS-SPEC section 3): due today or late carries `now`, so the row surfaces
+  // Paid as one quiet word; tomorrow and later stay clean.
+  it("marks the bill's moment: due today and late say now, tomorrow and later do not", () => {
+    expect(billsLine([bill("b", "Pay Rent", T, 1850)], T)?.due?.now).toBe(true);
+    expect(billsLine([bill("b", "Pay Rent", "2026-08-10", 1850)], T)?.due?.now).toBeUndefined();
+    expect(billsLine([bill("b", "Pay Electric", "2026-08-12", 120)], T)?.due?.now).toBeUndefined();
   });
 
   it("a bill with no amount says only when it is due", () => {

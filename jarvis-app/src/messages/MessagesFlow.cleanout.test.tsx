@@ -65,9 +65,9 @@ describe("Clean Out over a big inbox", () => {
     await openCleanOut();
     await screen.findByText("Foot Locker", {}, { timeout: 8000 });
     // Unanalysed is unknown, and unknown is not safe.
-    expect(screen.getByText("Not checked yet")).toBeInTheDocument();
+    expect(screen.getByText("Not Checked Yet")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Pick Some Senders" })).toBeDisabled();
-    expect(screen.queryByText("Some of these needed you")).toBeNull();
+    expect(screen.queryByText("Some of These Needed You")).toBeNull();
   }, 20000);
 
   it("one Delete moves the whole pile in one request, asks once because it is unjudged, and Undo puts it back", async () => {
@@ -86,7 +86,7 @@ describe("Clean Out over a big inbox", () => {
     expect(b.batchCalls[0]!.ids).toHaveLength(250);
     expect(b.batchCalls[0]!.add).toEqual(["TRASH"]);
     expect(b.batchCalls[0]!.remove).toEqual(["INBOX"]);
-    expect(await screen.findByText(/250 conversations moved to Trash\. Gmail keeps them for 30 days\./)).toBeInTheDocument();
+    expect(await screen.findByText(/250 Conversations Moved to Trash \u00b7 Gmail Keeps Them for 30 Days/)).toBeInTheDocument();
     // ...and it really moved in the mailbox.
     for (const id of ["fl1", "fl125", "fl250"]) expect(b.labelsOf(b.messageIdsOf(id)[0]!)).toContain("TRASH");
 

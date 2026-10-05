@@ -60,3 +60,37 @@ describe("DecisionCaptureSheet supersede (BRAIN-F-17)", () => {
     expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ decision: "Ship it", linkedId: undefined }));
   });
 });
+
+// THE CATALOG, ON THE CAPTURE SHEET (Dave 2026-10-05, "I am sick of this"). Placeholders are lines the app writes: Title Case,
+// no typed dot, and no hint that states what the keyboard already does.
+describe("DecisionCaptureSheet follows the catalog", () => {
+  it("writes Title Case placeholders with no typed dot", () => {
+    render(<DecisionCaptureSheet attachOptions={OPEN_ONE} onSave={() => {}} onCancel={() => {}} />);
+    for (const label of ["Why", "Expected", "Option you closed"]) {
+      const ph = (screen.getByLabelText(label) as HTMLInputElement).placeholder;
+      expect(ph, label).not.toContain("·");
+      expect(ph, label).toBe(ph.replace(/\b([a-z])/g, (m, c: string, i: number) => (i > 0 && /^(a|an|the|of|to|in|on|and|or|is|if)\b/.test(ph.slice(i)) ? m : c.toUpperCase())));
+    }
+  });
+
+  it("the missing-decision line is Title Case with no full stop", () => {
+    render(<DecisionCaptureSheet attachOptions={OPEN_ONE} onSave={() => {}} onCancel={() => {}} />);
+    fireEvent.click(screen.getByText("Save"));
+    expect(screen.getByText("Add the Decision")).toBeInTheDocument();
+  });
+
+  it("an option typed and left in its field still lands on Save", () => {
+    const onSave = vi.fn();
+    render(<DecisionCaptureSheet attachOptions={OPEN_ONE} onSave={onSave} onCancel={() => {}} />);
+    fireEvent.change(screen.getByLabelText("What you decided"), { target: { value: "Ship it" } });
+    fireEvent.change(screen.getByLabelText("Option you closed"), { target: { value: "wait a month" } });
+    fireEvent.click(screen.getByText("Save"));
+    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ ruledOut: ["wait a month"] }));
+  });
+
+  it("homes and closed options are shown in Title Case, whatever was typed", () => {
+    render(<DecisionCaptureSheet attachOptions={[{ type: "goal", id: "g1", label: "build a six-month runway" }]} initial={{ ruledOut: ["wait a month"] }} onSave={() => {}} onCancel={() => {}} />);
+    expect(screen.getByRole("checkbox", { name: "Build a Six-Month Runway" })).toBeInTheDocument();
+    expect(screen.getByText("Wait a Month")).toBeInTheDocument();
+  });
+});
