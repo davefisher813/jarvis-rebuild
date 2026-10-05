@@ -168,6 +168,7 @@ export default function DayRow({
     ...(swipeable && onShift ? [{ label: "+15 Min", onPick: () => onShift(15) }] : []),
     ...(swipeable && rep && onSkipToday ? [{ label: "Skip Today", onPick: onSkipToday }] : []),
     ...(swipeable && !rep && onPushTomorrow ? [{ label: "Move to Tomorrow", onPick: onPushTomorrow }] : []),
+    ...(onNotes && !selecting ? [{ label: hasNote ? "Open Notes" : "Add Notes", onPick: onNotes }] : []),
     ...(remember && !selecting ? [{ label: remember.on ? "Forget" : "Remember", onPick: () => void remember.run() }] : []),
     ...(swipeable && onDelete ? [{ label: "Delete", destructive: true, onPick: onDelete }] : []),
   ];
@@ -307,11 +308,15 @@ export default function DayRow({
                 onClick={(ev) => ev.stopPropagation()}
               >Join</a>
             )}
-            {onNotes && !selecting && (
+            {/* THE GLYPH IS A FACT, NOT A PERMANENT INVITATION (round 3, 2026-10-05; Dave, locked: no permanent affordance). It
+                drew on every row, hollow and identical with or without a note, and took 21px from every title beside it. It is drawn
+                only when a note exists, in the note's own tone, and opens it; writing the first one is a line in the long-press
+                menu (Add Notes), the same door the glyph used to be. */}
+            {onNotes && hasNote && !selecting && (
               <button
                 type="button"
-                className={"sched-notes" + (hasNote ? " on" : "")}
-                aria-label={hasNote ? "Open Notes" : "Add Notes"}
+                className="sched-notes on"
+                aria-label="Open Notes"
                 onClick={(ev) => { ev.stopPropagation(); onNotes(); }}
               ><FileText className="ic" /></button>
             )}

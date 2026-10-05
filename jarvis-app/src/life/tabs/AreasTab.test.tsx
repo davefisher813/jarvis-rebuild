@@ -45,12 +45,14 @@ describe("AreasTab", () => {
     const row = screen.getByText("Bridge").closest(".area-card") as HTMLElement;
     expect(row).toBeTruthy();
     // One fact per count, the dot between them drawn by the stylesheet (§AM
-    // F3), so no string carries one. Each count is a white number, whole.
+    // F3), so no string carries one. Each count is the row's subtext, whole.
     // The line shows every count, so it is the wrapping .conn-meta, never
     // the one-line .facts that cut "2 Projects" to "2 ..." (2026-09-26).
     const facts = Array.from(row.querySelectorAll(".conn-meta > .fact")).map((f) => f.textContent);
     expect(facts).toEqual(["2 Tasks", "1 Goal", "1 Project"]);
-    expect(row.querySelectorAll(".conn-meta > .fact > b")).toHaveLength(3);
+    // Regular weight, the one grey: no bold inside the counts (the round-2 review, "as loud as the title"). The title stays the
+    // only bold run on the card.
+    expect(row.querySelectorAll(".conn-meta b, .conn-meta strong")).toHaveLength(0);
     expect(row.querySelector(".facts")).toBeNull();
     expect(row.querySelector(".conn-meta")?.textContent).not.toContain("·");
     // Money-kind is excluded outright, its task included (BrainPage's rule,

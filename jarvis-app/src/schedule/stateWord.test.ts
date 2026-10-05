@@ -58,9 +58,9 @@ describe("a block says what kind of wall it is", () => {
 describe("the tones are the ones the pass ruled", () => {
   // AMENDED 2026-09-26 (§AM): FOCUS and PROTECTED were sky, a variant with
   // no rule since 2026-09-21 and a colour the key keeps for estimates.
-  it("red for LIVE, good for COMPLETED, quiet for the rest", () => {
+  it("amber for LIVE (round 3, D4: red is for late and for taps), good for COMPLETED, quiet for the rest", () => {
     const tones: Record<StateWord, string> = {
-      FOCUS: "gray", PROTECTED: "gray", LIVE: "red", COMPLETED: "good",
+      FOCUS: "gray", PROTECTED: "gray", LIVE: "warn", COMPLETED: "good",
       FIXED: "gray", FLEXIBLE: "gray", PROPOSED: "gray",
     };
     for (const [word, tone] of Object.entries(tones)) {

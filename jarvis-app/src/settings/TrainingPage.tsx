@@ -121,6 +121,9 @@ export function RackSettings({ withShowLast = false }: { withShowLast?: boolean 
           <span className="set-unit" aria-hidden="true">{rackUnit === "kg" ? "Kg" : "Lb"}</span>
         </div>
       </Card>
+      {/* THE UNIT NOTE SITS UNDER THE UNIT (2026-10-05, the round 2 review: it hung under the Plates card two cards below Rack Unit, so it read as a
+          note about plates). It is the foot of the card that holds Rack Unit and Bar Weight, the two things it explains. */}
+      <Foot>{rackHint(rackUnit)}</Foot>
       {/* THE PLATES ARE A GROUP LIKE ANY OTHER (2026-10-05, found rendering Training at 390 wide): a bold label, a note and a
           bare chip strip floated under the card in a third style. Its own quiet head, its own card, and the note under it. */}
       <Head label="Plates on the Rack" />
@@ -135,7 +138,8 @@ export function RackSettings({ withShowLast = false }: { withShowLast?: boolean 
           </div>
         </div>
       </Card>
-      <Foot>{rackHint(rackUnit)}</Foot>
+      {/* The plates card says what a tap on a chip does, because nothing else on the screen does. */}
+      <Foot>Tap a plate to turn it off or on</Foot>
     </>
   );
 }

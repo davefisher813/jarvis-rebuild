@@ -185,7 +185,8 @@ describe("the event page", () => {
     expect(document.querySelector(".pagehead-title")).toBeNull();
     expect(document.querySelectorAll(".ev-text .facts").length).toBe(1);
     const facts = Array.from(document.querySelectorAll(".ev-text .facts .fact")).map((n) => n.textContent);
-    expect(facts).toEqual(["Mon, Oct 5", "8:30 AM", "30 Min"]);
+    // a time is never split from its AM or PM (D7): a non-breaking space
+    expect(facts).toEqual(["Mon, Oct 5", "8:30\u00a0AM", "30 Min"]);
     expect(document.querySelector(".ev-text .facts .fact.est")!.textContent).toBe("30 Min");
     expect(document.querySelector(".ev-head .row-pair")).toBeNull();
     expect(document.querySelector(".row-pair")).toBeNull();
@@ -196,9 +197,9 @@ describe("the event page", () => {
     expect(document.querySelector(".ev-head .row-ico")!.className).toContain("nav-tile-sky");
   });
 
-  it("Before This with no tasks is the head and one capsule: no box, no square Add Task row", () => {
+  it("Prep Tasks with no tasks is the head, one capsule and a crafted empty state: no box, no square Add Task row", () => {
     page(ev(), { onAddStep: () => {} });
-    const head = screen.getByText("Before This").closest(".sh2")!;
+    const head = screen.getByText("Prep Tasks").closest(".sh2")!;
     const add = screen.getByText("Add Task");
     expect(head.contains(add)).toBe(true);
     expect(add.className).toContain("pill-action");
@@ -233,10 +234,10 @@ describe("the event page", () => {
     expect(document.querySelector(".ev-area")!.textContent).toBe("Work");
   });
 
-  it("the Area row sits with the event's own card, above an empty Before This head, so it cannot read as a task", () => {
+  it("the Area row sits with the event's own card, above an empty Prep Tasks head, so it cannot read as a task", () => {
     page(ev(), { onAddStep: () => {} });
     const area = document.querySelector(".ev-area")!;
-    const head = screen.getByText("Before This").closest(".sh2")!;
+    const head = screen.getByText("Prep Tasks").closest(".sh2")!;
     expect(area.compareDocumentPosition(head) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(css).toMatch(/\.ev-top \+ \.pad-x \{ padding-top: var\(--s-2\)/);
   });

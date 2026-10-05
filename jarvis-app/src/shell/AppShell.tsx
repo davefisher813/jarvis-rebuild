@@ -108,6 +108,11 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
 
   const [tabKeys, setTabKeys] = useState<string[]>(DEFAULT_TABS);
   const [active, setActive] = useState<string>("today");
+  // AN AREA OPENED FROM LIFE IS LIFE'S PAGE (Dave 2026-10-05, the round-2 review: on Health, Work or Family reached from Life's
+  // Areas list the bar lit More and left Life grey). The page itself is Brain's CategoryDetail, so `active` is "brain", which is
+  // no tab; this remembers that Life opened it so the bar keeps Life lit, and forgets it the moment the shell leaves Brain.
+  const [areaFromLife, setAreaFromLife] = useState(false);
+  useEffect(() => { if (active !== "brain") setAreaFromLife(false); }, [active]);
   // TAPPING THE TAB YOU ARE ON GOES BACK TO ITS ROOT (2026-09-29 click-through
   // audit: "five taps on Brain did not navigate"). The Health area is a screen
   // INSIDE the Brain tab (Life > Areas > Health jumps to it), so from Health
@@ -709,7 +714,7 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
              for what is open, and Chat for what you told them. */
           onOpenPerson={(personId) => void navigateToEntity("person", personId)}
           onAskSaid={(personId) => jump(() => { chatAskIntent.fire(personId); setActive("chat"); })} onGoBigger={(goalId?: string) => jump(() => { if (goalId) goalIntent.fire(goalId); else goalIntent.clear(); goLife("goals"); })} />}
-        {active === "life" && <LifeFlow segment={lifeSegment} segmentNav={lifeNav} taskOpenId={taskIntent.value} taskNonce={taskIntent.nonce} onTaskOpened={taskIntent.clear} startOpenId={startIntent.value} startNonce={startIntent.nonce} onStartConsumed={startIntent.clear} taskFilter={taskFilterIntent.value} filterNonce={taskFilterIntent.nonce} onFilterApplied={taskFilterIntent.clear} projectOpenId={projectIntent.value} projectNonce={projectIntent.nonce} onProjectOpened={projectIntent.clear} goalOpenId={goalIntent.value} goalNonce={goalIntent.nonce} onGoalOpened={goalIntent.clear} onOpenNote={navigateToNote} onWhatNow={openFocus} onOpenDecision={(id) => void navigateToEntity("decision", id)} onGoEmail={(threadId) => jump(() => { mailIntent.fire(threadId); setActive("messages"); })} onOpenEntity={(kind, id) => void navigateToEntity(kind, id)} onOpenCategory={(id) => void navigateToEntity("category", id)} />}
+        {active === "life" && <LifeFlow segment={lifeSegment} segmentNav={lifeNav} taskOpenId={taskIntent.value} taskNonce={taskIntent.nonce} onTaskOpened={taskIntent.clear} startOpenId={startIntent.value} startNonce={startIntent.nonce} onStartConsumed={startIntent.clear} taskFilter={taskFilterIntent.value} filterNonce={taskFilterIntent.nonce} onFilterApplied={taskFilterIntent.clear} projectOpenId={projectIntent.value} projectNonce={projectIntent.nonce} onProjectOpened={projectIntent.clear} goalOpenId={goalIntent.value} goalNonce={goalIntent.nonce} onGoalOpened={goalIntent.clear} onOpenNote={navigateToNote} onWhatNow={openFocus} onOpenDecision={(id) => void navigateToEntity("decision", id)} onGoEmail={(threadId) => jump(() => { mailIntent.fire(threadId); setActive("messages"); })} onOpenEntity={(kind, id) => void navigateToEntity(kind, id)} onOpenCategory={(id) => { setAreaFromLife(true); void navigateToEntity("category", id); }} />}
         {active === "schedule" && <ScheduleFlow onEditRoutine={goToRoutine} openId={eventIntent.value} openNonce={eventIntent.nonce} onOpenConsumed={eventIntent.clear} onNavigate={(kind, id) => void navigateToEntity(kind, id)} onFocus={openFocus} />}
         {active === "brain" && <BrainFlow openKey={brainIntent.value} openNonce={brainIntent.nonce} onKeyConsumed={brainIntent.clear} routineBlockId={routineBlockIntent.value} onRoutineBlockConsumed={routineBlockIntent.clear} personOpenId={personIntent.value} personNonce={personIntent.nonce} onPersonConsumed={personIntent.clear} decisionOpenId={decisionIntent.value} decisionNonce={decisionIntent.nonce} onDecisionConsumed={decisionIntent.clear} factOpenId={factIntent.value} factNonce={factIntent.nonce} onFactConsumed={factIntent.clear} onOpenNote={navigateToNote} onOpenProject={(id) => void navigateToEntity("project", id)} onOpenEntity={(kind, id) => void navigateToEntity(kind, id)} onOpenMoney={() => jump(() => setActive("money"))} autoOpenGym={gymIntent.value === true} gymNonce={gymIntent.nonce} onGymConsumed={gymIntent.clear} healthLogKey={healthLogIntent.value} healthLogNonce={healthLogIntent.nonce} onHealthLogConsumed={healthLogIntent.clear} />}
         {active === "notes" && <NotesFlow seed={seedDemo} onChrome={(c) => setNotesChrome(c.tabBar)} onNavigate={navigateToEntity} openId={noteIntent.value} openNonce={noteIntent.nonce} onOpenConsumed={noteIntent.clear} />}
@@ -765,7 +770,7 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
           {/* BROWSER-F-12 moved VoiceBar out to showCapture above, so Chat's
               own composer is the only field on that screen. The tab bar is not
               the dock and stays either way. */}
-          <TabBar tabKeys={tabKeys} active={active} onTab={(k) => {
+          <TabBar tabKeys={tabKeys} active={active === "brain" && areaFromLife && tabKeys.includes("life") ? "life" : active} onTab={(k) => {
             // A tab tap is a fresh visit: anything still pending is cancelled
             // here. Each intent also clears itself the moment its own screen
             // consumes it (shell/intents.ts), so this is the belt, not the

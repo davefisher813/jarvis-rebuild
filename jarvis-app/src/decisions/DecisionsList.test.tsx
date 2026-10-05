@@ -72,13 +72,14 @@ describe("Decision list anatomy", () => {
       expect(f.className).toContain("fact cat");
       expect(f.querySelector(".cd")).not.toBeNull();
     }
-    // The date is the shared small-caps primitive, not a class of its own, and it is a line of its own: the homes and the
-    // outcome are one line and the day another, so a wrap never strands the dot between them (Dave 2026-10-05, the review).
+    // ONE facts line per row (the round 2 review: the row stacked title, reason, a home and a day into six lines). The short toned
+    // facts lead (the day), the long free-text home comes last, so only it can ever give way to an ellipsis; the date is the shared
+    // small-caps primitive, not a class of its own.
     const factLines = Array.from(row.querySelectorAll(".facts"));
-    expect(factLines).toHaveLength(2);
-    expect(factLines[0]!.querySelector(".fact-link")).not.toBeNull();
-    const date = factLines[1]!.querySelector(".fact")!;
-    expect(date.className).toBe("fact date");
+    expect(factLines).toHaveLength(1);
+    const kids = Array.from(factLines[0]!.children);
+    expect(kids[0]!.className).toMatch(/^fact (date|warn|red)$/);
+    expect(kids[kids.length - 1]!.className).toContain("fact-link");
     expect(container.querySelector(".dec-when")).toBeNull();
     // Long decision sentences wrap (two-line clamp) rather than truncating.
     const name = Array.from(container.querySelectorAll(".dec-name")).find((n) => n.textContent!.includes("Student Template Ships"));
@@ -354,6 +355,35 @@ describe("Decisions record page follows the catalog", () => {
     expect(block.classList.contains("card")).toBe(false);
     expect(block.querySelector(".card, .row, .conn-name")).toBeNull();
     expect(block.querySelector(".dec-marked")).toBeNull(); // nothing marked yet, so nothing to caption
+  });
+
+  // THE ROUND 2 REVIEW (2026-10-05): the biggest type on the page said the generic word "Decision" while the real call sat in a
+  // smaller card under a DECIDED label, and the outcome strip had nothing to say what it was for.
+  it("the call is the large title, with its day as the caption, and the bar keeps the small word", async () => {
+    const { container } = render(<NotesProvider userId="u-dec-r2-hero"><OneRecord extra={base}><DecisionsFlow onBack={() => {}} /></OneRecord></NotesProvider>);
+    await openRecord(container, "Build a Six-Month Runway");
+    const hero = container.querySelector(".pagehead .pagehead-title.dec-hero")!;
+    expect(hero.textContent).toBe("Build a Six-Month Runway Before the Hire");
+    // Not the generic word in the big slot, and no second Decided card repeating the call.
+    expect(container.querySelector(".pagehead-title:not(.dec-hero)")).toBeNull();
+    expect(screen.queryByText("Decided", { selector: ".sh2 .t" })).toBeNull();
+    expect(container.querySelector(".pagebar-title")!.textContent).toBe("Decision");
+    expect(container.querySelector(".pagehead .dec-recorded .fact.date")!.textContent).toMatch(/^Recorded /);
+  });
+
+  it("an outcome nobody has picked asks its question, and the question goes once one is", async () => {
+    const { container } = render(<NotesProvider userId="u-dec-r2-ask"><OneRecord extra={base}><DecisionsFlow onBack={() => {}} /></OneRecord></NotesProvider>);
+    await openRecord(container, "Build a Six-Month Runway");
+    expect(screen.getByText("How Did It Turn Out?")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Worked" }));
+    await waitFor(() => expect(screen.queryByText("How Did It Turn Out?")).toBeNull());
+  });
+
+  it("the notes field invites in two plain words, not a sentence", async () => {
+    const { container } = render(<NotesProvider userId="u-dec-r2-notes"><OneRecord extra={base}><DecisionsFlow onBack={() => {}} /></OneRecord></NotesProvider>);
+    await openRecord(container, "Build a Six-Month Runway");
+    expect(container.querySelector(".dec-notes")!.innerHTML).toContain("Add Notes");
+    expect(container.innerHTML).not.toContain("Longer Thinking");
   });
 
   it("an empty reason invites in Title Case and states nothing", async () => {

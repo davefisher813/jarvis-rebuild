@@ -113,7 +113,7 @@ export default function EventDetailPage({
             <div className="ev-title">{titleCase(e.title)}</div>
             <div className="facts">
               <span className="fact date">{when.day}</span>
-              <span className="fact date">{startT.time} {startT.ap}</span>
+              <span className="fact date">{startT.time}{"\u00a0"}{startT.ap}</span>
               {when.length && <span className="fact est">{when.length}</span>}
             </div>
             {e.location && <div className="conn-meta">{e.location}</div>}
@@ -142,16 +142,28 @@ export default function EventDetailPage({
         <div className="pad-x"><a className="btn btn-primary btn-block ev-join" href={joinUrl} target="_blank" rel="noopener noreferrer">Join Meeting</a></div>
       )}
 
-      {/* BEFORE THIS: the half that did not exist. A task can belong to an
-          event now (notes/types.ts, TaskData.eventId), so the event can say
-          what has to happen first, and adding one here is what files it. */}
+      {/* PREP TASKS (was "Before This", which did not say what it meant; round 3, 2026-10-05): the half that did not exist. A task
+          can belong to an event now (notes/types.ts, TaskData.eventId), so the event can say what has to happen first, and adding
+          one here is what files it. The section is offered only where a task can be added or already hangs here, so there is never
+          a bare head. */}
       {/* ONE CAPSULE IN THE HEAD, NOTHING UNDER IT UNTIL THERE IS A TASK (Dave 2026-10-05, locked: a section action lives in its
           head; a card that holds only a button is not drawn). The square-cornered "Add Task" box this was is gone. */}
-      <div className="sh2 sh2-quiet">
-        <span className="t">Before This</span>
-        {open > 0 && <span className="n">{open}</span>}
-        {onAddStep && !adding && <button type="button" className="see-all pill-action" onClick={() => setAdding(true)}>Add Task</button>}
-      </div>
+      {(onAddStep || steps.length > 0) && (
+        <div className="sh2 sh2-quiet">
+          <span className="t">Prep Tasks</span>
+          {open > 0 && <span className="n">{open}</span>}
+          {onAddStep && !adding && <button type="button" className="see-all pill-action" onClick={() => setAdding(true)}>Add Task</button>}
+        </div>
+      )}
+      {/* D9, A CRAFTED EMPTY STATE: a glyph in the Task's red, a Title Case title, one warm line; its one action is the head's
+          capsule directly above (Dave 2026-10-05). */}
+      {onAddStep && steps.length === 0 && !adding && (
+        <div className="empty-state empty-compact">
+          <div className="empty-icon cat-fg-red"><ListChecks className="ic" /></div>
+          <div className="empty-title">Nothing to Prep Yet</div>
+          <div className="empty-sub">Add a Task to Get Ready for This</div>
+        </div>
+      )}
       {(steps.length > 0 || adding) && (
         <div className="pad-x"><div className="card list-card-ruled">
           {steps.map((s) => (

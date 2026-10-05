@@ -190,7 +190,8 @@ describe("teaching the swipe: one tip, one peek, once, and nothing permanent", (
     const mover = () => container.querySelector(".hl .notice-card") as HTMLElement;
     expect(mover().style.transform).toBe("");
     act(() => { vi.advanceTimersByTime(1000); });
-    expect(mover().style.transform, "slid left about 40% of its reveal").toMatch(/translateX\(-\d+px\)/);
+    // The peek shows the quickest action WHOLE: one 88px well, never a clipped "tart Now" (two-action tray, 176px of reveal).
+    expect(mover().style.transform, "slid left by exactly one action well").toBe("translateX(-88px)");
     act(() => { vi.advanceTimersByTime(1000); });
     expect(mover().style.transform, "and back").toBe("");
     unmount();

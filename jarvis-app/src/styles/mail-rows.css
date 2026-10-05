@@ -25,6 +25,11 @@
 .mface { width: 30px; height: 30px; border-radius: var(--r-circle); flex-shrink: 0;
   display: flex; align-items: center; justify-content: center;
   font-size: var(--t-caption); font-weight: var(--w-bold); }
+/* ONE NEUTRAL FACE FOR EVERY SENDER (round 3 review: "pink-red, amber and green avatars mean nothing, and on a screen where amber is
+   due, red is late and green is done they read as states"). The sender's hue slot still rides the class (rowAnatomy.ts keeps one
+   stable identity per sender for whoever wants it), but the mark itself is the warm raised fill with the primary ink: colour is for
+   meaning, and an initial has none. Specificity beats .cat-bg-* whatever order the sheets load in. */
+.mface.mface[class*="cat-bg-"] { background: var(--press-5); color: var(--tx-1); }
 /* A machine's mark: the 3px rail, quiet by default, warn when the sender
    stated a deadline. Never lit for unreadness (8A). */
 .mrail { width: 3px; height: 26px; border-radius: var(--r-xxs); background: var(--tx-4); }

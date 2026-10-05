@@ -218,6 +218,8 @@ describe("CategoryDetail save guard (BRAIN-F-09)", () => {
     const stop = subscribeToast((t) => { if (t) seen.push(t.message); });
     try {
       render(<NotesProvider userId="sg1"><SeededForSave /></NotesProvider>);
+      // An area with nothing in it is one empty state with one Add, which opens the four things an area holds.
+      fireEvent.click(await screen.findByText("Add"));
       fireEvent.click(await screen.findByText("Add Task"));
       fireEvent.change(await screen.findByPlaceholderText("What needs doing?"), { target: { value: "Call the club" } });
       tasksRef!.createTask = () => Promise.reject(new Error("offline"));
@@ -308,7 +310,9 @@ describe("CategoryDetail org health (2026-08-10)", () => {
     // under it, cased.
     // The next step is also the task under Up Next, so the text is on two rows: the project's NEXT line is the one asked.
     expect(screen.getAllByText("Email Sponsors").some((e) => e.classList.contains("r-next-v"))).toBe(true);
-    expect(screen.getByText("1 Late")).toHaveClass("u-late");
+    // The late count is the key's red as plain text, never a filled chip (Dave 2026-10-05, D10).
+    expect(screen.getByText("1 Late")).toHaveClass("fact", "red");
+    expect(screen.getByText("1 Late")).not.toHaveClass("uchip");
     expect(screen.queryByText(/Next: /)).toBeNull();
     expect(screen.queryByText(/Moves Grow the league/)).toBeNull();
   });

@@ -397,7 +397,7 @@ function replyNotice(t: MailThread): MailNotice | null {
     title: t.from,
     sub: t.gist || t.subject,
     action: "Reply",
-    tone: "cat-fg-blue",
+    tone: "cat-fg-teal",
     ...(t.account ? { account: t.account } : {}),
   };
 }

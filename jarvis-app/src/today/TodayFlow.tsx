@@ -2846,11 +2846,13 @@ export default function TodayFlow({
               <div className="conn-name truncate">{prep.person.name}</div>
               {(prep.open.length > 0 || prep.lastMail) ? (
                 <div className="conn-meta facts">
-                  {prep.open.length > 0 && <span className="fact"><b>{lineCase(`${prep.open.length} open`)}</b> With Them</span>}
+                  {prep.open.length > 0 && <span className="fact"><b>{prep.open.length}</b> {prep.open.length === 1 ? "Open Item" : "Open Items"} With Them</span>}
                   {prep.lastMail ? <span className="fact date">{prep.lastMail}</span> : null}
                 </div>
               ) : null}
             </div>
+            {/* The row opens the person, like the Now row above it opens its event: both rows of the card carry the one chevron. */}
+            <div className="chev" />
           </div>
           </SwipeShell>
         )}
@@ -3179,11 +3181,21 @@ export default function TodayFlow({
         alt={{ label: "Change It", onClick: () => setRevisitSheet(true) }}
         // ROW-TAP (Dave 2026-09-15): the body opens the decision's sheet.
         onOpen={() => setRevisitSheet(true)}
+        // THE OUTCOME IS ONE QUESTION AND ONE SEGMENTED CONTROL, ON THE TEXT EDGE (round 3, 2026-10-05, the review's P0: three
+        // loose capsules started at the card's own border, with no question over them and a ragged right side). The row is
+        // the notice's own second line: an empty glyph in front puts it on the title's edge (the same spacer .hl-verbs uses),
+        // the question says what is being asked, and Worked, Mixed and Didn't split the width equally inside the card's padding.
         foot={(
-          <div className="dec-outcome-acts notice-foot-acts">
-            {(["worked", "mixed", "didnt"] as OutcomeWord[]).map((w) => (
-              <button type="button" key={w} className="pill-act" onClick={() => void markRevisitOutcome(revisit, w)}>{OUTCOME_LABEL[w]}</button>
-            ))}
+          <div className="row hl-verbs notice-foot-acts">
+            <div className="row-glyph" aria-hidden="true" />
+            <div className="hl-acts notice-foot-ask">
+              <div className="conn-meta">How Did It Go?</div>
+              <div className="segmented" role="group" aria-label="How did it go">
+                {(["worked", "mixed", "didnt"] as OutcomeWord[]).map((w) => (
+                  <button type="button" key={w} className="seg" onClick={() => void markRevisitOutcome(revisit, w)}>{OUTCOME_LABEL[w]}</button>
+                ))}
+              </div>
+            </div>
           </div>
         )}
       />

@@ -13,10 +13,8 @@ import { shortDate } from "../../shared/dateFormat";
 import { todayISO } from "../../tasks/grouping";
 import { addDays } from "../../schedule/calendar";
 import { MessageSquare } from "../../shared/icons";
+import PageHeader, { BarAction } from "../../shared/PageHeader";
 
-const BACK = (
-  <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
-);
 const EDIT = (
   <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4Z" /></svg>
 );
@@ -85,6 +83,7 @@ export default function PersonDetail({
   onAddPoint,
   onTogglePoint,
   onBack,
+  backLabel = "Contacts",
   linkedNotes = [],
   goals = [],
   onOpenGoal,
@@ -115,6 +114,8 @@ export default function PersonDetail({
   onAddPoint?: (text: string) => void;
   onTogglePoint?: (id: string) => void;
   onBack: () => void;
+  /** What the back control says: where it goes (Contacts, by default), like every other Brain page's labelled back. */
+  backLabel?: string;
   linkedNotes?: { id: string; title: string; category: string }[];
   /** Goals reached through the projects this person is on, each saying which
    *  project carried them here. Resolved by the caller like everything else
@@ -209,48 +210,55 @@ export default function PersonDetail({
     : undefined;
   return (
     <div className="screen ruled proj-ruled person-ruled">
-      <div className="nav-bar">
-        <button className="nav-back" aria-label="Back" onClick={onBack}></button>
-        <button className="nav-action" aria-label="Edit" onClick={onEdit}>{EDIT}</button>
-      </div>
-      <div className="person-hero">
-        <div className={"av av-72 " + softAvatarClass(color)}><span>{personInitials(name)}</span></div>
-        <div className="person-name">{name}</div>
-        {/* C-59: the label facts. The relationship WAS the one coloured
-            fact, in sky, until that class went with the blue subtext; it had
-            been drawing plain grey ever since. It keeps the plain grey on
-            purpose now: every area beside it carries a dot, which is a mark
-            under §AK, so the relationship is the line's one grey. */}
-        {(relationship || categoryColors.length > 0) && (
-          <div className="facts person-facts">
-            {/* NOT THE SAME WORD TWICE (Dave 2026-09-16, photographed:
-                "Family · Family"). The handoff bans duplicated relationship
-                labels, and this is how one appears: "Family" typed as the
-                relationship next to the Family area chip. The area already
-                says it, in colour, so the relationship chip stands down
-                rather than repeating it. */}
-            {relationship && !areaEchoes && <span className="fact">{lineCase(relationship)}</span>}
-            {/* A ROLE PER AREA (People handoff, 2026-09-16). Where a role
-                is set, the area says what they are IN it: "Family", then
-                "Mother". Both under the one dot, because they are one fact.
-                An area with no role reads as it always did. Text, never
-                colour alone: the area's dot is the colour and the words
-                carry the meaning.
-                The dot between area and role is the stylesheet's separator
-                (.fact + .fact), never one baked into the words (§AM, R6).
-                The pair sits in one plain span so the category's own gap
-                does not widen the space ahead of it. */}
-            {categoryColors.map((c) => (
-              <span className="fact cat" key={c.name}>
-                <span className={"cd cat-bg-" + catColor(c.color)} />
-                {c.role
-                  ? <span><span className="fact">{c.name}</span><span className="fact">{c.role}</span></span>
-                  : c.name}
-              </span>
-            ))}
+      {/* THE SAME BAR AS EVERY OTHER BRAIN PAGE (the round 2 review: a label-less chevron and a bare pencil, and once the name
+          scrolled away the bar said nothing about whose page it was, where Decisions' bar says "Decision"). A labelled back, the
+          pencil in the round bar button, and the name as the bar's centred title the moment the hero's name leaves the screen. */}
+      <PageHeader
+        title={name}
+        back={backLabel}
+        onBack={onBack}
+        actions={<BarAction label="Edit" onClick={onEdit}>{EDIT}</BarAction>}
+        hero={
+          <div className="person-hero">
+            <div className={"av av-72 " + softAvatarClass(color, name)}><span>{personInitials(name)}</span></div>
+            <div className="person-name">{name}</div>
+            {/* C-59: the label facts. The relationship WAS the one coloured
+                fact, in sky, until that class went with the blue subtext; it had
+                been drawing plain grey ever since. It keeps the plain grey on
+                purpose now: every area beside it carries a dot, which is a mark
+                under §AK, so the relationship is the line's one grey. */}
+            {(relationship || categoryColors.length > 0) && (
+              <div className="facts person-facts">
+                {/* NOT THE SAME WORD TWICE (Dave 2026-09-16, photographed:
+                    "Family · Family"). The handoff bans duplicated relationship
+                    labels, and this is how one appears: "Family" typed as the
+                    relationship next to the Family area chip. The area already
+                    says it, in colour, so the relationship chip stands down
+                    rather than repeating it. */}
+                {relationship && !areaEchoes && <span className="fact">{lineCase(relationship)}</span>}
+                {/* A ROLE PER AREA (People handoff, 2026-09-16). Where a role
+                    is set, the area says what they are IN it: "Family", then
+                    "Mother". Both under the one dot, because they are one fact.
+                    An area with no role reads as it always did. Text, never
+                    colour alone: the area's dot is the colour and the words
+                    carry the meaning.
+                    The dot between area and role is the stylesheet's separator
+                    (.fact + .fact), never one baked into the words (§AM, R6).
+                    The pair sits in one plain span so the category's own gap
+                    does not widen the space ahead of it. */}
+                {categoryColors.map((c) => (
+                  <span className="fact cat" key={c.name}>
+                    <span className={"cd cat-bg-" + catColor(c.color)} />
+                    {c.role
+                      ? <span><span className="fact">{c.name}</span><span className="fact">{c.role}</span></span>
+                      : c.name}
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
-        )}
-      </div>
+        }
+      />
       {/* Reach them (2026-08-10): the email and phone this card has stored
           since the person pass, finally shown, and tappable so the card is a
           launchpad, not a filing cabinet. */}
@@ -333,14 +341,13 @@ export default function PersonDetail({
         </div>
       )}
       {/* CRAFTED, NOT BLANK (Dave 2026-10-05, D9): a person with nothing saved is a glyph, a title and one warm line, and the head's
-          Add Topic is the one capsule that fills it. */}
+          Add Topic is the ONE capsule that fills it (the round 2 review: a second filled "Save a Topic" under it did exactly the
+          same thing, two doors to one verb, 200px apart). */}
       {onAddPoint && points.length === 0 && !adding && (
         <div className="empty-state empty-compact">
           <div className="empty-icon cat-fg-teal"><MessageSquare className="ic" /></div>
           <div className="empty-title">Nothing to Bring Up Yet</div>
           <div className="empty-sub">Topics You Save Here Wait for Your Next Conversation</div>
-          {/* An empty state always carries its action (law L7); the head's capsule is the same door. */}
-          <button className="btn btn-primary" onClick={() => setAdding(true)}>Save a Topic</button>
         </div>
       )}
       {onAddPoint && (points.length > 0 || adding) && (

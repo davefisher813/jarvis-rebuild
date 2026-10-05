@@ -37,7 +37,7 @@ describe("a fact is never cut where there is room", () => {
     }
     const byKey = Object.fromEntries(rows.map((r) => [r.key, r]));
     expect(watchingCount(byKey.people_rhythm!)).toBe("0 of 10 Emails");
-    expect(watchingCount(byKey.gone_quiet!)).toBe("0 of 1 Labelled People");
+    expect(watchingCount(byKey.gone_quiet!)).toBe("0 of 1 Labeled People");
     // What was cut from the row is still said where there is room for it: every row carries its sentence for the sheet.
     expect(rows.every((r) => (r.detail ?? "").length > 0)).toBe(true);
   });
@@ -94,18 +94,35 @@ describe("the readiness sheet says its two facts in full, and its state word is 
     for (const f of document.querySelectorAll(".facts > .fact")) expect(f.textContent!.length).toBeLessThan(40);
   });
 
-  it("the way out is Done, never a Close that is also the eyebrow's state word", () => {
+  it("the way out is Done, and no word on the sheet reads as a button: the state is said once, in the facts", () => {
     show(row({ state: "close", have: 7, need: 10 }));
-    const eyebrow = document.querySelector(".eyebrow .fact.st")!;
-    expect(eyebrow.textContent).toBe("Close");
+    // Round 2 review: an amber CLOSE kicker (the state word) over an amber "Ready to Accept" said one thing twice and read as a
+    // dismiss beside Done. The kicker names the sheet; the state is the facts line's alone.
+    expect(document.querySelector(".eyebrow .fact")).toBeNull();
+    expect(document.querySelector(".eyebrow")!.textContent).toBe("Readiness");
+    expect(screen.queryByText("Close")).toBeNull();
     expect(screen.queryByRole("button", { name: "Close" })).toBeNull();
     expect(screen.getByRole("button", { name: "Done" })).toBeInTheDocument();
+  });
+
+  it("says what telling it does, in one warm sentence per state, and shows how it is counted without a tap", () => {
+    const hint = () => document.querySelector(".input-hint")!.textContent!;
+    const { unmount } = show(row({ state: "ready", have: 12, need: 10, detail: "Needs 10 completions" }));
+    expect(hint()).toBe("JARVIS has seen enough to say this out loud, so tell it in your own words and it will remember");
+    expect(document.querySelector("details.exp-more")!.hasAttribute("open")).toBe(true);
+    unmount();
+    for (const state of ["known", "close", "waiting", "muted"] as const) {
+      const u = show(row({ state, have: 3, need: 10 }));
+      expect(hint().length, state).toBeGreaterThan(30);
+      // One sentence: no full stop followed by a capital anywhere in the line.
+      expect(hint(), state).not.toMatch(/\. [A-Z]/);
+      u.unmount();
+    }
   });
 
   it("the counting rule sits behind a labelled disclosure, in Title Case", () => {
     show(row({ state: "close", have: 7, need: 10, detail: "Needs 10 completions, with one 3-hour stretch holding 40 percent of them" }));
     expect(document.querySelector("details.exp-more summary")!.textContent).toBe("How It Is Counted");
-    fireEvent.click(document.querySelector("details.exp-more summary")!);
     expect(document.querySelector("details.exp-more .conn-meta")!.textContent).toBe("Needs 10 Completions, with One 3-Hour Stretch Holding 40 Percent of Them");
   });
 });

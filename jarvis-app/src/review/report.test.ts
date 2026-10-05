@@ -56,6 +56,8 @@ describe("the hero", () => {
     expect(r.hero.label).toBe("Things Moved");
     expect(r.hero.wins.map((w) => w.name)).toEqual(["Half Marathon", "Garage", "Put Away"]);
     expect(r.hero.wins[2]!.value).toBe("$1,200");
+    // A done project is a done thing: its word is Done, so the green tile and the word agree (never "Closed" on green).
+    expect(r.hero.wins.map((w) => w.value)).toEqual(["Achieved", "Done", "$1,200"]);
   });
 
   it("a month with no crossings leads with what got done, which is also true", () => {
@@ -132,7 +134,7 @@ describe("worth a look", () => {
       openTaskText: (id) => (id === "a" ? "Update insurance docs" : null),
     }));
     const carried = r.worth.find((w) => w.id === "carried")!;
-    expect(carried.title).toBe("1 Followed You All Month");
+    expect(carried.title).toBe("1 Task Followed You All Month");
     expect(carried.carried).toEqual([{ id: "a", text: "Update insurance docs", n: 7 }]);
   });
 
@@ -180,7 +182,8 @@ describe("patterns", () => {
     const r = buildReport(inputs({ seal: strong }));
     const p = r.patterns.find((x) => x.id === "picks")!;
     expect(p.title).toBe("First Picks Finish");
-    expect(p.sub![0]!.text).toBe("Firsts 78%, Later Picks 20%");
+    expect(p.sub![0]!.text).toBe("Firsts 78%");
+    expect(p.sub![1]!.text).toBe("Later Picks 20%");
     // Thin months stay silent.
     const thin = buildReport(inputs({ seal: emptySeal("2026-08", { byPick: [{ n: 1, picked: 3, done: 3 }] }) }));
     expect(thin.patterns.find((x) => x.id === "picks")).toBeUndefined();
@@ -217,8 +220,8 @@ describe("patterns", () => {
       workouts: [workout("2026-08-03"), workout("2026-08-05"), workout("2026-08-07")],
     }));
     const train = r.patterns.find((x) => x.id === "train")!;
-    expect(train.sub!.map((f) => f.text)).toEqual(["4.3 Done vs 2.0", "+117%"]);
-    expect(train.sub![1]!.tone).toBe("good");
+    expect(train.sub!.map((f) => f.text)).toEqual(["4.3 Train Days", "2.0 Other Days", "+117%"]);
+    expect(train.sub![2]!.tone).toBe("good");
     for (const row of r.patterns) expect("chip" in row).toBe(false);
   });
 });
@@ -227,7 +230,8 @@ describe("the close", () => {
   it("learned shows its retractions, which is the anti-horoscope device", () => {
     const r = buildReport(inputs({ seal: emptySeal("2026-08", { strands: { created: 4, corrected: 1, deleted: 0 } }) }));
     expect(r.learned!.title).toBe("Learned 4 Things About You");
-    expect(r.learned!.sub![0]!.text).toBe("You Fixed 1, It Is Gone");
+    expect(r.learned!.sub![0]!.text).toBe("You Fixed 1");
+    expect(r.learned!.sub![1]!.text).toBe("Gone for Good");
   });
 
   it("the closer appears once, only on evidence, and never when already capped", () => {

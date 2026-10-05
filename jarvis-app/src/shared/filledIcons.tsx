@@ -9,7 +9,7 @@ import type { ReactNode } from "react";
 import {
   Brain, Note, Target, EnvelopeSimple, BellSimple, Wallet, Sparkle, GearSix,
   House, CheckSquare, CalendarBlank, UsersThree, GitFork, Compass, PenNib,
-  Flag, Clock, UserCircle, Palette, Tag, SquaresFour, LinkSimple, Lightbulb,
+  Flag, Clock, UserCircle, Palette, Tag, SquaresFour, PlugsConnected, Lightbulb,
   CloudArrowUp, Info, Circle, CalendarCheck, Barbell, Funnel, Robot, CheckCircle, Wrench } from "@phosphor-icons/react";
 
 const P = { weight: "fill" as const, className: "ic" };
@@ -53,7 +53,9 @@ export const FILLED_SETTINGS: Record<string, ReactNode> = {
   booking: <CalendarCheck {...P} />,
   categories: <Tag {...P} />,
   edittabs: <SquaresFour {...P} />,
-  connections: <LinkSimple {...P} />,
+  // Connections (2026-10-05, the round 2 review: the filled link drew as a solid blue rounded square, a "gradient tile" among glyphs): a plug is
+  // a connection and fills as a plug.
+  connections: <PlugsConnected {...P} />,
   aicontrol: <Sparkle {...P} />,
   learned: <Lightbulb {...P} />,
   backup: <CloudArrowUp {...P} />,

@@ -1026,7 +1026,9 @@ export default function TodayPage({
           {/* C-26 (Astra, 2026-09-12): the band is named for what it wants
               from him, not for the app it came out of. Open Inbox stays, and
               the rows under it are untouched. */}
-          <span className="t">{mailHead?.title ?? "Ready to Send"}</span>
+          {/* The band holds mail, a calendar suggestion and a task born from a thread, so its fallback name says where they came from, not that
+              they are sendable (round 3 review: "a head describes what is under it"). */}
+          <span className="t">{mailHead?.title ?? "From Your Inbox"}</span>
           {/* CLEAR ALL RIDES THE HEAD (Dave 2026-10-05, locked). When the band also has its door out (Open Inbox, which shows
               only when no receipt line below already opens the inbox), that door waits behind the head's More button: both
               capsules beside "Ready to Send" measured 116px for a title that needs 134, and a title cut to "Ready to S..."

@@ -40,15 +40,15 @@ const ITEMS: Item[] = [
 ];
 const GROUPS = [0, 1, 2, 3];
 
-// A DESTINATION'S GLYPH WEARS ITS TYPE'S COLOUR (Dave 2026-10-05, D4 and D5: seventeen rows in the same flat brand red
-// said "tap me" seventeen times and never what each one was; the 2026-08-18 "settings in all red" note is superseded).
-// The tones are the ones the rest of the app already gives these things: Notifications orange (as on More), Email
-// Sections teal (Email), Booking sky (an Event), Brain, AI Control and What JARVIS Learned purple (the Brain tab),
-// the system cluster graphite. One glyph style (the filled set), one size. The light and dark inks come from
-// .cat-fg-* (--cat-ic-* in light, --cat-dtx-* in dark), never the text ink, and never the brand red.
+// ONE ICON SYSTEM: THE SAME 30PX TILE ON EVERY ROW (2026-10-05, the round 2 review: "rainbow filled glyphs, a gradient tile and grey chrome"; "bare
+// glyphs of mixed weight while the sheets use tiles"). Every row wears its glyph from the one filled set, at one size, on one rounded tile washed
+// in its own hue (.lib-ico-tile). A settings page is chrome, not an entity, so no row borrows a type's colour: Booking is no longer Event's sky and
+// Training no longer the Task's red (the key's red is for tasks, sky for events). The hues are the ones the rest of the app gives its own surfaces:
+// Notifications orange (as on More), Email Sections teal (Email's own tile), Brain, AI Control and What JARVIS Learned purple and yellow, the
+// system cluster graphite. The light and dark inks come from .cat-fg-* (--cat-ic-* in light, --cat-dtx-* in dark), never the text ink, never the brand red.
 const TONE: Record<string, string> = {
   account: "cat-fg-graphite", notifsettings: "cat-fg-orange", appearance: "cat-fg-indigo", feedbackstyle: "cat-fg-pink",
-  categories: "cat-fg-green", training: "cat-fg-red", booking: "cat-fg-sky", edittabs: "cat-fg-graphite",
+  categories: "cat-fg-green", training: "cat-fg-lime", booking: "cat-fg-cyan", edittabs: "cat-fg-graphite",
   connections: "cat-fg-blue", emailsections: "cat-fg-teal", aicontrol: "cat-fg-purple", learned: "cat-fg-yellow",
   brainsettings: "cat-fg-purple", backup: "cat-fg-graphite", advanced: "cat-fg-graphite", about: "cat-fg-graphite",
 };
@@ -63,7 +63,7 @@ function useOptionalProfile() {
 function SettingRow({ item, onClick, who }: { item: Item; onClick: () => void; who?: string }) {
   return (
     <div className="lib-row" role="button" tabIndex={0} onClick={onClick}>
-      <div className={"lib-ico " + (TONE[item.route] ?? "cat-fg-graphite")}>{filledSettingsIcon(item.route)}</div>
+      <div className={"lib-ico lib-ico-tile " + (TONE[item.route] ?? "cat-fg-graphite")}>{filledSettingsIcon(item.route)}</div>
       {who ? <div className="lib-stack"><div className="lib-name">{item.label}</div><div className="lib-sub">{who}</div></div> : <div className="lib-name">{item.label}</div>}
       <Chev />
     </div>

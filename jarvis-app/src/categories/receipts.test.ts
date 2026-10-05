@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { weekStartISO, weekReceipt, receiptLine, afterHoursLine } from "./receipts";
+import { weekStartISO, weekReceipt, receiptLine, afterHoursLine, uniqueCompletions } from "./receipts";
 import type { CompletionSample } from "../shared/timeSense";
 
 // The This Week receipt: derived only, silent when nothing happened.
@@ -74,5 +74,25 @@ describe("lines", () => {
     expect(receiptLine({ done: 0, events: 1, afterHours: 0 })).toBe("1 Event");
     expect(afterHoursLine({ done: 0, events: 2, afterHours: 1 })).toBe("1 Event After Work Hours");
     expect(afterHoursLine({ done: 0, events: 2, afterHours: 0 })).toBeNull();
+  });
+});
+
+// ONE TASK, ONE COMPLETION A DAY (the round-2 review: "the DONE tile climbs on every capture, 9 then 12 then 33 then 54, next to a
+// 5-row list"). The log is append-only and an un-tick takes nothing back, so a tick, an un-tick and a tick again is two samples.
+describe("uniqueCompletions", () => {
+  const withId = (iso: string, id: string, cat = "c1") => ({ ...sample(iso, cat), id });
+
+  it("collapses the same task on the same day, and keeps the same task on different days", () => {
+    const out = uniqueCompletions([withId("2026-08-04", "a"), withId("2026-08-04", "a"), withId("2026-08-04", "a"), withId("2026-08-03", "a"), withId("2026-08-04", "b")]);
+    expect(out).toHaveLength(3);
+  });
+
+  it("keeps every sample that has no task id, because it cannot be matched", () => {
+    expect(uniqueCompletions([sample("2026-08-04", "c1"), sample("2026-08-04", "c1")])).toHaveLength(2);
+  });
+
+  it("the week receipt counts a repeated tick once", () => {
+    const repeated = [withId("2026-08-04", "a"), withId("2026-08-04", "a"), withId("2026-08-04", "a"), withId("2026-08-04", "a")];
+    expect(weekReceipt("c1", repeated, [], TODAY, null).done).toBe(1);
   });
 });

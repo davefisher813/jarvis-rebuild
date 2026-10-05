@@ -288,7 +288,13 @@ export default function TodaySuggestions({ ai, always = false }: { ai: AIService
 
   const dismissThis = () => {
     haptics.selection();
-    if (pattern) { dismissPattern(pattern.id, today); setPattern(null); emit({ type: "suggestion.dismissed", props: { kind: "pattern" } }); }
+    if (pattern) {
+      dismissPattern(pattern.id, today); setPattern(null); emit({ type: "suggestion.dismissed", props: { kind: "pattern" } });
+      // A moment that won the first row is also in the day's set, and a set that still held it would deal the same card again as
+      // the next one in the queue, so waving it off has to take it out of the set too.
+      const gone = pattern.moment?.derivation;
+      if (gone) setMoments((cur) => cur.filter((x) => x.derivation !== gone));
+    }
     else if (aiPick) dismiss(aiPick.i);
   };
 
@@ -529,10 +535,22 @@ export default function TodaySuggestions({ ai, always = false }: { ai: AIService
   // above is that one row, wherever it renders; these are whatever else the
   // nightly pass picked, always full cards (never whispered), since this
   // list only ever exists on the page that already opened everything.
+  //
+  // ONE CARD AT A TIME (the round 2 review, 2026-10-05: "three stacked suggestion cards push the real screen off the first
+  // view": the title, the filters and the Readiness list were under the dock, and three buttons said Remember This).
+  // The pass still chose the whole set and every card is still reachable: the first is shown, the head says where it is in
+  // the queue ("1 of 3"), and answering it (Remember This or Dismiss) brings the next up. An offer already on screen is the
+  // first of the queue and the moments wait behind it.
+  const offerShown = !!(pattern || aiPick);
+  const queue = (offerShown ? 1 : 0) + extraMoments.length;
+  const shownMoments = offerShown ? [] : extraMoments.slice(0, 1);
   return (
     <>
+      {queue > 1 && (
+        <div className="sh2 sh2-quiet"><span className="t">Worth Remembering</span><span className="n">{"1 of " + queue}</span></div>
+      )}
       {primary}
-      {extraMoments.map((m) => (
+      {shownMoments.map((m) => (
         // row-tap: claim card with no page behind it; accepting is a lasting write that stays on the pill
         <NoticeCard
           key={m.derivation}

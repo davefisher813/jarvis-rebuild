@@ -40,6 +40,23 @@ describe("TaskSheet", () => {
     expect(screen.getAllByRole("button", { name: "Add Item" })).toHaveLength(1);
   });
 
+  // ROUND 3 (the review of Edit Task): an empty If-Then row said "Not Set" while seven sibling rows stayed blank, and Add to Schedule
+  // was a one-row card of its own under More, so the foot of the sheet was three stacked boxes.
+  it("an unset If-Then Plan says nothing, like every other empty row", () => {
+    render(<TaskSheet mode="edit" categories={CATS} initial={{ text: "Pay rent" }} onSave={() => {}} onCancel={() => {}} />);
+    expect(screen.queryByText("Not Set")).toBeNull();
+    const row = screen.getByText("If-Then Plan").closest(".row")!;
+    expect(row.querySelector(".dd-cv"), "the chevron is still drawn").not.toBeNull();
+  });
+
+  it("Add to Schedule is the last row of the More card, and Delete Task is the only other box under it", () => {
+    render(<TaskSheet mode="edit" categories={CATS} initial={{ text: "Pay rent" }} onSave={() => {}} onCancel={() => {}} onSchedule={() => {}} onDelete={() => {}} />);
+    const more = screen.getByText("If-Then Plan").closest(".xs-group")!;
+    expect(more).toContainElement(screen.getByText("Add to Schedule"));
+    expect(document.querySelectorAll(".xs-actions:not(.xs-del-card)")).toHaveLength(0);
+    expect(screen.getByText("Delete Task").closest(".xs-group")).not.toBe(more);
+  });
+
   it("the More group carries Add a Note on its label row, not as a row inside the card", () => {
     render(<TaskSheet mode="edit" categories={CATS} initial={{ text: "Pay rent" }} onSave={() => {}} onCancel={() => {}} onAddNote={() => {}} />);
     const add = screen.getByRole("button", { name: "Add a Note" });

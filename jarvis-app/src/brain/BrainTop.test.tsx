@@ -136,8 +136,11 @@ describe("BrainTop", () => {
     expect(watchRows[0]?.textContent).toContain("The Area That Slips");
     // The count is the one fact; the state word is the head's, never repeated per row, and the glyph is not amber.
     expect([...watchRows[0]!.querySelectorAll(".fact")].map((e) => e.textContent)).toEqual(["4 of 5 Pushes in One Area"]);
-    expect(watchRows[0]!.querySelector(".warn-disc")).toBeNull();
-    expect(watchRows[0]!.querySelector(".watch-disc svg")).not.toBeNull();
+    // One icon style on the screen (round 2 review): a bare glyph in its subject's tone, never a grey disc and never amber.
+    expect(watchRows[0]!.querySelector(".warn-disc, .watch-disc, .lib-disc")).toBeNull();
+    const watchGlyph = watchRows[0]!.querySelector(".lib-ico")!;
+    expect(watchGlyph.querySelector("svg")).not.toBeNull();
+    expect(watchGlyph.className).toContain("cat-fg-red");
     fireEvent.click(watchRows[0]!);
     expect(onOpenWatching).toHaveBeenCalledWith("slip_category");
     // Clean rows (Dave 2026-10-05): no capsule. Still True is the one quiet word on the fading row (the same verb as its

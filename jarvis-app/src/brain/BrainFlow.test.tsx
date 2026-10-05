@@ -16,6 +16,10 @@ import BrainFlow from "./BrainFlow";
 // a deep-link (openKey, e.g. from search): that gets caught here and handed
 // to onOpenMoney instead of opening a page.
 
+// A category's detail page is open when its page is drawn. These areas hold nothing, so the page is the one crafted empty state
+// (round-2 review, 2026-10-05): "Nothing in <Name> Yet", not four bare section heads.
+const AREA_OPEN = /^Nothing in .* Yet$/;
+
 describe("BrainFlow: the Money category is never a destination here", () => {
   it("no category renders as a row on Brain at all, money-kind or ordinary", async () => {
     function Seeded() {
@@ -52,7 +56,7 @@ describe("BrainFlow: the Money category is never a destination here", () => {
     }
     render(<NotesProvider userId="b2"><SeededDeepLink /></NotesProvider>);
     await waitFor(() => expect(onOpenMoney).toHaveBeenCalled());
-    expect(screen.queryByText("Up Next")).not.toBeInTheDocument();
+    expect(screen.queryByText(AREA_OPEN)).not.toBeInTheDocument();
   });
 
   it("a deep-link into an ordinary category still opens its detail page, unaffected", async () => {
@@ -69,7 +73,7 @@ describe("BrainFlow: the Money category is never a destination here", () => {
       return key ? <BrainFlow openKey={key} onOpenMoney={onOpenMoney} /> : null;
     }
     render(<NotesProvider userId="b3"><SeededDeepLink /></NotesProvider>);
-    await waitFor(() => expect(screen.getByText("Up Next")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(AREA_OPEN)).toBeInTheDocument());
     expect(onOpenMoney).not.toHaveBeenCalled();
   });
 
@@ -89,7 +93,7 @@ describe("BrainFlow: the Money category is never a destination here", () => {
     // No onOpenMoney passed: the effect's guard (`!onOpenMoney`) means the
     // category still opens normally, so an un-wired caller never silently
     // eats the deep-link.
-    await waitFor(() => expect(screen.getByText("Up Next")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(AREA_OPEN)).toBeInTheDocument());
   });
 });
 
@@ -165,10 +169,10 @@ describe("BrainFlow deep links while the tab is already open (BRAIN-F-03)", () =
     // exists (Deep's own mount gate), the same readiness "Bridge" as a row
     // used to prove before categories moved off Brain entirely.
     expect(await screen.findByText("Link It")).toBeInTheDocument();
-    expect(screen.queryByText("Up Next")).not.toBeInTheDocument();
+    expect(screen.queryByText(AREA_OPEN)).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByText("Link It"));
-    await waitFor(() => expect(screen.getByText("Up Next")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(AREA_OPEN)).toBeInTheDocument());
     expect(consumed).toHaveBeenCalled();
   });
 
@@ -176,14 +180,14 @@ describe("BrainFlow deep links while the tab is already open (BRAIN-F-03)", () =
     render(<NotesProvider userId="deep2"><Deep /></NotesProvider>);
     await screen.findByText("Link It");
     fireEvent.click(screen.getByText("Link It"));
-    await waitFor(() => expect(screen.getByText("Up Next")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(AREA_OPEN)).toBeInTheDocument());
 
     // Back to the hub, the way a person backs out of a detail.
     fireEvent.click(screen.getByLabelText("Back"));
-    await waitFor(() => expect(screen.queryByText("Up Next")).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByText(AREA_OPEN)).not.toBeInTheDocument());
 
     fireEvent.click(screen.getByText("Link It"));
-    await waitFor(() => expect(screen.getByText("Up Next")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(AREA_OPEN)).toBeInTheDocument());
   });
 });
 
@@ -248,8 +252,9 @@ describe("BrainFlow person deep link (BRAIN-F-04)", () => {
     // The person's own card: Edit is on the card, never on the list.
     await waitFor(() => expect(screen.getByLabelText("Edit")).toBeInTheDocument());
 
-    // Back out of the card, then out of Contacts, then open Contacts by hand.
-    fireEvent.click(screen.getByLabelText("Back"));
+    // Back out of the card (the same labelled back every Brain page wears, round 2: it says where it goes), then out of Contacts,
+    // then open Contacts by hand.
+    fireEvent.click(screen.getByRole("button", { name: "Contacts" }));
     await waitFor(() => expect(screen.getByText("Add Person")).toBeInTheDocument());
     // The list's own back is the large-title page's "‹ Brain" (the named back of PageHeader, never an icon-only "Back").
     fireEvent.click(screen.getByRole("button", { name: "Brain" }));
@@ -295,7 +300,7 @@ describe("BrainFlow: the return pill does not outlive the page a jump opened", (
 
   it("shows the way home on the page the jump opened, and not on the hub after backing out of it", async () => {
     render(<NotesProvider userId="pill1"><Seeded /></NotesProvider>);
-    await waitFor(() => expect(screen.getByText("Up Next")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(AREA_OPEN)).toBeInTheDocument());
     // On the page the jump opened, the pill is the way home, as designed.
     expect(screen.getByRole("button", { name: "Life" })).toBeInTheDocument();
 
@@ -315,7 +320,7 @@ describe("BrainFlow: the return pill does not outlive the page a jump opened", (
       return cid ? <JumpShell openKey={cid} onClear={clear} /> : null;
     }
     render(<NotesProvider userId="pill3"><Seed /></NotesProvider>);
-    await waitFor(() => expect(screen.getByText("Up Next")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(AREA_OPEN)).toBeInTheDocument());
     expect(clear, "still open: still the way home").not.toHaveBeenCalled();
     fireEvent.click(screen.getByLabelText("Back"));
     await waitFor(() => expect(screen.getByText("Your Routine")).toBeInTheDocument());

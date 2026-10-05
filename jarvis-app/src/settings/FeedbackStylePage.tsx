@@ -93,19 +93,15 @@ export default function FeedbackStylePage({ onBack }: { onBack: () => void }) {
           onPick={(v) => save({ encouragement: v as Encouragement })} />
       </Card>
 
-      <Head label="Sharing" />
-      <Card>
-        {/* ONE LINE, NOT THE SAME THING TWICE (2026-10-05): "Private" beside "Nothing About Your Tasks Is Shared" said it
-            twice and crowded the subtext. The sentence stays; a row with nothing to tap has no value at the right. */}
-        <Row label="Accountability" meta="Nothing About Your Tasks Is Shared" plain />
-      </Card>
-
       <Head label="Today" />
       <Card>
         <Switch label="Quiet Today" meta="No Pulse, Sound or Tap Until Midnight" on={quiet}
           onToggle={() => setQuiet(!quiet)} />
       </Card>
       <Foot>Reminders and your progress stay exactly as they are.</Foot>
+      {/* ONE FACT, A NOTE (2026-10-05, the round 2 review: a card in the settings style with a bold title and no control read as a setting that did
+          nothing). Nothing is shared, so there is nothing to choose; it is said once, at the foot, as the field note it is. */}
+      <Foot>Nothing about your tasks is shared with anyone</Foot>
       <div className="screen-foot" />
     </div>
   );

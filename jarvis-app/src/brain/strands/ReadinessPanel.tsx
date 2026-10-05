@@ -187,11 +187,24 @@ export default function ReadinessPanel({ read, today, variant = "words", focusKe
   if (!read.loaded) return null;
 
   if (variant === "words") {
+    // A ROW WITH NOTHING TO SAY SHOWS NOTHING (the round 2 review: five of eight rows read "Waiting, 0 of 10 ..." and looked like
+    // a stub). A detector that has not seen a single thing yet has no progress to report, so those fold into ONE row, "5 Still
+    // Waiting", that opens the list; every row that has begun, or has an answer, stays in the card on its own. The head still counts
+    // all of them, and a Needs You tap that names a folded row opens the fold so the row it landed on is there to be marked.
+    const idle = read.rows.filter((r) => r.state === "waiting" && r.have === 0);
+    const shown = read.rows.filter((r) => !idle.includes(r));
+    const wordRow = (r: Readiness) => <WordRow r={r} focused={r.key === focusKey} onTell={onTell ? () => onTell(r.key) : undefined} onOpen={onOpen ? () => onOpen(r.key) : undefined} key={r.key} />;
     return (
       <>
         <div className="sh2 sh2-quiet"><span className="t">Readiness</span><span className="n">{read.rows.length}</span></div>
         <div className="pad-x"><div className="card list-card-ruled shell-rows">
-          {read.rows.map((r) => <WordRow r={r} focused={r.key === focusKey} onTell={onTell ? () => onTell(r.key) : undefined} onOpen={onOpen ? () => onOpen(r.key) : undefined} key={r.key} />)}
+          {shown.map(wordRow)}
+          {idle.length > 0 && (
+            <details className="exp-more rdy-idle" open={idle.some((r) => r.key === focusKey) || undefined}>
+              <summary>{idle.length + " Still Waiting"}</summary>
+              {idle.map(wordRow)}
+            </details>
+          )}
           {/* Not a button: the Lab is three taps away under Settings and
               this page has no door into More. The line says where, which
               is the receipt's whole job. Title Case, and no arrows typed into it (Dave 2026-10-05, the review): the path is

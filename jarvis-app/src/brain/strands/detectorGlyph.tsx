@@ -21,3 +21,15 @@ export function detectorGlyph(key: DerivationKey): ReactNode {
     default: return <Eye {...P} />;
   }
 }
+
+/** The tone a detector's glyph wears: its SUBJECT's, so the same thing is the same colour on every screen (D5). A task's
+ *  detectors are Task red, training is Health green, email is Email teal, a person's is the people's teal. Never a grey disc. */
+export function detectorTone(key: DerivationKey): string {
+  switch (key) {
+    case "completion_window": case "completion_no_band": case "slip_category": case "slip_no_leader":
+    case "plan_rate": case "task_timing": return "cat-fg-red";
+    case "training_window": return "cat-fg-green";
+    case "email_window": case "people_rhythm": case "gone_quiet": return "cat-fg-teal";
+    default: return "cat-fg-purple";
+  }
+}

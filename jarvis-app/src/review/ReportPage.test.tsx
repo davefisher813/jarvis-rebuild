@@ -88,7 +88,7 @@ describe("Your Hours in the monthly report", () => {
 describe("the report's rows wear the row-action model (2026-10-05)", () => {
   const REPORT: MonthReport = {
     ...HOURS_REPORT, hours: null,
-    worth: [{ id: "carried", title: "2 Followed You All Month", sub: null, carried: [{ id: "t1", text: "File Taxes", n: 4 }, { id: "t2", text: "Call Mom", n: 3 }], receipts: ["File Taxes, 4 Pushes", "Call Mom, 3 Pushes"] }],
+    worth: [{ id: "carried", title: "2 Tasks Followed You All Month", sub: null, carried: [{ id: "t1", text: "File Taxes", n: 4 }, { id: "t2", text: "Call Mom", n: 3 }], receipts: ["File Taxes, 4 Pushes", "Call Mom, 3 Pushes"] }],
     life: [{ id: "money", title: "Bills Paid on Time", facts: [{ text: "12 Paid" }], exit: { label: "Open Money", kind: "money" }, receipts: ["Rent, Paid Oct 1"] }],
   };
 
@@ -104,14 +104,14 @@ describe("the report's rows wear the row-action model (2026-10-05)", () => {
     const onOpenTask = vi.fn();
     const onDropTask = vi.fn();
     render(<ReportScreen report={REPORT} capped={false} onCap={() => {}} onBack={() => {}} onOpenTask={onOpenTask} onDropTask={onDropTask} />);
-    fireEvent.click(screen.getByText("2 Followed You All Month"));
+    fireEvent.click(screen.getByText("2 Tasks Followed You All Month"));
     const sheet = document.querySelector(".sheet-scrim")!;
     expect(sheet.textContent).toContain("File Taxes, 4 Pushes");
     expect(sheet.querySelector(".btn-primary")!.textContent).toBe("Do One");
     fireEvent.click(sheet.querySelector(".btn-danger-text")!);
     expect(onDropTask).toHaveBeenCalledWith({ id: "t1", text: "File Taxes", n: 4 });
     expect(document.querySelector(".sheet-scrim")).toBeNull();
-    fireEvent.click(screen.getByText("2 Followed You All Month"));
+    fireEvent.click(screen.getByText("2 Tasks Followed You All Month"));
     fireEvent.click(document.querySelector(".sheet-scrim .btn-primary")!);
     expect(onOpenTask).toHaveBeenCalledWith("t1");
   });

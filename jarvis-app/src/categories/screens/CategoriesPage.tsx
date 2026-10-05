@@ -1,8 +1,10 @@
+import { useState } from "react";
 import type { Category } from "../types";
 import { catIcon } from "../icons";
 import LargeTitleNav from "../../shared/LargeTitleNav";
 import ReorderList from "../../shared/ReorderList";
 import { titleCase } from "../../shared/casing";
+import { Head } from "../../settings/kit";
 
 const BACK = (
   <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
@@ -30,20 +32,26 @@ export default function CategoriesPage({
   // an id this page no longer has (the just-deleted area) renders nothing
   // rather than taking the whole More tab down with it.
   const byId = (id: string) => categories.find((c) => c.id === id);
+  const [reordering, setReordering] = useState(false);
   return (
     <div className="screen ruled">
       <LargeTitleNav title="Areas" back="Settings" onBack={onBack} />
       {/* THE ADD IS ON THE HEAD (Dave 2026-10-05, locked: a section-level action lives in the section head, never in a card
           or at the foot of a list). The grey card that held only Add Area is gone (rule 12). */}
-      <div className="sh2 sh2-quiet">
-        <span className="t">Your Areas</span><span className="n set-n">{categories.length}</span>
-        <button className="see-all pill-action" onClick={onAdd}>Add Area</button>
-      </div>
+      {/* REORDER IS A MODE, NOT A PERMANENT GRIP (Dave 2026-10-05, locked: no grip dots or always-visible hints; the round 2 review: a chevron and a
+          grip on every row). Two capsules in the head at most (D1): Reorder turns the grips on and, as Done, off again, and while they are on the
+          chevron steps aside, so a row never carries two trailing glyphs. */}
+      <Head label="Your Areas" count={categories.length}
+        actions={[
+          ...(onReorder && categories.length > 1 ? [{ label: reordering ? "Done" : "Reorder", onClick: () => setReordering(!reordering) }] : []),
+          { label: "Add Area", onClick: onAdd },
+        ]} />
       <div className="pad-x">
         {onReorder && categories.length > 1 ? (
           <ReorderList
             ids={categories.map((c) => c.id)}
             onReorder={onReorder}
+            handles={reordering}
             renderRow={(id) => {
               const c = byId(id);
               if (!c) return null;
@@ -56,7 +64,7 @@ export default function CategoriesPage({
                   <div className="row-grow row-press" role="button" tabIndex={0} onClick={() => onEdit(c.id)}>
                     <div className={"sec-ico cat-bg-" + c.data.color}>{catIcon(c.data.icon)}</div>
                     <div className="row-grow"><div className="conn-name">{titleCase(c.data.name)}</div></div>
-                    {CHEV}
+                    {!reordering && CHEV}
                   </div>
                 </>
               );

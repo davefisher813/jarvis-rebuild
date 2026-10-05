@@ -129,8 +129,8 @@ function emptySub(filter: TaskFilter, counts: Record<TaskFilter, number>): strin
 // area alone. The first NAMED area leads, so a primary deleted out from
 // under a task does not blank the line while a second area still has a name.
 const NO_PARENTS: ParentIndex = { projects: new Map(), events: new Map() };
-function areaLine(item: TaskItem): ParentLine | null {
-  const first = categoriesOf(item.data).find((id) => catName(id));
+function areaLine(item: TaskItem, except?: string): ParentLine | null {
+  const first = categoriesOf(item.data).find((id) => id !== except && catName(id));
   return first ? parentForTask(NO_PARENTS, { ...item, data: { ...item.data, category: first } }) : null;
 }
 
@@ -155,7 +155,7 @@ export function TaskRow({
   onPick,
   muteToday = false,
   parent: callerParent = null,
-  stateText = false,
+  inArea,
   kicker = null,
   kickerTone = null,
   tag = null,
@@ -196,10 +196,10 @@ export function TaskRow({
   // every row keeps two lines and a fact. Derived by the flow from one
   // goal index, the same one Today reads, so the two pages cannot disagree.
   parent?: ParentLine | null;
-  // THE DISTANCE IS TEXT, NOT A CHIP (2026-10-05, the perfect bar: a list that mixes rows with no capsule beside rows with
-  // a filled amber one reads as two systems; Money's Also Tagged list). The key's amber (Today) or red (late) in the row's own
-  // type, no fill. Off everywhere else: the chip is every other task list's settled form.
-  stateText?: boolean;
+  // THE PAGE'S OWN AREA SAYS NOTHING (2026-10-05, the round-2 review: "Book PG 17U Travel" over "Family" on the Family
+  // page, a line that repeats its screen's name). A row listed on an area's page leaves that area off its second line when it
+  // has no project or event of its own; another area it also carries is new information and still shows.
+  inArea?: string;
   // A caller's own second line (a reminder's time on the Health page),
   // in place of the parent or category words. Unless it is stalled it is
   // drawn as a neutral time, in small caps.
@@ -243,7 +243,7 @@ export function TaskRow({
   // dot to mark it as an area. The row now draws the area the way every
   // other row does, its dot ahead of its name, through the same parentForTask
   // the flows use.
-  const parent = callerParent ?? areaLine(item);
+  const parent = callerParent ?? areaLine(item, inArea);
   const u = urgencyFor(t, today);
   const prov = rowSource(t.source, t.moved);
   // ONE WHERE-IT-CAME-FROM PER ROW (§AK, 2026-09-26). When nothing ahead of
@@ -504,8 +504,10 @@ export function TaskRow({
               line box (ruled.css), so a fact that no longer fits leaves the
               line whole instead of taking a row of its own. */}
           <div className="r-k r-k-one">
-            {!stateText && <>{chip && <span className={"uchip " + (chip.kind === "late" ? "u-late" : "u-today")}>{chip.label}</span>}</>}
-            {stateText && chip && <span className={"r-goal fact " + (chip.kind === "late" ? "red" : "warn")}>{lineCase(chip.label.toLowerCase())}</span>}
+            {/* THE DISTANCE IS TEXT ON EVERY TASK ROW (Dave 2026-10-05, D10: no filled chip or capsule inside a list row).
+                Today is the key's amber and a late one the key's red, in the row's own type with no fill, so the same word
+                reads the same on the Tasks list, an area page and Money's Also Tagged. */}
+            {chip && <span className={"r-goal fact " + (chip.kind === "late" ? "red" : "warn")}>{lineCase(chip.label.toLowerCase())}</span>}
             {/* E-31 (2026-09-12): a day he named in his own reply that the
                 catcher could not resolve. A proposal in the chip's slot, in
                 quiet ink, never a deadline; a real due date replaces it. */}
@@ -722,7 +724,7 @@ export function MomentumRow({
                 every task row wears (TODAY amber, N DAYS LATE red), read off
                 the task itself, and the reason keeps only the fact with no
                 meaning of its own, the shared area, as the line's one grey. */}
-            {due && <span className={"uchip " + (due.kind === "late" ? "u-late" : "u-today")}>{due.label}</span>}
+            {due && <span className={"r-goal fact " + (due.kind === "late" ? "red" : "warn")}>{lineCase(due.label.toLowerCase())}</span>}
             {/* THE VERDICT AS A CHIP, the same vocabulary the stalled row's
                 "Keeps Sliding" already uses: the app concluded this, the
                 reason line under it is the count it concluded from. */}

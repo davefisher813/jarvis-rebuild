@@ -29,7 +29,7 @@ import { WRITE_FAILED_MESSAGE } from "../shared/guard";
 import type { TaskItem } from "../tasks/TasksService";
 import { repetitionsLine } from "../tasks/automaticity";
 import { effectiveKind } from "../categories/kinds";
-import { weekReceipt, afterHoursLine, type WeekEvent } from "../categories/receipts";
+import { weekReceipt, afterHoursLine, uniqueCompletions, type WeekEvent } from "../categories/receipts";
 import { categoryRecord, type RecordEntry } from "../categories/record";
 import { DayDivide } from "../shared/anatomy";
 import { Plus } from "../shared/icons";
@@ -94,6 +94,8 @@ import { ProjectPie } from "../shared/glyphs";
 import GoalRowRuled from "../bigger/GoalRowRuled";
 import { TaskRow } from "../tasks/screens/TasksPage";
 import RowCtxAction from "../shared/RowCtxAction";
+import RowActionSheet from "../shared/RowActionSheet";
+import { catIcon } from "../categories/icons";
 import RowShell from "./RowShell";
 import { trainingSummary, agoPhrase } from "../gym/summary";
 import type { Workout } from "../gym/types";
@@ -168,7 +170,7 @@ function groupByDay(recent: RecordEntry[]): { day: string; rows: RecordEntry[] }
 }
 const NOTES_CAP = 4;
 
-type SheetState = { kind: "closed" } | { kind: "task" } | { kind: "project"; goalId?: string } | { kind: "goal" } | { kind: "event" } | { kind: "edit" };
+type SheetState = { kind: "closed" } | { kind: "task" } | { kind: "project"; goalId?: string } | { kind: "goal" } | { kind: "event" } | { kind: "edit" } | { kind: "add" };
 
 
 // The category page (2026-08-03), replacing the read-only archive. Pages are
@@ -1463,6 +1465,13 @@ export default function CategoryDetail({
   // copy that drifts. Nothing here is gated on the area's kind or on the
   // section already holding something: every one stands, every one ends in its
   // own create row, and the count chip is the only thing that hides.
+  // A WHOLLY EMPTY AREA IS ONE CRAFTED STATE, NOT A COLUMN OF BARE HEADS (Dave 2026-10-05, the perfect bar; the round-2 review:
+  // Personal was four section heads and four identical Add capsules over 400px of blank page). A glyph in the area's own
+  // colour, a title, one warm line and the one capsule, which opens the four things an area holds (so every door Dave's
+  // 2026-09-09 ruling asked for is still one tap away). The moment the area holds anything, all four sections stand as before.
+  const areaEmpty = kind !== "health" && kind !== "people" && projects.length === 0 && goalsHere.length === 0 && upcoming.length === 0
+    && open.length === 0 && notes.length === 0 && catPeople.length === 0 && rec.recent.length === 0 && repeats.length === 0
+    && !learnedDay;
   const areaSections = (
     <>
       {/* EVERY AREA PAGE SHOWS ALL FOUR, AND EVERY ONE HAS AN ADD (Dave
@@ -1497,7 +1506,7 @@ export default function CategoryDetail({
               const projTasks = allTasks.filter((t) => t.data.projectId === p.id);
               const taskIds = new Set(projTasks.map((t) => t.id));
               const weekAgoMs = nowMs - 7 * 86400000;
-              const doneWeek = completionSamples().filter((s) => s.t >= weekAgoMs && s.id && taskIds.has(s.id)).length;
+              const doneWeek = uniqueCompletions(completionSamples()).filter((s) => s.t >= weekAgoMs && s.id && taskIds.has(s.id)).length;
               const doneAll = projTasks.filter((t) => t.data.done).length;
               const pct = projTasks.length > 0 ? Math.round((doneAll / projTasks.length) * 100) : null;
               const overdue = projTasks.filter((t) => !t.data.done && !!t.data.due && t.data.due < today).length;
@@ -1541,7 +1550,7 @@ export default function CategoryDetail({
               const nextTone = nextDue ? dayTone(nextDue, today) : null;
               return (
                 <div {...pressable(() => onOpenProject?.(p.id))} className="task-row p2 proj-row-ruled" key={p.id}>
-                  <div className="task-check-tap"><span className={"pp-slot cat-fg-" + cat.data.color}><ProjectPie pct={pct} /></span></div>
+                  <div className="task-check-tap"><span className="pp-slot"><ProjectPie pct={pct} /></span></div>
                   <div className="task-title">
                     <span className="task-name">{titleCase(p.data.title)}</span>
                     {next && (
@@ -1551,9 +1560,12 @@ export default function CategoryDetail({
                     )}
                     {(doneWeek > 0 || overdue > 0 || (nextDue && nextTone !== "red") || stalled || line) && (
                       <div className="r-k">
-                        {doneWeek > 0 && <span className="uchip u-done">{`${doneWeek} Done`}</span>}
-                        {overdue > 0 && <span className="uchip u-late">{`${overdue} Late`}</span>}
-                        {nextDue && nextTone === "warn" && <span className="uchip u-today">{nextDue === today ? "Today" : "Tomorrow"}</span>}
+                        {/* TEXT IN THE KEY, NEVER A FILL (Dave 2026-10-05, D10: no filled chip inside a row). Done is the key's
+                            green, late its red, today or tomorrow its amber, and a later day a neutral small-caps date; all four
+                            are plain facts in the row's own line, the same as the Tasks list draws them. */}
+                        {doneWeek > 0 && <span className="r-goal fact good">{`${doneWeek} Done`}</span>}
+                        {overdue > 0 && <span className="r-goal fact red">{`${overdue} Late`}</span>}
+                        {nextDue && nextTone === "warn" && <span className="r-goal fact warn">{nextDue === today ? "Today" : "Tomorrow"}</span>}
                         {nextDue && nextTone === "date" && <span className="fact date">{dayPhrase(nextDue, today).replace(/ /g, "\u00a0")}</span>}
                         {stalled && <span className="r-goal r-stalled">Stalled</span>}
                         {line && <span className="r-goal r-cat">{line}</span>}
@@ -1647,20 +1659,24 @@ export default function CategoryDetail({
         <span className="t">Coming Up</span>{upcoming.length > 0 && <span className="n">{upcoming.length}</span>}
         <button type="button" className="see-all pill-action" onClick={() => setSheet({ kind: "event" })}>Add Event</button>
       </div>
-      {upcoming.length > 0 && <div className="pad-x"><div className="card list-card-ruled sched-card"><div className="sched-list">
+      {upcoming.length > 0 && <div className="pad-x"><div className="card list-card-ruled sched-card sched-coming"><div className="sched-list">
         {upcoming.map((e) => {
           const when = dayPhrase(e.date, today);
+          const whenTone = dayTone(e.date, today);
           const t = e.start ? fmtTime(e.start) : null;
           return (
             // Row tap (Dave 2026-09-15, "I want all rows clickable"): the gym
             // block's row starts the session, as its Start pill does.
-            <div className="sched-row" key={e.id} {...(gymDoor?.id === e.id ? pressable(startGymFromBlock) : {})}>
-              <div className="sched-time">{t ? <>{t.time}<span className="ampm">{t.ap}</span></> : <span className="ampm">All day</span>}</div>
+            <div className="sched-row sched-row-bare" key={e.id} {...(gymDoor?.id === e.id ? pressable(startGymFromBlock) : {})}>
+              <div className="sched-time">{t ? <>{t.time}<span className="ampm">{t.ap}</span></> : <span className="ampm">All Day</span>}</div>
               <div className="sched-body">
-                <div className="sched-title">{titleCase(e.title)}</div>
-                {/* The day is a neutral date, so small caps (§AM F5): the
-                    area's name is the line's one grey. */}
-                <div className="sched-cat"><span className={"cat-dot cat-bg-" + cat.data.color} />{cat.data.name}<span className="sched-sep">{"\u00b7"}</span><span className="fact date">{when}</span></div>
+                {/* THE TITLE IS THE ROW'S .sched-t, SO IT TAKES THE TWO-LINE WRAP AND ENDS IN AN ELLIPSIS, NEVER A CUT LETTER (Dave
+                    2026-09-26; the round-2 review: "Fall Clinic Walkthrou"). The bare div had no clamp to take. */}
+                <div className="sched-title"><span className="sched-t">{titleCase(e.title)}</span></div>
+                {/* The area is the line's one grey. The day wears the key where it has a meaning: today and tomorrow are due, so
+                    amber; a day behind us is late, red; a later one is a neutral date, small caps (§AM F5, R8). Each is a .fact, so the
+                    dot between them is the facts line's own (.fact + .fact::before), never a typed middle dot. */}
+                <div className="sched-cat"><span className="fact"><span className={"cat-dot cat-bg-" + cat.data.color} />{cat.data.name}</span>{whenTone === "date" ? <span className="fact date">{when}</span> : <span className={"fact " + whenTone}>{when}</span>}</div>
               </div>
               {/* THE GYM BLOCK IS NOT A NOTICE, IT IS A DOOR (Dave 2026-09-10,
                   on making the health page read as training). Today's gym
@@ -1706,7 +1722,8 @@ export default function CategoryDetail({
               item={displayItem}
               today={today}
               kicker={t.data.reminder && rem ? `${fmtTime(rem).time} ${fmtTime(rem).ap}` : null}
-              parent={parentForTask(parentIdx, t)}
+              parent={(() => { const par = parentForTask(parentIdx, t); return par && par.kind !== "category" ? par : null; })()}
+              inArea={categoryId}
               onToggle={(id) => void toggle(id)}
               onOpen={onOpenTask}
               onDelete={(id) => void deleteTask(id)}
@@ -2005,7 +2022,7 @@ export default function CategoryDetail({
                       card per day made two ticks cost half a screen. */}
                   <div className="pad-x"><div className="card list-card-ruled">
                     {shownGroups.flatMap((g) => g.rows.map((r) => (
-                      <div className="task-row p2" key={r.key}>
+                      <div className="task-row p2 completed" key={r.key}>
                         <div className="task-check-tap"><div className="task-check done" /></div>
                         <div className="task-title"><span className="task-name">{titleCase(r.text)}</span></div>
                         <span className="h-when">{g.day}</span>
@@ -2129,8 +2146,6 @@ export default function CategoryDetail({
           onOpenGym={() => setGymOpen(true)}
           onOpenRecords={openRecords}
           onOpenFinding={openFinding}
-          onOpenInsights={() => setHealthView("insights")}
-          onOpenAllData={() => setHealthView("data")}
           // THE THREE DOORS (Cowork 2026-09-14, Dave: "Exercises must open the
           // complete library in one tap"). Exercises is the library page,
           // History opens on its sessions segment.
@@ -2228,7 +2243,7 @@ export default function CategoryDetail({
                 <DayDivide label={g.day} />
                 <div className="card list-card-ruled">
                   {g.rows.map((r) => (
-                    <div className="task-row p2" key={r.key}>
+                    <div className="task-row p2 completed" key={r.key}>
                       <div className="task-check-tap"><div className="task-check done" /></div>
                       <div className="task-title"><span className="task-name">{titleCase(r.text)}</span></div>
                     </div>
@@ -2268,23 +2283,22 @@ export default function CategoryDetail({
               (derived from Gmail when connected, silent when not). Orgs get
               the same section when they have tagged people (clients, a team);
               on an org it stays hidden while empty instead of nagging. */}
-          {/* Open Contacts is a door out of the section, so it is the head's own link (Dave 2026-10-05: nothing at the foot of
-              a card). It is navigation, not a create, so it is the plain .see-all text and not the capsule. */}
+          {/* Open Contacts is a door out of the section, and the head's one action is a capsule on every page (Dave 2026-10-05,
+              D1/D9: one action style in section heads; the review: it was bare red text beside two capsules on Family). */}
           <div className="sh2 sh2-quiet">
             <span className="t">{isOrg ? "People" : "Your People"}</span>{catPeople.length > 0 && <span className="n">{catPeople.length}</span>}
-            {onOpenContacts && <button type="button" className="see-all" onClick={onOpenContacts}>Open Contacts</button>}
+            {onOpenContacts && <button type="button" className="see-all pill-action" onClick={onOpenContacts}>Open Contacts</button>}
           </div>
-          <div className="pad-x"><div className="card list-card-ruled shell-rows">
-            {catPeople.length === 0 && (
-              <RowShell>
-                <div className="task-row p2">
-                  <div className="task-title">
-                    <span className="task-name">No People Here Yet</span>
-                    <div className="r-k"><span className="r-goal r-cat">{`Open someone in Contacts and tag them ${cat.data.name}`}</span></div>
-                  </div>
-                </div>
-              </RowShell>
-            )}
+          {/* NO PEOPLE IS THE APP'S ONE EMPTY STATE (D9): a glyph, a title and one warm line that wraps instead of ending in an
+              ellipsis (it used to be a left-aligned row whose line was cut to "tag them F..."). The capsule is the head's. */}
+          {catPeople.length === 0 && (
+            <div className="pad-x"><div className="empty-state empty-compact">
+              <div className={"empty-icon cat-fg-" + cat.data.color}>{catIcon("users")}</div>
+              <div className="empty-title">No People Here Yet</div>
+              <div className="empty-sub">{titleCase(`tag someone in contacts as ${cat.data.name}`)}</div>
+            </div></div>
+          )}
+          {catPeople.length > 0 && <div className="pad-x"><div className="card list-card-ruled shell-rows">
             {catPeople.map((p) => {
               const bday = bdayById.get(p.id);
               const last = contact[p.id];
@@ -2352,13 +2366,18 @@ export default function CategoryDetail({
                 </RowShell>
               );
             })}
-          </div></div>
+          </div></div>}
         </>
       )}
 
-
-
-      {areaSections}
+      {areaEmpty ? (
+        <div className="pad-x"><div className="empty-state empty-compact">
+          <div className={"empty-icon cat-fg-" + cat.data.color}>{catIcon(cat.data.icon)}</div>
+          <div className="empty-title">{titleCase(`nothing in ${cat.data.name} yet`)}</div>
+          <div className="empty-sub">{titleCase("add a task, an event, a project or a goal and it lands here")}</div>
+          <button type="button" className="pill-act" onClick={() => setSheet({ kind: "add" })}>Add</button>
+        </div></div>
+      ) : areaSections}
 
       {notes.length > 0 && (
         <>
@@ -2382,6 +2401,14 @@ export default function CategoryDetail({
           categories and events and no projects, so the area page was the one
           door where a new task could not be filed to the project it belongs
           to, and the derived Goal row had nothing to derive from. */}
+ {sheet.kind === "add" && (
+        <RowActionSheet title={"Add to " + cat.data.name} onCancel={() => setSheet({ kind: "closed" })} actions={[
+          { label: "Add Task", onPick: () => setSheet({ kind: "task" }) },
+          { label: "Add Event", onPick: () => setSheet({ kind: "event" }) },
+          { label: "Add Project", onPick: () => setSheet({ kind: "project" }) },
+          { label: "Add Goal", onPick: () => setSheet({ kind: "goal" }) },
+        ]} />
+      )}
       {sheet.kind === "task" && (
         <TaskSheet mode="new" categories={sheetCats} events={sheetEvents(allEvents, today)}
           projects={sheetProjects(projects, goals)}

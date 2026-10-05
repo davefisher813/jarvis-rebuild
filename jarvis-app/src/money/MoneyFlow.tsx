@@ -1113,7 +1113,6 @@ export default function MoneyFlow({ onOpenTask, onOpenEntity, openAccountId, ope
                     key={t.id}
                     item={t}
                     today={today}
-                    stateText
                     onToggle={(id) => void (async () => {
                       if (!(await attemptWrite(() => tasksSvc.toggleDone(id)))) return;
                       await reload();

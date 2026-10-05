@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { Compass, PenNib, Flag } from "@phosphor-icons/react";
+import { Compass, PenNib, Flag, ShieldCheck } from "@phosphor-icons/react";
 import { useBrainDocs, useOptionalStrands, useOptionalRules } from "../../data/NotesProvider";
 import { todayISO } from "../../ai/useAIContext";
 import { WRITING_CHANNEL_LABEL, type Strand, type WritingChannel } from "../strands/types";
@@ -115,6 +115,9 @@ export default function BrainDocPage({ topic, onBack }: { topic: string; onBack:
   const [lines, setLines] = useState<HardLine[]>([]);
   const [lineKind, setLineKind] = useState<HardLineKind>("never_file");
   const [lineText, setLineText] = useState("");
+  // The composer is opened by the section head's Add a Line (D2: a section's action lives in its head), and closes when a line is
+  // added or he backs out; with no lines and it closed, the section is its head and one crafted empty state.
+  const [adding, setAdding] = useState(false);
   const [loadFailed, setLoadFailed] = useState(false);
   const [attempt, setAttempt] = useState(0);
   useEffect(() => {
@@ -158,6 +161,7 @@ export default function BrainDocPage({ topic, onBack }: { topic: string; onBack:
     linesDirtyRef.current = true;
     setLines((ls) => cleanHardLines([...ls, { kind: lineKind, match: lineText.trim() }]));
     setLineText("");
+    setAdding(false);
     setDirty(true);
   };
   const removeLine = (i: number) => { linesDirtyRef.current = true; setLines((ls) => ls.filter((_, j) => j !== i)); setDirty(true); };
@@ -203,7 +207,7 @@ export default function BrainDocPage({ topic, onBack }: { topic: string; onBack:
       />
       {/* Deep writing pass (2026-08-19): brain docs write on the notes
           canvas, not in a boxed form field. Same typography, same caret. */}
-      <div>
+      <div className="doc-body">
         {/* A BUTTON NEVER STANDS ALONE IN A BOX (Dave 2026-10-05, rule 12). The retry sat by itself in a grey plate. The read
             failing is a thing to say, so the card keeps its own words, as Your Routine's load failure does. */}
         {loadFailed && !loaded && (
@@ -216,9 +220,12 @@ export default function BrainDocPage({ topic, onBack }: { topic: string; onBack:
         )}
         {isValues && loaded && <div className="sh2 sh2-quiet"><span className="t">What Matters</span></div>}
         {loaded && text.trim() === "" && !started && (
-          <div className="empty-state empty-compact">
+          // A PAGE WITH NOTHING ELSE ON IT CENTRES ITS EMPTY STATE IN THE ROOM THAT IS LEFT (the round 2 review: the glyph, title and
+          // button sat in the top 40% with 380px of blank under them). Values has its Hard Lines under it, so it stays compact and
+          // leaves them in view; How You Write does too once it has facts to list.
+          <div className={"empty-state " + (isValues || (isWriting && (writingStrands.length > 0 || proposals.length > 0)) ? "empty-compact" : "empty-fill")}>
             <div className={"empty-icon " + (meta?.tone ?? "")}>{DOC_GLYPH[topic]}</div>
-            <div className="empty-title">Nothing Written Yet</div>
+            <div className="empty-title">{meta?.emptyTitle ?? "Nothing Written Yet"}</div>
             <div className="empty-sub">{meta?.emptyLine}</div>
             <button type="button" className="btn btn-primary" onClick={() => setStarted(true)}>Start Writing</button>
           </div>
@@ -290,7 +297,21 @@ export default function BrainDocPage({ topic, onBack }: { topic: string; onBack:
             says exactly what it will stop, because a rule that stops an
             automatic action has to be readable at a glance. */}
         {isValues && loaded && (<>
-          <div className="sh2 sh2-quiet"><span className="t">Hard Lines</span>{lines.length > 0 && <span className="n">{lines.length}</span>}</div>
+          {/* THE SECTION'S ACTION IS IN ITS HEAD (D2), and the section explains itself (the round 2 review: "a bare form with no
+              explanation and no way to add, the verb only appearing after typing"). With no lines it is this head and one
+              crafted empty state; Add a Line opens the composer, labelled with what it asks. */}
+          <div className="sh2 sh2-quiet">
+            <span className="t">Hard Lines</span>{lines.length > 0 && <span className="n">{lines.length}</span>}
+            {!adding && lines.length < MAX_HARD_LINES && <button type="button" className="see-all pill-action" onClick={() => setAdding(true)}>Add a Line</button>}
+          </div>
+          {lines.length === 0 && !adding && (
+            <div className="empty-state empty-compact">
+              <div className={"empty-icon " + (meta?.tone ?? "")}><ShieldCheck className="ic" weight="regular" /></div>
+              <div className="empty-title">No Hard Lines Yet</div>
+              <div className="empty-sub">A Hard Line Stops JARVIS From Acting on Something You Care About</div>
+            </div>
+          )}
+          {(lines.length > 0 || adding) && (
           <div className="pad-x"><div className="card list-card-ruled shell-rows">
             {lines.map((l, i) => (
               // CLEAN ROW (Dave 2026-10-05): the line is its words, the kind is its one grey fact (the dot, if any, is
@@ -305,8 +326,9 @@ export default function BrainDocPage({ topic, onBack }: { topic: string; onBack:
                 </div>
               </RowShell>
             ))}
-            {lines.length < MAX_HARD_LINES && (
+            {adding && (
               <div className="pad-x sheet-form hard-add">
+                <div className="input-label">What Should JARVIS Leave Alone?</div>
                 {/* THREE KINDS FIT ONE ROW (Dave 2026-10-05, the review: the chips ran off the card and "Protect" was cut).
                     One choice of three is the app's segmented control. */}
                 <div className="segmented seg-tri" role="group" aria-label="What this line does">
@@ -314,22 +336,24 @@ export default function BrainDocPage({ topic, onBack }: { topic: string; onBack:
                     <button type="button" key={k} className={"seg" + (lineKind === k ? " active" : "")} aria-pressed={lineKind === k} onClick={() => setLineKind(k)}>{HARD_LINE_LABEL[k]}</button>
                   ))}
                 </div>
-                {/* The field, with its one verb at its trailing edge as text, there only while there is something to add: a
-                    full-width disabled slab said nothing and read as an inert block. */}
+                {/* The field, with its one verb at its trailing edge as text: Add once there is something to add, Cancel while
+                    there is not, so the composer always has a way out and a way on. */}
                 <div className="hard-add-field">
                   <input
                     className="input"
                     placeholder="Gym, Family, School.org"
                     value={lineText}
+                    autoFocus
                     onChange={(e) => setLineText(e.target.value)}
                     onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addLine(); } }}
                     aria-label="What this line is about"
                   />
-                  <RowCtxAction when={!!lineText.trim()} label="Add" ariaLabel="Add a Line" onAct={addLine} />
+                  <RowCtxAction when label={lineText.trim() ? "Add" : "Cancel"} ariaLabel={lineText.trim() ? "Add a Line" : "Cancel"} onAct={lineText.trim() ? addLine : () => setAdding(false)} />
                 </div>
               </div>
             )}
           </div></div>
+          )}
         </>)}
         {ai.available && (
           <>

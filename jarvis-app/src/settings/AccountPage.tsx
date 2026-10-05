@@ -130,11 +130,11 @@ export default function AccountPage({ onBack, onEditProfile, onSignOut }: { onBa
         {/* 2026-10-05: an account that is active is on track, so the key draws
             it green (the way Backup draws sync On); Local is a plain fact. */}
         <Row label="Status" value={backendConfigured ? <span className="fact good">Active</span> : "Local"} />
-        {/* THE ARMED STEP LOOKS ARMED, AND THE CARD DOES NOT JUMP (2026-10-05, the review: "looks exactly like a normal row", "the
-            card grows 18px"). The title takes the confirm amber while it waits, and the row keeps its two-line height whether or not
-            the second line is showing. */}
-        <Row label={redoArmed ? "Tap Again to Redo Setup" : "Redo Setup"} meta={redoArmed ? "Your Data Stays" : undefined} chev
-          className={"set-armable" + (redoArmed ? " set-armed" : "")}
+        {/* THE ARMED STEP LOOKS ARMED, AND THE ROW NEVER CHANGES HEIGHT (2026-10-05, the round 2 review: this row reserved a second line it
+            was not drawing, so it stood 67px among 48px siblings with its title floating mid-row). The reassurance is now the row's
+            own grey line, there before the first tap and after it, so nothing grows when the row arms; the title takes the confirm amber. */}
+        <Row label={redoArmed ? "Tap Again to Redo Setup" : "Redo Setup"} meta="Your Data Stays" chev
+          className={redoArmed ? "set-armed" : undefined}
           onClick={async () => {
             if (!redoArmed) { setRedoArmed(true); return; }
             // SHELL-F-14 (2026-09-05): this write had no catch, so a failed

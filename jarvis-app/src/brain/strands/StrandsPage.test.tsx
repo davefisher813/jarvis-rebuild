@@ -456,7 +456,7 @@ describe("What JARVIS Knows says one word per detector", () => {
     }
     const words = detectorRows(container).map((r) => r.querySelector(".fact.st")?.textContent);
     expect(words.length).toBe(8);
-    expect(words.every((w) => w === "Known" || w === "Close" || w === "Waiting")).toBe(true);
+    expect(words.every((w) => w === "Known" || w === "Almost There" || w === "Waiting")).toBe(true);
     expect(container.querySelectorAll(".rdy-why").length).toBe(0);
     // Title Case, no arrows typed into it (Dave 2026-10-05, the review).
     expect(screen.getByText("The Numbers Behind These Live in Settings Under Learning Lab")).toBeInTheDocument();
@@ -506,7 +506,9 @@ describe("What JARVIS Knows: leaving the form, and what a readiness row opens", 
     const label = await screen.findByText("When You Train");
     fireEvent.click(label.closest(".strand-row")!);
     const dialog = await screen.findByRole("dialog", { name: "When You Train" });
-    expect(dialog).toHaveTextContent("Waiting");
+    // The state is said once on the sheet, by its facts and its warm line (the round 2 review): the kicker only names the sheet.
+    expect(dialog).toHaveTextContent("Readiness");
+    expect(dialog).toHaveTextContent("JARVIS is still watching for a pattern");
     expect(dialog).toHaveTextContent("4 of 10 Sessions");
     expect(dialog).toHaveTextContent("6 More to Go");
     // THE CATALOG (Dave 2026-10-05): one facts line (a white count, then what is missing), not three

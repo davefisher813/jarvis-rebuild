@@ -61,7 +61,7 @@ export type RecordsOpen =
 
 export default function HealthBody({
   program, libraryPrograms, workouts, overview, today, isEvening, gymEvent, findings,
-  live = null, onResume, onStart, onAdjustTime, onOpenGym, onOpenRecords, onOpenFinding, onOpenInsights, onOpenAllData,
+  live = null, onResume, onStart, onAdjustTime, onOpenGym, onOpenRecords, onOpenFinding,
   logActions, onOpenSettings, sections, more, view, onView, onOpenExercises, onOpenHistory,
 }: {
   program: Program | null;
@@ -91,8 +91,6 @@ export default function HealthBody({
   onOpenHistory?: () => void;
   onOpenRecords: (o: RecordsOpen) => void;
   onOpenFinding: (f: Finding) => void;
-  onOpenInsights: () => void;
-  onOpenAllData: () => void;
   /** The rows of Log Something, built by the caller from what he tracks. */
   logActions: LogAction[];
   onOpenSettings?: () => void;
@@ -109,8 +107,11 @@ export default function HealthBody({
   const next = nextDayFor(program, workouts, dow);
   const est = next ? estimateDay(next.day, workouts, rackFrom(readGymSettings())).min : 0;
   const when = gymEvent
-    ? `${isEvening ? "Tonight" : "Today"} ${fmtTime(gymEvent.start).time} ${fmtTime(gymEvent.start).ap}`
+    ? `${isEvening ? "Tonight" : "Today"} ${fmtTime(gymEvent.start).time}\u00a0${fmtTime(gymEvent.start).ap}`
     : next?.when === "today" ? "Today" : next?.when === "tomorrow" ? "Tomorrow" : next?.when ? next.when : null;
+  // TODAY AND TOMORROW ARE DUE, SO AMBER; a later day is a neutral date in small caps (R8, D4; the round-2 review: "Health . TODAY"
+  // drawn grey on the Next Workout card while the same word was amber on a task row). The time is never split from AM or PM.
+  const whenTone = when && /^(Today|Tonight|Tomorrow)\b/.test(when) ? "warn" : "date";
   const days = (program?.data.weeks ?? []).flatMap((w) => w.days);
   // The count beside the Exercises door is the number of rows the Exercises
   // page lists when it opens (gym/libraryView.shownLibraryCount, the same
@@ -147,7 +148,7 @@ export default function HealthBody({
           <span className="fact date">{range}</span>
         </div>
         <div className="h-week-main">
-          <button type="button" className="h-week-count" aria-label={`${overview.workouts} workouts, open the workouts`} onClick={() => onOpenRecords({ kind: "workouts" })}>
+          <button type="button" className={"h-week-count" + (overview.workouts === 0 ? " zero" : "")} aria-label={`${overview.workouts} workouts, open the workouts`} onClick={() => onOpenRecords({ kind: "workouts" })}>
             {/* TITLE CASE, LIKE EVERY OTHER LABEL ON THIS CARD (Dave
                 2026-09-17: "workouts doesn't follow title case rules").
                 Working Sets and Training Time sit two rows below in the same
@@ -167,7 +168,7 @@ export default function HealthBody({
           </div>
         </div>
         <div className="h-stats">
-          <button type="button" className="h-stat lime" onClick={() => onOpenRecords({ kind: "sets" })}>
+          <button type="button" className={"h-stat" + (overview.workingSets > 0 ? " lime" : "")} onClick={() => onOpenRecords({ kind: "sets" })}>
             <b>{overview.workingSets}</b><span>Working Sets</span>
           </button>
           <button type="button" className="h-stat" onClick={() => onOpenRecords({ kind: "workouts" })}>
@@ -277,7 +278,7 @@ export default function HealthBody({
               <div className="h-hero-b">
                 <div className="h-hero-t">{next.day.name}</div>
                 <div className="facts h-hero-facts">
-                  {when && <span className="fact date">{when}</span>}
+                  {when && <span className={"fact " + whenTone}>{when}</span>}
                   <span className="fact lime">{lineCase(`${next.day.exercises.length} ${next.day.exercises.length === 1 ? "exercise" : "exercises"}`)}</span>
                   {/* The sky ink already says estimate, so no "About"
                       (2026-09-26): with it, the line cut the number away
@@ -310,6 +311,7 @@ export default function HealthBody({
              row with nothing to say shows nothing. Its door is Log Something,
              in the head above it, so it carries no second one. */
           <div className="empty-state empty-compact">
+            <div className="empty-icon cat-fg-green"><PulseGlyph /></div>
             <div className="empty-title">Nothing to Read Yet</div>
             <div className="empty-sub">A logged workout or a night of sleep is enough to start</div>
           </div>
@@ -339,11 +341,8 @@ export default function HealthBody({
         ))}
       </div></div>
 
-      {/* THE RECORDS, AS DOORS: the same row as Exercises and Program above (name, chevron), not two buttons under a card. */}
-      <div className="pad-x"><div className="card list-card-ruled h-doors">
-        <button type="button" className="h-door" onClick={onOpenInsights}><span className="h-door-k">Insights</span>{CHEV}</button>
-        <button type="button" className="h-door" onClick={onOpenAllData}><span className="h-door-k">All Data</span>{CHEV}</button>
-      </div></div>
+      {/* (Insights and All Data are the segmented control at the top of this page; they were also two door rows here, one screen
+          down, which said the same two things twice. Dave 2026-10-05, the round-2 review: redundant navigation.) */}
 
       {sections}
       {more}
@@ -359,7 +358,7 @@ export default function HealthBody({
             <div className="pad-x sheet-form">
               <div className="strand-head">{next.day.name}</div>
               <div className="facts">
-                {when && <span className="fact date">{when}</span>}
+                {when && <span className={"fact " + whenTone}>{when}</span>}
                 <span className="fact lime">{lineCase(`${next.day.exercises.length} ${next.day.exercises.length === 1 ? "exercise" : "exercises"}`)}</span>
                 {est > 0 && <span className="fact est">{spanLabel(est)}</span>}
               </div>

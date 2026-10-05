@@ -513,6 +513,11 @@
    count and the learned size; line three is the next move, quieter. */
 .ruled .pp-slot, .ruled .gm-slot { display: inline-flex; width: 24px; height: 24px; align-items: center; justify-content: center; }
 .ruled .pp { width: 24px; height: 24px; display: block; }
+/* A PROJECT'S PIE IS NEUTRAL INK, NEVER THE AREA'S COLOUR (Dave 2026-10-05, D4/D5: area colour on a dot only; the round-2 review:
+   the ring was blue on Work and pink on Family, and an empty one in a dark red vanished on the dark card). The wedge and its ring
+   take the row's own ink, so the same project reads the same on every screen and an empty ring is as legible as a full one. */
+.ruled .pp-slot .pp, .ruled .r-pg .pp-sm { color: var(--tx-2); }
+.ruled .pp-slot .pp > circle:first-child, .ruled .r-pg .pp-sm > circle:first-child { opacity: 0.55; }
 .ruled .gm-slot .ic { width: 22px; height: 22px; }
 .ruled .proj-row-ruled .task-title, .ruled .goal-row-ruled .task-title { min-width: 0; }
 /* A project's title line: the name alone (Dave 2026-10-05: Close is no longer a capsule beside it, it is the swipe and one quiet
@@ -558,11 +563,10 @@
    area's and the goal rides on the row as an .r-is-goal chip. Dave
    2026-09-09: "the category should be the main organizer".) */
 
-/* ---------- THE GOALS LENS: one card, status capsule on the right ---------
+/* ---------- THE GOALS LENS: one card, status word on the right ---------
    Each goal a ruled row: the target in the goal's category colour where the
-   check sits, the measure line, the status word as a capsule right-aligned,
-   and the thin bar. The capsule is the fact the page exists to show, so it
-   is the one thing on the row allowed a fill. */
+   check sits, the measure line, the status word right-aligned in the key's
+   colour (no fill, since 2026-10-05, D10), and the thin bar. */
 /* THE TWO LENSES SHARE ONE SECOND LINE (Dave 2026-09-11: "Style the containers
    in projects to look more like goals"). Same gap, same chip-then-fact-then-
    capsule order, so a card of projects and a card of goals sit under each other
@@ -576,6 +580,9 @@
    cut. The fraction and the capsule are facts that mean nothing half-printed,
    so they hold their width and the row stays two lines plus the next move. */
 .ruled .proj-row-ruled .r-k { flex-wrap: nowrap; }
+/* The dot between two facts is drawn inside the second one (.fact + .fact::before) with its own margin, so the line's gap is taken
+   back there: the dot sits level between "3 Done" and "Wednesday" instead of leaning on the second. */
+.ruled .proj-row-ruled .r-k > .fact + .fact { margin-left: calc(-1 * var(--s-2)); }
 .ruled .proj-row-ruled .r-k .r-is-goal { min-width: 0; flex-shrink: 1; }
 .ruled .proj-row-ruled .r-k .r-frac { flex-shrink: 0; white-space: nowrap; overflow: visible; }
 /* THE NEXT MOVE, ON LINE TWO (Dave 2026-09-13: "three lines of white and
@@ -627,10 +634,13 @@
 .ruled .lib-dupe:last-child { border-bottom: none; padding-bottom: 0; }
 .ruled .lib-dupe .btn-row { display: flex; gap: var(--s-2); margin-top: var(--s-2); }
 .ruled .lib-dupe .btn-row .btn { flex: 1; margin: 0; padding: var(--s-2h) var(--s-2h); font-size: var(--t-caption); min-width: 0; }
+/* A STATE WORD IS COLOURED SMALL CAPS, NEVER A PILL, ON EVERY PAGE (Dave 2026-10-05, D10: no filled capsule inside a row; the
+   review: ON TRACK was a green pill on Work and bare lime text on Health, one component drawn two ways). It rides the right
+   edge of the goal's meter line in the key's green or amber and nothing else: no fill, no padding, no radius. */
 .ruled .gstat { margin-left: auto; flex-shrink: 0; font-size: var(--t-micro); font-weight: var(--w-bold); letter-spacing: 0.06em;
-  text-transform: uppercase; padding: var(--s-1) var(--s-2); border-radius: var(--r-pill); white-space: nowrap; }
-.ruled .gstat-good { color: var(--good); background: var(--good-tint); }
-.ruled .gstat-warn { color: var(--warn); background: var(--warn-tint); }
+  text-transform: uppercase; white-space: nowrap; }
+.ruled .gstat-good { color: var(--good); }
+.ruled .gstat-warn { color: var(--warn); }
 /* The one ask sits in the list as a notice row, not over it as a promo
    card. The tile is orange, because the tile is what says "stalled". */
 /* The done fold, as a row of the card it closes. */
@@ -1288,12 +1298,11 @@
    floor so it is still a rule and not a dash. */
 .ruled .sched-now { display: flex; align-items: center; flex-wrap: wrap; gap: var(--s-2h); padding: 9px var(--s-4) 7px; }
 .ruled .sched-now .w { font-size: var(--t-micro); font-weight: var(--w-bold); letter-spacing: 0.1em;
-  text-transform: uppercase; color: var(--sys-red); flex-shrink: 0; }
-.ruled .sched-now .l { flex: 1 1 24px; min-width: 24px; height: 1px; background: var(--sys-red); opacity: 0.4; }
-/* In light the WORD reads the light red (5.26:1 on white); the system red it
-   shares with the hairline is 3.55 there, and a word is held to 4.5 where a
-   rule is held to 3. The hairline keeps the system red. */
-[data-theme="light"] .ruled .sched-now .w { color: var(--on-light-red); }
+  text-transform: uppercase; color: var(--warn); flex-shrink: 0; }
+.ruled .sched-now .l { flex: 1 1 24px; min-width: 24px; height: 1px; background: var(--warn); opacity: 0.4; }
+/* THE NOW MARKER IS AMBER, NOT RED (round 3, 2026-10-05, decision D4: brand red is for things you can tap, system red only for
+   late; now is the moment that is due). The word, Live and the hairline all wear the key's amber, which is already the theme's
+   own ink (--warn is the deeper amber in light, so the word keeps its contrast). */
 /* The clock is a neutral time on the row, so it wears the neutral-date
    letterform (§AM F5, 2026-09-25) on the kicker token, not a raw 11. */
 .ruled .sched-now .t { font-size: var(--t-eyebrow); font-weight: var(--w-semi); letter-spacing: var(--track-caps);
@@ -1413,7 +1422,7 @@
    the warm neutral. */
 .av-soft { background-color: color-mix(in srgb, currentColor 22%, transparent); }
 .av-soft > span { color: var(--tx-1); }
-.av-soft.av-neutral { background-color: var(--surface-3); color: var(--tx-2); }
+.av-soft.av-neutral { background-color: color-mix(in srgb, var(--tx-2) 20%, var(--surface-1)); color: var(--tx-2); }
 .av-soft.av-neutral > span { color: var(--tx-2); }
 
 /* THE REMEMBER STAR SITS AT THE TRAILING EDGE ON A 44px REACH (the review: a 16px star tight against the avatar, two competing
@@ -1436,9 +1445,18 @@
    control stands on its own with its day under it; Notes starts at two lines and shows its cue in italics, so it never reads as
    a saved note. */
 .dec-recorded { margin-top: var(--s-2); }
+/* THE CALL IS THE LARGE TITLE (the round 2 review: the biggest type said "Decision"). A sentence, so one rung under a
+   one-word title's 34 (--t-title, 26), balanced across its lines so no word is left alone, in the field's own ink; the day it
+   was recorded is its caption, on the title's own left edge. */
+.pagehead-title.dec-hero { font-size: var(--t-title); line-height: var(--lh-snug); text-wrap: balance; }
+.dec-hero .dec-main { font-size: inherit; font-weight: inherit; line-height: inherit; color: var(--tx-1); }
+.pagehead > .dec-recorded { margin-top: 0; padding: 0 var(--s-4) var(--s-3); }
+.dec-ask { margin: 0 0 var(--s-2); }
 .dec-marked { display: flex; align-items: center; justify-content: space-between; min-height: var(--tap-min); padding: 0 var(--s-1); }
-.dec-notes .doc-pm { min-height: 52px; }
-.dec-notes .doc-pm p.is-editor-empty:first-child::before { font-style: italic; }
+/* Notes starts at ONE line, a card the height of the Because card above it (the round 2 review: "a tall empty slab"), and grows as he writes. */
+.dec-notes .doc-pm { min-height: var(--s-6); }
+.dec-notes .doc-pm p.is-editor-empty:first-child::before,
+.task-notes .doc-pm p.is-editor-empty:first-child::before { font-style: italic; }
 
 /* A BRAIN DOCUMENT IS A CARD YOU WRITE IN (the review: a blank page to the dock). */
 .doc-card .doc-pm { min-height: 8em; }
@@ -1446,6 +1464,14 @@
 /* An empty state's words break evenly, so a lone word is never left on the second line. */
 .empty-title, .empty-sub { text-wrap: balance; }
 .hard-add-field { display: flex; align-items: center; gap: var(--s-2); }
+/* A BRAIN DOC PAGE'S EMPTY STATE SITS IN THE MIDDLE OF THE ROOM UNDER ITS TITLE (the round 2 review: "the glyph, title and button in
+   the top 40% with 380px of blank under them"). The screen does not always stand the full height of the window (a tab's wrapper is
+   as tall as its content), so the room is asked for outright: two thirds of the window's height, centred, which ends above the dock. */
+.doc-body { flex: 1 1 auto; display: flex; flex-direction: column; }
+.doc-body > .empty-state.empty-fill { flex: 1 1 auto; min-height: 66vh; }
+/* A contact with nothing to bring up, and nothing under it, takes the same middle (the review: "a name and a void"); with sections
+   under it (About, Still Open) it stays the compact state it was and leaves them in view. */
+.person-ruled > .empty-state:not(:has(~ .sh2)) { min-height: 42vh; }
 .hard-add-field .input { flex: 1; min-width: 0; }
 
 
@@ -1455,7 +1481,7 @@
    divider, then the quiet caps head over the app's own rows. The tiles are
    facts, not doors, so they do not press. */
 .ruled .area-tiles { padding-top: var(--s-3); margin-top: 0; }
-.ruled .area-tiles .stat-tile { cursor: default; }
+.ruled .area-tiles .stat-tile { cursor: default; flex: 1 1 auto; }
 .ruled .area-tiles .stat-tile:active { opacity: 1; }
 .ruled .area-facts { padding-top: var(--s-2h); }
 .ruled .area-fact { font-size: var(--t-sub); font-weight: var(--w-sub); color: var(--tx-3); line-height: 1.45; }
@@ -1464,10 +1490,13 @@
 .ruled.area-ruled .day-divide + .list-card-ruled, .ruled.health-ruled .day-divide + .list-card-ruled { margin-bottom: var(--s-2); }
 /* A card one wrapper below .pad-x (a day's group) keeps the same edge. */
 .ruled .pad-x > div > .list-card-ruled { margin-left: 0; margin-right: 0; }
-/* The week's count on a project row: done is good, not urgent. */
-.ruled .uchip.u-done { color: var(--good); background: var(--good-tint); }
 /* A person's row: the avatar takes the check column at the row's size. */
 .ruled .person-row-ruled .task-check-tap .av { width: 30px; height: 30px; font-size: var(--t-caption); }
+/* THE AVATAR STARTS WHERE EVERY OTHER ROW'S GLYPH DOES (the round 2 review: the disc floated 27px in from the card edge, the
+   other Brain rows start at 20). The column is the disc's own 30px, not a 44px tap box centred round it (the whole row is the
+   tap), and the hairline starts at the name's edge, as the nav list's does. */
+.ruled .person-row-ruled .task-check-tap { width: 30px; margin-right: var(--s-0h); }
+.ruled .list-card-ruled > .person-row-ruled + .person-row-ruled::before { left: calc(var(--s-4) + 30px + var(--s-2h) + var(--s-0h)); }
 /* A PERSON'S SECOND LINE IS ONE LINE (2026-09-26, the lead). It carries two
    items, the state and the relationship, and the wrapping second line put
    the state on a line of its own beside the Nudge pill, so a two-line row
@@ -1836,7 +1865,7 @@
    like every other head. */
 
 /* A PR is the loudest good thing the gym can say. */
-.ruled.health-ruled .gstat-good, .ruled.health-ruled .pill-good {
+.ruled.health-ruled .pill-good {
   color: var(--hl-lime-ink); background: var(--hl-lime-tint); }
 
 /* The set strip: a set that is planned but not yet logged is a ghost, and a
@@ -2335,7 +2364,7 @@
 /* A goal row's kind and state are words, not pills (Astra G5:
    a state word is coloured small caps, never a filled pill). Health only:
    the shared goal row keeps its look on every other page. */
-.ruled.health-ruled .gkind, .ruled.health-ruled .gstat { background: transparent; padding: 0; border-radius: 0; box-shadow: none; }
+.ruled.health-ruled .gkind { background: transparent; padding: 0; border-radius: 0; box-shadow: none; }
 
 /* THE LOG (H-48, Health Push C, 2026-09-12): today's entries, the glyph in
    the entry's hue on its tint, the time in the same hue, one fact beside it. */
@@ -2463,7 +2492,11 @@
 .ruled.health-ruled .h-week-count { display: flex; align-items: baseline; gap: var(--s-2); background: none; border: 0; padding: 0;
   font-family: var(--f); color: var(--tx-1); cursor: pointer; text-align: left; }
 .ruled.health-ruled .h-week-count b { font-size: calc(44px * var(--type-scale)); font-weight: var(--w-bold); line-height: 1;
-  letter-spacing: -0.03em; color: var(--hl-lime); font-variant-numeric: tabular-nums; }
+  letter-spacing: -0.03em; color: var(--good); font-variant-numeric: tabular-nums; }
+/* A ZERO HAS NO STATE, SO IT IS WHITE (Dave 2026-10-05, D4; the round-2 review: "0 Workouts" and "0 Working Sets" in large lime).
+   The count wears the key's done green only when something was done; the lime that sat here read as a second green beside the
+   done tick, so the one green is the key's. */
+.ruled.health-ruled .h-week-count.zero b { color: var(--tx-1); }
 .ruled.health-ruled .h-week-count span { font-size: calc(15px * var(--type-scale)); font-weight: var(--w-semi); }
 .ruled.health-ruled .h-bars { display: flex; justify-content: space-between; align-items: flex-end; gap: var(--s-1); min-width: 0; }
 /* ONE HEIGHT, WHATEVER THE WEEK DID (2026-09-21, the first audit ever run on
@@ -2476,7 +2509,7 @@
 .ruled.health-ruled .h-bar { flex: 1; min-width: 0; min-height: 44px; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: var(--s-1h);
   background: none; border: 0; padding: 0; font-family: var(--f); font-size: var(--t-micro); font-weight: var(--w-bold);
   letter-spacing: 0.04em; color: var(--tx-2); cursor: pointer; }
-.ruled.health-ruled .h-bar i { display: block; width: 10px; height: 8px; border-radius: var(--r-xs); background: var(--press-3); }
+.ruled.health-ruled .h-bar i { display: block; width: 10px; height: 8px; border-radius: var(--r-xs); background: color-mix(in srgb, var(--tx-4) 55%, transparent); }
 .ruled.health-ruled .h-bar.on i { background: var(--hl-lime); }
 .ruled.health-ruled .h-bar.today { color: var(--tx-1); }
 .ruled.health-ruled .h-stats { display: grid; grid-template-columns: 1fr 1fr 1fr; margin-top: var(--s-3h); }
@@ -2498,8 +2531,8 @@
 .ruled.health-ruled .h-stat b small { font-size: var(--t-caption); font-weight: var(--w-semi); }
 /* The unit beside the numeral is a WORD, so it reads the ink twin (2026-09-22):
    "min" in vivid amber on a white card was 2.06:1 in light. */
-.ruled.health-ruled .h-stat.lime b small { color: var(--hl-lime-ink); }
-.ruled.health-ruled .h-stat.lime b { color: var(--hl-lime); }
+.ruled.health-ruled .h-stat.lime b small { color: var(--good); }
+.ruled.health-ruled .h-stat.lime b { color: var(--good); }
 /* The label under a tile's number is its one fact: the fact size and the
    one grey (§AM F4, 2026-09-26). It was 13px, a third size. */
 .ruled.health-ruled .h-stat span { display: block; font-size: var(--t-sub); color: var(--tx-3); margin-top: var(--s-0h); }
@@ -3134,8 +3167,6 @@
 [data-theme="light"] .ruled.health-ruled .se-chip em { color: var(--tx-2); }
 [data-theme="light"] .ruled.health-ruled .fact.lime,
 [data-theme="light"] .sheet-scrim > .card .fact.lime { color: var(--tx-2); }
-[data-theme="light"] .ruled.health-ruled .h-week-count b,
-[data-theme="light"] .ruled.health-ruled .h-stat.lime b,
 [data-theme="light"] .ruled.health-ruled .stat-tile .stat-num,
 [data-theme="light"] .ruled.health-ruled .ins-big.lime { color: var(--hl-lime-ink); }
 [data-theme="light"] .chip.active.chip-lime,
@@ -3258,6 +3289,14 @@
 .ruled .sched-title > .sched-badge, .ruled .sched-title > .sched-join { margin-left: 0; }
 .ruled .sched-title > .sched-notes { margin-left: auto; }
 
+/* COMING UP ON AN AREA PAGE (Dave 2026-10-05, the round-2 review). These rows are read-only: no star, no check, no rail, so the
+   time takes the card's left inset and nothing is held back for a lead slot (it sat 36px in, leaving 80px of dead space left of
+   it). Time is left-aligned in one column, so every title in the card starts at the same x and has the rest of the width. The
+   day is a fact after the area; the dot between them is the facts line's own (.fact + .fact::before), never typed. */
+.ruled .sched-coming .sched-row > .sched-time { flex: 0 0 auto; min-width: var(--sched-time-w); width: auto; text-align: left; white-space: nowrap; }
+.ruled .sched-coming .sched-cat > .fact { flex: 0 0 auto; white-space: nowrap; }
+.ruled .sched-coming .sched-cat > .fact + .fact { margin-left: calc(-1 * var(--s-1h)); }
+
 /* A LENGTH IS AN ESTIMATE, SO IT IS SKY, NEVER RED (the Colour Key, decision D4). The tappable length wore the brand red, which
    on a healthy block beside LIVE and a late word read as a fault. It is still the control that resizes the block; it is drawn
    in the key's estimate ink in both themes, and the sheet it opens says what it does. */
@@ -3325,6 +3364,13 @@
 .ruled .set-grid-slots { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .ruled .set-grid > .chip { justify-content: center; padding-left: 0; padding-right: 0; min-height: 36px; white-space: nowrap; }
 .ruled .set-grid-days > .chip { aspect-ratio: 1; border-radius: var(--r-circle); min-height: 0; }
+/* WITH AVAILABLE OFF THE WEEK AND THE LENGTHS ARE WASHED (the round 2 review: "Nobody Can Book You" over five fully lit days). Still a tap away,
+   so the week can be set before the switch goes on, but it no longer reads as live. The same step in both themes. */
+.ruled .set-grid.set-grid-off > .chip { opacity: 0.45; }
+/* THE PLATE CHIPS (Training, Health Settings): 36px of paint inside the 44px tap the chip already has, and the same 16px above the first line as
+   below the last (the chip row's own bottom margin made it 20 and 29). */
+.ruled .set-card .set-row > .chip-wrap-row { margin-bottom: 0; padding-top: var(--s-1); padding-bottom: var(--s-1); }
+.ruled .set-card .set-row > .chip-wrap-row > .chip { min-height: 36px; padding-inline: var(--s-4); }
 
 /* A TYPED NUMBER LOOKS TYPED (Bar Weight): a quiet well with its unit after it, so it reads as a field and not as a grey value. */
 .ruled .set-field.set-field-unit { flex: 0 0 auto; margin-left: auto; width: calc(var(--s-10) + var(--s-9)); height: 36px; padding: 0 var(--s-3);
@@ -3345,6 +3391,10 @@
 /* The generic 16px between two blocks (1633) is what kept the note 28px under its card in the capture: a note IS the card's, so it takes none. */
 .ruled .pad-x:has(> .card) + .pad-x:has(> .input-hint) { margin-top: 0; }
 .ruled .pad-x:has(> .input-hint) + .sh2 { margin-top: var(--s-6); }
+/* ONE RHYTHM BETWEEN SETTINGS GROUPS (2026-10-05, the round 2 review: 49px after a note, 26 after a card). On a screen of settings cards a head takes the same 8px
+   of air above it whether a card or a note came before, so every group is the same distance from the last (the note's own margin is no longer added on top). */
+.ruled:has(> .pad-x > .set-card) > .sh2,
+.ruled:has(> .pad-x > .set-card) > .pad-x:has(> .input-hint) + .sh2 { margin-top: var(--s-2); }
 .ruled .pad-x:has(> .input-hint) + .pad-x > .input-hint { margin-top: var(--s-1); }
 
 /* A DESTRUCTIVE HEAD CAPSULE, AND ITS ARMED STEP (Brain's Erase). Danger is the system red on its own tonal fill; armed is the solid
@@ -3356,8 +3406,7 @@
 /* The same for a destructive row that stays a row (Sign Out, Delete Account). */
 .row-signout.armed { background-color: var(--sys-red); color: #fff; }
 
-/* THE ARMED REDO STEP: the card does not jump (the row keeps its two-line height) and the title takes the confirm amber. */
-.ruled .set-card > .set-row.set-armable { min-height: 68px; }
+/* THE ARMED REDO STEP: the row never changes height (its grey line is always there) and the title takes the confirm amber. */
 .ruled .set-card > .set-row.set-armed .conn-name { color: var(--warn); }
 
 /* THE ACCOUNT DISC WITH NOTHING IN IT: a quiet neutral disc wearing a camera, not a brand-red "?" (it is still the tap that opens the photo sheet). */
@@ -3367,7 +3416,9 @@
 .account-hero .account-set-name { margin-top: var(--s-1); min-height: var(--tap-min); padding: 0 var(--s-3); background: transparent; border: 0; font-family: var(--f); font-size: var(--t-name); font-weight: var(--w-semi); color: var(--tint); }
 
 /* THE APPEARANCE PREVIEW IS A RULER, NOT A CONTROL. */
-.ruled .set-preview .row { pointer-events: none; }
+.ruled .set-preview .row, .ruled .set-preview .task-row { pointer-events: none; }
+/* The event sample's glyph takes the slot the task sample's ring does, at the ring's own size, so the two titles share one left edge. */
+.ruled .set-preview .task-check-tap > .ic { width: var(--s-5); height: var(--s-5); }
 
 /* A SELECTED RADIO IS THE TAP RED, AN UNSELECTED ONE A RING YOU CAN SEE (AI Level). 24px, the whole row is the hit area. */
 .ruled .set-card .radio { width: var(--s-6); height: var(--s-6); border-color: var(--tx-4); }
@@ -3412,7 +3463,9 @@
 /* A TIME IS A WELL TOO, AT ITS OWN WIDTH (Dave 2026-10-05, the review: Your Routine's times were text plus a clock glyph, and only the glyph said they
    could be tapped). The value sits in the same quiet well a typed name does, no wider than the time it holds, centred in it. */
 .ruled .set-field.set-field-well.set-field-time { flex: 0 0 auto; max-width: none; width: auto; text-align: center; font-variant-numeric: tabular-nums; }
-.pagehead-title.pagehead-title-fit { font-size: calc(30px * var(--type-scale)); }
+/* The shrunk title keeps the standard title's line box (34px at 1.3), so its rule sits where every other page's does (2026-10-05, the round 2 review:
+   the underline stood 5px higher than on Booking and AI Control). */
+.pagehead-title.pagehead-title-fit { font-size: calc(30px * var(--type-scale)); line-height: calc(44.2px * var(--type-scale)); }
 /* THE SHEET BAR KEEPS ITS TITLE CENTRED: Cancel and the filled Save take the same width, so a pill on one side does not push the title off the middle. */
 .sheet-bar-cancel, .sheet-bar-save { min-width: calc(var(--s-10) + var(--s-9)); }
 /* A strip of a picker (a colour family) is a row without a tile, so its hairline starts where its label does, not 20px in. */

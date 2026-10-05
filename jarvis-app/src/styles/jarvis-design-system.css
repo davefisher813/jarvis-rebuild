@@ -1116,7 +1116,8 @@ button:disabled, .btn:disabled { opacity: 0.38; cursor: default; }
 /* STATES */
 .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: var(--s-3); min-height: 65vh; padding: var(--s-6) var(--s-5); }
 .empty-icon { width: 56px; height: 56px; border-radius: var(--r-lg); background: var(--press-3); }
-.empty-title { font-size: var(--t-h3); font-weight: var(--w-semi); color: var(--tx-2); }
+/* THE TITLE LEADS (2026-10-05, the round 2 review: title and line shared one grey, so the title was told apart by weight alone): ink, with the one grey under it. */
+.empty-title { font-size: var(--t-h3); font-weight: var(--w-semi); color: var(--tx-1); }
 .empty-state .btn { margin-top: var(--s-2); }
 
 .skel-row { padding: var(--s-3h) var(--s-4); display: flex; gap: var(--s-3); align-items: center; }

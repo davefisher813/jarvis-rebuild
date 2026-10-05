@@ -202,8 +202,8 @@ export default function PeopleListPage({
           <div className="empty-icon cat-fg-teal">{PEOPLE}</div>
           <div className="empty-title">No One Here Yet</div>
           <div className="empty-sub">Add Someone, or Bring In Your Contacts From a File</div>
-          {/* An empty state always carries its action (law L7); the head's capsule is the same door. */}
-          <button className="btn btn-primary" onClick={onAdd}>Add Your First Person</button>
+          {/* ONE DOOR (the round 2 review, D9): the head's Add Person is the capsule that fills this; a second filled button
+              here said the same thing. */}
         </div>
       ) : (
         <>
@@ -229,7 +229,7 @@ export default function PeopleListPage({
             <div {...pressable(() => onOpen(p.id))} className="task-row p2 person-row-ruled" key={p.id}>
               {/* The avatar leads and stands alone at the row's leading edge (Dave 2026-10-05, the review: the star sat tight
                   against it, two competing leading items). */}
-              <div className="task-check-tap"><div className={"av " + softAvatarClass(p.data.color)}><span>{personInitials(p.data.name)}</span></div></div>
+              <div className="task-check-tap"><div className={"av " + softAvatarClass(p.data.color, p.data.name)}><span>{personInitials(p.data.name)}</span></div></div>
               <div className="task-title">
                 <span className="task-name">{p.data.name}</span>
                 {/* the label, the triage roles, or the honest absence of both;

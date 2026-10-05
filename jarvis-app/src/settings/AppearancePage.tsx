@@ -4,7 +4,8 @@ import { useAppearance, type Appearance, type TextSize, type Theme } from "../ap
 import { useSettings } from "../data/NotesProvider";
 import { SETTING_APPEARANCE } from "../data/SettingsService";
 import LargeTitleNav from "../shared/LargeTitleNav";
-import { Head, Card, Menu } from "./kit";
+import { Head, Card, Menu, Foot } from "./kit";
+import { CalendarDays } from "../shared/icons";
 
 // UP-PLAT-09 (2026-09-06): Title Case, because these name a setting.
 const SIZE_OPTIONS = [
@@ -52,21 +53,35 @@ export default function AppearancePage({ onBack }: { onBack: () => void }) {
       <Card>
         <Menu label="Theme" value={appearance.theme} options={[{ value: "dark", label: "Dark" }, { value: "light", label: "Light" }]}
           onPick={(v) => { setTheme(v as Theme); save({ theme: v as Theme }); }} />
-        <Menu label="Text Size" meta={phoneScale !== null ? "Default Follows Your Phone" : "Larger Text Everywhere"} value={appearance.textSize} options={SIZE_OPTIONS}
+        {/* NO LINE THAT CONTRADICTS THE VALUE (2026-10-05, the round 2 review: "Larger Text Everywhere" under a value of "Default"). The
+            row has nothing true to add until the phone's own size is wired, and the Preview below already shows what the choice does. */}
+        <Menu label="Text Size" meta={phoneScale !== null ? "Default Follows Your Phone" : undefined} value={appearance.textSize} options={SIZE_OPTIONS}
           onPick={(v) => { setTextSize(v as TextSize); save({ textSize: v as TextSize }); }} />
       </Card>
       {/* THE CHOICE, SHOWN (2026-10-05, Dave "he opens the app and finds nothing": two rows on a blank page said nothing about
           what either did). The sample is a real row on the real tokens, so it is drawn at whatever the Text Size menu says and in
           whichever theme is on. It is not tappable; it is a ruler. */}
       <Head label="Preview" />
+      {/* THE SAMPLE WEARS THE REAL ROWS (2026-10-05, the round 2 review: one bare row with no check and no glyph ended the page early).
+          A task row on the task row's own anatomy (the ring, the title, its due word in the key's amber) and an event row with its
+          sky glyph and its time, so size and theme can be judged on both kinds of row the app draws most. Not tappable: a ruler. */}
       <Card className="set-preview">
-        <div className="row set-row" aria-hidden="true">
-          <div className="row-grow">
-            <div className="conn-name">Pick Up the Dry Cleaning</div>
-            <div className="conn-meta"><span className="facts"><span className="fact warn">Today</span><span className="fact date">4:30 PM</span></span></div>
+        <div className="task-row" aria-hidden="true">
+          <div className="task-check-tap"><div className="task-check" /></div>
+          <div className="task-title">
+            <span className="task-name">Pick Up the Dry Cleaning</span>
+            <div className="r-k r-k-one"><span className="r-goal fact warn">Today</span><span className="fact date">4:30 PM</span></div>
+          </div>
+        </div>
+        <div className="task-row" aria-hidden="true">
+          <div className="task-check-tap"><CalendarDays className="ic cat-fg-sky" /></div>
+          <div className="task-title">
+            <span className="task-name">Team Standup</span>
+            <div className="r-k r-k-one"><span className="fact date">10:00 AM</span></div>
           </div>
         </div>
       </Card>
+      <Foot>A sample of how rows look at the size and in the theme you pick</Foot>
       <div className="screen-foot" />
     </div>
   );

@@ -383,7 +383,9 @@ export function buildReport(inp: ReportInputs): MonthReport {
   const wins: ReportWin[] = moved.slice(0, 3).map((m) => ({
     name: m.name,
     // The tile is already green, so the word is all it says (a typed check is a glyph in a string: Dave 2026-10-05).
-    value: m.kind === "goal" ? "Achieved" : "Closed",
+    // A project's closedOn is only ever written when its status becomes done (ProjectsService), so a closed project IS a done one and
+    // wears the done green. Its word says so: "Closed" read as cut or shelved on a green tile (round 3 review).
+    value: m.kind === "goal" ? "Achieved" : "Done",
   }));
   if (seal.saved > 0 && wins.length < 4) {
     wins.push({ name: "Put Away", value: `$${seal.saved.toLocaleString()}` });
@@ -466,7 +468,7 @@ export function buildReport(inp: ReportInputs): MonthReport {
   if (carried.length > 0) {
     worth.push({
       id: "carried",
-      title: lineCase(`${carried.length} Followed You All Month`),
+      title: lineCase(`${carried.length} ${plural(carried.length, "task", "tasks")} followed you all month`),
       sub: null,
       carried,
       receipts: carried.map((c) => lineCase(`${c.text}, ${c.n} Pushes`)),
@@ -532,7 +534,8 @@ export function buildReport(inp: ReportInputs): MonthReport {
     patterns.push({
       id: "picks",
       title: "First Picks Finish",
-      sub: [plain(lineCase(`Firsts ${Math.round(picks.firstRate * 100)}%, later picks ${Math.round(picks.lateRate * 100)}%`))],
+      // Two facts, the dot between them drawn by the stylesheet (a typed comma is a punctuation mark in a string: round 3 review).
+      sub: [plain(lineCase(`Firsts ${Math.round(picks.firstRate * 100)}%`)), plain(lineCase(`Later picks ${Math.round(picks.lateRate * 100)}%`))],
       receipts: [
         lineCase(`${picks.firstDone} of ${picks.firstPicked} first picks done that day`),
         lineCase(`${picks.latePicked} picks landed fourth or later`),
@@ -559,7 +562,9 @@ export function buildReport(inp: ReportInputs): MonthReport {
       id: "train",
       title: "Train Days Win",
       // The rise is the line's one green fact, drawn beside the two rates (no pill: Dave 2026-10-05, locked).
-      sub: [plain(lineCase(`${join.on.toFixed(1)} done vs ${join.off.toFixed(1)}`)), { text: `+${pct}%`, tone: "good" }],
+      // Each rate names its days, so no "vs" is needed and none can differ in casing from the tiles' "Vs". Short enough that
+      // all three facts fit one line at 390px (the longer "Done on Train Days" ellipsized both).
+      sub: [plain(lineCase(`${join.on.toFixed(1)} train days`)), plain(lineCase(`${join.off.toFixed(1)} other days`)), { text: `+${pct}%`, tone: "good" }],
       receipts: ["A Pattern in Your Data, Not a Cause"],
     });
   }
@@ -609,7 +614,7 @@ export function buildReport(inp: ReportInputs): MonthReport {
   const learned = seal.strands.created > 0
     ? {
         title: lineCase(`Learned ${seal.strands.created} ${plural(seal.strands.created, "thing", "things")} about you`),
-        sub: fixes > 0 ? [plain(lineCase(`You fixed ${fixes}, ${fixes === 1 ? "it is" : "they are"} gone`))] : null,
+        sub: fixes > 0 ? [plain(lineCase(`You fixed ${fixes}`)), plain("Gone for Good")] : null,
         // A row that is drawn as a door opens something (Dave 2026-10-05, the review: these two read as rows and did nothing).
         receipts: [
           lineCase(`${seal.strands.created} ${plural(seal.strands.created, "thing", "things")} learned in ${name}`),

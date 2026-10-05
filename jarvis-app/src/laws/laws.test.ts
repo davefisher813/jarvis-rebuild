@@ -3253,7 +3253,7 @@ describe("LAW 6: Pick One picks, urgency survives Start, timed beats untimed, mo
     expect(page, "the chip comes from the distance ladder, gated only by the Today mute")
       .toMatch(/const chip = dist && !t\.done && !\(muteToday && dist\.kind === "today"\) \? dist : null;/);
     expect(page, "the chip renders on the second line, never in the trailing slot")
-      .toMatch(/\{chip && <span className=\{"uchip " \+ \(chip\.kind === "late" \? "u-late" : "u-today"\)\}>\{chip\.label\}<\/span>\}/);
+      .toMatch(/\{chip && <span className=\{"r-goal fact " \+ \(chip\.kind === "late" \? "red" : "warn"\)\}>\{lineCase\(chip\.label\.toLowerCase\(\)\)\}<\/span>\}/);
     // AMENDED (Dave 2026-10-05, locked: no pill on a row). There is no Start pill to wait on any more, so the
     // fallback shows only for a caller that passes no Start (`!onStart`), still narrowed to "soon", so it can
     // never double up with the chip above or sit beside the row's quiet verb.
@@ -3871,7 +3871,10 @@ describe("LAW 11: cards show their work, tags earn their shape, and no screen is
     // AMENDED 2026-09-01 (the ruled row): the chip is .uchip, the same one
     // Today's dealt row wears, tinted from its own colour (warn for today,
     // the system red for late). The mute rule is unchanged.
-    expect(page, "chip class on the row tag").toMatch(/"uchip " \+ \(chip\.kind === "late" \? "u-late" : "u-today"\)/);
+    // AMENDED 2026-10-05 (Dave, D10: no filled chip or capsule inside a list row): the distance is the key's amber or red as
+    // plain text, a .fact, never a filled .uchip. The mute rule below is unchanged.
+    expect(page, "distance class on the row tag").toMatch(/"r-goal fact " \+ \(chip\.kind === "late" \? "red" : "warn"\)/);
+    expect(page, "and no filled chip on the task row").not.toMatch(/"uchip " \+ \(chip\.kind/);
     expect(page, "TODAY muted where redundant, LATE untouched")
       .toMatch(/!\(muteToday && dist\.kind === "today"\)/);
     expect(page, "the mute is the today filter, nothing else")
@@ -4771,8 +4774,9 @@ describe("LAW 17: the Schedule head is two rows, the day starts at Now, and the 
     // edge. What this law is about is that the rule is a HAIRLINE IN THE
     // SYSTEM RED and never a fill, and that is what it still checks, to the
     // pixel and to the token. How much room the hairline asks for is layout.
-    expect(CSS, "the rule paints a 1px line in the system red")
-      .toMatch(/\.ruled \.sched-now \.l \{[^}]*height: 1px; background: var\(--sys-red\)/);
+    // ROUND 3 (2026-10-05, decision D4): the hairline is the key's amber, not red. Red is for late and for taps.
+    expect(CSS, "the rule paints a 1px line in the amber, never a red")
+      .toMatch(/\.ruled \.sched-now \.l \{[^}]*height: 1px; background: var\(--warn\)/);
     expect(CSS, "and it keeps a floor, so it stays a rule and not a dash")
       .toMatch(/\.ruled \.sched-now \.l \{[^}]*min-width: 24px/);
     expect(CSS, "and the capsule that rode it (Running Late?) is retired with its rules").not.toMatch(/\.sched-late\b/);

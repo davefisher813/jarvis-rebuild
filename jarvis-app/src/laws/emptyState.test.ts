@@ -137,6 +137,19 @@ const ACTION_ON_SCREEN: Record<string, string> = {
   // on its head directly above (the head's label is the short word because the title already says what it adds).
   // The Tracker with no accounts (round-1 review, 2026-10-05, D9): a glyph, a title and one warm line, filled by the Add Account capsule on
   // the Accounts head directly above it.
+  // Family's Your People with nobody tagged (round-2 review, 2026-10-05, D9): a glyph, a title and one warm line, filled by the Open Contacts
+  // capsule on the Your People head directly above it.
+  "brain/CategoryDetail.tsx · No People Here Yet": "Open Contacts is the Your People head's capsule, directly above these words (Dave 2026-10-05)",
+  // The event page with no prep (round-3 review, 2026-10-05, D9): a glyph in the Task's red, a title and one warm line, filled by the Add Task
+  // capsule on the Prep Tasks head directly above it.
+  "schedule/screens/EventDetailPage.tsx · Nothing to Prep Yet": "Add Task is the Prep Tasks head's capsule, directly above these words (Dave 2026-10-05)",
+  // Contacts (round-2 review, 2026-10-05, D9): the two empty states, a contact's Nothing to Bring Up Yet and the list's No One Here Yet, are each a glyph, a
+  // title and one warm line, filled by the capsule on the head directly above (Add Topic, Add Person); a second filled button repeated the same verb.
+  // Values' Hard Lines with none set (round-2 review, 2026-10-05, D9): a glyph, a title and one warm line, filled by the Add a Line capsule on the
+  // Hard Lines head directly above it, which opens the composer.
+  "brain/docs/BrainDocPage.tsx · No Hard Lines Yet": "Add a Line is the Hard Lines head's capsule, directly above these words (Dave 2026-10-05)",
+  "people/screens/PersonDetail.tsx · Nothing to Bring Up Yet": "Add Topic is the Next Time We Talk head's capsule, directly above these words (Dave 2026-10-05)",
+  "people/screens/PeopleListPage.tsx · No One Here Yet": "Add Person is the Your People head's capsule, directly above these words (Dave 2026-10-05)",
   "money/screens/TrackerScreen.tsx · No Accounts Yet": "Add Account is the Accounts head's capsule, directly above these words (Dave 2026-10-05)",
   "routine/RoutineFlow.tsx · Nothing Protected Yet":"Add is the Protected Time head's capsule, directly above these words (Dave 2026-10-05)",
 };

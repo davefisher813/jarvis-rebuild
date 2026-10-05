@@ -7,7 +7,6 @@ import CancelBookingSheet from "./CancelBookingSheet";
 import DayOffSheet from "./DayOffSheet";
 import PublicBookingPage from "./PublicBookingPage";
 import PublicCancelPage from "./PublicCancelPage";
-import { WHO_LABEL } from "./settings";
 import type { BookingFace } from "./bookedEvents";
 
 // THE VISUAL CATALOG, HELD ON BOOKING (Dave 2026-10-05, "I am sick of this").
@@ -69,11 +68,6 @@ describe("the owner's booking sheets follow the catalog", () => {
       const t = norm(el);
       if (t) expect(lineCase(t), t).toBe(t);
     }
-  });
-
-  it("the Who Can Book answer keeps its small word small", () => {
-    expect(WHO_LABEL.anyone).toBe("Anyone with the Link");
-    expect(lineCase(WHO_LABEL.anyone)).toBe(WHO_LABEL.anyone);
   });
 });
 

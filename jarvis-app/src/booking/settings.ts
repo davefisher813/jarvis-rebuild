@@ -37,10 +37,6 @@ export const DEFAULT_BOOKING_SETTINGS: BookingSettings = {
   visibility: "link",
 };
 
-export const WHO_LABEL: Record<BookingWho, string> = {
-  anyone: "Anyone with the Link",
-};
-
 const KEY = "jarvis.booking.settings.v1";
 
 function browserStorage(): Storage2 {

@@ -30,7 +30,7 @@ describe("BrainDocPage", () => {
     expect(screen.getAllByText("How You Write").length).toBeGreaterThan(0);
     // A page with nothing written is a crafted empty state with ONE way in (Dave 2026-10-05: "he opens the app and finds
     // nothing"); Start Writing opens the editor card and its caret.
-    expect(await screen.findByText("Nothing Written Yet")).toBeInTheDocument();
+    expect(await screen.findByText("Teach JARVIS Your Voice")).toBeInTheDocument();
     fireEvent.click(screen.getByText("Start Writing"));
     // The writing system (wave 3c): the shared editor on the document
     // level; its cue is the topic's placeholder (Title Case, no typed dots), its name the topic's title.
@@ -86,14 +86,16 @@ describe("BrainDocPage load failure (BRAIN-F-12)", () => {
 
 // EVERY BRAIN DOC OPENS ON SOMETHING (Dave 2026-10-05, the review: Life Philosophy and How You Write were blank pages from the
 // title to the dock, and the subtitle was a lowercase fragment with typed dots). Each empty doc is the app's empty state: its
-// glyph in the topic's own tone, a Title Case title, one line, the one capsule that fills it. No subtitle fragment, no typed dot.
+// glyph in the Brain's own tone, a Title Case title of its OWN, one line, the one capsule that fills it. No subtitle fragment, no
+// typed dot. ROUND 2 (2026-10-05): the three pages no longer share one generic title, and the glyph is never brand red (the pen was
+// a coral that read as a button).
 describe("BrainDocPage: an empty doc is crafted, never blank (2026-10-05)", () => {
-  for (const [topic, title, tone] of [
-    ["philosophy", "Life Philosophy", "cat-fg-indigo"],
-    ["writing", "How You Write", "cat-fg-pink"],
-    ["values", "Values", "cat-fg-mint"],
+  for (const [topic, title, emptyTitle] of [
+    ["philosophy", "Life Philosophy", "Your Philosophy Starts Here"],
+    ["writing", "How You Write", "Teach JARVIS Your Voice"],
+    ["values", "Values", "Say What Matters"],
   ] as const) {
-    it(`${title}: a glyph in ${tone}, a title, one line and Start Writing`, async () => {
+    it(`${title}: a purple glyph, its own title, one line and Start Writing`, async () => {
       const { container } = render(
         <NotesProvider userId={"u-empty-" + topic}>
           <BrainDocPage topic={topic} onBack={() => {}} />
@@ -104,9 +106,10 @@ describe("BrainDocPage: an empty doc is crafted, never blank (2026-10-05)", () =
         expect(e).not.toBeNull();
         return e!;
       });
-      expect(empty.querySelector(".empty-icon")!.className).toContain(tone);
+      expect(empty.querySelector(".empty-icon")!.className).toContain("cat-fg-purple");
+      expect(empty.querySelector(".empty-icon")!.className).not.toMatch(/cat-fg-(red|pink|coral|rose)/);
       expect(empty.querySelector(".empty-icon svg")).not.toBeNull();
-      expect(empty.querySelector(".empty-title")!.textContent).toBe("Nothing Written Yet");
+      expect(empty.querySelector(".empty-title")!.textContent).toBe(emptyTitle);
       const sub = empty.querySelector(".empty-sub")!.textContent!;
       expect(sub).not.toMatch(/\u00b7/);
       expect(sub).not.toMatch(/\.\s+[A-Z]/);
@@ -118,4 +121,15 @@ describe("BrainDocPage: an empty doc is crafted, never blank (2026-10-05)", () =
       expect(container.textContent).not.toMatch(/Worldview \u00b7|Tone \u00b7|What matters \u00b7/);
     });
   }
+
+  it("a page with nothing else on it centres its empty state in the room left; Values keeps its Hard Lines in view", async () => {
+    const alone = render(<NotesProvider userId="u-fill-1"><BrainDocPage topic="philosophy" onBack={() => {}} /></NotesProvider>);
+    await waitFor(() => expect(alone.container.querySelector(".empty-state")).not.toBeNull());
+    expect(alone.container.querySelector(".doc-body > .empty-state.empty-fill")).not.toBeNull();
+    alone.unmount();
+    const values = render(<NotesProvider userId="u-fill-2"><BrainDocPage topic="values" onBack={() => {}} /></NotesProvider>);
+    await waitFor(() => expect(values.container.querySelector(".empty-state")).not.toBeNull());
+    expect(values.container.querySelector(".empty-state.empty-fill")).toBeNull();
+    expect(values.container.querySelector(".empty-state.empty-compact")).not.toBeNull();
+  });
 });

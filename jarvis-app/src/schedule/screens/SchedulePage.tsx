@@ -786,7 +786,7 @@ export default function SchedulePage({
                 <div className="sched-now">
                   <span className="w">Now</span>
                   {/* C-28: LIVE, on the rule alone. */}
-                  <span className="fact st red">Live</span>
+                  <span className="fact st warn">Live</span>
                   <span className="l" />
                   <span className="t">{fmtTime(now!).time} {fmtTime(now!).ap}</span>
                 </div>

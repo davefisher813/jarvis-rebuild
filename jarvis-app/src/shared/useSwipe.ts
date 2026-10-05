@@ -96,7 +96,7 @@ export interface SwipeState {
   // Close the reveal, then run the action (the standard post-action snap).
   closeThen: (fn?: () => void) => void;
   toggle: () => void;
-  // THE ONE-TIME PEEK (Dave 2026-10-05): slide open about 40% of the reveal, hold a beat, slide shut. The caller
+  // THE ONE-TIME PEEK (Dave 2026-10-05): slide open by the first action's full width (88px), hold a beat, slide shut. The caller
   // decides whether it runs (shared/swipeTeach.ts shouldPeek); this only moves the row.
   peek: () => void;
 }
@@ -186,7 +186,10 @@ export function useSwipe({ revealW, rightW = 0, onRightCommit, enabled = true, o
 
   const peek = () => {
     if (!enabled || open) return;
-    moveTo(-Math.round(revealW * 0.4));
+    // THE FIRST ACTION, WHOLE (round 3, 2026-10-05: a 40% peek of a two-action tray showed "tart Now", the label clipped by the
+    // well's own edge, and read as a rendering bug). Each action is 88px wide, so the peek travels exactly one of them: the
+    // quickest verb is fully legible and nothing is cut mid-word.
+    moveTo(-Math.min(revealW, 88));
     setTimeout(() => { if (!decided.current) moveTo(0); }, 900);
   };
 

@@ -432,16 +432,21 @@ export default function NoticeCard({
             </button>
           ) : verbRow && due && action ? (
             <RowCtxAction when label={action.label} onAct={action.onClick} />
-          ) : cardDoor && !twoVerbs && !xButton ? (
+          ) : cardDoor && !twoVerbs && !xButton && !(stack && action) ? (
             <div className="chev" />
           ) : null}
-          {xButton}
+          {/* A STACKED OFFER'S DISMISS LIVES WITH ITS ANSWER (round 2 review: the X took a 44px column of its own, so the
+              words ended 100px short of the card's edge and the title wrapped to three lines). The words get the whole
+              row; the capsule and the X share the line under them, still siblings, so neither can sit under the other. */}
+          {stack && action ? null : xButton}
         </div>
         {action && stack && (
           <div className="notice-stack">
+            <div className="row-glyph" aria-hidden="true" />
             <button className="pill-act" onClick={(e) => { e.stopPropagation(); action.onClick(); }}>
               {action.label}
             </button>
+            {xButton}
           </div>
         )}
         {twoVerbs && alt && (

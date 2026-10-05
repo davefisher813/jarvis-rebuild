@@ -397,23 +397,35 @@ describe("provenance on an event row", () => {
 });
 
 // UP-CORE-08 (2026-09-05): the meeting's own page, one tap from its row.
+// ROUND 3 (2026-10-05, no permanent affordance): the glyph is drawn only when a note exists; writing the first one is a line in the
+// long-press menu, so a row with no note shows nothing and keeps the title's full width.
 describe("the notes glyph on an event row", () => {
-  it("is there when the flow can write notes, and says whether one exists", () => {
+  it("is not drawn on a row with no note, and Add Notes is a line in the row menu", () => {
     const onNotes = vi.fn();
-    const { rerender } = render(
+    const { container } = render(
       <DayRow e={ev()} conflict={false} isNext={false} isPast={false} now={null} onNotes={onNotes} />,
     );
-    const glyph = screen.getByLabelText("Add Notes");
-    expect(glyph).not.toHaveClass("on");
+    expect(screen.queryByLabelText("Add Notes")).toBeNull();
+    expect(container.querySelector(".sched-notes"), "no hollow glyph on every row").toBeNull();
+    fireEvent.contextMenu(screen.getByRole("button", { name: /Client Call/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Add Notes" }));
+    expect(onNotes).toHaveBeenCalled();
+  });
+
+  it("is drawn, toned, and opens the note when one exists", () => {
+    const onNotes = vi.fn();
+    render(<DayRow e={ev()} conflict={false} isNext={false} isPast={false} now={null} onNotes={onNotes} hasNote />);
+    const glyph = screen.getByLabelText("Open Notes");
+    expect(glyph).toHaveClass("on");
     fireEvent.click(glyph);
     expect(onNotes).toHaveBeenCalled();
-    rerender(<DayRow e={ev()} conflict={false} isNext={false} isPast={false} now={null} onNotes={onNotes} hasNote />);
-    expect(screen.getByLabelText("Open Notes")).toHaveClass("on");
   });
 
   it("is absent when the flow has no route to notes", () => {
     render(<DayRow e={ev()} conflict={false} isNext={false} isPast={false} now={null} />);
     expect(screen.queryByLabelText("Add Notes")).toBeNull();
+    fireEvent.contextMenu(screen.getByRole("button", { name: /Client Call/ }));
+    expect(screen.queryByRole("button", { name: "Add Notes" })).toBeNull();
   });
 });
 

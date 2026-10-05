@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { DESTINATIONS, MAX_TABS } from "../shell/destinations";
 import LargeTitleNav from "../shared/LargeTitleNav";
 import TabOrderList from "./TabOrderList";
@@ -23,13 +24,16 @@ export default function EditTabsPage({
   onBack: () => void;
 }) {
   const atMax = tabKeys.length >= MAX_TABS;
+  // REORDER IS A MODE, NOT A PERMANENT GRIP (Dave 2026-10-05, locked: "no grip dots or always-visible hints"; the round 2 review: a grip on
+  // every row, always). The head's capsule turns the grips on and, as Done, off again; the list is a plain list the rest of the time.
+  const [reordering, setReordering] = useState(false);
   return (
     <div className="screen ruled">
       <LargeTitleNav title="Edit Tabs" back="Settings" onBack={onBack} />
       {onReorder && tabKeys.length > 1 && (
         <>
-          <Head label="Tab Order" />
-          <div className="pad-x"><TabOrderList keys={tabKeys} onReorder={onReorder} /></div>
+          <Head label="Tab Order" action={{ label: reordering ? "Done" : "Reorder", onClick: () => setReordering(!reordering) }} />
+          <div className="pad-x"><TabOrderList keys={tabKeys} onReorder={onReorder} handles={reordering} /></div>
         </>
       )}
       <Head label="In the Tab Bar" count={lineCase(`${tabKeys.length} of ${MAX_TABS} tabs`)} />

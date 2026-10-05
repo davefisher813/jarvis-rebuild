@@ -50,6 +50,8 @@ export default function BillDetailSheet({ bill, today, onClose, onEdit, onMarkPa
   const chip = ledgerChip(d, today);
   // The key colour of where the bill stands: late red, due amber, and nothing for a bill that is paid or far out.
   const stateTone: "red" | "warn" | undefined = paid ? undefined : chip?.cls === "u-late" ? "red" : chip?.cls === "u-today" ? "warn" : undefined;
+  // Due soon or late, with a date to say it: the Due row says all of it, and a Status row would repeat it.
+  const inState = !paid && !reopened && !!d.dueDate && !!stateTone && !!chip;
   const evidence = evidenceLine(d, txs);
   const history = historyLines(d.history, d.currency);
   const source: Source | undefined = d.source !== "manual" && d.source.type === "email"
@@ -58,7 +60,7 @@ export default function BillDetailSheet({ bill, today, onClose, onEdit, onMarkPa
   const open = source && onOpenEntity ? sourceOpener(onOpenEntity)(source) : undefined;
 
   return (
-    <FormSheet title="Bill" onCancel={onClose} onSave={onEdit} saveLabel="Edit">
+    <FormSheet title={titleCase(d.vendor)} onCancel={onClose} onSave={onEdit} saveLabel="Edit">
       <Group label="Bill">
         <Row tone="yellow" glyph={<WalletGlyph />} label="Vendor"><span className="bill-val">{titleCase(d.vendor)}</span></Row>
         <Row tone="green" glyph={<DollarGlyph />} label="Amount"><span className={"money-amt bill-val" + (paid ? " paid" : "")}>{billAmount(d)}</span></Row>
@@ -69,14 +71,26 @@ export default function BillDetailSheet({ bill, today, onClose, onEdit, onMarkPa
             violation). Due in a day or two is amber, late is red, paid is green on the status. The chip class the ledger
             returns (.uchip) is a ruled-list class and does nothing inside a sheet, so the state reads as a fact tone here:
             the same two key colours, no capsule in a row. */}
+        {/* ONE ROW SAYS WHERE THE BILL STANDS (round 3 review: "Due Oct 7" in amber with "Due in 2 Days" in amber beneath it said
+            the same thing twice). While it is due or late the Due row carries both facts, the date and how far, in the state's
+            one colour; the Status row is for what the date cannot say (paid, to confirm, autopay, nothing owed yet). */}
         {d.dueDate && (
           <Row tone="orange" glyph={<Calendar className="ic" />} label="Due">
-            <span className={"bill-val fact" + (stateTone ? " " + stateTone : "")}>{monthDay(d.dueDate)}</span>
+            {inState && chip ? (
+              <span className="bill-val facts">
+                <span className={"fact " + stateTone}>{monthDay(d.dueDate)}</span>
+                <span className={"fact " + stateTone}>{chip.text.replace(/^due\s+/i, "").replace(/^./, (c) => c.toUpperCase())}</span>
+              </span>
+            ) : (
+              <span className={"bill-val fact" + (stateTone ? " " + stateTone : "")}>{monthDay(d.dueDate)}</span>
+            )}
           </Row>
         )}
-        <Row tone="blue" glyph={<CheckCircleGlyph />} label="Status">
-          <span className={"bill-val fact" + (paid ? " good" : stateTone ? " " + stateTone : "")}>{chip ? chip.text : ledgerStatusWord(d, today)}</span>
-        </Row>
+        {!inState && (
+          <Row tone="blue" glyph={<CheckCircleGlyph />} label="Status">
+            <span className={"bill-val fact" + (paid ? " good" : stateTone ? " " + stateTone : "")}>{chip ? chip.text : ledgerStatusWord(d, today)}</span>
+          </Row>
+        )}
         {d.recurrence && <Row tone="sky" glyph={<RepeatGlyph />} label="Repeats"><span className="bill-val">{lineCase(d.recurrence)}</span></Row>}
         {d.autopay && <Row tone="blue" glyph={<RepeatGlyph />} label="Autopay"><span className="bill-val">On</span></Row>}
         {d.notes && <Row label="Notes"><span className="bill-val bill-notes">{d.notes}</span></Row>}

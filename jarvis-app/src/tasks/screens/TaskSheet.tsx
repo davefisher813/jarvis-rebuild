@@ -454,6 +454,9 @@ export default function TaskSheet({
             green tile is the done mark in the lead slot, where the hand
             already looks. */}
         <div className="sheet-form">
+          {/* A LABEL LIKE EVERY OTHER GROUP (Dave 2026-10-05, the round-2 review: the first card had no kicker while Task, Notes,
+              When and Where all do). */}
+          {mode === "edit" && <div className="grp xs-grp"><div className="eyebrow">Quick Actions</div></div>}
           {mode === "edit" && (
             <div className="pad-x"><div className="card xs-group xs-do">
               {/* THE ACTIONS, PRIMARY FIRST (Dave 2026-10-05, locked: "Tap a row, detail
@@ -769,7 +772,6 @@ export default function TaskSheet({
               {/* The chevron and the unset word are the dropdown rows' own (.dd.dd-value), so every value row in the sheet ends on
                   the same chevron at the same edge. */}
               <span className={"dd dd-value" + (planLine === "Not Set" ? " dd-off" : "") + (planOpen ? " dd-flip" : "")} aria-hidden="true">
-                {planLine === "Not Set" && <span className="dd-w">Not Set</span>}
                 <span className="dd-cv" />
               </span>
             </div>
@@ -821,10 +823,9 @@ export default function TaskSheet({
                 {onOpenNote && <div className="chev"></div>}
               </div>
             ))}
-          </div></div>
-
-          {showNav && (
-            <div className="pad-x xs-actions"><div className="card xs-group">
+            {/* THE DOORS ARE THE LAST ROWS OF THE MORE CARD (round 3 review: Add to Schedule was its own one-row card under it, so the
+                foot of the sheet was three stacked boxes). Same card, same hairlines, one box for everything that is not a field. */}
+            {showNav && (<>
               {onSchedule && (
                 <div className="row xs-row" role="button" tabIndex={0} onClick={onSchedule}>
                   <Tile tone="sky"><Calendar className="ic" /></Tile>
@@ -861,8 +862,8 @@ export default function TaskSheet({
                   <div className="chev"></div>
                 </div>
               )}
-            </div></div>
-          )}
+            </>)}
+          </div></div>
           {/* THE DESTRUCTIVE ROW IS ITS OWN CARD (2026-10-05): it sat as the last row of the navigation card, so the one verb that
               cannot be undone read as another door. */}
           {mode === "edit" && onDelete && (

@@ -225,15 +225,16 @@ describe("a person's card: rows are clean and the right action shows when it is 
     for (const card of container.querySelectorAll(".card")) expect(card.textContent).not.toMatch(/Add Something|Add Topic|^Add$/);
   });
 
-  // CRAFTED, NOT BLANK, AND NEVER A DEAD END (2026-10-05, law L7): the empty talking-points state keeps its words and carries the
-  // one action that fills it, in its own words so it never reads as a second copy of the head's capsule.
-  it("with no topics saved the empty state carries its own action, which opens the add field", () => {
+  // CRAFTED, NOT BLANK, AND ONE DOOR (the round 2 review, 2026-10-05): the empty talking-points state is a glyph, a title and one
+  // warm line, filled by the Add Topic capsule in its head. A second filled "Save a Topic" under it did exactly the same thing,
+  // two competing calls to action for one verb.
+  it("with no topics saved the empty state holds no button: the head's Add Topic is the only door", () => {
     const { container } = render(<PersonDetail person={person} {...baseProps} onAddPoint={() => {}} onTogglePoint={() => {}} />);
     const empty = container.querySelector(".empty-state")!;
     expect(empty.querySelector(".empty-title")?.textContent).toBe("Nothing to Bring Up Yet");
-    const act = empty.querySelector("button")!;
-    expect(act.textContent).toBe("Save a Topic");
-    fireEvent.click(act);
+    expect(empty.querySelector("button, .btn, .pill-act, .row-act")).toBeNull();
+    expect(container.querySelectorAll("button.see-all.pill-action")).toHaveLength(1);
+    fireEvent.click(container.querySelector("button.see-all.pill-action")!);
     expect(container.querySelector(".empty-state"), "the empty state steps aside once the field is open").toBeNull();
     expect(container.querySelector("input, [contenteditable]")).not.toBeNull();
   });

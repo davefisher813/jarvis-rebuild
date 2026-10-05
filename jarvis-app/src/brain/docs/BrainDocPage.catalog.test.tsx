@@ -76,11 +76,17 @@ describe("BrainDocPage: clean rows (2026-10-05)", () => {
 
 // THE HARD LINE FORM FITS ITS CARD (Dave 2026-10-05, the review: the three kinds ran off the card and "Protect" was cut, the placeholder was
 // truncated with a typed dot, and "Add a Line" was a full-width disabled slab). Three kinds are one choice of three, so the app's segmented
-// control; the field says what it takes in Title Case with no typed dot; the add verb is text at the field's edge, there only with something to add.
+// control; the field says what it takes in Title Case with no typed dot; the add verb is text at the field's edge. ROUND 2 (2026-10-05): the
+// composer is opened by the section head's Add a Line (D2), is labelled with what it asks, and always has a way out (Cancel) beside its way on (Add).
 describe("BrainDocPage: the hard line form (2026-10-05)", () => {
+  const open = async (container: HTMLElement) => {
+    await waitFor(() => expect(screen.getByText("school.org")).toBeInTheDocument());
+    fireEvent.click(container.querySelector(".sh2 .see-all")!);
+  };
+
   it("the three kinds are one segmented control, one pressed at a time, never chips that run off the card", async () => {
     const { container } = render(<BrainDocPage topic="values" onBack={() => {}} />);
-    await waitFor(() => expect(screen.getByText("school.org")).toBeInTheDocument());
+    await open(container);
     const seg = container.querySelector(".segmented.seg-tri")!;
     expect(seg.getAttribute("role")).toBe("group");
     expect(container.querySelector(".hard-add .chip")).toBeNull();
@@ -91,14 +97,15 @@ describe("BrainDocPage: the hard line form (2026-10-05)", () => {
     expect([...seg.querySelectorAll("button.seg")].map((b) => b.getAttribute("aria-pressed"))).toEqual(["false", "false", "true"]);
   });
 
-  it("the field's placeholder is short and plain, and Add is a quiet verb that appears only once something is typed", async () => {
+  it("the field is labelled with what it asks; its verb is Cancel until something is typed, then Add", async () => {
     const { container } = render(<BrainDocPage topic="values" onBack={() => {}} />);
-    await waitFor(() => expect(screen.getByText("school.org")).toBeInTheDocument());
+    await open(container);
+    expect(screen.getByText("What Should JARVIS Leave Alone?")).toBeInTheDocument();
     const input = screen.getByLabelText("What this line is about") as HTMLInputElement;
     expect(input.placeholder).toBe("Gym, Family, School.org");
     expect(input.placeholder).not.toContain("·");
     const field = container.querySelector(".hard-add-field")!;
-    expect(field.querySelector(".row-ctx")).toBeNull();
+    expect(field.querySelector(".row-ctx")!.textContent).toBe("Cancel");
     expect(container.querySelector(".hard-add .btn, .hard-add .pill-act")).toBeNull(); // no full-width slab
     fireEvent.change(input, { target: { value: "Taxes" } });
     const add = field.querySelector(".row-ctx")!;
@@ -106,7 +113,38 @@ describe("BrainDocPage: the hard line form (2026-10-05)", () => {
     expect(add.getAttribute("aria-label")).toBe("Add a Line");
     fireEvent.click(add);
     await waitFor(() => expect(screen.getByText("Taxes")).toBeInTheDocument());
-    expect(input.value).toBe("");
+    // The composer closes once the line is in, and the head offers the next.
+    expect(container.querySelector(".hard-add")).toBeNull();
+    expect(container.querySelector(".sh2 .see-all")!.textContent).toBe("Add a Line");
+  });
+
+  it("Cancel closes the composer and writes nothing", async () => {
+    const { container } = render(<BrainDocPage topic="values" onBack={() => {}} />);
+    await open(container);
+    fireEvent.click(container.querySelector(".hard-add-field .row-ctx")!);
+    expect(container.querySelector(".hard-add")).toBeNull();
+    expect(screen.getAllByText("Never File").length).toBeGreaterThan(0);
+  });
+
+  it("with no lines the section is its head and one crafted empty state, the Add a Line capsule in the head (round 2)", async () => {
+    const was = docsSvc.hardLines;
+    docsSvc.hardLines = async () => [];
+    try {
+      const { container } = render(<BrainDocPage topic="values" onBack={() => {}} />);
+      await waitFor(() => expect(screen.getByText("No Hard Lines Yet")).toBeInTheDocument());
+      const head = [...container.querySelectorAll(".sh2")].find((h) => h.textContent!.startsWith("Hard Lines"))!;
+      expect(head.querySelector("button.see-all.pill-action")!.textContent).toBe("Add a Line");
+      const empty = screen.getByText("No Hard Lines Yet").closest(".empty-state")!;
+      // One warm line about what a hard line stops, a glyph in the Brain's own tone, and no second button repeating the head's verb.
+      expect(empty.querySelector(".empty-sub")!.textContent).toBe("A Hard Line Stops JARVIS From Acting on Something You Care About");
+      expect(empty.querySelector(".empty-icon")!.className).toContain("cat-fg-purple");
+      expect(empty.querySelector("button")).toBeNull();
+      // And no bare form: the composer waits for the head's capsule.
+      expect(container.querySelector(".hard-add, .segmented")).toBeNull();
+      fireEvent.click(head.querySelector("button")!);
+      expect(container.querySelector(".hard-add .segmented")).not.toBeNull();
+      expect(container.querySelector(".hard-add .input-label")!.textContent).toBe("What Should JARVIS Leave Alone?");
+    } finally { docsSvc.hardLines = was; }
   });
 
   it("Values reads What Matters above Hard Lines, each with its own empty state or rows, so nothing sinks to the dock", async () => {

@@ -11,7 +11,7 @@ import { useReadiness } from "./strands/ReadinessPanel";
 import { stateForStrand, toneForStrandState, STRAND_STATE_LABEL, confidenceWord, isWatching } from "./strands/state";
 import { NO_PATTERN_TWIN, STRAND_CATEGORY_LABEL, type Strand } from "./strands/types";
 import { watchingCount, type Readiness } from "./readiness";
-import { detectorGlyph } from "./strands/detectorGlyph";
+import { detectorGlyph, detectorTone } from "./strands/detectorGlyph";
 import { pressable } from "../shared/pressable";
 import { attemptWrite } from "../shared/guard";
 import { showToast } from "../shared/toast";
@@ -206,7 +206,7 @@ export default function BrainTop({ onOpenFact, onOpenWatching, onBands, areas = 
       {shaping.length > 0 && (
         <>
           <div className="sh2 sh2-quiet"><span className="t">Shaping JARVIS Now</span><span className="n">{shaping.length}</span></div>
-          <div className="pad-x"><div className="card list-card-ruled">
+          <div className="pad-x"><div className="card list-card-ruled glyph-rows">
             {shaping.map((s) => {
               const st = stateForStrand(s, today);
               const rr = s.data.source === "watched" || s.data.source === "uploaded" ? readinessFor(s) : undefined;
@@ -214,7 +214,7 @@ export default function BrainTop({ onOpenFact, onOpenWatching, onBands, areas = 
               return (
                 <div {...pressable(() => onOpenFact(s.id))} className="row strand-row" key={s.id}>
                   <RowStar on={!!s.data.link} />
-                  <div className="lib-ico lib-disc strand-disc">{filledIcon("knows")}</div>
+                  <div className="lib-ico cat-fg-purple">{filledIcon("knows")}</div>
                   <div className="row-grow">
                     <div className="conn-name">{lineCase(s.data.text)}</div>
                     <div className="facts">
@@ -247,11 +247,11 @@ export default function BrainTop({ onOpenFact, onOpenWatching, onBands, areas = 
       {needs.length > 0 && (
         <>
           <div className="sh2 sh2-quiet"><span className="t">Needs You</span><span className="n">{needs.length}</span></div>
-          <div className="pad-x"><div className="card list-card-ruled shell-rows">
+          <div className="pad-x"><div className="card list-card-ruled shell-rows glyph-rows">
             {needs.map((n) => n.kind === "writing" ? (
               <RowShell key={"w-" + n.p.rule.id} verb={{ label: "That's Right", run: () => void confirmWriting(n.p) }}>
                 <div {...pressable(() => setAsking(n))} className="row strand-row">
-                  <div className="lib-ico lib-disc warn-disc">{filledIcon("writing")}</div>
+                  <div className="lib-ico cat-fg-purple">{filledIcon("writing")}</div>
                   <div className="row-grow">
                     <div className="conn-name">{lineCase(n.p.text)}</div>
                     <div className="facts"><span className="fact st warn">Needs Confirmation</span><span className="fact">{lineCase(`${n.p.edits} edits`)}</span></div>
@@ -262,7 +262,7 @@ export default function BrainTop({ onOpenFact, onOpenWatching, onBands, areas = 
             ) : n.kind === "principle" ? (
               <RowShell key="principle" verb={{ label: "That's Right", run: () => void answerPrincipleWith(n.d, "right") }}>
                 <div {...pressable(() => setAsking(n))} className="row strand-row">
-                  <div className="lib-ico lib-disc warn-disc">{filledIcon("values")}</div>
+                  <div className="lib-ico cat-fg-purple">{filledIcon("values")}</div>
                   <div className="row-grow">
                     <div className="conn-name">{lineCase(n.d.title)}</div>
                     <div className="facts"><span className="fact st warn">Needs Confirmation</span><span className="fact">{lineCase(n.d.sub)}</span></div>
@@ -274,7 +274,7 @@ export default function BrainTop({ onOpenFact, onOpenWatching, onBands, areas = 
               <RowShell key={n.s.id} verb={{ label: "Still True", run: () => void confirm(n.s) }}>
                 <div {...pressable(() => onOpenFact(n.s.id))} className="row strand-row">
                   <RowStar on={!!n.s.data.link} />
-                  <div className="lib-ico lib-disc strand-disc">{filledIcon("knows")}</div>
+                  <div className="lib-ico cat-fg-purple">{filledIcon("knows")}</div>
                   <div className="row-grow">
                     <div className="conn-name">{lineCase(n.s.data.text)}</div>
                     {/* The same fading row What JARVIS Knows draws (§AK, one
@@ -297,13 +297,15 @@ export default function BrainTop({ onOpenFact, onOpenWatching, onBands, areas = 
       {watching.length > 0 && (
         <>
           <div className="sh2 sh2-quiet"><span className="t">Watching</span><span className="n">{watching.length}</span></div>
-          <div className="pad-x"><div className="card list-card-ruled shell-rows">
+          <div className="pad-x"><div className="card list-card-ruled shell-rows glyph-rows">
             {watching.map((r) => (
               <RowShell key={"w-" + r.key}>
                 <div {...pressable(() => onOpenWatching(r.key))} className="row strand-row needs-watch-row">
-                  {/* The detector's own glyph on a neutral disc, and the one grey is how far it has got: the head says
-                      Watching, so no row repeats the word (Dave 2026-10-05, the review). */}
-                  <div className="lib-ico lib-disc watch-disc">{detectorGlyph(r.key)}</div>
+                  {/* The detector's own glyph, bare like the Explore rows below it (one icon style on the screen, round 2
+                      review) and in its subject's tone (a task's red, training's green, a person's teal), never a grey disc.
+                      The one grey is how far it has got: the head says Watching, so no row repeats the word (Dave
+                      2026-10-05, the review). */}
+                  <div className={"lib-ico " + detectorTone(r.key)}>{detectorGlyph(r.key)}</div>
                   <div className="row-grow">
                     <div className="conn-name">{r.label}</div>
                     <div className="facts"><span className="fact">{watchingCount(r)}</span></div>

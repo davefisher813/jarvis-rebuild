@@ -280,21 +280,25 @@ export default function DecisionsFlow({ onBack, openId, openNonce, onOpenConsume
               <BarAction label="Edit" onClick={() => setEditing(true)}>{PEN}</BarAction>
               {!newer && <BarAction label="More" onClick={() => setMenu("more")}><MoreHorizontal className="ic" /></BarAction>}
             </>}
+            // THE DECISION IS THE TITLE (the round 2 review: the biggest type on the page said the generic word "Decision" while the
+            // real call sat in a smaller card under a DECIDED label, and wrapped with a one-word widow). The bar keeps the small
+            // "Decision" so he knows where he is once it scrolls away; the large title is the call itself, edited where it stands,
+            // balanced so no word is left alone, with the day it was recorded as its caption.
+            hero={
+              <>
+                <div className="pagehead-title dec-hero">
+                  <InlineEdit
+                    className="dec-main"
+                    value={d.decision}
+                    display={titleCase}
+                    focused={editing}
+                    onSave={(v) => { if (v && v !== d.decision) void patch(record.id, { decision: v }); }}
+                  />
+                </div>
+                <div className="facts dec-recorded"><span className="fact date">Recorded {fmtShort(d.createdAt)}</span></div>
+              </>
+            }
           />
-
-          <div className="sh2 sh2-quiet"><span className="t">Decided</span></div>
-          <div className="pad-x"><div className="card pad">
-            <InlineEdit
-              className="dec-main"
-              value={d.decision}
-              display={titleCase}
-              focused={editing}
-              onSave={(v) => { if (v && v !== d.decision) void patch(record.id, { decision: v }); }}
-            />
-            {/* WHEN IT WAS RECORDED IS A CAPTION UNDER THE DECISION, not a card of its own (Dave 2026-10-05, the review: a
-                titleless box at the foot holding only "RECORDED OCT 5", the same line the Replaces row already carried). */}
-            <div className="facts dec-recorded"><span className="fact date">Recorded {fmtShort(d.createdAt)}</span></div>
-          </div></div>
 
           <div className="sh2 sh2-quiet"><span className="t">Because</span></div>
           <div className="pad-x"><div className="card pad">
@@ -459,6 +463,9 @@ export default function DecisionsFlow({ onBack, openId, openNonce, onOpenConsume
                   The three words are a CHOICE, one of three, so they are the app's segmented control and not three capsules.
                   The day it was marked is the caption under it. */}
               <div className="pad-x">
+                {/* A control with nothing chosen needs a question over it (the round 2 review: "a flat strip with three bold words
+                    reads like a caption"). Once he has answered, the picked word and its day say it. */}
+                {!d.outcome && <div className="input-hint dec-ask">How Did It Turn Out?</div>}
                 <div className="segmented seg-tri" role="group" aria-label="Outcome">
                   {(["worked", "mixed", "didnt"] as OutcomeWord[]).map((w) => (
                     <button type="button" key={w} aria-pressed={d.outcome?.word === w} className={"seg" + (d.outcome?.word === w ? " active" : "")} onClick={() => void markOutcome(record, w)}>{OUTCOME_LABEL[w]}</button>
@@ -650,19 +657,18 @@ function ListScreen({ live, loading, projCat, onBack, onOpen, onDelete, onAdd }:
                     components.css), still the row's one grey: the facts line
                     under it is dots, the key and small caps. */}
                 {r.data.why && <div className="conn-meta">{"Because " + r.data.why}</div>}
-                {/* THE HOMES AND THE OUTCOME ARE ONE LINE, AND THE DAY IS ITS OWN (Dave 2026-10-05, the review: "Rebuild C..." cut
-                    beside free space; here the dot between them was the casualty of any wrap, so the day sits on a line of its
-                    own whenever the row has a home or an outcome to say). A row with neither has the day alone on its one line. */}
-                {(homes.length > 0 || r.data.outcome) && (
+                {/* ONE FACTS LINE, THE LONG ONE LAST (the round 2 review: a row stacked title, reason, a home and a day into six
+                    lines, and the day changed style from row to row). The short toned facts lead (the day, how it turned out) and
+                    the homes, free text of any length, come last, because only the last fact of a line may give way to an
+                    ellipsis; so the dot is never stranded by a wrap and the day is always in the same place. A neutral date is
+                    SMALL CAPS (§AM F5); a revisit that is due takes the key instead (§AM R8, whenFact): amber today or tomorrow,
+                    red once past. The recorded-on day is always the neutral date. */}
                 <div className="facts">
-                  {homes}
+                  <span className={"fact " + when.tone}>{when.text}</span>
                   {/* How it turned out takes the key: worked is done, mixed needs him, didn't is missed. */}
                   {r.data.outcome && <span className={"fact " + OUTCOME_KEY[r.data.outcome.word]}>{OUTCOME_LABEL[r.data.outcome.word]}</span>}
+                  {homes}
                 </div>
-                )}
-                {/* A neutral date is SMALL CAPS (§AM F5, 2026-09-22). A revisit that is due takes the key instead (§AM R8,
-                    whenFact): amber today or tomorrow, red once past. The recorded-on day is always the neutral date. */}
-                <div className="facts"><span className={"fact " + when.tone}>{when.text}</span></div>
               </div>
               <Chev />
             </div>
@@ -687,7 +693,7 @@ function DecisionNotes({ id, value, onSave }: { id: string; value: string; onSav
       value={value}
       docKey={"decision:" + id}
       level="compact"
-      placeholder="Add the Longer Thinking, If Any"
+      placeholder="Add Notes"
       ariaLabel="Decision notes"
       onChange={(v) => { draft.current = v; }}
       onBlur={() => onSave(draft.current)}

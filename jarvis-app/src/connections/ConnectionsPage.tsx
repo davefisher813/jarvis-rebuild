@@ -3,7 +3,7 @@ import { useSchedule, useProfile } from "../data/NotesProvider";
 import { useGoogle } from "./google/GoogleSession";
 import { googleConfigured } from "./google/config";
 import { importCalendar } from "./google/sync";
-import { Mail, CalendarDays, Link2, Plus, RotateCcw } from "../shared/icons";
+import { Mail, CalendarDays, Link2, RotateCcw } from "../shared/icons";
 import { FormSheet, Group, SwitchRow, Row as SheetRow, DeleteRow } from "../shared/FormSheet";
 import RowCtxAction from "../shared/RowCtxAction";
 import { WRITE_FAILED_MESSAGE } from "../shared/guard";
@@ -163,39 +163,30 @@ export default function ConnectionsPage({
             <button className="see-all pill-action" disabled={!configured || busy} onClick={addAccount}>{busy ? "Connecting" : "Add Account"}</button>
           </span>
         )}
+        {/* THE ONE CAPSULE OF AN EMPTY SCREEN IS THE HEAD'S (D9, the round 2 review): with no account yet, Connect Google is the way in, drawn in the head
+            like every other empty screen's capsule and not as a filled block under the words. With no Google client there is nothing to tap, so no capsule. */}
+        {g.accounts.length === 0 && configured && (
+          <button className="see-all pill-action" disabled={busy} onClick={addAccount}>{busy ? "Connecting" : "Connect Google"}</button>
+        )}
       </div>
-      {/* THE SETUP CARD SIZES TO ITS WORDS (Dave 2026-10-05, "stretches full height"). The bare .empty-state is the
-          whole-screen empty page (min-height 65vh); inside a card on a screen that goes on to other sections it is
-          .empty-compact, or one title and an icon drew a card as tall as the phone. It stands in for "No Accounts
-          Yet" when Google is not set up (the one reason there are none), so the screen says it once, and it sits
-          under the Accounts head it explains, not above the screen. */}
-      {!configured && (
-        <div className="pad-x"><div className="card list-card-ruled"><div className="empty-state empty-compact">
-          <div className="empty-icon cat-fg-blue"><Link2 className="ic" /></div>
-          <div className="empty-title">Google Setup Required</div>
-          {/* The one line it was missing (2026-10-05): the old grey line said the title again, which was cut; this says WHY and
-              who it waits on, so the card is a calm note and not a dead end. There is nothing to tap until the build has a Google client. */}
-          <div className="empty-sub">Google Sign-In Is Not Switched On for This Build</div>
-        </div></div></div>
-      )}
+      {/* THE ONE EMPTY STATE (D9, the round 2 review: Connections drew its empty state inside a card while Email Sections and What JARVIS Learned drew
+          theirs bare, at three different heights). A screen that is empty says so with the app's one primitive: the glyph in its type's colour, a Title Case
+          title, ONE warm line, bare under the head it belongs to. No card, and no engineering vocabulary: with no Google client in this build there is
+          nothing to tap, so it says plainly that sign-in is on its way, and the capsule appears in the head the moment there is something to do. */}
       {g.accounts.length === 0 ? (
-        <>
-          {configured && (
-            <div className="pad-x"><div className="card list-card-ruled"><div className="empty-state empty-compact">
-              <div className="empty-icon cat-fg-teal"><Mail className="ic" /></div>
-              <div className="empty-title">No Accounts Yet</div>
-            </div></div></div>
-          )}
-          {/* With no client id there is nothing to connect to, and the card above says so: a greyed primary under it
-              repeated that as a dead control (2026-10-05, a control that cannot act is not drawn). */}
-          {configured && (
-            <div className="pad-x conn-action">
-              <button className="btn btn-primary btn-block" disabled={busy} onClick={addAccount}>
-                <Plus className="ic" /> {busy ? "Connecting..." : "Connect Google"}
-              </button>
-            </div>
-          )}
-        </>
+        !configured ? (
+          <div className="empty-state empty-compact">
+            <div className="empty-icon cat-fg-blue"><Link2 className="ic" /></div>
+            <div className="empty-title">Google Is Not Connected Yet</div>
+            <div className="empty-sub">Mail and Calendar Join Once Sign-In Opens</div>
+          </div>
+        ) : (
+          <div className="empty-state empty-compact">
+            <div className="empty-icon cat-fg-teal"><Mail className="ic" /></div>
+            <div className="empty-title">No Accounts Yet</div>
+            <div className="empty-sub">Connect Google to Bring in Mail and Calendar</div>
+          </div>
+        )
       ) : (
         <div className="pad-x"><div className="card list-card-ruled">
           {g.accounts.map((a) => {

@@ -10,7 +10,7 @@ import { fmtTime } from "../schedule/calendar";
 import { showToast } from "../shared/toast";
 import { attemptWrite } from "../shared/guard";
 import { useAccessToken } from "../data/NotesProvider";
-import { currentStatus, enableWebPush, disableWebPush, sendTestAlert, resubscribeIfNeeded, footFor, reasonFor, switchLocked, type WebPushStatus } from "../shared/webPush";
+import { currentStatus, enableWebPush, disableWebPush, sendTestAlert, resubscribeIfNeeded, reasonFor, switchLocked, type WebPushStatus } from "../shared/webPush";
 
 // WHY THE SWITCH IS LOCKED, AS A META LINE (2026-10-05, Dave "I am sick of
 // this"). shared/webPush.reasonFor is written for a toast: sentences, and for
@@ -20,23 +20,26 @@ import { currentStatus, enableWebPush, disableWebPush, sendTestAlert, resubscrib
 // keeps reasonFor; the row says the same thing in one short Title Case fragment.
 const WEB_META: Partial<Record<WebPushStatus, string>> = {
   "no-sw": "Not Supported in This Browser",
-  "not-standalone": "Add JARVIS to Your Home Screen First",
+  "not-standalone": "Needs the Home Screen App",
   "no-push": "Needs iOS 16.4 or Newer, from the Home Screen",
   "denied": "Blocked in Phone or Browser Settings",
   "no-key": "The Server Has No Push Key Yet",
 };
 const webMeta = (status: WebPushStatus): string | undefined => WEB_META[status];
 
-// THE NOTE UNDER THE ALERTS ROW (2026-10-05, Dave "he opens the app and finds nothing": the only reason the Alerts
-// switch looked dead was a line at the very foot of the page, behind the dock). It now sits directly under the card that
-// holds the switch. shared/webPush.footFor keeps the words for the states that have no typed dot; the three that do
-// (off, on, denied) are written here as one sentence each, because a note never carries a dot typed in its text.
+// THE NOTE UNDER THE ALERTS ROW SAYS ONLY WHAT THE ROW DOES NOT (2026-10-05, the round 2 review: "Add JARVIS to Your Home
+// Screen First" on the row and the same instruction in full, in italics, an inch below it, on the first card of the page).
+// Where the switch is locked the row's grey line already names the state, so the note carries the one thing the row has no
+// room for (the steps, or the way out) and nothing for a state the row has said whole. The three states that have a working
+// switch (off, on) keep their sentence, because the row has nothing to say there; each is one sentence with no typed dot.
+// An empty string draws no note at all.
 export function webNote(status: WebPushStatus | null): string {
-  if (status === null) return "Checking whether this phone can get alerts";
+  if (status === null) return "";
   if (status === "off") return "Turn on Alerts on This Phone and iOS will ask to allow notifications, and it is all alerts or none, since the switches below only shape the Notifications screen inside the app";
   if (status === "on") return "Alerts arrive on this phone, all alerts or none, and the switches below only shape the Notifications screen inside the app";
-  if (status === "denied") return "Notifications are off for JARVIS in iOS Settings, so turn them on under Notifications, JARVIS";
-  return footFor(status);
+  if (status === "not-standalone") return "Tap Share, then Add to Home Screen, then open JARVIS from there";
+  if (status === "denied") return "Turn them on under Notifications, JARVIS in iOS Settings";
+  return "";
 }
 
 type Prefs = { overdue: boolean; events: boolean; goals: boolean; checkins: boolean };
@@ -177,7 +180,7 @@ export default function NotificationsPage({ onBack }: { onBack: () => void }) {
               onLocked={() => { if (web !== null && switchLocked(web)) showToast({ message: reasonFor(web) }); }} />
             {web === "on" && <Row label={webTesting ? "Sending" : "Send a Test Alert"} meta="Arrives in a Few Seconds" onClick={() => void sendWebTest()} disabled={webTesting} chev />}
           </Card>
-          <Foot>{webNote(web)}</Foot>
+          {webNote(web) && <Foot>{webNote(web)}</Foot>}
         </>
       )}
       <Head label="Tell Me About" />
@@ -212,7 +215,9 @@ export default function NotificationsPage({ onBack }: { onBack: () => void }) {
           holds for every switch the web shows.) */}
       <Head label="Reminders" />
       <Card>
-        <Menu label="Morning" meta="For Tomorrow Morning" value={morning} word={morningWord(morning)} ariaLabel="Morning time"
+        {/* THE TITLE SAYS WHAT IT IS, AND THE ROW HAS NO SECOND LINE (2026-10-05, the round 2 review: "Morning" over "For Tomorrow Morning" said the same
+            two words twice). The name is the whole of it. */}
+        <Menu label="Tomorrow Morning" value={morning} word={morningWord(morning)} ariaLabel="Morning time"
           options={["06:00", "06:30", "07:00", "07:30", "08:00", "08:30", "09:00", "09:30", "10:00"].map((v) => ({ value: v, label: morningWord(v) }))}
           onPick={(v) => { setMorning(v); setMorningTime(v); }} />
         {native && <Row label={testing ? "Sending" : "Send a Test Reminder"} meta={denied ? "Off in iOS Settings" : `Arrives in ${TEST_REMINDER_DELAY_S} Seconds`} onClick={() => void sendTest()} disabled={denied || testing} chev />}

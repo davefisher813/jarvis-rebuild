@@ -214,7 +214,7 @@ function quietRow(people: DerivePerson[], nowMs: number): Built {
       : "Needs somebody you labelled, and a last contact JARVIS knows";
   return {
     key: "gone_quiet", label: "Who Has Gone Quiet",
-    have: candidates.length, need: 1, unit: "labelled people",
+    have: candidates.length, need: 1, unit: "labeled people",
     detail, speaks: spoken ? "gone_quiet" : null,
   };
 }

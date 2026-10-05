@@ -61,6 +61,9 @@ export default function LearnedRulesPage({ onBack }: { onBack: () => void }) {
           twice the height). The name stays what the app calls it everywhere; the display title steps down one size so all of it fits the line. */}
       <PageHeader title="What JARVIS Learned" back="Settings" onBack={onBack}
         hero={<div className="pagehead-title pagehead-title-fit">What JARVIS Learned</div>} />
+      {/* THE SAME EMPTY SCREEN AS CONNECTIONS AND EMAIL SECTIONS (D9, the round 2 review: three whole-screen empties, three heights): the head the rules
+          will live under, then the app's one bare empty state. There is no capsule because nothing here is added by hand. */}
+      {loaded && rules.length === 0 && <Head label="Rules" />}
       {loaded && rules.length === 0 && (
         <div className="empty-state empty-compact">
           {/* D9: a crafted empty state, the type's glyph and colour, the title, one warm line. */}

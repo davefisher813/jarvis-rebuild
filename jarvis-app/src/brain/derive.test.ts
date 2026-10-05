@@ -60,7 +60,8 @@ describe("completion window", () => {
     const gym = Array.from({ length: 30 }, (_, i) => row({ h: 18, kind: "workout", day: `2026-08-${String((i % 20) + 1).padStart(2, "0")}` }));
     const d = deriveCompletionWindow([...done(12, 10), ...gym])!;
     expect(d.title).toBe("Your tasks get done between 8 AM and 11 AM");
-    expect(d.sub).toBe("12 Finishes There, Out of Your Last 12");
+    // The band holds ALL of the evidence, so the second figure would only repeat the first (round 2 review).
+    expect(d.sub).toBe("12 Finishes in That Window");
     // And sessions alone never produce the derivation at all.
     expect(deriveCompletionWindow(gym)).toBeNull();
   });

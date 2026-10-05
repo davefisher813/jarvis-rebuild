@@ -1,5 +1,5 @@
 import type { CompletionSample } from "../shared/timeSense";
-import { weekStartISO } from "./receipts";
+import { weekStartISO, uniqueCompletions } from "./receipts";
 import { shortDate } from "../shared/dateFormat";
 
 // The Record (2026-08-10, Dave: "we should have records and insight...
@@ -72,7 +72,8 @@ export function categoryRecord(
   todayIso: string,
   cap = 5,
 ): CategoryRecord {
-  const mine = samples.filter((s) => s.cat === categoryId);
+  // One completion per task per day, so a tick, un-tick and tick again is one row and one count (receipts.ts).
+  const mine = uniqueCompletions(samples).filter((s) => s.cat === categoryId);
   const startMs = new Date(weekStartISO(todayIso) + "T00:00:00").getTime();
   const lastStartMs = startMs - 7 * 86400000;
   const thisWeek = mine.filter((s) => s.t >= startMs).length;
@@ -87,7 +88,10 @@ export function categoryRecord(
     const s = mine[i]!;
     const text = s.id ? textOf.get(s.id) : undefined;
     if (!text) continue;
-    recent.push({ key: `${s.id}:${s.t}`, text, when: whenLabel(s.t, todayIso) });
+    // Two tasks that share a title and were finished the same day read as one row repeated (the list is names, not ids).
+    const when = whenLabel(s.t, todayIso);
+    if (recent.some((r) => r.text === text && r.when === when)) continue;
+    recent.push({ key: `${s.id}:${s.t}`, text, when });
   }
 
   let insight: string | null = null;

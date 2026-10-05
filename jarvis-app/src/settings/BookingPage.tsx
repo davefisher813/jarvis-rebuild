@@ -4,7 +4,7 @@ import { Head, Card, Switch, Foot, DangerRow } from "./kit";
 import { pressable } from "../shared/pressable";
 import { lineCase } from "../shared/casing";
 import {
-  readBookingSettings, updateBookingSettings, DURATIONS, WHO_LABEL,
+  readBookingSettings, updateBookingSettings, DURATIONS,
   type BookingSettings, type BookingDuration,
 } from "../booking/settings";
 import { readLink, saveLink, removeLink, linkUrl, type LinkFace } from "../booking/link";
@@ -28,7 +28,8 @@ import { Link2, CalendarDays } from "../shared/icons";
 // the screen asks for both rather than deciding either. What was once an
 // honest note about a server that did not exist is now a published address and
 // the list of people who have used it.
-const DAYS = ["M", "T", "W", "T", "F", "S", "S"];
+// TWO LETTERS, SO NO TWO DAYS READ ALIKE (2026-10-05, the round 2 review: a lone T and a lone S were each two different days).
+const DAYS = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"];
 const DAY_FULL = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
 /** The day and time of a booking, on this device's clock, because that is the
@@ -192,8 +193,10 @@ export default function BookingPage({
         <Switch label="Available for Booking" meta={s.available ? lineCase(`${s.days.length} ${s.days.length === 1 ? "day" : "days"} a week`) : "Nobody Can Book You"} on={s.available} onToggle={() => set({ available: !s.available })} />
         <div className="row set-row">
           {/* SEVEN EQUAL COLUMNS, NOT A SCROLLING STRIP (2026-10-05): the strip clipped and faded its seventh chip, so Saturday
-              and Sunday, both off, drew as two different states. A grid shows all seven whole, every one the same off style. */}
-          <div className="set-grid set-grid-days" role="group" aria-label="Days you take bookings">
+              and Sunday, both off, drew as two different states. A grid shows all seven whole, every one the same off style.
+              WITH AVAILABLE OFF THE GROUP IS WASHED (the round 2 review: "Nobody Can Book You" over five fully lit days). Still a tap
+              away, so a person can set the week before turning it on, but it no longer reads as live. */}
+          <div className={"set-grid set-grid-days" + (s.available ? "" : " set-grid-off")} role="group" aria-label="Days you take bookings">
             {DAYS.map((d, i) => (
               <div key={i} {...pressable(() => toggleDay(i))} className={"chip" + (s.days.includes(i) ? " active" : "")} aria-pressed={s.days.includes(i)} aria-label={DAY_FULL[i]}>{d}</div>
             ))}
@@ -204,24 +207,10 @@ export default function BookingPage({
       <Card>
         <div className="row set-row">
           {/* FOUR EQUAL COLUMNS (2026-10-05): the wrapping row left 60 Min alone on a second line. One choice of four is one row. */}
-          <div className="set-grid set-grid-slots" role="group" aria-label="Slot length">
+          <div className={"set-grid set-grid-slots" + (s.available ? "" : " set-grid-off")} role="group" aria-label="Slot length">
             {DURATIONS.map((m) => (
               <div key={m} {...pressable(() => set({ durationMin: m as BookingDuration }))} className={"chip" + (s.durationMin === m ? " active" : "")} aria-pressed={s.durationMin === m}>{lineCase(`${m} min`)}</div>
             ))}
-          </div>
-        </div>
-      </Card>
-      {/* ONE ANSWER, NOT A MENU (2026-10-04). The server serves the link to
-          anyone who holds it: it never reads who may book, and a link made
-          visible to "named contacts" answered 404 to everyone because there is
-          no way to name one. So there is nothing to choose, and a menu over
-          one working answer would be a control that does nothing. */}
-      <Head label="Who Can Book" />
-      <Card>
-        <div className="row">
-          <div className="row-grow">
-            <div className="conn-name">{WHO_LABEL.anyone}</div>
-            <div className="conn-meta">Not Listed Anywhere</div>
           </div>
         </div>
       </Card>
@@ -252,6 +241,10 @@ export default function BookingPage({
           </div>
         )}
       </Card>
+      {/* ONE ANSWER, SAID AS A NOTE (2026-10-04, then the round 2 review). The server serves the link to anyone who holds it and never reads
+          who may book, so there is nothing to choose, and a card in the settings style with no control in it read as a setting that did
+          nothing. It is a field note under the link it is about. */}
+      <Foot>Anyone with the link can book, and it is not listed anywhere</Foot>
       <Foot>Your times stay on this device until you publish them to the booking server</Foot>
       <Foot>Taking the link down never cancels a booking you already have</Foot>
       {/* THE ADD IS THE HEAD'S (Dave 2026-10-05, locked); the card keeps its own words when there are no days off (an empty state with a title of its own, rule 12). */}

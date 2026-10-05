@@ -17,8 +17,14 @@ const Chev = () => (
 interface BrainRow { key: string; name: string; icon: ReactNode; color: string; status?: string }
 // CATALOG V4 (Dave 2026-08-18, "the brain has way too many sections"): the
 // three labeled sections collapsed into ONE flat headerless nav list, glyphs
-// filled (Apple Music Library form), each in its own tone since 2026-10-05. ONE people row survives from
+// filled (Apple Music Library form). ONE people row survives from
 // 2026-08-03 (Inner Circle / Adversarial stay cut).
+//
+// THREE TONES, EACH WITH A MEANING (the round 2 review, 2026-10-05: "eight hues for eight destinations is a rainbow with
+// no meaning", and Insights wore Event's sky). Purple is the Brain's own memory (what JARVIS knows, the insights and
+// decisions it keeps, the documents that teach it), teal is the people (the same teal a person wears everywhere), and the
+// grey glyph is a place that is set-up rather than knowledge (the routine, the AI Hub). Colour says whose it is, not which
+// row it is.
 const NAV_ROWS: BrainRow[] = [
   // Brain Layer 2 (item 04): the genome made visible. One row, keeping the
   // hub's one-flat-list law; the strands live on their own page behind it.
@@ -26,18 +32,18 @@ const NAV_ROWS: BrainRow[] = [
   // Insights (2026-08-25, the Life View): this month still open, the sealed
   // shelf, and the life layer. The key stays "month" so old deep links and
   // the report's arrival path keep working. One row, same flat-list law.
-  { key: "month", name: "Insights", icon: filledIcon("month"), color: "cat-fg-sky" },
+  { key: "month", name: "Insights", icon: filledIcon("month"), color: "cat-fg-purple" },
   { key: "contacts", name: "Contacts", icon: filledIcon("contacts"), color: "cat-fg-teal" },
-  { key: "decisions", name: "Decisions", icon: filledIcon("decisions"), color: "cat-fg-orange" },
+  { key: "decisions", name: "Decisions", icon: filledIcon("decisions"), color: "cat-fg-purple" },
   // THE AI HUB (docs/jarvis-unified, slice 04): assistants, the review of
   // what they suggested, and the receipts. Under Brain, as the spec asks (no
   // seventh tab), and only when the substrate flag is on, so a build whose
   // database has not got migrations 0044 to 0047 shows nothing new.
-  ...(flagOn("substrate_v1") ? [{ key: "aihub", name: "AI Hub", icon: filledIcon("aihub"), color: "cat-fg-blue" } as BrainRow] : []),
-  { key: "philosophy", name: "Life Philosophy", icon: filledIcon("philosophy"), color: "cat-fg-indigo" },
-  { key: "writing", name: "How You Write", icon: filledIcon("writing"), color: "cat-fg-pink" },
-  { key: "values", name: "Values", icon: filledIcon("values"), color: "cat-fg-mint" },
-  { key: "routine", name: "Your Routine", icon: filledIcon("routine"), color: "cat-fg-blue" },
+  ...(flagOn("substrate_v1") ? [{ key: "aihub", name: "AI Hub", icon: filledIcon("aihub"), color: "lib-ico-neutral" } as BrainRow] : []),
+  { key: "philosophy", name: "Life Philosophy", icon: filledIcon("philosophy"), color: "cat-fg-purple" },
+  { key: "writing", name: "How You Write", icon: filledIcon("writing"), color: "cat-fg-purple" },
+  { key: "values", name: "Values", icon: filledIcon("values"), color: "cat-fg-purple" },
+  { key: "routine", name: "Your Routine", icon: filledIcon("routine"), color: "lib-ico-neutral" },
 ];
 // The Setup section (Onboarding, Backup) was removed 2026-08-03: both rows
 // were Settings wearing a Brain costume, and both dead-ended in "coming soon"
@@ -73,12 +79,12 @@ export default function BrainPage({
   const [bands, setBands] = useState(memo?.bands ?? 0);
   // Catalog V3.1 library form (approved 2026-08-18, the Apple Music look):
   // ICON LAW (Dave 2026-08-22): in a list, an icon is FILLED, and color says
-  // whose it is. THE TONE IS THE DESTINATION'S OWN (Dave 2026-10-05, the
+  // whose it is. Brand red is for what can be tapped (Dave 2026-10-05, the
   // review: "all eight icons are solid brand red, which dilutes the real
-  // action colour"): brand red is for what can be tapped, and a glyph that
-  // only names a place is not a tap target, so each wears its own hue through
-  // .cat-fg-* (light takes the 3:1 glyph twin). Outline glyphs are the
-  // inside-a-card state and no longer appear in nav lists.
+  // action colour"), and a glyph that only names a place is not a tap target,
+  // so it wears one of the three tones above through .cat-fg-* (light takes the
+  // 3:1 glyph twin). Outline glyphs are the inside-a-card state and no longer
+  // appear in nav lists.
   const Row = (r: BrainRow) => (
     <div {...pressable(() => onOpen(r.key, r.name))} className="lib-row" key={r.key}>
       <div className={"lib-ico " + r.color}>{r.icon}</div>

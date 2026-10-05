@@ -57,8 +57,30 @@ describe("categoryRecord", () => {
   });
 
   it("caps the list", () => {
-    const samples = Array.from({ length: 9 }, () => at(TODAY, 8, "c1", "t1"));
+    // Nine different days of the same recurring task: nine real completions, so the cap is what stops the list at five.
+    const days = ["2026-07-25", "2026-07-26", "2026-07-27", "2026-07-28", "2026-07-29", "2026-07-30", "2026-07-31", "2026-08-01", "2026-08-02"];
+    const samples = days.map((d) => at(d, 8, "c1", "t1"));
     expect(categoryRecord("c1", samples, TASKS, TODAY, 5).recent).toHaveLength(5);
+  });
+
+  // ONE TASK, ONE COMPLETION A DAY (the round-2 review: "180 done next to a 5-row list", and "Ship the New Landing Hero" listed twice).
+  // A tick, an un-tick and a tick again stamps a sample each time it lands, and none of them is taken back.
+  it("a task ticked three times in one day is one row and one count, not three", () => {
+    const samples = [at(TODAY, 8, "c1", "t1"), at(TODAY, 9, "c1", "t1"), at(TODAY, 10, "c1", "t1")];
+    const r = categoryRecord("c1", samples, TASKS, TODAY);
+    expect(r.recent.map((e) => e.text)).toEqual(["Take out trash"]);
+    expect(r.thisWeek).toBe(1);
+  });
+
+  it("the same task on two different days is two completions, in two groups", () => {
+    const r = categoryRecord("c1", [at("2026-08-09", 8, "c1", "t1"), at(TODAY, 8, "c1", "t1")], TASKS, TODAY);
+    expect(r.recent.map((e) => e.when)).toEqual(["Today", "Yesterday"]);
+  });
+
+  it("two tasks that share a title and finish the same day read as one row", () => {
+    const twins = [{ id: "a", data: { text: "Ship Hero" } }, { id: "b", data: { text: "Ship Hero" } }];
+    const r = categoryRecord("c1", [at(TODAY, 8, "c1", "a"), at(TODAY, 9, "c1", "b")], twins, TODAY);
+    expect(r.recent).toHaveLength(1);
   });
 
   it("insight needs history and a clear winner", () => {

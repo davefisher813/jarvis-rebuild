@@ -42,7 +42,6 @@ const base = {
   overview: periodOverview(workouts, null, [], periodFor("7d", today)),
   findings: [], logActions: [],
   onStart: () => {}, onAdjustTime: () => {}, onOpenGym: () => {}, onOpenRecords: () => {}, onOpenFinding: () => {},
-  onOpenInsights: () => {}, onOpenAllData: () => {},
   view: "health" as const, onView: () => {},
 };
 
@@ -84,8 +83,8 @@ describe("the Health page's three doors", () => {
     render(<HealthBody {...base} />);
     expect(screen.queryByText("Exercises")).toBeNull();
     expect(screen.queryByText("Program")).toBeNull();
-    // Insights and All Data are their own doors under Your Progress; none of the three above them is drawn.
-    expect([...document.querySelectorAll(".h-door-k")].map((e) => e.textContent)).toEqual(["Insights", "All Data"]);
+    // Insights and All Data are the segmented control at the top, never door rows too (Dave 2026-10-05, round-2 review).
+    expect(document.querySelectorAll(".h-door-k")).toHaveLength(0);
   });
 
   it("sits under the week and above the next workout", () => {
@@ -326,16 +325,51 @@ describe("the Health page wears the row-action model (2026-10-05)", () => {
     expect(screen.getByText("Bedtime")).toBeInTheDocument();
   });
 
-  it("Insights, All Data and Customize are door rows with a chevron", () => {
-    const onOpenInsights = vi.fn();
-    const onOpenAllData = vi.fn();
+  it("Customize is a door row with a chevron, and Insights and All Data are the segments only", () => {
     const onOpenSettings = vi.fn();
-    render(<HealthBody {...withNext} onOpenInsights={onOpenInsights} onOpenAllData={onOpenAllData} onOpenSettings={onOpenSettings} />);
-    for (const [label, fn] of [["Insights", onOpenInsights], ["All Data", onOpenAllData], ["Customize", onOpenSettings]] as const) {
-      const door = [...document.querySelectorAll(".h-door")].find((d) => d.querySelector(".h-door-k")?.textContent === label)!;
-      expect(door.querySelector(".chev")).not.toBeNull();
-      fireEvent.click(door);
-      expect(fn).toHaveBeenCalledTimes(1);
-    }
+    render(<HealthBody {...withNext} onOpenSettings={onOpenSettings} />);
+    const door = [...document.querySelectorAll(".h-door")].find((d) => d.querySelector(".h-door-k")?.textContent === "Customize")!;
+    expect(door.querySelector(".chev")).not.toBeNull();
+    fireEvent.click(door);
+    expect(onOpenSettings).toHaveBeenCalledTimes(1);
+    // The same two words are not door rows as well as the segmented control above (the round-2 review).
+    const doorLabels = [...document.querySelectorAll(".h-door-k")].map((e) => e.textContent);
+    expect(doorLabels).not.toContain("Insights");
+    expect(doorLabels).not.toContain("All Data");
+  });
+});
+
+// A ZERO HAS NO STATE (Dave 2026-10-05, D4; the round-2 review: "0 Workouts" and "0 Working Sets" drawn in large lime, a second
+// green beside the done tick). The state is a class on the number, so the stylesheet can paint a zero white and a real count in
+// the one done green; and the empty Your Progress card is the app's empty state with its glyph.
+describe("the Health week card's numbers wear a state only when they have one", () => {
+  const quiet = { ...base, workouts: [], overview: periodOverview([], null, [], periodFor("7d", today)) };
+
+  it("a week with no workout and no set marks both numbers as zero, so neither is the done green", () => {
+    render(<HealthBody {...quiet} />);
+    expect(document.querySelector(".h-week-count")).toHaveClass("zero");
+    const sets = screen.getByText("Working Sets").closest(".h-stat") as HTMLElement;
+    expect(sets).not.toHaveClass("lime");
+  });
+
+  it("a week with a workout does not mark the count as zero", () => {
+    const busy = { ...base, overview: { ...base.overview, workouts: 2, workingSets: 14 } };
+    render(<HealthBody {...busy} />);
+    expect(document.querySelector(".h-week-count")).not.toHaveClass("zero");
+    expect(screen.getByText("Working Sets").closest(".h-stat")).toHaveClass("lime");
+  });
+
+  it("Your Progress with nothing to read is the one empty state, with its glyph", () => {
+    render(<HealthBody {...quiet} />);
+    const state = screen.getByText("Nothing to Read Yet").closest(".empty-state") as HTMLElement;
+    expect(state.querySelector(".empty-icon")).not.toBeNull();
+  });
+
+  it("the Next Workout card's Today or Tomorrow is amber text and a gym block's time is never split from AM or PM", () => {
+    render(<HealthBody {...base} gymEvent={{ start: "15:30" }} />);
+    const when = document.querySelector(".h-hero-facts .fact.warn, .h-hero-facts .fact.date") as HTMLElement;
+    expect(when).toHaveClass("warn");
+    expect(when).not.toHaveClass("date");
+    expect(when.textContent).toMatch(/^Today 3:30\u00a0PM$/);
   });
 });

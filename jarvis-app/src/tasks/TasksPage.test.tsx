@@ -180,11 +180,12 @@ describe("TasksPage", () => {
     expect(container.querySelector(".task-check[class*=cat-bd]")).toBeNull();
     expect(container.querySelector(".r-bar")).toBeNull();
     expect(container.querySelector(".r-parent .r-pg.cat-fg-sky .r-pdot")).toBeTruthy();
-    // The chip says the distance, in the late colour.
-    expect(container.querySelector(".uchip.u-late")).toHaveTextContent("2 DAYS LATE");
+    // The distance is a fact in the late colour: text, never a filled chip (Dave 2026-10-05, D10).
+    expect(container.querySelector(".r-k .fact.red")).toHaveTextContent("2 Days Late");
+    expect(container.querySelector(".uchip")).toBeNull();
     // LAW 11 (2026-08-29): TODAY never renders on the filter named for it,
-    // so the due-today row wears no chip here...
-    expect(container.querySelector(".uchip.u-today")).toBeNull();
+    // so the due-today row says nothing here...
+    expect(container.querySelector(".r-k .fact.warn")).toBeNull();
     // ...and with no goal, the second line names the category, plainly.
     expect(container.querySelector(".r-goal.r-parent")).toHaveTextContent("Ridgeley");
     expect(container.querySelector(".r-is-goal")).toBeNull();
@@ -194,8 +195,9 @@ describe("TasksPage", () => {
     const { container } = render(
       <TasksPage filter="all" counts={counts} items={[tk("due", "2026-05-20")]} today="2026-05-20" />,
     );
-    // ...and wears it as a chip everywhere the filter does not already say it.
-    expect(container.querySelector(".uchip.u-today")).toHaveTextContent("TODAY");
+    // ...and wears it as amber text, not a chip, everywhere the filter does not already say it (D10).
+    expect(container.querySelector(".r-k .fact.warn")).toHaveTextContent("Today");
+    expect(container.querySelector(".uchip")).toBeNull();
   });
 
   it("the parent's own glyph leads the line: pie for a project, target for a goal, dot for a category", () => {
@@ -508,9 +510,10 @@ describe("MomentumRow (Dave 2026-09-16)", () => {
     expect(container.querySelector(".task-done-rail")).toHaveTextContent("Done");
     expect(container.querySelector(".task-check-tap")).toBeInTheDocument();
     expect(screen.getByText("Keep Going")).toHaveClass("slide-tag");
-    // AMENDED 2026-09-26 (§AM): the due half wears the key as the task row's
-    // own distance chip, and the reason keeps only the shared area in grey.
-    expect(container.querySelector(".uchip.u-today")).toHaveTextContent("TODAY");
+    // AMENDED 2026-10-05 (D10): the due half wears the key as the task row's
+    // own distance fact (amber text, no fill), and the reason keeps only the shared area in grey.
+    expect(container.querySelector(".r-k .fact.warn")).toHaveTextContent("Today");
+    expect(container.querySelector(".uchip")).toBeNull();
     // AMENDED 2026-09-26 (pass-off): Title Case on every line the app writes.
     expect(screen.getByText("Same Area")).toHaveClass("r-goal", "r-cat");
     expect(screen.queryByText(/due today/)).toBeNull();

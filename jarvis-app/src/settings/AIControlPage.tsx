@@ -12,7 +12,7 @@ import { clearBudgetBlock } from "../ai/budgetBlock";
 import { parseDollarsToMicro } from "../ai/limitInput";
 import { showToast } from "../shared/toast";
 import { titleCase } from "../shared/casing";
-import { Head, Card, Row, Menu, Switch, focusField } from "./kit";
+import { Head, Card, Row, Menu, Switch, Foot, focusField } from "./kit";
 import { attemptWrite } from "../shared/guard";
 
 const LEVEL_LABEL: Record<AILevel, string> = {
@@ -193,11 +193,12 @@ export default function AIControlPage({ onBack }: { onBack: () => void }) {
     <div className="screen ruled">
       <LargeTitleNav title="AI Control" back="Settings" onBack={onBack} />
       <Card>
-        {/* A row with nothing to say shows nothing (2026-10-05): "On" and "Off,
-            nothing runs" only repeated the switch beside them, and the Off level
-            below already says nothing runs. Only the admin's block is news. */}
-        <Switch label="AI" meta={adminOff ? "Turned Off by Admin" : undefined} on={aiOn} onToggle={toggleAI} ariaLabel="AI on or off" locked={adminOff} onLocked={sayAdminOff} />
+        {/* THE MASTER SWITCH SAYS WHAT IT IS (2026-10-05, the round 2 review: a card holding one word, "AI", and a toggle, with no line and no
+            relation to the level under it). The row's grey line is the one thing it has to say, and the admin's block replaces it because that
+            is the news; the note under the card says how the switch and the level relate. */}
+        <Switch label="AI Features" meta={adminOff ? "Turned Off by Admin" : "Turn Every AI Feature On or Off"} on={aiOn} onToggle={toggleAI} ariaLabel="AI on or off" locked={adminOff} onLocked={sayAdminOff} />
       </Card>
+      <Foot>The level below sets how much AI does while this is on, and Off there means the same as this switch</Foot>
       <Head label="AI Level" />
       <Card>
         {AI_LEVELS.map((l) => (

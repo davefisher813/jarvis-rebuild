@@ -291,7 +291,7 @@ export default function ProjectDetailPage({
                     {t.due && (
                       <div className="r-k">
                         {dist
-                          ? <span className={"uchip " + (dist.kind === "late" ? "u-late" : "u-today")}>{dist.label}</span>
+                          ? <span className={"r-goal fact " + (dist.kind === "late" ? "red" : "warn")}>{lineCase(dist.label.toLowerCase())}</span>
                           : today && dayTone(t.due, today) === "warn"
                             ? <span className="r-goal fact warn">Tomorrow</span>
                             : <span className="fact date">{today ? dayPhrase(t.due, today) : fmtDay(t.due)}</span>}

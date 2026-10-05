@@ -337,7 +337,7 @@ export default function GoalDetailPage({
                 </div>
                 <div className="task-title">
                   <span className="task-name">{titleCase(m.text)}</span>
-                  {m.done && <div className="r-k"><span className="uchip u-done">Done {monthDay(m.done)}</span></div>}
+                  {m.done && <div className="r-k"><span className="r-goal fact good">Done {monthDay(m.done)}</span></div>}
                 </div>
               </div>
             ))}

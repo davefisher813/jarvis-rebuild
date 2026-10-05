@@ -38,6 +38,12 @@ describe("the home email surface", () => {
     expect(n[0]!.action).toBe("Reply");
   });
 
+  it("a reply notice wears the Email teal, never a third blue (round 3 review: a type icon wears its type's colour)", () => {
+    const n = mailNotices(snap({ needsYou: 1, threads: [thread("t1")] }), TODAY, NOW);
+    expect(n[0]!.kind).toBe("reply");
+    expect(n[0]!.tone).toBe("cat-fg-teal");
+  });
+
   it("pulls the sender's own deadline out and makes it a task", () => {
     const n = mailNotices(snap({ needsYou: 1, threads: [thread("t1", { by: "today" })] }), TODAY, NOW);
     expect(n[0]!.kind).toBe("deadline");
