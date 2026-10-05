@@ -10,6 +10,7 @@ import App from "./App";
 import ErrorBoundary from "./monitoring/ErrorBoundary";
 import { initMonitoring } from "./monitoring/monitor";
 import { startAppUrlListener } from "./native/appUrl";
+import { hideKeyboardAccessoryBar } from "./native/keyboard";
 import { trackVisualViewport } from "./shared/viewport";
 import { checkBuild } from "./shared/buildCheck";
 import { reloadOnWorkerUpdate } from "./shared/serviceWorkerReload";
@@ -34,6 +35,9 @@ trackVisualViewport();
 // magic link and the widget deep links. A no-op on the web and on a native
 // build with no @capacitor/app pod yet.
 void startAppUrlListener();
+// The native shell hides iOS's own accessory pill and the writing bar goes compact
+// (native/keyboard.ts). A no-op on the web.
+void hideKeyboardAccessoryBar();
 
 // Catalog V3.1 motion: lists stagger on FIRST PAINT only. The class lives on
 // body for the boot moment and is gone before any tab switch, so switches

@@ -9,6 +9,7 @@
 // deep-linking into questions that already exist on Today. Never more, never
 // guilt.
 import { Capacitor } from "@capacitor/core";
+import { registerForRemotePush } from "../native/push";
 import { LocalNotifications } from "@capacitor/local-notifications";
 import type { RoutineData } from "../routine/types";
 import { LADDER, ladderBody, type Rung } from "../schedule/countdown";
@@ -166,8 +167,12 @@ export async function requestNotificationPermission(): Promise<boolean> {
   if (!Capacitor.isNativePlatform()) return false;
   try {
     const perm = await LocalNotifications.checkPermissions();
-    if (perm.display === "granted") return true;
+    if (perm.display === "granted") { void registerForRemotePush(); return true; }
     const req = await LocalNotifications.requestPermissions();
+    // 2026-10-05: iOS has one notification permission, so once it is granted the
+    // phone's push token is stored too (native/push.ts). Nothing is shown for it:
+    // the sender is not built yet (it needs the Apple Developer account's key).
+    if (req.display === "granted") void registerForRemotePush();
     return req.display === "granted";
   } catch {
     return false;

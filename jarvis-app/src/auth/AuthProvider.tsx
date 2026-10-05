@@ -17,6 +17,7 @@ import { APPLE_UNAVAILABLE, isUnsupportedProvider, providerFlags } from "./provi
 import { authRedirectTo, startAuthLinks } from "./authLink";
 import { PASSWORD_WORDS } from "./passwordRules";
 import { showToast } from "../shared/toast";
+import { refreshRemotePushToken, unregisterRemotePush } from "../native/push";
 
 // Auth state for the app. Wraps Supabase Auth. When no backend is configured
 // (sandbox), session stays null and the methods report that clearly, so the
@@ -76,6 +77,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data: sub } = supabase.auth.onAuthStateChange((event, s) => {
       setSession(s);
       if (event === "SIGNED_IN") emit({ type: "auth.signed_in" });
+      // 2026-10-05: an APNs token can change, so a person who already said yes to
+      // notifications has it re-stored at every sign-in. Never asks (native/push.ts);
+      // a no-op on the web.
+      if (s && (event === "SIGNED_IN" || event === "INITIAL_SESSION")) void refreshRemotePushToken();
       if (event === "SIGNED_OUT") { writeRecovery(false); setRecovery(false); emit({ type: "auth.signed_out" }); }
       // SHELL-F-04 (2026-09-05): the reset email's link opens the app in a
       // browser and detectSessionInUrl signs that browser in, so JARVIS
@@ -232,6 +237,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       },
       signOut: async () => {
+        // While the session still exists: this account stops being addressable at
+        // this phone (native/push.ts). Best effort, never blocks the sign-out.
+        await unregisterRemotePush();
         await supabase?.auth.signOut();
         writeRecovery(false);
         setRecovery(false);

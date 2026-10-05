@@ -40,6 +40,14 @@
 	     not do yet, and a usage string that describes unbuilt behaviour is
 	     the kind of thing App Review asks about. It comes back with Leave
 	     By, in the native seven session. -->
+	<!-- 2026-10-05: voice capture. No voice feature ships yet (the capture bar is
+	     text, shell/VoiceBar.tsx), so nothing in the app asks for these today; iOS
+	     requires the strings to exist before any build that will, and App Review
+	     reads them. They say what the microphone is for and what is kept. -->
+	<key>NSMicrophoneUsageDescription</key>
+	<string>JARVIS listens only while you hold the microphone to capture a task, a note or an answer by voice. The audio is turned into text and is not stored.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>JARVIS turns what you say into text so you can add things by voice. Speech is used only while you are dictating and is not kept.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>JARVIS uses the camera only when you choose Take Photo to read a schedule, a program or a document. Photos stay in your JARVIS account.</string>
 	<!-- UP-LAUNCH-12 (2026-09-05): the URL schemes this app answers to.
@@ -51,6 +59,13 @@
 	     project; DAVE_STEPS has the exact dict to paste beside this one, and
 	     src/connections/google/nativeAuth.ts computes the same string from
 	     VITE_GOOGLE_IOS_CLIENT_ID so the two cannot disagree silently. -->
+	<!-- 2026-10-05: lets a push arrive while the app is in the background
+	     (the notification plugin's registration). Nothing runs in the
+	     background on its own. -->
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>remote-notification</string>
+	</array>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
