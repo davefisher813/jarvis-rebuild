@@ -14,11 +14,14 @@ import { haptics } from "../shared/haptics";
 //
 // Renders nothing outside a strand store: a row that cannot be remembered
 // does not show a star that would only refuse.
-export default function EntityStar({ entityType, entityId, title }: { entityType: string; entityId: string; title: string }) {
+/** The remember toggle without its glyph, for a row that offers it in its long-press menu instead of drawing a star on
+ *  every row (2026-10-05, the perfect bar). Null outside a strand store: nothing to offer. `on` is whether a strand is
+ *  already linked; `run` writes or removes it with the same receipts the star gives. */
+export function useRemember(entityType: string, entityId: string, title: string): { on: boolean; run: () => Promise<void> } | null {
   const svc = useOptionalStrands();
   const { on, toggle } = useStarLink(svc, entityType, entityId, todayISO());
   if (!svc) return null;
-  const tap = async () => {
+  const run = async () => {
     haptics.selection();
     const r = await toggle(title.trim().slice(0, 140));
     if (r === "starred") showToast({ message: "JARVIS Will Remember That", actionLabel: "Undo", onAction: () => void toggle(title) });
@@ -26,13 +29,25 @@ export default function EntityStar({ entityType, entityId, title }: { entityType
     else if (r === "full") showToast({ message: "The Brain Is Full · Prune It in What JARVIS Knows" });
     else showToast({ message: "Couldn't Save · Try Again" });
   };
+  return { on, run };
+}
+
+export default function EntityStar({ entityType, entityId, title, quiet = false }: {
+  entityType: string; entityId: string; title: string;
+  /** Draws only while the entity is remembered: the filled star is a state worth a mark, an empty one on every row is noise. */
+  quiet?: boolean;
+}) {
+  const r = useRemember(entityType, entityId, title);
+  if (!r) return null;
+  const { on, run } = r;
+  if (quiet && !on) return null;
   return (
     <button
       type="button"
       className={"row-star" + (on ? " on" : "")}
       aria-pressed={on}
       aria-label={on ? "Forget this" : "Remember this"}
-      onClick={(ev) => { ev.stopPropagation(); void tap(); }}
+      onClick={(ev) => { ev.stopPropagation(); void run(); }}
       onKeyDown={(ev) => { if (ev.key === "Enter" || ev.key === " ") ev.stopPropagation(); }}
     >
       <svg className="ic" viewBox="0 0 24 24" fill={on ? "currentColor" : "none"} stroke="currentColor" strokeWidth={1.75} strokeLinejoin="round">

@@ -10,6 +10,7 @@ import { WRITE_FAILED_MESSAGE } from "../shared/guard";
 import { pressable } from "../shared/pressable";
 import { useLeaveVia } from "../shell/navOrigin";
 import { flagOn } from "../substrate/flags";
+import PageHeader from "../shared/PageHeader";
 
 // Settings -> Connections (multi-account, 2026-08-04). Each Google account is
 // its own row with its own feature toggles and its own disconnect. Adding an
@@ -148,8 +149,9 @@ export default function ConnectionsPage({
           its parent and false about the journey: Email's own Connections row
           jumps straight here, and the only button on the page then took him
           to a screen he had not opened. */}
-      <div className="nav-bar"><button className="nav-back" onClick={leave.onBack}>{leave.label}</button></div>
-      <div className="nav-large">Connections</div>
+      {/* THE SAME HEADER AS EVERY OTHER SETTINGS PAGE (2026-10-05, Dave "everything should look perfect": this page drew its own
+          nav-bar and nav-large, a taller bar in a different shade with no title rule). The back label stays where he came from. */}
+      <PageHeader title="Connections" back={leave.label} onBack={leave.onBack} />
 
       {/* THE ACCOUNTS HEAD HOLDS THE SECTION'S ACTIONS (Dave 2026-10-05, locked: a section-level action lives in the
           head, never at the foot of a list): Add Account, and Reconnect All once every account has signed out. With no
@@ -169,16 +171,18 @@ export default function ConnectionsPage({
           under the Accounts head it explains, not above the screen. */}
       {!configured && (
         <div className="pad-x"><div className="card list-card-ruled"><div className="empty-state empty-compact">
-          <div className="empty-icon"><Link2 className="ic" /></div>
-          {/* The grey line under it said the title again (2026-10-05). */}
+          <div className="empty-icon cat-fg-blue"><Link2 className="ic" /></div>
           <div className="empty-title">Google Setup Required</div>
+          {/* The one line it was missing (2026-10-05): the old grey line said the title again, which was cut; this says WHY and
+              who it waits on, so the card is a calm note and not a dead end. There is nothing to tap until the build has a Google client. */}
+          <div className="empty-sub">Google Sign-In Is Not Switched On for This Build</div>
         </div></div></div>
       )}
       {g.accounts.length === 0 ? (
         <>
           {configured && (
             <div className="pad-x"><div className="card list-card-ruled"><div className="empty-state empty-compact">
-              <div className="empty-icon"><Mail className="ic" /></div>
+              <div className="empty-icon cat-fg-teal"><Mail className="ic" /></div>
               <div className="empty-title">No Accounts Yet</div>
             </div></div></div>
           )}

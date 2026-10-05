@@ -5,7 +5,7 @@ import { readWindowWithSource, type WindowClient, type WindowRead } from "../win
 import { peopleForDerivation } from "../peopleFacts";
 import { readConsolidation } from "../nightly";
 import { daysSince } from "../recall";
-import { readiness, READINESS_WINDOW_DAYS, type Readiness, type ReadinessState } from "../readiness";
+import { readiness, watchingCount, READINESS_WINDOW_DAYS, type Readiness, type ReadinessState } from "../readiness";
 import { readinessWord, toneForReadinessWord } from "./state";
 import type { DerivePerson } from "../derive";
 import type { Strand } from "./types";
@@ -134,6 +134,7 @@ function DetectorRow({ r }: { r: Readiness }) {
 // same generic list every watching row used to open on.
 function WordRow({ r, focused = false, onTell, onOpen }: { r: Readiness; focused?: boolean; onTell?: () => void; onOpen?: () => void }) {
   const w = readinessWord(r.state);
+  const door = onOpen ?? onTell;
   return (
     // Row tap (Dave 2026-09-15, "I want all rows clickable"): a counting
     // detector has no fact to open yet, so any row says it outright.
@@ -146,10 +147,20 @@ function WordRow({ r, focused = false, onTell, onOpen }: { r: Readiness; focused
     // to mark it as a fact, and it pulled up a completely different fact").
     // That row is still marked (.rdy-row-focus), and Tell JARVIS is now its
     // sheet's primary and its swipe-left, on every row that can be told.
+    //
+    // THE SAME ROW AS THE FACTS BELOW IT (Dave 2026-10-05, the review: "Readiness rows look unlike the rows below them",
+    // and "The Person You Email / Most" wrapped because the state word took a column of its own). Title across the whole
+    // width, the state word and the count as its facts line, a chevron because every row opens its sheet.
     <RowShell verb={onTell ? { label: "Tell JARVIS", run: onTell } : undefined}>
-      <div id={"rdy-" + r.key} className={"row rdy-row" + (focused ? " rdy-row-focus" : "")} {...(onOpen ? pressable(onOpen) : onTell ? pressable(onTell) : {})}>
-        <div className="row-grow"><div className="conn-name">{r.label}</div></div>
-        <span className={"fact st " + toneForReadinessWord(w)}>{w}</span>
+      <div id={"rdy-" + r.key} className={"row strand-row" + (focused ? " rdy-row-focus" : "")} {...(door ? pressable(door) : {})}>
+        <div className="row-grow">
+          <div className="conn-name">{r.label}</div>
+          <div className="facts">
+            <span className={"fact st " + toneForReadinessWord(w)}>{w}</span>
+            <span className="fact">{watchingCount(r)}</span>
+          </div>
+        </div>
+        {door && <div className="chev" />}
       </div>
     </RowShell>
   );
@@ -183,8 +194,9 @@ export default function ReadinessPanel({ read, today, variant = "words", focusKe
           {read.rows.map((r) => <WordRow r={r} focused={r.key === focusKey} onTell={onTell ? () => onTell(r.key) : undefined} onOpen={onOpen ? () => onOpen(r.key) : undefined} key={r.key} />)}
           {/* Not a button: the Lab is three taps away under Settings and
               this page has no door into More. The line says where, which
-              is the receipt's whole job. */}
-          <div className="receipt-line rdy-receipt"><span className="rl-t">Numbers behind each gate are in Settings › Advanced › Learning Lab</span></div>
+              is the receipt's whole job. Title Case, and no arrows typed into it (Dave 2026-10-05, the review): the path is
+              the one name the person will look for, so it is the one name it carries. */}
+          <div className="receipt-line rdy-receipt"><span className="rl-t">The Numbers Behind These Live in Settings Under Learning Lab</span></div>
         </div></div>
       </>
     );

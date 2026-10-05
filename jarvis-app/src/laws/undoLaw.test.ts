@@ -75,7 +75,7 @@ const NO_UNDO: Record<string, string> = {
   // Brain Manual v1 (2026-09-27): the Brain settings erase is a tap-twice
   // armed delete of every brain_memory row, behind its own confirm; the
   // point of the button is a clean brain, and rows cannot be un-erased.
-  "settings/BrainSettingsPage.tsx · Brain Erased ✓": "a two-tap armed erase of all brain memory; permanence is the point",
+  "settings/BrainSettingsPage.tsx · Brain Erased": "a two-tap armed erase of all brain memory; permanence is the point",
   // The unified substrate (slice 04, spec S19): deleting a receipt is an
   // erasure behind its own confirm sheet. The words are gone for good and a
   // tombstone stays; the action it recorded is NOT undone, and the toast says

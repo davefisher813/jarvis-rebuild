@@ -70,7 +70,7 @@ export function nowContext(events: EventItem[], locked: LockedRange[], nowHHMM: 
   // slot is next: the thing you have to drive to may be the second event of
   // the afternoon, and the leaving is what has to be said out loud.
   const nextLeave = events
-    .map((ev) => ({ at: leaveByOf(ev.data), title: ev.data.title }))
+    .map((ev) => ({ at: leaveByOf(ev.data), title: titleCase(ev.data.title) }))
     .filter((x): x is { at: string; title: string } => !!x.at && toMin(x.at) > now)
     .sort((a, b) => toMin(a.at) - toMin(b.at))[0] ?? null;
   type Slot = { s: number; e: number; title: string };
@@ -78,7 +78,9 @@ export function nowContext(events: EventItem[], locked: LockedRange[], nowHHMM: 
     ...events.map((ev) => ({
       s: toMin(ev.data.start),
       e: ev.data.end ? toMin(ev.data.end) : toMin(ev.data.start) + 60,
-      title: ev.data.title,
+      // HIS TYPED TITLE IN THE APP'S TITLE CASE, like every row that shows it (2026-10-05, the review: "In: Call With Nadia" on
+      // Now beside "Call with Nadia" on the day). The record keeps what he typed.
+      title: titleCase(ev.data.title),
     })),
     ...locked.map((l) => ({ s: l.s, e: l.e, title: l.label })),
   ].sort((a, b) => a.s - b.s);

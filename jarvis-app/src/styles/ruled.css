@@ -103,6 +103,12 @@
 /* AND THE RAIL IS THE LEFT SWIPE'S GROUND, NOT THE RIGHT'S: a proposed block that slides right to tick off shows its Book It
    rail through its own glass body otherwise. */
 .ruled .card .sched-strip:has(> [style*="translateX"]:not([style*="translateX(-"]):not([style*="translateX(0px)"])) > .sched-actions { visibility: hidden; }
+/* A ROW THAT HAS MOVED IS OPAQUE (2026-10-05 review: mid-peek, the Your Move headline's title slid left across the dark tray holding
+   Tomorrow and Start Now, because the row is see-through at rest and the tray is revealed the moment it moves). While a row carries
+   a translateX its ground is the card's own, so the title can never overlap a tray it is sitting on top of. */
+.ruled .card .notice-swipe:has(> [style*="translateX"]:not([style*="translateX(0px)"])) > .notice-card,
+.ruled .card .task-swipe:has(> [style*="translateX"]:not([style*="translateX(0px)"])) > .task-row,
+.ruled .card .task-swipe:has(> [style*="translateX"]:not([style*="translateX(0px)"])) > .rem-row { background-color: var(--surface-1); }
 /* THE DONE RAIL IS THE RIGHT SWIPE'S GROUND, NOT THE LEFT'S (Dave 2026-10-05, a Today row slid open showed a green Done
    rail where the row used to be). The un-hide above shows every reveal while a row moves; the leading rail sits at the left
    edge, which a leftward slide uncovers, so it stays hidden whenever the row has moved left. */
@@ -251,7 +257,10 @@
    no more. This supersedes the one-line name; DEFECT 1 (2026-09-06) was
    about the second line's pills, which stay one line. */
 .ruled .task-row .task-title > .task-name { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
-  white-space: normal; overflow: hidden; text-overflow: ellipsis; overflow-wrap: anywhere; }
+  white-space: normal; overflow: hidden; text-overflow: ellipsis; overflow-wrap: anywhere;
+  /* NO ORPHAN WORD (2026-10-05, the perfect bar): "Call Ridgeline About the / Field" and "Draft the Coach Onboarding / Email" left one
+     word alone on the second line; balance splits the two lines evenly instead. A one-line title is untouched. */
+  text-wrap: balance; }
 /* BROWSER-F-06 (2026-09-05) gave this line flex-wrap so a long goal name got a
    row of its own under the badge rather than whatever the chip left over.
    DEFECT 1 (Dave 2026-09-06, on his phone: "There's wrapping in the tasks
@@ -358,9 +367,11 @@
    source line sits under the place, the card's one grey, and at 14px
    regular it was a second grey run beside it. Same reach, same payback. */
 .ruled .sched-body > .prov-line,
+.ruled .ev-head + .prov-line,
 .ruled .row-pair + .prov-line { font-size: var(--t-eyebrow); font-weight: var(--w-semi);
   letter-spacing: var(--track-caps); text-transform: uppercase; }
 .ruled .sched-body > .prov-link,
+.ruled .ev-head + .prov-link,
 .ruled .row-pair + .prov-link { border-top-width: 16px; border-bottom-width: 16px; margin-block: -16px; }
 /* §AM (2026-09-25): a source that opens is a tap, so it wears the colour
    that says so, the same as an openable person on this line. One that
@@ -454,7 +465,11 @@
    quiet ink and the plain weight; the coloured dot is its whole distinction.
    The branch is on the KIND of parent, never on a category's name or its
    colour value (lint rules 10 and 11). */
-.ruled .r-goal.r-parent .r-goal-t { color: var(--tx-2); font-weight: var(--w-medium); }
+/* AMENDED 2026-10-05 (the perfect bar, R1 and the catalog gate): a project's or goal's name drew at --tx-2 and 500, which on the row
+   read as a second bold title ("Rebuild Calder App" under "Draft the Coach Onboarding Email"). --tx-2 is the same hex as --tx-3,
+   so that was weight alone doing the work, and weight alone is not a distinction. Where it lives is the row's ONE grey at 14
+   regular whatever the parent's kind; the glyph in front of it (pie, target, dot, calendar) is the whole distinction. */
+.ruled .r-goal.r-parent .r-goal-t { color: var(--tx-3); font-weight: var(--w-normal); }
 .ruled .r-goal.r-parent.r-parent-plain .r-goal-t { color: var(--tx-3); font-weight: var(--w-normal); }
 /* A PERSON is a name and a door (it opens their Call Prep card), not a fact
    of the same kind as a duration at all. Medium weight says name; the quiet
@@ -674,7 +689,7 @@
 .ruled .pad-x > .list-card-ruled { margin-left: 0; margin-right: 0; }
 .ruled .list-card-ruled > .task-swipe + .task-swipe { position: relative; }
 .ruled .list-card-ruled > .task-swipe + .task-swipe::before {
-  content: ""; position: absolute; z-index: 2; left: calc(var(--s-4) + 44px + var(--s-3)); right: 0; top: 0;
+  content: ""; position: absolute; z-index: 2; left: calc(var(--s-4) + 44px + var(--s-2h)); right: 0; top: 0;
   height: 0.5px; background: var(--divider); pointer-events: none; }
 /* A CARD BLOCK AND THE LIST UNDER IT ARE TWO CONTAINERS (Dave 2026-09-17:
    "there's containers on the task page vertically don't follow spacing/border
@@ -698,7 +713,7 @@
 .ruled .list-card-ruled .notice-card .conn-name { font-size: var(--t-name); font-weight: var(--w-name); letter-spacing: var(--track-name); }
 .ruled .list-card-ruled > .pad-x + .task-swipe { position: relative; }
 .ruled .list-card-ruled > .pad-x + .task-swipe::before {
-  content: ""; position: absolute; z-index: 2; left: calc(var(--s-4) + 44px + var(--s-3)); right: 0; top: 0;
+  content: ""; position: absolute; z-index: 2; left: calc(var(--s-4) + 44px + var(--s-2h)); right: 0; top: 0;
   height: 0.5px; background: var(--divider); pointer-events: none; }
 /* Done rows strike the name, not the whole block: the kicker stays legible. */
 .ruled .task-row.completed .task-title { text-decoration: none; }
@@ -1231,15 +1246,14 @@
    quiet .sh2 the Week's list wears. The day's word, the dotted rule, the
    fact in the Week head's un-capped number style, and Plan My Day in the
    ghost capsule Today's heads wear. */
-/* BROWSER-F-06 (2026-09-05): the count line and the day word were both
-   default flex items, so a flex line that ran short shrank BOTH by the same
-   fraction and "TODAY" came out "TOD...". The day word is the head's name and
-   it is five characters; it never shrinks. The count line is the one thing
-   here with a tail worth losing, so it takes all of the shortfall and says so
-   with an ellipsis instead of spilling. */
+/* BROWSER-F-06 (2026-09-05): the day word is the head's name and it is five characters; it never shrinks ("TODAY" came
+   out "TOD..." when both items shrank by the same fraction).
+   AMENDED 2026-10-05 (round-1 review, decision D8: truncation of text that matters is a defect): the count used to be the one
+   item that gave, with an ellipsis, and read "3h Open, 5 Prop...". It is the head's second line now, whole, so nothing in the
+   head ever has to give. */
 .ruled .sc-dayhead .t { flex-shrink: 0; }
 .ruled .sc-dayhead .sc-fact { font-weight: var(--w-regular); font-size: var(--t-sub); color: var(--tx-3); min-width: 0;
-  white-space: nowrap; flex: 0 1 auto; overflow: hidden; text-overflow: ellipsis; }
+  order: 4; flex: 1 0 100%; white-space: normal; }
 .ruled .sc-fact b { color: var(--tx-1); font-weight: var(--w-semi); }
 .ruled .sc-fact .sched-sep { margin: 0 var(--s-1h); opacity: 0.55; }
 
@@ -1325,10 +1339,12 @@
 .ruled .task-row .money-amt.paid { color: var(--good); }
 /* Hairlines in a card of bare task rows: inset past the check column (44px
    tap target, the same edge the swipe shell's rows use) whenever the row on
-   either side has one, so the autopay glyph row rules the same as a check. */
+   either side has one, so the autopay glyph row rules the same as a check. The row's own gap (s-2h) is what sets
+   the title's edge, so the hairline starts exactly there (2026-10-05: the star column is gone, and a hairline 2px
+   inside its title's edge is the "nothing 2px off" miss). */
 .ruled .list-card-ruled > .task-row:has(.task-check-tap) + .task-row::before,
 .ruled .list-card-ruled > .task-row + .task-row:has(.task-check-tap)::before {
-  left: calc(var(--s-4) + 44px + var(--s-3)); }
+  left: calc(var(--s-4) + 44px + var(--s-2h)); }
 
 /* ---------- NOTES, PORTED (Notes and Money catalog, 2026-09-02) ----------
    A note is a row in the list card: the title, then the line every task row
@@ -1376,8 +1392,55 @@
    wears. Hairlines inset past the glyph column, as the bare list's did. */
 .ruled .nav-card > .lib-row { padding: 11px var(--s-4); min-height: 54px; }
 .ruled .nav-card > .lib-row:active { background: var(--press-1); }
+/* A DESTINATION'S NAME IS A ROW TITLE (Dave 2026-10-05, the review: Explore's names were 20px beside the Needs You titles
+   at 16 on one screen): the title token and the title weight, so a nav list and a fact list share one type scale. */
+.ruled .nav-card > .lib-row .lib-name { font-size: var(--t-name); font-weight: var(--w-name); letter-spacing: var(--track-name); }
 .ruled .nav-card > .lib-row + .lib-row::before { left: calc(var(--s-4) + 30px + var(--s-3h)); }
 .ruled .nav-card-gap { margin-top: var(--s-5); }
+
+/* ---------- THE BRAIN, ROUND 1B (Dave 2026-10-05: "Everything should look PERFECT"). The review's fixes for the people, the
+   decisions, the Brain's own documents and the report, written once and read together. ---------- */
+
+/* A PERSON IS A SOFT TINT OF THEIR OWN COLOUR (the review: five identical solid brand-red discs). The disc is the colour at
+   22% over the card; the initials are the page's ink, so they clear contrast on every hue in both themes. No colour chosen is
+   the warm neutral. */
+.av-soft { background-color: color-mix(in srgb, currentColor 22%, transparent); }
+.av-soft > span { color: var(--tx-1); }
+.av-soft.av-neutral { background-color: var(--surface-3); color: var(--tx-2); }
+.av-soft.av-neutral > span { color: var(--tx-2); }
+
+/* THE REMEMBER STAR SITS AT THE TRAILING EDGE ON A 44px REACH (the review: a 16px star tight against the avatar, two competing
+   leading items, well under a tap). Its paint is unchanged; the reach is the pseudo-element's. */
+.ruled .person-row-ruled > .row-star, .ruled .dec-row > .row-star { position: relative; margin: 0 var(--s-1) 0 var(--s-2); }
+.ruled .person-row-ruled > .row-star::after, .ruled .dec-row > .row-star::after {
+  content: ""; position: absolute; top: 50%; left: 50%; width: var(--tap-min); height: var(--tap-min); transform: translate(-50%, -50%); }
+
+/* A PERSON'S PAGE: titles break evenly, so a wrapped title never leaves one word alone (the review: "Invoice", "Field"). */
+.person-ruled .task-name, .person-ruled .person-name { text-wrap: balance; }
+
+/* THE PERSON SHEET'S COLOUR GRID: six by four, the first being no colour at all, each a 34px disc on a 44px reach, the picked one
+   ringed in ink with its check (the review: 34px swatches with no selection and two stragglers on a fourth row). */
+.swatch-grid { display: grid; grid-template-columns: repeat(6, 1fr); justify-items: center; row-gap: var(--s-1); width: 100%; padding: var(--s-1) 0; }
+.swatch.swatch-none { background-color: var(--surface-3); box-shadow: inset 0 0 0 1.5px var(--tx-4); color: var(--tx-1); }
+.form-sheet .xs-more > summary { padding-left: var(--s-4); }
+
+/* THE DECISION'S RECORD (the review: a card for "Recorded Oct 5", a strike in near-grey, three nested containers round the
+   outcome). The recorded day is a caption under the decision; the replaced call is struck through in full ink; the outcome's
+   control stands on its own with its day under it; Notes starts at two lines and shows its cue in italics, so it never reads as
+   a saved note. */
+.dec-recorded { margin-top: var(--s-2); }
+.dec-marked { display: flex; align-items: center; justify-content: space-between; min-height: var(--tap-min); padding: 0 var(--s-1); }
+.dec-notes .doc-pm { min-height: 52px; }
+.dec-notes .doc-pm p.is-editor-empty:first-child::before { font-style: italic; }
+
+/* A BRAIN DOCUMENT IS A CARD YOU WRITE IN (the review: a blank page to the dock). */
+.doc-card .doc-pm { min-height: 8em; }
+.ruled .list-card-ruled > .hard-add, .ruled .hard-add { display: flex; flex-direction: column; gap: var(--s-4); padding: var(--s-4); }
+/* An empty state's words break evenly, so a lone word is never left on the second line. */
+.empty-title, .empty-sub { text-wrap: balance; }
+.hard-add-field { display: flex; align-items: center; gap: var(--s-2); }
+.hard-add-field .input { flex: 1; min-width: 0; }
+
 
 /* ---------- THE AREA PAGE (Brain onto the rulings, 2026-09-02) ----------
    Work, Family, Friends, Personal wear what Health does. Under the name the
@@ -1692,16 +1755,19 @@
    to be clipped (see the comment below); this was the same row's title left
    out of that ruling. Same wrap on the Needs You band's watching row on the
    Brain hub (.needs-watch-row), which draws the same labels. */
-.ruled .rdy-row .conn-name, .ruled .needs-watch-row .conn-name {
+.ruled .rdy-row .conn-name, .ruled .needs-watch-row .conn-name, .ruled .strand-row .conn-name {
   white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
 }
 /* C-38 fix (2026-09-13): the one row a Needs You tap named lands highlighted
    and fades, so the destination visibly answers the tap instead of reading
    as the same list every watching row used to open on regardless of which
    one you touched. */
-.ruled .rdy-row-focus { border-radius: var(--r-md); animation: rdyRowFocus 2.4s ease-out forwards; }
+/* A warm neutral wash, not a red one, and gone in a second and a quarter (Dave 2026-10-05, the review: "a maroon wash
+   that reads as a stuck pressed state"). Brand red is for what can be tapped, and this is only a marker of where the tap
+   landed. */
+.ruled .rdy-row-focus { border-radius: var(--r-md); animation: rdyRowFocus 1.2s ease-out forwards; }
 @keyframes rdyRowFocus {
-  0% { background: color-mix(in srgb, var(--accent-glyph) 20%, transparent); }
+  0% { background: var(--press-3); }
   100% { background: transparent; }
 }
 /* The height follows the SENTENCE, which is the one thing on this row that
@@ -3013,10 +3079,8 @@
    by theme (Dave 2026-10-04), so the rule is gone and the one shared facts
    rule carries both. */
 
-/* ADD in the Life header: a secondary pill, the capsule fill with the action red on
-   both the plus and the word. */
-[data-theme="light"] .hdr-add { background: var(--capsule-fill); border-color: transparent; color: var(--red); }
-[data-theme="light"] .hdr-add .ic { color: var(--red); }
+/* ADD in the Life header is the capsule recipe in BOTH themes (components.css .hdr-add: --capsule-fill, --tint), so the
+   light override that stood here is gone (2026-10-05, D3: light and dark differ in colour only). */
 /* The flip (Dave 2026-10-03): the header search field and options button were the card tone on a white page with no border, so no field showed. The neutral fill gives them a shape, the same as the Add button beside them. */
 [data-theme="light"] .hdr-search, [data-theme="light"] .hdr-opts { background: var(--surface-3); }
 
@@ -3037,10 +3101,12 @@
 /* REMINDERS carry the same hairlines every other list does: it starts where
    the text starts, past the check. The rows sit inside a swipe shell, so the
    sibling rule that never matched is the shell's. */
-[data-theme="light"] .card > .task-swipe:has(> .rem-row) + .task-swipe:has(> .rem-row) { position: relative; }
-[data-theme="light"] .card > .task-swipe:has(> .rem-row) + .task-swipe:has(> .rem-row)::before,
-[data-theme="light"] .card > .task-swipe:has(> .rem-row) + .rem-row::before,
-[data-theme="light"] .card > .rem-row + .task-swipe:has(> .rem-row)::before {
+/* BOTH THEMES (2026-10-05, the review: "in dark the Vitamin D and Night Meds rows have no divider; light has one"). These four
+   selectors were light-only, so the hairline between two reminders existed in one theme; light and dark differ in colour only. */
+.card > .task-swipe:has(> .rem-row) + .task-swipe:has(> .rem-row) { position: relative; }
+.card > .task-swipe:has(> .rem-row) + .task-swipe:has(> .rem-row)::before,
+.card > .task-swipe:has(> .rem-row) + .rem-row::before,
+.card > .rem-row + .task-swipe:has(> .rem-row)::before {
   content: ""; position: absolute; z-index: 2; left: calc(var(--s-4) + 22px + var(--s-3)); right: 0; top: 0;
   height: 0.5px; background: var(--divider); pointer-events: none; }
 
@@ -3179,7 +3245,12 @@
 .ruled .sched-row .sched-check { justify-content: center; }
 /* The title takes the width and the controls beside it (Overlaps, Join, the notes glyph) ride one fixed slot at the right edge,
    so the glyph never trails a short title in one row and hangs at the far edge of a wrapped one in the next. */
-.ruled .sched-title > .sched-t { flex: 1 1 0; }
+.ruled .sched-title { flex-wrap: wrap; }
+.ruled .sched-title > .sched-t { flex: 1 1 8em; }
+/* Eight ems of room is the floor: a title that cannot keep it beside the Overlaps capsule and the notes glyph sends them to a
+   line under it instead of being cut to "Mornin g..." (round 1, decision D8: wrap before truncating). */
+.ruled .sched-title > .sched-badge, .ruled .sched-title > .sched-join { margin-left: 0; }
+.ruled .sched-title > .sched-notes { margin-left: auto; }
 
 /* A LENGTH IS AN ESTIMATE, SO IT IS SKY, NEVER RED (the Colour Key, decision D4). The tappable length wore the brand red, which
    on a healthy block beside LIVE and a late word read as a fault. It is still the control that resizes the block; it is drawn
@@ -3201,26 +3272,137 @@
 .ruled .sched-gap > .sched-time { flex: 0 0 var(--sched-time-w); width: var(--sched-time-w); margin-left: 0; }
 .ruled .sched-gap .sched-gap-title { gap: 0 var(--s-1h); }
 
-/* THE OFFER UNDER A BLOCK IS A PLAIN TWO-LINE ROW ON THE SAME GRID: the plus in the lead slot, the task where a title starts,
+/* THE OFFER UNDER A BLOCK IS A PLAIN TWO-LINE ROW ON THE SAME GRID: the plus right-aligned in the time column (so it sits against
+   the words the way a time does), the task where a title starts,
    the reason under it in the line's one grey. No dashed circle (it read as a button of its own); the whole row is the tap and
    the plus is only the mark ahead of the words. The task wraps to a second line before it is ever cut. */
 .ruled .sched-card .blend-tuck { align-items: flex-start; gap: var(--s-3); min-height: var(--tap-min);
   padding: var(--s-1h) var(--s-4) var(--s-1h) calc(var(--s-4) + var(--s-3)); }
-.ruled .sched-card .blend-plus { flex: 0 0 var(--sched-lead); width: var(--sched-lead); height: auto; border: 0; border-radius: 0;
+.ruled .sched-card .blend-plus { flex: 0 0 calc(var(--sched-lead) + var(--s-3) + var(--sched-time-w)); width: calc(var(--sched-lead) + var(--s-3) + var(--sched-time-w));
+  height: auto; border: 0; border-radius: 0; text-align: right;
   color: var(--tint); font-size: var(--t-h3); font-weight: var(--w-bold); line-height: 1.3; }
-.ruled .sched-card .blend-tuck > .row-grow { margin-left: calc(var(--sched-time-w) + var(--s-3)); min-width: 0; }
+.ruled .sched-card .blend-tuck > .row-grow { min-width: 0; }
 .ruled .sched-card .blend-text { font-size: var(--t-sub); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
 .ruled .sched-card .blend-why { font-size: var(--t-sub); }
 
 /* THE DAY HEAD: the name and its capsules on the first line, the count whole on the second. The count used to share the line
    with Plan My Day and was cut to "5 Prop...". It is a fact about the day, so it is never ellipsized. */
 .ruled .sc-dayhead { flex-wrap: wrap; row-gap: var(--s-1); }
-.ruled .sc-dayhead .sc-fact { order: 4; flex: 1 0 100%; white-space: normal; overflow: visible; text-overflow: clip; }
 
 /* THE WEEK: one track for every bar. The open time on the right is its own fixed column, so a bar is the same length on every
    row, and the clock under the card is measured against that track (it sat 16px left of the bars and said nothing true). */
-:root { --wk-open-w: calc(112px * var(--type-scale)); }
+:root { --wk-open-w: calc(72px * var(--type-scale)); }
 .ruled .wk-open { flex: 0 0 var(--wk-open-w); width: var(--wk-open-w); min-width: 0; }
+.ruled .wk-open.wk-open-stack { display: flex; flex-direction: column; align-items: flex-end; line-height: 1.2; }
 .ruled .wk-ticks { margin-left: calc(var(--s-4) + var(--s-4) + 34px + var(--s-3));
   margin-right: calc(var(--s-4) + var(--s-4) + var(--wk-open-w) + var(--s-3)); }
 .ruled .wk-bar { height: var(--s-3); }
+
+/* A WRAPPED TITLE BREAKS EVENLY, NOT ON AN ORPHAN (round-1 review: "You Can Do This While You / Move"). Progressive: an engine
+   without balance keeps the greedy break it has always had. */
+.ruled .sched-title > .sched-t, .ruled .sched-card .blend-text { text-wrap: balance; }
+
+/* ============================================================
+   THE SETTINGS SWEEP (round 1b, Dave 2026-10-05: "Everything should look PERFECT. He opens the app and finds nothing.")
+   One block for what the review found across Settings, Notes and the pages under them. Every rule is on the tokens, the same in
+   both themes, and says why it is here.
+   ============================================================ */
+
+/* A SEGMENTED CONTROL IN A ROW (Rack Unit): whole, at the row's right, never a scrolling strip that clips its last half. */
+.ruled .set-card > .set-row > .set-seg { margin-left: auto; flex: 0 0 auto; }
+.ruled .set-seg .seg { min-width: var(--s-10); }
+
+/* A CHOICE OF SEVEN OR FOUR IS ONE ROW OF EQUAL CELLS (Booking days and slot length): no scroller, no orphan on a second line. */
+.ruled .set-row > .set-grid { flex: 1; min-width: 0; }
+.ruled .set-grid { display: grid; gap: var(--s-2); width: 100%; }
+.ruled .set-grid-days { grid-template-columns: repeat(7, minmax(0, 1fr)); }
+.ruled .set-grid-slots { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.ruled .set-grid > .chip { justify-content: center; padding-left: 0; padding-right: 0; min-height: 36px; white-space: nowrap; }
+.ruled .set-grid-days > .chip { aspect-ratio: 1; border-radius: var(--r-circle); min-height: 0; }
+
+/* A TYPED NUMBER LOOKS TYPED (Bar Weight): a quiet well with its unit after it, so it reads as a field and not as a grey value. */
+.ruled .set-field.set-field-unit { flex: 0 0 auto; margin-left: auto; width: calc(var(--s-10) + var(--s-9)); height: 36px; padding: 0 var(--s-3);
+  background-color: var(--press-3); border-radius: var(--r-md); }
+.ruled .set-row > .set-unit { flex: 0 0 auto; margin-left: var(--s-2); min-width: var(--s-6); font-size: var(--t-sub); font-weight: var(--w-sub); color: var(--tx-3); }
+/* A FIELD IS INK, ITS PLACEHOLDER IS THE READABLE GREY (the Name on Profile looked like static text and its hint like a value). */
+.ruled .set-field { color: var(--tx-1); caret-color: var(--tint); }
+.ruled .set-field::placeholder { color: var(--tx-3); }
+
+/* A STATELESS COUNT IN A HEAD IS INK, NOT GREY (D4: a number with no state is white). */
+.sh2 .n.set-n { color: var(--tx-1); }
+
+/* NOTES UNDER A CARD BELONG TO THE CARD ABOVE THEM (the review: 30px to the card and 40px to the next head, so a note read as orphaned).
+   Eight below the card, a clear step before the next head, and a second note hugs the first. */
+.ruled .pad-x > .input-hint { margin-top: var(--s-2); }
+/* The card's own bottom margin is the 20px that made the note float; with a note directly under it, the note's 8px is the whole gap. */
+.ruled .pad-x:has(+ .pad-x > .input-hint) > .card { margin-bottom: 0; }
+.ruled .pad-x:has(> .input-hint) + .sh2 { margin-top: var(--s-3); }
+.ruled .pad-x:has(> .input-hint) + .pad-x > .input-hint { margin-top: var(--s-1); }
+
+/* A DESTRUCTIVE HEAD CAPSULE, AND ITS ARMED STEP (Brain's Erase). Danger is the system red on its own tonal fill; armed is the solid
+   destructive slab, so the confirm never looks like the step before it. No ring, no border (the capsule law). */
+.sh2 .see-all.pill-action.pill-danger { color: var(--sys-red); background-color: color-mix(in srgb, var(--sys-red) 14%, var(--capsule-fill)); }
+[data-theme="light"] .sh2 .see-all.pill-action.pill-danger { color: var(--sys-red); }
+.sh2 .see-all.pill-action.pill-armed { background-color: var(--sys-red); color: #fff; }
+[data-theme="light"] .sh2 .see-all.pill-action.pill-armed { color: #fff; }
+/* The same for a destructive row that stays a row (Sign Out, Delete Account). */
+.row-signout.armed { background-color: var(--sys-red); color: #fff; }
+
+/* THE ARMED REDO STEP: the card does not jump (the row keeps its two-line height) and the title takes the confirm amber. */
+.ruled .set-card > .set-row.set-armable { min-height: 68px; }
+.ruled .set-card > .set-row.set-armed .conn-name { color: var(--warn); }
+
+/* THE ACCOUNT DISC WITH NOTHING IN IT: a quiet neutral disc wearing a camera, not a brand-red "?" (it is still the tap that opens the photo sheet). */
+.av.av-empty { background-color: var(--press-3); color: var(--tx-2); }
+.av.av-empty .ic { width: var(--s-6); height: var(--s-6); }
+/* The one text action that fills an empty name: the tap red as words, never a capsule inside a card. */
+.account-hero .account-set-name { margin-top: var(--s-1); min-height: var(--tap-min); padding: 0 var(--s-3); background: transparent; border: 0; font-family: var(--f); font-size: var(--t-name); font-weight: var(--w-semi); color: var(--tint); }
+
+/* THE APPEARANCE PREVIEW IS A RULER, NOT A CONTROL. */
+.ruled .set-preview .row { pointer-events: none; }
+
+/* A SELECTED RADIO IS THE TAP RED, AN UNSELECTED ONE A RING YOU CAN SEE (AI Level). 24px, the whole row is the hit area. */
+.ruled .set-card .radio { width: var(--s-6); height: var(--s-6); border-color: var(--tx-4); }
+.ruled .set-card .radio.on { border-color: var(--tint); }
+.ruled .set-card .radio.on::after { background: var(--tint); }
+
+/* THE SHEET'S SAVE IS ITS ONE FILLED PRIMARY, THE SAME IN BOTH THEMES (the review: white in dark, red in light, so the sheet's primary
+   changed identity). A filled pill in the action red with white ink; waiting is the same washed fill every disabled primary wears. */
+.sheet-bar-save, .form-sheet .sheet-bar-save, .sheet-scrim > .card .sheet-bar-save { background-color: var(--accent-fill); color: #fff; border-radius: var(--r-pill); padding: 0 var(--s-4); min-height: 36px; min-width: 0; align-self: center; position: relative; }
+.sheet-bar-save::after { content: ""; position: absolute; inset: -4px -6px; }
+.sheet-bar-save.dim, .form-sheet .sheet-bar-save.dim, .sheet-scrim > .card .sheet-bar-save.dim { opacity: 1; background-color: color-mix(in srgb, var(--accent-fill) 42%, transparent); }
+
+/* THE PICKED COLOUR IS RINGED IN INK, WITH A CHECK (the review: a brand-red ring on every swatch, on blue, on green, on yellow, said red meant something). */
+.swatch { display: flex; align-items: center; justify-content: center; }
+.swatch.sel { outline-color: var(--tx-1); }
+.swatch .ic { width: 16px; height: 16px; stroke-width: 3; }
+.form-sheet .xs-row-name .xs-input { color: var(--tx-1); font-weight: var(--w-name); }
+
+/* THE NOTE'S NEXT-EVENT LINE: the Event glyph in the Event's sky, the words in the primary ink. */
+.doc-write .note-guard { display: flex; align-items: center; gap: var(--s-2); margin-top: var(--s-4); }
+.note-guard > .ic { width: 18px; height: 18px; flex-shrink: 0; }
+[data-theme="light"] .note-guard > .ic.cat-fg-sky { color: var(--cat-ic-sky); }
+.note-guard .conn-meta { margin: 0; }
+/* THE NOTE FOOTER ANCHORS (the review: 150px of dead canvas, then footers at a different height per note). The writing area keeps room to
+   type without pushing everything below it a third of a screen away, and the word count sits at the foot of the screen, not under the content. */
+.screen-editor .doc-write .doc-pm { min-height: 12em; }
+.screen-editor .doc-count { margin-top: auto; padding: var(--s-4) 0 var(--s-6); }
+
+/* A WRAPPED PAGE TITLE BREAKS EVENLY (What JARVIS Learned): never a lone word on its second line. */
+.pagehead-title { text-wrap: balance; }
+
+/* THE ICON OF AN EMPTY STATE IN A TYPE'S COLOUR, LIGHT TWIN FOR YELLOW (Notes and What JARVIS Learned). */
+[data-theme="light"] .empty-icon.cat-fg-yellow { color: var(--cat-ic-yellow); }
+
+/* ONBOARDING'S INTRO: one wordmark in both themes (the red J), the section label on the same left edge as the card, one card surface. */
+.ob-brand .jr { color: var(--accent-glyph); }
+.ob-body > .grp { padding-left: 0; padding-right: 0; }
+.ob-screen .ob-privacy { background-color: var(--surface-1); border: 0.5px solid var(--card-bd); border-radius: var(--r-lg); }
+.ob-screen .card > .row > .row-status { flex-shrink: 0; white-space: nowrap; }
+/* A NAME YOU TYPE SITS IN A QUIET WELL (Profile): it reads as a field, not as a grey value beside its label. */
+.ruled .set-field.set-field-well { flex: 1 1 auto; max-width: 62%; padding: 0 var(--s-3); background-color: var(--press-3); border-radius: var(--r-md); }
+.pagehead-title.pagehead-title-fit { font-size: calc(30px * var(--type-scale)); }
+/* THE SHEET BAR KEEPS ITS TITLE CENTRED: Cancel and the filled Save take the same width, so a pill on one side does not push the title off the middle. */
+.sheet-bar-cancel, .sheet-bar-save { min-width: calc(var(--s-10) + var(--s-9)); }
+/* A strip of a picker (a colour family) is a row without a tile, so its hairline starts where its label does, not 20px in. */
+.form-sheet .row.xs-strip + .row.xs-strip::before { left: var(--s-3); }

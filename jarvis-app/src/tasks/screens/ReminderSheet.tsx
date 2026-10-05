@@ -4,6 +4,7 @@ import { nextOccurrence, describeRepeat, followUpOf, repeatRuleOf, scheduleKindO
 import { COOLDOWNS, DEFAULT_COOLDOWN_MIN } from "../contextPrompts";
 import { readQuick, morningTime, inMinutes } from "../quickReminder";
 import { FormSheet, Group, Row, FieldRow, MenuRow, Strip, Note, ErrorLine, SwitchRow } from "../../shared/FormSheet";
+import PickRow from "../../shared/PickRow";
 import { Clock, Calendar, Tag, Link2, Forward } from "../../shared/icons";
 import { BellGlyph, RepeatGlyph, WarningGlyph } from "../../shared/glyphs";
 import { todayISO } from "../grouping";
@@ -18,7 +19,7 @@ import LinkedItemSheet, { type LinkCandidate } from "./LinkedItemSheet";
 // should it appear (at a date and time, when I open the area, after I
 // complete the task, or unscheduled); for a timed one the day, the time,
 // two shortcuts, the rhythm; then one green line saying what was just set;
-// then Area, Linked Action and Follow-up behind a disclosure. The words are
+// then Area, Linked Action and Follow-Up behind a disclosure. The words are
 // read as they are typed and shown as chips. Save is never dead: whatever
 // is missing says so at its field. Pause, Skip, Export and Delete live on
 // the details sheet, not here.
@@ -73,6 +74,14 @@ export function whenLabel(date: string, time: string, today: string): string {
   return `${day}, ${t.time} ${t.ap}`;
 }
 const clock = (hhmm: string) => { const t = fmtTime(hhmm); return `${t.time} ${t.ap}`; };
+/** The day as a person says it, for the Day row's value: Today, Tomorrow, or "Mon, Oct 12". */
+function dayWord(date: string, today: string): string {
+  if (!date) return "";
+  if (date === today) return "Today";
+  if (date === addDays(today, 1)) return "Tomorrow";
+  const [y, m, d] = date.split("-").map(Number);
+  return new Date(y ?? 1970, (m ?? 1) - 1, d ?? 1, 12).toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" });
+}
 const localZone = (): string => { try { return Intl.DateTimeFormat().resolvedOptions().timeZone || "local"; } catch { return "local"; } };
 
 export default function ReminderSheet({
@@ -240,8 +249,11 @@ export default function ReminderSheet({
           onPick={(v) => { setWhen(v as WhenKey); setErrTime(false); setErrArea(false); setErrLink(false); }} />
         {when === "time" && (
           <>
-            <FieldRow tone="indigo" glyph={<Calendar className="ic" />} label="Day" type="date" value={effDay} onChange={(v) => { pickDay(v); if (readActive) setReadOff(true); }} ariaLabel="Start day" />
-            <FieldRow tone="blue" glyph={<Clock className="ic" />} label="Time" type="time" value={effTime} onChange={(v) => { setTime(v); setErrTime(false); if (readActive) setReadOff(true); }} ariaLabel="Time" error={errTime} />
+            {/* The Day and Time rows say their value in words and open the system picker (shared/PickRow), never the raw native field. */}
+            <PickRow tone="indigo" glyph={<Calendar className="ic" />} label="Day" kind="date" value={effDay} display={dayWord(effDay, today)} emptyWord="Pick a Day"
+              onChange={(v) => { pickDay(v); if (readActive) setReadOff(true); }} ariaLabel="Start day" />
+            <PickRow tone="blue" glyph={<Clock className="ic" />} label="Time" kind="time" value={effTime} display={effTime ? clock(effTime) : ""} emptyWord="Pick a Time"
+              onChange={(v) => { setTime(v); setErrTime(false); if (readActive) setReadOff(true); }} ariaLabel="Time" error={errTime} />
             <Strip>
               {chip(isPick(h1), "In 1 Hour", () => pick(h1.day, h1.time), "h1")}
               {chip(isPick(tomorrowMorning), "Tomorrow Morning", () => pick(tomorrowMorning.day, tomorrowMorning.time), "tm")}
@@ -268,7 +280,7 @@ export default function ReminderSheet({
       <ErrorLine text={errArea ? "Choose an area below." : errLink ? "Link a task below." : null} />
 
       <details className="exp-more rem-more" open={moreOpen} onToggle={(e) => setMoreOpen((e.target as HTMLDetailsElement).open)}>
-        <summary>Area, Linked Action and Follow-up</summary>
+        <summary>Area, Linked Action and Follow-Up</summary>
         {categories.length > 0 && (
           <Group label="Area">
             <MenuRow tone="blue" glyph={<Tag className="ic" />} label="Area" value={category} ariaLabel="Area"
@@ -284,8 +296,8 @@ export default function ReminderSheet({
           )}
           <Note>What this reminder is about · Opening it never marks the reminder done</Note>
         </Group>
-        <Group label="Follow-up">
-          <MenuRow tone="sand" glyph={<WarningGlyph />} label="Follow-up" value={follow} ariaLabel="Follow-up"
+        <Group label="Follow-Up">
+          <MenuRow tone="sand" glyph={<WarningGlyph />} label="Follow-Up" value={follow} ariaLabel="Follow-Up"
             word={FOLLOW_OPTIONS.find((o) => o.value === follow)?.label ?? "None"} off={follow === "off"}
             options={FOLLOW_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
             onPick={(v) => setFollow(v as FollowKey)} />

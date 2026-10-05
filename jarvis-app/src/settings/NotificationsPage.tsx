@@ -27,6 +27,18 @@ const WEB_META: Partial<Record<WebPushStatus, string>> = {
 };
 const webMeta = (status: WebPushStatus): string | undefined => WEB_META[status];
 
+// THE NOTE UNDER THE ALERTS ROW (2026-10-05, Dave "he opens the app and finds nothing": the only reason the Alerts
+// switch looked dead was a line at the very foot of the page, behind the dock). It now sits directly under the card that
+// holds the switch. shared/webPush.footFor keeps the words for the states that have no typed dot; the three that do
+// (off, on, denied) are written here as one sentence each, because a note never carries a dot typed in its text.
+export function webNote(status: WebPushStatus | null): string {
+  if (status === null) return "Checking whether this phone can get alerts";
+  if (status === "off") return "Turn on Alerts on This Phone and iOS will ask to allow notifications, and it is all alerts or none, since the switches below only shape the Notifications screen inside the app";
+  if (status === "on") return "Alerts arrive on this phone, all alerts or none, and the switches below only shape the Notifications screen inside the app";
+  if (status === "denied") return "Notifications are off for JARVIS in iOS Settings, so turn them on under Notifications, JARVIS";
+  return footFor(status);
+}
+
 type Prefs = { overdue: boolean; events: boolean; goals: boolean; checkins: boolean };
 const DEFAULT: Prefs = { overdue: true, events: true, goals: true, checkins: true };
 
@@ -165,6 +177,7 @@ export default function NotificationsPage({ onBack }: { onBack: () => void }) {
               onLocked={() => { if (web !== null && switchLocked(web)) showToast({ message: reasonFor(web) }); }} />
             {web === "on" && <Row label={webTesting ? "Sending" : "Send a Test Alert"} meta="Arrives in a Few Seconds" onClick={() => void sendWebTest()} disabled={webTesting} chev />}
           </Card>
+          <Foot>{webNote(web)}</Foot>
         </>
       )}
       <Head label="Tell Me About" />
@@ -176,15 +189,15 @@ export default function NotificationsPage({ onBack }: { onBack: () => void }) {
             rest timer exist only as lock-screen alerts, and only the phone
             app schedules those: the web build has nothing for them to do, so
             it does not show them. A locked tap says why. */}
-        <Switch label="Overdue and Due Tasks" meta="On the Notifications Tab, Not a Lock-Screen Alert" on={prefs.overdue} onToggle={() => set({ overdue: !prefs.overdue })} />
-        <Switch label="Today's Events" meta="A Lock-Screen Alert 15 Min Before, Plus a Row on the Notifications Tab" on={prefs.events} onToggle={() => set({ events: !prefs.events })} />
-        {native && <Switch label="Daily Check-Ins" meta="Two Lock-Screen Prompts, Morning and Night" on={prefs.checkins} locked={denied} onLocked={sayDenied} onToggle={() => set({ checkins: !prefs.checkins })} />}
-        <Switch label="Goal and Life-Area Nudges" meta="On the Notifications Tab When a Goal Falls Behind" on={prefs.goals} onToggle={() => set({ goals: !prefs.goals })} />
+        <Switch label="Overdue and Due Tasks" meta="On the Notifications Tab Only" on={prefs.overdue} onToggle={() => set({ overdue: !prefs.overdue })} />
+        <Switch label="Today's Events" meta="Lock-Screen Alert 15 Min Before" on={prefs.events} onToggle={() => set({ events: !prefs.events })} />
+        {native && <Switch label="Daily Check-Ins" meta="Morning and Night Prompts" on={prefs.checkins} locked={denied} onLocked={sayDenied} onToggle={() => set({ checkins: !prefs.checkins })} />}
+        <Switch label="Goal and Life-Area Nudges" meta="When a Goal Falls Behind" on={prefs.goals} onToggle={() => set({ goals: !prefs.goals })} />
         {/* UP-ATH-03 (2026-09-06): the rest timer's buzz between sets. The
             only alert on this page the athlete asked for by starting the
             thing that schedules it, which is why it is last and why it is
             on by default. */}
-        {native && <Switch label="Rest Timer" meta="A Buzz on the Lock Screen When the Rest Is Over" on={restNotify} locked={denied} onLocked={sayDenied} onToggle={() => { const next = !restNotify; updateHealthSettings({ restNotify: next }); setRestNotify(next); if (next) void requestNotificationPermission().then(() => readPerm()); }} />}
+        {native && <Switch label="Rest Timer" meta="A Buzz When the Rest Is Over" on={restNotify} locked={denied} onLocked={sayDenied} onToggle={() => { const next = !restNotify; updateHealthSettings({ restNotify: next }); setRestNotify(next); if (next) void requestNotificationPermission().then(() => readPerm()); }} />}
       </Card>
       {/* A4 (audit 2026-08-21, catalog Q8: never promise what the platform
           cannot do). A page called Notifications with switches on it
@@ -199,23 +212,24 @@ export default function NotificationsPage({ onBack }: { onBack: () => void }) {
           holds for every switch the web shows.) */}
       <Head label="Reminders" />
       <Card>
-        <Menu label="Morning" meta="What Tomorrow Morning Means" value={morning} word={morningWord(morning)} ariaLabel="Morning time"
+        <Menu label="Morning" meta="For Tomorrow Morning" value={morning} word={morningWord(morning)} ariaLabel="Morning time"
           options={["06:00", "06:30", "07:00", "07:30", "08:00", "08:30", "09:00", "09:30", "10:00"].map((v) => ({ value: v, label: morningWord(v) }))}
           onPick={(v) => { setMorning(v); setMorningTime(v); }} />
         {native && <Row label={testing ? "Sending" : "Send a Test Reminder"} meta={denied ? "Off in iOS Settings" : `Arrives in ${TEST_REMINDER_DELAY_S} Seconds`} onClick={() => void sendTest()} disabled={denied || testing} chev />}
       </Card>
-      <Foot>
-        {!native
-          ? (web === null ? "Checking whether this phone can get alerts" : footFor(web))
-          : denied
-            ? "Notifications are off for JARVIS in iOS Settings · Daily check-ins, Rest timer and event alerts need them · Turn them on there and nothing here has to change"
+      {/* On the web the note under the Alerts row (webNote) already says everything, so there is no second foot here. */}
+      {native && (
+        <Foot>
+          {denied
+            ? "Notifications are off for JARVIS in iOS Settings, so check-ins, the rest timer and event alerts wait until you turn them on there"
             : perm === "prompt"
               // Asked for the first time by turning a switch on, which is what
               // S1-03 moved here. Saying so beats promising alerts that are
               // one unanswered dialog away from never coming.
               ? "Turn one on and iOS will ask to allow notifications."
               : "Check-ins and event reminders arrive on this phone."}
-      </Foot>
+        </Foot>
+      )}
       <div className="screen-foot" />
     </div>
   );

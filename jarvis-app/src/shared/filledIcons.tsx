@@ -10,7 +10,7 @@ import {
   Brain, Note, Target, EnvelopeSimple, BellSimple, Wallet, Sparkle, GearSix,
   House, CheckSquare, CalendarBlank, UsersThree, GitFork, Compass, PenNib,
   Flag, Clock, UserCircle, Palette, Tag, SquaresFour, LinkSimple, Lightbulb,
-  CloudArrowUp, SlidersHorizontal, Info, Circle, CalendarCheck, Barbell, Funnel, Robot, HandHeart } from "@phosphor-icons/react";
+  CloudArrowUp, Info, Circle, CalendarCheck, Barbell, Funnel, Robot, CheckCircle, Wrench } from "@phosphor-icons/react";
 
 const P = { weight: "fill" as const, className: "ic" };
 
@@ -48,14 +48,16 @@ export const FILLED_SETTINGS: Record<string, ReactNode> = {
   notifsettings: <BellSimple {...P} />,
   appearance: <Palette {...P} />,
   // Feedback Style (2026-10-04): how the app says a step is done.
-  feedbackstyle: <HandHeart {...P} />,
+  feedbackstyle: <CheckCircle {...P} />,
+  // Booking (2026-10-05): it had no glyph and drew as the fallback disc, a placeholder.
+  booking: <CalendarCheck {...P} />,
   categories: <Tag {...P} />,
   edittabs: <SquaresFour {...P} />,
   connections: <LinkSimple {...P} />,
   aicontrol: <Sparkle {...P} />,
   learned: <Lightbulb {...P} />,
   backup: <CloudArrowUp {...P} />,
-  advanced: <SlidersHorizontal {...P} />,
+  advanced: <Wrench {...P} />,
   about: <Info {...P} />,
   training: <Barbell {...P} />,
   // Email Sections (2026-09-29): the person's own filters over the Email tab.

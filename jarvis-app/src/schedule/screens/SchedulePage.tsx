@@ -472,8 +472,8 @@ export default function SchedulePage({
   if (proposedBusy.length > 0) countLine.push(<span key="p"><b>{proposedBusy.length}</b> Proposed</span>);
   if (countLine.length === 0) countLine.push(<span key="n">Nothing Scheduled</span>);
   const headActions: RowAction[] = [
-    ...(mode === "day" && hasFuture && onRunningLate ? [{ label: "Running Late", onPick: () => setLateSheet(true) }] : []),
-    ...(mode === "day" && onDismissProposal && proposedBusy.length > 0 ? [{ label: "Not Today", onPick: onDismissProposal }] : []),
+    ...(hasFuture && onRunningLate ? [{ label: "Running Late", onPick: () => setLateSheet(true) }] : []),
+    ...(onDismissProposal && proposedBusy.length > 0 ? [{ label: "Not Today", onPick: onDismissProposal }] : []),
   ];
   // The list as it renders: the fold, what it holds when it is open, the
   // rule, then the day ahead. Off today (a past or future date) nothing is
@@ -644,7 +644,7 @@ export default function SchedulePage({
                 {past
                   ? <span className="wk-open">{r.count > 0 ? <><b>{r.count}</b> {r.count === 1 ? "Block" : "Blocks"}</> : ""}</span>
                   : r.openMin > 0
-                    ? <span className="wk-open"><b>{spanShort(r.openMin)}</b> Open</span> /* 2026-10-05: "3h Open", "2 Blocks": the word behind a number is capitalized (Dave's number rule, "Earlier 2 blocks"). */
+                    ? <span className="wk-open wk-open-stack"><b>{spanShort(r.openMin)}</b> <span>Open</span></span> /* 2026-10-05: "3h Open", "2 Blocks": the word behind a number is capitalized (Dave's number rule, "Earlier 2 blocks"). Stacked (round 1): the number over its word keeps the open column narrow, so the bar beside it is long enough to read and the clock under the card can be measured against it. */
                     : <span className="wk-open wk-full">Full</span>}
               </div>
             );

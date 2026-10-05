@@ -3,7 +3,8 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom";
-import { NotesProvider, useTasks } from "../data/NotesProvider";
+import { NotesProvider, useTasks, useSchedule } from "../data/NotesProvider";
+import { todayISO } from "../schedule/calendar";
 import { useEffect, useState } from "react";
 import SearchFlow from "./SearchFlow";
 import { NotesService } from "../notes/NotesService";
@@ -35,6 +36,24 @@ describe("SearchFlow", () => {
     expect(document.querySelector(".empty-sub")?.textContent).toBe("Try a Name, a Task, or a Note");
     // the page does not name the field a second time
     expect(document.body.textContent).not.toMatch(/Search Everything/);
+  });
+  // THE RESULTS ARE WRITTEN LIKE EVERY OTHER ROW (the catalog gate, 2026-10-05): his typed titles in Title Case, a clock in the
+  // 12-hour form. A hit on an event read "Call With Nadia" and "10:00" (24-hour, the wrong case for a small word) beside the
+  // Schedule's "Call with Nadia".
+  it("shows hits in Title Case and an event's time as 12-hour with AM or PM", async () => {
+    function SeededEvent() {
+      const tasks = useTasks();
+      const schedule = useSchedule();
+      const [ready, setReady] = useState(false);
+      useEffect(() => { (async () => { await tasks.createTask("email sam about the deck", {}); await schedule.createEvent("call with sam", { date: todayISO(), start: "10:00", end: "10:30" }); setReady(true); })(); }, [tasks, schedule]);
+      return ready ? <SearchFlow onClose={() => {}} /> : null;
+    }
+    render(<NotesProvider userId="u-case"><SeededEvent /></NotesProvider>);
+    fireEvent.change(await screen.findByPlaceholderText("Tasks, People, Notes"), { target: { value: "sam" } });
+    await waitFor(() => expect(screen.getByText("Call with Sam")).toBeInTheDocument());
+    expect(screen.getByText("Email Sam About the Deck")).toBeInTheDocument();
+    expect(screen.getByText("10:00 AM")).toBeInTheDocument();
+    expect(screen.queryByText("10:00")).toBeNull();
   });
   it("Cancel calls onClose", () => {
     const onClose = vi.fn();

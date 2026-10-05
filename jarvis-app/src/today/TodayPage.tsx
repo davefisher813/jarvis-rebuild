@@ -26,10 +26,11 @@ import { TodayPeek } from "./usePeekOnce";
 import SwipeTip from "../shared/SwipeTip";
 import RowCtxAction from "../shared/RowCtxAction";
 import RowActionSheet from "../shared/RowActionSheet";
+import HeadMore from "../shared/HeadMore";
 
 import { lineCase, titleCase } from "../shared/casing";
 import { MorningWeatherLine, WeatherOfferRow } from "../weather/WeatherLine";
-import { CheckCircleGlyph, GiftGlyph, SunriseGlyph, SweepGlyph, ParentLineGlyph, BullseyeGlyph } from "../shared/glyphs";
+import { CheckCircleGlyph, GiftGlyph, SunriseGlyph, SweepGlyph, ParentLineGlyph } from "../shared/glyphs";
 import StepCount, { stepsOf } from "../shared/StepCount";
 import type { ParentLine } from "../life/parent";
 import { originLabel } from "../tasks/origin";
@@ -1023,10 +1024,15 @@ export default function TodayPage({
               from him, not for the app it came out of. Open Inbox stays, and
               the rows under it are untouched. */}
           <span className="t">{mailHead?.title ?? "Ready to Send"}</span>
-          {/* CLEAR ALL RIDES THE HEAD (Dave 2026-10-05, locked), the first of the head's two capsules; the door out of the
-              band is the second. Two is the most a head holds. */}
+          {/* CLEAR ALL RIDES THE HEAD (Dave 2026-10-05, locked). When the band also has its door out (Open Inbox, which shows
+              only when no receipt line below already opens the inbox), that door waits behind the head's More button: both
+              capsules beside "Ready to Send" measured 116px for a title that needs 134, and a title cut to "Ready to S..."
+              is the truncation the review bans. One capsule and an overflow never crowd it. */}
           {onClearMail && <button className="see-all pill-action" onClick={onClearMail}>Clear All</button>}
-          {onSeeAllMail && <button className="see-all pill-action" onClick={onSeeAllMail}>{mailHead?.action ?? "Open Inbox"}</button>}
+          {!onClearMail && onSeeAllMail && <button className="see-all pill-action" onClick={onSeeAllMail}>{mailHead?.action ?? "Open Inbox"}</button>}
+          {onClearMail && onSeeAllMail && (
+            <HeadMore label="Email Actions" actions={[{ label: mailHead?.action ?? "Open Inbox", onPick: onSeeAllMail }]} />
+          )}
         </div>
       )}
       {/* stream-grouped: the mail rows ride inside one card (MailNotices

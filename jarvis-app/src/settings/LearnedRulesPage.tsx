@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRules, useCategories } from "../data/NotesProvider";
-import LargeTitleNav from "../shared/LargeTitleNav";
+import PageHeader from "../shared/PageHeader";
 import { attemptWrite } from "../shared/guard";
 import { showToast } from "../shared/toast";
 import type { LearnedRule } from "../rules/LearnedRulesService";
 import { Head, Card, Row } from "./kit";
+import { Lightbulb } from "../shared/icons";
 import SwipeDelete from "../shared/SwipeDelete";
 import { lineCase, titleCase } from "../shared/casing";
 // UP-CORE-14 (2026-09-05): an automation tuning is a rule about a CARD, not
@@ -56,10 +57,17 @@ export default function LearnedRulesPage({ onBack }: { onBack: () => void }) {
 
   return (
     <div className="screen ruled">
-      <LargeTitleNav title="What JARVIS Learned" back="Settings" onBack={onBack} />
+      {/* ONE LINE, NOT TWO (2026-10-05, the review: the title wrapped to "What JARVIS / Learned" and made this the one Settings page with a title
+          twice the height). The name stays what the app calls it everywhere; the display title steps down one size so all of it fits the line. */}
+      <PageHeader title="What JARVIS Learned" back="Settings" onBack={onBack}
+        hero={<div className="pagehead-title pagehead-title-fit">What JARVIS Learned</div>} />
       {loaded && rules.length === 0 && (
-        <div className="empty-state"><div className="empty-title">Nothing Learned Yet</div>
-          <div className="empty-sub">Correct JARVIS the Same Way Twice and the Rule Lands Here</div></div>
+        <div className="empty-state empty-compact">
+          {/* D9: a crafted empty state, the type's glyph and colour, the title, one warm line. */}
+          <div className="empty-icon cat-fg-yellow"><Lightbulb className="ic" /></div>
+          <div className="empty-title">Nothing Learned Yet</div>
+          <div className="empty-sub">A Rule Lands Here After You Correct JARVIS Twice</div>
+        </div>
       )}
       {rules.length > 0 && (
         <>

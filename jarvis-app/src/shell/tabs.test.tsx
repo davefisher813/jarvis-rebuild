@@ -64,7 +64,7 @@ describe("EditTabsPage at the cap", () => {
     const onToggle = vi.fn();
     render(<EditTabsPage tabKeys={FULL} onToggle={onToggle} onBack={() => {}} />);
     expect(screen.getByText(TAB_CAP_MESSAGE)).toBeInTheDocument();
-    expect(TAB_CAP_MESSAGE).toBe("The tab bar holds 5 · Turn another off first");
+    expect(TAB_CAP_MESSAGE).toBe("The tab bar holds 5, so turn another off first");
     const email = screen.getByRole("switch", { name: "Email" });
     expect(email).toHaveAttribute("aria-checked", "false");
     expect(email).toHaveAttribute("aria-disabled", "true");

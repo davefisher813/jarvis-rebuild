@@ -617,7 +617,7 @@ describe("CategoryDetail area delete (BRAIN-F-10)", () => {
       const before = (await catsRef!.list())[0]!;
 
       fireEvent.click(screen.getByText("Edit"));
-      fireEvent.click(await screen.findByText("Delete Category"));
+      fireEvent.click(await screen.findByText("Delete Area"));
       // The armed step names the cost, in real numbers, before the second tap.
       expect(await screen.findByText("Untags 1 Task")).toBeInTheDocument();
       fireEvent.click(screen.getByText("Tap Again to Delete"));

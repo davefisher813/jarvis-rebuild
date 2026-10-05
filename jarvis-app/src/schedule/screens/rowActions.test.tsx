@@ -260,7 +260,7 @@ describe("EventSheet: a guest row and a task row say their one verb as text", ()
   it("the guests' Open and Add, and the attached task's Detach, are text on the row, never capsules", () => {
     render(
       <EventSheet mode="edit"
-        initial={{ title: "Board sync", date: "2026-10-05", attendees: [{ email: "marco@example.com", name: "Marco Diaz" }, { email: "nadia@example.com" }] }}
+        initial={{ title: "Board sync", date: "2026-11-09", attendees: [{ email: "marco@example.com", name: "Marco Diaz" }, { email: "nadia@example.com" }] }}
         categories={[{ id: "orgB", name: "Ridgeley", color: "sky" }] as never}
         knownPeople={[{ id: "p1", name: "Marco Diaz", email: "marco@example.com" }]}
         onOpenPerson={() => {}} onAddPerson={() => {}} onSave={() => {}} onCancel={() => {}} />,

@@ -25,6 +25,7 @@ import { spanLabel } from "../../shared/duration";
 import RowShell from "../RowShell";
 import RowSheet from "../RowSheet";
 import RowCtxAction from "../../shared/RowCtxAction";
+import { Sparkles } from "../../shared/icons";
 
 // C-40: the filter chips. Choosers, so filled chips. Watching is not a
 // strand bucket: it lists the readiness rows past CLOSE_SHARE of their gate.
@@ -314,6 +315,12 @@ export default function StrandsPage({ onBack, openId: initialOpenId, openNonce, 
 
   const closeForm = () => { setAdding(false); setEditing(false); setOpenId(null); };
   const readyRow = readyKey ? read.rows.find((r) => r.key === readyKey) ?? null : null;
+  // Landing from a Needs You tap on the Watching list: the Readiness panel (which scrolled to the named row) is the All
+  // view's, so under Watching the row it named is found in this list once the read has come back.
+  useEffect(() => {
+    if (!focusReadinessKey || filter !== "watching" || !read.loaded) return;
+    document.getElementById("rdy-" + focusReadinessKey)?.scrollIntoView({ block: "center" });
+  }, [focusReadinessKey, filter, read.loaded]);
 
   const startAdd = () => { setAdding(true); setText(""); setCat("work_style"); setRule(false); setKind(null); setChannel(null); };
   const tellAbout = (key: string) => {
@@ -334,20 +341,24 @@ export default function StrandsPage({ onBack, openId: initialOpenId, openNonce, 
           offer about a different fact, which read as the tap opening the
           wrong thing). The offer steps aside when the page was opened on a
           readiness row; it is back on the next plain visit. */}
-      {!focusReadinessKey && <TodaySuggestions ai={ai} always />}
+      {!focusReadinessKey && <div className="strand-notices"><TodaySuggestions ai={ai} always /></div>}
 
       {/* WHY IS THIS LIST NOT GROWING (Dave 2026-09-06: "i dont see any trace
           of jarvis learning anything"). Above the facts, below the offers,
           because it is the answer to the question this screen makes him ask.
           It reports; it proposes nothing and writes nothing. */}
       {/* C-40: the choosers. Filled chips, because these filter. */}
-      <div className="chip-row chip-wrap-row strand-filters">
+      <div className="chip-row strand-filters">
         {FILTERS.map((f) => (
           <button key={f.key} type="button" className={"chip" + (filter === f.key ? " active" : "")} aria-pressed={filter === f.key} onClick={() => setFilter(f.key)}>{f.label}</button>
         ))}
       </div>
 
-      <ReadinessPanel read={read} today={today} focusKey={focusReadinessKey} onTell={tellAbout} onOpen={setReadyKey} />
+      {/* THE FILTER IS HONOURED (Dave 2026-10-05, the review: "Watching selected and the Readiness list still shows all
+          eight rows, and the word Watching three times"). Readiness is the unfiltered survey of every detector, so it is the
+          All view's. Under Watching the close detectors are their own list below, which is what the chip says; under Known,
+          Learned and Needs Confirmation the page lists facts, not detectors. */}
+      {filter === "all" && <ReadinessPanel read={read} today={today} focusKey={focusReadinessKey} onTell={tellAbout} onOpen={setReadyKey} />}
 
       {filter === "watching" && (
         <>
@@ -377,13 +388,12 @@ export default function StrandsPage({ onBack, openId: initialOpenId, openNonce, 
                 // in that sheet and is the row's swipe (clean rows, Dave
                 // 2026-10-05: no capsule on a row).
                 <RowShell key={r.key} verb={{ label: "Tell JARVIS", run: () => tellAbout(r.key) }}>
-                  <div {...pressable(() => setReadyKey(r.key))} className={"row strand-row" + (r.key === focusReadinessKey ? " rdy-row-focus" : "")}>
+                  {/* The head already says Watching, and the chip said it first, so the row says only the count: the word on every
+                      row was the third time on one screen (Dave 2026-10-05, the review). */}
+                  <div {...pressable(() => setReadyKey(r.key))} id={"rdy-" + r.key} className={"row strand-row" + (r.key === focusReadinessKey ? " rdy-row-focus" : "")}>
                     <div className="row-grow">
                       <div className="conn-name">{r.label}</div>
-                      <div className="facts">
-                        <span className="fact st warn">Watching</span>
-                        <span className="fact">{watchingCount(r)}</span>
-                      </div>
+                      <div className="facts"><span className="fact">{watchingCount(r)}</span></div>
                     </div>
                     <div className="chev" />
                   </div>
@@ -414,10 +424,15 @@ export default function StrandsPage({ onBack, openId: initialOpenId, openNonce, 
           notice." It also pointed at a control -- "add one thing below" --
           that is already on screen and says so itself.
           Title and sub, as fragments, like every other empty state. */}
+      {/* CRAFTED, AND TRUE BESIDE THE NOTICES ABOVE IT (Dave 2026-10-05, the review: three cards saying what JARVIS noticed
+          over "Nothing Noticed Yet"). The notices are offers, not yet facts, so what is empty is what has been KEPT: the
+          title says so, and the line holds with or without a notice above it. A glyph in the Brain's own purple, and the
+          one capsule that fills it is the head's Add One Thing. */}
       {strands.length === 0 && filter !== "watching" && (
-        <div className="empty-state">
-          <div className="empty-title">Nothing Noticed Yet</div>
-          <div className="empty-sub">What JARVIS watches you do lands here, and so does anything you tell it</div>
+        <div className="empty-state empty-compact">
+          <div className="empty-icon cat-fg-purple"><Sparkles className="ic" /></div>
+          <div className="empty-title">Nothing Remembered Yet</div>
+          <div className="empty-sub">What JARVIS notices, and anything you tell it, lands here once it is kept</div>
         </div>
       )}
       {strands.length > 0 && filter !== "all" && filter !== "watching" && visible.length === 0 && (

@@ -38,6 +38,8 @@ export interface MenuOption {
 // with its Done) is cut out of the scrim, so a thumb on it reaches it, and a
 // press there shuts the menu, the same as a press anywhere else outside it.
 const CHROME = ".sheet-bar, .sheet-actions";
+/** The room a menu leaves at the screen's edge. */
+const MENU_GUTTER = 20;
 
 /** A clip-path that is the whole screen minus each rect. Even-odd, and every
     hole is entered from the corner and left the same way, so the seams cancel
@@ -97,6 +99,7 @@ export default function HeadMenu({
   const [box, setBox] = useState<{ top: number; bottom: number; left: number; right: number; fromRight: boolean; up: boolean; maxH: number } | null>(null);
   const [clip, setClip] = useState<string | undefined>(undefined);
   const btn = useRef<HTMLButtonElement>(null);
+  const menuEl = useRef<HTMLDivElement>(null);
   const current = options.find((o) => o.value === value);
   const word = label ?? current?.label ?? "";
 
@@ -105,7 +108,10 @@ export default function HeadMenu({
     const r = btn.current?.getBoundingClientRect();
     if (!r) return;
     const vw = window.innerWidth, vh = window.innerHeight;
-    const fromRight = r.left + r.width / 2 > vw / 2;
+    // EVERY HEADER CAPSULE'S MENU HANGS FROM ITS CAPSULE'S LEFT EDGE (2026-10-05, the perfect bar: View and Area opened from the
+    // left of theirs while Group opened from the right of its, three siblings and two anchors). The clamp to the gutter is below,
+    // once the panel's own width is known. A row's trailing VALUE keeps the right-hand anchor: it is the value's edge it hangs from.
+    const fromRight = variant === "value" ? r.left + r.width / 2 > vw / 2 : false;
     // Drops down by default; opens upward when the room is below the fold
     // and there is more of it above (a menu at the foot of a tall sheet).
     const want = options.length * 44 + 12 + (search ? 52 : 0);
@@ -118,7 +124,15 @@ export default function HeadMenu({
       .filter((b) => b.width > 0 && b.height > 0);
     setClip(scrimWithHoles(vw, vh, holes));
     setBox({ top: r.bottom + 6, bottom: vh - r.top + 6, left: r.left, right: vw - r.right, fromRight, up, maxH: Math.max(132, Math.min(want, up ? above : below)) });
-  }, [open, options.length]);
+  }, [open, options.length, variant]);
+
+  // The left-anchored panel never runs past the 20px gutter on the right: when it would, it slides left just enough.
+  useLayoutEffect(() => {
+    const m = menuEl.current;
+    if (!m || !box || box.fromRight) return;
+    const over = box.left + m.offsetWidth - (window.innerWidth - MENU_GUTTER);
+    if (over > 0) m.style.left = Math.max(MENU_GUTTER, box.left - over) + "px";
+  }, [box]);
 
   useEffect(() => {
     if (!open) return;
@@ -135,6 +149,8 @@ export default function HeadMenu({
   }, [open]);
 
   const isOn = (v: string) => (multi ? (v === "" ? (picked?.length ?? 0) === 0 : (picked ?? []).includes(v)) : v === value);
+  // A menu where some options carry a dot keeps the dot's column for the ones that do not ("All Areas"), so the labels share an edge.
+  const anyDot = options.some((o) => !!o.dot);
   const shown = search ? options.filter((o) => o.value === "" || matchesPick(o.label, q)) : options;
   const pick = (v: string) => {
     haptics.selection();
@@ -163,6 +179,7 @@ export default function HeadMenu({
           {/* The backdrop is its own layer so the cut-outs clip IT, never the panel. */}
           <div className="hmenu-back" style={clip ? { clipPath: clip } : undefined} />
           <div
+            ref={menuEl}
             className={"hmenu" + (box.fromRight ? " hmenu-right" : "") + (box.up ? " hmenu-up" : "")}
             role="menu"
             aria-label={ariaLabel}
@@ -189,7 +206,7 @@ export default function HeadMenu({
                 onClick={() => pick(o.value)}
               >
                 <span className="hmenu-tick">{isOn(o.value) && <Check className="ic" />}</span>
-                {o.dot && <span className={"cat-dot cat-bg-" + o.dot} />}
+                {o.dot ? <span className={"cat-dot cat-bg-" + o.dot} /> : anyDot ? <span className="cat-dot hmenu-dot-ph" aria-hidden="true" /> : null}
                 <span className="hmenu-l">{o.label}</span>
                 {o.count != null && <span className="hmenu-n">{o.count}</span>}
               </button>

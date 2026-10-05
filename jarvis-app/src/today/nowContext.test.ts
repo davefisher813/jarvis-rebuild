@@ -29,6 +29,13 @@ describe("Now Context (item 10)", () => {
     expect(ctx.gapMin).toBeNull();
   });
 
+  // HIS TYPED TITLE IS SHOWN IN THE APP'S TITLE CASE (2026-10-05, the review: Now said "In: Call With Nadia" beside the day's
+  // "Call with Nadia"). A small word stays small; the record keeps what he typed.
+  it("shows an event's title the way every row shows it, inside it and as the next thing", () => {
+    expect(nowContext([ev("Call With Nadia", "10:00", "10:30")], [], "10:10").head).toBe("In: Call with Nadia");
+    expect(nowContext([ev("call with nadia", "18:00", "19:00")], [], "15:20").nextTitle).toBe("Call with Nadia");
+  });
+
   it("protected routine blocks count as commitments", () => {
     const ctx = nowContext([], [{ s: 17 * 60, e: 18 * 60, label: "Dinner" }], "16:00");
     expect(ctx.head).toBe("Free until 5 PM");

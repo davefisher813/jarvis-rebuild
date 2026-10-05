@@ -546,6 +546,9 @@
      button unmistakably has a body on both the page and a card, and the
      red label still clears 4.5:1 on it (CC051B on #EBEBEE: 4.9:1). */
   --press-1: rgba(80,55,30,0.05); --press-3: rgba(80,55,30,0.08); --press-5: rgba(80,55,30,0.13);
+  /* THE OFF TRACK OF A SWITCH (2026-10-05, the review: "almost invisible in light"). --press-5 over the warm card read as a pale beige pill
+     with a white knob; this is a visibly darker warm grey, so the control's edge is there before the knob moves. Dark keeps --press-5. */
+  --switch-off: #C9BFB1;
   /* Light keeps the alpha, because here it never fails: measured with
      --on-light-red, --press-3 reads 5.67 on a card and 5.08 on the palest
      ground in the theme, and it is also the most VISIBLE of the candidates
@@ -883,7 +886,7 @@ html[data-theme="light"], html[data-theme="light"] body { background-color: var(
 
 /* SWITCH */
 .switch { width: 51px; height: 31px; background: var(--good-fill); border-radius: var(--r-pill); position: relative; flex-shrink: 0; cursor: pointer; }
-.switch.off { background: var(--press-5); }
+.switch.off { background: var(--switch-off, var(--press-5)); }
 .switch::after { content: ''; position: absolute; top: 2px; left: 2px; width: 27px; height: 27px; background: #fff; border-radius: var(--r-circle); box-shadow: 0 0 0 0.5px var(--card-bd); transition: transform var(--dur-normal); }
 .switch:not(.off)::after { transform: translateX(20px); }
 

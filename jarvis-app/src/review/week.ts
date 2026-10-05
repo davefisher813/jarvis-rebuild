@@ -239,10 +239,10 @@ export function buildWeek(inp: WeekInputs): WeekReport {
     next = { id: least, name: cat.name, color: cat.color };
     // The area is a dot and its name (a mark, §AK); the amount is its own
     // fact, so the dot between them is drawn by CSS (F3). A zero reads
-    // "None of 3h 30m" (the lead, 2026-09-26), never "0 Min of".
+    // "Got 0 of 3h 30m" (Dave 2026-10-05, the review: "None of 2h 15m" was unreadable as a sentence), never "0 Min of".
     const had = minutesOf(least);
     nextFacts.push({ text: cat.name, tone: "cat", color: cat.color });
-    nextFacts.push({ text: `${had === 0 ? "None" : hoursLabel(had)} of ${hoursLabel(scheduled)}` });
+    nextFacts.push({ text: `Got ${had === 0 ? "0" : hoursLabel(had)} of ${hoursLabel(scheduled)}` });
     if (inp.prevRows) {
       const prevDays = weekDays(days[0]!, 8).slice(0, 7);
       const prevSeal = computeSeal(month, { rows: inp.prevRows, workouts: [], goals: inp.goals, sealedAt: Date.now(), events: inp.events, days: prevDays });

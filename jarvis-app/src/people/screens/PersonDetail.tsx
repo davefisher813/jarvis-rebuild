@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { Person } from "../types";
-import { personInitials, avatarClass } from "../types";
+import { personInitials, softAvatarClass } from "../types";
 import { phonesOf, emailsOf, phoneText } from "../contactMethods";
 import InlineEdit from "../../shared/InlineEdit";
 import RowActionSheet from "../../shared/RowActionSheet";
@@ -12,6 +12,7 @@ import { lineCase, titleCase } from "../../shared/casing";
 import { shortDate } from "../../shared/dateFormat";
 import { todayISO } from "../../tasks/grouping";
 import { addDays } from "../../schedule/calendar";
+import { MessageSquare } from "../../shared/icons";
 
 const BACK = (
   <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
@@ -28,6 +29,29 @@ function dueTone(due: string, today: string): "red" | "warn" | "date" {
   if (due < today) return "red";
   if (due <= addDays(today, 1)) return "warn";
   return "date";
+}
+
+// ONE WORD FOR THE DAY, ON EVERY ROW (Dave 2026-10-05, the review: a task said "Oct 5" in amber and an event said "OCT 5" in
+// grey for the same day, with no "Today" anywhere). Today and tomorrow are said as words; any other day is the short date.
+function whenText(iso: string, today: string): string {
+  if (iso === today) return "Today";
+  if (iso === addDays(today, 1)) return "Tomorrow";
+  return shortDate(iso);
+}
+
+// A ROW ON A PERSON'S OWN PAGE DOES NOT SAY THEIR NAME AGAIN (Dave 2026-10-05, the review: "Board Call · Rob Calder" on
+// Rob's page). A name tacked on at either end, behind a dot or a dash, is dropped; one that is part of the sentence
+// ("Reply to Nadia re: Invoice") stays, because without it the words stop making sense. A separator typed inside what is left
+// becomes a comma: the dot is the stylesheet's to draw, never a character in a title.
+function titleOnPage(title: string, name: string): string {
+  const esc = name.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  let t = title;
+  if (esc) {
+    t = t.replace(new RegExp("\\s*[\\u00b7\\u2022|:\\u2013\\u2014-]\\s*" + esc + "\\s*$", "i"), "");
+    t = t.replace(new RegExp("^\\s*" + esc + "\\s*[\\u00b7\\u2022|:\\u2013\\u2014-]\\s*", "i"), "");
+  }
+  t = t.replace(/\s*[\u00b7\u2022]\s*/g, ", ").trim();
+  return t || title;
 }
 
 // TAP A FACT TO CHANGE IT (Dave 2026-09-16: "Why can't I edit anything?").
@@ -169,7 +193,9 @@ export default function PersonDetail({
   const emails = emailsOf(person.data);
   const phone = phones[0]?.value;
   const email = emails[0]?.value;
-  const hasAttrs = relationship || birthday || flagged || register || categoryNames.length > 0 || !!lastTalked || trustedAdult;
+  // THE RELATIONSHIP IS SAID ONCE (Dave 2026-10-05, the review: "Attorney" under the name and again as About > Relationship).
+  // The hero carries it; About is for what the hero does not say.
+  const hasAttrs = birthday || flagged || register || categoryNames.length > 0 || !!lastTalked || trustedAdult;
   // How JARVIS writes to them, stated in the card because it drives every
   // draft. Flagged wins over register, same precedence the drafting stack uses.
   const writeStyle = flagged
@@ -185,7 +211,7 @@ export default function PersonDetail({
         <button className="nav-action" aria-label="Edit" onClick={onEdit}>{EDIT}</button>
       </div>
       <div className="person-hero">
-        <div className={"av av-72 " + avatarClass(color)}>{personInitials(name)}</div>
+        <div className={"av av-72 " + softAvatarClass(color)}><span>{personInitials(name)}</span></div>
         <div className="person-name">{name}</div>
         {/* C-59: the label facts. The relationship WAS the one coloured
             fact, in sky, until that class went with the blue subtext; it had
@@ -298,8 +324,18 @@ export default function PersonDetail({
         <div className="sh2 sh2-quiet">
           <span className="t">Next Time We Talk</span>
           {openPoints.length > 0 && <span className="n">{openPoints.length}</span>}
-          {/* "Add" and not "Add Something": the title is the longer word and at 390 the capsule was cutting it ("Next Time We Ta..."). */}
-          {!adding && <button className="see-all pill-action" aria-label="Add Something to Talk About" onClick={() => setAdding(true)}>Add</button>}
+          {/* "Add Topic": the bare "Add" did not say what it added (Dave 2026-10-05, the review). The head's title is the longer
+              word, so the capsule is two short words, not "Add Something". */}
+          {!adding && <button className="see-all pill-action" aria-label="Add Something to Talk About" onClick={() => setAdding(true)}>Add Topic</button>}
+        </div>
+      )}
+      {/* CRAFTED, NOT BLANK (Dave 2026-10-05, D9): a person with nothing saved is a glyph, a title and one warm line, and the head's
+          Add Topic is the one capsule that fills it. */}
+      {onAddPoint && points.length === 0 && !adding && (
+        <div className="empty-state empty-compact">
+          <div className="empty-icon cat-fg-teal"><MessageSquare className="ic" /></div>
+          <div className="empty-title">Nothing to Bring Up Yet</div>
+          <div className="empty-sub">Topics You Save Here Wait for Your Next Conversation</div>
         </div>
       )}
       {onAddPoint && (points.length > 0 || adding) && (
@@ -331,7 +367,6 @@ export default function PersonDetail({
       {hasAttrs && <div className="sh2 sh2-quiet"><span className="t">About</span></div>}
       {hasAttrs && (
         <div className="pad-x"><div className="card list-card-ruled">
-          <KV label="Relationship" value={relationship ? lineCase(relationship) : relationship} onEdit={onEdit} />
           <KV label="Birthday" value={birthday} onEdit={onEdit} />
           <KV label="JARVIS Writes" value={writeStyle} onEdit={onEdit} />
           <KV label="Areas" value={categoryNames.length > 0 ? categoryNames.join(", ") : undefined} onEdit={onEdit} />
@@ -380,7 +415,7 @@ export default function PersonDetail({
               <div className="row" key={"promise:" + p.threadId} {...(onAddTask ? pressable(() => setSheet({ kind: "promise", p })) : {})}>
                 <div className="row-grow">
                   <div className="conn-name">{p.text}</div>
-                  <div className="facts"><span className="fact">You Promised</span>{p.due && <span className={"fact " + dueTone(p.due, todayISO())}>{shortDate(p.due)}</span>}</div>
+                  <div className="facts"><span className="fact">You Promised</span>{p.due && <span className={"fact " + dueTone(p.due, todayISO())}>{whenText(p.due, todayISO())}</span>}</div>
                 </div>
                 {/* Overdue: the promise's moment has come, so its one action shows on the row as text. Tap opens its sheet. */}
                 <RowCtxAction when={!!onAddTask && !!p.due && p.due < todayISO()} label="Add Task" onAct={() => onAddTask?.(p)} ariaLabel={"Add Task " + p.text} />
@@ -393,7 +428,7 @@ export default function PersonDetail({
                 onClick={onMessageAbout ? () => setSheet({ kind: "item", m }) : onOpenItem ? () => onOpenItem(m.kind, m.id) : undefined}>
                 <div className="task-check-tap"><RowGlyph kind={m.kind} /></div>
                 <div className="task-title">
-                  <span className="task-name">{m.title}</span>
+                  <span className="task-name">{titleCase(titleOnPage(m.title, name))}</span>
                   {/* A task's due date wears the reminder and project window
                       (§AM, R8), an event's date is a neutral small-caps date,
                       and a reminder's own words ("Reminds at 2:00PM") are the
@@ -402,7 +437,7 @@ export default function PersonDetail({
                     <div className="facts">
                       {m.reminder
                         ? <span className="fact">{m.sub}</span>
-                        : <span className={"fact " + (m.kind === "task" ? dueTone(m.sub, todayISO()) : "date")}>{shortDate(m.sub)}</span>}
+                        : <span className={"fact " + dueTone(m.sub, todayISO())}>{whenText(m.sub, todayISO())}</span>}
                     </div>
                   )}
                 </div>

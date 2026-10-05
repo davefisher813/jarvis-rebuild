@@ -1649,6 +1649,8 @@ export default function ScheduleFlow({ onEditRoutine, openId, openNonce, onOpenC
           linkedNotes={linked}
           onOpenNote={onNavigate ? (id) => onNavigate("note", id) : undefined}
           openSourceFor={openSourceFor}
+          onDuplicate={() => { const id = detail.id; setDetail(null); void duplicateEvent(id); }}
+          onDelete={() => { const id = detail.id; setDetail(null); void onDeleteEventRow(id); }}
         />
       );
     }

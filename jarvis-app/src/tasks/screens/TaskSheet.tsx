@@ -425,7 +425,7 @@ export default function TaskSheet({
   };
 
   const showNotes = mode === "edit" && (linkedNotes.length > 0 || !!onAddNote);
-  const showActions = mode === "edit" && (!!onSchedule || (!!onBreakDown && !!text.trim()) || !!onTextPerson || !!onDelete);
+  const showNav = mode === "edit" && (!!onSchedule || (!!onBreakDown && !!text.trim()) || !!onLogDecision || !!onTextPerson);
   // "Not Set" (Dave's pass-off, 2026-09-26: every line the app writes is
   // Title Case, the sheet's sub lines included).
   const planLine = planOpen ? null : planTouched ? (planWeak ?? sentence(draftPlan)) : "Not Set";
@@ -438,7 +438,7 @@ export default function TaskSheet({
             button hands its onClick the click event positionally, and
             save's first parameter is closeNow -- passing `save` directly
             would read every ordinary click as a truthy closeNow. */}
-        <SheetBar title={mode === "new" ? "New Task" : "Edit Task"} onCancel={onCancel} onSave={() => save()} saveLabel={saving ? "Saving" : "Save"} />
+        <SheetBar title={mode === "new" ? "New Task" : "Edit Task"} onCancel={onCancel} onSave={() => save()} saveLabel={saving ? "Saving" : "Save"} saveDisabled={!text.trim()} />
         {/* TICKING IT OFF IS NOT A CHECKLIST FEATURE (Dave, 2026-09-15: "you
             can't even clear it if you've completed it... which is
             ridiculous").
@@ -448,55 +448,54 @@ export default function TaskSheet({
             with no checklist -- which is most of them -- could be renamed,
             rescheduled, broken down, texted about and deleted from here, and
             not finished. You had to back out and find its ring in a list.
-            It is the same 24px ring every task row in the app uses, in the
-            lead slot beside the name, where the hand already looks. */}
-        {mode === "edit" && (
-          <div className="pad-x"><div className="card xs-group xs-do">
-            {/* THE ACTIONS, PRIMARY FIRST (Dave 2026-10-05, locked: "Tap a row, detail
-                bottom sheet with all actions, primary action prominent, quieter ones
-                below"). Start leads in the action red; First Step and Move follow in
-                the plain ink; Mark Done is the check he already knew. Each is the same
-                action the row's swipe runs. */}
-            {onStart && (
-              <div className="row xs-row xs-primary" {...rowDoor(onStart)}>
-                <Tile tone="red"><Zap className="ic" /></Tile>
-                <div className="row-grow"><div className="conn-name">{startWord}</div></div>
-                <div className="chev"></div>
-              </div>
-            )}
-            {onFirstStep && (
-              <div className="row xs-row" {...rowDoor(onFirstStep)}>
-                <Tile tone="purple"><Sparkles className="ic" /></Tile>
-                <div className="row-grow"><div className="conn-name">First Step</div></div>
-                <div className="chev"></div>
-              </div>
-            )}
-            {onMove && (
-              <div className="row xs-row" {...rowDoor(onMove)}>
-                <Tile tone="orange"><Clock className="ic" /></Tile>
-                <div className="row-grow"><div className="conn-name">Move to Tomorrow</div></div>
-                <div className="chev"></div>
-              </div>
-            )}
-            {/* The whole row finishes it (the row-tap law): the ring is the
-                affordance, and the words beside it are the same target, so a
-                thumb aimed anywhere on the row does the one thing the row is
-                for. */}
-            <div className="row xs-row" {...rowDoor(() => void save(true))}>
-              {/* THE RING ANSWERS ITS OWN TAP (the tap sweep, 2026-10-04). It is a
-                  checkbox, so the row's door leaves a tap on it to it, and it had
-                  no handler: the ring did nothing while the words beside it
-                  finished the task. */}
-              <div className="row-ico xs-ring-slot">
-                <div className="task-check-tap" role="checkbox" aria-checked={false} aria-label="Mark done" onClick={own(() => void save(true))}>
-                  <div className="task-check" />
-                </div>
-              </div>
-              <div className="row-grow"><div className="conn-name">Mark Done</div></div>
-            </div>
-          </div></div>
-        )}
+            It is the first group of the form (2026-10-05: it sat OUTSIDE the
+            scrolling form, so it stayed pinned under the bar and covered the
+            rows that scrolled beneath it); it scrolls with the rest, and the
+            green tile is the done mark in the lead slot, where the hand
+            already looks. */}
         <div className="sheet-form">
+          {mode === "edit" && (
+            <div className="pad-x"><div className="card xs-group xs-do">
+              {/* THE ACTIONS, PRIMARY FIRST (Dave 2026-10-05, locked: "Tap a row, detail
+                  bottom sheet with all actions, primary action prominent, quieter ones
+                  below"). Start leads in the action red; First Step and Move follow in
+                  the plain ink; Mark Done is the check he already knew. Each is the same
+                  action the row's swipe runs. */}
+              {onStart && (
+                <div className="row xs-row xs-primary" {...rowDoor(onStart)}>
+                  <Tile tone="red"><Zap className="ic" /></Tile>
+                  <div className="row-grow"><div className="conn-name">{startWord}</div></div>
+                  <div className="chev"></div>
+                </div>
+              )}
+              {onFirstStep && (
+                <div className="row xs-row" {...rowDoor(onFirstStep)}>
+                  <Tile tone="purple"><Sparkles className="ic" /></Tile>
+                  <div className="row-grow"><div className="conn-name">First Step</div></div>
+                  <div className="chev"></div>
+                </div>
+              )}
+              {onMove && (
+                <div className="row xs-row" {...rowDoor(onMove)}>
+                  <Tile tone="orange"><Clock className="ic" /></Tile>
+                  <div className="row-grow"><div className="conn-name">Move to Tomorrow</div></div>
+                  <div className="chev"></div>
+                </div>
+              )}
+              {/* The whole row finishes it (the row-tap law): the tile is the affordance, and the words beside it are the same target,
+                  so a thumb aimed anywhere on the row does the one thing the row is for. DONE IS GREEN (the colour key, 2026-10-05):
+                  it was a bare grey ring beside three coloured tiles. The tile is still the checkbox, so a tap on it answers for
+                  itself (the tap sweep, 2026-10-04: the row's door leaves a tap on a checkbox to it). */}
+              <div className="row xs-row" {...rowDoor(() => void save(true))}>
+                <Tile tone="green">
+                  <div className="task-check-tap" role="checkbox" aria-checked={false} aria-label="Mark done" onClick={own(() => void save(true))}>
+                    <Check className="ic" />
+                  </div>
+                </Tile>
+                <div className="row-grow"><div className="conn-name">Mark Done</div></div>
+              </div>
+            </div></div>
+          )}
           {/* SHARED-F-17 (2026-09-05): the sheet's provenance line opens its
               source too, when the flow has a route to it. */}
           <Provenance source={source} {...(source && openSourceFor ? { onOpen: openSourceFor(source) } : {})} />
@@ -531,7 +530,7 @@ export default function TaskSheet({
               every line is checked. */}
           <div className="grp xs-grp"><div className="eyebrow">Notes</div></div>
           <div className="pad-x"><div className="card xs-group task-notes">
-            <MarkdownField value={notes} docKey={"task:" + (mode === "edit" ? (initial?.text ?? "") : "new")} level="compact" placeholder="Anything Worth Keeping with It" ariaLabel="Task notes" onChange={setNotes} />
+            <MarkdownField value={notes} docKey={"task:" + (mode === "edit" ? (initial?.text ?? "") : "new")} level="compact" placeholder="Anything Worth Keeping" ariaLabel="Task notes" onChange={setNotes} />
           </div></div>
           {/* THE ADD IS ON THE GROUP'S LABEL ROW (Dave 2026-10-05, locked: a
               section-level action lives in the head, never inside a card or at
@@ -761,11 +760,17 @@ export default function TaskSheet({
             <div className="row xs-row" role="button" tabIndex={0} aria-expanded={planOpen} onClick={() => setPlanOpen((o) => !o)}>
               <Tile tone="sky"><PinGlyph /></Tile>
               <div className="row-grow">
-                <div className="conn-name">When and Where</div>
+                {/* NAMED FOR WHAT IT HOLDS (2026-10-05): "When and Where" repeated the two groups above it, and this row is the
+                    if-then cue (after this, at that time, in that place, do the thing), so it says so. */}
+                <div className="conn-name">If-Then Plan</div>
                 {planLine && planLine !== "Not Set" && <div className="conn-meta">{planLine}</div>}
               </div>
-              {planLine === "Not Set" && <span className="conn-meta">Not Set</span>}
-              <div className={"chev chev-down" + (planOpen ? " chev-open" : "")} />
+              {/* The chevron and the unset word are the dropdown rows' own (.dd.dd-value), so every value row in the sheet ends on
+                  the same chevron at the same edge. */}
+              <span className={"dd dd-value" + (planLine === "Not Set" ? " dd-off" : "") + (planOpen ? " dd-flip" : "")} aria-hidden="true">
+                {planLine === "Not Set" && <span className="dd-w">Not Set</span>}
+                <span className="dd-cv" />
+              </span>
             </div>
             {planOpen && (
               <div className="xs-plan">
@@ -817,7 +822,7 @@ export default function TaskSheet({
             ))}
           </div></div>
 
-          {showActions && (
+          {showNav && (
             <div className="pad-x xs-actions"><div className="card xs-group">
               {onSchedule && (
                 <div className="row xs-row" role="button" tabIndex={0} onClick={onSchedule}>
@@ -855,7 +860,13 @@ export default function TaskSheet({
                   <div className="chev"></div>
                 </div>
               )}
-              {onDelete && <button className="row xs-row xs-del" onClick={onDelete}>Delete Task</button>}
+            </div></div>
+          )}
+          {/* THE DESTRUCTIVE ROW IS ITS OWN CARD (2026-10-05): it sat as the last row of the navigation card, so the one verb that
+              cannot be undone read as another door. */}
+          {mode === "edit" && onDelete && (
+            <div className="pad-x xs-actions xs-del-card"><div className="card xs-group">
+              <button className="row xs-row xs-del" onClick={onDelete}>Delete Task</button>
             </div></div>
           )}
           <div className="xs-foot" />

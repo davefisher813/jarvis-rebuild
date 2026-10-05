@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { ShieldCheck } from "@phosphor-icons/react";
 import { useRoutine, useOptionalStrands } from "../data/NotesProvider";
 import type { Strand } from "../brain/strands/types";
 import { lineCase, titleCase } from "../shared/casing";
@@ -269,6 +270,8 @@ export default function RoutineFlow({ onBack, focusId, onFocusConsumed }: { onBa
       await routine.save(data);
       savedRef.current = data;
       setDirty(false);
+      // The button's word flips from Save to Saved with nothing else changing; say it (Dave 2026-10-05, the review).
+      showToast({ message: "Routine Saved" });
     } catch {
       showToast({ message: "Couldn't Save · Check Your Connection" });
     }
@@ -318,8 +321,19 @@ export default function RoutineFlow({ onBack, focusId, onFocusConsumed }: { onBa
           but an action is not drawn (rule 12). */}
       <div className="sh2 sh2-quiet">
         <span className="t">Protected Time</span>
-        <button type="button" className="see-all pill-action" onClick={openAdd}>Add Protected Time</button>
+        {/* "Add", not "Add Protected Time": the head already says what it adds, and the long label was crowding the
+            title ("PROTECTED TI..." in light; Dave 2026-10-05, the review). */}
+        <button type="button" className="see-all pill-action" aria-label="Add Protected Time" onClick={openAdd}>Add</button>
       </div>
+      {/* CRAFTED, SO THE HEAD IS NOT LEFT HOLDING NOTHING (Dave 2026-10-05, D9): with no block yet, a glyph, a title and one
+          warm line say what this holds, and the head's Add is the one capsule that fills it. */}
+      {sortedBlocks.length === 0 && (
+        <div className="empty-state empty-compact">
+          <div className="empty-icon cat-fg-blue"><ShieldCheck className="ic" weight="regular" /></div>
+          <div className="empty-title">Nothing Protected Yet</div>
+          <div className="empty-sub">Time You Protect Stays Free of Tasks and Plans</div>
+        </div>
+      )}
       {sortedBlocks.length > 0 && <Card>
         {/* §AM (2026-09-26): the meta line is a facts line, so its separators
             are drawn by the stylesheet, not baked into a string. Flexible is
@@ -375,13 +389,15 @@ export default function RoutineFlow({ onBack, focusId, onFocusConsumed }: { onBa
       <Head label="Weekends" />
       <Card>
         <Switch label="Different on Weekends" on={!!data.weekendDifferent} onToggle={() => set({ weekendDifferent: !data.weekendDifferent })} ariaLabel="Different hours on weekends" />
-        {data.weekendDifferent && (
-          <>
-            <Row label="Weekend Wake"><input type="time" className="set-field" aria-label="Weekend wake" value={toHHMM(data.weekendWakeMin ?? data.wakeMin)} disabled={!loaded} onChange={(e) => { const v = minutesOf(e.target.value); if (v != null) set({ weekendWakeMin: v }); }} /></Row>
-            <Row label="Weekend Sleep"><input type="time" className="set-field" aria-label="Weekend sleep" value={toHHMM(data.weekendSleepMin ?? data.sleepMin)} disabled={!loaded} onChange={(e) => { const v = minutesOf(e.target.value); if (v != null) set({ weekendSleepMin: v }); }} /></Row>
-          </>
-        )}
       </Card>
+      {/* THE TOGGLE IS ITS OWN CARD, AND THE TWO TIMES ARE THEIRS, as Active Hours is (Dave 2026-10-05, the review: a switch row
+          and two time rows in one card, and the screen growing under the thumb with no rhythm). */}
+      {data.weekendDifferent && (
+        <Card>
+          <Row label="Weekend Wake"><input type="time" className="set-field" aria-label="Weekend wake" value={toHHMM(data.weekendWakeMin ?? data.wakeMin)} disabled={!loaded} onChange={(e) => { const v = minutesOf(e.target.value); if (v != null) set({ weekendWakeMin: v }); }} /></Row>
+          <Row label="Weekend Sleep"><input type="time" className="set-field" aria-label="Weekend sleep" value={toHHMM(data.weekendSleepMin ?? data.sleepMin)} disabled={!loaded} onChange={(e) => { const v = minutesOf(e.target.value); if (v != null) set({ weekendSleepMin: v }); }} /></Row>
+        </Card>
+      )}
 
       <div className="screen-foot" />
 

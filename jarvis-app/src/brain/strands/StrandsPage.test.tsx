@@ -88,6 +88,11 @@ vi.mock("../../ai/useAIContext", () => ({
   todayISO: (d?: Date) => (d ?? new Date("2026-08-24T12:00:00")).toISOString().slice(0, 10),
 }));
 
+// A readiness row wears the strand row's anatomy since 2026-10-05 (the same row as the facts below it), so the fact rows are
+// the strand rows that are not a detector's.
+const factRows = (c: HTMLElement) => [...c.querySelectorAll<HTMLElement>(".strand-row")].filter((r) => !r.id.startsWith("rdy-"));
+const detectorRows = (c: HTMLElement) => [...c.querySelectorAll<HTMLElement>('.strand-row[id^="rdy-"]')];
+
 describe("StrandsPage renders the genome", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -103,7 +108,7 @@ describe("StrandsPage renders the genome", () => {
     svc.list.mockResolvedValue([strand()]);
     const { container } = render(<StrandsPage onBack={() => {}} />);
     await screen.findByText("Gets Things Done Mid Morning");
-    const row = container.querySelector(".strand-row")!;
+    const row = factRows(container)[0]!;
     await waitFor(() => expect(row.querySelector(".fact.good")).toHaveTextContent("High"));
     expect(row.querySelector(".fact.st")).toHaveTextContent("Learned");
     expect([...row.querySelectorAll(".fact:not(.st):not(.good):not(.warn):not(.red)")].map((e) => e.textContent)).toEqual(["Energy"]);
@@ -118,7 +123,7 @@ describe("StrandsPage renders the genome", () => {
     // What the test is for is unchanged: the screen admits it knows nothing,
     // and the way to teach it one thing is right there.
     render(<StrandsPage onBack={() => {}} />);
-    await screen.findByText("Nothing Noticed Yet");
+    await screen.findByText("Nothing Remembered Yet");
     expect(screen.getByText("Add One Thing")).toBeInTheDocument();
   });
 
@@ -128,7 +133,7 @@ describe("StrandsPage renders the genome", () => {
     svc.list.mockResolvedValue([strand(), strand({ text: "Never schedule calls before 10", category: "work_style", source: "told", derivation: undefined }, "s2")]);
     const { container } = render(<StrandsPage onBack={() => {}} />);
     await screen.findByText("Gets Things Done Mid Morning");
-    const rows = [...container.querySelectorAll(".strand-row")];
+    const rows = factRows(container);
     expect(rows[0]?.querySelector(".fact.st")?.textContent).toBe("Learned");
     expect(rows[0]?.textContent).toContain("Energy");
     expect(rows[1]?.querySelector(".fact.st")?.textContent).toBe("Known");
@@ -141,8 +146,8 @@ describe("StrandsPage renders the genome", () => {
   it("the filter chips are choosers, and Needs Confirmation gathers what is fading (C-40, C-47)", async () => {
     svc.list.mockResolvedValue([strand(), strand({ text: "Admin happens Friday afternoons", category: "routine", lastConfirmed: "2026-05-01" }, "s2")]);
     const { container } = render(<StrandsPage onBack={() => {}} />);
-    await waitFor(() => expect(container.querySelectorAll(".strand-row").length).toBe(2));
-    const fading = [...container.querySelectorAll(".strand-row")].find((r) => r.textContent?.includes("Admin Happens"));
+    await waitFor(() => expect(factRows(container).length).toBe(2));
+    const fading = factRows(container).find((r) => r.textContent?.includes("Admin Happens"));
     expect(fading?.querySelector(".fact.st")?.textContent).toBe("Fading");
     // §AK one grey (2026-09-26): the bucket is the row's one plain grey. The
     // days unconfirmed were a second; Fading already says it, and the sheet
@@ -156,6 +161,8 @@ describe("StrandsPage renders the genome", () => {
     // TodaySuggestions offers the same faded fact as a card above the list,
     // so the list is read through its rows.
     const rowTexts = () => [...container.querySelectorAll(".strand-row")].map((r) => r.textContent ?? "");
+    // The filter is honoured: the detectors' survey is the All view's, so under Needs Confirmation only facts are listed.
+    expect(detectorRows(container)).toHaveLength(0);
     expect(rowTexts().some((t) => t.includes("Gets Things Done Mid Morning"))).toBe(false);
     expect(rowTexts().some((t) => t.includes("Admin Happens Friday Afternoons"))).toBe(true);
     fireEvent.click(container.querySelector(".strand-row .row-ctx")!);
@@ -447,18 +454,26 @@ describe("What JARVIS Knows says one word per detector", () => {
     ]) {
       expect(screen.getByText(label), label + " lost its row").toBeInTheDocument();
     }
-    const words = [...container.querySelectorAll(".rdy-row .fact.st")].map((e) => e.textContent);
+    const words = detectorRows(container).map((r) => r.querySelector(".fact.st")?.textContent);
     expect(words.length).toBe(8);
     expect(words.every((w) => w === "Known" || w === "Close" || w === "Waiting")).toBe(true);
     expect(container.querySelectorAll(".rdy-why").length).toBe(0);
-    expect(screen.getByText(/Numbers behind each gate/)).toBeInTheDocument();
+    // Title Case, no arrows typed into it (Dave 2026-10-05, the review).
+    expect(screen.getByText("The Numbers Behind These Live in Settings Under Learning Lab")).toBeInTheDocument();
+    expect(container.textContent).not.toContain("\u203A");
+    // The same row as the facts below it: a title, the word and the count as its facts, a chevron.
+    for (const r of detectorRows(container)) {
+      expect(r.querySelector(".conn-name")).not.toBeNull();
+      expect(r.querySelectorAll(".facts > .fact").length).toBe(2);
+      expect(r.querySelector(".chev")).not.toBeNull();
+    }
   });
 
   it("a fact JARVIS already knows reads Known", async () => {
     svc.list.mockResolvedValue([strand()]); // derivation: completion_window
     const { container } = render(<StrandsPage onBack={() => {}} />);
     await screen.findByText("When Tasks Get Done");
-    const row = [...container.querySelectorAll(".rdy-row")].find((e) => e.textContent?.includes("When Tasks Get Done"));
+    const row = detectorRows(container).find((e) => e.textContent?.includes("When Tasks Get Done"));
     expect(row?.querySelector(".fact.st")?.textContent).toBe("Known");
     expect(row?.querySelector(".fact.st")?.className).toContain("good");
   });
@@ -489,16 +504,16 @@ describe("What JARVIS Knows: leaving the form, and what a readiness row opens", 
     rows = [{ key: "training_window", label: "When You Train", have: 4, need: 10, unit: "sessions", state: "waiting", detail: "Needs 10 sessions, with one 3-hour stretch holding 40 percent of them" }];
     render(<StrandsPage onBack={() => {}} />);
     const label = await screen.findByText("When You Train");
-    fireEvent.click(label.closest(".rdy-row")!);
+    fireEvent.click(label.closest(".strand-row")!);
     const dialog = await screen.findByRole("dialog", { name: "When You Train" });
     expect(dialog).toHaveTextContent("Waiting");
     expect(dialog).toHaveTextContent("4 of 10 Sessions");
-    expect(dialog).toHaveTextContent("6 More Sessions to Go");
+    expect(dialog).toHaveTextContent("6 More to Go");
     // THE CATALOG (Dave 2026-10-05): one facts line (a white count, then what is missing), not three
     // grey lines; the rule behind the count sits behind a disclosure, in Title Case.
     expect(dialog.querySelectorAll(".conn-meta")).toHaveLength(1);
     expect(dialog.querySelector(".facts > .fact > b")!.textContent).toBe("4 of 10 Sessions");
-    expect(Array.from(dialog.querySelectorAll(".facts > .fact")).map((f) => f.textContent)).toEqual(["4 of 10 Sessions", "6 More Sessions to Go"]);
+    expect(Array.from(dialog.querySelectorAll(".facts > .fact")).map((f) => f.textContent)).toEqual(["4 of 10 Sessions", "6 More to Go"]);
     expect(dialog.querySelector("details .conn-meta")!.textContent).toBe("Needs 10 Sessions, with One 3-Hour Stretch Holding 40 Percent of Them");
     expect(dialog.querySelector("details summary")!.textContent).toBe("How It Is Counted");
     // Not the insight form.
@@ -510,12 +525,13 @@ describe("What JARVIS Knows: leaving the form, and what a readiness row opens", 
     expect(screen.getByText("Something JARVIS Should Know About You")).toBeInTheDocument();
   });
 
-  it("the detail closes from its own Close button", async () => {
+  it("the detail closes from its own Done button, never a Close that is also the state word", async () => {
     rows = [{ key: "training_window", label: "When You Train", have: 4, need: 10, unit: "sessions", state: "waiting" }];
     render(<StrandsPage onBack={() => {}} />);
-    fireEvent.click((await screen.findByText("When You Train")).closest(".rdy-row")!);
+    fireEvent.click((await screen.findByText("When You Train")).closest(".strand-row")!);
     await screen.findByRole("dialog", { name: "When You Train" });
-    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+    expect(screen.queryByRole("button", { name: "Close" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Done" }));
     expect(screen.queryByRole("dialog", { name: "When You Train" })).not.toBeInTheDocument();
   });
 });

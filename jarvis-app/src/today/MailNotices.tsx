@@ -101,12 +101,16 @@ export interface MailDraft { text: string; sending: boolean }
 // of the fact after it, clipped away when that fact starts a line, so a wrapped
 // line never ends in a dot pointing at nothing (2026-10-05). The tones are the
 // same either way.
-function NoticeFacts({ facts, wrap = false }: { facts: NoticeFact[]; wrap?: boolean }) {
+function NoticeFacts({ facts, wrap = false, dueDay = false }: { facts: NoticeFact[]; wrap?: boolean; dueDay?: boolean }) {
   const list = facts.filter((f) => f.text.trim() || f.num);
   if (list.length === 0) return null;
   let toned = false;
   const spans = list.map((f, i) => {
-    const tone = f.tone === "date" ? "date" : f.tone && !toned ? f.tone : undefined;
+    // A BILL'S DAY IS ITS DUE DATE, AND A DUE DATE IS AMBER (the lead's D4, 2026-10-05: "due amber ... a date that is the due
+    // date"; the review: "SUNDAY" drawn as a grey small cap on a bill due Sunday). dayTone gives a day more than a day off the
+    // neutral small-caps date, which is right for an event's day and wrong for the day a bill is DUE; late stays red.
+    const kind = f.tone === "date" && dueDay ? "warn" : f.tone;
+    const tone = kind === "date" ? "date" : kind && !toned ? kind : undefined;
     if (tone && tone !== "date") toned = true;
     return (
       <span key={i} className={"fact" + (tone ? " " + tone : "")}>
@@ -551,7 +555,7 @@ export default function MailNotices({
             icon={n.notification ? ACTION_ICON[n.notification.kind] : ICON[n.kind]}
             tone={n.tone}
             title={n.title}
-            sub={draft ? undefined : n.facts ? <NoticeFacts facts={n.facts} wrap /> : lineCase(n.sub)}
+            sub={draft ? undefined : n.facts ? <NoticeFacts facts={n.facts} wrap dueDay={n.act?.verb === "bill"} /> : lineCase(n.sub)}
             // ONE-WORD VERBS (ruled 2026-09-01, "the email row": one fixed
             // action column, one-word verbs, so the column aligns with or
             // without a chip). "Draft It" is "Draft"; Reply stays Reply.

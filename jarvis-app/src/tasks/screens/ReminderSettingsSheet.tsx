@@ -52,10 +52,10 @@ export default function ReminderSettingsSheet({ initial, native, permission, tes
             too. The scheduler skips a follow-up that would land in the window
             (notifications.ts), nothing defers it, and no in-app prompt reads
             this setting. It says only what happens. */}
-        <Note>A Follow-up That Would Land in Quiet Hours Is Skipped · A Reminder's Own Alert Still Rings</Note>
+        <Note>A Follow-Up That Would Land in Quiet Hours Is Skipped · A Reminder's Own Alert Still Rings</Note>
       </Group>
-      <Group label="Follow-up">
-        <SwitchRow tone="sand" glyph={<WarningGlyph />} label="Default Follow-up" meta="Once After 1 Hour for New Reminders" on={p.defaultFollowUp} onToggle={() => patch({ defaultFollowUp: !p.defaultFollowUp })} ariaLabel="Default follow-up" />
+      <Group label="Follow-Up">
+        <SwitchRow tone="sand" glyph={<WarningGlyph />} label="Default Follow-Up" meta="Once After 1 Hour for New Reminders" on={p.defaultFollowUp} onToggle={() => patch({ defaultFollowUp: !p.defaultFollowUp })} ariaLabel="Default follow-up" />
       </Group>
       <Group label="Privacy">
         <SwitchRow tone="green" glyph={<ShieldAlert className="ic" />} label="Hide Sensitive Details" meta="Health Reminders Say Only That There Is One" on={p.privateAlerts} onToggle={() => patch({ privateAlerts: !p.privateAlerts })} ariaLabel="Hide sensitive details" />

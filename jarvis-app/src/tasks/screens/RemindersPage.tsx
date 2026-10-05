@@ -46,10 +46,9 @@ import { dayTone } from "../../messages/factsLine";
 // occurrences in plain grey, then the body (the title on one line, ellipsis,
 // over one facts line that never wraps), then one action in the trailing
 // slot. The facts are the area in its colour via a single dot with its name
-// left plain grey, then a filled amber "Today" chip when due today (the one
-// amber signal on the row now that the time is grey again, and the one
-// filled chip the facts line allows, Dave 2026-09-15 v3), then the rhythm
-// plain.
+// left plain grey, then the rhythm plain. (The filled amber "Today" chip of the
+// 2026-09-15 v3 row is gone, 2026-10-05: no pill in a row, and the section head
+// already says Today.)
 //
 // No icon tile beside the checkbox: two shapes for one fact was the exact
 // "two circles" problem the row rules elsewhere in the app already ban (Dave
@@ -212,7 +211,7 @@ export default function RemindersPage({
     </div>
   );
 
-  const card = (it: PageRow) => {
+  const card = (it: PageRow, sectionLabel: string) => {
     const r = it.reminder;
     const link = r.linkedItem;
     const area = it.category ? catName(it.category) : "";
@@ -231,7 +230,12 @@ export default function RemindersPage({
     // carry a bare clock reading on their own -- still run the full
     // whenWords() phrase through the facts line.
     const hasGutter = it.state === "open" && timed && !!it.time;
+    // THE SECTION ALREADY SAYS TODAY (Dave 2026-10-05, the perfect bar: an amber "Today" chip sat on every row under
+    // "Later Today", repeating the head, the view and the clock beside it). On Now and Later Today the day is implied and
+    // the row draws nothing for it; on any other section (a search over every day) a row due today names the day as the
+    // plain amber date fact, never a chip.
     const dueToday = hasGutter && it.date === today;
+    const dayImplied = dueToday && (sectionLabel === "Now" || sectionLabel === "Later Today");
     const when = whenWords(r, it.date, it.time, today, area);
     // An open occurrence's date wears the reminder window, the one helper
     // every screen shares (§AM, R8): a day behind us is late (red), today or
@@ -289,7 +293,7 @@ export default function RemindersPage({
                   out, and keeps the full whenWords() phrase it always has. */}
               {it.state === "skipped" && <span className="fact st gray">Skipped</span>}
               {hasGutter
-                ? (!dueToday && <span className={"fact " + tone}>{dateWordFor(it.date!, today)}</span>)
+                ? (!dayImplied && <span className={"fact " + tone}>{dateWordFor(it.date!, today)}</span>)
                 : pastClock
                   ? <><span className="fact date">{dateWordFor(it.date!, today)}</span><span className="fact date">{pastClock.time} {pastClock.ap}</span></>
                   : <span className={"fact " + tone}>{when}</span>}
@@ -298,13 +302,6 @@ export default function RemindersPage({
                   dot beside it, so a clipped name still says which area this
                   is; a clipped urgency chip would not say anything. */}
               {area && <span className="fact cat"><span className={"cd cat-bg-" + catColor(it.category)} /><span className="cat-t">{area}</span></span>}
-              {/* The urgency chip is the app's own .uchip (LAW 11 finding 2,
-                  the one Tasks already wears): a tint of the tag's colour with
-                  the colour on the words, never a new chip and never a solid
-                  fill. It rides INSIDE a plain .fact so the line's own "·"
-                  separator renders on the grey wrapper, outside the tint,
-                  instead of inside the chip with it. */}
-              {dueToday && <span className="fact"><span className="uchip u-today">Today</span></span>}
               {/* The rhythm is the first thing to go when the row already
                   carries a clock: on this view it was the fact that
                   overflowed, and "Every Day" is what the detail sheet and
@@ -407,7 +404,7 @@ export default function RemindersPage({
               looser than the three beside it. */}
           <div className="pad-x">
             <div className="card list-card-ruled">
-              {s.rows.map((it) => card(it))}
+              {s.rows.map((it) => card(it, s.label))}
             </div>
           </div>
         </div>

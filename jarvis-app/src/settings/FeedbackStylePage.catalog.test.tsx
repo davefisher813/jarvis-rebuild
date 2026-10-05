@@ -52,14 +52,15 @@ describe("FeedbackStylePage follows the catalog", () => {
     expect(capsulesInCards(container)).toEqual([]);
   });
 
-  it("a note under a card is one sentence or dot-joined fragments, never two sentences", () => {
+  it("a note under a card is one sentence with no dot typed in it, never two sentences", () => {
     const { container } = page();
     const notes = [...container.querySelectorAll(".input-hint")].map((n) => n.textContent ?? "");
     expect(notes.length).toBeGreaterThan(0);
     for (const t of notes) {
       expect(t, "no '. ' followed by a capital in a rendered string").not.toMatch(/\. [A-Z]/);
     }
-    expect(notes.filter((t) => t.includes(MIDDOT)).length, "the multi-part notes join with a dot").toBeGreaterThanOrEqual(3);
+    // 2026-10-05: a note never carries a dot typed in its text (the review: "a typed middle-dot as a separator reads as a template artifact").
+    for (const t of notes) expect(t, "no typed middle dot in a note").not.toContain(MIDDOT);
   });
 
   it("draws no facts line of its own, so there is no typed dot to leak into one", () => {

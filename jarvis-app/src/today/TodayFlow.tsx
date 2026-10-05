@@ -2972,18 +2972,9 @@ export default function TodayFlow({
     <button className="plan-cta plan-cta-block" onClick={() => void acceptDraft()}>Accept the Day</button>
   ) : null;
 
-  // C-29 (Astra, 2026-09-12): once the day is accepted, the draft's own
-  // receipt says so, where the Accept and Not Today used to sit. A quiet
-  // line, not a control: the blocks are real events in the list above it
-  // now, and there is nothing left to decide. No new lifecycle field:
-  // `accepted` has been on the draft since the Day Loop shipped.
-  const draftReceipt = !evening && dayDraft?.accepted && !dayDraft.dismissed && planEvs.length > 0 ? (
-    <div className="receipt-line" aria-label={`Accepted, ${planEvs.length} ${planEvs.length === 1 ? "block" : "blocks"} planned`}>
-      {/* One phrase, no typed dot (§AM F3, 2026-09-26): the count leads,
-          the way every other receipt here reads. */}
-      <span className="rl-t">{lineCase(`${planEvs.length} ${planEvs.length === 1 ? "block" : "blocks"} accepted`)}</span>
-    </div>
-  ) : null;
+  // C-29 (Astra, 2026-09-12) put a "5 Blocks Accepted" receipt line here once the day was accepted. Removed 2026-10-05 (the
+  // review: a loose grey line with no container repeating the "Day Planned" toast at the same moment, reading as leftover
+  // state). The accepted blocks are real events in the list above, which is the confirmation that stays.
 
   // Slippage stated out loud below Everything; automatic (receipted) at it.
   // TODAY-F-19 (2026-09-05): keyed, like every sibling in the notice stream.
@@ -3920,7 +3911,7 @@ export default function TodayFlow({
       // The calendar import or the email's own offer may already hold this
       // appointment: say so instead of writing it twice (audit #3).
       const have = await schedule.findTwin(a.title, a.date, a.start!, true).catch(() => null);
-      if (have) return { receipt: lineCase(`Already on your schedule · ${when} ${fmtTime(a.start!).time} ${fmtTime(a.start!).ap}`) };
+      if (have) return { receipt: lineCase(`Already Scheduled, ${when} ${fmtTime(a.start!).time} ${fmtTime(a.start!).ap}`) };
       const ok = await attemptWrite(async () => {
         made = await schedule.createEvent(a.title, {
           date: a.date, start: a.start!, end: endOfAct(a.start!, a.durationMin ?? 60), source: src,
@@ -3930,7 +3921,8 @@ export default function TodayFlow({
       if (!ok || !id) return null;
       await reload();
       return {
-        receipt: lineCase(`On your schedule · ${when} ${fmtTime(a.start!).time} ${fmtTime(a.start!).ap}`),
+        // ONE SHORT LINE (2026-10-05 review: "On Your Schedule · Wednesday 2:00 PM" wrapped with the time alone on line 2).
+        receipt: lineCase(`Scheduled ${when}, ${fmtTime(a.start!).time} ${fmtTime(a.start!).ap}`),
         undo: async () => { await attemptWrite(() => schedule.deleteEvent(id)); await reload(); },
       };
     }
@@ -4423,7 +4415,7 @@ export default function TodayFlow({
       nowCard={nowSection}
       liveGym={liveGymHead}
       proposedDay={proposedDay}
-      dayFooter={draftFooter ?? draftReceipt}
+      dayFooter={draftFooter}
       dayPrimary={draftPrimary}
       reminders={<>
         <RemindersStrip

@@ -133,24 +133,24 @@ describe("Profile, Feedback Style, Booking, Learned Rules", () => {
 });
 
 describe("Appearance", () => {
-  it("is one Display head over Theme and Text Size, each said once", () => {
+  it("is one Display head over Theme and Text Size, each said once, then a Preview of the choice", () => {
     const { container } = render(<AppearanceProvider><AppearancePage onBack={noop} /></AppearanceProvider>);
     const heads = [...container.querySelectorAll(".sh2 .t")].map(norm);
-    expect(heads).toEqual(["Display"]);
+    expect(heads).toEqual(["Display", "Preview"]);
     expect(screen.getByLabelText("Theme")).toBeInTheDocument();
     expect(screen.getByLabelText("Text Size")).toBeInTheDocument();
   });
 
-  it("the footer promises the phone's own text size only once the phone can say it", async () => {
-    // Today the seam answers null, so the footer says only what the menu does.
+  it("the Text Size row promises the phone's own text size only once the phone can say it", async () => {
+    // Today the seam answers null, so the row says only what the menu does.
     const { unmount } = render(<AppearanceProvider><AppearancePage onBack={noop} /></AppearanceProvider>);
-    expect(screen.getByText("Bigger text everywhere in JARVIS")).toBeInTheDocument();
+    expect(screen.getByText("Larger Text Everywhere")).toBeInTheDocument();
     unmount();
     // The day the text-zoom plugin answers a number, Default follows the phone (the provider already applies it) and the
     // footer has to say so: a promise exists exactly when the code keeps it.
     vi.spyOn(textZoom, "readSystemTextScale").mockResolvedValue(1.2);
     render(<AppearanceProvider><AppearancePage onBack={noop} /></AppearanceProvider>);
-    expect(await screen.findByText(/Default follows your phone's own text size/)).toBeInTheDocument();
+    expect(await screen.findByText("Default Follows Your Phone")).toBeInTheDocument();
   });
 });
 

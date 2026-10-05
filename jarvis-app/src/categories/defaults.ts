@@ -18,7 +18,8 @@ export const DEFAULT_CATEGORIES: Record<TemplateKey, CategorySeed[]> = {
     { name: "Health", color: "green", icon: "dumbbell" },
     { name: "Money", color: "yellow", icon: "wallet" },
     { name: "Friends", color: "teal", icon: "users" },
-    { name: "Personal", color: "sky", icon: "user" },
+    // Purple, not sky (2026-10-05, the perfect bar): Friends is teal, and at the 8px a menu draws them teal and sky were the same dot.
+    { name: "Personal", color: "purple", icon: "user" },
   ],
   business: [
     { name: "Clients", color: "blue", icon: "users" },

@@ -316,6 +316,18 @@ describe("MailNotices: the rows wear no capsule", () => {
     expect(container.querySelectorAll(".notice-card .pill-act, .notice-card .row-act").length).toBe(0);
   });
 
+  it("a bill's day is its DUE date, so it wears the key's amber even when it is days off, not a grey small cap", () => {
+    saveMailSnapshot(snap({
+      needsYou: 1,
+      threads: [{ ...thread("t1", "Northlake Power", "your bill"), act: { kind: "bill", title: "Power", date: "2026-08-26", amount: 12 } }],
+    }));
+    const { container } = render(<MailNotices today={TODAY} nowHHMM="09:00" onAddTask={async () => true} />);
+    const day = container.querySelector(".stream-card .conn-meta > .fact")!;
+    expect(day).toHaveClass("warn");
+    expect(day).not.toHaveClass("date");
+    expect(day.textContent).toMatch(/^[A-Z][a-z]+$/); // a day of the week in Title Case, not caps
+  });
+
   it("writes its grey line in Title Case and never bakes a dot into a fact", () => {
     saveMailSnapshot(snap({
       needsYou: 2,

@@ -210,3 +210,10 @@ function lineCaseWords(text: string): string {
     })
     .join("\u00b7");
 }
+
+// A TIME IS NEVER SPLIT FROM ITS AM OR PM (Dave 2026-10-05, the review: "7 AM and 10 / AM" left a lone AM on its own
+// line). A non-breaking space between the number and its meridiem keeps the pair together wherever a title wraps. It
+// runs AFTER lineCase, which rejoins words with a plain space.
+export function bindMeridiem(text: string): string {
+  return text.replace(/(\d) (AM|PM)\b/g, "$1\u00a0$2");
+}

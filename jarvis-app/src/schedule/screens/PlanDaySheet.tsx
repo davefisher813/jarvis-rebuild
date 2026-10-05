@@ -97,7 +97,8 @@ const sittingOf = (id: string): number | undefined => {
 //   - TWO FOOTER BUTTONS, always. The primary and Cancel.
 // The reason fragments this sheet shows for a pick: the planner's list,
 // minus the two rungs the sheet already states elsewhere on the same row.
-const sheetWhy = (why: string[] | undefined): string[] => (why ?? []).filter((w) => !/^(Moves |Due today$|Overdue$)/.test(w));
+// The group head already says Due or Overdue (planner fragments are Title Case, so the match is case-blind).
+const sheetWhy = (why: string[] | undefined): string[] => (why ?? []).filter((w) => !/^(Moves |Due Today$|Overdue$)/i.test(w));
 
 export default function PlanDaySheet({
   events,
@@ -583,9 +584,16 @@ export default function PlanDaySheet({
     <div className="sheet-scrim" onClick={onClose}>
       <div className="card" onClick={(e) => e.stopPropagation()}>
         <div className="sheet-handle" />
-        <div className="grp"><div className="eyebrow">{target === "tomorrow" ? "Plan Tomorrow" : "Plan My Day"}</div></div>
+        <div className="grp">
+          <div className="eyebrow">{target === "tomorrow" ? "Plan Tomorrow" : "Plan My Day"}</div>
+          {/* The sheet's one section-level action rides its head (D2): it was a
+              note-fix orphaned on a second line under the chips. */}
+          {!routineConfigured && onEditRoutine && (
+            <button type="button" className="see-all pill-action" onClick={() => onEditRoutine()}>Set Your Routine</button>
+          )}
+        </div>
         <div className="pad-x sheet-form">
-          <div className="p3-q">What fits {dayLabel.toLowerCase() === "today" ? "today" : dayLabel}?</div>
+          <div className="p3-q">{lineCase(`What Fits ${dayLabel}?`)}</div>
           {/* Every chip on this row is a CONTROL. The old row mixed working
               chips with statements dressed as chips, which is where "buttons
               don't work" started being true. */}
@@ -606,9 +614,6 @@ export default function PlanDaySheet({
               <input type="time" className="input input-compact" aria-label="Done by" value={doneBy || fromMin(effEnd)} onChange={(e) => setDoneBy(e.target.value)} />
               {doneBy && <button type="button" className="plan-drop" onClick={() => { setDoneBy(""); setDoneByOpen(false); }}>Clear</button>}
             </div>
-          )}
-          {!routineConfigured && onEditRoutine && (
-            <div className="plan-sub"><button type="button" className="note-fix" onClick={() => onEditRoutine()}>Set Your Routine</button></div>
           )}
 
           {/* R4: planning "today" at 10:54 PM is planning a dead day, and the
@@ -804,7 +809,7 @@ export default function PlanDaySheet({
                                 line and says nothing. Same helper the Now
                                 card uses, so the two cannot disagree about
                                 when lineage is worth printing. */}
-                            {movesLine(t.goal, t.text) && <div className="bp-sub truncate">{movesLine(t.goal, t.text)}</div>}
+                            {movesLine(t.goal, t.text) && <div className="bp-sub">{movesLine(t.goal, t.text)}</div>}
                             {/* C-31: one reason fragment per pick, the
                                 planner's own, deterministic. Quiet facts.
                                 The goal line above already says what it

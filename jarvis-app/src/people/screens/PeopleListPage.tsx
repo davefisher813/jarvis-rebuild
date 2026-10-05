@@ -1,9 +1,11 @@
 import { useRef, useState } from "react";
 import EntityStar from "../../shared/EntityStar";
 import type { Person } from "../types";
-import { personInitials, avatarClass } from "../types";
+import { personInitials, softAvatarClass } from "../types";
 import { searchPeople } from "../views";
 import { PeopleGlyph, SweepGlyph } from "../../shared/glyphs";
+import PageHeader from "../../shared/PageHeader";
+import HeadMore from "../../shared/HeadMore";
 import { pressable } from "../../shared/pressable";
 import { lineCase } from "../../shared/casing";
 import { BRAIN_ROLES } from "../../ai/brainMemory";
@@ -14,9 +16,6 @@ const CHEV = (
 );
 const PLUS = (
   <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
-);
-const UPLOAD = (
-  <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" /></svg>
 );
 const SEARCH = (
   <svg className="ic search-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
@@ -77,28 +76,11 @@ export default function PeopleListPage({
     .filter((p) => !pendingIds.has(p.id))
     .filter((p) => !roleFilter || brainRolesOf(p).includes(roleFilter));
 
-  const importRow = onImportFile && (
-    <div {...pressable(() => fileRef.current?.click())} className="task-row p2 person-row-ruled">
-      <div className="task-check-tap gm-slot"><span className="row-glyph cat-fg-blue">{UPLOAD}</span></div>
-      <div className="task-title">
-        <span className="task-name">Import from File</span>
-        {/* MEASURED, NOT GUESSED (2026-09-20, 390x844): the old line asked
-            329px of the 292 this row leaves under its title and shipped
-            "...with a Name col", which cut the one word that says what the
-            csv must contain. "From your phone" was where to find a .vcf;
-            the Name column is the thing that makes an import work, so the
-            decoration goes and the requirement stays. 220 of 292 now. */}
-        <div className="r-k"><span className="r-goal r-cat">.vcf or .csv with a Name Column</span></div>
-      </div>
-    </div>
-  );
-
   return (
     <div className="screen ruled people-ruled">
-      <div className="nav-bar">
-        <button className="nav-back" aria-label="Back" onClick={onBack}></button>
-        <div className="nav-title">Contacts</div>
-      </div>
+      {/* ONE TITLE STYLE ACROSS BRAIN (Dave 2026-10-05, the review: Contacts centred its title in the bar while Decisions and
+          The Long Story set a large left one). */}
+      <PageHeader title="Contacts" back="Brain" onBack={onBack} />
 
       {onImportFile && (
         <input
@@ -207,27 +189,26 @@ export default function PeopleListPage({
         </div></div>
       )}
 
+      {/* THE HEAD ALWAYS STANDS, WITH ITS ONE CAPSULE AND ITS OVERFLOW (Dave 2026-10-05, locked: a section's actions live in its
+          head). Add Person is the capsule; Import from File used to be a row inside the people list, drawn like a person, and is
+          behind the head's one round overflow button now (decision D1). */}
+      <div className="sh2 sh2-quiet">
+        <span className="t">Your People</span>{people.length > 0 && <span className="n">{shown.length}</span>}
+        <button className="see-all pill-action" onClick={onAdd}>Add Person</button>
+        {onImportFile && <HeadMore label="More" actions={[{ label: "Import from File", onPick: () => fileRef.current?.click() }]} />}
+      </div>
       {people.length === 0 ? (
-        <>
-          <div className="empty-state empty-compact">
-            <div className="empty-icon">{PEOPLE}</div>
-            <div className="empty-title">No One Here Yet</div>
-            <button className="btn btn-primary" onClick={onAdd}>Add Person</button>
-          </div>
-          {importRow && <div className="pad-x"><div className="card list-card-ruled">{importRow}</div></div>}
-        </>
+        <div className="empty-state empty-compact">
+          <div className="empty-icon cat-fg-teal">{PEOPLE}</div>
+          <div className="empty-title">No One Here Yet</div>
+          <div className="empty-sub">Add Someone, or Bring In Your Contacts From a File</div>
+        </div>
       ) : (
         <>
         {/* THE PERSON ROW (the area page's, 2026-09-02): the avatar in the
             check column, the name, the label under it in the quiet grey.
             Each row's avatar IS its type, so rows never double up with a
             glyph. */}
-        {/* THE ADD IS ON THE HEAD (Dave 2026-10-05, locked): a section-level action lives in the section head, never inside the card
-            and never at the foot of the list. */}
-        <div className="sh2 sh2-quiet">
-          <span className="t">Your People</span><span className="n">{shown.length}</span>
-          <button className="see-all pill-action" onClick={onAdd}>Add Person</button>
-        </div>
         <div className="pad-x"><div className="card list-card-ruled">
           {/* Brain Manual v1 triage: the way back in while anyone is still
               unsorted. It sits above the names because it is the job, not a
@@ -244,9 +225,9 @@ export default function PeopleListPage({
           )}
           {shown.map((p) => (
             <div {...pressable(() => onOpen(p.id))} className="task-row p2 person-row-ruled" key={p.id}>
-              {/* C-50 (Astra, 2026-09-12): the Remember star leads the row. */}
-              <EntityStar entityType="person" entityId={p.id} title={p.data.name} />
-              <div className="task-check-tap"><div className={"av " + avatarClass(p.data.color)}>{personInitials(p.data.name)}</div></div>
+              {/* The avatar leads and stands alone at the row's leading edge (Dave 2026-10-05, the review: the star sat tight
+                  against it, two competing leading items). */}
+              <div className="task-check-tap"><div className={"av " + softAvatarClass(p.data.color)}><span>{personInitials(p.data.name)}</span></div></div>
               <div className="task-title">
                 <span className="task-name">{p.data.name}</span>
                 {/* the label, the triage roles, or the honest absence of both;
@@ -262,10 +243,11 @@ export default function PeopleListPage({
                     ? <span className="r-goal r-cat">{brainRolesOf(p).map(brainRoleLabel).join(", ")}</span>
                     : null}</div>
               </div>
+              {/* C-50 (Astra, 2026-09-12): the Remember star, at the trailing edge before the chevron, with a 44px reach. */}
+              <EntityStar entityType="person" entityId={p.id} title={p.data.name} />
               {CHEV}
             </div>
           ))}
-          {importRow}
         </div></div>
         </>
       )}

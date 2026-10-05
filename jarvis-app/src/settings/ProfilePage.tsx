@@ -78,7 +78,7 @@ export default function ProfilePage({ onBack }: { onBack: () => void }) {
       <Card>
         <div className="row set-row" onClick={focusField}>
           <div className="conn-name">Name</div>
-          <input className="set-field" aria-label="Name" placeholder="Your Name" value={name}
+          <input className="set-field set-field-well" aria-label="Name" placeholder="Your Name" value={name}
             onChange={(e) => { setName(e.target.value); setSaved(false); }} />
         </div>
         <Menu label="Template" value={template} options={TEMPLATE_OPTIONS} onPick={(v) => void pickTemplate(v as TemplateKey)} />

@@ -24,7 +24,7 @@ const LEVEL_LABEL: Record<AILevel, string> = {
 // Title Case, like every grey line under a row name (2026-10-05, the catalog
 // gate: "Only when you ask" read as a sentence).
 const LEVEL_SUB: Record<AILevel, string> = {
-  everything: "Acts with Receipts and Undo, You Still Send",
+  everything: "Acts with Undo, You Still Send",
   draft: "Drafts Ready, Nothing Acts",
   request: "Only When You Ask",
   off: "Zero AI Calls, Nothing Deleted",
@@ -41,7 +41,8 @@ const PIN_LABEL: Record<AIPinKey, string> = {
 const PIN_KEYS: readonly AIPinKey[] = AI_PIN_KEYS;
 // Every pin is a menu (2026-09-02): the old row cycled on tap, so the
 // fifth option cost four taps and nobody knew there were five.
-const PIN_OPTIONS = [{ value: "match", label: "Match Master" }, ...AI_LEVELS.map((l) => ({ value: l, label: LEVEL_LABEL[l] }))];
+// "Match Master" was the build's own word for it (2026-10-05, "jargon, repeated five times"): a feature that follows the level above says so.
+const PIN_OPTIONS = [{ value: "match", label: "Same as AI Level" }, ...AI_LEVELS.map((l) => ({ value: l, label: LEVEL_LABEL[l] }))];
 
 interface Call { at: string; kind: string }
 
@@ -182,7 +183,7 @@ export default function AIControlPage({ onBack }: { onBack: () => void }) {
   // separator between the two facts is the stylesheet's.
   const usd = estimateCost(tokens);
   const callsValue = count === null
-    ? "Not Tracked"
+    ? ""
     : usd === null ? String(count) : <><span className="fact">{count}</span>{" "}<span className="fact est">{`About ${formatUSD(usd)}`}</span></>;
   const inTok = tokens.reduce((n, t) => n + t.inputTokens + t.cacheReadTokens + t.cacheWriteTokens, 0);
   const outTok = tokens.reduce((n, t) => n + t.outputTokens, 0);
@@ -238,22 +239,28 @@ export default function AIControlPage({ onBack }: { onBack: () => void }) {
               disabled={!dirty || saving} className="set-act" />
           </Card>
           <div className="pad-x"><div className="input-hint">
-            {budgetNote ?? "Zero turns paid AI off · A running call is held at its highest possible cost, so the balance can read a little low"}
+            {budgetNote ?? "Zero turns paid AI off, and a running call is held at its highest possible cost, so the balance can read a little low"}
           </div></div>
         </>
       ) : null}
-      <Head label="What Ran" />
-      <Card>
-        <Row label="AI Calls Today" value={callsValue} onClick={calls.length ? () => setShowCalls(!showCalls) : undefined} />
-        {/* UP-PLAT-04: the tokens row only exists when there are tokens. No
-            row of zeros for an account that ran nothing, and no dollar figure
-            for a model the price table does not know: the tokens are the
-            fact, the cost is an estimate, and neither is invented. */}
-        {tokenRow && <Row label="Tokens Today" value={tokenRow} className="set-sub" />}
-        {showCalls && calls.map((c, i) => (
-          <Row key={i} label={kindLabel(c.kind)} value={<span className="fact date">{new Date(c.at).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true })}</span>} className="set-sub" />
-        ))}
-      </Card>
+      {/* A SECTION WITH NOTHING TO SHOW SHOWS NOTHING (2026-10-05, Dave "he opens the app and finds nothing"): a What Ran card
+          that said "Not Tracked" was a half-built look. It appears once the server has counted a call. */}
+      {count !== null && (
+        <>
+        <Head label="What Ran" />
+        <Card>
+          <Row label="AI Calls Today" value={callsValue} onClick={calls.length ? () => setShowCalls(!showCalls) : undefined} />
+          {/* UP-PLAT-04: the tokens row only exists when there are tokens. No
+              row of zeros for an account that ran nothing, and no dollar figure
+              for a model the price table does not know: the tokens are the
+              fact, the cost is an estimate, and neither is invented. */}
+          {tokenRow && <Row label="Tokens Today" value={tokenRow} className="set-sub" />}
+          {showCalls && calls.map((c, i) => (
+            <Row key={i} label={kindLabel(c.kind)} value={<span className="fact date">{new Date(c.at).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true })}</span>} className="set-sub" />
+          ))}
+        </Card>
+        </>
+      )}
       <div className="screen-foot" />
     </div>
   );

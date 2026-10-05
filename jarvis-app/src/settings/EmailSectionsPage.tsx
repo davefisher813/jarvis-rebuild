@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from "react";
 import LargeTitleNav from "../shared/LargeTitleNav";
 import { showToast } from "../shared/toast";
+import { Mail } from "../shared/icons";
 import { Head, Card, Row, Menu, Foot, DangerRow, focusField } from "./kit";
 import { useEmailSections } from "../messages/useEmailSections";
 import {
@@ -135,7 +136,7 @@ export default function EmailSectionsPage({ onBack }: { onBack: () => void }) {
             <button type="button" className="btn btn-secondary btn-block" onClick={() => setEditing(null)} disabled={saving}>Cancel</button>
           </div>
           {!editing.isNew && <Card><DangerRow label="Delete Section" onClick={() => void remove(editing.draft)} disabled={saving} /></Card>}
-          <Foot>Any matcher can match · Not case sensitive · Text is matched exactly as typed</Foot>
+          <Foot>Any matcher can match, it is not case sensitive, and text is matched exactly as typed</Foot>
         </>
       )}
 
@@ -147,9 +148,11 @@ export default function EmailSectionsPage({ onBack }: { onBack: () => void }) {
           action={{ label: "Add Section", onClick: startNew, disabled: !available }} />
       )}
       {!editing && loaded && sections.length === 0 && (
-        <div className="empty-state">
+        <div className="empty-state empty-compact">
+          {/* D9: a crafted empty state, a glyph in its type's colour (Email is teal), the title, one warm line. */}
+          <div className="empty-icon cat-fg-teal"><Mail className="ic" /></div>
           <div className="empty-title">No Sections Yet</div>
-          <div className="empty-sub">Filters You Make Appear as Chips on the Email Tab</div>
+          <div className="empty-sub">Filters Appear as Chips on Email</div>
         </div>
       )}
       {!editing && sections.length > 0 && (
@@ -163,7 +166,7 @@ export default function EmailSectionsPage({ onBack }: { onBack: () => void }) {
       {/* One note at a time (2026-10-05, found rendering the editor): while a section is open its own note is on screen, and the
           list's note under it said a second thing about the same page. */}
       {sections.length > 0 && !editing && (
-        <Foot>{queued ? "Saved on This Phone · Will Sync" : "Filters over mail already loaded · Nothing changes in Gmail"}</Foot>
+        <Foot>{queued ? "Saved on this phone and will sync" : "Filters work over mail already loaded, and nothing changes in Gmail"}</Foot>
       )}
       <div className="screen-foot" />
     </div>

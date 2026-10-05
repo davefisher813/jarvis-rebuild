@@ -107,7 +107,7 @@ describe("TodaySuggestions routine candidate", () => {
     fireEvent.click(screen.getByText(/^Noticed:/));
     // The offer names the habit; the count behind it is the card's sub, not a
     // third run glued onto the title with a middot (§AM F2/F3).
-    await waitFor(() => expect(screen.getByText(/^Gym around 6 AM/)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/^Gym Around 6 AM/)).toBeInTheDocument());
     // Quiet lifts the figure into its own span, so read the whole sub line.
     expect(screen.getByText(/Times This Month/).parentElement?.textContent).toBe("3 Times This Month");
     fireEvent.click(screen.getByText("Add to Routine"));
@@ -163,13 +163,34 @@ describe("TodaySuggestions being-known moments", () => {
     render(<NotesProvider userId="b2"><TodaySuggestions ai={new AIService({ available: false })} /></NotesProvider>);
     await waitFor(() => expect(screen.getByText(/^Noticed:/)).toBeInTheDocument());
     fireEvent.click(screen.getByText(/^Noticed:/));
-    await waitFor(() => expect(screen.getByText(/Your tasks get done between/)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/Your Tasks Get Done Between/)).toBeInTheDocument());
     // The Notice law's sub line carries the receipt, so the claim is checkable
     // before the user ever taps.
     // The quiet line wraps the figure in its own bright span (Law 3E), so the
     // match reads the composed line rather than one text node.
     expect(screen.getByText((_, el) => el?.className === "conn-meta" && /14 Finishes There/.test(el.textContent ?? ""))).toBeInTheDocument();
     expect(screen.getByText("Remember This")).toBeInTheDocument();
+  });
+
+  // THE CATALOG, ON WHAT THE CARD DRAWS (Dave 2026-10-05, the review): the claim is a line the app writes, so it is Title Case
+  // ("Your tasks get done between 7 AM and 10 AM" sat over a Title Case receipt), and a time is never split from its meridiem
+  // ("7 AM and 10 / AM" left a lone AM on its own line).
+  it("draws the claim in Title Case, with every time bound to its AM or PM", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    completions(14, 10);
+    render(<NotesProvider userId="b2-case"><TodaySuggestions ai={new AIService({ available: false })} /></NotesProvider>);
+    await waitFor(() => expect(screen.getByText(/^Noticed:/)).toBeInTheDocument());
+    // The whisper wears the same casing as the card it folds from.
+    expect(screen.getByText(/^Noticed:/).textContent).toMatch(/^Noticed: Your Tasks Get Done Between \d+\u00a0(AM|PM) and \d+\u00a0(AM|PM)$/);
+    fireEvent.click(screen.getByText(/^Noticed:/));
+    const title = await waitFor(() => {
+      const t = document.querySelector(".notice-card .conn-name");
+      expect(t).not.toBeNull();
+      return t!.textContent ?? "";
+    });
+    expect(title).toMatch(/^Your Tasks Get Done Between \d+\u00a0(AM|PM) and \d+\u00a0(AM|PM)$/);
+    // No time in the line is left with a plain space before its meridiem.
+    expect(title).not.toMatch(/\d (AM|PM)/);
   });
 
   it("Remember This clears the moment", async () => {
@@ -180,7 +201,7 @@ describe("TodaySuggestions being-known moments", () => {
     fireEvent.click(screen.getByText(/^Noticed:/));
     await waitFor(() => expect(screen.getByText("Remember This")).toBeInTheDocument());
     fireEvent.click(screen.getByText("Remember This"));
-    await waitFor(() => expect(screen.queryByText(/Your tasks get done between/)).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByText(/Your Tasks Get Done Between/)).not.toBeInTheDocument());
   });
 });
 
@@ -225,39 +246,39 @@ describe("TodaySuggestions the whole day's moments (S4-Q21)", () => {
     await waitFor(() => expect(screen.getByText(/^Noticed:/)).toBeInTheDocument());
     // One row only: the second moment gets no whisper, no card, no trace.
     expect(screen.getAllByText(/^Noticed:/)).toHaveLength(1);
-    expect(screen.queryByText(/You train between/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/You Train Between/)).not.toBeInTheDocument();
   });
 
   it("What JARVIS Knows renders both, not just whichever one won the row", async () => {
     seedTwoMoments();
     render(<NotesProvider userId="b-brain"><TodaySuggestions ai={new AIService({ available: false })} always /></NotesProvider>);
-    await waitFor(() => expect(screen.getByText(/Your tasks get done between/)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/Your Tasks Get Done Between/)).toBeInTheDocument());
     // The second moment is not a whisper here -- What JARVIS Knows opens
     // every card it holds, immediately.
-    expect(screen.getByText(/You train between/)).toBeInTheDocument();
+    expect(screen.getByText(/You Train Between/)).toBeInTheDocument();
     expect(screen.getAllByText("Remember This")).toHaveLength(2);
   });
 
   it("dismissing the extra moment removes only that one", async () => {
     seedTwoMoments();
     render(<NotesProvider userId="b-dismiss"><TodaySuggestions ai={new AIService({ available: false })} always /></NotesProvider>);
-    await waitFor(() => expect(screen.getByText(/You train between/)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/You Train Between/)).toBeInTheDocument());
     // The primary row renders first, so its own Dismiss is first in the DOM;
     // the extra card's is last.
     const dismissButtons = screen.getAllByLabelText("Dismiss");
     fireEvent.click(dismissButtons[dismissButtons.length - 1]!);
-    await waitFor(() => expect(screen.queryByText(/You train between/)).not.toBeInTheDocument());
-    expect(screen.getByText(/Your tasks get done between/)).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByText(/You Train Between/)).not.toBeInTheDocument());
+    expect(screen.getByText(/Your Tasks Get Done Between/)).toBeInTheDocument();
   });
 
   it("accepting the extra moment writes the strand and clears just that card", async () => {
     seedTwoMoments();
     render(<NotesProvider userId="b-accept"><TodaySuggestions ai={new AIService({ available: false })} always /></NotesProvider>);
-    await waitFor(() => expect(screen.getByText(/You train between/)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/You Train Between/)).toBeInTheDocument());
     const remember = screen.getAllByText("Remember This");
     fireEvent.click(remember[remember.length - 1]!);
-    await waitFor(() => expect(screen.queryByText(/You train between/)).not.toBeInTheDocument());
-    expect(screen.getByText(/Your tasks get done between/)).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByText(/You Train Between/)).not.toBeInTheDocument());
+    expect(screen.getByText(/Your Tasks Get Done Between/)).toBeInTheDocument();
   });
 });
 

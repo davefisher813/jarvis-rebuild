@@ -36,7 +36,7 @@ export default function CategoriesPage({
       {/* THE ADD IS ON THE HEAD (Dave 2026-10-05, locked: a section-level action lives in the section head, never in a card
           or at the foot of a list). The grey card that held only Add Area is gone (rule 12). */}
       <div className="sh2 sh2-quiet">
-        <span className="t">Your Areas</span><span className="n">{categories.length}</span>
+        <span className="t">Your Areas</span><span className="n set-n">{categories.length}</span>
         <button className="see-all pill-action" onClick={onAdd}>Add Area</button>
       </div>
       <div className="pad-x">
@@ -49,17 +49,14 @@ export default function CategoriesPage({
               if (!c) return null;
               return (
                 <>
-                  <div className={"sec-ico cat-bg-" + c.data.color}>{catIcon(c.data.icon)}</div>
-                  {/* .row-grow row-press, not bare row-grow (2026-09-22): the
-                      SAME bug the program day rows had. The wrapper is the
-                      only thing bound to the tap, sized by its own content,
-                      so it measured 226x21 inside a much taller row -- the
-                      row's own top and bottom padding did nothing. .row-press
-                      already exists for exactly this and takes the row's
-                      padding with it via :has(); reusing it here rather than
-                      re-deriving the same fix a second time. */}
+                  {/* THE TILE LIVES INSIDE THE PRESS WRAPPER (2026-10-05, the review: "jammed against the card's left edge"). A row that
+                      holds a .row-press gives it ALL the row's padding (the :has rule at components.css), so a tile outside it sat at
+                      0px from the card's rounded border. Inside, it is 20px from the edge and 12px from the name, the same as every
+                      other row, and the whole row (tile, name, chevron) is the tap to open Edit Area. */}
                   <div className="row-grow row-press" role="button" tabIndex={0} onClick={() => onEdit(c.id)}>
-                    <div className="conn-name">{titleCase(c.data.name)}</div>
+                    <div className={"sec-ico cat-bg-" + c.data.color}>{catIcon(c.data.icon)}</div>
+                    <div className="row-grow"><div className="conn-name">{titleCase(c.data.name)}</div></div>
+                    {CHEV}
                   </div>
                 </>
               );

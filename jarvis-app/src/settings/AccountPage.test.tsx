@@ -138,10 +138,24 @@ describe("AccountPage Delete Account (S3-Q18)", () => {
 // Dave's pick, 2026-09-26: the avatar keeps its red disc, and it is a tap
 // that opens the app's one action sheet to change the picture.
 describe("AccountPage avatar (a tap that changes the photo)", () => {
-  it("the red disc is a labelled button, and it opens the photo sheet", () => {
+  it("with no name and no photo the disc is a quiet neutral one wearing a camera, never a red question mark (2026-10-05)", () => {
+    const { container } = render(
+      <AuthProvider><NotesProvider userId="u-acct-empty"><AccountPage onBack={() => {}} onEditProfile={() => {}} /></NotesProvider></AuthProvider>,
+    );
+    const btn = screen.getByRole("button", { name: "Add profile photo" });
+    expect(btn.querySelector(".av.av-72.av-empty")).not.toBeNull();
+    expect(btn.querySelector(".av-accent"), "no brand-red disc until there is a name or a photo").toBeNull();
+    expect(btn.textContent, "no placeholder glyph").not.toContain("?");
+    expect(btn.querySelector("svg")).not.toBeNull();
+    // The one thing that fills it is a text action in the tap red, not a capsule inside the card.
+    const add = screen.getByRole("button", { name: "Add Your Name" });
+    expect(add.className).not.toMatch(/quiet-action|pill-act|row-act|btn-sm/);
+    expect(container.querySelector(".account-name"), "no \"Your Name\" placeholder text").toBeNull();
+  });
+
+  it("the disc is a labelled button, and it opens the photo sheet", () => {
     renderPage();
     const btn = screen.getByRole("button", { name: "Add profile photo" });
-    expect(btn.querySelector(".av.av-72.av-accent")).not.toBeNull();
     fireEvent.click(btn);
     expect(screen.getByRole("button", { name: "Choose Photo" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Cancel" })).toBeInTheDocument();

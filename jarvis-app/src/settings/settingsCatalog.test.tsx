@@ -166,32 +166,46 @@ describe("Booking", () => {
     expect(facts.some((f) => f === "18:05")).toBe(false);
   });
 
-  it("a section with nothing to say shows its title alone, with no grey line under it", async () => {
+  it("a section with nothing to show is a crafted empty state: a glyph, its title and ONE warm line that does not repeat it", async () => {
     const { container } = render(<BookingPage onBack={() => {}} {...impls(null, null)} />);
     await waitFor(() => expect(screen.getByText("No Link Yet")).toBeInTheDocument());
     for (const t of ["No Link Yet", "No Days Off"]) {
-      expect(screen.getByText(t).closest(".row")!.querySelector(".conn-meta, .empty-sub"), t).toBeNull();
+      const box = screen.getByText(t).closest(".empty-state")!;
+      expect(box, t).toHaveClass("empty-compact");
+      expect(box.querySelector(".empty-icon svg"), t + " has its glyph").not.toBeNull();
+      expect(box.querySelectorAll(".empty-sub"), t + " has one line").toHaveLength(1);
+      expect(box.querySelector(".empty-sub")!.textContent!.toLowerCase(), t).not.toContain(t.toLowerCase());
     }
     expect(scan(container)).toEqual([]);
   });
 
-  it("an empty booked list says only that, and a list that could not be asked says that", async () => {
+  it("the publish is the Your Link head's one capsule, never a button boxed inside the card", async () => {
+    render(<BookingPage onBack={() => {}} {...impls(null, null)} />);
+    const publish = await screen.findByRole("button", { name: "Publish My Times" });
+    expect(publish.closest(".sh2")).not.toBeNull();
+    expect(publish.closest(".card")).toBeNull();
+    expect(publish).toHaveClass("pill-action");
+  });
+
+  it("an empty booked list draws no placeholder card, only its note, and a list that could not be asked says that", async () => {
     const { container, unmount } = render(<BookingPage onBack={() => {}} {...impls(LINK, [])} />);
-    const empty = await screen.findByText("Nobody Yet");
-    expect(empty.closest(".row")!.querySelector(".conn-meta, .empty-sub")).toBeNull();
+    await screen.findByText("Nobody has booked yet, and new bookings land on your schedule too");
+    expect(screen.queryByText("Nobody Yet"), "a row with nothing to say shows nothing").toBeNull();
     expect(scan(container, (t) => /^wide-harbour/.test(t))).toEqual([]);
     unmount();
     render(<BookingPage onBack={() => {}} {...impls(LINK, null)} />);
     expect((await screen.findByText("Could Not Reach the Booking Server")).className).toBe("conn-name");
   });
 
-  it("the notes under the cards are fragments joined by a dot, never two sentences", async () => {
+  it("the notes under the cards are plain sentences with no dot typed in them, never two sentences", async () => {
     const { container } = render(<BookingPage onBack={() => {}} {...impls(LINK, BOOKED)} />);
     await screen.findByText("Intro Call with Ada Lovelace");
     const notes = [...container.querySelectorAll(".input-hint")].map(norm);
     expect(notes.length).toBeGreaterThan(0);
     for (const n of notes) expect(n).not.toMatch(/\. [A-Z]/);
-    expect(notes.some((n) => n.startsWith("Your times stay on this device") && n.includes(MIDDOT))).toBe(true);
+    for (const n of notes) expect(n, "no typed middle dot in a note").not.toContain(MIDDOT);
+    expect(notes).toContain("Your times stay on this device until you publish them to the booking server");
+    expect(notes).toContain("Taking the link down never cancels a booking you already have");
   });
 
   it("the one answer under Who Can Book is Title Case: the small word stays small", async () => {
@@ -272,12 +286,20 @@ describe("Advanced, Backup and Brain", () => {
     }
   });
 
-  it("Brain: the foot is one note of dot-joined fragments, not two sentences", () => {
+  it("Brain: the notes are two short sentence-case lines with no dot typed between them, and no card holds the lone Erase", () => {
     const { container } = render(<NotesProvider userId="u-cat-brain"><BrainSettingsPage onBack={() => {}} /></NotesProvider>);
     expect(scan(container)).toEqual([]);
-    const note = norm(container.querySelector(".input-hint")!);
-    expect(note).toContain(MIDDOT);
-    expect(note).not.toMatch(/\. [A-Z]/);
+    const notes = [...container.querySelectorAll(".input-hint")].map(norm);
+    expect(notes).toEqual([
+      "Decisions, principles, values, writing samples and facts are deleted",
+      "Contacts stay, but their roles go back to Unsorted",
+    ]);
+    for (const n of notes) { expect(n).not.toContain(MIDDOT); expect(n).not.toMatch(/\. [A-Z]/); }
+    // The action is the Danger Zone head's capsule (an action never sits alone in a box), in the destructive tone.
+    const erase = screen.getByRole("button", { name: "Erase Brain Data" });
+    expect(erase.closest(".sh2")).not.toBeNull();
+    expect(erase.closest(".card")).toBeNull();
+    expect(erase).toHaveClass("pill-danger");
   });
 });
 
@@ -312,15 +334,16 @@ describe("Health Settings and Training", () => {
     const { container } = render(<HealthSettingsPage onBack={() => {}} onWorkoutReminder={() => {}} workoutReminder={{ time: "17:30" }} />);
     expect(screen.getByText("Use the Studied Range").closest(".row")!.querySelector(".conn-meta")!.textContent).toMatch(/^\d+ to \d+ Working Sets per Muscle per Week$/);
     expect(scan(container)).toEqual([]);
-    expect(screen.getByText("Kg", { selector: ".chip" })).toBeInTheDocument();
-    expect(screen.getByText("Lb", { selector: ".chip" })).toBeInTheDocument();
+    expect(screen.getByText("Kg", { selector: ".seg" })).toBeInTheDocument();
+    expect(screen.getByText("Lb", { selector: ".seg" })).toBeInTheDocument();
   });
 
-  it("Training: the unit note is dot-joined fragments, not two sentences", () => {
+  it("Training: the unit note is one plain sentence with no dot typed in it and no unit prefix (the Rack Unit row already says it)", () => {
     const { container } = render(<TrainingPage onBack={() => {}} />);
     expect(scan(container)).toEqual([]);
     const note = norm(container.querySelector(".input-hint")!);
-    expect(note).toBe("In Lb " + MIDDOT + " A lift logged in the other unit is converted, both ways");
+    expect(note).toBe("A lift logged in the other unit is converted both ways");
+    expect(note).not.toContain(MIDDOT);
   });
 });
 

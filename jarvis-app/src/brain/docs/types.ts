@@ -17,13 +17,19 @@ export interface BrainDocData {
 export interface BrainDocMeta {
   topic: string;
   title: string;
+  /** The editor's cue. Title Case, no dots typed into it (Dave 2026-10-05, the review: "Worldview · drives · principles"
+   *  was lowercase after every dot, and "what to pro..." was cut off mid-word). */
   placeholder: string;
+  /** The one warm line under "Nothing Written Yet": what writing here does. */
+  emptyLine: string;
+  /** The page's own tone for its empty-state glyph, the same hue its Brain row wears. */
+  tone: string;
 }
 
 export const BRAIN_DOCS: BrainDocMeta[] = [
-  { topic: "philosophy", title: "Life Philosophy", placeholder: "Worldview · drives · principles" },
-  { topic: "writing", title: "How You Write", placeholder: "Tone · style · words you use and avoid" },
-  { topic: "values", title: "Values", placeholder: "What matters · hard lines · what to protect" },
+  { topic: "philosophy", title: "Life Philosophy", placeholder: "Worldview, Drives, and Principles", emptyLine: "How You See Life and Work Shapes How JARVIS Thinks", tone: "cat-fg-indigo" },
+  { topic: "writing", title: "How You Write", placeholder: "Tone, Style, and Words You Use and Avoid", emptyLine: "Your Voice, in Your Own Words, Shapes Every Draft", tone: "cat-fg-pink" },
+  { topic: "values", title: "Values", placeholder: "What Matters and What to Protect", emptyLine: "What Matters to You Guides What JARVIS Does", tone: "cat-fg-mint" },
 ];
 
 export const docMeta = (topic: string): BrainDocMeta | undefined => BRAIN_DOCS.find((d) => d.topic === topic);

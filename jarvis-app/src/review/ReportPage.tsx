@@ -5,7 +5,7 @@ import { prevMonthKey, computeSeal } from "./seal";
 import { readWindow, type WindowClient } from "../brain/window";
 import { supabase } from "../auth/supabaseClient";
 import { todayISO } from "../tasks/grouping";
-import { buildReport, type MonthReport, type CarriedTask, type ReportFact, type LifeCard } from "./report";
+import { buildReport, boldCounts, type MonthReport, type CarriedTask, type ReportFact, type LifeCard } from "./report";
 import RollingNumber from "../shared/RollingNumber";
 import { showToast } from "../shared/toast";
 import { attemptWrite } from "../shared/guard";
@@ -15,7 +15,8 @@ import { peopleForDerivation } from "../brain/peopleFacts";
 import { loadWaitingCache, waitingDaysOf } from "../messages/waiting";
 import type { TaskData } from "../notes/types";
 import type { EventItem } from "../schedule/types";
-import { TargetGlyph, CheckCircleGlyph, LockGlyph } from "../shared/glyphs";
+import { TargetGlyph, LockGlyph } from "../shared/glyphs";
+import PageHeader from "../shared/PageHeader";
 import { pressable } from "../shared/pressable";
 import RowShell from "../brain/RowShell";
 import RowSheet from "../brain/RowSheet";
@@ -56,7 +57,9 @@ export function oldestWaitDays(now: number): number {
 /** One facts line: the words grey, a count white, at most one key colour. */
 function Facts({ facts }: { facts: ReportFact[] }) {
   return (
-    <div className="facts">
+    // .rep-facts: a report row is a page of what happened, so its facts wrap onto a second line rather than ending in an
+    // ellipsis (Dave 2026-10-05, the review: "14 of 18 Drafts Sent Une..." was the point of the row).
+    <div className="facts rep-facts">
       {facts.map((f, i) => (
         <span className={"fact" + (f.tone ? " " + f.tone : "")} key={i}>
           {f.parts ? f.parts.map((p, j) => (typeof p === "string" ? p : <b key={j}>{p.b}</b>)) : f.text}
@@ -75,13 +78,26 @@ interface OpenReceipts { title: string; lines: string[]; answers?: ReportAnswer[
 function ReceiptsSheet({ title, lines, answers = [], onDone }: { title: string; lines: string[]; answers?: ReportAnswer[]; onDone: () => void }) {
   return (
     <RowSheet portal eyebrow="Receipts" text={title} answers={answers} cancelLabel="Done" onClose={onDone}>
-      <div className="card rep-gap">
+      {/* The evidence, as lines in the regular weight with a hairline between them: the strand sheet's receipts (Dave
+          2026-10-05, the review: one loud bold sentence in a filled box is not evidence). */}
+      <div className="rep-receipts">
         {lines.map((l, i) => (
-          <div className="row" key={i}><div className="row-grow"><div className="rep-title">{l}</div></div></div>
+          <div className="strand-receipt" key={i}><div className="r-what conn-meta">{l}</div></div>
         ))}
       </div>
     </RowSheet>
   );
+}
+
+const hourName = (h: number) => `${h % 12 || 12} ${h % 24 < 12 ? "AM" : "PM"}`;
+/** The three busiest hours of the day, as the receipts behind "Your Hours": what the bars are made of. */
+function busiestHours(byHour: number[]): string[] {
+  return byHour
+    .map((n, h) => ({ n, h }))
+    .filter((x) => x.n > 0)
+    .sort((a, b) => b.n - a.n || a.h - b.h)
+    .slice(0, 3)
+    .map((x) => lineCase(`${hourName(x.h)}: ${x.n} ${x.n === 1 ? "finish" : "finishes"}`));
 }
 
 export function ReportScreen({ report, capped, onCap, onOpenTask, onDropTask, onBack, stillOpen, canExit, onExit }: {
@@ -115,20 +131,17 @@ export function ReportScreen({ report, capped, onCap, onOpenTask, onDropTask, on
 
   return (
     <div className="screen ruled">
-      <div className="nav-bar">
-        <button className="nav-back" aria-label="Back" onClick={onBack}></button>
-        <div className="nav-title">{report.monthName}</div>
-        <button className="nav-action-text" onClick={onBack}>Done</button>
-      </div>
+      {/* ONE WAY OUT, NAMED (Dave 2026-10-05, the review: "an unlabelled red chevron on the left and a red Done on the
+          right, two ways to leave"). The same large-title header every Brain page wears, with the page it returns to. */}
+      <PageHeader title={report.monthName} back="Insights" onBack={onBack} />
 
       {/* HERO: the month's one number, then its named wins. */}
       <div className="pad-x rep-hero">
         <div className="rep-eyebrow">{stillOpen ? "Your Month So Far" : "Your Month"}</div>
         <div className="rep-big"><RollingNumber value={Number(report.hero.big)} /></div>
-        <div className="rep-big-label">
-          {report.hero.label}
-          {report.hero.anchor && <span className="rep-anchor">{report.hero.anchor}</span>}
-        </div>
+        <div className="rep-big-label">{report.hero.label}</div>
+        {/* Last month's number, plainly: a fact with its count white, never a pill with a typed colon (Dave 2026-10-05). */}
+        {report.hero.anchor && <Facts facts={[{ text: report.hero.anchor, parts: boldCounts(report.hero.anchor) }]} />}
         {report.hero.wins.length > 0 && (
           <div className="rep-wins">
             {/* Every win is done, achieved or paid, so every win is green
@@ -142,7 +155,7 @@ export function ReportScreen({ report, capped, onCap, onOpenTask, onDropTask, on
           </div>
         )}
         {/* A sentence, so a field note at 14 and never a caps line. */}
-        <div className="input-hint rep-hint">Tap anything for its receipts</div>
+        <div className="input-hint rep-hint">Tap Any Card to See Why</div>
       </div>
 
       {/* THE MONTH: tiles with deltas, the hours strip, where it went. */}
@@ -155,17 +168,20 @@ export function ReportScreen({ report, capped, onCap, onOpenTask, onDropTask, on
             {report.tiles.map((t) => (
               <div className={"stat-tile stat-" + t.tint} key={t.label}>
                 <div className="stat-num">{/^\d+$/.test(t.num) ? <RollingNumber value={Number(t.num)} /> : t.num}</div>
-                {t.delta && <div className={"rep-delta " + (t.delta.up ? "rep-delta-up" : "")}>{t.delta.text}</div>}
+                {/* The label names the number, so it sits under the number; the comparison is the quiet line after it. */}
                 <div className="stat-label">{t.label}</div>
+                {t.delta && <div className={"rep-delta " + (t.delta.up ? "rep-delta-up" : "")}>{t.delta.text}</div>}
               </div>
             ))}
           </div>
         )}
 
         {report.hours && (
-          <div {...pressable(() => setReceipts({ title: `Your Hours: ${report.hours!.label}`, lines: [lineCase(`${report.tiles.find((t) => t.label === "Done")?.num ?? 0} finishes this month; the tallest bars are your band`)] }))} className="card pad rep-gap"
->
+          <div {...pressable(() => setReceipts({ title: `Your Hours: ${report.hours!.label}`, lines: busiestHours(report.hours!.byHour) }))} className="card pad rep-gap">
             <div className="rep-split"><span className="rep-eyebrow rep-quiet">Your Hours</span><b>{report.hours.label}</b></div>
+            {/* THE BARS ARE A TIME AXIS (Dave 2026-10-05, the review: "no hour labels, and the brand red says peak to
+                nobody"). Four labels under the strip, and the three-hour band in bright ink, never the action red: red is
+                for what can be tapped, and a bar is not a button. */}
             <div className="rep-hours">
               {report.hours.byHour.map((n, h) => (
                 <i
@@ -175,6 +191,7 @@ export function ReportScreen({ report, capped, onCap, onOpenTask, onDropTask, on
                 />
               ))}
             </div>
+            <div className="rep-hours-axis" aria-hidden="true"><span>12 AM</span><span>6 AM</span><span>12 PM</span><span>6 PM</span></div>
           </div>
         )}
 
@@ -198,7 +215,7 @@ export function ReportScreen({ report, capped, onCap, onOpenTask, onDropTask, on
               </div>
               <div className="rep-leg">
                 {report.time.rows.map((r) => (
-                  <span key={r.id || "rest"}><i className={"cat-bg-" + r.color} />{r.name} {r.label}{r.vs && <span className="fact warn rep-vs">{r.vs}</span>}</span>
+                  <span key={r.id || "rest"}><i className={"cat-bg-" + r.color} />{r.name} <b>{r.label}</b>{r.vs && <span className="fact warn rep-vs">{r.vs}</span>}</span>
                 ))}
               </div>
               <div className="rep-split rep-gap"><span className="rep-eyebrow rep-quiet">On the Calendar</span><b>{report.time.total}</b></div>
@@ -224,7 +241,7 @@ export function ReportScreen({ report, capped, onCap, onOpenTask, onDropTask, on
             </div>
             <div className="rep-leg">
               {report.went.map((s) => (
-                <span key={s.id}><i className={"cat-bg-" + s.color} />{s.name} {s.n}</span>
+                <span key={s.id}><i className={"cat-bg-" + s.color} />{s.name} <b>{s.n}</b></span>
               ))}
             </div>
           </div>
@@ -247,7 +264,6 @@ export function ReportScreen({ report, capped, onCap, onOpenTask, onDropTask, on
                 return (
                   <RowShell key={w.id} verb={answers[0] ? { label: answers[0].label, run: answers[0].onPick } : undefined}>
                     <div {...pressable(() => setReceipts({ title: w.title, lines: w.receipts, answers }))} className="row">
-                      {w.id === "cut" && <div className="row-glyph rep-good-glyph"><CheckCircleGlyph /></div>}
                       <div className="row-grow">
                         <div className="rep-title">{w.title}</div>
                         {w.sub && <Facts facts={w.sub} />}
@@ -275,7 +291,6 @@ export function ReportScreen({ report, capped, onCap, onOpenTask, onDropTask, on
                   <div className="rep-title">{p.title}</div>
                   {p.sub && <Facts facts={p.sub} />}
                 </div>
-                {p.chip && <span className={"rep-chip rep-chip-" + p.chip.tone}>{p.chip.text}</span>}
                 <div className="chev" />
               </div>
             ))}
@@ -318,23 +333,16 @@ export function ReportScreen({ report, capped, onCap, onOpenTask, onDropTask, on
       )}
       <div className="pad-x">
         {(report.learned || report.did) && (
-          <div className="card">
-            {report.learned && (
-              <div className="row">
+          <div className="card list-card-ruled">
+            {[report.learned, report.did].map((b, i) => b && (
+              <div {...pressable(() => setReceipts({ title: b.title, lines: b.receipts }))} className="row" key={i}>
                 <div className="row-grow">
-                  <div className="rep-title">{report.learned.title}</div>
-                  {report.learned.sub && <Facts facts={report.learned.sub} />}
+                  <div className="rep-title">{b.title}</div>
+                  {b.sub && <Facts facts={b.sub} />}
                 </div>
+                <div className="chev" />
               </div>
-            )}
-            {report.did && (
-              <div className="row">
-                <div className="row-grow">
-                  <div className="rep-title">{report.did.title}</div>
-                  {report.did.sub && <Facts facts={report.did.sub} />}
-                </div>
-              </div>
-            )}
+            ))}
           </div>
         )}
 
@@ -347,7 +355,7 @@ export function ReportScreen({ report, capped, onCap, onOpenTask, onDropTask, on
             <div className="conn-meta rep-quiet2">{report.closer.sub}</div>
             <div className="rep-one-acts promo-actions">
               {capped
-                ? <button className="btn btn-block" disabled>Capped ✓</button>
+                ? <button className="btn btn-block" disabled>Capped</button>
                 : (
                   <>
                     <button className="btn btn-primary" onClick={onCap}>Turn It On</button>
@@ -479,6 +487,7 @@ export default function ReportFlow({ onBack, onOpenTask, month, live, onOpenEnti
       alreadyCapped: !!capRule,
       people: ppl.map((p) => ({ id: p.id, name: p.data.name })),
       healthCategoryId: cs.find((c) => effectiveKind(c.data) === "health")?.id ?? null,
+      ...(live ? { stillOpen: true } : {}),
     }));
   }, [sealSvc, cats, goalsSvc, projectsSvc, gym, tasksSvc, rules, schedule, peopleSvc, decisionsSvc, month, live]);
   useEffect(() => { void load(); }, [load]);

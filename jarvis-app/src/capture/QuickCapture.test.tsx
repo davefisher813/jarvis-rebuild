@@ -672,3 +672,36 @@ describe("QuickCapture: a Recent Captures row can be removed", () => {
     expect(stored.map((r) => r.id)).toContain("old-2");
   });
 });
+
+// THE SMART PASTE SHEET, AS THE ROUND-1 REVIEW LEFT IT (Dave 2026-10-05: "Everything should look PERFECT."). The placeholder was
+// "Paste or type · dinner with Marco Thursday 7pm": a typed dot, lowercase words, a 7pm that is not the 12-hour form, and (drawn
+// as bright as typed text) it read as content already in the field. Speak, Log the Decision and Remember This stood stacked under
+// Cancel, 9px from the sheet's foot, with Speak 20px off the field's column.
+describe("QuickCapture: the sheet reads field, aids, Capture, Cancel", () => {
+  const open = () => render(<NotesProvider userId="u-layout"><QuickCapture ai={new AIService({ available: false })} onClose={() => {}} /></NotesProvider>);
+
+  it("the placeholder is a Title Case example in the 12-hour form, with no typed dot, and the field is labelled for what it takes", () => {
+    open();
+    const box = screen.getByLabelText("Paste or Type") as HTMLTextAreaElement;
+    expect(box.placeholder).toBe("Dinner with Marco Thursday 7:00 PM");
+    expect(box.placeholder).not.toContain("·");
+    expect(box.placeholder).toMatch(/\b\d{1,2}:\d{2} (AM|PM)\b/);
+  });
+
+  it("Speak sits in ONE quiet row directly under the field, before Capture, and nothing hangs under Cancel", () => {
+    open();
+    const form = document.querySelector(".sheet-form")!;
+    const kids = [...form.children];
+    const box = kids.findIndex((k) => k.tagName === "TEXTAREA");
+    const aids = kids.findIndex((k) => k.classList.contains("msg-quiet-acts"));
+    const actions = kids.findIndex((k) => k.classList.contains("sheet-actions"));
+    expect(aids, "the aids are a row of their own").toBeGreaterThan(-1);
+    expect(aids).toBe(box + 1);
+    expect(actions).toBeGreaterThan(aids);
+    expect(kids[aids]!.textContent).toContain("Speak");
+    // Cancel is last: nothing follows the actions
+    expect(kids.slice(actions + 1).filter((k) => k.classList.contains("msg-quiet-acts"))).toHaveLength(0);
+    expect(kids[actions]!.querySelectorAll("button")).toHaveLength(2);
+    expect(kids[actions]!.lastElementChild!.textContent).toBe("Cancel");
+  });
+});

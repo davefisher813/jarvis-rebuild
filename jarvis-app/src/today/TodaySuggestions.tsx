@@ -24,7 +24,7 @@ import { aiFailure, type AIFailure } from "../ai/failureLine";
 import { rankOpen } from "../upnext/upnext";
 import { Lightbulb } from "../shared/icons";
 import NoticeCard from "./NoticeCard";
-import { lineCase } from "../shared/casing";
+import { lineCase, bindMeridiem } from "../shared/casing";
 
 // Proactive nudges on Today, made actionable and polite:
 // - one AI call per day (cached on device), so no burn on every open
@@ -33,6 +33,11 @@ import { lineCase } from "../shared/casing";
 // - dismissals persist for the day (an assistant that re-nags gets deleted)
 type DayCache = { items: Suggestion[]; dismissed: number[]; acted: number[] };
 const KEY = (d: string) => "jarvis.suggestions." + d;
+
+// A NOTICE IS A LINE THE APP WRITES, SO IT IS TITLE CASE (Dave 2026-10-05, the review: "Your tasks get done between 7 AM
+// and 10 AM" over a Title Case receipt on one card), and a time in it never splits from its AM or PM. The words are
+// derived and stored as the strand's own sentence (brain/derive.ts), so the casing is done where they are drawn.
+const noticeText = (t: string) => bindMeridiem(lineCase(t));
 
 function readCache(d: string): DayCache | null {
   try { return JSON.parse(localStorage.getItem(KEY(d)) || "null") as DayCache | null; } catch { return null; }
@@ -433,7 +438,7 @@ export default function TodaySuggestions({ ai, always = false }: { ai: AIService
     primary = !open ? (
       <div className="pad-x">
         <button className="receipt-line" onClick={() => setOpen(true)}>
-          <span className="rl-t">Noticed: {pattern.text}</span>
+          <span className="rl-t">Noticed: {noticeText(pattern.text)}</span>
           <span className="chev" />
         </button>
       </div>
@@ -444,7 +449,7 @@ export default function TodaySuggestions({ ai, always = false }: { ai: AIService
         offer
         icon={<Lightbulb className="ic" />}
         tone="cat-fg-yellow"
-        title={pattern.text}
+        title={noticeText(pattern.text)}
         sub={pattern.sub}
         /* THE EVIDENCE IS NOT OPTIONAL ON AN OFFER (2026-09-07). See the note
            on the moment cards below: this card asks him to accept a claim, so
@@ -464,7 +469,7 @@ export default function TodaySuggestions({ ai, always = false }: { ai: AIService
     primary = !open ? (
       <div className="pad-x">
         <button className="receipt-line" onClick={() => setOpen(true)}>
-          <span className="rl-t">Noticed: {aiPick.s.text}</span>
+          <span className="rl-t">Noticed: {noticeText(aiPick.s.text)}</span>
           <span className="chev" />
         </button>
       </div>
@@ -473,7 +478,7 @@ export default function TodaySuggestions({ ai, always = false }: { ai: AIService
         offer
         icon={<Lightbulb className="ic" />}
         tone="cat-fg-yellow"
-        title={aiPick.s.text}
+        title={noticeText(aiPick.s.text)}
         action={aiPick.s.task ? { label: "Add", onClick: () => void addToToday(aiPick.i, aiPick.s.task!) } : undefined}
         // ROW-TAP (Dave 2026-09-15): nothing to open; the body folds the card
         // back to its whisper, the same way it opened.
@@ -534,7 +539,7 @@ export default function TodaySuggestions({ ai, always = false }: { ai: AIService
           offer
           icon={<Lightbulb className="ic" />}
           tone="cat-fg-yellow"
-          title={m.title}
+          title={noticeText(m.title)}
           sub={m.sub}
           /* THE EVIDENCE IS NOT OPTIONAL ON AN OFFER (2026-09-07).
              Measured at 390x844: "Remember This" is 139px of a 326px row, so a

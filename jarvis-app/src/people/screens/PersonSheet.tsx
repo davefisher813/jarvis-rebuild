@@ -1,13 +1,12 @@
 import { useState } from "react";
 import type { PersonData } from "../types";
 import type { ColorSlot } from "../../categories/types";
-import { AVATAR_COLORS, avatarClass } from "../types";
+import { AVATAR_COLORS } from "../types";
 import { LABEL_CHIPS } from "../views";
 import { FormSheet, Group, Row, FieldRow, MenuRow, TextRow, Strip, DeleteRow, ErrorLine } from "../../shared/FormSheet";
 import HeadMenu from "../../shared/HeadMenu";
-import { User, Tag, PenLine } from "../../shared/icons";
+import { User, Tag, PenLine, Check } from "../../shared/icons";
 import { PeopleGlyph, EnvelopeGlyph, GiftGlyph, PhoneGlyph } from "../../shared/glyphs";
-import { pressable } from "../../shared/pressable";
 
 export interface SheetCategoryOpt { id: string; name: string; color: ColorSlot }
 
@@ -70,6 +69,8 @@ export default function PersonSheet({
   // without a chip editor. Stored as a list.
   const [aliasText, setAliasText] = useState((initial?.aliases ?? []).join(", "));
   const [relationship, setRelationship] = useState(initial?.relationship ?? "");
+  // A label that is not one of the seven is the person's own words ("Attorney"), which the menu's last option opens a field for.
+  const [ownWords, setOwnWords] = useState(!!initial?.relationship && !(LABEL_CHIPS as readonly string[]).includes(initial.relationship));
   const [roles, setRoles] = useState<Record<string, string>>(
     // The roles key is shared with Brain triage (string entries): the sheet
     // edits the per-area roles only, so the triage strings are filtered out
@@ -131,24 +132,32 @@ export default function PersonSheet({
   return (
     <FormSheet title={mode === "new" ? "New Person" : "Edit Person"} onCancel={onCancel} onSave={save} saveDisabled={!valid} saveLabel={saving ? "Saving" : "Save"}>
       <Group label="Person">
-        <FieldRow tone="pink" glyph={<User className="ic" />} value={name} onChange={setName} placeholder="Full Name" ariaLabel="Name"
-          error={touched && !valid} right={false} />
+        {/* EVERY ROW HAS ITS LABEL (Dave 2026-10-05, the review: the name was a bare value in regular weight under a bold
+            "Also Called"). */}
+        <FieldRow tone="pink" glyph={<User className="ic" />} label="Name" value={name} onChange={setName} placeholder="Full Name" ariaLabel="Name"
+          error={touched && !valid} />
         {/* ONE PERSON, EVERY NAME YOU CALL THEM. Search and the mention
             matcher read these, so "call Mom" finds Linda Fisher without a
-            second contact for her existing. */}
+            second contact for her existing. The example said "Mom, Linda" under every contact, an invitation to a nonsense
+            alias, so the placeholder says what the field takes (several are separated by commas as they are typed). */}
         <FieldRow tone="purple" glyph={<PeopleGlyph />} label="Also Called" value={aliasText} onChange={setAliasText}
-          placeholder="Mom, Linda" ariaLabel="Other names for this person" />
+          placeholder="Nicknames" ariaLabel="Other names for this person" />
       </Group>
       <ErrorLine text={touched && !valid ? "Add a name." : null} />
       <Group label="Who They Are to You">
-        <Strip>
-          {LABEL_CHIPS.map((l) => (
-            <div {...pressable(() => setRelationship(relationship === l ? "" : l))} key={l} className={"chip" + (relationship === l ? " active" : "")} aria-pressed={relationship === l}
->{l}</div>
-          ))}
-        </Strip>
-        <FieldRow tone="purple" glyph={<PeopleGlyph />} value={(LABEL_CHIPS as readonly string[]).includes(relationship) ? "" : relationship}
-          onChange={setRelationship} placeholder="Or Say It Your Way" ariaLabel="Who they are to you" right={false} />
+        {/* ONE ROW, NOT A PILE OF CHIPS (Dave 2026-10-05, the review: seven chips wrapped into three ragged lines over a bare
+            value row). The seven labels and the person's own words are one menu; the own-words field appears when it is
+            chosen, labelled like every other row. */}
+        <MenuRow tone="purple" glyph={<PeopleGlyph />} label="Relationship" value={ownWords ? "own" : relationship} ariaLabel="Who they are to you"
+          off={!relationship && !ownWords} word={ownWords ? "Your Own Words" : undefined}
+          options={[{ value: "", label: "Not Set" }, ...LABEL_CHIPS.map((l) => ({ value: l, label: l })), { value: "own", label: "Your Own Words" }]}
+          onPick={(v) => {
+            if (v === "own") { setOwnWords(true); if ((LABEL_CHIPS as readonly string[]).includes(relationship)) setRelationship(""); return; }
+            setOwnWords(false); setRelationship(v);
+          }} />
+        {ownWords && (
+          <FieldRow tone="purple" glyph={<PeopleGlyph />} label="In Your Words" value={relationship} onChange={setRelationship} placeholder="Attorney, Neighbour, Mentor" ariaLabel="Who they are to you, in your words" />
+        )}
         <MenuRow tone="indigo" glyph={<PenLine className="ic" />} label="JARVIS Writes" value={register ?? ""} ariaLabel="How JARVIS writes to them"
           off={!register} options={REGISTERS} onPick={(v) => setRegister(v === "" ? undefined : (v as Register))} />
       </Group>
@@ -180,19 +189,34 @@ export default function PersonSheet({
           })}
         </Group>
       )}
-      <Group label="Color">
-        <Strip plain>
-          <div className="swatch-row">
-            {AVATAR_COLORS.map((sl) => (
-              <button key={sl} type="button" aria-label={sl} aria-pressed={color === sl} className={"av-swatch " + avatarClass(sl) + (color === sl ? " sel" : "")} onClick={() => setColor(sl)} />
-            ))}
-          </div>
-        </Strip>
-      </Group>
-      <Group label="More">
-        <FieldRow tone="orange" glyph={<GiftGlyph />} label="Birthday" value={birthday} onChange={setBirthday} placeholder="e.g. March 4" ariaLabel="Birthday" />
+      <Group label="Notes">
         <TextRow value={notes} onChange={setNotes} placeholder="What JARVIS Should Remember" ariaLabel="Notes" />
       </Group>
+      {/* THE FORM IS SHORTER THAN ITS SCROLL (Dave 2026-10-05, the review: four groups before the colour and Save two screens
+          down). The colour and the birthday are the two things most people never change, so they sit behind one disclosure. */}
+      <details className="exp-more xs-more" open={!!birthday || (color !== "red")}>
+        <summary>More Details</summary>
+        <Group label="Color">
+          <Strip plain>
+            {/* THE PICKED COLOUR IS RINGED IN INK, WITH A CHECK, on a 44px reach, in a grid of six by four (Dave 2026-10-05, the
+                review: 34px swatches with no selected state and two stragglers on a fourth row). The first swatch is no colour
+                at all: the warm neutral every new person starts as, which no swatch drew before, so nothing looked picked. */}
+            <div className="swatch-grid">
+              <button type="button" className={"swatch swatch-none" + (color === "red" ? " sel" : "")} aria-label="No Color" aria-pressed={color === "red"} onClick={() => setColor("red")}>
+                {color === "red" && <Check className="ic" aria-hidden="true" />}
+              </button>
+              {AVATAR_COLORS.map((sl) => (
+                <button key={sl} type="button" aria-label={sl} aria-pressed={color === sl} className={"swatch cat-bg-" + sl + (color === sl ? " sel" : "")} onClick={() => setColor(sl)}>
+                  {color === sl && <Check className="ic" aria-hidden="true" />}
+                </button>
+              ))}
+            </div>
+          </Strip>
+        </Group>
+        <Group label="Birthday">
+          <FieldRow tone="orange" glyph={<GiftGlyph />} label="Birthday" value={birthday} onChange={setBirthday} placeholder="e.g. March 4" ariaLabel="Birthday" />
+        </Group>
+      </details>
       {mode === "edit" && onDelete && (
         <Group className="xs-actions"><DeleteRow label="Delete Person" onClick={onDelete} /></Group>
       )}

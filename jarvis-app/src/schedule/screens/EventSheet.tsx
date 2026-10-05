@@ -37,13 +37,39 @@ const toMin = (hhmm: string): number => {
 // should not mean opening a time picker and dialling. These shift start and
 // end together, so length stays the job of the duration chips below and one
 // control never quietly does two things.
-const NUDGES: [number, string][] = [[-30, "-30m"], [-15, "-15m"], [15, "+15m"], [30, "+30m"]];
+// One strip of four equal segments, Title Case, with the real minus sign (2026-10-05 review: "-30m" in lowercase
+// units wrapped 3 + 2 beside a Tomorrow chip that moves the DAY, a different kind of move).
+const NUDGES: [number, string][] = [[-30, "\u221230 Min"], [-15, "\u221215 Min"], [15, "+15 Min"], [30, "+30 Min"]];
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 // UP-CORE-11: the weekday chips. One letter each is the phone convention and
 // the only thing that fits seven across; the aria-label carries the real name.
 const DOW_LABELS = ["S", "M", "T", "W", "T", "F", "S"];
 const DOW_FULL = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 const dateWord = (iso: string) => { const d = new Date(iso + "T00:00:00"); return `${MONTHS[d.getMonth()]} ${d.getDate()}`; };
+const DAYS_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+/** "Mon, Oct 5": the date as a value, never the browser's 10/05/2026. */
+const dayWord = (iso: string) => { const d = new Date(iso + "T00:00:00"); return `${DAYS_SHORT[d.getDay()]}, ${dateWord(iso)}`; };
+const todayIso = () => { const n = new Date(); return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, "0")}-${String(n.getDate()).padStart(2, "0")}`; };
+/** "11:00 AM" from "11:00". */
+const clockWord = (hhmm: string) => { const t = fmtTime(hhmm); return `${t.time} ${t.ap}`; };
+
+// A DATE OR A TIME AS A VALUE THAT OPENS THE PICKER (2026-10-05 review: the raw
+// native "10/05/2026" with its black calendar glyph, and the clock glyphs, sat
+// mid-row at three different x positions). The value is drawn by us, right
+// aligned with every other value in the card; the real input rides over it,
+// transparent, so a tap still opens the system picker and the field is still
+// the thing a screen reader and a test reach.
+function PickValue({ kind, value, onChange, ariaLabel, invalid = false }: {
+  kind: "date" | "time"; value: string; onChange: (v: string) => void; ariaLabel: string; invalid?: boolean;
+}) {
+  const text = !value ? (kind === "date" ? "Pick a Date" : "Set a Time") : kind === "date" ? dayWord(value) : clockWord(value);
+  return (
+    <span className={"xs-pick" + (invalid ? " xs-pick-bad" : "") + (value ? "" : " xs-pick-off")}>
+      <span className="xs-pick-v" aria-hidden="true">{text}</span>
+      <input type={kind} className="xs-pick-in" aria-label={ariaLabel} value={value} onChange={(e) => onChange(e.target.value)} />
+    </span>
+  );
+}
 export interface EventDraft {
   title: string;
   date: string;
@@ -295,6 +321,9 @@ export default function EventSheet({
   const offers: Fit[] = canAttach
     ? suggestFor({ title, location, category, taskIds }, attachTasks ?? [], blendMem, 4)
     : [];
+  // The reason is said per row only when the rows differ: "Same Area" under every one of four rows is the
+  // section head's own claim, said four times (2026-10-05 review).
+  const sameWhy = offers.length > 1 && offers.every((o) => o.why === offers[0]!.why);
   // Anything left over, so a deliberate attach is never blocked by the
   // ranking having an opinion.
   //
@@ -374,7 +403,7 @@ export default function EventSheet({
               <Tile tone="sky"><CalendarGlyph /></Tile>
               <input
                 className={"xs-input" + (err && !title.trim() ? " input-error" : "")}
-                placeholder="What's happening?"
+                placeholder="What's Happening?"
                 aria-label="Event title"
                 value={title}
                 onChange={(e) => { setTitle(e.target.value); if (err) setErr(false); }}
@@ -401,19 +430,22 @@ export default function EventSheet({
             <div onClick={tapField} className="row xs-row">
               <Tile tone="orange"><Calendar className="ic" /></Tile>
               <div className="conn-name">Date</div>
-              <input type="date" className={"xs-input xs-field" + (err && !date ? " input-error" : "")} aria-label="Date" value={date}
-                onChange={(e) => { setDate(e.target.value); if (err) setErr(false); }} />
+              {/* Tomorrow is a move of the DAY, so it lives on the Date row, not among the minute nudges, and only
+                  while the event is on today (the moment it is wanted). */}
+              <RowCtxAction when={!!date && date === todayIso()} label="Tomorrow" onAct={() => { setDate(addDays(date, 1)); if (err) setErr(false); }} />
+              <PickValue kind="date" ariaLabel="Date" value={date} invalid={err && !date}
+                onChange={(v) => { setDate(v); if (err) setErr(false); }} />
             </div>
             <div onClick={tapField} className="row xs-row">
               <Tile tone="green"><ClockGlyph /></Tile>
               <div className="conn-name">Start</div>
-              <input type="time" className="xs-input xs-field" aria-label="Start" value={start} onChange={(e) => onStart(e.target.value)} />
+              <PickValue kind="time" ariaLabel="Start" value={start} onChange={onStart} />
             </div>
             <div onClick={tapField} className="row xs-row">
               <Tile tone="teal"><ClockGlyph /></Tile>
               <div className="conn-name">End</div>
-              <input type="time" className={"xs-input xs-field" + (endInvalid ? " input-error" : "")} aria-label="End" value={end}
-                onChange={(e) => { setEnd(e.target.value); if (err) setErr(false); }} />
+              <PickValue kind="time" ariaLabel="End" value={end} invalid={endInvalid}
+                onChange={(v) => { setEnd(v); if (err) setErr(false); }} />
             </div>
             {/* THE SHARED LIST (2026-08-24): one set of lengths for the day
                 row, the plan sheet and this sheet (schedule/durations.ts). */}
@@ -429,7 +461,7 @@ export default function EventSheet({
                 job of the row above and one control never does two things. */}
             {/* row-tap: chip strip, each chip its own pick; the strip is not an item */}
             <div className="row xs-strip">
-              <div className="chip-row">
+              <div className="segmented xs-nudge" role="group" aria-label="Move the event">
                 {NUDGES.map(([mins, label]) => {
                   const nextStart = toMin(start) + mins;
                   // Refuse rather than clamp. addMinutes clamps at midnight,
@@ -440,7 +472,7 @@ export default function EventSheet({
                   return (
                     <div
                       key={mins}
-                      className={"chip" + (blocked ? " chip-off" : "")}
+                      className={"seg" + (blocked ? " seg-off" : "")}
                       role="button"
                       tabIndex={blocked ? -1 : 0}
                       aria-disabled={blocked}
@@ -450,16 +482,17 @@ export default function EventSheet({
                         if (end) setEnd(minToHHMM(nextStart + durNow));
                         if (err) setErr(false);
                       }}
+                      onKeyDown={onPressKey(() => {
+                        if (blocked) return;
+                        setStart(minToHHMM(nextStart));
+                        if (end) setEnd(minToHHMM(nextStart + durNow));
+                        if (err) setErr(false);
+                      })}
                     >
                       {label}
                     </div>
                   );
                 })}
-                {date && (
-                  <div className="chip" role="button" tabIndex={0} onClick={() => { setDate(addDays(date, 1)); if (err) setErr(false); }}>
-                    Tomorrow
-                  </div>
-                )}
               </div>
             </div>
           </div></div>
@@ -537,7 +570,7 @@ export default function EventSheet({
             )}
             {recurrence !== "none" && until !== "" && (
               <div onClick={tapField} className="row xs-row xs-date">
-                <input type="date" className="xs-input" aria-label="Until date" value={until} onChange={(e) => setUntil(e.target.value)} />
+                <PickValue kind="date" ariaLabel="Until date" value={until} onChange={setUntil} />
               </div>
             )}
             {recurringEdit && (
@@ -651,10 +684,9 @@ export default function EventSheet({
                 {/* The computed time is itself editable (A26 coverage map).
                     Moving it moves the TRAVEL minutes, so there is one number
                     behind both and they can never disagree. */}
-                <input
-                  type="time" className="xs-input xs-field" aria-label="Leave by" value={leaveBy}
-                  onChange={(e) => {
-                    const v = e.target.value;
+                <PickValue
+                  kind="time" ariaLabel="Leave by" value={leaveBy}
+                  onChange={(v) => {
                     if (!/^\d{2}:\d{2}$/.test(v)) return;
                     const lead = minutesBetween(v, start);
                     const next = lead - (bufferMin ?? 0);
@@ -663,11 +695,20 @@ export default function EventSheet({
                 />
               </div>
             )}
-            {locSugs.map((l) => (
-              <div key={l} className="row xs-row" role="button" tabIndex={0} onClick={() => setLocation(l)}>
-                <div className="conn-name">{l}</div>
+            {/* Suggestions are labelled and drawn as what they are, chips under the field,
+                not three bold unlabelled rows that read as content (2026-10-05 review). */}
+            {locSugs.length > 0 && (
+              <div className="row xs-strip xs-sug">
+                <div className="xs-sug-label">Recent Places</div>
+                <div className="chip-row">
+                  {locSugs.map((l) => (
+                    <div key={l} className="chip" role="button" tabIndex={0} onClick={() => setLocation(l)} onKeyDown={onPressKey(() => setLocation(l))}>
+                      <PinGlyph />{l}
+                    </div>
+                  ))}
+                </div>
               </div>
-            ))}
+            )}
           </div></div>
 
           {/* UP-CORE-10 (2026-09-05) · THE MEETING ITSELF. An imported Google
@@ -690,7 +731,7 @@ export default function EventSheet({
                 drops .xs-field with it: that class right-aligns a value
                 against its label, which is right for a number and wrong for
                 something you write, for the reason .xs-row-write states. */}
-            <div onClick={tapField} className="row xs-row xs-textrow">
+            <div onClick={tapField} className="row xs-row xs-textrow xs-notes">
               <Tile tone="yellow"><FileText className="ic" /></Tile>
               <div className="conn-name">Notes</div>
               <textarea className="xs-input xs-textarea" rows={3} placeholder="Optional" aria-label="Meeting Notes" value={notes} onChange={(e) => setNotes(e.target.value)} />
@@ -756,7 +797,7 @@ export default function EventSheet({
                     <span className={"cat-dot cat-bg-" + catColor(o.task.category)} />
                     <div className="row-grow">
                       <div className="conn-name truncate">{titleCase(o.task.text)}</div>
-                      <div className="conn-meta">{o.why}</div>
+                      {!sameWhy && <div className="conn-meta">{o.why}</div>}
                     </div>
                     <RowCtxAction when label="Add" ariaLabel={"Add " + o.task.text} onAct={() => { setTaskIds((ids) => [...ids, o.task.id]); onBlend?.(blockKind({ title, location }), o.task.category); }} />
                   </div>
@@ -789,6 +830,7 @@ export default function EventSheet({
               <Tile tone="orange"><BarbellGlyph /></Tile>
               <div className="row-grow">
                 <div className="conn-name">{gym ? "This Block Opens the Gym" : "Training Door"}</div>
+                {!gym && <div className="facts"><span className="fact">Opens the Gym at Start</span></div>}
               </div>
               <div className={"switch" + (gym ? "" : " off")} role="switch" aria-checked={gym} aria-label="Training door" tabIndex={0}
                 onClick={() => setGym((g) => !g)} />

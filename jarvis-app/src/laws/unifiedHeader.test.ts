@@ -64,12 +64,14 @@ describe("all five pages spend the one header", () => {
 
 describe("what the handoff forbids", () => {
   // "No giant red creation banners across every page."
-  it("Add is a dark surface with a red glyph, never a second oversized primary", () => {
+  it("Add is the capsule recipe with a red glyph, never a second oversized primary", () => {
     const hdr = read("shared/LifeHeader.tsx");
     expect(hdr, "Add is not a .btn-primary").not.toMatch(/hdr-add[^>]*btn-primary/);
     const css = read("styles/components.css");
     const add = css.slice(css.indexOf(".hdr-add {"), css.indexOf(".hdr-add .ic"));
-    expect(add, "its ground is a surface, not the accent fill").toContain("background: var(--surface-2)");
+    expect(add, "its ground is the capsule fill, not the accent fill (2026-10-05, D3: one recipe in both themes)").toContain("background-color: var(--capsule-fill)");
+    expect(add, "its label is the tint").toContain("color: var(--tint)");
+    expect(read("styles/ruled.css"), "no light-only recipe for Add").not.toMatch(/\[data-theme="light"\] \.hdr-add \{/);
     // --tint, not --accent: the brand red is banned as glyph ink by the
     // contrast law, and --accent-tx is white in dark theme.
     expect(css).toContain(".hdr-add .ic { width: 20px; height: 20px; color: var(--tint); }");

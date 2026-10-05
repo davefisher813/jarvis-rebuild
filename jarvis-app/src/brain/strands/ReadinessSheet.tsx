@@ -11,12 +11,16 @@ import { lineCase } from "../../shared/casing";
 //
 // It reads only the Readiness row it was handed, the same object the panel
 // draws from, so the sheet and the row cannot disagree.
+//
+// SHORT ENOUGH TO READ IN ONE GLANCE (Dave 2026-10-05, the review: "Enough Evidence, Waiting f..." cut mid-phrase in the
+// one place that exists to say it). Each state is a few words, and the facts line wraps rather than ending in an
+// ellipsis (components.css, a sheet's .facts), so neither fact can be cut.
 function missingLine(r: Readiness): string {
   if (r.state === "known") return "JARVIS Already Knows This";
   if (r.state === "muted") return "Switched Off";
-  if (r.state === "ready") return lineCase("Enough evidence, waiting for you to accept it");
+  if (r.state === "ready") return "Ready to Accept";
   const short = Math.max(0, r.need - r.have);
-  return lineCase(`${short} more ${r.unit} to go`);
+  return lineCase(`${short} more to go`);
 }
 
 export default function ReadinessSheet({ r, onTell, onClose }: { r: Readiness; onTell: () => void; onClose: () => void }) {
@@ -48,7 +52,9 @@ export default function ReadinessSheet({ r, onTell, onClose }: { r: Readiness; o
         </div>
         <div className="pad-x sheet-actions">
           <button type="button" className="btn btn-primary btn-block" onClick={onTell}>Tell JARVIS</button>
-          <button type="button" className="btn btn-secondary btn-block" onClick={onClose}>Close</button>
+          {/* Done, never Close: Close is the eyebrow's own state word (nearly enough evidence), and one word that means two things
+            180px apart reads as a mistake (Dave 2026-10-05, the review). */}
+          <button type="button" className="btn btn-secondary btn-block" onClick={onClose}>Done</button>
         </div>
       </div>
     </div>

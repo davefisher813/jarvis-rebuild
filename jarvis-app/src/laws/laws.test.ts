@@ -3561,28 +3561,28 @@ describe("LAW 8: a proposal proves itself before it renders, and Accept never de
   // own, where the draft is the whole screen and walking away is less
   // obvious; the law still holds it to the neutral variant there.
   it("wherever Not Today is still offered, it is never accent text beside the red Accept fill", () => {
-    const OFFERS = ["schedule/ScheduleFlow.tsx"];
-    for (const f of OFFERS) {
-      const src = read(join(SRC, f));
-      const notToday = [...src.matchAll(/className="([^"]*)"[^>]*>Not Today</g)].map((m) => m[1]!);
-      expect(notToday.length, f + " still offers Not Today").toBeGreaterThan(0);
-      for (const cls of notToday) {
-        expect(cls, f + ": bare .btn-sm is red text; the neutral variant is required beside a fill")
-          .toMatch(/btn-secondary/);
-      }
-    }
+    // ROUND 1 (2026-10-05, Dave's decision D2): Schedule's Not Today left the pair under the day card. Accept the Day is the one
+    // filled primary there; Not Today is a line in the day head's overflow (SchedulePage's onDismissProposal), so no capsule
+    // of any colour stands beside the red Accept fill.
+    const flow = read(join(SRC, "schedule/ScheduleFlow.tsx"));
+    expect(flow, "Accept the Day is the one button under the card").toMatch(/<div className="day-foot">\s*<button className="btn btn-primary btn-sm" onClick=\{\(\) => void acceptProposal\(\)\}>Accept the Day<\/button>\s*<\/div>/);
+    expect(flow, "and Not Today is no longer drawn there").not.toMatch(/>Not Today</);
+    expect(flow, "the flow hands the dismissal to the head").toMatch(/onDismissProposal: dismissProposal/);
+    const pageSrc = read(join(SRC, "schedule/screens/SchedulePage.tsx"));
+    expect(pageSrc, "the head's overflow carries Not Today").toMatch(/label: "Not Today", onPick: onDismissProposal/);
     // Today has no draft FOOT at all any more (Dave 2026-09-11: "Accept the
     // day and plan my day should be next to each other where plan my day
     // currently is"). Accept is handed to YourDay as its `primary` and rides
-    // Plan My Day's row; Not Today is the quiet .receipt-line under them,
-    // because clearing a draft has to stay reachable -- Plan My Day stands
-    // its AI refine down while one is standing.
+    // Plan My Day's row; Clear This Plan (once Not Today) is the last item behind the day head's overflow (Dave
+    // 2026-10-05, locked: section-level actions live in the section head), because clearing a draft has to stay
+    // reachable -- Plan My Day stands its AI refine down while one is standing.
     const today = read(join(SRC, "today/TodayFlow.tsx"));
     expect(today, "the floating draft foot is gone").not.toContain('<div className="day-foot">');
     expect(today, "Accept rides the plan row as one .plan-cta")
       .toMatch(/const draftPrimary = draftStanding \? \(\s*\n\s*<button className="plan-cta plan-cta-block"/);
-    expect(today, "and Not Today is the quiet receipt line, never a second pill")
-      .toMatch(/<button className="receipt-line" onClick=\{dismissDraft\}>/);
+    expect(today, "and Clear This Plan is the day head's overflow, never a loose line or a second pill")
+      .toMatch(/onClearPlan=\{draftStanding \? dismissDraft : undefined\}/);
+    expect(today, "no loose receipt line under the Anytime fold").not.toMatch(/<button className="receipt-line" onClick=\{dismissDraft\}>/);
     expect(today, "no btn-shaped Not Today on Today").not.toMatch(/className="btn[^"]*"[^>]*>Not Today</);
   });
 
@@ -3919,24 +3919,24 @@ describe("LAW 11: cards show their work, tags earn their shape, and no screen is
   // Templates and Brain's "Your Areas", which re-stated the accent) slid
   // straight past the law. The scan now flags any .sh2 that does not carry
   // sh2-quiet, whatever else rides in the className.
-  it("every section head is quiet except Today's Now; red text is for verbs", () => {
+  it("every section head is quiet, Today's Now too; red text is for verbs", () => {
     const offenders: string[] = [];
     for (const f of COMPONENTS) {
-      if (rel(f) === "today/YourDay.tsx") continue;
       // AMENDED 2026-09-26 (Dave's pick): the C-38 exemption for the Brain
       // hub's Shaping JARVIS Now and Needs You ("not quiet, they are the
       // page's live top", 2026-09-12) is repealed. They are quiet like every
-      // other head, so BrainTop.tsx is scanned like any other file and
-      // Today's Now is the only red head left.
+      // other head, so BrainTop.tsx is scanned like any other file.
+      // AMENDED 2026-10-05 (the round-1 review, D4: brand red only on what you can tap): Today's Now was the one sanctioned
+      // red head ("the only section about this minute"). It is not tappable, so it is neutral like the rest, and YourDay is
+      // scanned like any other file.
       read(f).split("\n").forEach((line, i) => {
         const m = line.match(/className="([^"]*\bsh2\b[^"]*)"/);
         if (m && !m[1]!.includes("sh2-quiet")) offenders.push(rel(f) + ":" + (i + 1));
       });
     }
-    expect(offenders, "a head outside YourDay must carry sh2-quiet").toEqual([]);
-    // The one sanctioned loud head still exists, so this cannot pass by
-    // everything having gone quiet.
-    expect(read(join(SRC, "today/YourDay.tsx"))).toMatch(/className="sh2"/);
+    expect(offenders, "every head must carry sh2-quiet").toEqual([]);
+    // The day's head exists and is quiet, so this cannot pass by the file having lost it.
+    expect(read(join(SRC, "today/YourDay.tsx"))).toMatch(/className="sh2 sh2-quiet"/);
     // And the variant that hid two red heads from the old scan is retired.
     expect(CSS, "sh2-caps must not come back as an accent restatement")
       .not.toMatch(/\.sh2\.sh2-caps \.t \{ color: var\(--accent-chrome\)/);
@@ -4732,7 +4732,11 @@ describe("LAW 17: the Schedule head is two rows, the day starts at Now, and the 
     expect(src, "Plan My Day is the head action pill").toMatch(/<button className="see-all pill-action" onClick=\{onPlanDay\}>Plan My Day<\/button>/);
     expect(src, "the schedule head spends no accent fill").not.toMatch(/plan-cta/);
     expect(src, "the button row is gone").not.toMatch(/plan-head-acts/);
-    expect(src, "Running Late? rides the Now rule").toMatch(/className=\{"sched-late"[^}]*\}[\s\S]{0,220}Running Late\?/);
+    // AMENDED (Dave 2026-10-05, decision D2): Running Late? left the Now rule, where it was a capsule inside the card. It is a
+    // line in the day head's one overflow button (shared/HeadMore), opening the three pushes as a sheet.
+    expect(src, "Running Late is a line in the day head's overflow, not a capsule in the card")
+      .toMatch(/label: "Running Late", onPick: \(\) => setLateSheet\(true\)/);
+    expect(src, "and the capsule on the Now rule is gone").not.toMatch(/className=\{"sched-late"/);
     // AMENDED (Dave 2026-10-05, locked: section-level actions live in the section head, never inside a card). Copy
     // Yesterday left the empty state's card; it is the head's second capsule beside Plan My Day, on a day with nothing.
     expect(src, "Copy Yesterday is the section head's second capsule")
@@ -4771,8 +4775,7 @@ describe("LAW 17: the Schedule head is two rows, the day starts at Now, and the 
       .toMatch(/\.ruled \.sched-now \.l \{[^}]*height: 1px; background: var\(--sys-red\)/);
     expect(CSS, "and it keeps a floor, so it stays a rule and not a dash")
       .toMatch(/\.ruled \.sched-now \.l \{[^}]*min-width: 24px/);
-    expect(CSS, "and Running Late? beside it stays neutral")
-      .toMatch(/\.ruled \.sched-late \{[^}]*background: var\(--press-3\); color: var\(--tx-1\)/);
+    expect(CSS, "and the capsule that rode it (Running Late?) is retired with its rules").not.toMatch(/\.sched-late\b/);
   });
 
   // PICK 3: "In the one grey meta line", with his note: "I would like the
@@ -6153,8 +6156,10 @@ describe("DEFECT 6 (2026-09-06): four kinds of fact on that line, four treatment
 
   it("no two of them resolve to the same ink and the same weight", () => {
     const facts: Record<string, { color: string | null; weight: string }> = {
-      "the name of a thing it moves": inkOf(".ruled .r-goal.r-parent .r-goal-t"),
-      "the category it merely lives in": inkOf(".ruled .r-goal.r-parent.r-parent-plain .r-goal-t"),
+      // AMENDED 2026-10-05 (R1, the perfect bar): where it lives is ONE grey at regular weight whether the parent moves the
+      // task (a project, a goal) or merely holds it (a category); the glyph before it is the distinction, so the two kinds of
+      // parent are one entry here. A second bold "title" under the title was the defect.
+      "where it lives": inkOf(".ruled .r-goal.r-parent .r-goal-t"),
       "a person": inkOf(".ruled .r-goal.r-person"),
       "a number inside meta text": inkOf(".ruled .task-row .r-goal b"),
       "a recurrence": inkOf(".ruled .r-goal.r-rec"),
@@ -7105,7 +7110,8 @@ describe("an offer card never clips the claim or its receipt (2026-09-07)", () =
     // 2026-09-12: the same arity holds for an expanded row with two verbs
     // (twoVerbs): both move to the verbs line and the slot goes empty, so
     // the guard on the slot carries that clause too.
-    expect(CARD).toMatch(/action && !stack && !twoVerbs \?/);
+    // AMENDED 2026-10-05 (the Ready to Send rows): a card drawn as a row (`asRow`, verbRow) draws no capsule at all.
+    expect(CARD).toMatch(/action && !stack && !twoVerbs && !verbRow \?/);
     expect(CARD).toMatch(/action && stack &&/);
     expect(CARD, "the verbs line carries the primary only when the slot does not").toMatch(/twoVerbs && alt &&[\s\S]{0,1600}action && !stack &&/);
   });
@@ -7147,7 +7153,9 @@ describe("an offer card never clips the claim or its receipt (2026-09-07)", () =
 // `content` string), so words cannot hide behind a separator's selector.
 describe("LAW: the structure ink never colours text (2026-09-14)", () => {
   it("no stylesheet rule sets color to --tx-4, apart from the glyph separators", () => {
-    const GLYPHS = new Set([".r-cue::before", ".fact + .fact::before", ".conn-meta:not(.facts) > .fact:not(:last-child)::after"]);
+    // 2026-10-05 (D7): the wrapped facts line's separator is the LEADING dot of the fact after it (clipped at a line start), so
+    // its glyph rule moved from the trailing ::after to ::before.
+    const GLYPHS = new Set([".r-cue::before", ".fact + .fact::before", ".conn-meta:not(.facts) > .fact + .fact::before"]);
     const bad: string[] = [];
     for (const f of ["jarvis-design-system.css", "uniformity.css", "components.css", "ruled.css", "mail-rows.css", "editor.css"]) {
       const css = read(SRC + "/styles/" + f).replace(/\/\*[\s\S]*?\*\//g, "");

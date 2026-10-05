@@ -64,24 +64,10 @@ const fmtShort = shortDate;
 export const fmtDay = (iso: string) =>
   new Date(iso.length === 10 ? iso + "T12:00:00" : iso).toLocaleDateString("en-US", { month: "long", day: "numeric" });
 
-// The list glyph wears the first linked entity's color and goes quiet when
-// the decision stands alone. The glyph only: it reads the record's legacy
-// first link, so the homes' dots are worked out per link (linkAreaSlot).
-function glyphSlot(rec: DecisionRecord, projectCat: (id: string) => string | undefined): string {
-  const t = rec.data.linkedType;
-  // V4 styling pass: an unlinked decision wears the decision type color
-  // (purple), never grey; nothing with an identity is grey.
-  if (!t || !rec.data.linkedId) return "purple";
-  if (t === "project") {
-    const cat = projectCat(rec.data.linkedId);
-    return cat ? catColor(cat) : "indigo";
-  }
-  if (t === "org") return catColor(rec.data.linkedId);
-  if (t === "goal") return "purple";
-  if (t === "person") return "teal";
-  return "blue"; // task
-}
-const glyphClass = (rec: DecisionRecord, projectCat: (id: string) => string | undefined) => "cat-fg-" + glyphSlot(rec, projectCat);
+// THE DECISION GLYPH HAS ONE COLOUR (Dave 2026-10-05, the review: "the fork was purple, purple, blue, because it took the
+// first home's area colour, while each row also had an area dot, so one decision wore a blue glyph and a blue dot"). The
+// glyph says what the row IS, so it is the decision type's own tone on every row; which area it sits in is the dot's job.
+const DECISION_TONE = "cat-fg-purple";
 
 // The area of life ONE home sits in, for its dot (§AM: a category colour on
 // a dot means which area). A project is in its category, an org IS an area;
@@ -99,6 +85,9 @@ function linkAreaSlot(l: DecisionLink, projectCat: (id: string) => string | unde
 // The outcome word in the Colour Key (§AM): worked is done, mixed needs him
 // soon, didn't is missed.
 const OUTCOME_KEY: Record<OutcomeWord, "good" | "warn" | "red"> = { worked: "good", mixed: "warn", didnt: "red" };
+
+// What a home IS, as the one grey on its row on the record page.
+const HOME_WORD: Record<string, string> = { project: "Project", goal: "Goal", org: "Area", person: "Person", task: "Task" };
 
 // A revisit still waiting on him (pending, or shown on Today) is a due date,
 // so it takes the reminder window (§AM R8): late red, today or tomorrow
@@ -219,8 +208,8 @@ export default function DecisionsFlow({ onBack, openId, openNonce, onOpenConsume
     const ok = await attemptWrite(() => svc.markOutcome(rec.id, word));
     if (!ok) return;
     await reload();
-    if (word === "didnt") showToast({ message: "Outcome · Didn't", actionLabel: "Change It", onAction: () => setSheet({ kind: "supersede", oldId: rec.id }) });
-    else showToast({ message: "Outcome · " + OUTCOME_LABEL[word] });
+    if (word === "didnt") showToast({ message: "Marked Didn't", actionLabel: "Change It", onAction: () => setSheet({ kind: "supersede", oldId: rec.id }) });
+    else showToast({ message: "Marked " + OUTCOME_LABEL[word] });
   };
 
   // C-54: one memory, two relationships. The strand carries the decision as
@@ -269,16 +258,6 @@ export default function DecisionsFlow({ onBack, openId, openNonce, onOpenConsume
     const older = d.supersedesId ? byId.get(d.supersedesId) : undefined;
     const newer = d.supersededById ? byId.get(d.supersededById) : undefined;
     const links = linksOf(d);
-    // The Attached To card (lead, 2026-09-26, the row's ruling carried over):
-    // a home in an area draws as the row draws it, the category fact with its
-    // own area's dot. A person, goal or task, or a project with no category,
-    // has no dot to wear, so those homes share ONE plain fact, joined, and the
-    // line keeps one grey.
-    const areaHomes = links.flatMap((l) => {
-      const slot = linkAreaSlot(l, (id) => projCats[id]);
-      return slot ? [{ link: l, slot }] : [];
-    });
-    const plainHomes = links.filter((l) => !areaHomes.some((h) => h.link.id === l.id)).map((l) => titleCase(l.label)).join(", ");
     const toggleLink = (opt: AttachOption) => {
       const next = links.some((l) => l.id === opt.id)
         ? links.filter((l) => l.id !== opt.id)
@@ -312,6 +291,9 @@ export default function DecisionsFlow({ onBack, openId, openNonce, onOpenConsume
               focused={editing}
               onSave={(v) => { if (v && v !== d.decision) void patch(record.id, { decision: v }); }}
             />
+            {/* WHEN IT WAS RECORDED IS A CAPTION UNDER THE DECISION, not a card of its own (Dave 2026-10-05, the review: a
+                titleless box at the foot holding only "RECORDED OCT 5", the same line the Replaces row already carried). */}
+            <div className="facts dec-recorded"><span className="fact date">Recorded {fmtShort(d.createdAt)}</span></div>
           </div></div>
 
           <div className="sh2 sh2-quiet"><span className="t">Because</span></div>
@@ -328,7 +310,7 @@ export default function DecisionsFlow({ onBack, openId, openNonce, onOpenConsume
               on the shared editor's compact level, saved when it loses
               focus. Optional: a decision that is one line stays one line. */}
           <div className="sh2 sh2-quiet"><span className="t">Notes</span></div>
-          <div className="pad-x"><div className="card pad">
+          <div className="pad-x"><div className="card pad dec-notes">
             <DecisionNotes id={record.id} value={d.notes ?? ""} onSave={(v) => { if (v !== (d.notes ?? "")) void patch(record.id, { notes: v || undefined }); }} />
           </div></div>
 
@@ -431,20 +413,28 @@ export default function DecisionsFlow({ onBack, openId, openNonce, onOpenConsume
           {(editing || links.length > 0) && (
             <>
               <div className="sh2 sh2-quiet"><span className="t">Attached To</span></div>
-              <div className="pad-x"><div className="card pad">
-                {/* C-53: every home, as facts; while editing, every option as
-                    a chooser chip, the ones it holds filled. Area homes wear
-                    their dot; every other home rides one plain run. */}
-                {!editing && (
-                  <div className="facts">
-                    {areaHomes.map(({ link: l, slot }) => (
-                      <span className="fact cat fact-link" key={l.id}><span className={"cd cat-bg-" + slot} /><span className="cat-t">{titleCase(l.label)}</span></span>
-                    ))}
-                    {plainHomes && <span className="fact">{plainHomes}</span>}
-                  </div>
-                )}
+              <div className="pad-x"><div className="card">
+                {/* C-53: every home, as a row of its own: its name as the title (it wraps to two lines, never an ellipsis in
+                    a card with the room), and what it IS as the line's one grey, with the area's dot where the home is an
+                    area (Dave 2026-10-05, the review: "Rebuild Calder..." cut at 125px beside 200px of empty card). While
+                    editing, every option is a chooser chip, the ones it holds filled. */}
+                {!editing && links.map((l) => {
+                  const slot = linkAreaSlot(l, (id) => projCats[id]);
+                  return (
+                    <div className="row" key={l.id}>
+                      <div className="row-grow">
+                        <div className="conn-name dec-name">{titleCase(l.label)}</div>
+                        <div className="facts">
+                          {slot
+                            ? <span className="fact cat"><span className={"cd cat-bg-" + slot} />{HOME_WORD[l.type] ?? "Item"}</span>
+                            : <span className="fact">{HOME_WORD[l.type] ?? "Item"}</span>}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
                 {editing && (
-                  <div className="chip-row chip-wrap-row">
+                  <div className="pad"><div className="chip-row chip-wrap-row">
                     {[...attachOptions, ...links.filter((l) => !attachOptions.some((o) => o.id === l.id)).map((l) => ({ type: l.type, id: l.id, label: l.label }))].map((o) => (
                       <div key={o.id} className={"chip" + (links.some((l) => l.id === o.id) ? " active" : "")} role="checkbox" aria-checked={links.some((l) => l.id === o.id)} tabIndex={0}
                         onClick={() => toggleLink(o)}
@@ -452,7 +442,7 @@ export default function DecisionsFlow({ onBack, openId, openNonce, onOpenConsume
                         {titleCase(o.label)}
                       </div>
                     ))}
-                  </div>
+                  </div></div>
                 )}
               </div></div>
             </>
@@ -464,33 +454,25 @@ export default function DecisionsFlow({ onBack, openId, openNonce, onOpenConsume
           {!newer && (
             <>
               <div className="sh2 sh2-quiet"><span className="t">Outcome</span></div>
-              <div className="pad-x"><div className="card">
-                {/* With no outcome yet the head ("Outcome") and the three words under it say everything: a row titled "Mark
-                    Outcome" above them stated the head and the control a second time (catalog rule 2). */}
+              {/* THE CONTROL STANDS ON ITS OWN (Dave 2026-10-05, the review: a card, with a track inside it, with a pill
+                  inside the track, three nested containers; and a title row that said the word the control already shows).
+                  The three words are a CHOICE, one of three, so they are the app's segmented control and not three capsules.
+                  The day it was marked is the caption under it. */}
+              <div className="pad-x">
+                <div className="segmented seg-tri" role="group" aria-label="Outcome">
+                  {(["worked", "mixed", "didnt"] as OutcomeWord[]).map((w) => (
+                    <button type="button" key={w} aria-pressed={d.outcome?.word === w} className={"seg" + (d.outcome?.word === w ? " active" : "")} onClick={() => void markOutcome(record, w)}>{OUTCOME_LABEL[w]}</button>
+                  ))}
+                </div>
                 {d.outcome && (
-                <div className="row">
-                  <div className="row-grow">
-                    <div className="conn-name">{OUTCOME_LABEL[d.outcome.word]}</div>
-                    {/* A neutral date is small caps (§AM F5), here and on the
-                        record's other dated lines below. */}
+                  <div className="dec-marked">
                     <div className="facts"><span className="fact date">Marked {fmtShort(d.outcome.at)}</span></div>
+                    {/* A call that did not work usually wants a new call: its moment has come, so its one action shows as
+                        text (the same Change It the toast offers), never as a capsule. */}
+                    <RowCtxAction when={d.outcome.word === "didnt"} label="Change It" onAct={() => setSheet({ kind: "supersede", oldId: record.id })} />
                   </div>
-                  {/* A call that did not work usually wants a new call: its moment has come, so its one action shows on the
-                      row as text (the same Change It the toast offers), never as a capsule. */}
-                  <RowCtxAction when={d.outcome?.word === "didnt"} label="Change It" onAct={() => setSheet({ kind: "supersede", oldId: record.id })} />
-                </div>
                 )}
-                {/* Clean rows (Dave 2026-10-05, locked): the three words are a CHOICE, one of three, so they are the app's
-                    segmented control and not three capsules in a card.
-                    row-tap: the segmented control fills this line; it is a verb strip, not an item */}
-                <div className="row">
-                  <div className="segmented seg-tri row-grow" role="group" aria-label="Outcome">
-                    {(["worked", "mixed", "didnt"] as OutcomeWord[]).map((w) => (
-                      <button type="button" key={w} aria-pressed={d.outcome?.word === w} className={"seg" + (d.outcome?.word === w ? " active" : "")} onClick={() => void markOutcome(record, w)}>{OUTCOME_LABEL[w]}</button>
-                    ))}
-                  </div>
-                </div>
-              </div></div>
+              </div>
             </>
           )}
 
@@ -499,9 +481,12 @@ export default function DecisionsFlow({ onBack, openId, openNonce, onOpenConsume
               <div className="sh2 sh2-quiet"><span className="t">Replaces</span></div>
               <div className="pad-x"><div className="card">
                 <div {...pressable(() => goRecord(older.id))} className="row">
+                  {/* THE OLD CALL IS STRUCK THROUGH IN FULL INK, AND SAYS WHAT IT IS (Dave 2026-10-05, the review: near-grey
+                      strikethrough with a caps date and a lone chevron, no word that it was the one replaced). The strike is the
+                      treatment; Replaced is the line's one grey. */}
                   <div className="row-stack">
                     <div className="dec-old">{titleCase(older.data.decision)}</div>
-                    <div className="facts"><span className="fact date">Recorded {fmtShort(older.data.createdAt)}</span></div>
+                    <div className="facts"><span className="fact">Replaced</span></div>
                   </div>
                   <Chev />
                 </div>
@@ -516,7 +501,6 @@ export default function DecisionsFlow({ onBack, openId, openNonce, onOpenConsume
                 <div {...pressable(() => goRecord(newer.id))} className="row">
                   <div className="row-stack">
                     <div className="conn-name">{titleCase(newer.data.decision)}</div>
-                    <div className="facts"><span className="fact date">Recorded {fmtShort(newer.data.createdAt)}</span></div>
                   </div>
                   <Chev />
                 </div>
@@ -524,9 +508,6 @@ export default function DecisionsFlow({ onBack, openId, openNonce, onOpenConsume
             </>
           )}
 
-          <div className="pad-x"><div className="card">
-            <div className="row"><div className="row-stack"><div className="facts"><span className="fact date">Recorded {fmtShort(d.createdAt)}</span></div></div></div>
-          </div></div>
 
           {/* Clean cards (Dave 2026-10-05, locked): Change It, Make It a Rule and Delete are the record's actions, so they live in
               its More menu on the bar, never as rows at the foot of a card. What stays on the page is the fact that it is a rule. */}
@@ -640,11 +621,17 @@ function ListScreen({ live, loading, projCat, onBack, onOpen, onDelete, onAdd }:
         <div className="pad-x"><div className="card list-card-ruled">
           {live.map((r) => {
             const when = whenFact(r.data, today);
+            // Each home is its OWN area (§AM): a project's category, or the area itself, on the dot; the name stays the
+            // line's grey, told apart by the dot. ONLY A HOME IN AN AREA IS ON THE ROW (lead, 2026-09-26): a person, goal or task
+            // has no dot to wear, and the record page's Attached To card names every home.
+            const homes = linksOf(r.data).flatMap((l) => {
+              const slot = linkAreaSlot(l, projCat);
+              return slot ? [<span className="fact cat fact-link" key={l.id}><span className={"cd cat-bg-" + slot} /><span className="cat-t">{titleCase(l.label)}</span></span>] : [];
+            });
             return (
             <SwipeDelete key={r.id} label={titleCase(r.data.decision)} onDelete={() => onDelete(r)} menu={[{ label: "Open", onPick: () => onOpen(r.id) }]}>
             <div {...pressable(() => onOpen(r.id))} className="row dec-row">
-              <EntityStar entityType={ENTITY_DECISION} entityId={r.id} title={r.data.decision} />
-              <div className={"lib-ico " + glyphClass(r, projCat)}>{DECISION_ICO}</div>
+              <div className={"lib-ico " + DECISION_TONE}>{DECISION_ICO}</div>
               <div className="row-grow">
                 <div className="conn-name dec-name">{titleCase(r.data.decision)}</div>
                 {/* A row with no reason says nothing about it (§AK): the
@@ -659,39 +646,23 @@ function ListScreen({ live, loading, projCat, onBack, onOpen, onDelete, onAdd }:
                     components.css), still the row's one grey: the facts line
                     under it is dots, the key and small caps. */}
                 {r.data.why && <div className="conn-meta">{"Because " + r.data.why}</div>}
+                {/* THE HOMES AND THE OUTCOME ARE ONE LINE, AND THE DAY IS ITS OWN (Dave 2026-10-05, the review: "Rebuild C..." cut
+                    beside free space; here the dot between them was the casualty of any wrap, so the day sits on a line of its
+                    own whenever the row has a home or an outcome to say). A row with neither has the day alone on its one line. */}
+                {(homes.length > 0 || r.data.outcome) && (
                 <div className="facts">
-                  {/* Where it came from is on the record page, not here: the
-                      row already spends its grey on the reason.
-                      Each home is its OWN area (§AM): a project's category,
-                      or the area itself, on the dot; the name stays the
-                      line's grey, told apart by the dot.
-                      ONLY A HOME IN AN AREA IS ON THE ROW (lead, 2026-09-26).
-                      A person, goal or task, or a project with no category,
-                      has no dot to wear, so its name was a second bare grey
-                      beside the reason (§AK). The record page's Attached To
-                      card names every home, the same move that took the
-                      source off the row. */}
-                  {linksOf(r.data).map((l) => {
-                    const slot = linkAreaSlot(l, projCat);
-                    return slot
-                      ? <span className="fact cat fact-link" key={l.id}><span className={"cd cat-bg-" + slot} /><span className="cat-t">{titleCase(l.label)}</span></span>
-                      : null;
-                  })}
-                  {/* How it turned out takes the key: worked is done, mixed
-                      needs him, didn't is missed. */}
+                  {homes}
+                  {/* How it turned out takes the key: worked is done, mixed needs him, didn't is missed. */}
                   {r.data.outcome && <span className={"fact " + OUTCOME_KEY[r.data.outcome.word]}>{OUTCOME_LABEL[r.data.outcome.word]}</span>}
-                  {/* A neutral date is SMALL CAPS (§AM F5, 2026-09-22). This
-                      asked for cyan and never got it -- .fact.cyan is scoped
-                      to .ruled.health-ruled and this screen is plain .ruled --
-                      so the date drew as a second plain grey beside the
-                      reason on every decision row. Caps is told apart by its
-                      letterforms, so the row keeps its one grey for the
-                      words. A revisit that is due takes the key instead
-                      (§AM R8, whenFact): amber today or tomorrow, red once
-                      past. The recorded-on day is always the neutral date. */}
-                  <span className={"fact " + when.tone}>{when.text}</span>
                 </div>
+                )}
+                {/* A neutral date is SMALL CAPS (§AM F5, 2026-09-22). A revisit that is due takes the key instead (§AM R8,
+                    whenFact): amber today or tomorrow, red once past. The recorded-on day is always the neutral date. */}
+                <div className="facts"><span className={"fact " + when.tone}>{when.text}</span></div>
               </div>
+              {/* The Remember star at the trailing edge, before the chevron, on a 44px reach (Dave 2026-10-05, the review:
+                  a star and a glyph pair crowded the leading edge before the words began at x=105). */}
+              <EntityStar entityType={ENTITY_DECISION} entityId={r.id} title={r.data.decision} />
               <Chev />
             </div>
             </SwipeDelete>
@@ -715,7 +686,7 @@ function DecisionNotes({ id, value, onSave }: { id: string; value: string; onSav
       value={value}
       docKey={"decision:" + id}
       level="compact"
-      placeholder="The Longer Thinking, If There Is Any"
+      placeholder="Add the Longer Thinking, If Any"
       ariaLabel="Decision notes"
       onChange={(v) => { draft.current = v; }}
       onBlur={() => onSave(draft.current)}

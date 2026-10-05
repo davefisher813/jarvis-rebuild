@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { MoreHorizontal, FileText, Image, Check, Plus, X, Trash2, Archive, Tag, Link2, ListChecks, Copy, Share, Search, AlignLeft, ArrowUp, ArrowDown, Clock, Brain } from "../../shared/icons";
+import { MoreHorizontal, FileText, Image, Check, Plus, X, Trash2, Archive, Tag, Link2, ListChecks, Copy, Share, Search, AlignLeft, ArrowUp, ArrowDown, Clock, Brain, CalendarDays } from "../../shared/icons";
 import type { FoundCandidate, NoteVersion } from "../types";
 import { catColor } from "../../shared/categories";
 import InlineEdit from "../../shared/InlineEdit";
@@ -518,7 +518,15 @@ export default function NoteEditor({
           <div className="facts note-tags"><span className="fact">{(tags ?? []).map((t) => "#" + t).join(" ")}</span></div>
         )}
         <Provenance source={note.source} {...(note.source && openSourceFor ? { onOpen: openSourceFor(note.source) } : {})} />
-        <HyperfocusLine guard={guard} />
+        {/* A LINE WITH NO MARK READ AS A STUCK TEMPLATE (2026-10-05, the review: the same grey line under every note, with no icon and nothing
+            to say what it was). It is the next event on today's calendar, so it wears the Event glyph in the Event's sky and its words in
+            the primary ink; the warn amber still takes over inside the window. Nothing about when it shows changes. */}
+        {guard && (
+          <div className="note-guard">
+            <CalendarDays className="ic cat-fg-sky" aria-hidden="true" />
+            <HyperfocusLine guard={guard} />
+          </div>
+        )}
 
         {(connections && connections.length > 0) || onAddLink ? (
           <div className="note-conns">

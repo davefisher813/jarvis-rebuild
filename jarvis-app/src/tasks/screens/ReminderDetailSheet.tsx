@@ -12,7 +12,7 @@ import { actionLabelFor, scheduleAdvice, adviceLine, recentEvents } from "../rem
 
 // REMINDER DETAILS (the reminders rebuild push E, 2026-09-15, Dave's
 // interactive preview). What a tap on a row opens: the words, the area and
-// the state as one facts line, then When, Repeat, Follow-up and Opens as
+// the state as one facts line, then When, Repeat, Follow-Up and Opens as
 // rows, the one filled action (the linked verb, or Mark Done), the four
 // quiet answers (Snooze, Edit, Pause, Skip), the advice when there is
 // evidence, the last few events, and More Actions at the foot with Export
@@ -70,7 +70,7 @@ export default function ReminderDetailSheet({
           <Group>
             <Row tone="green" glyph={<Clock className="ic" />} label="When" meta={whenWords(r, occurrence?.date ?? null, occurrence?.time ?? null, today, area)} />
             <Row tone="sky" glyph={<RepeatGlyph />} label="Repeat" meta={timed ? describeRepeat(repeatRuleOf(r)) : "Never"} />
-            <Row tone="sand" glyph={<WarningGlyph />} label="Follow-up" meta={followUpWords(r)} />
+            <Row tone="sand" glyph={<WarningGlyph />} label="Follow-Up" meta={followUpWords(r)} />
             {/* A ROW WITH NOTHING TO SAY SHOWS NOTHING (catalog rule 2, 2026-10-05): "Opens: This Reminder" named the thing the
                 sheet is already in. It shows only when the reminder opens something else. */}
             {link && <Row tone="blue" glyph={<Forward className="ic" />} label="Opens" meta={link.label ?? actionLabelFor(link)} />}

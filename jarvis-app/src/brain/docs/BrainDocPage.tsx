@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { Compass, PenNib, Flag } from "@phosphor-icons/react";
 import { useBrainDocs, useOptionalStrands, useOptionalRules } from "../../data/NotesProvider";
 import { todayISO } from "../../ai/useAIContext";
 import { WRITING_CHANNEL_LABEL, type Strand, type WritingChannel } from "../strands/types";
@@ -23,6 +24,13 @@ import RowShell from "../RowShell";
 import RowCtxAction from "../../shared/RowCtxAction";
 import RowSheet from "../RowSheet";
 import { cleanHardLines, HARD_LINE_LABEL, HARD_LINE_PROMISE, MAX_HARD_LINES, type HardLine, type HardLineKind } from "../hardLines";
+
+// The empty page's glyph: the topic's own, in the outline weight, the same marks the Brain's Explore rows wear.
+const DOC_GLYPH: Record<string, ReactNode> = {
+  philosophy: <Compass className="ic" weight="regular" />,
+  writing: <PenNib className="ic" weight="regular" />,
+  values: <Flag className="ic" weight="regular" />,
+};
 
 const PHOTO = (
   <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><polyline points="21 15 16 10 5 21" /></svg>
@@ -54,6 +62,9 @@ export default function BrainDocPage({ topic, onBack }: { topic: string; onBack:
   const [loaded, setLoaded] = useState(false);
   const [dirty, setDirty] = useState(false);
   const [reading, setReading] = useState(false);
+  // A page with nothing written is an empty state until the person starts: the editor is a canvas with no edge, so a blank one
+  // was a blank page (Dave 2026-10-05: "he opens the app and finds nothing"). Start Writing opens the card and its caret.
+  const [started, setStarted] = useState(false);
   // C-57 / C-56 (Astra, 2026-09-12): on How You Write, the writing facts
   // grouped by channel, and the draft-edit proposals waiting for a word.
   const isWriting = topic === "writing";
@@ -142,6 +153,13 @@ export default function BrainDocPage({ topic, onBack }: { topic: string; onBack:
   };
   // Hard lines save on the change itself; the canvas saves on blur.
   const linesDirtyRef = useRef(false);
+  const addLine = () => {
+    if (!lineText.trim()) return;
+    linesDirtyRef.current = true;
+    setLines((ls) => cleanHardLines([...ls, { kind: lineKind, match: lineText.trim() }]));
+    setLineText("");
+    setDirty(true);
+  };
   const removeLine = (i: number) => { linesDirtyRef.current = true; setLines((ls) => ls.filter((_, j) => j !== i)); setDirty(true); };
   useEffect(() => {
     if (!loaded || !linesDirtyRef.current) return;
@@ -196,16 +214,27 @@ export default function BrainDocPage({ topic, onBack }: { topic: string; onBack:
             </div>
           </div></div>
         )}
-        {loaded && (
-          <div className="pad-x sheet-form"><MarkdownField
+        {isValues && loaded && <div className="sh2 sh2-quiet"><span className="t">What Matters</span></div>}
+        {loaded && text.trim() === "" && !started && (
+          <div className="empty-state empty-compact">
+            <div className={"empty-icon " + (meta?.tone ?? "")}>{DOC_GLYPH[topic]}</div>
+            <div className="empty-title">Nothing Written Yet</div>
+            <div className="empty-sub">{meta?.emptyLine}</div>
+            <button type="button" className="btn btn-primary" onClick={() => setStarted(true)}>Start Writing</button>
+          </div>
+        )}
+        {loaded && (text.trim() !== "" || started) && (
+          // A REAL CARD TO WRITE IN, not a canvas with no edge (Dave 2026-10-05, the review: the page was blank to the dock).
+          <div className="pad-x"><div className="card pad doc-card"><MarkdownField
             value={text}
             docKey={topic + ":" + docKey}
             level="document"
             placeholder={meta?.placeholder}
             ariaLabel={meta?.title ?? "Note"}
+            autofocus={started && text.trim() === ""}
             onChange={(v) => { setText(v); setDirty(true); }}
             onBlur={() => { if (latestRef.current.dirty) void save(); }}
-          /></div>
+          /></div></div>
         )}
         {/* C-57: the writing facts by channel, each row the strand row's
             anatomy. C-56: a draft-edit rule waiting for a word sits under
@@ -277,29 +306,27 @@ export default function BrainDocPage({ topic, onBack }: { topic: string; onBack:
               </RowShell>
             ))}
             {lines.length < MAX_HARD_LINES && (
-              <div className="pad-x sheet-form">
-                <div className="chip-row">
+              <div className="pad-x sheet-form hard-add">
+                {/* THREE KINDS FIT ONE ROW (Dave 2026-10-05, the review: the chips ran off the card and "Protect" was cut).
+                    One choice of three is the app's segmented control. */}
+                <div className="segmented seg-tri" role="radiogroup" aria-label="What this line does">
                   {(Object.keys(HARD_LINE_LABEL) as HardLineKind[]).map((k) => (
-                    <div key={k} className={"chip" + (lineKind === k ? " active" : "")} role="radio" aria-checked={lineKind === k} tabIndex={0} onClick={() => setLineKind(k)} onKeyDown={onPressKey(() => setLineKind(k))}>{HARD_LINE_LABEL[k]}</div>
+                    <button type="button" key={k} className={"seg" + (lineKind === k ? " active" : "")} role="radio" aria-checked={lineKind === k} onClick={() => setLineKind(k)}>{HARD_LINE_LABEL[k]}</button>
                   ))}
                 </div>
-                <input
-                  className="input"
-                  placeholder="Who or what · school.org, Family, Gym"
-                  value={lineText}
-                  onChange={(e) => setLineText(e.target.value)}
-                  aria-label="What this line is about"
-                />
-                <button
-                  className="btn btn-secondary btn-block"
-                  disabled={!lineText.trim()}
-                  onClick={() => {
-                    linesDirtyRef.current = true;
-                    setLines(cleanHardLines([...lines, { kind: lineKind, match: lineText.trim() }]));
-                    setLineText("");
-                    setDirty(true);
-                  }}
-                >Add a Line</button>
+                {/* The field, with its one verb at its trailing edge as text, there only while there is something to add: a
+                    full-width disabled slab said nothing and read as an inert block. */}
+                <div className="hard-add-field">
+                  <input
+                    className="input"
+                    placeholder="Gym, Family, School.org"
+                    value={lineText}
+                    onChange={(e) => setLineText(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addLine(); } }}
+                    aria-label="What this line is about"
+                  />
+                  <RowCtxAction when={!!lineText.trim()} label="Add" ariaLabel="Add a Line" onAct={addLine} />
+                </div>
               </div>
             )}
           </div></div>

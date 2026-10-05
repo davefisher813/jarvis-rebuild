@@ -67,13 +67,17 @@ function scan(root: ParentNode): string[] {
 beforeEach(() => { localStorage.clear(); flags.intake = false; });
 
 describe("ConnectionsPage follows the catalog", () => {
-  it("setup required says it once: the line under the title was the title again", () => {
+  it("setup required says why once, in one line that is not the title again, with a glyph in its type's colour", () => {
     const { container } = render(
       <NotesProvider userId="u-cat-conn-setup"><GoogleSessionProvider requestToken={async () => "tok"} makeApi={() => api}><ConnectionsPage configured={false} /></GoogleSessionProvider></NotesProvider>,
     );
     expect(screen.getByText("Google Setup Required")).toBeInTheDocument();
     const card = screen.getByText("Google Setup Required").closest(".empty-state")!;
-    expect(card.querySelector(".empty-sub"), "a sub line that repeats the title").toBeNull();
+    const sub = card.querySelector(".empty-sub")!;
+    expect(sub, "the one line that says why, so the card is a calm note and not a dead end").not.toBeNull();
+    expect(sub.textContent!.toLowerCase(), "not the title again").not.toContain("setup required");
+    expect(card.querySelectorAll(".empty-sub")).toHaveLength(1);
+    expect(card.querySelector(".empty-icon")!.className).toMatch(/cat-fg-/);
     expect(scan(container)).toEqual([]);
   });
 

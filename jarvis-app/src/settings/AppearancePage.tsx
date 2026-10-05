@@ -4,7 +4,7 @@ import { useAppearance, type Appearance, type TextSize, type Theme } from "../ap
 import { useSettings } from "../data/NotesProvider";
 import { SETTING_APPEARANCE } from "../data/SettingsService";
 import LargeTitleNav from "../shared/LargeTitleNav";
-import { Head, Card, Menu, Foot } from "./kit";
+import { Head, Card, Menu } from "./kit";
 
 // UP-PLAT-09 (2026-09-06): Title Case, because these name a setting.
 const SIZE_OPTIONS = [
@@ -52,11 +52,21 @@ export default function AppearancePage({ onBack }: { onBack: () => void }) {
       <Card>
         <Menu label="Theme" value={appearance.theme} options={[{ value: "dark", label: "Dark" }, { value: "light", label: "Light" }]}
           onPick={(v) => { setTheme(v as Theme); save({ theme: v as Theme }); }} />
-        <Menu label="Text Size" value={appearance.textSize} options={SIZE_OPTIONS}
+        <Menu label="Text Size" meta={phoneScale !== null ? "Default Follows Your Phone" : "Larger Text Everywhere"} value={appearance.textSize} options={SIZE_OPTIONS}
           onPick={(v) => { setTextSize(v as TextSize); save({ textSize: v as TextSize }); }} />
       </Card>
-      {/* Sentence case: this talks. */}
-      <Foot>{phoneScale !== null ? "Default follows your phone's own text size \u00b7 Larger and Largest set it here" : "Bigger text everywhere in JARVIS"}</Foot>
+      {/* THE CHOICE, SHOWN (2026-10-05, Dave "he opens the app and finds nothing": two rows on a blank page said nothing about
+          what either did). The sample is a real row on the real tokens, so it is drawn at whatever the Text Size menu says and in
+          whichever theme is on. It is not tappable; it is a ruler. */}
+      <Head label="Preview" />
+      <Card className="set-preview">
+        <div className="row set-row" aria-hidden="true">
+          <div className="row-grow">
+            <div className="conn-name">Pick Up the Dry Cleaning</div>
+            <div className="conn-meta"><span className="facts"><span className="fact warn">Today</span><span className="fact date">4:30 PM</span></span></div>
+          </div>
+        </div>
+      </Card>
       <div className="screen-foot" />
     </div>
   );

@@ -245,7 +245,7 @@ describe("NotificationsPage, on the web", () => {
     expect(screen.queryByRole("switch", { name: "Daily Check-Ins" })).toBeNull();
     expect(screen.queryByRole("switch", { name: "Rest Timer" })).toBeNull();
     // The web foot's promise is true of every switch left.
-    await waitFor(() => expect(screen.getByText(/The switches above only shape the Notifications screen inside the app/)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/switches below only shape the Notifications screen inside the app/)).toBeInTheDocument());
   });
 
   it("draws all five on the phone app", async () => {
@@ -313,6 +313,6 @@ describe("NotificationsPage, the Rest timer switch and the rest buzz share one s
     phone();
     vi.spyOn(notifications, "notificationPermissionState").mockResolvedValue("denied");
     render(<NotesProvider userId="u-rest-denied-foot"><NotificationsPage onBack={() => {}} /></NotesProvider>);
-    await waitFor(() => expect(screen.getByText(/Rest timer and event alerts need them/)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/the rest timer and event alerts wait until you turn them on there/)).toBeInTheDocument());
   });
 });

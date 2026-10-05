@@ -63,13 +63,12 @@ describe("BookingPage", () => {
     expect(await screen.findByText("Intro Call with Ada Lovelace")).toBeInTheDocument();
   });
 
-  it("says nobody yet when the link is live and unused", async () => {
+  it("says nobody has booked yet, in its note and not in a placeholder card, when the link is live and unused", async () => {
     render(<BookingPage onBack={() => {}} {...published([])} />);
-    expect(await screen.findByText("Nobody Yet")).toBeInTheDocument();
-    // The foot says every booking is on the schedule too, so the empty row
-    // does not say it a second time (2026-10-05, the catalog gate).
-    expect(screen.queryByText(/lands on your schedule/)).toBeNull();
-    expect(screen.getByText(/These are on your schedule too/)).toBeInTheDocument();
+    expect(await screen.findByText("Nobody has booked yet, and new bookings land on your schedule too")).toBeInTheDocument();
+    // A row with nothing to say shows nothing (2026-10-05): no "Nobody Yet" card, and the old note is not drawn beside the new one.
+    expect(screen.queryByText("Nobody Yet")).toBeNull();
+    expect(screen.queryByText(/These are on your schedule too/)).toBeNull();
   });
 
   // Nobody having booked and not being able to ask are different facts, and

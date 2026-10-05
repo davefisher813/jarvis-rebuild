@@ -3,7 +3,8 @@ import { COLOR_GROUPS, CATEGORY_KINDS, KIND_LABEL, type ColorSlot, type Category
 import { suggestKind } from "../kinds";
 import { catIcon, ICON_GROUPS } from "../icons";
 import { FormSheet, Group, MenuRow, SwitchRow, Strip, DeleteRow, ErrorLine, tapField } from "../../shared/FormSheet";
-import { FolderGlyph, ClockGlyph } from "../../shared/glyphs";
+import { FolderGlyph, ClockGlyph, MoonGlyph } from "../../shared/glyphs";
+import { Check } from "../../shared/icons";
 
 export interface CategoryDraft {
   name: string;
@@ -85,7 +86,7 @@ export default function CategorySheet({
   return (
     <FormSheet title={mode === "new" ? "New Area" : "Edit Area"} onCancel={onCancel} onSave={save} saveDisabled={!valid} saveLabel={saving ? "Saving" : "Save"}>
       <Group label="Area">
-        <div className="row xs-row" onClick={tapField}>
+        <div className="row xs-row xs-row-name" onClick={tapField}>
           <div className={"row-ico cat-bg-" + color}>{catIcon(icon)}</div>
           <input className={"xs-input" + (touched && !valid ? " input-error" : "")} placeholder="Area Name" aria-label="Area name"
             value={name} onChange={(e) => setName(e.target.value)} />
@@ -93,14 +94,17 @@ export default function CategorySheet({
         <MenuRow tone="graphite" glyph={<FolderGlyph />} label="Kind" value={kind} ariaLabel="Kind"
           options={CATEGORY_KINDS.map((k) => ({ value: k, label: KIND_LABEL[k] }))} onPick={(v) => setKind(v as CategoryKind)} />
       </Group>
-      <ErrorLine text={touched && !valid ? "Add a category name." : null} />
+      <ErrorLine text={touched && !valid ? "Add an area name." : null} />
       {kind === "org" && (
         <Group label="Season">
           {/* Paused = suggestions leave it alone until you wake it.
               Bills never pause; a low month cannot silence rent. */}
-          <SwitchRow tone="sand" glyph={<ClockGlyph />} label="Paused" meta={season === "paused" ? "Suggestions Leave It Alone Until You Wake It" : "In Season"}
+          {/* WHAT THE SWITCH DOES, NOT A STATUS (2026-10-05, the review: "Paused" over "In Season" said two opposite things). The title
+              is the action and the grey line under it is always the same sentence; both tiles are the one neutral graphite, since a
+              colour here meant nothing. */}
+          <SwitchRow tone="graphite" glyph={<MoonGlyph />} label="Pause This Area" meta="Suggestions Leave It Alone"
             on={season === "paused"} onToggle={() => setSeason(season === "paused" ? undefined : "paused")} ariaLabel="Paused" />
-          <SwitchRow tone="blue" glyph={<ClockGlyph />} label="Work Hours" meta={workHours ? "Follows My Work Hours" : "Any Hour"}
+          <SwitchRow tone="graphite" glyph={<ClockGlyph />} label="Follow My Work Hours" meta="Only Suggest in Work Hours"
             on={workHours} onToggle={() => setWorkHours((w) => !w)} ariaLabel="Work hours" />
         </Group>
       )}
@@ -117,7 +121,7 @@ export default function CategorySheet({
                   aria-label={s}
                   aria-pressed={s === color}
                   onClick={() => setColor(s)}
-                />
+                >{s === color && <Check className="ic" aria-hidden="true" />}</button>
               ))}
             </div>
           </Strip>
@@ -149,7 +153,7 @@ export default function CategorySheet({
           of a red button. Same pattern as Redo Setup. */}
       {mode === "edit" && onDelete && (
         <Group className="xs-actions">
-          <DeleteRow label={delArmed ? "Tap Again to Delete" : "Delete Category"} onClick={() => { if (delArmed) { onDelete(); } else { setDelArmed(true); } }} />
+          <DeleteRow label={delArmed ? "Tap Again to Delete" : "Delete Area"} onClick={() => { if (delArmed) { onDelete(); } else { setDelArmed(true); } }} />
           {delArmed && deleteCost && <div className="input-help">{deleteCost}</div>}
         </Group>
       )}

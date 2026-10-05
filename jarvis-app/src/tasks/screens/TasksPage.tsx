@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import EntityStar from "../../shared/EntityStar";
+import EntityStar, { useRemember } from "../../shared/EntityStar";
 import PageHeader, { BarAction, BarText } from "../../shared/PageHeader";
 import LifeHeader, { OptionsButton, type HeaderView } from "../../shared/LifeHeader";
 import OptionsSheet, { type OptionRow } from "../../shared/OptionsSheet";
@@ -320,6 +320,10 @@ export function TaskRow({
   // the person who knows to hold, and never the only way to anything essential.
   // shared/useRowMenu owns the sheet; useSwipe's hold opens it instead of the tray.
   const title = titleCase(t.text);
+  // REMEMBER IS A LINE IN THE MENU, AND A STAR ONLY WHILE IT IS TRUE (2026-10-05, the perfect bar): an empty outline star on every
+  // row spent a column of the row's width (about 100px with the ring) and 44px of tap area it did not have, so titles wrapped to an
+  // orphan word. The filled star still marks a remembered task, in the gutter; the long press offers Remember and Forget.
+  const remember = useRemember("task", item.id, title);
   const menuActions: RowAction[] = [
     ...(verb ? [{ label: verb, onPick: runVerb }] : []),
     ...(onStart && !t.done && !t.bill && !(derived && isStartVerb(derived)) && !action ? [{ label: startState === "Unblock" ? "Unblock" : "Start", onPick: () => onStart(item.id) }] : []),
@@ -328,6 +332,7 @@ export function TaskRow({
     ...(t.done && onToggle && !selecting ? [{ label: "Mark Not Done", onPick: () => onToggle(item.id) }] : []),
     ...(showTomorrow ? [{ label: "Move to Tomorrow", onPick: () => onSnooze?.(item.id) }] : []),
     ...(onRename && !t.done ? [{ label: "Rename", onPick: () => setRenaming(true) }] : []),
+    ...(remember && !selecting ? [{ label: remember.on ? "Forget" : "Remember", onPick: () => void remember.run() }] : []),
     ...(onDelete ? [{ label: "Delete", destructive: true, onPick: () => onDelete(item.id) }] : []),
   ];
   const rowMenu = useRowMenu({ title, actions: menuActions, enabled: !selecting && !renaming });
@@ -403,7 +408,7 @@ export function TaskRow({
         }}
       >
         {/* C-50 (Astra, 2026-09-12): the Remember star leads the row. */}
-        {!selecting && <EntityStar entityType="task" entityId={item.id} title={title} />}
+        {!selecting && <EntityStar entityType="task" entityId={item.id} title={title} quiet />}
         {/* SELECT MODE TAKES THE CHECK COLUMN (2026-08-24). The row already
             has a circle in front of it that means "tick this off", and a
             second circle beside it meaning "pick this one" would be two
@@ -690,9 +695,9 @@ export function MomentumRow({
           onStart(task.id);
         }}
       >
-        {/* The Remember star leads this row as it leads every TaskRow
-            (C-50), so the check and the title sit in the list's columns. */}
-        <EntityStar entityType="task" entityId={task.id} title={task.data.text} />
+        {/* The Remember star marks this row only while it is remembered, in the gutter, as it does on every TaskRow (C-50;
+            2026-10-05), so the check and the title sit in the list's columns either way. */}
+        <EntityStar entityType="task" entityId={task.id} title={task.data.text} quiet />
         <div
           className="task-check-tap"
           onClick={(e) => { e.stopPropagation(); onToggle(task.id); }}
@@ -894,7 +899,7 @@ export default function TasksPage({
    *  Rule 2 of the same handoff: "Preserve the existing definitions and do
    *  not reclassify data for visual consistency". Nothing here is redefined;
    *  they are the FILTERS this page has always had. */
-  const views: HeaderView[] = FILTERS.map((f) => ({ key: f, label: FILTER_LABEL[f], count: counts[f] || undefined }));
+  const views: HeaderView[] = FILTERS.map((f) => ({ key: f, label: FILTER_LABEL[f], count: counts[f] ?? 0 }));
   const [optsOpen, setOptsOpen] = useState(false);
   // GROUP BY (ruled 2026-09-01: "a group-by dropdown"). Remembered within
   // the session, reset on launch, like the segment.

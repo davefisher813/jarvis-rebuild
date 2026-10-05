@@ -188,9 +188,10 @@ export function measureState(m: Measure | undefined, ctx: MeasureContext): Measu
     return {
       done, target, met: done >= target,
       pct: Math.round((done / target) * 100),
-      // "0 of 1 Projects Done" (Dave's pass-off, 2026-09-26): the whole line
-      // is Title Case, the last word included.
-      line: lineCase(`${done} of ${target} projects done`),
+      // "0 of 1 Project Done" (Dave's pass-off, 2026-09-26: the whole line is
+      // Title Case, the last word included; 2026-10-05: the noun agrees with
+      // the denominator, "1 Project", never "1 Projects").
+      line: lineCase(`${done} of ${target} ${target === 1 ? "project" : "projects"} done`),
     };
   }
 

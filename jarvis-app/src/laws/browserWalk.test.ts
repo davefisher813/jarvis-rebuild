@@ -331,11 +331,14 @@ describe("BROWSER-F-06: the app's own names and facts are not cut in half", () =
     expect(law![1]).toMatch(/\.pagebar-title\b/);
   });
 
-  it("the day word never shrinks and the count line is the one that gives", () => {
+  it("the day word never shrinks and the count line is its own whole second line, never an ellipsis", () => {
     expect(ruleBody(ruled(), ".ruled .sc-dayhead .t")).toMatch(/flex-shrink:\s*0/);
     const fact = ruleBody(ruled(), ".ruled .sc-dayhead .sc-fact")!;
-    expect(fact).toMatch(/overflow:\s*hidden/);
-    expect(fact).toMatch(/text-overflow:\s*ellipsis/);
+    // Round-1 review (2026-10-05, decision D8): "3h Open, 5 Prop..." read as a typo. The count takes the head's second line.
+    expect(fact).toMatch(/flex:\s*1 0 100%/);
+    expect(fact).toMatch(/white-space:\s*normal/);
+    expect(fact).not.toMatch(/text-overflow:\s*ellipsis/);
+    expect(fact).not.toMatch(/overflow:\s*hidden/);
   });
 
   // CORRECTED 2026-09-06. This test asserted the bug, not the fix.

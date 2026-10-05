@@ -54,8 +54,9 @@ function expectOneNode(el: Element | null, words: string) {
 
 describe("item 4: Training hint", () => {
   it("rackHint keeps its space in both units", () => {
-    expect(rackHint("lb")).toBe("In Lb \u00b7 A lift logged in the other unit is converted, both ways");
-    expect(rackHint("kg")).toBe("In Kg \u00b7 A lift logged in the other unit is converted, both ways");
+    // 2026-10-05: no unit prefix and no dot typed in the line; the Rack Unit row above already says the unit.
+    expect(rackHint("lb")).toBe("A lift logged in the other unit is converted both ways");
+    expect(rackHint("kg")).toBe("A lift logged in the other unit is converted both ways");
   });
 
   it("renders as one text node, in a block, for lb and for kg", () => {
@@ -97,12 +98,11 @@ describe("item 7: Account, About, Brain", () => {
     expect(perNode(fact!)).toMatch(/^Build \S+$/);
   });
 
-  it("Brain: the danger-zone foot is the whole sentence in one node", () => {
+  it("Brain: each danger-zone note is the whole sentence in one node", () => {
     const { container } = render(<NotesProvider userId="u-brain"><BrainSettingsPage onBack={() => {}} /></NotesProvider>);
-    expectOneNode(
-      container.querySelector(".input-hint"),
-      "Decisions, Principles, Values, Writing Samples and Facts Are Deleted \u00b7 Contacts Stay, but Their Roles Go Back to Unsorted",
-    );
+    const notes = [...container.querySelectorAll(".input-hint")];
+    expectOneNode(notes[0]!, "Decisions, principles, values, writing samples and facts are deleted");
+    expectOneNode(notes[1]!, "Contacts stay, but their roles go back to Unsorted");
   });
 });
 
@@ -129,7 +129,7 @@ describe("item 5: Notifications foot and switch names", () => {
     expect(row.getAttribute("tabindex")).toBeNull();
     // The description is the row's own meta line, by id, not a copy of it.
     const described = sw.getAttribute("aria-describedby")!;
-    expect(container.ownerDocument.getElementById(described)!.textContent).toBe("On the Notifications Tab, Not a Lock-Screen Alert");
+    expect(container.ownerDocument.getElementById(described)!.textContent).toBe("On the Notifications Tab Only");
     // No accessible name in the whole page says the same words twice.
     for (const s of screen.getAllByRole("switch")) {
       const name = s.getAttribute("aria-label")!;

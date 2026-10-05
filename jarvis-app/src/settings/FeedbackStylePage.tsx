@@ -63,14 +63,14 @@ export default function FeedbackStylePage({ onBack }: { onBack: () => void }) {
         <Menu label="Celebration" value={prefs.celebration} options={CELEBRATION}
           onPick={(v) => save({ celebration: v as Celebration })} />
       </Card>
-      <Foot>{"Gentle is a checkmark and one short pulse \u00b7 Off keeps only the plain line saying what changed"}</Foot>
+      <Foot>Gentle is a checkmark and one short pulse, and Off keeps only the plain line saying what changed</Foot>
 
       <Head label="Motion" />
       <Card>
         <Menu label="Motion" value={prefs.motion} options={MOTION}
           onPick={(v) => save({ motion: v as MotionPref })} />
       </Card>
-      <Foot>{"Follow System uses your phone\u2019s Reduce Motion setting \u00b7 Reduced removes every pulse and burst"}</Foot>
+      <Foot>{"Follow System uses your phone\u2019s Reduce Motion, and Reduced removes every pulse"}</Foot>
 
       <Head label="Sound and Touch" />
       <Card>
@@ -80,7 +80,7 @@ export default function FeedbackStylePage({ onBack }: { onBack: () => void }) {
         <Switch label="Haptics" on={prefs.haptics}
           onToggle={() => save({ haptics: !prefs.haptics })} />
       </Card>
-      <Foot>{"Both start off \u00b7 Neither is ever the only way you find out something was saved"}</Foot>
+      <Foot>Both start off, and neither is ever the only way you find out something was saved</Foot>
 
       <Head label="Words" />
       <Card>
@@ -90,7 +90,9 @@ export default function FeedbackStylePage({ onBack }: { onBack: () => void }) {
 
       <Head label="Sharing" />
       <Card>
-        <Row label="Accountability" value="Private" meta="Nothing About Your Tasks Is Shared" plain />
+        {/* ONE LINE, NOT THE SAME THING TWICE (2026-10-05): "Private" beside "Nothing About Your Tasks Is Shared" said it
+            twice and crowded the subtext. The sentence stays; a row with nothing to tap has no value at the right. */}
+        <Row label="Accountability" meta="Nothing About Your Tasks Is Shared" plain />
       </Card>
 
       <Head label="Today" />

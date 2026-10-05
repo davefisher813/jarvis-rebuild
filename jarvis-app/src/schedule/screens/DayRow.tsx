@@ -373,9 +373,10 @@ export default function DayRow({
                     onClick={(ev) => { ev.stopPropagation(); setSizing(!sizing); }}
                   >{durLabel(mins)}</button>
                 ) : (
-                  /* A length that cannot be tapped is a number with no
-                     state: white <b>, not small caps ("30M" read as months). */
-                  <b>{durLabel(mins)}</b>
+                  /* A length that cannot be tapped is still the length, so it wears the same ink as the one that can
+                     (round-1 review, 2026-10-05, decision D4: a duration is the key's estimate sky, never white in one
+                     state and red in another). Not small caps: "30M" read as months. */
+                  <span className="fact est">{durLabel(mins)}</span>
                 )}
               </span>
             )}

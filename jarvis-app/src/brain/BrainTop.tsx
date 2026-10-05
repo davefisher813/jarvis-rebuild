@@ -11,6 +11,7 @@ import { useReadiness } from "./strands/ReadinessPanel";
 import { stateForStrand, toneForStrandState, STRAND_STATE_LABEL, confidenceWord, isWatching } from "./strands/state";
 import { NO_PATTERN_TWIN, STRAND_CATEGORY_LABEL, type Strand } from "./strands/types";
 import { watchingCount, type Readiness } from "./readiness";
+import { detectorGlyph } from "./strands/detectorGlyph";
 import { pressable } from "../shared/pressable";
 import { attemptWrite } from "../shared/guard";
 import { showToast } from "../shared/toast";
@@ -58,7 +59,6 @@ import type { ReadMemo } from "./strands/ReadinessPanel";
 // The facts are model-written sentences, so each is drawn in Title Case (Alfred 2026-10-04, "Brainstorms best at night").
 
 type Need =
-  | { kind: "watching"; r: Readiness }
   | { kind: "fading"; s: Strand }
   // C-56: a draft-edit rule waiting for a word. C-63: a possible principle.
   | { kind: "writing"; p: WritingProposal }
@@ -68,6 +68,7 @@ type Need =
 // read below: a caller that passes none would re-read, set state, re-render and re-read without end.
 const NO_AREAS: string[] = [];
 const NEEDS_CAP = 2;
+const WATCHING_CAP = 2;
 const SHAPING_CAP = 3;
 
 /** What the hub last knew, kept by BrainFlow so a back from a page paints the bands at once instead of empty. */
@@ -130,13 +131,16 @@ export default function BrainTop({ onOpenFact, onOpenWatching, onBands, areas = 
   // A principle already held as a strand is not a question.
   const principleHeld = principle ? strands.some((s) => s.data.text === principle.strandText) : false;
   const needs: Need[] = [
-    ...read.rows.filter((r) => isWatching(r.state)).map((r): Need => ({ kind: "watching", r })),
     ...faded.map((s): Need => ({ kind: "fading", s })),
     ...proposals.map((p): Need => ({ kind: "writing", p })),
     ...(principle && !principleHeld ? [{ kind: "principle" as const, d: principle }] : []),
   ].slice(0, NEEDS_CAP);
+  // WATCHING IS NOT A NEED (Dave 2026-10-05, the review: "'Needs You' rows say nothing is needed"). A detector past its
+  // close share is JARVIS counting, and nothing is asked of him until it speaks, so it sits in a band of its own after
+  // Needs You instead of among the things that are waiting on him.
+  const watching = read.rows.filter((r) => isWatching(r.state)).slice(0, WATCHING_CAP);
 
-  const bands = (shaping.length > 0 ? 1 : 0) + (needs.length > 0 ? 1 : 0);
+  const bands = (shaping.length > 0 ? 1 : 0) + (needs.length > 0 ? 1 : 0) + (watching.length > 0 ? 1 : 0);
   // Before paint, so the Explore head over the nav list is there on the frame the hub returns on, not a beat after.
   useLayoutEffect(() => { if (memo) memo.bands = bands; onBands?.(bands); }, [bands, onBands, memo]);
 
@@ -247,7 +251,7 @@ export default function BrainTop({ onOpenFact, onOpenWatching, onBands, areas = 
             {needs.map((n) => n.kind === "writing" ? (
               <RowShell key={"w-" + n.p.rule.id} verb={{ label: "That's Right", run: () => void confirmWriting(n.p) }}>
                 <div {...pressable(() => setAsking(n))} className="row strand-row">
-                  <div className="lib-ico lib-disc warn-disc"><span className="disc-glyph">?</span></div>
+                  <div className="lib-ico lib-disc warn-disc">{filledIcon("writing")}</div>
                   <div className="row-grow">
                     <div className="conn-name">{lineCase(n.p.text)}</div>
                     <div className="facts"><span className="fact st warn">Needs Confirmation</span><span className="fact">{lineCase(`${n.p.edits} edits`)}</span></div>
@@ -258,26 +262,12 @@ export default function BrainTop({ onOpenFact, onOpenWatching, onBands, areas = 
             ) : n.kind === "principle" ? (
               <RowShell key="principle" verb={{ label: "That's Right", run: () => void answerPrincipleWith(n.d, "right") }}>
                 <div {...pressable(() => setAsking(n))} className="row strand-row">
-                  <div className="lib-ico lib-disc warn-disc"><span className="disc-glyph">?</span></div>
+                  <div className="lib-ico lib-disc warn-disc">{filledIcon("values")}</div>
                   <div className="row-grow">
                     <div className="conn-name">{lineCase(n.d.title)}</div>
                     <div className="facts"><span className="fact st warn">Needs Confirmation</span><span className="fact">{lineCase(n.d.sub)}</span></div>
                   </div>
                   <RowCtxAction when label="That's Right" ariaLabel={"That's Right, " + lineCase(n.d.title)} onAct={() => void answerPrincipleWith(n.d, "right")} />
-                </div>
-              </RowShell>
-            ) : n.kind === "watching" ? (
-              <RowShell key={"w-" + n.r.key}>
-                <div {...pressable(() => onOpenWatching(n.r.key))} className="row strand-row needs-watch-row">
-                  <div className="lib-ico lib-disc warn-disc"><span className="disc-glyph">?</span></div>
-                  <div className="row-grow">
-                    <div className="conn-name">{n.r.label}</div>
-                    <div className="facts">
-                      <span className="fact st warn">Watching</span>
-                      <span className="fact">{watchingCount(n.r)}</span>
-                    </div>
-                  </div>
-                  <div className="chev" />
                 </div>
               </RowShell>
             ) : (
@@ -298,6 +288,27 @@ export default function BrainTop({ onOpenFact, onOpenWatching, onBands, areas = 
                   </div>
                   {/* Fading is the moment: the same answer as the swipe, as one quiet word. */}
                   <RowCtxAction when label="Still True" ariaLabel={"Still True, " + lineCase(n.s.data.text)} onAct={() => void confirm(n.s)} />
+                </div>
+              </RowShell>
+            ))}
+          </div></div>
+        </>
+      )}
+      {watching.length > 0 && (
+        <>
+          <div className="sh2 sh2-quiet"><span className="t">Watching</span><span className="n">{watching.length}</span></div>
+          <div className="pad-x"><div className="card list-card-ruled shell-rows">
+            {watching.map((r) => (
+              <RowShell key={"w-" + r.key}>
+                <div {...pressable(() => onOpenWatching(r.key))} className="row strand-row needs-watch-row">
+                  {/* The detector's own glyph on a neutral disc, and the one grey is how far it has got: the head says
+                      Watching, so no row repeats the word (Dave 2026-10-05, the review). */}
+                  <div className="lib-ico lib-disc watch-disc">{detectorGlyph(r.key)}</div>
+                  <div className="row-grow">
+                    <div className="conn-name">{r.label}</div>
+                    <div className="facts"><span className="fact">{watchingCount(r)}</span></div>
+                  </div>
+                  <div className="chev" />
                 </div>
               </RowShell>
             ))}

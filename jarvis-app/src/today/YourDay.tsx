@@ -41,7 +41,7 @@ export interface ProposedDay {
   // rendering exactly as it did.
   onAccept?: (taskId: string) => void;
 }
-import { BullseyeGlyph, CalendarGlyph } from "../shared/glyphs";
+import { CalendarGlyph } from "../shared/glyphs";
 
 // One confident blend offer per block, keyed by event id. Built by the flow;
 // this screen only draws it.
@@ -330,10 +330,6 @@ function NowLine({ label }: { label: string }) {
 
 const CalIcon = () => (
   <CalendarGlyph />
-);
-
-const FocusIcon = () => (
-  <BullseyeGlyph />
 );
 
 export default function YourDay({

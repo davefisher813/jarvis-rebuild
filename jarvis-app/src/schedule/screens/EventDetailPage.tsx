@@ -1,7 +1,8 @@
 import { useState, type KeyboardEvent as RKeyboardEvent } from "react";
 import { titleCase } from "../../shared/casing";
 import type { EventItem } from "../types";
-import { fmtTime } from "../calendar";
+import { fmtTime, minutesBetween } from "../calendar";
+import { spanLabel } from "../../shared/duration";
 import { catColor, catName } from "../../shared/categories";
 import { pressable, onPressKey } from "../../shared/pressable";
 import { CalendarDays, ListChecks, StickyNote, User, Tag } from "../../shared/icons";
@@ -39,6 +40,7 @@ export default function EventDetailPage({
   event, occurrence, onBack, onEdit,
   steps = [], onToggleStep, onAddStep, onOpenStep,
   linkedNotes = [], onOpenNote, openSourceFor,
+  onDuplicate, onDelete,
 }: {
   event: EventItem;
   /** The occurrence being looked at, for a repeating event. Defaults to the
@@ -63,6 +65,10 @@ export default function EventDetailPage({
    *  undefined for a source type nothing can show, and Provenance draws a
    *  plain fact for those. */
   openSourceFor?: (source: Source) => (() => void) | undefined;
+  /** The page's own verbs, offered only where the flow can do them (2026-10-05
+   *  review: the page was a title and an Area row over 300px of nothing). */
+  onDuplicate?: () => void;
+  onDelete?: () => void;
 }) {
   const e = event.data;
   const date = occurrence ?? e.date;
@@ -71,16 +77,20 @@ export default function EventDetailPage({
   const [adding, setAdding] = useState(false);
   const stepTap = (id: string) => (onOpenStep ? onOpenStep(id) : onToggleStep?.(id));
   const open = steps.filter((s) => !s.done).length;
-  // The day and the time as two facts, not one string with a dot baked into
-  // it (§AM F3). Each is a neutral date or time, so each is small caps
-  // (F5), which leaves the place as the card's one grey (§AK).
+  // The day, the start and the length as separate facts, each its own span
+  // with the dot drawn by CSS (§AM F3). The day and the time are neutral, so
+  // small caps (F5); the length is an estimate, so sky (R3). One line, one
+  // left edge with the title (2026-10-05 review: they were two lines at a
+  // different x, with the end time spelled out in a third).
   const when = (() => {
     const d = new Date(date + "T00:00:00");
-    const day = d.toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" });
+    const day = d.toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" });
     const start = fmtTime(e.start);
-    const end = e.end ? fmtTime(e.end) : null;
-    return { day, range: `${start.time} ${start.ap}${end ? " to " + end.time + " " + end.ap : ""}` };
+    const mins = e.end ? minutesBetween(e.start, e.end) : 0;
+    return { day, time: `${start.time} ${start.ap}`, length: mins > 0 ? spanLabel(mins) : null };
   })();
+  const joinUrl = e.url && /^https?:\/\//i.test(e.url.trim()) ? e.url.trim() : null;
+  const skipOnly = (e.recurrence ?? "none") !== "none";
   const prov = rowSource(e.source, e.moved);
 
   return (
@@ -94,74 +104,83 @@ export default function EventDetailPage({
       {/* The event itself: its own glyph in its own category colour, the
           title, and the two facts every event has. Location only when it has
           one; a blank Where row is furniture. */}
-      <div className="pad-x"><div className="card pad">
-        <div className="row-pair">
-          <div className={"sec-ico " + tone.replace("cat-fg-", "cat-bg-")}><CalendarDays className="ic" /></div>
-          <div className="row-grow">
-            <div className="pagehead-title ev-title">{titleCase(e.title)}</div>
-            {/* A line each, the way a calendar's own event page sets them:
-                side by side on one .facts line, a long weekday and a
-                12:00 PM to 12:30 PM range overrun the column at 390 and the
-                time is the fact that ellipsizes. */}
-            <div className="facts"><span className="fact date">{when.day}</span></div>
-            <div className="facts"><span className="fact date">{when.range}</span></div>
+      <div className="pad-x ev-top"><div className="card pad">
+        <div className="ev-head">
+          {/* The TYPE's tile (Event, sky), the same one the sheet draws, not the area's fill: an area fill carries its own ink
+                (dark on sky in light), where a type tile is white on its hue in both themes. */}
+          <div className="row-ico nav-tile-sky"><CalendarDays className="ic" /></div>
+          <div className="ev-text">
+            <div className="ev-title">{titleCase(e.title)}</div>
+            <div className="facts">
+              <span className="fact date">{when.day}</span>
+              <span className="fact date">{when.time}</span>
+              {when.length && <span className="fact est">{when.length}</span>}
+            </div>
             {e.location && <div className="conn-meta">{e.location}</div>}
           </div>
         </div>
         <Provenance source={prov} {...(prov && openSourceFor ? { onOpen: openSourceFor(prov) } : {})} />
       </div></div>
 
+      {/* The one thing a meeting page is for, when there is a link to go to. */}
+      {joinUrl && (
+        <div className="pad-x"><a className="btn btn-primary btn-block ev-join" href={joinUrl} target="_blank" rel="noopener noreferrer">Join Meeting</a></div>
+      )}
+
       {/* BEFORE THIS: the half that did not exist. A task can belong to an
           event now (notes/types.ts, TaskData.eventId), so the event can say
           what has to happen first, and adding one here is what files it. */}
+      {/* ONE CAPSULE IN THE HEAD, NOTHING UNDER IT UNTIL THERE IS A TASK (Dave 2026-10-05, locked: a section action lives in its
+          head; a card that holds only a button is not drawn). The square-cornered "Add Task" box this was is gone. */}
       <div className="sh2 sh2-quiet">
         <span className="t">Before This</span>
         {open > 0 && <span className="n">{open}</span>}
+        {onAddStep && !adding && <button type="button" className="see-all pill-action" onClick={() => setAdding(true)}>Add Task</button>}
       </div>
-      <div className="pad-x"><div className="card list-card-ruled">
-        {steps.map((s) => (
-          // THE WHOLE ROW IS THE DOOR (Dave 2026-09-15: "I want all rows
-          // clickable"). The row opens the task where there is a route to it,
-          // and otherwise ticks it, the one reversible verb a checklist row has.
-          <div className="row" key={s.id} role="button" tabIndex={0}
-            aria-label={(onOpenStep ? "Open " : s.done ? "Mark not done: " : "Mark done: ") + s.text}
-            onClick={() => stepTap(s.id)}
-            onKeyDown={(e: RKeyboardEvent) => { if (e.target === e.currentTarget) onPressKey(() => stepTap(s.id))(e); }}>
-            <div
-              className="task-check-tap"
-              role="checkbox"
-              aria-checked={s.done}
-              aria-label={s.done ? "Mark not done" : "Mark done"}
-              onClick={(e) => { e.stopPropagation(); onToggleStep?.(s.id); }}
-            >
-              <div className={"task-check" + (s.done ? " done" : "")} />
+      {(steps.length > 0 || adding) && (
+        <div className="pad-x"><div className="card list-card-ruled">
+          {steps.map((s) => (
+            // THE WHOLE ROW IS THE DOOR (Dave 2026-09-15: "I want all rows
+            // clickable"). The row opens the task where there is a route to it,
+            // and otherwise ticks it, the one reversible verb a checklist row has.
+            <div className="row" key={s.id} role="button" tabIndex={0}
+              aria-label={(onOpenStep ? "Open " : s.done ? "Mark not done: " : "Mark done: ") + s.text}
+              onClick={() => stepTap(s.id)}
+              onKeyDown={(e: RKeyboardEvent) => { if (e.target === e.currentTarget) onPressKey(() => stepTap(s.id))(e); }}>
+              <div
+                className="task-check-tap"
+                role="checkbox"
+                aria-checked={s.done}
+                aria-label={s.done ? "Mark not done" : "Mark done"}
+                onClick={(e) => { e.stopPropagation(); onToggleStep?.(s.id); }}
+              >
+                <div className={"task-check" + (s.done ? " done" : "")} />
+              </div>
+              <div className="row-grow">
+                <div className={"conn-name" + (s.done ? " pick-done" : "")}>{s.text}</div>
+              </div>
             </div>
-            <div className="row-grow">
-              <div className={"conn-name" + (s.done ? " pick-done" : "")}>{s.text}</div>
+          ))}
+          {adding && (
+            <div className="row">
+              <div className="row-ico nav-tile-red"><ListChecks className="ic" /></div>
+              <div className="row-grow">
+                <InlineEdit
+                  className="conn-name"
+                  value=""
+                  focused
+                  placeholder="What Has to Happen First"
+                  onSave={(v) => {
+                    setAdding(false);
+                    const text = v.trim();
+                    if (text) onAddStep?.(text);
+                  }}
+                />
+              </div>
             </div>
-          </div>
-        ))}
-        {onAddStep && (adding ? (
-          <div className="row">
-            <div className="row-ico nav-tile-red"><ListChecks className="ic" /></div>
-            <div className="row-grow">
-              <InlineEdit
-                className="conn-name"
-                value=""
-                focused
-                placeholder="What Has to Happen First"
-                onSave={(v) => {
-                  setAdding(false);
-                  const text = v.trim();
-                  if (text) onAddStep(text);
-                }}
-              />
-            </div>
-          </div>
-        ) : (
-          <button className="row-create" onClick={() => setAdding(true)}>Add Task</button>
-        ))}
-      </div></div>
+          )}
+        </div></div>
+      )}
 
       {linkedNotes.length > 0 && (
         <>
@@ -214,11 +233,18 @@ export default function EventDetailPage({
       {area && (
         <div className="pad-x"><div className="card list-card-ruled">
           <div className="row">
-            <div className={"row-ico " + tone.replace("cat-fg-", "cat-bg-")}><Tag className="ic" /></div>
+            <div className="row-ico nav-tile-blue"><Tag className="ic" /></div>
             <div className="row-grow"><div className="conn-name">Area</div></div>
-            <span className="row-status">{area}</span>
+            <span className="row-status ev-area"><span className={"cat-dot " + tone.replace("cat-fg-", "cat-bg-")} />{area}</span>
           </div>
         </div></div>
+      )}
+
+      {(onDuplicate || onDelete) && (
+        <div className="pad-x ev-verbs">
+          {onDuplicate && <button type="button" className="btn btn-secondary btn-block" onClick={onDuplicate}>Duplicate</button>}
+          {onDelete && <button type="button" className="btn btn-tertiary btn-block btn-danger-text" onClick={onDelete}>{skipOnly ? "Skip This Day" : "Delete Event"}</button>}
+        </div>
       )}
 
       <div className="screen-foot" />

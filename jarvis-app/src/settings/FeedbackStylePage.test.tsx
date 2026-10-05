@@ -26,7 +26,9 @@ describe("FeedbackStylePage", () => {
     expect(screen.getByRole("switch", { name: "Haptics" })).toHaveAttribute("aria-checked", "false");
     expect(screen.getByRole("switch", { name: "Quiet Today" })).toHaveAttribute("aria-checked", "false");
     expect(screen.getByText("Accountability")).toBeInTheDocument();
-    expect(screen.getByText("Private")).toBeInTheDocument();
+    // One line, not the same thing twice (2026-10-05): the sentence says it, so there is no "Private" beside it.
+    expect(screen.getByText("Nothing About Your Tasks Is Shared")).toBeInTheDocument();
+    expect(screen.queryByText("Private")).toBeNull();
   });
 
   it("the sound switch changes only sound", () => {

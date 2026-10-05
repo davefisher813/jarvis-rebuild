@@ -113,7 +113,7 @@ const ACTION_ON_SCREEN: Record<string, string> = {
   "connections/ConnectionsPage.tsx · Google Setup Required": "Connect Google sits three rows below, on this screen",
   "connections/ConnectionsPage.tsx · No Accounts Yet": "same button, same screen",
   "schedule/screens/SchedulePage.tsx · Nothing Repeats Yet": "its own comment: the bar keeps the job, and this door once carried a false sign",
-  "brain/strands/StrandsPage.tsx · Nothing Noticed Yet": "Add One Thing is on this screen, below the list",
+  "brain/strands/StrandsPage.tsx · Nothing Remembered Yet": "Add One Thing is the section head's capsule, directly above these words",
   "schedule/screens/PlanDaySheet.tsx · #1": "the sheet's own add field is below it, and the sub says so only when it exists",
   "messages/MessagesFlow.tsx · Connect Your Email": "the connect action is the very next block, in .conn-action",
   "schedule/ScheduleFlow.tsx · #1": "a sheet whose own bar carries the action",
@@ -129,6 +129,10 @@ const ACTION_ON_SCREEN: Record<string, string> = {
   // the head's capsule right above the empty words.
   "today/YourDay.tsx · #1": "Plan My Day is the Today head's capsule, directly above the card (Dave 2026-10-05)",
   "settings/EmailSectionsPage.tsx · No Sections Yet": "Add Section is the head's capsule right above these words (Dave 2026-10-05)",
+  // Booking (round-1 review, 2026-10-05, D9): the two crafted empty states, a glyph, a title and one warm line, each filled by the capsule
+  // on the head directly above it (Publish My Times on Your Link, Add a Day Off on Days Off).
+  "settings/BookingPage.tsx · No Link Yet": "Publish My Times is the Your Link head's capsule, directly above these words (Dave 2026-10-05)",
+  "settings/BookingPage.tsx · No Days Off": "Add a Day Off is the Days Off head's capsule, directly above these words (Dave 2026-10-05)",
 };
 
 // REAL DEBT. The action exists but lives on ANOTHER screen, so these fail L7
