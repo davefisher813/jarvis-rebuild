@@ -1,0 +1,1 @@
+function e(e,t){return{role:`button`,tabIndex:t?.disabled?-1:0,onClick:()=>{t?.disabled||e()},onKeyDown:n=>{t?.disabled||n.target===n.currentTarget&&(n.key===`Enter`||n.key===` `)&&(n.preventDefault(),n.stopPropagation(),e())}}}function t(e){return t=>{(t.key===`Enter`||t.key===` `)&&(t.preventDefault(),t.stopPropagation(),e())}}export{e as n,t};
