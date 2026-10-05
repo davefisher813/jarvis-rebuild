@@ -7204,3 +7204,7 @@ html[data-motion="reduce"] .fb-fill { transition: none; }
    reorder row is a flex row and the swipe wrapper is a shrink-to-fit child of it, so a day's own row came out 184px wide with its
    facts crowded against the menu. */
 .reorder-list .row.reorder-row > .task-swipe { flex: 1 1 auto; min-width: 0; align-self: stretch; }
+
+/* THE HEAD'S OVERFLOW (shared/HeadMore.tsx): an icon-only capsule, the same height as its neighbours. */
+.head-more { min-width: 44px; padding-inline: var(--s-2h); display: inline-flex; align-items: center; justify-content: center; }
+.head-more .ic { width: 18px; height: 18px; }
