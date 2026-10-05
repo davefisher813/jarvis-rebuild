@@ -1,1 +1,0 @@
-import{rt as e}from"./notificationActions-DLHq7SuA.js";var t=2e4;function n(e,t){return Promise.race([e,new Promise((e,n)=>setTimeout(()=>n(Error(`Reading took too long.`)),t))])}async function r(r,i,a=8,o=t){return(await Promise.all(i.slice(0,a).map(t=>n(r.getThread(t.id),o).then(e).catch(()=>null)))).filter(e=>e!==null)}export{r as t};

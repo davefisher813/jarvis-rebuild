@@ -32,8 +32,10 @@ describe("the note's own headings step down from its title", () => {
 
 describe("the toast is a card, not a slab", () => {
   const c = read("components.css");
-  it("takes the page's 20px gutter, the one 24 radius and 12px of air above the dock", () => {
-    expect(body(c, ".toast-dock")).toMatch(/padding:\s*0 var\(--s-4\) var\(--s-3\)/);
+  // AMENDED 2026-10-05 (the visual pass, D6): 8px of clearance above the capture bar, measured, so the toast reads as
+  // sitting on it and never collides with the return pill that follows it in the shell column.
+  it("takes the page's 20px gutter, the one 24 radius and 8px of air above the dock", () => {
+    expect(body(c, ".toast-dock")).toMatch(/padding:\s*0 var\(--s-4\) var\(--s-2\)/);
     expect(body(c, ".toast")).toMatch(/border-radius:\s*var\(--r-lg\)/);
     expect(body(c, ".toast")).toMatch(/padding:\s*var\(--s-3\) var\(--s-4\)/);
   });

@@ -65,7 +65,9 @@ describe("a cross-tab jump remembers where it came from", () => {
       // The tab bar itself, the boot/migration default, and navBack's own
       // restore are roots, not jumps. goLife is a helper, and its CALLERS
       // are what decide whether a jump is happening.
-      if (/setActive\(k\)|setActive\(keys\[0\]|setActive\(o\.key\)|const goLife =/.test(line)) continue;
+      // (A page that came from More goes back to More: that is a root move like the tab bar, not a jump:
+      // Notifications' own back link, 2026-10-05.)
+      if (/setActive\(k\)|setActive\(keys\[0\]|setActive\(o\.key\)|const goLife =|onBack=\{\(\) => setActive\("more"\)\}/.test(line)) continue;
       if (JUMPED.includes(line) || TAPPED.includes(line)) continue;
       if (!/jump\(/.test(line)) loose.push(line.trim().slice(0, 90));
     }

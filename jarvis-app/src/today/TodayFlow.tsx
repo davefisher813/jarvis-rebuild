@@ -117,7 +117,8 @@ import { copyPromised } from "../messages/clipboard";
 import { requestUnsubscribe } from "../messages/unsubscribeAction";
 import { evidenceFromThread } from "../messages/notificationScan";
 import { addEmailMeetingOnce } from "../messages/emailSchedule";
-import { showToast, dismissForNavigation } from "../shared/toast";
+import { showToast } from "../shared/toast";
+import { noteScreenChange } from "../shared/screenChange";
 import { attemptWrite } from "../shared/guard";
 import RemindersStrip from "./RemindersStrip";
 import RemindersFlow from "../tasks/screens/RemindersFlow";
@@ -953,8 +954,8 @@ export default function TodayFlow({
   // pushed from the strip's See All, the way the event page is; not a route.
   const [remHome, setRemHome] = useState(false);
   // Focus and the Reminders page are screens of their own on top of Today: a receipt from the screen underneath goes when
-  // either opens or closes (2026-10-05, see dismissForNavigation).
-  useEffect(() => { dismissForNavigation(); }, [upNextOpen, remHome]);
+  // either opens or closes (2026-10-05, see shared/screenChange.ts).
+  useEffect(() => { noteScreenChange(); }, [upNextOpen, remHome]);
   const [remOpenId, setRemOpenId] = useState<string | null>(null);
   // BUG (Dave 2026-09-16, "I can't click on them on the Today page to edit
   // them"): RemindersFlow (pageless) was mounted on `remOpenId && (...)`, the

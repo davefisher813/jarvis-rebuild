@@ -74,13 +74,13 @@ describe("Today: Reminders strip Add honours Default Follow-up", () => {
   it("with the setting on, a new reminder starts at Once After 1 Hour", async () => {
     mount("none", true);
     fireEvent.click(await screen.findByText("Add a Reminder", {}, { timeout: 4000 }));
-    expect((await screen.findByLabelText("Follow-up")).textContent).toContain("Once After 1 Hour");
+    expect((await screen.findByLabelText("Follow-Up")).textContent).toContain("Once After 1 Hour");
   });
 
   it("with it off, it starts at None", async () => {
     mount("none", false);
     fireEvent.click(await screen.findByText("Add a Reminder", {}, { timeout: 4000 }));
-    expect((await screen.findByLabelText("Follow-up")).textContent).toContain("None");
+    expect((await screen.findByLabelText("Follow-Up")).textContent).toContain("None");
   });
 });
 

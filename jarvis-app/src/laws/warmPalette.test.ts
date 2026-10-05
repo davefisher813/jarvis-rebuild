@@ -324,8 +324,10 @@ describe("the chrome is a faint warm material, not a layout change", () => {
     expect(tok(block("light"), "--nav-bg")).toBe("rgba(255,253,250,0.90)");
     expect(tok(block("dark"), "--nav-bg")).toBe("rgba(28,25,23,0.78)");
   });
-  it("a sheet is a translucent warm surface with a blur and a hairline rim", () => {
-    expect(css).toMatch(/\.sheet-scrim > \.card \{ background: color-mix\(in srgb, var\(--surface-2\) 94%, transparent\);/);
-    expect(css).toMatch(/\.sheet-scrim > \.card \{[^}]*backdrop-filter: blur\(22px\)/);
+  // AMENDED 2026-10-05 (the visual review: the Good Morning title ghosted through New Event at 94%): a sheet is an
+  // OPAQUE warm surface with a hairline rim and the one shadow; nothing of the page reads through it.
+  it("a sheet is an opaque warm surface with a hairline rim", () => {
+    expect(css).toMatch(/\.sheet-scrim > \.card \{ background: var\(--surface-2\); border: 0\.5px solid var\(--card-bd\);/);
+    expect(css).not.toMatch(/\.sheet-scrim > \.card \{ background: color-mix/);
   });
 });

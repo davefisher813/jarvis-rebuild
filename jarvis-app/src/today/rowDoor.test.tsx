@@ -46,8 +46,9 @@ describe("row door", () => {
     const { container } = page("13:55", { onOpen, onSnooze });
     fireEvent.click(screen.getByText("Call the Bank"));
     expect(onOpen).toHaveBeenCalledWith("t1");
-    // The facts line is as much the door as the title is.
-    fireEvent.click(screen.getByText("Today", { selector: ".uchip" }));
+    // The rest of the row is as much the door as the title is. A reminder due today has no day word to draw (the clock
+    // is the gutter's), so the second place to tap is the time gutter.
+    fireEvent.click(container.querySelector(".rem-time-gutter")!);
     expect(onOpen).toHaveBeenCalledTimes(2);
     // The moment has come, so the row shows its one verb as a quiet word, not a capsule.
     const quiet = container.querySelector(".row-ctx") as HTMLElement;

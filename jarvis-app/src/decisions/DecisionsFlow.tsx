@@ -631,6 +631,10 @@ function ListScreen({ live, loading, projCat, onBack, onOpen, onDelete, onAdd }:
             return (
             <SwipeDelete key={r.id} label={titleCase(r.data.decision)} onDelete={() => onDelete(r)} menu={[{ label: "Open", onPick: () => onOpen(r.id) }]}>
             <div {...pressable(() => onOpen(r.id))} className="row dec-row">
+              {/* The Remember star LEADS the row (Astra law 3) and, as everywhere since the 2026-10-05 review, draws only while
+                  the decision is remembered: an empty star on every row crowded the leading edge before the words began.
+                  Remember and Forget are the row's long-press menu line. */}
+              <EntityStar entityType={ENTITY_DECISION} entityId={r.id} title={r.data.decision} quiet />
               <div className={"lib-ico " + DECISION_TONE}>{DECISION_ICO}</div>
               <div className="row-grow">
                 <div className="conn-name dec-name">{titleCase(r.data.decision)}</div>
@@ -660,9 +664,6 @@ function ListScreen({ live, loading, projCat, onBack, onOpen, onDelete, onAdd }:
                     whenFact): amber today or tomorrow, red once past. The recorded-on day is always the neutral date. */}
                 <div className="facts"><span className={"fact " + when.tone}>{when.text}</span></div>
               </div>
-              {/* The Remember star at the trailing edge, before the chevron, on a 44px reach (Dave 2026-10-05, the review:
-                  a star and a glyph pair crowded the leading edge before the words began at x=105). */}
-              <EntityStar entityType={ENTITY_DECISION} entityId={r.id} title={r.data.decision} />
               <Chev />
             </div>
             </SwipeDelete>

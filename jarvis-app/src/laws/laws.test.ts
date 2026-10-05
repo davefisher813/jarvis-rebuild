@@ -1474,15 +1474,21 @@ describe("LAW: one filled red per screen", () => {
     expect(bad).toEqual([]);
   });
 
-  // V4: nav glyphs are the FILLED brand-red state, drawn as filled shapes.
-  // More and Brain nav rows must use lib-ico-brand + the filledIcon set;
-  // auto-filling stroke icons is the compass-blob bug and stays banned.
-  it("nav lists wear the filled brand glyph state", () => {
-    for (const f of ["more/MorePage.tsx", "brain/BrainPage.tsx", "more/SettingsPage.tsx"]) {
+  // V4: nav glyphs are drawn as filled shapes. AMENDED 2026-10-05 (Dave: "a type icon carries its type's colour",
+  // never every icon the same brand red, D5): each destination wears its OWN tone through .cat-fg-*, and only JARVIS
+  // itself (Chat) keeps the brand red (lib-ico-brand). More and Settings use the filledIcon set; Brain's rows carry a
+  // per-row colour; auto-filling stroke icons is the compass-blob bug and stays banned.
+  it("nav lists wear the filled glyph in each destination's own tone", () => {
+    for (const f of ["more/MorePage.tsx", "more/SettingsPage.tsx"]) {
       const src = read(join(SRC, f));
-      expect(src, f).toContain("lib-ico-brand");
+      expect(src, f).toMatch(/cat-fg-[a-z]+/);
       expect(src, f).toMatch(/filled(Settings)?Icon\(/);
     }
+    const more = read(join(SRC, "more/MorePage.tsx"));
+    // Not one flat red: at least four different tones are named, and brand red is Chat's alone.
+    expect(new Set(more.match(/cat-fg-[a-z]+/g)).size, "more/MorePage.tsx: per-destination tones").toBeGreaterThanOrEqual(4);
+    expect(more.match(/lib-ico-brand/g)?.length ?? 0, "more/MorePage.tsx: brand red is for JARVIS (Chat) only").toBe(1);
+    expect(read(join(SRC, "brain/BrainPage.tsx")), "brain/BrainPage.tsx: each row draws its own colour").toMatch(/"lib-ico " \+ r\.color/);
     const filled = read(join(SRC, "shared/filledIcons.tsx"));
     // Quality law (Dave: "make sure all red icons are improved"): the filled
     // set comes from the professionally drawn Phosphor FILL weight; a return

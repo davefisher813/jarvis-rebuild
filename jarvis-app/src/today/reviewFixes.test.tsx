@@ -156,11 +156,30 @@ describe("Focus: the page's own header, one control row, a quiet count (D3, D8)"
     expect(container.querySelector(".focus-rest")).toHaveTextContent("Last One Open");
   });
 
-  it("the stylesheet keeps the segmented labels on one line, the music chip on the card's column, and the card centred", () => {
+  it("the stylesheet keeps the segmented labels on one line, the music chip on the card's column, and the card at the TOP (Dave 2026-09-18, in FocusScreen.tsx)", () => {
     const c = css("components.css");
     expect(c).toMatch(/\.focus-controls \.seg \{ white-space: nowrap; \}/);
     expect(c).toMatch(/\.focus-controls \.chip-row \{[^}]*padding: 0;[^}]*overflow: visible;[^}]*mask-image: none;/);
-    expect(c).toMatch(/\.focus-screen \.focus-body \{ justify-content: center;/);
+    // The card starts under the controls with air, never centred in the open space (the 2026-10-05 pass that centred it
+    // undid his own note: "it starts at the top now, under the control, where a screen starts").
+    expect(c).toMatch(/\.focus-screen \.focus-body \{ justify-content: flex-start; padding-top: var\(--s-4\);/);
+    expect(c).not.toMatch(/\.focus-screen \.focus-body \{ justify-content: center/);
+  });
+
+  it("the four answers carry unequal weight: one filled Start, Done and the timer as capsules, Not This One as quiet words, every tap 44px", () => {
+    const { container } = render(<FocusScreen {...props} onStartNow={noop} onFifteen={noop} />);
+    const card = container.querySelector(".focus-card")!;
+    expect(card.querySelectorAll(".btn-primary").length, "one filled primary").toBe(1);
+    expect(card.querySelector(".btn-primary")).toHaveTextContent("Start Now");
+    const row = card.querySelector(".focus-acts.skew")!;
+    expect([...row.querySelectorAll(".btn")].map((b) => b.textContent)).toEqual(["Done", "15 Min"]);
+    expect(row.querySelector(".btn svg.ic"), "the timer wears its icon").not.toBeNull();
+    expect(row.querySelector(".btn[aria-label='Focus 15 Minutes']")).not.toBeNull();
+    expect(card.querySelector(".focus-skip")).toHaveTextContent("Not This One");
+    const c = css("components.css");
+    expect(c).toMatch(/\.focus-acts\.skew \{ grid-template-columns: 1fr auto; \}/);
+    expect(c).toMatch(/\.focus-acts \.btn \{[^}]*min-height: var\(--tap-min\);/);
+    expect(c).toMatch(/\.focus-skip \{[^}]*min-height: var\(--tap-min\);/);
   });
 });
 

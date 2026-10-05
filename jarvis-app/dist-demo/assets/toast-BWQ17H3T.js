@@ -1,1 +1,0 @@
-var e=null,t=new Set,n,r=null,i=e=>!!e?.actionLabel&&!!e?.onAction;function a(a,s=5e3){if(i(e)&&!i(a)){r={t:a,ms:s};return}e=a,t.forEach(t=>t(e)),n&&clearTimeout(n),n=setTimeout(o,s)}function o(){e=null,n&&clearTimeout(n),t.forEach(e=>e(null));let i=r;r=null,i&&a(i.t,i.ms)}function s(n){return t.add(n),n(e),()=>{t.delete(n)}}export{a as n,s as r,o as t};

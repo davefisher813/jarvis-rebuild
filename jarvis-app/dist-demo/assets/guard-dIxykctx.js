@@ -1,1 +1,0 @@
-import{n as e}from"./toast-BWQ17H3T.js";var t=`Couldn't Save · Check Your Connection`;async function n(n){try{return await n(),!0}catch{return e({message:t}),!1}}export{n,t};

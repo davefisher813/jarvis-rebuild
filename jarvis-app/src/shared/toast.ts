@@ -9,6 +9,8 @@
 // write the exact state it means to restore (the snapshot the caller read
 // before the write it is undoing), so tapping it twice, or late, or after a
 // hand edit, lands on the same answer.
+import { onScreenChange } from "./screenChange";
+
 export interface ToastState { message: string; actionLabel?: string; onAction?: () => void }
 type Sub = (t: ToastState | null) => void;
 
@@ -71,6 +73,8 @@ export function dismissForNavigation(): void {
   if (q && Date.now() - q.at > TOAST_NAV_GRACE_MS) queued = null;
   if (current && Date.now() - shownAt > TOAST_NAV_GRACE_MS) hideToast();
 }
+// The store listens for the shell's one "the screen changed" signal (shared/screenChange.ts).
+onScreenChange(dismissForNavigation);
 /** Tests only: drop anything in flight so one case cannot leak into the next. */
 export function resetToasts(): void {
   queued = null;

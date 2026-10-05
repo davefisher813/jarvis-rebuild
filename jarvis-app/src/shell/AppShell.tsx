@@ -71,7 +71,8 @@ import type { WindowClient } from "../brain/window";
 import { ENTITY_CATEGORY } from "../categories/types";
 import { todayISO } from "../tasks/grouping";
 import { setOverwhelmed } from "../tasks/overwhelmed";
-import { showToast, dismissForNavigation } from "../shared/toast";
+import { showToast } from "../shared/toast";
+import { noteScreenChange } from "../shared/screenChange";
 import { useOneShot } from "./intents";
 import { useSessionOpen } from "../gym/sessionChrome";
 import { attemptWrite } from "../shared/guard";
@@ -312,8 +313,8 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
   const [captureOpen, setCaptureOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   // A TOAST BELONGS TO ITS SCREEN (2026-10-05). A receipt about the last screen's action does not ride along into the
-  // next one: the tab, Search and Quick Capture each count as a screen. See dismissForNavigation (shared/toast.ts).
-  useEffect(() => { dismissForNavigation(); }, [active, searchOpen, captureOpen]);
+  // next one: the tab, Search and Quick Capture each count as a screen. See shared/screenChange.ts and dismissForNavigation (shared/toast.ts).
+  useEffect(() => { noteScreenChange(); }, [active, searchOpen, captureOpen]);
 
   // FIRST TAP, FIRST FETCH (audit 2026-09-29). Quick Capture and Search are
   // lazy chunks reached from the always-visible dock, so the first tap was
