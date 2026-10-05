@@ -11,7 +11,7 @@ import "@testing-library/jest-dom";
 import HubFlow, { OFFLINE_LINE } from "./HubFlow";
 import { NotesProvider } from "../data/NotesProvider";
 import type { HubOverview, RpcClient } from "./hubClient";
-import { setAdminAiBlocked } from "../ai/levelStore";
+import { setAdminAiBlocked, setAIControl } from "../ai/levelStore";
 import { subscribeToast, resetToasts } from "../shared/toast";
 import type { ReceiptDetail as Detail, FeedRow } from "../substrate/commands/receipts";
 
@@ -84,7 +84,7 @@ function rig(over: Partial<Record<string, Fn>> = {}, ov: HubOverview = overview)
 const toasts: string[] = [];
 let stopToasts = () => {};
 beforeEach(() => { toasts.length = 0; stopToasts = subscribeToast((t) => { if (t) toasts.push(t.message); }); });
-afterEach(() => { stopToasts(); resetToasts(); setAdminAiBlocked(false); cleanup(); vi.restoreAllMocks(); });
+afterEach(() => { stopToasts(); resetToasts(); setAdminAiBlocked(false); setAIControl(undefined); cleanup(); vi.restoreAllMocks(); });
 
 const sheetSave = () => document.querySelector<HTMLButtonElement>(".sheet-bar-save")!;
 const tab = (name: string) => fireEvent.click(screen.getByRole("tab", { name }));
@@ -491,11 +491,22 @@ describe("H4 Preview Shared Context when it cannot run yet", () => {
     expect(calls.some((c) => c.fn === "job_open")).toBe(false);
   });
 
-  it("with AI off it says so instead of staying silent", async () => {
-    setAdminAiBlocked(true);
+  it("with the person's own AI level off it says so, and says how to fix it", async () => {
+    setAIControl({ level: "off" });
     const { row, calls } = await openAgent(overview);
     fireEvent.click(row);
     expect(toasts).toContain("AI Is Off · Turn It On to Preview");
+    expect(calls.some((c) => c.fn === "job_open")).toBe(false);
+  });
+
+  // 2026-10-05: an admin block cannot be undone from here, so the toast must
+  // not say "Turn It On"; it names the admin, like the AI switch does.
+  it("with AI off by the admin it names the admin instead of telling the person to turn it on", async () => {
+    setAdminAiBlocked(true);
+    const { row, calls } = await openAgent(overview);
+    fireEvent.click(row);
+    expect(toasts).toContain("Turned Off by Admin");
+    expect(toasts).not.toContain("AI Is Off · Turn It On to Preview");
     expect(calls.some((c) => c.fn === "job_open")).toBe(false);
   });
 

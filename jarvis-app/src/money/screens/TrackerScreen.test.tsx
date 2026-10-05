@@ -350,6 +350,22 @@ describe("Tracker budgets: a limit with no name", () => {
     expect(toasts.map((t) => t.message)).not.toContain("Budget Saved");
   });
 
+  // 2026-10-05: Uncategorized is left out of the allocations on purpose, so a
+  // limit typed against that name vanished under "Budget Saved" too.
+  it("a limit on a row named Uncategorized is refused with its own reason, and the cursor lands on the name", async () => {
+    const h = mount("bg-uncat");
+    await tab("Budgets");
+    fireEvent.click(await screen.findByText("Add a Category"));
+    fireEvent.change(screen.getByLabelText("New category limit"), { target: { value: "50" } });
+    fireEvent.change(screen.getByLabelText("New category name"), { target: { value: "uncategorized" } });
+    fireEvent.click(screen.getByText("Save", { selector: ".pill-act" }));
+    expect(toasts.map((t) => t.message)).toContain("Uncategorized Has No Limit");
+    expect(toasts.map((t) => t.message)).not.toContain("Name That Category First");
+    expect(screen.getByLabelText("uncategorized name")).toHaveFocus();
+    expect((await h.current!.tracker.load()).budgets).toHaveLength(0);
+    expect(toasts.map((t) => t.message)).not.toContain("Budget Saved");
+  });
+
   it("a blank row and a name with no limit are still left out, as before", async () => {
     const h = mount("bg-blank");
     await tab("Budgets");

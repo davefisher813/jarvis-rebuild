@@ -17,7 +17,7 @@ import {
 import MatchesCard from "./MatchesCard";
 import HistoryList from "./HistoryList";
 import { categoryChoices, lastCategoryFor } from "../categoryDefault";
-import { allocationsFromRows, discrepancyLines, displayRows, monthActuals, monthSpend, newRow, rowsForNewMonth, rowsFromAllocations, type BudgetRow } from "../budgetView";
+import { allocationsFromRows, discrepancyLines, displayRows, isUncategorized, monthActuals, monthSpend, newRow, rowsForNewMonth, rowsFromAllocations, type BudgetRow } from "../budgetView";
 import { overLine } from "../ledger/actuals";
 import { ENTITY_MONEY_BILL, ENTITY_MONEY_RECEIPT, type Bill, type Receipt } from "../ledger/types";
 import { removeTxWithLinks, unmatchTx, type LinkChange } from "../txLinks";
@@ -626,10 +626,13 @@ function Budgets({ month, onMonth, data, receipts, onSaved }: {
     // and a name with no limit are left out on purpose (the proposed names are
     // only suggestions), but a limit he typed against no name used to vanish
     // under "Budget Saved". Say so, and put the cursor on the name.
-    const unnamed = rows.find((r) => !r.name.trim() && dollarsToCents(r.limit) > 0);
-    if (unnamed) {
-      showToast({ message: "Name That Category First" });
-      nameRefs.current[unnamed.key]?.focus();
+    // The same goes for a limit on a row named Uncategorized (2026-10-05):
+    // allocationsFromRows leaves that name out on purpose (it has no limit to
+    // set), so the typed number would vanish under "Budget Saved" just the same.
+    const bad = rows.find((r) => (!r.name.trim() || isUncategorized(r.name)) && dollarsToCents(r.limit) > 0);
+    if (bad) {
+      showToast({ message: bad.name.trim() ? "Uncategorized Has No Limit" : "Name That Category First" });
+      nameRefs.current[bad.key]?.focus();
       return;
     }
     const d: TrackerBudgetData = {

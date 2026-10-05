@@ -13,15 +13,18 @@ import { modeSummary } from "../substrate/authz/engine";
 import type { AgentMode } from "../substrate/contracts";
 import { revokeAgent } from "../substrate/agentClient";
 import { COMMAND_LINES } from "../substrate/commands/errors";
-import { MODES, MODE_LABEL, NOTHING_SHARED, PICK_PROJECT_FIRST, PREVIEW_AI_OFF, PREVIEW_CONTEXT, PREVIEW_OFFLINE, PREVIEW_REVOKED, REVOKE, REVOKE_NOTE, STATUS_WORD, TRANSPORT_WORD, HUB_TITLE } from "./copy";
+import { ADMIN_OFF, MODES, MODE_LABEL, NOTHING_SHARED, PICK_PROJECT_FIRST, PREVIEW_AI_OFF, PREVIEW_CONTEXT, PREVIEW_OFFLINE, PREVIEW_REVOKED, REVOKE, REVOKE_NOTE, STATUS_WORD, TRANSPORT_WORD, HUB_TITLE } from "./copy";
 import { setMode, type HubConnection, type HubProject, type RpcClient } from "./hubClient";
 import { facts, whenLine } from "./format";
 
-export default function AgentDetail({ client, connection, projects, aiAllowed, offline, onBack, onChanged, onPreview }: {
+export default function AgentDetail({ client, connection, projects, aiAllowed, adminOff, offline, onBack, onChanged, onPreview }: {
   client: RpcClient;
   connection: HubConnection;
   projects: HubProject[];
   aiAllowed: boolean;
+  /** An admin has switched AI off: the person cannot turn it back on, so the
+   *  Preview toast must not tell them to (2026-10-05). */
+  adminOff?: boolean;
   offline: boolean;
   onBack: () => void;
   onChanged: () => void | Promise<void>;
@@ -59,7 +62,7 @@ export default function AgentDetail({ client, connection, projects, aiAllowed, o
   // opened with the "Pick a Project First" toast, which a disabled button never
   // fires, so a new assistant (no project yet) showed a grey row that did
   // nothing and said nothing. The same went for AI off and for offline.
-  const previewWhy = revoked ? PREVIEW_REVOKED : !aiAllowed ? PREVIEW_AI_OFF : offline ? PREVIEW_OFFLINE : !projectId ? PICK_PROJECT_FIRST : null;
+  const previewWhy = revoked ? PREVIEW_REVOKED : adminOff ? ADMIN_OFF : !aiAllowed ? PREVIEW_AI_OFF : offline ? PREVIEW_OFFLINE : !projectId ? PICK_PROJECT_FIRST : null;
 
   return (
     <div className="screen ruled hub">

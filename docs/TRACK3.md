@@ -16,8 +16,8 @@ Source: `Claude outputs/JARVIS_TRACK3_BUILD_MASTER_2026_09_14.md` and
   Not in `supabase/migrations/`, so nothing runs them by accident.
 - **Your Times** (Settings > Booking, `src/settings/BookingPage.tsx`,
   `src/booking/settings.ts`): the preview's Booking Settings screen. Available
-  on or off, the days, the slot length (15, 30, 45, 60), who can book, the
-  visibility. Stored on the device; it is what seeds `availability_rules` and
+  on or off, the days, the slot length (15, 30, 45, 60). Who can book is fixed
+  at anyone with the link, not a choice (2026-10-04). Stored on the device; it is what seeds `availability_rules` and
   `booking_links` the day a booking server exists. The links card says No
   Links Yet and why.
 

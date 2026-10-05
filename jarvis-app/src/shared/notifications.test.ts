@@ -22,6 +22,19 @@ describe("buildCheckinNotifications", () => {
     expect(`${evening.title} ${evening.body}`).not.toMatch(/feel|one tap|better plans/i);
   });
 
+  // 2026-10-05: the body names Today's Still Open section, which Today shows
+  // only from max(18:00, work end). Ringing at 20:30 for a 21:00 work end sent
+  // the person to a section that was not there yet.
+  it("the evening alert never rings before Today turns evening (work end)", () => {
+    const n = buildCheckinNotifications(r({ workEndMin: 21 * 60, sleepMin: 22 * 60 + 30 }), "07:00");
+    expect(n.find((x) => x.id === EVENING_ID)).toMatchObject({ hour: 21, minute: 0 });
+  });
+
+  it("drops the evening alert when work runs to bedtime or later", () => {
+    const n = buildCheckinNotifications(r({ workEndMin: 22 * 60 + 30, sleepMin: 22 * 60 + 30 }), "07:00");
+    expect(n.find((x) => x.id === EVENING_ID)).toBeUndefined();
+  });
+
   it("falls back to wake + 15 without a brief time", () => {
     const n = buildCheckinNotifications(r({ wakeMin: 6 * 60 + 30 }));
     expect(n[0]).toMatchObject({ hour: 6, minute: 45 });

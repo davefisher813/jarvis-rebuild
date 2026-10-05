@@ -951,7 +951,9 @@ export default function PlanDaySheet({
                   // looked like it did nothing. autoSelect finds nothing only
                   // when there is nothing to pick from or the day's cap leaves
                   // no room for a pick, so the toast says which.
-                  showToast({ message: allTasks.length === 0 ? "Nothing to Plan Yet" : `No Room Left ${target === "tomorrow" ? "Tomorrow" : "Today"}` });
+                  // 2026-10-05: the sheet's own day word. The Schedule tab
+                  // passes no `target`, so it defaulted to Today there.
+                  showToast({ message: allTasks.length === 0 ? "Nothing to Plan Yet" : `No Room Left ${dayLabel}` });
                   return;
                 }
                 setPicks(chosen);

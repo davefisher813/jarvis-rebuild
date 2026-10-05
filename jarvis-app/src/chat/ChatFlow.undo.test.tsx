@@ -208,3 +208,52 @@ describe("Chat > Saved to Notes > Undo", () => {
     expect(removeAll).not.toHaveBeenCalled();
   });
 });
+
+// 2026-10-05: an Undo in state belongs to ONE file. A second file whose
+// delivery threw left the first file's Undo behind, and Move to on the second
+// then ran the first's Undo, deleting a filing nobody asked to touch.
+describe("Chat > Move to after a delivery that failed", () => {
+  it("never takes back the earlier file's filing", async () => {
+    renderChat("u-chat-failed-second");
+    await waitFor(() => expect(filesRef && notesRef && storeRef).toBeTruthy());
+    attach(pdf("lunch-receipt.pdf"));
+    await waitFor(() => expect(toastNamed("Filed to Money")).toBeTruthy());
+    await screen.findByText("Move to Notes");
+    expect(await filesRef!.list("money")).toHaveLength(1);
+
+    // The second file lands in Notes, and its upload fails once.
+    const upload = vi.spyOn(storeRef!, "upload").mockRejectedValueOnce(new Error("offline"));
+    attach(pdf("memo.pdf"));
+    await screen.findByText("offline");
+    expect(upload).toHaveBeenCalledTimes(1);
+    expect(await filesRef!.list("money")).toHaveLength(1);
+
+    // Move the memo to Money: it is delivered, and the receipt stays put.
+    fireEvent.click(await screen.findByText("Move to Money"));
+    await waitFor(async () => expect(await filesRef!.list("money")).toHaveLength(2));
+    const names = (await filesRef!.list("money")).map((r) => r.data.name).sort();
+    expect(names).toEqual(["lunch-receipt.pdf", "memo.pdf"]);
+  });
+
+  it("a pick made while one is still being filed is dropped, so Move to stays on the file that was filed", async () => {
+    renderChat("u-chat-overlap");
+    await waitFor(() => expect(filesRef && storeRef).toBeTruthy());
+    let release: () => void = () => undefined;
+    const real = storeRef!.upload.bind(storeRef!);
+    vi.spyOn(storeRef!, "upload").mockImplementationOnce(async (id, f) => { await new Promise<void>((r) => { release = r; }); return real(id, f); });
+    attach(pdf("lunch-receipt.pdf"));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Send" })).toBeInTheDocument());
+    await act(async () => { await new Promise((r) => setTimeout(r, 20)); });
+    attach(pdf("memo.pdf"));
+    await act(async () => { release(); });
+    await waitFor(() => expect(toastNamed("Filed to Money")).toBeTruthy());
+    // Only the first file was ever delivered, and nothing else was filed.
+    expect((await filesRef!.list("money")).map((r) => r.data.name)).toEqual(["lunch-receipt.pdf"]);
+    expect(await notesRef!.listNotes()).toHaveLength(0);
+    // Move to acts on the receipt: it leaves Money rather than copying a memo
+    // nobody filed.
+    fireEvent.click(await screen.findByText("Move to Notes"));
+    await waitFor(async () => expect(await filesRef!.list("money")).toHaveLength(0));
+    expect((await notesRef!.listNotes()).map((n) => n.data.title)).toEqual(["Lunch receipt"]);
+  });
+});

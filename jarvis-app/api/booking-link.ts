@@ -71,8 +71,11 @@ export default async function handler(req: Request): Promise<Response> {
       const rules = ruleRows(s, c.owner, timezone);
       if (rules.length > 0) await ins(c, "availability_rules", rules);
 
-      const visibility = VISIBILITY_ROW[s.visibility] ?? "link_only";
-      const mode = WHO_ROW[s.who] ?? "open_link";
+      // Own keys only (2026-10-05): "constructor" or "toString" on a plain
+      // object is an inherited function, which ?? does not replace, and the
+      // insert then fails on a missing column instead of landing on the open row.
+      const visibility = Object.hasOwn(VISIBILITY_ROW, s.visibility) ? VISIBILITY_ROW[s.visibility]! : "link_only";
+      const mode = Object.hasOwn(WHO_ROW, s.who) ? WHO_ROW[s.who]! : "open_link";
       let slug = link?.slug ?? "";
       if (link) {
         await patch(c, `booking_links?id=eq.${link.id}`, { visibility, bookable_type_id: typeId });

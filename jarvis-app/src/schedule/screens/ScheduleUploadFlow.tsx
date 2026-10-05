@@ -152,7 +152,10 @@ export default function ScheduleUploadFlow({
         // sheet, so a fix reopened shows what was chosen and the import
         // writes it. The sheet leaves a key out when it is unset, which is
         // why each is assigned rather than spread.
-        until: draft.until || undefined, interval: draft.recurrence === "weekly" ? (draft.interval ?? 1) : undefined,
+        // 2026-10-05: a Once draft carries no interval, and writing undefined
+        // here erased the 2 Weeks cadence toRows seeded from the matched
+        // series, so Fix, Save, then Repeats imported every week.
+        until: draft.until || undefined, interval: draft.recurrence === "weekly" ? (draft.interval ?? 1) : r.interval,
         url: draft.url, notes: draft.notes, travelMin: draft.travelMin, bufferMin: draft.bufferMin, gym: draft.gym,
       }
       : r)));

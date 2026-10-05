@@ -2983,6 +2983,13 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
             const added: Exercise[] = entries.map((e) => {
               const c = classStore[e.key] ?? classStore[e.exerciseKey ?? ""] ?? null;
               const kind = c?.measure ?? e.kind;
+              // 2026-10-05: what the create sheet planned (rest, ramp, filler,
+              // note, clock, strip) lands here too, as ExerciseSheet's pick
+              // does. Gated on the measure still being the one it was planned
+              // under, like the unit: a clock or a strip means nothing on
+              // another kind. A seed has no lastSets, so its strip is the plan's.
+              const p = kind === e.kind ? e.plan : undefined;
+              const planSets = p?.sets?.length && e.lastSets.length === 0 ? p.sets : null;
               return {
                 id: nid("e"),
                 name: e.name,
@@ -2991,13 +2998,20 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
                 // own default unit: the old unit could be yards on a kind that
                 // measures seconds, and a mismatched unit is a nonsense PR.
                 ...(kind === e.kind ? (e.unit ? { unit: e.unit } : {}) : (defaultUnit(kind) ? { unit: defaultUnit(kind)! } : {})),
-                ...(kind === e.kind && e.timeUnit ? { timeUnit: e.timeUnit } : {}),
+                ...(kind === e.kind && (e.timeUnit ?? p?.timeUnit) ? { timeUnit: (e.timeUnit ?? p?.timeUnit)! } : {}),
                 ...(c?.equipment ? { equipment: c.equipment } : e.equipment ? { equipment: e.equipment as Exercise["equipment"] } : {}),
                 ...(c?.counted ? { counted: c.counted } : e.counted ? { counted: e.counted } : {}),
                 exerciseKey: e.exerciseKey ?? newExerciseKey(),
+                ...(p?.restSec ? { restSec: p.restSec } : {}),
+                ...(p?.ramp ? { ramp: true } : {}),
+                ...(p?.filler ? { filler: true } : {}),
+                ...(p?.note ? { note: p.note } : {}),
+                ...(p?.cond ? { cond: p.cond } : {}),
                 sets: kind === e.kind && e.lastSets.length > 0
                   ? e.lastSets.map((s, i) => ({ ...s, id: `${nid("s")}${i}` }))
-                  : uniformStrip(3, { r: 8 }),
+                  : planSets
+                    ? planSets.map((s, i) => ({ ...s, id: `${nid("s")}${i}` }))
+                    : uniformStrip(3, { r: 8 }),
               };
             });
             const days = week.days.map((d) => (d.id === day.id ? { ...d, exercises: [...d.exercises, ...added] } : d));

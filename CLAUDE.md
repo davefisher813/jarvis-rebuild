@@ -27,6 +27,25 @@ Dave says so in his own words, and then update the hash with his quote.
 
 
 
+## The visual catalog is a hard gate (Dave, 2026-10-05)
+
+"I am sick of this shit." A thin grey subtext came back on the live Email card
+("Open Email to Review" under "5 Email Items to Review", "Task · Due Today")
+after Dave had spent hours fixing exactly that. Effective immediately, EVERY
+addition or change that draws anything (a string, a chip, a fact, a row, a
+colour, a weight, a size, a spacing, a sheet) is run through the catalog
+BEFORE it is called done. No exception for a small change; the Email band was
+a small change. The written catalog and the definition of done are in
+`docs/jarvis-unified/VISUAL-CATALOG-GATE.md`; the authority behind it is
+`qa/findings/RULEBOOK.md`, `jarvis-app/STYLING_CATALOG_V3.md` (§AJ to §AQ) and
+`jarvis-app/src/laws/`. In short: one grey per row, a row with nothing to say
+shows nothing, facts are spans with the dot drawn by CSS (never a dot in a
+string, and that includes strings built in data helpers), colour only for
+meaning, Title Case, 12-hour times, 44px taps, light and dark differ in
+colour only. A report on any UI change ends with one line: "Catalog: checked,
+no drift", or what was found and fixed. A law that blocks a correct change is
+reported, never edited around.
+
 When the keyboard is up in a document, two bars sit above the keys:
 
 1. **Ours** (`.doc-kbar`, `shared/DocEditor.tsx`): Undo, Redo, Format, List,

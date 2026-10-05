@@ -36,7 +36,7 @@ export const seedRows = (): BudgetRow[] => DEFAULT_BUDGET_CATEGORIES.map((n) => 
 export const rowsFromAllocations = (a: Record<string, number>): BudgetRow[] =>
   Object.entries(a).map(([name, cents]) => newRow(name, (cents / 100).toFixed(2)));
 
-const isUncategorized = (n: string): boolean => n.trim().toLowerCase() === UNCATEGORIZED.toLowerCase();
+export const isUncategorized = (n: string): boolean => n.trim().toLowerCase() === UNCATEGORIZED.toLowerCase();
 
 /** What is stored: a name and a limit above zero. A blank row, a blank name and
  *  Uncategorized (which has no limit to set) are left out. */
@@ -63,7 +63,14 @@ export function displayRows(rows: BudgetRow[], actuals: Actuals): DisplayRow[] {
   const shown = new Set<string>();
   for (const r of rows) {
     const name = r.name.trim();
-    if (isUncategorized(name)) continue;
+    if (isUncategorized(name)) {
+      // A row named Uncategorized that holds a typed limit stays on screen as
+      // an empty stub (2026-10-05): the save refuses it with a reason, and the
+      // name input it points the cursor at must still be there. The real
+      // Uncategorized total is the last row, so the stub shows none of it.
+      if (dollarsToCents(r.limit) > 0) out.push({ key: r.key, name: r.name, limit: null, spent: 0, remaining: null, overBy: 0 });
+      continue;
+    }
     const a = byName.get(name);
     out.push({ key: r.key, name: name || r.name, limit: a?.limit ?? null, spent: a?.spent ?? 0, remaining: a?.remaining ?? null, overBy: a?.overBy ?? 0 });
     if (name) shown.add(name);

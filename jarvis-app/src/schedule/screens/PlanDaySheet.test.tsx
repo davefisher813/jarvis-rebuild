@@ -440,7 +440,8 @@ describe("the plan facts line says two separate things", () => {
 // PLAN IT NEVER GOES QUIET (2026-10-04). With nothing picked, Plan It returned
 // when autoSelect found nothing and said nothing: a tap that looked dead. The
 // only way it finds nothing with tasks on the list is a day cap that leaves no
-// room (chosenCap of 0), so the tap says so, and says which day.
+// room (chosenCap of 0), so the tap says so, and says which day (the sheet's
+// own dayLabel, 2026-10-05: the Schedule tab passes no target).
 describe("Plan It says why when it plans nothing", () => {
   const toasts = (run: () => void): string[] => {
     resetToasts();
@@ -460,9 +461,14 @@ describe("Plan It says why when it plans nothing", () => {
     expect(document.querySelectorAll(".p3-row.on").length).toBe(0);
   });
 
-  it("names tomorrow when the sheet is planning tomorrow", () => {
-    render(sheet({ chosenCap: 0, target: "tomorrow", onTarget: () => {} }));
-    expect(toasts(() => fireEvent.click(screen.getByText("Plan It")))).toEqual(["No Room Left Tomorrow"]);
+  it("names the day the sheet is planning, by its own label", () => {
+    render(sheet({ chosenCap: 0, target: "tomorrow", onTarget: () => {}, dayLabel: "Friday" }));
+    expect(toasts(() => fireEvent.click(screen.getByText("Plan It")))).toEqual(["No Room Left Friday"]);
+  });
+
+  it("on the Schedule tab, which passes no target, a weekday is not called Today", () => {
+    render(sheet({ chosenCap: 0, date: "2026-09-06", dayLabel: "Sunday" }));
+    expect(toasts(() => fireEvent.click(screen.getByText("Plan It")))).toEqual(["No Room Left Sunday"]);
   });
 
   it("a day with room still plans on the tap, with no toast", () => {

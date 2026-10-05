@@ -464,7 +464,18 @@ export default function NotesFlow({
     if (failed) showToast({ message: "Couldn't Load · Check Your Connection" });
   }, [schedSvc, tasksSvc, projSvc, goalSvc, peopleSvc]);
 
-  const openNote = async (id: string) => {
+  // Resolves true when the editor opened, false when the id is not a note this
+  // screen can load. The jump claim below needs the answer (2026-10-05).
+  const openNote = async (id: string): Promise<boolean> => {
+    // NEVER AN EMPTY EDITOR (2026-10-04). An id that is not a note this screen
+    // can load (an exploration a receipt pointed at, a note deleted since the
+    // link was made) used to switch to the editor with nothing in it, tab bar
+    // hidden and no Back drawn, so the person was stranded. Say so and stay.
+    // This runs before the flush and the resets below (2026-10-05): a failed
+    // open from a dangling chip leaves the current note open, and resetting
+    // passLenRef there made its next save skip the PASS_DELTA check and fire
+    // an unneeded JARVIS Find call.
+    if (!(await svc.note(id))) { showToast({ message: "Couldn't Open That Note" }); return false; }
     await flushDoc();
     setSaveState("idle");
     passLenRef.current = -1;
@@ -478,15 +489,11 @@ export default function NotesFlow({
         if (ok) clearDraft(id);
       } else clearDraft(id);
     }
-    // NEVER AN EMPTY EDITOR (2026-10-04). An id that is not a note this screen
-    // can load (an exploration a receipt pointed at, a note deleted since the
-    // link was made) used to switch to the editor with nothing in it, tab bar
-    // hidden and no Back drawn, so the person was stranded. Say so and stay.
-    if (!(await svc.note(id))) { showToast({ message: "Couldn't Open That Note" }); return; }
     setLinkedFrom([]); setRelated([]); setFound([]);
     openCurrentId(id);
     await loadCurrent(id);
     setScreen("editor");
+    return true;
   };
 
   // When arriving from another screen (e.g. a project's Linked Notes), open that
@@ -511,8 +518,13 @@ export default function NotesFlow({
   }, [backToOrigin, screen, claim]);
   useEffect(() => {
     if (!openId) return;
-    setOpenedByJump(true);
-    void openNote(openId);
+    // The claim is set only once the note is open (2026-10-05). A jump whose
+    // id would not load stays on the list with nav.origin still set; claiming
+    // up front left the flag true there, so the next note opened from the list
+    // wore a Back to the origin page instead of the Notes list. The editor's
+    // own onOpenNote / onOpenConnection paths do not touch the flag, so a
+    // jumped note keeps its claim while the person walks its links.
+    void openNote(openId).then((ok) => { if (ok) setOpenedByJump(true); });
     onOpenConsumed?.();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [openId, openNonce]);

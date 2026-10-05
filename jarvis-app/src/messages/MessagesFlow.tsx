@@ -2591,10 +2591,13 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     if (rows.length === 0) return;
     const names: Record<string, string> = {};
     for (const r of rows) if (r.fromEmail) names[r.fromEmail.toLowerCase()] = r.from;
-    const cands = sweepCandidates(loadTossed(), askedSenders(loadUnsubs()), names, Object.keys(unsubbable));
+    // 2026-10-05: reads the unsubs STATE, not storage, and reruns on it. The
+    // thread's Unsubscribe writes the record through setUnsubs and changes
+    // neither rows nor unsubbable, so a sender just asked stayed in the card
+    // and Yes asked them a second time.
+    const cands = sweepCandidates(loadTossed(), askedSenders(unsubs), names, Object.keys(unsubbable));
     setSweep(cands);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rows, unsubbable]);
+  }, [rows, unsubbable, unsubs]);
 
   // Archive from the list. Same effect as the detail-view archive, without
   // making him open something he already knows he is done with.
@@ -4817,7 +4820,19 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
         // Nothing Owed up, Select All Shown picked rows nobody could see and
         // Archive N moved them. The same test the list is drawn by.
         const needsDrawn = outcomeShown(outcome, needsYou, waiting, decideFor) === "needs";
-        const shown = forYou && showTriage ? [...(needsDrawn ? needsYou : []), ...worthKnowing, ...noise] : listRows;
+        // 2026-10-05: and Worth Knowing and Noise are drawn only behind the
+        // fold (restOpen), the machines line (noiseOpen) and, for a sender
+        // with 3+ rows, the group (noiseGroups). Select opens the fold but
+        // not the others, so Select All Shown picked Noise nobody could see
+        // and Archive N moved it. Same gates as the list below.
+        const noiseDrawn = (() => {
+          if (!restOpen || !noiseOpen) return [];
+          const { groups, loose } = collapseNoise(noise);
+          return [...groups.flatMap((g) => (noiseGroups[g.key] ? g.rows : [])), ...loose];
+        })();
+        const shown = forYou && showTriage
+          ? [...(needsDrawn ? needsYou : []), ...(restOpen ? worthKnowing : []), ...noiseDrawn]
+          : listRows;
         const mine = shown.filter((r) => picked.has(rowKey(r)));
         return (
           <div className="pad-x mail-select-bar">

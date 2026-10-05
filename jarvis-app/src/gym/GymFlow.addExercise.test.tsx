@@ -137,6 +137,37 @@ describe("a created lift hands its plan back when it is picked", () => {
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
     expect(onSave.mock.calls[0]![0].note).toBe("Heavy today");
   });
+
+  // 2026-10-05: a pick applies only the fields the plan names. A plan holds
+  // no zero rest or off flag, and every created lift has one (its strip), so
+  // resetting the absent ones wiped what was already set on the open sheet.
+  const withPlain = (): LibraryEntry[] => [
+    ...seeded(),
+    ...withCreated([], [{ key: "ek-p", name: "Plain Press", kind: "weight_reps", plan: { sets: [{ id: "a", w: 45, r: 8 }] } }]),
+  ];
+
+  it("a plan that names only its strip leaves the rest, ramp and clock the athlete set", () => {
+    const onSave = vi.fn();
+    render(<ExerciseSheet mode="new" library={withPlain()} history={[]} onSave={onSave} onCancel={() => {}} />);
+    pick("Rest Timer", "3:00");
+    fireEvent.click(screen.getByRole("switch", { name: "Warm-up ramp" }));
+    pickByTyping("Plain", "Plain Press");
+    expect(screen.getByRole("switch", { name: "Warm-up ramp" })).toHaveAttribute("aria-checked", "true");
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    expect(onSave.mock.calls[0]![0]).toMatchObject({ exerciseKey: "ek-p", restSec: 180, ramp: true });
+  });
+
+  it("changing the pick does not leave the first lift's note on the second", () => {
+    const onSave = vi.fn();
+    render(<ExerciseSheet mode="new" library={withPlain()} history={[]} onSave={onSave} onCancel={() => {}} />);
+    pickByTyping("Zerch", "Zercher Squat");
+    expect(screen.getByLabelText("Note")).toHaveValue("Pause at the bottom");
+    pickByTyping("Plain", "Plain Press");
+    expect(screen.getByLabelText("Note")).toHaveValue("");
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    expect(onSave.mock.calls[0]![0]).toMatchObject({ exerciseKey: "ek-p" });
+    expect(onSave.mock.calls[0]![0].note).toBeFalsy();
+  });
 });
 
 describe("a lift added to a finished workout", () => {
@@ -193,5 +224,33 @@ describe("a lift added to a finished workout", () => {
     await waitFor(() => expect(screen.getByRole("button", { name: "Save Changes" })).toBeInTheDocument());
     expect(gym).toBeTruthy();
     expect((readGymSettings().classByKey as Record<string, { primary: string[] }>)["ek-bench"]!.primary).toEqual(["chest"]);
+  });
+});
+
+// THE MULTI-PICK ROUTE CARRIES THE PLAN TOO (2026-10-05). "Add from Your
+// Lifts" built each day exercise from the entry's measure and last strip and
+// never read entry.plan, so a lift made on the library page lost its rest,
+// ramp, filler, note, clock and strip on the main way of putting it on a day,
+// and the seed was then dropped as a real sighting existed.
+describe("Add from Your Lifts carries what the lift's sheet planned", () => {
+  it("a created lift lands on the day with its rest, ramp, filler, note and strip", async () => {
+    writeGymSettings({ ...readGymSettings(), createdLifts: [{
+      key: "ek-z", name: "Zercher Squat", kind: "weight_reps",
+      plan: { restSec: 120, ramp: true, filler: true, note: "Pause at the bottom", sets: [{ id: "a", w: 95, r: 5 }, { id: "b", w: 95, r: 5 }] },
+    }] } as never);
+    const { gym } = await mount(() => <GymFlow onBack={() => {}} />);
+    // The program page lists its days; the day row opens its exercises.
+    fireEvent.click(await screen.findByText("Push", { selector: ".row-grow .conn-name, .row-grow *" }, { timeout: 4000 }));
+    fireEvent.click(await screen.findByText("Add from Your Lifts"));
+    fireEvent.click(await screen.findByText("Zercher Squat", { selector: ".conn-name" }));
+    fireEvent.click(screen.getByRole("button", { name: "Add 1" }));
+    await waitFor(async () => {
+      const day = (await gym.listPrograms())[0]!.data.weeks[0]!.days[0]!;
+      expect(day.exercises.map((e) => e.name)).toContain("Zercher Squat");
+    });
+    const ex = (await gym.listPrograms())[0]!.data.weeks[0]!.days[0]!.exercises.find((e) => e.name === "Zercher Squat")!;
+    expect(ex).toMatchObject({ exerciseKey: "ek-z", restSec: 120, ramp: true, filler: true, note: "Pause at the bottom" });
+    expect(ex.sets).toHaveLength(2);
+    expect(ex.sets[0]).toMatchObject({ w: 95, r: 5 });
   });
 });

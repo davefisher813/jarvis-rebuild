@@ -20,7 +20,8 @@ import { copyText } from "../shared/shareText";
 
 // YOUR TIMES (Track 3, 2026-09-14; the preview's Booking Settings screen:
 // "One screen. Day toggles and a duration list, no wizard"). Available or
-// not, the days, the slot length, who can book and how the link is found.
+// not, the days and the slot length. Who can book is not a choice any more
+// (2026-10-05): the screen shows the one answer, anyone with the link.
 //
 // The link and the bookings on it are the SERVER's (Track 3, 2026-09-19), so
 // the screen asks for both rather than deciding either. What was once an

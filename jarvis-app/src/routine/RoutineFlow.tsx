@@ -155,7 +155,10 @@ export default function RoutineFlow({ onBack, focusId, onFocusConsumed }: { onBa
     // Only an EXPLICIT choice is stored. Leaving it alone keeps the block on
     // its kind's default, which is what almost everyone should do.
     ...(f.mode ? { mode: f.mode } : {}),
-    ...(f.mode === "blends" && f.free.length ? { free: f.free } : {}),
+    // 2026-10-05: the EFFECTIVE mode, not the stored one. A Commute or Gym
+    // block is Can Blend by default, so f.mode stays null while the channel
+    // chips are live; testing f.mode dropped every channel choice on save.
+    ...((f.mode ?? defaultModeFor(f.kind, f.label)) === "blends" && f.free.length ? { free: f.free } : {}),
     ...(f.location.trim() ? { location: f.location.trim() } : {}),
   });
   // BRAIN-F-06 (2026-09-05, fork option A). A block used to be edited into

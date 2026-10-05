@@ -61,4 +61,13 @@ describe("PUT /api/booking-link", () => {
     expect(wrote("booking_links")).toMatchObject({ visibility: "link_only" });
     expect(wrote("booking_permissions")).toMatchObject({ mode: "open_link" });
   });
+
+  // 2026-10-05: the lookup tables are plain objects, so these words used to
+  // read an inherited function or Object.prototype and fail the insert (502).
+  it.each(["constructor", "toString", "__proto__", "hasOwnProperty"])("the inherited key %s lands on the open rows rather than failing the save", async (word) => {
+    const r = await put({ visibility: word, who: word });
+    expect(r.status).toBe(200);
+    expect(wrote("booking_links")).toMatchObject({ visibility: "link_only" });
+    expect(wrote("booking_permissions")).toMatchObject({ mode: "open_link" });
+  });
 });

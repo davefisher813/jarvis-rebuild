@@ -295,9 +295,11 @@ export default function TodayFlow({
   onEditRoutine?: (blockId?: string) => void;
   // Where You Were (addendum item 6): navigate back to a recorded spot.
   onRestoreSpot?: (kind: "note" | "task" | "event" | "gym", id: string) => void;
-  // UP-CORE-08 (2026-09-05): open a note, for the meeting page the Now card
-  // makes. The shell's own navigateToNote; absent means the pill is not
-  // offered rather than tapping into nothing.
+  // UP-CORE-08 (2026-09-05): open a note from the event page's Notes rows
+  // (the Now card's Notes pill left on 2026-09-17; comment corrected
+  // 2026-10-05). The shell's own navigateToNote; absent means the Notes
+  // section is not offered (linkedNotes is passed empty) rather than rows that
+  // tap into nothing.
   onOpenNote?: (id: string) => void;
   // UP-CORE-18 (2026-09-05): open a project, for the near-deadline card.
   // Absent means the card is not offered rather than tapping into nothing.

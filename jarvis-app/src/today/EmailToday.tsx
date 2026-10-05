@@ -63,7 +63,11 @@ export default function EmailToday({ client, tasks, schedule, waiting, today, ex
             <I className="email-today-ic" />
             <div className="row-grow">
               <div className="conn-name truncate">{r.title}</div>
-              <div className="facts"><span className="fact">{r.line}</span></div>
+              {r.facts.length > 0 && (
+                <div className="facts">
+                  {r.facts.map((f) => <span key={f.text} className={"fact" + (f.tone ? " " + f.tone : "")}>{f.text}</span>)}
+                </div>
+              )}
             </div>
             <div className="chev"></div>
           </div>

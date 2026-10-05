@@ -158,7 +158,7 @@ export default function HubFlow({ onBack, onOpenEntity, onOpenEmail, client: giv
 
   if (client && overview && screen.kind === "agent") {
     const c = connectionOf(screen.id);
-    if (c) return <div className={pushCls}><AgentDetail client={client} connection={c} projects={overview.projects} aiAllowed={aiOn} offline={offline}
+    if (c) return <div className={pushCls}><AgentDetail client={client} connection={c} projects={overview.projects} aiAllowed={aiOn} adminOff={adminOff} offline={offline}
       onBack={() => setScreen({ kind: "root" })} onChanged={changed} onPreview={(connectionId, pid) => setScreen({ kind: "preview", connectionId, projectId: pid })} /></div>;
   }
   if (client && overview && screen.kind === "preview") {

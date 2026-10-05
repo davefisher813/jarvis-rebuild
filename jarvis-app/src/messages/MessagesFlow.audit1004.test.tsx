@@ -217,3 +217,107 @@ describe("Messages > Select > Select All Shown while Waiting On is showing", () 
     await waitFor(() => expect(archived.slice().sort()).toEqual(["n1", "n2"]));
   });
 });
+
+// ---- Select All Shown and the Noise fold (2026-10-05) -----------------------
+
+const NOISY: GmailThreadMeta[] = [
+  { id: "n1", messages: [msg("a1", "Nadia Brandt <nadia@x.com>", "Invoice Due Friday", "Please pay", ["INBOX"], Date.now() - 1000)] },
+  { id: "n2", messages: [msg("a2", "Old Navy <no@on.com>", "Final Hours", "Sale ends", ["INBOX"], Date.now() - 2000)] },
+  { id: "n3", messages: [msg("a3", "Peloton <hi@peloton.com>", "New Ride", "Ride now", ["INBOX"], Date.now() - 3000)] },
+];
+const NOISY_AI = () => triage(JSON.stringify([
+  { id: "n1", bucket: "needs_you", gist: "Pay the invoice." },
+  { id: "n2", bucket: "noise", gist: "A sale." },
+  { id: "n3", bucket: "noise", gist: "An ad." },
+]));
+
+describe("Messages > Select > Select All Shown and the Noise fold", () => {
+  async function selectAll() {
+    const archived: string[] = [];
+    const api = makeFakeGoogleApi({
+      listThreads: async () => NOISY,
+      modifyThread: async (id: string, _add: string[], remove: string[]) => { if (remove.includes("INBOX")) archived.push(id); },
+    });
+    mount(api, NOISY_AI());
+    fireEvent.click(await screen.findByText("Connect Google"));
+    await screen.findByText("Nadia Brandt", undefined, { timeout: 5000 });
+    await act(async () => { fireEvent.click(await screen.findByRole("button", { name: "Select" })); });
+    return { archived };
+  }
+
+  it("does not count or archive Noise rows behind the machines line", async () => {
+    const { archived } = await selectAll();
+    // The machines line is drawn; the two rows under it are not.
+    expect(screen.queryByText("Old Navy")).toBeNull();
+    await act(async () => { fireEvent.click(await screen.findByRole("button", { name: "Select All Shown" })); });
+    expect(screen.getByText(/^1 selected$/i)).toBeInTheDocument();
+    await act(async () => { fireEvent.click(await screen.findByRole("button", { name: "Archive 1" })); });
+    await waitFor(() => expect(archived).toHaveLength(1));
+    expect(archived).toEqual(["n1"]);
+  });
+
+  it("takes the Noise rows once the machines line is open and they are on screen", async () => {
+    const { archived } = await selectAll();
+    await act(async () => { fireEvent.click(screen.getByText(/2 machines wrote/i)); });
+    expect(await screen.findByText("Old Navy")).toBeInTheDocument();
+    await act(async () => { fireEvent.click(await screen.findByRole("button", { name: "Select All Shown" })); });
+    expect(screen.getByText(/^3 selected$/i)).toBeInTheDocument();
+    await act(async () => { fireEvent.click(await screen.findByRole("button", { name: "Archive 3" })); });
+    await waitFor(() => expect(archived.slice().sort()).toEqual(["n1", "n2", "n3"]));
+  });
+});
+
+describe("Messages > Select > Select All Shown and a collapsed sender group", () => {
+  it("counts a sender group's rows only once the group is open", async () => {
+    const t = Date.now();
+    const rows: GmailThreadMeta[] = [
+      { id: "n1", messages: [msg("a1", "Nadia Brandt <nadia@x.com>", "Invoice Due Friday", "Please pay", ["INBOX"], t - 1000)] },
+      ...[2, 3, 4].map((n) => ({ id: "n" + n, messages: [msg("a" + n, "Old Navy <no@on.com>", "Sale " + n, "Ends", ["INBOX"], t - n * 1000)] })),
+    ];
+    const api = makeFakeGoogleApi({ listThreads: async () => rows });
+    mount(api, triage(JSON.stringify([
+      { id: "n1", bucket: "needs_you", gist: "Pay the invoice." },
+      ...[2, 3, 4].map((n) => ({ id: "n" + n, bucket: "noise", gist: "A sale." })),
+    ])));
+    fireEvent.click(await screen.findByText("Connect Google"));
+    await screen.findByText("Nadia Brandt", undefined, { timeout: 5000 });
+    await act(async () => { fireEvent.click(await screen.findByRole("button", { name: "Select" })); });
+    await act(async () => { fireEvent.click(await screen.findByText(/3 machines wrote/i)); });
+    // The sender's one line is drawn; its three rows are folded under it.
+    await screen.findByText("3 Notices");
+    await act(async () => { fireEvent.click(await screen.findByRole("button", { name: "Select All Shown" })); });
+    expect(screen.getByText(/^1 selected$/i)).toBeInTheDocument();
+    await act(async () => { fireEvent.click(screen.getByText("3 Notices")); });
+    await act(async () => { fireEvent.click(await screen.findByRole("button", { name: "Select All Shown" })); });
+    expect(screen.getByText(/^4 selected$/i)).toBeInTheDocument();
+  });
+});
+
+// ---- The sweep card follows the Unsubscribe record (2026-10-05) ------------
+
+describe("Messages > sweep card > a sender just asked", () => {
+  it("drops out of the card the moment the thread Unsubscribe records it", async () => {
+    localStorage.setItem("jarvis.mail.tossed.v1", JSON.stringify({ "news@trailweekly.com": 3, "deals@shop.com": 3, "hi@third.com": 3 }));
+    const opened: string[] = [];
+    browserOpen(opened);
+    const api = makeFakeGoogleApi({ listThreads: async () => [{ id: "u1", messages: [msg("um1", "Trail Weekly <news@trailweekly.com>", "This Week on the Trail", "Ten routes", ["INBOX"], Date.now() - 1000)] }], getThread: async () => newsFull("<https://trailweekly.com/u/1>") as never });
+    mount(api, triage(JSON.stringify([{ id: "u1", bucket: "worth_knowing", gist: "A newsletter." }])));
+    fireEvent.click(await screen.findByText("Connect Google"));
+    // The card names the senders thrown away unopened, Trail Weekly among them.
+    expect(await screen.findByText(/9 Thrown Away Without Opening from/i)).toBeInTheDocument();
+    fireEvent.click(await screen.findByText("The Rest"));
+    await screen.findByText("Worth Knowing");
+    // A tap that lands while triage is still settling can hit a row that is
+    // about to be replaced, so tap again until the thread is the thing on screen.
+    await waitFor(() => {
+      if (!screen.queryByRole("button", { name: "Unsubscribe from Trail Weekly" })) fireEvent.click(screen.getByText("Trail Weekly"));
+      expect(screen.getByRole("button", { name: "Unsubscribe from Trail Weekly" })).toBeInTheDocument();
+    }, { timeout: 4000 });
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Unsubscribe from Trail Weekly" })); });
+    expect(opened).toEqual(["https://trailweekly.com/u/1"]);
+    // Back on the list: the sender just asked is no longer offered.
+    await waitFor(() => expect(screen.queryByText(/Thrown Away Without Opening from .*Trail Weekly/i)).toBeNull());
+    expect(screen.queryByText(/Thrown Away Without Opening from .*news@trailweekly\.com/i)).toBeNull();
+    expect(screen.getByText(/Thrown Away Without Opening from/i)).toBeInTheDocument();
+  });
+});

@@ -115,7 +115,10 @@ export default function SelectBar({
         className="btn btn-primary btn-sm select-del"
         disabled={n === 0}
         onClick={onDelete}
-        aria-label={"Delete " + n + " " + label + (forever ? " Forever" : "")}
+        // The name contains the visible text (2026-10-05): "Delete 2 Forever"
+        // is what is drawn, so it is what a Voice Control user says. The noun
+        // in between made the visible words a non-substring of the name.
+        aria-label={forever ? "Delete " + (n > 0 ? n + " " : "") + "Forever" : "Delete " + n + " " + label}
       >
         <Trash2 className="ic" />
         Delete {n > 0 ? n : ""}{forever ? " Forever" : ""}

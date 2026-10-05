@@ -210,6 +210,9 @@ export default function ExerciseSheet({ mode, initial, library, history, onSave,
   // Form rows land their tap on their own field (Dave 2026-09-15: "I want all rows clickable").
   const nameRef = useRef<HTMLInputElement>(null);
   const noteRef = useRef<HTMLInputElement>(null);
+  // The note the last suggestion pick wrote, so a second pick can tell it from
+  // one the athlete typed.
+  const pickedNote = useRef("");
   const toggleStrip = () => { setStripOpen((o) => !o); setReorderSets(false); };
 
   // Picking a suggestion carries kind, unit and the last-used target forward
@@ -233,13 +236,23 @@ export default function ExerciseSheet({ mode, initial, library, history, onSave,
       if (plan.timeUnit) setTimeUnit(plan.timeUnit);
     }
     // The session-side half is for a day or a live session, not a record.
+    // 2026-10-05: only the fields the plan NAMES are applied. A plan holds no
+    // zero rest, false flag or clock, so resetting the absent ones wiped what
+    // the athlete had already set on the open sheet.
     if (plan && !record) {
-      setRestSec(plan.restSec ?? 0);
-      setRamp(!!plan.ramp);
-      setFiller(!!plan.filler);
-      if (plan.note) setNote((n) => n || plan.note!);
-      const c = condFields(plan.cond);
-      setCondFormat(c.format); setCondMin(c.min); setCondInterval(c.interval); setCondRest(c.rest); setCondRounds(c.rounds);
+      if (plan.restSec !== undefined) setRestSec(plan.restSec);
+      if (plan.ramp) setRamp(true);
+      if (plan.filler) setFiller(true);
+      if (plan.cond) {
+        const c = condFields(plan.cond);
+        setCondFormat(c.format); setCondMin(c.min); setCondInterval(c.interval); setCondRest(c.rest); setCondRounds(c.rounds);
+      }
+      // The note an earlier pick put here is that pick's, not the athlete's:
+      // it is replaced (or cleared) by the next pick, a typed one is kept.
+      const prev = pickedNote.current;
+      const next = plan.note ?? "";
+      setNote((n) => (!n || n === prev ? next : n));
+      pickedNote.current = next;
     }
     setNameFocused(false);
   };

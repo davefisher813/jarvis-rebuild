@@ -82,10 +82,12 @@ export const EVENT_REMINDER_SPAN = 120;
 export const TASK_REMINDER_SPAN = 60;
 
 // The two daily check-in nudges, derived from the routine:
-// - morning ONE-thing ask at the brief time (or 15 min after wake), matching
-//   CheckIn's before-noon window
-// - evening mood ask two hours before bed, never before 6 PM, matching
-//   CheckIn's after-6 window; skipped entirely for schedules it cannot fit
+// - morning nudge at the brief time (or 15 min after wake), clamped to before
+//   noon
+// - evening wrap-up nudge two hours before bed, never before 6 PM and never
+//   before work ends (when Today turns evening and shows Still Open); skipped
+//   entirely for schedules it cannot fit
+// (Reworded 2026-10-05: the CheckIn screen and the mood ask are gone.)
 export function buildCheckinNotifications(routine: RoutineData, briefTime?: string): CheckinNotification[] {
   const out: CheckinNotification[] = [];
 
@@ -128,7 +130,11 @@ export function buildCheckinNotifications(routine: RoutineData, briefTime?: stri
   // math turned "bed at 1 AM" into a negative offset and the eveningMin <
   // sleepMin guard silently dropped the evening check-in for every night owl.
   const sleepAdj = routine.sleepMin <= routine.wakeMin ? routine.sleepMin + 24 * 60 : routine.sleepMin;
-  const eveningMin = Math.max(18 * 60, sleepAdj - 120);
+  // Floored at work end too (2026-10-05): the body names Today's Still Open
+  // section, which Today shows only once isEvening() is true, that is from
+  // max(18:00, workEndMin). Ringing earlier promised a section that was not
+  // there yet. If work runs past bedtime the guard below drops the alert.
+  const eveningMin = Math.max(18 * 60, sleepAdj - 120, routine.workEndMin);
   if (eveningMin < sleepAdj && eveningMin < 24 * 60) {
     out.push({
       id: EVENING_ID,

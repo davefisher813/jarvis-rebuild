@@ -206,6 +206,29 @@ describe("Schedule upload: what the fix sheet sets reaches the calendar", () => 
     expect(back.url).toBe("https://old.example");
     expect(back.until).toBeUndefined();
   });
+  // 2026-10-05: the other tap order. Fix and Save while the row is Once (the
+  // sheet hands back no interval), then Repeats: the seeded 2 Weeks survives.
+  it("a matched 2 Weeks series keeps its cadence when it is fixed before Repeats is tapped", async () => {
+    const svc = new ScheduleService(new Store(new InMemoryAdapter()), "u-upload-fix-3b");
+    const id = (await svc.createEvent("Practice", { date: "2026-09-13", start: "17:00", end: "18:00", recurrence: "weekly", interval: 2, category: "c1" }))!;
+    const existing = await svc.listEvents();
+    const onDone = vi.fn();
+    render(
+      <ScheduleUploadFlow ai={fakeAI(reply([
+        { title: "Practice", month: 9, day: 13, year: 2026, start: "17:00", end: "18:00", location: "" },
+      ]))} svc={svc} categories={CATS} existingEvents={existing} onDone={onDone} onCancel={() => {}} />,
+    );
+    fireEvent.change(screen.getByPlaceholderText(/Paste the Schedule/), { target: { value: "anything" } });
+    fireEvent.click(screen.getByText("Read the Pasted Text"));
+    await screen.findByText("Review the Schedule");
+    fireEvent.click(screen.getByLabelText("Fix Practice"));
+    fireEvent.change(screen.getByLabelText("Location"), { target: { value: "Rink 2" } });
+    fireEvent.click(screen.getByText("Save"));
+    fireEvent.click(await screen.findByText("Once")); // Repeats weekly, after the fix
+    fireEvent.click(await screen.findByText("Add 1 to Calendar"));
+    await waitFor(() => expect(onDone).toHaveBeenCalled());
+    expect(await svc.event(id)).toMatchObject({ recurrence: "weekly", interval: 2, location: "Rink 2" });
+  });
   it("an update to a matched event writes the trip and the training door the sheet set", async () => {
     const svc = new ScheduleService(new Store(new InMemoryAdapter()), "u-upload-fix-4");
     const id = (await svc.createEvent("Practice", { date: "2026-09-13", start: "17:00", end: "18:00", category: "c1" }))!;

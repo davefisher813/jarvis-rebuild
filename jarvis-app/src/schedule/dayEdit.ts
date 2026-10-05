@@ -56,7 +56,9 @@ export function duplicateOf(e: EventData, date = e.date): EventData {
 // purpose: clientId and bookingId (unique keys a second row would collide
 // on), gcalHash and emailIds (an import's own bookkeeping), trained (the
 // receipts of the day that earned them), moved and source (how the original
-// came to be, not the copy).
+// came to be, not the copy), and attendees (a copy of a Google meeting must not
+// carry its guest list into a second event that could re-invite them; copy the
+// guests by hand if the copy is meant to have them).
 export function carriedFields(e: EventData): { gym?: true; url?: string; notes?: string; travelMin?: number; bufferMin?: number; projectId?: string } {
   return {
     ...(e.gym ? { gym: true as const } : {}),

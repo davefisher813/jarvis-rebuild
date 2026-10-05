@@ -206,4 +206,28 @@ describe("RoutineFlow Can Blend: the note says what the chips mean", () => {
     expect(screen.getByText("Listening fits · Typing fits")).toBeInTheDocument();
     expect(screen.queryByText("A call fits · Typing does not")).toBeNull();
   });
+
+  // 2026-10-05: blockFromForm tested the STORED mode, which stays null on a
+  // Commute (Can Blend is its default), so the chips showed a choice that
+  // never reached the saved block or the AI line.
+  it("saves the channels picked on a Commute, whose Can Blend is the default", async () => {
+    render(
+      <NotesProvider userId="u-routine-blend-save">
+        <CaptureRoutine />
+        <RoutineFlow onBack={() => {}} />
+      </NotesProvider>,
+    );
+    fireEvent.click(await screen.findByText("Add Protected Time"));
+    fireEvent.change(await screen.findByLabelText("Name"), { target: { value: "Drive" } });
+    fireEvent.click(screen.getByRole("button", { name: "Commute", pressed: false }));
+    fireEvent.click(screen.getByText("Mouth"));
+    fireEvent.click(screen.getByText("Hands"));
+    fireEvent.click(screen.getByText("Add Block"));
+    await waitFor(async () => {
+      const saved = await routineRef!.get();
+      const b = (saved.protectedBlocks ?? []).find((x) => x.label === "Drive");
+      expect(b?.kind).toBe("commute");
+      expect([...(b?.free ?? [])].sort()).toEqual(["ears", "hands"]);
+    });
+  });
 });

@@ -374,8 +374,9 @@ export default function ChatFlow({ onOpen, onCompose, askPersonId, askNonce, onA
         actionLabel: "Undo",
         // 2026-10-04: Undo wrote a bare text, category and due copy under a
         // NEW id, so a recurring task, its steps, notes and links did not come
-        // back and anything holding the old id stopped opening it. Every
-        // other task Undo writes the whole snapshot back under its own id.
+        // back and anything holding the old id stopped opening it.
+        // recreateFrom(snapshot, id) restores the whole record under its own
+        // id.
         onAction: async () => {
           if (snapshotTask) await attemptWrite(() => tasksSvc.recreateFrom(snapshotTask, target.id));
         },
@@ -659,7 +660,11 @@ export default function ChatFlow({ onOpen, onCompose, askPersonId, askNonce, onA
   // Audit 2026-09-11 item 7 (fixed 2026-09-13, chat/refile.ts): every
   // delivery hands back the way to take itself back, so a refile can move
   // the file rather than copy it.
-  const [lastUndo, setLastUndo] = useState<Undo | null>(null);
+  // 2026-10-05: stored WITH the file it undoes. A delivery that threw, or a
+  // pick made mid-attach, left the previous file's Undo in state while
+  // lastFile moved on, so Move to on the new file deleted the old file's
+  // filing silently. refile only uses an Undo whose file is lastFile.
+  const [lastUndo, setLastUndo] = useState<{ file: File; undo: Undo } | null>(null);
 
   const fileToMoney = async (file: File, why: string): Promise<Undo | null> => {
     if (!filesSvc || !fileStore) { await say("jarvis", "Files need a signed-in account", { kind: "records" }); return null; }
@@ -761,9 +766,10 @@ export default function ChatFlow({ onOpen, onCompose, askPersonId, askNonce, onA
       const to = decided?.to ?? await askWhere(file, said);
       // 2026-10-04: an Undo is a function, and setState given a function
       // CALLS it as an updater, so every receipt and note filed here was
-      // taken straight back the moment it was filed. Wrapped, it is stored.
+      // taken straight back the moment it was filed. Held inside an object
+      // with its file, it is stored (and never handed to setState bare).
       const undo = await deliver(file, to, decided?.why ?? "Read from the file itself");
-      setLastUndo(() => undo);
+      setLastUndo(undo ? { file, undo } : null);
     } catch (e) {
       // Never a silent failure: the bytes did not land and the thread says so.
       await say("jarvis", e instanceof Error && e.message ? e.message : "Couldn't save that file", { kind: "records" });
@@ -785,8 +791,9 @@ export default function ChatFlow({ onOpen, onCompose, askPersonId, askNonce, onA
     try {
       // The new place first, then the old filing comes back; a delivery
       // that fails leaves the file where it was.
-      const undo = await refileWith(() => deliver(lastFile, to, "You moved it here"), lastUndo);
-      setLastUndo(() => undo);
+      const prev = lastUndo && lastUndo.file === lastFile ? lastUndo.undo : null;
+      const undo = await refileWith(() => deliver(lastFile, to, "You moved it here"), prev);
+      setLastUndo(undo ? { file: lastFile, undo } : null);
     } catch (e) {
       await say("jarvis", e instanceof Error && e.message ? e.message : "Couldn't save that file", { kind: "records" });
     } finally {
@@ -794,7 +801,10 @@ export default function ChatFlow({ onOpen, onCompose, askPersonId, askNonce, onA
     }
   };
 
-  const picker = usePickFile((f) => { setLastFile(f); void onPickedFile(f); });
+  // 2026-10-05: a pick while one is still being filed is dropped here, before
+  // lastFile moves: onPickedFile used to return early AFTER setLastFile, so
+  // the chips offered Move to for a file that was never delivered.
+  const picker = usePickFile((f) => { if (attaching) return; setLastFile(f); void onPickedFile(f); });
 
   // UP-MIND-02 (2026-09-05): every record an answer used has been stored on
   // the bubble since Chat shipped (types.ts ChatProvenance.refs) and nothing

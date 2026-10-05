@@ -39,8 +39,8 @@ export type BlockMode = "holds" | "protects" | "blends";
 
 // What a blend block leaves free. This is not decoration: it is the whole
 // difference between "phone call while driving" (fine) and "write the email
-// while driving" (not fine). blend.ts already reasons in mouth-vs-hands
-// terms; this is how a routine block tells it which.
+// while driving" (not fine). 2026-10-05: today this feeds the row text
+// (blendNote) and the AI context (routineToText); blend.ts does not read it.
 export type FreeChannel = "mouth" | "hands" | "ears";
 export const FREE_CHANNELS: FreeChannel[] = ["mouth", "hands", "ears"];
 
@@ -272,9 +272,10 @@ export function splitProtectedRanges(ranges: ProtectedRange[]): {
 } {
   const bucket = (x: ProtectedRange) => modeOf(x);
   const focus = ranges.filter((x) => bucket(x) === "holds").map((x) => ({ s: x.s, e: x.e, label: x.label }));
-  // A blend block is a WALL for ordinary placement (you really are driving),
-  // and an opening for the blend engine only. Both facts are true at once,
-  // which is why it rides in hard AND is returned separately.
+  // A blend block is a WALL for ordinary placement (you really are driving):
+  // hard, or soft when its Kept Clear switch is on (below). 2026-10-05: the
+  // `blend` list is returned separately for a future blend-engine consumer;
+  // nothing reads it yet.
   // 2026-10-04: unless its Kept Clear When Possible switch is on. That switch
   // is on every block's sheet, and a flexible blend went to hard regardless,
   // so the planner and the conflict check ignored it while the capacity count

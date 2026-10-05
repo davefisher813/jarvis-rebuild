@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useProfile } from "../data/NotesProvider";
 import LargeTitleNav from "../shared/LargeTitleNav";
-import { updateHealthSettings } from "../health/settings";
+import { readHealthSettings, updateHealthSettings } from "../health/settings";
 import { Capacitor } from "@capacitor/core";
 import { requestNotificationPermission, notificationPermissionState, sendTestReminder, TEST_REMINDER_DELAY_S, type NotifyPermission } from "../shared/notifications";
 import { Head, Card, Switch, Foot, Menu, Row } from "./kit";
@@ -12,13 +12,34 @@ import { attemptWrite } from "../shared/guard";
 import { useAccessToken } from "../data/NotesProvider";
 import { currentStatus, enableWebPush, disableWebPush, sendTestAlert, resubscribeIfNeeded, footFor, reasonFor, switchLocked, type WebPushStatus } from "../shared/webPush";
 
-type Prefs = { overdue: boolean; events: boolean; goals: boolean; checkins: boolean; rest: boolean };
-const DEFAULT: Prefs = { overdue: true, events: true, goals: true, checkins: true, rest: true };
+type Prefs = { overdue: boolean; events: boolean; goals: boolean; checkins: boolean };
+const DEFAULT: Prefs = { overdue: true, events: true, goals: true, checkins: true };
 
 export default function NotificationsPage({ onBack }: { onBack: () => void }) {
   const svc = useProfile();
   const [prefs, setPrefs] = useState<Prefs>(DEFAULT);
-  useEffect(() => { void svc.get().then((p) => setPrefs({ ...DEFAULT, ...(p?.notify ?? {}) })); }, [svc]);
+  // THE REST SWITCH HAS ONE HOME (2026-10-05). It used to read and write
+  // profile.notify.rest, which nothing but this page read, while the rest buzz
+  // is gated by health settings restNotify (GymFlow). Health Settings changes
+  // only the latter, so the two switches for the one alert could disagree. It
+  // now shows and flips restNotify itself, re-read on mount and whenever the
+  // app returns to the foreground, and the profile no longer carries a copy: a
+  // stored `rest` is dropped on read so the next save clears it.
+  const [restNotify, setRestNotify] = useState(() => readHealthSettings().restNotify);
+  useEffect(() => {
+    const reread = () => setRestNotify(readHealthSettings().restNotify);
+    reread();
+    const onVisible = () => { if (document.visibilityState === "visible") reread(); };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, []);
+  useEffect(() => {
+    void svc.get().then((p) => {
+      const { rest: _legacyRest, ...stored } = (p?.notify ?? {}) as Record<string, unknown>;
+      void _legacyRest;
+      setPrefs({ ...DEFAULT, ...stored });
+    });
+  }, [svc]);
   // SHARED-F-02 (2026-09-05): the seam has always reported denial truthfully
   // and this page threw the answer away (`void requestNotificationPermission()`),
   // then printed "Check-ins and event reminders arrive on this phone" whatever
@@ -148,7 +169,7 @@ export default function NotificationsPage({ onBack }: { onBack: () => void }) {
             only alert on this page the athlete asked for by starting the
             thing that schedules it, which is why it is last and why it is
             on by default. */}
-        {native && <Switch label="Rest timer" meta="A buzz on the lock screen when the rest is over" on={prefs.rest} locked={denied} onLocked={sayDenied} onToggle={() => { updateHealthSettings({ restNotify: !prefs.rest }); void set({ rest: !prefs.rest }); }} />}
+        {native && <Switch label="Rest timer" meta="A buzz on the lock screen when the rest is over" on={restNotify} locked={denied} onLocked={sayDenied} onToggle={() => { const next = !restNotify; updateHealthSettings({ restNotify: next }); setRestNotify(next); if (next) void requestNotificationPermission().then(() => readPerm()); }} />}
       </Card>
       {/* A4 (audit 2026-08-21, catalog Q8: never promise what the platform
           cannot do). A page called Notifications with switches on it
@@ -172,7 +193,7 @@ export default function NotificationsPage({ onBack }: { onBack: () => void }) {
         {!native
           ? (web === null ? "Checking whether this phone can get alerts" : footFor(web))
           : denied
-            ? "Notifications are off for JARVIS in iOS Settings · Daily check-ins and Rest timer need them · Turn them on there and nothing here has to change"
+            ? "Notifications are off for JARVIS in iOS Settings · Daily check-ins, Rest timer and event alerts need them · Turn them on there and nothing here has to change"
             : perm === "prompt"
               // Asked for the first time by turning a switch on, which is what
               // S1-03 moved here. Saying so beats promising alerts that are

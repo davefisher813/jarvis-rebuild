@@ -13,6 +13,7 @@ import type { WaitingData, WaitingItem } from "../substrate/waiting/types";
 import type { TaskItem } from "../tasks/TasksService";
 import type { EventItem } from "../schedule/types";
 import type { MailAddress } from "./emailClient";
+import { fmtTime } from "../schedule/calendar";
 
 export interface WaitingWrite {
   action_id?: string | null;
@@ -152,12 +153,18 @@ export function orderWaiting(items: readonly WaitingItem[], today: string): { op
 
 export const TODAY_EMAIL_CAP = 5;
 
+/** One fact under a Today Email row. `tone`: warn = due, red = late, date = a neutral time (small caps). No tone = the row's one grey. */
+export interface TodayEmailFact { text: string; tone?: "warn" | "red" | "date" }
+
 export interface TodayEmailRow {
   kind: "review" | "task" | "event" | "waiting";
   /** The destination item id, or "review" for the count. */
   id: string;
   title: string;
-  line: string;
+  /** What sits under the title, as FACTS (the catalog: separate .fact spans, the separator is drawn by CSS,
+   *  never a middle dot baked into a string; a fact with a meaning wears its key colour; a row with nothing
+   *  to say shows nothing). An empty list draws no line at all. */
+  facts: TodayEmailFact[];
   /** Overdue items first (0), then today's (1); then the date, then the id. */
   sort: [number, string, string];
 }
@@ -167,6 +174,12 @@ export const emailOriginEvent = (e: EventItem): boolean => e.data.source?.type =
 
 export function reviewLine(n: number): string {
   return `${n} Email ${n === 1 ? "Item" : "Items"} to Review`;
+}
+
+/** 10:00 AM to 10:15 AM from "10:00", "10:15": 12-hour with AM/PM, as every clock time is written (Dave 2026-09-26). */
+function timeSpan(start: string, end?: string): string {
+  const t = (hhmm: string) => { const f = fmtTime(hhmm); return `${f.time} ${f.ap}`; };
+  return end ? `${t(start)} to ${t(end)}` : t(start);
 }
 
 /** Oct 15 from 2026-10-15, without a zone shift. */
@@ -184,19 +197,19 @@ export function emailTodayRows(input: { count: number; tasks: readonly TaskItem[
   for (const t of input.tasks) {
     if (t.data.done || !t.data.due || t.data.due > input.today || !emailOriginTask(t)) continue;
     const overdue = t.data.due < input.today;
-    take({ kind: "task", id: t.id, title: t.data.text, line: overdue ? `Task · Was Due ${monthDayOf(t.data.due)}` : "Task · Due Today", sort: [overdue ? 0 : 1, t.data.due, t.id] });
+    take({ kind: "task", id: t.id, title: t.data.text, facts: [overdue ? { text: `Was Due ${monthDayOf(t.data.due)}`, tone: "red" } : { text: "Due Today", tone: "warn" }], sort: [overdue ? 0 : 1, t.data.due, t.id] });
   }
   for (const e of input.events) {
     if (e.data.date !== input.today || !emailOriginEvent(e)) continue;
-    take({ kind: "event", id: e.id, title: e.data.title, line: `Schedule · ${e.data.start}${e.data.end ? " to " + e.data.end : ""}`, sort: [1, input.today + "T" + e.data.start, e.id] });
+    take({ kind: "event", id: e.id, title: e.data.title, facts: [{ text: timeSpan(e.data.start, e.data.end), tone: "date" }], sort: [1, input.today + "T" + e.data.start, e.id] });
   }
   for (const w of input.waiting) {
     const d = w.data;
     if (d.status !== "open" || !d.followUpOn || d.followUpOn > input.today) continue;
     const overdue = d.followUpOn < input.today;
-    take({ kind: "waiting", id: w.id, title: d.title, line: `Waiting On ${d.counterpartyDisplay || "Someone"} · ${overdue ? "Follow Up Was " + monthDayOf(d.followUpOn) : "Follow Up Today"}`, sort: [overdue ? 0 : 1, d.followUpOn, w.id] });
+    take({ kind: "waiting", id: w.id, title: d.title, facts: [{ text: `Waiting On ${d.counterpartyDisplay || "Someone"}` }, overdue ? { text: "Follow Up Was " + monthDayOf(d.followUpOn), tone: "red" } : { text: "Follow Up Today", tone: "warn" }], sort: [overdue ? 0 : 1, d.followUpOn, w.id] });
   }
   rows.sort((a, b) => a.sort[0] - b.sort[0] || a.sort[1].localeCompare(b.sort[1]) || a.sort[2].localeCompare(b.sort[2]));
-  const head: TodayEmailRow[] = input.count > 0 ? [{ kind: "review", id: "review", title: reviewLine(input.count), line: "Open Email to Review", sort: [-1, "", ""] }] : [];
+  const head: TodayEmailRow[] = input.count > 0 ? [{ kind: "review", id: "review", title: reviewLine(input.count), facts: [], sort: [-1, "", ""] }] : [];
   return [...head, ...rows].slice(0, cap);
 }

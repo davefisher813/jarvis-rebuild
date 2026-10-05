@@ -11,6 +11,7 @@ import * as notifications from "../shared/notifications";
 import * as webPush from "../shared/webPush";
 import { reasonFor } from "../shared/webPush";
 import NotificationsPage from "./NotificationsPage";
+import { readHealthSettings, updateHealthSettings } from "../health/settings";
 
 describe("NotificationsPage", () => {
   it("toggles a pref off", async () => {
@@ -253,5 +254,63 @@ describe("NotificationsPage, on the web", () => {
     for (const name of ["Overdue and due tasks", "Today's events", "Daily check-ins", "Goal and life-area nudges", "Rest timer"]) {
       expect(screen.getByRole("switch", { name })).toBeInTheDocument();
     }
+  });
+});
+
+// 2026-10-05 (review): the Rest timer switch read profile.notify.rest, which
+// only this page read, while the buzz is gated by health settings restNotify.
+// Health Settings changes only the latter, so the two switches could disagree.
+describe("NotificationsPage, the Rest timer switch and the rest buzz share one setting", () => {
+  afterEach(() => { vi.restoreAllMocks(); window.localStorage.clear(); });
+  const restSwitch = async () => (await screen.findByText("Rest timer")).closest(".row")!.querySelector(".switch")!;
+  const phone = () => {
+    vi.spyOn(Capacitor, "isNativePlatform").mockReturnValue(true);
+    vi.spyOn(notifications, "notificationPermissionState").mockResolvedValue("granted");
+    vi.spyOn(notifications, "requestNotificationPermission").mockResolvedValue(true);
+  };
+
+  it("shows what Health Settings holds, and tapping it writes that same setting", async () => {
+    phone();
+    updateHealthSettings({ restNotify: false });
+    render(<NotesProvider userId="u-rest-one-home"><NotificationsPage onBack={() => {}} /></NotesProvider>);
+    const sw = await restSwitch();
+    expect(sw.getAttribute("aria-checked")).toBe("false");
+    fireEvent.click(sw);
+    await waitFor(() => expect(sw.getAttribute("aria-checked")).toBe("true"));
+    expect(readHealthSettings().restNotify).toBe(true);
+    fireEvent.click(sw);
+    await waitFor(() => expect(sw.getAttribute("aria-checked")).toBe("false"));
+    expect(readHealthSettings().restNotify).toBe(false);
+  });
+
+  it("follows a change made in Health Settings while the page is mounted, on return to the app", async () => {
+    phone();
+    updateHealthSettings({ restNotify: true });
+    render(<NotesProvider userId="u-rest-reread"><NotificationsPage onBack={() => {}} /></NotesProvider>);
+    const sw = await restSwitch();
+    expect(sw.getAttribute("aria-checked")).toBe("true");
+    updateHealthSettings({ restNotify: false });
+    document.dispatchEvent(new Event("visibilitychange"));
+    await waitFor(() => expect(sw.getAttribute("aria-checked")).toBe("false"));
+  });
+
+  it("keeps no second copy in the profile", async () => {
+    phone();
+    // A profile saved by an earlier build still carries the old copy.
+    vi.spyOn(ProfileService.prototype, "get").mockResolvedValue({ notify: { overdue: true, events: true, goals: true, rest: false } } as never);
+    const save = vi.spyOn(ProfileService.prototype, "save");
+    render(<NotesProvider userId="u-rest-no-copy"><NotificationsPage onBack={() => {}} /></NotesProvider>);
+    await restSwitch();
+    await new Promise((r) => setTimeout(r, 50));
+    fireEvent.click((await screen.findByText("Today's events")).closest(".row")!.querySelector(".switch")!);
+    await waitFor(() => expect(save).toHaveBeenCalled());
+    for (const call of save.mock.calls) expect((call[0] as { notify?: object }).notify).not.toHaveProperty("rest");
+  });
+
+  it("the denied foot names the event alerts too", async () => {
+    phone();
+    vi.spyOn(notifications, "notificationPermissionState").mockResolvedValue("denied");
+    render(<NotesProvider userId="u-rest-denied-foot"><NotificationsPage onBack={() => {}} /></NotesProvider>);
+    await waitFor(() => expect(screen.getByText(/Rest timer and event alerts need them/)).toBeInTheDocument());
   });
 });

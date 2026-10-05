@@ -1,8 +1,10 @@
 import type { CheckInEnergy, CheckInMood } from "./types";
 
 // CHECK IN, THE WORDS (2026-09-14). The three energy words and the three mood
-// words the screen offers, and the one line a log row or a tile reads back.
-// Pure, so the timeline (health/log.ts) and the screen agree.
+// words the screen offers, and the one line the check-in screen, the doctor
+// report (health/doctorReport.ts) and the insights records (insights/records.ts)
+// read back. Pure, so they agree. (Reworded 2026-10-05: health/log.ts and the
+// logger tiles this named are gone.)
 export const ENERGY_WORDS: { value: CheckInEnergy; label: string }[] = [
   { value: "low", label: "Low" },
   { value: "okay", label: "Okay" },

@@ -200,8 +200,9 @@ export default function NotesList({
   const ordered = [...notes].sort((a, b) => b.edited - a.edited);
   // C-18: archived notes leave every list except the Archived filter and
   // search; the other chips narrow the live notes.
-  // Recently Deleted is its own room: nothing there shows anywhere else,
-  // and search does not reach it.
+  // Recently Deleted is its own room: nothing there shows in any other view,
+  // and a search from All does not reach it. Searching inside the Recently
+  // Deleted view does (see pool below). Reworded 2026-10-05.
   const kept = ordered.filter((n) => !n.deleted);
   const deletedCount = ordered.length - kept.length;
   const live = kept.filter((n) => !n.archived);

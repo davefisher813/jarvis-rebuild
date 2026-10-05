@@ -30,7 +30,7 @@ export default function MedWindowScreen({ days, hasFood = true, onOpenDoctorRepo
 
       <div className="pad-x"><div className="card pad">
         <div className="p3-q">{hasFood ? "Four Facts a Day" : "Three Facts a Day"}</div>
-        <div className="bp-sub">{hasFood ? "Dose, food, session start, lights out" : "Dose, session start, lights out"} · nothing compared, nothing explained</div>
+        <div className="bp-sub">{hasFood ? "Dose, food, session start, lights out" : "Dose, session start, lights out"} · Nothing Compared, Nothing Explained</div>
       </div></div>
 
       {days.length === 0 ? (

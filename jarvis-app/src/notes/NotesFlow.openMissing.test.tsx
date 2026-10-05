@@ -7,11 +7,12 @@
 // the list.
 import "../shared/tiptapTest";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor, act } from "@testing-library/react";
+import { render, screen, waitFor, act, fireEvent } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import { NotesProvider, useNotes, useTasks } from "../data/NotesProvider";
 import NotesFlow from "./NotesFlow";
 import { subscribeToast, resetToasts } from "../shared/toast";
+import { NavOriginProvider } from "../shell/navOrigin";
 
 let notesRef: ReturnType<typeof useNotes> | null = null;
 let tasksRef: ReturnType<typeof useTasks> | null = null;
@@ -58,5 +59,36 @@ describe("NotesFlow: an id that is not a loadable note", () => {
     await open(async () => (await notesRef!.createNote("Roster", ""))!);
     await waitFor(() => expect(screen.getByLabelText("Note")).toBeInTheDocument());
     expect(said).not.toContain("Couldn't Open That Note");
+  });
+});
+
+// 2026-10-05 (review): the jump claim was set before the open was known to
+// succeed. A jump whose id would not load left it true with nav.origin still
+// set, so the NEXT note opened from the list wore a Back to the origin page and
+// left Notes for it, instead of returning to the Notes list.
+describe("NotesFlow: a failed jump does not claim the next note's Back", () => {
+  it("after a jump to a missing note, an ordinary note's Back is the Notes list", async () => {
+    const user = "u-open-missing-claim-" + Math.random().toString(36).slice(2);
+    const view = render(<NotesProvider userId={user}><Grab /></NotesProvider>);
+    await waitFor(() => expect(notesRef && tasksRef).toBeTruthy());
+    await act(async () => { await notesRef!.createNote("Real Note", ""); });
+    const back = vi.fn(() => true);
+    const claim = vi.fn(() => () => {});
+    const origin = { key: "brain", label: "AI Hub" } as const;
+    view.rerender(
+      <NotesProvider userId={user}>
+        <Grab />
+        <NavOriginProvider value={{ origin, back, claim, claimed: false }}>
+          <NotesFlow openId="no-such-note" />
+        </NavOriginProvider>
+      </NotesProvider>,
+    );
+    await waitFor(() => expect(said).toContain("Couldn't Open That Note"));
+    fireEvent.click(await screen.findByText("Real Note"));
+    await waitFor(() => expect(screen.getByLabelText("Note")).toBeInTheDocument());
+    expect(claim, "an ordinary open is not a jump").not.toHaveBeenCalled();
+    expect(screen.queryByText("AI Hub", { selector: ".nav-back" })).toBeNull();
+    fireEvent.click(screen.getByText("Notes", { selector: ".nav-back" }));
+    expect(back).not.toHaveBeenCalled();
   });
 });
