@@ -5,15 +5,16 @@
 // only supported way into it from a WKWebView is @capacitor/text-zoom's
 // TextZoom.getPreferred() (https://capacitorjs.com/docs/apis/text-zoom).
 //
-// THAT PLUGIN IS NOT INSTALLED, and cannot be added from this worktree: the
-// app's node_modules is a symlink into the main checkout, which this branch
-// must not write to. So this is the seam, honest about what it can answer:
-// null means "the system has not told us anything", which is exactly true
-// today, and the manual choice stands alone. Wiring it later is one dynamic
-// import inside readSystemTextScale and a line in DAVE_STEPS.md, with no
-// other file touched, because everything downstream already reads a number.
+// 2026-10-05: THE PLUGIN IS INSTALLED NOW. It answers the body font size the
+// person chose under Settings > Display > Text Size, divided by the 17pt base
+// (1 is the default size, 1.3 a notch or two up). It is bound BY NAME like
+// every other native seam here (registerPlugin, as shared/badge.ts does), so
+// this module still compiles and tests on a checkout with no native layer,
+// and an answer that is not a real number is "the system has not told us
+// anything": null, and the manual choice stands alone. Everything downstream
+// already reads a number and clamps it (clampScale).
 
-import { Capacitor } from "@capacitor/core";
+import { Capacitor, registerPlugin } from "@capacitor/core";
 
 // Past 1.4 the tab bar starts losing its labels and 44pt controls start
 // eating the row they sit in. Refusing to go further is a better answer than
@@ -31,9 +32,18 @@ export function clampScale(n: number): number {
  * Native only, and null on the web by design: a browser has its own zoom and
  * the app has no business second-guessing it.
  */
-export async function readSystemTextScale(): Promise<number | null> {
+export async function readSystemTextScale(
+  deps: { getPreferred?: () => Promise<{ value: number }> } = {},
+): Promise<number | null> {
   if (!Capacitor.isNativePlatform()) return null;
-  // No plugin, no reading. Deliberately not a guess: a wrong scale applied
-  // silently at boot is worse than the shipped one.
-  return null;
+  try {
+    const getPreferred = deps.getPreferred
+      ?? (() => registerPlugin<{ getPreferred(): Promise<{ value: number }> }>("TextZoom").getPreferred());
+    const { value } = await getPreferred();
+    // Not a guess: anything but a finite positive number is no answer, and a
+    // wrong scale applied silently at boot is worse than the shipped one.
+    return typeof value === "number" && Number.isFinite(value) && value > 0 ? value : null;
+  } catch {
+    return null;
+  }
 }

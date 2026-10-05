@@ -11,6 +11,12 @@
 -->
 <plist version="1.0">
 <dict>
+    <!-- 2026-10-05: remote push. "development" is the value Xcode writes for a
+         debug build; a distribution build is signed with "production" by the
+         provisioning profile, so this one value serves both. The capability
+         must also be enabled on the App ID in the Apple Developer account. -->
+    <key>aps-environment</key>
+    <string>development</string>
     <key>com.apple.developer.applesignin</key>
     <array>
         <string>Default</string>

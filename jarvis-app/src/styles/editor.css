@@ -111,6 +111,15 @@
   border: 0; border-radius: var(--r-pill); background: transparent; color: var(--tx-1); font-family: var(--f); font-size: calc(15px * var(--type-scale)); font-weight: var(--w-semi); }
 .doc-kbtn .ic { width: 20px; height: 20px; }
 .doc-kbtn:disabled { color: var(--tx-2); }
+/* THE COMPACT ROW (2026-10-05, CLAUDE.md option 3). Only in the native shell and
+   only once native/keyboard.ts has really hidden iOS's own accessory pill: our bar
+   then sits straight on the keys and the full 52px row is room nobody asked for.
+   44px row, 36px buttons, 14px type, 18px icons (45px measured against 57px). The
+   page's own tap-target floor still holds for the row; the buttons sit inside it. */
+html[data-kbar="compact"] .doc-kbar-row { min-height: 44px; padding-top: var(--s-1); padding-bottom: var(--s-1); }
+html[data-kbar="compact"] .doc-kbtn { min-width: 36px; min-height: 36px; font-size: calc(14px * var(--type-scale)); }
+html[data-kbar="compact"] .doc-kbtn .ic { width: 18px; height: 18px; }
+
 .doc-kbtn.on { background: var(--press-3); }
 .doc-kword { padding: 0 var(--s-3h); }
 /* The bar is the sheet grey, where --tint reads 3.76:1 (BROWSER-F-10), so
