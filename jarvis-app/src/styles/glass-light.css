@@ -1,0 +1,206 @@
+/* PEARL GLASS, LIGHT ONLY (Dave 2026-10-05: "I like the pearl effect",
+   haze "sunrise", finish "Ultimate, all of it").
+
+   The page stays white and the cards stay the grey they were (#F5F6F8, the
+   one-grey ruling). What changes is how they are LIT: a bright edge at the
+   top left, a cooler one at the bottom right, a curved highlight, a feel of
+   thickness at the foot, and a faint haze of colour behind the page for the
+   glass to sit on. Dark is untouched: every rule here is under
+   html[data-theme="light"].
+
+   Three decisions worth knowing, because the preview did otherwise:
+   1. NO backdrop-filter on cards, chips or the dock. They sit on a smooth
+      haze, so a blur there changes nothing you can see and costs a blurred
+      layer per card on a phone. Blur stays only where content really passes
+      under glass: the sheet and its scrim (and the tab bar, which already had
+      it).
+   2. NO entrance animation on every screen open. Dave ruled 2026-07-29 that
+      cards replaying their entrance on a tab switch read as jank. The
+      existing boot-only stagger (body.boot-stagger) is the entrance.
+   3. The highlight and the rim are background layers and inset shadows, not
+      pseudo-elements, so no card needs position: relative and nothing that
+      was absolutely placed inside one moves.
+
+   No purple anywhere: the haze is coral, amber, sky and mint, kept far apart
+   because coral and blue blend to lavender where they overlap. */
+
+html[data-theme="light"] {
+  --gl-coral: 255, 120, 96;
+  --gl-amber: 255, 184, 92;
+  --gl-sky: 72, 168, 255;
+  --gl-mint: 64, 214, 176;
+  --gl-ink: 30, 40, 80;
+  --gl-rim: 38, 48, 96;
+  --gl-pane: linear-gradient(168deg, rgba(250, 251, 253, 0.95) 0%, rgba(243, 245, 248, 0.90) 48%, rgba(238, 240, 245, 0.86) 100%);
+  --gl-chip: linear-gradient(168deg, rgba(241, 243, 247, 0.96), rgba(231, 234, 240, 0.90));
+  --gl-chrome: linear-gradient(168deg, rgba(255, 255, 255, 0.94), rgba(255, 255, 255, 0.76));
+  --gl-red-lo: color-mix(in srgb, var(--accent-fill) 86%, black);
+  --gl-red-top: color-mix(in srgb, var(--accent-fill) 78%, white);
+  --gl-red-glow: color-mix(in srgb, var(--accent-fill) 40%, transparent);
+  --gl-red-edge: color-mix(in srgb, var(--accent-fill) 55%, black);
+}
+
+/* THE HAZE: behind the scroll, fixed, so content slides over it. */
+html[data-theme="light"] .app-shell { isolation: isolate; }
+html[data-theme="light"] .app-shell::before {
+  content: ""; position: absolute; inset: 0; z-index: 0; pointer-events: none;
+  background:
+    radial-gradient(520px 380px at 108% -4%, rgba(var(--gl-coral), 0.24), transparent 62%),
+    radial-gradient(430px 380px at -14% 34%, rgba(var(--gl-amber), 0.20), transparent 64%),
+    radial-gradient(540px 440px at 112% 78%, rgba(var(--gl-sky), 0.22), transparent 62%),
+    radial-gradient(420px 360px at -6% 104%, rgba(var(--gl-mint), 0.20), transparent 64%);
+}
+/* Fine grain over the haze so a phone screen does not band. Plain, no blend. */
+html[data-theme="light"] .app-shell::after {
+  content: ""; position: absolute; inset: 0; z-index: 0; pointer-events: none; opacity: 0.045;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 .7 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+}
+html[data-theme="light"] .app-scroll { position: relative; z-index: 1; background: transparent; }
+html[data-theme="light"] .app-shell .screen { background: transparent; }
+
+/* THE CARD: the same grey, lit. */
+html[data-theme="light"] .card,
+html[data-theme="light"] .ruled .card {
+  background:
+    radial-gradient(520px 220px at 6% 0%, rgba(255, 255, 255, 0.70), rgba(255, 255, 255, 0) 70%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.30), rgba(255, 255, 255, 0) 120px),
+    var(--gl-pane);
+  box-shadow:
+    inset 1px 1px 0 rgba(255, 255, 255, 0.95),
+    inset -1px -1px 0 rgba(120, 130, 170, 0.14),
+    inset 0 -10px 18px -12px rgba(var(--gl-ink), 0.10),
+    0 1px 1px rgba(var(--gl-ink), 0.05),
+    0 4px 10px -2px rgba(var(--gl-ink), 0.07),
+    0 18px 34px -10px rgba(var(--gl-ink), 0.14);
+}
+/* A card inside a card is a row group, not a pane. Sheet groups stay panes. */
+html[data-theme="light"] .card .card:not(.xs-group),
+html[data-theme="light"] .ruled .card .card:not(.xs-group) {
+  background: transparent; box-shadow: none; border-radius: 0;
+}
+/* Hairlines fade out at both ends instead of cutting the pane. */
+html[data-theme="light"] .card .row + .row::before,
+html[data-theme="light"] .card .task-row + .task-row::before {
+  background: linear-gradient(90deg, rgba(var(--gl-rim), 0), rgba(var(--gl-rim), 0.11) 14%, rgba(var(--gl-rim), 0.11) 86%, rgba(var(--gl-rim), 0));
+}
+
+/* THE SMALL PANES: tiles and capsules. */
+html[data-theme="light"] .stat-tile {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.95), inset 0 -8px 12px -10px rgba(var(--gl-ink), 0.12), 0 0 0 0.5px rgba(var(--gl-rim), 0.08), 0 8px 16px -6px rgba(52, 62, 128, 0.18);
+}
+html[data-theme="light"] .st-n,
+html[data-theme="light"] .dring b { font-variant-numeric: tabular-nums; }
+
+html[data-theme="light"] .sched-badge-btn,
+html[data-theme="light"] .ticker-toggle,
+html[data-theme="light"] .btn-secondary,
+html[data-theme="light"] .quiet-action,
+html[data-theme="light"] .hdr-opts,
+html[data-theme="light"] .hdr-add,
+html[data-theme="light"] .dd,
+html[data-theme="light"] .see-all.pill-action,
+html[data-theme="light"] .notice-dismiss,
+html[data-theme="light"] .pill-act:not(.pill-go) {
+  background: var(--gl-chip);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.92), 0 0 0 0.5px rgba(var(--gl-rim), 0.09), 0 3px 8px rgba(52, 62, 128, 0.07);
+}
+html[data-theme="light"] .hdr-search {
+  background: rgba(236, 238, 243, 0.85);
+  box-shadow: inset 0 1px 2px rgba(52, 62, 128, 0.09), 0 0 0 0.5px rgba(var(--gl-rim), 0.07), 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+/* A value word inside a row is a word, not a button. */
+html[data-theme="light"] .card .row .dd { background: none; box-shadow: none; }
+
+/* THE RED: still the red, now with a lit top, a shaded foot and a warm glow. */
+html[data-theme="light"] .ruled .card .pill-act.pill-go,
+html[data-theme="light"] .pill-act.pill-go {
+  background: linear-gradient(180deg, var(--gl-red-top) 0%, var(--accent-fill) 46%, var(--gl-red-lo) 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.50), inset 0 -2px 3px var(--gl-red-edge), 0 1px 2px var(--gl-red-edge), 0 8px 16px -2px var(--gl-red-glow);
+}
+html[data-theme="light"] .btn-primary {
+  background-image: linear-gradient(180deg, var(--gl-red-top) 0%, var(--accent-fill) 46%, var(--gl-red-lo) 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.50), inset 0 -2px 3px var(--gl-red-edge), 0 1px 2px var(--gl-red-edge), 0 12px 22px -4px var(--gl-red-glow);
+}
+html[data-theme="light"] .notice-disc {
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.34) 0%, rgba(255, 255, 255, 0) 56%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55), inset 0 -2px 4px rgba(0, 0, 0, 0.16), 0 1px 1px rgba(0, 0, 0, 0.12), 0 5px 10px -2px rgba(0, 0, 0, 0.22);
+}
+html[data-theme="light"] .voice-mic {
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.30) 0%, rgba(255, 255, 255, 0) 55%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5), inset 0 -2px 3px var(--gl-red-edge), 0 6px 12px -2px var(--gl-red-glow);
+}
+
+/* THE DONE RING glows where it is filled. */
+html[data-theme="light"] .dring { filter: drop-shadow(0 4px 9px rgba(38, 160, 83, 0.32)); }
+html[data-theme="light"] .dring > div { box-shadow: inset 0 1px 3px rgba(var(--gl-ink), 0.10), 0 1px 0 rgba(255, 255, 255, 0.9); }
+
+/* THE GREETING sits a touch tighter. */
+html[data-theme="light"] .today-title { letter-spacing: -0.03em; }
+
+/* THE DOCK and THE TAB BAR: white glass, a lit edge, a red glow under the
+   active tab. The tab bar floats as a capsule. */
+html[data-theme="light"] .voice-bar,
+html[data-theme="light"] .voice-search {
+  background: var(--gl-chrome);
+  box-shadow: inset 1px 1px 0 rgba(255, 255, 255, 0.98), inset -1px -1px 0 rgba(120, 130, 170, 0.14), inset 0 -6px 10px -8px rgba(var(--gl-ink), 0.10), 0 2px 3px rgba(var(--gl-ink), 0.05), 0 12px 22px -8px rgba(var(--gl-ink), 0.18);
+}
+html[data-theme="light"] .tab-bar {
+  position: relative; z-index: 5;
+  margin: 0 14px calc(10px + env(safe-area-inset-bottom)); padding: 6px;
+  border-radius: 32px; border: 0;
+  background: linear-gradient(168deg, rgba(255, 255, 255, 0.90), rgba(255, 255, 255, 0.70));
+  box-shadow: inset 1px 1px 0 rgba(255, 255, 255, 0.98), inset -1px -1px 0 rgba(120, 130, 170, 0.14), inset 0 -8px 14px -10px rgba(var(--gl-ink), 0.10), 0 2px 4px rgba(var(--gl-ink), 0.06), 0 22px 40px -10px rgba(var(--gl-ink), 0.22);
+}
+html[data-theme="light"] .tab-bar .tab { border-radius: 26px; }
+html[data-theme="light"] .tab-bar .tab.active {
+  background: linear-gradient(168deg, rgba(255, 255, 255, 0.98), rgba(255, 255, 255, 0.66));
+  box-shadow: inset 0 1px 0 #fff, 0 0 0 0.5px rgba(var(--gl-rim), 0.07), 0 6px 14px -2px var(--gl-red-glow);
+}
+
+/* THE SHEET: real glass, because the page really does pass under it. */
+html[data-theme="light"] .sheet-scrim {
+  background: rgba(24, 26, 34, 0.22);
+  -webkit-backdrop-filter: blur(6px) saturate(140%); backdrop-filter: blur(6px) saturate(140%);
+}
+html[data-theme="light"] .sheet-scrim > .card {
+  background:
+    radial-gradient(420px 260px at 100% 0%, rgba(var(--gl-coral), 0.16), transparent 70%),
+    radial-gradient(420px 300px at 0% 100%, rgba(110, 190, 255, 0.16), transparent 70%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.90), rgba(250, 251, 255, 0.80));
+  -webkit-backdrop-filter: blur(40px) saturate(200%); backdrop-filter: blur(40px) saturate(200%);
+  box-shadow: inset 0 1px 0 #fff, inset 0 0 0 0.5px rgba(255, 255, 255, 0.7), 0 -1px 0 rgba(255, 255, 255, 0.6), 0 -14px 44px -6px rgba(30, 36, 60, 0.22);
+}
+html[data-theme="light"] .sheet-scrim .card.xs-group { background: var(--gl-chip); }
+html[data-theme="light"] .sheet-handle { background: linear-gradient(180deg, rgba(var(--gl-rim), 0.30), rgba(var(--gl-rim), 0.18)); box-shadow: 0 1px 0 rgba(255, 255, 255, 0.8); }
+
+/* PRESS: everything pressable gives a little under the thumb. */
+html[data-theme="light"] .pill-act,
+html[data-theme="light"] .see-all,
+html[data-theme="light"] .voice-bar,
+html[data-theme="light"] .voice-search,
+html[data-theme="light"] .tab,
+html[data-theme="light"] .btn-primary,
+html[data-theme="light"] .hdr-add { transition: transform 140ms var(--ease-out), box-shadow 140ms; }
+html[data-theme="light"] .pill-act:active,
+html[data-theme="light"] .see-all:active,
+html[data-theme="light"] .voice-bar:active,
+html[data-theme="light"] .voice-search:active,
+html[data-theme="light"] .tab:active,
+html[data-theme="light"] .btn-primary:active,
+html[data-theme="light"] .hdr-add:active { transform: scale(0.965); }
+@media (prefers-reduced-motion: reduce) {
+  html[data-theme="light"] .pill-act,
+  html[data-theme="light"] .see-all,
+  html[data-theme="light"] .voice-bar,
+  html[data-theme="light"] .voice-search,
+  html[data-theme="light"] .tab,
+  html[data-theme="light"] .btn-primary,
+  html[data-theme="light"] .hdr-add { transition: none; }
+  html[data-theme="light"] .pill-act:active,
+  html[data-theme="light"] .see-all:active,
+  html[data-theme="light"] .voice-bar:active,
+  html[data-theme="light"] .voice-search:active,
+  html[data-theme="light"] .tab:active,
+  html[data-theme="light"] .btn-primary:active,
+  html[data-theme="light"] .hdr-add:active { transform: none; }
+}

@@ -1072,3 +1072,15 @@ Not a reward system. A motivation-and-feedback layer on the Start flow whose def
 - **Not in v1.** An independent volume slider, optional progress rings, and a lighter-touch way to see history. TaskSheet step ticks remain local until Save.
 
 Pinned by `encourage/*.test.ts(x)`, `tasks/progress.test.ts`, `tasks/stepWriters.test.ts`, `tasks/TasksFlow.feedback.test.tsx`, `tasks/screens/StartScreen.feedback.test.tsx`, `settings/FeedbackStylePage.test.tsx` and `laws/feedback.test.ts`.
+
+## §AU. Pearl Glass, light only (Dave 2026-10-05: "I like the pearl effect"; haze Sunrise; finish Ultimate, all of it)
+
+The page stays white and the cards stay the grey they were (#F5F6F8, the one-grey ruling). What changed is the light on them. Everything lives in `styles/glass-light.css`, every selector under `html[data-theme="light"]`, so dark is untouched. `laws/glass.test.ts` pins it.
+
+- **The card**: the same grey wash, with a bright edge at the top left, a cooler edge at the bottom right, a curved highlight, a hint of thickness at the foot, and layered cool shadows. Built from background layers and inset shadows, so no card gets `position` and nothing absolutely placed inside one moves.
+- **The haze**: coral, amber, sky and mint, fixed behind the scroll so content slides over it, with a fine grain so a phone does not band. **No purple, ever**: coral and blue blend to lavender where they overlap, so they sit at opposite corners. The law rejects any blue-violet colour.
+- **The chrome**: tab bar is a floating white-glass capsule with a red glow under the active tab; the dock and its round buttons are white glass; the sheet is real glass over a neutral dimmer.
+- **The red** is still `--accent-fill`, now lit on top and shaded at the foot with a warm glow (derived from the token, no new red hex). Icon discs, the mic and the done ring carry the same finish.
+- **Decisions that differ from the preview**: no `backdrop-filter` on cards, chips or the dock (they sit on a smooth haze, so a blur changes nothing you can see and costs a layer per card; blur stays only on the sheet and the existing tab bar); no entrance animation on screen open (Dave 2026-07-29: cards replaying their entrance on a tab switch read as jank, so the existing boot-only stagger stays the only entrance).
+- **Press feedback**: pills, tabs, the dock and primary buttons scale to 0.965 under the thumb; off under Reduce Motion.
+- **Not touched**: the TV guide (`.sched-ticker`), the type scale (only the Today greeting's tracking), any dark rule.
