@@ -88,9 +88,10 @@ describe("TodayPage", () => {
     // title, a facts sub, and ONE control in the stream's action column.
     expect(container.querySelector(".hl-title")).toHaveTextContent("Over");
     expect(container.querySelectorAll(".hl .facts .fact").length).toBeGreaterThan(0);
-    // The urgency is the app's own chip, saying the distance in distanceFor's
-    // words (Dave 2026-09-16: "'today' should be a chip").
-    expect(container.querySelector(".hl .uchip.u-late")).toHaveTextContent("2 DAYS LATE");
+    // THE DISTANCE IS A FACT, NOT A CHIP (Dave 2026-10-05, the review: a filled chip drawn inside the Your Move row repeats its
+    // own head). distanceFor still says it ("2 Days Late"), in Title Case and the key's red, as a .fact span.
+    expect(container.querySelector(".hl .uchip"), "no chip inside the row").toBeNull();
+    expect(container.querySelector(".hl .fact.red")).toHaveTextContent("2 Days Late");
     // NO CAPSULE ON THE ROW (Dave 2026-10-05, locked): the verb is the swipe, and this one is late, so it is also the
     // one quiet word on the row.
     expect(container.querySelectorAll(".hl .pill-act").length).toBe(0);
@@ -100,9 +101,15 @@ describe("TodayPage", () => {
     // subtext that renders the up next page"). Both called onUpNext, so the
     // page was carrying one destination twice. Since 2026-10-03 (Dave: "just have a
     // red Focus button") the pill is the word alone, with no count.
-    expect(screen.getByText("Focus")).toBeInTheDocument();
-    expect(document.querySelector(".focus-row .fc-n"), "Focus carries no count (Dave 2026-10-03)").toBeNull();
-    expect(document.querySelector(".focus-row .row-act")).toHaveTextContent(/^Focus$/);
+    // FOCUS IS A CAPSULE IN YOUR MOVE'S HEAD (Dave 2026-10-05, locked: a section-level action lives in the section head, never
+    // a pill hung under its card), the word alone.
+    const focus = screen.getByText("Focus");
+    expect(focus.closest(".sh2"), "Focus is on the head").not.toBeNull();
+    expect(focus.closest(".sh2")!.querySelector(".t")).toHaveTextContent("Your Move");
+    expect(focus).toHaveClass("see-all", "pill-action");
+    expect(focus.textContent).toBe("Focus");
+    expect(document.querySelector(".focus-row"), "no centred pill under the card").toBeNull();
+    expect(document.querySelector(".notice-clear-row"), "nothing hangs under the card").toBeNull();
     // C-24: one headliner, and no task row left in the stream at all.
     expect(container.querySelectorAll(".hl-title").length).toBe(1);
     expect(container.querySelectorAll(".heads-up-stream .task-row").length).toBe(0);
@@ -124,24 +131,25 @@ describe("TodayPage", () => {
         moveReason="Fits before Deep Work" onUpNext={() => {}} />,
     );
     const facts = container.querySelector(".hl .facts")!;
-    expect(facts.querySelector(".uchip.u-today")).toHaveTextContent("TODAY");
+    // Due today is the key's amber fact, in words ("Due Today"), not a chip (Dave 2026-10-05).
+    expect(facts.querySelector(".uchip"), "no chip in the row").toBeNull();
+    expect(facts.querySelector(".fact.warn")).toHaveTextContent("Due Today");
     expect(facts).toHaveTextContent("Fits before Deep Work");
     // The two it yields to them, rather than printing all four unreadably.
     expect(facts).not.toHaveTextContent("Personal");
     expect(facts).not.toHaveTextContent("20 Min");
     expect(facts.querySelectorAll(".fact").length).toBe(2);
-    // NOTHING ON THIS LINE IS COLOURED (Dave 2026-09-21: "get rid of the blue
-    // subtext"). The placement used to wear .fact.sky, the last sky fact in
-    // the app; the chip carries the only tint on the row now, and it is not a
-    // fact.
-    expect(facts.querySelectorAll(".fact.warn, .fact.good, .fact.sky, .fact.purp, .fact.red").length).toBe(0);
+    // THE PLACEMENT IS NOT COLOURED (Dave 2026-09-21: "get rid of the blue subtext"). It used to wear .fact.sky, the last sky
+    // fact in the app. The line's one coloured fact is the distance (K.3), so exactly one tone is on it.
+    expect(facts.querySelectorAll(".fact.good, .fact.sky, .fact.purp, .fact.red").length).toBe(0);
+    expect(facts.querySelectorAll(".fact.warn").length).toBe(1);
     // BOTH FALLBACKS. Nothing due tomorrow or later gets a chip at all
     // (distanceFor's own rule, which is what keeps the chip loud), so the
     // area takes the first slot; with no placement the length takes the
     // second, which is the "TODAY / 45 min" pair Dave photographed.
     rerender(<TodayPage {...base} upNext={[tk("nodate", null)]}
       moveCategory={{ name: "Personal", slot: "teal" }} moveEstimate="20 Min" onUpNext={() => {}} />);
-    expect(container.querySelector(".hl .uchip")).toBeNull();
+    expect(container.querySelector(".hl .fact.warn, .hl .fact.red")).toBeNull();
     expect(container.querySelector(".hl .fact.cat .cd.cat-bg-teal")).toBeTruthy();
     expect(container.querySelector(".hl .facts")).toHaveTextContent("20 Min");
     // §AM (2026-09-26): the length is an estimate the app worked out, so it
@@ -157,12 +165,17 @@ describe("TodayPage", () => {
       <TodayPage {...base} upNext={[tk("due", "2026-05-20")]} onUpNext={() => {}} fifteen={running}
         onFifteenDone={() => {}} onFifteenStop={() => {}} onFifteenAgain={() => {}} />,
     );
-    expect(container.querySelector(".hl .fact.warn")).toBeNull();
+    // While it runs the clock is plain, a grey fact; the distance (Due Today, amber) is the line's one tone.
+    const clock = () => [...container.querySelectorAll(".hl .fact")].find((f) => /Left|Up/.test(f.textContent ?? ""))!;
+    expect(clock()).toHaveTextContent("14:32 Left");
+    expect(clock()).not.toHaveClass("warn");
     rerender(
       <TodayPage {...base} upNext={[tk("due", "2026-05-20")]} onUpNext={() => {}} fifteen={{ ...running, over: true, line: "15 Min Up" }}
         onFifteenDone={() => {}} onFifteenStop={() => {}} onFifteenAgain={() => {}} />,
     );
+    // Up, the block's own clock is the amber fact, and the distance stands aside so the line spends ONE tone (K.3).
     expect(container.querySelector(".hl .fact.warn")).toHaveTextContent("15 Min Up");
+    expect(container.querySelectorAll(".hl .fact.warn, .hl .fact.red")).toHaveLength(1);
   });
 
   // §AM (2026-09-26): one bill is two facts with the dot drawn by the

@@ -99,7 +99,7 @@ const NO_ACTION_EXISTS: Record<string, string> = {
   "messages/MessagesFlow.tsx · Nothing Is Open": "nothing promised and nothing waited on, which is the good outcome",
   "review/InsightsFlow.tsx · The First Crossing Starts It": "waiting on an achievement, which cannot be tapped into being",
   "review/ReportPage.tsx · No Month Sealed Yet": "the report arrives on the 1st on its own",
-  "search/SearchFlow.tsx · Search Everything": "the search idle state; the field above it IS the action and has focus",
+  "search/SearchFlow.tsx · Find Anything": "the search idle state; the field above it IS the action and has focus",
   "search/SearchFlow.tsx · No matches for &ldquo;": "same field, same focus; changing the words is the move",
   "settings/LearnedRulesPage.tsx · Nothing Learned Yet": "a rule lands by correcting JARVIS twice in normal use; there is no button for it",
   "brain/strands/StrandsPage.tsx · Nothing Under This One": "a filter with no members; the chips that change it are on screen",

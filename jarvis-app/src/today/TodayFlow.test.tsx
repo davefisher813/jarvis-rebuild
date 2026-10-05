@@ -415,6 +415,17 @@ describe("TodayFlow: the birthday card's Text door gathers a real voice (UP-MIND
 // the same call never picked up either option, so a plan built from Today
 // reasoned from routine hours and energy alone - the model could never cite
 // a fact or a pattern the way a Schedule-built plan already can.
+// CLEAR THIS PLAN IS BEHIND THE DAY HEAD'S MORE BUTTON (Dave 2026-10-05, locked): a day-level action sits in the section head's
+// overflow, last and destructive, not as a loose grey line under the Anytime fold. Open the sheet, read or tap it, and close.
+const openDayActions = () => fireEvent.click(screen.getByLabelText("Day Actions"));
+const clearThisPlan = () => { openDayActions(); fireEvent.click(screen.getByRole("button", { name: "Clear This Plan" })); };
+const hasClearThisPlan = () => {
+  openDayActions();
+  const has = !!screen.queryByRole("button", { name: "Clear This Plan" });
+  fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+  return has;
+};
+
 describe("TodayFlow: Plan My Day carries the same brain Schedule's does (UP-MIND-23 class)", () => {
   function SeededPlanTask() {
     const tasks = useTasks();
@@ -464,7 +475,7 @@ describe("TodayFlow: Plan My Day carries the same brain Schedule's does (UP-MIND
     // AI-refine path this test means to prove; opening the sheet against a
     // live draft proves nothing here, because the refine is SUPPOSED to
     // stand down in that case.
-    fireEvent.click(screen.getByRole("button", { name: "Clear This Plan" }));
+    clearThisPlan();
     fireEvent.click(screen.getByRole("button", { name: /Plan My Day/ }));
     await waitFor(() => expect(aiPlanOpts.length).toBeGreaterThan(0));
     const opts = aiPlanOpts[0]!;
@@ -482,14 +493,14 @@ describe("TodayFlow: Plan My Day carries the same brain Schedule's does (UP-MIND
     showToast.mockClear();
     render(<NotesProvider userId="today-clear-plan-undo"><SeededPlanTask /></NotesProvider>);
     await waitFor(() => expect(screen.getByText("Draft the Proposal")).toBeInTheDocument());
-    fireEvent.click(screen.getByRole("button", { name: "Clear This Plan" }));
-    expect(screen.queryByRole("button", { name: "Clear This Plan" }), "the plan is cleared").toBeNull();
+    clearThisPlan();
+    expect(hasClearThisPlan(), "the plan is cleared").toBe(false);
     const cleared = showToast.mock.calls.map((c) => c[0] as { message: string; actionLabel?: string; onAction?: () => void })
       .find((t) => t.message === "Plan Cleared");
     expect(cleared, "clearing the plan says so").toBeTruthy();
     expect(cleared!.actionLabel).toBe("Undo");
     await act(async () => { cleared!.onAction!(); });
-    expect(screen.getByRole("button", { name: "Clear This Plan" }), "Undo restores the standing plan").toBeInTheDocument();
+    expect(hasClearThisPlan(), "Undo restores the standing plan").toBe(true);
   });
 });
 

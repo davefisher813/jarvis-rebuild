@@ -18,6 +18,13 @@ Element.prototype.scrollIntoView = Element.prototype.scrollIntoView ?? (() => {}
 
 beforeEach(() => { showToast.mockReset(); localStorage.clear(); });
 
+// New Event is behind the day head's One More button (Dave 2026-10-05, D1: a head holds a calm number of capsules, and the
+// rest sit behind one overflow that opens the shared action sheet).
+const openNewEvent = async () => {
+  fireEvent.click(await screen.findByLabelText("Day Actions"));
+  fireEvent.click(await screen.findByRole("button", { name: "New Event" }));
+};
+
 describe("TodayFlow: New Event", () => {
   it("opens the New Event sheet on today and saves the event onto today", async () => {
     let sched: ScheduleService | null = null;
@@ -31,7 +38,7 @@ describe("TodayFlow: New Event", () => {
       </NotesProvider>,
     );
     await waitFor(() => expect(container.querySelector(".skel-screen")).toBeNull());
-    fireEvent.click(await screen.findByRole("button", { name: "New Event" }));
+    await openNewEvent();
     expect(document.querySelector(".sheet-bar-title")).toHaveTextContent("New Event");
     expect((screen.getByLabelText("Date") as HTMLInputElement).value, "set to today").toBe(todayISO());
     fireEvent.change(screen.getByLabelText("Event title"), { target: { value: "Coffee With Sam" } });
@@ -57,7 +64,7 @@ describe("TodayFlow: New Event", () => {
       </NotesProvider>,
     );
     await waitFor(() => expect(container.querySelector(".skel-screen")).toBeNull());
-    fireEvent.click(await screen.findByRole("button", { name: "New Event" }));
+    await openNewEvent();
     fireEvent.click(screen.getByText("Cancel"));
     expect(document.querySelector(".sheet-bar-title")).toBeNull();
     expect(await sched!.eventsOn(todayISO())).toEqual([]);

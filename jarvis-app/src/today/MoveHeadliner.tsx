@@ -245,9 +245,12 @@ export default function MoveHeadliner({
                 "TODAY · 45 min" Dave photographed exactly. */}
             <div className="conn-meta facts">
               {/* At most one coloured FACT per line is the law (K.3,
-                  extended in laws/astra.test.ts). The chip is not a fact and
-                  carries its own tint by rule; the second slot below is the
-                  line's one coloured fact at most. */}
+                  extended in laws/astra.test.ts). The distance is the line's
+                  one coloured fact (due is amber, late is red), and it stands
+                  aside while a running block is up, because that block's own
+                  "15 Minutes up" is the amber fact then; the second slot
+                  below is the line's one other fact, an estimate (sky) or a
+                  reason (grey). */}
               {facts.urgency && !facts.over ? (
                 <span className={"fact " + (facts.urgency.kind === "late" ? "red" : "warn")}>{urgencyWords(facts.urgency)}</span>
               ) : facts.category ? (

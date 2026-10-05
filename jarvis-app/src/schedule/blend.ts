@@ -162,7 +162,7 @@ export function fitScore(
   // spent otherwise.
   if ((kind === "moving" || kind === "waiting") && d === "voice") {
     score += 6;
-    why = kind === "moving" ? "You Can Do This While You Move" : "Fits the Wait";
+    why = kind === "moving" ? "While You Move" : "Fits the Wait";
   } else if (kind === "physical" && d === "voice") {
     score += 3;
     why = "Hands Free";
@@ -182,7 +182,7 @@ export function fitScore(
   // to be worth a point.
   if (task.category && e.category && task.category === e.category) {
     score += 3;
-    if (!why) why = "Same as This Block";
+    if (!why) why = "Same Area";
   }
 
   // A deep block is for things that take a head, which is exactly the set

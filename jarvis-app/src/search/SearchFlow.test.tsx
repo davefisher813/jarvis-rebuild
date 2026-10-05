@@ -18,9 +18,23 @@ function Seeded() {
 describe("SearchFlow", () => {
   it("prompts when empty, then finds a seeded task", async () => {
     render(<NotesProvider userId="u1"><Seeded /></NotesProvider>);
-    expect(await screen.findByText(/Search Everything/)).toBeInTheDocument();
-    fireEvent.change(screen.getByPlaceholderText("Search Everything"), { target: { value: "sam" } });
+    expect(await screen.findByText("Find Anything")).toBeInTheDocument();
+    fireEvent.change(screen.getByPlaceholderText("Tasks, People, Notes"), { target: { value: "sam" } });
     await waitFor(() => expect(screen.getByText("Email Sam")).toBeInTheDocument());
+  });
+  // THE EMPTY STATE SAYS WHAT TO TRY, NOT WHAT THE FIELD ALREADY SAYS (Dave 2026-10-05, the review). It repeated the placeholder
+  // word for word. The field names what is searchable (Title Case, no typed dot) and the page under it says what to type.
+  it("the idle state does not repeat the field's placeholder, and both are Title Case", async () => {
+    render(<NotesProvider userId="u1"><SearchFlow onClose={() => {}} /></NotesProvider>);
+    const field = await screen.findByPlaceholderText(/Tasks/) as HTMLInputElement;
+    expect(field.placeholder).toBe("Tasks, People, Notes");
+    expect(field.placeholder).not.toMatch(/\u00b7/);
+    const title = document.querySelector(".empty-title");
+    expect(title?.textContent).toBe("Find Anything");
+    expect(title?.textContent).not.toBe(field.placeholder);
+    expect(document.querySelector(".empty-sub")?.textContent).toBe("Try a Name, a Task, or a Note");
+    // the page does not name the field a second time
+    expect(document.body.textContent).not.toMatch(/Search Everything/);
   });
   it("Cancel calls onClose", () => {
     const onClose = vi.fn();
@@ -37,7 +51,7 @@ describe("SearchFlow with one read failing", () => {
     const spy = vi.spyOn(NotesService.prototype, "listNotes").mockRejectedValueOnce(new Error("offline"));
     try {
       render(<NotesProvider userId="u-fail"><Seeded /></NotesProvider>);
-      fireEvent.change(await screen.findByPlaceholderText("Search Everything"), { target: { value: "sam" } });
+      fireEvent.change(await screen.findByPlaceholderText("Tasks, People, Notes"), { target: { value: "sam" } });
       await waitFor(() => expect(screen.getByText("Email Sam")).toBeInTheDocument());
       expect(spy).toHaveBeenCalled();
     } finally {
@@ -59,7 +73,7 @@ describe("SearchFlow: the top result opens", () => {
   it("a tap on the first row opens it and closes the overlay", async () => {
     const onOpen = vi.fn(); const onClose = vi.fn();
     render(<NotesProvider userId="u-top-tap"><SeededOpen onOpen={onOpen} onClose={onClose} /></NotesProvider>);
-    fireEvent.change(await screen.findByPlaceholderText("Search Everything"), { target: { value: "sam" } });
+    fireEvent.change(await screen.findByPlaceholderText("Tasks, People, Notes"), { target: { value: "sam" } });
     fireEvent.click(await screen.findByText("Email Sam"));
     expect(onOpen).toHaveBeenCalledWith("task", expect.any(String));
     expect(onClose).toHaveBeenCalled();
@@ -68,7 +82,7 @@ describe("SearchFlow: the top result opens", () => {
   it("Enter in the field shows the results and opens nothing", async () => {
     const onOpen = vi.fn(); const onClose = vi.fn();
     render(<NotesProvider userId="u-top-enter"><SeededOpen onOpen={onOpen} onClose={onClose} /></NotesProvider>);
-    const field = await screen.findByPlaceholderText("Search Everything") as HTMLInputElement;
+    const field = await screen.findByPlaceholderText("Tasks, People, Notes") as HTMLInputElement;
     field.focus();
     fireEvent.change(field, { target: { value: "sam" } });
     await screen.findByText("Email Sam");

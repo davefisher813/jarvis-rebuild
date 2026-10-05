@@ -554,9 +554,9 @@ export default function YourDay({
   // menu opens. Running Late asks how late in a second sheet of its own.
   const planButton = primary ? <div className="plan-cta-row">{primary}</div> : null;
 
-  // THE HEAD HOLDS TWO CAPSULES AND AN OVERFLOW (D1). In the order you use them: plan the day, add to it, go to it, then
-  // the actions that act on the day as a whole. The first two are capsules; the rest wait behind the one More button, so
-  // the head is always one line and never wraps a capsule onto a row of its own. Plan Tomorrow is here only when the page
+  // THE HEAD HOLDS ITS ACTIONS IN THE ORDER YOU USE THEM (D1): plan the day, add to it, go to it, then the actions that
+  // act on the day as a whole. The first is a capsule; the rest wait behind the one More button, so the head is always one
+  // line and never wraps a capsule onto a row of its own. Plan Tomorrow is here only when the page
   // has no Tomorrow head of its own to carry it (tomorrowShown), so it is one capsule in one place.
   const headActions: RowAction[] = [
     ...(onPlanDay ? [{ label: "Plan My Day", onPick: onPlanDay }] : []),
@@ -566,8 +566,11 @@ export default function YourDay({
     ...(hasFuture ? [{ label: "Running Late", onPick: () => setLateOpen(true) }] : []),
     ...(onClearPlan ? [{ label: "Clear This Plan", onPick: onClearPlan, destructive: true }] : []),
   ];
-  const headCapsules = headActions.slice(0, 2);
-  const headMore = headActions.slice(2);
+  // ONE CAPSULE HERE, NOT TWO (measured at 390: the title, the frozen pause, two capsules and the More button run 354px
+  // into a 350px head, and a head that does not fit wraps its cluster onto a second right-aligned row, which D1 forbids).
+  // The pause is the guide's own and stays; the capsule that remains is the first action in the order you use them.
+  const headCapsules = headActions.slice(0, 1);
+  const headMore = headActions.slice(1);
 
   const header = (
     <>

@@ -211,18 +211,63 @@ describe("YourDay evening and recovery actions", () => {
     expect(screen.getByText("Plan Tomorrow")).toBeInTheDocument();
   });
 
-  it("Running Late arms, then fires with the chosen shift", () => {
+  // RUNNING LATE IS THE DAY HEAD'S OVERFLOW (Dave 2026-10-05, D1 and D2): it was a full-width grey pill under Accept the Day.
+  // It sits behind the head's one More button and asks how late in a sheet of its own.
+  it("Running Late opens from the head's overflow, asks how late, and fires with the chosen shift", () => {
     const onRunningLate = vi.fn();
-    render(<YourDay events={[ev("a", "15:00")]} now="10:00" nowLabel="10:00" onSeeAll={() => {}} onRunningLate={onRunningLate} />);
-    fireEvent.click(screen.getByText("Running Late?"));
-    fireEvent.click(screen.getByText("+30m"));
+    const { container } = render(<YourDay events={[ev("a", "15:00")]} now="10:00" nowLabel="10:00" onSeeAll={() => {}} onPlanDay={() => {}} onRunningLate={onRunningLate} />);
+    expect(container.querySelector(".plan-cta"), "no Running Late pill under the day").toBeNull();
+    fireEvent.click(screen.getByLabelText("Day Actions"));
+    fireEvent.click(screen.getByRole("button", { name: "Running Late" }));
+    expect(document.querySelector(".action-sheet")!.closest(".card")!.querySelector(".eyebrow")).toHaveTextContent("Running Late");
+    fireEvent.click(screen.getByRole("button", { name: "30 Min" }));
     expect(onRunningLate).toHaveBeenCalledWith(30);
   });
 
   it("offers no Running Late when nothing ahead can move", () => {
     // Only a past event: shifting the past is not a thing.
-    render(<YourDay events={[ev("a", "08:00")]} now="10:00" nowLabel="10:00" onSeeAll={() => {}} onRunningLate={() => {}} />);
-    expect(screen.queryByText("Running Late?")).not.toBeInTheDocument();
+    render(<YourDay events={[ev("a", "08:00")]} now="10:00" nowLabel="10:00" onSeeAll={() => {}} onPlanDay={() => {}} onRunningLate={() => {}} />);
+    fireEvent.click(screen.getByLabelText("Day Actions"));
+    expect(screen.queryByRole("button", { name: "Running Late" })).not.toBeInTheDocument();
+  });
+
+  // THE HEAD IS ONE LINE (D1, 2026-10-05): the title, the guide's pause and ONE capsule, then every other action behind ONE
+  // More button. It never grows a second row of capsules, and Now is a neutral head (brand red is for what you can tap).
+  it("the head holds one capsule and a More button, never a wrapped row of four", () => {
+    const { container } = render(
+      <YourDay events={[ev("a", "15:00")]} now="10:00" nowLabel="10:00" nowHead={<div />} onSeeAll={() => {}} onPlanDay={() => {}} onNewEvent={() => {}}
+        onRunningLate={() => {}} onClearPlan={() => {}} />,
+    );
+    const head = container.querySelector(".sh2")!;
+    expect(head).toHaveClass("sh2-quiet");
+    expect(head.querySelector(".t")).toHaveTextContent("Now");
+    const capsules = [...head.querySelectorAll(".see-all.pill-action:not(.head-more)")].map((b) => b.textContent);
+    expect(capsules).toEqual(["Plan My Day"]);
+    expect(head.querySelectorAll(".head-more")).toHaveLength(1);
+    fireEvent.click(screen.getByLabelText("Day Actions"));
+    const sheet = [...document.querySelectorAll(".action-sheet button")].map((b) => b.textContent);
+    expect(sheet).toEqual(["New Event", "Schedule", "Running Late", "Clear This Plan", "Cancel"]);
+    expect(screen.getByRole("button", { name: "Clear This Plan" }), "the one destructive action goes last, in its own ink").toHaveClass("destructive");
+  });
+
+  it("Clear This Plan exists only while a draft stands", () => {
+    render(<YourDay events={[ev("a", "15:00")]} now="10:00" nowLabel="10:00" onSeeAll={() => {}} onPlanDay={() => {}} />);
+    fireEvent.click(screen.getByLabelText("Day Actions"));
+    expect(screen.queryByRole("button", { name: "Clear This Plan" })).toBeNull();
+  });
+
+  it("Clear This Plan fires the clear, and Running Late and Clear This Plan are not loose controls under the card", () => {
+    const onClearPlan = vi.fn();
+    const { container } = render(
+      <YourDay events={[ev("a", "15:00")]} now="10:00" nowLabel="10:00" onSeeAll={() => {}} onPlanDay={() => {}} onRunningLate={() => {}}
+        onClearPlan={onClearPlan} primary={<button className="plan-cta plan-cta-block">Accept the Day</button>} />,
+    );
+    // Accept the Day, the proposal's own question, is the one filled primary and the only control under the card.
+    expect(container.querySelectorAll(".plan-cta-row .plan-cta")).toHaveLength(1);
+    expect(container.querySelector(".draft-clear")).toBeNull();
+    fireEvent.click(screen.getByLabelText("Day Actions"));
+    fireEvent.click(screen.getByRole("button", { name: "Clear This Plan" }));
+    expect(onClearPlan).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -382,12 +427,24 @@ describe("the nesting bug", () => {
 // SCHEDULE AUDIT 2026-10-01, item 8: "No explicit New Event on the Today
 // page." The day card's head carries a New Event pill beside Schedule.
 describe("YourDay: New Event", () => {
-  it("shows the pill beside Schedule and fires it", () => {
+  it("is the head's capsule when nothing plans the day, and fires", () => {
     const onNewEvent = vi.fn();
     render(<YourDay events={[ev("a", "09:00")]} now="08:00" nowLabel="8:00" onSeeAll={() => {}} onNewEvent={onNewEvent} />);
     const pill = screen.getByRole("button", { name: "New Event" });
-    expect(pill.parentElement, "in the head's action group, next to Schedule").toContainElement(screen.getByRole("button", { name: "Schedule" }));
+    expect(pill, "in the head").toHaveClass("see-all", "pill-action");
+    expect(pill.closest(".sh2")).not.toBeNull();
     fireEvent.click(pill);
+    expect(onNewEvent).toHaveBeenCalledTimes(1);
+  });
+
+  // With Plan My Day on the head too (the real Today), New Event waits behind the head's More button with Schedule, so the head
+  // is one line (Dave 2026-10-05, D1).
+  it("sits behind the head's More button beside Plan My Day, and fires from there", () => {
+    const onNewEvent = vi.fn();
+    render(<YourDay events={[ev("a", "09:00")]} now="08:00" nowLabel="8:00" onSeeAll={() => {}} onPlanDay={() => {}} onNewEvent={onNewEvent} />);
+    expect(screen.queryByRole("button", { name: "New Event" })).toBeNull();
+    fireEvent.click(screen.getByLabelText("Day Actions"));
+    fireEvent.click(screen.getByRole("button", { name: "New Event" }));
     expect(onNewEvent).toHaveBeenCalledTimes(1);
   });
 

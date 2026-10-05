@@ -133,3 +133,20 @@ describe("the scroll box takes no clearance for a floating pill, because the pil
     expect(ALL).not.toMatch(/--return-clear|--return-pad/);
   });
 });
+
+describe("the Today hero wash has no seam under the bar", () => {
+  it("a page-colour ramp sits behind the words and over the glow, at the hero's top edge", () => {
+    const b = joined(".today-hero::before");
+    expect(b).toMatch(/top:\s*0/);
+    expect(b).toMatch(/linear-gradient\(180deg, var\(--bg\), transparent\)/);
+    expect(b).toMatch(/z-index:\s*-1/);
+    expect(joined(".today-hero")).toMatch(/isolation:\s*isolate/);
+  });
+});
+
+describe("a shelf of project and goal cards", () => {
+  it("is not washed by its own footer scrim: the foot is under the title, and a pair or a lone card fills the gutters", () => {
+    expect(sheet("ruled.css")).toMatch(/\.ruled \.bp-card-foot \{[^}]*z-index:\s*0/);
+    expect(sheet("ruled.css")).toMatch(/\.ruled \.bp-grid > \.bp-card:only-child[\s\S]*?flex:\s*1 1 0/);
+  });
+});

@@ -183,3 +183,22 @@ describe("Today: Wrap Up, Finish Project", () => {
     expect(messages().some((m) => /Launch Site/.test(m))).toBe(false);
   });
 });
+
+// THE TOAST NAMES WHAT IT DID (Dave 2026-10-05, the review: "Marked Done" with no item name). Ticking a reminder says which one
+// and its new state, in Title Case, with the Undo it always had.
+describe("Today: ticking a reminder says which one", () => {
+  it("toasts the reminder's own name and state, not a bare Marked Done", async () => {
+    mount("missed-reminder");
+    const row = await waitFor(() => {
+      const r = document.querySelector(".rem-missed-row");
+      if (!r) throw new Error("no missed row yet");
+      return r;
+    }, { timeout: 4000 });
+    fireEvent.click(row);
+    const tick = await screen.findByRole("button", { name: "Mark Take Meds done" });
+    await act(async () => { fireEvent.click(tick); });
+    await waitFor(() => expect(messages()).toContain("Take Meds Done"));
+    expect(messages()).not.toContain("Marked Done");
+    expect(toasts.find((t) => t.message === "Take Meds Done")?.actionLabel).toBe("Undo");
+  });
+});

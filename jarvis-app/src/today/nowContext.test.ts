@@ -171,4 +171,14 @@ describe("Hyperfocus Guard (item 12)", () => {
   it("nothing coming renders nothing", () => {
     expect(hyperfocusGuard([ev("Done", "08:00")], "20:00")).toBeNull();
   });
+
+  // THE TITLE IS SHOWN THE WAY EVERY ROW SHOWS IT (2026-10-05, the review): the Focus screen said "Call With Nadia at 10 AM"
+  // while the Schedule row for the same event said "Call with Nadia". His typed title goes through the same Title Case, which
+  // keeps a small word small; the record keeps what he typed.
+  it("shows the event's title in the app's Title Case, so Focus and Schedule say the same words", () => {
+    const g = hyperfocusGuard([ev("Call With Nadia", "10:00")], "09:00")!;
+    expect(g.title).toBe("Call with Nadia");
+    expect(g.text).toBe("Call with Nadia at 10 AM");
+    expect(hyperfocusGuard([ev("call with nadia", "10:00")], "09:55")!.text).toBe("Call with Nadia in 5 Min");
+  });
 });

@@ -131,9 +131,12 @@ describe("MailNotices: the tap", () => {
     let release!: (r: MailActionResult) => void;
     const onNotificationAction = vi.fn(() => new Promise<MailActionResult>((r) => { release = r; }));
     render(<MailNotices today={TODAY} nowHHMM="09:00" onAddTask={async () => true} onNotificationAction={onNotificationAction} />);
+    // The verb is a row's swipe tray button now (Dave 2026-10-05: no capsule on a row). While it works the tray's label
+    // is the busy one, and the row says so too, in the same quiet word.
     fireEvent.click(screen.getByText("Track"));
-    expect(await screen.findByText("Opening…")).toBeInTheDocument();
-    fireEvent.click(screen.getByText("Opening…"));
+    expect((await screen.findAllByText("Opening…")).length).toBeGreaterThan(0);
+    // The word on the row is the row's one control while it works: a second tap is not a second action.
+    for (const b of screen.getAllByText("Opening…")) fireEvent.click(b);
     expect(onNotificationAction).toHaveBeenCalledTimes(1);
     release(done({ message: "Opened tracking." }));
     await flush();

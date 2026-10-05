@@ -495,17 +495,12 @@ export default function ScheduleFlow({ onEditRoutine, openId, openNonce, onOpenC
     setTuning(null);
   };
 
+  // ONE FILLED PRIMARY UNDER THE DAY (round-1 review, 2026-10-05; Dave's decision D2): Accept the Day is the proposal's own
+  // question, in its own words, so it may stand under the card. Not Today was its second capsule; it is a line in the day
+  // head's overflow now (SchedulePage's onDismissProposal), so nothing but the question hangs under the card.
   const proposalFooter = standingDraft && liveDraftBlocks.length > 0 ? (
     <div className="day-foot">
       <button className="btn btn-primary btn-sm" onClick={() => void acceptProposal()}>Accept the Day</button>
-      {/* SCHEDULE AUDIT 2026-08-29: bare .btn-sm is press-3 with
-          `color: var(--tint)` -- red TEXT -- and this one sits directly
-          beside the red-filled Accept. Two reds of equal weight arguing
-          about which one you meant, the same bug Just This One had on
-          Tasks. btn-secondary is the identical pill with neutral text; the
-          .btn-sm:not(.btn-secondary) guard in components.css exists
-          precisely so this class combination keeps the small sizing. */}
-        <button className="btn btn-sm btn-secondary" onClick={dismissProposal}>Not Today</button>
     </div>
   ) : null;
 
@@ -933,7 +928,11 @@ export default function ScheduleFlow({ onEditRoutine, openId, openNonce, onOpenC
     // hold a task at all. The tuck used to appear under a weekly commute,
     // attach on every week's copy, and be wiped by the next save.
     const open = dayEvents.filter((e) => holdsTasks(e) && (e.data.taskIds ?? []).length === 0);
-    const byEvent = bestPerBlock(open, attachableTasks, blendMem);
+    // A TASK THE PROPOSED DAY ALREADY PLACES IS NOT OFFERED AGAIN (round-1 review, 2026-10-05): "Reply to Nadia Re: Invoice"
+    // sat under Deep Work as a suggestion and, in the same list, as its own Proposed row at 6:30 PM. One task, one place
+    // on the day; the offer is for work the day has not spoken for.
+    const planned = new Set(liveDraftBlocks.map((b) => b.taskId));
+    const byEvent = bestPerBlock(open, attachableTasks.filter((t) => !planned.has(t.id)), blendMem);
     for (const e of open) {
       const fit = byEvent[e.id];
       if (!fit) continue;
@@ -1663,6 +1662,7 @@ export default function ScheduleFlow({ onEditRoutine, openId, openNonce, onOpenC
         onNotes={onNavigate ? (e) => void openEventNote(e) : undefined}
         proposed={standingProposal}
         dayFooter={proposalFooter}
+        {...(standingDraft && liveDraftBlocks.length > 0 ? { onDismissProposal: dismissProposal } : {})}
         year={view.y}
         month={view.m}
         selected={selected}

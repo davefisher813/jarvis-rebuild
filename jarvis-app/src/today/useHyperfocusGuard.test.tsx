@@ -32,7 +32,9 @@ function Seeded() {
 describe("useHyperfocusGuard", () => {
   it("states the next commitment on any surface that mounts it", async () => {
     render(<NotesProvider userId="u-guard"><Seeded /></NotesProvider>);
-    await waitFor(() => expect(screen.getByText(/Team sync at 3 PM/)).toBeInTheDocument());
+    // The title is shown the way every row shows it, Title Case (2026-10-05): Focus said "Call With Nadia" while Schedule said
+    // "Call with Nadia" for the same event.
+    await waitFor(() => expect(screen.getByText(/Team Sync at 3 PM/)).toBeInTheDocument());
   });
 
   it("says nothing outside a provider, rather than refusing to mount", () => {

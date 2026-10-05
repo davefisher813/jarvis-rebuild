@@ -118,17 +118,23 @@ describe("reminders: Snooze is the swipe, and surfaces on the row only when due"
 
 describe("section-level actions live on the section head, never in a card", () => {
   const day = { events: [ev("e1", "09:00")], now: "08:00", nowLabel: "8:00", onSeeAll: noop };
-  it("Plan My Day is a head capsule beside New Event and Schedule, and no card holds a capsule", () => {
+  it("Plan My Day is the head's capsule, New Event and Schedule wait behind its More button, and no card holds a capsule", () => {
     const { container } = render(<YourDay {...day} onPlanDay={noop} onNewEvent={noop} />);
     const head = container.querySelector(".sh2")!;
-    expect(Array.from(head.querySelectorAll(".see-all.pill-action")).map((b) => b.textContent)).toEqual(["Plan My Day", "New Event", "Schedule"]);
+    // ONE CAPSULE AND ONE OVERFLOW (D1, 2026-10-05): the head never wraps four controls onto a second row.
+    expect(Array.from(head.querySelectorAll(".see-all.pill-action:not(.head-more)")).map((b) => b.textContent)).toEqual(["Plan My Day"]);
+    expect(head.querySelectorAll(".head-more")).toHaveLength(1);
+    fireEvent.click(screen.getByLabelText("Day Actions"));
+    expect(Array.from(document.querySelectorAll(".action-sheet button")).map((b) => b.textContent)).toEqual(["New Event", "Schedule", "Cancel"]);
     expect(container.querySelectorAll(".card .plan-cta, .card .btn").length).toBe(0);
   });
   it("an empty day keeps its own words and loses the buttons", () => {
     const { container } = render(<YourDay {...day} events={[]} onPlanDay={noop} onPlanTomorrow={noop} />);
     expect(container.querySelector(".card .empty-title")).toBeTruthy();
     expect(container.querySelectorAll(".card button").length).toBe(0);
-    expect(Array.from(container.querySelectorAll(".sh2 .see-all")).map((b) => b.textContent)).toContain("Plan Tomorrow");
+    // Plan Tomorrow rides the head, behind its More button when Plan My Day holds the capsule.
+    fireEvent.click(screen.getByLabelText("Day Actions"));
+    expect(Array.from(document.querySelectorAll(".action-sheet button")).map((b) => b.textContent)).toContain("Plan Tomorrow");
   });
   it("Plan Tomorrow is ONE capsule in one place: the Tomorrow head when the page has one, else Tonight's", () => {
     const evening = { doneDue: 1, dueTotal: 1, eventsLeft: 0, openCount: 0, thingsDone: 1 };

@@ -1266,7 +1266,6 @@
    together, which is the whole point of a now line. The hairline keeps a
    floor so it is still a rule and not a dash. */
 .ruled .sched-now { display: flex; align-items: center; flex-wrap: wrap; gap: var(--s-2h); padding: 9px var(--s-4) 7px; }
-.ruled .sched-now .sched-late { order: 1; }
 .ruled .sched-now .w { font-size: var(--t-micro); font-weight: var(--w-bold); letter-spacing: 0.1em;
   text-transform: uppercase; color: var(--sys-red); flex-shrink: 0; }
 .ruled .sched-now .l { flex: 1 1 24px; min-width: 24px; height: 1px; background: var(--sys-red); opacity: 0.4; }
@@ -1278,28 +1277,6 @@
    letterform (§AM F5, 2026-09-25) on the kicker token, not a raw 11. */
 .ruled .sched-now .t { font-size: var(--t-eyebrow); font-weight: var(--w-semi); letter-spacing: var(--track-caps);
   text-transform: uppercase; color: var(--tx-quiet); font-variant-numeric: tabular-nums; flex-shrink: 0; }
-/* Running Late? rides the rule it is about. Neutral capsule: the rule's own
-   red is the signal, and two reds on one line is the thing being fixed. */
-.ruled .sched-late { flex-shrink: 0; background: var(--press-3); color: var(--tx-1); border: 0;
-  border-radius: var(--r-pill); font-family: var(--f); font-size: var(--t-caption); font-weight: var(--w-semi);
-  padding: var(--s-1) var(--s-2h); position: relative; }
-/* THE CAPSULE RUNG, FOR REAL (catalog H0: capsules 34; visual-audit.mjs's
-   RUNGS, 2026-09-22). This painted 23px (29 at 1.4x type) and had no rung to
-   its name, so the auditor filed it under the flat 44 floor forever. Growing
-   the ::after cannot fix it: .sched-now's own padding -- 9px above this
-   capsule, 7px below -- is ALL the free space there is, and the row right
-   after it starts the instant that padding ends (measured live: the old
-   -9px ::after already lands on "sched-row sched-proposed" on the bottom
-   edge). Same route .pill-act takes instead: a transparent border, which
-   lives in the border box rather than a clipped or contested overlay, paid
-   back out of layout by the matching negative margin so the visible pill
-   never moves. 4 up and 7 down -- all of the bottom padding and less than
-   half of the top -- reach 34 without touching the row beside it. */
-.ruled .sched-late { border-top: 4px solid transparent; border-bottom: 7px solid transparent;
-  margin-top: -4px; margin-bottom: -7px; background-clip: padding-box; }
-.ruled .sched-late::after { content: ""; position: absolute; inset: 0 -4px; }
-.ruled .sched-late.on { background: var(--press-5); }
-.ruled .sched-list > .late-chips { padding-top: var(--s-1); padding-bottom: var(--s-2); }
 /* The merged time popover: when it starts, and how long it runs. */
 .ruled .time-pop-durs { margin-top: var(--s-3); }
 .ruled .time-pop-durs .input-label { margin-bottom: var(--s-1h); }
@@ -3172,3 +3149,78 @@
    page ground so a reveal never shows through, but inside a ruled card every row is transparent and the reveals are hidden at rest
    (the roster above), so the opaque ground only drew a lighter plate over the card. */
 .ruled .card .task-swipe > .swipe-row { background: transparent; }
+
+/* ---------- SCHEDULE, DAY, WEEK AND MONTH: THE ROUND-1 REVIEW (2026-10-05) ----------
+   Dave: "Everything should look PERFECT." Two passes of real screenshots found the day list's titles starting at five
+   different x positions, a length drawn in the late red on healthy blocks, an open slot, an offer and a head each laid out
+   a different way, and a week whose bars were different lengths. Everything below is the same row on one grid. */
+:root {
+  /* The lead slot every row spends first (star, check, select ring, the open slot's plus) and the time column behind it. */
+  --sched-lead: 24px;
+  --sched-time-w: calc(68px * var(--type-scale));
+}
+
+/* ONE LEFT EDGE FOR EVERY TITLE. A row used to lead with a 16px star plus margins, or a bare 16px check, or nothing, and the
+   time column took the width of its own text, so a title began at 149, 159, 161 or 171. The lead is one fixed slot, the time
+   one fixed column (right aligned, tabular, so the colons line up too), and a row with no lead (a protected block) keeps the
+   slot's room, so every title in the card starts at the same x. */
+.ruled .sched-row:not(.sched-row-bare) > .row-star,
+.ruled .sched-row:not(.sched-row-bare) > .sched-check,
+.ruled .sched-row:not(.sched-row-bare) > .sel-box,
+.ruled .sched-row:not(.sched-row-bare) > .sched-open-plus { flex: 0 0 var(--sched-lead); width: var(--sched-lead); margin: 0; }
+.ruled .sched-row:not(.sched-row-bare) > .sel-box { height: var(--sched-lead); }
+.ruled .sched-row:not(.sched-row-bare) > .sched-time { flex: 0 0 var(--sched-time-w); width: var(--sched-time-w); text-align: right; font-variant-numeric: tabular-nums; }
+.ruled .sched-row:not(.sched-row-bare) > .sched-time:first-child,
+.ruled .sched-row:not(.sched-row-bare) > .sched-bar + .sched-time { margin-left: calc(var(--sched-lead) + var(--s-3)); }
+/* The star is a 16px glyph in a 24px slot; its 44px hit is the expander, the same way the check's is, so the glyph keeps its
+   size and the row loses no tap to it. */
+.ruled .sched-row > .row-star { position: relative; justify-content: center; }
+.ruled .sched-row > .row-star::after { content: ""; position: absolute; inset: calc(-1 * var(--s-3h)) calc(-1 * var(--s-2h)); }
+.ruled .sched-row .sched-check { justify-content: center; }
+/* The title takes the width and the controls beside it (Overlaps, Join, the notes glyph) ride one fixed slot at the right edge,
+   so the glyph never trails a short title in one row and hangs at the far edge of a wrapped one in the next. */
+.ruled .sched-title > .sched-t { flex: 1 1 0; }
+
+/* A LENGTH IS AN ESTIMATE, SO IT IS SKY, NEVER RED (the Colour Key, decision D4). The tappable length wore the brand red, which
+   on a healthy block beside LIVE and a late word read as a fault. It is still the control that resizes the block; it is drawn
+   in the key's estimate ink in both themes, and the sheet it opens says what it does. */
+.ruled .sched-until-btn { color: var(--est-ink); font-weight: var(--w-regular); font-variant-numeric: tabular-nums; }
+.ruled .sched-until-btn:active { color: var(--est-ink); opacity: 0.6; }
+
+/* THE PROPOSED RAIL IS A REAL RAIL. A 1.5px dashed border on a 3px bar drew two hairlines of dots nobody could see (pale
+   yellow on cream, white on charcoal). It is one 3px dashed line in the area's own colour, the same width as the solid rail
+   of a booked block, so "not real yet" reads at arm's length and still takes no new colour. */
+.ruled .sched-bar.sched-bar-proposed { width: 0; background: transparent; border-style: dashed; border-width: 0 0 0 3px; border-radius: 0; }
+
+/* THE OPEN SLOT, ON THE GRID. Same dashed invitation (Dave 2026-08-25), but its plus leads in the lead slot and its time sits
+   in the time column, so the words behind it start where every title does. The dash is an outline, drawn inside the box, so
+   it costs the content no width and the slot's own edge is the row's. */
+.ruled .sched-gap { align-items: flex-start; gap: var(--s-3); border: 0; outline: 1px dashed var(--tx-4); outline-offset: -1px;
+  padding: var(--s-2h) var(--s-3); }
+.ruled .sched-gap > .sched-open-plus { flex: 0 0 var(--sched-lead); width: var(--sched-lead); text-align: center; line-height: 1.2; margin: 0; }
+.ruled .sched-gap > .sched-time { flex: 0 0 var(--sched-time-w); width: var(--sched-time-w); margin-left: 0; }
+.ruled .sched-gap .sched-gap-title { gap: 0 var(--s-1h); }
+
+/* THE OFFER UNDER A BLOCK IS A PLAIN TWO-LINE ROW ON THE SAME GRID: the plus in the lead slot, the task where a title starts,
+   the reason under it in the line's one grey. No dashed circle (it read as a button of its own); the whole row is the tap and
+   the plus is only the mark ahead of the words. The task wraps to a second line before it is ever cut. */
+.ruled .sched-card .blend-tuck { align-items: flex-start; gap: var(--s-3); min-height: var(--tap-min);
+  padding: var(--s-1h) var(--s-4) var(--s-1h) calc(var(--s-4) + var(--s-3)); }
+.ruled .sched-card .blend-plus { flex: 0 0 var(--sched-lead); width: var(--sched-lead); height: auto; border: 0; border-radius: 0;
+  color: var(--tint); font-size: var(--t-h3); font-weight: var(--w-bold); line-height: 1.3; }
+.ruled .sched-card .blend-tuck > .row-grow { margin-left: calc(var(--sched-time-w) + var(--s-3)); min-width: 0; }
+.ruled .sched-card .blend-text { font-size: var(--t-sub); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
+.ruled .sched-card .blend-why { font-size: var(--t-sub); }
+
+/* THE DAY HEAD: the name and its capsules on the first line, the count whole on the second. The count used to share the line
+   with Plan My Day and was cut to "5 Prop...". It is a fact about the day, so it is never ellipsized. */
+.ruled .sc-dayhead { flex-wrap: wrap; row-gap: var(--s-1); }
+.ruled .sc-dayhead .sc-fact { order: 4; flex: 1 0 100%; white-space: normal; overflow: visible; text-overflow: clip; }
+
+/* THE WEEK: one track for every bar. The open time on the right is its own fixed column, so a bar is the same length on every
+   row, and the clock under the card is measured against that track (it sat 16px left of the bars and said nothing true). */
+:root { --wk-open-w: calc(112px * var(--type-scale)); }
+.ruled .wk-open { flex: 0 0 var(--wk-open-w); width: var(--wk-open-w); min-width: 0; }
+.ruled .wk-ticks { margin-left: calc(var(--s-4) + var(--s-4) + 34px + var(--s-3));
+  margin-right: calc(var(--s-4) + var(--s-4) + var(--wk-open-w) + var(--s-3)); }
+.ruled .wk-bar { height: var(--s-3); }

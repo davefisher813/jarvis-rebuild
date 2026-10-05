@@ -41,7 +41,7 @@ describe("QuickCapture (Smart Paste)", () => {
         <QuickCapture ai={new AIService({ available: false })} onClose={onClose} />
       </NotesProvider>,
     );
-    fireEvent.change(screen.getByPlaceholderText(/Paste or type/), { target: { value: "Renew the domain" } });
+    fireEvent.change(screen.getByLabelText("Paste or Type"), { target: { value: "Renew the domain" } });
     fireEvent.click(screen.getByText("Capture"));
     // Instant save: the receipt appears without any confirm step.
     await waitFor(() => expect(screen.getByText("Saved")).toBeInTheDocument());
@@ -69,7 +69,7 @@ describe("QuickCapture (Smart Paste)", () => {
     );
     // "standup tomorrow": a date with no time and no imperative opener is
     // the deterministic layer's unconfident case, so the AI gets a say.
-    fireEvent.change(screen.getByPlaceholderText(/Paste or type/), { target: { value: "standup tomorrow" } });
+    fireEvent.change(screen.getByLabelText("Paste or Type"), { target: { value: "standup tomorrow" } });
     fireEvent.click(screen.getByText("Capture"));
     await waitFor(() => expect(screen.getByText("Saved")).toBeInTheDocument());
     expect(screen.getByText("Standup")).toBeInTheDocument();
@@ -83,7 +83,7 @@ describe("QuickCapture (Smart Paste)", () => {
         <QuickCapture ai={new AIService({ available: true, getToken: () => "tok", fetchImpl })} onClose={() => {}} />
       </NotesProvider>,
     );
-    fireEvent.change(screen.getByPlaceholderText(/Paste or type/), { target: { value: "call the plumber back" } });
+    fireEvent.change(screen.getByLabelText("Paste or Type"), { target: { value: "call the plumber back" } });
     fireEvent.click(screen.getByText("Capture"));
     await waitFor(() => expect(screen.getByText("Saved")).toBeInTheDocument());
     expect(fetchImpl).not.toHaveBeenCalled();
@@ -96,7 +96,7 @@ describe("QuickCapture (Smart Paste)", () => {
         <QuickCapture ai={ai} onClose={() => {}} />
       </NotesProvider>,
     );
-    fireEvent.change(screen.getByPlaceholderText(/Paste or type/), { target: { value: "call the plumber back" } });
+    fireEvent.change(screen.getByLabelText("Paste or Type"), { target: { value: "call the plumber back" } });
     fireEvent.click(screen.getByText("Capture"));
     await waitFor(() => expect(screen.getByText("Saved")).toBeInTheDocument());
     unmount();
@@ -106,7 +106,7 @@ describe("QuickCapture (Smart Paste)", () => {
         <QuickCapture ai={ai} onClose={() => {}} />
       </NotesProvider>,
     );
-    fireEvent.change(screen.getByPlaceholderText(/Paste or type/), { target: { value: "call the plumber back" } });
+    fireEvent.change(screen.getByLabelText("Paste or Type"), { target: { value: "call the plumber back" } });
     fireEvent.click(screen.getByText("Capture"));
     await waitFor(() => expect(screen.getByText(/You captured this exact text/)).toBeInTheDocument());
     fireEvent.click(screen.getByText("Save Anyway"));
@@ -130,7 +130,7 @@ describe("QuickCapture fact category chips (S4-Q22)", () => {
     // selfFact.ts's own example sentence: SHAPES matches "I never...", and the
     // weekday bucket (routine) matches before any other, since "Sundays" hits
     // no energy words first.
-    fireEvent.change(screen.getByPlaceholderText(/Paste or type/), { target: { value: "I never work out on Sundays" } });
+    fireEvent.change(screen.getByLabelText("Paste or Type"), { target: { value: "I never work out on Sundays" } });
     fireEvent.click(screen.getByText("Capture"));
     await waitFor(() => expect(screen.getByText("Saved")).toBeInTheDocument());
 
@@ -152,7 +152,7 @@ describe("QuickCapture fact category chips (S4-Q22)", () => {
         <QuickCapture ai={new AIService({ available: false })} onClose={() => {}} />
       </NotesProvider>,
     );
-    fireEvent.change(screen.getByPlaceholderText(/Paste or type/), { target: { value: "I never work out on Sundays" } });
+    fireEvent.change(screen.getByLabelText("Paste or Type"), { target: { value: "I never work out on Sundays" } });
     fireEvent.click(screen.getByText("Capture"));
     await waitFor(() => expect(screen.getByText("Saved")).toBeInTheDocument());
 
@@ -173,7 +173,7 @@ describe("QuickCapture fact category chips (S4-Q22)", () => {
       for (let i = 0; i < 12; i++) await strandsRef!.add("v " + i, "energy", "2026-01-01");
     });
 
-    fireEvent.change(screen.getByPlaceholderText(/Paste or type/), { target: { value: "I never work out on Sundays" } });
+    fireEvent.change(screen.getByLabelText("Paste or Type"), { target: { value: "I never work out on Sundays" } });
     fireEvent.click(screen.getByText("Capture"));
     await waitFor(() => expect(screen.getByText("Saved")).toBeInTheDocument());
 
@@ -205,7 +205,7 @@ describe("QuickCapture fact category chips (S4-Q22)", () => {
       for (let i = 0; i < 12; i++) await strandsRef!.add("v " + i, "values", "2026-01-01");
     });
 
-    fireEvent.change(screen.getByPlaceholderText(/Paste or type/), { target: { value: "call the plumber back" } });
+    fireEvent.change(screen.getByLabelText("Paste or Type"), { target: { value: "call the plumber back" } });
     fireEvent.click(screen.getByText("Capture"));
     await waitFor(() => expect(screen.getByText("Saved")).toBeInTheDocument());
     expect(screen.getByRole("radio", { name: "Task" })).toHaveAttribute("aria-checked", "true");
@@ -240,7 +240,7 @@ describe("QuickCapture receipt reads as facts (§AM)", () => {
           <QuickCapture ai={new AIService({ available: false })} onClose={() => {}} />
         </NotesProvider>,
       );
-      fireEvent.change(screen.getByPlaceholderText(/Paste or type/), { target: { value: "remind me to water the plants at 9pm" } });
+      fireEvent.change(screen.getByLabelText("Paste or Type"), { target: { value: "remind me to water the plants at 9pm" } });
       fireEvent.click(screen.getByText("Capture"));
       await waitFor(() => expect(screen.getByText("Saved")).toBeInTheDocument());
       expect(receiptFacts().map((f) => f.textContent)[0]).toMatch(/^Reminder 9:00\sPM$/);
@@ -253,7 +253,7 @@ describe("QuickCapture receipt reads as facts (§AM)", () => {
         <QuickCapture ai={new AIService({ available: false })} onClose={() => {}} />
       </NotesProvider>,
     );
-    fireEvent.change(screen.getByPlaceholderText(/Paste or type/), { target: { value: "remind me to water the plants at 9pm" } });
+    fireEvent.change(screen.getByLabelText("Paste or Type"), { target: { value: "remind me to water the plants at 9pm" } });
     fireEvent.click(screen.getByText("Capture"));
     await waitFor(() => expect(screen.getByText("Saved")).toBeInTheDocument());
 
@@ -274,7 +274,7 @@ describe("QuickCapture receipt reads as facts (§AM)", () => {
         <QuickCapture ai={new AIService({ available: false })} onClose={() => {}} />
       </NotesProvider>,
     );
-    fireEvent.change(screen.getByPlaceholderText(/Paste or type/), { target: { value: "pay rent $1,200 every month" } });
+    fireEvent.change(screen.getByLabelText("Paste or Type"), { target: { value: "pay rent $1,200 every month" } });
     fireEvent.click(screen.getByText("Capture"));
     await waitFor(() => expect(screen.getByText("Saved")).toBeInTheDocument());
 
@@ -303,7 +303,7 @@ describe("QuickCapture receipt reads as facts (§AM)", () => {
     );
     await waitFor(() => expect(peopleRef).toBeTruthy());
     await act(async () => { await peopleRef!.create({ name: "Marco", group: "contacts" }); });
-    fireEvent.change(screen.getByPlaceholderText(/Paste or type/), { target: { value: "pay Marco $50 every month" } });
+    fireEvent.change(screen.getByLabelText("Paste or Type"), { target: { value: "pay Marco $50 every month" } });
     fireEvent.click(screen.getByText("Capture"));
     await waitFor(() => expect(screen.getByText("Saved")).toBeInTheDocument());
 
@@ -328,7 +328,7 @@ describe("QuickCapture receipt reads as facts (§AM)", () => {
         <QuickCapture ai={new AIService({ available: false })} onClose={() => {}} />
       </NotesProvider>,
     );
-    const box = screen.getByPlaceholderText(/Paste or type/);
+    const box = screen.getByLabelText("Paste or Type");
     fireEvent.change(box, { target: { value: "pay Geico $214" } });
     fireEvent.click(screen.getByText("Capture"));
     await waitFor(() => expect(screen.getByText("Saved")).toBeInTheDocument());
@@ -346,7 +346,7 @@ describe("QuickCapture receipt reads as facts (§AM)", () => {
     fireEvent.click(screen.getByText("Redo"));
     await waitFor(async () => expect(await ledgerRef!.listBills()).toHaveLength(1));
     fireEvent.click(screen.getByText("Capture Another"));
-    fireEvent.change(screen.getByPlaceholderText(/Paste or type/), { target: { value: "pay Geico $214" } });
+    fireEvent.change(screen.getByLabelText("Paste or Type"), { target: { value: "pay Geico $214" } });
     fireEvent.click(screen.getByText("Capture"));
     fireEvent.click(await screen.findByText("Save Anyway"));
     expect(await screen.findByText("Already in Money · Geico $214.00")).toBeInTheDocument();
@@ -362,7 +362,7 @@ describe("QuickCapture receipt reads as facts (§AM)", () => {
         <QuickCapture ai={new AIService({ available: false })} onClose={() => {}} />
       </NotesProvider>,
     );
-    fireEvent.change(screen.getByPlaceholderText(/Paste or type/), { target: { value: "Renew the domain tomorrow" } });
+    fireEvent.change(screen.getByLabelText("Paste or Type"), { target: { value: "Renew the domain tomorrow" } });
     fireEvent.click(screen.getByText("Capture"));
     await waitFor(() => expect(screen.getByText("Saved")).toBeInTheDocument());
     // The resolved date is the task's one fact, and it is amber.
@@ -374,7 +374,7 @@ describe("QuickCapture receipt reads as facts (§AM)", () => {
         <QuickCapture ai={new AIService({ available: false })} onClose={() => {}} />
       </NotesProvider>,
     );
-    fireEvent.change(screen.getByPlaceholderText(/Paste or type/), { target: { value: "Dinner with Sam tomorrow at 7pm" } });
+    fireEvent.change(screen.getByLabelText("Paste or Type"), { target: { value: "Dinner with Sam tomorrow at 7pm" } });
     fireEvent.click(screen.getByText("Capture"));
     await waitFor(() => expect(screen.getByText("Saved")).toBeInTheDocument());
     // The same day on an event, and its clock time: both neutral.
@@ -388,7 +388,7 @@ describe("QuickCapture receipt reads as facts (§AM)", () => {
         <QuickCapture ai={new AIService({ available: false })} onClose={() => {}} />
       </NotesProvider>,
     );
-    fireEvent.change(screen.getByPlaceholderText(/Paste or type/), { target: { value: "Renew the domain" } });
+    fireEvent.change(screen.getByLabelText("Paste or Type"), { target: { value: "Renew the domain" } });
     fireEvent.click(screen.getByText("Capture"));
     await waitFor(() => expect(screen.getByText("Saved")).toBeInTheDocument());
 
@@ -410,7 +410,7 @@ describe("QuickCapture receipt reads as facts (§AM)", () => {
           <QuickCapture ai={new AIService({ available: false })} onClose={() => {}} />
         </NotesProvider>,
       );
-      fireEvent.change(screen.getByPlaceholderText(/Paste or type/), { target: { value: "Renew the domain" } });
+      fireEvent.change(screen.getByLabelText("Paste or Type"), { target: { value: "Renew the domain" } });
       fireEvent.click(screen.getByText("Capture"));
       await waitFor(() => expect(screen.getByText("Saved")).toBeInTheDocument());
       const row = screen.getByText("Locker code").closest(".row")!;
@@ -433,7 +433,7 @@ describe("QuickCapture: Recent Captures opens what it created (S6-Q35)", () => {
         <QuickCapture ai={new AIService({ available: false })} onClose={onClose} onOpen={onOpen} />
       </NotesProvider>,
     );
-    fireEvent.change(screen.getByPlaceholderText(/Paste or type/), { target: { value: "Renew the domain" } });
+    fireEvent.change(screen.getByLabelText("Paste or Type"), { target: { value: "Renew the domain" } });
     fireEvent.click(screen.getByText("Capture"));
     await waitFor(() => expect(screen.getByText("Saved")).toBeInTheDocument());
 
@@ -450,7 +450,7 @@ describe("QuickCapture: Recent Captures opens what it created (S6-Q35)", () => {
         <QuickCapture ai={new AIService({ available: false })} onClose={() => {}} />
       </NotesProvider>,
     );
-    fireEvent.change(screen.getByPlaceholderText(/Paste or type/), { target: { value: "Water the plants" } });
+    fireEvent.change(screen.getByLabelText("Paste or Type"), { target: { value: "Water the plants" } });
     fireEvent.click(screen.getByText("Capture"));
     await waitFor(() => expect(screen.getByText("Saved")).toBeInTheDocument());
 
@@ -478,7 +478,7 @@ describe("QuickCapture receipt offers every area", () => {
       for (const n of names) ids.push((await catsRef!.create(n, "blue"))!);
     });
 
-    fireEvent.change(screen.getByPlaceholderText(/Paste or type/), { target: { value: "Renew the domain" } });
+    fireEvent.change(screen.getByLabelText("Paste or Type"), { target: { value: "Renew the domain" } });
     fireEvent.click(screen.getByText("Capture"));
     await waitFor(() => expect(screen.getByText("Saved")).toBeInTheDocument());
 
@@ -507,7 +507,7 @@ describe("QuickCapture while the save is in flight", () => {
         <QuickCapture ai={new AIService({ available: false })} onClose={onClose} />
       </NotesProvider>,
     );
-    fireEvent.change(screen.getByPlaceholderText(/Paste or type/), { target: { value: "Renew the domain" } });
+    fireEvent.change(screen.getByLabelText("Paste or Type"), { target: { value: "Renew the domain" } });
     fireEvent.click(screen.getByText("Capture"));
     await waitFor(() => expect(screen.getByText("Saving...")).toBeInTheDocument());
 
@@ -547,7 +547,7 @@ describe("QuickCapture: a set goes to the live session", () => {
         <QuickCapture ai={new AIService({ available: false })} onClose={onClose} />
       </NotesProvider>,
     );
-    fireEvent.change(screen.getByPlaceholderText(/Paste or type/), { target: { value: "225 for 5" } });
+    fireEvent.change(screen.getByLabelText("Paste or Type"), { target: { value: "225 for 5" } });
     fireEvent.click(screen.getByText("Capture"));
     await waitFor(() => expect(onClose).toHaveBeenCalled());
     expect(readLive()!.exercises[0]!.sets).toHaveLength(1);
@@ -564,7 +564,7 @@ describe("QuickCapture: a set goes to the live session", () => {
         <QuickCapture ai={new AIService({ available: false })} onClose={() => {}} />
       </NotesProvider>,
     );
-    fireEvent.change(screen.getByPlaceholderText(/Paste or type/), { target: { value: "225 for 5" } });
+    fireEvent.change(screen.getByLabelText("Paste or Type"), { target: { value: "225 for 5" } });
     fireEvent.click(screen.getByText("Capture"));
     await waitFor(() => expect(readLive()!.exercises[0]!.sets).toHaveLength(1));
     act(() => showToast.mock.calls[0]![0].onAction());
@@ -578,7 +578,7 @@ describe("QuickCapture: a set goes to the live session", () => {
         <QuickCapture ai={new AIService({ available: false })} onClose={() => {}} />
       </NotesProvider>,
     );
-    fireEvent.change(screen.getByPlaceholderText(/Paste or type/), { target: { value: "Renew the domain" } });
+    fireEvent.change(screen.getByLabelText("Paste or Type"), { target: { value: "Renew the domain" } });
     fireEvent.click(screen.getByText("Capture"));
     await waitFor(() => expect(screen.getByText("Saved")).toBeInTheDocument());
     expect(readLive()!.exercises[0]!.sets).toHaveLength(0);
@@ -590,7 +590,7 @@ describe("QuickCapture: a set goes to the live session", () => {
         <QuickCapture ai={new AIService({ available: false })} onClose={() => {}} />
       </NotesProvider>,
     );
-    fireEvent.change(screen.getByPlaceholderText(/Paste or type/), { target: { value: "225 for 5" } });
+    fireEvent.change(screen.getByLabelText("Paste or Type"), { target: { value: "225 for 5" } });
     fireEvent.click(screen.getByText("Capture"));
     await waitFor(() => expect(screen.getByText("Saved")).toBeInTheDocument());
   });
@@ -607,7 +607,7 @@ describe("QuickCapture: Undo shows a Removed state with a Redo", () => {
         <QuickCapture ai={new AIService({ available: false })} onClose={() => {}} />
       </NotesProvider>,
     );
-    fireEvent.change(screen.getByPlaceholderText(/Paste or type/), { target: { value: "Renew the domain" } });
+    fireEvent.change(screen.getByLabelText("Paste or Type"), { target: { value: "Renew the domain" } });
     fireEvent.click(screen.getByText("Capture"));
     await waitFor(() => expect(screen.getByText("Saved")).toBeInTheDocument());
     expect(await tasksRef!.listTasks()).toHaveLength(1);
@@ -634,7 +634,7 @@ describe("QuickCapture: Undo shows a Removed state with a Redo", () => {
         <QuickCapture ai={new AIService({ available: false })} onClose={onClose} />
       </NotesProvider>,
     );
-    fireEvent.change(screen.getByPlaceholderText(/Paste or type/), { target: { value: "Renew the domain" } });
+    fireEvent.change(screen.getByLabelText("Paste or Type"), { target: { value: "Renew the domain" } });
     fireEvent.click(screen.getByText("Capture"));
     await waitFor(() => expect(screen.getByText("Saved")).toBeInTheDocument());
     fireEvent.click(screen.getByText("Undo"));
@@ -659,7 +659,7 @@ describe("QuickCapture: a Recent Captures row can be removed", () => {
         <QuickCapture ai={new AIService({ available: false })} onClose={() => {}} onOpen={onOpen} />
       </NotesProvider>,
     );
-    fireEvent.change(screen.getByPlaceholderText(/Paste or type/), { target: { value: "Water the plants" } });
+    fireEvent.change(screen.getByLabelText("Paste or Type"), { target: { value: "Water the plants" } });
     fireEvent.click(screen.getByText("Capture"));
     await waitFor(() => expect(screen.getByText("Recent Captures")).toBeInTheDocument());
 
