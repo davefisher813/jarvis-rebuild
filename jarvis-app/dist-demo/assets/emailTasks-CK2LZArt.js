@@ -1,1 +1,0 @@
-import{o as e}from"./SettingsService-Bgev-IVG.js";var t=`email`;function n(){try{return e(`emailTasks`)?.value===`list`?`list`:t}catch{return t}}function r(){return n()===`list`}function i(e){return e.source?.type===`email`||!!e.fromThread}export{i as n,n as r,r as t};
