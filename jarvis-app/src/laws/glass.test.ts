@@ -94,13 +94,10 @@ describe("glass-light.css", () => {
     expect(noComments).not.toMatch(/@keyframes/);
   });
 
-  it("keeps the cards the grey they were: the pane is a grey wash, never white or tinted", () => {
+  it("the pane is white, never tinted (Dave 2026-10-05, the catalog: light-mode card surfaces are white; it was a cool grey that read cream on the cream page)", () => {
     const pane = css.match(/--gl-pane:\s*([^;]+);/)![1]!;
-    for (const m of pane.matchAll(/rgba\((\d+),\s*(\d+),\s*(\d+)/g)) {
-      const [r, g, b] = [Number(m[1]), Number(m[2]), Number(m[3])];
-      expect(Math.max(r, g, b) - Math.min(r, g, b), `pane tinted ${r},${g},${b}`).toBeLessThanOrEqual(8);
-      expect(r, "pane lighter than the page").toBeLessThan(255);
-    }
+    expect(pane.match(/#[0-9A-Fa-f]{6}/g), "every stop of the pane is white").toEqual(["#FFFFFF", "#FFFFFF"]);
+    expect(pane).not.toMatch(/rgba?\(/);
   });
 
   it("never moves anything that was placed: no position or z-index on a card", () => {
@@ -147,7 +144,7 @@ describe("the button finish", () => {
   it("gives the red family and the quiet family the same members in both themes, except the two that already differ by theme", () => {
     const red = (rs: typeof rules) => new Set(sels(rs, (b) => /background-color:\s*var\(--accent-fill\)/.test(b)));
     const quiet = (rs: typeof rules) => new Set(sels(rs, (b) => /background-image/.test(b) && /filter:\s*drop-shadow/.test(b) && !/--accent-fill/.test(b)));
-    const perTheme = new Set([".row-act", ".ruled .card .row.row-act", ".ruled .h-hero .pill-act"]);
+    const perTheme = new Set([".ruled .h-hero .pill-act"]);
     const same = (a: Set<string>, b: Set<string>) => [...a].filter((x) => !perTheme.has(x) && !b.has(x));
     expect(same(red(rules), red(dRules)), "red in light but not dark").toEqual([]);
     expect(same(red(dRules), red(rules)), "red in dark but not light").toEqual([]);
@@ -155,7 +152,11 @@ describe("the button finish", () => {
     expect(same(quiet(dRules), quiet(rules)), "capsule in dark but not light").toEqual([]);
     for (const must of [".pill-act.pill-go", ".btn-primary", ".plan-cta:not(.plan-cta-ghost)", ".hdr-controls .tasks-focus"]) expect(red(rules).has(must), must).toBe(true);
     for (const must of [".pill-act:not(.pill-go)", ".see-all.pill-action", ".btn-secondary", ".quiet-action", ".plan-cta.plan-cta-ghost"]) expect(quiet(rules).has(must), must).toBe(true);
-    expect(red(rules).has(".row-act") && quiet(dRules).has(".row-act"), "Focus: red in light, capsule in dark").toBe(true);
+    // Dave 2026-10-05 (Add a Reminder was red on red in light): .row-act is a capsule in BOTH themes, never the solid red.
+    for (const [name, rs] of [["light", rules], ["dark", dRules]] as const) {
+      expect(red(rs).has(".row-act"), name + ": .row-act is never solid red").toBe(false);
+      expect(quiet(rs).has(".row-act"), name + ": .row-act is a capsule").toBe(true);
+    }
   });
 
   it("puts no ring on a capsule (§AL: a fill and no ring)", () => {
@@ -192,9 +193,10 @@ describe("the card colour", () => {
   it("is one solid pane in both themes: every stop fully opaque, so nothing behind a card can tint it", () => {
     for (const [name, src] of [["light", noComments], ["dark", dNoComments]] as const) {
       const pane = src.match(/--g[ld]-pane:\s*([^;]+);/)![1]!;
-      const stops = [...pane.matchAll(/rgba\((\d+),\s*(\d+),\s*(\d+),\s*([\d.]+)\)/g)];
+      const stops = [...pane.matchAll(/rgba\((\d+),\s*(\d+),\s*(\d+),\s*([\d.]+)\)/g), ...pane.matchAll(/#[0-9A-Fa-f]{6}\b/g)];
       expect(stops.length, `${name}: pane has colour stops`).toBeGreaterThanOrEqual(2);
-      for (const m of stops) expect(Number(m[4]), `${name}: translucent pane stop ${m[0]}`).toBe(1);
+      // A hex stop (light's white pane, Dave 2026-10-05) is opaque by construction.
+      for (const m of stops) if (m[0].startsWith("rgba")) expect(Number(m[4]), `${name}: translucent pane stop ${m[0]}`).toBe(1);
     }
   });
 });

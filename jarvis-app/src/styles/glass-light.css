@@ -31,7 +31,9 @@ html[data-theme="light"] {
   --gl-mint: 64, 214, 176;
   --gl-ink: 30, 40, 80;
   --gl-rim: 38, 48, 96;
-  --gl-pane: linear-gradient(168deg, rgba(250, 251, 253, 1) 0%, rgba(243, 245, 248, 1) 48%, rgba(239, 241, 245, 1) 100%);
+  /* The pane is WHITE (Dave 2026-10-05, the catalog: card surfaces are white, the page is the warm cream). It was a cool pearl
+     grey, which read as cream on the cream page. The lit edge, the rim and the shadows below still do the glass. */
+  --gl-pane: linear-gradient(#FFFFFF, #FFFFFF);
   --gl-chip: linear-gradient(168deg, rgba(241, 243, 247, 0.96), rgba(231, 234, 240, 0.90));
   --gl-chrome: linear-gradient(168deg, rgba(255, 255, 255, 0.94), rgba(255, 255, 255, 0.76));
   --gl-red-lo: color-mix(in srgb, var(--accent-fill) 86%, black);
@@ -138,12 +140,10 @@ html[data-theme="light"] .sheet-scrim {
   background: rgba(24, 26, 34, 0.22);
   -webkit-backdrop-filter: blur(6px) saturate(140%); backdrop-filter: blur(6px) saturate(140%);
 }
+/* THE SHEET IS WHITE (Dave 2026-10-05: every light-mode card, sheet and modal is white). It was a translucent wash with a
+   coral and a blue haze in its corners; it is opaque white now, and the scrim behind it still blurs the page. */
 html[data-theme="light"] .sheet-scrim > .card {
-  background:
-    radial-gradient(420px 260px at 100% 0%, rgba(var(--gl-coral), 0.16), transparent 70%),
-    radial-gradient(420px 300px at 0% 100%, rgba(110, 190, 255, 0.16), transparent 70%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.90), rgba(250, 251, 255, 0.80));
-  -webkit-backdrop-filter: blur(40px) saturate(200%); backdrop-filter: blur(40px) saturate(200%);
+  background: var(--chrome-bg);
   box-shadow: inset 0 1px 0 #fff, inset 0 0 0 0.5px rgba(255, 255, 255, 0.7), 0 -1px 0 rgba(255, 255, 255, 0.6), 0 -14px 44px -6px rgba(30, 36, 60, 0.22);
 }
 html[data-theme="light"] .sheet-scrim .card.xs-group { background: var(--gl-chip); }
@@ -183,16 +183,15 @@ html[data-theme="light"] .today-title { text-rendering: optimizeLegibility; font
 
    RED: every solid red control. QUIET: every capsule (its own fill kept,
    lit from the top, a soft shadow beneath, no ring, per the capsule ruling).
-   .row-act is red in light and a capsule in dark, as it already was. */
+   .row-act is a capsule in both themes (Dave 2026-10-05: its label is the key red, so a red fill made Add a Reminder red
+   on red). */
 html[data-theme="light"] .btn-primary,
 html[data-theme="light"] .ruled .card .pill-act.pill-go,
 html[data-theme="light"] .pill-act.pill-go,
 html[data-theme="light"] .plan-cta:not(.plan-cta-ghost),
 html[data-theme="light"] .mode-hero .mode-go,
 html[data-theme="light"] .hdr-controls .tasks-focus,
-html[data-theme="light"] .convo-send,
-html[data-theme="light"] .row-act,
-html[data-theme="light"] .ruled .card .row.row-act {
+html[data-theme="light"] .convo-send {
   background-color: var(--accent-fill);
   background-image:
     linear-gradient(180deg, rgba(255, 255, 255, 0.22) 0%, rgba(255, 255, 255, 0.06) 48%, rgba(255, 255, 255, 0) 52%),
@@ -205,6 +204,8 @@ html[data-theme="light"] .ruled .card .row.row-act {
 html[data-theme="light"] .plan-cta.plan-cta-ghost,
 html[data-theme="light"] .pill-act:not(.pill-go),
 html[data-theme="light"] .see-all.pill-action,
+html[data-theme="light"] .row-act,
+html[data-theme="light"] .ruled .card .row.row-act,
 html[data-theme="light"] .btn-sm:not(.btn-primary):not(.btn-danger):not(.btn-secondary),
 html[data-theme="light"] .btn-secondary,
 html[data-theme="light"] .sched-badge-btn,
@@ -286,11 +287,11 @@ html[data-theme="light"] .pill-act.pill-go:active,
 html[data-theme="light"] .plan-cta:not(.plan-cta-ghost):active,
 html[data-theme="light"] .mode-hero .mode-go:active,
 html[data-theme="light"] .hdr-controls .tasks-focus:active,
-html[data-theme="light"] .convo-send:active,
-html[data-theme="light"] .row-act:active,
-html[data-theme="light"] .ruled .card .row.row-act:active { filter: drop-shadow(0 1px 1px var(--gl-red-edge)) drop-shadow(0 2px 3px var(--gl-red-glow)) brightness(0.94); }
+html[data-theme="light"] .convo-send:active { filter: drop-shadow(0 1px 1px var(--gl-red-edge)) drop-shadow(0 2px 3px var(--gl-red-glow)) brightness(0.94); }
 html[data-theme="light"] .plan-cta.plan-cta-ghost:active,
 html[data-theme="light"] .pill-act:not(.pill-go):active,
+html[data-theme="light"] .row-act:active,
+html[data-theme="light"] .ruled .card .row.row-act:active,
 html[data-theme="light"] .see-all.pill-action:active,
 html[data-theme="light"] .btn-sm:not(.btn-primary):not(.btn-danger):not(.btn-secondary):active,
 html[data-theme="light"] .btn-secondary:active,

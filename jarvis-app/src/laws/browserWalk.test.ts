@@ -737,8 +737,8 @@ describe("BROWSER-F-09: quiet is not the same word as finished", () => {
     const grounds: Array<[string, string[]]> = [
       // The warm neutrals (Dave 2026-10-05): charcoal page #1C1917, card #201C19, sheet #2C2723.
       ["dark", ["#1C1917", "#201C19", "#2C2723"]],
-      // Cream page #FAF6F0, card #F3EEE6, raised #ECE5DA.
-      ["light", ["#FAF6F0", "#F3EEE6", "#ECE5DA"]],
+      // Cream page #FAF6F0, white card (Dave 2026-10-05, the catalog), raised #ECE5DA.
+      ["light", ["#FAF6F0", "#FFFFFF", "#ECE5DA"]],
     ];
     for (const [theme, gs] of grounds) {
       for (const g of gs) {

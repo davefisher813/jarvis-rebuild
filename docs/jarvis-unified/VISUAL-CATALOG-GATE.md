@@ -26,7 +26,7 @@ Ink, dark and light (`--tx-2` and `--tx-3` are the SAME hex in both themes; bold
 | `--tx-4` separators only | `#948B84` | `#7A7068` |
 | `--tx-quiet` (pinned for `.r-goal.r-rec`) | `rgba(247,241,234,0.62)` | `#5E554C` |
 
-These are the warm neutrals (Dave 2026-10-05, locked). The grounds they sit on: dark page `#1C1917`, card `#201C19`, sheet `#2C2723`, raised `#36312D`; light page `#FAF6F0`, card `#F3EEE6`, raised `#ECE5DA`, chrome (tab bar, top bars, sheets, modals) `#FFFDFA`. Brand red `#FF2B3C` (light action red `#D12416`) is unchanged. `laws/warmPalette.test.ts` pins them and measures the contrast.
+These are the warm neutrals (Dave 2026-10-05, locked). The grounds they sit on: dark page `#1C1917`, card `#201C19`, sheet `#2C2723`, raised `#36312D`; light page `#FAF6F0`, card `#FFFFFF`, raised `#ECE5DA`, chrome (tab bar, top bars, sheets, modals, menus) `#FFFFFF`; the warm well `#F3EEE6` (`--surface-2`, `--well`) is for fields, tiles, hover rows, holds and chips that sit on a white surface (Dave 2026-10-05: every light card, sheet and modal is white). Brand red `#FF2B3C` (light action red `#D12416`) is unchanged. `laws/warmPalette.test.ts` pins them and measures the contrast.
 
 Contrast floor: text under 4.5:1 on the surface it sits on is a defect. `--tx-3` is the only grey that clears it. Text on a sheet grey uses the `-on-sheet` twin (`--tint-on-sheet`, `--sys-red-on-sheet`, `--warn-on-sheet`).
 

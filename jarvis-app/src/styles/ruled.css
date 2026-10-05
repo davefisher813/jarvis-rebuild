@@ -2470,7 +2470,7 @@
    red words may wear there -- on a grey at 4.07:1. The ring already says the
    row is a ghost; the wash was saying it twice, and the second time it cost
    the word its contrast. */
-[data-theme="light"] .ruled.health-ruled .set-chip-ghost { background: var(--surface-1); }
+[data-theme="light"] .ruled.health-ruled .set-chip-ghost { background: var(--well); }
 /* THE TICK IS A ROW CONTROL, SO IT IS 44 (2026-09-26, the workout logging
    pass-off; was 36). It sits beside two 44px fields on the one row that logs
    a set, and the ladder has no rung under 44 for a button with no expanded

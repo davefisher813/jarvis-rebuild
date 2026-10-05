@@ -46,9 +46,9 @@ describe("the warm neutrals are the ones Dave locked", () => {
   it("light: a cream page, cards that step down, a warm near-white chrome, warm ink", () => {
     const L = block("light");
     expect(tok(L, "--bg"), "cream, never stark white as the dominant field").toBe("#FAF6F0");
-    expect(tok(L, "--surface-1"), "cards read as cards on the cream").toBe("#F3EEE6");
+    expect(tok(L, "--surface-1"), "cards are white on the cream (Dave 2026-10-05, the catalog)").toBe("#FFFFFF");
     expect(tok(L, "--surface-3"), "raised and secondary").toBe("#ECE5DA");
-    expect(tok(L, "--chrome-bg"), "tab bar, top bars, sheets, modals").toBe("#FFFDFA");
+    expect(tok(L, "--chrome-bg"), "tab bar, top bars, sheets, modals are white (Dave 2026-10-05)").toBe("#FFFFFF");
     expect(tok(L, "--divider")).toBe("#E6DED2");
     expect(tok(L, "--tx-1")).toBe("#1F1A16");
     expect(tok(L, "--tx-2")).toBe("#4A423A");
@@ -129,7 +129,7 @@ describe("the brand red is exactly as it was", () => {
 
 describe("every contrast the app promises still holds on the warm grounds", () => {
   const grounds = {
-    light: { page: "#FAF6F0", card: "#F3EEE6", raised: "#ECE5DA", chrome: "#FFFDFA" },
+    light: { page: "#FAF6F0", card: "#FFFFFF", raised: "#ECE5DA", chrome: "#FFFFFF", well: "#F3EEE6" },
     dark: { page: "#1C1917", card: "#201C19", sheet: "#2C2723", raised: "#36312D" },
   };
   for (const theme of ["light", "dark"] as const) {
@@ -164,11 +164,11 @@ describe("every contrast the app promises still holds on the warm grounds", () =
   });
 
   it("light: a capsule on a card is a lifted chip and on the sheet it is the page capsule, and the red clears both", () => {
-    expect(DS).toMatch(/\[data-theme="light"\] \.card \{ --capsule-fill: var\(--chrome-bg\); \}/);
+    expect(DS).toMatch(/\[data-theme="light"\] \.card \{ --capsule-fill: #F2EDE4; \}/);
     expect(DS).toMatch(/\[data-theme="light"\] \.sheet-scrim > \.card \{ --capsule-fill: #F2EDE4; \}/);
     const red = tok(block("light"), "--tint");
-    expect(ratio(red, tok(block("light"), "--chrome-bg")), "red on the chip").toBeGreaterThanOrEqual(4.5);
-    expect(ratio(tok(block("light"), "--chrome-bg"), grounds.light.card), "the chip against the card").toBeGreaterThan(1.05);
+    expect(ratio(red, "#F2EDE4"), "red on the chip").toBeGreaterThanOrEqual(4.5);
+    expect(ratio("#F2EDE4", grounds.light.card), "the chip against the white card").toBeGreaterThan(1.05);
     expect(ratio("#F2EDE4", grounds.light.page), "the page capsule against the cream").toBeGreaterThan(1.06);
   });
 

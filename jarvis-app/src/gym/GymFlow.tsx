@@ -646,12 +646,14 @@ function BlockList({ title, blocks, minutes, onEdit, tone = "warm" }: {
     // What the same rule bought elsewhere is untouched: the Up Next launch
     // card, which really was the brightest rectangle on a black page and had
     // a red Start inside it, stays plain.
-    <div className="pad-x"><div className={"card list-card-ruled" + (has ? (tone === "cool" ? " banner-cool" : " banner-warn") : "")}>
+    <div className="pad-x"><div className={"card list-card-ruled" + (tone === "cool" ? " banner-cool" : " banner-warn")}>
       {/* The header row opens the block editor, same as its action (Dave
           2026-09-15: "I want all rows clickable"). */}
       <div className="row" {...rowDoor(onEdit)}>
         <div className="row-grow">
-          <div className={"eyebrow" + (has ? (tone === "cool" ? " eyebrow-cool" : " eyebrow-warn") : "")}>{title}{(minutes ?? 0) > 0 ? ` · ${spanLabel(minutes ?? 0)}` : ""}</div>
+          {/* THE LABEL KEEPS ITS HUE EMPTY OR NOT (Dave 2026-10-05: the COOL-DOWN label rendered dark): a day with no blocks still
+            says Cool-Down in the cool-down's blue (--hl-blue-ink) and Warm-Up in amber; only the card's wash waits for a block. */}
+          <div className={"eyebrow" + (tone === "cool" ? " eyebrow-cool" : " eyebrow-warn")}>{title}{(minutes ?? 0) > 0 ? ` · ${spanLabel(minutes ?? 0)}` : ""}</div>
         </div>
         {/* A text action, not a capsule: it opens an editor, it does not act
             on the row (polish rule 2). */}
