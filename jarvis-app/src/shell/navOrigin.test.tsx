@@ -3,12 +3,12 @@ import { describe, it, expect, vi } from "vitest";
 import { useCallback, useState } from "react";
 import { render, screen, fireEvent } from "@testing-library/react";
 import "@testing-library/jest-dom";
-import { NavOriginProvider, useLeaveVia, type NavOrigin } from "./navOrigin";
+import { NavOriginProvider, useLeaveVia, useNavOrigin, type NavOrigin } from "./navOrigin";
 import ReturnPill from "./ReturnPill";
 
 // The shell's wiring, in miniature: the same stable claim and the same
 // counter, so what this proves is what AppShell does.
-function Harness({ origin, page }: { origin: NavOrigin | null; page: "own" | "sheet" }) {
+function Harness({ origin, page }: { origin: NavOrigin | null; page: "own" | "sheet" | "closes" }) {
   const [claims, setClaims] = useState(0);
   const [here, setHere] = useState("away");
   const claim = useCallback(() => {
@@ -16,16 +16,21 @@ function Harness({ origin, page }: { origin: NavOrigin | null; page: "own" | "sh
     return () => setClaims((n) => n - 1);
   }, []);
   const back = () => { setHere("home"); return true; };
+  const clear = useCallback(() => setHere("released"), []);
   return (
-    <NavOriginProvider value={{ origin, back, claim, claimed: claims > 0 }}>
+    <NavOriginProvider value={{ origin: here === "released" ? null : origin, back, claim, claimed: claims > 0, clear }}>
       <div data-testid="where">{here}</div>
-      {page === "own" ? <PageWithItsOwnBack /> : <div>a sheet closed, and this is the page behind it</div>}
+      {page === "own" ? <PageWithItsOwnBack /> : page === "closes" ? <PageThatCloses /> : <div>a sheet closed, and this is the page behind it</div>}
       <ReturnPill />
     </NavOriginProvider>
   );
 }
 
 const closed = vi.fn();
+function PageThatCloses() {
+  const { clear } = useNavOrigin();
+  return <button onClick={clear}>Close the page</button>;
+}
 function PageWithItsOwnBack() {
   const leave = useLeaveVia("All Tasks", closed);
   return <button onClick={leave.onBack}>{leave.label}</button>;
@@ -78,5 +83,21 @@ describe("the way home", () => {
     fireEvent.click(screen.getByText("Today"));
     expect(closed, "the stop point is written by this").toHaveBeenCalledTimes(1);
     expect(screen.getByTestId("where")).toHaveTextContent("home");
+  });
+
+  // THE ROOT FIX (Alfred 2026-10-04, a stray "< Life" over a hub): a page the
+  // jump opened releases the origin when it closes, so the pill is not hidden
+  // by a claim, it is gone, and it does not come back.
+  it("is gone once the page it was the way home from releases the origin", () => {
+    render(<Harness origin={TODAY} page="closes" />);
+    expect(document.querySelector(".return-pill")).not.toBeNull();
+    fireEvent.click(screen.getByText("Close the page"));
+    expect(document.querySelector(".return-pill")).toBeNull();
+    expect(screen.getByTestId("where"), "releasing goes nowhere").toHaveTextContent("released");
+  });
+
+  it("the default context has a clear that is safe to call with no shell", () => {
+    render(<PageThatCloses />);
+    expect(() => fireEvent.click(screen.getByText("Close the page"))).not.toThrow();
   });
 });

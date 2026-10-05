@@ -4,6 +4,7 @@ import { MoreHorizontal, FileText, Image, Check, Plus, X, Trash2, Archive, Tag, 
 import type { FoundCandidate, NoteVersion } from "../types";
 import { catColor } from "../../shared/categories";
 import InlineEdit from "../../shared/InlineEdit";
+import { titleCase } from "../../shared/casing";
 import DocEditor, { type DocEditorHandle } from "../../shared/DocEditor";
 import type { Doc } from "../docModel";
 import { docWordCount } from "../docModel";
@@ -496,7 +497,7 @@ export default function NoteEditor({
             <span className="eyebrow">{note.eyebrow}</span>
           </div>
         )}
-        <InlineEdit tag="div" className="doc-title" value={note.title} placeholder="Title" onSave={onEditTitle} />
+        <InlineEdit tag="div" className="doc-title" value={note.title} display={titleCase} placeholder="Title" onSave={onEditTitle} />
         {findOpen && <FindBar editor={editorRef.current} onClose={() => setFindOpen(false)} />}
         <DocEditor
           ref={editorRef}

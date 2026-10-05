@@ -62,7 +62,11 @@
    the tab bar, not the host shell). Full-height column: scrollable content with
    the tab bar pinned at the bottom, like the device frame in the previews. */
 .app-shell { height: 100vh; height: 100dvh; display: flex; flex-direction: column; background: var(--bg); color: var(--tx-1); }
-.app-scroll { flex: 1; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; }
+.app-scroll { flex: 1; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch;
+  /* Room for the shell's return pill at the foot of the scroll box, so the last row of a page a jump opened scrolls
+     up above it instead of sitting under it. ReturnPill measures and publishes --return-pad while it is drawn; zero
+     on every screen without one. */
+  padding-bottom: var(--return-pad, 0px); }
 .app-shell .screen { min-height: 100%; }
 
 /* NOTHING BEHIND AN OVERLAY MOVES (2026-09-06, Dave from his phone: "when

@@ -447,7 +447,8 @@ export function TaskRow({
             <div onClick={(ev) => ev.stopPropagation()}>
               <InlineEdit
                 className="task-name"
-                value={title}
+                value={t.text}
+                display={titleCase}
                 focused
                 onSave={(v) => {
                   setRenaming(false);

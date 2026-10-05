@@ -40,10 +40,12 @@ describe("ConnectionsPage", () => {
   // tests and stalls the next import 2.4s (buttons stay busy). Isolate.
   beforeEach(() => localStorage.clear());
 
-  it("shows an honest setup-required state and disables connect when unconfigured", () => {
+  // Amended 2026-10-05 (the catalog gate): the greyed Connect Google under the setup card was a dead control saying
+  // what the card already says, so with no client id it is not drawn; configured, it is the way in.
+  it("shows an honest setup-required state and draws no dead connect control when unconfigured", () => {
     render(wrap(<ConnectionsPage configured={false} />));
     expect(screen.getByText("Google Setup Required")).toBeInTheDocument();
-    expect((screen.getByText("Connect Google") as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.queryByText("Connect Google")).toBeNull();
   });
   it("connects the first account, imports calendar, lists the account with its controls", async () => {
     render(wrap(<ConnectionsPage configured />));

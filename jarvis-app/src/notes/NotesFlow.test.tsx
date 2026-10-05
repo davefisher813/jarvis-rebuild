@@ -557,7 +557,7 @@ describe("NotesFlow: a note opened for another page goes back to that page", () 
     view.rerender(
       <NotesProvider userId={user}>
         <Grab />
-        <NavOriginProvider value={{ origin: withOrigin ? { key: "schedule", label: "Schedule" } : null, back, claim, claimed: false }}>
+        <NavOriginProvider value={{ origin: withOrigin ? { key: "schedule", label: "Schedule" } : null, back, claim, claimed: false, clear: () => {} }}>
           <NotesFlow openId={id} />
         </NavOriginProvider>
       </NotesProvider>,

@@ -38,7 +38,7 @@ describe("a task row on the Life list: the hold opens the menu and not the tray"
   it("a hold lists the row's verbs and Delete last, with the tray still shut", () => {
     vi.useFakeTimers();
     const { container } = render(
-      <TasksPage filter="all" counts={{ all: 1, today: 1, upcoming: 0, done: 0 }} items={[task("a", "call the bank", "2026-05-20")]} today="2026-05-20"
+      <TasksPage filter="all" counts={{ all: 1, today: 1, upcoming: 0, done: 0, email: 0, daily: 0, overdue: 0 }} items={[task("a", "call the bank", "2026-05-20")]} today="2026-05-20"
         onFilter={noop} onToggle={noop} onOpenTask={noop} onDeleteTask={noop} onSnoozeTask={noop} onStartTask={noop} onNew={noop} />,
     );
     const row = container.querySelector(".task-row")!;

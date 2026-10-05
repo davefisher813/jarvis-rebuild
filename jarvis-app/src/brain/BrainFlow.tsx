@@ -152,24 +152,18 @@ export default function BrainFlow({ openKey, openNonce, onKeyConsumed, routineBl
   // from (shell/navOrigin) and draws a return pill above the dock for as long as that page is open. That is the design,
   // and it is right ON the page the jump opened. The fault was after it: the page's own back closes to the hub and the
   // origin stayed live, so the pill floated over the hub's last row with no page left for it to be the way home from.
-  // Once the page a jump opened has closed, this flow claims the origin (the shell draws nothing while a page does),
-  // and the claim goes with this flow or with the origin (a tab tap clears it). A new jump into the flow takes it
-  // back off. The shell cannot clear an origin from here, so hiding it is the whole of what a page may do.
+  // The root fix is that a page the jump opened RELEASES the origin when it closes to the hub (nav.clear), rather than
+  // hiding it while this flow is mounted. A page opened by a tap inside the hub never marks itself jumped, so it can
+  // never end an origin it did not open.
   const nav = useNavOrigin();
-  const [spent, setSpent] = useState(false);
   const jumpedRef = useRef(false);
-  const markJumped = () => { jumpedRef.current = true; setSpent(false); };
-  const originLive = !!nav.origin;
-  const { claim } = nav;
-  useEffect(() => {
-    if (!spent || !originLive) return;
-    return claim();
-  }, [spent, originLive, claim]);
+  const markJumped = () => { jumpedRef.current = true; };
+  const { clear: clearOrigin } = nav;
   const closeToHub = () => {
     setOpen(null);
     if (!jumpedRef.current) return;
     jumpedRef.current = false;
-    setSpent(true);
+    clearOrigin();
   };
 
   const detail = (() => {

@@ -1,0 +1,1 @@
+var e=null;function t(){return e}function n(t){t.code!==`AI_BUDGET_REPLAY`&&(e=t)}function r(){e=null}export{r as n,n as r,t};

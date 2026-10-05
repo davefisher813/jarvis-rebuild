@@ -142,6 +142,9 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
     setClaims((n) => n + 1);
     return () => setClaims((n) => n - 1);
   }, []);
+  // The page a jump opened has closed to its own root: end the origin so the
+  // return pill is not left with nothing to be the way home from. Stable.
+  const clearOrigin = useCallback(() => setOrigin(null), []);
   const navBack = (): boolean => {
     const o = origin;
     if (!o) return false;
@@ -643,7 +646,7 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
   placeRef.current = { key: active, seg: lifeSegment };
 
   return (
-    <NavOriginProvider value={{ origin, back: navBack, claim, claimed: claims > 0 }}>
+    <NavOriginProvider value={{ origin, back: navBack, claim, claimed: claims > 0, clear: clearOrigin }}>
     <GoogleSessionProvider>
     <GoogleAutoImport />
     {/* TRACK 3 (2026-09-19): a stranger books an hour through the public link

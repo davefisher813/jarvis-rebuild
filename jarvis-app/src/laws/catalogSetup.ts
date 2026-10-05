@@ -66,7 +66,7 @@ if (typeof document !== "undefined" && typeof MutationObserver !== "undefined") 
       throw new Error(`Catalog: a lowercase word follows a leading number (the word after a leading number takes a capital) · Drawn: ${num.join(" | ")}`);
     if (caps.length)
       throw new Error(
-        `Catalog: a capsule sits in a list row or at the foot of a list card (Dave 2026-10-05, no pills in a row: the verb is the swipe, the sheet and the long press, and a section's action is its head's capsule) · Drawn: ${caps.join(" | ")}`,
+        `Catalog: a capsule sits in a list row or at the foot of a list card (Dave 2026-10-05, clean rows with no pill on them: a row's verb is its swipe, its sheet and its long press, and a section's action is its head's capsule) · Drawn: ${caps.join(" | ")}`,
       );
     if (box.length)
       throw new Error(`Catalog: a card holds nothing but an action, so the capsule stands by itself with no box · Drawn: ${box.join(" | ")}`);

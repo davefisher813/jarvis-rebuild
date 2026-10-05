@@ -24,6 +24,13 @@ import { parseRich, hasRich, displayToRawOffset } from "../notes/richtext";
 // formatted while read and raw while edited. A tap on formatted text drops
 // the caret at the tapped character, mapped through the markers, so editing
 // mid-sentence works like a real writing app.
+//
+// DISPLAY TRANSFORM (Dave 2026-10-05, "his own typed titles are shown in
+// Title Case and stored as typed"): display={titleCase} draws the field
+// through the transform whenever nobody is in it, and swaps the typed text
+// back in the moment the caret arrives, so what is edited and what is saved
+// is exactly what was typed. On blur the field goes back to the display form.
+// It applies to the plain field; rich mode already draws its own read view.
 export default function InlineEdit({
   tag = "div",
   className,
@@ -33,6 +40,7 @@ export default function InlineEdit({
   focused,
   rich,
   bid,
+  display,
 }: {
   tag?: "div" | "span";
   className?: string;
@@ -42,6 +50,9 @@ export default function InlineEdit({
   focused?: boolean;
   rich?: boolean;
   bid?: string;
+  /** How the text reads while nobody is editing it (e.g. titleCase). The
+   *  value itself, as typed, is what is edited and saved. */
+  display?: (v: string) => string;
 }) {
   const ref = useRef<HTMLElement | null>(null);
   const [editing, setEditing] = useState(!!focused);
@@ -95,10 +106,14 @@ export default function InlineEdit({
   // document.activeElement is the one true signal for "someone's fingers are
   // in this field right now"; a background reload must never touch it, only
   // the fields nobody is currently in.
+  const shown = (v: string) => (display && v ? display(v) : v);
   useEffect(() => {
     const el = ref.current;
-    if (el && !showRich && document.activeElement !== el && el.textContent !== value) el.textContent = value;
-  }, [value, showRich]);
+    if (!el || showRich || document.activeElement === el) return;
+    const want = shown(value);
+    if (el.textContent !== want) el.textContent = want;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value, showRich, display]);
   // Canvas flow: when this block was just created by Enter, put the caret in it.
   useEffect(() => {
     if (focused) setEditing(true);
@@ -128,7 +143,7 @@ export default function InlineEdit({
   }, [editing]);
 
   const Tag = tag as "div";
-  if (!onSave) return <Tag className={className}>{value}</Tag>;
+  if (!onSave) return <Tag className={className}>{shown(value)}</Tag>;
 
   if (showRich) {
     return (
@@ -180,6 +195,24 @@ export default function InlineEdit({
       autoCapitalize="sentences"
       autoCorrect="on"
       enterKeyHint="done"
+      onFocus={(e) => {
+        // The display form gives way to what was typed, keeping the caret
+        // where the tap put it (a title-case pass changes letters, not length,
+        // so the offset still lands on the same character).
+        const el = e.currentTarget;
+        if (!display || el.textContent === value) return;
+        const sel = window.getSelection();
+        const off = sel && sel.rangeCount && el.contains(sel.anchorNode) ? sel.anchorOffset : null;
+        el.textContent = value;
+        const node = el.firstChild;
+        if (off !== null && sel && node && node.nodeType === Node.TEXT_NODE) {
+          const range = document.createRange();
+          range.setStart(node, Math.min(off, node.textContent?.length ?? 0));
+          range.collapse(true);
+          sel.removeAllRanges();
+          sel.addRange(range);
+        }
+      }}
       onPaste={(e) => {
         // PASTE ARRIVES AS HTML UNLESS YOU STOP IT. The default paste drops
         // the source's own markup -- spans, styles, nested divs, whole
@@ -229,6 +262,7 @@ export default function InlineEdit({
         if (rich && hasRich(t)) e.currentTarget.textContent = "";
         setEditing(false);
         dirty.current = null;
+        if (display && t && !(rich && hasRich(t))) e.currentTarget.textContent = display(t);
         onSave(t);
       }}
       onKeyDown={(e) => {

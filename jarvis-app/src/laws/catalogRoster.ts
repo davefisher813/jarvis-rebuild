@@ -14,9 +14,9 @@ export const CAPSULE_ROSTER: Record<string, Record<string, string>> = {
   // ruling forbids. They are listed so that nothing NEW joins them; the fix is to give each its real home, and then the
   // entry goes.
   "people/PeopleFlow.test.tsx": {
-    "Clear Them @ row": "DEBT: a one-shot repair card (the count and the cause, one answer, then an Undo). It is a card with its own words and should be a notice card offer or a head capsule, not a .row in a list card.",
-    "It's a number @ offer-row": "DEBT: a yes-or-no question about one number, answered by two buttons on a review row. The offer is the question; it should move to the row's sheet and the swipe tray.",
-    "Not One @ offer-row": "DEBT: the other half of the same pair as It's a Number, on the same review row.",
+    "Clear Them @ row": "DEBT: a one-shot repair card (the count and the cause, one answer, then an Undo); it is a card with its own words and should be a notice card offer or a head capsule, not a .row in a list card",
+    "It's a number @ offer-row": "DEBT: a yes-or-no question about one number, answered by two buttons on a review row; the offer is the question, and it should move to the row's sheet and the swipe tray",
+    "Not One @ offer-row": "DEBT: the other half of the same pair as It's a Number, on the same review row",
   },
   "people/screens/PeopleListPage.catalog.test.tsx": {
     "Clear Them @ row": "DEBT: the same repair card as in PeopleFlow, drawn by PeopleListPage.",

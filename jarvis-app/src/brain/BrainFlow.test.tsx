@@ -269,12 +269,15 @@ import { useCallback } from "react";
 import { NavOriginProvider } from "../shell/navOrigin";
 import ReturnPill from "../shell/ReturnPill";
 
-function JumpShell({ openKey }: { openKey: string }) {
+function JumpShell({ openKey, onClear }: { openKey: string; onClear?: () => void }) {
   const [claims, setClaims] = useState(0);
   const claim = useCallback(() => { setClaims((n) => n + 1); return () => setClaims((n) => n - 1); }, []);
+  // The shell's own wiring: the origin is state, and clear() ends it.
+  const [origin, setOrigin] = useState<{ key: string; label: string } | null>({ key: "life", label: "Life" });
+  const clear = useCallback(() => { onClear?.(); setOrigin(null); }, [onClear]);
   const [key, setKey] = useState<string | undefined>(openKey);
   return (
-    <NavOriginProvider value={{ origin: { key: "life", label: "Life" }, back: () => true, claim, claimed: claims > 0 }}>
+    <NavOriginProvider value={{ origin, back: () => true, claim, claimed: claims > 0, clear }}>
       <BrainFlow openKey={key} openNonce={1} onKeyConsumed={() => setKey(undefined)} />
       <ReturnPill />
     </NavOriginProvider>
@@ -301,12 +304,45 @@ describe("BrainFlow: the return pill does not outlive the page a jump opened", (
     expect(screen.queryByRole("button", { name: "Life" })).not.toBeInTheDocument();
   });
 
+  // The ROOT of it: the page releases the origin when it closes, rather than the flow hiding a live one behind a claim.
+  it("releases the origin itself when the page the jump opened closes (nothing is merely hidden)", async () => {
+    const clear = vi.fn();
+    function Seed() {
+      const cats = useCategories();
+      const [cid, setCid] = useState("");
+      useEffect(() => { void (async () => setCid((await cats.create("Bridge", "blue"))!))(); }, [cats]);
+      return cid ? <JumpShell openKey={cid} onClear={clear} /> : null;
+    }
+    render(<NotesProvider userId="pill3"><Seed /></NotesProvider>);
+    await waitFor(() => expect(screen.getByText("Up Next")).toBeInTheDocument());
+    expect(clear, "still open: still the way home").not.toHaveBeenCalled();
+    fireEvent.click(screen.getByLabelText("Back"));
+    await waitFor(() => expect(screen.getByText("Your Routine")).toBeInTheDocument());
+    expect(clear).toHaveBeenCalledTimes(1);
+  });
+
+  it("a page opened by a tap inside the hub never releases an origin it did not open", async () => {
+    const clear = vi.fn();
+    render(
+      <NotesProvider userId="pill4">
+        <NavOriginProvider value={{ origin: { key: "life", label: "Life" }, back: () => true, claim: () => () => {}, claimed: false, clear }}>
+          <BrainFlow />
+        </NavOriginProvider>
+      </NotesProvider>,
+    );
+    fireEvent.click(await screen.findByText("Your Routine"));
+    await waitFor(() => expect(screen.getByText("Protected Time")).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("button", { name: "Brain" }));
+    await waitFor(() => expect(screen.getByText("Your Routine")).toBeInTheDocument());
+    expect(clear).not.toHaveBeenCalled();
+  });
+
   it("a page opened by a tap inside the hub never had a pill to begin with", async () => {
     function Plain() {
       const [claims, setClaims] = useState(0);
       const claim = useCallback(() => { setClaims((n) => n + 1); return () => setClaims((n) => n - 1); }, []);
       return (
-        <NavOriginProvider value={{ origin: null, back: () => false, claim, claimed: claims > 0 }}>
+        <NavOriginProvider value={{ origin: null, back: () => false, claim, claimed: claims > 0, clear: () => {} }}>
           <BrainFlow /><ReturnPill />
         </NavOriginProvider>
       );

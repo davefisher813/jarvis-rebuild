@@ -78,7 +78,7 @@ describe("NotesFlow: a failed jump does not claim the next note's Back", () => {
     view.rerender(
       <NotesProvider userId={user}>
         <Grab />
-        <NavOriginProvider value={{ origin, back, claim, claimed: false }}>
+        <NavOriginProvider value={{ origin, back, claim, claimed: false, clear: () => {} }}>
           <NotesFlow openId="no-such-note" />
         </NavOriginProvider>
       </NotesProvider>,

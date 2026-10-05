@@ -77,6 +77,28 @@ describe("ConnectionsPage follows the catalog", () => {
     expect(scan(container)).toEqual([]);
   });
 
+  // Dave 2026-10-05: the Google Setup Required card stretched the height of the phone inside the Settings stack. The
+  // bare .empty-state is the whole-screen empty page (min-height 65vh); a card on a screen with other sections is
+  // .empty-compact. And it says it once: "No Accounts Yet" under it was the same fact in a second card.
+  it("the setup card sizes to its words (compact, not the 65vh page) and is not doubled by No Accounts Yet", () => {
+    render(
+      <NotesProvider userId="u-cat-conn-compact"><GoogleSessionProvider requestToken={async () => "tok"} makeApi={() => api}><ConnectionsPage configured={false} /></GoogleSessionProvider></NotesProvider>,
+    );
+    const empties = document.querySelectorAll(".empty-state");
+    expect(empties.length, "one empty card, saying it once").toBe(1);
+    expect(empties[0]).toHaveClass("empty-compact");
+    expect(screen.queryByText("No Accounts Yet")).toBeNull();
+    // Under the head it explains, not above the screen.
+    const head = screen.getByText("Google Accounts").closest(".sh2")!;
+    expect(head.compareDocumentPosition(empties[0]!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("every empty card on the page is compact, set up or not", async () => {
+    const { container } = render(<Relaunchable />);
+    await screen.findByText("No Accounts Yet");
+    for (const e of container.querySelectorAll(".empty-state")) expect(e, "a card on a screen with other sections").toHaveClass("empty-compact");
+  });
+
   it("a signed-in account, with its rows and its heads, is Title Case and carries no typed dot", async () => {
     const { container } = render(<Relaunchable />);
     fireEvent.click(await screen.findByText("Connect Google"));

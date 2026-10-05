@@ -206,8 +206,8 @@ describe("the empty state", () => {
   it("offers the payoff in one short line, not two sentences", async () => {
     render(<NotesProvider userId="u-dec-empty"><DecisionsFlow onBack={() => {}} /></NotesProvider>);
     await waitFor(() => expect(screen.getByText("Worth Remembering")).toBeInTheDocument());
-    const sub = screen.getByText(/reason is still here/);
-    expect(sub.textContent).toBe("The reason is still here in six weeks");
+    const sub = screen.getByText(/Reason Is Still Here/);
+    expect(sub.textContent).toBe("The Reason Is Still Here in Six Weeks");
     expect(sub.textContent!.trim().split(/\s+/).length, "one line's worth").toBeLessThanOrEqual(9);
     expect(sub.textContent, "one sentence, so no full stop mid-line").not.toMatch(/\.\s/);
     expect(screen.getByText("Record a Decision")).toBeInTheDocument();
@@ -258,5 +258,101 @@ describe("Decisions: clean rows, one menu", () => {
     const ctx = await waitFor(() => { const c = container.querySelector(".row .row-ctx"); expect(c).not.toBeNull(); return c!; });
     expect(ctx.textContent).toBe("Change It");
     expect(ctx.className).toBe("row-ctx");
+  });
+});
+
+// THE CATALOG, HELD ON THE RECORD PAGE (Dave 2026-10-05, the hard gate). Rendered through the real flow and read from the DOM.
+// Drift this pins: the headline wore whatever case it was typed in; the Revisit row put a chip at its edge with "No Date" in it;
+// Ruled Out drew chips in a card; the outcome card opened with a "Mark Outcome" row that said the head again; "Still good" was
+// sentence case.
+function OneRecord({ children, extra }: { children: ReactNode; extra: Parameters<ReturnType<typeof useDecisions>["create"]>[0] }) {
+  const svc = useDecisions();
+  const [ready, setReady] = useState(false);
+  useEffect(() => { void (async () => { await svc.create(extra); setReady(true); })(); }, [svc, extra]);
+  return ready ? <>{children}</> : null;
+}
+const openRecord = async (container: HTMLElement, text: string) => {
+  await waitFor(() => expect(container.querySelector(".dec-name")).not.toBeNull());
+  fireEvent.click(Array.from(container.querySelectorAll(".dec-name")).find((n) => n.textContent!.includes(text))!);
+  await waitFor(() => expect(container.querySelector(".dec-main")).not.toBeNull());
+};
+
+describe("Decisions record page follows the catalog", () => {
+  const base = { decision: "build a six-month runway before the hire", why: "cash is the constraint", ruledOut: ["wait a month", "hire two"] };
+
+  it("shows the headline in Title Case at rest and as typed while it is edited", async () => {
+    const { container } = render(<NotesProvider userId="u-dec-cat-head"><OneRecord extra={base}><DecisionsFlow onBack={() => {}} /></OneRecord></NotesProvider>);
+    await openRecord(container, "Build a Six-Month Runway");
+    const head = container.querySelector(".dec-main") as HTMLElement;
+    expect(head.textContent).toBe("Build a Six-Month Runway Before the Hire");
+    fireEvent.focus(head);
+    expect(head.textContent, "edited as typed").toBe("build a six-month runway before the hire");
+    head.textContent = "build a six-month runway before the hire, please";
+    fireEvent.blur(head);
+    await waitFor(() => expect(container.querySelector(".dec-main")!.textContent).toBe("Build a Six-Month Runway Before the Hire, Please"));
+  });
+
+  it("Ruled Out is rows in Title Case, never chips, with Remove only while editing", async () => {
+    const { container } = render(<NotesProvider userId="u-dec-cat-ruled"><OneRecord extra={base}><DecisionsFlow onBack={() => {}} /></OneRecord></NotesProvider>);
+    await openRecord(container, "Build a Six-Month Runway");
+    const head = screen.getByText("Ruled Out").closest(".sh2")!;
+    const card = head.nextElementSibling!;
+    expect(card.querySelector(".chip")).toBeNull();
+    expect(Array.from(card.querySelectorAll(".row .conn-name")).map((n) => n.textContent)).toEqual(["Wait a Month", "Hire Two"]);
+    expect(card.querySelector(".row-ctx"), "no verb while reading").toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Edit" }));
+    expect(card.querySelectorAll(".row-ctx")).toHaveLength(2);
+    expect(card.querySelector(".chip")).toBeNull();
+  });
+
+  it("the Revisit row has no chip and no placeholder: a date is a keyed fact, no date is nothing", async () => {
+    const dated = render(<NotesProvider userId="u-dec-cat-rev1"><OneRecord extra={{ ...base, revisitOn: "2099-03-04" }}><DecisionsFlow onBack={() => {}} /></OneRecord></NotesProvider>);
+    await openRecord(dated.container, "Build a Six-Month Runway");
+    const row = screen.getByText("Shows on Today").closest(".row")!;
+    expect(row.querySelector(".chip")).toBeNull();
+    const fact = row.querySelector(".facts .fact")!;
+    expect(fact.textContent).toBe("Mar 4");
+    expect(fact.className, "a later revisit is a neutral small-caps date").toContain("date");
+    expect(row.textContent).not.toContain("·");
+    dated.unmount();
+
+    const none = render(<NotesProvider userId="u-dec-cat-rev2"><OneRecord extra={base}><DecisionsFlow onBack={() => {}} /></OneRecord></NotesProvider>);
+    await openRecord(none.container, "Build a Six-Month Runway");
+    fireEvent.click(screen.getByRole("button", { name: "Edit" }));
+    const bare = screen.getByText("Shows on Today").closest(".row")!;
+    expect(bare.querySelector(".chip")).toBeNull();
+    expect(bare.querySelector(".facts"), "nothing to say, nothing drawn").toBeNull();
+    expect(screen.queryByText("No Date")).toBeNull();
+  });
+
+  it("an overdue revisit takes the key (a due date is never grey)", async () => {
+    const { container } = render(<NotesProvider userId="u-dec-cat-late"><OneRecord extra={{ ...base, revisitOn: "2020-01-02" }}><DecisionsFlow onBack={() => {}} /></OneRecord></NotesProvider>);
+    await openRecord(container, "Build a Six-Month Runway");
+    const fact = screen.getByText("Shows on Today").closest(".row")!.querySelector(".facts .fact")!;
+    expect(fact.className).toContain("red");
+  });
+
+  it("the outcome card opens on the three words, not on a row that says the head again", async () => {
+    const { container } = render(<NotesProvider userId="u-dec-cat-out"><OneRecord extra={base}><DecisionsFlow onBack={() => {}} /></OneRecord></NotesProvider>);
+    await openRecord(container, "Build a Six-Month Runway");
+    expect(screen.queryByText("Mark Outcome")).toBeNull();
+    const card = screen.getByText("Outcome", { selector: ".sh2 .t" }).closest(".sh2")!.nextElementSibling!;
+    expect(card.querySelector(".segmented")).not.toBeNull();
+    expect(card.querySelectorAll(".row")).toHaveLength(1);
+  });
+
+  it("an empty reason invites in Title Case and states nothing", async () => {
+    const { container } = render(<NotesProvider userId="u-dec-cat-why"><OneRecord extra={{ decision: "keep fridays for writing" }}><DecisionsFlow onBack={() => {}} /></OneRecord></NotesProvider>);
+    await openRecord(container, "Keep Fridays for Writing");
+    const why = container.querySelector(".dec-why") as HTMLElement;
+    expect(why.getAttribute("data-placeholder")).toBe("Why You Chose It");
+  });
+
+  it("a held list row offers Open as well as Delete (the long press is the menu)", async () => {
+    const { container } = render(<NotesProvider userId="u-dec-cat-menu"><OneRecord extra={base}><DecisionsFlow onBack={() => {}} /></OneRecord></NotesProvider>);
+    await waitFor(() => expect(container.querySelector(".dec-row")).not.toBeNull());
+    fireEvent.contextMenu(container.querySelector(".swipe-row")!);
+    expect(await screen.findByRole("button", { name: "Open" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Delete" })).toHaveClass("destructive");
   });
 });

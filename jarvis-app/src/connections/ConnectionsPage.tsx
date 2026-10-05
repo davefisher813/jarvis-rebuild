@@ -151,14 +151,6 @@ export default function ConnectionsPage({
       <div className="nav-bar"><button className="nav-back" onClick={leave.onBack}>{leave.label}</button></div>
       <div className="nav-large">Connections</div>
 
-      {!configured && (
-        <div className="pad-x"><div className="card list-card-ruled"><div className="empty-state">
-          <div className="empty-icon"><Link2 className="ic" /></div>
-          {/* The grey line under it said the title again (2026-10-05). */}
-          <div className="empty-title">Google Setup Required</div>
-        </div></div></div>
-      )}
-
       {/* THE ACCOUNTS HEAD HOLDS THE SECTION'S ACTIONS (Dave 2026-10-05, locked: a section-level action lives in the
           head, never at the foot of a list): Add Account, and Reconnect All once every account has signed out. With no
           account yet the screen's one filled primary (Connect Google) is the way in, and stays. */}
@@ -170,17 +162,35 @@ export default function ConnectionsPage({
           </span>
         )}
       </div>
+      {/* THE SETUP CARD SIZES TO ITS WORDS (Dave 2026-10-05, "stretches full height"). The bare .empty-state is the
+          whole-screen empty page (min-height 65vh); inside a card on a screen that goes on to other sections it is
+          .empty-compact, or one title and an icon drew a card as tall as the phone. It stands in for "No Accounts
+          Yet" when Google is not set up (the one reason there are none), so the screen says it once, and it sits
+          under the Accounts head it explains, not above the screen. */}
+      {!configured && (
+        <div className="pad-x"><div className="card list-card-ruled"><div className="empty-state empty-compact">
+          <div className="empty-icon"><Link2 className="ic" /></div>
+          {/* The grey line under it said the title again (2026-10-05). */}
+          <div className="empty-title">Google Setup Required</div>
+        </div></div></div>
+      )}
       {g.accounts.length === 0 ? (
         <>
-          <div className="pad-x"><div className="card list-card-ruled"><div className="empty-state">
-            <div className="empty-icon"><Mail className="ic" /></div>
-            <div className="empty-title">No Accounts Yet</div>
-          </div></div></div>
-          <div className="pad-x conn-action">
-            <button className="btn btn-primary btn-block" disabled={!configured || busy} onClick={addAccount}>
-              <Plus className="ic" /> {busy ? "Connecting..." : "Connect Google"}
-            </button>
-          </div>
+          {configured && (
+            <div className="pad-x"><div className="card list-card-ruled"><div className="empty-state empty-compact">
+              <div className="empty-icon"><Mail className="ic" /></div>
+              <div className="empty-title">No Accounts Yet</div>
+            </div></div></div>
+          )}
+          {/* With no client id there is nothing to connect to, and the card above says so: a greyed primary under it
+              repeated that as a dead control (2026-10-05, a control that cannot act is not drawn). */}
+          {configured && (
+            <div className="pad-x conn-action">
+              <button className="btn btn-primary btn-block" disabled={busy} onClick={addAccount}>
+                <Plus className="ic" /> {busy ? "Connecting..." : "Connect Google"}
+              </button>
+            </div>
+          )}
         </>
       ) : (
         <div className="pad-x"><div className="card list-card-ruled">

@@ -45,9 +45,17 @@ export interface NavOriginValue {
   claim: () => () => void;
   /** True while some mounted page is claiming it. */
   claimed: boolean;
+  /** RELEASE the origin without going anywhere. For the page a jump opened,
+   *  the moment it closes to its own root: the origin was "the way home from
+   *  that page", and once the page is gone there is nothing for the shell's
+   *  return pill to be the way home from (Alfred 2026-10-04, a stray "< Life"
+   *  over Your Routine). Stable across renders. Idempotent. A claim only HIDES
+   *  the origin while a page is mounted and leaves it live behind; this ends
+   *  it, so it is the one to use when the page is closing for good. */
+  clear: () => void;
 }
 
-const Ctx = createContext<NavOriginValue>({ origin: null, back: () => false, claim: () => () => {}, claimed: false });
+const Ctx = createContext<NavOriginValue>({ origin: null, back: () => false, claim: () => () => {}, claimed: false, clear: () => {} });
 
 export function NavOriginProvider({ value, children }: { value: NavOriginValue; children: ReactNode }) {
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

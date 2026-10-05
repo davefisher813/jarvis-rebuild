@@ -49,10 +49,12 @@ const Chev = () => (
   <div className="chev" />
 );
 
-// The spec'd display copy for an empty reason (renders in tx-4 through the
-// InlineEdit placeholder slot). Display copy, not a form label, so it stays
-// sentence case by design.
-const NO_REASON = "No reason recorded";
+// The empty reason's invitation (renders in tx-4 through the InlineEdit
+// placeholder slot). Title Case like its siblings ("What This Should Do", "The
+// Longer Thinking, If There Is Any"): it was the sentence-case "No reason
+// recorded", a line stating a fact the empty field already shows (catalog gate,
+// Dave 2026-10-05).
+const NO_REASON = "Why You Chose It";
 
 // "Aug 12" for the list's trailing date column (shared/dateFormat: noon-local
 // so a bare date never rolls back a day west of Greenwich).
@@ -276,7 +278,7 @@ export default function DecisionsFlow({ onBack, openId, openNonce, onOpenConsume
       const slot = linkAreaSlot(l, (id) => projCats[id]);
       return slot ? [{ link: l, slot }] : [];
     });
-    const plainHomes = links.filter((l) => !areaHomes.some((h) => h.link.id === l.id)).map((l) => l.label).join(", ");
+    const plainHomes = links.filter((l) => !areaHomes.some((h) => h.link.id === l.id)).map((l) => titleCase(l.label)).join(", ");
     const toggleLink = (opt: AttachOption) => {
       const next = links.some((l) => l.id === opt.id)
         ? links.filter((l) => l.id !== opt.id)
@@ -306,6 +308,7 @@ export default function DecisionsFlow({ onBack, openId, openNonce, onOpenConsume
             <InlineEdit
               className="dec-main"
               value={d.decision}
+              display={titleCase}
               focused={editing}
               onSave={(v) => { if (v && v !== d.decision) void patch(record.id, { decision: v }); }}
             />
@@ -373,18 +376,16 @@ export default function DecisionsFlow({ onBack, openId, openNonce, onOpenConsume
           {(editing || (d.ruledOut?.length ?? 0) > 0) && (
             <>
               <div className="sh2 sh2-quiet"><span className="t">Ruled Out</span></div>
-              <div className="pad-x"><div className="card pad">
-                {(d.ruledOut?.length ?? 0) > 0 && (
-                  <div className="chip-row">
-                    {(d.ruledOut ?? []).map((r) => (
-                      <div key={r} className="chip" role={editing ? "button" : undefined} tabIndex={editing ? 0 : undefined}
-                        onClick={editing ? () => void patch(record.id, { ruledOut: (d.ruledOut ?? []).filter((x) => x !== r) }) : undefined}>
-                        {r}
-                      </div>
-                    ))}
+              <div className="pad-x"><div className="card">
+                {/* ROWS, NOT CHIPS (Dave 2026-10-05, locked: no pills inside a card). Each closed option is a row in its own
+                    words (Title Case, stored as typed); while editing, its one quiet verb is Remove, as text. */}
+                {(d.ruledOut ?? []).map((r) => (
+                  <div key={r} className="row">
+                    <div className="row-grow"><div className="conn-name">{titleCase(r)}</div></div>
+                    <RowCtxAction when={editing} label="Remove" ariaLabel={"Remove " + titleCase(r)} onAct={() => void patch(record.id, { ruledOut: (d.ruledOut ?? []).filter((x) => x !== r) })} />
                   </div>
-                )}
-                {editing && <RuleAdder onAdd={(v) => void patch(record.id, { ruledOut: [...(d.ruledOut ?? []), v] })} />}
+                ))}
+                {editing && <div className="row"><RuleAdder onAdd={(v) => void patch(record.id, { ruledOut: [...(d.ruledOut ?? []), v] })} /></div>}
               </div></div>
             </>
           )}
@@ -395,24 +396,32 @@ export default function DecisionsFlow({ onBack, openId, openNonce, onOpenConsume
               <div className="pad-x"><div className="card">
                 {/* Row tap (Dave 2026-09-15, "I want all rows clickable"): the
                     whole line opens the date, as its chip does. */}
+                {/* CLEAN ROWS (Dave 2026-10-05, locked: no chip on a row, and a row with nothing to say shows nothing).
+                    The date was a chip at the row's edge, and "No Date" a placeholder in it. It is a fact under the
+                    title now, keyed like the list's revisit (a due revisit is amber or red, a later one a neutral
+                    date), and with no date the row says nothing and offers the chevron. */}
                 <div className="row" {...pressable(() => setRevisitOpen(!revisitOpen))}>
-                  <div className="row-grow"><div className="conn-name">Shows on Today</div></div>
-                  <div {...pressable(() => setRevisitOpen(!revisitOpen))} onClick={(ev) => { ev.stopPropagation(); setRevisitOpen(!revisitOpen); }} className="chip">
-                    {d.revisitOn ? fmtDay(d.revisitOn) : "No Date"}
+                  <div className="row-grow">
+                    <div className="conn-name">Shows on Today</div>
+                    {d.revisitOn && (
+                      <div className="facts"><span className={"fact " + (d.revisitState === "pending" || d.revisitState === "shown" ? dayTone(d.revisitOn, todayISO()) : "date")}>{fmtShort(d.revisitOn)}</span></div>
+                    )}
                   </div>
+                  <Chev />
                 </div>
                 {/* The answer takes the key (on track is green) and the day he
                     gave it is a neutral small-caps date (§AM F5); the CSS
                     draws the dot between them. */}
                 {d.revisitState === "confirmed" && d.confirmedAt && (
-                  <div className="row"><div className="row-stack"><div className="facts"><span className="fact good">Still good</span><span className="fact date">Confirmed {fmtShort(d.confirmedAt)}</span></div></div></div>
+                  <div className="row"><div className="row-stack"><div className="facts"><span className="fact good">Still Good</span><span className="fact date">Confirmed {fmtShort(d.confirmedAt)}</span></div></div></div>
                 )}
                 {revisitOpen && (
                   // Row tap (Dave 2026-09-15): the form row focuses its date field.
                   <div className="row" onClick={(ev) => { if (ev.target === ev.currentTarget) revisitRef.current?.focus(); }}>
                     <input ref={revisitRef} type="date" className="input" value={d.revisitOn ?? ""}
                       onChange={(e) => { void patch(record.id, { revisitOn: e.target.value || undefined }); setRevisitOpen(false); }} />
-                    {d.revisitOn && <div {...pressable(() => { void patch(record.id, { revisitOn: undefined }); setRevisitOpen(false); })} onClick={(ev) => { ev.stopPropagation(); void patch(record.id, { revisitOn: undefined }); setRevisitOpen(false); }} className="chip">Clear</div>}
+                    {/* Clear is the row's one quiet verb, as text (Dave 2026-10-05: no capsule on a row). */}
+                    <RowCtxAction when={!!d.revisitOn} label="Clear" ariaLabel="Clear Revisit Date" onAct={() => { void patch(record.id, { revisitOn: undefined }); setRevisitOpen(false); }} />
                   </div>
                 )}
               </div></div>
@@ -429,7 +438,7 @@ export default function DecisionsFlow({ onBack, openId, openNonce, onOpenConsume
                 {!editing && (
                   <div className="facts">
                     {areaHomes.map(({ link: l, slot }) => (
-                      <span className="fact cat fact-link" key={l.id}><span className={"cd cat-bg-" + slot} /><span className="cat-t">{l.label}</span></span>
+                      <span className="fact cat fact-link" key={l.id}><span className={"cd cat-bg-" + slot} /><span className="cat-t">{titleCase(l.label)}</span></span>
                     ))}
                     {plainHomes && <span className="fact">{plainHomes}</span>}
                   </div>
@@ -440,7 +449,7 @@ export default function DecisionsFlow({ onBack, openId, openNonce, onOpenConsume
                       <div key={o.id} className={"chip" + (links.some((l) => l.id === o.id) ? " active" : "")} role="checkbox" aria-checked={links.some((l) => l.id === o.id)} tabIndex={0}
                         onClick={() => toggleLink(o)}
                         onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggleLink(o); } }}>
-                        {o.label}
+                        {titleCase(o.label)}
                       </div>
                     ))}
                   </div>
@@ -456,17 +465,21 @@ export default function DecisionsFlow({ onBack, openId, openNonce, onOpenConsume
             <>
               <div className="sh2 sh2-quiet"><span className="t">Outcome</span></div>
               <div className="pad-x"><div className="card">
+                {/* With no outcome yet the head ("Outcome") and the three words under it say everything: a row titled "Mark
+                    Outcome" above them stated the head and the control a second time (catalog rule 2). */}
+                {d.outcome && (
                 <div className="row">
                   <div className="row-grow">
-                    <div className="conn-name">{d.outcome ? OUTCOME_LABEL[d.outcome.word] : "Mark Outcome"}</div>
+                    <div className="conn-name">{OUTCOME_LABEL[d.outcome.word]}</div>
                     {/* A neutral date is small caps (§AM F5), here and on the
                         record's other dated lines below. */}
-                    {d.outcome && <div className="facts"><span className="fact date">Marked {fmtShort(d.outcome.at)}</span></div>}
+                    <div className="facts"><span className="fact date">Marked {fmtShort(d.outcome.at)}</span></div>
                   </div>
                   {/* A call that did not work usually wants a new call: its moment has come, so its one action shows on the
                       row as text (the same Change It the toast offers), never as a capsule. */}
                   <RowCtxAction when={d.outcome?.word === "didnt"} label="Change It" onAct={() => setSheet({ kind: "supersede", oldId: record.id })} />
                 </div>
+                )}
                 {/* Clean rows (Dave 2026-10-05, locked): the three words are a CHOICE, one of three, so they are the app's
                     segmented control and not three capsules in a card.
                     row-tap: the segmented control fills this line; it is a verb strip, not an item */}
@@ -574,7 +587,7 @@ function RuleAdder({ onAdd }: { onAdd: (v: string) => void }) {
   const [draft, setDraft] = useState("");
   const commit = () => { const v = draft.trim(); if (v) { onAdd(v); setDraft(""); } };
   return (
-    <input className="input field-gap" placeholder="Option you closed · Enter adds" value={draft}
+    <input className="input field-gap" placeholder="Option You Closed" aria-label="Option You Closed" value={draft}
       onChange={(e) => setDraft(e.target.value)}
       onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); commit(); } }}
       onBlur={commit} />
@@ -612,7 +625,7 @@ function ListScreen({ live, loading, projCat, onBack, onOpen, onDelete, onAdd }:
               work is for", "Everything you achieve lands here, dated,
               forever"). The payoff is the only fact worth keeping: the
               reason outlives the memory of it. */}
-          <div className="empty-sub">The reason is still here in six weeks</div>
+          <div className="empty-sub">The Reason Is Still Here in Six Weeks</div>
           <button className="btn btn-primary" onClick={onAdd}>Record a Decision</button>
         </div>
       )}
@@ -628,7 +641,7 @@ function ListScreen({ live, loading, projCat, onBack, onOpen, onDelete, onAdd }:
           {live.map((r) => {
             const when = whenFact(r.data, today);
             return (
-            <SwipeDelete key={r.id} label={r.data.decision} onDelete={() => onDelete(r)}>
+            <SwipeDelete key={r.id} label={titleCase(r.data.decision)} onDelete={() => onDelete(r)} menu={[{ label: "Open", onPick: () => onOpen(r.id) }]}>
             <div {...pressable(() => onOpen(r.id))} className="row dec-row">
               <EntityStar entityType={ENTITY_DECISION} entityId={r.id} title={r.data.decision} />
               <div className={"lib-ico " + glyphClass(r, projCat)}>{DECISION_ICO}</div>
@@ -661,7 +674,7 @@ function ListScreen({ live, loading, projCat, onBack, onOpen, onDelete, onAdd }:
                   {linksOf(r.data).map((l) => {
                     const slot = linkAreaSlot(l, projCat);
                     return slot
-                      ? <span className="fact cat fact-link" key={l.id}><span className={"cd cat-bg-" + slot} /><span className="cat-t">{l.label}</span></span>
+                      ? <span className="fact cat fact-link" key={l.id}><span className={"cd cat-bg-" + slot} /><span className="cat-t">{titleCase(l.label)}</span></span>
                       : null;
                   })}
                   {/* How it turned out takes the key: worked is done, mixed

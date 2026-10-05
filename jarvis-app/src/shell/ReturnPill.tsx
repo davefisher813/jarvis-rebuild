@@ -1,4 +1,4 @@
-import { useLayoutEffect } from "react";
+import { useLayoutEffect, useRef } from "react";
 import { ChevronLeft } from "../shared/icons";
 import { useNavOrigin } from "./navOrigin";
 
@@ -30,31 +30,57 @@ import { useNavOrigin } from "./navOrigin";
 // nothing to scroll. The dock is static chrome, so the shell reads its top
 // and publishes --return-clear (the dock's height from the bottom plus a
 // gap); the stylesheet keeps 132px as the fallback for a screen without one.
-function useDockClear(on: boolean) {
+// CLEARANCE AT THE FOOT OF THE SCROLL BOX (Alfred 2026-10-04, "< Life" over the
+// last rows of the gym screens and the Health page). The pill floats inside the
+// scroll box's bottom edge, so a page's LAST row, scrolled to the end, sat
+// exactly where the pill is. The pill is the way home and must not be the thing
+// that hides a row, so while it is drawn the scroll box is padded by exactly the
+// room the pill takes (--return-pad, read by .app-scroll): the last row scrolls
+// up above it. Measured from the pill and the box rather than assumed, so it is
+// right at type scale 1.4 and with or without a capture dock. Zero (and the
+// property removed) the moment the pill is not drawn.
+const PILL_GAP = 8;
+
+function useDockClear(on: boolean, pill: React.RefObject<HTMLButtonElement | null>) {
   useLayoutEffect(() => {
     if (!on) return;
     const root = document.documentElement;
     const measure = () => {
       const dock = document.querySelector<HTMLElement>(".voice-dock");
-      if (!dock) { root.style.removeProperty("--return-clear"); return; }
-      const top = dock.getBoundingClientRect().top;
-      root.style.setProperty("--return-clear", `${Math.max(0, Math.round(window.innerHeight - top) + 8)}px`);
+      if (!dock) root.style.removeProperty("--return-clear");
+      else {
+        const top = dock.getBoundingClientRect().top;
+        root.style.setProperty("--return-clear", `${Math.max(0, Math.round(window.innerHeight - top) + 8)}px`);
+      }
+      // The pill has just been moved by --return-clear; read where it landed.
+      const scroll = document.querySelector<HTMLElement>(".app-scroll");
+      const p = pill.current;
+      if (!scroll || !p) { root.style.removeProperty("--return-pad"); return; }
+      const need = Math.round(scroll.getBoundingClientRect().bottom - p.getBoundingClientRect().top + PILL_GAP);
+      if (need > 0) root.style.setProperty("--return-pad", `${need}px`);
+      else root.style.removeProperty("--return-pad");
     };
     measure();
     const dock = document.querySelector<HTMLElement>(".voice-dock");
     const ro = typeof ResizeObserver !== "undefined" && dock ? new ResizeObserver(measure) : null;
     ro?.observe(dock!);
     window.addEventListener("resize", measure);
-    return () => { ro?.disconnect(); window.removeEventListener("resize", measure); root.style.removeProperty("--return-clear"); };
-  }, [on]);
+    return () => {
+      ro?.disconnect();
+      window.removeEventListener("resize", measure);
+      root.style.removeProperty("--return-clear");
+      root.style.removeProperty("--return-pad");
+    };
+  }, [on, pill]);
 }
 
 export default function ReturnPill() {
   const nav = useNavOrigin();
-  useDockClear(!!nav.origin && !nav.claimed);
+  const pill = useRef<HTMLButtonElement | null>(null);
+  useDockClear(!!nav.origin && !nav.claimed, pill);
   if (!nav.origin || nav.claimed) return null;
   return (
-    <button type="button" className="return-pill" onClick={() => nav.back()}>
+    <button ref={pill} type="button" className="return-pill" onClick={() => nav.back()}>
       <ChevronLeft className="ic" />
       {nav.origin.label}
     </button>
