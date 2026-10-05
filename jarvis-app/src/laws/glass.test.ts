@@ -10,6 +10,52 @@ const css = readFileSync(join(SRC, "styles/glass-light.css"), "utf8");
 const noComments = css.replace(/\/\*[\s\S]*?\*\//g, "");
 const rules = [...noComments.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map((m) => ({ sel: m[1]!.trim(), body: m[2]! }));
 
+// DARK POLISH (Dave 2026-10-05): "I don't want any other colors in there.
+// The black and red and white are the Jarvis colors." The dark file is held
+// to the same structural promises, and to that palette.
+const dcss = readFileSync(join(SRC, "styles/glass-dark.css"), "utf8");
+const dNoComments = dcss.replace(/\/\*[\s\S]*?\*\//g, "");
+const dRules = [...dNoComments.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map((m) => ({ sel: m[1]!.trim(), body: m[2]! }));
+
+describe("glass-dark.css", () => {
+  it("is imported by the app", () => {
+    expect(readFileSync(join(SRC, "main.tsx"), "utf8")).toMatch(/styles\/glass-dark\.css/);
+  });
+  it("is dark only: every selector sits under html[data-theme=\"dark\"]", () => {
+    for (const r of dRules) {
+      if (r.sel.startsWith("@")) continue;
+      for (const s of r.sel.split(",").map((x) => x.trim())) {
+        expect(s, `selector escapes the dark theme: ${s}`).toMatch(/^html\[data-theme="dark"\]/);
+      }
+    }
+  });
+  it("is black, red and white only: every literal colour is a neutral, the red comes from the token", () => {
+    expect(dNoComments).not.toMatch(/#[0-9a-f]{3,8}\b/i);
+    for (const m of dNoComments.matchAll(/rgba?\((\d{1,3}),\s*(\d{1,3}),\s*(\d{1,3})/g)) {
+      const [r, g, b] = [Number(m[1]), Number(m[2]), Number(m[3])];
+      expect(Math.max(r, g, b) - Math.min(r, g, b), `a colour crept in: ${r},${g},${b}`).toBeLessThanOrEqual(6);
+    }
+    for (const m of dNoComments.matchAll(/color-mix\(in srgb, ([^ ,]+)/g)) expect(m[1]).toBe("var(--accent-fill)");
+  });
+  it("blurs only the sheet, never a card, chip or the dock", () => {
+    for (const r of dRules) {
+      if (!/backdrop-filter:\s*(?!none\b)[a-z]/.test(r.body)) continue;
+      expect(r.sel, "backdrop-filter on something other than the sheet").toMatch(/sheet-scrim/);
+    }
+  });
+  it("keeps the tab bar docked and nothing on a card repositioned", () => {
+    for (const r of dRules) {
+      if (/\.tab-bar/.test(r.sel)) expect(r.body).not.toMatch(/margin|border-radius|position/);
+      if (/\.card\b/.test(r.sel) && !/sheet-scrim/.test(r.sel)) expect(r.body).not.toMatch(/position\s*:|z-index\s*:/);
+    }
+  });
+  it("does not replay an entrance on screen open, and leaves the TV guide alone", () => {
+    expect(dNoComments).not.toMatch(/animation\s*:|@keyframes/);
+    expect(dcss).not.toMatch(/sched-ticker/);
+    expect(dcss.includes(String.fromCharCode(0x2014))).toBe(false);
+  });
+});
+
 describe("glass-light.css", () => {
   it("is imported by the app", () => {
     expect(readFileSync(join(SRC, "main.tsx"), "utf8")).toMatch(/styles\/glass-light\.css/);

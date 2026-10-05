@@ -1,0 +1,200 @@
+/* DARK POLISH (Dave 2026-10-05): "I'm not unhappy with the dark version as is.
+   I just want to give it one more final polish and really bring it to life.
+   If we do any gradient, I don't want any other colors in there. The black and
+   red and white are the Jarvis colors."
+
+   So this is a finish, not a new look. Black, red and white only. The cards
+   stay where they are and what they are (charcoal glass); they gain a finer
+   lit edge, a soft curved highlight and a little depth. The one gradient is
+   red: a faint ember in the top corner, nothing else. The tab bar stays
+   docked. Every rule is under html[data-theme="dark"]; light is untouched.
+
+   Same discipline as the light file: no backdrop-filter on cards, chips or
+   the dock (nothing moves under them, so a blur changes nothing you can see);
+   highlights are background layers and inset shadows so no card gets
+   position; no entrance animation on screen open (Dave 2026-07-29). */
+
+html[data-theme="dark"] {
+  --gd-pane: linear-gradient(168deg, rgba(40, 40, 43, 0.74) 0%, rgba(28, 28, 31, 0.70) 55%, rgba(22, 22, 25, 0.68) 100%);
+  --gd-chip: linear-gradient(168deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.05));
+  --gd-chrome: linear-gradient(168deg, rgba(46, 46, 50, 0.84), rgba(30, 30, 34, 0.74));
+  --gd-red-top: color-mix(in srgb, var(--accent-fill) 80%, white);
+  --gd-red-lo: color-mix(in srgb, var(--accent-fill) 80%, black);
+  --gd-red-glow: color-mix(in srgb, var(--accent-fill) 55%, transparent);
+  --gd-red-edge: color-mix(in srgb, var(--accent-fill) 50%, black);
+}
+
+/* THE EMBER: one faint red glow in the top corner, fixed behind the scroll,
+   and a still fainter one low on the other side. Red only. */
+html[data-theme="dark"] .app-shell { isolation: isolate; }
+html[data-theme="dark"] .app-shell::before {
+  content: ""; position: absolute; inset: 0; z-index: 0; pointer-events: none;
+  background:
+    radial-gradient(560px 400px at 108% -6%, color-mix(in srgb, var(--accent-fill) 24%, transparent), transparent 64%),
+    radial-gradient(520px 380px at -10% 108%, color-mix(in srgb, var(--accent-fill) 12%, transparent), transparent 66%);
+}
+/* Fine light grain, so the glow does not band on an OLED. */
+html[data-theme="dark"] .app-shell::after {
+  content: ""; position: absolute; inset: 0; z-index: 0; pointer-events: none; opacity: 0.045;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 .7 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+}
+html[data-theme="dark"] .app-scroll { position: relative; z-index: 1; background: transparent; }
+html[data-theme="dark"] .app-shell .screen { background: transparent; }
+
+/* THE CARD: the same charcoal glass, finer lit. */
+html[data-theme="dark"] .card,
+html[data-theme="dark"] .ruled .card {
+  background:
+    radial-gradient(520px 200px at 6% 0%, rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0) 70%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0) 110px),
+    var(--gd-pane);
+  -webkit-backdrop-filter: none; backdrop-filter: none;
+  box-shadow:
+    inset 1px 1px 0 rgba(255, 255, 255, 0.22),
+    inset -1px -1px 0 rgba(255, 255, 255, 0.04),
+    inset 0 -12px 20px -14px rgba(0, 0, 0, 0.65),
+    0 1px 1px rgba(0, 0, 0, 0.5),
+    0 14px 28px -12px rgba(0, 0, 0, 0.7);
+}
+html[data-theme="dark"] .card .card:not(.xs-group),
+html[data-theme="dark"] .ruled .card .card:not(.xs-group) {
+  background: transparent; box-shadow: none; border-radius: 0;
+}
+html[data-theme="dark"] .card .row + .row::before,
+html[data-theme="dark"] .card .task-row + .task-row::before {
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.10) 14%, rgba(255, 255, 255, 0.10) 86%, rgba(255, 255, 255, 0));
+}
+
+/* THE SMALL PANES. */
+html[data-theme="dark"] .stat-tile {
+  box-shadow: inset 1px 1px 0 rgba(255, 255, 255, 0.20), inset -1px -1px 0 rgba(255, 255, 255, 0.04), inset 0 -8px 12px -10px rgba(0, 0, 0, 0.6);
+}
+html[data-theme="dark"] .st-n,
+html[data-theme="dark"] .dring b { font-variant-numeric: tabular-nums; }
+
+html[data-theme="dark"] .sched-badge-btn,
+html[data-theme="dark"] .ticker-toggle,
+html[data-theme="dark"] .btn-secondary,
+html[data-theme="dark"] .quiet-action,
+html[data-theme="dark"] .hdr-opts,
+html[data-theme="dark"] .hdr-add,
+html[data-theme="dark"] .hdr-search,
+html[data-theme="dark"] .dd,
+html[data-theme="dark"] .see-all.pill-action,
+html[data-theme="dark"] .notice-dismiss,
+html[data-theme="dark"] .pill-act:not(.pill-go) {
+  background: var(--gd-chip);
+  box-shadow: inset 1px 1px 0 rgba(255, 255, 255, 0.18), inset -1px -1px 0 rgba(255, 255, 255, 0.04), 0 3px 8px rgba(0, 0, 0, 0.4);
+}
+html[data-theme="dark"] .card .row .dd { background: none; box-shadow: none; }
+
+/* THE RED: lit on top, shaded at the foot, with a warm glow on black. */
+html[data-theme="dark"] .ruled .card .pill-act.pill-go,
+html[data-theme="dark"] .pill-act.pill-go {
+  background: linear-gradient(180deg, var(--gd-red-top) 0%, var(--accent-fill) 46%, var(--gd-red-lo) 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45), inset 0 -2px 3px var(--gd-red-edge), 0 0 0 0.5px var(--gd-red-edge), 0 6px 18px -2px var(--gd-red-glow);
+}
+html[data-theme="dark"] .btn-primary {
+  background-image: linear-gradient(180deg, var(--gd-red-top) 0%, var(--accent-fill) 46%, var(--gd-red-lo) 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45), inset 0 -2px 3px var(--gd-red-edge), 0 0 0 0.5px var(--gd-red-edge), 0 10px 24px -4px var(--gd-red-glow);
+}
+html[data-theme="dark"] .notice-disc {
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.24) 0%, rgba(255, 255, 255, 0) 56%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.42), inset 0 -2px 4px rgba(0, 0, 0, 0.30), 0 4px 10px -2px rgba(0, 0, 0, 0.6);
+}
+html[data-theme="dark"] .voice-mic {
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.30) 0%, rgba(255, 255, 255, 0) 55%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45), inset 0 -2px 3px var(--gd-red-edge), 0 4px 14px -2px var(--gd-red-glow);
+}
+html[data-theme="dark"] .dring > div { box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.5), 0 1px 0 rgba(255, 255, 255, 0.10); }
+
+html[data-theme="dark"] .today-title { letter-spacing: -0.03em; }
+
+/* THE DOCK and THE TAB BAR stay where they are: lit, not moved. */
+html[data-theme="dark"] .voice-bar,
+html[data-theme="dark"] .voice-search {
+  background: var(--gd-chrome);
+  -webkit-backdrop-filter: none; backdrop-filter: none;
+  box-shadow: inset 1px 1px 0 rgba(255, 255, 255, 0.20), inset -1px -1px 0 rgba(255, 255, 255, 0.04), inset 0 -6px 10px -8px rgba(0, 0, 0, 0.6), 0 8px 18px -8px rgba(0, 0, 0, 0.7);
+}
+html[data-theme="dark"] .tab-bar {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.10);
+}
+html[data-theme="dark"] .tab-bar .tab.active .ic { filter: drop-shadow(0 0 7px var(--gd-red-glow)); }
+
+/* THE SHEET: real glass, because the page really does pass under it. */
+html[data-theme="dark"] .sheet-scrim {
+  background: rgba(0, 0, 0, 0.45);
+  -webkit-backdrop-filter: blur(6px) saturate(120%); backdrop-filter: blur(6px) saturate(120%);
+}
+html[data-theme="dark"] .sheet-scrim > .card {
+  background:
+    radial-gradient(420px 240px at 100% 0%, color-mix(in srgb, var(--accent-fill) 14%, transparent), transparent 70%),
+    linear-gradient(180deg, rgba(40, 40, 43, 0.90), rgba(22, 22, 25, 0.88));
+  -webkit-backdrop-filter: blur(40px) saturate(160%); backdrop-filter: blur(40px) saturate(160%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.26), inset 0 0 0 0.5px rgba(255, 255, 255, 0.05), 0 -14px 44px -6px rgba(0, 0, 0, 0.7);
+}
+html[data-theme="dark"] .sheet-scrim .card.xs-group { background: var(--gd-chip); }
+html[data-theme="dark"] .sheet-handle { background: rgba(255, 255, 255, 0.30); box-shadow: 0 1px 0 rgba(0, 0, 0, 0.5); }
+
+/* PRESS: everything pressable gives a little under the thumb. */
+html[data-theme="dark"] .pill-act,
+html[data-theme="dark"] .see-all,
+html[data-theme="dark"] .voice-bar,
+html[data-theme="dark"] .voice-search,
+html[data-theme="dark"] .tab,
+html[data-theme="dark"] .btn-primary,
+html[data-theme="dark"] .hdr-add { transition: transform 140ms var(--ease-out), box-shadow 140ms; }
+html[data-theme="dark"] .pill-act:active,
+html[data-theme="dark"] .see-all:active,
+html[data-theme="dark"] .voice-bar:active,
+html[data-theme="dark"] .voice-search:active,
+html[data-theme="dark"] .tab:active,
+html[data-theme="dark"] .btn-primary:active,
+html[data-theme="dark"] .hdr-add:active { transform: scale(0.965); }
+@media (prefers-reduced-motion: reduce) {
+  html[data-theme="dark"] .pill-act,
+  html[data-theme="dark"] .see-all,
+  html[data-theme="dark"] .voice-bar,
+  html[data-theme="dark"] .voice-search,
+  html[data-theme="dark"] .tab,
+  html[data-theme="dark"] .btn-primary,
+  html[data-theme="dark"] .hdr-add { transition: none; }
+  html[data-theme="dark"] .pill-act:active,
+  html[data-theme="dark"] .see-all:active,
+  html[data-theme="dark"] .voice-bar:active,
+  html[data-theme="dark"] .voice-search:active,
+  html[data-theme="dark"] .tab:active,
+  html[data-theme="dark"] .btn-primary:active,
+  html[data-theme="dark"] .hdr-add:active { transform: none; }
+}
+
+/* QUALITY PASS (Dave 2026-10-05: "push it to the max ... don't change
+   anything, just enhance"). Same colours, sizes and places; finer rendering.
+   1 glows fall off over six stops instead of two, so none has an edge
+   2 grain drawn at twice the density and shown at half size: sharper on retina
+   3 on retina screens every lit edge is one device pixel (0.5px), not two
+   4 the red buttons get a specular band and their words a hairline of depth
+   5 a press dims a touch as well as giving, so the tap reads instantly
+   6 the big title is set with optical kerning */
+html[data-theme="dark"] .app-shell::before { background: radial-gradient(560px 400px at 108% -6%, color-mix(in srgb, var(--accent-fill) 24.0%, transparent) 0%, color-mix(in srgb, var(--accent-fill) 20.2%, transparent) 12%, color-mix(in srgb, var(--accent-fill) 13.9%, transparent) 23%, color-mix(in srgb, var(--accent-fill) 7.7%, transparent) 35%, color-mix(in srgb, var(--accent-fill) 2.9%, transparent) 48%, transparent 64%),
+    radial-gradient(520px 380px at -10% 108%, color-mix(in srgb, var(--accent-fill) 12.0%, transparent) 0%, color-mix(in srgb, var(--accent-fill) 10.1%, transparent) 12%, color-mix(in srgb, var(--accent-fill) 7.0%, transparent) 24%, color-mix(in srgb, var(--accent-fill) 3.8%, transparent) 36%, color-mix(in srgb, var(--accent-fill) 1.4%, transparent) 50%, transparent 66%); }
+html[data-theme="dark"] .app-shell::after { background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='360' height='360'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 .7 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>"); background-size: 180px 180px; }
+@media (min-resolution: 2dppx) {
+  html[data-theme="dark"] .card, html[data-theme="dark"] .ruled .card { box-shadow: inset 0.5px 0.5px 0 rgba(255, 255, 255, 0.30), inset -0.5px -0.5px 0 rgba(255, 255, 255, 0.06), inset 0 -12px 20px -14px rgba(0, 0, 0, 0.65), 0 0.5px 1px rgba(0, 0, 0, 0.6), 0 14px 28px -12px rgba(0, 0, 0, 0.7); }
+  html[data-theme="dark"] .card .card:not(.xs-group), html[data-theme="dark"] .ruled .card .card:not(.xs-group) { box-shadow: none; }
+  html[data-theme="dark"] .sched-badge-btn, html[data-theme="dark"] .ticker-toggle, html[data-theme="dark"] .btn-secondary, html[data-theme="dark"] .quiet-action, html[data-theme="dark"] .hdr-opts, html[data-theme="dark"] .hdr-add, html[data-theme="dark"] .dd,
+  html[data-theme="dark"] .see-all.pill-action, html[data-theme="dark"] .notice-dismiss, html[data-theme="dark"] .pill-act:not(.pill-go) { box-shadow: inset 0.5px 0.5px 0 rgba(255, 255, 255, 0.26), inset -0.5px -0.5px 0 rgba(255, 255, 255, 0.05), 0 3px 8px rgba(0, 0, 0, 0.4); }
+  html[data-theme="dark"] .card .row .dd { box-shadow: none; }
+}
+html[data-theme="dark"] .ruled .card .pill-act.pill-go, html[data-theme="dark"] .pill-act.pill-go {
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.22) 0%, rgba(255, 255, 255, 0.06) 48%, rgba(255, 255, 255, 0) 52%), linear-gradient(180deg, var(--gd-red-top) 0%, var(--accent-fill) 46%, var(--gd-red-lo) 100%);
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.18);
+}
+html[data-theme="dark"] .btn-primary {
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.22) 0%, rgba(255, 255, 255, 0.06) 48%, rgba(255, 255, 255, 0) 52%), linear-gradient(180deg, var(--gd-red-top) 0%, var(--accent-fill) 46%, var(--gd-red-lo) 100%);
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.18);
+}
+html[data-theme="dark"] .pill-act:active, html[data-theme="dark"] .see-all:active, html[data-theme="dark"] .voice-bar:active, html[data-theme="dark"] .voice-search:active,
+html[data-theme="dark"] .tab:active, html[data-theme="dark"] .btn-primary:active, html[data-theme="dark"] .hdr-add:active { filter: brightness(0.94); }
+html[data-theme="dark"] .today-title { text-rendering: optimizeLegibility; font-kerning: normal; }

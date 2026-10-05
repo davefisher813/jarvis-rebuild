@@ -1084,3 +1084,18 @@ The page stays white and the cards stay the grey they were (#F5F6F8, the one-gre
 - **Decisions that differ from the preview**: no `backdrop-filter` on cards, chips or the dock (they sit on a smooth haze, so a blur changes nothing you can see and costs a layer per card; blur stays only on the sheet and the existing tab bar); no entrance animation on screen open (Dave 2026-07-29: cards replaying their entrance on a tab switch read as jank, so the existing boot-only stagger stays the only entrance).
 - **Press feedback**: pills, tabs, the dock and primary buttons scale to 0.965 under the thumb; off under Reduce Motion.
 - **Not touched**: the TV guide (`.sched-ticker`), the type scale (only the Today greeting's tracking), any dark rule.
+
+## §AV. Dark Polish (Dave 2026-10-05: "I'm not unhappy with the dark version as is ... black and red and white are the Jarvis colors")
+
+A finish, not a new look. `styles/glass-dark.css`, every selector under `html[data-theme="dark"]`; light untouched. `laws/glass.test.ts` pins it.
+
+- **Palette**: black, red and white only. Every literal colour is a neutral; the only hue is `--accent-fill`, through `color-mix`. The law rejects anything else.
+- **The ember**: one faint red glow in the top corner and a fainter one low on the left, eased over six stops so neither has an edge. Fine light grain so it does not band on an OLED.
+- **Cards** stay where and what they were (charcoal glass): a finer lit edge, a soft curved highlight, a little depth at the foot. No blur on cards, chips or the dock.
+- **Red**: Start Now, Focus and the mic lit on top, shaded at the foot, a warm glow on black. The active tab's icon glows faintly red.
+- **The tab bar stays docked**; the sheet is dark glass with a hint of red.
+
+## §AW. Quality pass, both themes (Dave 2026-10-05: "push it to the max ... don't change anything, just enhance")
+
+Same colours, sizes and places; finer rendering, in a block at the foot of each glass file:
+glows eased over six stops; grain drawn at twice the density and shown at half size; on retina every lit edge is one device pixel (0.5px); a specular band on the red buttons and a hairline of depth under their words; a press dims a touch as well as giving; the Today title set with optical kerning.
