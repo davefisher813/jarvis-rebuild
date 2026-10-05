@@ -5,7 +5,7 @@ import { suggestStopPoint } from "../startStore";
 import { createPortal } from "react-dom";
 import { pressable } from "../../shared/pressable";
 import { useLeaveVia } from "../../shell/navOrigin";
-import { lineCase } from "../../shared/casing";
+import { lineCase, titleCase } from "../../shared/casing";
 import { progressLabel } from "../../encourage/messages";
 
 // THE WORKING SURFACE (Start Now, 2026-09-16).
@@ -193,7 +193,7 @@ export default function StartScreen({
             {tags.map((t) => <span className="chip" key={t}>{t}</span>)}
           </div>
         )}
-        <div className="start-title">{target.title}</div>
+        <div className="start-title">{titleCase(target.title)}</div>
       </div>
 
       {/* THE HEADER IS ONE SUBTEXT BLOCK, NOT TWO GREYS (Dave 2026-10-05, the
@@ -311,17 +311,17 @@ export default function StartScreen({
       <div className="pad-x start-support fb-support">
         {smaller && !(hasStep && onSmallerStep) && (
           <button className="quiet-action" onClick={() => { setShown(smaller); setShrinks((n) => n + 1); }}>
-            Make this smaller
+            Make This Smaller
           </button>
         )}
         {hasStep && onSmallerStep && !atRest && (
-          <button className="quiet-action" onClick={() => openEditor("smaller")}>Make this smaller</button>
+          <button className="quiet-action" onClick={() => openEditor("smaller")}>Make This Smaller</button>
         )}
         {hasStep && onEditStep && !atRest && (
           <button className="quiet-action" onClick={() => openEditor("edit")}>Edit This Move</button>
         )}
         {onWorked && <button className="quiet-action" onClick={() => openEditor("worked")}>Worked on It</button>}
-        <button className="quiet-action" onClick={() => setAsk(true)}>Something’s in the way</button>
+        <button className="quiet-action" onClick={() => setAsk(true)}>Something’s in the Way</button>
         {onDoneForNow && <button className="quiet-action" onClick={() => onDoneForNow(suggestStopPoint(text))}>Done for Now</button>}
       </div>
 
@@ -356,7 +356,7 @@ export default function StartScreen({
               <div className="conn-name">Put It on the Day</div>
               <div className="conn-meta">{timerLabel ?? "Books a Block You Can Stop"}</div>
             </div>
-            <span className="pill-act">Start It</span>
+            <div className="chev" />
           </div>
         )}
         {onFinish && (
@@ -365,7 +365,7 @@ export default function StartScreen({
               <div className="conn-name">Finish This Task</div>
               <div className="conn-meta">Ticks the Task Itself, Separate from Saving</div>
             </div>
-            <span className="pill-act">Finish</span>
+            <div className="chev" />
           </div>
         )}
       </div></div>

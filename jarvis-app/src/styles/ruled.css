@@ -55,7 +55,7 @@
    glass is when it's stacked and not together." A card inside a card has
    no corners and no shadow. It is a row; the hairlines say where it ends.
    Three classes deep so it beats .ruled .card without an !important. */
-.ruled .card .card { border-radius: 0; box-shadow: none;
+.ruled .card .card { border-radius: 0; border: 0; box-shadow: none;
   /* a row inside a glass card is see-through: the card's glass is the
      ground, and a second sheen or blur here would paint a card on a card.
      prefix FIRST, standard LAST (see f056f06). */
@@ -77,7 +77,7 @@
 .ruled .card .task-row, .ruled .card .sched-row, .ruled .card .row, .ruled .card .anytime-row,
 .ruled .card .rem-row,
 .ruled .card .notice-card, .ruled .card .notice-card-row, .ruled .card .stream-card > .task-row { background: transparent; }
-.ruled .card .task-swipe > .task-del, .ruled .card .task-swipe > .task-snooze,
+.ruled .card .task-swipe > .task-del, .ruled .card .task-swipe > .task-snooze, .ruled .card .task-swipe > .task-verb,
 /* 2026-10-04: the one-action reveal's outer-slot modifier (components.css). */
 .ruled .card .task-swipe > .task-snooze-solo,
 /* UP-CORE-15 shipped a new reveal, the leading green Done rail, and did not
@@ -101,6 +101,11 @@
 .ruled .card .task-swipe:has(> [style*="translateX"]:not([style*="translateX(0px)"])) > *,
 .ruled .card .notice-swipe:has(> [style*="translateX"]:not([style*="translateX(0px)"])) > *,
 .ruled .card .sched-strip:has(> [style*="translateX"]:not([style*="translateX(0px)"])) > * { visibility: visible; }
+/* THE DONE RAIL IS THE RIGHT SWIPE'S GROUND, NOT THE LEFT'S (Dave 2026-10-05, a Today row slid open showed a green Done
+   rail where the row used to be). The un-hide above shows every reveal while a row moves; the leading rail sits at the left
+   edge, which a leftward slide uncovers, so it stays hidden whenever the row has moved left. */
+.ruled .card .notice-swipe:has(> [style*="translateX(-"]:not([style*="translateX(0px)"])) > .task-done-rail,
+.ruled .card .task-swipe:has(> [style*="translateX(-"]:not([style*="translateX(0px)"])) > .task-done-rail { visibility: hidden; }
 /* THE CREATE KEEPS ITS CAPSULE (2026-09-06, measured on the built app while
    fixing "the add item button is sitting inside of a pill"). The rule above
    is about ROWS, and it caught the one child of a ruled card that is a
@@ -192,7 +197,7 @@
    review): the app's red tint token is the BRAND red's wash (the tap red at
    16% in dark, the words red at 10% in light), so the late word sat on the
    tap red. It is the same mix the urgency chip's red uses. */
-.ruled .st-late  { background: color-mix(in srgb, var(--sys-red) 14%, transparent); color: var(--sys-red); }
+.ruled .st-late  { background: color-mix(in srgb, var(--sys-red) var(--late-wash), transparent); color: var(--sys-red); }
 /* No light text step for these tiles. BROWSER-F-04 (2026-09-05) took the
    green and amber steps out: two more hand-kept hexes doing what --good and
    --warn now do themselves in light. The red step went on 2026-09-26 (§AM,
@@ -485,17 +490,12 @@
 .ruled .pp { width: 24px; height: 24px; display: block; }
 .ruled .gm-slot .ic { width: 22px; height: 22px; }
 .ruled .proj-row-ruled .task-title, .ruled .goal-row-ruled .task-title { min-width: 0; }
-/* A project's title line: the name, and Close at its right edge when the
-   project can close (Dave 2026-09-13). The name keeps the task-name clamp. */
+/* A project's title line: the name alone (Dave 2026-10-05: Close is no longer a capsule beside it, it is the swipe and one quiet
+   word at the row's trailing edge). It takes the task-name clamp: two lines, then the ellipsis (Dave 2026-09-26), so "Create AI
+   Financial Advisor" is not cut at one line while there is room under it. */
 .ruled .proj-row-ruled .proj-line1 { display: flex; align-items: center; gap: var(--s-2); min-width: 0; }
-.ruled .proj-row-ruled .proj-line1 > .task-name { flex: 1 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-/* Close is the app's capsule as it stands (§AL, 2026-09-25): its 14px label,
-   its sides, and the -5px that pays its 44 box back. This rule drew a 13px
-   capsule with narrower sides and a -4px margin, so the one Close on a
-   finished project was the only capsule in the list drawn smaller. Measured:
-   the title line is 34 tall at text size 1.0 and 1.4 alike, and the name at
-   1.4 (29px) still sits inside it. */
-.ruled .proj-row-ruled .proj-close { flex-shrink: 0; align-self: center; }
+.ruled .proj-row-ruled .proj-line1 > .task-name { flex: 1 1 auto; min-width: 0; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  white-space: normal; overflow: hidden; text-overflow: ellipsis; overflow-wrap: anywhere; }
 /* A goal row (Dave 2026-09-13): what moves it on line two, the count the bar
    draws on the line over the bar with the status at its right edge. */
 .ruled .goal-row-ruled .goal-sub { margin-top: var(--s-1); }
@@ -634,7 +634,7 @@
 .ruled .uchip { font-size: var(--t-micro); font-weight: var(--w-bold); letter-spacing: 0.06em; padding: 3px 7px;
   border-radius: var(--r-pill); flex-shrink: 0; white-space: nowrap; text-transform: uppercase; }
 .ruled .uchip.u-today { color: var(--warn); background: var(--warn-tint); }
-.ruled .uchip.u-late  { color: var(--sys-red); background: color-mix(in srgb, var(--sys-red) 14%, transparent); }
+.ruled .uchip.u-late  { color: var(--sys-red); background: color-mix(in srgb, var(--sys-red) var(--late-wash), transparent); }
 /* E-31 (2026-09-12): a proposed day is a guess he made, not a deadline the
    app holds him to, so it wears the quiet ramp. */
 .ruled .uchip.u-proposed { color: var(--tx-3); background: var(--press-3); }
@@ -670,7 +670,6 @@
 .ruled .list-card-ruled > .task-swipe + .task-swipe::before {
   content: ""; position: absolute; z-index: 2; left: calc(var(--s-4) + 44px + var(--s-3)); right: 0; top: 0;
   height: 0.5px; background: var(--divider); pointer-events: none; }
-.ruled .list-card-ruled + .list-foot { margin-top: var(--s-3); }
 /* A CARD BLOCK AND THE LIST UNDER IT ARE TWO CONTAINERS (Dave 2026-09-17:
    "there's containers on the task page vertically don't follow spacing/border
    rules (way too close together)"). Measured at phone width: zero. The page
@@ -1303,7 +1302,6 @@
 .ruled .time-pop-durs { margin-top: var(--s-3); }
 .ruled .time-pop-durs .input-label { margin-bottom: var(--s-1h); }
 .ruled .time-pop-durs .plan-durs { padding: 0; }
-.ruled .sched-list > .sched-copy { margin: var(--s-2) auto var(--s-3); }
 
 /* ---------- MONEY, PORTED (Notes and Money catalog, 2026-09-02) ----------
    The balance is a hero that holds its own accounts: the total big, the
@@ -1943,7 +1941,7 @@
    key's sense, which is --sys-red, the same red every overdue thing wears.
    Its wash is mixed from the system red too (round 4, 2026-09-26): the red
    tint token is the brand's wash. */
-.ruled.health-ruled .se-guard-warn { color: var(--sys-red); background: color-mix(in srgb, var(--sys-red) 14%, transparent); }
+.ruled.health-ruled .se-guard-warn { color: var(--sys-red); background: color-mix(in srgb, var(--sys-red) var(--late-wash), transparent); }
 .ruled.health-ruled .se-guard-warn em { color: var(--sys-red); }
 
 /* THE PIN IS A CLAIM, NOT A VERB (2026-09-16). "Pin Days" was a red capsule on
@@ -2683,23 +2681,16 @@
 .ruled .area-cards { display: flex; flex-direction: column; gap: var(--s-2h); }
 .ruled .area-card { display: flex; align-items: center; gap: var(--s-3); padding: var(--s-2h) var(--s-3h); cursor: pointer; }
 .ruled .area-card:active { opacity: 0.85; }
-.ruled .area-card-top { display: flex; align-items: center; gap: var(--s-3); width: 100%; }
-/* PLAIN LIKE THE OTHER AREA CARDS (Dave's pick, 2026-09-26). The card lost
-   its green wash and green border, its sub went back to the area grey, and
-   its chips went neutral: Health's colour lives on its tile, as every
-   area's does. What still sets it apart is content (the sections row). */
-.ruled .area-card-health { flex-direction: column; align-items: stretch; gap: var(--s-3); }
+/* PLAIN LIKE THE OTHER AREA CARDS (Dave's pick, 2026-09-26). The card lost its green wash and green border: Health's colour
+   lives on its tile, as every area's does. Since 2026-10-05 it is the same card in every respect (the five section capsules
+   it carried are gone); the class is its hook and holds nothing of its own. */
+.ruled .area-card-health { align-items: center; }
 .ruled .area-tile { width: 44px; height: 44px; border-radius: var(--r-md); display: flex; align-items: center; justify-content: center; color: #fff; flex-shrink: 0; }
 .ruled .area-tile .ic { width: 22px; height: 22px; }
 .ruled .area-stack { flex: 1; min-width: 0; }
 .ruled .area-name { font-size: var(--t-h3); font-weight: var(--w-semi); color: var(--tx-1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.ruled .area-sub { font-size: var(--t-meta); color: var(--tx-2); margin-top: 1px; }
 .ruled .area-chev { width: 28px; height: 28px; border-radius: var(--r-circle); background: var(--press-3); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .ruled .area-chev .chev { margin-right: var(--s-1); border-color: var(--tx-2); }
-.ruled .health-sections { display: flex; flex-wrap: nowrap; gap: var(--s-1h); overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; overscroll-behavior-x: contain; }
-.ruled .health-sections::-webkit-scrollbar { display: none; }
-.ruled .health-chip { display: inline-flex; align-items: center; gap: var(--s-1); padding: var(--s-1h) var(--s-2); border-radius: var(--r-pill); background: var(--press-3); color: var(--tx-1); font-size: var(--t-micro); letter-spacing: -0.01em; font-weight: var(--w-semi); white-space: nowrap; flex: 1 1 auto; justify-content: center; min-width: 0; }
-.ruled .health-chip .ic { width: 13px; height: 13px; color: var(--tx-2); flex-shrink: 0; }
 
 /* ==========================================================================
    THE PROJECT / GOAL CARD (Dave 2026-09-18, approved mockup).
@@ -3034,9 +3025,6 @@
    This row is the one suggestion on the page, not one of forty task rows,
    so its facts line may take a second line rather than lose its own name. */
 .ruled .momentum-row .r-k-one { height: auto; overflow: visible; }
-/* THE EMPTY GOAL'S ONE MOVE (Dave: "Add a Project"): the inline-fix capsule
-   the sheets already use, alone on the meter line. */
-.ruled .goal-row-ruled .goal-add-proj { margin-top: var(--s-1); }
 /* A SEARCH FIELD AT THE TOP OF A LONG MENU (the Projects and Goals pickers).
    Sticky, on the menu's own ground, so the list scrolls under it. */
 .hmenu-search { position: sticky; top: 0; z-index: 1; padding: var(--s-1h) var(--s-2h) var(--s-2); background: inherit; }
@@ -3064,9 +3052,9 @@
    ========================================================================== */
 
 /* AREA TILES: the icon on a filled tile is white where white clears 3:1
-   against the fill, and #111318 where it does not (measured per slot). */
+   against the fill, and the warm ink #1F1A16 where it does not (measured per slot). */
 [data-theme="light"] .ruled .area-tile.cat-bg-red, [data-theme="light"] .ruled .area-tile.cat-bg-green, [data-theme="light"] .ruled .area-tile.cat-bg-blue, [data-theme="light"] .ruled .area-tile.cat-bg-graphite, [data-theme="light"] .ruled .area-tile.cat-bg-purple, [data-theme="light"] .ruled .area-tile.cat-bg-indigo, [data-theme="light"] .ruled .area-tile.cat-bg-magenta, [data-theme="light"] .ruled .area-tile.cat-bg-coral, [data-theme="light"] .ruled .area-tile.cat-bg-amber, [data-theme="light"] .ruled .area-tile.cat-bg-rust, [data-theme="light"] .ruled .area-tile.cat-bg-rose, [data-theme="light"] .ruled .area-tile.cat-bg-plum, [data-theme="light"] .ruled .area-tile.cat-bg-violet, [data-theme="light"] .ruled .area-tile.cat-bg-cyan, [data-theme="light"] .ruled .area-tile.cat-bg-mint, [data-theme="light"] .ruled .area-tile.cat-bg-olive, [data-theme="light"] .ruled .area-tile.cat-bg-slate { color: #FFFFFF; }
-[data-theme="light"] .ruled .area-tile.cat-bg-orange, [data-theme="light"] .ruled .area-tile.cat-bg-sky, [data-theme="light"] .ruled .area-tile.cat-bg-pink, [data-theme="light"] .ruled .area-tile.cat-bg-yellow, [data-theme="light"] .ruled .area-tile.cat-bg-teal, [data-theme="light"] .ruled .area-tile.cat-bg-lime, [data-theme="light"] .ruled .area-tile.cat-bg-sand { color: #111318; }
+[data-theme="light"] .ruled .area-tile.cat-bg-orange, [data-theme="light"] .ruled .area-tile.cat-bg-sky, [data-theme="light"] .ruled .area-tile.cat-bg-pink, [data-theme="light"] .ruled .area-tile.cat-bg-yellow, [data-theme="light"] .ruled .area-tile.cat-bg-teal, [data-theme="light"] .ruled .area-tile.cat-bg-lime, [data-theme="light"] .ruled .area-tile.cat-bg-sand { color: #1F1A16; }
 
 /* 2026-10-05 (visual catalog gate, R3 and the type law): the light-only rule
    that stood here drew an area card's counts regular weight in the row's grey
@@ -3082,10 +3070,13 @@
 /* The flip (Dave 2026-10-03): the header search field and options button were the card tone on a white page with no border, so no field showed. The neutral fill gives them a shape, the same as the Add button beside them. */
 [data-theme="light"] .hdr-search, [data-theme="light"] .hdr-opts { background: var(--surface-3); }
 
-/* URGENCY: TODAY and TOMORROW are neutral badges; amber is for real
-   warnings (Stalled, Overdue) only. */
-[data-theme="light"] .ruled .uchip.u-today { color: var(--tx-2); background: var(--surface-3); }
-[data-theme="light"] .ruled .uchip.u-late { color: var(--warn); background: var(--warn-tint); }
+/* URGENCY WEARS THE KEY IN LIGHT AS IT DOES IN DARK (Dave 2026-10-05, Alfred's list R5: "Due Today is gray, must be
+   amber"; the colour key: amber is due now, red is late). This said TODAY was a neutral grey badge and LATE was amber,
+   which is the key upside down. Today takes the light amber on its tint (5.19:1). Late takes the light red on a lighter
+   tint than dark's 14%: at 12% the red read 3.82:1 on the warm card, and at 6% it reads about 4.1, the 4.09 his
+   2026-09-28 ruling accepts for the one red in light. */
+[data-theme="light"] .ruled .uchip.u-today { color: var(--warn); background: var(--warn-tint); }
+[data-theme="light"] .ruled .uchip.u-late { color: var(--sys-red); background: color-mix(in srgb, var(--sys-red) 6%, transparent); }
 /* 2026-10-05 (visual catalog gate, R3): two light-only rules stood here that
    drew a due fact on the second line ("JARVIS Found 3", a bill that waits for
    the person, a reminder due today) in the row's grey and re-weighted its

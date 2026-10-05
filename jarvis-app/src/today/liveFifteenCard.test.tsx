@@ -41,13 +41,13 @@ describe("the running fifteen", () => {
         moveReason="Fits before Deep Work" fifteen={running}
         onFifteenDone={() => {}} onFifteenStop={() => {}} onFifteenAgain={() => {}} />,
     );
-    expect(screen.getByText("Call the bank")).toBeInTheDocument();
+    expect(screen.getByText("Call the Bank")).toBeInTheDocument();
     expect(screen.getByText("14:32 Left")).toBeInTheDocument();
     // The dealt card's own reason is not showing beside a running block.
     expect(screen.queryByText("Fits before Deep Work")).not.toBeInTheDocument();
   });
 
-  it("offers Done and a way out while it runs, and never Start or Tomorrow", () => {
+  it("offers Wrap Up and a way out while it runs, and never Start or Tomorrow", () => {
     const done = vi.fn();
     const stop = vi.fn();
     render(
@@ -60,7 +60,8 @@ describe("the running fifteen", () => {
     expect(screen.queryByRole("button", { name: "Another 15" })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Stop" }));
     expect(stop).toHaveBeenCalled();
-    fireEvent.click(screen.getByRole("button", { name: "Done" }));
+    // The active task's quickest verb is Wrap Up (ROW-ACTIONS-SPEC), the first button in the swipe tray.
+    fireEvent.click(screen.getByRole("button", { name: "Wrap Up" }));
     expect(done).toHaveBeenCalled();
   });
 
@@ -75,7 +76,8 @@ describe("the running fifteen", () => {
     );
     expect(screen.getByText("15 Min Up")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Stop" })).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Done" })).toBeInTheDocument();
+    // A block that is up has had its moment: Wrap Up is on the tray AND quietly on the row as text.
+    expect(screen.getAllByRole("button", { name: /Wrap Up/ }).length).toBe(2);
     fireEvent.click(screen.getByRole("button", { name: "Another 15" }));
     expect(again).toHaveBeenCalled();
   });

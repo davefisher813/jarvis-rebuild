@@ -37,7 +37,7 @@ export function Bar({ p }: { p: Progress }) {
   return <div className="bp-bar"><div className="bp-bar-fill" style={{ width: Math.max(2, p.pct) + "%" }} /></div>;
 }
 
-export default function GoalRowRuled({ title, tone, body, status, bar, kind, moving = 0, next = null, checkin = null, when = null, onOpen, onAddProject }: {
+export default function GoalRowRuled({ title, tone, body, status, bar, kind, moving = 0, next = null, checkin = null, when = null, onOpen }: {
   title: string;
   /** A cat-fg-* class: the goal's home colour. */
   tone: string;
@@ -65,16 +65,12 @@ export default function GoalRowRuled({ title, tone, body, status, bar, kind, mov
    *  in the row's grey, the day not bolded as if it were a count. */
   when?: string | null;
   onOpen?: () => void;
-  /** A GOAL WITH NOTHING UNDER IT OFFERS THE ONE MOVE THAT EXISTS (Dave's
-   *  pass-off, 2026-09-26). "Nothing under it yet" was a grey line saying
-   *  nothing, six times in a row (§AK); silence was the first fix, and this
-   *  is the second: the empty line is one short tap-red action, Add a
-   *  Project, and it opens the add sheet already filed to this goal. Only
-   *  drawn where the row has no measure, no date and no status to show. */
+  /** RETIRED (Dave 2026-10-05, "Clean rows, no pills anywhere"): the empty goal's Add a Project capsule is gone from the
+   *  row; its goal page holds the Add Project primary. Still accepted so a caller that has not dropped it compiles
+   *  (brain/CategoryDetail.tsx passes it); it draws nothing. */
   onAddProject?: () => void;
 }) {
   const checkinKey = checkin ? checkinTone(checkin) : null;
-  const empty = !when && !body && !status && !bar;
   return (
     <div className="task-row p2 goal-row-ruled" role={onOpen ? "button" : undefined} tabIndex={onOpen ? 0 : undefined} onClick={onOpen}>
       <div className="task-check-tap"><span className={"gm-slot " + tone}><TargetGlyph /></span></div>
@@ -93,7 +89,7 @@ export default function GoalRowRuled({ title, tone, body, status, bar, kind, mov
           <div className="r-k goal-sub">
             {kind && <span className={"gkind " + kind.hue}>{kind.text}</span>}
             {moving > 0 && <span className="r-goal goal-proj">{lineCase(`${moving} ${moving === 1 ? "project" : "projects"}`)}</span>}
-            {next && <span className="r-next-in"><span className="r-next-k">Next</span><span className="r-next-v">{next}</span></span>}
+            {next && <span className="r-next-in"><span className="r-next-k">Next</span><span className="r-next-v">{titleCase(next)}</span></span>}
             {!status && checkin && <span className={"r-goal fact" + (checkinKey ? " " + checkinKey : "")}>Check-in: {checkin}</span>}
           </div>
         )}
@@ -106,16 +102,6 @@ export default function GoalRowRuled({ title, tone, body, status, bar, kind, mov
           </div>
         )}
         {bar && <Bar p={bar} />}
-        {empty && onAddProject && (
-          <div className="goal-meter">
-            {/* The small capsule, not the inline-fix one: measured on the
-                ruled card in dark, --tint on the note-fix's alpha fill read
-                4.44:1; the capsule's opaque fill clears 4.5 on every ground
-                (§AL). */}
-            <button type="button" className="pill-act goal-add-proj"
-              onClick={(e) => { e.stopPropagation(); onAddProject(); }}>Add a Project</button>
-          </div>
-        )}
       </div>
       {onOpen && CHEV}
     </div>

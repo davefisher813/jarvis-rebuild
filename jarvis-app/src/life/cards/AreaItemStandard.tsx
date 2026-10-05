@@ -19,10 +19,14 @@ function statLine(n: number, singular: string, plural: string): string | null {
   return lineCase(`${n} ${n === 1 ? singular : plural}`);
 }
 
-export default function AreaItemStandard({ area, counts, onOpen }: {
+export default function AreaItemStandard({ area, counts, onOpen, health = false }: {
   area: AreaSummary;
   counts: AreaCounts;
   onOpen: () => void;
+  /** Health is an area like the rest (Dave 2026-10-05, "Clean rows, no pills anywhere"): its five sections (Track, Train,
+   *  Reports, Meds, Privacy) were a row of capsules inside this card, and they are the doors on its own page now. It
+   *  keeps its place at the head of the list and its class, and draws exactly what every area draws. */
+  health?: boolean;
 }) {
   const stats = [
     statLine(counts.taskCount, "task", "tasks"),
@@ -31,7 +35,7 @@ export default function AreaItemStandard({ area, counts, onOpen }: {
   ].filter((s): s is string => s !== null);
 
   return (
-    <div className="card area-card" {...pressable(onOpen)}>
+    <div className={"card area-card" + (health ? " area-card-health" : "")} {...pressable(onOpen)}>
       <div className={"area-tile cat-bg-" + area.color}>{catIcon(area.icon)}</div>
       <div className="area-stack">
         <div className="area-name">{area.name}</div>

@@ -52,26 +52,36 @@ describe("ProjectDetailPage: the catalog", () => {
     } finally { setCategoryRegistry([]); }
   });
 
-  it("a project with no tasks stands Add a Task alone, and with tasks it is the list's last row", () => {
+  // AMENDED 2026-10-05 (Dave, locked): a section-level action lives in the
+  // section head, never inside a card or at the foot of a list. With nothing to
+  // list there is no card, so the head and its capsule are the whole section.
+  it("Add a Task is the capsule on the Tasks head, with or without tasks, and never a row of the list", () => {
     const { container, unmount } = draw([], { onAddStep: () => {} });
     const add = [...container.querySelectorAll("button")].find((b) => b.textContent === "Add a Task")!;
-    expect(add.closest(".notice-clear-row"), "the capsule stands by itself").not.toBeNull();
+    expect(add.closest(".sh2")!.querySelector(".t")!.textContent).toBe("Tasks");
+    expect(add).toHaveClass("see-all", "pill-action");
     expect([...container.querySelectorAll(".card, .list-card-ruled")].filter((c) => c.textContent?.trim() === "Add a Task")).toHaveLength(0);
+    expect(container.querySelector(".notice-clear-row")).toBeNull();
     unmount();
     const withTasks = draw([step("a", "Order tile")], { onAddStep: () => {} });
     const add2 = [...withTasks.container.querySelectorAll("button")].find((b) => b.textContent === "Add a Task")!;
-    expect(add2.closest(".list-card-ruled")).not.toBeNull();
+    expect(add2.closest(".sh2")).not.toBeNull();
+    expect(add2.closest(".list-card-ruled"), "not at the foot of the list").toBeNull();
+    expect(withTasks.container.querySelectorAll(".row-act")).toHaveLength(0);
   });
 
-  it("a project with no linked notes stands Add a Note alone, and with notes it is the list's last row", () => {
+  it("Add a Note is the capsule on the Linked Notes head, with or without notes", () => {
     const { container, unmount } = draw([], { onAddNote: () => {} });
     const add = [...container.querySelectorAll("button")].find((b) => b.textContent === "Add a Note")!;
-    expect(add.closest(".notice-clear-row")).not.toBeNull();
+    expect(add.closest(".sh2")!.querySelector(".t")!.textContent).toBe("Linked Notes");
     expect([...container.querySelectorAll(".card, .list-card-ruled")].filter((c) => c.textContent?.trim() === "Add a Note")).toHaveLength(0);
     unmount();
     const withNote = draw([], { onAddNote: () => {}, linkedNotes: [{ id: "n1", title: "Tile quote", category: "" }] });
     const add2 = [...withNote.container.querySelectorAll("button")].find((b) => b.textContent === "Add a Note")!;
-    expect(add2.closest(".list-card-ruled")).not.toBeNull();
+    expect(add2.closest(".sh2")).not.toBeNull();
+    expect(add2.closest(".list-card-ruled")).toBeNull();
+    // His note's title is shown in Title Case.
+    expect(withNote.container.textContent).toContain("Tile Quote");
   });
 
   it("no sub line on the page is a sentence (no trailing period, no lowercase lead)", () => {

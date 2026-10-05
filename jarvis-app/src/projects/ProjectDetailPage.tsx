@@ -12,7 +12,7 @@ import { distanceFor } from "../tasks/grouping";
 import { dayPhrase } from "../money/bills";
 import { dayTone } from "../messages/factsLine";
 import { attemptWrite } from "../shared/guard";
-import { lineCase } from "../shared/casing";
+import { lineCase, titleCase } from "../shared/casing";
 import { areaFromTasks } from "./backfill";
 import { fileableGoals } from "../bigger/reach";
 import { holdLine, holdExpired, sizeOf, sizeLine } from "./shape";
@@ -114,7 +114,7 @@ export default function ProjectDetailPage({
   const stepDoor = (id: string, text: string) => onOpenStep ? {
     role: "button" as const,
     tabIndex: 0,
-    "aria-label": "Open " + text,
+    "aria-label": "Open " + titleCase(text),
     onClick: () => onOpenStep(id),
     onKeyDown: (e: RKeyboardEvent) => { if (e.target === e.currentTarget) onPressKey(() => onOpenStep(id))(e); },
   } : {};
@@ -150,7 +150,7 @@ export default function ProjectDetailPage({
       <div className="nav-bar"><button className="nav-back" aria-label="Back" onClick={onBack}></button><div className="nav-title">Project</div><button className="nav-action-text" onClick={onEdit}>Edit</button></div>
       <div className="pad-x"><div className="card list-card-ruled proj-detail-hero">
         <div className={"proj-icon cat-bg-" + (hasCat ? catColor(data.category!) : "graphite")}>{initialOf(tag || data.title)}</div>
-        <div className="proj-detail-title">{data.title}</div>
+        <div className="proj-detail-title">{titleCase(data.title)}</div>
         <span className={"lm-qual lm-" + m.cls}>{m.label}</span>
         {/* Progress is the one number a project owes you, and it was nowhere
             on this page. A count, not a percentage: "5 of 9" is a fact you
@@ -253,18 +253,18 @@ export default function ProjectDetailPage({
    them Steps and the Tasks tab called the same records Tasks, so filing
    work into a project looked like moving it somewhere else. The word is
    Tasks everywhere a reader can see it; the props keep their names. */}
-          <div className="sh2 sh2-quiet"><span className="t">Tasks</span>{openSteps.length > 0 && <span className="n">{openSteps.length}</span>}</div>
-          {/* AN ACTION NEVER SITS IN A BOX (Dave 2026-10-05, the grey rectangle
-              round Add a Reminder). A project with no tasks has no list to
-              group, so there is no card: the labelled capsule stands alone
-              under the head. */}
-          {steps.length === 0 ? (
-            onAddStep && (
-              <div className="notice-clear-row">
-                <button className="row-act" onClick={() => { haptics.selection(); onAddStep(); }}>Add a Task</button>
-              </div>
-            )
-          ) : (
+          {/* THE ADD IS ON THE HEAD (Dave 2026-10-05, locked: a section-level action
+              lives in the section head, never inside a card and never at the foot
+              of a list). With no tasks there is no list to group, so there is no
+              card either: the head and its capsule are the whole section (rule 12,
+              an action never sits alone in a box). The capsule opens the task
+              sheet born into this project and its area, the same door as
+              everywhere (Dave 2026-09-02). */}
+          <div className="sh2 sh2-quiet">
+            <span className="t">Tasks</span>{openSteps.length > 0 && <span className="n">{openSteps.length}</span>}
+            {onAddStep && <button className="see-all pill-action" onClick={() => { haptics.selection(); onAddStep(); }}>Add a Task</button>}
+          </div>
+          {steps.length > 0 && (
           <div className="pad-x"><div className="card list-card-ruled">
             {/* THE SHARED TASK ROW'S SHAPE (the rulings, 2026-09-02): the
                 check in its column, the name, and under it the chip and the
@@ -283,7 +283,7 @@ export default function ProjectDetailPage({
                     <div className={"task-check " + (hasCat ? "cat-bd-" + catColor(data.category!) : "cat-bd-graphite")} />
                   </div>
                   <div className="task-title">
-                    <span className="task-name">{t.text}</span>
+                    <span className="task-name">{titleCase(t.text)}</span>
                     {/* §AM R8 (2026-09-26): a due or late step says so in its
                         chip alone; the day beside it only repeated the chip
                         ("TODAY today"). A step due tomorrow is due soon, so
@@ -307,14 +307,6 @@ export default function ProjectDetailPage({
             {openSteps.length === 0 && steps.length > 0 && (
               <div className="row"><div className="row-grow"><div className="facts"><span className="fact good">Every Task Is Done</span></div></div></div>
             )}
-            {/* THE SAME DOOR AS EVERYWHERE (Dave 2026-09-02: "every place you
-                can add a task must render the add task modal"). This was an
-                inline field that took a name and nothing else; it is the
-                row every list ends on, and it opens the task sheet born
-                into this project and its area. */}
-            {onAddStep && (
-              <button className="row row-act" onClick={() => { haptics.selection(); onAddStep(); }}>Add a Task</button>
-            )}
           </div></div>
           )}
           {doneSteps.length > 0 && (
@@ -330,7 +322,7 @@ export default function ProjectDetailPage({
                         onClick={(e) => { e.stopPropagation(); haptics.selection(); onToggleStep?.(t.id); }}>
                         <div className="task-check done" />
                       </div>
-                      <div className="task-title"><span className="task-name">{t.text}</span></div>
+                      <div className="task-title"><span className="task-name">{titleCase(t.text)}</span></div>
                     </div>
                   ))}
                 </div>
@@ -349,23 +341,21 @@ export default function ProjectDetailPage({
           after you have already solved the problem solves nothing. */}
       {(linkedNotes.length > 0 || onAddNote) && (
         <>
-          <div className="sh2 sh2-quiet"><span className="t">Linked Notes</span>{linkedNotes.length > 0 && <span className="n">{linkedNotes.length}</span>}</div>
-          {/* AN ACTION NEVER SITS IN A BOX (Dave 2026-10-05): with no linked
-              notes there is no list to group, so the capsule stands alone. */}
-          {linkedNotes.length === 0 ? (
-            <div className="notice-clear-row">
-              <button className="row-act" onClick={onAddNote}>Add a Note</button>
-            </div>
-          ) : (
+          {/* THE ADD IS ON THE HEAD (Dave 2026-10-05), and with no linked notes
+              there is no card: the head and its capsule are the section. */}
+          <div className="sh2 sh2-quiet">
+            <span className="t">Linked Notes</span>{linkedNotes.length > 0 && <span className="n">{linkedNotes.length}</span>}
+            {onAddNote && <button className="see-all pill-action" onClick={onAddNote}>Add a Note</button>}
+          </div>
+          {linkedNotes.length > 0 && (
           <div className="pad-x"><div className="card list-card-ruled">
             {linkedNotes.map((n) => (
               <div className="task-row p2 note-row" role={onOpenNote ? "button" : undefined} tabIndex={onOpenNote ? 0 : undefined} key={n.id} onClick={onOpenNote ? () => onOpenNote(n.id) : undefined}>
                 <div className="task-check-tap gm-slot"><span className={"cat-dot cat-bg-" + (n.category ? catColor(n.category) : "graphite")} /></div>
-                <div className="task-title"><span className="task-name">{n.title}</span></div>
+                <div className="task-title"><span className="task-name">{titleCase(n.title)}</span></div>
                 {onOpenNote && <div className="chev"></div>}
               </div>
             ))}
-            {onAddNote && <button className="row row-act" onClick={onAddNote}>Add a Note</button>}
           </div></div>
           )}
         </>

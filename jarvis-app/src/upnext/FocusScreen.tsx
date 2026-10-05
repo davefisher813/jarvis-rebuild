@@ -1,3 +1,4 @@
+import { titleCase } from "../shared/casing";
 import type { ReactNode } from "react";
 import { Timer } from "../shared/icons";
 
@@ -136,7 +137,7 @@ export default function FocusScreen({
             <div className="row">
               <div className="row-ico cat-bg-brand"><Timer className="ic" /></div>
               <div className="row-stack">
-                <div className="conn-name truncate">{running.text}</div>
+                <div className="conn-name truncate">{titleCase(running.text)}</div>
                 <div className={"conn-meta" + (running.over ? " warn" : "")}>{running.line}</div>
               </div>
             </div>
@@ -193,8 +194,8 @@ export default function FocusScreen({
           </>
         ) : (
           <div className="card pad focus-card">
-            <div className="focus-task">Nothing waiting.</div>
-            <div className="conn-meta">Enjoy it</div>
+            <div className="focus-task">Nothing Waiting</div>
+            <div className="conn-meta">Enjoy It</div>
             <div className="focus-acts">
               <button className="btn btn-secondary" onClick={onClose}>Back to Today</button>
             </div>

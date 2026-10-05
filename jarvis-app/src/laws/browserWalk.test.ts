@@ -471,7 +471,11 @@ describe("BROWSER-F-10: red words on a sheet grey are readable", () => {
     expect(ruleBody(css(), ".form-sheet .xs-del")).toMatch(/color:\s*var\(--danger-tx-raised\)/);
     const ds = read("styles/jarvis-design-system.css");
     expect(ds).toMatch(/--danger-tx-raised:\s*#FF8A80/);
-    expect(ds).toMatch(/--danger-tx-raised:\s*var\(--danger-tx\)/);
+    // AMENDED 2026-10-05 (Dave, the warm neutrals): light's raised card grey is
+    // #ECE5DA, where --danger-tx (the action red, which does not move) reads
+    // 4.22:1, so light takes a step deeper for destructive WORDS only.
+    expect(ds).toMatch(/--danger-tx-raised:\s*#C8210F/);
+    expect(contrast("#C8210F", "#ECE5DA"), "light destructive words on the raised grey").toBeGreaterThanOrEqual(4.5);
   });
 
   it("the return pill is 44 to the finger and clears the capture bar (2026-09-26)", () => {
@@ -620,8 +624,12 @@ describe("BROWSER-F-10: red words on a sheet grey are readable", () => {
     const twin = tokenIn("dark", "--warn-on-sheet");
     const cr = contrast(twin, picked);
     expect(cr, `dark --warn-on-sheet on a picked row (${picked}) is ${cr.toFixed(2)}:1`).toBeGreaterThanOrEqual(4.5);
-    expect(contrast(tokenIn("dark", "--warn"), picked), "the plain system amber is why the twin exists")
-      .toBeLessThan(4.5);
+    // AMENDED 2026-10-05 (Dave, the warm neutrals): on the warm picked grey the
+    // plain system amber now reads 4.67:1, so it no longer FAILS there; the twin
+    // is kept because it is still the stronger ink on every raised grey, and the
+    // law holds that ordering instead of the old failure.
+    expect(cr, "the twin is at least as readable as the plain system amber")
+      .toBeGreaterThanOrEqual(contrast(tokenIn("dark", "--warn"), picked));
     expect(ruleBody(css(), ".p3-row.on .fact.warn"), "the picked row's amber facts wear it")
       .toMatch(/(^|[;\s])color:\s*var\(--warn-on-sheet\)/);
   });
@@ -723,9 +731,10 @@ describe("BROWSER-F-09: quiet is not the same word as finished", () => {
   // gone. Option B splits them. These hold the split.
   it("--tx-quiet clears AA on every ground it lands on, in both themes", () => {
     const grounds: Array<[string, string[]]> = [
-      ["dark", ["#000000", "#1C1C1E", "#2C2C2E"]],
-      // The flip (Dave 2026-10-03): the page is #FFFFFF, a card is #F5F6F8, a raised row #F0F1F4.
-      ["light", ["#FFFFFF", "#F5F6F8", "#F0F1F4"]],
+      // The warm neutrals (Dave 2026-10-05): charcoal page #1C1917, card #201C19, sheet #2C2723.
+      ["dark", ["#1C1917", "#201C19", "#2C2723"]],
+      // Cream page #FAF6F0, card #F3EEE6, raised #ECE5DA.
+      ["light", ["#FAF6F0", "#F3EEE6", "#ECE5DA"]],
     ];
     for (const [theme, gs] of grounds) {
       for (const g of gs) {
@@ -743,11 +752,11 @@ describe("BROWSER-F-09: quiet is not the same word as finished", () => {
   // ruling's own choice: "do not use faded paragraphs or grey helper text".
   it("the ramp is two tiers: one secondary, and a solid structure grey", () => {
     for (const theme of ["dark", "light"]) {
-      // AMENDED 2026-09-29 (Dave, the approved light palette): light has three
-      // text tiers, #111318 titles, #363A43 supporting, #515661 quiet labels
-      // (10.1:1 and 6.8:1 on the page). Dark stays one secondary value.
+      // AMENDED 2026-10-05 (Dave, the warm neutrals): light has three text
+      // tiers, #1F1A16 titles, #4A423A supporting, #5E554C quiet labels (9.2:1
+      // and 6.8:1 on the cream page). Dark stays one secondary value.
       if (theme === "dark") expect(tokenIn(theme, "--tx-2"), `${theme} --tx-2 and --tx-3 are one value`).toBe(tokenIn(theme, "--tx-3"));
-      else expect(tokenIn(theme, "--tx-2"), "light --tx-2 is the supporting tier").toBe("#363A43");
+      else expect(tokenIn(theme, "--tx-2"), "light --tx-2 is the supporting tier").toBe("#4A423A");
       expect(tokenIn(theme, "--tx-4"), `${theme} --tx-4 is a solid structure grey`).toMatch(/^#[0-9A-Fa-f]{6}$/);
     }
   });

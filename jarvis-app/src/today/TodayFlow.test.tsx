@@ -13,6 +13,7 @@ import { GoogleSessionProvider } from "../connections/google/GoogleSession";
 import { makeFakeGoogleApi } from "../connections/google/fakeApi";
 import { ScheduleService } from "../schedule/ScheduleService";
 import { setCategoryRegistry } from "../shared/categories";
+import { titleCase } from "../shared/casing";
 import { heldBy } from "../brain/hardLines";
 import { todayISO } from "../schedule/calendar";
 import type { AIService } from "../ai/AIService";
@@ -172,7 +173,7 @@ describe("TodayFlow: the Momentum Chain (UP-CORE-09)", () => {
       expect(hit).toBeTruthy();
       return hit!;
     });
-    expect(["Email the coach", "Book the field"]).toContain(chain.querySelector(".conn-name")?.textContent);
+    expect(["Email the Coach", "Book the Field"]).toContain(chain.querySelector(".conn-name")?.textContent);
     // "Keep going" came off the card (2026-09-26) as a second grey that said
     // nothing the slot does not.
     expect(screen.queryByText(/Keep going/)).toBeNull();
@@ -231,7 +232,7 @@ describe("TodayFlow: the Momentum Chain (UP-CORE-09)", () => {
       expect(hit).toBeTruthy();
       return hit!;
     });
-    expect(titles).toContain(chain.querySelector(".conn-name")?.textContent);
+    expect(titles.map((t) => titleCase(t))).toContain(chain.querySelector(".conn-name")?.textContent);
     const line = chain.querySelector(".facts")!;
     expect([...line.children].map((f) => [f.className, f.textContent])).toEqual([
       ["fact est", "15 Min"],
@@ -272,7 +273,7 @@ describe("TodayFlow: the Momentum Chain (UP-CORE-09)", () => {
       return hit!;
     });
     const chain = due.closest(".notice-swipe")!;
-    expect(titles).toContain(chain.querySelector(".conn-name")?.textContent);
+    expect(titles.map((t) => titleCase(t))).toContain(chain.querySelector(".conn-name")?.textContent);
     expect(chain.textContent).not.toMatch(/Same (category|Area)/);
     expect(chain.querySelector(".uchip")).toBeNull();
   });
@@ -311,7 +312,7 @@ describe("TodayFlow: the Momentum Chain (UP-CORE-09)", () => {
       return hit!;
     });
     const chain = late.closest(".notice-swipe")!;
-    expect(titles).toContain(chain.querySelector(".conn-name")?.textContent);
+    expect(titles.map((t) => titleCase(t))).toContain(chain.querySelector(".conn-name")?.textContent);
     expect(chain.textContent).not.toMatch(/overdue/i);
   });
 });
@@ -390,7 +391,7 @@ describe("TodayFlow: the birthday card's Text door gathers a real voice (UP-MIND
     draftProps.length = 0;
     render(<NotesProvider userId="today-birthday-voice"><SeededBirthday /></NotesProvider>);
     await waitFor(() => expect(screen.getByText("Priya Shah")).toBeInTheDocument());
-    fireEvent.click(screen.getByRole("button", { name: "Text" }));
+    fireEvent.click(screen.getAllByRole("button", { name: "Text" })[0]!);
     await waitFor(() => expect(draftProps.length).toBeGreaterThan(0));
     // BEFORE the fix this prop was simply never passed. AFTER, it resolves
     // to at least the identity line every real context carries.
@@ -441,7 +442,7 @@ describe("TodayFlow: Plan My Day carries the same brain Schedule's does (UP-MIND
   it("passes a real profile and a strands array, not the options Schedule alone used to get", async () => {
     aiPlanOpts.length = 0;
     render(<NotesProvider userId="today-planday-brain"><SeededPlanTask /></NotesProvider>);
-    await waitFor(() => expect(screen.getByText("Draft the proposal")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("Draft the Proposal")).toBeInTheDocument());
     // THE DAY LOOP (item 14) drafts today the instant loading finishes,
     // which has already happened by the line above -- so a standing draft
     // for today exists before this test ever opens the sheet. PlanDaySheet
@@ -470,7 +471,7 @@ describe("TodayFlow: Plan My Day carries the same brain Schedule's does (UP-MIND
   it("Clear This Plan says so with an Undo that brings the same plan back", async () => {
     showToast.mockClear();
     render(<NotesProvider userId="today-clear-plan-undo"><SeededPlanTask /></NotesProvider>);
-    await waitFor(() => expect(screen.getByText("Draft the proposal")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("Draft the Proposal")).toBeInTheDocument());
     fireEvent.click(screen.getByRole("button", { name: "Clear This Plan" }));
     expect(screen.queryByRole("button", { name: "Clear This Plan" }), "the plan is cleared").toBeNull();
     const cleared = showToast.mock.calls.map((c) => c[0] as { message: string; actionLabel?: string; onAction?: () => void })
@@ -578,8 +579,8 @@ describe("TodayFlow: a task's notes survive being edited from home", () => {
     }))!;
     notifyFreshLists(ENTITY_TASK);
 
-    await waitFor(() => expect(screen.getByText("Call the referee assignor")).toBeInTheDocument());
-    fireEvent.click(screen.getByText("Call the referee assignor"));
+    await waitFor(() => expect(screen.getByText("Call the Referee Assignor")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("Call the Referee Assignor"));
     await screen.findByText("Edit Task");
 
     // What is stored is what the box shows.

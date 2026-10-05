@@ -101,13 +101,14 @@ describe("BiggerPictureFlow savings entries can be corrected", () => {
     }
   });
 
-  it("an old entry past the first five is reachable too (Show All Entries)", async () => {
+  it("an old entry past the first five is reachable too (See All, on the Savings head)", async () => {
     entriesSeed = Array.from({ length: 7 }, (_, i) => ({ d: `2026-0${i + 1}-01`, amount: 10 * (i + 1) }));
     try {
       render(<NotesProvider userId="u-savings-all"><SeedEntries /></NotesProvider>);
       await screen.findByRole("button", { name: "$70 on Jul 1, edit or remove" });
       expect(screen.queryByRole("button", { name: "$10 on Jan 1, edit or remove" })).toBeNull();
-      fireEvent.click(screen.getByText("Show All Entries"));
+      // The fold is a capsule on the Savings head now, not a row at the foot of the list (Dave 2026-10-05).
+      fireEvent.click(screen.getByText("See All"));
       fireEvent.click(await screen.findByRole("button", { name: "$10 on Jan 1, edit or remove" }));
       fireEvent.click(await screen.findByText("Remove Entry"));
       const dialog = await screen.findByRole("dialog", { name: "Remove $10 on Jan 1" });
@@ -192,7 +193,7 @@ function SeedStep() {
 describe("BiggerPictureFlow step editing (LIFE-F-14)", () => {
   it("saving a project's step keeps its extra areas, repeat and project", async () => {
     render(<NotesProvider userId="u-step-f14"><SeedStep /></NotesProvider>);
-    fireEvent.click(await screen.findByText("Call the contractor"));
+    fireEvent.click(await screen.findByText("Call the Contractor"));
     await screen.findByText("Edit Task");
     // The sheet knows what this task already is, so the rows it hid before
     // are on screen with real values.
@@ -401,7 +402,7 @@ function SeedLength() {
 describe("BiggerPictureFlow step length (2026-09-11)", () => {
   it("shows the step's length and saves a change to it", async () => {
     render(<NotesProvider userId="u-step-length"><SeedLength /></NotesProvider>);
-    fireEvent.click(await screen.findByText("Sort the shelves"));
+    fireEvent.click(await screen.findByText("Sort the Shelves"));
     await screen.findByText("Edit Task");
     const length = screen.getByLabelText("Length");
     expect(length.textContent).toContain("30 Min");

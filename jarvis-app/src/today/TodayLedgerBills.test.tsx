@@ -92,7 +92,11 @@ describe("the Today bill card carries ledger bills", () => {
   it("Paid asks 'I paid this' first (the shared door), then the card is gone and the bill is the person's confirmed", async () => {
     mount("tl-pay", [{ vendor: "ConEdison", amount: 84.12, dueDate: addDays(T, -2) }]);
     await screen.findByText("ConEdison");
-    fireEvent.click(screen.getByText("Paid"));
+    // Two days late: its moment has come, so Paid is on the row as one quiet word AND first in the swipe tray (Dave
+    // 2026-10-05: no pill on a row).
+    expect(screen.getByText("ConEdison").closest(".notice-card-row")!.querySelectorAll(".pill-act").length, "no capsule on the bill row").toBe(0);
+    expect(screen.getAllByText("Paid").length).toBe(2);
+    fireEvent.click(document.querySelector(".row-ctx") as HTMLElement);
     expect(await screen.findByText("Mark Paid")).toBeInTheDocument();
     expect((await ledgerRef!.listBills())[0]!.data.paidAt).toBeUndefined();
     fireEvent.click(screen.getByText("I Paid This"));

@@ -7,6 +7,7 @@ import { RepeatGlyph, WarningGlyph, BellGlyph } from "../../shared/glyphs";
 import { Forward, Hourglass, CircleSlash, PenLine } from "../../shared/icons";
 import { catName, catColor } from "../../shared/categories";
 import { describeRepeat, repeatRuleOf, scheduleKindOf, nextOccurrence, runsOn, isDone, whenWords, followUpWords } from "../reminders";
+import { titleCase } from "../../shared/casing";
 import { actionLabelFor, scheduleAdvice, adviceLine, recentEvents } from "../reminderHistory";
 
 // REMINDER DETAILS (the reminders rebuild push E, 2026-09-15, Dave's
@@ -55,7 +56,7 @@ export default function ReminderDetailSheet({
         </div>
         <div className="sheet-form">
           <div className="rem-detail-head">
-            <div className="rem-detail-title">{item.data.text}</div>
+            <div className="rem-detail-title">{titleCase(item.data.text)}</div>
             <div className="facts">
               {area && <span className="fact cat"><span className={"cd cat-bg-" + catColor(item.data.category)} />{area}</span>}
               {/* Done is the key's green; Open and Paused carry no key

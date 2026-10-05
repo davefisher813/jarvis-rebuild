@@ -72,9 +72,9 @@ describe("TasksFlow: acknowledge a step, then resume", () => {
     expect(t.done).toBe(false);
   });
 
-  it("Make this smaller puts the person's own smaller move in front, and it becomes the next move", async () => {
+  it("Make This Smaller puts the person's own smaller move in front, and it becomes the next move", async () => {
     await open("fb-flow-5", ["Book flights"]);
-    fireEvent.click(screen.getByText("Make this smaller"));
+    fireEvent.click(screen.getByText("Make This Smaller"));
     fireEvent.change(screen.getByLabelText("A smaller first move"), { target: { value: "Open the airline site" } });
     fireEvent.click(screen.getByText("Save Smaller Move"));
     await waitFor(async () => expect((await svc!.task(taskId))!.steps!.map((s) => s.text)).toEqual(["Open the airline site", "Book flights"]));

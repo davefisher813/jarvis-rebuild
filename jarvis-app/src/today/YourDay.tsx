@@ -525,8 +525,6 @@ export default function YourDay({
     setMeasuring(false);
   }, [measuring]);
 
-  // Focus (the one-card mode) pairs with Plan My Day when available: Focus is
-  // the one red action on the page, Plan My Day drops to the quiet style.
   // Running Late on Today (2026-08-09): the plan lives here, so recovering
   // from a slipped morning cannot require a tab switch. Armed chip row, same
   // vocabulary as the Schedule tab's. Offered only while something ahead can
@@ -534,48 +532,19 @@ export default function YourDay({
   const [lateOpen, setLateOpen] = useState(false);
   const hasFuture = !!onRunningLate && events.some((e) => (!e.data.recurrence || e.data.recurrence === "none") && e.data.start >= now);
 
-  const planButton = onPlanDay || primary || onPlanTomorrow || hasFuture ? (
+  // PLAN MY DAY AND PLAN TOMORROW ARE ON THE HEAD (Dave 2026-10-05, locked: "Section-level actions move into section
+  // headers, never inside cards or rows"; Alfred R3 and R6: a red Plan My Day and a dark Plan Tomorrow sat inside the
+  // Tonight card in two styles). They are the same capsule New Event and Schedule are, see `header` below. What is
+  // left under the day is the draft's one decision, which is the screen's one filled primary, and Running Late.
+  //
+  // B15 (2026-08-23): ONE FILL PER SCREEN, and the fill belongs to whichever action advances the WHOLE screen. With a
+  // draft standing that is Accept the Day, which commits every hour of the day at once (`primary`).
+  const planButton = primary || hasFuture ? (
     <>
-      <div className={"plan-cta-row" + (primary && onPlanDay ? " plan-cta-pair" : "")}>
-        {/* B15 (2026-08-23): ONE FILL PER SCREEN, and the fill belongs to
-            whichever action advances the WHOLE screen.
-
-            This row already ghosted Plan My Day when Focus was beside it,
-            but that rule only ever saw these two buttons. It could not see
-            the draft footer below, where Accept the Day commits every hour
-            of the day at once. With a draft standing, Today rendered three
-            filled reds: Start in the Now card, Focus here, and Accept below.
-
-            `footer` is only ever passed while a draft is standing (see
-            draftFooter in TodayFlow), so it is the honest signal for "a
-            bigger decision is on this screen" without threading a new prop
-            down for a fact the component already has. */}
-        {/* PLAN MY DAY TAKES THE SLOT (Dave 2026-09-11: "Plan my day should
-            take the place of focus"). Focus moved to Your Move, where the
-            question it answers is actually asked, so this row holds one
-            button rather than a pair -- and it takes the fill Focus used to
-            hold, because with Focus gone it is the only thing here. */}
-        {onPlanDay && <button className={"plan-cta plan-cta-block" + (footer ? " plan-cta-ghost" : "")} onClick={onPlanDay}><CalIcon />Plan My Day</button>}
-        {/* The fill stays with Accept: it commits every hour of the day at
-            once, which is the bigger of the two moves on this row, and
-            .plan-cta-ghost above already steps Plan My Day down whenever a
-            draft is standing. One fill per screen (B15). */}
-        {primary}
-      </div>
-      {(onPlanTomorrow || hasFuture) && (
-        <div className="plan-cta-row plan-cta-pair">
-          {/* Evening: plan the day that still has all its hours (2026-08-09). */}
-          {/* WAVE 4, DUPLICATE DOORS (2026-08-29). onPlanTomorrow is
-              evening-only, and in the evening TodayPage also renders a
-              "Plan It" pill on the Tomorrow section head. Two buttons, one
-              handler, one screen. `tomorrowShown` is the page telling this
-              component that the better-placed door is already on screen:
-              a button sitting on top of tomorrow's own events beats one in
-              a CTA row three sections away. When tomorrow is empty the
-              head's door is gone and this one is the only way through, so
-              it stays. */}
-          {onPlanTomorrow && !tomorrowShown && <button className="plan-cta plan-cta-block plan-cta-ghost" onClick={onPlanTomorrow}><CalIcon />Plan Tomorrow</button>}
-          {hasFuture && <button className={"plan-cta plan-cta-block plan-cta-ghost" + (lateOpen ? " late-armed" : "")} onClick={() => setLateOpen((v) => !v)}>Running Late?</button>}
+      {primary && <div className="plan-cta-row">{primary}</div>}
+      {hasFuture && (
+        <div className="plan-cta-row">
+          <button className={"plan-cta plan-cta-block plan-cta-ghost" + (lateOpen ? " late-armed" : "")} onClick={() => setLateOpen((v) => !v)}>Running Late?</button>
         </div>
       )}
       {lateOpen && onRunningLate && (
@@ -605,6 +574,10 @@ export default function YourDay({
             <svg className="icon-play" viewBox="0 0 24 24"><polygon points="7,5 19,12 7,19" /></svg>
           </button>
         )}
+      {/* ONE STYLE, IN THE ORDER YOU USE THEM: plan the day, add to it, go to it. Plan Tomorrow is here only when the
+          page has no Tomorrow head of its own to carry it (tomorrowShown), so it is one capsule in one place. */}
+      {onPlanDay && <button className="see-all pill-action" onClick={onPlanDay}>Plan My Day</button>}
+      {onPlanTomorrow && !tomorrowShown && <button className="see-all pill-action" onClick={onPlanTomorrow}>Plan Tomorrow</button>}
       {onNewEvent && <button className="see-all pill-action" onClick={onNewEvent}>New Event</button>}
       <button className="see-all pill-action" onClick={onSeeAll}>Schedule</button>
       </span>
@@ -630,15 +603,7 @@ export default function YourDay({
                 around what matters?", asked whether you wanted the thing the
                 button below it does. Same helper-text pattern removed from the
                 Tasks empty state and the First Step card. */}
-            {onPlanDay && <button className="btn btn-primary" onClick={onPlanDay}><CalIcon />Plan My Day</button>}
-            {/* An empty evening is the best moment to plan tomorrow, not a
-                reason to hide the button (2026-08-09). Unless the door is
-                already on screen: WAVE 4's duplicate-doors rule (above, the
-                non-empty branch) was never applied here, so an empty evening
-                with a booked tomorrow showed "Plan Tomorrow" in this card AND
-                "Plan It" on the Tomorrow head one section down (Dave's
-                2026-09-04 screenshot). Same handler, same rule, one door. */}
-            {onPlanTomorrow && !tomorrowShown && <button className="btn btn-secondary" onClick={onPlanTomorrow}><CalIcon />Plan Tomorrow</button>}
+            {/* PLAN MY DAY AND PLAN TOMORROW ARE ON THE HEAD NOW (Dave 2026-10-05), so the card holds only its own words. */}
           </div>
         </div></div>
       </div>

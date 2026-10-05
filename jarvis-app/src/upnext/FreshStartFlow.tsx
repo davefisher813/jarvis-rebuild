@@ -6,7 +6,7 @@ import { catColor } from "../shared/categories";
 import { showToast } from "../shared/toast";
 import { attemptWrite } from "../shared/guard";
 import { freshStartPlan, tomorrowOf } from "./upnext";
-import { lineCase } from "../shared/casing";
+import { lineCase, titleCase } from "../shared/casing";
 
 // Fresh Start (ADHD strategy Phase 1): the 2pm recovery moment. Keeps the top
 // of the deck, moves the rest of today's open load to tomorrow, and never uses
@@ -68,7 +68,7 @@ export default function FreshStartFlow({ onClose, onDone }: { onClose: () => voi
     <div className="row" key={t.id} style={undefined}>
       <span className={"cat-dot cat-bg-" + catColor(t.data.category)} />
       <div className="row-grow">
-        <div className={"conn-name" + (faded ? " fresh-faded" : "")}>{t.data.text}</div>
+        <div className={"conn-name" + (faded ? " fresh-faded" : "")}>{titleCase(t.data.text)}</div>
         <div className="conn-meta">{sub}</div>
       </div>
     </div>

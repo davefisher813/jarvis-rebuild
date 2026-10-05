@@ -18,7 +18,8 @@ export default function ProjectSheet({ mode, categories, goals = [], initial, on
   // "Saving" for good with the draft trapped behind Cancel.
   onSave: (d: ProjectData) => void | Promise<boolean | void>; onDelete?: () => void; onCancel: () => void;
 }) {
-  const [title, setTitle] = useState(initial?.title ?? "");
+  // Shown in Title Case and saved in Title Case (Dave 2026-10-05): a project named "create ai financial advisor" reads right here.
+  const [title, setTitle] = useState(initial?.title ? titleCase(initial.title) : "");
   const [status, setStatus] = useState<ProjectStatus>(initial?.status ?? "active");
   const [category, setCategory] = useState<string>(initial?.category ?? "");
   const [goalId, setGoalId] = useState<string>(initial?.goalId ?? "");
@@ -41,7 +42,7 @@ export default function ProjectSheet({ mode, categories, goals = [], initial, on
     if (!valid) { setTouched(true); return; }
     if (saving) return;
     setSaving(true);
-    const r = onSave({ title: title.trim(), status, category: category || undefined, goalId: goalId || undefined, holdUntil: status === "on_hold" && holdUntil ? holdUntil : undefined, due: due || undefined });
+    const r = onSave({ title: titleCase(title.trim()), status, category: category || undefined, goalId: goalId || undefined, holdUntil: status === "on_hold" && holdUntil ? holdUntil : undefined, due: due || undefined });
     // BRAIN-F-09 (2026-09-05): a parent whose write THROWS unlatches too; the
     // false branch only ever covered parents that already caught for themselves.
     void Promise.resolve(r).then((ok) => { if (ok === false) setSaving(false); }, () => setSaving(false));

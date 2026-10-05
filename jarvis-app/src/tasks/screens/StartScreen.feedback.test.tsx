@@ -97,10 +97,10 @@ describe("StartScreen: edit, smaller, worked on it, done for now", () => {
     await waitFor(() => expect(screen.queryByLabelText("Reword this move")).toBeNull());
   });
 
-  it("Make this smaller asks for the person's own smaller move; blank is not accepted", async () => {
+  it("Make This Smaller asks for the person's own smaller move; blank is not accepted", async () => {
     const onSmallerStep = vi.fn(async () => true);
     render(<StartScreen {...props} onSmallerStep={onSmallerStep} />);
-    fireEvent.click(screen.getByText("Make this smaller"));
+    fireEvent.click(screen.getByText("Make This Smaller"));
     const save = screen.getByText("Save Smaller Move");
     expect(save).toBeDisabled();
     fireEvent.change(screen.getByLabelText("A smaller first move"), { target: { value: "Open the calendar" } });

@@ -98,7 +98,7 @@
   padding: var(--s-0h) var(--s-2); border-radius: var(--r-pill); background: var(--press-5); }
 .email-badge + .email-badge { margin-left: var(--s-1); }
 .email-badge.warn { color: var(--warn); background: var(--warn-tint); }
-.email-badge.red { color: var(--sys-red); background: color-mix(in srgb, var(--sys-red) 14%, transparent); }
+.email-badge.red { color: var(--sys-red); background: color-mix(in srgb, var(--sys-red) var(--late-wash), transparent); }
 /* The dismiss circle paints 32 and taps 44. */
 .email-card-x { position: relative; width: 32px; height: 32px; border-radius: var(--r-circle); border: 0; background: var(--press-5); color: var(--tx-1); font-size: var(--t-body); line-height: 32px; text-align: center; flex: 0 0 auto; }
 .email-card-x::after { content: ""; position: absolute; inset: -6px; }

@@ -247,7 +247,8 @@ body:has(.sheet-scrim) .voice-bar, body:has(.sheet-scrim) .tab-bar, body.sheet-o
 .block-menu-btn { flex-shrink:0; background:0; border:0; color:var(--tx-2); padding:var(--s-1h); min-width:var(--tap-min); min-height:var(--tap-min); display:flex; align-items:center; justify-content:center; }
 .block-menu-btn .ic { width:18px; height:18px; }
 .block-menu-scrim { position:fixed; inset:0; z-index:40; }
-.block-menu { position:absolute; right:0; top:var(--s-7); z-index:50; background:var(--surface-3); border-radius:var(--r-md); padding:var(--s-1); min-width:160px; box-shadow:var(--shadow-card); }
+.block-menu { position:absolute; right:0; top:var(--s-7); z-index:50; background:var(--surface-3); border-radius:var(--r-md); padding:var(--s-1); min-width:160px; box-shadow:var(--shadow-float); }
+[data-theme="light"] .block-menu { background:var(--chrome-bg); }
 /* UP-CORE-14 (2026-09-05): the same menu, over a notice rather than a block.
    It hangs from the card's own bottom edge, inside the pad the notice
    already sits in, so it never leaves the column the card is in. */

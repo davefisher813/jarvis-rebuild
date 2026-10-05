@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, it, expect, afterEach, beforeEach } from "vitest";
+import { describe, it, expect, afterEach, beforeEach, vi } from "vitest";
 import "@testing-library/jest-dom";
 import { render, cleanup, fireEvent, screen } from "@testing-library/react";
 import { subscribeToast, resetToasts } from "../shared/toast";
@@ -231,5 +231,59 @@ describe("BiggerPicturePage: the catalog (scope words, Options value)", () => {
     const all = document.querySelector(".opt-val")!.textContent!;
     expect(all).toBe("All Statuses, All Areas");
     expect(all).not.toContain("\u00b7");
+  });
+});
+
+// CLEAN ROWS, SECTION ACTIONS ON THE HEAD (Dave 2026-10-05, locked). The Add Project and Add Goal rows that ended the lists, and
+// the lone capsule under a list with no receipt, are gone: the header's New Project and New Goal are the one door. A project
+// whose work is all done wears no Close capsule: Close is its swipe and one quiet word on the row.
+describe("BiggerPicturePage: no foot adds, no pill on a row", () => {
+  const closable = (): ProjectRow => ({ ...row({ category: "work" }), progress: { done: 3, total: 3, pct: 100 } });
+  const lens = (l: "projects" | "goals", extra: Record<string, unknown> = {}) =>
+    render(
+      <BiggerPicturePage
+        lens={l}
+        segments={<div />}
+        goals={l === "goals" ? [{ id: "g1", data: { title: "Run a Half", state: "on_track" as const, tags: ["work"] } }] : []}
+        reachOfGoal={reach}
+        projectRows={l === "projects" ? [closable()] : []}
+        sections={[{ id: "work", name: "Work", color: "blue" }]}
+        onAddGoal={() => {}}
+        onOpenGoal={() => {}}
+        onAddProject={() => {}}
+        onOpenProject={() => {}}
+        {...extra}
+      />,
+    );
+
+  it("the Projects lens ends with no Add Project row, and the header holds the one Add", () => {
+    const onAddProject = vi.fn();
+    const { container } = lens("projects", { onAddProject });
+    fireEvent.click(container.querySelector(".bp-viewtog")!);
+    expect(screen.queryByText("Add Project")).toBeNull();
+    expect(container.querySelectorAll(".row-create, .row-act, .list-tail")).toHaveLength(0);
+    fireEvent.click(screen.getByLabelText("New Project"));
+    expect(onAddProject).toHaveBeenCalledTimes(1);
+  });
+
+  it("the Goals lens ends with no Add Goal row, and the header holds the one Add", () => {
+    const onAddGoal = vi.fn();
+    const { container } = lens("goals", { onAddGoal });
+    fireEvent.click(container.querySelector(".bp-viewtog")!);
+    expect(screen.queryByText("Add Goal")).toBeNull();
+    expect(container.querySelectorAll(".row-create, .row-act")).toHaveLength(0);
+    fireEvent.click(screen.getByLabelText("New Goal"));
+    expect(onAddGoal).toHaveBeenCalledTimes(1);
+  });
+
+  it("a project with all its work done shows Close as a swipe and one quiet word, never a capsule", () => {
+    const onClose = vi.fn();
+    const { container } = lens("projects", { onCloseProject: onClose });
+    fireEvent.click(container.querySelector(".bp-viewtog")!);
+    expect(container.querySelectorAll(".pill-act, .proj-close")).toHaveLength(0);
+    expect(container.querySelector(".proj-row-ruled .row-ctx")).toHaveTextContent("Close");
+    expect([...container.querySelectorAll(".task-swipe > .task-verb")].map((b) => b.textContent)).toEqual(["Close"]);
+    fireEvent.click(container.querySelector(".proj-row-ruled .row-ctx")!);
+    expect(onClose).toHaveBeenCalledWith("p1");
   });
 });

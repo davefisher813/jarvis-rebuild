@@ -1799,8 +1799,12 @@ describe("LAW: stored shapes are versioned", () => {
       const la = lum(a), lb = lum(b);
       return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
     };
-    // page, white card, and the strict constant the palette sweep judges by
-    for (const ground of ["#F3F4F9", "#FFFFFF", "#F5F6F8", "#FAFAFB", "#F1F2F7", "#F2F2F7"]) {
+    // page, white card, and the strict constant the palette sweep judges by.
+    // The warm cream page, card and chrome joined 2026-10-05 (Dave); the warm
+    // raised grey (#ECE5DA) is not a ground for this pair, because light
+    // paints its glyph red as the action red (#D12416, 4.22:1 there), never
+    // the brand literal.
+    for (const ground of ["#F3F4F9", "#FFFFFF", "#F5F6F8", "#FAFAFB", "#F1F2F7", "#F2F2F7", "#FAF6F0", "#F3EEE6", "#FFFDFA"]) {
       expect(ratio("#FF2B3C", ground), "glyph red on " + ground).toBeGreaterThanOrEqual(3);
     }
   });
@@ -3876,7 +3880,8 @@ describe("LAW 11: cards show their work, tags earn their shape, and no screen is
     // in light), so the late word sat on the tap red. The wash is mixed from
     // the system red now, the mix the shared red urgency chip uses; the
     // today chip's pin and every check above are unchanged.
-    expect(CSS).toMatch(/\.ruled \.uchip\.u-late  \{ color: var\(--sys-red\); background: color-mix\(in srgb, var\(--sys-red\) 14%, transparent\); \}/);
+    // AMENDED 2026-10-05 (Dave, the warm neutrals): the wash is the --late-wash token, 14% in light and 8% in dark.
+    expect(CSS).toMatch(/\.ruled \.uchip\.u-late  \{ color: var\(--sys-red\); background: color-mix\(in srgb, var\(--sys-red\) var\(--late-wash\), transparent\); \}/);
   });
 
   // FINDING 3, FOUR CHAPTERS. Read the history before changing this.
@@ -5908,7 +5913,7 @@ describe("a sheet's Cancel and Save stay where a thumb can reach them (2026-09-0
     expect(nameW, "the approved page's weight is what the token holds").toBe(700);
     // And the ink ramp it cannot lean on instead is still two-tier, so this
     // law is the only thing holding the hierarchy up.
-    expect(ds).toMatch(/--tx-2: #D2D2D6; --tx-3: #D2D2D6;/);
+    expect(ds).toMatch(/--tx-2: #D6D0CA; --tx-3: #D6D0CA;/);
   });
 
   it("the bar itself still meets the tap minimum", () => {
@@ -7120,10 +7125,10 @@ describe("LAW: the structure ink never colours text (2026-09-14)", () => {
     const dark = blockOf("dark");
     const light = blockOf("light");
     for (const [name, block] of [["dark", dark], ["light", light]] as const) {
-      // AMENDED 2026-09-29 (Dave, the approved light palette): light keeps three
-      // text tiers (#111318, #363A43, #515661); dark keeps one secondary value.
+      // AMENDED 2026-10-05 (Dave, the warm neutrals): light keeps three text
+      // tiers (#1F1A16, #4A423A, #5E554C); dark keeps one secondary value.
       if (name === "dark") expect(pick(block, "--tx-2"), name + " secondary is one value").toBe(pick(block, "--tx-3"));
-      else expect(pick(block, "--tx-3"), "light quiet labels are #515661").toBe("#515661");
+      else expect(pick(block, "--tx-3"), "light quiet labels are #5E554C").toBe("#5E554C");
       expect(pick(block, "--tx-4"), name + " structure is a solid grey").toMatch(/^#[0-9A-Fa-f]{6}$/);
     }
   });

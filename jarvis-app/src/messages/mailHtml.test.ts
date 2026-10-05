@@ -59,7 +59,9 @@ describe("sanitizeMailHtml", () => {
     // written for white paper disappears into it.
     expect(sanitizeMailHtml("<p>hi</p>", { dark: true })).toMatch(/<meta name="color-scheme" content="dark">/);
     expect(sanitizeMailHtml("<p>hi</p>", { dark: false })).toMatch(/<meta name="color-scheme" content="light">/);
-    expect(sanitizeMailHtml("<p>hi</p>", { dark: false })).toMatch(/color: #111/);
+    // AMENDED 2026-10-05 (Dave, the warm neutrals): the mail's ink is the app's warm ink, not #111.
+    expect(sanitizeMailHtml("<p>hi</p>", { dark: false })).toMatch(/color: #1F1A16/);
+    expect(sanitizeMailHtml("<p>hi</p>", { dark: true })).toMatch(/color: #F7F1EA/);
     expect(out).not.toMatch(/content="dark light"/);
   });
 });

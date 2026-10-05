@@ -130,18 +130,21 @@ describe("TasksPage", () => {
 
   // ONE ROW PER TASK (Dave 2026-09-02: "'email Danielle' shows up twice,
   // kill the bug"). The task that keeps sliding is its own row, first, with
-  // the sliding line in the warning ink and First Step in place of Start;
-  // it is not ALSO in its group.
-  it("the stalled task is one row, hoisted first, with its line and its pill", () => {
+  // the sliding line in the warning ink; it is not ALSO in its group.
+  // AMENDED 2026-10-05 (Dave: "Clean rows, no pills anywhere"): it wears no
+  // First Step pill. It is a low-priority row, so its swipe-left verb is Move
+  // (to tomorrow); First Step is in its sheet and its long-press menu.
+  it("the stalled task is one row, hoisted first, with its line, and no pill", () => {
     const onFirst = vi.fn();
+    const onSnooze = vi.fn();
     const { container } = render(
       <TasksPage filter="today" counts={counts} items={[tk("a", "2026-05-20"), tk("b", "2026-05-20"), tk("c", "2026-05-20")]} today="2026-05-20"
-        onStartTask={() => {}}
-        stalled={{ id: "b", tag: "Keeps Sliding", line: "Pushed 5 times", action: { label: "First Step", onClick: onFirst } }} />,
+        onStartTask={() => {}} onSnoozeTask={onSnooze} onFirstStepTask={onFirst}
+        stalled={{ id: "b", tag: "Keeps Sliding", line: "Pushed 5 times" }} />,
     );
     const names = [...container.querySelectorAll(".task-row .task-name")].map((e) => e.textContent);
-    expect(names).toEqual(["b", "a", "c"]);
-    expect(names.filter((n) => n === "b")).toHaveLength(1);
+    expect(names).toEqual(["B", "A", "C"]);
+    expect(names.filter((n) => n === "B")).toHaveLength(1);
     const row = container.querySelector(".task-row")!;
     // TWO KINDS OF FACT, TWO WEIGHTS (Dave 2026-09-11: "Keep sliding and
     // pushed 8 times should not be identical styling wise"). The verdict is
@@ -149,11 +152,16 @@ describe("TasksPage", () => {
     expect(row.querySelector(".slide-tag")).toHaveTextContent("Keeps Sliding");
     expect(row.querySelector(".r-goal.r-stalled")).toHaveTextContent("Pushed 5 times");
     expect(row.querySelector(".task-check")).toBeTruthy();
-    const pill = row.querySelector(".pill-act")!;
-    expect(pill).toHaveTextContent("First Step");
-    fireEvent.click(pill);
-    expect(onFirst).toHaveBeenCalled();
-    expect([...container.querySelectorAll(".pill-act")].map((e) => e.textContent)).toEqual(["First Step", "Start", "Start"]);
+    expect(container.querySelectorAll(".pill-act"), "no pill on any row").toHaveLength(0);
+    // Its tray, from the edge: Move, then Delete. Move is the tomorrow action.
+    const swipe = row.closest(".task-swipe")!;
+    expect([...swipe.querySelectorAll(":scope > button")].map((b) => b.textContent)).toEqual(["Move", "Delete"]);
+    fireEvent.click(swipe.querySelector(".task-verb")!);
+    expect(onSnooze).toHaveBeenCalledWith("b");
+    // Its long-press menu holds First Step, and it runs the flow's own.
+    fireEvent.contextMenu(row);
+    fireEvent.click(screen.getByText("First Step"));
+    expect(onFirst).toHaveBeenCalledWith("b");
   });
 
   it("renders the ruled row: neutral ring, the parent's glyph, distance chip", () => {
@@ -225,7 +233,7 @@ describe("TasksPage", () => {
     // By goal: the goalless bucket comes last.
     fireEvent.click(group());
     fireEvent.click(screen.getByRole("menuitemradio", { name: "Goal" }));
-    expect([...container.querySelectorAll(".grp-head")].map((h) => h.textContent)).toEqual(["Get Paid On Time1", "No goal1"]);
+    expect([...container.querySelectorAll(".grp-head")].map((h) => h.textContent)).toEqual(["Get Paid on Time1", "No Goal1"]);
     // Back to none, for the next test: the memory is session-wide.
     fireEvent.click(group());
     fireEvent.click(screen.getByRole("menuitemradio", { name: "None" }));
@@ -359,7 +367,9 @@ describe("TasksPage editing in place", () => {
     expect(onRenameTask).not.toHaveBeenCalled();
   });
 
-  it("holding the title renames it where it stands", () => {
+  // AMENDED 2026-10-05 (Dave: the long press is the context menu). Rename is a
+  // line in it, so a hold opens the menu and Rename edits where it stands.
+  it("holding the row opens its menu, and Rename edits the title where it stands", () => {
     vi.useFakeTimers();
     const onRenameTask = vi.fn();
     const onOpenTask = vi.fn();
@@ -368,11 +378,14 @@ describe("TasksPage editing in place", () => {
         onRenameTask={onRenameTask} onOpenTask={onOpenTask} />,
     );
     hold(container.querySelector(".task-name")!);
+    expect(container.querySelector('[contenteditable="true"]'), "the hold alone does not edit").toBeNull();
+    fireEvent.click(screen.getByText("Rename"));
     const field = container.querySelector('[contenteditable="true"]')!;
     expect(field).toBeTruthy();
-    field.textContent = "Renamed";
+    field.textContent = "call the bank";
     fireEvent.blur(field);
-    expect(onRenameTask).toHaveBeenCalledWith("a", "Renamed");
+    // Stored in Title Case (the write door), whatever was typed.
+    expect(onRenameTask).toHaveBeenCalledWith("a", "Call the Bank");
     // The hold must not ALSO open the sheet: one gesture, one outcome.
     expect(onOpenTask).not.toHaveBeenCalled();
     vi.useRealTimers();
@@ -387,6 +400,7 @@ describe("TasksPage editing in place", () => {
     );
     hold(container.querySelector(".task-name")!);
     expect(container.querySelector('[contenteditable="true"]')).toBeNull();
+    expect(screen.queryByText("Rename"), "a done task's menu has no Rename").toBeNull();
     vi.useRealTimers();
   });
 
@@ -412,15 +426,18 @@ describe("TasksPage editing in place", () => {
     expect(onRenameTask).not.toHaveBeenCalled();
   });
 
-  it("ends the list with the way to grow it, and never as a second red fill", () => {
+  // AMENDED 2026-10-05 (Dave, locked): a section-level action lives in the
+  // head, never at the foot of a list. The header's New Task is the one door;
+  // the Add a Task row that ended the list is gone.
+  it("puts the Add on the header and nothing at the foot of the list", () => {
     const onNew = vi.fn();
     const { container } = render(
       <TasksPage filter="today" counts={counts} items={[tk("a", "2026-05-20")]} today="2026-05-20" onNew={onNew} />,
     );
-    const add = container.querySelector(".row-act")!;
-    expect(add).toHaveTextContent("Add a Task");
-    expect(add.className).not.toContain("btn-primary");
-    fireEvent.click(add);
+    expect(container.querySelector(".row-act")).toBeNull();
+    expect(container.querySelector(".list-foot")).toBeNull();
+    expect(screen.queryByText("Add a Task")).toBeNull();
+    fireEvent.click(screen.getByLabelText("New Task"));
     expect(onNew).toHaveBeenCalled();
   });
 
@@ -473,15 +490,17 @@ describe("the Momentum Chain slot (LIFE-F-09)", () => {
 describe("MomentumRow (Dave 2026-09-16)", () => {
   const task = tk("m1", "2026-05-20");
 
-  it("is a plain task row: one check, one title, one trailing pill, no second pill floating beside it", () => {
+  // AMENDED 2026-10-05 (Dave: "Clean rows, no pills anywhere"): the trailing
+  // Start pill is gone. The suggestion is a ready task, so its swipe-left is
+  // Start, with Not Now beside it, and its swipe-right completes.
+  it("is a plain task row: one check, one title, no pill, Start and Not Now in the swipe", () => {
     const { container } = render(
       <MomentumRow task={task} reason="Same category" today="2026-05-20"
         onOpen={() => {}} onToggle={() => {}} onStart={() => {}} onNotNow={() => {}} />,
     );
-    // The old shape put two buttons in one trailing slot; this shape has
-    // exactly the one every other row's trailing slot carries.
-    expect(container.querySelectorAll(".pill-act").length).toBe(1);
-    expect(screen.getByText("Start")).toHaveClass("pill-act");
+    expect(container.querySelectorAll(".pill-act").length).toBe(0);
+    expect([...container.querySelectorAll(".task-swipe > button")].map((b) => b.textContent)).toEqual(["Start", "Not Now"]);
+    expect(container.querySelector(".task-done-rail")).toHaveTextContent("Done");
     expect(container.querySelector(".task-check-tap")).toBeInTheDocument();
     expect(screen.getByText("Keep Going")).toHaveClass("slide-tag");
     // AMENDED 2026-09-26 (§AM): the due half wears the key as the task row's
@@ -490,9 +509,6 @@ describe("MomentumRow (Dave 2026-09-16)", () => {
     // AMENDED 2026-09-26 (pass-off): Title Case on every line the app writes.
     expect(screen.getByText("Same Area")).toHaveClass("r-goal", "r-cat");
     expect(screen.queryByText(/due today/)).toBeNull();
-    // Not Now is not a second visible button on the row; it lives behind
-    // the swipe reveal instead (asserted by class, below).
-    expect(screen.queryByRole("button", { name: "Not Now" })).toBeNull();
     // No trace of the old bespoke wrap that let the pair drift loose.
     expect(container.querySelector(".momentum-slot")).toBeNull();
   });
@@ -508,7 +524,8 @@ describe("MomentumRow (Dave 2026-09-16)", () => {
       <MomentumRow task={task} reason={null}
         onOpen={onOpen} onToggle={onToggle} onStart={onStart} onNotNow={() => {}} />,
     );
-    fireEvent.click(screen.getByText("Start"));
+    // The swipe's Start (the tray's first button) runs it, and so does the row itself.
+    fireEvent.click(document.querySelector(".task-verb")!);
     expect(onStart).toHaveBeenCalledWith("m1");
     expect(onOpen).not.toHaveBeenCalled();
     fireEvent.click(document.querySelector(".task-check-tap")!);
@@ -655,8 +672,8 @@ describe("the Keep Going row shows its task once and starts it (pass-off 2026-09
     );
     expect(screen.getByTestId("keep-going")).toBeInTheDocument();
     const names = [...container.querySelectorAll(".task-name")].map((n) => n.textContent);
-    expect(names.filter((n) => n === "b")).toHaveLength(0);
-    expect(names.filter((n) => n === "a")).toHaveLength(1);
+    expect(names.filter((n) => n === "B")).toHaveLength(0);
+    expect(names.filter((n) => n === "A")).toHaveLength(1);
   });
 
   it("the whole row starts the task, the same door as its pill", () => {

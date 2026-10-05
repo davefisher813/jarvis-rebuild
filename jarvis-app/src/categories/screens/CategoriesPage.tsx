@@ -2,6 +2,7 @@ import type { Category } from "../types";
 import { catIcon } from "../icons";
 import LargeTitleNav from "../../shared/LargeTitleNav";
 import ReorderList from "../../shared/ReorderList";
+import { titleCase } from "../../shared/casing";
 
 const BACK = (
   <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
@@ -9,10 +10,6 @@ const BACK = (
 const CHEV = (
   <div className="chev" />
 );
-const PLUS = (
-  <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
-);
-
 export default function CategoriesPage({
   categories,
   onEdit,
@@ -36,7 +33,12 @@ export default function CategoriesPage({
   return (
     <div className="screen ruled">
       <LargeTitleNav title="Areas" back="Settings" onBack={onBack} />
-      <div className="sh2 sh2-quiet"><span className="t">Your Areas</span><span className="n">{categories.length}</span></div>
+      {/* THE ADD IS ON THE HEAD (Dave 2026-10-05, locked: a section-level action lives in the section head, never in a card
+          or at the foot of a list). The grey card that held only Add Area is gone (rule 12). */}
+      <div className="sh2 sh2-quiet">
+        <span className="t">Your Areas</span><span className="n">{categories.length}</span>
+        <button className="see-all pill-action" onClick={onAdd}>Add Area</button>
+      </div>
       <div className="pad-x">
         {onReorder && categories.length > 1 ? (
           <ReorderList
@@ -57,26 +59,23 @@ export default function CategoriesPage({
                       padding with it via :has(); reusing it here rather than
                       re-deriving the same fix a second time. */}
                   <div className="row-grow row-press" role="button" tabIndex={0} onClick={() => onEdit(c.id)}>
-                    <div className="conn-name">{c.data.name}</div>
+                    <div className="conn-name">{titleCase(c.data.name)}</div>
                   </div>
                 </>
               );
             }}
           />
-        ) : (
+        ) : categories.length > 0 && (
         <div className="card list-card-ruled">
           {categories.map((c) => (
             <div className="row" role="button" tabIndex={0} key={c.id} onClick={() => onEdit(c.id)}>
               <div className={"sec-ico cat-bg-" + c.data.color}>{catIcon(c.data.icon)}</div>
-              <div className="row-grow"><div className="conn-name">{c.data.name}</div></div>
+              <div className="row-grow"><div className="conn-name">{titleCase(c.data.name)}</div></div>
               {CHEV}
             </div>
           ))}
         </div>
         )}
-        <div className="card list-card-ruled conn-action">
-          <button className="row row-act" onClick={onAdd}>Add Area</button>
-        </div>
       </div>
     </div>
   );

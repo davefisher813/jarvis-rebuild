@@ -36,7 +36,7 @@ import { distanceFor, type Distance } from "../tasks/grouping";
 import { AUTOMATION_LABEL, tuningAllows, tuningScope, tuningWeight, tuningsFrom, type TuningChoice } from "../rules/tuning";
 import { leadFor } from "../schedule/leaveBy";
 import { EventWeatherLine } from "../weather/WeatherLine";
-import { lineCase } from "../shared/casing";
+import { lineCase, titleCase } from "../shared/casing";
 import { movedBy, burstSize, celebrationLine, type Moved } from "../shared/completion";
 import { birthdaysOn, upcomingBirthdays, type BirthdayHit } from "../people/birthdays";
 import type { Person } from "../people/types";
@@ -123,6 +123,8 @@ import RemindersStrip from "./RemindersStrip";
 import RemindersFlow from "../tasks/screens/RemindersFlow";
 import SnoozeSheet from "../tasks/screens/SnoozeSheet";
 import RowActionSheet from "../shared/RowActionSheet";
+import RowCtxAction from "../shared/RowCtxAction";
+import { SwipeShell } from "./MoveHeadliner";
 import type { LinkCandidate } from "../tasks/screens/LinkedItemSheet";
 import { displayTitle } from "../notes/docModel";
 import type { LinkedItem, ContextTriggerConfig } from "../notes/types";
@@ -2655,7 +2657,9 @@ export default function TodayFlow({
                   pick up the phone for. */}
               {liveFacts(liveNow, liveNow.left ?? liveNow.elapsed, liveNow.progress, "conn-meta facts")}
             </div>
-            <button className="pill-act pill-go" onClick={own(() => onRestoreSpot?.("gym", gymCatId ?? ""))}>Resume</button>
+            {/* A WORKOUT IN PROGRESS HAS ITS MOMENT, so its verb is the one quiet word on the row, not a capsule (Dave
+                2026-10-05, locked). The row's tap does the same thing. */}
+            <RowCtxAction when label="Resume" onAct={() => onRestoreSpot?.("gym", gymCatId ?? "")} />
           </div>
         ) : nowCtx.gapMin !== null && nowCtx.nextStart ? (
           // THE RAIL (Dave's pick C, 2026-08-22, replacing the green ring:
@@ -2735,7 +2739,9 @@ export default function TodayFlow({
               {/* SCHEDULE SOMETHING HERE (item 7, 2026-10-01): the open window's
                   tap offers the tasks that fit, with Focus one option in the
                   sheet. The pill used to say Focus and go straight there. */}
-              <button className="pill-act" onClick={own(() => setGapSheetOpen(true))}>Fill It</button>
+              {/* NO FILL IT CAPSULE (Dave 2026-10-05, locked: a row has no pill). The row is the door; the sheet it
+                  opens offers the tasks that fit. */}
+              <div className="chev" />
             </div>
           )}
           </>
@@ -2795,8 +2801,10 @@ export default function TodayFlow({
                 different thing to do is the block arguing with itself. Join
                 and Notes stay, because those act on the block he is in. With
                 neither, the row states the fact and stops. */}
+            {/* Inside a meeting that has a link, Joining is the moment, so it is the one quiet word on the row (Dave
+                2026-10-05: no capsule on a row). */}
             {insideEvent?.data.url ? (
-              <a className="pill-act" href={insideEvent.data.url} target="_blank" rel="noreferrer" onClick={own()}>Join</a>
+              <RowCtxAction when label="Join" onAct={() => { window.open(insideEvent.data.url, "_blank", "noopener,noreferrer"); }} />
             ) : null}
           </div>
         )}
@@ -2807,6 +2815,11 @@ export default function TodayFlow({
         {prep && (
           // ROW-TAP (Dave 2026-09-15: "I want all rows clickable"): the row
           // is about the person you are about to meet, so it opens them.
+          // NO CHIPS ON THE ROW (Dave 2026-10-05, locked): What's Open and What Did You Say are the swipe's two verbs.
+          <SwipeShell actions={[
+            ...(prep.open.length > 0 && onOpenPerson ? [{ label: "What's Open", run: () => void onOpenPerson(prep.person.id) }] : []),
+            ...(onAskSaid ? [{ label: "What Did You Say", run: () => void onAskSaid(prep.person.id) }] : []),
+          ]}>
           <div className="row" {...rowDoor(() => void (onOpenPerson ?? onAskSaid)?.(prep.person.id))}>
             <RowIcon kind="event" />
             <div className="row-stack">
@@ -2825,15 +2838,9 @@ export default function TodayFlow({
                   {prep.lastMail ? <span className="fact date">{prep.lastMail}</span> : null}
                 </div>
               ) : null}
-              {/* row-tap: chip strip inside the prep row, not a row of its own */}
-              <div className="row mail-chips">
-                {prep.open.length > 0 && (
-                  <button className="chip" onClick={own(() => void onOpenPerson?.(prep.person.id))}>What's Open</button>
-                )}
-                <button className="chip" onClick={own(() => void onAskSaid?.(prep.person.id))}>What Did You Say</button>
-              </div>
             </div>
           </div>
+          </SwipeShell>
         )}
       </div></div>
     </>
@@ -2925,14 +2932,20 @@ export default function TodayFlow({
             <span className="rl-t">{lineCase(`${dayDraft.anytime.length} More in Anytime`)}</span>
             <div className={"chev chev-down" + (draftMoreOpen ? " chev-open" : "")} />
           </button>
-          {draftMoreOpen && dayDraft.anytime.map((a) => (
-            // ROW-TAP (Dave 2026-09-15): the row is a task; it opens the task.
-            <div className="row" key={a.id} {...rowDoor(() => void onOpenTask(a.id))}>
-              <RowIcon kind="task" />
-              <div className="row-grow"><div className="conn-name truncate">{a.text}</div></div>
-              <button className="pill-act" onClick={own(() => applyEdit({ add: a.id }))}>Add</button>
-            </div>
-          ))}
+          {draftMoreOpen && (
+            // NO PILL ON THE ROW (Dave 2026-10-05, locked): Add is the swipe, and the row is a task, so its tap opens
+            // the task (ROW-TAP, Dave 2026-09-15).
+            <div className="pad-x"><div className="card">
+              {dayDraft.anytime.map((a) => (
+                <SwipeShell key={a.id} actions={[{ label: "Add", run: () => applyEdit({ add: a.id }) }]}>
+                  <div className="row" {...rowDoor(() => void onOpenTask(a.id))}>
+                    <RowIcon kind="task" />
+                    <div className="row-grow"><div className="conn-name truncate">{titleCase(a.text)}</div></div>
+                  </div>
+                </SwipeShell>
+              ))}
+            </div></div>
+          )}
         </>
       )}
       {/* FOUR FLOATING BUTTONS BECAME ONE ROW (Dave 2026-09-10 and 09-11).
@@ -2997,6 +3010,7 @@ export default function TodayFlow({
       tone="cat-fg-orange"
       title={slippedCount === 1 ? "1 Block Slipped" : `${slippedCount} Blocks Slipped`}
       sub="The Plan Is Behind the Clock"
+      offer
       action={{ label: "Re-Flow", onClick: () => void runReflow() }}
       // ROW-TAP (Dave 2026-09-15: "I want all rows clickable"): the card is
       // about the day's plan, so its body opens the Schedule that holds it.
@@ -3016,7 +3030,7 @@ export default function TodayFlow({
       weight={FAILING}
       icon={SWEEP_ICO}
       tone="cat-fg-orange"
-      title={overflowOffer.title}
+      title={titleCase(overflowOffer.title)}
       sub="No Room Left Today"
       // ROW-TAP (Dave 2026-09-15): the body opens the event that has no room.
       onOpen={() => onOpenEvent(overflowOffer.eventId)}
@@ -3175,7 +3189,7 @@ export default function TodayFlow({
         weight={WAITING}
         icon={FORK_ICO}
         tone="cat-fg-purple"
-        title={revisit.data.decision}
+        title={titleCase(revisit.data.decision)}
         sub="You Wanted to Revisit This Today"
         action={{ label: "Keep", onClick: () => void stillGood(revisit) }}
         alt={{ label: "Change It", onClick: () => setRevisitSheet(true) }}
@@ -3193,6 +3207,7 @@ export default function TodayFlow({
     sweepReceipt && sweepReceipt.failed ? (
       <NoticeCard
         key="sweepfail"
+        offer
         weight={FAILING}
         icon={SWEEP_ICO}
         tone="cat-fg-red"
@@ -3289,8 +3304,10 @@ export default function TodayFlow({
         weight={FAILING}
         icon={SWEEP_ICO}
         tone="cat-fg-orange"
-        title={sweepCand.text}
-        sub={`Slid ${sweepCand.slips}d`}
+        title={titleCase(sweepCand.text)}
+        // ONE TONE FOR THE WHOLE LINE (Dave 2026-10-05, Alfred R1: "Slid" was a dim grey word beside a red figure): a task
+        // that keeps sliding is late, and that is red, words and figure alike.
+        sub={<Facts facts={[{ text: `Slid ${sweepCand.slips}d`, tone: "red" }]} />}
         // 2026-09-15: THE DIAGNOSIS CARRIES ITS OWN REMEDY (Dave: "if they're
         // not going to give real, real value, then we have to adjust them or
         // get rid of some of them").
@@ -3342,7 +3359,7 @@ export default function TodayFlow({
         weight={RESUME}
         icon={DOC_ICO}
         tone="cat-fg-yellow"
-        title={spot.label}
+        title={titleCase(spot.label)}
         sub={spotAgo(spot)}
         action={{ label: "Resume", onClick: () => { clearSpot(); setSpot(null); onRestoreSpot?.(spot.kind, spot.id); } }}
         // ROW-TAP (Dave 2026-09-15): the body opens the bookmarked thing too.
@@ -3370,8 +3387,10 @@ export default function TodayFlow({
         weight={tuningWeight(tunings, "close-offer", NEW)}
         icon={WIN_ICO}
         tone="cat-fg-green"
-        title={finishedProject.project.data.title}
-        sub={lineCase(`All ${finishedProject.progress?.total ?? 0} done`)}
+        title={titleCase(finishedProject.project.data.title)}
+        // DONE IS GREEN (the Colour Key; Dave 2026-10-05, Alfred R1: "All 7 Done" was a dim grey line). The fact the row
+        // exists to say takes the key's colour for what it means.
+        sub={<Facts facts={[{ text: lineCase(`All ${finishedProject.progress?.total ?? 0} done`), tone: "good" }]} />}
         // 2026-09-17 (Dave): every task done is a question, not a verdict.
         // Wrap Up asks: add more tasks, or finish the project.
         action={{ label: "Wrap Up", onClick: () => setWrapUp(finishedProject.project.id) }}
@@ -3397,7 +3416,7 @@ export default function TodayFlow({
         weight={tuningWeight(tunings, "project-due", WAITING)}
         icon={<FolderOpenGlyph />}
         tone="cat-fg-indigo"
-        title={dueProject.project.data.title}
+        title={titleCase(dueProject.project.data.title)}
         // §AM (2026-09-26): two facts, the dot drawn by the stylesheet, and
         // the date in its meaning's colour (past red, due amber, a rate sky,
         // a date further off small caps). Built by the one facts helper, so
@@ -3426,7 +3445,7 @@ export default function TodayFlow({
         weight={tuningWeight(tunings, "momentum", NEW)}
         icon={<CheckCircleGlyph />}
         tone="cat-fg-blue"
-        title={momentum.task.data.text}
+        title={titleCase(momentum.task.data.text)}
         sub={momentumFacts(momentum)}
         action={{ label: "Start Now", onClick: () => { const t = momentum.task; setMomentum(null); if (onStartNow) onStartNow(t.id); else void startFifteen(t); } }}
         // ROW-TAP (Dave 2026-09-15: "I want all rows clickable"): the body
@@ -3448,7 +3467,7 @@ export default function TodayFlow({
         weight={tuningWeight(tunings, "birthday", RESUME)}
         icon={<GiftGlyph />}
         tone="cat-fg-pink"
-        title={tomorrowBirthday.name}
+        title={titleCase(tomorrowBirthday.name)}
         sub="Birthday Tomorrow"
         action={tomorrowBirthday.phone
           ? { label: "Text", onClick: () => setMsgPerson({ id: tomorrowBirthday.id, about: BIRTHDAY_ABOUT }) }
@@ -3481,7 +3500,7 @@ export default function TodayFlow({
            reflective purple stays where reflection lives (revisit, monthly
            report); this card is about a GOAL, so it wears the goal's color. */
         tone={goalTone(untouched.data.tags)}
-        title={untouched.data.title}
+        title={titleCase(untouched.data.title)}
         // §AK, §AM (2026-09-26): two facts, the dot drawn by the
         // stylesheet. The open count is a count with no state, so it is white;
         // the reason is the line's one grey. "Pick a project to move it" came
@@ -4419,6 +4438,7 @@ export default function TodayFlow({
           onTickMissed={(id) => void onTickReminder(id, true)}
           onAskAgainMissed={(id) => void onAskAgainReminder(id)}
           onSnooze={(id) => void onSnoozeReminder(id)}
+          now={nhm}
           onAdd={() => setRemSheet({ mode: "new" })}
           onOpen={openReminder}
           onDelete={(id) => void onDeleteReminder(id)}

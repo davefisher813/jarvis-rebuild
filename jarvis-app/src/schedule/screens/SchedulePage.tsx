@@ -28,7 +28,8 @@ const DROP_MINUTES = 60;
 
 // A protected block from Your Routine, rendered on the day it applies.
 import type { WeekRow } from "../weekRows";
-import { lineCase } from "../../shared/casing";
+import { lineCase, titleCase } from "../../shared/casing";
+import RowCtxAction from "../../shared/RowCtxAction";
 import { spanShort, longestStretch, stretchLabel } from "../weekRows";
 import { spanLabel } from "../../shared/duration";
 
@@ -453,11 +454,13 @@ export default function SchedulePage({
     windowEndMin ?? 21 * 60,
   );
   const blockCount = entries.filter((en) => en.kind === "event" || en.kind === "locked").length;
+  // N7: most days are a variation on a day you already had. Offered on a day with no events of its own, in the head.
+  const showCopy = mode === "day" && !!onCopyDay && n === 0 && !loading && !loadFailed;
   const countLine: React.ReactNode[] = [];
   if (openMin > 0) countLine.push(<span key="o"><b>{gapLabel(openMin)}</b> Open</span>);
   else if (blockCount > 0) countLine.push(<span key="f">No Open Time</span>);
   if (proposedBusy.length > 0) countLine.push(<span key="p"><b>{proposedBusy.length}</b> Proposed</span>);
-  if (countLine.length === 0) countLine.push(<span key="n">Nothing scheduled</span>);
+  if (countLine.length === 0) countLine.push(<span key="n">Nothing Scheduled</span>);
   // The list as it renders: the fold, what it holds when it is open, the
   // rule, then the day ahead. Off today (a past or future date) nothing is
   // "earlier" and nothing is "now", so the list is the entries themselves.
@@ -664,7 +667,15 @@ export default function SchedulePage({
         <span className="n sc-fact">
           {countLine.map((c, i) => <React.Fragment key={i}>{i > 0 && <span className="sched-sep">{"\u00b7"}</span>}{c}</React.Fragment>)}
         </span>
-        {onPlanDay && <button className="see-all pill-action" onClick={onPlanDay}>Plan My Day</button>}
+        {/* SECTION ACTIONS LIVE IN THE HEAD (Dave 2026-10-05, locked). Copy Yesterday used to sit inside the day's card
+            (and under "No Events"); it is the head's second capsule on a day with nothing of its own, beside Plan My
+            Day, and the two share one cluster that wraps under the title when they do not fit (.sec-left). */}
+        {showCopy
+          ? <span className="sec-left">
+              <button className="see-all pill-action" onClick={onCopyDay}>Copy Yesterday</button>
+              {onPlanDay && <button className="see-all pill-action" onClick={onPlanDay}>Plan My Day</button>}
+            </span>
+          : onPlanDay && <button className="see-all pill-action" onClick={onPlanDay}>Plan My Day</button>}
       </div>
       {/* N5: the day says when it does not fit, WHERE it does not fit, and
           offers the fix in the same breath. Before this the overlap was
@@ -684,7 +695,9 @@ export default function SchedulePage({
             <div className="conn-name">Two Things Collide</div>
             <div className="conn-meta">{overlap.line}</div>
           </div>
-          <button className="pill-act" onClick={(e) => { e.stopPropagation(); onFixOverlap(); }}>Fix It</button>
+          {/* THE ROW'S MOMENT HAS COME (Dave 2026-10-05, locked): a clash is a row asking to be dealt with, so its one
+              action is one quiet word on the row (RowCtxAction), never a capsule; the whole row opens the same sheet. */}
+          <RowCtxAction when label="Fix It" ariaLabel="Fix the overlap" onAct={onFixOverlap} />
         </div></div></div>
       )}
       {mode === "day" && onFixOverlap && clashCount >= 2 && (
@@ -694,7 +707,7 @@ export default function SchedulePage({
                 (§AM). This was a "!" in the open-slot plus's class, which
                 also drew that class's generated "+" ahead of it, in the tap
                 red. */}
-            <AlertTriangle className="ic urgency-warn" aria-hidden="true" /> {clashCount} clashes today
+            <AlertTriangle className="ic urgency-warn" aria-hidden="true" /> {clashCount} Clashes Today
             <span className="sched-fix">Fix</span>
           </button>
         </div>
@@ -705,7 +718,7 @@ export default function SchedulePage({
         <SkeletonRows />
       ) : loadFailed ? (
         <div className="empty-state">
-          <div className="t-body">Couldn't load this day</div>
+          <div className="t-body">Couldn't Load This Day</div>
           <button className="btn btn-secondary" onClick={onRetryLoad}>Try Again</button>
         </div>
       ) : entries.every((en) => en.kind === "gap") ? (
@@ -715,18 +728,11 @@ export default function SchedulePage({
         // showing two fills.
         <>
           <div className="empty-state">
-            <div className="t-body">No events</div>
+            <div className="t-body">No Events</div>
             <button className="btn btn-secondary" onClick={onNew}>New Event</button>
-            {/* N7: most days are a variation on a day you already had. It
-                only ever rendered on an empty day, so this is where it
-                belongs; in the head it was a third button on a row that
-                already had two. */}
-            {mode === "day" && onCopyDay && n === 0 && (
-              <button className="row-act" onClick={onCopyDay}>Copy Yesterday</button>
-            )}
           </div>
           {mode === "day" && (
-            <AnytimeRow items={anytimeItems} onToggle={onToggleTask} onSchedule={onScheduleTask} onOpen={onOpenTask} onDragStart={beginDrag} parentOf={parentOf} />
+            <AnytimeRow items={anytimeItems} onToggle={onToggleTask} onSchedule={onScheduleTask} onOpen={onOpenTask} onDragStart={beginDrag} parentOf={parentOf} today={todayDate} />
           )}
         </>
       ) : (
@@ -934,15 +940,6 @@ export default function SchedulePage({
               </div>
             ),
           )}
-          {/* N7: most days are a variation on a day you already had. It only
-              ever offered itself on a day with no events of its own, so it
-              is the last row of that day rather than a third button in the
-              head (A Cleaner Top, 2026-09-02). A day with events never sees
-              it; the empty state carries its own copy for the day that has
-              no rows at all. */}
-          {mode === "day" && onCopyDay && n === 0 && (
-            <button className="row-act sched-copy" onClick={onCopyDay}>Copy Yesterday</button>
-          )}
         </div>
         </div></div>
         {/* NO DEAD ENDS. A proposal you can see and edit but not accept is
@@ -952,7 +949,7 @@ export default function SchedulePage({
             Anytime live? A section below the timeline"). It sat above,
             which put the unplaced work in front of the day it was not in. */}
         {mode === "day" && (
-          <AnytimeRow items={anytimeItems} onToggle={onToggleTask} onSchedule={onScheduleTask} onOpen={onOpenTask} onDragStart={beginDrag} parentOf={parentOf} />
+          <AnytimeRow items={anytimeItems} onToggle={onToggleTask} onSchedule={onScheduleTask} onOpen={onOpenTask} onDragStart={beginDrag} parentOf={parentOf} today={todayDate} />
         )}
         {/* The trailing "Open ..." list is retired in EVERY mode now (B4,
             2026-08-23). It survived for week and month on the reasoning that

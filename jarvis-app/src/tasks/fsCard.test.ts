@@ -11,7 +11,8 @@ import { slidingLine, SLIDING_TAG } from "./lifecycle";
 // shows up twice, kill the bug"): a notice row ABOUT the task beside the
 // task's own row is the task twice. The offer is the task's own row now,
 // hoisted first (TasksPage `stalled`), the sliding line in the warning ink
-// and First Step in place of Start. Only the ANSWER state keeps a notice
+// and, since 2026-10-05 (Dave: "Clean rows, no pills anywhere"), NO pill: its
+// swipe-left is Move and First Step lives in its sheet and its menu. Only the ANSWER state keeps a notice
 // row, because the drafted step is a new thing, not the task. Source-pinned
 // because the flow needs a provider stack to mount.
 describe("The Keeps Sliding row", () => {
@@ -23,7 +24,7 @@ describe("The Keeps Sliding row", () => {
   // times', it's two negative notifications. It's too much. It can be inside
   // the task but not there"). The chip is the whole message on the row; the
   // count that earned it moves into the task's own sheet, under Due.
-  it("the offer is the task's own row: its id, the chip alone, First Step as the pill", () => {
+  it("the offer is the task's own row: its id, the chip alone, and no pill", () => {
     expect(stalled).toContain("id: fsCandidate.id");
     expect(stalled).toContain("tag: SLIDING_TAG");
     expect(stalled).toContain("line: null");
@@ -36,7 +37,8 @@ describe("The Keeps Sliding row", () => {
     // card for the When group's footer on the sheet ground, as a facts line
     // (a red or amber fact never sits on a grey card nested in a sheet).
     expect(sheet).toContain("{slidingNote && <div className=\"pad-x\"><div className=\"facts\">{slidingNote}</div></div>}");
-    expect(stalled).toMatch(/label: fsBusy \? "Thinking\.\.\." : "First Step"/);
+    expect(stalled, "First Step is no longer a pill on the row").not.toMatch(/label:/);
+    expect(stalled).not.toContain("action:");
     expect(stalled, "the offer never renders as a notice row").not.toContain("<NoticeCard");
     expect(src).toContain("stalled={fsStalled}");
   });
@@ -46,10 +48,10 @@ describe("The Keeps Sliding row", () => {
     expect(notice).toContain('form="card"');
     expect(notice).toContain('tone="cat-fg-orange"');
     expect(notice).toContain("onDismiss={fsDismiss}");
-    expect(notice).toContain("title={fsStep.step}");
+    expect(notice).toContain("title={titleCase(fsStep.step)}");
     // Casing sweep 2 (2026-09-27): Title Case by the whole rule (§H2); durations through shared/duration ("45 Min", "1h 30m").
-    expect(notice).toContain('sub={lineCase("First step for: " + fsCandidate.data.text)}');
-    expect(notice, "the offer state is gone from the notice").not.toContain("title={fsCandidate.data.text}");
+    expect(notice).toContain('sub={lineCase("First step for: " + titleCase(fsTask.data.text))}');
+    expect(notice, "the offer state is gone from the notice").not.toContain("title={fsTask.data.text}");
   });
 
   it("the page pulls the stalled task out of its group and renders it once, first", () => {
@@ -60,7 +62,7 @@ describe("The Keeps Sliding row", () => {
     // group so it cannot render twice -- is unchanged.
     expect(page).toMatch(/groupItems\(stalledItem \? shown\.filter\(\(it\) => it\.id !== stalledItem\.id\) : shown/);
     expect(page).toMatch(/\{gi === 0 && stalledRow\}/);
-    expect(page).toMatch(/tag=\{stalled\.tag\} kicker=\{stalled\.line\} kickerTone="stalled" action=\{stalled\.action\}/);
+    expect(page).toMatch(/tag=\{stalled\.tag\} kicker=\{stalled\.line\} kickerTone="stalled" lowPriority/);
   });
 
   it("the old card anatomy stays gone, and the row is the page's notice", () => {
@@ -77,7 +79,7 @@ describe("The Keeps Sliding row", () => {
   // rest of this file: the accept path needs the whole provider stack.
   it("the accepted step is filed under the same project as the task it opens", () => {
     const accept = src.slice(src.indexOf("const fsAccept"), src.indexOf("const fsDismiss"));
-    expect(accept).toContain("projectId: fsCandidate.data.projectId");
+    expect(accept).toContain("projectId: fsTask.data.projectId");
   });
 
   // TWO THINGS, TWO WEIGHTS (Dave 2026-09-11: "Keep sliding and pushed 8 times

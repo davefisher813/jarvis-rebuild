@@ -91,7 +91,10 @@ describe("TodayFlow: Schedule something here", () => {
       const taskId = (await tasks!.createTask("Update insurance docs", { estimateMin: 30 }))!;
       notifyFreshLists(ENTITY_EVENT);
       notifyFreshLists(ENTITY_TASK);
-      fireEvent.click(await screen.findByRole("button", { name: "Fill It" }));
+      // NO FILL IT CAPSULE (Dave 2026-10-05, locked: a row has no pill). The open window IS the row, and its tap is the door.
+      const openRow = await screen.findByText(/^\d.* Open$/);
+      expect(screen.queryByRole("button", { name: "Fill It" })).toBeNull();
+      fireEvent.click(openRow);
       const dialog = screen.getByRole("dialog", { name: "Schedule something here" });
       expect(within(dialog).getByText("Focus"), "Focus is still one tap away").toBeInTheDocument();
       fireEvent.click(await screen.findByLabelText(/^Book Update insurance docs at/));

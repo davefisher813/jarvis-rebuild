@@ -19,7 +19,7 @@
 .hub {
   --hub-money: var(--good); --hub-money-tint: color-mix(in srgb, var(--good) 16%, transparent);
   --hub-waiting: var(--warn); --hub-waiting-tint: color-mix(in srgb, var(--warn) 16%, transparent);
-  --hub-error: var(--sys-red); --hub-error-tint: color-mix(in srgb, var(--sys-red) 14%, transparent);
+  --hub-error: var(--sys-red); --hub-error-tint: color-mix(in srgb, var(--sys-red) var(--late-wash), transparent);
   --hub-focus: 3px solid var(--focus-ring, var(--accent));
   background: var(--bg);
   color: var(--tx-1);

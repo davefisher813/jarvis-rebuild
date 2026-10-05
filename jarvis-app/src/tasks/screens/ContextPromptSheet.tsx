@@ -3,6 +3,7 @@ import type { TaskItem } from "../TasksService";
 import type { LinkedItem } from "../../notes/types";
 import { actionLabelFor } from "../reminderHistory";
 import { Note } from "../../shared/FormSheet";
+import { titleCase } from "../../shared/casing";
 
 // THE CONTEXT PROMPT (the reminders rebuild push E, Dave's interactive
 // preview): a sheet, never a gate. An eyebrow saying what just happened,
@@ -30,7 +31,7 @@ export default function ContextPromptSheet({ item, eyebrow, onOpenLinked, onCont
         <div className="sheet-handle" />
         <div className="sheet-form">
           <div className="eyebrow rem-prompt-eyebrow">{eyebrow}</div>
-          <div className="rem-detail-title">{item.data.text}</div>
+          <div className="rem-detail-title">{titleCase(item.data.text)}</div>
           {/* The line says what is one tap away, or nothing: with no linked
               record there is no fact to state, and a line of reassurance
               under the title is a placeholder (§AK R1). */}

@@ -42,8 +42,6 @@ import type { StateWord } from "../schedule/stateWord";
 export interface TrayAction {
   label: string;
   run: () => void;
-  /** The accessible name, when the label alone does not say which row it is for. */
-  ariaLabel?: string;
 }
 
 // THE SHELL OF A TODAY ROW THAT SWIPES. The tray (a green Done rail on the right, the accent verbs on the left), the
@@ -82,7 +80,6 @@ export function SwipeShell({ actions = [], onRight, rightLabel = "Done", classNa
           type="button"
           className="notice-alt"
           data-reveal
-          aria-label={a.ariaLabel}
           style={i ? { right: i * 88 } : undefined}
           onClick={() => swipe.closeThen(a.run)}
         >{a.label}</button>
@@ -252,7 +249,7 @@ export default function MoveHeadliner({
           {/* The one quiet verb, only while the moment has come. The same
               action as the swipe, so the row has one verb. */}
           {primary && (
-            <RowCtxAction when={due} label={primary.label} onAct={primary.run} ariaLabel={primary.label + " " + title} />
+            <RowCtxAction when={due} label={primary.label} onAct={primary.run} />
           )}
         </div>
       </SwipeShell>

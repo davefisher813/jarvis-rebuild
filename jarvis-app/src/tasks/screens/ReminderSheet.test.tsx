@@ -76,7 +76,8 @@ describe("ReminderSheet", () => {
     expect(screen.getByText("10:00 AM")).toBeInTheDocument();
     fireEvent.click(screen.getByText("Save"));
     const [text, r, extra] = onSave.mock.calls[0]!;
-    expect(text).toBe("Call the pharmacy");
+    // The write door casing (Dave 2026-10-05): the title is saved in Title Case.
+    expect(text).toBe("Call the Pharmacy");
     expect(r.time).toBe("10:00");
     expect(extra.due).toBe(WED);
   });

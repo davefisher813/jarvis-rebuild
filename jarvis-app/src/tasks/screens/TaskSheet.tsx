@@ -7,7 +7,7 @@ import type { TaskStep } from "../../notes/types";
 import Provenance from "../../shared/ProvenanceLine";
 import type { Source } from "../../shared/provenance";
 import { whyWeak, isUsable, sentence, findClash, clashLine, cueIsDetectable, type IfThen, type CueKind } from "../ifThen";
-import { FileText, CheckSquare, Clock, Hourglass, Tag, FolderKanban, Calendar, MessageSquare, Sparkles, Check, User, X, CalendarDays, Brain } from "../../shared/icons";
+import { FileText, CheckSquare, Clock, Zap, Hourglass, Tag, FolderKanban, Calendar, MessageSquare, Sparkles, Check, User, X, CalendarDays, Brain } from "../../shared/icons";
 import { DUR_CHOICES, durLabel } from "../../schedule/durations";
 import { RepeatGlyph, PinGlyph, TargetGlyph } from "../../shared/glyphs";
 import { catColor } from "../../shared/categories";
@@ -16,6 +16,7 @@ import { rowDoor, own } from "../../shared/rowDoor";
 import HeadMenu from "../../shared/HeadMenu";
 import { tapField } from "../../shared/FormSheet";
 import { onPressKey } from "../../shared/pressable";
+import RowCtxAction from "../../shared/RowCtxAction";
 import { addDays } from "../../schedule/calendar";
 import { sortPicks } from "../../shared/pickerSort";
 import { titleCase } from "../../shared/casing";
@@ -114,6 +115,10 @@ export default function TaskSheet({
   onBreakDown,
   onLogDecision,
   onTextPerson,
+  onStart,
+  startWord = "Start",
+  onFirstStep,
+  onMove,
   onDelete,
   onCancel,
   otherPlans = [],
@@ -179,6 +184,18 @@ export default function TaskSheet({
   // the task. Present only when the linked person has a number, so the row
   // never promises a composer that cannot open.
   onTextPerson?: { name: string; onOpen: () => void };
+  // THE SHEET HOLDS EVERY ACTION (Dave 2026-10-05, locked: a row has no pill, and a tap
+  // on it opens this). The primary is the first line, prominent; the quieter ones follow
+  // (First Step, Move, Mark Done); Delete Task stays the foot. Each is the SAME action
+  // the row's swipe and long-press menu run, so there is one verb per row. All of them
+  // are absent for a new task, and each is absent when the flow cannot do it.
+  onStart?: () => void;
+  /** What the start door is called: Start, Resume or Unblock (the working surface's own word). */
+  startWord?: "Start" | "Resume" | "Unblock";
+  /** Draft the smallest first move (needs AI). */
+  onFirstStep?: () => void;
+  /** Put it on tomorrow. */
+  onMove?: () => void;
   onDelete?: () => void;
   onCancel: () => void;
   // LINKED NOTES (Dave 2026-08-28, "very very easy to connect things"): the
@@ -198,7 +215,9 @@ export default function TaskSheet({
   // a task, so two taps created two. The first valid tap latches; every tap
   // after that, while this sheet is still mounted, is a no-op.
   const [saving, setSaving] = useState(false);
-  const [text, setText] = useState(initial?.text ?? "");
+  // SHOWN IN TITLE CASE, SAVED IN TITLE CASE (Dave 2026-10-05): a title typed months ago in whatever case the keyboard felt
+  // like reads right here, and Save writes it cased (the write door).
+  const [text, setText] = useState(initial?.text ? titleCase(initial.text) : "");
   // No default category (2026-08-09): defaulting to whichever category was
   // first silently mis-tagged every "+" task, the exact poisoning the
   // quick-add path fixed on 2026-08-03. Untagged is honest; tagging is a tap.
@@ -389,7 +408,7 @@ export default function TaskSheet({
     // BRAIN-F-09 (2026-09-05): a failed write used to hold this latch on
     // "Saving" forever, and Cancel (the only way out) took the draft with it.
     const r = onSave({
-      text: text.trim(), ...setCategories(cats), due, repeat, projectId: projectId || undefined,
+      text: titleCase(text.trim()), ...setCategories(cats), due, repeat, projectId: projectId || undefined,
       // With a project the goal is the project's (or none); without one it
       // is the pick.
       goalId: (project ? project.goalId : goalId) || undefined, eventId: eventId || undefined,
@@ -432,7 +451,33 @@ export default function TaskSheet({
             It is the same 24px ring every task row in the app uses, in the
             lead slot beside the name, where the hand already looks. */}
         {mode === "edit" && (
-          <div className="pad-x"><div className="card xs-group">
+          <div className="pad-x"><div className="card xs-group xs-do">
+            {/* THE ACTIONS, PRIMARY FIRST (Dave 2026-10-05, locked: "Tap a row, detail
+                bottom sheet with all actions, primary action prominent, quieter ones
+                below"). Start leads in the action red; First Step and Move follow in
+                the plain ink; Mark Done is the check he already knew. Each is the same
+                action the row's swipe runs. */}
+            {onStart && (
+              <div className="row xs-row xs-primary" {...rowDoor(onStart)}>
+                <Tile tone="red"><Zap className="ic" /></Tile>
+                <div className="row-grow"><div className="conn-name">{startWord}</div></div>
+                <div className="chev"></div>
+              </div>
+            )}
+            {onFirstStep && (
+              <div className="row xs-row" {...rowDoor(onFirstStep)}>
+                <Tile tone="purple"><Sparkles className="ic" /></Tile>
+                <div className="row-grow"><div className="conn-name">First Step</div></div>
+                <div className="chev"></div>
+              </div>
+            )}
+            {onMove && (
+              <div className="row xs-row" {...rowDoor(onMove)}>
+                <Tile tone="orange"><Clock className="ic" /></Tile>
+                <div className="row-grow"><div className="conn-name">Move to Tomorrow</div></div>
+                <div className="chev"></div>
+              </div>
+            )}
             {/* The whole row finishes it (the row-tap law): the ring is the
                 affordance, and the words beside it are the same target, so a
                 thumb aimed anywhere on the row does the one thing the row is
@@ -442,8 +487,10 @@ export default function TaskSheet({
                   checkbox, so the row's door leaves a tap on it to it, and it had
                   no handler: the ring did nothing while the words beside it
                   finished the task. */}
-              <div className="task-check-tap" role="checkbox" aria-checked={false} aria-label="Mark done" onClick={own(() => void save(true))}>
-                <div className="task-check" />
+              <div className="row-ico xs-ring-slot">
+                <div className="task-check-tap" role="checkbox" aria-checked={false} aria-label="Mark done" onClick={own(() => void save(true))}>
+                  <div className="task-check" />
+                </div>
               </div>
               <div className="row-grow"><div className="conn-name">Mark Done</div></div>
             </div>
@@ -486,19 +533,19 @@ export default function TaskSheet({
           <div className="pad-x"><div className="card xs-group task-notes">
             <MarkdownField value={notes} docKey={"task:" + (mode === "edit" ? (initial?.text ?? "") : "new")} level="compact" placeholder="Anything Worth Keeping with It" ariaLabel="Task notes" onChange={setNotes} />
           </div></div>
+          {/* THE ADD IS ON THE GROUP'S LABEL ROW (Dave 2026-10-05, locked: a
+              section-level action lives in the head, never inside a card or at
+              the foot of a list). With no items there is no card at all, only
+              the label and its capsule: an action never sits alone in a box
+              (the grey rectangle round Add a Reminder, 2026-10-05). */}
           <div className="grp xs-grp">
             <div className="eyebrow">Checklist</div>
-            {steps.length > 0 && <div className="conn-meta">{stepsDone} of {steps.length}</div>}
-          </div>
-          {/* AN ACTION NEVER SITS IN A BOX (Dave 2026-10-05, the grey rectangle
-              round Add a Reminder). With no items there is no card, only the
-              labelled capsule standing alone under the head, the same shape
-              as Add All to Calendar. */}
-          {steps.length === 0 ? (
-            <div className="notice-clear-row">
-              <button type="button" className="row-act" onClick={addStep}>Add Item</button>
+            <div className="xs-grp-acts">
+              {steps.length > 0 && <div className="conn-meta">{stepsDone} of {steps.length}</div>}
+              <button type="button" className="see-all pill-action" onClick={addStep}>Add Item</button>
             </div>
-          ) : (
+          </div>
+          {steps.length > 0 && (
           <div className="pad-x"><div className="card xs-group">
             {steps.map((s, i) => (
               <div className="row xs-row" key={i} onClick={tapField}>
@@ -526,10 +573,11 @@ export default function TaskSheet({
                 </button>
               </div>
             ))}
-            <button type="button" className="row row-act" onClick={addStep}>Add Item</button>
             {allStepsDone && mode === "edit" && (
               // THE WHOLE ROW IS THE DOOR (Dave 2026-09-15: "I want all rows
-              // clickable"): the offer row makes its one offer, as the pill does.
+              // clickable"): the offer row makes its one offer. Its moment has
+              // come (every item is ticked), so the verb shows as the one quiet
+              // word on the row, not a capsule (Dave 2026-10-05).
               <div className="row xs-row" role="button" tabIndex={0}
                 onClick={() => save(true)}
                 onKeyDown={(e) => { if (e.target === e.currentTarget) onPressKey(() => save(true))(e); }}>
@@ -537,7 +585,7 @@ export default function TaskSheet({
                 {/* One tap both saves the checked list and marks the task
                     done -- "it never closes the task for you" means this is
                     an offer, not an auto-complete, not that it takes two taps. */}
-                <button type="button" className="pill-act" onClick={(e) => { e.stopPropagation(); save(true); }}>Close Task</button>
+                <RowCtxAction when label="Close Task" onAct={() => save(true)} />
               </div>
             )}
           </div></div>
@@ -545,7 +593,11 @@ export default function TaskSheet({
 
           <div className="grp xs-grp"><div className="eyebrow">When</div></div>
           <div className="pad-x"><div className="card xs-group">
-            <div className="row xs-row" onClick={tapField}>
+            {/* DUE WEARS THE KEY (Dave 2026-10-05, Alfred's list: "Due / Today renders
+                white/gray, must be amber"). Today is amber, a day behind us is red, and
+                anything later stays the plain value. The tone is on the row; the menu's
+                own value takes it (components.css .xs-due-*). */}
+            <div className={"row xs-row" + (due && due < today ? " xs-due-red" : due === today ? " xs-due-warn" : "")} onClick={tapField}>
               <Tile tone="orange"><Clock className="ic" /></Tile>
               <div className="conn-name">Due</div>
               <HeadMenu variant="value" ariaLabel="Due" value={dueMode} label={dueWord} off={dueMode === "none"}
@@ -698,7 +750,10 @@ export default function TaskSheet({
             </div>
           </div></div>
 
-          <div className="grp xs-grp"><div className="eyebrow">More</div></div>
+          <div className="grp xs-grp">
+            <div className="eyebrow">More</div>
+            {showNotes && onAddNote && <button type="button" className="see-all pill-action" onClick={onAddNote}>Add a Note</button>}
+          </div>
           <div className="pad-x"><div className="card xs-group">
             {/* A1 · IF-THEN. Gollwitzer and Sheeran: d = 0.65 across 94
                 studies. The single highest-leverage field on this sheet, and
@@ -760,7 +815,6 @@ export default function TaskSheet({
                 {onOpenNote && <div className="chev"></div>}
               </div>
             ))}
-            {showNotes && onAddNote && <button className="row row-act" onClick={onAddNote}>Add a Note</button>}
           </div></div>
 
           {showActions && (

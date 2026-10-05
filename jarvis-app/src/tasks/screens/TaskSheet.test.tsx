@@ -21,13 +21,79 @@ describe("TaskSheet", () => {
   });
 
   // THE CATALOG HARD GATE (Dave 2026-10-05: the grey rectangle round "Add a
-  // Reminder"): with no checklist items there is no list to group, so the
-  // capsule stands alone and no card holds nothing but its label.
-  it("an empty checklist stands Add Item alone, not in a box", () => {
+  // Reminder"), and his locked row-action model: a section-level action lives
+  // in the section head. Add Item is the Checklist group's label row capsule,
+  // never a row inside a card, and with no items there is no card at all.
+  it("Add Item is on the Checklist's label row; with no items there is no card, only the label and its capsule", () => {
     render(<TaskSheet mode="new" categories={CATS} onSave={() => {}} onCancel={() => {}} />);
     const add = screen.getByRole("button", { name: "Add Item" });
-    expect(add.closest(".notice-clear-row")).not.toBeNull();
-    expect([...document.querySelectorAll(".card")].filter((c) => c.textContent?.trim() === "Add Item")).toHaveLength(0);
+    const head = add.closest(".grp")!;
+    expect(head).not.toBeNull();
+    expect(head.querySelector(".eyebrow")).toHaveTextContent("Checklist");
+    expect(add).toHaveClass("see-all", "pill-action");
+    expect(add.closest(".xs-group"), "never inside a group card").toBeNull();
+    expect([...document.querySelectorAll(".xs-group")].filter((c) => c.textContent?.trim() === "Add Item")).toHaveLength(0);
+    // With items the capsule stays where it was and the card holds only the items.
+    fireEvent.click(add);
+    expect(screen.getByLabelText("Checklist item 1").closest(".xs-group")).not.toBeNull();
+    expect(document.querySelectorAll(".row-act, .xs-group .pill-act, .xs-group .see-all"), "no capsule in any group card").toHaveLength(0);
+    expect(screen.getAllByRole("button", { name: "Add Item" })).toHaveLength(1);
+  });
+
+  it("the More group carries Add a Note on its label row, not as a row inside the card", () => {
+    render(<TaskSheet mode="edit" categories={CATS} initial={{ text: "Pay rent" }} onSave={() => {}} onCancel={() => {}} onAddNote={() => {}} />);
+    const add = screen.getByRole("button", { name: "Add a Note" });
+    expect(add.closest(".grp")!.querySelector(".eyebrow")).toHaveTextContent("More");
+    expect(add.closest(".xs-group")).toBeNull();
+  });
+
+  // THE SHEET HOLDS EVERY ACTION (Dave 2026-10-05, locked): a row has no pill,
+  // and a tap on it opens this. Primary first and prominent, the quieter ones
+  // beneath, each the same verb as the row's swipe; Delete Task stays the foot.
+  it("holds Start, First Step, Move to Tomorrow and Mark Done, the primary first; each runs its door", () => {
+    const onStart = vi.fn(), onFirstStep = vi.fn(), onMove = vi.fn();
+    render(<TaskSheet mode="edit" categories={CATS} initial={{ text: "pay rent" }} onSave={() => {}} onCancel={() => {}}
+      onStart={onStart} startWord="Resume" onFirstStep={onFirstStep} onMove={onMove} onDelete={() => {}} />);
+    const group = document.querySelector(".xs-do")!;
+    expect([...group.querySelectorAll(".row .conn-name")].map((n) => n.textContent)).toEqual(["Resume", "First Step", "Move to Tomorrow", "Mark Done"]);
+    expect(group.querySelector(".row")).toHaveClass("xs-primary");
+    fireEvent.click(screen.getByText("Resume"));
+    fireEvent.click(screen.getByText("First Step"));
+    fireEvent.click(screen.getByText("Move to Tomorrow"));
+    expect([onStart, onFirstStep, onMove].map((f) => f.mock.calls.length)).toEqual([1, 1, 1]);
+    expect(screen.getByText("Delete Task")).toBeInTheDocument();
+  });
+
+  it("offers only what the flow can do, and nothing on a new task", () => {
+    const { unmount } = render(<TaskSheet mode="edit" categories={CATS} initial={{ text: "x" }} onSave={() => {}} onCancel={() => {}} />);
+    expect([...document.querySelectorAll(".xs-do .conn-name")].map((n) => n.textContent)).toEqual(["Mark Done"]);
+    unmount();
+    render(<TaskSheet mode="new" categories={CATS} onSave={() => {}} onCancel={() => {}} onStart={() => {}} onFirstStep={() => {}} onMove={() => {}} />);
+    expect(document.querySelector(".xs-do")).toBeNull();
+  });
+
+  // ALFRED 2026-10-04: "Due / Today renders white/gray, must be amber".
+  it("Due wears the key: today is amber, a day behind us is red, later stays plain", () => {
+    const yesterday = (() => { const d = new Date(); d.setDate(d.getDate() - 1); return iso(d); })();
+    const row = () => screen.getByLabelText("Due").closest(".row")!;
+    const { unmount } = render(<TaskSheet mode="edit" categories={CATS} initial={{ text: "x", due: today }} onSave={() => {}} onCancel={() => {}} />);
+    expect(row()).toHaveClass("xs-due-warn");
+    unmount();
+    const b = render(<TaskSheet mode="edit" categories={CATS} initial={{ text: "x", due: yesterday }} onSave={() => {}} onCancel={() => {}} />);
+    expect(row()).toHaveClass("xs-due-red");
+    b.unmount();
+    render(<TaskSheet mode="edit" categories={CATS} initial={{ text: "x", due: tomorrow }} onSave={() => {}} onCancel={() => {}} />);
+    expect(row().className).not.toMatch(/xs-due-/);
+  });
+
+  // ALFRED 2026-10-04: the Edit Task field read "Get new car insurance" and
+  // "Clear up Allstate w alfred" verbatim. Shown in Title Case, saved in it.
+  it("shows the title in Title Case, and Save writes it in Title Case", () => {
+    const onSave = vi.fn();
+    render(<TaskSheet mode="edit" categories={CATS} initial={{ text: "clear up allstate w alfred" }} onSave={onSave} onCancel={() => {}} />);
+    expect(screen.getByLabelText("Task")).toHaveValue("Clear Up Allstate w Alfred");
+    fireEvent.click(screen.getByText("Save"));
+    expect(onSave.mock.calls[0]![0].text).toBe("Clear Up Allstate w Alfred");
   });
 
   it("blocks save on empty text, shows error, then saves trimmed", () => {
@@ -39,7 +105,7 @@ describe("TaskSheet", () => {
     fireEvent.change(screen.getByPlaceholderText("What needs doing?"), { target: { value: "  Pay rent  " } });
     fireEvent.click(screen.getByText("Save"));
     // Default category is NONE (2026-08-09): first-in-list silently mis-tagged.
-    expect(onSave).toHaveBeenCalledWith({ text: "Pay rent", category: "", due: "", repeat: "" });
+    expect(onSave).toHaveBeenCalledWith({ text: "Pay Rent", category: "", due: "", repeat: "" });
   });
 
   // THE VALUE ON THE RIGHT (Brain and the Task Sheet, 2026-09-02): Area is
@@ -423,7 +489,7 @@ describe("TaskSheet steps", () => {
     fireEvent.change(screen.getByLabelText("Checklist item 1"), { target: { value: "  Book flights  " } });
     fireEvent.click(screen.getByText("Save"));
     expect(onSave).toHaveBeenCalledWith(
-      expect.objectContaining({ text: "Plan the trip", steps: [{ text: "  Book flights  ", done: false }] }),
+      expect.objectContaining({ text: "Plan the Trip", steps: [{ text: "  Book flights  ", done: false }] }),
     );
   });
 

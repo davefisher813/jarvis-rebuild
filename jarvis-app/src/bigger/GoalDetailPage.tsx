@@ -17,7 +17,7 @@ import { haptics } from "../shared/haptics";
 import { fmtDay } from "../decisions/DecisionsFlow";
 import { formatMoney } from "../money/types";
 import { monthDay } from "../money/bills";
-import { lineCase } from "../shared/casing";
+import { lineCase, titleCase } from "../shared/casing";
 import { TargetGlyph, ForkGlyph, FolderGlyph, DollarGlyph } from "../shared/glyphs";
 import { FormSheet, Group, FieldRow, Note } from "../shared/FormSheet";
 import { distanceFor, todayISO } from "../tasks/grouping";
@@ -217,7 +217,7 @@ export default function GoalDetailPage({
           : <div className="proj-icon cat-bg-graphite">{TARGET}</div>}
         {/* proj-detail-title, not nav-large: goal titles run long and the
             34px screen-title size wraps them badly */}
-        <div className="proj-detail-title">{goal.data.title}</div>
+        <div className="proj-detail-title">{titleCase(goal.data.title)}</div>
         {/* PICK 15: HEALTH IS DERIVED, NEVER TYPED. GoalData.state has said
             "on_track" since the day each goal was made and nothing has ever
             updated it. This reads the same evidence the rest of the page
@@ -293,23 +293,38 @@ export default function GoalDetailPage({
             <>
               <div className="sh2 sh2-quiet"><span className="t">Next Milestone</span></div>
               <div className="pad-x"><div className="card list-card-ruled">
-                <div className="row" role="button" tabIndex={0} aria-label={"Mark " + next.text + " done"}
+                {/* NO PILL ON A ROW (Dave 2026-10-05). The row is the door and its one
+                    verb is the tick, so the state sits on the row as the same ring every
+                    task wears (state, not a command) and the whole row does the tick. */}
+                <div className="task-row p2 ms-row" role="button" tabIndex={0} aria-label={"Mark " + titleCase(next.text) + " done"}
                   onClick={() => tick(next.id, true)} onKeyDown={rowKey(() => tick(next.id, true))}>
-                  <div className="row-grow">
+                  <div className="task-check-tap" role="checkbox" aria-checked={false} aria-label="Mark done"
+                    onClick={(e) => { e.stopPropagation(); tick(next.id, true); }}>
+                    <div className="task-check" />
+                  </div>
+                  <div className="task-title">
                     {/* The head above says it is next; a grey "Up Next"
                         under the name said it twice (§AK, 2026-09-26). */}
-                    <div className="conn-name">{next.text}</div>
+                    <span className="task-name">{titleCase(next.text)}</span>
                   </div>
-                  {onMilestoneDone && <button type="button" className="pill-act" onClick={(e) => { e.stopPropagation(); onMilestoneDone(next.id, true); }}>Done</button>}
                 </div>
               </div></div>
             </>
           )}
-          <div className="sh2 sh2-quiet"><span className="t">Milestones</span>{milestones.length > 0 && <span className="n">{milestones.length}</span>}</div>
+          {/* THE ADD IS ON THE HEAD (Dave 2026-10-05, locked: a section-level action
+              lives in the head, never inside a card or at the foot of a list). With
+              nothing to list there is no card, and no "No Milestones Yet" line (a row
+              with nothing to say shows nothing): the head and its capsule are the
+              section. */}
+          <div className="sh2 sh2-quiet">
+            <span className="t">Milestones</span>{milestones.length > 0 && <span className="n">{milestones.length}</span>}
+            {onAddMilestone && !addingMs && <button className="see-all pill-action" onClick={() => setAddingMs(true)}>Add Milestone</button>}
+          </div>
+          {(milestones.length > 0 || addingMs) && (
           <div className="pad-x"><div className="card list-card-ruled">
             {milestones.map((m) => (
               <div className={"task-row p2 ms-row" + (m.done ? " completed" : "")} key={m.id}
-                role="button" tabIndex={0} aria-label={(m.done ? "Mark not done: " : "Mark done: ") + m.text}
+                role="button" tabIndex={0} aria-label={(m.done ? "Mark not done: " : "Mark done: ") + titleCase(m.text)}
                 onClick={() => tick(m.id, !m.done)} onKeyDown={rowKey(() => tick(m.id, !m.done))}>
                 <div
                   className="task-check-tap"
@@ -321,14 +336,11 @@ export default function GoalDetailPage({
                   <div className={"task-check" + (m.done ? " done" : "")} />
                 </div>
                 <div className="task-title">
-                  <span className="task-name">{m.text}</span>
+                  <span className="task-name">{titleCase(m.text)}</span>
                   {m.done && <div className="r-k"><span className="uchip u-done">Done {monthDay(m.done)}</span></div>}
                 </div>
               </div>
             ))}
-            {milestones.length === 0 && !addingMs && (
-              <div className="row"><div className="row-grow"><div className="conn-meta">No Milestones Yet</div></div></div>
-            )}
             {addingMs && onAddMilestone && (
               <div className="row" onClick={() => msInput.current?.focus()}>
                 <input ref={msInput} className="input" placeholder="The Next Milestone · Enter Adds" value={msDraft} autoFocus
@@ -337,21 +349,26 @@ export default function GoalDetailPage({
                   onBlur={commitMs} />
               </div>
             )}
-            {onAddMilestone && !addingMs && <button className="row row-act" onClick={() => setAddingMs(true)}>Add Milestone</button>}
           </div></div>
+          )}
         </>
       )}
 
       {target && onAddSavings && (
         <>
-          <div className="sh2 sh2-quiet"><span className="t">Savings</span>{goal.data.saved && goal.data.saved.length > 0 && <span className="n">{goal.data.saved.length}</span>}</div>
-          {/* AN ACTION NEVER SITS IN A BOX (Dave 2026-10-05): with nothing saved
-              yet there is no list to group, so no card, only the capsule. */}
-          {(goal.data.saved?.length ?? 0) === 0 ? (
-            <div className="notice-clear-row">
-              <button className="row-act" onClick={() => { setSavingsAmt(""); setSavingsOpen(true); }}>Add to Savings</button>
-            </div>
-          ) : (
+          {/* BOTH CAPSULES ARE ON THE HEAD (Dave 2026-10-05): Add to Savings, and the
+              fold that was a row at the foot of the list (See All, Show Fewer). With
+              nothing saved there is no list to group, so there is no card either. */}
+          <div className="sh2 sh2-quiet">
+            <span className="t">Savings</span>{goal.data.saved && goal.data.saved.length > 0 && <span className="n">{goal.data.saved.length}</span>}
+            <span className="sec-left">
+              {(goal.data.saved?.length ?? 0) > 5 && (
+                <button className="see-all pill-action" onClick={() => setSavingsAll((v) => !v)}>{savingsAll ? "Show Fewer" : "See All"}</button>
+              )}
+              <button className="see-all pill-action" onClick={() => { setSavingsAmt(""); setSavingsOpen(true); }}>Add to Savings</button>
+            </span>
+          </div>
+          {(goal.data.saved?.length ?? 0) > 0 && (
           <div className="pad-x"><div className="card list-card-ruled">
             {savedRows(goal.data.saved).slice(0, savingsAll ? undefined : 5).map(({ entry: e, index }) => {
               const open = () => { if (onEditSavings || onRemoveSavings) setSavingsRow({ index, step: "menu" }); };
@@ -365,12 +382,6 @@ export default function GoalDetailPage({
                 </div>
               );
             })}
-            {(goal.data.saved?.length ?? 0) > 5 && (
-              <button className="row row-act" onClick={() => setSavingsAll((v) => !v)}>
-                {savingsAll ? "Show Fewer" : "Show All Entries"}
-              </button>
-            )}
-            <button className="row row-act" onClick={() => { setSavingsAmt(""); setSavingsOpen(true); }}>Add to Savings</button>
           </div></div>
           )}
         </>
@@ -398,15 +409,16 @@ export default function GoalDetailPage({
         </div>
       )}
 
-      <div className="sh2 sh2-quiet"><span className="t">Projects</span>{projects.length > 0 && <span className="n">{projects.length}</span>}</div>
-      {/* AN ACTION NEVER SITS IN A BOX (Dave 2026-10-05): a goal with no
-          projects, whose page does not already offer the bottom Add a
-          Project, has no list to group, so no card, only the capsule. */}
-      {projects.length === 0 && !bottomAddsProject ? (
-        <div className="notice-clear-row">
-          <button className="row-act" onClick={onAddProject}>Add Project</button>
+      {/* THE ADD IS ON THE HEAD (Dave 2026-10-05). A goal with no projects, whose page already offers the filled Add a
+          Project at the bottom, has no section at all: the primary is the one door, and a head over nothing would only
+          say Projects. Otherwise the head holds the capsule, and the list under it is drawn only when there is one. */}
+      {(projects.length > 0 || !bottomAddsProject) && (
+        <div className="sh2 sh2-quiet">
+          <span className="t">Projects</span>{projects.length > 0 && <span className="n">{projects.length}</span>}
+          {!bottomAddsProject && <button className="see-all pill-action" onClick={onAddProject}>Add Project</button>}
         </div>
-      ) : (
+      )}
+      {projects.length > 0 && (
       <div className="pad-x"><div className="card list-card-ruled">
         {projects.map((p) => {
           const row: ProjectRow = rowOf?.(p.id) ?? { project: p, progress: null, stalled: false, lastAt: null };
@@ -424,14 +436,6 @@ export default function GoalDetailPage({
               onHold={onMoveProject ? () => setMoveFor(p.id) : undefined} />
           );
         })}
-        {/* WAVE 4, DUPLICATE DOORS (2026-08-29). On an untagged empty goal
-            the foot of this card said "Add Project" while a filled
-            "Add a Project" sat at the bottom of the page calling the same
-            handler. The bottom one is the page's single primary move and is
-            impossible to miss; this row is the standing door for a goal that
-            already HAS projects, which is when the primary is not offering
-            the trip. */}
-        {!bottomAddsProject && <button className="row row-act" onClick={onAddProject}>Add Project</button>}
       </div></div>
       )}
 

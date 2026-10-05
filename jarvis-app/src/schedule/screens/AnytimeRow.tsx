@@ -2,8 +2,15 @@ import { useState, type PointerEvent as RPointerEvent } from "react";
 import { onPressKey } from "../../shared/pressable";
 import type { TaskItem } from "../../tasks/TasksService";
 import { originLabel } from "../../tasks/origin";
+import { distanceFor, todayISO } from "../../tasks/grouping";
 import { ParentLineGlyph } from "../../shared/glyphs";
 import type { ParentLine } from "../../life/parent";
+import { useSwipe } from "../../shared/useSwipe";
+import type { RowAction } from "../../shared/RowActionSheet";
+import { useRowMenu } from "./useRowMenu";
+import RowCtxAction from "../../shared/RowCtxAction";
+import { CalendarPlus, Check } from "../../shared/icons";
+import { titleCase } from "../../shared/casing";
 
 // Roadmap v2, the Anytime strip on the Schedule day view. Tasks with no time,
 // checkable, above the timed grid. Collapses to a cap so a long list never
@@ -28,6 +35,7 @@ export default function AnytimeRow({
   onDragStart,
   cap = DEFAULT_CAP,
   parentOf,
+  today = todayISO(),
 }: {
   items: TaskItem[];
   onToggle?: (id: string) => void;
@@ -39,6 +47,8 @@ export default function AnytimeRow({
   // THE RULED ROW (2026-09-01): the second line names the goal the task
   // moves, by its short name, or the category when it moves none.
   parentOf?: (t: TaskItem) => ParentLine | null;
+  /** The day an overdue task is measured against (the page's own today). */
+  today?: string;
 }) {
   const [expanded, setExpanded] = useState(false);
   if (items.length === 0) return null;
@@ -65,54 +75,108 @@ export default function AnytimeRow({
           )}
       </div>
       <div className="pad-x">
-        <div className="card anytime-card">
-          {/* THE RULED ROW (2026-09-01), the same anatomy as Today and Tasks:
-              neutral ring, name, then where it lives (the parent's own glyph
-              in its category colour, then its name; 2026-09-02). The trailing slot is Drop, the contract's verb
-              for "give this a time in the day" (§4.4: Start on Tasks, Drop
-              on Anytime). THE WHOLE ROW IS THE DOOR (Dave 2026-09-15: "I want
-              all rows clickable"): tapping the row opens the task in the same
-              TaskSheet Today and Tasks open. The title used to be a second
-              Drop, which read as dead. Drop gives it a time, the ring
-              completes it, and a long press still drags it onto the grid. */}
-          {shown.map((it) => {
-            const parent = parentOf?.(it) ?? null;
-            return (
-              <div
-                className="task-row anytime-row"
-                key={it.id}
-                role="button"
-                tabIndex={0}
-                aria-label={"Open " + it.data.text}
-                onClick={() => onOpen?.(it.id)}
-                onKeyDown={(e) => { if (e.target === e.currentTarget) onPressKey(() => onOpen?.(it.id))(e); }}
-                onPointerDown={(e) => onDragStart?.(it.id, it.data.text, e)}
-              >
-                <div
-                  className="task-check-tap"
-                  onClick={(e) => { e.stopPropagation(); onToggle?.(it.id); }}
-                  role="checkbox"
-                  aria-checked={false}
-                  aria-label={"Complete " + it.data.text}
-                >
-                  <div className="task-check" />
-                </div>
-                <div className="task-title">
-                  <span className="task-name">{it.data.text}</span>
-                  <div className="r-k">
-                    {parent
-                      ? <ParentLineGlyph p={parent} />
-                      : originLabel(it.data)
-                        ? <span className="r-goal r-cat">{originLabel(it.data)}</span>
-                        : null}
-                  </div>
-                </div>
-                <button className="pill-act" onClick={(e) => { e.stopPropagation(); onSchedule?.(it.id); }} aria-label={"Give " + it.data.text + " a time"}>Drop</button>
-              </div>
-            );
-          })}
+        <div className="card list-card-ruled anytime-card">
+          {shown.map((it) => (
+            <AnytimeItem
+              key={it.id}
+              it={it}
+              parent={parentOf?.(it) ?? null}
+              today={today}
+              {...(onToggle ? { onToggle } : {})}
+              {...(onSchedule ? { onSchedule } : {})}
+              {...(onOpen ? { onOpen } : {})}
+              {...(onDragStart ? { onDragStart } : {})}
+            />
+          ))}
         </div>
       </div>
     </>
+  );
+}
+
+// THE ROW IS CLEAN (Dave 2026-10-05, locked: "Clean rows, no pills anywhere"; ROW-ACTIONS-SPEC.md). It used to carry a Drop
+// pill in its trailing slot, the contract's verb for "give this a time in the day" (§4.4: Start on Tasks, Drop on
+// Anytime). Drop is the swipe-left now, the first line of the long-press menu, and "Add to Schedule" on the task's sheet; a
+// swipe right completes. The ring stays on the row (state, not a command). THE WHOLE ROW IS THE DOOR (Dave 2026-09-15: "I
+// want all rows clickable"): a tap opens the task in the same TaskSheet Today and Tasks open, which holds every action.
+// A long press that moves is still the drag onto the grid (SchedulePage's beginDrag, which cancels on the first move); one
+// that holds still is the menu. A task that is overdue is the row whose moment has come, so it surfaces Drop as one quiet
+// word (RowCtxAction, never a capsule); a task that is not stays clean.
+function AnytimeItem({ it, parent, today, onToggle, onSchedule, onOpen, onDragStart }: {
+  it: TaskItem;
+  parent: ParentLine | null;
+  today: string;
+  onToggle?: (id: string) => void;
+  onSchedule?: (id: string) => void;
+  onOpen?: (id: string) => void;
+  onDragStart?: (id: string, label: string, e: RPointerEvent) => void;
+}) {
+  const title = titleCase(it.data.text);
+  const dist = distanceFor(it.data, today);
+  const droppable = !!onSchedule;
+  const completable = !!onToggle;
+  const swipe = useSwipe({
+    revealW: droppable ? 88 : 0,
+    rightW: completable ? 88 : 0,
+    ...(completable ? { onRightCommit: () => onToggle!(it.id) } : {}),
+    enabled: droppable || completable,
+  });
+  const { dx, dragging, open: swipeOpen, closeThen } = swipe;
+  const menuActions: RowAction[] = [
+    ...(droppable ? [{ label: "Drop", onPick: () => onSchedule!(it.id) }] : []),
+    ...(completable ? [{ label: "Done", onPick: () => onToggle!(it.id) }] : []),
+    ...(onOpen ? [{ label: "Open Task", onPick: () => onOpen(it.id) }] : []),
+  ];
+  const { handlers: rowHandlers, sheet } = useRowMenu({
+    title, actions: menuActions, swipe,
+    onPointerDown: (e) => onDragStart?.(it.id, title, e),
+  });
+  return (
+    <div className="task-swipe">
+      {completable && (
+        <div className="task-done-rail" aria-hidden="true">
+          <Check className="ic" />
+          <span className="swipe-label">Done</span>
+        </div>
+      )}
+      {droppable && (
+        <button className="task-verb" onClick={() => closeThen(() => onSchedule!(it.id))} aria-label={"Give " + title + " a time"}>
+          <CalendarPlus className="ic" />
+          <span className="swipe-label">Drop</span>
+        </button>
+      )}
+      <div
+        className={"task-row anytime-row" + (dragging ? " swiping" : "")}
+        style={dx ? { transform: `translateX(${dx}px)` } : undefined}
+        role="button"
+        tabIndex={0}
+        aria-label={"Open " + title}
+        {...rowHandlers}
+        onClick={() => { if (swipeOpen || dx) { closeThen(); return; } onOpen?.(it.id); }}
+        onKeyDown={(e) => { if (e.target === e.currentTarget) onPressKey(() => onOpen?.(it.id))(e); }}
+      >
+        <div
+          className="task-check-tap"
+          onClick={(e) => { e.stopPropagation(); onToggle?.(it.id); }}
+          role="checkbox"
+          aria-checked={false}
+          aria-label={"Complete " + title}
+        >
+          <div className="task-check" />
+        </div>
+        <div className="task-title">
+          <span className="task-name">{title}</span>
+          <div className="r-k">
+            {parent
+              ? <ParentLineGlyph p={parent} />
+              : originLabel(it.data)
+                ? <span className="r-goal r-cat">{originLabel(it.data)}</span>
+                : null}
+          </div>
+        </div>
+        <RowCtxAction when={droppable && dist?.kind === "late"} label="Drop" ariaLabel={"Give " + title + " a time"} onAct={() => onSchedule?.(it.id)} />
+      </div>
+      {sheet}
+    </div>
   );
 }

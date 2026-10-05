@@ -140,7 +140,14 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
 .cal-cell { aspect-ratio: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--s-0h); border-radius: var(--r-md); font-size: var(--t-meta); font-weight: var(--w-semi); font-feature-settings: 'tnum'; color: var(--tx-1); }
 .cal-cell.out { color: var(--tx-2); }
 .cal-cell.today { color: var(--accent-chrome); font-weight: var(--w-bold); }
-.cal-cell.sel { background: var(--sel-bg); color: var(--sel-fg); }
+/* THE PICKED DAY IS A DISC SIZED TO THE NUMBER (Alfred 2026-10-04, Schedule > Month: "selected date renders as an
+   oversized white rounded rectangle covering the cell"; Dave 2026-10-05, the perfect bar). The cell is a column
+   wide, so filling it read as a slab, and then as a plate that touched the grid's edge. The fill is a 40px disc
+   drawn behind the numeral and centred on it (the dot slot under the number is 5px and a gap), the same in both themes (--sel-bg and --sel-fg are the only
+   things that change), and the cell itself stays transparent. */
+.cal-cell { position: relative; isolation: isolate; }
+.cal-cell.sel { color: var(--sel-fg); }
+.cal-cell.sel::before { content: ""; position: absolute; z-index: -1; top: calc(50% - (var(--s-0h) + 5px) / 2); left: 50%; width: 40px; height: 40px; transform: translate(-50%, -50%); border-radius: var(--r-circle); background-color: var(--sel-bg); }
 .cal-dots { display: flex; gap: var(--s-0h); height: 5px; }
 .cal-dot { width: 5px; height: 5px; border-radius: var(--r-circle); }
 .sched-cat { display: flex; align-items: center; gap: var(--s-1h); font-size: var(--t-meta); color: var(--tx-3); }
@@ -733,8 +740,6 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
    --s-3 above and below and carries no hairline: the capsule is its own edge. */
 .card > .row:not(.row-act) + .row.row-act { margin-top: var(--s-3); margin-bottom: var(--s-3); }
 .card > .row:not(.row-act) + .row.row-act::before { content: none; }
-/* The tail of a full-bleed list: centres whatever grows the list. */
-.list-foot { display: flex; justify-content: center; padding: var(--s-2) var(--s-4) var(--s-3); }
 .input-multiline { height: auto; min-height: 88px; padding-top: var(--s-2h); resize: none; line-height: var(--lh-relaxed); font-family: inherit; }
 /* A text bar action is 18px of glyph. It needs a hit area like everything
    else does (audit 2026-08-21: "Edit" measured 41x18 against a 24 minimum,
@@ -814,8 +819,6 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
 /* The pair wraps to two rows when its two labels do not fit one (type scale
    1.4 at 390px: "Plan Tomorrow" beside "Running Late?" ran 51px past the
    edge and scrolled the whole screen sideways, 2026-09-26). */
-.plan-cta-pair { display: flex; flex-wrap: wrap; gap: var(--s-2h); }
-.plan-cta-pair .plan-cta { width: auto; flex: 1 1 auto; }
 .plan-cta.plan-cta-ghost { background: var(--press-3); color: var(--tx-1); box-shadow: none; }
 /* Quiet right-slot actions in section headers (Not Now, dismiss): same seat as
    See All, calmer color. The question line sits under the header, outside the
@@ -1247,7 +1250,7 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 @keyframes scrimIn { from { opacity: 0; } to { opacity: 1; } }
 @keyframes sheetIn { from { transform: translateY(100%); } to { transform: translateY(0); } }
 .sheet-scrim { animation: scrimIn var(--dur-normal) var(--ease-out); }
-.sheet-scrim > .card { animation: sheetIn var(--dur-normal) var(--ease-spring); }
+.sheet-scrim > .card { animation: sheetIn var(--dur-enter) var(--ease-out); }
 
 /* Tab switch: instant, like native iOS (RDB, Dave 2026-07-29). No animation
    on tab-to-tab; the crispness IS the polish.
@@ -1266,8 +1269,8 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 
 /* Tab bar polish: press + active-icon emphasis */
 .tab { transition: color var(--dur-fast) var(--ease-out); }
-.tab .ic { transition: transform var(--dur-fast) var(--ease-out); }
-.tab:active { opacity: 0.55; }
+.tab .ic { transition: transform var(--dur-normal) var(--ease-press); }
+.tab:active { opacity: 0.7; }
 .tab.active .ic { transform: scale(1.08); }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1282,7 +1285,9 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 
 /* Modals/sheets pop off the background in dark: lifted surface + crisp edge
    (card shadow is invisible on a black background, so the surface + border carry it). */
-.sheet-scrim > .card { background: var(--surface-2); border: 0.5px solid var(--card-bd); }
+.sheet-scrim > .card { background: color-mix(in srgb, var(--surface-2) 94%, transparent); border: 0.5px solid var(--card-bd);
+  -webkit-backdrop-filter: blur(22px) saturate(160%); backdrop-filter: blur(22px) saturate(160%);
+  box-shadow: inset 0 0.5px 0 var(--rim-card), var(--shadow-float); }
 .modal { border: 0.5px solid var(--card-bd); }
 
 /* Avatar color picker swatches */
@@ -1493,7 +1498,7 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 .blend-row { gap: var(--s-2h); }
 /* Today's day card indents to ITS text edge, which sits further left than
    the Schedule tab's (no time gutter of the same width). */
-.blend-tuck-today { padding-left: 68px; padding-right: var(--s-4); }
+.blend-tuck-today { padding-left: calc(var(--s-4) + 52px); padding-right: var(--s-4); }
 
 /* THE END-OF-DAY CARD. Moved out of the Heads Up stream to the page foot
    2026-08-21: Heads Up is what JARVIS wants acted on NOW, and "how did today
@@ -1548,6 +1553,16 @@ a.row.person-reach { color: inherit; text-decoration: none; }
    nudge and the Momentum suggestion are that case; laws/swipeSlot.test.ts
    holds every other bare .task-snooze to a two-slot roster. */
 .task-snooze.task-snooze-solo { right: 0; }
+/* THE ROW'S ONE VERB, FIRST IN THE TRAY (Dave 2026-10-05, locked: swipe left is the row's quickest action).
+   It takes the edge, so a small swipe uncovers it; Tomorrow and Delete follow it in. A capsule's ground and ink
+   (--capsule-fill, --tint): the one accent reserved for actions, never a fill that could be read as Delete's red. */
+.task-verb { position: absolute; top: 0; right: 0; bottom: 0; width: 88px; border: 0; background-color: var(--capsule-fill); color: var(--tint);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--s-1h); padding: 0 var(--s-1); font-family: var(--f); }
+.task-verb .ic { width: 20px; height: 20px; }
+.task-verb.task-verb-2 { right: 88px; background-color: var(--press-3); color: var(--tx-1); }
+/* A solo snooze that FOLLOWS a verb is the reveal's second slot (the Keep Going row: Start, then Not Now), so it steps in one button. */
+.task-verb ~ .task-snooze.task-snooze-solo { right: 88px; }
+[data-theme="light"] .task-verb { color: var(--on-light-red); }
 /* UP-CORE-15 (2026-09-05): THE LEADING RAIL. A right swipe completes, so the
    rail behind it is the completion colour every tick in this app already
    uses (the green a done check wears), not the brand red: red is the
@@ -1630,7 +1645,10 @@ a.row.person-reach { color: inherit; text-decoration: none; }
    black under the last card while it was up. A transform moves the paint and
    costs the layout nothing. */
 .toast-dock { padding: 0 var(--s-3) var(--s-2); transform: translateY(calc(-1 * var(--logbar-clear, 0px))); }
-.toast { display: flex; align-items: center; gap: var(--s-3); background: var(--surface-3); border: 0.5px solid var(--divider); border-radius: var(--r-md); padding: var(--s-2h) var(--s-3); box-shadow: var(--shadow-card); }
+.toast { display: flex; align-items: center; gap: var(--s-3); background: var(--surface-3); border: 0.5px solid var(--divider); border-radius: var(--r-md); padding: var(--s-2h) var(--s-3); box-shadow: var(--shadow-float); }
+/* A toast floats, so in light it is the warm near-white chrome lifted by the one shadow (2026-10-05):
+   its Undo is the action red as words, 5.2:1 here and 4.22 on the raised grey. */
+[data-theme="light"] .toast { background: var(--chrome-bg); }
 .toast-msg { flex: 1; font-size: var(--t-body); color: var(--tx-1); }
 .toast-action { background: 0; border: 0; color: var(--tint); font-weight: var(--w-semi); font-size: var(--t-body); padding: var(--s-1) var(--s-2); flex-shrink: 0; }
 
@@ -1726,9 +1744,16 @@ a.row.person-reach { color: inherit; text-decoration: none; }
    same hairline the strip and the task list already use, so Reminders sits
    at the density of the three lenses beside it in Life. */
 .rem-card { padding: 8px var(--s-4); cursor: pointer; }
-.rem-card + .rem-card { position: relative; }
-.rem-card + .rem-card::before { content: ""; position: absolute;
+/* THE ROW IS A SWIPE SURFACE (Dave 2026-10-05: swipe left is its one verb, swipe right completes). Each row rides in its own
+   .task-swipe, so the moving element takes the ground, the snap-back and the pan-y the strip's .rem-row has always had, and
+   the hairline between two rows follows the swipe wrappers, not the rows. */
+.task-swipe > .rem-card { position: relative; background: var(--bg); transition: transform 0.28s cubic-bezier(0.32,0.72,0,1); touch-action: pan-y; }
+.task-swipe > .rem-card.swiping { transition: none; }
+.ruled .card .task-swipe > .rem-card { background: transparent; }
+.rem-page .list-card-ruled > .task-swipe + .task-swipe { position: relative; }
+.rem-page .list-card-ruled > .task-swipe + .task-swipe::before { content: ""; position: absolute; z-index: 2; pointer-events: none;
   left: calc(var(--s-4) + 22px + var(--s-2h)); right: 0; top: 0; height: 0.5px; background: var(--divider); }
+.ruled.rem-page .list-card-ruled > .task-swipe + .task-swipe::before { left: calc(var(--s-4) + 22px + var(--s-2h)); } /* beats the task list's own inset */
 .rem-card.done .rem-card-title { color: var(--tx-2); text-decoration: line-through; text-decoration-color: var(--tx-4); }
 /* Row anatomy corrected 2026-09-15, v3: a plain checkbox leads (`.cb`, the
    existing reminder control, never an icon tile beside it: two shapes for
@@ -2325,7 +2350,7 @@ button {
    the reveal is the destructive one. Delete goes to Gmail's trash, which is
    recoverable, and the app never permanently deletes. */
 .mail-arch { position: absolute; top: 0; right: 88px; bottom: 0; width: 88px; border: 0;
-  background: var(--surface-3, #2c2c2e); color: var(--tx-1); display: flex; align-items: center; justify-content: center; }
+  background: var(--surface-3, #36312D); color: var(--tx-1); display: flex; align-items: center; justify-content: center; }
 .mail-arch .ic { width: 22px; height: 22px; }
 
 /* Let It Go sits in the OUTER slot (right:0), because that is the slot a
@@ -2335,7 +2360,7 @@ button {
    touches the mail), so neither gets the red fill; the hairline is what
    tells them apart. */
 .mail-letgo { position: absolute; top: 0; right: 0; bottom: 0; width: 88px; border: 0;
-  background: var(--surface-3, #2c2c2e); color: var(--tx-1); display: flex; align-items: center; justify-content: center; }
+  background: var(--surface-3, #36312D); color: var(--tx-1); display: flex; align-items: center; justify-content: center; }
 .mail-letgo .ic { width: 22px; height: 22px; }
 .mail-arch + .mail-letgo { border-left: 0.5px solid var(--card-bd); }
 
@@ -2883,7 +2908,9 @@ button {
 .boot-stagger .card > *:nth-child(8) { animation-delay: 210ms; }
 /* Glass chrome: the bar keeps its blur and gains saturation so color under
    it stays alive (solid --nav-bg remains the fallback tint). */
-.tab-bar { -webkit-backdrop-filter: blur(22px) saturate(160%); backdrop-filter: blur(22px) saturate(160%); }
+.tab-bar { -webkit-backdrop-filter: blur(22px) saturate(160%); backdrop-filter: blur(22px) saturate(160%);
+  /* The faint warm material (Dave 2026-10-05): the bar is --nav-bg over a blur, with a hairline highlight on its top edge and no shadow. */
+  border-top-color: var(--chrome-hairline); box-shadow: inset 0 0.5px 0 var(--rim-card); }
 @media (prefers-reduced-motion: reduce) {
   .restore-banner, .tip-banner, .boot-stagger .card > * { animation: none; }
 }
@@ -3509,12 +3536,12 @@ button {
    Measured: the head row goes 52 to 58, and three heads cost 18px of page.
    The ::after below still expands the hit past the paint, and now clears 44
    rather than stopping at 42. */
-.sh2 .see-all.pill-action, .plan-head .see-all.pill-action {
+.sh2 .see-all.pill-action, .plan-head .see-all.pill-action, .xs-grp .see-all.pill-action {
   background: var(--press-3); color: var(--tx-1); border-radius: var(--r-pill);
   padding: var(--s-1h) var(--s-3); font-size: var(--t-meta); letter-spacing: normal;
   min-height: 34px; margin: 0; position: relative;
 }
-.sh2 .see-all.pill-action::after, .plan-head .see-all.pill-action::after { content: ""; position: absolute; inset: -7px 0; }
+.sh2 .see-all.pill-action::after, .plan-head .see-all.pill-action::after, .xs-grp .see-all.pill-action::after { content: ""; position: absolute; inset: -7px 0; }
 /* Small pill: the one small doing-button (Add to Today, Link, Not Now).
    It always has a body; text-only small buttons are the head action's job.
    A small button that is ALSO a primary/danger keeps that fill: the
@@ -3928,7 +3955,9 @@ button {
 .notice-x { flex-shrink: 0; align-self: center; width: var(--tap-min); height: var(--tap-min); margin-left: var(--s-1);
   display: inline-flex; align-items: center; justify-content: center; padding: 0; border: 0; background: none; color: var(--tx-2); }
 .notice-x .ic { width: 18px; height: 18px; }
-.notice-alt { right: 0; background: var(--accent-chip); color: var(--accent-chip-tx); }
+/* The tray's verb is a capsule's ground and ink (--capsule-fill, --tint): the one accent reserved for actions, never a fill that
+   could be read as Delete's red (Dave 2026-10-05). */
+.notice-alt { right: 0; background-color: var(--capsule-fill); color: var(--tint); }
 /* Trashes the mail itself, not just the card (2026-08-26). Outermost slot,
    same edge Delete sits at on a real inbox row (MailSwipe) -- a swipe
    should feel identical everywhere it fires. Red, because this one is
@@ -4494,7 +4523,11 @@ button.check-linked:active { opacity: 1; background: var(--press-3); }
    re-letters a 50px button in the sheet red cannot reach a small pill that
    also carries the base class. The 50px base button is not a capsule and
    keeps its own fill in both themes. */
-[data-theme="light"] .btn { background: rgba(209,36,22,0.07); color: var(--on-light-red); }
+/* AMENDED 2026-10-05 (Dave, the warm neutrals): the base button's light fill was a 7% red wash, which
+   read 5.67:1 on a white card and reads 4.12 on the warm one (a red wash can never clear 4.5 for red
+   words on a card that is already at 4.57). It takes the opaque capsule fill, 4.53, the same neutral
+   body every other light capsule has. */
+[data-theme="light"] .btn { background-color: var(--capsule-fill); color: var(--on-light-red); }
 [data-theme="light"] .btn-sm:not(.btn-primary):not(.btn-danger):not(.btn-secondary) {
   background-color: var(--capsule-fill); color: var(--on-light-red);
 }
@@ -4508,7 +4541,7 @@ button.check-linked:active { opacity: 1; background: var(--press-3); }
    The fill said "red action" and the ink said "not an action", in one
    theme only. The capsule rule below now paints both themes from one
    token, and the quiet variants keep their own fill in both. */
-[data-theme="light"] .note-fix { background: rgba(209,36,22,0.07); color: var(--on-light-red); }
+[data-theme="light"] .note-fix { background-color: var(--capsule-fill); color: var(--on-light-red); }
 /* THE ROW ACTION TAKES THE CAPSULE TOO (Dave 2026-09-22, Control Catalog:
    the in-list create rung, capsule).
 
@@ -5240,7 +5273,7 @@ body.selecting .voice-dock { display: none; }
      #E42C18 is --on-light-red's exact value, the unified light red,
      correct here in BOTH themes because the pill is white in
      both. */
-  background: #fff; color: #D12416; }
+  background: #FFFDFA; color: #D12416; }
 /* The hero's button is the screen's one fill now that its panel is not. */
 .mode-hero .mode-go { background: var(--accent-fill); color: #fff; }
 .mode-go.mode-go-quiet { background: var(--press-5); color: var(--tx-1); }
@@ -5260,7 +5293,8 @@ body.selecting .voice-dock { display: none; }
 [data-theme="light"] .launch-row { background: var(--surface-1); box-shadow: var(--shadow-card); }
 /* THE WHITE IS WHITE (Dave 2026-10-03): the surfaces that float over the page
    are pure white, not the card tone. Sheets and modals in light only. */
-[data-theme="light"] .sheet-scrim > .card, [data-theme="light"] .modal, [data-theme="light"] .ag-card { background: var(--chrome-bg); }
+[data-theme="light"] .sheet-scrim > .card { background: color-mix(in srgb, var(--chrome-bg) 94%, transparent); }
+[data-theme="light"] .modal, [data-theme="light"] .ag-card { background: var(--chrome-bg); }
 
 /* THE SET STRIP (gym catalog §3.1). One row per set: tap to edit, hold to
    duplicate, swipe to delete, drag to reorder via the shared ReorderList
@@ -5745,6 +5779,22 @@ body.selecting .voice-dock { display: none; }
 .xs .sheet-form { padding-left: 0; padding-right: 0; padding-top: 0; }
 .xs .grp.xs-grp { display: flex; align-items: center; justify-content: space-between; padding-top: var(--s-5); padding-bottom: var(--s-1h); }
 .xs .grp.xs-grp .eyebrow { font-size: var(--t-caption); font-weight: var(--w-semi); letter-spacing: 0.1em; }
+/* A SHEET GROUP'S LABEL ROW CARRIES ITS SECTION-LEVEL ACTION (Dave 2026-10-05, locked: Add Item on Checklist, Add a Note on
+   More), the one head capsule New Event and Schedule are, at the label's right with the group's count beside it. */
+.xs .grp.xs-grp .xs-grp-acts { display: flex; align-items: center; gap: var(--s-2h); }
+.xs .grp.xs-grp .xs-grp-acts .conn-meta { margin: 0; }
+/* THE SHEET'S PRIMARY ACTION LEADS AND IS THE LOUDEST (Dave 2026-10-05: primary prominent, the quieter ones beneath): first in the
+   group, its tile the action red, its row washed in the action red's own tint. The words keep the one name treatment (the type
+   law: a name states no numbers of its own), so the emphasis is ground and order, never a size or a weight. */
+.xs .xs-do > .xs-primary { background-color: var(--red-tint); }
+/* The Mark Done ring sits in the icon column the tiles above it make: it is the group's fourth icon, drawn as the ring and with no tile
+   behind it (its own 44px box is wider than the 28px column, so it centres and overflows evenly). */
+.xs .xs-ring-slot { background: transparent; overflow: visible; }
+.xs .xs-ring-slot .task-check-tap { margin: 0; flex-shrink: 0; }
+/* DUE WEARS THE KEY (2026-10-05, Alfred: "Due / Today renders white/gray, must be amber"): today is amber, a day behind us is red.
+   The sheet twins, because the value sits on the sheet's own grey. */
+.xs .xs-due-warn .dd.dd-value { color: var(--warn-on-sheet); }
+.xs .xs-due-red .dd.dd-value { color: var(--sys-red-on-sheet); }
 .xs .sheet-form > .grp.xs-grp:first-child { padding-top: var(--s-1); }
 .xs .card.xs-group { margin-bottom: 0; }
 .xs .row.xs-row { min-height: 48px; padding-top: var(--s-2); padding-bottom: var(--s-2); }
@@ -6019,7 +6069,7 @@ body.selecting .voice-dock { display: none; }
 .cf-knob { position: absolute; left: 5px; top: 5px; width: 40px; height: 40px; border-radius: var(--r-circle); background: var(--sys-red);
   display: grid; place-items: center; touch-action: none; cursor: grab; transition: transform 180ms ease; }
 .cf-knob.dragging { transition: none; cursor: grabbing; }
-.cf-knob::after { content: ""; width: 12px; height: 12px; background: #fff; border-radius: var(--r-xxs); }
+.cf-knob::after { content: ""; width: 12px; height: 12px; background: #FFFDFA; border-radius: var(--r-xxs); }
 
 /* The corners exist for landscape only. Their type size is held with the
    clock-caps question for Dave, like the format tag's; not moved until he rules. */
@@ -6428,7 +6478,8 @@ span.row-star { cursor: default; }
    the stacked hours bar (category-coloured segments, 10px, rounded), and
    the week's keyed lines. */
 .tiles { display: flex; gap: var(--s-1h); margin: 0 0 var(--s-2h); }
-.itile { flex: 1; border-radius: var(--r-md); padding: var(--s-2h) var(--s-3); min-width: 0; }
+/* A tile inside a card wears the inner radius, concentric with the card's 24 (2026-10-05). */
+.itile { flex: 1; border-radius: var(--r-inner); padding: var(--s-2h) var(--s-3); min-width: 0; }
 .itile b { display: block; font-size: var(--t-title); font-weight: var(--w-bold); letter-spacing: -0.02em; line-height: 1; font-variant-numeric: tabular-nums; }
 /* THE THREE TILES SHARE ONE WIDTH, NOT ONE LABEL LENGTH (2026-09-22 audit).
    flex:1 gives "done", "goals moved" and "flexible" the same third of the
@@ -6439,7 +6490,9 @@ span.row-star { cursor: default; }
    copy elsewhere (.voice-hint, 2026-09-21): wrap rather than ellipsize.
    Identical at scale 1, where all three already fit on one line. */
 .itile span { display: block; margin-top: var(--s-1); font-size: var(--t-eyebrow); font-weight: var(--w-semi); text-transform: uppercase; letter-spacing: 0.04em; white-space: normal; overflow: visible; text-overflow: clip; }
-.itile-good { background: color-mix(in srgb, var(--good) 14%, transparent); color: var(--good); }
+/* 10%, not 14 (2026-10-05, the warm neutrals): the done green as words on a 14% wash over the warm
+   card read 4.34:1 in light; 10% reads 4.64. */
+.itile-good { background: color-mix(in srgb, var(--good) 10%, transparent); color: var(--good); }
 /* ONLY DONE HAS A COLOUR (§AM, 2026-09-25). Goals moved and flexible hours
    are counts with no state, so they are the tile the key gives a number
    like that: a neutral ground, the number in white, and the caps label in
@@ -6952,6 +7005,15 @@ span.row-star { cursor: default; }
    measures 58 with the capsules inside it, the same as every Today head
    that carries a capsule. */
 .sh2 .sec-left:has(.pill-action) { margin: 0; }
+/* A HEAD WITH MORE CAPSULES THAN ROOM (Dave 2026-10-05: Plan My Day and Plan Tomorrow moved up onto Your Day's head, beside
+   the pause, New Event and Schedule). The cluster is one row when it fits; when it does not it drops under the title as
+   its own right-aligned row rather than shrinking a capsule or running off the screen. The dotted leader still rules the
+   title's line. */
+.sh2:has(> .sec-left .pill-action) { flex-wrap: wrap; row-gap: var(--s-1); }
+.sh2 .sec-left:has(.pill-action) { flex-wrap: wrap; justify-content: flex-end; margin-left: auto; max-width: 100%; row-gap: var(--s-1); }
+/* Three capsules and a control (Your Day: pause, Plan My Day, New Event, Schedule) tighten to fit one row at 390. */
+.sh2 .sec-left:has(.pill-action ~ .pill-action ~ .pill-action) { gap: var(--s-1h); }
+.sh2 .sec-left:has(.pill-action ~ .pill-action ~ .pill-action) .see-all.pill-action { padding-left: var(--s-2h); padding-right: var(--s-2h); }
 
 /* A SWIPE ROW WITHOUT A CHECK STARTS ITS HAIRLINE AT THE TEXT EDGE (§H.2).
    The ruled list insets a swipe row's divider past a task's check box; the
@@ -7129,6 +7191,41 @@ html[data-motion="reduce"] .fb-fill { transition: none; }
   html:not([data-motion="full"]) .fb-fill { transition: none; }
 }
 /* === END FEEDBACK STYLE === */
+
+/* === CELEBRATION FORMS (Dave 2026-10-05, the craft playbook) ================
+   The reward is always certain and only its FORM varies, so the same one does
+   not play every time. encourage/effects chooses one of three per completion
+   and publishes it as html[data-cv]; the Burst (Expressive) reads it as a
+   class, and Gentle reads it here. Every form is under a second, and all of
+   it sits inside no-preference: under Reduce Motion (the phone's, or the
+   Feedback Style setting) there is no transform, no clip and no ring, only
+   the tick in its place.
+   GENTLE   0 the pulse (above)   1 the tick draws itself on   2 a soft ring
+   EXPRESSIVE  0 dots   1 a ring opens and the tick draws on   2 diamonds and a lift */
+@keyframes cvTick { from { clip-path: inset(100% 0 0 0); } to { clip-path: inset(0 0 0 0); } }
+@keyframes cvHalo { 0% { box-shadow: 0 0 0 0 var(--good-tint); } 100% { box-shadow: 0 0 0 9px transparent; } }
+@keyframes cvRing { 0% { transform: scale(0.55); opacity: 0.9; } 100% { transform: scale(2.1); opacity: 0; } }
+@keyframes cvSpark { 0% { transform: rotate(45deg); opacity: 1; } 60% { opacity: 1; }
+  100% { transform: translate(var(--bx), var(--by)) rotate(225deg) scale(0.4); opacity: 0; } }
+@keyframes cvLift { 0% { translate: 0 0; } 30% { translate: 0 -2px; } 100% { translate: 0 0; } }
+.burst-ring i { display: none; }
+.burst-ring::before { content: ""; position: absolute; left: -14px; top: -14px; width: 28px; height: 28px;
+  border-radius: var(--r-md); border: 2px solid var(--good-fill); opacity: 0; }
+.burst-spark i { width: 6px; height: 6px; left: -3px; top: -3px; border-radius: var(--r-xxs); transform: rotate(45deg); background: var(--good-fill); }
+.burst-spark i:nth-child(even) { background: var(--mint); }
+@media (prefers-reduced-motion: no-preference) {
+  html:not([data-motion="reduce"]) .burst-ring::before { animation: cvRing 520ms var(--ease-out) forwards; }
+  html:not([data-motion="reduce"]) .task-row:has(.burst-ring) .task-check.done::before { animation: cvTick 260ms var(--ease-out) 40ms both; }
+  html:not([data-motion="reduce"]) .burst-spark i { animation: cvSpark 520ms var(--ease-out) forwards; }
+  html:not([data-motion="reduce"]) .task-row:has(.burst-spark) { animation: cvLift 460ms var(--ease-out); }
+  html[data-celebrate="gentle"][data-cv="1"]:not([data-motion="reduce"]) .task-row.just-done .task-check { animation: none; }
+  html[data-celebrate="gentle"][data-cv="1"]:not([data-motion="reduce"]) .task-row.just-done .task-check.done::before { animation: cvTick 240ms var(--ease-out); }
+  html[data-celebrate="gentle"][data-cv="2"]:not([data-motion="reduce"]) .task-row.just-done .task-check { animation: cvHalo 360ms var(--ease-out); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .burst-ring::before, .burst-spark i { animation: none; }
+}
+/* === END CELEBRATION FORMS === */
 
 /* THE SWIPE TIP AND THE ROW'S MOMENT (Dave 2026-10-05, locked; ROW-ACTIONS-SPEC.md). The tip is a quiet note, not a
    control; the contextual action is text only in the key colour, never a capsule. */

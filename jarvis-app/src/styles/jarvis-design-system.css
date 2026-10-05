@@ -295,13 +295,14 @@
      #1C1C1E, tertiary #2C2C2E, and #3A3A3C for the raised chip/control layer.
      The old JARVIS surfaces carried a violet cast (#17171E); Apple Music's
      carry none (Dave, 2026-08-21: the exact Apple Music system). */
-  /* THE WARM STEPS (2026-10-05). Page #1C1917, card #211D1A, sheet and field
-     #2C2723, raised #38332F. The card is a hair under the brief's #26221F on
+  /* THE WARM STEPS (2026-10-05). Page #1C1917, card #201C19, sheet and field
+     #2C2723, raised #36312D (one step under the brief's #3B3632: the late red on a sheet's grouped card reads 4.56:1 here and 4.42 on #38332F). The card is under the brief's #26221F on
      purpose: the brand red is fixed and --tint as words must clear 4.5:1 on a
-     card (browserWalk holds it), which caps a card's luminance. #211D1A reads
-     4.51:1; #26221F reads 4.25 and fails. The hairline below does the lifting
-     the last few points of tint would have done. */
-  --surface-1: #211D1A; --surface-2: #2C2723; --surface-3: #38332F;
+     card (browserWalk holds it), which caps a card's luminance. #201C19 reads
+     4.56:1; #26221F reads 4.25 and fails. The hairline below does the lifting
+     the last few points of tint would have done, and the card carries NO sheen:
+     a 2.5% white wash across its top took the red words there to 4.41. */
+  --surface-1: #201C19; --surface-2: #2C2723; --surface-3: #36312D;
   /* Hairline borders: warm white at 8% (Dave 2026-10-05). */
   --card-bd: rgba(255,240,225,0.08); --divider: rgba(255,240,225,0.07);
   --press-1: rgba(255,244,232,0.04); --press-3: rgba(255,244,232,0.06); --press-5: rgba(255,244,232,0.14);
@@ -447,13 +448,16 @@
   --accent-chip: transparent;
   --accent-chip-bd: #FF2B3C;
   --accent-chip-tx: #FF2B3C;
-  --red-tint: rgba(255,43,60,0.16); --warn-tint: rgba(255,159,10,0.14); --good-tint: rgba(48,209,88,0.16);
+  /* THE LATE WASH (2026-10-05). The late-red word on a wash of itself: 14% over a warm card reads 4.23:1 in dark, 8% reads 4.57. */
+  --late-wash: 8%;
+  /* The red wash is 10% in dark (it was 16): red words on it cleared 4.5:1 on the old black page and read 4.25 on the warm card. 10% reads 4.53 there. */
+  --red-tint: rgba(255,43,60,0.10); --warn-tint: rgba(255,159,10,0.14); --good-tint: rgba(48,209,88,0.16);
   /* D9/D12 (Training Catalog V2, HEALTH_PREVIEW_SPEC): blue = performance
      data (charts, trends), yellow = a goal in flight. Same 13-16% wash the
      three tints above already use -- no new opacity convention. */
   --blue-tint: rgba(10,132,255,0.16); --yellow-tint: rgba(255,214,10,0.16);
-  --glass-bg: rgba(33,29,26,0.9);
-  --card-sheen: rgba(255,244,232,0.025);
+  --glass-bg: rgba(32,28,25,0.92);
+  --card-sheen: transparent;
   /* The hairline highlight a warm glass edge catches (2026-10-05): warm white,
      faint, and no hard black underside. */
   --rim-card: rgba(255,240,225,0.14); --rim-bottom: rgba(0,0,0,0);
@@ -669,7 +673,7 @@
      6.25/5.14/4.92). The raised row is the ground that settled the first
      three: they cleared white and the tint and missed it, and the law found
      that before a screenshot did. */
-  --hl-lime-ink: #4E7402; --hl-cyan-ink: #006F84; --hl-pink-ink: #B8003C;
+  --hl-lime-ink: #4A6E02; --hl-cyan-ink: #006F84; --hl-pink-ink: #B8003C;
   --hl-amber-ink: #995300; --hl-violet-ink: #7E22CE; --hl-blue-ink: #0A5DC2;
   --good-fill: #26A153; --warn-fill: #FF8D0A;
   --yellow: #FAC800; --teal: #27CEC8; --mint: #00C7BE; --pink: #FF6682;
@@ -703,7 +707,11 @@
   --tint: #D12416;
   --accent-tx: #D12416;
   --danger-tx: #D12416;
-  --danger-tx-raised: var(--danger-tx);
+  /* DESTRUCTIVE WORDS ON A RAISED GREY, LIGHT (2026-10-05, the warm neutrals). A sheet's grouped card is
+     the raised grey #ECE5DA, where the action red as words reads 4.22:1 ("Delete Bill", "Delete Task").
+     Destructive words take one step deeper, #C8210F, 4.56:1 there. The action red itself, --tint and
+     --accent-glyph, is not touched. */
+  --danger-tx-raised: #C8210F;
   --accent-chip: transparent;
   --accent-chip-bd: #D12416;
   --accent-chip-tx: #D12416;
@@ -712,6 +720,7 @@
      visible body under the lighter ink above. The red wash follows the
      unified light red (2026-09-28, Dave): same 12% strength, #E42C18 hue. */
   --red-tint: rgba(209,36,22,0.12); --warn-tint: #FFF0DB; --good-tint: #E5F3EA;
+  --late-wash: 14%;
   --blue-tint: rgba(10,116,255,0.16); --yellow-tint: rgba(250,200,0,0.18);
   --glass-bg: rgba(255,253,250,0.78);
   --card-sheen: transparent;
@@ -795,7 +804,7 @@ html[data-theme="light"], html[data-theme="light"] body { background-color: var(
    enters the row. */
 .urgency-chip { padding: var(--s-0h) 6.5px; border-radius: var(--r-pill); }
 .urgency-chip.urgency-warn { background: color-mix(in srgb, var(--warn-fill) 14%, transparent); }
-.urgency-chip.urgency-red { background: color-mix(in srgb, var(--sys-red) 14%, transparent); }
+.urgency-chip.urgency-red { background: color-mix(in srgb, var(--sys-red) var(--late-wash), transparent); }
 
 /* CARD. Dark = warm frosted glass. Light = solid warm tint. A card at rest
    has NO shadow (Dave 2026-10-05, the one-shadow recipe): it separates from
@@ -814,6 +823,15 @@ html[data-theme="light"], html[data-theme="light"] body { background-color: var(
   -webkit-backdrop-filter: none; backdrop-filter: none;
   box-shadow: var(--shadow-card);
 }
+/* A card inside a card is a row: the outer card's hairline is the only edge. */
+.card .card { border: 0; }
+/* A CAPSULE MUST READ AS A SHAPE ON THE GROUND IT SITS ON (§X, 2026-10-05). In light the one capsule fill
+   (#F2EDE4, the darkest the action red clears 4.5:1 on) is a step darker than the cream page and so reads there, but it is
+   the card's own colour and vanished on a card. A card re-binds the token to the warm near-white, so the capsule is a
+   lifted chip (red on it 5.2:1); the sheet itself is that near-white, so it re-binds back to the page capsule. The
+   capsules themselves still read var(--capsule-fill) and nothing else changes. */
+[data-theme="light"] .card { --capsule-fill: var(--chrome-bg); }
+[data-theme="light"] .sheet-scrim > .card { --capsule-fill: #F2EDE4; }
 .card.pad { padding: var(--s-4); }
 
 /* CHEVRON (navigation rows only) */
@@ -850,7 +868,7 @@ html[data-theme="light"], html[data-theme="light"] body { background-color: var(
 .btn-icon { width: 44px; height: 44px; padding: 0; border-radius: var(--r-pill); background: var(--press-3); color: var(--tx-1); }
 
 /* INPUTS */
-.input { width: 100%; min-height: 44px; padding: var(--s-2) var(--s-3); background: var(--surface-2); border: 0.5px solid var(--card-bd); border-radius: var(--r-md); font-size: var(--t-h3); color: var(--tx-1); font-family: var(--f); outline: none; }
+.input { width: 100%; min-height: 44px; padding: var(--s-2) var(--s-3); background: var(--surface-2); border: 0.5px solid var(--card-bd); border-radius: var(--r-field); font-size: var(--t-h3); color: var(--tx-1); font-family: var(--f); outline: none; }
 .input::placeholder { color: var(--tx-2); }
 .input:focus, .input.focused { border-color: var(--tint); border-width: 2px; padding: 0 calc(var(--s-3) - 1px); }
 .input.error { border-color: var(--sys-red); border-width: 2px; padding: 0 calc(var(--s-3) - 1px); }
@@ -941,7 +959,7 @@ button:disabled, .btn:disabled { opacity: 0.38; cursor: default; }
 .cb.on { background: var(--sel-bg); border-color: var(--sel-bg); color: var(--sel-fg); font-size: var(--t-meta); font-weight: var(--w-semi); }
 
 /* SEARCH / CHIPS */
-.search-bar { display: flex; align-items: center; gap: var(--s-2); background: var(--press-3); border: 2px solid transparent; border-radius: var(--r-md); padding: var(--s-1h) var(--s-3); min-height: var(--tap-min); }
+.search-bar { display: flex; align-items: center; gap: var(--s-2); background: var(--press-3); border: 2px solid transparent; border-radius: var(--r-field); padding: var(--s-1h) var(--s-3); min-height: var(--tap-min); }
 .search-bar:focus-within { border-color: var(--accent); }
 .search-bar input { background: transparent; border: 0; outline: none; flex: 1; font-size: var(--t-h3); color: var(--tx-1); font-family: var(--f); }
 .search-bar input::placeholder { color: var(--tx-2); }
@@ -1226,4 +1244,59 @@ button:disabled, .btn:disabled { opacity: 0.38; cursor: default; }
     --tx-4: #A39A92;
     --sys-gray: #A9A199;
   }
+}
+
+/* ============================================================
+   CRAFT (Dave 2026-10-05, locked: "the most aesthetically pleasing app
+   ever"; the research playbook, qa/findings/2026-10-05-design). Three things
+   every screen inherits and no screen restates: the display face, the press
+   feedback, and tabular figures. The palette, radius, spacing, shadow and
+   motion TOKENS are at the top of this file; this is the part that applies
+   them. It sits last so it wins ties with the rules above it, and it uses
+   the individual transform properties (scale, translate) so a swipe's inline
+   transform on the same element is never overwritten.
+   ============================================================ */
+
+/* THE DISPLAY FACE. Page titles, the greeting and hero numbers. The Type Law
+   still owns every size and weight; this only chooses the letterforms. */
+.pagehead-title, .today-title, .signin-title, .nav-large, .ob-title, .payoff-title, .p3-q,
+.person-name, .money-hero-total, .mail-door-when, .sweep-finish-done, .mode-n, .stat-num, .hero-num,
+.rep-big, .t-h1, .t-display, .sheet-title { font-family: var(--f-display); }
+
+/* TABULAR FIGURES on every time, amount and count, so a column of them lines
+   up and a ticking number does not jitter. */
+.sched-time, .rem-time, .ampm, .money-amt, .money-hero-total, .stat-num, .hero-num, .mode-n, .rep-big,
+.count-pill, .sh2 .n, .facts, .fact, .urgency, .cal-cell, .row-value, .stepper .val,
+.nav-count, .progress-count { font-variant-numeric: tabular-nums; }
+
+/* PRESS FEEDBACK. A capsule or a tappable row gives under the finger: scale
+   .97 on a springy curve, and springs back on the same one. The transition is
+   declared on the resting state so the release animates as well as the press.
+   Nothing here runs under Reduce Motion (the phone's or the app's own). */
+@media (prefers-reduced-motion: no-preference) {
+  html:not([data-motion="reduce"]) :is(.pill-act, .row-act, .btn, .btn-sm, .btn-icon, .see-all, .chip, .tab-bar .tab, .nav-action, .nav-back) {
+    transition: scale var(--dur-press) var(--ease-press), color var(--dur-fast) var(--ease-out),
+      background-color var(--dur-fast) var(--ease-out), opacity var(--dur-fast) var(--ease-out);
+  }
+  html:not([data-motion="reduce"]) :is(.cb, .task-check, .radio, .switch) {
+    transition: scale var(--dur-press) var(--ease-press), background-color var(--dur-fast) var(--ease-out),
+      border-color var(--dur-fast) var(--ease-out);
+  }
+  html:not([data-motion="reduce"]) :is(.pill-act, .row-act, .btn, .btn-sm, .btn-icon, .see-all, .chip, .tab-bar .tab):active {
+    scale: var(--press-scale);
+  }
+  /* A checkbox is 22px, so the same 3 percent would be a rounding error. */
+  html:not([data-motion="reduce"]) :is(.cb, .task-check, .radio, .switch):active { scale: 0.88; }
+  /* A tappable row or card is wide: 3 percent of 350px is ten pixels of
+     shrink, so a row takes a third of that, and a card lifts onto the one
+     shadow as it gives. :has() keeps a press on a control INSIDE the row from
+     squeezing the whole row. */
+  html:not([data-motion="reduce"]) :is(.task-row, .row, .conn-row, .msg-row, .sched-row, .lib-row, .rem-row, .stream-card, .lifemap-row)[role="button"] {
+    transition: scale var(--dur-press) var(--ease-press), background-color var(--dur-fast) var(--ease-out);
+  }
+  html:not([data-motion="reduce"]) :is(.task-row, .row, .conn-row, .msg-row, .sched-row, .lib-row, .rem-row, .stream-card, .lifemap-row)[role="button"]:active:not(:has(:is(button, .cb, .task-check-tap, a):active)) {
+    scale: 0.985;
+  }
+  html:not([data-motion="reduce"]) .card[role="button"] { transition: scale var(--dur-press) var(--ease-press), box-shadow var(--dur-normal) var(--ease-out); }
+  html:not([data-motion="reduce"]) .card[role="button"]:active { scale: 0.985; box-shadow: var(--shadow-float); }
 }

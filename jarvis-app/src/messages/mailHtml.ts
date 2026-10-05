@@ -88,7 +88,7 @@ export function sanitizeMailHtml(html: string, opts: { dark?: boolean; remoteIma
   // page's ground, not the phone's, sits behind the mail.
   const base = `<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="color-scheme" content="${dark ? "dark" : "light"}">
 <style>
-  html, body { margin: 0; padding: 0; background: transparent; color: ${dark ? "#EDEDF0" : "#111"};
+  html, body { margin: 0; padding: 0; background: transparent; color: ${dark ? "#F7F1EA" : "#1F1A16"};
     font: 15px/1.45 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     -webkit-text-size-adjust: 100%; word-wrap: break-word; overflow-wrap: anywhere; }
   img { max-width: 100% !important; height: auto !important; }

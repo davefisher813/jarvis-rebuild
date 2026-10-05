@@ -192,8 +192,9 @@ describe("LAW §AL: the capsule, settled", () => {
     // the page, 4.50 on a card, 3.12 raised and 2.55 on surface-3. Each pass
     // that re-opened this control had measured it somewhere different.
     expect(DS, "dark declares an opaque capsule fill").toMatch(/--capsule-fill:\s*#[0-9A-Fa-f]{6}\s*;/);
-    // AMENDED 2026-09-29 (Dave, the approved light palette): light's neutral pill is the opaque #F0F1F4.
-    expect(DS, "and light declares its own").toMatch(/--capsule-fill:\s*(?:var\(--press-3\)|#F0F1F4)/);
+    // AMENDED 2026-10-05 (Dave, the warm neutrals): light's neutral pill is the opaque #F2EDE4,
+    // the darkest warm fill the action red still clears 4.5:1 on (4.53).
+    expect(DS, "and light declares its own").toMatch(/--capsule-fill:\s*(?:var\(--press-3\)|#F2EDE4)/);
   });
 
   it("the capsule PAINTS 34 inside a 44 tap box, which is what §AJ C1 meant", () => {

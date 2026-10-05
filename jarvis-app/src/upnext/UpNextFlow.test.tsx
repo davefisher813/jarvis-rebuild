@@ -34,7 +34,7 @@ describe("Up Next Undo", () => {
     const stop = subscribeToast((t) => { if (t?.actionLabel === "Undo") seen.t = t; });
     try {
       render(<NotesProvider userId="upnext-undo"><Seeded /></NotesProvider>);
-      await waitFor(() => expect(screen.getByText("Water plants")).toBeInTheDocument());
+      await waitFor(() => expect(screen.getByText("Water Plants")).toBeInTheDocument());
       const before = (await captured!.svc.task(captured!.id))!;
       fireEvent.click(screen.getByRole("button", { name: "Done" }));
       await waitFor(() => expect(seen.t).not.toBeNull(), { timeout: 3000 });

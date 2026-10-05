@@ -50,7 +50,7 @@ import { todayISO } from "../tasks/grouping";
 import { TargetGlyph, FolderOpenGlyph } from "../shared/glyphs";
 import NoticeCard from "../today/NoticeCard";
 import { Facts } from "../messages/factsLine";
-import { lineCase } from "../shared/casing";
+import { lineCase, titleCase } from "../shared/casing";
 
 // Hoisted: a fresh object per render would make every consumer's memo stale.
 const EMPTY_REACH: GoalReach = { filedIds: [], taggedIds: [], openTagged: 0, progress: null };
@@ -402,7 +402,10 @@ export default function BiggerPictureFlow({ openId, openNonce, onOpenConsumed, o
           form="row"
           icon={<FolderOpenGlyph />}
           tone="cat-fg-orange"
-          title={stalled.data.title}
+          title={titleCase(stalled.data.title)}
+          // ITS MOMENT HAS COME (Dave 2026-10-05): a project with nothing moving is the ask, so its one verb shows on the row as
+          // text, the same action as the swipe. No capsule on a row.
+          due
           // STALLED IS AMBER (2026-10-05, the catalog hard gate): why this row is here is
           // the key's "needs you soon", and it was drawn in the row's plain grey.
           sub={projStep && projStep.projectId === stalled.id ? "Start With: " + projStep.step : <Facts facts={[{ text: "Nothing Is Moving Here", tone: "warn" }]} />}
@@ -1113,7 +1116,6 @@ export default function BiggerPictureFlow({ openId, openNonce, onOpenConsumed, o
         // linked to it, visibly, one tap to undo in the sheet. A default, not
         // a hidden action.
         onAddProject={() => setSheet({ kind: "newProject", goalId: goals.length === 1 ? goals[0]!.id : undefined })}
-        onAddProjectFor={(goalId) => setSheet({ kind: "newProject", goalId })}
         onOpenProject={(id) => setDetailId(id)}
         onCloseProject={(id) => void closeProject(id)}
         onMoveProject={(id, goalId) => void moveProject(id, goalId)}

@@ -12,6 +12,7 @@ import { attemptWrite } from "../../shared/guard";
 import { armTaskReminders } from "../armReminders";
 import { showToast } from "../../shared/toast";
 import { fmtTime } from "../../schedule/calendar";
+import { titleCase } from "../../shared/casing";
 import { notificationPermissionState, sendTestReminder, TEST_REMINDER_DELAY_S, type NotifyPermission } from "../../shared/notifications";
 import { remindersToIcs, saveIcsFile } from "../ics";
 import { displayTitle } from "../../notes/docModel";
@@ -237,6 +238,7 @@ export default function RemindersFlow({ chrome, onOpenEntity, openId, onOpened, 
         searchOpen={searchOpen}
         onSearchToggle={() => { setSearchOpen((v) => !v); setQuery(""); }}
         today={today}
+        now={now}
         onNew={() => setSheet({ mode: "new" })}
         onSettings={() => setSettingsOpen(true)}
         onOpen={setDetailId}
@@ -245,6 +247,7 @@ export default function RemindersFlow({ chrome, onOpenEntity, openId, onOpened, 
         onOpenLinked={onOpenEntity ? openLinked : undefined}
         onResume={(id) => void pause(id, false)}
         onRestore={(id, date) => void restore(id, date)}
+        onDelete={setConfirmDelete}
       />
       )}
       {detail && (
@@ -265,7 +268,7 @@ export default function RemindersFlow({ chrome, onOpenEntity, openId, onOpened, 
         />
       )}
       {snoozing && (
-        <SnoozeSheet title={snoozing.data.text} fromDate={snoozeFrom} today={today}
+        <SnoozeSheet title={titleCase(snoozing.data.text)} fromDate={snoozeFrom} today={today}
           onPick={(toDate, time) => void move(snoozing.id, snoozeFrom, toDate, time)} onCancel={() => setSnoozeId(null)} />
       )}
       {sheet && (

@@ -138,7 +138,7 @@ export function weekRecap(
 }
 
 // Shown under the Still Open card. Tone: permission, not pressure.
-export const EVENING_TASKS_NOTE = "Waits for Tomorrow · Tonight Is Yours";
+export const EVENING_TASKS_NOTE = "Waits for Tomorrow, Tonight Is Yours";
 
 // --- HOW TODAY WENT (Dave, on the list since 2026-09-07: "'How did I do
 // today' never re-evaluated"; unblocked 2026-09-09) ---

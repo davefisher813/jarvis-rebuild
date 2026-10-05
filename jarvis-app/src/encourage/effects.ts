@@ -53,10 +53,47 @@ export function playTone(now: number = Date.now()): boolean {
   }
 }
 
-/** The channels for one completion the person just made: the tone and the
- *  tap, each only if chosen and not quieted. Call it once per real change of
- *  state, never from a render or a sync. */
+// WHICH CELEBRATION (Dave 2026-10-05, the craft playbook: "completion
+// celebrations that vary"). The reward is always certain and only its FORM
+// changes (shared/completion.ts, finding 4), so the same one does not play
+// every time. CELEBRATION_FORMS is how many there are; each is under a
+// second, each is a different SHAPE of the same acknowledgment, and none of
+// them is the only confirmation of anything. The forms take turns in a fixed
+// order, so nothing here is chance (laws/feedback: nothing is random) and the
+// one that just played never plays twice in a row. The form is carried on the
+// document root as data-cv so the stylesheet (Gentle) and the Burst
+// (Expressive) read one choice, and it collapses to nothing under Reduced
+// Motion because the stylesheet and the Burst already do.
+export const CELEBRATION_FORMS = 3;
+let turn = -1;
+
+/** The next form in the rotation. Never the one that just played. */
+export function nextCelebrationForm(): number {
+  turn = (turn + 1) % CELEBRATION_FORMS;
+  return turn;
+}
+
+/** The form on the page right now (0 before the first completion). */
+export function currentCelebrationForm(): number {
+  if (typeof document === "undefined") return 0;
+  const n = Number(document.documentElement.dataset.cv);
+  return Number.isInteger(n) && n >= 0 && n < CELEBRATION_FORMS ? n : 0;
+}
+
+/** Choose the form for the completion that is happening now and publish it.
+ *  Called by playCompletion, which the bus calls once per real completion. */
+export function chooseCelebrationForm(): number {
+  const form = nextCelebrationForm();
+  if (typeof document !== "undefined") document.documentElement.dataset.cv = String(form);
+  return form;
+}
+
+/** The channels for one completion the person just made: the form of the
+ *  celebration, then the tone and the tap, each only if chosen and not
+ *  quieted. Call it once per real change of state, never from a render or a
+ *  sync. */
 export function playCompletion(): void {
+  chooseCelebrationForm();
   const eff = currentEffective();
   if (eff.sound) playTone();
   if (eff.haptic) haptics.success();

@@ -140,6 +140,9 @@ export function WeatherOfferRow({ form = "card", weight }: { form?: "card" | "ro
   // their own space; a card in a stream matches the stream.
   return (
     <NoticeCard
+      // A PERMISSION ASK IS THE SETTLED NOTICE CARD (Dave 2026-10-05, locked): it is itself the question, so Allow keeps
+      // its capsule even in the stream's row form.
+      offer
       form={form}
       icon={
         <CloudGlyph />

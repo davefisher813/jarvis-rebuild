@@ -52,7 +52,7 @@ const TARGET = <TargetGlyph />;
 const FOLDER = <FolderOpenGlyph />;
 
 export default function BiggerPicturePage({
-  goals, reachOfGoal, measureOfGoal, statusOf, checkinOf, projectRows, sections = [], loading, offer, onAddGoal, onOpenGoal, onAddProject, onAddProjectFor, onOpenProject, nextActionTextOf, holdLineOf, onCloseProject, onMoveProject,
+  goals, reachOfGoal, measureOfGoal, statusOf, checkinOf, projectRows, sections = [], loading, offer, onAddGoal, onOpenGoal, onAddProject, onOpenProject, nextActionTextOf, holdLineOf, onCloseProject, onMoveProject,
   lens = "goals", title = "Your Life", segments,
 }: {
   // THE LENS (ruled 2026-09-01, "The Lens plus Lineage rows"). One tree,
@@ -93,9 +93,6 @@ export default function BiggerPicturePage({
   onAddGoal: () => void;
   onOpenGoal: (id: string) => void;
   onAddProject: () => void;
-  /** The empty goal's one move (Dave's pass-off, 2026-09-26): the add sheet,
-   *  born under this goal. */
-  onAddProjectFor?: (goalId: string) => void;
   onOpenProject: (id: string) => void;
   // Pick 6: the row offers to close itself where the work is already done.
   onCloseProject?: (id: string) => void;
@@ -328,8 +325,7 @@ export default function BiggerPicturePage({
         body={body} when={when} status={statusOf?.(g.id) ?? null}
         moving={finished || g.data.measure?.kind === "projects" ? 0 : moving} next={finished ? null : next?.text ?? null}
         checkin={finished ? null : checkinOf?.(g.id) ?? null}
-        bar={ms ? { done: ms.done, total: ms.target, pct: ms.pct } : r.progress} onOpen={() => onOpenGoal(g.id)}
-        onAddProject={!finished && onAddProjectFor ? () => onAddProjectFor(g.id) : undefined} />
+        bar={ms ? { done: ms.done, total: ms.target, pct: ms.pct } : r.progress} onOpen={() => onOpenGoal(g.id)} />
     );
   };
 
@@ -344,18 +340,6 @@ export default function BiggerPicturePage({
     </div>
   );
   const ruledCard = (rows: ReactNode) => <div className="pad-x"><div className="card list-card-ruled">{rows}</div></div>;
-
-  // The page's own Add, which belongs to no one card because the lists are
-  // grouped by area. Written like every other create row in the app; the
-  // ruled system strips the card's ground when the row ends up alone in it
-  // (see "a create row with nothing to end is not a card" in ruled.css), so
-  // this reads as one line of red text rather than a slab holding one.
-  // .list-tail is the breath a caps head would have given it.
-  const addRow = (label: string, onClick: () => void) => (
-    <div className="pad-x"><div className="card list-card-ruled list-tail">
-      <button className="row-create" onClick={onClick}>{label}</button>
-    </div></div>
-  );
 
   // ONE HOME PER ITEM (the research consensus, and Todoist's rule). A goal
   // is HOMED by the first of its tags that names a live section; the rest of
@@ -412,11 +396,16 @@ export default function BiggerPicturePage({
   const movingProject = moveFor ? projectRows.find((r) => r.project.id === moveFor)?.project ?? null : null;
 
   /* THE TAIL BELONGS TO THE LENS, NOT TO THE LIST (2026-09-18). The folded
-     receipt is the only door to a finished project or goal, and the Add row
-     ends the page; both were written inside the ruled list, so the card view
-     silently lost them until this pass caught it. One definition, rendered
-     under whichever shape is showing. The receipt still opens its rows as
-     ROWS: a done project is a receipt, and a receipt is a line, not a tile. */
+     receipt is the only door to a finished project or goal, written inside the
+     ruled list, so the card view silently lost it until this pass caught it.
+     One definition, rendered under whichever shape is showing. The receipt
+     still opens its rows as ROWS: a done project is a receipt, and a receipt
+     is a line, not a tile.
+     THE ADD IS NOT AT THE FOOT (Dave 2026-10-05, locked: a section-level action
+     lives in the head, never at the foot of a list). The header's New Project
+     and New Goal are the one door, so the Add Project and Add Goal rows that
+     ended this card, and the lone capsule that stood under a list with no
+     receipt, are gone. With no receipt there is no tail at all. */
   const projectTail = doneRows.length > 0 && view === "active" ? (
     <div className="pad-x"><div className="card list-card-ruled list-tail">
       <button className="receipt-line" onClick={() => setDoneOpen((v) => !v)}>
@@ -424,9 +413,8 @@ export default function BiggerPicturePage({
         <div className="chev" />
       </button>
       {doneOpen && doneRows.map(pieRow)}
-      <button className="row-create" onClick={onAddProject}>Add Project</button>
     </div></div>
-  ) : addRow("Add Project", onAddProject);
+  ) : null;
 
   const goalTail = doneGoals.length > 0 && view === "active" ? (
     <div className="pad-x"><div className="card list-card-ruled list-tail">
@@ -435,9 +423,8 @@ export default function BiggerPicturePage({
         <div className="chev" />
       </button>
       {doneGoalsOpen && doneGoals.map(goalRowRuled)}
-      <button className="row-create" onClick={onAddGoal}>Add Goal</button>
     </div></div>
-  ) : addRow("Add Goal", onAddGoal);
+  ) : null;
 
   const goalIdsHomed = (c: { id: string }) => rankGoals(
     viewGoals.filter((g) => homeOf(g) === c.id).map((g) => { const r = reachOfGoal(g.id); return { id: g.id, progress: r.progress, openTagged: r.openTagged, goal: g }; }),

@@ -439,6 +439,9 @@ export default function TodaySuggestions({ ai, always = false }: { ai: AIService
       </div>
     ) : (
       <NoticeCard
+        // AN OFFER KEEPS ITS CAPSULE (Dave 2026-10-05, locked): this card asks him to accept a claim, and its words
+        // carry the decision, so it is the settled notice card, not a row.
+        offer
         icon={<Lightbulb className="ic" />}
         tone="cat-fg-yellow"
         title={pattern.text}
@@ -467,6 +470,7 @@ export default function TodaySuggestions({ ai, always = false }: { ai: AIService
       </div>
     ) : (
       <NoticeCard
+        offer
         icon={<Lightbulb className="ic" />}
         tone="cat-fg-yellow"
         title={aiPick.s.text}
@@ -527,6 +531,7 @@ export default function TodaySuggestions({ ai, always = false }: { ai: AIService
         // row-tap: claim card with no page behind it; accepting is a lasting write that stays on the pill
         <NoticeCard
           key={m.derivation}
+          offer
           icon={<Lightbulb className="ic" />}
           tone="cat-fg-yellow"
           title={m.title}

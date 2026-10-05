@@ -29,6 +29,7 @@ function Seeded() {
       await tasks.createTask("Order jerseys", { category: bridge });
       await projects.create({ title: "Spring Fundraiser", category: bridge, status: "active" });
       await goals.create({ title: "Raise $10k", state: "on_track", tags: [bridge] });
+      await tasks.createTask("Book a checkup", { category: health });
       await tasks.createTask("Log a lift", { category: budget }); // never counted: money is excluded whole
 
       setReady(true);
@@ -57,24 +58,28 @@ describe("AreasTab", () => {
     expect(screen.queryByText("Budget")).not.toBeInTheDocument();
   });
 
-  // OPTION B FINAL (Dave 2026-09-16, from the rendered comparison): five
-  // named sections on one wrapping line with the count beside the title,
-  // replacing the four labelled tiles in a 2x2 grid.
-  it("renders Health as the five-section mini-app card, not a standard row", async () => {
+  // AMENDED 2026-10-05 (Dave, locked: "Clean rows, no pills anywhere"). Health
+  // was a mini-app card with five section chips (Track, Train, Reports, Meds,
+  // Privacy) inside it: pills in a card. It is the same plain card every area
+  // is, first in the list, with its own counts; the five sections are the
+  // doors on its own page.
+  it("renders Health first, as a plain area card with its own counts and no section chips", async () => {
     render(<NotesProvider userId="areas-2"><Seeded /></NotesProvider>);
     await screen.findByText("Bridge", {}, { timeout: 3000 });
     const healthRow = screen.getByText("Health").closest(".area-card-health") as HTMLElement;
     expect(healthRow).toBeTruthy();
-    // Hardcoded, per the handoff -- no query backs these, they're a preview.
-    ["Track", "Train", "Reports", "Meds", "Privacy"].forEach((label) => expect(screen.getByText(label)).toBeInTheDocument());
-    expect(screen.getByText("5 Sections")).toBeInTheDocument();
-    // Its second line is the section count, never the task/goal/project facts.
-    expect(healthRow.querySelector(".area-sub")?.textContent).toBe("5 Sections");
+    expect(healthRow.classList.contains("area-card")).toBe(true);
+    ["Track", "Train", "Reports", "Meds", "Privacy"].forEach((label) => expect(screen.queryByText(label)).toBeNull());
+    expect(screen.queryByText("5 Sections")).toBeNull();
+    expect(healthRow.querySelector(".health-chip, .health-sections")).toBeNull();
+    // It draws what every area draws: one fact per count.
+    expect([...healthRow.querySelectorAll(".conn-meta > .fact")].map((f) => f.textContent)).toEqual(["1 Task"]);
+    // First in the list, ahead of the other areas.
+    const names = [...document.querySelectorAll(".area-card .area-name")].map((n) => n.textContent);
+    expect(names[0]).toBe("Health");
   });
 
-  // THE SECTIONS ARE LABELS, NOT BUTTONS. The whole card is the one tap
-  // target, so five section names must not arrive as five controls -- which
-  // is the exact shape of dead button this app spent a day removing.
+  // The whole card is the one tap target; the card holds no control of its own.
   it("offers no control of its own: the card is the door", async () => {
     render(<NotesProvider userId="areas-5"><Seeded /></NotesProvider>);
     await screen.findByText("Bridge", {}, { timeout: 3000 });

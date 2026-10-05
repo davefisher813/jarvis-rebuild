@@ -58,7 +58,7 @@ describe("LifeFlow", () => {
     // on the CARDS now; this test is about the ruled ROW anatomy, which is
     // the other view, so it asks for that view first. Everything it checks
     // below is unchanged, and the toggle is how a person reaches it too.
-    await screen.findByText("Add Project");
+    await screen.findByLabelText("New Project");
     fireEvent.click(screen.getByLabelText("Show as a list"));
     // AMENDED 2026-09-26 (pass-off): his typed title is SHOWN in Title Case
     // ("Kitchen remodel" reads "Kitchen Remodel"); the record keeps his typing.
@@ -82,7 +82,9 @@ describe("LifeFlow", () => {
     // AMENDED 2026-09-26 (pass-off): the goal chip SHOWS his typed title in
     // Title Case; the record keeps "Build a six-month runway".
     expect(row.querySelector(".r-is-goal")).toHaveTextContent("Build a Six-Month Runway");
-    expect(screen.getByText("Add Project")).toBeInTheDocument();
+    // AMENDED 2026-10-05 (Dave, locked): the Add is the header's, never a row at the foot of the list.
+    expect(screen.getByLabelText("New Project")).toBeInTheDocument();
+    expect(screen.queryByText("Add Project")).toBeNull();
     expect(screen.queryByText("Add Goal")).toBeNull();
 
     fireEvent.click(screen.getByRole("tab", { name: "Goals" }));
@@ -90,8 +92,9 @@ describe("LifeFlow", () => {
     const goal = await screen.findByText("Build a Six-Month Runway"); // AMENDED 2026-09-26 (pass-off): Title Case display
     expect(goal.closest(".task-row.goal-row-ruled")).toBeTruthy();
     expect(document.querySelector(".task-row .pp")).toBeNull();
-    expect(screen.getByText("Add Goal")).toBeInTheDocument();
-    expect(screen.queryByText("Add Project")).toBeNull();
+    expect(screen.getByLabelText("New Goal")).toBeInTheDocument();
+    expect(screen.queryByText("Add Goal")).toBeNull();
+    expect(screen.queryByLabelText("New Project")).toBeNull();
   });
 
   // THE LOGBOOK, AND THE BADGE (Dave 2026-09-09: "Done should be marker off
@@ -139,11 +142,16 @@ describe("LifeFlow", () => {
 vi.mock("../ai/useAI", () => ({ useAI: () => ({ available: true, complete: async () => "Call the contractor" }) }));
 
 describe("LifeFlow, the one ask", () => {
-  it("renders the stalled project as a notice row with a First Step pill, not a promo card", async () => {
+  // AMENDED 2026-10-05 (Dave, locked: "Clean rows, no pills anywhere"). The stalled project is a row about a THING, so it
+  // wears no capsule: First Step is its swipe-left (the tray's first button), the tap opens the project, and because its
+  // moment has come (nothing is moving) the same verb shows on the row as one quiet word.
+  it("renders the stalled project as a notice row with First Step as its verb, not a pill and not a promo card", async () => {
     render(<NotesProvider userId="u2"><Seeded segment="projects" /></NotesProvider>);
-    await screen.findByText("Add Project", {}, { timeout: 3000 });
-    const pill = await screen.findByRole("button", { name: "First Step" });
-    expect(pill.closest(".one-ask-row .stream-card .notice-card")).toBeTruthy();
+    await screen.findByLabelText("New Project", {}, { timeout: 3000 });
+    const verb = await screen.findByText("First Step", { selector: ".row-ctx" });
+    expect(verb.closest(".one-ask-row .stream-card .notice-card")).toBeTruthy();
+    expect(document.querySelector(".one-ask-row .pill-act"), "no capsule on the row").toBeNull();
+    expect(screen.getByText("First Step", { selector: ".notice-alt" })).toBeInTheDocument();
     expect(document.querySelector(".promo-card")).toBeNull();
     expect(screen.getByText("Nothing Is Moving Here")).toBeInTheDocument();
     // THE CATALOG HARD GATE (2026-10-05): stalled is the key's amber, so the
@@ -231,7 +239,7 @@ describe("a task link is spent once (SHELL-F-12)", () => {
     // START NOW (2026-09-16): A Place to Begin names the top-picked task
     // above the list, so the name can legitimately appear twice here. This
     // test is about the list, so it counts rows rather than names.
-    const rows = () => screen.queryAllByText("Pay the deposit").filter((el) => !el.classList.contains("start-top-name"));
+    const rows = () => screen.queryAllByText("Pay the Deposit").filter((el) => !el.classList.contains("start-top-name"));
     await waitFor(() => expect(rows().length).toBeGreaterThan(0), { timeout: 3000 });
     fireEvent.click(screen.getByText("Link Task"));
     await waitFor(() => expect(screen.getByText("Edit Task")).toBeInTheDocument());
@@ -298,7 +306,7 @@ describe("a project link is spent once (LIFE-F-08)", () => {
     fireEvent.click(screen.getByLabelText("Back"));
     await waitFor(() => expect(screen.queryByLabelText("Back")).not.toBeInTheDocument());
     fireEvent.click(screen.getByText("Flip Lens"));
-    await waitFor(() => expect(screen.getByText("Add Goal")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByLabelText("New Goal")).toBeInTheDocument());
     fireEvent.click(screen.getByText("Flip Lens"));
     await screen.findAllByText("Kitchen Remodel", {}, { timeout: 3000 });
 

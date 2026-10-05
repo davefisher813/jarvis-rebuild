@@ -10,6 +10,7 @@ import { todayISO } from "../grouping";
 import { addDays, fmtTime } from "../../schedule/calendar";
 import { pressable } from "../../shared/pressable";
 import { actionLabelFor } from "../reminderHistory";
+import { titleCase } from "../../shared/casing";
 import LinkedItemSheet, { type LinkCandidate } from "./LinkedItemSheet";
 
 // THE REMINDER FORM (the reminders rebuild, push E to Dave's interactive
@@ -107,7 +108,8 @@ export default function ReminderSheet({
   const initWhen: WhenKey = init
     ? (init.contextTrigger?.targetId && scheduleKindOf(init) === "unscheduled" ? (init.contextTrigger.kind === "onOpenArea" ? "area" : "task") : scheduleKindOf(init) === "unscheduled" ? "none" : "time")
     : "time";
-  const [text, setText] = useState(initial?.text ?? "");
+  // Shown in Title Case, saved in Title Case (Dave 2026-10-05): an old title typed any way reads right here.
+  const [text, setText] = useState(initial?.text ? titleCase(initial.text) : "");
   const [when, setWhen] = useState<WhenKey>(initWhen);
   const [time, setTime] = useState<string>(init?.time && scheduleKindOf(init) === "timed" ? init.time : "");
   const [due, setDue] = useState(initial?.due ?? init?.startDate ?? (mode === "new" ? today : ""));
@@ -193,7 +195,8 @@ export default function ReminderSheet({
       : when === "area" ? "Reminder Set · When You Open " + areaName
         : when === "task" ? "Reminder Set · After " + (link?.label ?? "the task")
           : "Reminder Saved · Unscheduled";
-    onSave(name, r, { due: when === "time" && effRepeat.kind === "once" ? (effDay || today) : null, category, receipt });
+    // The write door casing (Dave 2026-10-05): the title is saved in Title Case.
+    onSave(titleCase(name), r, { due: when === "time" && effRepeat.kind === "once" ? (effDay || today) : null, category, receipt });
   };
 
   const pickDay = (day: string) => { setDue(day); if (day && !repeatTouched) setRepeat({ kind: "once" }); };

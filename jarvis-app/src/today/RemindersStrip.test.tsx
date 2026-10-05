@@ -31,7 +31,7 @@ describe("RemindersStrip: the next three and one Missed row", () => {
     expect(screen.queryByText("Vitamin D")).toBeNull();
   });
 
-  it("the Missed row opens the sheet; one tap ticks a reminder; Ask Again is its one capsule", () => {
+  it("the Missed row opens the sheet; one tap ticks a reminder; Ask Again is its one quiet word, not a capsule", () => {
     const onTickMissed = vi.fn();
     const onAskAgain = vi.fn();
     const { container } = render(<RemindersStrip items={next} missed={missed} onTickMissed={onTickMissed} onAskAgainMissed={onAskAgain} />);
@@ -39,6 +39,8 @@ describe("RemindersStrip: the next three and one Missed row", () => {
     expect(screen.getByText("Missed Reminders")).toBeInTheDocument();
     const rows = document.querySelectorAll(".sheet-scrim .rem-tick-row");
     expect(rows).toHaveLength(2);
+    expect(document.querySelectorAll(".sheet-scrim .pill-act"), "no capsule on a row").toHaveLength(0);
+    expect(document.querySelectorAll(".sheet-scrim .row-ctx")).toHaveLength(2);
     expect(screen.getAllByRole("button", { name: "Ask Again" })).toHaveLength(2);
     fireEvent.click(screen.getAllByRole("button", { name: "Ask Again" })[0]!);
     expect(onAskAgain).toHaveBeenCalledWith("vitamin-d");

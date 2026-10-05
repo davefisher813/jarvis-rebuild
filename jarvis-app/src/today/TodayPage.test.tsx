@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, within } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import TodayPage from "./TodayPage";
 import type { EventItem } from "../schedule/types";
@@ -78,7 +78,7 @@ describe("TodayPage", () => {
     // the fold now, not to navigation).
     const { container } = render(
       <TodayPage {...base} upNext={[tk("over", "2026-05-18")]}
-        upNextReason="Waiting 2 days" onUpNext={() => {}} />,
+        upNextReason="Waiting 2 days" onUpNext={() => {}} onStartTask={() => {}} />,
     );
     expect(screen.getByText("Your Move")).toBeInTheDocument();
     expect(screen.queryByText("Up Next")).toBeNull(); // the section is gone, not renamed twice
@@ -86,13 +86,15 @@ describe("TodayPage", () => {
     // C-24's promotion is repealed (Dave 2026-09-16: "make the dealt task a
     // normal row in the stream"). It is the notice row's own markup now:
     // title, a facts sub, and ONE control in the stream's action column.
-    expect(container.querySelector(".hl-title")).toHaveTextContent("over");
+    expect(container.querySelector(".hl-title")).toHaveTextContent("Over");
     expect(container.querySelectorAll(".hl .facts .fact").length).toBeGreaterThan(0);
     // The urgency is the app's own chip, saying the distance in distanceFor's
     // words (Dave 2026-09-16: "'today' should be a chip").
     expect(container.querySelector(".hl .uchip.u-late")).toHaveTextContent("2 DAYS LATE");
-    // One control in the column, and it is the verb.
-    expect(container.querySelectorAll(".hl .pill-act").length).toBeLessThanOrEqual(1);
+    // NO CAPSULE ON THE ROW (Dave 2026-10-05, locked): the verb is the swipe, and this one is late, so it is also the
+    // one quiet word on the row.
+    expect(container.querySelectorAll(".hl .pill-act").length).toBe(0);
+    expect(container.querySelectorAll(".hl .row-ctx").length).toBe(1);
     // FOCUS REPLACED THE RECEIPT (Dave 2026-09-11: "The focus button should
     // be all the way up top under your move and replace that small grey
     // subtext that renders the up next page"). Both called onUpNext, so the
@@ -216,15 +218,15 @@ describe("TodayPage", () => {
     expect(screen.getByText("Day Is Sliding")).toBeInTheDocument();
     expect(screen.getByText("Fresh Offer")).toBeInTheDocument();
     expect(screen.queryByText("Old Thread")).toBeNull();
-    expect(container.querySelector(".hl-title")).toHaveTextContent("over");
+    expect(container.querySelector(".hl-title")).toHaveTextContent("Over");
     fireEvent.click(screen.getByText("See All"));
     expect(streamRows()).toBe(4);
     expect(screen.getByText("Old Thread")).toBeInTheDocument();
-    expect(container.querySelector(".hl-title")).toHaveTextContent("over");
+    expect(container.querySelector(".hl-title")).toHaveTextContent("Over");
     fireEvent.click(screen.getByText("Less"));
     expect(streamRows()).toBe(3);
     // The headliner is outside the fold in both states.
-    expect(container.querySelector(".hl-title")).toHaveTextContent("over");
+    expect(container.querySelector(".hl-title")).toHaveTextContent("Over");
   });
 
   it("rows down a pinned card too: one grammar, no exceptions in the stream", () => {
@@ -299,16 +301,23 @@ describe("TodayPage", () => {
   // UP-CORE-03 (2026-09-05): the birthday row stated the fact and offered
   // nothing. Both pills open a surface that needs a number, so both are
   // hidden without one.
-  it("offers Text and Call on a birthday row, and neither without a number", () => {
+  it("offers Text and Call on a birthday row as gestures, and neither without a number", () => {
+    // NO PILLS ON THE ROW (Dave 2026-10-05, locked): Text is the swipe's first verb and, because the birthday is
+    // today, also the one quiet word on the row; Call is the swipe's second.
     const onText = vi.fn();
     const onCall = vi.fn();
-    const { rerender } = render(
+    const { rerender, container } = render(
       <TodayPage {...base} birthdays={[{ id: "p1", name: "Marco Diaz", phone: "+15551234567" }]}
         onTextPerson={onText} onCallPerson={onCall} />,
     );
-    fireEvent.click(screen.getByText("Text"));
+    expect(container.querySelector(".av.cat-bg-pink")!.closest(".row")!.querySelectorAll(".pill-act").length, "no capsule on the birthday row").toBe(0);
+    fireEvent.click(container.querySelector(".row-ctx") as HTMLElement);
     expect(onText).toHaveBeenCalledWith("p1");
-    fireEvent.click(screen.getByText("Call"));
+    onText.mockClear();
+    // And the same verb is the first button in the swipe tray.
+    fireEvent.click(screen.getAllByRole("button", { name: "Text" })[0]!);
+    expect(onText).toHaveBeenCalledWith("p1");
+    fireEvent.click(screen.getByRole("button", { name: "Call" }));
     expect(onCall).toHaveBeenCalledWith("p1");
     rerender(
       <TodayPage {...base} birthdays={[{ id: "p2", name: "Ada Lovelace" }]}
@@ -316,6 +325,21 @@ describe("TodayPage", () => {
     );
     expect(screen.queryByText("Text")).toBeNull();
     expect(screen.queryByText("Call")).toBeNull();
+  });
+
+  it("a birthday row with two verbs and no person to open taps into a sheet holding both", () => {
+    const onText = vi.fn();
+    render(
+      <TodayPage {...base} birthdays={[{ id: "p1", name: "marco diaz", phone: "+15551234567" }]}
+        onTextPerson={onText} onCallPerson={() => {}} />,
+    );
+    // Title Case, whatever the contact was typed as.
+    fireEvent.click(screen.getByText("Marco Diaz"));
+    const sheet = document.querySelector(".action-sheet")!;
+    expect(sheet.textContent).toContain("Text");
+    expect(sheet.textContent).toContain("Call");
+    fireEvent.click(within(sheet as HTMLElement).getByText("Text"));
+    expect(onText).toHaveBeenCalledWith("p1");
   });
 
   it("shows the Focus button paired with Plan My Day (daytime only)", () => {
@@ -398,13 +422,13 @@ describe("TodayPage", () => {
   it("a tap on tomorrow's event opens it, same as any other event row (Dave 2026-09-04: \"can't click on the call... to edit it\")", () => {
     const opened: string[] = [];
     render(<TodayPage {...base} onOpenEvent={(id) => opened.push(id)} />);
-    fireEvent.click(screen.getByText("t1"));
+    fireEvent.click(screen.getByText("T1"));
     expect(opened).toEqual(["t1"]);
   });
 
   it("tomorrow's row is not a tap target when there is nothing to open it into", () => {
     render(<TodayPage {...base} />);
-    expect(screen.getByText("t1").closest(".sched-row")).not.toHaveAttribute("role", "button");
+    expect(screen.getByText("T1").closest(".sched-row")).not.toHaveAttribute("role", "button");
   });
 
   // SPEC MOVED (§AK, 2026-09-22): "No category" was a line announcing an
@@ -414,12 +438,12 @@ describe("TodayPage", () => {
     // An event added from an email invite lands with category "" (ScheduleService.createEvent's default).
     const orphan: EventItem = { id: "t2", data: { title: "Phone call", date: "2026-05-21", start: "10:00", category: "" } };
     render(<TodayPage {...base} tomorrowEvents={[orphan]} />);
-    const row = screen.getByText("Phone call").closest(".sched-row")!;
+    const row = screen.getByText("Phone Call").closest(".sched-row")!;
     expect(row.querySelector(".sched-cat")).toBeNull();
     expect(row).not.toHaveTextContent("No category");
     // and a real area still reads as itself
     render(<TodayPage {...base} tomorrowEvents={[ev("t3", "09:00", "money")]} />);
-    expect(screen.getByText("t3").closest(".sched-row")!.querySelector(".sched-cat")).toHaveTextContent("Money");
+    expect(screen.getByText("T3").closest(".sched-row")!.querySelector(".sched-cat")).toHaveTextContent("Money");
   });
 });
 
