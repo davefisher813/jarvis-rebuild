@@ -118,3 +118,57 @@ describe("glass-light.css", () => {
     expect(css.includes(String.fromCharCode(0x2014))).toBe(false);
   });
 });
+
+// THE DOUBLED PILL (Dave 2026-10-05, on the preview: "it looks like there's a
+// bug ... they're overlapping the old ones"). .pill-act paints at 34px and
+// takes taps across 44px with transparent borders and background-clip:
+// padding-box. A `background` shorthand resets the clip and an outer
+// box-shadow draws around the 44px box; both drew a second pill. These hold
+// the fix, and the promise that the finish is the same on every button.
+describe("the button finish", () => {
+  const files = { light: rules, dark: dRules };
+  const sels = (rs: typeof rules, test: (body: string) => boolean) =>
+    rs.filter((r) => !r.sel.startsWith("@") && test(r.body)).flatMap((r) => r.sel.split(",").map((s) => s.trim().replace(/^html\[data-theme="\w+"\]\s*/, "")));
+
+  it("never fills a .pill-act with the background shorthand, and never draws outside it with an outer box-shadow", () => {
+    for (const [name, rs] of Object.entries(files)) {
+      for (const r of rs) {
+        if (!/\.pill-act/.test(r.sel)) continue;
+        expect(r.body, `${name}: background shorthand on ${r.sel}`).not.toMatch(/(^|[;\s])background\s*:/);
+        const shadow = r.body.match(/box-shadow\s*:\s*([^;]+)/)?.[1];
+        if (shadow && shadow.trim() !== "none") {
+          for (const part of shadow.split(/,(?![^(]*\))/)) expect(part, `${name}: outer shadow on ${r.sel}`).toMatch(/inset/);
+        }
+        if (/background-image/.test(r.body)) expect(r.body, `${name}: clip not restated on ${r.sel}`).toMatch(/background-clip:\s*padding-box/);
+      }
+    }
+  });
+
+  it("gives the red family and the quiet family the same members in both themes, except the two that already differ by theme", () => {
+    const red = (rs: typeof rules) => new Set(sels(rs, (b) => /background-color:\s*var\(--accent-fill\)/.test(b)));
+    const quiet = (rs: typeof rules) => new Set(sels(rs, (b) => /background-image/.test(b) && /filter:\s*drop-shadow/.test(b) && !/--accent-fill/.test(b)));
+    const perTheme = new Set([".row-act", ".ruled .card .row.row-act", ".ruled .h-hero .pill-act"]);
+    const same = (a: Set<string>, b: Set<string>) => [...a].filter((x) => !perTheme.has(x) && !b.has(x));
+    expect(same(red(rules), red(dRules)), "red in light but not dark").toEqual([]);
+    expect(same(red(dRules), red(rules)), "red in dark but not light").toEqual([]);
+    expect(same(quiet(rules), quiet(dRules)), "capsule in light but not dark").toEqual([]);
+    expect(same(quiet(dRules), quiet(rules)), "capsule in dark but not light").toEqual([]);
+    for (const must of [".pill-act.pill-go", ".btn-primary", ".plan-cta", ".hdr-controls .tasks-focus"]) expect(red(rules).has(must), must).toBe(true);
+    for (const must of [".pill-act:not(.pill-go)", ".see-all.pill-action", ".btn-secondary", ".quiet-action"]) expect(quiet(rules).has(must), must).toBe(true);
+    expect(red(rules).has(".row-act") && quiet(dRules).has(".row-act"), "Focus: red in light, capsule in dark").toBe(true);
+  });
+
+  it("puts no ring on a capsule (§AL: a fill and no ring)", () => {
+    for (const [name, rs] of Object.entries(files)) {
+      for (const r of rs) {
+        if (!/filter:\s*drop-shadow/.test(r.body) || /--accent-fill/.test(r.body)) continue;
+        expect(r.body, `${name}: ring on ${r.sel}`).not.toMatch(/(^|,)\s*0 0 0 [\d.]+px/);
+      }
+    }
+  });
+
+  it("leaves the swipe rail alone: Dismiss is not a capsule", () => {
+    expect(noComments).not.toMatch(/notice-dismiss/);
+    expect(dNoComments).not.toMatch(/notice-dismiss/);
+  });
+});

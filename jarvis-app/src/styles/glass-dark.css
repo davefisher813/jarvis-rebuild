@@ -71,33 +71,6 @@ html[data-theme="dark"] .stat-tile {
 }
 html[data-theme="dark"] .st-n,
 html[data-theme="dark"] .dring b { font-variant-numeric: tabular-nums; }
-
-html[data-theme="dark"] .sched-badge-btn,
-html[data-theme="dark"] .ticker-toggle,
-html[data-theme="dark"] .btn-secondary,
-html[data-theme="dark"] .quiet-action,
-html[data-theme="dark"] .hdr-opts,
-html[data-theme="dark"] .hdr-add,
-html[data-theme="dark"] .hdr-search,
-html[data-theme="dark"] .dd,
-html[data-theme="dark"] .see-all.pill-action,
-html[data-theme="dark"] .notice-dismiss,
-html[data-theme="dark"] .pill-act:not(.pill-go) {
-  background: var(--gd-chip);
-  box-shadow: inset 1px 1px 0 rgba(255, 255, 255, 0.18), inset -1px -1px 0 rgba(255, 255, 255, 0.04), 0 3px 8px rgba(0, 0, 0, 0.4);
-}
-html[data-theme="dark"] .card .row .dd { background: none; box-shadow: none; }
-
-/* THE RED: lit on top, shaded at the foot, with a warm glow on black. */
-html[data-theme="dark"] .ruled .card .pill-act.pill-go,
-html[data-theme="dark"] .pill-act.pill-go {
-  background: linear-gradient(180deg, var(--gd-red-top) 0%, var(--accent-fill) 46%, var(--gd-red-lo) 100%);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45), inset 0 -2px 3px var(--gd-red-edge), 0 0 0 0.5px var(--gd-red-edge), 0 6px 18px -2px var(--gd-red-glow);
-}
-html[data-theme="dark"] .btn-primary {
-  background-image: linear-gradient(180deg, var(--gd-red-top) 0%, var(--accent-fill) 46%, var(--gd-red-lo) 100%);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45), inset 0 -2px 3px var(--gd-red-edge), 0 0 0 0.5px var(--gd-red-edge), 0 10px 24px -4px var(--gd-red-glow);
-}
 html[data-theme="dark"] .notice-disc {
   background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.24) 0%, rgba(255, 255, 255, 0) 56%);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.42), inset 0 -2px 4px rgba(0, 0, 0, 0.30), 0 4px 10px -2px rgba(0, 0, 0, 0.6);
@@ -136,39 +109,6 @@ html[data-theme="dark"] .sheet-scrim > .card {
 }
 html[data-theme="dark"] .sheet-scrim .card.xs-group { background: var(--gd-chip); }
 html[data-theme="dark"] .sheet-handle { background: rgba(255, 255, 255, 0.30); box-shadow: 0 1px 0 rgba(0, 0, 0, 0.5); }
-
-/* PRESS: everything pressable gives a little under the thumb. */
-html[data-theme="dark"] .pill-act,
-html[data-theme="dark"] .see-all,
-html[data-theme="dark"] .voice-bar,
-html[data-theme="dark"] .voice-search,
-html[data-theme="dark"] .tab,
-html[data-theme="dark"] .btn-primary,
-html[data-theme="dark"] .hdr-add { transition: transform 140ms var(--ease-out), box-shadow 140ms; }
-html[data-theme="dark"] .pill-act:active,
-html[data-theme="dark"] .see-all:active,
-html[data-theme="dark"] .voice-bar:active,
-html[data-theme="dark"] .voice-search:active,
-html[data-theme="dark"] .tab:active,
-html[data-theme="dark"] .btn-primary:active,
-html[data-theme="dark"] .hdr-add:active { transform: scale(0.965); }
-@media (prefers-reduced-motion: reduce) {
-  html[data-theme="dark"] .pill-act,
-  html[data-theme="dark"] .see-all,
-  html[data-theme="dark"] .voice-bar,
-  html[data-theme="dark"] .voice-search,
-  html[data-theme="dark"] .tab,
-  html[data-theme="dark"] .btn-primary,
-  html[data-theme="dark"] .hdr-add { transition: none; }
-  html[data-theme="dark"] .pill-act:active,
-  html[data-theme="dark"] .see-all:active,
-  html[data-theme="dark"] .voice-bar:active,
-  html[data-theme="dark"] .voice-search:active,
-  html[data-theme="dark"] .tab:active,
-  html[data-theme="dark"] .btn-primary:active,
-  html[data-theme="dark"] .hdr-add:active { transform: none; }
-}
-
 /* QUALITY PASS (Dave 2026-10-05: "push it to the max ... don't change
    anything, just enhance"). Same colours, sizes and places; finer rendering.
    1 glows fall off over six stops instead of two, so none has an edge
@@ -183,18 +123,200 @@ html[data-theme="dark"] .app-shell::after { background-image: url("data:image/sv
 @media (min-resolution: 2dppx) {
   html[data-theme="dark"] .card, html[data-theme="dark"] .ruled .card { box-shadow: inset 0.5px 0.5px 0 rgba(255, 255, 255, 0.30), inset -0.5px -0.5px 0 rgba(255, 255, 255, 0.06), inset 0 -12px 20px -14px rgba(0, 0, 0, 0.65), 0 0.5px 1px rgba(0, 0, 0, 0.6), 0 14px 28px -12px rgba(0, 0, 0, 0.7); }
   html[data-theme="dark"] .card .card:not(.xs-group), html[data-theme="dark"] .ruled .card .card:not(.xs-group) { box-shadow: none; }
-  html[data-theme="dark"] .sched-badge-btn, html[data-theme="dark"] .ticker-toggle, html[data-theme="dark"] .btn-secondary, html[data-theme="dark"] .quiet-action, html[data-theme="dark"] .hdr-opts, html[data-theme="dark"] .hdr-add, html[data-theme="dark"] .dd,
-  html[data-theme="dark"] .see-all.pill-action, html[data-theme="dark"] .notice-dismiss, html[data-theme="dark"] .pill-act:not(.pill-go) { box-shadow: inset 0.5px 0.5px 0 rgba(255, 255, 255, 0.26), inset -0.5px -0.5px 0 rgba(255, 255, 255, 0.05), 0 3px 8px rgba(0, 0, 0, 0.4); }
-  html[data-theme="dark"] .card .row .dd { box-shadow: none; }
 }
-html[data-theme="dark"] .ruled .card .pill-act.pill-go, html[data-theme="dark"] .pill-act.pill-go {
-  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.22) 0%, rgba(255, 255, 255, 0.06) 48%, rgba(255, 255, 255, 0) 52%), linear-gradient(180deg, var(--gd-red-top) 0%, var(--accent-fill) 46%, var(--gd-red-lo) 100%);
-  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.18);
-}
-html[data-theme="dark"] .btn-primary {
-  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.22) 0%, rgba(255, 255, 255, 0.06) 48%, rgba(255, 255, 255, 0) 52%), linear-gradient(180deg, var(--gd-red-top) 0%, var(--accent-fill) 46%, var(--gd-red-lo) 100%);
-  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.18);
-}
-html[data-theme="dark"] .pill-act:active, html[data-theme="dark"] .see-all:active, html[data-theme="dark"] .voice-bar:active, html[data-theme="dark"] .voice-search:active,
-html[data-theme="dark"] .tab:active, html[data-theme="dark"] .btn-primary:active, html[data-theme="dark"] .hdr-add:active { filter: brightness(0.94); }
 html[data-theme="dark"] .today-title { text-rendering: optimizeLegibility; font-kerning: normal; }
+
+/* THE BUTTONS, ONE FINISH PER FAMILY (Dave 2026-10-05: "make sure it's uniform
+   everywhere ... we can't be missing anything ... no bugs, no conflicts").
+
+   WHY THIS SHAPE. .pill-act paints at 34px and takes taps across 44px with
+   5px transparent top and bottom borders and background-clip: padding-box
+   (components.css, "every rule that fills a .pill-act must use the
+   longhand"). A `background` shorthand resets the clip and paints the fill
+   into the hit border, and an outer box-shadow is drawn around the 44px
+   border box: both made a second, taller pill appear behind the real one.
+   So here every fill is longhand (the colour is never touched, a highlight
+   is layered on with background-image), the clip is restated as
+   padding-box, inset shadows only, and anything outside the pill is a
+   filter: drop-shadow, which follows what is actually painted.
+
+   RED: every solid red control. QUIET: every capsule (its own fill kept,
+   lit from the top, a soft shadow beneath, no ring, per the capsule ruling).
+   .row-act is red in light and a capsule in dark, as it already was; Health's
+   hero pill (.ruled .h-hero .pill-act) is red in dark only, likewise. */
+html[data-theme="dark"] .btn-primary,
+html[data-theme="dark"] .ruled .card .pill-act.pill-go,
+html[data-theme="dark"] .pill-act.pill-go,
+html[data-theme="dark"] .plan-cta,
+html[data-theme="dark"] .mode-hero .mode-go,
+html[data-theme="dark"] .hdr-controls .tasks-focus,
+html[data-theme="dark"] .convo-send,
+html[data-theme="dark"] .ruled .h-hero .pill-act {
+  background-color: var(--accent-fill);
+  background-image:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.22) 0%, rgba(255, 255, 255, 0.06) 48%, rgba(255, 255, 255, 0) 52%),
+    linear-gradient(180deg, var(--gd-red-top) 0%, var(--accent-fill) 46%, var(--gd-red-lo) 100%);
+  background-clip: padding-box;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45), inset 0 -2px 3px var(--gd-red-edge);
+  filter: drop-shadow(0 1px 1px var(--gd-red-edge)) drop-shadow(0 6px 10px var(--gd-red-glow));
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.18);
+}
+html[data-theme="dark"] .pill-act:not(.pill-go),
+html[data-theme="dark"] .see-all.pill-action,
+html[data-theme="dark"] .btn-sm:not(.btn-primary):not(.btn-danger):not(.btn-secondary),
+html[data-theme="dark"] .btn-secondary,
+html[data-theme="dark"] .sched-badge-btn,
+html[data-theme="dark"] .sched-join,
+html[data-theme="dark"] .note-conn-add,
+html[data-theme="dark"] .ruled.health-ruled .h-add,
+html[data-theme="dark"] .promo-pill,
+html[data-theme="dark"] .hdr-opts,
+html[data-theme="dark"] .hdr-add,
+html[data-theme="dark"] .quiet-action,
+html[data-theme="dark"] .ticker-toggle,
+html[data-theme="dark"] .dd,
+html[data-theme="dark"] .row-act,
+html[data-theme="dark"] .ruled .card .row.row-act {
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0) 60%);
+  background-clip: padding-box;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16), inset 0 -1px 0 rgba(0, 0, 0, 0.35);
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.45));
+}
+/* A value word inside a row is a word, not a button. */
+html[data-theme="dark"] .card .row .dd { background-image: none; box-shadow: none; filter: none; }
+
+/* PRESS: everything pressable gives a little under the thumb and dims a touch. */
+html[data-theme="dark"] .btn-primary,
+html[data-theme="dark"] .ruled .card .pill-act.pill-go,
+html[data-theme="dark"] .pill-act.pill-go,
+html[data-theme="dark"] .plan-cta,
+html[data-theme="dark"] .mode-hero .mode-go,
+html[data-theme="dark"] .hdr-controls .tasks-focus,
+html[data-theme="dark"] .convo-send,
+html[data-theme="dark"] .ruled .h-hero .pill-act,
+html[data-theme="dark"] .pill-act:not(.pill-go),
+html[data-theme="dark"] .see-all.pill-action,
+html[data-theme="dark"] .btn-sm:not(.btn-primary):not(.btn-danger):not(.btn-secondary),
+html[data-theme="dark"] .btn-secondary,
+html[data-theme="dark"] .sched-badge-btn,
+html[data-theme="dark"] .sched-join,
+html[data-theme="dark"] .note-conn-add,
+html[data-theme="dark"] .ruled.health-ruled .h-add,
+html[data-theme="dark"] .promo-pill,
+html[data-theme="dark"] .hdr-opts,
+html[data-theme="dark"] .hdr-add,
+html[data-theme="dark"] .quiet-action,
+html[data-theme="dark"] .ticker-toggle,
+html[data-theme="dark"] .dd,
+html[data-theme="dark"] .row-act,
+html[data-theme="dark"] .ruled .card .row.row-act,
+html[data-theme="dark"] .voice-bar,
+html[data-theme="dark"] .voice-search,
+html[data-theme="dark"] .tab { transition: transform 140ms var(--ease-out), filter 140ms var(--ease-out); }
+html[data-theme="dark"] .btn-primary:active,
+html[data-theme="dark"] .ruled .card .pill-act.pill-go:active,
+html[data-theme="dark"] .pill-act.pill-go:active,
+html[data-theme="dark"] .plan-cta:active,
+html[data-theme="dark"] .mode-hero .mode-go:active,
+html[data-theme="dark"] .hdr-controls .tasks-focus:active,
+html[data-theme="dark"] .convo-send:active,
+html[data-theme="dark"] .ruled .h-hero .pill-act:active,
+html[data-theme="dark"] .pill-act:not(.pill-go):active,
+html[data-theme="dark"] .see-all.pill-action:active,
+html[data-theme="dark"] .btn-sm:not(.btn-primary):not(.btn-danger):not(.btn-secondary):active,
+html[data-theme="dark"] .btn-secondary:active,
+html[data-theme="dark"] .sched-badge-btn:active,
+html[data-theme="dark"] .sched-join:active,
+html[data-theme="dark"] .note-conn-add:active,
+html[data-theme="dark"] .ruled.health-ruled .h-add:active,
+html[data-theme="dark"] .promo-pill:active,
+html[data-theme="dark"] .hdr-opts:active,
+html[data-theme="dark"] .hdr-add:active,
+html[data-theme="dark"] .quiet-action:active,
+html[data-theme="dark"] .ticker-toggle:active,
+html[data-theme="dark"] .dd:active,
+html[data-theme="dark"] .row-act:active,
+html[data-theme="dark"] .ruled .card .row.row-act:active,
+html[data-theme="dark"] .voice-bar:active,
+html[data-theme="dark"] .voice-search:active,
+html[data-theme="dark"] .tab:active { transform: scale(0.965); }
+html[data-theme="dark"] .btn-primary:active,
+html[data-theme="dark"] .ruled .card .pill-act.pill-go:active,
+html[data-theme="dark"] .pill-act.pill-go:active,
+html[data-theme="dark"] .plan-cta:active,
+html[data-theme="dark"] .mode-hero .mode-go:active,
+html[data-theme="dark"] .hdr-controls .tasks-focus:active,
+html[data-theme="dark"] .convo-send:active,
+html[data-theme="dark"] .ruled .h-hero .pill-act:active { filter: drop-shadow(0 1px 1px var(--gd-red-edge)) drop-shadow(0 3px 6px var(--gd-red-glow)) brightness(0.94); }
+html[data-theme="dark"] .pill-act:not(.pill-go):active,
+html[data-theme="dark"] .see-all.pill-action:active,
+html[data-theme="dark"] .btn-sm:not(.btn-primary):not(.btn-danger):not(.btn-secondary):active,
+html[data-theme="dark"] .btn-secondary:active,
+html[data-theme="dark"] .sched-badge-btn:active,
+html[data-theme="dark"] .sched-join:active,
+html[data-theme="dark"] .note-conn-add:active,
+html[data-theme="dark"] .ruled.health-ruled .h-add:active,
+html[data-theme="dark"] .promo-pill:active,
+html[data-theme="dark"] .hdr-opts:active,
+html[data-theme="dark"] .hdr-add:active,
+html[data-theme="dark"] .quiet-action:active,
+html[data-theme="dark"] .ticker-toggle:active,
+html[data-theme="dark"] .dd:active,
+html[data-theme="dark"] .row-act:active,
+html[data-theme="dark"] .ruled .card .row.row-act:active { filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.40)) brightness(0.96); }
+@media (prefers-reduced-motion: reduce) {
+html[data-theme="dark"] .btn-primary,
+html[data-theme="dark"] .ruled .card .pill-act.pill-go,
+html[data-theme="dark"] .pill-act.pill-go,
+html[data-theme="dark"] .plan-cta,
+html[data-theme="dark"] .mode-hero .mode-go,
+html[data-theme="dark"] .hdr-controls .tasks-focus,
+html[data-theme="dark"] .convo-send,
+html[data-theme="dark"] .ruled .h-hero .pill-act,
+html[data-theme="dark"] .pill-act:not(.pill-go),
+html[data-theme="dark"] .see-all.pill-action,
+html[data-theme="dark"] .btn-sm:not(.btn-primary):not(.btn-danger):not(.btn-secondary),
+html[data-theme="dark"] .btn-secondary,
+html[data-theme="dark"] .sched-badge-btn,
+html[data-theme="dark"] .sched-join,
+html[data-theme="dark"] .note-conn-add,
+html[data-theme="dark"] .ruled.health-ruled .h-add,
+html[data-theme="dark"] .promo-pill,
+html[data-theme="dark"] .hdr-opts,
+html[data-theme="dark"] .hdr-add,
+html[data-theme="dark"] .quiet-action,
+html[data-theme="dark"] .ticker-toggle,
+html[data-theme="dark"] .dd,
+html[data-theme="dark"] .row-act,
+html[data-theme="dark"] .ruled .card .row.row-act,
+html[data-theme="dark"] .voice-bar,
+html[data-theme="dark"] .voice-search,
+html[data-theme="dark"] .tab { transition: none; }
+html[data-theme="dark"] .btn-primary:active,
+html[data-theme="dark"] .ruled .card .pill-act.pill-go:active,
+html[data-theme="dark"] .pill-act.pill-go:active,
+html[data-theme="dark"] .plan-cta:active,
+html[data-theme="dark"] .mode-hero .mode-go:active,
+html[data-theme="dark"] .hdr-controls .tasks-focus:active,
+html[data-theme="dark"] .convo-send:active,
+html[data-theme="dark"] .ruled .h-hero .pill-act:active,
+html[data-theme="dark"] .pill-act:not(.pill-go):active,
+html[data-theme="dark"] .see-all.pill-action:active,
+html[data-theme="dark"] .btn-sm:not(.btn-primary):not(.btn-danger):not(.btn-secondary):active,
+html[data-theme="dark"] .btn-secondary:active,
+html[data-theme="dark"] .sched-badge-btn:active,
+html[data-theme="dark"] .sched-join:active,
+html[data-theme="dark"] .note-conn-add:active,
+html[data-theme="dark"] .ruled.health-ruled .h-add:active,
+html[data-theme="dark"] .promo-pill:active,
+html[data-theme="dark"] .hdr-opts:active,
+html[data-theme="dark"] .hdr-add:active,
+html[data-theme="dark"] .quiet-action:active,
+html[data-theme="dark"] .ticker-toggle:active,
+html[data-theme="dark"] .dd:active,
+html[data-theme="dark"] .row-act:active,
+html[data-theme="dark"] .ruled .card .row.row-act:active,
+html[data-theme="dark"] .voice-bar:active,
+html[data-theme="dark"] .voice-search:active,
+html[data-theme="dark"] .tab:active { transform: none; }
+}

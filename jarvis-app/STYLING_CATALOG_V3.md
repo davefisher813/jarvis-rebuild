@@ -1099,3 +1099,13 @@ A finish, not a new look. `styles/glass-dark.css`, every selector under `html[da
 
 Same colours, sizes and places; finer rendering, in a block at the foot of each glass file:
 glows eased over six stops; grain drawn at twice the density and shown at half size; on retina every lit edge is one device pixel (0.5px); a specular band on the red buttons and a hairline of depth under their words; a press dims a touch as well as giving; the Today title set with optical kerning.
+
+## §AX. The button finish, one per family (Dave 2026-10-05: "make sure it's uniform everywhere ... no bugs, no conflicts")
+
+The first finish drew a second pill behind Start Now, Read and Wrap Up. `.pill-act` paints at 34px and takes taps across 44px with transparent borders and `background-clip: padding-box`; the gloss used the `background` shorthand (which resets the clip) and an outer box-shadow (drawn around the 44px box). Fixed at the root, in a single section at the foot of each glass file:
+
+- **Red family** (one gloss): `.btn-primary`, `.pill-act.pill-go`, `.plan-cta`, `.mode-hero .mode-go`, `.hdr-controls .tasks-focus`, `.convo-send`; plus `.row-act` (Today's Focus) in light and Health's `.ruled .h-hero .pill-act` in dark, where each is already solid red.
+- **Quiet family** (own fill kept, lit top, soft shadow, no ring per §AL): `.pill-act:not(.pill-go)`, `.see-all.pill-action`, `.btn-sm`, `.btn-secondary`, `.sched-badge-btn`, `.sched-join`, `.note-conn-add`, Health `.h-add`, `.promo-pill`, `.hdr-opts`, `.hdr-add`, `.quiet-action`, `.ticker-toggle`, `.dd`; plus `.row-act` in dark.
+- **How**: colour is never touched (longhand only, the highlight layered with `background-image`), the clip restated as padding-box, inset shadows only, and anything outside the pill is `filter: drop-shadow`, which follows what is actually painted.
+- **Not buttons, left alone**: `.notice-dismiss` (the swipe rail), chips, selection boxes, avatars, chat bubbles.
+- `laws/glass.test.ts` holds it: no shorthand and no outer shadow on any `.pill-act` rule, identical family membership in both themes except the documented per-theme pair, no ring on a capsule, Dismiss untouched. A mutation check confirmed the law fails on the original bug.
