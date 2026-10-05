@@ -308,7 +308,7 @@ export default function AdminPanel({ isAdmin, probe, onRecheck, source, onBack }
               <div className="row-grow">
                 <div className="conn-name adm-feedback">{g.name}{g.message ? ": " + g.message : ""}</div>
                 <div className="facts">
-                  <span className="fact red">{g.count} {g.count === 1 ? "time" : "times"}</span>
+                  <span className="fact red">{g.count} {g.count === 1 ? "Time" : "Times"}</span>
                   <span className="fact">{platformLabel(g.platform)}</span>
                   {g.build && <span className="fact"><b>{g.build}</b></span>}
                   <span className="fact date">Last {g.lastSeen.slice(0, 10)}</span>

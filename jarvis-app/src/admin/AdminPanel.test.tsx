@@ -285,8 +285,8 @@ describe("AdminPanel: Errors", () => {
   it("lists a group with its name, message, count, platform, build and last date", async () => {
     render(<AdminPanel isAdmin source={mk(async () => [group(1, { count: 7 }), group(2, { name: "RangeError", message: "bad date", platform: "web", build: "zzz9999" })])} />);
     expect(await screen.findByText("TypeError: boom 1")).toBeInTheDocument();
-    expect(screen.getByText("7 times")).toBeInTheDocument();
-    expect(screen.getByText("1 time")).toBeInTheDocument();
+    expect(screen.getByText("7 Times")).toBeInTheDocument();
+    expect(screen.getByText("1 Time")).toBeInTheDocument();
     expect(screen.getByText("RangeError: bad date")).toBeInTheDocument();
     expect(screen.getByText("iOS")).toBeInTheDocument();
     expect(screen.getByText("Web")).toBeInTheDocument();
@@ -321,8 +321,8 @@ describe("AdminPanel: Errors", () => {
   it("falls back to labelled sample crashes in the demo source", async () => {
     render(<AdminPanel isAdmin source={makeSampleAdminSource()} />);
     expect(await screen.findByText("TypeError: Cannot read properties of undefined")).toBeInTheDocument();
-    expect(screen.getByText("7 times")).toBeInTheDocument();
-    expect(screen.getByText(/Sample data/)).toBeInTheDocument();
+    expect(screen.getByText("7 Times")).toBeInTheDocument();
+    expect(screen.getByText(/Sample Data/)).toBeInTheDocument();
   });
 
   it("the client reads /api/admin/errors with the admin's token and unwraps the groups", async () => {
