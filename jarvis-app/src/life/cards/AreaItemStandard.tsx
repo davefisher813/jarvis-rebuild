@@ -54,6 +54,7 @@ export default function AreaItemStandard({ area, counts, onOpen, health = false 
             {stats.map((s) => <span className="fact" key={s}>{s}</span>)}
           </div>
         )}
+        {health && <div className="area-sections">Track · Train · Reports · Meds · Privacy</div>}
       </div>
       <div className="area-chev"><div className="chev" /></div>
     </div>

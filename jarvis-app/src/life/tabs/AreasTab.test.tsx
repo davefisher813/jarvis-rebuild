@@ -76,6 +76,9 @@ describe("AreasTab", () => {
     expect(healthRow.querySelector(".health-chip, .health-sections")).toBeNull();
     // It draws what every area draws: one fact per count.
     expect([...healthRow.querySelectorAll(".conn-meta > .fact")].map((f) => f.textContent)).toEqual(["1 Task"]);
+    // Dave 2026-10-05 (caps): Health is the big card. Its five doors are named in one plain line, not capsules.
+    expect(healthRow.querySelector(".area-sections")!.textContent).toBe("Track · Train · Reports · Meds · Privacy");
+    expect(document.querySelectorAll(".area-sections")).toHaveLength(1);
     // First in the list, ahead of the other areas.
     const names = [...document.querySelectorAll(".area-card .area-name")].map((n) => n.textContent);
     expect(names[0]).toBe("Health");
