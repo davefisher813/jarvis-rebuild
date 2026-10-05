@@ -6783,7 +6783,9 @@ span.row-star { cursor: default; }
 .eq-good { color: var(--good); } .eq-warn { color: var(--warn); } .eq-quiet { color: var(--tx-3); }
 .eq .facts { flex: 1; min-width: 0; }
 .week-acts { margin-top: var(--s-2h); align-items: center; }
-.week-why { margin-top: var(--s-2h); }
+/* AIR ROUND THE SENTENCE THE BUTTON COMES FROM (the round 2 review: the Move Two Blocks button started 10px under it, where the gaps above
+   and below elsewhere in the card are 16 to 20): a step above and a full 16 below. */
+.week-why { margin: var(--s-3) 0 var(--s-4); }
 /* The week's lines share one left edge: a line led by an area wears a 7px dot and its gap, so a line with no dot holds the same
    room for it (Dave 2026-10-05, the review: Money and Health began at 128, 195 Made at 115). */
 .week-card:has(.eq .fact.cat) .eq .facts > .fact:first-child:not(.cat) { padding-left: calc(7px + var(--s-1h)); }

@@ -70,14 +70,14 @@ export default function AppearancePage({ onBack }: { onBack: () => void }) {
           <div className="task-check-tap"><div className="task-check" /></div>
           <div className="task-title">
             <span className="task-name">Pick Up the Dry Cleaning</span>
-            <div className="r-k r-k-one"><span className="r-goal fact warn">Today</span><span className="fact date">4:30 PM</span></div>
+            <div className="facts"><span className="fact warn">Today</span><span className="fact date">4:30 PM</span></div>
           </div>
         </div>
         <div className="task-row" aria-hidden="true">
           <div className="task-check-tap"><CalendarDays className="ic cat-fg-sky" /></div>
           <div className="task-title">
             <span className="task-name">Team Standup</span>
-            <div className="r-k r-k-one"><span className="fact date">10:00 AM</span></div>
+            <div className="facts"><span className="fact date">10:00 AM</span></div>
           </div>
         </div>
       </Card>

@@ -60,9 +60,10 @@ describe("buildWeek", () => {
     expect(changedLine.facts[0]?.tone).toBeUndefined();
     // The area is a dot and its name, the amount its own fact (§AM F3).
     // "Got 3h of 17h": "3h of 17h" alone was unreadable as a sentence (Dave 2026-10-05, the review).
-    expect(byKey.Next).toEqual(["Bridge", "Got 3h of 17h"]);
+    expect(byKey.Next).toEqual(["Bridge", "Got 3h of 17h Planned"]);
+    // Every line's KEY WORD is the same quiet grey (round 2 review: amber labels on lines that are not due); the colour lives on the value.
     // Next is amber: "needs you soon" in the key, never the red of late.
-    expect(w.lines.find((l) => l.key === "Next")!.tone).toBe("warn");
+    expect(w.lines.every((l) => l.tone === "quiet")).toBe(true);
     for (const l of w.lines) expect(["good", "warn", "quiet"]).toContain(l.tone);
     expect(w.next?.name).toBe("Bridge");
     expect(w.offer).toBe(true);
@@ -114,7 +115,7 @@ describe("the life lines (2026-09-26)", () => {
   it("a zero week reads Got 0 of, never 0 Min of and never None of", () => {
     const events = [ev("e2", "2026-09-09", "09:00", "17:00", "tucci"), ev("e3", "2026-09-10", "09:00", "15:00", "tucci")];
     const w = buildWeek({ today: TODAY, rows: [], events, workouts: [], goals: [goal({ tags: ["bridge"] })], projects: [], categories: CATS });
-    expect(w.lines.find((l) => l.key === "Next")!.facts.map((f) => f.text)).toEqual(["Bridge", "Got 0 of 14h"]);
+    expect(w.lines.find((l) => l.key === "Next")!.facts.map((f) => f.text)).toEqual(["Bridge", "Got 0 of 14h Planned"]);
   });
 
   it("carries the report's cards at week scale, each silent at zero, between Learned and Next", () => {
@@ -132,7 +133,7 @@ describe("the life lines (2026-09-26)", () => {
     expect(byKey.Mail![0]).toEqual({ text: "Waiting 9 Days on a Reply", tone: "warn" });
     expect(byKey.Mail![1]!.text).toBe("2 Handled");
     expect(byKey.People).toEqual([{ text: "1 Reached", parts: [{ b: "1" }, " Reached"] }]);
-    expect(byKey.Decided).toEqual([{ text: "1 Made", parts: [{ b: "1" }, " Made"] }]);
+    expect(byKey.Decided).toEqual([{ text: "1 Decision Made", parts: [{ b: "1" }, " Decision Made"] }]);
     // Without the sources the card has the lines it always had.
     const bare = buildWeek({ today: TODAY, rows: [row("strand.created", "2026-09-11")], events: [], workouts: [], goals: [], projects: [], categories: CATS });
     expect(bare.lines.map((l) => l.key)).toEqual(["Learned"]);

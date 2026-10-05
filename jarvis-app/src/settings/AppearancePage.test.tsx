@@ -15,7 +15,8 @@ describe("AppearancePage footer", () => {
   it("does not promise the phone's own text size while nothing reads it", async () => {
     expect(await readSystemTextScale()).toBeNull();
     render(<AppearanceProvider><AppearancePage onBack={() => {}} /></AppearanceProvider>);
-    expect(screen.getByText("Larger Text Everywhere")).toBeInTheDocument();
+    // And it says nothing false about the size either: "Larger Text Everywhere" sat under a value of "Default" (round 2 review).
+    expect(screen.queryByText("Larger Text Everywhere")).toBeNull();
     expect(document.body.textContent).not.toMatch(/phone.{0,3}s own text size/i);
     expect(document.body.textContent).not.toMatch(/still applies/i);
   });

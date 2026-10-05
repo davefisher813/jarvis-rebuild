@@ -42,7 +42,7 @@ describe("Insights: the ledger (The Long Story)", () => {
   const open = async (id: string) => {
     const view = render(<NotesProvider userId={id}><Seeded><InsightsFlow onBack={() => {}} /></Seeded></NotesProvider>);
     // The row says what it holds, in words, not "2 Crossings and Counting".
-    await waitFor(() => expect(screen.getByText("1 Goal Achieved, 1 Project Closed")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("1 Goal Achieved")).toBeInTheDocument());
     fireEvent.click(screen.getByText("The Long Story"));
     await screen.findByText("Garage Cleanout");
     return view;
@@ -52,7 +52,9 @@ describe("Insights: the ledger (The Long Story)", () => {
     render(<NotesProvider userId="u-ins-ledger"><Seeded><InsightsFlow onBack={() => {}} /></Seeded></NotesProvider>);
     await waitFor(() => expect(screen.getByText("The Long Story")).toBeInTheDocument());
     const row = screen.getByText("The Long Story").closest(".row")!;
-    await waitFor(() => expect(row.querySelector(".facts")!.textContent).toBe("1 Goal Achieved, 1 Project Closed"));
+    // Two facts, the dot between them the stylesheet's (the round 2 review: a comma typed inside one run).
+    await waitFor(() => expect([...row.querySelectorAll(".facts > .fact")].map((f) => f.textContent)).toEqual(["1 Goal Achieved", "1 Project Closed"]));
+    expect(row.querySelector(".facts")!.textContent).not.toContain(",");
     expect(row.textContent).not.toMatch(/Crossing/);
   });
 
@@ -105,7 +107,7 @@ describe("Insights: the week card", () => {
     const facts = [...next.querySelectorAll(".facts > .fact")];
     expect(facts[0]!.className).toBe("fact cat");
     expect(facts[0]!.textContent).toBe("Health");
-    expect(facts[1]!.textContent).toMatch(/^Got 0 of \d+h$/);
+    expect(facts[1]!.textContent).toMatch(/^Got 0 of \d+h Planned$/);
     expect(next.textContent).not.toMatch(/None of/);
   });
 

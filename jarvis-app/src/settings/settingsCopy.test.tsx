@@ -10,11 +10,12 @@ import { AuthProvider } from "../auth/AuthProvider";
 import TrainingPage, { rackHint } from "./TrainingPage";
 import AccountPage from "./AccountPage";
 import AboutPage from "./AboutPage";
-import NotificationsPage from "./NotificationsPage";
+import NotificationsPage, { webNote } from "./NotificationsPage";
+import { Capacitor } from "@capacitor/core";
+import * as webPush from "../shared/webPush";
 import BrainSettingsPage from "./BrainSettingsPage";
 import { Switch } from "./kit";
 import { notEnoughDaysLine } from "../brain/insightCopy";
-import { footFor } from "../shared/webPush";
 import { readGymSettings, writeGymSettings } from "../gym/settings";
 
 // SETTINGS COPY READS THE SAME TO EVERY READER (evening audit, 2026-09-29).
@@ -107,14 +108,17 @@ describe("item 7: Account, About, Brain", () => {
 });
 
 describe("item 5: Notifications foot and switch names", () => {
-  it("the foot for a browser that is not on the Home Screen is the whole instruction", async () => {
+  it("the note for a browser that is not on the Home Screen is the whole instruction, in one node, and says only the steps", async () => {
     // The copy itself is whole in source.
-    expect(footFor("not-standalone")).toMatch(/then open it from there$/);
+    expect(webNote("not-standalone")).toMatch(/then open JARVIS from there$/);
+    expect(webNote("not-standalone").length).toBeLessThan(100);
+    vi.spyOn(Capacitor, "isNativePlatform").mockReturnValue(false);
+    vi.spyOn(webPush, "currentStatus").mockResolvedValue("not-standalone");
     const { container } = render(<NotesProvider userId="u-n"><NotificationsPage onBack={() => {}} /></NotesProvider>);
-    const all = ["no-sw", "not-standalone", "no-push", "denied", "no-key", "off", "on"].map((s) => footFor(s as Parameters<typeof footFor>[0]));
-    await waitFor(() => expect(all).toContain(container.querySelector(".input-hint")!.textContent));
+    await waitFor(() => expect(container.querySelector(".input-hint")).not.toBeNull());
     const foot = container.querySelector(".input-hint")!;
-    // Whatever state this browser is in, its foot is one whole node.
+    expect(foot.textContent).toBe(webNote("not-standalone"));
+    // Whatever state this browser is in, its note is one whole node.
     expectOneNode(foot, foot.textContent!);
   });
 
@@ -258,10 +262,10 @@ describe("Settings copy is never clamped or cut by the stylesheet", () => {
 // as cut mid-word ("...from ther", "...a quiet month l"). Both are whole in source, so they
 // are kept under 100 so no reader can clip them (2026-09-30).
 describe("the two lines a 100-character reader used to clip", () => {
-  it("every blocked-state Home Screen foot fits in 100 characters", () => {
+  it("every note under the Alerts row fits in 100 characters", () => {
     // off and on carry the all-or-nothing sentence as well, by design, and are not in this batch.
     for (const s of ["no-sw", "not-standalone", "no-push", "denied", "no-key"] as const) {
-      expect(footFor(s).length, s).toBeLessThan(100);
+      expect(webNote(s).length, s).toBeLessThan(100);
     }
   });
   it("the Learning Lab consolidation line fits in 100 characters", async () => {

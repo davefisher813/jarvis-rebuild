@@ -26,6 +26,7 @@ import CategorySheet from "../categories/screens/CategorySheet";
 import { DESTINATIONS, MAX_TABS } from "../shell/destinations";
 import { filledSettingsIcon, FILLED_FALLBACK } from "../shared/filledIcons";
 import * as toast from "../shared/toast";
+import * as webPush from "../shared/webPush";
 
 // THE SETTINGS SWEEP, ROUND 1B (Dave 2026-10-05: "Everything should look PERFECT. I want the most aesthetically pleasing app ever. He opens the
 // app and finds nothing."). Each test below fails without the change it names; the stylesheet ones read the CSS text, since jsdom draws none.
@@ -54,9 +55,14 @@ describe("Settings hub: every row wears its own type's colour, one glyph style, 
     expect(container.querySelector(".lib-ico-brand"), "the 2026-08-18 all-red wash is superseded").toBeNull();
     const by = Object.fromEntries(rows.map((r) => [norm(r.querySelector(".lib-name")), tone(r.querySelector(".lib-ico")!)]));
     expect(by).toMatchObject({
-      Notifications: "cat-fg-orange", Booking: "cat-fg-sky", "Email Sections": "cat-fg-teal", Brain: "cat-fg-purple", Connections: "cat-fg-blue",
+      Notifications: "cat-fg-orange", "Email Sections": "cat-fg-teal", Brain: "cat-fg-purple", Connections: "cat-fg-blue",
       Backup: "cat-fg-graphite", About: "cat-fg-graphite",
     });
+    // A SETTINGS PAGE IS CHROME, NOT AN ENTITY (round 2 review): no row borrows Event's sky or Task's red.
+    expect(by.Booking, "Booking is not Event's sky").not.toBe("cat-fg-sky");
+    expect(by.Training, "Training is not the Task's red").not.toBe("cat-fg-red");
+    // ONE ICON SYSTEM: every row's glyph sits on the same tile.
+    for (const r of rows) expect(r.querySelector(".lib-ico")!.classList.contains("lib-ico-tile"), norm(r.querySelector(".lib-name"))).toBe(true);
     expect(new Set(Object.values(by)).size).toBeGreaterThan(6);
   });
 
@@ -84,16 +90,18 @@ describe("Account: no red question mark, and the armed step looks armed", () => 
     expect([...container.querySelectorAll(".sh2 .t")].map(norm)).not.toContain("Account");
   });
 
-  it("the Redo Setup row keeps one height and takes the confirm amber once armed", () => {
+  it("the Redo Setup row never changes height (its grey line is always there) and takes the confirm amber once armed", () => {
     const { container } = view();
     const row = () => screen.getByText(/Redo Setup/).closest(".row")!;
-    expect(row()).toHaveClass("set-armable");
+    // THE ROW IS NOT TALLER THAN IT DRAWS (round 2 review: it reserved a 68px two-line box for a line it was not showing).
+    expect(rule(".ruled .set-card > .set-row.set-armable"), "no reserved height").toBe("");
+    expect(row().querySelector(".conn-meta")!.textContent).toBe("Your Data Stays");
     expect(row()).not.toHaveClass("set-armed");
     fireEvent.click(screen.getByText("Redo Setup"));
     expect(row()).toHaveClass("set-armed");
     expect(container.querySelector(".set-armed .conn-name")!.textContent).toBe("Tap Again to Redo Setup");
     expect(rule(".ruled .set-card > .set-row.set-armed .conn-name")).toMatch(/color:\s*var\(--warn\)/);
-    expect(rule(".ruled .set-card > .set-row.set-armable")).toMatch(/min-height:\s*\d+px/);
+    expect(row().querySelector(".conn-meta")!.textContent, "the same line before and after the first tap").toBe("Your Data Stays");
   });
 
   it("Sign Out arms into the solid destructive slab, not the row it was", () => {
@@ -167,15 +175,30 @@ describe("Brain: the Danger Zone is the head's capsule, the confirm is solid red
 describe("Notifications: the way to turn the dead-looking Alerts switch on sits right under it, in short lines", () => {
   afterEach(() => vi.restoreAllMocks());
 
-  it("the how-to is the note under the This Phone card, before the next head", async () => {
+  it("the how-to is the note under the This Phone card, before the next head, and says only what the row does not", async () => {
     vi.spyOn(Capacitor, "isNativePlatform").mockReturnValue(false);
+    vi.spyOn(webPush, "currentStatus").mockResolvedValue("not-standalone");
     const { container } = render(<NotesProvider userId="u-sweep-notif"><NotificationsPage onBack={() => {}} /></NotesProvider>);
+    await screen.findByText("Tap Share, then Add to Home Screen, then open JARVIS from there");
     const heads = [...container.querySelectorAll(".sh2 .t")].map(norm);
     expect(heads[0]).toBe("This Phone");
     const phoneCard = container.querySelector(".set-card")!.closest(".pad-x")!;
     const note = phoneCard.nextElementSibling!;
     expect(note.querySelector(".input-hint"), "the note is the very next block").not.toBeNull();
     expect(note.nextElementSibling!.classList.contains("sh2"), "and the next block is the next head").toBe(true);
+    // SAID ONCE (round 2 review): the row names the state, the note carries the steps, and neither repeats the other.
+    const meta = norm(phoneCard.querySelector(".conn-meta"));
+    expect(meta).toBe("Needs the Home Screen App");
+    expect(norm(note), "the note is not the row's line again").not.toContain("Needs the Home Screen");
+    expect(norm(note).toLowerCase()).not.toContain("add jarvis to your home screen");
+  });
+
+  it("a locked state the row names whole draws no note at all", async () => {
+    vi.spyOn(Capacitor, "isNativePlatform").mockReturnValue(false);
+    vi.spyOn(webPush, "currentStatus").mockResolvedValue("no-sw");
+    const { container } = render(<NotesProvider userId="u-sweep-notif-nosw"><NotificationsPage onBack={() => {}} /></NotesProvider>);
+    await screen.findByText("Not Supported in This Browser");
+    expect(container.querySelector(".input-hint"), "the row said it; a second line would say it twice").toBeNull();
   });
 
   it("no switch line wraps a sentence: each is a short fragment", async () => {
@@ -192,20 +215,30 @@ describe("Notifications: the way to turn the dead-looking Alerts switch on sits 
 
   it("webNote carries no dot typed in it, for any state", () => {
     for (const s of ["no-sw", "not-standalone", "no-push", "denied", "no-key", "off", "on"] as const) expect(webNote(s), s).not.toContain("·");
-    expect(webNote(null)).toBe("Checking whether this phone can get alerts");
+    // While it is still checking, the row says "Checking" and there is no note under it to say it again.
+    expect(webNote(null)).toBe("");
+    // A note never repeats the row's own line: every locked state that has a row line says nothing, or only what is new.
+    for (const s of ["no-sw", "no-push", "no-key"] as const) expect(webNote(s), s + " is named whole on the row").toBe("");
   });
 });
 
 describe("Appearance: the choice is shown, and the note belongs to the row it is about", () => {
-  it("draws a Preview of a real row and puts the text note on Text Size", () => {
+  it("draws a Preview on the real task row anatomy, with an event beside it, and no false line on Text Size", () => {
     const { container } = render(<AppearanceProvider><AppearancePage onBack={() => {}} /></AppearanceProvider>);
     expect([...container.querySelectorAll(".sh2 .t")].map(norm)).toEqual(["Display", "Preview"]);
     const size = screen.getByText("Text Size").closest(".row")!;
-    expect(norm(size.querySelector(".conn-meta"))).toBe("Larger Text Everywhere");
-    expect(container.querySelector(".input-hint"), "no ambiguous note hanging under both rows").toBeNull();
-    const preview = container.querySelector(".set-preview .row")!;
-    expect(preview.getAttribute("aria-hidden")).toBe("true");
-    expect(preview.querySelector(".fact.warn")).not.toBeNull();
+    expect(size.querySelector(".conn-meta"), "the line that contradicted the value is gone").toBeNull();
+    // THE SAMPLE IS THE REAL ROWS (round 2 review): a task with its ring and its amber due word, and an event with its sky glyph.
+    const rows = [...container.querySelectorAll(".set-preview .task-row")];
+    expect(rows.length, "a task row and an event row").toBe(2);
+    for (const r of rows) expect(r.getAttribute("aria-hidden")).toBe("true");
+    expect(rows[0]!.querySelector(".task-check"), "the task's own ring").not.toBeNull();
+    expect(rows[0]!.querySelector(".fact.warn")).not.toBeNull();
+    expect(rows[1]!.querySelector(".ic.cat-fg-sky"), "the event's glyph wears the event's sky").not.toBeNull();
+    // One note, and it sits under the Preview card, saying it is a sample.
+    const notes = [...container.querySelectorAll(".input-hint")];
+    expect(notes.length).toBe(1);
+    expect(notes[0]!.previousElementSibling!.contains(container.querySelector(".set-preview"))).toBe(true);
   });
 });
 
@@ -301,7 +334,12 @@ describe("Empty states are crafted (D9): a glyph in its type's colour, a title, 
       <NotesProvider userId="u-sweep-conn"><GoogleSessionProvider requestToken={async () => "tok"} makeApi={() => ({}) as never}><ConnectionsPage configured={false} /></GoogleSessionProvider></NotesProvider>,
     );
     glyphed(container.querySelector(".empty-state"));
-    expect(norm(container.querySelector(".empty-sub"))).toBe("Google Sign-In Is Not Switched On for This Build");
+    // THE ENGINEERING WORDS ARE GONE (round 2 review: "This Build" is developer vocabulary, and the card was a dead end).
+    expect(norm(container.querySelector(".empty-title"))).toBe("Google Is Not Connected Yet");
+    expect(norm(container.querySelector(".empty-sub"))).toBe("Mail and Calendar Join Once Sign-In Opens");
+    expect(container.textContent).not.toMatch(/This Build|Switched On/);
+    // The ONE empty state is bare, not boxed in a card (the same as Email Sections and What JARVIS Learned).
+    expect(container.querySelector(".card .empty-state"), "no card around it").toBeNull();
   });
 
   it("Connections wears the one Settings header: the shared page header, not its own taller bar and title", () => {

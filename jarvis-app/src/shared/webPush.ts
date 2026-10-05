@@ -47,28 +47,9 @@ export function webPushStatus(e: WebPushEnv): WebPushStatus {
   return e.subscribed ? "on" : "off";
 }
 
-// Clemenza, condition 1: the master switch is all or nothing, because the
-// server sends every alert to every device and ignores the four category
-// switches. The copy says so where the switch is, not in a doc.
-export const ALL_OR_NOTHING = "All alerts or none · The switches above only shape the Notifications screen inside the app";
-
-export function footFor(status: WebPushStatus): string {
-  switch (status) {
-    case "no-sw": return "This browser cannot receive alerts";
-    case "not-standalone": return "Add JARVIS to your Home Screen for alerts: Share, then Add to Home Screen, then open it from there";
-    case "no-push": return "Alerts need iOS 16.4 or newer, opened from the Home Screen";
-    case "denied": return "Notifications are off for JARVIS in iOS Settings · Turn them on under Notifications, JARVIS";
-    case "no-key": return "The server has no push key yet, so alerts cannot be set up";
-    case "off": return `Turn on Alerts on This Phone and iOS will ask to allow notifications · ${ALL_OR_NOTHING}`;
-    case "on": return `Alerts arrive on this phone · ${ALL_OR_NOTHING}`;
-    case "native": return "";
-  }
-}
-
 // WHY THE SWITCH WILL NOT TURN ON (audit 2026-09-29: "the Alerts toggle
-// silently stays off"). footFor is a paragraph at the foot of the page;
-// this is the line that sits on the switch's own row and is what a tap on a
-// locked switch says. Empty when the switch works.
+// silently stays off"). This is the line a tap on a locked switch says (the row itself draws a short
+// Title Case fragment, NotificationsPage WEB_META). Empty when the switch works.
 export function reasonFor(status: WebPushStatus): string {
   switch (status) {
     case "no-sw": return "This browser cannot receive alerts";

@@ -284,6 +284,10 @@ export default function InsightsFlow({ onBack, onOpenTask, onOpenEntity, onOpenM
         <div className="sh2 sh2-quiet"><span className="t">This Month</span></div>
         <div className="pad-x"><div className="card list-card-ruled">
           <div {...pressable(() => setScreen({ kind: "live" }))} className="row">
+            {/* ONE ROW RECIPE ON THIS PAGE (the round 2 review: This Month had no glyph and its text at 41, while Your Months and The
+                Ledger had one and started at 83). Every row leads with its bare glyph in its subject's tone: the month's purple (the
+                Brain's own, as Insights wears it on the Brain), the ledger's done green. */}
+            <div className="row-glyph cat-fg-purple">{filledIcon("month")}</div>
             <div className="row-grow">
               <div className="conn-name">{`${monthName(monthKey)}, So Far`}</div>
               {/* THE SUB IS NOT A KICKER (Dave 2026-09-03, pic 5: "too much
@@ -319,11 +323,12 @@ export default function InsightsFlow({ onBack, onOpenTask, onOpenEntity, onOpenM
               // the one coloured fact (green, done) and moved is the one
               // grey, its count a white number with no state.
               <div {...pressable(() => setScreen({ kind: "month", month: s.data.month }))} className="row" key={s.id}>
-                <div className="lib-ico lib-disc cat-bg-sky">{filledIcon("month")}</div>
+                <div className="row-glyph cat-fg-purple">{filledIcon("month")}</div>
                 <div className="row-grow">
                   <div className="conn-name">{`${monthName(s.data.month)} ${s.data.month.slice(0, 4)}`}</div>
                   <div className="facts">
-                    <span className="fact"><b>{moved}</b> Moved</span>
+                    {/* Goals Moved, the same words and the same count the week's tile says (a goal achieved or a project closed). */}
+                    <span className="fact"><b>{moved}</b> Goals Moved</span>
                     <span className="fact good">{lineCase(`${s.data.done.toLocaleString("en-US")} Done`)}</span>
                   </div>
                 </div>
@@ -352,10 +357,11 @@ export default function InsightsFlow({ onBack, onOpenTask, onOpenEntity, onOpenM
               {story.length > 0 && (
                 // What it holds, said once: "2 Goals Achieved, 1 Project Closed" (one grey; Dave 2026-10-05, the review: "2
                 // Crossings and Counting" did not say what the row holds).
-                <div className="facts"><span className="fact">{lineCase([
-                  storyGoals > 0 ? `${storyGoals} ${storyGoals === 1 ? "goal" : "goals"} achieved` : "",
-                  storyProjects > 0 ? `${storyProjects} ${storyProjects === 1 ? "project" : "projects"} closed` : "",
-                ].filter(Boolean).join(", "))}</span></div>
+                // Two facts, the dot between them the stylesheet's (the round 2 review: a comma typed inside one run).
+                <div className="facts">
+                  {storyGoals > 0 && <span className="fact">{lineCase(`${storyGoals} ${storyGoals === 1 ? "goal" : "goals"} achieved`)}</span>}
+                  {storyProjects > 0 && <span className="fact">{lineCase(`${storyProjects} ${storyProjects === 1 ? "project" : "projects"} closed`)}</span>}
+                </div>
               )}
             </div>
             {CHEV}

@@ -142,9 +142,11 @@ describe("Appearance", () => {
   });
 
   it("the Text Size row promises the phone's own text size only once the phone can say it", async () => {
-    // Today the seam answers null, so the row says only what the menu does.
-    const { unmount } = render(<AppearanceProvider><AppearancePage onBack={noop} /></AppearanceProvider>);
-    expect(screen.getByText("Larger Text Everywhere")).toBeInTheDocument();
+    // Today the seam answers null, so the row has no second line at all (it used to say "Larger Text Everywhere" over a value of "Default").
+    const { unmount, container } = render(<AppearanceProvider><AppearancePage onBack={noop} /></AppearanceProvider>);
+    expect(screen.queryByText("Larger Text Everywhere")).toBeNull();
+    expect(screen.getByText("Text Size").closest(".row")!.querySelector(".conn-meta"), "a row with nothing true to say shows nothing").toBeNull();
+    void container;
     unmount();
     // The day the text-zoom plugin answers a number, Default follows the phone (the provider already applies it) and the
     // footer has to say so: a promise exists exactly when the code keeps it.
