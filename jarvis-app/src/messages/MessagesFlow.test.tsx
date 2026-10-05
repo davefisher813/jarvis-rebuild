@@ -573,6 +573,10 @@ describe("MessagesFlow (threads)", () => {
     await waitFor(() => expect(screen.queryByText("Ridgeley")).toBeNull());
     expect(screen.getByText("DoorDash")).toBeInTheDocument(); // only that thread
     fireEvent.click(screen.getByText("Standing Rules"));
+    // Clean rows (Dave 2026-10-05): the muted thread's row is a door; Unmute is in its sheet, not a quiet button on the row.
+    const muted = (await screen.findByText("Muted Threads")).closest("div")!.nextElementSibling!.querySelector(".row") as HTMLElement;
+    expect(muted.querySelector(".quiet-action, .pill-act")).toBeNull();
+    fireEvent.click(muted);
     fireEvent.click(await screen.findByText("Unmute"));
     fireEvent.click(screen.getByText("Email"));
     expect(await screen.findByText("Ridgeley")).toBeInTheDocument();
@@ -947,12 +951,12 @@ describe("MessagesFlow (threads)", () => {
     ]));
     render(wrap(<MessagesFlow ai={ai} configured />, makeApi({ searchThreads: async () => [sent] })));
     fireEvent.click(await screen.findByText("Connect Google"));
-    // The one waiting row, with its More control on the row itself. (The
-    // swipe reveal behind the row carries the same word, hidden until it is
-    // swiped, which is exactly the control a mouse cannot reach.)
-    const onRow = (await screen.findAllByText("More")).find((el) => el.className.includes("pill-act"));
-    expect(onRow).toBeDefined();
-    fireEvent.click(onRow!);
+    // The one waiting row. Clean rows (Dave 2026-10-05): no More pill on it; the row is the door, and tapping it opens the
+    // sheet that holds the primary ask and every other move.
+    const subject = await screen.findByText(/The waiver/);
+    const row = subject.closest(".row") as HTMLElement;
+    expect(row.querySelector(".pill-act, .btn-sm, .quiet-action")).toBeNull();
+    fireEvent.click(row);
     expect(await screen.findByText("More Moves")).toBeInTheDocument();
     // The sheet is the whole point: the alternates are in it, tappable.
     const sheet = document.querySelector(".sheet-scrim");
@@ -1499,11 +1503,13 @@ describe("MessagesFlow (threads)", () => {
     await act(async () => { body.querySelector("p")!.textContent = "Here's the waiver."; });
     await waitFor(() => expect(body.textContent).toContain("Here's the waiver."));
 
-    fireEvent.click(await screen.findByText("Attach It"));
+    // Clean rows (Dave 2026-10-05): the offer row is the door; there is no Attach It pill on it.
+    expect(screen.queryByText("Attach It")).not.toBeInTheDocument();
+    fireEvent.click(await screen.findByText("You Have That File"));
     await waitFor(() => expect(screen.getByText("Ridgeline Waiver 2026.txt")).toBeInTheDocument());
     // Taken, not just named: the offer card is gone and nothing was typed
     // into the message body to stand in for a real attachment.
-    expect(screen.queryByText("Attach It")).not.toBeInTheDocument();
+    expect(screen.queryByText("You Have That File")).not.toBeInTheDocument();
     expect(screen.getByLabelText("Message").textContent).toBe("Here's the waiver.");
 
     fireEvent.click(screen.getByText("Send"));

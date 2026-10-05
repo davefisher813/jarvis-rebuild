@@ -192,8 +192,7 @@ describe("Mark paid: the person's own word, confirmed", () => {
     mount("mb-pay", async (l) => { await add(l, { vendor: "Water", amount: 40, dueDate: day(-1) }); });
     await screen.findByText("Water");
     fireEvent.click(screen.getByLabelText("Mark paid"));
-    expect(await screen.findByText("Mark Paid")).toBeInTheDocument();
-    const date = screen.getByLabelText("Paid on") as HTMLInputElement;
+    const date = (await screen.findByLabelText("Paid on")) as HTMLInputElement;
     expect(date.value).toBe(T);
     // nothing is paid until the confirm
     expect((await ledgerRef!.listBills())[0]!.data.paidAt).toBeUndefined();
@@ -209,7 +208,7 @@ describe("Mark paid: the person's own word, confirmed", () => {
     await screen.findByText("Water");
     fireEvent.click(screen.getByLabelText("Mark paid"));
     fireEvent.click(await screen.findByText("Cancel"));
-    await waitFor(() => expect(screen.queryByText("Mark Paid")).toBeNull());
+    await waitFor(() => expect(screen.queryByLabelText("Paid on")).toBeNull());
     expect((await ledgerRef!.listBills())[0]!.data.paidAt).toBeUndefined();
   });
 
@@ -412,7 +411,10 @@ describe("a recurring offer, quiet, and nothing is scheduled until Yes", () => {
     expect(screen.getByText("Make It Monthly?")).toBeInTheDocument();
     // asking changed nothing
     expect((await ledgerRef!.listBills()).every((b) => !b.data.recurrence)).toBe(true);
-    fireEvent.click(screen.getByText("Yes"));
+    // THE OFFER IS A ROW WITH NO PILL (Dave 2026-10-05): the tap asks, and Make It Monthly is the answer
+    expect(screen.queryByText("Yes")).toBeNull();
+    fireEvent.click(screen.getByText("Make It Monthly?"));
+    fireEvent.click(await screen.findByText("Make It Monthly"));
     await waitFor(() => expect(screen.queryByText("Make It Monthly?")).toBeNull());
     const monthly = (await ledgerRef!.listBills()).filter((b) => b.data.recurrence === "monthly");
     expect(monthly).toHaveLength(1);

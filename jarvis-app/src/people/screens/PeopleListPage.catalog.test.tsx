@@ -129,3 +129,63 @@ describe("a reminder's own words on a person's row keep the one clock shape", ()
     expect(reminderAtLabel("00:30")).toBe("Reminds at 12:30 AM");
   });
 });
+
+// CLEAN ROWS, SECTION ACTIONS ON THE HEAD (Dave 2026-10-05, locked). "Add Person" is the Your People head's one capsule,
+// beside the title, never a row at the foot of the card; person rows hold no capsule at all.
+describe("People list: the add is on the section head, rows are clean", () => {
+  it("Add Person is the head's see-all capsule, not a row inside the card", () => {
+    const { container } = list();
+    const head = [...container.querySelectorAll(".sh2")].find((h) => h.textContent?.includes("Your People"))!;
+    const cap = head.querySelector("button.see-all.pill-action");
+    expect(cap?.textContent).toBe("Add Person");
+    for (const card of container.querySelectorAll(".card")) {
+      expect(card.textContent).not.toContain("Add Person");
+    }
+    expect(container.querySelector(".row-act")).toBeNull();
+  });
+
+  it("no person row carries a capsule", () => {
+    const { container } = list();
+    for (const row of container.querySelectorAll(".person-row-ruled")) {
+      expect(row.querySelector(".pill-act, .row-act, .btn-sm, .quiet-action"), row.textContent ?? "").toBeNull();
+    }
+  });
+});
+
+describe("a person's card: rows are clean and the right action shows when it is wanted", () => {
+  const baseProps = { onEdit: () => {}, onBack: () => {}, onCheckIn: () => {} };
+  const person = p("m", "Mom", { relationship: "Family" });
+  const rowCaps = (c: Element) => [...c.querySelectorAll(".row, .task-row")].flatMap((r) => [...r.querySelectorAll(".pill-act, .row-act, .btn-sm, .quiet-action")]);
+
+  it("a quiet contact surfaces Check In as text in the row, never as a capsule; a recent one shows nothing", () => {
+    const quiet = render(<PersonDetail person={person} {...baseProps} lastTalked="2 Months ago" quiet />);
+    const ctx = quiet.container.querySelector(".row .row-ctx");
+    expect(ctx?.textContent).toBe("Check In");
+    expect(rowCaps(quiet.container)).toEqual([]);
+    quiet.unmount();
+    const recent = render(<PersonDetail person={person} {...baseProps} lastTalked="3 Days Ago" quiet={false} />);
+    expect(recent.container.querySelector(".row-ctx")).toBeNull();
+  });
+
+  it("a promise's Add Task is in its sheet, and surfaces on the row only once the promise is overdue", () => {
+    const past = { threadId: "t1", text: "Send the roster", due: "2020-01-01" };
+    const later = { threadId: "t2", text: "Book the field", due: "2099-01-01" };
+    const { container } = render(<PersonDetail person={person} {...baseProps} promises={[past, later]} onAddTask={() => {}} />);
+    expect(rowCaps(container)).toEqual([]);
+    const rows = [...container.querySelectorAll(".row")];
+    const overdueRow = rows.find((r) => r.textContent?.includes("Send the roster"))!;
+    const laterRow = rows.find((r) => r.textContent?.includes("Book the field"))!;
+    expect(overdueRow.querySelector(".row-ctx")?.textContent).toBe("Add Task");
+    expect(laterRow.querySelector(".row-ctx")).toBeNull();
+  });
+
+  it("Add Something is on the Next Time We Talk head, and with nothing to list there is no card round it", () => {
+    const { container } = render(<PersonDetail person={person} {...baseProps} onAddPoint={() => {}} onTogglePoint={() => {}} />);
+    const head = [...container.querySelectorAll(".sh2")].find((h) => h.textContent?.includes("Next Time We Talk"))!;
+    expect(head.querySelector("button.see-all.pill-action")?.textContent).toBe("Add");
+    expect(head.querySelector("button.see-all.pill-action")?.getAttribute("aria-label")).toBe("Add Something to Talk About");
+    expect(container.querySelector(".card .row-create")).toBeNull();
+    // The only card with "Add Something" in it would be a box holding nothing but an action.
+    for (const card of container.querySelectorAll(".card")) expect(card.textContent).not.toMatch(/Add Something|^Add$/);
+  });
+});

@@ -6,6 +6,7 @@ import { suggestFor, loadBlendMemory, blockKind, type Fit } from "../blend";
 import type { SheetCategory, SheetProject } from "../../tasks/screens/TaskSheet";
 import { sortPicks } from "../../shared/pickerSort";
 import { titleCase } from "../../shared/casing";
+import RowCtxAction from "../../shared/RowCtxAction";
 import type { EventRecurrence } from "../types";
 import { addMinutes, fmtTime, minToHHMM, addDays, minutesBetween } from "../calendar";
 import type { TitleSuggestion } from "../memory";
@@ -713,12 +714,9 @@ export default function EventSheet({
                     <div className="conn-name truncate">{a.name || a.email}</div>
                     {a.name && <div className="conn-meta truncate">{a.email}</div>}
                   </div>
-                  {known && onOpenPerson && (
-                    <button type="button" className="pill-act" onClick={(e) => { e.stopPropagation(); onOpenPerson(known.id); }}>Open</button>
-                  )}
-                  {!known && onAddPerson && (
-                    <button type="button" className="pill-act" onClick={(e) => { e.stopPropagation(); onAddPerson(a); }}>Add</button>
-                  )}
+                  {/* NO PILL ON A ROW (Dave 2026-10-05, locked): the row's one verb is one quiet word, the same as its tap. */}
+                  <RowCtxAction when={!!known && !!onOpenPerson} label="Open" ariaLabel={"Open " + (a.name || a.email)} onAct={() => known && onOpenPerson?.(known.id)} />
+                  <RowCtxAction when={!known && !!onAddPerson} label="Add" ariaLabel={"Add " + (a.name || a.email)} onAct={() => onAddPerson?.(a)} />
                 </div>
               );
             })}
@@ -745,8 +743,8 @@ export default function EventSheet({
                     >
                       <div className={"task-check " + (t.done ? "done" : "cat-bd-" + catColor(t.category))} />
                     </div>
-                    <div className="conn-name truncate">{t.text}</div>
-                    <button type="button" className="pill-act" onClick={(e) => { e.stopPropagation(); setTaskIds((ids) => ids.filter((x) => x !== t.id)); }}>Detach</button>
+                    <div className="conn-name truncate">{titleCase(t.text)}</div>
+                    <RowCtxAction when label="Detach" ariaLabel={"Detach " + t.text} onAct={() => setTaskIds((ids) => ids.filter((x) => x !== t.id))} />
                   </div>
                 ))}
                 {/* BLENDING (2026-08-21): ranked by how well the task fits
@@ -757,10 +755,10 @@ export default function EventSheet({
                     onClick={() => { setTaskIds((ids) => [...ids, o.task.id]); onBlend?.(blockKind({ title, location }), o.task.category); }}>
                     <span className={"cat-dot cat-bg-" + catColor(o.task.category)} />
                     <div className="row-grow">
-                      <div className="conn-name truncate">{o.task.text}</div>
+                      <div className="conn-name truncate">{titleCase(o.task.text)}</div>
                       <div className="conn-meta">{o.why}</div>
                     </div>
-                    <span className="pill-act">Add</span>
+                    <RowCtxAction when label="Add" ariaLabel={"Add " + o.task.text} onAct={() => { setTaskIds((ids) => [...ids, o.task.id]); onBlend?.(blockKind({ title, location }), o.task.category); }} />
                   </div>
                 ))}
                 {rest.length > 0 && (
@@ -770,7 +768,7 @@ export default function EventSheet({
                       {rest.map((t) => (
                         <div key={t.id} className="chip" role="button" tabIndex={0}
                           onClick={() => { setTaskIds((ids) => [...ids, t.id]); onBlend?.(blockKind({ title, location }), t.category); }}>
-                          <span className={"cat-dot cat-bg-" + catColor(t.category)} />{t.text}
+                          <span className={"cat-dot cat-bg-" + catColor(t.category)} />{titleCase(t.text)}
                         </div>
                       ))}
                     </div>

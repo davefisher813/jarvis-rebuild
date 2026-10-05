@@ -38,12 +38,14 @@ describe("Tracker: adding a subscription twice", () => {
     );
     await waitFor(() => expect(svc).toBeTruthy());
 
+    // The add is the head's capsule and a sheet (Dave 2026-10-05: no form in a card); its Save carries the latch.
     fireEvent.click(await screen.findByRole("tab", { name: "Subscriptions" }, { timeout: 4000 }));
-    fireEvent.change(await screen.findByLabelText("New subscription name"), { target: { value: "Apple Bill" } });
-    fireEvent.change(screen.getByLabelText("New subscription amount"), { target: { value: "9.99" } });
+    fireEvent.click(await screen.findByRole("button", { name: "Add a Subscription" }));
+    fireEvent.change(await screen.findByLabelText("Subscription name"), { target: { value: "Apple Bill" } });
+    fireEvent.change(screen.getByLabelText("Subscription amount"), { target: { value: "9.99" } });
 
     // Three taps in the same tick, the way an impatient thumb produces them.
-    const add = screen.getByRole("button", { name: "Add" });
+    const add = screen.getByRole("button", { name: "Save" });
     await act(async () => {
       fireEvent.click(add);
       fireEvent.click(add);
@@ -78,9 +80,10 @@ describe("Tracker: managing what is already there", () => {
     // Typed in through the screen, the way it really arrives -- the screen
     // reads once on mount, so a record written behind its back is not there.
     fireEvent.click(await screen.findByRole("tab", { name: "Subscriptions" }, { timeout: 4000 }));
-    fireEvent.change(await screen.findByLabelText("New subscription name"), { target: { value: "Aple Bil" } });
-    fireEvent.change(screen.getByLabelText("New subscription amount"), { target: { value: "9.99" } });
-    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Add" })); });
+    fireEvent.click(await screen.findByRole("button", { name: "Add a Subscription" }));
+    fireEvent.change(await screen.findByLabelText("Subscription name"), { target: { value: "Aple Bil" } });
+    fireEvent.change(screen.getByLabelText("Subscription amount"), { target: { value: "9.99" } });
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Save" })); });
 
     // The row is a door now, so the typo is reachable.
     fireEvent.click(await screen.findByText("Aple Bil"));
@@ -112,7 +115,7 @@ describe("Tracker: managing what is already there", () => {
     );
     await waitFor(() => expect(svc).toBeTruthy());
 
-    fireEvent.click(await screen.findByText("Add an Account", {}, { timeout: 4000 }));
+    fireEvent.click(await screen.findByText("Add Account", {}, { timeout: 4000 }));
     await screen.findByText("New Account");
     fireEvent.change(screen.getByLabelText("Account name"), { target: { value: "Everyday Checking" } });
     fireEvent.change(screen.getByLabelText("Account balance"), { target: { value: "1240.50" } });

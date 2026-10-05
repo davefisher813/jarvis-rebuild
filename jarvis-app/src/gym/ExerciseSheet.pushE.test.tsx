@@ -66,12 +66,17 @@ describe("ExerciseSheet: Pair With (H-24)", () => {
     const { rerender } = render(<ExerciseSheet mode="edit" initial={existing} library={[]} history={[]} onSave={() => {}} onCancel={() => {}} partner="Row" onPairWith={onPairWith} />);
     expect(screen.getByText("Pair With")).toBeInTheDocument();
     expect(screen.getByText("Row")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Change" }));
+    // CLEAN ROW (Dave 2026-10-05, locked): no Change capsule; the row is the door, with a chevron.
+    const door = screen.getByText("Pair With").closest(".row")!;
+    expect(door.querySelector(".pill-act")).toBeNull();
+    expect(door.querySelector(".chev")).not.toBeNull();
+    fireEvent.click(door);
     expect(onPairWith).toHaveBeenCalled();
     rerender(<ExerciseSheet mode="edit" initial={existing} library={[]} history={[]} onSave={() => {}} onCancel={() => {}} partner={null} onPairWith={onPairWith} />);
-    // Unpaired says nothing; the Choose capsule is the whole answer (§AK).
+    // Unpaired says nothing (§AK), and no capsule says it for the row either.
     expect(screen.queryByText("Not paired")).toBeNull();
-    expect(screen.getByRole("button", { name: "Choose" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Choose" })).toBeNull();
+    expect(screen.getByRole("button", { name: /^Pair With/ })).toBeInTheDocument();
     rerender(<ExerciseSheet mode="edit" initial={existing} library={[]} history={[]} onSave={() => {}} onCancel={() => {}} />);
     expect(screen.queryByText("Pair With")).toBeNull();
   });

@@ -21,6 +21,9 @@ describe("DurationCard", () => {
     expect(screen.getAllByText("10h 27m").length).toBe(2);
     expect(screen.getByText("Review")).toBeInTheDocument();
     expect(screen.getByText("37 Min")).toBeInTheDocument();
+    // AMENDED 2026-10-05 (Dave, locked): the two corrections are behind the head's one Correct End capsule, not rows in the card.
+    expect(document.querySelector(".card .row-create, .card .pill-act")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Correct End" }));
     fireEvent.click(screen.getByText("End at the Last Set"));
     expect(onCorrect).toHaveBeenCalledWith(start + 42 * 60000, expect.objectContaining({ field: "endedAt", from: base.endedAt, to: start + 42 * 60000 }));
   });
@@ -29,19 +32,22 @@ describe("DurationCard", () => {
     const revised: WorkoutData = { ...base, revisions: [{ at: 1, field: "endedAt", from: base.endedAt, to: start + 40 * 60000 }] };
     render(<DurationCard workout={revised} onCorrect={onCorrect} />);
     expect(screen.getByText("Corrected")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Correct End" }));
     fireEvent.click(screen.getByText("Set the End Time"));
     fireEvent.change(screen.getByLabelText("End time"), { target: { value: "19:30" } });
-    fireEvent.click(screen.getByText("Save"));
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
     const to = onCorrect.mock.calls[0]![0] as number;
     expect(new Date(to).getHours()).toBe(19);
     expect(new Date(to).getDate()).toBe(12);
+    fireEvent.click(screen.getByRole("button", { name: "Correct End" }));
     fireEvent.click(screen.getByText("Set the End Time"));
     fireEvent.change(screen.getByLabelText("End time"), { target: { value: "01:10" } });
-    fireEvent.click(screen.getByText("Save"));
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
     expect(new Date(onCorrect.mock.calls[1]![0] as number).getDate()).toBe(13);
   });
   it("only reads without the seam", () => {
     render(<DurationCard workout={base} />);
     expect(screen.queryByText("Set the End Time")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Correct End" })).toBeNull();
   });
 });

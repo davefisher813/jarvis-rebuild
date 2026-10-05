@@ -3,10 +3,10 @@ import { useOptionalFiles, useFileStore, useOptionalLedger, useTracker } from ".
 import { useAI } from "../../ai/useAI";
 import { attemptWrite } from "../../shared/guard";
 import { showToast } from "../../shared/toast";
-import { pressable } from "../../shared/pressable";
+import MoneyRow from "../MoneyRow";
 import { lineCase, titleCase } from "../../shared/casing";
 import { todayISO } from "../../tasks/grouping";
-import { Image as ImageGlyph, FileText, Trash2 } from "../../shared/icons";
+import { Image as ImageGlyph, FileText, Sparkles } from "../../shared/icons";
 import { ENTITY_FILE, fileStem, sizeLabel, type UserFile } from "../../files/types";
 import { monthDay } from "../bills";
 import { categoryChoices, lastCategoryFor } from "../categoryDefault";
@@ -259,9 +259,17 @@ export default function ReceiptsSection({ addNonce = 0 }: { addNonce?: number })
             {rows.map((r) => {
               const f = files.find((x) => x.id === r.data.attachmentFileId);
               const image = !!f && f.data.mime.startsWith("image/");
+              const openIt = () => setSheet({ kind: "detail", id: r.id });
               return (
-                <div className="task-row p2 file-row" key={r.id} {...pressable(() => setSheet({ kind: "detail", id: r.id }))}>
-                  <div className="task-check-tap"><span className={"gm-slot " + (image ? "cat-fg-blue" : "cat-fg-brand")}>
+                // A receipt's tap is its sheet (every action); the swipe and the menu are Delete, with its Undo.
+                <MoneyRow key={r.id} name={titleCase(r.data.vendor)} className="file-row"
+                  onDelete={() => void removeRecord(r)}
+                  menu={[{ label: "Open", onPick: openIt }, { label: "Delete", destructive: true, onPick: () => void removeRecord(r) }]}
+                  onOpen={openIt}>
+                  {/* A receipt is MONEY, so its glyph wears Money's green, the picture's or the document's glyph in the
+                      type's one tone (Dave 2026-10-05, rule 13: a type icon carries its type's colour; it was blue and the
+                      brand red, and brand red is for what can be tapped). */}
+                  <div className="task-check-tap"><span className="gm-slot cat-fg-green">
                     {image ? <ImageGlyph className="ic" /> : <FileText className="ic" />}
                   </span></div>
                   <div className="task-title">
@@ -279,7 +287,7 @@ export default function ReceiptsSection({ addNonce = 0 }: { addNonce?: number })
                     </div>
                   </div>
                   <div className="mt-amt">{fmtCents(r.data.amountCents)}</div>
-                </div>
+                </MoneyRow>
               );
             })}
           </div></div>
@@ -290,29 +298,33 @@ export default function ReceiptsSection({ addNonce = 0 }: { addNonce?: number })
         <>
           <div className="sh2 sh2-quiet"><span className="t">Files</span><span className="n">{loose.length}</span></div>
           <div className="pad-x"><div className="card list-card-ruled">
-            {loose.map((r) => (
-              <div className="task-row p2 file-row" {...pressable(() => openFile(r))} key={r.id}>
-                {/* The type is the glyph's colour: a picture in blue, a
-                    document in the brand red, the editor's own pairing. */}
-                <div className="task-check-tap"><span className={"gm-slot " + (r.data.mime.startsWith("image/") ? "cat-fg-blue" : "cat-fg-brand")}>
-                  {r.data.mime.startsWith("image/") ? <ImageGlyph className="ic" /> : <FileText className="ic" />}
-                </span></div>
-                <div className="task-title">
-                  <span className="task-name">{r.data.name}</span>
-                  <div className="r-k"><span className="fact date">{monthDay(r.data.addedAt)}</span>{r.data.bytes > 0 && <span className="r-goal r-cat">{sizeLabel(r.data.bytes)}</span>}</div>
-                </div>
-                {/* Read It, on a picture the app can actually read, and only
-                    with AI on. It proposes a receipt; it never saves one. */}
-                {ai.available && r.data.mime.startsWith("image/") && (
-                  <button className="pill-act" aria-label={"Read " + r.data.name}
-                    onClick={(e) => { e.stopPropagation(); void readLegacy(r); }}>
-                    {reading === r.id ? "Reading" : "Read It"}
-                  </button>
-                )}
-                <button className="conn-remove" aria-label={"Remove " + r.data.name}
-                  onClick={(e) => { e.stopPropagation(); void removeLegacy(r); }}><Trash2 className="ic" /></button>
-              </div>
-            ))}
+            {loose.map((r) => {
+              const image = r.data.mime.startsWith("image/");
+              // Read It, on a picture the app can actually read, and only with AI on. It proposes a receipt; it never
+              // saves one. It is the row's one verb (the swipe, the menu), never a pill on the row.
+              const canRead = ai.available && image;
+              const read = () => void readLegacy(r);
+              return (
+                <MoneyRow key={r.id} name={r.data.name} className="file-row"
+                  verb={canRead ? { label: reading === r.id ? "Reading" : "Read It", icon: <Sparkles className="ic" />, run: read } : null}
+                  onDelete={() => void removeLegacy(r)} deleteLabel="Remove"
+                  menu={[
+                    { label: "Open", onPick: () => openFile(r) },
+                    ...(canRead ? [{ label: "Read It", onPick: read }] : []),
+                    { label: "Remove", destructive: true, onPick: () => void removeLegacy(r) },
+                  ]}
+                  onOpen={() => openFile(r)}>
+                  {/* The type is the glyph's colour: Money's green, the one tone for a receipt's picture or document. */}
+                  <div className="task-check-tap"><span className="gm-slot cat-fg-green">
+                    {image ? <ImageGlyph className="ic" /> : <FileText className="ic" />}
+                  </span></div>
+                  <div className="task-title">
+                    <span className="task-name">{r.data.name}</span>
+                    <div className="r-k"><span className="fact date">{monthDay(r.data.addedAt)}</span>{r.data.bytes > 0 && <span className="r-goal r-cat">{sizeLabel(r.data.bytes)}</span>}</div>
+                  </div>
+                </MoneyRow>
+              );
+            })}
           </div></div>
         </>
       )}

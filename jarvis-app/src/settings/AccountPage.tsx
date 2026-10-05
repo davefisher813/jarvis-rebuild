@@ -105,7 +105,7 @@ export default function AccountPage({ onBack, onEditProfile, onSignOut }: { onBa
         </button>
         <input ref={fileRef} type="file" accept="image/*" hidden aria-label="Profile photo"
           onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; void onFile(f); }} />
-        <div className="account-name">{p?.name || "Your name"}</div>
+        <div className="account-name">{p?.name || "Your Name"}</div>
         {/* CATALOG PASS (2026-10-05, Dave "I am sick of this"): Title Case on
             every grey line the app writes, so "Personal plan" is "Personal Plan". */}
         <div className="account-sub">{`${tmpl} Plan`}</div>

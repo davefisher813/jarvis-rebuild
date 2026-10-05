@@ -1,7 +1,7 @@
 import { useState } from "react";
 import LargeTitleNav from "../shared/LargeTitleNav";
 import { readGymSettings, writeGymSettings, type GymSettings } from "../gym/settings";
-import { Head, Card, Switch, focusField } from "./kit";
+import { Head, Card, Switch, Foot, focusField } from "./kit";
 
 // S5-Q32 (2026-09-04): "bar weight and plates have no control." Every plate
 // calculation and warm-up ramp already reads GymSettings.barWeight/.plates
@@ -87,14 +87,20 @@ export function RackSettings({ withShowLast = false }: { withShowLast?: boolean 
             onBlur={() => setBarInput(String(settings.barWeight))} />
         </div>
       </Card>
-      <div className="pad-x"><div className="input-label">Plates on the Rack</div></div>
-      <div className="pad-x"><div className="input-hint">{rackHint(rackUnit)}</div></div>
-      <div className="pad-x"><div className="chip-row chip-wrap-row">
-        {PLATE_OPTIONS.map((p) => (
-          <div key={p} className={"chip" + (settings.plates.includes(p) ? " active" : "")} role="button" tabIndex={0}
-            aria-pressed={settings.plates.includes(p)} onClick={() => togglePlate(p)}>{p}</div>
-        ))}
-      </div></div>
+      {/* THE PLATES ARE A GROUP LIKE ANY OTHER (2026-10-05, found rendering Training at 390 wide): a bold label, a note and a
+          bare chip strip floated under the card in a third style. Its own quiet head, its own card, and the note under it. */}
+      <Head label="Plates on the Rack" />
+      <Card>
+        <div className="row set-row">
+          <div className="chip-row chip-wrap-row">
+            {PLATE_OPTIONS.map((p) => (
+              <div key={p} className={"chip" + (settings.plates.includes(p) ? " active" : "")} role="button" tabIndex={0}
+                aria-pressed={settings.plates.includes(p)} onClick={() => togglePlate(p)}>{p}</div>
+            ))}
+          </div>
+        </div>
+      </Card>
+      <Foot>{rackHint(rackUnit)}</Foot>
     </>
   );
 }

@@ -306,7 +306,8 @@ describe("CategoryDetail org health (2026-08-10)", () => {
     // AMENDED 2026-09-26 (pass-off): the next move is the lens's NEXT form
     // on its own line, the step in Title Case; the chips sit on the line
     // under it, cased.
-    expect(screen.getByText("Email Sponsors")).toHaveClass("r-next-v");
+    // The next step is also the task under Up Next, so the text is on two rows: the project's NEXT line is the one asked.
+    expect(screen.getAllByText("Email Sponsors").some((e) => e.classList.contains("r-next-v"))).toBe(true);
     expect(screen.getByText("1 Late")).toHaveClass("u-late");
     expect(screen.queryByText(/Next: /)).toBeNull();
     expect(screen.queryByText(/Moves Grow the league/)).toBeNull();
@@ -360,10 +361,11 @@ describe("CategoryDetail record (2026-08-10)", () => {
     // The home page's quiet tile (Brain onto the rulings, 2026-09-02): a
     // number and a lowercase word, the word ALL CAPS only through CSS.
     expect(screen.getByText("done")).toHaveClass("st-w");
-    expect(screen.getByText("Take out trash")).toBeInTheDocument();
+    // His own typed title is shown in Title Case (Dave 2026-09-26; stored as typed).
+    expect(screen.getByText("Take Out Trash")).toBeInTheDocument();
     expect(screen.getByText("Today")).toBeInTheDocument();
     // done, so it must not also sit in Up Next
-    expect(screen.getAllByText("Take out trash")).toHaveLength(1);
+    expect(screen.getAllByText("Take Out Trash")).toHaveLength(1);
   });
 });
 
@@ -783,18 +785,20 @@ describe("CategoryDetail health page: no section is drawn twice (2026-09-10)", (
     // On a health area the goals section is named for what it holds (Dave
     // 2026-09-10: "health specific goals are like workout goals... That should
     // be a little bit different to me").
-    // THE ADDS LIVE AT THE FOOT (Dave 2026-09-13: "that should be at the
-    // very very bottom shouldn't take up a lot of space"). An empty section is
-    // not drawn on a health page, and its create is a capsule in the one row
-    // at the bottom.
-    for (const head of ["Projects", "Training Goals", "Coming Up", "Up Next"]) {
-      expect(screen.queryByText(head), head + " is empty here, so it is not drawn").toBeNull();
+    // THE ADDS ARE THEIR SECTIONS' HEADS (Dave 2026-10-05, locked: a section-level action lives in the section head, never
+    // in a card and never in a row at the foot; this replaces the 2026-09-13 foot row of three capsules). Each section
+    // stands with nothing in it as a head and its capsule, and no card is drawn round an action (rule 12). Training
+    // Goals is not a create (a goal starts at the lift or the metric), so it has no head while it is empty.
+    for (const [head, add] of [["Projects", "Add Project"], ["Coming Up", "Add Event"], ["Up Next", "Add Task"]] as const) {
+      const h = screen.getByText(head).closest(".sh2")!;
+      const btn = within(h as HTMLElement).getByRole("button", { name: add });
+      expect(btn, add + " is the " + head + " head's capsule").toHaveClass("see-all", "pill-action");
+      // Nothing is drawn under an empty section's head.
+      expect(h.nextElementSibling?.querySelector(".card") ?? null, head + " draws no card round nothing").toBeNull();
     }
-    const adds = document.querySelector(".h-adds");
-    expect(adds, "the creates row is on the page").toBeTruthy();
-    for (const label of ["Add Project", "Add Event", "Add Task"]) {
-      expect(adds!.querySelector(`[aria-label="${label}"]`), label + " lives in the foot row").toBeTruthy();
-    }
+    expect(screen.queryByText("Training Goals"), "empty, and not a create").toBeNull();
+    expect(document.querySelector(".h-adds"), "the old foot row is gone").toBeNull();
+    expect(document.querySelector(".row-create"), "no create row inside any card").toBeNull();
     expect(screen.queryByText("Goals Here"), "the generic head is not used on a health area").toBeNull();
     // THE DOOR MOVED, THE LIST DID NOT (Dave 2026-09-12: "wherever you can
     // enter data would be a better idea"). Neither the generic Add Goal nor
@@ -908,14 +912,16 @@ function headAction(title: string): HTMLElement {
 describe("CategoryDetail See All: one head action form per screen", () => {
   afterEach(() => { localStorage.clear(); });
 
-  it("Health's Done This Week See All is the bare red word, like Your Progress beside it", async () => {
+  it("Health's Done This Week See All is the bare red word", async () => {
     render(<NotesProvider userId="sa1"><SeededThreeDays name="Health" /></NotesProvider>);
     await waitFor(() => expect(screen.getByText("Done This Week")).toBeInTheDocument());
     const seeAll = headAction("Done This Week");
     expect(seeAll).toHaveTextContent("See All");
     expect(seeAll).toHaveClass("see-all");
     expect(seeAll).not.toHaveClass("pill-action");
-    expect(headAction("Your Progress")).not.toHaveClass("pill-action");
+    // Your Progress carries Log Something, its own section-level action: the capsule (Dave 2026-10-05).
+    expect(headAction("Your Progress")).toHaveTextContent("Log Something");
+    expect(headAction("Your Progress")).toHaveClass("see-all", "pill-action");
   });
 
   it("a plain area page's This Week See All keeps the capsule", async () => {
@@ -1008,6 +1014,29 @@ describe("CategoryDetail person row: the wait age takes the nudge count", () => 
     expect(line).not.toHaveClass("date");
   });
 
+  // CLEAN ROWS (Dave 2026-10-05, locked). A reply owed is a row whose moment has come, so Nudge is its swipe-left AND the
+  // one quiet word on it, never a capsule; a person with nothing owed has neither, and the tap still opens the person.
+  it("a reply owed has no capsule: Nudge is the swipe-left and the quiet word on the row", async () => {
+    const { container } = render(<NotesProvider userId="wn6"><SeededWaiting /></NotesProvider>);
+    await waitLine();
+    const row = container.querySelector(".person-row-ruled")!;
+    expect(row.querySelector(".pill-act, .row-act, .btn-sm, .quiet-action")).toBeNull();
+    expect(row.querySelector(".row-ctx")!.textContent).toBe("Nudge");
+    expect(container.querySelector(".notice-alt")!.textContent).toBe("Nudge");
+    // The quiet word takes the chevron's place on a row that has its moment.
+    expect(row.querySelector(".chev")).toBeNull();
+  });
+
+  it("a person with nothing owed is a clean door: no verb, no tray", async () => {
+    mailFake.waiting = [];
+    mailFake.lastMs = Date.now() - 3 * 86400000;
+    const { container } = render(<NotesProvider userId="wn7"><SeededWaiting /></NotesProvider>);
+    await screen.findByText("Last Talked 3 Days Ago");
+    const row = container.querySelector(".person-row-ruled")!;
+    expect(row.querySelector(".row-ctx")).toBeNull();
+    expect(container.querySelector(".notice-alt")).toBeNull();
+  });
+
   // A FACTS LINE NEVER CLIPS A WORD (sweep r2 #5): the short toned fact
   // leads and the free-text relationship comes last, the one that gives way.
   it("the state leads the line and the relationship follows it", async () => {
@@ -1087,5 +1116,29 @@ describe("CategoryDetail carries no dead Health computation", () => {
     for (const dead of ["healthLoggers", "HealthLoggerRow", "chronologicalLog", "const healthLog ", "const openLog "]) {
       expect(src, dead + " is built and read by nothing").not.toContain(dead);
     }
+  });
+});
+
+
+// OPEN CONTACTS IS THE PEOPLE HEAD'S OWN LINK (Dave 2026-10-05, locked: nothing at the foot of a card). It was a row-act
+// capsule at the foot of the people card; it is navigation out of the section, so it is the plain .see-all in the head.
+describe("CategoryDetail people section: Open Contacts is in the head", () => {
+  afterEach(() => { mailFake.google = null; mailFake.waiting = []; mailFake.lastMs = null; localStorage.clear(); });
+  it("draws Open Contacts as the section head's text link and not as a capsule in the card", async () => {
+    function Seeded({ onOpenContacts }: { onOpenContacts: () => void }) {
+      const cats = useCategories();
+      const people = usePeople();
+      const [cid, setCid] = useState("");
+      useEffect(() => { (async () => { const id = await cats.create("Family", "pink"); await people.create({ name: "Sam", group: "contacts", categoryIds: [id!] }); setCid(id!); })(); }, [cats, people]);
+      return cid ? <CategoryDetail categoryId={cid} onBack={() => {}} onOpenContacts={onOpenContacts} /> : null;
+    }
+    const onOpenContacts = vi.fn();
+    render(<NotesProvider userId="oc1"><Seeded onOpenContacts={onOpenContacts} /></NotesProvider>);
+    const btn = await screen.findByRole("button", { name: "Open Contacts" });
+    expect(btn.closest(".sh2")).not.toBeNull();
+    expect(btn).toHaveClass("see-all");
+    expect(btn).not.toHaveClass("row-act");
+    fireEvent.click(btn);
+    expect(onOpenContacts).toHaveBeenCalled();
   });
 });

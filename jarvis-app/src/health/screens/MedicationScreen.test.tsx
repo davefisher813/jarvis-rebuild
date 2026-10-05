@@ -37,7 +37,7 @@ describe("MedicationScreen", () => {
     ];
     render(<MedicationScreen {...base} meds={MEDS} doses={doses} onUndo={onUndo} />);
     expect(screen.queryByText("Log a Dose")).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Took It, Vitamin D" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Took It" })).toBeInTheDocument();
     expect(screen.getByText("The Timeline")).toBeInTheDocument();
     const undos = screen.getAllByRole("button", { name: /^Undo/ });
     expect(undos).toHaveLength(1);

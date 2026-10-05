@@ -158,6 +158,9 @@
 /* The glyph takes its type's colour: the dark ink from .cat-fg-*, and in light the glyph set (--cat-ic-*, held to the
    3:1 non-text bar), never the text ink. */
 [data-theme="light"] .email-today-ic.cat-fg-teal { color: var(--cat-ic-teal); }
+/* RULE 13 (Dave 2026-10-05): the envelope is Email teal in light too, the 3:1 glyph twin and not the text ink, wherever the
+   Email tab draws one (its empty states and the closed-hours door). */
+[data-theme="light"] .empty-icon .cat-fg-teal, [data-theme="light"] .mail-door-seal.cat-fg-teal { color: var(--cat-ic-teal); }
 [data-theme="light"] .email-today-ic.cat-fg-red { color: var(--cat-ic-red); }
 [data-theme="light"] .email-today-ic.cat-fg-sky { color: var(--cat-ic-sky); }
 [data-theme="light"] .email-today-ic.cat-fg-purple { color: var(--cat-ic-purple); }

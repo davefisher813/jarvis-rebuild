@@ -15,7 +15,7 @@ const TEMPLATE_OPTIONS = [
 ];
 
 // The name is typed at the right of its label, the template is a fact, and
-// Save is the row the card ends on, lit only when there is something to save.
+// Save is the screen's one filled button under the card, lit only when there is something to save.
 export default function ProfilePage({ onBack }: { onBack: () => void }) {
   const profile = useProfile();
   const categories = useCategories();
@@ -82,8 +82,12 @@ export default function ProfilePage({ onBack }: { onBack: () => void }) {
             onChange={(e) => { setName(e.target.value); setSaved(false); }} />
         </div>
         <Menu label="Template" value={template} options={TEMPLATE_OPTIONS} onPick={(v) => void pickTemplate(v as TemplateKey)} />
-        <button type="button" className="row row-act" onClick={() => void save()} disabled={!name.trim() || saved}>{saved ? "Saved" : "Save"}</button>
       </Card>
+      {/* THE SCREEN'S ONE FILLED PRIMARY, BELOW THE CARD (Dave 2026-10-05, locked: no capsule row inside a card). Lit
+          only when there is something to save. */}
+      <div className="pad-x sheet-actions">
+        <button type="button" className="btn btn-primary btn-block" onClick={() => void save()} disabled={!name.trim() || saved}>{saved ? "Saved" : "Save"}</button>
+      </div>
       <div className="screen-foot" />
     </div>
   );

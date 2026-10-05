@@ -321,10 +321,10 @@ export default function MessageScreen({ client, token, userId, row, account, off
         </div>
       )}
 
-      <div className="pad-x"><div className="card list-card-ruled">
-        <button className="row row-act" onClick={openGmail}>{link.exact ? OPEN_GMAIL_EXACT : OPEN_GMAIL_GENERIC}</button>
-        {gmailWhy && !link.exact && <div className="email-note quiet"><span>{GENERIC_WHY}</span></div>}
-      </div></div>
+      {/* 2026-10-05 (rule 12, a card holding nothing but an action is not drawn): the capsule stands by itself, the same
+          capsule New Event and Add All to Calendar are. The why is a note under it, not a plate round it. */}
+      <div className="notice-clear-row"><button className="row-act" onClick={openGmail}>{link.exact ? OPEN_GMAIL_EXACT : OPEN_GMAIL_GENERIC}</button></div>
+      {gmailWhy && !link.exact && <div className="email-note quiet"><span>{GENERIC_WHY}</span></div>}
       <div className="screen-foot" />
 
       {more && <RowActionSheet title={MORE_LABEL} actions={actions.map((a) => ({ ...a, label: a.disabled && (a.label === ARCHIVE || a.label === TRASH) && !can(a.label === ARCHIVE ? "archive" : "trash") ? `${a.label} · ${UNSUPPORTED_ACTION}` : a.label }))} onCancel={() => setMore(false)} />}

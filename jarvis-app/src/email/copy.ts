@@ -99,6 +99,7 @@ export const AREAS_LABEL = "Areas";
 // Accounts (M9).
 export const ACCOUNTS_TITLE = "Accounts";
 export const ADD_GMAIL = "Add Gmail";
+export const MAILBOXES = "Mailboxes";
 export const RETENTION_NOTE = "Disconnecting Keeps Saved Mail and Every Approved Record · Only the Sign-In Goes";
 // 2026-10-05: CONNECT_WHERE ("Connect and Disconnect Under Settings · Connections") is gone. It told the person where
 // to go, under a screen whose rows and whose Add Gmail button already go there: a manual line, not a fact.
@@ -177,7 +178,7 @@ export const BODY_LABEL = "Message";
 export const CC_BCC = "Cc / Bcc";
 export const ATTACH = "Attach a File";
 export const ATTACHMENTS_LABEL = "Attachments";
-export const REMOVE_ATTACHMENT = "Remove";
+export const REMOVE_ATTACHMENT = "Remove Attachment";
 export const UPLOADING = "Uploading";
 export const REVIEW_SEND = "Review Send";
 export const CLOSE_DRAFT = "Close";

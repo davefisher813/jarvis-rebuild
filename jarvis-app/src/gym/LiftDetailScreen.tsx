@@ -585,7 +585,25 @@ export default function LiftDetailScreen({
               cited, as research rather than as a total. */}
           {muscleRow && (
             <>
-              <div className="sh2 sh2-quiet"><span className="t">Muscle Volume</span></div>
+              {/* THE DISCLOSURES ARE THE HEAD'S (Dave 2026-10-05, locked: no capsule inside a card). View Contributing Sets
+                  and Evidence and Calculation were two capsules inside the card; they are the head's own two toggles, named
+                  in full for a screen reader. */}
+              <div className="sh2 sh2-quiet"><span className="t">Muscle Volume</span>
+                <span className="sec-left">
+                  {contributions.length > 0 && (
+                    <button type="button" className="see-all pill-action" aria-expanded={contribOpen}
+                      aria-label={contribOpen ? "Hide Contributing Sets" : "View Contributing Sets"}
+                      onClick={() => setContribOpen((o) => !o)}>
+                      Sets
+                    </button>
+                  )}
+                  <button type="button" className="see-all pill-action" aria-expanded={rangeOpen}
+                    aria-label={rangeOpen ? "Hide Evidence and Calculation" : "Evidence and Calculation"}
+                    onClick={() => setRangeOpen((o) => !o)}>
+                    Evidence
+                  </button>
+                </span>
+              </div>
               <div className="pad-x"><div className="card pad">
                 <div className="ex-cells">
                   <div className="ex-cell">
@@ -603,12 +621,6 @@ export default function LiftDetailScreen({
                 </div>
                 {contributions.length > 0 && (
                   <>
-                    <div className="ins-acts">
-                      <button type="button" className="pill-act pill-quiet" aria-expanded={contribOpen}
-                        onClick={() => setContribOpen((o) => !o)}>
-                        {contribOpen ? "Hide Contributing Sets" : "View Contributing Sets"}
-                      </button>
-                    </div>
                     {contribOpen && contributions.map((v, i) => (
                       <div className="row" key={v.name + v.date + i}>
                         <div className="row-grow">
@@ -629,12 +641,6 @@ export default function LiftDetailScreen({
                   </>
                 )}
                 {/* RESEARCH, KEPT SEPARATE FROM THE RECORDED TOTAL (§8). */}
-                <div className="ins-acts">
-                  <button type="button" className="pill-act pill-quiet" aria-expanded={rangeOpen}
-                    onClick={() => setRangeOpen((o) => !o)}>
-                    {rangeOpen ? "Hide Evidence and Calculation" : "Evidence and Calculation"}
-                  </button>
-                </div>
                 {/* §AK (2026-09-26): three grey facts on one line that
                     ellipsized are three labelled rows, the Evidence table
                     InsightEvidence draws: a caps label and one grey value

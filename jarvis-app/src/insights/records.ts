@@ -4,7 +4,7 @@ import type { LightsOutEntry, TookItEntry, CallItEntry, PointAtItEntry, MealEntr
 import { formatSet } from "../gym/measures";
 import { checkInLine } from "../health/checkin";
 import { durationOf, workingSetsIn, inPeriod, type Period } from "./analytics";
-import { lineCase } from "../shared/casing";
+import { lineCase, titleCase } from "../shared/casing";
 import { spanLabel } from "../shared/duration";
 
 // ALL DATA (the approved Health design, 2026-09-14, item 8): one list of
@@ -167,7 +167,7 @@ export function allRecords(inp: RecordInputs): DataRecord[] {
   for (const e of inp.callIt) out.push({ id: "ci-" + e.id, category: "effort", date: localDay(e.data.at), at: e.data.at, title: "Session Effort", value: `${e.data.rpe}/10`, detail: e.data.durationMin ? spanLabel(e.data.durationMin) : null, source: "Logged by hand", hue: "cyan", open: { kind: "callIt", at: e.data.at } });
   for (const e of inp.pointAtIt) {
     const words = [e.data.feel === "soreness" ? "Soreness" : e.data.feel === "pain" ? "Pain" : e.data.feel === "stiffness" ? "Stiffness" : null, e.data.level === "mild" ? "Mild" : e.data.level === "moderate" ? "Moderate" : e.data.level === "severe" ? "Severe" : null].filter(Boolean);
-    out.push({ id: "pa-" + e.id, category: "effort", date: localDay(e.data.at), at: e.data.at, title: e.data.region ? `Discomfort · ${e.data.region}` : "Discomfort", value: words.length ? words.join(", ") : null, detail: e.data.note ?? null, source: "Logged by hand", hue: "pink", open: { kind: "pointAtIt", at: e.data.at } });
+    out.push({ id: "pa-" + e.id, category: "effort", date: localDay(e.data.at), at: e.data.at, title: e.data.region ? `Discomfort, ${titleCase(e.data.region)}` : "Discomfort", value: words.length ? words.join(", ") : null, detail: e.data.note ?? null, source: "Logged by hand", hue: "pink", open: { kind: "pointAtIt", at: e.data.at } });
   }
   for (const e of inp.meals) out.push({ id: "me-" + e.id, category: "nutrition", date: localDay(e.data.at), at: e.data.at, title: "Meal", value: null, detail: e.data.text, source: e.pending ? "Waiting to sync" : "Logged by hand", hue: "amber", open: { kind: "meal", at: e.data.at, pending: e.pending } });
   for (const e of inp.checkins) out.push({ id: "ck-" + e.id, category: "checkins", date: localDay(e.data.at), at: e.data.at, title: "Check In", value: checkInLine(e.data), detail: null, source: e.pending ? "Waiting to sync" : "Logged by hand", hue: "cyan", open: { kind: "checkin", at: e.data.at, pending: e.pending } });

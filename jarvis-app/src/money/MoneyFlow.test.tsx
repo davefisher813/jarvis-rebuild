@@ -61,8 +61,7 @@ describe("MoneyFlow", () => {
     // Mark paid asks first ("I paid this", dated today), then the dated
     // receipt appears.
     fireEvent.click(screen.getByLabelText("Mark paid"));
-    expect(await screen.findByText("Mark Paid")).toBeInTheDocument();
-    fireEvent.click(screen.getByText("I Paid This"));
+    fireEvent.click(await screen.findByText("I Paid This"));
     // UP-CORE-13 (2026-09-05): scoped to the ROW's own line. The page grew a
     // "Paid This Month" head, which is a different claim about the same word
     // and used to make this query ambiguous.
@@ -331,7 +330,8 @@ describe("Set Aside envelopes live on the profile (HMN-F-12)", () => {
     fireEvent.click(screen.getByText("Set Money Aside"));
     fireEvent.change(screen.getByPlaceholderText("What For"), { target: { value: "Groceries" } });
     fireEvent.change(screen.getAllByPlaceholderText("0")[0]!, { target: { value: "300" } });
-    fireEvent.click(screen.getByText("Add"));
+    // The set-aside is one sheet (Dave 2026-10-05: no form in a card); Save is its bar's.
+    fireEvent.click(screen.getByText("Save"));
 
     await waitFor(async () => {
       expect((await profRef!.get())!.envelopes).toEqual([{ id: expect.any(String), name: "Groceries", amount: 300 }]);
@@ -590,7 +590,7 @@ describe("Read It proposes a receipt; the person confirms", () => {
     const h: { current?: Handles } = {};
     render(<NotesProvider userId="receipt-read"><Grab into={h} seedFile /></NotesProvider>);
 
-    const readIt = await screen.findByLabelText("Read corner-store.png");
+    const readIt = await screen.findByLabelText("Read It corner-store.png");
     await waitFor(() => {
       if (!screen.queryByText("New Receipt")) fireEvent.click(readIt);
       expect(screen.getByText("New Receipt")).toBeInTheDocument();
@@ -608,7 +608,7 @@ describe("Read It proposes a receipt; the person confirms", () => {
     const file = (await h.current!.files.list("money"))[0]!;
     expect(r!.data).toMatchObject({ vendor: "Corner Store", amountCents: 4275, transactionDate: "2026-09-03", attachmentFileId: file.id });
     // The file now belongs to the record: it is no longer listed twice.
-    await waitFor(() => expect(screen.queryByLabelText("Read corner-store.png")).toBeNull());
+    await waitFor(() => expect(screen.queryByLabelText("Read It corner-store.png")).toBeNull());
     expect(await h.current!.ledger.listBills()).toEqual([]);
   });
 
@@ -620,7 +620,7 @@ describe("Read It proposes a receipt; the person confirms", () => {
     vi.stubGlobal("fetch", vi.fn(async () => ({ blob: async () => new Blob(["x"], { type: "image/png" }) })));
     const h: { current?: Handles } = {};
     render(<NotesProvider userId="receipt-read-miss"><Grab into={h} seedFile /></NotesProvider>);
-    const readIt = await screen.findByLabelText("Read corner-store.png");
+    const readIt = await screen.findByLabelText("Read It corner-store.png");
     await waitFor(() => {
       // The URL resolves a beat after the row; Read It waits for it.
       if (!toasts.some((t) => t.startsWith("Couldn't Read That"))) fireEvent.click(readIt);
@@ -635,7 +635,7 @@ describe("Read It proposes a receipt; the person confirms", () => {
     const h: { current?: Handles } = {};
     render(<NotesProvider userId="receipt-ai-off"><Grab into={h} seedFile /></NotesProvider>);
     await screen.findByText("corner-store.png");
-    expect(screen.queryByLabelText("Read corner-store.png")).toBeNull();
+    expect(screen.queryByLabelText("Read It corner-store.png")).toBeNull();
     // Typing still works, and an attached photo offers no read.
     await typeReceipt("Cafe", "5");
     await waitFor(async () => expect(await h.current!.ledger.listReceipts()).toHaveLength(1));

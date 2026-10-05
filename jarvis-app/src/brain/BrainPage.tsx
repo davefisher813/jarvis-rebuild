@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from "react";
-import BrainTop from "./BrainTop";
+import BrainTop, { type TopMemo } from "./BrainTop";
 import type { CategoryKind } from "../categories/types";
 import PageHeader from "../shared/PageHeader";
 import { filledIcon } from "../shared/filledIcons";
@@ -51,6 +51,7 @@ export default function BrainPage({
   onOpenFact,
   onOpenWatching,
   categories = [],
+  memo,
 }: {
   onOpen: (key: string, name: string) => void;
   // C-38: a strand tapped in the top bands opens its sheet on What JARVIS
@@ -63,11 +64,13 @@ export default function BrainPage({
   // reach this page -- BrainTop's values detector reads their names -- but
   // Brain no longer lists them as a destination.
   categories?: BrainCategory[];
+  /** What the top bands last knew, so the hub comes back with Needs You and Explore already drawn (BrainFlow keeps it). */
+  memo?: TopMemo;
 }) {
   // C-38: how many live bands sit above the nav list. With none, the page is
   // the flat nav list it has been since V4 and Explore has nothing to be
   // apart from; with one or two, Explore is the quiet head over the eight.
-  const [bands, setBands] = useState(0);
+  const [bands, setBands] = useState(memo?.bands ?? 0);
   // Catalog V3.1 library form (approved 2026-08-18, the Apple Music look):
   // ICON LAW (Dave 2026-08-22): in a list, an icon is FILLED, and color says
   // whose it is. JARVIS's own rows wear the filled brand-red glyph exactly as
@@ -96,6 +99,7 @@ export default function BrainPage({
         onOpenFact={(id) => (onOpenFact ? onOpenFact(id) : onOpen("knows", "What JARVIS Knows"))}
         onOpenWatching={(key) => (onOpenWatching ? onOpenWatching(key) : onOpen("knows", "What JARVIS Knows"))}
         onBands={setBands}
+        memo={memo}
         areas={categories.map((c) => c.name)}
       />
       {bands > 0 && <div className="sh2 sh2-quiet"><span className="t">Explore</span></div>}

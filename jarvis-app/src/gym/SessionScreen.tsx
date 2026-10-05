@@ -927,7 +927,10 @@ export default function SessionScreen({
           two classes, same tones, same eyebrow. */}
       {showWarm && (
         <div className="pad-x"><div className="card list-card-ruled banner-warn">
-          <div className="grp"><div className="eyebrow eyebrow-warn">Warm-Up{programDay?.warmUpMin ? ` · ${spanLabel(programDay.warmUpMin)}` : ""}</div></div>
+          {/* THE SKIP IS THE GROUP'S LABEL ROW'S (Dave 2026-10-05, locked): Skip the Warm-Up was a row at the foot of the card. */}
+          <div className="grp"><div className="eyebrow eyebrow-warn">Warm-Up{programDay?.warmUpMin ? ` · ${spanLabel(programDay.warmUpMin)}` : ""}</div>
+            <button type="button" className="see-all pill-action" aria-label="Skip the Warm-Up" onClick={() => onFit({ warmSkipped: true })}>Skip</button>
+          </div>
           {warmBlocks.map((b) => {
             const done = !!live.warmDone?.includes(b.id);
             return (
@@ -940,7 +943,6 @@ export default function SessionScreen({
               </div>
             );
           })}
-          <button className="row-create" onClick={() => onFit({ warmSkipped: true })}>Skip the Warm-Up</button>
         </div></div>
       )}
 
@@ -1029,7 +1031,9 @@ export default function SessionScreen({
           a unit. Skipping here is the same lever the fit sheet offers. */}
       {showCool && (
         <div className="pad-x"><div className="card list-card-ruled banner-cool">
-          <div className="grp"><div className="eyebrow eyebrow-cool">Cool-Down{programDay?.coolDownMin ? ` · ${spanLabel(programDay.coolDownMin)}` : ""}</div></div>
+          <div className="grp"><div className="eyebrow eyebrow-cool">Cool-Down{programDay?.coolDownMin ? ` · ${spanLabel(programDay.coolDownMin)}` : ""}</div>
+            <button type="button" className="see-all pill-action" aria-label="Skip the Cool-Down" onClick={() => onFit({ coolSkipped: true })}>Skip</button>
+          </div>
           {coolBlocks.map((b) => {
             const done = !!live.coolDone?.includes(b.id);
             return (
@@ -1042,7 +1046,6 @@ export default function SessionScreen({
               </div>
             );
           })}
-          <button className="row-create" onClick={() => onFit({ coolSkipped: true })}>Skip the Cool-Down</button>
         </div></div>
       )}
 
@@ -1051,6 +1054,10 @@ export default function SessionScreen({
           door on its own head, the capsule rung every gym page uses. */}
       <div className="sh2 sh2-quiet"><span className="t">This Session</span>
         {canSuperset && <button type="button" className="pill-act se-sup" aria-haspopup="dialog" onClick={() => setPickOpen(true)}>Superset</button>}
+        {/* THE ADD IS THE HEAD'S (Dave 2026-10-05, locked): an exercise that was never in the plan (catalog §3.10) was a row at
+            the foot of the list. */}
+        {/* "Add" on the face, "Add Exercise" to a screen reader: the head also holds the title and Superset at 390 wide. */}
+        <button type="button" className="pill-act se-add" aria-label="Add Exercise" onClick={() => setAddOpen(true)}>Add</button>
       </div>
       <div className="pad-x"><div className="card list-card-ruled">
         {live.exercises.map((e, i) => (
@@ -1092,11 +1099,12 @@ export default function SessionScreen({
             {i === idx ? <span className="se-now">Now</span> : CHEV}
           </div>
         ))}
-        {/* ADD MID-SESSION (catalog §3.10): an exercise that was never in
-            the plan, without editing the program. */}
-        <button className="row-create" onClick={() => setAddOpen(true)}>Add Exercise</button>
-        {onCancel && <button className="row-create row-create-danger" onClick={() => setCancelAsk(true)}>Cancel Workout</button>}
       </div></div>
+      {/* CANCEL WORKOUT IS THE SCREEN'S ONE DESTRUCTIVE TEXT, UNDER THE LIST (Dave 2026-10-05, locked: no action row at the foot
+          of a card). It throws the session away, so it wears the destructive ink and asks first. */}
+      {onCancel && (
+        <div className="pad-x"><button type="button" className="btn btn-tertiary btn-block btn-danger-text" onClick={() => setCancelAsk(true)}>Cancel Workout</button></div>
+      )}
       {/* THE FOOT IS THE LOG BAR'S OWN HEIGHT (2026-09-21, the first audit
           ever run inside a session). .screen-foot is 32px and the log bar is
           nearer 90 -- a 56px button, its padding, and whatever the home

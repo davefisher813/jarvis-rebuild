@@ -9,7 +9,7 @@ import { useSwipe } from "../../shared/useSwipe";
 import type { RowAction } from "../../shared/RowActionSheet";
 import { useRowMenu } from "./useRowMenu";
 import RowCtxAction from "../../shared/RowCtxAction";
-import { CalendarPlus, Check } from "../../shared/icons";
+import { CalendarPlus, Check, Trash2 } from "../../shared/icons";
 import { titleCase } from "../../shared/casing";
 
 // Roadmap v2, the Anytime strip on the Schedule day view. Tasks with no time,
@@ -31,6 +31,7 @@ export default function AnytimeRow({
   items,
   onToggle,
   onSchedule,
+  onDelete,
   onOpen,
   onDragStart,
   cap = DEFAULT_CAP,
@@ -40,6 +41,8 @@ export default function AnytimeRow({
   items: TaskItem[];
   onToggle?: (id: string) => void;
   onSchedule?: (id: string) => void;
+  /** Swipe left, Delete: behind the reveal where it is on every task list. The flow owns the write and the Undo toast. */
+  onDelete?: (id: string) => void;
   /** Open the task in the same TaskSheet Today and Tasks open. */
   onOpen?: (id: string) => void;
   onDragStart?: (id: string, label: string, e: RPointerEvent) => void;
@@ -84,6 +87,7 @@ export default function AnytimeRow({
               today={today}
               {...(onToggle ? { onToggle } : {})}
               {...(onSchedule ? { onSchedule } : {})}
+              {...(onDelete ? { onDelete } : {})}
               {...(onOpen ? { onOpen } : {})}
               {...(onDragStart ? { onDragStart } : {})}
             />
@@ -102,12 +106,13 @@ export default function AnytimeRow({
 // A long press that moves is still the drag onto the grid (SchedulePage's beginDrag, which cancels on the first move); one
 // that holds still is the menu. A task that is overdue is the row whose moment has come, so it surfaces Drop as one quiet
 // word (RowCtxAction, never a capsule); a task that is not stays clean.
-function AnytimeItem({ it, parent, today, onToggle, onSchedule, onOpen, onDragStart }: {
+function AnytimeItem({ it, parent, today, onToggle, onSchedule, onDelete, onOpen, onDragStart }: {
   it: TaskItem;
   parent: ParentLine | null;
   today: string;
   onToggle?: (id: string) => void;
   onSchedule?: (id: string) => void;
+  onDelete?: (id: string) => void;
   onOpen?: (id: string) => void;
   onDragStart?: (id: string, label: string, e: RPointerEvent) => void;
 }) {
@@ -115,17 +120,19 @@ function AnytimeItem({ it, parent, today, onToggle, onSchedule, onOpen, onDragSt
   const dist = distanceFor(it.data, today);
   const droppable = !!onSchedule;
   const completable = !!onToggle;
+  const deletable = !!onDelete;
   const swipe = useSwipe({
-    revealW: droppable ? 88 : 0,
+    revealW: ((droppable ? 1 : 0) + (deletable ? 1 : 0)) * 88,
     rightW: completable ? 88 : 0,
     ...(completable ? { onRightCommit: () => onToggle!(it.id) } : {}),
-    enabled: droppable || completable,
+    enabled: droppable || deletable || completable,
   });
   const { dx, dragging, open: swipeOpen, closeThen } = swipe;
   const menuActions: RowAction[] = [
     ...(droppable ? [{ label: "Drop", onPick: () => onSchedule!(it.id) }] : []),
     ...(completable ? [{ label: "Done", onPick: () => onToggle!(it.id) }] : []),
     ...(onOpen ? [{ label: "Open Task", onPick: () => onOpen(it.id) }] : []),
+    ...(deletable ? [{ label: "Delete", destructive: true, onPick: () => onDelete!(it.id) }] : []),
   ];
   const { handlers: rowHandlers, sheet } = useRowMenu({
     title, actions: menuActions, swipe,
@@ -143,6 +150,12 @@ function AnytimeItem({ it, parent, today, onToggle, onSchedule, onOpen, onDragSt
         <button className="task-verb" onClick={() => closeThen(() => onSchedule!(it.id))} aria-label={"Give " + title + " a time"}>
           <CalendarPlus className="ic" />
           <span className="swipe-label">Drop</span>
+        </button>
+      )}
+      {deletable && (
+        <button className="task-del" style={droppable ? { right: 88 } : undefined} onClick={() => closeThen(() => onDelete!(it.id))} aria-label={"Delete " + title}>
+          <Trash2 className="ic" />
+          <span className="swipe-label">Delete</span>
         </button>
       )}
       <div

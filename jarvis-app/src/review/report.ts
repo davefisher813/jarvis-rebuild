@@ -458,7 +458,7 @@ export function buildReport(inp: ReportInputs): MonthReport {
       title: lineCase(`${carried.length} Followed You All Month`),
       sub: null,
       carried,
-      receipts: carried.map((c) => lineCase(`${c.text} · ${c.n} Pushes`)),
+      receipts: carried.map((c) => lineCase(`${c.text}, ${c.n} Pushes`)),
     });
   }
   if (prev) {

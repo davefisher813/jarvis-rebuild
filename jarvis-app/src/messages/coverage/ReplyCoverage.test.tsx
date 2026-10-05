@@ -58,13 +58,15 @@ describe("ReplyCoverage: the indicator", () => {
 
   it("an incomplete read says so: Answered 3 of 4 Found, Review Requests, and explains", () => {
     render(<Harness reqs={REQS({ completeSource: false })} text={TEXT} />);
-    expect(screen.getByText("Answered 3 of 4 Found · Review Requests")).toBeInTheDocument();
+    // No Review Requests capsule on the row (Dave 2026-10-05): the row is the door and says only how much was read.
+    expect(screen.getByText("Answered 3 of 4 Found")).toBeInTheDocument();
+    expect(document.querySelector(".pill-act")).toBeNull();
     expect(screen.getByText("Not Every Message Was Read")).toBeInTheDocument();
   });
 
   it("an incomplete read that found nothing still says it was incomplete", () => {
     render(<Harness reqs={REQS({ completeSource: false, items: [] })} text="anything" />);
-    expect(screen.getByText("Answered 0 of 0 Found · Review Requests")).toBeInTheDocument();
+    expect(screen.getByText("Answered 0 of 0 Found")).toBeInTheDocument();
   });
 });
 
@@ -76,7 +78,7 @@ describe("ReplyCoverage: a line follows the catalog (2026-10-05)", () => {
 
   it("every line is one toned fact and the sender's words, so at most one grey, with no typed dot", () => {
     render(<Harness reqs={REQS()} text={"Tuesday works, four players, yes you can publish. Can't send waiver until Friday"} overrides={{ publish: "open" }} />);
-    fireEvent.click(screen.getByRole("button", { name: "Check" }));
+    fireEvent.click(screen.getByText(/^Answered \d+ of \d+/));
     const rows = Array.from(document.querySelectorAll(".card > .row")).slice(1);
     expect(rows).toHaveLength(4);
     for (const row of rows) {
@@ -88,7 +90,7 @@ describe("ReplyCoverage: a line follows the catalog (2026-10-05)", () => {
 
   it("an ask the draft leaves open needs you, so it is amber, and says why inside the one fact", () => {
     render(<Harness reqs={REQS()} text={TEXT} />);
-    fireEvent.click(screen.getByRole("button", { name: "Check" }));
+    fireEvent.click(screen.getByText(/^Answered \d+ of \d+/));
     const waiver = screen.getByText("Waiver").closest(".row") as HTMLElement;
     expect(waiver.querySelector(".fact")!.className).toBe("fact warn");
     expect(waiver.querySelector(".fact")!.textContent).toBe("Open");
@@ -96,7 +98,7 @@ describe("ReplyCoverage: a line follows the catalog (2026-10-05)", () => {
 
   it("claiming a file that is not attached says why inside the same fact", () => {
     render(<Harness reqs={REQS()} text={TEXT + ". I attached the waiver"} />);
-    fireEvent.click(screen.getByRole("button", { name: "Check" }));
+    fireEvent.click(screen.getByText(/^Answered \d+ of \d+/));
     const waiver = screen.getByText("Waiver").closest(".row") as HTMLElement;
     expect(waiver.querySelector(".fact")!.textContent).toBe("Open, Nothing Is Attached");
     expect(waiver.querySelectorAll(".facts .fact")).toHaveLength(1);
@@ -107,7 +109,7 @@ describe("ReplyCoverage: the checklist", () => {
   it("tapping opens a small checklist: each ask, whether it is answered, and why", () => {
     render(<Harness reqs={REQS()} text={"Tuesday works, four players, yes you can publish. Can't send waiver until Friday"} />);
     expect(screen.queryByText("Waiver")).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: "Check" }));
+    fireEvent.click(screen.getByText(/^Answered \d+ of \d+/));
     expect(screen.getByText("Which Day")).toBeInTheDocument();
     expect(screen.getByText("Waiver")).toBeInTheDocument();
     // The state and its reason are one toned fact (2026-10-05, the catalog gate).
@@ -116,15 +118,16 @@ describe("ReplyCoverage: the checklist", () => {
     expect(document.querySelectorAll(".fact.good").length).toBeGreaterThanOrEqual(4);
     // Each line carries the sender's own words.
     expect(screen.getByText("Quote for Waiver")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Hide" }));
+    fireEvent.click(screen.getByText(/^Answered \d+ of \d+/));
     expect(screen.queryByText("Quote for Waiver")).toBeNull();
   });
 
-  it("the row is the door: tapping the words makes the mark, as the pill does", () => {
+  it("the row is the door: tapping the words makes the mark, and no capsule sits on any row", () => {
     const onOverride = vi.fn();
     render(<Harness reqs={REQS()} text={TEXT} onOverride={onOverride} />);
-    fireEvent.click(screen.getByRole("button", { name: "Check" }));
+    fireEvent.click(screen.getByText(/^Answered \d+ of \d+/));
     // The waiver is open, so its control offers Mark Answered.
+    expect(document.querySelector(".pill-act, .btn-sm, .quiet-action, .row-act")).toBeNull();
     fireEvent.click(screen.getByText("Quote for Waiver"));
     expect(onOverride).toHaveBeenCalledWith("waiver", "addressed");
   });
@@ -132,28 +135,29 @@ describe("ReplyCoverage: the checklist", () => {
   it("marks work both ways and can be taken back", () => {
     const onOverride = vi.fn();
     const { rerender } = render(<Harness reqs={REQS()} text={TEXT} onOverride={onOverride} />);
-    fireEvent.click(screen.getByRole("button", { name: "Check" }));
+    fireEvent.click(screen.getByText(/^Answered \d+ of \d+/));
     // An answered line offers Mark Open.
     const publishRow = screen.getByText("Publication Permission").closest(".row") as HTMLElement;
-    fireEvent.click(publishRow.querySelector("button")!);
+    expect(publishRow.querySelector(".cb.on")).not.toBeNull();
+    fireEvent.click(publishRow);
     expect(onOverride).toHaveBeenLastCalledWith("publish", "open");
     // With the mark set the line offers to clear it.
     rerender(<Harness reqs={REQS()} text={TEXT} overrides={{ publish: "open" }} onOverride={onOverride} />);
     expect(screen.getByText("Answered 2 of 4")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Clear Mark" }));
+    fireEvent.click(screen.getByText("Publication Permission").closest(".row")!);
     expect(onOverride).toHaveBeenLastCalledWith("publish", null);
   });
 
   it("a hand mark counts, and shows as one", () => {
     render(<Harness reqs={REQS()} text={TEXT} overrides={{ waiver: "addressed" }} />);
     expect(screen.getByText("Answered 4 of 4")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Check" }));
+    fireEvent.click(screen.getByText(/^Answered \d+ of \d+/));
     expect(screen.getByText("Marked Answered")).toHaveClass("fact", "good");
   });
 
   it("it never blocks anything: it renders no disabled control and no send", () => {
     render(<Harness reqs={REQS()} text="" />);
-    fireEvent.click(screen.getByRole("button", { name: "Check" }));
+    fireEvent.click(screen.getByText(/^Answered \d+ of \d+/));
     for (const b of screen.getAllByRole("button")) expect(b).not.toBeDisabled();
     expect(screen.queryByText(/send/i)).toBeNull();
   });

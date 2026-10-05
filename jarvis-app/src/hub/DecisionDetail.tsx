@@ -113,10 +113,10 @@ export default function DecisionDetail({ client, itemId, overview, offline, task
       <PageHeader title="Decision" back="AI Hub" onBack={onBack} />
       {!h && !error && <Foot>Loading…</Foot>}
       {error && (
-        <div className="pad-x"><div className="card list-card-ruled">
-          <div className="row"><div className="conn-name">{error}</div></div>
-          <button className="row row-act hub-quiet" onClick={() => void load()}>Retry</button>
-        </div></div>
+        <>
+          <div className="pad-x"><div className="card list-card-ruled"><div className="row"><div className="conn-name">{error}</div></div></div></div>
+          <div className="notice-clear-row"><button className="row-act hub-quiet" onClick={() => void load()}>Retry</button></div>
+        </>
       )}
       {h && shown && (
         <>
@@ -151,7 +151,11 @@ export default function DecisionDetail({ client, itemId, overview, offline, task
             </>
           )}
 
-          <div className="sh2 sh2-quiet"><span className="t">Depends On</span></div>
+          {/* Mark Reviewed is this section's own action (a changed dependency is what it answers), so it is the head's capsule. */}
+          <div className="sh2 sh2-quiet">
+            <span className="t">Depends On</span>
+            {suggestion && changedDeps.length > 0 && <button type="button" className="see-all pill-action" disabled={busy === "reviewed" || offline} onClick={() => void reviewed()}>{MARK_REVIEWED}</button>}
+          </div>
           <div className="pad-x"><div className="card list-card-ruled">
             {shown.dependencies.length === 0 && <div className="row"><div className="conn-name">Nothing Yet</div></div>}
             {shown.dependencies.map((d) => {
@@ -167,7 +171,6 @@ export default function DecisionDetail({ client, itemId, overview, offline, task
                 </div>
               );
             })}
-            {suggestion && changedDeps.length > 0 && <button className="row row-act hub-quiet" disabled={busy === "reviewed" || offline} onClick={() => void reviewed()}>{MARK_REVIEWED}</button>}
           </div></div>
 
           <div className="sh2 sh2-quiet"><span className="t">Source</span></div>
@@ -190,10 +193,10 @@ export default function DecisionDetail({ client, itemId, overview, offline, task
           </div></div>
 
           {active && (
-            <div className="pad-x"><div className="card list-card-ruled">
-              <button className="row row-act" disabled={offline} onClick={() => { setConflicts([]); setSheet("replace"); }}>{REPLACE_DECISION}</button>
-              <button className="row row-act hub-danger" disabled={offline} onClick={() => setSheet("withdraw")}>{WITHDRAW_DECISION}</button>
-            </div></div>
+            <div className="hub-acts">
+              <button className="row-act" disabled={offline} onClick={() => { setConflicts([]); setSheet("replace"); }}>{REPLACE_DECISION}</button>
+              <button className="row-act hub-danger" disabled={offline} onClick={() => setSheet("withdraw")}>{WITHDRAW_DECISION}</button>
+            </div>
           )}
           {!active && <Foot>{WITHDRAW_LINE}</Foot>}
         </>

@@ -3,7 +3,9 @@ import { useSchedule, useProfile } from "../data/NotesProvider";
 import { useGoogle } from "./google/GoogleSession";
 import { googleConfigured } from "./google/config";
 import { importCalendar } from "./google/sync";
-import { Mail, CalendarDays, Link2, Plus } from "../shared/icons";
+import { Mail, CalendarDays, Link2, Plus, RotateCcw } from "../shared/icons";
+import { FormSheet, Group, SwitchRow, Row as SheetRow, DeleteRow } from "../shared/FormSheet";
+import RowCtxAction from "../shared/RowCtxAction";
 import { WRITE_FAILED_MESSAGE } from "../shared/guard";
 import { pressable } from "../shared/pressable";
 import { useLeaveVia } from "../shell/navOrigin";
@@ -50,6 +52,9 @@ export default function ConnectionsPage({
   }, [armDisc]);
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // THE ACCOUNT'S SHEET (Dave 2026-10-05, locked: tap a row, its sheet holds every action; no chip or pill on a row).
+  // Email and Calendar are switches (state, not commands), Reconnect and Disconnect are its action rows.
+  const [sheetEmail, setSheetEmail] = useState<string | null>(null);
 
   const run = async (work: () => Promise<string | null>) => {
     setError(null);
@@ -154,21 +159,36 @@ export default function ConnectionsPage({
         </div></div></div>
       )}
 
-      <div className="sh2 sh2-quiet"><span className="t">Google Accounts</span>{g.accounts.length > 0 && <span className="n">{g.accounts.length}</span>}</div>
+      {/* THE ACCOUNTS HEAD HOLDS THE SECTION'S ACTIONS (Dave 2026-10-05, locked: a section-level action lives in the
+          head, never at the foot of a list): Add Account, and Reconnect All once every account has signed out. With no
+          account yet the screen's one filled primary (Connect Google) is the way in, and stays. */}
+      <div className="sh2 sh2-quiet"><span className="t">Google Accounts</span>{g.accounts.length > 0 && <span className="n">{g.accounts.length}</span>}
+        {g.accounts.length > 0 && (
+          <span className="sec-left">
+            {!g.hasToken && <button className="see-all pill-action" disabled={busy} onClick={reconnectAll}>Reconnect All</button>}
+            <button className="see-all pill-action" disabled={!configured || busy} onClick={addAccount}>{busy ? "Connecting" : "Add Account"}</button>
+          </span>
+        )}
+      </div>
       {g.accounts.length === 0 ? (
-        <div className="pad-x"><div className="card list-card-ruled"><div className="empty-state">
-          <div className="empty-icon"><Mail className="ic" /></div>
-          <div className="empty-title">No Accounts Yet</div>
-        </div></div></div>
+        <>
+          <div className="pad-x"><div className="card list-card-ruled"><div className="empty-state">
+            <div className="empty-icon"><Mail className="ic" /></div>
+            <div className="empty-title">No Accounts Yet</div>
+          </div></div></div>
+          <div className="pad-x conn-action">
+            <button className="btn btn-primary btn-block" disabled={!configured || busy} onClick={addAccount}>
+              <Plus className="ic" /> {busy ? "Connecting..." : "Connect Google"}
+            </button>
+          </div>
+        </>
       ) : (
         <div className="pad-x"><div className="card list-card-ruled">
           {g.accounts.map((a) => {
             const signedOut = !g.tokenEmails.includes(a.email);
             return (
-            // Row tap (Dave 2026-09-15, "I want all rows clickable"): there is no
-            // account detail, so the row does the one safe verb, Reconnect.
-            // Disconnect stays on its own armed chip.
-            <div className="row" key={a.email} {...pressable(() => { if (!busy) void reconnectOne(a.email, signedOut); })}>
+            // The whole row is the door (Dave 2026-09-15, "I want all rows clickable"): it opens the account's sheet.
+            <div className="row" key={a.email} {...pressable(() => setSheetEmail(a.email))}>
               {/* Mail is teal in the key (§AQ: Person / Mail); sky is Event (2026-10-05). */}
               <div className="proj-icon cat-bg-teal"><Mail className="ic" /></div>
               <div className="row-grow">
@@ -185,49 +205,14 @@ export default function ConnectionsPage({
                     (2026-09-29): it works now and is gone at the next launch,
                     which is not what "Connected" has ever promised here. */}
                 {!signedOut && !g.connectionOf(a.email).durable && <div className="facts"><span className="fact warn">Temporary</span></div>}
-                <div className="msg-chips conn-acct-chips">
-                  {signedOut && (
-                    <button className="chip on" disabled={busy}
-                      onClick={(ev) => { ev.stopPropagation(); void reconnectOne(a.email, true); }}>Reconnect</button>
-                  )}
-                  <button className={"chip" + (a.mail ? " on" : "")} disabled={busy}
-                    onClick={(ev) => { ev.stopPropagation(); void toggleFeature(a.email, "mail", !a.mail); }}>Email</button>
-                  <button className={"chip" + (a.cal ? " on" : "")} disabled={busy}
-                    onClick={(ev) => { ev.stopPropagation(); void toggleFeature(a.email, "cal", !a.cal); }}>Calendar</button>
-                  {/* NO DRIVE CHIP (2026-10-04). It stored a flag that nothing
-                      read: Grant Access still only opens Google's own request
-                      page and no code calls Drive, so the chip was a switch
-                      wired to nothing. The stored field stays readable in the
-                      profile for the day a Drive call exists. */}
-                  {/* Armed two-tap (2026-08-09): disconnect sat one accidental
-                      tap away, styled like the harmless toggles beside it. */}
-                  <button className="chip" disabled={busy}
-                    onClick={(ev) => {
-                      ev.stopPropagation();
-                      if (armDisc !== a.email) { setArmDisc(a.email); return; }
-                      setArmDisc(null);
-                      void run(async () => { await g.disconnect(a.email); return a.email + " Disconnected"; });
-                    }}>
-                    {armDisc === a.email ? "Tap Again" : "Disconnect"}
-                  </button>
-                </div>
               </div>
+              {/* ITS MOMENT HAS COME (Dave 2026-10-05): a signed-out account quietly shows its one verb, as text. */}
+              <RowCtxAction when={signedOut && !busy} label="Reconnect" ariaLabel={"Reconnect " + a.email} onAct={() => void reconnectOne(a.email, true)} />
             </div>
             );
           })}
         </div></div>
       )}
-
-      <div className="pad-x conn-action">
-        <button className="btn btn-primary btn-block" disabled={!configured || busy} onClick={addAccount}>
-          <Plus className="ic" /> {busy ? "Connecting..." : g.accounts.length === 0 ? "Connect Google" : "Add Google Account"}
-        </button>
-        {g.accounts.length > 0 && !g.hasToken && (
-          <button className="btn btn-secondary btn-block" disabled={busy} onClick={reconnectAll}>
-            Reconnect All
-          </button>
-        )}
-      </div>
 
       {(g.accounts.some((a) => a.cal) || showTracking) && <div className="sh2 sh2-quiet"><span className="t">What Flows In</span></div>}
       {g.accounts.some((a) => a.cal) && (
@@ -257,6 +242,41 @@ export default function ConnectionsPage({
         </div></div></div>
       )}
 
+      {(() => {
+        const a = sheetEmail ? g.accounts.find((x) => x.email === sheetEmail) : undefined;
+        if (!a) return null;
+        const signedOut = !g.tokenEmails.includes(a.email);
+        return (
+          <FormSheet title="Google Account" onCancel={() => { setSheetEmail(null); setArmDisc(null); }} onSave={() => { setSheetEmail(null); setArmDisc(null); }} saveLabel="Done">
+            <Group label={a.email}>
+              <SwitchRow tone="teal" glyph={<Mail className="ic" />} label="Email" ariaLabel={"Email for " + a.email}
+                on={a.mail} onToggle={() => { if (!busy) void toggleFeature(a.email, "mail", !a.mail); }} />
+              <SwitchRow tone="sky" glyph={<CalendarDays className="ic" />} label="Calendar" ariaLabel={"Calendar for " + a.email}
+                on={a.cal} onToggle={() => { if (!busy) void toggleFeature(a.email, "cal", !a.cal); }} />
+              {/* NO DRIVE SWITCH (2026-10-04). It stored a flag that nothing
+                  read: Grant Access still only opens Google's own request
+                  page and no code calls Drive, so it was a switch wired to
+                  nothing. The stored field stays readable in the profile for
+                  the day a Drive call exists. */}
+            </Group>
+            <Group className="xs-actions">
+              <SheetRow tone="blue" glyph={<RotateCcw className="ic" />} label={signedOut ? "Reconnect" : "Sign In Again"} chev
+                onClick={() => { if (!busy) { setSheetEmail(null); void reconnectOne(a.email, signedOut); } }} />
+            </Group>
+            {/* Armed two-tap (2026-08-09): disconnect sat one accidental tap away, styled like the harmless toggles beside it. */}
+            <Group className="xs-actions">
+              <DeleteRow label={armDisc === a.email ? "Tap Again to Disconnect" : "Disconnect"}
+                onClick={() => {
+                  if (busy) return;
+                  if (armDisc !== a.email) { setArmDisc(a.email); return; }
+                  setArmDisc(null);
+                  setSheetEmail(null);
+                  void run(async () => { await g.disconnect(a.email); return a.email + " Disconnected"; });
+                }} />
+            </Group>
+          </FormSheet>
+        );
+      })()}
       {status && <div className="pad-x conn-status">{status}</div>}
       {error && <div className="pad-x conn-error">{error}</div>}
       <div className="screen-foot" />

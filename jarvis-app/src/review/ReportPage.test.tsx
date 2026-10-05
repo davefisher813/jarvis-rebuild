@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { useEffect, useState } from "react";
 import { render, screen, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom";
@@ -72,5 +72,47 @@ describe("Your Hours in the monthly report", () => {
     expect(sheet.textContent).toContain("84 Finishes This Month");
     fireEvent.click(screen.getByText("Done", { selector: ".sheet-scrim button" }));
     expect(document.querySelector(".sheet-scrim")).toBeNull();
+  });
+});
+
+// CLEAN ROWS, NO PILLS (Dave 2026-10-05, locked; ROW-ACTIONS-SPEC sections 1 and 2). Do One, Drop One and every life
+// card's door (Open Money, Check In) were capsules in a strip under their rows. A row is a door now: tap it and its
+// sheet holds the verb filled with the quieter one beneath it; the first verb is also the row's swipe-left.
+describe("the report's rows wear the row-action model (2026-10-05)", () => {
+  const REPORT: MonthReport = {
+    ...HOURS_REPORT, hours: null,
+    worth: [{ id: "carried", title: "2 Followed You All Month", sub: null, carried: [{ id: "t1", text: "File Taxes", n: 4 }, { id: "t2", text: "Call Mom", n: 3 }], receipts: ["File Taxes, 4 Pushes", "Call Mom, 3 Pushes"] }],
+    life: [{ id: "money", title: "Bills Paid on Time", facts: [{ text: "12 Paid" }], exit: { label: "Open Money", kind: "money" }, receipts: ["Rent, Paid Oct 1"] }],
+  };
+
+  it("draws no capsule anywhere in a card, and the swipe-left carries the sheet's first verb", () => {
+    const { container } = render(<ReportScreen report={REPORT} capped={false} onCap={() => {}} onBack={() => {}} onOpenTask={() => {}} onDropTask={() => {}} onExit={() => {}} />);
+    // The One Change card is absent here; every other capsule would be in a row or a card.
+    expect(container.querySelector(".card .pill-act, .card .row-act, .card .btn-sm, .card .quiet-action")).toBeNull();
+    expect(container.querySelector(".rep-btnrow")).toBeNull();
+    expect([...container.querySelectorAll(".notice-alt")].map((b) => b.textContent)).toEqual(["Do One", "Open Money"]);
+  });
+
+  it("a tap opens the sheet: the receipts, Do One filled, Drop One beneath it, and each does its job", () => {
+    const onOpenTask = vi.fn();
+    const onDropTask = vi.fn();
+    render(<ReportScreen report={REPORT} capped={false} onCap={() => {}} onBack={() => {}} onOpenTask={onOpenTask} onDropTask={onDropTask} />);
+    fireEvent.click(screen.getByText("2 Followed You All Month"));
+    const sheet = document.querySelector(".sheet-scrim")!;
+    expect(sheet.textContent).toContain("File Taxes, 4 Pushes");
+    expect(sheet.querySelector(".btn-primary")!.textContent).toBe("Do One");
+    fireEvent.click(sheet.querySelector(".btn-danger-text")!);
+    expect(onDropTask).toHaveBeenCalledWith({ id: "t1", text: "File Taxes", n: 4 });
+    expect(document.querySelector(".sheet-scrim")).toBeNull();
+    fireEvent.click(screen.getByText("2 Followed You All Month"));
+    fireEvent.click(document.querySelector(".sheet-scrim .btn-primary")!);
+    expect(onOpenTask).toHaveBeenCalledWith("t1");
+  });
+
+  it("a life card whose door is not wired has no verb, not one that does nothing", () => {
+    const { container } = render(<ReportScreen report={REPORT} capped={false} onCap={() => {}} onBack={() => {}} />);
+    expect(container.querySelector(".notice-alt")).toBeNull();
+    fireEvent.click(screen.getByText("Bills Paid on Time"));
+    expect(document.querySelector(".sheet-scrim .btn-primary")).toBeNull();
   });
 });

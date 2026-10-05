@@ -47,12 +47,12 @@ describe("Schedule: a fresh task list from another device repaints Anytime", () 
     function Grab() { tasks = useTasks(); return null; }
     render(<Provider userId="u1"><Grab /><ScheduleFlow /></Provider>);
     await screen.findAllByText("Schedule");
-    expect(screen.queryByText("Call the vet")).not.toBeInTheDocument();
+    expect(screen.queryByText("Call the Vet")).not.toBeInTheDocument();
     // "Another device" writes a task; the store's refresh then reports the
     // task list changed, which is the only signal this tab gets.
     await tasks!.createTask("Call the vet");
     notifyFreshLists(ENTITY_TASK);
-    await waitFor(() => expect(screen.getByText("Call the vet")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("Call the Vet")).toBeInTheDocument());
   });
 });
 
@@ -60,19 +60,19 @@ describe("Schedule: a fresh task list from another device repaints Anytime", () 
 // its last line, so a read that failed at open left SkeletonRows up for good
 // with no message. The page now says so and offers the retry.
 describe("Schedule: a read that fails at open is a row with a retry, not skeleton rows forever", () => {
-  it("shows Couldn't load this day, drops the skeleton, and Try Again loads the day", async () => {
+  it("shows Couldn't Load This Day, drops the skeleton, and Try Again loads the day", async () => {
     const { vi } = await import("vitest");
     const { ScheduleService } = await import("./ScheduleService");
     const spy = vi.spyOn(ScheduleService.prototype, "healPlanDuplicates").mockRejectedValueOnce(new Error("no signal"));
     try {
       const { container } = render(<NotesProvider userId="u-sched-fail"><ScheduleFlow /></NotesProvider>);
       await screen.findAllByText("Schedule");
-      await waitFor(() => expect(screen.getByText("Couldn't load this day")).toBeInTheDocument());
+      await waitFor(() => expect(screen.getByText("Couldn't Load This Day")).toBeInTheDocument());
       expect(container.querySelector(".skel-rows, .skel-row, .skel-line")).toBeNull();
       fireEvent.click(screen.getByText("Try Again"));
-      await waitFor(() => expect(screen.queryByText("Couldn't load this day")).not.toBeInTheDocument());
+      await waitFor(() => expect(screen.queryByText("Couldn't Load This Day")).not.toBeInTheDocument());
       await waitFor(() => expect(container.querySelector(".skel-line")).toBeNull());
-      expect(screen.getByText("No events")).toBeInTheDocument();
+      expect(screen.getByText("No Events")).toBeInTheDocument();
     } finally {
       spy.mockRestore();
     }
@@ -201,7 +201,7 @@ describe("Schedule: the blend offer goes to blocks that can hold a task", () => 
     await sched!.createEvent("Commute Home", { date: day, start: "17:00", end: "17:45" });
     notifyFreshLists(ENTITY_EVENT);
     await waitFor(() => expect(container.querySelectorAll(".blend-tuck")).toHaveLength(1));
-    expect(container.querySelector(".blend-tuck")!.textContent).toContain("Call the plumber");
+    expect(container.querySelector(".blend-tuck")!.textContent).toContain("Call the Plumber");
   });
 });
 
@@ -238,5 +238,27 @@ describe("Schedule: All Events plus a new date moves the whole series", () => {
     // One day later, from the anchor: the series keeps its shape and its start.
     await waitFor(async () => expect((await sched!.event(id))!.date).toBe(addDays(anchor, 1)));
     expect((await sched!.event(id))!.recurrence).toBe("weekly");
+  });
+});
+
+// CLEAN ROWS, ONE REAL FLOW (Dave 2026-10-05, locked). The Anytime strip's rows hold no pill: Drop is the swipe left, with Delete
+// behind the same reveal, and the flow still owns the write and the Undo toast.
+describe("Schedule: an Anytime row holds its actions in the gesture, and the flow still does the work", () => {
+  it("swipe left reveals Drop and Delete; Delete removes the task; no capsule in the strip", async () => {
+    const { NotesProvider: Provider, useTasks } = await import("../data/NotesProvider");
+    let tasks: import("../tasks/TasksService").TasksService | null = null;
+    function Grab() { tasks = useTasks(); return null; }
+    const { container } = render(<Provider userId="u-anytime-clean"><Grab /><ScheduleFlow /></Provider>);
+    await screen.findAllByText("Schedule");
+    await tasks!.createTask("call the vet");
+    const { notifyFreshLists } = await import("../data/store");
+    const { ENTITY_TASK } = await import("../notes/types");
+    notifyFreshLists(ENTITY_TASK);
+    await waitFor(() => expect(screen.getByText("Call the Vet")).toBeInTheDocument());
+    expect(container.querySelectorAll(".anytime-card .pill-act, .anytime-card .row-act, .anytime-card .btn-sm").length).toBe(0);
+    expect(Array.from(container.querySelectorAll(".anytime-card .task-swipe > button")).map((b) => b.textContent)).toEqual(["Drop", "Delete"]);
+    fireEvent.click(screen.getByLabelText("Delete Call the Vet"));
+    await waitFor(() => expect(screen.queryByText("Call the Vet")).not.toBeInTheDocument());
+    expect((await tasks!.listTasks()).some((t) => t.data.text === "call the vet")).toBe(false);
   });
 });

@@ -86,7 +86,9 @@ describe("email.css: colour is meaning, and a card has none of its own", () => {
   it("a card is not tinted or filled by its kind (green for a bill, blue for an event, violet for a task, yellow for a wait)", () => {
     const kinds = RULES.filter((r) => /\.email-card\.(bill|receipt|event|task|waiting)/.test(r.sel));
     expect(kinds.map((r) => r.sel), "colour is for meaning; an unsaved proposal means nothing in a colour, and violet is not in the key").toEqual([]);
-    expect(EMAIL).not.toMatch(/var\(--(cat|hl)-[a-z]+|var\(--(blue|yellow|violet|purple)[a-z-]*\)/);
+    // --cat-ic-* is the light twin of a TYPE ICON's colour (rule 13: the Email band's envelope is teal in light too); it is never
+    // a card's ground, so it is the one cat token this file may name.
+    expect(EMAIL.replace(/var\(--cat-ic-[a-z]+\)/g, "")).not.toMatch(/var\(--(cat|hl)-[a-z]+|var\(--(blue|yellow|violet|purple)[a-z-]*\)/);
   });
 
   it("the outcome rail is the key: sent green, not sent red, unknown amber, sending neutral", () => {

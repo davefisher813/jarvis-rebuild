@@ -22,6 +22,8 @@ import { watchingCount } from "../readiness";
 import RowStar from "../../shared/RowStar";
 import { lineCase } from "../../shared/casing";
 import { spanLabel } from "../../shared/duration";
+import RowShell from "../RowShell";
+import RowCtxAction from "../../shared/RowCtxAction";
 
 // C-40: the filter chips. Choosers, so filled chips. Watching is not a
 // strand bucket: it lists the readiness rows past CLOSE_SHARE of their gate.
@@ -312,6 +314,7 @@ export default function StrandsPage({ onBack, openId: initialOpenId, openNonce, 
   const closeForm = () => { setAdding(false); setEditing(false); setOpenId(null); };
   const readyRow = readyKey ? read.rows.find((r) => r.key === readyKey) ?? null : null;
 
+  const startAdd = () => { setAdding(true); setText(""); setCat("work_style"); setRule(false); setKind(null); setChannel(null); };
   const tellAbout = (key: string) => {
     setAdding(true); setText(""); setCat(categoryForReadiness(key)); setRule(false); setKind(null); setChannel(null);
   };
@@ -347,7 +350,10 @@ export default function StrandsPage({ onBack, openId: initialOpenId, openNonce, 
 
       {filter === "watching" && (
         <>
-          <div className="sh2 sh2-quiet"><span className="t">Watching</span><span className="n">{watching.length}</span></div>
+          <div className="sh2 sh2-quiet">
+            <span className="t">Watching</span><span className="n">{watching.length}</span>
+            <button type="button" className="see-all pill-action" onClick={startAdd}>Add One Thing</button>
+          </div>
           {/* THE TWIN OF THE ONE FIXED YESTERDAY, and it was missed because the
               empty-state scan keyed on .empty-title and this had none: two
               sentences of raw JSX text, invisible to the short-copy law, and
@@ -362,30 +368,40 @@ export default function StrandsPage({ onBack, openId: initialOpenId, openNonce, 
             </div>
           )}
           {watching.length > 0 && (
-            <div className="pad-x"><div className="card list-card-ruled">
+            <div className="pad-x"><div className="card list-card-ruled shell-rows">
               {watching.map((r) => (
                 // Row tap (Dave 2026-09-15): a watched detector is not a fact
                 // yet. The row opens its readiness detail (audit 2026-09-29:
-                // it used to open the Add One Thing form); the pill is the
-                // one-tap way to Tell JARVIS.
-                <div {...pressable(() => setReadyKey(r.key))} className={"row strand-row" + (r.key === focusReadinessKey ? " rdy-row-focus" : "")} key={r.key}>
-                  <div className="row-grow">
-                    <div className="conn-name">{r.label}</div>
-                    <div className="facts">
-                      <span className="fact st warn">Watching</span>
-                      <span className="fact">{watchingCount(r)}</span>
+                // it used to open the Add One Thing form), and Tell JARVIS is
+                // in that sheet and is the row's swipe (clean rows, Dave
+                // 2026-10-05: no capsule on a row).
+                <RowShell key={r.key} verb={{ label: "Tell JARVIS", run: () => tellAbout(r.key) }}>
+                  <div {...pressable(() => setReadyKey(r.key))} className={"row strand-row" + (r.key === focusReadinessKey ? " rdy-row-focus" : "")}>
+                    <div className="row-grow">
+                      <div className="conn-name">{r.label}</div>
+                      <div className="facts">
+                        <span className="fact st warn">Watching</span>
+                        <span className="fact">{watchingCount(r)}</span>
+                      </div>
                     </div>
+                    <div className="chev" />
                   </div>
-                  <button type="button" className="pill-act" onClick={(ev) => { ev.stopPropagation(); tellAbout(r.key); }}>Tell JARVIS</button>
-                </div>
+                </RowShell>
               ))}
             </div></div>
           )}
         </>
       )}
 
-      {filter !== "watching" && visible.length > 0 && (
-        <div className="sh2 sh2-quiet"><span className="t">What It Knows</span><span className="n">{visible.length}</span></div>
+      {/* THE SECTION'S ACTION IS IN ITS HEAD (Dave 2026-10-05, locked: Add lives in the section head, never in a card and
+          never at the foot of a list). The head always stands, so with nothing in the section it and its capsule are the
+          whole of it (rule 12); the Watching head carries the same capsule, so Add One Thing is on every filter. */}
+      {filter !== "watching" && (
+        <div className="sh2 sh2-quiet">
+          <span className="t">What It Knows</span>
+          {visible.length > 0 && <span className="n">{visible.length}</span>}
+          <button type="button" className="see-all pill-action" onClick={startAdd}>Add One Thing</button>
+        </div>
       )}
 
       {/* RAW JSX TEXT IS INVISIBLE TO THE SHORT-COPY LAW (states sweep,
@@ -429,31 +445,34 @@ export default function StrandsPage({ onBack, openId: initialOpenId, openNonce, 
           hub's (BrainTop), which dropped its Used By list for the category
           on 2026-09-26 (Dave, the pass-off) so the two read as one. */}
       {visible.length > 0 && (
-        <div className="pad-x"><div className="card list-card-ruled">
+        <div className="pad-x"><div className="card list-card-ruled shell-rows">
           {visible.map((s) => {
             const st = stateForStrand(s, today);
             const rr = s.data.source === "watched" || s.data.source === "uploaded" ? readinessFor(s) : undefined;
             const conf = rr ? confidenceWord(rr.have, rr.need) : null;
             const fading = st === "FADING";
+            const words = lineCase(s.data.text);
             return (
-              <div {...pressable(openRow(s))}
-                className={"row strand-row" + (s.data.status === "paused" ? " paused" : "")}
-                key={s.id}
-              >
-                <RowStar on={!!s.data.link} />
-                <div className="row-grow">
-                  <div className="conn-name">{s.data.text}</div>
-                  <div className="facts">
-                    {st && <span className={"fact st " + toneForStrandState(st)}>{STRAND_STATE_LABEL[st]}</span>}
-                    {s.data.strength === "rule" && <span className="fact st">Rule</span>}
-                    {conf === "High" && <span className="fact good">High</span>}
-                    <span className="fact">{s.data.status === "paused" ? `Paused, ${STRAND_CATEGORY_LABEL[s.data.category]}` : STRAND_CATEGORY_LABEL[s.data.category]}</span>
+              // A fading fact is the one whose moment has come: Still True is its swipe-left AND the one quiet word on
+              // the row, the same verb in both (Dave 2026-10-05). Every other fact has no quick verb and never gets an
+              // invented one; its sheet holds all of them.
+              <RowShell key={s.id} verb={fading ? { label: "Still True", run: () => void confirmRow(s) } : undefined}>
+                <div {...pressable(openRow(s))} className={"row strand-row" + (s.data.status === "paused" ? " paused" : "")}>
+                  <RowStar on={!!s.data.link} />
+                  <div className="row-grow">
+                    <div className="conn-name">{words}</div>
+                    <div className="facts">
+                      {st && <span className={"fact st " + toneForStrandState(st)}>{STRAND_STATE_LABEL[st]}</span>}
+                      {s.data.strength === "rule" && <span className="fact st">Rule</span>}
+                      {conf === "High" && <span className="fact good">High</span>}
+                      <span className="fact">{s.data.status === "paused" ? `Paused, ${STRAND_CATEGORY_LABEL[s.data.category]}` : STRAND_CATEGORY_LABEL[s.data.category]}</span>
+                    </div>
                   </div>
+                  {fading
+                    ? <RowCtxAction when label="Still True" ariaLabel={"Still True, " + words} onAct={() => void confirmRow(s)} />
+                    : <div className="chev" />}
                 </div>
-                {fading
-                  ? <button type="button" className="pill-act" onClick={(ev) => { ev.stopPropagation(); void confirmRow(s); }}>Still True</button>
-                  : <div className="chev" />}
-              </div>
+              </RowShell>
             );
           })}
         </div></div>
@@ -461,9 +480,6 @@ export default function StrandsPage({ onBack, openId: initialOpenId, openNonce, 
 
       {/* Brain Manual v1: facts filed from a note or the + menu. */}
       <FiledRows categories={["fact"]} rowClass="row strand-row" />
-      <div className="pad-x">
-        <button className="row row-act" onClick={() => { setAdding(true); setText(""); setCat("work_style"); setRule(false); setKind(null); setChannel(null); }}>Add One Thing</button>
-      </div>
       <div className="screen-foot" />
 
       {open && !editing && (
@@ -479,7 +495,7 @@ export default function StrandsPage({ onBack, openId: initialOpenId, openNonce, 
               {open.data.strength === "rule" && <span className="fact">Rule</span>}
             </span></div></div>
             <div className="pad-x sheet-form">
-              <div className="strand-head">{open.data.text}</div>
+              <div className="strand-head">{lineCase(open.data.text)}</div>
               <div className="conn-meta">{`Confirmed ${monthDay(open.data.lastConfirmed)}`}</div>
               {/* A receipt is what happened and the day it did: one grey for
                   the what, and the day in small caps (§AM F5), so the pair
@@ -502,7 +518,7 @@ export default function StrandsPage({ onBack, openId: initialOpenId, openNonce, 
             <div className="pad-x sheet-actions">
               {/* First, and above Edit, because it is the affirmative one and
                   the other three are all ways of taking something back. */}
-              <button className="btn btn-secondary btn-block" onClick={() => void doConfirm(open)}>Still True</button>
+              <button className="btn btn-primary btn-block" onClick={() => void doConfirm(open)}>Still True</button>
               <button className="btn btn-secondary btn-block" onClick={() => { setEditing(true); setText(open.data.text); }}>Edit</button>
               <button className="btn btn-secondary btn-block" onClick={() => void doPause(open)}>{open.data.status === "active" ? "Pause" : "Resume"}</button>
               <button className="btn btn-secondary btn-block btn-danger-text" onClick={() => void doDelete(open)}>Delete</button>

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import PageHeader, { BarAction } from "../shared/PageHeader";
 import { useMoney, useTasks, useProfile, useCategories, useOptionalGoals, useTracker, useOptionalLedger } from "../data/NotesProvider";
 import { effectiveKind } from "../categories/kinds";
@@ -34,17 +34,16 @@ import { lineCase, titleCase } from "../shared/casing";
 import { inMonth, thisMonth, incomeCents, spentCents, fmtCents, ENTITY_MONEY_TX } from "./tracker";
 import type { Goal } from "../life/types";
 import { savingsLine, savingsPct, savedTotal } from "../bigger/savings";
-import { madeBy } from "../shared/provenance";
-import { Paperclip, Calendar, FolderKanban, Check as CheckGlyph, Trash2 } from "../shared/icons";
-import { useSwipe } from "../shared/useSwipe";
+import { Paperclip, Calendar, FolderKanban, Clock, Check as CheckGlyph } from "../shared/icons";
 import { FormSheet, Group, FieldRow, MenuRow, DeleteRow, ErrorLine } from "../shared/FormSheet";
-import { pressable, onPressKey } from "../shared/pressable";
-import { rowDoor } from "../shared/rowDoor";
+import { pressable } from "../shared/pressable";
+import MoneyRow, { type RowVerb } from "./MoneyRow";
+import RowActionSheet, { type RowAction } from "../shared/RowActionSheet";
+import RowCtxAction from "../shared/RowCtxAction";
 
 const CHEV = <div className="chev" />;
 const PLUS = <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>;
 const WALLET = <WalletGlyph />;
-const TRASH = <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>;
 const REPEAT = <RepeatGlyph />;
 
 // THE BILL'S CHIP (ruled 2026-09-01, "Bill rows: amount right, urgency
@@ -150,54 +149,57 @@ function PaydaySheet({ initial, onSave, onRemove, onCancel }: {
 }
 
 type Sheet = { kind: "closed" } | { kind: "new" } | { kind: "edit"; id: string };
-// UP-CORE-15 (2026-09-05): SWIPE RIGHT MARKS IT PAID. The same gesture the
-// task rows answer to, on the row that most deserves a whole-row target.
-// Autopay is exempt by the money law: the app cannot know a payment cleared,
-// so there is nothing here for a gesture to claim. A bill already paid has
-// nothing to mark.
-function BillRow({ paid, autopay, label, onPay, onDelete, onOpen, children }: {
-  paid: boolean;
-  autopay: boolean;
-  /** The bill's name, for the delete button's accessible name. */
-  label: string;
-  onPay: () => void;
-  onDelete?: () => void;
-  /** Opens the bill. The whole row is the door (the tap sweep, 2026-10-04): an
-      autopay bill's repeat glyph and every bill's amount did nothing when
-      tapped, because only the title block opened it. */
-  onOpen: () => void;
-  children: React.ReactNode;
+
+// A SET-ASIDE IS ONE SHEET (Dave 2026-10-05, locked: no form inside a card, no pill inside a row). It used to be an
+// inline adder in the Set Aside card, its Add and Save the card's own pill. The head's capsule opens this, and so
+// does a tap on a set-aside row, filled; Save replaces it in place. Remove is the last group, as on every other sheet.
+function EnvelopeSheet({ initial, onSave, onRemove, onCancel }: {
+  initial?: Envelope; onSave: (name: string, amount: number) => void | Promise<boolean | void>; onRemove?: () => void; onCancel: () => void;
 }) {
-  const completable = !paid && !autopay;
-  // DELETE IS ON THE SWIPE (Dave 2026-09-20: "should be able to delete
-  // always"). This row had revealW 0 and a right-swipe only, so the single
-  // gesture it answered to was Paid: getting rid of a bill meant opening its
-  // sheet, and a bill added by mistake had no quick way out at all. Left is
-  // the app's delete side on every other list; this row was the odd one.
-  const swipe = useSwipe({ revealW: onDelete ? 88 : 0, rightW: completable ? 88 : 0, ...(completable ? { onRightCommit: onPay } : {}) });
+  const [saving, setSaving] = useState(false);
+  const [name, setName] = useState(initial?.name ?? "");
+  const [amount, setAmount] = useState(initial ? String(initial.amount) : "");
+  const [touched, setTouched] = useState(false);
+  const amt = Number(amount);
+  const valid = name.trim().length > 0 && amount.trim() !== "" && Number.isFinite(amt) && amt > 0;
+  const save = () => {
+    if (!valid) { setTouched(true); return; }
+    if (saving) return;
+    setSaving(true);
+    const r = onSave(name, amt);
+    void Promise.resolve(r).then((ok) => { if (ok === false) setSaving(false); }, () => setSaving(false));
+  };
   return (
-    <div className="task-swipe">
-      {completable && (
-        <div className="task-done-rail" aria-hidden="true">
-          <CheckGlyph className="ic" />
-          <span className="swipe-label">Paid</span>
-        </div>
-      )}
-      {onDelete && (
-        <button className="task-del" onClick={() => swipe.closeThen(onDelete)} aria-label={"Delete " + label}>
-          <Trash2 className="ic" />
-          <span className="swipe-label">Delete</span>
-        </button>
-      )}
-      <div
-        className={"task-row p2" + (swipe.dragging ? " swiping" : "")}
-        style={swipe.dx ? { transform: `translateX(${swipe.dx}px)` } : undefined}
-        {...swipe.handlers}
-        {...rowDoor(onOpen)}
-      >
-        {children}
-      </div>
-    </div>
+    <FormSheet title={initial ? "Edit Set Aside" : "Set Money Aside"} onCancel={onCancel} onSave={save} saveDisabled={!valid} saveLabel={saving ? "Saving" : "Save"}>
+      <Group label="Set Aside">
+        <FieldRow tone="blue" glyph={<WalletGlyph />} value={name} onChange={setName} placeholder="What For" ariaLabel="What for"
+          error={touched && !name.trim()} right={false} />
+        <FieldRow tone="green" glyph={<DollarGlyph />} label="Amount" value={amount} onChange={setAmount} placeholder="0" inputMode="numeric"
+          ariaLabel="Amount in dollars" error={touched && !valid && !!name.trim()} />
+      </Group>
+      <ErrorLine text={touched && !valid ? (!name.trim() ? "Needs a Name" : "Needs an Amount Over Zero") : null} />
+      {onRemove && <Group className="xs-actions"><DeleteRow label="Remove Set Aside" onClick={onRemove} /></Group>}
+    </FormSheet>
+  );
+}
+
+// MONEY INTO A SAVINGS GOAL IS ONE SHEET TOO (the same ruling): the goal's row is clean, its verb is Add, and the amount
+// is typed here. Only real logged dollars ever land (a skipped purchase is not saving).
+function SavingsSheet({ goal, onSave, onCancel }: { goal: Goal; onSave: (amount: string) => void | Promise<boolean | void>; onCancel: () => void }) {
+  const [saving, setSaving] = useState(false);
+  const [amount, setAmount] = useState("");
+  const save = () => {
+    if (saving) return;
+    setSaving(true);
+    void Promise.resolve(onSave(amount)).then((ok) => { if (ok === false) setSaving(false); }, () => setSaving(false));
+  };
+  return (
+    <FormSheet title="Add Savings" onCancel={onCancel} onSave={save} saveLabel={saving ? "Saving" : "Add"}>
+      <Group label={titleCase(goal.data.title)}>
+        <FieldRow tone="green" glyph={<DollarGlyph />} label="Amount" value={amount} onChange={setAmount} placeholder="0" inputMode="numeric"
+          ariaLabel="Amount in dollars" />
+      </Group>
+    </FormSheet>
   );
 }
 
@@ -278,36 +280,29 @@ export default function MoneyFlow({ onOpenTask, onOpenEntity, openAccountId, ope
   const goalsSvc = useOptionalGoals();
   const [savingsGoals, setSavingsGoals] = useState<Goal[]>([]);
   const [saveInto, setSaveInto] = useState<string | null>(null);
-  const [saveAmt, setSaveAmt] = useState("");
   const loadGoals = useCallback(async () => {
     if (!goalsSvc) return;
     const gl = await goalsSvc.list();
     setSavingsGoals(gl.filter((g) => !!g.data.moneyTarget && g.data.state !== "achieved" && !g.data.dropped));
   }, [goalsSvc]);
   useEffect(() => { void loadGoals(); }, [loadGoals]);
-  const addSavings = async (g: Goal) => {
-    const amt = Number(saveAmt);
+  const addSavings = async (g: Goal, text: string): Promise<boolean> => {
+    const amt = Number(text);
     // Say WHY nothing happened, the same rule the envelope adder follows.
-    if (!isFinite(amt) || amt <= 0) { showToast({ message: "Needs an Amount Over Zero" }); return; }
-    if (!goalsSvc) return;
+    if (!text.trim() || !isFinite(amt) || amt <= 0) { showToast({ message: "Needs an Amount Over Zero" }); return false; }
+    if (!goalsSvc) return false;
     const d = todayISO();
     // HMN-F-09: the receipt below is a claim that the money landed, so it
     // fires only after the write resolved.
-    if (!(await attemptWrite(() => goalsSvc.update(g.id, { saved: [...(g.data.saved ?? []), { d, amount: amt }] })))) return;
-    setSaveInto(null); setSaveAmt("");
+    if (!(await attemptWrite(() => goalsSvc.update(g.id, { saved: [...(g.data.saved ?? []), { d, amount: amt }] })))) return false;
+    setSaveInto(null);
     await loadGoals();
     showToast({ message: formatMoney(amt) + " toward " + g.data.title });
+    return true;
   };
-  const [envName, setEnvName] = useState("");
-  const [envAmt, setEnvAmt] = useState("");
-  // THE WHOLE ROW IS THE DOOR (Dave 2026-09-15: "I want all rows
-  // clickable"). A set-aside row opens itself in the adder it was made in,
-  // filled, and Save replaces it in place. Remove stays button-only.
-  const [envEditing, setEnvEditing] = useState<string | null>(null);
-  const envNameRef = useRef<HTMLInputElement>(null);
-  const editEnvelope = (e: Envelope) => { setEnvEditing(e.id); setEnvName(e.name); setEnvAmt(String(e.amount)); setEnvOpen(true); };
-  // Keys answer the row itself only, so Enter on an inner button stays its own.
-  const rowKey = (fn: () => void) => (ev: React.KeyboardEvent) => { if (ev.target === ev.currentTarget) onPressKey(fn)(ev); };
+  // THE SET-ASIDE SHEET (Dave 2026-10-05: a set-aside row opens itself in the sheet it was made in, filled, and Save
+  // replaces it in place; Remove is a swipe, a menu line and the sheet's last group).
+  const [envSheet, setEnvSheet] = useState<{ kind: "new" } | { kind: "edit"; id: string } | null>(null);
   // HMN-F-12 (2026-09-05): every envelope change is one guarded write to the
   // profile, and the screen only shows what actually landed.
   const writeEnvelopes = async (next: Envelope[]): Promise<boolean> => {
@@ -404,6 +399,22 @@ export default function MoneyFlow({ onOpenTask, onOpenEntity, openAccountId, ope
     });
     if (!ok) return false;
     setSheet({ kind: "closed" }); await reload();
+    return true;
+  };
+
+  // Delete an account with the way back (Toast + Undo, 2026-08-09: Money was the only surface where a delete just made
+  // the thing vanish). The row's swipe, the menu and the sheet all land here. HMN-F-09: "Account deleted" is a claim, so
+  // it waits for the write.
+  const removeAccount = async (id: string, data: AccountData | undefined): Promise<boolean> => {
+    const gone = data ? { ...data } : null;
+    if (!(await attemptWrite(() => svc.remove(id)))) return false;
+    setSheet({ kind: "closed" });
+    await reload();
+    showToast({
+      message: "Account Deleted",
+      actionLabel: "Undo",
+      onAction: async () => { if (gone) await attemptWrite(() => svc.create(gone)); await reload(); },
+    });
     return true;
   };
 
@@ -582,6 +593,12 @@ export default function MoneyFlow({ onOpenTask, onOpenEntity, openAccountId, ope
   const [, setSuggestTick] = useState(0);
   const suggestion = suggestMonthly(ledgerBills).find((x) => !isSuggestionDismissed(suggestionKey(x)));
   const suggestionCurrency = ledgerBills.find((b) => b.id === suggestion?.billId)?.data.currency ?? "USD";
+  const [offerOpen, setOfferOpen] = useState(false);
+  const notNowSuggestion = () => {
+    if (!suggestion) return;
+    dismissSuggestion(suggestionKey(suggestion));
+    setSuggestTick((n) => n + 1);
+  };
   const acceptSuggestion = async (x: NonNullable<typeof suggestion>) => {
     if (!ledger) return;
     const ok = await attemptWrite(async () => { const r = await ledger.confirmBillRecurrence(x.billId, x.recurrence); if (!r.ok) throw new Error(r.reason); });
@@ -595,6 +612,16 @@ export default function MoneyFlow({ onOpenTask, onOpenEntity, openAccountId, ope
       })(),
     });
   };
+
+  // THE BILL ROW'S ONE VERB (Dave 2026-10-05, locked): Mark Paid. It is the swipe-left, the tray's first button, the
+  // long-press menu's first line and, once the bill's moment has come (late, or due today), the one quiet word on the
+  // row (RowCtxAction). Swipe right is the same Paid, as it has been since UP-CORE-15. No Pay or Track pill: the pay
+  // link is in the menu and the sheet. Autopay is exempt by the money law (the app cannot know a payment cleared, so
+  // there is nothing for a gesture or a word to claim), and a paid bill has nothing to mark.
+  const payVerb = (run: () => void): RowVerb => ({ label: "Mark Paid", icon: <CheckGlyph className="ic" />, run });
+  const dueNow = (chip: { cls: string; text: string } | null) => !!chip && (chip.cls === "u-late" || /\btoday$/i.test(chip.text));
+  const payLinkAction = (url: string | undefined): RowAction[] =>
+    url ? [{ label: "Pay", onPick: () => { window.open(/^https?:\/\//i.test(url) ? url : "https://" + url, "_blank", "noopener,noreferrer"); } }] : [];
 
   // A legacy bill row: a task with data.bill, exactly as it has always drawn.
   const legacyRow = (b: TaskItem) => {
@@ -618,20 +645,33 @@ export default function MoneyFlow({ onOpenTask, onOpenEntity, openAccountId, ope
             : b.data.due
               ? <span className="fact date">{"Due " + monthDay(b.data.due)}</span>
               : null;
+        const canPay = !paid && !info.autopay;
+        const pay = () => void markPaid(b);
+        const open = () => setBillSheet({ kind: "edit", id: b.id });
+        // His own typed names are SHOWN in Title Case and stored as typed (the whole casing rule, 2026-09-26).
+        const title = titleCase(b.data.text);
         return (
-          <BillRow key={b.id} paid={paid} autopay={!!info.autopay} label={b.data.text}
-            onPay={() => void markPaid(b)} onDelete={() => void deleteBill(b)}
-            onOpen={() => setBillSheet({ kind: "edit", id: b.id })}>
+          <MoneyRow key={b.id} name={title}
+            verb={canPay ? payVerb(pay) : null}
+            complete={canPay ? { label: "Paid", run: pay } : null}
+            onDelete={() => void deleteBill(b)}
+            menu={[
+              ...(canPay ? [{ label: "Mark Paid", onPick: pay }] : []),
+              ...(canPay ? payLinkAction(info.payUrl) : []),
+              { label: "Edit", onPick: open },
+              { label: "Delete", destructive: true, onPick: () => void deleteBill(b) },
+            ]}
+            onOpen={open}>
             {info.autopay ? (
-              <div className="task-check-tap"><span className="gm-slot cat-fg-blue">{REPEAT}</span></div>
+              <div className="task-check-tap"><span className="gm-slot cat-fg-green">{REPEAT}</span></div>
             ) : (
               <div className="task-check-tap" role="checkbox" aria-checked={paid} aria-label={paid ? "Paid" : "Mark paid"}
                 onClick={(e) => { e.stopPropagation(); void markPaid(b); }}>
                 <div className={"task-check" + (paid ? " done" : "")} />
               </div>
             )}
-            <div className="task-title" {...pressable(() => setBillSheet({ kind: "edit", id: b.id }))}>
-              <span className="task-name">{b.data.text}</span>
+            <div className="task-title">
+              <span className="task-name">{title}</span>
               {(chip || line) && (
                 <div className="r-k">
                   {chip && <span className={"uchip " + chip.cls}>{chip.text}</span>}
@@ -641,10 +681,8 @@ export default function MoneyFlow({ onOpenTask, onOpenEntity, openAccountId, ope
               )}
             </div>
             <span className={"money-amt" + (paid ? " paid" : "")}>{formatMoney(info.amount)}</span>
-            {!info.autopay && !paid && info.payUrl && (
-              <a className="bill-pay" href={info.payUrl} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>Pay</a>
-            )}
-          </BillRow>
+            <RowCtxAction when={canPay && dueNow(chip)} label="Mark Paid" ariaLabel={"Mark Paid " + title} onAct={pay} />
+          </MoneyRow>
         );
   };
 
@@ -673,20 +711,33 @@ export default function MoneyFlow({ onOpenTask, onOpenEntity, openAccountId, ope
           : line.state === "due"
             ? <span className="fact date">{chip && d.dueDate ? monthDay(d.dueDate) : line.text}</span>
             : null;
+    const canPay = !paid && !d.autopay;
+    const pay = () => ledgerPay.request(bill);
+    const open = () => setDetailId(bill.id);
+    const title = titleCase(d.vendor);
     return (
-      <BillRow key={bill.id} paid={paid} autopay={!!d.autopay} label={d.vendor}
-        onPay={() => ledgerPay.request(bill)} onDelete={() => void deleteLedgerBill(bill)}
-        onOpen={() => setDetailId(bill.id)}>
+      <MoneyRow key={bill.id} name={title}
+        verb={canPay ? payVerb(pay) : null}
+        complete={canPay ? { label: "Paid", run: pay } : null}
+        onDelete={() => void deleteLedgerBill(bill)}
+        menu={[
+          ...(canPay ? [{ label: "Mark Paid", onPick: pay }] : []),
+          ...(canPay ? payLinkAction(d.payUrl) : []),
+          ...(d.paidAt ? [{ label: "Remove Paid State", onPick: () => void removePaidState(bill) }] : []),
+          { label: "Edit", onPick: () => setBillSheet({ kind: "editLedger", id: bill.id }) },
+          { label: "Delete", destructive: true, onPick: () => void deleteLedgerBill(bill) },
+        ]}
+        onOpen={open}>
         {d.autopay ? (
-          <div className="task-check-tap"><span className="gm-slot cat-fg-blue">{REPEAT}</span></div>
+          <div className="task-check-tap"><span className="gm-slot cat-fg-green">{REPEAT}</span></div>
         ) : (
           <div className="task-check-tap" role="checkbox" aria-checked={paid} aria-label={paid ? "Paid" : "Mark paid"}
             onClick={(e) => { e.stopPropagation(); if (paid) setDetailId(bill.id); else ledgerPay.request(bill); }}>
             <div className={"task-check" + (paid ? " done" : "")} />
           </div>
         )}
-        <div className="task-title" {...pressable(() => setDetailId(bill.id))}>
-          <span className="task-name">{d.vendor}</span>
+        <div className="task-title">
+          <span className="task-name">{title}</span>
           {(chip || lineEl) && (
             <div className="r-k">
               {chip && <span className={"uchip " + chip.cls}>{chip.text}</span>}
@@ -695,10 +746,8 @@ export default function MoneyFlow({ onOpenTask, onOpenEntity, openAccountId, ope
           )}
         </div>
         <span className={"money-amt" + (paid ? " paid" : "")}>{billAmount(d)}</span>
-        {!d.autopay && !paid && d.payUrl && (
-          <a className="bill-pay" href={d.payUrl} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>Pay</a>
-        )}
-      </BillRow>
+        <RowCtxAction when={canPay && dueNow(chip)} label="Mark Paid" ariaLabel={"Mark Paid " + title} onAct={pay} />
+      </MoneyRow>
     );
   };
 
@@ -708,6 +757,8 @@ export default function MoneyFlow({ onOpenTask, onOpenEntity, openAccountId, ope
   // because there is nothing to tick), the name, one grey line with the
   // chip and the date words, the amount in the trailing column. The caps
   // eyebrow that used to carry the date is gone with the rest of them.
+  // Add Bill is the Bills head's capsule, never a row at the foot of this card.
+  const hasBillRows = !!anchor || entries.length > 0;
   const billRows = (
     <>
       {anchor && (
@@ -726,17 +777,21 @@ export default function MoneyFlow({ onOpenTask, onOpenEntity, openAccountId, ope
           {CHEV}
         </div>
       )}
-      <button className="row row-act" onClick={() => setBillSheet({ kind: "new" })}>Add Bill</button>
     </>
   );
 
-  // A bare account row, shared by the balance card and the Accounts card.
+  // A bare account row, shared by the balance card and the Accounts card. A tap opens its sheet (which holds Delete);
+  // swipe left is Delete, and the long press is the menu.
   const accountRow = (a: Account) => {
     const m = ACCOUNT_META[a.data.kind];
+    const open = () => setSheet({ kind: "edit", id: a.id });
+    const title = titleCase(a.data.name);
     return (
-      <div className="task-row p2" {...pressable(() => setSheet({ kind: "edit", id: a.id }))} key={a.id}>
+      <MoneyRow key={a.id} name={title} onDelete={() => void removeAccount(a.id, a.data)}
+        menu={[{ label: "Edit", onPick: open }, { label: "Delete", destructive: true, onPick: () => void removeAccount(a.id, a.data) }]}
+        onOpen={open}>
         <div className="task-title">
-          <span className="task-name">{a.data.name}</span>
+          <span className="task-name">{title}</span>
           {/* THE KIND RIDES A DOT (2026-09-26, the pass-off: "a kind dot per
               account"). ACCOUNT_META has carried a colour slot per kind since
               Money v1 and nothing drew it; the catalog's category primitive
@@ -750,9 +805,13 @@ export default function MoneyFlow({ onOpenTask, onOpenEntity, openAccountId, ope
             HMN-F-13: a credit account shows what it takes off the total,
             so the row and the number above it can never disagree. */}
         <span className={"money-amt" + (signedBalance(a.data) < 0 ? " money-neg" : "")}>{formatMoney(signedBalance(a.data))}</span>
-      </div>
+      </MoneyRow>
     );
   };
+
+  // The head's one capsule for the section's one action (Dave 2026-10-05, locked): Add Account lives on the Accounts
+  // head, as New Event and Schedule sit on Tonight's, never as a row at the foot of a card.
+  const addAccountCapsule = <button className="see-all pill-action" onClick={() => setSheet({ kind: "new" })}>Add Account</button>;
 
   // THE TOP OF MONEY (Notes and Money catalog, 2026-09-02). Which shape
   // leads the page is the catalog's third pick; the constant is the switch.
@@ -820,10 +879,9 @@ export default function MoneyFlow({ onOpenTask, onOpenEntity, openAccountId, ope
 
   return (
     <div className="screen ruled">
-      <PageHeader title="Money" actions={<>
-        <BarAction label="Add a Receipt" onClick={() => setReceiptAdd((n) => n + 1)}><Paperclip className="ic" /></BarAction>
-        <BarAction label="Add Account" onClick={() => setSheet({ kind: "new" })}>{PLUS}</BarAction>
-      </>} />
+      {/* The bar keeps the receipt's paperclip. Add Account is the Accounts head's capsule now, one door for the one
+          action (Dave 2026-10-05, locked: a section-level action lives in its section head). */}
+      <PageHeader title="Money" actions={<BarAction label="Add a Receipt" onClick={() => setReceiptAdd((n) => n + 1)}><Paperclip className="ic" /></BarAction>} />
       {accounts.length === 0 && entries.length === 0 && tagged.length === 0 ? (
         <>
         <div className="empty-state"><div className="empty-icon">{WALLET}</div><div className="empty-title">No Accounts Yet</div>
@@ -874,49 +932,26 @@ export default function MoneyFlow({ onOpenTask, onOpenEntity, openAccountId, ope
                 )}
               </div></div>
 
-              <div className="sh2 sh2-quiet"><span className="t">Set Aside</span>{envelopes.length > 0 && <span className="n">{envelopes.length}</span>}</div>
-              <div className="pad-x"><div className="card list-card-ruled">
-                {envelopes.map((e) => (
-                  <div className="task-row p2" key={e.id} role="button" tabIndex={0} aria-label={"Edit " + e.name}
-                    onClick={() => editEnvelope(e)} onKeyDown={rowKey(() => editEnvelope(e))}>
-                    <div className="task-title"><span className="task-name">{e.name}</span></div>
-                    <span className="money-amt">{formatMoney(e.amount)}</span>
-                    <button className="conn-remove" aria-label={"Remove " + e.name}
-                      onClick={(ev) => { ev.stopPropagation(); void removeEnvelope(e); }}>{TRASH}</button>
-                  </div>
-                ))}
-                {envOpen ? (
-                  <div className="row" onClick={(ev) => { if (ev.target === ev.currentTarget) envNameRef.current?.focus(); }}>
-                    <div className="row-grow budget-add">
-                      <input ref={envNameRef} className="input" placeholder="What For" value={envName} onChange={(ev) => setEnvName(ev.target.value)} />
-                      <input className="input budget-amt" inputMode="numeric" placeholder="0" value={envAmt}
-                        onChange={(ev) => setEnvAmt(ev.target.value)} />
-                      <button className="btn btn-primary btn-sm" onClick={() => {
-                        const amt = Number(envAmt);
-                        // Say WHY nothing happened (2026-08-09): this button
-                        // used to eat the tap in silence on a blank name or
-                        // zero amount, unlike every sheet in this module.
-                        if (!envName.trim() || !isFinite(amt) || amt <= 0) {
-                          showToast({ message: !envName.trim() ? "Needs a Name" : "Needs an Amount Over Zero" });
-                          return;
-                        }
-                        void (async () => {
-                          const next = envEditing
-                            ? envelopes.map((x) => (x.id === envEditing ? { ...x, name: envName, amount: amt } : x))
-                            : [...envelopes, { id: envelopeId(), name: envName, amount: amt }];
-                          const ok = await writeEnvelopes(next);
-                          if (ok) { setEnvName(""); setEnvAmt(""); setEnvOpen(false); setEnvEditing(null); }
-                        })();
-                      }}>{envEditing ? "Save" : "Add"}</button>
-                    </div>
-                  </div>
-                ) : (
-                  <button className="row row-act" onClick={() => { setEnvEditing(null); setEnvName(""); setEnvAmt(""); setEnvOpen(true); }}>Set Money Aside</button>
-                )}
-              </div></div>
+              {/* SET MONEY ASIDE IS THE HEAD'S CAPSULE (Dave 2026-10-05, locked: a section-level action lives in the head,
+                  never in a card). With nothing set aside the section is its head and the capsule, no empty plate (rule
+                  12); a set-aside row is clean, its tap the sheet, its swipe Remove. */}
+              <div className="sh2 sh2-quiet"><span className="t">Set Aside</span>{envelopes.length > 0 && <span className="n">{envelopes.length}</span>}
+                <button className="see-all pill-action" onClick={() => setEnvSheet({ kind: "new" })}>Set Money Aside</button></div>
+              {envelopes.length > 0 && (
+                <div className="pad-x"><div className="card list-card-ruled">
+                  {envelopes.map((e) => (
+                    <MoneyRow key={e.id} name={titleCase(e.name)} onDelete={() => void removeEnvelope(e)} deleteLabel="Remove"
+                      menu={[{ label: "Edit", onPick: () => setEnvSheet({ kind: "edit", id: e.id }) }, { label: "Remove", destructive: true, onPick: () => void removeEnvelope(e) }]}
+                      onOpen={() => setEnvSheet({ kind: "edit", id: e.id })}>
+                      <div className="task-title"><span className="task-name">{titleCase(e.name)}</span></div>
+                      <span className="money-amt">{formatMoney(e.amount)}</span>
+                    </MoneyRow>
+                  ))}
+                </div></div>
+              )}
               {envelopes.length === 0 && (
-                <div className="pad-x"><div className="input-help">
-                  Reserved · Not Spendable · A Plan
+                <div className="pad-x"><div className="facts">
+                  <span className="fact">Reserved</span><span className="fact">Not Spendable</span><span className="fact">A Plan</span>
                 </div></div>
               )}
             </>
@@ -924,6 +959,9 @@ export default function MoneyFlow({ onOpenTask, onOpenEntity, openAccountId, ope
 
           {/* THE BALANCE AND ITS PARTS, ONE CARD (the recommended shape): the
               total big, then the accounts it is made of as rows under it. */}
+          {MONEY_TOP === "hero-accts" && (
+            <div className="sh2 sh2-quiet"><span className="t">Accounts</span>{accounts.length > 0 && <span className="n">{accounts.length}</span>}{addAccountCapsule}</div>
+          )}
           {MONEY_TOP === "hero-accts" && accounts.length > 0 && (
             <div className="pad-x"><div className="card list-card-ruled money-hero-card">
               <div className="money-hero">
@@ -935,7 +973,6 @@ export default function MoneyFlow({ onOpenTask, onOpenEntity, openAccountId, ope
                 {balanceFacts}
               </div>
               {accounts.map(accountRow)}
-              <button className="row row-act" onClick={() => setSheet({ kind: "new" })}>Add Account</button>
             </div></div>
           )}
           {MONEY_TOP === "bills-lead" && accounts.length > 0 && (
@@ -953,36 +990,31 @@ export default function MoneyFlow({ onOpenTask, onOpenEntity, openAccountId, ope
 
           <MatchesCard />
 
-          <div className="sh2 sh2-quiet"><span className="t">Bills</span>{entries.length > 0 && <span className="n">{entries.length}</span>}</div>
-          <div className="pad-x"><div className="card list-card-ruled">{billRows}</div></div>
+          {/* ADD BILL IS THE HEAD'S CAPSULE, and a Bills section with nothing in it is its head and the capsule, no empty
+              plate (Dave 2026-10-05, rule 12). */}
+          <div className="sh2 sh2-quiet"><span className="t">Bills</span>{entries.length > 0 && <span className="n">{entries.length}</span>}
+            <button className="see-all pill-action" onClick={() => setBillSheet({ kind: "new" })}>Add Bill</button></div>
+          {hasBillRows && <div className="pad-x"><div className="card list-card-ruled">{billRows}</div></div>}
           {suggestion && (
-            // A QUIET OFFER, NEVER A SCHEDULE (the ledger's rule): the pattern
-            // the bills already show, and two answers. Nothing is scheduled
-            // until Yes.
-            <div className="pad-x"><div className="card list-card-ruled bill-suggest">
-              {/* The row opens the latest bill (its history is the evidence for
-                  the offer); Yes and Not Now are the two answers. */}
-              <div className="task-row p2" {...pressable(() => setDetailId(suggestion.billId))}>
+            // A QUIET OFFER, NEVER A SCHEDULE (the ledger's rule): the pattern the bills already show, and two answers.
+            // Nothing is scheduled until Yes. It is a row, so it carries no pill (Dave 2026-10-05, locked): the tap asks
+            // (Make It Monthly, Not Now, or open the bill whose history is the evidence), the swipe is Not Now.
+            // THE QUESTION IS THE ROW'S NAME (2026-10-05, the visual catalog gate, R1 and R5, and the facts-never-clip
+            // ruling): it is the only thing that says what Yes means. The bill and its amount are a white fact (a name
+            // and a number with no state) and the count is the row's one grey.
+            <div className="pad-x"><div className="card list-card-ruled">
+              <MoneyRow name="Make It Monthly" menuTitle="Make It Monthly?"
+                verb={{ label: "Not Now", icon: <Clock className="ic" />, run: notNowSuggestion }}
+                menu={[]}
+                onOpen={() => setOfferOpen(true)}>
                 <div className="task-title">
-                  <span className="task-name">{suggestion.vendor + ", " + billAmount({ amountCents: suggestion.amountCents, currency: suggestionCurrency })}</span>
+                  <span className="task-name">Make It Monthly?</span>
                   <div className="r-k"><div className="facts">
+                    <span className="fact"><b>{titleCase(suggestion.vendor) + ", " + billAmount({ amountCents: suggestion.amountCents, currency: suggestionCurrency })}</b></span>
                     <span className="fact">{lineCase(`${suggestion.count} months in a row`)}</span>
                   </div></div>
                 </div>
-              </div>
-              {/* THE QUESTION IS THE TITLE OF ITS OWN ROW (2026-10-05, Dave's
-                  visual catalog gate, R1 and R5, and the facts-never-clip
-                  ruling). It was a second grey fact beside the count, and beside
-                  the two pills the title column is 140px wide, so the line cut
-                  the count to "3 Months in a R..." and never drew the question,
-                  the only thing that says what Yes means. As a name it has the
-                  row's width, the count keeps the row above as its one grey, and
-                  Yes and Not Now answer it on the same line. */}
-              <div className="row">
-                <div className="row-grow"><div className="conn-name truncate">Make It Monthly?</div></div>
-                <button className="pill-act" onClick={() => void acceptSuggestion(suggestion)}>Yes</button>
-                <button className="pill-act pill-quiet" onClick={() => { dismissSuggestion(suggestionKey(suggestion)); setSuggestTick((n) => n + 1); }}>Not Now</button>
-              </div>
+              </MoneyRow>
             </div></div>
           )}
 
@@ -1019,36 +1051,32 @@ export default function MoneyFlow({ onOpenTask, onOpenEntity, openAccountId, ope
             <>
               <div className="sh2 sh2-quiet"><span className="t">Saving Toward</span><span className="n">{savingsGoals.length}</span></div>
               <div className="pad-x"><div className="card list-card-ruled">
-                {savingsGoals.map((g) => (
-                  // The row's one verb is Add, so the row opens the amount
-                  // (Dave 2026-09-15: "I want all rows clickable"); taps inside
-                  // the open amount stay there.
-                  <div className="task-row p2 goal-row-ruled" key={g.id} role="button" tabIndex={0} aria-label={"Add to " + titleCase(g.data.title)}
-                    onClick={() => { if (saveInto !== g.id) { setSaveInto(g.id); setSaveAmt(""); } }}
-                    onKeyDown={rowKey(() => { if (saveInto !== g.id) { setSaveInto(g.id); setSaveAmt(""); } })}>
-                    {/* Area color, brand red when unhomed -- the same
-                        goalTone every goal glyph wears (2026-08-31). */}
-                    <div className="task-check-tap"><span className={"gm-slot " + goalTone(g.data.tags)}><TargetGlyph /></span></div>
-                    <div className="task-title">
-                      {/* His own goal title is SHOWN in Title Case and stored
-                          as typed (the whole casing rule, 2026-09-26). */}
-                      <span className="task-name">{titleCase(g.data.title)}</span>
-                      <div className="r-k"><span className="r-goal r-cat">{lineCase(savingsLine(g.data.moneyTarget!, g.data.saved))}</span></div>
-                      {savedTotal(g.data.saved) > 0 && (
-                        <div className="bp-bar"><div className="bp-bar-fill" style={{ width: Math.max(2, savingsPct(g.data.moneyTarget!, g.data.saved)) + "%" }} /></div>
-                      )}
-                    </div>
-                    {saveInto === g.id ? (
-                      <div className="budget-add" onClick={(ev) => ev.stopPropagation()}>
-                        <input className="input budget-amt" inputMode="numeric" placeholder="0" value={saveAmt} autoFocus
-                          onChange={(ev) => setSaveAmt(ev.target.value)} />
-                        <button className="btn btn-primary btn-sm" onClick={() => void addSavings(g)}>Add</button>
+                {savingsGoals.map((g) => {
+                  // The row's one verb is Add (Dave 2026-09-15: "I want all rows clickable"; 2026-10-05: no pill on a
+                  // row), so the tap, the swipe and the menu all open the amount sheet. A goal has nothing to complete
+                  // here, so there is no right swipe.
+                  const add = () => setSaveInto(g.id);
+                  const title = titleCase(g.data.title);
+                  return (
+                    <MoneyRow key={g.id} name={title} className="goal-row-ruled"
+                      verb={{ label: "Add", icon: PLUS, run: add }}
+                      menu={[{ label: "Add Money", onPick: add }]}
+                      onOpen={add}>
+                      {/* Area color, brand red when unhomed -- the same
+                          goalTone every goal glyph wears (2026-08-31). */}
+                      <div className="task-check-tap"><span className={"gm-slot " + goalTone(g.data.tags)}><TargetGlyph /></span></div>
+                      <div className="task-title">
+                        {/* His own goal title is SHOWN in Title Case and stored
+                            as typed (the whole casing rule, 2026-09-26). */}
+                        <span className="task-name">{title}</span>
+                        <div className="r-k"><span className="r-goal r-cat">{lineCase(savingsLine(g.data.moneyTarget!, g.data.saved))}</span></div>
+                        {savedTotal(g.data.saved) > 0 && (
+                          <div className="bp-bar"><div className="bp-bar-fill" style={{ width: Math.max(2, savingsPct(g.data.moneyTarget!, g.data.saved)) + "%" }} /></div>
+                        )}
                       </div>
-                    ) : (
-                      <button className="pill-act" onClick={(ev) => { ev.stopPropagation(); setSaveInto(g.id); setSaveAmt(""); }}>Add</button>
-                    )}
-                  </div>
-                ))}
+                    </MoneyRow>
+                  );
+                })}
               </div></div>
             </>
           )}
@@ -1080,11 +1108,8 @@ export default function MoneyFlow({ onOpenTask, onOpenEntity, openAccountId, ope
 
           {MONEY_TOP !== "hero-accts" && (
             <>
-              <div className="sh2 sh2-quiet"><span className="t">Accounts</span><span className="n">{accounts.length}</span></div>
-              <div className="pad-x"><div className="card list-card-ruled">
-                {accounts.map(accountRow)}
-                <button className="row row-act" onClick={() => setSheet({ kind: "new" })}>Add Account</button>
-              </div></div>
+              <div className="sh2 sh2-quiet"><span className="t">Accounts</span><span className="n">{accounts.length}</span>{addAccountCapsule}</div>
+              {accounts.length > 0 && <div className="pad-x"><div className="card list-card-ruled">{accounts.map(accountRow)}</div></div>}
             </>
           )}
           <div className="screen-foot" />
@@ -1092,21 +1117,38 @@ export default function MoneyFlow({ onOpenTask, onOpenEntity, openAccountId, ope
       )}
       {sheet.kind !== "closed" && (
         <AccountSheet mode={sheet.kind === "new" ? "new" : "edit"} initial={editing?.data} onSave={save}
-          onDelete={sheet.kind === "edit" ? async () => {
-            // Toast + Undo (2026-08-09): Money was the only surface where a
-            // delete just made the thing vanish. Same contract as everywhere.
-            const gone = editing ? { ...editing.data } : null;
-            // HMN-F-09: "Account deleted" is a claim, so it waits for the write.
-            if (!(await attemptWrite(() => svc.remove(sheet.id)))) return;
-            setSheet({ kind: "closed" });
-            await reload();
-            showToast({
-              message: "Account Deleted",
-              actionLabel: "Undo",
-              onAction: async () => { if (gone) await attemptWrite(() => svc.create(gone)); await reload(); },
-            });
-          } : undefined}
+          onDelete={sheet.kind === "edit" ? () => void removeAccount(sheet.id, editing?.data) : undefined}
           onCancel={() => setSheet({ kind: "closed" })} />
+      )}
+      {envSheet && (
+        <EnvelopeSheet initial={envSheet.kind === "edit" ? envelopes.find((x) => x.id === envSheet.id) : undefined}
+          onSave={async (name, amt) => {
+            const next = envSheet.kind === "edit"
+              ? envelopes.map((x) => (x.id === envSheet.id ? { ...x, name, amount: amt } : x))
+              : [...envelopes, { id: envelopeId(), name, amount: amt }];
+            const ok = await writeEnvelopes(next);
+            if (ok) setEnvSheet(null);
+            return ok;
+          }}
+          onRemove={envSheet.kind === "edit" ? () => {
+            const e = envelopes.find((x) => x.id === envSheet.id);
+            setEnvSheet(null);
+            if (e) void removeEnvelope(e);
+          } : undefined}
+          onCancel={() => setEnvSheet(null)} />
+      )}
+      {(() => {
+        const g = saveInto ? savingsGoals.find((x) => x.id === saveInto) : undefined;
+        return g ? <SavingsSheet goal={g} onSave={(text) => addSavings(g, text)} onCancel={() => setSaveInto(null)} /> : null;
+      })()}
+      {offerOpen && suggestion && (
+        <RowActionSheet title="Make It Monthly?"
+          actions={[
+            { label: "Make It Monthly", onPick: () => void acceptSuggestion(suggestion) },
+            { label: "Not Now", onPick: notNowSuggestion },
+            { label: "Open Bill", onPick: () => setDetailId(suggestion.billId) },
+          ]}
+          onCancel={() => setOfferOpen(false)} />
       )}
       {billSheet.kind !== "closed" && (
         <BillSheet mode={billSheet.kind === "new" ? "new" : billSheet.kind === "paid" ? "paid" : "edit"}
@@ -1126,6 +1168,8 @@ export default function MoneyFlow({ onOpenTask, onOpenEntity, openAccountId, ope
               }
             : editingBill ? { text: editingBill.data.text, due: editingBill.data.due ?? "", recurrence: editingBill.data.recurrence ?? null, bill: editingBill.data.bill! } : undefined}
           onSave={saveBill}
+          onMarkPaid={billSheet.kind === "edit" && editingBill && !editingBill.data.bill?.autopay && billSubline(editingBill, today).state !== "paid"
+            ? () => { setBillSheet({ kind: "closed" }); void markPaid(editingBill); } : undefined}
           onDelete={billSheet.kind === "editLedger" ? async () => {
             // A ledger bill's Delete takes the sheet with it only once the
             // delete has landed, and Undo is restoreBill.

@@ -252,7 +252,8 @@ export default function BookingPage({
         )}
       </Card>
       <Foot>Your times stay on this device · Publishing writes them to the booking server so the address above can offer them · Taking the link down never cancels a booking you already have</Foot>
-      <Head label="Days Off" />
+      {/* THE ADD IS THE HEAD'S (Dave 2026-10-05, locked); the card keeps its own words when there are no days off (an empty state with a title of its own, rule 12). */}
+      <Head label="Days Off" action={{ label: "Add a Day Off", onClick: () => { setDayErr(null); setAddingDay(true); }, disabled: busy }} />
       <Card>
         {daysOff.length > 0 ? daysOff.map((d) => (
           <div className="row" key={d} {...pressable(() => setActingDay(d))}>
@@ -263,9 +264,6 @@ export default function BookingPage({
         )) : (
           <div className="row"><div className="row-grow"><div className="conn-name">No Days Off</div></div></div>
         )}
-        <div className="set-publish">
-          <button type="button" className="btn btn-block" onClick={() => { setDayErr(null); setAddingDay(true); }} disabled={busy}>Add a Day Off</button>
-        </div>
       </Card>
       <Foot>A day off beats your hours for that day, and it never touches a booking you already have.</Foot>
       {link && (

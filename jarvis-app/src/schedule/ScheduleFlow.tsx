@@ -65,7 +65,7 @@ import FilingSheet from "../ai/FilingSheet";
 import type { TaskItem } from "../tasks/TasksService";
 import { repeatRows } from "./repeats";
 import { overlapsOn, overlapLine, copyDay, carriedFields, durationOf, type Overlap } from "./dayEdit";
-import { lineCase } from "../shared/casing";
+import { lineCase, titleCase } from "../shared/casing";
 import { useFreshLists } from "../data/useFreshLists";
 import { recordSpot } from "../restore/whereYouWere";
 import { ENTITY_EVENT } from "./types";
@@ -549,6 +549,8 @@ export default function ScheduleFlow({ onEditRoutine, openId, openNonce, onOpenC
     onAccept: (id: string) => void acceptOne(id),
     // The same door a nested proposed task opens (item 5, 2026-10-01).
     onOpen: (id: string) => void onOpenTask(id),
+    // TICK IT OFF FROM THE DAY (Dave 2026-10-05, locked: swipe right completes): the ring and the right swipe on a proposed block.
+    onComplete: (id: string) => void onToggleTask(id),
   } : undefined;
 
   const onAIPlan = ai.available
@@ -1067,9 +1069,10 @@ export default function ScheduleFlow({ onEditRoutine, openId, openNonce, onOpenC
     setTaskSheet(null);
     await reloadTasks();
   };
-  const onDeleteTask = async () => {
-    if (!taskSheet) return;
-    const id = taskSheet.id;
+  // From the task's sheet (its own id) or from a swipe on an Anytime row (the id it was swiped on).
+  const onDeleteTask = async (rowId?: string) => {
+    const id = rowId ?? taskSheet?.id;
+    if (!id) return;
     const t = await tasksSvc.task(id);
     setTaskSheet(null);
     const ok = await attemptWrite(() => tasksSvc.deleteTask(id));
@@ -1715,6 +1718,7 @@ export default function ScheduleFlow({ onEditRoutine, openId, openNonce, onOpenC
         parentOf={(t) => parentForTask(parentIdx, t)}
         onToggleTask={onToggleTask}
         onScheduleTask={onScheduleTask}
+        onDeleteTask={(id) => void onDeleteTask(id)}
         onOpenTask={(id) => void onOpenTask(id)}
         attachMap={attachMap}
         firstMoveMap={firstMoveMap}
@@ -1756,13 +1760,13 @@ export default function ScheduleFlow({ onEditRoutine, openId, openNonce, onOpenC
             <div className="grp"><div className="eyebrow">Put a Task in This Block</div></div>
             <div className="pad-x sheet-form">
               {anytimeItems.length === 0 ? (
-                <div className="empty-state"><div className="t-body">Nothing waiting to be scheduled</div></div>
+                <div className="empty-state"><div className="t-body">Nothing Waiting to Be Scheduled</div></div>
               ) : (
                 <div className="p3-list">
                   {anytimeItems.slice(0, 12).map((t) => (
                     <div className="p3-row" key={t.id} role="button" tabIndex={0} onClick={() => void fillWith(t.id)}>
                       <span className={"cat-dot cat-bg-" + catColor(t.data.category)} />
-                      <div className="row-grow"><div className="p3-name truncate">{t.data.text}</div></div>
+                      <div className="row-grow"><div className="p3-name truncate">{titleCase(t.data.text)}</div></div>
                     </div>
                   ))}
                 </div>
@@ -1918,11 +1922,11 @@ export default function ScheduleFlow({ onEditRoutine, openId, openNonce, onOpenC
       {guard && (
         <div className="ag-scrim" onClick={() => setGuard(null)}>
           <div className="ag-card" onClick={(e) => e.stopPropagation()}>
-            <div className="ag-title">That&rsquo;s four anchors</div>
+            <div className="ag-title">That&rsquo;s Four Anchors</div>
             <div className="ag-body">A lighter day tends to stick. Want to keep this one in Anytime instead?</div>
             <div className="ag-acts">
               <button className="btn btn-primary btn-block" onClick={async () => { const g = guard; setGuard(null); if (g) await onUnschedule(g.id); }}>Keep in Anytime</button>
-              <button className="btn btn-tertiary btn-block" onClick={() => setGuard(null)}>Leave it scheduled</button>
+              <button className="btn btn-tertiary btn-block" onClick={() => setGuard(null)}>Leave It Scheduled</button>
             </div>
           </div>
         </div>

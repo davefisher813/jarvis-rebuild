@@ -18,6 +18,7 @@ import type { TaskData } from "../notes/types";
 import type { EventItem } from "../schedule/types";
 import { TargetGlyph, CheckCircleGlyph, LockGlyph } from "../shared/glyphs";
 import { pressable } from "../shared/pressable";
+import RowShell from "../brain/RowShell";
 
 // THE MONTHLY REPORT (2026-08-25, built from the approved v3 preview).
 // Reassurance leads, numbers and color carry it, sentences live behind the
@@ -65,7 +66,14 @@ function Facts({ facts }: { facts: ReportFact[] }) {
   );
 }
 
-function ReceiptsSheet({ title, lines, onDone }: { title: string; lines: string[]; onDone: () => void }) {
+// WHAT A REPORT ROW OPENS (Dave 2026-10-05, locked: a row is a door, and its sheet holds every action, the primary
+// prominent). The receipts behind the card are the sheet's words; the verb the row used to carry as a capsule under it
+// (Do One, Drop One, Open Money) is the sheet's first answer, filled, with the quieter one beneath it.
+interface ReportAnswer { label: string; onPick: () => void; destructive?: boolean }
+interface OpenReceipts { title: string; lines: string[]; answers?: ReportAnswer[] }
+
+function ReceiptsSheet({ title, lines, answers = [], onDone }: { title: string; lines: string[]; answers?: ReportAnswer[]; onDone: () => void }) {
+  const [primary, ...rest] = answers;
   return createPortal(
     <div className="sheet-scrim" onClick={onDone}>
       <div className="card" onClick={(e) => e.stopPropagation()}>
@@ -80,6 +88,10 @@ function ReceiptsSheet({ title, lines, onDone }: { title: string; lines: string[
           </div>
         </div>
         <div className="pad-x sheet-actions">
+          {primary && <button className="btn btn-primary btn-block" onClick={() => { onDone(); primary.onPick(); }}>{primary.label}</button>}
+          {rest.map((a) => (
+            <button key={a.label} className={"btn btn-secondary btn-block" + (a.destructive ? " btn-danger-text" : "")} onClick={() => { onDone(); a.onPick(); }}>{a.label}</button>
+          ))}
           <button className="btn btn-secondary btn-block" onClick={onDone}>Done</button>
         </div>
       </div>
@@ -102,7 +114,7 @@ export function ReportScreen({ report, capped, onCap, onOpenTask, onDropTask, on
   canExit?: (exit: LifeCard["exit"]) => boolean;
   onExit?: (exit: LifeCard["exit"]) => void;
 }) {
-  const [receipts, setReceipts] = useState<{ title: string; lines: string[] } | null>(null);
+  const [receipts, setReceipts] = useState<OpenReceipts | null>(null);
   // The open animation: bars grow into place once, numbers roll via the
   // shared RollingNumber. One orchestrated moment, then still; reduced
   // motion gets the finished frame (CSS side).
@@ -240,25 +252,27 @@ export function ReportScreen({ report, capped, onCap, onOpenTask, onDropTask, on
         <>
           <div className="sh2 sh2-quiet"><span className="t">Worth a Look</span></div>
           <div className="pad-x">
-            <div className="card list-card-ruled">
-              {report.worth.map((w) => (
-                <div key={w.id}>
-                  <div {...pressable(() => setReceipts({ title: w.title, lines: w.receipts }))} className="row">
-                    {w.id === "cut" && <div className="row-glyph rep-good-glyph"><CheckCircleGlyph /></div>}
-                    <div className="row-grow">
-                      <div className="rep-title">{w.title}</div>
-                      {w.sub && <Facts facts={w.sub} />}
+            <div className="card list-card-ruled shell-rows">
+              {report.worth.map((w) => {
+                // The carried card's two verbs: Do One opens the first task, Drop One drops it. Neither is drawn on the row.
+                const first = w.id === "carried" && w.carried && w.carried.length > 0 ? w.carried[0]! : null;
+                const answers: ReportAnswer[] = [
+                  ...(first && onOpenTask ? [{ label: "Do One", onPick: () => onOpenTask(first.id) }] : []),
+                  ...(first && onDropTask ? [{ label: "Drop One", destructive: true, onPick: () => onDropTask(first) }] : []),
+                ];
+                return (
+                  <RowShell key={w.id} verb={answers[0] ? { label: answers[0].label, run: answers[0].onPick } : undefined}>
+                    <div {...pressable(() => setReceipts({ title: w.title, lines: w.receipts, answers }))} className="row">
+                      {w.id === "cut" && <div className="row-glyph rep-good-glyph"><CheckCircleGlyph /></div>}
+                      <div className="row-grow">
+                        <div className="rep-title">{w.title}</div>
+                        {w.sub && <Facts facts={w.sub} />}
+                      </div>
+                      <div className="chev" />
                     </div>
-                    <div className="chev" />
-                  </div>
-                  {w.id === "carried" && w.carried && w.carried.length > 0 && (onOpenTask || onDropTask) && (
-                    <div className="rep-btnrow">
-                      {onOpenTask && <button className="pill-act" onClick={() => onOpenTask(w.carried![0]!.id)}>Do One</button>}
-                      {onDropTask && <button className="pill-act" onClick={() => onDropTask(w.carried![0]!)}>Drop One</button>}
-                    </div>
-                  )}
-                </div>
-              ))}
+                  </RowShell>
+                );
+              })}
             </div>
             {/* A sentence under a card is its field note, never a caps line. */}
             {worthFeet.map((f) => <div className="input-hint" key={f}>{f}</div>)}
@@ -293,23 +307,23 @@ export function ReportScreen({ report, capped, onCap, onOpenTask, onDropTask, on
       {report.life.length > 0 && (
         <>
           <div className="sh2 sh2-quiet"><span className="t">Also in {report.monthName}</span></div>
-          <div className="pad-x"><div className="card list-card-ruled">
-            {report.life.map((c) => (
-              <div key={c.id}>
-                <div {...pressable(() => setReceipts({ title: c.title, lines: c.receipts }))} className="row">
-                  <div className="row-grow">
-                    <div className="rep-title">{c.title}</div>
-                    {c.facts.length > 0 && <Facts facts={c.facts} />}
+          <div className="pad-x"><div className="card list-card-ruled shell-rows">
+            {report.life.map((c) => {
+              // The card's door out (Open Money, Check In, Open Email) is the sheet's primary and the row's swipe-left, not a
+              // capsule under it. A door that is not wired gives the card no verb rather than one that does nothing.
+              const answers: ReportAnswer[] = exitable(c.exit) ? [{ label: c.exit.label, onPick: () => onExit!(c.exit) }] : [];
+              return (
+                <RowShell key={c.id} verb={answers[0] ? { label: answers[0].label, run: answers[0].onPick } : undefined}>
+                  <div {...pressable(() => setReceipts({ title: c.title, lines: c.receipts, answers }))} className="row">
+                    <div className="row-grow">
+                      <div className="rep-title">{c.title}</div>
+                      {c.facts.length > 0 && <Facts facts={c.facts} />}
+                    </div>
+                    <div className="chev" />
                   </div>
-                  <div className="chev" />
-                </div>
-                {exitable(c.exit) && (
-                  <div className="rep-btnrow">
-                    <button className="pill-act" onClick={() => onExit!(c.exit)}>{c.exit.label}</button>
-                  </div>
-                )}
-              </div>
-            ))}
+                </RowShell>
+              );
+            })}
           </div></div>
         </>
       )}
@@ -347,7 +361,7 @@ export function ReportScreen({ report, capped, onCap, onOpenTask, onDropTask, on
             {/* The reason under the question is its quiet sub (§AM F4), not
                 a second title at 17px semibold. */}
             <div className="conn-meta rep-quiet2">{report.closer.sub}</div>
-            <div className="rep-one-acts">
+            <div className="rep-one-acts promo-actions">
               {capped
                 ? <button className="btn btn-block" disabled>Capped ✓</button>
                 : (
@@ -378,7 +392,7 @@ export function ReportScreen({ report, capped, onCap, onOpenTask, onDropTask, on
       </div>
 
       <div className="screen-foot" />
-      {receipts && <ReceiptsSheet title={receipts.title} lines={receipts.lines} onDone={() => setReceipts(null)} />}
+      {receipts && <ReceiptsSheet title={receipts.title} lines={receipts.lines} answers={receipts.answers} onDone={() => setReceipts(null)} />}
     </div>
   );
 }

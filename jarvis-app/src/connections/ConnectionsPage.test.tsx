@@ -2,7 +2,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { useState } from "react";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import { NotesProvider, useProfile } from "../data/NotesProvider";
 import { GoogleSessionProvider } from "./google/GoogleSession";
@@ -49,18 +49,25 @@ describe("ConnectionsPage", () => {
     render(wrap(<ConnectionsPage configured />));
     fireEvent.click(await screen.findByText("Connect Google"));
     await waitFor(() => expect(screen.getByText("me@example.com Connected · Imported 1 Event")).toBeInTheDocument());
-    expect(screen.getByText("me@example.com")).toBeInTheDocument(); // account row
-    expect(screen.getByText("Disconnect")).toBeInTheDocument();
-    expect(screen.getByText("Add Google Account")).toBeInTheDocument(); // more can join
+    const row = screen.getByText("me@example.com").closest(".row") as HTMLElement; // account row
+    // THE ROW IS CLEAN (Dave 2026-10-05, locked: no chip or pill on a row): its tap is its sheet, which holds every control.
+    expect(row.querySelector(".chip, .pill-act, .row-act, .btn-sm, .quiet-action")).toBeNull();
+    expect(screen.queryByText("Disconnect")).toBeNull();
+    fireEvent.click(row);
+    expect(await screen.findByText("Disconnect")).toBeInTheDocument();
+    // More can join: Add Account is the Google Accounts head's capsule, not a button at the foot of the list.
+    const head = screen.getByText("Google Accounts").closest(".sh2") as HTMLElement;
+    expect(within(head).getByText("Add Account")).toBeInTheDocument();
+    expect(screen.queryByText("Add Google Account")).toBeNull();
   });
 
   it("disconnecting one account removes only that account", async () => {
     render(wrap(<ConnectionsPage configured />));
     fireEvent.click(await screen.findByText("Connect Google"));
-    await screen.findByText("me@example.com");
-    fireEvent.click(screen.getByText("Disconnect"));
+    fireEvent.click(await screen.findByText("me@example.com"));
+    fireEvent.click(await screen.findByText("Disconnect"));
     // Armed two-tap (2026-08-09): first tap only arms.
-    fireEvent.click(screen.getByText("Tap Again"));
+    fireEvent.click(screen.getByText("Tap Again to Disconnect"));
     await waitFor(() => expect(screen.getByText("me@example.com Disconnected")).toBeInTheDocument());
     expect(screen.getByText("No Accounts Yet")).toBeInTheDocument();
   });
@@ -83,30 +90,30 @@ describe("ConnectionsPage toggles when the save fails", () => {
 
   const FAILED = WRITE_FAILED_MESSAGE;
 
-  it("a feature chip that could not be saved goes back and says so", async () => {
+  it("a feature switch that could not be saved goes back and says so", async () => {
     render(wrap(<><ConnectionsPage configured /><BreakSaves /></>));
     fireEvent.click(await screen.findByText("Connect Google"));
-    await screen.findByText("me@example.com");
-    const cal = screen.getByText("Calendar") as HTMLButtonElement;
-    expect(cal.className).toContain("on");
+    fireEvent.click(await screen.findByText("me@example.com"));
+    const cal = await screen.findByLabelText("Calendar for me@example.com");
+    expect(cal).toHaveAttribute("aria-checked", "true");
 
     fireEvent.click(screen.getByText("break-saves"));
     fireEvent.click(cal);
     await waitFor(() => expect(screen.getByText(FAILED)).toBeInTheDocument());
-    // The chip is back on, because Calendar is still on: nothing was written.
-    expect((screen.getByText("Calendar") as HTMLButtonElement).className).toContain("on");
+    // The switch is back on, because Calendar is still on: nothing was written.
+    expect(screen.getByLabelText("Calendar for me@example.com")).toHaveAttribute("aria-checked", "true");
   });
 
   // NO DEAD DRIVE CHIP (2026-10-04). Dave asked for a Drive link on 2026-09-29
   // so Grant Access could be one tap; the chip stored a flag and nothing ever
   // read it, and Grant Access still only opens Google's own page. A chip that
   // changes nothing is not offered.
-  it("offers Email and Calendar on an account row, and no Drive chip that changes nothing", async () => {
+  it("offers Email and Calendar in the account's sheet, and no Drive switch that changes nothing", async () => {
     render(wrap(<ConnectionsPage configured />));
     fireEvent.click(await screen.findByText("Connect Google"));
-    await screen.findByText("me@example.com");
-    expect((screen.getByText("Email") as HTMLButtonElement).className).toContain("on");
-    expect((screen.getByText("Calendar") as HTMLButtonElement).className).toContain("on");
+    fireEvent.click(await screen.findByText("me@example.com"));
+    expect(await screen.findByLabelText("Email for me@example.com")).toHaveAttribute("aria-checked", "true");
+    expect(screen.getByLabelText("Calendar for me@example.com")).toHaveAttribute("aria-checked", "true");
     expect(screen.queryByText("Drive")).toBeNull();
   });
 
@@ -175,6 +182,12 @@ describe("ConnectionsPage, a signed-out account", () => {
     await screen.findByText("Signed Out");
     expect(screen.getByText(SIGNED_OUT_HELP)).toBeInTheDocument();
     expect(SIGNED_OUT_HELP).toMatch(/^Google Asks Once for Access/);
-    expect(screen.getByText("Reconnect")).toBeInTheDocument();
+    // Its moment has come, so the row quietly shows its one verb as text (Dave 2026-10-05), never a chip or a capsule.
+    const verb = screen.getByText("Reconnect");
+    expect(verb).toHaveClass("row-ctx");
+    expect(verb.closest(".row")!.querySelector(".chip, .pill-act, .row-act, .btn-sm, .quiet-action")).toBeNull();
+    // Reconnect All is the head's, never at the foot of the list.
+    const head = screen.getByText("Google Accounts").closest(".sh2") as HTMLElement;
+    expect(within(head).getByText("Reconnect All")).toBeInTheDocument();
   });
 });

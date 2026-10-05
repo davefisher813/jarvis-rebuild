@@ -4,6 +4,7 @@ import { useOptionalBrainMemory } from "../../data/NotesProvider";
 import { useFreshLists } from "../../data/useFreshLists";
 import { BRAIN_MEMORY_ENTITY, type BrainMemoryCategory, type BrainMemoryRow } from "../../ai/brainMemory";
 import MemorySheet from "./MemorySheet";
+import { lineCase } from "../../shared/casing";
 
 // DecisionsFlow's fmtDay, kept here so the Decisions page can host these rows
 // without an import cycle.
@@ -53,7 +54,7 @@ export default function FiledRows({ categories, rowClass = "row", onCount }: {
         {rows.map((r) => (
           <div {...pressable(() => setOpenId(r.id))} className={rowClass} key={r.id}>
             <div className="row-grow">
-              <div className="conn-name">{r.data.text}</div>
+              <div className="conn-name">{lineCase(r.data.text)}</div>
               {r.data.why && <div className="conn-meta">{"Because " + r.data.why}</div>}
               {r.data.date && <div className="facts"><span className="fact date">{fmtDay(r.data.date)}</span></div>}
             </div>

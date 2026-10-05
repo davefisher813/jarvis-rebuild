@@ -10,6 +10,7 @@
 
 import { useCallback, useEffect, useRef, useState, type ChangeEvent } from "react";
 import PageHeader from "../shared/PageHeader";
+import RowActionSheet from "../shared/RowActionSheet";
 import { FieldRow, MenuRow, Row, TextRow, Tile } from "../shared/FormSheet";
 import { Mail, Paperclip } from "../shared/icons";
 import { rowDoor } from "../shared/rowDoor";
@@ -178,6 +179,7 @@ export default function ComposeScreen({ client, userId, accounts, offline, fileS
       }
     }
   };
+  const [removing, setRemoving] = useState<AttachmentRef | null>(null);
   const removeAttachment = (ref: AttachmentRef) => {
     setFields((f) => ({ ...f, attachment_refs: f.attachment_refs.filter((r) => r.storage_id !== ref.storage_id) }));
     void fileStore?.remove([ref.storage_id]);
@@ -274,9 +276,9 @@ export default function ComposeScreen({ client, userId, accounts, offline, fileS
       {start.replyingTo && <div className="email-note quiet"><EmailFacts wrap facts={[{ text: start.replyingTo }]} /></div>}
       <div className="pad-x"><div className="card xs-group xs">
         {connected.length > 1 ? (
-          <MenuRow tone="blue" glyph={<Mail className="ic" />} label={FROM_LABEL} value={accountId} options={connected.map((a) => ({ value: a.id, label: a.address }))} onPick={(v) => setAccountId(v)} ariaLabel={FROM_LABEL} word={account?.address ?? ""} />
+          <MenuRow tone="teal" glyph={<Mail className="ic" />} label={FROM_LABEL} value={accountId} options={connected.map((a) => ({ value: a.id, label: a.address }))} onPick={(v) => setAccountId(v)} ariaLabel={FROM_LABEL} word={account?.address ?? ""} />
         ) : (
-          <Row tone="blue" glyph={<Mail className="ic" />} label={FROM_LABEL} meta={account?.address ?? ""} />
+          <Row tone="teal" glyph={<Mail className="ic" />} label={FROM_LABEL} meta={account?.address ?? ""} />
         )}
         <FieldRow label={TO_LABEL} value={toText} onChange={setToText} placeholder="name@example.com" ariaLabel={TO_LABEL} error={badTo.length > 0} />
         {!ccOpen && <div className="row xs-row email-ccbcc" {...rowDoor(() => setCcOpen(true))}><div className="conn-name">{CC_BCC}</div><div className="chev"></div></div>}
@@ -292,14 +294,15 @@ export default function ComposeScreen({ client, userId, accounts, offline, fileS
       <div className="pad-x"><div className="card list-card-ruled">
         {fields.attachment_refs.length > 0 && <div className="eyebrow email-eyebrow">{ATTACHMENTS_LABEL}</div>}
         {fields.attachment_refs.map((r) => (
-          <div className="row" key={r.storage_id}>
+          // 2026-10-05 (Dave, locked: clean rows, no pills): the row is a door. Tap opens its sheet, and Remove is in it,
+          // so a stray tap on the row removes nothing and no control sits inside the row.
+          <div className="row" key={r.storage_id} {...rowDoor(() => setRemoving(r))} aria-label={`${r.filename} · ${sizeLine(r.size_bytes)}`}>
             <div className="row-grow">
               <div className="conn-name truncate">{r.filename}</div>
-              {/* 2026-10-05: a white size is the row's only fact. The file type repeated the extension, and "Remove" was a
-                  tappable word drawn in the row's grey: it is a capsule now, and the row itself no longer removes on a stray tap. */}
+              {/* A white size is the row's only fact. The file type repeated the extension. */}
               <EmailFacts facts={[{ text: sizeLine(r.size_bytes), strong: true }]} />
             </div>
-            <button type="button" className="quiet-action" onClick={() => removeAttachment(r)} aria-label={`${REMOVE_ATTACHMENT} ${r.filename}`}>{REMOVE_ATTACHMENT}</button>
+            <div className="chev"></div>
           </div>
         ))}
         {uploading.map((n) => (
@@ -339,6 +342,13 @@ export default function ComposeScreen({ client, userId, accounts, offline, fileS
         <button className="quiet-action" onClick={() => void discard()}>{DISCARD_DRAFT}</button>
       </div>
       <div className="screen-foot" />
+      {removing && (
+        <RowActionSheet
+          title={removing.filename}
+          actions={[{ label: REMOVE_ATTACHMENT, destructive: true, onPick: () => removeAttachment(removing) }]}
+          onCancel={() => setRemoving(null)}
+        />
+      )}
     </div>
   );
 }

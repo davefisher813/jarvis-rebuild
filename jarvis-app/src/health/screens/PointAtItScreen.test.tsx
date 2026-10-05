@@ -36,7 +36,8 @@ describe("the list beside the map", () => {
     fireEvent.click(screen.getByRole("button", { name: "List" }));
     fireEvent.click(screen.getByText("Lower Back"));
     expect(onLog).toHaveBeenCalledWith(0.5, 0.46, "back", "Lower Back");
-    expect(screen.getByText("Logged · Lower Back")).toBeInTheDocument();
+    expect(screen.getByText("Logged")).toBeInTheDocument();
+    expect(screen.getAllByText("Lower Back").some((e) => e.classList.contains("fact"))).toBe(true);
     fireEvent.click(screen.getByText("Left Knee"));
     expect(onLog).toHaveBeenCalledTimes(1);
   });

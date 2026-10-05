@@ -3,9 +3,12 @@ import type { Person } from "../types";
 import { personInitials, avatarClass } from "../types";
 import { phonesOf, emailsOf, phoneText } from "../contactMethods";
 import InlineEdit from "../../shared/InlineEdit";
+import RowActionSheet from "../../shared/RowActionSheet";
+import RowCtxAction from "../../shared/RowCtxAction";
 import { catColor } from "../../shared/categories";
 import { RowGlyph } from "../../shared/anatomy";
 import { pressable } from "../../shared/pressable";
+import { lineCase, titleCase } from "../../shared/casing";
 import { shortDate } from "../../shared/dateFormat";
 import { todayISO } from "../../tasks/grouping";
 import { addDays } from "../../schedule/calendar";
@@ -155,6 +158,10 @@ export default function PersonDetail({
   const points = person.data.talkingPoints ?? [];
   const openPoints = points.filter((pt) => !pt.discussed);
   const [adding, setAdding] = useState(false);
+  // The row whose sheet is open: a promise (Add Task) or an open item (Open, Message About It).
+  const [sheet, setSheet] = useState<
+    { kind: "promise"; p: { threadId: string; text: string; due?: string } } | { kind: "item"; m: import("../mentions").MentionItem } | null
+  >(null);
   // True when the relationship is just an area's name said again.
   const areaEchoes = !!relationship
     && categoryColors.some((c) => c.name.trim().toLowerCase() === relationship.trim().toLowerCase());
@@ -193,7 +200,7 @@ export default function PersonDetail({
                 relationship next to the Family area chip. The area already
                 says it, in colour, so the relationship chip stands down
                 rather than repeating it. */}
-            {relationship && !areaEchoes && <span className="fact">{relationship}</span>}
+            {relationship && !areaEchoes && <span className="fact">{lineCase(relationship)}</span>}
             {/* A ROLE PER AREA (People handoff, 2026-09-16). Where a role
                 is set, the area says what they are IN it: "Family", then
                 "Mother". Both under the one dot, because they are one fact.
@@ -286,12 +293,16 @@ export default function PersonDetail({
           Discussed ones are kept rather than deleted, so the answer to "did I
           bring that up?" is on the card and the tick can be undone. */}
       {onAddPoint && (
+        // THE ADD IS ON THE HEAD (Dave 2026-10-05, locked): a section-level action lives in the section head, never inside the
+        // card or at the foot of the list. With nothing to list and nothing being typed there is no card at all (rule 12).
         <div className="sh2 sh2-quiet">
           <span className="t">Next Time We Talk</span>
           {openPoints.length > 0 && <span className="n">{openPoints.length}</span>}
+          {/* "Add" and not "Add Something": the title is the longer word and at 390 the capsule was cutting it ("Next Time We Ta..."). */}
+          {!adding && <button className="see-all pill-action" aria-label="Add Something to Talk About" onClick={() => setAdding(true)}>Add</button>}
         </div>
       )}
-      {onAddPoint && (
+      {onAddPoint && (points.length > 0 || adding) && (
         <div className="pad-x"><div className="card list-card-ruled">
           {points.map((pt) => (
             // The row IS the door: a talking point has no detail to open, so
@@ -304,25 +315,23 @@ export default function PersonDetail({
                 onClick={(ev) => { ev.stopPropagation(); onTogglePoint?.(pt.id); }}>
                 <div className={"task-check" + (pt.discussed ? " on" : "")} />
               </div>
-              <div className="row-grow"><div className="conn-name">{pt.text}</div></div>
+              <div className="row-grow"><div className="conn-name">{titleCase(pt.text)}</div></div>
             </div>
           ))}
-          {adding ? (
+          {adding && (
             <div className="row">
               <div className="row-grow">
                 <InlineEdit className="conn-name" value="" focused placeholder="Bring This Up"
                   onSave={(v) => { setAdding(false); const t = v.trim(); if (t) onAddPoint(t); }} />
               </div>
             </div>
-          ) : (
-            <button className="row-create" onClick={() => setAdding(true)}>Add Something</button>
           )}
         </div></div>
       )}
       {hasAttrs && <div className="sh2 sh2-quiet"><span className="t">About</span></div>}
       {hasAttrs && (
         <div className="pad-x"><div className="card list-card-ruled">
-          <KV label="Relationship" value={relationship} onEdit={onEdit} />
+          <KV label="Relationship" value={relationship ? lineCase(relationship) : relationship} onEdit={onEdit} />
           <KV label="Birthday" value={birthday} onEdit={onEdit} />
           <KV label="JARVIS Writes" value={writeStyle} onEdit={onEdit} />
           <KV label="Areas" value={categoryNames.length > 0 ? categoryNames.join(", ") : undefined} onEdit={onEdit} />
@@ -338,11 +347,8 @@ export default function PersonDetail({
             <div className="row" {...(quiet && onCheckIn && !checkingIn ? pressable(onCheckIn) : {})}>
               <div className="row-grow"><div className="conn-name">Last Talked</div></div>
               <span className="kv-val">{quiet ? <span className="fact warn">{lastTalked}</span> : lastTalked}</span>
-              {quiet && onCheckIn && (
-                <button className="pill-act" disabled={checkingIn} onClick={(ev) => { ev.stopPropagation(); onCheckIn(); }}>
-                  {checkingIn ? "Drafting" : "Check In"}
-                </button>
-              )}
+              {/* Its moment has come (they have gone quiet): the one action, as text in the key colour, never a capsule. */}
+              <RowCtxAction when={quiet && !!onCheckIn} label={checkingIn ? "Drafting" : "Check In"} onAct={() => { if (!checkingIn) onCheckIn?.(); }} />
             </div>
           )}
         </div></div>
@@ -371,18 +377,20 @@ export default function PersonDetail({
             {promises.map((p) => (
               // Row tap (Dave 2026-09-15): a promise has no task yet, so the row
               // does its pill's verb, Add Task.
-              <div className="row" key={"promise:" + p.threadId} {...(onAddTask ? pressable(() => onAddTask(p)) : {})}>
+              <div className="row" key={"promise:" + p.threadId} {...(onAddTask ? pressable(() => setSheet({ kind: "promise", p })) : {})}>
                 <div className="row-grow">
                   <div className="conn-name">{p.text}</div>
                   <div className="facts"><span className="fact">You Promised</span>{p.due && <span className={"fact " + dueTone(p.due, todayISO())}>{shortDate(p.due)}</span>}</div>
                 </div>
-                {onAddTask && <button type="button" className="pill-act" onClick={(ev) => { ev.stopPropagation(); onAddTask(p); }}>Add Task</button>}
+                {/* Overdue: the promise's moment has come, so its one action shows on the row as text. Tap opens its sheet. */}
+                <RowCtxAction when={!!onAddTask && !!p.due && p.due < todayISO()} label="Add Task" onAct={() => onAddTask?.(p)} ariaLabel={"Add Task " + p.text} />
+                {onAddTask && <div className="chev" />}
               </div>
             ))}
             {openWith.map((m) => (
               <div className="task-row p2 notif-row" key={m.kind + m.id}
-                role={onOpenItem ? "button" : undefined} tabIndex={onOpenItem ? 0 : undefined}
-                onClick={onOpenItem ? () => onOpenItem(m.kind, m.id) : undefined}>
+                role={onOpenItem || onMessageAbout ? "button" : undefined} tabIndex={onOpenItem || onMessageAbout ? 0 : undefined}
+                onClick={onMessageAbout ? () => setSheet({ kind: "item", m }) : onOpenItem ? () => onOpenItem(m.kind, m.id) : undefined}>
                 <div className="task-check-tap"><RowGlyph kind={m.kind} /></div>
                 <div className="task-title">
                   <span className="task-name">{m.title}</span>
@@ -398,10 +406,9 @@ export default function PersonDetail({
                     </div>
                   )}
                 </div>
-                {onMessageAbout && (
-                  <button className="pill-act" onClick={(e) => { e.stopPropagation(); onMessageAbout(m); }}>Message</button>
-                )}
-                {onOpenItem && !onMessageAbout && <div className="chev"></div>}
+                {/* Clean rows (Dave 2026-10-05): no Message capsule. With a number to text, the row's tap opens its sheet
+                    (Open, Message About It); without one, the tap just opens the item. */}
+                {(onOpenItem || onMessageAbout) && <div className="chev"></div>}
               </div>
             ))}
           </div></div>
@@ -482,6 +489,19 @@ export default function PersonDetail({
         </>
       )}
       <div className="screen-foot" />
+      {sheet?.kind === "promise" && onAddTask && (
+        <RowActionSheet title={sheet.p.text} actions={[{ label: "Add Task", onPick: () => onAddTask(sheet.p) }]} onCancel={() => setSheet(null)} />
+      )}
+      {sheet?.kind === "item" && (
+        <RowActionSheet
+          title={sheet.m.title}
+          actions={[
+            ...(onOpenItem ? [{ label: "Open " + (sheet.m.kind === "task" ? "Task" : "Event"), onPick: () => onOpenItem(sheet.m.kind, sheet.m.id) }] : []),
+            ...(onMessageAbout ? [{ label: "Message About This", onPick: () => onMessageAbout(sheet.m) }] : []),
+          ]}
+          onCancel={() => setSheet(null)}
+        />
+      )}
     </div>
   );
 }

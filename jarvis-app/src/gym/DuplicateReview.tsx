@@ -2,6 +2,8 @@ import { createPortal } from "react-dom";
 import SheetBar from "../shared/SheetBar";
 import { pressable } from "../shared/pressable";
 import { own, rowDoor } from "../shared/rowDoor";
+import { CircleSlash } from "../shared/icons";
+import GymSwipeRow from "./GymSwipeRow";
 import { shortDate } from "../shared/dateFormat";
 import { pairId, type DuplicatePair } from "./duplicates";
 import { classConflicts, identityLine, valueLine, type Classification } from "./classify";
@@ -138,9 +140,9 @@ export function MergeReviewSheet({ state, onSwap, onTake, onMerge, onCancel }: {
                 {conflicts.map((k) => {
                   const taken = state.take.includes(k.field);
                   return (
-                    // The row answers the conflict the same way its pill does
-                    // (Dave 2026-09-15: "I want all rows clickable"); nothing is
-                    // written until Merge.
+                    // CLEAN ROW (Dave 2026-10-05, locked: no pill in a row). The row is the whole control: a tap flips
+                    // which answer the merged exercise keeps, the lime fact says which, and nothing is written until
+                    // Merge.
                     <div className="row" key={k.field} {...(pending ? {} : rowDoor(() => onTake(k.field)))}>
                       <div className="row-grow">
                         <div className="conn-name">{k.label}</div>
@@ -149,9 +151,6 @@ export function MergeReviewSheet({ state, onSwap, onTake, onMerge, onCancel }: {
                           <span className={"fact" + (taken ? " lime" : "")}>{k.fold}</span>
                         </div>
                       </div>
-                      <button type="button" className="pill-act" disabled={pending} onClick={own(() => onTake(k.field))}>
-                        {taken ? `Use ${plan.keep.row.name}` : `Use ${plan.fold.row.name}`}
-                      </button>
                     </div>
                   );
                 })}
@@ -213,29 +212,34 @@ export function DuplicatesSheet({ pairs, sideOf, onReview, onKeepSeparate, onClo
                 // The one fact that most often proves they are NOT the same
                 // thing, said before the suggestion rather than after it.
                 const differs = ea && eb && ea !== eb;
+                const pairName = `${liftTitle(d.fold.name)} and ${liftTitle(d.keep.name)}`;
                 return (
-                  // The row opens the merge review, which writes nothing until
-                  // its own Merge (Dave 2026-09-15: "I want all rows clickable").
-                  // Keep Separate stays button-only.
-                  <div className="row dup-row" key={id} {...rowDoor(() => onReview(d))}>
-                    <div className="row-grow">
-                      <div className="dup-name">{liftTitle(d.fold.name)}</div>
-                      <div className="dup-name">{liftTitle(d.keep.name)}</div>
-                      <div className="facts">
-                        <span className="fact">{d.why}</span>
-                        {differs && <span className="fact amber">{`${ea} and ${eb}`}</span>}
+                  // CLEAN ROW (Dave 2026-10-05, locked: no button on a row). The row's tap opens the merge review, which
+                  // writes nothing until its own Merge; swipe left is Keep Separate, the pair's one quick verb; and the
+                  // long press is the menu with both. Review Merge and Keep Separate were two buttons inside the row.
+                  <GymSwipeRow key={id} name={pairName}
+                    verb={{ label: "Keep Separate", icon: <CircleSlash className="ic" />, run: () => onKeepSeparate(id) }}
+                    menu={[
+                      { label: "Review Merge", onPick: () => onReview(d) },
+                      { label: "Keep Separate", onPick: () => onKeepSeparate(id) },
+                    ]}>
+                    <div className="row dup-row" {...rowDoor(() => onReview(d))}>
+                      <div className="row-grow">
+                        <div className="dup-name">{liftTitle(d.fold.name)}</div>
+                        <div className="dup-name">{liftTitle(d.keep.name)}</div>
+                        <div className="facts">
+                          <span className="fact">{d.why}</span>
+                          {differs && <span className="fact amber">{`${ea} and ${eb}`}</span>}
+                        </div>
+                        <div className="facts">
+                          <span className="fact lime">{`${d.fold.sessions} and ${d.keep.sessions} ${d.keep.sessions === 1 && d.fold.sessions === 1 ? "Session" : "Sessions"}`}</span>
+                          {d.fold.firstDate && <span className="fact date">{`${d.fold.name} from ${shortDate(d.fold.firstDate)}`}</span>}
+                          {d.keep.firstDate && <span className="fact date">{`${d.keep.name} from ${shortDate(d.keep.firstDate)}`}</span>}
+                        </div>
                       </div>
-                      <div className="facts">
-                        <span className="fact lime">{`${d.fold.sessions} and ${d.keep.sessions} ${d.keep.sessions === 1 && d.fold.sessions === 1 ? "Session" : "Sessions"}`}</span>
-                        {d.fold.firstDate && <span className="fact date">{`${d.fold.name} from ${shortDate(d.fold.firstDate)}`}</span>}
-                        {d.keep.firstDate && <span className="fact date">{`${d.keep.name} from ${shortDate(d.keep.firstDate)}`}</span>}
-                      </div>
-                      <div className="btn-row">
-                        <button type="button" className="btn btn-secondary" onClick={own(() => onReview(d))}>Review Merge</button>
-                        <button type="button" className="btn btn-tertiary" onClick={own(() => onKeepSeparate(id))}>Keep Separate</button>
-                      </div>
+                      <div className="chev" />
                     </div>
-                  </div>
+                  </GymSwipeRow>
                 );
               })}
             </div></div>
@@ -261,7 +265,7 @@ export function DuplicateBar({ count, onOpen }: { count: number; onOpen: () => v
           <div className="conn-name">Possible Duplicates</div>
           <div className="facts"><span className="fact amber">{lineCase(`${count} ${count === 1 ? "pair" : "pairs"}`)}</span></div>
         </div>
-        <button type="button" className="pill-act" onClick={(e) => { e.stopPropagation(); onOpen(); }}>Review</button>
+        <div className="chev" />
       </div>
     </div></div>
   );

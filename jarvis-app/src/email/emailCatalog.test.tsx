@@ -15,7 +15,7 @@
 // Each screen below renders the REAL component through the real markup and runs
 // the same check. The old strings failed it; the fixes pass it.
 import { describe, it, expect, afterEach } from "vitest";
-import { render, cleanup, screen, waitFor, within } from "@testing-library/react";
+import { render, cleanup, screen, waitFor, within, fireEvent } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import type { RpcClient } from "../substrate/commands/errors";
 import type { WaitingItem } from "../substrate/waiting/types";
@@ -434,7 +434,7 @@ describe("The message head and its attachments", () => {
 // COMPOSE, REVIEW, OUTCOME
 // ---------------------------------------------------------------------------
 describe("Compose, review and outcome", () => {
-  it("a reply says the name alone under a page already titled Reply; an attachment is a name, a white size and a Remove capsule", () => {
+  it("a reply says the name alone under a page already titled Reply; an attachment is a name, a white size and a door to its Remove sheet", () => {
     const fields = { ...emptyFields(), to_addresses: ["coach@example.test"], attachment_refs: [{ storage_id: "s1", filename: "roster.pdf", size_bytes: 245760, sha256: "x", mime_type: "application/pdf" }] };
     const { container } = render(
       <ComposeScreen client={noClient} userId="u-compose" accounts={[account({})]} offline fileStore={null} now={() => NOW}
@@ -444,8 +444,12 @@ describe("Compose, review and outcome", () => {
     expect(container.querySelector(".email-note.quiet")!.textContent).not.toMatch(/Reply/);
     const row = [...container.querySelectorAll(".row")].find((r) => r.textContent?.includes("roster.pdf"))!;
     expect(texts(row, ".fact")).toEqual(["240 KB"]);
-    const remove = within(row as HTMLElement).getByRole("button", { name: /^Remove roster\.pdf$/ });
-    expect(remove).toHaveClass("quiet-action");
+    // Clean rows (Dave 2026-10-05): no control inside the row; the row is the door and Remove is in its sheet.
+    expect(within(row as HTMLElement).queryByRole("button", { name: /Remove/ })).toBeNull();
+    expect(row!.querySelector(".pill-act, .row-act, .btn-sm, .quiet-action")).toBeNull();
+    fireEvent.click(row!);
+    const remove = within(document.body).getByRole("button", { name: "Remove Attachment" });
+    expect(remove).toHaveClass("destructive");
     expect(catalogViolations(container)).toEqual([]);
   });
 

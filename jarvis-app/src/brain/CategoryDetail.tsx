@@ -93,6 +93,8 @@ import { lineCase, titleCase } from "../shared/casing";
 import { ProjectPie } from "../shared/glyphs";
 import GoalRowRuled from "../bigger/GoalRowRuled";
 import { TaskRow } from "../tasks/screens/TasksPage";
+import RowCtxAction from "../shared/RowCtxAction";
+import RowShell from "./RowShell";
 import { trainingSummary, agoPhrase } from "../gym/summary";
 import type { Workout } from "../gym/types";
 import { buildGoalIndex, liveGoals, reachOf, reachLine, sheetGoals } from "../bigger/reach";
@@ -1477,13 +1479,18 @@ export default function CategoryDetail({
               in the area's colour, the state and what it moves on the
               second line, the next action under it, the week's count as a
               chip. A project with no open task says Stalled out loud. */}
-          {/* ON A HEALTH PAGE AN EMPTY SECTION IS NOT DRAWN (Dave 2026-09-13:
-              "add goals add projects add this add that that should be at the
-              very very bottom shouldn't take up a lot of space"). Every other
-              area keeps the 09-09 ruling: all four stand, each with its Add.
-              Health's creates are one compact row at the foot (healthAdds). */}
-          {(kind !== "health" || projects.length > 0) && (<>
-          <div className="sh2 sh2-quiet"><span className="t">Projects</span>{projects.length > 0 && <span className="n">{projects.length}</span>}</div>
+          {/* HEALTH, WHERE AN EMPTY SECTION USED TO BE HIDDEN (Dave 2026-09-13: "add goals add projects add this add that that
+              should be at the very very bottom shouldn't take up a lot of space"). The creates were one compact row of
+              three capsules at the foot. They are the sections' own heads now (Dave 2026-10-05), so a section with nothing
+              in it is a head and its capsule and takes one line, which is what he asked it to cost. */}
+          {/* THE SECTION'S ACTION IS IN ITS HEAD (Dave 2026-10-05, locked: Add lives in the section head, never in a card and
+              never at the foot of a list). Every section stands on every area page, health included, and with nothing in it
+              the head and its capsule are the whole of it: a card holding nothing but an action is not drawn (rule 12). */}
+          <div className="sh2 sh2-quiet">
+            <span className="t">Projects</span>{projects.length > 0 && <span className="n">{projects.length}</span>}
+            <button type="button" className="see-all pill-action" onClick={() => setSheet({ kind: "project" })}>Add Project</button>
+          </div>
+          {projects.length > 0 && (<>
           <div className="pad-x"><div className="card list-card-ruled">
             {projects.map((p) => {
               const next = nextActionOf(allTasks, p.id);
@@ -1557,7 +1564,6 @@ export default function CategoryDetail({
                 </div>
               );
             })}
-            {kind !== "health" && <button className="row-create" onClick={() => setSheet({ kind: "project" })}>Add Project</button>}
           </div></div>
           </>)}
 
@@ -1596,11 +1602,14 @@ export default function CategoryDetail({
           door to the same sheets. Every other category still gets its Add
           Goal row; only health's redundant doors are gone. */}
       {(kind !== "health" || goalsHere.length > 0) && (<>
-      <div className="sh2 sh2-quiet"><span className="t">{kind === "health" ? "Training Goals" : "Goals Here"}</span>{goalsHere.length > 0 && <span className="n">{goalsHere.length}</span>}</div>
+      <div className="sh2 sh2-quiet">
+        <span className="t">{kind === "health" ? "Training Goals" : "Goals Here"}</span>{goalsHere.length > 0 && <span className="n">{goalsHere.length}</span>}
+        {kind !== "health" && <button type="button" className="see-all pill-action" onClick={() => setSheet({ kind: "goal" })}>Add Goal</button>}
+      </div>
       {/* B3-5 (2026-09-04): the project rows above open; these had no
           onOpen at all, so GoalRowRuled (gated on that prop) never
           rendered a role, a handler or the chevron. */}
-      <div className="pad-x"><div className="card list-card-ruled">
+      {goalsHere.length > 0 && <div className="pad-x"><div className="card list-card-ruled">
         {goalsHere.map((g) => (
           <GoalRowRuled key={g.id} title={g.title} tone={g.tone} body={g.line} status={g.status} bar={g.bar} kind={g.kind}
             onOpen={onOpenGoal ? () => onOpenGoal(g.id) : undefined}
@@ -1608,10 +1617,7 @@ export default function CategoryDetail({
             // same ProjectSheet the Add Project row opens, born under it.
             onAddProject={kind !== "health" ? () => setSheet({ kind: "project", goalId: g.id }) : undefined} />
         ))}
-        {kind !== "health" && (
-          <button className="row-create" onClick={() => setSheet({ kind: "goal" })}>Add Goal</button>
-        )}
-      </div></div>
+      </div></div>}
       </>)}
 
       {/* WHAT IS ON THE CALENDAR FOR THIS PART OF LIFE (Dave 2026-09-09:
@@ -1639,9 +1645,12 @@ export default function CategoryDetail({
           not, so the create row was never an only child and the slab stayed.
           The wrapper renders only when it has rows now, so all four sections
           are the same shape empty and the same shape full. */}
-      {(kind !== "health" || upcoming.length > 0) && (<>
-      <div className="sh2 sh2-quiet"><span className="t">Coming Up</span>{upcoming.length > 0 && <span className="n">{upcoming.length}</span>}</div>
-      <div className="pad-x"><div className={"card list-card-ruled" + (upcoming.length > 0 ? " sched-card" : "")}>{upcoming.length > 0 && <div className="sched-list">
+      <>
+      <div className="sh2 sh2-quiet">
+        <span className="t">Coming Up</span>{upcoming.length > 0 && <span className="n">{upcoming.length}</span>}
+        <button type="button" className="see-all pill-action" onClick={() => setSheet({ kind: "event" })}>Add Event</button>
+      </div>
+      {upcoming.length > 0 && <div className="pad-x"><div className="card list-card-ruled sched-card"><div className="sched-list">
         {upcoming.map((e) => {
           const when = dayPhrase(e.date, today);
           const t = e.start ? fmtTime(e.start) : null;
@@ -1651,7 +1660,7 @@ export default function CategoryDetail({
             <div className="sched-row" key={e.id} {...(gymDoor?.id === e.id ? pressable(startGymFromBlock) : {})}>
               <div className="sched-time">{t ? <>{t.time}<span className="ampm">{t.ap}</span></> : <span className="ampm">All day</span>}</div>
               <div className="sched-body">
-                <div className="sched-title">{e.title}</div>
+                <div className="sched-title">{titleCase(e.title)}</div>
                 {/* The day is a neutral date, so small caps (§AM F5): the
                     area's name is the line's one grey. */}
                 <div className="sched-cat"><span className={"cat-dot cat-bg-" + cat.data.color} />{cat.data.name}<span className="sched-sep">{"\u00b7"}</span><span className="fact date">{when}</span></div>
@@ -1664,23 +1673,24 @@ export default function CategoryDetail({
                   starts the session, carrying the block's own event id so
                   finishing stamps the block, which is the whole reason
                   gymDoor exists (B5). */}
-              {gymDoor?.id === e.id && (
-                <button className="pill-act" onClick={(ev) => { ev.stopPropagation(); startGymFromBlock(); }}>Start</button>
-              )}
+              {/* CLEAN ROW (Dave 2026-10-05): the capsule is gone. Today's block has come, so its one action is the quiet word
+                  on the row, and the row's own tap starts it as it always did. */}
+              <RowCtxAction when={gymDoor?.id === e.id} label="Start" ariaLabel={"Start " + e.title} onAct={startGymFromBlock} />
             </div>
           );
         })}
-      </div>}
-      {kind !== "health" && <button className="row-create" onClick={() => setSheet({ kind: "event" })}>Add Event</button>}
-      </div></div>
-      </>)}
+      </div></div></div>}
+      </>
 
-      {(kind !== "health" || open.length > 0) && (<>
-      <div className="sh2 sh2-quiet" ref={upNextRef}><span className="t">Up Next</span>{open.length > 0 && <span className="n">{open.length}</span>}</div>
+      <>
+      <div className="sh2 sh2-quiet" ref={upNextRef}>
+        <span className="t">Up Next</span>{open.length > 0 && <span className="n">{open.length}</span>}
+        <button type="button" className="see-all pill-action" onClick={() => setSheet({ kind: "task" })}>Add Task</button>
+      </div>
       {/* THE SAME ROW AS EVERYWHERE (Dave 2026-09-02, on the Health page:
           "should render as a task there like it does everywhere else. It
           should have the same clearing ability as well"). */}
-      <div className="pad-x"><div className="card list-card-ruled">
+      {open.length > 0 && <div className="pad-x"><div className="card list-card-ruled">
         {open.map((t) => {
           // THE INVARIANT (the reminders rebuild): an unscheduled reminder
           // prints no clock, here as everywhere.
@@ -1708,9 +1718,8 @@ export default function CategoryDetail({
             />
           );
         })}
-        {kind !== "health" && <button className="row-create" onClick={() => setSheet({ kind: "task" })}>Add Task</button>}
-      </div></div>
-      </>)}
+      </div></div>}
+      </>
     </>
   );
   // THE CREATES, AT THE FOOT (Dave 2026-09-13). One compact row of three
@@ -1785,14 +1794,6 @@ export default function CategoryDetail({
     ...activeMetrics(metricDefs).filter((d) => !(water && d.data.presetKey === "water")).map((d) => ({ label: d.data.name, onPick: () => setMetricSheet({ kind: "log", def: d }) })),
     { label: "Add a Metric", onPick: () => setMetricSheet({ kind: "add" }) },
   ];
-  const healthAdds = (
-    <div className="pad-x h-adds">
-      <button type="button" className="h-add" aria-label="Add Task" onClick={() => setSheet({ kind: "task" })}><Plus className="ic" />Task</button>
-      <button type="button" className="h-add" aria-label="Add Event" onClick={() => setSheet({ kind: "event" })}><Plus className="ic" />Event</button>
-      <button type="button" className="h-add" aria-label="Add Project" onClick={() => setSheet({ kind: "project" })}><Plus className="ic" />Project</button>
-    </div>
-  );
-
   // THE INSIGHT CARDS (2026-09-14): they render on the Insights page now,
   // the landing page keeps its three findings. Same cards, same evidence.
   const insightCards: ReactNode = hasInsights ? (
@@ -1908,7 +1909,7 @@ export default function CategoryDetail({
                         </div>
                       ))}
                     </div>
-                    <div className="ins-acts">
+                    <div className="ins-acts notice-actions">
                       <button type="button" className="pill-act pill-quiet" onClick={() => { setGymLibrary(true); setGymOpen(true); }}>Open Exercises</button>
                     </div>
                   </InsightCard>
@@ -1985,7 +1986,7 @@ export default function CategoryDetail({
                     {repeats.map((t) => (
                       <div className="task-row p2" key={t.id}>
                         <div className="task-title">
-                          <span className="task-name">{t.data.text}</span>
+                          <span className="task-name">{titleCase(t.data.text)}</span>
                           <div className="r-k"><span className="r-goal r-cat">{repetitionsLine(t.data.doneCount)}</span></div>
                         </div>
                       </div>
@@ -2009,7 +2010,7 @@ export default function CategoryDetail({
                     {shownGroups.flatMap((g) => g.rows.map((r) => (
                       <div className="task-row p2" key={r.key}>
                         <div className="task-check-tap"><div className="task-check done" /></div>
-                        <div className="task-title"><span className="task-name">{r.text}</span></div>
+                        <div className="task-title"><span className="task-name">{titleCase(r.text)}</span></div>
                         <span className="h-when">{g.day}</span>
                       </div>
                     )))}
@@ -2022,7 +2023,7 @@ export default function CategoryDetail({
                   <div className="pad-x"><div className="card list-card-ruled">
                     {notes.map((n) => (
                       <div {...pressable(() => onOpenNote?.(n.id))} className="task-row p2" key={n.id}>
-                        <div className="task-title"><span className="task-name">{n.title}</span></div>
+                        <div className="task-title"><span className="task-name">{titleCase(n.title)}</span></div>
                         {CHEV}
                       </div>
                     ))}
@@ -2074,7 +2075,8 @@ export default function CategoryDetail({
             <div className="row-grow"><div className="conn-name">Paused for Now</div></div>
             {/* BRAIN-F-12 (2026-09-05): Wake Up did nothing and said nothing
                 when the write failed; the banner just stayed. */}
-            <button className="btn-sm" onClick={(ev) => { ev.stopPropagation(); void wakeUp(); }}>Wake Up</button>
+            {/* Clean rows (Dave 2026-10-05): no capsule; the banner is asking now, so its one action is the quiet word. */}
+            <RowCtxAction when label="Wake Up" onAct={() => void wakeUp()} />
           </div>
         </div></div>
       )}
@@ -2144,7 +2146,6 @@ export default function CategoryDetail({
           // the health page cannot show two of any of them (Dave 2026-09-10).
           sections={areaSections}
           more={healthMore}
-          adds={healthAdds}
           view={healthView}
           onView={setHealthView}
         />
@@ -2232,7 +2233,7 @@ export default function CategoryDetail({
                   {g.rows.map((r) => (
                     <div className="task-row p2" key={r.key}>
                       <div className="task-check-tap"><div className="task-check done" /></div>
-                      <div className="task-title"><span className="task-name">{r.text}</span></div>
+                      <div className="task-title"><span className="task-name">{titleCase(r.text)}</span></div>
                     </div>
                   ))}
                 </div>
@@ -2252,7 +2253,7 @@ export default function CategoryDetail({
             {repeats.map((t) => (
               <div className="task-row p2" key={t.id}>
                 <div className="task-title">
-                  <span className="task-name">{t.data.text}</span>
+                  <span className="task-name">{titleCase(t.data.text)}</span>
                   <div className="r-k"><span className="r-goal r-cat">{repetitionsLine(t.data.doneCount)}</span></div>
                 </div>
               </div>
@@ -2270,15 +2271,22 @@ export default function CategoryDetail({
               (derived from Gmail when connected, silent when not). Orgs get
               the same section when they have tagged people (clients, a team);
               on an org it stays hidden while empty instead of nagging. */}
-          <div className="sh2 sh2-quiet"><span className="t">{isOrg ? "People" : "Your People"}</span>{catPeople.length > 0 && <span className="n">{catPeople.length}</span>}</div>
-          <div className="pad-x"><div className="card list-card-ruled">
+          {/* Open Contacts is a door out of the section, so it is the head's own link (Dave 2026-10-05: nothing at the foot of
+              a card). It is navigation, not a create, so it is the plain .see-all text and not the capsule. */}
+          <div className="sh2 sh2-quiet">
+            <span className="t">{isOrg ? "People" : "Your People"}</span>{catPeople.length > 0 && <span className="n">{catPeople.length}</span>}
+            {onOpenContacts && <button type="button" className="see-all" onClick={onOpenContacts}>Open Contacts</button>}
+          </div>
+          <div className="pad-x"><div className="card list-card-ruled shell-rows">
             {catPeople.length === 0 && (
-              <div className="task-row p2">
-                <div className="task-title">
-                  <span className="task-name">No People Here Yet</span>
-                  <div className="r-k"><span className="r-goal r-cat">{`Open someone in Contacts and tag them ${cat.data.name}`}</span></div>
+              <RowShell>
+                <div className="task-row p2">
+                  <div className="task-title">
+                    <span className="task-name">No People Here Yet</span>
+                    <div className="r-k"><span className="r-goal r-cat">{`Open someone in Contacts and tag them ${cat.data.name}`}</span></div>
+                  </div>
                 </div>
-              </div>
+              </RowShell>
             )}
             {catPeople.map((p) => {
               const bday = bdayById.get(p.id);
@@ -2324,7 +2332,10 @@ export default function CategoryDetail({
                 : null;
               const nudgeable = !!p.data.email && (quiet || !!wrow);
               return (
-                <div {...pressable(() => onOpenPerson?.(p.id))} className="task-row p2 person-row-ruled" key={p.id}>
+                // A reply owed, or a line gone quiet, is a row whose moment has come: Nudge is its swipe-left AND the one
+                // quiet word on it (Dave 2026-10-05, locked), never a capsule; the tap opens the person.
+                <RowShell key={p.id} verb={nudgeable ? { label: "Nudge", run: () => void nudge(p) } : undefined}>
+                <div {...pressable(() => onOpenPerson?.(p.id))} className="task-row p2 person-row-ruled">
                   <div className="task-check-tap"><div className={"av " + avatarClass(p.data.color)}>{personInitials(p.data.name)}</div></div>
                   <div className="task-title">
                     <span className="task-name">{p.data.name}</span>
@@ -2337,18 +2348,13 @@ export default function CategoryDetail({
                       </div>
                     )}
                   </div>
-                  {nudgeable ? (
-                    <button className="pill-act" disabled={nudging === p.id}
-                      onClick={(e) => { e.stopPropagation(); void nudge(p); }}>
-                      {nudging === p.id ? "Drafting" : "Nudge"}
-                    </button>
-                  ) : CHEV}
+                  {nudgeable
+                    ? <RowCtxAction when label={nudging === p.id ? "Drafting" : "Nudge"} ariaLabel={"Nudge " + p.data.name} onAct={() => { if (nudging !== p.id) void nudge(p); }} />
+                    : CHEV}
                 </div>
+                </RowShell>
               );
             })}
-            {onOpenContacts && (
-              <button className="row row-act" onClick={onOpenContacts}>Open Contacts</button>
-            )}
           </div></div>
         </>
       )}
@@ -2363,7 +2369,7 @@ export default function CategoryDetail({
           <div className="pad-x"><div className="card list-card-ruled">
             {notes.map((n) => (
               <div {...pressable(() => onOpenNote?.(n.id))} className="task-row p2 note-row" key={n.id}>
-                <div className="task-title"><span className="task-name">{n.title}</span></div>
+                <div className="task-title"><span className="task-name">{titleCase(n.title)}</span></div>
                 {CHEV}
               </div>
             ))}

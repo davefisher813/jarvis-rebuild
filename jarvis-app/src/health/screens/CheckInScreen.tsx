@@ -3,6 +3,8 @@ import type { CheckInEntry, CheckInEnergy, CheckInMood } from "../types";
 import { clockOf } from "../meds";
 import { ENERGY_WORDS, MOOD_WORDS, checkInLine } from "../checkin";
 import { pressable } from "../../shared/pressable";
+import RowShell from "../../brain/RowShell";
+import RowSheet from "../../brain/RowSheet";
 
 // CHECK IN (2026-09-14, the reference's Energy and Mood check-in; Dave: "Do
 // all of this"). Two words and a note, nothing scored. Energy and mood are
@@ -18,6 +20,7 @@ export default function CheckInScreen({ today, onLog, onUndo, onBack }: {
   const [energy, setEnergy] = useState<CheckInEnergy | undefined>(undefined);
   const [mood, setMood] = useState<CheckInMood | undefined>(undefined);
   const [note, setNote] = useState("");
+  const [open, setOpen] = useState<(CheckInEntry & { pending?: boolean }) | null>(null);
   const valid = !!energy || !!mood || note.trim().length > 0;
   const submit = () => {
     if (!valid) return;
@@ -58,23 +61,30 @@ export default function CheckInScreen({ today, onLog, onUndo, onBack }: {
       {rows.length > 0 && (
         <>
           <div className="sh2 sh2-quiet"><span className="t">Today</span></div>
-          <div className="pad-x"><div className="card list-card-ruled">
-            {rows.map((c) => (
-              // row-tap: logged check ins are receipts shown whole with nothing to open, and the only verb is Undo, which a row tap must never do
-              <div className="row" key={c.id}>
-                <div className="row-grow">
-                  <div className="conn-name">{checkInLine(c.data) ?? "Check In"}</div>
-                  {/* A check in logged earlier is a neutral time, small caps
-                      (§AM F5); cyan in Health means now, the live set. */}
-                  <div className="facts"><span className="fact date">{clockOf(c.data.at)}</span>{c.data.note && (c.data.energy || c.data.mood) && <span className="fact">{c.data.note}</span>}</div>
-                </div>
-                {onUndo && !c.pending && (
-                  <button type="button" className="pill-act pill-quiet" onClick={() => onUndo(c)} aria-label="Undo this check in">Undo</button>
-                )}
-              </div>
-            ))}
+          <div className="pad-x"><div className="card list-card-ruled shell-rows">
+            {rows.map((c) => {
+              const undoable = !!onUndo && !c.pending;
+              return (
+                // CLEAN ROWS (Dave 2026-10-05, locked): Undo is the swipe-left and the answer on the sheet a tap opens,
+                // not a capsule on the row. A check in still on its way to the store has no real id, so it has neither.
+                <RowShell key={c.id} verb={undoable ? { label: "Undo", run: () => onUndo!(c) } : undefined}>
+                  <div className="row" role="button" tabIndex={0} onClick={() => { if (undoable) setOpen(c); }} onKeyDown={(e) => { if (undoable && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); setOpen(c); } }}>
+                    <div className="row-grow">
+                      <div className="conn-name">{checkInLine(c.data) ?? "Check In"}</div>
+                      {/* A check in logged earlier is a neutral time, small caps
+                          (§AM F5); cyan in Health means now, the live set. */}
+                      <div className="facts"><span className="fact date">{clockOf(c.data.at)}</span>{c.data.note && (c.data.energy || c.data.mood) && <span className="fact">{c.data.note}</span>}</div>
+                    </div>
+                  </div>
+                </RowShell>
+              );
+            })}
           </div></div>
         </>
+      )}
+      {open && onUndo && (
+        <RowSheet eyebrow="Check In" text={checkInLine(open.data) ?? "Check In"} facts={<span className="fact date">{clockOf(open.data.at)}</span>}
+          answers={[{ label: "Undo", onPick: () => onUndo(open) }]} onClose={() => setOpen(null)} />
       )}
       <div className="screen-foot" />
     </div>

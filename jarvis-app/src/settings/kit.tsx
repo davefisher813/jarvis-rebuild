@@ -9,9 +9,17 @@ import { haptics } from "../shared/haptics";
 // glyph tiles below the hub, iOS's own way: the hub says where you are,
 // the page says what you can change.
 
-/** The quiet caps head over a group. */
-export function Head({ label, count }: { label: string; count?: number }) {
-  return <div className="sh2 sh2-quiet"><span className="t">{label}</span>{count !== undefined && <span className="n">{count}</span>}</div>;
+/** The quiet caps head over a group. A section-level action (Add Section, Add Matcher) is the head's one capsule, never
+ *  a row inside the card below it (Dave 2026-10-05, locked; docs/jarvis-unified/ROW-ACTIONS-SPEC.md section 2). */
+export function Head({ label, count, action }: {
+  label: string; count?: number;
+  action?: { label: string; onClick: () => void; disabled?: boolean; ariaLabel?: string };
+}) {
+  return (
+    <div className="sh2 sh2-quiet"><span className="t">{label}</span>{count !== undefined && <span className="n">{count}</span>}
+      {action && <button type="button" className="see-all pill-action" aria-label={action.ariaLabel} disabled={action.disabled} onClick={action.onClick}>{action.label}</button>}
+    </div>
+  );
 }
 
 /** The grouped card. */

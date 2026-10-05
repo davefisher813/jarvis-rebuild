@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { own } from "../shared/rowDoor";
+import RowActionSheet from "../shared/RowActionSheet";
 import type { WorkoutData, WorkoutRevision } from "./types";
 import { durationOf } from "../insights/analytics";
 import { spanLabel } from "../shared/duration";
@@ -27,6 +27,7 @@ export default function DurationCard({ workout, onCorrect }: {
 }) {
   const d = durationOf(workout);
   const [editing, setEditing] = useState(false);
+  const [fixOpen, setFixOpen] = useState(false);
   const [endIn, setEndIn] = useState(hhmm(workout.endedAt));
   const revisions = workout.revisions ?? [];
   const endRef = useRef<HTMLInputElement>(null);
@@ -46,7 +47,18 @@ export default function DurationCard({ workout, onCorrect }: {
   };
   return (
     <>
-      <div className="sh2 sh2-quiet"><span className="t">Duration</span>{d.flagged && <span className="n">Review</span>}</div>
+      {/* THE CORRECTION IS THE HEAD'S (Dave 2026-10-05, locked: no capsule row inside a card). End at the Last Set and Set the
+          End Time were two rows at the foot of the card and Save a capsule on the field's row. One capsule on the head opens
+          the two ways to correct it, and while a time is being typed the head carries Save and Cancel. */}
+      <div className="sh2 sh2-quiet"><span className="t">Duration</span>{d.flagged && <span className="n">Review</span>}
+        {onCorrect && !editing && <button type="button" className="see-all pill-action" onClick={() => setFixOpen(true)}>Correct End</button>}
+        {onCorrect && editing && (
+          <span className="sec-left">
+            <button type="button" className="see-all pill-action" onClick={() => setEditing(false)}>Cancel</button>
+            <button type="button" className="see-all pill-action" onClick={commitTyped}>Save</button>
+          </span>
+        )}
+      </div>
       <div className="pad-x"><div className="card list-card-ruled">
         <div className="row">
           <div className="row-grow"><div className="conn-name">Active</div></div>
@@ -77,23 +89,25 @@ export default function DurationCard({ workout, onCorrect }: {
             <div className="facts"><span className="fact date">{clock(r.from)} to {clock(r.to)}</span></div>
           </div>
         ))}
-        {onCorrect && !editing && (
-          <>
-            {d.lastSetAt != null && d.lastSetAt !== workout.endedAt && (
-              <button type="button" className="row-create" onClick={() => correct(d.lastSetAt!)}>End at the Last Set</button>
-            )}
-            <button type="button" className="row-create" onClick={() => setEditing(true)}>Set the End Time</button>
-          </>
-        )}
         {onCorrect && editing && (
-          // The label lands in the field (Dave 2026-09-15: "I want all rows clickable").
+          // The label lands in the field (Dave 2026-09-15: "I want all rows clickable"), and Enter saves it.
           <div className="row" onClick={() => endRef.current?.focus()}>
             <div className="row-grow"><div className="conn-name">End Time</div></div>
-            <input ref={endRef} className="input set-field" type="time" aria-label="End time" value={endIn} onChange={(e) => setEndIn(e.target.value)} />
-            <button type="button" className="pill-act" onClick={own(commitTyped)}>Save</button>
+            <input ref={endRef} className="input set-field" type="time" aria-label="End time" value={endIn} onChange={(e) => setEndIn(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") commitTyped(); }} />
           </div>
         )}
       </div></div>
+      {fixOpen && (
+        <RowActionSheet
+          title="Correct the End"
+          actions={[
+            ...(d.lastSetAt != null && d.lastSetAt !== workout.endedAt ? [{ label: "End at the Last Set", onPick: () => correct(d.lastSetAt!) }] : []),
+            { label: "Set the End Time", onPick: () => setEditing(true) },
+          ]}
+          onCancel={() => setFixOpen(false)}
+        />
+      )}
     </>
   );
 }

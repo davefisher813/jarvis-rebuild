@@ -116,12 +116,12 @@ export default function ReceiptSheet({ title = "New Receipt", initial, attachmen
         <>
           <Group label="Photo or File">
             {attachment ? (
-              <Row tone="indigo" glyph={<Paperclip className="ic" />} label={nameOf(attachment)}
-                meta={bytesOf(attachment) > 0 ? sizeLabel(bytesOf(attachment)) : undefined}
-                onClick={() => setAttachment(null)}>
-                <button type="button" className="quiet-action" aria-label={"Remove " + nameOf(attachment)}
-                  onClick={(e) => { e.stopPropagation(); setAttachment(null); }}>Remove</button>
-              </Row>
+              <>
+                <Row tone="indigo" glyph={<Paperclip className="ic" />} label={nameOf(attachment)}
+                  meta={bytesOf(attachment) > 0 ? sizeLabel(bytesOf(attachment)) : undefined} />
+                {/* Taking it off is its own action row, not a text button inside the file's row (Dave 2026-10-05, locked). */}
+                <Row label="Remove Attachment" onClick={() => setAttachment(null)} />
+              </>
             ) : (
               <>
                 {/* Each row opens the phone's picker inside its own tap: a

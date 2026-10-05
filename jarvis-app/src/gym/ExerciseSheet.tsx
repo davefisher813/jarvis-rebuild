@@ -3,7 +3,7 @@ import { lineCase, liftTitle } from "../shared/casing";
 import { minutesLabel } from "../shared/duration";
 import { createPortal } from "react-dom";
 import { Fragment, useRef, useState, type ReactNode } from "react";
-import { own } from "../shared/rowDoor";
+import { own, rowDoor } from "../shared/rowDoor";
 import { MEASURE_KINDS, MEASURE_LABEL, unitsFor, defaultUnit, TIME_UNITS, COND_FORMATS, COND_LABEL, type CondBlock, type CondFormat, type Exercise, type MeasureKind, type SetEntry, type Workout } from "./types";
 import { EQUIPMENT_KINDS, EQUIPMENT_LABEL, EQUIPMENT_NOTE, COUNTED_LABEL, asksCount, countsFor, defaultCount, loadStyleOf, weightless, type Counted, type Equipment, type LoadStyle } from "./equipment";
 import { condCap, condLength, mmss } from "./conditioning";
@@ -391,7 +391,7 @@ export default function ExerciseSheet({ mode, initial, library, history, onSave,
               <div className="grp xs-grp">
                 <div className="eyebrow">{countLabel(kind)}</div>
                 {stripOpen && sets.length > 1 && (
-                  <button className="pill-act pill-neutral" onClick={() => setReorderSets((r) => !r)}>{reorderSets ? "Done" : "Reorder"}</button>
+                  <button type="button" className="see-all pill-action" onClick={() => setReorderSets((r) => !r)}>{reorderSets ? "Done" : "Reorder"}</button>
                 )}
               </div>
               <div className="pad-x"><div className="card xs-group">
@@ -494,14 +494,14 @@ export default function ExerciseSheet({ mode, initial, library, history, onSave,
                       options={TIME_UNITS.map((u) => ({ value: u, label: u }))} onPick={setTimeUnit} />
                   </div>
                 )}
-                <div className="row xs-row" onClick={toggleStrip}>
+                {/* A DISCLOSURE ROW, NOT A BUTTON ON A ROW (Dave 2026-10-05, locked: no pill in a row). The row is the whole
+                    control and its chevron turns to say open or shut. */}
+                <div className="row xs-row" {...rowDoor(toggleStrip)} aria-expanded={stripOpen}>
                   <div className="row-grow">
                     <div className="conn-name">Customize Individual Sets</div>
                     <div className="conn-meta">{isUniformStrip(kind, sets) ? "Uniform" : "Varies by Set"}</div>
                   </div>
-                  <button className="pill-act pill-neutral" aria-expanded={stripOpen} onClick={own(toggleStrip)}>
-                    {stripOpen ? "Hide" : "Show"}
-                  </button>
+                  <div className={"chev chev-down" + (stripOpen ? " chev-open" : "")} />
                 </div>
                 {stripOpen && (
                   <div className="row xs-strip">
@@ -624,14 +624,14 @@ export default function ExerciseSheet({ mode, initial, library, history, onSave,
                 and the door to the day's own Group With picker, so pairing no
                 longer hides behind a long press on the day list. */}
             {onPairWith && (
-              <div className="row xs-row" onClick={onPairWith}>
+              <div className="row xs-row" {...rowDoor(onPairWith)}>
                 <Tile tone="teal"><Link2 className="ic" /></Tile>
                 <div className="row-grow">
                   <div className="conn-name">Pair With</div>
-                  {/* Unpaired says nothing: the Choose capsule already says it (§AK). */}
+                  {/* Unpaired says nothing (§AK). The row is the door to the picker, so its chevron says so. */}
                   {partner && <div className="conn-meta">{partner}</div>}
                 </div>
-                <button className="pill-act pill-neutral" onClick={own(onPairWith)}>{partner ? "Change" : "Choose"}</button>
+                <div className="chev" />
               </div>
             )}
             {/* REST AFTER THE ROUND (Part 3 wave 2): only once the exercise

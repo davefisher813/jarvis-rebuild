@@ -10,6 +10,7 @@ import { readinessWord, toneForReadinessWord } from "./state";
 import type { DerivePerson } from "../derive";
 import type { Strand } from "./types";
 import { pressable } from "../../shared/pressable";
+import RowShell from "../RowShell";
 
 // WHY IS THIS LIST NOT GROWING (Dave, 2026-09-06: "i dont see any trace of
 // jarvis learning anything. theres 1 fact in what jarvis knows about me").
@@ -50,10 +51,16 @@ export interface ReadinessRead {
   loaded: boolean;
 }
 
-export function useReadiness(strands: Strand[], enabled = true): ReadinessRead {
+/** THE LAST GOOD READ, kept by whoever outlives the screen (BrainFlow). The Brain hub remounts on every back from a
+ *  page; without this its Needs You band was empty until the read came back, and when the read failed it stayed empty:
+ *  Alfred 2026-10-04, "the row disappeared after back navigation". With it the hub paints what it knew at once and the
+ *  fresh read replaces it. */
+export interface ReadMemo { read?: WindowRead; people?: DerivePerson[] }
+
+export function useReadiness(strands: Strand[], enabled = true, memo?: ReadMemo): ReadinessRead {
   const peopleSvc = useOptionalPeople();
-  const [read, setRead] = useState<WindowRead | null>(null);
-  const [people, setPeople] = useState<DerivePerson[]>([]);
+  const [read, setRead] = useState<WindowRead | null>(memo?.read ?? null);
+  const [people, setPeople] = useState<DerivePerson[]>(memo?.people ?? []);
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {
@@ -70,14 +77,17 @@ export function useReadiness(strands: Strand[], enabled = true): ReadinessRead {
         if (!live) return;
         setRead(w);
         setPeople(folk);
+        if (memo) { memo.read = w; memo.people = folk; }
       } catch {
         // Silent automation that fails renders a receipt, never nothing:
         // an instrument that goes blank when it breaks is the exact defect
         // this panel was built to end.
-        if (live) setFailed(true);
+        // A read that fails keeps what the last good one said, rather than blanking the band.
+        if (live && !memo?.read) setFailed(true);
       }
     })();
     return () => { live = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [peopleSvc, enabled]);
 
   const rows = read ? readiness(read.rows, strands, people, Date.now()) : [];
@@ -131,16 +141,18 @@ function WordRow({ r, focused = false, onTell, onOpen }: { r: Readiness; focused
     // Audit 2026-09-29: the row opens ITS DETAIL when the page gave it one; it
     // used to go straight to the Add One Thing form. Without onOpen (a caller
     // with no detail to show) it keeps saying it outright.
-    <div id={"rdy-" + r.key} className={"row rdy-row" + (focused ? " rdy-row-focus" : "")} {...(onOpen ? pressable(onOpen) : onTell ? pressable(onTell) : {})}>
-      <div className="row-grow"><div className="conn-name">{r.label}</div></div>
-      <span className={"fact st " + toneForReadinessWord(w)}>{w}</span>
-      {/* THE ROW HE TAPPED CAN BE TOLD (Dave 2026-09-13: "I clicked on when
-          you train to mark it as a fact, and it pulled up a completely
-          different fact"). A readiness row is JARVIS still counting; the one
-          he came here for carries Tell JARVIS, so saying it outright is one
-          tap from the row he meant. */}
-      {focused && onTell && <button type="button" className="pill-act" onClick={(ev) => { ev.stopPropagation(); onTell(); }}>Tell JARVIS</button>}
-    </div>
+    //
+    // CLEAN ROWS (Dave 2026-10-05, locked). Tell JARVIS sat on the row he had
+    // tapped in from Needs You (Dave 2026-09-13: "I clicked on when you train
+    // to mark it as a fact, and it pulled up a completely different fact").
+    // That row is still marked (.rdy-row-focus), and Tell JARVIS is now its
+    // sheet's primary and its swipe-left, on every row that can be told.
+    <RowShell verb={onTell ? { label: "Tell JARVIS", run: onTell } : undefined}>
+      <div id={"rdy-" + r.key} className={"row rdy-row" + (focused ? " rdy-row-focus" : "")} {...(onOpen ? pressable(onOpen) : onTell ? pressable(onTell) : {})}>
+        <div className="row-grow"><div className="conn-name">{r.label}</div></div>
+        <span className={"fact st " + toneForReadinessWord(w)}>{w}</span>
+      </div>
+    </RowShell>
   );
 }
 
@@ -168,7 +180,7 @@ export default function ReadinessPanel({ read, today, variant = "words", focusKe
     return (
       <>
         <div className="sh2 sh2-quiet"><span className="t">Readiness</span><span className="n">{read.rows.length}</span></div>
-        <div className="pad-x"><div className="card list-card-ruled">
+        <div className="pad-x"><div className="card list-card-ruled shell-rows">
           {read.rows.map((r) => <WordRow r={r} focused={r.key === focusKey} onTell={onTell ? () => onTell(r.key) : undefined} onOpen={onOpen ? () => onOpen(r.key) : undefined} key={r.key} />)}
           {/* Not a button: the Lab is three taps away under Settings and
               this page has no door into More. The line says where, which

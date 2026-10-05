@@ -36,15 +36,21 @@
    The light theme paints every .row-act as the solid red capsule; in the Hub
    only the screen's one primary keeps that, and the other row actions are
    quiet (the secondary surface, the one ink) or, for the single destructive
-   verb on a screen, the error tint. */
-.hub .row.row-act.hub-quiet, [data-theme="light"] .hub .row.row-act.hub-quiet, [data-theme="light"] .hub .ruled .card .row.row-act.hub-quiet,
-[data-theme="dark"] .hub .ruled .card .row.row-act.hub-quiet {
+   verb on a screen, the error tint. A capsule here stands by itself (Dave
+   2026-10-05, rule 12: an action never sits alone in a box, and never inside a
+   card), so these rules name the capsule, not a row in a card. */
+.hub .row-act.hub-quiet, [data-theme="light"] .hub .row-act.hub-quiet {
   background-color: var(--surface-2); border: 1px solid var(--surface-2); color: var(--tx-1);
 }
-.hub .row.row-act.hub-danger, [data-theme="light"] .hub .row.row-act.hub-danger, [data-theme="light"] .hub .ruled .card .row.row-act.hub-danger,
-[data-theme="dark"] .hub .ruled .card .row.row-act.hub-danger {
+.hub .row-act.hub-danger, [data-theme="light"] .hub .row-act.hub-danger {
   background-color: var(--hub-error-tint); border: 1px solid var(--hub-error-tint); color: var(--hub-error);
 }
+
+/* A DETAIL SCREEN'S ACTIONS (Dave 2026-10-05, locked: no action inside a card or a row). A record's own verbs (Replace,
+   Withdraw, Undo, Copy Receipt, Revoke Access) are capsules standing under the sections they act on, centred, one per
+   line: never a plate round them, never a row at the foot of a list. */
+.hub .hub-acts { display: flex; flex-direction: column; align-items: center; gap: var(--s-2); padding: var(--s-2) var(--s-4) var(--s-1); }
+.hub .hub-acts .row-act { margin: 0; }
 
 /* 2026-10-05: .hub-brief (15px, 500, --tx-2), .hub-note (13px, --tx-2) and
    .hub-head (a 17px semibold head) are gone. A note under a card is the
@@ -101,3 +107,19 @@
 @media (prefers-reduced-motion: reduce) {
   .hub .screen-push, .hub .screen-pop, .hub.screen-push, .hub.screen-pop { animation: none; }
 }
+
+/* A CARD WHOSE ROWS EACH WEAR THE SWIPE SHELL (brain/RowShell). The rows are .pad-x wrappers rather than siblings, so the
+   hairline between them is drawn on the wrapper, inset to the text edge like every grouped list. The shell itself
+   (.notice-swipe, .notice-card, the tray) is the one Today's rows wear. */
+.ruled .card.shell-rows > .pad-x { position: relative; }
+/* The shell's own 56px floor is the notice row's (a two-line box); a list row keeps its own height, centred, as it had
+   before it wore the shell, so a one-line row (a readiness word) is not 12px taller than the rows around it. */
+.ruled .card.shell-rows .notice-card { min-height: 0; }
+.ruled .card.shell-rows .notice-card > :is(.row, .task-row) { align-items: center; }
+.ruled .card.shell-rows > .pad-x + .pad-x::before {
+  content: ""; position: absolute; z-index: 2; left: var(--s-4); right: 0; top: 0; height: 0.5px; background: var(--divider); pointer-events: none; }
+
+/* THE SETTLED HOME OF A CARD'S OWN ACTIONS (laws/catalogCheck.ts HOMES; ROW-ACTIONS-SPEC section 2). A notice, a promo, a
+   suggestion or an insight card has its own words and its own answers, so its action row is not a row of a list and the
+   capsule check does not count what is in it. The class names the home and gives it no layout of its own. */
+.notice-actions, .promo-actions { min-width: 0; }

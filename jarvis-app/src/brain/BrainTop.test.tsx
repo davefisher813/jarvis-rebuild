@@ -22,10 +22,14 @@ const strand = (over: Partial<Strand["data"]> = {}, id = "s1"): Strand => ({
   },
 });
 
-const svc = { list: vi.fn(async () => [] as Strand[]), confirm: vi.fn(async () => {}) };
+const svc = {
+  list: vi.fn(async () => [] as Strand[]), confirm: vi.fn(async () => {}),
+  add: vi.fn(async () => "made"), setChannel: vi.fn(async () => {}),
+};
+const rulesSvc = { list: vi.fn(async () => [] as unknown[]), markAnnounced: vi.fn(async () => {}) };
 vi.mock("../data/NotesProvider", async (orig) => {
   const actual = await orig<typeof import("../data/NotesProvider")>();
-  return { ...actual, useOptionalStrands: () => svc, useOptionalPeople: () => null };
+  return { ...actual, useOptionalStrands: () => svc, useOptionalPeople: () => null, useOptionalRules: () => rulesSvc };
 });
 vi.mock("../ai/useAIContext", () => ({
   useAIContext: () => async () => ({}),
@@ -47,6 +51,7 @@ describe("BrainTop", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     svc.list.mockResolvedValue([]);
+    rulesSvc.list.mockResolvedValue([]);
     rows = [];
   });
 
@@ -75,13 +80,13 @@ describe("BrainTop", () => {
     const cardRows = [...container.querySelectorAll(".strand-row")];
     expect(cardRows.length).toBe(3);
     // told outranks watched in rankForRecall, so the rule leads.
-    expect(cardRows[0]?.textContent).toContain("Bridge wins ties");
+    expect(cardRows[0]?.textContent).toContain("Bridge Wins Ties");
     const facts0 = [...cardRows[0]!.querySelectorAll(".fact")].map((e) => e.textContent);
     // §AK one grey (Dave 2026-09-26): the state word in caps, Rule, then the
     // category as the row's one grey. No list of screen names.
     expect(facts0).toEqual(["Known", "Rule", "Values"]);
     // The watched fact reads its confidence off the readiness row: 156 over 10 is High.
-    const energy = cardRows.find((r) => r.textContent?.includes("mid morning"))!;
+    const energy = cardRows.find((r) => r.textContent?.includes("Mid Morning"))!;
     const factsE = [...energy.querySelectorAll(".fact")].map((e) => e.textContent);
     expect(factsE).toEqual(["Learned", "High", "Energy"]);
     // Every row carries exactly one plain grey fact: the rest are caps or a key colour.
@@ -117,15 +122,106 @@ describe("BrainTop", () => {
     expect([...cardRows[0]!.querySelectorAll(".fact")].map((e) => e.textContent)).toEqual(["Watching", "4 of 5 Pushes in One Area"]);
     // Oldest unconfirmed first (fadedStrands), and the cap of two leaves the
     // other fading fact for What JARVIS Knows.
-    expect(cardRows[1]?.textContent).toContain("Old and quiet");
+    expect(cardRows[1]?.textContent).toContain("Old and Quiet");
     // The fading row is What JARVIS Knows' fading row: Fading, then the
     // category as its one grey; the days live on the sheet (§AK, pass-off).
     expect([...cardRows[1]!.querySelectorAll(".fact")].map((e) => e.textContent)).toEqual(["Fading", "People"]);
-    expect(screen.queryByText("Admin happens Friday afternoons")).toBeNull();
+    expect(screen.queryByText("Admin Happens Friday Afternoons")).toBeNull();
     fireEvent.click(cardRows[0]!);
     expect(onOpenWatching).toHaveBeenCalledWith("slip_category");
-    fireEvent.click(screen.getByText("Still True"));
+    // Clean rows (Dave 2026-10-05): no capsule. Still True is the one quiet word on the fading row (the same verb as its
+    // swipe-left tray button, which is why there are two of that label).
+    expect(container.querySelector(".pill-act, .quiet-action")).toBeNull();
+    fireEvent.click(container.querySelector(".row-ctx")!);
     await waitFor(() => expect(svc.confirm).toHaveBeenCalledWith(expect.objectContaining({ id: "s3" }), "2026-08-24"));
+  });
+});
+
+// ALFRED 2026-10-04 (R2): "Brainstorms best at night", "Set up HighLevel account", "Trains between 11 AM and 2 PM in the
+// morning". The facts are model-written sentences; the catalog says Title Case on every line the app writes, so each is
+// drawn through lineCase (stored as written, the way a typed title is).
+describe("BrainTop draws every fact in Title Case", () => {
+  beforeEach(() => { vi.clearAllMocks(); rulesSvc.list.mockResolvedValue([]); rows = []; });
+
+  it("the facts Alfred listed, as the rows draw them", async () => {
+    svc.list.mockResolvedValue([
+      strand({ text: "Brainstorms best at night", source: "told", derivation: undefined }, "a"),
+      strand({ text: "Set up HighLevel account", source: "told", derivation: undefined }, "b"),
+      strand({ text: "Finishes things across the whole day rather than in one stretch", source: "told", derivation: undefined }, "c"),
+    ]);
+    const { container } = render(<BrainTop onOpenFact={() => {}} onOpenWatching={() => {}} />);
+    await screen.findByText("Shaping JARVIS Now");
+    const names = [...container.querySelectorAll(".strand-row .conn-name")].map((e) => e.textContent).sort();
+    expect(names).toEqual([
+      "Brainstorms Best at Night",
+      "Finishes Things Across the Whole Day Rather Than in One Stretch",
+      "Set Up HighLevel Account",
+    ]);
+  });
+});
+
+// CLEAN ROWS (Dave 2026-10-05, locked). The Needs You rows carried capsules (That's Right, Only Sometimes, Not True,
+// Still True). The row is a door now: it opens its sheet, swipe left is its one quickest answer, and the same answer is
+// the one quiet word on the row because these rows are asking right now.
+describe("Needs You: clean rows", () => {
+  const proposal = { id: "r1", data: { kind: "voice", scope: "draft.edit", from: "dropped_greeting", announced: false, evidence: [{}, {}] } };
+  beforeEach(() => { vi.clearAllMocks(); svc.list.mockResolvedValue([]); rulesSvc.list.mockResolvedValue([proposal]); rows = []; });
+
+  it("a proposed writing rule has no capsule on its row, a Title Case sentence, and one quiet That's Right", async () => {
+    const { container } = render(<BrainTop onOpenFact={() => {}} onOpenWatching={() => {}} />);
+    await screen.findByText("Needs You");
+    const row = container.querySelector(".strand-row")!;
+    expect(row.querySelector(".conn-name")!.textContent).toBe("Drops Formal Greetings in Email");
+    expect(container.querySelector(".pill-act, .row-act, .btn-sm, .quiet-action")).toBeNull();
+    const ctx = row.querySelector(".row-ctx")!;
+    expect(ctx.textContent).toBe("That's Right");
+    // The same verb is the swipe-left tray's first (only) button.
+    expect(container.querySelector(".notice-alt")!.textContent).toBe("That's Right");
+    // Facts are spans; the dot is CSS.
+    expect([...row.querySelectorAll(".fact")].map((e) => e.textContent)).toEqual(["Needs Confirmation", "2 Edits"]);
+    expect(row.textContent).not.toContain("\u00b7");
+  });
+
+  it("the row opens a sheet with the answer filled, and answering from it writes the strand", async () => {
+    const { container } = render(<BrainTop onOpenFact={() => {}} onOpenWatching={() => {}} />);
+    await screen.findByText("Needs You");
+    fireEvent.click(container.querySelector(".strand-row")!);
+    const sheet = container.querySelector(".sheet-scrim")!;
+    expect(sheet.querySelector(".strand-head")!.textContent).toBe("Drops Formal Greetings in Email");
+    const primary = sheet.querySelector(".btn-primary")!;
+    expect(primary.textContent).toBe("That's Right");
+    fireEvent.click(primary);
+    await waitFor(() => expect(svc.add).toHaveBeenCalledWith("Drops formal greetings in email", "writing", "2026-08-24", "influence", "pattern"));
+    expect(container.querySelector(".sheet-scrim")).toBeNull();
+  });
+
+  it("the quiet word on the row answers without opening anything", async () => {
+    const { container } = render(<BrainTop onOpenFact={() => {}} onOpenWatching={() => {}} />);
+    await screen.findByText("Needs You");
+    fireEvent.click(container.querySelector(".row-ctx")!);
+    await waitFor(() => expect(svc.add).toHaveBeenCalled());
+    expect(container.querySelector(".sheet-scrim")).toBeNull();
+  });
+});
+
+// ALFRED 2026-10-04: the Needs You band, and the Explore head over the nav list, were gone after a back from a page.
+// The hub is unmounted while a page is open over it, and every remount began from empty and waited on the reads.
+describe("the hub remembers its bands across a back", () => {
+  beforeEach(() => { vi.clearAllMocks(); rulesSvc.list.mockResolvedValue([]); rows = [close]; });
+
+  it("a remount paints Needs You and Explore on its first frame, before any read has come back", async () => {
+    svc.list.mockResolvedValue([strand({ text: "Admin happens Friday afternoons", category: "routine", lastConfirmed: "2026-05-01" }, "s2")]);
+    const memo = {};
+    const first = render(<BrainPage onOpen={() => {}} memo={memo} />);
+    await screen.findByText("Needs You");
+    expect(screen.getByText("Explore")).toBeInTheDocument();
+    first.unmount();
+    // Nothing resolves now: a read that never returns (a slow phone, a dropped connection).
+    svc.list.mockImplementation(() => new Promise<Strand[]>(() => {}));
+    render(<BrainPage onOpen={() => {}} memo={memo} />);
+    expect(screen.getByText("Needs You")).toBeInTheDocument();
+    expect(screen.getByText("Explore")).toBeInTheDocument();
+    expect(screen.getByText("The Area That Slips")).toBeInTheDocument();
   });
 });
 

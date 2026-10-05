@@ -59,7 +59,8 @@ export default function SeasonFeedScreen({ ai, onCommit, onBack }: {
           <div className="nav-title truncate">{draft.org}</div>
         </div>
         <div className="pad-x"><div className="card pad">
-          <div className="conn-name">What I Read · Fix Anything Later</div>
+          <div className="conn-name">What I Read</div>
+          <div className="bp-sub">Fix Anything Later</div>
         </div></div>
         <div className="pad-x"><div className="card list-card-ruled">
           {draft.events.map((e, i) => (

@@ -6,7 +6,7 @@ import type { Source } from "../../shared/provenance";
 import { Calendar, Link2 } from "../../shared/icons";
 import { DollarGlyph, RepeatGlyph, WalletGlyph, CheckCircleGlyph } from "../../shared/glyphs";
 import { useOptionalLedger } from "../../data/NotesProvider";
-import { lineCase } from "../../shared/casing";
+import { lineCase, titleCase } from "../../shared/casing";
 import { monthDay } from "../bills";
 import { billAmount, evidenceLine, historyLines, ledgerChip, ledgerStatusWord } from "../billView";
 import { isPaid } from "../ledger/status";
@@ -58,7 +58,7 @@ export default function BillDetailSheet({ bill, today, onClose, onEdit, onMarkPa
   return (
     <FormSheet title="Bill" onCancel={onClose} onSave={onEdit} saveLabel="Edit">
       <Group label="Bill">
-        <Row tone="yellow" glyph={<WalletGlyph />} label="Vendor"><span className="bill-val">{d.vendor}</span></Row>
+        <Row tone="yellow" glyph={<WalletGlyph />} label="Vendor"><span className="bill-val">{titleCase(d.vendor)}</span></Row>
         <Row tone="green" glyph={<DollarGlyph />} label="Amount"><span className={"money-amt bill-val" + (paid ? " paid" : "")}>{billAmount(d)}</span></Row>
         {/* A bill with no due date shows no Due row at all (2026-10-05, the
             visual catalog gate, R1: a row with nothing to say shows nothing,

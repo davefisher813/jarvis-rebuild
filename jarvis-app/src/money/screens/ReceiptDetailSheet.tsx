@@ -79,14 +79,14 @@ export default function ReceiptDetailSheet({ receipt, linked, categories, attach
             // was one joined string in one grey run.
             meta={linked
               ? <LinkedFacts name={linked.data.merchant} sameAs={d.vendor} cents={linked.data.amountCents} day={linked.data.date} />
-              : "That Payment Is Gone"}
-            onClick={onUnmatch}>
-            <button type="button" className="pill-act" onClick={(e) => { e.stopPropagation(); onUnmatch(); }}>Unmatch</button>
-          </Row>
+              : "That Payment Is Gone"} />
         ) : (
           <Row tone="graphite" glyph={<Link2 className="ic" />} label="Not Matched" meta="Counts on Its Own" />
         )}
       </Group>
+      {/* UNMATCH IS AN ACTION ROW OF ITS OWN, not a capsule inside the match row (Dave 2026-10-05, locked: no pill on a
+          row; the sheet holds every action). The same shape as Remove Paid State on a bill's page. */}
+      {d.linkedTransactionId && <Group className="xs-actions"><Row onClick={onUnmatch} label="Unmatch" /></Group>}
       <HistoryList history={d.history} />
       <Group className="xs-actions"><DeleteRow label="Delete Receipt" onClick={onDelete} /></Group>
     </FormSheet>

@@ -1,4 +1,5 @@
 import { useState, type KeyboardEvent as RKeyboardEvent } from "react";
+import { titleCase } from "../../shared/casing";
 import type { EventItem } from "../types";
 import { fmtTime } from "../calendar";
 import { catColor, catName } from "../../shared/categories";
@@ -97,7 +98,7 @@ export default function EventDetailPage({
         <div className="row-pair">
           <div className={"sec-ico " + tone.replace("cat-fg-", "cat-bg-")}><CalendarDays className="ic" /></div>
           <div className="row-grow">
-            <div className="pagehead-title ev-title">{e.title}</div>
+            <div className="pagehead-title ev-title">{titleCase(e.title)}</div>
             {/* A line each, the way a calendar's own event page sets them:
                 side by side on one .facts line, a long weekday and a
                 12:00 PM to 12:30 PM range overrun the column at 390 and the

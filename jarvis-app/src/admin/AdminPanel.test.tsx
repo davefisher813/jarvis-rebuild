@@ -4,6 +4,7 @@ import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import AdminPanel from "./AdminPanel";
+import { capsulesInCards } from "../laws/catalogCheck";
 import { createAdminApi, makeSampleAdminSource, type AdminService } from "./AdminService";
 
 describe("AdminPanel", () => {
@@ -71,9 +72,13 @@ describe("AdminPanel", () => {
       async metrics() { throw new Error("no metrics endpoint"); },
     };
     render(<AdminPanel isAdmin source={src} />);
-    fireEvent.click(await screen.findByText("Disable"));
+    // THE ROW HAS NO PILL (Dave 2026-10-05, locked): a tap opens its sheet and the sheet holds Disable. It is not a swipe,
+    // because it locks someone out.
+    fireEvent.click(await screen.findByText("a@b.com"));
+    fireEvent.click(await screen.findByText("Disable Account"));
     await waitFor(() => expect(called).toEqual(["u1", "disabled"]));
-    expect(screen.getByText("Enable")).toBeInTheDocument();
+    fireEvent.click(await screen.findByText("a@b.com"));
+    expect(await screen.findByText("Enable Account")).toBeInTheDocument();
   });
 
   // PLUMB-F-21 (2026-09-05): the row was optimistic with no rollback, so a
@@ -89,12 +94,13 @@ describe("AdminPanel", () => {
       async metrics() { throw new Error("no metrics endpoint"); },
     };
     render(<AdminPanel isAdmin source={src} />);
-    fireEvent.click(await screen.findByText("Disable"));
+    fireEvent.click(await screen.findByText("a@b.com"));
+    fireEvent.click(await screen.findByText("Disable Account"));
     await waitFor(() => expect(screen.getByText("admin 502")).toBeInTheDocument());
-    // The account is active, because nothing changed it. The row states its
-    // status through the capsule's verb alone (§AK: one grey per row).
-    expect(screen.getByText("Disable")).toBeInTheDocument();
-    expect(screen.queryByText("Enable")).toBeNull();
+    // The account is active, because nothing changed it: its sheet still offers Disable.
+    fireEvent.click(screen.getByText("a@b.com"));
+    expect(await screen.findByText("Disable Account")).toBeInTheDocument();
+    expect(screen.queryByText("Enable Account")).toBeNull();
   });
 
   // §AM (2026-09-22): a cost with no state is white, and an account whose
@@ -157,10 +163,9 @@ describe("AdminPanel", () => {
     expect(screen.getByText("Parent on iPad")).toHaveClass("fact");
   });
 
-  // 2026-09-26: the open user row keeps the account id, the one place the
-  // panel shows what an admin looks a user up by. The plan is the row's one
-  // grey, so the id is a white value in a fact of its own.
-  it("shows the account id as its own fact on the open user row", async () => {
+  // 2026-09-26: the panel keeps the account id, the one place it shows what an admin looks a user up by. 2026-10-05: the row
+  // says only its plan, and the id and the join date are in the row's sheet with its one verb.
+  it("shows the account id and the join date in the user's sheet, and the row itself says only its plan", async () => {
     const src: AdminService = {
       available: true,
       async listUsers() { return [{ id: "u1", email: "a@b.com", createdAt: "2026-01-01", plan: "Pro", status: "active", role: "user", aiAllowed: true }]; },
@@ -170,14 +175,16 @@ describe("AdminPanel", () => {
       async feedback() { return []; },
       async metrics() { throw new Error("no metrics endpoint"); },
     };
-    render(<AdminPanel isAdmin source={src} />);
+    const { container } = render(<AdminPanel isAdmin source={src} />);
     const row = (await screen.findByText("a@b.com")).closest(".row") as HTMLElement;
+    expect([...row.querySelectorAll(".fact")].map((f) => f.textContent)).toEqual(["Pro"]);
+    expect(row.querySelector(".pill-act, .row-act, .btn-sm, .quiet-action")).toBeNull();
     expect(screen.queryByText("u1")).toBeNull();
     fireEvent.click(row);
-    const id = screen.getByText("u1");
-    expect(id.tagName).toBe("B");
-    expect(id.parentElement).toHaveClass("fact");
-    expect(screen.getByText("Joined 2026-01-01")).toHaveClass("fact", "date");
+    expect(await screen.findByText("Account Id")).toBeInTheDocument();
+    expect(screen.getByText("u1")).toBeInTheDocument();
+    expect(screen.getByText("2026-01-01")).toBeInTheDocument();
+    expect(capsulesInCards(container)).toEqual([]);
   });
 
   it("is honest when there is no admin server", () => {

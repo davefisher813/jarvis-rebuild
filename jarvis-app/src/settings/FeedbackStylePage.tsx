@@ -4,6 +4,7 @@ import type { Celebration, Encouragement, FeedbackPrefs, MotionPref } from "../e
 import { useSettings } from "../data/NotesProvider";
 import { SETTING_FEEDBACK } from "../data/SettingsService";
 import LargeTitleNav from "../shared/LargeTitleNav";
+import { Volume2 } from "../shared/icons";
 import { Head, Card, Menu, Row, Switch, Foot } from "./kit";
 
 // FEEDBACK STYLE (ADHD Reward Design Brief, Dave-approved 2026-10-04).
@@ -75,7 +76,7 @@ export default function FeedbackStylePage({ onBack }: { onBack: () => void }) {
       <Card>
         <Switch label="Completion Sound" meta="One Short Quiet Tone" on={prefs.sound}
           onToggle={() => save({ sound: !prefs.sound })} />
-        <Row label="Hear It" onClick={() => { previewTone(); }}><span className="pill-act">Play</span></Row>
+        <Row label="Hear It" value={<Volume2 className="ic row-verb-ic" aria-hidden="true" />} onClick={() => { previewTone(); }} />
         <Switch label="Haptics" on={prefs.haptics}
           onToggle={() => save({ haptics: !prefs.haptics })} />
       </Card>

@@ -53,7 +53,7 @@ const toastNamed = (message: string) => toastCalls().find((t) => t.message === m
 const messages = () => toastCalls().map((t) => t.message);
 
 const sendText = (text: string) => {
-  fireEvent.change(screen.getByPlaceholderText("Ask · tell · paste"), { target: { value: text } });
+  fireEvent.change(screen.getByPlaceholderText("Ask · Tell · Paste"), { target: { value: text } });
   fireEvent.click(screen.getByRole("button", { name: "Send" }));
 };
 

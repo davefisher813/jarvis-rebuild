@@ -131,13 +131,16 @@ export default function AgentDetail({ client, connection, projects, aiAllowed, a
             </div>
           </div>
         ))}
-        <button className={"row row-act" + (previewWhy ? " dim" : "")} aria-disabled={previewWhy ? true : undefined}
-          onClick={() => { if (previewWhy) { showToast({ message: previewWhy }); return; } onPreview(c.id, projectId); }}>{PREVIEW_CONTEXT}</button>
       </div></div>
 
-      <div className="pad-x"><div className="card list-card-ruled">
-        <button className="row row-act hub-danger" disabled={revoked || busy === "revoke" || offline} onClick={() => void revoke()}>{busy === "revoke" ? "Revoking…" : REVOKE}</button>
-      </div></div>
+      {/* THE AGENT'S OWN VERBS STAND UNDER IT (Dave 2026-10-05, rule 12: an action never sits alone in a box, and none sits
+          inside a card). Preview Shared Context is dimmed and still tappable while it cannot act, and the tap says why
+          (2026-10-04). It could not be the What's Shared head's capsule: the title lost its words to an ellipsis. */}
+      <div className="hub-acts">
+        <button type="button" className={"row-act" + (previewWhy ? " dim" : "")} aria-disabled={previewWhy ? true : undefined}
+          onClick={() => { if (previewWhy) { showToast({ message: previewWhy }); return; } onPreview(c.id, projectId); }}>{PREVIEW_CONTEXT}</button>
+        <button className="row-act hub-danger" disabled={revoked || busy === "revoke" || offline} onClick={() => void revoke()}>{busy === "revoke" ? "Revoking…" : REVOKE}</button>
+      </div>
       <Foot>{REVOKE_NOTE}</Foot>
       <div className="screen-foot" />
     </div>

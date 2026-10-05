@@ -25,7 +25,8 @@ import { DUR_CHOICES, durLabel } from "../durations";
 import { tapField } from "../../shared/FormSheet";
 import { onPressKey } from "../../shared/pressable";
 import { spanLabel } from "../../shared/duration";
-import { lineCase } from "../../shared/casing";
+import { lineCase, titleCase } from "../../shared/casing";
+import RowCtxAction from "../../shared/RowCtxAction";
 import { showToast } from "../../shared/toast";
 
 const BUFFER = 10;
@@ -621,7 +622,8 @@ export default function PlanDaySheet({
               <div className="row-stack">
                 <div className="conn-name">{clock.title}</div>
               </div>
-              <button type="button" className="pill-act" onClick={(e) => { e.stopPropagation(); hide("clock"); onTarget("tomorrow"); }}>Plan Tomorrow</button>
+              {/* NO PILL ON A ROW (Dave 2026-10-05): the row's one verb is one quiet word, the same as its tap. */}
+              <RowCtxAction when label="Plan Tomorrow" onAct={() => { hide("clock"); onTarget("tomorrow"); }} />
             </div></div>
           )}
 
@@ -661,8 +663,8 @@ export default function PlanDaySheet({
               </span>
             )}
             <span className="fact">
-              <b>{hhmm(load.openMin)}</b> open
-              {alreadyPlanned.length > 0 && <>, <b>{alreadyPlanned.length}</b> already planned</>}
+              <b>{hhmm(load.openMin)}</b> Open
+              {alreadyPlanned.length > 0 && <>, <b>{alreadyPlanned.length}</b> Already Planned</>}
             </span>
           </div>
 
@@ -676,9 +678,7 @@ export default function PlanDaySheet({
                 <div className="conn-name">{dropLine(overflow.length)}</div>
                 <div className="conn-meta">You&rsquo;re {hhmm(load.overMin)} Over What&rsquo;s Open</div>
               </div>
-              <button type="button" className="pill-act" onClick={(e) => { e.stopPropagation(); dropOverflow(); }}>
-                {overflow.length === 1 ? "Drop It" : `Drop ${overflow.length}`}
-              </button>
+              <RowCtxAction when label={overflow.length === 1 ? "Drop It" : `Drop ${overflow.length}`} onAct={dropOverflow} />
             </div></div>
           )}
 
@@ -737,8 +737,13 @@ export default function PlanDaySheet({
                       <span className="urgency urgency-muted">{label(fromMin(b.s))}–{label(fromMin(b.e))}</span>
                     </div>
                   ))}
+                  {/* A DOOR ROW, NOT A BUTTON AT THE FOOT OF A LIST (Dave 2026-10-05, locked): the way out to the routine is a
+                      row with a chevron, the way every sheet's "Edit Full Details" is. */}
                   {onEditRoutine && (
-                    <button type="button" className="row-act" onClick={() => onEditRoutine()}>Edit Routine</button>
+                    <div className="row" {...rowDoor(() => onEditRoutine())}>
+                      <div className="row-grow"><div className="conn-name">Edit Routine</div></div>
+                      <div className="chev" />
+                    </div>
                   )}
                 </>
               )}
@@ -793,7 +798,7 @@ export default function PlanDaySheet({
                           <div className="p3-num">{on ? i + 1 : ""}</div>
                           <span className={"cat-dot cat-bg-" + catColor(t.category)} />
                           <div className="row-grow">
-                            <div className="p3-name truncate">{t.text}</div>
+                            <div className="p3-name truncate">{titleCase(t.text)}</div>
                             {/* PICK 31 applies here too: a goal whose whole
                                 name is already in the task title costs a
                                 line and says nothing. Same helper the Now
@@ -919,11 +924,14 @@ export default function PlanDaySheet({
               <input
                 className="input input-compact"
                 placeholder="Add Something to This Day"
+                enterKeyHint="done"
                 value={adding}
                 onChange={(e) => setAdding(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter") void addTask(); }}
               />
-              <button type="button" className="pill-act" disabled={!adding.trim()} onClick={() => void addTask()}>Add</button>
+              {/* THE MOMENT HAS COME (Dave 2026-10-05, locked: no pill on a row, an action appears exactly when it is wanted):
+                  with nothing typed the field says nothing; once there is text, Add is one quiet word beside it. Enter adds too. */}
+              <RowCtxAction when={!!adding.trim()} label="Add" onAct={() => void addTask()} />
             </div>
           )}
           {leanedOn.length > 0 && !aiBusy && (

@@ -45,7 +45,8 @@ export default function InsightEvidence({ evidence, explain }: {
   };
   return (
     <>
-      <div className="ins-acts">
+      {/* The insight card's own action row: its words are the card's, so these are the settled notice-card home. */}
+      <div className="ins-acts notice-actions">
         <button type="button" className="pill-act pill-quiet" aria-expanded={open} onClick={() => setOpen((o) => !o)}>{open ? "Hide Evidence" : "Evidence"}</button>
         {open && run && !explained && (
           <button type="button" className="pill-act pill-quiet" disabled={busy} onClick={() => void ask()}>{busy ? "Explaining" : "Explain"}</button>

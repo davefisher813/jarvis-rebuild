@@ -77,7 +77,7 @@
 .ruled .card .task-row, .ruled .card .sched-row, .ruled .card .row, .ruled .card .anytime-row,
 .ruled .card .rem-row,
 .ruled .card .notice-card, .ruled .card .notice-card-row, .ruled .card .stream-card > .task-row { background: transparent; }
-.ruled .card .task-swipe > .task-del, .ruled .card .task-swipe > .task-snooze, .ruled .card .task-swipe > .task-verb,
+.ruled .card .task-swipe > .task-del, .ruled .card .task-swipe > .task-snooze, .ruled .card .task-swipe > .task-verb, .ruled .card .task-swipe > .task-verb-2,
 /* 2026-10-04: the one-action reveal's outer-slot modifier (components.css). */
 .ruled .card .task-swipe > .task-snooze-solo,
 /* UP-CORE-15 shipped a new reveal, the leading green Done rail, and did not
@@ -91,16 +91,18 @@
 .ruled .card .task-swipe > .mail-arch, .ruled .card .task-swipe > .mail-letgo,
 /* E-28 (2026-09-12): the Needs You row's Later, third slot of the reveal. */
 .ruled .card .task-swipe > .mail-later,
-/* The writing system, wave 3: the note row's Add, third slot of its reveal. */
-.ruled .card .task-swipe > .note-append,
 .ruled .card .notice-swipe > .notice-dismiss, .ruled .card .notice-swipe > .notice-alt, .ruled .card .notice-swipe > .notice-delete,
 /* The dealt row on Today is a notice row that CAN be completed, so the Done
    rail rides a .notice-swipe there (2026-09-16). Same rail, same hiding. */
 .ruled .card .notice-swipe > .task-done-rail,
-.ruled .card .sched-strip > .sched-actions { visibility: hidden; }
+.ruled .card .sched-strip > .sched-actions, .ruled .card .sched-strip > .task-done-rail { visibility: hidden; }
 .ruled .card .task-swipe:has(> [style*="translateX"]:not([style*="translateX(0px)"])) > *,
 .ruled .card .notice-swipe:has(> [style*="translateX"]:not([style*="translateX(0px)"])) > *,
 .ruled .card .sched-strip:has(> [style*="translateX"]:not([style*="translateX(0px)"])) > * { visibility: visible; }
+.ruled .card .sched-strip:has(> [style*="translateX(-"]:not([style*="translateX(0px)"])) > .task-done-rail { visibility: hidden; }
+/* AND THE RAIL IS THE LEFT SWIPE'S GROUND, NOT THE RIGHT'S: a proposed block that slides right to tick off shows its Book It
+   rail through its own glass body otherwise. */
+.ruled .card .sched-strip:has(> [style*="translateX"]:not([style*="translateX(-"]):not([style*="translateX(0px)"])) > .sched-actions { visibility: hidden; }
 /* THE DONE RAIL IS THE RIGHT SWIPE'S GROUND, NOT THE LEFT'S (Dave 2026-10-05, a Today row slid open showed a green Done
    rail where the row used to be). The un-hide above shows every reveal while a row moves; the leading rail sits at the left
    edge, which a leftward slide uncovers, so it stays hidden whenever the row has moved left. */
@@ -788,11 +790,7 @@
 .ruled .sched-row { flex-wrap: nowrap; align-items: flex-start; row-gap: 0; padding-left: calc(var(--s-4) + var(--s-3)); }
 .ruled .sched-bar { width: 3px; border-radius: var(--r-xxs); left: var(--s-4); top: 7px; bottom: 7px; }
 .ruled .sched-row > .sched-time { width: auto; flex: 0 0 auto; }
-/* The chevron rides the end of the first line. Its paint is the line's
-   height; its touch stays 44 the way every other small control in this app
-   keeps one, with an expander that costs no layout. */
-.ruled .sched-row > .sched-grip { margin-left: auto; order: 0; min-height: 0; min-width: 0; padding: 0; position: relative; align-self: flex-start; margin-top: 1px; }
-.ruled .sched-row > .sched-grip::after { content: ""; position: absolute; inset: -12px -8px; }
+/* The body is the flexible column; the row's one quiet word (RowCtxAction), when its moment has come, sits at the end. */
 .ruled .sched-row > .sched-body { order: 0; flex: 1 1 0; min-width: 0; }
 .ruled .sched-body { padding-left: 0; }
 .ruled .sched-title { font-size: var(--t-name); font-weight: var(--w-name); letter-spacing: var(--track-name); margin-bottom: var(--s-0h);
@@ -896,9 +894,9 @@
 .ruled .anytime-head { margin-top: var(--s-4); }
 .ruled .anytime-card { padding: 0; overflow: hidden; }
 .ruled .anytime-row { touch-action: pan-y; }
-.ruled .anytime-row + .anytime-row { border-top: 0; }
-.ruled .anytime-row + .anytime-row::before { content: ""; position: absolute; left: calc(var(--s-4) + 44px + var(--s-3)); right: 0; top: 0;
-  height: 0.5px; background: var(--divider); }
+/* THE TRAY IS THE LEFT SWIPE'S GROUND, NOT THE RIGHT'S (Dave 2026-10-05): the ruled card is glass, so a row that slides right
+   for Done shows the Drop tray through its own body. The mirror of the Done rail's rule above. */
+.ruled .anytime-card .task-swipe:has(> [style*="translateX"]:not([style*="translateX(-"]):not([style*="translateX(0px)"])) > :is(.task-verb, .task-del) { visibility: hidden; }
 
 /* ---------- EMAIL, PORTED (2026-09-02, fifth surface) ----------------------
    The outcome switch under the mode chips: Needs You / Waiting On / Nothing
@@ -1311,8 +1309,8 @@
    the check would be. Nothing on this page is red: a negative balance is
    a fact about the account, so it sits in quiet ink with its sign. */
 .ruled .money-hero-card > .money-hero { padding: var(--s-4) var(--s-4) var(--s-3); }
-.ruled .money-hero-card > .money-hero + .task-row { position: relative; border-top: 0; }
-.ruled .money-hero-card > .money-hero + .task-row::before { content: ""; position: absolute; left: var(--s-4); right: 0; top: 0;
+.ruled .money-hero-card > .money-hero + .task-swipe { position: relative; border-top: 0; }
+.ruled .money-hero-card > .money-hero + .task-swipe::before { content: ""; position: absolute; left: var(--s-4); right: 0; top: 0;
   height: 0.5px; background: var(--divider); pointer-events: none; }
 /* The hero's two quiet lines were both 13px grey, one over the number and one
    under it (2026-09-25). The line under it is a fact, so it is the fact size,
@@ -1344,10 +1342,6 @@
    "Paid Sep 1" in --tx-3: the same hex, two greys differing only by weight.
    The key gives paid green, and the amount is what was paid. */
 .ruled .task-row .money-amt.paid { color: var(--good); }
-.ruled .task-row .bill-pay { font-size: calc(14px * var(--type-scale)); font-weight: var(--w-medium); padding-left: var(--s-2h); }
-.ruled .task-row .budget-add { flex-shrink: 0; }
-.ruled .task-row .budget-add .input { height: 34px; font-size: calc(14px * var(--type-scale)); }
-.ruled .task-row .budget-add .budget-amt { width: 72px; }
 /* Hairlines in a card of bare task rows: inset past the check column (44px
    tap target, the same edge the swipe shell's rows use) whenever the row on
    either side has one, so the autopay glyph row rules the same as a check. */
@@ -2290,16 +2284,6 @@
    the shared goal row keeps its look on every other page. */
 .ruled.health-ruled .gkind, .ruled.health-ruled .gstat { background: transparent; padding: 0; border-radius: 0; box-shadow: none; }
 
-/* THE CREATES, AT THE FOOT. One compact row, centred, three capsules.
-   The capsule (§AL, 2026-09-25): the capsule fill, the action red on label
-   and plus alike, and the capsule's 14px label. They were 13px white words
-   on the alpha press fill with only the plus in red. */
-.ruled.health-ruled .h-adds { display: flex; flex-wrap: nowrap; justify-content: center; gap: var(--s-2); margin-top: var(--s-6); margin-bottom: var(--s-4); }
-.ruled.health-ruled .h-add { display: inline-flex; align-items: center; justify-content: center; gap: var(--s-1h); min-height: 36px; padding: 0 var(--s-3h); white-space: nowrap;
-  border: 0; border-radius: var(--r-pill); background-color: var(--capsule-fill); color: var(--tint); font-family: var(--f);
-  font-size: var(--t-meta); font-weight: var(--w-semi); cursor: pointer; }
-[data-theme="light"] .ruled.health-ruled .h-add { color: var(--on-light-red); }
-.ruled.health-ruled .h-add .ic { width: 14px; height: 14px; color: currentColor; stroke-width: 2.6; }
 /* THE LOG (H-48, Health Push C, 2026-09-12): today's entries, the glyph in
    the entry's hue on its tint, the time in the same hue, one fact beside it. */
 .ruled.health-ruled .h-log-row { gap: var(--s-2h); }
@@ -2466,13 +2450,8 @@
 /* The label under a tile's number is its one fact: the fact size and the
    one grey (§AM F4, 2026-09-26). It was 13px, a third size. */
 .ruled.health-ruled .h-stat span { display: block; font-size: var(--t-sub); color: var(--tx-3); margin-top: var(--s-0h); }
-.ruled.health-ruled .h-next-acts { display: flex; gap: var(--s-2); padding: 0 var(--s-4) var(--s-3); }
-.ruled.health-ruled .h-next-acts .pill-act { flex: 1; justify-content: center; max-width: none; }
 .ruled.health-ruled .h-find { gap: var(--s-2h); }
 .ruled.health-ruled .h-find .facts + .facts { margin-top: var(--s-0h); }
-.ruled.health-ruled .h-foot-acts { display: flex; gap: var(--s-2); margin-top: var(--s-3); }
-.ruled.health-ruled .h-foot-acts .btn { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: var(--s-1h); }
-.ruled.health-ruled .h-foot-acts .btn .ic { width: 16px; height: 16px; }
 
 /* ---------- INSIGHTS AND ALL DATA (the approved Health design, 2026-09-14)
    The period chips with the range beside them, the headline number in its
@@ -2542,32 +2521,6 @@
 .ruled .ex-row.on { background: var(--hl-cyan-tint); }
 .ruled .ex-name { color: var(--tx-1); font-size: var(--t-name); font-weight: var(--w-name); letter-spacing: var(--track-name);
   line-height: 1.25; overflow-wrap: anywhere; cursor: pointer; }
-.ruled .ex-chips { display: flex; flex-wrap: wrap; gap: var(--s-1h); margin-top: var(--s-1h); }
-/* A chip is a door into its own field, so it has to look tappable without
-   spending a second accent: quiet ground, reading-hue text when it carries
-   an answer, amber only for the one thing that is missing. */
-.ruled .ex-chip { font-size: calc(11px * var(--type-scale)); font-weight: var(--w-semi); letter-spacing: 0.01em;
-  padding: var(--s-1) var(--s-2); border-radius: var(--r-pill); background: var(--surface-2); color: var(--tx-2);
-  border: none; max-width: 100%; overflow-wrap: anywhere; text-align: left; }
-.ruled .ex-chip.on { color: var(--hl-cyan-ink); background: var(--hl-cyan-tint); }
-/* ONE MEANING PER HUE ON A ROW OF CHIPS (2026-09-16, Dave: "too much of the
-   same color"). Every chip that carried meaning was cyan, and so was the date
-   beside them, so a row said cyan three times about three unrelated things.
-   A muscle is what the lift trains, in the lime this app already spends on
-   work done. Equipment is violet, which is the hue the session header's own
-   equipment chip has worn since it shipped. The movement pattern keeps the
-   plain chip: it is the least load-bearing axis and does not need a colour to
-   be found. Cyan goes back to meaning one thing here -- when it last
-   happened. */
-.ruled .ex-chip.lime { color: var(--hl-lime-ink); background: var(--hl-lime-tint); }
-.ruled .ex-chip.violet { color: var(--hl-violet-ink); background: var(--hl-violet-tint); }
-/* A secondary muscle is the same fact at half weight (the app's own counting
-   convention), so it is the same hue with the fill taken off. */
-.ruled .ex-chip.lime.sec { color: var(--hl-lime-ink); background: none; box-shadow: inset 0 0 0 1px var(--hl-lime-tint); }
-.ruled .ex-chip.sec { color: var(--tx-3); }
-.ruled .ex-chip.amber { color: var(--hl-amber-ink); background: var(--hl-amber-tint); }
-.ruled .ex-chip.quiet { color: var(--tx-3); background: none; padding-left: 0; }
-.ruled .ex-chip:disabled { opacity: 0.55; }
 /* The overflow. One control, a real 44px target, and no pencil. */
 .ruled .ex-more { flex-shrink: 0; min-width: 44px; min-height: 44px; display: flex; align-items: center;
   justify-content: center; background: none; border: none; color: var(--tx-3);
@@ -3201,3 +3154,7 @@
    only the tap target grows; the line stays a block, not flex, because the dot between the two
    facts takes its spacing from the markup's own space. */
 .about-hero .about-build { cursor: pointer; padding: var(--s-3) var(--s-4); margin: calc(-1 * var(--s-3)) calc(-1 * var(--s-4)); }
+/* THE MOVING ELEMENT OF A SWIPE ROW IS GLASS TOO (2026-10-05, found rendering the gym's Days in light): .swipe-row paints the
+   page ground so a reveal never shows through, but inside a ruled card every row is transparent and the reveals are hidden at rest
+   (the roster above), so the opaque ground only drew a lighter plate over the card. */
+.ruled .card .task-swipe > .swipe-row { background: transparent; }

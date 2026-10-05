@@ -9,7 +9,7 @@ import { SCHEDULE_EXTRACT_PROMPT, parseScheduleExtract, buildScheduleRows, type 
 import { fmtRange } from "../calendar";
 import { showToast } from "../../shared/toast";
 import { WRITE_FAILED_MESSAGE, attemptWrite } from "../../shared/guard";
-import { lineCase } from "../../shared/casing";
+import { lineCase, titleCase } from "../../shared/casing";
 import EventSheet, { type SheetCategory, type EventDraft } from "./EventSheet";
 import type { EventItem, EventData, EventRecurrence } from "../types";
 import type { ScheduleService } from "../ScheduleService";
@@ -273,7 +273,7 @@ export default function ScheduleUploadFlow({
             <div className="field">
               <label className="input-label">Year</label>
               <input type="number" className="input" value={year} onChange={(e) => setYear(Number(e.target.value) || year)} />
-              <div className="input-hint">Schedule didn&rsquo;t say · Applies to undated rows</div>
+              <div className="input-hint">Schedule Didn&rsquo;t Say · Applies to Undated Rows</div>
             </div>
           </div>
           <div className="pad-x sheet-actions">
@@ -318,7 +318,7 @@ export default function ScheduleUploadFlow({
                 onClick={() => setFixIdx(i)}
                 onKeyDown={(e) => { if (e.target === e.currentTarget) onPressKey(() => setFixIdx(i))(e); }}>
                 <div className="row-grow">
-                  <div className={"conn-name truncate" + (r.skip ? " upload-row-skipped" : "")}>{r.title}</div>
+                  <div className={"conn-name truncate" + (r.skip ? " upload-row-skipped" : "")}>{titleCase(r.title)}</div>
                   {/* This screen exists to check the times it read, so every
                       fact must show: they sit in the wrapping, unclamped
                       .conn-meta (components.css: a meta line built of facts

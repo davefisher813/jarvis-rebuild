@@ -5,6 +5,8 @@ import type { AdminService, AdminUser, AdminUsage, AdminBilling, AdminFeedbackIt
 import { pct, type AdminMetrics } from "./adminMetrics";
 import { pressable } from "../shared/pressable";
 import { Switch, Head } from "../settings/kit";
+import { FormSheet, Group, Row as SheetRow } from "../shared/FormSheet";
+import { Calendar, Link2, User, Wallet } from "../shared/icons";
 import { lineCase } from "../shared/casing";
 import SkeletonRows from "../shared/SkeletonRows";
 import type { AdminProbe } from "./useIsAdmin";
@@ -32,10 +34,11 @@ export default function AdminPanel({ isAdmin, probe, onRecheck, source, onBack }
   // of blanking the panel.
   const [metrics, setMetrics] = useState<AdminMetrics | null>(null);
   const [error, setError] = useState<string | null>(null);
-  // Row tap (Dave 2026-09-15, "I want all rows clickable"): a user row has no
-  // page of its own and its one verb locks someone out, so the row expands to
-  // the account's details instead.
+  // Row tap (Dave 2026-09-15, "I want all rows clickable"; 2026-10-05, locked: no pill on a row, the tap opens the
+  // row's sheet and the sheet holds every action). A user row's one verb locks someone out, so it is NOT a swipe: it
+  // sits behind a tap and a sheet, where it cannot be done by a stray thumb. The sheet is the account's details too.
   const [openUser, setOpenUser] = useState<string | null>(null);
+  const sheetUser = users.find((u) => u.id === openUser);
 
   useEffect(() => {
     if (!isAdmin || !source.available) return;
@@ -277,26 +280,19 @@ export default function AdminPanel({ isAdmin, probe, onRecheck, source, onBack }
         <div className="pad-x"><div className="card">
           {users.map((u) => (
             <Fragment key={u.id}>
-            <div className="row" aria-expanded={openUser === u.id} {...pressable(() => setOpenUser(openUser === u.id ? null : u.id))}>
+            <div className="row" {...pressable(() => setOpenUser(u.id))}>
               <div className="row-grow">
                 <div className="conn-name">{u.email}{u.role === "admin" && <span className="adm-role">admin</span>}</div>
-                {/* §AK/§AM: the plan is the row's one grey and the join date
-                    is a neutral date, so small caps. The status is not
-                    repeated here: the capsule's verb already says it
-                    (Disable on an active account, Enable on a disabled one).
-                    The account id stays, as its own fact on the open row
-                    (2026-09-26): it is what an admin looks a user up by, and
-                    this was the one place the panel showed it. The plan has
-                    spent the row's grey, so the id is a white value, the way
-                    the feedback row's build is; last, so it is what gives
-                    way when the line runs out. */}
+                {/* §AK/§AM: the plan is the row's one grey. The join date and
+                    the account id (what an admin looks a user up by) are in the
+                    row's sheet, with Disable or Enable: the row says only what
+                    it is, and a tap says the rest. The status is not repeated
+                    here either. */}
                 <div className="facts">
                   <span className="fact">{lineCase(u.plan)}</span>
-                  {openUser === u.id && <span className="fact date">Joined {u.createdAt.slice(0, 10)}</span>}
-                  {openUser === u.id && <span className="fact"><b>{u.id}</b></span>}
                 </div>
               </div>
-              <button className="pill-act" onClick={(ev) => { ev.stopPropagation(); void toggle(u); }}>{u.status === "active" ? "Disable" : "Enable"}</button>
+              <div className="chev" />
             </div>
             {/* 2026-10-05 (the catalog gate): the meta line was "On · a@b.com", a
                 middle dot typed into a meta string (§AM F3), the account's email
@@ -307,6 +303,20 @@ export default function AdminPanel({ isAdmin, probe, onRecheck, source, onBack }
             </Fragment>
           ))}
         </div></div>
+      )}
+      {sheetUser && (
+        <FormSheet title="Account" onCancel={() => setOpenUser(null)} onSave={() => setOpenUser(null)} saveLabel="Done">
+          <Group label={sheetUser.email}>
+            <SheetRow tone="blue" glyph={<User className="ic" />} label="Status"><span className="bill-val">{lineCase(sheetUser.status)}</span></SheetRow>
+            <SheetRow tone="green" glyph={<Wallet className="ic" />} label="Plan"><span className="bill-val">{lineCase(sheetUser.plan)}</span></SheetRow>
+            <SheetRow tone="orange" glyph={<Calendar className="ic" />} label="Joined"><span className="bill-val">{sheetUser.createdAt.slice(0, 10)}</span></SheetRow>
+            <SheetRow tone="indigo" glyph={<Link2 className="ic" />} label="Account Id"><span className="bill-val">{sheetUser.id}</span></SheetRow>
+          </Group>
+          {/* THE ROW'S ONE VERB, in its sheet (Dave 2026-10-05): Disable, or Enable once it is disabled. */}
+          <Group className="xs-actions">
+            <SheetRow label={sheetUser.status === "active" ? "Disable Account" : "Enable Account"} onClick={() => { const u = sheetUser; setOpenUser(null); void toggle(u); }} />
+          </Group>
+        </FormSheet>
       )}
     </div>
   );

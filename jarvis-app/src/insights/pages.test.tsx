@@ -173,7 +173,7 @@ describe("AllDataPage", () => {
     fireEvent.click(screen.getByText("Push"));
     expect(onOpen).toHaveBeenCalledWith(expect.objectContaining({ open: { kind: "workout", id: "a" } }));
     rerender(<AllDataPage view="data" onView={() => {}} records={records} filter={{ ...filter, category: "sleep", date: "2026-09-12", period: null }} onFilter={onFilter} today={today} scrollRef={{ current: 0 }} onOpen={onOpen} onDelete={onDelete} onExport={() => {}} />);
-    expect(screen.getByText("Sep 12 · Clear")).toBeInTheDocument();
+    expect(screen.getByText("Clear Sep 12")).toBeInTheDocument();
     expect(screen.queryByText("Oats")).toBeNull();
   });
 });
@@ -203,5 +203,38 @@ describe("AssignMusclesSheet", () => {
     fireEvent.click([...curl.querySelectorAll("[aria-pressed]")][4]!);
     fireEvent.click(screen.getByText("Save Muscles"));
     expect(onSave).toHaveBeenCalledWith({ x: ["quads"], r: ["chest"], c: ["chest", "biceps"] });
+  });
+});
+
+// CLEAN ROWS, NO PILLS, ACTIONS IN HEADS (Dave 2026-10-05, locked; Alfred 2026-10-04: "All Data", "Log Something" and the
+// export buttons under a card). Export Data is the section's own action, so it is a head's capsule; All Data is a door row,
+// the same row as Exercises and Program; neither is a button in a row at the foot of the page.
+describe("Insights and All Data: the page's actions are heads and doors", () => {
+  it("Insights: Export Data is the Your Data head's capsule and All Data is a door row", () => {
+    const onExport = vi.fn(), onAll = vi.fn();
+    const { container } = render(<InsightsPage view="insights" onView={() => {}} today={today} workouts={[]} metricDefs={[]} metricLogs={[]} logs={none} muscleMap={new Map()} cards={null}
+      onOpenLift={() => {}} onOpenWorkout={() => {}} onOpenAllData={onAll} onAssignMuscles={() => {}} onExport={onExport} />);
+    const head = screen.getByText("Your Data").closest(".sh2")!;
+    const exp = head.querySelector("button")!;
+    expect(exp.textContent).toBe("Export Data");
+    expect(exp).toHaveClass("see-all", "pill-action");
+    fireEvent.click(exp);
+    expect(onExport).toHaveBeenCalledWith(expect.objectContaining({ key: "7d" }));
+    const door = [...container.querySelectorAll(".h-door")].find((d) => d.textContent === "All Data")!;
+    expect(door.querySelector(".chev")).not.toBeNull();
+    fireEvent.click(door);
+    expect(onAll).toHaveBeenCalledWith("all", expect.objectContaining({ key: "7d" }));
+    expect(container.querySelector(".h-foot-acts")).toBeNull();
+  });
+
+  it("All Data: Export Data is the Records head's capsule, not a button row at the foot", () => {
+    const onExport = vi.fn();
+    const filter = { category: "all" as const, range: "30d" as const, period: periodFor("30d", today), date: null, query: "" };
+    const { container } = render(<AllDataPage view="data" onView={() => {}} records={[]} filter={filter} onFilter={() => {}} today={today} scrollRef={{ current: 0 }} onOpen={() => {}} onDelete={() => {}} onExport={onExport} />);
+    const head = screen.getByText("Records").closest(".sh2")!;
+    expect(head.querySelector("button")).toHaveClass("see-all", "pill-action");
+    fireEvent.click(head.querySelector("button")!);
+    expect(onExport).toHaveBeenCalled();
+    expect(container.querySelector(".h-foot-acts")).toBeNull();
   });
 });

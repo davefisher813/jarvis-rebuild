@@ -269,3 +269,58 @@ describe("SchedulePage: the week, the repeats and a nested pick follow the catal
     expect(numberCaseViolations(container)).toEqual([]);
   });
 });
+
+// THE DAY VIEW'S SCROLL IS UNCHANGED (Dave 2026-10-05: "the schedule's scroll behavior was good, do not let the catalog fixes break
+// it"). The row-action pass wrapped Anytime rows in a swipe tray, took the grip off the event rows and moved Copy Yesterday into
+// the head, all inside the page's scroll. This holds the three things that behaviour is: the page itself scrolls (no row, card
+// or list became a scroll container of its own), the Now row is still scrolled into view on open, and the Earlier fold still
+// opens and shuts.
+describe("SchedulePage: the day view still scrolls the way it did", () => {
+  const events = [ev("a", "07:00"), ev("b", "08:00"), ev("c", "09:00"), ev("d", "10:00"), ev("e", "13:00"), ev("f", "14:00")];
+  const day = { ...base, mode: "day" as const, now: "11:30", dayEvents: events };
+  const tasks = [{ id: "t1", data: { text: "get new car insurance" } }, { id: "t2", data: { text: "get ein number" } }] as never;
+
+  // jsdom has no layout and no scrollIntoView; the stub is the thing the page calls.
+  let spy: ReturnType<typeof vi.fn>;
+  beforeEach(() => { spy = vi.fn(); Element.prototype.scrollIntoView = spy as never; });
+
+  it("scrolls the next row to the centre on open, once the day is long enough to need it", () => {
+    render(<SchedulePage {...day} anytimeItems={tasks} onScheduleTask={() => {}} onToggleTask={() => {}} />);
+    expect(spy).toHaveBeenCalledTimes(1);
+    expect(spy).toHaveBeenCalledWith({ block: "center" });
+    // The row it centres is the next event (1:00 PM, "e"), not the head and not an Anytime row.
+    expect((spy.mock.contexts[0] as HTMLElement).textContent).toContain("1:00");
+    expect((spy.mock.contexts[0] as HTMLElement).closest(".anytime-card")).toBeNull();
+  });
+
+  it("does not scroll a short day, or a day that is not today", () => {
+    render(<SchedulePage {...day} dayEvents={[ev("a", "13:00")]} />);
+    render(<SchedulePage {...day} selected="2026-05-21" />);
+    expect(spy).not.toHaveBeenCalled();
+  });
+
+  it("the Earlier fold opens to the morning's rows and shuts again", () => {
+    const { container } = render(<SchedulePage {...day} />);
+    const fold = container.querySelector(".sched-earlier") as HTMLElement;
+    expect(fold.getAttribute("aria-expanded")).toBe("false");
+    const before = container.querySelectorAll(".sched-swipe-wrap").length;
+    fireEvent.click(fold);
+    expect(fold.getAttribute("aria-expanded")).toBe("true");
+    expect(container.querySelectorAll(".sched-swipe-wrap").length).toBeGreaterThan(before);
+    fireEvent.click(fold);
+    expect(container.querySelectorAll(".sched-swipe-wrap").length).toBe(before);
+  });
+
+  it("no row, card or list on the day became a scroll container of its own", async () => {
+    const { readFileSync } = await import("node:fs");
+    const css = ["components.css", "ruled.css"].map((f) => readFileSync(new URL("../styles/" + f, import.meta.url), "utf8")).join("\n").replace(/\/\*[\s\S]*?\*\//g, "");
+    for (const sel of [".sched-list", ".sched-card", ".sched-swipe-wrap", ".anytime-card", ".task-swipe", ".sched-row"]) {
+      const rules = css.match(new RegExp("(?:^|\\n)[^{}]*" + sel.replace(".", "\\.") + "(?![\\w-])[^{}]*\\{[^}]*\\}", "g")) ?? [];
+      for (const r of rules) {
+        expect(r, sel + " must not scroll on its own: " + r.trim().slice(0, 90)).not.toMatch(/overflow-y:\s*(auto|scroll)|max-height:\s*(?!none)/);
+      }
+    }
+    const { container } = render(<SchedulePage {...day} />);
+    expect(container.querySelector(".screen")!.getAttribute("style")).toBeNull();
+  });
+});

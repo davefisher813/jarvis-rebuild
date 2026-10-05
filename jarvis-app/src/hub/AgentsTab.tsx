@@ -42,9 +42,10 @@ export default function AgentsTab({ connections, aiOn, adminOff, canToggle, onTo
   return (
     <>
       <Foot>{BRIEF}</Foot>
-      <div className="pad-x"><Card>
+      {/* Card carries its own .pad-x: wrapping it again put the card 16px in from every other card on the screen. */}
+      <Card>
         <Switch label="AI" meta={adminOff ? ADMIN_OFF : aiOn ? undefined : AI_OFF} on={aiOn} onToggle={onToggleAI} ariaLabel="AI on or off" locked={adminOff || !canToggle} onLocked={sayLocked} />
-      </Card></div>
+      </Card>
 
       {live.length === 0 && (
         <div className="empty-state">
@@ -56,7 +57,8 @@ export default function AgentsTab({ connections, aiOn, adminOff, canToggle, onTo
 
       {live.length > 0 && (
         <>
-          <div className="sh2 sh2-quiet"><span className="t">Assistants</span></div>
+          {/* Add Assistant is the section's own action, so it is the head's capsule (Dave 2026-10-05, locked). */}
+          <div className="sh2 sh2-quiet"><span className="t">Assistants</span><button type="button" className="see-all pill-action" onClick={onAdd}>Add Assistant</button></div>
           <div className="pad-x"><div className="card list-card-ruled">
             {live.map((c) => (
               <div {...pressable(() => onOpenAgent(c.id))} className="row" key={c.id}>
@@ -68,7 +70,6 @@ export default function AgentsTab({ connections, aiOn, adminOff, canToggle, onTo
                 <Chev />
               </div>
             ))}
-            <button className="row row-act" onClick={onAdd}>Add Assistant</button>
           </div></div>
         </>
       )}
@@ -92,9 +93,10 @@ export default function AgentsTab({ connections, aiOn, adminOff, canToggle, onTo
 
       {/* The sweep's one door (slice 09 QA, 2026-10-04): nothing here runs on a timer, so clearing what has expired is the
           person's own tap. Always shown, because the person's own exports leave packages with no assistant at all. */}
-      <div className="pad-x"><div className="card list-card-ruled">
-        <button className="row row-act hub-quiet" disabled={sweeping} onClick={onSweep}>{sweeping ? SWEEP_ROW.working : SWEEP_ROW.label}</button>
-      </div></div>
+      {/* AN ACTION NEVER SITS ALONE IN A BOX (Dave 2026-10-05, rule 12): the capsule stands by itself, and its note is under it. */}
+      <div className="notice-clear-row">
+        <button className="row-act hub-quiet" disabled={sweeping} onClick={onSweep}>{sweeping ? SWEEP_ROW.working : SWEEP_ROW.label}</button>
+      </div>
       <Foot>{SWEEP_ROW.meta}</Foot>
 
       <Foot>{AI_OFF_STILL_WORKS}</Foot>

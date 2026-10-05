@@ -1,6 +1,6 @@
 import { useState } from "react";
 import LargeTitleNav from "../shared/LargeTitleNav";
-import { Head, Card, Switch, Row, Menu, focusField } from "./kit";
+import { Head, Card, Switch, Row, Menu, Foot, focusField } from "./kit";
 import { Capacitor } from "@capacitor/core";
 import { readHealthSettings, updateHealthSettings, SHORTCUTS, WORKING_SHORTCUTS, type HealthSettings, type ShortcutKey } from "../health/settings";
 import { readGymSettings, writeGymSettings } from "../gym/settings";
@@ -64,15 +64,19 @@ export default function HealthSettingsPage({ onBack, onEnableWater, doors = [], 
       {/* 2026-10-04: Log Something always lists Bedtime, Meal, Check In, Session
           Effort, Discomfort and Medication, so a chip for any of them changed
           nothing. Water is the one a chip still decides. */}
-      <div className="pad-x"><div className="input-hint">Water adds a row to Log Something · The other loggers are always there · Your own metrics are chosen from Add</div></div>
-      <div className="pad-x"><div className="chip-row chip-wrap-row" role="group" aria-label="Shortcuts">
-        {SHORTCUTS.filter(({ key }) => WORKING_SHORTCUTS.includes(key)).map(({ key, label }) => {
-          const on = s.shortcuts.includes(key);
-          return (
-            <div key={key} className={"chip" + (on ? " active" : "")} role="button" tabIndex={0} aria-pressed={on} onClick={() => toggleShortcut(key)}>{label}</div>
-          );
-        })}
-      </div></div>
+      <Card>
+        <div className="row set-row">
+          <div className="chip-row chip-wrap-row" role="group" aria-label="Shortcuts">
+            {SHORTCUTS.filter(({ key }) => WORKING_SHORTCUTS.includes(key)).map(({ key, label }) => {
+              const on = s.shortcuts.includes(key);
+              return (
+                <div key={key} className={"chip" + (on ? " active" : "")} role="button" tabIndex={0} aria-pressed={on} onClick={() => toggleShortcut(key)}>{label}</div>
+              );
+            })}
+          </div>
+        </div>
+      </Card>
+      <Foot>Water adds a row to Log Something · The other loggers are always there · Your own metrics are chosen from Add</Foot>
       {onWorkoutReminder && (
         <>
           <Head label="Reminders" />

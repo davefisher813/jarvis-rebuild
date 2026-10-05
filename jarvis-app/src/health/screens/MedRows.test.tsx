@@ -23,14 +23,17 @@ describe("MedRows", () => {
     expect(screen.getByText("2000 IU")).toHaveClass("fact");
     expect(screen.getByText("2000 IU")).not.toHaveClass("hblue");
     expect(screen.getByText(/^Last 6:00/)).toHaveClass("fact", "date");
-    expect(screen.getAllByRole("button", { name: /^Took It/ })).toHaveLength(2);
+    // CLEAN ROWS (Dave 2026-10-05): no capsule on a row. Took It is each row's swipe-left (the tray), and opens from the row.
+    expect(document.querySelector(".pill-act, .row-act, .btn-sm, .quiet-action")).toBeNull();
+    expect(screen.getAllByRole("button", { name: "Took It" })).toHaveLength(2);
+    expect(document.querySelectorAll(".row-ctx")).toHaveLength(0);
   });
 
   it("logs straight through when the last dose of that med is older than ten minutes", () => {
     const onTook = vi.fn();
     vi.useFakeTimers({ now: NOW });
     render(<MedRows meds={MEDS} doses={[dose("d1", NOW - 11 * 60_000, "m1")]} now={NOW} onTook={onTook} />);
-    fireEvent.click(screen.getByRole("button", { name: "Took It, Vitamin D" }));
+    fireEvent.click(screen.getAllByRole("button", { name: "Took It" })[0]!);
     expect(onTook).toHaveBeenCalledWith(MEDS[0]);
     expect(screen.queryByText(/Log Another/)).not.toBeInTheDocument();
     vi.useRealTimers();
@@ -40,7 +43,7 @@ describe("MedRows", () => {
     const onTook = vi.fn();
     vi.useFakeTimers({ now: NOW });
     render(<MedRows meds={MEDS} doses={[dose("d1", NOW - 4 * 60_000, "m1")]} now={NOW} onTook={onTook} />);
-    fireEvent.click(screen.getByRole("button", { name: "Took It, Vitamin D" }));
+    fireEvent.click(screen.getAllByRole("button", { name: "Took It" })[0]!);
     expect(onTook).not.toHaveBeenCalled();
     expect(screen.getByText("Log Another? · Vitamin D")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Never Mind" }));
@@ -53,12 +56,28 @@ describe("MedRows", () => {
     const onTook = vi.fn();
     vi.useFakeTimers({ now: NOW });
     render(<MedRows meds={MEDS} doses={[dose("d1", NOW - 4 * 60_000, "m1")]} now={NOW} onTook={onTook} />);
-    fireEvent.click(screen.getByRole("button", { name: "Took It, Iron" }));
+    fireEvent.click(screen.getAllByRole("button", { name: "Took It" })[1]!);
     expect(onTook).toHaveBeenLastCalledWith(MEDS[1]);
-    fireEvent.click(screen.getByRole("button", { name: "Took It, Vitamin D" }));
+    fireEvent.click(screen.getAllByRole("button", { name: "Took It" })[0]!);
     fireEvent.click(screen.getByRole("button", { name: "Log Another" }));
     expect(onTook).toHaveBeenLastCalledWith(MEDS[0]);
     expect(onTook).toHaveBeenCalledTimes(2);
+    vi.useRealTimers();
+  });
+});
+
+// The row is a door: tap it and its sheet holds Took It (filled), Edit and Remove.
+describe("MedRows: the row's sheet", () => {
+  it("opens from a tap with Took It first and filled, then Edit and Remove beneath it", () => {
+    const onTook = vi.fn(); const onEdit = vi.fn(); const onRemove = vi.fn();
+    vi.useFakeTimers({ now: NOW });
+    const { container } = render(<MedRows meds={MEDS} doses={[]} now={NOW} onTook={onTook} onEdit={onEdit} onRemove={onRemove} />);
+    fireEvent.click(screen.getByText("Iron").closest(".row")!);
+    const sheet = container.querySelector(".sheet-scrim")!;
+    expect(sheet.querySelector(".btn-primary")!.textContent).toBe("Took It");
+    expect([...sheet.querySelectorAll(".btn-secondary")].map((b) => b.textContent)).toEqual(["Edit", "Remove", "Cancel"]);
+    fireEvent.click(sheet.querySelector(".btn-danger-text")!);
+    expect(onRemove).toHaveBeenCalledWith(MEDS[1]);
     vi.useRealTimers();
   });
 });

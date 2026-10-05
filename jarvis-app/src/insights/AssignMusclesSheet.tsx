@@ -42,7 +42,7 @@ export default function AssignMusclesSheet({ untagged, current, onSave, onClose 
         const at = picked.indexOf(m);
         return (
           <div key={m} {...pressable(() => onPick(m))} className={"chip" + (at >= 0 ? " active" : "")} aria-pressed={at >= 0}>
-            {MUSCLE_LABEL[m]}{at === 0 ? " · Primary" : ""}
+            {MUSCLE_LABEL[m]}{at === 0 ? ", Primary" : ""}
           </div>
         );
       })}

@@ -140,6 +140,13 @@ export default function ReviewTab({ client, overview, projectId, onPickProject, 
         </div>
       </div>
 
+      {/* Paste or Import a Conversation is this tab's own action, so it stands under the choosers as the one capsule (Dave
+          2026-10-05, locked: never a row at the foot of a card, and never a box round a lone action, rule 12). A head
+          could not hold it: the title is "Save What We Decided" and the capsule is as long again, so it took the title's
+          place with an ellipsis. */}
+      {!empty && <div className="notice-clear-row"><button className="row-act hub-quiet" onClick={() => { if (projectId) onImport(projectId); else showToast({ message: PICK_PROJECT_FIRST }); }}>{PASTE_CONVERSATION}</button></div>}
+
+      {/* An empty tab is its own words and its one primary (the same action, so the capsule above stands down). */}
       {empty && (
         <div className="empty-state">
           <div className="empty-title">{EMPTY_REVIEW.title}</div>
@@ -154,7 +161,7 @@ export default function ReviewTab({ client, overview, projectId, onPickProject, 
           <div className="conn-name">{titleCase(text(p, "statement") || "Untitled Suggestion")}</div>
           {text(p, "rationale") && <div className="hub-text">{text(p, "rationale")}</div>}
           <HubFacts facts={[{ text: sourceOf(p).line }, ...sourceOf(p).when]} />
-          <div className="hub-pills">
+          <div className="hub-pills notice-actions">
             {segment === "decided" ? (
               <>
                 <button className="pill-act" disabled={busy === p.id} onClick={() => { if (guard()) setSheet({ proposal: p, conflicts: [] }); }}>{SAVE_DECISION}</button>
@@ -180,7 +187,7 @@ export default function ReviewTab({ client, overview, projectId, onPickProject, 
               <div {...pressable(() => onOpenDecision(d.item_id))} className="row" key={d.item_id}>
                 <div className="row-grow">
                   <div className="conn-name">{d.title}</div>
-                  <HubFacts wrap={false} facts={[d.version > 1 && { text: `Version ${d.version}`, strong: true }, ...whenFacts(d.committed_at), { text: lineCase(d.statement) }]} />
+                  <HubFacts facts={[d.version > 1 && { text: `Version ${d.version}`, strong: true }, ...whenFacts(d.committed_at), { text: lineCase(d.statement) }]} />
                 </div>
                 {d.needs_review && <span className="hub-cap hub-cap-waiting">{NEEDS_REVIEW}</span>}
                 <Chev />
@@ -206,15 +213,14 @@ export default function ReviewTab({ client, overview, projectId, onPickProject, 
         </>
       )}
 
-      <div className="pad-x"><div className="card list-card-ruled">
-        {emailLine && onOpenEmail && (
+      {emailLine && onOpenEmail && (
+        <div className="pad-x"><div className="card list-card-ruled">
           <div {...pressable(onOpenEmail)} className="row">
             <div className="row-grow"><div className="conn-name">{emailLine}</div></div>
             <Chev />
           </div>
-        )}
-        <button className={"row row-act" + (empty ? " hub-quiet" : "")} onClick={() => { if (projectId) onImport(projectId); else showToast({ message: PICK_PROJECT_FIRST }); }}>{PASTE_CONVERSATION}</button>
-      </div></div>
+        </div></div>
+      )}
 
       {sheet && project && (
         <DecisionSheet mode="save" initial={sheet.proposal ? draftOf(sheet.proposal) : {}} projectTitle={project.title} sourceLine={sourceOf(sheet.proposal).line} sourceWhen={sourceOf(sheet.proposal).when}

@@ -3,7 +3,9 @@ import { fmtTime } from "../calendar";
 import { catColor, catName } from "../../shared/categories";
 import { spanLabel } from "../../shared/duration";
 import { durLabel } from "../durations";
-import { rowDoor, own } from "../../shared/rowDoor";
+import { rowDoor } from "../../shared/rowDoor";
+import RowCtxAction from "../../shared/RowCtxAction";
+import { titleCase } from "../../shared/casing";
 import type { GapOption } from "../gapOffer";
 
 // SCHEDULE SOMETHING HERE (schedule audit 2026-10-01, item 7). The sheet a
@@ -58,18 +60,20 @@ export default function GapSheet({
                 <div className="row gap-offer-row" key={o.id} {...rowDoor(() => onBook(o))}>
                   <span className={"cat-dot cat-bg-" + catColor(o.category)} />
                   <div className="row-grow">
-                    <div className="conn-name truncate">{o.text}</div>
+                    <div className="conn-name truncate">{titleCase(o.text)}</div>
                     <div className="conn-meta facts">
                       {catName(o.category) && <span className="fact">{catName(o.category)}</span>}
                       <span className="fact"><b>{durLabel(o.minutes)}</b></span>
                     </div>
                   </div>
-                  <button type="button" className="pill-act" aria-label={`Book ${o.text} at ${s.time} ${s.ap}`} onClick={own(() => onBook(o))}>Book</button>
+                  {/* NO PILL ON A ROW (Dave 2026-10-05, locked). The gap is open now, so each offer's moment has come: its one
+                      verb is one quiet word, the same as the row's tap. */}
+                  <RowCtxAction when label="Book" ariaLabel={`Book ${o.text} at ${s.time} ${s.ap}`} onAct={() => onBook(o)} />
                 </div>
               ))}
             </div>
           ) : (
-            <div className="plan-sub">Nothing on your list fits this gap.</div>
+            <div className="plan-sub">Nothing on Your List Fits This Gap</div>
           )}
         </div>
         <div className="pad-x sheet-actions">

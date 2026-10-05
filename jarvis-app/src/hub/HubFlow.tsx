@@ -10,6 +10,7 @@ import { useCallback, useEffect, useState } from "react";
 import PageHeader from "../shared/PageHeader";
 import SkeletonRows from "../shared/SkeletonRows";
 import { usePushDepth } from "../shared/pushNav";
+import { useScrollOnPush } from "../brain/useScrollOnPush";
 import { showToast } from "../shared/toast";
 import { attemptWrite } from "../shared/guard";
 import { supabase } from "../auth/supabaseClient";
@@ -64,6 +65,7 @@ export default function HubFlow({ onBack, onOpenEntity, onOpenEmail, client: giv
   const [adding, setAdding] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const pushCls = usePushDepth(screen.kind === "root" ? 0 : 1);
+  useScrollOnPush(screen.kind === "root" ? 0 : 1);
 
   const load = useCallback(async (check = false) => {
     if (!client) { setLoading(false); setError(failure("UNAVAILABLE")); return; }
@@ -191,16 +193,20 @@ export default function HubFlow({ onBack, onOpenEntity, onOpenEmail, client: giv
       {offline && <Foot>{OFFLINE_LINE}</Foot>}
       {loading && !overview && <SkeletonRows rows={3} />}
       {error && !overview && !loading && (
-        <div className="pad-x"><div className="card list-card-ruled">
-          <div className="row"><div className="row-grow"><div className="conn-name">{COMMAND_LINES[error.code]}</div></div></div>
-          <button className="row row-act hub-quiet" onClick={() => void load(true)}>Retry</button>
-        </div></div>
+        <>
+          <div className="pad-x"><div className="card list-card-ruled">
+            <div className="row"><div className="row-grow"><div className="conn-name">{COMMAND_LINES[error.code]}</div></div></div>
+          </div></div>
+          <div className="notice-clear-row"><button className="row-act hub-quiet" onClick={() => void load(true)}>Retry</button></div>
+        </>
       )}
       {error && overview && (
-        <div className="pad-x"><div className="card list-card-ruled">
-          <div className="row"><div className="conn-name">{REFRESH_FAILED}</div></div>
-          <button className="row row-act hub-quiet" onClick={() => void load()}>Retry</button>
-        </div></div>
+        <>
+          <div className="pad-x"><div className="card list-card-ruled">
+            <div className="row"><div className="conn-name">{REFRESH_FAILED}</div></div>
+          </div></div>
+          <div className="notice-clear-row"><button className="row-act hub-quiet" onClick={() => void load()}>Retry</button></div>
+        </>
       )}
 
       {overview && client && tab === "agents" && (

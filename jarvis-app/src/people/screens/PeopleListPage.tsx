@@ -222,7 +222,12 @@ export default function PeopleListPage({
             check column, the name, the label under it in the quiet grey.
             Each row's avatar IS its type, so rows never double up with a
             glyph. */}
-        <div className="sh2 sh2-quiet"><span className="t">Your People</span><span className="n">{shown.length}</span></div>
+        {/* THE ADD IS ON THE HEAD (Dave 2026-10-05, locked): a section-level action lives in the section head, never inside the card
+            and never at the foot of the list. */}
+        <div className="sh2 sh2-quiet">
+          <span className="t">Your People</span><span className="n">{shown.length}</span>
+          <button className="see-all pill-action" onClick={onAdd}>Add Person</button>
+        </div>
         <div className="pad-x"><div className="card list-card-ruled">
           {/* Brain Manual v1 triage: the way back in while anyone is still
               unsorted. It sits above the names because it is the job, not a
@@ -248,7 +253,7 @@ export default function PeopleListPage({
                     one fact in the subline (C-59: no label is an empty second
                     line, not a nag) */}
                 <div className="r-k">{p.data.relationship
-                  ? <span className="r-goal r-cat">{p.data.relationship}</span>
+                  ? <span className="r-goal r-cat">{lineCase(p.data.relationship)}</span>
                   : brainRolesOf(p).length > 0
                     // ONE RUN, SO A COMMA LIST (2026-10-05, the catalog hard
                     // gate): the roles were joined with a middle dot typed into
@@ -260,7 +265,6 @@ export default function PeopleListPage({
               {CHEV}
             </div>
           ))}
-          <button className="row row-act" onClick={onAdd}>Add Person</button>
           {importRow}
         </div></div>
         </>

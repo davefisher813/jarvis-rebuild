@@ -260,3 +260,132 @@ describe("BrainFlow person deep link (BRAIN-F-04)", () => {
     expect(screen.queryByLabelText("Edit")).not.toBeInTheDocument();
   });
 });
+
+// ALFRED 2026-10-04: a stray floating "< Life" over "Your Routine" on the Brain hub. A cross-tab jump (Life > Areas >
+// an area, a search hit, a notice's Open) makes the shell draw a return pill while the page it opened is up. The page's
+// own back closed to the hub and the origin stayed live, so the pill hung over the hub's last row. The real shell, the
+// real pill and the real flow, with an origin that is live the way a jump leaves it.
+import { useCallback } from "react";
+import { NavOriginProvider } from "../shell/navOrigin";
+import ReturnPill from "../shell/ReturnPill";
+
+function JumpShell({ openKey }: { openKey: string }) {
+  const [claims, setClaims] = useState(0);
+  const claim = useCallback(() => { setClaims((n) => n + 1); return () => setClaims((n) => n - 1); }, []);
+  const [key, setKey] = useState<string | undefined>(openKey);
+  return (
+    <NavOriginProvider value={{ origin: { key: "life", label: "Life" }, back: () => true, claim, claimed: claims > 0 }}>
+      <BrainFlow openKey={key} openNonce={1} onKeyConsumed={() => setKey(undefined)} />
+      <ReturnPill />
+    </NavOriginProvider>
+  );
+}
+
+describe("BrainFlow: the return pill does not outlive the page a jump opened", () => {
+  function Seeded() {
+    const cats = useCategories();
+    const [cid, setCid] = useState("");
+    useEffect(() => { (async () => setCid((await cats.create("Bridge", "blue"))!))(); }, [cats]);
+    return cid ? <JumpShell openKey={cid} /> : null;
+  }
+
+  it("shows the way home on the page the jump opened, and not on the hub after backing out of it", async () => {
+    render(<NotesProvider userId="pill1"><Seeded /></NotesProvider>);
+    await waitFor(() => expect(screen.getByText("Up Next")).toBeInTheDocument());
+    // On the page the jump opened, the pill is the way home, as designed.
+    expect(screen.getByRole("button", { name: "Life" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByLabelText("Back"));
+    await waitFor(() => expect(screen.getByText("Your Routine")).toBeInTheDocument());
+    // The hub is not a page a jump opened: no "< Life" floating over its last row.
+    expect(screen.queryByRole("button", { name: "Life" })).not.toBeInTheDocument();
+  });
+
+  it("a page opened by a tap inside the hub never had a pill to begin with", async () => {
+    function Plain() {
+      const [claims, setClaims] = useState(0);
+      const claim = useCallback(() => { setClaims((n) => n + 1); return () => setClaims((n) => n - 1); }, []);
+      return (
+        <NavOriginProvider value={{ origin: null, back: () => false, claim, claimed: claims > 0 }}>
+          <BrainFlow /><ReturnPill />
+        </NavOriginProvider>
+      );
+    }
+    render(<NotesProvider userId="pill2"><Plain /></NotesProvider>);
+    fireEvent.click(await screen.findByText("Your Routine"));
+    await waitFor(() => expect(screen.getByText("Protected Time")).toBeInTheDocument());
+    expect(screen.queryByRole("button", { name: "Life" })).not.toBeInTheDocument();
+  });
+});
+
+// ALFRED 2026-10-04: after a back from a page, the hub's EXPLORE list (and the band over it) was missing for as long as the
+// reads took to come back, and for good when one failed. The real flow, in and back out, against the real services.
+import { useStrands } from "../data/NotesProvider";
+
+describe("BrainFlow: the hub is whole the moment a page closes over it", () => {
+  function Seeded() {
+    const strands = useStrands();
+    const [ready, setReady] = useState(false);
+    useEffect(() => { (async () => { await strands.add("Brainstorms best at night", "work_style", new Date().toISOString().slice(0, 10), "rule"); setReady(true); })(); }, [strands]);
+    return ready ? <BrainFlow /> : null;
+  }
+
+  it("keeps the band and the Explore head over the nav list across What JARVIS Knows and back, with every row still there", async () => {
+    render(<NotesProvider userId="back1"><Seeded /></NotesProvider>);
+    await screen.findByText("Shaping JARVIS Now");
+    const rows = () => [...document.querySelectorAll(".lib-row .lib-name")].map((e) => e.textContent);
+    const before = rows();
+    expect(before).toContain("What JARVIS Knows");
+    expect(screen.getByText("Explore")).toBeInTheDocument();
+    // Facts are drawn in Title Case (Alfred: "Brainstorms best at night").
+    expect(screen.getByText("Brainstorms Best at Night")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText("What JARVIS Knows", { selector: ".lib-name" }));
+    await screen.findByText("What It Knows");
+    fireEvent.click(screen.getByRole("button", { name: "Brain" }));
+
+    // Synchronously after the back: no waiting on a read for the band, the head or any row.
+    expect(screen.getByText("Shaping JARVIS Now")).toBeInTheDocument();
+    expect(screen.getByText("Explore")).toBeInTheDocument();
+    expect(rows()).toEqual(before);
+  });
+});
+
+// THE SCROLL BOX IS SHARED BY THE HUB AND THE PAGES OVER IT (Alfred 2026-10-04: "a row disappeared after back navigation").
+// .app-scroll is the one thing that scrolls; a page scrolled down and closed left the hub drawn already scrolled, its first
+// rows behind the bar. A page opens at its top, and the hub comes back where it was.
+describe("BrainFlow: scroll is per page, not per box", () => {
+  it("opens a page at its top, and puts the hub back at the offset it was left at", async () => {
+    const box = document.createElement("div");
+    box.className = "app-scroll";
+    document.body.appendChild(box);
+    try {
+      render(<NotesProvider userId="scroll1"><BrainFlow /></NotesProvider>, { container: box.appendChild(document.createElement("div")) });
+      fireEvent.click(await screen.findByText("Your Routine"));
+      await waitFor(() => expect(screen.getByText("Protected Time")).toBeInTheDocument());
+      expect(box.scrollTop).toBe(0);
+      box.scrollTop = 600; // the person scrolls the page down
+      fireEvent.click(screen.getByRole("button", { name: "Brain" }));
+      await screen.findByText("Your Routine");
+      expect(box.scrollTop).toBe(0); // the hub was at the top when it was left, and is at the top again
+    } finally { document.body.removeChild(box); }
+  });
+
+  it("remembers a scrolled hub across a page, so the rows the person was reading are the rows that come back", async () => {
+    const box = document.createElement("div");
+    box.className = "app-scroll";
+    document.body.appendChild(box);
+    try {
+      render(<NotesProvider userId="scroll2"><BrainFlow /></NotesProvider>, { container: box.appendChild(document.createElement("div")) });
+      const row = await screen.findByText("Your Routine");
+      box.scrollTop = 140;
+      fireEvent.click(row);
+      await waitFor(() => expect(screen.getByText("Protected Time")).toBeInTheDocument());
+      expect(box.scrollTop).toBe(0);
+      box.scrollTop = 900;
+      fireEvent.click(screen.getByRole("button", { name: "Brain" }));
+      await screen.findByText("Your Routine");
+      expect(box.scrollTop).toBe(140);
+    } finally { document.body.removeChild(box); }
+  });
+});

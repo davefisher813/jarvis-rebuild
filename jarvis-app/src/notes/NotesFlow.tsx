@@ -857,6 +857,18 @@ export default function NotesFlow({
       },
     });
   };
+  // THE SWIPE'S QUICKEST VERB (Dave 2026-10-05, locked): archive a note from the list, or bring it back from the Archived
+  // view, with the same Undo the editor's Archive has.
+  const archiveFromList = async (id: string, archived: boolean) => {
+    const ok = await attemptWrite(() => svc.setArchived(id, archived));
+    if (!ok) return;
+    await loadList();
+    if (archived) {
+      showToast({ message: "Archived", actionLabel: "Undo", onAction: () => void (async () => { await attemptWrite(() => svc.setArchived(id, false)); await loadList(); })() });
+    } else {
+      showToast({ message: "Back in Your Notes" });
+    }
+  };
   const restoreNote = async (id: string) => {
     const ok = await attemptWrite(() => svc.untrashNote(id));
     if (!ok) return;
@@ -902,6 +914,7 @@ export default function NotesFlow({
         onDelete={(id) => void onDeleteManyNotes([id])}
         onFile={(id) => setFiling(id)}
         onAppend={(id) => setAppending(id)}
+        onArchive={(id, archived) => void archiveFromList(id, archived)}
         onRestore={(id) => void restoreNote(id)}
         onDeleteForever={(id) => void deleteForever(id)}
       />

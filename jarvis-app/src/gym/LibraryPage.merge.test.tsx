@@ -76,7 +76,8 @@ describe("LibraryPage: the duplicate summary row", () => {
 });
 
 describe("LibraryPage: the duplicate review room", () => {
-  const open = () => fireEvent.click(screen.getByRole("button", { name: "Review" }));
+  // The compact row IS the door now (Dave 2026-10-05, locked: no Review capsule on a row).
+  const open = () => fireEvent.click(screen.getByRole("button", { name: /^Possible Duplicates/ }));
 
   it("shows what separates the two before it offers to weld them", () => {
     const store: ClassStore = {
@@ -96,7 +97,8 @@ describe("LibraryPage: the duplicate review room", () => {
     const onMerge = vi.fn();
     render(<LibraryPage {...base} rows={forked} onMerge={onMerge} dismissedDupes={[]} onDismissDuplicate={() => {}} />);
     open();
-    fireEvent.click(screen.getByRole("button", { name: "Review Merge" }));
+    // The pair's row is the door to the review (its Review Merge button is gone), and the long press holds both actions.
+    fireEvent.click(screen.getByText("Bench Press", { selector: ".dup-name" }));
     expect(onMerge).toHaveBeenCalledTimes(1);
     const [keep, fold] = onMerge.mock.calls[0]!;
     expect(keep.key).toBe("b");
@@ -107,7 +109,8 @@ describe("LibraryPage: the duplicate review room", () => {
     const onDismissDuplicate = vi.fn();
     render(<LibraryPage {...base} rows={forked} dismissedDupes={[]} onDismissDuplicate={onDismissDuplicate} />);
     open();
-    fireEvent.click(screen.getByRole("button", { name: "Keep Separate" }));
+    // Swipe left on the pair is Keep Separate, its one quick verb.
+    fireEvent.click(screen.getByRole("button", { name: /^Keep Separate/ }));
     expect(onDismissDuplicate).toHaveBeenCalledWith("a|b");
   });
 

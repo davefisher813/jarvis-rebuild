@@ -21,6 +21,11 @@ const SOURCE_ROUTE: Partial<Record<DecisionSourceKind, string>> = { note: "note"
 import { todayISO } from "../schedule/calendar";
 import { dayTone } from "../messages/factsLine";
 import EntityStar from "../shared/EntityStar";
+import { titleCase } from "../shared/casing";
+import RowActionSheet from "../shared/RowActionSheet";
+import RowCtxAction from "../shared/RowCtxAction";
+import SwipeDelete from "../shared/SwipeDelete";
+import { MoreHorizontal } from "../shared/icons";
 import { attemptWrite } from "../shared/guard";
 import { showToast } from "../shared/toast";
 import { usePushDepth } from "../shared/pushNav";
@@ -134,7 +139,8 @@ export default function DecisionsFlow({ onBack, openId, openNonce, onOpenConsume
   }, [openId, openNonce]);
   const [sheet, setSheet] = useState<{ kind: "closed" } | { kind: "new" } | { kind: "supersede"; oldId: string }>({ kind: "closed" });
   const [editing, setEditing] = useState(false);
-  const [armedDelete, setArmedDelete] = useState(false);
+  // The record page's menu (Change It, Make It a Rule, Delete) and the confirm that stands in front of the delete.
+  const [menu, setMenu] = useState<"closed" | "more" | "confirm">("closed");
   const [revisitOpen, setRevisitOpen] = useState(false);
   const revisitRef = useRef<HTMLInputElement>(null);
 
@@ -169,8 +175,8 @@ export default function DecisionsFlow({ onBack, openId, openNonce, onOpenConsume
   const byId = useMemo(() => new Map(all.map((r) => [r.id, r])), [all]);
   const record = view.kind === "record" ? byId.get(view.id) ?? null : null;
 
-  const goRecord = (id: string) => { setEditing(false); setArmedDelete(false); setRevisitOpen(false); setView({ kind: "record", id }); };
-  const goList = () => { setEditing(false); setArmedDelete(false); setRevisitOpen(false); setView({ kind: "list" }); };
+  const goRecord = (id: string) => { setEditing(false); setMenu("closed"); setRevisitOpen(false); setView({ kind: "record", id }); };
+  const goList = () => { setEditing(false); setMenu("closed"); setRevisitOpen(false); setView({ kind: "list" }); };
 
   const pushCls = usePushDepth(view.kind === "record" ? 1 : 0);
 
@@ -233,7 +239,7 @@ export default function DecisionsFlow({ onBack, openId, openNonce, onOpenConsume
   const deleteRecord = async (rec: DecisionRecord) => {
     const kept = rec.data;
     const ok = await attemptWrite(() => svc.remove(rec.id));
-    setArmedDelete(false);
+    setMenu("closed");
     if (ok) {
       goList();
       await reload();
@@ -252,7 +258,7 @@ export default function DecisionsFlow({ onBack, openId, openNonce, onOpenConsume
       // Deleted or unknown id: land on the list instead of a dead screen.
       return (
         <div className={pushCls} key="gone">
-          <ListScreen live={live} loading={loading} projCat={(id) => projCats[id]} onBack={onBack} onOpen={goRecord} onAdd={() => setSheet({ kind: "new" })} />
+          <ListScreen live={live} loading={loading} projCat={(id) => projCats[id]} onBack={onBack} onOpen={goRecord} onDelete={(r) => void deleteRecord(r)} onAdd={() => setSheet({ kind: "new" })} />
           {sheet.kind === "new" && <DecisionCaptureSheet attachOptions={attachOptions} onSave={(d) => void saveNew(d)} onCancel={() => setSheet({ kind: "closed" })} />}
         </div>
       );
@@ -289,7 +295,10 @@ export default function DecisionsFlow({ onBack, openId, openNonce, onOpenConsume
             title="Decision"
             back="Decisions"
             onBack={goList}
-            actions={<BarAction label="Edit" onClick={() => setEditing(true)}>{PEN}</BarAction>}
+            actions={<>
+              <BarAction label="Edit" onClick={() => setEditing(true)}>{PEN}</BarAction>
+              {!newer && <BarAction label="More" onClick={() => setMenu("more")}><MoreHorizontal className="ic" /></BarAction>}
+            </>}
           />
 
           <div className="sh2 sh2-quiet"><span className="t">Decided</span></div>
@@ -454,12 +463,19 @@ export default function DecisionsFlow({ onBack, openId, openNonce, onOpenConsume
                         record's other dated lines below. */}
                     {d.outcome && <div className="facts"><span className="fact date">Marked {fmtShort(d.outcome.at)}</span></div>}
                   </div>
+                  {/* A call that did not work usually wants a new call: its moment has come, so its one action shows on the
+                      row as text (the same Change It the toast offers), never as a capsule. */}
+                  <RowCtxAction when={d.outcome?.word === "didnt"} label="Change It" onAct={() => setSheet({ kind: "supersede", oldId: record.id })} />
                 </div>
-                {/* row-tap: the three outcome capsules fill this line; it is a verb strip, not an item */}
-                <div className="row dec-outcome-acts">
-                  {(["worked", "mixed", "didnt"] as OutcomeWord[]).map((w) => (
-                    <button type="button" key={w} className={"pill-act" + (d.outcome?.word === w ? " on" : "")} aria-pressed={d.outcome?.word === w} onClick={() => void markOutcome(record, w)}>{OUTCOME_LABEL[w]}</button>
-                  ))}
+                {/* Clean rows (Dave 2026-10-05, locked): the three words are a CHOICE, one of three, so they are the app's
+                    segmented control and not three capsules in a card.
+                    row-tap: the segmented control fills this line; it is a verb strip, not an item */}
+                <div className="row">
+                  <div className="segmented seg-tri row-grow" role="group" aria-label="Outcome">
+                    {(["worked", "mixed", "didnt"] as OutcomeWord[]).map((w) => (
+                      <button type="button" key={w} aria-pressed={d.outcome?.word === w} className={"seg" + (d.outcome?.word === w ? " active" : "")} onClick={() => void markOutcome(record, w)}>{OUTCOME_LABEL[w]}</button>
+                    ))}
+                  </div>
                 </div>
               </div></div>
             </>
@@ -471,7 +487,7 @@ export default function DecisionsFlow({ onBack, openId, openNonce, onOpenConsume
               <div className="pad-x"><div className="card">
                 <div {...pressable(() => goRecord(older.id))} className="row">
                   <div className="row-stack">
-                    <div className="dec-old">{older.data.decision}</div>
+                    <div className="dec-old">{titleCase(older.data.decision)}</div>
                     <div className="facts"><span className="fact date">Recorded {fmtShort(older.data.createdAt)}</span></div>
                   </div>
                   <Chev />
@@ -486,7 +502,7 @@ export default function DecisionsFlow({ onBack, openId, openNonce, onOpenConsume
               <div className="pad-x"><div className="card">
                 <div {...pressable(() => goRecord(newer.id))} className="row">
                   <div className="row-stack">
-                    <div className="conn-name">{newer.data.decision}</div>
+                    <div className="conn-name">{titleCase(newer.data.decision)}</div>
                     <div className="facts"><span className="fact date">Recorded {fmtShort(newer.data.createdAt)}</span></div>
                   </div>
                   <Chev />
@@ -499,27 +515,38 @@ export default function DecisionsFlow({ onBack, openId, openNonce, onOpenConsume
             <div className="row"><div className="row-stack"><div className="facts"><span className="fact date">Recorded {fmtShort(d.createdAt)}</span></div></div></div>
           </div></div>
 
-          {!newer && (
+          {/* Clean cards (Dave 2026-10-05, locked): Change It, Make It a Rule and Delete are the record's actions, so they live in
+              its More menu on the bar, never as rows at the foot of a card. What stays on the page is the fact that it is a rule. */}
+          {!newer && d.ruleStrandId && (
             <div className="pad-x"><div className="card">
-              {/* C-54: a call becomes a standing rule, by his hand only. */}
-              {strands && !d.ruleStrandId && (
-                <button className="row row-act" onClick={() => void makeRule(record)}>Make It a Rule</button>
-              )}
-              {d.ruleStrandId && (
-                // Rule is a state word (§AM, as on the Brain): its caps set it
-                // apart, and it is not late, so it wears no red. The dot
-                // between it and the fact is drawn by the CSS.
-                <div className="row"><div className="row-stack"><div className="facts"><span className="fact st">Rule</span><span className="fact">Saved to Values</span></div></div></div>
-              )}
-              <button className="row row-act" onClick={() => setSheet({ kind: "supersede", oldId: record.id })}>Change It</button>
-              {!armedDelete
-                ? <button className="row row-signout" onClick={() => setArmedDelete(true)}>Delete Decision</button>
-                : <button className="row row-signout" onClick={() => void deleteRecord(record)}>Tap to Confirm</button>}
+              {/* Rule is a state word (§AM, as on the Brain): its caps set it
+                  apart, and it is not late, so it wears no red. The dot
+                  between it and the fact is drawn by the CSS. */}
+              <div className="row"><div className="row-stack"><div className="facts"><span className="fact st">Rule</span><span className="fact">Saved to Values</span></div></div></div>
             </div></div>
           )}
 
           <div className="screen-foot" />
         </div>
+        {menu === "more" && !newer && (
+          <RowActionSheet
+            title="Decision"
+            actions={[
+              { label: "Change It", onPick: () => setSheet({ kind: "supersede", oldId: record.id }) },
+              ...(strands && !d.ruleStrandId ? [{ label: "Make It a Rule", onPick: () => void makeRule(record) }] : []),
+              // A decision is the reasoning nobody can rebuild, so the delete stands behind its own confirm (button audit 2026-09-19).
+              { label: "Delete Decision", destructive: true, onPick: () => setMenu("confirm") },
+            ]}
+            onCancel={() => setMenu((m) => (m === "more" ? "closed" : m))}
+          />
+        )}
+        {menu === "confirm" && (
+          <RowActionSheet
+            title="Delete This Decision?"
+            actions={[{ label: "Delete Decision", destructive: true, onPick: () => void deleteRecord(record) }]}
+            onCancel={() => setMenu("closed")}
+          />
+        )}
         {sheet.kind === "supersede" && (
           <DecisionCaptureSheet
             mode="supersede"
@@ -536,7 +563,7 @@ export default function DecisionsFlow({ onBack, openId, openNonce, onOpenConsume
   // ---- Screen 01 / 06: the list and its empty state ----------------------
   return (
     <div className={pushCls} key="base">
-      <ListScreen live={live} loading={loading} projCat={(id) => projCats[id]} onBack={onBack} onOpen={goRecord} onAdd={() => setSheet({ kind: "new" })} />
+      <ListScreen live={live} loading={loading} projCat={(id) => projCats[id]} onBack={onBack} onOpen={goRecord} onDelete={(r) => void deleteRecord(r)} onAdd={() => setSheet({ kind: "new" })} />
       {sheet.kind === "new" && <DecisionCaptureSheet attachOptions={attachOptions} onSave={(d) => void saveNew(d)} onCancel={() => setSheet({ kind: "closed" })} />}
     </div>
   );
@@ -554,12 +581,14 @@ function RuleAdder({ onAdd }: { onAdd: (v: string) => void }) {
   );
 }
 
-function ListScreen({ live, loading, projCat, onBack, onOpen, onAdd }: {
+function ListScreen({ live, loading, projCat, onBack, onOpen, onDelete, onAdd }: {
   live: DecisionRecord[];
   loading: boolean;
   projCat: (id: string) => string | undefined;
   onBack: () => void;
   onOpen: (id: string) => void;
+  /** Swipe left reveals Delete (a record has nothing to complete); the Undo toast puts it back. */
+  onDelete: (r: DecisionRecord) => void;
   onAdd: () => void;
 }) {
   const today = todayISO();
@@ -599,11 +628,12 @@ function ListScreen({ live, loading, projCat, onBack, onOpen, onAdd }: {
           {live.map((r) => {
             const when = whenFact(r.data, today);
             return (
-            <div {...pressable(() => onOpen(r.id))} className="row dec-row" key={r.id}>
+            <SwipeDelete key={r.id} label={r.data.decision} onDelete={() => onDelete(r)}>
+            <div {...pressable(() => onOpen(r.id))} className="row dec-row">
               <EntityStar entityType={ENTITY_DECISION} entityId={r.id} title={r.data.decision} />
               <div className={"lib-ico " + glyphClass(r, projCat)}>{DECISION_ICO}</div>
               <div className="row-grow">
-                <div className="conn-name dec-name">{r.data.decision}</div>
+                <div className="conn-name dec-name">{titleCase(r.data.decision)}</div>
                 {/* A row with no reason says nothing about it (§AK): the
                     "No reason recorded" line stated nothing, and it spent the
                     row's one grey doing it. The record page still offers the
@@ -651,6 +681,7 @@ function ListScreen({ live, loading, projCat, onBack, onOpen, onAdd }: {
               </div>
               <Chev />
             </div>
+            </SwipeDelete>
             );
           })}
         </div></div>

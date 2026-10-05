@@ -241,6 +241,8 @@ describe("Add from Your Lifts carries what the lift's sheet planned", () => {
     const { gym } = await mount(() => <GymFlow onBack={() => {}} />);
     // The program page lists its days; the day row opens its exercises.
     fireEvent.click(await screen.findByText("Push", { selector: ".row-grow .conn-name, .row-grow *" }, { timeout: 4000 }));
+    // The day's Add Exercise capsule (on the Exercises head) opens the two doors, the picker first.
+    fireEvent.click(await screen.findByRole("button", { name: "Add Exercise" }));
     fireEvent.click(await screen.findByText("Add from Your Lifts"));
     fireEvent.click(await screen.findByText("Zercher Squat", { selector: ".conn-name" }));
     fireEvent.click(screen.getByRole("button", { name: "Add 1" }));

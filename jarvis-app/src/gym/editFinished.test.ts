@@ -87,7 +87,8 @@ describe("the finished-workout screen is fully editable", () => {
   });
 
   it("can add a lift that was never logged, with its loading convention", () => {
-    expect(FLOW).toContain('<button className="row-create" onClick={() => setWorkoutAddOpen(true)}>Add Exercise</button>');
+    // On the Exercises head since 2026-10-05 (Dave, locked): a section-level add is the head's capsule, never a row at the foot.
+    expect(FLOW).toContain('<button type="button" className="see-all pill-action" onClick={() => setWorkoutAddOpen(true)}>Add Exercise</button>');
     expect(FLOW).toContain("exerciseId: `add${Date.now().toString(36)}`");
     const add = FLOW.slice(FLOW.indexOf("{workoutAddOpen && ("), FLOW.indexOf("{workoutAddOpen && (") + 1400);
     expect(add, "the strip would step it by 5 for everything").toContain("...loadFields(draft)");

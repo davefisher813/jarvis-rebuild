@@ -2,9 +2,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import PageHeader from "../../shared/PageHeader";
 import { useOptionalLedger, useTracker } from "../../data/NotesProvider";
 import { FormSheet, Group, FieldRow, MenuRow, SwitchRow, DeleteRow, ErrorLine, Row, tapField } from "../../shared/FormSheet";
-import { Calendar, FolderKanban, Link2, Tag } from "../../shared/icons";
+import { Calendar, Clock, FolderKanban, Link2, RotateCcw, Tag, Wallet } from "../../shared/icons";
 import { DollarGlyph, WalletGlyph, RepeatGlyph } from "../../shared/glyphs";
 import { pressable } from "../../shared/pressable";
+import MoneyRow from "../MoneyRow";
+import NoticeCard from "../../today/NoticeCard";
 import { lineCase, titleCase } from "../../shared/casing";
 import { showToast } from "../../shared/toast";
 import { attemptWrite } from "../../shared/guard";
@@ -107,22 +109,14 @@ export default function TrackerScreen({ onBack }: { onBack: () => void }) {
     <div className="screen ruled">
       <PageHeader title="Tracker" back="Money" onBack={onBack} />
       {canSeed && (
-        <div className="pad-x"><div className="card list-card-ruled">
-          <div className="row" {...pressable(() => void runSeed())}>
-            <div className="row-grow">
-              {/* .truncate is this app's two-lines-not-a-clip class (see the
-                  task-name note in components.css). At --type-scale 1.4 this
-                  title lost "Data" to the Import pill beside it; it is copy
-                  this app wrote, so it takes the second line. */}
-              <div className="conn-name truncate">Import September Data</div>
-              <div className="conn-meta">Your Accounts, Subscriptions and 31 Transactions</div>
-            </div>
-            <button className="pill-act" disabled={seeding}
-              onClick={(e) => { e.stopPropagation(); void runSeed(); }}>
-              {seeding ? "Importing" : "Import"}
-            </button>
-          </div>
-        </div></div>
+        // AN OFFER WITH ITS OWN WORDS IS A NOTICE CARD, NOT A ROW WITH A PILL (Dave 2026-10-05, locked: the settled
+        // notice pattern keeps its action; a list row never wears one). Import is its answer, and a tap on the card
+        // does the same. .truncate-level wrapping is the notice card's own (a card form takes two lines).
+        <NoticeCard icon={<Wallet className="ic" />} tone="cat-fg-green" offer
+          title="Import September Data"
+          sub="Your Accounts, Subscriptions and 31 Transactions"
+          action={{ label: seeding ? "Importing" : "Import", onClick: () => void runSeed() }}
+          onOpen={() => void runSeed()} />
       )}
       <div className="pad-x mt-tabrow">
         <div className="segmented" role="tablist" aria-label="Tracker">
@@ -164,11 +158,15 @@ function MonthNav({ month, onMonth }: { month: string; onMonth: (m: string) => v
   );
 }
 
-function SectionHead({ label, count }: { label: string; count?: number }) {
+// A SECTION'S ACTION IS ITS HEAD'S CAPSULE (Dave 2026-10-05, locked): Add an account, Add Manually, Add a Category,
+// Add a subscription sit here, as New Event and Schedule sit on Today's Tonight head, never in a card or at the foot of a
+// list. A section with nothing in it draws its head and the capsule only (rule 12).
+function SectionHead({ label, count, action }: { label: string; count?: number; action?: { label: string; onClick: () => void; busy?: boolean; aria?: string } }) {
   return (
     <div className="sh2 sh2-quiet">
       <span className="t">{label}</span>
       {count !== undefined && <span className="n">{count}</span>}
+      {action && <button className="see-all pill-action" disabled={action.busy} aria-label={action.aria} onClick={action.onClick}>{action.label}</button>}
     </div>
   );
 }
@@ -214,13 +212,13 @@ function Dashboard({ month, onMonth, txs, receipts, data, onSaved }: {
     <>
       <MonthNav month={month} onMonth={onMonth} />
 
-      <SectionHead label="Accounts" count={data.accounts.length} />
+      <SectionHead label="Accounts" count={data.accounts.length} action={{ label: "Add Account", onClick: () => setAcct("new") }} />
       {data.accounts.length > 0 && (
         <div className="pad-x mt-accts">
           {data.accounts.map((a) => (
             // A card is a door to its own editor, the way a row is elsewhere.
             <div className="card mt-acct" key={a.id} {...pressable(() => setAcct(a))}>
-              <div className="mt-acct-name">{a.data.name}</div>
+              <div className="mt-acct-name">{titleCase(a.data.name)}</div>
               <div className="mt-acct-bal">{fmtCents(a.data.currentBalanceCents)}</div>
               {/* The amount inside the tile's one grey line steps up to
                   white (§AM F1), the words stay the grey. */}
@@ -231,16 +229,6 @@ function Dashboard({ month, onMonth, txs, receipts, data, onSaved }: {
           ))}
         </div>
       )}
-      <div className="pad-x"><div className="card list-card-ruled">
-        <div className="row" {...pressable(() => setAcct("new"))}>
-          {/* No "No accounts yet" under it (§AK): the head's count already
-              says none, and a row with nothing to say shows nothing. */}
-          <div className="row-grow">
-            <div className="conn-name">Add an Account</div>
-          </div>
-          <button className="pill-act" onClick={(e) => { e.stopPropagation(); setAcct("new"); }}>Add</button>
-        </div>
-      </div></div>
       {acct && (
         <AccountEditor
           initial={acct === "new" ? null : acct.data}
@@ -425,15 +413,18 @@ function Transactions({ data, month, receipts, bills, onSaved }: {
         </div>
       </div>
 
-      <SectionHead label="Transactions" count={shown.length} />
-      <div className="pad-x"><div className="card list-card-ruled">
+      <SectionHead label="Transactions" count={shown.length} action={{ label: "Add Manually", onClick: () => setEditing({ kind: "new" }) }} />
+      {(shown.length > 0 || data.txs.length > 0) && <div className="pad-x"><div className="card list-card-ruled">
         {shown.map((t) => (
-          <div className="row" key={t.id} {...pressable(() => setEditing({ kind: "edit", tx: t }))}>
+          // A payment's tap is its sheet (every action); the swipe and the menu are Delete, with the way back.
+          <MoneyRow key={t.id} name={titleCase(t.data.merchant)} onDelete={() => void remove(t)}
+            menu={[{ label: "Edit", onPick: () => setEditing({ kind: "edit", tx: t }) }, { label: "Delete", destructive: true, onPick: () => void remove(t) }]}
+            onOpen={() => setEditing({ kind: "edit", tx: t })}>
             <i className="mt-dot" style={{ "--cat": categoryColor(t.data.category) } as React.CSSProperties} />
-            <div className="row-grow">
+            <div className="task-title">
               {/* His own typed words are SHOWN in Title Case and stored as
                   typed (the whole casing rule, 2026-09-26). */}
-              <div className="conn-name">{titleCase(t.data.merchant)}</div>
+              <span className="task-name">{titleCase(t.data.merchant)}</span>
               {/* The day is a date, small caps (F5); the category keeps the
                   row's one grey, its mark the dot at the row's head. The dot
                   between them is drawn by .facts, never baked in (F3). A
@@ -448,18 +439,18 @@ function Transactions({ data, month, receipts, bills, onSaved }: {
               </div>
             </div>
             <div className={"mt-amt" + (t.data.amountCents < 0 ? " good" : "")}>{fmtCents(t.data.amountCents)}</div>
-          </div>
+          </MoneyRow>
         ))}
         {/* "Nothing Tracked Yet" is gone (2026-10-05, visual catalog gate, R1):
-            the head's 0 says it and Add Manually is the next thing. Only a
-            filter that hides every row says so, because the 0 does not say why. */}
+            the head's 0 says it and Add Manually, on that head, is the next
+            thing. Only a filter that hides every row says so, because the 0
+            does not say why. There is no bank connection in this version:
+            every transaction is one the person adds, or one they approve from
+            a bill or a receipt. */}
         {shown.length === 0 && data.txs.length > 0 && (
           <div className="row"><div className="row-grow"><div className="conn-meta">Nothing Matches</div></div></div>
         )}
-        {/* There is no bank connection in this version: every transaction is
-            one the person adds, or one they approve from a bill or a receipt. */}
-        <button className="row row-act" onClick={() => setEditing({ kind: "new" })}>Add Manually</button>
-      </div></div>
+      </div></div>}
 
       {editing && (() => {
         const { tx, receipt, bill, billPaidByThis } = sheetFor(editing);
@@ -569,20 +560,20 @@ function TxSheet({ initial, accounts, categories, categoryFor, links, onUnmatch,
             <Row tone="green" glyph={<Link2 className="ic" />} label="Matched to a Receipt"
               meta={links.receipt
                 ? <LinkedFacts name={links.receipt.data.vendor} sameAs={initial.merchant} cents={links.receipt.data.amountCents} day={links.receipt.data.transactionDate} />
-                : "Counted Once"}
-              onClick={() => onUnmatch?.("receipt")}>
-              <button type="button" className="pill-act" onClick={(e) => { e.stopPropagation(); onUnmatch?.("receipt"); }}>Unmatch</button>
-            </Row>
+                : "Counted Once"} />
           )}
           {(links.bill || initial.paysBillId) && (
             <Row tone="green" glyph={<Link2 className="ic" />} label="Pays a Bill"
-              meta={links.bill ? <LinkedFacts name={links.bill.data.vendor} sameAs={initial.merchant} cents={links.bill.data.amountCents} /> : undefined}
-              onClick={links.billPaidByThis ? () => onUnmatch?.("bill") : undefined}>
-              {links.billPaidByThis && (
-                <button type="button" className="pill-act" onClick={(e) => { e.stopPropagation(); onUnmatch?.("bill"); }}>Unmatch</button>
-              )}
-            </Row>
+              meta={links.bill ? <LinkedFacts name={links.bill.data.vendor} sameAs={initial.merchant} cents={links.bill.data.amountCents} /> : undefined} />
           )}
+        </Group>
+      )}
+      {/* UNMATCH IS AN ACTION ROW OF ITS OWN, one per link, not a capsule inside the match row (Dave 2026-10-05, locked:
+          no pill on a row; the sheet holds every action). */}
+      {links && (links.receipt || initial.matchedReceiptId || (links.bill && links.billPaidByThis)) && (
+        <Group className="xs-actions">
+          {(links.receipt || initial.matchedReceiptId) && <Row onClick={() => onUnmatch?.("receipt")} label="Unmatch Receipt" />}
+          {links.bill && links.billPaidByThis && <Row onClick={() => onUnmatch?.("bill")} label="Unmatch Bill" />}
         </Group>
       )}
       <HistoryList history={initial.history} />
@@ -710,7 +701,7 @@ function Budgets({ month, onMonth, data, receipts, onSaved }: {
         </div>
       ))}
 
-      <SectionHead label="Categories" count={rows.length} />
+      <SectionHead label="Categories" count={rows.length} action={{ label: "Add a Category", onClick: addRow }} />
       <div className="pad-x">
         {shown.map((row) => {
           const over = overLine(row, fmtCents);
@@ -757,13 +748,9 @@ function Budgets({ month, onMonth, data, receipts, onSaved }: {
         })}
       </div>
 
-      <div className="pad-x"><div className="card list-card-ruled">
-        <button className="row row-act" onClick={addRow}>Add a Category</button>
-        <div className="row" {...pressable(() => void save())}>
-          <div className="row-grow"><div className="conn-name">Save This Month</div></div>
-          <button className="pill-act" onClick={(e) => { e.stopPropagation(); void save(); }}>Save</button>
-        </div>
-      </div></div>
+      {/* THE FORM'S ONE FILLED PRIMARY (Dave 2026-10-05, locked: no pill in a card). Save was a row with a capsule in a
+          card of its own; Add a Category is the Categories head's capsule. The save is the screen's one fill. */}
+      <div className="pad-x"><button className="btn btn-primary btn-block" onClick={() => void save()}>Save This Month</button></div>
     </>
   );
 }
@@ -772,9 +759,6 @@ function Budgets({ month, onMonth, data, receipts, onSaved }: {
 
 function Subscriptions({ data, onSaved }: { data: TrackerData; onSaved: () => Promise<void> }) {
   const svc = useTracker();
-  const [name, setName] = useState("");
-  const [amount, setAmount] = useState("");
-  const [freq, setFreq] = useState<SubFrequency>("Monthly");
 
   const active = data.subs.filter((s) => s.data.status === "active");
   const monthly = monthlySubTotal(data.subs);
@@ -784,40 +768,30 @@ function Subscriptions({ data, onSaved }: { data: TrackerData; onSaved: () => Pr
   // cleared the fields once the write came back -- so against a real backend
   // on a phone the values sat there looking untouched, the button never
   // disabled and never changed its word, and a second tap wrote a second row.
-  // Same guard the Import button above has carried since it shipped.
   //
-  // The latch is a REF, not the state below it. State is what the button
-  // reads to grey itself out and say "Adding", but it does not change until
-  // React re-renders, so two taps inside one tick both still see false. The
-  // ref flips on the first line of the first call and stops the second dead.
+  // The latch is a REF, not state. State does not change until React
+  // re-renders, so two taps inside one tick both still see false. The ref
+  // flips on the first line of the first call and stops the second dead.
+  //
+  // ADD IS THE HEAD'S CAPSULE AND THE SHEET IS THE FORM (Dave 2026-10-05, locked: no form in a card, no pill in a
+  // row). The Add One card (three fields and an Add It row with a pill) is gone; Add a Subscription opens the same
+  // sheet a row opens, empty, and its Save carries the latch.
   const busyRef = useRef(false);
-  const [busy, setBusy] = useState(false);
-  // WHAT IS MISSING, SAID (2026-10-04). A tap on Add with no name or no amount
-  // returned without a word, so the row looked dead; it now names what is
-  // missing and puts the cursor there.
-  const nameRef = useRef<HTMLInputElement>(null);
-  const amountRef = useRef<HTMLInputElement>(null);
-  const add = async () => {
+  // null is the sheet closed, "new" a subscription being added, a row one being edited.
+  const [sheet, setSheet] = useState<TrackerSub | "new" | null>(null);
+  const saveSheet = async (d: TrackerSubData) => {
     if (busyRef.current) return;
-    const cents = dollarsToCents(amount);
-    if (!name.trim() || cents <= 0) {
-      showToast({ message: !name.trim() && cents <= 0 ? "Add a Name and an Amount" : !name.trim() ? "Add a Name First" : "Add an Amount First" });
-      (!name.trim() ? nameRef : amountRef).current?.focus();
-      return;
-    }
     busyRef.current = true;
-    setBusy(true);
     try {
-      if (!(await attemptWrite(() => svc.saveSub(null, {
-        merchantName: name.trim(), amountCents: cents, frequency: freq, status: "active",
-      })))) return;
-      setName(""); setAmount(""); setFreq("Monthly");
+      if (!(await attemptWrite(() => svc.saveSub(sheet === "new" || !sheet ? null : sheet.id, d)))) return;
+      setSheet(null);
       await onSaved();
     } finally {
       busyRef.current = false;
-      setBusy(false);
     }
   };
+  // Cancel and Restart: stopping a real charge is the row's one verb (the swipe, the menu and the sheet's switch), so
+  // it needs no trip through a sheet.
   const flip = async (s: TrackerSub) => {
     const next = s.data.status === "active" ? "cancelled" : "active";
     if (!(await attemptWrite(() => svc.saveSub(s.id, { ...s.data, status: next })))) return;
@@ -826,20 +800,10 @@ function Subscriptions({ data, onSaved }: { data: TrackerData; onSaved: () => Pr
 
   // EDITING AND DELETING, WHICH THIS TAB HAD NEITHER OF (Dave 2026-09-20:
   // "just put the proper buttons in for users to manage stuff like this").
-  // Cancel was the only thing a subscription could ever be told, so a typo in
-  // the name or a wrong amount was permanent, and a duplicate could only be
-  // hidden, never removed. removeSub existed in the service from day one and
-  // was wired to nothing.
-  const [editing, setEditing] = useState<TrackerSub | null>(null);
-  const saveEdit = async (d: TrackerSubData) => {
-    if (!editing) return;
-    if (!(await attemptWrite(() => svc.saveSub(editing.id, d)))) return;
-    setEditing(null);
-    await onSaved();
-  };
+  // removeSub existed in the service from day one and was wired to nothing.
   const removeOne = async (sub: TrackerSub) => {
     if (!(await attemptWrite(() => svc.removeSub(sub.id)))) return;
-    setEditing(null);
+    setSheet(null);
     await onSaved();
     // The way back, the same shape every other delete in the app offers.
     showToast({
@@ -863,69 +827,46 @@ function Subscriptions({ data, onSaved }: { data: TrackerData; onSaved: () => Pr
         </div>
       </div>
 
-      <SectionHead label="Subscriptions" count={data.subs.length} />
+      <SectionHead label="Subscriptions" count={data.subs.length} action={{ label: "Add", aria: "Add a Subscription", onClick: () => setSheet("new") }} />
       {/* No "Nothing Tracked Yet" row, and no empty card (2026-10-05, visual
-          catalog gate, R1): the head's 0 says it, and Add One is the next
-          section. */}
+          catalog gate, R1): the head's 0 says it, and the head's capsule is
+          the next thing. */}
       {data.subs.length > 0 && <div className="pad-x"><div className="card list-card-ruled">
-        {data.subs.map((s) => (
-          // The row is a door to the editor now; Cancel stays on its own
-          // button beside it, because stopping a real charge should not need
-          // a trip through a sheet.
-          <div className="row" key={s.id} {...pressable(() => setEditing(s))}>
-            <div className="row-grow">
-              <div className="conn-name">{titleCase(s.data.merchantName)}</div>
-              {/* A cancelled one says so in the quiet grey chip, a fill and
-                  caps, so the frequency keeps the row's one grey (§AK). */}
-              <div className="r-k">
-                {s.data.status !== "active" && <span className="uchip u-proposed">Cancelled</span>}
-                <span className="r-goal r-cat">{s.data.frequency}</span>
+        {data.subs.map((s) => {
+          const stop = s.data.status === "active";
+          const act = () => void flip(s);
+          return (
+            // The tap is the sheet; the swipe's verb is Cancel (Restart once it is cancelled) and Delete follows it.
+            <MoneyRow key={s.id} name={titleCase(s.data.merchantName)}
+              verb={{ label: stop ? "Cancel" : "Restart", icon: stop ? <Clock className="ic" /> : <RotateCcw className="ic" />, run: act }}
+              onDelete={() => void removeOne(s)}
+              menu={[
+                { label: stop ? "Cancel" : "Restart", onPick: act },
+                { label: "Edit", onPick: () => setSheet(s) },
+                { label: "Delete", destructive: true, onPick: () => void removeOne(s) },
+              ]}
+              onOpen={() => setSheet(s)}>
+              <div className="task-title">
+                <span className="task-name">{titleCase(s.data.merchantName)}</span>
+                {/* A cancelled one says so in the quiet grey chip, a fill and
+                    caps, so the frequency keeps the row's one grey (§AK). */}
+                <div className="r-k">
+                  {!stop && <span className="uchip u-proposed">Cancelled</span>}
+                  <span className="r-goal r-cat">{s.data.frequency}</span>
+                </div>
               </div>
-            </div>
-            <div className="mt-amt">{fmtCents(s.data.amountCents)}</div>
-            {/* Quiet: a list of subscriptions is a list of these, and three
-                red pills down one card reads as three alarms. */}
-            <button className="quiet-action" onClick={(e) => { e.stopPropagation(); void flip(s); }}>
-              {s.data.status === "active" ? "Cancel" : "Restart"}
-            </button>
-          </div>
-        ))}
+              <div className="mt-amt">{fmtCents(s.data.amountCents)}</div>
+            </MoneyRow>
+          );
+        })}
       </div></div>}
 
-      <SectionHead label="Add One" />
-      <div className="pad-x"><div className="card list-card-ruled">
-        <div className="row" onClick={tapField}>
-          <div className="row-grow"><div className="conn-name">Name</div></div>
-          <input ref={nameRef} className="input mt-inline" aria-label="New subscription name" placeholder="Netflix"
-            value={name} onChange={(e) => setName(e.target.value)} />
-        </div>
-        <div className="row" onClick={tapField}>
-          <div className="row-grow"><div className="conn-name">Amount</div></div>
-          <input ref={amountRef} className="input mt-inline" inputMode="decimal" aria-label="New subscription amount"
-            placeholder="0.00" value={amount} onChange={(e) => setAmount(e.target.value)} />
-        </div>
-        <div className="row" onClick={tapField}>
-          <div className="row-grow"><div className="conn-name">Every</div></div>
-          <select className="input mt-inline" aria-label="Frequency" value={freq}
-            onChange={(e) => setFreq(e.target.value as SubFrequency)}>
-            <option value="Weekly">Weekly</option>
-            <option value="Monthly">Monthly</option>
-            <option value="Yearly">Yearly</option>
-          </select>
-        </div>
-        <div className="row" {...pressable(() => void add())}>
-          <div className="row-grow"><div className="conn-name">Add It</div></div>
-          <button className="pill-act" disabled={busy}
-            onClick={(e) => { e.stopPropagation(); void add(); }}>{busy ? "Adding" : "Add"}</button>
-        </div>
-      </div></div>
-
-      {editing && (
+      {sheet && (
         <SubEditor
-          initial={editing.data}
-          onSave={saveEdit}
-          onDelete={() => void removeOne(editing)}
-          onCancel={() => setEditing(null)}
+          initial={sheet === "new" ? null : sheet.data}
+          onSave={saveSheet}
+          onDelete={sheet === "new" ? undefined : () => void removeOne(sheet)}
+          onCancel={() => setSheet(null)}
         />
       )}
     </>
@@ -982,17 +923,18 @@ function AccountEditor({ initial, onSave, onDelete, onCancel }: {
   );
 }
 
-/** One subscription, editable down to the last character, and removable. */
+/** One subscription, new or editable down to the last character, and removable. */
 function SubEditor({ initial, onSave, onDelete, onCancel }: {
-  initial: TrackerSubData;
+  /** Null is a subscription being added. */
+  initial: TrackerSubData | null;
   onSave: (d: TrackerSubData) => void;
-  onDelete: () => void;
+  onDelete?: () => void;
   onCancel: () => void;
 }) {
-  const [name, setName] = useState(initial.merchantName);
-  const [amount, setAmount] = useState((initial.amountCents / 100).toFixed(2));
-  const [freq, setFreq] = useState<SubFrequency>(initial.frequency);
-  const [active, setActive] = useState(initial.status === "active");
+  const [name, setName] = useState(initial?.merchantName ?? "");
+  const [amount, setAmount] = useState(initial ? (initial.amountCents / 100).toFixed(2) : "");
+  const [freq, setFreq] = useState<SubFrequency>(initial?.frequency ?? "Monthly");
+  const [active, setActive] = useState(initial ? initial.status === "active" : true);
   const [touched, setTouched] = useState(false);
   const cents = dollarsToCents(amount);
   const valid = !!name.trim() && cents > 0;
@@ -1002,7 +944,7 @@ function SubEditor({ initial, onSave, onDelete, onCancel }: {
     onSave({ merchantName: name.trim(), amountCents: cents, frequency: freq, status: active ? "active" : "cancelled" });
   };
   return (
-    <FormSheet title="Edit Subscription" onCancel={onCancel} onSave={submit} saveDisabled={!valid}>
+    <FormSheet title={initial ? "Edit Subscription" : "New Subscription"} onCancel={onCancel} onSave={submit} saveDisabled={!valid}>
       <Group label="Subscription">
         <FieldRow tone="red" glyph={<Tag className="ic" />} label="Name" ariaLabel="Subscription name"
           value={name} onChange={setName} placeholder="Netflix" error={touched && !name.trim()} />
@@ -1015,14 +957,16 @@ function SubEditor({ initial, onSave, onDelete, onCancel }: {
           onPick={(v) => setFreq(v as SubFrequency)} />
       </Group>
       <ErrorLine text={touched && !valid ? "A name and an amount" : null} />
-      <Group label="Status">
-        {/* Cancelled keeps the row and its history; it just stops counting
-            toward the monthly total. Deleting is the other thing, below. */}
-        <SwitchRow tone="blue" glyph={<WalletGlyph />} label="Still Paying" ariaLabel="Still paying"
-          meta={active ? "Counts Toward the Monthly Total" : "Kept, Not Counted"}
-          on={active} onToggle={() => setActive((v) => !v)} />
-      </Group>
-      <DeleteRow label="Delete Subscription" onClick={onDelete} />
+      {initial && (
+        <Group label="Status">
+          {/* Cancelled keeps the row and its history; it just stops counting
+              toward the monthly total. Deleting is the other thing, below. */}
+          <SwitchRow tone="blue" glyph={<WalletGlyph />} label="Still Paying" ariaLabel="Still paying"
+            meta={active ? "Counts Toward the Monthly Total" : "Kept, Not Counted"}
+            on={active} onToggle={() => setActive((v) => !v)} />
+        </Group>
+      )}
+      {onDelete && <DeleteRow label="Delete Subscription" onClick={onDelete} />}
     </FormSheet>
   );
 }

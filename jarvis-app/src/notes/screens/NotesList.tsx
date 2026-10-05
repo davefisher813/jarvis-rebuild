@@ -3,8 +3,10 @@ import PageHeader, { BarAction, BarText } from "../../shared/PageHeader";
 import LifeHeader, { OptionsButton, type HeaderView } from "../../shared/LifeHeader";
 import HeadMenu from "../../shared/HeadMenu";
 import OptionsSheet, { type OptionRow } from "../../shared/OptionsSheet";
-import RowActionSheet from "../../shared/RowActionSheet";
-import { Check, FileText, Paperclip, PenLine, Search, Tag, Trash2, Plus } from "../../shared/icons";
+import RowActionSheet, { type RowAction } from "../../shared/RowActionSheet";
+import { useLongPress } from "../../shared/useLongPress";
+import { haptics } from "../../shared/haptics";
+import { Archive, Check, FileText, RotateCcw, Trash2 } from "../../shared/icons";
 import { useSwipe, type SwipeState } from "../../shared/useSwipe";
 import { useSelection } from "../../shared/useSelection";
 import SelectBar from "../../shared/SelectBar";
@@ -72,41 +74,67 @@ const VIEWS: HeaderView[] = [
 ];
 const sameFilter = (a: Filter, b: Filter) => JSON.stringify(a) === JSON.stringify(b);
 
-// THE SWIPE ON A NOTE (Dave 2026-09-02:
-
-// THE SWIPE ON A NOTE (Dave 2026-09-02: "Notes should be able to swipe and
-// take action (delete and whatever else you think is appropriate)"). The
-// task row's own shell: two slots slide in from the right, File (the area
-// picker, since every note on the list said Not Filed) and Delete (with
-// Undo, the flow's own). Off in select mode, where a half-swiped row under
-// a selection is two gestures fighting.
-type RowDrag = { dragging: boolean; style?: React.CSSProperties; handlers?: SwipeState["handlers"] };
-function NoteSwipeRow({ enabled, label, onFile, onAppend, onDelete, forever = false, children }: {
-  /** The note's own name, so the rail says WHICH note it would delete. */
-  enabled: boolean; label: string; onFile?: () => void; onAppend?: () => void; onDelete?: () => void; forever?: boolean; children: (drag: RowDrag) => ReactNode;
+// THE SWIPE ON A NOTE (Dave 2026-10-05, locked; docs/jarvis-unified/ROW-ACTIONS-SPEC.md). A note is a clean row:
+//
+//   tap          opens the note (a deleted note opens its menu instead, since there is no note to open)
+//   swipe left   the row's ONE quickest verb (Archive; Unarchive in the Archived view; Restore in Recently Deleted),
+//                then Delete (Delete Forever in Recently Deleted) behind it, never the only way
+//   swipe right  nothing: a note has nothing to complete, so it opts out
+//   long press   the context menu, every action again: Add a Line, File Under an Area, the verb, Delete
+//
+// There is no pill on the row. The gesture math is shared/useSwipe's and the press is shared/useLongPress's.
+type RowDrag = {
+  dragging: boolean; style?: React.CSSProperties; handlers: React.HTMLAttributes<HTMLElement>;
+  /** The tray is showing (or the row is mid-drag): a tap closes it instead of opening the note. */
+  open: boolean; close: () => void;
+  /** Opens the context menu, for a row whose tap has no note to open. */
+  openMenu: () => void;
+};
+interface NoteVerb { label: string; icon: ReactNode; run: () => void }
+function NoteSwipeRow({ enabled, label, verb, onDelete, forever = false, holdActions, children }: {
+  /** The note's own name, so the tray says WHICH note it acts on. */
+  enabled: boolean; label: string;
+  verb?: NoteVerb; onDelete?: () => void; forever?: boolean;
+  /** The long-press menu: every action again. */
+  holdActions: RowAction[];
+  children: (drag: RowDrag) => ReactNode;
 }) {
-  const swipe = useSwipe({ revealW: 88 * (1 + (onFile ? 1 : 0) + (onAppend ? 1 : 0)), enabled });
+  const slots = (verb ? 1 : 0) + (onDelete ? 1 : 0);
+  const swipe = useSwipe({ revealW: slots * 88, enabled: enabled && slots > 0 });
+  const [menuOpen, setMenuOpen] = useState(false);
+  const openMenu = () => { haptics.selection(); setMenuOpen(true); };
+  const press = useLongPress({ onLongPress: openMenu, ms: 420, enabled: enabled && holdActions.length > 0 });
+  // One handler set: the swipe's touch handlers and the press's, composed. The swipe's own mouse hold is left out (the
+  // press opens the menu instead of the tray, so the two never fight over one press).
+  const handlers = {
+    onTouchStart: (e: React.TouchEvent) => { swipe.handlers.onTouchStart(e); press.onTouchStart(e); },
+    onTouchMove: (e: React.TouchEvent) => { swipe.handlers.onTouchMove(e); press.onTouchMove(e); },
+    onTouchEnd: () => { swipe.handlers.onTouchEnd(); press.onTouchEnd(); },
+    onTouchCancel: press.onTouchCancel,
+    onPointerDown: press.onPointerDown,
+    onPointerMove: press.onPointerMove,
+    onPointerUp: press.onPointerUp,
+    onPointerLeave: press.onPointerLeave,
+    onClickCapture: press.onClickCapture,
+    onContextMenu: (e: React.MouseEvent) => { if (!enabled || holdActions.length === 0) return; e.preventDefault(); openMenu(); },
+  };
   return (
     <div className="task-swipe">
-      {/* QUICK APPEND (the writing system, wave 3): a line onto a note
-          without opening it, from the same swipe File and Delete live on. */}
-      {onAppend && (
-        <button className="task-snooze note-append" onClick={() => swipe.closeThen(onAppend)} aria-label="Add to this note">
-          <Plus className="ic" />
-          <span className="swipe-label">Add</span>
+      {verb && (
+        <button className="task-verb" onClick={() => swipe.closeThen(verb.run)} aria-label={verb.label + " " + label}>
+          {verb.icon}
+          <span className="swipe-label">{verb.label}</span>
         </button>
       )}
-      {onFile && (
-        <button className="task-snooze" onClick={() => swipe.closeThen(onFile)} aria-label="File under an area">
-          <Tag className="ic" />
-          <span className="swipe-label">File</span>
+      {onDelete && (
+        <button className="task-del" onClick={() => swipe.closeThen(onDelete)} aria-label={(forever ? "Delete forever: " : "Delete ") + label}>
+          <Trash2 className="ic" />
+          <span className="swipe-label">{forever ? "Forever" : "Delete"}</span>
         </button>
       )}
-      <button className="task-del" onClick={() => swipe.closeThen(onDelete)} aria-label={(forever ? "Delete forever: " : "Delete ") + label}>
-        <Trash2 className="ic" />
-        <span className="swipe-label">{forever ? "Forever" : "Delete"}</span>
-      </button>
-      {children({ dragging: swipe.dragging, style: swipe.dx ? { transform: `translateX(${swipe.dx}px)` } : undefined, handlers: swipe.handlers })}
+      {children({ dragging: swipe.dragging, style: swipe.dx ? { transform: `translateX(${swipe.dx}px)` } : undefined, handlers,
+        open: swipe.open || swipe.dx !== 0, close: () => swipe.closeThen(), openMenu })}
+      {menuOpen && <RowActionSheet title={label} actions={holdActions} onCancel={() => { setMenuOpen(false); swipe.closeThen(); }} />}
     </div>
   );
 }
@@ -158,6 +186,7 @@ export default function NotesList({
   onDeleteManyForever,
   onFile,
   onAppend,
+  onArchive,
   onRestore,
   onDeleteForever,
   onDelete,
@@ -173,9 +202,11 @@ export default function NotesList({
   // Select mode's Delete inside Recently Deleted: the same permanent delete
   // the row's Forever swipe runs, for the ticked notes.
   onDeleteManyForever?: (ids: string[]) => void;
-  // The swipe's two moves (2026-09-02): file under an area, delete one.
+  // The long-press menu's moves: file under an area, delete one.
   onFile?: (id: string) => void;
   onAppend?: (id: string) => void;
+  /** Swipe left's quickest verb: archive a note, or bring it back from the Archived view. */
+  onArchive?: (id: string, archived: boolean) => void;
   onRestore?: (id: string) => void;
   onDeleteForever?: (id: string) => void;
   onDelete?: (id: string) => void;
@@ -295,9 +326,16 @@ export default function NotesList({
     const body = (drag: RowDrag) => (
       <div
         className={"task-row p2 note-row" + (drag.dragging ? " swiping" : "")}
-        {...pressable(() => (sel.active ? sel.toggle(n.id) : n.deleted ? onRestore?.(n.id) : onOpen?.(n.id)))}
+        {...pressable(() => {
+          if (sel.active) { sel.toggle(n.id); return; }
+          // A row whose tray is showing closes it instead of opening the note.
+          if (drag.open) { drag.close(); return; }
+          // A deleted note has no note to open: its tap is its menu (Restore, Delete Forever).
+          if (n.deleted) { drag.openMenu(); return; }
+          onOpen?.(n.id);
+        })}
         style={drag.style}
-        {...(drag.handlers ?? {})}>
+        {...drag.handlers}>
         {/* The selection box takes the leading column: on a row with a glyph
             it is the glyph's column, on the line row it is the check column
             every task row keeps for exactly this. */}
@@ -339,24 +377,38 @@ export default function NotesList({
           )}
           {NOTES_ROW === "first" && n.first && <div className="note-first">{n.first}</div>}
         </div>
-        {!sel.active && n.deleted && onRestore && <span className="pill-act">Restore</span>}
         {!sel.active && !n.deleted && <div className="chev"></div>}
       </div>
     );
-    // A deleted row's swipe is Delete Forever alone; the other doors are
-    // for a note that is still here.
+    // THE MENU, EVERY ACTION AGAIN (the long press; never the only way to anything essential). A deleted note's menu is
+    // its whole detail: Restore, then Delete Forever.
     if (n.deleted) {
-      return onDeleteForever ? (
-        <NoteSwipeRow key={n.id} enabled={!sel.active} label={n.title} onDelete={() => onDeleteForever(n.id)} forever>
+      const menu: RowAction[] = [
+        ...(onRestore ? [{ label: "Restore", onPick: () => onRestore(n.id) }] : []),
+        ...(onDeleteForever ? [{ label: "Delete Forever", destructive: true, onPick: () => onDeleteForever(n.id) }] : []),
+      ];
+      return menu.length ? (
+        <NoteSwipeRow key={n.id} enabled={!sel.active} label={n.title}
+          verb={onRestore ? { label: "Restore", icon: <RotateCcw className="ic" />, run: () => onRestore(n.id) } : undefined}
+          onDelete={onDeleteForever ? () => onDeleteForever(n.id) : undefined} forever holdActions={menu}>
           {body}
         </NoteSwipeRow>
-      ) : <Fragment key={n.id}>{body({ dragging: false })}</Fragment>;
+      ) : <Fragment key={n.id}>{body({ dragging: false, handlers: {}, open: false, close: () => {}, openMenu: () => {} })}</Fragment>;
     }
-    return onDelete ? (
-      <NoteSwipeRow key={n.id} enabled={!sel.active} label={n.title} onFile={onFile ? () => onFile(n.id) : undefined} onAppend={onAppend ? () => onAppend(n.id) : undefined} onDelete={() => onDelete(n.id)}>
+    const unarchive = !!n.archived;
+    const menu: RowAction[] = [
+      ...(onAppend ? [{ label: "Add a Line", onPick: () => onAppend(n.id) }] : []),
+      ...(onFile ? [{ label: "File Under an Area", onPick: () => onFile(n.id) }] : []),
+      ...(onArchive ? [{ label: unarchive ? "Unarchive" : "Archive", onPick: () => onArchive(n.id, !unarchive) }] : []),
+      ...(onDelete ? [{ label: "Delete", destructive: true, onPick: () => onDelete(n.id) }] : []),
+    ];
+    return menu.length ? (
+      <NoteSwipeRow key={n.id} enabled={!sel.active} label={n.title}
+        verb={onArchive ? { label: unarchive ? "Unarchive" : "Archive", icon: <Archive className="ic" />, run: () => onArchive(n.id, !unarchive) } : undefined}
+        onDelete={onDelete ? () => onDelete(n.id) : undefined} holdActions={menu}>
         {body}
       </NoteSwipeRow>
-    ) : <Fragment key={n.id}>{body({ dragging: false })}</Fragment>;
+    ) : <Fragment key={n.id}>{body({ dragging: false, handlers: {}, open: false, close: () => {}, openMenu: () => {} })}</Fragment>;
   };
 
   return (

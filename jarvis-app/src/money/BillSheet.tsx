@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { Recurrence, BillInfo } from "../notes/types";
-import { FormSheet, Group, FieldRow, TextRow, MenuRow, SwitchRow, DeleteRow, ErrorLine, Note } from "../shared/FormSheet";
+import { FormSheet, Group, FieldRow, TextRow, MenuRow, SwitchRow, DeleteRow, ErrorLine, Note, Row } from "../shared/FormSheet";
 import { Calendar, Link2 } from "../shared/icons";
 import { DollarGlyph, RepeatGlyph, WalletGlyph } from "../shared/glyphs";
 import { monthDay } from "./bills";
@@ -27,7 +27,7 @@ export interface BillDraft {
 // and the pay link are typed at the right of their labels; Repeats opens
 // the dropdown; Autopay is a switch, with the truthful frame under it (it
 // changes what JARVIS SAYS about the bill, never what happens).
-export default function BillSheet({ mode, initial, paidOn, ledger = false, onSave, onDelete, onCancel }: {
+export default function BillSheet({ mode, initial, paidOn, ledger = false, onSave, onMarkPaid, onDelete, onCancel }: {
   // UP-CORE-13 (2026-09-05): "paid" is a new bill that already happened, the
   // shape a read receipt produces. Same form, same fields; what changes is
   // that the sheet says which day it was paid and Save files it as a record
@@ -43,6 +43,8 @@ export default function BillSheet({ mode, initial, paidOn, ledger = false, onSav
   // legacy bill task being edited keeps the sheet it always had.
   ledger?: boolean;
   onSave: (d: BillDraft) => void | Promise<boolean | void>;
+  /** The row's one verb, kept in its sheet (Dave 2026-10-05: the sheet holds every action). Only a bill that can still be paid. */
+  onMarkPaid?: () => void;
   onDelete?: () => void;
   onCancel: () => void;
 }) {
@@ -130,6 +132,9 @@ export default function BillSheet({ mode, initial, paidOn, ledger = false, onSav
           <FieldRow label="Currency" value={currency} onChange={(v) => setCurrency(v.toUpperCase())} placeholder={DEFAULT_CURRENCY}
             ariaLabel="Currency" error={touched && !currencyOk} />
         </Group>
+      )}
+      {mode === "edit" && onMarkPaid && (
+        <Group className="xs-actions"><Row onClick={onMarkPaid} chev label="Mark Paid" /></Group>
       )}
       {mode === "edit" && onDelete && (
         <Group className="xs-actions"><DeleteRow label="Delete Bill" onClick={onDelete} /></Group>

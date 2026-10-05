@@ -34,17 +34,31 @@ const render1 = (over: Partial<EventItem["data"]> = {}, props: Record<string, un
 };
 
 describe("DayRow quick actions", () => {
-  it("advertises the actions with a control, instead of hiding them behind a gesture", () => {
-    render1();
-    const grip = screen.getByLabelText("Quick actions");
-    expect(grip).toBeInTheDocument();
-    expect(grip).toHaveAttribute("aria-expanded", "false");
+  // NO PERMANENT AFFORDANCE (Dave 2026-10-05, locked: "never a permanent visual affordance (no grip dots, no always-visible
+  // hints); the peek and the tip teach it, then the UI stays clean"). The chevron that used to announce the swipe on every row
+  // is gone. The actions are still reachable with no touchscreen, by the long press or the context menu, which is the same
+  // RowActionSheet every other list opens.
+  it("draws no chevron or grip on the row, and the rail does not announce itself", () => {
+    const { container } = render(
+      <DayRow e={ev()} conflict={false} isNext={false} isPast={false} now={null} onOpen={() => {}} onShift={() => {}} onPushTomorrow={() => {}} onDelete={() => {}} />,
+    );
+    expect(container.querySelector(".sched-grip")).toBeNull();
+    expect(screen.queryByLabelText("Quick actions")).toBeNull();
+    expect(container.querySelectorAll(".pill-act, .row-act, .btn-sm").length).toBe(0);
+    expect(container.querySelector(".sched-actions")).toHaveAttribute("aria-hidden", "true");
   });
 
-  it("reveals and fires a forward shift without any touch event, which the swipe could not", () => {
+  it("opens every action as a menu on the context menu or a hold, with no touch event", () => {
     const { onShift } = render1();
-    fireEvent.click(screen.getByLabelText("Quick actions"));
-    expect(screen.getByLabelText("Hide quick actions")).toHaveAttribute("aria-expanded", "true");
+    fireEvent.contextMenu(screen.getByRole("button", { name: /Client Call/ }));
+    expect(screen.getByRole("button", { name: "Move to Tomorrow" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Delete" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "+15 Min" }));
+    expect(onShift).toHaveBeenCalledWith(15);
+  });
+
+  it("the swipe's rail still fires a forward shift", () => {
+    const { onShift } = render1();
     fireEvent.click(screen.getByText("+15m"));
     expect(onShift).toHaveBeenCalledWith(15);
   });
@@ -67,14 +81,12 @@ describe("DayRow quick actions", () => {
   // picker has always done and still does.
   it("no longer carries the nudges that never fitted", () => {
     render1();
-    fireEvent.click(screen.getByLabelText("Quick actions"));
     expect(screen.queryByText("−15m")).not.toBeInTheDocument();
     expect(screen.queryByText("+1h")).not.toBeInTheDocument();
   });
 
   it("deletes from the rail, which is the point of the change", () => {
     const { onDelete } = render1();
-    fireEvent.click(screen.getByLabelText("Quick actions"));
     fireEvent.click(screen.getByText("Delete"));
     expect(onDelete).toHaveBeenCalled();
   });
@@ -92,23 +104,20 @@ describe("DayRow quick actions", () => {
 
   it("reaches Tomorrow the same way", () => {
     const { onPushTomorrow } = render1();
-    fireEvent.click(screen.getByLabelText("Quick actions"));
     fireEvent.click(screen.getByText("Tomorrow"));
     expect(onPushTomorrow).toHaveBeenCalled();
   });
 
-  it("toggles shut again, and opening does not open the editor", () => {
+  it("a context menu opens the menu and not the editor, and closing it closes the rail", () => {
     const { onOpen } = render1();
-    const grip = screen.getByLabelText("Quick actions");
-    fireEvent.click(grip);
+    fireEvent.contextMenu(screen.getByRole("button", { name: /Client Call/ }));
     expect(onOpen).not.toHaveBeenCalled(); // the row's own tap must not fire
-    fireEvent.click(screen.getByLabelText("Hide quick actions"));
-    expect(screen.getByLabelText("Quick actions")).toHaveAttribute("aria-expanded", "false");
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(screen.queryByRole("button", { name: "Cancel" })).toBeNull();
   });
 
   it("LAW: a repeating event is movable, and offers Skip Today instead of Tomorrow", () => {
     const { onShift, onSkipToday } = render1({ recurrence: "weekly" });
-    fireEvent.click(screen.getByLabelText("Quick actions"));
     fireEvent.click(screen.getByText("+15m"));
     expect(onShift).toHaveBeenCalledWith(15);
     // Tomorrow would move the whole series' anchor; skipping one day cannot.
@@ -119,12 +128,16 @@ describe("DayRow quick actions", () => {
 
   it("stays out of the way on past events", () => {
     render(<DayRow e={ev()} conflict={false} isNext={false} isPast now={null} onOpen={() => {}} onShift={() => {}} onPushTomorrow={() => {}} />);
-    expect(screen.queryByLabelText("Quick actions")).not.toBeInTheDocument();
+    expect(screen.queryByText("+15m")).not.toBeInTheDocument();
+    fireEvent.contextMenu(screen.getByRole("button", { name: /Client Call/ }));
+    expect(screen.queryByRole("button", { name: "Cancel" })).toBeNull();
   });
 
   it("is absent when the row has no actions to offer", () => {
     render(<DayRow e={ev()} conflict={false} isNext={false} isPast={false} now={null} onOpen={() => {}} />);
-    expect(screen.queryByLabelText("Quick actions")).not.toBeInTheDocument();
+    expect(screen.queryByText("+15m")).not.toBeInTheDocument();
+    fireEvent.contextMenu(screen.getByRole("button", { name: /Client Call/ }));
+    expect(screen.queryByRole("button", { name: "Cancel" })).toBeNull();
   });
 
   it("still opens the editor on a normal row tap", () => {

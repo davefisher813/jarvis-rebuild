@@ -19,6 +19,7 @@ import { lineCase } from "../shared/casing";
 import { Nums } from "../bigger/GoalRowRuled";
 import { CheckCircleGlyph, SunriseGlyph } from "../shared/glyphs";
 import { usePushDepth } from "../shared/pushNav";
+import { useScrollOnPush } from "../brain/useScrollOnPush";
 import PageHeader from "../shared/PageHeader";
 import { pressable } from "../shared/pressable";
 
@@ -140,6 +141,7 @@ export default function InsightsFlow({ onBack, onOpenTask, onOpenEntity, onOpenM
   const noThanks = () => setOffered(true);
 
   const pushCls = usePushDepth(screen ? 1 : 0);
+  useScrollOnPush(screen ? 1 : 0);
 
   const story = useMemo(() => {
     const items: { d: string; name: string; kind: "goal" | "project" }[] = [];
@@ -255,7 +257,7 @@ export default function InsightsFlow({ onBack, onOpenTask, onOpenEntity, onOpenM
                   dismiss" intent (components.css) keeps Today's Check In and
                   the Tasks nudge; it is retired for this card only. */}
               {week.offer && !offered && rulesSvc && (
-                <div className="rep-one-acts week-acts">
+                <div className="rep-one-acts week-acts promo-actions">
                   <button type="button" className="btn btn-primary" onClick={() => void moveTwoBlocks()}>Move Two Blocks</button>
                   <button type="button" className="btn" onClick={noThanks}>No Thanks</button>
                 </div>

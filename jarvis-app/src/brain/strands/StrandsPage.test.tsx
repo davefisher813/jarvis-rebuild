@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import StrandsPage, { receiptLine } from "./StrandsPage";
 import BrainFlow from "../BrainFlow";
 import { NotesProvider } from "../../data/NotesProvider";
@@ -102,7 +102,7 @@ describe("StrandsPage renders the genome", () => {
     rows = [{ key: "completion_window", label: "When Tasks Get Done", have: 156, need: 10, unit: "completions", state: "known" }];
     svc.list.mockResolvedValue([strand()]);
     const { container } = render(<StrandsPage onBack={() => {}} />);
-    await screen.findByText("Gets things done mid morning");
+    await screen.findByText("Gets Things Done Mid Morning");
     const row = container.querySelector(".strand-row")!;
     await waitFor(() => expect(row.querySelector(".fact.good")).toHaveTextContent("High"));
     expect(row.querySelector(".fact.st")).toHaveTextContent("Learned");
@@ -127,7 +127,7 @@ describe("StrandsPage renders the genome", () => {
   it("shows each strand with its state word and its bucket", async () => {
     svc.list.mockResolvedValue([strand(), strand({ text: "Never schedule calls before 10", category: "work_style", source: "told", derivation: undefined }, "s2")]);
     const { container } = render(<StrandsPage onBack={() => {}} />);
-    await screen.findByText("Gets things done mid morning");
+    await screen.findByText("Gets Things Done Mid Morning");
     const rows = [...container.querySelectorAll(".strand-row")];
     expect(rows[0]?.querySelector(".fact.st")?.textContent).toBe("Learned");
     expect(rows[0]?.textContent).toContain("Energy");
@@ -142,27 +142,30 @@ describe("StrandsPage renders the genome", () => {
     svc.list.mockResolvedValue([strand(), strand({ text: "Admin happens Friday afternoons", category: "routine", lastConfirmed: "2026-05-01" }, "s2")]);
     const { container } = render(<StrandsPage onBack={() => {}} />);
     await waitFor(() => expect(container.querySelectorAll(".strand-row").length).toBe(2));
-    const fading = [...container.querySelectorAll(".strand-row")].find((r) => r.textContent?.includes("Admin happens"));
+    const fading = [...container.querySelectorAll(".strand-row")].find((r) => r.textContent?.includes("Admin Happens"));
     expect(fading?.querySelector(".fact.st")?.textContent).toBe("Fading");
     // §AK one grey (2026-09-26): the bucket is the row's one plain grey. The
     // days unconfirmed were a second; Fading already says it, and the sheet
     // gives the day it was last confirmed.
     expect([...fading!.querySelectorAll(".fact:not(.st)")].map((e) => e.textContent)).toEqual(["Routine"]);
-    expect(fading?.querySelector(".pill-act")?.textContent).toBe("Still True");
+    // CLEAN ROWS (Dave 2026-10-05): no capsule on the row. Still True is the fading row's one quiet word, the same
+    // verb as its swipe-left, and its sheet's primary.
+    expect(fading?.querySelector(".pill-act")).toBeNull();
+    expect(fading?.querySelector(".row-ctx")?.textContent).toBe("Still True");
     fireEvent.click(screen.getByText("Needs Confirmation"));
     // TodaySuggestions offers the same faded fact as a card above the list,
     // so the list is read through its rows.
     const rowTexts = () => [...container.querySelectorAll(".strand-row")].map((r) => r.textContent ?? "");
-    expect(rowTexts().some((t) => t.includes("Gets things done mid morning"))).toBe(false);
-    expect(rowTexts().some((t) => t.includes("Admin happens Friday afternoons"))).toBe(true);
-    fireEvent.click(container.querySelector(".strand-row .pill-act")!);
+    expect(rowTexts().some((t) => t.includes("Gets Things Done Mid Morning"))).toBe(false);
+    expect(rowTexts().some((t) => t.includes("Admin Happens Friday Afternoons"))).toBe(true);
+    fireEvent.click(container.querySelector(".strand-row .row-ctx")!);
     await waitFor(() => expect(svc.confirm).toHaveBeenCalled());
   });
 
   it("the sheet says where the fact is used (C-43)", async () => {
     svc.list.mockResolvedValue([strand()]);
     render(<StrandsPage onBack={() => {}} />);
-    fireEvent.click(await screen.findByText("Gets things done mid morning"));
+    fireEvent.click(await screen.findByText("Gets Things Done Mid Morning"));
     await screen.findByText("Used By");
     // One fact with the list in it (§AK), not a plain grey per surface.
     expect(screen.getByText("Schedule, Plan My Day, Your Move")).toHaveClass("fact");
@@ -180,7 +183,7 @@ describe("StrandsPage renders the genome", () => {
   it("opens the receipts, so a claim can always be checked", async () => {
     svc.list.mockResolvedValue([strand()]);
     render(<StrandsPage onBack={() => {}} />);
-    fireEvent.click(await screen.findByText("Gets things done mid morning"));
+    fireEvent.click(await screen.findByText("Gets Things Done Mid Morning"));
     await screen.findByText("Finished in the 9 AM Window");
     expect(screen.getByText("Aug 19")).toBeInTheDocument();
   });
@@ -188,7 +191,7 @@ describe("StrandsPage renders the genome", () => {
   it("gives wrongness an exit on every strand", async () => {
     svc.list.mockResolvedValue([strand()]);
     render(<StrandsPage onBack={() => {}} />);
-    fireEvent.click(await screen.findByText("Gets things done mid morning"));
+    fireEvent.click(await screen.findByText("Gets Things Done Mid Morning"));
     await screen.findByText("Edit");
     expect(screen.getByText("Pause")).toBeInTheDocument();
     expect(screen.getByText("Delete")).toBeInTheDocument();
@@ -197,7 +200,7 @@ describe("StrandsPage renders the genome", () => {
   it("delete actually calls the service, not just a dialog that closes", async () => {
     svc.list.mockResolvedValue([strand()]);
     render(<StrandsPage onBack={() => {}} />);
-    fireEvent.click(await screen.findByText("Gets things done mid morning"));
+    fireEvent.click(await screen.findByText("Gets Things Done Mid Morning"));
     fireEvent.click(await screen.findByText("Delete"));
     await waitFor(() => expect(svc.remove).toHaveBeenCalled());
   });
@@ -214,7 +217,7 @@ describe("StrandsPage renders the genome", () => {
   it("a paused strand stays visible rather than disappearing", async () => {
     svc.list.mockResolvedValue([strand({ status: "paused" })]);
     const { container } = render(<StrandsPage onBack={() => {}} />);
-    await screen.findByText("Gets things done mid morning");
+    await screen.findByText("Gets Things Done Mid Morning");
     expect(container.querySelector(".strand-row.paused")).toBeTruthy();
   });
 });
@@ -238,16 +241,16 @@ describe("StrandsPage: openId deep-links straight to one strand (S6-Q35)", () =>
     // Not present before the list resolves; appears once it does -- proves
     // the open is derived from live data, not captured once at mount.
     await waitFor(() => expect(container.querySelector(".strand-head")).toBeTruthy());
-    expect(container.querySelector(".strand-head")?.textContent).toBe("Never schedule calls before 10");
+    expect(container.querySelector(".strand-head")?.textContent).toBe("Never Schedule Calls Before 10");
     expect(screen.getByText("Edit")).toBeInTheDocument();
     // The OTHER strand's own row is on the list behind it, not the one open.
-    expect(screen.getByText("Gets things done mid morning")).toBeInTheDocument();
+    expect(screen.getByText("Gets Things Done Mid Morning")).toBeInTheDocument();
   });
 
   it("an id that matches nothing opens nothing: the list renders, no dead sheet", async () => {
     svc.list.mockResolvedValue([strand()]);
     render(<StrandsPage openId="no-such-strand" onBack={() => {}} />);
-    await screen.findByText("Gets things done mid morning");
+    await screen.findByText("Gets Things Done Mid Morning");
     expect(screen.queryByText("Edit")).not.toBeInTheDocument();
   });
 });
@@ -280,7 +283,7 @@ describe("Make It a Rule (S4-Q24)", () => {
     render(<StrandsPage onBack={() => {}} />);
     // On the row it is the RULE state word (C-40); the sheet keeps its eyebrow.
     await screen.findByText("Rule");
-    fireEvent.click(screen.getByText("Gets things done mid morning"));
+    fireEvent.click(screen.getByText("Gets Things Done Mid Morning"));
     // The eyebrow's separators are drawn by CSS (§AM F3), so the words are
     // three facts rather than one string with the dots typed in.
     await waitFor(() => expect([...document.querySelectorAll(".sheet-scrim .eyebrow .fact")].map((e) => e.textContent))
@@ -292,7 +295,7 @@ describe("Make It a Rule (S4-Q24)", () => {
     const s = strand({ strength: "influence" });
     svc.list.mockResolvedValue([s]);
     render(<StrandsPage onBack={() => {}} />);
-    fireEvent.click(await screen.findByText("Gets things done mid morning"));
+    fireEvent.click(await screen.findByText("Gets Things Done Mid Morning"));
     fireEvent.click(await screen.findByText("Edit"));
     fireEvent.click(screen.getByRole("switch", { name: "Make It a Rule" }));
     fireEvent.click(screen.getByText("Save"));
@@ -303,7 +306,7 @@ describe("Make It a Rule (S4-Q24)", () => {
     const s = strand({ strength: "rule" });
     svc.list.mockResolvedValue([s]);
     render(<StrandsPage onBack={() => {}} />);
-    fireEvent.click(await screen.findByText("Gets things done mid morning"));
+    fireEvent.click(await screen.findByText("Gets Things Done Mid Morning"));
     fireEvent.click(await screen.findByText("Edit"));
     fireEvent.click(screen.getByRole("switch", { name: "Make It a Rule" }));
     fireEvent.click(screen.getByText("Save"));
@@ -314,7 +317,7 @@ describe("Make It a Rule (S4-Q24)", () => {
     const s = strand({ strength: "influence" });
     svc.list.mockResolvedValue([s]);
     render(<StrandsPage onBack={() => {}} />);
-    fireEvent.click(await screen.findByText("Gets things done mid morning"));
+    fireEvent.click(await screen.findByText("Gets Things Done Mid Morning"));
     fireEvent.click(await screen.findByText("Edit"));
     fireEvent.click(screen.getByText("Save"));
     await waitFor(() => expect(svc.edit).toHaveBeenCalled());
@@ -408,7 +411,7 @@ describe("StrandsPage write guard (BRAIN-F-12)", () => {
       svc.list.mockResolvedValue([strand()]);
       svc.setStatus.mockRejectedValueOnce(new Error("offline"));
       render(<StrandsPage onBack={() => {}} />);
-      fireEvent.click(await screen.findByText("Gets things done mid morning"));
+      fireEvent.click(await screen.findByText("Gets Things Done Mid Morning"));
       fireEvent.click(await screen.findByText("Pause"));
       await waitFor(() => expect(seen).toContain(WRITE_FAILED_MESSAGE));
       expect(screen.getByText("Pause")).toBeInTheDocument();
@@ -501,7 +504,8 @@ describe("What JARVIS Knows: leaving the form, and what a readiness row opens", 
     // Not the insight form.
     expect(screen.queryByText("Something JARVIS Should Know About You")).not.toBeInTheDocument();
     // The way to add it yourself is one tap on from the detail.
-    fireEvent.click(screen.getByRole("button", { name: "Tell JARVIS" }));
+    // The tray's swipe-left verb carries the same words (clean rows, Dave 2026-10-05): the sheet's is the one in the dialog.
+    fireEvent.click(within(dialog).getByRole("button", { name: "Tell JARVIS" }));
     expect(screen.queryByRole("dialog", { name: "When You Train" })).not.toBeInTheDocument();
     expect(screen.getByText("Something JARVIS Should Know About You")).toBeInTheDocument();
   });

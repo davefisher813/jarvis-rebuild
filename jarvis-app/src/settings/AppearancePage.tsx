@@ -1,3 +1,5 @@
+import { useEffect, useState } from "react";
+import { readSystemTextScale } from "../appearance/textZoom";
 import { useAppearance, type Appearance, type TextSize, type Theme } from "../appearance/AppearanceProvider";
 import { useSettings } from "../data/NotesProvider";
 import { SETTING_APPEARANCE } from "../data/SettingsService";
@@ -30,25 +32,31 @@ export default function AppearancePage({ onBack }: { onBack: () => void }) {
     void settings?.set(SETTING_APPEARANCE, { ...appearance, ...patch });
   };
 
+  // THE FOOTER KEEPS ONLY PROMISES THE CODE KEEPS (2026-10-04, audit; the seam stays honest for the text-zoom work
+  // that lands later). The phone's own Larger Text answers through appearance/textZoom.ts readSystemTextScale, which
+  // is null until the native plugin is wired. The moment it answers a number, Default follows the phone (the
+  // AppearanceProvider already applies it) and the footer says so; until then it says only what the menu does.
+  const [phoneScale, setPhoneScale] = useState<number | null>(null);
+  useEffect(() => {
+    let on = true;
+    void readSystemTextScale().then((n) => { if (on) setPhoneScale(n); });
+    return () => { on = false; };
+  }, []);
+
   return (
     <div className="screen ruled">
       <LargeTitleNav title="Appearance" back="Settings" onBack={onBack} />
-      <Head label="Theme" />
+      {/* ONE HEAD, ONE CARD (Dave 2026-10-05, "say it once"): Theme and Text Size were two heads over two rows that said
+          the same two words again. */}
+      <Head label="Display" />
       <Card>
         <Menu label="Theme" value={appearance.theme} options={[{ value: "dark", label: "Dark" }, { value: "light", label: "Light" }]}
           onPick={(v) => { setTheme(v as Theme); save({ theme: v as Theme }); }} />
-      </Card>
-      <Head label="Text Size" />
-      <Card>
         <Menu label="Text Size" value={appearance.textSize} options={SIZE_OPTIONS}
           onPick={(v) => { setTextSize(v as TextSize); save({ textSize: v as TextSize }); }} />
       </Card>
-      {/* Sentence case: this talks. It says what the setting is for and says
-          nothing about the phone's own text size: the line that promised it
-          "still applies" was never built (appearance/textZoom.ts reads null
-          until the text-zoom plugin is installed), so it went 2026-10-04.
-          Put it back only with the plugin. */}
-      <Foot>Bigger text everywhere in JARVIS</Foot>
+      {/* Sentence case: this talks. */}
+      <Foot>{phoneScale !== null ? "Default follows your phone's own text size \u00b7 Larger and Largest set it here" : "Bigger text everywhere in JARVIS"}</Foot>
       <div className="screen-foot" />
     </div>
   );

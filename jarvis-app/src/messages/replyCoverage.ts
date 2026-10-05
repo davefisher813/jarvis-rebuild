@@ -425,12 +425,13 @@ export function evaluateCoverage(
 
 /**
  * The indicator's words. "Answered 3 of 4" when the whole conversation was
- * read; "Answered 3 of 4 Found · Review Requests" when part of it was not,
- * because a count over a partial read is not the count. Null when there is
+ * read; "Answered 3 of 4 Found" when part of it was not (the row's own line
+ * says "Not Every Message Was Read", and no dot is baked into the title), because
+ * a count over a partial read is not the count. Null when there is
  * nothing to show: a complete read that found nothing asked.
  */
 export function coverageSummary(result: CoverageResult, completeSource: boolean): { label: string; incomplete: boolean } | null {
   if (result.total === 0 && completeSource) return null;
-  if (!completeSource) return { label: `Answered ${result.answered} of ${result.total} Found · Review Requests`, incomplete: true };
+  if (!completeSource) return { label: `Answered ${result.answered} of ${result.total} Found`, incomplete: true };
   return { label: `Answered ${result.answered} of ${result.total}`, incomplete: false };
 }

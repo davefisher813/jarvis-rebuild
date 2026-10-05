@@ -27,6 +27,7 @@ import { todayISO } from "../tasks/grouping";
 import { addDays } from "../schedule/calendar";
 import { resetToasts } from "../shared/toast";
 import MoneyFlow from "./MoneyFlow";
+import { loneActionBoxes } from "../laws/catalogCheck";
 import MatchesCard from "./screens/MatchesCard";
 import TrackerScreen from "./screens/TrackerScreen";
 import ReceiptsSection from "./screens/ReceiptsSection";
@@ -339,20 +340,32 @@ describe("the Money page: the recurring offer and a bill that waits on you", () 
     return todayISO(d);
   };
 
-  it("Make It Monthly: the question is the title of its own row beside Yes and Not Now, and the count is the other row's one grey", async () => {
+  it("Make It Monthly: the question is the name of a clean row, the bill is a white fact and the count the one grey, and no pill sits on it", async () => {
     const { container } = mount("cat-offer", async (h) => { for (const n of [2, 1, 0]) await addBill(h.ledger, { vendor: "Offer Co", amount: 84.12, dueDate: month(n) }); }, <MoneyFlow />);
     const question = await screen.findByText("Make It Monthly?");
-    // Not a fact on a line beside the pills, where it was cut to nothing: a name, with the answers in its row.
-    expect(question).toHaveClass("conn-name");
+    // A name with the row's own width, not a fact on a line beside pills where it was cut to nothing.
+    expect(question).toHaveClass("task-name");
     expect(question.closest(".fact")).toBeNull();
-    const answers = question.closest(".row") as HTMLElement;
-    expect([...answers.querySelectorAll(".pill-act")].map((b) => b.textContent)).toEqual(["Yes", "Not Now"]);
-    // The count has the row above to itself: the one grey, whole.
-    const evidence = screen.getByText("Offer Co, $84.12").closest(".task-row") as HTMLElement;
-    expect([...evidence.querySelectorAll(".fact")].map((f) => f.textContent)).toEqual(["3 Months in a Row"]);
-    expect(evidence.querySelector(".pill-act")).toBeNull();
-    expect(catalogViolations(evidence)).toEqual([]);
+    const row = question.closest(".task-row") as HTMLElement;
+    // Clean row (Dave 2026-10-05, locked): no pill, no capsule; Yes and Not Now are the tap's sheet and the swipe.
+    expect(row.querySelector(".pill-act, .row-act, .btn-sm, .quiet-action")).toBeNull();
+    expect([...row.querySelectorAll(".fact")].map((f) => f.textContent)).toEqual(["Offer Co, $84.12", "3 Months in a Row"]);
+    expect([...row.querySelectorAll(".fact")].filter(isGrey).map((f) => f.textContent)).toEqual(["3 Months in a Row"]);
+    // The quickest answer is the swipe's first button.
+    expect(screen.getByRole("button", { name: "Not Now Make It Monthly" })).toBeInTheDocument();
+    expect(catalogViolations(row)).toEqual([]);
     expect(catalogViolations(container)).toEqual([]);
+  });
+
+  it("tapping the offer's row asks: Make It Monthly, Not Now, or open the bill", async () => {
+    mount("cat-offer-sheet", async (h) => { for (const n of [2, 1, 0]) await addBill(h.ledger, { vendor: "Offer Co", amount: 84.12, dueDate: month(n) }); }, <MoneyFlow />);
+    fireEvent.click(await screen.findByText("Make It Monthly?"));
+    expect(await screen.findByRole("button", { name: "Make It Monthly" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Not Now" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Open Bill" })).toBeInTheDocument();
+    // Not Now answers it and the row goes.
+    fireEvent.click(screen.getByRole("button", { name: "Not Now" }));
+    await waitFor(() => expect(screen.queryByText("Make It Monthly?")).toBeNull());
   });
 
   it("a paid bill whose amount was corrected waits for the person: the amber, not the grey", async () => {
@@ -398,7 +411,7 @@ describe("the Tracker: transactions, budgets, subscriptions and the dashboard", 
       await h.ledger.approveReceiptMatch(r.id, txId);
     }, <TrackerScreen onBack={() => {}} />);
     await tab("Transactions");
-    const row = (await screen.findByText("Stop & Shop", { selector: ".conn-name" })).closest(".row") as HTMLElement;
+    const row = (await screen.findByText("Stop & Shop", { selector: ".task-name" })).closest(".task-row") as HTMLElement;
     expect([...row.querySelectorAll(".fact")].map((f) => f.textContent)).toEqual([expect.stringMatching(/^[A-Z][a-z]{2} 8$/), "Matched", "Groceries"]);
     expect(row.querySelector(".fact.good")).toHaveTextContent("Matched");
     expect([...row.querySelectorAll(".fact")].filter(isGrey).map((f) => f.textContent)).toEqual(["Groceries"]);
@@ -416,16 +429,18 @@ describe("the Tracker: transactions, budgets, subscriptions and the dashboard", 
       await h.ledger.approveBillMatch(b, tx2);
     }, <TrackerScreen onBack={() => {}} />);
     await tab("Transactions");
-    fireEvent.click((await screen.findByText("Stop & Shop", { selector: ".conn-name" })).closest(".row")!);
+    fireEvent.click((await screen.findByText("Stop & Shop", { selector: ".task-name" })).closest(".task-row")!);
     await screen.findByText("Edit Transaction");
-    // Twice: the sheet's Match row, and the line the link wrote in its history; the Match row has the Unmatch capsule.
-    const recRow = screen.getAllByText("Matched to a Receipt").map((n) => n.closest(".row") as HTMLElement).find((r) => r.querySelector(".pill-act"))!;
+    // Twice: the sheet's Match row, and the line the link wrote in its history. Unmatch is an action row of its own, never a capsule on the match row.
+    expect(screen.getByText("Unmatch Receipt")).toBeInTheDocument();
+    expect(document.querySelector(".xs .pill-act")).toBeNull();
+    const recRow = screen.getAllByText("Matched to a Receipt").map((n) => n.closest(".row") as HTMLElement).find((r) => r.querySelector(".conn-meta > .fact.date"))!;
     expect([...recRow.querySelectorAll(".conn-meta > .fact")].map((f) => f.textContent)).toEqual(["$47.12", `${MON} 8`]);
     expect(recRow.querySelector(".conn-meta > .fact.date")).toBeTruthy();
     expect(catalogViolations(document.body)).toEqual([]);
     fireEvent.click(screen.getAllByText("Cancel")[0]!);
     await waitFor(() => expect(screen.queryByText("Edit Transaction")).toBeNull());
-    fireEvent.click((await screen.findByText("ConEdison", { selector: ".conn-name" })).closest(".row")!);
+    fireEvent.click((await screen.findByText("ConEdison", { selector: ".task-name" })).closest(".task-row")!);
     await screen.findByText("Edit Transaction");
     const billRow = (await screen.findByText("Pays a Bill")).closest(".row") as HTMLElement;
     expect([...billRow.querySelectorAll(".conn-meta > .fact")].map((f) => f.textContent)).toEqual(["$84.12"]);
@@ -438,11 +453,13 @@ describe("the Tracker: transactions, budgets, subscriptions and the dashboard", 
     await screen.findByText("Add Manually");
     expect(container.textContent).not.toMatch(/Nothing (Tracked Yet|Matches)/);
     await tab("Subscriptions");
-    await screen.findByText("Add One");
+    await screen.findByRole("button", { name: "Add a Subscription" });
     expect(container.textContent).not.toMatch(/Nothing Tracked Yet/);
-    // The card around the subscriptions is not drawn with nothing in it.
+    // With nothing in it the section is its head and the capsule: no card at all (rule 12), and the add is the head's.
     const head = [...container.querySelectorAll(".sh2")].find((h) => h.textContent?.startsWith("Subscriptions"))!;
-    expect(head.nextElementSibling?.querySelector(".card")?.children.length ?? -1).not.toBe(0);
+    expect(head.querySelector(".pill-action")).toHaveAccessibleName("Add a Subscription");
+    expect(head.nextElementSibling?.querySelector(".card") ?? null).toBeNull();
+    expect(loneActionBoxes(container)).toEqual([]);
     await tab("Dashboard");
     expect(container.textContent).not.toMatch(/Nothing Spent This Month/);
     expect([...container.querySelectorAll(".sh2 .t")].map((t) => t.textContent)).not.toContain("Spending by Category");

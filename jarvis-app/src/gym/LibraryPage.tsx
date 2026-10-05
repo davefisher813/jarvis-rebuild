@@ -3,6 +3,8 @@ import { useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { LibraryRow } from "./libraryEdit";
 import { rowDoor } from "../shared/rowDoor";
+import GymSwipeRow from "./GymSwipeRow";
+import { Tag } from "../shared/icons";
 import { agoPhrase } from "./summary";
 import { shortDate } from "../shared/dateFormat";
 import SheetBar from "../shared/SheetBar";
@@ -44,6 +46,9 @@ import { DEFAULT_SORT, defaultView, filterCount, floorLine, NO_FILTER, SORT_LABE
 // handoff asked for by name.
 
 const CHEV = <div className="chev" />;
+const STAR = (
+  <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinejoin="round"><path d="M12 3.5l2.6 5.4 5.9.8-4.3 4.1 1.1 5.9L12 16.9l-5.3 2.8 1.1-5.9-4.3-4.1 5.9-.8z" /></svg>
+);
 
 /** The colour an axis speaks in. One meaning per hue, so a row of chips can
  *  be read by colour before it is read by word. */
@@ -322,16 +327,13 @@ export default function LibraryPage({
             </div></div>
           )}
 
+          {/* THE ADD IS THE HEAD'S (Dave 2026-10-05, locked; and 2026-09-17 before it: "the add exercise option should be at
+              the top of the page not the bottom"). It was the first row of the list card, in the same in-list create every
+              gym list wore. A section-level action is the head's one capsule, never a row inside the card. */}
+          <div className="sh2 sh2-quiet"><span className="t">Your Lifts</span>
+            {onCreate && !selecting && <button type="button" className="see-all pill-action" onClick={openCreate}>Add Exercise</button>}
+          </div>
           <div className="pad-x"><div className="card list-card-ruled">
-            {/* AT THE TOP (Dave 2026-09-17: "the add exercise option should be
-                at the top of the page not the bottom"). It was the last row of
-                the list, on the reasoning that you arrive there having failed
-                to find what you were looking for -- which is true of a search
-                and false of a library you already know is missing something.
-                Thirty-two rows is a long way to scroll to reach a verb. It is
-                still .row-create, the same in-list create Add Day and Add Week
-                wear; it just leads. */}
-            {onCreate && !selecting && <button className="row-create" onClick={openCreate}>Add Exercise</button>}
             {shown.map((r) => {
               const c = classFor(r);
               const chips = rowChips(c);
@@ -340,12 +342,27 @@ export default function LibraryPage({
               // by side they were up to four runs of the same grey.
               const flags = [r.favorite && "Favorite", r.hidden && "Hidden", c.archived && "Archived", justSaved.includes(r.key) && "Saved"]
                 .filter(Boolean).join(", ");
+              const nag = needsMuscles(c);
+              const assign = () => setClassing({ row: r, open: "muscles" });
+              // THE ROW'S ONE QUICK VERB (Dave 2026-10-05, locked): the moment's action when the row has one (muscles still to
+              // assign), Favorite otherwise; Delete behind it.
+              const verb = nag
+                ? { label: "Assign", name: "Assign Muscles", icon: <Tag className="ic" />, run: assign }
+                : onToggleFavorite
+                  ? { label: r.favorite ? "Unfavorite" : "Favorite", icon: STAR, run: () => onToggleFavorite(r) }
+                  : null;
               return (
                 // THE WHOLE ROW IS THE DOOR (Dave 2026-09-15: "I want all rows
                 // clickable"). Only the name used to open the exercise; the
                 // facts, the gaps and the padding were dead. Selecting, the row
-                // picks instead. The chips and the overflow keep their own verbs.
-                <div className={"row ex-row" + (on ? " on" : "")} key={r.key}
+                // picks instead. Muscles, equipment and movement are FACTS now
+                // (Dave 2026-10-05, locked: no pill in a row); the details sheet
+                // that edits them is in the row's menu, and a row with no muscle
+                // yet surfaces its one action in the key colour.
+                <GymSwipeRow key={r.key} name={liftTitle(r.name)} enabled={!selecting}
+                  verb={verb} onDelete={onDelete ? () => onDelete(r) : undefined}
+                  menu={menuActions(r).map((a) => ({ label: a.label, destructive: a.destructive, onPick: a.onClick }))}>
+                <div className={"row ex-row" + (on ? " on" : "")}
                   {...rowDoor(selecting
                     ? () => setPicked(on ? picked.filter((k) => k !== r.key) : [...picked, r.key])
                     : () => onOpen(r))}>
@@ -372,45 +389,31 @@ export default function LibraryPage({
                         {flags && <span className="fact">{flags}</span>}
                       </div>
                     )}
-                    <div className="ex-chips">
-                      {chips.map((ch, i) => (
-                        <button
-                          key={ch.label + i}
-                          type="button"
+                    {(chips.length > 0 || nag) && (
+                      <div className="facts">
+                        {chips.map((ch, i) => (
                           // EACH AXIS ITS OWN COLOUR (2026-09-16, Dave: "too
-                          // much of the same color"). Every chip that meant
-                          // anything was cyan, and so was the date beside
-                          // them, so one row said cyan three times about
-                          // three unrelated things and the eye had nothing to
-                          // sort by. A muscle is what the lift trains and
-                          // takes the lime the app already spends on work
-                          // done; equipment takes the violet the session
-                          // header's own equipment chip has always worn; the
-                          // movement pattern is the least load-bearing axis
-                          // and stays quiet. (Whether these axis hues stand
-                          // under the 2026-09-22 Colour Key is Dave's call,
-                          // queue #317; they are left as they are until then.)
-                          className={"ex-chip" + chipTone(ch)}
-                          aria-label={`${ch.label}, edit`}
-                          disabled={selecting}
-                          onClick={(e) => { e.stopPropagation(); setClassing({ row: r, open: ch.field }); }}
-                        >
-                          {ch.label}
-                        </button>
-                      ))}
-                      {/* THE ONE NAG, AND ONLY WHEN IT IS TRUE. */}
-                      {needsMuscles(c) && (
-                        <button type="button" className="ex-chip amber" disabled={selecting}
-                          onClick={(e) => { e.stopPropagation(); setClassing({ row: r, open: "muscles" }); }}>
-                          Assign Muscles
-                        </button>
-                      )}
-                      {/* NO OTHER TITLE ON THE ROW (Dave 2026-09-18: "also
-                          (other title) needs to be deleted and never
-                          render"). A merged-away name is history, not an
-                          attribute of the exercise, and it read as a second
-                          name for a row whose whole job is to carry one. */}
-                    </div>
+                          // much of the same color"). A muscle is what the
+                          // lift trains and takes the lime the app already
+                          // spends on work done; equipment takes the violet
+                          // the session header's own equipment chip has always
+                          // worn; the movement pattern is the least
+                          // load-bearing axis and stays quiet. (Whether these
+                          // axis hues stand under the 2026-09-22 Colour Key is
+                          // Dave's call, queue #317.)
+                          <span key={ch.label + i} className={"fact" + chipTone(ch)}>{ch.label}</span>
+                        ))}
+                        {/* THE ONE NAG, AS A STATE (Dave 2026-10-05, locked: no pill and no action text on a row that is not
+                            yet due). A library with nothing classified would draw an action on every row, so the row says what
+                            is missing in the amber a state wears; the action itself is the swipe's Assign Muscles. */}
+                        {nag && <span className="fact amber">No Muscles Yet</span>}
+                      </div>
+                    )}
+                    {/* NO OTHER TITLE ON THE ROW (Dave 2026-09-18: "also
+                        (other title) needs to be deleted and never
+                        render"). A merged-away name is history, not an
+                        attribute of the exercise, and it read as a second
+                        name for a row whose whole job is to carry one. */}
                   </div>
                   {selecting
                     ? <span className={"ex-check" + (on ? " on" : "")} aria-hidden="true" />
@@ -421,6 +424,7 @@ export default function LibraryPage({
                       </button>
                     )}
                 </div>
+                </GymSwipeRow>
               );
             })}
             {shown.length === 0 && (

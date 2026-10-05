@@ -227,7 +227,7 @@ describe("Reply Coverage in the composer", () => {
     await waitFor(() => expect(screen.getByLabelText("Message").textContent).toContain("Waiver attached"));
     await act(async () => { await new Promise((r) => setTimeout(r, 400)); });
     expect(screen.getByText("Answered 0 of 1")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Check" }));
+    fireEvent.click(screen.getByText("Answered 0 of 1"));
     expect(await screen.findByText("Open, Nothing Is Attached")).toBeInTheDocument();
     // A decline is an answer (and does not complete it).
     await type("Can't send waiver until Friday");
@@ -254,8 +254,9 @@ describe("Reply Coverage in the composer", () => {
     await screen.findByRole("button", { name: "Add to Calendar" });
     fireEvent.click(await screen.findByText("Reply"));
     await screen.findByText("Answered 0 of 1");
-    fireEvent.click(screen.getByRole("button", { name: "Check" }));
-    fireEvent.click(await screen.findByRole("button", { name: "Mark Answered" }));
+    fireEvent.click(screen.getByText("Answered 0 of 1"));
+    // The line's check is state and the row is the door: one tap marks it answered, with no capsule on the row.
+    fireEvent.click((await screen.findByLabelText(/, Open$/)));
     expect(await screen.findByText("Answered 1 of 1")).toBeInTheDocument();
     // The draft autosaves locally with the mark and the revision it was made on.
     await act(async () => { screen.getByLabelText("Message").querySelector("p")!.textContent = "Handled it by phone"; });

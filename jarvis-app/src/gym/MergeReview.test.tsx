@@ -87,7 +87,9 @@ describe("conflicts are resolved explicitly", () => {
   it("hands the field up when the other answer is chosen", () => {
     const onTake = vi.fn();
     render(<MergeReviewSheet {...noop} onTake={onTake} state={state()} />);
-    fireEvent.click(screen.getAllByRole("button", { name: "Use Bench" })[0]!);
+    // CLEAN ROW (Dave 2026-10-05, locked): the Use Bench capsule is gone; the conflict's row is the whole control.
+    expect(document.querySelector(".card .row .pill-act")).toBeNull();
+    fireEvent.click(screen.getByText("Primary Muscles"));
     expect(onTake).toHaveBeenCalledWith("primary");
   });
 });

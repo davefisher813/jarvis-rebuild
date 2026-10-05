@@ -141,7 +141,7 @@ export default function DemoMail({ onConnect }: { onConnect?: () => void }) {
 
       {view === "drafts" && (
         <div className="pad-x"><div className="card"><div className="empty-state">
-          <div className="empty-icon"><Mail className="ic" /></div>
+          <div className="empty-icon"><Mail className="ic cat-fg-teal" /></div>
           <div className="empty-title">No Drafts</div>
           <button className="btn btn-secondary" onClick={() => setComposing(true)}>New Email</button>
         </div></div></div>
@@ -242,7 +242,7 @@ export default function DemoMail({ onConnect }: { onConnect?: () => void }) {
             <div className="conn-name">Read It to Me</div>
             <div className="conn-meta">Senders and Gists, Never the Message</div>
           </div>
-          <span className="pill-act">Play</span>
+          <div className="chev" />
         </div>
         <div className="row" role="button" tabIndex={0} onClick={demoTap}>
           <span className="row-ico cat-bg-graphite" aria-hidden="true"><CalendarClock className="ic" /></span>

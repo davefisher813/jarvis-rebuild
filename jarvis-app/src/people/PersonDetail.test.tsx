@@ -74,9 +74,11 @@ describe("PersonDetail: Last Talked and the check-in draft (S6-Q40)", () => {
     expect(onCheckIn).toHaveBeenCalledTimes(1);
   });
 
-  it("reads Drafting and stays disabled while a draft is in flight", () => {
-    render(<PersonDetail person={MOM} onEdit={() => {}} onBack={() => {}} lastTalked="2 Months ago" quiet onCheckIn={() => {}} checkingIn />);
-    expect(screen.getByText("Drafting")).toBeDisabled();
+  it("reads Drafting while a draft is in flight, and a second tap starts nothing", () => {
+    const onCheckIn = vi.fn();
+    render(<PersonDetail person={MOM} onEdit={() => {}} onBack={() => {}} lastTalked="2 Months ago" quiet onCheckIn={onCheckIn} checkingIn />);
+    fireEvent.click(screen.getByText("Drafting"));
+    expect(onCheckIn).not.toHaveBeenCalled();
   });
 
   it("a lastTalked row appears even with no other fact, so About isn't gated shut", () => {
@@ -181,7 +183,7 @@ describe("next time we talk", () => {
   it("offers a way to add one even when there are none yet", () => {
     render(<PersonDetail person={withPoints()} onEdit={() => {}} onBack={() => {}} onAddPoint={() => {}} />);
     expect(screen.getByText("Next Time We Talk")).toBeInTheDocument();
-    expect(screen.getByText("Add Something")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Add Something to Talk About" })).toBeInTheDocument();
   });
 
   it("counts only the ones still to raise", () => {
@@ -192,8 +194,8 @@ describe("next time we talk", () => {
       ])} />);
     // Both are shown -- a discussed one is kept, not deleted, so "did I bring
     // that up?" is answerable -- and the count is of what is left.
-    expect(screen.getByText("Ask about the layout")).toBeInTheDocument();
-    expect(screen.getByText("Thank him for the ride")).toBeInTheDocument();
+    expect(screen.getByText("Ask About the Layout")).toBeInTheDocument();
+    expect(screen.getByText("Thank Him for the Ride")).toBeInTheDocument();
     expect(screen.getByText("1")).toBeInTheDocument();
   });
 
@@ -206,7 +208,7 @@ describe("next time we talk", () => {
     expect(toggled).toEqual(["a"]);
     // The row is the door: a talking point has nothing else to open, so a tap
     // on the words means the same thing as a tap on the ring.
-    fireEvent.click(screen.getByText("Ask about the layout"));
+    fireEvent.click(screen.getByText("Ask About the Layout"));
     expect(toggled).toEqual(["a", "a"]);
   });
 

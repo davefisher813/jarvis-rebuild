@@ -125,8 +125,9 @@ describe("ConnectionsPage follows the catalog", () => {
     expect(norm(receipt)).toBe("me@example.com Connected " + MIDDOT + " Imported 1 Event");
     expect(norm(receipt)).not.toMatch(/\.\s|\.$/);
     // Disconnect arms with Title Case words, then reports in the same shape.
-    fireEvent.click(screen.getByText("Disconnect"));
-    fireEvent.click(screen.getByText("Tap Again"));
+    fireEvent.click(screen.getByText("me@example.com"));
+    fireEvent.click(await screen.findByText("Disconnect"));
+    fireEvent.click(screen.getByText("Tap Again to Disconnect"));
     await waitFor(() => expect(screen.getByText("me@example.com Disconnected")).toBeInTheDocument());
   });
 });

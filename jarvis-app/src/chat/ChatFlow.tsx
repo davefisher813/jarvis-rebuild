@@ -815,14 +815,18 @@ export default function ChatFlow({ onOpen, onCompose, askPersonId, askNonce, onA
   const provLine = (m: ChatMessage): string | null => {
     const p = m.data.provenance;
     if (!p) return null;
-    if (p.kind === "ai") return "From your data + AI";
+    // One grey per row (Alfred 2026-10-04, "From your records" as a second grey line): the answer is the content. A
+    // records answer says nothing the bubble does not already, so it draws no line. Only an AI answer carries meaning
+    // (it may be wrong), so only it keeps one, and the star leads it.
+    if (p.kind === "ai") return "From Your Data + AI";
     // SHELL-F-26 (2026-09-05): this said "Done · Undo on the toast" under
     // every stored action bubble, including yesterday's, and a toast lives
     // five seconds. The Undo is real (S4-Q23 wired it) but it is on the
     // toast, not on the bubble, so the bubble stops promising it.
-    if (p.kind === "action") return "Done";
-    if (p.refs && p.refs.length > 0) return "From your records";
-    return "From your records";
+    // A receipt that already opens with the word ("Done: Call the Plumber") says it once; the green line is for the receipts
+    // that do not ("Saved Marco to the Gym"), where it is the done state and not a repeat.
+    if (p.kind === "action") return /^done\b/i.test(m.data.text.trim()) ? null : "Done";
+    return null;
   };
 
   return (
@@ -935,7 +939,7 @@ export default function ChatFlow({ onOpen, onCompose, askPersonId, askNonce, onA
         >{CLIP}</button>
         <input
           className="input"
-          placeholder="Ask · tell · paste"
+          placeholder="Ask · Tell · Paste"
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter") void send(); }}

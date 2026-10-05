@@ -1,3 +1,4 @@
+import { lineCase } from "../../shared/casing";
 import { useState } from "react";
 import { useBrainMemory } from "../../data/NotesProvider";
 import { attemptWrite } from "../../shared/guard";
@@ -165,7 +166,7 @@ export default function MemorySheet({
               <span className="fact">Filed From {filedFromLabel(row.data.source)}</span>
             </span></div></div>
             <div className="pad-x sheet-form">
-              <div className="strand-head">{row.data.text}</div>
+              <div className="strand-head">{lineCase(row.data.text)}</div>
               {row.data.why && <div className="conn-meta">Why: {row.data.why}</div>}
               {/* The day filed is a neutral date, small caps (R8), and a voice sample's length
                   is a number with no state, white: one facts line, not two more greys. */}

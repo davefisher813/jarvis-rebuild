@@ -71,23 +71,25 @@ describe("populating a day, and the one thing the sheet will not let you do", ()
   it("picking from lifts you already have leads; authoring is the escape hatch", () => {
     // Both doors were already here and the fast one was SECOND, so building a
     // day meant meeting an eleven-field authoring sheet once per exercise.
+    //
+    // AMENDED 2026-10-05 (Dave, locked: section-level actions live in the head,
+    // never as rows at the foot of a card): the two doors are the actions of ONE
+    // "Add Exercise" capsule on the day's Exercises head, and the picker is
+    // still the first of the two.
     const flow = read("gym/GymFlow.tsx");
-    const lifts = flow.indexOf("Add from Your Lifts</button>");
-    const author = flow.indexOf("New Exercise</button>");
+    const lifts = flow.indexOf('label: "Add from Your Lifts"');
+    const author = flow.indexOf('label: "New Exercise"');
     expect(lifts, "the picker is rendered").toBeGreaterThan(-1);
     expect(author, "so is the authoring door").toBeGreaterThan(-1);
     expect(lifts, "and the picker comes first").toBeLessThan(author);
-    // Renamed, because beside a picker "Add Exercise" described them both.
-    // Scoped to the program day's own pair: "Log a Past Workout" has its own
-    // Add Exercise for a lift you forgot to log, and there it is the right
-    // word -- there is no day being populated and nothing to pick from.
-    const pair = flow.slice(lifts - 1200, author + 40);
-    expect(pair).not.toContain(">Add Exercise</button>");
-    expect(flow, "the past-workout editor keeps its own").toContain(">Add Exercise</button>");
+    // No row at the foot of the card any more: the doors are not in-list creates.
+    expect(flow).not.toContain('<button className="row-create" onClick={() => setSheet({ kind: "fillDay"');
+    expect(flow, "the past-workout editor keeps its own Add Exercise, on its head").toContain("onClick={() => setWorkoutAddOpen(true)}>Add Exercise</button>");
   });
 
   it("the picker still hides on an empty library, where it would open onto nothing", () => {
-    expect(read("gym/GymFlow.tsx")).toContain("{library.length > 0 && (");
+    // With no library the head's Add Exercise goes straight to the authoring sheet.
+    expect(read("gym/GymFlow.tsx")).toContain("library.length > 0 ? setAddExOpen(true) : setSheet({ kind: \"exercise\"");
   });
 
   it("the last lift cannot be unticked, because that is a workout you did not do", () => {

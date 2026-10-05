@@ -949,13 +949,12 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
    other list wears, so Delete looks like Delete wherever it is reached from.
    It is also last in the rail, so it is the furthest thing from the thumb. */
 .sched-act-danger { background: var(--red); color: #fff; }
+/* THE ROW'S ONE VERB, FIRST IN THE RAIL (Dave 2026-10-05, locked): a proposed block's Book It takes the capsule's ground and
+   ink (the one accent reserved for actions), the way .task-verb does on a task row, so it never reads as the amber defer
+   beside it or the red Delete. */
+.sched-act[data-verb] { background-color: var(--capsule-fill); color: var(--tint); }
+[data-theme="light"] .sched-act[data-verb] { color: var(--on-light-red); }
 .sched-swipe-wrap .sched-row { position: relative; background: var(--bg); transition: transform 0.28s cubic-bezier(0.32,0.72,0,1); touch-action: pan-y; }
-/* Announces the swipe actions, and is the ONLY way to reach them without a
-   touchscreen: the gesture is bound to touch events only. Quiet enough not to
-   compete with the event title, big enough to hit on a phone. */
-.sched-grip { flex-shrink: 0; align-self: center; background: 0; border: 0; padding: 0 var(--s-2); min-width: 44px; min-height: 44px; display: flex; align-items: center; justify-content: center; color: var(--tx-3); }
-.sched-grip .ic { width: 18px; height: 18px; transition: transform var(--dur-fast) var(--ease-out); }
-.sched-grip.open .ic { transform: rotate(180deg); }
 .sched-swipe-wrap .sched-row.swiping { transition: none; }
 /* A swipe row must stay OPAQUE in every state. The shared hover rule paints
    rgba(255,255,255,0.06) over the row, and a translucent row sitting on top
@@ -1534,10 +1533,6 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 .deck-dead-burst { position: relative; height: 40px; }
 .msg-filed { margin-top: var(--s-4); display: flex; flex-direction: column; gap: var(--s-1h); }
 
-/* Multi-account (2026-08-04): the account tag is quiet metadata, never a
-   second subject line; account chips in Connections sit inside the row. */
-.conn-acct-chips { margin: var(--s-1h) 0 0; }
-
 /* RULE-9: Tasks - large completion target + swipe-to-delete. */
 .task-swipe { position: relative; overflow: hidden; }
 .task-del { position: absolute; top: 0; right: 0; bottom: 0; width: 88px; border: 0; background: var(--red);
@@ -1876,7 +1871,6 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 .anytime-open { color: var(--tx-2); }
 .anytime-card { padding: 0; }
 .anytime-row { display: flex; align-items: center; gap: var(--s-2h); padding: var(--s-2h) var(--s-4); }
-.anytime-row + .anytime-row { border-top: 0.5px solid var(--divider); }
 .anytime-row .cat-dot { width: 8px; height: 8px; }
 .anytime-name { flex: 1; min-width: 0; text-align: left; background: transparent; border: 0; padding: 0;
   font-family: inherit; font-size: var(--t-body); font-weight: var(--w-semi); color: var(--tx-1); cursor: pointer;
@@ -2569,8 +2563,6 @@ button {
   font-size: var(--t-sub); color: var(--tx-3); }
 .budget-row > span:last-child { color: var(--tx-1); font-variant-numeric: tabular-nums; }
 .budget-total { color: var(--tx-1); font-weight: var(--w-semi); border-top: 0.5px solid var(--card-bd); margin-top: var(--s-1); padding-top: var(--s-2); }
-.budget-add { display: flex; gap: var(--s-2); align-items: center; }
-.budget-amt { width: 6rem; flex-shrink: 0; }
 
 /* Schedule upload: the photo thumbnail on the review screen, and the dimmed
    title for a row the user chose to skip. */
@@ -3536,12 +3528,19 @@ button {
    Measured: the head row goes 52 to 58, and three heads cost 18px of page.
    The ::after below still expands the hit past the paint, and now clears 44
    rather than stopping at 42. */
-.sh2 .see-all.pill-action, .plan-head .see-all.pill-action, .xs-grp .see-all.pill-action {
+.sh2 .see-all.pill-action, .plan-head .see-all.pill-action, .xs-grp .see-all.pill-action, .grp > .see-all.pill-action, .grp-acts > .see-all.pill-action {
   background: var(--press-3); color: var(--tx-1); border-radius: var(--r-pill);
   padding: var(--s-1h) var(--s-3); font-size: var(--t-meta); letter-spacing: normal;
   min-height: 34px; margin: 0; position: relative;
 }
-.sh2 .see-all.pill-action::after, .plan-head .see-all.pill-action::after, .xs-grp .see-all.pill-action::after { content: ""; position: absolute; inset: -7px 0; }
+.sh2 .see-all.pill-action::after, .plan-head .see-all.pill-action::after, .xs-grp .see-all.pill-action::after, .grp > .see-all.pill-action::after, .grp-acts > .see-all.pill-action::after { content: ""; position: absolute; inset: -7px 0; }
+/* A SHEET GROUP'S LABEL ROW CARRIES ITS ACTION AT THE RIGHT (Dave 2026-10-05, locked; docs/jarvis-unified/ROW-ACTIONS-SPEC.md
+   section 2): the group's one capsule, the same one a section head wears, never a row inside the card below it. */
+.grp:has(> .see-all.pill-action), .grp:has(> .grp-acts) { display: flex; align-items: center; justify-content: space-between; gap: var(--s-2h); }
+.grp-acts { display: inline-flex; align-items: center; gap: var(--s-2); flex-wrap: nowrap; flex-shrink: 0; justify-content: flex-end; }
+.grp:has(> .grp-acts) > .eyebrow, .grp:has(> .see-all.pill-action) > .eyebrow { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* A swipe tray's second button steps in one slot when a verb leads it (the verb takes the edge, then Delete follows it in). */
+.task-swipe > .task-verb + .task-del { right: 88px; }
 /* Small pill: the one small doing-button (Add to Today, Link, Not Now).
    It always has a body; text-only small buttons are the head action's job.
    A small button that is ALSO a primary/danger keeps that fill: the
@@ -3685,17 +3684,8 @@ button {
    trailing edge. Off dims the name, never hides the row: off is not gone. */
 .rule-row { align-items: flex-start; flex-wrap: wrap; }
 .rule-row .rule-scope { flex-basis: 100%; flex-wrap: wrap; overflow: visible; margin: var(--s-1) 0 0; padding: 0; }
-.rule-acts { display: flex; flex-direction: column; align-items: flex-end; gap: var(--s-1h); flex-shrink: 0; }
 .rule-off .conn-name { color: var(--tx-3); }
 
-/* E-22 (Push D): Read It to Me wears up to three pills (Next, Stop, and the
-   Play/Pause the row itself answers to). Same anatomy as the gym library's
-   row actions, on the plain skin. */
-.mail-read-acts { display: flex; gap: var(--s-1h); align-items: center; flex-shrink: 0; }
-/* While the voice is going the row wraps and the three pills take their own
-   line, right-aligned, instead of crushing the row's name to "Read I…". */
-.row.mail-read-live { flex-wrap: wrap; }
-.mail-read-live .mail-read-acts { flex-basis: 100%; justify-content: flex-end; padding-top: var(--s-0h); }
 /* background-COLOR even here, in the base rule (2026-09-22). It was harmless
    only by accident -- the shorthand resets background-clip, and the clip is
    re-declared a few rules down, so the ordering rescued it. §AL's law does
@@ -5004,7 +4994,6 @@ body.selecting .voice-dock { display: none; }
 .msg-machines-icon { color: var(--tx-2); display: flex; flex-shrink: 0; }
 .msg-machines-icon .ic { width: 18px; height: 18px; }
 .msg-machines-text { flex: 1; min-width: 0; font-size: var(--t-meta); color: var(--tx-3); }
-.msg-machines-sweep { flex-shrink: 0; }
 .list-card-ruled > .msg-machines:not(:last-child) { border-bottom: 0.5px solid var(--divider); }
 
 
@@ -5159,44 +5148,6 @@ body.selecting .voice-dock { display: none; }
 .rep-chip { font-size: var(--t-caption); font-weight: var(--w-bold); border-radius: var(--r-pill); padding: var(--s-1) var(--s-2h); white-space: nowrap; flex-shrink: 0; }
 .rep-chip-good { background: var(--good-tint); color: var(--good); }
 .rep-chip-warn { background: var(--warn-tint); color: var(--warn); }
-.rep-btnrow { display: flex; gap: var(--s-2); padding: var(--s-0h) var(--s-4) var(--s-3h); overflow: hidden; }
-/* THE REPORT'S OWN OVERLAP (2026-09-22, the 834-wide audit: "1 Followed you
-   all month" x "Do One" / "Drop One"). .pill-act reaches 44px with a 9px
-   transparent border pulled back by an equal negative margin (BROWSER-F-03),
-   invisible everywhere it has a row's own generous padding to spend it in.
-   .rep-btnrow's padding-top is --s-0h, 2px, sized for how close the pills sit
-   under the title, not for swallowing a 9px reach, so the invisible top
-   border landed 7px into the "carried" row above and a tap meant for its
-   receipts could open or drop a task instead (confirmed live:
-   getBoundingClientRect gave row bottom 892.875 vs the pill's own border-box
-   top 885.875).
-
-   The fix is `overflow: hidden` on the CONTAINER, not a border/margin change
-   on .pill-act itself. .pill-act also carries `min-height: 34px` under this
-   app's global `box-sizing: border-box` reset, which pins the pill's TOTAL
-   border-box height at 34 no matter how border-top/border-bottom are split.
-   An earlier version of this fix tried `border-top-width: 0; margin-top: 0`
-   on `.rep-btnrow .pill-act`, reasoning that 0/0 cancels the same way the
-   base rule's 9/-9 does -- and the pill's visible TOP edge does stay put,
-   verified live. But shrinking border-top-width without shrinking min-height
-   does not remove those 9px: box-sizing:border-box + min-height:34 forces
-   the browser to make them up elsewhere, and with 0 vertical padding the
-   only place left is the content box, so the capsule's visible BOTTOM edge
-   grows by the same 9px (16px of painted capsule -> 25px, confirmed with
-   before/after screenshots and getBoundingClientRect: bottom moved from
-   910.875 to 919.875). The pill visibly balloons downward and pushes the
-   next row ("Family went quiet") down with it -- not the "paint does not
-   move a pixel" the algebra promised.
-
-   `overflow: hidden` sidesteps this entirely: it never touches .pill-act's
-   border or margin, so there is no min-height interaction and the capsule's
-   painted rect is pixel-identical before and after (verified live). It only
-   clips the portion of the already-invisible hit border that would poke
-   above .rep-btnrow's own box into the row above -- which is exactly the
-   part of the geometry that was the bug. Confirmed live: the AUDIT() overlap
-   finding is gone, elementFromPoint at the pill's own center still resolves
-   to the button (still fully tappable), and all of laws.test.ts,
-   browserWalk.test.ts, itemCard.test.ts and ReportPage.test.tsx still pass. */
 .rep-good-glyph { color: var(--good); }
 .rep-one { border: 1px solid var(--accent); }
 .rep-question { font-size: calc(20px * var(--type-scale)); font-weight: var(--w-semi); color: var(--tx-1); margin-top: var(--s-1h); }
@@ -5334,7 +5285,6 @@ body.selecting .voice-dock { display: none; }
 .set-chip.swiping { transition: none; }
 /* Skipped reads as a fact, not a failure: struck text, no red anywhere. */
 .set-chip-skipped .conn-name { color: var(--tx-3); text-decoration: line-through; }
-.set-strip-add { margin-top: 0; }
 /* Ghost chips are the plan, not yet the record: quieter than a filled chip
    and not draggable or swipeable -- there is nothing there to reorder or
    delete until it is logged. */
@@ -5441,11 +5391,9 @@ body.selecting .voice-dock { display: none; }
 .row:has(> .row-press) { padding: 0; }
 .row > .row-press { padding: var(--s-3) var(--s-4); }
 
-/* THE WEEK STRIP (gym catalog §4.1). A week is a row like any other; the
-   back-off tag reuses .pill-subdued (the app's existing neutral pill) on
-   purpose, never .pill-red or an accent fill -- a lighter week is a plan,
-   never a status to feel bad about (L1, "never call it deload"). */
-.week-back-off { margin-left: var(--s-2); }
+/* THE WEEK STRIP (gym catalog §4.1). A week is a row like any other; the back-off tag is an amber FACT on its facts line
+   (2026-10-05, no pill in a row), never an accent fill -- a lighter week is a plan, never a status to feel bad about (L1,
+   "never call it deload"). */
 
 /* HEALTH MODULE (student-athlete health track, catalog 2026-08-27). Three
    new shapes: the Ate Before timeline of dots, the Call It ten-block scale,
@@ -5544,7 +5492,6 @@ body.selecting .voice-dock { display: none; }
 .sched-gym { display: flex; flex-direction: column; align-items: flex-start; gap: var(--s-1); margin-top: var(--s-1); }
 .sched-gym-name { font-size: var(--t-body); font-weight: var(--w-semi); color: var(--tx-1); }
 .sched-gym-line { display: flex; align-items: center; gap: var(--s-2); }
-.sched-gym-start { margin-top: var(--s-0h); }
 
 /* ==========================================================================
    THE PREVIEW IS THE SPEC (2026-09-01, Dave's three editor screenshots:
@@ -5633,8 +5580,8 @@ body.selecting .voice-dock { display: none; }
    The reorder row sheds its own padding since .set-chip supplies it (same
    split .task-swipe/.task-row use everywhere else). */
 .set-chip-col { margin-bottom: 0; }
-.set-chip-swipe .task-del { opacity: 0; transition: opacity 0.12s var(--ease-out); }
-.set-chip-swipe.swipe-open .task-del { opacity: 1; }
+.set-chip-swipe .task-del, .set-chip-swipe .task-verb { opacity: 0; transition: opacity 0.12s var(--ease-out); }
+.set-chip-swipe.swipe-open .task-del, .set-chip-swipe.swipe-open .task-verb { opacity: 1; }
 .set-strip .reorder-list .reorder-row { padding: 0; }
 .set-chip-editor { padding: 0 var(--s-4) var(--s-2); border-top: 0.5px solid var(--divider); }
 .sheet-scrim .set-chip-editor { background: var(--surface-3); }
@@ -6937,9 +6884,6 @@ span.row-star { cursor: default; }
 /* The Up Next rows after the Now row are the plan, read and not tapped:
    no pointer, the dashed edge alone says "not yet". */
 .ruled.health-ruled .set-chip-ghost.se-next { cursor: default; }
-/* The set editor's two moves (planning and history strips) are one capsule
-   row; the row-pair's tall row-gap stays for the 44px hit boxes. */
-.ruled.health-ruled .set-chip-editor .set-chip-acts, .sheet-scrim > .card .set-chip-editor .set-chip-acts { margin: var(--s-2) 0 var(--s-2); }
 /* THE MORE CAPSULE on the strip's head (Dave: "Three dots isn't obvious
    enough but that's the right idea"): a labelled §AL capsule, tap red, in
    the head's trailing slot. .sh2 orders its dotted rule at 1 and everything
@@ -6950,6 +6894,9 @@ span.row-star { cursor: default; }
    be easy and obvious"): the same trailing capsule as More, on the list of
    lifts it groups. */
 .ruled.health-ruled .sh2 .pill-act.se-sup { order: 2; align-self: center; margin-left: auto; }
+/* AND ITS ADD EXERCISE beside it (Dave 2026-10-05, locked: a section's add is its head's capsule); alone, it takes the edge. */
+.ruled.health-ruled .sh2 .pill-act.se-add { order: 2; align-self: center; margin-left: auto; }
+.ruled.health-ruled .sh2 .pill-act.se-sup + .pill-act.se-add { margin-left: var(--s-2); }
 /* THE SUPERSET SWITCHER under the lift's name: one door per member, the one
    on screen filled with the selected ink (the app's own "this one" fill,
    as on the decision outcome chips) and without the door's chevron, since
@@ -6958,9 +6905,6 @@ span.row-star { cursor: default; }
 .ruled.health-ruled .se-turns .se-chip-door.on { background-color: var(--sel-bg); color: var(--sel-fg); cursor: default; }
 .ruled.health-ruled .se-turns .se-chip-door.on::before { display: none; }
 .ruled.health-ruled .se-turns .se-chip-door.on em { color: var(--sel-fg); }
-/* CANCEL WORKOUT at the foot of This Session: the create row's shape in the
-   destructive ink, since it throws the session away. */
-.ruled.health-ruled .row-create.row-create-danger { color: var(--danger-tx); }
 /* THE SUGGESTION LINE inside the Now row: the estimate's ink for the
    number (§AM: an estimate the app worked out is sky), the two verbs as the
    same inline action the Match line is, and the evidence rows under it. */
@@ -7116,7 +7060,7 @@ span.row-star { cursor: default; }
 
 /* MONEY LEDGER: BILLS (lane B, 2026-10-03). The bill's own page and the quiet
    recurring offer. Everything here reuses the form-sheet and task-row atoms;
-   only the value column, the history lines and the offer's second pill are new. */
+   only the value column and the history lines are new. */
 .xs .row.xs-row > .bill-val { margin-left: auto; min-width: 0; text-align: right; overflow-wrap: anywhere; }
 .xs .row.xs-row > .bill-val.bill-notes { font-size: var(--t-meta); color: var(--tx-2); }
 .xs .row.xs-row > .bill-val.uchip { flex-shrink: 0; }
@@ -7126,16 +7070,11 @@ span.row-star { cursor: default; }
 .xs .bill-change-k { color: var(--tx-3); }
 .xs .bill-change-v { color: var(--tx-1); font-weight: var(--w-medium); }
 .xs .bill-change-to { color: var(--tx-3); }
-.bill-suggest .pill-act + .pill-act { margin-left: var(--s-2); }
-.bill-suggest .pill-act.pill-quiet { color: var(--tx-2); }
 
 /* MONEY LEDGER: RECEIPTS AND BUDGET */
-/* A match proposal: the words on the left, the two answers stacked on the
-   right so neither is a dead corner (the row itself opens the same two). */
+/* A match proposal: a clean row (Dave 2026-10-05); its two answers are the swipe and the tap's sheet. */
 .match-row { align-items: flex-start; }
 .match-row .task-title { min-width: 0; }
-.match-acts { display: flex; flex-direction: column; align-items: flex-end; gap: var(--s-1); flex: none; }
-.match-acts .quiet-action { white-space: nowrap; }
 
 /* === FEEDBACK STYLE (v1) ===================================================
    Acknowledgment on the working surface and the Gentle effects. Gentle is the
@@ -7234,3 +7173,30 @@ html[data-motion="reduce"] .fb-fill { transition: none; }
 .swipe-tip-x { flex: 0 0 44px; width: 44px; height: 44px; margin: calc(var(--s-2) * -1) calc(var(--s-3) * -1) calc(var(--s-2) * -1) 0; display: flex; align-items: center; justify-content: center; border: 0; background: transparent; color: var(--tx-3); }
 .swipe-tip-x .ic { width: 16px; height: 16px; }
 .row-ctx { flex: 0 0 auto; min-width: 44px; min-height: 44px; padding: 0 var(--s-2); border: 0; background: transparent; color: var(--tint); font: inherit; font-size: var(--t-caption); font-weight: var(--w-bold); letter-spacing: -0.01em; }
+
+/* MONEY'S TYPE ICON IN LIGHT (Dave 2026-10-05, rule 13: an icon that says what a row IS carries its type's colour, in both
+   themes). A bill's autopay glyph and a receipt's picture or document glyph are Money's green; dark takes .cat-fg-green as it
+   stands, and light takes the glyph set's twin (--cat-ic-green, held to the 3:1 non-text bar), never the text ink. */
+[data-theme="light"] .gm-slot.cat-fg-green { color: var(--cat-ic-green); }
+
+/* A BILL ROW'S QUIET VERB BESIDE ITS AMOUNT (Dave 2026-10-05, locked: a row whose moment has come shows its one action as text). The
+   row already holds a check, a name with its chip, and the amount, so the verb gives back the room its default padding takes: the
+   44px hit area stays (a 44px minimum width and the row's own height), the paint is the word's own width. */
+.task-row .money-amt + .row-ctx { padding: 0 var(--s-1); min-width: 44px; margin-left: calc(var(--s-2) * -1); }
+/* THE BALANCE CARD'S OWN PADDING (it was clipped at the card's edge: "OURS UNTIL" and "After $330.09"). The ruled list card zeroes the padding
+   of every card, and the card that IS the hero needs it back. */
+.ruled .card.money-hero.list-card-ruled { padding: var(--s-4) var(--s-4) var(--s-3); }
+/* A SWITCH ROW WITH NO META LINE PUTS ITS SWITCH AT THE EDGE (the Google Account sheet's Email and Calendar sat against their labels). With a
+   meta line the row-grow wrapper pushes it; a bare label took only its own width. */
+.xs .row.xs-row > .switch { margin-left: auto; }
+/* THE GLYPH AT A ROW'S EDGE THAT SAYS WHAT ITS TAP DOES (Dave 2026-10-05, locked: no pill in a row): a plus where the tap adds,
+   a link where it links. Not a control of its own; the row is the door. */
+.row-verb-ic { width: 20px; height: 20px; flex-shrink: 0; color: var(--tint); }
+/* A CHIP ROW INSIDE A SETTINGS ROW DRAWS INSIDE THE ROW (2026-10-05, found rendering Booking at 390 wide). The row already pads
+   its own edge, and the chip strip's own side padding added a second one, so the last weekday and the 60 Min slot ran off the
+   card. Inside a settings row the strip takes the row's edge and wraps rather than clipping. */
+.set-card .set-row > .chip-row { padding-left: 0; padding-right: 0; flex-wrap: wrap; overflow: visible; }
+/* A SWIPEABLE ROW INSIDE A REORDERABLE LIST FILLS ITS ROW (2026-10-05, found rendering the gym's Days at 390 wide). The
+   reorder row is a flex row and the swipe wrapper is a shrink-to-fit child of it, so a day's own row came out 184px wide with its
+   facts crowded against the menu. */
+.reorder-list .row.reorder-row > .task-swipe { flex: 1 1 auto; min-width: 0; align-self: stretch; }

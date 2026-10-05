@@ -10,6 +10,7 @@ import { subscribeToast, resetToasts, type ToastState } from "../../shared/toast
 import { NOT_MATCH_KEY } from "../notMatch";
 import { billStatus } from "../ledger/status";
 import MatchesCard from "./MatchesCard";
+import { capsulesInCards } from "../../laws/catalogCheck";
 
 const TODAY = "2026-10-03";
 interface Handles { ledger: LedgerService; tracker: TrackerService }
@@ -54,8 +55,12 @@ describe("the Matches card", () => {
     // both sides are named
     expect(screen.getByText("Receipt")).toBeInTheDocument();
     expect(screen.getByText("Payment")).toBeInTheDocument();
-    expect(screen.getByText("Link")).toBeInTheDocument();
-    expect(screen.getByText("Not a Match")).toBeInTheDocument();
+    // THE ROW IS CLEAN (Dave 2026-10-05, locked: no pill on a row): both answers are the swipe tray's buttons, and the
+    // row carries no capsule of any kind.
+    expect(screen.getByRole("button", { name: /^Link / })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Not a Match / })).toBeInTheDocument();
+    expect(document.querySelector(".match-row .pill-act, .match-row .quiet-action, .match-row .btn-sm")).toBeNull();
+    expect(capsulesInCards(document.body)).toEqual([]);
     // never automatic
     expect((await h.current!.ledger.getReceipt(receiptId))!.data.linkedTransactionId).toBeUndefined();
   });
@@ -65,7 +70,7 @@ describe("the Matches card", () => {
     render(<NotesProvider userId="mc-link"><Harness into={h}><MatchesCard /></Harness></NotesProvider>);
     await waitFor(() => expect(h.current).toBeTruthy());
     const { receiptId, txId } = await seedReceiptPair(h.current!);
-    fireEvent.click(await screen.findByText("Link"));
+    fireEvent.click(await screen.findByRole("button", { name: /^Link / }));
     await waitFor(async () => expect((await h.current!.ledger.getReceipt(receiptId))!.data.linkedTransactionId).toBe(txId));
     const done = toasts.find((t) => t.message === "Linked · Counted Once");
     expect(done, "a confirmation of what changed").toBeTruthy();
@@ -82,7 +87,7 @@ describe("the Matches card", () => {
     const first = render(<NotesProvider userId="mc-no"><Harness into={h}><MatchesCard /></Harness></NotesProvider>);
     await waitFor(() => expect(h.current).toBeTruthy());
     const { receiptId, txId } = await seedReceiptPair(h.current!);
-    fireEvent.click(await screen.findByText("Not a Match"));
+    fireEvent.click(await screen.findByRole("button", { name: /^Not a Match / }));
     await waitFor(() => expect(screen.queryByText("Matches")).toBeNull());
     expect(JSON.parse(localStorage.getItem(NOT_MATCH_KEY)!)).toEqual([`${receiptId}|${txId}`]);
     // nothing was written to the ledger
@@ -99,11 +104,11 @@ describe("the Matches card", () => {
     render(<NotesProvider userId="mc-stale"><Harness into={h}><MatchesCard /></Harness></NotesProvider>);
     await waitFor(() => expect(h.current).toBeTruthy());
     await seedReceiptPair(h.current!);
-    await screen.findByText("Link");
+    await screen.findByRole("button", { name: /^Link / });
     const ledger = h.current!.ledger;
     vi.spyOn(ledger, "approveReceiptMatch").mockResolvedValue({ ok: false, reason: "already_linked" });
     vi.spyOn(ledger, "receiptMatches").mockResolvedValue([]);
-    fireEvent.click(screen.getByText("Link"));
+    fireEvent.click(screen.getByRole("button", { name: /^Link / }));
     await waitFor(() => expect(screen.queryByText("Matches")).toBeNull());
     expect(toasts.filter((t) => /Couldn't|Linked/.test(t.message))).toEqual([]);
   });
@@ -116,7 +121,7 @@ describe("the Matches card", () => {
     const b = await h.current!.ledger.addBill({ vendor: "ConEdison", amount: "84.12", dueDate: "2026-10-05" });
     if (!b.ok) throw new Error("seed");
     expect(await screen.findByText(/ConEdison Bill \$84\.12 Looks Like Your Oct 4 Payment/)).toBeInTheDocument();
-    fireEvent.click(screen.getByText("Link"));
+    fireEvent.click(screen.getByRole("button", { name: /^Link / }));
     await waitFor(async () => expect(billStatus((await h.current!.ledger.getBill(b.id))!.data, "2026-10-06")).toBe("paid"));
     expect((await h.current!.ledger.getBill(b.id))!.data.paidEvidence).toEqual({ type: "transaction", transactionId: txId });
     expect(toasts.map((t) => t.message)).toContain("Linked · Bill Marked Paid");
@@ -128,8 +133,8 @@ describe("the Matches card", () => {
     await waitFor(() => expect(h.current).toBeTruthy());
     await seedReceiptPair(h.current!);
     fireEvent.click(await screen.findByText(/Looks Like Your Sep 8 Payment/));
-    // the sheet's two choices, beside the row's own two buttons
-    expect(await screen.findAllByText("Not a Match")).toHaveLength(2);
-    expect(screen.getAllByText("Link")).toHaveLength(2);
+    // the sheet's two choices (the row's own two are its swipe tray, named for the record)
+    expect(await screen.findByRole("button", { name: "Not a Match" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Link" })).toBeInTheDocument();
   });
 });

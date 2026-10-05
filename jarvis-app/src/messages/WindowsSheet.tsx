@@ -1,4 +1,5 @@
 import { createPortal } from "react-dom";
+import { Switch } from "../settings/kit";
 import { useState } from "react";
 import {
   addWindow, removeWindow, setWindowStart, setWindowLen, toggleDay, crossesMidnight, minLabel,
@@ -97,6 +98,14 @@ export default function WindowsSheet({
           </div>
           <div className="input-hint">Times are device local</div>
 
+          {/* THE ADD IS ON THE GROUP'S LABEL ROW (Dave 2026-10-05, locked): a section-level action lives in the head, never inside
+              a card or at the foot of a list. */}
+          <div className="grp xs-grp">
+            <div className="eyebrow">Windows</div>
+            {draft.windows.length < MAX_WINDOWS && editing === null && (
+              <button type="button" className="see-all pill-action" onClick={() => setDraft(addWindow(draft))}>Add a Window</button>
+            )}
+          </div>
           <div className="list-flat">
             {draft.windows.map((w, i) => (
               editing === i ? (
@@ -148,21 +157,10 @@ export default function WindowsSheet({
               )
             ))}
           </div>
-          {draft.windows.length < MAX_WINDOWS && editing === null && (
-            <button type="button" className="row-act" onClick={() => setDraft(addWindow(draft))}>Add a Window</button>
-          )}
 
           {/* E-14: the mirror is a choice, made here, off by default. */}
-          {/* Settings row: the tap flips it (Dave 2026-09-15: "I want all rows clickable"). */}
-          <div className="row" {...rowDoor(() => setMirrorDraft((v) => !v))}>
-            <div className="row-grow">
-              <div className="conn-name">Same on Every Device</div>
-              <div className="conn-meta">{mirrorDraft ? "On" : "Off"}</div>
-            </div>
-            <button type="button" className="pill-act" aria-pressed={mirrorDraft} onClick={(e) => { e.stopPropagation(); setMirrorDraft((v) => !v); }}>
-              {mirrorDraft ? "Turn Off" : "Turn On"}
-            </button>
-          </div>
+          {/* A switch is state, not a command (Dave 2026-10-05): the whole row flips it and no pill sits on the row. */}
+          <Switch label="Same on Every Device" meta={mirrorDraft ? "On" : "Off"} on={mirrorDraft} onToggle={() => setMirrorDraft((v) => !v)} />
         </div>
         <div className="pad-x sheet-actions">
           <button className="btn btn-primary btn-block" disabled={editing !== null} onClick={() => onSave({ ...draft, on: true }, mirrorDraft)}>

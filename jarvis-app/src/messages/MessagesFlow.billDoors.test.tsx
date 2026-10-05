@@ -65,8 +65,8 @@ describe("Messages: the waiting row's Add as Bill", () => {
     const api = makeFakeGoogleApi({ searchThreads: async () => [sent("Invoice $84.12 for September")] });
     mount(api, "u-bill-wait");
     fireEvent.click(await screen.findByText("Connect Google"));
-    const onRow = (await screen.findAllByText("More")).find((el) => el.className.includes("pill-act"))!;
-    fireEvent.click(onRow);
+    // Clean rows (Dave 2026-10-05): no More pill; the waiting row is the door to its sheet.
+    fireEvent.click((await screen.findByText(/invoice/i)).closest(".row")!);
     fireEvent.click(await screen.findByText("Add as Bill"));
 
     await waitFor(async () => expect(await ledger!.listBills()).toHaveLength(1));
@@ -81,8 +81,8 @@ describe("Messages: the waiting row's Add as Bill", () => {
   });
 
   const tapAddAsBill = async () => {
-    const onRow = (await screen.findAllByText("More")).find((el) => el.className.includes("pill-act"))!;
-    fireEvent.click(onRow);
+    // Clean rows (Dave 2026-10-05): no More pill; the waiting row is the door to its sheet.
+    fireEvent.click((await screen.findByText(/invoice/i)).closest(".row")!);
     fireEvent.click(await screen.findByText("Add as Bill"));
   };
 
@@ -118,8 +118,8 @@ describe("Messages: the waiting row's Add as Bill", () => {
     const api = makeFakeGoogleApi({ searchThreads: async () => [sent("Your invoice is ready")] });
     mount(api, "u-bill-wait-none");
     fireEvent.click(await screen.findByText("Connect Google"));
-    const onRow = (await screen.findAllByText("More")).find((el) => el.className.includes("pill-act"))!;
-    fireEvent.click(onRow);
+    // Clean rows (Dave 2026-10-05): no More pill; the waiting row is the door to its sheet.
+    fireEvent.click((await screen.findByText(/invoice/i)).closest(".row")!);
     await screen.findByText("More Moves");
     expect(screen.queryByText("Add as Bill")).toBeNull();
     expect(await ledger!.listBills()).toEqual([]);
@@ -153,6 +153,8 @@ describe("Messages: the thread card's Add Bill", () => {
     mount(api, uid, noAI);
     fireEvent.click(await screen.findByText("Connect Google"));
     fireEvent.click(await screen.findByText("Con Edison"));
+    // Clean rows (Dave 2026-10-05): the offer row has no Add Bill pill; it is the door to a sheet that holds it first.
+    fireEvent.click((await screen.findByText(/^\$\d+\.\d\d From Con Edison$/)).closest(".row")!);
     return screen.findByText("Add Bill");
   };
 

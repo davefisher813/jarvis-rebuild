@@ -31,6 +31,7 @@ import { setAdminAiBlocked, setAIControl } from "../ai/levelStore";
 import { resetToasts } from "../shared/toast";
 import { lineCase } from "../shared/casing";
 import type { ReceiptDetail as Detail, FeedRow } from "../substrate/commands/receipts";
+import { capsulesInCards, loneActionBoxes } from "../laws/catalogCheck";
 
 const NOW = new Date().toISOString();
 const DOT = "·";
@@ -209,7 +210,7 @@ describe("the Hub follows the visual catalog on every screen", () => {
     expect(screen.getByText("Suggested by Claude, 2 Evidence Links")).toBeInTheDocument();
     // Version 1 says nothing; version 2 is a white number; the long statement is the last fact.
     const rows = Array.from(document.querySelectorAll(".row")).filter((r) => r.querySelector(".conn-name")?.textContent === "Trip Budget");
-    const facts = Array.from(rows[0]!.querySelectorAll(".facts > .fact"));
+    const facts = Array.from(rows[0]!.querySelectorAll(".conn-meta > .fact"));
     expect(facts[0]!.querySelector("b")?.textContent).toBe("Version 2");
     expect(facts[facts.length - 1]!.textContent).toBe("Cap the Trip at $2,400");
     // The Email row's line restated the row; it has none.
@@ -331,6 +332,78 @@ describe("the Hub follows the visual catalog on every screen", () => {
     expect(lineViolations()).toEqual([]);
     // "None" was the placeholder for a side with no value; that side shows its key only.
     expect(screen.queryByText("None")).toBeNull();
+  });
+});
+
+// CLEAN ROWS, NO PILLS INSIDE A CARD, AND NO ACTION ALONE IN A BOX (Dave 2026-10-05, locked; ROW-ACTIONS-SPEC sections 2 and
+// 5; catalog rule 12). Alfred 2026-10-04 and the lone-box measurement named Clear Expired Shares, Dismiss Suggestion,
+// Paste or Import a Conversation and Revoke Access. Every Hub screen is rendered and the two DOM checks the laws own are
+// run on what it draws: no capsule in a card or a row except in a settled home (a section head, a sheet bar, a notice's
+// own action row), and no card whose only content is a button.
+describe("the Hub holds no capsule in a card and no action alone in a box", () => {
+  const clean = () => { expect(capsulesInCards(document.body)).toEqual([]); expect(loneActionBoxes(document.body)).toEqual([]); };
+
+  it("Agents: Add Assistant is the Assistants head's capsule, and Clear Expired Shares stands by itself", async () => {
+    render(<HubFlow onBack={() => {}} client={rig()} onOpenEmail={() => {}} />);
+    await screen.findByText("Claude");
+    clean();
+    const head = screen.getByText("Assistants").closest(".sh2")!;
+    expect(head.querySelector("button")!.textContent).toBe("Add Assistant");
+    expect(head.querySelector("button")).toHaveClass("see-all", "pill-action");
+    const sweep = screen.getByRole("button", { name: "Clear Expired Shares" });
+    expect(sweep.closest(".card")).toBeNull();
+    expect(sweep.parentElement).toHaveClass("notice-clear-row");
+  });
+
+  it("Agent detail: Preview Shared Context and Revoke Access stand under the page as capsules, none in a card", async () => {
+    render(<HubFlow onBack={() => {}} client={rig()} onOpenEmail={() => {}} />);
+    fireEvent.click(await screen.findByText("Claude"));
+    await screen.findByText("What's Shared");
+    clean();
+    const preview = screen.getByRole("button", { name: "Preview Shared Context" });
+    const revoke = screen.getByRole("button", { name: "Revoke Access" });
+    for (const b of [preview, revoke]) { expect(b.closest(".card")).toBeNull(); expect(b.parentElement).toHaveClass("hub-acts"); }
+    expect(revoke).toHaveClass("row-act", "hub-danger");
+  });
+
+  it("Review: Paste or Import a Conversation stands alone as one capsule on both lists, and a proposal's own answers stay on its card", async () => {
+    render(<HubFlow onBack={() => {}} client={rig()} onOpenEmail={() => {}} />);
+    await screen.findByText("Claude");
+    tab("Review");
+    await screen.findByText("Fly on the 12th");
+    clean();
+    // Its own words are the head; the action stands by itself under the choosers, as one capsule with no box (rule 12).
+    const paste = screen.getByRole("button", { name: "Paste or Import a Conversation" });
+    expect(paste.closest(".card")).toBeNull();
+    expect(paste.parentElement).toHaveClass("notice-clear-row");
+    expect(screen.getAllByRole("button", { name: "Paste or Import a Conversation" })).toHaveLength(1);
+    // The suggestion's answers are the settled card-with-its-own-words home, and are still reachable.
+    expect(screen.getByRole("button", { name: "Save Decision" }).closest(".notice-actions")).not.toBeNull();
+    tab("Mentioned");
+    await screen.findByText("A Second Team");
+    clean();
+  });
+
+  it("Activity and the receipt: the receipt's verbs stand under it as capsules, none in a card", async () => {
+    render(<HubFlow onBack={() => {}} client={rig()} onOpenEmail={() => {}} />);
+    await screen.findByText("Claude");
+    tab("Activity");
+    fireEvent.click(await screen.findByText("Read 3 Records in Summer Travel"));
+    await screen.findByText("Copy Receipt");
+    clean();
+    const copy = screen.getByRole("button", { name: "Copy Receipt" });
+    expect(copy.closest(".card")).toBeNull();
+    expect(copy.parentElement).toHaveClass("hub-acts");
+  });
+
+  it("Decision detail: Mark Reviewed is the Depends On head's capsule; Replace and Withdraw stand under the page", async () => {
+    render(<HubFlow onBack={() => {}} client={rig()} onOpenEmail={() => {}} />);
+    await screen.findByText("Claude");
+    tab("Review");
+    fireEvent.click(await screen.findByText("Team Size"));
+    await screen.findByText("Withdraw Decision");
+    clean();
+    for (const name of ["Replace With a New Decision", "Withdraw Decision"]) expect(screen.getByRole("button", { name }).closest(".card")).toBeNull();
   });
 });
 

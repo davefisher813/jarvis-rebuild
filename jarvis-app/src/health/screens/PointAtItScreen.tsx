@@ -151,7 +151,9 @@ export default function PointAtItScreen({ patterns, summaries = [], onLog, onDet
 
       {logged && (
         <div className="pad-x"><div className="card pad">
-          <div className="conn-name">{logged.region ? "Logged · " + logged.region : "Logged"}</div>
+          <div className="conn-name">Logged</div>
+          {/* The spot is a fact under the title; a dot is only ever drawn by the stylesheet (R6). */}
+          {logged.region && <div className="facts"><span className="fact">{logged.region}</span></div>}
           {onDetail && !detailSaved && (
             <>
               <div className="bp-sub">How it feels, if you want to say. The spot alone is enough.</div>

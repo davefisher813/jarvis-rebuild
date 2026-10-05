@@ -231,3 +231,52 @@ describe("RoutineFlow Can Blend: the note says what the chips mean", () => {
     });
   });
 });
+
+// A BUTTON NEVER STANDS ALONE IN A BOX, AND ADD LIVES IN THE HEAD (Dave 2026-10-05, locked; catalog rule 12). Protected Time's
+// Add was a row-act at the foot of its own card (and, with no blocks, a card holding nothing but it); the failed read's retry sat
+// alone in a grey plate; a learned rhythm's Update Routine was a pill on its row. Each is checked on the DOM of the real page.
+describe("RoutineFlow: clean rows, the Add is in the section head (2026-10-05)", () => {
+  const mount = (id: string) => render(
+    <NotesProvider userId={id}>
+      <CaptureRoutine />
+      <RoutineFlow onBack={() => {}} />
+    </NotesProvider>,
+  );
+
+  it("with no blocks the section is its head and the capsule, with no card drawn round it", async () => {
+    const { container } = mount("u-routine-head-empty");
+    const add = await screen.findByText("Add Protected Time");
+    expect(add.closest(".sh2")).not.toBeNull();
+    expect(add.className).toContain("pill-action");
+    const head = add.closest(".sh2")!;
+    expect(head.querySelector(".t")!.textContent).toBe("Protected Time");
+    // Nothing between this head and the next one: no plate for the capsule to sit in.
+    expect(head.nextElementSibling!.classList.contains("sh2")).toBe(true);
+    expect(container.querySelectorAll(".card .row-act, .card .pill-act").length).toBe(0);
+  });
+
+  it("with blocks the card holds only their rows, the Add stays in the head, and the row keeps its door", async () => {
+    const { container } = mount("u-routine-head-rows");
+    fireEvent.click(await screen.findByText("Add Protected Time"));
+    fireEvent.change(await screen.findByLabelText("Name"), { target: { value: "deep work" } });
+    fireEvent.click(screen.getByText("Add Block"));
+    const row = await screen.findByText("Deep Work"); // a typed title is shown in Title Case, stored as typed
+    await waitFor(async () => expect((await routineRef!.get()).protectedBlocks!.map((b) => b.label)).toEqual(["deep work"]));
+    expect(row.closest(".card")!.querySelectorAll(".row-act, .pill-act, .btn-sm").length).toBe(0);
+    expect(screen.getAllByText("Add Protected Time").every((b) => b.closest(".sh2") !== null)).toBe(true);
+    expect(container.querySelectorAll(".card .row-act").length).toBe(0);
+  });
+
+  it("the failed read keeps its card, with words of its own beside Try Again", async () => {
+    const spy = vi.spyOn(RoutineService.prototype, "get").mockRejectedValueOnce(new Error("offline"));
+    try {
+      const { container } = mount("u-routine-loadfail-words");
+      const retry = await screen.findByText("Try Again");
+      const box = retry.closest(".empty-state")!;
+      expect(box.textContent).toContain("Couldn't Load Your Routine");
+      expect(container.querySelectorAll(".row-act").length).toBe(0);
+    } finally {
+      spy.mockRestore();
+    }
+  });
+});

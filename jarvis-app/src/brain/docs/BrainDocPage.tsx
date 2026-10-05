@@ -19,6 +19,9 @@ import MarkdownField from "../../shared/MarkdownField";
 import { pressable, onPressKey } from "../../shared/pressable";
 import FiledRows from "../manual/FiledRows";
 import type { BrainMemoryCategory } from "../../ai/brainMemory";
+import RowShell from "../RowShell";
+import RowCtxAction from "../../shared/RowCtxAction";
+import RowSheet from "../RowSheet";
 import { cleanHardLines, HARD_LINE_LABEL, HARD_LINE_PROMISE, MAX_HARD_LINES, type HardLine, type HardLineKind } from "../hardLines";
 
 const PHOTO = (
@@ -58,6 +61,9 @@ export default function BrainDocPage({ topic, onBack }: { topic: string; onBack:
   const rulesSvc = useOptionalRules();
   const [writingStrands, setWritingStrands] = useState<Strand[]>([]);
   const [proposals, setProposals] = useState<WritingProposal[]>([]);
+  // A proposed rule's sheet, and a hard line's: a row is a door, so what it holds opens on a tap (Dave 2026-10-05).
+  const [asking, setAsking] = useState<WritingProposal | null>(null);
+  const [lineOpen, setLineOpen] = useState<number | null>(null);
   const loadWriting = async () => {
     if (!isWriting) return;
     try {
@@ -136,6 +142,7 @@ export default function BrainDocPage({ topic, onBack }: { topic: string; onBack:
   };
   // Hard lines save on the change itself; the canvas saves on blur.
   const linesDirtyRef = useRef(false);
+  const removeLine = (i: number) => { linesDirtyRef.current = true; setLines((ls) => ls.filter((_, j) => j !== i)); setDirty(true); };
   useEffect(() => {
     if (!loaded || !linesDirtyRef.current) return;
     linesDirtyRef.current = false;
@@ -178,14 +185,19 @@ export default function BrainDocPage({ topic, onBack }: { topic: string; onBack:
       />
       {/* Deep writing pass (2026-08-19): brain docs write on the notes
           canvas, not in a boxed form field. Same typography, same caret. */}
-      <div className="pad-x sheet-form">
+      <div>
+        {/* A BUTTON NEVER STANDS ALONE IN A BOX (Dave 2026-10-05, rule 12). The retry sat by itself in a grey plate. The read
+            failing is a thing to say, so the card keeps its own words, as Your Routine's load failure does. */}
         {loadFailed && !loaded && (
-          <div className="card list-card-ruled">
-            <button className="row row-act" onClick={() => setAttempt((n) => n + 1)}>Try Again</button>
-          </div>
+          <div className="pad-x"><div className="card list-card-ruled">
+            <div className="empty-state">
+              <div className="t-body">Couldn't Load This Page</div>
+              <button className="btn btn-secondary" onClick={() => setAttempt((n) => n + 1)}>Try Again</button>
+            </div>
+          </div></div>
         )}
         {loaded && (
-          <MarkdownField
+          <div className="pad-x sheet-form"><MarkdownField
             value={text}
             docKey={topic + ":" + docKey}
             level="document"
@@ -193,7 +205,7 @@ export default function BrainDocPage({ topic, onBack }: { topic: string; onBack:
             ariaLabel={meta?.title ?? "Note"}
             onChange={(v) => { setText(v); setDirty(true); }}
             onBlur={() => { if (latestRef.current.dirty) void save(); }}
-          />
+          /></div>
         )}
         {/* C-57: the writing facts by channel, each row the strand row's
             anatomy. C-56: a draft-edit rule waiting for a word sits under
@@ -206,34 +218,40 @@ export default function BrainDocPage({ topic, onBack }: { topic: string; onBack:
             return (
               <div key={ch}>
                 <div className="sh2 sh2-quiet"><span className="t">{WRITING_CHANNEL_LABEL[ch]}</span><span className="n">{rows.length + asks.length}</span></div>
-                <div className="card list-card-ruled">
+                <div className="pad-x"><div className="card list-card-ruled shell-rows">
                   {rows.map((s) => {
                     const st = stateForStrand(s, todayISO());
                     return (
-                      <div className="row strand-row" key={s.id}>
-                        <RowStar on={!!s.data.link} />
-                        <div className="row-grow">
-                          <div className="conn-name">{s.data.text}</div>
-                          <div className="facts">
-                            {st && <span className={"fact st " + toneForStrandState(st)}>{STRAND_STATE_LABEL[st]}</span>}
-                            {s.data.strength === "rule" && <span className="fact st">Rule</span>}
-                            {(s.data.evidence?.length ?? 0) > 0 && <span className="fact">{lineCase(`${s.data.evidence!.length} edits`)}</span>}
+                      <RowShell key={s.id}>
+                        <div className="row strand-row">
+                          <RowStar on={!!s.data.link} />
+                          <div className="row-grow">
+                            <div className="conn-name">{lineCase(s.data.text)}</div>
+                            <div className="facts">
+                              {st && <span className={"fact st " + toneForStrandState(st)}>{STRAND_STATE_LABEL[st]}</span>}
+                              {s.data.strength === "rule" && <span className="fact st">Rule</span>}
+                              {(s.data.evidence?.length ?? 0) > 0 && <span className="fact">{lineCase(`${s.data.evidence!.length} edits`)}</span>}
+                            </div>
                           </div>
                         </div>
-                      </div>
+                      </RowShell>
                     );
                   })}
                   {asks.map((p) => (
-                    // row-tap: That's Right is a Brain identity write, and the locked agency law keeps those on an explicit tap of the pill
-                    <div className="row strand-row" key={"ask:" + p.rule.id}>
-                      <div className="row-grow">
-                        <div className="conn-name">{p.text}</div>
-                        <div className="facts"><span className="fact st warn">Needs Confirmation</span><span className="fact">{lineCase(`${p.edits} edits`)}</span></div>
+                    // CLEAN ROWS (Dave 2026-10-05, locked): That's Right is the swipe-left, the one quiet word on a row that is
+                    // asking right now, and the sheet's primary; each an explicit tap, which the Brain's identity-write agency
+                    // law asks for.
+                    <RowShell key={"ask:" + p.rule.id} verb={{ label: "That's Right", run: () => void confirmProposal(p) }}>
+                      <div {...pressable(() => setAsking(p))} className="row strand-row">
+                        <div className="row-grow">
+                          <div className="conn-name">{lineCase(p.text)}</div>
+                          <div className="facts"><span className="fact st warn">Needs Confirmation</span><span className="fact">{lineCase(`${p.edits} edits`)}</span></div>
+                        </div>
+                        <RowCtxAction when label="That's Right" ariaLabel={"That's Right, " + lineCase(p.text)} onAct={() => void confirmProposal(p)} />
                       </div>
-                      <button type="button" className="pill-act" onClick={(ev) => { ev.stopPropagation(); void confirmProposal(p); }}>That's Right</button>
-                    </div>
+                    </RowShell>
                   ))}
-                </div>
+                </div></div>
               </div>
             );
           })
@@ -242,18 +260,21 @@ export default function BrainDocPage({ topic, onBack }: { topic: string; onBack:
             page, and nowhere else: the app never writes a Value. Each chip
             says exactly what it will stop, because a rule that stops an
             automatic action has to be readable at a glance. */}
-        {isValues && loaded && (
-          <div className="card list-card-ruled">
-            <div className="sh2 sh2-quiet"><span className="t">Hard Lines</span>{lines.length > 0 && <span className="n">{lines.length}</span>}</div>
+        {isValues && loaded && (<>
+          <div className="sh2 sh2-quiet"><span className="t">Hard Lines</span>{lines.length > 0 && <span className="n">{lines.length}</span>}</div>
+          <div className="pad-x"><div className="card list-card-ruled shell-rows">
             {lines.map((l, i) => (
-              // row-tap: hard-line rows are two words shown whole with nothing to open, and the only verb is Remove, which a row tap must never do
-              <div className="row" key={l.kind + l.match}>
-                <div className="row-grow">
-                  <div className="conn-name">{HARD_LINE_LABEL[l.kind]} · {l.match}</div>
-                  <div className="conn-meta">{HARD_LINE_PROMISE[l.kind]}</div>
+              // CLEAN ROW (Dave 2026-10-05): the line is its words, the kind is its one grey fact (the dot, if any, is
+              // CSS), Remove is the swipe-left, and what the line promises, and Remove again, are on the sheet a tap opens.
+              <RowShell key={l.kind + l.match} verb={{ label: "Remove", run: () => removeLine(i) }}>
+                <div {...pressable(() => setLineOpen(i))} className="row">
+                  <div className="row-grow">
+                    <div className="conn-name">{l.match}</div>
+                    <div className="facts"><span className="fact">{HARD_LINE_LABEL[l.kind]}</span></div>
+                  </div>
+                  <div className="chev" />
                 </div>
-                <button className="quiet-action" onClick={() => { linesDirtyRef.current = true; setLines(lines.filter((_, j) => j !== i)); setDirty(true); }}>Remove</button>
-              </div>
+              </RowShell>
             ))}
             {lines.length < MAX_HARD_LINES && (
               <div className="pad-x sheet-form">
@@ -281,8 +302,8 @@ export default function BrainDocPage({ topic, onBack }: { topic: string; onBack:
                 >Add a Line</button>
               </div>
             )}
-          </div>
-        )}
+          </div></div>
+        </>)}
         {ai.available && (
           <>
             <input
@@ -292,7 +313,7 @@ export default function BrainDocPage({ topic, onBack }: { topic: string; onBack:
               accept="image/*"
               onChange={(e) => { const f = e.target.files?.[0]; if (f) void onPhoto(f); e.target.value = ""; }}
             />
-            <div className="card list-card-ruled">
+            <div className="pad-x"><div className="card list-card-ruled">
               <div {...pressable(() => !reading && fileRef.current?.click())} className="row">
                 <div className="sec-ico ico-blue">{PHOTO}</div>
                 <div className="row-grow">
@@ -305,13 +326,22 @@ export default function BrainDocPage({ topic, onBack }: { topic: string; onBack:
                   {reading && <div className="conn-meta">Reading</div>}
                 </div>
               </div>
-            </div>
+            </div></div>
           </>
         )}
       </div>
       {/* Brain Manual v1: what was filed to this page from a note, an
           email or the + menu. Nothing filed, nothing drawn. */}
       {FILED_FOR[topic] && <FiledRows categories={[FILED_FOR[topic]!]} />}
+      {asking && (
+        <RowSheet eyebrow="Needs Confirmation" text={lineCase(asking.text)} facts={<span className="fact">{lineCase(`${asking.edits} edits`)}</span>}
+          answers={[{ label: "That's Right", onPick: () => void confirmProposal(asking) }]} onClose={() => setAsking(null)} />
+      )}
+      {lineOpen !== null && lines[lineOpen] && (
+        <RowSheet eyebrow={HARD_LINE_LABEL[lines[lineOpen]!.kind]} text={lines[lineOpen]!.match}
+          facts={<span className="fact">{HARD_LINE_PROMISE[lines[lineOpen]!.kind]}</span>}
+          answers={[{ label: "Remove", destructive: true, onPick: () => removeLine(lineOpen) }]} onClose={() => setLineOpen(null)} />
+      )}
     </div>
   );
 }

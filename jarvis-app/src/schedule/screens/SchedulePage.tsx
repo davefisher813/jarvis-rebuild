@@ -15,7 +15,7 @@ import DayRow from "./DayRow";
 import LockedRow from "./LockedRow";
 import SkippedBlocks, { type SkippedBlock } from "./SkippedBlocks";
 import AnytimeRow from "./AnytimeRow";
-import ProposedRow, { blockMinutes } from "./ProposedRow";
+import ProposedRow, { HeldProposalRow } from "./ProposedRow";
 import { stateForEvent, stateForBlock } from "../stateWord";
 import type { TaskItem } from "../../tasks/TasksService";
 import type { ParentLine } from "../../life/parent";
@@ -95,7 +95,7 @@ export default function SchedulePage({
   locked = [], now, onEditRoutine, onOpenBlock, onFillBlock, onShift, onMoveTo, onSetEnd, onSkipToday, onPushTomorrow, onRunningLate, openSourceFor, notedEvents, onNotes,
   onShiftBlock, onRetimeBlock, onResizeBlock, onDeleteBlock, onDeleteEvent,
   proposed, dayFooter,
-  anytimeItems = [], onToggleTask, onScheduleTask, onOpenTask, parentOf, attachMap = {}, firstMoveMap = {}, blendMap = {},
+  anytimeItems = [], onToggleTask, onScheduleTask, onDeleteTask, onOpenTask, parentOf, attachMap = {}, firstMoveMap = {}, blendMap = {},
   windowStartMin, windowEndMin, skippedBlocks = [], onBackToNormal,
 }: {
   year: number; month: number; selected: string; todayDate: string;
@@ -183,6 +183,8 @@ export default function SchedulePage({
   /** Swipe left, Delete. The flow owns the write and the Undo toast. */
   onDeleteEvent?: (id: string) => void;
   anytimeItems?: TaskItem[]; onToggleTask?: (id: string) => void; onScheduleTask?: (id: string, startHHMM?: string) => void;
+  /** Swipe left on an Anytime row, Delete. The flow owns the write and the Undo toast. */
+  onDeleteTask?: (id: string) => void;
   /** Open an Anytime task in the TaskSheet (the whole row is the door). */
   onOpenTask?: (id: string) => void;
   // The goal an Anytime task moves, by its short name (the ruled row).
@@ -556,7 +558,7 @@ export default function SchedulePage({
               <div className="row" {...pressable(() => onOpenEvent?.(r.id))} key={r.id}>
                 <span className={"sched-bar cat-bg-" + catColor(r.category)} />
                 <div className="row-grow">
-                  <div className="conn-name">{r.title}</div>
+                  <div className="conn-name">{titleCase(r.title)}</div>
                   {/* ONE GREY, DOTS FROM CSS (§AK, §AM F3/F5, 2026-09-26).
                       The cadence is the line's one grey; an end date is a
                       neutral date, so small caps; the skip count is a number
@@ -697,7 +699,7 @@ export default function SchedulePage({
           </div>
           {/* THE ROW'S MOMENT HAS COME (Dave 2026-10-05, locked): a clash is a row asking to be dealt with, so its one
               action is one quiet word on the row (RowCtxAction), never a capsule; the whole row opens the same sheet. */}
-          <RowCtxAction when label="Fix It" ariaLabel="Fix the overlap" onAct={onFixOverlap} />
+          <RowCtxAction when label="Fix It" onAct={onFixOverlap} />
         </div></div></div>
       )}
       {mode === "day" && onFixOverlap && clashCount >= 2 && (
@@ -732,7 +734,7 @@ export default function SchedulePage({
             <button className="btn btn-secondary" onClick={onNew}>New Event</button>
           </div>
           {mode === "day" && (
-            <AnytimeRow items={anytimeItems} onToggle={onToggleTask} onSchedule={onScheduleTask} onOpen={onOpenTask} onDragStart={beginDrag} parentOf={parentOf} today={todayDate} />
+            <AnytimeRow items={anytimeItems} onToggle={onToggleTask} onSchedule={onScheduleTask} {...(onDeleteTask ? { onDelete: onDeleteTask } : {})} onOpen={onOpenTask} onDragStart={beginDrag} parentOf={parentOf} today={todayDate} />
           )}
         </>
       ) : (
@@ -839,6 +841,7 @@ export default function SchedulePage({
                 onDrop={() => proposed!.onDrop(en.b.taskId)}
                 {...(proposed!.onAccept ? { onAccept: () => proposed!.onAccept!(en.b.taskId) } : {})}
                 {...(proposed!.onOpen ? { onOpen: () => proposed!.onOpen!(en.b.taskId) } : {})}
+                {...(proposed!.onComplete ? { onComplete: () => proposed!.onComplete!(en.b.taskId) } : {})}
               />
             ) : en.kind === "locked" ? (() => {
               const heldProps = heldPropBy.get(en.l.label + "@" + en.l.s) ?? [];
@@ -866,30 +869,13 @@ export default function SchedulePage({
                         Today, with its own Accept. The hollow dot is the
                         "not real yet" the proposed row wears everywhere. */}
                     {heldProps.map((b) => (
-                      <div
-                        className="block-held block-held-prop"
+                      <HeldProposalRow
                         key={"p" + b.taskId}
-                        {...pressable(() => openProposed(b.taskId))}
-                        /* the pointer path keeps its own stopPropagation, as
-                           the held block above it does: this row sits inside
-                           the routine row. */
-                        onClick={(ev) => { ev.stopPropagation(); openProposed(b.taskId); }}
-                      >
-                        <span className={"cat-dot-hollow cat-bd-" + catColor(b.category)} />
-                        <span className="block-held-t truncate">{b.text}</span>
-                        <span className="facts block-held-facts">
-                          <span className="fact st gray">Proposed</span>
-                          {/* A length that cannot be tapped is a number with
-                              no state: white, not a second grey beside the
-                              block's own kicker (§AK, §AM). 2026-10-05 (the
-                              catalog gate): spanLabel spells it "45 Min" and
-                              "1h 30m"; it was glued "45m" by hand. */}
-                          <span className="fact"><b>{spanLabel(blockMinutes(b))}</b></span>
-                        </span>
-                        {proposed?.onAccept && (
-                          <button type="button" className="pill-act" onClick={(ev) => { ev.stopPropagation(); proposed.onAccept?.(b.taskId); }}>Accept</button>
-                        )}
-                      </div>
+                        block={b}
+                        onOpen={() => openProposed(b.taskId)}
+                        {...(proposed?.onAccept ? { onAccept: () => proposed.onAccept!(b.taskId) } : {})}
+                        onDrop={() => proposed!.onDrop(b.taskId)}
+                      />
                     ))}
                   </div>
                 )}
@@ -932,7 +918,7 @@ export default function SchedulePage({
                   <div className="blend-tuck" {...pressable(() => blendMap[en.e.id]!.onAdd())}>
                     <span className="blend-plus" aria-hidden>+</span>
                     <div className="row-grow">
-                      <div className="blend-text truncate">{blendMap[en.e.id]!.text}</div>
+                      <div className="blend-text truncate">{titleCase(blendMap[en.e.id]!.text)}</div>
                       <div className="blend-why">{blendMap[en.e.id]!.why}</div>
                     </div>
                   </div>
@@ -949,7 +935,7 @@ export default function SchedulePage({
             Anytime live? A section below the timeline"). It sat above,
             which put the unplaced work in front of the day it was not in. */}
         {mode === "day" && (
-          <AnytimeRow items={anytimeItems} onToggle={onToggleTask} onSchedule={onScheduleTask} onOpen={onOpenTask} onDragStart={beginDrag} parentOf={parentOf} today={todayDate} />
+          <AnytimeRow items={anytimeItems} onToggle={onToggleTask} onSchedule={onScheduleTask} {...(onDeleteTask ? { onDelete: onDeleteTask } : {})} onOpen={onOpenTask} onDragStart={beginDrag} parentOf={parentOf} today={todayDate} />
         )}
         {/* The trailing "Open ..." list is retired in EVERY mode now (B4,
             2026-08-23). It survived for week and month on the reasoning that

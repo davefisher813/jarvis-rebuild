@@ -11,16 +11,18 @@ describe("LightsOutScreen: Edit Time", () => {
   it("writes the clock on the same night, and nothing else", () => {
     const onEditTime = vi.fn();
     render(<LightsOutScreen last={{ id: "l1", data: { category: "sleep", at: AT } }} onLog={() => {}} onEditTime={onEditTime} onBack={() => {}} />);
-    fireEvent.click(screen.getByRole("button", { name: "Edit Time" }));
+    // CLEAN ROW (Dave 2026-10-05): no Edit Time capsule; the row itself is the door to the time.
+    expect(screen.queryByRole("button", { name: "Edit Time" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByText(/^Sat/).closest(".row")!);
     fireEvent.change(screen.getByLabelText("Bedtime time"), { target: { value: "23:15" } });
     expect(onEditTime).toHaveBeenCalledWith("l1", new Date("2026-09-12T23:15:00").getTime());
   });
 
-  it("offers no Edit Time on a row still on its way to the store, or without a seam", () => {
-    const { rerender } = render(<LightsOutScreen last={{ id: "pending-0", pending: true, data: { category: "sleep", at: AT } }} onLog={() => {}} onEditTime={() => {}} onBack={() => {}} />);
-    expect(screen.queryByRole("button", { name: "Edit Time" })).not.toBeInTheDocument();
+  it("offers no way to edit a row still on its way to the store, or without a seam", () => {
+    const { rerender, container } = render(<LightsOutScreen last={{ id: "pending-0", pending: true, data: { category: "sleep", at: AT } }} onLog={() => {}} onEditTime={() => {}} onBack={() => {}} />);
+    expect(container.querySelector(".card .row .chev")).toBeNull();
     rerender(<LightsOutScreen last={{ id: "l1", data: { category: "sleep", at: AT } }} onLog={() => {}} onBack={() => {}} />);
-    expect(screen.queryByRole("button", { name: "Edit Time" })).not.toBeInTheDocument();
+    expect(container.querySelector(".card .row .chev")).toBeNull();
   });
 
   it("the tap still logs, and there is still no duration anywhere on the screen", () => {

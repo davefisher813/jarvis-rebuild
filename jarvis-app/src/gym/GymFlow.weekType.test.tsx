@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 //
 // A BACK-OFF WEEK IS A LABEL, AND THE SHEET SAYS SO (2026-10-04). The flag on
-// a program week is stored and shown back as the Back-Off pill; no session,
+// a program week is stored and shown back as the Back-Off fact; no session,
 // target or progression reads it to change a weight or a set. The chips sat
 // under a heading of "Load", which promised exactly that, so they now sit under
 // "Week Type". Driven through the real flow: Manage, Add a Week.
@@ -52,8 +52,8 @@ describe("GymFlow: the week sheet names the back-off chips for what they are", (
 
   it("Duplicate and Bump asks for the same Week Type, since only the steppers change a weight", async () => {
     await mount("gym-week-type-bump", TWO_WEEKS as unknown as typeof PROGRAM);
-    // The Back-Off pill is the stored flag, shown back.
-    expect(await screen.findByText("Back-Off", { selector: ".pill" }, { timeout: 4000 })).toBeInTheDocument();
+    // The stored flag is shown back as an amber fact on the week's line (no pill in a row, Dave 2026-10-05).
+    expect(await screen.findByText(/, Back-Off$/, { selector: ".fact" }, { timeout: 4000 })).toBeInTheDocument();
     fireEvent.click(await screen.findByText("Week 1"));
     fireEvent.click(await screen.findByText(/Duplicate Week 1/));
     await waitFor(() => expect(screen.getByText("Add to Every Weight")).toBeInTheDocument());

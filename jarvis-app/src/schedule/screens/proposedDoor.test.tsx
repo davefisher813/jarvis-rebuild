@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, cleanup } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import ProposedRow from "./ProposedRow";
 import SchedulePage from "./SchedulePage";
@@ -12,37 +12,81 @@ import type { PlanBlock } from "../planDay";
 // expanded to duration chips and Book It and had no way to open the editor.
 const block: PlanBlock = { taskId: "t1", text: "Finish Jarvis on Mac", category: "work", start: "10:00", end: "10:45" };
 
-describe("a standalone proposed row can open its task", () => {
-  const row = (props: Record<string, unknown> = {}, open = true) => {
-    const onOpen = vi.fn();
-    render(
-      <ProposedRow block={block} open={open} onToggle={() => {}} onDuration={() => {}} onDrop={() => {}}
-        onAccept={() => {}} onOpen={onOpen} {...props} />,
+// NO PILLS ON A ROW (Dave 2026-10-05, locked). Book It, Edit Task and Move to Anytime used to be three capsules in the
+// expanded row. They are the swipe-left rail (Book It, then Anytime), the long-press menu (every one again), and the tap, which
+// opens the task's own sheet when an editor is wired.
+describe("a standalone proposed row holds its actions in the rail, the menu and the tap", () => {
+  const row = (props: Record<string, unknown> = {}, open = false) => {
+    const onOpen = vi.fn(), onAccept = vi.fn(), onDrop = vi.fn(), onToggle = vi.fn(), onComplete = vi.fn();
+    const r = render(
+      <ProposedRow block={block} open={open} onToggle={onToggle} onDuration={() => {}} onDrop={onDrop}
+        onAccept={onAccept} onOpen={onOpen} onComplete={onComplete} {...props} />,
     );
-    return { onOpen };
+    return { onOpen, onAccept, onDrop, onToggle, onComplete, ...r };
   };
 
-  it("offers Edit Task beside Book It once the row is expanded", () => {
-    const { onOpen } = row();
-    expect(screen.getByText("Book It")).toBeInTheDocument();
-    expect(screen.getByText("Move to Anytime")).toBeInTheDocument();
-    fireEvent.click(screen.getByText("Edit Task"));
+  it("draws no capsule in the row, expanded or not", () => {
+    const { container } = row({}, true);
+    expect(container.querySelectorAll(".pill-act, .row-act, .btn-sm").length).toBe(0);
+    expect(screen.queryByText("Edit Task")).toBeNull();
+  });
+
+  it("the swipe-left rail leads with Book It and holds the way back to Anytime", () => {
+    const { onAccept, onDrop } = row();
+    const rail = Array.from(document.querySelectorAll(".sched-actions .sched-act")).map((b) => b.textContent);
+    expect(rail).toEqual(["Book It", "Anytime"]);
+    fireEvent.click(screen.getByText("Book It"));
+    expect(onAccept).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByText("Anytime"));
+    expect(onDrop).toHaveBeenCalledTimes(1);
+  });
+
+  it("the long-press menu holds every action again, and Edit Task opens the task", () => {
+    const { onOpen, onAccept } = row();
+    fireEvent.contextMenu(screen.getByRole("button", { name: /Finish Jarvis on Mac/ }));
+    const labels = Array.from(document.querySelectorAll(".action-sheet button")).map((b) => b.textContent);
+    expect(labels).toEqual(["Book It", "Done", "Edit Task", "Change Length", "Move to Anytime", "Cancel"]);
+    fireEvent.click(screen.getByRole("button", { name: "Edit Task" }));
     expect(onOpen).toHaveBeenCalledTimes(1);
+    expect(onAccept).not.toHaveBeenCalled();
+  });
+
+  it("a tap opens the task when an editor is wired, and expands the length chips when not", () => {
+    const a = row();
+    fireEvent.click(screen.getByText("Finish Jarvis on Mac"));
+    expect(a.onOpen).toHaveBeenCalledTimes(1);
+    expect(a.onToggle).not.toHaveBeenCalled();
+    a.unmount();
+    const b = row({ onOpen: undefined });
+    fireEvent.click(screen.getByText("Finish Jarvis on Mac"));
+    expect(b.onToggle).toHaveBeenCalledTimes(1);
+  });
+
+  it("Change Length in the menu is how the chips open, and the chips are kept", () => {
+    const { onToggle } = row();
+    fireEvent.contextMenu(screen.getByRole("button", { name: /Finish Jarvis on Mac/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Change Length" }));
+    expect(onToggle).toHaveBeenCalledTimes(1);
   });
 
   it("keeps the duration chips, which the editor door did not replace", () => {
-    row();
+    row({}, true);
     expect(screen.getByLabelText("Finish Jarvis on Mac: 45 minutes")).toBeInTheDocument();
   });
 
-  it("is absent when the caller has no editor wired, and when the row is shut", () => {
-    row({ onOpen: undefined });
-    expect(screen.queryByText("Edit Task")).toBeNull();
+  it("offers only what the caller can honour: no Book It without onAccept, no ring without onComplete", () => {
+    row({ onAccept: undefined, onComplete: undefined, onOpen: undefined });
+    expect(Array.from(document.querySelectorAll(".sched-actions .sched-act")).map((b) => b.textContent)).toEqual(["Anytime"]);
+    expect(document.querySelector(".sched-check")).toBeNull();
+    expect(document.querySelector(".task-done-rail")).toBeNull();
   });
 
-  it("is not there while the row is collapsed", () => {
+  it("the title is Title Case", () => {
     row({}, false);
-    expect(screen.queryByText("Edit Task")).toBeNull();
+    expect(document.querySelector(".sched-t")!.textContent).toBe("Finish Jarvis on Mac");
+    cleanup();
+    render(<ProposedRow block={{ ...block, text: "reply to nadia about ai" }} open={false} onToggle={() => {}} onDuration={() => {}} onDrop={() => {}} />);
+    expect(document.querySelector(".sched-t")!.textContent).toBe("Reply to Nadia About AI");
   });
 });
 
@@ -59,14 +103,24 @@ describe("on the Schedule tab, tapping a proposed task answers the same way wher
     onToggle: vi.fn(), onDuration: vi.fn(), onDrop: vi.fn(), onAccept: vi.fn(), ...extra,
   });
 
-  it("the standalone row opens the task from Edit Task, and books from Book It", () => {
+  it("the standalone row books from its rail and opens the task from its menu", () => {
     const onOpen = vi.fn();
     const onAccept = vi.fn();
     render(<SchedulePage {...day} proposed={{ ...proposed({ onOpen, onAccept }), openId: "t1" }} />);
-    fireEvent.click(screen.getByText("Edit Task"));
+    fireEvent.contextMenu(document.querySelector(".sched-proposed")!);
+    fireEvent.click(screen.getByRole("button", { name: "Edit Task" }));
     expect(onOpen).toHaveBeenCalledWith("t1");
-    fireEvent.click(screen.getByText("Book It"));
+    fireEvent.click(screen.getByLabelText("Book Finish Jarvis on Mac"));
     expect(onAccept).toHaveBeenCalledWith("t1");
+  });
+
+  it("the row nested under a block has no Accept capsule, and books from its menu", () => {
+    const onAccept = vi.fn();
+    const { container } = render(<SchedulePage {...day} proposed={proposed({ onAccept, onOpen: vi.fn() })} />);
+    expect(container.querySelector(".block-held-prop .pill-act")).toBeNull();
+    fireEvent.contextMenu(screen.getByText("Reply to Nadia"));
+    fireEvent.click(screen.getByRole("button", { name: "Book It" }));
+    expect(onAccept).toHaveBeenCalledWith("t2");
   });
 
   it("the row nested under a block opens the same task editor on a tap", () => {

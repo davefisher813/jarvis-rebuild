@@ -64,7 +64,7 @@ export default function CallItScreen({ durationMin, history, onLog, onBack }: {
             {/* Health Push D (H-45): the two ends named, and a way out that
                 logs nothing. Skip is quiet because it is not the move. */}
             <div className="rpe-ends" aria-hidden="true"><span>Easy</span><span>All Out</span></div>
-            <div className="rpe-foot"><button type="button" className="pill-act pill-quiet" onClick={onBack}>Skip</button></div>
+            <div className="rpe-foot"><button type="button" className="btn btn-tertiary" onClick={onBack}>Skip</button></div>
           </>
         )}
       </div>

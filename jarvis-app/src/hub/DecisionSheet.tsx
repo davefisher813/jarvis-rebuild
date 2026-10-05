@@ -111,16 +111,17 @@ export default function DecisionSheet({ mode, initial, projectTitle, sourceLine,
             <div><div className="eyebrow">Saved</div><div className="hub-text hub-text-strong">{first.statement}</div><HubFacts facts={constraintFacts(first.key, first.theirs)} /></div>
             <div><div className="eyebrow">This One</div><div className="hub-text hub-text-strong">{d.statement}</div><HubFacts facts={constraintFacts(first.key, first.mine)} /></div>
           </div></div>
-          {/* row-tap: the row IS the button; it fills the row */}
-          <div {...pressable(() => { if (!incomplete && !busy) onReplace(d, first.item_id); })} className="row row-act">Replace {titleCase(first.title)} With This</div>
+          {/* The conflict card has its own words (both sides, side by side) and its one answer, so the answer is the card's own
+              action row, the settled notice-card home (Dave 2026-10-05). */}
+          <div className="notice-actions">
+            {/* row-tap: the row IS the button; it fills the row */}
+            <div {...pressable(() => { if (!incomplete && !busy) onReplace(d, first.item_id); })} className="row row-act">Replace {titleCase(first.title)} With This</div>
+          </div>
         </Group>
       )}
       {tried && incomplete && <ErrorLine text={COMMAND_LINES.MISSING_DETAILS} />}
-      {onDismiss && (
-        <Group>
-          <button className="row row-act hub-danger" onClick={onDismiss}>Dismiss Suggestion</button>
-        </Group>
-      )}
+      {/* AN ACTION NEVER SITS ALONE IN A BOX (Dave 2026-10-05, rule 12): the dismissal stands by itself, not in a plate. */}
+      {onDismiss && <div className="notice-clear-row"><button className="row-act hub-danger" onClick={onDismiss}>Dismiss Suggestion</button></div>}
       <Note>Dependencies Are Records You Pick · A Changed One Suggests a Review, Never a Rewrite</Note>
     </FormSheet>
   );

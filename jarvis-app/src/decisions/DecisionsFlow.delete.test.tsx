@@ -43,7 +43,7 @@ function Seed({ onReady }: { onReady: (s: DecisionService, id: string) => void }
 beforeEach(() => { showToast.mockReset(); localStorage.clear(); });
 
 describe("DecisionsFlow: Delete Decision", () => {
-  it("arms on the first tap, deletes on the second, and Undo restores the same record", async () => {
+  it("asks first, deletes on the confirm, and Undo restores the same record", async () => {
     let svc: DecisionService | null = null;
     let id = "";
     const { container } = render(
@@ -58,19 +58,23 @@ describe("DecisionsFlow: Delete Decision", () => {
     // itself is the handle, not its text.
     const row = await waitFor(() => {
       const n = container.querySelector(".dec-name");
-      expect(n?.textContent).toContain("Student template ships");
+      expect(n?.textContent).toContain("Student Template Ships");
       return n!;
     }, { timeout: 4000 });
     await act(async () => { fireEvent.click(row); });
 
-    // FIRST TAP ARMS ONLY. The record is still there afterwards; this is the
-    // whole reason the control takes two taps instead of one.
+    // THE DELETE IS IN THE RECORD'S MORE MENU, behind its own confirm (Dave 2026-10-05: no capsule or action row in a card).
+    // Choosing Delete in the menu only ASKS; the record is still there afterwards, which is the whole reason it takes two
+    // taps instead of one.
+    expect(screen.queryByRole("button", { name: "Delete Decision" })).toBeNull();
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "More" })); });
     const del = await screen.findByRole("button", { name: "Delete Decision" });
     await act(async () => { fireEvent.click(del); });
     expect((await svc!.list()).some((r: DecisionRecord) => r.id === id)).toBe(true);
 
-    // The armed face says what the next tap does.
-    const confirm = await screen.findByRole("button", { name: "Tap to Confirm" });
+    // The confirm says what the next tap does.
+    expect(await screen.findByText("Delete This Decision?")).toBeInTheDocument();
+    const confirm = await screen.findByRole("button", { name: "Delete Decision" });
     await act(async () => { fireEvent.click(confirm); });
     await waitFor(async () => expect((await svc!.list()).some((r: DecisionRecord) => r.id === id)).toBe(false));
 

@@ -126,10 +126,10 @@ export default function ReceiptDetail({ client, actionId, offline, back, onBack,
       <PageHeader title="Receipt" back={back} onBack={onBack} />
       {!d && !error && <Foot>Loading…</Foot>}
       {error && (
-        <div className="pad-x"><div className="card list-card-ruled">
-          <div className="row"><div className="conn-name">{error}</div></div>
-          <button className="row row-act hub-quiet" onClick={() => void load()}>Retry</button>
-        </div></div>
+        <>
+          <div className="pad-x"><div className="card list-card-ruled"><div className="row"><div className="conn-name">{error}</div></div></div></div>
+          <div className="notice-clear-row"><button className="row-act hub-quiet" onClick={() => void load()}>Retry</button></div>
+        </>
       )}
       {d && (
         <>
@@ -196,13 +196,14 @@ export default function ReceiptDetail({ client, actionId, offline, back, onBack,
             ))}
           </div></div>
 
-          <div className="pad-x"><div className="card list-card-ruled">
-            {d.undoable && <button className="row row-act" disabled={busy === "undo" || offline} onClick={() => void undo()}>{busy === "undo" ? "Undoing…" : UNDO}</button>}
-            {kind && d.destination_id && onOpenItem && <button className={"row row-act" + (d.undoable ? " hub-quiet" : "")} onClick={() => onOpenItem(kind, d.destination_id!)}>{OPEN_DESTINATION}</button>}
-            {kind && !d.destination_id && <div className="row"><div className="conn-name">{ITEM_REMOVED}</div></div>}
-            <button className="row row-act hub-quiet" onClick={() => void copy()}>{COPY_RECEIPT}</button>
-            {!d.receipts.every((r) => r.erased_at) && <button className="row row-act hub-danger" disabled={offline} onClick={() => setConfirming(true)}>{DELETE_RECEIPT}</button>}
-          </div></div>
+          {kind && !d.destination_id && <div className="pad-x"><div className="card list-card-ruled"><div className="row"><div className="conn-name">{ITEM_REMOVED}</div></div></div></div>}
+          {/* The receipt's own verbs stand under it as capsules (Dave 2026-10-05, locked: none inside a card). */}
+          <div className="hub-acts">
+            {d.undoable && <button className="row-act" disabled={busy === "undo" || offline} onClick={() => void undo()}>{busy === "undo" ? "Undoing…" : UNDO}</button>}
+            {kind && d.destination_id && onOpenItem && <button className={"row-act" + (d.undoable ? " hub-quiet" : "")} onClick={() => onOpenItem(kind, d.destination_id!)}>{OPEN_DESTINATION}</button>}
+            <button className="row-act hub-quiet" onClick={() => void copy()}>{COPY_RECEIPT}</button>
+            {!d.receipts.every((r) => r.erased_at) && <button className="row-act hub-danger" disabled={offline} onClick={() => setConfirming(true)}>{DELETE_RECEIPT}</button>}
+          </div>
           <Foot>{ERASE_NOTE}</Foot>
         </>
       )}

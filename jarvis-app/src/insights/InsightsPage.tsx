@@ -10,7 +10,6 @@ import { monthDay } from "../money/bills";
 import { pressable } from "../shared/pressable";
 import { lineCase } from "../shared/casing";
 import { PickSheet } from "../gym/ActionSheet";
-import { FileText } from "../shared/icons";
 import HealthNav, { type HealthView } from "./HealthNav";
 import { periodFor, periodOverview, muscleBreakdown, liftTable, hoursLabel, weekdayShort, inPeriod, type RangeKey, type Period } from "./analytics";
 import { comparableGain, type LiftId, type RepGain } from "./findings";
@@ -341,7 +340,8 @@ const musclesCard = breakdown.total === 0 ? null : (
         <div className="facts"><span className="fact">First Muscle Whole, the Rest Half, by the App's Convention</span></div>
         <div className="facts"><span className="fact">Working Sets Only, Warm-Ups Not Counted</span></div>
       </details>
-      <div className="ins-acts">
+      {/* The card has its own words and its own answers, so its action row is the settled notice-card home (Dave 2026-10-05). */}
+      <div className="ins-acts notice-actions">
         {breakdown.unassigned > 0 && <button type="button" className="pill-act" onClick={() => onAssignMuscles(breakdown.untagged)}>Assign Muscles</button>}
         <button type="button" className="see-all" onClick={() => onOpenAllData("sets", period)}>View Sets</button>
       </div>
@@ -628,10 +628,16 @@ const musclesCard = breakdown.total === 0 ? null : (
           {cards}
         </>
       ) : section === "strength" ? strength : rest}
-      <div className="pad-x h-foot-acts">
-        <button type="button" className="btn btn-secondary" onClick={() => onOpenAllData("all", period)}><FileText className="ic" />All Data</button>
-        <button type="button" className="btn btn-secondary" onClick={() => onExport(period)}>Export Data</button>
+      {/* THE RECORDS, AS A SECTION (Dave 2026-10-05, locked: a section-level action lives in the section head, never in a
+          card and never in a button row at the foot). Export Data is the head's capsule; All Data is a door row, the same
+          row as Exercises and Program on the Health page. */}
+      <div className="sh2 sh2-quiet">
+        <span className="t">Your Data</span>
+        <button type="button" className="see-all pill-action" onClick={() => onExport(period)}>Export Data</button>
       </div>
+      <div className="pad-x"><div className="card list-card-ruled h-doors">
+        <button type="button" className="h-door" onClick={() => onOpenAllData("all", period)}><span className="h-door-k">All Data</span><div className="chev" /></button>
+      </div></div>
       <div className="screen-foot" />
     </>
   );

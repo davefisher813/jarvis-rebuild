@@ -165,26 +165,28 @@ export default function ContextPreview({ client, connection, projectId, projectT
         )}
         {!preview && !error && <div className="row"><div className="conn-name">Loading…</div></div>}
         {error && <div className="row"><div className="row-grow"><div className="conn-name">{error}</div></div></div>}
-        {error && <button className="row row-act hub-quiet" onClick={() => void load()}>Retry</button>}
       </div></div>
+      {error && <div className="notice-clear-row"><button className="row-act hub-quiet" onClick={() => void load()}>Retry</button></div>}
 
       {preview && (
-        <div className="pad-x"><div className="card list-card-ruled">
+        <div className="hub-acts">
           {manual
-            ? <button className="row row-act" disabled={!!busy || offline} onClick={() => void share("export")}>{busy === "export" ? "Exporting…" : EXPORT_CONTEXT}</button>
+            ? <button className="row-act" disabled={!!busy || offline} onClick={() => void share("export")}>{busy === "export" ? "Exporting…" : EXPORT_CONTEXT}</button>
             : <>
-                <button className="row row-act" disabled={!!busy || offline} onClick={() => void share("once")}>{busy === "once" ? "Sharing…" : SHARE_ONCE}</button>
-                <button className="row row-act hub-quiet" disabled={!!busy || offline} onClick={() => void share("project")}>{busy === "project" ? "Sharing…" : SHARE_PROJECT}</button>
+                <button className="row-act" disabled={!!busy || offline} onClick={() => void share("once")}>{busy === "once" ? "Sharing…" : SHARE_ONCE}</button>
+                <button className="row-act hub-quiet" disabled={!!busy || offline} onClick={() => void share("project")}>{busy === "project" ? "Sharing…" : SHARE_PROJECT}</button>
               </>}
-          <button className="row row-act hub-quiet" disabled={!!busy || offline} onClick={() => setImporting(true)}>{PASTE_BACK}</button>
-        </div></div>
+          <button className="row-act hub-quiet" disabled={!!busy || offline} onClick={() => setImporting(true)}>{PASTE_BACK}</button>
+        </div>
       )}
       {shared && <Foot>{shared}</Foot>}
       {held !== null && (
-        <div className="pad-x"><div className="card list-card-ruled">
-          <button className="row row-act" onClick={() => void copyHeld()}>{COPY_EXPORT}</button>
-          <textarea className="copy-fallback" readOnly value={held} aria-label="The export, ready to copy" onFocus={(e) => e.currentTarget.select()} />
-        </div></div>
+        <>
+          <div className="hub-acts"><button className="row-act" onClick={() => void copyHeld()}>{COPY_EXPORT}</button></div>
+          <div className="pad-x"><div className="card list-card-ruled">
+            <textarea className="copy-fallback" readOnly value={held} aria-label="The export, ready to copy" onFocus={(e) => e.currentTarget.select()} />
+          </div></div>
+        </>
       )}
       {preview && <Foot>{PREVIEW_ALWAYS}</Foot>}
       <Foot>{EXPORT_CAVEAT}</Foot>

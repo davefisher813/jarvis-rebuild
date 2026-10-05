@@ -23,8 +23,8 @@ describe("GapSheet", () => {
     expect(screen.getByText("Schedule Something Here")).toBeInTheDocument();
     expect(document.querySelector(".facts .fact")!.textContent).toBe("45 Min Open");
     expect(screen.getByText(/12:15 PM to 1:00 PM/)).toBeInTheDocument();
-    expect(screen.getByText("Call the dentist")).toBeInTheDocument();
-    expect(screen.getByText("Update insurance docs")).toBeInTheDocument();
+    expect(screen.getByText("Call the Dentist")).toBeInTheDocument();
+    expect(screen.getByText("Update Insurance Docs")).toBeInTheDocument();
   });
 
   // THE CATALOG (Dave 2026-10-05): the gap line was one sub line with a dot typed
@@ -39,6 +39,14 @@ describe("GapSheet", () => {
     expect(line.textContent).not.toContain("\u00b7");
   });
 
+  // NO PILL ON A ROW (Dave 2026-10-05, locked). Each offer's one verb is one quiet word in the key colour, never a capsule.
+  it("an offer's Book is text, not a capsule", () => {
+    sheet();
+    expect(document.querySelectorAll(".gap-offer .pill-act, .gap-offer .row-act, .gap-offer .btn-sm").length).toBe(0);
+    const words = Array.from(document.querySelectorAll(".gap-offer .row-ctx"));
+    expect(words.map((w) => w.textContent)).toEqual(["Book", "Book"]);
+  });
+
   it("one tap on Book hands over that option", () => {
     const { onBook } = sheet();
     fireEvent.click(screen.getByLabelText("Book Update insurance docs at 12:15 PM"));
@@ -47,7 +55,7 @@ describe("GapSheet", () => {
 
   it("the whole row books, as every row in the app is a door", () => {
     const { onBook } = sheet();
-    fireEvent.click(screen.getByText("Call the dentist"));
+    fireEvent.click(screen.getByText("Call the Dentist"));
     expect(onBook).toHaveBeenCalledWith(opts[0]);
     expect(onBook).toHaveBeenCalledTimes(1);
   });
@@ -68,7 +76,7 @@ describe("GapSheet", () => {
 
   it("says so when nothing fits, and still offers the doors", () => {
     sheet({ options: [] });
-    expect(screen.getByText("Nothing on your list fits this gap.")).toBeInTheDocument();
+    expect(screen.getByText("Nothing on Your List Fits This Gap")).toBeInTheDocument();
     expect(screen.getByText("New Event")).toBeInTheDocument();
   });
 

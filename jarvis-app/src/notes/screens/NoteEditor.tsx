@@ -567,9 +567,10 @@ export default function NoteEditor({
           <div className="sh2 sh2-quiet"><span className="t">JARVIS Found</span><span className="n">{foundLive.length}</span></div>
           <div className="pad-x"><div className="card list-card-ruled">
             {foundLive.map(({ c, i }) => (
-              // Row tap (Dave 2026-09-15): nothing exists to open until it is
-              // added or linked, so the row does its pill's verb.
-              <div className="row" key={c.kind + ":" + i} {...(foundVerb(c.kind, i) ? pressable(foundVerb(c.kind, i)!) : {})}>
+              // CLEAN ROW (Dave 2026-10-05, locked: no pill in a row). Nothing exists to open until it is added or
+              // linked, so the row's tap does that one verb, and a glyph at its edge says which.
+              <div className="row" key={c.kind + ":" + i} aria-label={((c.kind === "task" || c.kind === "decision") ? "Add " : "Link ") + c.text}
+                {...(foundVerb(c.kind, i) ? pressable(foundVerb(c.kind, i)!) : {})}>
                 <div className={"proj-icon " + connIcon(c.kind === "decision" ? "decision" : c.kind).cls}>{connIcon(c.kind === "decision" ? "decision" : c.kind).node}</div>
                 <div className="row-grow">
                   <div className="conn-name">{c.text}</div>
@@ -579,8 +580,8 @@ export default function NoteEditor({
                   </div>
                 </div>
                 {(c.kind === "task" || c.kind === "decision")
-                  ? (onFoundAdd && <button type="button" className="pill-act" onClick={(ev) => { ev.stopPropagation(); onFoundAdd(i); }}>Add</button>)
-                  : (onFoundLink && <button type="button" className="pill-act" onClick={(ev) => { ev.stopPropagation(); onFoundLink(i); }}>Link</button>)}
+                  ? (onFoundAdd && <Plus className="ic row-verb-ic" aria-hidden="true" />)
+                  : (onFoundLink && <Link2 className="ic row-verb-ic" aria-hidden="true" />)}
               </div>
             ))}
           </div></div>

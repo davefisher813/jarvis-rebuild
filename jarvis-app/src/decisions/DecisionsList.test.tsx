@@ -77,7 +77,7 @@ describe("Decision list anatomy", () => {
     expect(date.className).toBe("fact date");
     expect(container.querySelector(".dec-when")).toBeNull();
     // Long decision sentences wrap (two-line clamp) rather than truncating.
-    const name = Array.from(container.querySelectorAll(".dec-name")).find((n) => n.textContent!.includes("Student template ships"));
+    const name = Array.from(container.querySelectorAll(".dec-name")).find((n) => n.textContent!.includes("Student Template Ships"));
     expect(name).toBeInTheDocument();
   });
 
@@ -85,7 +85,7 @@ describe("Decision list anatomy", () => {
     const { container } = render(
       <NotesProvider userId="u-dec-list-key"><Seeded><DecisionsFlow onBack={() => {}} /></Seeded></NotesProvider>,
     );
-    await waitFor(() => expect(screen.getByText("Keep Fridays for writing")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("Keep Fridays for Writing")).toBeInTheDocument());
     // The outcome takes the Colour Key: didn't is missed, worked is done.
     expect(screen.getByText("Didn't").className).toBe("fact red");
     expect(screen.getByText("Worked").className).toBe("fact good");
@@ -97,7 +97,7 @@ describe("Decision list anatomy", () => {
     const rows = Array.from(container.querySelectorAll(".dec-row"));
     const bare = rows.find((r) => r.textContent!.includes("Keep Fridays"))!;
     expect(bare.querySelector(".conn-meta")).toBeNull();
-    const reasoned = rows.find((r) => r.textContent!.includes("Student template"))!;
+    const reasoned = rows.find((r) => r.textContent!.includes("Student Template"))!;
     expect(reasoned.querySelector(".conn-meta")!.textContent).toBe("Because Northlake gives 60 warm leads on day one");
     // ADDED 2026-09-26 (audit leftovers): the reason is the row's point and
     // it wraps rather than clipping to one line. It lost a third to a half
@@ -132,17 +132,17 @@ describe("the decision row's date", () => {
     const { container } = render(
       <NotesProvider userId="u-dec-revisit"><SeededRevisits><DecisionsFlow onBack={() => {}} /></SeededRevisits></NotesProvider>,
     );
-    await waitFor(() => expect(screen.getByText("No revisit on this one")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("No Revisit on This One")).toBeInTheDocument());
     const dateOf = (name: string) => Array.from(container.querySelectorAll(".dec-row"))
       .find((r) => r.textContent!.includes(name))!.querySelector(".facts > .fact:last-child")!;
-    expect(dateOf("Revisit the gym plan").className).toBe("fact warn");
-    expect(dateOf("Revisit the gym plan").textContent).toBe("Revisit " + shortDate(dayFromToday(0)));
-    expect(dateOf("Revisit the reading list").className).toBe("fact warn");
-    expect(dateOf("Revisit the move").className).toBe("fact date");
-    expect(dateOf("Revisit the move").textContent).toBe("Revisit " + shortDate(dayFromToday(5)));
+    expect(dateOf("Revisit the Gym Plan").className).toBe("fact warn");
+    expect(dateOf("Revisit the Gym Plan").textContent).toBe("Revisit " + shortDate(dayFromToday(0)));
+    expect(dateOf("Revisit the Reading List").className).toBe("fact warn");
+    expect(dateOf("Revisit the Move").className).toBe("fact date");
+    expect(dateOf("Revisit the Move").textContent).toBe("Revisit " + shortDate(dayFromToday(5)));
     // The recorded-on day is always the neutral date.
-    expect(dateOf("No revisit on this one").className).toBe("fact date");
-    expect(dateOf("No revisit on this one").textContent).toBe(shortDate(todayISO()));
+    expect(dateOf("No Revisit on This One").className).toBe("fact date");
+    expect(dateOf("No Revisit on This One").textContent).toBe(shortDate(todayISO()));
   });
 });
 
@@ -178,8 +178,8 @@ describe("the record's Attached To card", () => {
     const { container } = render(
       <NotesProvider userId="u-dec-homes"><SeededHomes><DecisionsFlow onBack={() => {}} /></SeededHomes></NotesProvider>,
     );
-    await waitFor(() => expect(screen.getByText("Ship the student template first")).toBeInTheDocument());
-    fireEvent.click(screen.getByText("Ship the student template first").closest(".dec-row")!);
+    await waitFor(() => expect(screen.getByText("Ship the Student Template First")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("Ship the Student Template First").closest(".dec-row")!);
     await waitFor(() => expect(screen.getByText("Attached To")).toBeInTheDocument());
     const card = screen.getByText("Attached To").closest(".sh2")!.nextElementSibling!;
     const facts = Array.from(card.querySelectorAll(".facts > .fact"));
@@ -211,5 +211,52 @@ describe("the empty state", () => {
     expect(sub.textContent!.trim().split(/\s+/).length, "one line's worth").toBeLessThanOrEqual(9);
     expect(sub.textContent, "one sentence, so no full stop mid-line").not.toMatch(/\.\s/);
     expect(screen.getByText("Record a Decision")).toBeInTheDocument();
+  });
+});
+
+// CLEAN ROWS AND CARDS (Dave 2026-10-05, locked). A decision row is a door with a swipe-left Delete behind it; the record page
+// holds no capsule in a card: the outcome is a segmented choice, and Change It, Make It a Rule and Delete live in its More menu.
+describe("Decisions: clean rows, one menu", () => {
+  const noCaps = (root: Element) => root.querySelector(".card .pill-act, .card .row-act, .card .btn-sm, .card .quiet-action");
+
+  it("every list row is a swipe row with Delete behind it, and no capsule sits in the list card", async () => {
+    const { container } = render(
+      <NotesProvider userId="u-dec-clean-list"><Seeded><DecisionsFlow onBack={() => {}} /></Seeded></NotesProvider>,
+    );
+    await waitFor(() => expect(screen.getByText("Keep Fridays for Writing")).toBeInTheDocument());
+    const rows = Array.from(container.querySelectorAll(".dec-row"));
+    expect(rows).toHaveLength(2);
+    for (const r of rows) {
+      expect(r.closest(".task-swipe")?.querySelector(".task-del"), r.textContent ?? "").not.toBeNull();
+    }
+    expect(noCaps(container)).toBeNull();
+  });
+
+  it("the record page: the outcome is a segmented choice, no card holds a capsule, and the actions are in More", async () => {
+    const { container } = render(
+      <NotesProvider userId="u-dec-clean-record"><Seeded><DecisionsFlow onBack={() => {}} /></Seeded></NotesProvider>,
+    );
+    await waitFor(() => expect(screen.getByText("Keep Fridays for Writing")).toBeInTheDocument());
+    fireEvent.click(Array.from(container.querySelectorAll(".dec-name")).find((n) => n.textContent!.includes("Keep Fridays"))!);
+    const seg = await waitFor(() => { const e = container.querySelector(".segmented[aria-label='Outcome']"); expect(e).not.toBeNull(); return e!; });
+    expect(Array.from(seg.querySelectorAll("button.seg")).map((b) => b.textContent)).toEqual(["Worked", "Mixed", "Didn't"]);
+    expect(seg.querySelector("[aria-pressed=true]")?.textContent).toBe("Worked");
+    expect(noCaps(container)).toBeNull();
+    // The record's own actions are in its menu, not in rows at the foot of a card.
+    expect(screen.queryByText("Change It")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "More" }));
+    expect(await screen.findByRole("button", { name: "Change It" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Delete Decision" })).toHaveClass("destructive");
+  });
+
+  it("a call that did not work surfaces Change It on its outcome row, as text; one that worked shows nothing", async () => {
+    const { container } = render(
+      <NotesProvider userId="u-dec-ctx"><Seeded><DecisionsFlow onBack={() => {}} /></Seeded></NotesProvider>,
+    );
+    await waitFor(() => expect(screen.getByText("Keep Fridays for Writing")).toBeInTheDocument());
+    fireEvent.click(Array.from(container.querySelectorAll(".dec-name")).find((n) => n.textContent!.includes("Student Template"))!);
+    const ctx = await waitFor(() => { const c = container.querySelector(".row .row-ctx"); expect(c).not.toBeNull(); return c!; });
+    expect(ctx.textContent).toBe("Change It");
+    expect(ctx.className).toBe("row-ctx");
   });
 });

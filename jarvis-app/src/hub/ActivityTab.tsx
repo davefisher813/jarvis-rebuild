@@ -95,10 +95,10 @@ export default function ActivityTab({ client, overview, refreshKey, filter, onFi
 
       {rows === null && !error && <Foot>Loading…</Foot>}
       {error && (
-        <div className="pad-x"><div className="card list-card-ruled">
-          <div className="row"><div className="conn-name">{error}</div></div>
-          <button className="row row-act hub-quiet" onClick={() => void load()}>Retry</button>
-        </div></div>
+        <>
+          <div className="pad-x"><div className="card list-card-ruled"><div className="row"><div className="conn-name">{error}</div></div></div></div>
+          <div className="notice-clear-row"><button className="row-act hub-quiet" onClick={() => void load()}>Retry</button></div>
+        </>
       )}
 
       {empty && (

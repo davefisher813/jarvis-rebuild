@@ -6,6 +6,7 @@ import { NotesProvider } from "../data/NotesProvider";
 import { FeedbackProvider } from "../encourage/FeedbackProvider";
 import { setLiveFeedback } from "../encourage/prefs";
 import { lineCase } from "../shared/casing";
+import { capsulesInCards } from "../laws/catalogCheck";
 import FeedbackStylePage from "./FeedbackStylePage";
 
 vi.mock("../shared/toast", () => ({ showToast: () => {}, subscribeToast: () => () => {} }));
@@ -43,10 +44,12 @@ describe("FeedbackStylePage follows the catalog", () => {
     }
   });
 
-  it("a tap that has nothing to show it wears the capsule, not bare white words", () => {
+  it("Hear It is a clean row that plays on tap, with a speaker glyph and no capsule (Dave 2026-10-05: no pills in a row)", () => {
     const { container } = page();
     const hear = [...container.querySelectorAll(".row")].find((r) => r.querySelector(".conn-name")?.textContent === "Hear It")!;
-    expect(hear.querySelector(".pill-act")?.textContent).toBe("Play");
+    expect(hear.querySelector(".pill-act, .row-act, .btn-sm, .quiet-action")).toBeNull();
+    expect(hear.querySelector(".row-value svg")).not.toBeNull();
+    expect(capsulesInCards(container)).toEqual([]);
   });
 
   it("a note under a card is one sentence or dot-joined fragments, never two sentences", () => {

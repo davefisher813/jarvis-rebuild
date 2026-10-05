@@ -59,13 +59,19 @@ describe("MealScreen: recent meals and When", () => {
   });
   // Row tap (Dave 2026-09-15, "I want all rows clickable"): a logged meal
   // fills the field; Undo on the same row undoes and fills nothing.
-  it("a tap on a logged meal fills the field, and Undo does not", () => {
+  // CLEAN ROWS (Dave 2026-10-05, locked): no Undo capsule on the row. Undo is its swipe-left (the tray) and an answer on the
+  // sheet a tap opens, beside Log Again (the old row tap: fills the field).
+  it("a tap on a logged meal opens its sheet: Log Again fills the field, and Undo is the swipe and the sheet's other answer", () => {
     const onUndo = vi.fn();
-    render(<MealScreen today={[{ id: "a", data: { category: "fuel", at: NOW - 3_600_000, text: "Oats" } }]} onLog={() => {}} onUndo={onUndo} onBack={() => {}} />);
-    fireEvent.click(screen.getByRole("button", { name: "Undo Oats" }));
+    const { container } = render(<MealScreen today={[{ id: "a", data: { category: "fuel", at: NOW - 3_600_000, text: "Oats" } }]} onLog={() => {}} onUndo={onUndo} onBack={() => {}} />);
+    expect(container.querySelector(".pill-act, .row-act, .btn-sm, .quiet-action")).toBeNull();
+    fireEvent.click(container.querySelector(".notice-alt")!);
     expect(onUndo).toHaveBeenCalledTimes(1);
     expect(screen.getByLabelText("What you ate")).toHaveValue("");
     fireEvent.click(screen.getByText("Oats"));
+    const sheet = container.querySelector(".sheet-scrim")!;
+    expect(sheet.querySelector(".btn-primary")!.textContent).toBe("Log Again");
+    fireEvent.click(sheet.querySelector(".btn-primary")!);
     expect(screen.getByLabelText("What you ate")).toHaveValue("Oats");
     expect(onUndo).toHaveBeenCalledTimes(1);
   });

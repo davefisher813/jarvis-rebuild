@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, within } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import HealthBody from "./HealthBody";
 import { readFileSync } from "node:fs";
@@ -83,7 +83,9 @@ describe("the Health page's three doors", () => {
   it("shows no doors to nothing when the caller has no gym wiring", () => {
     render(<HealthBody {...base} />);
     expect(screen.queryByText("Exercises")).toBeNull();
-    expect(document.querySelector(".h-doors")).toBeNull();
+    expect(screen.queryByText("Program")).toBeNull();
+    // Insights and All Data are their own doors under Your Progress; none of the three above them is drawn.
+    expect([...document.querySelectorAll(".h-door-k")].map((e) => e.textContent)).toEqual(["Insights", "All Data"]);
   });
 
   it("sits under the week and above the next workout", () => {
@@ -276,5 +278,64 @@ describe("the Exercises badge is the page's opening list, archived and hidden le
     expect(document.querySelector(".nav-count")?.textContent).toBe("2");
     fireEvent.click(screen.getByRole("button", { name: "Archived" }));
     expect(screen.queryByText("Test Press")).toBeNull();
+  });
+});
+
+
+// CLEAN ROWS, NO PILLS (Dave 2026-10-05, locked; Alfred 2026-10-04: Adjust Time, Change Workout, Log Something, All Data,
+// Customize and View Insights inside the Health cards). The next workout is a row: tap it and its sheet holds every
+// action, Start first and filled. Start Workout stays on the card as the screen's one primary.
+describe("the Health page wears the row-action model (2026-10-05)", () => {
+  const withNext = { ...base, onOpenExercises: () => {}, onOpenHistory: () => {}, onOpenSettings: () => {} };
+
+  it("draws no capsule, and no capsule-shaped button, inside any card on the page", () => {
+    const { container } = render(<HealthBody {...withNext} />);
+    for (const label of ["Adjust Time", "Change Workout", "All Data", "Log Something", "Customize", "View Insights"]) {
+      // Each is a row, a sheet action or a head capsule now; none is a pill or a button sitting in a card.
+      const hits = screen.queryAllByText(label).filter((e) => e.closest(".card"));
+      for (const h of hits) expect(h.closest(".pill-act, .row-act, .btn-sm, .quiet-action, .btn"), label).toBeNull();
+    }
+    expect(container.querySelector(".h-next-acts")).toBeNull();
+    // The one filled primary on the screen is Start Workout.
+    expect([...container.querySelectorAll(".btn-primary")].map((b) => b.textContent)).toEqual(["Start Workout"]);
+  });
+
+  it("the next workout is a row whose sheet holds Start (filled), Adjust Time and Change Workout", () => {
+    const onStart = vi.fn();
+    const onAdjustTime = vi.fn();
+    render(<HealthBody {...withNext} onStart={onStart} onAdjustTime={onAdjustTime} />);
+    expect(screen.queryByText("Adjust Time")).toBeNull();
+    fireEvent.click(document.querySelector(".h-hero")!);
+    const sheet = document.querySelector(".sheet-scrim")!;
+    expect(sheet.querySelector(".btn-primary")!.textContent).toBe("Start Workout");
+    const rest = [...sheet.querySelectorAll(".btn-secondary")].map((b) => b.textContent);
+    expect(rest).toContain("Change Workout");
+    // Adjust Time needs an estimate; this fixture has no logged sets to price, so it is honestly absent rather than dead.
+    fireEvent.click(within(sheet as HTMLElement).getByText("Change Workout"));
+    expect(onStart).not.toHaveBeenCalled();
+    // Change Workout hands over to its own picker, with the other days in it and an empty session.
+    expect(document.querySelector(".sheet-scrim .eyebrow")?.textContent).toBe("Change Workout");
+  });
+
+  it("Log Something is the Your Progress head's capsule and opens its sheet", () => {
+    render(<HealthBody {...withNext} logActions={[{ label: "Bedtime", onPick: () => {} }]} />);
+    const head = screen.getByText("Your Progress").closest(".sh2")!;
+    const btn = within(head as HTMLElement).getByRole("button", { name: "Log Something" });
+    expect(btn).toHaveClass("see-all", "pill-action");
+    fireEvent.click(btn);
+    expect(screen.getByText("Bedtime")).toBeInTheDocument();
+  });
+
+  it("Insights, All Data and Customize are door rows with a chevron", () => {
+    const onOpenInsights = vi.fn();
+    const onOpenAllData = vi.fn();
+    const onOpenSettings = vi.fn();
+    render(<HealthBody {...withNext} onOpenInsights={onOpenInsights} onOpenAllData={onOpenAllData} onOpenSettings={onOpenSettings} />);
+    for (const [label, fn] of [["Insights", onOpenInsights], ["All Data", onOpenAllData], ["Customize", onOpenSettings]] as const) {
+      const door = [...document.querySelectorAll(".h-door")].find((d) => d.querySelector(".h-door-k")?.textContent === label)!;
+      expect(door.querySelector(".chev")).not.toBeNull();
+      fireEvent.click(door);
+      expect(fn).toHaveBeenCalledTimes(1);
+    }
   });
 });
