@@ -371,3 +371,58 @@ describe("PersonDetail: a decision's date is a neutral date", () => {
     expect(date[0]!.className).toBe("fact date");
   });
 });
+
+// THE ROUND 2 REVIEW (2026-10-05): the contact's bar was a label-less chevron and a bare pencil, and once the name scrolled away it
+// said nothing about whose page it was, where Decisions' bar says "Decision". And every contact was the same grey disc.
+import { personInitials, softAvatarClass } from "./types";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
+describe("PersonDetail wears the same bar as every other Brain page (round 2)", () => {
+  it("a labelled back, the pencil in the round bar button, and the name as the bar's own title", () => {
+    const onBack = vi.fn();
+    const onEdit = vi.fn();
+    const { container } = render(<PersonDetail person={MOM} onEdit={onEdit} onBack={onBack} />);
+    const back = container.querySelector(".pagebar .nav-back")!;
+    expect(back.textContent).toBe("Contacts");
+    fireEvent.click(back);
+    expect(onBack).toHaveBeenCalled();
+    // The title the bar condenses into once the hero's name is gone, so the bar always says whose page it is.
+    expect(container.querySelector(".pagebar .pagebar-title")!.textContent).toBe("Mom");
+    const edit = container.querySelector(".pagebar .barbtn")!;
+    expect(edit.getAttribute("aria-label")).toBe("Edit");
+    fireEvent.click(edit);
+    expect(onEdit).toHaveBeenCalled();
+    // No hand-rolled bar left behind.
+    expect(container.querySelector(".nav-bar")).toBeNull();
+  });
+
+  it("the back label is where it goes, and a caller can say otherwise", () => {
+    const { container } = render(<PersonDetail person={MOM} onEdit={() => {}} onBack={() => {}} backLabel="Family" />);
+    expect(container.querySelector(".pagebar .nav-back")!.textContent).toBe("Family");
+  });
+});
+
+describe("a person with no chosen colour still wears their own (round 2)", () => {
+  it("the name picks a stable hue from the palette, never the brand red; a chosen colour wins; no name is the warm neutral", () => {
+    const a = softAvatarClass(undefined, "Marcus Delaney");
+    expect(a).toBe(softAvatarClass("red", "Marcus Delaney"));
+    expect(a).toMatch(/^av-soft cat-fg-/);
+    expect(a).not.toContain("cat-fg-red");
+    expect(softAvatarClass("teal", "Marcus Delaney")).toBe("av-soft cat-fg-teal");
+    expect(softAvatarClass(undefined)).toBe("av-soft av-neutral");
+    expect(personInitials("Marcus Delaney")).toBe("MD");
+  });
+
+  it("the hero's avatar carries it", () => {
+    const { container } = render(<PersonDetail person={{ id: "p9", data: { name: "Sam Okafor", group: "contacts" } }} onEdit={() => {}} onBack={() => {}} />);
+    expect(container.querySelector(".person-hero .av")!.className).toMatch(/cat-fg-/);
+    expect(container.querySelector(".person-hero .av")!.className).not.toContain("av-neutral");
+  });
+
+  it("the contact rows' avatar starts at the card's own inset, and its hairline at the name's edge", () => {
+    const css = readFileSync(join(process.cwd(), "src/styles/ruled.css"), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
+    expect(css).toMatch(/\.ruled \.person-row-ruled \.task-check-tap \{ width: 30px;/);
+    expect(css).toMatch(/\.person-row-ruled \+ \.task-row\.person-row-ruled::before \{ left: calc\(var\(--s-4\) \+ 30px/);
+  });
+});

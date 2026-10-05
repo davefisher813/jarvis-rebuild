@@ -239,10 +239,12 @@ export function buildWeek(inp: WeekInputs): WeekReport {
     next = { id: least, name: cat.name, color: cat.color };
     // The area is a dot and its name (a mark, §AK); the amount is its own
     // fact, so the dot between them is drawn by CSS (F3). A zero reads
-    // "Got 0 of 3h 30m" (Dave 2026-10-05, the review: "None of 2h 15m" was unreadable as a sentence), never "0 Min of".
+    // "Planned 0 of 3h 30m" (Dave 2026-10-05, the review: "None of 2h 15m" was unreadable as a sentence, and the round 2 review: "Got
+    // 0 of 2h 15m" did not say what was got), never "0 Min of". The verb leads, because the number rule makes the word behind a
+    // leading figure a capital and a figure-first line cannot say "0 of 3h 30m Planned".
     const had = minutesOf(least);
     nextFacts.push({ text: cat.name, tone: "cat", color: cat.color });
-    nextFacts.push({ text: `Got ${had === 0 ? "0" : hoursLabel(had)} of ${hoursLabel(scheduled)} Planned` });
+    nextFacts.push({ text: `Planned ${had === 0 ? "0" : hoursLabel(had)} of ${hoursLabel(scheduled)}` });
     if (inp.prevRows) {
       const prevDays = weekDays(days[0]!, 8).slice(0, 7);
       const prevSeal = computeSeal(month, { rows: inp.prevRows, workouts: [], goals: inp.goals, sealedAt: Date.now(), events: inp.events, days: prevDays });

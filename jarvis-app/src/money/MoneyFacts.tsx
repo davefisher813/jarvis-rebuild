@@ -14,7 +14,7 @@ import { fmtCents, fmtDay } from "./tracker";
  *  no state inside a grey line is a white <b>); the words keep the line's one
  *  grey. The dollar sign goes with its number, so the split is on the amount. */
 export function Amounts({ text }: { text: string }) {
-  return <>{text.split(/(-?\$\d{1,3}(?:,\d{3})*(?:\.\d+)?|-?\$\d+(?:\.\d+)?)/).map((s, i) => (i % 2 === 1 ? <b key={i}>{s}</b> : s))}</>;
+  return <>{text.split(/([-\u2212]?\$\d{1,3}(?:,\d{3})*(?:\.\d+)?|[-\u2212]?\$\d+(?:\.\d+)?)/).map((s, i) => (i % 2 === 1 ? <b key={i}>{s}</b> : s))}</>;
 }
 
 /** What a matched record says about the other side, as separate facts: the

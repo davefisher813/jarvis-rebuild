@@ -1251,6 +1251,10 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 /* Compact empty state for use inside cards; the base .empty-state is sized
    for full screens (65vh). */
 .empty-state.empty-compact { min-height: 0; padding: var(--s-6) var(--s-5) var(--s-4); }
+/* AN EMPTY STATE UNDER ITS OWN HEAD SITS CLOSE TO IT (the round 2 review: Protected Time's glyph had 32px of air above it and its last
+   line ended 5px from the dock, so the section did not fit above it). The head is the section's title, so the state is its
+   body and the air that belongs above it is a step, not a page's worth. */
+.sh2 + .empty-state.empty-compact { padding-top: var(--s-3); }
 
 /* Time-of-day hero tint: a whisper of warmth in the morning, cool dim in the
    evening. Gradient only; no layout change. Dark theme only: on light
@@ -3263,7 +3267,7 @@ button {
    second rank, quiet facts in the third. Replaces renders the superseded
    line struck through, tone neutral by law. */
 .dec-main { font-size: var(--t-h2); font-weight: var(--w-semi); color: var(--tx-1); line-height: var(--lh-snug); }
-.dec-why { font-size: var(--t-body); color: var(--tx-2); line-height: var(--lh-relaxed); }
+.dec-why { font-size: var(--t-body); color: var(--tx-2); line-height: var(--lh-relaxed); text-wrap: balance; }
 .dec-old { font-size: var(--t-body); color: var(--tx-1); text-decoration: line-through; }
 
 /* CATALOG V4 (The Branded Library, Dave 2026-08-18). Flagged block. */
@@ -5292,7 +5296,10 @@ body.selecting .voice-dock { display: none; }
    $1,200 alone with an empty right half"). */
 .rep-wins > .rep-win:last-child:nth-child(odd), .rep-grid > .stat-tile:last-child:nth-child(odd) { grid-column: 1 / -1; }
 .rep-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-2); }
-.rep-grid .stat-tile { border-radius: var(--r-md); padding: var(--s-3h) var(--s-2) var(--s-3); text-align: center; }
+/* A TILE ON THE PAGE WEARS THE CARD RADIUS (the round 2 review: the stat tiles were 16 beside the 24 of Your Hours and Where It Went
+   right under them). They sit on the page, not inside a card, so they are cards. */
+.rep-grid .stat-tile { border-radius: var(--r-card); padding: var(--s-3h) var(--s-2) var(--s-3); text-align: center; }
+.rep-split-end { display: inline-flex; align-items: center; gap: var(--s-2); }
 [data-theme="light"] .rep-grid .stat-tile.stat-plain { background: var(--surface-3); }
 /* The delta is the tile's one quiet fact (§AM F1/F4, 2026-09-25): the fact
    size and weight in the one grey, under the caps label's grey. It was a
@@ -6782,6 +6789,10 @@ span.row-star { cursor: default; }
 .eq-k { flex: 0 0 64px; font-size: var(--t-eyebrow); font-weight: var(--w-bold); letter-spacing: 0.06em; text-transform: uppercase; }
 .eq-good { color: var(--good); } .eq-warn { color: var(--warn); } .eq-quiet { color: var(--tx-3); }
 .eq .facts { flex: 1; min-width: 0; }
+/* A WEEK LINE SAYS ALL OF ITSELF (the round 2 review made "Got 0 of 2h 15m Planned" say what was got; D8: a fact that carries
+   meaning wraps before it is cut). The line wraps between facts, and the last fact may take a second line instead of an ellipsis. */
+.week-card .eq .facts { flex-wrap: wrap; row-gap: 0; overflow: visible; }
+.week-card .eq .facts > .fact:last-child { overflow: visible; text-overflow: clip; white-space: normal; }
 .week-acts { margin-top: var(--s-2h); align-items: center; }
 /* AIR ROUND THE SENTENCE THE BUTTON COMES FROM (the round 2 review: the Move Two Blocks button started 10px under it, where the gaps above
    and below elsewhere in the card are 16 to 20): a step above and a full 16 below. */

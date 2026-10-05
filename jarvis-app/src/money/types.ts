@@ -30,14 +30,27 @@ export const ACCOUNT_KINDS: AccountKind[] = ["cash", "savings", "investment", "c
 // The currency stays USD until there is a real place to say otherwise: a
 // profile currency is the App Store follow-up, and guessing one from the
 // device locale would relabel dollars as euros without moving the amount.
-export function formatMoney(n: number): string {
-  const cents = Number.isFinite(n) && Math.round(n * 100) % 100 !== 0;
-  return new Intl.NumberFormat("en-US", {
+export function formatMoney(n: number, opts: { cents?: boolean } = {}): string {
+  const cents = opts.cents || (Number.isFinite(n) && Math.round(n * 100) % 100 !== 0);
+  const out = new Intl.NumberFormat("en-US", {
     style: "currency",
     currency: "USD",
     minimumFractionDigits: cents ? 2 : 0,
     maximumFractionDigits: cents ? 2 : 0,
   }).format(n);
+  // A NEGATIVE IS A TRUE MINUS (2026-10-05, the round-2 review: "-$1,240.30" drew a hyphen). U+2212 is as wide as the plus
+  // sign and sits at the digits' height, so a column of amounts lines up; the hyphen-minus is a dash and reads as one.
+  return out.replace(/^-/, MINUS);
+}
+
+/** The minus sign every amount in the app wears (U+2212), never a hyphen. */
+export const MINUS = "\u2212";
+
+/** ONE LIST, ONE SHAPE (2026-10-05, the round-2 review: "$18,230" under "$32,540.75" and "-$1,240.30" does not line up).
+ *  True when any amount in a list carries cents, so the whole list is drawn with two decimals, or with none when none
+ *  does. A list that mixed the two was a ragged column. */
+export function listHasCents(values: number[]): boolean {
+  return values.some((n) => Number.isFinite(n) && Math.round(n * 100) % 100 !== 0);
 }
 // HMN-F-13 (2026-09-05), option A. A credit account is money OWED. The sheet
 // asked for a "Balance" with inputMode="numeric", and the iPhone keypad that

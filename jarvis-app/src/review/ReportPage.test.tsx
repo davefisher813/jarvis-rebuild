@@ -6,6 +6,8 @@ import "@testing-library/jest-dom";
 import { NotesProvider, useCategories, useSchedule, useTasks } from "../data/NotesProvider";
 import { todayISO } from "../tasks/grouping";
 import ReportFlow from "./ReportPage";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 
 // BRAIN-F-16 (2026-09-05): item 13 wired the calendar into the BOUNDARY seal
 // (AppShell hands sealPreviousMonthIfDue the schedule) but not into the live
@@ -121,5 +123,35 @@ describe("the report's rows wear the row-action model (2026-10-05)", () => {
     expect(container.querySelector(".notice-alt")).toBeNull();
     fireEvent.click(screen.getByText("Bills Paid on Time"));
     expect(document.querySelector(".sheet-scrim .btn-primary")).toBeNull();
+  });
+});
+
+// THE ROUND 2 REVIEW (2026-10-05). October's The Month was one full-width tile ("1/31 Days Checked In") where September has a 2 by 2,
+// and the one card that opens something (Your Hours) gave no sign it was a door.
+describe("the report's grid is never one cell, and its one door-card shows a chevron (round 2)", () => {
+  const tile = (num: string, label: string, delta: { text: string; up: boolean } | null = null) => ({ num, label, tint: "plain" as const, delta });
+
+  it("a lone tile joins the hero as a fact, with its figure white, and no grid is drawn", () => {
+    const report: MonthReport = { ...HOURS_REPORT, hours: null, tiles: [tile("1/31", "Days Checked In")] };
+    const { container } = render(<ReportScreen report={report} capped={false} onCap={() => {}} onBack={() => {}} stillOpen />);
+    expect(container.querySelector(".rep-grid")).toBeNull();
+    const fact = container.querySelector(".rep-hero .facts .fact")!;
+    expect(fact.textContent).toBe("1/31 Days Checked In");
+    expect(fact.querySelectorAll("b").length).toBeGreaterThan(0);
+    // With nothing else to say under it, the section head is not drawn over an empty section either.
+    expect(screen.queryByText("The Month", { selector: ".sh2 .t" })).toBeNull();
+  });
+
+  it("with two or more tiles the grid stays, and a tile wears the card radius", () => {
+    const report: MonthReport = { ...HOURS_REPORT, hours: null, tiles: [tile("84", "Done"), tile("9", "Sessions")] };
+    const { container } = render(<ReportScreen report={report} capped={false} onCap={() => {}} onBack={() => {}} />);
+    expect(container.querySelectorAll(".rep-grid .stat-tile")).toHaveLength(2);
+    const css = readFileSync(join(process.cwd(), "src/styles/components.css"), "utf8");
+    expect(css).toMatch(/\.rep-grid \.stat-tile \{ border-radius: var\(--r-card\)/);
+  });
+
+  it("Your Hours, the card that opens a sheet, carries a chevron", () => {
+    const { container } = render(<ReportScreen report={HOURS_REPORT} capped={false} onCap={() => {}} onBack={() => {}} />);
+    expect(container.querySelector(".rep-split .chev")).not.toBeNull();
   });
 });

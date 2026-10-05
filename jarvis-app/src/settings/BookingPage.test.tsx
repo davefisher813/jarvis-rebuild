@@ -216,7 +216,9 @@ describe("BookingPage", () => {
     for (const gone of ["Approved Contacts", "Your Connections", "Named Contacts", "Public Link"]) {
       expect(screen.queryByText(gone)).toBeNull();
     }
-    expect(screen.getByText("Anyone with the Link")).toBeInTheDocument();
+    // Said once, as a field note under the link (round 2 review), not as a card in the settings style with no control in it.
+    expect(screen.getByText("Anyone with the link can book, and it is not listed anywhere")).toHaveClass("input-hint");
+    expect(screen.queryByText("Who Can Book")).toBeNull();
   });
 
   // The honest toast. "Live" means somebody can book on it.

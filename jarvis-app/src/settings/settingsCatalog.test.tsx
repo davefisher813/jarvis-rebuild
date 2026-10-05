@@ -208,9 +208,13 @@ describe("Booking", () => {
     expect(notes).toContain("Taking the link down never cancels a booking you already have");
   });
 
-  it("the one answer under Who Can Book is Title Case: the small word stays small", async () => {
+  it("who can book is one field note under the link, not a settings card that does nothing (round 2 review)", async () => {
     const { container } = render(<BookingPage onBack={() => {}} {...impls(null, null)} />);
-    await screen.findByText("Anyone with the Link");
+    await screen.findByText("No Link Yet");
+    expect(screen.queryByText("Who Can Book"), "no head over a choice there is not").toBeNull();
+    expect(screen.queryByText("Anyone with the Link"), "no bold-title card with no control in it").toBeNull();
+    const notes = [...container.querySelectorAll(".input-hint")].map(norm);
+    expect(notes).toContain("Anyone with the link can book, and it is not listed anywhere");
     expect(scan(container)).toEqual([]);
   });
 });
@@ -248,12 +252,18 @@ describe("AI Control", () => {
     expect(norm(row.querySelector(".fact.date")!)).toMatch(/^\d{1,2}:\d{2} (AM|PM)$/);
   });
 
-  it("the AI switch row says nothing under it: the switch beside it already says on or off", async () => {
+  it("the AI master switch says what it is once (round 2 review), and never repeats the state the switch beside it already draws", async () => {
     const { container } = mount();
     const sw = await screen.findByRole("switch", { name: "AI on or off" });
-    expect(sw.closest(".row")!.querySelector(".conn-meta")).toBeNull();
+    const row = sw.closest(".row")!;
+    // It was a bare card with the word "AI". Now the title names the group and the one grey line says what the switch governs.
+    expect(norm(row.querySelector(".conn-name")!)).toBe("AI Features");
+    expect(norm(row.querySelector(".conn-meta")!)).toBe("Turn Every AI Feature On or Off");
     fireEvent.click(sw);
-    expect(sw.closest(".row")!.querySelector(".conn-meta")).toBeNull();
+    // The line is the same on and off: it describes the switch, it does not echo "On" or "Off".
+    expect(norm(row.querySelector(".conn-meta")!)).toBe("Turn Every AI Feature On or Off");
+    // And a note under the card says how the switch and the level relate.
+    expect(norm(row.closest(".pad-x")!.nextElementSibling!.querySelector(".input-hint")!)).toMatch(/level below/i);
     expect(scan(container)).toEqual([]);
   });
 

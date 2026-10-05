@@ -44,8 +44,18 @@ describe("ConnectionsPage", () => {
   // what the card already says, so with no client id it is not drawn; configured, it is the way in.
   it("shows an honest setup-required state and draws no dead connect control when unconfigured", () => {
     render(wrap(<ConnectionsPage configured={false} />));
-    expect(screen.getByText("Google Setup Required")).toBeInTheDocument();
+    expect(screen.getByText("Google Is Not Connected Yet")).toBeInTheDocument();
     expect(screen.queryByText("Connect Google")).toBeNull();
+  });
+  // THE ONE CAPSULE OF AN EMPTY SCREEN IS THE HEAD'S (D9, round 2 review): Connect Google was a filled block under the words; it is the head's
+  // capsule now, like Add Section on Email Sections, and the empty state is bare (no card around it).
+  it("with no account yet, Connect Google is the Google Accounts head's capsule and the empty state is bare", async () => {
+    const { container } = render(wrap(<ConnectionsPage configured />));
+    const head = screen.getByText("Google Accounts").closest(".sh2") as HTMLElement;
+    expect(within(head).getByText("Connect Google")).toHaveClass("pill-action");
+    expect(container.querySelector(".btn-primary"), "no filled block under the words").toBeNull();
+    expect(container.querySelector(".card .empty-state"), "no card around the empty state").toBeNull();
+    expect(screen.getByText("No Accounts Yet").closest(".empty-state")!.querySelectorAll(".empty-sub")).toHaveLength(1);
   });
   it("connects the first account, imports calendar, lists the account with its controls", async () => {
     render(wrap(<ConnectionsPage configured />));

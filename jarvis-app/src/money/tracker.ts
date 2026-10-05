@@ -103,7 +103,8 @@ export const EMPTY_TRACKER: TrackerData = { accounts: [], txs: [], budgets: [], 
  */
 export function fmtCents(cents: number): string {
   const n = Number.isFinite(cents) ? cents : 0;
-  const sign = n < 0 ? "-" : "";
+  // A true minus (U+2212), never a hyphen: the round-2 review caught "-$1,145.68" drawn as a dash.
+  const sign = n < 0 ? "\u2212" : "";
   return sign + "$" + (Math.abs(n) / 100).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 

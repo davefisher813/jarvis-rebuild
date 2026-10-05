@@ -71,11 +71,12 @@ describe("ConnectionsPage follows the catalog", () => {
     const { container } = render(
       <NotesProvider userId="u-cat-conn-setup"><GoogleSessionProvider requestToken={async () => "tok"} makeApi={() => api}><ConnectionsPage configured={false} /></GoogleSessionProvider></NotesProvider>,
     );
-    expect(screen.getByText("Google Setup Required")).toBeInTheDocument();
-    const card = screen.getByText("Google Setup Required").closest(".empty-state")!;
+    expect(screen.getByText("Google Is Not Connected Yet")).toBeInTheDocument();
+    const card = screen.getByText("Google Is Not Connected Yet").closest(".empty-state")!;
     const sub = card.querySelector(".empty-sub")!;
     expect(sub, "the one line that says why, so the card is a calm note and not a dead end").not.toBeNull();
-    expect(sub.textContent!.toLowerCase(), "not the title again").not.toContain("setup required");
+    expect(sub.textContent!.toLowerCase(), "not the title again").not.toContain("not connected");
+    expect(sub.textContent!, "no engineering vocabulary").not.toMatch(/build|switched on/i);
     expect(card.querySelectorAll(".empty-sub")).toHaveLength(1);
     expect(card.querySelector(".empty-icon")!.className).toMatch(/cat-fg-/);
     expect(scan(container)).toEqual([]);

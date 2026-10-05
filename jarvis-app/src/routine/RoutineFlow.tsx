@@ -329,7 +329,7 @@ export default function RoutineFlow({ onBack, focusId, onFocusConsumed }: { onBa
           warm line say what this holds, and the head's Add is the one capsule that fills it. */}
       {sortedBlocks.length === 0 && (
         <div className="empty-state empty-compact">
-          <div className="empty-icon cat-fg-blue"><ShieldCheck className="ic" weight="regular" /></div>
+          <div className="empty-icon"><ShieldCheck className="ic" weight="regular" /></div>
           <div className="empty-title">Nothing Protected Yet</div>
           <div className="empty-sub">Time You Protect Stays Free of Tasks and Plans</div>
         </div>

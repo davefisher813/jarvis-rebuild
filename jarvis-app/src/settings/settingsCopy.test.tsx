@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import { readFileSync, readdirSync } from "node:fs";
@@ -108,6 +108,8 @@ describe("item 7: Account, About, Brain", () => {
 });
 
 describe("item 5: Notifications foot and switch names", () => {
+  afterEach(() => vi.restoreAllMocks());
+
   it("the note for a browser that is not on the Home Screen is the whole instruction, in one node, and says only the steps", async () => {
     // The copy itself is whole in source.
     expect(webNote("not-standalone")).toMatch(/then open JARVIS from there$/);

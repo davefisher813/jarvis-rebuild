@@ -128,6 +128,8 @@ export function ReportScreen({ report, capped, onCap, onOpenTask, onDropTask, on
   const maxHour = Math.max(1, ...report.hours?.byHour ?? [1]);
   const exitable = (exit: LifeCard["exit"]) => !!onExit && (!canExit || canExit(exit));
   const worthFeet = report.worth.map((w) => w.foot).filter((f): f is string => !!f);
+  const loneTile = report.tiles.length === 1 ? report.tiles[0]! : null;
+  const gridTiles = loneTile ? [] : report.tiles;
 
   return (
     <div className="screen ruled">
@@ -141,7 +143,18 @@ export function ReportScreen({ report, capped, onCap, onOpenTask, onDropTask, on
         <div className="rep-big"><RollingNumber value={Number(report.hero.big)} /></div>
         <div className="rep-big-label">{report.hero.label}</div>
         {/* Last month's number, plainly: a fact with its count white, never a pill with a typed colon (Dave 2026-10-05). */}
-        {report.hero.anchor && <Facts facts={[{ text: report.hero.anchor, parts: boldCounts(report.hero.anchor) }]} />}
+        {/* A LONE TILE IS A FACT OF THE HERO, NOT A GRID WITH ONE CELL (the round 2 review: October's The Month was "1/31 Days Checked
+            In" as one full-width tile where September has a 2 by 2, and it read as a missing grid). With one tile the grid is not
+            drawn: its figure and its words join the hero's own line, and a delta, when it has one, follows as its own fact. */}
+        {(report.hero.anchor || loneTile) && (
+          <Facts facts={[
+            ...(report.hero.anchor ? [{ text: report.hero.anchor, parts: boldCounts(report.hero.anchor) }] : []),
+            ...(loneTile ? [
+              { text: `${loneTile.num} ${loneTile.label}`, parts: boldCounts(`${loneTile.num} ${loneTile.label}`) },
+              ...(loneTile.delta ? [{ text: loneTile.delta.text, tone: loneTile.delta.up ? "good" as const : undefined }] : []),
+            ] : []),
+          ]} />
+        )}
         {report.hero.wins.length > 0 && (
           <div className="rep-wins">
             {/* Every win is done, achieved or paid, so every win is green
@@ -159,13 +172,13 @@ export function ReportScreen({ report, capped, onCap, onOpenTask, onDropTask, on
       </div>
 
       {/* THE MONTH: tiles with deltas, the hours strip, where it went. */}
-      {(report.tiles.length > 0 || report.hours || report.went || report.time) && (
+      {(gridTiles.length > 0 || report.hours || report.went || report.time) && (
         <div className="sh2 sh2-quiet"><span className="t">The Month</span></div>
       )}
       <div className="pad-x">
-        {report.tiles.length > 0 && (
+        {gridTiles.length > 0 && (
           <div className="rep-grid">
-            {report.tiles.map((t) => (
+            {gridTiles.map((t) => (
               <div className={"stat-tile stat-" + t.tint} key={t.label}>
                 <div className="stat-num">{/^\d+$/.test(t.num) ? <RollingNumber value={Number(t.num)} /> : t.num}</div>
                 {/* The label names the number, so it sits under the number; the comparison is the quiet line after it. */}
@@ -178,7 +191,9 @@ export function ReportScreen({ report, capped, onCap, onOpenTask, onDropTask, on
 
         {report.hours && (
           <div {...pressable(() => setReceipts({ title: `Your Hours: ${report.hours!.label}`, lines: busiestHours(report.hours!.byHour) }))} className="card pad rep-gap">
-            <div className="rep-split"><span className="rep-eyebrow rep-quiet">Your Hours</span><b>{report.hours.label}</b></div>
+            {/* The one card on this page that opens something without a row's chevron: it gets the chevron (the round 2 review: "tappable, and
+                nothing says so"). */}
+            <div className="rep-split"><span className="rep-eyebrow rep-quiet">Your Hours</span><span className="rep-split-end"><b>{report.hours.label}</b><span className="chev" /></span></div>
             {/* THE BARS ARE A TIME AXIS (Dave 2026-10-05, the review: "no hour labels, and the brand red says peak to
                 nobody"). Four labels under the strip, and the three-hour band in bright ink, never the action red: red is
                 for what can be tapped, and a bar is not a button. */}

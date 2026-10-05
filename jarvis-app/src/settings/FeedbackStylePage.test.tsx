@@ -25,9 +25,10 @@ describe("FeedbackStylePage", () => {
     expect(screen.getByRole("switch", { name: "Completion Sound" })).toHaveAttribute("aria-checked", "false");
     expect(screen.getByRole("switch", { name: "Haptics" })).toHaveAttribute("aria-checked", "false");
     expect(screen.getByRole("switch", { name: "Quiet Today" })).toHaveAttribute("aria-checked", "false");
-    expect(screen.getByText("Accountability")).toBeInTheDocument();
-    // One line, not the same thing twice (2026-10-05): the sentence says it, so there is no "Private" beside it.
-    expect(screen.getByText("Nothing About Your Tasks Is Shared")).toBeInTheDocument();
+    // ACCOUNTABILITY IS A FIELD NOTE, NOT A CARD (round 2 review): a bold-title card with no control read as a setting that does nothing.
+    // The one fact is said once, at the foot, and there is no "Private" beside it.
+    expect(screen.queryByText("Accountability"), "no settings card for a fact").toBeNull();
+    expect(screen.getByText("Nothing about your tasks is shared with anyone")).toHaveClass("input-hint");
     expect(screen.queryByText("Private")).toBeNull();
   });
 

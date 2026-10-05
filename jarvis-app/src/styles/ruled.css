@@ -1496,7 +1496,7 @@
    other Brain rows start at 20). The column is the disc's own 30px, not a 44px tap box centred round it (the whole row is the
    tap), and the hairline starts at the name's edge, as the nav list's does. */
 .ruled .person-row-ruled .task-check-tap { width: 30px; margin-right: var(--s-0h); }
-.ruled .list-card-ruled > .person-row-ruled + .person-row-ruled::before { left: calc(var(--s-4) + 30px + var(--s-2h) + var(--s-0h)); }
+.ruled .list-card-ruled > .task-row.person-row-ruled + .task-row.person-row-ruled::before { left: calc(var(--s-4) + 30px + var(--s-2h) + var(--s-0h)); }
 /* A PERSON'S SECOND LINE IS ONE LINE (2026-09-26, the lead). It carries two
    items, the state and the relationship, and the wrapping second line put
    the state on a line of its own beside the Nudge pill, so a two-line row

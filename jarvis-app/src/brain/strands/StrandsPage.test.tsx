@@ -440,6 +440,7 @@ describe("StrandsPage write guard (BRAIN-F-12)", () => {
 describe("What JARVIS Knows says one word per detector", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    rows = null;
     svc.list.mockResolvedValue([]);
     try { localStorage.clear(); } catch { /* private mode */ }
   });
@@ -467,6 +468,44 @@ describe("What JARVIS Knows says one word per detector", () => {
       expect(r.querySelectorAll(".facts > .fact").length).toBe(2);
       expect(r.querySelector(".chev")).not.toBeNull();
     }
+  });
+
+  // THE ROUND 2 REVIEW (2026-10-05): "five of eight Readiness rows read Waiting, 0 of 10 ... and looked like a stub", and British
+  // spelling in "Labelled People". A detector that has seen nothing has nothing to say, so those fold into ONE row that opens them.
+  it("detectors that have seen nothing fold into one 'Still Waiting' row; those with progress keep their own rows", async () => {
+    rows = [
+      { key: "completion_window", label: "When Tasks Get Done", have: 7, need: 10, unit: "completions", state: "close", detail: "Needs 10 completions" },
+      { key: "email_window", label: "When Email Gets Done", have: 0, need: 10, unit: "emails handled", state: "waiting", detail: "Needs 10 emails" },
+      { key: "gone_quiet", label: "Who Has Gone Quiet", have: 0, need: 1, unit: "labeled people", state: "waiting", detail: "Needs one labeled person" },
+    ];
+    const { container } = render(<StrandsPage onBack={() => {}} />);
+    await screen.findByText("Readiness");
+    const fold = container.querySelector("details.rdy-idle")!;
+    expect(fold.querySelector("summary")!.textContent).toBe("2 Still Waiting");
+    // The head still counts every detector; only the idle ones are inside the fold.
+    expect(container.querySelector(".sh2 .n")!.textContent).toBe("3");
+    const inFold = [...fold.querySelectorAll(".strand-row")].map((r) => r.querySelector(".conn-name")!.textContent);
+    expect(inFold).toEqual(["When Email Gets Done", "Who Has Gone Quiet"]);
+    const outside = detectorRows(container).filter((r) => !fold.contains(r)).map((r) => r.querySelector(".conn-name")!.textContent);
+    expect(outside).toEqual(["When Tasks Get Done"]);
+    expect(container.textContent).not.toContain("Labelled");
+  });
+
+  it("with nothing idle there is no fold at all", async () => {
+    rows = [{ key: "completion_window", label: "When Tasks Get Done", have: 7, need: 10, unit: "completions", state: "close", detail: "Needs 10 completions" }];
+    const { container } = render(<StrandsPage onBack={() => {}} />);
+    await screen.findByText("Readiness");
+    expect(container.querySelector("details.rdy-idle")).toBeNull();
+  });
+
+  it("a Needs You tap that names a folded detector opens the fold, so the row it landed on is there to be marked", async () => {
+    rows = [
+      { key: "completion_window", label: "When Tasks Get Done", have: 7, need: 10, unit: "completions", state: "close", detail: "x" },
+      { key: "email_window", label: "When Email Gets Done", have: 0, need: 10, unit: "emails handled", state: "waiting", detail: "y" },
+    ];
+    const { container } = render(<StrandsPage onBack={() => {}} focusReadinessKey="email_window" />);
+    await screen.findByText("Readiness");
+    expect(container.querySelector("details.rdy-idle")!.hasAttribute("open")).toBe(true);
   });
 
   it("a fact JARVIS already knows reads Known", async () => {

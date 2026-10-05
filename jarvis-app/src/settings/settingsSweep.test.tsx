@@ -238,7 +238,7 @@ describe("Appearance: the choice is shown, and the note belongs to the row it is
     // One note, and it sits under the Preview card, saying it is a sample.
     const notes = [...container.querySelectorAll(".input-hint")];
     expect(notes.length).toBe(1);
-    expect(notes[0]!.previousElementSibling!.contains(container.querySelector(".set-preview"))).toBe(true);
+    expect(notes[0]!.closest(".pad-x")!.previousElementSibling!.contains(container.querySelector(".set-preview")), "the sample note is the block right under the Preview card").toBe(true);
   });
 });
 

@@ -198,7 +198,7 @@ export default function AIControlPage({ onBack }: { onBack: () => void }) {
             is the news; the note under the card says how the switch and the level relate. */}
         <Switch label="AI Features" meta={adminOff ? "Turned Off by Admin" : "Turn Every AI Feature On or Off"} on={aiOn} onToggle={toggleAI} ariaLabel="AI on or off" locked={adminOff} onLocked={sayAdminOff} />
       </Card>
-      <Foot>The level below sets how much AI does while this is on, and Off there means the same as this switch</Foot>
+      <Foot>The level below sets how much AI does while this is on</Foot>
       <Head label="AI Level" />
       <Card>
         {AI_LEVELS.map((l) => (

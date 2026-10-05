@@ -126,3 +126,56 @@ describe("the readiness sheet says its two facts in full, and its state word is 
     expect(document.querySelector("details.exp-more .conn-meta")!.textContent).toBe("Needs 10 Completions, with One 3-Hour Stretch Holding 40 Percent of Them");
   });
 });
+
+// THE ROUND 2 REVIEW (2026-10-05): what the stylesheet has to say for the Brain screens. jsdom draws no CSS, so each rule is read as text.
+describe("round 2: the Brain's stylesheet", () => {
+  it("a hub card of glyph rows draws every hairline from the name's edge, the same place the Explore card does", () => {
+    expect(last(".card.glyph-rows .row.strand-row + .row.strand-row::before")).toMatch(/left:\s*calc\(var\(--s-4\)\s*\+\s*30px\s*\+\s*var\(--s-3h\)\)/);
+    expect(last(".ruled .card.shell-rows.glyph-rows > .pad-x + .pad-x::before")).toMatch(/left:\s*calc\(var\(--s-4\)\s*\+\s*30px\s*\+\s*var\(--s-3h\)\)/);
+  });
+
+  it("the stacked suggestion's capsule paints the full 44 with the card's own air round it, and its Dismiss shares the line", () => {
+    expect(last(".notice-stack")).toMatch(/padding:\s*0 var\(--s-4\) var\(--s-4\)/);
+    const pill = last(".notice-stack > .pill-act");
+    expect(pill).toMatch(/border-top-width:\s*0/);
+    expect(pill).toMatch(/border-bottom-width:\s*0/);
+    expect(pill).toMatch(/margin-block:\s*0/);
+    expect(last(".notice-stack > .notice-x")).toMatch(/margin-right:\s*calc\(-1 \* var\(--s-2\)\)/);
+  });
+
+  it("the suggestion's disc is a soft wash of its tone, not a solid fill that outshouts the action", () => {
+    expect(last(".strand-notices .notice-disc.cat-bg-yellow")).toMatch(/background-color:\s*color-mix\(in srgb, var\(--cat-yellow\) 18%, transparent\)/);
+    expect(last('[data-theme="light"] .strand-notices .notice-disc.cat-bg-yellow')).toMatch(/color:\s*var\(--cat-ic-yellow\)/);
+  });
+
+  it("the filter row fades a little wider than the shared one, so a cut chip reads as 'more this way'", () => {
+    expect(last(".chip-row.strand-filters")).toMatch(/calc\(100% - 56px\)/);
+  });
+
+  it("the picked segment in dark is the raised warm grey, and a segmented control with nothing picked shows its segments", () => {
+    const dark = last('[data-theme="dark"] .segmented .seg.active');
+    expect(dark).toMatch(/background:\s*var\(--surface-3\)/);
+    expect(dark).not.toMatch(/--sel-bg/);
+    expect(last(".segmented:not(:has(.seg.active)) .seg + .seg")).toMatch(/border-left:\s*0\.5px solid var\(--tx-4\)/);
+    expect(last(".segmented:not(:has(.seg.active))")).toMatch(/box-shadow:\s*inset 0 0 0 0\.5px var\(--tx-4\)/);
+  });
+
+  it("an empty state under its own head sits a step below it, not a page's worth", () => {
+    expect(last(".sh2 + .empty-state.empty-compact")).toMatch(/padding-top:\s*var\(--s-3\)/);
+  });
+
+  it("a decision's title and its row's name balance across their lines, so no word is left alone", () => {
+    expect(last(".pagehead-title.dec-hero")).toMatch(/text-wrap:\s*balance/);
+    expect(last(".dec-name")).toMatch(/text-wrap:\s*balance/);
+  });
+
+  it("an empty Brain doc centres its state in the room under its title (two thirds of the window), and the contact page does too when nothing sits under it", () => {
+    expect(last(".doc-body > .empty-state.empty-fill")).toMatch(/min-height:\s*66vh/);
+    expect(last(".person-ruled > .empty-state:not(:has(~ .sh2))")).toMatch(/min-height:\s*42vh/);
+  });
+
+  it("the fold of idle detectors draws its own hairlines and wears the fold label's padding", () => {
+    expect(last(".ruled .card.shell-rows .rdy-idle > .pad-x::before")).toMatch(/height:\s*0\.5px/);
+    expect(last(".card .rdy-idle > summary")).toMatch(/padding-left:\s*var\(--s-4\)/);
+  });
+});

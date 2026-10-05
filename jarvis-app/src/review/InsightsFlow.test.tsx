@@ -101,13 +101,13 @@ describe("Insights: the week card", () => {
     expect(acts.querySelector(".btn-secondary")).toBeNull();
   });
 
-  it("the Next line reads as a sentence (Got 0 of 7h), the area a dot and the amount its own fact", async () => {
+  it("the Next line says what its figures count (Planned 0 of 7h), the area a dot and the amount its own fact", async () => {
     const { container } = mount("u-ins-week-next");
     const next = await waitFor(() => { const k = [...container.querySelectorAll(".eq")].find((e) => e.querySelector(".eq-k")?.textContent === "Next"); expect(k).toBeTruthy(); return k!; });
     const facts = [...next.querySelectorAll(".facts > .fact")];
     expect(facts[0]!.className).toBe("fact cat");
     expect(facts[0]!.textContent).toBe("Health");
-    expect(facts[1]!.textContent).toMatch(/^Got 0 of \d+h Planned$/);
+    expect(facts[1]!.textContent).toMatch(/^Planned 0 of \d+h$/);
     expect(next.textContent).not.toMatch(/None of/);
   });
 
@@ -121,6 +121,33 @@ describe("Insights: the week card", () => {
     expect(rules(".itile-plain").join(" ")).toMatch(/color:\s*var\(--tx-1\)/);
     // "37h 45m" never breaks into two lines inside the tile: the smaller unit is an inline <small>.
     expect(rules(".itile b").join(" ")).toMatch(/white-space:\s*nowrap/);
+  });
+
+  // THE ROUND 2 REVIEW (2026-10-05): two of three line labels were amber though nothing was due, the Decided line read backwards
+  // ("36 Made"), and the button started 10px under the sentence it comes from.
+  it("every line's key word is the same quiet grey, so colour lives only on a value that has a state", async () => {
+    const { container } = mount("u-ins-week-keys");
+    await waitFor(() => expect(container.querySelector(".eq")).not.toBeNull());
+    const keys = [...container.querySelectorAll(".eq .eq-k")];
+    expect(keys.length).toBeGreaterThan(0);
+    for (const k of keys) {
+      expect(k.className, k.textContent!).toBe("eq-k eq-quiet");
+    }
+  });
+
+  it("the sentence the button comes from has air under it: a full step, not the 10px it had", () => {
+    expect(rules(".week-why").join(" ")).toMatch(/margin:\s*var\(--s-3\)\s+0\s+var\(--s-4\)/);
+  });
+
+  it("the rows of the page share one recipe: This Month, every sealed month and the ledger each lead with a bare glyph", async () => {
+    const { container } = render(<NotesProvider userId="u-ins-recipe"><Seeded><InsightsFlow onBack={() => {}} /></Seeded></NotesProvider>);
+    await waitFor(() => expect(screen.getByText("The Long Story")).toBeInTheDocument());
+    const rowOf = (text: string | RegExp) => screen.getByText(text).closest(".row")!;
+    const thisMonth = rowOf(/, So Far$/);
+    expect(thisMonth.querySelector(":scope > .row-glyph.cat-fg-purple")).not.toBeNull();
+    expect(rowOf("The Long Story").querySelector(":scope > .row-glyph")).not.toBeNull();
+    // No disc, grey or sky, anywhere on the page: one icon style.
+    expect(container.querySelector(".lib-disc")).toBeNull();
   });
 
   it("the values of every line share one left edge: a line with no dot reserves the dot's width", () => {

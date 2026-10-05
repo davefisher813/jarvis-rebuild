@@ -16,9 +16,9 @@ import { formatMoney } from "./types";
 
 /** The amount as a person writes it: "$84.12", "$120", or "EUR 84.12" for a
  *  bill in another currency (formatMoney is dollars and only dollars). */
-export function billAmount(d: Pick<BillData, "amountCents" | "currency">): string {
+export function billAmount(d: Pick<BillData, "amountCents" | "currency">, opts: { cents?: boolean } = {}): string {
   const dollars = d.amountCents / 100;
-  if (d.currency === DEFAULT_CURRENCY) return formatMoney(dollars);
+  if (d.currency === DEFAULT_CURRENCY) return formatMoney(dollars, opts);
   return `${d.currency} ${dollars.toFixed(2)}`;
 }
 

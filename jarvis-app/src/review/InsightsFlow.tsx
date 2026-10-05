@@ -328,7 +328,7 @@ export default function InsightsFlow({ onBack, onOpenTask, onOpenEntity, onOpenM
                   <div className="conn-name">{`${monthName(s.data.month)} ${s.data.month.slice(0, 4)}`}</div>
                   <div className="facts">
                     {/* Goals Moved, the same words and the same count the week's tile says (a goal achieved or a project closed). */}
-                    <span className="fact"><b>{moved}</b> Goals Moved</span>
+                    <span className="fact"><b>{moved}</b> {moved === 1 ? "Goal" : "Goals"} Moved</span>
                     <span className="fact good">{lineCase(`${s.data.done.toLocaleString("en-US")} Done`)}</span>
                   </div>
                 </div>

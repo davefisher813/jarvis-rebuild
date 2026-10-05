@@ -537,9 +537,9 @@ export default function TodaySuggestions({ ai, always = false }: { ai: AIService
   // list only ever exists on the page that already opened everything.
   //
   // ONE CARD AT A TIME (the round 2 review, 2026-10-05: "three stacked suggestion cards push the real screen off the first
-  // view": the title, the filters and the Readiness list were under the dock, and three buttons said Remember This).
+  // view": the title, the filters and the Readiness list were under the dock, and three buttons said the same thing).
   // The pass still chose the whole set and every card is still reachable: the first is shown, the head says where it is in
-  // the queue ("1 of 3"), and answering it (Remember This or Dismiss) brings the next up. An offer already on screen is the
+  // the queue ("1 of 3"), and answering it (accepting or dismissing) brings the next up. An offer already on screen is the
   // first of the queue and the moments wait behind it.
   const offerShown = !!(pattern || aiPick);
   const queue = (offerShown ? 1 : 0) + extraMoments.length;

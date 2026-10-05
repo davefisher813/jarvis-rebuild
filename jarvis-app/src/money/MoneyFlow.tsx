@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import PageHeader, { BarAction } from "../shared/PageHeader";
+import PageHeader from "../shared/PageHeader";
 import { useMoney, useTasks, useProfile, useCategories, useOptionalGoals, useTracker, useOptionalLedger } from "../data/NotesProvider";
 import { effectiveKind } from "../categories/kinds";
-import { ACCOUNT_META, ACCOUNT_KINDS, ENTITY_ACCOUNT, formatMoney, kindRestated, totalBalance, isLiability, signedBalance, type Account, type AccountData, type AccountKind } from "./types";
+import { ACCOUNT_META, ACCOUNT_KINDS, ENTITY_ACCOUNT, MINUS, formatMoney, kindRestated, listHasCents, totalBalance, isLiability, signedBalance, type Account, type AccountData, type AccountKind } from "./types";
 import { useFreshLists } from "../data/useFreshLists";
 import { ENTITY_TASK, type Recurrence } from "../notes/types";
 import {
@@ -17,7 +17,7 @@ import { Amounts } from "./MoneyFacts";
 import { billAmount, ledgerBillsOut, ledgerChip, ledgerLine, ledgerPaidThisMonth, mergedBills } from "./billView";
 import { suggestMonthly } from "./ledger/recurring";
 import { isPaid } from "./ledger/status";
-import { ENTITY_MONEY_BILL, type Bill, type BillRecurrence } from "./ledger/types";
+import { DEFAULT_CURRENCY, ENTITY_MONEY_BILL, type Bill, type BillRecurrence } from "./ledger/types";
 import { dismissSuggestion, isSuggestionDismissed, suggestionKey } from "./suggestionMemory";
 import TrackerScreen from "./screens/TrackerScreen";
 import ReceiptsSection from "./screens/ReceiptsSection";
@@ -25,8 +25,8 @@ import MatchesCard from "./screens/MatchesCard";
 import type { TaskItem } from "../tasks/TasksService";
 import { showToast } from "../shared/toast";
 import { todayISO } from "../tasks/grouping";
-import { goalTone } from "../shared/categories";
-import { RepeatGlyph, WalletGlyph, TargetGlyph, DollarGlyph } from "../shared/glyphs";
+import { RepeatGlyph, WalletGlyph, DollarGlyph } from "../shared/glyphs";
+import { RowGlyph } from "../shared/anatomy";
 import { TaskRow } from "../tasks/screens/TasksPage";
 import { categoriesOf } from "../tasks/categories";
 import { daysBetween } from "../upnext/upnext";
@@ -35,7 +35,7 @@ import { lineCase, titleCase } from "../shared/casing";
 import { inMonth, thisMonth, incomeCents, spentCents, fmtCents, ENTITY_MONEY_TX } from "./tracker";
 import type { Goal } from "../life/types";
 import { savingsLine, savingsPct, savedTotal } from "../bigger/savings";
-import { Paperclip, Calendar, FolderKanban, Clock, Check as CheckGlyph } from "../shared/icons";
+import { Calendar, FolderKanban, Clock, Check as CheckGlyph } from "../shared/icons";
 import { FormSheet, Group, FieldRow, MenuRow, DeleteRow, ErrorLine } from "../shared/FormSheet";
 import { pressable } from "../shared/pressable";
 import MoneyRow, { type RowVerb } from "./MoneyRow";
@@ -71,7 +71,7 @@ function billChip(t: TaskItem, today: string): { cls: string; text: string } | n
 // late, no fill, in the row's own type, ahead of the one date. The chip's data (cls and text) is unchanged; only how the
 // row draws it moved.
 const stateFact = (chip: { cls: string; text: string }) =>
-  <span className={"r-goal fact " + (chip.cls === "u-late" ? "red" : "warn")}>{chip.text}</span>;
+  <span className={"fact " + (chip.cls === "u-late" ? "red" : "warn")}>{chip.text}</span>;
 
 const initialOf = (s: string) => (s.trim()[0] ?? "?").toUpperCase();
 
@@ -567,6 +567,9 @@ export default function MoneyFlow({ onOpenTask, onOpenEntity, openAccountId, ope
   };
 
   const entries = mergedBills(ledgerBills, bills, today);
+  // ONE SHAPE FOR THE WHOLE COLUMN (2026-10-05, round 2: "$2,200, $89 and $148" beside a $49.99 would not line up): when any
+  // dollar bill carries cents, every bill in the card is drawn with two decimals.
+  const billCents = listHasCents(entries.map((e) => (e.kind === "legacy" ? (e.task.data.bill?.amount ?? 0) : e.bill.data.currency === DEFAULT_CURRENCY ? e.bill.data.amountCents / 100 : 0)));
   const anchor = payday && payHalfOn && entries.length > 0
     ? paydayLine(payday, bills, today, ledgerBillsOut(ledgerBills, paydayNext(payday, today), today))
     : null;
@@ -647,23 +650,16 @@ export default function MoneyFlow({ onOpenTask, onOpenEntity, openAccountId, ope
         const info = b.data.bill!;
         const paid = sub.state === "paid";
         const chip = paid ? null : billChip(b, today);
-        // The chip says how close; the words say when. "IN 2 DAYS" over
-        // "Due in 2 days" said one thing twice (caught on the port).
-        // THE LINE WEARS THE KEY (§AM, 2026-09-26). Paid is green, the key's
-        // word for it, as the amount beside it already is. An autopay bill's
-        // words stay the row's one grey and its day is a date in small caps,
-        // with no dot baked between them (F3, F5). An unpaid bill's due date
-        // is a date too: the chip ahead of it wears the colour and says how
-        // close, the date says when. A bill with no date has nothing to say
-        // here, so the row says nothing (§AK).
-        const line = paid
-          ? <span className="r-goal fact good">{lineCase(sub.text)}</span>
+        // ONE GRAMMAR FOR EVERY BILL (2026-10-05, round 2: "three rows, three ways of saying when"). A bill's line is up to
+        // two facts and the CSS draws the dot between them: the STATE in its key colour (late red, due soon amber, paid
+        // green; an autopay bill's own words in the row's one grey), then the DAY as a small-caps date. A bill far out has
+        // no state, so it is the date alone. Nothing is typed between facts, and "Due" is never said twice.
+        const facts = paid
+          ? <span className="fact good">{lineCase(sub.text)}</span>
           : sub.state === "autopay"
-            ? <><span className="r-goal r-cat">{lineCase(sub.text)}</span>{sub.when && <span className="fact date">{sub.when}</span>}</>
-            : b.data.due
-              // With the state ahead of it ("Due in 2 Days") the date is only the day, so "Due" is not said twice.
-              ? <span className="fact date">{(chip ? "" : "Due ") + monthDay(b.data.due)}</span>
-              : null;
+            ? <><span className="fact">{lineCase(sub.text)}</span>{sub.when && <span className="fact date">{sub.when}</span>}</>
+            : <>{chip && stateFact(chip)}{b.data.due && <span className="fact date">{monthDay(b.data.due)}</span>}</>;
+        const hasFacts = paid || sub.state === "autopay" || !!chip || !!b.data.due;
         const canPay = !paid && !info.autopay;
         const pay = () => void markPaid(b);
         const open = () => setBillSheet({ kind: "edit", id: b.id });
@@ -682,7 +678,7 @@ export default function MoneyFlow({ onOpenTask, onOpenEntity, openAccountId, ope
             ]}
             onOpen={open}>
             {info.autopay ? (
-              <div className="task-check-tap"><span className="gm-slot cat-fg-green">{REPEAT}</span></div>
+              <div className="task-check-tap"><span className="gm-slot cat-fg-graphite">{REPEAT}</span></div>
             ) : (
               <div className="task-check-tap" role="checkbox" aria-checked={paid} aria-label={paid ? "Paid" : "Mark paid"}
                 onClick={(e) => { e.stopPropagation(); void markPaid(b); }}>
@@ -691,15 +687,14 @@ export default function MoneyFlow({ onOpenTask, onOpenEntity, openAccountId, ope
             )}
             <div className="task-title">
               <span className="task-name">{title}</span>
-              {(chip || line) && (
-                <div className="r-k">
-                  {chip && stateFact(chip)}
+              {hasFacts && (
+                <div className="r-k"><div className="facts">
                   {/* The words are the money laws' own (bills.ts) and stay. */}
-                  {line}
-                </div>
+                  {facts}
+                </div></div>
               )}
             </div>
-            <span className={"money-amt" + (paid ? " paid" : "")}>{formatMoney(info.amount)}</span>
+            <span className={"money-amt" + (paid ? " paid" : "")}>{formatMoney(info.amount, { cents: billCents })}</span>
             <RowCtxAction when={canPay && dueNow(chip)} label="Mark Paid" ariaLabel={"Mark Paid " + title} onAct={pay} />
           </MoneyRow>
         );
@@ -716,22 +711,16 @@ export default function MoneyFlow({ onOpenTask, onOpenEntity, openAccountId, ope
     // A bill that waits for the person to confirm it is still paid says that and only that: the row has one tone, and
     // "1 Day Late" beside it would be a second (the bill was paid; the date is not the news).
     const chip = paid || line.state === "reconfirm" ? null : ledgerChip(d, today);
-    // With a chip saying how close ("Due in 3 Days"), the line only says which
-    // day, so "Due" is not said twice.
-    const lineEl = paid
-      ? <span className="r-goal fact good">{line.text}</span>
+    // The same grammar as the legacy row beside it: the state in its key colour, then the day as a date, the dot the CSS's.
+    // A bill that waits for the person to confirm it is the key's "needs you soon" amber, the words alone.
+    const facts = paid
+      ? <span className="fact good">{line.text}</span>
       : line.state === "reconfirm"
-        // 2026-10-05 (visual catalog gate, R3): a correction reopened a paid
-        // bill and it waits for the person, which is the key's "needs you
-        // soon" amber, not the row's grey. (In light a stylesheet rule still
-        // draws .r-goal.fact.warn in grey; reported, not worked around here,
-        // because a bare .fact.warn takes the row title's size.)
-        ? <span className="r-goal fact warn">{line.text}</span>
+        ? <span className="fact warn">{line.text}</span>
         : line.state === "autopay"
-          ? <><span className="r-goal r-cat">{line.text}</span>{line.when && <span className="fact date">{line.when}</span>}</>
-          : line.state === "due"
-            ? <span className="fact date">{chip && d.dueDate ? monthDay(d.dueDate) : line.text}</span>
-            : null;
+          ? <><span className="fact">{line.text}</span>{line.when && <span className="fact date">{line.when}</span>}</>
+          : <>{chip && stateFact(chip)}{d.dueDate && line.state === "due" && <span className="fact date">{monthDay(d.dueDate)}</span>}</>;
+    const hasFacts = paid || line.state === "reconfirm" || line.state === "autopay" || !!chip || (line.state === "due" && !!d.dueDate);
     const canPay = !paid && !d.autopay;
     const pay = () => ledgerPay.request(bill);
     const open = () => setDetailId(bill.id);
@@ -750,7 +739,7 @@ export default function MoneyFlow({ onOpenTask, onOpenEntity, openAccountId, ope
         ]}
         onOpen={open}>
         {d.autopay ? (
-          <div className="task-check-tap"><span className="gm-slot cat-fg-green">{REPEAT}</span></div>
+          <div className="task-check-tap"><span className="gm-slot cat-fg-graphite">{REPEAT}</span></div>
         ) : (
           <div className="task-check-tap" role="checkbox" aria-checked={paid} aria-label={paid ? "Paid" : "Mark paid"}
             onClick={(e) => { e.stopPropagation(); if (paid) setDetailId(bill.id); else ledgerPay.request(bill); }}>
@@ -759,14 +748,11 @@ export default function MoneyFlow({ onOpenTask, onOpenEntity, openAccountId, ope
         )}
         <div className="task-title">
           <span className="task-name">{title}</span>
-          {(chip || lineEl) && (
-            <div className="r-k">
-              {chip && stateFact(chip)}
-              {lineEl}
-            </div>
+          {hasFacts && (
+            <div className="r-k"><div className="facts">{facts}</div></div>
           )}
         </div>
-        <span className={"money-amt" + (paid ? " paid" : "")}>{billAmount(d)}</span>
+        <span className={"money-amt" + (paid ? " paid" : "")}>{billAmount(d, { cents: billCents })}</span>
         <RowCtxAction when={canPay && dueNow(chip)} label="Mark Paid" ariaLabel={"Mark Paid " + title} onAct={pay} />
       </MoneyRow>
     );
@@ -784,6 +770,8 @@ export default function MoneyFlow({ onOpenTask, onOpenEntity, openAccountId, ope
     <>
       {anchor && (
         <div className="task-row p2" {...pressable(() => setPaydayOpen(true))}>
+          {/* A leading slot like every bill below it, so the titles share one left edge (2026-10-05, round 2). */}
+          <div className="task-check-tap"><span className="gm-slot cat-fg-graphite"><DollarGlyph /></span></div>
           <div className="task-title">
             <span className="task-name">{anchor.title}</span>
             <div className="r-k"><span className="r-goal r-cat"><Amounts text={lineCase(anchor.sub)} /></span></div>
@@ -792,12 +780,6 @@ export default function MoneyFlow({ onOpenTask, onOpenEntity, openAccountId, ope
         </div>
       )}
       {entries.map((e) => (e.kind === "legacy" ? legacyRow(e.task) : ledgerRow(e.bill)))}
-      {payHalfOn && !payday && entries.length > 0 && (
-        <div className="task-row p2" {...pressable(() => setPaydayOpen(true))}>
-          <div className="task-title"><span className="task-name">Set Up Payday</span></div>
-          {CHEV}
-        </div>
-      )}
     </>
   );
 
@@ -937,10 +919,10 @@ export default function MoneyFlow({ onOpenTask, onOpenEntity, openAccountId, ope
                   <div className="budget-math">
                     <div className="budget-row"><span>Paycheck</span><span>{formatMoney(left.paycheck)}</span></div>
                     {left.billsOut > 0 && (
-                      <div className="budget-row"><span>Bills Before {monthDay(nextPay!)}</span><span>-{formatMoney(left.billsOut)}</span></div>
+                      <div className="budget-row"><span>Bills Before {monthDay(nextPay!)}</span><span>{MINUS + formatMoney(left.billsOut)}</span></div>
                     )}
                     {left.setAside > 0 && (
-                      <div className="budget-row"><span>Set Aside</span><span>-{formatMoney(left.setAside)}</span></div>
+                      <div className="budget-row"><span>Set Aside</span><span>{MINUS + formatMoney(left.setAside)}</span></div>
                     )}
                     <div className="budget-row budget-total"><span>Yours</span><span>{formatMoney(left.amount)}</span></div>
                     {/* With no bills or set-aside, the line under the total
@@ -1013,7 +995,11 @@ export default function MoneyFlow({ onOpenTask, onOpenEntity, openAccountId, ope
 
           {/* ADD BILL IS THE HEAD'S CAPSULE, and a Bills section with nothing in it is its head and the capsule, no empty
               plate (Dave 2026-10-05, rule 12). */}
+          {/* SET UP PAYDAY IS A SECTION ACTION, SO IT IS THE HEAD'S SECOND CAPSULE (2026-10-05, round 2, D1 and D2: it was a bare
+              row with a chevron at the foot of the Bills card, its title 54px left of every bill's). It shows only while
+              there is no payday; once one is set, the payday row at the top of the card is the door to it. */}
           <div className="sh2 sh2-quiet"><span className="t">Bills</span>{entries.length > 0 && <span className="n">{entries.length}</span>}
+            {payHalfOn && !payday && entries.length > 0 && <button className="see-all pill-action" onClick={() => setPaydayOpen(true)}>Set Up Payday</button>}
             <button className="see-all pill-action" onClick={() => setBillSheet({ kind: "new" })}>Add Bill</button></div>
           {hasBillRows && <div className="pad-x"><div className="card list-card-ruled">{billRows}</div></div>}
           {suggestion && (
