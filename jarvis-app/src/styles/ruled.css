@@ -3080,6 +3080,11 @@
 /* THE WHOLE NEXT STEP (Dave: the area page's project rows). On its own line
    the step is free to wrap, where the lens's one-line form ellipsizes. */
 .ruled .proj-row-ruled .proj-next-line .r-next-v { white-space: normal; overflow: visible; text-overflow: clip; }
+/* THE GOAL'S PROJECT ROW WRAPS ITS NEXT STEP BEFORE IT CUTS IT (the ship-blocker review: "Draft the Coach Onboa..." on the goal page).
+   Truncating a meaningful sentence is a defect, so on the goal page's project rows the step takes two lines and only
+   then ellipsizes, the same two-line clamp a task title gets (Dave 2026-09-26). Scoped to .goal-ruled so the lens's
+   one-line form on the Projects list is untouched. */
+.ruled.goal-ruled .proj-row-ruled .r-next-v { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; text-overflow: clip; }
 /* THE KEEP GOING ROW SHOWS ALL THREE OF ITS FACTS (Dave: "make it real").
    The row leads with the Remember star now, so its check and title sit in
    the list's columns; that 30px is what the one-line clamp above needed for

@@ -243,14 +243,27 @@ describe("the month switch is two chevrons, not two words", () => {
   });
 });
 
+describe("the tab strip fits at rest", () => {
+  // The ship-blocker review (2026-10-05): the fourth label sat cut at the strip's edge, "Su", before the strip was touched. jsdom has no layout, so the
+  // numbers are pinned where they are decided: the four labels stay short, and the stylesheet gives the buttons 4px of padding and lets spare room spread.
+  it("the four labels are short enough for 350px, and the buttons share the row", () => {
+    const tsx = readFileSync(join(__dirname, "screens/TrackerScreen.tsx"), "utf8");
+    const labels = [...tsx.matchAll(/\{ key: "\w+", label: "([^"]+)" \}/g)].map((m) => m[1]!);
+    expect(labels).toEqual(["Overview", "Activity", "Budgets", "Subscriptions"]);
+    expect(labels.join("").length, "a row of four words under ~36 characters fits 350px even in the wide fallback face").toBeLessThanOrEqual(36);
+    const css = readFileSync(join(__dirname, "../styles/components.css"), "utf8");
+    expect(css).toMatch(/\.mt-tabrow \.segmented \.seg \{ flex: 1 0 auto; padding-inline: var\(--s-1\); \}/);
+  });
+});
+
 describe("the tab strip scrolls and says so", () => {
   it("is a scroller with data-more, the active tab is aria-selected, and the offer has its own room under the title", async () => {
     mountTracker("r1-tabs");
     const strip = (await screen.findByRole("tablist", { name: "Tracker" })) as HTMLElement;
     expect(strip).toHaveAttribute("data-more");
-    expect(screen.getByRole("tab", { name: "Dashboard" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("tab", { name: "Overview" })).toHaveAttribute("aria-selected", "true");
     // Four tabs, in order, none renamed or dropped.
-    expect([...strip.querySelectorAll("[role=tab]")].map((t) => t.textContent)).toEqual(["Dashboard", "Transactions", "Budgets", "Subscriptions"]);
+    expect([...strip.querySelectorAll("[role=tab]")].map((t) => t.textContent)).toEqual(["Overview", "Activity", "Budgets", "Subscriptions"]);
     // The import offer sits in its own spacing wrapper, so it never butts the title's underline.
     expect(screen.getByText("Import September Data").closest(".mt-notice")).not.toBeNull();
   });

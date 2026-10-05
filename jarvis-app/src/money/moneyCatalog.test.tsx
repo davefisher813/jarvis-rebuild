@@ -410,7 +410,7 @@ describe("the Tracker: transactions, budgets, subscriptions and the dashboard", 
       if (!r.ok) throw new Error("seed");
       await h.ledger.approveReceiptMatch(r.id, txId);
     }, <TrackerScreen onBack={() => {}} />);
-    await tab("Transactions");
+    await tab("Activity");
     const row = (await screen.findByText("Stop & Shop", { selector: ".task-name" })).closest(".task-row") as HTMLElement;
     expect([...row.querySelectorAll(".fact")].map((f) => f.textContent)).toEqual([expect.stringMatching(/^[A-Z][a-z]{2} 8$/), "Matched", "Groceries"]);
     expect(row.querySelector(".fact.good")).toHaveTextContent("Matched");
@@ -428,7 +428,7 @@ describe("the Tracker: transactions, budgets, subscriptions and the dashboard", 
       const b = await addBill(h.ledger, { vendor: "ConEdison", amount: 84.12, dueDate: mday(5) });
       await h.ledger.approveBillMatch(b, tx2);
     }, <TrackerScreen onBack={() => {}} />);
-    await tab("Transactions");
+    await tab("Activity");
     fireEvent.click((await screen.findByText("Stop & Shop", { selector: ".task-name" })).closest(".task-row")!);
     await screen.findByText("Edit Transaction");
     // Twice: the sheet's Match row, and the line the link wrote in its history. Unmatch is an action row of its own, never a capsule on the match row.
@@ -449,7 +449,7 @@ describe("the Tracker: transactions, budgets, subscriptions and the dashboard", 
 
   it("nothing tracked: no placeholder row under an empty head, on transactions or on subscriptions, and no empty card", async () => {
     const { container } = mount("cat-empty", async () => {}, <TrackerScreen onBack={() => {}} />);
-    await tab("Transactions");
+    await tab("Activity");
     await screen.findByText("Add Manually");
     expect(container.textContent).not.toMatch(/Nothing (Tracked Yet|Matches)/);
     await tab("Subscriptions");
@@ -460,7 +460,7 @@ describe("the Tracker: transactions, budgets, subscriptions and the dashboard", 
     expect(head.querySelector(".pill-action")).toHaveAccessibleName("Add a Subscription");
     expect(head.nextElementSibling?.querySelector(".card") ?? null).toBeNull();
     expect(loneActionBoxes(container)).toEqual([]);
-    await tab("Dashboard");
+    await tab("Overview");
     expect(container.textContent).not.toMatch(/Nothing Spent This Month/);
     expect([...container.querySelectorAll(".sh2 .t")].map((t) => t.textContent)).not.toContain("Spending by Category");
     expect(catalogViolations(container)).toEqual([]);
@@ -468,7 +468,7 @@ describe("the Tracker: transactions, budgets, subscriptions and the dashboard", 
 
   it("a filter that hides every row still says so (the head's 0 does not say why)", async () => {
     mount("cat-filter", async (h) => { await h.tracker.saveTx(null, txData()); }, <TrackerScreen onBack={() => {}} />);
-    await tab("Transactions");
+    await tab("Activity");
     fireEvent.change(await screen.findByLabelText("Search transactions"), { target: { value: "zzzz" } });
     expect(await screen.findByText("Nothing Matches")).toBeInTheDocument();
   });

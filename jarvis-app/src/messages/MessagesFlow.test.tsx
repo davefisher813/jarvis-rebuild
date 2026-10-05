@@ -638,6 +638,15 @@ describe("MessagesFlow (threads)", () => {
     expect(calm[0]!.textContent).not.toMatch(/still sending/i);
   });
 
+  it("the compose door is the head's one capsule (the shared HeadAdd beside the title), not a 32px circle in the bar", async () => {
+    const { container } = render(wrap(<MessagesFlow ai={noAI} configured />));
+    fireEvent.click(await screen.findByText("Connect Google"));
+    const add = await screen.findByLabelText("New Message");
+    expect(add).toHaveClass("hdr-add");
+    expect(add.closest(".pagehead-acts")).not.toBeNull();
+    expect(container.querySelector(".pagebar-acts .barbtn")).toBeNull();
+  });
+
   it("composes and sends", async () => {
     render(wrap(<MessagesFlow ai={noAI} configured />));
     fireEvent.click(await screen.findByText("Connect Google"));

@@ -56,7 +56,7 @@ const seedPair = async (h: Handles) => {
 describe("Tracker transactions: added by hand, no bank", () => {
   it("says Add Manually, never offers a bank connection", async () => {
     mount("tr-copy");
-    await tab("Transactions");
+    await tab("Activity");
     expect(await screen.findByText("Add Manually")).toBeInTheDocument();
     // No placeholder row under the head: its 0 says it (2026-10-05, the visual catalog gate).
     expect(screen.queryByText("Nothing Tracked Yet")).toBeNull();
@@ -66,7 +66,7 @@ describe("Tracker transactions: added by hand, no bank", () => {
 
   it("a new transaction opens on the category its merchant usually gets", async () => {
     const h = mount("tr-cat", async (s) => { await s.tracker.saveTx(null, tx({ date: day(1), category: "Household" })); });
-    await tab("Transactions");
+    await tab("Activity");
     fireEvent.click(await screen.findByText("Add Manually"));
     await screen.findByText("New Transaction");
     fireEvent.change(screen.getByLabelText("Merchant"), { target: { value: "stop & shop" } });
@@ -81,7 +81,7 @@ describe("Tracker transactions: added by hand, no bank", () => {
 
   it("editing a matched transaction keeps its links and appends a history line", async () => {
     const h = mount("tr-edit", async (s) => { await seedPair(s); });
-    await tab("Transactions");
+    await tab("Activity");
     // the row says it is matched
     const row = (await screen.findByText("Stop & Shop")).closest(".task-row") as HTMLElement;
     expect(within(row).getByText("Matched")).toBeInTheDocument();
@@ -104,7 +104,7 @@ describe("Tracker transactions: added by hand, no bank", () => {
 
   it("the sheet shows the history, and Unmatch frees the receipt with an Undo", async () => {
     const h = mount("tr-unmatch", async (s) => { await seedPair(s); });
-    await tab("Transactions");
+    await tab("Activity");
     fireEvent.click((await screen.findByText("Stop & Shop")).closest(".task-row")!);
     await screen.findByText("Edit Transaction");
     expect(screen.getByText("History")).toBeInTheDocument();
@@ -121,7 +121,7 @@ describe("Tracker transactions: added by hand, no bank", () => {
 
   it("deleting a matched payment frees its receipt, and Undo puts both back", async () => {
     const h = mount("tr-delete", async (s) => { await seedPair(s); });
-    await tab("Transactions");
+    await tab("Activity");
     fireEvent.click((await screen.findByText("Stop & Shop")).closest(".task-row")!);
     fireEvent.click(await screen.findByText("Delete Transaction"));
     await waitFor(async () => expect((await h.current!.tracker.load()).txs).toHaveLength(0));
@@ -137,7 +137,7 @@ describe("Tracker transactions: added by hand, no bank", () => {
       await s.tracker.saveTx(null, tx({}));
       await s.ledger.addReceipt({ vendor: "Stop & Shop", amount: "47.12", transactionDate: day(8) }, "manual", TODAY);
     });
-    await tab("Transactions");
+    await tab("Activity");
     expect(await screen.findByText("Matches")).toBeInTheDocument();
     const rowText = await screen.findByText(/Looks Like Your/);
     // above the Transactions head in document order

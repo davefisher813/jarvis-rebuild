@@ -42,7 +42,7 @@ describe("BrainPage", () => {
   // brand red, which dilutes the real action colour") gave each destination its OWN tone, because a glyph that only names a
   // place is not a tap target and brand red is for what can be tapped. Since 2026-09-16 these are the only glyphs the page draws:
   // category discs moved to Life's Areas tab.
-  it("every row is a filled glyph in one of three meaningful tones, never the flat brand red; no category discs", () => {
+  it("every row is a filled glyph in a meaningful tone, never the flat brand red or a flat grey; no category discs", () => {
     const { container } = render(<BrainPage onOpen={() => {}} categories={CATS} />);
     const glyphs = [...container.querySelectorAll(".lib-ico")];
     expect(glyphs.length).toBe(8); // the static nav rows only
@@ -50,16 +50,21 @@ describe("BrainPage", () => {
     expect(container.querySelectorAll(".lib-ico.lib-disc").length).toBe(0);
     const tones = glyphs.map((g) => [...g.classList].find((c) => c.startsWith("cat-fg-") || c === "lib-ico-neutral"));
     expect(tones.every((t) => !!t)).toBe(true);
+    // The ship-blocker review (2026-10-05): "Your Routine" was the only flat grey glyph in Explore. No row is neutral.
+    expect(tones).not.toContain("lib-ico-neutral");
+    expect(glyphs.every((g) => !g.classList.contains("lib-ico-neutral"))).toBe(true);
     // The round 2 review: eight hues for eight destinations was a rainbow with no meaning (and Insights wore Event's sky).
-    // Purple is the Brain's own memory, teal the people, grey a place that is set-up; nothing wears another type's colour.
+    // Purple is the Brain's own memory, teal the people, sky the day's shape (Your Routine alone); nothing wears Task's red.
     expect(new Set(tones).size).toBeLessThanOrEqual(3);
     expect(tones).not.toContain("cat-fg-red");
-    expect(tones).not.toContain("cat-fg-sky");
     const toneOf = (name: string) => [...(screen.getByText(name).closest(".lib-row")!.querySelector(".lib-ico")!.classList)].find((c) => c.startsWith("cat-fg-") || c === "lib-ico-neutral");
     expect(toneOf("Contacts")).toBe("cat-fg-teal");
     // D5: a decision is purple on every screen.
     expect(toneOf("Decisions")).toBe("cat-fg-purple");
     expect(toneOf("What JARVIS Knows")).toBe("cat-fg-purple");
+    // The routine is the schedule's own shape, in the schedule's sky; Insights does not borrow it.
+    expect(toneOf("Your Routine")).toBe("cat-fg-sky");
+    expect(toneOf("Insights")).toBe("cat-fg-purple");
   });
 
   // THE SAME TITLE AS EVERY OTHER LIST (Dave 2026-10-05, the review: Explore titles were about 20px beside 17px in Needs You).

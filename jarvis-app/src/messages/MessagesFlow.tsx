@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState, Suspense, useMemo } from "react";
 import { lazyWithRecovery } from "../shell/chunkRecovery";
-import PageHeader, { BarAction } from "../shared/PageHeader";
-import { Mail, Plus, Archive, Trash2, Brain, CornerUpLeft, Forward, Send, Tag, Clock, MessageSquare, Volume2, Hourglass, ListChecks, CalendarClock, FolderKanban } from "../shared/icons";
+import PageHeader from "../shared/PageHeader";
+import { HeadAdd } from "../shared/LifeHeader";
+import { Mail, Archive, Trash2, Brain, CornerUpLeft, Forward, Send, Tag, Clock, MessageSquare, Volume2, Hourglass, ListChecks, CalendarClock, FolderKanban } from "../shared/icons";
 import { leadFor, faceSlot } from "./rowAnatomy";
 import { Facts, ruleStateFact, dayTone, type FactTone } from "./factsLine";
 import { useEmailFiling } from "./useEmailFiling";
@@ -4761,7 +4762,9 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
 
   return (
     <div className={"screen ruled " + pushCls} key="list">
-      <PageHeader title="Email" actions={<BarAction label="New Message" onClick={startCompose}><Plus className="ic" /></BarAction>} />
+      {/* THE COMPOSE DOOR IS THE HEAD'S ONE CAPSULE, NOT A 32px CIRCLE IN THE BAR (Dave 2026-10-05): the same HeadAdd every
+          Life page and Notes draw, beside the large title where their options control sits. Its accessible name stays "New Message". */}
+      <PageHeader title="Email" headActions={<HeadAdd label="New Message" onClick={startCompose} />} />
       {/* The hold(s). It is the whole point of undo-send that this is loud,
           reachable, and honest about what is happening: a held or scheduled
           message has NOT gone yet, and Undo puts him back in the composer

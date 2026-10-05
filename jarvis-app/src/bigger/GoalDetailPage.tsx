@@ -12,7 +12,7 @@ import RowActionSheet from "../shared/RowActionSheet";
 import { closable, projStatus, type ProjectRow } from "./progress";
 import { savingsLine, savingsPct, savedRows, savedTotal } from "./savings";
 import RemoveSavingsSheet from "./RemoveSavingsSheet";
-import { catColor } from "../shared/categories";
+import { catColor, goalTone } from "../shared/categories";
 import { haptics } from "../shared/haptics";
 import { fmtDay } from "../decisions/DecisionsFlow";
 import { formatMoney } from "../money/types";
@@ -214,7 +214,12 @@ export default function GoalDetailPage({
             lines, not to the one ring). */}
         {target
           ? <div className="dring goal-ring" role="img" aria-label={savingsLine(target, goal.data.saved)} style={{ "--pct": `${ringPct}%` } as CSSProperties}><div><b>{ringPct}%</b><span>saved</span></div></div>
-          : <div className="proj-icon cat-bg-graphite">{TARGET}</div>}
+          // THE HERO GLYPH WEARS THE GOAL'S TONE (the ship-blocker review: it was a
+          // flat graphite tile). The same tone the list row draws its target in
+          // (goalTone: the watched area's colour, brand red when it watches
+          // none), as a tile fill, so a goal looks the same on the way in as on
+          // the way down the list, in both themes.
+          : <div className={"proj-icon " + goalTone(goal.data.tags).replace("cat-fg-", "cat-bg-")}>{TARGET}</div>}
         {/* proj-detail-title, not nav-large: goal titles run long and the
             34px screen-title size wraps them badly */}
         <div className="proj-detail-title">{titleCase(goal.data.title)}</div>

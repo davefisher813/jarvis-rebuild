@@ -5,9 +5,10 @@
 // MessagesFlow renders live data and this component never mounts.
 
 import { useEffect, useState } from "react";
-import PageHeader, { BarAction } from "../shared/PageHeader";
+import PageHeader from "../shared/PageHeader";
+import { HeadAdd } from "../shared/LifeHeader";
 import { showToast } from "../shared/toast";
-import { Mail, Plus, Archive, Clock, Volume2, CalendarClock } from "../shared/icons";
+import { Mail, Archive, Clock, Volume2, CalendarClock } from "../shared/icons";
 import { leadFor } from "./rowAnatomy";
 import { saveMailSnapshot } from "./home";
 import { decide } from "./mailAction";
@@ -124,7 +125,7 @@ export default function DemoMail({ onConnect }: { onConnect?: () => void }) {
 
   return (
     <div className="screen ruled">
-      <PageHeader title="Email" actions={<BarAction label="New Message" onClick={() => setComposing(true)}><Plus className="ic" /></BarAction>} />
+      <PageHeader title="Email" headActions={<HeadAdd label="New Message" onClick={() => setComposing(true)} />} />
       {/* EM1 (2026-09-12): the first screen opens on the view chips and the
           outcome switch. 2026-10-04: the chips select. All is the flat list
           of the inbox threads the demo has (search is not drawn); Drafts has

@@ -102,7 +102,6 @@ const NO_ACTION_EXISTS: Record<string, string> = {
   "search/SearchFlow.tsx · Find Anything": "the search idle state; the field above it IS the action and has focus",
   "search/SearchFlow.tsx · No matches for &ldquo;": "same field, same focus; changing the words is the move",
   "settings/LearnedRulesPage.tsx · Nothing Learned Yet": "a rule lands by correcting JARVIS twice in normal use; there is no button for it",
-  "connections/ConnectionsPage.tsx · Google Is Not Connected Yet": "this build has no Google client, so there is nothing to tap; the capsule appears in the head the day sign-in opens",
   "brain/strands/StrandsPage.tsx · Nothing Under This One": "a filter with no members; the chips that change it are on screen",
 };
 
@@ -111,6 +110,7 @@ const NO_ACTION_EXISTS: Record<string, string> = {
 // ("a second door is bad; a second door with a false sign on it is worse"),
 // so duplicating these would trade one finding for a worse one.
 const ACTION_ON_SCREEN: Record<string, string> = {
+  "connections/ConnectionsPage.tsx · Google Is Not Connected Yet": "Connect Google is the Google Accounts head's capsule, directly above these words, drawn with or without a Google client (the ship-blocker review, 2026-10-05)",
   "connections/ConnectionsPage.tsx · No Accounts Yet": "Connect Google is the Google Accounts head's capsule, directly above these words (Dave 2026-10-05)",
   "schedule/screens/SchedulePage.tsx · Nothing Repeats Yet": "its own comment: the bar keeps the job, and this door once carried a false sign",
   "brain/strands/StrandsPage.tsx · Nothing Remembered Yet": "Add One Thing is the section head's capsule, directly above these words",

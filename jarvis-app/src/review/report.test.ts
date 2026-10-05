@@ -220,7 +220,7 @@ describe("patterns", () => {
       workouts: [workout("2026-08-03"), workout("2026-08-05"), workout("2026-08-07")],
     }));
     const train = r.patterns.find((x) => x.id === "train")!;
-    expect(train.sub!.map((f) => f.text)).toEqual(["4.3 Train Days", "2.0 Other Days", "+117%"]);
+    expect(train.sub!.map((f) => f.text)).toEqual(["4.3 Train", "2.0 Other", "+117%"]);
     expect(train.sub![2]!.tone).toBe("good");
     for (const row of r.patterns) expect("chip" in row).toBe(false);
   });
@@ -325,5 +325,29 @@ describe("the life cards", () => {
     expect(r.life.map((c) => c.id)).toEqual(["money", "mail", "people", "health", "decisions"]);
     for (const c of r.life) expect(c.exit.label).toMatch(/^(Open |Check In)/);
     expect(r.closer).toBeNull();
+  });
+});
+
+// THE GREEN RISE IS NEVER CUT (the ship-blocker review, 2026-10-05: "4.0 Train Days . 2.0 Other Days . +10..."). The long form
+// took the whole line at 390px, so the rise ended in an ellipsis. The row's title already says "Days"; the facts are short, and the
+// stylesheet gives a report line's keyed fact its width before any grey one gives way.
+describe("the Train Days Win pattern row", () => {
+  it("reads short enough that the rise fits, and the stylesheet never cuts a keyed fact", async () => {
+    const done = { "2026-08-03": 4, "2026-08-05": 5, "2026-08-07": 4, "2026-08-04": 2, "2026-08-06": 2, "2026-08-08": 2 };
+    const r = buildReport(inputs({
+      seal: emptySeal("2026-08", { doneByDay: done }),
+      workouts: [workout("2026-08-03"), workout("2026-08-05"), workout("2026-08-07")],
+    }));
+    const train = r.patterns.find((x) => x.id === "train")!;
+    const line = train.sub!.map((f) => f.text).join(" ");
+    expect(line).not.toMatch(/Days/);
+    expect(line.length).toBeLessThanOrEqual(28);
+    expect(train.sub![2]).toEqual({ text: "+117%", tone: "good" });
+    const { readFileSync } = await import("node:fs");
+    const { join } = await import("node:path");
+    const css = readFileSync(join(__dirname, "../styles/components.css"), "utf8");
+    // Two classes on the line, so the ladder's .facts > .fact:last-child (the same weight, later in the sheet) cannot undo it.
+    expect(css).toMatch(/\.facts\.rep-facts > \.fact:last-child \{ overflow: visible; white-space: normal; text-overflow: clip; \}/);
+    expect(css).toMatch(/\.facts\.rep-facts > \.fact\.good[^{]*\{ flex-shrink: 0;/);
   });
 });

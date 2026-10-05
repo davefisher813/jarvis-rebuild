@@ -279,7 +279,12 @@ export default function HealthBody({
                 <div className="h-hero-t">{next.day.name}</div>
                 <div className="facts h-hero-facts">
                   {when && <span className={"fact " + whenTone}>{when}</span>}
-                  <span className="fact lime">{lineCase(`${next.day.exercises.length} ${next.day.exercises.length === 1 ? "exercise" : "exercises"}`)}</span>
+                  {/* A PLAIN COUNT IS WHITE, NEVER LIME (the ship-blocker review): lime is
+                      "what is logged" in the Colour Key, and an exercise count on a
+                      workout that has not started logs nothing. It read lime in dark
+                      and neutral grey in light; a measured number with no state is
+                      the one white, the same in both themes (§AM). */}
+                  <span className="fact"><b>{lineCase(`${next.day.exercises.length} ${next.day.exercises.length === 1 ? "exercise" : "exercises"}`)}</b></span>
                   {/* The sky ink already says estimate, so no "About"
                       (2026-09-26): with it, the line cut the number away
                       at type scale 1.4 ("Abo..."). */}
@@ -359,7 +364,7 @@ export default function HealthBody({
               <div className="strand-head">{next.day.name}</div>
               <div className="facts">
                 {when && <span className={"fact " + whenTone}>{when}</span>}
-                <span className="fact lime">{lineCase(`${next.day.exercises.length} ${next.day.exercises.length === 1 ? "exercise" : "exercises"}`)}</span>
+                <span className="fact"><b>{lineCase(`${next.day.exercises.length} ${next.day.exercises.length === 1 ? "exercise" : "exercises"}`)}</b></span>
                 {est > 0 && <span className="fact est">{spanLabel(est)}</span>}
               </div>
             </div>

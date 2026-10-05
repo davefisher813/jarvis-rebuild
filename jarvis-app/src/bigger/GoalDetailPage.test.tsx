@@ -224,3 +224,46 @@ describe("the goal page: section actions live on the section head", () => {
     expect(screen.getByText("Show Fewer")).toBeInTheDocument();
   });
 });
+
+// THE GOAL'S HERO GLYPH WEARS THE GOAL'S TONE (Dave 2026-10-05, the ship-blocker review: it was a flat graphite tile).
+describe("the hero glyph's tone", () => {
+  it("is the watched area's colour, like the list row, when the goal watches one", async () => {
+    const { setCategoryRegistry } = await import("../shared/categories");
+    setCategoryRegistry([{ id: "health", name: "Health", color: "green" }]);
+    try {
+      const { container } = render(<GoalDetailPage goal={{ id: "g1", data: { title: "Run a Half", state: "on_track", tags: ["health"] } }} reach={EMPTY} projects={[]} nextActionTextOf={() => null} onBack={() => {}} onEdit={() => {}} onOpenProject={() => {}} onAddProject={() => {}} />);
+      const tile = container.querySelector(".proj-detail-hero .proj-icon")!;
+      expect(tile).toHaveClass("cat-bg-green");
+      expect(tile).not.toHaveClass("cat-bg-graphite");
+    } finally { setCategoryRegistry([]); }
+  });
+
+  it("is brand red when it watches no area, never flat grey", () => {
+    const { container } = render(<GoalDetailPage goal={{ id: "g2", data: { title: "Learn Spanish", state: "on_track" } }} reach={EMPTY} projects={[]} nextActionTextOf={() => null} onBack={() => {}} onEdit={() => {}} onOpenProject={() => {}} onAddProject={() => {}} />);
+    const tile = container.querySelector(".proj-detail-hero .proj-icon")!;
+    expect(tile).toHaveClass("cat-bg-brand");
+    expect(tile).not.toHaveClass("cat-bg-graphite");
+  });
+});
+
+// THE GOAL'S PROJECT ROW WRAPS ITS NEXT STEP BEFORE IT CUTS IT (same review): scoped to the goal page, two lines, then an ellipsis.
+describe("the goal page's project row next step", () => {
+  it("wraps to two lines instead of one ellipsized line, scoped to the goal page only", async () => {
+    const { readFileSync } = await import("node:fs");
+    const { join } = await import("node:path");
+    const css = readFileSync(join(process.cwd(), "src/styles/ruled.css"), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
+    const scoped = css.match(/\.ruled\.goal-ruled \.proj-row-ruled \.r-next-v\s*\{([^}]*)\}/);
+    expect(scoped, "a rule scoped to the goal page's project row").not.toBeNull();
+    expect(scoped![1]).toMatch(/white-space:\s*normal/);
+    expect(scoped![1]).toMatch(/-webkit-line-clamp:\s*2/);
+    // The shared one-line form (the Projects lens) is unchanged.
+    expect(css.match(/\.ruled \.r-next-v\s*\{([^}]*)\}/)![1]).toMatch(/white-space:\s*nowrap/);
+  });
+
+  it("the row on the goal page sits under .goal-ruled so the scope reaches it", () => {
+    const p = { id: "p1", data: { title: "Rebuild Calder App", status: "active" } } as Project;
+    const { container } = render(<GoalDetailPage goal={{ id: "g3", data: { title: "Ship It", state: "on_track" } }} reach={EMPTY} projects={[p]} nextActionTextOf={() => "draft the coach onboarding email for the launch"} onBack={() => {}} onEdit={() => {}} onOpenProject={() => {}} onAddProject={() => {}} />);
+    const v = container.querySelector(".goal-ruled .proj-row-ruled .r-next-v")!;
+    expect(v.textContent).toBe("Draft the Coach Onboarding Email for the Launch");
+  });
+});

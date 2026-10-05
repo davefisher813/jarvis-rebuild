@@ -57,8 +57,11 @@ import { useLedgerEvents } from "../useLedgerEvents";
 
 type Tab = "dashboard" | "transactions" | "budgets" | "subs";
 const TABS: { key: Tab; label: string }[] = [
-  { key: "dashboard", label: "Dashboard" },
-  { key: "transactions", label: "Transactions" },
+  // FOUR LABELS THAT FIT ONE ROW (the ship-blocker review, 2026-10-05: the fourth tab sat cut off at the strip's edge at rest, "Su", in both themes).
+  // "Dashboard" and "Transactions" were the two long words; Overview and Activity say the same and, with the 4px tab padding, all four sit inside a 350px
+  // strip even in the wider fallback face. The strip still scrolls and fades (below) for a larger Dynamic Type size, but at the app's own size nothing is cut.
+  { key: "dashboard", label: "Overview" },
+  { key: "transactions", label: "Activity" },
   { key: "budgets", label: "Budgets" },
   { key: "subs", label: "Subscriptions" },
 ];

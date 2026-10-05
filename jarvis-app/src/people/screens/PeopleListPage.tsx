@@ -1,5 +1,7 @@
 import { useRef, useState } from "react";
-import EntityStar from "../../shared/EntityStar";
+import EntityStar, { useRemember } from "../../shared/EntityStar";
+import { useRowMenu } from "../../shared/useRowMenu";
+import type { RowAction } from "../../shared/RowActionSheet";
 import type { Person } from "../types";
 import { personInitials, softAvatarClass } from "../types";
 import { searchPeople } from "../views";
@@ -23,6 +25,58 @@ const SEARCH = (
 const PEOPLE = (
   <PeopleGlyph />
 );
+
+// A swipe controller that does nothing: a contact row has no tray, only the held-row menu (Open, and Remember or Forget).
+const NO_SWIPE = {
+  handlers: {
+    onTouchStart: () => {}, onTouchMove: () => {}, onTouchEnd: () => {},
+    onMouseDown: () => {}, onMouseUp: () => {}, onMouseLeave: () => {}, onContextMenu: () => {},
+  },
+  closeThen: () => {},
+};
+
+// THE PERSON ROW (the area page's, 2026-09-02): the avatar in the check column, the name, the label under it in the quiet grey.
+// Each row's avatar IS its type, so rows never double up with a glyph.
+//
+// REMEMBER IS A LINE IN THE MENU, AND A STAR ONLY WHILE IT IS TRUE (2026-10-05, the perfect bar, as on every task, event and
+// decision row): an empty outline star on every contact was a control nobody asked for. The filled star marks a remembered
+// person in the gutter; the long press offers Remember and Forget.
+function PersonRow({ p, onOpen }: { p: Person; onOpen: (id: string) => void }) {
+  const remember = useRemember("person", p.id, p.data.name);
+  const actions: RowAction[] = [
+    { label: "Open", onPick: () => onOpen(p.id) },
+    ...(remember ? [{ label: remember.on ? "Forget" : "Remember", onPick: () => void remember.run() }] : []),
+  ];
+  const rowMenu = useRowMenu({ title: p.data.name, actions, swipeEnabled: false });
+  const { handlers, sheet } = rowMenu.bind(NO_SWIPE);
+  return (
+    <>
+      <div {...pressable(() => onOpen(p.id))} {...handlers} className="task-row p2 person-row-ruled">
+        {/* The avatar leads and stands alone at the row's leading edge (Dave 2026-10-05, the review: the star sat tight
+            against it, two competing leading items). */}
+        <div className="task-check-tap"><div className={"av " + softAvatarClass(p.data.color, p.data.name)}><span>{personInitials(p.data.name)}</span></div></div>
+        <div className="task-title">
+          <span className="task-name">{p.data.name}</span>
+          {/* the label, the triage roles, or the honest absence of both;
+              one fact in the subline (C-59: no label is an empty second
+              line, not a nag) */}
+          <div className="r-k">{p.data.relationship
+            ? <span className="r-goal r-cat">{lineCase(p.data.relationship)}</span>
+            : brainRolesOf(p).length > 0
+              // ONE RUN, SO A COMMA LIST (2026-10-05, the catalog hard
+              // gate): the roles were joined with a middle dot typed into
+              // the string, a separator CSS draws between facts and never
+              // a character in the words (R6). They are one grey run.
+              ? <span className="r-goal r-cat">{brainRolesOf(p).map(brainRoleLabel).join(", ")}</span>
+              : null}</div>
+        </div>
+        <EntityStar entityType="person" entityId={p.id} title={p.data.name} quiet />
+        {CHEV}
+      </div>
+      {sheet}
+    </>
+  );
+}
 
 export default function PeopleListPage({
   people,
@@ -225,31 +279,7 @@ export default function PeopleListPage({
               {CHEV}
             </div>
           )}
-          {shown.map((p) => (
-            <div {...pressable(() => onOpen(p.id))} className="task-row p2 person-row-ruled" key={p.id}>
-              {/* The avatar leads and stands alone at the row's leading edge (Dave 2026-10-05, the review: the star sat tight
-                  against it, two competing leading items). */}
-              <div className="task-check-tap"><div className={"av " + softAvatarClass(p.data.color, p.data.name)}><span>{personInitials(p.data.name)}</span></div></div>
-              <div className="task-title">
-                <span className="task-name">{p.data.name}</span>
-                {/* the label, the triage roles, or the honest absence of both;
-                    one fact in the subline (C-59: no label is an empty second
-                    line, not a nag) */}
-                <div className="r-k">{p.data.relationship
-                  ? <span className="r-goal r-cat">{lineCase(p.data.relationship)}</span>
-                  : brainRolesOf(p).length > 0
-                    // ONE RUN, SO A COMMA LIST (2026-10-05, the catalog hard
-                    // gate): the roles were joined with a middle dot typed into
-                    // the string, a separator CSS draws between facts and never
-                    // a character in the words (R6). They are one grey run.
-                    ? <span className="r-goal r-cat">{brainRolesOf(p).map(brainRoleLabel).join(", ")}</span>
-                    : null}</div>
-              </div>
-              {/* C-50 (Astra, 2026-09-12): the Remember star, at the trailing edge before the chevron, with a 44px reach. */}
-              <EntityStar entityType="person" entityId={p.id} title={p.data.name} />
-              {CHEV}
-            </div>
-          ))}
+          {shown.map((p) => <PersonRow key={p.id} p={p} onOpen={onOpen} />)}
         </div></div>
         </>
       )}

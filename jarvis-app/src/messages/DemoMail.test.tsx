@@ -12,6 +12,21 @@ const showToast = vi.hoisted(() => vi.fn());
 vi.mock("../shared/toast", async (importOriginal) => ({ ...(await importOriginal<typeof import("../shared/toast")>()), showToast }));
 beforeEach(() => showToast.mockReset());
 
+// THE COMPOSE DOOR IS THE HEAD'S ONE CAPSULE (the ship-blocker review, 2026-10-05): Email drew a 32px circle in the bar above its title, unlike
+// Notes and the Life pages. It is the shared HeadAdd now, beside the large title, with the type in its accessible name.
+describe("DemoMail header add", () => {
+  it("is the head capsule (.hdr-add beside the title), not a 32px bar circle, and still opens the composer", () => {
+    const { container } = render(<DemoMail />);
+    const add = screen.getByRole("button", { name: "New Message" });
+    expect(add).toHaveClass("hdr-add");
+    expect(add.closest(".pagehead-acts"), "in the head row, where Notes' own control sits").not.toBeNull();
+    expect(add).toHaveTextContent("Add");
+    expect(container.querySelector(".pagebar-acts .barbtn"), "no small circle floating in the bar").toBeNull();
+    fireEvent.click(add);
+    expect(screen.getByPlaceholderText("To")).toBeInTheDocument();
+  });
+});
+
 describe("DemoMail fixture", () => {
   it("renders the full email anatomy: promo, Needs You, Waiting On, The Rest", () => {
     render(<DemoMail />);

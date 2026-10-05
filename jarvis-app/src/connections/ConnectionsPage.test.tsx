@@ -40,12 +40,18 @@ describe("ConnectionsPage", () => {
   // tests and stalls the next import 2.4s (buttons stay busy). Isolate.
   beforeEach(() => localStorage.clear());
 
-  // Amended 2026-10-05 (the catalog gate): the greyed Connect Google under the setup card was a dead control saying
-  // what the card already says, so with no client id it is not drawn; configured, it is the way in.
-  it("shows an honest setup-required state and draws no dead connect control when unconfigured", () => {
+  // Amended again 2026-10-05 (the ship-blocker review: "a dead-end empty state with no action"). The setup state shows the head's one capsule
+  // too: with no client id its tap says so in one warm line and opens nothing, so the screen always has its verb and never a blank.
+  it("shows an honest setup state with the head's Connect Google capsule, which answers instead of opening a dead sign-in", () => {
     render(wrap(<ConnectionsPage configured={false} />));
     expect(screen.getByText("Google Is Not Connected Yet")).toBeInTheDocument();
-    expect(screen.queryByText("Connect Google")).toBeNull();
+    const head = screen.getByText("Google Accounts").closest(".sh2") as HTMLElement;
+    const cap = within(head).getByRole("button", { name: "Connect Google" });
+    expect(cap).toHaveClass("pill-action");
+    expect(screen.queryByText("Google Sign-In Opens Soon")).toBeNull();
+    fireEvent.click(cap);
+    expect(screen.getByText("Google Sign-In Opens Soon")).toBeInTheDocument();
+    expect(screen.queryByText("Connecting")).toBeNull();
   });
   // THE ONE CAPSULE OF AN EMPTY SCREEN IS THE HEAD'S (D9, round 2 review): Connect Google was a filled block under the words; it is the head's
   // capsule now, like Add Section on Email Sections, and the empty state is bare (no card around it).

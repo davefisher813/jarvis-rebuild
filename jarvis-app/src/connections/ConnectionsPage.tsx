@@ -23,6 +23,7 @@ import PageHeader from "../shared/PageHeader";
 // sentence case, and its first half ("Tap Reconnect to sign in again") said
 // what the Reconnect chip beside it, and the row's own tap, already are. What
 // is left is the one thing the row does not say: what Google will ask for.
+export const SIGN_IN_SOON = "Google Sign-In Opens Soon";
 export const SIGNED_OUT_HELP = "Google Asks Once for Access to Gmail, Calendar and Drive";
 
 export default function ConnectionsPage({
@@ -165,8 +166,14 @@ export default function ConnectionsPage({
         )}
         {/* THE ONE CAPSULE OF AN EMPTY SCREEN IS THE HEAD'S (D9, the round 2 review): with no account yet, Connect Google is the way in, drawn in the head
             like every other empty screen's capsule and not as a filled block under the words. With no Google client there is nothing to tap, so no capsule. */}
-        {g.accounts.length === 0 && configured && (
-          <button className="see-all pill-action" disabled={busy} onClick={addAccount}>{busy ? "Connecting" : "Connect Google"}</button>
+        {/* ... AND IT IS THERE BEFORE SIGN-IN OPENS TOO (the ship-blocker review, 2026-10-05: "a dead-end empty state with no action"). The
+            capsule is drawn whether or not this build has a Google client; with none, its tap answers in one warm line instead of opening a
+            sign-in that cannot work, so the screen always shows its one verb and never a blank. */}
+        {g.accounts.length === 0 && (
+          <button className="see-all pill-action" disabled={busy}
+            onClick={configured ? addAccount : () => { setError(null); setStatus(SIGN_IN_SOON); }}>
+            {busy ? "Connecting" : "Connect Google"}
+          </button>
         )}
       </div>
       {/* THE ONE EMPTY STATE (D9, the round 2 review: Connections drew its empty state inside a card while Email Sections and What JARVIS Learned drew

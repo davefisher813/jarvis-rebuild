@@ -54,7 +54,7 @@ const headOf = (c: HTMLElement, title: string) => [...c.querySelectorAll(".sh2")
 describe("Tracker > Dashboard: Add Account is the Accounts head's capsule", () => {
   it("no Add an Account row in a card; with no account the section is its head and the capsule alone", async () => {
     const { container } = mount("tra-acct");
-    await screen.findByRole("tab", { name: "Dashboard" }, { timeout: 4000 });
+    await screen.findByRole("tab", { name: "Overview" }, { timeout: 4000 });
     const head = headOf(container, "Accounts");
     expect(within(head).getByRole("button", { name: "Add Account" })).toHaveClass("pill-action");
     expect(screen.queryByText("Add an Account")).toBeNull();
@@ -74,7 +74,7 @@ describe("Tracker > Dashboard: Add Account is the Accounts head's capsule", () =
 describe("Tracker > Transactions: a clean row and a head that holds Add Manually", () => {
   it("Add Manually is on the head, never at the foot of the card; the row has no capsule; the merchant is in Title Case", async () => {
     const { container } = mount("tra-tx", async (h) => { await h.tracker.saveTx(null, tx()); });
-    await tab("Transactions");
+    await tab("Activity");
     const head = headOf(container, "Transactions");
     await waitFor(() => expect(within(head).getByRole("button", { name: "Add Manually" })).toHaveClass("pill-action"));
     expect(container.querySelector(".row-act")).toBeNull();
@@ -87,7 +87,7 @@ describe("Tracker > Transactions: a clean row and a head that holds Add Manually
 
   it("with nothing tracked the section is its head and the capsule: no card at all", async () => {
     const { container } = mount("tra-tx-empty");
-    await tab("Transactions");
+    await tab("Activity");
     const head = headOf(container, "Transactions");
     expect(within(head).getByRole("button", { name: "Add Manually" })).toBeInTheDocument();
     expect(head.nextElementSibling?.querySelector(".card") ?? null).toBeNull();
@@ -96,7 +96,7 @@ describe("Tracker > Transactions: a clean row and a head that holds Add Manually
 
   it("a payment's swipe is Delete with its Undo, and its long-press menu is Edit and Delete", async () => {
     const { h, container } = mount("tra-tx-swipe", async (s) => { await s.tracker.saveTx(null, tx()); });
-    await tab("Transactions");
+    await tab("Activity");
     const row = (await screen.findByText("Stop & Shop", { selector: ".task-name" })).closest(".task-row") as HTMLElement;
     fireEvent.contextMenu(row);
     const labels = (await screen.findAllByRole("button")).filter((b) => b.closest(".action-sheet")).map((b) => b.textContent);
@@ -188,7 +188,7 @@ describe("a sheet holds its actions as rows, not as capsules inside a match row"
       const a = await h.ledger.approveReceiptMatch(r.id, txId);
       if (!a.ok) throw new Error("link");
     });
-    await tab("Transactions");
+    await tab("Activity");
     fireEvent.click((await screen.findByText("Stop & Shop", { selector: ".task-name" })).closest(".task-row")!);
     await screen.findByText("Edit Transaction");
     expect(screen.getByRole("button", { name: "Unmatch Receipt" })).toBeInTheDocument();

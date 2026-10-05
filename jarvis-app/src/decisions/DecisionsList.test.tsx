@@ -13,6 +13,8 @@ import { setCategoryRegistry } from "../shared/categories";
 import DecisionsFlow from "./DecisionsFlow";
 import { todayISO } from "../schedule/calendar";
 import { shortDate } from "../shared/dateFormat";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 
 setCategoryRegistry([{ id: "cat-home", name: "Home", color: "orange" }]);
 afterAll(() => setCategoryRegistry([]));
@@ -399,5 +401,35 @@ describe("Decisions record page follows the catalog", () => {
     fireEvent.contextMenu(container.querySelector(".swipe-row")!);
     expect(await screen.findByRole("button", { name: "Open" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Delete" })).toHaveClass("destructive");
+  });
+});
+
+// ONE SEPARATOR PER JOIN, AND A HOME READS WHOLE (the ship-blocker review, 2026-10-05: "Revisit Oct 5 · (dot) Rebuild Calder A...").
+// jsdom does not load the stylesheet, so the rule is pinned where it lives: the home fact draws no middle dot of its own (its
+// area dot is the separator), the line wraps instead of clipping, and the name has no ellipsis in the row.
+describe("Decision row facts: one separator per join", () => {
+  const css = readFileSync(join(__dirname, "../styles/components.css"), "utf8");
+  const rule = (sel: string) => {
+    const i = css.indexOf(sel + " {");
+    expect(i, sel).toBeGreaterThan(-1);
+    return css.slice(i, css.indexOf("}", i));
+  };
+  it("draws no middle dot before a home, and lets the facts line and the name wrap", () => {
+    expect(rule(".dec-row .facts > .fact.fact-link::before")).toMatch(/content:\s*none/);
+    expect(rule(".dec-row .facts")).toMatch(/flex-wrap:\s*wrap/);
+    const link = rule(".dec-row .facts > .fact.fact-link");
+    expect(link).toMatch(/white-space:\s*normal/);
+    expect(link).toMatch(/text-overflow:\s*clip/);
+    expect(rule(".dec-row .facts > .fact.fact-link .cat-t")).toMatch(/white-space:\s*normal/);
+  });
+  it("types no separator into the home's words and keeps the area dot as the home's first child", async () => {
+    const { container } = render(
+      <NotesProvider userId="u-dec-sep"><Seeded><DecisionsFlow onBack={() => {}} /></Seeded></NotesProvider>,
+    );
+    await waitFor(() => expect(screen.getByText("Rebuild Bridge App")).toBeInTheDocument());
+    for (const f of Array.from(container.querySelectorAll(".dec-row .facts .fact"))) expect(f.textContent).not.toContain("·");
+    const link = screen.getByText("Rebuild Bridge App").closest(".fact-link")!;
+    expect(link.firstElementChild!.className).toMatch(/\bcd\b/);
+    expect(link.querySelector(".cat-t")!.textContent).toBe("Rebuild Bridge App");
   });
 });

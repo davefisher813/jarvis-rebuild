@@ -3966,6 +3966,17 @@ button {
    name, so the name ellipses inside the flex box instead of the box. */
 .fact.fact-link { max-width: 100%; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--tx-3); }
 .fact.fact-link .cat-t { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* A HOME'S NAME READS WHOLE, AND ITS DOT IS THE ONLY SEPARATOR BEFORE IT (the ship-blocker review, 2026-10-05: "Revisit Oct 5
+   · (dot) Rebuild Calder A...", two separators in a row and the name cut). The area's dot already says where the name starts,
+   so the stylesheet's middle dot is not drawn before a home; the fact before it keeps the same distance by margin. The line
+   wraps, so a name too long for what is left goes to a line of its own under the day, every word showing, and a name that
+   fits stays beside it. */
+.dec-row .facts { flex-wrap: wrap; overflow: visible; row-gap: var(--s-0h); }
+.dec-row .facts > .fact.fact-link { flex: 0 1 auto; align-items: flex-start; white-space: normal; overflow: visible; text-overflow: clip; }
+.dec-row .facts > .fact.fact-link::before { content: none; }
+.dec-row .facts > .fact.fact-link .cat-t { overflow: visible; text-overflow: clip; white-space: normal; }
+.dec-row .facts > .fact.fact-link .cd { margin-top: 0.5em; }
+.dec-row .facts > .fact:has(+ .fact-link) { margin-right: var(--s-2); }
 /* Decisions are sentences; two lines beats an ellipsis (Dave critique fix). */
 .dec-name { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; text-wrap: balance; }
 /* The writing toolbar: chips row pinned to the bottom of the screen. It
@@ -5329,8 +5340,14 @@ body.selecting .voice-dock { display: none; }
 .rep-leg b { font-weight: var(--w-semi); color: var(--tx-1); font-variant-numeric: tabular-nums; }
 .rep-leg i { width: 8px; height: 8px; border-radius: var(--r-circle); display: inline-block; flex-shrink: 0; }
 /* A report row's facts wrap rather than end in an ellipsis (the review: "14 of 18 Drafts Sent Une..."). */
-.rep-facts, .rep-facts > .fact, .rep-facts > .fact:last-child { overflow: visible; white-space: normal; text-overflow: clip; }
-.rep-facts > .fact:last-child { flex-shrink: 1; }
+/* ...AND IT HAS TO OUTRANK THE ROW LADDER (the ship-blocker review, 2026-10-05: "+10..." on Train Days Win). The ladder's
+   .facts > .fact:last-child (further down this sheet, the same weight) came later and won, so this rule never applied and the
+   green rise of a pattern row still ended in an ellipsis. Two classes on the line out-rank it wherever it sits. A fact that
+   wears the key's colour is a number the row exists to say, so it holds its width and the grey facts before it give way. */
+.facts.rep-facts, .facts.rep-facts > .fact, .facts.rep-facts > .fact:last-child { overflow: visible; white-space: normal; text-overflow: clip; }
+.facts.rep-facts > .fact:last-child { flex-shrink: 1; }
+.facts.rep-facts > .fact.good, .facts.rep-facts > .fact.warn, .facts.rep-facts > .fact.red { flex-shrink: 0; white-space: nowrap; }
+.facts.rep-facts > .fact:nth-last-child(2) { flex-shrink: 1; }
 /* A receipts sheet's lines are evidence: regular weight, a hairline between, never a boxed sentence. The sheet has the room,
    so no line is clamped. */
 .rep-receipts { margin-top: var(--s-2); }
@@ -7093,6 +7110,10 @@ span.row-star { cursor: default; }
    fades only the side it continues on, in both themes. The buttons are .seg buttons: the UA ground goes, the active one keeps
    the system's. */
 .mt-tabrow .segmented .seg { min-height: var(--tap-min); border: 0; font-family: inherit; }
+/* FOUR TABS FIT THE ROW AT REST (the ship-blocker review, 2026-10-05: the fourth label was cut at the edge before the strip was ever touched).
+   4px of padding a side and the spare room shared out, so Overview, Activity, Budgets and Subscriptions are all whole at 350px; the scroll and
+   the fade below remain for a larger text size. Same in both themes. */
+.mt-tabrow .segmented .seg { flex: 1 0 auto; padding-inline: var(--s-1); }
 /* THE TRACKER'S FADE IS LONGER (2026-10-05, round 2: "Su" cut at the edge looked like a rendering bug in dark, where the track is a
    whisper above the page). Four labels never share the row, so the one that continues takes a 44px ramp instead of 28: the
    stub of its first letters dissolves into the ground rather than ending in a stub. Same ramp both themes, so only the colour differs. */

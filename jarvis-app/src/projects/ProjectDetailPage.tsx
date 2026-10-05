@@ -194,7 +194,10 @@ export default function ProjectDetailPage({
             <div className="promo-head">
               <div className="promo-badge b-purple">{FORK}</div>
               <div className="promo-body">
-                <div className="promo-title">{decision.data.decision}</div>
+                {/* His own words, SHOWN in Title Case like every title (the ship-blocker
+                    review: "Student template ships first" read lowercase after the
+                    first word); the record keeps what he typed. */}
+                <div className="promo-title">{titleCase(decision.data.decision)}</div>
                 {/* §AK/§AM (2026-09-26): the reason is the card's one grey,
                     and only when there is one ("No reason recorded" stated
                     nothing). The day it was decided is a neutral date, so
@@ -262,6 +265,16 @@ export default function ProjectDetailPage({
               everywhere (Dave 2026-09-02). */}
           <div className="sh2 sh2-quiet">
             <span className="t">Tasks</span>{openSteps.length > 0 && <span className="n">{openSteps.length}</span>}
+            {/* THE FINISHED DISCLOSURE IS ON THE HEAD (Dave 2026-10-05, the
+                ship-blocker review: "1 Finished" floated as an orphan grey chip
+                under the card). A fold over the section's own list is a
+                section-level action, so it lives in the section head as its second
+                capsule (a head holds one or two), ahead of the primary. */}
+            {doneSteps.length > 0 && (
+              <button type="button" className="see-all pill-action" aria-expanded={doneOpen} onClick={() => setDoneOpen(!doneOpen)}>
+                {doneOpen ? "Hide Finished" : lineCase(`${doneSteps.length} finished`)}
+              </button>
+            )}
             {onAddStep && <button className="see-all pill-action" onClick={() => { haptics.selection(); onAddStep(); }}>Add a Task</button>}
           </div>
           {steps.length > 0 && (
@@ -309,11 +322,8 @@ export default function ProjectDetailPage({
             )}
           </div></div>
           )}
-          {doneSteps.length > 0 && (
+          {doneSteps.length > 0 && doneOpen && (
             <div className="pad-x proj-done-fold">
-              <button className="quiet-action" onClick={() => setDoneOpen(!doneOpen)}>
-                {doneOpen ? "Hide Finished" : lineCase(`${doneSteps.length} finished`)}
-              </button>
               {doneOpen && (
                 <div className="card list-card-ruled">
                   {doneSteps.map((t) => (

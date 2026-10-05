@@ -83,6 +83,18 @@ export function OptionsButton({ onClick, label = "Options" }: { onClick: () => v
   );
 }
 
+/** THE ONE HEADER ADD (Dave 2026-10-05, "everything should look PERFECT": Email drew a 32px circle in the bar above its title while
+ *  Notes, Tasks, Reminders, Projects and Goals draw this capsule). One component so the page's door is the same shape, the same
+ *  44px-plus reach and the same word on every page; the accessible name says the type ("New Message", "New Note"). */
+export function HeadAdd({ label, onClick }: { label: string; onClick: () => void }) {
+  return (
+    <button type="button" className="hdr-add" aria-label={label} onClick={onClick}>
+      <Plus className="ic" />
+      <span>Add</span>
+    </button>
+  );
+}
+
 export default function LifeHeader({
   query, onQuery, placeholder,
   addLabel, onAdd,
@@ -158,10 +170,7 @@ export default function LifeHeader({
             primary red action"). The red is the glyph and nothing else, so
             the page's real primary -- Start Now on Tasks -- stays the one
             red block on the screen. */}
-        <button type="button" className="hdr-add" aria-label={addLabel} onClick={onAdd}>
-          <Plus className="ic" />
-          <span>Add</span>
-        </button>
+        <HeadAdd label={addLabel} onClick={onAdd} />
       </div>
       {/* ONE LINE ACROSS (Dave 2026-09-18, on a header wearing two rows:
           "All of these chips that are on the second row should be on the

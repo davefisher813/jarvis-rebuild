@@ -562,9 +562,10 @@ export function buildReport(inp: ReportInputs): MonthReport {
       id: "train",
       title: "Train Days Win",
       // The rise is the line's one green fact, drawn beside the two rates (no pill: Dave 2026-10-05, locked).
-      // Each rate names its days, so no "vs" is needed and none can differ in casing from the tiles' "Vs". Short enough that
-      // all three facts fit one line at 390px (the longer "Done on Train Days" ellipsized both).
-      sub: [plain(lineCase(`${join.on.toFixed(1)} train days`)), plain(lineCase(`${join.off.toFixed(1)} other days`)), { text: `+${pct}%`, tone: "good" }],
+      // Each rate names its days, so no "vs" is needed and none can differ in casing from the tiles' "Vs". The title already says
+      // "Days", so the facts do not: "4.0 Train Days" beside "2.0 Other Days" took the whole line at 390px and the green rise,
+      // the point of the row, ended in an ellipsis ("+10...", the ship-blocker review 2026-10-05). The rise is never cut.
+      sub: [plain(lineCase(`${join.on.toFixed(1)} train`)), plain(lineCase(`${join.off.toFixed(1)} other`)), { text: `+${pct}%`, tone: "good" }],
       receipts: ["A Pattern in Your Data, Not a Cause"],
     });
   }

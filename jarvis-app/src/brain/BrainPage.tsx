@@ -20,11 +20,13 @@ interface BrainRow { key: string; name: string; icon: ReactNode; color: string; 
 // filled (Apple Music Library form). ONE people row survives from
 // 2026-08-03 (Inner Circle / Adversarial stay cut).
 //
-// THREE TONES, EACH WITH A MEANING (the round 2 review, 2026-10-05: "eight hues for eight destinations is a rainbow with
+// FOUR TONES, EACH WITH A MEANING (the round 2 review, 2026-10-05: "eight hues for eight destinations is a rainbow with
 // no meaning", and Insights wore Event's sky). Purple is the Brain's own memory (what JARVIS knows, the insights and
-// decisions it keeps, the documents that teach it), teal is the people (the same teal a person wears everywhere), and the
-// grey glyph is a place that is set-up rather than knowledge (the routine, the AI Hub). Colour says whose it is, not which
-// row it is.
+// decisions it keeps, the documents that teach it), teal is the people (the same teal a person wears everywhere), sky is
+// the day's shape (Your Routine is the schedule's own: its protected blocks are what the Schedule tab draws, so it wears
+// the schedule's tone) and indigo is the AI Hub, a place that is set up. NO ROW IS A FLAT GREY GLYPH (the ship-blocker
+// review, 2026-10-05: "Your Routine is the only grey glyph in Explore"): a type or a place icon wears its tone through
+// .cat-fg-*, with the light twin from the glyph set. Colour says whose it is, not which row it is.
 const NAV_ROWS: BrainRow[] = [
   // Brain Layer 2 (item 04): the genome made visible. One row, keeping the
   // hub's one-flat-list law; the strands live on their own page behind it.
@@ -39,11 +41,11 @@ const NAV_ROWS: BrainRow[] = [
   // what they suggested, and the receipts. Under Brain, as the spec asks (no
   // seventh tab), and only when the substrate flag is on, so a build whose
   // database has not got migrations 0044 to 0047 shows nothing new.
-  ...(flagOn("substrate_v1") ? [{ key: "aihub", name: "AI Hub", icon: filledIcon("aihub"), color: "lib-ico-neutral" } as BrainRow] : []),
+  ...(flagOn("substrate_v1") ? [{ key: "aihub", name: "AI Hub", icon: filledIcon("aihub"), color: "cat-fg-indigo" } as BrainRow] : []),
   { key: "philosophy", name: "Life Philosophy", icon: filledIcon("philosophy"), color: "cat-fg-purple" },
   { key: "writing", name: "How You Write", icon: filledIcon("writing"), color: "cat-fg-purple" },
   { key: "values", name: "Values", icon: filledIcon("values"), color: "cat-fg-purple" },
-  { key: "routine", name: "Your Routine", icon: filledIcon("routine"), color: "lib-ico-neutral" },
+  { key: "routine", name: "Your Routine", icon: filledIcon("routine"), color: "cat-fg-sky" },
 ];
 // The Setup section (Onboarding, Backup) was removed 2026-08-03: both rows
 // were Settings wearing a Brain costume, and both dead-ended in "coming soon"
@@ -82,7 +84,7 @@ export default function BrainPage({
   // whose it is. Brand red is for what can be tapped (Dave 2026-10-05, the
   // review: "all eight icons are solid brand red, which dilutes the real
   // action colour"), and a glyph that only names a place is not a tap target,
-  // so it wears one of the three tones above through .cat-fg-* (light takes the
+  // so it wears one of the tones above through .cat-fg-* (light takes the
   // 3:1 glyph twin). Outline glyphs are the inside-a-card state and no longer
   // appear in nav lists.
   const Row = (r: BrainRow) => (

@@ -58,7 +58,8 @@ describe("all five pages spend the one header", () => {
     }
     const hdr = read("shared/LifeHeader.tsx");
     expect(hdr, "the visible word is the same on all five").toContain("<span>Add</span>");
-    expect(hdr).toContain("aria-label={addLabel}");
+    expect(hdr, "the accessible name rides HeadAdd, which LifeHeader draws with addLabel").toContain("aria-label={label}");
+    expect(hdr).toContain("<HeadAdd label={addLabel}");
   });
 });
 

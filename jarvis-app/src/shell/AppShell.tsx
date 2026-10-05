@@ -21,7 +21,7 @@ import { dismissSplash } from "../shared/splash";
 import SkeletonScreen from "../shared/SkeletonScreen";
 import { DEFAULT_TABS, DESTINATIONS, MAX_TABS, extrasFor, migrateTabs } from "./destinations";
 import type { MoreRoute } from "../more/MorePage";
-import { NavOriginProvider, type NavOrigin } from "./navOrigin";
+import { NavOriginProvider, originPlace, type NavOrigin } from "./navOrigin";
 import ReturnPill from "./ReturnPill";
 import { useTasks, useSchedule, useCategories, useProfile, useAreas, useGoals, useProjects, useMoney, usePeople, useDecisions, useOptionalSeal, useOptionalLedger, useGym, useSettings } from "../data/NotesProvider";
 import { useAuth, useOptionalSession } from "../auth/AuthProvider";
@@ -652,7 +652,7 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
   if (!ready) return <div className="app-shell"><div className="app-scroll" /></div>;
 
   // The place a jump would return TO is the place you are standing in now.
-  placeRef.current = { key: active, seg: lifeSegment };
+  placeRef.current = { key: originPlace(active, areaFromLife), seg: lifeSegment };
 
   return (
     <NavOriginProvider value={{ origin, back: navBack, claim, claimed: claims > 0, clear: clearOrigin }}>
