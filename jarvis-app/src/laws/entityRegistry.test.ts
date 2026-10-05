@@ -44,3 +44,23 @@ describe("LAW: every entity type the code writes is registered", () => {
     expect(used.size).toBeGreaterThan(10);
   });
 });
+
+// LAW: EVERY ENTITY TYPE THE APP WRITES IS IN THE APP'S OWN LIST (2026-10-05, the data-model audit).
+//
+// The law above checks the DATABASE registry. backup/entityRegistry.ts is the app's list: the backup restore,
+// the preload cache's write-through and realtime sync all filter on it, and it had quietly fallen ten types
+// behind (every Money Tracker type, the ledger's two, the brain memory and three health types: 52 live rows of
+// Money data a restore would have dropped). A type missing from this list is not a dead button, it is silent data
+// loss, which is why it is a law and not a note in a header.
+describe("LAW: every entity type the code writes is in the app's own registry", () => {
+  it("each ENTITY_* and *_ENTITY constant's key is in ALL_ENTITY_TYPES", async () => {
+    const { ALL_ENTITY_TYPES } = await import("../backup/entityRegistry");
+    const used = new Set<string>();
+    for (const f of walk(SRC)) {
+      const src = readFileSync(f, "utf8");
+      for (const m of src.matchAll(/export const (?:ENTITY_[A-Z_]+|[A-Z_]+_ENTITY)\s*=\s*"([a-z_]+)"/g)) used.add(m[1]!);
+    }
+    const missing = [...used].filter((k) => !ALL_ENTITY_TYPES.includes(k)).sort();
+    expect(missing, "add the constant to ALL_ENTITY_TYPES in src/backup/entityRegistry.ts").toEqual([]);
+  });
+});

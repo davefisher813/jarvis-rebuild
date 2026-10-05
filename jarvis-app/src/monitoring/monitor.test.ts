@@ -109,6 +109,35 @@ describe("createFetchSink", () => {
   });
 });
 
+// 2026-10-05: the receiver stores a platform column, and a Capacitor webview's
+// user agent does not say "iOS app" reliably, so the report carries what
+// Capacitor says it is running on.
+describe("platform on the report", () => {
+  it("carries Capacitor's platform, and it survives the scrub on the way out", () => {
+    expect(toErrorReport(new Error("x")).platform).toBe("web");
+    const calls: string[] = [];
+    const sink = createFetchSink("https://example.test/errors", { fetchFn: ((_u: string, init?: RequestInit) => { calls.push(String(init?.body)); return Promise.resolve(new Response(null, { status: 204 })); }) as unknown as typeof fetch });
+    sink(new Error("scrubbed on the way out"));
+    expect((JSON.parse(calls[0]!) as ErrorReport).platform).toBe("web");
+  });
+
+  it("reports ios when Capacitor says so", async () => {
+    const core = await import("@capacitor/core");
+    const spy = vi.spyOn(core.Capacitor, "getPlatform").mockReturnValue("ios");
+    expect(toErrorReport(new Error("x")).platform).toBe("ios");
+    spy.mockRestore();
+  });
+
+  it("leaves the platform off rather than failing the report when Capacitor throws", async () => {
+    const core = await import("@capacitor/core");
+    const spy = vi.spyOn(core.Capacitor, "getPlatform").mockImplementation(() => { throw new Error("no bridge"); });
+    const r = toErrorReport(new Error("still reported"));
+    expect(r.message).toBe("still reported");
+    expect(r.platform).toBeUndefined();
+    spy.mockRestore();
+  });
+});
+
 describe("resolveSinkUrl", () => {
   it("maps 1 to the app's own receiver, keeps URLs and paths, and rejects the rest", () => {
     expect(resolveSinkUrl("1")).toBe(OWN_RECEIVER_PATH);

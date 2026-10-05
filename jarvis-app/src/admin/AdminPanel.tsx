@@ -3,6 +3,7 @@ import { ShieldAlert } from "../shared/icons";
 import { formatUSD } from "../ai/tokenLog";
 import type { AdminService, AdminUser, AdminUsage, AdminBilling, AdminFeedbackItem } from "./AdminService";
 import { pct, type AdminMetrics } from "./adminMetrics";
+import { ERROR_TOP, ERROR_WINDOW, type AdminErrorGroup } from "./adminErrors";
 import { pressable } from "../shared/pressable";
 import { Switch, Head } from "../settings/kit";
 import { FormSheet, Group, Row as SheetRow } from "../shared/FormSheet";
@@ -10,6 +11,10 @@ import { Calendar, Link2, User, Wallet } from "../shared/icons";
 import { lineCase } from "../shared/casing";
 import SkeletonRows from "../shared/SkeletonRows";
 import type { AdminProbe } from "./useIsAdmin";
+
+function platformLabel(p: string): string {
+  return p === "ios" ? "iOS" : p === "web" ? "Web" : "Other";
+}
 
 // The master-account panel. Gated by isAdmin for UX; the real boundary is the
 // server (privileged endpoint + RLS). When the source is unavailable (no server
@@ -33,6 +38,10 @@ export default function AdminPanel({ isAdmin, probe, onRecheck, source, onBack }
   // way as Feedback so an older deploy without the endpoint says so instead
   // of blanking the panel.
   const [metrics, setMetrics] = useState<AdminMetrics | null>(null);
+  // 2026-10-05: what crashed, grouped by fingerprint. Loaded the same tolerant
+  // way: a deploy without the endpoint, or without the client_error table, says
+  // so in the section and leaves every other section alone.
+  const [errors, setErrors] = useState<AdminErrorGroup[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   // Row tap (Dave 2026-09-15, "I want all rows clickable"; 2026-10-05, locked: no pill on a row, the tap opens the
   // row's sheet and the sheet holds every action). A user row's one verb locks someone out, so it is NOT a swipe: it
@@ -55,6 +64,10 @@ export default function AdminPanel({ isAdmin, probe, onRecheck, source, onBack }
         try {
           const m = await source.metrics();
           if (on) setMetrics(m);
+        } catch { /* the section says so for itself */ }
+        try {
+          const e = await source.errors();
+          if (on) setErrors(e);
         } catch { /* the section says so for itself */ }
       } catch (e) {
         if (on) setError((e as Error).message || "Could Not Load Admin Data");
@@ -271,6 +284,45 @@ export default function AdminPanel({ isAdmin, probe, onRecheck, source, onBack }
       )}
       {feedback !== null && feedback.length >= 50 && (
         <div className="pad-x"><div className="list-floor">Showing the Newest 50</div></div>
+      )}
+
+      {/* 2026-10-05: crashes, so a real failure on a phone is something an
+          admin can read instead of a line in a log that is gone by morning.
+          One row per bug, not per report: the count is how many times the
+          newest 200 reports hit it. The count is the row's red fact (a crash
+          is a state), the platform and the build are what you scan for, and
+          the date of the last one is the neutral date. Only the top of the
+          list is drawn; the SQL editor has the rest and the stacks. */}
+      <Head label="Errors" count={errors?.length || undefined} />
+      {!source.available ? serverNote : errors === null ? (
+        <div className="pad-x"><div className="card"><div className="empty-state">
+          <div className="empty-title">Errors Are Not Loaded</div>
+          <div className="empty-sub">This deploy has no errors endpoint yet</div>
+        </div></div></div>
+      ) : errors.length === 0 ? (
+        <div className="pad-x"><div className="card"><div className="empty-state"><div className="empty-title">No Crashes Yet</div></div></div></div>
+      ) : (
+        <div className="pad-x"><div className="card">
+          {errors.slice(0, ERROR_TOP).map((g) => (
+            <div className="row" key={g.fingerprint}>
+              <div className="row-grow">
+                <div className="conn-name adm-feedback">{g.name}{g.message ? ": " + g.message : ""}</div>
+                <div className="facts">
+                  <span className="fact red">{g.count} {g.count === 1 ? "Time" : "Times"}</span>
+                  <span className="fact">{platformLabel(g.platform)}</span>
+                  {g.build && <span className="fact"><b>{g.build}</b></span>}
+                  <span className="fact date">Last {g.lastSeen.slice(0, 10)}</span>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div></div>
+      )}
+      {errors !== null && errors.length > ERROR_TOP && (
+        <div className="pad-x"><div className="list-floor">Showing the top {ERROR_TOP} of {errors.length}</div></div>
+      )}
+      {errors !== null && errors.length > 0 && (
+        <div className="pad-x"><div className="list-floor">Counts are from the newest {ERROR_WINDOW} reports</div></div>
       )}
 
       <Head label="Users" count={users.length || undefined} />

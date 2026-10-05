@@ -5,6 +5,7 @@
 
 import { apiUrl } from "../shared/apiBase";
 import type { AdminMetrics } from "./adminMetrics";
+import type { AdminErrorGroup } from "./adminErrors";
 
 export interface AdminUser {
   id: string;
@@ -53,6 +54,7 @@ export interface AdminFeedbackItem {
   at: string;
   lastError: string | null;
 }
+export type { AdminErrorGroup };
 export interface AdminService {
   available: boolean;
   sample?: boolean; // true when showing labelled sample data (demo only)
@@ -64,6 +66,9 @@ export interface AdminService {
   feedback(): Promise<AdminFeedbackItem[]>;
   // UP-LAUNCH-17 (2026-09-05): the launch numbers, first party.
   metrics(): Promise<AdminMetrics>;
+  // 2026-10-05: what crashed, grouped by fingerprint, most often first. The
+  // newest 200 reports, so a count is "in the recent window", not all time.
+  errors(): Promise<AdminErrorGroup[]>;
 }
 
 type FetchLike = (url: string, init?: { method?: string; headers?: Record<string, string>; body?: string }) =>
@@ -114,6 +119,7 @@ export function createAdminApi(token: string, available = adminConfigured(), doF
     async billing() { return (await get("/billing")) as AdminBilling; },
     async feedback() { return ((await get("/feedback")) as { feedback: AdminFeedbackItem[] }).feedback; },
     async metrics() { return (await get("/metrics")) as AdminMetrics; },
+    async errors() { return ((await get("/errors")) as { errors: AdminErrorGroup[] }).errors; },
   };
 }
 
@@ -143,6 +149,12 @@ export function makeSampleAdminSource(): AdminService {
         d1: 0.5, d7: null, d1Basis: 2, d7Basis: 0,
         aiCallsPerActive: 4.5, truncated: false,
       };
+    },
+    async errors() {
+      return [
+        { fingerprint: "sample-1", count: 7, firstSeen: "2026-10-02T09:14:00.000Z", lastSeen: "2026-10-05T07:41:00.000Z", name: "TypeError", message: "Cannot read properties of undefined", build: "abc1234", platform: "ios" },
+        { fingerprint: "sample-2", count: 1, firstSeen: "2026-10-04T16:20:00.000Z", lastSeen: "2026-10-04T16:20:00.000Z", name: "RangeError", message: "Invalid time value", build: "abc1234", platform: "web" },
+      ];
     },
   };
 }

@@ -50,6 +50,7 @@ const source = (over: Partial<AdminService> = {}): AdminService => ({
     ];
   },
   async metrics() { return METRICS; },
+  async errors() { return []; },
   ...over,
 });
 
@@ -64,7 +65,7 @@ describe("AdminPanel follows the catalog", () => {
   it("every section head is the one .sh2 head with its count, and there is no second head style", async () => {
     const { container } = await mount();
     const heads = [...container.querySelectorAll(".sh2")].map((h) => norm(h.querySelector(".t")!));
-    expect(heads).toEqual(["Usage", "AI Spend 30d", "Billing", "Metrics", "Feedback", "Users"]);
+    expect(heads).toEqual(["Usage", "AI Spend 30d", "Billing", "Metrics", "Feedback", "Errors", "Users"]);
     expect(norm(container.querySelector(".sh2 .n")!)).toBe("2");
     expect(container.querySelector(".grp, .eyebrow")).toBeNull();
     for (const h of container.querySelectorAll(".sh2")) expect(h).toHaveClass("sh2-quiet");

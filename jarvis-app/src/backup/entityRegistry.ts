@@ -17,6 +17,11 @@
 // that a missing type "just means a slower repaint" was wrong: a deleted
 // strand or decision stayed in its cache and came back on the next list.
 import { ENTITY_ACCOUNT } from "../money/types";
+// 2026-10-05 (the data-model audit): ten types the app writes were missing here, so a backup restore dropped
+// every Money Tracker row and the preload cache and realtime sync ignored their edits and deletes.
+import { ENTITY_MONEY_ACCOUNT, ENTITY_MONEY_TX, ENTITY_MONEY_BUDGET, ENTITY_MONEY_SUB } from "../money/tracker";
+import { ENTITY_MONEY_BILL, ENTITY_MONEY_RECEIPT } from "../money/ledger/types";
+import { BRAIN_MEMORY_ENTITY } from "../ai/brainMemory";
 import { ENTITY_PROJECT } from "../projects/types";
 import { ENTITY_PROFILE } from "../profile/types";
 import { ENTITY_ROUTINE } from "../routine/types";
@@ -40,6 +45,9 @@ import {
   ENTITY_LOCKER_DOC,
   ENTITY_TRUSTED_ADULT,
   ENTITY_AGE_RULE_SHOWN,
+  ENTITY_CHECKIN,
+  ENTITY_MEAL,
+  ENTITY_MED_DEF,
 } from "../health/types";
 import { ENTITY_EVENT } from "../schedule/types";
 import { ENTITY_STRAND } from "../brain/strands/types";
@@ -53,6 +61,16 @@ import { ENTITY_EXPLORATION_NOTE } from "../substrate/exploration/types";
 
 export const ALL_ENTITY_TYPES: readonly string[] = [
   ENTITY_ACCOUNT,
+  ENTITY_MONEY_ACCOUNT,
+  ENTITY_MONEY_TX,
+  ENTITY_MONEY_BUDGET,
+  ENTITY_MONEY_SUB,
+  ENTITY_MONEY_BILL,
+  ENTITY_MONEY_RECEIPT,
+  BRAIN_MEMORY_ENTITY,
+  ENTITY_CHECKIN,
+  ENTITY_MEAL,
+  ENTITY_MED_DEF,
   ENTITY_PROJECT,
   ENTITY_PROFILE,
   ENTITY_ROUTINE,
