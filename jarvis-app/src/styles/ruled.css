@@ -928,7 +928,10 @@
 .ruled .outcome-seg .segmented .seg { min-height: 34px; display: inline-flex; align-items: center; justify-content: center;
   gap: var(--s-1h); border: 0; font-family: inherit; white-space: nowrap; padding-inline: var(--s-2); }
 .ruled .outcome-seg .segmented .seg:not(.active) { background: transparent; }
-.ruled .seg-n { font-size: calc(11px * var(--type-scale)); font-weight: var(--w-bold); opacity: 0.6; font-variant-numeric: tabular-nums; }
+/* A COUNT WITH NO STATE IS THE LABEL'S OWN INK, NOT A FADED GREY (Dave 2026-10-05, the Email review: "tiny grey numerals, a
+   stateless number should be white"). It rode at 60% opacity, which is the fade the type ladder bans; it takes the
+   segment's ink (white on the idle one, the dark label on the lit one) and the caption size. */
+.ruled .seg-n { font-size: var(--t-caption); font-weight: var(--w-bold); font-variant-numeric: tabular-nums; }
 .ruled .outcome-head { margin-top: var(--s-2); }
 .ruled .list-card-ruled > .task-swipe + .task-swipe .row::before { display: none; }
 .ruled .msg-from { font-size: var(--t-name); font-weight: var(--w-name); letter-spacing: var(--track-name); }
@@ -1596,9 +1599,8 @@
 /* Connections (2026-09-02): quiet heads over the grouped cards; the second
    card a breath below the first. */
 .ruled .list-card-ruled.conn-mail-card { margin-top: var(--s-3); }
-/* Chat (2026-09-02): the Try head is the quiet caps head; the provenance
+/* Chat (2026-09-02): the provenance
    line under a bubble is the ruled row's quiet grey, not a caps eyebrow. */
-.ruled.chat-ruled .chat-starter-head { padding-left: 0; padding-right: 0; }
 .ruled.chat-ruled .chat-prov { text-transform: none; letter-spacing: 0; font-size: var(--t-sub); font-weight: var(--w-sub); color: var(--tx-3); }
 .ruled.chat-ruled .chat-jarvis { background: var(--press-3); }
 /* Search (2026-09-02): every result list is a card, every head the quiet
@@ -3332,11 +3334,13 @@
 .sh2 .n.set-n { color: var(--tx-1); }
 
 /* NOTES UNDER A CARD BELONG TO THE CARD ABOVE THEM (the review: 30px to the card and 40px to the next head, so a note read as orphaned).
-   Eight below the card, a clear step before the next head, and a second note hugs the first. */
+   Eight below the card, a clear 24 before the next head, and a second note hugs the first. */
 .ruled .pad-x > .input-hint { margin-top: var(--s-2); }
 /* The card's own bottom margin is the 20px that made the note float; with a note directly under it, the note's 8px is the whole gap. */
 .ruled .pad-x:has(+ .pad-x > .input-hint) > .card { margin-bottom: 0; }
-.ruled .pad-x:has(> .input-hint) + .sh2 { margin-top: var(--s-3); }
+/* The generic 16px between two blocks (1633) is what kept the note 28px under its card in the capture: a note IS the card's, so it takes none. */
+.ruled .pad-x:has(> .card) + .pad-x:has(> .input-hint) { margin-top: 0; }
+.ruled .pad-x:has(> .input-hint) + .sh2 { margin-top: var(--s-6); }
 .ruled .pad-x:has(> .input-hint) + .pad-x > .input-hint { margin-top: var(--s-1); }
 
 /* A DESTRUCTIVE HEAD CAPSULE, AND ITS ARMED STEP (Brain's Erase). Danger is the system red on its own tonal fill; armed is the solid
@@ -3400,7 +3404,10 @@
 .ob-screen .ob-privacy { background-color: var(--surface-1); border: 0.5px solid var(--card-bd); border-radius: var(--r-lg); }
 .ob-screen .card > .row > .row-status { flex-shrink: 0; white-space: nowrap; }
 /* A NAME YOU TYPE SITS IN A QUIET WELL (Profile): it reads as a field, not as a grey value beside its label. */
-.ruled .set-field.set-field-well { flex: 1 1 auto; max-width: 62%; padding: 0 var(--s-3); background-color: var(--press-3); border-radius: var(--r-md); }
+.ruled .set-field.set-field-well { flex: 1 1 auto; max-width: 62%; padding: 0 var(--s-3); background-color: var(--press-3); border-radius: var(--r-md); text-align: left; }
+/* A TIME IS A WELL TOO, AT ITS OWN WIDTH (Dave 2026-10-05, the review: Your Routine's times were text plus a clock glyph, and only the glyph said they
+   could be tapped). The value sits in the same quiet well a typed name does, no wider than the time it holds, centred in it. */
+.ruled .set-field.set-field-well.set-field-time { flex: 0 0 auto; max-width: none; width: auto; text-align: center; font-variant-numeric: tabular-nums; }
 .pagehead-title.pagehead-title-fit { font-size: calc(30px * var(--type-scale)); }
 /* THE SHEET BAR KEEPS ITS TITLE CENTRED: Cancel and the filled Save take the same width, so a pill on one side does not push the title off the middle. */
 .sheet-bar-cancel, .sheet-bar-save { min-width: calc(var(--s-10) + var(--s-9)); }

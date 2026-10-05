@@ -14,7 +14,7 @@ import { ParentLineGlyph } from "../../shared/glyphs";
 import { todayISO } from "../../tasks/grouping";
 import { monthDay } from "../../money/bills";
 import { pressable } from "../../shared/pressable";
-import EntityStar from "../../shared/EntityStar";
+import EntityStar, { useRemember } from "../../shared/EntityStar";
 import { titleCase } from "../../shared/casing";
 
 // NOTES, PORTED (Notes and Money catalog, 2026-09-02). The library rows of
@@ -158,6 +158,11 @@ export function editedLabel(edited: number, now: Date = new Date()): string {
   return then.getFullYear() === now.getFullYear() ? md : `${md}, ${then.getFullYear()}`;
 }
 
+/** Hands a note row its Remember toggle. `row` is a render function, not a component, so the hook lives here: one per note. */
+function RememberGate({ id, title, children }: { id: string; title: string; children: (remember: ReturnType<typeof useRemember>) => ReactNode }) {
+  return <>{children(useRemember("note", id, title))}</>;
+}
+
 // Notes is a tab-level surface: there is deliberately no back button on the
 // list (audit 2026-08-10 removed a dead onBack prop no parent ever passed).
 export default function NotesList({
@@ -291,7 +296,7 @@ export default function NotesList({
 
   // `group` is the head the row sits under, so the row can tell when the
   // head already said its day.
-  const row = (n: NoteListItem, group: string) => {
+  const row = (n: NoteListItem, group: string, remember: ReturnType<typeof useRemember>) => {
     const picked = sel.isSelected(n.id);
     // An unfiled note wears yellow (Dave 2026-08-29: "default should be
     // yellow"), a legal-pad colour that says "a note", deliberately not any
@@ -324,7 +329,9 @@ export default function NotesList({
             it is the glyph's column, on the line row it is the check column
             every task row keeps for exactly this. */}
         {/* C-50: the Remember star leads the row. */}
-        {!sel.active && <EntityStar entityType="note" entityId={n.id} title={n.title} />}
+        {/* THE STAR HANGS IN THE GUTTER ONLY WHILE THE NOTE IS REMEMBERED (2026-10-05, the review: an empty star on every row sat 6px from
+            the card's edge, thin and low in contrast, and took a column of its own). Remembering it is the long press, as on a task row. */}
+        {!sel.active && <EntityStar entityType="note" entityId={n.id} title={n.title} quiet />}
         {sel.active ? (
           <div className="task-check-tap">
             <button
@@ -381,6 +388,7 @@ export default function NotesList({
     }
     const unarchive = !!n.archived;
     const menu: RowAction[] = [
+      ...(remember && !sel.active ? [{ label: remember.on ? "Forget" : "Remember", onPick: () => void remember.run() }] : []),
       ...(onAppend ? [{ label: "Add a Line", onPick: () => onAppend(n.id) }] : []),
       ...(onFile ? [{ label: "File Under an Area", onPick: () => onFile(n.id) }] : []),
       ...(onArchive ? [{ label: unarchive ? "Unarchive" : "Archive", onPick: () => onArchive(n.id, !unarchive) }] : []),
@@ -493,7 +501,7 @@ export default function NotesList({
           ) : (
             <div className="sh2 sh2-quiet"><span className="t">{g.head}</span><span className="n">{g.items.length}</span></div>
           )}
-          <div className="pad-x"><div className="card list-card-ruled">{g.items.map((n) => row(n, g.key))}</div></div>
+          <div className="pad-x"><div className="card list-card-ruled">{g.items.map((n) => <RememberGate key={n.id} id={n.id} title={n.title}>{(remember) => row(n, g.key, remember)}</RememberGate>)}</div></div>
         </Fragment>
       ))}
       {query && shown.length === 0 && (

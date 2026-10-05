@@ -251,7 +251,8 @@ describe("BrainFlow person deep link (BRAIN-F-04)", () => {
     // Back out of the card, then out of Contacts, then open Contacts by hand.
     fireEvent.click(screen.getByLabelText("Back"));
     await waitFor(() => expect(screen.getByText("Add Person")).toBeInTheDocument());
-    fireEvent.click(screen.getByLabelText("Back"));
+    // The list's own back is the large-title page's "‹ Brain" (the named back of PageHeader, never an icon-only "Back").
+    fireEvent.click(screen.getByRole("button", { name: "Brain" }));
     await waitFor(() => expect(screen.getByText("Life Philosophy")).toBeInTheDocument());
     fireEvent.click(screen.getByText("Contacts"));
 

@@ -163,7 +163,7 @@ export default function HeadMenu({
       <button
         ref={btn}
         type="button"
-        className={"dd" + (lead ? " dd-lead" : "") + (variant === "value" ? " dd-value" : "") + (off ? " dd-off" : "") + (open ? " dd-open" : "")}
+        className={"dd" + (lead ? " dd-lead" : "") + (variant === "value" ? " dd-value" : "") + (off ? " dd-off" : "") + (variant === "value" && off && word === "None" ? " dd-none" : "") + (open ? " dd-open" : "")}
         aria-label={ariaLabel}
         aria-haspopup="menu"
         aria-expanded={open}

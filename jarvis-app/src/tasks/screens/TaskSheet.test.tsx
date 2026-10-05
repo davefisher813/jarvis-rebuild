@@ -56,12 +56,44 @@ describe("TaskSheet", () => {
       onStart={onStart} startWord="Resume" onFirstStep={onFirstStep} onMove={onMove} onDelete={() => {}} />);
     const group = document.querySelector(".xs-do")!;
     expect([...group.querySelectorAll(".row .conn-name")].map((n) => n.textContent)).toEqual(["Resume", "First Step", "Move to Tomorrow", "Mark Done"]);
-    expect(group.querySelector(".row")).toHaveClass("xs-primary");
+    // The primary leads by place and by its tile (the action red); it wears no wash of its own (the class that drew one had no CSS).
+    expect(group.querySelector(".row .row-ico")).toHaveClass("nav-tile-red");
+    expect(group.querySelector(".xs-primary")).toBeNull();
     fireEvent.click(screen.getByText("Resume"));
     fireEvent.click(screen.getByText("First Step"));
     fireEvent.click(screen.getByText("Move to Tomorrow"));
     expect([onStart, onFirstStep, onMove].map((f) => f.mock.calls.length)).toEqual([1, 1, 1]);
     expect(screen.getByText("Delete Task")).toBeInTheDocument();
+  });
+
+  // THE ACTION CARD, WHOLE (2026-10-05, the perfect bar): it scrolls WITH the form (it sat pinned and covered the rows going under it),
+  // Done is the green tile, and a chevron means "opens another screen", so the two acts (Move, Mark Done) carry none.
+  it("the action card scrolls with the form, Mark Done wears the green done tile, and only a row that opens a screen has a chevron", () => {
+    render(<TaskSheet mode="edit" categories={CATS} initial={{ text: "pay rent" }} onSave={() => {}} onCancel={() => {}}
+      onStart={() => {}} onFirstStep={() => {}} onMove={() => {}} onDelete={() => {}} />);
+    const group = document.querySelector(".xs-do")!;
+    expect(group.closest(".sheet-form"), "inside the scrolling form, not pinned above it").not.toBeNull();
+    const rows = [...group.querySelectorAll(".row")];
+    const byName = (n: string) => rows.find((r) => r.querySelector(".conn-name")?.textContent === n)!;
+    expect(byName("Mark Done").querySelector(".row-ico")).toHaveClass("nav-tile-green");
+    expect(byName("Start").querySelector(".chev"), "Start opens a screen").not.toBeNull();
+    expect(byName("First Step").querySelector(".chev"), "First Step opens a screen").not.toBeNull();
+    expect(byName("Move to Tomorrow").querySelector(".chev"), "an act has no chevron").toBeNull();
+    expect(byName("Mark Done").querySelector(".chev"), "an act has no chevron").toBeNull();
+  });
+
+  // THE FIELD LANGUAGE (2026-10-05): the notes placeholder is a phrase that stands alone, the row that holds the trigger plan says
+  // what it is (it echoed the WHEN and WHERE heads above it), and Save reads dimmed until there is a name to save.
+  it("a new task's Save is dimmed until it has a name; the notes placeholder and the plan row stand alone", () => {
+    render(<TaskSheet mode="new" categories={CATS} onSave={() => {}} onCancel={() => {}} />);
+    expect(screen.getByText("Save")).toHaveClass("dim");
+    fireEvent.change(screen.getByPlaceholderText("What needs doing?"), { target: { value: "X" } });
+    expect(screen.getByText("Save")).not.toHaveClass("dim");
+    expect(document.body.innerHTML).toContain("Anything Worth Keeping");
+    expect(document.body.innerHTML).not.toContain("Worth Keeping with It");
+    const names = [...document.querySelectorAll(".conn-name")].map((n) => n.textContent);
+    expect(names).toContain("If-Then Plan");
+    expect(names, "no row repeats the When or Where head").not.toContain("When and Where");
   });
 
   it("offers only what the flow can do, and nothing on a new task", () => {
@@ -118,7 +150,9 @@ describe("TaskSheet", () => {
     expect(area).toHaveClass("dd-off");
     fireEvent.click(area);
     // every option keeps its dot, picked or not; None leads
-    expect(document.querySelectorAll(".hmenu-item .cat-dot")).toHaveLength(CATS.length);
+    expect(document.querySelectorAll(".hmenu-item .cat-dot:not(.hmenu-dot-ph)")).toHaveLength(CATS.length);
+    // ...and the None row holds a hidden dot's place, so every label shares one left edge (2026-10-05, the Area menu)
+    expect(document.querySelectorAll(".hmenu-item .hmenu-dot-ph")).toHaveLength(1);
     fireEvent.click(screen.getByRole("menuitemcheckbox", { name: /Money/ }));
     expect(document.querySelector(".hmenu"), "the menu stays open for a second area").toBeTruthy();
     expect(screen.getByRole("menuitemcheckbox", { name: /Money/ }).getAttribute("aria-checked")).toBe("true");

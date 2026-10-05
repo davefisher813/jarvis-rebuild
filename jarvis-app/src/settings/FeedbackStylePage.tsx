@@ -4,7 +4,7 @@ import type { Celebration, Encouragement, FeedbackPrefs, MotionPref } from "../e
 import { useSettings } from "../data/NotesProvider";
 import { SETTING_FEEDBACK } from "../data/SettingsService";
 import LargeTitleNav from "../shared/LargeTitleNav";
-import { Volume2 } from "../shared/icons";
+import RowCtxAction from "../shared/RowCtxAction";
 import { Head, Card, Menu, Row, Switch, Foot } from "./kit";
 
 // FEEDBACK STYLE (ADHD Reward Design Brief, Dave-approved 2026-10-04).
@@ -19,7 +19,7 @@ import { Head, Card, Menu, Row, Switch, Foot } from "./kit";
 // row name is Title Case like every other sub line, and says something the
 // row does not already say: "Plays the tone once" under Hear It and "Off by
 // default" under Haptics (the note below says both start off) were dropped.
-// Hear It is a tap with nothing to show it, so it wears the capsule. The
+// Hear It is a tap with nothing to show it, so it wears the word Play in the key colour. The
 // notes under a card are field notes: one sentence, or fragments joined by a
 // dot, never two sentences ("Off keeps..." after a full stop).
 //
@@ -76,7 +76,12 @@ export default function FeedbackStylePage({ onBack }: { onBack: () => void }) {
       <Card>
         <Switch label="Completion Sound" meta="One Short Quiet Tone" on={prefs.sound}
           onToggle={() => save({ sound: !prefs.sound })} />
-        <Row label="Hear It" value={<Volume2 className="ic row-verb-ic" aria-hidden="true" />} onClick={() => { previewTone(); }} />
+        {/* THE WORD, NOT A GLYPH (2026-10-05, the review: a lone red speaker, outline in one theme and filled in the other, read as a
+            status light). "Play" in the key colour is the row's one verb, the same text action a row's moment shows (RowCtxAction); the
+            row is plain because the control inside it is the real target. */}
+        <Row label="Hear It" plain onClick={() => { previewTone(); }}>
+          <RowCtxAction when label="Play" ariaLabel="Hear It" onAct={() => { previewTone(); }} />
+        </Row>
         <Switch label="Haptics" on={prefs.haptics}
           onToggle={() => save({ haptics: !prefs.haptics })} />
       </Card>

@@ -68,11 +68,13 @@ describe("the Bills list: ledger and legacy rows together", () => {
     expect(names).toEqual(["Internet", "Rent", "ConEdison", "Water"]);
 
     const row = (name: string) => screen.getByText(name).closest(".task-row") as HTMLElement;
-    // overdue: the late chip, which wears the Colour Key's red
-    expect(within(row("Internet")).getByText("3 Days Late")).toHaveClass("uchip", "u-late");
+    // overdue: the state is text in the Colour Key's red, never a capsule on the row
+    expect(within(row("Internet")).getByText("3 Days Late")).toHaveClass("fact", "red");
+    expect(within(row("Internet")).getByText("3 Days Late")).not.toHaveClass("uchip");
     expect(within(row("Internet")).getByText("$60")).toBeInTheDocument();
-    // due soon: plain words, the warn chip
-    expect(within(row("ConEdison")).getByText("Due in 3 Days")).toHaveClass("uchip", "u-today");
+    // due soon: amber text, no fill, and the one date beside it
+    expect(within(row("ConEdison")).getByText("Due in 3 Days")).toHaveClass("fact", "warn");
+    expect(within(row("ConEdison")).getByText("Due in 3 Days")).not.toHaveClass("uchip");
     expect(within(row("ConEdison")).getByText("$84.12")).toBeInTheDocument();
     // no due date: no chip, no date, never late
     expect(within(row("Water")).queryByText(/Late|Due/)).toBeNull();

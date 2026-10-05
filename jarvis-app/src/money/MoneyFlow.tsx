@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import PageHeader, { BarAction } from "../shared/PageHeader";
 import { useMoney, useTasks, useProfile, useCategories, useOptionalGoals, useTracker, useOptionalLedger } from "../data/NotesProvider";
 import { effectiveKind } from "../categories/kinds";
-import { ACCOUNT_META, ACCOUNT_KINDS, ENTITY_ACCOUNT, formatMoney, totalBalance, isLiability, signedBalance, type Account, type AccountData, type AccountKind } from "./types";
+import { ACCOUNT_META, ACCOUNT_KINDS, ENTITY_ACCOUNT, formatMoney, kindRestated, totalBalance, isLiability, signedBalance, type Account, type AccountData, type AccountKind } from "./types";
 import { useFreshLists } from "../data/useFreshLists";
 import { ENTITY_TASK, type Recurrence } from "../notes/types";
 import {
@@ -28,6 +28,7 @@ import { todayISO } from "../tasks/grouping";
 import { goalTone } from "../shared/categories";
 import { RepeatGlyph, WalletGlyph, TargetGlyph, DollarGlyph } from "../shared/glyphs";
 import { TaskRow } from "../tasks/screens/TasksPage";
+import { categoriesOf } from "../tasks/categories";
 import { daysBetween } from "../upnext/upnext";
 import { attemptWrite } from "../shared/guard";
 import { lineCase, titleCase } from "../shared/casing";
@@ -58,11 +59,19 @@ function billChip(t: TaskItem, today: string): { cls: string; text: string } | n
   const over = daysBetween(due, today);
   if (over > 0) return { cls: "u-late", text: lineCase(over === 1 ? "1 day late" : `${over} days late`) };
   const gap = daysBetween(today, due);
-  if (gap === 0) return { cls: "u-today", text: "Today" };
-  if (gap === 1) return { cls: "u-today", text: "Tomorrow" };
-  if (gap <= 6) return { cls: "u-today", text: `In ${gap} Days` };
+  if (gap === 0) return { cls: "u-today", text: "Due Today" };
+  if (gap === 1) return { cls: "u-today", text: "Due Tomorrow" };
+  if (gap <= 6) return { cls: "u-today", text: `Due in ${gap} Days` };
   return null;
 }
+
+// HOW CLOSE IS TEXT, NOT A CAPSULE (2026-10-05, the perfect bar: "no pill or capsule inside a list row; a date state is
+// key-colour text"). "Due in 2 Days" and "Today" used to be filled amber chips on the row, next to a grey date, while the
+// rows beside them drew their state as plain words. The state is a fact now: the key's amber for due soon, its red for
+// late, no fill, in the row's own type, ahead of the one date. The chip's data (cls and text) is unchanged; only how the
+// row draws it moved.
+const stateFact = (chip: { cls: string; text: string }) =>
+  <span className={"r-goal fact " + (chip.cls === "u-late" ? "red" : "warn")}>{chip.text}</span>;
 
 const initialOf = (s: string) => (s.trim()[0] ?? "?").toUpperCase();
 
@@ -365,7 +374,16 @@ export default function MoneyFlow({ onOpenTask, onOpenEntity, openAccountId, ope
       }
     }
     const moneyCatIds = new Set(cats.filter((c) => effectiveKind(c.data) === "money").map((c) => c.id));
-    setTagged(allTasks.filter((t) => !t.data.done && !t.data.bill && moneyCatIds.has(t.data.category ?? "")));
+    // THE ROW DOES NOT SAY THE SECTION'S OWN NAME (2026-10-05, the perfect bar). Every row here is tagged Money and sits
+    // under "Also Tagged Money", so a yellow dot and "Money" under each title said nothing the head had not. The row is
+    // drawn from a copy without the money areas; another area on the task (Home, Work) is information and still shows.
+    // Nothing is written from the copy: every action goes by id.
+    const unMoney = (t: TaskItem): TaskItem => {
+      const rest = categoriesOf(t.data).filter((c) => !moneyCatIds.has(c));
+      const { extraCategories: _e, ...data } = t.data;
+      return { ...t, data: { ...data, category: rest[0] ?? "", ...(rest.length > 1 ? { extraCategories: rest.slice(1) } : {}) } };
+    };
+    setTagged(allTasks.filter((t) => !t.data.done && !t.data.bill && moneyCatIds.has(t.data.category ?? "")).map(unMoney));
   }, [svc, tasksSvc, profileSvc, catsSvc, trackerSvc, ledger]);
   useEffect(() => { void reload(); }, [reload]);
   // UP-PLAT-06 (2026-09-06): this page draws accounts AND the bills that live
@@ -643,7 +661,8 @@ export default function MoneyFlow({ onOpenTask, onOpenEntity, openAccountId, ope
           : sub.state === "autopay"
             ? <><span className="r-goal r-cat">{lineCase(sub.text)}</span>{sub.when && <span className="fact date">{sub.when}</span>}</>
             : b.data.due
-              ? <span className="fact date">{"Due " + monthDay(b.data.due)}</span>
+              // With the state ahead of it ("Due in 2 Days") the date is only the day, so "Due" is not said twice.
+              ? <span className="fact date">{(chip ? "" : "Due ") + monthDay(b.data.due)}</span>
               : null;
         const canPay = !paid && !info.autopay;
         const pay = () => void markPaid(b);
@@ -674,7 +693,7 @@ export default function MoneyFlow({ onOpenTask, onOpenEntity, openAccountId, ope
               <span className="task-name">{title}</span>
               {(chip || line) && (
                 <div className="r-k">
-                  {chip && <span className={"uchip " + chip.cls}>{chip.text}</span>}
+                  {chip && stateFact(chip)}
                   {/* The words are the money laws' own (bills.ts) and stay. */}
                   {line}
                 </div>
@@ -693,8 +712,10 @@ export default function MoneyFlow({ onOpenTask, onOpenEntity, openAccountId, ope
   const ledgerRow = (bill: Bill) => {
     const d = bill.data;
     const paid = isPaid(d);
-    const chip = paid ? null : ledgerChip(d, today);
     const line = ledgerLine(d, today);
+    // A bill that waits for the person to confirm it is still paid says that and only that: the row has one tone, and
+    // "1 Day Late" beside it would be a second (the bill was paid; the date is not the news).
+    const chip = paid || line.state === "reconfirm" ? null : ledgerChip(d, today);
     // With a chip saying how close ("Due in 3 Days"), the line only says which
     // day, so "Due" is not said twice.
     const lineEl = paid
@@ -740,7 +761,7 @@ export default function MoneyFlow({ onOpenTask, onOpenEntity, openAccountId, ope
           <span className="task-name">{title}</span>
           {(chip || lineEl) && (
             <div className="r-k">
-              {chip && <span className={"uchip " + chip.cls}>{chip.text}</span>}
+              {chip && stateFact(chip)}
               {lineEl}
             </div>
           )}
@@ -798,7 +819,9 @@ export default function MoneyFlow({ onOpenTask, onOpenEntity, openAccountId, ope
               puts it on the dot and leaves the word the row's one grey (§AM:
               the category rides a dot, never the words). Green cash, sky
               savings, blue investment, red credit, graphite other. */}
-          <div className="r-k"><span className="r-goal r-cat fact cat"><span className={"cd cat-bg-" + m.slot} />{m.label}</span></div>
+          {/* A kind the name already says is not said twice ("Savings" under "Savings", "Credit" under "Credit Card"):
+              a row with nothing to say shows nothing (2026-10-05, the perfect bar). */}
+          {!kindRestated(title, m.label) && <div className="r-k"><span className="r-goal r-cat fact cat"><span className={"cd cat-bg-" + m.slot} />{m.label}</span></div>}
         </div>
         {/* A negative balance is a fact, not an alarm: it reads in the
             quiet ink with its sign, never in red (L1, red is a verb).
@@ -827,17 +850,15 @@ export default function MoneyFlow({ onOpenTask, onOpenEntity, openAccountId, ope
   // Self-reported and it says so, then the day it was entered, as a date
   // (§AM F5), with the dot between them drawn by .facts rather than baked
   // into the words (F3).
-  // The count is back beside them (the lead, 2026-09-26: "As You Last
-  // Entered It · Sep 18 · 4 Accounts"), a number with no state, so white
-  // (§AM); the words before it keep the line's one grey (§AK). It is a
-  // wrapping .conn-meta of facts, not a .facts row: one line on a hero
-  // card, not a list row, so at type scale 1.4 it takes a second line
-  // rather than cutting both ends, and the CSS still draws the dots.
+  // THE COUNT IS NOT SAID AGAIN (2026-10-05, the perfect bar). "4" sat on the head, "4 Accounts" sat on this card and the
+  // four rows sat under it: one number, three times. The head keeps the count every section head wears; the card says
+  // what the total IS and when it was entered, and the rows are their own count. It is a wrapping .conn-meta of facts,
+  // not a .facts row: one line on a hero card, not a list row, so at type scale 1.4 it takes a second line rather than
+  // cutting both ends, and the CSS still draws the dots.
   const balanceFacts = (
     <div className="money-hero-label conn-meta">
       <span className="fact">As You Last Entered It</span>
       {balanceAsOf && <span className="fact date">{monthDay(balanceAsOf)}</span>}
-      <span className="fact"><b>{accounts.length} {accounts.length === 1 ? "Account" : "Accounts"}</b></span>
     </div>
   );
 
@@ -1092,6 +1113,7 @@ export default function MoneyFlow({ onOpenTask, onOpenEntity, openAccountId, ope
                     key={t.id}
                     item={t}
                     today={today}
+                    stateText
                     onToggle={(id) => void (async () => {
                       if (!(await attemptWrite(() => tasksSvc.toggleDone(id)))) return;
                       await reload();

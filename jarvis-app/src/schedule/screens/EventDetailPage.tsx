@@ -82,12 +82,12 @@ export default function EventDetailPage({
   // small caps (F5); the length is an estimate, so sky (R3). One line, one
   // left edge with the title (2026-10-05 review: they were two lines at a
   // different x, with the end time spelled out in a third).
+  const startT = fmtTime(e.start);
   const when = (() => {
     const d = new Date(date + "T00:00:00");
     const day = d.toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" });
-    const start = fmtTime(e.start);
     const mins = e.end ? minutesBetween(e.start, e.end) : 0;
-    return { day, time: `${start.time} ${start.ap}`, length: mins > 0 ? spanLabel(mins) : null };
+    return { day, length: mins > 0 ? spanLabel(mins) : null };
   })();
   const joinUrl = e.url && /^https?:\/\//i.test(e.url.trim()) ? e.url.trim() : null;
   const skipOnly = (e.recurrence ?? "none") !== "none";
@@ -113,7 +113,7 @@ export default function EventDetailPage({
             <div className="ev-title">{titleCase(e.title)}</div>
             <div className="facts">
               <span className="fact date">{when.day}</span>
-              <span className="fact date">{when.time}</span>
+              <span className="fact date">{startT.time} {startT.ap}</span>
               {when.length && <span className="fact est">{when.length}</span>}
             </div>
             {e.location && <div className="conn-meta">{e.location}</div>}
@@ -121,6 +121,21 @@ export default function EventDetailPage({
         </div>
         <Provenance source={prov} {...(prov && openSourceFor ? { onOpen: openSourceFor(prov) } : {})} />
       </div></div>
+
+      {/* THE AREA SITS WITH THE EVENT'S OWN FACTS, above Before This (2026-10-05: under that head, with no task, it read as
+          the first thing that has to happen before the event). The area it belongs to, stated rather than implied by a colour.
+          Only when there is one (§AK): "No area" was a placeholder stating an
+          absence, on a row that offers nothing to tap. Filing it is the
+          edit sheet's job, one tap away on Edit. */}
+      {area && (
+        <div className="pad-x"><div className="card list-card-ruled">
+          <div className="row">
+            <div className="row-ico nav-tile-blue"><Tag className="ic" /></div>
+            <div className="row-grow"><div className="conn-name">Area</div></div>
+            <span className="row-status ev-area"><span className={"cat-dot " + tone.replace("cat-fg-", "cat-bg-")} />{area}</span>
+          </div>
+        </div></div>
+      )}
 
       {/* The one thing a meeting page is for, when there is a link to go to. */}
       {joinUrl && (
@@ -224,20 +239,6 @@ export default function EventDetailPage({
             {e.notes && <div className="t-body">{e.notes}</div>}
           </div></div>
         </>
-      )}
-
-      {/* The area it belongs to, stated rather than implied by a colour.
-          Only when there is one (§AK): "No area" was a placeholder stating an
-          absence, on a row that offers nothing to tap. Filing it is the
-          edit sheet's job, one tap away on Edit. */}
-      {area && (
-        <div className="pad-x"><div className="card list-card-ruled">
-          <div className="row">
-            <div className="row-ico nav-tile-blue"><Tag className="ic" /></div>
-            <div className="row-grow"><div className="conn-name">Area</div></div>
-            <span className="row-status ev-area"><span className={"cat-dot " + tone.replace("cat-fg-", "cat-bg-")} />{area}</span>
-          </div>
-        </div></div>
       )}
 
       {(onDuplicate || onDelete) && (

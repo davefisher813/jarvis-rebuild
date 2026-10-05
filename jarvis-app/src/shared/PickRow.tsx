@@ -27,6 +27,7 @@ export default function PickRow({ tone, glyph, label, kind, value, onChange, ari
   const input = useRef<HTMLInputElement>(null);
   const empty = !value;
   return (
+    // row-tap: the native input lies transparent over the whole row, so a tap anywhere on it IS the control (the system picker opens)
     <div className={"row xs-row pick-row" + (error ? " pick-error" : "")}>
       <Tile tone={tone}>{glyph}</Tile>
       <div className="conn-name">{label}</div>

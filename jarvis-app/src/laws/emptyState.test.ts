@@ -133,6 +133,9 @@ const ACTION_ON_SCREEN: Record<string, string> = {
   // on the head directly above it (Publish My Times on Your Link, Add a Day Off on Days Off).
   "settings/BookingPage.tsx · No Link Yet": "Publish My Times is the Your Link head's capsule, directly above these words (Dave 2026-10-05)",
   "settings/BookingPage.tsx · No Days Off": "Add a Day Off is the Days Off head's capsule, directly above these words (Dave 2026-10-05)",
+  // Your Routine (round-1 review, 2026-10-05, D9): Protected Time with no block is a glyph, a title and one warm line, filled by the Add capsule
+  // on its head directly above (the head's label is the short word because the title already says what it adds).
+  "routine/RoutineFlow.tsx · Nothing Protected Yet": "Add is the Protected Time head's capsule, directly above these words (Dave 2026-10-05)",
 };
 
 // REAL DEBT. The action exists but lives on ANOTHER screen, so these fail L7

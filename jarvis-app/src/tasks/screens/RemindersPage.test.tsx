@@ -65,8 +65,11 @@ describe("RemindersPage", () => {
     // render separately rather than as one "Today · 9:00 AM" string.
     expect(screen.getByText("9:00")).toBeInTheDocument();
     expect(screen.getByText("AM")).toBeInTheDocument();
-    expect(screen.getAllByText("Today", { selector: ".uchip" }).length).toBeGreaterThan(0);
-    // v3: a row already carrying a clock and a Today chip does not also carry
+    // THE SECTION SAYS TODAY (2026-10-05): no amber "Today" chip repeats the head, the view and the clock on any row under Now or
+    // Later Today, and no urgency pill is drawn in a reminder row at all.
+    expect(screen.getByText("Later Today")).toBeInTheDocument();
+    expect(container.querySelectorAll(".uchip"), "no chip on a row whose section already says today").toHaveLength(0);
+    // v3: a row already carrying a clock does not also carry
     // its rhythm. That fact was the one that overflowed the line; it stays on
     // the rows with no gutter competing for the room, and in the detail sheet.
     expect(screen.queryByText("Weekdays")).not.toBeInTheDocument();

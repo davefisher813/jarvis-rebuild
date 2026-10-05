@@ -59,7 +59,8 @@ describe("buildWeek", () => {
     expect(changedLine.tone).toBe("quiet");
     expect(changedLine.facts[0]?.tone).toBeUndefined();
     // The area is a dot and its name, the amount its own fact (§AM F3).
-    expect(byKey.Next).toEqual(["Bridge", "3h of 17h"]);
+    // "Got 3h of 17h": "3h of 17h" alone was unreadable as a sentence (Dave 2026-10-05, the review).
+    expect(byKey.Next).toEqual(["Bridge", "Got 3h of 17h"]);
     // Next is amber: "needs you soon" in the key, never the red of late.
     expect(w.lines.find((l) => l.key === "Next")!.tone).toBe("warn");
     for (const l of w.lines) expect(["good", "warn", "quiet"]).toContain(l.tone);
@@ -110,10 +111,10 @@ describe("buildWeek", () => {
 });
 
 describe("the life lines (2026-09-26)", () => {
-  it("a zero week reads None of, never 0 Min of", () => {
+  it("a zero week reads Got 0 of, never 0 Min of and never None of", () => {
     const events = [ev("e2", "2026-09-09", "09:00", "17:00", "tucci"), ev("e3", "2026-09-10", "09:00", "15:00", "tucci")];
     const w = buildWeek({ today: TODAY, rows: [], events, workouts: [], goals: [goal({ tags: ["bridge"] })], projects: [], categories: CATS });
-    expect(w.lines.find((l) => l.key === "Next")!.facts.map((f) => f.text)).toEqual(["Bridge", "None of 14h"]);
+    expect(w.lines.find((l) => l.key === "Next")!.facts.map((f) => f.text)).toEqual(["Bridge", "Got 0 of 14h"]);
   });
 
   it("carries the report's cards at week scale, each silent at zero, between Learned and Next", () => {

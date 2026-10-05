@@ -155,8 +155,22 @@ describe("New Event: one column of values", () => {
     expect(document.querySelectorAll(".xs-group .conn-meta").length).toBe(0);
   });
 
-  it("the task chips wrap whole at the card edge instead of clipping", () => {
-    expect(css).toMatch(/\.form-sheet \.row\.xs-strip \.chip-row > \.chip \{[^}]*white-space: normal/);
+  it("the area's other open tasks are plain rows that wrap, never grey capsules inside the card", () => {
+    const names = ["Swap quotes", "Reply to Nadia", "Record the demo", "Draft the coach email", "Nudge Delaney on Harper V Northline", "Pay the ticket", "File the receipts"];
+    const attachTasks = names.map((text, i) => ({ id: "t" + i, text, category: "c1", done: false }));
+    render(
+      <EventSheet mode="new" initial={{ title: "Work Session", date: "2026-11-09", start: "11:00", end: "12:00", category: "c1" }}
+        categories={[{ id: "c1", name: "Work", color: "blue" }]} attachTasks={attachTasks} onSave={() => {}} onCancel={() => {}} />,
+    );
+    const card = screen.getByText("Tasks").closest(".grp")!.nextElementSibling!;
+    expect(card.querySelectorAll(".chip").length).toBe(0);
+    const rows = Array.from(card.querySelectorAll(".row.xs-row"));
+    // every offered task, ranked or not, is a row with its own Add
+    expect(rows.length).toBe(card.querySelectorAll(".row-ctx").length);
+    expect(rows.length).toBeGreaterThan(4);
+    // a title that matters wraps to two lines before it is ever cut (D8): in a .row, .truncate IS the two-line clamp
+    for (const r of rows) expect(r.querySelector(".conn-name")!.className).toContain("truncate");
+    expect(css).toMatch(/\.row \.conn-name\.truncate \{\s*white-space: normal; display: -webkit-box; -webkit-line-clamp: 2;/);
   });
 });
 
@@ -189,15 +203,18 @@ describe("the event page", () => {
     expect(head.contains(add)).toBe(true);
     expect(add.className).toContain("pill-action");
     expect(document.querySelector(".row-create")).toBeNull();
-    expect(head.nextElementSibling?.querySelector(".list-card-ruled")).toBeNull();
+    // nothing is drawn under the head: the next thing is the Area card, never a card that holds only the button
+    for (const card of Array.from(document.querySelectorAll(".list-card-ruled"))) expect(card.textContent).not.toContain("Add Task");
+    expect(head.nextElementSibling?.textContent ?? "").not.toContain("What Has to Happen First");
   });
 
   it("the head's Add Task opens the inline field, and a typed task is added", () => {
     const onAddStep = vi.fn();
     page(ev(), { onAddStep });
     fireEvent.click(screen.getByText("Add Task"));
-    const field = screen.getByPlaceholderText("What Has to Happen First");
-    fireEvent.change(field, { target: { value: "Print the agenda" } });
+    const field = document.querySelector('[data-placeholder="What Has to Happen First"]') as HTMLElement;
+    expect(field).not.toBeNull();
+    field.textContent = "Print the agenda";
     fireEvent.keyDown(field, { key: "Enter" });
     fireEvent.blur(field);
     expect(onAddStep).toHaveBeenCalledWith("Print the agenda");
@@ -214,6 +231,19 @@ describe("the event page", () => {
     page(ev());
     expect(document.querySelector(".ev-area .cat-dot")).not.toBeNull();
     expect(document.querySelector(".ev-area")!.textContent).toBe("Work");
+  });
+
+  it("the Area row sits with the event's own card, above an empty Before This head, so it cannot read as a task", () => {
+    page(ev(), { onAddStep: () => {} });
+    const area = document.querySelector(".ev-area")!;
+    const head = screen.getByText("Before This").closest(".sh2")!;
+    expect(area.compareDocumentPosition(head) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(css).toMatch(/\.ev-top \+ \.pad-x \{ padding-top: var\(--s-2\)/);
+  });
+
+  it("the picker's hidden input and the open Notes field obey the type and overscroll laws", () => {
+    expect(rule(".xs-pick-in")).toMatch(/font-size: calc\(16px \* var\(--type-scale\)\)/);
+    expect(css).toMatch(/\.xs-textarea:not\(:placeholder-shown\) \{[^}]*overscroll-behavior: contain/);
   });
 
   it("offers Join for a real meeting link, and Duplicate and Delete only where the flow can do them", () => {

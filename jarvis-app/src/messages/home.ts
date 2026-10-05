@@ -455,7 +455,7 @@ function promiseNotice(p: MailPromise, todayISO: string): MailNotice {
     kind: "promised",
     threadId: p.threadId,
     title: titleCase(p.text),
-    sub: p.due ? lineCase("You said you would, by " + dayPhrase(p.due, todayISO)) : "You Said You Would",
+    sub: p.due ? lineCase("You promised it, by " + dayPhrase(p.due, todayISO)) : "You Promised It",
     // The day he said is a date with a meaning (§AM R8), so on screen it is
     // its own fact in the date window, the colour the ledger gives the same
     // promise: past is late, red; today or tomorrow is due, amber; later is
@@ -465,7 +465,7 @@ function promiseNotice(p: MailPromise, todayISO: string): MailNotice {
     // colour, and the sentence stands.
     ...(p.due ? { facts: [
       { text: dayPhrase(p.due, todayISO), tone: dayTone(p.due, todayISO) },
-      { text: "You Said You Would" },
+      { text: "You Promised It" },
     ] } : {}),
     action: "Add Task",
     tone: "cat-fg-yellow",

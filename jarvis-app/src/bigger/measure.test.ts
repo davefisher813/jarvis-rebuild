@@ -84,6 +84,12 @@ describe("measureState: projects", () => {
     const c = ctx({ projects: [proj("p1", { status: "done" }), proj("p2")] });
     expect(measureState({ kind: "projects" }, c)).toMatchObject({ done: 1, target: 2, met: false });
   });
+  // THE NOUN AGREES WITH THE DENOMINATOR (2026-10-05, the perfect bar: "0 of 1 Projects Done" on the Goals card), the word behind
+  // the number stays capitalized, and the word wraps no orphan.
+  it("writes '0 of 1 Project Done' for one and '1 of 2 Projects Done' for two", () => {
+    expect(measureState({ kind: "projects" }, ctx({ projects: [proj("p1")] }))!.line).toBe("0 of 1 Project Done");
+    expect(measureState({ kind: "projects" }, ctx({ projects: [proj("p1", { status: "done" }), proj("p2")] }))!.line).toBe("1 of 2 Projects Done");
+  });
   // §AK (2026-09-26): no division by zero, and no placeholder line either.
   it("says nothing rather than dividing by zero", () => {
     expect(measureState({ kind: "projects" }, ctx())).toMatchObject({ done: 0, target: 0, pct: 0, met: false, line: "" });

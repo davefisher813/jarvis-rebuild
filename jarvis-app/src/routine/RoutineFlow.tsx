@@ -304,15 +304,15 @@ export default function RoutineFlow({ onBack, focusId, onFocusConsumed }: { onBa
 
       <Head label="Active Hours" />
       <Card>
-        <Row label="Wake Up"><input type="time" className="set-field" aria-label="Wake up" value={toHHMM(data.wakeMin)} disabled={!loaded} onChange={(e) => { const v = minutesOf(e.target.value); if (v != null) set({ wakeMin: v }); }} /></Row>
-        <Row label="Sleep"><input type="time" className="set-field" aria-label="Sleep" value={toHHMM(data.sleepMin)} disabled={!loaded} onChange={(e) => { const v = minutesOf(e.target.value); if (v != null) set({ sleepMin: v }); }} /></Row>
+        <Row label="Wake Up"><input type="time" className="set-field set-field-well set-field-time" aria-label="Wake up" value={toHHMM(data.wakeMin)} disabled={!loaded} onChange={(e) => { const v = minutesOf(e.target.value); if (v != null) set({ wakeMin: v }); }} /></Row>
+        <Row label="Sleep"><input type="time" className="set-field set-field-well set-field-time" aria-label="Sleep" value={toHHMM(data.sleepMin)} disabled={!loaded} onChange={(e) => { const v = minutesOf(e.target.value); if (v != null) set({ sleepMin: v }); }} /></Row>
       </Card>
       {overnight && <Foot>Overnight · JARVIS Plans the Day</Foot>}
 
       <Head label="Work Hours" />
       <Card>
-        <Row label="Work Starts"><input type="time" className="set-field" aria-label="Work starts" value={toHHMM(data.workStartMin)} disabled={!loaded} onChange={(e) => { const v = minutesOf(e.target.value); if (v != null) set({ workStartMin: v }); }} /></Row>
-        <Row label="Work Ends"><input type="time" className="set-field" aria-label="Work ends" value={toHHMM(data.workEndMin)} disabled={!loaded} onChange={(e) => { const v = minutesOf(e.target.value); if (v != null) set({ workEndMin: v }); }} /></Row>
+        <Row label="Work Starts"><input type="time" className="set-field set-field-well set-field-time" aria-label="Work starts" value={toHHMM(data.workStartMin)} disabled={!loaded} onChange={(e) => { const v = minutesOf(e.target.value); if (v != null) set({ workStartMin: v }); }} /></Row>
+        <Row label="Work Ends"><input type="time" className="set-field set-field-well set-field-time" aria-label="Work ends" value={toHHMM(data.workEndMin)} disabled={!loaded} onChange={(e) => { const v = minutesOf(e.target.value); if (v != null) set({ workEndMin: v }); }} /></Row>
       </Card>
       {workOutside && <Foot>Work Hours Outside Active Hours · Fine</Foot>}
 
@@ -394,8 +394,8 @@ export default function RoutineFlow({ onBack, focusId, onFocusConsumed }: { onBa
           and two time rows in one card, and the screen growing under the thumb with no rhythm). */}
       {data.weekendDifferent && (
         <Card>
-          <Row label="Weekend Wake"><input type="time" className="set-field" aria-label="Weekend wake" value={toHHMM(data.weekendWakeMin ?? data.wakeMin)} disabled={!loaded} onChange={(e) => { const v = minutesOf(e.target.value); if (v != null) set({ weekendWakeMin: v }); }} /></Row>
-          <Row label="Weekend Sleep"><input type="time" className="set-field" aria-label="Weekend sleep" value={toHHMM(data.weekendSleepMin ?? data.sleepMin)} disabled={!loaded} onChange={(e) => { const v = minutesOf(e.target.value); if (v != null) set({ weekendSleepMin: v }); }} /></Row>
+          <Row label="Weekend Wake"><input type="time" className="set-field set-field-well set-field-time" aria-label="Weekend wake" value={toHHMM(data.weekendWakeMin ?? data.wakeMin)} disabled={!loaded} onChange={(e) => { const v = minutesOf(e.target.value); if (v != null) set({ weekendWakeMin: v }); }} /></Row>
+          <Row label="Weekend Sleep"><input type="time" className="set-field set-field-well set-field-time" aria-label="Weekend sleep" value={toHHMM(data.weekendSleepMin ?? data.sleepMin)} disabled={!loaded} onChange={(e) => { const v = minutesOf(e.target.value); if (v != null) set({ weekendSleepMin: v }); }} /></Row>
         </Card>
       )}
 

@@ -287,9 +287,19 @@ describe("editing from the card", () => {
   it("opens the editor from any fact row", () => {
     const edits: number[] = [];
     render(<PersonDetail person={mom} onEdit={() => edits.push(1)} onBack={() => {}} categoryNames={["Family"]} />);
-    fireEvent.click(screen.getByText("Relationship"));
+    // The relationship is said once, in the hero; About holds what the hero does not (Dave 2026-10-05, the review: "Attorney"
+    // under the name and again as About > Relationship).
+    expect(screen.queryByText("Relationship")).not.toBeInTheDocument();
     fireEvent.click(screen.getByText("Birthday"));
+    fireEvent.click(screen.getByText("Areas"));
     expect(edits).toHaveLength(2);
+  });
+
+  it("the relationship is said once: in the hero, never again as an About row", () => {
+    const { container } = render(<PersonDetail person={mom} onEdit={() => {}} onBack={() => {}} />);
+    expect(container.querySelector(".person-facts")!.textContent).toBe("Family");
+    expect(container.textContent!.match(/Family/g)).toHaveLength(1);
+    expect(screen.queryByText("Relationship")).not.toBeInTheDocument();
   });
 
   // NOT THE SAME WORD TWICE (photographed: "Family · Family"). The handoff

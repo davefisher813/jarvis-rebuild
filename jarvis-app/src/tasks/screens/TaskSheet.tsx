@@ -462,7 +462,7 @@ export default function TaskSheet({
                   the plain ink; Mark Done is the check he already knew. Each is the same
                   action the row's swipe runs. */}
               {onStart && (
-                <div className="row xs-row xs-primary" {...rowDoor(onStart)}>
+                <div className="row xs-row" {...rowDoor(onStart)}>
                   <Tile tone="red"><Zap className="ic" /></Tile>
                   <div className="row-grow"><div className="conn-name">{startWord}</div></div>
                   <div className="chev"></div>
@@ -478,8 +478,9 @@ export default function TaskSheet({
               {onMove && (
                 <div className="row xs-row" {...rowDoor(onMove)}>
                   <Tile tone="orange"><Clock className="ic" /></Tile>
+                  {/* NO CHEVRON ON AN ACT (2026-10-05): a chevron says "this opens another screen" (Start, First Step). Move to Tomorrow
+                      and Mark Done do their thing and close the sheet, so they carry none, and the two read as the same kind of row. */}
                   <div className="row-grow"><div className="conn-name">Move to Tomorrow</div></div>
-                  <div className="chev"></div>
                 </div>
               )}
               {/* The whole row finishes it (the row-tap law): the tile is the affordance, and the words beside it are the same target,

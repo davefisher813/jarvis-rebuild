@@ -354,3 +354,31 @@ describe("EventSheet: the meeting notes are a paragraph", () => {
     });
   });
 });
+
+// THE SHEET'S ACTIONS ARE ACTIONS (the review, 2026-10-05): Duplicate and Move to Anytime act in place, so they draw no chevron
+// (a chevron says "opens something"), and an empty pick draws no word None.
+describe("EventSheet: actions, and empty picks", () => {
+  const open = () => render(
+    <EventSheet mode="edit" initial={{ title: "Client Call", category: "c1", date: "2026-05-26", start: "10:00" }} categories={CATS}
+      onSave={() => {}} onCancel={() => {}} onMoveToAnytime={() => {}} onDuplicate={() => {}} onLogDecision={() => {}} onDelete={() => {}} />,
+  );
+  const rowOf = (label: string) => screen.getByText(label).closest(".row")!;
+
+  it("Duplicate and Move to Anytime carry no chevron, Log the Decision (which opens a sheet) keeps its own", () => {
+    open();
+    expect(rowOf("Duplicate").querySelector(".chev")).toBeNull();
+    expect(rowOf("Move to Anytime").querySelector(".chev")).toBeNull();
+    expect(rowOf("Log the Decision").querySelector(".chev")).not.toBeNull();
+  });
+
+  it("an empty repeat draws no word None beside its label, and a chosen one is drawn as it was", () => {
+    const { unmount } = open();
+    expect(screen.getByRole("button", { name: "Repeat" }).classList.contains("dd-none")).toBe(true);
+    unmount();
+    render(<EventSheet mode="edit" initial={{ title: "Client Call", category: "c1", date: "2026-05-26", start: "10:00", recurrence: "weekly" }}
+      categories={CATS} onSave={() => {}} onCancel={() => {}} />);
+    const rep = screen.getByRole("button", { name: "Repeat" });
+    expect(rep.classList.contains("dd-none")).toBe(false);
+    expect(rep.textContent).toBe("Weekly");
+  });
+});

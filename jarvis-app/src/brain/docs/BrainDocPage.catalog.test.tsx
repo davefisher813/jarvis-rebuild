@@ -73,3 +73,49 @@ describe("BrainDocPage: clean rows (2026-10-05)", () => {
     await waitFor(() => expect(docsSvc.save).toHaveBeenCalled());
   });
 });
+
+// THE HARD LINE FORM FITS ITS CARD (Dave 2026-10-05, the review: the three kinds ran off the card and "Protect" was cut, the placeholder was
+// truncated with a typed dot, and "Add a Line" was a full-width disabled slab). Three kinds are one choice of three, so the app's segmented
+// control; the field says what it takes in Title Case with no typed dot; the add verb is text at the field's edge, there only with something to add.
+describe("BrainDocPage: the hard line form (2026-10-05)", () => {
+  it("the three kinds are one segmented control, one pressed at a time, never chips that run off the card", async () => {
+    const { container } = render(<BrainDocPage topic="values" onBack={() => {}} />);
+    await waitFor(() => expect(screen.getByText("school.org")).toBeInTheDocument());
+    const seg = container.querySelector(".segmented.seg-tri")!;
+    expect(seg.getAttribute("role")).toBe("group");
+    expect(container.querySelector(".hard-add .chip")).toBeNull();
+    const kinds = [...seg.querySelectorAll("button.seg")];
+    expect(kinds.map((b) => b.textContent)).toEqual(["Never File", "Always Ask", "Protect"]);
+    expect(kinds.map((b) => b.getAttribute("aria-pressed"))).toEqual(["true", "false", "false"]);
+    fireEvent.click(kinds[2]!);
+    expect([...seg.querySelectorAll("button.seg")].map((b) => b.getAttribute("aria-pressed"))).toEqual(["false", "false", "true"]);
+  });
+
+  it("the field's placeholder is short and plain, and Add is a quiet verb that appears only once something is typed", async () => {
+    const { container } = render(<BrainDocPage topic="values" onBack={() => {}} />);
+    await waitFor(() => expect(screen.getByText("school.org")).toBeInTheDocument());
+    const input = screen.getByLabelText("What this line is about") as HTMLInputElement;
+    expect(input.placeholder).toBe("Gym, Family, School.org");
+    expect(input.placeholder).not.toContain("·");
+    const field = container.querySelector(".hard-add-field")!;
+    expect(field.querySelector(".row-ctx")).toBeNull();
+    expect(container.querySelector(".hard-add .btn, .hard-add .pill-act")).toBeNull(); // no full-width slab
+    fireEvent.change(input, { target: { value: "Taxes" } });
+    const add = field.querySelector(".row-ctx")!;
+    expect(add.textContent).toBe("Add");
+    expect(add.getAttribute("aria-label")).toBe("Add a Line");
+    fireEvent.click(add);
+    await waitFor(() => expect(screen.getByText("Taxes")).toBeInTheDocument());
+    expect(input.value).toBe("");
+  });
+
+  it("Values reads What Matters above Hard Lines, each with its own empty state or rows, so nothing sinks to the dock", async () => {
+    const { container } = render(<BrainDocPage topic="values" onBack={() => {}} />);
+    await waitFor(() => expect(screen.getByText("school.org")).toBeInTheDocument());
+    const heads = [...container.querySelectorAll(".sh2 .t")].map((e) => e.textContent);
+    expect(heads).toEqual(["What Matters", "Hard Lines"]);
+    // The first section is the empty state with its one way in, directly under its head.
+    const first = container.querySelector(".sh2")!;
+    expect(first.nextElementSibling!.classList.contains("empty-state")).toBe(true);
+  });
+});

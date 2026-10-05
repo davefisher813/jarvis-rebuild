@@ -1064,10 +1064,10 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
       setLoading(false);
     }
   })();
-  const mailFloor = () => (atEnd ? <ListFloor /> : (
+  const mailFloor = () => (atEnd ? <ListFloor>That&rsquo;s Everything.</ListFloor> : (
     <ListFloor>
       <>
-        <div>Showing what's loaded so far.</div>
+        <div>Showing What&rsquo;s Loaded So Far.</div>
         <button className="quiet-action" disabled={loading} onClick={loadMore}>{loading ? "Loading..." : "Load More"}</button>
       </>
     </ListFloor>
@@ -4269,7 +4269,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                           <div className={"task-check" + (t.data.done ? " on" : "")} />
                         </div>
                       ) : (
-                        <span className="row-ico cat-bg-graphite" aria-hidden="true"><ListChecks className="ic" /></span>
+                        <span className="row-ico cat-bg-red" aria-hidden="true"><ListChecks className="ic" /></span>
                       )}
                       <div className="row-grow">
                         <div className="conn-name">{t.data.text}</div>
@@ -4289,7 +4289,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                   ))}
                   {link && (
                     <div className="row">
-                      <span className="row-ico cat-bg-graphite" aria-hidden="true"><FolderKanban className="ic" /></span>
+                      <span className="row-ico cat-bg-indigo" aria-hidden="true"><FolderKanban className="ic" /></span>
                       <div className="row-grow">
                         <div className="conn-name">{link.label}</div>
                         <Facts facts={[{ text: link.type === "project" ? "Project" : link.type === "goal" ? "Goal" : "Organization" }]} />
@@ -4869,7 +4869,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
           ))}
         </div>
       )}
-      <div className="pad-x msg-chips">
+      <div className="pad-x msg-chips msg-views">
         {ai.available && (
           <button className={"chip" + (filter === "triage" ? " on" : "")} onClick={() => setFilter("triage")}>For You</button>
         )}
@@ -5116,7 +5116,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
             {/* EMAIL-F-18: search results are their own complete answer, so
                 they keep the plain floor; the inbox gets the honest one. */}
             {results !== null
-              ? <ListFloor>{"That\u2019s everything" + (g.accounts.length > 1 ? " in " + (acctFilter ? acctLabel(acctFilter) : "all accounts") : "") + "."}</ListFloor>
+              ? <ListFloor>{"That\u2019s Everything" + (g.accounts.length > 1 ? " in " + (acctFilter ? acctLabel(acctFilter) : "All Accounts") : "") + "."}</ListFloor>
               : mailFloor()}
           </>
         )
@@ -5302,9 +5302,10 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                   is the shape every other head with an action wears. */}
               <div className="sh2 sh2-quiet">
                 <span className="t">Needs You</span>
-                <button className="see-all pill-action" onClick={() => { setDeckRows(needsYou); setView("deck"); }}>
-                  {"Sweep \u00b7 " + sweepEstimate(needsYou.length)}
-                </button>
+                {/* The estimate is a fact beside the capsule, and the capsule is the verb alone (Dave 2026-10-05: no dot typed
+                    into a capsule label). The aria-label keeps the whole promise for a screen reader. */}
+                <span className="n fact est">{sweepEstimate(needsYou.length)}</span>
+                <button className="see-all pill-action" aria-label={"Sweep, " + sweepEstimate(needsYou.length)} onClick={() => { setDeckRows(needsYou); setView("deck"); }}>Sweep</button>
               </div>
               <div className="pad-x"><div className="card list-card-ruled">
                 {needsYou.map((r) => threadRow(r, effTriage[r.id]?.gist, false, true))}
@@ -5320,11 +5321,11 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                   it is showing and offers the next page, the same honesty
                   the All list's floor already keeps (EMAIL-F-18). */}
               {atEnd ? (
-                <ListFloor>That&rsquo;s every one that needs you.</ListFloor>
+                <ListFloor>That&rsquo;s Every One That Needs You.</ListFloor>
               ) : (
                 <ListFloor>
                   <>
-                    <div>That&rsquo;s every one loaded so far.</div>
+                    <div>That&rsquo;s Every One Loaded So Far.</div>
                     <button className="quiet-action" disabled={loading} onClick={loadMore}>{loading ? "Loading..." : "Load More"}</button>
                   </>
                 </ListFloor>
@@ -5563,7 +5564,8 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                         every inbox says nothing, and the count is the pill. */}
                   </div>
                   {/* V2 anatomy: the count is a pill, never buried in the line. */}
-                  <span className="pill pill-subdued">{restCount}</span>
+                  <span className="fact"><b>{restCount}</b></span>
+                  <div className="chev" />
                 </div>
               </div>
               {/* The guard line: proof that folding is safe, derived or absent. */}
@@ -5806,7 +5808,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                   came from until the inbox has been read to the bottom. */}
               {visibleRows.length > 0 && (
                 <div className="row" {...pressable(() => { setPurgePicks(null); void runScan(); setView("purge"); })}>
-                  <span className="row-ico cat-bg-graphite" aria-hidden="true"><Archive className="ic" /></span>
+                  <span className="row-ico cat-bg-teal" aria-hidden="true"><Archive className="ic" /></span>
                   <div className="row-grow">
                     <div className="conn-name">Clean Out</div>
                     {/* E-29: counted over visibleRows and names its
@@ -5826,7 +5828,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                   always opened, under the card. */}
               {sweepReady && (
                 <div className="row" {...pressable(() => setDrainOpen((v) => !v))} aria-expanded={drainOpen}>
-                  <span className="row-ico cat-bg-graphite" aria-hidden="true"><Clock className="ic" /></span>
+                  <span className="row-ico cat-bg-orange" aria-hidden="true"><Clock className="ic" /></span>
                   <div className="row-grow">
                     <div className="conn-name">Only a Few Minutes?</div>
                     {/* 2026-10-05 (the catalog gate): Title Case, like every meta line. */}
@@ -5841,7 +5843,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                   built when you tap. */}
               {owed.length + mine > 0 && (
                 <div className="row" {...pressable(() => void openLedger())}>
-                  <span className="row-ico cat-bg-graphite" aria-hidden="true"><Hourglass className="ic" /></span>
+                  <span className="row-ico cat-bg-purple" aria-hidden="true"><Hourglass className="ic" /></span>
                   <div className="row-grow">
                     <div className="conn-name">Still Open</div>
                     {/* Two counts, two facts (§AM R5, R6): what he owes
@@ -5858,7 +5860,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
               {/* One at a Time, when there is a real run of them to walk. */}
               {owed.length >= 2 && (
                 <div className="row" {...pressable(() => setWaitDeck(0))}>
-                  <span className="row-ico cat-bg-graphite" aria-hidden="true"><MessageSquare className="ic" /></span>
+                  <span className="row-ico cat-bg-teal" aria-hidden="true"><MessageSquare className="ic" /></span>
                   <div className="row-grow">
                     <div className="conn-name">One at a Time</div>
                     {/* The oldest wait wears the nudge ladder's heat (§AM
@@ -5895,10 +5897,10 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                 return (
                   <>
                     <div className="row" {...pressable(() => (speaking === "idle" ? play() : setReadSheet(true)))}>
-                      <span className="row-ico cat-bg-graphite" aria-hidden="true"><Volume2 className="ic" /></span>
+                      <span className="row-ico cat-bg-purple" aria-hidden="true"><Volume2 className="ic" /></span>
                       <div className="row-grow">
                         <div className="conn-name">Read It to Me</div>
-                        <div className="conn-meta">{speaking === "idle" ? "Senders and Gists, Never the Message" : speaking === "playing" ? "Playing" : "Paused"}</div>
+                        <div className="conn-meta">{speaking === "idle" ? "Gists, Never the Message" : speaking === "playing" ? "Playing" : "Paused"}</div>
                       </div>
                       <RowCtxAction when={speaking !== "idle"} label="Stop" onAct={stop} ariaLabel="Stop Reading" />
                     </div>
@@ -5921,7 +5923,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                   B, because a foot with one link left in it is not a foot). */}
               {showRules && (
                 <div className="row" {...pressable(() => setView("rules"))}>
-                  <span className="row-ico cat-bg-graphite" aria-hidden="true"><ListChecks className="ic" /></span>
+                  <span className="row-ico cat-bg-teal" aria-hidden="true"><ListChecks className="ic" /></span>
                   <div className="row-grow">
                     <div className="conn-name">Standing Rules</div>
                     {/* One count, one grey (§AM R1, R6): the filed senders
@@ -5939,14 +5941,15 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                   with every window on screen. E-38 moved it here from the
                   top of the page. */}
               <div className="row" {...pressable(() => setEditWindows(true))}>
-                <span className="row-ico cat-bg-graphite" aria-hidden="true"><CalendarClock className="ic" /></span>
+                <span className="row-ico cat-bg-sky" aria-hidden="true"><CalendarClock className="ic" /></span>
                 <div className="row-grow">
                   <div className="conn-name">Email Windows</div>
                   {/* On is a state, so it is green; when the next open or
                       close follows, it is the line's one grey (§AM R1, R6). */}
+                  {/* Off, it has nothing to say: "Open Email on a Schedule" restated the title (Dave 2026-10-05). */}
                   {windows.on
                     ? <Facts facts={[{ text: "On", tone: "good" }, { text: windowStatusLine(windows, new Date()) }]} />
-                    : <div className="conn-meta">Open Email on a Schedule</div>}
+                    : null}
                 </div>
                 <div className="chev" />
               </div>

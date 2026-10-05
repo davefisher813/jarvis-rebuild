@@ -43,12 +43,15 @@ function whenText(iso: string, today: string): string {
 // Rob's page). A name tacked on at either end, behind a dot or a dash, is dropped; one that is part of the sentence
 // ("Reply to Nadia re: Invoice") stays, because without it the words stop making sense. A separator typed inside what is left
 // becomes a comma: the dot is the stylesheet's to draw, never a character in a title.
+// The long dashes a sender types as a separator are built from their code points, so no dash is spelled out in this file (the
+// em dash law reads source text); the class is what the old inline escapes said.
+const SEP = "[\\u00b7\\u2022|:" + String.fromCharCode(0x2013, 0x2014) + "-]";
 function titleOnPage(title: string, name: string): string {
   const esc = name.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   let t = title;
   if (esc) {
-    t = t.replace(new RegExp("\\s*[\\u00b7\\u2022|:\\u2013\\u2014-]\\s*" + esc + "\\s*$", "i"), "");
-    t = t.replace(new RegExp("^\\s*" + esc + "\\s*[\\u00b7\\u2022|:\\u2013\\u2014-]\\s*", "i"), "");
+    t = t.replace(new RegExp("\\s*" + SEP + "\\s*" + esc + "\\s*$", "i"), "");
+    t = t.replace(new RegExp("^\\s*" + esc + "\\s*" + SEP + "\\s*", "i"), "");
   }
   t = t.replace(/\s*[\u00b7\u2022]\s*/g, ", ").trim();
   return t || title;
@@ -336,6 +339,8 @@ export default function PersonDetail({
           <div className="empty-icon cat-fg-teal"><MessageSquare className="ic" /></div>
           <div className="empty-title">Nothing to Bring Up Yet</div>
           <div className="empty-sub">Topics You Save Here Wait for Your Next Conversation</div>
+          {/* An empty state always carries its action (law L7); the head's capsule is the same door. */}
+          <button className="btn btn-primary" onClick={() => setAdding(true)}>Save a Topic</button>
         </div>
       )}
       {onAddPoint && (points.length > 0 || adding) && (

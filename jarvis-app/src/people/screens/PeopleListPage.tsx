@@ -202,6 +202,8 @@ export default function PeopleListPage({
           <div className="empty-icon cat-fg-teal">{PEOPLE}</div>
           <div className="empty-title">No One Here Yet</div>
           <div className="empty-sub">Add Someone, or Bring In Your Contacts From a File</div>
+          {/* An empty state always carries its action (law L7); the head's capsule is the same door. */}
+          <button className="btn btn-primary" onClick={onAdd}>Add Your First Person</button>
         </div>
       ) : (
         <>

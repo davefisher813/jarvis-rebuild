@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, afterEach } from "vitest";
-import { render, cleanup, screen } from "@testing-library/react";
+import { render, cleanup, screen, fireEvent } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import PeopleListPage from "./PeopleListPage";
 import PersonDetail from "./PersonDetail";
@@ -65,14 +65,49 @@ describe("People list rows: roles are one grey run", () => {
 });
 
 describe("People list: every sub line is Title Case", () => {
-  it("the import row's requirement and the old-import offer", () => {
+  it("the old-import offer's sub line", () => {
     const { container } = list({ duplicateNotes: 2, onClearDuplicateNotes: () => {} });
-    const importRow = [...container.querySelectorAll(".person-row-ruled")].find((r) => r.textContent?.includes("Import from File"))!;
-    const line = importRow.querySelector(".r-k")!.textContent!;
-    expect(line).toBe(".vcf or .csv with a Name Column");
-    expect(titleCased(line)).toBe(true);
     for (const sub of container.querySelectorAll(".bp-sub")) expect(titleCased(sub.textContent!), sub.textContent!).toBe(true);
     expect(container.querySelector(".bp-sub")!.textContent).toBe("Left There by an Old Import");
+  });
+});
+
+// IMPORT IS NOT A PERSON (Dave 2026-10-05, the review: "Import from File" was the last row of the people card, drawn with a glyph
+// and a chevron like a contact, with a sub line that read like a developer note). It is a section action, so it lives in the
+// head behind the one round overflow button (decision D1) and the people card holds people only.
+describe("People list: Import from File is in the head's overflow, never a row among the people", () => {
+  it("the card holds only people, and the head holds Add Person and one More button that opens Import", () => {
+    const { container } = list();
+    expect([...container.querySelectorAll(".person-row-ruled")].map((r) => r.querySelector(".task-name")!.textContent))
+      .toEqual(["Aaron Roman", "Bea Cole", "Cy Dean"]);
+    expect(container.querySelector(".list-card-ruled")!.textContent).not.toMatch(/Import|\.vcf/);
+    const head = [...container.querySelectorAll(".sh2")].find((h) => h.textContent?.includes("Your People"))!;
+    const caps = head.querySelectorAll("button.pill-action");
+    expect(caps).toHaveLength(2); // at most two, never a head that wraps (D1)
+    expect(caps[0]!.textContent).toBe("Add Person");
+    const more = head.querySelector("button.head-more") as HTMLElement;
+    expect(more.getAttribute("aria-label")).toBe("More");
+    fireEvent.click(more);
+    expect(screen.getByRole("button", { name: "Import from File" })).toBeInTheDocument();
+  });
+
+  it("without an import handler there is no overflow at all", () => {
+    const { container } = list({ onImportFile: undefined });
+    expect(container.querySelector(".head-more")).toBeNull();
+  });
+});
+
+// A CONTACT'S AVATAR IS A SOFT TINT (Dave 2026-10-05, the review: five identical solid brand-red discs). Brand red is for what can
+// be tapped; a person with no colour of their own wears the warm neutral, and one with a colour wears that colour's tint.
+describe("People list: avatars are never the flat brand red", () => {
+  it("a person with no colour wears the neutral avatar; one with a colour wears a soft tint of it", () => {
+    const { container } = list({ people: [p("a", "Aaron Roman"), p("b", "Bea Cole", { color: "teal" })] });
+    const avs = [...container.querySelectorAll(".person-row-ruled .av")];
+    expect(avs).toHaveLength(2);
+    expect(avs[0]!.className).not.toMatch(/av-accent|cat-bg-red/);
+    expect(avs[0]!.className).toMatch(/av-soft/);
+    expect(avs[1]!.className).toMatch(/av-soft/);
+    expect(avs[1]!.className).toMatch(/teal/);
   });
 });
 
@@ -182,10 +217,24 @@ describe("a person's card: rows are clean and the right action shows when it is 
   it("Add Something is on the Next Time We Talk head, and with nothing to list there is no card round it", () => {
     const { container } = render(<PersonDetail person={person} {...baseProps} onAddPoint={() => {}} onTogglePoint={() => {}} />);
     const head = [...container.querySelectorAll(".sh2")].find((h) => h.textContent?.includes("Next Time We Talk"))!;
-    expect(head.querySelector("button.see-all.pill-action")?.textContent).toBe("Add");
+    // "Add Topic", not a bare "Add": the capsule says what it adds (Dave 2026-10-05, the review).
+    expect(head.querySelector("button.see-all.pill-action")?.textContent).toBe("Add Topic");
     expect(head.querySelector("button.see-all.pill-action")?.getAttribute("aria-label")).toBe("Add Something to Talk About");
     expect(container.querySelector(".card .row-create")).toBeNull();
     // The only card with "Add Something" in it would be a box holding nothing but an action.
-    for (const card of container.querySelectorAll(".card")) expect(card.textContent).not.toMatch(/Add Something|^Add$/);
+    for (const card of container.querySelectorAll(".card")) expect(card.textContent).not.toMatch(/Add Something|Add Topic|^Add$/);
+  });
+
+  // CRAFTED, NOT BLANK, AND NEVER A DEAD END (2026-10-05, law L7): the empty talking-points state keeps its words and carries the
+  // one action that fills it, in its own words so it never reads as a second copy of the head's capsule.
+  it("with no topics saved the empty state carries its own action, which opens the add field", () => {
+    const { container } = render(<PersonDetail person={person} {...baseProps} onAddPoint={() => {}} onTogglePoint={() => {}} />);
+    const empty = container.querySelector(".empty-state")!;
+    expect(empty.querySelector(".empty-title")?.textContent).toBe("Nothing to Bring Up Yet");
+    const act = empty.querySelector("button")!;
+    expect(act.textContent).toBe("Save a Topic");
+    fireEvent.click(act);
+    expect(container.querySelector(".empty-state"), "the empty state steps aside once the field is open").toBeNull();
+    expect(container.querySelector("input, [contenteditable]")).not.toBeNull();
   });
 });

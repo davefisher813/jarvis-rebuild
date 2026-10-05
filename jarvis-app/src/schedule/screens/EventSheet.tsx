@@ -20,8 +20,8 @@ import type { Source } from "../../shared/provenance";
 import HeadMenu from "../../shared/HeadMenu";
 import { onPressKey } from "../../shared/pressable";
 import { Tile, tapField } from "../../shared/FormSheet";
-import { Calendar, Tag, Hourglass, Shuffle, Timer, Link2, FileText, User, Plus, FolderKanban, Brain } from "../../shared/icons";
-import { CalendarGlyph, ClockGlyph, RepeatGlyph, PinGlyph, BarbellGlyph, SunGlyph } from "../../shared/glyphs";
+import { Calendar, Tag, Hourglass, Shuffle, Timer, Link2, FileText, User, Plus, FolderKanban, Brain, ArrowUp } from "../../shared/icons";
+import { CalendarGlyph, ClockGlyph, RepeatGlyph, PinGlyph, BarbellGlyph } from "../../shared/glyphs";
 import { spanLabel } from "../../shared/duration";
 
 export type { SheetCategory };
@@ -698,6 +698,7 @@ export default function EventSheet({
             {/* Suggestions are labelled and drawn as what they are, chips under the field,
                 not three bold unlabelled rows that read as content (2026-10-05 review). */}
             {locSugs.length > 0 && (
+              /* row-tap: chip strip, each chip its own pick; the strip is not an item */
               <div className="row xs-strip xs-sug">
                 <div className="xs-sug-label">Recent Places</div>
                 <div className="chip-row">
@@ -802,19 +803,17 @@ export default function EventSheet({
                     <RowCtxAction when label="Add" ariaLabel={"Add " + o.task.text} onAct={() => { setTaskIds((ids) => [...ids, o.task.id]); onBlend?.(blockKind({ title, location }), o.task.category); }} />
                   </div>
                 ))}
-                {rest.length > 0 && (
-                  /* row-tap: chip strip, each chip its own pick; the strip is not an item */
-                  <div className="row xs-strip">
-                    <div className="chip-row">
-                      {rest.map((t) => (
-                        <div key={t.id} className="chip" role="button" tabIndex={0}
-                          onClick={() => { setTaskIds((ids) => [...ids, t.id]); onBlend?.(blockKind({ title, location }), t.category); }}>
-                          <span className={"cat-dot cat-bg-" + catColor(t.category)} />{titleCase(t.text)}
-                        </div>
-                      ))}
-                    </div>
+                {/* The area's other open tasks are ROWS, the same as the ranked offers above (2026-10-05 review: they were
+                    grey capsules inside the card, and a long title clipped at the card edge). A row wraps a long title to
+                    two lines and takes the same quiet Add and the two-line clamp (.row .conn-name.truncate); it has no reason line, because it was not ranked. */}
+                {rest.map((t) => (
+                  <div key={t.id} className="row xs-row" role="button" tabIndex={0}
+                    onClick={() => { setTaskIds((ids) => [...ids, t.id]); onBlend?.(blockKind({ title, location }), t.category); }}>
+                    <span className={"cat-dot cat-bg-" + catColor(t.category)} />
+                    <div className="row-grow"><div className="conn-name truncate">{titleCase(t.text)}</div></div>
+                    <RowCtxAction when label="Add" ariaLabel={"Add " + t.text} onAct={() => { setTaskIds((ids) => [...ids, t.id]); onBlend?.(blockKind({ title, location }), t.category); }} />
                   </div>
-                )}
+                ))}
               </div></div>
             </>
           )}
@@ -841,9 +840,9 @@ export default function EventSheet({
             <div className="pad-x xs-actions"><div className="card xs-group">
               {onMoveToAnytime && recurrence === "none" && (
                 <div className="row xs-row" role="button" tabIndex={0} onClick={onMoveToAnytime}>
-                  <Tile tone="sky"><SunGlyph /></Tile>
+                  {/* An action, not a place to go: an arrow up out of the timed day, and no chevron (the review, 2026-10-05). */}
+                  <Tile tone="sky"><ArrowUp className="ic" /></Tile>
                   <div className="conn-name">Move to Anytime</div>
-                  <div className="chev"></div>
                 </div>
               )}
               {/* Brain Manual v1 (2026-09-27): one tap files the decision
@@ -862,7 +861,6 @@ export default function EventSheet({
                 <div className="row xs-row" role="button" tabIndex={0} onClick={onDuplicate}>
                   <Tile tone="indigo"><Plus className="ic" /></Tile>
                   <div className="conn-name">Duplicate</div>
-                  <div className="chev"></div>
                 </div>
               )}
               {onDelete && (

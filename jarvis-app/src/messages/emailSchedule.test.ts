@@ -33,7 +33,8 @@ describe("addEmailMeetingOnce: the one door", () => {
     const { svc } = setup();
     const r = await addEmailMeetingOnce(args(svc));
     expect(r.status).toBe("added");
-    expect(r.message).toContain("On Your Calendar");
+    expect(r.message).toMatch(/^Scheduled [A-Za-z]+ \d+, \d{1,2}:\d{2} [AP]M$/);
+    expect(r.message, "one short line, no typed dot").not.toContain("\u00b7");
     const [ev] = await svc.listEvents();
     expect(ev!.data).toMatchObject({
       title: "Practice", date: "2026-09-22", start: "15:00", end: "16:00",

@@ -72,8 +72,12 @@ describe("Decision list anatomy", () => {
       expect(f.className).toContain("fact cat");
       expect(f.querySelector(".cd")).not.toBeNull();
     }
-    // The date is the shared small-caps primitive, not a class of its own.
-    const date = row.querySelector(".facts > .fact:last-child")!;
+    // The date is the shared small-caps primitive, not a class of its own, and it is a line of its own: the homes and the
+    // outcome are one line and the day another, so a wrap never strands the dot between them (Dave 2026-10-05, the review).
+    const factLines = Array.from(row.querySelectorAll(".facts"));
+    expect(factLines).toHaveLength(2);
+    expect(factLines[0]!.querySelector(".fact-link")).not.toBeNull();
+    const date = factLines[1]!.querySelector(".fact")!;
     expect(date.className).toBe("fact date");
     expect(container.querySelector(".dec-when")).toBeNull();
     // Long decision sentences wrap (two-line clamp) rather than truncating.
@@ -182,17 +186,22 @@ describe("the record's Attached To card", () => {
     fireEvent.click(screen.getByText("Ship the Student Template First").closest(".dec-row")!);
     await waitFor(() => expect(screen.getByText("Attached To")).toBeInTheDocument());
     const card = screen.getByText("Attached To").closest(".sh2")!.nextElementSibling!;
-    const facts = Array.from(card.querySelectorAll(".facts > .fact"));
-    expect(facts.map((f) => f.textContent)).toEqual(["Rebuild Bridge App", "Sam, Get Fit"]);
-    // The area home: the category fact, its own area on the dot, the name in .cat-t.
+    // EVERY HOME IS A ROW OF ITS OWN (Dave 2026-10-05, the review: "Rebuild Calder..." clipped beside 200px of empty card):
+    // its name as the title, what it IS as the one grey, the area's dot on a home that sits in an area.
+    const rows = Array.from(card.querySelectorAll(".row"));
+    expect(rows.map((r) => r.querySelector(".conn-name")!.textContent)).toEqual(["Rebuild Bridge App", "Sam", "Get Fit"]);
+    const facts = rows.map((r) => r.querySelector(".facts > .fact")!);
+    expect(facts.map((f) => f.textContent)).toEqual(["Project", "Person", "Goal"]);
+    // The area home: the category fact, its own area on the dot.
     const area = facts[0]!;
-    expect(area.className).toBe("fact cat fact-link");
+    expect(area.className).toBe("fact cat");
     await waitFor(() => expect(area.querySelector(".cd")!.className).toMatch(/\bcat-bg-orange\b/));
-    expect(area.querySelector(".cat-t")!.textContent).toBe("Rebuild Bridge App");
-    // Every other home: ONE plain fact, no dot, no invented grey mark.
-    const plain = facts[1]!;
-    expect(plain.className).toBe("fact");
-    expect(plain.querySelector(".cd")).toBeNull();
+    // Every other home: a plain fact, no dot, no invented grey mark, and no row is clipped by a fixed width.
+    for (const f of [facts[1]!, facts[2]!]) {
+      expect(f.className).toBe("fact");
+      expect(f.querySelector(".cd")).toBeNull();
+    }
+    expect(card.querySelector(".chip, .fact-link, .truncate")).toBeNull();
     expect(container.querySelector(".cat-bg-graphite")).toBeNull();
   });
 });
@@ -255,9 +264,11 @@ describe("Decisions: clean rows, one menu", () => {
     );
     await waitFor(() => expect(screen.getByText("Keep Fridays for Writing")).toBeInTheDocument());
     fireEvent.click(Array.from(container.querySelectorAll(".dec-name")).find((n) => n.textContent!.includes("Student Template"))!);
-    const ctx = await waitFor(() => { const c = container.querySelector(".row .row-ctx"); expect(c).not.toBeNull(); return c!; });
+    // The marked line under the control: the day it was marked, and the call's one action as text, never a capsule.
+    const ctx = await waitFor(() => { const c = container.querySelector(".dec-marked .row-ctx"); expect(c).not.toBeNull(); return c!; });
     expect(ctx.textContent).toBe("Change It");
     expect(ctx.className).toBe("row-ctx");
+    expect(container.querySelector(".dec-marked .fact.date")!.textContent).toMatch(/^Marked /);
   });
 });
 
@@ -336,9 +347,13 @@ describe("Decisions record page follows the catalog", () => {
     const { container } = render(<NotesProvider userId="u-dec-cat-out"><OneRecord extra={base}><DecisionsFlow onBack={() => {}} /></OneRecord></NotesProvider>);
     await openRecord(container, "Build a Six-Month Runway");
     expect(screen.queryByText("Mark Outcome")).toBeNull();
-    const card = screen.getByText("Outcome", { selector: ".sh2 .t" }).closest(".sh2")!.nextElementSibling!;
-    expect(card.querySelector(".segmented")).not.toBeNull();
-    expect(card.querySelectorAll(".row")).toHaveLength(1);
+    // The control stands on its own: no card round it, no track-inside-a-card, no title row that repeats the word it shows (Dave
+    // 2026-10-05, the review: three nested containers).
+    const block = screen.getByText("Outcome", { selector: ".sh2 .t" }).closest(".sh2")!.nextElementSibling!;
+    expect(block.querySelector(".segmented")).not.toBeNull();
+    expect(block.classList.contains("card")).toBe(false);
+    expect(block.querySelector(".card, .row, .conn-name")).toBeNull();
+    expect(block.querySelector(".dec-marked")).toBeNull(); // nothing marked yet, so nothing to caption
   });
 
   it("an empty reason invites in Title Case and states nothing", async () => {

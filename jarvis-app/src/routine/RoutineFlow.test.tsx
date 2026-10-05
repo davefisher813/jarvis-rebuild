@@ -6,6 +6,8 @@ import { NotesProvider } from "../data/NotesProvider";
 import { RoutineService } from "./RoutineService";
 import { subscribeToast } from "../shared/toast";
 import RoutineFlow from "./RoutineFlow";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 
 // BRAIN-F-12 (2026-09-05): routine.get() had no catch, so one failed read
 // left every field on this page disabled forever, with no message and no way
@@ -85,7 +87,7 @@ describe("RoutineFlow blocks save on the tap (BRAIN-F-06)", () => {
         <RoutineFlow onBack={() => {}} />
       </NotesProvider>,
     );
-    fireEvent.click(await screen.findByText("Add Protected Time"));
+    fireEvent.click(await screen.findByRole("button", { name: "Add Protected Time" }));
     fireEvent.change(await screen.findByLabelText("Name"), { target: { value: "Gym" } });
     fireEvent.click(screen.getByText("Add Block"));
 
@@ -105,7 +107,7 @@ describe("RoutineFlow blocks save on the tap (BRAIN-F-06)", () => {
         <RoutineFlow onBack={() => {}} />
       </NotesProvider>,
     );
-    fireEvent.click(await screen.findByText("Add Protected Time"));
+    fireEvent.click(await screen.findByRole("button", { name: "Add Protected Time" }));
     fireEvent.change(await screen.findByLabelText("Name"), { target: { value: "Lunch" } });
     fireEvent.click(screen.getByText("Add Block"));
     await waitFor(async () => expect((await routineRef!.get()).protectedBlocks ?? []).toHaveLength(1));
@@ -128,7 +130,7 @@ describe("RoutineFlow blocks save on the tap (BRAIN-F-06)", () => {
           <RoutineFlow onBack={() => {}} />
         </NotesProvider>,
       );
-      fireEvent.click(await screen.findByText("Add Protected Time"));
+      fireEvent.click(await screen.findByRole("button", { name: "Add Protected Time" }));
       fireEvent.change(await screen.findByLabelText("Name"), { target: { value: "Lunch" } });
       fireEvent.click(screen.getByText("Add Block"));
       await waitFor(async () => expect((await routineRef!.get()).protectedBlocks ?? []).toHaveLength(1));
@@ -166,7 +168,7 @@ describe("RoutineFlow protected time: the row shows every fact", () => {
         <RoutineFlow onBack={() => {}} />
       </NotesProvider>,
     );
-    fireEvent.click(await screen.findByText("Add Protected Time"));
+    fireEvent.click(await screen.findByRole("button", { name: "Add Protected Time" }));
     fireEvent.change(await screen.findByLabelText("Name"), { target: { value: "Gym" } });
     fireEvent.click(screen.getByText("Add Block"));
     await waitFor(async () => expect((await routineRef!.get()).protectedBlocks ?? []).toHaveLength(1));
@@ -194,7 +196,7 @@ describe("RoutineFlow Can Blend: the note says what the chips mean", () => {
         <RoutineFlow onBack={() => {}} />
       </NotesProvider>,
     );
-    fireEvent.click(await screen.findByText("Add Protected Time"));
+    fireEvent.click(await screen.findByRole("button", { name: "Add Protected Time" }));
     fireEvent.change(await screen.findByLabelText("Name"), { target: { value: "Drive" } });
     // The kind chip, not the preset of the same name above the form.
     fireEvent.click(screen.getByRole("button", { name: "Commute", pressed: false }));
@@ -217,7 +219,7 @@ describe("RoutineFlow Can Blend: the note says what the chips mean", () => {
         <RoutineFlow onBack={() => {}} />
       </NotesProvider>,
     );
-    fireEvent.click(await screen.findByText("Add Protected Time"));
+    fireEvent.click(await screen.findByRole("button", { name: "Add Protected Time" }));
     fireEvent.change(await screen.findByLabelText("Name"), { target: { value: "Drive" } });
     fireEvent.click(screen.getByRole("button", { name: "Commute", pressed: false }));
     fireEvent.click(screen.getByText("Mouth"));
@@ -245,25 +247,30 @@ describe("RoutineFlow: clean rows, the Add is in the section head (2026-10-05)",
 
   it("with no blocks the section is its head and the capsule, with no card drawn round it", async () => {
     const { container } = mount("u-routine-head-empty");
-    const add = await screen.findByText("Add Protected Time");
+    const add = await screen.findByRole("button", { name: "Add Protected Time" });
     expect(add.closest(".sh2")).not.toBeNull();
     expect(add.className).toContain("pill-action");
     const head = add.closest(".sh2")!;
     expect(head.querySelector(".t")!.textContent).toBe("Protected Time");
-    // Nothing between this head and the next one: no plate for the capsule to sit in.
-    expect(head.nextElementSibling!.classList.contains("sh2")).toBe(true);
+    // Nothing between this head and the next one but the crafted empty state (a glyph, a title, one line): no plate round the
+    // capsule, which stays in the head (D9, 2026-10-05).
+    const next = head.nextElementSibling!;
+    expect(next.classList.contains("empty-state")).toBe(true);
+    expect(next.querySelector(".empty-title")!.textContent).toBe("Nothing Protected Yet");
+    expect(next.querySelector("button")).toBeNull();
+    expect(add.textContent).toBe("Add");
     expect(container.querySelectorAll(".card .row-act, .card .pill-act").length).toBe(0);
   });
 
   it("with blocks the card holds only their rows, the Add stays in the head, and the row keeps its door", async () => {
     const { container } = mount("u-routine-head-rows");
-    fireEvent.click(await screen.findByText("Add Protected Time"));
+    fireEvent.click(await screen.findByRole("button", { name: "Add Protected Time" }));
     fireEvent.change(await screen.findByLabelText("Name"), { target: { value: "deep work" } });
     fireEvent.click(screen.getByText("Add Block"));
     const row = await screen.findByText("Deep Work"); // a typed title is shown in Title Case, stored as typed
     await waitFor(async () => expect((await routineRef!.get()).protectedBlocks!.map((b) => b.label)).toEqual(["deep work"]));
     expect(row.closest(".card")!.querySelectorAll(".row-act, .pill-act, .btn-sm").length).toBe(0);
-    expect(screen.getAllByText("Add Protected Time").every((b) => b.closest(".sh2") !== null)).toBe(true);
+    expect(screen.getAllByRole("button", { name: "Add Protected Time" }).every((b) => b.closest(".sh2") !== null)).toBe(true);
     expect(container.querySelectorAll(".card .row-act").length).toBe(0);
   });
 
@@ -278,5 +285,47 @@ describe("RoutineFlow: clean rows, the Add is in the section head (2026-10-05)",
     } finally {
       spy.mockRestore();
     }
+  });
+});
+
+// A TIME LOOKS LIKE SOMETHING YOU CAN TAP (Dave 2026-10-05, the review: Your Routine's times were text beside a clock glyph, and only the
+// glyph said they could be changed). Every time on the page sits in the same quiet well a typed name does, at the width of the time. And
+// the head reads "PROTECTED TIME" in full in both themes: its capsule is "Add", the same in both, so the title never gets squeezed.
+describe("RoutineFlow: times are wells, and the Protected Time head never squeezes its title (2026-10-05)", () => {
+  it("every time field on the page is a well, with weekends' two in a card of their own", async () => {
+    const { container } = render(
+      <NotesProvider userId="u-routine-wells"><CaptureRoutine /><RoutineFlow onBack={() => {}} /></NotesProvider>,
+    );
+    await screen.findByRole("button", { name: "Add Protected Time" });
+    const times = () => [...container.querySelectorAll<HTMLInputElement>("input[type=time]")];
+    expect(times()).toHaveLength(4);
+    for (const t of times()) expect(t.className).toBe("set-field set-field-well set-field-time");
+    fireEvent.click(screen.getByRole("switch", { name: "Different hours on weekends" }));
+    await waitFor(() => expect(times()).toHaveLength(6));
+    for (const t of times()) expect(t.className).toContain("set-field-well");
+    // The toggle is its own card and the two weekend times are another (the page grew under the thumb with no rhythm).
+    const toggleCard = container.querySelector("[role=switch]")!.closest(".card")!;
+    expect(toggleCard.querySelector("input[type=time]")).toBeNull();
+    expect(toggleCard.parentElement!.nextElementSibling!.querySelectorAll("input[type=time]")).toHaveLength(2);
+  });
+
+  it("the Protected Time head's capsule is the short word the title does not need said twice, and it keeps its full name for a screen reader", async () => {
+    const { container } = render(
+      <NotesProvider userId="u-routine-short-cap"><CaptureRoutine /><RoutineFlow onBack={() => {}} /></NotesProvider>,
+    );
+    const add = await screen.findByRole("button", { name: "Add Protected Time" });
+    expect(add.textContent).toBe("Add");
+    const head = add.closest(".sh2")!;
+    expect(head.querySelector(".t")!.textContent).toBe("Protected Time");
+    expect(container.querySelector(".sh2 .t")!.getAttribute("style")).toBeNull();
+  });
+
+  it("the stylesheet gives the time well its own width, and never a light-only size", () => {
+    const css = ["components.css", "ruled.css"].map((f) => readFileSync(join(process.cwd(), "src/styles", f), "utf8")).join("\n").replace(/\/\*[\s\S]*?\*\//g, "");
+    const rule = [...css.matchAll(/([^{}]+)\{([^}]*)\}/g)].filter((m) => m[1]!.split(",").some((s) => s.trim() === ".ruled .set-field.set-field-well.set-field-time")).map((m) => m[2]!).join(" ");
+    expect(rule).toMatch(/flex:\s*0 0 auto/);
+    expect(rule).toMatch(/max-width:\s*none/);
+    expect(css).not.toMatch(/\[data-theme="light"\][^{}]*\.set-field[^{}]*\{[^}]*font-size/);
+    expect(css).not.toMatch(/\[data-theme="light"\][^{}]*\.sh2 \.t[^{}]*\{[^}]*font-size/);
   });
 });

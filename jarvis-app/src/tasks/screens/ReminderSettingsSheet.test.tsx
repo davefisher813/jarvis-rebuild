@@ -26,7 +26,7 @@ describe("ReminderSettingsSheet", () => {
   // deferred, and no in-app prompt reads the setting.
   it("the Quiet Hours note says a follow-up in the window is skipped, and promises nothing about prompts or waiting", () => {
     render(<ReminderSettingsSheet initial={DEFAULT_REMINDER_PREFS} native={true} permission="granted" onSave={() => {}} onCancel={() => {}} />);
-    expect(screen.getByText(/Follow-up That Would Land in Quiet Hours Is Skipped/)).toBeInTheDocument();
+    expect(screen.getByText(/Follow-Up That Would Land in Quiet Hours Is Skipped/)).toBeInTheDocument();
     expect(screen.getByText(/A Reminder's Own Alert Still Rings/)).toBeInTheDocument();
     expect(screen.queryByText(/in-app prompts/i)).toBeNull();
     expect(screen.queryByText(/wait/i)).toBeNull();

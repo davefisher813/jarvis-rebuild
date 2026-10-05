@@ -69,7 +69,14 @@ describe("Your Hours in the monthly report", () => {
     const sheet = document.querySelector(".sheet-scrim")!;
     expect(sheet, "the tap does something").toBeTruthy();
     expect(sheet.textContent).toContain("Your Hours: 3 PM to 6 PM");
-    expect(sheet.textContent).toContain("84 Finishes This Month");
+    // The receipts are the three busiest hours, as rows in the app's own words: what the bars are made of, not one loud sentence
+    // in a box (Dave 2026-10-05, the review).
+    expect([...sheet.querySelectorAll(".rep-receipts .rep-receipt-line")].map((e) => e.textContent)).toEqual(["3 PM: 9 Finishes", "4 PM: 9 Finishes", "5 PM: 9 Finishes"]);
+    // They are evidence in the primary ink, not a grey sub line: the receipt line is its own class, never .conn-meta.
+    expect(sheet.querySelector(".rep-receipts .conn-meta")).toBeNull();
+    expect(sheet.textContent).toContain("4 PM: 9 Finishes");
+    expect(sheet.textContent).toContain("5 PM: 9 Finishes");
+    expect(sheet.textContent).not.toContain("This Month; the");
     fireEvent.click(screen.getByText("Done", { selector: ".sheet-scrim button" }));
     expect(document.querySelector(".sheet-scrim")).toBeNull();
   });

@@ -4015,8 +4015,12 @@ describe("LAW 11: cards show their work, tags earn their shape, and no screen is
     const flow = read(join(SRC, "messages/MessagesFlow.tsx"));
     const head = flow.indexOf('<span className="t">Needs You</span>');
     expect(head, "Needs You has a head").toBeGreaterThan(-1);
-    expect(flow.slice(head, head + 400), "the Sweep is its head action, with its estimate")
-      .toMatch(/see-all pill-action[\s\S]*"Sweep \\u00b7 " \+ sweepEstimate\(needsYou\.length\)/);
+    // AMENDED (Dave 2026-10-05, the review: no dot typed into a capsule label): the capsule is the verb alone and the
+    // estimate is a sky fact span beside it in the same head.
+    const headSrc = flow.slice(head, head + 1200);
+    expect(headSrc, "the Sweep is its head action, with its estimate as a fact beside it")
+      .toMatch(/className="n fact est">\{sweepEstimate\(needsYou\.length\)\}<\/span>[\s\S]*see-all pill-action[\s\S]*>Sweep<\/button>/);
+    expect(headSrc, "and no dot is typed into the label").not.toMatch(/"Sweep \\u00b7/);
     const rimIdx = flow.indexOf('<div className="conn-name">Read It to Me</div>');
     expect(rimIdx, "Read It to Me is a Tools row").toBeGreaterThan(-1);
     // AMENDED (Dave 2026-10-05, locked: clean rows, no pill on a row). A row that performs used to carry a Play,

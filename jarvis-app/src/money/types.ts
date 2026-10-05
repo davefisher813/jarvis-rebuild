@@ -13,6 +13,10 @@ export const ACCOUNT_META: Record<AccountKind, { label: string; slot: string }> 
   credit: { label: "Credit", slot: "red" },
   other: { label: "Other", slot: "graphite" },
 };
+/** True when an account's name already contains its kind's word, so the kind line would only restate the title. */
+export const kindRestated = (name: string, kind: string): boolean =>
+  name.toLowerCase().split(/[^a-z0-9]+/).includes(kind.toLowerCase());
+
 export const ACCOUNT_KINDS: AccountKind[] = ["cash", "savings", "investment", "credit", "other"];
 
 // HMN-F-25 (2026-09-05), option B. Whole dollars were a design choice, and

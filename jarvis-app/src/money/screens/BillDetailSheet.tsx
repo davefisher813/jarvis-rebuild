@@ -48,6 +48,8 @@ export default function BillDetailSheet({ bill, today, onClose, onEdit, onMarkPa
   const paid = isPaid(d);
   const reopened = !paid && !!d.paidAt && !!d.paidNeedsReconfirm;
   const chip = ledgerChip(d, today);
+  // The key colour of where the bill stands: late red, due amber, and nothing for a bill that is paid or far out.
+  const stateTone: "red" | "warn" | undefined = paid ? undefined : chip?.cls === "u-late" ? "red" : chip?.cls === "u-today" ? "warn" : undefined;
   const evidence = evidenceLine(d, txs);
   const history = historyLines(d.history, d.currency);
   const source: Source | undefined = d.source !== "manual" && d.source.type === "email"
@@ -63,15 +65,17 @@ export default function BillDetailSheet({ bill, today, onClose, onEdit, onMarkPa
         {/* A bill with no due date shows no Due row at all (2026-10-05, the
             visual catalog gate, R1: a row with nothing to say shows nothing,
             and "None" is the placeholder the rule names; it used to say "None"). */}
+        {/* THE DUE DATE AND THE STATUS WEAR THE BILL'S STATE (Dave 2026-10-05, the Colour Key: a due date drawn grey is a
+            violation). Due in a day or two is amber, late is red, paid is green on the status. The chip class the ledger
+            returns (.uchip) is a ruled-list class and does nothing inside a sheet, so the state reads as a fact tone here:
+            the same two key colours, no capsule in a row. */}
         {d.dueDate && (
           <Row tone="orange" glyph={<Calendar className="ic" />} label="Due">
-            <span className="bill-val">{monthDay(d.dueDate)}</span>
+            <span className={"bill-val fact" + (stateTone ? " " + stateTone : "")}>{monthDay(d.dueDate)}</span>
           </Row>
         )}
         <Row tone="blue" glyph={<CheckCircleGlyph />} label="Status">
-          {chip
-            ? <span className={"uchip bill-val " + chip.cls}>{chip.text}</span>
-            : <span className={"bill-val" + (paid ? " fact good" : "")}>{ledgerStatusWord(d, today)}</span>}
+          <span className={"bill-val fact" + (paid ? " good" : stateTone ? " " + stateTone : "")}>{chip ? chip.text : ledgerStatusWord(d, today)}</span>
         </Row>
         {d.recurrence && <Row tone="sky" glyph={<RepeatGlyph />} label="Repeats"><span className="bill-val">{lineCase(d.recurrence)}</span></Row>}
         {d.autopay && <Row tone="blue" glyph={<RepeatGlyph />} label="Autopay"><span className="bill-val">On</span></Row>}
@@ -85,10 +89,13 @@ export default function BillDetailSheet({ bill, today, onClose, onEdit, onMarkPa
       {evidence && <Note>{evidence}</Note>}
       {source && <div className="pad-x bill-prov"><Provenance source={source} onOpen={open} /></div>}
 
+      {/* THE PRIMARY IS THE SHEET'S ONE FILLED BUTTON, THE QUIETER ACTIONS BENEATH IT (Dave 2026-10-05, locked: the detail sheet
+          holds every action with the primary prominent). Mark Paid used to be a grey row the weight of the details, while
+          Delete Bill was the loudest thing on the sheet. */}
       {(!paid || reopened) && (
-        <Group className="xs-actions">
-          <Row onClick={onMarkPaid} chev label={reopened ? "Confirm It Is Still Paid" : "Mark Paid"} />
-        </Group>
+        <div className="rem-detail-acts">
+          <button type="button" className="btn btn-primary" onClick={onMarkPaid}>{reopened ? "Confirm It Is Still Paid" : "Mark Paid"}</button>
+        </div>
       )}
       {!!d.paidAt && (
         <Group className="xs-actions">

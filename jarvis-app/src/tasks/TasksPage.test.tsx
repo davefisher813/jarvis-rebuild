@@ -59,7 +59,7 @@ describe("TasksPage", () => {
 
     fireEvent.click(screen.getByLabelText("View"));
     expect(screen.getAllByRole("menuitemradio").map((i) => i.textContent))
-      .toEqual(["All6", "Daily", "Today2", "Overdue1", "Upcoming3", "From Email", "Done1"]);
+      .toEqual(["All6", "Daily", "Today2", "Overdue1", "Upcoming3", "From Email", "Done1"]);   // every view is offered; a count of zero is not drawn (unifiedHeader law)
   });
 
   it("picking a view fires the filter, and the selected one is a no-op", () => {

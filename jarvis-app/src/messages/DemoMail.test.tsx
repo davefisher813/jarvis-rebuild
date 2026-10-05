@@ -26,7 +26,7 @@ describe("DemoMail fixture", () => {
     expect(tabs.map((t) => t.textContent)).toEqual(["Needs You3", "Waiting On4"]);
     expect(screen.getByText("The Rest")).toBeInTheDocument();
     // E-02 (2026-09-12): the Sweep is the Needs You head's capsule, not a card.
-    expect(screen.getByText(/^Sweep \u00b7 About/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Sweep, About \d+ Min$/ })).toBeInTheDocument();
     // Needs You shows first; Waiting On's rows are one tap over.
     expect(screen.getByText("Northwind Cloud")).toBeInTheDocument();
     // A seed's subject travels to Today as the gist, drawn whole, so it
@@ -142,13 +142,58 @@ describe("DemoMail fixture: the catalog (2026-10-05)", () => {
     const metas = Array.from(document.querySelectorAll(".conn-meta")).map((m) => m.textContent ?? "");
     expect(metas).toContain("14 Threads from 6 Senders");
     expect(metas).toContain("A Timed Drain That Stops Itself");
-    expect(metas).toContain("Senders and Gists, Never the Message");
-    expect(metas).toContain("Open Email on a Schedule");
+    expect(metas).toContain("Gists, Never the Message");
+    // A row with nothing to say shows nothing: "Open Email on a Schedule" restated the title it sat under.
+    expect(metas).not.toContain("Open Email on a Schedule");
+    expect(screen.getByText("Email Windows").closest(".row")!.querySelector(".conn-meta")).toBeNull();
     for (const t of metas) expect(lowercaseWords(t), t).toEqual([]);
   });
 
-  it("the Sweep capsule says About 2 Min, as the live head does", () => {
+  it("the Sweep capsule is the verb alone and About 2 Min is a sky fact beside it, no dot typed into a label (Dave 2026-10-05)", () => {
     render(<DemoMail />);
-    expect(screen.getByText("Sweep · About 2 Min")).toBeInTheDocument();
+    const capsule = screen.getByRole("button", { name: "Sweep, About 2 Min" });
+    expect(capsule.textContent).toBe("Sweep");
+    expect(capsule.textContent).not.toContain("\u00b7");
+    const est = screen.getByText("About 2 Min");
+    expect(est).toHaveClass("fact", "est");
+    expect(est.closest(".sh2")).toBe(capsule.closest(".sh2"));
+  });
+
+  it("the floor under Needs You is Title Case, and the deadline is amber text in the time's own slot, never a capsule", () => {
+    render(<DemoMail />);
+    expect(screen.getByText("That\u2019s Every One That Needs You.")).toBeInTheDocument();
+    const due = document.querySelector(".mline1 .mdue")!;
+    expect(due.textContent).toBe("Today");
+    // One kind of element at the right edge of every row: a time or a deadline, both plain text.
+    expect(document.querySelectorAll(".mline1 > .mwhen, .mline1 > .mdue").length).toBe(3);
+    expect(document.querySelectorAll(".mline1 > button, .mline1 > .pill").length).toBe(0);
+  });
+
+  it("every floor under a list is Title Case: Waiting On and the All view say That\u2019s Everything., not the sentence-case default", () => {
+    render(<DemoMail />);
+    fireEvent.click(screen.getByRole("tab", { name: /Waiting On/ }));
+    expect(screen.getByText("That\u2019s Everything.")).toBeInTheDocument();
+    expect(screen.queryByText("That's everything.")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "All" }));
+    expect(screen.getByText("That\u2019s Everything.")).toBeInTheDocument();
+  });
+
+  it("the Tools tiles wear a colour each, never the flat graphite, and the Connect Google offer has its own words", () => {
+    render(<DemoMail onConnect={() => undefined} />);
+    const tiles = Array.from(document.querySelectorAll(".row-ico")).map((t) => t.className);
+    expect(tiles.length).toBe(4);
+    for (const c of tiles) expect(c, c).not.toContain("graphite");
+    expect(new Set(tiles).size, "one tile each, not one flat tile four times").toBe(4);
+    expect(screen.getByText("Connect Your Inbox")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Connect Google" })).toBeInTheDocument();
+  });
+
+  it("the view row is a quiet tab row (not a second pill control) and The Rest is a door with its count as plain text", () => {
+    render(<DemoMail />);
+    expect(document.querySelector(".msg-chips.msg-views")).not.toBeNull();
+    const rest = screen.getByText("The Rest").closest(".row")!;
+    expect(rest.querySelector(".pill")).toBeNull();
+    expect(rest.querySelector(".fact b")!.textContent).toBe("14");
+    expect(rest.querySelector(".chev")).not.toBeNull();
   });
 });

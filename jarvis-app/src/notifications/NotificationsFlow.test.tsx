@@ -4,7 +4,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, act, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import { useEffect, useState } from "react";
-import { NotesProvider, useTasks } from "../data/NotesProvider";
+import { NotesProvider, useTasks, useSchedule } from "../data/NotesProvider";
+import { todayISO } from "../ai/useAIContext";
 import NotificationsFlow from "./NotificationsFlow";
 import { subscribeToast, resetToasts, type ToastState } from "../shared/toast";
 
@@ -79,18 +80,19 @@ describe("NotificationsFlow: Done and Undo on a task", () => {
   // Tasks chip with its evidence beside it (no dot baked between them), and
   // the overdue twin says so in the late chip, not the line's plain grey.
   // The evidence takes its own tone too: days late is late, so red.
-  it("the sliding verdict is its own chip, its lateness is red, and overdue wears the late chip", async () => {
+  it("the sliding verdict is its own fact, its lateness is red, and overdue is a red fact, never a chip", async () => {
     render(<NotesProvider userId="u-notif-key"><Seeded /></NotesProvider>);
     await screen.findAllByText("Water Plants");
-    const tag = document.querySelector(".notif-row .slide-tag");
+    const tag = document.querySelector(".notif-row .facts .fact");
     expect(tag).toHaveTextContent("Keeps Sliding");
+    expect(tag).toHaveClass("fact", "warn");
     const evidence = tag!.nextElementSibling!;
     // Casing sweep 3 (2026-09-27): Title Case by the whole rule (§H2); durations through shared/duration ("45 Min", "About 1 Min").
     expect(evidence.textContent).toMatch(/Days Late$/);
-    expect(evidence).toHaveClass("r-goal", "fact", "red");
-    expect(evidence).not.toHaveClass("r-stalled");
+    expect(evidence).toHaveClass("fact", "red");
     expect(evidence.textContent).not.toMatch(/·/);
-    expect(screen.getByText("Overdue")).toHaveClass("uchip", "u-late");
+    expect(screen.getByText("Overdue")).toHaveClass("fact", "red");
+    expect(document.querySelectorAll(".notif-row .uchip, .notif-row .slide-tag").length, "no filled chip on a notification row").toBe(0);
   });
 
   // A task pushed again and again is stalled, not late: the amber the Tasks
@@ -110,9 +112,9 @@ describe("NotificationsFlow: Done and Undo on a task", () => {
     }
     render(<NotesProvider userId="u-notif-pushed"><Pushed /></NotesProvider>);
     await screen.findByText("Book the Dentist");
-    const evidence = document.querySelector(".notif-row .slide-tag")!.nextElementSibling!;
+    const evidence = document.querySelector(".notif-row .facts .fact")!.nextElementSibling!;
     expect(evidence).toHaveTextContent("Pushed 3 Times");
-    expect(evidence).toHaveClass("r-goal", "r-stalled");
+    expect(evidence).toHaveClass("fact", "warn");
     expect(evidence).not.toHaveClass("red");
   });
 
@@ -182,5 +184,77 @@ describe("NotificationsFlow: clean rows", () => {
     const tray = Array.from(shell.querySelectorAll(":scope > button")).map((b) => b.textContent);
     expect(tray).toEqual(["Done", "Dismiss"]);
     expect(shell.querySelector(".task-done-rail")!.textContent).toBe("Done");
+  });
+});
+
+// A STATE IS A COLOURED FACT, NEVER A FILLED CHIP, AND AMBER IS RATIONED (Dave 2026-10-05, locked: "no pills anywhere inside a card
+// or a row"; the review: eleven amber items on one screen, so nothing read as urgent).
+describe("NotificationsFlow: facts, not chips", () => {
+  function Mixed() {
+    const tasks = useTasks();
+    const sched = useSchedule();
+    const [ready, setReady] = useState(false);
+    useEffect(() => {
+      void (async () => {
+        const today = todayISO();
+        await tasks.createTask("Create the invoice", { due: today });
+        await sched.createEvent("Call with Nadia", { date: today, start: "10:00" });
+        await sched.createEvent("Deep Work", { date: today, start: "13:00", end: "14:30" });
+        await sched.createEvent("Gym Session", { date: today, start: "17:30" });
+        setReady(true);
+      })();
+    }, [tasks, sched]);
+    return ready ? <NotificationsFlow /> : null;
+  }
+  beforeEach(() => {
+    localStorage.clear();
+    // Only the clock is faked, so promises and timers still run; 8 AM puts every seeded event ahead of him.
+    const d = new Date(); d.setHours(8, 0, 0, 0);
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(d);
+  });
+  afterEach(() => vi.useRealTimers());
+
+  it("draws no filled chip on any row, the due state is an amber fact, and a time is a fact too", async () => {
+    render(<NotesProvider userId="u-notif-facts"><Mixed /></NotesProvider>);
+    await screen.findByText("Create the Invoice");
+    expect(document.querySelectorAll(".notif-row .uchip, .notif-row .slide-tag, .notif-row .pill-act").length).toBe(0);
+    expect(screen.getByText("Due Today")).toHaveClass("fact", "warn");
+    // Every fact on every row is a span the CSS separates; no dot is typed into a string.
+    document.querySelectorAll(".notif-row .fact").forEach((f) => expect(f.textContent).not.toContain("\u00b7"));
+  });
+
+  it("only the next event is amber; later times are neutral small-caps dates, and a time is never split from its AM or PM", async () => {
+    render(<NotesProvider userId="u-notif-next"><Mixed /></NotesProvider>);
+    await screen.findByText("Call with Nadia");
+    const times = Array.from(document.querySelectorAll(".notif-row .fact")).filter((f) => /\d:\d\d/.test(f.textContent ?? ""));
+    expect(times.map((t) => t.textContent)).toEqual(["10:00\u00a0AM", "1:00\u00a0PM", "5:30\u00a0PM"]);
+    // One letterform for every time (small caps); the colour is the only difference.
+    times.forEach((t) => expect(t).toHaveClass("fact", "date"));
+    expect(times[0]).toHaveClass("warn");
+    expect(times[1]).not.toHaveClass("warn");
+    expect(times[2]).not.toHaveClass("warn");
+    expect(document.querySelectorAll(".notif-row .fact.warn").length, "amber is a signal: the task due today and the next event").toBe(2);
+  });
+
+  it("an event title is cased the way the Schedule cases it, with its small word lowercase", async () => {
+    render(<NotesProvider userId="u-notif-case"><Mixed /></NotesProvider>);
+    expect(await screen.findByText("Call with Nadia")).toBeInTheDocument();
+  });
+});
+
+// EVERY MORE PAGE HAS A WAY BACK (the review: Notifications opened with no back link). The shell hands the way back in.
+describe("NotificationsFlow: back to More", () => {
+  it("draws the back link when the shell gives it a way back, and none when it does not", async () => {
+    const onBack = vi.fn();
+    const { unmount } = render(<NotesProvider userId="u-notif-back"><NotificationsFlow onBack={onBack} /></NotesProvider>);
+    const back = await screen.findByRole("button", { name: "More" });
+    expect(back).toHaveClass("nav-back");
+    fireEvent.click(back);
+    expect(onBack).toHaveBeenCalledTimes(1);
+    unmount();
+    render(<NotesProvider userId="u-notif-noback"><NotificationsFlow /></NotesProvider>);
+    await screen.findByText("You're All Caught Up");
+    expect(document.querySelector(".nav-back")).toBeNull();
   });
 });

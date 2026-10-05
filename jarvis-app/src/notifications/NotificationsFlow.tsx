@@ -13,9 +13,9 @@ import { SwipeShell } from "../today/MoveHeadliner";
 import { titleCase } from "../shared/casing";
 import { fmtTime } from "../schedule/calendar";
 
-// An event's when is its start as HH:MM from the feed; the chip says it the
-// way the Schedule does ("5:30 PM").
-const whenWord = (w: string) => (/^\d\d:\d\d$/.test(w) ? `${fmtTime(w).time} ${fmtTime(w).ap}` : w);
+// An event's when is its start as HH:MM from the feed; the fact says it the
+// way the Schedule does ("5:30 PM"), with a non-breaking space so the time is never split from its AM or PM.
+const whenWord = (w: string) => (/^\d\d:\d\d$/.test(w) ? `${fmtTime(w).time}\u00a0${fmtTime(w).ap}` : w);
 
 const BELL = <BellGlyph />;
 
@@ -29,29 +29,25 @@ const KIND: Record<NudgeKind, RowKind> = {
   goal_risk: "goal",
 };
 
-// THE WHY TAKES THE COLOUR KEY (§AM, 2026-09-26). Every sub line here was the
-// same plain grey, so "Overdue" and "Due today" read as neutral as "Today"
-// under an event. Late and due are the task row's own urgency chips (Tasks,
-// Today and Projects draw the same facts that way); an at-risk goal needs
-// him soon, so it is amber.
-const SUB: Record<NudgeKind, string> = {
-  sliding: "r-goal r-cat",
-  overdue: "uchip u-late",
-  due_today: "uchip u-today",
-  event: "r-goal r-cat",
-  goal_risk: "r-goal fact warn",
+// THE WHY TAKES THE COLOUR KEY (§AM, 2026-09-26) AND DRAWS AS A FACT, NEVER A CAPSULE (Dave 2026-10-05, locked: "Clean
+// rows, no pills anywhere inside a card or a row"). Every row here wore a filled amber chip, five "Due Today" and five
+// clock times, so the one real signal on the screen was eleven. A state is now a coloured fact in the row's one line, the
+// way "Goal at Risk" always was: late is red, due is amber, and a neutral time is a small-caps date. Amber is rationed to
+// what is due or next: a task due today, the next event, an at-risk goal.
+type FactTone = "warn" | "red" | "date";
+const SUB_TONE: Record<NudgeKind, FactTone | undefined> = {
+  sliding: "warn",
+  overdue: "red",
+  due_today: "warn",
+  event: undefined,
+  goal_risk: "warn",
 };
 
-// The sliding task's evidence says what it says, in the key (2026-09-26). It
-// was left the one grey because the chip beside it carries the verdict, but
-// the chip is the verdict and not the evidence: "23 Days late" is a lateness
-// and "Pushed 3 times" is a stall, and grey said neither. Late is red and a
-// stall is the amber the Tasks row's own stalled line wears, which is how the
-// task sheet tones the same words. The line keeps .r-goal for its size and
-// truncation; the tone rides on it.
-function subClass(n: Nudge): string {
-  if (n.kind !== "sliding") return SUB[n.kind];
-  return /\blate$/i.test(n.sub) ? "r-goal fact red" : "r-goal r-cat r-stalled";
+// The sliding task's evidence says what it says, in the key (2026-09-26): "23 Days late" is a lateness and "Pushed 3
+// times" is a stall, and grey said neither. Late is red and a stall is the amber the Tasks row's own stalled line wears.
+function subTone(n: Nudge): FactTone | undefined {
+  if (n.kind !== "sliding") return SUB_TONE[n.kind];
+  return /\blate$/i.test(n.sub) ? "red" : "warn";
 }
 
 // A1 (audit 2026-08-21). Every row here was a static div: ten sentences
@@ -80,7 +76,9 @@ function NudgeRow({ n, onDone, onDismiss, children }: { n: Nudge; onDone: () => 
   );
 }
 
-export default function NotificationsFlow({ onOpen }: { onOpen?: (kind: string, id: string) => void }) {
+// `onBack` is the way back to More, which is where this screen is opened from. Every other More page wears a red back link
+// at the top left; this one is a tab-bar extra, so the shell hands the way back in and the link draws only when it does.
+export default function NotificationsFlow({ onOpen, onBack }: { onOpen?: (kind: string, id: string) => void; onBack?: () => void }) {
   const tasksSvc = useTasks(); const sched = useSchedule(); const goalsSvc = useGoals(); const profileSvc = useProfile();
   const [feed, setFeed] = useState<Nudge[]>([]);
   const reload = useCallback(async () => {
@@ -131,13 +129,15 @@ export default function NotificationsFlow({ onOpen }: { onOpen?: (kind: string, 
   // Coming Up (events, goals) when both have rows.
   const needs = feed.filter((n) => n.kind === "sliding" || n.kind === "overdue" || n.kind === "due_today");
   const coming = feed.filter((n) => n.kind !== "sliding" && n.kind !== "overdue" && n.kind !== "due_today");
+  // The feed is sorted by start and already drops what is over, so the first event is the one that is next.
+  const nextEventId = coming.find((n) => n.kind === "event")?.id;
   const bands = [
     { key: "needs", head: needs.length > 0 && coming.length > 0 ? "Needs You" : "Today", rows: needs },
     { key: "coming", head: "Coming Up", rows: coming },
   ].filter((b) => b.rows.length > 0);
   return (
     <div className="screen ruled">
-      <PageHeader title="Notifications" />
+      <PageHeader title="Notifications" {...(onBack ? { back: "More", onBack } : {})} />
       {feed.length === 0 ? (
         <div className="empty-state"><div className="empty-icon">{BELL}</div><div className="empty-title">You're All Caught Up</div>
           <div className="empty-sub">Overdue Tasks, Today's Events and Goals at Risk</div></div>
@@ -159,11 +159,14 @@ export default function NotificationsFlow({ onOpen }: { onOpen?: (kind: string, 
                   <div className="task-title">
                     {/* Title Case whatever he typed (Dave 2026-10-05, Alfred R2); the record keeps his spelling. */}
                     <span className="task-name">{titleCase(n.title)}</span>
-                    <div className="r-k">
-                      {n.when && <span className="uchip u-today">{whenWord(n.when)}</span>}
-                      {n.tag && <span className="slide-tag">{n.tag}</span>}
-                      {n.sub && <span className={subClass(n)}>{n.sub}</span>}
-                    </div>
+                    {(n.tag || n.sub || n.when) && (
+                      <div className="facts notif-facts">
+                        {n.tag && <span className="fact warn">{n.tag}</span>}
+                        {n.sub && <span className={"fact " + (subTone(n) ?? "")}>{n.sub}</span>}
+                        {/* Only the next event is amber; a later time is a neutral small-caps time. */}
+                        {n.when && <span className={"fact date" + (n.id === nextEventId ? " warn" : "")}>{whenWord(n.when)}</span>}
+                      </div>
+                    )}
                   </div>
                   {/* ITS MOMENT HAS COME (spec section 3): an overdue task shows its one verb as text, the same
                       action as the swipe. Everything not yet late stays clean. */}

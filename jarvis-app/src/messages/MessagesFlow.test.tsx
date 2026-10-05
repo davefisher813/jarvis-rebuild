@@ -195,7 +195,22 @@ describe("MessagesFlow (threads)", () => {
     // switch says in one.
     expect(screen.queryByText("1 Thread Needs You")).toBeNull();
     // E-02 (2026-09-12): the Sweep is the head's own capsule now, not a card.
-    expect(screen.getByText(/^Sweep \u00b7 About/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Sweep, About \d+ Min$/ })).toBeInTheDocument();
+    // THE REVIEW (Dave 2026-10-05): the capsule is the verb alone, the estimate is a sky fact span beside it (no dot
+    // typed into a label), the floor is Title Case, the views are a quiet tab row, the tool tiles wear a colour each
+    // and The Rest is a door (a chevron, its count plain text), not an inert box with a pill.
+    const sweep = screen.getByRole("button", { name: /^Sweep, About \d+ Min$/ });
+    expect(sweep.textContent).toBe("Sweep");
+    expect(sweep.closest(".sh2")!.querySelector(".n.fact.est")!.textContent).toMatch(/^About \d+ Min$/);
+    expect(screen.getByText("That\u2019s Every One That Needs You.")).toBeInTheDocument();
+    expect(document.querySelector(".msg-chips.msg-views")).not.toBeNull();
+    const restRow = screen.getByText("The Rest").closest(".row")!;
+    expect(restRow.querySelector(".pill")).toBeNull();
+    expect(restRow.querySelector(".chev")).not.toBeNull();
+    expect(restRow.querySelector(".fact b")!.textContent).toBe("1");
+    const tiles = Array.from(document.querySelectorAll(".row-ico")).map((t) => t.className);
+    expect(tiles.length).toBeGreaterThan(0);
+    for (const c of tiles) expect(c, "a Tools tile is never the flat graphite").not.toContain("graphite");
     expect(screen.getByText(/Ridgeley needs the waiver by Friday/)).toBeInTheDocument();
     // THE FOLD: everything that does not need him is one line, not a section.
     // SPEC MOVED (V2 anatomy, 2026-08-15): the count is a pill beside the line.
@@ -219,7 +234,8 @@ describe("MessagesFlow (threads)", () => {
     // It is now one grey line that counts SENDERS as machines and carries
     // the single action that ends the lot.
     expect(screen.getByText(/1 Machine Wrote/)).toBeInTheDocument();
-    expect(screen.getByText("Sweep")).toBeInTheDocument();
+    // Two Sweep capsules now (the Needs You head and the Noise head): the Noise one is the plain verb.
+    expect(screen.getByRole("button", { name: "Sweep" })).toBeInTheDocument();
     expect(screen.queryByText(/DoorDash promo/)).toBeNull();
   });
 
@@ -290,7 +306,7 @@ describe("MessagesFlow (threads)", () => {
     // SPEC MOVED (8A castes, 2026-08-25): the fold's bulk noise action is
     // "Sweep" and rides on the machines line. "Archive All" survives, but
     // only on a collapsed single-sender group inside the unfolded noise.
-    fireEvent.click(await screen.findByText("Sweep"));
+    fireEvent.click(await screen.findByRole("button", { name: "Sweep" }));
     await waitFor(() => expect(archived).toEqual(["t2"]));
     expect(screen.getByText("1 Conversation Archived")).toBeInTheDocument();
     expect(screen.queryByText("Noise")).toBeNull();
@@ -540,7 +556,7 @@ describe("MessagesFlow (threads)", () => {
     // SPEC MOVED (V2 anatomy, 2026-08-15): fold count now rides as a pill.
     fireEvent.click(await screen.findByText("The Rest"));
     // SPEC MOVED (8A castes, 2026-08-25): "Archive All" is now "Sweep".
-    fireEvent.click(await screen.findByText("Sweep"));
+    fireEvent.click(await screen.findByRole("button", { name: "Sweep" }));
     // SPEC MOVED (short copy, 2026-08-15). E-09 (2026-09-12): the offer is a
     // NoticeCard, the question is its title and the count is a fact.
     expect(await screen.findByText("File No as Noise?")).toBeInTheDocument();
@@ -656,7 +672,7 @@ describe("MessagesFlow (threads)", () => {
     // E-02 (2026-09-12): the switch tab and the section head both say
     // Needs You, and the Sweep is the head's own capsule.
     expect(await screen.findByRole("tab", { name: /Needs You/ })).toBeInTheDocument();
-    expect(screen.getByText(/^Sweep \u00b7 About/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Sweep, About \d+ Min$/ })).toBeInTheDocument();
     expect(screen.queryByText("Connect Your Email")).not.toBeInTheDocument();
   });
 
@@ -917,7 +933,8 @@ describe("MessagesFlow (threads)", () => {
     // THE CATALOG (Dave 2026-10-05): the Tools rows' meta lines are Title Case, like their demo twin.
     const drainRow = (await screen.findByText("Only a Few Minutes?")).closest(".row")!;
     expect(drainRow.querySelector(".conn-meta")!.textContent).toBe("A Timed Drain That Stops Itself");
-    expect(screen.getByText("Email Windows").closest(".row")!.querySelector(".conn-meta")!.textContent).toBe("Open Email on a Schedule");
+    // Off, the Windows row has nothing to say: "Open Email on a Schedule" restated its title.
+    expect(screen.getByText("Email Windows").closest(".row")!.querySelector(".conn-meta")).toBeNull();
     fireEvent.click(await screen.findByText("Only a Few Minutes?"));
     const box = await screen.findByLabelText("Minutes");
     expect((box as HTMLInputElement).value).toBe("5");
@@ -1095,13 +1112,13 @@ describe("MessagesFlow (threads)", () => {
     // floor says what it is showing and offers the next page instead of
     // "That's everything."
     await screen.findByText("Load More");
-    expect(screen.getByText("Showing what's loaded so far.")).toBeInTheDocument();
+    expect(screen.getByText("Showing What\u2019s Loaded So Far.")).toBeInTheDocument();
     const listedBefore = box.counters.list;
     const readBefore = box.counters.metadata;
     fireEvent.click(screen.getByText("Load More"));
     // The next page only: one list from the cursor, fifteen new thread reads,
     // and the thirty already on screen are not read again.
-    await screen.findByText("That's everything.");
+    await screen.findByText("That\u2019s Everything.");
     expect(box.counters.list - listedBefore).toBe(1);
     expect(box.counters.metadata - readBefore).toBe(15);
     expect(screen.queryByText("Load More")).toBeNull();

@@ -14,6 +14,9 @@
 /* THE NOTE'S TITLE IS THE LARGE TITLE (2026-10-05, the review: "Coach Onboarding Plan" at 26 sat one rung over the 26 of its own headings, so only position told them
    apart). It takes the page-title scale, and breaks evenly so a long one never leaves a word alone on its second line. */
 .doc-write .doc-title { font-size: var(--t-h1); font-weight: var(--w-bold); letter-spacing: -0.02em; line-height: 1.15; color: var(--tx-1); text-wrap: balance; }
+/* ... AND THE HEADINGS IN ITS BODY STEP DOWN FROM IT (the same review: 26 against the title's 26 read as one rung). A body heading one is 24, so
+   the title (34), a heading (24), its sub-heading (20) and the text (17) are four clear steps. */
+.doc-write .doc-pm h1 { font-size: calc(24px * var(--type-scale)); }
 .doc-write .doc-eyebrow { display: flex; align-items: center; gap: var(--s-2); }
 .doc-write .doc-eyebrow .eyebrow { font-size: var(--t-eyebrow); letter-spacing: var(--track-eyebrow); text-transform: uppercase; font-weight: var(--w-semi); }
 

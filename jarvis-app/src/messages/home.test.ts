@@ -75,7 +75,7 @@ describe("the home email surface", () => {
     const n = mailNotices(snap({ promises: [{ threadId: "p1", text: "send rob the deck", due: "2026-08-21" }] }), TODAY, NOW);
     expect(n[0]!.kind).toBe("promised");
     expect(n[0]!.task).toEqual({ text: "Send Rob the Deck", due: "2026-08-21" });
-    expect(n[0]!.sub).toBe("You Said You Would, by Tomorrow");
+    expect(n[0]!.sub).toBe("You Promised It, by Tomorrow");
   });
 
   it("shows one of each job before a second of any: not the same job three times", () => {
@@ -206,13 +206,13 @@ describe("the line, drawn with the key", () => {
   // the ledger gives the same promise: late red, due amber, later caps.
   it("a promise's day is its own fact, in the date window", () => {
     const line = (due?: string) => mailNotices(snap({ promises: [{ threadId: "p1", text: "send rob the deck", ...(due ? { due } : {}) }] }), TODAY, NOW)[0]!;
-    expect(line("2026-08-21").facts).toEqual([{ text: "Tomorrow", tone: "warn" }, { text: "You Said You Would" }]);
+    expect(line("2026-08-21").facts).toEqual([{ text: "Tomorrow", tone: "warn" }, { text: "You Promised It" }]);
     expect(line("2026-08-20").facts![0]).toEqual({ text: "Today", tone: "warn" });
     expect(line("2026-08-19").facts![0]).toEqual({ text: "Yesterday", tone: "red" });
     expect(line("2026-08-29").facts![0]).toEqual({ text: "Aug 29", tone: "date" });
     // No day, nothing to colour: the sentence stands, as one grey.
     expect(line().facts).toBeUndefined();
-    expect(line().sub).toBe("You Said You Would");
+    expect(line().sub).toBe("You Promised It");
   });
 
   it("a reminder is its day, in the date window, and hedged inside the one fact", () => {

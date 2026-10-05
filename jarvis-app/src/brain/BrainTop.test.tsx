@@ -102,7 +102,10 @@ describe("BrainTop", () => {
     expect(onOpenFact).toHaveBeenCalledWith("s2");
   });
 
-  it("Needs You: a watching detector first, then a fading fact with Still True, capped at two", async () => {
+  // WATCHING IS NOT A NEED (Dave 2026-10-05, the review: "'Needs You' rows say nothing is needed"). A detector close to its
+  // gate is JARVIS counting; it has its own quiet band after Needs You, with the detector's real glyph and the count as the
+  // one grey (the head already says Watching, so the word is not repeated on the row), and the fading facts keep Needs You.
+  it("Needs You holds the fading facts with Still True, capped at two; a watching detector has a band of its own", async () => {
     rows = [close, waiting];
     svc.list.mockResolvedValue([
       strand({ text: "Admin happens Friday afternoons", category: "routine", lastConfirmed: "2026-05-01" }, "s2"),
@@ -112,22 +115,30 @@ describe("BrainTop", () => {
     const onBands = vi.fn();
     const { container } = render(<BrainTop onOpenFact={() => {}} onOpenWatching={onOpenWatching} onBands={onBands} />);
     await screen.findByText("Needs You");
-    // Both facts are fading, so nothing is left to shape: one band.
+    // Both facts are fading, so nothing is left to shape: Needs You and Watching, two bands.
     expect(screen.queryByText("Shaping JARVIS Now")).toBeNull();
-    await waitFor(() => expect(onBands).toHaveBeenLastCalledWith(1));
-    const cardRows = [...container.querySelectorAll(".strand-row")];
-    expect(cardRows.length).toBe(2);
-    expect(cardRows[0]?.textContent).toContain("The Area That Slips");
-    // Title Case on the facts line (Dave 2026-09-26, the pass-off).
-    expect([...cardRows[0]!.querySelectorAll(".fact")].map((e) => e.textContent)).toEqual(["Watching", "4 of 5 Pushes in One Area"]);
-    // Oldest unconfirmed first (fadedStrands), and the cap of two leaves the
-    // other fading fact for What JARVIS Knows.
-    expect(cardRows[1]?.textContent).toContain("Old and Quiet");
-    // The fading row is What JARVIS Knows' fading row: Fading, then the
-    // category as its one grey; the days live on the sheet (§AK, pass-off).
-    expect([...cardRows[1]!.querySelectorAll(".fact")].map((e) => e.textContent)).toEqual(["Fading", "People"]);
-    expect(screen.queryByText("Admin Happens Friday Afternoons")).toBeNull();
-    fireEvent.click(cardRows[0]!);
+    await waitFor(() => expect(onBands).toHaveBeenLastCalledWith(2));
+    const needsHead = [...container.querySelectorAll(".sh2")].find((h) => h.textContent?.startsWith("Needs You"))!;
+    const needsRows = [...needsHead.nextElementSibling!.querySelectorAll(".strand-row")];
+    // Oldest unconfirmed first (fadedStrands), and the cap of two takes both fading facts.
+    expect(needsRows.length).toBe(2);
+    expect(needsRows[0]?.textContent).toContain("Old and Quiet");
+    // The fading row is What JARVIS Knows' fading row: Fading, then the category as its one grey; the days live on the sheet.
+    expect([...needsRows[0]!.querySelectorAll(".fact")].map((e) => e.textContent)).toEqual(["Fading", "People"]);
+    expect(needsRows[1]?.textContent).toContain("Admin Happens Friday Afternoons");
+    // Nothing in Needs You is a detector, and none wears the placeholder question mark.
+    expect(needsHead.nextElementSibling!.textContent).not.toContain("The Area That Slips");
+    expect(needsHead.nextElementSibling!.textContent).not.toContain("?");
+
+    const watchHead = [...container.querySelectorAll(".sh2")].find((h) => h.textContent?.startsWith("Watching"))!;
+    const watchRows = [...watchHead.nextElementSibling!.querySelectorAll(".strand-row")];
+    expect(watchRows.length).toBe(1);
+    expect(watchRows[0]?.textContent).toContain("The Area That Slips");
+    // The count is the one fact; the state word is the head's, never repeated per row, and the glyph is not amber.
+    expect([...watchRows[0]!.querySelectorAll(".fact")].map((e) => e.textContent)).toEqual(["4 of 5 Pushes in One Area"]);
+    expect(watchRows[0]!.querySelector(".warn-disc")).toBeNull();
+    expect(watchRows[0]!.querySelector(".watch-disc svg")).not.toBeNull();
+    fireEvent.click(watchRows[0]!);
     expect(onOpenWatching).toHaveBeenCalledWith("slip_category");
     // Clean rows (Dave 2026-10-05): no capsule. Still True is the one quiet word on the fading row (the same verb as its
     // swipe-left tray button, which is why there are two of that label).

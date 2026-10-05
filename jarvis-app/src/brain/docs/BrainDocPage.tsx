@@ -309,9 +309,9 @@ export default function BrainDocPage({ topic, onBack }: { topic: string; onBack:
               <div className="pad-x sheet-form hard-add">
                 {/* THREE KINDS FIT ONE ROW (Dave 2026-10-05, the review: the chips ran off the card and "Protect" was cut).
                     One choice of three is the app's segmented control. */}
-                <div className="segmented seg-tri" role="radiogroup" aria-label="What this line does">
+                <div className="segmented seg-tri" role="group" aria-label="What this line does">
                   {(Object.keys(HARD_LINE_LABEL) as HardLineKind[]).map((k) => (
-                    <button type="button" key={k} className={"seg" + (lineKind === k ? " active" : "")} role="radio" aria-checked={lineKind === k} onClick={() => setLineKind(k)}>{HARD_LINE_LABEL[k]}</button>
+                    <button type="button" key={k} className={"seg" + (lineKind === k ? " active" : "")} aria-pressed={lineKind === k} onClick={() => setLineKind(k)}>{HARD_LINE_LABEL[k]}</button>
                   ))}
                 </div>
                 {/* The field, with its one verb at its trailing edge as text, there only while there is something to add: a

@@ -155,6 +155,7 @@ export function TaskRow({
   onPick,
   muteToday = false,
   parent: callerParent = null,
+  stateText = false,
   kicker = null,
   kickerTone = null,
   tag = null,
@@ -195,6 +196,10 @@ export function TaskRow({
   // every row keeps two lines and a fact. Derived by the flow from one
   // goal index, the same one Today reads, so the two pages cannot disagree.
   parent?: ParentLine | null;
+  // THE DISTANCE IS TEXT, NOT A CHIP (2026-10-05, the perfect bar: a list that mixes rows with no capsule beside rows with
+  // a filled amber one reads as two systems; Money's Also Tagged list). The key's amber (Today) or red (late) in the row's own
+  // type, no fill. Off everywhere else: the chip is every other task list's settled form.
+  stateText?: boolean;
   // A caller's own second line (a reminder's time on the Health page),
   // in place of the parent or category words. Unless it is stalled it is
   // drawn as a neutral time, in small caps.
@@ -261,7 +266,9 @@ export function TaskRow({
   // Same ladder as Today's dealt row (distanceFor). Muted on the Today
   // filter, where every row would say the same word.
   const dist = distanceFor(t, today);
-  const chip = dist && !t.done && !(muteToday && dist.kind === "today") ? dist : null;
+  const shownDist = dist && !t.done && !(muteToday && dist.kind === "today") ? dist : null;
+  const chip = stateText ? null : shownDist;
+  const stateFact = stateText ? shownDist : null;
   // TRACE-02b (2026-09-07): the checklist rollup, display only, counted by
   // the one shared piece Today's rows already use.
   const steps = stepsOf(t);
@@ -500,10 +507,11 @@ export function TaskRow({
               line whole instead of taking a row of its own. */}
           <div className="r-k r-k-one">
             {chip && <span className={"uchip " + (chip.kind === "late" ? "u-late" : "u-today")}>{chip.label}</span>}
+            {stateFact && <span className={"r-goal fact " + (stateFact.kind === "late" ? "red" : "warn")}>{lineCase(stateFact.label.toLowerCase())}</span>}
             {/* E-31 (2026-09-12): a day he named in his own reply that the
                 catcher could not resolve. A proposal in the chip's slot, in
                 quiet ink, never a deadline; a real due date replaces it. */}
-            {!chip && !t.done && t.proposedDate && <span className="uchip u-proposed">{lineCase(`${t.proposedDate} (proposed)`)}</span>}
+            {!chip && !stateFact && !t.done && t.proposedDate && <span className="uchip u-proposed">{lineCase(`${t.proposedDate} (proposed)`)}</span>}
             {(kicker || tag)
               ? <>
                   {tag && <span className="slide-tag">{tag}</span>}
@@ -899,7 +907,7 @@ export default function TasksPage({
    *  Rule 2 of the same handoff: "Preserve the existing definitions and do
    *  not reclassify data for visual consistency". Nothing here is redefined;
    *  they are the FILTERS this page has always had. */
-  const views: HeaderView[] = FILTERS.map((f) => ({ key: f, label: FILTER_LABEL[f], count: counts[f] ?? 0 }));
+  const views: HeaderView[] = FILTERS.map((f) => ({ key: f, label: FILTER_LABEL[f], count: counts[f] || undefined }));
   const [optsOpen, setOptsOpen] = useState(false);
   // GROUP BY (ruled 2026-09-01: "a group-by dropdown"). Remembered within
   // the session, reset on launch, like the segment.

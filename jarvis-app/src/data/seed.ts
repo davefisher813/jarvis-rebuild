@@ -102,7 +102,7 @@ export async function seedDemoData(
     // Standup is daily; the gym runs weekly and ENDS, which is the half of
     // repeating that nothing anywhere was showing.
     await schedule.createEvent("Morning Standup", { date: today, start: "08:30", category: cat("Work"), recurrence: "daily" });
-    await schedule.createEvent("Call With Nadia", { date: today, start: "10:00", category: cat("Work"), location: "Zoom" });
+    await schedule.createEvent("Call with Nadia", { date: today, start: "10:00", category: cat("Work"), location: "Zoom" });
     // Deep Work and the drive exist so BLENDING has something to demonstrate:
     // a drive is a block you sit through, and a call rides along with it.
     await schedule.createEvent("Deep Work", { date: today, start: "13:00", end: "14:30", category: cat("Work") });

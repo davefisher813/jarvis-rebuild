@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { refileWith, type Undo } from "./refile";
 import PageHeader, { BarAction } from "../shared/PageHeader";
+import { Sparkles } from "../shared/icons";
 import { useChat, useTasks, useSchedule, useNotes, useCategories, useOptionalStrands, useOptionalDecisions, usePeople, useOptionalFiles, useFileStore, useOptionalGym, useOptionalBrainMemory } from "../data/NotesProvider";
 import { useOptionalGoogle } from "../connections/google/GoogleSession";
 import { lastContactFor } from "../people/lastContact";
@@ -840,19 +841,24 @@ export default function ChatFlow({ onOpen, onCompose, askPersonId, askNonce, onA
             nothing here promises a capability it does not have. They fill
             the field rather than sending, because a chip that fires
             immediately is a button that lies about being a suggestion. */}
+        {/* THE FIRST SCREEN IS CRAFTED, NOT BLANK (the review, 2026-10-05, D9): a glyph, a title, one warm line and the
+            moves, stacked as full-width rows so none runs off the edge, anchored above the composer where the thumb is.
+            It is the app's own empty state, and its starters are its action. */}
         {msgs.length === 0 && (
-          <div className="chat-starters">
-            <div className="sh2 sh2-quiet chat-starter-head"><span className="t">Try</span></div>
-            <div className="chip-row">
+          <div className="empty-state empty-compact chat-empty">
+            <div className="empty-icon cat-fg-purple"><Sparkles className="ic" /></div>
+            <div className="empty-title">Ask JARVIS Anything</div>
+            <div className="empty-sub">Ask About Your Day, Change a Task or Paste Something to File</div>
+            <div className="chat-starter-list">
               {[
-                { label: "What's on today?", fill: "What's on today?" },
-                { label: "What's next?", fill: "What's next?" },
+                { label: "What's on Today?", fill: "What's on today?" },
+                { label: "What's Next?", fill: "What's next?" },
                 // These two teach the grammar rather than firing it: the chip
                 // leaves the cursor exactly where the missing word goes.
                 { label: "Complete…", fill: "Complete " },
-                { label: "Move… to tomorrow", fill: "Move " },
+                { label: "Move… to Tomorrow", fill: "Move " },
               ].map((c) => (
-                <div className="chip" role="button" tabIndex={0} key={c.label} onClick={() => setDraft(c.fill)}>{c.label}</div>
+                <button type="button" className="chip chat-starter" key={c.label} onClick={() => setDraft(c.fill)}>{c.label}</button>
               ))}
             </div>
           </div>
@@ -932,14 +938,14 @@ export default function ChatFlow({ onOpen, onCompose, askPersonId, askNonce, onA
             Notes already use. */}
         {picker.input}
         <button
-          className="convo-send"
+          className="convo-send chat-attach"
           aria-label="Attach a File"
           onClick={() => picker.open(PICK_ANY)}
           disabled={attaching || busy}
         >{CLIP}</button>
         <input
           className="input"
-          placeholder="Ask · Tell · Paste"
+          placeholder="Ask, Tell or Paste"
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter") void send(); }}
@@ -948,7 +954,7 @@ export default function ChatFlow({ onOpen, onCompose, askPersonId, askNonce, onA
             inert. send() has always returned early on blank text, but the
             button gave no sign of it: a dead-tap detector pressed it and the
             DOM did not move in 1.1 seconds, which is a control that lies. */}
-        <button className="convo-send" aria-label="Send" onClick={() => void send()} disabled={busy || draft.trim() === ""}>{SEND}</button>
+        <button className="convo-send chat-send" aria-label="Send" onClick={() => void send()} disabled={busy || draft.trim() === ""}>{SEND}</button>
       </div>
       {/* UP-PLAT-08: the two distillation flows the app already has, handed
           the file the person attached. Nothing is written until they have

@@ -95,9 +95,9 @@ describe("Profile, Feedback Style, Booking, Learned Rules", () => {
     expect(capsulesInCards(container)).toEqual([]);
   });
 
-  it("Feedback Style: Hear It carries a glyph, not a Play capsule", () => {
+  it("Feedback Style: Hear It carries the word Play as text in the row, not a capsule", () => {
     const { container } = render(wrap(<FeedbackStylePage onBack={noop} />));
-    expect(screen.queryByText("Play")).toBeNull();
+    expect(screen.getByText("Play").className).toBe("row-ctx");
     expect(capsulesInCards(container)).toEqual([]);
   });
 

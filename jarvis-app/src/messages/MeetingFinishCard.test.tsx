@@ -93,7 +93,7 @@ describe("MeetingFinishCard: the offer, above the messages", () => {
     expect(evs[0]!.data).toMatchObject({ title: "Practice", date: "2026-09-22", start: "15:00", end: "16:00" });
     expect(screen.queryByRole("button", { name: "Add to Calendar" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Undo" })).toBeInTheDocument();
-    expect(notices[0]!.message).toContain("On Your Calendar");
+    expect(notices[0]!.message).toMatch(/^Scheduled /);
     expect(notices[0]!.undo?.label).toBe("Undo");
   });
 

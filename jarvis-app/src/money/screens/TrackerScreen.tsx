@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import PageHeader from "../../shared/PageHeader";
 import { useOptionalLedger, useTracker } from "../../data/NotesProvider";
 import { FormSheet, Group, FieldRow, MenuRow, SwitchRow, DeleteRow, ErrorLine, Row, tapField } from "../../shared/FormSheet";
-import { Calendar, Clock, FolderKanban, Link2, RotateCcw, Tag, Wallet } from "../../shared/icons";
+import { Calendar, ChevronLeft, ChevronRight, Clock, FolderKanban, Link2, RotateCcw, Tag, Wallet } from "../../shared/icons";
 import { DollarGlyph, WalletGlyph, RepeatGlyph } from "../../shared/glyphs";
 import { pressable } from "../../shared/pressable";
 import MoneyRow from "../MoneyRow";
@@ -11,7 +11,7 @@ import { lineCase, titleCase } from "../../shared/casing";
 import { showToast } from "../../shared/toast";
 import { attemptWrite } from "../../shared/guard";
 import {
-  EMPTY_TRACKER, categoryColor, dollarsToCents, fmtCents, fmtDay, inMonth,
+  EMPTY_TRACKER, accountParts, categoryColor, dollarsToCents, fmtCents, fmtDay, inMonth,
   incomeCents, knownCategories, monthLabel, monthlySubTotal, monthOf, shiftMonth,
   thisMonth, topMerchants,
   type SubFrequency, type TrackerAccount, type TrackerAccountData, type TrackerAccountType, type TrackerBudgetData, type TrackerData, type TrackerSub, type TrackerSubData, type TrackerTx, type TrackerTxData,
@@ -85,9 +85,11 @@ export default function TrackerScreen({ onBack }: { onBack: () => void }) {
     setData(d);
     setRecs({ receipts, bills });
     setLoaded(true);
+    return d;
   }, [svc, ledger]);
   useEffect(() => { void reload(); }, [reload]);
   useLedgerEvents([ENTITY_MONEY_RECEIPT, ENTITY_MONEY_BILL], reload);
+  const refresh = useCallback(async () => { await reload(); }, [reload]);
 
   const monthTxs = useMemo(() => inMonth(data.txs, month), [data.txs, month]);
 
@@ -101,45 +103,91 @@ export default function TrackerScreen({ onBack }: { onBack: () => void }) {
     const wrote = await attemptWrite(() => svc.seedIfEmpty());
     setSeeding(false);
     if (!wrote) return;
-    await reload();
-    showToast({ message: "September Imported" });
+    const d = await reload();
+    // THE IMPORT LANDS WHERE ITS DATA IS (2026-10-05, the perfect bar): the offer wrote September and the screen kept
+    // showing October at $0.00, so the import looked like it had done nothing. The screen moves to the newest month
+    // the import wrote, and the toast says how much arrived.
+    const latest = d.txs.map((t) => t.data.month).sort().pop();
+    if (latest) setMonth(latest);
+    showToast({ message: `${d.txs.length} Transactions Imported` });
   };
 
   return (
     <div className="screen ruled">
       <PageHeader title="Tracker" back="Money" onBack={onBack} />
       {canSeed && (
-        // AN OFFER WITH ITS OWN WORDS IS A NOTICE CARD, NOT A ROW WITH A PILL (Dave 2026-10-05, locked: the settled
-        // notice pattern keeps its action; a list row never wears one). Import is its answer, and a tap on the card
-        // does the same. .truncate-level wrapping is the notice card's own (a card form takes two lines).
+        <div className="mt-notice">
+        {/* AN OFFER WITH ITS OWN WORDS IS A NOTICE CARD, NOT A ROW WITH A PILL (Dave 2026-10-05, locked: the settled
+            notice pattern keeps its action; a list row never wears one). Import is its answer, and a tap on the card
+            does the same. .truncate-level wrapping is the notice card's own (a card form takes two lines). .mt-notice
+            gives it room under the title's underline (2026-10-05: it sat on it). */}
         <NoticeCard icon={<Wallet className="ic" />} tone="cat-fg-green" offer
           title="Import September Data"
           sub="Your Accounts, Subscriptions and 31 Transactions"
           action={{ label: seeding ? "Importing" : "Import", onClick: () => void runSeed() }}
           onOpen={() => void runSeed()} />
-      )}
-      <div className="pad-x mt-tabrow">
-        <div className="segmented" role="tablist" aria-label="Tracker">
-          {TABS.map((t) => (
-            <button key={t.key} role="tab" aria-selected={t.key === tab}
-              className={"seg" + (t.key === tab ? " active" : "")}
-              onClick={() => { if (t.key !== tab) setTab(t.key); }}>
-              {t.label}
-            </button>
-          ))}
         </div>
-      </div>
+      )}
+      <TabStrip tab={tab} onTab={setTab} />
       {tab === "dashboard" && (
-        <Dashboard month={month} onMonth={setMonth} txs={monthTxs} receipts={recs.receipts} data={data} onSaved={reload} />
+        <Dashboard month={month} onMonth={setMonth} txs={monthTxs} receipts={recs.receipts} data={data} onSaved={refresh} />
       )}
       {tab === "transactions" && (
-        <Transactions data={data} month={month} receipts={recs.receipts} bills={recs.bills} onSaved={reload} />
+        <Transactions data={data} month={month} receipts={recs.receipts} bills={recs.bills} onSaved={refresh} />
       )}
       {tab === "budgets" && (
-        <Budgets month={month} onMonth={setMonth} data={data} receipts={recs.receipts} onSaved={reload} />
+        <Budgets month={month} onMonth={setMonth} data={data} receipts={recs.receipts} onSaved={refresh} />
       )}
-      {tab === "subs" && <Subscriptions data={data} onSaved={reload} />}
+      {tab === "subs" && <Subscriptions data={data} onSaved={refresh} />}
       <div className="screen-foot" />
+    </div>
+  );
+}
+
+// THE TABS SCROLL AND SAY SO (2026-10-05, the perfect bar: "Dashboard / Transactions / Budgets / Su", the fourth label cut
+// mid-word). Four labels cannot share 350px, so the strip does what Life's does: it centres the active tab whenever the tab
+// changes (by scrolling the strip itself, never the page), and `data-more` ("r", "l", "lr" or "") from its own scroll
+// position fades only the side it continues on, in both themes, so a strip that fits wears no fade over its last word.
+function moreOf(box: HTMLElement): string {
+  const max = box.scrollWidth - box.clientWidth;
+  if (max <= 1) return "";
+  // The strip's own 2px padding makes the snapped start a couple of pixels in; that is not "more behind".
+  return (box.scrollLeft > 4 ? "l" : "") + (box.scrollLeft < max - 1 ? "r" : "");
+}
+
+function TabStrip({ tab, onTab }: { tab: Tab; onTab: (t: Tab) => void }) {
+  const box = useRef<HTMLDivElement>(null);
+  const [more, setMore] = useState("");
+  useLayoutEffect(() => {
+    const el = box.current;
+    if (!el) return;
+    const on = el.querySelector<HTMLElement>(".seg.active");
+    if (on && el.scrollWidth > el.clientWidth + 1) {
+      const left = on.getBoundingClientRect().left - el.getBoundingClientRect().left + el.scrollLeft;
+      el.scrollLeft = Math.max(0, left - (el.clientWidth - on.offsetWidth) / 2);
+    }
+    setMore(moreOf(el));
+  }, [tab]);
+  useEffect(() => {
+    const el = box.current;
+    if (!el) return;
+    const read = () => setMore(moreOf(el));
+    read();
+    el.addEventListener("scroll", read, { passive: true });
+    window.addEventListener("resize", read);
+    return () => { el.removeEventListener("scroll", read); window.removeEventListener("resize", read); };
+  }, []);
+  return (
+    <div className="pad-x mt-tabrow">
+      <div className="segmented" role="tablist" aria-label="Tracker" ref={box} data-more={more}>
+        {TABS.map((t) => (
+          <button key={t.key} role="tab" aria-selected={t.key === tab}
+            className={"seg" + (t.key === tab ? " active" : "")}
+            onClick={() => { if (t.key !== tab) onTab(t.key); }}>
+            {t.label}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }
@@ -148,12 +196,12 @@ export default function TrackerScreen({ onBack }: { onBack: () => void }) {
 function MonthNav({ month, onMonth }: { month: string; onMonth: (m: string) => void }) {
   return (
     <div className="pad-x mt-monthnav">
-      {/* Quiet on purpose: stepping months is navigation, and a red pill
-          either side of the month would read as the two loudest things on a
-          screen whose content is the point. */}
-      <button className="quiet-action" aria-label="Previous month" onClick={() => onMonth(shiftMonth(month, -1))}>Back</button>
+      {/* THE STEPS ARE CHEVRONS, NOT WORDS (2026-10-05, the perfect bar): "Back" and "Next" capsules sat directly under
+          the screen's own "< Money" back link, and "Back" could mean leave. A neutral chevron either side of the month
+          says what it does (it flanks the month it changes), 44px each, quiet ink, the same in both themes. */}
+      <button className="mt-step" aria-label="Previous Month" onClick={() => onMonth(shiftMonth(month, -1))}><ChevronLeft className="ic" /></button>
       <div className="mt-monthname">{monthLabel(month)}</div>
-      <button className="quiet-action" aria-label="Next month" onClick={() => onMonth(shiftMonth(month, 1))}>Next</button>
+      <button className="mt-step" aria-label="Next Month" onClick={() => onMonth(shiftMonth(month, 1))}><ChevronRight className="ic" /></button>
     </div>
   );
 }
@@ -215,18 +263,39 @@ function Dashboard({ month, onMonth, txs, receipts, data, onSaved }: {
       <SectionHead label="Accounts" count={data.accounts.length} action={{ label: "Add Account", onClick: () => setAcct("new") }} />
       {data.accounts.length > 0 && (
         <div className="pad-x mt-accts">
-          {data.accounts.map((a) => (
-            // A card is a door to its own editor, the way a row is elsewhere.
-            <div className="card mt-acct" key={a.id} {...pressable(() => setAcct(a))}>
-              <div className="mt-acct-name">{titleCase(a.data.name)}</div>
-              <div className="mt-acct-bal">{fmtCents(a.data.currentBalanceCents)}</div>
-              {/* The amount inside the tile's one grey line steps up to
-                  white (§AM F1), the words stay the grey. */}
-              {a.data.type === "credit card" && (
-                <div className="mt-acct-sub"><span className="fact">Available Credit <b>{fmtCents(a.data.availableBalanceCents)}</b></span></div>
-              )}
-            </div>
-          ))}
+          {data.accounts.map((a) => {
+            // THE NAME AND ITS LAST DIGITS ARE TWO LINES (2026-10-05): "BUSINESS CHECKING ...3305" was one string that
+            // wrapped mid-name and showed a typed ellipsis as the mask. The stored name is untouched (transactions are
+            // matched on it); the tile reads it apart, the digits behind two drawn dots.
+            const { label, mask } = accountParts(a.data.name);
+            return (
+              // A card is a door to its own editor, the way a row is elsewhere.
+              <div className="card mt-acct" key={a.id} {...pressable(() => setAcct(a))}>
+                <div className="mt-acct-name">{titleCase(label)}</div>
+                {mask && <div className="mt-acct-mask">{mask}</div>}
+                <div className="mt-acct-foot">
+                  <div className="mt-acct-bal">{fmtCents(a.data.currentBalanceCents)}</div>
+                  {/* A card's available credit is a caps kicker over its amount, the pair every tile's own kicker
+                      is, with the amount stepping up to white (§AM F1). */}
+                  {a.data.type === "credit card" && (
+                    <>
+                      <div className="mt-acct-kick">Available Credit</div>
+                      <div className="mt-acct-avail">{fmtCents(a.data.availableBalanceCents)}</div>
+                    </>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+      {data.accounts.length === 0 && (
+        // D9, A CRAFTED EMPTY STATE: a glyph in the money colour, the title, one warm line. Its one action is the head's
+        // capsule directly above (Dave 2026-10-05, locked: a section's action lives in its head).
+        <div className="empty-state empty-compact">
+          <div className="empty-icon cat-fg-green"><Wallet className="ic" /></div>
+          <div className="empty-title">No Accounts Yet</div>
+          <div className="empty-sub">Add One to See Your Balances Together</div>
         </div>
       )}
       {acct && (
@@ -238,7 +307,8 @@ function Dashboard({ month, onMonth, txs, receipts, data, onSaved }: {
         />
       )}
 
-      <SectionHead label="This Month" />
+      {/* The label is the month the numbers are FOR: "This Month" over September's figures was wrong the day after an import. */}
+      <SectionHead label={month === thisMonth() ? "This Month" : monthLabel(month).split(" ")[0]!} />
       <div className="pad-x mt-sums">
         <div className="card mt-sum">
           <div className="mt-sum-label">In</div>
@@ -255,7 +325,8 @@ function Dashboard({ month, onMonth, txs, receipts, data, onSaved }: {
           <div className="mt-sum-label">Net</div>
           {/* Spent more than came in is over the limit, the key's red
               (§AM), not amber, which means only near it. */}
-          <div className={"mt-sum-value" + (net >= 0 ? " good" : " fact red")}>{fmtCents(net)}</div>
+          {/* Zero is a number with no state, white; green only once more came in than went out (§AM). */}
+          <div className={"mt-sum-value" + (net > 0 ? " good" : net < 0 ? " fact red" : "")}>{fmtCents(net)}</div>
         </div>
       </div>
       {/* One statement in the line's one grey, its two amounts stepping up

@@ -123,6 +123,13 @@ export function fmtDay(iso: string): string {
 }
 
 /** "2026-09" to "September 2026", the month's own full name. */
+/** A stored account name ("BUSINESS CHECKING ...3305") read apart: what it is called, and its last digits when it ends in
+ *  a masked number. Display only: the stored name is what transactions are matched on and never changes. */
+export function accountParts(name: string): { label: string; mask: string | null } {
+  const m = /^(.*?)\s*[.\u2026]{2,}\s*(\d{2,6})\s*$/.exec(name.trim());
+  return m && m[1]!.trim() ? { label: m[1]!.trim(), mask: m[2]! } : { label: name.trim(), mask: null };
+}
+
 export function monthLabel(ym: string): string {
   const [y, m] = ym.split("-").map(Number);
   if (!y || !m) return ym;

@@ -15,7 +15,7 @@ const noop = () => {};
 const base = { today: TUE, now: "09:30", onClose: noop, onComplete: noop, onSnooze: noop, onEdit: noop, onPause: noop, onSkip: noop, onKeepSchedule: noop, onDelete: noop };
 
 describe("ReminderDetailSheet", () => {
-  it("reads When, Repeat, Follow-up and Opens, leads with the linked verb, and never completes on open", () => {
+  it("reads When, Repeat, Follow-Up and Opens, leads with the linked verb, and never completes on open", () => {
     const onOpenLinked = vi.fn(); const onComplete = vi.fn();
     const link = { type: "task" as const, id: "t1", label: "Bridge Priorities" };
     render(<ReminderDetailSheet {...base} item={item({ time: "09:00", days: [1, 2, 3, 4, 5], linkedItem: link })} onOpenLinked={onOpenLinked} onComplete={onComplete} />);
@@ -96,7 +96,7 @@ describe("ReminderDetailSheet", () => {
     const plain = render(<ReminderDetailSheet {...base} item={item({ time: "21:00", onMiss: "let_go" })} />);
     expect(screen.queryByText("Opens")).toBeNull();
     expect(screen.queryByText("This Reminder")).toBeNull();
-    expect(screen.getByText("Follow-up")).toBeInTheDocument();
+    expect(screen.getByText("Follow-Up")).toBeInTheDocument();
     plain.unmount();
     render(<ReminderDetailSheet {...base} item={item({ time: "09:00", linkedItem: { type: "task" as const, id: "t1", label: "Bridge Priorities" } })} />);
     expect(screen.getByText("Opens")).toBeInTheDocument();

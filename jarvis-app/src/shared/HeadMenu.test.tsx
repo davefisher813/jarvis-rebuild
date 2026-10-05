@@ -1,6 +1,8 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, fireEvent, screen } from "@testing-library/react";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import HeadMenu, { scrimWithHoles } from "./HeadMenu";
 import { FormSheet, Group, MenuRow } from "./FormSheet";
 
@@ -70,5 +72,28 @@ describe("a menu open inside a sheet does not wall off the sheet's Cancel and Sa
     fireEvent.click(screen.getByLabelText("Pick"));
     fireEvent.pointerDown(document.querySelector(".hmenu-item")!);
     expect(document.querySelector(".hmenu")).toBeTruthy();
+  });
+});
+
+// A ROW WITH NOTHING TO SAY SHOWS NOTHING (R1; the review: "None" seven times down one sheet).
+describe("an empty value pick does not draw the word None", () => {
+  const opts = [{ value: "", label: "None" }, { value: "daily", label: "Daily" }];
+  it("keeps the chevron and hides the word for a screen reader only", () => {
+    render(<HeadMenu variant="value" ariaLabel="Repeat" value="" off options={opts} onPick={() => {}} />);
+    const btn = screen.getByRole("button", { name: "Repeat" });
+    expect(["dd-value", "dd-off", "dd-none"].every((c) => btn.classList.contains(c))).toBe(true);
+    expect(btn.querySelector(".dd-cv")).toBeTruthy();
+    expect(btn.textContent).toBe("None");
+  });
+  it("a real value, or an off state with its own word, is drawn as it always was", () => {
+    const { unmount } = render(<HeadMenu variant="value" ariaLabel="Repeat" value="daily" options={opts} onPick={() => {}} />);
+    expect(screen.getByRole("button", { name: "Repeat" }).classList.contains("dd-none")).toBe(false);
+    unmount();
+    render(<HeadMenu variant="value" ariaLabel="Rest" value="0" off label="Off" options={[{ value: "0", label: "Off" }]} onPick={() => {}} />);
+    expect(screen.getByRole("button", { name: "Rest" }).classList.contains("dd-none")).toBe(false);
+  });
+  it("the stylesheet takes the word out of the line", () => {
+    const css = readFileSync(join(__dirname, "../styles/components.css"), "utf8");
+    expect(css).toMatch(/\.dd\.dd-value\.dd-none \.dd-w \{[^}]*clip: rect\(0 0 0 0\)/);
   });
 });

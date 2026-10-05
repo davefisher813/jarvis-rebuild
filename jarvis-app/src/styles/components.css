@@ -1390,6 +1390,15 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 .msg-chips::-webkit-scrollbar { display: none; }
 .msg-chips > .chip { flex-shrink: 0; white-space: nowrap; max-width: 60vw;
   overflow: hidden; text-overflow: ellipsis; }
+/* THE VIEWS ARE A QUIET TAB ROW, NOT A SECOND PILL CONTROL (Dave 2026-10-05, the Email header: "two stacked tab controls
+   with unequal weight"). For You, All and Drafts (and Select) are text with the ink's underline on the one that is on, each
+   a real 44px box, so the Needs You and Waiting On segment below is the only filled control on the screen. */
+.msg-views { gap: var(--s-5); margin-bottom: 0; padding-bottom: 0; }
+.msg-views > .chip { background-color: transparent; color: var(--tx-3); border-radius: 0; padding: 0;
+  min-height: var(--tap-min); font-size: var(--t-body); font-weight: var(--w-semi); }
+.msg-views > .chip.on, .msg-views > .chip.active { background-color: transparent; color: var(--tx-1); }
+.msg-views > .chip.on::before { content: ""; position: absolute; left: 0; right: 0; bottom: var(--s-1h);
+  height: var(--s-0h); border-radius: var(--r-pill); background: var(--tx-1); }
 .msg-detail-head { padding: var(--s-2) 0 var(--s-3); }
 .msg-detail-subj { font-size: var(--t-h3); font-weight: var(--w-bold); }
 /* The thread summary is the most valuable thing on this screen, and it was the
@@ -1486,9 +1495,13 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 .proj-finish-note { margin-top: var(--s-2); text-align: center; }
 .proj-guess .conn-name { color: var(--tint); }
 .notif-scope { margin-top: var(--s-3); }
-.chat-starters { padding: var(--s-6) 0 0; }
-.chat-starter-head { padding: 0 var(--s-4) var(--s-2); font-size: var(--t-eyebrow); font-weight: var(--w-bold);
-  letter-spacing: var(--track-caps); text-transform: uppercase; color: var(--tx-3); }
+/* THE FIRST SCREEN OF CHAT (the review, 2026-10-05, D9). The app's own empty state, sat on the composer: it takes the free
+   height of the thread and pushes itself to the foot, so the moves are under the thumb and not stranded at the top of a blank
+   page. The starters are full-width tonal rows, so the fourth is never cut at the edge the way a scrolling chip row cut it. */
+.chat-empty { flex: 1 1 auto; min-height: 0; justify-content: flex-end; padding-bottom: var(--s-2); }
+.chat-starter-list { display: flex; flex-direction: column; gap: var(--s-2); width: 100%; margin-top: var(--s-3); }
+.chat-starter-list > .chat-starter { width: 100%; min-height: var(--tap-min); justify-content: flex-start; padding: 0 var(--s-4);
+  border: 0; border-radius: var(--r-md); font-family: var(--f); font-size: var(--t-body); font-weight: var(--w-semi); color: var(--tx-1); text-align: left; }
 
 /* BLENDING (2026-08-21). The offer tucks UNDER the block it belongs to,
    indented to the block's text edge, because the indent is what says "this
@@ -1660,8 +1673,10 @@ a.row.person-reach { color: inherit; text-decoration: none; }
    region: the first attempt lifted the toast correctly and left 80px of dead
    black under the last card while it was up. A transform moves the paint and
    costs the layout nothing. */
-.toast-dock { position: relative; z-index: 2; padding: 0 var(--s-3) var(--s-2); transform: translateY(calc(-1 * var(--logbar-clear, 0px))); }
-.toast { display: flex; align-items: center; gap: var(--s-3); background: var(--surface-3); border: 0.5px solid var(--divider); border-radius: var(--r-md); padding: var(--s-2h) var(--s-3); box-shadow: var(--shadow-float); }
+.toast-dock { position: relative; z-index: 2; padding: 0 var(--s-4) var(--s-3); transform: translateY(calc(-1 * var(--logbar-clear, 0px))); }
+.toast { display: flex; align-items: center; gap: var(--s-3); background: var(--surface-3); border: 0.5px solid var(--divider); border-radius: var(--r-lg); padding: var(--s-3) var(--s-4); box-shadow: var(--shadow-float); }
+/* THE TOAST IS A CARD, NOT A SLAB (2026-10-05, the review: it ran 12px from each edge against the page's 20, in a small radius, 8px off the dock so the two read as one
+   stack): the page's own side gutter, the one 24 radius, and 12 of air above the dock. */
 /* A toast floats, so in light it is the warm near-white chrome lifted by the one shadow (2026-10-05):
    its Undo is the action red as words, 5.2:1 here and 4.22 on the raised grey. */
 [data-theme="light"] .toast { background: var(--chrome-bg); }
@@ -1719,6 +1734,9 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 /* Two cards on one scrim (an action sheet and its Cancel) are two objects,
    not one card cut by a hairline: the same gap the grouped card keeps. */
 .sheet-scrim > .card + .card { margin-top: var(--s-2); }
+/* AND THE CANCEL CLEARS THE HOME INDICATOR (Dave 2026-10-05, the Profile Photo sheet: Cancel sat 23px from the glass with its
+   foot cut by the screen edge). The Cancel card keeps the safe-area inset under its button, and never less than a step. */
+.sheet-scrim > .card + .card { padding-bottom: max(var(--s-2), env(safe-area-inset-bottom, 0px)); }
 /* The mid-tier .btn is the one place where taking the red out of the letters
    would also take it out of the button: red-on-press-3 is the only thing that
    separated "Something Else" from the .btn-secondary above it, and white on
@@ -2268,6 +2286,9 @@ button {
    no horizontal-scroll affordance, and label/category picks must all be
    visible at once). The base .chip-row mask/scroll behavior stays for pages. */
 .chip-wrap-row { flex-wrap: wrap; overflow-x: visible; -webkit-mask-image: none; mask-image: none; margin-bottom: var(--s-2); }
+/* AN OFF PLATE IS STILL A CHIP (the review, dark: the unselected plates were a 6% fill on the card and nearly vanished, so which plates the rack
+   has was hard to read). A settings chip that is off wears a hairline, so its shape reads against the card in both themes. */
+.set-card .chip-wrap-row > .chip:not(.active) { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--tx-4) 55%, transparent); }
 .input-stack { margin-bottom: var(--s-2); }
 .list-search { padding-bottom: var(--s-2); }
 .search-bar .search-ic { width: 18px; height: 18px; opacity: 0.6; flex-shrink: 0; }
@@ -2756,6 +2777,13 @@ button {
 .stat-tile.stat-plain .stat-num { color: var(--tx-1); }
 .row-ico { width: 28px; height: 28px; border-radius: var(--r-sm); display: flex; align-items: center; justify-content: center; flex-shrink: 0; color: #fff; }
 .row-ico .ic { width: 15px; height: 15px; }
+/* A TILE'S GLYPH WEARS ITS FILL'S OWN ON-COLOUR (Dave 2026-10-05, the Email Tools tiles: white on the light fills is 1.7 to
+   2.1:1). .row-ico said #fff for every fill, which beat the fills' own on-colour higher up the sheet; the palette's rule is
+   that black clears every light fill and white only the three dark light-theme slots, the same split the .cat-bg-* rules
+   at the top of this file keep. Only the category fills: a form sheet's nav-tile tiles keep the white glyph they draw, and
+   the brand fill keeps its own. */
+.row-ico[class*="cat-bg-"]:not(.cat-bg-brand) { color: var(--on-fill-dark); }
+[data-theme="light"] .row-ico.cat-bg-coral, [data-theme="light"] .row-ico.cat-bg-purple, [data-theme="light"] .row-ico.cat-bg-graphite { color: #FFFFFF; }
 .day-divide { font-size: var(--t-eyebrow); font-weight: var(--w-semi); letter-spacing: 1px; text-transform: uppercase; color: var(--tx-2); padding: var(--s-2h) var(--s-1) var(--s-1); }
 
 /* CHAT BUBBLE ANATOMY (addendum item 24: THE one sanctioned locked-CSS
@@ -2792,6 +2820,11 @@ button {
 .chat-refs { margin-top: var(--s-1h); }
 .chat-inputbar { display: flex; gap: var(--s-2); padding: var(--s-2h) var(--s-4); padding-bottom: calc(var(--s-2h) + var(--s-safe-b)); }
 .chat-inputbar .input { flex: 1; }
+/* THE COMPOSER'S TWO CIRCLES (the review: the attach button was a solid red slab beside a dimmed maroon send, so the loudest
+   control was the one he uses least). Attach is a quiet tonal circle with a neutral glyph; Send is the one red circle, and
+   tonal while there is nothing to send, at full strength and not faded to a muddy maroon. */
+.chat-inputbar .chat-attach { background-color: var(--press-3); color: var(--tx-2); }
+.chat-inputbar .chat-send:disabled { background-color: var(--press-3); color: var(--tx-3); opacity: 1; }
 
 /* === CATALOG V3.1 (approved 2026-08-18, LOCKED-CSS CHANGE FLAGGED) ===
    Dave's four asks, as CSS law. 1 FULL PALETTE: nav-tile-* expands to all 15
@@ -3063,6 +3096,9 @@ button {
   text-transform: uppercase; color: var(--accent-chrome); }
 .sh2::after { content: ""; order: 1; flex: 1; border-top: 1px dotted rgba(250, 35, 59, 0.35); align-self: center; }
 .sh2 .n { order: 2; font-size: var(--t-micro); font-weight: var(--w-bold); color: var(--tx-3); letter-spacing: var(--track-caps); }
+/* A head's own estimate ("About 2 Min" beside the Sweep capsule) is a fact span: sky (an estimate), the line's regular
+   weight, never grey caps (Dave 2026-10-05, D4). The capsule beside it is the verb alone. */
+.sh2 .n.fact.est { color: var(--est-ink); font-size: var(--t-sub); font-weight: var(--w-sub); letter-spacing: normal; text-transform: none; }
 /* I3 (2026-08-24, Dave's screenshot): SIX identical red heads down one
    screen. When every head shouts, none of them does, and the accent stops
    meaning "look here" exactly the way a second filled red does. Same
@@ -3145,7 +3181,7 @@ button {
    truncation problem; it is a title that needs a second line.
    Three fixed rows on one screen, so nothing below them can be pushed off. */
 .ob-screen .card > .row > .row-grow > .conn-name {
-  white-space: normal; overflow: visible; text-overflow: clip; }
+  white-space: normal; overflow: visible; text-overflow: clip; text-wrap: balance; } /* balanced: "Connect Gmail / and Calendar", never one word alone (2026-10-05) */
 /* BROWSER-F-06 (2026-09-05): .pagehead-title is off this list. It is 34px
    bold with -0.03em tracking in a 358px column, which is 15 characters, and
    two of the app's OWN page names are longer: "What JARVIS Knows" rendered as
@@ -5168,9 +5204,12 @@ body.selecting .voice-dock { display: none; }
 .rep-hint { margin-top: var(--s-3); color: var(--tx-quiet); }
 .rep-title { font-size: var(--t-h3); font-weight: var(--w-semi); color: var(--tx-1); line-height: var(--lh-default); }
 .rep-wins { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-2); margin-top: var(--s-3h); }
-.rep-win { border-radius: var(--r-md); padding: var(--s-3) var(--s-3h); }
+/* A WIN'S VALUE SITS ON THE TILE'S FLOOR (Dave 2026-10-05, the review: "Achieved" and "Closed" landed at different heights
+   because one name wrapped to two lines). The tile is a column, the grid stretches both to the row's height, and the value
+   takes the free space above it, so values share a baseline whatever their names do. */
+.rep-win { border-radius: var(--r-md); padding: var(--s-3) var(--s-3h); display: flex; flex-direction: column; }
 .rep-win-name { font-size: var(--t-sub); font-weight: var(--w-sub); color: var(--tx-3); }
-.rep-win-val { font-size: calc(17px * var(--type-scale)); font-weight: var(--w-bold); margin-top: var(--s-0h); }
+.rep-win-val { font-size: calc(17px * var(--type-scale)); font-weight: var(--w-bold); margin-top: auto; padding-top: var(--s-0h); }
 .rep-win-good { background: var(--good-tint); } .rep-win-good .rep-win-val { color: var(--good); }
 /* An odd last win or tile takes the whole row instead of leaving a hole beside it (Dave 2026-10-05, the review: "Put Away
    $1,200 alone with an empty right half"). */
@@ -5207,7 +5246,7 @@ body.selecting .voice-dock { display: none; }
 /* A receipts sheet's lines are evidence: regular weight, a hairline between, never a boxed sentence. The sheet has the room,
    so no line is clamped. */
 .rep-receipts { margin-top: var(--s-2); }
-.rep-receipts .strand-receipt .conn-meta { display: block; -webkit-line-clamp: unset; overflow: visible; color: var(--tx-1); }
+.rep-receipts .strand-receipt .rep-receipt-line { display: block; font-size: var(--t-sub); font-weight: var(--w-regular); line-height: 1.35; color: var(--tx-1); }
 .rep-good-glyph { color: var(--good); }
 .rep-one { border: 1px solid var(--accent); }
 .rep-question { font-size: calc(20px * var(--type-scale)); font-weight: var(--w-semi); color: var(--tx-1); margin-top: var(--s-1h); }
@@ -5711,6 +5750,10 @@ body.selecting .voice-dock { display: none; }
 .dd.dd-value.dd-off { color: var(--tx-3); }
 .dd.dd-value .dd-cv { color: var(--tx-2); opacity: 1; width: 7px; height: 7px; margin-left: var(--s-1); }
 .dd.dd-value .dd-w { max-width: 52vw; }
+/* A ROW WITH NOTHING TO SAY SHOWS NOTHING (R1, the review: Repeat None, Length None, Person None, Project None, Goal None, Event None,
+   seven times down one sheet). An empty pick keeps its chevron, which says it can be chosen, and the word "None" stays for a screen
+   reader and the menu's own first option; it is simply not drawn beside the label. */
+.dd.dd-value.dd-none .dd-w { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .dd.dd-value.dd-open { background: transparent; opacity: 0.6; }
 /* The derived Goal value of 2026-09-09 (a --tx-3 answer with no menu behind
    it) is gone since 2026-09-26: the Goal row is a picker on every screen
@@ -5733,7 +5776,7 @@ body.selecting .voice-dock { display: none; }
   background-color: color-mix(in srgb, var(--scrim) 25%, transparent); }
 .hmenu-scrim > .hmenu { pointer-events: auto; }
 .hmenu { position: fixed; min-width: 168px; max-width: calc(100vw - 32px); padding: var(--s-1h) 0;
-  border-radius: var(--r-md); background: color-mix(in srgb, var(--surface-2) 96%, transparent);   /* a thick warm menu material: the list must not read through */
+  border-radius: var(--r-md); background-color: var(--surface-2);   /* a solid warm menu: the list behind it must not read through, not even at 4% (2026-10-05) */
   -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat)); backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
   box-shadow: inset 0 0.5px 0 var(--rim-card), var(--shadow-float);
   transform-origin: top left; animation: hmenuIn var(--dur-fast) var(--ease-out); }
@@ -5741,7 +5784,7 @@ body.selecting .voice-dock { display: none; }
 .hmenu.hmenu-up { transform-origin: bottom left; }
 .hmenu.hmenu-up.hmenu-right { transform-origin: bottom right; }
 .hmenu { overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
-[data-theme="light"] .hmenu { background: color-mix(in srgb, var(--chrome-bg) 96%, transparent); box-shadow: var(--shadow-float); }
+[data-theme="light"] .hmenu { background-color: var(--chrome-bg); box-shadow: var(--shadow-float); }
 @keyframes hmenuIn { from { opacity: 0; transform: scale(0.92); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .hmenu { animation: none; } }
 .hmenu-item { display: flex; align-items: center; gap: var(--s-2h); width: 100%; min-height: 44px; padding: 0 var(--s-4) 0 var(--s-3);
@@ -6008,7 +6051,7 @@ body.selecting .voice-dock { display: none; }
 .xs-pick-v { font-size: var(--t-body); font-weight: var(--w-regular); color: var(--tx-1); white-space: nowrap; }
 .xs-pick-off .xs-pick-v { color: var(--tx-3); }
 .xs-pick-bad .xs-pick-v { color: var(--sys-red-on-sheet); }
-.xs-pick-in { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; font-size: 16px; border: 0; padding: 0; background: transparent; cursor: pointer; }
+.xs-pick-in { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; font-size: calc(16px * var(--type-scale)); border: 0; padding: 0; background: transparent; cursor: pointer; }
 .xs-pick-in::-webkit-calendar-picker-indicator { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; padding: 0; cursor: pointer; }
 /* The minute nudges: four equal 44px segments in one strip (the old chips wrapped 3 + 2). */
 .xs-nudge { width: 100%; }
@@ -6027,7 +6070,7 @@ body.selecting .voice-dock { display: none; }
 .form-sheet .xs-notes { align-items: center; }
 .form-sheet .xs-notes .xs-textarea { flex: 1 1 0; min-height: 32px; height: 32px; text-align: right; overflow: hidden; }
 .form-sheet .xs-notes .xs-textarea:focus,
-.form-sheet .xs-notes .xs-textarea:not(:placeholder-shown) { flex: 1 0 calc(100% - 28px - var(--s-3)); margin-left: calc(28px + var(--s-3)); min-height: 72px; height: auto; text-align: left; overflow: auto; }
+.form-sheet .xs-notes .xs-textarea:not(:placeholder-shown) { flex: 1 0 calc(100% - 28px - var(--s-3)); margin-left: calc(28px + var(--s-3)); min-height: 72px; height: auto; text-align: left; overflow: auto; overscroll-behavior: contain; }
 
 .form-sheet .xs-textarea { height: auto; min-height: 72px; padding: var(--s-1) 0; resize: none; line-height: var(--lh-relaxed); font-family: inherit; }
 .form-sheet .row.xs-strip .pick-fam { margin: 0 0 var(--s-1h); }
@@ -6227,6 +6270,8 @@ body.selecting .voice-dock { display: none; }
 .ev-title { text-wrap: balance; overflow-wrap: anywhere; }
 .ev-head .row-ico { margin-top: var(--s-0h); }
 .ev-top { padding-top: var(--s-3); }
+/* The Area card sits right under the title card, on the same 8pt step as two cards in a list. */
+.ev-top + .pad-x { padding-top: var(--s-2); }
 .ev-area { display: inline-flex; align-items: center; gap: var(--s-2); }
 .ev-join { margin-top: var(--s-3); }
 .ev-verbs { display: flex; flex-direction: column; gap: var(--s-2); margin-top: var(--s-5); }
@@ -6395,6 +6440,9 @@ body.selecting .voice-dock { display: none; }
 .fact.date { font-size: var(--t-eyebrow); font-weight: var(--w-semi);
   letter-spacing: var(--track-caps); text-transform: uppercase; color: var(--tx-3);
   font-variant-numeric: tabular-nums; }
+/* A notification's next event is the same small-caps time as the ones after it, in the amber of "next" (2026-10-05, the review:
+   a 14px amber time above 11px grey ones read as two kinds of fact). */
+.notif-facts > .fact.date.warn { color: var(--warn); }
 /* AN ESTIMATE the app worked out is sky, the ink .r-est already wears.
    The estimate has its own ink, --est-ink (Dave's pick, 2026-09-26): in dark
    it IS the sky slot, unchanged; in light it is a darker sky, #006592,
@@ -6920,11 +6968,28 @@ span.row-star { cursor: default; }
 .life-seg .segmented .seg { flex: 0 0 auto; white-space: nowrap; scroll-snap-align: start; }
 /* THE LIFE STRIP FADES ONLY WHERE IT CONTINUES (2026-10-05): the shared right-edge fade above sat on the strip even when all
    five lenses fit, dimming "Goals" itself. LifeSegments writes data-more ("r", "l", "lr" or "") from its scroll position. */
-.life-seg .segmented[data-more=""] { -webkit-mask-image: none; mask-image: none; }
-.life-seg .segmented[data-more="l"] { -webkit-mask-image: linear-gradient(to left, #000 calc(100% - 28px), transparent 100%);
+.life-seg .segmented[data-more=""],
+.mt-tabrow .segmented[data-more=""] { -webkit-mask-image: none; mask-image: none; }
+.life-seg .segmented[data-more="l"],
+.mt-tabrow .segmented[data-more="l"] { -webkit-mask-image: linear-gradient(to left, #000 calc(100% - 28px), transparent 100%);
   mask-image: linear-gradient(to left, #000 calc(100% - 28px), transparent 100%); }
-.life-seg .segmented[data-more="lr"] { -webkit-mask-image: linear-gradient(to right, transparent 0, #000 28px, #000 calc(100% - 28px), transparent 100%);
+.life-seg .segmented[data-more="lr"],
+.mt-tabrow .segmented[data-more="lr"] { -webkit-mask-image: linear-gradient(to right, transparent 0, #000 28px, #000 calc(100% - 28px), transparent 100%);
   mask-image: linear-gradient(to right, transparent 0, #000 28px, #000 calc(100% - 28px), transparent 100%); }
+/* THE TRACKER'S TABS SAY WHEN THEY SCROLL, THE SAME WAY (2026-10-05, the perfect bar: "Dashboard / Transactions / Budgets /
+   Su", the fourth tab cut mid-word in dark). Four labels cannot share 350px, so the strip scrolls, centres the active tab, and
+   fades only the side it continues on, in both themes. The buttons are .seg buttons: the UA ground goes, the active one keeps
+   the system's. */
+.mt-tabrow .segmented .seg { min-height: var(--tap-min); border: 0; font-family: inherit; }
+.mt-tabrow .segmented .seg:not(.active) { background: transparent; }
+/* A NOTICE UNDER THE TITLE HAS ROOM (2026-10-05): the import offer sat on the title's underline with no gap. */
+.mt-notice { margin-top: var(--s-4); margin-bottom: var(--s-3); }
+/* THE MONTH SWITCH: two quiet chevron buttons flanking the month, a tap each (2026-10-05: "Back" and "Next" read as
+   navigation next to the screen's own back link). Neutral ink, no fill, the same in both themes. */
+.mt-step { width: var(--tap-min); height: var(--tap-min); display: inline-flex; align-items: center; justify-content: center;
+  border: 0; border-radius: var(--r-pill); background: transparent; color: var(--tx-2); flex: 0 0 auto; }
+.mt-step:active { background: var(--press-1); }
+.mt-step .ic { width: 20px; height: 20px; }
 
 .mt-monthnav { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); margin-bottom: var(--s-2); }
 .mt-monthname { font-size: var(--t-h3); font-weight: var(--w-semi); color: var(--tx-1); }
@@ -6933,12 +6998,22 @@ span.row-star { cursor: default; }
    the type scale makes a balance wider than half the row ("$26,512.41" ran
    out of its tile at 1.4). */
 .mt-accts { display: grid; grid-template-columns: repeat(auto-fit, minmax(calc(140px * var(--type-scale)), 1fr)); gap: var(--s-2h); }
-.mt-acct { padding: var(--s-3); }
+/* EVEN TILES (2026-10-05, the perfect bar): the grid stretches every tile in a row to the tallest, and each tile reads top
+   down in the same three steps (name, last digits, balance), so the balances across a row sit on one line and a card's
+   available credit is one more line under its own balance, never a different shape. */
+.mt-acct { padding: var(--s-3); display: flex; flex-direction: column; }
 .mt-acct-name { font-size: var(--t-eyebrow); font-weight: var(--w-semi); letter-spacing: var(--track-caps);
-  text-transform: uppercase; color: var(--tx-3); margin-bottom: var(--s-1); }
+  text-transform: uppercase; color: var(--tx-3); }
+/* The last digits, behind two drawn dots (CSS, not a typed mask), quiet and tabular. */
+.mt-acct-mask { font-size: var(--t-eyebrow); font-weight: var(--w-medium); color: var(--tx-3); font-variant-numeric: tabular-nums;
+  margin-top: var(--s-0h); }
+.mt-acct-mask::before { content: "\2022\2022\00a0"; letter-spacing: 0.1em; }
+.mt-acct-foot { padding-top: var(--s-2); }
 .mt-acct-bal { font-size: calc(19px * var(--type-scale)); font-weight: var(--w-bold); color: var(--tx-1);
   font-variant-numeric: tabular-nums; }
-.mt-acct-sub { font-size: var(--t-meta); color: var(--tx-3); margin-top: var(--s-0h); }
+.mt-acct-kick { font-size: var(--t-eyebrow); font-weight: var(--w-semi); letter-spacing: var(--track-caps);
+  text-transform: uppercase; color: var(--tx-3); margin-top: var(--s-2); }
+.mt-acct-avail { font-size: var(--t-meta); font-weight: var(--w-semi); color: var(--tx-1); font-variant-numeric: tabular-nums; }
 
 /* AMENDED 2026-09-26 (pass-off item 16): "-$1,145.68" clipped its last digit
    in the Net tile at 390 (in Dave's own screenshot too). The tiles wrap and

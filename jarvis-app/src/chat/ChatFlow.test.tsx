@@ -51,7 +51,7 @@ const renderChat = (userId: string, onOpen?: (kind: string, id: string) => void)
   );
 
 const sendText = (text: string) => {
-  fireEvent.change(screen.getByPlaceholderText("Ask · Tell · Paste"), { target: { value: text } });
+  fireEvent.change(screen.getByPlaceholderText("Ask, Tell or Paste"), { target: { value: text } });
   fireEvent.click(screen.getByRole("button", { name: "Send" }));
 };
 
@@ -148,7 +148,7 @@ describe("ChatFlow keeps the message when the store rejects (SHELL-F-17)", () =>
     vi.spyOn(chatRef!, "append").mockRejectedValueOnce(new Error("store down"));
     sendText("call the plumber back");
     await waitFor(() => expect(showToast).toHaveBeenCalledWith({ message: WRITE_FAILED_MESSAGE }));
-    const box = screen.getByPlaceholderText("Ask · Tell · Paste") as HTMLInputElement;
+    const box = screen.getByPlaceholderText("Ask, Tell or Paste") as HTMLInputElement;
     expect(box.value).toBe("call the plumber back");
     expect(screen.queryByText("call the plumber back", { selector: ".chat-text" })).not.toBeInTheDocument();
     expect(await tasksRef!.listTasks()).toHaveLength(0);
@@ -170,7 +170,7 @@ describe("ChatFlow keeps the message when the store rejects (SHELL-F-17)", () =>
     // one, because BROWSER-F-12 (2026-09-05) also disables Send on an EMPTY
     // box, so "not disabled" on its own would now be testing the wrong thing:
     // the box is empty here, the message having just gone.
-    fireEvent.change(screen.getByPlaceholderText("Ask · Tell · Paste"), { target: { value: "and again" } });
+    fireEvent.change(screen.getByPlaceholderText("Ask, Tell or Paste"), { target: { value: "and again" } });
     expect(screen.getByRole("button", { name: "Send" })).not.toBeDisabled();
   });
 });
@@ -183,7 +183,7 @@ describe("BROWSER-F-12: one input, and Send says when it cannot send", () => {
   it("Send is disabled until there is something to send", async () => {
     renderChat("u-chat-empty");
     await waitFor(() => expect(chatRef).toBeTruthy());
-    const box = screen.getByPlaceholderText("Ask · Tell · Paste");
+    const box = screen.getByPlaceholderText("Ask, Tell or Paste");
     expect(screen.getByRole("button", { name: "Send" }), "nothing typed").toBeDisabled();
     fireEvent.change(box, { target: { value: "what's on today?" } });
     expect(screen.getByRole("button", { name: "Send" })).not.toBeDisabled();

@@ -15,6 +15,8 @@ import { nameFor } from "./names";
 import { railClass, railToneForWaiting } from "./rows";
 import { EnvelopeGlyph } from "../shared/glyphs";
 import ListFloor from "../shared/ListFloor";
+import NoticeCard from "../today/NoticeCard";
+import { sweepEstimate } from "./sweep";
 
 interface DemoRow { from: string; sub: string; when: string; unread?: boolean; due?: string }
 interface DemoWait { to: string; sub: string; days: number }
@@ -128,7 +130,7 @@ export default function DemoMail({ onConnect }: { onConnect?: () => void }) {
           of the inbox threads the demo has (search is not drawn); Drafts has
           none, so it is the live page's empty state. The demo never shows an
           anatomy the app does not have. */}
-      <div className="pad-x msg-chips">
+      <div className="pad-x msg-chips msg-views">
         <button className={"chip" + (view === "triage" ? " on" : "")} onClick={() => setView("triage")}>For You</button>
         <button className={"chip" + (view === "all" ? " on" : "")} onClick={() => setView("all")}>All</button>
         <button className={"chip" + (view === "drafts" ? " on" : "")} onClick={() => setView("drafts")}>Drafts</button>
@@ -136,7 +138,7 @@ export default function DemoMail({ onConnect }: { onConnect?: () => void }) {
 
       {view === "all" && (<>
       <div><div className="list-flat">{needsRows()}</div></div>
-      <ListFloor />
+      <ListFloor>That&rsquo;s Everything.</ListFloor>
       </>)}
 
       {view === "drafts" && (
@@ -165,12 +167,14 @@ export default function DemoMail({ onConnect }: { onConnect?: () => void }) {
           shape MessagesFlow draws, in place of the Mission Deck card. */}
       <div className="sh2 sh2-quiet">
         <span className="t">Needs You</span>
-        <button className="see-all pill-action" onClick={demoTap}>Sweep {"\u00b7"} About 2 Min</button>
+        {/* The estimate is a fact beside the capsule, and the capsule is the verb alone (Dave 2026-10-05). */}
+        <span className="n fact est">{sweepEstimate(NEEDS.length)}</span>
+        <button className="see-all pill-action" onClick={demoTap} aria-label={"Sweep, " + sweepEstimate(NEEDS.length)}>Sweep</button>
       </div>
       <div className="pad-x"><div className="card list-card-ruled">
         {needsRows()}
       </div></div>
-      <ListFloor>That&rsquo;s every one that needs you.</ListFloor>
+      <ListFloor>That&rsquo;s Every One That Needs You.</ListFloor>
       </>)}
 
       {outcome === "waiting" && (<>
@@ -197,7 +201,7 @@ export default function DemoMail({ onConnect }: { onConnect?: () => void }) {
           );
         })}
       </div></div>
-      <ListFloor />
+      <ListFloor>That&rsquo;s Everything.</ListFloor>
       </>)}
 
       <div className="pad-x msg-fold">
@@ -208,7 +212,8 @@ export default function DemoMail({ onConnect }: { onConnect?: () => void }) {
               {/* No line under it (§AM R1): a line that is the same on every
                   inbox says nothing, and the count is the pill. */}
             </div>
-            <span className="pill pill-subdued">14</span>
+            <span className="fact"><b>14</b></span>
+            <div className="chev" />
           </div>
         </div>
       </div>
@@ -221,7 +226,7 @@ export default function DemoMail({ onConnect }: { onConnect?: () => void }) {
       <div className="sh2 sh2-quiet"><span className="t">Tools</span></div>
       <div className="pad-x"><div className="card list-card-ruled">
         <div className="row" role="button" tabIndex={0} onClick={demoTap}>
-          <span className="row-ico cat-bg-graphite" aria-hidden="true"><Archive className="ic" /></span>
+          <span className="row-ico cat-bg-teal" aria-hidden="true"><Archive className="ic" /></span>
           <div className="row-grow">
             <div className="conn-name">Clean Out</div>
             <div className="conn-meta">14 Threads from 6 Senders</div>
@@ -229,7 +234,7 @@ export default function DemoMail({ onConnect }: { onConnect?: () => void }) {
           <div className="chev" />
         </div>
         <div className="row" role="button" tabIndex={0} onClick={demoTap}>
-          <span className="row-ico cat-bg-graphite" aria-hidden="true"><Clock className="ic" /></span>
+          <span className="row-ico cat-bg-orange" aria-hidden="true"><Clock className="ic" /></span>
           <div className="row-grow">
             <div className="conn-name">Only a Few Minutes?</div>
             <div className="conn-meta">A Timed Drain That Stops Itself</div>
@@ -237,27 +242,39 @@ export default function DemoMail({ onConnect }: { onConnect?: () => void }) {
           <div className="chev" />
         </div>
         <div className="row" role="button" tabIndex={0} onClick={demoTap}>
-          <span className="row-ico cat-bg-graphite" aria-hidden="true"><Volume2 className="ic" /></span>
+          <span className="row-ico cat-bg-purple" aria-hidden="true"><Volume2 className="ic" /></span>
           <div className="row-grow">
             <div className="conn-name">Read It to Me</div>
-            <div className="conn-meta">Senders and Gists, Never the Message</div>
+            <div className="conn-meta">Gists, Never the Message</div>
           </div>
           <div className="chev" />
         </div>
         <div className="row" role="button" tabIndex={0} onClick={demoTap}>
-          <span className="row-ico cat-bg-graphite" aria-hidden="true"><CalendarClock className="ic" /></span>
+          <span className="row-ico cat-bg-sky" aria-hidden="true"><CalendarClock className="ic" /></span>
           <div className="row-grow">
+            {/* No line under it: "Open Email on a Schedule" said the title again (Dave 2026-10-05, a row with nothing to say shows nothing). */}
             <div className="conn-name">Email Windows</div>
-            <div className="conn-meta">Open Email on a Schedule</div>
           </div>
           <div className="chev" />
         </div>
       </div></div>
       </>)}
 
+      {/* A button with no words is not drawn (Dave 2026-10-05): the offer carries its own headline and its one line,
+          so the demo says why it is the demo before it asks for anything. */}
       {onConnect && (
-        <div className="pad-x conn-action">
-          <button className="btn btn-primary btn-block" onClick={onConnect}>Connect Google</button>
+        <div className="conn-action">
+          <NoticeCard
+            offer
+            stack
+            uniform={false}
+            icon={<Mail className="ic" />}
+            tone="cat-fg-teal"
+            title="Connect Your Inbox"
+            sub="Real Mail Replaces These Samples"
+            action={{ label: "Connect Google", onClick: onConnect }}
+            onOpen={onConnect}
+          />
         </div>
       )}
       <div className="screen-foot" />

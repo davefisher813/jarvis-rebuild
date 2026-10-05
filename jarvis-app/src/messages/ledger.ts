@@ -129,7 +129,7 @@ export function buildLedger(input: LedgerInput): Ledger {
       kind: "promise",
       who: "",
       what: titleCase(p.text),
-      since: p.due ? lineCase("Due " + dayPhrase(p.due, today)) : "You Said You Would",
+      since: p.due ? lineCase("Due " + dayPhrase(p.due, today)) : "You Promised It",
       sortKey: p.due || "9999-12-31",
       ...(p.due ? { due: p.due } : {}),
       late: !!p.due && p.due < today,

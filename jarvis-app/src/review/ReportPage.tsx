@@ -82,7 +82,7 @@ function ReceiptsSheet({ title, lines, answers = [], onDone }: { title: string; 
           2026-10-05, the review: one loud bold sentence in a filled box is not evidence). */}
       <div className="rep-receipts">
         {lines.map((l, i) => (
-          <div className="strand-receipt" key={i}><div className="r-what conn-meta">{l}</div></div>
+          <div className="strand-receipt" key={i}><div className="r-what rep-receipt-line">{l}</div></div>
         ))}
       </div>
     </RowSheet>
