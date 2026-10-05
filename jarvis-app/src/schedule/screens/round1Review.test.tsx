@@ -140,8 +140,17 @@ describe("the grid and the key, read off the stylesheet", () => {
     expect(time).toMatch(/width:\s*var\(--sched-time-w\)/);
     const lead = body(".ruled .sched-row:not(.sched-row-bare) > .row-star");
     expect(lead).toMatch(/flex:\s*0 0 var\(--sched-lead\)/);
-    // A row with no lead (a protected block) keeps the slot's room.
-    expect(body(".ruled .sched-row:not(.sched-row-bare) > .sched-time:first-child")).toMatch(/margin-left:\s*calc\(var\(--sched-lead\) \+ var\(--s-3\)\)/);
+    // AMENDED 2026-10-05 (Dave, two photographs: a dead region on the left of the day card, and times that did not share a
+    // left edge): the time leads every row, left aligned, and the lead control sits behind it. A row with no lead gives its
+    // BODY the slot's room, and only in a card where some row has a lead, so titles still start at one x and a leadless day has
+    // no empty slot.
+    expect(time, "the time is left aligned, never right").toMatch(/text-align:\s*left/);
+    expect(time).not.toMatch(/text-align:\s*right/);
+    expect(time, "and is the row's first item").toMatch(/order:\s*0/);
+    expect(body(".ruled .sched-row:not(.sched-row-bare) > .sched-check")).toMatch(/order:\s*1/);
+    expect(body(".ruled .sched-row:not(.sched-row-bare) > .sched-body")).toMatch(/order:\s*2/);
+    expect(css, "no margin on the time itself").not.toMatch(/\.sched-time:first-child,\s*\n\.ruled \.sched-row:not\(\.sched-row-bare\) > \.sched-bar \+ \.sched-time \{ margin-left/);
+    expect(css, "the lead's room belongs to the body").toMatch(/\.sched-time:first-child ~ \.sched-body/);
     // The star's 44px hit is an expander, not a bigger glyph.
     expect(body(".ruled .sched-row > .row-star::after")).toMatch(/inset:/);
   });
