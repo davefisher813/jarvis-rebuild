@@ -3426,9 +3426,11 @@ button {
 .rem-row + .rem-row { border-top: 0; position: relative; }
 .rem-row + .rem-row::before { content: ""; position: absolute;
   left: calc(var(--s-4) + 22px + var(--s-3)); right: 0; top: 0; height: 0.5px; background: var(--divider); }
-.rem-time { font-size: var(--t-meta); color: var(--tx-3); font-variant-numeric: tabular-nums; flex-shrink: 0; min-width: 46px; }
+.rem-time { font-size: var(--t-meta); color: var(--tx-3); font-variant-numeric: tabular-nums; font-weight: var(--w-semi); flex-shrink: 0; min-width: 46px; }
 /* The task row's type here too, so the strip and the Reminders page agree. */
-.rem-name { font-size: calc(16px * var(--type-scale)); letter-spacing: -0.01em; color: var(--tx-1); display: flex; align-items: center; gap: var(--s-1h); min-width: 0; }
+/* BOLD (Dave 2026-10-05, both themes): the task row's name is --w-name, so the
+   reminder's is too; the time is semibold like the Reminders page's gutter. */
+.rem-name { font-size: calc(16px * var(--type-scale)); font-weight: var(--w-name); letter-spacing: -0.01em; color: var(--tx-1); display: flex; align-items: center; gap: var(--s-1h); min-width: 0; }
 .rem-name-t { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* The strip's facts line, the Reminders page's own (Dave 2026-09-15: "why is
    there a yellow dot and no category next to it"). The bare dot the strip

@@ -21,6 +21,8 @@ import "./styles/editor.css";
 import "./styles/ruled.css";
 import "./styles/hub.css";
 import "./styles/email.css";
+import "./styles/glass-light.css";
+import "./styles/glass-dark.css";
 
 initMonitoring();
 // A sheet is fixed to the layout viewport, and iOS moves the VISIBLE one when
