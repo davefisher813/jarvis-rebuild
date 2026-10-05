@@ -153,8 +153,8 @@ describe("the button finish", () => {
     expect(same(red(dRules), red(rules)), "red in dark but not light").toEqual([]);
     expect(same(quiet(rules), quiet(dRules)), "capsule in light but not dark").toEqual([]);
     expect(same(quiet(dRules), quiet(rules)), "capsule in dark but not light").toEqual([]);
-    for (const must of [".pill-act.pill-go", ".btn-primary", ".plan-cta", ".hdr-controls .tasks-focus"]) expect(red(rules).has(must), must).toBe(true);
-    for (const must of [".pill-act:not(.pill-go)", ".see-all.pill-action", ".btn-secondary", ".quiet-action"]) expect(quiet(rules).has(must), must).toBe(true);
+    for (const must of [".pill-act.pill-go", ".btn-primary", ".plan-cta:not(.plan-cta-ghost)", ".hdr-controls .tasks-focus"]) expect(red(rules).has(must), must).toBe(true);
+    for (const must of [".pill-act:not(.pill-go)", ".see-all.pill-action", ".btn-secondary", ".quiet-action", ".plan-cta.plan-cta-ghost"]) expect(quiet(rules).has(must), must).toBe(true);
     expect(red(rules).has(".row-act") && quiet(dRules).has(".row-act"), "Focus: red in light, capsule in dark").toBe(true);
   });
 
@@ -170,5 +170,17 @@ describe("the button finish", () => {
   it("leaves the swipe rail alone: Dismiss is not a capsule", () => {
     expect(noComments).not.toMatch(/notice-dismiss/);
     expect(dNoComments).not.toMatch(/notice-dismiss/);
+  });
+
+  it("never paints a stepped-down (ghost) button red: it keeps its grey and its ink (Dave 2026-10-05: no red with black text)", () => {
+    for (const [name, rs] of Object.entries(files)) {
+      for (const r of rs) {
+        if (!/accent-fill/.test(r.body) || !/background-color/.test(r.body)) continue;
+        for (const sel of r.sel.split(",").map((x) => x.trim())) {
+          if (/ghost/.test(sel.replace(/:not\([^)]*ghost[^)]*\)/g, ""))) expect(false, `${name}: ghost painted red by ${sel}`).toBe(true);
+          if (/^html\[data-theme="\w+"\] \.plan-cta$/.test(sel)) expect(false, `${name}: bare .plan-cta in the red family (must exclude the ghost): ${sel}`).toBe(true);
+        }
+      }
+    }
   });
 });
