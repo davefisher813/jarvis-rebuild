@@ -67,7 +67,10 @@ export default function PlateSheet({ total, unit, rack, style, onClose }: {
             <Stepper value={t} step={step} min={0} label="Weight" onChange={setT} />
           </div>
 
-          {/* PLATES: a barbell, a Smith carriage or a plate-loaded machine. */}
+          {/* PLATES: a barbell, a Smith carriage or a plate-loaded machine.
+              2026-10-05 (the catalog gate): every fact and meta line on this
+              sheet is Title Case with a capitalized unit ("45 Lb"); they were
+              sentence case with a lowercase unit (Dave: "45 min v 45 Min"). */}
           {math.offer && (
             <div className="field">
               <div className="input-label">On Each Side</div>

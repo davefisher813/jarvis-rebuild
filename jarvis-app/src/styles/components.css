@@ -7129,3 +7129,11 @@ html[data-motion="reduce"] .fb-fill { transition: none; }
   html:not([data-motion="full"]) .fb-fill { transition: none; }
 }
 /* === END FEEDBACK STYLE === */
+
+/* THE SWIPE TIP AND THE ROW'S MOMENT (Dave 2026-10-05, locked; ROW-ACTIONS-SPEC.md). The tip is a quiet note, not a
+   control; the contextual action is text only in the key colour, never a capsule. */
+.swipe-tip { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); padding: var(--s-2) var(--s-3); margin-bottom: var(--s-2); border-radius: var(--r-md); background: var(--capsule-fill); }
+.swipe-tip-t { font-size: var(--t-caption); font-weight: var(--w-semi); color: var(--tx-1); }
+.swipe-tip-x { flex: 0 0 44px; width: 44px; height: 44px; margin: calc(var(--s-2) * -1) calc(var(--s-3) * -1) calc(var(--s-2) * -1) 0; display: flex; align-items: center; justify-content: center; border: 0; background: transparent; color: var(--tx-3); }
+.swipe-tip-x .ic { width: 16px; height: 16px; }
+.row-ctx { flex: 0 0 auto; min-width: 44px; min-height: 44px; padding: 0 var(--s-2); border: 0; background: transparent; color: var(--tint); font: inherit; font-size: var(--t-caption); font-weight: var(--w-bold); letter-spacing: -0.01em; }

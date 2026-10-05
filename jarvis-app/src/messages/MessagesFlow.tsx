@@ -5742,6 +5742,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                   <span className="row-ico cat-bg-graphite" aria-hidden="true"><Clock className="ic" /></span>
                   <div className="row-grow">
                     <div className="conn-name">Only a Few Minutes?</div>
+                    {/* 2026-10-05 (the catalog gate): Title Case, like every meta line. */}
                     <div className="conn-meta">A Timed Drain That Stops Itself</div>
                   </div>
                   <div className="chev" />

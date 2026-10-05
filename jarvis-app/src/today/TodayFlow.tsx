@@ -3163,8 +3163,7 @@ export default function TodayFlow({
     back ? (
       <button key="back" data-receipt className="receipt-line" onClick={() => setUpNextOpen(true)}>
         {/* ONE PHRASE, NOT THREE SENTENCES (2026-10-05, the catalog hard gate).
-            The parts were joined with ". " and a capital, so the rendered line
-            ("Welcome Back. Start With One?") carried a sentence boundary the
+            The parts were joined with ". " and a capital, so the rendered line carried a sentence boundary the
             short-copy rule bans in any drawn string. A comma joins them. */}
         <span className="rl-t">{[back.title, back.gone, back.ask].filter(Boolean).join(", ")}</span>
         <span className="chev" />

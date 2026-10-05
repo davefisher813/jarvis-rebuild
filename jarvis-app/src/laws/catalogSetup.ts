@@ -55,7 +55,7 @@ if (typeof document !== "undefined" && typeof MutationObserver !== "undefined") 
     const num = found.filter((v) => v.startsWith("NUMBER\t") && !NUMBER_CASE_ROSTER[file]).map((v) => v.slice(7));
     const box = found.filter((v) => v.startsWith("BOX\t") && !LONE_ACTION_ROSTER[file]).map((v) => v.slice(4));
     if (num.length)
-      throw new Error(`Catalog: a lowercase word follows a leading number (capitalize it, as in Two Blocks written 2 then Blocks). Drawn: ${num.join(" | ")}`);
+      throw new Error(`Catalog: a lowercase word follows a leading number (the word after a leading number takes a capital). Drawn: ${num.join(" | ")}`);
     if (box.length)
       throw new Error(`Catalog: a card holds nothing but an action, so the capsule stands by itself with no box · Drawn: ${box.join(" | ")}`);
   });

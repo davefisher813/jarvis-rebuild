@@ -14,14 +14,11 @@ import type { EmailFact } from "./format";
 export default function EmailFacts({ facts, wrap = false }: { facts: readonly EmailFact[]; wrap?: boolean }) {
   const list = facts.filter((f) => f.text.trim());
   if (list.length === 0) return null;
-  return (
-    <div className={wrap ? "conn-meta" : "facts"}>
-      {list.map((f, i) => (
-        <span key={i + ":" + f.text} className={"fact" + (f.cat ? " cat" : "") + (f.tone ? " " + f.tone : "")}>
-          {f.cat && <span className={"cd cat-bg-" + f.cat} />}
-          {f.cat ? <span className="cat-t">{f.text}</span> : f.strong ? <b>{f.text}</b> : f.text}
-        </span>
-      ))}
-    </div>
-  );
+  const spans = list.map((f, i) => (
+    <span key={i + ":" + f.text} className={"fact" + (f.cat ? " cat" : "") + (f.tone ? " " + f.tone : "")}>
+      {f.cat && <span className={"cd cat-bg-" + f.cat} />}
+      {f.cat ? <span className="cat-t">{f.text}</span> : f.strong ? <b>{f.text}</b> : f.text}
+    </span>
+  ));
+  return wrap ? <div className="conn-meta">{spans}</div> : <div className="facts">{spans}</div>;
 }

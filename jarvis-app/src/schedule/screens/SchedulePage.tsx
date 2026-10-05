@@ -561,7 +561,10 @@ export default function SchedulePage({
                       in the No End pill, not again in words beside it.
                       The short facts lead and the cadence, free text, goes
                       last (2026-09-26): first, a long cadence cut the end
-                      date mid-word and squeezed the skip count to nothing. */}
+                      date mid-word and squeezed the skip count to nothing.
+                      2026-10-05 (the catalog gate): "2 skipped" was the one
+                      lowercase word behind a number on this line; it reads
+                      "2 Skipped" (the number rule). */}
                   <div className="facts">
                     {!r.endless && <span className="fact date">{r.ends}</span>}
                     {r.skipped > 0 && <span className="fact"><b>{r.skipped} Skipped</b></span>}
@@ -596,6 +599,7 @@ export default function SchedulePage({
           ? [tickWin.windowS, ...(tickWin.windowS < 12 * 60 && tickWin.windowE > 12 * 60 ? [12 * 60] : []), tickWin.windowE]
               .map((m) => ({ m, pct: ((m - tickWin.windowS) / Math.max(1, tickWin.windowE - tickWin.windowS)) * 100 }))
           : [];
+        // 2026-10-05 (the catalog gate): the week axis says Noon with a capital, like every label the app writes.
         const tickLabel = (m: number) => { const h = Math.floor(m / 60) % 24; const r = m % 60; if (h === 12 && r === 0) return "Noon"; return `${h % 12 || 12}${r ? ":" + String(r).padStart(2, "0") : ""} ${h >= 12 ? "PM" : "AM"}`; };
         return (<>
         <div className="sh2 sh2-quiet wk-head"><span className="t">{weekWord(weekCells, todayDate)}</span>
@@ -623,7 +627,7 @@ export default function SchedulePage({
                 {past
                   ? <span className="wk-open">{r.count > 0 ? <><b>{r.count}</b> {r.count === 1 ? "Block" : "Blocks"}</> : ""}</span>
                   : r.openMin > 0
-                    ? <span className="wk-open"><b>{spanShort(r.openMin)}</b> Open</span>
+                    ? <span className="wk-open"><b>{spanShort(r.openMin)}</b> Open</span> /* 2026-10-05: "3h Open", "2 Blocks": the word behind a number is capitalized (Dave's number rule, "Earlier 2 blocks"). */
                     : <span className="wk-open wk-full">Full</span>}
               </div>
             );
@@ -871,7 +875,9 @@ export default function SchedulePage({
                           <span className="fact st gray">Proposed</span>
                           {/* A length that cannot be tapped is a number with
                               no state: white, not a second grey beside the
-                              block's own kicker (§AK, §AM). */}
+                              block's own kicker (§AK, §AM). 2026-10-05 (the
+                              catalog gate): spanLabel spells it "45 Min" and
+                              "1h 30m"; it was glued "45m" by hand. */}
                           <span className="fact"><b>{spanLabel(blockMinutes(b))}</b></span>
                         </span>
                         {proposed?.onAccept && (

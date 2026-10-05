@@ -43,8 +43,8 @@ export default function RitualSheet({
           options={LENGTHS.map((m) => ({ value: String(m), label: minutesLabel(m) }))} onPick={(v) => setMinutes(Number(v))} />
       </Group>
       {/* A NOTE IS FRAGMENTS JOINED BY A DOT, AND A CLOCK IS 12-HOUR (2026-10-05, the
-          catalog hard gate). It read "Ends 09:45. Finishing is not the point.": a
-          24-hour time and two sentences with a boundary the short-copy rule bans.
+          catalog hard gate). It read as a 24-hour time and two sentences with a
+          boundary the short-copy rule bans.
           Lengths say "25 Min", the one duration shape. */}
       {ready && <Note>Ends {endsAtLabel(draft)} · Finishing Is Not the Point</Note>}
       <Group label="First Move">

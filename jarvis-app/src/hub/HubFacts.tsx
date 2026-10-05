@@ -33,7 +33,7 @@ export function liveFacts(facts: HubFactInput[]): HubFact[] {
   return facts.filter((f): f is HubFact => !!f && f.text.trim().length > 0);
 }
 
-export default function HubFacts({ facts, wrap = true }: { facts: HubFactInput[]; wrap?: boolean }): ReactNode {
+export default function HubFacts({ facts, wrap: wraps = true }: { facts: HubFactInput[]; wrap?: boolean }): ReactNode {
   const list = liveFacts(facts);
   if (list.length === 0) return null;
   let toned = false;
@@ -43,5 +43,5 @@ export default function HubFacts({ facts, wrap = true }: { facts: HubFactInput[]
     if (tone) toned = true;
     return <span key={i} className={"fact" + (tone ? " " + tone : "")}>{f.strong ? <b>{f.text}</b> : f.text}</span>;
   });
-  return <div className={wrap ? "conn-meta" : "facts"}>{spans}</div>;
+  return wraps ? <div className="conn-meta">{spans}</div> : <div className="facts">{spans}</div>;
 }

@@ -215,6 +215,9 @@ export default function DemoMail({ onConnect }: { onConnect?: () => void }) {
 
       {/* TOOLS (EM1 / E-01, 2026-09-12): the drawers under the list, one
           quiet head, the same rows the live page draws. */}
+      {/* 2026-10-05 (the catalog gate): the three meta lines under these rows are
+          Title Case with a capital behind every number, the same words the live
+          page draws ("14 Threads from 6 Senders", "About 2 Min"). */}
       <div className="sh2 sh2-quiet"><span className="t">Tools</span></div>
       <div className="pad-x"><div className="card list-card-ruled">
         <div className="row" role="button" tabIndex={0} onClick={demoTap}>

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { noteSwiped } from "./swipeTeach";
 
 // THE swipe controller (editing coverage map, universal mechanics). One
 // implementation of the gesture math; every swipeable row configures it and
@@ -92,6 +93,9 @@ export interface SwipeState {
   // Close the reveal, then run the action (the standard post-action snap).
   closeThen: (fn?: () => void) => void;
   toggle: () => void;
+  // THE ONE-TIME PEEK (Dave 2026-10-05): slide open about 40% of the reveal, hold a beat, slide shut. The caller
+  // decides whether it runs (shared/swipeTeach.ts shouldPeek); this only moves the row.
+  peek: () => void;
 }
 
 export function useSwipe({ revealW, rightW = 0, onRightCommit, enabled = true }: SwipeOptions): SwipeState {
@@ -164,6 +168,7 @@ export function useSwipe({ revealW, rightW = 0, onRightCommit, enabled = true }:
       return;
     }
     const nowOpen = dxRef.current < -revealW / 2;
+    if (nowOpen || Math.abs(dxRef.current) > 24) noteSwiped();
     openTo(nowOpen);
   };
 
@@ -173,6 +178,12 @@ export function useSwipe({ revealW, rightW = 0, onRightCommit, enabled = true }:
     if (!enabled || open) return;
     const el = e.target as HTMLElement | null;
     if (el && typeof el.closest === "function" && el.closest("[data-reveal]")) openTo(true);
+  };
+
+  const peek = () => {
+    if (!enabled || open) return;
+    moveTo(-Math.round(revealW * 0.4));
+    setTimeout(() => { if (!decided.current) moveTo(0); }, 900);
   };
 
   return {
@@ -191,5 +202,6 @@ export function useSwipe({ revealW, rightW = 0, onRightCommit, enabled = true }:
     revealFocus,
     closeThen,
     toggle,
+    peek,
   };
 }

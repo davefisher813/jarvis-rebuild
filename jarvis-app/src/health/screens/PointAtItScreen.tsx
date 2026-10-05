@@ -181,6 +181,7 @@ export default function PointAtItScreen({ patterns, summaries = [], onLog, onDet
                 <div className="row" key={i}>
                   <div className="row-grow">
                     <div className="conn-name">{p.region ?? "Same Spot"}, {p.sessions} Sessions</div>
+                    {/* 2026-10-05 (the catalog gate): "Over 9 Days", the number rule behind a number mid-phrase. */}
                     <div className="bp-sub">{lineCase(`Over ${p.days} ${p.days === 1 ? "day" : "days"}`)}</div>
                     {/* The days are neutral dates, so they take the date
                         fact's small caps (§AM F5): caps is what sets them

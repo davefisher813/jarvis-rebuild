@@ -156,4 +156,12 @@ describe("the whole rule: every line the app writes is Title Case", () => {
     expect(lineCase("2 of 5 lifts")).toBe("2 of 5 Lifts");
     expect(lineCase("Due in 3 days")).toBe("Due in 3 Days");
   });
+
+  it("an acronym is always capitals, and a small w stays small", () => {
+    expect(titleCase("create ai financial advisor")).toBe("Create AI Financial Advisor");
+    expect(titleCase("get ein number")).toBe("Get EIN Number");
+    expect(lineCase("send the pdf to hr")).toBe("Send the PDF to HR");
+    expect(titleCase("clear up allstate w alfred")).toBe("Clear Up Allstate w Alfred");
+    expect(titleCase("brainstorms best at night")).toBe("Brainstorms Best at Night");
+  });
 });
