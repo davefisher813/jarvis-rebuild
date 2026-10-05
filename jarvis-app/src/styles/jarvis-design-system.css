@@ -304,7 +304,7 @@
      4.56:1; #26221F reads 4.25 and fails. The hairline below does the lifting
      the last few points of tint would have done, and the card carries NO sheen:
      a 2.5% white wash across its top took the red words there to 4.41. */
-  --surface-1: #201C19; --surface-2: #2C2723; --surface-3: #36312D;
+  --surface-1: #201C19; --surface-2: #2C2723; --surface-3: #36312D; --well: #201C19;
   /* Hairline borders: warm white at 8% (Dave 2026-10-05). */
   --card-bd: rgba(255,240,225,0.08); --divider: rgba(255,240,225,0.07);
   --press-1: rgba(255,244,232,0.04); --press-3: rgba(255,244,232,0.06); --press-5: rgba(255,244,232,0.14);
@@ -529,15 +529,19 @@
      light-mode backgrounds". The page is cream, never stark white as the
      dominant field; cards are WHITE (see --surface-1 below: Dave 2026-10-05, the
      catalog) so they lift off it; a raised or secondary surface is #ECE5DA;
-     chrome (tab bar, top bars, sheets, modals) is the warm near-white #FFFDFA,
+     chrome (tab bar, top bars, sheets, modals) is white (#FFFFFF, Dave 2026-10-05),
      which is --chrome-bg. Everything below this line this block set before is
      history; the values here are the ones that ship. */
   --bg: #FAF6F0;
   /* CARDS ARE WHITE (Dave 2026-10-05, the catalog: "light-mode card surfaces = white"; the Brain Explore card had read
      cream). The page stays the warm cream above; a card is the one white thing on it. A raised or secondary surface is
      still the warm #ECE5DA. */
-  --surface-1: #FFFFFF; --surface-2: #FFFFFF; --surface-3: #ECE5DA;
-  --chrome-bg: #FFFDFA;
+  --surface-1: #FFFFFF; --surface-2: #F3EEE6; --surface-3: #ECE5DA;
+  /* THE WELL (Dave 2026-10-05, "all light-mode cards, sheets and modals are white"): the card is white, so what sits ON a
+     card or a sheet and must still read (a hovered row, a schedule hold, the body map, a ghost chip, a field, a tile) takes
+     this warm step. --surface-2 is the same cream, for fields and tiles. Dark keeps its own steps. */
+  --well: #F3EEE6;
+  --chrome-bg: #FFFFFF; /* white: tab bar, top bars, sheets, modals, menus (Dave 2026-10-05) */
   --chrome-hairline: rgba(80,55,30,0.08);
   --ctl-outline: #7A7068;
   --focus-ring: #1F1A16;

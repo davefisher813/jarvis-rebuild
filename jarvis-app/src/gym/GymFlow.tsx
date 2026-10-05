@@ -646,7 +646,7 @@ function BlockList({ title, blocks, minutes, onEdit, tone = "warm" }: {
     // What the same rule bought elsewhere is untouched: the Up Next launch
     // card, which really was the brightest rectangle on a black page and had
     // a red Start inside it, stays plain.
-    <div className="pad-x"><div className={"card list-card-ruled" + (has ? (tone === "cool" ? " banner-cool" : " banner-warn") : "")}>
+    <div className="pad-x"><div className={"card list-card-ruled" + (tone === "cool" ? " banner-cool" : " banner-warn")}>
       {/* The header row opens the block editor, same as its action (Dave
           2026-09-15: "I want all rows clickable"). */}
       <div className="row" {...rowDoor(onEdit)}>

@@ -48,7 +48,7 @@ describe("the warm neutrals are the ones Dave locked", () => {
     expect(tok(L, "--bg"), "cream, never stark white as the dominant field").toBe("#FAF6F0");
     expect(tok(L, "--surface-1"), "cards are white on the cream (Dave 2026-10-05, the catalog)").toBe("#FFFFFF");
     expect(tok(L, "--surface-3"), "raised and secondary").toBe("#ECE5DA");
-    expect(tok(L, "--chrome-bg"), "tab bar, top bars, sheets, modals").toBe("#FFFDFA");
+    expect(tok(L, "--chrome-bg"), "tab bar, top bars, sheets, modals are white (Dave 2026-10-05)").toBe("#FFFFFF");
     expect(tok(L, "--divider")).toBe("#E6DED2");
     expect(tok(L, "--tx-1")).toBe("#1F1A16");
     expect(tok(L, "--tx-2")).toBe("#4A423A");
@@ -129,7 +129,7 @@ describe("the brand red is exactly as it was", () => {
 
 describe("every contrast the app promises still holds on the warm grounds", () => {
   const grounds = {
-    light: { page: "#FAF6F0", card: "#FFFFFF", raised: "#ECE5DA", chrome: "#FFFDFA" },
+    light: { page: "#FAF6F0", card: "#FFFFFF", raised: "#ECE5DA", chrome: "#FFFFFF", well: "#F3EEE6" },
     dark: { page: "#1C1917", card: "#201C19", sheet: "#2C2723", raised: "#36312D" },
   };
   for (const theme of ["light", "dark"] as const) {

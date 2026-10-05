@@ -194,7 +194,7 @@ import { voiceToText } from "../ai/context";
 import { useOptionalLedger, useOptionalTasks, useOptionalSchedule, useOptionalPeople, useOptionalProfile, useOptionalNotes, useOptionalProjects, useOptionalRoutine, useOptionalBrainDocs, useOptionalDecisions, useOptionalBrainMemory } from "../data/NotesProvider";
 import { b64urlDecodeBytes } from "../connections/google/map";
 import { lineCase } from "../shared/casing";
-import { clockLabel, minutesLabel, secondsLabel } from "../shared/duration";
+import { clockLabel, minutesLabel, secondsLabel, spanLabel } from "../shared/duration";
 
 // sourceRevision and overrides are REPLY COVERAGE'S: the conversation revision a
 // reply was started against (with threadId and account, the source it answers),
@@ -1500,7 +1500,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
         // printed "Booked [object Object] · 30 min" (2026-08-25); this was
         // the only site in the app that did not destructure it.
         say(id
-          ? (slot.date === today ? "Booked " : "Booked tomorrow ") + fmtTime(slot.start).time + " " + fmtTime(slot.start).ap + " · " + BOOK_MIN + " min"
+          ? (slot.date === today ? "Booked " : "Booked tomorrow ") + fmtTime(slot.start).time + " " + fmtTime(slot.start).ap + " · " + spanLabel(BOOK_MIN)
           : "Couldn't book that");
         return;
       }
