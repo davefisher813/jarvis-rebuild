@@ -20,7 +20,7 @@ html[data-theme="dark"] {
   --gd-chrome: linear-gradient(168deg, rgba(46, 46, 50, 0.84), rgba(30, 30, 34, 0.74));
   --gd-red-top: color-mix(in srgb, var(--accent-fill) 80%, white);
   --gd-red-lo: color-mix(in srgb, var(--accent-fill) 80%, black);
-  --gd-red-glow: color-mix(in srgb, var(--accent-fill) 55%, transparent);
+  --gd-red-glow: color-mix(in srgb, var(--accent-fill) 28%, transparent);
   --gd-red-edge: color-mix(in srgb, var(--accent-fill) 50%, black);
 }
 
@@ -77,7 +77,7 @@ html[data-theme="dark"] .notice-disc {
 }
 html[data-theme="dark"] .voice-mic {
   background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.30) 0%, rgba(255, 255, 255, 0) 55%);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45), inset 0 -2px 3px var(--gd-red-edge), 0 4px 14px -2px var(--gd-red-glow);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45), inset 0 -2px 3px var(--gd-red-edge), 0 2px 8px -2px var(--gd-red-glow);
 }
 html[data-theme="dark"] .dring > div { box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.5), 0 1px 0 rgba(255, 255, 255, 0.10); }
 
@@ -93,7 +93,7 @@ html[data-theme="dark"] .voice-search {
 html[data-theme="dark"] .tab-bar {
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.10);
 }
-html[data-theme="dark"] .tab-bar .tab.active .ic { filter: drop-shadow(0 0 7px var(--gd-red-glow)); }
+html[data-theme="dark"] .tab-bar .tab.active .ic { filter: drop-shadow(0 0 4px var(--gd-red-glow)); }
 
 /* THE SHEET: real glass, because the page really does pass under it. */
 html[data-theme="dark"] .sheet-scrim {
@@ -142,12 +142,11 @@ html[data-theme="dark"] .today-title { text-rendering: optimizeLegibility; font-
 
    RED: every solid red control. QUIET: every capsule (its own fill kept,
    lit from the top, a soft shadow beneath, no ring, per the capsule ruling).
-   .row-act is red in light and a capsule in dark, as it already was; Health's
-   hero pill (.ruled .h-hero .pill-act) is red in dark only, likewise. */
+   .row-act is red in light and a capsule in dark, as it already was. */
 html[data-theme="dark"] .btn-primary,
 html[data-theme="dark"] .ruled .card .pill-act.pill-go,
 html[data-theme="dark"] .pill-act.pill-go,
-html[data-theme="dark"] .plan-cta,
+html[data-theme="dark"] .plan-cta:not(.plan-cta-ghost),
 html[data-theme="dark"] .mode-hero .mode-go,
 html[data-theme="dark"] .hdr-controls .tasks-focus,
 html[data-theme="dark"] .convo-send,
@@ -158,9 +157,10 @@ html[data-theme="dark"] .ruled .h-hero .pill-act {
     linear-gradient(180deg, var(--gd-red-top) 0%, var(--accent-fill) 46%, var(--gd-red-lo) 100%);
   background-clip: padding-box;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45), inset 0 -2px 3px var(--gd-red-edge);
-  filter: drop-shadow(0 1px 1px var(--gd-red-edge)) drop-shadow(0 6px 10px var(--gd-red-glow));
+  filter: drop-shadow(0 1px 1px var(--gd-red-edge)) drop-shadow(0 3px 5px var(--gd-red-glow));
   text-shadow: 0 1px 1px rgba(0, 0, 0, 0.18);
 }
+html[data-theme="dark"] .plan-cta.plan-cta-ghost,
 html[data-theme="dark"] .pill-act:not(.pill-go),
 html[data-theme="dark"] .see-all.pill-action,
 html[data-theme="dark"] .btn-sm:not(.btn-primary):not(.btn-danger):not(.btn-secondary),
@@ -189,11 +189,12 @@ html[data-theme="dark"] .card .row .dd { background-image: none; box-shadow: non
 html[data-theme="dark"] .btn-primary,
 html[data-theme="dark"] .ruled .card .pill-act.pill-go,
 html[data-theme="dark"] .pill-act.pill-go,
-html[data-theme="dark"] .plan-cta,
+html[data-theme="dark"] .plan-cta:not(.plan-cta-ghost),
 html[data-theme="dark"] .mode-hero .mode-go,
 html[data-theme="dark"] .hdr-controls .tasks-focus,
 html[data-theme="dark"] .convo-send,
 html[data-theme="dark"] .ruled .h-hero .pill-act,
+html[data-theme="dark"] .plan-cta.plan-cta-ghost,
 html[data-theme="dark"] .pill-act:not(.pill-go),
 html[data-theme="dark"] .see-all.pill-action,
 html[data-theme="dark"] .btn-sm:not(.btn-primary):not(.btn-danger):not(.btn-secondary),
@@ -216,11 +217,12 @@ html[data-theme="dark"] .tab { transition: transform 140ms var(--ease-out), filt
 html[data-theme="dark"] .btn-primary:active,
 html[data-theme="dark"] .ruled .card .pill-act.pill-go:active,
 html[data-theme="dark"] .pill-act.pill-go:active,
-html[data-theme="dark"] .plan-cta:active,
+html[data-theme="dark"] .plan-cta:not(.plan-cta-ghost):active,
 html[data-theme="dark"] .mode-hero .mode-go:active,
 html[data-theme="dark"] .hdr-controls .tasks-focus:active,
 html[data-theme="dark"] .convo-send:active,
 html[data-theme="dark"] .ruled .h-hero .pill-act:active,
+html[data-theme="dark"] .plan-cta.plan-cta-ghost:active,
 html[data-theme="dark"] .pill-act:not(.pill-go):active,
 html[data-theme="dark"] .see-all.pill-action:active,
 html[data-theme="dark"] .btn-sm:not(.btn-primary):not(.btn-danger):not(.btn-secondary):active,
@@ -243,11 +245,12 @@ html[data-theme="dark"] .tab:active { transform: scale(0.965); }
 html[data-theme="dark"] .btn-primary:active,
 html[data-theme="dark"] .ruled .card .pill-act.pill-go:active,
 html[data-theme="dark"] .pill-act.pill-go:active,
-html[data-theme="dark"] .plan-cta:active,
+html[data-theme="dark"] .plan-cta:not(.plan-cta-ghost):active,
 html[data-theme="dark"] .mode-hero .mode-go:active,
 html[data-theme="dark"] .hdr-controls .tasks-focus:active,
 html[data-theme="dark"] .convo-send:active,
-html[data-theme="dark"] .ruled .h-hero .pill-act:active { filter: drop-shadow(0 1px 1px var(--gd-red-edge)) drop-shadow(0 3px 6px var(--gd-red-glow)) brightness(0.94); }
+html[data-theme="dark"] .ruled .h-hero .pill-act:active { filter: drop-shadow(0 1px 1px var(--gd-red-edge)) drop-shadow(0 2px 3px var(--gd-red-glow)) brightness(0.94); }
+html[data-theme="dark"] .plan-cta.plan-cta-ghost:active,
 html[data-theme="dark"] .pill-act:not(.pill-go):active,
 html[data-theme="dark"] .see-all.pill-action:active,
 html[data-theme="dark"] .btn-sm:not(.btn-primary):not(.btn-danger):not(.btn-secondary):active,
@@ -268,11 +271,12 @@ html[data-theme="dark"] .ruled .card .row.row-act:active { filter: drop-shadow(0
 html[data-theme="dark"] .btn-primary,
 html[data-theme="dark"] .ruled .card .pill-act.pill-go,
 html[data-theme="dark"] .pill-act.pill-go,
-html[data-theme="dark"] .plan-cta,
+html[data-theme="dark"] .plan-cta:not(.plan-cta-ghost),
 html[data-theme="dark"] .mode-hero .mode-go,
 html[data-theme="dark"] .hdr-controls .tasks-focus,
 html[data-theme="dark"] .convo-send,
 html[data-theme="dark"] .ruled .h-hero .pill-act,
+html[data-theme="dark"] .plan-cta.plan-cta-ghost,
 html[data-theme="dark"] .pill-act:not(.pill-go),
 html[data-theme="dark"] .see-all.pill-action,
 html[data-theme="dark"] .btn-sm:not(.btn-primary):not(.btn-danger):not(.btn-secondary),
@@ -295,11 +299,12 @@ html[data-theme="dark"] .tab { transition: none; }
 html[data-theme="dark"] .btn-primary:active,
 html[data-theme="dark"] .ruled .card .pill-act.pill-go:active,
 html[data-theme="dark"] .pill-act.pill-go:active,
-html[data-theme="dark"] .plan-cta:active,
+html[data-theme="dark"] .plan-cta:not(.plan-cta-ghost):active,
 html[data-theme="dark"] .mode-hero .mode-go:active,
 html[data-theme="dark"] .hdr-controls .tasks-focus:active,
 html[data-theme="dark"] .convo-send:active,
 html[data-theme="dark"] .ruled .h-hero .pill-act:active,
+html[data-theme="dark"] .plan-cta.plan-cta-ghost:active,
 html[data-theme="dark"] .pill-act:not(.pill-go):active,
 html[data-theme="dark"] .see-all.pill-action:active,
 html[data-theme="dark"] .btn-sm:not(.btn-primary):not(.btn-danger):not(.btn-secondary):active,
