@@ -41,9 +41,9 @@
    the ruled system adds only the 14pt corner, the rim and the shadow, no
    hairline. The grouping is the ruling; the flat ground was never it. */
 .ruled .card {
-  border-radius: var(--r-md);
-  border: 0;
-  box-shadow: inset 0 0.5px 0 var(--rim-card), 0 8px 24px rgba(0, 0, 0, 0.55);
+  border-radius: var(--r-card);
+  border: 0.5px solid var(--card-bd);
+  box-shadow: inset 0 0.5px 0 var(--rim-card);
 }
 [data-theme="light"] .ruled .card { box-shadow: var(--shadow-card); }
 
@@ -1098,7 +1098,7 @@
    2026-09-12). The 8px bloom went with the hero's. */
 .ruled .h-tiles { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-2h); }
 .ruled .h-tile { position: relative; overflow: hidden; border-radius: var(--r-md); padding: var(--s-3) var(--s-3) var(--s-3); cursor: pointer;
-  background: var(--glass-bg, var(--surface-1)); box-shadow: inset 0 0.5px 0 var(--rim-card), 0 8px 24px rgba(0,0,0,0.55);
+  background: var(--glass-bg, var(--surface-1)); box-shadow: inset 0 0.5px 0 var(--rim-card);
   -webkit-backdrop-filter: blur(40px) saturate(1.8); backdrop-filter: blur(40px) saturate(1.8); }
 [data-theme="light"] .ruled .h-tile { background: var(--surface-1); box-shadow: var(--shadow-card); -webkit-backdrop-filter: none; backdrop-filter: none; }
 .ruled .h-tile:active { opacity: 0.8; }
@@ -1132,7 +1132,7 @@
    only text here big enough and bold enough to carry a saturated hue; the
    meta line stays on the grey ramp, which is what keeps the grid readable
    rather than a bag of highlighters. */
-.ruled .h-tile[data-hue] { box-shadow: inset 0 0 0 1px var(--h-tint), 0 8px 24px rgba(0,0,0,0.55); }
+.ruled .h-tile[data-hue] { box-shadow: inset 0 0 0 1px var(--h-tint); }
 [data-theme="light"] .ruled .h-tile[data-hue] { box-shadow: inset 0 0 0 1px var(--h-tint), var(--shadow-card); }
 /* The wash goes on as a background LAYER over the tile's own ground, not as a
    ::before -- the sparkline is an absolutely-positioned direct child, and a
@@ -1180,7 +1180,7 @@
 .ruled .wk-w { font-size: var(--t-micro); font-weight: var(--w-bold); letter-spacing: 0.08em; color: var(--tx-quiet); text-transform: uppercase; }
 .ruled .wk-n { font-size: calc(17px * var(--type-scale)); font-weight: var(--w-semi); width: 28px; height: 28px; border-radius: var(--r-circle); display: grid; place-items: center;
   font-variant-numeric: tabular-nums; color: var(--tx-1); }
-.ruled .wk-row.today .wk-n { background: var(--tx-1); color: var(--bg, #000); }
+.ruled .wk-row.today .wk-n { background: var(--tx-1); color: var(--bg, #1C1917); }
 .ruled .wk-b { flex: 1; min-width: 0; }
 .ruled .wk-bar { position: relative; height: 10px; border-radius: var(--r-xs); background: var(--press-3); overflow: hidden; }
 .ruled .wk-seg { position: absolute; top: 0; bottom: 0; border-radius: var(--r-xs); }
@@ -2125,9 +2125,9 @@
 .ruled.health-ruled .logbar { position: fixed; left: 0; right: 0; z-index: 5;
   top: calc(var(--vv-top, 0px) + var(--vv-h, 100dvh)); transform: translateY(-100%);
   padding: var(--s-3) var(--s-4) calc(var(--s-3) + max(0px, var(--safe-bottom, env(safe-area-inset-bottom, 0px)) - var(--vv-bot, 0px)));
-  background: linear-gradient(180deg, rgba(0,0,0,0), var(--bg) 38%); display: flex; justify-content: center;
+  background: linear-gradient(180deg, transparent, var(--bg) 38%); display: flex; justify-content: center;
   gap: var(--s-2); }
-[data-theme="light"] .ruled.health-ruled .logbar { background: linear-gradient(180deg, rgba(242,242,247,0), var(--bg) 38%); }
+[data-theme="light"] .ruled.health-ruled .logbar { background: linear-gradient(180deg, transparent, var(--bg) 38%); }
 .ruled.health-ruled .logbar .btn { width: 100%; }
 /* THE FOOT UNDER A LOG BAR IS THE BAR (2026-09-21). --logbar-clear is written
    by the bar itself (shared/useBarClearance.ts): the distance from its top to
@@ -2216,7 +2216,7 @@
    name, in full ink and sentence case, not a caps label shouting its hue. */
 .ruled.health-ruled .h-tiles { gap: var(--s-2h); }
 .ruled.health-ruled .h-tile { padding: var(--s-3) var(--s-3) var(--s-3); min-height: 104px; border-radius: var(--r-lg); }
-.ruled.health-ruled .h-tile[data-hue] { background-image: none; box-shadow: inset 0 0.5px 0 var(--rim-card), 0 8px 24px rgba(0,0,0,0.55); }
+.ruled.health-ruled .h-tile[data-hue] { background-image: none; box-shadow: inset 0 0.5px 0 var(--rim-card); }
 [data-theme="light"] .ruled.health-ruled .h-tile[data-hue] { box-shadow: var(--shadow-card); }
 .ruled.health-ruled .ht-top { display: flex; align-items: center; gap: var(--s-2); min-width: 0; }
 .ruled.health-ruled .ht-ico { width: 28px; height: 28px; border-radius: var(--r-sm); flex-shrink: 0;
@@ -2876,7 +2876,7 @@
   display: inline-flex; align-items: center; justify-content: center;
   border: 0; border-radius: var(--r-pill);
   background: var(--surface-2); color: var(--tx-1);
-  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.38);
+  box-shadow: var(--shadow-float);
   cursor: pointer; z-index: 2;
 }
 .ruled .bp-shelf-arrow-r { right: 5px; }
@@ -3075,9 +3075,9 @@
    by theme (Dave 2026-10-04), so the rule is gone and the one shared facts
    rule carries both. */
 
-/* ADD in the Life header: a secondary pill, #F0F1F4 with the action red on
+/* ADD in the Life header: a secondary pill, the capsule fill with the action red on
    both the plus and the word. */
-[data-theme="light"] .hdr-add { background: #F0F1F4; border-color: transparent; color: var(--red); }
+[data-theme="light"] .hdr-add { background: var(--capsule-fill); border-color: transparent; color: var(--red); }
 [data-theme="light"] .hdr-add .ic { color: var(--red); }
 /* The flip (Dave 2026-10-03): the header search field and options button were the card tone on a white page with no border, so no field showed. The neutral fill gives them a shape, the same as the Add button beside them. */
 [data-theme="light"] .hdr-search, [data-theme="light"] .hdr-opts { background: var(--surface-3); }

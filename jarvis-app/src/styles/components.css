@@ -969,7 +969,7 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
 .plan-strip { padding: var(--s-2) 0 var(--s-1); }
 .plan-strip-bar { position: relative; height: 22px; border-radius: var(--r-sm); background: var(--press-3); overflow: hidden; }
 .plan-strip-seg { position: absolute; top: 0; bottom: 0; border-radius: var(--r-xs); }
-.strip-event { background: var(--press-6, rgba(255,255,255,0.28)); }
+.strip-event { background: var(--press-6, rgba(255,244,232,0.28)); }
 .strip-protected { background: var(--press-5); }
 .strip-protected.strip-soft { opacity: 0.45; border: 1px dashed var(--tx-3); }
 /* Focus time: an outlined invitation, not a wall; picks render over it.
@@ -1258,7 +1258,7 @@ a.row.person-reach { color: inherit; text-decoration: none; }
    transform none, so fixed/sheet descendants are unaffected once settled. */
 @keyframes screenPushIn { from { transform: translateX(100%); } to { transform: none; } }
 @keyframes screenPopSettle { from { transform: translateX(-24%); opacity: 0.55; } to { transform: none; opacity: 1; } }
-.screen-push { animation: screenPushIn 340ms var(--ease-spring) both; box-shadow: -12px 0 28px rgba(0,0,0,0.35); }
+.screen-push { animation: screenPushIn 340ms var(--ease-spring) both; box-shadow: var(--shadow-float); }
 .screen-pop { animation: screenPopSettle 300ms var(--ease-spring) both; }
 
 /* Selection transitions (chips, segmented) */
@@ -1895,11 +1895,11 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 .p3-row.on .fact.warn { color: var(--warn-on-sheet); }
 
 /* === Roadmap v2: soft anchor guard === */
-.ag-scrim { position: fixed; inset: 0; z-index: 60; background: rgba(0,0,0,0.55);
+.ag-scrim { position: fixed; inset: 0; z-index: 60; background: var(--scrim);
   display: flex; align-items: center; justify-content: center; padding: var(--s-6); }
 .ag-card { width: 100%; max-width: 320px; background: var(--surface-2); border-radius: var(--r-xl);
   padding: var(--s-6) var(--s-5) var(--s-4); text-align: center;
-  box-shadow: 0 20px 60px rgba(0,0,0,0.6), inset 0 0.5px 0 var(--rim-card); }
+  box-shadow: var(--shadow-float), inset 0 0.5px 0 var(--rim-card); }
 .ag-title { font-size: var(--t-h2); font-weight: var(--w-bold); letter-spacing: var(--track-h2); }
 /* The quiet line under the guard's question takes the fact size (§AM F4,
    2026-09-25), the same as the line under a sheet's question. */
@@ -1910,7 +1910,7 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 .anytime-row { touch-action: pan-y; }
 .anytime-ghost { position: fixed; z-index: 80; transform: translate(-50%, -150%); pointer-events: none;
   padding: var(--s-2) var(--s-3h); border-radius: var(--r-pill); background: var(--red); color: #fff;
-  font-size: var(--t-meta); font-weight: var(--w-semi); box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+  font-size: var(--t-meta); font-weight: var(--w-semi); box-shadow: var(--shadow-float);
   max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .card.drop-target { outline: 2px solid var(--red); outline-offset: -2px; }
 body.jarvis-dragging { overflow: hidden; touch-action: none; -webkit-user-select: none; user-select: none; }
@@ -2774,8 +2774,8 @@ button {
 .stepper .val { min-width: 44px; text-align: center; }
 
 /* 3 · cleaner visuals */
-.stat-tile { background-image: linear-gradient(180deg, rgba(255,255,255,0.05), transparent 55%);
-  box-shadow: inset 0 0.5px 0 rgba(255,255,255,0.09); }
+.stat-tile { background-image: linear-gradient(180deg, rgba(255,244,232,0.05), transparent 55%);
+  box-shadow: inset 0 0.5px 0 rgba(255,240,225,0.09); }
 [data-theme="light"] .stat-tile { background-image: none; box-shadow: none; }
 .stat-num { letter-spacing: -0.5px; }
 [data-theme="dark"] .today-hero.hero-morning {
@@ -2913,7 +2913,7 @@ button {
    the title left a band as tall as the hero where "Good Evening, Dave" was
    sliding up through the iOS clock with nothing behind it. See useCondensed. */
 .pagebar.on, .pagebar.solid { background: rgba(12,12,14,0.82); -webkit-backdrop-filter: blur(22px) saturate(160%); backdrop-filter: blur(22px) saturate(160%); box-shadow: 0 0.5px 0 var(--divider); }
-[data-theme="light"] .pagebar.on, [data-theme="light"] .pagebar.solid { background: rgba(255,255,255,0.86); }
+[data-theme="light"] .pagebar.on, [data-theme="light"] .pagebar.solid { background: var(--nav-bg); }
 .pagebar.on .pagebar-title { opacity: 1; }
 /* The energy line takes the Apple Music icon gradient (red into its lighter
    stop) before fading out. Pure decoration, no text near it, so the light
@@ -3035,9 +3035,9 @@ button {
    retire from banners; meaning lives in the badge.
    Plus the no-wrap law (titles never wrap, they ellipsize; subs clamp to
    two lines) and the colored hierarchy slots (.fact-*, colored kickers). */
-.promo-card { background: #1C1C1E; border-radius: var(--r-xl); margin: 0 var(--s-4) var(--s-3);
+.promo-card { background: var(--surface-1); border-radius: var(--r-xl); margin: 0 var(--s-4) var(--s-3);
   padding: var(--s-4); position: relative; animation: restoreIn var(--dur-slow) var(--ease-spring); }
-[data-theme="light"] .promo-card { background: #F5F6F8; box-shadow: var(--shadow-card); border: 0.5px solid var(--card-bd); }
+[data-theme="light"] .promo-card { box-shadow: var(--shadow-card); border: 0.5px solid var(--card-bd); }
 .promo-head { display: flex; gap: var(--s-3h); align-items: center; }
 .promo-badge { width: 52px; height: 52px; border-radius: var(--r-circle); display: flex; align-items: center;
   justify-content: center; flex-shrink: 0; color: #fff; }
@@ -3367,7 +3367,7 @@ button {
    would run off the screen. */
 .time-pop { position: absolute; left: var(--s-4); top: calc(100% + 6px);
   z-index: 61; background: var(--surface-3); border: 0.5px solid var(--card-bd);
-  border-radius: var(--r-md); padding: var(--s-2); box-shadow: 0 10px 34px rgba(0,0,0,0.6); }
+  border-radius: var(--r-md); padding: var(--s-2); box-shadow: var(--shadow-float); }
 .time-pop.time-pop-up { top: auto; bottom: calc(100% + 6px); }
 .time-pop-input { width: 150px; height: 40px; }
 
@@ -3571,7 +3571,7 @@ button {
 .nav-bar { position: sticky; top: 0; z-index: 40; background: rgba(12,12,14,0.82);
   -webkit-backdrop-filter: blur(22px) saturate(160%); backdrop-filter: blur(22px) saturate(160%);
   border-bottom: 0.5px solid var(--divider); padding-top: calc(var(--s-1) + var(--safe-top, env(safe-area-inset-top, 0px))); }
-[data-theme="light"] .nav-bar { background: rgba(255,255,255,0.86); }
+[data-theme="light"] .nav-bar { background: var(--nav-bg); }
 /* The condensed title is the condensed title, whichever bar is drawing it.
    AMENDED 2026-09-26 (audit leftovers): it was position: absolute, left 0,
    right 0, centred on the whole bar, so at --type-scale 1.4 "Pull Day" ran
@@ -3811,8 +3811,8 @@ button {
 .block-row:focus-within .block-menu-btn, .block-row:hover .block-menu-btn { opacity: 1; }
 /* The compose bar rides the bottom of the editor, always in reach. */
 .editor-bar { position: sticky; bottom: 0; padding: var(--s-3) var(--s-4) calc(var(--s-3) + var(--safe-bottom, env(safe-area-inset-bottom, 0px)));
-  background: linear-gradient(180deg, rgba(0,0,0,0), var(--bg) 38%); display: flex; justify-content: center; }
-[data-theme="light"] .editor-bar { background: linear-gradient(180deg, rgba(242,242,247,0), var(--bg) 38%); }
+  background: linear-gradient(180deg, transparent, var(--bg) 38%); display: flex; justify-content: center; }
+[data-theme="light"] .editor-bar { background: linear-gradient(180deg, transparent, var(--bg) 38%); }
 .editor-bar .btn { min-width: 200px; }
 
 /* Decision list styling pass (Dave 2026-08-18): the linked home renders as a
@@ -3852,7 +3852,7 @@ button {
 .t-strike { text-decoration: line-through; color: var(--tx-3); }
 .t-hl { background: rgba(255, 214, 10, 0.28); border-radius: var(--r-xs); padding: 0 1px; }
 [data-theme="light"] .t-hl { background: rgba(255, 214, 10, 0.45); }
-.sel-bar { position: fixed; z-index: 60; display: flex; background: var(--surface-3); border: 0.5px solid var(--card-bd); border-radius: var(--r-md); box-shadow: 0 8px 30px rgba(0, 0, 0, 0.55); overflow: hidden; }
+.sel-bar { position: fixed; z-index: 60; display: flex; background: var(--surface-3); border: 0.5px solid var(--card-bd); border-radius: var(--r-md); box-shadow: var(--shadow-float); overflow: hidden; }
 .selbar-btn { display: flex; align-items: center; justify-content: center; width: 48px; height: 44px; background: transparent; border: 0; color: var(--tx-1); }
 .selbar-btn:active { background: var(--surface-2); }
 .selbar-btn .ic { width: 18px; height: 18px; }
@@ -4445,8 +4445,8 @@ button.check-linked:active { opacity: 1; background: var(--press-3); }
 /* The floating chrome floats. The capture bar was a gray pill on a gray
    page; it is a white instrument on the desk now, same for its two
    siblings. */
-[data-theme="light"] .voice-bar { background: #FFFFFF; box-shadow: var(--shadow-float); }
-[data-theme="light"] .voice-search { background: #FFFFFF; box-shadow: var(--shadow-float); }
+[data-theme="light"] .voice-bar { background: var(--chrome-bg); box-shadow: var(--shadow-float); }
+[data-theme="light"] .voice-search { background: var(--chrome-bg); box-shadow: var(--shadow-float); }
 
 /* A draft field inside a white card sits on the paper tone, mirroring how
    dark nests lighter-on-dark. */
@@ -4463,8 +4463,8 @@ button.check-linked:active { opacity: 1; background: var(--press-3); }
    selects the iOS way: lift, not ink. */
 [data-theme="light"] .chip.active, [data-theme="light"] .chip.on,
 [data-theme="light"] .segmented .seg.active {
-  background: #FFFFFF; color: var(--tx-1);
-  box-shadow: 0 1px 3px rgba(17,18,26,0.12), 0 4px 10px rgba(17,18,26,0.08);
+  background: var(--chrome-bg); color: var(--tx-1);
+  box-shadow: 0 0 0 0.5px var(--card-bd);
 }
 
 /* ============================================================
@@ -5244,9 +5244,9 @@ body.selecting .voice-dock { display: none; }
 /* The hero's button is the screen's one fill now that its panel is not. */
 .mode-hero .mode-go { background: var(--accent-fill); color: #fff; }
 .mode-go.mode-go-quiet { background: var(--press-5); color: var(--tx-1); }
-[data-theme="light"] .mode-card { background: #F5F6F8; box-shadow: var(--shadow-card); }
-[data-theme="light"] .mode-card.mode-hero { background: #F5F6F8; box-shadow: var(--shadow-card); }
-[data-theme="light"] .mode-go { box-shadow: 0 0 0 0.5px rgba(0,0,0,0.06); }
+[data-theme="light"] .mode-card { background: var(--surface-1); box-shadow: var(--shadow-card); }
+[data-theme="light"] .mode-card.mode-hero { background: var(--surface-1); box-shadow: var(--shadow-card); }
+[data-theme="light"] .mode-go { box-shadow: 0 0 0 0.5px var(--card-bd); }
 
 /* The launcher row: one mode, full width, its count and its reason. */
 .launch-row { display: flex; align-items: center; gap: var(--s-3);
@@ -5257,10 +5257,10 @@ body.selecting .voice-dock { display: none; }
   background: var(--red-tint); color: var(--accent-tx); }
 .launch-ic .ic { width: 20px; height: 20px; }
 .launch-tt { font-size: var(--t-h3); font-weight: var(--w-semi); color: var(--tx-1); }
-[data-theme="light"] .launch-row { background: #F5F6F8; box-shadow: var(--shadow-card); }
+[data-theme="light"] .launch-row { background: var(--surface-1); box-shadow: var(--shadow-card); }
 /* THE WHITE IS WHITE (Dave 2026-10-03): the surfaces that float over the page
    are pure white, not the card tone. Sheets and modals in light only. */
-[data-theme="light"] .sheet-scrim > .card, [data-theme="light"] .modal, [data-theme="light"] .ag-card { background: #FFFFFF; }
+[data-theme="light"] .sheet-scrim > .card, [data-theme="light"] .modal, [data-theme="light"] .ag-card { background: var(--chrome-bg); }
 
 /* THE SET STRIP (gym catalog §3.1). One row per set: tap to edit, hold to
    duplicate, swipe to delete, drag to reorder via the shared ReorderList
@@ -5557,9 +5557,9 @@ body.selecting .voice-dock { display: none; }
    stops move just far enough that white clears on the lightest one (4.59)
    and reads 5.45 across the middle. Same hue, same direction, same bloom. */
 .btn-launch { background: linear-gradient(135deg, #E32438, #BE0C25);
-  box-shadow: 0 6px 22px rgba(255, 43, 60, 0.28); }
+  box-shadow: var(--shadow-float); }
 [data-theme="light"] .btn-launch { background: linear-gradient(135deg, #E32438, #BE0C25);
-  box-shadow: 0 6px 18px rgba(218, 0, 18, 0.24); color: #fff; }
+  box-shadow: var(--shadow-float); color: #fff; }
 
 /* Destructive text, bare (preview .btn.danger): red words on nothing. The
    grey pill made Delete read like Cancel's sibling. */
@@ -5689,15 +5689,15 @@ body.selecting .voice-dock { display: none; }
 .hmenu-back { position: absolute; inset: 0; pointer-events: auto; }
 .hmenu-scrim > .hmenu { pointer-events: auto; }
 .hmenu { position: fixed; min-width: 200px; max-width: calc(100vw - 32px); padding: var(--s-1h) 0;
-  border-radius: var(--r-md); background: rgba(44, 44, 46, 0.96);   /* iOS's thick menu material: the list must not read through */
+  border-radius: var(--r-md); background: color-mix(in srgb, var(--surface-2) 96%, transparent);   /* a thick warm menu material: the list must not read through */
   -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat)); backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
-  box-shadow: inset 0 0.5px 0 var(--rim-card), 0 12px 32px rgba(0, 0, 0, 0.55);
+  box-shadow: inset 0 0.5px 0 var(--rim-card), var(--shadow-float);
   transform-origin: top left; animation: hmenuIn var(--dur-fast) var(--ease-out); }
 .hmenu.hmenu-right { transform-origin: top right; }
 .hmenu.hmenu-up { transform-origin: bottom left; }
 .hmenu.hmenu-up.hmenu-right { transform-origin: bottom right; }
 .hmenu { overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
-[data-theme="light"] .hmenu { background: rgba(255, 255, 255, 0.96); box-shadow: var(--shadow-card), 0 12px 32px rgba(0, 0, 0, 0.14); }
+[data-theme="light"] .hmenu { background: color-mix(in srgb, var(--chrome-bg) 96%, transparent); box-shadow: var(--shadow-float); }
 @keyframes hmenuIn { from { opacity: 0; transform: scale(0.92); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .hmenu { animation: none; } }
 .hmenu-item { display: flex; align-items: center; gap: var(--s-2h); width: 100%; min-height: 44px; padding: 0 var(--s-4) 0 var(--s-3);
@@ -5965,9 +5965,9 @@ body.selecting .voice-dock { display: none; }
    values (jarvis-design-system.css), and every label under it inherits
    them. The fill tokens its tag and slider sit on are pinned with them. */
 .cond-face {
-  --tx-1: #FFFFFF; --tx-2: #D2D2D6; --tx-3: #D2D2D6; --tx-4: #84848A;
-  --tx-quiet: rgba(235,235,245,0.55); --press-3: rgba(255,255,255,0.06);
-  position: fixed; inset: 0; z-index: 400; background: #000; color: #fff;
+  --tx-1: #F7F1EA; --tx-2: #D6D0CA; --tx-3: #D6D0CA; --tx-4: #948B84;
+  --tx-quiet: rgba(247,241,234,0.62); --press-3: rgba(255,244,232,0.06);
+  position: fixed; inset: 0; z-index: 400; background: #1C1917; color: #F7F1EA;
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   padding: max(20px, env(safe-area-inset-top)) 20px max(22px, env(safe-area-inset-bottom));
   gap: var(--s-1h); -webkit-user-select: none; user-select: none; touch-action: none;
@@ -5996,7 +5996,7 @@ body.selecting .voice-dock { display: none; }
 .cf-ring { position: relative; width: min(78vw, 300px); height: min(78vw, 300px); display: grid; place-items: center;
   margin-top: var(--s-2); cursor: pointer; }
 .cf-ring .cf-svg { position: absolute; inset: 0; width: 100%; height: 100%; transform: rotate(-90deg); }
-.cf-track { fill: none; stroke: rgba(255,255,255,0.12); stroke-width: 8; }
+.cf-track { fill: none; stroke: rgba(255,240,225,0.12); stroke-width: 8; }
 .cf-arc { fill: none; stroke: var(--blue); stroke-width: 8; stroke-linecap: round; transition: stroke-dashoffset 120ms linear; }
 .cond-face.rest .cf-arc { stroke: var(--good-fill); }
 .cond-face.lead .cf-arc { stroke: var(--tx-3); }
@@ -6009,7 +6009,7 @@ body.selecting .voice-dock { display: none; }
 .cf-round { font-size: calc(15px * var(--type-scale)); font-weight: var(--w-semi); letter-spacing: 0.06em; text-transform: uppercase; color: var(--tx-3); margin-top: var(--s-1); }
 .cf-last { font-size: var(--t-sub); color: var(--tx-3); font-variant-numeric: tabular-nums; min-height: 18px; }
 
-.cf-roundbtn { margin-top: var(--s-6h); border: 0; border-radius: var(--r-pill); background: #fff; color: #000; font: inherit;
+.cf-roundbtn { margin-top: var(--s-6h); border: 0; border-radius: var(--r-pill); background: #FFFDFA; color: #1C1917; font: inherit;
   font-size: var(--t-h2); font-weight: var(--w-semi); padding: var(--s-4) 0; width: min(64vw, 240px); cursor: pointer; }
 .cf-roundbtn:active { transform: scale(0.97); }
 
@@ -6862,10 +6862,10 @@ span.row-star { cursor: default; }
   font-weight: var(--w-semi); letter-spacing: -0.01em; cursor: pointer;
 }
 .return-pill::before { content: ""; position: absolute; inset: 5px 0; z-index: -1; border-radius: var(--r-pill);
-  background-color: var(--capsule-fill); box-shadow: 0 2px 10px rgba(0, 0, 0, 0.45); }
+  background-color: var(--capsule-fill); box-shadow: var(--shadow-float); }
 .return-pill { isolation: isolate; }
 [data-theme="light"] .return-pill { color: var(--on-light-red); }
-[data-theme="light"] .return-pill::before { background-color: #FFFFFF; }
+[data-theme="light"] .return-pill::before { background-color: var(--chrome-bg); }
 .return-pill .ic { width: 17px; height: 17px; }
 .return-pill:active { opacity: 0.85; }
 

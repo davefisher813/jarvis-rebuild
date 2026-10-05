@@ -314,7 +314,7 @@ body:has(.sheet-scrim) .voice-bar, body:has(.sheet-scrim) .tab-bar, body.sheet-o
 .albumart { position:relative; width:52px; height:52px; border-radius:var(--r-md); overflow:hidden; flex-shrink:0; display:flex; align-items:center; justify-content:center; color:#fff;
   background-image: linear-gradient(150deg, rgba(255,255,255,0.22), rgba(0,0,0,0.30)); }
 .albumart .ic { width:22px; height:22px; }
-.albumart-lg { width:236px; height:236px; border-radius:var(--r-lg); margin:0 auto; box-shadow:0 12px 32px rgba(0,0,0,0.35); }
+.albumart-lg { width:236px; height:236px; border-radius:var(--r-lg); margin:0 auto; box-shadow:var(--shadow-float); }
 .albumart-lg .ic { width:52px; height:52px; }
 .albumart-lg::after { content:''; position:absolute; inset:0; background:linear-gradient(0deg, rgba(0,0,0,0.45), transparent 48%); }
 .albumart-title { position:absolute; left:var(--s-3h); right:var(--s-3h); bottom:var(--s-3); z-index:1; text-align:left; font-size:var(--t-h1); font-weight:var(--w-bold); color:#fff; line-height:var(--lh-snug); letter-spacing:-0.02em; }

@@ -2,7 +2,10 @@ import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { useSwipe } from "../shared/useSwipe";
 import { useLongPress } from "../shared/useLongPress";
 import { haptics } from "../shared/haptics";
+import RowActionSheet from "../shared/RowActionSheet";
+import RowCtxAction from "../shared/RowCtxAction";
 import { Quiet } from "./quiet";
+import { usePeekOnce } from "./usePeekOnce";
 import { X } from "../shared/icons";
 
 // THE NOTICE LAW (A1, 2026-08-20), extended by FORM FOLLOWS DECISION
@@ -30,6 +33,16 @@ import { X } from "../shared/icons";
 //
 // Subs render through the quiet line: words whisper, data pops, heat only
 // where the producer says so.
+//
+// A ROW HAS NO CAPSULE (Dave 2026-10-05, locked: "Clean rows, no pills
+// anywhere"). In the row form the verb is a gesture, never a button drawn on
+// the row: swipe left shows it (first in the tray, with the alt, Dismiss and
+// Delete beside it), a tap opens the row's door (onOpen) or, when the row has
+// no door of its own, a sheet holding every action it has, and a row whose
+// moment has come (`due`) quietly shows that one verb as text in the key
+// colour. The CARD form is the settled notice pattern (a notice with its own
+// words and its own action: permission asks, banners, the Email review card)
+// and keeps its capsule.
 
 // THE DEFAULT TONE IS NOT RED (Dave 2026-08-29, the notice audit, Wave 3).
 //
@@ -65,6 +78,7 @@ export default function NoticeCard({
   dismissButton = false,
   onDelete,
   onOpen,
+  due = false,
   foot,
   form = "card",
   uniform = true,
@@ -120,6 +134,9 @@ export default function NoticeCard({
   // "make it go away" and found the email still sitting in his inbox.
   onDelete?: () => void;
   onOpen?: () => void;
+  /** ITS MOMENT HAS COME (2026-10-05, ROW-ACTIONS-SPEC section 3): a bill due today or late, a reminder that is up. A
+   *  row form with a verb quietly shows it as text on the row, the same action as the swipe. Future items pass nothing. */
+  due?: boolean;
   // Extra rows below the main line, inside the same card (the email stack).
   foot?: ReactNode;
   form?: "card" | "row";
@@ -280,8 +297,19 @@ export default function NoticeCard({
   // Both forms keep alt on the swipe reveal.
   const altOnReveal = alt;
   const revealDismiss = !!onDismiss && !dismissButton;
-  const acts = (altOnReveal ? 1 : 0) + (revealDismiss ? 1 : 0) + (onDelete ? 1 : 0);
+  // THE ROW'S VERB IS THE FIRST BUTTON IN ITS TRAY (2026-10-05): only the row form, because the card form draws it.
+  const rowAction = form === "row" ? action : undefined;
+  const acts = (rowAction ? 1 : 0) + (altOnReveal ? 1 : 0) + (revealDismiss ? 1 : 0) + (onDelete ? 1 : 0);
   const swipe = useSwipe({ revealW: acts * 88, enabled: acts > 0 });
+  usePeekOnce(swipe.peek, acts > 0);
+  // THE ROW'S SHEET: every action the row has, for a row with no door of its own.
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const sheetActions = form === "row" ? [
+    ...(action ? [{ label: action.label, onPick: action.onClick }] : []),
+    ...(alt ? [{ label: alt.label, onPick: alt.onClick }] : []),
+    ...(onDismiss ? [{ label: "Dismiss", onPick: onDismiss }] : []),
+    ...(onDelete ? [{ label: "Delete", onPick: onDelete, destructive: true }] : []),
+  ] : [];
   // UP-CORE-14: the hold that opens the tuning sheet. Only on a card that
   // names its producer, so an ordinary notice keeps every gesture it had.
   const [tuneOpen, setTuneOpen] = useState(false);
