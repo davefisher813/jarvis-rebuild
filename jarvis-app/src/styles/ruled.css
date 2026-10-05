@@ -183,16 +183,10 @@
 .ruled .st-goal  { background: var(--good-tint);  color: var(--good); }
 .ruled .st-quiet { background: var(--press-3);    color: var(--tx-2); }
 .ruled .st-quiet .st-n { color: var(--tx-1); }
-/* Two tiles' words take none of the softening the other tiles' words get
-   (§AM, 2026-09-26). The quiet tile's word is already the secondary grey:
-   dimmed, it measured 4.22:1 on the light page and 4.44:1 on a light card,
-   under AA; undimmed it is 8.74:1 and 9.58:1. The late tile's word is 11px
-   bold caps in the dark system red on its red wash: dimmed, it measured
-   3.13 to 3.41:1 on the dark hero; undimmed it is 5.47:1 on the page and
-   4.74:1 under the morning wash. It shows from the first late task, so it
-   has to read every time. The green and amber tiles keep theirs (4.59 to
-   5.04:1 dimmed), where it only softens a hue. */
-.ruled .st-quiet .st-w, .ruled .st-late .st-w { opacity: 1; }
+/* 2026-10-05: the 2026-09-26 note that stood here took the fade off two tiles'
+   words (the quiet one measured 4.22:1 dimmed in light, the late one 3.13 to
+   3.41:1 in dark) and left it on the green and amber ones. No tile's word is
+   dimmed now, so the exception is gone with the fade it exempted. */
 .ruled .st-warn  { background: var(--warn-tint);  color: var(--warn); }
 /* The late wash is mixed from the system red (AMENDED 2026-09-26, round-4
    review): the app's red tint token is the BRAND red's wash (the tap red at

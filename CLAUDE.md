@@ -50,6 +50,16 @@ black), light and dark differ in colour only. A report on any UI change ends wit
 no drift", or what was found and fixed. A law that blocks a correct change is
 reported, never edited around.
 
+## Row actions, warm neutrals and the "perfect" bar (Dave, 2026-10-05, LOCKED)
+
+"Everything should look PERFECT." "I want the most aesthetically pleasing app ever." Decided, and not reopened without his word:
+
+- **Clean rows. No pills anywhere inside a card or a row.** Tap a row: its detail sheet, with every action (the primary prominent, the quieter ones beneath: Snooze, Move, Edit, Drop). Swipe left: the row's quickest contextual action (task: Done; upcoming reminder: Snooze; ready-to-work task: Start; active task: Wrap Up; low priority: Drop or Move). Swipe right: Complete. Long press: the context menu (`RowActionSheet`), never the only way to anything essential. The completion checkbox stays on the row (state, not a command). Section-level actions (Add, Plan My Day, Copy Yesterday, Add Account, Add Bill, Add Item) live in the section head, never inside a card. This supersedes the older "in-list create is a trailing `.row-act` row" ruling (§AK) and the "bare text is not a category" line for the one case below.
+- **Contextual surfacing.** A row whose moment has come quietly surfaces its one action on the row (a due-now reminder shows Snooze; an overdue item shows its action). Future items stay clean. It is a quiet text action in the key colour, never a capsule, and is the same action as the swipe.
+- **Discoverability, three parts and no permanent affordance:** one row on the Today list peeks open and closes once, ever; a dismissible tip at the top of the list on first run ("Swipe a task for quick actions") that is gone for good after one swipe or one dismiss; no grip dots or always-visible hints.
+- **Colour.** Brand red `#FF2B3C` stays EXACTLY the signature accent, reserved for actions; never shifted toward coral. Neutrals warm up around it: light-mode background cream about `#FAF6F0`, dark mode warm charcoal about `#1C1917`, never pure black and never stark white as the dominant field. Semantic colours stay disciplined: amber due-now, red late or destructive only, green done.
+- **Craft (the research playbook, `qa/findings/2026-10-05-design/aesthetic-playbook-report.md`):** one radius language (24 cards, 16 fields, pill buttons), an 8pt spacing grid, ONE shadow recipe (warm brown, about 8%, blur 24, y 8) or none, a rounded display face for headers and tabular digits for numbers, springy 100 to 200 ms press feedback, completion celebrations that vary and respect Reduced Motion, a voice in the microcopy, crafted empty, loading and error states.
+
 When the keyboard is up in a document, two bars sit above the keys:
 
 1. **Ours** (`.doc-kbar`, `shared/DocEditor.tsx`): Undo, Redo, Format, List,
