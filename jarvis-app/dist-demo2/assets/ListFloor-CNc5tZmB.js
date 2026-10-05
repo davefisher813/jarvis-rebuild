@@ -1,1 +1,0 @@
-import{t as e}from"./react-CzwqTlkt.js";var t=e();function n({children:e}){return(0,t.jsx)(`div`,{className:`list-floor`,children:e??`That's everything.`})}export{n as t};

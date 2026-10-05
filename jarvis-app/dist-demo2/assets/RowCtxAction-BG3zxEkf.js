@@ -1,1 +1,0 @@
-import{t as e}from"./react-CzwqTlkt.js";var t=e();function n({when:e,label:n,onAct:r,ariaLabel:i}){return e?(0,t.jsx)(`button`,{type:`button`,className:`row-ctx`,"aria-label":i??n,onClick:e=>{e.stopPropagation(),r()},onKeyDown:e=>e.stopPropagation(),children:n}):null}export{n as t};
