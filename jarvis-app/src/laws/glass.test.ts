@@ -184,3 +184,32 @@ describe("the button finish", () => {
     }
   });
 });
+
+// ALL CARDS THE SAME COLOUR (Dave 2026-10-05, on his phone: More's cards were
+// beige and Today's were grey-white). The pane was translucent, so the haze
+// tinted it by position. It is solid now, and stays solid.
+describe("the card colour", () => {
+  it("is one solid pane in both themes: every stop fully opaque, so nothing behind a card can tint it", () => {
+    for (const [name, src] of [["light", noComments], ["dark", dNoComments]] as const) {
+      const pane = src.match(/--g[ld]-pane:\s*([^;]+);/)![1]!;
+      const stops = [...pane.matchAll(/rgba\((\d+),\s*(\d+),\s*(\d+),\s*([\d.]+)\)/g)];
+      expect(stops.length, `${name}: pane has colour stops`).toBeGreaterThanOrEqual(2);
+      for (const m of stops) expect(Number(m[4]), `${name}: translucent pane stop ${m[0]}`).toBe(1);
+    }
+  });
+});
+
+// ALL ICONS FILLED (Dave 2026-10-05: "All icons should be colored in"). The
+// resting glyph is the fill twin; only an off toggle shows the outline.
+describe("the icon fill", () => {
+  const comp = readFileSync(join(SRC, "styles/components.css"), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
+  it("shows the fill at rest and the outline only for an off toggle", () => {
+    expect(comp).toMatch(/\.ic-out\s*\{\s*display:\s*none;\s*\}/);
+    expect(comp).toMatch(/\.ic-fill\s*\{\s*display:\s*inline-block;\s*\}/);
+    expect(comp).toMatch(/\[aria-pressed="false"\]\s*>\s*\.ic-out/);
+    expect(comp).toMatch(/\[aria-selected="false"\]\s*>\s*\.ic-fill\s*\{\s*display:\s*none/);
+  });
+  it("does not hide the fill for the active tab any more (it is the resting glyph)", () => {
+    expect(comp).not.toMatch(/\.tab\.active\s+\.ic-out/);
+  });
+});

@@ -15,7 +15,7 @@
    position; no entrance animation on screen open (Dave 2026-07-29). */
 
 html[data-theme="dark"] {
-  --gd-pane: linear-gradient(168deg, rgba(40, 40, 43, 0.74) 0%, rgba(28, 28, 31, 0.70) 55%, rgba(22, 22, 25, 0.68) 100%);
+  --gd-pane: linear-gradient(168deg, rgba(30, 30, 32, 1) 0%, rgba(20, 20, 22, 1) 55%, rgba(15, 15, 17, 1) 100%);
   --gd-chip: linear-gradient(168deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.05));
   --gd-chrome: linear-gradient(168deg, rgba(46, 46, 50, 0.84), rgba(30, 30, 34, 0.74));
   --gd-red-top: color-mix(in srgb, var(--accent-fill) 80%, white);
@@ -41,7 +41,8 @@ html[data-theme="dark"] .app-shell::after {
 html[data-theme="dark"] .app-scroll { position: relative; z-index: 1; background: transparent; }
 html[data-theme="dark"] .app-shell .screen { background: transparent; }
 
-/* THE CARD: the same charcoal glass, finer lit. */
+/* THE CARD: the same charcoal, finer lit. The pane is SOLID, so the red ember never tints a card (Dave 2026-10-05: all
+   cards the same colour). These are the colours the old translucent pane showed over black. */
 html[data-theme="dark"] .card,
 html[data-theme="dark"] .ruled .card {
   background:
