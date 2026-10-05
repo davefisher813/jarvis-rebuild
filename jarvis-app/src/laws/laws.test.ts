@@ -7281,7 +7281,7 @@ describe("LAW: a seam is wired or it is gone", () => {
     expect(row, "the row offers it when a caller can honour it").toMatch(/\{onAccept && <button/);
     const day = read(join(SRC, "today/YourDay.tsx"));
     expect(day, "the top-level row gets it").toMatch(/proposed!\.onAccept \? \{ onAccept:/);
-    expect(day, "and so does the row nested in a block").toMatch(/proposed\?\.onAccept &&/);
+    expect(day, "and so does the row nested in a block (now the long-press menu of HeldProposalRow, no pill)").toMatch(/proposed\?\.onAccept \?/);
     const flow = read(join(SRC, "today/TodayFlow.tsx"));
     expect(flow, "Today supplies it").toMatch(/onAccept: \(id: string\) => void acceptOneBlock\(id\)/);
     // One block, committed the same way the whole day is, and undoable.

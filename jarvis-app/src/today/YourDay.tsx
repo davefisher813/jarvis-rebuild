@@ -4,7 +4,7 @@ import type { EventItem } from "../schedule/types";
 import { fmtTime, minToHHMM } from "../schedule/calendar";
 import { catColor } from "../shared/categories";
 import { isPast } from "./todayData";
-import ProposedRow from "../schedule/screens/ProposedRow";
+import ProposedRow, { HeldProposalRow } from "../schedule/screens/ProposedRow";
 import DayRow from "../schedule/screens/DayRow";
 import type { AttachInfo } from "../schedule/attachments";
 import { holdersIn, holderFor, holderKey, spanOf, type HoldRange } from "../schedule/nesting";
@@ -275,30 +275,15 @@ function DaySet({
                   off and the words open it, which are the same two gestures
                   every other task row in the app answers to. */}
               {props.map((b) => (
-                <div className="block-held block-held-prop" key={"p" + b.taskId}>
-                  {proposed?.onComplete ? (
-                    <div className="task-check-tap bh-check" role="checkbox" aria-checked={false}
-                      aria-label={`Mark ${b.text} done`}
-                      onClick={(ev) => { ev.stopPropagation(); proposed.onComplete!(b.taskId); }}>
-                      <div className="task-check" />
-                    </div>
-                  ) : (
-                    <span className={"cat-dot-hollow cat-bd-" + catColor(b.category)} />
-                  )}
-                  <span className="block-held-t truncate" role={proposed?.onOpen ? "button" : undefined}
-                    tabIndex={proposed?.onOpen ? 0 : undefined}
-                    onClick={(ev) => { if (!proposed?.onOpen) return; ev.stopPropagation(); proposed.onOpen(b.taskId); }}>
-                    {b.text}
-                  </span>
-                  <span className="block-held-u">{fmtTime(b.start).time}</span>
-                  {/* The same per-block Accept the Schedule tab draws on its
-                      own nested rows. Without it this was the one place a
-                      proposed block could be ticked off or opened but not
-                      booked. */}
-                  {proposed?.onAccept && (
-                    <button type="button" className="pill-act" onClick={(ev) => { ev.stopPropagation(); proposed.onAccept!(b.taskId); }}>Accept</button>
-                  )}
-                </div>
+                <HeldProposalRow
+                  key={"p" + b.taskId}
+                  block={b}
+                  time={fmtTime(b.start).time + " " + fmtTime(b.start).ap}
+                  onOpen={() => proposed?.onOpen?.(b.taskId)}
+                  {...(proposed?.onComplete ? { onComplete: () => proposed.onComplete!(b.taskId) } : {})}
+                  {...(proposed?.onAccept ? { onAccept: () => proposed.onAccept!(b.taskId) } : {})}
+                  onDrop={() => proposed?.onDrop(b.taskId)}
+                />
               ))}
               </>
             </HeldTasks>

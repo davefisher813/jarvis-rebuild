@@ -198,15 +198,20 @@ export default function ProposedRow({
 // protected block's own row, so it cannot carry a swipe of its own (the block's rail is under the same finger); its Accept
 // capsule is the first line of the long-press menu now, beside Edit Task and Move to Anytime, and the tap opens the task as it
 // always has. Absent an editor the tap is the toggle it always was.
-export function HeldProposalRow({ block, onOpen, onAccept, onDrop }: {
+export function HeldProposalRow({ block, onOpen, onAccept, onDrop, onComplete, time }: {
   block: PlanBlock;
   onOpen: () => void;
   onAccept?: () => void;
   onDrop?: () => void;
+  /** Today's day card ticks a held task off from here (2026-09-15): the ring leads the row where the hollow dot would. */
+  onComplete?: () => void;
+  /** The held task's own start, a neutral small-caps fact ahead of "Proposed" (Today shows it; the Schedule's nest does not). */
+  time?: string;
 }) {
   const title = titleCase(block.text);
   const actions: RowAction[] = [
     ...(onAccept ? [{ label: "Book It", onPick: onAccept }] : []),
+    ...(onComplete ? [{ label: "Done", onPick: onComplete }] : []),
     { label: "Edit Task", onPick: onOpen },
     ...(onDrop ? [{ label: "Move to Anytime", onPick: onDrop }] : []),
   ];
@@ -230,15 +235,28 @@ export function HeldProposalRow({ block, onOpen, onAccept, onDrop }: {
       onContextMenu={(ev) => { ev.stopPropagation(); handlers.onContextMenu(ev); }}
       onClick={(ev) => { ev.stopPropagation(); onOpen(); }}
     >
-      <span className={"cat-dot-hollow cat-bd-" + catColor(block.category)} />
-      <span className="block-held-t truncate">{title}</span>
+      {onComplete ? (
+        <div className="task-check-tap bh-check" role="checkbox" aria-checked={false}
+          aria-label={`Mark ${block.text} done`}
+          onClick={(ev) => { ev.stopPropagation(); onComplete(); }}>
+          <div className="task-check" />
+        </div>
+      ) : (
+        <span className={"cat-dot-hollow cat-bd-" + catColor(block.category)} />
+      )}
+      {/* THE TITLE WRAPS, IT IS NEVER CUT (Dave 2026-10-05: "Get E..."): the title takes the row's width and the facts sit under
+          it, so nothing is squeezed to make room for a time or a verb. */}
+      <div className="block-held-col">
+      <span className="block-held-t">{title}</span>
       <span className="facts block-held-facts">
+        {time && <span className="fact date">{time}</span>}
         <span className="fact st gray">Proposed</span>
         {/* A length that cannot be tapped is a number with no state: white, not a second grey beside the block's own
             kicker (§AK, §AM). 2026-10-05 (the catalog gate): spanLabel spells it "45 Min" and "1h 30m"; it was glued
             "45m" by hand. */}
         <span className="fact"><b>{spanLabel(blockMinutes(block))}</b></span>
       </span>
+      </div>
       {sheet}
     </div>
   );
