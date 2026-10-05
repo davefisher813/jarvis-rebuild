@@ -1,16 +1,16 @@
 // DUAL-WEIGHT ICONS (Dave 2026-08-22: "on the light version filled in
-// icons look MUCH better"; REVISED 2026-10-05, the perfect bar, decision D3:
-// light and dark differ in colour only, so an icon is the same glyph in both).
+// icons look MUCH better"; 2026-10-05 first made outline the resting glyph in
+// both themes (the perfect bar, D3), then the same day ruled the other way:
+// "All icons should be colored in". So: filled at rest, in both themes.)
 //
 // A stroke icon cannot simply be filled -- pouring fill into an outline
 // path is the compass-blob bug, banned by law since 2026-08-18. A filled
 // glyph has to be a DIFFERENT, professionally drawn shape. So every icon
 // ships as a pair: the lucide outline the app already used, and Phosphor's
 // FILL-weight twin. The stylesheet (components.css, "ONE GLYPH SET IN BOTH
-// THEMES") shows the OUTLINE at rest in both themes and the FILL for the one
-// that is on: the active tab, a pressed toggle, a selected option, the current
-// page. It used to show the fill in light alone, which made Area, Person,
-// Project, Repeat, Vendor and Due different shapes by theme.
+// THEMES") shows the FILL at rest and the OUTLINE only for a control that is
+// off (aria-pressed or aria-selected "false"), so an on toggle still reads
+// as on by its fill. Light and dark differ in colour only.
 //
 // Why a pair instead of swapping the library outright: the outline drawings
 // the app already had stay pixel for pixel. Call sites are untouched apart

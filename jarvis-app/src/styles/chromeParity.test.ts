@@ -80,16 +80,17 @@ describe("D3: one capsule recipe, in both themes", () => {
 });
 
 describe("D3: one glyph set in both themes", () => {
-  it("the theme switch for filled icons is gone: outline at rest in light as in dark", () => {
+  it("the theme switch for filled icons is gone: filled at rest in light as in dark", () => {
     expect(ALL).not.toMatch(/\[data-theme="light"\] \.ic-out/);
     expect(ALL).not.toMatch(/\[data-theme="light"\] \.ic-fill/);
-    expect(joined(".ic-fill")).toMatch(/display:\s*none/);
+    expect(joined(".ic-fill")).toMatch(/display:\s*inline-block/);
+    expect(joined(".ic-out")).toMatch(/display:\s*none/);
   });
 
-  it("the fill shows only for the one that is on: the active tab, a pressed or selected control, the current page", () => {
-    const shown = ALL.match(/([^{}]*)\{\s*display:\s*inline-block;?\s*\}/g)?.filter((r) => r.includes(".ic-fill")) ?? [];
+  it("the outline returns only for a toggle that is off (Dave 2026-10-05: all icons colored in)", () => {
+    const shown = ALL.match(/([^{}]*)\{\s*display:\s*inline-block;?\s*\}/g)?.filter((r) => r.includes(".ic-out")) ?? [];
     expect(shown.length).toBe(1);
-    for (const state of [".tab.active", '[aria-pressed="true"]', '[aria-selected="true"]', '[aria-current="page"]']) {
+    for (const state of ['[aria-pressed="false"]', '[aria-selected="false"]']) {
       expect(shown[0], state).toContain(state);
     }
   });

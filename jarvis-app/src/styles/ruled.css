@@ -2730,7 +2730,16 @@
 /* PLAIN LIKE THE OTHER AREA CARDS (Dave's pick, 2026-09-26). The card lost its green wash and green border: Health's colour
    lives on its tile, as every area's does. Since 2026-10-05 it is the same card in every respect (the five section capsules
    it carried are gone); the class is its hook and holds nothing of its own. */
-.ruled .area-card-health { align-items: center; }
+.ruled .area-card-health { align-items: center; gap: var(--s-4); padding: var(--s-5) var(--s-4); margin-bottom: var(--s-2h); }
+/* HEALTH STANDS OUT (Dave 2026-10-05, caps: "I want the Health page to stand out, it's massive, it's nothing like the
+   rest ... it can't just look like a regular old category because it's not"). It is the one area that is a whole app, so
+   its card is the big one: a 72px tile, the name at title size, and its five doors named in plain words under it (no
+   capsules, per "Clean rows"). Same card colour as every card; the size and the tile carry it. */
+.ruled .area-card-health .area-tile { width: 72px; height: 72px; border-radius: var(--r-lg); }
+.ruled .area-card-health .area-tile .ic { width: 36px; height: 36px; }
+.ruled .area-card-health .area-name { font-size: var(--t-title); font-weight: var(--w-bold); letter-spacing: -0.02em; }
+.ruled .area-card-health .area-sections { margin-top: var(--s-1); font-size: var(--t-sub); font-weight: var(--w-sub); color: var(--tx-3); line-height: 1.4; }
+.ruled .area-card-health .area-chev { width: 32px; height: 32px; }
 .ruled .area-tile { width: 44px; height: 44px; border-radius: var(--r-md); display: flex; align-items: center; justify-content: center; color: #fff; flex-shrink: 0; }
 .ruled .area-tile .ic { width: 22px; height: 22px; }
 .ruled .area-stack { flex: 1; min-width: 0; }

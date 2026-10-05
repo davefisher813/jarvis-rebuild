@@ -1127,3 +1127,8 @@ The first finish drew a second pill behind Start Now, Read and Wrap Up. `.pill-a
 - `laws/glass.test.ts` holds it: no shorthand and no outer shadow on any `.pill-act` rule, identical family membership in both themes except the documented per-theme pair, no ring on a capsule, Dismiss untouched. A mutation check confirmed the law fails on the original bug.
 
 **Addendum to §AX (2026-10-05): the stepped-down button stays grey.** `.plan-cta.plan-cta-ghost` (Plan My Day / Plan Tomorrow beside a red primary) is the quiet family, not the red one. The first finish matched every `.plan-cta` and painted it red under black text. Red buttons are red with white text, everywhere; a button that steps down keeps its grey and its ink so the primary beside it stays the only red. `laws/glass.test.ts` refuses a ghost in the red family.
+
+## §AZ. One card colour, filled icons (Dave 2026-10-05: "All icons should be colored in and all cards should be the same color")
+
+- **Cards.** The glass pane in both themes (`--gl-pane`, `--gd-pane`) is now fully opaque. It was translucent, so the Sunrise haze showed through and tinted a card beige or blush depending on where it sat on the screen. Same grey (light) and charcoal (dark) as before, now identical on every card, every screen. `laws/glass.test.ts` refuses any pane stop with alpha below 1.
+- **Icons.** Every icon with a filled twin now shows filled at rest, in both themes. This reverses the same-day D3 ruling (outline at rest in light). Exception: a toggle that is OFF (`aria-pressed="false"` or `aria-selected="false"`) shows the outline, so on versus off still reads. Controls with no filled twin stay outline: search, lightning, chevrons, the ellipsis. The law checks the four rules in `components.css` section 4.

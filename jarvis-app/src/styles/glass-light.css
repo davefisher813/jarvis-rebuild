@@ -31,7 +31,7 @@ html[data-theme="light"] {
   --gl-mint: 64, 214, 176;
   --gl-ink: 30, 40, 80;
   --gl-rim: 38, 48, 96;
-  --gl-pane: linear-gradient(168deg, rgba(250, 251, 253, 0.95) 0%, rgba(243, 245, 248, 0.90) 48%, rgba(238, 240, 245, 0.86) 100%);
+  --gl-pane: linear-gradient(168deg, rgba(250, 251, 253, 1) 0%, rgba(243, 245, 248, 1) 48%, rgba(239, 241, 245, 1) 100%);
   --gl-chip: linear-gradient(168deg, rgba(241, 243, 247, 0.96), rgba(231, 234, 240, 0.90));
   --gl-chrome: linear-gradient(168deg, rgba(255, 255, 255, 0.94), rgba(255, 255, 255, 0.76));
   --gl-red-lo: color-mix(in srgb, var(--accent-fill) 86%, black);
@@ -58,7 +58,9 @@ html[data-theme="light"] .app-shell::after {
 html[data-theme="light"] .app-scroll { position: relative; z-index: 1; background: transparent; }
 html[data-theme="light"] .app-shell .screen { background: transparent; }
 
-/* THE CARD: the same grey, lit. */
+/* THE CARD: the same grey, lit. The pane is SOLID (Dave 2026-10-05: "all cards should be the same color"). It was
+   translucent, so wherever the coral and amber haze was strong a card turned beige and the same card was a different
+   colour from one screen to the next. The haze stays behind the page; it never tints a card. */
 html[data-theme="light"] .card,
 html[data-theme="light"] .ruled .card {
   background:

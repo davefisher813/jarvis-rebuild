@@ -223,11 +223,11 @@ describe("the header is one line of capsules, and it fits", () => {
   });
 
   // Words, not the eyebrow .dd draws by default: three or four of these sit
-  // where a sentence used to. The view leads in the page's ink, the cuts are
-  // quiet, so the line says at a glance whether anything is narrowing it.
-  it("reads as words, with the view leading", () => {
+  // where a sentence used to. Every capsule wears the page's ink at one weight
+  // (Dave 2026-10-05: "these should all match the black font").
+  it("reads as words, every capsule in the same ink", () => {
     expect(css).toMatch(/\.hdr-controls \.dd \{[\s\S]{0,200}?text-transform: none;/);
-    expect(css).toMatch(/\.hdr-controls \.dd \{[\s\S]{0,240}?color: var\(--tx-2\);/);
+    expect(css).toMatch(/\.hdr-controls \.dd \{[\s\S]{0,240}?font-weight: var\(--w-semi\);[\s\S]{0,40}?color: var\(--tx-1\);/);
     expect(css).toContain(".hdr-controls .dd.dd-lead { font-weight: var(--w-semi); color: var(--tx-1); }");
   });
 

@@ -80,9 +80,9 @@ describe("Insights: the ledger (The Long Story)", () => {
     const { container } = await open("u-ins-story-close");
     expect(container.querySelector(".input-hint")!.textContent).toBe("Everything You Achieve Lands Here, Dated, Forever");
     for (const g of container.querySelectorAll(".rep-good-glyph")) expect(g.querySelector(".ic-out")).not.toBeNull();
-    // The filled twin is hidden everywhere but an active control, and no light-only rule brings it back.
-    expect(rules(".ic-fill").join(" ")).toMatch(/display:\s*none/);
-    expect(CSS).not.toMatch(/\[data-theme="light"\][^{}]*\.ic-fill[^{}]*\{[^}]*display:\s*(inline|block)/);
+    // The filled twin shows at rest (Dave 2026-10-05), and no light-only rule changes that.
+    expect(rules(".ic-fill").join(" ")).toMatch(/display:\s*inline-block/);
+    expect(CSS).not.toMatch(/\[data-theme="light"\][^{}]*\.ic-fill[^{}]*\{[^}]*display:\s*none/);
   });
 });
 

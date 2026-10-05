@@ -4782,18 +4782,18 @@ button.check-linked:active { opacity: 1; background: var(--press-3); }
 .btn.btn-primary:disabled, .btn.btn-primary[aria-disabled="true"] {
   opacity: 1; background-color: color-mix(in srgb, var(--accent-fill) 42%, transparent); color: #fff; }
 [data-theme="light"] .btn-icon { background: var(--press-3); color: var(--tx-1); }
-/* 4 · ONE GLYPH SET IN BOTH THEMES: OUTLINE AT REST, FILLED WHEN IT IS THE ACTIVE ONE (Dave 2026-10-05, the perfect bar;
-   decision D3). This block used to be "LIGHT WEARS THE FILLED GLYPH" (Dave 2026-08-22): every icon shipped as a PAIR
-   (shared/icons.tsx, the lucide outline and Phosphor's fill-weight twin) and the stylesheet showed the filled one in
-   light alone, so Area, Person, Project, Repeat, Vendor and Due were different shapes by theme, the dock's bolt was a
-   red slab in light and a white outline in dark, and the Reminder and Bill sheets' tiles changed weight. Light and dark
-   differ in colour only, so the theme switch is gone. The pair is kept, because a stroke icon cannot be filled by CSS
-   without becoming the compass blob the 08-18 law banned: the OUTLINE is the resting glyph everywhere, and the FILL
-   shows for the one thing that is on, in both themes: the active tab, a pressed toggle, a selected option, the current
-   page. A glyph with no fill twin (a control: search, plus, chevron, more) has none to show and stays an outline. */
-.ic-fill { display: none; }
-.tab.active .ic-out, [aria-pressed="true"] > .ic-out, [aria-selected="true"] > .ic-out, [aria-current="page"] > .ic-out { display: none; }
-.tab.active .ic-fill, [aria-pressed="true"] > .ic-fill, [aria-selected="true"] > .ic-fill, [aria-current="page"] > .ic-fill { display: inline-block; }
+/* 4 · ONE GLYPH SET IN BOTH THEMES: FILLED. A toggle that is off shows the OUTLINE. (Dave 2026-10-05, replacing the
+   same day's D3, which had outline at rest: "All icons should be colored in".) Every icon ships as a PAIR
+   (shared/icons.tsx, the lucide outline and Phosphor's fill-weight twin), because a stroke icon cannot simply be
+   filled by CSS without becoming the compass blob the 08-18 law banned. The FILL is now the resting glyph everywhere,
+   in both themes, so light and dark still differ in colour only. The one exception is a control that has an off state:
+   an element with aria-pressed="false" or aria-selected="false" shows the outline, so a pressed toggle or a selected
+   option still reads as on by its fill. A glyph with no fill twin (a control: search, plus, chevron, more) has none
+   to show and stays an outline. */
+.ic-out { display: none; }
+.ic-fill { display: inline-block; }
+[aria-pressed="false"] > .ic-out, [aria-selected="false"] > .ic-out { display: inline-block; }
+[aria-pressed="false"] > .ic-fill, [aria-selected="false"] > .ic-fill { display: none; }
 
 /* 3 · MAIL GLYPHS JOIN THE FAMILY. The purple envelope was the dark
    theme's mail tone surviving into daylight, where it clashed with
@@ -6969,12 +6969,13 @@ span.row-star { cursor: default; }
 .life-hdr { padding-bottom: var(--s-7); }
 /* Words, not the uppercase eyebrow .dd draws by default: five of these sit
    where a sentence used to, and an all-caps line of five reads as shouting.
-   The view leads in the page's own ink; a cut that is not set is quiet, so
-   the line says at a glance whether anything is narrowing the list. */
+   Every capsule on the line wears the same ink and weight (Dave 2026-10-05:
+   "these should all match the black font"): Today, Area and Group read alike,
+   set or not. The chevron stays quiet. */
 .hdr-controls .dd {
   text-transform: none; letter-spacing: -0.01em;
-  font-size: var(--t-caption); font-weight: var(--w-medium);
-  color: var(--tx-2); min-height: 34px;
+  font-size: var(--t-caption); font-weight: var(--w-semi);
+  color: var(--tx-1); min-height: 34px;
 }
 .hdr-controls .dd.dd-lead { font-weight: var(--w-semi); color: var(--tx-1); }
 .hdr-controls .dd .dd-w { max-width: 40vw; }
