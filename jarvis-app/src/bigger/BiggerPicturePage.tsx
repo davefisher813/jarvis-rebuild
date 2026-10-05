@@ -255,7 +255,8 @@ export default function BiggerPicturePage({
         title={project.data.title}
         areaRef={ref}
         lead={nextActionTextOf?.(project.id) ? "Next: " + titleCase(nextActionTextOf(project.id)!) : holdLineOf?.(project.id) ?? null}
-        foot={progress ? lineCase(`${progress.done} of ${progress.total} tasks`) : null}
+        // "0 of 1 Task", never "0 of 1 Tasks" (2026-10-05, the perfect bar): the noun agrees with the denominator.
+        foot={progress ? lineCase(`${progress.done} of ${progress.total} ${progress.total === 1 ? "task" : "tasks"}`) : null}
         progress={progress}
         onOpen={() => onOpenProject(project.id)}
         menuLabel={"More for " + project.data.title}

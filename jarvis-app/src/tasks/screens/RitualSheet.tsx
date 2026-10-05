@@ -4,6 +4,7 @@ import { minutesLabel } from "../../shared/duration";
 import { FormSheet, Group, Row, FieldRow, MenuRow, Note, ErrorLine } from "../../shared/FormSheet";
 import { Clock, Hourglass, Zap } from "../../shared/icons";
 import { SunriseGlyph } from "../../shared/glyphs";
+import { titleCase } from "../../shared/casing";
 
 // THE START RITUAL SHEET (C1). Three decisions, all pre-answered: when it
 // starts, how long it runs, and what the first move is. He can change any of
@@ -35,7 +36,7 @@ export default function RitualSheet({
   return (
     <FormSheet title="Set a Start" onCancel={onCancel} onSave={set} saveLabel="Set It" saveDisabled={!ready}>
       <Group label="Task">
-        <Row tone="sky" glyph={<SunriseGlyph />} label={initial.text} />
+        <Row tone="sky" glyph={<SunriseGlyph />} label={titleCase(initial.text)} />
       </Group>
       <Group label="Plan">
         <FieldRow tone="orange" glyph={<Clock className="ic" />} label="Starts" type="time" value={start} onChange={setStart} ariaLabel="Starts" />

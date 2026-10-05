@@ -104,6 +104,11 @@ describe("TasksPage", () => {
     const door = container.querySelector(".tasks-focus") as HTMLElement;
     expect(door).toBeTruthy();
     expect(door).toHaveTextContent("Focus");
+    // 2026-10-05 (Dave: "never a red slab among the chips"): it lives in the head beside the options control, never on the
+    // line of cuts, and it is the quiet capsule, not a fill.
+    expect(door.closest(".pagehead-acts"), "Focus is a head control").toBeTruthy();
+    expect(container.querySelector(".hdr-controls .tasks-focus"), "and not among the chips").toBeNull();
+    expect(container.querySelectorAll(".hdr-controls button.tasks-focus, .hdr-controls .tasks-focus")).toHaveLength(0);
     fireEvent.click(door);
     expect(onPickOne).toHaveBeenCalled();
     expect(container.textContent).not.toContain("Just This One");

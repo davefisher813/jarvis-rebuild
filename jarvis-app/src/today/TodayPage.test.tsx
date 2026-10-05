@@ -486,3 +486,31 @@ describe("a workout in progress", () => {
     expect(screen.getByText("Back to Push Day 1")).toBeInTheDocument();
   });
 });
+
+// NO NAME IS NOT "JV" (2026-10-05, Dave "he opens the app and finds nothing"). The flow fell back to the letters "JV" for an
+// account with no name, while Account says so honestly with a neutral disc. The bar now draws that same disc, and initials
+// only when the profile has a name.
+describe("TodayPage avatar: honest when there is no name", () => {
+  it("draws Account's neutral glyph disc, and no letters, when no initials are passed", () => {
+    const { container } = render(<TodayPage {...base} avatar="" />);
+    const disc = container.querySelector(".today-av .av")!;
+    expect(disc).toHaveClass("av-empty");
+    expect(disc).not.toHaveClass("av-accent");
+    expect(disc.querySelector("svg.ic")).not.toBeNull();
+    expect(disc.textContent).toBe("");
+  });
+
+  it("draws the initials on the brand disc once a name exists", () => {
+    const { container } = render(<TodayPage {...base} avatar="DF" />);
+    const disc = container.querySelector(".today-av .av")!;
+    expect(disc).toHaveClass("av-accent");
+    expect(disc).not.toHaveClass("av-empty");
+    expect(disc).toHaveTextContent("DF");
+    expect(disc.querySelector("svg")).toBeNull();
+  });
+
+  it("never invents the letters JV", () => {
+    const { container } = render(<TodayPage {...base} />);
+    expect(container.querySelector(".today-av")!.textContent).not.toContain("JV");
+  });
+});

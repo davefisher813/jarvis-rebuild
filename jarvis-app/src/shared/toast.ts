@@ -27,7 +27,8 @@ let timer: ReturnType<typeof setTimeout> | undefined;
 // that is by its timer or by the action being taken. Only the newest waiting
 // plain toast is kept, because a queue of stale receipts is worse than the
 // newest one.
-let queued: { t: ToastState; ms: number } | null = null;
+let queued: { t: ToastState; ms: number; at: number } | null = null;
+let shownAt = 0;
 // A LABEL WITHOUT A HANDLER IS NOT AN ACTION (audit 2026-09-16). The two are
 // separate optionals, so `{ message, actionLabel: "Undo" }` with no onAction
 // type-checks; it used to count as an action here and draw a real capsule in
@@ -39,10 +40,11 @@ const hasAction = (t: ToastState | null): boolean => !!t?.actionLabel && !!t?.on
 
 export function showToast(t: ToastState, ms = 5000): void {
   if (hasAction(current) && !hasAction(t)) {
-    queued = { t, ms };
+    queued = { t, ms, at: Date.now() };
     return;
   }
   current = t;
+  shownAt = Date.now();
   subs.forEach((s) => s(current));
   if (timer) clearTimeout(timer);
   timer = setTimeout(hideToast, ms);
@@ -54,6 +56,20 @@ export function hideToast(): void {
   const next = queued;
   queued = null;
   if (next) showToast(next.t, next.ms);
+}
+// A TOAST IS ABOUT THE SCREEN IT WAS RAISED ON (Dave 2026-10-05, "he opens the app and finds nothing"; the review: a
+// "Moved Rent to Tomorrow" receipt rode along into Schedule and sat over a page it had nothing to do with, and its Undo
+// would have reached back into a screen that was gone). The shell calls this when the screen changes (a tab, Focus,
+// Search, Quick Capture), and a toast already showing goes, with any plain one waiting behind it.
+//
+// One thing survives: a toast raised in the same gesture as the change, because that gesture IS the change. "Opened
+// Waiting" after a jump, or a receipt that arrives a beat before the render settles, belongs to the screen being
+// opened. The grace is wider than one render and far shorter than the five seconds a toast lives.
+export const TOAST_NAV_GRACE_MS = 600;
+export function dismissForNavigation(): void {
+  const q = queued;
+  if (q && Date.now() - q.at > TOAST_NAV_GRACE_MS) queued = null;
+  if (current && Date.now() - shownAt > TOAST_NAV_GRACE_MS) hideToast();
 }
 /** Tests only: drop anything in flight so one case cannot leak into the next. */
 export function resetToasts(): void {

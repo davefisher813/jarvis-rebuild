@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import EntityStar from "../../shared/EntityStar";
+import EntityStar, { useRemember } from "../../shared/EntityStar";
 import type { EventItem } from "../types";
 import { useSwipe } from "../../shared/useSwipe";
 import { SCHED_ACT_W } from "./schedRail";
@@ -159,11 +159,16 @@ export default function DayRow({
   // Counting the rendered actions means the rail can never lie again.
   const acts = [!!gymVerb || !!onShift, rep ? !!onSkipToday : !!onPushTomorrow, !!onDelete].filter(Boolean).length;
   const title = titleCase(e.data.title);
+  // REMEMBER IS A LINE IN THE MENU, AND A STAR ONLY WHILE IT IS TRUE (2026-10-05, the perfect bar, as on every task row): an
+  // empty outline star on every event is a control nobody asked for. The lead slot keeps its room (ruled.css), so titles stay
+  // on one left edge whether or not a star is drawn.
+  const remember = useRemember("event", e.id, title);
   const menuActions: RowAction[] = [
     ...(gymVerb ? [{ label: gymVerb.label + (gymDoor?.dayName ? " " + titleCase(gymDoor.dayName) : ""), onPick: gymVerb.run }] : []),
     ...(swipeable && onShift ? [{ label: "+15 Min", onPick: () => onShift(15) }] : []),
     ...(swipeable && rep && onSkipToday ? [{ label: "Skip Today", onPick: onSkipToday }] : []),
     ...(swipeable && !rep && onPushTomorrow ? [{ label: "Move to Tomorrow", onPick: onPushTomorrow }] : []),
+    ...(remember && !selecting ? [{ label: remember.on ? "Forget" : "Remember", onPick: () => void remember.run() }] : []),
     ...(swipeable && onDelete ? [{ label: "Delete", destructive: true, onPick: onDelete }] : []),
   ];
   const rowMenu = useRowMenu({ title, actions: menuActions, enabled: !selecting, swipeEnabled: !!swipeable });
@@ -250,7 +255,7 @@ export default function DayRow({
             as absent. This is the same fact at a glance, no reading. */}
         <span className={"sched-bar cat-bg-" + catColor(e.data.category)} />
         {/* C-50 (Astra, 2026-09-12): the Remember star leads the row. */}
-        {!selecting && <EntityStar entityType="event" entityId={e.id} title={e.data.title} />}
+        {!selecting && <EntityStar entityType="event" entityId={e.id} title={e.data.title} quiet />}
         {selecting && (
           <button
             type="button"

@@ -972,17 +972,7 @@ describe("LAW: one filled red per screen", () => {
       // per action, so only a producer that asks for the fill gets it, and
       // the law still catches any PANEL that tries to wear it.
       ".ruled .card .pill-act.pill-go",
-      // The Tasks list's door to Focus (Dave 2026-09-18: "that focus button
-      // should be Jarvis red"), which is the same ruling he gave Today's
-      // Start pill two days earlier. It replaced Pick One, a full-width red
-      // FILL: the claim on the screen has not grown, it has shrunk to the
-      // size of a control, and it is still the one thing on the page that
-      // starts work rather than filtering it. The tinted version it shipped
-      // as read, on the dark theme, as dark red words inside a dark red
-      // capsule. The page's other primary is the empty state's New Task,
-      // which is gated on counts.all === 0 while this is gated on
-      // counts.all > 0, so the two can never paint at once.
-      ".hdr-controls .tasks-focus",
+      // (The Tasks list's door to Focus left this list on 2026-10-05: it is a quiet capsule in the head now, no longer a fill.)
       ".bench-act.prim", ".chip.chip-on",
       // Small round controls whose whole body is the control.
       ".ob-check-row", ".convo-send", ".voice-mic", ".voice-orb",
@@ -3401,7 +3391,7 @@ describe("LAW 7: one question gets one row, and a colour never speaks for a cate
     const src = page();
     expect(src, "the pair is gone").not.toMatch(/cta-pair|onOverwhelmed/);
     expect(src, "and the slab is gone with it").not.toMatch(/btn btn-primary btn-lg btn-block/);
-    expect(src, "the door sits on the control line").toMatch(/className="tasks-focus"/);
+    expect(src, "the door sits in the head").toMatch(/className="tasks-focus"/);
     expect(src, "and it is the only thing that opens Focus from here")
       .toBe(src.replace(/onPickOne/g, "onPickOne"));
     expect(src.match(/onClick=\{onPickOne\}/g)?.length, "one door").toBe(1);

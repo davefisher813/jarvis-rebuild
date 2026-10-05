@@ -182,9 +182,11 @@ export default function FocusScreen({
                 ? <button className="btn btn-primary btn-block focus-go" onClick={onStartNow}>Start Now</button>
                 : <button className="btn btn-primary btn-block focus-go" onClick={onDone} disabled={doneBusy}>Done</button>}
               {mode === "next" && (
-                <div className="focus-acts">
-                  {onFifteen && <button className="btn btn-secondary" onClick={onFifteen}><Timer className="ic" />15 Minutes</button>}
+                <div className="focus-acts skew">
+                  {/* DONE FIRST, THE TIMER AFTER IT (2026-10-05): the answer that closes the loop leads and takes the room, the
+                      15-minute timer is the icon capsule beside it, hugging its label. Not This One is the quiet line below. */}
                   {leadsWithStart && <button className="btn btn-secondary" onClick={onDone} disabled={doneBusy}>Done</button>}
+                  {onFifteen && <button className="btn btn-secondary" aria-label="Focus 15 Minutes" onClick={onFifteen}><Timer className="ic" />15 Min</button>}
                 </div>
               )}
               {mode === "next" && <button className="focus-skip" onClick={onSkip}>Not This One</button>}

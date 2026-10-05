@@ -135,7 +135,10 @@ const ACTION_ON_SCREEN: Record<string, string> = {
   "settings/BookingPage.tsx · No Days Off": "Add a Day Off is the Days Off head's capsule, directly above these words (Dave 2026-10-05)",
   // Your Routine (round-1 review, 2026-10-05, D9): Protected Time with no block is a glyph, a title and one warm line, filled by the Add capsule
   // on its head directly above (the head's label is the short word because the title already says what it adds).
-  "routine/RoutineFlow.tsx · Nothing Protected Yet": "Add is the Protected Time head's capsule, directly above these words (Dave 2026-10-05)",
+  // The Tracker with no accounts (round-1 review, 2026-10-05, D9): a glyph, a title and one warm line, filled by the Add Account capsule on
+  // the Accounts head directly above it.
+  "money/screens/TrackerScreen.tsx · No Accounts Yet": "Add Account is the Accounts head's capsule, directly above these words (Dave 2026-10-05)",
+  "routine/RoutineFlow.tsx · Nothing Protected Yet":"Add is the Protected Time head's capsule, directly above these words (Dave 2026-10-05)",
 };
 
 // REAL DEBT. The action exists but lives on ANOTHER screen, so these fail L7

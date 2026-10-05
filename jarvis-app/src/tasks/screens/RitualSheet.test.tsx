@@ -12,7 +12,8 @@ describe("RitualSheet", () => {
   it("opens with the plan filled in and sets it with the picked length", () => {
     const onSet = vi.fn();
     render(<RitualSheet initial={INITIAL} onSet={onSet} onCancel={() => {}} />);
-    expect(screen.getByText("Write the sponsor deck")).toBeInTheDocument();
+    // His typed title is SHOWN in Title Case, as on every other screen (2026-10-05); the record keeps his typing.
+    expect(screen.getByText("Write the Sponsor Deck")).toBeInTheDocument();
     expect(screen.getByText("Ends 9:25 AM · Finishing Is Not the Point")).toBeInTheDocument();
     fireEvent.click(screen.getByLabelText("For"));
     fireEvent.click(screen.getByRole("menuitemradio", { name: "45 Min" }));

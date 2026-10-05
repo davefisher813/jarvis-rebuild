@@ -266,9 +266,7 @@ export function TaskRow({
   // Same ladder as Today's dealt row (distanceFor). Muted on the Today
   // filter, where every row would say the same word.
   const dist = distanceFor(t, today);
-  const shownDist = dist && !t.done && !(muteToday && dist.kind === "today") ? dist : null;
-  const chip = stateText ? null : shownDist;
-  const stateFact = stateText ? shownDist : null;
+  const chip = dist && !t.done && !(muteToday && dist.kind === "today") ? dist : null;
   // TRACE-02b (2026-09-07): the checklist rollup, display only, counted by
   // the one shared piece Today's rows already use.
   const steps = stepsOf(t);
@@ -506,12 +504,12 @@ export function TaskRow({
               line box (ruled.css), so a fact that no longer fits leaves the
               line whole instead of taking a row of its own. */}
           <div className="r-k r-k-one">
-            {chip && <span className={"uchip " + (chip.kind === "late" ? "u-late" : "u-today")}>{chip.label}</span>}
-            {stateFact && <span className={"r-goal fact " + (stateFact.kind === "late" ? "red" : "warn")}>{lineCase(stateFact.label.toLowerCase())}</span>}
+            {!stateText && <>{chip && <span className={"uchip " + (chip.kind === "late" ? "u-late" : "u-today")}>{chip.label}</span>}</>}
+            {stateText && chip && <span className={"r-goal fact " + (chip.kind === "late" ? "red" : "warn")}>{lineCase(chip.label.toLowerCase())}</span>}
             {/* E-31 (2026-09-12): a day he named in his own reply that the
                 catcher could not resolve. A proposal in the chip's slot, in
                 quiet ink, never a deadline; a real due date replaces it. */}
-            {!chip && !stateFact && !t.done && t.proposedDate && <span className="uchip u-proposed">{lineCase(`${t.proposedDate} (proposed)`)}</span>}
+            {!chip && !t.done && t.proposedDate && <span className="uchip u-proposed">{lineCase(`${t.proposedDate} (proposed)`)}</span>}
             {(kicker || tag)
               ? <>
                   {tag && <span className="slide-tag">{tag}</span>}
@@ -947,7 +945,18 @@ export default function TasksPage({
         // a Syllabus, Area and Group were two glyphs in the bar and three
         // capsules on a line; they are one control now, beside the title,
         // the same control on all five pages.
-        headActions={sel.active ? undefined : <OptionsButton onClick={() => setOptsOpen(true)} label="Tasks Options" />}
+        // FOCUS LIVES IN THE HEAD, NOT AMONG THE CUTS (Dave 2026-10-05: no red slab among the chips). A quiet capsule in the key
+        // colour beside the options control: the head holds two controls, Add and Focus, and Focus is an action, not a filter.
+        headActions={sel.active ? undefined : (
+          <>
+            {onPickOne && counts.all > 0 && !overwhelmed && (
+              <button type="button" className="tasks-focus" onClick={onPickOne}>
+                <Zap className="ic" />Focus
+              </button>
+            )}
+            <OptionsButton onClick={() => setOptsOpen(true)} label="Tasks Options" />
+          </>
+        )}
       >
         {/* ONE HEADER, FIVE PAGES (Dave 2026-09-17). The tabs, then search
             and a compact Add on one row, then one scrolling row of views.
@@ -995,18 +1004,6 @@ export default function TasksPage({
                 options={(Object.keys(GROUP_LABEL) as GroupBy[]).map((g) => ({ value: g, label: GROUP_LABEL[g] }))}
                 onPick={(g) => setGroup(g as GroupBy)}
               />
-              {/* THE DOOR TO FOCUS (Dave 2026-09-18: "that massive pick one
-                  chip looks terrible... combine focus and pick one and roll
-                  it all under focus"). It was a full-width red slab under
-                  the header that named nothing. Focus is where the proposal
-                  lives, so what is left here is the door: one control, the
-                  height of the cuts beside it, wearing the bolt the capture
-                  bar already uses for the same screen. */}
-              {onPickOne && counts.all > 0 && !overwhelmed && (
-                <button type="button" className="tasks-focus" onClick={onPickOne}>
-                  <Zap className="ic" />Focus
-                </button>
-              )}
             </>
           )}
         >

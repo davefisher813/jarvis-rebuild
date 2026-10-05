@@ -3,6 +3,8 @@
 // component through the real markup and asserts one property the screenshot review found wrong. A case here fails
 // against the code as it stood before the fix.
 import { describe, it, expect, afterEach, beforeEach } from "vitest";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { useEffect, useState } from "react";
 import { render, screen, fireEvent, waitFor, cleanup, within } from "@testing-library/react";
 import "@testing-library/jest-dom";
@@ -148,17 +150,27 @@ describe("Also Tagged Money does not repeat its own head on every row", () => {
     render(<NotesProvider userId="r1-tag"><SeededTagged /></NotesProvider>);
     await screen.findByText("Also Tagged Money");
     const list = screen.getByText("Also Tagged Money").closest(".sh2")!.nextElementSibling as HTMLElement;
+    const rowOf = (name: string) => within(list).getByText(name).closest(".task-row") as HTMLElement;
+    // Every row here is tagged Money under a head that says so: no row draws the Money area (its dot and name).
+    expect(rowOf("Create Invoice").querySelector(".r-parent")).toBeNull();
+    expect(rowOf("Chase Summit Gear Order #D2565").querySelector(".r-parent")).toBeNull();
+    // A task with only the Money tag and no date has no second line at all.
+    // (the row may keep an empty line box; the stylesheet does not draw it, which the next case holds)
+    const gearLine = rowOf("Chase Summit Gear Order #D2565").querySelector(".r-k");
+    expect(gearLine === null || (gearLine.childElementCount === 0 && gearLine.textContent === "")).toBe(true);
+    // Another area on the task is information and stays: exactly one area, and it is not Money's.
+    const areas = rowOf("Fix Meter").querySelectorAll(".r-parent");
+    expect(areas).toHaveLength(1);
     expect(within(list).queryByText("Money")).toBeNull();
-    // Another area on the task is information and stays.
-    const meter = within(list).getByText("Fix Meter").closest(".task-row") as HTMLElement;
-    expect(within(meter).getByText("Home")).toBeInTheDocument();
-    // A task with only the Money tag has no second line at all.
-    const gear = within(list).getByText("Chase Summit Gear Order #D2565").closest(".task-row") as HTMLElement;
-    expect(gear.querySelector(".r-k")).toBeNull();
+    const invoice = rowOf("Create Invoice");
     // Today is the key's amber as text, never a filled chip.
-    const invoice = within(list).getByText("Create Invoice").closest(".task-row") as HTMLElement;
     expect(within(invoice).getByText("Today")).toHaveClass("fact", "warn");
     expect(list.querySelector(".uchip")).toBeNull();
+  });
+
+  it("an empty second line is not drawn, so a row with nothing to say is not taller than its neighbours", () => {
+    const css = readFileSync(join(__dirname, "../styles/ruled.css"), "utf8");
+    expect(css).toMatch(/\.ruled \.r-k-one:empty\s*\{\s*display:\s*none;\s*\}/);
   });
 
   it("the title is never clamped: an order number can wrap but not be cut", () => {

@@ -84,11 +84,12 @@ describe("measureState: projects", () => {
     const c = ctx({ projects: [proj("p1", { status: "done" }), proj("p2")] });
     expect(measureState({ kind: "projects" }, c)).toMatchObject({ done: 1, target: 2, met: false });
   });
-  // THE NOUN AGREES WITH THE DENOMINATOR (2026-10-05, the perfect bar: "0 of 1 Projects Done" on the Goals card), the word behind
-  // the number stays capitalized, and the word wraps no orphan.
-  it("writes '0 of 1 Project Done' for one and '1 of 2 Projects Done' for two", () => {
-    expect(measureState({ kind: "projects" }, ctx({ projects: [proj("p1")] }))!.line).toBe("0 of 1 Project Done");
-    expect(measureState({ kind: "projects" }, ctx({ projects: [proj("p1", { status: "done" }), proj("p2")] }))!.line).toBe("1 of 2 Projects Done");
+  // NO NOUN, NO ORPHAN (2026-10-05, the perfect bar: "0 of 1 Projects Done" on the Goals card, and "0 of 1 Project Done" reads wrong
+  // too): the line is the count alone, as every other measure writes it, and the noun is the "1 Linked Project" under it.
+  it("writes '0 of 1 Done' and '1 of 2 Done', never a plural that disagrees or an orphaned Done", () => {
+    expect(measureState({ kind: "projects" }, ctx({ projects: [proj("p1")] }))!.line).toBe("0 of 1 Done");
+    expect(measureState({ kind: "projects" }, ctx({ projects: [proj("p1", { status: "done" }), proj("p2")] }))!.line).toBe("1 of 2 Done");
+    expect(measureState({ kind: "projects" }, ctx({ projects: [proj("p1")] }))!.line).not.toMatch(/Project/);
   });
   // §AK (2026-09-26): no division by zero, and no placeholder line either.
   it("says nothing rather than dividing by zero", () => {

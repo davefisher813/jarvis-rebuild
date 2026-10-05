@@ -47,7 +47,7 @@ describe("a goal's bar is its outcome, never its paperwork", () => {
   it("still draws a project's bar from its real task count", () => {
     const fn = PAGE.slice(PAGE.indexOf("const projCard ="), PAGE.indexOf("/** A GOAL'S BAR"));
     expect(fn).toMatch(/progress=\{progress\}/);
-    expect(fn, "and says the count in words beside it").toMatch(/\$\{progress\.done\} of \$\{progress\.total\} tasks/);
+    expect(fn, "and says the count in words beside it").toMatch(/\$\{progress\.done\} of \$\{progress\.total\} \$\{progress\.total === 1 \? "task" : "tasks"\}/);
   });
 
   // "Do not add a percentage beside a count that already communicates

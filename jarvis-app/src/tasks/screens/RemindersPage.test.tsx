@@ -7,6 +7,8 @@ import { setCategoryRegistry } from "../../shared/categories";
 import { pageSections, type PageTab } from "../reminders";
 import type { TaskItem } from "../TasksService";
 import type { ReminderInfo } from "../../notes/types";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 
 // THE REMINDERS PAGE (push E): the reference's layout on the app's chrome.
 const item = (r: ReminderInfo, text: string, id: string, category = ""): TaskItem =>
@@ -278,5 +280,16 @@ describe("RemindersPage: what a search says it searched", () => {
     fireEvent.click(screen.getByText("Search All Areas"));
     expect(scope()).toBe("3 Results in All Reminders");
     expect(screen.queryByText("Search All Areas")).toBeNull();
+  });
+});
+
+// ONE HEADER, FIVE LENSES (2026-10-05, the perfect bar): the Reminders lens drew its tab strip 8px taller than Tasks, Projects and
+// Goals (a .rem-page .segmented margin), so the search row moved down when the lens changed. The strip is the same height on every lens.
+describe("RemindersPage inside Life", () => {
+  it("does not add a margin under the Life lens strip", () => {
+    const css = readFileSync(join(__dirname, "../../styles/components.css"), "utf8");
+    expect(css).toMatch(/\.rem-page \.life-seg \.segmented \{ margin-bottom: 0; \}/);
+    expect(css.indexOf(".rem-page .life-seg .segmented"), "and it comes after the rule it overrides")
+      .toBeGreaterThan(css.indexOf(".rem-page .segmented {"));
   });
 });

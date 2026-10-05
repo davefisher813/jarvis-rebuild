@@ -109,8 +109,8 @@ export async function seedDemoData(
     await schedule.createEvent("Drive to Ridgeline", { date: today, start: "14:45", end: "15:30", category: cat("Family") });
     await schedule.createEvent("Fall Clinic Walkthrough", { date: today, start: "15:30", category: cat("Family"), location: "Ridgeline Fields" });
     await schedule.createEvent("Gym Session", { date: today, start: "17:30", category: cat("Health"), recurrence: "weekly", until: addDays(today, 56) });
-    await schedule.createEvent("Board Call · Rob Calder", { date: addDays(today, 1), start: "09:00", category: cat("Family") });
-    await schedule.createEvent("Sponsor Pitch · Summit Gear", { date: addDays(today, 1), start: "14:00", category: cat("Work") });
+    await schedule.createEvent("Board Call with Rob Calder", { date: addDays(today, 1), start: "09:00", category: cat("Family") });
+    await schedule.createEvent("Sponsor Pitch for Summit Gear", { date: addDays(today, 1), start: "14:00", category: cat("Work") });
     await schedule.createEvent("Coach Onboarding Demo", { date: addDays(today, 2), start: "11:00", category: cat("Work") });
     await schedule.createEvent("Harper v Northline Prep", { date: addDays(today, 2), start: "16:00", category: cat("Money"), location: "Delaney Office" });
     await schedule.createEvent("Budget Review", { date: addDays(today, 3), start: "11:00", category: cat("Money") });

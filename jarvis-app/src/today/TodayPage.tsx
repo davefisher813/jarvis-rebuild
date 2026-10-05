@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { DollarSign, RotateCcw } from "../shared/icons";
+import { Camera, DollarSign, RotateCcw } from "../shared/icons";
 import NoticeCard from "./NoticeCard";
 import { rowDoor, own } from "../shared/rowDoor";
 import { rankStream, DEALT, WAITING, NEW, AMBIENT } from "./stream";
@@ -344,9 +344,9 @@ export default function TodayPage({
   onToggleTask?: (id: string) => void;
   onOpenTask?: (id: string) => void;
   // TODAY-F-18 (2026-09-05): this defaulted to "DF", one account's initials,
-  // on a screen built for anybody. It is never reached (the flow always
-  // passes real initials), and the day it is, an empty circle beats someone
-  // else's name.
+  // on a screen built for anybody. The flow passes the real initials, or ""
+  // when the profile has no name (2026-10-05): "" draws Account's neutral
+  // glyph disc, never somebody else's letters and never invented ones.
   avatar?: string;
   onSeeAllSchedule: () => void;
   /** The New Event pill on the day card's head (item 8, 2026-10-01). */
@@ -840,7 +840,10 @@ export default function TodayPage({
         <button className="today-av" aria-label="Account" onClick={onProfile}>
           {/* His photo, when he has set one on Account (Dave's pick,
               2026-09-26), inside the same red disc; his initials otherwise. */}
-          <div className="av av-32 av-accent">{avatarPhoto ? <img className="av-photo" src={avatarPhoto} alt="" /> : avatar}</div>
+          {/* NO NAME IS NOT "JV" (2026-10-05, Dave "he opens the app and finds nothing"): the bar invented someone's initials
+              for an account with no name, while Account says so honestly. With no photo and no name this is Account's own
+              quiet neutral disc and glyph (`av-empty`, the same Camera); initials only when a name exists. */}
+          <div className={"av av-32 " + (avatarPhoto || avatar ? "av-accent" : "av-empty")}>{avatarPhoto ? <img className="av-photo" src={avatarPhoto} alt="" /> : avatar || <Camera className="ic" aria-hidden="true" />}</div>
         </button>
         <div className="today-brand"><span className="j">J</span>ARVIS</div>
         {onSearch ? (

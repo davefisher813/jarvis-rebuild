@@ -802,10 +802,12 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
 .focus-controls .chip-row > .chip { display: flex; align-items: center; min-height: 38px; padding-inline: var(--s-3); }
 .focus-run-line { padding: var(--s-2h) var(--s-4) 0; font-size: var(--t-sub); font-weight: var(--w-sub); color: var(--tx-3); }
 .focus-body { flex: 1; display: flex; flex-direction: column; gap: var(--s-2); padding-top: var(--s-3); }
-/* THE CARD SITS IN THE OPEN SPACE, NOT AT ITS TOP (2026-10-05, the review: "a card floating at the top over 400px of empty
-   page ... the one action in the upper third, far from the thumb"). The card and the count behind it are centred in what is
-   left under the controls, biased up by the dock's room so it reads as the centre of the visible screen. */
-.focus-screen .focus-body { justify-content: center; padding-bottom: var(--s-10); }
+/* THE CARD STAYS AT THE TOP (Dave 2026-09-18, in FocusScreen.tsx: "it starts at the top now, under the control, where a
+   screen starts"). A 2026-10-05 pass centred it in the open space and so undid his own note; the cards on every other
+   page start under their head, and a thumb finds a card that is always in the same place. What a top card needs is air
+   under the controls, so the page does not feel jammed against its head: 20 of padding on top of the body's own 20 margin is
+   40 (five grid steps) between the controls and the card, where the centred version had 12 and then a hole. */
+.focus-screen .focus-body { justify-content: flex-start; padding-top: var(--s-4); padding-bottom: var(--s-10); }
 .focus-card { padding: var(--s-4); }
 .focus-task {
   font-size: var(--t-h2); font-weight: var(--w-bold);
@@ -813,17 +815,24 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
 }
 .focus-go { margin-top: var(--s-4); }
 .focus-acts { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-2); margin-top: var(--s-2); }
+/* THE FOUR ANSWERS, UNEQUAL ON PURPOSE (Dave 2026-09-18: "three verbs of equal loudness" was the fault). One filled Start
+   Now; under it Done, the answer that closes the loop, takes the room; the 15-minute timer is an icon capsule that hugs its
+   label; and Not This One is the quietest, words only in the tap red. Every control is a real 44px box or taller, so no
+   hit area is borrowed from its neighbour. */
+.focus-acts.skew { grid-template-columns: 1fr auto; }
 .focus-acts.three { grid-template-columns: 1fr 1fr 1fr; padding: 0 var(--s-3) var(--s-3); margin-top: 0; }
 .focus-acts .btn {
   display: inline-flex; align-items: center; justify-content: center; gap: var(--s-1h);
   /* Two capsules of the SAME height: "15 Minutes" wrapped to two lines and
      grew its half of the row taller than Done's. */
   white-space: nowrap; padding-inline: var(--s-2); font-size: calc(15px * var(--type-scale));
+  min-height: var(--tap-min);
 }
+.focus-acts.skew .btn { padding-inline: var(--s-4); }
 .focus-acts .btn .ic { width: 16px; height: 16px; }
 .focus-skip {
-  display: block; width: 100%; background: 0; border: 0; font-family: var(--f);
-  margin-top: var(--s-3); padding: 0;
+  display: flex; align-items: center; justify-content: center; width: 100%; min-height: var(--tap-min); background: 0; border: 0; font-family: var(--f);
+  margin-top: var(--s-1); margin-bottom: calc(-1 * var(--s-2)); padding: 0;
   color: var(--tint); font-size: var(--t-sub); font-weight: var(--w-medium);
 }
 /* "Not This One" is a tap, so it wears the key's tap red (§AM, 2026-09-25);
@@ -1109,6 +1118,9 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 .chart-fill { height: 100%; border-radius: var(--r-pill); }
 .today-bar { justify-content: space-between; }
 .today-av { background: 0; border: 0; padding: 0; display: flex; align-items: center; width: 36px; height: 36px; justify-content: center; }
+/* The neutral disc of an account with no name (2026-10-05) is Account's own `av-empty` and glyph, in the bar's 32: the glyph is
+   Account's 24 scaled to sit inside the smaller disc with air round it, not touching the edge. */
+.today-av .av-empty .ic { width: var(--s-4); height: var(--s-4); }
 .today-brand { flex: 1; text-align: center; font-size: var(--t-h3); font-weight: var(--w-bold); letter-spacing: -0.02em; color: var(--tx-1); }
 .today-brand .j { color: var(--accent-glyph); }
 .sched-seg { padding: var(--s-1) var(--s-4) var(--s-2); }
@@ -1673,14 +1685,17 @@ a.row.person-reach { color: inherit; text-decoration: none; }
    region: the first attempt lifted the toast correctly and left 80px of dead
    black under the last card while it was up. A transform moves the paint and
    costs the layout nothing. */
-.toast-dock { position: relative; z-index: 2; padding: 0 var(--s-4) var(--s-3); transform: translateY(calc(-1 * var(--logbar-clear, 0px))); }
+.toast-dock { position: relative; z-index: 2; padding: 0 var(--s-4) var(--s-2); transform: translateY(calc(-1 * var(--logbar-clear, 0px))); }
 .toast { display: flex; align-items: center; gap: var(--s-3); background: var(--surface-3); border: 0.5px solid var(--divider); border-radius: var(--r-lg); padding: var(--s-3) var(--s-4); box-shadow: var(--shadow-float); }
 /* THE TOAST IS A CARD, NOT A SLAB (2026-10-05, the review: it ran 12px from each edge against the page's 20, in a small radius, 8px off the dock so the two read as one
-   stack): the page's own side gutter, the one 24 radius, and 12 of air above the dock. */
+   stack): the page's own side gutter (the dock's padding, so it is centred between the same 20s the page uses), the one 24
+   radius, and exactly 8 (one step of the grid) of air above the capture bar and the return pill, which follow it in the
+   shell's column. A long line wraps INSIDE its own column and balances, so two lines read as a pair and never as a word
+   left alone on the second; the action keeps its width and its 44px reach and centres against both lines. */
 /* A toast floats, so in light it is the warm near-white chrome lifted by the one shadow (2026-10-05):
    its Undo is the action red as words, 5.2:1 here and 4.22 on the raised grey. */
 [data-theme="light"] .toast { background: var(--chrome-bg); }
-.toast-msg { flex: 1; font-size: var(--t-body); color: var(--tx-1); }
+.toast-msg { flex: 1; min-width: 0; font-size: var(--t-body); color: var(--tx-1); text-wrap: balance; overflow-wrap: anywhere; }
 .toast-action { background: 0; border: 0; color: var(--tint); font-weight: var(--w-semi); font-size: var(--t-body); padding: var(--s-1) var(--s-2); flex-shrink: 0; }
 
 /* BROWSER-F-10 (2026-09-05). Every red WORD that sits on a sheet grey or the
@@ -1776,6 +1791,9 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 .rem-toolbar .btn-primary { flex: 1; }
 .rem-toolbar .btn .ic { width: 18px; height: 18px; }
 .rem-page .segmented { margin-bottom: var(--s-2); }
+/* ...but not the Life lens strip: it carries its own padding (ruled.css .life-seg), and this margin put the Reminders search row 8px
+   lower than Tasks, Projects and Goals, so the header jumped when the lens changed (2026-10-05, the perfect bar). */
+.rem-page .life-seg .segmented { margin-bottom: 0; }
 .rem-page .sub-bar { padding: 0 var(--s-4) var(--s-2); }
 /* A row inside the section's card, not a card of its own: same padding and
    same hairline the strip and the task list already use, so Reminders sits
@@ -6900,27 +6918,20 @@ span.row-star { cursor: default; }
    One as well; that is a control on the header line now. */
 .pick-one { padding-top: var(--s-2); padding-bottom: var(--s-1); }
 
-/* FOCUS, ON THE CONTROL LINE (2026-09-18, Dave: "that massive pick one chip
-   looks terrible"). Pick One was a full-width red fill under the header, the
-   only red on the page, and it named nothing: it opened a sheet to find out
-   what it meant. Focus is where the proposal lives now, so this is only the
-   door -- the height of the cuts beside it, in the tinted red, wearing the
-   bolt the capture bar already uses for the same screen. */
-.hdr-controls .tasks-focus {
-  flex: 0 0 auto; margin-left: auto;
-  display: inline-flex; align-items: center; gap: var(--s-1);
-  min-height: 34px; padding: 0 var(--s-3);
+/* FOCUS, IN THE HEAD (2026-10-05, Dave: "never a red slab among the chips"). It was a filled red capsule on the line of
+   cuts (2026-09-18), the one loud thing among filters. Focus is an action, so it sits in the head beside the options control
+   as the same quiet capsule every action is: --capsule-fill under --tint, 44px tall, the bolt the capture bar wears for the
+   same screen. Gated on there being tasks, so it never paints beside the empty state's New Task. */
+.pagehead-acts .tasks-focus {
+  flex: 0 0 auto;
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--s-1);
+  min-height: 44px; padding: 0 var(--s-3);
   border: 0; border-radius: var(--r-pill);
-  /* JARVIS RED, FILLED (Dave 2026-09-18: "that focus button should be Jarvis
-     red"). It was the tinted ground with accent text, which on the dark theme
-     reads as a dark red capsule with dark red words in it. --accent-fill is
-     the one red in the palette that carries WHITE, which is why every primary
-     in the app uses it and why this one does too. */
-  background: var(--accent-fill); color: #FFFFFF;
+  background-color: var(--capsule-fill); color: var(--tint);
   font-family: var(--f); font-size: var(--t-caption);
-  font-weight: var(--w-semi); letter-spacing: -0.01em; cursor: pointer;
+  font-weight: var(--w-bold); letter-spacing: -0.01em; cursor: pointer;
 }
-.hdr-controls .tasks-focus .ic { width: 15px; height: 15px; }
+.pagehead-acts .tasks-focus .ic { width: 16px; height: 16px; color: var(--tint); }
 
 /* THE TRACKER (PASSOFF 2026-09-19, money/screens/TrackerScreen.tsx).
    The handoff shipped its own stylesheet of hard-coded greys; those are

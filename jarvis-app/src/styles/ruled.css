@@ -301,6 +301,10 @@
   height: max(calc(var(--t-sub) * 1.3), calc(var(--t-micro) * 1.3 + var(--s-1h)));
   overflow: hidden; align-content: flex-start;
 }
+/* A ROW WITH NOTHING TO SAY SHOWS NOTHING (2026-10-05, the perfect bar): the second line is a fixed-height box, so a row that
+   had no fact to put in it (a Money-tagged task with no date, once its area is not repeated) still reserved a blank line
+   under its title and read taller than the rows beside it. Empty, it is not drawn. */
+.ruled .r-k-one:empty { display: none; }
 /* The priority the ruling names, made real. The chip never shrinks (it has
    flex-shrink: 0 already). The words carry a floor and take whatever the chip
    leaves, so what survives is a readable parent rather than three fragments.

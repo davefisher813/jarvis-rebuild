@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { showToast, hideToast, subscribeToast, resetToasts, type ToastState } from "./toast";
+import { showToast, hideToast, subscribeToast, resetToasts, dismissForNavigation, TOAST_NAV_GRACE_MS, type ToastState } from "./toast";
 
 // SHARED-F-09 (2026-09-05), option A. The store held one toast and replacement
 // was unconditional: bulk-delete twelve tasks ("Deleted 12 Tasks · Undo"), then
@@ -79,5 +79,44 @@ describe("SHARED-F-09: a plain toast never eats an Undo", () => {
     expect(seen.at(-1)).toEqual(plain);
     vi.advanceTimersByTime(1);
     expect(seen.at(-1)).toBeNull();
+  });
+});
+
+// A TOAST BELONGS TO THE SCREEN IT WAS RAISED ON (Dave 2026-10-05). "Moved Rent to Tomorrow" rode along into the next tab
+// and sat over a page it had nothing to do with, Undo and all.
+describe("dismissForNavigation: a receipt does not follow you to another screen", () => {
+  it("takes down a toast that has been up past the grace", () => {
+    showToast({ message: "Moved Rent to Tomorrow" });
+    vi.advanceTimersByTime(TOAST_NAV_GRACE_MS + 1);
+    dismissForNavigation();
+    expect(seen.at(-1)).toBeNull();
+  });
+
+  it("takes an Undo down too, because the screen it undoes is gone", () => {
+    showToast(undo);
+    vi.advanceTimersByTime(TOAST_NAV_GRACE_MS + 1);
+    dismissForNavigation();
+    expect(seen.at(-1)).toBeNull();
+  });
+
+  it("keeps a toast raised in the same gesture as the navigation", () => {
+    showToast({ message: "Opened Waiting" });
+    vi.advanceTimersByTime(TOAST_NAV_GRACE_MS - 1);
+    dismissForNavigation();
+    expect(seen.at(-1)).toEqual({ message: "Opened Waiting" });
+  });
+
+  it("drops a stale plain toast that was waiting behind an Undo, and shows nothing", () => {
+    showToast(undo);
+    showToast(plain);
+    vi.advanceTimersByTime(TOAST_NAV_GRACE_MS + 1);
+    dismissForNavigation();
+    expect(seen.at(-1), "neither the Undo nor the held message survives").toBeNull();
+  });
+
+  it("is a no-op when nothing is showing", () => {
+    const before = seen.length;
+    dismissForNavigation();
+    expect(seen.length).toBe(before);
   });
 });

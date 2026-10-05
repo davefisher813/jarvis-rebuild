@@ -271,7 +271,7 @@ function Dashboard({ month, onMonth, txs, receipts, data, onSaved }: {
             return (
               // A card is a door to its own editor, the way a row is elsewhere.
               <div className="card mt-acct" key={a.id} {...pressable(() => setAcct(a))}>
-                <div className="mt-acct-name">{titleCase(label)}</div>
+                <div className="mt-acct-name">{titleCase(label === label.toUpperCase() ? label.toLowerCase() : label)}</div>
                 {mask && <div className="mt-acct-mask">{mask}</div>}
                 <div className="mt-acct-foot">
                   <div className="mt-acct-bal">{fmtCents(a.data.currentBalanceCents)}</div>

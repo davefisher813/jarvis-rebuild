@@ -407,7 +407,7 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, startId, 
       // Delayed rewards are the ones ADHD discounts hardest, so finishing the
       // project is one tap from HERE rather than four taps through a form.
       showToast({
-        message: lineCase(advanced.moved.projectTitle + " · " + advanced.moved.line),
+        message: lineCase(titleCase(advanced.moved.projectTitle) + " · " + advanced.moved.line),
         actionLabel: "Finish It",
         onAction: async () => {
           const proj = projects.find((x) => x.id === advanced.projectId);
@@ -419,11 +419,11 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, startId, 
           const ok = await attemptWrite(async () => { if (!(await projectsSvc.update(proj.id, { ...proj.data, status: "done" }))) throw new Error("project missing"); });
           await reload();
           if (!ok) return;
-          showToast({ message: lineCase(celebrationLine("project", proj.id) + " · " + proj.data.title) });
+          showToast({ message: lineCase(celebrationLine("project", proj.id) + " · " + titleCase(proj.data.title)) });
         },
       });
     } else if (advanced) {
-      showToast({ message: lineCase(advanced.moved.projectTitle + " · " + advanced.moved.line), actionLabel: "Undo", onAction: undoTick });
+      showToast({ message: lineCase(titleCase(advanced.moved.projectTitle) + " · " + advanced.moved.line), actionLabel: "Undo", onAction: undoTick });
     } else if (before && !before.done) {
       showToast({ message: "Task Completed", actionLabel: "Undo", onAction: undoTick });
     }
@@ -685,7 +685,7 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, startId, 
     await reload();
     if (!ok) return;
     const name = projects.find((p) => p.id === projectId)?.data.title ?? "the project";
-    showToast({ message: lineCase((ids.length === 1 ? "Task moved to " : ids.length + " tasks moved to ") + name) });
+    showToast({ message: lineCase((ids.length === 1 ? "Task moved to " : ids.length + " tasks moved to ") + titleCase(name)) });
   };
 
   // Recreate a just-deleted task if the user taps Undo, under its old id
@@ -828,7 +828,7 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, startId, 
       date: today, start, end: addMinutes(start, FIFTEEN),
       category: category || undefined, sourceTaskId: id,
     }));
-    if (ok) { haptics.selection(); showToast({ message: lineCase(`Fifteen minutes on ${text}`) }); }
+    if (ok) { haptics.selection(); showToast({ message: lineCase(`Fifteen minutes on ${titleCase(text)}`) }); }
   };
 
   /** The one primary on the working surface. Each branch writes exactly the

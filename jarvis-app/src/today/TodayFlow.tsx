@@ -117,7 +117,7 @@ import { copyPromised } from "../messages/clipboard";
 import { requestUnsubscribe } from "../messages/unsubscribeAction";
 import { evidenceFromThread } from "../messages/notificationScan";
 import { addEmailMeetingOnce } from "../messages/emailSchedule";
-import { showToast } from "../shared/toast";
+import { showToast, dismissForNavigation } from "../shared/toast";
 import { attemptWrite } from "../shared/guard";
 import RemindersStrip from "./RemindersStrip";
 import RemindersFlow from "../tasks/screens/RemindersFlow";
@@ -952,6 +952,9 @@ export default function TodayFlow({
   // REMINDERS HOME (the reminders rebuild push B, 2026-09-15): a screen
   // pushed from the strip's See All, the way the event page is; not a route.
   const [remHome, setRemHome] = useState(false);
+  // Focus and the Reminders page are screens of their own on top of Today: a receipt from the screen underneath goes when
+  // either opens or closes (2026-10-05, see dismissForNavigation).
+  useEffect(() => { dismissForNavigation(); }, [upNextOpen, remHome]);
   const [remOpenId, setRemOpenId] = useState<string | null>(null);
   // BUG (Dave 2026-09-16, "I can't click on them on the Today page to edit
   // them"): RemindersFlow (pageless) was mounted on `remOpenId && (...)`, the
@@ -4199,7 +4202,9 @@ export default function TodayFlow({
   const notices = [reportNotice, ...alertCards, reflowSection, overflowSection].filter(Boolean);
 
   const daypart = evening ? "evening" as const : now.getHours() < 12 ? "morning" as const : null;
-  const initials = name.trim().split(/\s+/).map((w) => w[0]).slice(0, 2).join("").toUpperCase() || "JV";
+  // No name, no initials (2026-10-05): this fell back to "JV", letters nobody chose, while Account says "Add Your Name". ""
+  // is the honest answer and TodayPage draws Account's neutral disc for it.
+  const initials = name.trim().split(/\s+/).map((w) => w[0] ?? "").slice(0, 2).join("").toUpperCase();
   const remSheetNode = remSheet && (
       <ReminderSheet
         mode={remSheet.mode}

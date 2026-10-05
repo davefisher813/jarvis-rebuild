@@ -71,7 +71,7 @@ import type { WindowClient } from "../brain/window";
 import { ENTITY_CATEGORY } from "../categories/types";
 import { todayISO } from "../tasks/grouping";
 import { setOverwhelmed } from "../tasks/overwhelmed";
-import { showToast } from "../shared/toast";
+import { showToast, dismissForNavigation } from "../shared/toast";
 import { useOneShot } from "./intents";
 import { useSessionOpen } from "../gym/sessionChrome";
 import { attemptWrite } from "../shared/guard";
@@ -311,6 +311,9 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
 
   const [captureOpen, setCaptureOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  // A TOAST BELONGS TO ITS SCREEN (2026-10-05). A receipt about the last screen's action does not ride along into the
+  // next one: the tab, Search and Quick Capture each count as a screen. See dismissForNavigation (shared/toast.ts).
+  useEffect(() => { dismissForNavigation(); }, [active, searchOpen, captureOpen]);
 
   // FIRST TAP, FIRST FETCH (audit 2026-09-29). Quick Capture and Search are
   // lazy chunks reached from the always-visible dock, so the first tap was
@@ -712,7 +715,7 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
 
         {active === "messages" && flagOn("email_intake_v1") && <EmailFlow openId={mailIntent.value} openNonce={mailIntent.nonce} onOpenConsumed={mailIntent.clear} focus={emailFocusIntent.value} focusNonce={emailFocusIntent.nonce} onFocusConsumed={emailFocusIntent.clear} onOpenConnections={() => jump(() => { setMoreRoute("connections"); setActive("more"); })} onOpenEntity={(kind, id) => void navigateToEntity(kind, id)} onOpenModule={(m) => jump(() => { if (m === "Money") setActive("money"); else if (m === "Tasks") goLife("tasks"); else if (m === "Schedule") setActive("schedule"); })} />}
         {active === "messages" && !flagOn("email_intake_v1") && <MessagesFlow ai={ai} demoMail={seedDemo} openThreadId={mailIntent.value} threadNonce={mailIntent.nonce} onThreadConsumed={mailIntent.clear} openDraftId={draftIntent.value} draftNonce={draftIntent.nonce} onDraftConsumed={draftIntent.clear} composeNonce={composeIntent.nonce} onComposeConsumed={composeIntent.clear} onOpenConnections={() => jump(() => { setMoreRoute("connections"); setActive("more"); })} onOpenTask={(id) => void navigateToEntity("task", id)} />}
-        {active === "notifications" && <NotificationsFlow onOpen={(kind, id) => void navigateToEntity(kind, id)} />}
+        {active === "notifications" && <NotificationsFlow onOpen={(kind, id) => void navigateToEntity(kind, id)} onBack={() => setActive("more")} />}
         {active === "money" && <MoneyFlow onOpenTask={(id) => void navigateToEntity("task", id)} onOpenEntity={(k, id) => void navigateToEntity(k, id)} openAccountId={accountIntent.value} openNonce={accountIntent.nonce} onOpenConsumed={accountIntent.clear} />}
         {active === "chat" && <ChatFlow
           askPersonId={chatAskIntent.value}

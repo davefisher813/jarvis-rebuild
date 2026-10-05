@@ -50,6 +50,22 @@ describe("BiggerPicturePage Projects lens, a project with no tasks", () => {
   });
 });
 
+// THE NOUN AGREES WITH THE NUMBER (2026-10-05, the perfect bar: "0 OF 1 TASKS" on a project card, "0 of 1 Projects Done" on a goal's).
+describe("BiggerPicturePage project card count", () => {
+  const card = (progress: ProjectRow["progress"]) => render(
+    <BiggerPicturePage
+      lens="projects" segments={<div />} goals={[]} reachOfGoal={reach}
+      projectRows={[{ ...row({ category: "work" }), progress }]}
+      sections={[{ id: "work", name: "Work", color: "blue" }]}
+      onAddGoal={() => {}} onOpenGoal={() => {}} onAddProject={() => {}} onOpenProject={() => {}}
+    />,
+  ).container.querySelector(".bp-card-n")?.textContent;
+  it("says '0 of 1 Task' for one and '3 of 8 Tasks' for many", () => {
+    expect(card({ done: 0, total: 1, pct: 0 })).toBe("0 of 1 Task");
+    expect(card({ done: 3, total: 8, pct: 38 })).toBe("3 of 8 Tasks");
+  });
+});
+
 // THE GOALS LENS LOGBOOK (§AM F5, 2026-09-26): a finished goal's line is its
 // finish date, drawn as a neutral date, with nothing in it bolded.
 describe("BiggerPicturePage Goals lens, a finished goal", () => {
