@@ -31,7 +31,9 @@ html[data-theme="light"] {
   --gl-mint: 64, 214, 176;
   --gl-ink: 30, 40, 80;
   --gl-rim: 38, 48, 96;
-  --gl-pane: linear-gradient(168deg, rgba(250, 251, 253, 1) 0%, rgba(243, 245, 248, 1) 48%, rgba(239, 241, 245, 1) 100%);
+  /* The pane is WHITE (Dave 2026-10-05, the catalog: card surfaces are white, the page is the warm cream). It was a cool pearl
+     grey, which read as cream on the cream page. The lit edge, the rim and the shadows below still do the glass. */
+  --gl-pane: linear-gradient(#FFFFFF, #FFFFFF);
   --gl-chip: linear-gradient(168deg, rgba(241, 243, 247, 0.96), rgba(231, 234, 240, 0.90));
   --gl-chrome: linear-gradient(168deg, rgba(255, 255, 255, 0.94), rgba(255, 255, 255, 0.76));
   --gl-red-lo: color-mix(in srgb, var(--accent-fill) 86%, black);

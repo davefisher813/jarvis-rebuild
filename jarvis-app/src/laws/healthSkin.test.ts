@@ -214,7 +214,7 @@ describe("HEALTH law 3: the light activity ramp equals the dark one", () => {
     return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
   };
   it("a word in a ramp hue clears 4.5:1 on its own tint and on the raised surface, in both themes", () => {
-    for (const [theme, card, raised] of [["dark", "#201C19", "#2C2723"], ["light", "#F3EEE6", "#ECE5DA"]] as const) {
+    for (const [theme, card, raised] of [["dark", "#201C19", "#2C2723"], ["light", "#FFFFFF", "#ECE5DA"]] as const) {
       const t = ramp(block('[data-theme="' + theme + '"] {'));
       for (const hue of RAMP) {
         const ink = t[`${hue}-ink`];
@@ -419,6 +419,8 @@ describe("HEALTH law 5: the shell hides its chrome while a session is live", () 
     // The day's BlockList: one component, both tones, card and label.
     expect(flow, "the BlockList card takes the tone").toMatch(/tone === "cool" \? " banner-cool" : " banner-warn"/);
     expect(flow, "and so does its eyebrow").toMatch(/tone === "cool" \? " eyebrow-cool" : " eyebrow-warn"/);
+    // Dave 2026-10-05: the COOL-DOWN label rendered dark on a day with no blocks. The hue is the label's, empty or not.
+    expect(flow, "the eyebrow's hue does not wait for a block").not.toMatch(/has \? \(tone === "cool" \? " eyebrow-cool"/);
     // The session's two checklists, each named so a failure says which.
     expect(screen, "the session's warm-up card").toMatch(/className="card list-card-ruled banner-warn">\s*<div className="grp"><div className="eyebrow eyebrow-warn">Warm-Up/);
     expect(screen, "the session's cool-down card").toMatch(/className="card list-card-ruled banner-cool">\s*<div className="grp"><div className="eyebrow eyebrow-cool">Cool-Down/);

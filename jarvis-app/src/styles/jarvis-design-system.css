@@ -527,14 +527,16 @@
      too close to the white page (1.04:1 against 1.08:1). */
   /* THE WARM FLIP (Dave 2026-10-05, locked): "cream about #FAF6F0 for
      light-mode backgrounds". The page is cream, never stark white as the
-     dominant field; cards step DOWN to #F3EEE6 so they read as cards on it
-     (the card is the darkest a card can be: the action red as words is 4.57:1
-     on it and the law floor is 4.5); a raised or secondary surface is #ECE5DA;
+     dominant field; cards are WHITE (see --surface-1 below: Dave 2026-10-05, the
+     catalog) so they lift off it; a raised or secondary surface is #ECE5DA;
      chrome (tab bar, top bars, sheets, modals) is the warm near-white #FFFDFA,
      which is --chrome-bg. Everything below this line this block set before is
      history; the values here are the ones that ship. */
   --bg: #FAF6F0;
-  --surface-1: #F3EEE6; --surface-2: #F3EEE6; --surface-3: #ECE5DA;
+  /* CARDS ARE WHITE (Dave 2026-10-05, the catalog: "light-mode card surfaces = white"; the Brain Explore card had read
+     cream). The page stays the warm cream above; a card is the one white thing on it. A raised or secondary surface is
+     still the warm #ECE5DA. */
+  --surface-1: #FFFFFF; --surface-2: #FFFFFF; --surface-3: #ECE5DA;
   --chrome-bg: #FFFDFA;
   --chrome-hairline: rgba(80,55,30,0.08);
   --ctl-outline: #7A7068;
@@ -828,7 +830,8 @@ html[data-theme="light"], html[data-theme="light"] body { background-color: var(
    the card's own colour and vanished on a card. A card re-binds the token to the warm near-white, so the capsule is a
    lifted chip (red on it 5.2:1); the sheet itself is that near-white, so it re-binds back to the page capsule. The
    capsules themselves still read var(--capsule-fill) and nothing else changes. */
-[data-theme="light"] .card { --capsule-fill: var(--chrome-bg); }
+/* The card is white (Dave 2026-10-05), so the chip on it is the warm capsule tone, not the near-white chrome. */
+[data-theme="light"] .card { --capsule-fill: #F2EDE4; }
 [data-theme="light"] .sheet-scrim > .card { --capsule-fill: #F2EDE4; }
 .card.pad { padding: var(--s-4); }
 

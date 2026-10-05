@@ -94,13 +94,10 @@ describe("glass-light.css", () => {
     expect(noComments).not.toMatch(/@keyframes/);
   });
 
-  it("keeps the cards the grey they were: the pane is a grey wash, never white or tinted", () => {
+  it("the pane is white, never tinted (Dave 2026-10-05, the catalog: light-mode card surfaces are white; it was a cool grey that read cream on the cream page)", () => {
     const pane = css.match(/--gl-pane:\s*([^;]+);/)![1]!;
-    for (const m of pane.matchAll(/rgba\((\d+),\s*(\d+),\s*(\d+)/g)) {
-      const [r, g, b] = [Number(m[1]), Number(m[2]), Number(m[3])];
-      expect(Math.max(r, g, b) - Math.min(r, g, b), `pane tinted ${r},${g},${b}`).toBeLessThanOrEqual(8);
-      expect(r, "pane lighter than the page").toBeLessThan(255);
-    }
+    expect(pane.match(/#[0-9A-Fa-f]{6}/g), "every stop of the pane is white").toEqual(["#FFFFFF", "#FFFFFF"]);
+    expect(pane).not.toMatch(/rgba?\(/);
   });
 
   it("never moves anything that was placed: no position or z-index on a card", () => {
@@ -192,9 +189,10 @@ describe("the card colour", () => {
   it("is one solid pane in both themes: every stop fully opaque, so nothing behind a card can tint it", () => {
     for (const [name, src] of [["light", noComments], ["dark", dNoComments]] as const) {
       const pane = src.match(/--g[ld]-pane:\s*([^;]+);/)![1]!;
-      const stops = [...pane.matchAll(/rgba\((\d+),\s*(\d+),\s*(\d+),\s*([\d.]+)\)/g)];
+      const stops = [...pane.matchAll(/rgba\((\d+),\s*(\d+),\s*(\d+),\s*([\d.]+)\)/g), ...pane.matchAll(/#[0-9A-Fa-f]{6}\b/g)];
       expect(stops.length, `${name}: pane has colour stops`).toBeGreaterThanOrEqual(2);
-      for (const m of stops) expect(Number(m[4]), `${name}: translucent pane stop ${m[0]}`).toBe(1);
+      // A hex stop (light's white pane, Dave 2026-10-05) is opaque by construction.
+      for (const m of stops) if (m[0].startsWith("rgba")) expect(Number(m[4]), `${name}: translucent pane stop ${m[0]}`).toBe(1);
     }
   });
 });
