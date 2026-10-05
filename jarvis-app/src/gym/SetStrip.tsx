@@ -5,6 +5,7 @@ import { plateFacts, type PlateFacts } from "./ramp";
 import { plateMath, repLabel, type LoadStyle } from "./equipment";
 import { fieldsOf, type SetDraft } from "./nextSet";
 import { lineCase } from "../shared/casing";
+import { useRowMenu } from "../shared/useRowMenu";
 import { setState, setKicker, type SetState } from "./stateWord";
 import { readGymSettings, rackFrom } from "./settings";
 import { duplicateEntry, blankEntry } from "./strip";
@@ -199,6 +200,7 @@ export default function SetStrip({
                 onToggle={() => (onOpenSet ? onOpenSet(id) : setOpenId(openId === id ? null : id))}
                 onDelete={() => remove(id)}
                 onSkip={() => patch(id, { skipped: !e.skipped, done: false })}
+                onDuplicate={() => duplicate(id)}
               />
               {openId === id && !disabled && !onOpenSet && (
                 <SetChipEditor kind={kind} fields={fields} entry={e} onPatch={(p) => patch(id, p)} moveTracking={moveTracking}
@@ -301,7 +303,7 @@ function chipKicker(entry: SetEntry, state: SetState | null, workNo: number): st
 }
 
 function SetChipRow({
-  index, entry, kind, fx, open, disabled, pr, last, onToggle, onDelete, onSkip, state, workNo,
+  index, entry, kind, fx, open, disabled, pr, last, onToggle, onDelete, onSkip, onDuplicate, state, workNo,
 }: {
   index: number;
   entry: SetEntry;
@@ -320,8 +322,18 @@ function SetChipRow({
   onDelete: () => void;
   /** Swipe left's quickest verb (Dave 2026-10-05, locked): skip this set, or bring it back. Delete follows it in. */
   onSkip: () => void;
+  /** The editor's other move, kept for the held row's menu. */
+  onDuplicate: () => void;
 }) {
-  const swipe = useSwipe({ revealW: 176, enabled: !disabled });
+  // THE HOLD IS THE CONTEXT MENU (Dave 2026-10-05): the set's own moves, Delete last (the editor under the chip holds the
+  // same Skip and Duplicate).
+  const rowMenu = useRowMenu({ title: chipKicker(entry, null, workNo), actions: [
+    { label: entry.skipped ? "Unskip" : "Skip", onPick: onSkip },
+    { label: "Duplicate", onPick: onDuplicate },
+    { label: "Delete", destructive: true, onPick: onDelete },
+  ], enabled: !disabled });
+  const swipe = useSwipe({ revealW: 176, enabled: !disabled, onLongPress: rowMenu.onLongPress });
+  const { handlers, sheet } = rowMenu.bind(swipe);
 
   const label = entry.skipped ? "Skipped" : kind === "done" ? (entry.done ? "Done" : "Not Marked Yet") : formatSet(fx, entry);
   // The chip prints the whole rule's casing ("185 Lb × 5"); the aria-label
@@ -338,7 +350,7 @@ function SetChipRow({
       <div
         className={"set-chip" + (entry.skipped ? " set-chip-skipped" : "") + (entry.warmup ? " set-chip-warm" : "") + (entry.drop ? " set-chip-drop" : "") + (swipe.dragging ? " swiping" : "")}
         style={{ transform: swipe.dx ? `translateX(${swipe.dx}px)` : undefined }}
-        {...swipe.handlers}
+        {...handlers}
         role="button"
         tabIndex={0}
         aria-expanded={open}
@@ -361,6 +373,7 @@ function SetChipRow({
         {/* The chip is a door (preview anatomy): say so. */}
         {!disabled && <div className="chev" />}
       </div>
+      {sheet}
     </div>
   );
 }

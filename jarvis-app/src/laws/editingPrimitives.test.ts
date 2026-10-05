@@ -75,7 +75,6 @@ describe("law: one swipe controller", () => {
   it("every swipe surface's moving element carries touch-action: pan-y", () => {
     const SURFACES: Record<string, string> = {
       "tasks/screens/TasksPage.tsx": "task-row",
-      "today/TodayFlow.tsx": "task-row",
       "today/NoticeCard.tsx": "notice-card",
       // The dealt row on Today renders the notice row's own markup, so it
       // moves the same element and takes the same pan-y (2026-09-16).
@@ -83,21 +82,33 @@ describe("law: one swipe controller", () => {
       "notes/screens/NotesList.tsx": "task-row",
       "messages/MailSwipe.tsx": "task-row",
       "messages/LetGoSwipe.tsx": "task-row",
-      "notifications/NotificationsFlow.tsx": "swipe-shell",
       "gym/SetStrip.tsx": "set-chip",
       "schedule/screens/DayRow.tsx": "sched-row",
       "schedule/screens/LockedRow.tsx": "sched-row",
-      // UP-CORE-15 (2026-09-05): swipe right completes, so two more surfaces
-      // moved: the bill rows (the money page's own .task-row) and the
-      // reminders strip (.rem-row, which took the same pan-y and the same
-      // snap-back transition the task rows have always carried).
-      "money/MoneyFlow.tsx": "task-row",
+      // UP-CORE-15 (2026-09-05): swipe right completes, so the reminders strip
+      // (.rem-row) took the same pan-y and the same snap-back transition the
+      // task rows carry. (The Today, Notifications and bill rows moved to
+      // SwipeShell and MoneyRow on 2026-10-05; their old entries are gone.)
       "today/RemindersStrip.tsx": "rem-row",
       // Dave 2026-09-10: "Make sure the days and history ect have that
       // action. It's way too hard to delete stuff especially." The gym had
       // no gesture at all; shared/SwipeDelete is the small version of the
       // pattern and .swipe-row is its moving element.
       "shared/SwipeDelete.tsx": "swipe-row",
+      // THE ROW MODEL (Dave 2026-10-05, locked): clean rows, swipe left is the one quick verb, swipe right
+      // completes. These rows were rebuilt to it and each moves one element, named here with the class that carries
+      // its pan-y. The rest of the Today list now rides MoveHeadliner's SwipeShell (already listed above).
+      // A project row is the task row in a goal card; its swipe is Close and Move.
+      "bigger/ProjectRowRuled.tsx": "task-row",
+      // The Reminders page row moves the .rem-card inside .task-swipe, which .task-swipe > .rem-card gives pan-y.
+      "tasks/screens/RemindersPage.tsx": "rem-card",
+      // A bill, a receipt or an account row on Money: the money page's own .task-row (Mark Paid, Pay, Track).
+      "money/MoneyRow.tsx": "task-row",
+      // An Anytime block on the day (Drop) and a proposed block (Book It, Anytime).
+      "schedule/screens/AnytimeRow.tsx": "anytime-row",
+      "schedule/screens/ProposedRow.tsx": "sched-row",
+      // A program day, a lift and a duplicate pair: the gym's records, on shared/SwipeDelete's cousin.
+      "gym/GymSwipeRow.tsx": "swipe-row",
     };
     const css = read(join(SRC, "styles", "components.css")) + read(join(SRC, "styles", "ruled.css"));
     const usesSwipe = FILES.filter((f) => rel(f) !== "shared/useSwipe.ts" && /from "[^"]*shared\/useSwipe"/.test(read(f))).map(rel);
@@ -124,10 +135,9 @@ describe("law: one swipe controller", () => {
       "schedule/screens/LockedRow.tsx": "a protected block is a container, not work",
       "messages/MailSwipe.tsx": "mail completes by archiving, which is the LEFT reveal's own verb",
       "messages/LetGoSwipe.tsx": "letting go is the whole gesture; a second verb would fight it",
-      "notifications/NotificationsFlow.tsx": "a notification is cleared, not finished",
       "gym/SetStrip.tsx": "a set is logged by its own big button, mid-lift, with numbers attached",
-      "today/TodayFlow.tsx": "the Now card's gap row is an offer to START, and starting is not completing",
       "shared/SwipeDelete.tsx": "a program day and a logged session are records; a record has nothing to complete",
+      "gym/GymSwipeRow.tsx": "a day, a lift and a duplicate pair are records; a record has nothing to complete",
     };
     const usesSwipe = FILES.filter((f) => rel(f) !== "shared/useSwipe.ts" && /from "[^"]*shared\/useSwipe"/.test(read(f))).map(rel);
     const bad: string[] = [];

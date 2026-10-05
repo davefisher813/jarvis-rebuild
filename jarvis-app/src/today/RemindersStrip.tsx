@@ -3,6 +3,7 @@ import { Burst } from "../shared/Burst";
 import React, { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useSwipe } from "../shared/useSwipe";
+import { useRowMenu } from "../shared/useRowMenu";
 import { noteSwiped } from "../shared/swipeTeach";
 import RowCtxAction from "../shared/RowCtxAction";
 import { usePeekOnce } from "./usePeekOnce";
@@ -55,11 +56,19 @@ function ReminderRow({ r, bursting, onTickRow, onSnoozeRow, onDeleteRow, childre
   // reminder added by mistake could be ticked from the row and removed from nowhere, on the one screen he actually
   // reads. Left is the delete side on Tasks, Notes, Mail and the gym set.
   const snoozable = !!onSnoozeRow && completable;
+  // THE HOLD IS THE CONTEXT MENU (Dave 2026-10-05): the swipe's verbs, Done, and Delete last.
+  const rowMenu = useRowMenu({ title: titleCase(r.text), actions: [
+    ...(snoozable ? [{ label: "Snooze", onPick: onSnoozeRow }] : []),
+    ...(completable ? [{ label: "Done", onPick: onTickRow }] : []),
+    ...(onDeleteRow ? [{ label: "Delete", destructive: true, onPick: onDeleteRow }] : []),
+  ] });
   const swipe = useSwipe({
     revealW: (snoozable ? 88 : 0) + (onDeleteRow ? 88 : 0),
     rightW: completable ? 88 : 0,
     ...(completable ? { onRightCommit: () => { noteSwiped(); onTickRow(); } } : {}),
+    onLongPress: rowMenu.onLongPress,
   });
+  const { handlers, sheet } = rowMenu.bind(swipe);
   usePeekOnce(swipe.peek, snoozable || !!onDeleteRow);
   return (
     <div className="task-swipe">
@@ -84,10 +93,11 @@ function ReminderRow({ r, bursting, onTickRow, onSnoozeRow, onDeleteRow, childre
       <div
         className={"rem-row" + (r.done ? " done" : "") + (r.missed && !r.letGo ? " missed" : "") + (r.letGo ? " let-go" : "") + (swipe.dragging ? " swiping" : "")}
         style={swipe.dx ? { transform: `translateX(${swipe.dx}px)` } : undefined}
-        {...swipe.handlers}
+        {...handlers}
       >
         {children}
       </div>
+      {sheet}
     </div>
   );
 }

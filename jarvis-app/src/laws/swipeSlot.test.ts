@@ -13,6 +13,11 @@
 // held is the rule that produces it: a bare .task-snooze is only ever drawn
 // as a second slot, on the roster below, and every other one says
 // task-snooze-solo, which the stylesheet moves to right:0.
+//
+// AMENDED (Dave 2026-10-05, locked row model: swipe left is the one quick verb, rows are clean). The rows were
+// rebuilt: a first verb is `.task-verb` (right:0 by construction), a second is `.task-verb-2` or the solo snooze that
+// steps in behind a `.task-verb`, and every Today row rides SwipeShell, whose slots are counted from its action list.
+// The scan below also reads `aria-label={...}` buttons now, since the new rows name their verb from data.
 
 import { describe, it, expect } from "vitest";
 import { readdirSync, readFileSync, statSync } from "node:fs";
@@ -45,21 +50,43 @@ describe("a one-action swipe reveal uses the outer slot", () => {
     for (const f of walk(SRC)) {
       const rel = relative(SRC, f).replace(/\\/g, "/");
       const src = readFileSync(f, "utf8");
-      for (const m of src.matchAll(/className="([^"]*\btask-snooze\b[^"]*)"([\s\S]{0,200}?)aria-label="([^"]+)"/g)) {
+      for (const m of src.matchAll(/className="([^"]*\btask-snooze\b[^"]*)"([\s\S]{0,200}?)aria-label=(?:"([^"]+)"|\{)/g)) {
         seen++;
         const classes = m[1]!.split(/\s+/);
-        if (classes.includes("task-snooze-solo") || classes.includes("note-append")) continue;
-        if (!(SECOND_SLOT[rel] ?? []).includes(m[3]!)) bad.push(`${rel}: "${m[3]}" is a bare .task-snooze outside the second-slot roster`);
+        if (classes.includes("task-snooze-solo")) continue;
+        const name = m[3] ?? "{computed}";
+        if (!(SECOND_SLOT[rel] ?? []).includes(name)) bad.push(`${rel}: "${name}" is a bare .task-snooze outside the second-slot roster`);
       }
     }
-    expect(seen, "the scan found the buttons it is about").toBeGreaterThanOrEqual(5);
+    // Four today: Tasks (Move to tomorrow, Not now), the Reminders page and the Reminders strip (Snooze). The notes and
+    // the Notifications nudge moved to .task-verb and SwipeShell, so the floor is four, not five.
+    expect(seen, "the scan found the buttons it is about").toBeGreaterThanOrEqual(4);
     expect(bad, "a one-action reveal needs task-snooze-solo, or add it to the roster with the Delete it sits beside").toEqual([]);
   });
 
-  it("the Notifications nudge and the Momentum row use the outer slot", () => {
+  it("a .task-verb-2 is only ever the second slot, beside a first .task-verb", () => {
+    // The mirror of the rule above for the new verb classes: `.task-verb` is right:0, and `.task-verb-2` is right:88px.
+    // A file that draws a -2 with no first verb would open its swipe onto an empty strip, the same bug.
+    const lone: string[] = [];
+    for (const f of walk(SRC)) {
+      const rel = relative(SRC, f).replace(/\\/g, "/");
+      const src = readFileSync(f, "utf8");
+      if (!/task-verb-2/.test(src)) continue;
+      if (!/"task-verb"/.test(src)) lone.push(rel);
+    }
+    expect(lone, "a task-verb-2 with no first task-verb").toEqual([]);
+  });
+
+  it("the Today row shell and the Momentum row use the outer slot", () => {
+    // Notifications, the dealt move, the nudges and the suggestions ride SwipeShell (today/MoveHeadliner.tsx). Its
+    // reveal is counted from its actions (88px each) and slot i sits at right: i * 88, so the first verb is the outer
+    // one and no slot is ever under the row.
+    const shell = readFileSync(join(SRC, "today/MoveHeadliner.tsx"), "utf8");
     const nudge = readFileSync(join(SRC, "notifications/NotificationsFlow.tsx"), "utf8");
     const momentum = readFileSync(join(SRC, "tasks/screens/TasksPage.tsx"), "utf8");
-    expect(nudge).toMatch(/className="task-snooze task-snooze-solo"[^]*?aria-label="Dismiss"/);
+    expect(shell).toMatch(/revealW:\s*actions\.length\s*\*\s*88/);
+    expect(shell).toMatch(/className="notice-alt"[^]*?style=\{i \? \{ right: i \* 88 \} : undefined\}/);
+    expect(nudge, "Notifications ride the shell").toMatch(/<SwipeShell/);
     expect(momentum).toMatch(/className="task-snooze task-snooze-solo"[^]*?aria-label="Not now"/);
   });
 

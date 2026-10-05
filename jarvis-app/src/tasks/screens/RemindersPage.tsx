@@ -11,9 +11,8 @@ import { rowDoor } from "../../shared/rowDoor";
 import { Burst } from "../../shared/Burst";
 import { Check, Clock, Trash2, Forward } from "../../shared/icons";
 import { useSwipe } from "../../shared/useSwipe";
-import { useLongPress } from "../../shared/useLongPress";
-import { haptics } from "../../shared/haptics";
-import RowActionSheet, { type RowAction } from "../../shared/RowActionSheet";
+import { useRowMenu } from "../../shared/useRowMenu";
+import type { RowAction } from "../../shared/RowActionSheet";
 import RowCtxAction from "../../shared/RowCtxAction";
 import { titleCase } from "../../shared/casing";
 import { fmtTime } from "../../schedule/calendar";
@@ -104,30 +103,19 @@ function RemSwipe({ title, verb, canComplete, onComplete, onDelete, extra, onOpe
   children: ReactNode;
 }) {
   const slots = (verb ? 1 : 0) + (onDelete ? 1 : 0);
-  const swipe = useSwipe({
-    revealW: slots * 88,
-    rightW: canComplete ? 88 : 0,
-    ...(canComplete ? { onRightCommit: onComplete } : {}),
-  });
-  const [menu, setMenu] = useState(false);
   const actions: RowAction[] = [
     ...(verb ? [{ label: verb.label, onPick: verb.run }] : []),
     ...extra,
     ...(onDelete ? [{ label: "Delete", destructive: true, onPick: onDelete }] : []),
   ];
-  const press = useLongPress({ onLongPress: () => { haptics.selection(); setMenu(true); }, ms: 420, enabled: actions.length > 0 });
-  const handlers = {
-    onTouchStart: (e: React.TouchEvent) => { swipe.handlers.onTouchStart(e); press.onTouchStart(e); },
-    onTouchMove: (e: React.TouchEvent) => { swipe.handlers.onTouchMove(e); press.onTouchMove(e); },
-    onTouchEnd: () => { swipe.handlers.onTouchEnd(); press.onTouchEnd(); },
-    onTouchCancel: press.onTouchCancel,
-    onPointerDown: press.onPointerDown,
-    onPointerMove: press.onPointerMove,
-    onPointerUp: press.onPointerUp,
-    onPointerLeave: press.onPointerLeave,
-    onClickCapture: press.onClickCapture,
-    onContextMenu: (e: React.MouseEvent) => { if (actions.length === 0) return; e.preventDefault(); haptics.selection(); setMenu(true); },
-  };
+  const rowMenu = useRowMenu({ title, actions });
+  const swipe = useSwipe({
+    revealW: slots * 88,
+    rightW: canComplete ? 88 : 0,
+    ...(canComplete ? { onRightCommit: onComplete } : {}),
+    onLongPress: rowMenu.onLongPress,
+  });
+  const { handlers, sheet } = rowMenu.bind(swipe);
   const snooze = verb?.icon === "clock";
   const VerbIcon = verb?.icon === "check" ? Check : verb?.icon === "forward" ? Forward : Clock;
   return (
@@ -164,7 +152,7 @@ function RemSwipe({ title, verb, canComplete, onComplete, onDelete, extra, onOpe
       >
         {children}
       </div>
-      {menu && <RowActionSheet title={title} actions={actions} onCancel={() => { setMenu(false); swipe.closeThen(); }} />}
+      {sheet}
     </div>
   );
 }

@@ -1,8 +1,7 @@
-import { useState, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import { useSwipe } from "../shared/useSwipe";
-import { useLongPress } from "../shared/useLongPress";
-import RowActionSheet, { type RowAction } from "../shared/RowActionSheet";
-import { haptics } from "../shared/haptics";
+import { useRowMenu } from "../shared/useRowMenu";
+import type { RowAction } from "../shared/RowActionSheet";
 import { Trash2 } from "../shared/icons";
 
 // THE GYM'S SWIPEABLE ROW (Dave 2026-10-05, locked; docs/jarvis-unified/ROW-ACTIONS-SPEC.md). A gym row is a clean row:
@@ -12,7 +11,7 @@ import { Trash2 } from "../shared/icons";
 //   swipe right  nothing: a day, a lift or a logged session has nothing to complete, so it opts out
 //   long press   the context menu (`menu`), every action again; or, for a row that already opens its own menu, that one
 //
-// No pill sits on the row. The gesture math is shared/useSwipe's and the press is shared/useLongPress's; nothing here
+// No pill sits on the row. The gesture math is shared/useSwipe's and the held-row menu is shared/useRowMenu's; nothing here
 // reads a touch coordinate. It generalizes shared/SwipeDelete, which can only carry Delete, so a row whose quickest verb
 // is something else (Start a day, Keep two lifts separate, Favorite a lift) has the same tray without a second
 // implementation of the gesture.
@@ -42,31 +41,19 @@ export default function GymSwipeRow({ name, verb, onDelete, deleteLabel = "Delet
   children: ReactNode;
 }) {
   const slots = (verb ? 1 : 0) + (onDelete ? 1 : 0);
-  const swipe = useSwipe({ revealW: slots * 88, enabled: enabled && slots > 0 });
-  const [menuOpen, setMenuOpen] = useState(false);
-  const press = useLongPress({ onLongPress: () => { haptics.selection(); setMenuOpen(true); }, ms: 420, enabled: enabled && menu.length > 0 });
-  const h = swipe.handlers;
-  // One handler set. The swipe's touch handlers and the press's are composed; when the press (or the row's own menu)
-  // owns the hold, the swipe's own long-press timer is ended the moment it starts, which leaves the drag and the tray
-  // exactly as they were.
-  const standDown = ownsPress || menu.length > 0;
+  const rowMenu = useRowMenu({ title: menuTitle ?? name, actions: menu, enabled, swipeEnabled: enabled && slots > 0 });
+  // A row that opens its own menu on a hold (ownsPress) still must not have the swipe toggle its tray on that same hold:
+  // the swipe's hold becomes a no-op and the inner row's own press runs alone.
+  const swipe = useSwipe({
+    revealW: slots * 88,
+    enabled: enabled && slots > 0,
+    onLongPress: rowMenu.onLongPress ?? (ownsPress ? () => {} : undefined),
+  });
+  const { handlers: bound, sheet } = rowMenu.bind(swipe);
   const handlers = {
-    ...h,
-    onTouchStart: (e: React.TouchEvent) => { h.onTouchStart(e); if (standDown) h.onMouseLeave(); press.onTouchStart(e); },
-    onTouchMove: (e: React.TouchEvent) => { h.onTouchMove(e); press.onTouchMove(e); },
-    onTouchEnd: () => { h.onTouchEnd(); press.onTouchEnd(); },
-    onTouchCancel: press.onTouchCancel,
-    onPointerDown: press.onPointerDown,
-    onPointerMove: press.onPointerMove,
-    onPointerUp: press.onPointerUp,
-    onPointerLeave: press.onPointerLeave,
-    onClickCapture: press.onClickCapture,
-    onMouseDown: standDown ? () => {} : h.onMouseDown,
-    onContextMenu: (e: React.MouseEvent) => {
-      if (menu.length > 0) { if (!enabled) return; e.preventDefault(); haptics.selection(); setMenuOpen(true); return; }
-      if (ownsPress) return;
-      h.onContextMenu(e);
-    },
+    ...bound,
+    // The row inside owns the hold and has no menu here: its own context-menu handler has already run, so this one stands down.
+    onContextMenu: (e: React.MouseEvent) => { if (ownsPress && menu.length === 0) return; bound.onContextMenu(e); },
   };
   return (
     <div className="task-swipe">
@@ -90,7 +77,7 @@ export default function GymSwipeRow({ name, verb, onDelete, deleteLabel = "Delet
       >
         {children}
       </div>
-      {menuOpen && <RowActionSheet title={menuTitle ?? name} actions={menu} onCancel={() => { setMenuOpen(false); swipe.closeThen(); }} />}
+      {sheet}
     </div>
   );
 }

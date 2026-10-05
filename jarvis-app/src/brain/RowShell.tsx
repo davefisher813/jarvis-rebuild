@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { SwipeShell } from "../today/MoveHeadliner";
+import { SwipeShell, type TrayAction } from "../today/MoveHeadliner";
 
 // ONE ROW OF A BRAIN LIST THAT SWIPES (Dave 2026-10-05, locked: clean rows; swipe left is the row's one quickest action).
 // It is the shell every swipeable row in the app wears (today/MoveHeadliner's SwipeShell: the one gesture controller, the
@@ -10,7 +10,7 @@ import { SwipeShell } from "../today/MoveHeadliner";
 // Module level on purpose. A shell declared inside a screen is a new component on every render, which would remount the
 // row and drop an open tray the moment anything above it changed.
 export default function RowShell({ verb, onRight, rightLabel, children }: {
-  verb?: { label: string; run: () => void };
+  verb?: TrayAction;
   /** Swipe right completes, for a row with something to complete (Took It). Absent, the row cannot move right. */
   onRight?: () => void;
   rightLabel?: string;

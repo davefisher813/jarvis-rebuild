@@ -3822,7 +3822,8 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, st
                   // ...and to delete a mislogged session, which until now
                   // meant opening it and finding the delete inside (Dave
                   // 2026-09-10).
-                  <SwipeDelete key={w.id} label={w.data.dayName} onDelete={() => void removeWorkoutNow(w.id, w.data.dayName)}>
+                  <SwipeDelete key={w.id} label={w.data.dayName} onDelete={() => void removeWorkoutNow(w.id, w.data.dayName)}
+                    menu={[{ label: "Open", onPick: () => { setViewWorkout(w); setWorkoutDraft(w.data.exercises); } }]}>
                     <div className="row" role="button" tabIndex={0} onClick={() => { setViewWorkout(w); setWorkoutDraft(w.data.exercises); }}>
                       <div className="row-grow">
                         <div className="conn-name truncate">{workoutTitle(w.data.dayName)}</div>

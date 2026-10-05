@@ -1,7 +1,6 @@
 import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { useSwipe } from "../shared/useSwipe";
-import { useLongPress } from "../shared/useLongPress";
-import { haptics } from "../shared/haptics";
+import { useRowMenu } from "../shared/useRowMenu";
 import RowActionSheet from "../shared/RowActionSheet";
 import RowCtxAction from "../shared/RowCtxAction";
 import { Quiet } from "./quiet";
@@ -306,8 +305,6 @@ export default function NoticeCard({
   // THE ROW'S VERB IS THE FIRST BUTTON IN ITS TRAY (2026-10-05): only the row form, because the card form draws it.
   const rowAction = form === "row" && !offer ? action : undefined;
   const acts = (rowAction ? 1 : 0) + (altOnReveal ? 1 : 0) + (revealDismiss ? 1 : 0) + (onDelete ? 1 : 0);
-  const swipe = useSwipe({ revealW: acts * 88, enabled: acts > 0 });
-  usePeekOnce(swipe.peek, acts > 0);
   // THE ROW'S VERBS, and its sheet for a row with no destination of its own: with two or more verbs a tap opens a sheet
   // holding every action the row has (the verbs, then Dismiss and Delete); with one, the tap just does it.
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -320,7 +317,18 @@ export default function NoticeCard({
   // UP-CORE-14: the hold that opens the tuning sheet. Only on a card that
   // names its producer, so an ordinary notice keeps every gesture it had.
   const [tuneOpen, setTuneOpen] = useState(false);
-  const hold = useLongPress({ onLongPress: () => { haptics.selection(); setTuneOpen(true); }, enabled: !!onTune && !!automation });
+  // THE HOLD IS THE ROW'S CONTEXT MENU (Dave 2026-10-05): the sheet's own lines (the verbs, Dismiss, Delete), listed. A card
+  // that names its producer keeps its older answer, the tuning sheet, because that is what holding it has always meant there.
+  const tunes = !!onTune && !!automation;
+  const rowMenu = useRowMenu({
+    title: typeof title === "string" ? title : "",
+    actions: sheetActions,
+    swipeEnabled: acts > 0,
+    ...(tunes ? { onOpen: () => setTuneOpen(true) } : {}),
+  });
+  const swipe = useSwipe({ revealW: acts * 88, enabled: acts > 0, onLongPress: rowMenu.onLongPress });
+  const { handlers: cardHandlers, sheet: menuSheet } = rowMenu.bind(swipe);
+  usePeekOnce(swipe.peek, acts > 0);
 
   // A STRING SUB IS ONE RUN; A LINE OF FACTS IS A <Facts> NODE (§AM,
   // 2026-09-26). This briefly split a dotted string sub into plain .fact
@@ -537,8 +545,7 @@ export default function NoticeCard({
             + (uniform && (effForm === "card" || effForm === "row") && !(subNode && !subDropped) ? " notice-card-solo" : "")
             + (swipe.dragging ? " swiping" : "")}
           style={{ transform: swipe.dx ? `translateX(${swipe.dx}px)` : undefined }}
-          {...swipe.handlers}
-          {...(onTune ? hold : {})}
+          {...cardHandlers}
         >
           {inner}
         </div>
@@ -551,6 +558,7 @@ export default function NoticeCard({
         {sheetOpen && (
           <RowActionSheet title={typeof title === "string" ? title : undefined} actions={sheetActions} onCancel={() => setSheetOpen(false)} />
         )}
+        {menuSheet}
         {tuneOpen && onTune && (
           <>
             <div className="block-menu-scrim" onClick={() => setTuneOpen(false)} />

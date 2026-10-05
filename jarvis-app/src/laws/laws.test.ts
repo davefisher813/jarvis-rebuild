@@ -3182,8 +3182,11 @@ describe("LAW 5: one door per destination, per screen", () => {
     // Tomorrow section to head.
     expect(yourDay, "YourDay accepts tomorrowShown").toMatch(/tomorrowShown\?: boolean/);
     expect(yourDay, "and uses it to stand down").toMatch(/onPlanTomorrow && !tomorrowShown/);
-    expect(page, "TodayPage supplies it from the section it actually renders")
-      .toMatch(/tomorrowShown=\{!!tomorrowSection\}/);
+    // AMENDED (Dave 2026-10-05, locked: a section's action lives in its head). An EMPTY Tomorrow is now its own head
+    // carrying the one Plan Tomorrow capsule, so the prop is true for a Tomorrow with content or an empty one with
+    // its head; YourDay still stands down in both, and the capsule is still in exactly one place.
+    expect(page, "TodayPage supplies it from the head it actually renders, full or empty")
+      .toMatch(/tomorrowShown=\{!!\(tomorrowSection \|\| tomorrowEmpty\)\}/);
 
     // Open Inbox: the band's foot receipt owns it when there is a residual.
     expect(mail, "MailNotices reports whether it drew a residual").toMatch(/onResidualChange/);
@@ -3255,8 +3258,11 @@ describe("LAW 6: Pick One picks, urgency survives Start, timed beats untimed, mo
       .toMatch(/const chip = dist && !t\.done && !\(muteToday && dist\.kind === "today"\) \? dist : null;/);
     expect(page, "the chip renders on the second line, never in the trailing slot")
       .toMatch(/\{chip && <span className=\{"uchip " \+ \(chip\.kind === "late" \? "u-late" : "u-today"\)\}>\{chip\.label\}<\/span>\}/);
+    // AMENDED (Dave 2026-10-05, locked: no pill on a row). There is no Start pill to wait on any more, so the
+    // fallback shows only for a caller that passes no Start (`!onStart`), still narrowed to "soon", so it can
+    // never double up with the chip above or sit beside the row's quiet verb.
     expect(page, "the trailing fallback cannot double up with the chip")
-      .toMatch(/: u && u\.kind === "soon" && <span className=\{"urgency " \+ URGENCY_CLASS\[u\.kind\]\}/);
+      .toMatch(/!onStart && u && u\.kind === "soon" && <span className=\{"urgency " \+ URGENCY_CLASS\[u\.kind\]\}/);
   });
 
   // FINDING #3. partition() sorted by date only. Every row in "Today" shares
@@ -3402,7 +3408,9 @@ describe("LAW 7: one question gets one row, and a colour never speaks for a cate
     // And the card that stands in front of it carries exactly one primary.
     const card = read(join(SRC, "tasks/screens/StartCard.tsx"));
     expect(card.match(/btn-primary/g)?.length, "one primary on the card").toBe(1);
-    expect(card, "which names what it picked").toMatch(/\{pick\.task\.data\.text\}/);
+    // AMENDED: the name is drawn through titleCase now (the catalog's casing rule, Dave 2026-10-05), still the
+    // picked task's own text and still printed on the card.
+    expect(card, "which names what it picked").toMatch(/\{titleCase\(pick\.task\.data\.text\)\}/);
     expect(card, "and says what is ready on it").toMatch(/action\.ready/);
     // IT SAYS WHY ON ITS FACE (2026-09-18). It used to be asked, through a
     // Why This link into a sheet -- two taps for one line, and the line was
@@ -4008,9 +4016,16 @@ describe("LAW 11: cards show their work, tags earn their shape, and no screen is
       .toMatch(/see-all pill-action[\s\S]*"Sweep \\u00b7 " \+ sweepEstimate\(needsYou\.length\)/);
     const rimIdx = flow.indexOf('<div className="conn-name">Read It to Me</div>');
     expect(rimIdx, "Read It to Me is a Tools row").toBeGreaterThan(-1);
-    const rim = flow.slice(rimIdx, rimIdx + 400);
-    expect(rim, "a row that performs carries a control, not a chevron").toMatch(/pill-act/);
-    expect(rim).not.toMatch(/className="chev"/);
+    // AMENDED (Dave 2026-10-05, locked: clean rows, no pill on a row). A row that performs used to carry a Play,
+    // Next and Stop capsule where its neighbours carry a chevron. It carries NO capsule now: the tap plays (idle) or
+    // opens the row's sheet (Pause or Resume, Next, Stop) while the voice is going, and the quickest of them, Stop,
+    // shows on the row as one quiet RowCtxAction for as long as it is wanted. Still a row that performs, so still no
+    // chevron: its control is the quiet verb and its sheet.
+    const rim = flow.slice(rimIdx - 400, rimIdx + 1500);
+    expect(rim, "the quiet Stop shows only while the voice is going").toMatch(/<RowCtxAction when=\{speaking !== "idle"\} label="Stop"/);
+    expect(rim, "and the sheet holds Pause or Resume, Next and Stop").toMatch(/<RowActionSheet[\s\S]*?"Pause"[\s\S]*?"Next"[\s\S]*?"Stop"/);
+    expect(rim, "no capsule on the row").not.toMatch(/pill-act|row-act|btn-sm/);
+    expect(rim, "and a row that performs carries no chevron").not.toMatch(/className="chev"/);
   });
 
   it("the sweep estimate itself leads with a capital", async () => {
@@ -4316,12 +4331,17 @@ describe("LAW 15: the gym speaks one grammar", () => {
   // creates a whole program and a row that creates a week. They are one head
   // action now (the test below this one), so the roster shrinks to the creates
   // that are still creates in a list. The affordance itself has not moved.
-  it("every in-list create on the program page is the one row-create affordance", () => {
+  // AMENDED 2026-10-05 (Dave, locked: "Section-level actions (Add Day, Add Week, Add Exercise) live in the section
+  // head, never inside a card"). SUPERSEDED the .row-create affordance for these three: the one affordance they wear
+  // is the section head's `see-all pill-action` capsule now, on the head of the list they add to. The law keeps its
+  // job (every create wears the SAME affordance) and gains the ruling's half: none of them is a row in a list.
+  it("every create on the program page is the one head capsule", () => {
     const src = read(join(SRC, "gym", "GymFlow.tsx"));
     for (const label of ["Add Day", "Add Week", "Add Exercise"]) {
       // Same line: the arrow handler's => sits between the class and the
       // label, so the gap crosses anything but a newline.
-      expect(src).toMatch(new RegExp('className="row-create"[^\\n]*>' + label.replace(/ /g, "\\s+"))); // eslint-disable-line
+      expect(src).toMatch(new RegExp('className="see-all pill-action"[^\\n]*>' + label.replace(/ /g, "\\s+"))); // eslint-disable-line
+      expect(src, label + " is a row in a list again").not.toMatch(new RegExp('className="row-create"[^\\n]*>' + label.replace(/ /g, "\\s+"))); // eslint-disable-line
     }
     // The retired dresses stay retired.
     expect(src).not.toMatch(/onClick=\{\(\) => setUploadOpen\(true\)\}>\s*<div className="row-grow"/);
@@ -4710,7 +4730,11 @@ describe("LAW 17: the Schedule head is two rows, the day starts at Now, and the 
     expect(src, "the schedule head spends no accent fill").not.toMatch(/plan-cta/);
     expect(src, "the button row is gone").not.toMatch(/plan-head-acts/);
     expect(src, "Running Late? rides the Now rule").toMatch(/className=\{"sched-late"[^}]*\}[\s\S]{0,220}Running Late\?/);
-    expect(src, "Copy Yesterday lives in the empty state").toMatch(/empty-state[\s\S]{0,600}Copy Yesterday/);
+    // AMENDED (Dave 2026-10-05, locked: section-level actions live in the section head, never inside a card). Copy
+    // Yesterday left the empty state's card; it is the head's second capsule beside Plan My Day, on a day with nothing.
+    expect(src, "Copy Yesterday is the section head's second capsule")
+      .toMatch(/className="sec-left">\s*<button className="see-all pill-action" onClick=\{onCopyDay\}>Copy Yesterday<\/button>/);
+    expect(src, "and it is never a row-act in a card").not.toMatch(/className="row-act[^"]*"[^>]*onClick=\{onCopyDay\}/);
   });
 
   // PICK 2: "Everything behind you folds to one line, and the day starts at
@@ -5220,7 +5244,11 @@ describe("LAW: the headliner offers no button that only rearranges the app", () 
     // renders only when the flow handed over something for it to do.
     expect(head, "the primary verb renders only when it can be honoured").toMatch(/\{primary && \(/);
     expect(head, "Start Now is that verb until a block runs (Dave 2026-09-17: the countdown moved to Focus)").toContain('{ label: "Start Now", run: onStart }');
-    expect(head, "Tomorrow renders only when it can be honoured").toMatch(/\{onTomorrow && </);
+    // AMENDED (Dave 2026-10-05, locked row model: the verbs are the swipe tray, not buttons on the card). The card's
+    // verbs are TrayAction entries now, each added to the tray only when its seam was handed over, so a caller that
+    // cannot honour one still shows no verb rather than a dead one.
+    expect(head, "the primary verb is in the tray only when it can be honoured").toMatch(/\.\.\.\(primary \? \[primary\] : \[\]\)/);
+    expect(head, "Tomorrow is in the tray only when it can be honoured").toMatch(/onTomorrow \? \[\{ label: "Tomorrow", run: onTomorrow \}\]/);
   });
 
   // AND START FINISHES THE JOB (Dave 2026-09-16, the same complaint). A
@@ -5232,7 +5260,10 @@ describe("LAW: the headliner offers no button that only rearranges the app", () 
     const flow = read(join(SRC, "today/TodayFlow.tsx"));
     expect(flow, "starting a fifteen must record a live block").toMatch(/writeFifteen\(/);
     const head = read(join(SRC, "today/MoveHeadliner.tsx"));
-    for (const verb of ["\"Done\"", ">Another 15<", ">Stop<"]) {
+    // AMENDED (Dave 2026-10-05, locked row model): the running block's verbs are the tray's labels, not button
+    // children. Wrap Up replaced the old Done pill (the task is already started, so the only thing left to say about it
+    // is that it is finished); Another 15 and Stop are the alt, one at a time.
+    for (const verb of ["\"Wrap Up\"", "label: \"Another 15\"", "label: \"Stop\""]) {
       expect(head, "the running block offers " + verb).toContain(verb);
     }
     // The countdown is read off the clock, never counted up by ticks: a
@@ -5579,7 +5610,9 @@ describe("swipe reveals are hidden at rest (2026-09-06)", () => {
     // "swipe-row" is shared/SwipeDelete's mover (Dave 2026-09-10, the gym
     // swipe): without it here the scan reads straight past the moving element
     // and reports the row's own contents as an unhidden reveal.
-    ["task-swipe", ["task-row", "set-chip", "swipe-shell", "rem-row", "swipe-row"]],
+    // "rem-card" is the Reminders page's mover (Dave 2026-10-05, locked row model: the page's rows swipe like a task
+    // row's): it translates inside .task-swipe, so the scan reads the reveals before it and not the row's own contents.
+    ["task-swipe", ["task-row", "set-chip", "swipe-shell", "rem-row", "swipe-row", "rem-card"]],
     ["notice-swipe", ["notice-card"]],
     ["sched-strip", ["sched-row"]],
   ];
@@ -6266,10 +6299,12 @@ describe("a create alone in a card paints no card (2026-09-06)", () => {
       // as background-COLOR -- the shorthand reset the clip, and --press-3 was
       // the translucent fill §AL replaced.
       .toMatch(/background-color:\s*var\(--capsule-fill\)/);
-    // And the Checklist group still renders that shared class, not a dress
-    // of its own.
+    // And the Checklist group still renders a shared class, not a dress of its
+    // own. AMENDED (Dave 2026-10-05, locked: a section's action is its head's
+    // capsule, never a trailing row in the card): the sheet's Add Item is the
+    // group label row's `see-all pill-action`, the one head capsule.
     expect(read(join(SRC, "tasks/screens/TaskSheet.tsx")))
-      .toMatch(/className="row row-act"[^\n]*>Add Item</);
+      .toMatch(/className="see-all pill-action"[^\n]*>Add Item</);
   });
 });
 
@@ -6985,10 +7020,12 @@ describe("a task underway shows its count, not Start, and the slot stays one chi
     expect(hasUnfinishedSteps(stepsOf({} as TaskData))).toBe(false);
   });
 
-  it("the precedence is caller's pill, then the count, then Start, then the date", () => {
-    // A caller-supplied pill (Do It, Drop) is that surface's standing action
-    // and still wins; only the generic Start gives way.
-    const order = ["action.onClick", "hasUnfinishedSteps(steps)", "onStart(item.id)", "URGENCY_CLASS"];
+  it("the precedence is the quiet verb, then the count, then the date", () => {
+    // AMENDED (Dave 2026-10-05, locked: clean rows, no pills). Start and a caller's Do It / Drop pill left the row;
+    // they are the swipe, the sheet and the long-press menu. What the slot holds now, in order of claim: the row's one
+    // quiet verb once its moment has come (RowCtxAction, text only, the same verb as the swipe), then the count of a
+    // task already underway, then, for a caller with no Start, the urgency label. The count still beats the date.
+    const order = ["RowCtxAction", "hasUnfinishedSteps(steps)", "URGENCY_CLASS"];
     let last = -1;
     for (const mark of order) {
       const at = slot.indexOf(mark);
@@ -6998,14 +7035,17 @@ describe("a task underway shows its count, not Start, and the slot stays one chi
     }
     // A done row says nothing in this slot, the count included.
     expect(slot).toMatch(/!shownDone && hasUnfinishedSteps\(steps\)/);
+    // And no pill came back: nothing in the slot is a capsule.
+    expect(slot, "no capsule in the right slot").not.toMatch(/pill-act|row-act|btn-sm|onStart\(item\.id\)|action\.onClick/);
   });
 
-  it("every arm of the chain renders exactly one element", () => {
-    // Lint rule 7, right-slot arity: fail if a task row's right slot has more
-    // than one child. Four arms, four elements, no wrapper and no list.
-    const opens = slot.match(/<[A-Za-z]/g) ?? [];
-    expect(opens.length, "one element per arm").toBe(4);
-    expect(slot, "no fragment smuggling a second child in").not.toMatch(/<>|<React\.Fragment/);
+  it("the slot is the quiet verb and exactly one of the count or the date", () => {
+    // Lint rule 7, right-slot arity, restated for the new slot. Three elements, one fragment: the quiet verb
+    // (RowCtxAction), then ONE arm of the chain (the StepCount, or the urgency span). No wrapper, no list.
+    const opens = slot.match(/<[A-Za-z]+/g) ?? [];
+    expect(opens, "RowCtxAction, StepCount and the urgency span, one per arm").toEqual(["<RowCtxAction", "<StepCount", "<span"]);
+    expect(slot.match(/<>/g)?.length ?? 0, "one fragment: the verb and the one thing after it").toBe(1);
+    expect(slot, "no keyed fragment smuggling more in").not.toMatch(/<React\.Fragment/);
     expect(slot, "and nothing mapped into it").not.toMatch(/\.map\(/);
   });
 

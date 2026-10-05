@@ -1131,10 +1131,14 @@ describe("DYNAMIC-TYPE-1.4: the app's own words survive the largest text size", 
     expect(ruleBody(css(), ".notice-card .conn-name")).toMatch(/-webkit-line-clamp:\s*2/);
   });
 
-  it("the Tracker's import row wears the two-line class at its call site", () => {
-    expect(read("money/screens/TrackerScreen.tsx")).toMatch(/className="conn-name truncate">Import September Data</);
-    // .truncate is what that class means here, despite the name.
-    expect(ruleBody(css(), ".task-row .conn-name.truncate, .row .conn-name.truncate")).toMatch(/-webkit-line-clamp:\s*2/);
+  it("the Tracker's import offer is a notice card, whose title wears the two-line class", () => {
+    // AMENDED (Dave 2026-10-05, locked: clean rows, no pill in a row). The import was a row with a pill and a
+    // `conn-name truncate` title; it is now an offer NoticeCard (its own words and its one action), and the notice
+    // card draws its title as `.conn-name`, clamped at two lines by `.notice-card .conn-name`. Same property: a long
+    // title wraps to a second line and ends in an ellipsis, never a single clipped line.
+    expect(read("money/screens/TrackerScreen.tsx")).toMatch(/<NoticeCard[\s\S]{0,160}\boffer\b[\s\S]{0,60}title="Import September Data"/);
+    expect(read("today/NoticeCard.tsx"), "the card draws its title as .conn-name").toMatch(/className="conn-name[^"]*"[\s\S]{0,120}>\{title\}</);
+    expect(ruleBody(css(), ".notice-card .conn-name")).toMatch(/-webkit-line-clamp:\s*2/);
   });
 
   it("the focus card's reason wraps, because one card is not a list", () => {

@@ -5441,8 +5441,14 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                   {band.rows.map(({ w, d }) => (
                     <LetGoSwipe
                       key={w.threadId}
+                      label={displayName(w.to)}
                       onMore={d.alternates.length ? () => setMore({ row: w, d }) : undefined}
                       onLetGo={() => dropRow(w.threadId)}
+                      menu={[
+                        { label: d.primary.label, onPick: () => void startNudge(w) },
+                        ...d.alternates.map((a) => ({ label: a.label, onPick: () => void runAction(w, a) })),
+                        { label: "Let Go", onPick: () => dropRow(w.threadId) },
+                      ]}
                     >
                     {/* E-17 (2026-09-12): the two lists stay disjoint sources
                         (section 0), but a thread that is in BOTH says so here
@@ -5507,6 +5513,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                     {unowed.map(({ w, d }) => (
                       <LetGoSwipe
                         key={w.threadId}
+                        label={displayName(w.to)}
                         onMore={d.alternates.length ? () => setMore({ row: w, d }) : undefined}
                         onLetGo={() => dropRow(w.threadId)}
                       >

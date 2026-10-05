@@ -11,7 +11,8 @@ import type { PlanBlock } from "../planDay";
 import { DUR_CHOICES, durLabel, minutesBetween } from "../durations";
 import { spanLabel } from "../../shared/duration";
 import { SCHED_ACT_W } from "./schedRail";
-import { useRowMenu } from "./useRowMenu";
+import { useRowMenu } from "../../shared/useRowMenu";
+import { useLongPress } from "../../shared/useLongPress";
 
 // THE PROPOSED BLOCK (blend, 2026-08-22).
 //
@@ -88,12 +89,6 @@ export default function ProposedRow({
   // three capsules. The row's one quickest action is the swipe left (Book It, the affirmative move, leading, with the
   // way back to Anytime beside it), a swipe right ticks it off, and the long press is the menu with all of them again.
   const acts = [!!onAccept, true].filter(Boolean).length;
-  const swipe = useSwipe({
-    revealW: acts * SCHED_ACT_W,
-    rightW: onComplete ? SCHED_ACT_W : 0,
-    ...(onComplete ? { onRightCommit: onComplete } : {}),
-  });
-  const { dx, open: swipeOpen, dragging, closeThen } = swipe;
   const menuActions: RowAction[] = [
     ...(onAccept ? [{ label: "Book It", onPick: onAccept }] : []),
     ...(onComplete ? [{ label: "Done", onPick: onComplete }] : []),
@@ -101,7 +96,15 @@ export default function ProposedRow({
     { label: open ? "Close Length" : "Change Length", onPick: onToggle },
     { label: "Move to Anytime", onPick: onDrop },
   ];
-  const { handlers: rowHandlers, sheet } = useRowMenu({ title, actions: menuActions, swipe });
+  const rowMenu = useRowMenu({ title, actions: menuActions });
+  const swipe = useSwipe({
+    revealW: acts * SCHED_ACT_W,
+    rightW: onComplete ? SCHED_ACT_W : 0,
+    ...(onComplete ? { onRightCommit: onComplete } : {}),
+    onLongPress: rowMenu.onLongPress,
+  });
+  const { dx, open: swipeOpen, dragging, closeThen } = swipe;
+  const { handlers: rowHandlers, sheet } = rowMenu.bind(swipe);
   return (
     <div className="sched-swipe-wrap">
       <div className="sched-strip">
@@ -207,7 +210,14 @@ export function HeldProposalRow({ block, onOpen, onAccept, onDrop }: {
     { label: "Edit Task", onPick: onOpen },
     ...(onDrop ? [{ label: "Move to Anytime", onPick: onDrop }] : []),
   ];
-  const { handlers, sheet } = useRowMenu({ title, actions });
+  // No swipe on this row (the block's own rail is under the same finger), so its hold is the plain press.
+  const menu = useRowMenu({ title, actions });
+  const hold = useLongPress({ onLongPress: menu.open, ms: 420, enabled: actions.length > 0 });
+  const { sheet } = menu;
+  const handlers = {
+    ...hold,
+    onContextMenu: (e: React.MouseEvent) => { e.preventDefault(); menu.open(); },
+  };
   return (
     <div
       className="block-held block-held-prop"

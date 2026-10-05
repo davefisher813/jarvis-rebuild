@@ -35,7 +35,7 @@ import type { ReactNode } from "react";
 import { toneFor, type StateWord } from "../stateWord";
 import { lineCase, titleCase } from "../../shared/casing";
 import type { RowAction } from "../../shared/RowActionSheet";
-import { useRowMenu } from "./useRowMenu";
+import { useRowMenu } from "../../shared/useRowMenu";
 
 export interface LockedRowRange {
   s: number;
@@ -113,8 +113,6 @@ export default function LockedRow({
   // 264px rail, so -15m was painted 32px outside the reveal and could not be
   // tapped. Same bug as DayRow's, same fix. See schedRail.ts.
   const acts = [!!onShift, !!onShift, !!onDelete].filter(Boolean).length;
-  const swipe = useSwipe({ revealW: acts * SCHED_ACT_W, enabled: swipeable });
-  const { dx, open, dragging, closeThen } = swipe;
   // THE LONG PRESS IS THE MENU (Dave 2026-10-05, locked; the chevron grip that used to announce the swipe is gone: a permanent
   // visual affordance). The same actions as the rail, plus the one the block is for.
   const label = titleCase(l.label);
@@ -123,7 +121,10 @@ export default function LockedRow({
     ...(swipeable && onShift ? [{ label: "\u221215 Min", onPick: () => onShift(-15) }, { label: "+15 Min", onPick: () => onShift(15) }] : []),
     ...(swipeable && onDelete ? [{ label: "Delete", destructive: true, onPick: onDelete }] : []),
   ];
-  const { handlers: rowHandlers, sheet } = useRowMenu({ title: label, actions: menuActions, swipe });
+  const rowMenu = useRowMenu({ title: label, actions: menuActions, swipeEnabled: swipeable });
+  const swipe = useSwipe({ revealW: acts * SCHED_ACT_W, enabled: swipeable, onLongPress: rowMenu.onLongPress });
+  const { dx, open, dragging, closeThen } = swipe;
+  const { handlers: rowHandlers, sheet } = rowMenu.bind(swipe);
   const [picking, setPicking] = useState(false);
   const [sizing, setSizing] = useState(false);
   const durs = useRef<HTMLDivElement>(null);

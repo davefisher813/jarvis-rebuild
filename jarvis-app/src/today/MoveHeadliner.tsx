@@ -32,6 +32,8 @@
 // a right swipe teaches the tip, instead of five copies of it.
 import { Check } from "../shared/icons";
 import { useSwipe } from "../shared/useSwipe";
+import { useRowMenu } from "../shared/useRowMenu";
+import type { RowAction } from "../shared/RowActionSheet";
 import { noteSwiped } from "../shared/swipeTeach";
 import RowCtxAction from "../shared/RowCtxAction";
 import { usePeekOnce } from "./usePeekOnce";
@@ -42,27 +44,43 @@ import type { StateWord } from "../schedule/stateWord";
 export interface TrayAction {
   label: string;
   run: () => void;
+  /** Goes last in the held row's menu, drawn in the destructive ink (Delete, Remove). */
+  destructive?: boolean;
 }
 
 // THE SHELL OF A TODAY ROW THAT SWIPES. The tray (a green Done rail on the right, the accent verbs on the left), the
 // moving surface, the one gesture controller, and the one-time peek. `className` is what the moving surface adds to
 // .notice-card, which is where touch-action: pan-y lives.
-export function SwipeShell({ actions = [], onRight, rightLabel = "Done", className = "", children }: {
+export function SwipeShell({ actions = [], onRight, rightLabel = "Done", menu, menuTitle, className = "", children }: {
   /** Quickest first. Each is 88px of reveal. */
   actions?: TrayAction[];
   /** Swipe right completes. Absent, the row cannot move right. */
   onRight?: () => void;
   rightLabel?: string;
+  /** THE HELD ROW'S MENU (Dave 2026-10-05: long press is the context menu, never the only way to anything). Absent, it is
+   *  the tray's verbs in order (the quickest first) and then the right swipe's, destructive last: the same actions, drawn as
+   *  a list. A caller passes its own only to list more than the gestures do. */
+  menu?: RowAction[];
+  /** What the menu is about, when the row is a record with a name. */
+  menuTitle?: string;
   className?: string;
   children: ReactNode;
 }) {
+  const lines: RowAction[] = menu ?? [
+    ...actions.map((a) => ({ label: a.label, onPick: a.run, ...(a.destructive ? { destructive: true } : {}) })),
+    ...(onRight && !actions.some((a) => a.label === rightLabel) ? [{ label: rightLabel, onPick: onRight }] : []),
+  ].sort((a, b) => Number(!!a.destructive) - Number(!!b.destructive));
+  const swipeable = actions.length > 0 || !!onRight;
+  const rowMenu = useRowMenu({ title: menuTitle ?? "", actions: lines, swipeEnabled: swipeable });
   const swipe = useSwipe({
     revealW: actions.length * 88,
     rightW: onRight ? 88 : 0,
     // A right swipe is a swipe: it teaches the tip away like a left one does (shared/useSwipe only notes the left).
     ...(onRight ? { onRightCommit: () => { noteSwiped(); onRight(); } } : {}),
-    enabled: actions.length > 0 || !!onRight,
+    enabled: swipeable,
+    onLongPress: rowMenu.onLongPress,
   });
+  const { handlers, sheet } = rowMenu.bind(swipe);
   usePeekOnce(swipe.peek, actions.length > 0);
   return (
     // Tabbing into a revealed button opens the rail around it, so a keyboard or switch user is never pressing a control
@@ -87,10 +105,11 @@ export function SwipeShell({ actions = [], onRight, rightLabel = "Done", classNa
       <div
         className={"notice-card " + className + (swipe.dragging ? " swiping" : "")}
         style={{ transform: swipe.dx ? `translateX(${swipe.dx}px)` : undefined }}
-        {...swipe.handlers}
+        {...handlers}
       >
         {children}
       </div>
+      {sheet}
     </div>
   );
 }
@@ -176,6 +195,7 @@ export default function MoveHeadliner({
     <div className="pad-x hl">
       <SwipeShell
         actions={actions}
+        menuTitle={title}
         {...(onToggle ? { onRight: onToggle } : {})}
         className="card notice-card-row notice-card-uniform"
       >

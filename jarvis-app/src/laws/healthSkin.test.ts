@@ -351,10 +351,16 @@ describe("HEALTH law 6: every browsing row wears the one anatomy", () => {
     expect(bad).toEqual([]);
   });
 
-  it("a capsule still does the job a capsule is for", () => {
-    // The Exercises page's classification chips: tappable, and a real button.
-    expect(read(join(SRC, "gym/LibraryPage.tsx"))).toMatch(/className=\{"ex-chip"/);
-    expect(RULED, "and they are drawn").toMatch(/\.ruled \.ex-chip \{/);
+  it("the classification marks are facts, and there is no capsule left on the row", () => {
+    // AMENDED (Dave 2026-10-05, locked: clean rows, no pills inside a row; subtextLaw already required the .ex-chip
+    // rule gone). The Exercises page's classification marks used to be tappable `.ex-chip` capsules. They are `.fact`
+    // spans now and the row itself is the door: a tap opens the exercise, the long-press menu has Edit Details (which
+    // opens the classification sheet), and an exercise with no muscles shows the one `No Muscles Yet` fact.
+    const lib = read(join(SRC, "gym/LibraryPage.tsx"));
+    expect(lib, "the marks are facts").toMatch(/className=\{"fact" \+ chipTone\(ch\)\}/);
+    expect(lib, "no capsule class is left on the page").not.toMatch(/ex-chip/);
+    expect(RULED, "and the capsule rule is gone from the ruled sheet").not.toMatch(/\.ruled \.ex-chip \{/);
+    expect(lib, "the classification sheet is still reachable, from the row's menu").toMatch(/label: "Edit Details", onClick: \(\) => setClassing/);
   });
 });
 

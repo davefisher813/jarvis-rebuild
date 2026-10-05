@@ -68,7 +68,7 @@ export default function LockerScreen({
             // CLEAN ROWS (Dave 2026-10-05, locked): Remove is the swipe-left and an answer on the sheet a tap opens, not a
             // button on the row. HMN-F-22 (2026-09-05): a document still in the pending queue carries a placeholder id,
             // so Remove on it deleted nothing while looking like it had. It comes back the moment the write lands.
-            <RowShell key={d.id} verb={d.pending ? undefined : { label: "Remove", run: () => onRemove(d.id) }}>
+            <RowShell key={d.id} verb={d.pending ? undefined : { label: "Remove", run: () => onRemove(d.id), destructive: true }}>
               <div className="row" {...pressable(() => setOnFile(d))}>
                 <div className="row-grow">
                   <div className="conn-name">{LOCKER_DOC_LABEL[d.data.kind]}</div>

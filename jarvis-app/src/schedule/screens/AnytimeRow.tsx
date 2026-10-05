@@ -7,7 +7,7 @@ import { ParentLineGlyph } from "../../shared/glyphs";
 import type { ParentLine } from "../../life/parent";
 import { useSwipe } from "../../shared/useSwipe";
 import type { RowAction } from "../../shared/RowActionSheet";
-import { useRowMenu } from "./useRowMenu";
+import { useRowMenu } from "../../shared/useRowMenu";
 import RowCtxAction from "../../shared/RowCtxAction";
 import { CalendarPlus, Check, Trash2 } from "../../shared/icons";
 import { titleCase } from "../../shared/casing";
@@ -121,23 +121,24 @@ function AnytimeItem({ it, parent, today, onToggle, onSchedule, onDelete, onOpen
   const droppable = !!onSchedule;
   const completable = !!onToggle;
   const deletable = !!onDelete;
-  const swipe = useSwipe({
-    revealW: ((droppable ? 1 : 0) + (deletable ? 1 : 0)) * 88,
-    rightW: completable ? 88 : 0,
-    ...(completable ? { onRightCommit: () => onToggle!(it.id) } : {}),
-    enabled: droppable || deletable || completable,
-  });
-  const { dx, dragging, open: swipeOpen, closeThen } = swipe;
   const menuActions: RowAction[] = [
     ...(droppable ? [{ label: "Drop", onPick: () => onSchedule!(it.id) }] : []),
     ...(completable ? [{ label: "Done", onPick: () => onToggle!(it.id) }] : []),
     ...(onOpen ? [{ label: "Open Task", onPick: () => onOpen(it.id) }] : []),
     ...(deletable ? [{ label: "Delete", destructive: true, onPick: () => onDelete!(it.id) }] : []),
   ];
-  const { handlers: rowHandlers, sheet } = useRowMenu({
-    title, actions: menuActions, swipe,
-    onPointerDown: (e) => onDragStart?.(it.id, title, e),
+  const rowMenu = useRowMenu({ title, actions: menuActions, swipeEnabled: droppable || deletable || completable });
+  const swipe = useSwipe({
+    revealW: ((droppable ? 1 : 0) + (deletable ? 1 : 0)) * 88,
+    rightW: completable ? 88 : 0,
+    ...(completable ? { onRightCommit: () => onToggle!(it.id) } : {}),
+    enabled: droppable || deletable || completable,
+    onLongPress: rowMenu.onLongPress,
   });
+  const { dx, dragging, open: swipeOpen, closeThen } = swipe;
+  const { handlers: menuHandlers, sheet } = rowMenu.bind(swipe);
+  // The drag (SchedulePage's pointer drop zone) starts on pointer-down, beside the hold, as it always did.
+  const rowHandlers = { ...menuHandlers, onPointerDown: (e: React.PointerEvent) => onDragStart?.(it.id, title, e) };
   return (
     <div className="task-swipe">
       {completable && (

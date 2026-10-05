@@ -1,9 +1,8 @@
-import { useState, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import { useSwipe } from "../shared/useSwipe";
-import { useLongPress } from "../shared/useLongPress";
-import RowActionSheet, { type RowAction } from "../shared/RowActionSheet";
+import { useRowMenu } from "../shared/useRowMenu";
+import type { RowAction } from "../shared/RowActionSheet";
 import { rowDoor } from "../shared/rowDoor";
-import { haptics } from "../shared/haptics";
 import { Check, Trash2 } from "../shared/icons";
 
 // THE ONE SWIPEABLE ROW OF MONEY (Dave 2026-10-05, locked; docs/jarvis-unified/ROW-ACTIONS-SPEC.md). Money's bills,
@@ -17,7 +16,7 @@ import { Check, Trash2 } from "../shared/icons";
 //   the check    stays on the row as a child (state, not a command)
 //
 // No pill sits on the row. This is the second swipe surface of the app that composes the shared controller: the
-// gesture math is shared/useSwipe's and the press is shared/useLongPress's; nothing here reads a touch coordinate.
+// gesture math is shared/useSwipe's and the held-row menu is shared/useRowMenu's; nothing here reads a touch coordinate.
 export interface RowVerb {
   label: string;
   icon: ReactNode;
@@ -47,31 +46,14 @@ export default function MoneyRow({
 }) {
   const second = verb ? verb2 : null;
   const slots = (verb ? 1 : 0) + (second ? 1 : 0) + (onDelete ? 1 : 0);
+  const rowMenu = useRowMenu({ title: menuTitle ?? name, actions: menu });
   const swipe = useSwipe({
     revealW: slots * 88,
     rightW: complete ? 88 : 0,
     ...(complete ? { onRightCommit: complete.run } : {}),
+    onLongPress: rowMenu.onLongPress,
   });
-  const [menuOpen, setMenuOpen] = useState(false);
-  const press = useLongPress({
-    onLongPress: () => { haptics.selection(); setMenuOpen(true); },
-    ms: 420,
-    enabled: menu.length > 0,
-  });
-  // One handler set: the swipe's touch handlers and the press's, composed. The swipe's own mouse hold is left out
-  // (the press opens the menu instead of the tray, so the two never fight over one press).
-  const handlers = {
-    onTouchStart: (e: React.TouchEvent) => { swipe.handlers.onTouchStart(e); press.onTouchStart(e); },
-    onTouchMove: (e: React.TouchEvent) => { swipe.handlers.onTouchMove(e); press.onTouchMove(e); },
-    onTouchEnd: () => { swipe.handlers.onTouchEnd(); press.onTouchEnd(); },
-    onTouchCancel: press.onTouchCancel,
-    onPointerDown: press.onPointerDown,
-    onPointerMove: press.onPointerMove,
-    onPointerUp: press.onPointerUp,
-    onPointerLeave: press.onPointerLeave,
-    onClickCapture: press.onClickCapture,
-    onContextMenu: (e: React.MouseEvent) => { if (menu.length === 0) return; e.preventDefault(); haptics.selection(); setMenuOpen(true); },
-  };
+  const { handlers, sheet } = rowMenu.bind(swipe);
   // A tap on a row whose tray is showing closes it instead of opening the record.
   const door = rowDoor(onOpen);
   const open = swipe.open || swipe.dx !== 0;
@@ -113,9 +95,7 @@ export default function MoneyRow({
       >
         {children}
       </div>
-      {menuOpen && (
-        <RowActionSheet title={menuTitle ?? name} actions={menu} onCancel={() => setMenuOpen(false)} />
-      )}
+      {sheet}
     </div>
   );
 }

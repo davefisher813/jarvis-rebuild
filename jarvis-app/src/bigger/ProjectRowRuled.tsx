@@ -1,13 +1,11 @@
 import type { Progress } from "./progress";
 import { Bar, Nums } from "./GoalRowRuled";
 import { FolderOpenGlyph, GoalMark } from "../shared/glyphs";
-import { useLongPress } from "../shared/useLongPress";
+import { useRowMenu } from "../shared/useRowMenu";
 import { useSwipe } from "../shared/useSwipe";
-import { haptics } from "../shared/haptics";
-import RowActionSheet, { type RowAction } from "../shared/RowActionSheet";
+import type { RowAction } from "../shared/RowActionSheet";
 import RowCtxAction from "../shared/RowCtxAction";
 import { Check, Forward } from "../shared/icons";
-import { useState } from "react";
 import { titleCase } from "../shared/casing";
 
 // THE PROJECT ROW IS THE GOAL ROW (Dave 2026-09-13: "Let's make the format of
@@ -64,30 +62,19 @@ export default function ProjectRowRuled({ title, glyphTone, next = null, goal = 
     ...(onClose ? [{ label: "Close", icon: "check" as const, run: onClose }] : []),
     ...(onHold ? [{ label: "Move", icon: "forward" as const, run: onHold }] : []),
   ];
+  const menuActions: RowAction[] = [
+    ...(onClose ? [{ label: "Close It", onPick: onClose }] : []),
+    ...(onHold ? [{ label: "Move to Goal", onPick: onHold }] : []),
+  ];
+  const rowMenu = useRowMenu({ title: shown, actions: menuActions, swipeEnabled: tray.length > 0 });
   const swipe = useSwipe({
     revealW: tray.length * 88,
     rightW: onClose ? 88 : 0,
     ...(onClose ? { onRightCommit: onClose } : {}),
     enabled: tray.length > 0,
+    onLongPress: rowMenu.onLongPress,
   });
-  const [menu, setMenu] = useState(false);
-  const menuActions: RowAction[] = [
-    ...(onClose ? [{ label: "Close It", onPick: onClose }] : []),
-    ...(onHold ? [{ label: "Move to Goal", onPick: onHold }] : []),
-  ];
-  const press = useLongPress({ onLongPress: () => { haptics.selection(); setMenu(true); }, ms: 420, enabled: menuActions.length > 0 });
-  const handlers = {
-    onTouchStart: (e: React.TouchEvent) => { swipe.handlers.onTouchStart(e); press.onTouchStart(e); },
-    onTouchMove: (e: React.TouchEvent) => { swipe.handlers.onTouchMove(e); press.onTouchMove(e); },
-    onTouchEnd: () => { swipe.handlers.onTouchEnd(); press.onTouchEnd(); },
-    onTouchCancel: press.onTouchCancel,
-    onPointerDown: press.onPointerDown,
-    onPointerMove: press.onPointerMove,
-    onPointerUp: press.onPointerUp,
-    onPointerLeave: press.onPointerLeave,
-    onClickCapture: press.onClickCapture,
-    onContextMenu: (e: React.MouseEvent) => { if (menuActions.length === 0) return; e.preventDefault(); haptics.selection(); setMenu(true); },
-  };
+  const { handlers, sheet } = rowMenu.bind(swipe);
   return (
     <div className="task-swipe">
       {onClose && (
@@ -136,7 +123,7 @@ export default function ProjectRowRuled({ title, glyphTone, next = null, goal = 
         {onClose && <RowCtxAction when label="Close" ariaLabel={"Close " + shown} onAct={onClose} />}
         {!onClose && onOpen && <div className="chev" />}
       </div>
-      {menu && <RowActionSheet title={shown} actions={menuActions} onCancel={() => { setMenu(false); swipe.closeThen(); }} />}
+      {sheet}
     </div>
   );
 }

@@ -81,12 +81,13 @@ describe("ProjectRowRuled", () => {
     const onHold = vi.fn();
     const { container } = render(<ProjectRowRuled {...base} onOpen={onOpen} onHold={onHold} />);
     const row = container.querySelector(".proj-row-ruled") as HTMLElement;
-    fireEvent.pointerDown(row, { pointerType: "mouse", clientX: 5, clientY: 5 });
+    // The held row is the swipe controller's own hold (useSwipe onLongPress, via shared/useRowMenu): a mouse hold is mousedown.
+    fireEvent.mouseDown(row);
     act(() => { vi.advanceTimersByTime(700); });
     expect(Array.from(document.querySelectorAll(".action-sheet button")).map((b) => b.textContent)).toEqual(["Move to Goal", "Cancel"]);
     fireEvent.click(screen.getByText("Move to Goal"));
     expect(onHold).toHaveBeenCalledTimes(1);
-    fireEvent.pointerUp(row);
+    fireEvent.mouseUp(row);
     fireEvent.click(row);
     expect(onOpen).not.toHaveBeenCalled();
   });

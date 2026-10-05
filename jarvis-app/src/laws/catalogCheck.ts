@@ -101,3 +101,71 @@ export function capsulesInCards(root: ParentNode | Element): string[] {
   }
   return [...out];
 }
+
+// NO CAPSULE IN A LIST ROW, NOR AT THE FOOT OF A LIST CARD (Dave 2026-10-05, locked: "Clean rows, no pills anywhere").
+// `capsulesInCards` above is the wide net the screens' own tests use; THIS is the law every jsdom test runs
+// (laws/catalogSetup.ts), measured over the whole suite before it was set (CATALOG_REPORT). A list row is a door: tap
+// opens its sheet, swipe left is its quickest verb, swipe right completes, long press is the menu, and the one quiet verb
+// a due row shows is `RowCtxAction`, which is text and not a capsule. A section's action (Add, Plan My Day, Copy
+// Yesterday, Add Account) is its head's capsule, never a row at the foot of a card. The completion checkbox is state, not
+// a command, and is not a capsule.
+//
+// A LIST ROW is a .task-row, .rem-row, .rem-card, .sched-row, .lib-row, .conn, or a .row inside a .list-card-ruled, plus
+// the row classes the rebuilt screens use for the same job (.msg-row, .anytime-row, .lifemap-row, .conn-row, .offer-row).
+// A LIST CARD is a .list-card-ruled or .card that holds at least one such row beside the capsule. A capsule is a
+// .pill-act, .row-act, .btn-sm or .quiet-action. One in a list row is reported `label @ row-class`; one at the foot of a
+// list card, outside any row, is reported `label @ foot of card-class`.
+//
+// THE SETTLED HOMES (CAPSULE_HOMES) are where a capsule belongs and are never reported: a section head (.sh2); a sheet's
+// own bar, foot or action line; an action sheet; a notice or promo card, which has its own words and its own action (and
+// NoticeCard's offer form); a toast and its Undo; a card with its own words and its own actions (the goal check-in
+// outcome row, the reminder Advice strip, the send-hold card with Undo and Edit, the meeting card, the waiting card); a
+// live control card (the rest timer); and an empty state with its own title, whose one quiet escape is its answer.
+// An exception that is not a home is a per-file entry in catalogRoster.ts CAPSULE_ROSTER, each with a reason.
+export const CAPSULE_ROW = [
+  ".task-row", ".rem-row", ".rem-card", ".sched-row", ".lib-row", ".conn",
+  ".list-card-ruled .row",
+  ".msg-row", ".anytime-row", ".lifemap-row", ".conn-row", ".offer-row",
+].join(", ");
+export const CAPSULE_HOMES = [
+  ".sh2", // a section head: the one place a section's action lives
+  ".sheet-bar, .sheet-foot, .sheet-actions, .bar", // a sheet's own bar and foot
+  ".action-sheet", // the long-press menu and its kin
+  ".notice-card, .notice-actions, .notice-clear-row, .promo-card, .promo-actions", // a card with its own words and its own action
+  ".toast, .toast-dock", // a toast and its Undo
+  ".dec-outcome-acts, .xs-strip, .send-hold, .msg-summary, .wait-card-acts", // cards with their own words and actions
+  ".rest-acts", // a live control card, the rest timer
+  ".empty-state", // an empty state with its own title and its one quiet escape
+].join(", ");
+
+export type CapsuleSite = { label: string; where: "row" | "foot"; box: string; chain: string };
+
+const firstClass = (e: Element) => (e.getAttribute("class") ?? "").split(" ")[0] || e.tagName.toLowerCase();
+
+/** Every capsule that sits in a list row or at the foot of a list card and is not in `homes`, with where it was found
+ *  and its ancestor chain (nearest first), which is what the roster and the measurement read. */
+export function capsuleSites(root: ParentNode | Element, homes: string = CAPSULE_HOMES): CapsuleSite[] {
+  const out: CapsuleSite[] = [];
+  const found = Array.from(root.querySelectorAll(CAPSULE));
+  if ((root as Element).matches?.(CAPSULE)) found.push(root as Element);
+  for (const b of found) {
+    if (b.closest(homes)) continue;
+    const label = (b.textContent ?? "").replace(/\s+/g, " ").trim() || (b.getAttribute("aria-label") ?? "?");
+    const chain: string[] = [];
+    for (let e = b.parentElement; e && e !== document.body && chain.length < 7; e = e.parentElement) chain.push(firstClass(e));
+    const row = b.closest(CAPSULE_ROW);
+    if (row) {
+      out.push({ label, where: "row", box: firstClass(row), chain: chain.join(" < ") });
+      continue;
+    }
+    const card = b.closest(".list-card-ruled, .card");
+    if (card && Array.from(card.querySelectorAll(CAPSULE_ROW)).some((r) => !r.contains(b)))
+      out.push({ label, where: "foot", box: firstClass(card), chain: chain.join(" < ") });
+  }
+  return out;
+}
+
+/** `label @ row-class` for a capsule in a list row, `label @ foot of card-class` for one at a list card's foot. */
+export function capsulesInRows(root: ParentNode | Element, homes: string = CAPSULE_HOMES): string[] {
+  return [...new Set(capsuleSites(root, homes).map((s) => `${s.label} @ ${s.where === "foot" ? "foot of " : ""}${s.box}`))];
+}

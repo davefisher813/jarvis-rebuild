@@ -112,6 +112,7 @@ function TaskRow({ t, u, parent, today, burstSize = "small", onToggle, onOpen }:
   return (
     <div className="pad-x">
     <SwipeShell
+      menuTitle={name}
       actions={canTick ? [{ label: "Done", run: tap }] : []}
       {...(canTick ? { onRight: tap } : {})}
     >
@@ -552,7 +553,7 @@ export default function TodayPage({
             const name = titleCase(b.name);
             return (
               <div className="pad-x" key={b.id}>
-                <SwipeShell actions={verbs}>
+                <SwipeShell actions={verbs} menuTitle={name}>
                   {/* ROW-TAP (Dave 2026-09-15: "I want all rows clickable"). */}
                   <div className="row" {...(door ? rowDoor(door) : {})}>
                     <div className="av av-32 cat-bg-pink">{b.name.trim().split(/\s+/).map((w) => w[0]).slice(0, 2).join("").toUpperCase()}</div>

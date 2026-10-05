@@ -142,7 +142,11 @@ describe("TodayFlow: the Momentum Chain (UP-CORE-09)", () => {
   // length; the dealt row (MoveHeadliner) carries a Done rail instead.
   const findChain = () => [...document.querySelectorAll(".notice-swipe")]
     .find((s) => s.querySelector(".notice-dismiss") && s.querySelector(".fact.est"));
-  it("offers the next best thing after a tick, and Not Now takes it back", async () => {
+  // AMENDED (Dave 2026-10-05, locked: clean rows, no pills; swipe left is the quick verb). The suggestion is a row
+  // whose verbs are its swipe tray, in the order the finger meets them: Start Now at the edge, Dismiss one slot in
+  // (it counts toward the two that quiet the chain for the day, so it is this row's "Not Now"). No capsule is drawn
+  // on the row; a tap opens the task. The title is Title Case (the catalog), so the fixtures wait on "Book the Field".
+  it("offers the next best thing after a tick, and Dismiss (the tray's second verb) takes it back", async () => {
     const { useTasks } = await import("../data/NotesProvider");
     const { notifyFreshLists } = await import("../data/store");
     const { ENTITY_TASK } = await import("../notes/types");
@@ -163,7 +167,7 @@ describe("TodayFlow: the Momentum Chain (UP-CORE-09)", () => {
     notifyFreshLists(ENTITY_TASK);
     // The TV guide loops the day in copies (Dave 2026-09-27), so a title can
     // be on screen more than once; one is enough.
-    await waitFor(() => expect(screen.getAllByText("Book the field").length).toBeGreaterThan(0));
+    await waitFor(() => expect(screen.getAllByText("Book the Field").length).toBeGreaterThan(0));
 
     // Tick the dealt task; the chain fills the slot it left. The chain is the
     // notice with a Dismiss rail; the dealt row above it has none.
@@ -174,6 +178,12 @@ describe("TodayFlow: the Momentum Chain (UP-CORE-09)", () => {
       return hit!;
     });
     expect(["Email the Coach", "Book the Field"]).toContain(chain.querySelector(".conn-name")?.textContent);
+    // THE ROW'S VERBS ARE THE TRAY: Start Now first, at the edge; Dismiss second, one slot in. Nothing is a capsule.
+    const tray = [...chain.querySelectorAll<HTMLElement>("[data-reveal]")];
+    expect(tray.map((b) => b.textContent)).toEqual(["Start Now", "Dismiss"]);
+    expect(tray[0]!.style.right, "the first verb sits at the edge").toBe("");
+    expect(tray[1]!.style.right, "the second sits one slot in").toBe("88px");
+    expect(chain.querySelector(".pill-act, .row-act, .btn-sm, .quiet-action"), "no pill on the suggestion row").toBeNull();
     // "Keep going" came off the card (2026-09-26) as a second grey that said
     // nothing the slot does not.
     expect(screen.queryByText(/Keep going/)).toBeNull();
@@ -264,7 +274,7 @@ describe("TodayFlow: the Momentum Chain (UP-CORE-09)", () => {
     await svc!.createTask(titles[0]!, { category: "c1", due: today });
     await svc!.createTask(titles[1]!, { category: "c2", due: today });
     notifyFreshLists(ENTITY_TASK);
-    await waitFor(() => expect(screen.getAllByText("Book the field").length).toBeGreaterThan(0));
+    await waitFor(() => expect(screen.getAllByText("Book the Field").length).toBeGreaterThan(0));
 
     fireEvent.click(screen.getAllByLabelText("Mark done")[0]!);
     const due = await waitFor(() => {
@@ -303,7 +313,7 @@ describe("TodayFlow: the Momentum Chain (UP-CORE-09)", () => {
     await svc!.createTask(titles[0]!, { category: "c1", due: yesterday });
     await svc!.createTask(titles[1]!, { category: "c2", due: yesterday });
     notifyFreshLists(ENTITY_TASK);
-    await waitFor(() => expect(screen.getAllByText("Book the field").length).toBeGreaterThan(0));
+    await waitFor(() => expect(screen.getAllByText("Book the Field").length).toBeGreaterThan(0));
 
     fireEvent.click(screen.getAllByLabelText("Mark done")[0]!);
     const late = await waitFor(() => {

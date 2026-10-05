@@ -17,7 +17,7 @@ import { toneFor, type StateWord } from "../stateWord";
 import { lineCase, titleCase } from "../../shared/casing";
 import RowCtxAction from "../../shared/RowCtxAction";
 import type { RowAction } from "../../shared/RowActionSheet";
-import { useRowMenu } from "./useRowMenu";
+import { useRowMenu } from "../../shared/useRowMenu";
 import { minutesLabel } from "../../shared/duration";
 import RetimeSheet from "./RetimeSheet";
 
@@ -158,8 +158,6 @@ export default function DayRow({
   // that: a clipped "15m", "+1h", "Tomorrow", and no way to reach the first.
   // Counting the rendered actions means the rail can never lie again.
   const acts = [!!gymVerb || !!onShift, rep ? !!onSkipToday : !!onPushTomorrow, !!onDelete].filter(Boolean).length;
-  const swipe = useSwipe({ revealW: acts * SCHED_ACT_W, enabled: !!swipeable });
-  const { dx, open, dragging, closeThen } = swipe;
   const title = titleCase(e.data.title);
   const menuActions: RowAction[] = [
     ...(gymVerb ? [{ label: gymVerb.label + (gymDoor?.dayName ? " " + titleCase(gymDoor.dayName) : ""), onPick: gymVerb.run }] : []),
@@ -168,7 +166,10 @@ export default function DayRow({
     ...(swipeable && !rep && onPushTomorrow ? [{ label: "Move to Tomorrow", onPick: onPushTomorrow }] : []),
     ...(swipeable && onDelete ? [{ label: "Delete", destructive: true, onPick: onDelete }] : []),
   ];
-  const { handlers: rowHandlers, sheet } = useRowMenu({ title, actions: menuActions, swipe, enabled: !selecting });
+  const rowMenu = useRowMenu({ title, actions: menuActions, enabled: !selecting, swipeEnabled: !!swipeable });
+  const swipe = useSwipe({ revealW: acts * SCHED_ACT_W, enabled: !!swipeable, onLongPress: rowMenu.onLongPress });
+  const { dx, open, dragging, closeThen } = swipe;
+  const { handlers: rowHandlers, sheet } = rowMenu.bind(swipe);
   const [picking, setPicking] = useState(false);
   const [sizing, setSizing] = useState(false);
   const durs = useRef<HTMLDivElement>(null);

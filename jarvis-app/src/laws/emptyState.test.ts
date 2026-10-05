@@ -123,6 +123,12 @@ const ACTION_ON_SCREEN: Record<string, string> = {
   // door is Log Something in the actions directly under the card; a second
   // one inside would be the duplicate door this roster exists to refuse.
   "brain/HealthBody.tsx · Nothing to Read Yet": "Log Something sits under this card, on this screen",
+  // ADDED (Dave 2026-10-05, locked: a section's action lives in the section head, and a card holding only an action
+  // is not drawn). The empty-day card keeps its own words and loses the Plan My Day capsule that sat inside it; the
+  // capsule is the Today head's, one line above, on this screen. The Email Sections page is the same: Add Section is
+  // the head's capsule right above the empty words.
+  "today/YourDay.tsx · #1": "Plan My Day is the Today head's capsule, directly above the card (Dave 2026-10-05)",
+  "settings/EmailSectionsPage.tsx · No Sections Yet": "Add Section is the head's capsule right above these words (Dave 2026-10-05)",
 };
 
 // REAL DEBT. The action exists but lives on ANOTHER screen, so these fail L7

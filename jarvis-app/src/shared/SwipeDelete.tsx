@@ -1,5 +1,7 @@
 import type { ReactNode } from "react";
 import { useSwipe } from "./useSwipe";
+import { useRowMenu } from "./useRowMenu";
+import type { RowAction } from "./RowActionSheet";
 import { Trash2 } from "./icons";
 
 // SWIPE TO DELETE, FOR LISTS THAT HAD NO GESTURE AT ALL (Dave 2026-09-10:
@@ -22,15 +24,22 @@ import { Trash2 } from "./icons";
 //
 // The moving element carries `.swipe-row`, which is where its
 // `touch-action: pan-y` lives (the roster in editingPrimitives.test.ts).
-export default function SwipeDelete({ label, onDelete, enabled = true, children }: {
+//
+// THE HOLD IS THE CONTEXT MENU (Dave 2026-10-05, locked): a held row opens the menu rather than the tray, and the menu is
+// `menu` (the row's own other moves, if it has any) with Delete last. A row with nothing else is a menu of just Delete.
+export default function SwipeDelete({ label, onDelete, enabled = true, menu = [], children }: {
   /** What is being deleted, for the button's accessible name. */
   label: string;
   onDelete: () => void;
   /** Off while a list is in reorder mode: two gestures on one row is neither. */
   enabled?: boolean;
+  /** The row's other moves for the held-row menu, before Delete (what its sheet holds). */
+  menu?: RowAction[];
   children: ReactNode;
 }) {
-  const swipe = useSwipe({ revealW: 88, enabled });
+  const rowMenu = useRowMenu({ title: label, actions: [...menu, { label: "Delete", destructive: true, onPick: onDelete }], enabled });
+  const swipe = useSwipe({ revealW: 88, enabled, onLongPress: rowMenu.onLongPress });
+  const { handlers, sheet } = rowMenu.bind(swipe);
   return (
     <div className="task-swipe">
       <button className="task-del" onClick={() => swipe.closeThen(onDelete)} aria-label={"Delete " + label}>
@@ -40,10 +49,11 @@ export default function SwipeDelete({ label, onDelete, enabled = true, children 
       <div
         className={"swipe-row" + (swipe.dragging ? " dragging" : "")}
         style={swipe.dx ? { transform: `translateX(${swipe.dx}px)` } : undefined}
-        {...swipe.handlers}
+        {...handlers}
       >
         {children}
       </div>
+      {sheet}
     </div>
   );
 }

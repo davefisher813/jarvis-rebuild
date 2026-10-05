@@ -16,7 +16,7 @@ import { categoriesOf } from "../categories";
 import { catColor, catName } from "../../shared/categories";
 import type { SheetCategory, SheetProject } from "./TaskSheet";
 import { useSwipe } from "../../shared/useSwipe";
-import RowActionSheet, { type RowAction } from "../../shared/RowActionSheet";
+import type { RowAction } from "../../shared/RowActionSheet";
 import RowCtxAction from "../../shared/RowCtxAction";
 import { taskVerb, isStartVerb, type TaskVerb } from "../rowVerb";
 import Provenance from "../../shared/ProvenanceLine";
@@ -27,8 +27,7 @@ import { durLabel } from "../../schedule/durations";
 import { OVERWHELM_ENTER, OVERWHELM_EXIT } from "../overwhelmed";
 import InlineEdit from "../../shared/InlineEdit";
 import HeadMenu from "../../shared/HeadMenu";
-import { useLongPress } from "../../shared/useLongPress";
-import { haptics } from "../../shared/haptics";
+import { useRowMenu } from "../../shared/useRowMenu";
 import { ParentLineGlyph, EnvelopeGlyph } from "../../shared/glyphs";
 import StepCount, { stepsOf, hasUnfinishedSteps } from "../../shared/StepCount";
 import { Nums } from "../../bigger/GoalRowRuled";
@@ -313,31 +312,13 @@ export function TaskRow({
   // The tray, from the edge: the verb, then Tomorrow (unless the verb IS the move), then Delete.
   const showTomorrow = snoozable && derived !== "Move";
   const slots = (verb ? 1 : 0) + (showTomorrow ? 1 : 0) + 1;
-  const { dx, dragging, handlers, open: swipeOpen, closeThen } = useSwipe({
-    revealW: slots * 88,
-    rightW: completable ? 88 : 0,
-    ...(completable ? { onRightCommit: tapCheck } : {}),
-  });
-
-  useEffect(() => {
-    if (t.done && !prevDone.current) {
-      setBurst(true);
-      const id = setTimeout(() => setBurst(false), 650);
-      prevDone.current = t.done;
-      return () => clearTimeout(id);
-    }
-    prevDone.current = t.done;
-  }, [t.done]);
-
   // Rename is a mode the row enters deliberately: it is a line in the long-press
   // menu now, not a gesture of its own. .renaming lifts the row while it is open
   // so the mode is visible rather than silent.
   const [renaming, setRenaming] = useState(false);
   // THE LONG PRESS IS THE CONTEXT MENU (Dave 2026-10-05): every action again, for
   // the person who knows to hold, and never the only way to anything essential.
-  // It fires a beat before useSwipe's own hold would open the tray, and closing
-  // the menu puts the tray back, so the two never fight over one press.
-  const [menu, setMenu] = useState(false);
+  // shared/useRowMenu owns the sheet; useSwipe's hold opens it instead of the tray.
   const title = titleCase(t.text);
   const menuActions: RowAction[] = [
     ...(verb ? [{ label: verb, onPick: runVerb }] : []),
@@ -349,26 +330,26 @@ export function TaskRow({
     ...(onRename && !t.done ? [{ label: "Rename", onPick: () => setRenaming(true) }] : []),
     ...(onDelete ? [{ label: "Delete", destructive: true, onPick: () => onDelete(item.id) }] : []),
   ];
-  const press = useLongPress({
-    onLongPress: () => { haptics.selection(); setMenu(true); },
-    ms: 420,
-    enabled: menuActions.length > 0 && !selecting && !renaming,
+  const rowMenu = useRowMenu({ title, actions: menuActions, enabled: !selecting && !renaming });
+  const swipe = useSwipe({
+    revealW: slots * 88,
+    rightW: completable ? 88 : 0,
+    ...(completable ? { onRightCommit: tapCheck } : {}),
+    onLongPress: rowMenu.onLongPress,
   });
-  // One handler set for the row: the swipe's touch handlers (which also own the
-  // right-click reveal) and the press's, composed. The mouse hold that used to
-  // open the tray is left out: the press opens the menu instead.
-  const rowHandlers = {
-    onTouchStart: (e: React.TouchEvent) => { handlers.onTouchStart(e); press.onTouchStart(e); },
-    onTouchMove: (e: React.TouchEvent) => { handlers.onTouchMove(e); press.onTouchMove(e); },
-    onTouchEnd: () => { handlers.onTouchEnd(); press.onTouchEnd(); },
-    onTouchCancel: press.onTouchCancel,
-    onPointerDown: press.onPointerDown,
-    onPointerMove: press.onPointerMove,
-    onPointerUp: press.onPointerUp,
-    onPointerLeave: press.onPointerLeave,
-    onClickCapture: press.onClickCapture,
-    onContextMenu: (e: React.MouseEvent) => { if (menuActions.length === 0 || selecting) return; e.preventDefault(); haptics.selection(); setMenu(true); },
-  };
+  const { dx, dragging, open: swipeOpen, closeThen } = swipe;
+  const { handlers: rowHandlers, sheet: menuSheet } = rowMenu.bind(swipe);
+
+  useEffect(() => {
+    if (t.done && !prevDone.current) {
+      setBurst(true);
+      const id = setTimeout(() => setBurst(false), 650);
+      prevDone.current = t.done;
+      return () => clearTimeout(id);
+    }
+    prevDone.current = t.done;
+  }, [t.done]);
+
   const verbIcon = derived === "Start" || derived === "Unblock" ? <Zap className="ic" /> : derived === "Move" ? <Forward className="ic" /> : <Check className="ic" />;
 
   return (
@@ -614,13 +595,7 @@ export function TaskRow({
           </>
         )}
       </div>
-      {menu && (
-        <RowActionSheet
-          title={title}
-          actions={menuActions}
-          onCancel={() => { setMenu(false); closeThen(); }}
-        />
-      )}
+      {menuSheet}
     </div>
   );
 }
@@ -659,14 +634,23 @@ export function MomentumRow({
   // quickest verb, with Not Now beside it; swipe right completes. The Start pill
   // that sat on this row is gone, and so is the second reading of it: the tap
   // starts it too.
-  const { dx, dragging, handlers, open: swipeOpen, closeThen } = useSwipe({
+  const title = titleCase(task.data.text);
+  // THE LONG PRESS IS THE CONTEXT MENU (Dave 2026-10-05): the same three lines the tray and the right swipe hold.
+  const rowMenu = useRowMenu({ title, actions: [
+    { label: "Start", onPick: () => onStart(task.id) },
+    { label: "Done", onPick: () => onToggle(task.id) },
+    { label: "Not Now", onPick: onNotNow },
+  ] });
+  const swipe = useSwipe({
     revealW: 176,
     rightW: 88,
     onRightCommit: () => onToggle(task.id),
+    onLongPress: rowMenu.onLongPress,
   });
+  const { dx, dragging, open: swipeOpen, closeThen } = swipe;
+  const { handlers, sheet: menuSheet } = rowMenu.bind(swipe);
   const due = distanceFor(task.data, today);
   const sameArea = !!reason && /^same (category|area)/i.test(reason);
-  const title = titleCase(task.data.text);
   return (
     <div className="task-swipe">
       {/* THE LEADING RAIL, seen only while the finger is moving right. */}
@@ -735,6 +719,7 @@ export function MomentumRow({
           </div>
         </div>
       </div>
+      {menuSheet}
     </div>
   );
 }

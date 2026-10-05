@@ -4,8 +4,7 @@ import LifeHeader, { OptionsButton, type HeaderView } from "../../shared/LifeHea
 import HeadMenu from "../../shared/HeadMenu";
 import OptionsSheet, { type OptionRow } from "../../shared/OptionsSheet";
 import RowActionSheet, { type RowAction } from "../../shared/RowActionSheet";
-import { useLongPress } from "../../shared/useLongPress";
-import { haptics } from "../../shared/haptics";
+import { useRowMenu } from "../../shared/useRowMenu";
 import { Archive, Check, FileText, RotateCcw, Trash2 } from "../../shared/icons";
 import { useSwipe, type SwipeState } from "../../shared/useSwipe";
 import { useSelection } from "../../shared/useSelection";
@@ -82,7 +81,7 @@ const sameFilter = (a: Filter, b: Filter) => JSON.stringify(a) === JSON.stringif
 //   swipe right  nothing: a note has nothing to complete, so it opts out
 //   long press   the context menu, every action again: Add a Line, File Under an Area, the verb, Delete
 //
-// There is no pill on the row. The gesture math is shared/useSwipe's and the press is shared/useLongPress's.
+// There is no pill on the row. The gesture math is shared/useSwipe's and the held-row menu is shared/useRowMenu's.
 type RowDrag = {
   dragging: boolean; style?: React.CSSProperties; handlers: React.HTMLAttributes<HTMLElement>;
   /** The tray is showing (or the row is mid-drag): a tap closes it instead of opening the note. */
@@ -100,24 +99,9 @@ function NoteSwipeRow({ enabled, label, verb, onDelete, forever = false, holdAct
   children: (drag: RowDrag) => ReactNode;
 }) {
   const slots = (verb ? 1 : 0) + (onDelete ? 1 : 0);
-  const swipe = useSwipe({ revealW: slots * 88, enabled: enabled && slots > 0 });
-  const [menuOpen, setMenuOpen] = useState(false);
-  const openMenu = () => { haptics.selection(); setMenuOpen(true); };
-  const press = useLongPress({ onLongPress: openMenu, ms: 420, enabled: enabled && holdActions.length > 0 });
-  // One handler set: the swipe's touch handlers and the press's, composed. The swipe's own mouse hold is left out (the
-  // press opens the menu instead of the tray, so the two never fight over one press).
-  const handlers = {
-    onTouchStart: (e: React.TouchEvent) => { swipe.handlers.onTouchStart(e); press.onTouchStart(e); },
-    onTouchMove: (e: React.TouchEvent) => { swipe.handlers.onTouchMove(e); press.onTouchMove(e); },
-    onTouchEnd: () => { swipe.handlers.onTouchEnd(); press.onTouchEnd(); },
-    onTouchCancel: press.onTouchCancel,
-    onPointerDown: press.onPointerDown,
-    onPointerMove: press.onPointerMove,
-    onPointerUp: press.onPointerUp,
-    onPointerLeave: press.onPointerLeave,
-    onClickCapture: press.onClickCapture,
-    onContextMenu: (e: React.MouseEvent) => { if (!enabled || holdActions.length === 0) return; e.preventDefault(); openMenu(); },
-  };
+  const rowMenu = useRowMenu({ title: label, actions: holdActions, enabled, swipeEnabled: enabled && slots > 0 });
+  const swipe = useSwipe({ revealW: slots * 88, enabled: enabled && slots > 0, onLongPress: rowMenu.onLongPress });
+  const { handlers, sheet } = rowMenu.bind(swipe);
   return (
     <div className="task-swipe">
       {verb && (
@@ -133,8 +117,8 @@ function NoteSwipeRow({ enabled, label, verb, onDelete, forever = false, holdAct
         </button>
       )}
       {children({ dragging: swipe.dragging, style: swipe.dx ? { transform: `translateX(${swipe.dx}px)` } : undefined, handlers,
-        open: swipe.open || swipe.dx !== 0, close: () => swipe.closeThen(), openMenu })}
-      {menuOpen && <RowActionSheet title={label} actions={holdActions} onCancel={() => { setMenuOpen(false); swipe.closeThen(); }} />}
+        open: swipe.open || swipe.dx !== 0, close: () => swipe.closeThen(), openMenu: rowMenu.open })}
+      {sheet}
     </div>
   );
 }
