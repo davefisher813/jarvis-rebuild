@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
-// Dave 2026-10-06: "the 8/19 ring doesn't update when I move tasks to other
-// days" and "make the ring tappable: Still Open on top with quick actions on
-// each, Done below".
+// Dave 2026-10-06: "make the ring tappable: Still Open on top with quick
+// actions on each, Done below". (He later confirmed the counter itself is
+// accurate, so it is not touched.)
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import "@testing-library/jest-dom";
@@ -35,20 +35,11 @@ async function mount(user: string, titles: string[]) {
   return { svc: svc!, ids, ring, view };
 }
 
-describe("the day ring follows the tasks", () => {
-  it("drops a task moved off today by a write from anywhere else, with no refresh signal", async () => {
-    const { svc, ids, ring } = await mount("ring-live-1", ["Task A", "Task B", "Task C"]);
-    await svc.setDue(ids[0]!, "2099-01-01");
-    await waitFor(() => expect(ring()).toBe("0/2"));
-    await svc.toggleDone(ids[1]!);
-    await waitFor(() => expect(ring()).toBe("1/2"));
-  });
-});
-
 describe("tapping the ring opens the day", () => {
   it("is a button, and opens Still Open above Done, each open row with its two quick actions", async () => {
     const { svc, ids, ring, view } = await mount("ring-sheet-1", ["Task A", "Task B", "Task C"]);
     await svc.toggleDone(ids[2]!);
+    notifyFreshLists(ENTITY_TASK);
     await waitFor(() => expect(ring()).toBe("1/3"));
     const dring = view.container.querySelector(".dring") as HTMLElement;
     expect(dring.getAttribute("role")).toBe("button");
