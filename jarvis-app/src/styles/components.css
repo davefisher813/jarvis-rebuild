@@ -261,6 +261,10 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
 .today-hero::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: var(--s-6); z-index: -1; pointer-events: none;
   background: linear-gradient(180deg, var(--bg), transparent); }
 .today-summary { font-size: var(--t-meta); color: var(--tx-3); margin-top: var(--s-1); }
+/* The evening's line is a door onto the day (2026-10-06): a 44px hit area around one line of text, and the press. */
+.today-summary[role="button"] { position: relative; cursor: pointer; }
+.today-summary[role="button"]::after { content: ""; position: absolute; inset: -12px 0; }
+.today-summary[role="button"]:active { opacity: 0.7; }
 
 /* Your Day auto-scroll ticker (catalog 19). CSS-driven loop + pause toggle. */
 /* === TV GUIDE, FROZEN (Dave 2026-09-27): nothing from here to END TV GUIDE

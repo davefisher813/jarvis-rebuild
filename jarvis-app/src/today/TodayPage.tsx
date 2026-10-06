@@ -24,6 +24,7 @@ import { Facts } from "../messages/factsLine";
 import MoveHeadliner, { SwipeShell } from "./MoveHeadliner";
 import { TodayPeek } from "./usePeekOnce";
 import SwipeTip from "../shared/SwipeTip";
+import { pressable } from "../shared/pressable";
 import RowCtxAction from "../shared/RowCtxAction";
 import RowActionSheet from "../shared/RowActionSheet";
 import HeadMore from "../shared/HeadMore";
@@ -875,7 +876,10 @@ export default function TodayPage({
                 : dateLong}
             </div>
             <div className="today-title">{greeting}</div>
-            <div className="today-summary">{evening ? <Facts facts={eveningFacts(evening, movedLine)} /> : parts}</div>
+            {/* THE EVENING'S HEADER IS THE DOOR TOO (Dave 2026-10-06, on the live build: the header said "8 Done Today" as plain text
+                and a tap did nothing). In the evening the ring is gone from the hero (it lives inside How Today Went), so this
+                line is what he sees and what he taps: it opens the same sheet of the day the ring does. */}
+            <div className="today-summary" {...(evening && onOpenRing ? { ...pressable(onOpenRing), "aria-label": "Open today’s tasks" } : {})}>{evening ? <Facts facts={eveningFacts(evening, movedLine)} /> : parts}</div>
             {/* Weather Fact (addendum item 4): the morning line. Threshold-
                 gated; a mild day renders nothing here. */}
             <MorningWeatherLine todayIso={localISODate()} />
