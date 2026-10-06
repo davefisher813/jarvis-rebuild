@@ -1132,3 +1132,7 @@ The first finish drew a second pill behind Start Now, Read and Wrap Up. `.pill-a
 
 - **Cards.** The glass pane in both themes (`--gl-pane`, `--gd-pane`) is now fully opaque. It was translucent, so the Sunrise haze showed through and tinted a card beige or blush depending on where it sat on the screen. Same grey (light) and charcoal (dark) as before, now identical on every card, every screen. `laws/glass.test.ts` refuses any pane stop with alpha below 1.
 - **Icons.** Every icon with a filled twin now shows filled at rest, in both themes. This reverses the same-day D3 ruling (outline at rest in light). Exception: a toggle that is OFF (`aria-pressed="false"` or `aria-selected="false"`) shows the outline, so on versus off still reads. Controls with no filled twin stay outline: search, lightning, chevrons, the ellipsis. The law checks the four rules in `components.css` section 4.
+
+## §BA. The day ring opens onto the day (Dave 2026-10-06)
+
+The hero ring is a button. It opens `DaySheet`, a bottom sheet of the tasks the ring counts (`countsForToday`, the one rule, so the sheet and the number cannot disagree): **Still Open** on top, **Done** below. Each open row has the check (Done) and the row's quiet text verb **Tomorrow** (no capsule on a row); the row is the door to the task. The evening's ring inside How Today Went stays a receipt. The counter itself is Dave's "accurate" and is unchanged.

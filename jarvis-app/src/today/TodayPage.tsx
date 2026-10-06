@@ -237,6 +237,7 @@ export default function TodayPage({
   moveEstimate,
   moveReason,
   onTomorrowMove,
+  onOpenRing,
   fifteen,
   onFifteenDone,
   onFifteenAgain,
@@ -371,6 +372,8 @@ export default function TodayPage({
   moveReason?: string | null;
   /** Books the dealt task into a named open slot tomorrow. */
   onTomorrowMove?: () => void;
+  /** The day ring is a door onto the day it counts (2026-10-06). */
+  onOpenRing?: () => void;
   /** THE FIFTEEN, WHILE IT RUNS (2026-09-16). Present only while a block
    *  started from Start is running or has just run out. `line` is the clock
    *  ("14:32 Left") or the fact that it is up; `over` says which. */
@@ -879,7 +882,7 @@ export default function TodayPage({
           </div>
           {/* C-23 (Astra, 2026-09-12): in the evening the ring lives inside
               How Today Went below and nowhere else, so the hero copy goes. */}
-          {ring && !evening && <DayRing done={ring.done} total={ring.total} />}
+          {ring && !evening && <DayRing done={ring.done} total={ring.total} onOpen={onOpenRing} />}
         </div>
       </div>
       <div ref={condProbe} />
