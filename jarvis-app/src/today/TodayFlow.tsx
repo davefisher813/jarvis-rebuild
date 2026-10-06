@@ -19,6 +19,8 @@ import { useFreshLists } from "../data/useFreshLists";
 import type { TaskItem } from "../tasks/TasksService";
 import { onProfileName } from "../profile/profileName";
 import { greetingFor, longDate, shortDate } from "./greeting";
+import DaySheet from "./DaySheet";
+import { useTaskWrites } from "./useTaskWrites";
 import { tomorrowISO, nowHHMM, daySummary, dayRing, todaysTasks, billsLine, dueBills, payTarget } from "./todayData";
 import TodayPage from "./TodayPage";
 import MailNotices, { type MailActResult } from "./MailNotices";
@@ -822,6 +824,9 @@ export default function TodayFlow({
   // The bill card also draws ledger bills, so a bill changed on another device
   // repaints it (a separate call: the line above is Law 12's exact match).
   useFreshLists([ENTITY_MONEY_BILL], reload);
+  // Any task write by this device (a move off today, a tick, a delete) recounts the ring and the lists.
+  useTaskWrites(reload);
+  const [daySheetOpen, setDaySheetOpen] = useState(false);
   // Mark Paid for a ledger bill from the bill card: the same door the Money
   // tab uses (confirm, or one tap with Undo), so the two cannot disagree.
   const ledgerPay = useMarkBillPaid(reload);
@@ -4350,6 +4355,7 @@ export default function TodayFlow({
       moveEstimate={moveEstimate}
       moveReason={movePlacement}
       onTomorrowMove={moveTask ? () => void moveToTomorrow(moveTask) : undefined}
+      onOpenRing={() => setDaySheetOpen(true)}
       fifteen={liveFifteenFace}
       onFifteenDone={() => void fifteenDone()}
       onFifteenAgain={() => void fifteenAgain()}
@@ -4670,6 +4676,16 @@ export default function TodayFlow({
           onDone={() => { void reload(); }}
         />
       </Suspense>
+    )}
+    {daySheetOpen && (
+      <DaySheet
+        tasks={taskItems}
+        today={today}
+        onToggle={(id) => void onToggleTask(id)}
+        onTomorrow={(t) => void moveToTomorrow(t)}
+        onOpen={(id) => { setDaySheetOpen(false); void onOpenTask(id); }}
+        onClose={() => setDaySheetOpen(false)}
+      />
     )}
     {ritual && (
       <RitualSheet
