@@ -48,7 +48,7 @@ equal after normalising (lowercase, punctuation stripped). Constants are in
 
 ## Deploy order
 
-`jarvis-core/supabase/migrations/0042_money_ledger.sql` registers the two new
+`jarvis-core/supabase/migrations/0055_money_ledger.sql` (was 0042, renumbered 2026-10-06) registers the two new
 entity types. It must be applied to production BEFORE the app build that writes
 them ships, or every Add Bill / Save Receipt is a dead button.
 
