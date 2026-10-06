@@ -278,7 +278,6 @@ function DaySet({
                 <HeldProposalRow
                   key={"p" + b.taskId}
                   block={b}
-                  time={fmtTime(b.start).time + " " + fmtTime(b.start).ap}
                   onOpen={() => proposed?.onOpen?.(b.taskId)}
                   {...(proposed?.onComplete ? { onComplete: () => proposed.onComplete!(b.taskId) } : {})}
                   {...(proposed?.onAccept ? { onAccept: () => proposed.onAccept!(b.taskId) } : {})}

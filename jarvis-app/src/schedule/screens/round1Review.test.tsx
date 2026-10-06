@@ -156,7 +156,10 @@ describe("the grid and the key, read off the stylesheet", () => {
     const rule = (sel: string) => [...comp.matchAll(/([^{}]+)\{([^}]*)\}/g)].filter((x) => x[1]!.trim() === sel).map((x) => x[2]).join(" ");
     expect(rule(".block-nest")).toMatch(/border-left:\s*0/);
     expect(rule(".block-nest")).toMatch(/padding-left:\s*0/);
-    expect(rule(".block-held-col .block-held-facts")).toMatch(/flex-wrap:\s*wrap/);
+    // AMENDED 2026-10-05 (Dave: a proposed task is exactly two lines, the name and "4:45 PM · PROPOSED · 30 Min"): the details are
+    // ONE line across the whole row, never wrapped to a third.
+    expect(rule(".block-held-col .block-held-facts")).toMatch(/flex-wrap:\s*nowrap/);
+    expect(rule(".block-held-col .block-held-facts")).toMatch(/grid-column:\s*1 \/ -1/);
   });
 
   it("a length is the key's sky estimate, never the brand red that means late or tap", () => {
