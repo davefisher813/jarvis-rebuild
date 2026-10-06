@@ -18,7 +18,7 @@ Element.prototype.scrollIntoView = Element.prototype.scrollIntoView ?? (() => {}
 
 type Svc = import("../tasks/TasksService").TasksService;
 
-async function mount(user: string, titles: string[]) {
+async function mount(user: string, titles: string[], opts: { ring?: boolean } = {}) {
   let svc: Svc | null = null;
   function Grab() { svc = useTasks(); return null; }
   const view = render(
@@ -31,7 +31,7 @@ async function mount(user: string, titles: string[]) {
   for (const t of titles) ids.push((await svc!.createTask(t, { category: "c1", due: todayISO(), estimateMin: 15 }))!);
   notifyFreshLists(ENTITY_TASK);
   const ring = () => view.container.querySelector(".dring b")?.textContent;
-  await waitFor(() => expect(ring()).toBe(`0/${titles.length}`));
+  if (opts.ring !== false) await waitFor(() => expect(ring()).toBe(`0/${titles.length}`));
   return { svc: svc!, ids, ring, view };
 }
 
@@ -80,5 +80,28 @@ describe("tapping the ring opens the day", () => {
     const sheet = await screen.findByRole("dialog", { name: "Today’s Tasks" });
     fireEvent.click(within(sheet).getByRole("button", { name: "Done" }));
     await waitFor(() => expect(screen.queryByRole("dialog", { name: "Today’s Tasks" })).toBeNull());
+  });
+});
+
+// DAVE 2026-10-06, on the live build: the header said "8 Done Today" as plain text and tapping it did nothing. In the
+// evening the hero ring is gone and this line is the header, so it is the door.
+describe("the evening header opens the day too", () => {
+  it("the done-today line is a button that opens the same sheet", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date(new Date().setHours(21, 30, 0, 0)));
+    try {
+      const { ids, svc, view } = await mount("ring-evening-1", ["Task A", "Task B"], { ring: false });
+      await svc.toggleDone(ids[0]!);
+      notifyFreshLists(ENTITY_TASK);
+      const line = await waitFor(() => {
+        const el = view.container.querySelector(".today-summary") as HTMLElement;
+        expect(el.getAttribute("role")).toBe("button");
+        return el;
+      });
+      expect(view.container.querySelector(".dring")).toBeNull();
+      fireEvent.click(line);
+      const sheet = await screen.findByRole("dialog", { name: "Today’s Tasks" });
+      expect([...sheet.querySelectorAll(".sh2 .t")].map((n) => n.textContent)).toEqual(["Still Open", "Done"]);
+    } finally { vi.useRealTimers(); }
   });
 });

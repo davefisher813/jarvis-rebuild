@@ -1136,3 +1136,5 @@ The first finish drew a second pill behind Start Now, Read and Wrap Up. `.pill-a
 ## §BA. The day ring opens onto the day (Dave 2026-10-06)
 
 The hero ring is a button. It opens `DaySheet`, a bottom sheet of the tasks the ring counts (`countsForToday`, the one rule, so the sheet and the number cannot disagree): **Still Open** on top, **Done** below. Each open row has the check (Done) and the row's quiet text verb **Tomorrow** (no capsule on a row); the row is the door to the task. The evening's ring inside How Today Went stays a receipt. The counter itself is Dave's "accurate" and is unchanged.
+
+**Addendum to §BA (2026-10-06, found on the live build).** In the evening the hero ring is gone (it lives inside How Today Went), and the header is the plain line "N Done Today". That line is now the door: it is a button with a 44px hit area and opens the same `DaySheet`. The first release made only the daytime ring tappable, so the evening, when Dave opens the app to see how the day went, did nothing on a tap. `DayRing.sheet.test.tsx` holds both doors.
