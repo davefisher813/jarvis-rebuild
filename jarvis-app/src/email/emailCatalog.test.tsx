@@ -14,7 +14,7 @@
 //   - every word the app writes in a fact is Title Case (small words lowercase).
 // Each screen below renders the REAL component through the real markup and runs
 // the same check. The old strings failed it; the fixes pass it.
-import { describe, it, expect, afterEach } from "vitest";
+import { describe, it, expect, afterEach, beforeAll, afterAll, vi } from "vitest";
 import { render, cleanup, screen, waitFor, within, fireEvent } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import type { RpcClient } from "../substrate/commands/errors";
@@ -93,6 +93,10 @@ export function catalogViolations(root: ParentNode): string[] {
 
 const NOW = new Date("2026-10-05T12:00:00");
 const TODAY = "2026-10-05";
+// THE CLOCK IS PINNED (2026-10-06): the fixtures say "Today" relative to 2026-10-05, but the components read the real clock, so the
+// file failed for everyone the day the date rolled. Only Date is faked, so waitFor and the timers are untouched. Test-only.
+beforeAll(() => { vi.useFakeTimers({ toFake: ["Date"] }); vi.setSystemTime(NOW); });
+afterAll(() => { vi.useRealTimers(); });
 const noClient: RpcClient = { rpc: async () => ({ data: { error: "NOT_FOUND" }, error: null }) };
 const noop = () => {};
 

@@ -1,5 +1,5 @@
 import { useRef } from "react";
-import { catColor, catName } from "../../shared/categories";
+import { catColor } from "../../shared/categories";
 import { useChipInView } from "../../shared/useChipInView";
 import { useSwipe } from "../../shared/useSwipe";
 import { pressable } from "../../shared/pressable";
@@ -79,6 +79,7 @@ export default function ProposedRow({
   onOpen?: () => void;
 }) {
   const t = fmtTime(block.start);
+  const sep = <span className="sched-sep">&middot;</span>;
   const slot = catColor(block.category);
   const mins = blockMinutes(block);
   const title = titleCase(block.text);
@@ -142,30 +143,15 @@ export default function ProposedRow({
               <div className="task-check" />
             </div>
           )}
-          <div className="sched-time">{t.time}<span className="ampm">{t.ap}</span></div>
           <div className="sched-body">
             <div className="sched-title"><span className="sched-t">{title}</span></div>
+            {/* TWO LINES, EXACTLY (Dave 2026-10-05): the name, then "4:45 PM · PROPOSED · 30 Min". The time LEADS the details line,
+                so a proposed row has no time column of its own and nothing on a third line. Each fact is its own unit with its
+                own separator (DayRow's rule), so a wrap can only happen between facts. */}
             <div className="sched-cat">
-              {/* Each fact its own unit, separator and all, like DayRow's
-                  line (2026-09-27): the one-row layout drops facts from the
-                  end one at a time, so a loose dot and a loose word cannot
-                  be, and the state word leads the line the way it leads an
-                  event row's (C-28). */}
-              {/* The word does the work the dashes started. Its own segment, so
-                  the dot-break casing law applies and it reads as a state, not
-                  as part of the category name.
-                  C-28 (Astra, 2026-09-12): and the word is the state word now,
-                  in the closed vocabulary's own small caps. .prop-tag stays on
-                  it for the rule that keeps live information off --tx-4. */}
-              <span className="sched-fact">
-                <span className="prop-tag fact st gray">Proposed</span>
-              </span>
-              {/* No separator between the state word and the category: the dot
-                  divides them, the same as an event row's "FIXED • Family". */}
-              <span className="sched-fact">
-                <span className={"cat-dot cat-bg-" + slot} />
-                {catName(block.category)}
-              </span>
+              <span className="sched-fact"><span className="fact date">{t.time} {t.ap}</span></span>
+              <span className="sched-fact">{sep}<span className="prop-tag fact st gray">Proposed</span></span>
+              <span className="sched-fact">{sep}<span className="fact"><b>{spanLabel(mins)}</b></span></span>
             </div>
           </div>
         </div>
@@ -198,15 +184,13 @@ export default function ProposedRow({
 // protected block's own row, so it cannot carry a swipe of its own (the block's rail is under the same finger); its Accept
 // capsule is the first line of the long-press menu now, beside Edit Task and Move to Anytime, and the tap opens the task as it
 // always has. Absent an editor the tap is the toggle it always was.
-export function HeldProposalRow({ block, onOpen, onAccept, onDrop, onComplete, time }: {
+export function HeldProposalRow({ block, onOpen, onAccept, onDrop, onComplete }: {
   block: PlanBlock;
   onOpen: () => void;
   onAccept?: () => void;
   onDrop?: () => void;
   /** Today's day card ticks a held task off from here (2026-09-15): the ring leads the row where the hollow dot would. */
   onComplete?: () => void;
-  /** The held task's own start, a neutral small-caps fact ahead of "Proposed" (Today shows it; the Schedule's nest does not). */
-  time?: string;
 }) {
   const title = titleCase(block.text);
   const actions: RowAction[] = [
@@ -249,7 +233,7 @@ export function HeldProposalRow({ block, onOpen, onAccept, onDrop, onComplete, t
       <div className="block-held-col">
       <span className="block-held-t">{title}</span>
       <span className="facts block-held-facts">
-        {time && <span className="fact date">{time}</span>}
+        <span className="fact date">{fmtTime(block.start).time} {fmtTime(block.start).ap}</span>
         <span className="fact st gray">Proposed</span>
         {/* A length that cannot be tapped is a number with no state: white, not a second grey beside the block's own
             kicker (§AK, §AM). 2026-10-05 (the catalog gate): spanLabel spells it "45 Min" and "1h 30m"; it was glued

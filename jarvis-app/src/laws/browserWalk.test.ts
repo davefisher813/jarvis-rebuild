@@ -974,7 +974,9 @@ describe("LAW: the schedule rail leads the row, so nothing can get in front of i
     for (const f of ["schedule/screens/DayRow.tsx", "schedule/screens/ProposedRow.tsx"]) {
       const src = readFileSync(join(SRC, f), "utf8");
       const from = src.indexOf("sched-bar");
-      const to = src.indexOf("sched-time");
+      // A proposed row has no time column since 2026-10-05 (Dave: two lines, the time LEADS the details line), so its time is the
+      // first "fact date" it draws.
+      const to = f.endsWith("ProposedRow.tsx") ? src.indexOf("fact date") : src.indexOf("sched-time");
       expect(from, f + " draws the rail").toBeGreaterThan(-1);
       expect(to, f + " draws the time").toBeGreaterThan(from);
       // Whatever leads the row now leads it AFTER the rail, which is the

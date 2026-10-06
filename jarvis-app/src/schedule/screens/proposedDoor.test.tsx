@@ -2,7 +2,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent, cleanup } from "@testing-library/react";
 import "@testing-library/jest-dom";
-import ProposedRow from "./ProposedRow";
+import ProposedRow, { HeldProposalRow } from "./ProposedRow";
 import SchedulePage from "./SchedulePage";
 import type { PlanBlock } from "../planDay";
 
@@ -137,5 +137,27 @@ describe("on the Schedule tab, tapping a proposed task answers the same way wher
     render(<SchedulePage {...day} proposed={p} />);
     fireEvent.click(screen.getByText("Reply to Nadia"));
     expect(p.onToggle).toHaveBeenCalledWith("t2");
+  });
+});
+
+// A PROPOSED TASK IS TWO LINES (Dave 2026-10-05, the exact spec): the name, then the details on ONE line with the time FIRST:
+// "4:45 PM · PROPOSED · 30 Min". Both the standalone row and the one nested in a block, on Today and on the Schedule tab.
+describe("a proposed task is the name and one details line that leads with its time", () => {
+  const blk: PlanBlock = { taskId: "t9", text: "Cleanup Backend/storage", category: "work", start: "16:45", end: "17:15" };
+  const details = (el: Element | null) => (el?.textContent ?? "").replace(/\s+/g, " ").replace(/\s*·\s*/g, " · ").trim();
+
+  it("the standalone row: no time column, details read time, PROPOSED, length", () => {
+    const { container } = render(<ProposedRow block={blk} open={false} onToggle={() => {}} onDuration={() => {}} onDrop={() => {}} />);
+    expect(container.querySelector(".sched-time"), "no separate time column").toBeNull();
+    expect(container.querySelector(".sched-t")!.textContent).toBe("Cleanup Backend/storage");
+    expect(details(container.querySelector(".sched-cat"))).toBe("4:45 PM · Proposed · 30 Min");
+    expect(container.querySelectorAll(".sched-cat .fact.date, .sched-cat .fact.st").length).toBe(2);
+  });
+
+  it("the row nested in a block says the same", () => {
+    const { container } = render(<HeldProposalRow block={blk} onOpen={() => {}} />);
+    expect(container.querySelector(".block-held-t")!.textContent).toBe("Cleanup Backend/storage");
+    const facts = Array.from(container.querySelectorAll(".block-held-facts > .fact")).map((f) => f.textContent);
+    expect(facts).toEqual(["4:45 PM", "Proposed", "30 Min"]);
   });
 });
