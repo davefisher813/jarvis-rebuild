@@ -20,7 +20,7 @@
 export const config = { runtime: "edge" };
 
 import { authedUser, fail, failResponse, gmail, json, readEnv, serviceRpc, serviceSelect, type EmailEnv } from "../_email";
-import { decrypt, refreshAccessToken } from "../_google";
+import { getAccessToken } from "../_google";
 import {
   COVERAGE_DAYS, REPROVE_AFTER_MS, deliveryOf, deriveStatus, type AccountStatus, type ReadOutcome, type RefreshOutcome,
 } from "../../src/connections/connectionStatus";
@@ -52,40 +52,35 @@ async function readAccounts(env: EmailEnv, userId: string): Promise<AccountRow[]
 }
 
 async function prove(env: EmailEnv, userId: string, email: string, lastSyncAt: string | null, previous: AccountStatus | null, now: Date): Promise<AccountStatus> {
-  const rows = await serviceSelect<{ token_enc: string }>(env, "google_tokens", `user_id=eq.${userId}&email=eq.${encodeURIComponent(email)}&select=token_enc`);
   const previousRefreshAt = previous?.lastSuccessfulRefreshAt ?? null;
   const derive = (refresh: RefreshOutcome | null, read: ReadOutcome | null) =>
     deriveStatus({ email, refresh, read, lastSyncAt, now, previousRefreshAt });
 
-  // A failed SELECT says nothing about the sign-in. Report it as unreachable, never as "no sign-in".
-  if (rows === null) return derive({ thrown: true }, null);
-  const row = rows[0];
-  if (!row) return derive(null, null);
-
-  let stored: string;
+  // The proof is a REAL refresh, through the one path every consumer uses (api/_google.ts). That path never uses a DEAD grant and
+  // never asks Google about one, so a revoked account is reported revoked without another doomed call.
+  let got: Awaited<ReturnType<typeof getAccessToken>>;
   try {
-    stored = await decrypt(row.token_enc, env.tokenKey);
-  } catch {
-    return derive({ ok: false, error: "invalid_grant" }, null);
-  }
-
-  let refreshed: Awaited<ReturnType<typeof refreshAccessToken>>;
-  try {
-    refreshed = await within(refreshAccessToken(stored, env.clients), PROOF_TIMEOUT_MS);
+    got = await within(getAccessToken(env, { userId, email, source: "status", force: true }), PROOF_TIMEOUT_MS);
   } catch {
     return derive({ thrown: true }, null);
   }
-  if (!refreshed.ok) return derive({ ok: false, error: refreshed.error }, null);
+  if (!got.ok) {
+    // A failed read of storage says nothing about the sign-in: unreachable, never "no sign-in".
+    if (got.kind === "no_signin") return derive(null, null);
+    if (got.kind === "revoked" || got.kind === "unreadable") return derive({ ok: false, error: "invalid_grant" }, null);
+    if (got.kind === "storage" || got.code === "GOOGLE_NETWORK_ERROR") return derive({ thrown: true }, null);
+    return derive({ ok: false, error: "refresh_unavailable" }, null);
+  }
 
   let read: ReadOutcome;
   try {
-    const a = await within(gmail(refreshed.got.accessToken, "/profile", { safeRead: true }), PROOF_TIMEOUT_MS);
+    const a = await within(gmail(got.accessToken, "/profile", { safeRead: true }), PROOF_TIMEOUT_MS);
     const body = a.body as { emailAddress?: string } | null;
     read = { ok: a.ok, status: a.status, ...(body?.emailAddress ? { emailAddress: body.emailAddress } : {}) };
   } catch {
     read = { ok: false, status: 0 };
   }
-  return derive({ ok: true, ...(refreshed.got.scope ? { scope: refreshed.got.scope } : {}) }, read);
+  return derive({ ok: true, ...(got.scope ? { scope: got.scope } : {}) }, read);
 }
 
 export default async function handler(req: Request): Promise<Response> {

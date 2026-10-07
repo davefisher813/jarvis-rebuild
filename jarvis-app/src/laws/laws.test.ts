@@ -2079,6 +2079,10 @@ describe("LAW: every module is reachable, or is listed as not", () => {
     // assistant reaches api/agent.ts by URL with its own token; nothing in
     // the app imports it, by design.
     "agent.ts",
+    // The Google token keep-alive (Foundation Fix Spec 2): Vercel's cron
+    // reaches api/cron/token-keepalive.ts by URL on a schedule (vercel.json),
+    // with the project's CRON_SECRET. Nothing imports it, by design.
+    "token-keepalive.ts",
   ];
 
   // Written, tested, and NOT reachable from the running app. Each line is a

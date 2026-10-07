@@ -7,7 +7,7 @@
 // browser reads the cache through its own session. Nothing here extracts,
 // ranks or infers; nothing here runs on a schedule.
 
-import { decrypt, refreshAccessToken, type GoogleClients } from "./_google";
+import { getAccessToken, type GoogleClients, type TokenSource } from "./_google";
 import { extractBody, extractHtml, type GmailFull, type GmailHeader, type GmailMeta, type GmailPart } from "../src/connections/google/map";
 
 export interface EmailEnv {
@@ -15,6 +15,8 @@ export interface EmailEnv {
   anon: string;
   service: string;
   tokenKey: string;
+  /** The key-encryption key GOOGLE_TOKEN_KEY replaced, accepted while secrets are rewritten under the new one. */
+  tokenKeyPrev?: string;
   clients: GoogleClients;
 }
 
@@ -24,13 +26,14 @@ export function readEnv(): EmailEnv | null {
   const anon = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || "";
   const service = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
   const tokenKey = process.env.GOOGLE_TOKEN_KEY || "";
+  const tokenKeyPrev = process.env.GOOGLE_TOKEN_KEY_PREV || "";
   const clients: GoogleClients = {
     clientId: process.env.GOOGLE_CLIENT_ID || process.env.VITE_GOOGLE_CLIENT_ID || "",
     clientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
     iosClientId: process.env.GOOGLE_IOS_CLIENT_ID || process.env.VITE_GOOGLE_IOS_CLIENT_ID || "",
   };
   if (!supaUrl || !anon || !service || !tokenKey || !clients.clientId) return null;
-  return { supaUrl, anon, service, tokenKey, clients };
+  return { supaUrl, anon, service, tokenKey, ...(tokenKeyPrev ? { tokenKeyPrev } : {}), clients };
 }
 
 export const EMAIL_CODES = ["AUTH_REQUIRED", "PROVIDER_AUTH", "RATE_LIMITED", "UNAVAILABLE", "NOT_FOUND", "INVALID_PAYLOAD", "STORAGE_LIMIT"] as const;
@@ -130,9 +133,12 @@ export async function ensureAccount(env: EmailEnv, userId: string, email: string
   // A mailbox row mirrors a stored sign-in. With none for this address: a row that already exists is answered as it
   // is (so the failed refresh that follows can mark it reauth), and an address with no row creates nothing. A request
   // body never births a mailbox; the picker does (accounts.ts), from the sign-ins that exist.
-  const signIn = await serviceSelect<{ email: string }>(env, "google_tokens", `user_id=eq.${userId}&email=eq.${encodeURIComponent(email)}&select=email`);
+  // A DEAD sign-in (Spec 2: Google revoked it, and the row is kept for audit) is not a sign-in in use: it must not be
+  // upserted back to "connected", so it is answered like no sign-in at all, from the mailbox row that already exists.
+  const signIn = (await serviceSelect<{ email: string; state?: string }>(env, "google_tokens", `user_id=eq.${userId}&email=eq.${encodeURIComponent(email)}&select=email,state`))
+    ?? (await serviceSelect<{ email: string }>(env, "google_tokens", `user_id=eq.${userId}&email=eq.${encodeURIComponent(email)}&select=email`));
   if (signIn === null) return fail("UNAVAILABLE");
-  if (!signIn[0]) {
+  if (!signIn[0] || (signIn[0] as { state?: string }).state === "DEAD") {
     const known = await serviceSelect<{ id: string; cursor: string | null; state: string }>(env, "email_account", `owner_id=eq.${userId}&address=eq.${encodeURIComponent(email.toLowerCase())}&select=id,cursor,state`);
     if (known === null) return fail("UNAVAILABLE");
     return known[0] ?? fail("PROVIDER_AUTH");
@@ -145,37 +151,51 @@ export async function ensureAccount(env: EmailEnv, userId: string, email: string
   return row ?? { id, cursor: null, state: "connected" };
 }
 
-/** A fresh access token for this person's stored sign-in to this address. Never leaves the server. */
-export async function mailboxToken(env: EmailEnv, userId: string, email: string): Promise<{ ok: true; accessToken: string } | { ok: false; fail: Fail; reauth: boolean }> {
-  const rows = await serviceSelect<{ token_enc: string }>(env, "google_tokens", `user_id=eq.${userId}&email=eq.${encodeURIComponent(email)}&select=token_enc`);
-  if (rows === null) return { ok: false, fail: fail("UNAVAILABLE"), reauth: false };
-  const row = rows[0];
-  if (!row) return { ok: false, fail: fail("PROVIDER_AUTH"), reauth: true };
-  let stored: string;
-  try {
-    stored = await decrypt(row.token_enc, env.tokenKey);
-  } catch {
-    return { ok: false, fail: fail("PROVIDER_AUTH"), reauth: true };
+/** What a Gmail call needs to authenticate, and how to renew it once if Gmail answers 401. */
+export interface MailboxAuth {
+  accessToken: string;
+  renew?: () => Promise<string | null>;
+}
+
+/** A fresh access token for this person's stored sign-in to this address. Never leaves the server.
+ *  It is getAccessToken (api/_google.ts) and nothing else: the cache, the single-flight lock, the error taxonomy and the one
+ *  revocation path all live there, so this route and the sign-in function cannot come to disagree about a grant. */
+export async function mailboxToken(env: EmailEnv, userId: string, email: string, source: TokenSource = "email"):
+  Promise<({ ok: true } & MailboxAuth) | { ok: false; fail: Fail; reauth: boolean }> {
+  const got = await getAccessToken(env, { userId, email, source });
+  if (got.ok) {
+    return {
+      ok: true,
+      accessToken: got.accessToken,
+      renew: async () => {
+        const again = await getAccessToken(env, { userId, email, source, force: true });
+        return again.ok ? again.accessToken : null;
+      },
+    };
   }
-  let got: Awaited<ReturnType<typeof refreshAccessToken>>;
-  try {
-    got = await refreshAccessToken(stored, env.clients);
-  } catch {
-    return { ok: false, fail: fail("UNAVAILABLE"), reauth: false };
-  }
-  if (!got.ok) {
-    const revoked = /invalid_grant|invalid_client|unauthorized_client/i.test(got.error);
-    return { ok: false, fail: fail(revoked ? "PROVIDER_AUTH" : "UNAVAILABLE"), reauth: revoked };
-  }
-  return { ok: true, accessToken: got.got.accessToken };
+  // A grant that is gone, missing or unreadable needs the person; Google or the database being unwell does not.
+  const reauth = got.kind === "revoked" || got.kind === "no_signin" || got.kind === "unreadable";
+  return { ok: false, fail: fail(reauth ? "PROVIDER_AUTH" : "UNAVAILABLE"), reauth };
 }
 
 const GMAIL = "https://gmail.googleapis.com/gmail/v1/users/me";
 
 export interface GmailAnswer { ok: boolean; status: number; body: unknown; retryAfter?: number }
 
-/** One Gmail call. Safe reads retry on a 5xx or a dropped connection, three times at most, honouring Retry-After; writes never retry. */
-export async function gmail(accessToken: string, path: string, init: { method?: string; body?: unknown; safeRead?: boolean } = {}): Promise<GmailAnswer> {
+/** One Gmail call. A 401 renews the token ONCE and retries ONCE, then it is the caller's to escalate (a 401 means the request was
+ *  not processed, so repeating even a write is safe; looping would be the failure the lifecycle exists to prevent). */
+export async function gmail(auth: string | MailboxAuth, path: string, init: { method?: string; body?: unknown; safeRead?: boolean } = {}): Promise<GmailAnswer> {
+  const a = typeof auth === "string" ? { accessToken: auth } : auth;
+  const first = await gmailOnce(a.accessToken, path, init);
+  if (first.status === 401 && a.renew) {
+    const fresh = await a.renew();
+    if (fresh) return gmailOnce(fresh, path, init);
+  }
+  return first;
+}
+
+/** One Gmail request. Safe reads retry on a 5xx or a dropped connection, three times at most, honouring Retry-After; writes never retry. */
+async function gmailOnce(accessToken: string, path: string, init: { method?: string; body?: unknown; safeRead?: boolean } = {}): Promise<GmailAnswer> {
   const tries = init.safeRead ? 3 : 1;
   let last: GmailAnswer = { ok: false, status: 0, body: null };
   for (let i = 0; i < tries; i++) {
@@ -292,7 +312,7 @@ export function decodeEntities(s: string): string {
 export const META_FIELDS = "format=metadata&metadataHeaders=From&metadataHeaders=To&metadataHeaders=Cc&metadataHeaders=Subject&metadataHeaders=Date";
 
 /** Metadata for many ids, a few at a time; a 404 is a message that left. */
-export async function fetchMetas(accessToken: string, ids: readonly string[], concurrency = 6): Promise<{ rows: CachedRow[]; gone: string[]; failed: Fail | null }> {
+export async function fetchMetas(auth: string | MailboxAuth, ids: readonly string[], concurrency = 6): Promise<{ rows: CachedRow[]; gone: string[]; failed: Fail | null }> {
   const rows: CachedRow[] = [];
   const gone: string[] = [];
   let failed: Fail | null = null;
@@ -300,7 +320,7 @@ export async function fetchMetas(accessToken: string, ids: readonly string[], co
   const worker = async () => {
     while (i < ids.length && !failed) {
       const id = ids[i++]!;
-      const a = await gmail(accessToken, `/messages/${encodeURIComponent(id)}?${META_FIELDS}`, { safeRead: true });
+      const a = await gmail(auth, `/messages/${encodeURIComponent(id)}?${META_FIELDS}`, { safeRead: true });
       if (a.ok) rows.push(toCachedRow(a.body as GmailMeta));
       else if (a.status === 404) gone.push(id);
       else failed = gmailFail(a);

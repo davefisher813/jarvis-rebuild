@@ -1,4 +1,4 @@
-import { IOS_TAG, encrypt, decrypt, refreshAccessToken, googleFailure, type GoogleCode } from "./_google";
+import { forgetGrant, getAccessToken, googleFailure, keepSignIn, type GoogleCode, type GoogleStore } from "./_google";
 
 // Persistent Google sign-in (2026-08-04). The ONLY place refresh tokens live.
 //
@@ -9,14 +9,18 @@ import { IOS_TAG, encrypt, decrypt, refreshAccessToken, googleFailure, type Goog
 //   POST {refresh: email}  authed. Decrypts the stored refresh token and
 //                          mints a fresh access token: this is the silent
 //                          "stays signed in" path, no popup involved.
-//                          A revoked grant (Google: invalid_grant) deletes
-//                          the row and returns 410 so the app falls back to
-//                          the interactive connect exactly once.
+//                          A revoked grant (Google: invalid_grant) is marked DEAD
+//                          and KEPT for audit (never deleted, never used again),
+//                          the mailbox moves to reauth, and this returns 410 so
+//                          the app falls back to the interactive connect exactly
+//                          once. See "THE TOKEN LIFECYCLE" in api/_google.ts.
 //                          Every failure carries a stable `code` and a plain
 //                          `message` (see googleFailure in _google.ts), so the
 //                          app can tell a revoked grant from a dead network
 //                          and only opens the chooser for the first.
-//   POST {forget: email}   authed. Deletes the stored token (disconnect).
+//   POST {forget: email}   authed. Disconnect: the token row and the mailbox's
+//                          credential reference are deleted together, and the
+//                          grant is revoked at Google best-effort.
 //
 // Requires: GOOGLE_CLIENT_SECRET, GOOGLE_TOKEN_KEY (32-byte base64) alongside
 // the existing client id + Supabase env.
@@ -62,38 +66,6 @@ async function authedUser(req: Request, supaUrl: string, supaAnon: string): Prom
   return me.id ? { id: me.id } : { fail: "GOOGLE_AUTH_EXPIRED" };
 }
 
-// Store the refresh token Google just sent, or confirm the one already there,
-// and say which. Never throws: every failure is a code.
-async function keepSignIn(o: {
-  rest: string; svc: Record<string, string>; userId: string; email: string; tokenKey: string; fresh: string;
-}): Promise<{ remembered: true } | { remembered: false; code: GoogleCode }> {
-  const { rest, svc, userId, email, tokenKey, fresh } = o;
-  try {
-    if (fresh) {
-      const w = await fetch(rest, {
-        method: "POST",
-        headers: { ...svc, Prefer: "resolution=merge-duplicates,return=minimal" },
-        body: JSON.stringify({ user_id: userId, email, token_enc: await encrypt(fresh, tokenKey), updated_at: new Date().toISOString() }),
-      });
-      return w.ok ? { remembered: true } : { remembered: false, code: "GOOGLE_STORAGE_FAILURE" };
-    }
-    // Google sent no new refresh token. Leave whatever is stored alone.
-    const r = await fetch(rest + "?user_id=eq." + userId + "&email=eq." + encodeURIComponent(email) + "&select=token_enc", { headers: svc });
-    if (!r.ok) return { remembered: false, code: "GOOGLE_STORAGE_FAILURE" };
-    const rows = (await r.json()) as { token_enc: string }[];
-    if (rows.length === 0) return { remembered: false, code: "GOOGLE_NO_STORED_SIGNIN" };
-    if (rows.length !== 1) return { remembered: false, code: "GOOGLE_STORAGE_FAILURE" };
-    try {
-      await decrypt(rows[0]!.token_enc, tokenKey);
-    } catch {
-      return { remembered: false, code: "GOOGLE_STORED_SIGNIN_UNREADABLE" };
-    }
-    return { remembered: true };
-  } catch {
-    return { remembered: false, code: "GOOGLE_STORAGE_FAILURE" };
-  }
-}
-
 export default async function handler(req: Request): Promise<Response> {
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
   const clientId = process.env.VITE_GOOGLE_CLIENT_ID || process.env.GOOGLE_CLIENT_ID || "";
@@ -120,6 +92,11 @@ export default async function handler(req: Request): Promise<Response> {
   const who = await authedUser(req, supaUrl, supaAnon);
   if ("fail" in who) return fail(who.fail);
   const userId = who.id;
+  const store: GoogleStore = {
+    supaUrl, service, tokenKey,
+    ...(process.env.GOOGLE_TOKEN_KEY_PREV ? { tokenKeyPrev: process.env.GOOGLE_TOKEN_KEY_PREV } : {}),
+    clients: { clientId, clientSecret, iosClientId },
+  };
 
   let body: { code?: unknown; refresh?: unknown; forget?: unknown; verifier?: unknown; redirectUri?: unknown };
   try {
@@ -127,9 +104,6 @@ export default async function handler(req: Request): Promise<Response> {
   } catch {
     return json({ error: "Bad request" }, 400);
   }
-
-  const rest = supaUrl + "/rest/v1/google_tokens";
-  const svc = { apikey: service, Authorization: "Bearer " + service, "content-type": "application/json" };
 
   if (typeof body.code === "string" && body.code) {
     // UP-LAUNCH-12 (2026-09-05): two shapes of the same exchange.
@@ -174,7 +148,7 @@ export default async function handler(req: Request): Promise<Response> {
     } catch {
       return fail("GOOGLE_NETWORK_ERROR");
     }
-    const tok = (await r.json().catch(() => ({}))) as { access_token?: string; refresh_token?: string; expires_in?: number; scope?: string; error?: string };
+    const tok = (await r.json().catch(() => ({}))) as { access_token?: string; refresh_token?: string; expires_in?: number; scope?: string; error?: string; refresh_token_expires_in?: number };
     if (!r.ok || !tok.access_token) return json({ error: tok.error || "Exchange failed" }, 400);
 
     // Whose account is this? Google's answer, from the token itself.
@@ -189,24 +163,25 @@ export default async function handler(req: Request): Promise<Response> {
     }
     if (!email) return json({ error: "Could not identify the account" }, 400);
 
-    // DURABLE MEANS STORED (2026-09-29). This answered `remembered: !!refresh_token`
-    // whether or not the write had landed, so a failed upsert (the fetch result
-    // was never even read) still told the app it would stay signed in, and the
-    // first refresh an hour later found nothing. `remembered` is now true only
-    // when a stored token exists and was confirmed: either the one we just
-    // wrote and saw accepted, or, when Google sent no new refresh token (it
-    // does that for an account that already consented), the OLD one, which is
-    // left exactly as it was. A database error on the way is a storage
-    // failure, never "no token".
-    const stored = await keepSignIn({
-      rest, svc, userId, email, tokenKey,
-      fresh: tok.refresh_token ? (native ? IOS_TAG : "") + tok.refresh_token : "",
+    // DURABLE MEANS STORED (2026-09-29). `remembered` is true only when a stored token exists and was confirmed: either the one we
+    // just wrote and saw accepted, or, when Google sent no new refresh token (it does that for an account that already consented),
+    // the OLD one, which is left exactly as it was. A database error on the way is a storage failure, never "no token".
+    // Spec 2: the sign-in is sealed in its own envelope, stored VALID, and the mailbox is mirrored as connected in the SAME
+    // transaction (migration 0057). Consent that returned no refresh token cannot revive a DEAD grant, and says so.
+    const stored = await keepSignIn(store, {
+      userId, email, accessToken: tok.access_token,
+      ...(tok.refresh_token ? { refreshToken: tok.refresh_token } : {}),
+      ...(typeof tok.expires_in === "number" ? { expiresIn: tok.expires_in } : {}),
+      ...(tok.scope ? { scope: tok.scope } : {}),
+      ...(typeof tok.refresh_token_expires_in === "number" ? { refreshTokenExpiresIn: tok.refresh_token_expires_in } : {}),
+      native,
     });
     const why = stored.remembered ? null : googleFailure(stored.code, email);
     return json({
       accessToken: tok.access_token,
       email,
-      expiresIn: tok.expires_in ?? 3600,
+      // Zero when Google said nothing usable: the app refreshes next time rather than assuming an hour.
+      expiresIn: typeof tok.expires_in === "number" && tok.expires_in > 0 ? tok.expires_in : 0,
       remembered: stored.remembered,
       ...(tok.scope ? { scope: tok.scope } : {}),
       ...(why ? { code: why.code, message: why.message, retryable: why.retryable } : {}),
@@ -215,63 +190,24 @@ export default async function handler(req: Request): Promise<Response> {
 
   if (typeof body.refresh === "string" && body.refresh) {
     const email = body.refresh.trim().toLowerCase();
-    let rows: { token_enc: string }[];
-    try {
-      const rowRes = await fetch(rest + "?user_id=eq." + userId + "&email=eq." + encodeURIComponent(email) + "&select=token_enc", { headers: svc });
-      // A failed SELECT is a storage failure. It used to read as an empty
-      // table, which said "no stored sign-in" and started a reconnect for a
-      // person whose sign-in was sitting there untouched.
-      if (!rowRes.ok) return fail("GOOGLE_STORAGE_FAILURE", email);
-      rows = (await rowRes.json()) as { token_enc: string }[];
-    } catch {
-      return fail("GOOGLE_STORAGE_FAILURE", email);
-    }
-    if (rows.length === 0) return fail("GOOGLE_NO_STORED_SIGNIN", email);
-    // One row per (user, email) is the table's shape; anything else is
-    // something wrong with storage, not an answer about the person.
-    if (rows.length !== 1) return fail("GOOGLE_STORAGE_FAILURE", email);
-    let stored: string;
-    try {
-      stored = await decrypt(rows[0]!.token_enc, tokenKey);
-    } catch {
-      return fail("GOOGLE_STORED_SIGNIN_UNREADABLE", email);
-    }
-    // The client fallback lives in _google.ts; what belongs HERE is what to do
-    // when every client refuses the token, because only the sign-in path can
-    // forget a grant and ask the person for a new one.
-    let got: Awaited<ReturnType<typeof refreshAccessToken>>;
-    try {
-      got = await refreshAccessToken(stored, { clientId, clientSecret, iosClientId });
-    } catch {
-      // The request to Google never completed. Nothing is wrong with the
-      // grant, so nothing is forgotten and the app must not open a chooser.
-      return fail("GOOGLE_NETWORK_ERROR", email);
-    }
-    if (!got.ok) {
-      if (got.error === "invalid_grant") {
-        // Revoked at Google: forget it so the app re-asks interactively once.
-        await fetch(rest + "?user_id=eq." + userId + "&email=eq." + encodeURIComponent(email), { method: "DELETE", headers: svc }).catch(() => {});
-        return fail("GOOGLE_SIGNIN_REVOKED", email);
-      }
-      return fail("GOOGLE_REFRESH_UNAVAILABLE", email);
-    }
+    // The one path every consumer uses: a cached token when it is good, one refresh at Google when it is not, never a DEAD grant, and
+    // the one revocation path when Google says the grant is gone. Each failure arrives already carrying the code the app keys on.
+    const got = await getAccessToken(store, { userId, email, source: "app" });
+    if (!got.ok) return fail(got.code, email);
     return json({
-      accessToken: got.got.accessToken,
+      accessToken: got.accessToken,
       email,
-      expiresIn: got.got.expiresIn,
+      expiresIn: got.expiresIn,
       remembered: true, // there is a stored token, or it could not have been refreshed
-      ...(got.got.scope ? { scope: got.got.scope } : {}),
+      ...(got.scope ? { scope: got.scope } : {}),
     });
   }
 
   if (typeof body.forget === "string" && body.forget) {
-    try {
-      const d = await fetch(rest + "?user_id=eq." + userId + "&email=eq." + encodeURIComponent(body.forget.trim().toLowerCase()), { method: "DELETE", headers: svc });
-      if (!d.ok) return fail("GOOGLE_STORAGE_FAILURE", body.forget);
-    } catch {
-      return fail("GOOGLE_STORAGE_FAILURE", body.forget);
-    }
-    return json({ ok: true });
+    // THE KILL SWITCH: invalid locally the moment this answers, revoked at Google best-effort.
+    const gone = await forgetGrant(store, { userId, email: body.forget, source: "app" });
+    if (!gone.ok) return fail("GOOGLE_STORAGE_FAILURE", body.forget);
+    return json({ ok: true, revokedAtGoogle: gone.revokedAtGoogle });
   }
 
   return json({ error: "Bad request" }, 400);

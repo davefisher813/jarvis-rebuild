@@ -62,7 +62,7 @@ export default async function handler(req: Request): Promise<Response> {
   }
 
   if (op === "open") {
-    const a = await gmail(tok.accessToken, `/messages/${encodeURIComponent(providerId)}?format=full`, { safeRead: true });
+    const a = await gmail(tok, `/messages/${encodeURIComponent(providerId)}?format=full`, { safeRead: true });
     if (!a.ok) return failResponse(gmailFail(a));
     const full = a.body as GmailFull;
     const b = bodyOf(full);
@@ -83,12 +83,12 @@ export default async function handler(req: Request): Promise<Response> {
 
   // A label command: the desired state, and Gmail's answer becomes the cache.
   let answer;
-  if (op === "trash") answer = await gmail(tok.accessToken, `/messages/${encodeURIComponent(providerId)}/trash`, { method: "POST" });
-  else if (op === "untrash") answer = await gmail(tok.accessToken, `/messages/${encodeURIComponent(providerId)}/untrash`, { method: "POST" });
+  if (op === "trash") answer = await gmail(tok, `/messages/${encodeURIComponent(providerId)}/trash`, { method: "POST" });
+  else if (op === "untrash") answer = await gmail(tok, `/messages/${encodeURIComponent(providerId)}/untrash`, { method: "POST" });
   else {
     const add = op === "unread" ? ["UNREAD"] : op === "unarchive" ? ["INBOX"] : [];
     const remove = op === "read" ? ["UNREAD"] : op === "archive" ? ["INBOX"] : [];
-    answer = await gmail(tok.accessToken, `/messages/${encodeURIComponent(providerId)}/modify`, { method: "POST", body: { addLabelIds: add, removeLabelIds: remove } });
+    answer = await gmail(tok, `/messages/${encodeURIComponent(providerId)}/modify`, { method: "POST", body: { addLabelIds: add, removeLabelIds: remove } });
   }
   if (!answer.ok) return failResponse(gmailFail(answer));
   const labels = ((answer.body as { labelIds?: string[] }).labelIds ?? []);

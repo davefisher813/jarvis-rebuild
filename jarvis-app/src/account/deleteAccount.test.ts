@@ -128,7 +128,7 @@ describe("what the deletion owes other people", () => {
   const KEY = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
   const withGoogle = { ...CTX, tokenKey: KEY };
 
-  function googleRig(rows: { token_enc?: string }[], opts: { revokeStatus?: number } = {}) {
+  function googleRig(rows: { email?: string; token_enc?: string }[], opts: { revokeStatus?: number } = {}) {
     const calls: Call[] = [];
     const doFetch: FetchLike = async (url, init) => {
       const method = init?.method ?? "GET";
@@ -153,6 +153,31 @@ describe("what the deletion owes other people", () => {
     expect(String(revokes[0]!.body)).toBe("token=refresh-a");
     // Never the service key: this request goes to Google, not to Supabase.
     expect(revokes[0]!.headers["apikey"]).toBeUndefined();
+  });
+
+  it("opens the envelope (bound to its user and address) with the real cipher, and revokes the token without our native tag", async () => {
+    const { sealSecret } = await import("../connections/google/tokenEnvelope");
+    const ring = { current: KEY };
+    const web = await sealSecret("1//web-refresh", ring, { userId: UID, email: "a@x.com", kind: "refresh" });
+    const phone = await sealSecret("ios:1//phone-refresh", ring, { userId: UID, email: "b@x.com", kind: "refresh" });
+    const { calls, doFetch } = googleRig([{ email: "a@x.com", token_enc: web }, { email: "b@x.com", token_enc: phone }]);
+    expect(await revokeGoogleGrants(withGoogle, UID, doFetch)).toEqual({ revoked: 2, failed: 0 });
+    const bodies = calls.filter((c) => c.url === GOOGLE_REVOKE_URL).map((c) => String(c.body));
+    expect(bodies).toEqual(["token=" + encodeURIComponent("1//web-refresh"), "token=" + encodeURIComponent("1//phone-refresh")]);
+  });
+
+  it("a token sealed under the key GOOGLE_TOKEN_KEY replaced is still revoked, during a rotation", async () => {
+    const { sealSecret } = await import("../connections/google/tokenEnvelope");
+    const OLD = "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB=";
+    const sealed = await sealSecret("1//old-key", { current: OLD }, { userId: UID, email: "a@x.com", kind: "refresh" });
+    const { calls, doFetch } = googleRig([{ email: "a@x.com", token_enc: sealed }]);
+    expect(await revokeGoogleGrants({ ...withGoogle, tokenKeyPrev: OLD }, UID, doFetch)).toEqual({ revoked: 1, failed: 0 });
+    expect(String(calls.find((c) => c.url === GOOGLE_REVOKE_URL)!.body)).toBe("token=" + encodeURIComponent("1//old-key"));
+  });
+
+  it("a token that will not open is counted as failed, not guessed at", async () => {
+    const { doFetch } = googleRig([{ email: "a@x.com", token_enc: "v2.deadbeef.AAAA.AAAA" }]);
+    expect(await revokeGoogleGrants(withGoogle, UID, doFetch)).toEqual({ revoked: 0, failed: 1 });
   });
 
   it("a refusal from Google is counted, never fatal: the deletion was asked for", async () => {

@@ -39,6 +39,8 @@ interface World {
   cursor: Record<string, string | null>;
   cached: Record<string, { id: string; subject: string; provider_labels: string[]; attachment_metadata?: unknown[] }>;
   gmail: (method: string, path: string, body: Record<string, unknown> | null) => Response | undefined;
+  /** What Google's token endpoint answers; absent means a good token. */
+  token?: () => Response;
   accountRows?: Array<{ id: string; address: string; state: string }>;
 }
 
@@ -51,7 +53,7 @@ async function stubWorld(w: Partial<World>) {
     calls.push({ url, method, body });
     const u = new URL(url, "https://x.test");
     if (url.includes("/auth/v1/user")) return res({ id: USER });
-    if (url.includes("oauth2.googleapis.com/token")) return res({ access_token: "ya29.secret", expires_in: 3599 });
+    if (url.includes("oauth2.googleapis.com/token")) return world.token ? world.token() : res({ access_token: "ya29.secret", expires_in: 3599 });
     if (url.includes("/rest/v1/google_tokens")) {
       const email = u.searchParams.get("email")?.replace("eq.", "");
       if (email) return res(world.tokens[email] ? [{ token_enc: world.tokens[email] }] : []);
@@ -87,6 +89,8 @@ async function stubWorld(w: Partial<World>) {
       if (got) return got;
       throw new Error("unexpected gmail " + method + " " + path);
     }
+    // The token lifecycle functions (migration 0057) are not applied in this world: the lifecycle degrades to no cache, no lock, no DEAD mark.
+    if (url.includes("/rest/v1/rpc/google_")) return res({}, 404);
     throw new Error("unexpected " + url);
   });
   vi.stubGlobal("fetch", f);
@@ -197,17 +201,30 @@ describe("POST /api/email/sync", () => {
   });
 
   it("a revoked grant at Google's door is the same answer", async () => {
-    const f = await stubWorld({ gmail: listingGmail() });
-    const enc = await encrypt("1//refresh", KEY);
-    f.mockImplementationOnce(async (url: string) => { calls.push({ url, method: "GET", body: null }); return res({ id: USER }); });
-    f.mockImplementationOnce(async (url: string) => { calls.push({ url, method: "GET", body: null }); return res([{ email: DAVE }]); });
-    f.mockImplementationOnce(async (url: string) => { calls.push({ url, method: "POST", body: null }); return res({ account_id: "acct-dave" }); });
-    f.mockImplementationOnce(async (url: string) => { calls.push({ url, method: "GET", body: null }); return res([{ id: "acct-dave", cursor: null, state: "connected" }]); });
-    f.mockImplementationOnce(async (url: string) => { calls.push({ url, method: "GET", body: null }); return res([{ token_enc: enc }]); });
-    f.mockImplementationOnce(async (url: string) => { calls.push({ url, method: "POST", body: null }); return res({ error: "invalid_grant" }, 400); });
+    await stubWorld({ gmail: listingGmail(), token: () => res({ error: "invalid_grant" }, 400) });
     const r = await answer(await syncHandler(post("/api/email/sync", { email: DAVE })));
     expect(r.status).toBe(410);
     expect(r.json).toMatchObject({ code: "PROVIDER_AUTH" });
+    // Terminal: Google was asked once, and the revocation path moved the mailbox to reauth.
+    expect(calls.filter((c) => c.url.includes("oauth2.googleapis.com/token"))).toHaveLength(1);
+    expect(rpc("email_account_state").some((b) => b.p_state === "reauth")).toBe(true);
+  });
+
+  it("a DEAD sign-in is answered as no sign-in: PROVIDER_AUTH, Google never asked, the mailbox never upserted back to connected", async () => {
+    const f = await stubWorld({ gmail: listingGmail() });
+    const inner = f.getMockImplementation()!;
+    f.mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url.includes("/rest/v1/google_tokens") && url.includes("email=")) {
+        calls.push({ url, method: "GET", body: null });
+        return res([{ email: DAVE, state: "DEAD", token_enc: await encrypt("1//dead", KEY), access_enc: null, access_expires_at: null }]);
+      }
+      return inner(url, init);
+    });
+    const r = await answer(await syncHandler(post("/api/email/sync", { email: DAVE })));
+    expect(r.status).toBe(410);
+    expect(r.json).toMatchObject({ code: "PROVIDER_AUTH" });
+    expect(calls.some((c) => c.url.includes("oauth2.googleapis.com"))).toBe(false);
+    expect(rpc("email_account_upsert")).toEqual([]);
   });
 
   it("refuses without a session, with a bad payload, and with the wrong method", async () => {
@@ -331,6 +348,7 @@ describe("POST /api/email/search", () => {
       if (url.includes("/rest/v1/email_account?")) return res([{ id: "acct", cursor: null, state: "connected" }]);
       if (url.includes("/rest/v1/rpc/email_sync_apply")) return res({ upserted: 0 });
       if (url.includes("gmail.googleapis.com")) return res({ messages: [] });
+      if (url.includes("/rest/v1/rpc/google_") || url.includes("/rest/v1/rpc/email_account_state")) return res({}, 404);
       throw new Error("unexpected " + url);
     });
     const r = await answer(await searchHandler(post("/api/email/search", { q: "bill" })));
@@ -366,11 +384,39 @@ describe("POST /api/email/attachment", () => {
 });
 
 describe("POST /api/email/accounts", () => {
+  it("a DEAD sign-in (Google revoked it, the row is kept) is mirrored as reauth and is NEVER upserted back to connected", async () => {
+    const enc = await encrypt("1//refresh", KEY);
+    const f = await stubWorld({ tokens: { [DAVE]: enc }, accountRows: [{ id: "acct-dave", address: DAVE, state: "connected" }] });
+    const inner = f.getMockImplementation()!;
+    f.mockImplementation(async (url: string, init?: RequestInit) => {
+      // The sign-in list now carries each row's lifecycle state.
+      if (url.includes("/rest/v1/google_tokens") && !url.includes("email=")) { calls.push({ url, method: "GET", body: null }); return res([{ email: DAVE, state: "DEAD" }]); }
+      return inner(url, init);
+    });
+    const r = await answer(await accountsHandler(post("/api/email/accounts", {})));
+    expect(r.json).toEqual({ ok: true, mirrored: [], reauth: [DAVE], disconnected: [] });
+    expect(rpc("email_account_upsert")).toEqual([]);
+    expect(rpc("email_account_state")).toEqual([{ p_owner: USER, p_account: "acct-dave", p_state: "reauth", p_error: "Reconnect Gmail to continue." }]);
+  });
+
+  it("a DEAD sign-in whose mailbox row is already reauth changes nothing", async () => {
+    const enc = await encrypt("1//refresh", KEY);
+    const f = await stubWorld({ tokens: { [DAVE]: enc }, accountRows: [{ id: "acct-dave", address: DAVE, state: "reauth" }] });
+    const inner = f.getMockImplementation()!;
+    f.mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url.includes("/rest/v1/google_tokens") && !url.includes("email=")) { calls.push({ url, method: "GET", body: null }); return res([{ email: DAVE, state: "DEAD" }]); }
+      return inner(url, init);
+    });
+    const r = await answer(await accountsHandler(post("/api/email/accounts", {})));
+    expect(r.json).toEqual({ ok: true, mirrored: [], reauth: [DAVE], disconnected: [] });
+    expect(rpc("email_account_state")).toEqual([]);
+  });
+
   it("mirrors every stored sign-in into an account row and marks the rows whose sign-in is gone as disconnected", async () => {
     const enc = await encrypt("1//refresh", KEY);
     await stubWorld({ tokens: { [DAVE]: enc }, accountRows: [{ id: "acct-dave", address: DAVE, state: "connected" }, { id: "acct-work", address: WORK, state: "connected" }, { id: "acct-old", address: "old@gmail.com", state: "disconnected" }] });
     const r = await answer(await accountsHandler(post("/api/email/accounts", {})));
-    expect(r.json).toEqual({ ok: true, mirrored: [DAVE], disconnected: [WORK] });
+    expect(r.json).toEqual({ ok: true, mirrored: [DAVE], reauth: [], disconnected: [WORK] });
     expect(rpc("email_account_upsert")[0]).toMatchObject({ p_owner: USER, p_address: DAVE, p_capabilities: { archive: true, trash: true, read: true } });
     expect(rpc("email_account_state")).toEqual([{ p_owner: USER, p_account: "acct-work", p_state: "disconnected", p_error: null }]);
   });

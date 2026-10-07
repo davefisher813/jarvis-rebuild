@@ -15,7 +15,7 @@
 // inference, no cards.
 export const config = { runtime: "edge" };
 
-import { authedUser, ensureAccount, failResponse, fail, fetchMetas, gmail, gmailFail, isEmail, json, mailboxToken, readEnv, readBody, serviceRpc, META_FIELDS, type EmailEnv, type Fail } from "../_email";
+import { authedUser, ensureAccount, failResponse, fail, fetchMetas, gmail, gmailFail, isEmail, json, mailboxToken, type MailboxAuth, readEnv, readBody, serviceRpc, META_FIELDS, type EmailEnv, type Fail } from "../_email";
 
 export const INBOX_PAGE = 30;
 
@@ -25,7 +25,7 @@ async function recordFailure(env: EmailEnv, userId: string, accountId: string, f
   await serviceRpc(env, "email_sync_failed", { p_owner: userId, p_account: accountId, p_error: f.safe_message, p_reauth: f.code === "PROVIDER_AUTH" });
 }
 
-async function listPage(token: string, pageToken?: string): Promise<{ ids: string[]; next?: string } | Fail> {
+async function listPage(token: string | MailboxAuth, pageToken?: string): Promise<{ ids: string[]; next?: string } | Fail> {
   const a = await gmail(token, `/messages?labelIds=INBOX&maxResults=${INBOX_PAGE}${pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : ""}`, { safeRead: true });
   if (!a.ok) return gmailFail(a);
   const b = a.body as { messages?: { id: string }[]; nextPageToken?: string };
@@ -50,9 +50,9 @@ export default async function handler(req: Request): Promise<Response> {
 
   // The next page: appended, nothing else moves.
   if (page) {
-    const listed = await listPage(tok.accessToken, page);
+    const listed = await listPage(tok, page);
     if ("code" in listed) { await recordFailure(env, who.id, account.id, listed); return failResponse(listed); }
-    const metas = await fetchMetas(tok.accessToken, listed.ids);
+    const metas = await fetchMetas(tok, listed.ids);
     if (metas.failed) { await recordFailure(env, who.id, account.id, metas.failed); return failResponse(metas.failed); }
     const applied = await serviceRpc(env, "email_sync_apply", { p_owner: who.id, p_account: account.id, p_messages: metas.rows, p_removed: metas.gone, p_cursor: null, p_advance: false });
     if (applied.error) return failResponse(fail("UNAVAILABLE"));
@@ -68,7 +68,7 @@ export default async function handler(req: Request): Promise<Response> {
     let pageToken: string | undefined;
     let expired = false;
     for (let i = 0; i < 20; i++) {
-      const a = await gmail(tok.accessToken, `/history?startHistoryId=${encodeURIComponent(account.cursor)}&labelId=INBOX&maxResults=500${pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : ""}`, { safeRead: true });
+      const a = await gmail(tok, `/history?startHistoryId=${encodeURIComponent(account.cursor)}&labelId=INBOX&maxResults=500${pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : ""}`, { safeRead: true });
       if (a.status === 404) { expired = true; break; }
       if (!a.ok) { const f = gmailFail(a); await recordFailure(env, who.id, account.id, f); return failResponse(f); }
       const b = a.body as { history?: Array<{ messagesAdded?: Array<{ message: { id: string } }>; messagesDeleted?: Array<{ message: { id: string } }>; labelsAdded?: Array<{ message: { id: string } }>; labelsRemoved?: Array<{ message: { id: string } }> }>; historyId?: string; nextPageToken?: string };
@@ -83,7 +83,7 @@ export default async function handler(req: Request): Promise<Response> {
       if (!pageToken) break;
     }
     if (!expired) {
-      const metas = await fetchMetas(tok.accessToken, [...changed]);
+      const metas = await fetchMetas(tok, [...changed]);
       if (metas.failed) { await recordFailure(env, who.id, account.id, metas.failed); return failResponse(metas.failed); }
       const applied = await serviceRpc(env, "email_sync_apply", { p_owner: who.id, p_account: account.id, p_messages: metas.rows, p_removed: [...removed, ...metas.gone], p_cursor: historyId ?? account.cursor, p_advance: true });
       if (applied.error) return failResponse(fail("UNAVAILABLE"));
@@ -95,12 +95,12 @@ export default async function handler(req: Request): Promise<Response> {
 
   // No cursor, or Gmail no longer holds ours: the first page of the inbox,
   // and a fresh cursor from the mailbox's own clock.
-  const prof = await gmail(tok.accessToken, "/profile", { safeRead: true });
+  const prof = await gmail(tok, "/profile", { safeRead: true });
   if (!prof.ok) { const f = gmailFail(prof); await recordFailure(env, who.id, account.id, f); return failResponse(f); }
   const historyId = (prof.body as { historyId?: string }).historyId ?? null;
-  const listed = await listPage(tok.accessToken);
+  const listed = await listPage(tok);
   if ("code" in listed) { await recordFailure(env, who.id, account.id, listed); return failResponse(listed); }
-  const metas = await fetchMetas(tok.accessToken, listed.ids);
+  const metas = await fetchMetas(tok, listed.ids);
   if (metas.failed) { await recordFailure(env, who.id, account.id, metas.failed); return failResponse(metas.failed); }
   const applied = await serviceRpc(env, "email_sync_apply", { p_owner: who.id, p_account: account.id, p_messages: metas.rows, p_removed: metas.gone, p_cursor: historyId, p_advance: true });
   if (applied.error) return failResponse(fail("UNAVAILABLE"));

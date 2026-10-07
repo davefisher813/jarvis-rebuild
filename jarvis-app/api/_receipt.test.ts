@@ -123,7 +123,8 @@ describe("sendBookingReceipt", () => {
     for (const call of f.mock.calls) {
       const url = String(call[0]);
       const method = ((call[1] as RequestInit | undefined)?.method || "GET").toUpperCase();
-      if (url.includes("live.test")) expect(method).toBe("GET");
+      // The token lifecycle (api/_google.ts) records a refresh through its own service-only function; a table is never written.
+      if (url.includes("live.test") && !url.includes("/rpc/google_")) expect(method).toBe("GET");
     }
   });
 });

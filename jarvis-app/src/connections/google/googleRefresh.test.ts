@@ -46,6 +46,8 @@ beforeEach(() => {
       if (method === "DELETE") { deleted += 1; return new Response(null, { status: 204 }); }
       return res({ status: 200, body: stored ? [{ token_enc: stored }] : [] });
     }
+    // The world before migration 0057: the lifecycle's functions are not there, so it degrades to no cache, no lock and no DEAD mark.
+    if (url.startsWith(`${SUPA}/rest/v1/rpc/`)) return res({ status: 404, body: {} });
     throw new Error("unexpected fetch " + url);
   }));
 });
@@ -85,11 +87,12 @@ describe("refresh asks the client that issued the token", () => {
     expect(deleted).toBe(0);
   });
 
-  it("a grant every client refuses is still forgotten, so the app re-asks once", async () => {
+  it("a grant every client refuses is reported revoked so the app re-asks once, and the row is KEPT for audit", async () => {
     await connectWeb();
     refreshReply = () => ({ status: 400, body: { error: "invalid_grant" } });
     const r = await refresh();
     expect(r.status).toBe(410);
-    expect(deleted).toBe(1);
+    // Spec 2: a revoked grant is marked and kept, never deleted on a failure.
+    expect(deleted).toBe(0);
   });
 });

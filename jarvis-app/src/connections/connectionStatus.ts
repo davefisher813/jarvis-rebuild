@@ -14,6 +14,8 @@
 // whether the credential is valid says nothing about whether mail is arriving,
 // and neither says whether a send would go.
 
+import { AUTH_ERRORS } from "./google/tokenLifecycle";
+
 export const STATUS_PATH = "/api/connections/status";
 
 /** The named read that proves a mailbox. Recorded in every receipt. */
@@ -74,8 +76,6 @@ export const SYNC_STALE_MS = 24 * 3600e3;
 /** The server re-proves an account no more often than this unless asked. */
 export const REPROVE_AFTER_MS = 5 * 60e3;
 
-// invalid_grant and its kin are the provider saying the grant is gone.
-const AUTH_ERRORS = /invalid_grant|invalid_token|invalid_client|unauthorized_client/i;
 
 export type RefreshOutcome =
   | { ok: true; scope?: string }
