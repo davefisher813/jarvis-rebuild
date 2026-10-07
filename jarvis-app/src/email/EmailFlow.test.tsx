@@ -364,10 +364,10 @@ describe("E21, E22, E28: accounts and states", () => {
     expect(banner).toHaveTextContent(/Mail last updated .+ at .+\./);
     expect(banner).toHaveTextContent("New mail may be missing.");
     expect(banner).toHaveTextContent("2 Replies Unsent · 1 Other Action Paused");
-    expect([...banner.querySelectorAll("button")].map((b) => b.textContent)).toEqual(["Reconnect Gmail", "View Paused Actions", "Open Gmail"]);
+    expect([...banner.querySelectorAll("button")].map((b) => b.textContent)).toEqual(["Reconnect dave@example.test", "View Paused Actions", "Open Gmail"]);
     expect(screen.queryByText(REAUTH_LINE)).toBeNull();
     expect(document.body.textContent).not.toMatch(/all caught up/i);
-    fireEvent.click(within(banner).getByText("Reconnect Gmail"));
+    fireEvent.click(within(banner).getByText(/^Reconnect /));
     expect(onOpenConnections).toHaveBeenCalled();
   });
 
@@ -398,10 +398,10 @@ describe("E21, E22, E28: accounts and states", () => {
     mount(rig({ routes: statusRoute(lasting) }));
     const banner = await screen.findByRole("alert");
     expect(banner).toHaveTextContent("Gmail Isn't Updating");
-    expect(within(banner).queryByText("Reconnect Gmail")).toBeNull();
+    expect(within(banner).queryByText(/^Reconnect /)).toBeNull();
   });
 
-  it("recovery: the banner goes, Access Restored shows by itself, and Mail Caught Up is a separate note after a later sync", async () => {
+  it("recovery: the banner goes, Access Restored shows by itself, and Mail Up to Date is a separate note after a later sync", async () => {
     const first = mount(rig({ routes: statusRoute(lostAccount()) }));
     await screen.findByRole("alert");
     first.unmount();
@@ -413,7 +413,7 @@ describe("E21, E22, E28: accounts and states", () => {
     writeLedger(planAnnouncements(readLedger(USER), [h], new Date()).ledger);
     mount(rig({ routes: statusRoute(h) }));
     await waitFor(() => expect(screen.getByText(/Access Restored/)).toBeInTheDocument());
-    expect(screen.queryByText(/Mail Caught Up/)).toBeNull();
+    expect(screen.queryByText(/Mail Up to Date/)).toBeNull();
     expect(screen.queryByText("Gmail Needs Reconnecting")).toBeNull();
   });
 

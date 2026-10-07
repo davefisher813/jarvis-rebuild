@@ -71,7 +71,7 @@ describe("recovery notes", () => {
     const later = new Date(NOW.getTime() + 600e3);
     const synced = { ...healthy, lastSuccessfulSyncAt: later.toISOString(), checkedAt: later.toISOString() };
     const l3 = planAnnouncements(l2, [synced], later).ledger;
-    expect(recoveryNotes([synced], l3).map((n) => n.title)).toEqual(["Mail Caught Up"]);
+    expect(recoveryNotes([synced], l3).map((n) => n.title)).toEqual(["Mail Up to Date"]);
     const id = Object.keys(l3.resolved)[0]!;
     expect(recoveryNotes([synced], { ...l3, resolved: { [id]: { ...l3.resolved[id]!, seen: true } } })).toEqual([]);
   });

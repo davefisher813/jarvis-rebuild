@@ -1,4 +1,6 @@
 import { forgetGrant, getAccessToken, googleFailure, keepSignIn, type GoogleCode, type GoogleStore } from "./_google";
+import { claimAttempt, closeOpenAttempt, completeReconnect, latestAttempt, ownsAccount, recordOutcome, startAttempt, verifyConsumers } from "./_reconnect";
+import { verifyState } from "../src/connections/google/reconnect";
 
 // Persistent Google sign-in (2026-08-04). The ONLY place refresh tokens live.
 //
@@ -18,6 +20,16 @@ import { forgetGrant, getAccessToken, googleFailure, keepSignIn, type GoogleCode
 //                          `message` (see googleFailure in _google.ts), so the
 //                          app can tell a revoked grant from a dead network
 //                          and only opens the chooser for the first.
+//   POST {reconnectStart: email}   authed. ONE-TAP RECONNECT (Spec 4): persists the attempt (which account, whose request, when it
+//                          expires) and returns the OAuth `state` the app must take to Google, signed, naming the account, and
+//                          good for ten minutes. A newer start for the same account replaces the older one.
+//   POST {code, state}     the same exchange, but with a reconnect's state: verified (signature, age, owner, single use) BEFORE the
+//                          code is exchanged, then the six checks (identity, permissions, a renewable credential, a real refresh,
+//                          a real mailbox read, a durable store) run in order, and nothing is stored or shown green until all
+//                          six pass. A different Google account than the one being reconnected is refused and stores nothing.
+//   POST {reconnectReport: {state, outcome, reason}}  the person closed the window (cancelled, silent) or Google refused (denied).
+//   POST {reconnectStatus: email}  what became of the latest attempt, so an app killed mid-flow can say so honestly on reopen,
+//                          with the consumers probed again (app, status; CLI and legacy are reported as gated).
 //   POST {forget: email}   authed. Disconnect: the token row and the mailbox's
 //                          credential reference are deleted together, and the
 //                          grant is revoked at Google best-effort.
@@ -98,11 +110,40 @@ export default async function handler(req: Request): Promise<Response> {
     clients: { clientId, clientSecret, iosClientId },
   };
 
-  let body: { code?: unknown; refresh?: unknown; forget?: unknown; verifier?: unknown; redirectUri?: unknown };
+  let body: { code?: unknown; refresh?: unknown; forget?: unknown; verifier?: unknown; redirectUri?: unknown; state?: unknown; reconnectStart?: unknown; reconnectStatus?: unknown; reconnectReport?: unknown; probe?: unknown };
   try {
     body = (await req.json()) as typeof body;
   } catch {
     return json({ error: "Bad request" }, 400);
+  }
+
+  const env = { ...store, anon: supaAnon };
+
+  // ---- ONE-TAP RECONNECT (Foundation Fix Spec 4) ---------------------------------------------------------------------------
+  if (typeof body.reconnectStart === "string" && body.reconnectStart) {
+    const email = body.reconnectStart.trim().toLowerCase();
+    if (!(await ownsAccount(store, userId, email))) return fail("GOOGLE_NO_STORED_SIGNIN", email);
+    const a = await startAttempt(store, { userId, email });
+    // The hint is the exact address: Google opens on that account, and the server compares what comes back regardless.
+    return json({ state: a.state, loginHint: email, expiresAt: a.expiresAt, attemptId: a.attemptId });
+  }
+
+  if (typeof body.reconnectStatus === "string" && body.reconnectStatus) {
+    const email = body.reconnectStatus.trim().toLowerCase();
+    const { persisted, attempt } = await latestAttempt(store, userId, email);
+    // The verification harness, on demand: every consumer is probed again and says what it sees (CLI and legacy are reported as gated).
+    const propagation = body.probe === true && attempt?.status === "verified" ? await verifyConsumers(store, env, { userId, email }) : undefined;
+    return json({ persisted, status: attempt?.status ?? "none", completedAt: attempt?.completed_at ?? null, expiresAt: attempt?.expires_at ?? null, outcome: attempt?.outcome ?? null, ...(propagation ? { propagation } : {}) });
+  }
+
+  if (body.reconnectReport && typeof body.reconnectReport === "object") {
+    const rep = body.reconnectReport as { state?: unknown; outcome?: unknown; reason?: unknown };
+    const chk = await verifyState(rep.state, tokenKey, { userId, nowMs: Date.now() });
+    // A report for a state that is not ours, or is already over, changes nothing and says nothing.
+    if (chk.ok && (rep.outcome === "cancelled" || rep.outcome === "denied")) {
+      await closeOpenAttempt(store, chk.payload.a, rep.outcome, rep.outcome === "denied" ? { reason: String(rep.reason ?? "").slice(0, 80) } : {});
+    }
+    return json({ ok: true });
   }
 
   if (typeof body.code === "string" && body.code) {
@@ -122,6 +163,19 @@ export default async function handler(req: Request): Promise<Response> {
     const iosScheme = iosClientId.endsWith(".apps.googleusercontent.com")
       ? "com.googleusercontent.apps." + iosClientId.slice(0, -".apps.googleusercontent.com".length)
       : "";
+    // A RECONNECT'S STATE IS CHECKED BEFORE ANY CODE IS EXCHANGED (Spec 4): signature, age (ten minutes at most), owner, and
+    // single use. A code that comes with a state that fails is never sent to Google.
+    let rc: Awaited<ReturnType<typeof verifyState>> & { ok: true } | null = null;
+    if (typeof body.state === "string" && body.state) {
+      const chk = await verifyState(body.state, tokenKey, { userId, nowMs: Date.now() });
+      if (!chk.ok) {
+        const expired = chk.reason === "expired";
+        return json({ error: expired ? "That reconnect timed out" : "That reconnect did not match", code: expired ? "RECONNECT_EXPIRED" : "RECONNECT_STATE_INVALID", reconnect: { status: expired ? "expired" : "denied" } }, 400);
+      }
+      const claim = await claimAttempt(store, chk.payload, Date.now());
+      if (!claim.ok) return json({ error: "That reconnect was already used", code: "RECONNECT_ATTEMPT_USED", reconnect: { status: "superseded" } }, 409);
+      rc = chk;
+    }
     const verifier = typeof body.verifier === "string" ? body.verifier : "";
     const redirectUri = typeof body.redirectUri === "string" ? body.redirectUri : "";
     const native = !!verifier && !!iosScheme && redirectUri.startsWith(iosScheme + ":");
@@ -149,7 +203,10 @@ export default async function handler(req: Request): Promise<Response> {
       return fail("GOOGLE_NETWORK_ERROR");
     }
     const tok = (await r.json().catch(() => ({}))) as { access_token?: string; refresh_token?: string; expires_in?: number; scope?: string; error?: string; refresh_token_expires_in?: number };
-    if (!r.ok || !tok.access_token) return json({ error: tok.error || "Exchange failed" }, 400);
+    if (!r.ok || !tok.access_token) {
+      if (rc) await recordOutcome(store, rc.payload.a, "unverified", { stage: "code_exchange" });
+      return json({ error: tok.error || "Exchange failed" }, 400);
+    }
 
     // Whose account is this? Google's answer, from the token itself.
     let email = "";
@@ -161,7 +218,30 @@ export default async function handler(req: Request): Promise<Response> {
     } catch {
       return fail("GOOGLE_NETWORK_ERROR");
     }
-    if (!email) return json({ error: "Could not identify the account" }, 400);
+    if (!email) {
+      if (rc) await recordOutcome(store, rc.payload.a, "unverified", { stage: "identity_read" });
+      return json({ error: "Could not identify the account" }, 400);
+    }
+
+    // THE SIX CHECKS (Spec 4). Identity, permissions, a renewable credential, a real refresh, a real mailbox read, a durable store:
+    // in that order, and nothing is stored or reported connected until every one has passed.
+    if (rc) {
+      const done = await completeReconnect(store, env, { payload: rc.payload, returnedEmail: email, tokens: { ...tok, access_token: tok.access_token }, native });
+      if (!done.ok) {
+        await recordOutcome(store, rc.payload.a, done.status, { intended: rc.payload.e, ...(done.selected ? { selected: done.selected } : {}) });
+        const http = done.status === "unverified" && done.retryable ? 502 : 409;
+        return json({
+          error: "Reconnect did not complete", code: "RECONNECT_" + done.status.toUpperCase(), retryable: done.retryable,
+          reconnect: { status: done.status, intended: rc.payload.e, ...(done.selected ? { selected: done.selected } : {}) },
+        }, http);
+      }
+      await recordOutcome(store, rc.payload.a, "verified", { propagation: done.propagation });
+      return json({
+        accessToken: done.accessToken, email: rc.payload.e, expiresIn: done.expiresIn, remembered: true,
+        ...(done.scope ? { scope: done.scope } : {}),
+        reconnect: { status: "verified", propagation: done.propagation },
+      });
+    }
 
     // DURABLE MEANS STORED (2026-09-29). `remembered` is true only when a stored token exists and was confirmed: either the one we
     // just wrote and saw accepted, or, when Google sent no new refresh token (it does that for an account that already consented),

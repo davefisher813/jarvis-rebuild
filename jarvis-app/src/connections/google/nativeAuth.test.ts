@@ -87,7 +87,7 @@ describe("the callback", () => {
 
   it("says cancelled in words when the person backs out", () => {
     const u = new URL("com.googleusercontent.apps.123-abc:/oauth2redirect?error=access_denied&state=st");
-    expect(parseAuthCallback(u, "st")).toEqual({ error: "Sign-in cancelled" });
+    expect(parseAuthCallback(u, "st")).toEqual({ error: "Sign-in cancelled", raw: "access_denied" });
   });
 
   it("ignores a URL that is not an OAuth callback at all", () => {

@@ -48,7 +48,15 @@ export interface GrantMeta {
 }
 
 /** Work that was waiting on the mailbox and cannot proceed. Counts only, never a subject or a recipient. */
-export interface PausedWork { replies: number; other: number }
+export interface PausedWork {
+  replies: number;
+  other: number;
+  /** Why the work is held, recorded where it is counted (Spec 4): it waits at its last committed checkpoint for re-consent, and resumes from there. */
+  reason?: string;
+}
+
+/** The reason a lost grant holds queued work. Nothing retries in a loop and nothing is discarded: the work waits. */
+export const PAUSED_REASON = "Paused · Re-Consent Required";
 
 /** Refresh failures in a row that promote a transient trouble to the full loud treatment. */
 export const ESCALATE_AFTER_FAILURES = 10;

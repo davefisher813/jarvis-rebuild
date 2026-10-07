@@ -7651,3 +7651,9 @@ html[data-motion="reduce"] .fb-fill { transition: none; }
 .conn-strip-text { min-width: 0; overflow-wrap: anywhere; }
 .conn-strip-act { flex: 0 0 auto; min-height: 44px; padding: 0 var(--s-3); background: transparent; border: 1px solid #fff; border-radius: var(--r-md);
   color: #fff; font-family: var(--f); font-size: var(--t-sub); font-weight: var(--w-semi); }
+
+/* A reconnect that did not complete (Foundation Fix Spec 4): the words the server's checks produced, and what can be done. A quiet amber note, not the loud red: the red banner above it is still the failure; this says why the last try did not fix it. */
+.conn-outcome { flex-wrap: wrap; }
+.conn-outcome-body { flex: 1 1 14rem; min-width: 0; }
+.conn-outcome-title { font-weight: var(--w-semi); }
+.conn-outcome-acts { display: flex; flex-wrap: wrap; gap: var(--s-2); }

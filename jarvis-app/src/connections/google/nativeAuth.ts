@@ -2,6 +2,7 @@ import { Capacitor, registerPlugin } from "@capacitor/core";
 import { GOOGLE_SCOPES } from "./config";
 import { onAppUrl } from "../../native/appUrl";
 import type { TokenOpts } from "./gis";
+import { ReconnectCancelled, ReconnectDenied } from "./reconnect";
 
 // CONNECT GOOGLE FROM INSIDE THE APP (UP-LAUNCH-12, 2026-09-05), fork A.
 //
@@ -109,12 +110,12 @@ export function buildAuthUrl(o: AuthUrlOpts): string {
  * URL on the phone could otherwise hand the app their own authorization code
  * and end up with their account connected to somebody else's JARVIS.
  */
-export function parseAuthCallback(url: URL, expectedState: string): { code: string } | { error: string } | null {
+export function parseAuthCallback(url: URL, expectedState: string): { code: string } | { error: string; raw?: string } | null {
   if (!url.searchParams.has("code") && !url.searchParams.has("error")) return null;
   const state = url.searchParams.get("state") || "";
   if (!expectedState || state !== expectedState) return { error: "That sign-in did not match this one" };
   const err = url.searchParams.get("error");
-  if (err) return { error: err === "access_denied" ? "Sign-in cancelled" : err };
+  if (err) return { error: err === "access_denied" ? "Sign-in cancelled" : err, raw: err };
   const code = url.searchParams.get("code") || "";
   return code ? { code } : { error: "No authorization code" };
 }
@@ -155,7 +156,8 @@ export async function requestGoogleCodeNative(
   if (!redirectUri) throw new Error("Google is not set up for this app yet");
 
   const verifier = randomUrlSafe();
-  const state = randomUrlSafe(32);
+  // A reconnect brings the server's signed state, which is what Google echoes back and what is compared here.
+  const state = opts.state ?? randomUrlSafe(32);
   const challenge = await challengeOf(verifier);
   const url = buildAuthUrl({ clientId, redirectUri, challenge, state, loginHint: opts.loginHint, selectAccount: opts.selectAccount });
 
@@ -180,12 +182,13 @@ export async function requestGoogleCodeNative(
       const r = parseAuthCallback(incoming, state);
       if (!r) return false; // not ours: some other deep link
       if ("code" in r) finish(() => resolve({ code: r.code, verifier, redirectUri }));
-      else finish(() => reject(new Error(r.error)));
+      // A reconnect tells backing out (silent) from Google refusing (its reason); everything else keeps its old words.
+      else finish(() => reject(opts.reconnect && r.raw !== undefined ? (r.raw === "access_denied" ? new ReconnectCancelled() : new ReconnectDenied(r.raw)) : new Error(r.error)));
       return true;
     });
     // A sheet the person swipes away sends nothing at all. Without this the
     // promise never settles and Connect Google spins forever.
-    const timer = setTimer(() => finish(() => reject(new Error("Sign-in timed out"))), deps.timeoutMs ?? 300_000);
+    const timer = setTimer(() => finish(() => reject(opts.reconnect ? new ReconnectCancelled() : new Error("Sign-in timed out"))), deps.timeoutMs ?? 300_000);
     open(url).catch(() => finish(() => reject(new Error("Could not open Google sign-in"))));
   });
 }

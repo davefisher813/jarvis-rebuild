@@ -1,6 +1,7 @@
 import { apiUrl } from "../../shared/apiBase";
 import { requestGoogleCode, type TokenOpts } from "./gis";
 import { nativeGoogleAvailable, requestGoogleCodeNative } from "./nativeAuth";
+import { ReconnectCancelled, ReconnectDenied, ReconnectOutcomeError, clearPending, writePending, type AttemptStatus } from "./reconnect";
 
 // The token broker (persistent sign-in, 2026-08-04): how the session gets
 // Google access tokens.
@@ -155,13 +156,18 @@ interface ServerAnswer {
   code?: string;
   message?: string;
   error?: string;
+  /** A reconnect's start (state, loginHint) and its outcome (Spec 4). */
+  state?: string;
+  loginHint?: string;
+  reconnect?: { status: AttemptStatus; intended?: string; selected?: string };
+  retryable?: boolean;
   status: number;
 }
 
 export function serverBroker(getAuthToken: () => string | undefined, doFetch: FetchLike = fetch, now: () => number = Date.now): TokenBroker {
   // Either the server answered (whatever it said) or the call never got one.
   type Reply = { answer: ServerAnswer } | { local: GoogleFailure };
-  const call = async (body: Record<string, string>): Promise<Reply> => {
+  const call = async (body: Record<string, unknown>): Promise<Reply> => {
     const auth = getAuthToken();
     // No JARVIS session to send: the server would say the same thing, so
     // say it without the round trip.
@@ -195,17 +201,43 @@ export function serverBroker(getAuthToken: () => string | undefined, doFetch: Fe
     // which Google will not accept. The server half is identical apart from
     // the verifier, which is what proves the exchange belongs to this sheet.
     async authorize(opts) {
+      // ONE-TAP RECONNECT (Spec 4): the server mints the attempt and its signed state BEFORE the person leaves for Google. The
+      // attempt is the server's: this device only remembers that it left, so a killed app can say so honestly when it reopens.
+      let o = opts;
+      if (opts.reconnect) {
+        const st = await call({ reconnectStart: opts.reconnect });
+        if ("local" in st) throw new GoogleSessionError(st.local);
+        if (!st.answer.state) throw new GoogleSessionError(failureOf(st.answer, opts.reconnect));
+        writePending(opts.reconnect);
+        o = { ...opts, state: st.answer.state, loginHint: st.answer.loginHint ?? opts.reconnect };
+      }
       const native = nativeGoogleAvailable();
-      const sent = native ? await requestGoogleCodeNative(opts) : { code: await requestGoogleCode(opts), verifier: "", redirectUri: "" };
-      const reply = await call(native ? { code: sent.code, verifier: sent.verifier, redirectUri: sent.redirectUri } : { code: sent.code });
+      let sent: { code: string; verifier: string; redirectUri: string };
+      try {
+        sent = native ? await requestGoogleCodeNative(o) : { code: await requestGoogleCode(o), verifier: "", redirectUri: "" };
+      } catch (e) {
+        // The window closed (silent) or Google refused (with its reason): the server is told, the device forgets it left.
+        if (o.state && (e instanceof ReconnectCancelled || e instanceof ReconnectDenied)) {
+          clearPending();
+          await call({ reconnectReport: { state: o.state, outcome: e instanceof ReconnectDenied ? "denied" : "cancelled", ...(e instanceof ReconnectDenied ? { reason: e.reason } : {}) } });
+        }
+        throw e;
+      }
+      const reply = await call({ code: sent.code, ...(native ? { verifier: sent.verifier, redirectUri: sent.redirectUri } : {}), ...(o.state ? { state: o.state } : {}) });
       if ("local" in reply) throw new GoogleSessionError(reply.local);
       const res = reply.answer;
+      if (o.state && !res.accessToken) {
+        // The server ran the checks and one did not pass: the same words on every screen, and nothing was stored.
+        clearPending();
+        if (res.reconnect?.status) throw new ReconnectOutcomeError(res.reconnect.status, res.reconnect.intended ?? opts.reconnect ?? "", { ...(res.reconnect.selected ? { selected: res.reconnect.selected } : {}), retryable: res.retryable === true });
+      }
       if (!res.accessToken) {
         // A coded refusal (network, storage, an expired JARVIS sign-in)
         // keeps its code; the exchange's own errors keep their old wording.
         if (isGoogleCode(res.code)) throw new GoogleSessionError(failureOf(res, res.email ?? ""));
         throw new Error(res.error || "Google sign-in failed");
       }
+      if (o.state) clearPending();
       const warning = res.remembered !== true && isGoogleCode(res.code) ? googleFailure(res.code, res.email ?? "", res.status, res.message) : undefined;
       return {
         token: res.accessToken,

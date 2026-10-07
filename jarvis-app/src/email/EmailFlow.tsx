@@ -69,6 +69,8 @@ import SendReviewScreen from "./SendReviewScreen";
 import SendOutcomeScreen from "./SendOutcomeScreen";
 import DraftsScreen from "./DraftsScreen";
 import ConnectionBanner from "./ConnectionBanner";
+import { useReconnect } from "./useReconnect";
+import { useOptionalGoogle } from "../connections/google/GoogleSession";
 import { useIncidentLedger } from "../connections/useConnectionAnnouncements";
 import { bannerModels, recoveryNotes } from "../connections/incidentView";
 import { emptyFields, fieldsOf, getDraft, newLocalKey, outcomeOf, reconcileSend, replyFields, saveDraft, sendApproved, type DraftFields, type DraftRow, type LocalDraft, type Review } from "./drafts";
@@ -540,6 +542,13 @@ export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModul
   const incidents = useIncidentLedger(token ? userId : null);
   const banners = conn.answer ? bannerModels(conn.answer.accounts, incidents.ledger) : [];
   const recovery = conn.answer ? recoveryNotes(conn.answer.accounts, incidents.ledger) : [];
+  // ONE-TAP RECONNECT (Foundation Fix Spec 4): the banner's button opens Google for the exact account, and the server proves the
+  // result before anything shows green. Without a Google session in this build it goes where it always went, to Connections.
+  const google = useOptionalGoogle();
+  const reconnect = useReconnect({
+    token, reconnect: google ? google.reconnect : null, knownEmails: accounts.map((a) => a.address),
+    refreshStatus: conn.refresh, catchUp: () => load("refresh"), fallback: onOpenConnections,
+  });
   const reauth = banners.length === 0 && (conn.answer ? conn.needsReconnect : accounts.some((a) => a.state === "reauth"));
   // Anything short of connected that is not a reconnect: an outage, a throttle, a stale answer. It says what it is and offers nothing to tap.
   const statusNote = banners.length === 0 && conn.worst && !conn.worst.view.offerReconnect && conn.worst.view.state !== "offline"
@@ -785,7 +794,7 @@ export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModul
 
       <div className={"email-pull" + (armed || refreshing ? " on" : "")} aria-hidden="true">{refreshing ? REFRESHING : PULL_HINT}</div>
       {offline && <div className="email-note quiet"><span>{OFFLINE_LINE}</span></div>}
-      <ConnectionBanner models={banners} notes={recovery} onReconnect={onOpenConnections} {...(client ? { onViewPaused: () => setScreen({ kind: "drafts" }) } : {})} onAcknowledge={incidents.acknowledge} onSeen={incidents.seen} />
+      <ConnectionBanner models={banners} notes={recovery} onReconnect={(email) => void reconnect.start(email)} busyEmail={reconnect.busy} outcome={reconnect.outcome} checking={reconnect.checking} onOutcomeAction={reconnect.act} {...(client ? { onViewPaused: () => setScreen({ kind: "drafts" }) } : {})} onAcknowledge={incidents.acknowledge} onSeen={incidents.seen} />
       {reauth && <div className="email-note"><span>{REAUTH_LINE}</span><button className="quiet-action" onClick={onOpenConnections}>{RECONNECT}</button></div>}
       {statusNote && <div className="email-note quiet"><span>{statusNote}</span></div>}
       {issueLines.map((l) => <div className="email-note quiet" key={l}><span>{l}</span></div>)}

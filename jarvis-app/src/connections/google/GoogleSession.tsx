@@ -372,7 +372,8 @@ export function GoogleSessionProvider({
       // is down: a temporary failure is reported as itself and nothing opens.
       if (!interactiveHelps(r.code)) throw new GoogleSessionError(r);
     }
-    const got = await authorize({ loginHint: email });
+    // One tap, guarded: the server mints the attempt and its state, and checks who came back before anything is stored (Spec 4).
+    const got = await authorize({ loginHint: email, reconnect: normalizeAccount(email) });
     // Stamp whoever ACTUALLY authorized (the user picks in Google's popup;
     // honoring reality also creates the entry when they picked someone new).
     await persist(stamped(accounts, got.email));

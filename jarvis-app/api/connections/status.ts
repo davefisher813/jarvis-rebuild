@@ -22,7 +22,7 @@ export const config = { runtime: "edge" };
 import { authedUser, fail, failResponse, gmail, json, readEnv, serviceRpc, serviceSelect, type EmailEnv } from "../_email";
 import { getAccessToken } from "../_google";
 import { pausedWorkOf, readGrantMeta, reportIncident } from "../_incident";
-import { incidentOf } from "../../src/connections/incident";
+import { PAUSED_REASON, incidentOf } from "../../src/connections/incident";
 import {
   COVERAGE_DAYS, REPROVE_AFTER_MS, deliveryOf, deriveStatus, type AccountStatus, type ReadOutcome, type RefreshOutcome,
 } from "../../src/connections/connectionStatus";
@@ -123,7 +123,8 @@ export default async function handler(req: Request): Promise<Response> {
     const incident = incidentOf({ email, status, previous: recorded?.incident ?? null, grant, now });
     if (incident) {
       const paused = row ? await pausedWorkOf(env, who.id, row.id) : null;
-      status = { ...status, incident, paused };
+      // Queued work holds at its last committed checkpoint with the reason recorded, and resumes from there after a verified reconnect (Spec 4).
+      status = { ...status, incident, paused: paused && incident.kind === "auth" ? { ...paused, reason: PAUSED_REASON } : paused };
       if (recorded?.incident?.id !== incident.id) {
         await reportIncident(env, { email, incident, code: (grant?.code ?? status.lastError)?.toUpperCase() ?? null, source: "status", at: now });
       }

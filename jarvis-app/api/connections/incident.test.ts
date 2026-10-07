@@ -118,7 +118,7 @@ describe("a confirmed loss of the grant is an incident", () => {
   it("counts the paused work and carries nothing but the counts", async () => {
     await stub({ outbox: [{ kind: "send_email", subject: "Secret plans" }, { kind: "send_email" }, { kind: "modify_labels" }] });
     const a = await get();
-    expect(a.paused).toEqual({ replies: 2, other: 1 });
+    expect(a.paused).toEqual({ replies: 2, other: 1, reason: "Paused · Re-Consent Required" });
     expect(JSON.stringify(a)).not.toContain("Secret plans");
   });
 

@@ -17,7 +17,7 @@ describe("the loud banner", () => {
     const b = screen.getByRole("alert");
     expect(b).toHaveClass("conn-banner");
     for (const t of ["Gmail Needs Reconnecting", "dave@gmail.com", "Mail last updated Oct 6 at 8:12 PM.", "New mail may be missing.", "2 Replies Unsent · 1 Other Action Paused"]) expect(b).toHaveTextContent(t);
-    expect([...b.querySelectorAll("button")].map((x) => x.textContent)).toEqual(["Reconnect Gmail", "View Paused Actions", "Open Gmail"]);
+    expect([...b.querySelectorAll("button")].map((x) => x.textContent)).toEqual(["Reconnect dave@gmail.com", "View Paused Actions", "Open Gmail"]);
   });
 
   it("has no dismiss control of any kind", () => {
@@ -34,7 +34,7 @@ describe("the loud banner", () => {
   it("Reconnect goes to the reconnect path and acknowledges; View Paused Actions does the same for its own", () => {
     const h = handlers();
     render(<ConnectionBanner models={[model()]} notes={[]} {...h} />);
-    fireEvent.click(screen.getByText("Reconnect Gmail"));
+    fireEvent.click(screen.getByText("Reconnect dave@gmail.com"));
     expect(h.onReconnect).toHaveBeenCalledTimes(1);
     fireEvent.click(screen.getByText("View Paused Actions"));
     expect(h.onViewPaused).toHaveBeenCalledTimes(1);
@@ -51,7 +51,7 @@ describe("the loud banner", () => {
 
   it("a degraded incident offers no Reconnect", () => {
     render(<ConnectionBanner models={[model({ kind: "degraded", reconnect: false, title: "Gmail Isn't Updating" })]} notes={[]} {...handlers()} />);
-    expect(screen.queryByText("Reconnect Gmail")).toBeNull();
+    expect(screen.queryByText(/^Reconnect /)).toBeNull();
     expect(screen.getByText("Open Gmail")).toBeInTheDocument();
   });
 
@@ -67,20 +67,20 @@ describe("the loud banner", () => {
     const s = screen.getByRole("alert");
     expect(s).toHaveClass("conn-strip");
     expect(s).toHaveTextContent("Gmail Needs Reconnecting · dave@gmail.com");
-    expect(screen.getByText("Reconnect Gmail")).toBeInTheDocument();
+    expect(screen.getByText("Reconnect dave@gmail.com")).toBeInTheDocument();
     fireEvent.click(screen.getByText(/Gmail Needs Reconnecting · /));
     expect(screen.getByRole("alert")).toHaveClass("conn-banner");
   });
 
   it("access restored and mail caught up are two separate notes with their own words", () => {
-    const restored: RecoveryNote = { incidentId: "JC-1", email: "dave@gmail.com", state: "restored", title: "Access Restored", detail: "dave@gmail.com · Syncing Mail Now" };
-    const caught: RecoveryNote = { incidentId: "JC-2", email: "dave@gmail.com", state: "caught_up", title: "Mail Caught Up", detail: "dave@gmail.com" };
+    const restored: RecoveryNote = { incidentId: "JC-1", email: "dave@gmail.com", state: "restored", title: "Access Restored", detail: "dave@gmail.com · Catching Up" };
+    const caught: RecoveryNote = { incidentId: "JC-2", email: "dave@gmail.com", state: "caught_up", title: "Mail Up to Date", detail: "dave@gmail.com · Checked Just Now" };
     const h = handlers();
     render(<ConnectionBanner models={[]} notes={[restored, caught]} {...h} />);
     const notes = screen.getAllByRole("status");
     expect(notes[0]).toHaveTextContent("Access Restored");
-    expect(notes[0]).not.toHaveTextContent(/caught up/i);
-    expect(notes[1]).toHaveTextContent("Mail Caught Up");
+    expect(notes[0]).not.toHaveTextContent(/up to date/i);
+    expect(notes[1]).toHaveTextContent("Mail Up to Date");
     fireEvent.click(screen.getByText("Done"));
     expect(h.onSeen).toHaveBeenCalledWith("JC-2");
   });
