@@ -35,6 +35,7 @@ import { usePushDepth } from "../shared/pushNav";
 import { showToast } from "../shared/toast";
 import { supabase } from "../auth/supabaseClient";
 import { useOptionalSession } from "../auth/AuthProvider";
+import { useConnectionStatus } from "../connections/useConnectionStatus";
 import { useOptionalCategories, useOptionalLedger, useFileStore, useStore, useUserId } from "../data/NotesProvider";
 import { failure, lineFor, newRequestId, type CommandFailure } from "../substrate/commands/errors";
 import { cancelCommand } from "../substrate/commands/sends";
@@ -528,7 +529,14 @@ export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModul
   const groups = useMemo(() => dayGroups(visible, now), [visible, now]);
   const live = accounts.filter((a) => a.state !== "disconnected");
   const labels = live.length > 1 ? accountLabels(live.map((a) => a.address)) : {};
-  const reauth = accounts.some((a) => a.state === "reauth");
+  // THE ONE STATUS (Foundation Fix Spec 1). Whether a mailbox needs reconnecting comes from the proven status, not from the
+  // cache row's own state: the two used to disagree. The row's state is only the answer until the first proof arrives.
+  const conn = useConnectionStatus(token, token ? userId : null);
+  const reauth = conn.answer ? conn.needsReconnect : accounts.some((a) => a.state === "reauth");
+  // Anything short of connected that is not a reconnect: an outage, a throttle, a stale answer. It says what it is and offers nothing to tap.
+  const statusNote = conn.worst && !conn.worst.view.offerReconnect && conn.worst.view.state !== "offline"
+    ? conn.worst.view.headline + (conn.worst.view.detail ? " · " + conn.worst.view.detail : "")
+    : null;
   const accountOf = (row: InboxRow) => accounts.find((a) => a.id === row.account_id) ?? null;
 
   // ---- waiting (slice 08) ---------------------------------------------------
@@ -686,7 +694,7 @@ export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModul
   }
   if (screen.kind === "accounts") {
     return <div className={pushCls}>
-      <AccountsScreen accounts={accounts} onBack={() => setScreen({ kind: "root" })} onOpenConnections={onOpenConnections} onOpenDrafts={client ? () => setScreen({ kind: "drafts" }) : undefined} />
+      <AccountsScreen accounts={accounts} views={conn.views} onBack={() => setScreen({ kind: "root" })} onOpenConnections={onOpenConnections} onOpenDrafts={client ? () => setScreen({ kind: "drafts" }) : undefined} />
     </div>;
   }
   if (screen.kind === "waiting" && client) {
@@ -770,6 +778,7 @@ export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModul
       <div className={"email-pull" + (armed || refreshing ? " on" : "")} aria-hidden="true">{refreshing ? REFRESHING : PULL_HINT}</div>
       {offline && <div className="email-note quiet"><span>{OFFLINE_LINE}</span></div>}
       {reauth && <div className="email-note"><span>{REAUTH_LINE}</span><button className="quiet-action" onClick={onOpenConnections}>{RECONNECT}</button></div>}
+      {statusNote && <div className="email-note quiet"><span>{statusNote}</span></div>}
       {issueLines.map((l) => <div className="email-note quiet" key={l}><span>{l}</span></div>)}
       {error && rows.length > 0 && <div className="email-note quiet"><span>{REFRESH_FAILED}</span><button className="quiet-action" onClick={() => void load("refresh")}>{RETRY}</button></div>}
 

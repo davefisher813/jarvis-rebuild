@@ -11,16 +11,19 @@ import { ACCOUNTS_TITLE, ADD_GMAIL, DRAFTS_AND_SENT, EMAIL_TITLE, EMPTY_ACCOUNTS
 import EmailFacts from "./EmailFacts";
 import { updatedFacts, type EmailFact } from "./format";
 import type { EmailAccount } from "./emailClient";
+import type { ClientView } from "../connections/connectionStatus";
 import EmptyState from "./EmptyState";
 
-export default function AccountsScreen({ accounts, onBack, onOpenConnections, onOpenDrafts }: {
+export default function AccountsScreen({ accounts, views, onBack, onOpenConnections, onOpenDrafts }: {
   accounts: EmailAccount[];
+  /** The proven status of each mailbox (Foundation Fix Spec 1), keyed by lowercase address. When there is one it speaks for the mailbox; the cache row's own state is only the answer until the first proof arrives. */
+  views?: ReadonlyMap<string, ClientView>;
   onBack: () => void;
   onOpenConnections: () => void;
   /** Drafts and what was sent from JARVIS (slice 07), reached from the mailbox picker as section 09 says. */
   onOpenDrafts?: () => void;
 }) {
-  const needsReauth = accounts.some((a) => a.state === "reauth");
+  const needsReauth = views && views.size > 0 ? [...views.values()].some((v) => v.offerReconnect) : accounts.some((a) => a.state === "reauth");
   return (
     <div className="screen ruled">
       <PageHeader title={ACCOUNTS_TITLE} back={EMAIL_TITLE} onBack={onBack} />
@@ -48,8 +51,11 @@ export default function AccountsScreen({ accounts, onBack, onOpenConnections, on
                 // 2026-10-05: ONE facts line per mailbox (it was four stacked grey lines). The state wears its key colour
                 // (connected green, needs reconnecting amber), the sync time is the grey plus small caps, the saved count
                 // is a white number with no state. A sync error is its own amber line, only when there is one.
+                const proven = a.state === "disconnected" ? undefined : views?.get(a.address.toLowerCase());
                 const line: EmailFact[] = [
-                  { text: STATE_WORD[a.state], ...(a.state === "connected" ? { tone: "good" as const } : a.state === "reauth" ? { tone: "warn" as const } : {}) },
+                  proven
+                    ? { text: proven.headline, ...(proven.state === "connected" ? { tone: "good" as const } : { tone: "warn" as const }) }
+                    : { text: STATE_WORD[a.state], ...(a.state === "connected" ? { tone: "good" as const } : a.state === "reauth" ? { tone: "warn" as const } : {}) },
                   ...(a.state === "disconnected" ? [] : a.last_sync_at ? updatedFacts(a.last_sync_at) : [{ text: NOT_SYNCED }]),
                   { text: `${messagesWord(a.cached)} Saved`, strong: true },
                 ];

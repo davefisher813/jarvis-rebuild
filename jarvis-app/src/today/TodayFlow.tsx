@@ -32,6 +32,8 @@ import { fileEmailBill, type FiledBill } from "../money/ledger/emailBill";
 import NoticeCard from "./NoticeCard";
 import { rowDoor, own } from "../shared/rowDoor";
 import { FAILING, WAITING, NEW, RESUME, LIVE, spotIsDuplicate } from "./stream";
+import { useOptionalSession } from "../auth/AuthProvider";
+import { useConnectionStatus } from "../connections/useConnectionStatus";
 import { chainQuietToday, dismissChain, nextBest, chainReason } from "../tasks/momentum";
 import { distanceFor, type Distance } from "../tasks/grouping";
 import { AUTOMATION_LABEL, tuningAllows, tuningScope, tuningWeight, tuningsFrom, type TuningChoice } from "../rules/tuning";
@@ -190,7 +192,7 @@ import { isOffTrack, rankOpen, reasonFor } from "../upnext/upnext";
 import { backOnTrackMessage } from "../tasks/lifecycle";
 import { moveEventToAnytime, undoMoveToAnytime, duplicateEvent, commitRetime, undoRetime } from "../schedule/eventMoves";
 import { ClockGlyph, DocGlyph, ForkGlyph, SweepGlyph, TargetGlyph, CheckCircleGlyph, BarbellGlyph, GiftGlyph, FolderOpenGlyph } from "../shared/glyphs";
-import { Clock, CircleSlash } from "../shared/icons";
+import { Clock, CircleSlash, ShieldAlert } from "../shared/icons";
 import { isFromEmail } from "../tasks/origin";
 import { minutesLabel, spanLabel } from "../shared/duration";
 
@@ -246,6 +248,7 @@ export default function TodayFlow({
   onGoTasksOverdue,
   onGoEmail,
   onGoEmailFocus,
+  onGoConnections,
   onStartNow,
   onSearch,
   onProfile,
@@ -292,6 +295,8 @@ export default function TodayFlow({
   onGoEmail?: (threadId?: string, draftId?: string) => void;
   /** Slice 08: the unified Email band's doors (the review line, a waiting record). */
   onGoEmailFocus?: (focus: EmailFocus) => void;
+  /** The Connections screen, for the one connection notice (Foundation Fix Spec 1). */
+  onGoConnections?: () => void;
   /** Start Now (Dave 2026-09-17): the Start screen for a task, on the Tasks tab. */
   onStartNow?: (id: string) => void;
   onSearch?: () => void;
@@ -362,6 +367,9 @@ export default function TodayFlow({
   const unifiedEmail = flagOn("email_intake_v1");
   const storeForWaiting = useStore();
   const uidForWaiting = useUserId();
+  // THE CONNECTION NOTICE READS THE ONE STATUS ENDPOINT (Foundation Fix Spec 1): nothing here decides a mailbox is healthy.
+  const authSession = useOptionalSession();
+  const conn = useConnectionStatus(authSession?.access_token, authSession?.user.id);
   const waitingSvc = useMemo(() => (storeForWaiting && uidForWaiting ? new WaitingService(storeForWaiting, uidForWaiting) : null), [storeForWaiting, uidForWaiting]);
   // NOT THE EMAILS (Dave 2026-09-17: "they must go to the email section").
   // A task born from a thread is the Ready to Send band's: it never leads
@@ -4214,7 +4222,22 @@ export default function TodayFlow({
       onDismiss={() => { markReportSeen(reportMonth); setReportMonth(null); }}
     />
   ) : null;
-  const notices = [reportNotice, ...alertCards, reflowSection, overflowSection].filter(Boolean);
+  // ONE CONNECTION NOTICE (Foundation Fix Spec 1). It reads the proven status, never a stored token, and joins the stream
+  // like every other notice. Reconnect is offered ONLY for a confirmed auth loss; an outage, a throttle or a stale answer
+  // says what it is and offers no reconnect (the loud treatment and its escalation are Spec 3's).
+  const connectionNotice = conn.worst ? (
+    <NoticeCard
+      key="connection"
+      weight={FAILING}
+      icon={<ShieldAlert className="ic" />}
+      tone={conn.worst.view.offerReconnect ? "cat-fg-orange" : "cat-fg-slate"}
+      title={conn.worst.view.offerReconnect ? "Gmail Needs Reconnecting" : conn.worst.view.headline}
+      sub={conn.worst.view.state === "offline" ? conn.worst.view.detail : conn.worst.account.email}
+      {...(conn.worst.view.offerReconnect && onGoConnections ? { action: { label: "Reconnect", onClick: onGoConnections } } : {})}
+      {...(onGoConnections ? { onOpen: onGoConnections } : {})}
+    />
+  ) : null;
+  const notices = [connectionNotice, reportNotice, ...alertCards, reflowSection, overflowSection].filter(Boolean);
 
   const daypart = evening ? "evening" as const : now.getHours() < 12 ? "morning" as const : null;
   // No name, no initials (2026-10-05): this fell back to "JV", letters nobody chose, while Account says "Add Your Name". ""

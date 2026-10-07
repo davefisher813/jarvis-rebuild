@@ -31,6 +31,9 @@ const SAFE_TO_CLEAR: readonly string[] = [
   // --- Backup (settings/BackupPage.tsx) ---
   "jarvis.backup.lastExport", // cosmetic "last exported" stamp; the file itself already left the device (S3-Q16)
 
+  // --- Connections (connections/useConnectionStatus.ts) ---
+  "jarvis.connections.status.v1", // the last proven connection status, recomputed on the next read; codes and times only
+
   // --- Review / Brain (review/seal.ts, brain/nightly.ts) ---
   "jarvis.seal.done.v1", // fast-path marker; the real seal lives in the Store
   "jarvis.brain.nightly.v1", // today's proposal picks, a day cache

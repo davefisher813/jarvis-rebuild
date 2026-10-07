@@ -3021,8 +3021,11 @@ describe("LAW: dismiss means only dismiss, and it expires", () => {
       .filter((c) => !/onDismiss|onDelete/.test(c))
       // A receipt reports something already finished and has nothing to
       // dismiss; the failed-sweep card is an error that must not be
-      // swipeable away while the failure stands.
-      .filter((c) => !/key="(sweepfail|revisit)"/.test(c))
+      // swipeable away while the failure stands. So is the connection notice
+      // (Foundation Fix Spec 1, with Spec 3: "no dismiss button"): a mailbox
+      // that cannot be read is a standing failure, and a swipe that hid it
+      // would be the false "all caught up" the whole spec exists to end.
+      .filter((c) => !/key="(sweepfail|revisit|connection)"/.test(c))
       .map((c) => (c.match(/key="([^"]+)"/) ?? [])[1] ?? "?");
     expect(bad, "these notices offer no way out").toEqual([]);
   });

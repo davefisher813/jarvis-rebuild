@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { useSchedule, useProfile } from "../data/NotesProvider";
+import { useOptionalSession } from "../auth/AuthProvider";
+import { useConnectionStatus } from "./useConnectionStatus";
 import { useGoogle } from "./google/GoogleSession";
 import { googleConfigured } from "./google/config";
 import { importCalendar } from "./google/sync";
@@ -34,6 +36,9 @@ export default function ConnectionsPage({
   configured?: boolean;
 }) {
   const g = useGoogle();
+  // THE PROVEN STATUS (Foundation Fix Spec 1): what each account's connection is, from a real refresh and a named read, not from a stored token.
+  const authSession = useOptionalSession();
+  const proven = useConnectionStatus(authSession?.access_token, authSession?.user.id);
   const schedule = useSchedule();
   const profile = useProfile();
   // Open tracking made visible (2026-08-09): the pixel rode on every send
@@ -209,6 +214,10 @@ export default function ConnectionsPage({
                     account used to silently drop its mail from the unified
                     inbox with no reconnect anywhere; Reconnect All only
                     appeared when EVERY account was out. */}
+                {(() => {
+                  const v = proven.views.get(a.email.toLowerCase());
+                  return v ? <div className="facts"><span className={"fact " + (v.state === "connected" ? "good" : "warn")}>{v.headline}</span></div> : null;
+                })()}
                 {signedOut && <div className="facts"><span className="fact warn">Signed Out</span></div>}
                 {/* Audit 2026-09-29: "Signed out" alone left no next step.
                     Same scopes as ever; this only says what Reconnect does. */}
