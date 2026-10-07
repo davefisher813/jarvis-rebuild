@@ -6,6 +6,7 @@
 import { apiUrl } from "../shared/apiBase";
 import type { AdminMetrics } from "./adminMetrics";
 import type { AdminErrorGroup } from "./adminErrors";
+import type { AdminConnections } from "./adminConnections";
 
 export interface AdminUser {
   id: string;
@@ -69,6 +70,8 @@ export interface AdminService {
   // 2026-10-05: what crashed, grouped by fingerprint, most often first. The
   // newest 200 reports, so a count is "in the recent window", not all time.
   errors(): Promise<AdminErrorGroup[]>;
+  // Foundation Fix Spec 3 (2026-10-07): sign-in health, with each lost grant's incident ID.
+  connections?(): Promise<AdminConnections>;
 }
 
 type FetchLike = (url: string, init?: { method?: string; headers?: Record<string, string>; body?: string }) =>
@@ -120,6 +123,7 @@ export function createAdminApi(token: string, available = adminConfigured(), doF
     async feedback() { return ((await get("/feedback")) as { feedback: AdminFeedbackItem[] }).feedback; },
     async metrics() { return (await get("/metrics")) as AdminMetrics; },
     async errors() { return ((await get("/errors")) as { errors: AdminErrorGroup[] }).errors; },
+    async connections() { return (await get("/connections")) as AdminConnections; },
   };
 }
 
@@ -150,6 +154,7 @@ export function makeSampleAdminSource(): AdminService {
         aiCallsPerActive: 4.5, truncated: false,
       };
     },
+    async connections() { return { total: 3, healthy: 3, rows: [] }; },
     async errors() {
       return [
         { fingerprint: "sample-1", count: 7, firstSeen: "2026-10-02T09:14:00.000Z", lastSeen: "2026-10-05T07:41:00.000Z", name: "TypeError", message: "Cannot read properties of undefined", build: "abc1234", platform: "ios" },

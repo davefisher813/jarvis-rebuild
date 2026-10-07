@@ -15,6 +15,7 @@
 // and neither says whether a send would go.
 
 import { AUTH_ERRORS } from "./google/tokenLifecycle";
+import type { Incident, PausedWork } from "./incident";
 
 export const STATUS_PATH = "/api/connections/status";
 
@@ -60,6 +61,10 @@ export interface AccountStatus {
   receipt: Receipt | null;
   /** When the server last proved this account. */
   checkedAt: string;
+  /** The confirmed loss this account is in, if any (Spec 3). Absent on an answer from before incidents, which reads as none. */
+  incident?: Incident | null;
+  /** Work waiting on this mailbox, only while an incident is open. Counts, never content. */
+  paused?: PausedWork | null;
 }
 
 export interface StatusResponse {

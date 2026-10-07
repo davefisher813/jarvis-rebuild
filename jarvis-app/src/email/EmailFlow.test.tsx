@@ -22,6 +22,7 @@ import { saveSnapshot } from "./deviceCache";
 import { remember } from "./categories";
 import { subscribeToast, resetToasts, type ToastState } from "../shared/toast";
 import type { Category } from "../categories/types";
+import { deriveStatus } from "../connections/connectionStatus";
 
 const NOW = new Date("2026-10-03T15:00:00Z");
 const USER = "user-1";
@@ -343,6 +344,77 @@ describe("E21, E22, E28: accounts and states", () => {
     expect(screen.getByText(REAUTH_LINE)).toBeInTheDocument();
     fireEvent.click(screen.getByText(RECONNECT));
     expect(onOpenConnections).toHaveBeenCalled();
+  });
+
+  // SPEC 3 (Foundation Fix): the loud banner, end to end through the real status hook and ledger.
+  const statusRoute = (a: Record<string, unknown>) => (path: string) => path.includes("/api/connections/status")
+    ? { status: 200, body: { checkedAt: new Date().toISOString(), accounts: [a] } } : undefined;
+  const lostAccount = (extra: Record<string, unknown> = {}) => ({
+    ...deriveStatus({ email: DAVE, refresh: { ok: false, error: "invalid_grant" }, read: null, lastSyncAt: "2026-10-06T20:12:00.000Z", now: new Date() }),
+    incident: { id: "JC-0A1B2C3D", kind: "auth", openedAt: "2026-10-07T09:00:00.000Z", cause: null }, paused: { replies: 2, other: 1 }, ...extra,
+  });
+
+  it("a confirmed loss is a red banner at the top: the exact words, the three ways out, no dismiss, and it replaces the quieter note", async () => {
+    const r = rig({ routes: statusRoute(lostAccount()) });
+    const { onOpenConnections } = mount(r);
+    const banner = await screen.findByRole("alert");
+    expect(banner).toHaveClass("conn-banner");
+    expect(banner).toHaveTextContent("Gmail Needs Reconnecting");
+    expect(banner).toHaveTextContent(DAVE);
+    expect(banner).toHaveTextContent(/Mail last updated .+ at .+\./);
+    expect(banner).toHaveTextContent("New mail may be missing.");
+    expect(banner).toHaveTextContent("2 Replies Unsent · 1 Other Action Paused");
+    expect([...banner.querySelectorAll("button")].map((b) => b.textContent)).toEqual(["Reconnect Gmail", "View Paused Actions", "Open Gmail"]);
+    expect(screen.queryByText(REAUTH_LINE)).toBeNull();
+    expect(document.body.textContent).not.toMatch(/all caught up/i);
+    fireEvent.click(within(banner).getByText("Reconnect Gmail"));
+    expect(onOpenConnections).toHaveBeenCalled();
+  });
+
+  it("acknowledging compacts it to a strip that stays, and the ledger remembers across a remount", async () => {
+    const r = rig({ routes: statusRoute(lostAccount()) });
+    const first = mount(r);
+    const banner = await screen.findByRole("alert");
+    fireEvent.click(banner);
+    await waitFor(() => expect(screen.getByRole("alert")).toHaveClass("conn-strip"));
+    first.unmount();
+    mount(rig({ routes: statusRoute(lostAccount()) }));
+    await waitFor(() => expect(screen.getByRole("alert")).toHaveClass("conn-strip"));
+    expect(screen.getByRole("alert")).toHaveTextContent("Gmail Needs Reconnecting");
+  });
+
+  it("an outage is NOT a reconnect: no banner, no Reconnect, only the quiet note that JARVIS keeps retrying", async () => {
+    const transient = { ...deriveStatus({ email: DAVE, refresh: { thrown: true }, read: null, lastSyncAt: null, now: new Date() }), incident: null };
+    const r = rig({ routes: statusRoute(transient) });
+    mount(r);
+    await waitFor(() => expect(screen.getByText(/Service Unavailable/)).toBeInTheDocument());
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(screen.queryByText(RECONNECT)).toBeNull();
+    expect(screen.queryByText(REAUTH_LINE)).toBeNull();
+  });
+
+  it("a trouble that has lasted gets the loud banner but never the reconnect", async () => {
+    const lasting = { ...deriveStatus({ email: DAVE, refresh: { thrown: true }, read: null, lastSyncAt: null, now: new Date() }), incident: { id: "JC-AAAA1111", kind: "degraded", openedAt: "2026-10-06T09:00:00.000Z", cause: "failures" }, paused: { replies: 0, other: 0 } };
+    mount(rig({ routes: statusRoute(lasting) }));
+    const banner = await screen.findByRole("alert");
+    expect(banner).toHaveTextContent("Gmail Isn't Updating");
+    expect(within(banner).queryByText("Reconnect Gmail")).toBeNull();
+  });
+
+  it("recovery: the banner goes, Access Restored shows by itself, and Mail Caught Up is a separate note after a later sync", async () => {
+    const first = mount(rig({ routes: statusRoute(lostAccount()) }));
+    await screen.findByRole("alert");
+    first.unmount();
+    const healthy = (sync: string | null) => ({ ...deriveStatus({ email: DAVE, refresh: { ok: true, scope: "gmail.send" }, read: { ok: true, status: 200, emailAddress: DAVE }, lastSyncAt: sync, now: new Date() }), incident: null });
+    // The announcer lives in AppShell; here the ledger is advanced the way it does.
+    const { planAnnouncements, readLedger, writeLedger } = await import("../connections/incidentLedger");
+    writeLedger(planAnnouncements(readLedger(USER), [lostAccount() as never], new Date()).ledger);
+    const h = healthy(null);
+    writeLedger(planAnnouncements(readLedger(USER), [h], new Date()).ledger);
+    mount(rig({ routes: statusRoute(h) }));
+    await waitFor(() => expect(screen.getByText(/Access Restored/)).toBeInTheDocument());
+    expect(screen.queryByText(/Mail Caught Up/)).toBeNull();
+    expect(screen.queryByText("Gmail Needs Reconnecting")).toBeNull();
   });
 
   it("the accounts screen says each state and what a disconnect keeps; a disconnected mailbox is off the page", async () => {

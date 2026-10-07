@@ -39,6 +39,12 @@ export const REST_OVER_ID = 9003;
 // seconds, so it is not counted in the budget below.
 export const TEST_REMINDER_ID = 9004;
 export const TEST_REMINDER_DELAY_S = 10;
+// THE CONNECTION INCIDENT (Foundation Fix Spec 3, 2026-10-07): one reserved id,
+// so a second incident, or the same one re-posted, REPLACES the banner instead
+// of stacking a second, and recovery can withdraw exactly this one. It lives in
+// the check-in block, clear of both spans below, and is at most one pending or
+// delivered at a time, so it adds one to the budget's headroom, not a share.
+export const CONNECTION_ID = 9005;
 
 // ---- THE BUDGET (SHARED-F-05, 2026-09-05) ----
 //
@@ -230,6 +236,7 @@ const checkinQueue = serializeLatest();
 const eventQueue = serializeLatest();
 const taskQueue = serializeLatest();
 const restQueue = serializeLatest();
+const connectionQueue = serializeLatest();
 
 // ---- Rest over (UP-ATH-03, 2026-09-06) ----
 //
@@ -268,6 +275,70 @@ export async function cancelRestOver(): Promise<void> {
   return restQueue(async () => {
     try {
       await LocalNotifications.cancel({ notifications: [{ id: REST_OVER_ID }] });
+    } catch {
+      /* notifications are a bonus, never a crash */
+    }
+  });
+}
+
+// ---- THE CONNECTION INCIDENT BANNER (Foundation Fix Spec 3, 2026-10-07) ----
+//
+// ONE local notification per confirmed incident, grouped when several accounts
+// fail together, replaced rather than stacked, and withdrawn when the loss is
+// resolved. What it carries: the incident ID and how many accounts. What it
+// never carries: an address, a subject, a recipient or any message text, because
+// a lock screen is a public surface. A tap opens the app (AppShell routes the
+// "connection" kind to Email), and the Email screen re-proves the status on
+// arrival, so what the person lands on is current, never what the banner said.
+//
+// Honest limit, stated where it is decided: this is a LOCAL notification, so it
+// fires from a device that is running the app and polling the status (a few
+// minutes at most while it is open or recently backgrounded). It is not a push
+// from the server, which this build does not have for connection loss, and
+// Spec 3 forbids notifying outside the app beyond this one.
+export interface ConnectionNotice {
+  /** Every open incident this notification stands for, oldest first. */
+  incidentIds: string[];
+  /** "auth" says Reconnect; "degraded" says the mail is not updating. Mixed groups say the stronger one. */
+  kind: "auth" | "degraded";
+}
+
+export function connectionNoticeText(n: ConnectionNotice): { title: string; body: string } {
+  const title = n.kind === "auth" ? "Gmail Needs Reconnecting" : "Gmail Isn't Updating";
+  const count = n.incidentIds.length;
+  return {
+    title,
+    body: count === 1
+      ? `Incident ${n.incidentIds[0]} · Tap to Open JARVIS`
+      : `${count} Accounts · Incidents ${n.incidentIds.join(", ")}`,
+  };
+}
+
+export async function postConnectionIncident(n: ConnectionNotice, nowMs: number = Date.now()): Promise<void> {
+  if (!Capacitor.isNativePlatform() || n.incidentIds.length === 0) return;
+  return connectionQueue(async () => {
+    try {
+      const perm = await LocalNotifications.checkPermissions();
+      if (perm.display !== "granted") return;
+      const { title, body } = connectionNoticeText(n);
+      // Cancel first, so the replacement is one banner and not two. A fire time a second out, because a time in the past is dropped.
+      await LocalNotifications.cancel({ notifications: [{ id: CONNECTION_ID }] });
+      await LocalNotifications.schedule({
+        notifications: [{ id: CONNECTION_ID, title, body, schedule: { at: new Date(nowMs + 1000), allowWhileIdle: true }, extra: { incidents: n.incidentIds.join(",") } }],
+      });
+    } catch {
+      /* notifications are a bonus, never a crash */
+    }
+  });
+}
+
+/** Recovery: the banner is obsolete, so it goes, whether it is still pending or already sitting on the lock screen. */
+export async function withdrawConnectionIncident(): Promise<void> {
+  if (!Capacitor.isNativePlatform()) return;
+  return connectionQueue(async () => {
+    try {
+      await LocalNotifications.cancel({ notifications: [{ id: CONNECTION_ID }] });
+      await LocalNotifications.removeDeliveredNotifications({ notifications: [{ id: CONNECTION_ID, title: "", body: "" }] });
     } catch {
       /* notifications are a bonus, never a crash */
     }
@@ -743,12 +814,13 @@ export async function ensureTaskReminders(
 // place that owns tab navigation and outlives every screen) is the single
 // subscriber that turns that into a real destination.
 
-export type NotificationKind = "morning" | "evening" | "event" | "reminder" | null;
+export type NotificationKind = "morning" | "evening" | "event" | "reminder" | "connection" | null;
 
 export function kindOfNotification(id: number): NotificationKind {
   if (id === MORNING_ID) return "morning";
   if (id === EVENING_ID) return "evening";
   if (id === TEST_REMINDER_ID) return "reminder";
+  if (id === CONNECTION_ID) return "connection";
   // The spans, so a tap on a notification an earlier build scheduled still
   // lands on the right screen instead of nowhere.
   if (id >= EVENT_REMINDER_BASE && id < EVENT_REMINDER_BASE + EVENT_REMINDER_SPAN) return "event";

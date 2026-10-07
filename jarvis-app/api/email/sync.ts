@@ -55,7 +55,7 @@ export default async function handler(req: Request): Promise<Response> {
     const metas = await fetchMetas(tok, listed.ids);
     if (metas.failed) { await recordFailure(env, who.id, account.id, metas.failed); return failResponse(metas.failed); }
     const applied = await serviceRpc(env, "email_sync_apply", { p_owner: who.id, p_account: account.id, p_messages: metas.rows, p_removed: metas.gone, p_cursor: null, p_advance: false });
-    if (applied.error) return failResponse(fail("UNAVAILABLE"));
+    if (applied.error) { const f = fail("UNAVAILABLE"); await recordFailure(env, who.id, account.id, f); return failResponse(f); }
     return json({ ok: true, synced: metas.rows.length, removed: metas.gone.length, next_page: listed.next ?? null, complete: !listed.next, resynced: false });
   }
 
@@ -86,7 +86,7 @@ export default async function handler(req: Request): Promise<Response> {
       const metas = await fetchMetas(tok, [...changed]);
       if (metas.failed) { await recordFailure(env, who.id, account.id, metas.failed); return failResponse(metas.failed); }
       const applied = await serviceRpc(env, "email_sync_apply", { p_owner: who.id, p_account: account.id, p_messages: metas.rows, p_removed: [...removed, ...metas.gone], p_cursor: historyId ?? account.cursor, p_advance: true });
-      if (applied.error) return failResponse(fail("UNAVAILABLE"));
+      if (applied.error) { const f = fail("UNAVAILABLE"); await recordFailure(env, who.id, account.id, f); return failResponse(f); }
       const r = applied.data as { last_sync_at?: string } | null;
       return json({ ok: true, synced: metas.rows.length, removed: removed.size + metas.gone.length, next_page: null, complete: false, resynced: false, last_sync_at: r?.last_sync_at ?? null });
     }
@@ -103,7 +103,7 @@ export default async function handler(req: Request): Promise<Response> {
   const metas = await fetchMetas(tok, listed.ids);
   if (metas.failed) { await recordFailure(env, who.id, account.id, metas.failed); return failResponse(metas.failed); }
   const applied = await serviceRpc(env, "email_sync_apply", { p_owner: who.id, p_account: account.id, p_messages: metas.rows, p_removed: metas.gone, p_cursor: historyId, p_advance: true });
-  if (applied.error) return failResponse(fail("UNAVAILABLE"));
+  if (applied.error) { const f = fail("UNAVAILABLE"); await recordFailure(env, who.id, account.id, f); return failResponse(f); }
   const r = applied.data as { last_sync_at?: string } | null;
   return json({ ok: true, synced: metas.rows.length, removed: metas.gone.length, next_page: listed.next ?? null, complete: !listed.next, resynced, last_sync_at: r?.last_sync_at ?? null });
 }

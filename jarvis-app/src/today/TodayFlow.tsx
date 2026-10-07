@@ -34,6 +34,8 @@ import { rowDoor, own } from "../shared/rowDoor";
 import { FAILING, WAITING, NEW, RESUME, LIVE, spotIsDuplicate } from "./stream";
 import { useOptionalSession } from "../auth/AuthProvider";
 import { useConnectionStatus } from "../connections/useConnectionStatus";
+import { useIncidentLedger } from "../connections/useConnectionAnnouncements";
+import { bannerModels } from "../connections/incidentView";
 import { chainQuietToday, dismissChain, nextBest, chainReason } from "../tasks/momentum";
 import { distanceFor, type Distance } from "../tasks/grouping";
 import { AUTOMATION_LABEL, tuningAllows, tuningScope, tuningWeight, tuningsFrom, type TuningChoice } from "../rules/tuning";
@@ -370,6 +372,7 @@ export default function TodayFlow({
   // THE CONNECTION NOTICE READS THE ONE STATUS ENDPOINT (Foundation Fix Spec 1): nothing here decides a mailbox is healthy.
   const authSession = useOptionalSession();
   const conn = useConnectionStatus(authSession?.access_token, authSession?.user.id);
+  const incidentsOnToday = useIncidentLedger(authSession?.user.id);
   const waitingSvc = useMemo(() => (storeForWaiting && uidForWaiting ? new WaitingService(storeForWaiting, uidForWaiting) : null), [storeForWaiting, uidForWaiting]);
   // NOT THE EMAILS (Dave 2026-09-17: "they must go to the email section").
   // A task born from a thread is the Ready to Send band's: it never leads
@@ -4225,7 +4228,22 @@ export default function TodayFlow({
   // ONE CONNECTION NOTICE (Foundation Fix Spec 1). It reads the proven status, never a stored token, and joins the stream
   // like every other notice. Reconnect is offered ONLY for a confirmed auth loss; an outage, a throttle or a stale answer
   // says what it is and offers no reconnect (the loud treatment and its escalation are Spec 3's).
-  const connectionNotice = conn.worst ? (
+  // THE LOUD ALERT (Foundation Fix Spec 3): while an incident is open this is its matching alert, with the same words as the
+  // Email banner, at failing weight. Its tone is the key's amber, not a third red notice producer (laws: red is rationed). It names the first account and says how many more. Tapping goes to Connections.
+  const incidentModels = conn.answer ? bannerModels(conn.answer.accounts, incidentsOnToday.ledger) : [];
+  const leadIncident = incidentModels[0];
+  const connectionNotice = leadIncident ? (
+    <NoticeCard
+      key="connection"
+      weight={FAILING}
+      icon={<ShieldAlert className="ic" />}
+      tone={leadIncident.reconnect ? "cat-fg-orange" : "cat-fg-slate"}
+      title={leadIncident.title}
+      sub={incidentModels.length > 1 ? `${leadIncident.address} · ${incidentModels.length - 1} More` : leadIncident.address}
+      {...(leadIncident.reconnect && onGoConnections ? { action: { label: "Reconnect", onClick: onGoConnections } } : {})}
+      {...(onGoConnections ? { onOpen: onGoConnections } : {})}
+    />
+  ) : conn.worst ? (
     <NoticeCard
       key="connection"
       weight={FAILING}

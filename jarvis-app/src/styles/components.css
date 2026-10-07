@@ -7622,3 +7622,32 @@ html[data-motion="reduce"] .fb-fill { transition: none; }
    a dot, once). Its content starts at the card's own padding, and its hairline with it. */
 .ruled .sched-row.sched-row-bare { padding-left: var(--s-4); }
 .ruled .sched-row.sched-row-bare + .sched-row.sched-row-bare::before { left: var(--s-4); }
+
+/* The Email tab's warning mark while a mailbox is lost (Foundation Fix Spec 3). A glyph in the system red, no number, at the icon's
+   corner. It is a status, and it is gone the moment the account proves healthy. */
+.tab .tab-warn { position: absolute; top: 2px; right: calc(50% - 22px); width: 16px; height: 16px; color: var(--red); }
+
+/* THE LOUD CONNECTION BANNER (Foundation Fix Spec 3, 2026-10-07). Lives here, not in email.css, because white on the red is a literal
+   (as .sched-act-danger and .task-del are) and email.css writes no raw colour. A confirmed
+   loss of a mailbox, at the top of Email, in the system red with white words, for
+   as long as it is true. It is a status, not a tap target: the one red a screen
+   may carry for something that is wrong, and it is the whole point of the spec
+   that it cannot be missed. The buttons on it are white outlines on the red, so
+   the red stays the banner's and no second red fill competes with it. After a
+   tap it compacts to .conn-strip, which keeps the same red. */
+.conn-banner { margin: var(--s-2) var(--s-4) 0; padding: var(--s-3) var(--s-4); border-radius: var(--r-md);
+  background: var(--red); color: #fff; font-size: var(--t-sub); line-height: 1.4; }
+.conn-banner-title { font-size: var(--t-body); font-weight: var(--w-semi); }
+.conn-banner-addr { margin-top: var(--s-1); overflow-wrap: anywhere; }
+.conn-banner-line { margin-top: var(--s-1); }
+.conn-banner-paused { font-weight: var(--w-semi); }
+.conn-banner-acts { display: flex; flex-wrap: wrap; gap: var(--s-2); margin-top: var(--s-3); }
+.conn-banner-act { flex: 0 0 auto; min-height: 44px; padding: 0 var(--s-4); border-radius: var(--r-md); font-family: var(--f);
+  font-size: var(--t-sub); font-weight: var(--w-semi); color: #fff; background: transparent; border: 1px solid #fff; }
+.conn-banner-act.primary { background: #fff; color: var(--red); }
+.conn-strip { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3);
+  margin: var(--s-2) var(--s-4) 0; padding: var(--s-2h) var(--s-4); border-radius: var(--r-md);
+  background: var(--red); color: #fff; font-size: var(--t-sub); font-weight: var(--w-semi); line-height: 1.4; }
+.conn-strip-text { min-width: 0; overflow-wrap: anywhere; }
+.conn-strip-act { flex: 0 0 auto; min-height: 44px; padding: 0 var(--s-3); background: transparent; border: 1px solid #fff; border-radius: var(--r-md);
+  color: #fff; font-family: var(--f); font-size: var(--t-sub); font-weight: var(--w-semi); }

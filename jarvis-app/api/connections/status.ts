@@ -21,6 +21,8 @@ export const config = { runtime: "edge" };
 
 import { authedUser, fail, failResponse, gmail, json, readEnv, serviceRpc, serviceSelect, type EmailEnv } from "../_email";
 import { getAccessToken } from "../_google";
+import { pausedWorkOf, readGrantMeta, reportIncident } from "../_incident";
+import { incidentOf } from "../../src/connections/incident";
 import {
   COVERAGE_DAYS, REPROVE_AFTER_MS, deliveryOf, deriveStatus, type AccountStatus, type ReadOutcome, type RefreshOutcome,
 } from "../../src/connections/connectionStatus";
@@ -29,6 +31,7 @@ import {
 export const PROOF_TIMEOUT_MS = 10_000;
 
 interface AccountRow {
+  id: string;
   address: string;
   state: string;
   last_sync_at: string | null;
@@ -45,9 +48,9 @@ function within<T>(p: Promise<T>, ms: number): Promise<T> {
 
 /** The account rows, with the recorded proof when migration 0056 is there and without it when it is not. */
 async function readAccounts(env: EmailEnv, userId: string): Promise<AccountRow[] | null> {
-  const full = await serviceSelect<AccountRow>(env, "email_account", `owner_id=eq.${userId}&select=address,state,last_sync_at,connection_health,connection_health_at`);
+  const full = await serviceSelect<AccountRow>(env, "email_account", `owner_id=eq.${userId}&select=id,address,state,last_sync_at,connection_health,connection_health_at`);
   if (full) return full;
-  const base = await serviceSelect<Omit<AccountRow, "connection_health" | "connection_health_at">>(env, "email_account", `owner_id=eq.${userId}&select=address,state,last_sync_at`);
+  const base = await serviceSelect<Omit<AccountRow, "connection_health" | "connection_health_at">>(env, "email_account", `owner_id=eq.${userId}&select=id,address,state,last_sync_at`);
   return base ? base.map((r) => ({ ...r, connection_health: null, connection_health_at: null })) : null;
 }
 
@@ -96,6 +99,8 @@ export default async function handler(req: Request): Promise<Response> {
   if (signIns === null || accounts === null) return failResponse(fail("UNAVAILABLE"));
 
   const now = new Date();
+  // What each stored grant knows about itself (migration 0057). Null where that is not applied: incidents then anchor on the last proof.
+  const grants = await readGrantMeta(env, who.id);
   const byAddress = new Map(accounts.map((a) => [a.address.toLowerCase(), a]));
   // Every stored sign-in, plus every mailbox row still claiming to be live
   // whose sign-in is gone (a grant deleted on invalid_grant leaves exactly that).
@@ -111,7 +116,20 @@ export default async function handler(req: Request): Promise<Response> {
       const sync = row?.last_sync_at ?? recorded.lastSuccessfulSyncAt;
       return { ...recorded, lastSuccessfulSyncAt: sync, syncCoverage: sync ? { days: COVERAGE_DAYS, through: sync } : null, delivery: deliveryOf(sync, now) };
     }
-    const status = await prove(env, who.id, email, row?.last_sync_at ?? null, recorded, now);
+    let status = await prove(env, who.id, email, row?.last_sync_at ?? null, recorded, now);
+    // THE INCIDENT (Spec 3): a confirmed loss, or a trouble that has lasted, becomes one fact with one ID. It is carried on the
+    // recorded proof so the next check keeps the same ID, and the error sink hears about it once.
+    const grant = grants?.get(email) ?? null;
+    const incident = incidentOf({ email, status, previous: recorded?.incident ?? null, grant, now });
+    if (incident) {
+      const paused = row ? await pausedWorkOf(env, who.id, row.id) : null;
+      status = { ...status, incident, paused };
+      if (recorded?.incident?.id !== incident.id) {
+        await reportIncident(env, { email, incident, code: (grant?.code ?? status.lastError)?.toUpperCase() ?? null, source: "status", at: now });
+      }
+    } else {
+      status = { ...status, incident: null, paused: null };
+    }
     // Awaited: an edge function may stop the moment the response is returned. A failed record is ignored, the proof stands.
     if (row) await serviceRpc(env, "email_account_health_record", { p_owner: who.id, p_address: email, p_health: status });
     return status;

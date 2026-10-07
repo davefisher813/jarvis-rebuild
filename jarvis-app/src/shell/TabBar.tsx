@@ -1,4 +1,4 @@
-import { MoreHorizontal } from "../shared/icons";
+import { AlertTriangle, MoreHorizontal } from "../shared/icons";
 import { pressable } from "../shared/pressable";
 import { destOf, tabLabelOf } from "./destinations";
 
@@ -17,6 +17,13 @@ import { destOf, tabLabelOf } from "./destinations";
 // where something can actually be done about it. A number belongs where the
 // action is.
 //
+// THE ONE STATUS MARK (Foundation Fix Spec 3, 2026-10-07). `warn` names the
+// tabs that carry a warning icon: today only Email, while a mailbox is lost. It
+// is a state with no number on it, it appears only while the thing is wrong,
+// and it clears itself the moment the account proves healthy, so it is not the
+// closure-anxiety counter the law above forbids. It is passed in, never
+// computed here, and a tab with no warning renders exactly as before.
+//
 // The `badges` prop is GONE rather than merely unused, because a dead
 // mechanism is a resurrected one. Putting a count back means putting the
 // plumbing back, which is a decision somebody has to make on purpose.
@@ -24,10 +31,12 @@ export default function TabBar({
   tabKeys,
   active,
   onTab,
+  warn = [],
 }: {
   tabKeys: string[];
   active: string;
   onTab: (key: string) => void;
+  warn?: string[];
 }) {
   const items = [
     ...tabKeys.map((k) => destOf(k)).filter((d): d is NonNullable<typeof d> => !!d),
@@ -49,6 +58,7 @@ export default function TabBar({
           aria-current={key === activeKey ? "page" : undefined}
         >
           <Icon className="ic" />
+          {warn.includes(key) && <AlertTriangle className="tab-warn" role="img" aria-label="Needs attention" />}
           {/* The short word, where there is one. See destinations.tsx. */}
           {tabLabelOf(d)}
         </div>

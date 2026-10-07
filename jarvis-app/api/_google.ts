@@ -12,6 +12,7 @@
 // Nothing here reads process.env. The caller passes what it has, so a
 // mistake is a missing argument at build time rather than a silent fallback.
 
+import { reportRevocation } from "./_incident";
 import { openSecret, sealSecret, needsUpgrade, type KeyRing, type SecretKind } from "../src/connections/google/tokenEnvelope";
 import {
   LOCK_TTL_SECONDS, MAX_ATTEMPTS, SKEW_MS, WAIT_FOR_WINNER_MS, WAIT_POLL_MS,
@@ -432,7 +433,8 @@ async function recordSuccess(s: GoogleStore, o: AccessOpts, email: string, row: 
  *  On a confirmed invalid_grant: the row is marked DEAD and KEPT, the mailbox moves to reauth, and the failure is recorded as
  *  PROVIDER_AUTH with redacted metadata (when, which path, which code, which HTTP status, the likely cause), all in one transaction.
  *  `first` is true only for the call that found it, which is what the loud announcement keys on (Spec 3): once per incident,
- *  never reopened. The announcement itself is Spec 3's; this returns the fact it needs. */
+ *  never reopened. The first finder reports it to the error sink here (api/_incident.ts); the in-app announcement is the client's,
+ *  keyed on the same incident ID. */
 export async function handleRevokedGrant(
   s: GoogleStore,
   o: { userId: string; email: string; source: TokenSource; code: string; httpStatus: number; row?: TokenRow | null; now?: number },
@@ -445,7 +447,12 @@ export async function handleRevokedGrant(
     grantedAtMs: ms(o.row?.granted_at), lastRefreshOkMs: ms(o.row?.last_refresh_ok_at), refreshExpiresAtMs: ms(o.row?.refresh_expires_at),
   });
   const r = await rpc(s, "google_grant_revoked", { p_user: o.userId, p_email: email, p_source: o.source, p_code: o.code, p_http: o.httpStatus, p_cause: cause });
-  if (r.ok) return { first: (r.data as { first?: boolean } | null)?.first === true, cause };
+  if (r.ok) {
+    const first = (r.data as { first?: boolean } | null)?.first === true;
+    // The first path to find the loss tells the error sink, once (Spec 3). Awaited: an edge function may stop when the response returns.
+    if (first) await reportRevocation(s, { userId: o.userId, email, source: o.source, code: o.code });
+    return { first, cause };
+  }
   if (missing(r)) {
     // Migration 0057 not applied: nothing to mark DEAD, so move the mailbox to reauth the older way. Nothing is deleted.
     try {

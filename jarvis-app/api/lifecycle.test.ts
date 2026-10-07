@@ -14,6 +14,7 @@ import {
 } from "./_google";
 import { mailboxToken, gmail, type EmailEnv } from "./_email";
 import { openSecret, sealSecret, isEnvelope } from "../src/connections/google/tokenEnvelope";
+import { incidentId } from "../src/connections/incident";
 
 const KEY = Buffer.alloc(32, 7).toString("base64");
 const KEY2 = Buffer.alloc(32, 9).toString("base64");
@@ -37,6 +38,8 @@ interface World {
   googlePosts: URLSearchParams[];
   revokes: string[];
   rpcs: { fn: string; args: Record<string, unknown> }[];
+  /** Rows written to the error sink (client_error), by whoever reported an incident. */
+  sink: Record<string, unknown>[];
   /** What Google's token endpoint answers. */
   google: (p: URLSearchParams, n: number) => Response;
   gmail: () => Response;
@@ -72,7 +75,7 @@ const COLS = ["token_enc", "state", "access_enc", "access_expires_at", "refresh_
 
 function newWorld(): World {
   const world: World = {
-    rows: new Map(), account: null, credentials: new Set(), googlePosts: [], revokes: [], rpcs: [], migrated: true,
+    rows: new Map(), account: null, credentials: new Set(), googlePosts: [], revokes: [], rpcs: [], sink: [], migrated: true,
     google: () => res({ access_token: "ya29.fresh", expires_in: 3599, scope: "gmail.send gmail.modify" }),
     gmail: () => res({ emailAddress: EMAIL }),
   };
@@ -92,6 +95,11 @@ function newWorld(): World {
       if (init?.method === "DELETE") { w.rows.delete(rowKey(uid!, e!)); return res({}, 204); }
       const out = [...w.rows.values()].filter((r) => (!uid || r.user_id === uid) && (!e || r.email === e)).map((r) => Object.fromEntries(select.map((c) => [c, (r as unknown as Record<string, unknown>)[c]])));
       return res(out);
+    }
+    if (url.includes("/rest/v1/client_error")) {
+      if (init?.method === "POST") { w.sink.push(JSON.parse(body) as Record<string, unknown>); return res({}, 201); }
+      const fp = u.searchParams.get("fingerprint")?.replace("eq.", "");
+      return res(w.sink.filter((r) => r.fingerprint === fp).map((r) => ({ id: 1 })));
     }
     if (url.includes("/rest/v1/email_account?")) return res(w.account ? [{ id: "acct-1" }] : []);
     if (url.includes("/rest/v1/rpc/")) {
@@ -250,6 +258,36 @@ describe("AC1: exactly one revocation path, whichever door finds it", () => {
     const a = await handleRevokedGrant(STORE, { userId: USER, email: EMAIL, source: "app", code: "invalid_grant", httpStatus: 400 });
     const b = await handleRevokedGrant(STORE, { userId: USER, email: EMAIL, source: "email", code: "invalid_grant", httpStatus: 400 });
     expect([a.first, b.first]).toEqual([true, false]);
+  });
+
+  it("SPEC 3: the first finder tells the error sink once, with the account, the code and the time; later finders add nothing", async () => {
+    await seedRow({});
+    await handleRevokedGrant(STORE, { userId: USER, email: EMAIL, source: "worker", code: "invalid_grant", httpStatus: 400 });
+    await handleRevokedGrant(STORE, { userId: USER, email: EMAIL, source: "email", code: "invalid_grant", httpStatus: 400 });
+    await handleRevokedGrant(STORE, { userId: USER, email: EMAIL, source: "app", code: "invalid_grant", httpStatus: 400 });
+    expect(w.sink).toHaveLength(1);
+    const r = w.sink[0]!;
+    const ctx = r.context as Record<string, unknown>;
+    expect(r.name).toBe("ConnectionIncident");
+    expect(String(r.message)).toMatch(/^JC-[0-9A-F]{8} PROVIDER_AUTH INVALID_GRANT dave@gmail\.com \d{4}-\d\d-\d\dT/);
+    expect(ctx).toMatchObject({ account: EMAIL, code: "INVALID_GRANT", kind: "auth", source: "worker" });
+    expect(typeof ctx.at).toBe("string");
+    // The ID is the one a status check will compute from the same row: anchored on when the failure was recorded.
+    const anchor = new Date(String(row().last_auth_error?.oauthRefreshFailedAt)).toISOString();
+    expect(ctx.incident).toBe(incidentId(EMAIL, "auth", anchor));
+  });
+
+  it("SPEC 3: nothing in the sink row is a token, a message or a recipient", async () => {
+    await seedRow({});
+    await handleRevokedGrant(STORE, { userId: USER, email: EMAIL, source: "worker", code: "invalid_grant", httpStatus: 400 });
+    expect(JSON.stringify(w.sink)).not.toMatch(/1\/\/stored|ya29|token_enc|subject|snippet/i);
+  });
+
+  it("SPEC 3: a transient failure reports nothing", async () => {
+    w.google = () => res({}, 503);
+    await seedRow({});
+    await getAccessToken(STORE, { userId: USER, email: EMAIL, source: "app", ...FAST });
+    expect(w.sink).toHaveLength(0);
   });
 
   it("names the likely cause from the row: a Testing-mode clock that has run out", async () => {

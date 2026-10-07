@@ -68,6 +68,9 @@ import ComposeScreen, { type ComposeStart } from "./ComposeScreen";
 import SendReviewScreen from "./SendReviewScreen";
 import SendOutcomeScreen from "./SendOutcomeScreen";
 import DraftsScreen from "./DraftsScreen";
+import ConnectionBanner from "./ConnectionBanner";
+import { useIncidentLedger } from "../connections/useConnectionAnnouncements";
+import { bannerModels, recoveryNotes } from "../connections/incidentView";
 import { emptyFields, fieldsOf, getDraft, newLocalKey, outcomeOf, reconcileSend, replyFields, saveDraft, sendApproved, type DraftFields, type DraftRow, type LocalDraft, type Review } from "./drafts";
 import WaitingList, { type WaitingView } from "./WaitingList";
 import WaitingDetail, { type FollowUpStart } from "./WaitingDetail";
@@ -532,9 +535,14 @@ export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModul
   // THE ONE STATUS (Foundation Fix Spec 1). Whether a mailbox needs reconnecting comes from the proven status, not from the
   // cache row's own state: the two used to disagree. The row's state is only the answer until the first proof arrives.
   const conn = useConnectionStatus(token, token ? userId : null);
-  const reauth = conn.answer ? conn.needsReconnect : accounts.some((a) => a.state === "reauth");
+  // THE LOUD BANNER (Foundation Fix Spec 3). While an incident is open it replaces the quieter notes below: the banner is the one
+  // statement of the failure, and it carries the reconnect and the other two ways out itself.
+  const incidents = useIncidentLedger(token ? userId : null);
+  const banners = conn.answer ? bannerModels(conn.answer.accounts, incidents.ledger) : [];
+  const recovery = conn.answer ? recoveryNotes(conn.answer.accounts, incidents.ledger) : [];
+  const reauth = banners.length === 0 && (conn.answer ? conn.needsReconnect : accounts.some((a) => a.state === "reauth"));
   // Anything short of connected that is not a reconnect: an outage, a throttle, a stale answer. It says what it is and offers nothing to tap.
-  const statusNote = conn.worst && !conn.worst.view.offerReconnect && conn.worst.view.state !== "offline"
+  const statusNote = banners.length === 0 && conn.worst && !conn.worst.view.offerReconnect && conn.worst.view.state !== "offline"
     ? conn.worst.view.headline + (conn.worst.view.detail ? " · " + conn.worst.view.detail : "")
     : null;
   const accountOf = (row: InboxRow) => accounts.find((a) => a.id === row.account_id) ?? null;
@@ -777,6 +785,7 @@ export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModul
 
       <div className={"email-pull" + (armed || refreshing ? " on" : "")} aria-hidden="true">{refreshing ? REFRESHING : PULL_HINT}</div>
       {offline && <div className="email-note quiet"><span>{OFFLINE_LINE}</span></div>}
+      <ConnectionBanner models={banners} notes={recovery} onReconnect={onOpenConnections} {...(client ? { onViewPaused: () => setScreen({ kind: "drafts" }) } : {})} onAcknowledge={incidents.acknowledge} onSeen={incidents.seen} />
       {reauth && <div className="email-note"><span>{REAUTH_LINE}</span><button className="quiet-action" onClick={onOpenConnections}>{RECONNECT}</button></div>}
       {statusNote && <div className="email-note quiet"><span>{statusNote}</span></div>}
       {issueLines.map((l) => <div className="email-note quiet" key={l}><span>{l}</span></div>)}
