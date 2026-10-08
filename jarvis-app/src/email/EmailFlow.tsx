@@ -48,7 +48,7 @@ import {
   ALL_CHIP, ARCHIVED, AREAS_LABEL, CAPTURE_KIND, CAPTURE_TITLE, EMAIL_TITLE, EMPTY_ACCOUNTS, EMPTY_FILTER, EMPTY_INBOX, EMPTY_WAITING, FIND_DETAILS, HIDE_DISMISSED, MESSAGE_TITLE, NOT_NOW,
   NO_CLIENT, OFFLINE_LINE, PULL_HINT, REAUTH_LINE, RECONNECT, REFRESHING, REFRESH_FAILED, REFRESH_LABEL, REMEMBER, RETRY, SEARCH_LABEL, SEGMENTS, SHOW_DISMISSED, SUGGEST_TITLE,
   TRASHED, UNDO, foundLine, type Segment,
-  COMPOSE_LABEL, DRAFT_DISCARDED, DRAFT_KEPT, NOT_SENT_TITLE, NOW_CONFIRMED, SENT_TITLE, STILL_UNKNOWN, UNKNOWN_TITLE, SENDING_LINE,
+  COMPOSE_LABEL, DRAFT_DISCARDED, DRAFT_KEPT, NOT_SENT_TITLE, NOW_CONFIRMED, SENT_TITLE, STILL_UNKNOWN, UNKNOWN_TITLE, SENDING_LINE, UNDONE_LINE,
   REVIEW_FILTER, moreInOlderMail, SHOW_ALL_ROWS, WAITING_TITLE,
 } from "./copy";
 import {
@@ -67,6 +67,10 @@ import AccountsScreen from "./AccountsScreen";
 import ComposeScreen, { type ComposeStart } from "./ComposeScreen";
 import SendReviewScreen from "./SendReviewScreen";
 import SendOutcomeScreen from "./SendOutcomeScreen";
+import HeldSendView from "./HeldSendView";
+import { isHeld, type HoldStatus } from "./drafts";
+import { flagOn } from "../substrate/flags";
+import type { HeldSend } from "./sendHold";
 import DraftsScreen from "./DraftsScreen";
 import ConnectionBanner from "./ConnectionBanner";
 import { useReconnect } from "./useReconnect";
@@ -99,6 +103,8 @@ type Screen =
   | { kind: "compose"; start: ComposeStart; from: Screen }
   | { kind: "review"; draftId: string; revision: number; fields: DraftFields; review: Review; requestId: string; start: ComposeStart; from: Screen }
   | { kind: "outcome"; draft: DraftRow }
+  // Email v1: approved and HELD on the server for 30 seconds (migration 0059); Undo brings the draft back.
+  | { kind: "held"; actionId: string; held: HeldSend; receivedAt: number; draftId: string; subject: string; from: string; recipients: string[]; start: ComposeStart; origin: Screen }
   | { kind: "drafts" }
   // Slice 08: one waiting record.
   | { kind: "waiting"; id: string };
@@ -635,9 +641,18 @@ export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModul
     if (sending || !client) return;
     setSending(true);
     setSendFailure(null);
-    const r = await sendApproved(token, { draft_id: s.draftId, review_nonce: s.review.review.review_nonce, shown_payload_hash: s.review.review.payload_hash, request_id: s.requestId });
+    const hold = flagOn("email_hold_v1");
+    const r = await sendApproved(token, { draft_id: s.draftId, review_nonce: s.review.review.review_nonce, shown_payload_hash: s.review.review.payload_hash, request_id: s.requestId, ...(hold ? { hold: true as const } : {}) });
     setSending(false);
     if (!r.ok) { setSendFailure(r); return; }
+    if (isHeld(r.value)) {
+      // Approved and held on the server. Nothing has gone to Gmail; the screen counts down the server's clock and offers Undo.
+      const e = s.review.exact;
+      setDraftsReload((n) => n + 1);
+      setCheckLine(null);
+      setScreen({ kind: "held", actionId: r.value.action_id, held: { hold_until: r.value.hold_until, dispatch_deadline: r.value.dispatch_deadline, server_now: r.value.server_now }, receivedAt: Date.now(), draftId: s.draftId, subject: e.subject, from: e.from_identity, recipients: [...e.to, ...e.cc, ...e.bcc], start: s.start, origin: s.from });
+      return;
+    }
     let draft = r.value.draft;
     if (!draft) { const g = await getDraft(client, s.draftId); draft = g.ok ? g.value : null; }
     if (!draft) { setSendFailure(failure("UNAVAILABLE")); return; }
@@ -741,7 +756,28 @@ export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModul
     const s = screen;
     const backToCompose = () => { void cancelCommand(client, s.review.review.action_id); setSendFailure(null); setScreen({ kind: "compose", start: s.start, from: s.from }); };
     return <div className={pushCls}>
-      <SendReviewScreen review={s.review} offline={offline} now={nowFn} sending={sending} failure={sendFailure} onEdit={backToCompose} onSend={() => void send(s)} onReviewAgain={backToCompose} />
+      <SendReviewScreen review={s.review} offline={offline} now={nowFn} sending={sending} failure={sendFailure} hold={flagOn("email_hold_v1")} onEdit={backToCompose} onSend={() => void send(s)} onReviewAgain={backToCompose} />
+    </div>;
+  }
+  if (screen.kind === "held" && client) {
+    const h = screen;
+    // The server decided how it ended; this just shows the screen that fits. A settled send reads the draft as it stands.
+    const ended = async (phase: "settled" | "returned", status: HoldStatus) => {
+      const g = await getDraft(client, h.draftId);
+      setDraftsReload((n) => n + 1);
+      if (!g.ok) { setScreen({ kind: "root" }); return; }
+      if (phase === "returned") {
+        showToast({ message: status.error_code === "HOLD_EXPIRED" ? lineFor({ code: "HOLD_EXPIRED" }) : UNDONE_LINE });
+        setScreen({ kind: "compose", start: { ...h.start, draftId: g.value.id, revision: g.value.revision, fields: fieldsOf(g.value) }, from: h.origin });
+        return;
+      }
+      if (outcomeOf(g.value) === "sent") showToast({ message: g.value.action_verb ?? SENT_TITLE });
+      setCheckLine(null);
+      setScreen({ kind: "outcome", draft: g.value });
+    };
+    return <div className={pushCls}>
+      <HeldSendView client={client} actionId={h.actionId} held={h.held} receivedAt={h.receivedAt} offline={offline} subject={h.subject} from={h.from} recipients={h.recipients}
+        onEnd={(phase, status) => void ended(phase, status)} onBack={() => setScreen({ kind: "root" })} />
     </div>;
   }
   if (screen.kind === "outcome" && client) {

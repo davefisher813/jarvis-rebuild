@@ -30,6 +30,7 @@ import MessageScreen from "./MessageScreen";
 import ComposeScreen from "./ComposeScreen";
 import SendReviewScreen from "./SendReviewScreen";
 import SendOutcomeScreen from "./SendOutcomeScreen";
+import HeldSendScreen from "./HeldSendScreen";
 import { cardLines, type Candidate } from "./candidates";
 import { SENT_LINE, UNKNOWN_WHY, STATE_WORD, RETENTION_NOTE } from "./copy";
 import type { DraftRow, Review } from "./drafts";
@@ -491,6 +492,24 @@ describe("Compose, review and outcome", () => {
     cleanup();
     const sending = outcome(sent({ send_state: "sending", outbox_state: "pending", sent_action_id: null }));
     expect(sending.container.querySelector(".email-review-card .email-card-detail, .email-review-card .facts, .email-review-card .conn-meta")).toBeNull();
+  });
+  it("Waiting to Send: Not Sent Yet is the one amber fact, the seconds are white, Undo is the one action; no pill, no empty note (catalog gate, Email v1)", () => {
+    const held = (o: Partial<import("./useHeldSend").HeldState> = {}) => ({ phase: "held" as const, seconds: 24, note: null, status: null, undoing: false, ...o });
+    const h = render(<HeldSendScreen held={held()} subject="Re: Transcript" from="dave@example.test" recipients={["coach@example.test"]} onUndo={noop} onBack={noop} />);
+    expect(texts(h.container, ".email-review-card .conn-meta .fact")).toEqual(["Not Sent Yet", "24s"]);
+    expect(h.container.querySelector(".conn-meta .fact")).toHaveClass("warn");
+    expect(h.container.querySelector(".email-note")).toBeNull();
+    expect(h.container.querySelectorAll(".btn").length).toBe(1);
+    expect(catalogViolations(h.container)).toEqual([]);
+    cleanup();
+    const p = render(<HeldSendScreen held={held({ phase: "preparing", seconds: 0 })} subject="" from="dave@example.test" recipients={["coach@example.test"]} onUndo={noop} onBack={noop} />);
+    expect(texts(p.container, ".email-review-card .conn-meta .fact")).toEqual(["Not Sent Yet", "Preparing to Send"]);
+    expect(catalogViolations(p.container)).toEqual([]);
+    cleanup();
+    const sd = render(<HeldSendScreen held={held({ phase: "sending", seconds: 0 })} subject="x" from="dave@example.test" recipients={["coach@example.test"]} onUndo={noop} onBack={noop} />);
+    expect(texts(sd.container, ".email-review-card .conn-meta .fact")).toEqual(["Sending"]);
+    expect(sd.container.querySelector(".btn")).toBeDisabled();
+    expect(catalogViolations(sd.container)).toEqual([]);
   });
   it("a failed send is a red error line", () => {
     const f = outcome(sent({ send_state: "failed", outbox_state: "failed", error_code: "PROVIDER_AUTH", sent_action_id: null }));

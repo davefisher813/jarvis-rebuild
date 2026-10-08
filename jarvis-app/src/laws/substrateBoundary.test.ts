@@ -163,10 +163,15 @@ describe("SUBSTRATE law 5: the Email module runs with AI off", () => {
 
   it("runs nothing on a timer but the two debounces", () => {
     const ALLOWED_TIMEOUTS = new Set(["email/SearchScreen.tsx", "email/ComposeScreen.tsx"]);
+    // Email v1 (Dave approved the build 2026-10-08; spec section 9, his locked decision 4): the held send's screen counts down
+    // the server's 30 seconds and asks the server what became of the command. It exists only while that screen is open, is
+    // started by the person's own Send tap, and stops the moment the command settles, comes back, or the screen closes.
+    // It is a view of a server-side hold, not background work: the hold itself runs with the page closed.
+    const ALLOWED_INTERVALS = new Set(["email/useHeldSend.ts"]);
     const bad: string[] = [];
     for (const f of MANUAL) {
       const src = read(f);
-      if (/\bsetInterval\s*\(/.test(src)) bad.push(`${rel(f)}: setInterval`);
+      if (/\bsetInterval\s*\(/.test(src) && !ALLOWED_INTERVALS.has(rel(f))) bad.push(`${rel(f)}: setInterval`);
       if (/\bsetTimeout\s*\(/.test(src) && !ALLOWED_TIMEOUTS.has(rel(f))) bad.push(`${rel(f)}: setTimeout`);
     }
     expect(bad).toEqual([]);

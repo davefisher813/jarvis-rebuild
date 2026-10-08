@@ -2105,10 +2105,6 @@ describe("LAW: every module is reachable, or is listed as not", () => {
     // its four siblings above, for the same reason: there is no bridge in the
     // web build to feed it.
     "healthImport.ts": "iOS only: needs the HealthKit bridge",
-    // Email v1, the 30-second send hold (2026-10-08, step 2): the constant and the server-clock countdown the held-send
-    // screen reads. The server half (migration 0059, api/cron/outbox.ts) is in; the screen is the next step, and this
-    // entry leaves the list the moment it imports the file (the law below makes it).
-    "sendHold.ts": "wired by the held-send screen, the next Email step",
     // The writing system (2026-09-14): the jsdom layout shims a test imports
     // before it mounts the shared document editor. Test-only by design.
     "tiptapTest.ts": "test only: the layout shims for mounting DocEditor in jsdom",
