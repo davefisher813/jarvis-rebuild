@@ -184,10 +184,6 @@ describe("refresh: four causes, four codes", () => {
     expect(status).toBe(410);
     expect(json).toMatchObject({ code: "GOOGLE_SIGNIN_REVOKED", message: `Google revoked this sign-in. Reconnect ${EMAIL}.` });
     expect(calls.some((c) => isRest(c.url) && c.method === "DELETE")).toBe(true);
-    // The Email tab's mirror of this sign-in is marked reauth_required, NOT left to read as "disconnected": the cached
-    // mail and drafts stay, Reconnect is offered (Email spec section 8, AC37).
-    const mark = calls.find((c) => c.url.includes("/rest/v1/rpc/email_account_mark"));
-    expect(JSON.parse(mark!.body ?? "{}")).toMatchObject({ p_address: EMAIL, p_auth: "reauth_required" });
   });
 
   it("any other provider error is temporary, retryable, and forgets nothing", async () => {
@@ -283,11 +279,7 @@ describe("forget", () => {
   it("deletes the row, and says so honestly when it could not", async () => {
     stubNetwork([(u, i) => (isRest(u) && i?.method === "DELETE" ? res({}, 204) : undefined)]);
     expect((await send({ forget: EMAIL })).json).toEqual({ ok: true });
-    // A forgotten sign-in closes the Email tab's mirror as removed; a failed delete does not.
-    expect(JSON.parse(calls.find((c) => c.url.includes("/rest/v1/rpc/email_account_mark"))!.body ?? "{}")).toMatchObject({ p_address: EMAIL, p_auth: "removed" });
-    calls.length = 0;
     stubNetwork([(u, i) => (isRest(u) && i?.method === "DELETE" ? res({}, 500) : undefined)]);
     expect((await send({ forget: EMAIL })).json).toMatchObject({ code: "GOOGLE_STORAGE_FAILURE" });
-    expect(calls.some((c) => c.url.includes("email_account_mark"))).toBe(false);
   });
 });

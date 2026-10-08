@@ -33,10 +33,10 @@ export function readEnv(): EmailEnv | null {
   return { supaUrl, anon, service, tokenKey, clients };
 }
 
-export const EMAIL_CODES = ["AUTH_REQUIRED", "PROVIDER_AUTH", "RATE_LIMITED", "UNAVAILABLE", "NOT_FOUND", "INVALID_PAYLOAD", "STORAGE_LIMIT", "STORAGE_UNAVAILABLE"] as const;
+export const EMAIL_CODES = ["AUTH_REQUIRED", "PROVIDER_AUTH", "RATE_LIMITED", "UNAVAILABLE", "NOT_FOUND", "INVALID_PAYLOAD", "STORAGE_LIMIT"] as const;
 export type EmailCode = (typeof EMAIL_CODES)[number];
 
-export interface Fail { code: EmailCode; safe_message: string; retryable: boolean; status: number; retry_after?: number; permission?: true }
+export interface Fail { code: EmailCode; safe_message: string; retryable: boolean; status: number; retry_after?: number }
 
 /** The one safe line per code (API-AND-VALIDATION.md, the error vocabulary); never a token, never mail. */
 export function fail(code: EmailCode, retryAfter?: number): Fail {
@@ -48,24 +48,7 @@ export function fail(code: EmailCode, retryAfter?: number): Fail {
     case "INVALID_PAYLOAD": return { code, status: 422, retryable: false, safe_message: "That request isn't one this door takes." };
     case "STORAGE_LIMIT": return { code, status: 413, retryable: false, safe_message: "This attachment exceeds the 20 MB message limit." };
     case "UNAVAILABLE": return { code, status: 503, retryable: true, safe_message: "Couldn't reach Gmail. Try again." };
-    // The saved connection exists but JARVIS could not read it (a storage fault, not Google, not the person). Spec 16:
-    // never dressed up as "reconnect", the mail and drafts are safe.
-    case "STORAGE_UNAVAILABLE": return { code, status: 503, retryable: true, safe_message: "JARVIS couldn't read the saved Gmail connection. Your mail is safe. Try again." };
   }
-}
-
-/** What a failure means for the ACCOUNT (0055's email_account_fail kinds). Only a grant problem touches authorization;
- *  a quota, a network blip or a Gmail 5xx only makes sync stale, so it can never open a reconnect prompt (AC41). */
-export function accountKind(f: Fail): "reauth" | "permission" | "storage" | "transient" | "quota" {
-  if (f.code === "PROVIDER_AUTH") return f.permission ? "permission" : "reauth";
-  if (f.code === "RATE_LIMITED") return "quota";
-  if (f.code === "STORAGE_UNAVAILABLE") return "storage";
-  return "transient";
-}
-
-/** Record a failure on the account row, by kind. Best effort: the answer to the person does not wait on it. */
-export async function recordAccountFailure(env: EmailEnv, userId: string, accountId: string, f: Fail): Promise<void> {
-  await serviceRpc(env, "email_account_fail", { p_owner: userId, p_account: accountId, p_kind: accountKind(f), p_error: f.safe_message });
 }
 
 export function json(body: unknown, status = 200, headers: Record<string, string> = {}): Response {
@@ -143,23 +126,23 @@ export async function serviceSelect<T>(env: EmailEnv, table: string, query: stri
 }
 
 /** The account row for this person and address, made if missing (the mirror of a stored sign-in). */
-export async function ensureAccount(env: EmailEnv, userId: string, email: string): Promise<{ id: string; cursor: string | null; state: string; sync_state: string } | Fail> {
+export async function ensureAccount(env: EmailEnv, userId: string, email: string): Promise<{ id: string; cursor: string | null; state: string } | Fail> {
   // A mailbox row mirrors a stored sign-in. With none for this address: a row that already exists is answered as it
   // is (so the failed refresh that follows can mark it reauth), and an address with no row creates nothing. A request
   // body never births a mailbox; the picker does (accounts.ts), from the sign-ins that exist.
   const signIn = await serviceSelect<{ email: string }>(env, "google_tokens", `user_id=eq.${userId}&email=eq.${encodeURIComponent(email)}&select=email`);
   if (signIn === null) return fail("UNAVAILABLE");
   if (!signIn[0]) {
-    const known = await serviceSelect<{ id: string; cursor: string | null; state: string; sync_state: string }>(env, "email_account", `owner_id=eq.${userId}&address=eq.${encodeURIComponent(email.toLowerCase())}&select=id,cursor,state,sync_state`);
+    const known = await serviceSelect<{ id: string; cursor: string | null; state: string }>(env, "email_account", `owner_id=eq.${userId}&address=eq.${encodeURIComponent(email.toLowerCase())}&select=id,cursor,state`);
     if (known === null) return fail("UNAVAILABLE");
     return known[0] ?? fail("PROVIDER_AUTH");
   }
   const up = await serviceRpc(env, "email_account_upsert", { p_owner: userId, p_address: email, p_scopes: [], p_capabilities: { archive: true, trash: true, read: true } });
   const id = (up.data as { account_id?: string } | null)?.account_id;
   if (!id) return fail("UNAVAILABLE");
-  const rows = await serviceSelect<{ id: string; cursor: string | null; state: string; sync_state: string }>(env, "email_account", `id=eq.${id}&owner_id=eq.${userId}&select=id,cursor,state,sync_state`);
+  const rows = await serviceSelect<{ id: string; cursor: string | null; state: string }>(env, "email_account", `id=eq.${id}&owner_id=eq.${userId}&select=id,cursor,state`);
   const row = rows?.[0];
-  return row ?? { id, cursor: null, state: "connected", sync_state: "not_started" };
+  return row ?? { id, cursor: null, state: "connected" };
 }
 
 /** A fresh access token for this person's stored sign-in to this address. Never leaves the server. */
@@ -172,8 +155,7 @@ export async function mailboxToken(env: EmailEnv, userId: string, email: string)
   try {
     stored = await decrypt(row.token_enc, env.tokenKey);
   } catch {
-    // The saved sign-in cannot be opened: a storage fault, not a revocation. Say so; do not ask for a reconnect.
-    return { ok: false, fail: fail("STORAGE_UNAVAILABLE"), reauth: false };
+    return { ok: false, fail: fail("PROVIDER_AUTH"), reauth: true };
   }
   let got: Awaited<ReturnType<typeof refreshAccessToken>>;
   try {
@@ -215,34 +197,9 @@ export async function gmail(accessToken: string, path: string, init: { method?: 
   return last;
 }
 
-const QUOTA_REASONS = new Set(["rateLimitExceeded", "userRateLimitExceeded", "quotaExceeded", "dailyLimitExceeded", "limitExceeded", "RESOURCE_EXHAUSTED"]);
-
-/** The reasons in a Gmail error body (error.errors[].reason, error.status, error.details[].reason). Never throws. */
-export function gmailReasons(body: unknown): string[] {
-  const out: string[] = [];
-  const e = (body as { error?: { status?: unknown; errors?: unknown; details?: unknown } } | null)?.error;
-  if (!e || typeof e !== "object") return out;
-  if (typeof e.status === "string") out.push(e.status);
-  for (const list of [e.errors, e.details]) {
-    if (!Array.isArray(list)) continue;
-    for (const x of list) {
-      const r = (x as { reason?: unknown } | null)?.reason;
-      if (typeof r === "string") out.push(r);
-    }
-  }
-  return out;
-}
-
 /** Gmail's refusals as the vocabulary's codes. */
 export function gmailFail(a: GmailAnswer): Fail {
-  if (a.status === 403) {
-    // Gmail answers a quota or rate problem with a 403 too. Read the reason: a quota is "wait", never "reconnect" (AC41).
-    const reasons = gmailReasons(a.body);
-    if (reasons.some((r) => QUOTA_REASONS.has(r))) return fail("RATE_LIMITED", a.retryAfter ?? 30);
-    if (reasons.some((r) => r === "insufficientPermissions" || r === "forbidden" || r === "ACCESS_TOKEN_SCOPE_INSUFFICIENT")) return { ...fail("PROVIDER_AUTH"), permission: true };
-    return fail("PROVIDER_AUTH");
-  }
-  if (a.status === 401) return fail("PROVIDER_AUTH");
+  if (a.status === 401 || a.status === 403) return fail("PROVIDER_AUTH");
   if (a.status === 429) return fail("RATE_LIMITED", a.retryAfter ?? 5);
   if (a.status === 404) return fail("NOT_FOUND");
   return fail("UNAVAILABLE");

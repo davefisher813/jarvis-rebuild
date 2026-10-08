@@ -39,8 +39,7 @@ interface World {
   cursor: Record<string, string | null>;
   cached: Record<string, { id: string; subject: string; provider_labels: string[]; attachment_metadata?: unknown[] }>;
   gmail: (method: string, path: string, body: Record<string, unknown> | null) => Response | undefined;
-  syncState?: string;
-  accountRows?: Array<{ id: string; address: string; state: string; auth_state?: string }>;
+  accountRows?: Array<{ id: string; address: string; state: string }>;
 }
 
 async function stubWorld(w: Partial<World>) {
@@ -60,17 +59,15 @@ async function stubWorld(w: Partial<World>) {
     }
     if (url.includes("/rest/v1/rpc/email_account_upsert")) return res({ account_id: ACCT[String(body?.p_address)] ?? "acct-new" });
     if (url.includes("/rest/v1/email_account?")) {
-      if (u.searchParams.get("select") === "id,address,state,auth_state") return res((world.accountRows ?? Object.entries(ACCT).map(([address, id]) => ({ id, address, state: "connected" }))).map((r) => ({ auth_state: r.state === "disconnected" ? "removed" : "ready", ...r })));
+      if (u.searchParams.get("select") === "id,address,state") return res(world.accountRows ?? Object.entries(ACCT).map(([address, id]) => ({ id, address, state: "connected" })));
       const address = u.searchParams.get("address")?.replace("eq.", "");
       if (address) return res(ACCT[address] ? [{ id: ACCT[address], cursor: world.cursor[address] ?? null, state: "connected" }] : []);
       const id = u.searchParams.get("id")?.replace("eq.", "") ?? "";
       const email = Object.keys(ACCT).find((e) => ACCT[e] === id) ?? DAVE;
-      return res([{ id, cursor: world.cursor[email] ?? null, state: "connected", sync_state: world.syncState ?? "catching_up" }]);
+      return res([{ id, cursor: world.cursor[email] ?? null, state: "connected" }]);
     }
     if (url.includes("/rest/v1/rpc/email_sync_apply")) return res({ account_id: body?.p_account, upserted: (body?.p_messages as unknown[]).length, removed: 0, last_sync_at: "2026-10-03T12:00:00Z" });
-    if (url.includes("/rest/v1/rpc/email_sync_commit")) return res({ account_id: body?.p_account, upserted: (body?.p_messages as unknown[]).length, removed: 0, last_sync_at: "2026-10-03T12:00:00Z" });
     if (url.includes("/rest/v1/rpc/email_sync_failed")) return res({ recorded: true });
-    if (url.includes("/rest/v1/rpc/email_account_fail")) return res({ auth_state: "ready" });
     if (url.includes("/rest/v1/rpc/email_body_store")) return res({ stored: true });
     if (url.includes("/rest/v1/rpc/email_labels_set")) return res({ labels: body?.p_labels });
     if (url.includes("/rest/v1/rpc/email_action_record")) return res({ action_id: "act-1", replay: false });
@@ -134,9 +131,8 @@ describe("POST /api/email/sync", () => {
     expect(gmailCalls()[0]).toBe("GET /profile");
     expect(gmailCalls()[1]).toBe(`GET /messages?labelIds=INBOX&maxResults=${INBOX_PAGE}`);
     expect(gmailCalls().filter((c) => c.includes("format=metadata")).length).toBe(2);
-    const apply = rpc("email_sync_commit")[0]!;
-    // The first page of the inbox is not the declared window: never "complete" (AC39).
-    expect(apply).toMatchObject({ p_owner: USER, p_account: "acct-dave", p_cursor: "h200", p_advance: true, p_removed: [], p_complete: false });
+    const apply = rpc("email_sync_apply")[0]!;
+    expect(apply).toMatchObject({ p_owner: USER, p_account: "acct-dave", p_cursor: "h200", p_advance: true, p_removed: [] });
     const rows = apply.p_messages as Array<Record<string, unknown>>;
     expect(rows.map((x) => x.provider_id).sort()).toEqual(["m1", "m2"]);
     expect(rows[0]).toMatchObject({ from_address: "billing@conedison.test", from_name: "Con Edison", subject: "Your bill", snippet: "Amount & due", labels: ["INBOX", "UNREAD"] });
@@ -159,7 +155,7 @@ describe("POST /api/email/sync", () => {
     expect(gmailCalls()[0]).toMatch(/^GET \/history\?startHistoryId=h100/);
     const fetched = gmailCalls().filter((c) => c.includes("format=metadata")).map((c) => /messages\/([^?]+)/.exec(c)![1]).sort();
     expect(fetched).toEqual(["m2", "m7"]);
-    expect(rpc("email_sync_commit")[0]).toMatchObject({ p_cursor: "h300", p_advance: true, p_removed: ["m1"], p_complete: false });
+    expect(rpc("email_sync_apply")[0]).toMatchObject({ p_cursor: "h300", p_advance: true, p_removed: ["m1"] });
   });
 
   it("an expired cursor (Gmail 404) is a full resync of the first page, said so", async () => {
@@ -167,7 +163,7 @@ describe("POST /api/email/sync", () => {
     const r = await answer(await syncHandler(post("/api/email/sync", { email: DAVE })));
     expect(r.json).toMatchObject({ ok: true, resynced: true, synced: 2 });
     expect(gmailCalls()[1]).toBe("GET /profile");
-    expect(rpc("email_sync_commit")[0]).toMatchObject({ p_cursor: "h200", p_advance: true, p_complete: false });
+    expect(rpc("email_sync_apply")[0]).toMatchObject({ p_cursor: "h200", p_advance: true });
   });
 
   it("a Gmail outage is retried three times for a safe read, then recorded, leaving the cache as it was", async () => {
@@ -177,9 +173,8 @@ describe("POST /api/email/sync", () => {
     expect(r.status).toBe(503);
     expect(r.json).toMatchObject({ code: "UNAVAILABLE", retryable: true });
     expect(n).toBe(3);
-    expect(rpc("email_sync_commit")).toEqual([]);
-    // A Gmail outage is "transient": it makes sync stale and can never touch authorization (AC41).
-    expect(rpc("email_account_fail")[0]).toMatchObject({ p_account: "acct-dave", p_kind: "transient" });
+    expect(rpc("email_sync_apply")).toEqual([]);
+    expect(rpc("email_sync_failed")[0]).toMatchObject({ p_account: "acct-dave", p_reauth: false });
   });
 
   it("a mailbox with no stored sign-in needs reconnecting: 410, recorded as reauth, no Gmail call", async () => {
@@ -188,7 +183,7 @@ describe("POST /api/email/sync", () => {
     expect(r.status).toBe(410);
     expect(r.json).toMatchObject({ code: "PROVIDER_AUTH" });
     expect(gmailCalls()).toEqual([]);
-    expect(rpc("email_account_fail")[0]).toMatchObject({ p_kind: "reauth" });
+    expect(rpc("email_sync_failed")[0]).toMatchObject({ p_reauth: true });
   });
 
   it("an address with no stored sign-in and no mailbox row creates nothing: 410, no account row made, no reauth recorded", async () => {
@@ -197,7 +192,7 @@ describe("POST /api/email/sync", () => {
     expect(r.status).toBe(410);
     expect(r.json).toMatchObject({ code: "PROVIDER_AUTH" });
     expect(rpc("email_account_upsert")).toEqual([]);
-    expect(rpc("email_account_fail")).toEqual([]);
+    expect(rpc("email_sync_failed")).toEqual([]);
     expect(gmailCalls()).toEqual([]);
   });
 
@@ -378,66 +373,5 @@ describe("POST /api/email/accounts", () => {
     expect(r.json).toEqual({ ok: true, mirrored: [DAVE], disconnected: [WORK] });
     expect(rpc("email_account_upsert")[0]).toMatchObject({ p_owner: USER, p_address: DAVE, p_capabilities: { archive: true, trash: true, read: true } });
     expect(rpc("email_account_state")).toEqual([{ p_owner: USER, p_account: "acct-work", p_state: "disconnected", p_error: null }]);
-  });
-});
-
-describe("connection truth (migration 0055, Email spec section 8)", () => {
-  it("a Gmail quota 403 is RATE_LIMITED and recorded as quota: it can never ask for a reconnect (AC41)", async () => {
-    await stubWorld({ gmail: (_m, path) => (path.startsWith("/profile") ? res({ error: { code: 403, status: "PERMISSION_DENIED", errors: [{ reason: "userRateLimitExceeded" }] } }, 403) : undefined) });
-    const r = await answer(await syncHandler(post("/api/email/sync", { email: DAVE })));
-    expect(r.status).toBe(429);
-    expect(r.json).toMatchObject({ code: "RATE_LIMITED", retryable: true });
-    expect(rpc("email_account_fail")[0]).toMatchObject({ p_kind: "quota" });
-  });
-
-  it("a Gmail 403 for a missing scope is PROVIDER_AUTH recorded as permission, a plain 403 as reauth", async () => {
-    await stubWorld({ gmail: (_m, path) => (path.startsWith("/profile") ? res({ error: { errors: [{ reason: "insufficientPermissions" }] } }, 403) : undefined) });
-    const a = await answer(await syncHandler(post("/api/email/sync", { email: DAVE })));
-    expect(a.status).toBe(410);
-    expect(rpc("email_account_fail")[0]).toMatchObject({ p_kind: "permission" });
-    await stubWorld({ gmail: (_m, path) => (path.startsWith("/profile") ? res({ error: "forbidden" }, 403) : undefined) });
-    await syncHandler(post("/api/email/sync", { email: DAVE }));
-    expect(rpc("email_account_fail").at(-1)).toMatchObject({ p_kind: "reauth" });
-  });
-
-  it("a saved sign-in JARVIS cannot open is a storage fault, not a reconnect request (section 16)", async () => {
-    await stubWorld({ tokens: { [DAVE]: "not-a-ciphertext" } });
-    const r = await answer(await syncHandler(post("/api/email/sync", { email: DAVE })));
-    expect(r.status).toBe(503);
-    expect(r.json).toMatchObject({ code: "STORAGE_UNAVAILABLE", retryable: true });
-    expect(String(r.json.safe_message)).toMatch(/mail is safe/i);
-    expect(rpc("email_account_fail")[0]).toMatchObject({ p_kind: "storage" });
-    expect(gmailCalls()).toEqual([]);
-  });
-
-  it("a history read cut off at the page bound applies what it saw but leaves the cursor where it was (AC40)", async () => {
-    await stubWorld({
-      cursor: { [DAVE]: "h100", [WORK]: null },
-      gmail: (_m, path) => {
-        if (path.startsWith("/history")) return res({ history: [{ messagesAdded: [{ message: { id: "m7" } }] }], historyId: "h999", nextPageToken: "more" });
-        return listingGmail()(_m, path);
-      },
-    });
-    const r = await answer(await syncHandler(post("/api/email/sync", { email: DAVE })));
-    expect(r.json).toMatchObject({ ok: true, truncated: true });
-    expect(gmailCalls().filter((c) => c.startsWith("GET /history")).length).toBe(20);
-    expect(rpc("email_sync_commit")[0]).toMatchObject({ p_cursor: null, p_advance: true, p_complete: false });
-  });
-
-  it("only a read that reaches the end of the history on an account that already covered its window is complete (AC39)", async () => {
-    await stubWorld({ syncState: "current", cursor: { [DAVE]: "h100", [WORK]: null }, gmail: listingGmail() });
-    await syncHandler(post("/api/email/sync", { email: DAVE }));
-    expect(rpc("email_sync_commit")[0]).toMatchObject({ p_cursor: "h300", p_complete: true });
-    await stubWorld({ syncState: "catching_up", cursor: { [DAVE]: "h100", [WORK]: null }, gmail: listingGmail() });
-    await syncHandler(post("/api/email/sync", { email: DAVE }));
-    expect(rpc("email_sync_commit").at(-1)).toMatchObject({ p_complete: false });
-  });
-
-  it("an account whose grant was revoked is not 'gone': the mirror leaves it reauth_required with its cache", async () => {
-    const enc = await encrypt("1//refresh", KEY);
-    await stubWorld({ tokens: { [DAVE]: enc }, accountRows: [{ id: "acct-dave", address: DAVE, state: "connected" }, { id: "acct-work", address: WORK, state: "reauth", auth_state: "reauth_required" }] });
-    const r = await answer(await accountsHandler(post("/api/email/accounts", {})));
-    expect(r.json).toEqual({ ok: true, mirrored: [DAVE], disconnected: [] });
-    expect(rpc("email_account_state")).toEqual([]);
   });
 });

@@ -12,7 +12,7 @@
 // asked for, so a conflict with another device resolves to the provider.
 export const config = { runtime: "edge" };
 
-import { authedUser, bodyOf, ensureAccount, failResponse, fail, firstAddress, gmail, gmailFail, headerOf, isEmail, isId, json, mailboxToken, readEnv, readBody, recordAccountFailure, serviceRpc, serviceSelect, type EmailEnv } from "../_email";
+import { authedUser, bodyOf, ensureAccount, failResponse, fail, firstAddress, gmail, gmailFail, headerOf, isEmail, isId, json, mailboxToken, readEnv, readBody, serviceRpc, serviceSelect, type EmailEnv } from "../_email";
 import type { GmailFull } from "../../src/connections/google/map";
 
 export const OPS = ["open", "read", "unread", "archive", "unarchive", "trash", "untrash"] as const;
@@ -57,7 +57,7 @@ export default async function handler(req: Request): Promise<Response> {
   if (!cached) return failResponse(fail("NOT_FOUND"));
   const tok = await mailboxToken(env, who.id, email);
   if (!tok.ok) {
-    await recordAccountFailure(env, who.id, account.id, tok.fail);
+    if (tok.reauth) await serviceRpc(env, "email_account_state", { p_owner: who.id, p_account: account.id, p_state: "reauth", p_error: tok.fail.safe_message });
     return failResponse(tok.fail);
   }
 

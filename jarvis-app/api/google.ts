@@ -30,21 +30,6 @@ const TOKEN_URL = "https://oauth2.googleapis.com/token";
 // file still owns everything about SIGNING IN: the code exchange, which
 // account a token belongs to, and forgetting a grant Google has revoked.
 
-// The Email tab mirrors each stored sign-in as an account row (migration 0055). A grant revoked at Google must leave
-// that row reauth_required (cache and drafts kept, Reconnect offered), and a forgotten one must leave it removed.
-// Best effort: the sign-in route's answer never waits on, or fails because of, the mirror.
-async function markMailbox(supaUrl: string, service: string, userId: string, email: string, auth: "reauth_required" | "removed"): Promise<void> {
-  try {
-    await fetch(`${supaUrl}/rest/v1/rpc/email_account_mark`, {
-      method: "POST",
-      headers: { apikey: service, Authorization: "Bearer " + service, "content-type": "application/json" },
-      body: JSON.stringify({ p_owner: userId, p_address: email, p_auth: auth, p_error: auth === "reauth_required" ? "Google revoked this sign-in. Reconnect to continue." : null }),
-    });
-  } catch {
-    /* the mirror catches up on the next Email open */
-  }
-}
-
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
 }
@@ -266,7 +251,6 @@ export default async function handler(req: Request): Promise<Response> {
       if (got.error === "invalid_grant") {
         // Revoked at Google: forget it so the app re-asks interactively once.
         await fetch(rest + "?user_id=eq." + userId + "&email=eq." + encodeURIComponent(email), { method: "DELETE", headers: svc }).catch(() => {});
-        await markMailbox(supaUrl, service, userId, email, "reauth_required");
         return fail("GOOGLE_SIGNIN_REVOKED", email);
       }
       return fail("GOOGLE_REFRESH_UNAVAILABLE", email);
@@ -287,7 +271,6 @@ export default async function handler(req: Request): Promise<Response> {
     } catch {
       return fail("GOOGLE_STORAGE_FAILURE", body.forget);
     }
-    await markMailbox(supaUrl, service, userId, body.forget.trim().toLowerCase(), "removed");
     return json({ ok: true });
   }
 
