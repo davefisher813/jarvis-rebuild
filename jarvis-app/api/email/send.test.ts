@@ -76,6 +76,7 @@ async function stubWorld(w: Partial<World>) {
     if (url.includes("/auth/v1/user")) return headers.Authorization === "Bearer jwt" ? res({ id: USER }) : res({}, 401);
     if (url.includes("oauth2.googleapis.com/token")) return res({ access_token: "ya29.secret", expires_in: 3599 });
     if (url.includes("/rest/v1/google_tokens")) return res([{ token_enc: enc }]);
+    if (url.includes("/rest/v1/rpc/send_approve_held")) return res({ ...world.approve, hold_until: "2026-10-08T12:00:30Z", dispatch_deadline: "2026-10-08T12:01:00Z", server_now: "2026-10-08T12:00:00Z", outbox_state: "queued" });
     if (url.includes("/rest/v1/rpc/send_approve")) return res(world.approve);
     if (url.includes("/rest/v1/rpc/outbox_sweep")) return res({ swept: 0 });
     if (url.includes("/rest/v1/rpc/outbox_claim_action")) return res(world.claim);
@@ -289,5 +290,39 @@ describe("POST /api/email/reconcile", () => {
     expect(sent("gmail.googleapis.com").length).toBe(0);
     await stubWorld({ outboxRow: null });
     expect((await reconcileHandler(post("/api/email/reconcile", { action_id: ACT }))).status).toBe(404);
+  });
+});
+
+describe("POST /api/email/send with hold: true (the 30-second server hold, migration 0059)", () => {
+  it("approves through the held door, answers at once with the server's clock, and carries NOTHING out: no sweep, no claim, no Gmail call", async () => {
+    await stubWorld({});
+    const r = await answer(await sendHandler(post("/api/email/send", { ...tap, hold: true })));
+    expect(r.status).toBe(200);
+    expect(r.json).toMatchObject({ ok: true, held: true, action_id: ACT, hold_until: "2026-10-08T12:00:30Z", dispatch_deadline: "2026-10-08T12:01:00Z", server_now: "2026-10-08T12:00:00Z", outbox_state: "queued" });
+    expect(sent("/rest/v1/rpc/send_approve_held")[0]!.headers.Authorization).toBe("Bearer jwt");
+    expect(sent("/rest/v1/rpc/send_approve_held")[0]!.body).toEqual({ p_draft: DRAFT, p_review_nonce: NONCE, p_shown_payload_hash: HASH, p_idempotency_key: "req-1" });
+    expect(rpc("outbox_sweep").length).toBe(0);
+    expect(rpc("outbox_claim_action").length).toBe(0);
+    expect(rpc("outbox_claim").length).toBe(0);
+    expect(gmailSends().length).toBe(0);
+  });
+
+  it("a refusal passes through with its own code; the held door missing (migration not applied) refuses rather than sending at once", async () => {
+    await stubWorld({ approve: { error: "REVIEW_CHANGED", detail: "revision" } });
+    const a = await answer(await sendHandler(post("/api/email/send", { ...tap, hold: true })));
+    expect(a.status).toBe(409);
+    expect(a.json).toMatchObject({ code: "REVIEW_CHANGED" });
+    const f = await stubWorld({});
+    f.mockImplementation(async (url: string) => (String(url).includes("/auth/v1/user") ? res({ id: USER }) : String(url).includes("send_approve_held") ? res({}, 404) : res({})));
+    const b = await answer(await sendHandler(post("/api/email/send", { ...tap, hold: true })));
+    expect(b.status).toBe(503);
+    expect(b.json).toMatchObject({ code: "UNAVAILABLE" });
+  });
+
+  it("without hold the older inline path is exactly as before", async () => {
+    await stubWorld({});
+    const r = await answer(await sendHandler(post("/api/email/send", tap)));
+    expect(r.json).toMatchObject({ outcome: "confirmed" });
+    expect(sent("/rest/v1/rpc/send_approve_held").length).toBe(0);
   });
 });

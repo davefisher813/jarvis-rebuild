@@ -16,7 +16,7 @@ import { dispatchFor } from "../_send";
 import { runOutboxOnce, type WorkerDeps, type WorkerResult } from "../../src/substrate/outbox/worker";
 import { COMMAND_LINES, isCommandErrorCode } from "../../src/substrate/commands/errors";
 
-interface Body extends Record<string, unknown> { draft_id?: unknown; review_nonce?: unknown; shown_payload_hash?: unknown; request_id?: unknown }
+interface Body extends Record<string, unknown> { draft_id?: unknown; review_nonce?: unknown; shown_payload_hash?: unknown; request_id?: unknown; hold?: unknown }
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const HEX = /^[0-9a-f]{16,128}$/;
@@ -53,13 +53,26 @@ export default async function handler(req: Request): Promise<Response> {
     return failResponse(fail("INVALID_PAYLOAD"));
   }
 
-  // The tap, as the person.
-  const tap = await userRpc(env, token, "send_approve", { p_draft: draftId, p_review_nonce: nonce, p_shown_payload_hash: hash, p_idempotency_key: requestId });
+  // The tap, as the person. With hold:true the approval is HELD on the server for 30 seconds (migration 0059, Dave's locked
+  // decision 4): this request returns at once with the server's clock and the two timestamps, and the scheduled worker
+  // (api/cron/outbox.ts) is what sends, after the hold, never before. If the held door is not there (the migration has not
+  // been applied) this refuses rather than send at once: a held send that goes out immediately would be a broken promise.
+  const held = body?.hold === true;
+  const tap = await userRpc(env, token, held ? "send_approve_held" : "send_approve", { p_draft: draftId, p_review_nonce: nonce, p_shown_payload_hash: hash, p_idempotency_key: requestId });
   if (tap.error || !tap.data || typeof tap.data !== "object") return failResponse(fail("UNAVAILABLE"));
   const t = tap.data as Record<string, unknown>;
   if (typeof t.error === "string") return refusal(t);
   const actionId = String(t.action_id ?? "");
   if (!UUID.test(actionId)) return failResponse(fail("UNAVAILABLE"));
+
+  if (held) {
+    const reread = await userRpc(env, token, "draft_get", { p_draft: draftId });
+    return json({
+      ok: true, held: true, action_id: actionId, replay: t.replay === true,
+      hold_until: t.hold_until ?? null, dispatch_deadline: t.dispatch_deadline ?? null, server_now: t.server_now ?? null, outbox_state: t.outbox_state ?? null,
+      draft: reread.error ? null : reread.data,
+    });
+  }
 
   // Dead claims past their lease become unknowns before anything else runs (0046's sweep); best effort.
   await serviceRpc(env, "outbox_sweep", {});
