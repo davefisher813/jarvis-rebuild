@@ -11,9 +11,10 @@
 // offline tap never reaches here because the browser does not send one.
 export const config = { runtime: "edge" };
 
-import { authedUser, bearerOf, failResponse, fail, isId, json, readEnv, readBody, serviceRpc, serviceSelect, userRpc, type EmailEnv } from "../_email";
+import { authedUser, bearerOf, failResponse, fail, isId, json, readEnv, readBody, serviceRpc, userRpc } from "../_email";
 import { dispatchFor } from "../_send";
 import { runOutboxOnce, type WorkerDeps, type WorkerResult } from "../../src/substrate/outbox/worker";
+import { runOutboxWorker, settleDraft, WORKER_HEADER } from "../_outboxWorker";
 import { COMMAND_LINES, isCommandErrorCode } from "../../src/substrate/commands/errors";
 
 interface Body extends Record<string, unknown> { draft_id?: unknown; review_nonce?: unknown; shown_payload_hash?: unknown; request_id?: unknown; hold?: unknown }
@@ -21,27 +22,18 @@ interface Body extends Record<string, unknown> { draft_id?: unknown; review_nonc
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const HEX = /^[0-9a-f]{16,128}$/;
 
-interface OutboxRow { id: string; state: string; error_code: string | null; provider_ack: { message_id?: string } | null }
-
 /** The database's refusal, passed through with its own code so the screen shows the right line. */
 function refusal(d: Record<string, unknown>, status = 409): Response {
   const code = isCommandErrorCode(d.error) ? d.error : "UNAVAILABLE";
   return json({ ...d, code, safe_message: COMMAND_LINES[code] }, status);
 }
 
-/** The draft's outcome from the outbox row the worker settled: sent, failed (a cancelled or refused command too), or unknown. */
-export async function settleDraft(env: EmailEnv, actionId: string): Promise<{ state: string; provider_message_id: string | null } | null> {
-  const ob = (await serviceSelect<OutboxRow>(env, "outbox_command", `action_id=eq.${actionId}&select=id,state,error_code,provider_ack`))?.[0];
-  if (!ob) return null;
-  const state = ob.state === "confirmed" ? "confirmed" : ob.state === "outcome_unknown" ? "outcome_unknown" : ob.state === "failed" || ob.state === "cancelled" ? "failed" : null;
-  if (!state) return { state: ob.state, provider_message_id: null };
-  const id = state === "confirmed" ? ob.provider_ack?.message_id ?? null : null;
-  await serviceRpc(env, "draft_outcome", { p_action: actionId, p_state: state, p_provider_message_id: id });
-  return { state, provider_message_id: id };
-}
+export { settleDraft };
 
 export default async function handler(req: Request): Promise<Response> {
   if (req.method !== "POST") return json({ code: "INVALID_PAYLOAD", safe_message: "POST only" }, 405);
+  // The scheduled clock (pg_cron, migration 0059's worker): proven by the vault's token inside the worker, never by a session.
+  if (req.headers.get(WORKER_HEADER) === "outbox") return runOutboxWorker(req);
   const env = readEnv();
   if (!env) return failResponse(fail("UNAVAILABLE"));
   const who = await authedUser(req, env);
@@ -55,7 +47,7 @@ export default async function handler(req: Request): Promise<Response> {
 
   // The tap, as the person. With hold:true the approval is HELD on the server for 30 seconds (migration 0059, Dave's locked
   // decision 4): this request returns at once with the server's clock and the two timestamps, and the scheduled worker
-  // (api/cron/outbox.ts) is what sends, after the hold, never before. If the held door is not there (the migration has not
+  // (api/_outboxWorker.ts, reached through this route) is what sends, after the hold, never before. If the held door is not there (the migration has not
   // been applied) this refuses rather than send at once: a held send that goes out immediately would be a broken promise.
   const held = body?.hold === true;
   const tap = await userRpc(env, token, held ? "send_approve_held" : "send_approve", { p_draft: draftId, p_review_nonce: nonce, p_shown_payload_hash: hash, p_idempotency_key: requestId });

@@ -1,8 +1,8 @@
 -- OPS SCRIPT, NOT A MIGRATION. Run once per project, by hand, after migration 0059 and after the deploy that carries
--- api/cron/outbox.ts (Email v1, the 30-second send hold). It is kept out of migrations/ on purpose: the migration chain
+-- api/_outboxWorker.ts, reached as POST /api/email/send with x-jarvis-worker: outbox (Email v1, the 30-second send hold). It is kept out of migrations/ on purpose: the migration chain
 -- runs on a plain Postgres in CI, which has no pg_cron, pg_net or vault.
 --
--- What it makes: the clock that sends held messages. Postgres calls POST /api/cron/outbox every ten seconds, but only
+-- What it makes: the clock that sends held messages. Postgres calls POST /api/email/send (x-jarvis-worker: outbox) every ten seconds, but only
 -- while there is something due, so an idle project makes no calls at all. The route proves the caller by asking the
 -- database (outbox_cron_ok), so the secret never lives in an env var, a log or the repo: it is generated here, in the
 -- vault, and read by the job and the check inside Postgres only.
@@ -16,7 +16,7 @@ create extension if not exists pg_cron;
 do $$
 begin
   if not exists (select 1 from vault.secrets where name = 'outbox_cron_secret') then
-    perform vault.create_secret(encode(extensions.gen_random_bytes(32), 'hex'), 'outbox_cron_secret', 'Bearer token for POST /api/cron/outbox');
+    perform vault.create_secret(encode(extensions.gen_random_bytes(32), 'hex'), 'outbox_cron_secret', 'Bearer token for POST /api/email/send (x-jarvis-worker: outbox)');
   end if;
 end $$;
 
@@ -38,8 +38,8 @@ grant execute on function public.outbox_cron_ok(text) to service_role;
 select cron.unschedule(jobid) from cron.job where jobname = 'jarvis-outbox';
 select cron.schedule('jarvis-outbox', '10 seconds', $job$
   select net.http_post(
-    url := 'https://jarvis-rebuild.vercel.app/api/cron/outbox',
-    headers := jsonb_build_object('content-type', 'application/json', 'authorization', 'Bearer ' || (select decrypted_secret from vault.decrypted_secrets where name = 'outbox_cron_secret' limit 1)),
+    url := 'https://jarvis-rebuild.vercel.app/api/email/send',
+    headers := jsonb_build_object('content-type', 'application/json', 'x-jarvis-worker', 'outbox', 'authorization', 'Bearer ' || (select decrypted_secret from vault.decrypted_secrets where name = 'outbox_cron_secret' limit 1)),
     body := '{}'::jsonb,
     timeout_milliseconds := 15000)
   where exists (
