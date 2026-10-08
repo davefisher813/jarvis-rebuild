@@ -15,6 +15,8 @@ export const COMMAND_ERROR_CODES = [
   "OUTCOME_UNKNOWN", "PROVIDER_AUTH", "OFFLINE", "UNSUPPORTED",
   // Slice 07: a draft in the send's hands, a draft edited on another device, a mailbox whose sign-in cannot send.
   "DRAFT_SENT", "DRAFT_CONFLICT", "PROVIDER_SCOPE",
+  // Email v1 (migration 0059): a held send no worker reached by its deadline is never sent late.
+  "HOLD_EXPIRED",
 ] as const;
 export type CommandErrorCode = (typeof COMMAND_ERROR_CODES)[number];
 
@@ -52,6 +54,7 @@ export const COMMAND_LINES: Record<CommandErrorCode, string> = {
   DRAFT_SENT: "Already Sent · Nothing Left to Change",
   DRAFT_CONFLICT: "Edited on Another Device · Choose Which Draft to Keep",
   PROVIDER_SCOPE: "Gmail Needs Permission to Send · Reconnect in Connections",
+  HOLD_EXPIRED: "Not Sent · Held Too Long · Review It Again",
 };
 
 export interface CommandFailure {
