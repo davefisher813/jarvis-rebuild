@@ -78,18 +78,39 @@ describe("refreshAccessToken", () => {
   it("reports the error Google gave, so invalid_grant can be acted on", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => bad({ error: "invalid_grant" })));
     const r = await refreshAccessToken(IOS_TAG + "1//dead", CLIENTS);
-    expect(r).toEqual({ ok: false, error: "invalid_grant" });
+    expect(r).toEqual({ ok: false, error: "invalid_grant", status: 400 });
   });
 
   it("passes along the scopes Google says the token carries", async () => {
-    vi.stubGlobal("fetch", vi.fn(async () => ok({ access_token: "at", scope: "a b" })));
+    vi.stubGlobal("fetch", vi.fn(async () => ok({ access_token: "at", scope: "a b", expires_in: 3599 })));
     const r = await refreshAccessToken("1//web", CLIENTS);
-    expect(r).toEqual({ ok: true, got: { accessToken: "at", expiresIn: 3600, scope: "a b" } });
+    expect(r).toEqual({ ok: true, got: { accessToken: "at", expiresIn: 3599, scope: "a b" } });
+  });
+
+  it("says ZERO when Google gave no usable expiry, never an assumed hour", async () => {
+    for (const expires_in of [undefined, 0, -1, "soon"]) {
+      vi.stubGlobal("fetch", vi.fn(async () => ok({ access_token: "at", expires_in })));
+      const r = await refreshAccessToken("1//web", CLIENTS);
+      expect(r).toMatchObject({ ok: true, got: { expiresIn: 0 } });
+    }
+  });
+
+  it("carries a rotated refresh token and a Testing-mode lifetime when Google sends them, and nothing when it does not", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => ok({ access_token: "at", expires_in: 3599, refresh_token: "1//rotated", refresh_token_expires_in: 604799 })));
+    expect(await refreshAccessToken("1//web", CLIENTS)).toEqual({ ok: true, got: { accessToken: "at", expiresIn: 3599, refreshToken: "1//rotated", refreshTokenExpiresIn: 604799 } });
+    vi.stubGlobal("fetch", vi.fn(async () => ok({ access_token: "at", expires_in: 3599 })));
+    const plain = await refreshAccessToken("1//web", CLIENTS);
+    expect(plain.ok && "refreshToken" in plain.got).toBe(false);
+  });
+
+  it("reports the status and Retry-After, so the lifecycle can back off", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => ({ ok: false, status: 429, headers: new Headers({ "retry-after": "7" }), json: async () => ({ error: "rate_limit_exceeded" }) }) as unknown as Response));
+    expect(await refreshAccessToken("1//web", CLIENTS)).toEqual({ ok: false, error: "rate_limit_exceeded", status: 429, retryAfter: 7 });
   });
 
   it("an error page from Google is a failed refresh, not an exception", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => ({ ok: false, status: 502, json: async () => { throw new SyntaxError("<html>"); } }) as unknown as Response));
-    expect(await refreshAccessToken(IOS_TAG + "1//x", CLIENTS)).toEqual({ ok: false, error: "Refresh failed" });
+    expect(await refreshAccessToken(IOS_TAG + "1//x", CLIENTS)).toEqual({ ok: false, error: "Refresh failed", status: 502 });
   });
 
   it("does not try a second client when there is no iOS client configured", async () => {
@@ -102,20 +123,19 @@ describe("refreshAccessToken", () => {
 
 describe("ownerMailbox", () => {
   const opts = { supaUrl: "https://live.test", service: "svc", tokenKey: KEY, clients: CLIENTS, userId: "u-1" };
+  // The token lifecycle's functions (migration 0057) answer 404 here: this world has no cache, no lock and no DEAD mark.
+  const world = (tokens: unknown[], google: Response = ok({ access_token: "fresh", expires_in: 3599 })) =>
+    vi.fn(async (url: string) => (String(url).includes("/rpc/") ? bad({}, 404) : String(url).includes("google_tokens") ? ok(tokens) : google));
 
   it("returns the mailbox and a fresh token when the grant is good", async () => {
     const packed = await encrypt("1//good", KEY);
-    vi.stubGlobal("fetch", vi.fn(async (url: string) =>
-      String(url).includes("google_tokens")
-        ? ok([{ email: "dave@example.com", token_enc: packed }])
-        : ok({ access_token: "fresh" })));
+    vi.stubGlobal("fetch", world([{ email: "dave@example.com", token_enc: packed }]));
     expect(await ownerMailbox(opts)).toEqual({ accessToken: "fresh", email: "dave@example.com" });
   });
 
   it("asks for the most recently refreshed mailbox, when there is more than one", async () => {
     const packed = await encrypt("1//good", KEY);
-    const f = vi.fn(async (url: string) =>
-      String(url).includes("google_tokens") ? ok([{ email: "a@b.com", token_enc: packed }]) : ok({ access_token: "fresh" }));
+    const f = world([{ email: "a@b.com", token_enc: packed }]);
     vi.stubGlobal("fetch", f);
     await ownerMailbox(opts);
     expect(String(f.mock.calls[0]![0])).toContain("order=updated_at.desc");
@@ -131,20 +151,24 @@ describe("ownerMailbox", () => {
     expect(await ownerMailbox({ ...opts, clients: { ...CLIENTS, clientId: "" } })).toBeNull();
     expect(f).not.toHaveBeenCalled();
   });
+  it("skips a DEAD sign-in: Google is not asked about it and it is never used", async () => {
+    const packed = await encrypt("1//dead", KEY);
+    const f = world([{ email: "a@b.com", state: "DEAD", token_enc: packed }]);
+    vi.stubGlobal("fetch", f);
+    expect(await ownerMailbox(opts)).toBeNull();
+    expect(f.mock.calls.some((c) => String(c[0]).includes("oauth2.googleapis.com"))).toBe(false);
+  });
   it("is null when the user has never connected Google", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => ok([])));
     expect(await ownerMailbox(opts)).toBeNull();
   });
   it("is null when the stored token cannot be decrypted, rather than throwing", async () => {
-    vi.stubGlobal("fetch", vi.fn(async () => ok([{ email: "a@b.com", token_enc: "not-a-cipher" }])));
+    vi.stubGlobal("fetch", world([{ email: "a@b.com", token_enc: "not-a-cipher" }]));
     expect(await ownerMailbox(opts)).toBeNull();
   });
   it("is null when the grant has been revoked", async () => {
     const packed = await encrypt("1//dead", KEY);
-    vi.stubGlobal("fetch", vi.fn(async (url: string) =>
-      String(url).includes("google_tokens")
-        ? ok([{ email: "a@b.com", token_enc: packed }])
-        : bad({ error: "invalid_grant" })));
+    vi.stubGlobal("fetch", world([{ email: "a@b.com", token_enc: packed }], bad({ error: "invalid_grant" })));
     expect(await ownerMailbox(opts)).toBeNull();
   });
   it("is null when the network itself fails, rather than throwing through the caller", async () => {
@@ -156,13 +180,13 @@ describe("ownerMailbox", () => {
   // the live project at all.
   it("never writes to the live project", async () => {
     const packed = await encrypt("1//good", KEY);
-    const f = vi.fn(async (url: string) =>
-      String(url).includes("google_tokens") ? ok([{ email: "a@b.com", token_enc: packed }]) : ok({ access_token: "fresh" }));
+    const f = world([{ email: "a@b.com", token_enc: packed }]);
     vi.stubGlobal("fetch", f);
     await ownerMailbox(opts);
     for (const call of f.mock.calls) {
       const method = ((call[1] as RequestInit | undefined)?.method || "GET").toUpperCase();
-      if (String(call[0]).includes("live.test")) expect(method).toBe("GET");
+      // The lifecycle's own bookkeeping goes to its service-only functions (a cached token, a recorded refresh); a table is never written.
+      if (String(call[0]).includes("live.test") && !String(call[0]).includes("/rpc/")) expect(method).toBe("GET");
     }
   });
 });

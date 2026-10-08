@@ -4,6 +4,7 @@ import { formatUSD } from "../ai/tokenLog";
 import type { AdminService, AdminUser, AdminUsage, AdminBilling, AdminFeedbackItem } from "./AdminService";
 import { pct, type AdminMetrics } from "./adminMetrics";
 import { ERROR_TOP, ERROR_WINDOW, type AdminErrorGroup } from "./adminErrors";
+import type { AdminConnections } from "./adminConnections";
 import { pressable } from "../shared/pressable";
 import { Switch, Head } from "../settings/kit";
 import { FormSheet, Group, Row as SheetRow } from "../shared/FormSheet";
@@ -42,6 +43,8 @@ export default function AdminPanel({ isAdmin, probe, onRecheck, source, onBack }
   // way: a deploy without the endpoint, or without the client_error table, says
   // so in the section and leaves every other section alone.
   const [errors, setErrors] = useState<AdminErrorGroup[] | null>(null);
+  // Foundation Fix Spec 3 (2026-10-07): sign-in health, loaded the same tolerant way.
+  const [connections, setConnections] = useState<AdminConnections | null>(null);
   const [error, setError] = useState<string | null>(null);
   // Row tap (Dave 2026-09-15, "I want all rows clickable"; 2026-10-05, locked: no pill on a row, the tap opens the
   // row's sheet and the sheet holds every action). A user row's one verb locks someone out, so it is NOT a swipe: it
@@ -68,6 +71,10 @@ export default function AdminPanel({ isAdmin, probe, onRecheck, source, onBack }
         try {
           const e = await source.errors();
           if (on) setErrors(e);
+        } catch { /* the section says so for itself */ }
+        try {
+          const c = await source.connections?.();
+          if (on && c) setConnections(c);
         } catch { /* the section says so for itself */ }
       } catch (e) {
         if (on) setError((e as Error).message || "Could Not Load Admin Data");
@@ -323,6 +330,36 @@ export default function AdminPanel({ isAdmin, probe, onRecheck, source, onBack }
       )}
       {errors !== null && errors.length > 0 && (
         <div className="pad-x"><div className="list-floor">Counts are from the newest {ERROR_WINDOW} reports</div></div>
+      )}
+
+      {/* Foundation Fix Spec 3 (2026-10-07): the connection-health line. One line of totals, then one row per sign-in that
+          is not healthy: a lost grant first, with its incident ID (the one in the error sink and on the person's
+          notification), then one that is only failing. A healthy account is a count, never a row. */}
+      <Head label="Connections" count={connections?.rows.length || undefined} />
+      {!source.available ? serverNote : connections === null ? (
+        <div className="pad-x"><div className="card"><div className="empty-state">
+          <div className="empty-title">Connections Are Not Loaded</div>
+          <div className="empty-sub">This Deploy Has No Connections Endpoint Yet</div>
+        </div></div></div>
+      ) : (
+        <div className="pad-x"><div className="card">
+          <div className="row"><div className="row-grow">
+            <div className="conn-name">{connections.healthy} of {connections.total} {connections.total === 1 ? "Sign-In" : "Sign-Ins"} Healthy</div>
+          </div></div>
+          {connections.rows.map((c) => (
+            <div className="row" key={c.email}>
+              <div className="row-grow">
+                <div className="conn-name adm-feedback">{c.email}</div>
+                <div className="facts">
+                  <span className="fact red">{c.kind === "auth" ? "Needs Reconnecting" : `${c.failures} Failures`}</span>
+                  {c.incident && <span className="fact"><b>{c.incident}</b></span>}
+                  {c.code && <span className="fact">{c.code}</span>}
+                  {c.since && <span className="fact date">{c.kind === "auth" ? "Since" : "Last Good"} {c.since.slice(0, 10)}</span>}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div></div>
       )}
 
       <Head label="Users" count={users.length || undefined} />

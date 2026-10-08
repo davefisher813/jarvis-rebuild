@@ -261,6 +261,10 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
 .today-hero::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: var(--s-6); z-index: -1; pointer-events: none;
   background: linear-gradient(180deg, var(--bg), transparent); }
 .today-summary { font-size: var(--t-meta); color: var(--tx-3); margin-top: var(--s-1); }
+/* The evening's line is a door onto the day (2026-10-06): a 44px hit area around one line of text, and the press. */
+.today-summary[role="button"] { position: relative; cursor: pointer; }
+.today-summary[role="button"]::after { content: ""; position: absolute; inset: -12px 0; }
+.today-summary[role="button"]:active { opacity: 0.7; }
 
 /* Your Day auto-scroll ticker (catalog 19). CSS-driven loop + pause toggle. */
 /* === TV GUIDE, FROZEN (Dave 2026-09-27): nothing from here to END TV GUIDE
@@ -1242,6 +1246,8 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 .dring b { font-size: calc(17px * var(--type-scale)); font-weight: var(--w-bold); letter-spacing: -0.02em; color: var(--tx-1); }
 .dring span { font-size: var(--t-micro); font-weight: var(--w-bold); letter-spacing: var(--track-caps); text-transform: uppercase; color: var(--tx-3); margin-top: var(--s-0h); }
 .dring.done { animation: ringPop 480ms var(--ease-spring); }
+.dring[role="button"] { cursor: pointer; }
+.dring[role="button"]:active { opacity: 0.85; }
 @keyframes ringPop { 0% { transform: scale(1); } 45% { transform: scale(1.18); } 100% { transform: scale(1); } }
 
 /* Skeleton building blocks for loading screens (pairs with .skel-line etc.).
@@ -7616,3 +7622,38 @@ html[data-motion="reduce"] .fb-fill { transition: none; }
    a dot, once). Its content starts at the card's own padding, and its hairline with it. */
 .ruled .sched-row.sched-row-bare { padding-left: var(--s-4); }
 .ruled .sched-row.sched-row-bare + .sched-row.sched-row-bare::before { left: var(--s-4); }
+
+/* The Email tab's warning mark while a mailbox is lost (Foundation Fix Spec 3). A glyph in the system red, no number, at the icon's
+   corner. It is a status, and it is gone the moment the account proves healthy. */
+.tab .tab-warn { position: absolute; top: 2px; right: calc(50% - 22px); width: 16px; height: 16px; color: var(--red); }
+
+/* THE LOUD CONNECTION BANNER (Foundation Fix Spec 3, 2026-10-07). Lives here, not in email.css, because white on the red is a literal
+   (as .sched-act-danger and .task-del are) and email.css writes no raw colour. A confirmed
+   loss of a mailbox, at the top of Email, in the system red with white words, for
+   as long as it is true. It is a status, not a tap target: the one red a screen
+   may carry for something that is wrong, and it is the whole point of the spec
+   that it cannot be missed. The buttons on it are white outlines on the red, so
+   the red stays the banner's and no second red fill competes with it. After a
+   tap it compacts to .conn-strip, which keeps the same red. */
+.conn-banner { margin: var(--s-2) var(--s-4) 0; padding: var(--s-3) var(--s-4); border-radius: var(--r-md);
+  background: var(--red); color: #fff; font-size: var(--t-sub); line-height: 1.4; }
+.conn-banner-title { font-size: var(--t-body); font-weight: var(--w-semi); }
+.conn-banner-addr { margin-top: var(--s-1); overflow-wrap: anywhere; }
+.conn-banner-line { margin-top: var(--s-1); }
+.conn-banner-paused { font-weight: var(--w-semi); }
+.conn-banner-acts { display: flex; flex-wrap: wrap; gap: var(--s-2); margin-top: var(--s-3); }
+.conn-banner-act { flex: 0 0 auto; min-height: 44px; padding: 0 var(--s-4); border-radius: var(--r-md); font-family: var(--f);
+  font-size: var(--t-sub); font-weight: var(--w-semi); color: #fff; background: transparent; border: 1px solid #fff; }
+.conn-banner-act.primary { background: #fff; color: var(--red); }
+.conn-strip { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3);
+  margin: var(--s-2) var(--s-4) 0; padding: var(--s-2h) var(--s-4); border-radius: var(--r-md);
+  background: var(--red); color: #fff; font-size: var(--t-sub); font-weight: var(--w-semi); line-height: 1.4; }
+.conn-strip-text { min-width: 0; overflow-wrap: anywhere; }
+.conn-strip-act { flex: 0 0 auto; min-height: 44px; padding: 0 var(--s-3); background: transparent; border: 1px solid #fff; border-radius: var(--r-md);
+  color: #fff; font-family: var(--f); font-size: var(--t-sub); font-weight: var(--w-semi); }
+
+/* A reconnect that did not complete (Foundation Fix Spec 4): the words the server's checks produced, and what can be done. A quiet amber note, not the loud red: the red banner above it is still the failure; this says why the last try did not fix it. */
+.conn-outcome { flex-wrap: wrap; }
+.conn-outcome-body { flex: 1 1 14rem; min-width: 0; }
+.conn-outcome-title { font-weight: var(--w-semi); }
+.conn-outcome-acts { display: flex; flex-wrap: wrap; gap: var(--s-2); }

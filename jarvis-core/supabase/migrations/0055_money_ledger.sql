@@ -1,3 +1,7 @@
+-- RENUMBERED 2026-10-06 from 0042_money_ledger.sql to 0055 (Foundation Fix
+-- Spec 5): it collided with 0042_brain_memory.sql. Filename only; the body
+-- below is unchanged and was already applied to production under the old name.
+--
 -- MONEY LEDGER (build spec 2026-10-02). Bills and receipts are their own
 -- entity types, the repo's convention of one type per kind (see 0041 for why):
 -- every list the Money screen draws wants one kind at a time and listForUser

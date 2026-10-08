@@ -27,6 +27,9 @@ import { useTasks, useSchedule, useCategories, useProfile, useAreas, useGoals, u
 import { useAuth, useOptionalSession } from "../auth/AuthProvider";
 import { useAdminAiGate } from "../ai/useAdminAiGate";
 import { onNotificationTap, registerNotificationActions, ACTION_DONE, ACTION_TOMORROW, ACTION_SNOOZE, BANNER_SNOOZE_MIN } from "../shared/notifications";
+import { useConnectionStatus } from "../connections/useConnectionStatus";
+import { useConnectionAnnouncements, useIncidentLedger } from "../connections/useConnectionAnnouncements";
+import { bannerModels } from "../connections/incidentView";
 import { nowHHMM } from "../today/todayData";
 import { armTaskReminders } from "../tasks/armReminders";
 import type { LifeSegment } from "../life/LifeSegments";
@@ -104,7 +107,18 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
   const ai = useAI();
   // The admin switch for this account (Dave 2026-09-30): asked of the server on
   // mount and on every return to the foreground. See ai/useAdminAiGate.ts.
-  useAdminAiGate(useOptionalSession()?.access_token);
+  const session = useOptionalSession();
+  useAdminAiGate(session?.access_token);
+  // THE LOUD CONNECTION ANNOUNCEMENT (Foundation Fix Spec 3). The shell outlives every screen, so it is the one place that reads the
+  // proven status for the life of the session: it posts the one incident notification, takes it down on recovery, and marks the
+  // Email tab while a mailbox is lost. The Email and Today surfaces read the same ledger for their own banner and alert.
+  const connStatus = useConnectionStatus(session?.access_token, session?.user.id);
+  useConnectionAnnouncements(connStatus.answer?.accounts ?? null, session?.user.id);
+  const incidents = useIncidentLedger(session?.user.id);
+  // The notification's tap re-proves the status first, so the screen it opens is current and never the answer the banner was posted from.
+  const refreshStatus = useRef(connStatus.refresh);
+  refreshStatus.current = connStatus.refresh;
+  const tabWarn = connStatus.answer && bannerModels(connStatus.answer.accounts, incidents.ledger).length > 0 ? ["messages"] : [];
 
   const [tabKeys, setTabKeys] = useState<string[]>(DEFAULT_TABS);
   const [active, setActive] = useState<string>("today");
@@ -535,6 +549,8 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
         return;
       }
       if (tap.kind === "morning" || tap.kind === "evening") setActive("today");
+      // THE CONNECTION INCIDENT (Spec 3): the Email tab, where the banner is. It re-proves the status on arrival.
+      if (tap.kind === "connection") { void refreshStatus.current(true); setActive("messages"); }
     });
     // The intents' fire/clear are stable (shell/intents.ts) and setState is
     // stable, so the only real dependency here is the service identity, which
@@ -708,7 +724,7 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
             every once-per-open job (the sweep, the autopay roll, the spot,
             the Day Loop draft, Fresh Start, the mail dismissals) runs for
             the new day instead of yesterday's. See shell/useDayKey.ts. */}
-        {active === "today" && <TodayFlow key={dayKey} focusOpen={focusIntent.value === true} focusNonce={focusIntent.nonce} onFocusOpened={focusIntent.clear} onStartNow={(id) => jump(() => { startIntent.fire(id); goLife("tasks"); })} reminderOpenId={reminderIntent.value} reminderNonce={reminderIntent.nonce} onReminderOpened={reminderIntent.clear} onOpenEntity={(kind, id) => void navigateToEntity(kind, id)} onGoSchedule={() => jump(() => setActive("schedule"))} onGoTasks={() => jump(() => goLife("tasks"))} onGoTasksAll={() => jump(() => { goLife("tasks"); taskFilterIntent.fire("all"); })} onGoTasksOverdue={() => jump(() => { goLife("tasks"); taskFilterIntent.fire("overdue"); })} onSearch={() => setSearchOpen(true)} onProfile={() => { setMoreRoute("account"); setActive("more"); }} onEditRoutine={goToRoutine} onGoEmail={(threadId?: string, draftId?: string) => jump(() => { if (threadId) mailIntent.fire(threadId); else mailIntent.clear(); if (draftId) draftIntent.fire(draftId); else draftIntent.clear(); setActive("messages"); })} onGoEmailFocus={(focus) => jump(() => { emailFocusIntent.fire(focus); setActive("messages"); })} onOpenNote={navigateToNote} onOpenProject={(id) => void navigateToEntity("project", id)} onRestoreSpot={(kind, id) => { if (kind === "note") navigateToNote(id); else if (kind === "gym") { brainIntent.fire(id); gymIntent.fire(true); setActive("brain"); } else void navigateToEntity(kind, id); }}
+        {active === "today" && <TodayFlow key={dayKey} focusOpen={focusIntent.value === true} focusNonce={focusIntent.nonce} onFocusOpened={focusIntent.clear} onStartNow={(id) => jump(() => { startIntent.fire(id); goLife("tasks"); })} reminderOpenId={reminderIntent.value} reminderNonce={reminderIntent.nonce} onReminderOpened={reminderIntent.clear} onOpenEntity={(kind, id) => void navigateToEntity(kind, id)} onGoSchedule={() => jump(() => setActive("schedule"))} onGoTasks={() => jump(() => goLife("tasks"))} onGoTasksAll={() => jump(() => { goLife("tasks"); taskFilterIntent.fire("all"); })} onGoTasksOverdue={() => jump(() => { goLife("tasks"); taskFilterIntent.fire("overdue"); })} onSearch={() => setSearchOpen(true)} onProfile={() => { setMoreRoute("account"); setActive("more"); }} onEditRoutine={goToRoutine} onGoEmail={(threadId?: string, draftId?: string) => jump(() => { if (threadId) mailIntent.fire(threadId); else mailIntent.clear(); if (draftId) draftIntent.fire(draftId); else draftIntent.clear(); setActive("messages"); })} onGoEmailFocus={(focus) => jump(() => { emailFocusIntent.fire(focus); setActive("messages"); })} onGoConnections={() => jump(() => { setMoreRoute("connections"); setActive("more"); })} onOpenNote={navigateToNote} onOpenProject={(id) => void navigateToEntity("project", id)} onRestoreSpot={(kind, id) => { if (kind === "note") navigateToNote(id); else if (kind === "gym") { brainIntent.fire(id); gymIntent.fire(true); setActive("brain"); } else void navigateToEntity(kind, id); }}
           /* UP-MIND-24 (2026-09-05): the meeting line's two taps. Both go to
              screens that already answer the question: the person's own card
              for what is open, and Chat for what you told them. */
@@ -770,7 +786,7 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
           {/* BROWSER-F-12 moved VoiceBar out to showCapture above, so Chat's
               own composer is the only field on that screen. The tab bar is not
               the dock and stays either way. */}
-          <TabBar tabKeys={tabKeys} active={active === "brain" && areaFromLife && tabKeys.includes("life") ? "life" : active} onTab={(k) => {
+          <TabBar warn={tabWarn} tabKeys={tabKeys} active={active === "brain" && areaFromLife && tabKeys.includes("life") ? "life" : active} onTab={(k) => {
             // A tab tap is a fresh visit: anything still pending is cancelled
             // here. Each intent also clears itself the moment its own screen
             // consumes it (shell/intents.ts), so this is the belt, not the

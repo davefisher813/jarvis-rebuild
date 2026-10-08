@@ -25,10 +25,10 @@ async function searchOne(env: EmailEnv, userId: string, email: string, q: string
   if ("code" in account) return { email, failed: account.code };
   const tok = await mailboxToken(env, userId, email);
   if (!tok.ok) return { email, failed: tok.fail.code };
-  const a = await gmail(tok.accessToken, `/messages?q=${encodeURIComponent(q)}&maxResults=${SEARCH_PAGE}${page ? `&pageToken=${encodeURIComponent(page)}` : ""}`, { safeRead: true });
+  const a = await gmail(tok, `/messages?q=${encodeURIComponent(q)}&maxResults=${SEARCH_PAGE}${page ? `&pageToken=${encodeURIComponent(page)}` : ""}`, { safeRead: true });
   if (!a.ok) return { email, failed: gmailFail(a).code };
   const b = a.body as { messages?: { id: string }[]; nextPageToken?: string };
-  const metas = await fetchMetas(tok.accessToken, (b.messages ?? []).map((m) => m.id));
+  const metas = await fetchMetas(tok, (b.messages ?? []).map((m) => m.id));
   if (metas.failed) return { email, failed: metas.failed.code };
   const applied = await serviceRpc(env, "email_sync_apply", { p_owner: userId, p_account: account.id, p_messages: metas.rows, p_removed: metas.gone, p_cursor: null, p_advance: false });
   if (applied.error) return { email, failed: "UNAVAILABLE" };

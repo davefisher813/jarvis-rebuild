@@ -33,7 +33,7 @@ export default async function handler(req: Request): Promise<Response> {
 
   const tok = await mailboxToken(env, who.id, email);
   if (!tok.ok) return failResponse(tok.fail);
-  const a = await gmail(tok.accessToken, `/messages/${encodeURIComponent(body.id)}/attachments/${encodeURIComponent(body.attachmentId)}`, { safeRead: true });
+  const a = await gmail(tok, `/messages/${encodeURIComponent(body.id)}/attachments/${encodeURIComponent(body.attachmentId)}`, { safeRead: true });
   if (!a.ok) return failResponse(gmailFail(a));
   const got = a.body as { data?: string; size?: number };
   if (!got.data) return failResponse(fail("UNAVAILABLE"));

@@ -61,7 +61,7 @@ export default async function handler(req: Request): Promise<Response> {
 
   try {
     const { files, revoked, revokeFailed } = await deleteAccountEverywhere(
-      { url, serviceKey, ...(tokenKey ? { tokenKey } : {}) },
+      { url, serviceKey, ...(tokenKey ? { tokenKey } : {}), ...(process.env.GOOGLE_TOKEN_KEY_PREV ? { tokenKeyPrev: process.env.GOOGLE_TOKEN_KEY_PREV } : {}) },
       me.id,
       fetch as unknown as FetchLike,
     );

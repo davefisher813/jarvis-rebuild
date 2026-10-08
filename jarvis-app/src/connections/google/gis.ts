@@ -1,4 +1,5 @@
 import { GOOGLE_SCOPES, googleClientId } from "./config";
+import { ReconnectCancelled, ReconnectDenied } from "./reconnect";
 
 // Loads Google Identity Services and runs the OAuth token flow (PKCE, no client
 // secret). Browser-only; needs a configured client id and an authorized origin.
@@ -20,7 +21,8 @@ interface GoogleGlobal {
       ux_mode: "popup";
       login_hint?: string;
       prompt?: string;
-      callback: (r: { code?: string; error?: string }) => void;
+      state?: string;
+      callback: (r: { code?: string; error?: string; state?: string }) => void;
       // Google calls this instead of `callback` when the popup never got as far
       // as an answer: closed by the person, or blocked by the browser.
       error_callback?: (e: { type?: string }) => void;
@@ -48,7 +50,10 @@ function loadGis(): Promise<void> {
 
 // Multi-account (2026-08-04): loginHint re-authorizes a KNOWN account without
 // the chooser; selectAccount forces the chooser so a NEW account can be added.
-export interface TokenOpts { loginHint?: string; selectAccount?: boolean }
+//
+// Spec 4 (one-tap reconnect): `reconnect` names the account being reconnected and turns on the guarded flow (the broker asks the
+// server for a signed, ten-minute `state` first); `state` is that value, carried to Google and checked when it comes back.
+export interface TokenOpts { loginHint?: string; selectAccount?: boolean; reconnect?: string; state?: string }
 
 // Persistent sign-in (2026-08-04): the CODE flow. The popup returns a one-time
 // code the server exchanges for tokens, including the refresh token that keeps
@@ -67,12 +72,20 @@ export async function requestGoogleCode(opts: TokenOpts = {}): Promise<string> {
       ux_mode: "popup",
       ...(opts.loginHint ? { login_hint: opts.loginHint } : {}),
       prompt: opts.selectAccount ? "select_account consent" : "consent",
-      callback: (r) => (r.code ? resolve(r.code) : reject(new Error(r.error || "No authorization code"))),
+      ...(opts.state ? { state: opts.state } : {}),
+      callback: (r) => {
+        // A state that does not come back as it left is not our sign-in (the same guard the native flow has).
+        if (opts.state && r.state !== opts.state) return reject(new Error("That sign-in did not match this one"));
+        if (r.code) return resolve(r.code);
+        // Backing out on Google's own screen is the person's choice and is silent; any other refusal is Google's, with its reason.
+        if (opts.reconnect && r.error) return reject(r.error === "access_denied" ? new ReconnectCancelled() : new ReconnectDenied(r.error));
+        reject(new Error(r.error || "No authorization code"));
+      },
       // 2026-09-12: a closed popup calls neither callback, so without this the
       // promise never settled and Connections sat on "Connecting..." with every
       // chip disabled until a reload. Same words the native flow uses for the
       // same act (nativeAuth.ts: a person backing out is not an error).
-      error_callback: (e) => reject(new Error(e?.type === "popup_closed" ? "Sign-in cancelled" : "Could not open Google sign-in")),
+      error_callback: (e) => reject(e?.type === "popup_closed" ? new ReconnectCancelled() : new Error("Could not open Google sign-in")),
     });
     client.requestCode();
   });

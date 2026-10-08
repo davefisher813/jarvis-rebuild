@@ -95,6 +95,8 @@ async function stubWorld(w: Partial<World>) {
     if (url.includes("/storage/v1/object/")) return world.storage(u.pathname);
     if (url.includes("gmail.googleapis.com/gmail/v1/users/me/messages/send")) return world.gmailSend();
     if (url.includes("gmail.googleapis.com/gmail/v1/users/me/messages?")) return world.search ?? res({ messages: [] });
+    // The token lifecycle functions (migration 0057) are not applied in this world: no cache, no lock, no DEAD mark.
+    if (url.includes("/rest/v1/rpc/google_")) return res({}, 404);
     throw new Error("unexpected " + method + " " + url);
   });
   vi.stubGlobal("fetch", f);
@@ -129,7 +131,8 @@ describe("POST /api/email/send", () => {
     expect(approve.body).toEqual({ p_draft: DRAFT, p_review_nonce: NONCE, p_shown_payload_hash: HASH, p_idempotency_key: "req-1" });
     expect(rpc("outbox_claim_action")[0]).toMatchObject({ p_action: ACT });
     expect(rpc("outbox_claim").length).toBe(0);
-    expect(calls.map((c) => c.url).filter((u) => u.includes("/rest/v1/rpc/")).map((u) => u.split("/rpc/")[1]))
+    // The send's own database calls, in order. The token lifecycle's (google_*) are its own: a lock and a recorded refresh, not the send's.
+    expect(calls.map((c) => c.url).filter((u) => u.includes("/rest/v1/rpc/")).map((u) => u.split("/rpc/")[1]!).filter((n) => !n.startsWith("google_")))
       .toEqual(["send_approve", "outbox_sweep", "outbox_claim_action", "outbox_dispatched", "outbox_settle", "draft_outcome", "draft_get"]);
     const g = gmailSends();
     expect(g.length).toBe(1);

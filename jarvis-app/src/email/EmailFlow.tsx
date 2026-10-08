@@ -35,6 +35,7 @@ import { usePushDepth } from "../shared/pushNav";
 import { showToast } from "../shared/toast";
 import { supabase } from "../auth/supabaseClient";
 import { useOptionalSession } from "../auth/AuthProvider";
+import { useConnectionStatus } from "../connections/useConnectionStatus";
 import { useOptionalCategories, useOptionalLedger, useFileStore, useStore, useUserId } from "../data/NotesProvider";
 import { failure, lineFor, newRequestId, type CommandFailure } from "../substrate/commands/errors";
 import { cancelCommand } from "../substrate/commands/sends";
@@ -67,6 +68,11 @@ import ComposeScreen, { type ComposeStart } from "./ComposeScreen";
 import SendReviewScreen from "./SendReviewScreen";
 import SendOutcomeScreen from "./SendOutcomeScreen";
 import DraftsScreen from "./DraftsScreen";
+import ConnectionBanner from "./ConnectionBanner";
+import { useReconnect } from "./useReconnect";
+import { useOptionalGoogle } from "../connections/google/GoogleSession";
+import { useIncidentLedger } from "../connections/useConnectionAnnouncements";
+import { bannerModels, recoveryNotes } from "../connections/incidentView";
 import { emptyFields, fieldsOf, getDraft, newLocalKey, outcomeOf, reconcileSend, replyFields, saveDraft, sendApproved, type DraftFields, type DraftRow, type LocalDraft, type Review } from "./drafts";
 import WaitingList, { type WaitingView } from "./WaitingList";
 import WaitingDetail, { type FollowUpStart } from "./WaitingDetail";
@@ -528,7 +534,26 @@ export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModul
   const groups = useMemo(() => dayGroups(visible, now), [visible, now]);
   const live = accounts.filter((a) => a.state !== "disconnected");
   const labels = live.length > 1 ? accountLabels(live.map((a) => a.address)) : {};
-  const reauth = accounts.some((a) => a.state === "reauth");
+  // THE ONE STATUS (Foundation Fix Spec 1). Whether a mailbox needs reconnecting comes from the proven status, not from the
+  // cache row's own state: the two used to disagree. The row's state is only the answer until the first proof arrives.
+  const conn = useConnectionStatus(token, token ? userId : null);
+  // THE LOUD BANNER (Foundation Fix Spec 3). While an incident is open it replaces the quieter notes below: the banner is the one
+  // statement of the failure, and it carries the reconnect and the other two ways out itself.
+  const incidents = useIncidentLedger(token ? userId : null);
+  const banners = conn.answer ? bannerModels(conn.answer.accounts, incidents.ledger) : [];
+  const recovery = conn.answer ? recoveryNotes(conn.answer.accounts, incidents.ledger) : [];
+  // ONE-TAP RECONNECT (Foundation Fix Spec 4): the banner's button opens Google for the exact account, and the server proves the
+  // result before anything shows green. Without a Google session in this build it goes where it always went, to Connections.
+  const google = useOptionalGoogle();
+  const reconnect = useReconnect({
+    token, reconnect: google ? google.reconnect : null, knownEmails: accounts.map((a) => a.address),
+    refreshStatus: conn.refresh, catchUp: () => load("refresh"), fallback: onOpenConnections,
+  });
+  const reauth = banners.length === 0 && (conn.answer ? conn.needsReconnect : accounts.some((a) => a.state === "reauth"));
+  // Anything short of connected that is not a reconnect: an outage, a throttle, a stale answer. It says what it is and offers nothing to tap.
+  const statusNote = banners.length === 0 && conn.worst && !conn.worst.view.offerReconnect && conn.worst.view.state !== "offline"
+    ? conn.worst.view.headline + (conn.worst.view.detail ? " · " + conn.worst.view.detail : "")
+    : null;
   const accountOf = (row: InboxRow) => accounts.find((a) => a.id === row.account_id) ?? null;
 
   // ---- waiting (slice 08) ---------------------------------------------------
@@ -686,7 +711,7 @@ export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModul
   }
   if (screen.kind === "accounts") {
     return <div className={pushCls}>
-      <AccountsScreen accounts={accounts} onBack={() => setScreen({ kind: "root" })} onOpenConnections={onOpenConnections} onOpenDrafts={client ? () => setScreen({ kind: "drafts" }) : undefined} />
+      <AccountsScreen accounts={accounts} views={conn.views} onBack={() => setScreen({ kind: "root" })} onOpenConnections={onOpenConnections} onOpenDrafts={client ? () => setScreen({ kind: "drafts" }) : undefined} />
     </div>;
   }
   if (screen.kind === "waiting" && client) {
@@ -769,7 +794,9 @@ export default function EmailFlow({ onOpenConnections, onOpenEntity, onOpenModul
 
       <div className={"email-pull" + (armed || refreshing ? " on" : "")} aria-hidden="true">{refreshing ? REFRESHING : PULL_HINT}</div>
       {offline && <div className="email-note quiet"><span>{OFFLINE_LINE}</span></div>}
+      <ConnectionBanner models={banners} notes={recovery} onReconnect={(email) => void reconnect.start(email)} busyEmail={reconnect.busy} outcome={reconnect.outcome} checking={reconnect.checking} onOutcomeAction={reconnect.act} {...(client ? { onViewPaused: () => setScreen({ kind: "drafts" }) } : {})} onAcknowledge={incidents.acknowledge} onSeen={incidents.seen} />
       {reauth && <div className="email-note"><span>{REAUTH_LINE}</span><button className="quiet-action" onClick={onOpenConnections}>{RECONNECT}</button></div>}
+      {statusNote && <div className="email-note quiet"><span>{statusNote}</span></div>}
       {issueLines.map((l) => <div className="email-note quiet" key={l}><span>{l}</span></div>)}
       {error && rows.length > 0 && <div className="email-note quiet"><span>{REFRESH_FAILED}</span><button className="quiet-action" onClick={() => void load("refresh")}>{RETRY}</button></div>}
 

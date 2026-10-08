@@ -5,6 +5,7 @@
 // celebration primitive) on top of the ring pop.
 import type { CSSProperties } from "react";
 import { Burst } from "../shared/Burst";
+import { pressable } from "../shared/pressable";
 
 // TWO NUMBERS THAT MEAN TWO THINGS (Dave 2026-08-29: the ring said 7/12
 // twenty pixels under a line saying "16 Done today", and they never match).
@@ -19,15 +20,20 @@ import { Burst } from "../shared/Burst";
 // The arc is a CSS conic gradient driven by --pct, the one inline style the
 // laws allow because the arc is geometry. Same numbers, same scope, same
 // burst; only the drawing changed.
-export default function DayRing({ done, total }: { done: number; total: number }) {
+//
+// THE RING IS A DOOR (Dave 2026-10-06): given onOpen, a tap opens the day it
+// counts (today/DaySheet). The evening's copy inside How Today Went is a
+// receipt and takes none.
+export default function DayRing({ done, total, onOpen }: { done: number; total: number; onOpen?: () => void }) {
   if (total <= 0) return null;
   const full = done >= total;
   const pct = Math.round(Math.min(1, done / total) * 100);
   return (
     <div
       className={"dring" + (full ? " done" : "")}
-      role="img"
-      aria-label={`${done} of ${total} tasks due today are done`}
+      {...(onOpen ? {} : { role: "img" })}
+      aria-label={`${done} of ${total} tasks due today are done${onOpen ? ", open the list" : ""}`}
+      {...(onOpen ? pressable(onOpen) : {})}
       style={{ "--pct": `${pct}%` } as CSSProperties}
     >
       <div><b>{done}/{total}</b><span>done</span></div>

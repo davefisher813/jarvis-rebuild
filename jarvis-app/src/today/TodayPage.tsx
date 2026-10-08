@@ -24,6 +24,7 @@ import { Facts } from "../messages/factsLine";
 import MoveHeadliner, { SwipeShell } from "./MoveHeadliner";
 import { TodayPeek } from "./usePeekOnce";
 import SwipeTip from "../shared/SwipeTip";
+import { pressable } from "../shared/pressable";
 import RowCtxAction from "../shared/RowCtxAction";
 import RowActionSheet from "../shared/RowActionSheet";
 import HeadMore from "../shared/HeadMore";
@@ -237,6 +238,7 @@ export default function TodayPage({
   moveEstimate,
   moveReason,
   onTomorrowMove,
+  onOpenRing,
   fifteen,
   onFifteenDone,
   onFifteenAgain,
@@ -371,6 +373,8 @@ export default function TodayPage({
   moveReason?: string | null;
   /** Books the dealt task into a named open slot tomorrow. */
   onTomorrowMove?: () => void;
+  /** The day ring is a door onto the day it counts (2026-10-06). */
+  onOpenRing?: () => void;
   /** THE FIFTEEN, WHILE IT RUNS (2026-09-16). Present only while a block
    *  started from Start is running or has just run out. `line` is the clock
    *  ("14:32 Left") or the fact that it is up; `over` says which. */
@@ -872,14 +876,17 @@ export default function TodayPage({
                 : dateLong}
             </div>
             <div className="today-title">{greeting}</div>
-            <div className="today-summary">{evening ? <Facts facts={eveningFacts(evening, movedLine)} /> : parts}</div>
+            {/* THE EVENING'S HEADER IS THE DOOR TOO (Dave 2026-10-06, on the live build: the header said "8 Done Today" as plain text
+                and a tap did nothing). In the evening the ring is gone from the hero (it lives inside How Today Went), so this
+                line is what he sees and what he taps: it opens the same sheet of the day the ring does. */}
+            <div className="today-summary" {...(evening && onOpenRing ? { ...pressable(onOpenRing), "aria-label": "Open today’s tasks" } : {})}>{evening ? <Facts facts={eveningFacts(evening, movedLine)} /> : parts}</div>
             {/* Weather Fact (addendum item 4): the morning line. Threshold-
                 gated; a mild day renders nothing here. */}
             <MorningWeatherLine todayIso={localISODate()} />
           </div>
           {/* C-23 (Astra, 2026-09-12): in the evening the ring lives inside
               How Today Went below and nowhere else, so the hero copy goes. */}
-          {ring && !evening && <DayRing done={ring.done} total={ring.total} />}
+          {ring && !evening && <DayRing done={ring.done} total={ring.total} onOpen={onOpenRing} />}
         </div>
       </div>
       <div ref={condProbe} />

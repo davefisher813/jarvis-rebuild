@@ -19,6 +19,8 @@
 // gone are unreachable by anyone, which is the same as keeping someone's data
 // forever after telling them it was erased.
 
+import { openSecret, type KeyRing, type SecretScope } from "../connections/google/tokenEnvelope";
+
 export interface ServiceCtx {
   /** Supabase project URL, e.g. https://xyz.supabase.co */
   url: string;
@@ -29,6 +31,8 @@ export interface ServiceCtx {
       with Google; the deletion still happens and says how many it could not
       revoke rather than pretending. */
   tokenKey?: string;
+  /** The key GOOGLE_TOKEN_KEY replaced (Spec 2 key rotation): tokens sealed under it still open, so they can still be revoked. */
+  tokenKeyPrev?: string;
 }
 
 export interface FetchResponse {
@@ -148,22 +152,27 @@ export async function revokeGoogleGrants(
   ctx: ServiceCtx,
   userId: string,
   doFetch: FetchLike,
-  decryptFn: (packedB64: string, secretB64: string) => Promise<string> = decryptToken,
+  decryptFn?: (packedB64: string, secretB64: string, scope: SecretScope) => Promise<string>,
 ): Promise<{ revoked: number; failed: number }> {
   if (!ctx.tokenKey) return { revoked: 0, failed: 0 };
+  const ring: KeyRing = { current: ctx.tokenKey, ...(ctx.tokenKeyPrev ? { previous: ctx.tokenKeyPrev } : {}) };
+  // A stored token is an envelope now (Spec 2), bound to its user and address, or the original format; this opens either.
+  const open = decryptFn ?? ((packed: string, _secret: string, scope: SecretScope) => openSecret(packed, ring, scope));
   const r = await doFetch(
-    `${ctx.url}/rest/v1/google_tokens?user_id=eq.${encodeURIComponent(userId)}&select=token_enc`,
+    `${ctx.url}/rest/v1/google_tokens?user_id=eq.${encodeURIComponent(userId)}&select=email,token_enc`,
     { headers: headers(ctx) },
   );
   // No table, no rows, no problem: this account never connected Google.
   if (!r.ok) return { revoked: 0, failed: 0 };
-  const rows = ((await r.json()) as { token_enc?: string }[]) || [];
+  const rows = ((await r.json()) as { email?: string; token_enc?: string }[]) || [];
   let revoked = 0;
   let failed = 0;
   for (const row of rows) {
     if (!row?.token_enc) continue;
     try {
-      const refresh = await decryptFn(row.token_enc, ctx.tokenKey);
+      const plain = await open(row.token_enc, ctx.tokenKey, { userId, email: row.email ?? "", kind: "refresh" });
+      // A token the phone's native sign-in stored carries an "ios:" tag of ours, which Google has never heard of.
+      const refresh = plain.startsWith("ios:") ? plain.slice(4) : plain;
       const rev = await doFetch(GOOGLE_REVOKE_URL, {
         method: "POST",
         headers: { "content-type": "application/x-www-form-urlencoded" },
@@ -175,17 +184,6 @@ export async function revokeGoogleGrants(
     }
   }
   return { revoked, failed };
-}
-
-// The same AES-GCM unpacking api/google.ts does when it mints a token: a
-// 12-byte iv followed by the ciphertext, base64. It lives here rather than in
-// api/ because api/ is in neither the typecheck nor the test run.
-export async function decryptToken(packedB64: string, secretB64: string): Promise<string> {
-  const raw = Uint8Array.from(atob(secretB64), (c) => c.charCodeAt(0));
-  const packed = Uint8Array.from(atob(packedB64), (c) => c.charCodeAt(0));
-  const key = await crypto.subtle.importKey("raw", raw, "AES-GCM", false, ["decrypt"]);
-  const plain = await crypto.subtle.decrypt({ name: "AES-GCM", iv: packed.slice(0, 12) }, key, packed.slice(12));
-  return new TextDecoder().decode(plain);
 }
 
 export async function deleteOwnedRows(ctx: ServiceCtx, userId: string, doFetch: FetchLike): Promise<void> {

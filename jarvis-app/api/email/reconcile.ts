@@ -39,7 +39,7 @@ export default async function handler(req: Request): Promise<Response> {
   const exact = ob.payload;
   const mid = String(exact?.client_message_id ?? "");
   if (!mid) return json({ ok: true, state: "outcome_unknown", found: false });
-  const a = await gmail(tok.accessToken, `/messages?q=${encodeURIComponent("rfc822msgid:" + mid.replace(/^<|>$/g, ""))}&maxResults=1`, { safeRead: true });
+  const a = await gmail(tok, `/messages?q=${encodeURIComponent("rfc822msgid:" + mid.replace(/^<|>$/g, ""))}&maxResults=1`, { safeRead: true });
   if (!a.ok) return failResponse(gmailFail(a));
   const hit = ((a.body as { messages?: Array<{ id: string; threadId?: string }> } | null)?.messages ?? [])[0];
   if (!hit) return json({ ok: true, state: "outcome_unknown", found: false, checked_at: new Date().toISOString() });

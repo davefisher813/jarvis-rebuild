@@ -304,8 +304,9 @@ describe("E24: manual capture, with every AI off", () => {
     expect(r.calls.find((c) => c.fn === "candidate_edit")!.args).toMatchObject({ p_candidate: manual.id, p_user_fields: ["title"], p_missing: [] });
     expect(r.world.items[0]).toMatchObject({ entity_type: "task", data: { text: "Review the expense summary", done: false } });
     expect(toasts.some((t) => t.message === "Added to Tasks · Review the expense summary")).toBe(true);
-    // No model, no network beyond the email routes.
-    expect(r.posts.every((u) => u.includes("/api/email/"))).toBe(true);
+    // No model, no network beyond the email routes. The connection status read (Foundation Fix Spec 1) is the one other door
+    // the Email tab opens: read-only, no body, no mail, and it carries no model.
+    expect(r.posts.every((u) => u.includes("/api/email/") || u.includes("/api/connections/status"))).toBe(true);
     expect(r.posts.some((u) => u.includes("/api/ai"))).toBe(false);
   });
 

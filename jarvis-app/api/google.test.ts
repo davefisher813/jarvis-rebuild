@@ -31,6 +31,9 @@ function stubNetwork(overrides: Route[] = []) {
     if (url.includes("oauth2.googleapis.com/token")) return res({ access_token: "at-1", refresh_token: "1//new", expires_in: 3599, scope: "s1 s2" });
     if (url.includes("gmail.googleapis.com/gmail/v1/users/me/profile")) return res({ emailAddress: "Dave@Gmail.com" });
     if (url.includes("/rest/v1/google_tokens")) return res([], 200);
+    // THIS FILE IS THE WORLD BEFORE MIGRATION 0057: the lifecycle's functions answer 404, so the handler degrades to no cache, no lock,
+    // no DEAD mark, and deletes nothing. The migrated world is held in lifecycle.test.ts.
+    if (url.includes("/rest/v1/rpc/")) return res({}, 404);
     throw new Error("unexpected " + url);
   });
   vi.stubGlobal("fetch", f);
@@ -145,8 +148,8 @@ describe("connect: durable means stored", () => {
     expect(exchange.get("client_secret")).toBeNull();
     // The stored value is encrypted, and decrypts to the tagged token.
     const stored = JSON.parse(calls.find((c) => isRest(c.url) && c.method === "POST")!.body!) as { token_enc: string };
-    const { decrypt } = await import("./_google");
-    expect(await decrypt(stored.token_enc, KEY)).toBe(IOS_TAG + "1//new");
+    const { openSecret } = await import("../src/connections/google/tokenEnvelope");
+    expect(await openSecret(stored.token_enc, { current: KEY }, { userId: USER, email: EMAIL, kind: "refresh" })).toBe(IOS_TAG + "1//new");
   });
 
   it("refuses a native verifier when the iOS client is not configured", async () => {
@@ -173,17 +176,18 @@ describe("refresh: four causes, four codes", () => {
     expect(json).toMatchObject({ code: "GOOGLE_STORED_SIGNIN_UNREADABLE", message: `The saved Google sign-in couldn't be opened. Reconnect ${EMAIL}.` });
   });
 
-  it("invalid_grant is a revoked sign-in and forgets the row", async () => {
+  it("invalid_grant is a revoked sign-in, asked of Google ONCE, and the row is KEPT (it used to be deleted)", async () => {
     const enc = await stored();
     stubNetwork([
       (u, i) => (isRest(u) && (i?.method ?? "GET") === "GET" ? res([{ token_enc: enc }]) : undefined),
-      (u, i) => (isRest(u) && i?.method === "DELETE" ? res({}, 204) : undefined),
       (u) => (u.includes("oauth2.googleapis.com/token") ? res({ error: "invalid_grant" }, 400) : undefined),
     ]);
     const { status, json } = await send({ refresh: EMAIL });
     expect(status).toBe(410);
     expect(json).toMatchObject({ code: "GOOGLE_SIGNIN_REVOKED", message: `Google revoked this sign-in. Reconnect ${EMAIL}.` });
-    expect(calls.some((c) => isRest(c.url) && c.method === "DELETE")).toBe(true);
+    // Kept for audit: nothing is ever deleted on a failure. A revoked grant is terminal, so Google is not asked a second time.
+    expect(calls.some((c) => isRest(c.url) && c.method === "DELETE")).toBe(false);
+    expect(calls.filter((c) => c.url.includes("oauth2.googleapis.com/token"))).toHaveLength(1);
   });
 
   it("any other provider error is temporary, retryable, and forgets nothing", async () => {
@@ -278,7 +282,7 @@ describe("JARVIS auth", () => {
 describe("forget", () => {
   it("deletes the row, and says so honestly when it could not", async () => {
     stubNetwork([(u, i) => (isRest(u) && i?.method === "DELETE" ? res({}, 204) : undefined)]);
-    expect((await send({ forget: EMAIL })).json).toEqual({ ok: true });
+    expect((await send({ forget: EMAIL })).json).toEqual({ ok: true, revokedAtGoogle: false });
     stubNetwork([(u, i) => (isRest(u) && i?.method === "DELETE" ? res({}, 500) : undefined)]);
     expect((await send({ forget: EMAIL })).json).toMatchObject({ code: "GOOGLE_STORAGE_FAILURE" });
   });

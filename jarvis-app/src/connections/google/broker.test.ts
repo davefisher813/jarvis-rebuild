@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { describe, it, expect, vi } from "vitest";
 import { serverBroker, googleFailure, interactiveHelps, SERVER_CODES, SESSION_CODES, GoogleSessionError, type GoogleFailureCode } from "./broker";
 import { GOOGLE_CODES, googleFailure as serverFailure } from "../../../api/_google";
@@ -152,5 +153,94 @@ describe("serverBroker forget and errors", () => {
     const e = new GoogleSessionError(googleFailure("GOOGLE_NETWORK_ERROR", "a@x.com", 0));
     expect(e).toMatchObject({ code: "GOOGLE_NETWORK_ERROR", retryable: true, status: 0 });
     expect(e.message).toContain("Couldn't reach Google");
+  });
+});
+
+// ONE-TAP RECONNECT AT THE BROKER (Foundation Fix Spec 4): the server's attempt first, its state to Google and back,
+// the server's verdict after, and the three ways a flow can end without a token.
+import { ReconnectCancelled, ReconnectDenied, ReconnectOutcomeError, readPending } from "./reconnect";
+
+describe("serverBroker authorize, reconnecting", () => {
+  const sent: Array<Record<string, unknown>> = [];
+  const script = (answers: Array<{ status: number; body: unknown }>): Fetch => (async (_u: string, init?: RequestInit) => {
+    sent.push(JSON.parse(String(init?.body)) as Record<string, unknown>);
+    const a = answers.shift() ?? { status: 200, body: {} };
+    return { ok: a.status < 400, status: a.status, json: async () => a.body };
+  }) as unknown as Fetch;
+
+  it("asks the server to start the attempt BEFORE anything opens, takes its state to Google's code step, and sends it back with the code", async () => {
+    sent.length = 0; localStorage.clear();
+    const b = broker(script([
+      { status: 200, body: { state: "rc1.s.s", loginHint: "dave@gmail.com", expiresAt: 1 } },
+      { status: 200, body: { accessToken: "tok", email: "dave@gmail.com", expiresIn: 3000, remembered: true, reconnect: { status: "verified" } } },
+    ]));
+    const r = await b.authorize({ loginHint: "dave@gmail.com", reconnect: "dave@gmail.com" });
+    expect(sent[0]).toEqual({ reconnectStart: "dave@gmail.com" });
+    expect(sent[1]).toMatchObject({ code: "code-1", state: "rc1.s.s" });
+    expect(r).toMatchObject({ token: "tok", email: "dave@gmail.com", remembered: true });
+    // Finished: the device has nothing left that says it is waiting on Google.
+    expect(readPending()).toBeNull();
+  });
+
+  it("a plain connect (no reconnect) never starts an attempt and sends no state", async () => {
+    sent.length = 0;
+    await broker(script([{ status: 200, body: { accessToken: "t", email: "a@x.com", remembered: true } }])).authorize({});
+    expect(sent).toHaveLength(1);
+    expect(sent[0]).toEqual({ code: "code-1" });
+  });
+
+  it("the wrong Google account arrives as an outcome with both addresses, and no token", async () => {
+    localStorage.clear();
+    const b = broker(script([
+      { status: 200, body: { state: "rc1.s.s" } },
+      { status: 409, body: { code: "RECONNECT_WRONG_ACCOUNT", reconnect: { status: "wrong_account", intended: "dave@gmail.com", selected: "other@gmail.com" } } },
+    ]));
+    const err = await b.authorize({ reconnect: "dave@gmail.com" }).catch((e) => e);
+    expect(err).toBeInstanceOf(ReconnectOutcomeError);
+    expect(err).toMatchObject({ status: "wrong_account", intended: "dave@gmail.com", selected: "other@gmail.com" });
+    expect(readPending()).toBeNull();
+  });
+
+  it("no usable refresh token is its own outcome", async () => {
+    const b = broker(script([{ status: 200, body: { state: "s" } }, { status: 409, body: { reconnect: { status: "needs_step", intended: "dave@gmail.com" } } }]));
+    expect(await b.authorize({ reconnect: "dave@gmail.com" }).catch((e) => e)).toMatchObject({ status: "needs_step" });
+  });
+
+  it("the server being unable to start an attempt is a typed failure, and Google is never opened", async () => {
+    const b = broker(script([{ status: 410, body: { code: "GOOGLE_NO_STORED_SIGNIN", message: "m" } }]));
+    expect(await b.authorize({ reconnect: "dave@gmail.com" }).catch((e) => e)).toBeInstanceOf(GoogleSessionError);
+  });
+});
+
+describe("serverBroker authorize, reconnecting: the window closes or Google refuses", () => {
+  it("closing the window is reported to the server as cancelled and leaves nothing pending", async () => {
+    vi.resetModules();
+    const calls: Array<Record<string, unknown>> = [];
+    vi.doMock("./gis", () => ({ requestGoogleCode: async () => { const { ReconnectCancelled: C } = await import("./reconnect"); throw new C(); } }));
+    vi.doMock("./nativeAuth", () => ({ nativeGoogleAvailable: () => false, requestGoogleCodeNative: async () => ({ code: "", verifier: "", redirectUri: "" }) }));
+    const { serverBroker: sb } = await import("./broker");
+    const rc = await import("./reconnect");
+    localStorage.clear();
+    const f = (async (_u: string, init?: RequestInit) => { const b = JSON.parse(String(init?.body)) as Record<string, unknown>; calls.push(b); return { ok: true, status: 200, json: async () => ("reconnectStart" in b ? { state: "rc1.s.s" } : { ok: true }) }; }) as unknown as Fetch;
+    const err = await sb(() => "t", f, () => NOW).authorize({ reconnect: "dave@gmail.com" }).catch((e) => e);
+    expect(err).toBeInstanceOf(rc.ReconnectCancelled);
+    expect(calls[1]).toEqual({ reconnectReport: { state: "rc1.s.s", outcome: "cancelled" } });
+    expect(rc.readPending()).toBeNull();
+    vi.doUnmock("./gis"); vi.doUnmock("./nativeAuth");
+  });
+
+  it("Google refusing is reported with its reason, and is not the same as closing", async () => {
+    vi.resetModules();
+    const calls: Array<Record<string, unknown>> = [];
+    vi.doMock("./gis", () => ({ requestGoogleCode: async () => { const { ReconnectDenied: D } = await import("./reconnect"); throw new D("admin_policy_enforced"); } }));
+    vi.doMock("./nativeAuth", () => ({ nativeGoogleAvailable: () => false, requestGoogleCodeNative: async () => ({ code: "", verifier: "", redirectUri: "" }) }));
+    const { serverBroker: sb } = await import("./broker");
+    const rc = await import("./reconnect");
+    const f = (async (_u: string, init?: RequestInit) => { const b = JSON.parse(String(init?.body)) as Record<string, unknown>; calls.push(b); return { ok: true, status: 200, json: async () => ("reconnectStart" in b ? { state: "rc1.s.s" } : { ok: true }) }; }) as unknown as Fetch;
+    const err = await sb(() => "t", f, () => NOW).authorize({ reconnect: "dave@gmail.com" }).catch((e) => e);
+    expect(err).toBeInstanceOf(rc.ReconnectDenied);
+    expect(calls[1]).toEqual({ reconnectReport: { state: "rc1.s.s", outcome: "denied", reason: "admin_policy_enforced" } });
+    vi.doUnmock("./gis"); vi.doUnmock("./nativeAuth");
+    void ReconnectCancelled; void ReconnectDenied;
   });
 });

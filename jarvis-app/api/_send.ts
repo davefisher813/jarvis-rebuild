@@ -110,7 +110,7 @@ export function dispatchFor(env: EmailEnv, deps: { now?: () => Date; doFetch?: t
     const acct = (await serviceSelect<{ id: string; address: string; state: string }>(env, "email_account", `id=eq.${cmd.provider_account_id}&owner_id=eq.${cmd.owner_id}&select=id,address,state`))?.[0];
     if (!acct || acct.state !== "connected") return refused("PROVIDER_AUTH");
     if (acct.address.toLowerCase() !== String(exact.from_identity).toLowerCase() || acct.id !== exact.account_id) return refused("REVIEW_CHANGED");
-    const tok = await mailboxToken(env, cmd.owner_id, acct.address);
+    const tok = await mailboxToken(env, cmd.owner_id, acct.address, "send");
     if (!tok.ok) {
       if (tok.reauth) await serviceRpc(env, "email_account_state", { p_owner: cmd.owner_id, p_account: acct.id, p_state: "reauth", p_error: tok.fail.safe_message });
       return refused(tok.reauth ? "PROVIDER_AUTH" : "UNAVAILABLE");
