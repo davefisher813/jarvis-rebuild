@@ -1,5 +1,10 @@
 # Email v1: Phase 0 map (spec 2026-10-08 vs the code on main)
 
+> **Update, same day.** The map below was read against `183871c`. While it was being written, the Foundation Fix specs 1 to 5 landed on main (one connection status proven by a live Gmail read, the unified token lifecycle that keeps a dead grant instead of deleting it, loud connection announcements held in a device ledger, a server-owned reconnect that rejects the wrong account, a daily token keep-alive cron, migrations 0056 to 0058). That work supersedes the connection rows below that say a revoked grant deletes the credential, that a repeat upsert hides a broken account, and that a reconnect to the wrong account is accepted (AC37, AC38 in part). Still open after it, and now planned: sync honesty (a window that is "caught up" only when covered, quota 403 not read as reconnect, history cursor not moved past an unread page), a server-side incident ledger with the 15-minute phone alert, the 90-day crawl, the 30-second send hold and its worker, and everything outside the connection area.
+>
+> Migration numbers: main now runs to 0058 (0055 is `0055_money_ledger`). New Email migrations start at 0059. Production also carries a stray, unused 0055_email_connection_truth from a closed attempt: eight additive columns on `email_account` and five unused functions, with every function the app calls restored to its original body.
+
+
 Generated 2026-10-08 from eight read-only readers, one per spec area. Status is what the reader found in the code at `183871c`. `met` means code plus a test or clear mechanism; everything else is work. Sizes: S under a day, M a few days, L a week or more of build.
 
 Authority: `JARVIS-Email-Build-Spec-2026-10-08.md`, trimmed by `Email-v1-Trim-Decisions-2026-10-08.md`. Five locked decisions are not negotiable.

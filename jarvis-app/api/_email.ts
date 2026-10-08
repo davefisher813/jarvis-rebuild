@@ -217,8 +217,29 @@ async function gmailOnce(accessToken: string, path: string, init: { method?: str
   return last;
 }
 
+const QUOTA_REASONS = new Set(["rateLimitExceeded", "userRateLimitExceeded", "quotaExceeded", "dailyLimitExceeded", "limitExceeded", "RESOURCE_EXHAUSTED"]);
+
+/** The reasons in a Gmail error body (error.status, error.errors[].reason, error.details[].reason). Never throws. */
+export function gmailReasons(body: unknown): string[] {
+  const out: string[] = [];
+  const e = (body as { error?: { status?: unknown; errors?: unknown; details?: unknown } } | null)?.error;
+  if (!e || typeof e !== "object") return out;
+  if (typeof e.status === "string") out.push(e.status);
+  for (const list of [e.errors, e.details]) {
+    if (!Array.isArray(list)) continue;
+    for (const x of list) {
+      const r = (x as { reason?: unknown } | null)?.reason;
+      if (typeof r === "string") out.push(r);
+    }
+  }
+  return out;
+}
+
 /** Gmail's refusals as the vocabulary's codes. */
 export function gmailFail(a: GmailAnswer): Fail {
+  // Gmail answers a quota or rate problem with a 403 too. Read the reason: a quota is "wait", never "reconnect" (Email spec
+  // AC41). Any other 403, and a 401, still means the grant.
+  if (a.status === 403 && gmailReasons(a.body).some((r) => QUOTA_REASONS.has(r))) return fail("RATE_LIMITED", a.retryAfter ?? 30);
   if (a.status === 401 || a.status === 403) return fail("PROVIDER_AUTH");
   if (a.status === 429) return fail("RATE_LIMITED", a.retryAfter ?? 5);
   if (a.status === 404) return fail("NOT_FOUND");
