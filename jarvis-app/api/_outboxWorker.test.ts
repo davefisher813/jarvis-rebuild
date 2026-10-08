@@ -1,10 +1,10 @@
-// THE SCHEDULED SEND WORKER OVER A FAKE GMAIL AND A FAKE SUPABASE (Email v1, migration 0059). The real handler runs; the
+// THE SCHEDULED SEND WORKER OVER A FAKE GMAIL AND A FAKE SUPABASE (Email v1, migration 0059). The real send handler runs; the
 // network is a recorder. What these hold: a call without the vault's token does nothing at all; a call with it sweeps,
 // claims whatever the database hands back (the database, not this route, refuses a held or expired one), settles the
 // draft from the settled command, and sends exactly once.
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import handler from "./outbox";
-import { encrypt } from "../_google";
+import sendHandler from "./email/send";
+import { encrypt } from "./_google";
 
 const KEY = Buffer.alloc(32, 7).toString("base64");
 const USER = "11111111-1111-4111-8111-111111111111";
@@ -48,7 +48,7 @@ async function world(o: { tokenOk?: boolean; claims?: Array<Record<string, unkno
   return { claim };
 }
 
-const post = (token: string | null, method = "POST") => new Request("https://x.test/api/cron/outbox", { method, headers: token ? { authorization: `Bearer ${token}` } : {} });
+const post = (token: string | null, method = "POST") => new Request("https://x.test/api/email/send", { method, headers: { "x-jarvis-worker": "outbox", ...(token ? { authorization: `Bearer ${token}` } : {}) } });
 beforeEach(() => {
   vi.stubEnv("VITE_GOOGLE_CLIENT_ID", "web.apps.googleusercontent.com");
   vi.stubEnv("GOOGLE_CLIENT_SECRET", "shh");
@@ -59,11 +59,11 @@ beforeEach(() => {
 });
 afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs(); });
 
-describe("POST /api/cron/outbox", () => {
+describe("the scheduled worker (POST /api/email/send with x-jarvis-worker: outbox)", () => {
   it("refuses everything without the vault's token: no sweep, no claim, no send", async () => {
     await world();
     for (const req of [post(null), post("wrong"), post("good", "GET")]) {
-      const r = await handler(req);
+      const r = await sendHandler(req);
       expect([401, 405]).toContain(r.status);
     }
     expect(rpcs("outbox_sweep")).toEqual([]);
@@ -73,13 +73,13 @@ describe("POST /api/cron/outbox", () => {
 
   it("a database that cannot vouch for the token (no vault yet) is a refusal too", async () => {
     await world({ tokenOk: false });
-    expect((await handler(post("good"))).status).toBe(401);
+    expect((await sendHandler(post("good"))).status).toBe(401);
     expect(rpcs("outbox_claim")).toEqual([]);
   });
 
   it("with the token and nothing due: sweeps once, asks once, sends nothing", async () => {
     await world({ claims: [null] });
-    const r = await handler(post("good"));
+    const r = await sendHandler(post("good"));
     expect(r.status).toBe(200);
     expect(await r.json()).toEqual({ handled: 0, confirmed: 0, failed: 0, unknown: 0, skipped: 0, lease_lost: 0 });
     expect(rpcs("outbox_sweep").length).toBe(1);
@@ -89,7 +89,7 @@ describe("POST /api/cron/outbox", () => {
 
   it("a command past its hold is carried out once, settled, and the draft follows", async () => {
     await world({ claims: ["claim" as never, null] });
-    const r = await handler(post("good"));
+    const r = await sendHandler(post("good"));
     expect(await r.json()).toMatchObject({ handled: 1, confirmed: 1 });
     expect(calls.filter((c) => c.url.includes("messages/send")).length).toBe(1);
     expect(rpcs("outbox_dispatched").length).toBe(1);
@@ -99,7 +99,7 @@ describe("POST /api/cron/outbox", () => {
 
   it("a command the database skips (a deadline passed) sends nothing and its draft is looked up from the outbox id", async () => {
     await world({ claims: [{ skipped: OB, reason: "HOLD_EXPIRED" }, null], settled: "cancelled" });
-    const r = await handler(post("good"));
+    const r = await sendHandler(post("good"));
     expect(await r.json()).toMatchObject({ handled: 1, skipped: 1, confirmed: 0 });
     expect(calls.some((c) => c.url.includes("messages/send"))).toBe(false);
     expect(rpcs("outbox_dispatched")).toEqual([]);
@@ -107,7 +107,7 @@ describe("POST /api/cron/outbox", () => {
 
   it("is bounded: at most five commands per call", async () => {
     await world({ claims: ["claim", "claim", "claim", "claim", "claim", "claim", "claim"] as never });
-    const r = await handler(post("good"));
+    const r = await sendHandler(post("good"));
     expect((await r.json() as { handled: number }).handled).toBe(5);
     expect(rpcs("outbox_claim").length).toBe(5);
   });

@@ -88,8 +88,24 @@ export function reviewSend(client: RpcClient, draftId: string, expectedRevision:
 
 export type Outcome = "confirmed" | "failed" | "outcome_unknown" | "pending" | string;
 export interface SendAnswer { ok: true; action_id: string; replay: boolean; outcome: Outcome; provider_message_id: string | null; draft: DraftRow | null }
-export const sendApproved = (token: string | null | undefined, body: { draft_id: string; review_nonce: string; shown_payload_hash: string; request_id: string }, doFetch?: Fetch) =>
-  apiPost<SendAnswer>("/api/email/send", body, token, doFetch);
+export const sendApproved = (token: string | null | undefined, body: { draft_id: string; review_nonce: string; shown_payload_hash: string; request_id: string; hold?: true }, doFetch?: Fetch) =>
+  apiPost<SendAnswer | HeldAnswer>("/api/email/send", body, token, doFetch);
+/** The answer to a tap made with hold:true (migration 0059): approved and HELD on the server, nothing sent yet. The three times are the server's. */
+export interface HeldAnswer { ok: true; held: true; action_id: string; replay: boolean; hold_until: string; dispatch_deadline: string; server_now: string; outbox_state: string | null; draft: DraftRow | null }
+export const isHeld = (a: SendAnswer | HeldAnswer): a is HeldAnswer => "held" in a && a.held === true;
+/** What a held command is doing now (send_hold_status): its state, the times, the server's clock, and the draft. */
+export interface HoldStatus {
+  action_id: string;
+  state: "queued" | "claimed" | "dispatched" | "confirmed" | "failed" | "outcome_unknown" | "cancelled" | "reviewed";
+  error_code: string | null;
+  hold_until: string | null;
+  dispatch_deadline: string | null;
+  server_now: string;
+  draft_id: string | null;
+  draft_state: SendState | null;
+  provider_message_id: string | null;
+}
+export const holdStatus = (client: RpcClient, actionId: string): Promise<CommandResult<HoldStatus>> => callCommand<HoldStatus>(client, "send_hold_status", { p_action: actionId });
 export interface ReconcileAnswer { ok: true; state: string; found: boolean | null; provider_message_id?: string; draft?: DraftRow | null; checked_at?: string }
 export const reconcileSend = (token: string | null | undefined, actionId: string, doFetch?: Fetch) =>
   apiPost<ReconcileAnswer>("/api/email/reconcile", { action_id: actionId }, token, doFetch);

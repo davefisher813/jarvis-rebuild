@@ -9,22 +9,40 @@
 // cancels it as HOLD_EXPIRED and frees the draft), or send twice (the claim fence plus the one-way dispatched mark). A
 // provider call that may have left is OUTCOME UNKNOWN and is never retried here (the worker's rule).
 //
-// POST only, and only with the bearer secret held in Postgres' vault: the route asks the database whether the token is the
+// It lives behind POST /api/email/send with the header `x-jarvis-worker: outbox` (api/email/send.ts hands the request here)
+// and NOT as a route of its own: the host plan caps how many API files a deployment may hold, and a 31st one failed the
+// build (2026-10-08). An underscore file is a module, not a function.
+//
+// POST only, and only with the bearer secret held in Postgres' vault: the worker asks the database whether the token is the
 // one (outbox_cron_ok), so no secret lives in an env var, in a log or in the repo. With no secret set, or a wrong one, it
 // refuses and does nothing. It answers counts, never an address, never a token, never mail.
-export const config = { runtime: "edge" };
 
-import { fail, failResponse, json, readEnv, serviceRpc, serviceSelect } from "../_email";
-import { dispatchFor } from "../_send";
-import { runOutboxOnce, type WorkerDeps, type WorkerResult } from "../../src/substrate/outbox/worker";
-import { settleDraft } from "../email/send";
+import { fail, failResponse, json, readEnv, serviceRpc, serviceSelect, type EmailEnv } from "./_email";
+import { dispatchFor } from "./_send";
+import { runOutboxOnce, type WorkerDeps, type WorkerResult } from "../src/substrate/outbox/worker";
+
+/** The header that routes a request to the worker instead of the person's send. */
+export const WORKER_HEADER = "x-jarvis-worker";
+
+interface OutboxRow { id: string; state: string; error_code: string | null; provider_ack: { message_id?: string } | null }
+
+/** The draft's outcome from the outbox row the worker settled: sent, failed (a cancelled or refused command too), or unknown. */
+export async function settleDraft(env: EmailEnv, actionId: string): Promise<{ state: string; provider_message_id: string | null } | null> {
+  const ob = (await serviceSelect<OutboxRow>(env, "outbox_command", `action_id=eq.${actionId}&select=id,state,error_code,provider_ack`))?.[0];
+  if (!ob) return null;
+  const state = ob.state === "confirmed" ? "confirmed" : ob.state === "outcome_unknown" ? "outcome_unknown" : ob.state === "failed" || ob.state === "cancelled" ? "failed" : null;
+  if (!state) return { state: ob.state, provider_message_id: null };
+  const id = state === "confirmed" ? ob.provider_ack?.message_id ?? null : null;
+  await serviceRpc(env, "draft_outcome", { p_action: actionId, p_state: state, p_provider_message_id: id });
+  return { state, provider_message_id: id };
+}
 
 /** Commands carried out per call. A call is short; the next tick takes the next ones. */
 export const MAX_PER_CALL = 5;
 /** The edge function's own budget: stop starting new commands after this. */
 export const BUDGET_MS = 20_000;
 
-export default async function handler(req: Request): Promise<Response> {
+export async function runOutboxWorker(req: Request): Promise<Response> {
   if (req.method !== "POST") return json({ code: "METHOD_NOT_ALLOWED" }, 405, { allow: "POST" });
   const env = readEnv();
   if (!env) return failResponse(fail("UNAVAILABLE"));

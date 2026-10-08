@@ -3,7 +3,7 @@
 // land on main inert and be switched on per deploy. Unset means every flagged
 // surface is off and the app is exactly what it was.
 
-export const FLAGS = ["substrate_v1", "email_intake_v1", "verified_agent_adapters"] as const;
+export const FLAGS = ["substrate_v1", "email_intake_v1", "verified_agent_adapters", "email_hold_v1"] as const;
 export type Flag = (typeof FLAGS)[number];
 
 export function parseFlags(raw: string | undefined): ReadonlySet<Flag> {

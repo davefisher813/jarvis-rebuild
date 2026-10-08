@@ -212,6 +212,15 @@ export const EMPTY_BODY_WARN = "Empty Message";
 export const REVIEW_EXPIRED = "Approval Expired · Review It Again";
 export const REVIEW_AGAIN = "Review Again";
 export const SENDING_LINE = "Sending";
+// Email v1, the 30-second hold (Dave's locked decision 4). One duration; "Not Sent Yet" stays until Gmail has it.
+export const HELD_TITLE = "Waiting to Send";
+export const PREPARING_LINE = "Preparing to Send";
+export const UNDO_SEND = "Undo";
+export const UNDO_TOO_LATE = "Already Sending · Checking the Result";
+export const UNDO_UNCONFIRMED = "Undo Not Confirmed · Reconnect to Check";
+export const HOLD_FIRST_USE = "Sends After 30 Seconds, Even If You Close JARVIS";
+export const HOLD_WINDOW = "30-Second Undo Window";
+export const UNDONE_LINE = "Not Sent · Back in Your Drafts";
 export const SENT_TITLE = "Sent";
 export const NOT_SENT_TITLE = "Not Sent";
 export const UNKNOWN_TITLE = "Send Status Unknown";

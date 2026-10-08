@@ -7,27 +7,40 @@
 // the approval dies with the edit. A review lives five minutes; after that the
 // tap is Review Again. Shut while offline; nothing is queued.
 
+import { useState } from "react";
 import PageHeader from "../shared/PageHeader";
 import { lineFor, type CommandFailure } from "../substrate/commands/errors";
 import {
   APPROVAL_SCOPE, ATTACHMENTS_LABEL, BCC_LABEL, CC_LABEL, EDIT_MESSAGE, EMPTY_BODY_WARN, EMPTY_SUBJECT_WARN, FROM_LABEL, NOT_SENT_YET, OFFLINE_SEND, REVIEW_AGAIN, REVIEW_EXPIRED,
-  REVIEW_TITLE, SENDING_LINE, SEND_THIS, SUBJECT_LABEL, TO_LABEL, COMPOSE_TITLE,
+  REVIEW_TITLE, SENDING_LINE, SEND_THIS, HOLD_FIRST_USE, HOLD_WINDOW, SUBJECT_LABEL, TO_LABEL, COMPOSE_TITLE,
 } from "./copy";
 import { sizeLine } from "./format";
 import EmailFacts from "./EmailFacts";
 import { reviewExpired, type Review } from "./drafts";
 
-export default function SendReviewScreen({ review, offline, now, sending, failure, onEdit, onSend, onReviewAgain }: {
+/** Read once per review screen, so the line does not flip from the long form to the short one while it is on screen. */
+function holdNoteOnce(): string {
+  try {
+    if (localStorage.getItem("jarvis.email.holdSeen") === "1") return HOLD_WINDOW;
+    localStorage.setItem("jarvis.email.holdSeen", "1");
+  } catch { /* storage blocked: say the full promise every time rather than hide it */ }
+  return HOLD_FIRST_USE;
+}
+
+export default function SendReviewScreen({ review, offline, now, sending, failure, hold, onEdit, onSend, onReviewAgain }: {
   review: Review;
   offline: boolean;
   now: () => Date;
   sending: boolean;
   /** The last tap's refusal, shown on this screen with the draft intact. */
   failure: CommandFailure | null;
+  /** Email v1: the 30-second hold is on. Said above Send: the full promise the first time, the short reminder after. */
+  hold?: boolean;
   onEdit: () => void;
   onSend: () => void;
   onReviewAgain: () => void;
 }) {
+  const [holdNote] = useState<string | null>(() => (hold ? holdNoteOnce() : null));
   const e = review.exact;
   const expired = reviewExpired(review.review.expires_at, now());
   const refusedForGood = failure && (failure.code === "REVIEW_CHANGED" || failure.code === "APPROVAL_EXPIRED" || failure.code === "DRAFT_SENT" || failure.code === "NOT_FOUND");
@@ -57,6 +70,7 @@ export default function SendReviewScreen({ review, offline, now, sending, failur
         </div>
       </div>
       <div className="email-note quiet"><span>{APPROVAL_SCOPE}</span></div>
+      {holdNote && <div className="email-note quiet"><span>{holdNote}</span></div>}
       {expired && <div className="email-note"><span>{REVIEW_EXPIRED}</span></div>}
       {failure && <div className="pad-x"><div className="input-error" role="alert">{lineFor(failure)}</div></div>}
       {offline && <div className="email-note quiet"><span>{OFFLINE_SEND}</span></div>}
