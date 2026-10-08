@@ -7,7 +7,7 @@
 // look in Gmail. Nothing here sends.
 export const config = { runtime: "edge" };
 
-import { authedUser, bearerOf, failResponse, fail, gmail, gmailFail, json, mailboxToken, readEnv, readBody, serviceRpc, serviceSelect, userRpc } from "../_email";
+import { authedUser, bearerOf, failResponse, fail, gmail, gmailFail, json, mailboxToken, readEnv, readBody, recordAccountFailure, serviceRpc, serviceSelect, userRpc } from "../_email";
 import { verbOf } from "../_send";
 import type { ExactSend } from "../_mime";
 
@@ -33,7 +33,7 @@ export default async function handler(req: Request): Promise<Response> {
   if (!acct) return failResponse(fail("NOT_FOUND"));
   const tok = await mailboxToken(env, who.id, acct.address);
   if (!tok.ok) {
-    if (tok.reauth) await serviceRpc(env, "email_account_state", { p_owner: who.id, p_account: acct.id, p_state: "reauth", p_error: tok.fail.safe_message });
+    await recordAccountFailure(env, who.id, acct.id, tok.fail);
     return failResponse(tok.fail);
   }
   const exact = ob.payload;

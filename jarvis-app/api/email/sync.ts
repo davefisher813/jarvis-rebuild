@@ -15,14 +15,16 @@
 // inference, no cards.
 export const config = { runtime: "edge" };
 
-import { authedUser, ensureAccount, failResponse, fail, fetchMetas, gmail, gmailFail, isEmail, json, mailboxToken, readEnv, readBody, serviceRpc, META_FIELDS, type EmailEnv, type Fail } from "../_email";
+import { authedUser, ensureAccount, failResponse, fail, fetchMetas, gmail, gmailFail, isEmail, json, mailboxToken, readEnv, readBody, recordAccountFailure, serviceRpc, META_FIELDS, type EmailEnv, type Fail } from "../_email";
 
 export const INBOX_PAGE = 30;
 
 interface Body extends Record<string, unknown> { email?: unknown; page?: unknown }
 
+// A failure is recorded by KIND (0055): a revoked grant or a missing scope touches authorization, a storage fault is
+// its own state, and a quota or a network blip only makes sync stale. None of the last three can open a reconnect prompt.
 async function recordFailure(env: EmailEnv, userId: string, accountId: string, f: Fail): Promise<void> {
-  await serviceRpc(env, "email_sync_failed", { p_owner: userId, p_account: accountId, p_error: f.safe_message, p_reauth: f.code === "PROVIDER_AUTH" });
+  await recordAccountFailure(env, userId, accountId, f);
 }
 
 async function listPage(token: string, pageToken?: string): Promise<{ ids: string[]; next?: string } | Fail> {
@@ -67,6 +69,7 @@ export default async function handler(req: Request): Promise<Response> {
     let historyId: string | undefined;
     let pageToken: string | undefined;
     let expired = false;
+    let truncated = false;
     for (let i = 0; i < 20; i++) {
       const a = await gmail(tok.accessToken, `/history?startHistoryId=${encodeURIComponent(account.cursor)}&labelId=INBOX&maxResults=500${pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : ""}`, { safeRead: true });
       if (a.status === 404) { expired = true; break; }
@@ -81,14 +84,20 @@ export default async function handler(req: Request): Promise<Response> {
       historyId = b.historyId ?? historyId;
       pageToken = b.nextPageToken;
       if (!pageToken) break;
+      // The loop is bounded. If Gmail still has pages after the last one, what we saw is applied but the cursor must
+      // NOT move to it, or the changes in the unread pages would be skipped for good (AC40).
+      if (i === 19) truncated = true;
     }
     if (!expired) {
       const metas = await fetchMetas(tok.accessToken, [...changed]);
       if (metas.failed) { await recordFailure(env, who.id, account.id, metas.failed); return failResponse(metas.failed); }
-      const applied = await serviceRpc(env, "email_sync_apply", { p_owner: who.id, p_account: account.id, p_messages: metas.rows, p_removed: [...removed, ...metas.gone], p_cursor: historyId ?? account.cursor, p_advance: true });
+      // "Current" is only true when the cache already covered its declared window and this read reached the end of the
+      // history. A truncated read, or an account still catching up, stays catching_up (AC39, AC40).
+      const complete = !truncated && account.sync_state === "current";
+      const applied = await serviceRpc(env, "email_sync_commit", { p_owner: who.id, p_account: account.id, p_messages: metas.rows, p_removed: [...removed, ...metas.gone], p_cursor: truncated ? null : (historyId ?? account.cursor), p_advance: true, p_complete: complete });
       if (applied.error) return failResponse(fail("UNAVAILABLE"));
       const r = applied.data as { last_sync_at?: string } | null;
-      return json({ ok: true, synced: metas.rows.length, removed: removed.size + metas.gone.length, next_page: null, complete: false, resynced: false, last_sync_at: r?.last_sync_at ?? null });
+      return json({ ok: true, synced: metas.rows.length, removed: removed.size + metas.gone.length, next_page: null, complete: false, resynced: false, truncated, last_sync_at: r?.last_sync_at ?? null });
     }
     resynced = true;
   }
@@ -102,7 +111,8 @@ export default async function handler(req: Request): Promise<Response> {
   if ("code" in listed) { await recordFailure(env, who.id, account.id, listed); return failResponse(listed); }
   const metas = await fetchMetas(tok.accessToken, listed.ids);
   if (metas.failed) { await recordFailure(env, who.id, account.id, metas.failed); return failResponse(metas.failed); }
-  const applied = await serviceRpc(env, "email_sync_apply", { p_owner: who.id, p_account: account.id, p_messages: metas.rows, p_removed: metas.gone, p_cursor: historyId, p_advance: true });
+  // The first page of the inbox is not the declared window: catching_up, never current, until the worker has walked it.
+  const applied = await serviceRpc(env, "email_sync_commit", { p_owner: who.id, p_account: account.id, p_messages: metas.rows, p_removed: metas.gone, p_cursor: historyId, p_advance: true, p_complete: false });
   if (applied.error) return failResponse(fail("UNAVAILABLE"));
   const r = applied.data as { last_sync_at?: string } | null;
   return json({ ok: true, synced: metas.rows.length, removed: metas.gone.length, next_page: listed.next ?? null, complete: !listed.next, resynced, last_sync_at: r?.last_sync_at ?? null });

@@ -26,10 +26,13 @@ export default async function handler(req: Request): Promise<Response> {
     if (!r.error) mirrored.push(email);
   }
   // Rows whose sign-in is gone: disconnected, cache and approved records kept.
-  const existing = await serviceSelect<{ id: string; address: string; state: string }>(env, "email_account", `owner_id=eq.${who.id}&select=id,address,state`);
+  // A revoked grant deletes its stored sign-in but is NOT a forgotten account: it stays reauth_required, with its cached
+  // mail and drafts, until the person reconnects or forgets it (0055). Only a row that is still "connected" yet has no
+  // sign-in at all (the person forgot it somewhere that did not tell us) is closed here.
+  const existing = await serviceSelect<{ id: string; address: string; state: string; auth_state: string }>(env, "email_account", `owner_id=eq.${who.id}&select=id,address,state,auth_state`);
   const disconnected: string[] = [];
   for (const row of existing ?? []) {
-    if (!emails.has(row.address) && row.state !== "disconnected") {
+    if (!emails.has(row.address) && row.state !== "disconnected" && row.auth_state !== "reauth_required" && row.auth_state !== "paused_by_user") {
       const r = await serviceRpc(env, "email_account_state", { p_owner: who.id, p_account: row.id, p_state: "disconnected", p_error: null });
       if (!r.error) disconnected.push(row.address);
     }
